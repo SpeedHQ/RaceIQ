@@ -133,9 +133,10 @@ export async function processTelemetryBatch(gameId: GameId, frames: readonly Tel
       if (time < 10) return false;
       engine.trimRunningStartPackets();
       const pitReason = mergePitCycleReason(asPitCycleReason(s.currentPitCycleReason), policy.classifyPitCycle(s.lapBuffer, s.completedLapCount));
-      const q = assessLapRecording(s.lapBuffer, time, { closed: !pitReason });
+      const detectedCategory = classifyLapCategory(s.lapBuffer, pitReason, undefined, true);
+      const q = assessLapRecording(s.lapBuffer, time, { closed: !pitReason && detectedCategory !== "grid_start" });
       const policyReason = policy.invalidReason?.(s.lapBuffer, s.completedLapCount) ?? null;
-      const classification = policyReason === "incomplete" ? null : classifyLapCategory(s.lapBuffer, pitReason, undefined, q.valid);
+      const classification = policyReason === "incomplete" || (detectedCategory === "pace" && !q.valid) ? null : detectedCategory;
       const reason = s.invalidReason ?? policyReason ?? (!q.valid ? q.reason : null);
       push(s.session!.sessionKey, s.lapNumber, time, s.lapBuffer, s.lapIsValid && !policyReason && q.valid, reason, s.lapByteOffset, s.lapByteOffset === null ? 0 : s.lapFrameCount, true, classification);
       return true;
@@ -149,9 +150,10 @@ export async function processTelemetryBatch(gameId: GameId, frames: readonly Tel
       if (time < 10) return;
       if (complete) engine.trimRunningStartPackets();
       const pitReason = complete ? mergePitCycleReason(asPitCycleReason(s.currentPitCycleReason), policy.classifyPitCycle(s.lapBuffer, s.completedLapCount)) : null;
-      const q = complete ? assessLapRecording(s.lapBuffer, time, { closed: !pitReason }) : { valid: false, reason: "incomplete at end of input" };
+      const detectedCategory = complete ? classifyLapCategory(s.lapBuffer, pitReason, undefined, true) : null;
+      const q = complete ? assessLapRecording(s.lapBuffer, time, { closed: !pitReason && detectedCategory !== "grid_start" }) : { valid: false, reason: "incomplete at end of input" };
       const policyReason = complete ? policy.invalidReason?.(s.lapBuffer, s.completedLapCount) ?? null : null;
-      const classification = complete && policyReason !== "incomplete" ? classifyLapCategory(s.lapBuffer, pitReason, undefined, q.valid) : null;
+      const classification = policyReason === "incomplete" || (detectedCategory === "pace" && !q.valid) ? null : detectedCategory;
       const reason = s.invalidReason ?? policyReason ?? (q.valid ? null : q.reason);
       push(s.session!.sessionKey, s.lapNumber, time, s.lapBuffer, complete && s.lapIsValid && !policyReason && q.valid, reason, s.lapByteOffset, s.lapByteOffset === null ? 0 : s.lapFrameCount, complete, classification);
     },

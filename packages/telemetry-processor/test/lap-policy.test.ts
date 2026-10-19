@@ -39,6 +39,10 @@ describe("portable lap policies", () => {
     const exactClosure = clean.map((item, index) => ({ ...item, PositionX: index === 29 ? 20 : 0 }));
     expect(assessLapRecording(exactClosure, 58)).toEqual({ valid: true, reason: null });
 
+    expect(assessLapRecording(far, 58, { closed: false })).toEqual({ valid: true, reason: null });
+    expect(assessLapRecording(far.map((item) => ({ ...item, DistanceTraveled: 0 })), 58, { closed: false }))
+      .toEqual({ valid: false, reason: "telemetry distance too short" });
+
     const laterLap = clean.map((item) => ({ ...item, DistanceTraveled: item.DistanceTraveled + 15_000 }));
     expect(assessLapRecording(laterLap, 58)).toEqual({ valid: true, reason: null });
 

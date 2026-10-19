@@ -9,6 +9,53 @@ import { ACEVO_PACKED_MAGIC, ACC_PACKED_MAGIC, packTriplet } from "@raceiq/captu
 import { iterateSessionCaptureRecords } from "@raceiq/capture-formats/session/framing";
 import { readIRacingFrames } from "@raceiq/capture-formats/iracing/dump";
 import { readLMUFrames } from "@raceiq/capture-formats/lmu/dump";
+import { F1_HEADER_SIZE, F1_PACKET_IDS } from "@raceiq/capture-formats/f1-2025/f1-wire";
+
+function standingStartFrames(options: { startEvidence?: boolean; distanceScale?: number; duration?: number } = {}): TelemetryBatchInput[] {
+  let sequence = 0;
+  const frames: TelemetryBatchInput[] = [{ type: "segment-context" }];
+  const add = (id: number, time: number, body: Buffer) => {
+    const data = Buffer.alloc(F1_HEADER_SIZE + body.length);
+    data.writeUInt16LE(2025, 0);
+    data[2] = 25; data[3] = 1; data[5] = 1; data[6] = id;
+    data.writeBigUInt64LE(1n, 7);
+    data.writeFloatLE(time, 15);
+    data.writeUInt32LE(++sequence, 19);
+    data.writeUInt32LE(sequence, 23);
+    data[28] = 255;
+    body.copy(data, F1_HEADER_SIZE);
+    frames.push({ data, rawByteOffset: sequence * 100 });
+  };
+  const session = Buffer.alloc(125);
+  session[6] = 15;
+  session.writeUInt16LE(3000, 4);
+  const lap = Buffer.alloc(57);
+  lap[33] = 1;
+  add(F1_PACKET_IDS.MOTION, 0, Buffer.alloc(60));
+  add(F1_PACKET_IDS.SESSION, 0, session);
+  add(F1_PACKET_IDS.LAP_DATA, 0, lap);
+  add(F1_PACKET_IDS.CAR_TELEMETRY, 0, Buffer.alloc(60));
+  if (options.startEvidence !== false) {
+    add(F1_PACKET_IDS.EVENT, 0.01, Buffer.from("STLG\x05", "ascii"));
+    add(F1_PACKET_IDS.EVENT, 0.02, Buffer.from("LGOT", "ascii"));
+  }
+  frames.push({ type: "segment-context-end" });
+  for (let second = 0; second <= 60; second++) {
+    const motion = Buffer.alloc(60);
+    motion.writeFloatLE(-50 * (1 - second / 60), 0);
+    add(F1_PACKET_IDS.MOTION, second + 1, motion);
+    const sample = Buffer.from(lap);
+    sample.writeUInt32LE(second * 1000, 4);
+    sample.writeFloatLE(second * (options.distanceScale ?? 50), 20);
+    add(F1_PACKET_IDS.LAP_DATA, second + 1, sample);
+  }
+  const boundary = Buffer.from(lap);
+  boundary[33] = 2;
+  boundary.writeUInt32LE((options.duration ?? 60) * 1000, 0);
+  boundary.writeFloatLE(3050, 24);
+  add(F1_PACKET_IDS.LAP_DATA, 62, boundary);
+  return frames;
+}
 function forzaFrame(lap: number, currentLap: number, lastLap: number, distance: number): Buffer {
   const data = Buffer.alloc(331);
   data.writeInt32LE(1, 0);
@@ -60,6 +107,16 @@ function sessionFixtureInputs(path: string): TelemetryBatchInput[] {
 }
 
 describe("processTelemetryBatch", () => {
+  test("native standing starts relax only closure, not distance or timing quality", async () => {
+    const clean = await processTelemetryBatch("f1-2025", standingStartFrames());
+    expect(clean.laps[0]).toMatchObject({ classification: "grid_start", valid: true, invalidReason: null });
+    const unknown = await processTelemetryBatch("f1-2025", standingStartFrames({ startEvidence: false }));
+    expect(unknown.laps[0]).toMatchObject({ classification: null, valid: false, invalidReason: "start/end positions too far apart" });
+    const short = await processTelemetryBatch("f1-2025", standingStartFrames({ distanceScale: 1 }));
+    expect(short.laps[0]).toMatchObject({ classification: "grid_start", valid: false, invalidReason: "telemetry distance too short" });
+    const mistimed = await processTelemetryBatch("f1-2025", standingStartFrames({ duration: 70 }));
+    expect(mistimed.laps[0]).toMatchObject({ classification: "grid_start", valid: false, invalidReason: "telemetry lap time mismatch" });
+  });
   test("parses committed FM race capture through session and lap transitions", async () => {
     const frames = udpFixtureFrames(resolve(import.meta.dir, "../../../test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz"));
     expect(frames).toHaveLength(11_912);

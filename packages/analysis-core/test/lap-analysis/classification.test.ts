@@ -66,6 +66,14 @@ describe("native lap category evidence", () => {
     expect(classifyLapCategory([f1Packet(1), f1Packet(2), boundary], null, boundary, true)).toBe("pace");
   });
 
+  test.each(["acc", "ac-evo"] as const)("%s next-lap yellow cannot remove completed green pace evidence", (gameId) => {
+    const owned = [pacePacket(gameId), pacePacket(gameId)];
+    const boundary = pacePacket(gameId);
+    boundary.acc!.flagStatus = "yellow";
+    expect(classifyLapCategory([...owned, boundary], null, boundary, true)).toBe("pace");
+    expect(classifyLapCategory([boundary, pacePacket(gameId)], null, undefined, true)).toBe("caution");
+  });
+
   test("a source-backed standing start outranks pit and caution evidence", () => {
     expect(classifyLapCategory([
       f1Packet(1, { sessionType: "race", raceStartAt: 1, vehicleFIAFlags: 3 }),

@@ -9,6 +9,11 @@
 - Simplify session timelines into compact circles with single-word event labels, starting positions, and arrows showing the new position.
 
 ### Fixes
+- Leave MoTeC imports unchanged during historical lap-classification upgrades.
+- Retry updated native recordings instead of retaining an obsolete classification failure.
+- Keep next-lap yellow flags from changing the completed lap's pace classification.
+- Show an empty analysis state when a session has no eligible pace laps; explicitly selected non-pace laps remain available.
+- Preserve valid standing-start laps without weakening distance or timing checks.
 - Correct F1 25 race, time-trial, and sprint-qualifying session types, and recover mislabeled session metadata from existing recordings during result reprocessing.
 - Classify F1 sprint-shootout sessions as qualifying on dashboards.
 - Complete lap-classification upgrades when recordings contain known incomplete laps.
@@ -16,7 +21,7 @@
 - Show in-laps as Pit nodes in session timelines, retaining recorded pit-stop details without duplicate nodes.
 - Show known incomplete laps as Incomplete instead of Unclassified in session lap tables.
 - Recognize normal pace laps in every supported game, including Forza Motorsport, iRacing, and Le Mans Ultimate, and reassess existing recordings automatically.
-- Classify ACC teleports to the pits as Reset rather than ordinary in-laps, and exclude them from pace statistics.
+- Classify ACC teleports to the pits as Reset rather than ordinary in-laps in both live capture and imported recordings, and exclude them from pace statistics.
 - Keep valid pit-cycle laps valid while excluding non-pace laps from live lap and sector bests.
 - Mark LMU's pit-started opening lap incomplete instead of treating it as a valid in-lap.
 - Preserve F1 race-start evidence when loading individual recorded laps.

@@ -75,6 +75,32 @@ describe("LiveTelemetryPipeline track calibration integration", () => {
     }
   });
 });
+test.each([true, false])("live standing-start closure exemption requires positive evidence: %s", async (confirmedStart) => {
+  const db = new CapturingDbAdapter();
+  const pipeline = new LiveTelemetryPipeline(db, new CapturingWsAdapter(), {
+    bypassPacketRateFilter: true, skipHistorySeeding: true, skipDevState: true,
+    recorder: new NullSessionRecorderAdapter(),
+  });
+  for (let second = 0; second <= 61; second++) {
+    const boundary = second === 61;
+    await pipeline.processPacket({
+      ...packet("f1-2025", second * 50),
+      TimestampMS: second * 1000,
+      CurrentRaceTime: second,
+      CurrentLap: boundary ? 0 : second,
+      LastLap: boundary ? 60 : 0,
+      LapNumber: boundary ? 2 : 1,
+      PositionX: boundary ? 0 : -50 * (1 - second / 60),
+      PositionZ: 0,
+      f1: { sessionType: "race", ...(confirmedStart ? { raceStartAt: 0 } : {}) },
+    } as TelemetryPacket);
+  }
+  expect(db.laps).toHaveLength(1);
+  expect(db.laps[0]).toMatchObject(confirmedStart
+    ? { classification: "grid_start", isValid: true, invalidReason: null }
+    : { classification: null, isValid: false, invalidReason: "start/end positions too far apart" });
+});
+
 describe("LiveTelemetryPipeline pace reference integration", () => {
   test("non-pace laps do not seed references or sector bests, while valid-lap wear remains independent", () => {
     const pipeline = new LiveTelemetryPipeline(new CapturingDbAdapter(), new CapturingWsAdapter(), {

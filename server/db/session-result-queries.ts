@@ -71,6 +71,8 @@ export type PitEventInput = {
 async function markPitCycleLaps(sessionId: number, events: readonly PitEventInput[]): Promise<void> {
   const inlapNumbers = [...new Set(events.filter((event) => (event.eventType ?? "pit") === "pit" && event.linkage === "linked" && event.lapNumber !== null).map((event) => event.lapNumber!))];
   if (inlapNumbers.length === 0) return;
+  const session = await db.select({ source: sessions.source }).from(sessions).where(eq(sessions.id, sessionId)).get();
+  if (session?.source === "motec") return;
 
   // Pit-event inference supplements telemetry categories; it must not turn an
   // observed out-lap into an in-lap when event lap numbering is ambiguous.

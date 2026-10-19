@@ -64,7 +64,7 @@ export async function processNextClassificationRecording(): Promise<boolean> {
   try {
     await processClaimedRecording(candidate.recordingId, candidate.sourceKey, candidate.sourceRevision);
   } catch (error) {
-    await finish(candidate.recordingId, "failed", "processing_error");
+    await finish(candidate.recordingId, candidate.sourceRevision, "failed", "processing_error");
     throw error;
   }
   return true;
@@ -72,9 +72,9 @@ export async function processNextClassificationRecording(): Promise<boolean> {
 
 async function processClaimedRecording(recordingId: string, sourceKey: string, sourceRevision: number): Promise<void> {
   const sourcePath = sourceKey.startsWith("file:") ? sourceKey.slice(5) : null;
-  if (!sourcePath) return finish(recordingId, "limited", "missing_source");
+  if (!sourcePath) return finish(recordingId, sourceRevision, "limited", "missing_source");
   let sourceStat: Stats;
-  try { sourceStat = await stat(sourcePath); } catch { return finish(recordingId, "limited", "missing_source"); }
+  try { sourceStat = await stat(sourcePath); } catch { return finish(recordingId, sourceRevision, "limited", "missing_source", sourcePath); }
   const migrationMeta = await db.select({ cutoffSessionId: classificationMigrationMeta.cutoffSessionId })
     .from(classificationMigrationMeta).where(eq(classificationMigrationMeta.id, 1)).get();
   const existing = await db.select({
@@ -87,11 +87,11 @@ async function processClaimedRecording(recordingId: string, sourceKey: string, s
     eq(sessions.rawFile, sourcePath),
     lte(sessions.id, migrationMeta?.cutoffSessionId ?? 0),
   )).orderBy(sessions.id).all();
-  if (!existing.length) return finish(recordingId, "failed", "source_changed");
-  if (new Set(existing.map((session) => session.gameId)).size !== 1) return finish(recordingId, "failed", "ambiguous_match");
+  if (!existing.length) return finish(recordingId, sourceRevision, "failed", "source_changed", sourcePath, sourceStat);
+  if (new Set(existing.map((session) => session.gameId)).size !== 1) return finish(recordingId, sourceRevision, "failed", "ambiguous_match", sourcePath, sourceStat);
   const gameId = existing[0]!.gameId as GameId;
   let game;
-  try { game = getServerGame(gameId); } catch { return finish(recordingId, "limited", "insufficient_evidence"); }
+  try { game = getServerGame(gameId); } catch { return finish(recordingId, sourceRevision, "limited", "insufficient_evidence", sourcePath, sourceStat); }
   const capture = new CapturingDbAdapter();
   let detector = game.createLapDetector({ db: capture, bypassPacketRateFilter: true });
   let parserState: unknown = game.createParserState?.() ?? null;
@@ -161,11 +161,11 @@ async function processClaimedRecording(recordingId: string, sourceKey: string, s
     }
     await detector.flushIncompleteLap?.();
   } catch {
-    return finish(recordingId, "failed", "corrupt_source");
+    return finish(recordingId, sourceRevision, "failed", "corrupt_source", sourcePath, sourceStat);
   }
   const existingLaps = await db.select().from(laps).where(inArray(laps.sessionId, existing.map((session) => session.id))).all();
   const detected = capture.laps;
-  if (!existingLaps.length || !detected.length) return finish(recordingId, "limited", "insufficient_evidence");
+  if (!existingLaps.length || !detected.length) return finish(recordingId, sourceRevision, "limited", "insufficient_evidence", sourcePath, sourceStat);
   const used = new Set<number>();
   const capturedToStoredSession = new Map<number, number>();
   const changes: {
@@ -179,31 +179,33 @@ async function processClaimedRecording(recordingId: string, sourceKey: string, s
   }[] = [];
   for (const detectedLap of detected) {
     const capturedSession = capture.sessions[detectedLap.sessionId - 1];
-    if (!capturedSession) return finish(recordingId, "failed", "ambiguous_match");
+    if (!capturedSession) return finish(recordingId, sourceRevision, "failed", "ambiguous_match", sourcePath, sourceStat);
     const matches = existingLaps.filter((lap) =>
       !used.has(lap.id) &&
       lap.rawByteOffset != null &&
       lap.rawByteOffset === detectedLap.rawByteOffset &&
       lap.rawFrameCount === detectedLap.rawFrameCount
     );
-    if (matches.length !== 1) return finish(recordingId, "failed", "ambiguous_match");
+    if (matches.length !== 1) return finish(recordingId, sourceRevision, "failed", "ambiguous_match", sourcePath, sourceStat);
     const matchedLap = matches[0]!;
     const owner = existing.find((session) => session.id === matchedLap.sessionId);
-    if (!owner) return finish(recordingId, "failed", "ambiguous_match");
+    if (!owner) return finish(recordingId, sourceRevision, "failed", "ambiguous_match", sourcePath, sourceStat);
     const mappedOwner = capturedToStoredSession.get(detectedLap.sessionId);
     if (mappedOwner !== undefined && mappedOwner !== owner.id) {
-      return finish(recordingId, "failed", "ambiguous_match");
+      return finish(recordingId, sourceRevision, "failed", "ambiguous_match", sourcePath, sourceStat);
     }
     const hasIdentity = (value: string | null) => value !== null && value !== "" && value !== "0" && value !== "unknown";
     if ((hasIdentity(capturedSession.carId) && hasIdentity(owner.carId) && capturedSession.carId !== owner.carId) ||
       (hasIdentity(capturedSession.trackId) && hasIdentity(owner.trackId) && capturedSession.trackId !== owner.trackId)) {
-      return finish(recordingId, "failed", "ambiguous_match");
+      return finish(recordingId, sourceRevision, "failed", "ambiguous_match", sourcePath, sourceStat);
     }
     capturedToStoredSession.set(detectedLap.sessionId, owner.id);
     used.add(matchedLap.id);
     const isLegacyCategoryReason = matchedLap.invalidReason !== null &&
       LEGACY_CATEGORY_BY_REASON[matchedLap.invalidReason] !== undefined;
-    const preserveExistingDecision = !isLegacyCategoryReason &&
+    const isGridStartClosureReason = detectedLap.classification === "grid_start" &&
+      matchedLap.invalidReason === "start/end positions too far apart";
+    const preserveExistingDecision = !isLegacyCategoryReason && !isGridStartClosureReason &&
       (!matchedLap.isValid || matchedLap.invalidReason !== null);
     if (hasKnownClassificationOutcome(detectedLap)) {
       changes.push({
@@ -217,9 +219,9 @@ async function processClaimedRecording(recordingId: string, sourceKey: string, s
       });
     }
   }
-  if (used.size !== existingLaps.length) return finish(recordingId, "failed", "ambiguous_match");
+  if (used.size !== existingLaps.length) return finish(recordingId, sourceRevision, "failed", "ambiguous_match", sourcePath, sourceStat);
   if (detected.some((lap) => !hasKnownClassificationOutcome(lap))) {
-    return finish(recordingId, "limited", "insufficient_evidence");
+    return finish(recordingId, sourceRevision, "limited", "insufficient_evidence", sourcePath, sourceStat);
   }
 
   let committed = false;
@@ -242,7 +244,7 @@ async function processClaimedRecording(recordingId: string, sourceKey: string, s
       }
       await classificationMigrationBarrier("insideTransaction");
       const currentFile = await stat(sourcePath);
-      if (currentFile.size !== sourceStat.size || currentFile.mtimeMs !== sourceStat.mtimeMs || currentFile.ino !== sourceStat.ino) {
+      if (classificationSourceSignature(currentFile) !== classificationSourceSignature(sourceStat)) {
         await tx.rollback();
         await requeueRecording(recordingId, "source_changed");
         return;
@@ -324,14 +326,37 @@ async function deferRecording(recordingId: string, reason: "active_capture"): Pr
 
 async function finish(
   recordingId: string,
+  sourceRevision: number,
   state: "limited" | "failed",
   reason: "missing_source" | "insufficient_evidence" | "corrupt_source" | "ambiguous_match" | "source_changed" | "processing_error",
+  sourcePath?: string,
+  originalStat?: Stats,
 ): Promise<void> {
   const tx = await client.transaction("write");
   try {
+    const current = await tx.execute({
+      sql: "SELECT source_revision,state FROM classification_migration_recordings WHERE recording_id=?",
+      args: [recordingId],
+    });
+    if (!current.rows.length || current.rows[0]!.state !== "running") {
+      await tx.rollback();
+      return;
+    }
+    const revision = Number(current.rows[0]!.source_revision);
+    let sourceChanged = false;
+    if (sourcePath) {
+      const currentStat = await stat(sourcePath).catch(() => null);
+      sourceChanged = originalStat
+        ? currentStat === null || classificationSourceSignature(currentStat) !== classificationSourceSignature(originalStat)
+        : currentStat !== null;
+    }
+    const stale = revision !== sourceRevision || sourceChanged;
     const updated = await tx.execute({
-      sql: "UPDATE classification_migration_recordings SET state=?,reason=?,source_signature=NULL WHERE recording_id=? AND state='running'",
-      args: [state, reason, recordingId],
+      sql: `UPDATE classification_migration_recordings
+        SET state=?,reason=?,source_signature=NULL,source_revision=source_revision+?
+        WHERE recording_id=? AND state='running' AND source_revision=?`,
+      args: [stale ? "pending" : state, stale ? "source_changed" : reason,
+        sourceChanged && revision === sourceRevision ? 1 : 0, recordingId, revision],
     });
     if (Number(updated.rowsAffected) > 0) await tx.execute("UPDATE classification_migration_meta SET revision=revision+1 WHERE id=1");
     await tx.commit();

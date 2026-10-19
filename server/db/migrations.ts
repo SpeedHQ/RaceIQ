@@ -2067,7 +2067,8 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
         WHEN 'outlap' THEN 'out_lap'
         WHEN 'pit lap' THEN 'pit_lap'
         ELSE classification END
-       WHERE invalid_reason IN ('inlap','outlap','pit lap')`,
+       WHERE invalid_reason IN ('inlap','outlap','pit lap')
+         AND session_id IN (SELECT id FROM sessions WHERE coalesce(source,'')!='motec')`,
       `UPDATE dashboard_lap_index SET classification=(SELECT classification FROM laps WHERE laps.id=dashboard_lap_index.lap_id)`,
       `ALTER TABLE dashboard_session_summaries ADD COLUMN pace_laps INTEGER NOT NULL DEFAULT 0`,
       `ALTER TABLE dashboard_session_summaries ADD COLUMN pace_seconds REAL NOT NULL DEFAULT 0`,

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { once } from "node:events";
 import { resolve } from "node:path";
@@ -93,6 +94,25 @@ test("real upgrade restores attention, preserves it offline, and repairs through
         await expect(classificationPage.getByText("No laps recorded yet", { exact: true })).toBeHidden();
         await expect(classificationPage.getByText("Best", { exact: true }).filter({ visible: true }).first()).toBeVisible();
       }
+      const lapResponse = await classificationPage.request.get(new URL("/api/laps?gameId=f1-2025", address).toString());
+      expect(lapResponse.ok()).toBe(true);
+      const laps = await lapResponse.json() as LapMeta[];
+      const gridLap = laps.find((lap) => lap.classification === "grid_start");
+      expect(gridLap, "controlled non-pace-only race session").toBeDefined();
+      if (!gridLap) throw new Error("Missing grid-start fixture");
+      const analyseUrl = new URL(`/f125/sessions/${gridLap.sessionId}/analyse`, address);
+      for (const width of [390, 1440]) {
+        await classificationPage.setViewportSize({ width, height: 900 });
+        await classificationPage.goto(analyseUrl.toString(), { waitUntil: "domcontentloaded" });
+        await expect(classificationPage.getByText("No valid laps are available for review.", { exact: true })).toBeVisible();
+        expect(new URL(classificationPage.url()).searchParams.has("laps")).toBe(false);
+        await classificationPage.screenshot({ path: testInfo.outputPath(`non-pace-analysis-empty-${width}.png`) });
+      }
+      analyseUrl.searchParams.set("laps", JSON.stringify(String(gridLap.id)));
+      analyseUrl.searchParams.set("primary", String(gridLap.id));
+      await classificationPage.goto(analyseUrl.toString(), { waitUntil: "domcontentloaded" });
+      await expect(classificationPage.getByRole("button", { name: "Laps: 1 · Primary: Lap 1", exact: true })).toBeVisible();
+      await expect(classificationPage.getByText("No valid laps are available for review.", { exact: true })).toBeHidden();
     } finally {
       await classificationPage.close();
     }

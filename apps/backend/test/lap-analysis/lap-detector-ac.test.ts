@@ -3,6 +3,10 @@ import { describe, test, expect, afterAll } from "bun:test";
 import { parseDump } from "@raceiq/backend-core/test-support/recordings/parse-dump";
 import { LapDetectorAcc } from "@raceiq/game-acc/lap-detector"
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"
+import { accParser } from "@raceiq/game-acc/game-parser";
+import { PHYSICS, GRAPHICS, STATIC } from "@raceiq/capture-formats/acc/structs";
+import { ACC_PACKED_MAGIC, packTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
+import { normalizeTelemetryPacket } from "@raceiq/telemetry-core/telemetry/normalization";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
@@ -80,6 +84,40 @@ function packet(fields: Partial<TelemetryPacket>): TelemetryPacket {
     ...fields,
   } as TelemetryPacket;
 }
+
+test.each([["full", true], ["indexed", true], ["full", false], ["indexed", false]] as const)("native ACC %s import isolates reset and next-lap yellow evidence (reset=%s)", async (mode, reset) => {
+  const db = { ...makeFakeDb(), setLapMetrics: async () => {} };
+  const detector = new LapDetectorAcc({ db, bypassPacketRateFilter: true });
+  const physics = Buffer.alloc(PHYSICS.SIZE);
+  const stat = Buffer.alloc(STATIC.SIZE);
+  stat.write("bmw_m4_gt3", STATIC.carModel.offset, "utf16le");
+  stat.write("monza", STATIC.track.offset, "utf16le");
+  for (let second = 0; second <= (reset ? 41 : 82); second++) {
+    const graphics = Buffer.alloc(GRAPHICS.SIZE);
+    graphics.writeInt32LE(2, GRAPHICS.status.offset);
+    graphics.writeInt32LE(1 + Math.floor(second / 41), GRAPHICS.completedLaps.offset);
+    graphics.writeInt32LE((second % 41) * 1000, GRAPHICS.iCurrentTime.offset);
+    graphics.writeInt32LE(second >= 41 ? 40_000 : 0, GRAPHICS.iLastTime.offset);
+    graphics.writeInt32LE(!reset && second === 41 ? 2 : 0, GRAPHICS.flag.offset);
+    graphics.writeFloatLE(second * 100, GRAPHICS.distanceTraveled.offset);
+    graphics.writeFloatLE(reset && second >= 39 ? 500 : 100, GRAPHICS.carCoordinatesBase.offset);
+    graphics.writeFloatLE(5, GRAPHICS.carCoordinatesBase.offset + 4);
+    graphics.writeFloatLE(200, GRAPHICS.carCoordinatesBase.offset + 8);
+    graphics.writeInt32LE(reset && second >= 39 ? 1 : 0, GRAPHICS.isInPitLane.offset);
+    graphics.writeInt32LE(1, GRAPHICS.isValidLap.offset);
+    const frame = packTriplet(ACC_PACKED_MAGIC, 0, 0, physics, graphics, stat);
+    const parsed = mode === "full"
+      ? accParser.tryParse(frame, null, second * 1000)
+      : accParser.tryParseLapIndex(frame, null, second * 1000);
+    if (!parsed) throw new Error("Invalid ACC fixture");
+    const telemetry = parsed as TelemetryPacket;
+    normalizeTelemetryPacket(telemetry, true);
+    await detector.feed(telemetry, second * 100);
+  }
+  expect(db.inserted).toHaveLength(reset ? 1 : 2);
+  expect(db.inserted[0]).toMatchObject({ valid: true, classification: reset ? "reset" : "pace", invalidReason: null });
+  if (!reset) expect(db.inserted[1]).toMatchObject({ valid: true, classification: "caution", invalidReason: null });
+});
 
 describe("ACC live ownership and persisted rows", () => {
   test("abandons a short initial partial, binds completed lap, persists final incomplete", async () => {

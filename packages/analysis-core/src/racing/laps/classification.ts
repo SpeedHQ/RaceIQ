@@ -69,7 +69,7 @@ export function classifyLapCategory(
       && f1.safetyCarStatusUpdatedAt >= lapStart && f1.safetyCarStatusUpdatedAt <= lapEnd) freshSafetyCarStatus = true;
     if (f1?.vehicleFIAFlags === undefined || f1.vehicleFIAFlags === -1
       || f1.safetyCarStatus === undefined || f1.safetyCarStatus === 3) noCautionF1State = false;
-    if (acc?.pitStatus !== "out" || acc.flagStatus === undefined || acc.flagStatus === "yellow") completeAccSignals = false;
+    if (packet !== boundaryPacket && (acc?.pitStatus !== "out" || acc.flagStatus === undefined || acc.flagStatus === "yellow")) completeAccSignals = false;
   }
   if (gridStart) return "grid_start";
   if (reset) return "reset";

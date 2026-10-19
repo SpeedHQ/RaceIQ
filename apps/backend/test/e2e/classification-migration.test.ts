@@ -21,6 +21,8 @@ import { cloneReleaseData } from "./support/clone-release-data";
 import { ROOT, command, startUpgradeServer, upgradeEnvironment, type UpgradeServer } from "./support/upgrade-server";
 import { F1_HEADER_SIZE } from "@raceiq/capture-formats/f1-2025/f1-wire";
 import type { ServerGameAdapter } from "@raceiq/backend-core/games/types";
+import { unzipSync } from "fflate";
+import { encodeMotecSourceArchive } from "@raceiq/backend-core/motec/source-archive";
 
 function prepareLegacyWindows(source: SessionCaptureSource, windows: readonly DetectedLapWindow[], game: ServerGameAdapter) {
   return prepareSplitWindows({
@@ -139,6 +141,95 @@ async function sourceChecksums(database: InstanceType<typeof Database>) {
   }
   return checksums;
 }
+
+test("historical MoTeC imports remain unchanged and outside classification inventory", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "raceiq-classification-motec-exempt-"));
+  const dataDir = join(directory, "data");
+  let server: UpgradeServer | undefined;
+  let database: InstanceType<typeof Database> | undefined;
+  try {
+    await cloneReleaseData(baseline, dataDir);
+    const members = unzipSync(await Bun.file(join(ROOT, "test/artifacts/motec/acc-barcelona-porsche-992.zip")).bytes());
+    const ld = Object.entries(members).find(([name]) => name.endsWith(".ld"))?.[1];
+    const ldx = Object.entries(members).find(([name]) => name.endsWith(".ldx"))?.[1];
+    if (!ld || !ldx) throw new Error("Missing approved MoTeC fixture members");
+    const archive = join(dataDir, "sessions", "acc", "own", "unchanged.motec.zip");
+    await Bun.write(archive, encodeMotecSourceArchive(ld, ldx));
+    const checksum = Bun.hash(await Bun.file(archive).bytes());
+    database = new Database(join(dataDir, "app.db"));
+    const sessionId = Number(database.prepare(
+      "INSERT INTO sessions(car_id,track_id,car_ordinal,track_ordinal,game_id,source,raw_file,ownership) VALUES('33','8',33,8,'acc','motec',?,'mine')",
+    ).run(archive).lastInsertRowid);
+    const lapId = Number(database.prepare(
+      "INSERT INTO laps(session_id,lap_number,lap_time,is_valid,invalid_reason,raw_byte_offset,raw_frame_count,notes,profile_id) VALUES(?,1,102,0,'outlap',0,6164,'keep imported notes',1)",
+    ).run(sessionId).lastInsertRowid);
+    const before = database.prepare("SELECT * FROM laps WHERE id=?").all(lapId)[0] as Record<string, unknown>;
+    const running = await openUpgrade(dataDir);
+    server = running.server;
+    const final = await settled(running.address);
+    expect(final.completed).toBeGreaterThan(0);
+    const after = database.prepare("SELECT * FROM laps WHERE id=?").all(lapId)[0] as Record<string, unknown>;
+    const { classification, capture_chunk_id: _chunk, source_frame_start: _start, source_frame_count: _count, ...preserved } = after;
+    expect(classification).toBeNull();
+    expect(preserved).toEqual(before);
+    expect(Bun.hash(await Bun.file(archive).bytes())).toBe(checksum);
+    expect(database.prepare("SELECT recording_id FROM classification_migration_recordings WHERE source_key=?").all(`file:${archive}`)).toEqual([]);
+    expect(database.prepare("SELECT COUNT(*) count FROM classification_migration_recordings").get()).toMatchObject({ count: final.total });
+  } finally {
+    await server?.stop();
+    database?.close();
+    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  }
+}, 240_000);
+
+test("an obsolete terminal failure requeues a newer source revision before reporting its outcome", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "raceiq-classification-stale-failure-"));
+  const dataDir = join(directory, "data");
+  const barrierDir = join(directory, "barriers");
+  let server: UpgradeServer | undefined;
+  let database: InstanceType<typeof Database> | undefined;
+  try {
+    await cloneReleaseData(baseline, dataDir);
+    await mkdir(barrierDir);
+    database = new Database(join(dataDir, "app.db"));
+    database.exec("UPDATE laps SET raw_frame_count=raw_frame_count+1 WHERE id=(SELECT MIN(id) FROM laps)");
+    const source = database.prepare("SELECT raw_file FROM sessions ORDER BY id LIMIT 1").get() as { raw_file: string };
+    const original = preservedLaps(database);
+    const running = await openUpgrade(dataDir, {
+      RACEIQ_E2E: "1",
+      RACEIQ_CLASSIFICATION_TEST_BARRIER: "duringDecodeBatch",
+      RACEIQ_CLASSIFICATION_TEST_BARRIER_DIR: barrierDir,
+    });
+    server = running.server;
+    const deadline = Date.now() + 180_000;
+    // The barrier belongs to a production subprocess; parent fake clocks cannot advance it.
+    while (!await Bun.file(join(barrierDir, "duringDecodeBatch.reached")).exists()) {
+      if (Date.now() >= deadline) throw new Error(`Decode barrier not reached:\n${server.output}`);
+      await Bun.sleep(20);
+    }
+    await command([process.execPath, "--eval", `
+      import { client, initDb } from "./server/db/index";
+      import { invalidateClassificationMigrationSource } from "./server/session-capture/classification-migration";
+      await initDb();
+      await invalidateClassificationMigrationSource(process.argv[1]);
+      client.close();
+    `, source.raw_file], ROOT, upgradeEnvironment(dataDir));
+    expect(database.prepare("SELECT state,source_revision,attempt FROM classification_migration_recordings").get()).toMatchObject({
+      state: "running", source_revision: 2, attempt: 0,
+    });
+    await Bun.write(join(barrierDir, "duringDecodeBatch.release"), "");
+    const final = await settled(running.address);
+    expect(final.failed).toBe(1);
+    expect(database.prepare("SELECT state,source_revision,attempt,reason FROM classification_migration_recordings").get()).toMatchObject({
+      state: "failed", source_revision: 2, attempt: 1, reason: "ambiguous_match",
+    });
+    expect(preservedLaps(database)).toEqual(original);
+  } finally {
+    await server?.stop();
+    database?.close();
+    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  }
+}, 240_000);
 
 test("normal boot classifies historical recordings in place and skips completed work after restart", async () => {
   const directory = await mkdtemp(join(tmpdir(), "raceiq-classification-normal-"));
@@ -634,8 +725,8 @@ test("idle inventory reconciliation tracks replacement and deleted source groups
     await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 }, 240_000);
-for (const malformedBootstrap of [false, true]) {
-  test(`production migration restores parser bootstrap before owned F1 frames${malformedBootstrap ? " or rejects mismatched bootstrap atomically" : ""}`, async () => {
+for (const [malformedBootstrap, completeLap] of [[false, false], [true, false], [false, true]] as const) {
+  test(`production migration restores parser bootstrap before owned F1 frames${malformedBootstrap ? " or rejects mismatched bootstrap atomically" : completeLap ? " and repairs confirmed grid-start closure" : ""}`, async () => {
     const directory = await mkdtemp(join(tmpdir(), "raceiq-classification-bootstrap-"));
     const dataDir = join(directory, "data");
     let database: InstanceType<typeof Database> | undefined;
@@ -668,19 +759,42 @@ for (const malformedBootstrap of [false, true]) {
       const checkpoint = game.captureParserCheckpoint(state);
       if (!checkpoint) throw new Error("F1 parser checkpoint empty");
       lapData.writeUInt32LE(20_000, 4);
-      const owned = nativePacket(2, lapData, 22);
+      const ownedFrames: Buffer[] = [];
+      if (completeLap) {
+        for (let sample = 0; sample <= 40; sample++) {
+          const motion = Buffer.alloc(60);
+          motion.writeFloatLE(-50 * (1 - sample / 40), 0);
+          ownedFrames.push(nativePacket(0, motion, 22 + sample / 2));
+          const timing = Buffer.from(lapData);
+          timing.writeUInt32LE(sample * 500, 4);
+          timing.writeFloatLE(sample * 25, 20);
+          ownedFrames.push(nativePacket(2, timing, 22 + sample / 2));
+        }
+      } else ownedFrames.push(nativePacket(2, lapData, 22));
       const prefix = Buffer.concat([
-        encodeMetaFrame(1), encodeSparseCaptureFormatFrame(), encodeSegmentBoundaryFrame(),
+        encodeMetaFrame(ownedFrames.length), encodeSparseCaptureFormatFrame(), encodeSegmentBoundaryFrame(),
         encodeParserBootstrapFrame(malformedBootstrap ? "acc" : "f1-2025", checkpoint),
       ]);
+      const trailing: Buffer[] = [];
+      if (completeLap) {
+        const nextLap = Buffer.from(lapData);
+        nextLap.writeUInt32LE(20_000, 0);
+        nextLap.writeUInt32LE(0, 4);
+        nextLap.writeUInt8(2, 33);
+        const boundary = nativePacket(2, nextLap, 43);
+        trailing.push(encodeSegmentContextFrame(), encodeFrameLength(boundary.length), boundary, encodeSegmentContextEndFrame());
+      }
       const sourcePath = join(directory, "checkpoint-dependent.bin");
-      await Bun.write(sourcePath, Buffer.concat([prefix, encodeFrameLength(owned.length), owned]));
+      await Bun.write(sourcePath, Buffer.concat([
+        prefix, ...ownedFrames.flatMap((frame) => [encodeFrameLength(frame.length), frame]), ...trailing,
+      ]));
       await cloneReleaseData(baseline, dataDir);
       database = new Database(join(dataDir, "app.db"));
       database.exec("DELETE FROM laps WHERE id<>(SELECT MIN(id) FROM laps); DELETE FROM sessions WHERE id NOT IN (SELECT session_id FROM laps)");
       const row = database.prepare("SELECT id,session_id FROM laps").get() as { id: number; session_id: number };
       database.prepare("UPDATE sessions SET game_id='f1-2025',car_id='0',track_id='0',raw_file=? WHERE id=?").run(sourcePath, row.session_id);
-      database.prepare("UPDATE laps SET lap_number=1,lap_time=20,is_valid=0,invalid_reason='incomplete',raw_byte_offset=?,raw_frame_count=1 WHERE id=?").run(prefix.length, row.id);
+      database.prepare("UPDATE laps SET lap_number=1,lap_time=20,is_valid=0,invalid_reason=?,raw_byte_offset=?,raw_frame_count=? WHERE id=?")
+        .run(completeLap ? "start/end positions too far apart" : "incomplete", prefix.length, ownedFrames.length, row.id);
       const original = preservedLaps(database);
       database.close();
       database = undefined;
@@ -691,7 +805,7 @@ for (const malformedBootstrap of [false, true]) {
       expect(result.completed).toBe(malformedBootstrap ? 0 : 1);
       expect(result.failed).toBe(malformedBootstrap ? 1 : 0);
       expect(database.prepare("SELECT classification,is_valid,invalid_reason FROM laps WHERE id=?").get(row.id)).toMatchObject({
-        classification: malformedBootstrap ? null : "grid_start", is_valid: 0, invalid_reason: "incomplete",
+        classification: malformedBootstrap ? null : "grid_start", is_valid: completeLap ? 1 : 0, invalid_reason: completeLap ? null : "incomplete",
       });
       expect(preservedLaps(database)).toEqual(original);
     } finally {
