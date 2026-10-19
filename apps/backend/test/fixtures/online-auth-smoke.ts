@@ -9,6 +9,9 @@ let resolveSession: (value: OnlineAuthSession) => void;
 let secret = '';
 let holdSecret = false;
 let releaseSecret: (() => void) | undefined;
+let secretReadFailure = false;
+let secretDeleteFailure = false;
+let secretDeleteCalls = 0;
 let refreshFailure = false;
 let refreshedUserId = 'user-1';
 const auth: OnlineAuthPort = {
@@ -19,8 +22,13 @@ const auth: OnlineAuthPort = {
   },
 };
 const keystore = {
-  getSecret: async () => secret,
-  setSecret: async (_key: string, value: string) => { secret = value; if (holdSecret && value) { const gate = Promise.withResolvers<void>(); releaseSecret = gate.resolve; await gate.promise; } },
+  getSecret: async () => { if (secretReadFailure) return ''; return secret; },
+  setSecret: async (_key: string, value: string) => {
+    if (!value) secretDeleteCalls++;
+    if (!value && secretDeleteFailure) return;
+    secret = value;
+    if (holdSecret && value) { const gate = Promise.withResolvers<void>(); releaseSecret = gate.resolve; await gate.promise; }
+  },
 };
 const dirs: string[] = [];
 const outboxDir = mkdtempSync(join(tmpdir(), 'raceiq-auth-outbox-smoke-'));
@@ -40,6 +48,8 @@ let profileUserId = 'user-1';
 let policyFailure = false;
 let consentFailure = false;
 let consentGate: Promise<void> | null = null;
+let preferenceWriteGate: Promise<void> | null = null;
+let preferenceWriteStarted: (() => void) | null = null;
 let preferenceReadGate: Promise<void> | null = null;
 let preferenceReadStarted: (() => void) | null = null;
 let preferenceReadFailure = false;
@@ -47,6 +57,14 @@ let preferenceReadInvalid = false;
 const serverConsents: Record<string, { termsVersion: string; privacyVersion: string; acceptedAt: string }> = {};
 const serverPreferences: Record<string, { visibility: 'public' | 'private'; setupUploads: boolean }> = {};
 const versions = { termsVersion: 'terms-1', privacyVersion: 'privacy-1' };
+const awaitStage = async (promise: Promise<unknown>, name: string) => {
+  let timeout: NodeJS.Timeout | undefined;
+  try {
+    await Promise.race([promise, new Promise<never>((_, reject) => {
+      timeout = setTimeout(() => reject(new Error(`Timed out waiting for ${name}`)), 5_000);
+    })]);
+  } finally { clearTimeout(timeout); }
+};
 function setup(dir = mkdtempSync(join(tmpdir(), 'raceiq-auth-smoke-'))) {
   if (!dirs.includes(dir)) dirs.push(dir);
   return createRaceIqOnlineService({ storage: new OnlineStateStorage(dir), keystore, auth, adapter: {
@@ -83,6 +101,8 @@ function setup(dir = mkdtempSync(join(tmpdir(), 'raceiq-auth-smoke-'))) {
     },
     async setPreferences(input) {
       preferenceCalls++;
+      preferenceWriteStarted?.();
+      if (preferenceWriteGate) await preferenceWriteGate;
       if (preferenceFailure) throw new Error('preference save failed');
       serverPreferences[profileUserId] = { ...input };
       return {};
@@ -114,12 +134,12 @@ try {
   const signIn = await service.connect(ctx(before)); assert.equal(signIn.ok, true);
   const callback = service.handleAuthCallback('http://127.0.0.1:3117/api/online/auth/callback?code=valid');
   holdSecret = true; resolveSession!(session);
-  while (!releaseSecret) await Bun.sleep(1);
+  await awaitStage((async () => { while (!releaseSecret) await Bun.sleep(1); })(), 'initial callback holdSecret');
   assert.equal((await service.getState()).connection.status, 'signing_in', 'polling must not bypass callback token persistence');
   holdSecret = false; releaseSecret!();
+  await awaitStage(callback, 'initial callback completion');
   assert.equal(await callback, true);
   const connected = await service.getState();
-  assert.equal(connected.connection.status, 'connected');
   assert.equal(connected.consent.status, 'not_accepted');
   assert.equal(connected.preferences, null);
   assert.equal(connected.preferencePersistence, 'unconfirmed');
@@ -296,10 +316,25 @@ try {
   refreshedUserId = 'user-1';
 
   const signedOut = setup(durableDir);
-  assert.equal((await signedOut.signOut(ctx(await signedOut.getState()))).ok, true);
-  refreshFailure = true;
-  const signedOutRestart = await setup(durableDir).getState();
+  const deletesBeforeSignOut = secretDeleteCalls;
+  const survivingRefreshCredential = secret;
+  secretReadFailure = true;
+  secretDeleteFailure = true;
+  const signOutDuringKeystoreOutage = await signedOut.signOut(ctx(await signedOut.getState()));
+  secretReadFailure = false;
+  secretDeleteFailure = false;
+  assert.equal(signOutDuringKeystoreOutage.ok, true, 'empty keystore read result permits durable sign-out despite surviving credential');
+  assert.ok(secretDeleteCalls > deletesBeforeSignOut, 'sign-out attempts token deletion without a successful read');
+  assert.equal(secret, survivingRefreshCredential, 'fixture preserves credential to verify signed-out hydration barrier');
+  const signedOutRestartService = setup(durableDir);
+  const signedOutRestart = await signedOutRestartService.getState();
   assert.equal(signedOutRestart.connection.status, 'signed_out', 'explicit sign-out cannot revive on restart');
+  const cancelledRelogin = await signedOutRestartService.connect(ctx(signedOutRestart));
+  assert.equal(cancelledRelogin.ok, true);
+  if (!cancelledRelogin.ok) throw new Error('re-sign-in attempt failed');
+  assert.equal((await signedOutRestartService.cancelSignIn({ ...ctx(cancelledRelogin.state), flowId: cancelledRelogin.flowId })).ok, true);
+  assert.equal((await setup(durableDir).getState()).connection.status, 'signed_out',
+    'cancelled deliberate connect cannot clear durable sign-out barrier');
   assert.equal(signedOutRestart.uploadAllowed, false);
   refreshFailure = false;
   const serverTimestamp = serverConsents['user-1']?.acceptedAt;
@@ -337,12 +372,34 @@ try {
   serverPreferences['user-1'] = { visibility: 'public', setupUploads: true };
   const livePublic = await cleanInstall.getState();
   assert.equal(livePublic.uploadAllowed, true);
+  const f01Dir = mkdtempSync(join(tmpdir(), 'raceiq-auth-f01-')); dirs.push(f01Dir);
+  const f01Service = setup(f01Dir);
+  const f01Connect = await f01Service.connect(ctx(await f01Service.getState()));
+  if (!f01Connect.ok) throw new Error('F01 sign-in failed');
+  const f01Callback = f01Service.handleAuthCallback('http://127.0.0.1:3117/api/online/auth/callback?code=f01');
+  resolveSession!(session);
+  assert.equal(await f01Callback, true);
+  serverPreferences['user-1'] = { visibility: 'private', setupUploads: false };
+  const f01Private = await f01Service.getState();
+  const enableGate = Promise.withResolvers<void>();
+  const enableStarted = Promise.withResolvers<void>();
+  preferenceWriteGate = enableGate.promise;
+  preferenceWriteStarted = () => enableStarted.resolve();
+  const delayedEnable = f01Service.setPreferences({ ...ctx(f01Private), preferences: { visibility: 'public', setupUploads: true } });
+  await awaitStage(enableStarted.promise, 'F01 enabling write started');
+  const staleRestrictive = await f01Service.setPreferences({ ...ctx(f01Private), expectedRevision: f01Private.revision - 1,
+    preferences: { visibility: 'private', setupUploads: false } });
+  assert.equal(staleRestrictive.ok, false);
+  preferenceWriteGate = null; preferenceWriteStarted = null; enableGate.resolve();
+  assert.equal((await delayedEnable).ok, false, 'older enabling completion cannot overwrite newer restrictive intent');
+  assert.equal((await f01Service.getState()).uploadAllowed, false);
+  serverPreferences['user-1'] = { visibility: 'public', setupUploads: true };
   const readGate = Promise.withResolvers<void>();
   const readStarted = Promise.withResolvers<void>();
   preferenceReadGate = readGate.promise;
   preferenceReadStarted = () => readStarted.resolve();
   const staleRead = cleanInstall.getState();
-  await readStarted.promise;
+  await awaitStage(readStarted.promise, 'F01 preference read started');
   preferenceFailure = true;
   const restrictiveWrite = await cleanInstall.setPreferences({ ...ctx(livePublic), preferences: { visibility: 'private', setupUploads: false } });
   preferenceFailure = false;
@@ -354,12 +411,72 @@ try {
   assert.equal((await cleanInstall.getState()).uploadAllowed, false, 'subsequent polling must preserve unsaved privacy restriction');
   const repaired = await cleanInstall.setPreferences({ ...ctx(restricted), preferences: { visibility: 'public', setupUploads: true } });
   assert.equal(repaired.ok, true);
+  const pollingWriteGate = Promise.withResolvers<void>();
+  const pollingWriteStarted = Promise.withResolvers<void>();
+  preferenceWriteGate = pollingWriteGate.promise;
+  preferenceWriteStarted = () => pollingWriteStarted.resolve();
+  const confirmedDespitePolling = cleanInstall.setPreferences({ ...ctx(repaired.state),
+    preferences: { visibility: 'public', setupUploads: true } });
+  await awaitStage(pollingWriteStarted.promise, 'ordinary polling preference write started');
+  const priorDisplayName = displayName;
+  displayName = 'Remote Profile Update';
+  const polledState = await cleanInstall.getState();
+  assert.equal(polledState.connection.status === 'connected' && polledState.connection.account.displayName, 'Remote Profile Update');
+  preferenceWriteGate = null; preferenceWriteStarted = null; pollingWriteGate.resolve();
+  assert.equal((await confirmedDespitePolling).ok, true, 'profile polling revision change does not supersede pending preference mutation');
+  const confirmedAfterPoll = await cleanInstall.getState();
+  assert.equal(confirmedAfterPoll.preferencePersistence, 'confirmed');
+  assert.equal(confirmedAfterPoll.connection.status === 'connected' && confirmedAfterPoll.connection.account.displayName, 'Remote Profile Update');
+  displayName = priorDisplayName;
+
+  const f04Dir = mkdtempSync(join(tmpdir(), 'raceiq-auth-f04-')); dirs.push(f04Dir);
+  const f04Service = setup(f04Dir);
+  const f04Connect = await f04Service.connect(ctx(await f04Service.getState()));
+  if (!f04Connect.ok) throw new Error('account A sign-in failed');
+  const f04Callback = f04Service.handleAuthCallback('http://127.0.0.1:3117/api/online/auth/callback?code=f04-account-a');
+  resolveSession!(session);
+  assert.equal(await f04Callback, true);
+  const f04AccountA = await f04Service.getState();
+  assert.equal(f04AccountA.preferencePersistence, 'confirmed');
+  const preferenceFailureGate = Promise.withResolvers<void>();
+  const preferenceFailureStarted = Promise.withResolvers<void>();
+  preferenceWriteGate = preferenceFailureGate.promise;
+  preferenceWriteStarted = () => preferenceFailureStarted.resolve();
+  const delayedAccountAWrite = f04Service.setPreferences({ ...ctx(f04AccountA),
+    preferences: { visibility: 'private', setupUploads: false } });
+  await awaitStage(preferenceFailureStarted.promise, 'F04 account A preference write started');
+  await f04Service.signOut(ctx(await f04Service.getState()));
+  profileUserId = 'user-2';
+  session.userId = 'user-2';
+  serverConsents['user-2'] = { ...versions, acceptedAt: new Date().toISOString() };
+  serverPreferences['user-2'] = { visibility: 'public', setupUploads: true };
+  const accountBConnect = await f04Service.connect(ctx(await f04Service.getState()));
+  if (!accountBConnect.ok) throw new Error('account B sign-in failed');
+  const accountBCallback = f04Service.handleAuthCallback('http://127.0.0.1:3117/api/online/auth/callback?code=account-b');
+  resolveSession!(session);
+  assert.equal(await accountBCallback, true);
+  const accountBReady = await f04Service.getState();
+  assert.equal(accountBReady.connection.status === 'connected' && accountBReady.connection.account.userId, 'user-2');
+  assert.equal(accountBReady.preferencePersistence, 'confirmed');
+  preferenceFailure = true;
+  preferenceWriteGate = null; preferenceWriteStarted = null; preferenceFailureGate.resolve();
+  assert.equal((await delayedAccountAWrite).ok, false);
+  preferenceFailure = false;
+  const accountBAfterOldFailure = await f04Service.getState();
+  assert.equal(accountBAfterOldFailure.connection.status === 'connected' && accountBAfterOldFailure.connection.account.userId, 'user-2');
+  assert.equal(accountBAfterOldFailure.preferencePersistence, 'confirmed');
+  assert.deepEqual(accountBAfterOldFailure.preferences, { visibility: 'public', setupUploads: true });
+  assert.equal(accountBAfterOldFailure.uploadAllowed, true);
+  profileUserId = 'user-1';
+  session.userId = 'user-1';
+  delete serverConsents['user-2'];
+  delete serverPreferences['user-2'];
   const signOutReadGate = Promise.withResolvers<void>();
   const signOutReadStarted = Promise.withResolvers<void>();
   preferenceReadGate = signOutReadGate.promise;
   preferenceReadStarted = () => signOutReadStarted.resolve();
   const latePreferenceRead = cleanInstall.getState();
-  await signOutReadStarted.promise;
+  await awaitStage(signOutReadStarted.promise, 'sign-out preference read started');
   await cleanInstall.signOut(ctx(repaired.state));
   preferenceReadGate = null; preferenceReadStarted = null; signOutReadGate.resolve();
   const afterLatePreferenceRead = await latePreferenceRead;
@@ -379,8 +496,17 @@ try {
   preferenceReadInvalid = false;
   assert.equal((await preferenceOutage.getState()).preferencePersistence, 'confirmed', 'successful retry recovers Live preferences');
   console.log('PASS: Live preferences restore, remote updates, failed restrictions, stale read and sign-out races, outage and invalid-response recovery');
+  const policyDir = mkdtempSync(join(tmpdir(), 'raceiq-policy-version-')); dirs.push(policyDir);
+  const policyService = setup(policyDir);
+  const policyConnect = await policyService.connect(ctx(await policyService.getState()));
+  if (!policyConnect.ok) throw new Error('policy sign-in failed');
+  const policyCallback = policyService.handleAuthCallback('http://127.0.0.1:3117/api/online/auth/callback?code=policy-v1');
+  resolveSession!(session);
+  assert.equal(await policyCallback, true);
+  assert.equal((await policyService.getState()).consent.status, 'accepted');
   versions.termsVersion = 'terms-2';
-  assert.equal((await setup(cleanInstallDir).getState()).consent.status, 'required', 'changed policy requires new consent');
+  const policyRestart = await setup(policyDir).getState();
+  assert.equal(policyRestart.consent.status, 'required', 'changed policy requires new consent after restart');
   versions.termsVersion = 'terms-1';
   profileUserId = 'user-2'; session.userId = 'user-2';
   const otherUserService = setup();

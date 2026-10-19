@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import { join, resolve, sep } from "node:path";
 import { resolveOnlineDataDir } from "./runtime";
-import { clearRetiredOutboxPayloads, listRetiredOutboxPayloads, persistOutboxPayload, saveOutboxReservation, type OutboxJob } from "./outbox-storage";
+import { clearRetiredOutboxPayloads, isCurrentOutboxPayloadPath, listRetiredOutboxPayloads, persistOutboxPayload, saveOutboxReservation, type OutboxJob } from "./outbox-storage";
 import { OnlineAdapterError, type createRaceIqOnlineAdapter } from "./adapter";
 import { UPLOAD_GAME_IDS, uploadPayloadFingerprint, type PreparedOnlineLapUpload, type UploadGame } from "./payload";
 import type { UploadOutcome } from "./outbox";
@@ -35,12 +35,12 @@ async function load(path: string): Promise<Uint8Array<ArrayBuffer>> {
   if (bytes.byteLength <= 0 || bytes.byteLength > MAX_UPLOAD_BYTES) throw new Error("Online payload size is invalid");
   return bytes;
 }
-/** Terminal artifacts are disposable; acceptance/history timestamps remain immutable. */
 export async function cleanupRetiredOnlinePayloads(): Promise<void> {
   for (const row of await listRetiredOutboxPayloads()) {
-    if (row.recordingPath) await rm(ownedPath(row.recordingPath), { force: true });
-    if (row.setupPath) await rm(ownedPath(row.setupPath), { force: true });
-    await clearRetiredOutboxPayloads(row.rowId);
+    for (const path of new Set([row.recordingPath, row.setupPath].filter((value): value is string => value !== null))) {
+      if (!await isCurrentOutboxPayloadPath(path)) await rm(ownedPath(path), { force: true });
+    }
+    await clearRetiredOutboxPayloads(row);
   }
 }
 

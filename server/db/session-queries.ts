@@ -588,6 +588,13 @@ async function unlinkOwnedSessionRawFile(rawFile: string | null): Promise<void> 
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
 }
+async function unlinkCloudSetupIfUnshared(setupPath: string | null): Promise<void> {
+  if (!setupPath || !isOwnedSessionRawFile(setupPath) || !/^cloud-[0-9a-f-]{36}\.setup$/.test(setupPath.split(/[\\/]/).at(-1) ?? "")) return;
+  const referenced = await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.cloudImportSetupPath, setupPath)).limit(1).get();
+  if (referenced) return;
+  try { if (existsSync(setupPath)) unlinkSync(setupPath); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+}
 
 function manifestMemberPaths(manifestPath: string): string[] {
   try {
@@ -646,6 +653,7 @@ async function deleteSessionUnlocked(sessionId: number): Promise<number> {
       rawFile: sessions.rawFile,
       manifestFile: sessions.captureManifestFile,
       archiveFile: sessions.captureArchiveFile,
+      setupPath: sessions.cloudImportSetupPath,
     }).from(sessions).where(eq(sessions.id, sessionId)).get();
     if (!session) return null;
     const liveCapture = await tx.select({ status: liveCaptures.status, committedArchiveLength: liveCaptures.committedArchiveLength })
@@ -671,6 +679,7 @@ async function deleteSessionUnlocked(sessionId: number): Promise<number> {
   for (const lapId of deleted.lapIds) cacheDelete(lapId);
   await unlinkOwnedSessionRawFile(deleted.rawFile);
   await unlinkUnsharedCaptureBundle(deleted.manifestFile, deleted.archiveFile);
+  await unlinkCloudSetupIfUnshared(deleted.setupPath);
   return deleted.lapIds.length;
 }
 

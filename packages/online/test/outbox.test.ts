@@ -46,11 +46,25 @@ describe("RaceIQ Online outbox ledger", () => {
       reference: { rowId: row.rowId, uploadKey: row.uploadKey! },
       accountId: job.accountId, accountEpoch: job.accountEpoch, attempts: 1, maxAttempts: 5,
       dispatch: async () => { sends++; return { kind: "request_accepted", remoteJobId: "unexpected" }; },
-      dispatchUnderPrivacyBarrier: async () => ({ authorized: false }),
+      dispatchUnderPrivacyBarrier: async () => ({ authorized: false, reason: "withdrawn" }),
     });
     expect(result).toEqual({ kind: "ack" });
     expect(sends).toBe(0);
     expect((await getAccountOutboxStatus(job.accountId)).queued).toBe(0);
+  });
+
+  test("temporary dispatch gate failure retries unsent work", async () => {
+    const job = candidate(identity());
+    await enqueueOutboxJob(job);
+    const [row] = await listDeliverableOutboxJobs(job.accountId);
+    const process = (reason: "temporarily_unavailable" | "withdrawn") => processOutboxDelivery({
+      reference: { rowId: row.rowId, uploadKey: row.uploadKey! },
+      accountId: job.accountId, accountEpoch: job.accountEpoch, attempts: 5, maxAttempts: 5,
+      dispatch: async () => { throw new Error("must not send"); },
+      dispatchUnderPrivacyBarrier: async () => ({ authorized: false, reason }),
+    });
+    expect(await process("temporarily_unavailable")).toMatchObject({ kind: "retry" });
+    expect((await getOutboxJob(row.rowId, job.accountId))?.status).toBe("pending");
   });
 
   test("accepted UUID is durable and redelivery never dispatches again", async () => {
@@ -165,7 +179,7 @@ describe("RaceIQ Online outbox ledger", () => {
     })).not.toBeNull();
     await enqueueOutboxJob({ ...input, lapId: input.lapId + 1, lapTimeMs: input.lapTimeMs - 1_000 });
     expect(await listRetiredOutboxPayloads()).toContainEqual({
-      rowId: queued.rowId, recordingPath: expect.any(String), setupPath: expect.any(String),
+      retiredId: null, rowId: queued.rowId, recordingPath: expect.any(String), setupPath: expect.any(String),
     });
   });
   test("terminal history does not consume active capacity and faster replacements fit at the limit", () => {

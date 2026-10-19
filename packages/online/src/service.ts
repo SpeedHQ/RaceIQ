@@ -88,17 +88,18 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
   let adapter: OnlineServiceAdapter;
   let tokenRefresh: Promise<string | null> | null = null;
   const clearRefreshToken = async () => {
-    if (await getSecret("raceiq-online-refresh")) await setSecret("raceiq-online-refresh", "");
+    await setSecret("raceiq-online-refresh", "");
     if (await getSecret("raceiq-online-refresh")) throw new Error();
   };
   const accessToken = async (): Promise<string | null> => {
+    if (persisted.explicitlySignedOut) return null;
     if (activeAccessToken && accessExpiresAt > Date.now() / 1000 + 60) return activeAccessToken;
     if (tokenRefresh) return tokenRefresh;
     const epoch = persisted.accountEpoch;
     tokenRefresh = (async () => {
       let refreshToken: string;
       try { refreshToken = await getSecret("raceiq-online-refresh") ?? ""; } catch { return null; }
-      if (!refreshToken || epoch !== persisted.accountEpoch) return null;
+      if (!refreshToken || epoch !== persisted.accountEpoch || persisted.explicitlySignedOut) return null;
       try {
         if (epoch !== persisted.accountEpoch || await getSecret("raceiq-online-refresh") !== refreshToken) return null;
         const session = await auth.refreshSession(refreshToken);
@@ -138,6 +139,7 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
   let service: OnlineState["service"] = "unavailable";
   let policyAt = 0;
   let policyRefresh: Promise<void> | null = null;
+  let preferenceIntentGeneration = 0;
   const boardCache = new Map<string, OnlineLeaderboard>();
   let boardGeneration = 0;
   const revokeBoards = () => { boardGeneration++; boardCache.clear(); };
@@ -325,16 +327,24 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
     },
     async dispatchUnderPrivacyBarrier(job, send) {
       const context = await port.getUploadContext();
+      if (persisted.explicitlySignedOut || connectedAccount.status !== "connected" ||
+          persisted.profile?.userId !== job.accountId || persisted.accountEpoch !== job.accountEpoch) {
+        return { authorized: false, reason: "withdrawn" };
+      }
       if (!context || context.accountId !== job.accountId || context.accountEpoch !== job.accountEpoch ||
-          !isUploadContextCurrent(context)) return { authorized: false };
+          !isUploadContextCurrent(context)) {
+        const unavailable = service !== "available" || policy.status !== "available" ||
+          !activeAccessToken || accessExpiresAt <= Date.now() / 1000 + 60 ||
+          activeUserId !== job.accountId || persisted.preferencePersistence !== "confirmed";
+        return { authorized: false, reason: unavailable ? "temporarily_unavailable" : "withdrawn" };
+      }
       return { authorized: true, outcome: await send() };
     },
     async getState() {
       await refreshPolicy();
       const epoch = persisted.accountEpoch;
       const token = await accessToken();
-      // Durable identity survives keystore outages; remote access still requires aligned live credentials.
-      if (persisted.accountEpoch === epoch && persisted.profile && connectedAccount.status === "signed_out") {
+      if (persisted.accountEpoch === epoch && !persisted.explicitlySignedOut && persisted.profile && connectedAccount.status === "signed_out") {
         connectedAccount = { status: "connected", account: persisted.profile };
       }
       if (persisted.accountEpoch === epoch && token && activeUserId && connectedAccount.status !== "signing_in") {
@@ -377,7 +387,6 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
         revokeBoards();
         activeAccessToken = null; activeUserId = null; accessExpiresAt = 0;
         persisted.accountEpoch = randomUUID(); persisted.revision = 0;
-        persisted.privacyBarrier = true; persisted.setupBarrier = true; persisted.preferencePersistence = "unconfirmed";
         activeConsent = { status: "not_accepted" };
         const flowId = randomUUID();
         attempts.set(flowId, { attempt, epoch: persisted.accountEpoch });
@@ -425,6 +434,7 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
           await clearPendingSession();
           return false;
         }
+        persisted.explicitlySignedOut = false;
         const profile = await adapter.getMe(session.accessToken);
         if (profile.userId !== session.userId) throw new Error();
         if (pending.epoch !== persisted.accountEpoch || connectedAccount.status !== "signing_in" || connectedAccount.flowId !== flowId) {
@@ -501,23 +511,28 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
       }
       if (wasStale) {
         if (restrictive) {
+          preferenceIntentGeneration++;
           persisted.preferencePersistence = "pending";
           try { save(); } catch { return failure("preferences_failed"); }
         }
         return failure("stale_state");
       }
+      preferenceIntentGeneration++;
+      const epoch = persisted.accountEpoch;
+      const intentGeneration = preferenceIntentGeneration;
       persisted.preferencePersistence = "pending";
       try { save(); } catch { return failure("preferences_failed"); }
       if (input.preferences.visibility === "private" && persisted.profile) await withdrawAccountOutboxJobs(persisted.profile.userId);
+      if (epoch !== persisted.accountEpoch || intentGeneration !== preferenceIntentGeneration) return failure("stale_state");
       if (connectedAccount.status !== "connected" || activeConsent.status !== "accepted") return failure("not_connected");
-      const epoch = persisted.accountEpoch;
       const userId = connectedAccount.account.userId;
       try {
         if (service !== "available" || policy.status !== "available") return failure("service_unavailable", true);
         const token = await accessToken();
         if (!token || activeUserId !== userId || persisted.profile?.userId !== userId) return failure("auth_failed", true);
+        if (epoch !== persisted.accountEpoch || intentGeneration !== preferenceIntentGeneration) return failure("stale_state");
         await adapter.setPreferences(input.preferences, token);
-        if (epoch !== persisted.accountEpoch || activeUserId !== userId || activeAccessToken !== token
+        if (epoch !== persisted.accountEpoch || intentGeneration !== preferenceIntentGeneration || activeUserId !== userId || activeAccessToken !== token
           || connectedAccount.status !== "connected" || connectedAccount.account.userId !== userId) return failure("stale_state");
         activePreferences = input.preferences; activePersistedPreferences = input.preferences;
         persisted.preferences = input.preferences; persisted.persistedPreferences = input.preferences;
@@ -527,6 +542,7 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
         save();
         return { ok: true, state: await snapshot() };
       } catch {
+        if (epoch !== persisted.accountEpoch || intentGeneration !== preferenceIntentGeneration) return failure("stale_state");
         persisted.preferencePersistence = "failed";
         try { save(); } catch { /* restrictive barriers already persisted */ }
         return failure("preferences_failed");
@@ -580,6 +596,7 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
       const withdrawingAccount = persisted.profile?.userId;
       revokeBoards();
       attempts.clear();
+      persisted.explicitlySignedOut = true;
       persisted.accountEpoch = randomUUID();
       persisted.revision++;
       persisted.profile = null; persisted.preferences = null; persisted.persistedPreferences = null; persisted.consent = null;

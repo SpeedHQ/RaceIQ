@@ -47,7 +47,10 @@ try {
   const replacement = { ...fullCandidate, trackId: "track-1", lapTimeMs: 80000 };
   assert.equal(await enqueueOutboxJob(replacement), "queued", "faster replacement must fit at account capacity");
   assert.equal((await getOutboxJob(original.rowId, original.accountId))?.status, "withdrawn");
-  assert.deepEqual(await listRetiredOutboxPayloads(), [{ rowId: original.rowId, recordingPath, setupPath: null }]);
+  const [retired] = await listRetiredOutboxPayloads();
+  assert.ok(retired && (retired.retiredId === null || retired.retiredId > 0));
+  assert.deepEqual({ rowId: retired.rowId, recordingPath: retired.recordingPath, setupPath: retired.setupPath },
+    { rowId: original.rowId, recordingPath, setupPath: null });
   assert.equal(await enqueueOutboxJob(fullCandidate), "full", "replacement must not increase active capacity");
 
   await database.execute(`WITH RECURSIVE sequence(n) AS (

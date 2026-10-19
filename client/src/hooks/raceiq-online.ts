@@ -57,21 +57,21 @@ export function useRaceIqOnline(options: { enabled?: boolean } = {}) {
     const prior = current.state;
     if (current.signOutPending || current.accountHidden) return false;
     if (!isOnlineStateRevisionCurrent(current.isCachedState && current.generation === 0 ? undefined : prior, next)) return false;
-    if (current.privacyBarrier && current.privateAckRevision !== undefined && next.revision > current.privateAckRevision && leaderboardAllowed(next)) {
-      update(session, { privacyBarrier: false, privateAckRevision: undefined });
-    }
     if (prior && prior.accountEpoch !== next.accountEpoch) {
       session.signInPollingUntil = next.connection.status === "signing_in" ? Date.now() + 120_000 : undefined;
       if (port === raceIqOnlinePort) {
         if (prior) clearOnlineStateCache();
         writeOnlineStateCache(next);
       }
-      update(session, { generation: current.generation + 1, state: next, isCachedState: false, signOutPending: false, transportError: null });
+      update(session, { generation: current.generation + 1, state: next, isCachedState: false, signOutPending: false, transportError: null, privacyBarrier: false, privateAckRevision: undefined });
       void qc.cancelQueries({ queryKey: ["raceiq-online"] });
       void qc.removeQueries({ queryKey: ["raceiq-online", "state"] });
       void qc.removeQueries({ queryKey: ["raceiq-online", "leaderboard"] });
       syncLeaderboardAccess(session, next);
       return true;
+    }
+    if (current.privacyBarrier && current.privateAckRevision !== undefined && next.revision > current.privateAckRevision && leaderboardAllowed(next)) {
+      update(session, { privacyBarrier: false, privateAckRevision: undefined });
     }
     if (!prior) {
       if (next.connection.status === "signing_in") session.signInPollingUntil = Date.now() + 120_000;
@@ -128,12 +128,15 @@ export function useRaceIqOnline(options: { enabled?: boolean } = {}) {
       return undefined;
     }
   };
-  const mutate = async <R extends OnlineCommandResult | ConnectResult>(action: () => Promise<R>): Promise<R | undefined> => {
+  const mutate = async <R extends OnlineCommandResult | ConnectResult>(action: () => Promise<R>, allowObservedConnect = false): Promise<R | undefined> => {
     const generation = session.snapshot.generation;
     update(session, { mutations: session.snapshot.mutations + 1, commandError: null, transportError: null });
     try {
       const response = await action();
-      if (!isCurrentOnlineGeneration(generation, session.snapshot.generation)) return undefined;
+      const observedConnect = allowObservedConnect && response.ok && !session.snapshot.signOutPending && !session.snapshot.accountHidden
+        && response.state.connection.status === "signing_in" && session.snapshot.state?.accountEpoch === response.state.accountEpoch
+        && session.snapshot.state.connection.status === "signing_in" && session.snapshot.state.connection.flowId === response.state.connection.flowId;
+      if (!isCurrentOnlineGeneration(generation, session.snapshot.generation) && !observedConnect) return undefined;
       if (response.ok) acceptCommandState(response.state);
       else {
         update(session, { commandError: response.error });
@@ -160,7 +163,7 @@ export function useRaceIqOnline(options: { enabled?: boolean } = {}) {
       const ctx = context();
       if (!ctx) { popup?.close(); return undefined; }
       const input: ConnectInput = { ...ctx };
-      const result = await mutate(() => port.connect(input));
+      const result = await mutate(() => port.connect(input), true);
       if (!result || !result.ok) { popup?.close(); return result; }
       try {
         const url = new URL(result.authorizationUrl);
@@ -231,7 +234,7 @@ export function useRaceIqOnline(options: { enabled?: boolean } = {}) {
     if (session.snapshot.signOutPending) return;
     const generation = session.snapshot.generation + 1;
     if (port === raceIqOnlinePort) clearOnlineStateCache();
-    update(session, { generation, signOutPending: true, accountHidden: true, isCachedState: false, commandError: null, transportError: null, leaderboardAccess: false, leaderboardGeneration: session.snapshot.leaderboardGeneration + 1 });
+    update(session, { generation, signOutPending: true, accountHidden: true, isCachedState: false, commandError: null, transportError: null, leaderboardAccess: false, leaderboardGeneration: session.snapshot.leaderboardGeneration + 1, privacyBarrier: false, privateAckRevision: undefined });
     await qc.cancelQueries({ queryKey: ["raceiq-online"] });
     await qc.removeQueries({ queryKey: ["raceiq-online", "leaderboard"] });
     await qc.removeQueries({ queryKey: ["raceiq-online", "state"] });

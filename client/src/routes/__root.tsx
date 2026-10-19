@@ -244,7 +244,7 @@ function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <GameRouteProvider value={gameId}>
         {auth.authenticated && <DashboardConnection />}
-        {auth.authenticated && auth.onboardingComplete && <CloudLapImportActivation />}
+        {auth.authenticated && auth.onboardingComplete && !isOverlayPath(pathname) && <CloudLapImportActivation />}
         {isOverlayPath(pathname) ? <OverlayShell /> : pathname === "/login" || pathname === "/onboarding" ? <Outlet /> : <AppShell />}
       </GameRouteProvider>
     </QueryClientProvider>

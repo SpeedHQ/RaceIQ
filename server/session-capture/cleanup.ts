@@ -73,6 +73,18 @@ export async function loadReferencedCapturePaths(): Promise<Set<string>> {
  * Shared with compression so both maintenance paths apply the same directory
  * and extension rules.
  */
+async function listCloudSetupFiles(): Promise<string[]> {
+  const root = resolveRecordingDirectory();
+  const files: string[] = [];
+  for (const game of await readdir(root, { withFileTypes: true }).catch(() => [])) {
+    if (!game.isDirectory()) continue;
+    const directory = join(root, game.name);
+    for (const entry of await readdir(directory, { withFileTypes: true }).catch(() => [])) {
+      if (entry.isFile() && /^cloud-[0-9a-f-]{36}\.setup$/.test(entry.name)) files.push(join(directory, entry.name));
+    }
+  }
+  return files;
+}
 export async function listSessionCaptureFiles(): Promise<string[]> {
   const sessionsDir = resolveRecordingDirectory();
   const captureFiles: string[] = [];
@@ -176,7 +188,7 @@ export async function cleanupOrphanSessionFiles(
     if (!existsSync(sessionsDir)) return 0;
 
     const referenced = await loadReferencedCapturePaths();
-    const captureFiles = [...await listSessionCaptureFiles(), ...await listBundleFiles()];
+    const captureFiles = [...await listSessionCaptureFiles(), ...await listBundleFiles(), ...await listCloudSetupFiles()];
     let removed = 0;
     for (const filePath of captureFiles) {
       if (sessionActive()) break;

@@ -13,14 +13,14 @@ const StateSchema = z.object({
   profile: AccountProfileSchema.nullable().default(null),
   preferences: PreferencesSchema.nullable(), persistedPreferences: PreferencesSchema.nullable(),
   preferencePersistence: z.enum(["unconfirmed", "confirmed", "pending", "failed"]),
-  consent: ConsentSchema.nullable(), privacyBarrier: z.boolean(), setupBarrier: z.boolean(),
+  consent: ConsentSchema.nullable(), privacyBarrier: z.boolean(), setupBarrier: z.boolean(), explicitlySignedOut: z.boolean().default(false),
 }).strict();
 
 export type PersistedOnlineState = z.infer<typeof StateSchema>;
 
 function initial(): PersistedOnlineState {
   return { accountEpoch: randomUUID(), revision: 0, profile: null, preferences: null, persistedPreferences: null,
-    preferencePersistence: "unconfirmed", consent: null, privacyBarrier: true, setupBarrier: true };
+    preferencePersistence: "unconfirmed", consent: null, privacyBarrier: true, setupBarrier: true, explicitlySignedOut: false };
 }
 
 

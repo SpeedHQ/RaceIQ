@@ -54,6 +54,13 @@ export type OutboxJob = {
   updatedAt: number;
 };
 
+export type RetiredOutboxPayload = {
+  retiredId: number | null;
+  rowId: number;
+  recordingPath: string | null;
+  setupPath: string | null;
+};
+
 export type EnqueueOutboxJob = Pick<OutboxJob,
   "accountId" | "accountEpoch" | "gameId" | "trackId" | "carId" | "lapId" | "lapTimeMs"
 >;
@@ -84,6 +91,8 @@ export function ensureOutboxStorage(): Promise<void> {
       created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, last_error_code TEXT
     )`);
     await db.execute("CREATE TABLE IF NOT EXISTS raceiq_online_outbox_migrations (version INTEGER PRIMARY KEY)");
+    await db.execute(`CREATE TABLE IF NOT EXISTS raceiq_online_retired_payloads (
+      retired_id INTEGER PRIMARY KEY, row_id INTEGER NOT NULL, recording_path TEXT, setup_path TEXT)`);
     const migrated = await db.execute("SELECT version FROM raceiq_online_outbox_migrations WHERE version=1");
     if (migrated.rows.length === 0) {
       const columns = ["upload_key TEXT", "payload_fingerprint TEXT", "recording_path TEXT", "setup_path TEXT",
@@ -253,6 +262,18 @@ export async function persistOutboxPayload(job: OutboxJob,
     }
     if (changed && String(row.status) === "pending" && confirmedUnacceptedReservationToken != null &&
         row.reservation_token !== confirmedUnacceptedReservationToken) { await tx.commit(); return null; }
+    if (changed && !initialPayload) {
+      const retiredRecording = row.recording_path != null && row.recording_path !== payload.recordingPath &&
+        row.recording_path !== payload.setupPath ? String(row.recording_path) : null;
+      const retiredSetup = row.setup_path != null && row.setup_path !== payload.recordingPath &&
+        row.setup_path !== payload.setupPath ? String(row.setup_path) : null;
+      if (retiredRecording || retiredSetup) {
+        await tx.execute({
+          sql: "INSERT INTO raceiq_online_retired_payloads(row_id,recording_path,setup_path) VALUES (?,?,?)",
+          args: [job.rowId, retiredRecording, retiredSetup],
+        });
+      }
+    }
     await tx.execute({ sql: `UPDATE raceiq_online_outbox SET payload_fingerprint=?,recording_path=?,setup_path=?,
       upload_key=CASE WHEN ? THEN ? ELSE upload_key END,reservation_token=CASE WHEN ? THEN NULL ELSE reservation_token END,
       status=CASE WHEN ? THEN 'pending' ELSE status END,updated_at=? WHERE row_id=? AND account_id=?`,
@@ -282,32 +303,57 @@ export async function recordOutboxAcceptance(job: OutboxJob, remoteJobId: string
 }
 
 
-export async function listRetiredOutboxPayloads(limit = 100): Promise<
-  { rowId: number; recordingPath: string | null; setupPath: string | null }[]
-> {
+export async function listRetiredOutboxPayloads(limit = 100): Promise<RetiredOutboxPayload[]> {
   if (!Number.isSafeInteger(limit) || limit <= 0) throw new TypeError("Invalid limit");
   await ensureOutboxStorage();
   const result = await getClient().execute({
-    sql: `SELECT row_id,recording_path,setup_path FROM raceiq_online_outbox
+    sql: `SELECT NULL AS retired_id,row_id,recording_path,setup_path FROM raceiq_online_outbox
       WHERE status IN ('transmitted','withdrawn','rejected') AND (recording_path IS NOT NULL OR setup_path IS NOT NULL)
-      ORDER BY updated_at,row_id LIMIT ?`,
+      UNION ALL SELECT retired_id,row_id,recording_path,setup_path FROM raceiq_online_retired_payloads
+      ORDER BY row_id,retired_id LIMIT ?`,
     args: [limit],
   });
   return result.rows.map((row) => ({
+    retiredId: row.retired_id == null ? null : Number(row.retired_id),
     rowId: Number(row.row_id),
     recordingPath: row.recording_path == null ? null : String(row.recording_path),
     setupPath: row.setup_path == null ? null : String(row.setup_path),
   }));
 }
 
-export async function clearRetiredOutboxPayloads(rowId: number): Promise<void> {
-  if (!Number.isSafeInteger(rowId) || rowId <= 0) throw new TypeError("Invalid rowId");
+export async function clearRetiredOutboxPayloads(payload: RetiredOutboxPayload): Promise<void> {
+  if (!Number.isSafeInteger(payload.rowId) || payload.rowId <= 0 ||
+      (payload.retiredId !== null && (!Number.isSafeInteger(payload.retiredId) || payload.retiredId <= 0))) {
+    throw new TypeError("Invalid retired payload");
+  }
   await ensureOutboxStorage();
-  await getClient().execute({
-    sql: `UPDATE raceiq_online_outbox SET recording_path=NULL,setup_path=NULL
-      WHERE row_id=? AND status IN ('transmitted','withdrawn','rejected')`,
-    args: [rowId],
+  const tx = await getClient().transaction("write");
+  try {
+    if (payload.retiredId === null) {
+      await tx.execute({
+        sql: `UPDATE raceiq_online_outbox SET recording_path=NULL,setup_path=NULL
+          WHERE row_id=? AND status IN ('transmitted','withdrawn','rejected')
+          AND recording_path IS ? AND setup_path IS ?`,
+        args: [payload.rowId, payload.recordingPath, payload.setupPath],
+      });
+    } else {
+      await tx.execute({
+        sql: "DELETE FROM raceiq_online_retired_payloads WHERE retired_id=? AND row_id=?",
+        args: [payload.retiredId, payload.rowId],
+      });
+    }
+    await tx.commit();
+  } catch (error) { await tx.rollback(); throw error; }
+}
+
+export async function isCurrentOutboxPayloadPath(path: string): Promise<boolean> {
+  await ensureOutboxStorage();
+  const result = await getClient().execute({
+    sql: `SELECT 1 FROM raceiq_online_outbox WHERE status IN ('pending','dispatching','ambiguous')
+      AND (recording_path=? OR setup_path=?) LIMIT 1`,
+    args: [path, path],
   });
+  return result.rows.length > 0;
 }
 
 export async function getOutboxJob(rowId: number, accountId: string): Promise<OutboxJob | null> {

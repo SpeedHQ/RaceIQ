@@ -109,7 +109,8 @@ export function OnboardingModal({ onClose, onComplete, initialStep = 0 }: { onCl
   const progressSteps = MODAL_STEPS.filter(({ id }) => id !== "welcome" && id !== "access" && id !== "online-choice" && (choice === "discord" || (id !== "online-auth" && id !== "online-permissions")));
   const activeProgressIndex = progressSteps.findIndex(({ id }) => id === stepId);
   async function navigateTo(id: string) {
-    if (stepId === "profile" && !(await profileHandle.current?.save())) return;
+    const targetIndex = progressSteps.findIndex((item) => item.id === id);
+    if (stepId === "profile" && targetIndex > activeProgressIndex && !(await profileHandle.current?.save())) return;
     setStepId(id);
   }
   function setProfileHandle(handle: ProfileStepHandle | null) { profileHandle.current = handle; }

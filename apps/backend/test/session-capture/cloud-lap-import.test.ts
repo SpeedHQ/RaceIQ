@@ -1,10 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { and, eq } from "drizzle-orm";
 import { db } from "@raceiq/backend-core/db/index";
 import { laps, sessions } from "@raceiq/backend-core/db/schema";
+import { loadSettings, saveSettings } from "@raceiq/backend-core/runtime/config/settings";
+import { cleanupOrphanSessionFiles } from "@raceiq/backend-core/session-capture/cleanup";
+import { deleteSession } from "@raceiq/backend-core/db/session-queries";
 import { buildCloudLapImportFixture } from "../fixtures/cloud-lap-import-fixture";
 import { CloudLapImportError, createCloudLapImporter, recoverCloudLapImports, validateCloudLapImportUrl } from "@raceiq/backend-core/session-capture/cloud-lap-import";
 
@@ -35,15 +38,22 @@ describe("cloud lap importer SDK transport", () => {
     const setup = Buffer.from([0, 1, 255, 2]);
     const fixture = buildCloudLapImportFixture({ setup });
     const previousDataDir = process.env.DATA_DIR;
+    const previousSettings = loadSettings();
     const dataDir = await mkdtemp(join(tmpdir(), "raceiq-cloud-import-"));
+    const recordingRoot = join(dataDir, "custom-recordings");
+    let importedSessionId: number | undefined;
+    let setupFilePath: string | undefined;
+    saveSettings({ ...previousSettings, recordingDirectory: recordingRoot });
     process.env.DATA_DIR = dataDir;
     let requests = 0;
+    let failDownload = false;
     const server = Bun.serve({
       hostname: "127.0.0.1",
       port: 0,
       fetch(request) {
         requests++;
         if (request.headers.get("authorization") !== "Bearer fixture-token") return new Response(null, { status: 401 });
+        if (failDownload) return new Response(null, { status: 503 });
         return new Response(fixture.bytes, { headers: { "Content-Type": "application/zip" } });
       },
     });
@@ -58,6 +68,7 @@ describe("cloud lap importer SDK transport", () => {
         onState() {},
       };
       const [first, second] = await Promise.all([importer(input), importer(input)]);
+      importedSessionId = first.sessionId;
       expect(first).toEqual(second);
       expect(requests).toBe(1);
       const saved = await db.select({
@@ -88,9 +99,44 @@ describe("cloud lap importer SDK transport", () => {
       });
       expect(await readFile(saved!.rawFile!)).toEqual(fixture.recording);
       expect(await readFile(saved!.setupPath!)).toEqual(setup);
+      setupFilePath = saved!.setupPath!;
+      expect(saved!.rawFile!.startsWith(join(recordingRoot, fixture.manifest.lap.gameId))).toBe(true);
+      await rm(saved!.rawFile!);
+      const directory = join(recordingRoot, fixture.manifest.lap.gameId);
+      await cleanupOrphanSessionFiles();
+      expect(await Bun.file(saved!.setupPath!).exists()).toBe(true);
+      const beforeFailure = await readdir(directory);
+      failDownload = true;
+      await expect(importer(input)).rejects.toMatchObject({ code: "download_failed" });
+      failDownload = false;
+      const unchanged = await db.select({
+        rawFile: sessions.rawFile, setupPath: sessions.cloudImportSetupPath, author: sessions.sourceAuthorDisplayName,
+        lapId: sessions.cloudImportLapId, lapIdRow: laps.id,
+      }).from(sessions).innerJoin(laps, eq(laps.sessionId, sessions.id))
+        .where(eq(sessions.id, first.sessionId)).get();
+      expect(unchanged).toMatchObject({
+        rawFile: saved!.rawFile, setupPath: saved!.setupPath, author: "Fixture Driver", lapId, lapIdRow: first.id,
+      });
+      expect(await readdir(directory)).toEqual(beforeFailure);
+      const reimported = await importer(input);
+      expect(reimported).toEqual(first);
+      expect(requests).toBe(3);
+      expect(await db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, first.sessionId)).all()).toHaveLength(1);
+      const currentSetup = await db.select({ setupPath: sessions.cloudImportSetupPath })
+        .from(sessions).where(eq(sessions.id, first.sessionId)).get();
+      expect(currentSetup?.setupPath).toBeTruthy();
+      expect(currentSetup!.setupPath).not.toBe(saved!.setupPath);
+      const orphan = join(directory, `cloud-${crypto.randomUUID()}.setup`);
+      await writeFile(orphan, "orphan setup");
+      await cleanupOrphanSessionFiles();
+      expect(await Bun.file(orphan).exists()).toBe(false);
+      expect(await Bun.file(currentSetup!.setupPath!).exists()).toBe(true);
+      expect(await Bun.file(saved!.setupPath!).exists()).toBe(false);
     } finally {
       server.stop(true);
-      await db.delete(sessions).where(and(eq(sessions.cloudImportOrigin, origin), eq(sessions.cloudImportLapId, lapId))).run();
+      if (importedSessionId !== undefined) await deleteSession(importedSessionId);
+      if (setupFilePath) expect(await Bun.file(setupFilePath).exists()).toBe(false);
+      saveSettings(previousSettings);
       if (previousDataDir === undefined) delete process.env.DATA_DIR;
       else process.env.DATA_DIR = previousDataDir;
       await rm(dataDir, { recursive: true, force: true });

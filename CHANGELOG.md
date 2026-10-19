@@ -15,12 +15,19 @@
 ### Fixes
 - Report Online queue counts and the last successful upload from durable account-owned outcomes, preserving sync history across restarts without advancing it after failures or status refreshes.
 - Keep cloud lap import polling off login and setup screens, and acknowledge opened laps so new dashboard tabs do not reopen old imports.
+- Keep overlays on their current page when cloud laps are opened.
+- Restore cloud laps after Storage cleanup without duplicate library entries, using the selected recording folder.
+- Remove unused downloaded setup files when deleting cloud laps or cleaning storage.
 - Reject malformed protocol links and truncated cloud recordings, isolate activation socket failures, and recover already accepted Online uploads.
 - Load RaceIQ Online leaderboards for the selected game, track, and car using your signed-in account.
 - Remember Online policy acceptance and confirmed sharing preferences across sign-in and refresh.
 - Keep Online sign-in and saved sharing choices across restarts, service outages, and temporarily unavailable credentials; disable remote actions until authentication recovers.
+- Preserve newer private and setup-sharing-off choices when older Online requests finish, and keep explicit sign-out effective when saved credentials cannot be cleared.
+- Retry queued Online uploads after temporary account or service failures and remove obsolete upload files without deleting files still in use.
 - Edit Online leaderboard names and sharing settings as local drafts; retain unsaved changes after failed saves.
-- Replace the Online sign-in callback response with recovery guidance and remove callback credentials from the address bar.
+- Retry failed Online permission saves and recover sign-in after account switches or delayed responses.
+- Allow Back in the setup wizard even when saving the driver profile fails.
+- Complete browser sign-in on password-protected dashboards, show recovery guidance when needed, and remove callback credentials from the address bar.
 - Use LMU game-world coordinates directly for track geometry, preserving edge-hugging and off-track positions.
 - Prevent overlapping database writes from blocking recording imports and setup or session deletion.
 - Allow repeated recording downsampling without exceeding filesystem filename limits.

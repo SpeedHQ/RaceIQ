@@ -20,7 +20,7 @@ export type UploadOutcome =
   | { readonly kind: "ambiguous"; readonly code: string };
 
 export type DispatchResult =
-  | { readonly authorized: false }
+  | { readonly authorized: false; readonly reason: "withdrawn" | "temporarily_unavailable" }
   | { readonly authorized: true; readonly outcome: UploadOutcome };
 
 /**
@@ -81,8 +81,18 @@ export async function processOutboxDelivery(input: ProcessOutboxDeliveryInput): 
       await settleOutboxDelivery({ job, status: "ambiguous", errorCode: "internal_error" });
       return { kind: "retry" };
     }
-    await settleOutboxDelivery({ job, status: "withdrawn", errorCode: "dispatch_barrier" });
-    return { kind: "ack" };
+    if (result.reason === "withdrawn") {
+      await settleOutboxDelivery({ job, status: "withdrawn", errorCode: "dispatch_barrier" });
+      return { kind: "ack" };
+    }
+    const retryNotBeforeAt = Date.now();
+    await settleOutboxDelivery({
+      job,
+      status: current.status === "ambiguous" ? "ambiguous" : "pending",
+      retryNotBeforeAt,
+      errorCode: "service_unavailable",
+    });
+    return { kind: "retry", retryNotBeforeAt };
   }
   if (!sendInvoked) {
     await settleOutboxDelivery({ job, status: "ambiguous", errorCode: "internal_error" });

@@ -1,5 +1,5 @@
-import { mkdir, open, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
-import { basename, dirname, join } from "node:path";
+import { access, mkdir, open, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
+import { basename, dirname, isAbsolute, relative, resolve, sep, join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { gunzipSync } from "node:zlib";
 import { and, eq } from "drizzle-orm";
@@ -9,6 +9,7 @@ import { unzipBounded, type ZipExtractionLimits } from "../archive/bounded-unzip
 import { db } from "../db/index";
 import { laps, sessions } from "../db/schema";
 import { resolveDataDir } from "../runtime/config/data-dir";
+import { resolveRecordingDirectory } from "../runtime/config/recording-directory";
 import { validateCloudImportCapture } from "./cloud-import-admission";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import type { CloudLapImportStatus } from "@raceiq/shared/integrations/cloud-lap-import";
@@ -101,10 +102,15 @@ async function importCloudLapWithOptions(input: Parameters<typeof importCloudLap
   if (requestedId !== input.lapId) throw new CloudLapImportError("lap_id_mismatch", false);
   await recoverCloudLapImports();
   const key = `${origin}\0${input.lapId}`;
-  const found = await db.select({ id: laps.id, gameId: sessions.gameId, sessionId: sessions.id })
+  const found = await db.select({ id: laps.id, gameId: sessions.gameId, sessionId: sessions.id, rawFile: sessions.rawFile })
     .from(sessions).innerJoin(laps, eq(laps.sessionId, sessions.id))
     .where(and(eq(sessions.cloudImportOrigin, origin), eq(sessions.cloudImportLapId, input.lapId))).get();
-  if (found) return found;
+  if (found?.rawFile) {
+    try {
+      await access(found.rawFile);
+      return { id: found.id, gameId: found.gameId, sessionId: found.sessionId };
+    } catch { /* Missing captures are restored from cloud while keeping lap identity. */ }
+  }
   const joined = active.get(key);
   if (joined) return joined;
   const run = performImport(input, origin, fetcher).finally(() => active.delete(key));
@@ -122,21 +128,21 @@ interface CloudImportJournal {
   setupFinal: string | null;
 }
 
-let recoveredDataDir: string | null = null;
-
+let recoveredRoot: string | null = null;
 /** Recover interrupted cloud publication once before accepting imports in this data directory. */
 export async function recoverCloudLapImports(): Promise<void> {
-  const root = resolveDataDir();
-  if (recoveredDataDir === root) return;
+  const root = `${resolveDataDir()}\0${resolveRecordingDirectory()}`;
+  if (recoveredRoot === root) return;
   await withSessionCaptureMaintenanceLock(async () => {
-    if (recoveredDataDir === root) return;
+    if (recoveredRoot === root) return;
     await recoverCloudImportJournals();
-    recoveredDataDir = root;
+    recoveredRoot = root;
   });
 }
 
 async function recoverCloudImportJournals(): Promise<void> {
   const root = resolveDataDir();
+  const recordingRoot = resolveRecordingDirectory();
   await mkdir(root, { recursive: true });
   for (const name of await readdir(root)) {
     if (!/^\.cloud-import-[0-9a-f-]{36}\.json$/.test(name)) continue;
@@ -148,8 +154,13 @@ async function recoverCloudImportJournals(): Promise<void> {
       journal = parsed as CloudImportJournal;
       if (journal.version !== 1 || !/^[A-Za-z0-9_-]{1,128}$/.test(journal.lapId) ||
           !/^[a-z0-9-]+$/.test(journal.gameId)) throw new Error("invalid journal");
-      const dir = join(root, "sessions", journal.gameId);
-      const owned = (path: string, pattern: RegExp) => dirname(path) === dir && pattern.test(basename(path));
+      const dir = resolve(recordingRoot, journal.gameId);
+      const owned = (path: string, pattern: RegExp) => {
+        if (!isAbsolute(path) || dirname(path) !== dir) return false;
+        const rel = relative(recordingRoot, path);
+        if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) return false;
+        return pattern.test(basename(path));
+      };
       if (!owned(journal.temp, /^\.cloud-[0-9a-f-]{36}\.bin\.gz\.part$/) ||
           !owned(journal.final, /^cloud-[0-9a-f-]{36}\.bin\.gz$/) ||
           (journal.setupTemp !== null && !owned(journal.setupTemp, /^\.cloud-[0-9a-f-]{36}\.setup\.part$/)) ||
@@ -244,7 +255,7 @@ async function performImport(input: Parameters<typeof importCloudLap>[0], origin
 
   input.onState("registering");
   const gameId = manifest.lap.gameId as GameId;
-  const directory = join(resolveDataDir(), "sessions", gameId);
+  const directory = join(resolveRecordingDirectory(), gameId);
   await mkdir(directory, { recursive: true });
   const temp = join(directory, `.cloud-${randomUUID()}.bin.gz.part`);
   const final = join(directory, `cloud-${randomUUID()}.bin.gz`);
@@ -262,26 +273,39 @@ async function performImport(input: Parameters<typeof importCloudLap>[0], origin
       if (setupTemp && manifest.setup) await writeFile(setupTemp, files[manifest.setup.path]!, { flag: "wx", mode: 0o600 });
       let result!: { id: number; gameId: string; sessionId: number };
       await db.transaction(async (tx) => {
-        const session = await tx.insert(sessions).values({
-          carId: manifest.lap.carId, trackId: manifest.lap.trackId, gameId, sessionType: "cloud-import", rawFile: final,
-          lapDetectorVersion: manifest.processing.lapDetectorVersion, source: "cloud-import", ownership: "others",
-          sourceAuthorUserId: manifest.author.userId, sourceAuthorDisplayName: manifest.author.displayName,
-          cloudImportOrigin: origin, cloudImportLapId: manifest.lap.id,
-          cloudImportSessionKey: manifest.lap.sessionKey, cloudImportSessionUid: manifest.lap.sessionUID,
-          cloudImportSourceLapIndex: manifest.lap.sourceLapIndex, cloudImportSourceSessionKey: manifest.lap.sourceSessionKey,
-          sourceFrameFormat: manifest.processing.sourceFrameFormat, sourceFrameVersion: manifest.processing.sourceFrameVersion,
-          cloudImportSetupPath: setupFinal,
-          cloudImportSetupFileName: manifest.setup?.fileName ?? null,
-          captureFormatVersion: 1,
-        }).returning({ id: sessions.id }).get();
-        const lap = await tx.insert(laps).values({
-          sessionId: session.id, lapNumber: manifest.lap.lapIndex, lapTime: manifest.lap.totalTimeMs / 1000, isValid: true,
-          invalidReason: manifest.lap.invalidReason, sectorTimes: manifest.lap.sectorTimesMs.map((time) => time / 1000), totalTimeMs: manifest.lap.totalTimeMs, sectorTimesMs: manifest.lap.sectorTimesMs,
-          rawByteOffset: admission.rawByteOffset, rawFrameCount: admission.rawFrameCount, recordedAt: manifest.lap.recordedAt, createdAt: manifest.lap.setAt,
-        }).returning({ id: laps.id }).get();
+        const prior = await tx.select({ id: sessions.id }).from(sessions)
+          .where(and(eq(sessions.cloudImportOrigin, origin), eq(sessions.cloudImportLapId, manifest.lap.id))).get();
+        let sessionId: number;
+        if (prior) {
+          sessionId = prior.id;
+          await tx.update(sessions).set({ rawFile: final, cloudImportSetupPath: setupFinal, cloudImportSetupFileName: manifest.setup?.fileName ?? null })
+            .where(eq(sessions.id, sessionId)).run();
+        } else {
+          const session = await tx.insert(sessions).values({
+            carId: manifest.lap.carId, trackId: manifest.lap.trackId, gameId, sessionType: "cloud-import", rawFile: final,
+            lapDetectorVersion: manifest.processing.lapDetectorVersion, source: "cloud-import", ownership: "others",
+            sourceAuthorUserId: manifest.author.userId, sourceAuthorDisplayName: manifest.author.displayName,
+            cloudImportOrigin: origin, cloudImportLapId: manifest.lap.id,
+            cloudImportSessionKey: manifest.lap.sessionKey, cloudImportSessionUid: manifest.lap.sessionUID,
+            cloudImportSourceLapIndex: manifest.lap.sourceLapIndex, cloudImportSourceSessionKey: manifest.lap.sourceSessionKey,
+            sourceFrameFormat: manifest.processing.sourceFrameFormat, sourceFrameVersion: manifest.processing.sourceFrameVersion,
+            cloudImportSetupPath: setupFinal, cloudImportSetupFileName: manifest.setup?.fileName ?? null, captureFormatVersion: 1,
+          }).returning({ id: sessions.id }).get();
+          sessionId = session.id;
+        }
+        let lap = await tx.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, sessionId)).get();
+        if (!lap) {
+          lap = await tx.insert(laps).values({
+            sessionId, lapNumber: manifest.lap.lapIndex, lapTime: manifest.lap.totalTimeMs / 1000, isValid: true,
+            invalidReason: manifest.lap.invalidReason, sectorTimes: manifest.lap.sectorTimesMs.map((time) => time / 1000),
+            totalTimeMs: manifest.lap.totalTimeMs, sectorTimesMs: manifest.lap.sectorTimesMs,
+            rawByteOffset: admission.rawByteOffset, rawFrameCount: admission.rawFrameCount,
+            recordedAt: manifest.lap.recordedAt, createdAt: manifest.lap.setAt,
+          }).returning({ id: laps.id }).get();
+        }
         await rename(temp, final);
         if (setupTemp && setupFinal) await rename(setupTemp, setupFinal);
-        result = { id: lap.id, gameId, sessionId: session.id };
+        result = { id: lap.id, gameId, sessionId };
       });
       return result;
     });
