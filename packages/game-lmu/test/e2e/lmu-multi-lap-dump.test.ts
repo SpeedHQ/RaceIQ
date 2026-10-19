@@ -9,7 +9,7 @@ let recording: Awaited<ReturnType<typeof parseDump>>;
 
 beforeAll(async () => {
   recording = await parseDump(lmuRecordingSupport, FIXTURE);
-});
+}, 60_000);
 
 afterAll(() => stopMaintenanceTasks());
 

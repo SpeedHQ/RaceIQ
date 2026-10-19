@@ -47,26 +47,23 @@ function startBranch(dataDir: string): StartupBackend {
     import { bootServer } from "./apps/backend/src/runtime/boot";
     import { getLayoutMigrationStatus, startLayoutMigration } from "./server/session-capture/layout-migration";
     captureConsole();
-    const control = Bun.serve({ hostname: "127.0.0.1", port: 0, async fetch(request) {
-      if (request.method !== "POST") return new Response(null, { status: 405 });
-      try {
-        await startLayoutMigration();
-        while (true) {
-          const status = await getLayoutMigrationStatus();
-          if (status.progress.status === "success") {
-            console.log("[E2E] Layout migration success");
-            return Response.json({ status: "success" });
-          }
-          if (status.progress.status === "partial" || status.progress.status === "error") {
-            console.log("[E2E] Layout migration failed");
-            return Response.json({ status: "failed" });
-          }
-          await Bun.sleep(10);
-        }
-      } catch (error) {
-        console.error("[E2E] Layout migration failed", error);
-        return new Response(null, { status: 500 });
+    // Migration filesystem work can exceed Bun's HTTP idle timeout; the parent enforces a deadline.
+    const control = Bun.serve({ hostname: "127.0.0.1", port: 0, idleTimeout: 0, async fetch(request) {
+      if (request.method === "POST") {
+        void startLayoutMigration().catch((error) => console.error("[E2E] Layout migration admission failed", error));
+        return Response.json({ accepted: true }, { status: 202 });
       }
+      if (request.method !== "GET") return new Response(null, { status: 405 });
+      const status = await getLayoutMigrationStatus();
+      if (status.progress.status === "success") {
+        console.log("[E2E] Layout migration success");
+        return Response.json({ status: "success" });
+      }
+      if (status.progress.status === "partial" || status.progress.status === "error") {
+        console.log("[E2E] Layout migration failed");
+        return Response.json({ status: "failed" });
+      }
+      return Response.json({ status: status.progress.status });
     } });
     console.log("[E2E] Migration control:", control.port);
     await bootServer({ httpPort: 0, udpPort: 0, recordingGameId: null });
@@ -99,11 +96,18 @@ function startBranch(dataDir: string): StartupBackend {
       await waitFor("[E2E] Migration control:");
       const match = output.match(/\[E2E\] Migration control: (\d+)/);
       if (!match) throw new Error("Migration control port missing");
-      const response = await fetch(`http://127.0.0.1:${match[1]}`, { method: "POST" });
-      if (!response.ok) throw new Error(`Migration control returned ${response.status}`);
-      const result = await response.json() as { status?: unknown };
-      if (result.status !== "success" && result.status !== "failed") throw new Error("Migration control returned an invalid result");
-      return result.status;
+      const url = `http://127.0.0.1:${match[1]}`;
+      const response = await fetch(url, { method: "POST" });
+      if (response.status !== 202) throw new Error(`Migration control returned ${response.status}`);
+      const deadline = Date.now() + 180_000;
+      while (Date.now() < deadline) {
+        const statusResponse = await fetch(url, { signal: AbortSignal.timeout(Math.max(1, deadline - Date.now())) });
+        if (!statusResponse.ok) throw new Error(`Migration control status returned ${statusResponse.status}`);
+        const result = await statusResponse.json() as { status?: unknown };
+        if (result.status === "success" || result.status === "failed") return result.status;
+        await Bun.sleep(25);
+      }
+      throw new Error(`Layout migration did not finish:\n${output}`);
     },
     output: () => output,
     async stop() {
