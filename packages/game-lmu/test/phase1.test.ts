@@ -214,16 +214,27 @@ describe("LMU Phase 1 player pipeline", () => {
       expect(sample("lmu.rest.condition.aero").observation.value).toBe(0);
       expect(sample("lmu.rest.energy.capacity").observation).toMatchObject({ value: null, state: "not-applicable" });
       const original = sample("lmu.rest.condition.aero").observation.provenance;
-      now += 1001;
+      for (let index = 0; index < 4; index++) {
+        now += 1001;
+        await poller.refresh();
+        expect(sample("lmu.rest.condition.aero").observation).toMatchObject({ state: "ok", value: 0 });
+        expect(sample("lmu.rest.condition.aero").acquiredAt).toEqual({ domain: "wall-clock", milliseconds: now });
+        expect(sample("lmu.rest.condition.aero").observation.provenance).toEqual(original);
+      }
+      now += 3000;
+      expect(sample("lmu.rest.condition.aero").observation).toMatchObject({ state: "ok", value: 0 });
+      now++;
+      expect(sample("lmu.rest.condition.aero").observation).toMatchObject({ state: "stale", value: null });
       await poller.refresh();
-      expect(sample("lmu.rest.condition.aero").acquiredAt).toEqual({ domain: "wall-clock", milliseconds: now });
+      expect(sample("lmu.rest.condition.aero").observation).toMatchObject({ state: "ok", value: 0 });
       expect(sample("lmu.rest.condition.aero").observation.provenance).toEqual(original);
+      const lastSuccessfulAcquisition = sample("lmu.rest.condition.aero").acquiredAt;
       mode = "error";
       now += 1001;
       await poller.refresh();
       expect(sample("lmu.rest.condition.aero").observation.state).toBe("error");
       expect(sample("lmu.rest.condition.aero").observation.provenance).toEqual(original);
-      expect(sample("lmu.rest.condition.aero").acquiredAt).toEqual({ domain: "wall-clock", milliseconds: 2001 });
+      expect(sample("lmu.rest.condition.aero").acquiredAt).toEqual(lastSuccessfulAcquisition);
       mode = "malformed";
       now += 1001;
       await poller.refresh();

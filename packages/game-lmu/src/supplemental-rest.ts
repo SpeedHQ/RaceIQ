@@ -128,8 +128,8 @@ export class LmuSupplementalRest {
   snapshot(): readonly LmuSupplementalObservation[] {
     const now = this.now();
     return [...this.observations.values()].map((entry) => {
-      const observed = entry.observation.provenance.observedAt;
-      const stale = observed.domain === "wall-clock" && now - observed.milliseconds > LMU_REST_CHANNELS[entry.semanticId as LmuRestSemanticId].staleAfterMs;
+      const acquired = entry.acquiredAt;
+      const stale = acquired.domain === "wall-clock" && now - acquired.milliseconds > LMU_REST_CHANNELS[entry.semanticId as LmuRestSemanticId].staleAfterMs;
       if (!stale || entry.observation.freshness === "stale") return entry;
       return { ...entry, observation: { ...entry.observation, value: null, state: entry.observation.state === "ok" ? "stale" : entry.observation.state, freshness: "stale", confidence: null } };
     });

@@ -61,6 +61,8 @@ with configurable `LMU_REST_BASE_URL`, 500 ms default timeout, a 1 MiB response
 limit, 1 s vehicle-condition/estimate cadence and 60 s setup/session/forecast
 cadence. Unchanged successes update acquisition time only; failures retain
 original successful acquisition and observation ages with explicit error state.
+Snapshot expiry uses acquisition age, not the age of the last value change;
+unchanged successful polls keep snapshots available without rewriting provenance.
 Capacity, localized refill selection and pit/repair estimate units are still
 unverified and are deliberately unavailable. Raw condition scaling is not
 claimed as a damage/wear percentage.

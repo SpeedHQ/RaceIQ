@@ -12,6 +12,8 @@
 - Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
 
 ### Fixes
+- Keep unchanged LMU supplemental snapshots available while successful polling continues, without resetting their original observation ages.
+- Render LMU developer telemetry snapshots without crashing on precision-preserved observation sequences.
 - Preserve LMU player snapshots, availability states and original observation times through recording, lap export, import and replay.
 - Keep LMU selected-lap exports compact enough to import again, including supplemental snapshots at the recording frame-size limit.
 - Show unrecorded LMU import channels as unavailable instead of artificial zero or false readings, while preserving recorded zeros.
