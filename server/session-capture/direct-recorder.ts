@@ -413,8 +413,11 @@ export class DirectCaptureRecording {
       const handle = await open(temporary, "r+");
       try { await handle.sync(); } finally { await handle.close(); }
       await rename(temporary, this.manifestPath);
-      const parent = await open(dirname(this.manifestPath), "r");
-      try { await parent.sync(); } finally { await parent.close(); }
+      // Windows cannot flush directory handles; the manifest file is already synced.
+      if (process.platform !== "win32") {
+        const parent = await open(dirname(this.manifestPath), "r");
+        try { await parent.sync(); } finally { await parent.close(); }
+      }
     } catch (error) {
       await rm(temporary, { force: true }).catch(() => {});
       throw error;

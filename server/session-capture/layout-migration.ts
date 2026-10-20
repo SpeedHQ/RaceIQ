@@ -21,6 +21,14 @@ type SessionReference = { sessionId: number; oldPath: string; newPath: string };
 type JournalEntry = { source: string; digest: string; destinations: string[]; published: string[]; references: SessionReference[]; cutover: boolean };
 type Journal = { version: 1; root: string; destination: string; phase: "organizing" | "relocating"; entries: JournalEntry[]; progress: LayoutMigrationProgress };
 const journalFile = join(resolveDataDir(), "recording-layout-migration.json");
+// Windows journal readers must close their handles before replacement or removal.
+let journalQueue = Promise.resolve();
+function withJournalLock<T>(operation: () => Promise<T>): Promise<T> {
+  const previous = journalQueue;
+  let release!: () => void;
+  journalQueue = new Promise<void>((resolve) => { release = resolve; });
+  return previous.then(operation).finally(release);
+}
 let active = false;
 let progress: LayoutMigrationProgress = { status: "idle", done: 0, total: 0, migrated: 0, failed: 0, error: null };
 let migrationGeneration = 0;
@@ -75,7 +83,10 @@ async function isLegacyCandidateFile(root: string, path: string, requireCaptureN
   return Boolean(directory?.isDirectory() && !directory.isSymbolicLink() && file?.isFile() && !file.isSymbolicLink());
 }
 
-async function readJournal(): Promise<Journal | null> {
+function readJournal(): Promise<Journal | null> {
+  return withJournalLock(readJournalUnlocked);
+}
+async function readJournalUnlocked(): Promise<Journal | null> {
   const journalInfo = await lstat(journalFile).catch((error) => { if ((error as NodeJS.ErrnoException).code === "ENOENT") return null; throw error; });
   if (!journalInfo) return null;
   if (!journalInfo.isFile() || journalInfo.isSymbolicLink()) throw new Error("Unsafe recording migration journal");
@@ -128,12 +139,19 @@ async function readJournal(): Promise<Journal | null> {
   }
   return journal;
 }
-async function saveJournal(journal: Journal): Promise<void> {
+async function syncDirectory(directoryPath: string): Promise<void> {
+  const directory = await open(directoryPath, "r");
+  try { await directory.sync(); } finally { await directory.close(); }
+}
+function saveJournal(journal: Journal): Promise<void> {
+  return withJournalLock(() => saveJournalUnlocked(journal));
+}
+async function saveJournalUnlocked(journal: Journal): Promise<void> {
   const temp = `${journalFile}.${process.pid}.${randomUUID()}.tmp`;
   const handle = await open(temp, "wx", 0o600);
   try { await handle.writeFile(JSON.stringify(journal)); await handle.sync(); } finally { await handle.close(); }
   await rename(temp, journalFile);
-  try { const directory = await open(dirname(journalFile), "r"); try { await directory.sync(); } finally { await directory.close(); } } catch { /* Directory sync unavailable on some platforms. */ }
+  if (process.platform !== "win32") await syncDirectory(dirname(journalFile));
 }
 async function findLegacyFiles(root: string): Promise<string[]> {
   const knownGames = new Set<string>(getAllGames().map((game) => game.id));
@@ -262,7 +280,7 @@ async function publish(source: string, target: string, digest: string): Promise<
     // Windows requires write access when flushing file buffers.
     const file = await open(temp, "r+"); try { await file.sync(); } finally { await file.close(); }
     await link(temp, target);
-    try { const dir = await open(dirname(target), "r"); try { await dir.sync(); } finally { await dir.close(); } } catch { /* Directory fsync may be unsupported. */ }
+    if (process.platform !== "win32") await syncDirectory(dirname(target));
   } finally { await unlink(temp).catch(() => undefined); }
 }
 export async function startLayoutMigration(directory?: string): Promise<void> {
@@ -350,7 +368,7 @@ export async function startLayoutMigration(directory?: string): Promise<void> {
     progress.status = "success";
     progress.phase = null;
     journal.progress = { ...progress };
-    await unlink(journalFile);
+    await withJournalLock(() => unlink(journalFile));
   }).catch(async (error) => {
     progress.status = "error";
     progress.error = error instanceof Error ? error.message : "Layout migration failed";

@@ -225,7 +225,7 @@ describe("recording-directory relocation", () => {
     await mkdir(destination);
     await mkdir(outside);
     await writeFile(capture, bytes);
-    await symlink(outside, join(destination, "test-game"));
+    await symlink(outside, join(destination, "test-game"), "junction");
     saveSettings({ ...loadSettings(), recordingDirectory: source });
 
     await startRecordingDirectoryMove(destination);
@@ -340,26 +340,35 @@ describe("recording-directory relocation", () => {
     await mkdir(join(externalDirectory, "nested"), { recursive: true });
     await writeFile(externalFile, bytes);
     await writeFile(externalCapture, bytes);
-    await symlink(externalFile, fileLink);
-    await symlink(externalDirectory, directoryLink);
+    let fileSymlinkSupported = true;
+    try {
+      await symlink(externalFile, fileLink);
+    } catch (error) {
+      if (process.platform !== "win32" || !(error instanceof Error) || !("code" in error) || error.code !== "EPERM") throw error;
+      fileSymlinkSupported = false;
+    }
+    await symlink(externalDirectory, directoryLink, "junction");
     saveSettings({ ...loadSettings(), recordingDirectory: source });
     try {
-      const fileSessionId = await insertSession("symlink-file-car", "track", "fm-2023");
+      const fileSessionId = fileSymlinkSupported ? await insertSession("symlink-file-car", "track", "fm-2023") : undefined;
       const directorySessionId = await insertSession("symlink-dir-car", "track", "fm-2023");
-      sessionIds.push(fileSessionId, directorySessionId);
-      await db.update(sessions).set({ rawFile: fileLink }).where(eq(sessions.id, fileSessionId)).run();
+      if (fileSessionId !== undefined) sessionIds.push(fileSessionId);
+      sessionIds.push(directorySessionId);
+      if (fileSessionId !== undefined) await db.update(sessions).set({ rawFile: fileLink }).where(eq(sessions.id, fileSessionId)).run();
       await db.update(sessions).set({ rawFile: join(directoryLink, "nested", "capture.bin") }).where(eq(sessions.id, directorySessionId)).run();
 
       await startRecordingDirectoryMove(destination);
       await waitForMove();
 
-      const fileSession = await db.select().from(sessions).where(eq(sessions.id, fileSessionId)).get();
+      if (fileSessionId !== undefined) {
+        const fileSession = await db.select().from(sessions).where(eq(sessions.id, fileSessionId)).get();
+        expect(fileSession?.rawFile).toBe(fileLink);
+        expect(await readFile(fileLink)).toEqual(bytes);
+        await expect(readFile(join(destination, "test-game", "file-link.bin"))).rejects.toMatchObject({ code: "ENOENT" });
+      }
       const directorySession = await db.select().from(sessions).where(eq(sessions.id, directorySessionId)).get();
-      expect(fileSession?.rawFile).toBe(fileLink);
       expect(directorySession?.rawFile).toBe(join(directoryLink, "nested", "capture.bin"));
-      expect(await readFile(fileLink)).toEqual(bytes);
       expect(await readFile(join(directoryLink, "nested", "capture.bin"))).toEqual(bytes);
-      await expect(readFile(join(destination, "test-game", "file-link.bin"))).rejects.toMatchObject({ code: "ENOENT" });
       await expect(readFile(join(destination, "test-game", "directory-link", "nested", "capture.bin"))).rejects.toMatchObject({ code: "ENOENT" });
     } finally {
       for (const id of sessionIds) await deleteSession(id);

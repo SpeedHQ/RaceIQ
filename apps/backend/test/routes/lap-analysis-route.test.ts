@@ -32,7 +32,8 @@ test("semantic replay requests F1 Analyse dependencies", () => {
 describe("GET /api/laps/:id/semantic-telemetry", () => {
   test("returns full F1 Analyse replay with adapter channels", async () => {
     const sessionId = await insertSession("0", "0", "f1-2025");
-    const lapId = await insertLap(sessionId, 1, 80.9, true, null, 0);
+    await updateSessionRawFile(sessionId, "/virtual/f1-replay.bin", "test");
+    const lapId = await insertLap(sessionId, 1, 80.9, true, 12, 2);
     cacheSet(lapId, [
       packet("f1-2025", { TimestampMS: 1_000, Speed: 10 }),
       packet("f1-2025", { TimestampMS: 1_017, Speed: 20 }),
@@ -70,7 +71,8 @@ describe("GET /api/laps/:id/semantic-telemetry", () => {
 describe("GET /api/laps/:id/semantic-telemetry?view=track-map", () => {
   test("returns compact iRacing GPS and progress samples", async () => {
     const sessionId = await insertSession("0", "0", "iracing");
-    const lapId = await insertLap(sessionId, 1, 80.9, true, null, 0);
+    await updateSessionRawFile(sessionId, "/virtual/iracing-replay.bin", "test");
+    const lapId = await insertLap(sessionId, 1, 80.9, true, 12, 2);
     cacheSet(lapId, [0.25, 0.75].map((lapDistancePct, index) => packet("iracing", {
       iracing: { lapDistancePct, sessionTick: index + 1 } as TelemetryPacket["iracing"],
       CurrentRaceTime: index,
@@ -127,8 +129,9 @@ describe("GET /api/laps/review", () => {
 describe("POST /api/laps/aligned-telemetry", () => {
   test("preserves requested order, wheel wear, sectors, and base cache identity", async () => {
     const sessionId = await insertSession("10", "20", "acc");
-    const lapA = await insertLap(sessionId, 1, 61, true, null, 0, null, null, null, [20, 21, 20]);
-    const lapB = await insertLap(sessionId, 2, 60, true, null, 0, null, null, null, [19, 21, 20]);
+    await updateSessionRawFile(sessionId, "/virtual/alignment-capture.bin", "test");
+    const lapA = await insertLap(sessionId, 1, 61, true, 12, 3, null, null, null, [20, 21, 20]);
+    const lapB = await insertLap(sessionId, 2, 60, true, 1_012, 3, null, null, null, [19, 21, 20]);
     const telemetry = (offset: number) => [0, 1, 2].map((distance, index) => packet("acc", {
       DistanceTraveled: distance,
       CurrentLap: index,

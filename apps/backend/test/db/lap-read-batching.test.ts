@@ -140,9 +140,18 @@ test("unpublished and empty legacy captures remain unavailable without binary re
   const ids = insertedLaps.map(({ id }) => id);
   const single = await getSessionLaps("ac-evo", inserted[0]!.id);
   expect(single.map(({ telemetryAvailable, standaloneCaptureReady }) => [telemetryAvailable, standaloneCaptureReady])).toEqual([[false, false], [false, false]]);
-  for (const parallelSessionDecodes of [false, true]) {
-    const result = await getLapsByIds(ids, { parallelSessionDecodes });
-    expect(result.map(({ id, telemetry, parseError }) => [id, telemetry.length, parseError])).toEqual(ids.map((id) => [id, 0, undefined]));
+  for (let attempt = 0; attempt < 2; attempt++) {
+    for (const id of ids) {
+      const result = await getLapById(id);
+      expect(result).toMatchObject({ telemetry: [], telemetryAvailable: false, standaloneCaptureReady: false });
+      expect(result).not.toHaveProperty("parseError");
+    }
+  }
+  for (let attempt = 0; attempt < 2; attempt++) {
+    for (const parallelSessionDecodes of [false, true]) {
+      const result = await getLapsByIds(ids, { parallelSessionDecodes });
+      expect(result.map(({ id, telemetry, parseError }) => [id, telemetry.length, parseError])).toEqual(ids.map((id) => [id, 0, undefined]));
+    }
   }
   expect(parseRawLapFrames).not.toHaveBeenCalled();
   expect(parseSessionLapsBatched).not.toHaveBeenCalled();
