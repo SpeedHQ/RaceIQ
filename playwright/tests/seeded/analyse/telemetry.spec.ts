@@ -69,7 +69,7 @@ for (const game of SEEDED_GAME_CASES) {
     const browserErrors = collectBrowserErrors(page);
     const lap = await getSeededLapTarget(request, game.gameId);
     await page.goto(`/${game.prefix}/sessions/${lap.sessionId}/replay/${lap.id}`, { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: "Metrics at Cursor" })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("slider", { name: "Lap timeline" })).toBeVisible({ timeout: 30_000 });
     await expect.poll(() => page.evaluate(() => Number((window as unknown as Record<string, unknown>).__totalFrames ?? 0)), { timeout: 30_000 }).toBe(lap.telemetry.length);
 
     const representativeFrames = [0, Math.floor(lap.telemetry.length / 2), lap.telemetry.length - 1];

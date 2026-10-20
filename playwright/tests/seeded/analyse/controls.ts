@@ -145,13 +145,19 @@ export async function exerciseInsightsAndMap(page: Page): Promise<void> {
 }
 
 export async function exercise3dGuide(page: Page, assertClosed = true): Promise<void> {
-  await page.getByRole("tab", { name: "3D", exact: true }).click({ timeout: 30_000 });
-  await expect(page.getByRole("tab", { name: "3D", exact: true })).toHaveAttribute("aria-selected", "true");
-  await page.getByRole("tab", { name: "2D", exact: true }).click({ timeout: 30_000 });
-  const activeVizPanel = page.getByRole("tabpanel", { name: "2D" });
-  await expect(activeVizPanel).toBeVisible();
-  await expect(activeVizPanel.getByRole("img", { name: /^FL (?:surface|core|carcass):/ })).toBeVisible();
-  await expect(activeVizPanel.getByRole("img", { name: /^RR (?:surface|core|carcass):/ })).toBeVisible();
+  if (await page.locator("[data-iracing-replay-data]").count()) {
+    await expect(page.getByRole("tab", { name: "3D", exact: true })).toHaveCount(0);
+    await expect(page.locator("[data-iracing-replay-data]").locator("dt", { hasText: /^Speed$/ })).toBeVisible();
+    await expect(page.locator("[data-iracing-replay-data]").locator("dt", { hasText: /^RPM$/ })).toBeVisible();
+  } else {
+    await page.getByRole("tab", { name: "3D", exact: true }).click({ timeout: 30_000 });
+    await expect(page.getByRole("tab", { name: "3D", exact: true })).toHaveAttribute("aria-selected", "true");
+    await page.getByRole("tab", { name: "2D", exact: true }).click({ timeout: 30_000 });
+    const activeVizPanel = page.getByRole("tabpanel", { name: "2D" });
+    await expect(activeVizPanel).toBeVisible();
+    await expect(activeVizPanel.getByRole("img", { name: /^FL (?:surface|core|carcass):/ })).toBeVisible();
+    await expect(activeVizPanel.getByRole("img", { name: /^RR (?:surface|core|carcass):/ })).toBeVisible();
+  }
 
   await page.getByRole("button", { name: "Guide", exact: true }).click();
   const guideDialog = page.getByRole("dialog", { name: "Data Panel Guide" });
