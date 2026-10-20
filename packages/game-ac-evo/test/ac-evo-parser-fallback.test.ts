@@ -79,6 +79,14 @@ describe("AC Evo parser native identity behavior", () => {
     const alternate = parseAcEvoBuffers(physics, graphics, staticData, createAcEvoParserCache())!;
     expect(alternate.trackId).not.toBe(full.trackId);
   });
+  test("full and compact parsers preserve native flag evidence", () => {
+    const { physics, graphics, staticData } = emptyBuffers();
+    graphics.writeInt32LE(5, GRAPHICS_EVO.flag.offset);
+    const full = parseAcEvoBuffers(physics, graphics, staticData, createAcEvoParserCache());
+    const compact = parseAcEvoLapIndex(physics, graphics, staticData, createAcEvoParserCache());
+    expect(full?.acc?.flagStatus).toBe("yellow");
+    expect(compact?.acc?.flagStatus).toBe(full?.acc?.flagStatus);
+  });
   test("only explicit graphics flags confirm TC or ABS intervention", () => {
     const { physics, graphics, staticData } = emptyBuffers();
     physics.writeFloatLE(0.5, PHYSICS.slipVibrations.offset);

@@ -16,6 +16,7 @@ import { isSessionActive } from "../telemetry/live-pipeline";
 
 import { clearSessionCaptureCache } from "./source-loader";
 import { cacheDelete } from "../db/telemetry-replay-storage";
+import { invalidateClassificationMigrationSource } from "./classification-migration";
 export type LayoutMigrationProgress = { status: "idle" | "running" | "success" | "partial" | "error"; done: number; total: number; migrated: number; failed: number; error: string | null; phase?: "organizing" | "relocating" | null };
 type SessionReference = { sessionId: number; oldPath: string; newPath: string };
 type JournalEntry = { source: string; digest: string; destinations: string[]; published: string[]; references: SessionReference[]; cutover: boolean };
@@ -329,6 +330,8 @@ export async function startLayoutMigration(directory?: string): Promise<void> {
             else if (resolve(row.rawFile ?? "") !== resolve(reference.newPath)) throw new Error("Session recording reference changed during migration");
           }
         });
+        const changedSources = new Set(entry.references.flatMap(({ oldPath, newPath }) => [oldPath, newPath]));
+        for (const source of changedSources) await invalidateClassificationMigrationSource(source);
         for (const target of entry.destinations) if (await fileHash(target) !== entry.digest) throw new Error(`Published recording changed: ${target}`);
         for (const reference of entry.references) for (const lap of await db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, reference.sessionId)).all()) cacheDelete(lap.id);
         clearSessionCaptureCache();

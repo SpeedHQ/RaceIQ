@@ -96,6 +96,7 @@ export const trackLeaderboardRoutes = new Hono()
           sessionId: lap.sessionId,
           sectorTimes: lap.sectorTimes,
           isValid: lap.isValid,
+          classification: lap.classification,
           invalidReason: lap.invalidReason,
           division: lap.gameId === "fm-2023" ? fmCarSpecsCatalog.get(Number(lap.carId))?.division ?? null : null,
           notes: lap.notes,

@@ -37,6 +37,32 @@ const result = {
 } as const;
 
 describe("race result timeline", () => {
+  test("inserts in-laps as pits in lap order without duplicating recorded stops", () => {
+    const timeline = buildRaceResultTimeline(result, [
+      { id: 3, lapNumber: 15, classification: "in_lap" },
+      { id: 2, lapNumber: 12, classification: "in_lap" },
+      { id: 1, lapNumber: 4, classification: "in_lap" },
+      { id: 4, lapNumber: 5, classification: "out_lap" },
+      { id: 5, lapNumber: 6, classification: "reset" },
+    ]);
+    expect(timeline.map((node) => node.kind)).toEqual(["qualifying", "start", "pit", "pit", "pit", "finish"]);
+    expect(timeline.filter((node) => node.kind === "pit")).toEqual([
+      expect.objectContaining({ lapNumber: 4, service: "unknown", durationSeconds: null }),
+      expect.objectContaining({ lapNumber: 12, service: "tyres", durationSeconds: 22.4 }),
+      expect.objectContaining({ lapNumber: 15, service: "unknown", durationSeconds: null }),
+    ]);
+  });
+
+  test("shows in-lap pits without a native result, without inventing a finish", () => {
+    expect(buildRaceResultTimeline(null, [
+      { id: 1, lapNumber: 2, classification: "in_lap" },
+    ])).toEqual([
+      { kind: "start", position: null },
+      { kind: "pit", sequence: -1, lapNumber: 2, service: "unknown", durationSeconds: null, tyreChange: null, fuelAdded: null },
+    ]);
+    expect(buildRaceResultTimeline(null, [{ id: 1, lapNumber: 1, classification: null }])).toEqual([]);
+  });
+
   test("hides stale LMU practice positions while retaining pit activity", () => {
     const timeline = buildRaceResultTimeline({
       ...result, gameId: "lmu", sessionType: "practice",

@@ -1,19 +1,20 @@
 import { expect, test } from "bun:test";
 import Database from "libsql";
-import { LAP_DETECTOR_ID } from "@raceiq/backend-core/lap-detection/detector";
 import { LAP_DETECTOR_AC_EVO_ID } from "@raceiq/game-ac-evo/lap-detector";
-import { copyFileSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { CLASSIFICATION_MIGRATION_VERSION } from "@raceiq/backend-core/session-capture/classification-migration";
+import { LAP_DETECTOR_ID } from "@raceiq/backend-core/lap-detection/detector";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { convertSeedFramesToSparse } from "@raceiq/tooling-data/data/seed-capture-conversion";
 import { decompressIfGzipSync, iterateSessionCaptureRecords, SESSION_SEGMENT_BOUNDARY, SESSION_SEGMENT_CONTEXT, SESSION_SEGMENT_CONTEXT_END } from "@raceiq/capture-formats/session/framing";
-
+import { seedReleaseDatabase } from "./support/release-database";
 const ROOT = resolve(import.meta.dir, "../../../..");
 import { migrations } from "@raceiq/backend-core/db/migrations";
 const COMPLETE = "[SessionRepair] Historical session reconciliation complete:";
 const DEFERRED = "[StartupWorker] Deferred until recording layout migration completes";
-type Session = { id: number; track_id: string; lap_detector_version: string | null; raw_file?: string; ownership?: string };
+
 
 interface StartupBackend {
   ready(): Promise<void>;
@@ -29,6 +30,8 @@ function environment(dataDir: string): NodeJS.ProcessEnv {
   delete env.DB_IN_MEMORY;
   delete env.RACEIQ_TEST_DATA_DIR;
   delete env.PW_SEED_SCREENSHOTS;
+  delete env.RACEIQ_CLASSIFICATION_TEST_BARRIER;
+  delete env.RACEIQ_CLASSIFICATION_TEST_BARRIER_DIR;
   return env;
 }
 
@@ -118,42 +121,22 @@ function startBranch(dataDir: string): StartupBackend {
   };
 }
 
-test("current startup reprocesses release-seeded Tourist sessions into correct lap results", async () => {
+test("startup preserves ambiguous historical Tourist classification without changing stored laps", async () => {
   const temporary = mkdtempSync(join(tmpdir(), "raceiq-release-upgrade-"));
-  const releaseDir = join(temporary, "release");
-  const dataDir = join(temporary, "data");
-  mkdirSync(releaseDir);
-  mkdirSync(dataDir);
   let backend: StartupBackend | undefined;
   let database: InstanceType<typeof Database> | undefined;
   try {
-    const tags = (await command(["git", "tag", "--sort=-version:refname"])).trim().split(/\r?\n/);
-    const tag = tags.find((value) => /^v\d+\.\d+\.\d+$/.test(value));
-    if (!tag) throw new Error("No stable release tag available; fetch release tags before running database-upgrade.test.ts.");
-    console.log(`[Upgrade] Baseline ${tag} -> current working branch`);
-    const archive = join(temporary, "release.tar");
-    await command(["git", "archive", "--format=tar", `--output=${archive}`, tag]);
-    await command(["tar", "-xf", archive, "-C", releaseDir, "--exclude=.claude"]);
-    // Release postinstall installs Git hooks and requires a repository.
-    await command(["git", "init", "--quiet"], releaseDir);
-    // Release dependencies must not resolve into current workspace code.
-    await command([process.execPath, "install", "--frozen-lockfile"], releaseDir);
-    const fixture = join(temporary, "ac-evo-tourist.bin.gz");
-    writeFileSync(fixture, Buffer.concat([1, 2].map((part) =>
-      readFileSync(join(ROOT, `test/artifacts/sessions/ac-evo-tourist-2026-10-10.bin.gz.part${part}`)),
-    )));
-    await command([process.execPath, "run", "db:seed", "--games=ac-evo", `--fixtures=${fixture}`], releaseDir, environment(dataDir));
+    const { dataDir } = await seedReleaseDatabase(temporary);
     database = new Database(join(dataDir, "app.db"));
     database.exec("PRAGMA busy_timeout=5000;");
     const before = database.prepare("SELECT id,lap_detector_version FROM sessions ORDER BY id").all() as Array<{ id: number; lap_detector_version: string | null }>;
-    expect(before.every((session) => session.lap_detector_version !== null)).toBe(true);
-    // Deliberately stale results distinguish replay from a marker-only migration.
+    // The classification upgrade must not replace stale timing or unrelated session identity.
     database.exec("UPDATE laps SET lap_time=999; UPDATE sessions SET track_id='obsolete layout';");
 
     const firstRecording = database.prepare("SELECT raw_file, ownership FROM sessions ORDER BY id LIMIT 1").get() as { raw_file: string; ownership: string };
     // Full-frame conversion is a prerequisite to this upgrade, separate from folder organization.
     const converted = await convertSeedFramesToSparse("ac-evo", (function* () {
-      for (const record of iterateSessionCaptureRecords(decompressIfGzipSync(Buffer.from(readFileSync(fixture))))) {
+      for (const record of iterateSessionCaptureRecords(decompressIfGzipSync(Buffer.from(readFileSync(firstRecording.raw_file))))) {
         if (record.kind === "frame") yield { frame: record.frame, frameTimeMs: record.frameTimeMs };
         else if (record.kind === "segment-boundary") yield SESSION_SEGMENT_BOUNDARY;
         else if (record.kind === "segment-context") yield SESSION_SEGMENT_CONTEXT;
@@ -198,16 +181,21 @@ test("current startup reprocesses release-seeded Tourist sessions into correct l
     database.prepare("DELETE FROM sessions WHERE id=?").run(collisionSessionId);
     await rm(collision);
     expect(await backend.organize()).toBe("success");
+    const sessionsBeforeClassification = database.prepare("SELECT * FROM sessions ORDER BY id").all();
+    const lapsBeforeClassification = database.prepare("SELECT * FROM laps ORDER BY id").all();
     await backend.ready();
-    const after = database.prepare("SELECT id,track_id,lap_detector_version,raw_file,ownership FROM sessions ORDER BY id").all() as Session[];
-    expect(after.map((session) => session.id)).toEqual(before.map((session) => session.id));
-    for (const session of after) {
-      expect(session.track_id).toBe('["Nurburgring","Touristenfahrten"]');
-      expect(session.raw_file).toBe(join(gameDirectory, session.ownership === "others" ? "others" : "own", basename(legacyPath)));
+    const deadline = Date.now() + 180_000;
+    let outcomes = database.prepare("SELECT state,reason FROM classification_migration_recordings").all() as Array<{ state: string; reason: string | null }>;
+    // Another process owns the production backfill; observe durable terminal results.
+    while (outcomes.length === 0 || outcomes.some((row) => row.state === "pending" || row.state === "running")) {
+      if (Date.now() >= deadline) throw new Error(`Historical classification did not settle: ${JSON.stringify(outcomes)}`);
+      await Bun.sleep(20);
+      outcomes = database.prepare("SELECT state,reason FROM classification_migration_recordings").all() as typeof outcomes;
     }
-    const finishes = database.prepare("SELECT lap_time FROM laps WHERE is_valid=1 AND invalid_reason IS NULL ORDER BY lap_time").all() as Array<{ lap_time: number }>;
-    expect(finishes.map((lap) => lap.lap_time)).toEqual([398.781, 401.277]);
-    expect(database.prepare("SELECT id FROM laps WHERE lap_time=999").all()).toEqual([]);
+    expect(database.prepare("SELECT * FROM sessions ORDER BY id").all()).toEqual(sessionsBeforeClassification);
+    expect(database.prepare("SELECT * FROM laps ORDER BY id").all()).toEqual(lapsBeforeClassification);
+    expect(outcomes.some((row) => row.state === "failed" || row.state === "limited")).toBe(true);
+    expect(outcomes).toContainEqual({ state: "failed", reason: "ambiguous_match" });
   } finally {
     await backend?.stop();
     database?.close();
@@ -229,6 +217,8 @@ test("startup discovers Tourist in already-processed AC Evo recordings and does 
     await command([process.execPath, "run", "db:seed", "--games=ac-evo", `--fixtures=${fixture}`], ROOT, environment(dataDir));
     database = new Database(join(dataDir, "app.db"));
     database.exec("PRAGMA busy_timeout=5000;");
+    // Exercise replay for captures recorded after the classification upgrade.
+    database.prepare("UPDATE classification_migration_meta SET version=?,cutoff_session_id=0").run(CLASSIFICATION_MIGRATION_VERSION);
     // Simulate an installation that completed reconciliation before the Tourist-layout migration.
     database.exec(`
       DELETE FROM schema_migrations WHERE version=78;
@@ -243,7 +233,7 @@ test("startup discovers Tourist in already-processed AC Evo recordings and does 
     await backend.waitFor("[StartupWorker] Starting dashboard processor");
     await backend.stop();
     backend = undefined;
-    const after = database.prepare("SELECT id,track_id,lap_detector_version FROM sessions ORDER BY id").all() as Session[];
+    const after = database.prepare("SELECT id,track_id,lap_detector_version FROM sessions ORDER BY id").all() as Array<{ id: number; track_id: string; lap_detector_version: string | null }>;
     expect(after.map((session) => session.id)).toEqual(before.map((session) => session.id));
     for (const session of after) {
       expect(session.track_id).toBe('["Nurburgring","Touristenfahrten"]');
@@ -282,6 +272,8 @@ test("incomplete historical replay blocks later startup stages while HTTP remain
     writeFileSync(corruptCapture, Buffer.from([255, 255, 255, 127]));
     database = new Database(join(dataDir, "app.db"));
     database.exec("PRAGMA busy_timeout=5000;");
+    // Keep this broken new capture outside the historical classification inventory.
+    database.prepare("UPDATE classification_migration_meta SET version=?,cutoff_session_id=0").run(CLASSIFICATION_MIGRATION_VERSION);
     const previousFiles = database.prepare("SELECT DISTINCT raw_file FROM sessions").all() as Array<{ raw_file: string }>;
     for (const recording of previousFiles) rmSync(recording.raw_file, { force: true });
     database.prepare("UPDATE sessions SET raw_file = ?, lap_detector_version = NULL").run(corruptCapture);
@@ -355,7 +347,7 @@ for (const failure of ["lmu", "race"] as const) {
   }, 60_000);
 }
 
-for (const history of ["v75", "upstream-v76", "frequency-v76", "frequency-v77", "upstream-v80", "conflicting-v81"] as const) {
+for (const history of ["v75", "upstream-v76", "frequency-v76", "frequency-v77", "upstream-v80", "upstream-v81", "conflicting-v81"] as const) {
   test(`recording frequency migration upgrades ${history} through production initialization`, async () => {
     const dataDir = mkdtempSync(join(tmpdir(), "raceiq-frequency-upgrade-"));
     let database: InstanceType<typeof Database> | undefined;
@@ -367,7 +359,7 @@ for (const history of ["v75", "upstream-v76", "frequency-v76", "frequency-v77", 
         const client = createClient({ url: "file:" + join(process.env.DATA_DIR, "app.db") });
         try {
           await bootstrap(client);
-          await runMigrations(client, ${history === "upstream-v80" ? 80 : 75});
+          await runMigrations(client, ${history === "upstream-v81" ? 81 : history === "upstream-v80" ? 80 : 75});
         } finally {
           client.close();
         }
@@ -377,6 +369,9 @@ for (const history of ["v75", "upstream-v76", "frequency-v76", "frequency-v77", 
         INSERT INTO sessions (game_id, lap_detector_version)
         VALUES ('ac-evo', 'stored-evo-detector'), ('iracing', 'stored-iracing-detector');
       `);
+      if (history === "upstream-v81") {
+        database.exec("UPDATE sessions SET downsampled_frequency_hz = 50");
+      }
       if (history === "upstream-v76") {
         database.exec(`
           UPDATE sessions SET lap_detector_version = NULL WHERE game_id = 'ac-evo';
@@ -421,7 +416,7 @@ for (const history of ["v75", "upstream-v76", "frequency-v76", "frequency-v77", 
         { version: 76, name: "persist archival recording frequency caps" },
         { version: 81, name: "unknown migration" },
       ] : migrations.filter((migration) => migration.version >= 76).map(({ version, name }) => ({ version, name })));
-      const hasFrequencyCap = history === "frequency-v76" || history === "frequency-v77" || history === "conflicting-v81";
+      const hasFrequencyCap = history === "frequency-v76" || history === "frequency-v77" || history === "conflicting-v81" || history === "upstream-v81";
       expect(database.prepare("SELECT downsampled_frequency_hz FROM sessions ORDER BY id").all()).toEqual([
         { downsampled_frequency_hz: hasFrequencyCap ? 50 : null },
         { downsampled_frequency_hz: hasFrequencyCap ? 50 : null },

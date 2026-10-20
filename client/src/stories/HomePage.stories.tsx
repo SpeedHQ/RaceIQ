@@ -35,6 +35,7 @@ function makeLap(id: number, day: number, lapNumber: number, lapTime: number, is
     lapNumber,
     lapTime,
     isValid,
+    classification: null,
     createdAt: `2026-07-${String(day).padStart(2, "0")}T18:2${lapNumber}:00.000Z`,
     gameId: GAME_ID,
     ownership: "mine",

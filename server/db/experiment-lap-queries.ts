@@ -56,13 +56,14 @@ export async function getLapsForExclusionScope(
   experimentId: number,
   tuneId: number,
 ): Promise<
-  { id: number; lapTime: number; isValid: boolean; invalidReason: string | null; experimentExcluded: boolean; experimentExcludedSource: "auto" | "manual" | null }[]
+  { id: number; lapTime: number; isValid: boolean; invalidReason: string | null; classification: LapMeta["classification"]; experimentExcluded: boolean; experimentExcludedSource: "auto" | "manual" | null }[]
 > {
   const rows = await db
     .select({
       id: laps.id,
       lapTime: laps.lapTime,
       isValid: laps.isValid,
+      classification: laps.classification,
       invalidReason: laps.invalidReason,
       experimentExcluded: laps.experimentExcluded,
       experimentExcludedSource: laps.experimentExcludedSource,
@@ -76,6 +77,7 @@ export async function getLapsForExclusionScope(
     isValid: Boolean(r.isValid),
     invalidReason: r.invalidReason,
     experimentExcluded: Boolean(r.experimentExcluded),
+    classification: r.classification,
     experimentExcludedSource: (r.experimentExcludedSource as "auto" | "manual" | null) ?? null,
   }));
 }
@@ -117,6 +119,7 @@ const experimentLapSelection = {
   sessionId: laps.sessionId,
   lapNumber: laps.lapNumber,
   lapTime: laps.lapTime,
+  classification: laps.classification,
   isValid: laps.isValid,
   invalidReason: laps.invalidReason,
   notes: laps.notes,

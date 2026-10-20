@@ -85,7 +85,7 @@ test("LMU identity backfill is idempotent and isolates missing or malformed capt
   await db.update(sessions).set({ rawFile: capturePath }).where(eq(sessions.id, validId)).run();
   await db.update(sessions).set({ rawFile: malformedPath }).where(eq(sessions.id, malformedId)).run();
   await db.update(sessions).set({ rawFile: missingPath }).where(eq(sessions.id, missingId)).run();
-  const lapId = await insertLap(validId, 1, 90, true, 12, 1);
+  const lapId = await insertLap(validId, 1, 90, true, 12, 1, null, null, null, null, null);
 
   const first = await backfillLMUSessionIdentity();
   const afterFirst = await db.select().from(sessions).where(eq(sessions.id, validId)).get();
@@ -121,7 +121,7 @@ test("LMU identity backfill is idempotent and isolates missing or malformed capt
   await db.update(sessions).set({ rawFile: capturePath }).where(eq(sessions.id, validId)).run();
   await db.update(sessions).set({ rawFile: malformedPath }).where(eq(sessions.id, malformedId)).run();
   await db.update(sessions).set({ rawFile: missingPath }).where(eq(sessions.id, missingId)).run();
-  const lapId = await insertLap(validId, 1, 90, true, 12, 1);
+  const lapId = await insertLap(validId, 1, 90, true, 12, 1, null, null, null, null, null);
 
   const first = await backfillLMUSessionIdentity();
   const afterFirst = await db.select().from(sessions).where(eq(sessions.id, validId)).get();
