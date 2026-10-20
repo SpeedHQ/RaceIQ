@@ -1,5 +1,5 @@
-import { normalizeSuspensionTravel } from "../../lib/suspension";
-import { type SemanticAnalysisFrame, semanticNumber } from "../analyse/track-map/types";
+import { normalizeSuspensionTravel } from "../suspension";
+import { type SemanticAnalysisFrame, semanticNumber } from "../semantic-frame";
 
 function normalizedSuspension(frame: SemanticAnalysisFrame, range?: { min: number; max: number }): [number, number, number, number] {
   const normalized = frame.values["suspension.norm-suspension-travel"];

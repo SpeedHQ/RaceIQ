@@ -1,10 +1,10 @@
 import { getGame } from "@raceiq/shared/games/registry"
 import { getFuelDisplaySemantic, WATTS_PER_HORSEPOWER } from "@raceiq/shared/games/telemetry"
 import type { GameId } from "@raceiq/shared/games/ids";
-import { semanticNumber, type SemanticAnalysisFrame } from "./track-map/types";
+import { semanticNumber, type SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import { useUnits } from "../../hooks/useUnits";
 import { getSteeringLock } from "@/lib/settings-storage";
-import { operatingRangeColor, severityRangeColor } from "../../lib/colors";
+import { operatingRangeColor, severityRangeColor } from "@raceiq/scene-3d/colors";
 import { m } from "../../paraglide/messages";
 
 

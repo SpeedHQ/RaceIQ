@@ -225,8 +225,8 @@ describe("frontend theme contract", () => {
   });
 
   test("keeps raw palette values in CSS and adapts imperative renderers centrally", () => {
-    const canvasAdapterPath = resolve(SOURCE_DIR, "lib/rendering/css-canvas.ts");
-    const cssValuesPath = resolve(SOURCE_DIR, "lib/rendering/css-values.ts");
+    const canvasAdapterPath = resolve(ROOT_DIR, "packages/scene-3d/src/rendering/css-canvas.ts");
+    const cssValuesPath = resolve(ROOT_DIR, "packages/scene-3d/src/rendering/css-values.ts");
     const runtimeFiles = [
       ...sourceFiles.filter(
         (path) => [".ts", ".tsx"].includes(extname(path)) && path !== canvasAdapterPath && path !== cssValuesPath,

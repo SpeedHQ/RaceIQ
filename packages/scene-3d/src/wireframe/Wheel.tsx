@@ -1,7 +1,7 @@
 import * as THREE from "three/webgpu";
-import type { TireTemperatureReading } from "../analyse/tire-temperature-profile";
-import { brakeTempColor, tireTempColor } from "../../lib/vehicle-dynamics";
-import { makeWheelGeometries, threeColor, THREE_COLORS } from "../../lib/wireframe-utils";
+import type { TireTemperatureReading } from "../tire-temperature-profile";
+import { brakeTempColor, tireTempColor } from "../vehicle-dynamics";
+import { makeWheelGeometries, threeColor, THREE_COLORS } from "../wireframe-utils";
 
 export type WheelGeometries = {
   tire: THREE.BufferGeometry;

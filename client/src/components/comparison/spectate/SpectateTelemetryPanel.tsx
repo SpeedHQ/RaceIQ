@@ -1,17 +1,20 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
+import { createPortal } from "react-dom";
 import { m } from "@/paraglide/messages";
 import { getLocale } from "@/paraglide/runtime";
 import { getTelemetryVariable, isTelemetryVariableId } from "@raceiq/shared/telemetry/catalog/query";
 import { useUnits } from "@/hooks/useUnits";
-import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
+import { getSemanticCanvasContext } from "@raceiq/scene-3d/rendering/css-canvas";
+import { DELTA_COLOR_VARS, deltaColor } from "@raceiq/scene-3d/colors";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { channelValue, buildSpectateChannels, type SpectateChannel } from "./spectate-channels";
 import type { SpectateController, SpectatePair, SpectateReading, SpectateSnapshot } from "./types";
+import { ERS_DEPLOY_MODES, readERSDeployMode } from "./spectate-ers-mode";
 const A_COLOR = "var(--comparison-lap-a)";
 const B_COLOR = "var(--comparison-lap-b)";
 
-type Category = "inputs" | "motion" | "engine" | "fuel" | "tires" | "suspension" | "brakes" | "other";
-const CATEGORY_LABELS: Record<Category, () => string> = {
+export type Category = "inputs" | "motion" | "engine" | "fuel" | "tires" | "suspension" | "brakes" | "other";
+export const CATEGORY_LABELS: Record<Category, () => string> = {
   inputs: m.overlay_inputs, motion: m.analyse_section_dynamics, engine: m.label_engine, fuel: m.label_fuel,
   tires: m.label_tires, suspension: m.chart_suspension, brakes: m.spectate_brake, other: m.analyse_other_group,
 };
@@ -20,7 +23,7 @@ function readWindowSeconds(): 5 | 10 {
   try { return typeof localStorage !== "undefined" && localStorage.getItem(WINDOW_STORAGE_KEY) === "5" ? 5 : 10; }
   catch { return 10; }
 }
-function classify(channel: SpectateChannel): Category {
+export function classify(channel: SpectateChannel): Category {
   const meta = isTelemetryVariableId(channel.id) ? getTelemetryVariable(channel.id) : undefined;
   const id = meta?.id ?? channel.id;
   const groupId = meta?.parentId ?? "";
@@ -67,8 +70,6 @@ function ChartRow({
   snapshot: SpectateSnapshot;
   convert: (id: string, value: number) => number;
 }) {
-  const locale = getLocale();
-  const formatSeconds = useMemo(() => new Intl.NumberFormat(locale, { style: "unit", unit: "second", unitDisplay: "narrow", maximumFractionDigits: 0 }).format, [locale]);
   const root = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const [visible, setVisible] = useState(false);
@@ -104,9 +105,9 @@ function ChartRow({
     const min = vals.length ? Math.min(...vals) : -1;
     const max = vals.length ? Math.max(...vals) : 1;
     const span = max - min || 1;
-    const left = 35,
+    const left = 0,
       right = width - 6,
-      top = 13,
+      top = 5,
       bottom = height - 5;
     const y = (v: number) => bottom - ((v - min) / span) * (bottom - top);
     ctx.strokeStyle = "var(--app-border)";
@@ -124,9 +125,12 @@ function ChartRow({
       ["b", B_COLOR],
     ] as const) {
       if (channel.derived === "delta" && side === "b") continue;
-      ctx.strokeStyle = channel.derived === "delta" ? "var(--delta-focus)" : color;
+      ctx.strokeStyle = color;
       ctx.lineWidth = 1.4;
       ctx.beginPath();
+      const deltaFill = channel.derived === "delta" ? new Path2D() : null;
+      const zeroY = Math.max(top, Math.min(bottom, y(0)));
+      let lastX = left;
       let active = false;
       for (let i = 0; i < points.length; i++) {
         const p = points[i];
@@ -135,6 +139,10 @@ function ChartRow({
         const v = value(reading, channel, side);
         const pv = value(previous, channel, side);
         if (v === null) {
+          if (active && deltaFill) {
+            deltaFill.lineTo(lastX, zeroY);
+            deltaFill.closePath();
+          }
           active = false;
           continue;
         }
@@ -146,20 +154,34 @@ function ChartRow({
           } else ctx.lineTo(x, y(v));
         } else {
           ctx.moveTo(x, y(v));
+          deltaFill?.moveTo(x, zeroY);
           active = true;
         }
+        deltaFill?.lineTo(x, y(v));
+        lastX = x;
       }
-      ctx.stroke();
+      if (deltaFill) {
+        if (active) {
+          deltaFill.lineTo(lastX, zeroY);
+          deltaFill.closePath();
+        }
+        // Clip the same trace at zero so crossings change color precisely.
+        for (const [index, deltaColor] of DELTA_COLOR_VARS.entries()) {
+          ctx.save();
+          const clipTop = index === 0 ? zeroY : top;
+          const clipBottom = index === 0 ? bottom : zeroY;
+          const region = new Path2D();
+          region.rect(left, clipTop, right - left, clipBottom - clipTop);
+          ctx.clip(region);
+          ctx.strokeStyle = deltaColor;
+          ctx.stroke();
+          ctx.fillStyle = `color-mix(in srgb, ${deltaColor} 20%, transparent)`;
+          ctx.fill(deltaFill);
+          ctx.restore();
+        }
+      } else ctx.stroke();
     }
     ctx.restore();
-    ctx.fillStyle = "var(--app-text-muted)";
-    ctx.font = "var(--text-app-nano) var(--font-mono)";
-    ctx.textAlign = "left";
-    ctx.fillText(`−${formatSeconds(windowSeconds)}`, left, 9);
-    ctx.textAlign = "center";
-    ctx.fillText(formatSeconds(0), (left + right) / 2, 9);
-    ctx.textAlign = "right";
-    ctx.fillText(`+${formatSeconds(windowSeconds)}`, right, 9);
   }, [visible, points, channel, convert, width, windowSeconds, snapshot.time]);
   const nowA = value(snapshot.a, channel, "a");
   const nowB = channel.derived === "delta" ? null : value(snapshot.b, channel, "b");
@@ -179,42 +201,134 @@ function ChartRow({
         <span>{label}</span>
         <span className="text-app-text-dim">{channel.unit}</span>
         <span className="ml-auto flex gap-2 tabular-nums">
-          <span style={{ color: A_COLOR }}>{format(nowA)}</span>
-          <span style={{ color: B_COLOR }}>{format(nowB)}</span>
+          <span style={{ color: channel.derived === "delta" ? nowA === null || nowA === 0 ? "var(--app-text-secondary)" : deltaColor(nowA) : A_COLOR }}>{format(nowA)}</span>
+          {channel.derived !== "delta" && <span style={{ color: B_COLOR }}>{format(nowB)}</span>}
         </span>
       </div>
       <canvas
         ref={canvas}
         className="block h-[72px] w-full"
         role="img"
-        aria-label={`${label}; A ${format(nowA)}, B ${format(nowB)}`}
+        aria-label={channel.derived === "delta" ? `${label}; A − B ${format(nowA)}` : `${label}; A ${format(nowA)}, B ${format(nowB)}`}
         data-current-a={format(nowA)}
-        data-current-b={format(nowB)}
-        title={snapshot.b ? m.spectate_b_sampled_at_time({ time: snapshot.b.time.toFixed(2) }) : m.spectate_b_unavailable()}
+        data-current-b={channel.derived === "delta" ? undefined : format(nowB)}
+        title={channel.derived === "delta" ? undefined : snapshot.b ? m.spectate_b_sampled_at_time({ time: snapshot.b.time.toFixed(2) }) : m.spectate_b_unavailable()}
       />
-      {snapshot.b && snapshot.a && snapshot.b.time !== snapshot.a.time && (
-        <div className="text-right text-app-micro text-app-text-dim">{m.spectate_b_sampled_at_time({ time: snapshot.b.time.toFixed(2) })}</div>
-      )}
     </div>
   );
   function value(reading: SpectateReading | null, source: SpectateChannel, side: "a" | "b"): number | null {
     const raw = channelValue(reading, source, source.components[0]?.key ?? "", side);
     return raw === null ? null : source.derived ? raw : convert(source.id, raw);
   }
+  function format(value: number | null): string {
+    return value === null || !Number.isFinite(value) ? "—" : value.toFixed(channel.id === "inputs.gear" ? 0 : 2);
+  }
+}
+function ERSModeChartRow({ windowSeconds, controller, snapshot }: { windowSeconds: 5 | 10; controller: SpectateController; snapshot: SpectateSnapshot }) {
+  const root = useRef<HTMLDivElement>(null);
+  const canvas = useRef<HTMLCanvasElement>(null);
+  const [visible, setVisible] = useState(false);
+  const [width, setWidth] = useState(0);
+  const points = useMemo(() => (visible ? sampleWindow(controller, snapshot, windowSeconds) : []), [visible, controller, windowSeconds, snapshot.time, snapshot.generation, snapshot.positionLock]);
+  useEffect(() => {
+    const node = root.current;
+    if (!node) return;
+    const resize = new ResizeObserver(() => setWidth(node.clientWidth));
+    resize.observe(node);
+    return () => resize.disconnect();
+  }, []);
+  useEffect(() => {
+    const node = root.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting), { root: node.closest("[data-spectate-scroll]") });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+  useEffect(() => {
+    if (!visible || !width) return;
+    const node = canvas.current;
+    const host = root.current;
+    if (!node || !host) return;
+    const canvasHeight = 72;
+    syncCanvasSize(node, width, canvasHeight, window.devicePixelRatio || 1, false);
+    const ctx = getSemanticCanvasContext(node);
+    if (!ctx) return;
+    ctx.setTransform(node.width / width, 0, 0, node.height / canvasHeight, 0, 0);
+    ctx.clearRect(0, 0, width, canvasHeight);
+    const left = 16, right = width - 6, laneHeight = 12;
+    for (const [side, y, labelColor] of [["a", 15, A_COLOR], ["b", 43, B_COLOR]] as const) {
+      ctx.fillStyle = labelColor;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.fillText(side.toUpperCase(), 0, y + laneHeight / 2);
+      for (let i = 0; i < points.length; i++) {
+        const x = left + ((points[i]!.time - snapshot.time + windowSeconds) / (windowSeconds * 2)) * (right - left);
+        const nextX = i + 1 < points.length
+          ? left + ((points[i + 1]!.time - snapshot.time + windowSeconds) / (windowSeconds * 2)) * (right - left)
+          : right;
+        const mode = readERSDeployMode(side === "a" ? points[i]!.a : points[i]!.b);
+        if (mode === null || nextX <= x) continue;
+        ctx.fillStyle = ERS_DEPLOY_MODES[mode].color;
+        ctx.fillRect(x, y, Math.max(1, nextX - x), laneHeight);
+      }
+    }
+    const nowX = left + 0.5 * (right - left);
+    ctx.strokeStyle = "var(--app-border)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(nowX, 8);
+    ctx.lineTo(nowX, 62);
+    ctx.stroke();
+  }, [visible, points, snapshot.time, width, windowSeconds]);
+  const modeA = readERSDeployMode(snapshot.a);
+  const modeB = readERSDeployMode(snapshot.b);
+  return (
+    <div ref={root} className="border-t border-app-border py-2" data-channel-id="fuel.ers-deploy-mode">
+      <div className="flex items-center justify-between gap-2 text-app-compact text-app-text-secondary">
+        <span>{m.f1live_ers_label()}</span>
+        <span className="flex gap-2">
+          <span style={{ color: A_COLOR }}>A {modeA === null ? m.analyse_unavailable() : ERS_DEPLOY_MODES[modeA].label()}</span>
+          <span style={{ color: B_COLOR }}>B {modeB === null ? m.analyse_unavailable() : ERS_DEPLOY_MODES[modeB].label()}</span>
+        </span>
+      </div>
+      <canvas ref={canvas} className="block h-[72px] w-full" role="img" aria-label={`${m.f1live_ers_label()}; A ${modeA === null ? m.analyse_unavailable() : ERS_DEPLOY_MODES[modeA].label()}, B ${modeB === null ? m.analyse_unavailable() : ERS_DEPLOY_MODES[modeB].label()}`} data-current-a={modeA ?? "unavailable"} data-current-b={modeB ?? "unavailable"} />
+      <div className="flex flex-wrap gap-x-2 gap-y-1 text-app-micro text-app-text-secondary">
+        {ERS_DEPLOY_MODES.map((mode) => (
+          <span key={mode.value} className="inline-flex items-center gap-1">
+            <i className="size-1.5 rounded-full" style={{ background: mode.color }} />
+            {mode.label()}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
 }
 
-function format(value: number | null): string {
-  return value === null ? "—" : Number.isFinite(value) ? value.toFixed(2) : "—";
-}
 
-export function SpectateTelemetryPanel({ pair, controller, onClose }: { pair: SpectatePair; controller: SpectateController; onClose: () => void }) {
+export function SpectateTelemetryPanel({ pair, controller, headerTarget }: { pair: SpectatePair; controller: SpectateController; headerTarget: HTMLDivElement | null }) {
   const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const units = useUnits(pair.gameId);
   const channels = useMemo(
     () =>
-      buildSpectateChannels(pair).flatMap((channel) =>
-        channel.components.map((component) => ({
-          ...channel,
+      buildSpectateChannels(pair)
+        .filter((channel) =>
+          channel.derived === "delta" ||
+          [pair.a, pair.b].some((lap, sideIndex) =>
+            lap.samples.some((sample) =>
+              channel.components.some((component) =>
+                channelValue(
+                  { time: sample.time, distance: sample.distance, pose: null, values: sample.values },
+                  channel,
+                  component.key,
+                  sideIndex === 0 ? "a" : "b",
+                ) !== null,
+              ),
+            ),
+          ),
+        )
+        .flatMap((channel) =>
+          channel.components.map((component) => ({
+            ...channel,
           label:
             channel.derived === "g-force"
               ? m.spectate_g_force()
@@ -232,22 +346,27 @@ export function SpectateTelemetryPanel({ pair, controller, onClose }: { pair: Sp
           unit: channel.id === "motion.speed" ? units.speedLabel : channel.unit === "°C" || channel.unit === "C" ? units.tempLabel : channel.unit,
           components: [{ ...component, label: channel.derived === "compression-bias" ? (component.key === "front" ? m.analyse_suspension_front() : m.analyse_suspension_left()) : component.label }],
         })),
-      ),
+      )
+        .sort((a, b) => Number(b.derived === "delta") - Number(a.derived === "delta")),
     [pair, units.speedLabel, units.tempLabel],
   );
   const [windowSeconds, setWindowSeconds] = useState<5 | 10>(readWindowSeconds);
   useEffect(() => {
     try { localStorage.setItem(WINDOW_STORAGE_KEY, String(windowSeconds)); } catch { /* storage unavailable */ }
   }, [windowSeconds]);
-  const [category, setCategory] = useState<Category | "all">("all");
-  const categorized = useMemo(() => channels.map((channel) => ({ channel, category: classify(channel) })), [channels]);
+  const [category, setCategory] = useState<Category>("inputs");
+  const hasERSModeData = useMemo(() =>
+    pair.a.samples.some((sample) => readERSDeployMode(sample) !== null)
+      || pair.b.samples.some((sample) => readERSDeployMode(sample) !== null),
+  [pair]);
+  const categorized = useMemo(() => channels.filter((channel) => channel.derived !== "delta").map((channel) => ({ channel, category: classify(channel) })), [channels]);
   const presentCategories = useMemo(() => (["inputs", "motion", "engine", "fuel", "tires", "suspension", "brakes", "other"] as const)
-    .filter((item) => categorized.some(({ category: itemCategory }) => itemCategory === item)), [categorized]);
+    .filter((item) => item === "inputs" || categorized.some(({ category: itemCategory }) => itemCategory === item) || (item === "fuel" && hasERSModeData)), [categorized, hasERSModeData]);
   useEffect(() => {
-    if (category !== "all" && !presentCategories.includes(category)) setCategory("all");
+    if (!presentCategories.includes(category)) setCategory("inputs");
   }, [category, presentCategories]);
-  useEffect(() => setCategory("all"), [pair.gameId, pair.comparison.lapA.id, pair.comparison.lapB.id]);
-  const tabs = useMemo(() => ["all", ...presentCategories] as const, [presentCategories]);
+  useEffect(() => setCategory("inputs"), [pair.gameId, pair.comparison.lapA.id, pair.comparison.lapB.id]);
+  const tabs = presentCategories;
   const onTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     const index = tabs.indexOf(category as (typeof tabs)[number]);
     const next = event.key === "ArrowRight" ? (index + 1) % tabs.length
@@ -269,31 +388,27 @@ export function SpectateTelemetryPanel({ pair, controller, onClose }: { pair: Sp
     return value;
   };
   return (
-    <div className="h-full w-full min-h-0 min-w-0 flex-1 flex flex-col bg-app-surface">
-      <header className="flex items-center justify-between px-4 py-3 text-app-label">
-        <strong className="font-medium text-app-text">{m.spectate_telemetry()}</strong>
-        <button type="button" className="text-app-text-secondary hover:text-app-accent" onClick={onClose} aria-label={m.spectate_collapse_telemetry()}>
-          {m.spectate_collapse_telemetry()}
-        </button>
-      </header>
-      <div className="flex items-center justify-between gap-2 px-3 pb-2 text-app-micro">
-        <div className="flex gap-1" role="group" aria-label={m.review_range()}>
+    <div className="h-full w-full min-h-0 min-w-0 flex-1 flex flex-col bg-app-bg">
+      {headerTarget && createPortal(
+        <select
+          aria-label={m.review_range()}
+          className="rounded-sm border border-app-border-input bg-app-surface px-1.5 py-1 text-app-text"
+          value={windowSeconds}
+          onChange={(event) => setWindowSeconds(event.target.value === "5" ? 5 : 10)}
+        >
           {([5, 10] as const).map((seconds) => (
-            <button key={seconds} type="button" aria-pressed={windowSeconds === seconds} onClick={() => setWindowSeconds(seconds)}
-              className={`rounded px-2 py-1 ${windowSeconds === seconds ? "bg-app-accent text-app-on-filled" : "text-app-text-muted"}`}>
-              ±{formatSeconds(seconds)}
-            </button>
+            <option key={seconds} value={seconds}>±{formatSeconds(seconds)}</option>
           ))}
-        </div>
-        <span className="text-app-text-muted">{m.review_range()}</span>
-      </div>
-      <div role="tablist" aria-label={m.label_category()} className="flex gap-1 overflow-x-auto px-3 pb-2">
+        </select>,
+        headerTarget,
+      )}
+      <div role="tablist" aria-label={m.label_category()} className="flex gap-1 overflow-x-auto px-3 pt-3 pb-2">
         {tabs.map((item) => (
           <button key={item} type="button" role="tab" aria-selected={category === item} tabIndex={category === item ? 0 : -1}
             id={`spectate-category-${item}`} aria-controls="spectate-telemetry-channels"
             onClick={() => setCategory(item)} onKeyDown={onTabKeyDown}
             className={`shrink-0 rounded px-2 py-1 text-app-micro ${category === item ? "bg-app-accent text-app-on-filled" : "text-app-text-secondary"}`}>
-            {item === "all" ? m.browser_all() : CATEGORY_LABELS[item]()}
+            {CATEGORY_LABELS[item]()}
           </button>
         ))}
       </div>
@@ -303,7 +418,13 @@ export function SpectateTelemetryPanel({ pair, controller, onClose }: { pair: Sp
         <span>+{formatSeconds(windowSeconds)}</span>
       </div>
       <div ref={scroll} id="spectate-telemetry-channels" role="tabpanel" aria-labelledby={`spectate-category-${category}`} data-spectate-scroll className="min-h-0 flex-1 overflow-y-auto px-4">
-        {categorized.filter(({ category: item }) => category === "all" || item === category).map(({ channel }) => (
+        <div className="sticky top-0 z-10 bg-app-bg">
+          {channels.filter((channel) => channel.derived === "delta").map((channel) => (
+            <ChartRow key={channel.id} channel={channel} windowSeconds={windowSeconds} controller={controller} snapshot={snapshot} convert={convert} />
+          ))}
+        </div>
+        {category === "fuel" && hasERSModeData && <ERSModeChartRow windowSeconds={windowSeconds} controller={controller} snapshot={snapshot} />}
+        {categorized.filter(({ category: item }) => item === category).map(({ channel }) => (
           <ChartRow key={`${channel.id}:${channel.components[0]?.key}`} channel={channel} windowSeconds={windowSeconds} controller={controller} snapshot={snapshot} convert={convert} />
         ))}
       </div>

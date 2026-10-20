@@ -81,7 +81,14 @@ for (const gameId of requiredGames) {
       }
     }
     const expectedChannels = new Set(replays.flatMap((replay) => replay.requestedSemanticIds).filter((id) => isTelemetryVariableId(id) && getTelemetryVariable(id).valueType === "number"));
-    const actualChannels = new Set(await page.locator("[data-channel-id]").evaluateAll((rows) => rows.map((row) => row.getAttribute("data-channel-id"))));
+    const categoryTabs = page.locator('[id^="spectate-category-"]');
+    const actualChannels = new Set<string>();
+    for (const tab of await categoryTabs.all()) {
+      await tab.click();
+      for (const id of await page.locator("[data-channel-id]").evaluateAll((rows) => rows.map((row) => row.getAttribute("data-channel-id")))) {
+        if (id) actualChannels.add(id);
+      }
+    }
     for (const id of expectedChannels) expect(actualChannels.has(id), `${game.gameId} replay-visible channel ${id}`).toBe(true);
     const initialTime = Number(await replayClock.getAttribute("data-time"));
     const initialLock = await replayClock.getAttribute("data-position-lock");
@@ -120,14 +127,14 @@ for (const gameId of requiredGames) {
     await animationFrames(page, 30);
     expect(Number(await replayClock.getAttribute("data-time"))).toBe(pausedAt);
 
-    await page.getByRole("tab", { name: "Compare" }).click();
-    await expect(page.getByRole("tab", { name: "Compare" })).toHaveAttribute("aria-selected", "true");
+    await page.getByRole("tab", { name: "Focus View", exact: true }).click();
+    await expect(page.getByRole("tab", { name: "Focus View", exact: true })).toHaveAttribute("aria-selected", "true");
     await page.getByRole("tab", { name: "Spectate" }).click();
     await expect(replayClock).toBeVisible();
     await expect(replayClock).toHaveAttribute("data-playing", "false");
     const roundTripTime = Number(await replayClock.getAttribute("data-time"));
     await page.goBack();
-    await expect(page.getByRole("tab", { name: "Compare" })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("tab", { name: "Focus View", exact: true })).toHaveAttribute("aria-selected", "true");
     await page.goForward();
     await expect(page.getByRole("tab", { name: "Spectate" })).toHaveAttribute("aria-selected", "true");
     await expect.poll(async () => Number(await replayClock.getAttribute("data-time"))).toBeCloseTo(roundTripTime, 2);
@@ -151,10 +158,10 @@ for (const gameId of requiredGames) {
     await separator.press("ArrowLeft");
     await expect.poll(async () => Number(await body.getAttribute("data-panel-width"))).toBeGreaterThan(widthBefore);
     const resized = await body.getAttribute("data-panel-width");
-    await page.getByRole("button", { name: "Collapse telemetry" }).click();
+    await page.getByRole("button", { name: "Telemetry", exact: true }).click();
     await expect(body).toHaveAttribute("data-panel-collapsed", "true");
     await expect(page.getByRole("group", { name: "Circuit segment map" })).toBeVisible();
-    await page.getByRole("button", { name: "Show telemetry" }).click();
+    await page.getByRole("button", { name: "Telemetry", exact: true }).click();
     await expect(body).toHaveAttribute("data-panel-collapsed", "false");
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(body).toBeVisible();
@@ -181,7 +188,7 @@ for (const gameId of requiredGames) {
     await page.screenshot({ path: testInfo.outputPath(`${game.gameId}-spectate-desktop.png`), fullPage: true, animations: "disabled" });
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(body).toHaveAttribute("data-panel-collapsed", "true");
-    await page.getByRole("button", { name: "Show telemetry" }).click();
+    await page.getByRole("button", { name: "Telemetry", exact: true }).click();
     await expect(page.getByRole("complementary", { name: "Telemetry" })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath(`${game.gameId}-spectate-narrow.png`), fullPage: true, animations: "disabled" });
 

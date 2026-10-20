@@ -2,8 +2,8 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "meshoptimizer";
-import type { CarModelEnrichment } from "../../data/car-models";
-import { THREE_COLORS } from "../../lib/wireframe-utils";
+import type { CarModelEnrichment } from "../model-types";
+import { THREE_COLORS } from "../wireframe-utils";
 import { classifyMesh, DEFAULT_HIDDEN_MESHES } from "./classify-mesh";
 
 const loader = new GLTFLoader();

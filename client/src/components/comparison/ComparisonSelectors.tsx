@@ -1,6 +1,4 @@
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
-import { Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { SearchSelect } from "@/components/ui/SearchSelect";
 import { formatLapTime } from "@/lib/format";
 import { m } from "@/paraglide/messages";
@@ -30,9 +28,6 @@ export function ComparisonSelectors({
   carNames,
   carALaps,
   carBLaps,
-  comparisonReady,
-  aiPanelOpen,
-  toggleAiPanel,
 }: {
   trackGroups: TrackGroup[];
   selectedTrack: string | null;
@@ -49,9 +44,6 @@ export function ComparisonSelectors({
   carNames: Map<string, string>;
   carALaps: LapMeta[];
   carBLaps: LapMeta[];
-  comparisonReady: boolean;
-  aiPanelOpen: boolean;
-  toggleAiPanel: () => void;
 }) {
   return (
     <div className="flex shrink-0 flex-wrap items-end gap-3">
@@ -138,19 +130,6 @@ export function ComparisonSelectors({
             </span>
           )}
         </div>
-      </div>
-      <div className="ml-auto flex w-full flex-col gap-1 self-end @3xl/workspace:w-auto">
-        <Button
-          variant="app-outline"
-          size="app-lg"
-          onClick={toggleAiPanel}
-          disabled={!comparisonReady}
-          title={m.compare_toggle_ai()}
-          className={`w-full @3xl/workspace:w-auto ${aiPanelOpen ? "text-app-accent border-app-accent/40 bg-app-accent/10" : "hover:text-app-accent"}`}
-        >
-          <Sparkles className="size-3.5" />
-          {m.label_ai_analysis()}
-        </Button>
       </div>
     </div>
   );

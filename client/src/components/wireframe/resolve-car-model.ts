@@ -1,5 +1,6 @@
 import type { GameId } from "@raceiq/shared/games/ids";
-import { type CarModelEnrichment, DEMO_CAR, F1_CAR, getCarModel, getLMUClassCarModel } from "../../data/car-models";
+import type { CarModelEnrichment } from "@raceiq/scene-3d/model-types";
+import { DEMO_CAR, F1_CAR, getCarModel, getLMUClassCarModel } from "../../data/car-models";
 
 export interface ResolvedCarModel {
   model: CarModelEnrichment & { hasModel: boolean };

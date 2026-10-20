@@ -2,7 +2,6 @@ import { expect, test } from "@playwright/test";
 import { SEEDED_GAME_CASES } from "../../support/seeded/cases";
 import { compareQuery, getDistinctPair } from "./interaction-helpers";
 const gapThresholdS = 0.5;
-const lapWideIds = ["mech-fuel", "tire-wear-imbalance", "tire-temp-split", "tire-pressure-imbalance", "susp-imbalance"];
 
 test("ACC Spectate preserves recorded gaps and recovers beyond them", async ({ page, request }) => {
   const game = SEEDED_GAME_CASES.find((candidate) => candidate.gameId === "acc" && candidate.supportedFeatures.includes("compare"));
@@ -49,6 +48,8 @@ test("ACC Spectate preserves recorded gaps and recovers beyond them", async ({ p
   const sideKey = selectedGap.side === 0 ? "a" : "b";
   await expect.poll(async () => clock.getAttribute(`data-${sideKey}-time`)).toBe("");
   await expect.poll(async () => page.locator("[data-channel-id='motion.speed'] canvas").first().getAttribute(`data-current-${sideKey}`)).toBe("—");
+  await expect(page.locator(`[data-balance-side='${sideKey}']`)).toHaveAttribute("data-balance-state", "unavailable");
+  await expect(page.locator(`[data-balance-side='${sideKey}']`)).toHaveText("—");
   await seek.press("Home");
   await seek.click({ position: { x: 8 + (bounds.width - 16) * (Math.min(duration - 0.2, selectedGap.end + 0.4) / duration), y: bounds.height / 2 } });
   await expect.poll(async () => Number(await clock.getAttribute("data-time"))).toBeGreaterThan(selectedGap.end);
@@ -56,7 +57,7 @@ test("ACC Spectate preserves recorded gaps and recovers beyond them", async ({ p
   await expect.poll(async () => page.locator("[data-channel-id='motion.speed'] canvas").first().getAttribute(`data-current-${sideKey}`)).not.toBe("—");
 });
 
-test("FM Spectate segment seeking retargets, pauses, and excludes lap-wide issue IDs", async ({ page, request }) => {
+test("FM Spectate segment seeking retargets and pauses", async ({ page, request }) => {
   const game = SEEDED_GAME_CASES.find((candidate) => candidate.gameId === "fm-2023" && candidate.supportedFeatures.includes("compare"));
   if (!game) throw new Error("Spectate acceptance prerequisite missing: seeded compare case for fm-2023");
   const pair = await getDistinctPair(request, "fm-2023");
@@ -71,8 +72,6 @@ test("FM Spectate segment seeking retargets, pauses, and excludes lap-wide issue
   const map = page.getByRole("group", { name: "Circuit segment map" });
   const segments = map.getByRole("button");
   expect(await segments.count()).toBeGreaterThan(1);
-  const ids = await segments.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-insight-ids") ?? ""));
-  for (const id of lapWideIds) expect(ids.join("|")).not.toContain(id);
   const last = segments.last();
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.getByRole("button", { name: "Play replay" }).click();

@@ -7,9 +7,13 @@ const game = SEEDED_GAME_CASES.find((candidate) => candidate.gameId === "f1-2025
 
 async function openComparison(page: Page, request: Parameters<typeof getDistinctPair>[0]) {
   const pair = await getDistinctPair(request, game.gameId);
-  await page.goto(`/${game.prefix}/compare?${compareQuery(pair)}`, { waitUntil: "domcontentloaded" });
-  const chart = page.getByTestId("lap-compare-workspace").locator(".uplot").nth(1);
-  await expect(chart).toBeVisible({ timeout: 30_000 });
+  await page.goto(`/${game.prefix}/compare?${compareQuery(pair)}&view=compare`, { waitUntil: "domcontentloaded" });
+  await expect(page.locator("#compare-category-motion")).toBeVisible({ timeout: 30_000 });
+  const split = page.getByRole("button", { name: "Split recordings", exact: true });
+  if (await split.isVisible()) await split.click();
+  await page.locator("#compare-category-motion").click();
+  const chart = page.locator('[data-channel="motion.speed:"] .uplot');
+  await expect(chart).toBeVisible();
   return chart;
 }
 
@@ -36,6 +40,7 @@ async function dragChart(page: Page, chart: Locator, startFraction: number, endF
   await page.mouse.down();
   await page.mouse.move(box.x + box.width * endFraction, y, { steps: 12 });
   await page.mouse.up();
+  await expect(page.getByTestId("compare-chart-column")).toHaveAttribute("aria-busy", "false", { timeout: 30_000 });
 }
 async function cursorDistance(chart: Locator, fraction: number): Promise<number> {
   const overlay = chart.locator(".u-over");

@@ -2,9 +2,9 @@ import { resolveWheelStates } from "@raceiq/analysis-core/racing/analysis/metric
 import { getGame } from "@raceiq/shared/games/registry"
 import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities"
 import * as THREE from "three/webgpu";
-import { semanticNumber, type SemanticAnalysisFrame } from "../analyse/track-map/types";
-import type { CarModelEnrichment } from "../../data/car-models";
-import { getWheelOffsets, resolveTrailLateralUtilization, trailColorFromState } from "../../lib/wireframe-utils";
+import { semanticNumber, type SemanticAnalysisFrame } from "../semantic-frame";
+import type { CarModelEnrichment } from "../model-types";
+import { getWheelOffsets, resolveTrailLateralUtilization, trailColorFromState } from "../wireframe-utils";
 import type { GameId } from "@raceiq/shared/games/ids";
 
 const TRAIL_LENGTH_M_DEFAULT = 4;

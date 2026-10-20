@@ -1,4 +1,4 @@
-import { VISUALIZATION_COLOR_VARS } from "@/lib/colors";
+import { VISUALIZATION_COLOR_VARS } from "@raceiq/scene-3d/colors";
 
 const CAR_CLASS_ORDER = ["X", "P", "R", "S", "A", "B", "C", "D", "E"] as const;
 

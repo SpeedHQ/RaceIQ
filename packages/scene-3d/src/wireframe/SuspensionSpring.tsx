@@ -1,5 +1,5 @@
 import * as THREE from "three/webgpu";
-import { suspensionColor, threeColor, THREE_COLORS } from "../../lib/wireframe-utils";
+import { suspensionColor, threeColor, THREE_COLORS } from "../wireframe-utils";
 import { createRibbonPool, disposeRibbonPool, updateRibbonPool, type RibbonPool } from "./LineResources";
 
 export type SuspensionSpringResource = { spring: RibbonPool; rod: RibbonPool };

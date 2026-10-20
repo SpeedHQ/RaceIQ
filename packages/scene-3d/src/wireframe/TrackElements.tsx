@@ -1,11 +1,11 @@
 import * as THREE from "three/webgpu";
-import { semanticNumber, type SemanticAnalysisFrame } from "../analyse/track-map/types";
-import { buildTrackIndex, createWallGeometry, DIST_AHEAD, filterByDistanceIndexed, THREE_COLORS, updateWallGeometry, type TrackIndex } from "../../lib/wireframe-utils";
+import { semanticNumber, type SemanticAnalysisFrame } from "../semantic-frame";
+import { buildTrackIndex, createWallGeometry, DIST_AHEAD, filterByDistanceIndexed, THREE_COLORS, SCENE_PRESENTATION, updateWallGeometry, type TrackIndex } from "../wireframe-utils";
 import { createRibbonPool, disposeRibbonPool, updateRibbonPool, type RibbonPool } from "./LineResources";
 
 type TrackPoint = { x: number; z: number };
 export type TrackLineResource = { pool: RibbonPool; indexSource: TrackPoint[] | null; index: TrackIndex | null; color: THREE.ColorRepresentation; width: number; opacity: number; y: number };
-export function createTrackLineResource(scene: THREE.Scene, color: THREE.ColorRepresentation = THREE_COLORS.appText, width = 3, opacity = 0.6, y = -0.44): TrackLineResource {
+export function createTrackLineResource(scene: THREE.Scene, color: THREE.ColorRepresentation = THREE_COLORS.appText, width: number = SCENE_PRESENTATION.trackWidth, opacity: number = SCENE_PRESENTATION.trackOpacity, y = -0.44): TrackLineResource {
   const pool = createRibbonPool({ opacity }); scene.add(pool.group);
   return { pool, indexSource: null, index: null, color, width, opacity, y };
 }

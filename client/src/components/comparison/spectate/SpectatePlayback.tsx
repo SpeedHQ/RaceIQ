@@ -1,15 +1,28 @@
-import { useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { Pause, Play } from "lucide-react";
 import { m } from "@/paraglide/messages";
-import type { SpectateController } from "./types";
+import type { SpectateController, SpectatePair } from "./types";
 function stamp(seconds: number) {
   const minutes = Math.floor(seconds / 60);
   return `${String(minutes).padStart(2, "0")}:${(seconds - minutes * 60).toFixed(3).padStart(6, "0")}`;
 }
-export function SpectatePlayback({ controller }: { controller: SpectateController }) {
+export function SpectatePlayback({ controller, pair }: { controller: SpectateController; pair: SpectatePair }) {
   const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const duration = Number.isFinite(snapshot.duration) ? Math.max(0, snapshot.duration) : 0;
   const time = Math.max(0, Math.min(duration, snapshot.time));
+  // The replay clock always follows A's elapsed time, including position-lock mode.
+  const sectors = useMemo(() => {
+    const times = pair.comparison.lapA.sectorTimes;
+    if (!times?.length || times.some((value) => !Number.isFinite(value) || value <= 0)) return [];
+    let elapsed = 0;
+    return times.map((seconds, index) => {
+      const start = elapsed;
+      elapsed += seconds;
+      const other = pair.comparison.lapB.sectorTimes?.[index];
+      const delta = other != null && Number.isFinite(other) && other > 0 ? Math.round((seconds - other) * 1000) / 1000 : null;
+      return { sector: index + 1, start, time: elapsed, seconds, delta };
+    });
+  }, [pair]);
   return (
     <section
       className="relative z-10 flex shrink-0 flex-col gap-2 border-t border-app-border bg-app-bg px-3 py-2"
@@ -25,6 +38,40 @@ export function SpectatePlayback({ controller }: { controller: SpectateControlle
       data-a-time={snapshot.a?.time ?? ""}
       data-b-time={snapshot.b?.time ?? ""}
     >
+      <div className="relative pt-5">
+        {sectors.map((sector) => sector.start < duration && duration > 0 && (
+          <span
+            key={sector.sector}
+            data-sector-duration={sector.sector}
+            className="pointer-events-none absolute top-0 -translate-x-full whitespace-nowrap text-app-compact tracking-tight tabular-nums text-app-text-muted"
+            style={{
+              left: `calc(8px + (100% - 16px) * ${Math.min(sector.time, duration) / duration})`,
+            }}
+          >
+            <span style={{ color: sector.delta === null || sector.delta === 0 ? undefined : sector.delta < 0 ? "var(--status-success)" : "var(--status-danger)" }}>
+              {sector.seconds.toFixed(3)}
+            </span>
+            {sector.delta !== null && <span style={{ color: sector.delta === 0 ? undefined : sector.delta < 0 ? "var(--status-success)" : "var(--status-danger)" }}>
+              {` (${sector.delta > 0 ? "+" : ""}${sector.delta.toFixed(3)} s)`}
+            </span>}
+            {" "}S{sector.sector}
+          </span>
+        ))}
+        {sectors.map((split, index) => index < sectors.length - 1 && split.time > 0 && split.time < duration && (
+          <button
+            key={split.sector}
+            type="button"
+            data-sector-split={split.sector}
+            data-split-time={split.time}
+            title={`S${split.sector} · ${stamp(split.time)} (A)`}
+            aria-label={`S${split.sector} · ${stamp(split.time)} (A)`}
+            onClick={() => controller.scrub(split.time)}
+            className="absolute top-5 flex h-3 w-4 -translate-x-1/2 items-start justify-center text-app-label tabular-nums text-app-text-secondary hover:text-app-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent"
+            style={{ left: `calc(8px + (100% - 16px) * ${split.time / duration})` }}
+          >
+            <span className="h-2 w-px bg-current" aria-hidden="true" />
+          </button>
+        ))}
       <input
         aria-label={m.spectate_seek()}
         className="h-1.5 w-full cursor-pointer accent-app-accent"
@@ -35,6 +82,7 @@ export function SpectatePlayback({ controller }: { controller: SpectateControlle
         value={time}
         onChange={(event) => controller.scrub(Number(event.currentTarget.value))}
       />
+      </div>
       <div className="flex items-center gap-3 text-app-label">
         <button
           type="button"
@@ -48,22 +96,7 @@ export function SpectatePlayback({ controller }: { controller: SpectateControlle
           {stamp(time)}
         </output>
         <span className="text-app-text-secondary">/ {stamp(duration)}</span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={snapshot.positionLock}
-          disabled={!snapshot.canLock}
-          aria-label={m.spectate_position_lock()}
-          title={snapshot.canLock ? m.spectate_position_lock() : m.spectate_position_lock_unavailable()}
-          className="ml-auto flex items-center gap-2 text-app-text-secondary disabled:cursor-not-allowed disabled:opacity-50"
-          onClick={() => controller.setPositionLock(!snapshot.positionLock)}
-        >
-          <span className={`relative h-4 w-7 rounded-full border border-app-border-input ${snapshot.positionLock ? "bg-app-accent/60" : "bg-app-progress-track"}`}>
-            <i className={`absolute top-0.5 h-2.5 w-2.5 rounded-full bg-app-text transition-transform ${snapshot.positionLock ? "translate-x-3" : "translate-x-0.5"}`} />
-          </span>
-          {m.spectate_position_lock()}
-        </button>
-        <label className="flex items-center gap-2 text-app-text-secondary">
+        <label className="ml-auto flex items-center gap-2 text-app-text-secondary">
           {m.spectate_playback_speed()}
           <select
             className="rounded-sm border border-app-border-input bg-app-surface px-1.5 py-1 text-app-text"

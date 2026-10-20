@@ -1,8 +1,8 @@
 import { memo, type RefObject, useEffect, useMemo, useRef } from "react";
-import { SECTOR_COLOR_VARS } from "@/lib/colors";
+import { SECTOR_COLOR_VARS } from "@raceiq/scene-3d/colors";
 import { formatLapTime } from "@/lib/format";
 import { Button } from "../ui/button";
-import { type SemanticAnalysisFrame, semanticNumber } from "./track-map/types";
+import { type SemanticAnalysisFrame, semanticNumber } from "@raceiq/scene-3d/semantic-frame";
 import { hasTelemetryGap } from "./AnalyseTelemetryChart";
 import { m } from "../../paraglide/messages";
 

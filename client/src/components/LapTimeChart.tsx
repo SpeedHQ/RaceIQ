@@ -1,7 +1,7 @@
 import { isPitCycleLap } from "@raceiq/analysis-core/racing/laps/pit-cycle"
 import { useEffect, useMemo, useRef, useState } from "react";
-import { lapPaceColor } from "@/lib/colors";
-import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
+import { lapPaceColor } from "@raceiq/scene-3d/colors";
+import { getSemanticCanvasContext } from "@raceiq/scene-3d/rendering/css-canvas";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { m } from "../paraglide/messages";
 import { formatLapTime } from "./LiveTelemetry";

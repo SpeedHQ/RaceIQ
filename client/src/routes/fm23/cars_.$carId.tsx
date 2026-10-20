@@ -2,8 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
-import type { SemanticAnalysisFrame } from "../../components/analyse/track-map/types";
-import type { SceneSource } from "../../components/wireframe/SceneRuntime";
+import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
+import type { SceneSource } from "@raceiq/scene-3d/wireframe/SceneRuntime"
 import { CarWireframe } from "../../components/CarWireframe";
 import { Button } from "../../components/ui/button";
 import { getCarModel, loadCarModelConfigs } from "../../data/car-models";

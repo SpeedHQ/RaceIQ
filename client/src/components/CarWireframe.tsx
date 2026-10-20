@@ -4,24 +4,26 @@ import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemet
 import { flipBoundaries, needsTrackFlip } from "@raceiq/shared/racing/tracks/coords"
 import { ChevronDownIcon } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { recordGpuSnapshot } from "@/lib/crash-diagnostics";
 import { m } from "@/paraglide/messages";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { TrackMapBoundaries } from "./analyse/track-map/types";
-import { type CarModelEnrichment, loadCarModelConfigs } from "../data/car-models";
+import type { CarModelEnrichment } from "@raceiq/scene-3d/model-types";
+import { loadCarModelConfigs } from "../data/car-models";
 import { resolveCarModel } from "./wireframe/resolve-car-model";
 import { useTirePressureOptimal } from "../hooks/catalog-queries";
 import { useSettings } from "../hooks/settings";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useUnits } from "../hooks/useUnits";
 import { client } from "../lib/rpc";
-import { DEFAULT_TOGGLES, VIEW_PRESETS, type ViewPreset, type ViewToggles } from "../lib/wireframe-data";
+import { DEFAULT_TOGGLES, VIEW_PRESETS, type ViewPreset, type ViewToggles } from "@raceiq/scene-3d/wireframe-data";
 import { useGameId } from "../stores/game";
-import type { SemanticAnalysisFrame } from "./analyse/track-map/types";
+import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import { Button } from "./ui/button";
 import { Switch } from "./ui/switch";
 import { DropdownMenu } from "./ui/DropdownMenu";
-import { preloadCarModel } from "./wireframe/CarBody";
-import { SceneRuntime, type SceneSource } from "./wireframe/SceneRuntime";
+import { preloadCarModel } from "@raceiq/scene-3d/wireframe/CarBody";
+import { SceneRuntime, type SceneSource } from "@raceiq/scene-3d/wireframe/SceneRuntime";
 import { ToggleButton } from "./wireframe/ToggleButton";
 
 preloadCarModel("/models/aston_martin_vantage_gt3_optimised.glb");
@@ -151,7 +153,10 @@ export const CarWireframe = React.memo(function CarWireframe({
   const [renderError, setRenderError] = useState<string | null>(null);
   useEffect(() => {
     if (!canvasHostRef.current) return;
-    const runtime = new SceneRuntime(canvasHostRef.current, (error) => setRenderError(error.message), { fpsElement: fpsRef.current });
+    const runtime = new SceneRuntime(canvasHostRef.current, (error) => setRenderError(error.message), {
+      fpsElement: fpsRef.current,
+      onGpuSnapshot: recordGpuSnapshot,
+    });
     runtimeRef.current = runtime;
     onRuntime?.(runtime);
     void runtime.init();
@@ -170,6 +175,10 @@ export const CarWireframe = React.memo(function CarWireframe({
       toggles: effectiveToggles, viewPreset, carModel, modelOffsetX, hideModelWheels: !minimal,
       autoOrbit: !!autoOrbit, fpsCap: displaySettings.renderFpsCap,
       fmtTemp, suspThresholds, pressureOptimal, temperatureThresholds: units.thresholds, temperatureSemanticId,
+      temperatureLabels: {
+        inner: m.label_inner(), middle: m.label_middle(), outer: m.label_outer(),
+        core: m.label_core(), carcass: m.label_carcass(), surface: m.label_surface(),
+      },
     });
   }, [gameId, frame, telemetry, cursorIdx, outline, flippedBoundaries, toggles, viewPreset, carModel, modelOffsetX, minimal, autoOrbit, displaySettings.renderFpsCap, fmtTemp, suspThresholds, pressureOptimal, units.thresholds, temperatureSemanticId]);
 

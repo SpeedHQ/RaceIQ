@@ -1,10 +1,9 @@
 import * as THREE from "three/webgpu";
-import type { TireTemperatureReading } from "../analyse/tire-temperature-profile";
-import { createWheelLabelRefreshPolicy, type WheelLabelRefreshPolicy } from "../../lib/wheel-label-refresh";
-import { brakeTempColor, tirePressureColor, tireTempColor } from "../../lib/vehicle-dynamics";
-import { getSemanticCanvasContext } from "../../lib/rendering/css-canvas";
-import { severityRangeColor } from "../../lib/colors";
-import { m } from "../../paraglide/messages";
+import type { TireTemperatureReading } from "../tire-temperature-profile";
+import { createWheelLabelRefreshPolicy, type WheelLabelRefreshPolicy } from "../wheel-label-refresh";
+import { brakeTempColor, tirePressureColor, tireTempColor } from "../vehicle-dynamics";
+import { getSemanticCanvasContext } from "../rendering/css-canvas";
+import { severityRangeColor } from "../colors";
 
 const CARD_W = 320, ROW_H = 36, SCALE = 2;
 const worldPosition = new THREE.Vector3();
@@ -19,7 +18,7 @@ function drawHeart(ctx: CanvasRenderingContext2D, x: number, y: number, size: nu
 }
 export type WheelLabelConfig = {
   temperatureReadings: TireTemperatureReading[]; carcassBands: readonly [number | null, number | null, number | null]; fmtTemp: (value: number) => string;
-  temperatureThresholds: { cold: number; warm: number; hot: number }; displayBrakeTemp?: string | null;
+  temperatureThresholds: { cold: number; warm: number; hot: number }; temperatureLabels: Record<"inner" | "middle" | "outer" | "core" | "carcass" | "surface", string>; displayBrakeTemp?: string | null;
   wear: number; wearRate: number; brakeTemp: number; pressurePsi: number; pressureOptimal?: { min: number; max: number };
   side: "left" | "right"; isRear: boolean;
 };
@@ -33,7 +32,7 @@ type LabelRow = { kind: "health"; label: string; values: LabelCell[] } | { kind:
 function labelRows(config: WheelLabelConfig): LabelRow[] {
   const { temperatureReadings, temperatureThresholds } = config;
   const cell = (kind: string, temperature: number | null): LabelCell => ({
-    label: kind === "inner" ? m.label_inner() : kind === "middle" ? m.label_middle() : kind === "outer" ? m.label_outer() : kind === "core" ? m.label_core() : kind === "carcass" ? m.label_carcass() : m.label_surface(),
+    label: config.temperatureLabels[kind as keyof typeof config.temperatureLabels] ?? config.temperatureLabels.surface,
     text: temperature == null ? "—" : config.fmtTemp(temperature),
     color: temperature == null ? "var(--status-unavailable)" : tireTempColor(temperature, temperatureThresholds),
   });
@@ -41,11 +40,11 @@ function labelRows(config: WheelLabelConfig): LabelRow[] {
   const carcassKinds = config.side === "left" ? ["outer", "middle", "inner"] : ["inner", "middle", "outer"];
   const carcass = config.carcassBands.map((value, index) => cell(carcassKinds[index], value));
   const rows: LabelRow[] = [{ kind: "health", label: `${config.isRear ? "R" : "F"}${config.side === "left" ? "L" : "R"}`, values: [{ label: "", text: `${Math.round((1 - config.wear) * 100)}%`, color: severityRangeColor(config.wear, [0.3, 0.6]) }] }];
-  if (surface.length) rows.push({ kind: "profile", label: m.label_surface(), values: surface.map(({ kind, value }) => cell(kind, value)) });
-  else { const reading = temperatureReadings.find(({ kind }) => kind === "surface"); if (reading) rows.push({ kind: "profile", label: m.label_surface(), values: [cell("surface", reading.value)] }); }
-  if (carcass.some(({ text }) => text !== "—")) rows.push({ kind: "profile", label: m.label_carcass(), values: carcass });
-  else { const reading = temperatureReadings.find(({ kind }) => kind === "carcass"); if (reading) rows.push({ kind: "profile", label: m.label_carcass(), values: [cell("carcass", reading.value)] }); }
-  for (const reading of temperatureReadings) if (reading.kind === "core") rows.push({ kind: "stat", label: m.label_core(), values: [cell("core", reading.value)] });
+  if (surface.length) rows.push({ kind: "profile", label: config.temperatureLabels.surface, values: surface.map(({ kind, value }) => cell(kind, value)) });
+  else { const reading = temperatureReadings.find(({ kind }) => kind === "surface"); if (reading) rows.push({ kind: "profile", label: config.temperatureLabels.surface, values: [cell("surface", reading.value)] }); }
+  if (carcass.some(({ text }) => text !== "—")) rows.push({ kind: "profile", label: config.temperatureLabels.carcass, values: carcass });
+  else { const reading = temperatureReadings.find(({ kind }) => kind === "carcass"); if (reading) rows.push({ kind: "profile", label: config.temperatureLabels.carcass, values: [cell("carcass", reading.value)] }); }
+  for (const reading of temperatureReadings) if (reading.kind === "core") rows.push({ kind: "stat", label: config.temperatureLabels.core, values: [cell("core", reading.value)] });
   if (config.displayBrakeTemp) rows.push({ kind: "stat", label: "Brake", values: [{ label: "", text: config.displayBrakeTemp, color: brakeTempColor(config.brakeTemp, config.isRear) }] });
   if (config.pressurePsi > 0) rows.push({ kind: "stat", label: "Pressure", values: [{ label: "", text: `${config.pressurePsi.toFixed(1)} psi`, color: tirePressureColor(config.pressurePsi, config.pressureOptimal) }] });
   if (config.wearRate > 0.0001) rows.push({ kind: "stat", label: "Wear", values: [{ label: "", text: `-${(config.wearRate * 100).toFixed(2)}%/s`, color: "var(--telemetry-wear)" }] });

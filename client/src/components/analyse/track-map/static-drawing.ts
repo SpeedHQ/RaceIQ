@@ -1,15 +1,14 @@
 import { SceneBuilder } from "./scene";
 import { drawPitLines, type PitLine } from "@/lib/canvas/draw-track";
-import { SECTOR_COLOR_VARS } from "@/lib/colors";
+import { SECTOR_COLOR_VARS } from "@raceiq/scene-3d/colors";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
-import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
+import { getSemanticCanvasContext } from "@raceiq/scene-3d/rendering/css-canvas";
 import { flipPoints, needsTrackFlip } from "@raceiq/shared/racing/tracks/coords"
 import { projectPointOntoPath } from "./path";
 import type { GameId } from "@raceiq/shared/games/ids";
+import { semanticNumber, type SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import {
-  semanticNumber,
   type Point,
-  type SemanticAnalysisFrame,
   type SectorBoundaries,
   type TrackHighlight,
   type TrackMapBoundaries,

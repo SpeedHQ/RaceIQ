@@ -3,6 +3,16 @@ import * as THREE from "three";
 import { operatingRangeColor } from "./colors";
 import { resolveCssColor } from "./rendering/css-values";
 import { tireStateFromUtilization } from "./vehicle-dynamics";
+import type { CarModelEnrichment } from "./model-types";
+
+/** Shared Analyse/Spectate perspective and CSS-pixel line proportions. */
+export const SCENE_PRESENTATION = {
+  fov: 50,
+  trackWidth: 3,
+  trackOpacity: 0.6,
+  inputWidth: 6,
+  inputOpacity: 0.9,
+} as const;
 
 // ── Geometry ──────────────────────────────────────────────────────────
 
@@ -31,9 +41,12 @@ export function makeWheelGeometries(radius: number, width: number) {
   return { tire, surfaceBands, carcass, core, rim };
 }
 
-/** Convert signed int8 steering input to a bounded front-wheel angle. */
-export function steeringAngleRadians(steerInput: number): number {
-  return steerInput === 0 ? 0 : -(steerInput / 127) * 0.35;
+/** Convert steering telemetry to positive-right front-wheel yaw. */
+export function steeringAngleRadians(input: number, steering: { steeringCenter: number; steeringRange: number }): number {
+  const { steeringCenter, steeringRange } = steering;
+  if (!Number.isFinite(input) || !Number.isFinite(steeringCenter) || !Number.isFinite(steeringRange) || steeringRange <= 0) return 0;
+  const normalized = (input - steeringCenter) / (steeringRange / 2);
+  return Math.max(-0.35, Math.min(0.35, normalized * 0.35));
 }
 
 /** Use measured wheel speed when supported; otherwise derive visual rolling from v = ωr. */
@@ -378,7 +391,6 @@ export function filterByDistanceIndexed(index: TrackIndex, cx: number, cz: numbe
   return segments;
 }
 
-import type { CarModelEnrichment } from "../data/car-models";
 
 export function getWheelOffsets(m: CarModelEnrichment): [number, number][] {
   return [

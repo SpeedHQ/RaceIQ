@@ -6,6 +6,7 @@ import { useSettings } from "@/hooks/settings";
 import { createSpectateController, prepareSpectateLap } from "@/lib/spectate-replay";
 import { m } from "@/paraglide/messages";
 import { Button } from "@/components/ui/button";
+import { LoadingIndicator } from "@/components/LoadingIndicator";
 import { SpectateView } from "./SpectateView";
 import type { SpectateController, SpectatePair, SpectateSegment } from "./types";
 
@@ -19,6 +20,13 @@ export function SpectateSession({
   distanceRef,
   onDistanceChange,
   cursor,
+  aiOpen,
+  telemetryOpen,
+  carPanelOpen,
+  onTelemetryOpenChange,
+  onCarPanelOpenChange,
+  panelHeaderTarget,
+  onAiOpenChange,
 }: {
   gameId: GameId;
   comparison: ComparisonData;
@@ -28,6 +36,13 @@ export function SpectateSession({
   distanceRef: { current: number | null };
   onDistanceChange: (distance: number | null) => void;
   cursor?: number;
+  aiOpen: boolean;
+  telemetryOpen: boolean;
+  carPanelOpen: boolean;
+  onTelemetryOpenChange: (open: boolean) => void;
+  onCarPanelOpenChange: (open: boolean) => void;
+  panelHeaderTarget: HTMLDivElement | null;
+  onAiOpenChange: (open: boolean) => void;
 }) {
   const { displaySettings } = useSettings();
   const fpsCap = useRef(displaySettings.renderFpsCap);
@@ -64,6 +79,31 @@ export function SpectateSession({
     }
     return () => controller.setActive(false);
   }, [active, controller, distanceRef]);
+  useEffect(() => {
+    if (!active || !controller) return;
+    const handleSpace = (event: KeyboardEvent) => {
+      if ((event.code !== "Space" && event.key !== " ") || event.altKey || event.ctrlKey || event.metaKey) return;
+      const target = event.target;
+      if (target instanceof HTMLElement) {
+        if (target.isContentEditable || target.closest('textarea, select, [role="textbox"], [role="dialog"], [role="alertdialog"]')) return;
+        if (target instanceof HTMLInputElement && !["range", "checkbox", "radio", "button", "submit", "reset"].includes(target.type)) return;
+      }
+      // Capture both phases of native Space activation before focused controls
+      // can click, seek, or scroll instead of controlling replay.
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.type === "keydown" && !event.repeat) {
+        if (controller.getSnapshot().playing) controller.pause();
+        else controller.play();
+      }
+    };
+    window.addEventListener("keydown", handleSpace, true);
+    window.addEventListener("keyup", handleSpace, true);
+    return () => {
+      window.removeEventListener("keydown", handleSpace, true);
+      window.removeEventListener("keyup", handleSpace, true);
+    };
+  }, [active, controller]);
   const appliedCursor = useRef<number | undefined>(undefined);
   useEffect(() => {
     if (cursor == null) {
@@ -97,8 +137,8 @@ export function SpectateSession({
     );
   if (!pair || !controller)
     return (
-      <div role="status" className="flex flex-1 items-center justify-center text-app-detail text-app-text-muted">
-        {m.compare_loading()}
+      <div className="flex flex-1 items-center justify-center">
+        <LoadingIndicator label={m.compare_loading()} />
       </div>
     );
   if (pair.a.samples.length < 2 || pair.b.samples.length < 2)
@@ -107,5 +147,5 @@ export function SpectateSession({
         {m.spectate_replay_unavailable()}
       </div>
     );
-  return <SpectateView pair={pair} controller={controller} outline={outline} segments={segments} />;
+  return <SpectateView pair={pair} controller={controller} outline={outline} segments={segments} aiOpen={aiOpen} telemetryOpen={telemetryOpen} carPanelOpen={carPanelOpen} onTelemetryOpenChange={onTelemetryOpenChange} onCarPanelOpenChange={onCarPanelOpenChange} onAiOpenChange={onAiOpenChange} panelHeaderTarget={panelHeaderTarget} />;
 }

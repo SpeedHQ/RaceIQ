@@ -1,7 +1,7 @@
 import * as THREE from "three/webgpu";
-import { buildTrackIndex, filterByDistanceIndexed, THREE_COLORS, type TrackIndex } from "../../lib/wireframe-utils";
-import type { SemanticAnalysisFrame } from "../analyse/track-map/types";
-import { semanticNumber } from "../analyse/track-map/types";
+import { buildTrackIndex, filterByDistanceIndexed, THREE_COLORS, type TrackIndex } from "../wireframe-utils";
+import type { SemanticAnalysisFrame } from "../semantic-frame";
+import { semanticNumber } from "../semantic-frame";
 
 type TrackPoint = { x: number; z: number };
 type MarkerSet = { mesh: THREE.InstancedMesh; source: TrackPoint[] | null; index: TrackIndex | null; dummy: THREE.Object3D; geometry: THREE.BufferGeometry; material: THREE.MeshBasicMaterial };

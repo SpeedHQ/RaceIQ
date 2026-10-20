@@ -217,6 +217,18 @@ describe("Spectate native sampling", () => {
     }
     controller.dispose();
   });
+  test("omits raw, derived, wear, and delta charts when source samples have no usable values", () => {
+    const a = lap(1, (time) => time * 100),
+      b = lap(1, (time) => time * 100);
+    for (const recording of [a, b]) recording.samples = recording.samples.map((sample) => ({ ...sample, values: {} }));
+    const pair: SpectatePair = {
+      gameId: "fm-2023",
+      a,
+      b,
+      comparison: { traces: { distance: [] }, timeDelta: [] } as unknown as ComparisonData,
+    };
+    expect(buildSpectateChannels(pair)).toEqual([]);
+  });
   test("supported wear rates retain native A/B time and suspension bias keeps wheel components", () => {
     const a = lap(1, (time) => time * 100),
       b = lap(2, (time) => time * 50);

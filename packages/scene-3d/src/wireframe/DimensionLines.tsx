@@ -1,7 +1,7 @@
 import * as THREE from "three/webgpu";
-import type { CarModelEnrichment } from "../../data/car-models";
-import { getSemanticCanvasContext } from "../../lib/rendering/css-canvas";
-import { THREE_COLORS } from "../../lib/wireframe-utils";
+import type { CarModelEnrichment } from "../model-types";
+import { getSemanticCanvasContext } from "../rendering/css-canvas";
+import { THREE_COLORS } from "../wireframe-utils";
 import { createRibbonPool, disposeRibbonPool, updateRibbonPool, type RibbonPool } from "./LineResources";
 
 type DimensionLabelResource = { sprite: THREE.Sprite; canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; texture: THREE.CanvasTexture; material: THREE.SpriteMaterial; text: string; color: string };

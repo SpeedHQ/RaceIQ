@@ -1,21 +1,34 @@
-import type { RefObject } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { WebGPURenderer } from "three/webgpu";
 import type { GameId } from "@raceiq/shared/games/ids";
-import type { CarModelEnrichment } from "../../data/car-models";
+import type { CarModelEnrichment } from "../model-types";
 import type { TelemetryVariableId } from "@raceiq/shared/telemetry/catalog/generated/telemetry-catalog.types";
-import { recordGpuSnapshot } from "../../lib/crash-diagnostics";
-import { normalizeSuspensionTravel } from "../../lib/suspension";
-import { VIEW_PRESETS, type ViewPreset, type ViewToggles } from "../../lib/wireframe-data";
-import { semanticNumber } from "../analyse/track-map/types";
+import { normalizeSuspensionTravel } from "../suspension";
+import { VIEW_PRESETS, type ViewPreset, type ViewToggles } from "../wireframe-data";
+import { SCENE_PRESENTATION } from "../wireframe-utils";
+import { semanticNumber, type SemanticAnalysisFrame } from "../semantic-frame";
 import { createCarBody, type CarBodyInstance } from "./CarBody";
 import { SceneOverlays } from "./SceneOverlays";
-import type { SemanticAnalysisFrame, TrackMapBoundaries } from "../analyse/track-map/types";
+
+export type SceneTrackBoundaries = {
+  leftEdge: { x: number; z: number }[];
+  rightEdge: { x: number; z: number }[];
+  raceLine?: { x: number; z: number }[] | null;
+  additionalSections?: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[] }[];
+};
+
+type Ref<T> = { current: T };
+
+export interface SceneGpuSnapshot {
+  memory: { geometries: number; textures: number };
+  programs: { length: number } | null;
+  render: { calls: number; triangles: number };
+}
 
 export interface SceneSource {
-  framesRef: RefObject<SemanticAnalysisFrame[]>;
-  cursorRef: RefObject<number>;
+  framesRef: Ref<SemanticAnalysisFrame[]>;
+  cursorRef: Ref<number>;
   playing: boolean;
   playbackSpeed: number;
   seekGeneration: number;
@@ -28,7 +41,7 @@ export interface SceneRuntimeConfig {
   telemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
   outline: { x: number; z: number }[] | null;
-  boundaries: Pick<TrackMapBoundaries, "leftEdge" | "rightEdge" | "raceLine" | "additionalSections"> | null;
+  boundaries: SceneTrackBoundaries | null;
   toggles: ViewToggles;
   viewPreset: ViewPreset;
   carModel: CarModelEnrichment & { hasModel: boolean };
@@ -41,7 +54,9 @@ export interface SceneRuntimeConfig {
   pressureOptimal?: { min: number; max: number };
   temperatureThresholds: { cold: number; warm: number; hot: number };
   temperatureSemanticId: TelemetryVariableId;
+  temperatureLabels: Record<"inner" | "middle" | "outer" | "core" | "carcass" | "surface", string>;
 }
+
 
 interface PendingFrame {
   generation: number;
@@ -106,15 +121,17 @@ export class SceneRuntime {
   private readonly onControlsStart = () => { this.cameraMoving = true; this.wake(); };
   private readonly onControlsEnd = () => { this.cameraMoving = false; this.wake(); };
   private readonly onControlsChange = () => { this.dirty = true; this.wake(); };
+  private readonly onGpuSnapshot?: (snapshot: SceneGpuSnapshot) => void;
 
-  constructor(container: HTMLElement, onError: (error: Error) => void, options?: { fpsElement?: HTMLElement | null; cameraPosition?: [number, number, number]; fov?: number; background?: THREE.ColorRepresentation; forceWebGL?: boolean }) {
+  constructor(container: HTMLElement, onError: (error: Error) => void, options?: { fpsElement?: HTMLElement | null; cameraPosition?: [number, number, number]; fov?: number; background?: THREE.ColorRepresentation; forceWebGL?: boolean; onGpuSnapshot?: (snapshot: SceneGpuSnapshot) => void }) {
+    this.onGpuSnapshot = options?.onGpuSnapshot;
     this.onError = onError;
     this.fpsElement = options?.fpsElement ?? null;
     this.canvas = document.createElement("canvas");
     this.canvas.tabIndex = -1;
     this.canvas.style.cssText = "width:100%;height:100%;display:block;outline:none;background:transparent;user-select:none;-webkit-tap-highlight-color:transparent";
     container.append(this.canvas);
-    this.camera = new THREE.PerspectiveCamera(options?.fov ?? 50, 1, 0.1, 3000);
+    this.camera = new THREE.PerspectiveCamera(options?.fov ?? SCENE_PRESENTATION.fov, 1, 0.1, 3000);
     this.camera.position.set(...(options?.cameraPosition ?? [4, 2.5, 4]));
     this.renderer = new WebGPURenderer({ canvas: this.canvas, antialias: false, alpha: true, powerPreference: "high-performance", forceWebGL: options?.forceWebGL });
     this.renderer.info.autoReset = false;
@@ -299,7 +316,7 @@ export class SceneRuntime {
     }
     if (now - this.lastGpuLog >= 1000) {
       this.lastGpuLog = now;
-      recordGpuSnapshot({
+      this.onGpuSnapshot?.({
         memory: this.renderer.info.memory,
         programs: { length: this.renderer.info.memory.programs },
         render: { calls: this.renderer.info.render.drawCalls, triangles: this.renderer.info.render.triangles },

@@ -1,12 +1,8 @@
-import { resolveWheelStates } from "@raceiq/analysis-core/racing/analysis/metric-values";
-import { getGame } from "@raceiq/shared/games/registry"
-import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities"
 import * as THREE from "three/webgpu";
 import type { Line2 } from "three/addons/lines/webgpu/Line2.js";
-import { normalizeSuspensionTravel } from "../../lib/suspension";
-import { steeringAngleRadians, THREE_COLORS, visualWheelRotationSpeed } from "../../lib/wireframe-utils";
-import { semanticNumber, type SemanticAnalysisFrame } from "../analyse/track-map/types";
-import { tireTemperatureReadings } from "../analyse/tire-temperature-profile";
+import { normalizeSuspensionTravel } from "../suspension";
+import { THREE_COLORS } from "../wireframe-utils";
+import { semanticNumber, type SemanticAnalysisFrame } from "../semantic-frame";
 import { buildLoadTrail } from "./CarScene";
 import { createCurbMarkerResource, disposeCurbMarkerResource, updateCurbMarkerResource, type CurbMarkerResource } from "./CurbMarkers";
 import { createDimensionLineResource, disposeDimensionLineResource, updateDimensionLineResource, type DimensionLineResource } from "./DimensionLines";
@@ -16,7 +12,8 @@ import type { SceneRuntimeConfig, SceneSource } from "./SceneRuntime";
 import { createSuspensionSpringResource, disposeSuspensionSpringResource, updateSuspensionSpringResource, type SuspensionSpringResource } from "./SuspensionSpring";
 import { createTireTrailResource, disposeTireTrailResource, updateTireTrailResource, type TireTrailResource } from "./TireTrails";
 import { createTrackBoundaryResource, createTrackLineResource, disposeTrackBoundaryResource, disposeTrackLineResource, updateTrackBoundaryResource, updateTrackLineResource, type TrackBoundaryResource, type TrackLineResource } from "./TrackElements";
-import { createWheelResource, disposeWheelResource, setWheelSpin, updateWheelResource, type WheelResource } from "./Wheel";
+import { disposeWheelResource, type WheelResource } from "./Wheel";
+import { createAnalysisWheels, updateAnalysisWheels } from "./AnalysisWheels";
 import { createWheelLabelResource, disposeWheelLabelResource, updateWheelLabelResource, updateWheelLabelScale, type WheelLabelResource } from "./WheelLabels";
 
 const wheelValue = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"], index: number): number => {
@@ -86,14 +83,7 @@ export class SceneOverlays {
     this.labels.forEach((label) => { if (label) disposeWheelLabelResource(label); });
     this.labels = [null, null, null, null];
     for (const wheel of this.wheels) disposeWheelResource(wheel);
-    this.wheels = [];
-    for (let index = 0; index < 4; index++) {
-      const radius = index < 2 ? config.carModel.frontTireRadius ?? config.carModel.tireRadius : config.carModel.rearTireRadius ?? config.carModel.tireRadius;
-      const width = index < 2 ? config.carModel.frontTireWidth ?? 0.3 : config.carModel.rearTireWidth ?? 0.3;
-      const wheel = createWheelResource(radius, width);
-      this.scene.add(wheel.root);
-      this.wheels.push(wheel);
-    }
+    this.wheels = createAnalysisWheels(this.scene, config.carModel);
     this.wheelModel = config.carModel;
     if (this.trail) { disposeTireTrailResource(this.trail); this.trail = null; }
   }
@@ -135,20 +125,13 @@ export class SceneOverlays {
     if (config.toggles.grid) this.grid.updatePose(px, pz, yaw);
     else this.grid.resetPose();
     const wb = config.carModel.halfWheelbase, ft = config.carModel.halfFrontTrack, rt = config.carModel.halfRearTrack;
-    const fRadius = config.carModel.frontTireRadius ?? config.carModel.tireRadius;
-    const rRadius = config.carModel.rearTireRadius ?? config.carModel.tireRadius;
-    const fWidth = config.carModel.frontTireWidth ?? 0.3, rWidth = config.carModel.rearTireWidth ?? 0.3;
     const suspensionRange = config.gameId === "acc" ? { min: 0, max: 50 } : config.gameId === "iracing" ? { min: 0, max: 100 } : undefined;
     const normalized = frame.values["suspension.norm-suspension-travel"];
     const suspension = Array.isArray(normalized) && normalized.length >= 4 &&
       Number.isFinite(normalized[0]) && Number.isFinite(normalized[1]) &&
       Number.isFinite(normalized[2]) && Number.isFinite(normalized[3])
       ? normalized as number[] : normalizeSuspensionTravel(frame.values["suspension.suspension-travel-m"] as unknown[], suspensionRange);
-    const steering = steeringAngleRadians(semanticNumber(frame, "inputs.steer") ?? 0);
-    const analysis = resolveAnalysisTelemetry(getGame(config.gameId));
-    const states = resolveWheelStates(frame, analysis.traction);
-    const measured = frame.values["tires.wheel-rotation-speed"];
-    const speed = semanticNumber(frame, "motion.speed") ?? 0;
+    const wheelReadings = updateAnalysisWheels(this.wheels, frame, config, elapsed, source?.playbackSpeed ?? 1, !!source?.playing);
     const brakeTemps = frame.values["brakes.brake-temp"];
     const carcassLeft = frame.values["tire.temperature.carcass.left"];
     const carcassMiddle = frame.values["tire.temperature.carcass.middle"];
@@ -158,9 +141,8 @@ export class SceneOverlays {
     const stroke = config.carModel.suspStroke ?? 0.08;
     for (let index = 0; index < 4; index++) {
       const isRear = index >= 2, side: "left" | "right" = index % 2 === 0 ? "left" : "right";
-      const radius = isRear ? rRadius : fRadius, width = isRear ? rWidth : fWidth;
       const x = isRear ? -wb : wb, z = (side === "left" ? -1 : 1) * (isRear ? rt : ft);
-      const readings = tireTemperatureReadings(frame, index, side, config.temperatureSemanticId, config.temperatureSemanticId === "tire.temperature.core" ? "core" : config.temperatureSemanticId.includes("carcass") ? "carcass" : "surface");
+      const readings = wheelReadings[index];
       const brakeTemp = wheelValue(frame, "brakes.brake-temp", index);
       const wear = wheelValue(frame, "tires.tire-wear", index);
       const timestamp = semanticNumber(frame, "diagnostics.timestamp-ms") ?? 0;
@@ -170,17 +152,13 @@ export class SceneOverlays {
         this.previousWear[index] = wear;
       }
       const wheel = this.wheels[index];
-      updateWheelResource(wheel, { position: [x, 0, z], steerAngle: isRear ? 0 : steering, rimColor: "var(--app-accent)", temperatureReadings: readings, temperatureThresholds: config.temperatureThresholds, brakeTemp, side, isRear, onCurb: false, puddleDepth: wheelValue(frame, "tires.wheel-in-puddle-depth", index), tireRadius: radius, tireWidth: width });
-      const lockup = states[index]?.state === "lockup";
-      const rotationSpeed = lockup ? 0 : visualWheelRotationSpeed(Array.isArray(measured) ? measured[index] : undefined, speed, radius, analysis.wheelRotation.source !== "unavailable");
-      setWheelSpin(wheel, rotationSpeed, elapsed, source?.playbackSpeed ?? 1, !!source?.playing);
       if (config.toggles.wheelInfo && readings.length) {
         const carcassBands = [
           optionalWheelValue(carcassLeft, index),
           optionalWheelValue(carcassMiddle, index),
           optionalWheelValue(carcassRight, index),
         ] as const;
-        const labelConfig = { temperatureReadings: readings, carcassBands, fmtTemp: config.fmtTemp, temperatureThresholds: config.temperatureThresholds,
+        const labelConfig = { temperatureReadings: readings, carcassBands, fmtTemp: config.fmtTemp, temperatureThresholds: config.temperatureThresholds, temperatureLabels: config.temperatureLabels,
           displayBrakeTemp: config.toggles.wheelInfo && Array.isArray(brakeTemps) && typeof brakeTemps[index] === "number" ? config.fmtTemp(brakeTemps[index] as number) : null,
           wear, wearRate: this.wearRates[index], brakeTemp, pressurePsi: wheelValue(frame, "tires.tire-pressure", index), pressureOptimal: config.pressureOptimal, side, isRear };
         let label = this.labels[index];

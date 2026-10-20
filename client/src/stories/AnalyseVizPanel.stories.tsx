@@ -5,8 +5,8 @@ import { useMemo, useRef, useState } from "react";
 import { expect, userEvent, within } from "storybook/test";
 import { AnalyseTrackPanel } from "../components/analyse/AnalyseTrackPanel";
 import { AnalyseVizPanel } from "../components/analyse/AnalyseVizPanel";
-import type { SemanticAnalysisFrame } from "../components/analyse/track-map/types";
-import type { SceneSource } from "../components/wireframe/SceneRuntime";
+import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
+import type { SceneSource } from "@raceiq/scene-3d/wireframe/SceneRuntime"
 
 const frame: SemanticAnalysisFrame = {
   values: {

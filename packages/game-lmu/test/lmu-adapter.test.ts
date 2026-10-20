@@ -256,6 +256,7 @@ describe("LMU adapter", () => {
     });
   });
 
+
   test("propagates game's lap-invalidated flag into lap validity", () => {
     const memory = lmuSharedMemoryFixture();
     memory.writeUInt8(

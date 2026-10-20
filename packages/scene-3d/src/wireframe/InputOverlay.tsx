@@ -1,6 +1,6 @@
 import * as THREE from "three/webgpu";
-import { semanticNumber, type SemanticAnalysisFrame } from "../analyse/track-map/types";
-import { buildTrackIndex, filterByDistanceIndexed, threeColor, type TrackIndex } from "../../lib/wireframe-utils";
+import { semanticNumber, type SemanticAnalysisFrame } from "../semantic-frame";
+import { buildTrackIndex, filterByDistanceIndexed, threeColor, SCENE_PRESENTATION, type TrackIndex } from "../wireframe-utils";
 import { createRibbonPool, disposeRibbonPool, updateRibbonPool, type RibbonPool } from "./LineResources";
 
 export type InputRun = { id: number; pts: [number, number, number][]; values: number[] };
@@ -49,7 +49,7 @@ export type InputOverlayResource = {
   indexSource: { telemetry: SemanticAnalysisFrame[]; index: TrackIndex } | null;
 };
 export function createInputOverlayResource(scene: THREE.Scene): InputOverlayResource {
-  const throttle = createRibbonPool({ opacity: 0.9 }); const brake = createRibbonPool({ opacity: 0.9 });
+  const throttle = createRibbonPool({ opacity: SCENE_PRESENTATION.inputOpacity }); const brake = createRibbonPool({ opacity: SCENE_PRESENTATION.inputOpacity });
   scene.add(throttle.group, brake.group);
   return { throttle, brake, throttleRuns: [], brakeRuns: [], indexSource: null };
 }
@@ -75,8 +75,8 @@ export function updateInputOverlayResource(resource: InputOverlayResource, camer
   const inactive = threeColor("var(--app-bg)"), throttleColor = threeColor("var(--ch-throttle)"), brakeColor = threeColor("var(--ch-brake)");
   fillRibbonRuns(runs.throttleRuns, resource.throttleRuns, inactive, throttleColor, 1);
   fillRibbonRuns(runs.brakeRuns, resource.brakeRuns, inactive, brakeColor, 255);
-  updateRibbonPool(resource.throttle, camera, resource.throttleRuns, 6, viewportHeight);
-  updateRibbonPool(resource.brake, camera, resource.brakeRuns, 6, viewportHeight);
+  updateRibbonPool(resource.throttle, camera, resource.throttleRuns, SCENE_PRESENTATION.inputWidth, viewportHeight);
+  updateRibbonPool(resource.brake, camera, resource.brakeRuns, SCENE_PRESENTATION.inputWidth, viewportHeight);
 }
 export function disposeInputOverlayResource(resource: InputOverlayResource): void {
   disposeRibbonPool(resource.throttle); disposeRibbonPool(resource.brake);

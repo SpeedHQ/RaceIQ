@@ -4,7 +4,7 @@ import { resolveBalance, resolveGripDemand } from "@raceiq/analysis-core/racing/
 import { suspensionCompressionBias } from "@raceiq/analysis-core/racing/analysis/laps/physics/vehicle";
 import { getGame } from "@raceiq/shared/games/registry";
 import { isTelemetryVariableId, getTelemetryVariable } from "@raceiq/shared/telemetry/catalog/query";
-import type { SpectatePair, SpectateReading } from "./types";
+import type { SpectatePair, SpectateReading, SpectateSample } from "./types";
 
 export interface SpectateChannel {
   id: string;
@@ -18,20 +18,28 @@ export interface SpectateChannel {
 }
 const numeric = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 
+function collectNumericIds(samples: readonly SpectateSample[], ids: Set<string>) {
+  for (const sample of samples) {
+    for (const [id, value] of Object.entries(sample.values)) {
+      if (numeric(value) || (Array.isArray(value) && value.some(numeric))) ids.add(id);
+    }
+  }
+}
+function metricHasData(metric: unknown, ids: Set<string>): boolean {
+  const binding = (metric as { binding?: { kind?: string; semanticId?: string; requires?: readonly string[] } } | null)?.binding;
+  if (binding?.kind === "value") return !!binding.semanticId && ids.has(binding.semanticId);
+  return binding?.kind === "derived" && !!binding.requires?.length && binding.requires.every((id) => ids.has(id));
+}
+
 export function buildSpectateChannels(pair: SpectatePair): SpectateChannel[] {
-  const ids = [
-    ...new Set([
-      ...pair.a.replay.requestedSemanticIds,
-      ...pair.b.replay.requestedSemanticIds,
-      ...pair.a.samples.flatMap((sample) => Object.keys(sample.values)),
-      ...pair.b.samples.flatMap((sample) => Object.keys(sample.values)),
-    ]),
-  ];
+  const numericIds = new Set<string>();
+  collectNumericIds(pair.a.samples, numericIds);
+  collectNumericIds(pair.b.samples, numericIds);
   const channels: SpectateChannel[] = [];
-  for (const id of ids) {
+  for (const id of numericIds) {
     if (!isTelemetryVariableId(id)) continue;
     const meta = getTelemetryVariable(id);
-    if (meta.valueType !== "number") continue;
+    if (id === "fuel.ers-deploy-mode" || meta.valueType !== "number") continue;
     const components =
       meta.shape === "per-wheel"
         ? ["FL", "FR", "RL", "RR"].map((label, i) => ({ key: String(i), label }))
@@ -50,7 +58,7 @@ export function buildSpectateChannels(pair: SpectatePair): SpectateChannel[] {
     const supported = isGrip
       ? metric.source !== "unavailable" && (metric.binding?.kind === "value" || (metric.binding?.kind === "derived" && metric.binding.derivation === derivation))
       : metric.source === "derived" && metric.binding?.kind === "derived" && metric.binding.derivation === derivation;
-    if (!supported) continue;
+    if (!supported || !metricHasData(metric, numericIds)) continue;
     channels.push({
       id: `derived.${name}`,
       label,
@@ -61,7 +69,7 @@ export function buildSpectateChannels(pair: SpectatePair): SpectateChannel[] {
     });
   }
   const compressionMetric = analysis.suspensionCompressionBias;
-  if (compressionMetric.source === "derived" && compressionMetric.binding?.kind === "derived" && compressionMetric.binding.derivation === "compression-bias-v1") {
+  if (compressionMetric.source === "derived" && compressionMetric.binding?.kind === "derived" && compressionMetric.binding.derivation === "compression-bias-v1" && metricHasData(compressionMetric, numericIds)) {
     channels.push({
       id: "derived.suspensionCompressionBias",
       label: "Compression bias",
@@ -75,7 +83,7 @@ export function buildSpectateChannels(pair: SpectatePair): SpectateChannel[] {
     });
   }
   const wearMetric = analysis.tireWearRate;
-  if (wearMetric.source === "derived" && wearMetric.binding?.kind === "derived" && wearMetric.binding.derivation === "wear-rate-v1") {
+  if (wearMetric.source === "derived" && wearMetric.binding?.kind === "derived" && wearMetric.binding.derivation === "wear-rate-v1" && (hasFourNumericValues(pair.a.samples, wearMetric.binding.requires[0]!) || hasFourNumericValues(pair.b.samples, wearMetric.binding.requires[0]!))) {
     const semanticId = wearMetric.binding.requires[0]!;
     channels.push({
       id: "derived.tireWearRate",
@@ -87,19 +95,24 @@ export function buildSpectateChannels(pair: SpectatePair): SpectateChannel[] {
       wearRate: { a: buildWearHistory(pair.a.samples, semanticId), b: buildWearHistory(pair.b.samples, semanticId) },
     });
   }
-  channels.push({
-    id: "comparison.time-delta",
-    label: "Time delta",
-    unit: "s",
-    components: [{ key: "", label: "" }],
-    derived: "delta",
-    delta: { distance: pair.comparison.traces.distance, values: pair.comparison.timeDelta },
-  });
+  if (pair.comparison.traces.distance.length && pair.comparison.timeDelta.some(numeric)) {
+    channels.push({
+      id: "comparison.time-delta",
+      label: "Time delta",
+      unit: "s",
+      components: [{ key: "", label: "" }],
+      derived: "delta",
+      delta: { distance: pair.comparison.traces.distance, values: pair.comparison.timeDelta },
+    });
+  }
   return channels;
 }
 
 function finiteWheels(value: unknown): value is number[] {
   return Array.isArray(value) && value.length >= 4 && value.slice(0, 4).every(numeric);
+}
+function hasFourNumericValues(samples: readonly SpectateSample[], semanticId: string): boolean {
+  return samples.some((sample) => finiteWheels(sample.values[semanticId]));
 }
 
 function buildWearHistory(samples: SpectatePair["a"]["samples"], semanticId: string): { time: number; run: number; rates: readonly (number | null)[] }[] {

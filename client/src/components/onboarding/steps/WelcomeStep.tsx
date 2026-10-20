@@ -1,6 +1,6 @@
 import { LOCALES } from "@raceiq/shared/platform/i18n/locales";
-import type { SemanticAnalysisFrame } from "@/components/analyse/track-map/types";
-import type { SceneRuntime, SceneSource } from "@/components/wireframe/SceneRuntime";
+import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
+import type { SceneRuntime, SceneSource } from "@raceiq/scene-3d/wireframe/SceneRuntime"
 import { flushSync } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";

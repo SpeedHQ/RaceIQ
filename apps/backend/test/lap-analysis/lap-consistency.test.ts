@@ -2,6 +2,7 @@ import { describe, test, expect } from "bun:test";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { computeLapConsistencyDelta, computeLineSpreadTrace, LINE_SPREAD_THRESHOLD_M, INPUT_VAR_THRESHOLD } from "@raceiq/backend-core/lap-analysis/consistency";
 import type { Corner } from "@raceiq/backend-core/lap-analysis/corners";
+import { OUTCOME_METRICS } from "@raceiq/backend-core/experiments/comparison/metrics";
 
 /**
  * `computeLapConsistencyDelta` is pure math over resampled lap paths — these
@@ -133,6 +134,22 @@ describe("computeLapConsistencyDelta", () => {
 });
 
 describe("computeLineSpreadTrace", () => {
+  test("separated parallel lines cannot cancel around their shared midpoint", () => {
+    const lapA = buildLap();
+    const lapB = buildLap().map((packet) => ({ ...packet, PositionX: packet.PositionX + 2 }));
+    const result = computeLineSpreadTrace([lapA, lapB], [1, 2], corners)!;
+    expect(result.overallSpreadM).toBeCloseTo(2, 2);
+    expect(result.consistencyScore).toBe(60);
+    const swapped = computeLineSpreadTrace([lapB, lapA], [2, 1], corners)!;
+    expect(swapped.consistencyScore).toBe(result.consistencyScore);
+    expect(OUTCOME_METRICS.lineSpreadScore.reduce({
+      lap: { id: 2, lapTime: 90, isValid: true, invalidReason: null, experimentExcluded: false, experimentExcludedSource: null },
+      telemetry: lapB,
+      referenceTelemetry: lapA,
+      corners,
+    })).toBe(60);
+  });
+
   test("requires two resampled laps before measuring spread", () => {
     const lapA = buildLap();
     const lapB = buildLap({ lateralOffsetInCorner: 4 });
@@ -143,11 +160,9 @@ describe("computeLineSpreadTrace", () => {
     expect(result!.spreadM.every((value) => value >= 0)).toBe(true);
   });
 
-  test("three laps offset by known amounts through T1: trimmed spread reflects the inner two, not the outlier", () => {
-    // Three laps sharing the same corner: 0m, 1m, 2m lateral offset — a tight
-    // cluster. The 10th-90th percentile trim over 3 points keeps the full
-    // 0..2m spread (no room to trim a 3-point set down further), so this
-    // pins the "known amounts" case before introducing a real outlier below.
+  test("three laps retain the signed p10–p90 width through T1", () => {
+    // Offsets 0m, 1m, 2m have a trimmed width of 1.6m, not the 0.8m
+    // range of their unsigned distances from the midpoint.
     const lapA = buildLap({ lateralOffsetInCorner: 0 });
     const lapB = buildLap({ lateralOffsetInCorner: 1 });
     const lapC = buildLap({ lateralOffsetInCorner: 2 });
@@ -173,9 +188,8 @@ describe("computeLineSpreadTrace", () => {
     }
 
     const t1 = result!.perCorner.find((c) => c.corner === "T1")!;
-    expect(t1.lateralSpreadM).toBeGreaterThan(0);
-    expect(t1.lateralSpreadM).toBeLessThan(LINE_SPREAD_THRESHOLD_M);
-    expect(t1.lowTrust).toBe(false);
+    expect(t1.lateralSpreadM).toBeCloseTo(1.6, 2);
+    expect(t1.lowTrust).toBe(true);
 
     const t2 = result!.perCorner.find((c) => c.corner === "T2")!;
     expect(t2.lateralSpreadM).toBeCloseTo(0, 3);

@@ -1,4 +1,4 @@
-import { DELTA_COLOR_VARS } from "@/lib/colors";
+import { DELTA_COLOR_VARS } from "@raceiq/scene-3d/colors";
 import type { ChartRange } from "@/lib/chart-range";
 import { TelemetryChart } from "./TelemetryChart";
 interface Props {

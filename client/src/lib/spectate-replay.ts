@@ -164,7 +164,7 @@ function poseOf(values: Readonly<Record<string, unknown>>): SpectatePose | null 
   if (x === null || z === null || yaw === null) return null;
   return { x, y: number(values["motion.position-y"]) ?? 0, z, yaw };
 }
-function sampleMotion(samples: readonly SpectateSample[], time: number, holdPose: boolean): Pick<SpectateReading, "pose" | "distance"> {
+export function sampleMotion(samples: readonly SpectateSample[], time: number, holdPose: boolean): Pick<SpectateReading, "pose" | "distance"> {
   const first = samples[0], last = samples.at(-1);
   if (!first || !last || time < first.time) return { pose: null, distance: null };
   if (time > last.time) return { pose: holdPose ? poseOf(last.values) : null, distance: holdPose && Number.isFinite(last.distance) ? last.distance : null };
@@ -185,7 +185,7 @@ function sampleMotion(samples: readonly SpectateSample[], time: number, holdPose
     distance: Number.isFinite(left.distance) && Number.isFinite(right.distance) ? left.distance + (right.distance - left.distance) * fraction : null,
   };
 }
-function sampleLap(lap: SpectateLap, time: number, holdPose: boolean): SpectateReading | null {
+export function sampleLap(lap: SpectateLap, time: number, holdPose: boolean): SpectateReading | null {
   const samples = lap.samples,
     first = samples[0],
     last = samples.at(-1);
