@@ -11,7 +11,7 @@ import { formatLapTime } from "@/lib/format";
 import type { Point } from "@/lib/comparison-utils";
 import type { ChartRange } from "@/lib/chart-range";
 import { cropComparisonData, cropComparisonRange, mergeComparisonRange, normalizeFidelityRange, rangeComparison, selectFidelity } from "@/lib/comparison-fidelity";
-import type { CompareSearch } from "@/lib/game-routes";
+import { compareTrackFromSearch, compareTrackSearch, type CompareSearch } from "@/lib/game-routes";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { useGameId } from "@/stores/game";
@@ -72,7 +72,7 @@ export function LapComparison({ initialSearch }: { initialSearch?: CompareSearch
 }
 
 function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }) {
-  const search = initialSearch ?? {};
+  const search = { ...initialSearch, track: compareTrackFromSearch(initialSearch?.track, initialSearch?.layout) };
   const navigate = useNavigate();
   const units = useUnits();
   const gameId = useGameId();
@@ -296,17 +296,23 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     }
     applyingSelectionRef.current = null;
     writtenSelectionRef.current = selection;
+    const trackSearch = compareTrackSearch(selectedTrack);
     navigate({
-      search: (prev: Record<string, unknown>) =>
-        ({
-          ...prev,
-          track: selectedTrack ?? undefined,
+      search: (prev: Record<string, unknown>) => {
+        const rest = { ...prev };
+        delete rest.track;
+        delete rest.layout;
+        delete rest.trackLayout;
+        return {
+          ...trackSearch,
+          ...rest,
           carA: carAId ?? undefined,
           carB: carBId ?? undefined,
           lapA: lapAId ?? undefined,
           lapB: lapBId ?? undefined,
           cursor: localPairChange ? undefined : prev.cursor,
-        }) as never,
+        } as never;
+      },
       replace: true,
       resetScroll: false,
     });

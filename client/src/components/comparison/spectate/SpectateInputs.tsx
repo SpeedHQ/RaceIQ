@@ -216,7 +216,7 @@ export function SpectateInputs({ pair, controller }: { pair: SpectatePair; contr
                   style={{ color: balance ? balanceColor(balance.state) : "var(--app-text-secondary)" }}
                 >
                   {balance
-                    ? `${balance.state === "neutral" ? m.dynamics_state_neutral() : balance.state === "understeer" ? m.dynamics_state_understeer() : m.dynamics_state_oversteer()} (${balance.balance > 0 ? "+" : ""}${balance.balance.toFixed(2)})`
+                    ? balance.state === "neutral" ? m.dynamics_state_neutral() : balance.state === "understeer" ? m.dynamics_state_understeer() : m.dynamics_state_oversteer()
                     : "—"}
                 </output>
               </div>
