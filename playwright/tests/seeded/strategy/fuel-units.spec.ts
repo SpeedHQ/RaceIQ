@@ -1,11 +1,60 @@
 import { expect, test } from "@playwright/test";
 import { z } from "zod";
 import { MetricRateSchema, StintsResponseSchema } from "@raceiq/shared/racing/live/strategy-schemas";
-import { ingestAccLaps } from "./acc-source";
+import { ingestNativeRun, nativeRunFrames, writeSegmentedNativeCapture } from "./native-source";
 import { ingestF1Laps } from "./f1-source";
+import { ingestAccLaps } from "./acc-source";
 import { StrategyRuntime } from "./runtime";
 
 const sessionsSchema = z.array(z.object({ id: z.number().int() }));
+test("reprocess discards abandoned service-crossing lap before same-number clean lap", async ({ playwright }, testInfo) => {
+  test.setTimeout(180_000);
+  const runtime = await StrategyRuntime.start(testInfo.outputPath("test-data-segmented-service-rebuild"), false);
+  const api = await playwright.request.newContext({ baseURL: runtime.apiURL });
+  const lap = { fuelUsed: 0.02, wear: [0.008, 0.01, 0.006, 0.004] as [number, number, number, number] };
+  try {
+    await ingestNativeRun({ carId: 902, initialFuel: 0.5, laps: [lap] }, runtime.udpPort);
+    const listed = await api.get("/api/sessions?gameId=fm-2023");
+    expect(listed.ok(), await listed.text()).toBe(true);
+    const session = sessionsSchema.parse(await listed.json())[0];
+    expect(session).toBeDefined();
+
+    const abandoned = [...nativeRunFrames({ carId: 902, initialFuel: 0.5, laps: [lap] })].slice(0, 4).map((frame) => Buffer.from(frame));
+    for (const [index, frame] of abandoned.entries()) {
+      frame.writeFloatLE(index < 2 ? 0.5 : 0.56, 276);
+      frame.writeFloatLE(0, 280);
+      frame.writeUInt16LE(1, 300);
+    }
+    await expect.poll(async () => {
+      const current = await api.get(`/api/sessions/${session!.id}/stints`, { headers: { "X-Game-Id": "fm-2023" } });
+      expect(current.ok(), await current.text()).toBe(true);
+      return StintsResponseSchema.parse(await current.json()).stints.reduce((sum, stint) => sum + stint.completedLaps, 0);
+    }).toBe(1);
+    const clean = [...nativeRunFrames({ carId: 902, timestampMs: 10_000, firstLap: 1, initialFuel: 0.5, laps: [lap] })];
+    await runtime.restart();
+    await writeSegmentedNativeCapture(runtime.dataDir, session!.id, [abandoned, clean]);
+
+    const rebuilt = await api.post(`/api/sessions/${session!.id}/reprocess`, { timeout: 60_000 });
+    expect(rebuilt.ok(), await rebuilt.text()).toBe(true);
+    const response = await api.get(`/api/sessions/${session!.id}/stints`, { headers: { "X-Game-Id": "fm-2023" } });
+    expect(response.ok(), await response.text()).toBe(true);
+    const stints = StintsResponseSchema.parse(await response.json()).stints;
+    expect(stints.reduce((sum, stint) => sum + stint.completedLaps, 0)).toBe(1);
+    const cleanStint = stints.find((stint) => stint.completedLaps === 1);
+    expect(cleanStint).toBeDefined();
+    expect(cleanStint!.fuel.value).toBeCloseTo(0.02, 4);
+    expect(cleanStint!.fuel.eligibleLaps).toBe(1);
+    for (const [index, value] of [0.008, 0.01, 0.006, 0.004].entries()) {
+      expect(cleanStint!.tires[index]!.value).toBeCloseTo(value, 4);
+    }
+    expect(cleanStint!.paceLaps).toBe(1);
+    expect(cleanStint!.averageLapSeconds).toBeCloseTo(60, 4);
+  } finally {
+    await api.dispose();
+    await runtime.stop();
+  }
+});
+
 
 test("E2 native ACC litre consumption stays distinct from tank-fraction rates in the session table and chart", async ({ browser, playwright }, testInfo) => {
   test.setTimeout(180_000);
@@ -37,6 +86,39 @@ test("E2 native ACC litre consumption stays distinct from tank-fraction rates in
     await page.screenshot({ path: testInfo.outputPath("litre-stint-averages.png"), fullPage: true });
   } finally {
     await context.close();
+    await api.dispose();
+    await runtime.stop();
+  }
+});
+
+test("native FM service boundaries coalesce quantized refuel packets and split after resumed driving", async ({ playwright }, testInfo) => {
+  test.setTimeout(180_000);
+  const runtime = await StrategyRuntime.start(testInfo.outputPath("test-data-fm-refuel-boundaries"), false);
+  const api = await playwright.request.newContext({ baseURL: runtime.apiURL });
+  const lap = { fuelUsed: 0.02, wear: [0, 0, 0, 0] as [number, number, number, number] };
+  try {
+    await ingestNativeRun({ carId: 901, timestampMs: 1_000, initialFuel: 0.5, laps: [lap] }, runtime.udpPort);
+    await ingestNativeRun({ carId: 901, timestampMs: 61_500, firstLap: 2, initialFuel: 0.54, laps: [] }, runtime.udpPort);
+    await ingestNativeRun({ carId: 901, timestampMs: 62_000, firstLap: 2, initialFuel: 0.54, laps: [] }, runtime.udpPort);
+    await ingestNativeRun({ carId: 901, timestampMs: 62_500, firstLap: 2, initialFuel: 0.56, laps: [] }, runtime.udpPort);
+    await ingestNativeRun({ carId: 901, timestampMs: 62_800, firstLap: 2, initialFuel: 0.56, laps: [] }, runtime.udpPort);
+    await ingestNativeRun({ carId: 901, timestampMs: 63_000, firstLap: 2, initialFuel: 0.56, laps: [lap] }, runtime.udpPort);
+    await ingestNativeRun({ carId: 901, timestampMs: 124_000, firstLap: 3, initialFuel: 0.54, laps: [{ ...lap, serviceBefore: { fuel: 0.62, wear: [0.1, 0.1, 0.1, 0.1] } }] }, runtime.udpPort);
+
+    const listed = await api.get("/api/sessions?gameId=fm-2023");
+    expect(listed.ok(), await listed.text()).toBe(true);
+    const session = sessionsSchema.parse(await listed.json())[0];
+    expect(session).toBeDefined();
+    const read = async () => {
+      const response = await api.get(`/api/sessions/${session!.id}/stints`, { headers: { "X-Game-Id": "fm-2023" } });
+      expect(response.ok(), await response.text()).toBe(true);
+      return StintsResponseSchema.parse(await response.json()).stints;
+    };
+    await expect.poll(async () => (await read()).reduce((sum, stint) => sum + stint.completedLaps, 0)).toBe(3);
+    const stints = await read();
+    expect(stints).toHaveLength(3);
+    expect(stints.map((stint) => stint.boundary.reason)).toEqual(["refill", "refill", "session-start"]);
+  } finally {
     await api.dispose();
     await runtime.stop();
   }

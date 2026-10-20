@@ -301,9 +301,10 @@ export async function activateStrategyRebuild(
   generation: string,
   staged: readonly { summary: StintSummary; totals: StrategyTotals }[],
   contributions: readonly PersistStrategyLapInput[],
-): Promise<void> {
+  transaction?: Transaction,
+): Promise<StrategyHistoryUpdatedMessage[]> {
   for (const entry of staged) StintSummarySchema.parse(entry.summary);
-  const tx = await client.transaction("write");
+  const tx = transaction ?? await client.transaction("write");
   try {
     const current = await tx.execute({ sql: "SELECT game_id,car_id,track_id,ownership FROM sessions WHERE id=?", args: [sessionId] });
     const session = current.rows[0];
@@ -329,7 +330,13 @@ export async function activateStrategyRebuild(
     await tx.execute({ sql: `INSERT INTO strategy_session_state(session_id,rebuild_generation) VALUES(?,?)
       ON CONFLICT(session_id) DO UPDATE SET rebuild_generation=excluded.rebuild_generation`, args: [sessionId,generation] });
     const changes = await strategyHistoryChanges(tx, scopes);
-    await tx.commit();
-    publishStrategyChanges(changes);
-  } catch (error) { await tx.rollback(); throw error; }
+    if (!transaction) {
+      await tx.commit();
+      publishStrategyChanges(changes);
+    }
+    return changes;
+  } catch (error) {
+    if (!transaction) await tx.rollback();
+    throw error;
+  }
 }

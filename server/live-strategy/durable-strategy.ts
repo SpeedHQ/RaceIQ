@@ -8,7 +8,7 @@ import { getStrategyBaseline } from "../db/strategy-baseline-queries";
 import { getServerGame } from "../games/registry";
 import { aggregateLapMetrics, STRATEGY_ALGORITHM_VERSION } from "./lap-metrics";
 import { StintMetricAccumulator } from "./stint-accumulator";
-import { strategyContext, strategyBoundary, strategyBoundaryReason, strategyContinuousWear, StrategyBoundary } from "./strategy-context";
+import { strategyContext, strategyBoundaryReason, strategyContinuousWear, StrategyBoundary, StrategyBoundaryTracker } from "./strategy-context";
 import { subscribeStrategyHistory } from "./history-events";
 
 interface StintState {
@@ -36,6 +36,7 @@ export class DurableStrategyTracker {
   private ordinal = 0;
   private epoch = 0;
   private captureEpoch = "";
+  private readonly boundaryTracker = new StrategyBoundaryTracker();
   private crossedLaps = new Set<number>();
   private pending = new Map<string, PendingLap[]>();
   private processedLaps = new Set<number>();
@@ -62,8 +63,9 @@ export class DurableStrategyTracker {
   async start(session: SessionState, packet: TelemetryPacket, captureEpoch: string): Promise<void> {
     if (this.session?.sessionId === session.sessionId && this.active) return;
     await this.finish();
-    this.session = session; this.previous = null; this.ordinal = 0; this.epoch = 0;
-    this.captureEpoch = captureEpoch; this.crossedLaps.clear(); this.lastLimiter = null;
+    this.session = session; this.previous = null; this.ordinal = 0;
+    this.captureEpoch = captureEpoch; this.epoch = 0; this.boundaryTracker.reset();
+    this.crossedLaps.clear(); this.lastLimiter = null;
     try {
       const ownership = await client.execute({ sql: "SELECT ownership FROM sessions WHERE id=?", args: [session.sessionId] });
       this.driverKey = ownership.rows[0]?.ownership === "mine" ? "local-player" : `unidentified-source:${session.sessionId}`;
@@ -144,7 +146,7 @@ export class DurableStrategyTracker {
     if (!state || !this.session || packet.gameId !== this.session.gameId) return;
     const previous = this.previous;
     if (previous) {
-      const boundary = strategyBoundary(previous, packet);
+      const boundary = this.boundaryTracker.observe(previous, packet);
       if (boundary) {
         if (packet.LapNumber === previous.LapNumber) this.crossedLaps.add(packet.LapNumber);
         if (boundary & StrategyBoundary.Rewind) this.epoch++;
@@ -170,7 +172,7 @@ export class DurableStrategyTracker {
     let reject!: (error: Error) => void;
     const saved = new Promise<LapSavedEvent>((accept, fail) => { resolve = accept; reject = fail; });
     void saved.catch(() => {});
-    const key = `${session.sessionId}:${first.LapNumber}`;
+    const key = `${session.sessionId}:${event.lapNumber}`;
     const waiting = this.pending.get(key) ?? [];
     waiting.push({ state, resolve, reject });
     this.pending.set(key, waiting);
@@ -329,6 +331,7 @@ export class DurableStrategyTracker {
     if (this.active) { this.close(this.active, "session-ended", "observed"); this.active = null; }
     await this.drain();
     this.previous = null;
+    this.boundaryTracker.reset();
   }
   /** Await admitted writes without inventing a stint-end event. */
   async flush(): Promise<void> { await this.drain(); }
@@ -360,7 +363,7 @@ export class DurableStrategyTracker {
       }
       if (retained.length) this.pending.set(key, retained); else this.pending.delete(key);
     }
-    if (this.active?.live.sessionId === sessionId) { this.active.cancelled = true; this.active = null; this.session = null; this.previous = null; }
+    if (this.active?.live.sessionId === sessionId) { this.active.cancelled = true; this.active = null; this.session = null; this.previous = null; this.boundaryTracker.reset(); }
     this.processAdmissions();
   }
   consumeTireReset(): boolean { const reset = this.tireReset; this.tireReset = false; return reset; }

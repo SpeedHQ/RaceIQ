@@ -7,7 +7,7 @@ import { db } from "@raceiq/backend-core/db/index";
 import { sessions, laps, profiles, tunes, experiments, experimentVersions, lapMetrics, lineSpreadCache } from "@raceiq/backend-core/db/schema";
 import { reprocessSession } from "@raceiq/backend-core/session-capture/reprocess";
 import { reconcileHistoricalSessions } from "@raceiq/backend-core/session-capture/reconcile";
-import { replaceLapsForSession } from "@raceiq/backend-core/db/lap-reprocessing-queries";
+import { commitLapReconciliation } from "../support/reconcile-laps";
 import { combineRecordingParts } from "@raceiq/backend-core/session-capture/combine-recording-parts";
 import type { GameId } from "@raceiq/shared/games/ids";
 import {
@@ -159,7 +159,7 @@ describe("historical session reconciliation", () => {
       { experimentId: unrelatedExperiment.id, lapSetHash: cacheHash, trace: "keep" },
     ]).run();
 
-    await replaceLapsForSession(session.id, [{
+    await commitLapReconciliation(session.id, [{
       lapId: matched.id, lapNumber: 1, lapTime: 99, isValid: true, isFavorite: false,
       rawByteOffset: null, rawFrameCount: 0, tuneId: null, notes: "preserve me",
       invalidReason: null, sectors: null,

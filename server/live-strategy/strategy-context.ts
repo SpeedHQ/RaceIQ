@@ -62,6 +62,42 @@ export function strategyBoundaryReason(boundary: number): string {
   return "pit-visit";
 }
 
+/** Coalesces frame-level fuel increases and the entry/exit signals for one pit visit. */
+export class StrategyBoundaryTracker {
+  private inPit = false;
+  private refueling = false;
+
+  observe(before: TelemetryPacket, after: TelemetryPacket): number {
+    let boundary = strategyBoundary(before, after);
+    const wasPit = strategyPitState(before);
+    const pit = strategyPitState(after);
+    if (wasPit === false && pit === true) this.inPit = true;
+    else if (wasPit === true && pit === false) {
+      this.inPit = false;
+      this.refueling = false;
+      boundary &= ~StrategyBoundary.Pit;
+    }
+
+    const resumedDriving = after.LapNumber > before.LapNumber ||
+      Number.isFinite(after.DistanceTraveled) && Number.isFinite(before.DistanceTraveled) && after.DistanceTraveled > before.DistanceTraveled ||
+      Number.isFinite(after.Fuel) && after.Fuel >= 0 && Number.isFinite(before.Fuel) && before.Fuel >= 0 && after.Fuel < before.Fuel;
+    if (!this.inPit && resumedDriving) this.refueling = false;
+
+    if (boundary & StrategyBoundary.Fuel) {
+      if (this.inPit || this.refueling) boundary &= ~StrategyBoundary.Fuel;
+      else this.refueling = true;
+    }
+
+    if (boundary & (StrategyBoundary.Rewind | StrategyBoundary.Gap | StrategyBoundary.Configuration)) this.reset();
+    return boundary;
+  }
+
+  reset(): void {
+    this.inPit = false;
+    this.refueling = false;
+  }
+}
+
 export function strategyPitState(packet: TelemetryPacket): boolean | undefined {
   if (packet.iracing) return packet.iracing.onPitRoad;
   if (packet.lmu) return packet.lmu.inPits;

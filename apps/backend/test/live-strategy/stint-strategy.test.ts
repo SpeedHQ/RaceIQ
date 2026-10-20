@@ -123,6 +123,31 @@ describe("durable stint strategy contract", () => {
       expect((await getStrategyStints(id))[0]?.status).toBe("completed");
     } finally { await tracker.finish(); tracker.dispose(); }
   });
+  test("C4 unresolved empty car or track identities never reuse history; exact identity still does", async () => {
+    const usable = await session();
+    await completed(usable, 1, 3, 0.02);
+    const target = accumulator(await session(), 2).snapshot();
+    const expected = await getStrategyBaseline(target);
+    expect(expected.fuel.value).toBeCloseTo(0.02, 6);
+
+    for (const field of ["carId", "trackId"] as const) {
+      const revision = await getStrategyHistoryRevision(target.gameId, target.driverKey);
+      const unresolvedTarget = { ...target, [field]: "" };
+      const baseline = await getStrategyBaseline(unresolvedTarget);
+      expect(baseline.fuel.value).toBeNull();
+      expect(baseline.fuel.eligibleLaps).toBe(0);
+      expect(baseline.tires.map((tire) => tire.value)).toEqual([null, null, null, null]);
+      expect(baseline.evidence).toEqual([]);
+      expect(baseline.historyRevision).toBe(revision);
+
+      const unresolvedSourceId = await session();
+      const unresolvedSource = await completed(unresolvedSourceId, 3, 3, 0.03);
+      await client.execute({ sql: `UPDATE sessions SET ${field === "carId" ? "car_id" : "track_id"} = '' WHERE id = ?`, args: [unresolvedSourceId] });
+      const noSourceBaseline = await getStrategyBaseline({ ...target, id: `${unresolvedSource.snapshot().id}-target` });
+      expect(noSourceBaseline.fuel.value).toBeCloseTo(0.02, 6);
+      expect(noSourceBaseline.evidence.map((entry) => entry.sessionId)).not.toContain(unresolvedSourceId);
+    }
+  });
   test("C4 weighted history includes earlier same-session stints and filters compatibility before bounding", async () => {
     const id = await session();
     await completed(id, 1, 1, 0.01);
@@ -214,7 +239,7 @@ describe("durable stint strategy contract", () => {
       expect(live.tires[0].source).toBeNull();
       for (let number = 1; number <= 2; number++) {
         const packets = [packet(0.8, 0.1, number * 3_000, number), packet(0.77, 0.108, number * 3_000 + 1_000, number)];
-        tracker.prepareLap({ packets, lapDistStart: 0, lapTime: 60, isValid: true, sectors: null });
+        tracker.prepareLap({ lapNumber: number, packets, lapDistStart: 0, lapTime: 60, isValid: true, sectors: null });
         tracker.savedLap({ sessionId: current, lapId: await savedLap(current, number), lapNumber: number, lapTime: 60, isValid: true, sectors: null, estimatedBestLapTime: 60 });
         await tracker.flush();
         live = tracker.apply(packets[1], legacy.feed(packets[1], 3_000)).strategy!;

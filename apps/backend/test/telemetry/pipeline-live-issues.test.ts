@@ -212,7 +212,7 @@ describe("completed-lap recording boundary", () => {
     const detectorPort = pipeline as unknown as { _buildCallbacks(): LapDetectorCallbacks };
     const callbacks = detectorPort._buildCallbacks();
     callbacks.onLapComplete!({
-      packets: completedPackets(), lapDistStart: 0, lapTime: 90, isValid: true, sectors: null,
+      lapNumber: 1, packets: completedPackets(), lapDistStart: 0, lapTime: 90, isValid: true, sectors: null,
     });
     callbacks.onLapSaved!({
       sessionId: 1, lapId: 101, lapNumber: 2, lapTime: 90, isValid: true,

@@ -77,3 +77,11 @@ Visual review used actual Playwright-produced screenshots:
 The failed managed-browser selector capture was not counted as evidence; the independent Playwright captures above were inspected. No desktop control was used.
 
 Paraglide compilation passed. Message-key validation passed all 16 locales, 2789 keys each; placeholder parity passed. Targeted client lint, Playwright types, and the required root typecheck passed after their relevant changes. `CHANGELOG.md` documents the coherent strategy feature and the listener-only port cleanup fix.
+
+## PR #487 correctness corrections
+
+UI implements A5 in the [shared correction contract](stint-strategy-contract.md#pr-487-correction-acceptance): reconcile removed or game-corrected history selections against successful refreshed session data, preserve valid manual/current-session selections during loading or errors, and reset stale pagination on fallback. Only the incumbent `StrategyHistory` behavior changes; no redesign or DTO change.
+
+The final actual-app suite passed **18/18 scenarios**, including the A5 multi-client regression: select historical session A, page its estimates, delete A through another client's production endpoint, then observe a valid remaining selection and estimates without reload or stale pagination. The current HTTP identity operation cannot change a session's game, so no game-mutation endpoint test was invented. [Execution evidence](../../playwright/test-results/strategy-review-final-e2e.log).
+
+Final Playwright-produced [live history](../../playwright/test-results/stint-strategy-review-final/stint-strategy-E3-E4-E7-pe-5849f--when-its-source-is-deleted-seeded-e2e/historical-evidence-desktop.png) and [mobile comparison](../../playwright/test-results/stint-strategy-review-final/stint-strategy-E1-E2-E6-E7-85c4f-ry-across-clear-and-restart-seeded-e2e/stint-comparison-mobile.png) captures were inspected. Root client/typecheck and Playwright fixture types passed on the final source.

@@ -1,6 +1,6 @@
 # Durable stint strategy contract — issue #460
 
-Status: implemented and verified. Source: [issue #460](https://github.com/SpeedHQ/RaceIQ/issues/460). User revision: retain stint-average tire wear and fuel beyond session end, reuse them for subsequent stints with the same track/car, and explain historical evidence in the live UI.
+Status: implemented and verified, including PR #487 correctness corrections. Source: [issue #460](https://github.com/SpeedHQ/RaceIQ/issues/460). User revision: retain stint-average tire wear and fuel beyond session end, reuse them for subsequent stints with the same track/car, and explain historical evidence in the live UI.
 
 Implementation plans: [backend](stint-strategy-backend-plan.md), [UI](stint-strategy-ui-plan.md). Published DTOs and validators live in [`shared/racing/live/strategy.ts`](../../shared/racing/live/strategy.ts) and [`strategy-schemas.ts`](../../shared/racing/live/strategy-schemas.ts). Integration owner owns this contract and shared types; backend owns persistence/derivation/API; UI owns presentation/localization. No unresolved interface choice blocks implementation against this contract.
 
@@ -149,12 +149,24 @@ Implementation owner extends the existing [Playwright application suite](../../p
 | E8c | Fail core lap inserts, then rotate native session; also fail Kunos before its completion callback | Unsaved lap cannot block rotation; next session persists normally; Kunos still displays degraded persistence | C7,C8 |
 | E8d | Fail an admission for A, switch to B, delete A, then recover and complete B's lap | Cancel only A's pending work; B persists and A remains absent | C7,C8 |
 
+### PR #487 correction acceptance
+
+These corrections preserve the published DTO and HTTP boundary. Each row defines an actual-application regression in the existing focused Playwright suite, supplemented by backend regressions where applicable.
+
+| ID | Setup and action | Required outcome and handling | Existing criteria |
+|---|---|---|---|
+| A1 / E10 | Ingest prior and current FM sources with unresolved track identity; contrast a resolved compatible pair | Unresolved car/track identities never supply reusable history; resolved pairs retain normal reuse and revision semantics | C4,C6,C8 |
+| A2 / E11 | Reprocess a persisted capture while strategy activation fails after staged lap reconciliation; remove the fault and retry | Failure preserves pre-operation laps, summaries, contributions, identity/version metadata, and surviving immutable estimates; retry atomically activates the complete replacement; publish/cache invalidation follows commit | C6,C7,C8 |
+| A3 / E12 | Abandon a service-crossing partial lap at a recording segment break, then process a clean complete lap with the same number | Clear segment-local boundary markers; the later lap retains its valid independent fuel/wear/pace contributions | C2,C6,C7,C8 |
+| A4 / E13 | Ingest sustained fuel increases during one stop, stabilize, then perform a separate later stop; exercise native pit signals and refill-only evidence | Coalesce one continuous service into one logical stint boundary while preserving distinct later visits, tire resets, configuration/epoch changes, and exclusion of crossing intervals; live and rebuilt summaries agree | C2,C6,C7,C8 |
+| A5 / E14 | Select historical session A in one browser, delete or move A out of the game-scoped list from another client, and refresh the list | Choose a valid current/newest session and reset pagination without reload; retain valid manual selections during loading/errors and retain the current-session placeholder until the list catches up; no remaining sessions shows the empty state | C1,C7,C8 |
+
 Review-correction acceptance extensions (stable IDs): **C6a** requires metric-specific semantic/setup compatibility and explicit comparison exclusions as defined above (E4); **C7a** requires deterministic multi-epoch paging and serialized clear boundaries, including pending writes and restart (E7); **C7b** requires immediate cross-session advisory-baseline invalidation and revision-guarded tracker/browser refresh after evidence changes, without changing saved estimate snapshots (E7/E8). These extend C6/C7, not replace C1–C8.
 
 Supplement E2–E8 with deterministic backend aggregation/storage regressions (including weighted 1-lap versus 10-lap stints and exact 2/3-lap takeover boundaries). Execute focused tests, relevant E1–E9 E2E scenarios, changelog validation when changed, and `bun run typecheck`. Record commands, fixture identities, outcomes, and browser evidence in implementation results; not-run/blocked is not passing.
 
 ## Verification outcome
 
-C1–C8 and C6a/C7a/C7b have passing production-integration and focused regression evidence. Thirteen unique native/API/browser scenarios are covered across the full run and corrected targeted reruns, including the permanent SIGKILL/restart/cold-history scenario. Additional isolated runtime smokes proved v81→v82 upgrade preservation, failed rebuild rollback/recovery, authentication on all four strategy operations, compatible baseline reuse after raw-capture removal, and abrupt-crash interruption without partial-tail counting.
+C1–C8, C6a/C7a/C7b, and A1–A5 have passing production-integration and focused regression evidence. The final focused application suite passed all 18 native/API/browser scenarios in one run, including E10–E14 and the permanent SIGKILL/restart/cold-history scenario. The affected backend suite passed 101 tests across eight files, including historical AC Evo reconciliation and capture split lifecycle coverage. Repository typecheck passed 33/33 packages and Playwright types passed 187 files. Earlier isolated upgrade, authentication, raw-removal, and crash evidence remains recorded in the implementation plans.
 
-Exact commands, outcomes and evidence are recorded in the [backend results](stint-strategy-backend-plan.md#implementation-and-verification-results) and [UI results](stint-strategy-ui-plan.md#implementation-and-verification-results). No checkpoint or commit was created.
+Exact commands, outcomes and evidence are recorded in the [backend results](stint-strategy-backend-plan.md#pr-487-correctness-corrections) and [UI results](stint-strategy-ui-plan.md#pr-487-correctness-corrections). No checkpoint was created.

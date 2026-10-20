@@ -10,7 +10,7 @@ import { packetIndexToLegacyMotecOffset } from "../motec/source-archive";
 import { getLapsForSession, updateLapRawIndex, replaceLapsForSession } from "../db/lap-reprocessing-queries";
 import { liveCaptures, sessions } from "../db/schema";
 import { eq } from "drizzle-orm";
-import { db } from "../db/index";
+import { client, db } from "../db/index";
 import { enqueueSessionCaptureSplit, updateSessionRawFile } from "../db/session-queries";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { PARSER_BOOTSTRAP_VERSION } from "@raceiq/capture-formats/session/framing";
@@ -19,9 +19,11 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { isDelayedFinishContext } from "../db/telemetry-replay-storage";
 import { randomUUID } from "node:crypto";
 import { StrategyRebuild } from "../live-strategy/strategy-rebuild";
-import { activateStrategyRebuild } from "../db/strategy-queries";
+import { activateStrategyRebuild, publishStrategyChanges } from "../db/strategy-queries";
 import { STRATEGY_ALGORITHM_VERSION } from "../live-strategy/lap-metrics";
 import type { LapDetectorCallbacks } from "../lap-detection/types";
+import { cacheDelete } from "../db/telemetry-replay-storage";
+import type { StrategyHistoryUpdatedMessage } from "@raceiq/shared/racing/live/strategy";
 export interface ReprocessResult {
   sessionId: number;
   lapsDetected: number;
@@ -243,6 +245,10 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
     return candidates[0]?.lap;
   });
   const uniqueInPlaceMatches = new Set(inPlaceMatches.filter(Boolean).map((lap) => lap!.id)).size === inPlaceMatches.length;
+  const transaction = await client.transaction("write");
+  const afterCommit: Array<() => void> = [];
+  let historyChanges: StrategyHistoryUpdatedMessage[];
+  try {
   if (detectedLaps.length === existingLaps.length && uniqueInPlaceMatches &&
       inPlaceMatches.every((lap, index) => lap?.lapNumber === detectedLaps[index]!.lapNumber &&
         lap.rawByteOffset === detectedLaps[index]!.rawByteOffset && lap.rawFrameCount === detectedLaps[index]!.rawFrameCount) &&
@@ -261,8 +267,10 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
         detected.invalidReason,
         sectors,
         versionIdentity,
+        transaction,
       );
       lapsUpdated++;
+      afterCommit.push(() => cacheDelete(existing.id));
     }
   } else {
     strategy = "replace";
@@ -292,22 +300,32 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
         versionIdentity,
       };
     });
-    await replaceLapsForSession(sessionId, replacements, identityChanged ? { carId, trackId } : undefined);
+    afterCommit.push(await replaceLapsForSession(sessionId, replacements, identityChanged ? { carId, trackId } : undefined, transaction));
     lapsUpdated = detectedLaps.length;
   }
 
-  await updateSessionRawFile(sessionId, session.rawFile, detector.detectorId, versionIdentity);
-  const savedLaps = await getLapsForSession(sessionId);
-  const byWindow = new Map(savedLaps.map((lap) => [`${lap.rawByteOffset}:${lap.rawFrameCount}:${lap.lapNumber}`, lap.id]));
+  await updateSessionRawFile(sessionId, session.rawFile, detector.detectorId, versionIdentity, transaction);
+  const savedLaps = await transaction.execute({
+    sql: "SELECT id, raw_byte_offset, raw_frame_count, lap_number FROM laps WHERE session_id = ?",
+    args: [sessionId],
+  });
+  const byWindow = new Map(savedLaps.rows.map((lap) => [`${lap.raw_byte_offset}:${lap.raw_frame_count}:${lap.lap_number}`, Number(lap.id)]));
   const contributions = strategyRebuild.contributions.map((entry) => {
     const window = entry.window;
     const lapId = window ? byWindow.get(`${window.rawByteOffset}:${window.rawFrameCount}:${window.lapNumber}`) : undefined;
-    if (lapId == null) throw new Error("Strategy rebuild could not associate a completed source lap with its saved identity");
+    if (lapId == null) throw new Error(`Strategy rebuild could not associate completed lap ${entry.lapNumber}: ${window ? `source window ${window.rawByteOffset}:${window.rawFrameCount}:${window.lapNumber}` : "missing saved-lap callback"}`);
     const summary = entry.accumulator.snapshot();
     return { sessionId, driverKey: summary.driverKey, lapId, stintId: summary.id, algorithmVersion: STRATEGY_ALGORITHM_VERSION, contribution: entry.contribution };
   });
-  await activateStrategyRebuild(sessionId, { gameId, carId, trackId, ownership: session.ownership }, randomUUID(),
-    strategyRebuild.accumulators.map((accumulator) => ({ summary: accumulator.snapshot(), totals: accumulator.totals() })), contributions);
+  historyChanges = await activateStrategyRebuild(sessionId, { gameId, carId, trackId, ownership: session.ownership }, randomUUID(),
+    strategyRebuild.accumulators.map((accumulator) => ({ summary: accumulator.snapshot(), totals: accumulator.totals() })), contributions, transaction);
+  await transaction.commit();
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
+  for (const publish of afterCommit) publish();
+  publishStrategyChanges(historyChanges);
 
   return { sessionId, lapsDetected: detectedLaps.length, lapsUpdated, strategy };
 }

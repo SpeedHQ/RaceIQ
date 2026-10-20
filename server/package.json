@@ -112,6 +112,7 @@
     "./live-strategy/lap-metrics": "./live-strategy/lap-metrics.ts",
     "./live-strategy/stint-accumulator": "./live-strategy/stint-accumulator.ts",
     "./live-strategy/strategy-context": "./live-strategy/strategy-context.ts",
+    "./live-strategy/strategy-rebuild": "./live-strategy/strategy-rebuild.ts",
     "./live-strategy/durable-strategy": "./live-strategy/durable-strategy.ts",
     "./db/strategy-queries": "./db/strategy-queries.ts",
     "./db/strategy-baseline-queries": "./db/strategy-baseline-queries.ts",

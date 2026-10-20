@@ -85,6 +85,17 @@ export class StrategyRuntime {
     const code = await new Promise<number | null>((accept) => child.once("exit", accept));
     if (code !== 0) throw new Error(`Failed to configure persistence fault: ${this.logs.slice(-12).join("")}`);
   }
+  /** Read or mutate only this runner's disposable SQLite fixture, never application data. */
+  async databaseStatement(sql: string, args: Array<string | number | null> = [], write = false): Promise<unknown> {
+    const child = this.launch(["-e",
+      'import { Database } from "bun:sqlite"; const db = new Database(process.argv[1]); db.run("PRAGMA foreign_keys=ON"); const args = JSON.parse(process.argv[3]); const rows = process.argv[4] === "write" ? (db.run(process.argv[2], args), []) : db.query(process.argv[2]).all(...args); console.log(JSON.stringify(rows)); db.close();',
+      resolve(this.dataDir, "app.db"), sql, JSON.stringify(args), write ? "write" : "read"]);
+    let stdout = "";
+    child.stdout?.on("data", (chunk: Buffer) => { stdout += chunk.toString(); });
+    const code = await new Promise<number | null>((accept, reject) => { child.once("error", reject); child.once("exit", accept); });
+    if (code !== 0) throw new Error(`Fixture database statement failed: ${this.logs.slice(-12).join("")}`);
+    return JSON.parse(stdout);
+  }
   async stop(): Promise<void> {
     await Promise.all([this.stopChild(this.backend), this.stopChild(this.frontend)]);
     this.backend = null;

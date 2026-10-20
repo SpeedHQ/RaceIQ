@@ -205,3 +205,59 @@ test("E3/E4/E7 persisted prior-session evidence seeds matching identities and re
     await runtime.stop();
   }
 });
+
+test("A5 recovers selected history after another client deletes its session", async ({ browser, playwright }, testInfo) => {
+  test.setTimeout(180_000);
+  const runtime = await StrategyRuntime.start(testInfo.outputPath("test-data-strategy-selection"));
+  const api = await playwright.request.newContext({ baseURL: runtime.apiURL });
+  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  const otherClient = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  const page = await context.newPage();
+  const otherPage = await otherClient.newPage();
+  try {
+    await page.goto(`${runtime.baseURL}/live/pit`);
+    const history = page.getByTestId("strategy-history");
+    await expect(history).toHaveCount(0);
+
+    await ingestNativeRun({ carId: 642, laps: Array.from({ length: 30 }, () => measuredLap) }, runtime.udpPort);
+    const source = await sessionFor(api, "642");
+    await ingestNativeRun({ carId: 639, timestampMs: 300_000, laps: Array.from({ length: 30 }, () => measuredLap) }, runtime.udpPort);
+    const remaining = await sessionFor(api, "639");
+    await expect.poll(async () => {
+      const response = await api.get("/api/status");
+      return z.object({ currentSession: SessionSchema.nullable() }).parse(await response.json()).currentSession?.id;
+    }).toBe(remaining.id);
+    const currentPicker = history.getByRole("combobox").nth(0);
+    await expect(currentPicker).toHaveValue(String(remaining.id));
+    await expect(currentPicker.locator(`option[value="${remaining.id}"]`)).toHaveCount(1);
+    await expect.poll(async () => (await estimates(api, source.id)).estimates.length).toBeGreaterThan(0);
+    await otherPage.goto(`${runtime.baseURL}/live/pit`);
+    await page.bringToFront();
+
+    const sessionPicker = history.getByRole("combobox").nth(0);
+    await expect(sessionPicker.locator(`option[value="${source.id}"]`)).toHaveCount(1);
+    await sessionPicker.selectOption(String(source.id));
+    await expect(sessionPicker).toHaveValue(String(source.id));
+    await expect(history.locator("article").first()).toBeVisible();
+    const older = history.getByRole("button", { name: "Older estimates", exact: true });
+    if (await older.isVisible()) {
+      await older.click();
+      await expect(history.getByRole("button", { name: "Recent pit estimates", exact: true })).toBeVisible();
+    }
+
+    await otherPage.bringToFront();
+    const deletion = await otherClient.request.post(`${runtime.apiURL}/api/sessions/bulk-delete`, { data: { ids: [source.id] } });
+    expect(deletion.ok(), await deletion.text()).toBe(true);
+    await page.bringToFront();
+
+    await expect(sessionPicker).toHaveValue(String(remaining.id));
+    await expect(history.locator("article").first()).toBeVisible();
+    await expect(history.getByRole("button", { name: "Recent pit estimates", exact: true })).toHaveCount(0);
+    expect((await api.get(`/api/sessions/${source.id}/pit-estimates`, { headers })).status()).toBe(404);
+  } finally {
+    await context.close();
+    await otherClient.close();
+    await api.dispose();
+    await runtime.stop();
+  }
+});

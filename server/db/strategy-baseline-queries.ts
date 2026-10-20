@@ -28,7 +28,7 @@ export async function getStrategyBaseline(target: StintSummary): Promise<Histori
       predicates.push(`(json_extract(s.payload, '$.compatibility.tireSemanticVersions[${wheel}]') = ? AND json_extract(s.payload, '$.compounds[${wheel}]') IS ? AND json_extract(s.payload, '$.tires[${wheel}].eligibleLaps') > 0)`);
       args.push(version, target.compounds[wheel]);
     }
-    const result = await tx.execute({
+    const result = target.carId === "" || target.trackId === "" ? { rows: [] } : await tx.execute({
       sql: `SELECT s.payload, s.totals FROM strategy_stints s JOIN sessions ON sessions.id = s.session_id
         WHERE sessions.game_id = ? AND sessions.ownership = 'mine' AND s.driver_key = ?
           AND sessions.track_id = ? AND sessions.car_id = ? AND s.id != ?

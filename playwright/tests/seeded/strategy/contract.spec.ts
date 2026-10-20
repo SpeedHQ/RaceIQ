@@ -1,8 +1,10 @@
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import { z } from "zod";
-import { PitEstimatePageSchema, StintsResponseSchema } from "@raceiq/shared/racing/live/strategy-schemas";
-import { ingestNativeRun, type NativeLap, type NativeRun } from "./native-source";
+import { BaselineResponseSchema, PitEstimatePageSchema, StintsResponseSchema } from "@raceiq/shared/racing/live/strategy-schemas";
+import { ingestNativeRun, nativeRunFrames, type NativeLap, type NativeRun } from "./native-source";
 import { StrategyRuntime } from "./runtime";
+import { createSocket } from "node:dgram";
+import { setTimeout as delay } from "node:timers/promises";
 
 const headers = { "X-Game-Id": "fm-2023" };
 const sessionList = z.array(z.object({ id: z.number().int(), carId: z.string() }));
@@ -137,5 +139,96 @@ test("shared contract: native ingestion → SQLite → HTTP/WebSocket, restart, 
     socket.close();
     await api.dispose();
     await runtime.stop();
+  }
+});
+
+test("A1/E10 unresolved native track identities never reuse historical baselines", async ({ playwright }, testInfo) => {
+  const runtime = await StrategyRuntime.start(testInfo.outputPath("test-data-unresolved-history"), false);
+  const api = await playwright.request.newContext({ baseURL: runtime.apiURL });
+  const ingestUnknownTrack = async (run: NativeRun) => {
+    const socket = createSocket("udp4");
+    try {
+      for (const packet of nativeRunFrames(run)) {
+        await new Promise<void>((accept, reject) => socket.send(packet.subarray(0, 324), runtime.udpPort, "127.0.0.1", (error) => error ? reject(error) : accept()));
+        await delay(6);
+      }
+    } finally { socket.close(); }
+  };
+  const baseline = async (sessionId: number) => {
+    const stint = (await summaries(api, sessionId)).find((item) => item.status === "active")!;
+    expect(stint).toBeDefined();
+    const response = await api.get(`/api/sessions/${sessionId}/strategy-baseline?stintId=${encodeURIComponent(stint.id)}`, { headers });
+    expect(response.ok(), await response.text()).toBe(true);
+    return BaselineResponseSchema.parse(await response.json()).baseline;
+  };
+  try {
+    await ingestUnknownTrack({ carId: 642, laps: [lap, lap, lap] });
+    const source = await sourceSession(api, "642");
+    await expect.poll(async () => (await summaries(api, source.id)).reduce((sum, item) => sum + item.completedLaps, 0)).toBe(3);
+    await ingestUnknownTrack({ carId: 639, timestampMs: 200_000, laps: [lap] });
+    await ingestUnknownTrack({ carId: 642, timestampMs: 300_000, laps: [] });
+    await expect.poll(async () => (await sourceSession(api, "642")).id).not.toBe(source.id);
+    const unknownTarget = await sourceSession(api, "642");
+    const unknown = await baseline(unknownTarget.id);
+    expect(unknown.fuel.value).toBeNull();
+    expect(unknown.evidence).toEqual([]);
+
+    await ingestNativeRun({ carId: 642, timestampMs: 400_000, laps: [lap, lap, lap] }, runtime.udpPort);
+    await expect.poll(async () => (await sourceSession(api, "642")).id).not.toBe(unknownTarget.id);
+    const resolvedSource = await sourceSession(api, "642");
+    await expect.poll(async () => (await summaries(api, resolvedSource.id)).reduce((sum, item) => sum + item.completedLaps, 0)).toBe(3);
+    await ingestNativeRun({ carId: 639, timestampMs: 600_000, laps: [lap] }, runtime.udpPort);
+    await ingestNativeRun({ carId: 642, timestampMs: 700_000, laps: [] }, runtime.udpPort);
+    await expect.poll(async () => (await sourceSession(api, "642")).id).not.toBe(resolvedSource.id);
+    const resolvedTarget = await sourceSession(api, "642");
+    const resolved = await baseline(resolvedTarget.id);
+    expect(resolved.fuel.value).toBeCloseTo(0.02, 5);
+    expect(resolved.evidence.filter((item) => item.metric === "fuel").map((item) => item.sessionId)).toEqual([resolvedSource.id]);
+    expect(resolved.evidence.some((item) => item.sessionId === source.id)).toBe(false);
+  } finally {
+    await api.dispose();
+    await runtime.stop();
+  }
+});
+
+test("A2/E11 failed HTTP reprocessing rolls back lap replacement, identity, versions and strategy evidence", async ({ playwright }, testInfo) => {
+  const runtime = await StrategyRuntime.start(testInfo.outputPath("test-data-atomic-rebuild"), false);
+  const api = await playwright.request.newContext({ baseURL: runtime.apiURL });
+  const snapshot = async (sessionId: number) => ({
+    session: await runtime.databaseStatement("SELECT car_id,track_id,raw_file,lap_detector_version,catalog_version,catalog_hash,catalog_schema_version,parser_version,resolver_version,derivation_version,capture_layout_version,capture_manifest_file,capture_archive_file FROM sessions WHERE id=?", [sessionId]),
+    laps: await runtime.databaseStatement("SELECT * FROM laps WHERE session_id=? ORDER BY id", [sessionId]),
+    stints: await runtime.databaseStatement("SELECT * FROM strategy_stints WHERE session_id=? ORDER BY id", [sessionId]),
+    contributions: await runtime.databaseStatement("SELECT * FROM strategy_lap_metrics WHERE session_id=? ORDER BY lap_id", [sessionId]),
+    estimates: await ledger(api, sessionId),
+  });
+  try {
+    await ingestNativeRun({ carId: 642, laps: [lap, lap, lap] }, runtime.udpPort);
+    const source = await sourceSession(api, "642");
+    await expect.poll(async () => (await summaries(api, source.id)).reduce((sum, item) => sum + item.completedLaps, 0)).toBe(3);
+    await ingestNativeRun({ carId: 639, timestampMs: 200_000, laps: [lap] }, runtime.udpPort);
+    await runtime.restart();
+    for (const correctIdentity of [false, true]) {
+      // Force the real replacement path to delete/reinsert an existing lap.
+      await runtime.databaseStatement("UPDATE laps SET raw_byte_offset=NULL WHERE id=(SELECT MAX(id) FROM laps WHERE session_id=?)", [source.id], true);
+      await runtime.databaseStatement("UPDATE sessions SET lap_detector_version='pre-atomic-rebuild' WHERE id=?", [source.id], true);
+      if (correctIdentity) await runtime.databaseStatement("UPDATE sessions SET track_id='6' WHERE id=?", [source.id], true);
+      const before = await snapshot(source.id);
+      await runtime.setPersistenceFailure(true);
+      const failed = await api.post(`/api/sessions/${source.id}/reprocess`, { timeout: 60_000 });
+      expect(failed.status(), await failed.text()).toBe(500);
+      expect(await snapshot(source.id)).toEqual(before);
+      await runtime.setPersistenceFailure(false);
+      const recovered = await api.post(`/api/sessions/${source.id}/reprocess`, { timeout: 60_000 });
+      expect(recovered.ok(), await recovered.text()).toBe(true);
+      const after = await snapshot(source.id);
+      const session = z.array(z.object({ track_id: z.string(), lap_detector_version: z.string() })).parse(after.session)[0]!;
+      expect(session.track_id).toBe("5");
+      expect(session.lap_detector_version).not.toBe("pre-atomic-rebuild");
+      expect((await summaries(api, source.id)).reduce((sum, item) => sum + item.completedLaps, 0)).toBe(3);
+      expect(after.estimates.estimates).toEqual(before.estimates.estimates);
+    }
+  } finally {
+    try { await runtime.setPersistenceFailure(false); }
+    finally { await api.dispose(); await runtime.stop(); }
   }
 });

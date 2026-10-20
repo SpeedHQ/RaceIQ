@@ -98,3 +98,14 @@ bun test apps/backend/test/live-strategy/stint-strategy.test.ts apps/backend/tes
 ```
 
 All fault injection and process termination used runner-owned disposable data/processes. No production test endpoints, dynamic imports, checkpoint files, or commits were added.
+
+## PR #487 correctness corrections
+
+Backend implements A1–A4 in the [shared correction contract](stint-strategy-contract.md#pr-487-correction-acceptance): unresolved identity exclusion, one native transaction for lap reconciliation and strategy activation, segment-local boundary reset, and continuous-service coalescing. Existing DTOs and endpoints remain unchanged. The transaction executes existing Drizzle-built statements through the same libSQL transaction; cache invalidation and history publication occur after commit. Completion callbacks now carry the detector's authoritative lap number, rather than assuming native packet counters equal saved identities; the historical AC Evo reconciliation regression caught this integration dependency.
+
+Verification on the final source:
+- `bunx playwright test --config=stint-strategy.config.ts --project=seeded-e2e --workers=1 --max-failures=3 --output=test-results/stint-strategy-review-final` from `playwright/`: **18/18 passed**, including all five correction regressions. [Full evidence](../../playwright/test-results/strategy-review-final-e2e.log).
+- `bun test` over `stint-strategy`, `pit-cycle`, `pit-tracker`, `source-loader-stream`, `historical-reconciliation`, `split-lifecycle`, `pipeline-live-issues`, and `lap-detector-ac` with `--timeout 180000`: **101 tests, 482 assertions passed**. [Full evidence](../../playwright/test-results/strategy-review-final-regressions.log).
+- `bun run typecheck`: **33/33 packages passed**. `bun check --project playwright/tsconfig.json`: **187 files passed**. [Root typecheck evidence](../../playwright/test-results/strategy-review-final-typecheck.log).
+
+E11 calls the real reprocessing endpoint, forces replacement of a saved lap, injects an activation write abort, and compares persisted laps, contributions, summaries, identity/version metadata, and immutable estimates before/after failure. Recovery succeeds both with and without identity correction. Disposable fixture connections enable foreign keys to match production. E12 reprocesses a real segmented native capture; E13 includes equal quantized fuel readings between increases and a later distinct stop after driving resumes.

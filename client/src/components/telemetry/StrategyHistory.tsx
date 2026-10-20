@@ -15,12 +15,20 @@ export const StrategyHistory = memo(function StrategyHistory({ gameId, currentSe
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(currentSessionId);
   const [driverKey, setDriverKey] = useState<string | null>(defaultDriverKey);
   const [cursor, setCursor] = useState<string | null>(null);
-  const sessionId = selectedSessionId ?? currentSessionId ?? sessions[0]?.id ?? null;
+  const selectedSessionIsAvailable = selectedSessionId == null || selectedSessionId === currentSessionId || sessions.some((session) => session.id === selectedSessionId);
+  const sessionId = sessionsQuery.isSuccess && !selectedSessionIsAvailable
+    ? currentSessionId ?? sessions[0]?.id ?? null
+    : selectedSessionId ?? currentSessionId ?? sessions[0]?.id ?? null;
   useEffect(() => {
     setSelectedSessionId(currentSessionId);
-    setDriverKey(defaultDriverKey);
     setCursor(null);
+  }, [gameId]);
+  useEffect(() => {
+    setDriverKey(defaultDriverKey);
   }, [gameId, currentSessionId, defaultDriverKey]);
+  useEffect(() => {
+    if (sessionsQuery.isSuccess && !selectedSessionIsAvailable) setSelectedSessionId(sessionId);
+  }, [sessionsQuery.isSuccess, selectedSessionIsAvailable, sessionId]);
   const stintsQuery = useStrategyStints(gameId, sessionId);
   const estimatesQuery = usePitEstimatePage(gameId, sessionId, driverKey, cursor);
   const clearMutation = useClearPitEstimateHistory(gameId, sessionId, driverKey);

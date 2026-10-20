@@ -8,6 +8,8 @@ import { getRecordedElapsedSeconds } from "../session-capture/elapsed-duration";
 import { cacheDelete } from "./telemetry-replay-storage";
 import { eq, desc, and, or, sql, inArray, notInArray, isNull, lt, asc } from "drizzle-orm";
 import { db } from "./index";
+import type { Transaction } from "@libsql/client";
+import { executeTransactionStatement } from "./transaction-statements";
 import { sessions, laps, sessionResults, pitEvents, sessionCaptureSplitJobs, liveCaptures, strategyStints, strategyHistoryRevisions, pitEstimates } from "./schema";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 import type { SessionMeta, SessionOwnership, SessionCaptureSplitPhase, SessionCaptureSplitErrorCode } from "@raceiq/shared/racing/sessions/types";
@@ -450,12 +452,13 @@ export async function updateSessionRawFile(
   rawFile: string,
   lapDetectorVersion: string,
   versionIdentity?: TelemetryVersionIdentity,
+  transaction?: Transaction,
 ): Promise<void> {
-  await db
-    .update(sessions)
+  const query = db.update(sessions)
     .set({ rawFile, lapDetectorVersion, ...versionIdentity })
-    .where(eq(sessions.id, sessionId))
-    .run();
+    .where(eq(sessions.id, sessionId));
+  if (transaction) await executeTransactionStatement(transaction, query);
+  else await query.run();
 }
 export interface SessionCaptureSplitProgressUpdate {
   sessionId: number;

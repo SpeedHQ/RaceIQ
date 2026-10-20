@@ -9,6 +9,11 @@
 - Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
 
 ### Fixes
+- Reject unknown car or track identities when reusing historical stint averages.
+- Preserve existing laps and strategy history when session reprocessing fails.
+- Keep valid stint measurements after recording segment breaks.
+- Treat continuous refueling as one stint boundary, including repeated unchanged fuel readings.
+- Recover pit-estimate history selection when another client deletes the selected session.
 - Keep local browsers open when restarting the server.
 - Keep first-run setup responsive by omitting the optional telemetry demo.
 - Use LMU game-world coordinates directly for track geometry, preserving edge-hugging and off-track positions.

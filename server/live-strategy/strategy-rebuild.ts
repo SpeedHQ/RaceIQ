@@ -2,7 +2,7 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { StintSummary } from "@raceiq/shared/racing/live/strategy";
 import type { LapCompleteEvent, LapSavedEvent } from "../lap-detection/types";
 import type { CapturedLap } from "../telemetry/pipeline-ports";
-import { strategyBoundary, strategyBoundaryReason, strategyContext, strategyContinuousWear } from "./strategy-context";
+import { strategyBoundaryReason, strategyContext, strategyContinuousWear, StrategyBoundaryTracker } from "./strategy-context";
 import { StintMetricAccumulator } from "./stint-accumulator";
 import { aggregateLapMetrics, type LapMetricContribution } from "./lap-metrics";
 import { getServerGame } from "../games/registry";
@@ -15,6 +15,7 @@ export class StrategyRebuild {
   private pending = new Map<number, RebuiltLap[]>();
   private active: StintMetricAccumulator | null = null;
   private previous: TelemetryPacket | null = null;
+  private readonly boundaryTracker = new StrategyBoundaryTracker();
   private crossedLaps = new Set<number>();
   private observedAt: string;
   private sourceIdentity: Pick<TelemetryPacket, "gameId" | "carId" | "trackId"> | null = null;
@@ -51,7 +52,7 @@ export class StrategyRebuild {
   observe(packet: TelemetryPacket): void {
     this.ensure(packet);
     if (this.identityEnded) return;
-    const boundary = this.previous ? strategyBoundary(this.previous, packet) : 0;
+    const boundary = this.previous ? this.boundaryTracker.observe(this.previous, packet) : 0;
     if (boundary && this.active) {
       if (packet.LapNumber === this.previous?.LapNumber) this.crossedLaps.add(packet.LapNumber);
       this.active.close(strategyBoundaryReason(boundary), "observed", this.observedAt);
@@ -69,11 +70,11 @@ export class StrategyRebuild {
     const contribution = aggregateLapMetrics(event.packets, { valid: event.isValid, lapTimeSeconds: event.lapTime,
       fuelUnit: adapter.telemetry.fuel.packetUnit === "fraction" ? "tankFraction" : "L", allowContinuousWear: strategyContinuousWear(adapter),
       serviceBoundary: this.crossedLaps.delete(first.LapNumber) });
-    this.active.add(first.LapNumber, contribution);
-    const entry: RebuiltLap = { accumulator: this.active, lapNumber: first.LapNumber, contribution, window: null };
+    this.active.add(event.lapNumber, contribution);
+    const entry: RebuiltLap = { accumulator: this.active, lapNumber: event.lapNumber, contribution, window: null };
     this.contributions.push(entry);
-    const waiting = this.pending.get(first.LapNumber) ?? [];
-    waiting.push(entry); this.pending.set(first.LapNumber, waiting);
+    const waiting = this.pending.get(event.lapNumber) ?? [];
+    waiting.push(entry); this.pending.set(event.lapNumber, waiting);
   }
   saved(event: LapSavedEvent, window: CapturedLap | undefined): void {
     const queue = this.pending.get(event.lapNumber);
@@ -83,7 +84,7 @@ export class StrategyRebuild {
   }
   breakSegment(): void {
     this.active?.close("source-gap", "unknown", this.observedAt, true);
-    this.active = null; this.previous = null;
+    this.active = null; this.previous = null; this.crossedLaps.clear(); this.boundaryTracker.reset();
   }
   finish(): void {
     this.active?.close("recording-ended", "unknown", this.observedAt, true);
