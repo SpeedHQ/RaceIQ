@@ -16,6 +16,7 @@ import { SparseSessionRecorderAdapter } from "@raceiq/backend-core/telemetry/pip
 import { convertSeedFramesToSparse } from "@raceiq/tooling-data/data/seed-capture-conversion";
 import { LMU_DUMP_MAGIC, LMU_DUMP_VERSION } from "@raceiq/capture-formats/lmu/dump-decoder";
 import { LMU_MAX_SOURCE_FRAME_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
+import { readAMS2DumpFrames } from "@raceiq/capture-formats/ams2/dump";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
 import { developmentReleaseFeatures } from "@raceiq/tooling-release/release/development-release-features";
@@ -165,7 +166,8 @@ async function main(): Promise<void> {
         console.log(`[DB Seed] ${game}: converting ${fixture} to sparse format...`);
         const converted = await convertSeedFramesToSparse(
           game,
-          game === "lmu" ? streamLMUSeedFrames(fixturePath) : seedCaptureFrames(fixturePath),
+          game === "ams2" ? readAMS2DumpFrames(fixturePath)
+            : game === "lmu" ? streamLMUSeedFrames(fixturePath) : seedCaptureFrames(fixturePath),
         );
         try {
           const result = await importSessionBin(readFileSync(converted.path), game, {

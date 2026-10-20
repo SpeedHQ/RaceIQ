@@ -148,7 +148,9 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   );
 
   const udpPort = options.udpPort ?? (Number(process.env.RACEIQ_DEV_UDP_PORT) || settings.udpPort || Number(process.env.UDP_PORT) || 5301);
-  void udpListener.start(udpPort);
+  void udpListener.start(udpPort).catch((error: unknown) => {
+    console.error(`[UDP] Could not start listener on port ${udpPort}; live UDP telemetry is unavailable.`, error);
+  });
 
 
   nativeSources = startNativeSourceSupervisor(recordingGameId);
@@ -167,7 +169,6 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   startMaintenanceJobs();
 
   console.log("[Server] RaceIQ Server is ready!");
-  console.log(`[Server] Listening for UDP on port ${udpPort}`);
 
   return { httpServer, httpPort, udpPort };
 }

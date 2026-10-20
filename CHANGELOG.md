@@ -18,6 +18,7 @@
 - Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
 
 ### Fixes
+- Keep recording splitting and the dashboard running when another application already uses the live telemetry UDP port.
 - Keep Windows recording publication working when directory metadata flushing is unsupported, while retaining file-content flushing and reporting other I/O failures.
 - Accept captured AMS2 first race laps from the starting grid when the initial invalid flag clears, while preserving later invalidations, pit exclusions, and recording-quality checks.
 - Avoid false AMS2 restart detection when untimed start-line crossings wrap lap distance without advancing the lap counter.
