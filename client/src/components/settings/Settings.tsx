@@ -1,4 +1,5 @@
 import { Menu, X } from "lucide-react";
+import { AccessSection } from "@/components/security/AccessSection";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
@@ -81,6 +82,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
         {activeSection === "games" && <GamesSection />}
 
         {activeSection === "connection" && <ConnectionSection />}
+        {activeSection === "access" && <AccessSection />}
 
         {activeSection === "wheel" && <WheelSection />}
 

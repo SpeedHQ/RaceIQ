@@ -50,6 +50,17 @@ export interface ServerGameAdapter extends GameAdapter {
 
   /** Create per-game parser state (e.g. F1's multi-packet accumulator). null = stateless. */
   createParserState(): unknown;
+  /** Encode compact parser state for independent replay of a later frame window. */
+  captureParserCheckpoint?(state: unknown): Uint8Array | null;
+
+  /** Restore parser state from a game-owned checkpoint payload. */
+  restoreParserCheckpoint?(state: unknown, payload: Uint8Array): unknown;
+
+  /**
+   * True only when parser state is stateless/frame-local and an empty checkpoint
+   * is an exact pre-frame initialization. Stateful parsers need checkpoint codecs.
+   */
+  readonly parserStateIsFrameLocal?: boolean;
 
   /** AI analyst system prompt for this game */
   aiSystemPrompt: string;

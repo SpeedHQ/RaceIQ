@@ -15,8 +15,8 @@ const rows: TuneRow[] = [
     author: "SpeedHQ",
     source: "community",
     category: "circuit",
-    carOrdinal: 2860,
-    trackOrdinal: 7,
+    carId: "2860",
+    trackId: "7",
     lapTimeSec: 137.421,
     lapTimeRaw: "2:17.421",
     lapTimeTrack: "Spa-Francorchamps",
@@ -31,8 +31,8 @@ const rows: TuneRow[] = [
     author: "Community",
     source: "community",
     category: "circuit",
-    carOrdinal: 2860,
-    trackOrdinal: 12,
+    carId: "2860",
+    trackId: "12",
     lapTimeSec: 412.887,
     lapTimeRaw: "6:52.887",
     lapTimeTrack: "Nürburgring",
@@ -47,8 +47,8 @@ const rows: TuneRow[] = [
     author: "You",
     source: "user",
     category: "circuit",
-    carOrdinal: 1742,
-    trackOrdinal: 7,
+    carId: "1742",
+    trackId: "7",
     lapTimeSec: null,
     lapTimeRaw: null,
     lapTimeTrack: null,
@@ -63,8 +63,8 @@ const rows: TuneRow[] = [
     author: "You",
     source: "user",
     category: "wet",
-    carOrdinal: 1742,
-    trackOrdinal: null,
+    carId: "1742",
+    trackId: null,
     lapTimeSec: null,
     lapTimeRaw: null,
     lapTimeTrack: null,
@@ -73,14 +73,14 @@ const rows: TuneRow[] = [
   },
 ];
 
-const carNames: Record<number, string> = {
-  2860: "Aston Martin Vantage GT3",
-  1742: "Chevrolet Corvette C8.R",
+const carNames: Record<string, string> = {
+  "2860": "Aston Martin Vantage GT3",
+  "1742": "Chevrolet Corvette C8.R",
 };
 
-const trackNames: Record<number, string> = {
-  7: "Spa-Francorchamps",
-  12: "Nürburgring",
+const trackNames: Record<string, string> = {
+  "7": "Spa-Francorchamps",
+  "12": "Nürburgring",
 };
 
 const trackOptions = [

@@ -3,6 +3,13 @@ import { SETUP_CONCEPT_DEFINITIONS } from "@raceiq/shared/racing/setups/catalog/
 import type { SemanticDefinition } from "./model";
 
 const SEMANTIC_DEFINITIONS_LIVE: Record<string, SemanticDefinition> = {
+  "identity.source-identity": {
+    label: "Source identity",
+    description: "Source vehicle name, venue name, and exact track configuration before ordinal allocation.",
+    parentId: "identity",
+    canonicalUnit: "structured",
+    shape: "structured",
+  },
   "damage.brake-pad-wear": {
     label: "Brake Pad Wear",
     description: "Brake pad wear, FL/FR/RL/RR.",

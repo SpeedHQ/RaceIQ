@@ -79,8 +79,8 @@ export async function loadCarModelConfigs(): Promise<void> {
   } catch {}
 }
 
-export function getCarModel(carOrdinal: number): CarModelEnrichment & { hasModel: boolean } {
-  const config = configs[String(carOrdinal)];
+export function getCarModel(carId: string): CarModelEnrichment & { hasModel: boolean } {
+  const config = configs[carId];
   if (config?.modelPath) return { ...DEFAULT_CAR, ...config, hasModel: true };
   return { ...DEFAULT_CAR, hasModel: false };
 }

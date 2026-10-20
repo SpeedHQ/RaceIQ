@@ -24,16 +24,12 @@ export const LapsQuerySchema = z.object({
 export const ReviewLapsQuerySchema = z.object({
   gameId: GameIdSchema,
   sessionId: z.coerce.number().int().positive().optional(),
-  trackOrdinal: z.coerce.number().int().positive().optional(),
-  carOrdinal: z.coerce.number().int().positive().optional(),
   trackId: z.string().min(1).optional(),
   carId: z.string().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(20).default(5),
 }).refine((value) =>
-  value.sessionId != null
-  || (value.trackOrdinal != null && value.carOrdinal != null)
-  || (value.trackId != null && value.carId != null), {
-  message: "sessionId, trackOrdinal and carOrdinal, or trackId and carId required",
+  value.sessionId != null || (value.trackId != null && value.carId != null), {
+  message: "sessionId or trackId and carId required",
 });
 export const ReviewLineSpreadQuerySchema = z.object({
   gameId: GameIdSchema,
@@ -105,15 +101,15 @@ export const ChatBodySchema = z.object({
  * `compare-f1-setup-to-catalog` tool returns, but inline so local models
  * (Gemma 4) can answer in one shot instead of looping tool calls.
  */
-export function buildF1SetupReferenceBlock(carSetupJson: string | undefined, telemetry: TelemetryPacket[], trackOrdinal: number): string {
+export function buildF1SetupReferenceBlock(carSetupJson: string | undefined, telemetry: TelemetryPacket[], trackId: string): string {
   const setup = resolveLapF1Setup({ carSetup: carSetupJson, telemetry });
-  if (!setup || trackOrdinal < 0) return "";
+  if (!setup || !/^\d+$/.test(trackId)) return "";
   const current = normalizePacketSetup(setup as unknown as Record<string, unknown>);
-  const refs = topCatalogReferences(trackOrdinal, 5, current);
+  const refs = topCatalogReferences(trackId, 5, current);
   if (refs.length === 0) return "";
 
   const lines: string[] = [];
-  lines.push(`\n\n--- F1 CURRENT SETUP + TOP-5 REFERENCE SETUPS (${getCatalogDisplayName(trackOrdinal) ?? "this track"}) ---`);
+  lines.push(`\n\n--- F1 CURRENT SETUP + TOP-5 REFERENCE SETUPS (${getCatalogDisplayName(trackId) ?? "this track"}) ---`);
   lines.push("Use this data to populate setup[]. Cite rank/team/author per entry. Only propose steps within the step-cap rules.");
   lines.push("");
   lines.push("Current setup:");

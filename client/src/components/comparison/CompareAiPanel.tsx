@@ -1,6 +1,7 @@
 import { Trash2 } from "lucide-react";
 import { forwardRef, useCallback, useImperativeHandle, useState } from "react";
 import { m } from "../../paraglide/messages";
+import { authenticatedFetch } from "@/lib/rpc";
 import { uiStore } from "../../stores/ui";
 import { ChatPanel } from "../ai-chat/ChatPanel";
 import { Button } from "../ui/button";
@@ -21,7 +22,7 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
   const [chatRemountKey, setChatRemountKey] = useState(0);
   const [analysisCollapsed, setAnalysisCollapsed] = useState(false);
   const clearChat = useCallback(() => {
-    fetch(`/api/laps/${lapA.id}/compare/${lapB.id}/chat`, { method: "DELETE" })
+    authenticatedFetch(`/api/laps/${lapA.id}/compare/${lapB.id}/chat`, { method: "DELETE" })
       .catch(() => {})
       .finally(() => setChatRemountKey((k) => k + 1));
   }, [lapA.id, lapB.id]);

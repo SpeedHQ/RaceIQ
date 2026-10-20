@@ -38,7 +38,7 @@ describe("tune CRUD", () => {
       gameId: "fm-2023",
       name: "Test Tune",
       author: "tester",
-      carOrdinal: 2860,
+      carId: "2860",
       category: "circuit",
       description: "A test tune",
       settings: TEST_SETTINGS,
@@ -51,7 +51,7 @@ describe("tune CRUD", () => {
       gameId: "fm-2023",
       name: "Test Tune",
       author: "tester",
-      carOrdinal: 2860,
+      carId: "2860",
       category: "circuit",
       description: "A test tune",
       settings: TEST_SETTINGS,
@@ -59,26 +59,26 @@ describe("tune CRUD", () => {
     const tune = await getTuneById(id);
     expect(tune).not.toBeNull();
     expect(tune!.name).toBe("Test Tune");
-    expect(tune!.carOrdinal).toBe(2860);
+    expect(tune!.carId).toBe("2860");
   });
 
-  test("getTunes filters by carOrdinal", async () => {
-    await insertTune({ gameId: "fm-2023", name: "A", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
-    await insertTune({ gameId: "fm-2023", name: "B", author: "t", carOrdinal: 200, category: "wet", description: "", settings: TEST_SETTINGS });
-    const filtered = await getTunes({ carOrdinal: 100 });
+  test("getTunes filters by carId", async () => {
+    await insertTune({ gameId: "fm-2023", name: "A", author: "t", carId: "100", category: "circuit", description: "", settings: TEST_SETTINGS });
+    await insertTune({ gameId: "fm-2023", name: "B", author: "t", carId: "200", category: "wet", description: "", settings: TEST_SETTINGS });
+    const filtered = await getTunes({ carId: "100" });
     expect(filtered.length).toBe(1);
     expect(filtered[0].name).toBe("A");
   });
 
   test("getTunes reports fastest valid lap for exact setup and matching session identity", async () => {
-    const data = { gameId: "ac-evo", name: "Recorded setup", author: "t", carOrdinal: 100, category: "race", description: "", settings: "{}" };
+    const data = { gameId: "ac-evo", name: "Recorded setup", author: "t", carId: "100", category: "race", description: "", settings: "{}" };
     const tuneId = await insertTune(data);
     const otherTuneId = await insertTune({ ...data, name: "Unused setup" });
     const fixtures = await db.insert(sessions).values([
-      { gameId: "ac-evo", carOrdinal: 100, trackOrdinal: 1 },
-      { gameId: "ac-evo", carOrdinal: 100, trackOrdinal: 2 },
-      { gameId: "acc", carOrdinal: 100, trackOrdinal: 1 },
-      { gameId: "ac-evo", carOrdinal: 200, trackOrdinal: 1 },
+      { gameId: "ac-evo", carId: "100", trackId: "1" },
+      { gameId: "ac-evo", carId: "100", trackId: "2" },
+      { gameId: "acc", carId: "100", trackId: "1" },
+      { gameId: "ac-evo", carId: "200", trackId: "1" },
     ]).returning({ id: sessions.id }).all();
     const sessionIds = fixtures.map((session) => session.id);
     try {
@@ -92,16 +92,16 @@ describe("tune CRUD", () => {
         { sessionId: sessionIds[2], tuneId, lapNumber: 1, lapTime: 60, isValid: true },
         { sessionId: sessionIds[3], tuneId, lapNumber: 1, lapTime: 70, isValid: true },
       ]).run();
-      const listed = await getTunes({ gameId: "ac-evo", carOrdinal: 100 });
+      const listed = await getTunes({ gameId: "ac-evo", carId: "100" });
       expect(listed.find((tune) => tune.id === tuneId)?.bestLapTime).toBe(92.345);
       expect(listed.find((tune) => tune.id === otherTuneId)?.bestLapTime).toBeNull();
-      await updateTune(tuneId, { trackOrdinal: 1 });
-      expect((await getTuneById(tuneId))?.trackOrdinal).toBe(1);
+      await updateTune(tuneId, { trackId: "1" });
+      expect((await getTuneById(tuneId))?.trackId).toBe("1");
       expect((await getTunes()).find((tune) => tune.id === tuneId)?.bestLapTime).toBe(101.2);
-      await updateTune(tuneId, { trackOrdinal: 3 });
+      await updateTune(tuneId, { trackId: "3" });
       expect((await getTunes()).find((tune) => tune.id === tuneId)?.bestLapTime).toBeNull();
-      await updateTune(tuneId, { trackOrdinal: null });
-      expect((await getTuneById(tuneId))?.trackOrdinal).toBeNull();
+      await updateTune(tuneId, { trackId: null });
+      expect((await getTuneById(tuneId))?.trackId).toBeNull();
       expect((await getTunes()).find((tune) => tune.id === tuneId)?.bestLapTime).toBe(92.345);
       await db.delete(laps).where(eq(laps.tuneId, tuneId)).run();
       expect((await getTunes()).find((tune) => tune.id === tuneId)?.bestLapTime).toBeNull();
@@ -111,7 +111,7 @@ describe("tune CRUD", () => {
   });
 
   test("updateTune modifies fields", async () => {
-    const id = await insertTune({ gameId: "fm-2023", name: "Old", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
+    const id = await insertTune({ gameId: "fm-2023", name: "Old", author: "t", carId: "100", category: "circuit", description: "", settings: TEST_SETTINGS });
     const updated = await updateTune(id, { name: "New" });
     expect(updated).toBe(true);
     expect((await getTuneById(id))!.name).toBe("New");
@@ -119,13 +119,13 @@ describe("tune CRUD", () => {
 
 
   test("getTuneUsage groups linked laps and reports defaults; deleting tune preserves recordings", async () => {
-    const data = { gameId: "ac-evo", name: "Referenced setup", author: "t", carOrdinal: 100, category: "race", description: "", settings: "{}" };
+    const data = { gameId: "ac-evo", name: "Referenced setup", author: "t", carId: "100", category: "race", description: "", settings: "{}" };
     const tuneId = await insertTune(data);
     const unrelatedTuneId = await insertTune({ ...data, name: "Other setup" });
     const sessionRows = await db.insert(sessions).values([
-      { gameId: "ac-evo", carOrdinal: 100, trackOrdinal: 1, carId: "car-a", trackId: "track-a", createdAt: "2026-01-01" },
-      { gameId: "ac-evo", carOrdinal: 100, trackOrdinal: 2, carId: "car-a", trackId: "track-b", createdAt: "2026-01-02" },
-      { gameId: "ac-evo", carOrdinal: 200, trackOrdinal: 3 },
+      { gameId: "ac-evo", carId: "car-a", trackId: "track-a", createdAt: "2026-01-01" },
+      { gameId: "ac-evo", carId: "car-a", trackId: "track-b", createdAt: "2026-01-02" },
+      { gameId: "ac-evo", carId: "car-b", trackId: "track-c" },
     ]).returning({ id: sessions.id }).all();
     const [first, second, unrelated] = sessionRows.map((row) => row.id);
     try {
@@ -135,14 +135,14 @@ describe("tune CRUD", () => {
         { sessionId: second, tuneId, lapNumber: 1, lapTime: 98, isValid: true },
         { sessionId: unrelated, tuneId: unrelatedTuneId, lapNumber: 2, lapTime: 97, isValid: true },
       ]).returning({ id: laps.id }).all();
-      await setTuneAssignment("ac-evo", 100, 1, tuneId);
+      await setTuneAssignment("ac-evo", "100", "1", tuneId);
       const usage = await getTuneUsage(tuneId);
       expect(usage).toEqual({
         sessions: [
-          { sessionId: first, gameId: "ac-evo", createdAt: "2026-01-01", carOrdinal: 100, trackOrdinal: 1, carId: "car-a", trackId: "track-a", laps: [{ id: lapRows[0].id, lapNumber: 3 }, { id: lapRows[1].id, lapNumber: 4 }] },
-          { sessionId: second, gameId: "ac-evo", createdAt: "2026-01-02", carOrdinal: 100, trackOrdinal: 2, carId: "car-a", trackId: "track-b", laps: [{ id: lapRows[2].id, lapNumber: 1 }] },
+          { sessionId: first, gameId: "ac-evo", createdAt: "2026-01-01", carId: "car-a", trackId: "track-a", laps: [{ id: lapRows[0].id, lapNumber: 3 }, { id: lapRows[1].id, lapNumber: 4 }] },
+          { sessionId: second, gameId: "ac-evo", createdAt: "2026-01-02", carId: "car-a", trackId: "track-b", laps: [{ id: lapRows[2].id, lapNumber: 1 }] },
         ],
-        assignments: [{ gameId: "ac-evo", carOrdinal: 100, trackOrdinal: 1 }],
+        assignments: [{ gameId: "ac-evo", carId: "100", trackId: "1" }],
       });
       expect(await deleteTune(tuneId)).toBe(true);
       expect(await getTuneUsage(tuneId)).toBeNull();
@@ -156,7 +156,7 @@ describe("tune CRUD", () => {
     }
   });
   test("deleteTune removes tune", async () => {
-    const id = await insertTune({ gameId: "fm-2023", name: "X", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
+    const id = await insertTune({ gameId: "fm-2023", name: "X", author: "t", carId: "100", category: "circuit", description: "", settings: TEST_SETTINGS });
     expect(await deleteTune(id)).toBe(true);
     expect(await getTuneById(id)).toBeNull();
   });
@@ -164,55 +164,61 @@ describe("tune CRUD", () => {
 
 describe("tune assignments", () => {
   test("setTuneAssignment creates assignment", async () => {
-    const tuneId = await insertTune({ gameId: "fm-2023", name: "T", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
-    await setTuneAssignment("fm-2023", 100, 500, tuneId);
-    const assignment = await getTuneAssignment("fm-2023", 100, 500);
+    const tuneId = await insertTune({ gameId: "fm-2023", name: "T", author: "t", carId: "100", category: "circuit", description: "", settings: TEST_SETTINGS });
+    await setTuneAssignment("fm-2023", "100", "500", tuneId);
+    const assignment = await getTuneAssignment("fm-2023", "100", "500");
     expect(assignment).not.toBeNull();
     expect(assignment!.tuneId).toBe(tuneId);
   });
 
   test("setTuneAssignment upserts on same car+track", async () => {
-    const id1 = await insertTune({ gameId: "fm-2023", name: "T1", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
-    const id2 = await insertTune({ gameId: "fm-2023", name: "T2", author: "t", carOrdinal: 100, category: "wet", description: "", settings: TEST_SETTINGS });
-    await setTuneAssignment("fm-2023", 100, 500, id1);
-    await setTuneAssignment("fm-2023", 100, 500, id2);
-    const assignment = await getTuneAssignment("fm-2023", 100, 500);
+    const id1 = await insertTune({ gameId: "fm-2023", name: "T1", author: "t", carId: "100", category: "circuit", description: "", settings: TEST_SETTINGS });
+    const id2 = await insertTune({ gameId: "fm-2023", name: "T2", author: "t", carId: "100", category: "wet", description: "", settings: TEST_SETTINGS });
+    await setTuneAssignment("fm-2023", "100", "500", id1);
+    await setTuneAssignment("fm-2023", "100", "500", id2);
+    const assignment = await getTuneAssignment("fm-2023", "100", "500");
     expect(assignment!.tuneId).toBe(id2);
+  });
+  test("empty identity upserts remain multiple because partial unique excludes blanks", async () => {
+    const tuneId = await insertTune({ gameId: "fm-2023", name: "T", author: "t", carId: "100", category: "circuit", description: "", settings: TEST_SETTINGS });
+    await setTuneAssignment("fm-2023", "", "", tuneId);
+    await setTuneAssignment("fm-2023", "", "", tuneId);
+    expect((await getTuneAssignments()).filter((assignment) => assignment.carId === "")).toHaveLength(2);
   });
 
   test("setTuneAssignment scopes by gameId — same car+track, different games coexist", async () => {
-    const id1 = await insertTune({ gameId: "fm-2023", name: "T1", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
-    const id2 = await insertTune({ gameId: "acc", name: "T2", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
-    await setTuneAssignment("fm-2023", 100, 500, id1);
-    await setTuneAssignment("acc", 100, 500, id2);
-    expect((await getTuneAssignment("fm-2023", 100, 500))!.tuneId).toBe(id1);
-    expect((await getTuneAssignment("acc", 100, 500))!.tuneId).toBe(id2);
+    const id1 = await insertTune({ gameId: "fm-2023", name: "T1", author: "t", carId: "100", category: "circuit", description: "", settings: TEST_SETTINGS });
+    const id2 = await insertTune({ gameId: "acc", name: "T2", author: "t", carId: "100", category: "circuit", description: "", settings: TEST_SETTINGS });
+    await setTuneAssignment("fm-2023", "100", "500", id1);
+    await setTuneAssignment("acc", "100", "500", id2);
+    expect((await getTuneAssignment("fm-2023", "100", "500"))!.tuneId).toBe(id1);
+    expect((await getTuneAssignment("acc", "100", "500"))!.tuneId).toBe(id2);
   });
 
   test("deleteTuneAssignment removes assignment", async () => {
-    const tuneId = await insertTune({ gameId: "fm-2023", name: "T", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
-    await setTuneAssignment("fm-2023", 100, 500, tuneId);
-    expect(await deleteTuneAssignment("fm-2023", 100, 500)).toBe(true);
-    expect(await getTuneAssignment("fm-2023", 100, 500)).toBeNull();
+    const tuneId = await insertTune({ gameId: "fm-2023", name: "T", author: "t", carId: "100", category: "circuit", description: "", settings: TEST_SETTINGS });
+    await setTuneAssignment("fm-2023", "100", "500", tuneId);
+    expect(await deleteTuneAssignment("fm-2023", "100", "500")).toBe(true);
+    expect(await getTuneAssignment("fm-2023", "100", "500")).toBeNull();
   });
 
-  test("getTuneAssignments filters by carOrdinal", async () => {
-    const id1 = await insertTune({ gameId: "fm-2023", name: "T1", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
-    const id2 = await insertTune({ gameId: "fm-2023", name: "T2", author: "t", carOrdinal: 200, category: "circuit", description: "", settings: TEST_SETTINGS });
-    await setTuneAssignment("fm-2023", 100, 500, id1);
-    await setTuneAssignment("fm-2023", 200, 600, id2);
+  test("getTuneAssignments filters by carId", async () => {
+    const id1 = await insertTune({ gameId: "fm-2023", name: "T1", author: "t", carId: "100", category: "circuit", description: "", settings: TEST_SETTINGS });
+    const id2 = await insertTune({ gameId: "fm-2023", name: "T2", author: "t", carId: "200", category: "circuit", description: "", settings: TEST_SETTINGS });
+    await setTuneAssignment("fm-2023", "100", "500", id1);
+    await setTuneAssignment("fm-2023", "200", "600", id2);
     const all = await getTuneAssignments();
     expect(all.length).toBe(2);
-    const filtered = await getTuneAssignments({ carOrdinal: 100 });
+    const filtered = await getTuneAssignments({ carId: "100" });
     expect(filtered.length).toBe(1);
     expect(filtered[0].tuneName).toBe("T1");
   });
 
   test("getTuneAssignments filters by gameId", async () => {
-    const id1 = await insertTune({ gameId: "fm-2023", name: "T1", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
-    const id2 = await insertTune({ gameId: "acc", name: "T2", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
-    await setTuneAssignment("fm-2023", 100, 500, id1);
-    await setTuneAssignment("acc", 100, 500, id2);
+    const id1 = await insertTune({ gameId: "fm-2023", name: "T1", author: "t", carId: "100", category: "circuit", description: "", settings: TEST_SETTINGS });
+    const id2 = await insertTune({ gameId: "acc", name: "T2", author: "t", carId: "100", category: "circuit", description: "", settings: TEST_SETTINGS });
+    await setTuneAssignment("fm-2023", "100", "500", id1);
+    await setTuneAssignment("acc", "100", "500", id2);
     const filtered = await getTuneAssignments({ gameId: "acc" });
     expect(filtered.length).toBe(1);
     expect(filtered[0].tuneName).toBe("T2");

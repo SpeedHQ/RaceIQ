@@ -1,15 +1,8 @@
-import { create } from "zustand";
+import { createContext, useContext } from "react";
 import type { GameId } from "@raceiq/shared/games/ids";
+import { routePrefixForGameId } from "../lib/game-routes";
+import { create } from "zustand";
 import { telemetryStore } from "./telemetry";
-/** Map gameId → route path segment. Derived from each adapter's routePrefix. */
-const GAME_ROUTES: Record<string, string> = {
-  "fm-2023": "/fm23",
-  "f1-2025": "/f125",
-  acc: "/acc",
-  "ac-evo": "/ac-evo",
-  iracing: "/iracing",
-  lmu: "/lmu",
-};
 
 export interface GameState {
   gameId: GameId | null;
@@ -20,6 +13,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   gameId: null,
   setGameId: (gameId) => {
     const prev = get().gameId;
+    if (prev === gameId) return;
     set({ gameId });
     // Clear stale session laps when switching between games
     if (prev && gameId && prev !== gameId) {
@@ -49,33 +43,42 @@ export const gameStore: GameStoreApi = {
   },
 };
 
-export function useGameId(): GameId | null {
-  return useGameStore((s) => s.gameId);
+const STORE_GAME_CONTEXT_PATHS: Readonly<Record<string, true>> = {
+  "/live": true,
+  "/live/pit": true,
+  "/portable/combo-1": true,
+  "/portable/combo-2": true,
+};
+
+export function usesStoreGameContext(pathname: string): boolean {
+  return STORE_GAME_CONTEXT_PATHS[pathname] === true;
 }
 
-/** Strict variant — throws when called outside a game route. Use in
- *  components that only render inside a GameProvider layout.
- *
- *  The route-layout effect that calls `setGameId` runs *after* children
- *  mount, so on first render the store is null. Fall back to the URL path
- *  for that render; the store will hydrate the normal way on the next tick. */
+const GameRouteContext = createContext<GameId | null | undefined>(undefined);
+
+export const GameRouteProvider = GameRouteContext.Provider;
+
+export function useGameId(): GameId | null {
+  const routeGameId = useContext(GameRouteContext);
+  const storedGameId = useGameStore((state) => state.gameId);
+  return routeGameId === undefined ? storedGameId : routeGameId;
+}
+
+/** Strict variant — throws when called outside a game route. */
 export function useRequiredGameId(): GameId {
-  const stored = useGameStore((s) => s.gameId);
-  if (stored) return stored;
+  const gameId = useGameId();
+  if (gameId) return gameId;
   const path = typeof window !== "undefined" ? window.location.pathname : "";
-  for (const [id, prefix] of Object.entries(GAME_ROUTES)) {
-    if (path === prefix || path.startsWith(`${prefix}/`)) return id as GameId;
-  }
   throw new Error(`useRequiredGameId: no gameId in store and URL (${path}) does not match any game route`);
 }
 
 /** Get the route path for the current game (e.g. "/fm23", "/f125", "/acc") */
 export function useGameRoute(): string {
   const gameId = useGameId();
-  return gameId ? (GAME_ROUTES[gameId] ?? `/${gameId}`) : "/fm23";
+  return gameId ? `/${routePrefixForGameId(gameId) ?? gameId}` : "/fm23";
 }
 
 /** Get the route path for any gameId */
 export function getGameRoute(gameId: string): string {
-  return GAME_ROUTES[gameId] ?? `/${gameId}`;
+  return `/${routePrefixForGameId(gameId) ?? gameId}`;
 }

@@ -9,8 +9,8 @@ import { client } from "../../../lib/rpc";
 interface TuneRow {
   name: string;
   author: string;
-  carOrdinal: number;
-  trackOrdinal: number | null;
+  carId: string;
+  trackId: string | null;
   category: string;
   description: string;
   settings: Record<string, unknown>;
@@ -40,10 +40,10 @@ function EditAccTunePage() {
           initialData={{
             name: tune.name,
             author: tune.author,
-            carOrdinal: tune.carOrdinal,
+            carId: tune.carId,
             category: tune.category,
             description: tune.description,
-            trackOrdinal: tune.trackOrdinal,
+            trackId: tune.trackId,
             settings: tune.settings,
           }}
           onCancel={() => navigate({ to: "/acc/setups" })}

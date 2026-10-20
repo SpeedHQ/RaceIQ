@@ -33,8 +33,8 @@ const comparison = {
 describe("inputs compare prompt", () => {
   test("builds prompt with supplied track guide", () => {
     const prompt = buildInputsComparePrompt(
-      { lapNumber: 1, lapTime: 1, isValid: true },
-      { lapNumber: 2, lapTime: 1.02, isValid: true },
+      { lapNumber: 1, lapTime: 1, isValid: true, carId: "", trackId: "" },
+      { lapNumber: 2, lapTime: 1.02, isValid: true, carId: "", trackId: "" },
       comparison,
       [{ name: "Turn 1", type: "corner", startFrac: 0, endFrac: 1 }],
       "\n--- Expert Track Guide ---\nBrake before Turn 1.",
@@ -50,12 +50,16 @@ describe("inputs compare prompt", () => {
         lapNumber: 1,
         lapTime: 1,
         isValid: true,
+        carId: "",
+        trackId: "",
         gameId: "acc",
       },
       {
         lapNumber: 2,
         lapTime: 1.02,
         isValid: true,
+        carId: "",
+        trackId: "",
         gameId: "acc",
       },
       {

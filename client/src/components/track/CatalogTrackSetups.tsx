@@ -15,9 +15,9 @@ import { Button } from "../ui/button";
 interface SetupRow {
   id: string;
   name: string;
-  carOrdinal: number;
+  carId: string;
   category: string;
-  trackOrdinal: number | null;
+  trackId: string | null;
   bestTracks?: string[];
   description: string;
   settings: unknown;
@@ -137,7 +137,7 @@ function rowsOf(...entries: [string, boolean, string][]): [string, string][] {
  *  AC-EVO). Same shell as the ACC / F1 track setup panels — a filterable,
  *  selectable list on the left and a read-only settings grid on the right —
  *  minus the download/video pieces those games carry (this data has none). */
-export function CatalogTrackSetups({ gameId, trackName, trackVariant, trackOrdinal }: { gameId: GameId; trackName: string; trackVariant: string; trackOrdinal: number }) {
+export function CatalogTrackSetups({ gameId, trackName, trackVariant, trackId }: { gameId: GameId; trackName: string; trackVariant: string; trackId: string }) {
   const search = useSearch({ strict: false }) as { setup?: string };
   const navigate = useNavigate();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -152,9 +152,9 @@ export function CatalogTrackSetups({ gameId, trackName, trackVariant, trackOrdin
     const community: SetupRow[] = catalog.map((t) => ({
       id: `community:${t.id}`,
       name: t.name,
-      carOrdinal: t.carOrdinal,
+      carId: t.carId,
       category: t.category,
-      trackOrdinal: t.trackOrdinal ?? null,
+      trackId: t.trackId ?? null,
       bestTracks: t.bestTracks,
       description: t.description ?? "",
       settings: t.settings,
@@ -163,9 +163,9 @@ export function CatalogTrackSetups({ gameId, trackName, trackVariant, trackOrdin
     const mine: SetupRow[] = (userTunes as RawUserTune[]).map((t) => ({
       id: `user:${t.id}`,
       name: t.name,
-      carOrdinal: t.carOrdinal,
+      carId: t.carId,
       category: t.category,
-      trackOrdinal: t.trackOrdinal ?? null,
+      trackId: t.trackId ?? null,
       description: t.description ?? "",
       settings: t.settings,
       sourceLabel: m.catalogtracksetups_yours(),
@@ -173,19 +173,20 @@ export function CatalogTrackSetups({ gameId, trackName, trackVariant, trackOrdin
     return [...community, ...mine];
   }, [catalog, userTunes]);
 
-  const track = useMemo(() => ({ ordinal: trackOrdinal, name: trackName, variant: trackVariant }), [trackOrdinal, trackName, trackVariant]);
+  const track = useMemo(() => ({ id: trackId, name: trackName, variant: trackVariant }), [trackId, trackName, trackVariant]);
   const matched = useMemo(() => rows.filter((t) => tuneMatchesTrack(t, track)), [rows, track]);
 
-  const carOrdinals = useMemo(() => [...new Set(matched.map((t) => t.carOrdinal))], [matched]);
-  const { data: names } = useResolveNames([], carOrdinals);
-  const carName = (ordinal: number) => names?.carNames[String(ordinal)] ?? m.catalogtracksetups_car_fallback({ ordinal: String(ordinal) });
+  const carIds = useMemo(() => [...new Set(matched.map((t) => t.carId))], [matched]);
+  const { data: names } = useResolveNames([], carIds);
+  const carName = (id: string) => names?.carNames[id] ?? id;
 
-  const uniqueCars = useMemo(() => [...new Set(matched.map((t) => t.carOrdinal))].sort((a, b) => carName(a).localeCompare(carName(b))), [matched, names]);
+  const uniqueCars = useMemo(() => [...new Set(matched.map((t) => t.carId))].sort((a, b) => carName(a).localeCompare(carName(b))), [matched, names]);
+
 
   const setups = useMemo(() => {
     let s = matched;
-    if (filterCar) s = s.filter((t) => String(t.carOrdinal) === filterCar);
-    return [...s].sort((a, b) => carName(a.carOrdinal).localeCompare(carName(b.carOrdinal)) || a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
+    if (filterCar) s = s.filter((t) => t.carId === filterCar);
+    return [...s].sort((a, b) => carName(a.carId).localeCompare(carName(b.carId)) || a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
   }, [matched, filterCar, names]);
 
   // Resolve / persist selection via the shared ?setup= url param.
@@ -221,7 +222,7 @@ export function CatalogTrackSetups({ gameId, trackName, trackVariant, trackOrdin
               value={filterCar}
               onChange={setFilterCar}
               placeholder={m.catalog_search_cars_placeholder()}
-              options={[{ value: "", label: m.catalog_filter_all_cars() }, ...uniqueCars.map((o) => ({ value: String(o), label: carName(o) }))]}
+              options={[{ value: "", label: m.catalog_filter_all_cars() }, ...uniqueCars.map((id) => ({ value: id, label: carName(id) }))]}
             />
           )}
         </div>
@@ -246,7 +247,7 @@ export function CatalogTrackSetups({ gameId, trackName, trackVariant, trackOrdin
                 <span className="text-app-compact text-app-text-dim font-mono w-4 text-right shrink-0">{i + 1}</span>
                 <div className="flex-1 min-w-0 flex items-center gap-1">
                   <span className="text-app-compact font-medium text-app-text truncate">{t.name}</span>
-                  <span className="text-app-micro text-app-text-dim truncate">({carName(t.carOrdinal)})</span>
+                  <span className="text-app-micro text-app-text-dim truncate">({carName(t.carId)})</span>
                 </div>
                 <span className={`text-app-nano px-1 py-0.5 rounded font-bold shrink-0 ${badge.cls}`} title={t.category}>
                   {badge.label}
@@ -263,7 +264,7 @@ export function CatalogTrackSetups({ gameId, trackName, trackVariant, trackOrdin
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-app-body font-bold text-app-text">{selected.name}</span>
             <span className="text-app-compact text-app-text-secondary">
-              {carName(selected.carOrdinal)}
+              {carName(selected.carId)}
               {selected.sourceLabel && ` · ${selected.sourceLabel}`}
             </span>
           </div>

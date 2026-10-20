@@ -1,4 +1,3 @@
-import { getLMUCar, getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import type { LapMeta, RacingIdentityFields, SessionMeta, SessionRecap } from "@raceiq/shared/racing/sessions/types";
 import { formatLapTime } from "@/lib/format";
 import { m } from "@/paraglide/messages";
@@ -15,27 +14,15 @@ export function fuzzyToken(token: string, field: string): boolean {
   return normalize(field).includes(normalize(token));
 }
 
-export function formatSessionType(type?: string): string {
-  if (!type || type === "unknown") return "";
-  return type.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
 
 export function sessionTrackName(session: RacingIdentityFields & { gameId?: string }, names: SessionNames): string {
-  if (session.gameId === "lmu") {
-    if (typeof session.trackId === "string") return getLMUTrack(session.trackId)?.name ?? session.trackId;
-    const ordinal = session.trackId ?? session.trackOrdinal ?? -1;
-    return names.trackNames[ordinal] ?? `Track ${ordinal}`;
-  }
-  return names.trackNames[session.trackOrdinal ?? -1] ?? `Track ${session.trackOrdinal ?? -1}`;
+  if (session.trackId != null) return names.trackNames[session.trackId] ?? session.trackId;
+  return "";
 }
 
 export function sessionCarName(session: RacingIdentityFields & { gameId?: string }, names: SessionNames): string {
-  if (session.gameId === "lmu") {
-    if (typeof session.carId === "string") return getLMUCar(session.carId)?.name ?? session.carId;
-    const ordinal = session.carId ?? session.carOrdinal ?? -1;
-    return names.carNames[ordinal] ?? `Car ${ordinal}`;
-  }
-  return names.carNames[session.carOrdinal ?? -1] ?? (session.carOrdinal === 0 ? "—" : `Car ${session.carOrdinal ?? -1}`);
+  if (session.carId != null) return names.carNames[session.carId] ?? session.carId;
+  return "";
 }
 
 export function groupLapsBySession(laps: LapMeta[]): Map<number, LapMeta[]> {

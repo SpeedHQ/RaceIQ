@@ -23,6 +23,8 @@ const child = Bun.spawn([
   'process.env.NODE_ENV="production"',
   "apps/backend/src/bootstrap.ts",
   "server/experiments/lap-issues-worker.ts",
+  "apps/backend/src/runtime/startup-worker-entry.ts",
+  "packages/capture-splitting/src/worker.ts",
   "--outfile",
   "dist/raceiq.exe",
 ], {

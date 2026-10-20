@@ -1,9 +1,83 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
+import { and, eq } from "drizzle-orm";
+import { db } from "@raceiq/backend-core/db/index";
+import { trackCorners } from "@raceiq/backend-core/db/schema";
+import { saveCorners } from "@raceiq/backend-core/db/track-queries";
+import type { Corner } from "@raceiq/backend-core/lap-analysis/corners";
 import type { NamedSegment } from "@raceiq/shared/racing/tracks/named-segments";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import { lapCornersFromSegments } from "../../src/tracks/corner-resolution";
+import { cornerMatchesId } from "../../src/mastra/tools/corner-metrics";
+import { lapCornersFromSegments, resolveLapCorners } from "../../src/tracks/corner-resolution";
+const trackId = "corner-resolution-regression";
+const gameId = "fm-2023" as const;
+afterEach(async () => {
+  await db.delete(trackCorners).where(and(eq(trackCorners.trackId, trackId), eq(trackCorners.gameId, gameId))).run();
+});
 
 const packet = (distance: number): TelemetryPacket => ({ DistanceTraveled: distance }) as TelemetryPacket;
+
+function turnTelemetry(): TelemetryPacket[] {
+  return Array.from({ length: 120 }, (_, index) => ({
+    gameId,
+    DistanceTraveled: 3520 + index * 2,
+    VelocityX: index < 60 ? 60 : index < 100 ? 20 : 20 + index - 100,
+    VelocityY: 0,
+    VelocityZ: 0,
+    Steer: index >= 60 && index < 100 ? 60 : 0,
+  }) as TelemetryPacket);
+}
+
+describe("cornerMatchesId", () => {
+  test("matches official zero-indexed T labels instead of ordinal indices", () => {
+    const official = [{ index: 0, label: "T1" }, { index: 1, label: "T2" }];
+    expect(official.filter((corner) => cornerMatchesId(corner, 1))).toEqual([official[0]]);
+    expect(official.filter((corner) => cornerMatchesId(corner, 2))).toEqual([official[1]]);
+  });
+
+  test("matches grouped labels and one-indexed unlabeled stored or detected corners", () => {
+    expect(cornerMatchesId({ index: 0, label: "T2,4" }, 4)).toBe(true);
+    expect(cornerMatchesId({ index: 0, label: "T10-11" }, 11)).toBe(true);
+    expect(cornerMatchesId({ index: 2, label: "Corner" }, 2)).toBe(true);
+    expect(cornerMatchesId({ index: 1, label: "Turn One" }, 1)).toBe(true);
+    expect(cornerMatchesId({ index: 3, label: "T2/4" }, 4)).toBe(true);
+    expect(cornerMatchesId({ index: 1, label: "T1" }, 2)).toBe(false);
+    expect(cornerMatchesId({ index: 1, label: "T1" }, 1)).toBe(true);
+  });
+});
+
+describe("resolveLapCorners database precedence", () => {
+  const storedCorner: Corner = {
+    index: 1,
+    label: "T1",
+    distanceStart: 100,
+    distanceEnd: 200,
+  };
+
+  test("manual stored corners retain authority over lap detection", async () => {
+    await saveCorners(trackId, [storedCorner], gameId, false);
+    expect(await resolveLapCorners(trackId, gameId, turnTelemetry(), { segments: [] })).toEqual([storedCorner]);
+  });
+
+  test("auto-detected stored rows do not shadow the selected lap's detection", async () => {
+    await saveCorners(trackId, [{ ...storedCorner, distanceStart: 5000, distanceEnd: 5100 }], gameId, true);
+    const [corner] = await resolveLapCorners(trackId, gameId, turnTelemetry(), { segments: [] });
+    expect(corner).toMatchObject({ index: 1, label: "T1", minSpeedKph: 72 });
+    expect(corner.distanceStart).toBeGreaterThan(0);
+    expect(corner.distanceStart).toBeLessThan(200);
+    expect(corner.distanceEnd).toBeGreaterThan(corner.distanceStart);
+    expect(corner.distanceEnd).toBeLessThanOrEqual(238);
+  });
+
+  test("official segment definitions win over stored rows", async () => {
+    await saveCorners(trackId, [storedCorner], gameId, false);
+    const segments: NamedSegment[] = [
+      { type: "corner", name: "Official T1", number: 1, startFrac: 0.2, endFrac: 0.3 },
+    ];
+    expect(await resolveLapCorners(trackId, gameId, [packet(1000), packet(2000)], { segments })).toEqual([
+      { index: 0, label: "T1", distanceStart: 200, distanceEnd: 300 },
+    ]);
+  });
+});
 
 describe("lapCornersFromSegments", () => {
   test("keeps separate official iRacing turn labels and scales fractions to lap metres", () => {

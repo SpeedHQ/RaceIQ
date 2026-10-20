@@ -11,7 +11,7 @@ import { PHYSICS, GRAPHICS, STATIC, FLAG_STATUS } from "@raceiq/capture-formats/
 import { readWString } from "./utils";
 
 // ACC shared-memory AC_SESSION_TYPE (distinct from AC Evo's session enum).
-const SESSION_TYPE_NAMES: Record<number, string> = {
+export const SESSION_TYPE_NAMES: Record<number, string> = {
   0: "practice",
   1: "qualifying",
   2: "race",
@@ -59,7 +59,7 @@ export function parseAccBuffers(
   physicsBuf: Buffer,
   graphicsBuf: Buffer,
   staticBuf: Buffer,
-  overrides?: { carOrdinal?: number; trackOrdinal?: number; gameId?: GameId; playerSlot?: number; timestampMs?: number }
+  overrides?: { carId?: string; trackId?: string; gameId?: GameId; playerSlot?: number; timestampMs?: number }
 ): TelemetryPacket | null {
   if (
     physicsBuf.length < PHYSICS.SIZE ||
@@ -517,7 +517,7 @@ export function parseAccBuffers(
     BrakeTempRearLeft: brTempRL,
     BrakeTempRearRight: brTempRR,
 
-    CarOrdinal: overrides?.carOrdinal ?? 0,
+    carId: overrides?.carId ?? "",
     CarClass: 0,
     CarPerformanceIndex: 0,
     DrivetrainType: 1,  // most GT3 are RWD
@@ -529,7 +529,7 @@ export function parseAccBuffers(
     Speed: speed,
     Power: 0,
     Torque: 0,
-    TrackOrdinal: overrides?.trackOrdinal ?? 0,
+    trackId: overrides?.trackId ?? "",
 
     // Weather/track conditions
     WeatherType: rainTyres ? 3 : 0, // rough: wet tyres = rain

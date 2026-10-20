@@ -44,7 +44,7 @@ export class SceneOverlays {
   private dimensions: DimensionLineResource | null = null;
   private track: TrackLineResource | null = null;
   private racingLine: TrackLineResource | null = null;
-  private boundaries: TrackBoundaryResource | null = null;
+  private boundaries: TrackBoundaryResource[] = [];
   private curbs: CurbMarkerResource | null = null;
   private trail: TireTrailResource | null = null;
   private inputs: InputOverlayResource | null = null;
@@ -239,11 +239,17 @@ export class SceneOverlays {
       updateTrackLineResource(this.racingLine, this.camera, config.boundaries.raceLine, frame, viewportHeight, config.autoOrbit ? 80 : undefined);
       this.racingLine.pool.group.visible = true;
     } else if (this.racingLine) this.racingLine.pool.group.visible = false;
+    for (const resource of this.boundaries) { resource.left.visible = false; resource.right.visible = false; }
     if (config.toggles.track && config.boundaries) {
-      if (!this.boundaries) this.boundaries = createTrackBoundaryResource(this.scene);
-      updateTrackBoundaryResource(this.boundaries, config.boundaries, frame, config.carModel.tireRadius, config.autoOrbit ? 80 : undefined);
-      this.boundaries.left.visible = true; this.boundaries.right.visible = true;
-    } else if (this.boundaries) { this.boundaries.left.visible = false; this.boundaries.right.visible = false; }
+      const count = 1 + (config.boundaries.additionalSections?.length ?? 0);
+      for (let index = 0; index < count; index++) {
+        const section = index === 0 ? config.boundaries : config.boundaries.additionalSections![index - 1];
+        const resource = this.boundaries[index] ??= createTrackBoundaryResource(this.scene);
+        updateTrackBoundaryResource(resource, section, frame, config.carModel.tireRadius, config.autoOrbit ? 80 : undefined);
+        resource.left.visible = true;
+        resource.right.visible = true;
+      }
+    }
     if (config.toggles.track && frames.length) {
       if (!this.curbs) this.curbs = createCurbMarkerResource(this.scene);
       updateCurbMarkerResource(this.curbs, this.curbPoints, this.puddlePoints, frame, -config.carModel.tireRadius);
@@ -287,7 +293,7 @@ export class SceneOverlays {
     if (this.dimensions) disposeDimensionLineResource(this.dimensions);
     if (this.track) disposeTrackLineResource(this.track);
     if (this.racingLine) disposeTrackLineResource(this.racingLine);
-    if (this.boundaries) disposeTrackBoundaryResource(this.boundaries);
+    for (const resource of this.boundaries) disposeTrackBoundaryResource(resource);
     if (this.curbs) disposeCurbMarkerResource(this.curbs);
     if (this.trail) disposeTireTrailResource(this.trail);
     if (this.inputs) disposeInputOverlayResource(this.inputs);

@@ -1,3 +1,4 @@
+apps/backend/test/e2e/classification-migration.test.ts
 apps/backend/test/e2e/motec-import.test.ts
 apps/backend/test/e2e/udp-recording.test.ts
 apps/backend/test/games/shared/semantic-replay-native.test.ts
@@ -7,3 +8,4 @@ apps/backend/test/lap-analysis/lap-export-import-roundtrip.test.ts
 apps/backend/test/live-strategy/f1-2025-session-sectors.test.ts
 apps/backend/test/motec/motec-replay.test.ts
 apps/backend/test/telemetry/telemetry-fidelity.test.ts
+apps/backend/test/e2e/database-upgrade.test.ts

@@ -10,30 +10,26 @@ import type { TrackInfo } from "./types";
 /**
  * Renders a track's detail view for a tab route.
  *
- * Every `/<game>/tracks/<ordinal>/<tab>` route renders this with its own tab —
+ * Every `/<game>/tracks/<trackId>/<tab>` route renders this with its own tab —
  * the URL is the single source of truth for which tab is open, so back/forward
  * work per tab and any tab can be linked to directly.
  */
 export function TrackDetailRoute({ tab }: { tab: string }) {
   const navigate = useNavigate();
   const gameId = useGameId();
-  const params = useParams({ strict: false }) as { trackOrdinal?: string };
-  const trackKey = params.trackOrdinal ?? "";
-  const ordinal = Number(trackKey);
+  const params = useParams({ strict: false }) as { trackId?: string };
+  const trackKey = params.trackId ?? "";
   const { data: tracks = [], isLoading } = useTracks() as { data: TrackInfo[]; isLoading: boolean };
-  const track =
-    gameId === "lmu"
-      ? tracks.find((t) => t.id === decodeURIComponent(trackKey)) ?? null
-      : tracks.find((t) => t.ordinal === ordinal) ?? null;
+  const track = tracks.find((t) => t.id === trackKey) ?? null;
 
   const onTabChange = useCallback(
     (next: string) => {
       if (!gameId) return;
-      const routeKey = gameId === "lmu" ? decodeURIComponent(trackKey) : ordinal;
-      if (gameId !== "lmu" && !Number.isFinite(ordinal)) return;
+      const routeKey = track?.id ?? trackKey;
+      if (!routeKey) return;
       navigate({ to: trackRoutePath(gameId, routeKey, next), replace: true });
     },
-    [navigate, gameId, trackKey, ordinal],
+    [navigate, gameId, trackKey, track?.id],
   );
 
   const onBack = useCallback(() => {

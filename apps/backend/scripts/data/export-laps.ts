@@ -11,6 +11,14 @@ import { buildLapsZip } from "../../src/laps/archive";
 import { getLapsRaw } from "@raceiq/backend-core/db/lap-read-queries";
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { client, initDb } from "@raceiq/backend-core/db/index";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
+import { initServerGameAdapters } from "../../src/games/init";
+import { developmentReleaseFeatures } from "@raceiq/tooling-release/release/development-release-features";
+import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline";
+
+initGameAdapters(developmentReleaseFeatures);
+initServerGameAdapters(developmentReleaseFeatures);
 
 const args = process.argv.slice(2);
 
@@ -26,12 +34,18 @@ for (let i = 0; i < args.length; i++) {
 }
 
 console.log(ids ? `Exporting laps: ${ids.join(", ")}` : "Exporting all laps...");
+let exitCode = 0;
 try {
+  await initDb();
   const lapIds = ids ?? (await getLapsRaw()).map((lap) => lap.id);
   const zip = await buildLapsZip(lapIds);
   writeFileSync(output, zip.bytes);
   console.log(`Wrote ${(zip.bytes.length / 1024).toFixed(1)} KB → ${output}`);
 } catch (e: unknown) {
   console.error(`Error: ${e instanceof Error ? e.message : String(e)}`);
-  process.exit(1);
+  exitCode = 1;
+} finally {
+  stopMaintenanceTasks();
+  client.close();
 }
+process.exitCode = exitCode;

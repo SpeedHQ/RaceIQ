@@ -1,9 +1,10 @@
+import { LapTimes } from "@/components/telemetry/LapTimes";
+import { SessionTypeBadge } from "@/components/sessions/SessionTypeBadge";
 import { LiveTrackMap } from "@/components/live-track/LiveTrackMap";
 import { m } from "@/paraglide/messages";
 import type { LiveSectorData } from "@raceiq/shared/racing/live/types";
 import type { LiveTelemetryView } from "../lib/live-telemetry-view";
 import { SectorTimes } from "./SectorTimes";
-import { LapTimes } from "./telemetry/LapTimes";
 export function RaceInfo({
   view,
   sectors,
@@ -30,8 +31,8 @@ export function RaceInfo({
         <div className={showTrackMap ? "border-r border-app-border" : ""}>
           <div className="p-2 border-b border-app-border flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{view.simulator === "lmu" && sessionType && sessionType !== "unknown" ? sessionType.replace(/-/g, " ") : m.label_race()}</h2>
-              {view.simulator !== "lmu" && sessionType && sessionType !== "unknown" && <span className="text-xs font-bold text-app-accent uppercase">{sessionType.replace(/-/g, " ")}</span>}
+              <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.label_race()}</h2>
+              {sessionType && sessionType !== "unknown" && <SessionTypeBadge type={sessionType} />}
             </div>
             <div className="flex items-center gap-2 truncate ml-2">
               {carName && <span className="text-xs text-app-text-secondary truncate">{carName}</span>}

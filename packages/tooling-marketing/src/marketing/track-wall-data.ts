@@ -6,7 +6,7 @@ import { getF1Tracks } from "@raceiq/game-f1-2025-metadata/racing/tracks/catalog
 import { getAccTracks } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc";
 import { getAcEvoTracks } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
 import { getAllIRacingTracks } from "@raceiq/game-iracing-metadata/racing/tracks/catalogs/iracing";
-import { getTrackOutlineByOrdinal } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
+import { getTrackOutlineById } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import type { Point } from "@raceiq/shared/racing/tracks/geometry/types";
 
 const GAME_META: Record<GameId, { label: string; tag: string }> = {
@@ -25,7 +25,7 @@ export interface MarketingTrackRecord {
   gameId: GameId;
   gameLabel: string;
   gameTag: string;
-  ordinal: number;
+  trackId: string;
   name: string;
   location: string;
   country: string;
@@ -80,17 +80,17 @@ function outlineDataUrl(points: Point[]): string {
   return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
 }
 
-function record(gameId: GameId, ordinal: number, info: { name: string; location: string; country: string; variant: string; lengthKm: number; category?: string; commonTrackName?: string; mapUrl?: string }): MarketingTrackRecord {
+function record(gameId: GameId, trackId: string, info: { name: string; location: string; country: string; variant: string; lengthKm: number; category?: string; commonTrackName?: string; mapUrl?: string }): MarketingTrackRecord {
   const meta = GAME_META[gameId];
-  const key = `${gameId}:${ordinal}`;
-  const outline = getTrackOutlineByOrdinal(ordinal, gameId, info.commonTrackName);
+  const key = `${gameId}:${trackId}`;
+  const outline = getTrackOutlineById(trackId, gameId, info.commonTrackName);
   const mapSrc = outline ? outlineDataUrl(outline) : info.mapUrl || null;
   return {
     key,
     gameId,
     gameLabel: meta.label,
     gameTag: meta.tag,
-    ordinal,
+    trackId,
     name: info.name,
     location: info.location,
     country: info.country,
@@ -106,17 +106,17 @@ function record(gameId: GameId, ordinal: number, info: { name: string; location:
 
 function gameTracks(gameId: GameId): MarketingTrackRecord[] {
   const tracks = gameId === "fm-2023"
-    ? Array.from(fmTrackCatalog, ([ordinal, info]) => record(gameId, ordinal, info))
+    ? Array.from(fmTrackCatalog, ([ordinal, info]) => record(gameId, String(ordinal), info))
     : gameId === "f1-2025"
-      ? Array.from(getF1Tracks(), ([ordinal, info]) => record(gameId, ordinal, info))
+      ? Array.from(getF1Tracks(), ([ordinal, info]) => record(gameId, String(ordinal), info))
       : gameId === "acc"
-        ? Array.from(getAccTracks(), ([ordinal, info]) => record(gameId, ordinal, { ...info, location: "", country: "", lengthKm: 0 }))
+        ? Array.from(getAccTracks(), ([ordinal, info]) => record(gameId, String(ordinal), { ...info, location: "", country: "", lengthKm: 0 }))
         : gameId === "ac-evo"
-          ? Array.from(getAcEvoTracks(), ([ordinal, info]) => record(gameId, ordinal, { ...info, location: "", country: "", lengthKm: 0 }))
+          ? Array.from(getAcEvoTracks(), ([trackId, info]) => record(gameId, trackId, { ...info, location: "", country: "", lengthKm: 0 }))
           : gameId === "iracing"
-            ? getAllIRacingTracks().map((info) => record(gameId, info.ordinal, info))
+            ? getAllIRacingTracks().map((info) => record(gameId, String(info.ordinal), info))
             : [];
-  return tracks.sort((a, b) => a.name.localeCompare(b.name) || a.variant.localeCompare(b.variant) || a.ordinal - b.ordinal);
+  return tracks.sort((a, b) => a.name.localeCompare(b.name) || a.variant.localeCompare(b.variant) || a.trackId.localeCompare(b.trackId, undefined, { numeric: true }));
 }
 
 export function buildMarketingTrackWallFixture(): MarketingTrackWallFixture {

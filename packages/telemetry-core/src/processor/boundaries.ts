@@ -3,11 +3,9 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 const SESSION_TIMEOUT_MS = 5 * 60_000;
 
 export interface SessionSnapshot {
-  carOrdinal: number;
-  trackOrdinal: number;
+  carId: number | string;
+  trackId: number | string;
   sessionUID?: string;
-  carId?: string;
-  trackId?: string;
 }
 
 export type SessionBoundaryReason =
@@ -37,13 +35,8 @@ export function detectSessionBoundary(
   if (!session.sessionUID && lastBufferedDistance !== null && lastBufferedDistance > 1000 && packet.DistanceTraveled < 500) {
     return "distance-reset";
   }
-  if (packet.gameId === "lmu" && packet.lmu) {
-    if (packet.lmu.carId !== session.carId) return "car-changed";
-    if (packet.lmu.trackId !== session.trackId) return "track-changed";
-  } else {
-    if (packet.CarOrdinal !== session.carOrdinal) return "car-changed";
-    if (packet.TrackOrdinal && packet.TrackOrdinal !== session.trackOrdinal) return "track-changed";
-  }
+  if (packet.carId !== session.carId) return "car-changed";
+  if (packet.trackId !== session.trackId) return "track-changed";
   if (!session.sessionUID && lastPacketTime > 0 && now - lastPacketTime > SESSION_TIMEOUT_MS) {
     return "silence-timeout";
   }

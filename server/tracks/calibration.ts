@@ -78,11 +78,11 @@ const REFINEMENT_PROGRESS_WINDOW = 0.04;
 const BOUNDARY_MARGIN_METERS = 0.5;
 
 // One accepted live calibration per track session. Session reset clears it.
-const calibrations = new Map<number, CalibrationState>();
-// Cache for static transforms (TUMFTM center-line → recorded source outline)
-const staticTransforms = new Map<number, Transform>();
-// Tracks which ordinals have been curb-refined to avoid re-running
-const curbRefined = new Set<number>();
+const calibrations = new Map<string, CalibrationState>();
+// Cache static transforms (TUMFTM center-line → recorded source outline)
+const staticTransforms = new Map<string, Transform>();
+// Tracks which IDs have been curb-refined to avoid re-running
+const curbRefined = new Set<string>();
 
 const MIN_POINT_SEPARATION_SQ = 25; // 5m squared
 const MIN_CALIBRATION_POINTS = 50;
@@ -549,7 +549,7 @@ function hasUsableOutline(outline: Point[]): boolean {
  * Feed a telemetry position. Collects points and auto-calibrates after a lap.
  */
 export function feedCalibrationPosition(
-  trackOrdinal: number,
+  trackId: string,
   sourcePos: Point,
   lapNumber: number,
   outline: Point[],
@@ -559,16 +559,16 @@ export function feedCalibrationPosition(
   if (!Number.isFinite(sourcePos.x) || !Number.isFinite(sourcePos.z) ||
       (sourcePos.x === 0 && sourcePos.z === 0) || !hasUsableOutline(outline)) return;
 
-  let state = calibrations.get(trackOrdinal);
+  let state = calibrations.get(trackId);
   if (state && lapNumber < state.lastLap) {
     state = { transform: null, sourcePoints: [], samplesByBin: Array(PROGRESS_BIN_COUNT).fill(null),
       lastLap: lapNumber, collecting: true, history: [], nextSequence: 1 };
-    calibrations.set(trackOrdinal, state);
+    calibrations.set(trackId, state);
   }
   if (!state) {
     state = { transform: null, sourcePoints: [], samplesByBin: Array(PROGRESS_BIN_COUNT).fill(null),
       lastLap: lapNumber, collecting: true, history: [], nextSequence: 1 };
-    calibrations.set(trackOrdinal, state);
+    calibrations.set(trackId, state);
   }
   if (state.transform) {
     state.lastLap = Math.max(state.lastLap, lapNumber);
@@ -586,19 +586,14 @@ export function feedCalibrationPosition(
       .filter((sample): sample is CalibrationSample => sample !== null)
       .map(sample => sample.point);
   }
-
-  // Trigger calibration at lap boundary without discarding session evidence.
   if (lapNumber > state.lastLap && state.sourcePoints.length > MIN_CALIBRATION_POINTS) {
-    calibrate(trackOrdinal, outline, boundary);
+    calibrate(trackId, outline, boundary);
   }
   state.lastLap = Math.max(state.lastLap, lapNumber);
 }
 
-/**
- * Run Procrustes calibration using collected source points vs outline.
- */
-function calibrate(trackOrdinal: number, outline: Point[], boundary?: TrackBoundary): void {
-  const state = calibrations.get(trackOrdinal);
+function calibrate(trackId: string, outline: Point[], boundary?: TrackBoundary): void {
+  const state = calibrations.get(trackId);
   if (!state || state.transform) return;
   const samples = state.samplesByBin.filter((sample): sample is CalibrationSample => sample !== null);
   if (samples.length < MIN_CALIBRATION_POINTS ||
@@ -611,7 +606,7 @@ function calibrate(trackOrdinal: number, outline: Point[], boundary?: TrackBound
 }
 
 export function calibrateFromPositions(
-  trackOrdinal: number,
+  trackId: string,
   positions: Point[],
   outline: Point[],
   boundary?: TrackBoundary
@@ -630,11 +625,11 @@ export function calibrateFromPositions(
   const samples = samplesByBin.filter((sample): sample is CalibrationSample => sample !== null);
   if (samples.length < MIN_CALIBRATION_POINTS) return false;
   const result = buildAlignmentTransform(samples, outline, boundary, false);
-  const previous = calibrations.get(trackOrdinal);
+  const previous = calibrations.get(trackId);
   const state: CalibrationState = { transform: result.transform, sourcePoints: samples.map(sample => sample.point), samplesByBin,
     lastLap: 0, collecting: false, history: previous?.history ?? [], nextSequence: previous?.nextSequence ?? 1 };
   recordCalibration(state, samples, result);
-  calibrations.set(trackOrdinal, state);
+  calibrations.set(trackId, state);
   return true;
 }
 export interface LapFitResult {
@@ -690,13 +685,13 @@ export function fitLapToTrack(
 /**
  * Get calibration state for API.
  */
-export function getCalibrationStatus(trackOrdinal: number): {
+export function getCalibrationStatus(trackId: string): {
   calibrated: boolean;
   collecting: boolean;
   pointsCollected: number;
   transform: Transform | null;
 } {
-  const state = calibrations.get(trackOrdinal);
+  const state = calibrations.get(trackId);
   return {
     calibrated: state?.transform != null,
     collecting: state?.collecting ?? false,
@@ -705,14 +700,14 @@ export function getCalibrationStatus(trackOrdinal: number): {
   };
 }
 
-export function getCalibrationComparison(trackOrdinal: number): {
+export function getCalibrationComparison(trackId: string): {
   calibrated: boolean;
   pointsCollected: number;
   current: Transform | null;
   history: CalibrationHistoryEntry[];
 } {
-  const status = getCalibrationStatus(trackOrdinal);
-  const state = calibrations.get(trackOrdinal);
+  const status = getCalibrationStatus(trackId);
+  const state = calibrations.get(trackId);
   return { calibrated: status.calibrated, pointsCollected: status.pointsCollected, current: status.transform,
     history: state?.history.map(entry => ({ ...entry, transform: { ...entry.transform } })) ?? [] };
 }
@@ -723,21 +718,21 @@ export function getCalibrationComparison(trackOrdinal: number): {
  * Returns null if no transform is available.
  */
 export function transformToSourceSpace(
-  trackOrdinal: number,
+  trackId: string,
   points: Point[]
 ): Point[] | null {
-  const liveTransform = calibrations.get(trackOrdinal)?.transform;
+  const liveTransform = calibrations.get(trackId)?.transform;
   const transform = liveTransform
     ? invertTransform(liveTransform)
-    : staticTransforms.get(trackOrdinal);
+    : staticTransforms.get(trackId);
   return transform ? points.map((point) => applyTransform(point, transform)) : null;
 }
 /**
  * Clear live calibration evidence for a track without evicting static alignment.
  * Call when starting an independent telemetry session/import.
  */
-export function resetLiveCalibration(trackOrdinal: number): void {
-  calibrations.delete(trackOrdinal);
+export function resetLiveCalibration(trackId: string): void {
+  calibrations.delete(trackId);
 }
 
 
@@ -786,11 +781,11 @@ function interpolateAtFrac(pts: Point[], arcLens: number[], frac: number): Point
  * search for the best rotational offset (where on the loop each outline starts).
  */
 export function computeStaticAlignment(
-  trackOrdinal: number,
+  trackId: string,
   tumftmOutline: Point[],
   sourceOutline: Point[]
 ): void {
-  if (staticTransforms.has(trackOrdinal)) return; // already computed
+  if (staticTransforms.has(trackId)) return; // already computed
   if (tumftmOutline.length < 20 || sourceOutline.length < 20) return;
 
   const srcArc = normalizedArcLengths(tumftmOutline);
@@ -818,10 +813,10 @@ export function computeStaticAlignment(
   }
 
   if (bestTransform) {
-    staticTransforms.set(trackOrdinal, bestTransform);
+    staticTransforms.set(trackId, bestTransform);
     const rmse = Math.sqrt(bestError / N);
     console.log(
-      `[Calibration] Static alignment for track ${trackOrdinal}: scale=${bestTransform.scale.toFixed(3)} rot=${(bestTransform.rotation * 180 / Math.PI).toFixed(1)}° RMSE=${rmse.toFixed(1)}m`
+      `[Calibration] Static alignment for track ${trackId}: scale=${bestTransform.scale.toFixed(3)} rot=${(bestTransform.rotation * 180 / Math.PI).toFixed(1)}° RMSE=${rmse.toFixed(1)}m`
     );
   }
 }
@@ -833,7 +828,7 @@ export function computeStaticAlignment(
  * with both center-line and boundary correspondences for a more accurate fit.
  */
 export function refineAlignmentWithCurbs(
-  trackOrdinal: number,
+  trackId: string,
   tumftmOutline: Point[],
   sourceOutline: Point[],
   tumftmBoundaries: { leftEdge: Point[]; rightEdge: Point[] },
@@ -841,13 +836,13 @@ export function refineAlignmentWithCurbs(
 ): void {
   if (tumftmOutline.length < 20 || sourceOutline.length < 20) return;
   if (curbSegments.length === 0) return;
-  if (curbRefined.has(trackOrdinal)) return; // already refined
+  if (curbRefined.has(trackId)) return; // already refined
 
   // Step 1: Get existing static alignment as starting point
-  let baseline = staticTransforms.get(trackOrdinal);
+  let baseline = staticTransforms.get(trackId);
   if (!baseline) {
-    computeStaticAlignment(trackOrdinal, tumftmOutline, sourceOutline);
-    baseline = staticTransforms.get(trackOrdinal);
+    computeStaticAlignment(trackId, tumftmOutline, sourceOutline);
+    baseline = staticTransforms.get(trackId);
   }
   if (!baseline) return;
 
@@ -892,7 +887,7 @@ export function refineAlignmentWithCurbs(
   }
 
   if (srcPoints.length < 5) {
-    console.log(`[Calibration] Not enough curb anchors for track ${trackOrdinal}: ${srcPoints.length} points`);
+    console.log(`[Calibration] Not enough curb anchors for track ${trackId}: ${srcPoints.length} points`);
     return;
   }
 
@@ -943,28 +938,27 @@ export function refineAlignmentWithCurbs(
     alignmentErrorFromSamples(centerSrc, centerTgt, refinedTransform) / N
   );
 
-  const oldTransform = staticTransforms.get(trackOrdinal);
+  const oldTransform = staticTransforms.get(trackId);
   const oldRmse = oldTransform
     ? Math.sqrt(alignmentErrorFromSamples(centerSrc, centerTgt, oldTransform) / N)
     : Infinity;
 
   console.log(
-    `[Calibration] Curb-refined alignment for track ${trackOrdinal}: ` +
+    `[Calibration] Curb-refined alignment for track ${trackId}: ` +
     `${srcPoints.length} curb anchors, ` +
     `RMSE ${oldRmse.toFixed(1)}m → ${rmse.toFixed(1)}m, ` +
     `scale=${refinedTransform.scale.toFixed(4)} rot=${(refinedTransform.rotation * 180 / Math.PI).toFixed(2)}°`
   );
 
-  // Always adopt curb-refined since it accounts for lateral offset
-  staticTransforms.set(trackOrdinal, refinedTransform);
-  curbRefined.add(trackOrdinal);
+  staticTransforms.set(trackId, refinedTransform);
+  curbRefined.add(trackId);
 }
 
 /**
  * Clear curb refinement cache for a track so it re-runs on next request.
  */
-export function clearCurbRefinement(trackOrdinal: number): void {
-  curbRefined.delete(trackOrdinal);
-  staticTransforms.delete(trackOrdinal);
+export function clearCurbRefinement(trackId: string): void {
+  curbRefined.delete(trackId);
+  staticTransforms.delete(trackId);
 }
 

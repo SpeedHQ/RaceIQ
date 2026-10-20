@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import type { DriverProfileSummary } from "@raceiq/backend-core/ai/schemas";
+import type { DriverProfileSummary } from "@raceiq/shared/integrations/ai/driver-profile-summary";
 import type { RankedWeakness, StyleAxes } from "@raceiq/backend-core/driver-profile/detectors";
 import type { DriverFingerprint } from "@raceiq/backend/driver-profile/fingerprint";
 import type { DriverTrend, DriverTrendLap, DriverTrendWindow } from "@raceiq/backend-core/driver-profile/trend";
@@ -81,7 +81,7 @@ const BASE_TREND = trend(windowOf(recent30), windowOf(previous30), { paceDeltaPc
 
 const FINGERPRINT: DriverFingerprint = {
   ok: true,
-  scope: { kind: "global", gameId: GAME_ID, carOrdinal: null, trackOrdinal: null },
+  scope: { kind: "global", gameId: GAME_ID, carId: null, trackId: null },
   laps: { lapIds: recent30.map((item) => item.id), analyzed: 30, candidates: 34, droppedNoTelemetry: 2 },
   confidence: "high",
   style: STYLE,
@@ -97,11 +97,11 @@ const SUMMARY: DriverProfileSummary = {
 };
 const RUN: DriverProfileRun = {
   id: 42,
-  scopeKey: `${GAME_ID}:global`,
+  scopeKey: JSON.stringify([GAME_ID, null, null]),
   gameId: GAME_ID,
-  carOrdinal: null,
-  trackOrdinal: null,
-  poolKey: `${GAME_ID}:global`,
+  carId: null,
+  trackId: null,
+  poolKey: "storybook-pool",
   status: "succeeded",
   fingerprint: JSON.stringify(FINGERPRINT),
   plan: JSON.stringify(SUMMARY),

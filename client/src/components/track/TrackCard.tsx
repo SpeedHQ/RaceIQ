@@ -80,7 +80,7 @@ export function TrackCardVisual({ track, map, setupCount, guideCount, gameLabel 
   );
 }
 
-/** TrackCard — Gallery thumbnail: fetches outline by ordinal and renders a small static track map. */
+/** TrackCard — Gallery thumbnail: fetches outline by native track ID and renders a small static track map. */
 export function TrackCard({
   track,
   onSelect,
@@ -108,8 +108,8 @@ export function TrackCard({
 
   useEffect(() => {
     if (!track.hasOutline || !outlineVisible) return;
-    client.api["track-outline"][":ordinal"]
-      .$get({ param: { ordinal: encodeURIComponent(String(track.ordinal)) }, query: { gameId: gameId ?? undefined } })
+    client.api["track-outline"][":trackId"]
+      .$get({ param: { trackId: encodeURIComponent(track.id) }, query: { gameId: gameId ?? undefined } })
       .then((r) => r.json() as unknown as { points?: Point[]; pitLines?: PitLine[]; flipX?: boolean } | Point[])
       .then((data) => {
         if (!Array.isArray(data) && data?.points && Array.isArray(data.points)) {
@@ -127,7 +127,7 @@ export function TrackCard({
         }
       })
       .catch(() => {});
-  }, [track.ordinal, track.hasOutline, gameId, outlineVisible]);
+  }, [track.id, track.hasOutline, gameId, outlineVisible]);
 
   useEffect(() => {
     if (!outline || !canvasRef.current) return;
@@ -146,7 +146,7 @@ export function TrackCard({
       size="content"
       type="button"
       ref={cardRef}
-      data-testid={`track-card-${track.ordinal}`}
+      data-testid={`track-card-${track.id}`}
       className={`${TRACK_CARD_SHELL_CLASS} text-left cursor-pointer transition-all hover:border-app-border-hover hover:bg-app-surface-hover/50`}
       onClick={() => onSelect(track)}
     >

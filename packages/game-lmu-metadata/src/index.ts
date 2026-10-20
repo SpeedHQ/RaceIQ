@@ -1,10 +1,10 @@
-import { getLMUSharedTrackName } from "./catalog";
+import { getLMUCar, getLMUTrack, getLMUSharedTrackName, resolveLMUTrack } from "./catalog";
 import type { GameAdapter } from "@raceiq/shared/games/types";
 
-const carNames = new Map<number, string>();
-const trackNames = new Map<number, string>();
-const trackOrdinals = new Map<string, number>();
-const sharedTrackNames = new Map<number, string>();
+const carNames = new Map<string, string>();
+const trackNames = new Map<string, string>();
+const trackIds = new Map<string, string>();
+const sharedTrackNames = new Map<string, string>();
 
 export interface LMUIdentityRecord {
   carId: string;
@@ -15,17 +15,17 @@ export interface LMUIdentityRecord {
 }
 
 export function injectDiscoveredLMUIdentity(
-  cars: Iterable<{ ordinal: number; name: string }>,
-  tracks: Iterable<{ ordinal: number; name: string }>,
+  cars: Iterable<{ carId: string; name: string }>,
+  tracks: Iterable<{ trackId: string; name: string }>,
 ): void {
   for (const car of cars) {
-    carNames.set(car.ordinal, car.name);
+    carNames.set(car.carId, car.name);
   }
   for (const track of tracks) {
-    trackNames.set(track.ordinal, track.name);
-    trackOrdinals.set(track.name.trim().toLowerCase(), track.ordinal);
+    trackNames.set(track.trackId, track.name);
+    trackIds.set(track.name.trim().toLowerCase(), track.trackId);
     const sharedTrackName = getLMUSharedTrackName(track.name);
-    if (sharedTrackName) sharedTrackNames.set(track.ordinal, sharedTrackName);
+    if (sharedTrackName) sharedTrackNames.set(track.trackId, sharedTrackName);
   }
 }
 
@@ -209,20 +209,20 @@ export const lmuAdapter: GameAdapter = {
     rear: { warm: 300, hot: 800 },
   },
 
-  getCarName(ordinal: number): string {
-    return carNames.get(ordinal) ?? `LMU car #${ordinal}`;
+  getCarName(carId: string): string {
+    return getLMUCar(carId)?.name ?? carNames.get(carId) ?? carId;
   },
 
-  getTrackName(ordinal: number): string {
-    return trackNames.get(ordinal) ?? `LMU track #${ordinal}`;
+  getTrackName(trackId: string): string {
+    return getLMUTrack(trackId)?.name ?? trackNames.get(trackId) ?? trackId;
   },
 
-  getSharedTrackName(ordinal: number): string | undefined {
-    return sharedTrackNames.get(ordinal);
+  getSharedTrackName(trackId: string): string | undefined {
+    return getLMUSharedTrackName(trackId) ?? sharedTrackNames.get(trackId);
   },
 
-  getTrackOrdinalByName(name: string): number | undefined {
-    return trackOrdinals.get(name.trim().toLowerCase());
+  getTrackIdByName(name: string): string | undefined {
+    return resolveLMUTrack(name)?.id ?? trackIds.get(name.trim().toLowerCase());
   },
 
   carForwardOffset(yaw) {

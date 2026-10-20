@@ -156,15 +156,15 @@ function writeBinarySetupFile(
 
   const cleanStem = sanitizeSetupStem(stem);
   let dest = resolve(dir, `${cleanStem}.carsetup`);
-  if (!overwrite) {
-    let n = 2;
-    while (existsSync(dest)) {
+  const options = { flag: overwrite ? "w" : "wx" };
+  for (let n = 2; ; n++) {
+    try {
+      writeFileSync(dest, data, options);
+      return { path: dest, fileName: dest.split(/[\\/]/).pop() ?? "" };
+    } catch (error) {
+      if (overwrite || (error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
       dest = resolve(dir, `${cleanStem}-${n}.carsetup`);
-      n++;
     }
   }
-
-  writeFileSync(dest, data);
-  return { path: dest, fileName: dest.split(/[\\/]/).pop() ?? "" };
 }
 

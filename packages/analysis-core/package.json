@@ -19,6 +19,7 @@
     "./racing/analysis/laps/insights/tires": "./src/racing/analysis/laps/insights/tires.ts",
     "./racing/analysis/laps/physics/vehicle": "./src/racing/analysis/laps/physics/vehicle.ts",
     "./racing/laps/pit-cycle": "./src/racing/laps/pit-cycle.ts",
+    "./racing/laps/classification": "./src/racing/laps/classification.ts",
     "./racing/laps/review-selection": "./src/racing/laps/review-selection.ts",
     "./racing/laps/stint-stats": "./src/racing/laps/stint-stats.ts",
     "./racing/laps/alignment/build": "./src/racing/laps/alignment/build.ts",
@@ -29,7 +30,8 @@
     "./racing/laps/trace/types": "./src/racing/laps/trace/types.ts"
   },
   "scripts": {
-    "typecheck": "bunx tsc --project tsconfig.json --noEmit",
+    "lint": "../../client/node_modules/.bin/oxlint .",
+    "typecheck": "bun check --project tsconfig.json",
     "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/analysis-core",
     "test:unit": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/analysis-core",
     "test:integration": "bun ../../scripts/test/run-suite.ts integration --package @raceiq/analysis-core"

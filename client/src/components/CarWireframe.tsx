@@ -1,3 +1,4 @@
+import { supportsPositionDependentSceneFeature } from "../lib/wireframe-capabilities";
 import { tryGetGame } from "@raceiq/shared/games/registry"
 import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities"
 import { flipBoundaries, needsTrackFlip } from "@raceiq/shared/racing/tracks/coords"
@@ -33,7 +34,7 @@ export const CarWireframe = React.memo(function CarWireframe({
   cursorIdx,
   outline,
   boundaries,
-  carOrdinal,
+  carId,
   lmuCarClass,
   carModel: carModelProp,
   tempLabel: tempLabelProp,
@@ -44,6 +45,7 @@ export const CarWireframe = React.memo(function CarWireframe({
   toggleOverrides,
   source,
   onRuntime,
+  protectedDataEnabled = true,
 }: {
   gameId?: GameId;
   lmuCarClass?: string;
@@ -51,12 +53,13 @@ export const CarWireframe = React.memo(function CarWireframe({
   telemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
   outline: { x: number; z: number }[] | null;
-  boundaries?: Pick<TrackMapBoundaries, "leftEdge" | "rightEdge" | "raceLine"> | null;
-  carOrdinal?: number;
+  boundaries?: Pick<TrackMapBoundaries, "leftEdge" | "rightEdge" | "raceLine" | "additionalSections"> | null;
+  carId?: string;
   carModel?: CarModelEnrichment & { hasModel: boolean };
   tempLabel?: string;
   source: SceneSource;
   onRuntime?: (runtime: SceneRuntime | null) => void;
+  protectedDataEnabled?: boolean;
   showDimensions?: boolean;
   minimal?: boolean;
   hideControls?: boolean;
@@ -65,8 +68,9 @@ export const CarWireframe = React.memo(function CarWireframe({
 }) {
   const [configsLoaded, setConfigsLoaded] = useState(false);
   useEffect(() => {
+    if (!protectedDataEnabled) return;
     loadCarModelConfigs().then(() => setConfigsLoaded(true));
-  }, []);
+  }, [protectedDataEnabled]);
   const storeGameId = useGameId();
   const gameId = gameIdProp ?? storeGameId;
   if (!gameId) {
@@ -84,17 +88,17 @@ export const CarWireframe = React.memo(function CarWireframe({
     // loadCarModelConfigs(). configsLoaded is in the dep list so the
     // memo re-runs once configs finish loading — eslint can't see the
     // dependency because it's hidden behind an impure read.
-    const perCar = getCarModel(carOrdinal ?? 0);
+    const perCar = carId == null ? { ...DEMO_CAR } : getCarModel(carId);
     if (perCar.hasModel) return perCar;
     // Fallback: any non-F1 game with no per-car GLB uses the Aston
     // Martin GT3 demo model. Previously this was FM-only, which left
     // ACC (and any future game) without a visible car in the scene.
     return DEMO_CAR;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [carOrdinal, configsLoaded, isF1, isLMU, lmuCarClass, carModelProp]);
-  const units = useUnits(gameId);
-  const { displaySettings } = useSettings();
-  const pressureOptimal = useTirePressureOptimal(gameId, carOrdinal);
+  }, [carId, configsLoaded, isF1, isLMU, lmuCarClass, carModelProp]);
+  const units = useUnits(gameId, { enabled: protectedDataEnabled });
+  const { displaySettings } = useSettings({ enabled: protectedDataEnabled });
+  const pressureOptimal = useTirePressureOptimal(gameId, carId, protectedDataEnabled);
   const adapter = tryGetGame(gameId);
   const suspThresholds = adapter?.suspensionThresholds.values ?? [25, 65, 85];
   const temperatureMetric = resolveAnalysisTelemetry(adapter).tireTemperature;
@@ -126,11 +130,20 @@ export const CarWireframe = React.memo(function CarWireframe({
     if (!boundaries) return null;
     return needsTrackFlip(gameId) ? flipBoundaries(boundaries) : boundaries;
   }, [boundaries, gameId]);
+  const positionAvailable = (feature: "track" | "racingLine" | "trails" | "inputs") =>
+    supportsPositionDependentSceneFeature(gameId, feature);
+  const effectiveToggles = {
+    ...toggles,
+    track: toggles.track && positionAvailable("track"),
+    racingLine: toggles.racingLine && positionAvailable("racingLine"),
+    trails: toggles.trails && positionAvailable("trails"),
+    inputs: toggles.inputs && positionAvailable("inputs"),
+  };
   const viewToggleItems = [
-    { key: "trails" as const, label: m.carwire_trails(), available: true },
-    { key: "inputs" as const, label: m.carwire_inputs(), available: true },
-    { key: "track" as const, label: m.carwire_track(), available: true },
-    { key: "racingLine" as const, label: m.overlay_racing_line(), available: Array.isArray(flippedBoundaries?.raceLine) && flippedBoundaries.raceLine.length > 1 },
+    { key: "trails" as const, label: m.carwire_trails(), available: positionAvailable("trails") },
+    { key: "inputs" as const, label: m.carwire_inputs(), available: positionAvailable("inputs") },
+    { key: "track" as const, label: m.carwire_track(), available: positionAvailable("track") },
+    { key: "racingLine" as const, label: m.overlay_racing_line(), available: positionAvailable("racingLine") && Array.isArray(flippedBoundaries?.raceLine) && flippedBoundaries.raceLine.length > 1 },
     { key: "grid" as const, label: m.carwire_grid(), available: true },
     { key: "wheelInfo" as const, label: m.carwire_tire_info(), available: true },
   ]
@@ -166,7 +179,7 @@ export const CarWireframe = React.memo(function CarWireframe({
   useEffect(() => {
     runtimeRef.current?.updateConfig({
       gameId, frame, telemetry, cursorIdx, outline, boundaries: flippedBoundaries,
-      toggles, viewPreset, carModel, modelOffsetX, hideModelWheels: !minimal,
+      toggles: effectiveToggles, viewPreset, carModel, modelOffsetX, hideModelWheels: !minimal,
       autoOrbit: !!autoOrbit, fpsCap: displaySettings.renderFpsCap,
       fmtTemp, suspThresholds, pressureOptimal, temperatureThresholds: units.thresholds, temperatureSemanticId,
     });
@@ -246,10 +259,11 @@ export const CarWireframe = React.memo(function CarWireframe({
             <div className="flex gap-1">
               <Button
                 onClick={async () => {
+                  if (!carId) return;
                   setSaveStatus("saving");
                   try {
-                    const res = await client.api["car-model-configs"][":ordinal"].$put({
-                      param: { ordinal: encodeURIComponent(String(carOrdinal)) },
+                    const res = await client.api["car-model-configs"][":carId"].$put({
+                      param: { carId: encodeURIComponent(carId) },
                       json: { glbOffsetX: modelOffsetX },
                     });
                     if (res.ok) {

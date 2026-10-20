@@ -8,9 +8,9 @@ export interface CatalogTune {
   id: string;
   name: string;
   author: string;
-  carOrdinal: number;
+  carId: string;
+  trackId: string | null;
   category: string;
-  trackOrdinal?: number;
   description: string;
   strengths: string[];
   weaknesses: string[];
@@ -23,24 +23,10 @@ export interface CatalogTune {
 }
 
 interface ParsedTune {
-  id: number;
-  gameId: string;
-  name: string;
-  author: string;
-  carOrdinal: number;
-  category: string;
-  description: string;
-  settings: Record<string, unknown> | null;
-  strengths: string[];
-  weaknesses: string[];
-  bestTracks: string[];
-  strategies: unknown[];
-  unitSystem: string;
-  source: string;
-  catalogId: string | null;
-  trackOrdinal: number | null;
-  createdAt: string;
-  lapId: number | null;
+  id: number; gameId: string; name: string; author: string; carId: string; trackId: string | null;
+  category: string; description: string; settings: Record<string, unknown> | null; strengths: string[];
+  weaknesses: string[]; bestTracks: string[]; strategies: unknown[]; unitSystem: string;
+  source: string; catalogId: string | null; createdAt: string; lapId: number | null;
 }
 
 /** Parse JSON text columns from a DB tune row into proper arrays/objects. */
@@ -101,35 +87,18 @@ export function validateSettingsForGame(gameId: GameId, settings: any): boolean 
  * settings are parsed immediately so callers can render them consistently.
  */
 export function communityRowToCatalog(row: {
-  id: string;
-  gameId: string;
-  carOrdinal: number;
-  trackOrdinal: number | null;
-  name: string;
-  author: string;
-  category: string;
-  description: string;
-  sourceName: string;
-  settings: string;
+  id: string; gameId: string; carId: string; trackId: string | null; name: string; author: string;
+  category: string; description: string; sourceName: string; settings: string;
 }): CatalogTune {
   return {
-    id: row.id,
-    name: row.name,
-    author: row.author,
-    carOrdinal: row.carOrdinal,
-    category: row.category,
-    trackOrdinal: row.trackOrdinal ?? undefined,
-    description: row.description,
-    strengths: [],
-    weaknesses: [],
-    settings: JSON.parse(row.settings) as TuneSettings,
-    source: "community",
-    sourceName: row.sourceName,
-    gameId: row.gameId,
+    id: row.id, name: row.name, author: row.author, carId: row.carId, trackId: row.trackId,
+    category: row.category, description: row.description, strengths: [], weaknesses: [],
+    settings: JSON.parse(row.settings) as TuneSettings, source: "community",
+    sourceName: row.sourceName, gameId: row.gameId,
   };
 }
 
-export const CarOrdinalQuerySchema = z.object({
+export const CarIdQuerySchema = z.object({
   gameId: GameIdSchema.optional(),
-  carOrdinal: z.coerce.number().int().optional(),
+  carId: z.string().optional(),
 });

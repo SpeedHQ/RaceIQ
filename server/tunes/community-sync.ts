@@ -45,7 +45,10 @@ const ManifestSchema = z.object({
 const CdnTuneSchema = z.object({
   id: z.string().min(1),
   gameId: z.string().min(1),
-  carOrdinal: z.number().int(),
+  carId: z.string().min(1).optional(),
+  trackId: z.string().nullable().optional(),
+  // Legacy CDN ordinal properties are read only at this external source boundary.
+  carOrdinal: z.number().int().optional(),
   trackOrdinal: z.number().int().nullable().optional(),
   name: z.string().min(1),
   author: z.string().min(1),
@@ -123,11 +126,13 @@ function toCommunityTuneRows(
       continue;
     }
     const t = parsed.data;
+    const carId = t.carId ?? (t.carOrdinal != null ? String(t.carOrdinal) : null);
+    if (carId == null) { skipped++; continue; }
     rows.push({
       id: t.id,
       gameId: t.gameId,
-      carOrdinal: t.carOrdinal,
-      trackOrdinal: t.trackOrdinal ?? null,
+      carId,
+      trackId: t.trackId ?? (t.trackOrdinal != null ? String(t.trackOrdinal) : null),
       name: t.name,
       author: t.author,
       category: t.category,

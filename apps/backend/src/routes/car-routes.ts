@@ -5,7 +5,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { gameAssetsDir } from "@raceiq/shared/platform/runtime/data-paths";
-import { OrdinalParamSchema, GameIdQuerySchema } from "@raceiq/shared/platform/http/route-schemas";
+import { CarIdParamSchema, GameIdQuerySchema } from "@raceiq/shared/platform/http/route-schemas";
 import { fmCarCatalog, getFmCarSpecs } from "@raceiq/game-fm-2023-metadata/racing/cars/fm";
 import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
 import { getAllIRacingCars } from "@raceiq/game-iracing-metadata/racing/cars/iracing";
@@ -16,8 +16,10 @@ import {
   listDiscoveredCars,
 } from "@raceiq/backend-core/db/discovered-cars";
 import { getLMUCar, lmuCarCatalog } from "@raceiq/game-lmu-metadata/catalog";
+import { getAcEvoCarName } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo";
+import { getAcEvoTrackName } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
 import { tryGetServerGame } from "@raceiq/backend-core/games/registry";
-
+import { getAllF1Cars } from "@raceiq/game-f1-2025-metadata/racing/cars/f1";
 // ─── Car model config paths ────────────────────────────────────────────────────
 
 import { USER_DATA_DIR } from "@raceiq/backend-core/runtime/config/paths";
@@ -75,6 +77,15 @@ function loadCarModelConfigs(): Record<string, any> {
 
 // ─── Routes ─────────────────────────────────────────────────────────────────────
 
+const IdentityListQuerySchema = z.string().transform((value, ctx) => {
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    ctx.addIssue({ code: "custom", message: "Invalid JSON identity list" });
+    return z.NEVER;
+  }
+}).pipe(z.array(z.string())).optional();
+
 export const carRoutes = new Hono()
 
   // GET /api/cars — list cars for the requested game
@@ -91,7 +102,6 @@ export const carRoutes = new Hono()
     if (gameIdResult.data === "lmu") {
       const cars = lmuCarCatalog.map((car) => ({
         id: car.id,
-        ordinal: null,
         name: car.name,
         class: car.class,
         series: car.series,
@@ -101,9 +111,8 @@ export const carRoutes = new Hono()
         imageUrl: car.thumbnail ? `/api/lmu-assets/cars/${encodeURIComponent(car.id)}` : "",
       }));
       const discovered = (await listDiscoveredCars("lmu")).map(
-        ({ ordinal, name }) => ({
-          id: null,
-          ordinal,
+        ({ carId, name }) => ({
+          id: carId,
           name,
           path: "",
           category: "discovered",
@@ -112,14 +121,17 @@ export const carRoutes = new Hono()
       );
       return c.json([...cars, ...discovered].sort((left, right) => left.name.localeCompare(right.name)));
     }
+    if (gameIdResult.data === "f1-2025") {
+      return c.json(getAllF1Cars());
+    }
 
     if (gameIdResult.data === "iracing") {
-      const catalogCars = getAllIRacingCars();
-      const catalogIds = new Set(catalogCars.map((car) => car.ordinal));
+      const catalogCars = getAllIRacingCars().map(({ ordinal, ...car }) => ({ id: String(ordinal), ...car }));
+      const catalogIds = new Set(catalogCars.map((car) => car.id));
       const discoveredOnly = (await listDiscoveredCars("iracing"))
-        .filter((car) => !catalogIds.has(car.ordinal))
-        .map(({ ordinal, name }) => ({
-          ordinal,
+        .filter((car) => !catalogIds.has(car.carId))
+        .map(({ carId, name }) => ({
+          id: carId,
           name,
           path: "",
           category: "discovered",
@@ -144,7 +156,7 @@ export const carRoutes = new Hono()
     }
 
     const cars = Array.from(fmCarCatalog.entries()).map(([ordinal, car]) => ({
-      ordinal,
+      id: String(ordinal),
       name: `${car.year} ${car.make} ${car.model}`,
       specs: getFmCarSpecs(ordinal),
     }));
@@ -162,8 +174,8 @@ export const carRoutes = new Hono()
     });
   })
 
-  // GET /api/cars/:ordinal — single car details
-  .get("/api/cars/:ordinal", zValidator("param", OrdinalParamSchema), async (c) => {
+  // GET /api/cars/:carId — single car details
+  .get("/api/cars/:carId", zValidator("param", CarIdParamSchema), async (c) => {
     const gameIdResult = GameIdSchema.safeParse(
       c.req.header("X-Game-Id"),
     );
@@ -174,54 +186,54 @@ export const carRoutes = new Hono()
       );
     }
 
-    const { ordinal } = c.req.valid("param");
+    const { carId } = c.req.valid("param");
     if (gameIdResult.data === "lmu") {
-      const name = await getDiscoveredCarName("lmu", ordinal);
+      const name = await getDiscoveredCarName("lmu", carId);
       return name
-        ? c.json({ ordinal, name })
+        ? c.json({ id: carId, name })
         : c.json({ error: "Car not found" }, 404);
     }
     if (gameIdResult.data === "iracing") {
-      const catalogCar = getAllIRacingCars().find((car) => car.ordinal === ordinal);
-      if (catalogCar) return c.json(catalogCar);
-      const name = await getDiscoveredCarName("iracing", ordinal);
-      return name ? c.json({ ordinal, name }) : c.json({ error: "Car not found" }, 404);
+      const catalogCar = getAllIRacingCars().find((car) => String(car.ordinal) === carId);
+      if (catalogCar) {
+        const { ordinal, ...car } = catalogCar;
+        return c.json({ id: String(ordinal), ...car });
+      }
+      const name = await getDiscoveredCarName("iracing", carId);
+      return name ? c.json({ id: carId, name }) : c.json({ error: "Car not found" }, 404);
     }
     if (gameIdResult.data !== "fm-2023") {
       return c.json({ error: "Car not found" }, 404);
     }
 
-    const car = fmCarCatalog.get(ordinal);
+    const car = fmCarCatalog.get(Number(carId));
     if (!car) return c.json({ error: "Car not found" }, 404);
     return c.json({
-      ordinal,
+      id: carId,
       ...car,
       name: `${car.year} ${car.make} ${car.model}`,
-      specs: getFmCarSpecs(ordinal),
+      specs: getFmCarSpecs(Number(carId)),
     });
   })
 
-  // GET /api/car-name/:ordinal — plain text car name
-  .get("/api/car-name/:ordinal", zValidator("param", z.object({ ordinal: z.string().min(1) })), zValidator("query", GameIdQuerySchema), (c) => {
-    const raw = c.req.valid("param").ordinal;
-    let carKey = raw;
-    try { carKey = decodeURIComponent(raw); } catch { /* preserve exact raw value */ }
+  // GET /api/car-name/:carId — plain text car name
+  .get("/api/car-name/:carId", zValidator("param", CarIdParamSchema), zValidator("query", GameIdQuerySchema), (c) => {
+    const carId = c.req.valid("param").carId;
     const gameId = c.req.query("gameId");
-    if (gameId === "lmu") return c.text(getLMUCar(carKey)?.name ?? carKey);
-    const ordinal = Number(carKey);
-    if (!Number.isInteger(ordinal)) return c.text("Unknown car", 400);
+    if (gameId === "lmu") return c.text(getLMUCar(carId)?.name ?? carId);
+    if (gameId === "ac-evo") return c.text(getAcEvoCarName(carId) ?? carId);
     const serverAdapter = gameId ? tryGetServerGame(gameId) : undefined;
-    if (serverAdapter) return c.text(serverAdapter.getCarName(ordinal));
-    return c.text(resolveCarName(ordinal, gameId));
+    if (serverAdapter) return c.text(serverAdapter.getCarName(carId));
+    return c.text(resolveCarName(carId, gameId));
   })
 
 
-  // GET /api/resolve-names — batch resolve track + car ordinals to names
+  // GET /api/resolve-names — batch resolve track + car identities to names
   .get("/api/resolve-names",
     zValidator("query", z.object({
       gameId: z.string().optional(),
-      tracks: z.string().optional(),
-      cars: z.string().optional(),
+      tracks: IdentityListQuerySchema,
+      cars: IdentityListQuerySchema,
     })),
     (c) => {
       const { gameId, tracks, cars } = c.req.valid("query");
@@ -229,29 +241,29 @@ export const carRoutes = new Hono()
       const trackNames: Record<string, string> = {};
       const carNames: Record<string, string> = {};
       if (tracks) {
-        for (const ord of tracks.split(",")) {
-          const n = Number(ord);
-          if (!Number.isNaN(n)) {
-            trackNames[ord] = adapter ? adapter.getTrackName(n) : resolveTrackName(n, gameId);
+        for (const raw of tracks) {
+          if (gameId === "ac-evo") {
+            trackNames[raw] = getAcEvoTrackName(raw) ?? "Unknown track";
+            continue;
           }
+          trackNames[raw] = adapter ? adapter.getTrackName(raw) : resolveTrackName(raw, gameId);
         }
       }
       if (cars) {
-        for (const ord of cars.split(",")) {
-          const n = Number(ord);
-          if (!Number.isNaN(n)) {
-            carNames[ord] = adapter ? adapter.getCarName(n) : resolveCarName(n, gameId);
+        for (const raw of cars) {
+          if (gameId === "ac-evo") {
+            carNames[raw] = getAcEvoCarName(raw) ?? "Unknown car";
+            continue;
           }
+          carNames[raw] = adapter ? adapter.getCarName(raw) : resolveCarName(raw, gameId);
         }
       }
       return c.json({ trackNames, carNames });
     }
   )
-
   // GET /api/car-model-configs — all configs (merged with extracted dimensions)
   .get("/api/car-model-configs", (c) => {
     const configs = loadCarModelConfigs();
-    // Merge extracted dimensions as defaults (config values take priority)
     for (const [ordinal, dims] of Object.entries(carDimensions)) {
       if (!configs[ordinal]) configs[ordinal] = {};
       const cfg = configs[ordinal];
@@ -263,26 +275,31 @@ export const carRoutes = new Hono()
     return c.json(configs);
   })
 
-  // GET /api/car-model-configs/:ordinal — single car config
+
+
+
+
+
+  // GET /api/car-model-configs/:carId — single car config
   .get(
-    "/api/car-model-configs/:ordinal",
-    zValidator("param", OrdinalParamSchema),
+    "/api/car-model-configs/:carId",
+    zValidator("param", CarIdParamSchema),
     (c) => {
-      const { ordinal } = c.req.valid("param");
+      const { carId } = c.req.valid("param");
       const configs = loadCarModelConfigs();
-      const key = String(ordinal);
+      const key = carId;
       return configs[key] ? c.json(configs[key]) : c.json({ error: "No config" }, 404);
     },
   )
 
-  // PUT /api/car-model-configs/:ordinal — update car model config (merges fields)
+  // PUT /api/car-model-configs/:carId — update car model config (merges fields)
   .put(
-    "/api/car-model-configs/:ordinal",
-    zValidator("param", OrdinalParamSchema),
+    "/api/car-model-configs/:carId",
+    zValidator("param", CarIdParamSchema),
     zValidator("json", CarModelConfigUpdateSchema),
     async (c) => {
-      const { ordinal } = c.req.valid("param");
-      const key = String(ordinal);
+      const { carId } = c.req.valid("param");
+      const key = carId;
       const body = c.req.valid("json");
 
       const configs = loadCarModelConfigs();

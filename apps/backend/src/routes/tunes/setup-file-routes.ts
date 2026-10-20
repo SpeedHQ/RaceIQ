@@ -43,7 +43,8 @@ function listSetupFiles(baseDir: string): SetupFileListing[] {
 const ImportFileSchema = z.object({
   gameId: z.enum(["acc", "ac-evo"]), filePath: z.string().min(1).optional(), name: z.string().optional(),
   fileName: z.string().min(1).optional(), contentBase64: z.string().min(1).optional(),
-  author: z.string().optional(), carOrdinal: z.number().int(), category: z.string().optional().default("circuit"),
+  author: z.string().optional(), carId: z.string().min(1),
+  trackId: z.string().min(1).nullable().optional(), category: z.string().optional().default("circuit"),
 }).superRefine((body, ctx) => {
   if ((body.filePath != null) === (body.contentBase64 != null)) {
     ctx.addIssue({ code: "custom", message: "Provide exactly one of filePath or contentBase64" });
@@ -219,15 +220,19 @@ export const tuneSetupFileRoutes = new Hono()
         if (!setup || setup.raw.length === 0) return c.json({ error: "Couldn't decode that .carsetup file" }, 400);
         const slug = carSlugFromPresetId(setup.presetId);
         const car = slug ? getAllAcEvoCars().find((candidate) => candidate.model === slug) : undefined;
-        if (car && car.id !== body.carOrdinal) return c.json({ error: `This setup belongs to ${car.name}` }, 400);
+        if (car && car.name.trim() !== body.carId.trim()) return c.json({ error: `This setup belongs to ${car.name}` }, 400);
         parsed = { ...carSetupToKnobValues(setup), carSetupBase64: bytes.toString("base64") };
       } else {
         try { parsed = JSON.parse(bytes.toString("utf-8")); }
         catch (err: unknown) { return c.json({ error: `Invalid JSON: ${err instanceof Error ? err.message : String(err)}` }, 400); }
         if (!AccSetupJsonSchema.safeParse(parsed).success) return c.json({ error: "That JSON isn't a saved setup — it needs a carName and basicSetup" }, 400);
       }
-      const name = body.name ?? fileName.replace(/\.(json|carsetup)$/i, "");
-      const id = await insertTune({ gameId: body.gameId, name, author: body.author ?? "Imported", carOrdinal: body.carOrdinal, category: body.category, description: `Imported from ${fileName}`, settings: JSON.stringify(parsed), unitSystem: "metric", source: "imported-file" });
+      const id = await insertTune({
+        gameId: body.gameId, name: body.name ?? fileName.replace(/\.(json|carsetup)$/i, ""), author: body.author ?? "Imported",
+        carId: body.carId.trim(),
+        category: body.category, trackId: body.trackId,
+        description: `Imported from ${fileName}`, settings: JSON.stringify(parsed), unitSystem: "metric", source: "imported-file",
+      });
       const created = await getTuneById(id);
       return c.json(parseTuneRow(created), 201);
     });

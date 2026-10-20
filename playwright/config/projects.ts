@@ -1,4 +1,4 @@
-import { devices, type PlaywrightTestConfig } from "@playwright/test";
+import type { PlaywrightTestConfig } from "@playwright/test";
 import type { E2ERuntime } from "./runtime";
 
 export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestConfig["projects"]> {
@@ -6,7 +6,6 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
   const seededBaseURL = `http://localhost:${runtime.devServer ? runtime.seeded.clientPort : runtime.seeded.port}`;
   const tunesBaseURL = `http://localhost:${runtime.devServer ? runtime.tunes.clientPort : runtime.tunes.port}`;
   const tunesUnseededBaseURL = `http://localhost:${runtime.devServer ? runtime.tunesUnseeded.clientPort : runtime.tunesUnseeded.port}`;
-  const captureMigrationTest = /imports all six games raw, then requires Convert and preserves Analyse replay$/;
   const sequentialImportSpecs = [
     "seeded/analyse/core-flow.spec.ts",
     "seeded/catalog/tracks.spec.ts",
@@ -15,28 +14,24 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
     "seeded/sessions/lifecycle.spec.ts",
   ];
 
+  const splitMigrationSpec = "setup/sparse-split-migration.spec.ts";
+
   return [
     {
       name: "fresh-install",
-      testMatch: ["fresh-install/**/*.spec.ts", "responsive/workspaces.spec.ts"],
+      testMatch: "fresh-install/**/*.spec.ts",
       workers: 1,
       use: { baseURL: freshBaseURL, viewport: { width: 1280, height: 900 } },
     },
     {
-      name: "marketing",
-      testMatch: "marketing/**/*.spec.ts",
-      use: {
-        baseURL: process.env.MARKETING_BASE_URL ?? seededBaseURL,
-        viewport: { width: 1920, height: 1080 },
-      },
-    },
-    {
-      name: "mobile-screenshots",
-      testMatch: "responsive/mobile-screenshots.spec.ts",
-      use: { baseURL: seededBaseURL },
+      name: "tunes-setup",
+      testMatch: splitMigrationSpec,
+      workers: 1,
+      use: { baseURL: tunesBaseURL, viewport: { width: 1440, height: 900 } },
     },
     {
       name: "tunes",
+      dependencies: ["tunes-setup"],
       testMatch: "tunes/**/*.spec.ts",
       grepInvert: /import page renders empty state when Documents folder absent/,
       workers: 1,
@@ -50,23 +45,14 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
       use: { baseURL: tunesUnseededBaseURL, viewport: { width: 1440, height: 900 } },
     },
     {
-      name: "mobile-device",
-      testMatch: "responsive/device.spec.ts",
-      fullyParallel: true,
-      use: { ...devices["Pixel 7"], baseURL: seededBaseURL },
-    },
-    {
-      name: "tablet-device",
-      testMatch: "responsive/device.spec.ts",
-      fullyParallel: true,
-      use: {
-        ...devices["iPad (gen 7)"],
-        browserName: "chromium",
-        baseURL: seededBaseURL,
-      },
+      name: "seeded-setup",
+      testMatch: splitMigrationSpec,
+      workers: 1,
+      use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
     },
     {
       name: "seeded-routes",
+      dependencies: ["seeded-setup"],
       testMatch: "seeded/routes/**/*.spec.ts",
       fullyParallel: true,
       timeout: 140_000,
@@ -74,6 +60,7 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
     },
     {
       name: "seeded-e2e",
+      dependencies: ["seeded-setup"],
       testMatch: "seeded/**/*.spec.ts",
       testIgnore: [...sequentialImportSpecs, "seeded/routes/**/*.spec.ts"],
       fullyParallel: true,
@@ -82,28 +69,20 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
     },
     {
       name: "seeded-imports",
+      dependencies: ["seeded-setup"],
       testMatch: sequentialImportSpecs,
-      grepInvert: captureMigrationTest,
       fullyParallel: true,
       workers: 1,
       use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
     },
     {
-      name: "seeded-capture-migration",
-      testMatch: "seeded/sessions/import.spec.ts",
-      grep: captureMigrationTest,
-      // Conversion also changes shared seeded captures and cannot be retried.
-      retries: 0,
-      workers: 1,
-      use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
-    },
-    {
+      dependencies: ["seeded-routes", "seeded-e2e", "seeded-imports"],
       fullyParallel: true,
       name: "record-demo",
       testMatch: "recording/demo.spec.ts",
       timeout: 140_000,
       use: {
-        baseURL: freshBaseURL,
+        baseURL: seededBaseURL,
         actionTimeout: 120_000,
         viewport: { width: 1920, height: 1080 },
         launchOptions: {

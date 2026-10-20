@@ -10,7 +10,7 @@ import type { SceneSource } from "../components/wireframe/SceneRuntime";
 
 const frame: SemanticAnalysisFrame = {
   values: {
-    "identity.car-ordinal": 1,
+    "identity.car-id": "1",
     "motion.speed": 58,
     "motion.position-x": 120,
     "motion.position-z": 240,

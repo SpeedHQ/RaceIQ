@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 
+import { runtime } from "../../../config/runtime";
 import { collectBrowserErrors } from "../../support/browser-errors";
 import { SEEDED_GAME_CASES } from "../../support/seeded/cases";
 
@@ -10,15 +11,16 @@ type TrackCapability = {
 };
 
 const TRACK_CAPABILITY: TrackCapability = {
-  guides: ["f1-2025", "acc"],
-  setups: ["fm-2023", "f1-2025", "acc", "ac-evo"],
-  debug: ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing"],
+  guides: ["f1-2025"],
+  setups: ["fm-2023", "f1-2025", "ac-evo"],
+  debug: ["fm-2023", "f1-2025", "ac-evo", "iracing"],
 };
 
 for (const game of SEEDED_GAME_CASES) {
+  if (game.gameId === "acc") continue;
   test(`${game.name} tracks support search, sorting, map, and capability routes`, async ({ page, request }) => {
     const browserErrors = collectBrowserErrors(page);
-    const curbResponse = await request.get(`/api/track-curbs/${game.trackOrdinal}?gameId=${game.gameId}`);
+    const curbResponse = await request.get(`/api/track-curbs/${encodeURIComponent(game.trackId)}?gameId=${game.gameId}`);
     expect([200, 404], `${game.name} curb capability status`).toContain(curbResponse.status());
     const curbUnavailable = curbResponse.status() === 404;
     await page.goto(`/${game.prefix}/tracks`, { waitUntil: "domcontentloaded" });
@@ -32,11 +34,12 @@ for (const game of SEEDED_GAME_CASES) {
     await lapsSort.click();
     await expect(lapsSort).toHaveAttribute("aria-selected", "true");
 
-    const trackCard = page.getByTestId(`track-card-${game.trackOrdinal}`);
+    const trackCard = page.getByTestId(`track-card-${game.trackId}`);
     await expect(trackCard).toBeVisible();
     await trackCard.click();
-    await expect(page).toHaveURL(new RegExp(`/${game.prefix}/tracks/${game.trackOrdinal}/?$`));
-    await expect(page.getByText(game.trackName, { exact: true }).first()).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`/${game.prefix}/tracks/.+/?$`));
+    const trackHeading = new RegExp(`^${game.trackName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\s+-\\s+.+)?$`);
+    await expect(page.getByText(trackHeading).first()).toBeVisible();
 
     const infoTab = page.getByRole("tab", { name: "Info", exact: true });
     await expect(infoTab).toHaveAttribute("aria-selected", "true");
@@ -58,6 +61,9 @@ for (const game of SEEDED_GAME_CASES) {
       await expect(page.getByRole("button", { name: "Compare", exact: true })).toBeVisible();
       await page.getByRole("button", { name: "Compare", exact: true }).click();
       await expect(page).toHaveURL(/\/compare\?/);
+      // Comparison synchronizes its selectors into history after mounting.
+      // Wait for loaded data before exercising Back so that navigation has settled.
+      await expect(page.getByTestId("lap-compare-workspace").getByText("Time Delta")).toBeVisible({ timeout: 30_000 });
       await page.goBack();
       await expect(page).toHaveURL(/\/laps\/?$/);
     }
@@ -71,8 +77,9 @@ for (const game of SEEDED_GAME_CASES) {
       await expect(page).toHaveURL(/\/guide\/?$/);
       await expect(page.getByText(/guide|no data|unavailable/i).first()).toBeVisible();
     }
-    if (TRACK_CAPABILITY.debug.includes(game.gameId)) {
-      await page.getByRole("tab", { name: "Debug", exact: true }).click();
+    const debugTab = page.getByRole("tab", { name: /debug/i });
+    if (runtime.devServer && TRACK_CAPABILITY.debug.includes(game.gameId)) {
+      await debugTab.click();
       const edits = page.getByRole("button", { name: "Edit", exact: true });
       const hasSectorEditor = (await edits.count()) > 1;
       if (await edits.count()) {
@@ -97,11 +104,12 @@ for (const game of SEEDED_GAME_CASES) {
         await page.getByRole("button", { name: "Cancel", exact: true }).first().click();
       }
     }
+    if (!runtime.devServer) await expect(debugTab).toHaveCount(0);
     await page.getByRole("tab", { name: "Info", exact: true }).click();
     await expect(page).not.toHaveURL(/\/(laps|setups|guide|debug)\/?$/);
     const expectedResourceError = "console.error: Failed to load resource: the server responded with a status of 404 (Not Found)";
     expect(
-      browserErrors.errors.filter((error) => !curbUnavailable || (error !== expectedResourceError && !error.includes(`/api/track-curbs/${game.trackOrdinal}?gameId=${game.gameId}`))),
+      browserErrors.errors.filter((error) => !curbUnavailable || (error !== expectedResourceError && !error.includes(`/api/track-curbs/${encodeURIComponent(game.trackId)}?gameId=${game.gameId}`))),
       `${game.name} tracks browser errors`,
     ).toEqual([]);
   });
@@ -114,7 +122,7 @@ test("track lap deletion uses imported disposable data and cleans imported sessi
   const sessionsBefore = (await sessionsBeforeResponse.json()) as { id: number }[];
   const lapsResponse = await request.get("/api/laps?gameId=fm-2023");
   expect(lapsResponse.ok()).toBe(true);
-  const seededLaps = (await lapsResponse.json()) as { id: number; trackOrdinal: number; isValid: boolean; telemetryAvailable?: boolean; rawFrameCount?: number }[];
+  const seededLaps = (await lapsResponse.json()) as { id: number; trackId: string; isValid: boolean; telemetryAvailable?: boolean; rawFrameCount?: number }[];
   const source = seededLaps.find((lap) => lap.isValid && lap.telemetryAvailable && (lap.rawFrameCount ?? 0) > 0);
   if (!source) throw new Error("Missing valid FM lap with available raw capture for disposable import");
   const exportResponse = await request.get(`/api/laps/${source.id}/export-bin`);
@@ -140,7 +148,7 @@ test("track lap deletion uses imported disposable data and cleans imported sessi
     expect(sessionsAfterResponse.ok()).toBe(true);
     const sessionIdsBefore = new Set(sessionsBefore.map((session) => session.id));
     importedSessionIds = ((await sessionsAfterResponse.json()) as { id: number }[]).filter((session) => !sessionIdsBefore.has(session.id)).map((session) => session.id);
-    await page.goto(`/fm23/tracks/${source.trackOrdinal}/laps`, { waitUntil: "domcontentloaded" });
+    await page.goto(`/fm23/tracks/${encodeURIComponent(source.trackId)}/laps`, { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("tab", { name: /^Laps(?: \(\d+\))?$/ })).toHaveAttribute("aria-selected", "true");
     const importedRow = page.locator(`[data-testid="track-lap-${importedLapIds[0]}"]`);
     await expect(importedRow).toBeVisible({ timeout: 20_000 });

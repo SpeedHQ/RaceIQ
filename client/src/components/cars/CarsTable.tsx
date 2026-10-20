@@ -8,15 +8,15 @@ import type { Car, Formatters, SortKey } from "./types";
 
 type CarsTableProps = {
   cars: Car[];
-  selected: Set<number>;
-  expanded: Set<number>;
+  selected: Set<string>;
+  expanded: Set<string>;
   sort: SortKey;
   sortDir: 1 | -1;
   isMetric: boolean;
   speedLabel: string;
   onSort: (key: SortKey) => void;
-  onSelect: (ordinal: number) => void;
-  onExpand: (ordinal: number) => void;
+  onSelect: (carId: string) => void;
+  onExpand: (carId: string) => void;
 } & Formatters;
 
 export function CarsTable({ cars, selected, expanded, sort, sortDir, isMetric, speedLabel, onSort, onSelect, onExpand, fmtSpeed, fmtBrake, fmtWeight }: CarsTableProps) {
@@ -52,15 +52,15 @@ export function CarsTable({ cars, selected, expanded, sort, sortDir, isMetric, s
           </TableRow>
         ) : (
           cars.map((car) => (
-            <Fragment key={car.ordinal}>
-              <TableRow onClick={() => onExpand(car.ordinal)} data-state={selected.has(car.ordinal) ? "selected" : undefined}>
+            <Fragment key={car.id}>
+              <TableRow onClick={() => onExpand(car.id)} data-state={selected.has(car.id) ? "selected" : undefined}>
                 <TableCell className="text-center">
                   <div className="flex items-center justify-center">
                     <input
                       type="checkbox"
-                      checked={selected.has(car.ordinal)}
+                      checked={selected.has(car.id)}
                       onClick={(event) => event.stopPropagation()}
-                      onChange={() => onSelect(car.ordinal)}
+                      onChange={() => onSelect(car.id)}
                       className="w-3.5 h-3.5 accent-app-accent cursor-pointer"
                     />
                   </div>
@@ -88,7 +88,7 @@ export function CarsTable({ cars, selected, expanded, sort, sortDir, isMetric, s
                 <TableCell className="text-right tabular-nums text-app-text">{car.specs?.accelRating || "—"}</TableCell>
                 <TableCell className="text-app-text truncate">{car.specs?.division || "—"}</TableCell>
               </TableRow>
-              {expanded.has(car.ordinal) && (
+              {expanded.has(car.id) && (
                 <TableRow>
                   <TableCell colSpan={16}>
                     <CarDetail car={car} fmtSpeed={fmtSpeed} fmtBrake={fmtBrake} fmtWeight={fmtWeight} isMetric={isMetric} />

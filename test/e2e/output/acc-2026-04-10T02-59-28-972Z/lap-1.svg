@@ -28,7 +28,7 @@
   <!-- Labels -->
   <text class="label" x="10" y="20">Lap 1</text>
   <text class="label" x="10" y="35">Time: 1:36.385</text>
-  <text class="label" x="10" y="50" fill="#ef4444">invalid (outlap)</text>
+  <text class="label" x="10" y="50" fill="#10b981">valid</text>
   <text class="label" x="10" y="70">Packets: 1523</text>
   <text class="label" x="10" y="85" font-size="10">X: -400-420</text>
   <text class="label" x="10" y="100" font-size="10">Z: -447-493</text>

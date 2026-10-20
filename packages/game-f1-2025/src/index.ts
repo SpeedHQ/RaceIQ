@@ -7,6 +7,7 @@ import { LapDetector } from "@raceiq/backend-core/lap-detection/detector";
 import { renderAnalystSchemaForPrompt } from "@raceiq/backend-core/ai/schemas";
 
 import { f1Parser } from "./game-parser";
+import { F1StateAccumulator } from "./f1-state";
 const F1_SYSTEM_PROMPT = `You are an expert Formula 1 racing engineer and driving coach. Analyse the telemetry data provided and give specific, actionable feedback.
 
 Your response MUST be valid JSON matching this exact schema. Output ONLY the JSON object, no markdown fences, no extra text.
@@ -60,16 +61,16 @@ export const f1ServerAdapter: ServerGameAdapter = {
 
   processNames: ["F1_25.exe", "F1_2025.exe"],
 
-  getCarName(ordinal) {
-    return getF1CarName(ordinal);
+  getCarName(carId: string) {
+    return getF1CarName(Number(carId));
   },
 
-  getTrackName(ordinal) {
-    return getF1TrackName(ordinal);
+  getTrackName(trackId: string) {
+    return getF1TrackName(Number(trackId));
   },
 
-  getSharedTrackName(ordinal) {
-    return getF1TrackInfo(ordinal)?.commonTrackName || undefined;
+  getSharedTrackName(trackId: string) {
+    return getF1TrackInfo(Number(trackId))?.commonTrackName || undefined;
   },
 
   canHandle: f1Parser.canHandle,
@@ -83,6 +84,15 @@ export const f1ServerAdapter: ServerGameAdapter = {
     f1Parser.primeParserState(buf, state as never);
   },
   createParserState: f1Parser.createParserState,
+  captureParserCheckpoint(state) {
+    if (!(state instanceof F1StateAccumulator)) throw new Error("Missing f1-2025 parser state for checkpoint");
+    return state.captureCheckpoint();
+  },
+  restoreParserCheckpoint(state, payload) {
+    if (!(state instanceof F1StateAccumulator)) throw new Error("Missing f1-2025 parser state for checkpoint restore");
+    state.restoreCheckpoint(payload);
+    return state;
+  },
 
   aiSystemPrompt: F1_SYSTEM_PROMPT,
 

@@ -19,14 +19,14 @@ import { db } from "@raceiq/backend-core/db/index";
 import { discoveredTracks } from "@raceiq/backend-core/db/schema";
 import { trackRoutes } from "../../../src/routes/tracks/index";
 
-const FUTURE_TRACK_ID = 987_654_322;
+const FUTURE_TRACK_ID = "future-test-circuit";
 
 async function cleanup(): Promise<void> {
   await db
     .delete(discoveredTracks)
     .where(
       and(
-        eq(discoveredTracks.ordinal, FUTURE_TRACK_ID),
+        eq(discoveredTracks.trackId, FUTURE_TRACK_ID),
         eq(discoveredTracks.gameId, "iracing"),
       ),
     )
@@ -111,7 +111,7 @@ describe("iRacing track catalog", () => {
 
     expect(response.status).toBe(200);
     const tracks = (await response.json()) as Array<{
-      ordinal: number;
+      id: string;
       hasOutline: boolean;
       hasMap: boolean;
       mapUrl: string | null;
@@ -122,24 +122,24 @@ describe("iRacing track catalog", () => {
       rainEnabled: boolean | null;
     }>;
     expect(tracks).toHaveLength(426);
-    expect(tracks.find((track) => track.ordinal === 18)).toMatchObject({
+    expect(tracks.find((track) => track.id === "18")).toMatchObject({
       hasOutline: true,
       hasMap: true,
       commonTrackName: "road-america",
     });
-    expect(tracks.find((track) => track.ordinal === 523)).toMatchObject({
+    expect(tracks.find((track) => track.id === "523")).toMatchObject({
       cornersPerLap: 21,
       pitRoadSpeedLimitMph: 45,
       maxCars: 60,
       rainEnabled: true,
     });
-    expect(tracks.find((track) => track.ordinal === 8)).toMatchObject({
+    expect(tracks.find((track) => track.id === "8")).toMatchObject({
       hasOutline: true,
       hasMap: true,
       commonTrackName: null,
     });
     expect(
-      tracks.find((track) => track.ordinal === FUTURE_TRACK_ID),
+      tracks.find((track) => track.id === FUTURE_TRACK_ID),
     ).toMatchObject({
       hasOutline: false,
       hasMap: false,

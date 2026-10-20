@@ -174,6 +174,28 @@ inspection confirms project selection and artifact paths, but only an observed
 GitHub run confirms runner behavior. Mobile/tablet projects use real Playwright
 touch/user-agent emulation in Chromium; they are not physical-device tests.
 
+### Release database upgrade regression
+
+`apps/backend/test/e2e/database-upgrade.test.ts` belongs to the existing recording
+E2E collection. Run only this scenario with:
+
+```sh
+bun test apps/backend/test/e2e/database-upgrade.test.ts
+```
+
+The test selects the highest locally available stable `vX.Y.Z` tag, installs
+its frozen dependencies in temporary storage, and uses that release's `db:seed`
+with the Tourist recording. Current working-branch server then opens the same
+database and captures. Stale lap times and layout are deliberately set before
+startup while existing detector markers remain filled. The test does not call
+reprocessing directly: normal server startup must trigger reconciliation.
+Assertions require native Tourist layout and valid finish times 398.781 s and
+401.277 s, with no stale lap times left afterward.
+
+Fetch release tags before running. Requires Git, `tar`, Bun, and access to release
+dependencies. Release installation is isolated from current workspace links;
+only temporary databases are upgraded. Working data and checkout stay intact.
+
 ### Recorded same-lap telemetry contract
 
 Owner runners allocate isolated test storage and ignore inherited production

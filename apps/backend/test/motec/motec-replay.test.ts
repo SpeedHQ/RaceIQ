@@ -38,8 +38,8 @@ beforeAll(async () => {
     rawFile,
     source: "motec",
     gameId: "ac-evo",
-    carOrdinal: 1,
-    trackOrdinal: -1,
+    carId: "1",
+    trackId: "",
   };
 });
 

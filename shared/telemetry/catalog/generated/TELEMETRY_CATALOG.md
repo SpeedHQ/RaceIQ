@@ -4,20 +4,20 @@
 
 ## Manifest
 
-- Catalog version: `0.19.2`
+- Catalog version: `0.20.0`
 - Schema version: `v7`
-- Generator: `RaceIQ telemetry-catalog generator@0.19.2`
-- Generator source SHA-256: `6b034cdac3e5ddca6252f4b16ef194f29ba1d17ec023cbff2be1ef881787fe31`
-- Content SHA-256: `c79a9091f13ccd4cdba1329693642f4262a46d38a76eab89e9d0216ebdc1fc36`
+- Generator: `RaceIQ telemetry-catalog generator@0.20.0`
+- Generator source SHA-256: `fb7491d9e14283715f01bb02aa1e44e5a53c121ef63d537c5d3ea3e61dadd073`
+- Content SHA-256: `7ad3d47913bf88ac5f1b28ba00569965f03eb9ea6496b39b396a957cd1629558`
 
 ## Coverage
 
 | Simulator | Sources | Recorded | Packet | Extension | SDK | YAML | Setup |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | fm-2023 | 96 | 96 | 95 | 1 | 0 | 0 | 0 |
-| f1-2025 | 289 | 289 | 119 | 170 | 0 | 0 | 0 |
+| f1-2025 | 292 | 292 | 119 | 173 | 0 | 0 | 0 |
 | acc | 205 | 172 | 124 | 48 | 0 | 0 | 33 |
-| ac-evo | 254 | 224 | 124 | 100 | 0 | 0 | 30 |
+| ac-evo | 258 | 226 | 126 | 100 | 0 | 0 | 32 |
 | iracing | 952 | 702 | 115 | 18 | 324 | 495 | 0 |
 | lmu | 172 | 172 | 126 | 46 | 0 | 0 | 0 |
 
@@ -147,6 +147,7 @@
 | `diagnostics.total-warnings` | Total Warnings | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.track-content-version` | Track Version | string | dimensionless | text | scalar |  |  |  |
 | `diagnostics.vehicle-fia-flags` | Vehicle FIA Flags | number | dimensionless | count | scalar |  |  |  |
+| `diagnostics.vehicle-fia-flags-updated-at` | Vehicle FIA Flags Updated At | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.vehicle-id` | Vehicle Id | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.vid-cap-active` | Vid Cap Active | boolean | dimensionless | boolean | scalar |  |  |  |
 | `diagnostics.vid-cap-enabled` | Vid Cap Enabled | boolean | dimensionless | boolean | scalar |  |  |  |
@@ -232,7 +233,6 @@
 | `identity.car-model` | Car Model | string | dimensionless | text | scalar |  |  |  |
 | `identity.car-model-name` | Car Model Name | string | dimensionless | text | scalar |  |  |  |
 | `identity.car-name` | Car Name | string | dimensionless | text | scalar |  |  |  |
-| `identity.car-ordinal` | Car Ordinal | number | dimensionless | id | scalar |  |  |  |
 | `identity.car-performance-index` | Car Performance Index | number | dimensionless | count | scalar |  |  |  |
 | `identity.driver-name` | Driver Name | string | dimensionless | text | scalar |  |  |  |
 | `identity.drivetrain-type` | Drivetrain Type | number | dimensionless | id | scalar |  |  |  |
@@ -248,10 +248,10 @@
 | `identity.player-track-surface` | Player Track Surface | number | dimensionless | count | scalar |  |  |  |
 | `identity.player-track-surface-material` | Player Track Surface Material | number | unit:irsdk_trksurf | irsdk_TrkSurf | scalar |  |  |  |
 | `identity.session-name` | Session Name | string | dimensionless | text | scalar |  |  |  |
+| `identity.source-identity` | Source identity | structured | dimensionless | structured | variable:0-* | source-path:source-order | indices: source-path (variable:0-*, source-order); fields: value:string |  |
 | `identity.track-id` | Track Id | string | dimensionless | text | scalar |  |  |  |
 | `identity.track-limits-steps` | Track Limits Steps | number | dimensionless | count | scalar |  |  |  |
 | `identity.track-name` | Track name | string | dimensionless | text | scalar |  |  |  |
-| `identity.track-ordinal` | Track Ordinal | number | dimensionless | id | scalar |  |  |  |
 | `identity.track.altitude` | Track altitude | number | length | m | scalar |  |  |  |
 | `identity.track.city` | Track city | string | dimensionless | text | scalar |  |  |  |
 | `identity.track.configuration-name` | Track configuration name | string | dimensionless | text | scalar |  |  |  |
@@ -436,9 +436,11 @@
 | `race.player.push-to-pass-count` | Player push-to-pass count | number | dimensionless | count | scalar |  |  |  |
 | `race.race-laps` | Race Laps | number | dimensionless | count | scalar |  |  |  |
 | `race.race-position` | Race Position | number | dimensionless | count | scalar |  |  |  |
+| `race.race-start-at` | Race Start At | number | dimensionless | count | scalar |  |  |  |
 | `race.rear-flap-legal-status` | Rear Flap Legal Status | number | dimensionless | count | scalar |  |  |  |
 | `race.result-status` | Result Status | number | dimensionless | count | scalar |  |  |  |
 | `race.safety-car-status` | Safety Car Status | number | dimensionless | count | scalar |  |  |  |
+| `race.safety-car-status-updated-at` | Safety Car Status Updated At | number | dimensionless | count | scalar |  |  |  |
 | `race.session-summary.caution-flags` | Results Num Caution Flags | structured | dimensionless | count | variable:0-* | session-index:source-order | indices: session-index (variable:0-*, source-order); fields: value:number |  |
 | `race.session-summary.caution-laps` | Results Num Caution Laps | structured | dimensionless | count | variable:0-* | session-index:source-order | indices: session-index (variable:0-*, source-order); fields: value:number |  |
 | `race.session-summary.laps-complete` | Results Laps Complete | structured | dimensionless | count | variable:0-* | session-index:source-order | indices: session-index (variable:0-*, source-order); fields: value:number |  |

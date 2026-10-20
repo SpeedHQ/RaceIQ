@@ -218,13 +218,12 @@ export const accRoutes = new Hono()
     return c.json(counts);
   })
 
-  // GET /api/acc/setups-by-track?ordinal=123 — match track ordinal to setup slugs
+  // GET /api/acc/setups-by-track?trackId=123 — match track identity to setup slugs
   .get("/api/acc/setups-by-track",
-    zValidator("query", z.object({ ordinal: z.string() })),
+    zValidator("query", z.object({ trackId: z.string().min(1) })),
     (c) => {
-      const ordinal = parseInt(c.req.valid("query").ordinal, 10);
-      if (Number.isNaN(ordinal)) return c.json({ error: "Invalid ordinal" }, 400);
-      const slug = getAccSharedTrackName(ordinal);
+      const trackId = c.req.valid("query").trackId;
+      const slug = getAccSharedTrackName(Number(trackId));
       if (!slug) return c.json([]);
       return c.json(loadAccSetupsByTrack(slug));
     }
@@ -321,13 +320,12 @@ export const accRoutes = new Hono()
     return c.json(cars);
   })
 
-  // Resolves the ACC class (GT3/GT4/TCX/…) for a car ordinal. Class is the
-  // authoritative server-side fact; the client maps class → pressure window
-  // (or other class-aware rules) locally.
-  .get("/api/acc/cars/:ordinal/class", (c) => {
-    const ord = Number(c.req.param("ordinal"));
-    if (!Number.isFinite(ord)) return c.json({ class: null });
-    return c.json({ class: getAccCarClass(ord) ?? null });
+  // Resolves ACC class for a normalized car identity.
+  .get("/api/acc/cars/:carId/class", (c) => {
+    const carId = c.req.param("carId").trim();
+    const ordinal = Number(carId);
+    if (!carId || !Number.isFinite(ordinal)) return c.json({ class: null });
+    return c.json({ class: getAccCarClass(Number(carId)) ?? null });
   })
 
   // ── Debug ─────────────────────────────────────────────────────────────────

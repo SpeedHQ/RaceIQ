@@ -43,7 +43,7 @@ for (const [gameId, magic] of [["acc", ACC_PACKED_MAGIC], ["ac-evo", ACEVO_PACKE
         expect(unpackTriplet(frame!)?.staticData.length).toBe(index === 200 ? 120 : 160);
       }
       const streamed: Buffer[] = [];
-      for await (const record of iterateSessionCaptureFrames({ rawFile: path, source: null, gameId, carOrdinal: 4, trackOrdinal: 8 })) streamed.push(record.frame);
+      for await (const record of iterateSessionCaptureFrames({ rawFile: path, source: null, gameId, carId: "4", trackId: "8" })) streamed.push(record.frame);
       expect(streamed).toEqual(originals);
     });
     test("uses raw checkpoint when every payload block changes", async () => {

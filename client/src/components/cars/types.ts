@@ -30,7 +30,7 @@ export interface CarSpecs {
 }
 
 export interface Car {
-  ordinal: number;
+  id: string;
   name: string;
   specs?: CarSpecs;
 }

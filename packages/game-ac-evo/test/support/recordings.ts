@@ -2,8 +2,12 @@ import type { RecordingGameSupport, ParsedFrames } from "@raceiq/backend-core/te
 import { acEvoServerAdapter } from "../../src/index";
 import { parseAcEvoBuffers, createAcEvoParserCache } from "../../src/parser";
 import { readKunosFrames } from "@raceiq/capture-formats/kunos/dump";
+import { iterateSessionCaptureRecords, type SessionCaptureRecord } from "@raceiq/capture-formats/session/framing";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
+export function* iterateAcEvoRecordingRecords(capture: Buffer): Generator<SessionCaptureRecord> {
+  yield* iterateSessionCaptureRecords(capture);
+}
 export function readAcEvoPackets(dumpPath: string): ParsedFrames {
   let frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[];
   try {

@@ -30,8 +30,8 @@ export interface LapFixture {
     lapNumber: number;
     lapTime: number;
     isValid: boolean;
-    carOrdinal: number;
-    trackOrdinal: number;
+    carId: string;
+    trackId: string;
   };
   /** Relative to fixture file: zip produced via `laps:export --ids X`. */
   packetsPath: string;

@@ -24,6 +24,7 @@ interface AnalyseTopSectionProps {
   semanticFrames: SemanticAnalysisFrame[];
   cursorIdx: number;
   outline: Point[] | null;
+  closed?: boolean;
   mapLabels?: TrackMapLabel[] | null;
   pitLines?: PitLine[] | null;
   boundaries: TrackMapBoundaries | null;
@@ -69,6 +70,7 @@ export function AnalyseTopSection({
   semanticFrames,
   cursorIdx,
   outline,
+  closed = true,
   mapLabels,
   pitLines,
   boundaries,
@@ -170,6 +172,7 @@ export function AnalyseTopSection({
           telemetry={semanticFrames}
           cursorIdx={cursorIdx}
           outline={outline}
+          closed={closed}
           mapLabels={mapLabels}
           pitLines={pitLines}
           boundaries={boundaries}

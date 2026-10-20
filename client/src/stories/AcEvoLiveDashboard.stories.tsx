@@ -32,7 +32,7 @@ function StoryDecorator({ story }: { story: React.ComponentType }) {
       droppedPackets: 0,
       udpPort: 5300,
       detectedGame: { id: "ac-evo", name: "Assetto Corsa EVO" },
-      currentSession: { id: 4, carOrdinal: 301, trackOrdinal: 7 },
+      currentSession: { id: 4, carId: "lamborghini_huracan_gt3_evo2", trackId: JSON.stringify(["Spa", ""]) },
     },
   }));
 

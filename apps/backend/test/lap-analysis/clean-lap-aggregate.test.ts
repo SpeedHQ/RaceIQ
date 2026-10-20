@@ -10,10 +10,13 @@ import type { TuneSymptoms } from "@raceiq/backend-core/ai/tune-symptoms";
 
 function lap(overrides: Partial<LapMeta> & { id: number }): LapMeta {
   return {
+    carId: "",
+    trackId: "",
     sessionId: 1,
     lapNumber: overrides.id,
     lapTime: 90,
     isValid: true,
+    classification: null,
     createdAt: "2026-07-15T12:00:00.000Z",
     experimentId: 1,
     experimentVersionId: 1,
@@ -106,13 +109,14 @@ describe("computeConsistency", () => {
     expect(report.cleanLapCount).toBe(2);
   });
 
-  test("single clean lap -> very-low", () => {
+  test("single clean lap -> very-low with count and best lap", () => {
     const laps: LapMeta[] = [lap({ id: 1, lapTime: 90.0 })];
 
     const report = computeConsistency(laps, null, 0);
 
     expect(report.confidence).toBe("very-low");
     expect(report.cleanLapCount).toBe(1);
+    expect(report.bestLapSec).toBe(90.0);
     expect(report.cornerConsistency).toBeNull();
   });
 

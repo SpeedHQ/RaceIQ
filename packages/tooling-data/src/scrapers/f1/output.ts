@@ -17,7 +17,7 @@ export async function ensureSourceMeta(outDir: string, sourceSlug: string, name:
 }
 
 export async function writeTrack(outDir: string, slug: string, track: Track, f1lapsSetups: Record<string, unknown>[], srsData: SrsData, overtakeSections: GuideSection[], overtakeUrl: string | null): Promise<{ f1laps: number; srs: number }> {
-  await Bun.write(`${outDir}/${slug}.json`, JSON.stringify({ trackSlug: slug, trackName: track.name, trackOrdinal: track.ordinal }, null, 2));
+  await Bun.write(`${outDir}/${slug}.json`, JSON.stringify({ trackSlug: slug, trackName: track.name, trackId: String(track.ordinal) }, null, 2));
 
   const f1lDir = `${outDir}/f1laps/${slug}`;
   mkdirSync(f1lDir, { recursive: true });

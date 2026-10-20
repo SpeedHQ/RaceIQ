@@ -97,17 +97,17 @@ export const compareF1SetupToCatalogTool = createTool({
       return emptyResult(lapId, "lap has no carSetup column and no f1.setup on telemetry packets");
     }
 
-    const trackOrdinal = lap.trackOrdinal;
-    if (trackOrdinal === undefined || trackOrdinal === null) {
-      return emptyResult(lapId, "lap has no trackOrdinal");
+    const trackId = lap.trackId;
+    if (trackId === undefined || trackId === null) {
+      return emptyResult(lapId, "lap has no trackId");
     }
 
-    const folder = getCatalogFolderForTrack(trackOrdinal);
+    const folder = getCatalogFolderForTrack(trackId);
     if (!folder) {
-      return emptyResult(lapId, `no catalog coverage for track ordinal ${trackOrdinal}`);
+      return emptyResult(lapId, `no catalog coverage for track ID ${trackId}`);
     }
 
-    const references = topCatalogReferences(trackOrdinal, limit, currentSetup).map((r) => {
+    const references = topCatalogReferences(trackId, limit, currentSetup).map((r) => {
       // Coerce Partial<F1Setup> to Record<string, number> by stripping any
       // undefined values — the zod outputSchema requires a strict numeric map.
       const delta: Record<string, number> = {};
@@ -130,7 +130,7 @@ export const compareF1SetupToCatalogTool = createTool({
     return {
       available: references.length > 0,
       lapId,
-      trackName: getCatalogDisplayName(trackOrdinal),
+      trackName: getCatalogDisplayName(trackId),
       catalogFolder: folder,
       currentSetup,
       references,

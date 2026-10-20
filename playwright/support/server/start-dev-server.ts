@@ -14,7 +14,9 @@ resetTestDatabase(dir);
 mkdirSync(dir, { recursive: true });
 writeFileSync(resolve(dir, "settings.json"), JSON.stringify({ udpPort: Number(udpPort), onboardingComplete: process.env.RACEIQ_E2E === "1" }));
 seedScreenshotData(repoDir, dir);
-if (process.env.RACEIQ_SEED_SETUP_DATA === "1") seedE2ESetupData(repoDir, dir);
+const access = spawnSync("bun", [resolve(repoDir, "playwright/support/server/initialize-access.ts")], { cwd: repoDir, env: { ...process.env, DATA_DIR: dir }, stdio: "inherit" });
+if (access.status !== 0) throw new Error("Failed to initialize dashboard access fixture");
+if (process.env.PW_SEED_SETUP_DATA === "1") seedE2ESetupData(repoDir, dir);
 
 const paraglide = spawnSync("bun", ["scripts/dev/paraglide-dev.ts", "--once"], {
   cwd: repoDir,
@@ -28,7 +30,7 @@ const server = spawn("bun", ["run", "apps/backend/src/index.ts"], {
   stdio: "inherit",
   env: { ...process.env, DATA_DIR: dir, SERVER_PORT: serverPort, UDP_PORT: udpPort },
 });
-const client = spawn("bun", ["run", "dev", "--", "--host", "0.0.0.0", "--port", clientPort], {
+const client = spawn("bun", ["run", "dev", "--", "--host", "127.0.0.1", "--port", clientPort], {
   cwd: resolve(repoDir, "client"),
   stdio: "inherit",
   env: {

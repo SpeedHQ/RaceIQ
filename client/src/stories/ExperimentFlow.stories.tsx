@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
+import { createMemoryHistory, createRootRoute, createRoute, createRouter, Outlet, RouterProvider } from "@tanstack/react-router";
 import { fireEvent, userEvent, within } from "storybook/test";
 import { ExperimentWorkspace } from "@/components/tunes/ExperimentWorkspace";
 import { ExperimentList } from "@/components/tunes/experiment/ExperimentList";
@@ -9,6 +9,7 @@ import type { Experiment, ExperimentLapMetric, ExperimentVersion } from "@/hooks
 import type { SemanticLapTelemetry } from "@/hooks/laps";
 import { DEFAULT_DISPLAY_SETTINGS } from "../stores/telemetry";
 import { GameStoryScope } from "./GameStoryScope";
+import { validateTuneReviewSearch } from "@/lib/game-routes";
 
 /**
  * The experiment flow end to end — list → workspace → review — in both
@@ -55,8 +56,8 @@ function experiment(over: Partial<Experiment> & { id: number }): Experiment {
     seq: 1,
     gameId: "acc",
     name: "",
-    carOrdinal: null,
-    trackOrdinal: null,
+    carId: null,
+    trackId: null,
     carName: "Huracan GT3",
     trackName: "Spa-Francorchamps",
     baseSetupPath: null,
@@ -108,8 +109,8 @@ function stint(opts: { startId: number; experimentId: number; versionId: number;
       experimentExcluded: false,
       experimentExcludedSource: null,
       createdAt: ago(startedMsAgo - i * 100_000),
-      carOrdinal: 42,
-      trackOrdinal: 7,
+      carId: "42",
+      trackId: "7",
       sectorTimes: [30.1, 33.5, 30.6],
     };
   });
@@ -237,7 +238,7 @@ const semanticIds = [
   "motion.position-z",
   "timing.distance-traveled",
   "motion.speed",
-  "identity.track-ordinal",
+  "identity.track-id",
   "tire.temperature.surface.representative",
   "brakes.brake-temp",
   "tires.tire-pressure",
@@ -272,7 +273,7 @@ function lapTelemetry(lap: (typeof allLaps)[number], lapIndex: number): Semantic
           values("motion.position-z", Math.sin(angle) * (72 + 14 * Math.cos(angle * 3))),
           values("timing.distance-traveled", progress * 7_004),
           values("motion.speed", 54 + Math.cos(angle * 3) * 16 - cornerLoad * 8),
-          values("identity.track-ordinal", lap.trackOrdinal),
+          values("identity.track-id", lap.trackId),
           values("tire.temperature.surface.representative", [82 + cornerLoad * 9 + lapOffset, 83 + cornerLoad * 8 + lapOffset, 78 + cornerLoad * 6 + lapOffset, 79 + cornerLoad * 7 + lapOffset]),
           values("brakes.brake-temp", [315 + cornerLoad * 245, 320 + cornerLoad * 250, 240 + cornerLoad * 170, 245 + cornerLoad * 175]),
           values("tires.tire-pressure", [27.2 + progress * 0.45, 27.3 + progress * 0.42, 26.9 + progress * 0.38, 27 + progress * 0.4]),
@@ -478,4 +479,69 @@ export const ReviewCarFocus: StoryObj = {
 export const ReviewDriverFocus: StoryObj = {
   render: () => <TestReviewPage gameId="acc" experimentId={DRIVER_ID} versionId={201} />,
   decorators: [(Story) => withProviders(Story)],
+};
+
+/** Returning to an older test must not reassign its new laps to the newer test. */
+export const ReturnedToBaseReview: StoryObj = {
+  render: (args) => {
+    const qc = seededClient();
+    const returnedLaps = allLaps.map((lap) =>
+      lap.experimentVersionId === 100 ? { ...lap, createdAt: ago(1_000_000 - lap.lapNumber * 10_000) } : lap,
+    );
+    qc.setQueryData(["laps", "acc"], returnedLaps);
+    qc.setQueryData(["experiment", CAR_ID], { ...carExperiment, headVersionId: 100 });
+    const rootRoute = createRootRoute({
+      component: () => (
+        <QueryClientProvider client={qc}>
+          <GameStoryScope gameId="acc">
+            <Outlet />
+          </GameStoryScope>
+        </QueryClientProvider>
+      ),
+    });
+    const workspaceRoute = createRoute({
+      getParentRoute: () => rootRoute,
+      path: "/acc/experiments/$experimentId",
+      component: () => <ExperimentWorkspace gameId="acc" experimentId={CAR_ID} manageActivation={false} />,
+    });
+    const reviewRoute = createRoute({
+      getParentRoute: () => rootRoute,
+      path: "/acc/experiments/$experimentId/review",
+      validateSearch: validateTuneReviewSearch,
+      component: () => {
+        const { versionId, laps } = reviewRoute.useSearch();
+        const lapIds = (laps ?? "").split(",").map(Number).filter(Number.isFinite);
+        return <TestReviewPage gameId="acc" experimentId={CAR_ID} versionId={versionId} lapIds={lapIds} />;
+      },
+    });
+    const router = createRouter({
+      routeTree: rootRoute.addChildren([workspaceRoute, reviewRoute]),
+      history: createMemoryHistory({ initialEntries: [typeof args.initialEntry === "string" ? args.initialEntry : `/acc/experiments/${CAR_ID}`] }),
+    });
+    return <RouterProvider router={router} />;
+  },
+};
+
+/** Explicit test membership wins over a conflicting transient stint and focus lap. */
+export const ReviewVersionOverridesLapList: StoryObj = {
+  ...ReturnedToBaseReview,
+  args: { initialEntry: `/acc/experiments/${CAR_ID}/review?versionId=100&laps=1100,1102&lap=1100` },
+};
+
+/** Unknown, duplicate, and other-experiment IDs must not expand a live-stint review. */
+export const ReviewExplicitLapList: StoryObj = {
+  ...ReturnedToBaseReview,
+  args: { initialEntry: `/acc/experiments/${CAR_ID}/review?laps=1002,1004,2000,9999,1002` },
+};
+
+/** An unknown selected test must not silently analyse HEAD or the explicit list. */
+export const ReviewUnknownTest: StoryObj = {
+  ...ReturnedToBaseReview,
+  args: { initialEntry: `/acc/experiments/${CAR_ID}/review?versionId=9999&laps=1000,1002` },
+};
+
+/** No selection must not silently analyse HEAD. */
+export const ReviewWithoutSelection: StoryObj = {
+  ...ReturnedToBaseReview,
+  args: { initialEntry: `/acc/experiments/${CAR_ID}/review` },
 };

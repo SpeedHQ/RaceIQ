@@ -1,3 +1,4 @@
+import { isPaceLap } from "@raceiq/shared/racing/lap-classification";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { LivePitData } from "@raceiq/shared/racing/live/types";
@@ -85,14 +86,14 @@ export class PitTracker {
    * Seed enabled fuel and tire histories from previous sessions.
    * The active adapter decides which historical signals are comparable.
    */
-  async seedFromHistory(trackOrdinal: number, carOrdinal: number, pi: number, gameId: GameId, policy: ServerGameRuntimePolicy["pit"]): Promise<void> {
-    const seedFuel = policy.seedFuelFromHistory;
-    const seedTires = this.tireWearAvailable && policy.seedTireWearFromHistory;
+  async seedFromHistory(trackIdentity: string, carIdentity: string, currentCarPI: number, gameId: GameId, pitRuntime: ServerGameRuntimePolicy["pit"]): Promise<void> {
+    const seedFuel = pitRuntime.seedFuelFromHistory;
+    const seedTires = this.tireWearAvailable && pitRuntime.seedTireWearFromHistory;
     try {
       const allLaps = await getLaps(gameId, 200);
       const matching = allLaps
-        .filter((l: LapMeta) => l.trackOrdinal === trackOrdinal && l.carOrdinal === carOrdinal && l.pi === pi && l.isValid && l.lapTime > 10)
-        .sort((a: LapMeta, b: LapMeta) => b.id - a.id) // newest first
+        .filter((l: LapMeta) => l.trackId === trackIdentity && l.carId === carIdentity && l.pi === currentCarPI && l.isValid && isPaceLap(l.classification) && l.lapTime > 10)
+        .sort((a: LapMeta, b: LapMeta) => b.id - a.id)
         .slice(0, 5);
 
       const fuelRates: number[] = [];
@@ -130,7 +131,7 @@ export class PitTracker {
       if (seedTires) this.tireWearHistory.push(...wearRates);
 
       if (fuelRates.length > 0 || wearRates.length > 0) {
-        console.log(`[Pit] Seeded from history: ${fuelRates.length} fuel, ${wearRates.length} tire entries (PI=${pi}, game=${gameId})`);
+        console.log(`[Pit] Seeded from history: ${fuelRates.length} fuel, ${wearRates.length} tire entries (PI=${currentCarPI}, game=${gameId})`);
       }
     } catch (err) {
       console.warn("[Pit] Failed to seed from history:", err);

@@ -56,8 +56,8 @@ interface LapInfo {
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
-  carOrdinal?: number;
-  trackOrdinal?: number;
+  carId: string;
+  trackId: string;
   gameId?: GameId;
 }
 
@@ -196,10 +196,11 @@ export function buildInputsComparePrompt(
   /** Per-lap precomputed insight blocks (see buildCompareInsightsBlock). */
   precomputedInsights?: string,
 ): string {
-  const carA = getPromptCarName(lapA.carOrdinal ?? 0, lapA.gameId);
-  const carB = getPromptCarName(lapB.carOrdinal ?? 0, lapB.gameId);
-  const trackName = getPromptTrackName(lapA.trackOrdinal ?? 0, lapA.gameId);
-  const { slug } = resolveTrack(lapA.gameId, lapA.trackOrdinal);
+  const carA = getPromptCarName(lapA.carId, lapA.gameId);
+  const carB = getPromptCarName(lapB.carId, lapB.gameId);
+  const trackIdentity = lapA.trackId;
+  const trackName = getPromptTrackName(trackIdentity, lapA.gameId);
+  const { slug } = resolveTrack(lapA.gameId, trackIdentity);
   const trackGuide = externalTrackGuide ?? buildTrackGuideContext(trackName, { slug });
   const finalDelta = comparison.timeDelta[comparison.timeDelta.length - 1] ?? 0;
 

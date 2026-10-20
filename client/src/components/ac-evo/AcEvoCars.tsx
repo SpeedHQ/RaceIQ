@@ -6,7 +6,7 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 
 interface AcEvoCar {
-  id: number;
+  id: string;
   name: string;
   class: string;
 }

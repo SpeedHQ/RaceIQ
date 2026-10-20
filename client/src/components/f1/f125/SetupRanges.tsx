@@ -11,7 +11,7 @@ import { m } from "@/paraglide/messages";
 
 /* ── Compare tab: setup list + aggregated range bars ── */
 
-export function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
+export function F125SetupRanges({ trackId }: { trackId: string }) {
   const [weather, setWeather] = useState<"Dry" | "Wet">("Dry");
   const [dragRange, setDragRange] = useState<Set<number>>(new Set()); // drag-selected range for filtering
   const [dragStart, setDragStart] = useState<number | null>(null);
@@ -43,7 +43,7 @@ export function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
     queryFn: () => client.api["f1-25"].tracks.$get().then((r) => r.json() as unknown as F125TrackSummary[]),
   });
 
-  const trackSlug = tracks.find((t) => t.trackOrdinal === trackOrdinal)?.trackSlug;
+  const trackSlug = tracks.find((t) => t.trackId === trackId)?.trackSlug;
 
   const { data: trackData, isLoading } = useQuery<F125TrackData>({
     queryKey: ["f125-setups", trackSlug],

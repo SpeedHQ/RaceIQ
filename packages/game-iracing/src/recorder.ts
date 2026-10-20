@@ -12,7 +12,7 @@
  *   Frames: [type(1 byte)] [size(4 bytes)] [data(N bytes)]
  *           type: 0=packed iRacing session/value-delta source frame
  */
-import { existsSync, mkdirSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 
 import {
@@ -23,6 +23,7 @@ import {
   IRACING_DUMP_VERSION,
 } from "@raceiq/capture-formats/iracing/dump-decoder";
 import { IRACING_MAX_SOURCE_FRAME_SIZE } from "@raceiq/capture-formats/iracing/source-frame";
+import { WorkerSessionRecorder } from "@raceiq/capture-formats/session/worker-recorder";
 import { timestampForFilename } from "@raceiq/backend-core/session-capture/filename";
 
 
@@ -32,13 +33,13 @@ function defaultRecordingDir(): string {
 
 
 export class IRacingRecorder {
-  private _file: Bun.FileSink | null = null;
+  private _writer: WorkerSessionRecorder | null = null;
   private _path: string | null = null;
   private _frameCount = 0;
   private _stopPromise: Promise<void> | null = null;
 
   get recording(): boolean {
-    return this._file !== null;
+    return this._writer?.recording ?? false;
   }
 
   get frameCount(): number {
@@ -50,70 +51,61 @@ export class IRacingRecorder {
   }
 
   start(dir?: string): string {
-    if (this._file && this._path) return this._path;
-    if (this._stopPromise) {
-      throw new Error("Cannot start iRacing recorder while the prior capture is flushing");
-    }
+    if (this._writer?.recording && this._path) return this._path;
+    if (this._stopPromise) throw new Error("Cannot start iRacing recorder while the prior capture is flushing");
 
     const outDir = dir ?? defaultRecordingDir();
-    if (!existsSync(outDir)) {
-      mkdirSync(outDir, { recursive: true });
-    }
-
-    const timestamp = timestampForFilename();
-    const filename = `iracing-${timestamp}.bin`;
+    const filename = `iracing-${timestampForFilename()}-${randomUUID()}.bin`;
     this._path = resolve(outDir, filename);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this._file = (Bun.file(this._path) as any).writer({ append: true });
+    this._writer = new WorkerSessionRecorder("iracing", {
+      headerCountOffset: 12,
+      patchCountOnClose: true,
+      exclusiveFile: true,
+      maxBatchBytes: 4 * 1024 * 1024,
+    });
+    this._writer.start(this._path);
     this._frameCount = 0;
 
     const header = Buffer.alloc(HEADER_SIZE);
     IRACING_DUMP_MAGIC.copy(header, 0);
     header.writeUInt32LE(IRACING_DUMP_VERSION, 8);
     header.writeUInt32LE(0, 12);
-    this._file!.write(header);
+    this._writer.writeRawCaptureBytes(header);
 
-    console.log(`[iRacing Recorder] Dump file created: ${filename}`);
+    console.log(`[iRacing Recorder] Dump file queued: ${filename}`);
     return this._path;
   }
 
   writeFrame(frame: Buffer): void {
-    if (!this._file) {
-      console.warn("[iRacing Recorder] _file is null, cannot write");
+    if (!this._writer?.recording) {
+      console.warn("[iRacing Recorder] recorder is inactive, cannot write");
       return;
     }
-    if (frame.length > IRACING_MAX_SOURCE_FRAME_SIZE) {
-      throw new Error(`iRacing dump frame is too large (${frame.length} bytes)`);
-    }
+    if (frame.length > IRACING_MAX_SOURCE_FRAME_SIZE) throw new Error(`iRacing dump frame is too large (${frame.length} bytes)`);
 
-    const header = Buffer.alloc(FRAME_HEADER_SIZE);
-    header.writeUInt8(SOURCE_FRAME_TYPE, 0);
-    header.writeUInt32LE(frame.length, 1);
-    this._file.write(header);
-    this._file.write(frame);
+    const record = Buffer.allocUnsafe(FRAME_HEADER_SIZE + frame.length);
+    record.writeUInt8(SOURCE_FRAME_TYPE, 0);
+    record.writeUInt32LE(frame.length, 1);
+    frame.copy(record, FRAME_HEADER_SIZE);
+    this._writer.writeRawCaptureRecord(record);
     this._frameCount++;
   }
 
   async stop(): Promise<void> {
     if (this._stopPromise) return this._stopPromise;
-    if (!this._file) return;
+    if (!this._writer) return;
 
-    const file = this._file;
+    const writer = this._writer;
     const path = this._path;
     const frameCount = this._frameCount;
-    this._file = null;
+    const fileSize = writer.getCurrentByteOffset();
+    this._writer = null;
     this._stopPromise = (async () => {
-      await file.end();
+      await writer.stop();
       if (path) {
-        const buf = Buffer.from(await Bun.file(path).arrayBuffer());
-        buf.writeUInt32LE(frameCount, 12);
-        await Bun.write(path, buf);
-
-        const fileSizeKb = (buf.length / 1024).toFixed(2);
+        const fileSizeKb = (fileSize / 1024).toFixed(2);
         const filename = path.split(/[\\/]/).pop();
-        console.log(
-          `[iRacing Recorder] Stopped. ${frameCount} frames (${fileSizeKb}KB) written to ${filename}`,
-        );
+        console.log(`[iRacing Recorder] Stopped. ${frameCount} frames (${fileSizeKb}KB) written to ${filename}`);
       }
     })();
     try {

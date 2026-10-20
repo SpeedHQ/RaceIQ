@@ -237,6 +237,10 @@ Tactile and confident: interactive elements shift color decisively on hover/acti
 
 - **Style:** Dark chrome matching `app-surface`, active/current item marked with the cyan accent (text or underline), not a background fill — keeps the One Signal Rule intact even in nav.
 
+### Background operations
+
+For work that needs confirmation before running in the background, use the documented [confirmation dialog → background progress pattern](../docs/contributing/background-operation-flow.md). Compose the existing dialog primitives: centered modal for the decision, non-modal bottom-right panel for progress and results, and an inline maintenance surface for recovery. Keep job state and transport feature-owned; the guide distinguishes sparse conversion's current behavior from reusable policy.
+
 ## 6. Do's and Don'ts
 
 ### Do:

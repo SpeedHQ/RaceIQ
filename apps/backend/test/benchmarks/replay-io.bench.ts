@@ -16,10 +16,10 @@ function argumentValue(name: string): string | undefined {
 async function parseBenchmarkFrames(): Promise<void> {
   const packets = await parseRawLapFrames({
     rawFile: FIXTURE,
-    source: null,
     gameId: "ac-evo",
-    carOrdinal: 0,
-    trackOrdinal: 0,
+    source: null,
+    carId: "",
+    trackId: "",
   }, RAW_BYTE_OFFSET, FRAME_COUNT);
   const expectedPacketCount = FRAME_COUNT + 1;
   if (packets.length !== expectedPacketCount) {

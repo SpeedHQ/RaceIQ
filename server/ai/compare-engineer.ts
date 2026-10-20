@@ -16,12 +16,12 @@ import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
 import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
 import { aiLanguageInstruction } from "@raceiq/shared/integrations/ai/language";
 import { ADJUSTMENT_FORMAT_PROMPT } from "@raceiq/shared/integrations/ai/prompt-snippets";
-export function getPromptCarName(ordinal: number, gameId?: string): string {
-  return resolveCarName(ordinal, gameId);
+export function getPromptCarName(identity: string, gameId?: string): string {
+  return resolveCarName(identity, gameId);
 }
 
-export function getPromptTrackName(ordinal: number, gameId?: string): string {
-  return resolveTrackName(ordinal, gameId);
+export function getPromptTrackName(identity: string, gameId?: string): string {
+  return resolveTrackName(identity, gameId);
 }
 /**
  * The base persona used for every compare flow. Plain text — no JSON shape.

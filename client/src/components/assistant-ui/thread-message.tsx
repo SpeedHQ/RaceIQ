@@ -15,6 +15,7 @@ import { RegenerateContext, ThreadComponentsContext } from "./thread-context";
 import { ReasoningGroupFallback, ReasoningPart } from "./thread-reasoning";
 import { m } from "@/paraglide/messages";
 
+
 export const ThreadMessage: FC = () => {
   const { AssistantMessage: AssistantMessageComponent = AssistantMessage } = useContext(ThreadComponentsContext);
   const role = useAuiState((s) => s.message.role);
@@ -27,7 +28,7 @@ export const ThreadMessage: FC = () => {
 const MessageError: FC = () => (
   <MessagePrimitive.Error>
     <ErrorPrimitive.Root className="aui-message-error-root border-destructive bg-destructive/10 text-destructive dark:bg-destructive/5 mt-2 rounded-md border p-3 text-sm">
-      <ErrorPrimitive.Message className="aui-message-error-message line-clamp-2" />
+      <p className="aui-message-error-message">{m.ai_chat_request_failed_recovery()}</p>
     </ErrorPrimitive.Root>
   </MessagePrimitive.Error>
 );
@@ -152,19 +153,18 @@ const UserMessage: FC = () => (
   </MessagePrimitive.Root>
 );
 
+
 const UserActionBar: FC = () => {
   const onRegenerate = useContext(RegenerateContext);
-  const messageId = useAuiState((s) => s.message.id);
-  const prompt = useAuiState((s) =>
-    s.message.content
-      .filter((part) => part.type === "text")
-      .map((part) => part.text)
-      .join(""),
-  );
+  const message = useAuiState((s) => s.message);
+  const prompt = message.content
+    .filter((part) => part.type === "text")
+    .map((part) => part.text)
+    .join("");
   return (
     <ActionBarPrimitive.Root hideWhenRunning autohide="not-last" className="aui-user-action-bar-root flex flex-col items-end">
       {onRegenerate && (
-        <TooltipIconButton tooltip={m.ai_chat_regenerate()} className="aui-user-action-regenerate" onClick={() => onRegenerate(messageId, prompt)} aria-label={m.ai_chat_regenerate()}>
+        <TooltipIconButton tooltip={m.ai_chat_regenerate()} className="aui-user-action-regenerate" onClick={() => onRegenerate(message.id, prompt)} aria-label={m.ai_chat_regenerate()}>
           <RefreshCwIcon />
         </TooltipIconButton>
       )}

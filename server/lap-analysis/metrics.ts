@@ -312,7 +312,7 @@ export function computeLapMetrics(
   lapId: number,
   packets: TelemetryPacket[],
   gameId: GameId,
-  trackId: number | string | null | undefined,
+  trackId: string | null | undefined,
   segments: NamedSegment[],
   insights?: LapInsight[],
 ): LapMetrics {

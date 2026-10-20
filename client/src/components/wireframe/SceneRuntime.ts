@@ -28,7 +28,7 @@ export interface SceneRuntimeConfig {
   telemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
   outline: { x: number; z: number }[] | null;
-  boundaries: Pick<TrackMapBoundaries, "leftEdge" | "rightEdge" | "raceLine"> | null;
+  boundaries: Pick<TrackMapBoundaries, "leftEdge" | "rightEdge" | "raceLine" | "additionalSections"> | null;
   toggles: ViewToggles;
   viewPreset: ViewPreset;
   carModel: CarModelEnrichment & { hasModel: boolean };

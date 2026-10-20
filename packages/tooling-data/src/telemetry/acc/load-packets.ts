@@ -8,22 +8,22 @@ import { getAccTrackByName } from "@raceiq/game-acc-metadata/racing/tracks/catal
 
 export function readAccPackets(binPath: string, maxFrames = Infinity) {
   const frames = readKunosFrames(binPath);
-  let carOrdinal = 0;
-  let trackOrdinal = 0;
+  let carId = 0;
+  let trackId = 0;
   const packets: Array<{ frameIndex: number; packet: TelemetryPacket }> = [];
 
   for (let i = 0; i < Math.min(frames.length, maxFrames); i++) {
     const frame = frames[i];
-    if (carOrdinal === 0) {
+    if (carId === 0 || trackId === 0) {
       const cm = readWString(frame.staticData, STATIC.carModel.offset, STATIC.carModel.size);
       const tn = readWString(frame.staticData, STATIC.track.offset, STATIC.track.size);
-      if (cm) carOrdinal = getAccCarByModel(cm)?.id ?? 0;
-      if (tn) trackOrdinal = getAccTrackByName(tn)?.id ?? 0;
+      if (cm) carId = getAccCarByModel(cm)?.id ?? 0;
+      if (tn) trackId = getAccTrackByName(tn)?.id ?? 0;
     }
 
     const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, {
-      carOrdinal,
-      trackOrdinal,
+      carId: carId === 0 ? "" : String(carId),
+      trackId: trackId === 0 ? "" : String(trackId),
     });
     if (packet) packets.push({ frameIndex: i, packet });
   }

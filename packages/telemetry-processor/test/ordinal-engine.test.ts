@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import { OrdinalDetectorEngine } from "@raceiq/telemetry-core/processor/ordinal-engine";
+import { OrdinalDetectorEngine, runningStartPacketIndex } from "@raceiq/telemetry-core/processor/ordinal-engine";
 
 function packet(overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {
   return {
@@ -16,8 +16,8 @@ function packet(overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {
     TireWearFR: -1,
     TireWearRL: -1,
     TireWearRR: -1,
-    CarOrdinal: 1,
-    TrackOrdinal: 1,
+    carId: "1",
+    trackId: "1",
     ...overrides,
   } as TelemetryPacket;
 }
@@ -26,8 +26,8 @@ function makeEngine(finalized: (packet: TelemetryPacket) => boolean, incomplete:
   return new OrdinalDetectorEngine({
     now: () => 1,
     createSession: async (p) => ({
-      carOrdinal: 1,
-      trackOrdinal: 1,
+      carId: "1",
+      trackId: "1",
       gameId: p.gameId,
       sessionUID: p.sessionUID,
     }),
@@ -63,5 +63,22 @@ describe("OrdinalDetectorEngine migration regressions", () => {
     await engine.feed(packet({ sessionUID: "session-2", TimestampMS: 4 }));
 
     expect(persisted).toEqual([[0, 12]]);
+  });
+
+  test("running-start packet index uses the first-half CurrentLap reset only", () => {
+    const packets = [
+      packet({ CurrentLap: 12, DistanceTraveled: -3520 }),
+      packet({ CurrentLap: 10, DistanceTraveled: -3519 }),
+      packet({ CurrentLap: 0.007, DistanceTraveled: 0.608 }),
+      packet({ CurrentLap: 1, DistanceTraveled: 1 }),
+      packet({ CurrentLap: 2, DistanceTraveled: 2 }),
+    ];
+    expect(runningStartPacketIndex(packets)).toBe(2);
+    expect(runningStartPacketIndex(packets.slice(2))).toBe(0);
+    expect(runningStartPacketIndex([
+      ...packets.slice(2),
+      packet({ CurrentLap: 12 }),
+      packet({ CurrentLap: 0.007 }),
+    ])).toBe(0);
   });
 });

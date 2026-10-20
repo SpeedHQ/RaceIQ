@@ -31,7 +31,7 @@ test("production adapter stamps current runtime identity on sessions and laps", 
     resolverVersion: TELEMETRY_RESOLVER_VERSION,
     derivationVersion: TELEMETRY_DERIVATION_VERSION,
   };
-  const sessionId = await adapter.insertSession(990_205, 991_205, "iracing");
+  const sessionId = await adapter.insertSession("990205", "991205", "iracing");
   try {
     const lapId = await adapter.insertLap(
       sessionId,
@@ -44,9 +44,10 @@ test("production adapter stamps current runtime identity on sessions and laps", 
       null,
       null,
       null,
+      "out_lap",
     );
 
-    expect(await getLapById(lapId)).toMatchObject(expected);
+    expect(await getLapById(lapId)).toMatchObject({ ...expected, classification: "out_lap" });
     const session = (await getSessions("iracing")).find((row) => row.id === sessionId);
     expect(session).toMatchObject(expected);
   } finally {

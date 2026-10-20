@@ -1,5 +1,6 @@
 import { RefreshCw } from "lucide-react";
 import { m } from "@/paraglide/messages";
+import { authenticatedFetch } from "@/lib/rpc";
 import { telemetryStore, useTelemetryStore } from "../stores/telemetry";
 import { Button } from "./ui/button";
 
@@ -14,7 +15,7 @@ export function RaceResultStatus({ compact = false }: { compact?: boolean }) {
     telemetryStore.actions.setRaceResultReprocessError(null);
     telemetryStore.actions.setRaceResultReprocessProgress({ done: 0, total: stale.sessionCount });
     try {
-      const response = await fetch("/api/race-results/reconcile-stale", { method: "POST" });
+      const response = await authenticatedFetch("/api/race-results/reconcile-stale", { method: "POST" });
       if (!response.ok) throw new Error(`Server returned ${response.status}`);
     } catch (caught) {
       telemetryStore.actions.setRaceResultReprocessProgress(null);

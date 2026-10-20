@@ -37,7 +37,7 @@ describe("driver profile runner", () => {
   });
 
   test("profile GET returns only global fingerprint and game name", async () => {
-    const response = await driverRoutes.request("/api/drivers/profile?carOrdinal=42&trackOrdinal=7", {
+    const response = await driverRoutes.request("/api/drivers/profile?carId=42&trackId=7", {
       headers: { "X-Game-Id": "fm-2023" },
     });
     expect(response.status).toBe(200);
@@ -46,7 +46,7 @@ describe("driver profile runner", () => {
   });
 
   test("run history ignores no scoped identity and reports disabled background state", async () => {
-    const response = await driverRoutes.request("/api/drivers/profile/runs?carOrdinal=42&trackOrdinal=7", {
+    const response = await driverRoutes.request("/api/drivers/profile/runs?carId=42&trackId=7", {
       headers: { "X-Game-Id": "fm-2023" },
     });
     const body = await response.json();
@@ -56,7 +56,7 @@ describe("driver profile runner", () => {
       configured: false,
       scope: { gameId: "fm-2023" },
     });
-    expect(body.scope).not.toHaveProperty("carOrdinal");
+    expect(body.scope).not.toHaveProperty("carId");
   });
 
   test("legacy profile generation and delete routes are removed", async () => {

@@ -19,12 +19,13 @@ export const FIXTURES: Record<GameId, string[]> = {
   ],
 };
 
-export type SeedOptions = { clean: boolean; reset: boolean; force: boolean; games: GameId[]; fixtures?: string[] };
+export type SeedOptions = { clean: boolean; reset: boolean; force: boolean; legacyRecordings: boolean; games: GameId[]; fixtures?: string[]; excludedFixtures: string[] };
 
 export function parseOptions(argv = process.argv): SeedOptions {
   const clean = argv.includes("--clean");
   const reset = argv.includes("--reset");
   const force = argv.includes("--force");
+  const legacyRecordings = argv.includes("--legacy-recordings");
   const gamesArg = argv.find((arg) => arg.startsWith("--games="))?.slice("--games=".length)
     ?? (argv.includes("--games") ? argv[argv.indexOf("--games") + 1] : undefined);
   const games = (gamesArg ? gamesArg.split(",") : DEFAULT_GAMES).filter((game): game is GameId => DEFAULT_GAMES.includes(game as GameId));
@@ -33,5 +34,11 @@ export function parseOptions(argv = process.argv): SeedOptions {
   if (fixturesArg !== undefined && (games.length !== 1 || !fixturesArg)) {
     throw new Error("--fixtures requires one --games value and comma-separated recording paths");
   }
-  return { clean, reset, force, games, fixtures: fixturesArg?.split(",") };
+  const excludedFixtures = argv.filter((arg) => arg.startsWith("--exclude-fixture="))
+    .map((arg) => arg.slice("--exclude-fixture=".length));
+  const knownFixtures = new Set(Object.values(FIXTURES).flat());
+  if (excludedFixtures.some((fixture) => !fixture || !knownFixtures.has(fixture))) {
+    throw new Error("--exclude-fixture requires a known seed fixture path");
+  }
+  return { clean, reset, force, legacyRecordings, games, fixtures: fixturesArg?.split(","), excludedFixtures };
 }

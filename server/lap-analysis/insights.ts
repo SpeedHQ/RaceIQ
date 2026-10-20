@@ -10,16 +10,14 @@ import { tryGetServerGame } from "../games/registry";
  * Rows written by older versions are recomputed lazily or by the backfill route.
  */
 export const STATIC_LAP_ANALYSIS_VERSION = 9;
-export function resolveLapSegments(gameId: GameId, trackId: number | string | null | undefined): NamedSegment[] {
-  if (trackId == null) return [];
-  const name = typeof trackId === "number" || /^\d+$/.test(trackId)
-    ? tryGetServerGame(gameId)?.getSharedTrackName?.(Number(trackId))
-    : trackId;
+export function resolveLapSegments(gameId: GameId, trackId: string | null | undefined): NamedSegment[] {
+  if (!trackId) return [];
+  const name = tryGetServerGame(gameId)?.getSharedTrackName?.(trackId) ?? trackId;
   return name && /^[a-z0-9_-]+$/i.test(name) ? loadLabelledSegments(name, gameId) : [];
 }
 
-export function resolveRacingLineReference(gameId: GameId, trackId: number | string | null | undefined): RacingLineReference {
-  if (trackId == null) {
+export function resolveRacingLineReference(gameId: GameId, trackId: string | null | undefined): RacingLineReference {
+  if (!trackId) {
     return {
       semanticId: RACING_LINE_SEMANTIC_ID,
       source: "unavailable",
@@ -27,9 +25,9 @@ export function resolveRacingLineReference(gameId: GameId, trackId: number | str
     };
   }
 
-  const name = typeof trackId === "number" || /^\d+$/.test(trackId)
-    ? getBundledTrackName(gameId, Number(trackId))
-    : trackId;
+  const name = tryGetServerGame(gameId)?.getSharedTrackName?.(trackId)
+    ?? (Number.isInteger(Number(trackId)) ? getBundledTrackName(gameId, Number(trackId)) : undefined)
+    ?? trackId;
   const points = name ? loadBundledPointCsvByName(name, gameId, "raceline") : null;
   return points && points.length >= 20
     ? {

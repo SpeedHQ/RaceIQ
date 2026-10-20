@@ -3,10 +3,14 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { GameIdQuerySchema, IdParamSchema } from "@raceiq/shared/platform/http/route-schemas";
 import { GameIdSchema } from "@raceiq/shared/games/ids";
-import { getSessions, deleteSession, updateSession, countStaleSessions, getStaleSessions, getSessionRecapData, setSessionFavorite, getCaptureMigrationCandidates } from "@raceiq/backend-core/db/session-queries";
-import { getSessionResult, getStaleRaceResultSessionIds } from "@raceiq/backend-core/db/session-result-queries";
+import { getSessions, deleteSession, updateSession, updateSessionCarTrack, countStaleSessions, getStaleSessions, getSessionRecapData, setSessionFavorite, SessionCaptureActiveError } from "@raceiq/backend-core/db/session-queries";
 import { reprocessSession, SessionNotFoundError, SessionRawFileMissingError } from "@raceiq/backend-core/session-capture/reprocess";
-import { getCaptureMigrationProgress, migrateCaptures } from "@raceiq/backend-core/session-capture/migrate-captures";
+import {
+  getClassificationMigrationStatus,
+  listClassificationMigrationRecordings,
+  retryClassificationMigrationRecording,
+} from "@raceiq/backend-core/session-capture/classification-migration";
+import { getSessionResult, getStaleRaceResultSessionIds } from "@raceiq/backend-core/db/session-result-queries";
 import { LAP_DETECTOR_ID } from "@raceiq/backend-core/lap-detection/detector";
 import { LAP_DETECTOR_ACC_ID } from "@raceiq/game-acc/lap-detector";
 import { LAP_DETECTOR_AC_EVO_ID } from "@raceiq/game-ac-evo/lap-detector";
@@ -15,40 +19,49 @@ import { getAllServerGames } from "@raceiq/backend-core/games/registry";
 import { wsManager } from "@raceiq/backend-core/runtime/websocket-manager";
 import { computeRecap } from "@raceiq/backend-core/lap-analysis/recap";
 import { tryGetGame } from "@raceiq/shared/games/registry";
-import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
-import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
-import { getLMUCar, getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import { backfillRaceResults, reconcileSessionResult, RACE_RESULT_PROCESSOR_ID } from "@raceiq/backend-core/race-results/reconcile";
 import { getRaceResultAggregate, getRecentRaceResults } from "@raceiq/backend-core/race-results/aggregates";
 import { recoverDeletedSessions } from "@raceiq/backend-core/telemetry/live-pipeline";
+import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
+import { getLapReplaySource } from "@raceiq/backend-core/db/telemetry-replay-storage";
+import { resolveTelemetryReplay } from "@raceiq/backend-core/telemetry/replay";
+import { loadRawCaptureIdentity } from "@raceiq/backend-core/session-capture/identity";
 
+import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
+import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
+import { isSessionIdentityInCatalog } from "../games/session-identity";
+import type { SessionMeta } from "@raceiq/shared/racing/sessions/types";
 const ALL_DETECTOR_IDS = [LAP_DETECTOR_ID, LAP_DETECTOR_ACC_ID, LAP_DETECTOR_AC_EVO_ID, LAP_DETECTOR_IRACING_ID];
 
+
 export const sessionRoutes = new Hono()
-  .get("/api/sessions/capture-migration-status", async (c) => c.json({
-    ...await getCaptureMigrationCandidates(),
-    migrationProgress: getCaptureMigrationProgress(),
-  }))
-  .post("/api/sessions/migrate-captures", async (c) => {
-    const result = await migrateCaptures((done, total, progress) => {
-      wsManager.broadcastCaptureMigrationProgress({ done, total, status: progress.status, ...(progress.error ? { error: progress.error } : {}) });
-    });
-    const remaining = await getCaptureMigrationCandidates();
-    wsManager.setCaptureMigrationNotification(remaining.sessionCount, remaining.captureCount);
-    const progress = getCaptureMigrationProgress();
-    wsManager.broadcastCaptureMigrationProgress({
-      done: progress.done,
-      total: progress.total,
-      status: progress.status === "partial" ? "partial" : "success",
-      migrated: progress.migrated,
-      failed: progress.failed,
-      ...(progress.error ? { error: progress.error } : {}),
-    });
-    return c.json(result);
+  .get("/api/sessions/classification-migration-status", async (c) =>
+    c.json(await getClassificationMigrationStatus()))
+  .get("/api/sessions/classification-migration-recordings", async (c) => {
+    const query = c.req.query();
+    const limit = query.limit === undefined ? 50 : Number(query.limit);
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) return c.json({ error: "limit must be an integer from 1 to 100" }, 400);
+    try {
+      const result = await listClassificationMigrationRecordings(limit, query.cursor);
+      if (!result) return c.json({ error: "stale snapshot cursor" }, 409);
+      return c.json(result);
+    } catch {
+      return c.json({ error: "invalid cursor" }, 400);
+    }
+  })
+  .post("/api/sessions/classification-migration-retry", zValidator("json", z.object({ recordingId: z.string().min(1) }).strict(), (result, c) => {
+    if (!result.success) return c.json({ error: "Invalid retry request" }, 400);
+  }), async (c) => {
+    const { recordingId } = c.req.valid("json");
+    const state = await retryClassificationMigrationRecording(recordingId);
+    if (!state) return c.json({ error: "Recording not found" }, 404);
+    const status = await getClassificationMigrationStatus();
+    wsManager.setClassificationMigrationStatusNotification({ type: "classification-migration-status", ...status });
+    return c.json({ recordingId, state }, 202);
   })
   .get("/api/sessions", zValidator("query", GameIdQuerySchema), async (c) => {
     const { gameId } = c.req.valid("query");
-    return c.json(await getSessions(gameId));
+    return c.json<SessionMeta[]>(await getSessions(gameId));
   })
   .get("/api/sessions/:id/recap", zValidator("param", IdParamSchema), zValidator("query", GameIdQuerySchema), async (c) => {
     const { id } = c.req.valid("param");
@@ -57,15 +70,32 @@ export const sessionRoutes = new Hono()
     const data = await getSessionRecapData(id, gameId);
     if (!data) return c.json({ error: "Session not found" }, 404);
     const adapter = tryGetGame(gameId);
-    const carId = data.session.carId;
-    const trackId = data.session.trackId;
-    const carName = gameId === "lmu" && typeof carId === "string"
-      ? getLMUCar(carId)?.name ?? carId
-      : adapter ? adapter.getCarName(Number(carId)) : resolveCarName(Number(carId), gameId);
-    const trackName = gameId === "lmu" && typeof trackId === "string"
-      ? getLMUTrack(trackId)?.name ?? trackId
-      : adapter ? adapter.getTrackName(Number(trackId)) : resolveTrackName(Number(trackId), gameId);
-    return c.json(computeRecap({ session: data.session, laps: data.laps, carName, trackName, trackLengthM: data.trackLengthM, allTimeBestSec: data.allTimeBestSec, allTimeBestSectors: data.allTimeBestSectors, sectorStarts: data.sectorStarts }));
+    const carId = data.session.carId ?? "";
+    const trackId = data.session.trackId ?? "";
+    const carName = adapter ? adapter.getCarName(carId) : resolveCarName(carId, gameId);
+    const trackName = adapter ? adapter.getTrackName(trackId) : resolveTrackName(trackId, gameId);
+    const recap = computeRecap({ session: data.session, laps: data.laps, carName, trackName, trackLengthM: data.trackLengthM, allTimeBestSec: data.allTimeBestSec, allTimeBestSectors: data.allTimeBestSectors, sectorStarts: data.sectorStarts });
+    const weatherLapId = recap.bestLapId ?? data.laps[0]?.id;
+    let weather: { kind: number | null; rainPercent: number | null } | null = null;
+    if (weatherLapId != null && (gameId === "f1-2025" || gameId === "iracing" || gameId === "lmu")) {
+      const [lap, source] = await Promise.all([getLapById(weatherLapId), getLapReplaySource(weatherLapId)]);
+      const packet = lap?.telemetry[0];
+      if (packet && source && !lap?.parseError) {
+        const rawCapture = gameId === "iracing" && source.rawFile ? await loadRawCaptureIdentity(source.rawFile) : undefined;
+        const values = resolveTelemetryReplay(weatherLapId, source, [packet], ["weather.weather-type", "weather.rain-percent"], rawCapture).envelopes[0]?.values;
+        const number = (id: string) => {
+          const value = values?.find((entry) => entry.semanticId === id);
+          return value?.state === "ok" && typeof value.value === "number" && Number.isFinite(value.value) ? value.value : null;
+        };
+        // F1 and LMU normalize their observed conditions to the six weather categories.
+        const category = values?.find((entry) => entry.semanticId === "weather.weather-type");
+        const kind = (gameId === "f1-2025" || gameId === "lmu") && category?.state === "ok" && typeof category.value === "string" && /^[0-5]$/.test(category.value) ? Number(category.value) : null;
+        const rainPercent = number("weather.rain-percent");
+        if (kind != null || rainPercent != null) weather = { kind, rainPercent };
+      }
+    }
+    recap.weather = weather;
+    return c.json(recap);
   })
   .get("/api/sessions/:id/result", zValidator("param", IdParamSchema), zValidator("query", GameIdQuerySchema), async (c) => {
     const { id } = c.req.valid("param");
@@ -101,12 +131,25 @@ export const sessionRoutes = new Hono()
   })
   .get("/api/race-results/summary", zValidator("query", z.object({
     gameId: GameIdSchema,
-    carOrdinal: z.coerce.number().int().optional(),
-    trackOrdinal: z.coerce.number().int().optional(),
     carId: z.string().min(1).optional(),
     trackId: z.string().min(1).optional(),
   })), async (c) => c.json(await getRaceResultAggregate(c.req.valid("query"))))
   .get("/api/race-results/recent", zValidator("query", z.object({ gameId: GameIdSchema, limit: z.coerce.number().int().min(1).max(50).default(10) })), async (c) => c.json(await getRecentRaceResults(c.req.valid("query").gameId, c.req.valid("query").limit)))
+  .patch("/api/sessions/:id/identity", zValidator("param", IdParamSchema), zValidator("json", z.object({
+    gameId: GameIdSchema,
+    carId: z.string().min(1),
+    trackId: z.string().min(1),
+  }).strict()), async (c) => {
+    const { id } = c.req.valid("param");
+    const { gameId, carId, trackId } = c.req.valid("json");
+    const session = (await getSessions(gameId)).find((candidate) => candidate.id === id);
+    if (!session) return c.json({ error: "Session not found" }, 404);
+    if (!isSessionIdentityInCatalog(gameId, carId, trackId)) {
+      return c.json({ error: "Car or track ID is not in the selected game's catalog" }, 400);
+    }
+    if (!await updateSessionCarTrack(id, carId, trackId)) return c.json({ error: "Session not found" }, 404);
+    return c.json({ ok: true, sessionId: id, carId, trackId });
+  })
   .patch("/api/sessions/:id/notes", zValidator("param", IdParamSchema), zValidator("json", z.object({ notes: z.string().nullable() })), async (c) => {
     const { id } = c.req.valid("param");
     await updateSession(id, { notes: c.req.valid("json").notes });
@@ -164,6 +207,17 @@ export const sessionRoutes = new Hono()
     const { ids } = c.req.valid("json");
     await recoverDeletedSessions(ids);
     let lapCount = 0;
-    for (const sessionId of ids) lapCount += await deleteSession(sessionId);
+    let deletedSessions = 0;
+    try {
+      for (const sessionId of ids) {
+        lapCount += await deleteSession(sessionId);
+        deletedSessions++;
+      }
+    } catch (error) {
+      if (error instanceof SessionCaptureActiveError) {
+        return c.json({ error: error.message, deleted: lapCount, sessions: deletedSessions }, 409);
+      }
+      throw error;
+    }
     return c.json({ deleted: lapCount, sessions: ids.length });
   });

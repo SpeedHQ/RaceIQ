@@ -24,6 +24,8 @@ import { semanticNumber, type Point, type TrackMapHandle, type TrackOverlayKey, 
 import type { SceneRuntime, SceneSource } from "../wireframe/SceneRuntime";
 import { useAnalyseImports } from "./useAnalyseImports";
 import { useAnalyseSelections } from "./useAnalyseSelections";
+import { SessionIdentityDialog } from "../import/SessionIdentityDialog";
+import { useCarsForGame, useTracksForGame } from "../../hooks/catalog-queries";
 import { buildExportCsv } from "../../lib/lap-export";
 
 // ── Main Component ───────────────────────────────────────────────────
@@ -51,6 +53,7 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
     selectedLapId,
     setSelectedLapId,
     outline,
+    closed,
     mapLabels,
     pitLines,
     boundaries,
@@ -83,6 +86,50 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
     handleCarChange,
     cursorRef,
   } = useAnalyseSelections(initialLapId == null ? search : { ...search, lap: initialLapId }, gameId, sessionId);
+  const identitySessionId = sessionId ?? selectedLap?.sessionId;
+  const { data: sessions = [] } = useQuery({
+    queryKey: [...queryKeys.sessions, gameId],
+    queryFn: async () => {
+      const response = await client.api.sessions.$get({ query: { gameId } });
+      if (!response.ok) throw new Error(`Failed to load sessions (${response.status})`);
+      return response.json() as Promise<{ id: number; carId: string | null; trackId: string | null; gameId: string }[]>;
+    },
+    enabled: identitySessionId != null,
+  });
+  const identitySession = sessions.find((session) => session.id === identitySessionId);
+  const { data: catalogCars, isError: carsCatalogError } = useCarsForGame(gameId);
+  const { data: catalogTracks, isError: tracksCatalogError } = useTracksForGame(gameId);
+  const carIds = new Set((catalogCars ?? []).map((car) => String(car.id)));
+  const trackIds = new Set((catalogTracks ?? []).map((track) => String(track.id)));
+  const catalogsLoaded = catalogCars !== undefined && catalogTracks !== undefined;
+  const [repairDismissed, setRepairDismissed] = useState(false);
+  useEffect(() => {
+    setRepairDismissed(false);
+  }, [identitySessionId]);
+  const repairOpen = identitySession != null && !repairDismissed && (
+    !identitySession.carId || !identitySession.trackId ||
+    (catalogsLoaded && (!carIds.has(identitySession.carId) || !trackIds.has(identitySession.trackId))) ||
+    carsCatalogError || tracksCatalogError
+  );
+  async function saveIdentity(identity: { carId: string; trackId: string }) {
+    const response = await client.api.sessions[":id"].identity.$patch({
+      param: { id: String(identitySessionId) },
+      json: { gameId, ...identity },
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => null) as { error?: string } | null;
+      throw new Error(body?.error ?? `Failed to save session identity (${response.status})`);
+    }
+    setRepairDismissed(true);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.laps }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.sessions }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.userTunes }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.sessionResults }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.raceResultSummaries }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.raceResultRecents }),
+    ]);
+  }
   const lmuCarClass = gameId === "lmu" && selectedLap?.carId != null
     ? resolveLMUCar(String(selectedLap.carId))?.class
     : undefined;
@@ -310,9 +357,9 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
 
   // Tune selector
   const { data: availableTunes } = useQuery({
-    queryKey: ["tunes", selectedLap?.carOrdinal],
-    queryFn: () => client.api.tunes.$get({ query: { carOrdinal: selectedLap?.carOrdinal != null ? String(selectedLap.carOrdinal) : undefined } }).then((r) => r.json() as any),
-    enabled: gameId !== "lmu" && !!selectedLap?.carOrdinal,
+    queryKey: ["tunes", gameId, selectedLap?.carId],
+    queryFn: () => client.api.tunes.$get({ query: { gameId, carId: selectedLap?.carId ?? undefined } }).then((r) => r.json() as any),
+    enabled: gameId !== "lmu" && selectedLap?.carId != null,
   });
   const { data: persistedF1Setup } = useQuery<{ setup: F1CarSetup | null }>({
     queryKey: ["lap-setup", gameId, selectedLapId],
@@ -469,6 +516,7 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
             onRightResize: setRightColWidth,
             cursorIdx,
             outline,
+            closed,
             mapLabels,
             pitLines,
             sceneSource,
@@ -569,6 +617,15 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
         gameId={gameId}
         onCloseImport={() => setImportResult(null)}
       />
+      {repairOpen && identitySession && (
+        <SessionIdentityDialog
+          gameId={gameId}
+          initialCarId={identitySession.carId}
+          initialTrackId={identitySession.trackId}
+          onSave={saveIdentity}
+          onClose={() => setRepairDismissed(true)}
+        />
+      )}
     </div>
   );
 }

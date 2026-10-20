@@ -68,16 +68,15 @@ export const acEvoAdapter: GameAdapter = {
     rear: { warm: 450, hot: 500 },
   },
 
-  // Stubs — server adapter overrides with real CSV-backed lookups
-  getCarName(ordinal: number): string {
-    return `Car #${ordinal}`;
+  getCarName(identity: string): string {
+    return identity;
   },
 
-  getTrackName(ordinal: number): string {
-    return `Track #${ordinal}`;
+  getTrackName(identity: string): string {
+    return identity;
   },
 
-  getSharedTrackName(_ordinal: number): string | undefined {
+  getSharedTrackName(_identity: string): string | undefined {
     return undefined;
   },
 

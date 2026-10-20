@@ -57,16 +57,16 @@ const PACKET_SOURCE_OVERRIDES: Partial<
   Record<GameId, Record<string, string[]>>
 > = {
   "f1-2025": {
-    CarOrdinal: ["F1.Participants.player.teamId"],
+    carId: ["F1.Participants.player.teamId"],
     NumCylinders: ["RaceIQ.ParserConstant.NumCylinders"],
   },
   acc: {
-    CarOrdinal: ["ACC.Static.carModel"],
-    TrackOrdinal: ["ACC.Static.track"],
+    carId: ["ACC.Static.carModel"],
+    trackId: ["ACC.Static.track"],
   },
   "ac-evo": {
-    CarOrdinal: ["AC-Evo.Graphics.car_model"],
-    TrackOrdinal: [
+    carId: ["AC-Evo.Graphics.car_model"],
+    trackId: [
       "AC-Evo.Static.track",
       "AC-Evo.Static.track_configuration",
     ],
@@ -108,11 +108,11 @@ const PACKET_SOURCE_OVERRIDES: Partial<
     Fuel: ["LMU.Telemetry.fuel"],
     FuelCapacity: ["LMU.Telemetry.fuelCapacity"],
     CarClass: ["LMU.Telemetry.vehicleClass"],
-    CarOrdinal: [
+    carId: [
       "LMU.Telemetry.vehicleModel",
       "LMU.Telemetry.vehicleName",
     ],
-    TrackOrdinal: [
+    trackId: [
       "LMU.ScoringInfo.trackName",
       "LMU.Telemetry.trackName",
     ],
@@ -351,6 +351,7 @@ function nativeSources(
       if (path) {
         const [root, ...rest] = path.split(".");
         if (roots[root] && rest.length > 0) {
+          if (gameId === "iracing" && root === "source" && rest.join(".") === "values") return;
           sources.add(`${roots[root]}.${rest.join(".").replace(/\.offset$/, "")}`);
           return;
         }
@@ -396,6 +397,11 @@ function nativeSources(
 }
 
 function specialIRacingSources(field: string): string[] | undefined {
+  if (field === "TimestampMS") return ["iRacing.SessionTime"];
+  if (field === "CurrentLap") return [
+    "iRacing.SessionInfo.subSessionId", "iRacing.SessionInfo.sessionId", "iRacing.SessionInfo.sessionNum",
+    "iRacing.Lap", "iRacing.SessionTime", "iRacing.LapCurrentLapTime",
+  ];
   const rawWheel = field.match(
     /(FL|FR|RL|RR|FrontLeft|FrontRight|RearLeft|RearRight)$/,
   )?.[1];
@@ -567,7 +573,7 @@ function isPacketRepresentationNormalization(
   if (native.normalization) return true;
   if (
     (gameId === "acc" || gameId === "ac-evo") &&
-    (key === "CarOrdinal" || key === "TrackOrdinal")
+    (key === "carId" || key === "trackId")
   ) {
     return true;
   }

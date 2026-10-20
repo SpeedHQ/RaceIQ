@@ -4,10 +4,11 @@ import { createReadStream } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { Database } from "bun:sqlite";
+import Database from "libsql";
 import { decompressIfGzipSync, iterateSessionFrames } from "@raceiq/capture-formats/session/framing";
 import { IRACING_DUMP_MAGIC, readIRacingFramesFromBuffer } from "@raceiq/capture-formats/iracing/dump-decoder";
 import { hasLMUDumpMagic, readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump-decoder";
+import { convertSeedFramesToSparse } from "@raceiq/tooling-data/data/seed-capture-conversion";
 import { replayWithClock } from "./recorder-bench-replay";
 import { ProcessTreeSampler } from "./recorder-bench-process";
 import type { FileImportResponse } from "./recorder-file-import-validation";
@@ -28,7 +29,7 @@ type ImportResult = {
   packetCount: number;
   importedLapCount: number;
   outcomeSha256: string;
-  outcome: { packetCount: number; identity: unknown; laps: Record<string, unknown>[] };
+  outcome: { packetCount: number; session: MemoryImportResult["session"]; laps: Record<string, unknown>[] };
   outputStorage: "memory";
   resourceMethod: string;
 };
@@ -49,9 +50,9 @@ function outcomeSignature(result: MemoryImportResult): {
   packetCount: number;
   importedLapCount: number;
   outcomeSha256: string;
-  outcome: { packetCount: number; identity: unknown; laps: Record<string, unknown>[] };
+  outcome: { packetCount: number; session: MemoryImportResult["session"]; laps: Record<string, unknown>[] };
 } {
-  const { packetCount, identity, laps } = result;
+  const { packetCount, session, laps } = result;
   const normalizedLaps = laps.map((lap) => ({
     lapNumber: lap.lapNumber,
     lapTime: lap.lapTime,
@@ -59,7 +60,7 @@ function outcomeSignature(result: MemoryImportResult): {
     car: lap.carId,
     track: lap.trackId,
   }));
-  const outcome = { packetCount, identity, laps: normalizedLaps };
+  const outcome = { packetCount, session, laps: normalizedLaps };
   return {
     packetCount,
     importedLapCount: laps.length,
@@ -88,7 +89,6 @@ async function runMemoryImport(testCase: typeof GAMES[number]): Promise<ImportRe
   const cpu = process.cpuUsage(cpuBefore);
   const processCpuSeconds = (cpu.user + cpu.system) / 1e6;
   const peakRssBytes = Math.max(rssBefore, process.memoryUsage().rss);
-  const result = { packetCount: imported.packetCount, laps: imported.laps, identity: imported.identity };
   const resourceMethod = "Bun process CPU delta; RSS sampled before/after each trial";
   return {
     fixture,
@@ -98,7 +98,7 @@ async function runMemoryImport(testCase: typeof GAMES[number]): Promise<ImportRe
     elapsedSeconds,
     processCpuSeconds,
     peakRssBytes,
-    ...outcomeSignature(result),
+    ...outcomeSignature(imported),
     outputStorage: "memory",
     resourceMethod,
   };
@@ -271,19 +271,28 @@ async function launchIsolatedBackend(dataDir: string, serverPort: number, udpPor
 }
 
 function persistedSessions(dataDir: string) {
-  using db = new Database(join(dataDir, "app.db"), { readonly: true });
-  return db.query<{ id: number; gameId: string; rawFile: string | null; ownership: string }, []>(
-    "SELECT id, game_id AS gameId, raw_file AS rawFile, ownership FROM sessions",
-  ).all();
+  const db = new Database(join(dataDir, "app.db"), { readonly: true });
+  try {
+    return db.prepare(
+      "SELECT id, game_id AS gameId, raw_file AS rawFile, ownership FROM sessions",
+    ).all() as Array<{ id: number; gameId: string; rawFile: string | null; ownership: string }>;
+  } finally {
+    db.close();
+  }
 }
 
 async function finalizedLiveCapture(dataDir: string, gameId: string) {
   const sessions = persistedSessions(dataDir).filter((session) => session.gameId === gameId && session.ownership === "mine");
   const liveIds = new Set(sessions.map((session) => session.id));
-  using db = new Database(join(dataDir, "app.db"), { readonly: true });
-  const liveLapRowsAfterShutdown = db.query<{ sessionId: number }, []>(
-    "SELECT session_id AS sessionId FROM laps",
-  ).all().filter((lap) => liveIds.has(lap.sessionId)).length;
+  const db = new Database(join(dataDir, "app.db"), { readonly: true });
+  let liveLapRowsAfterShutdown: number;
+  try {
+    liveLapRowsAfterShutdown = (db.prepare(
+      "SELECT session_id AS sessionId FROM laps",
+    ).all() as Array<{ sessionId: number }>).filter((lap) => liveIds.has(lap.sessionId)).length;
+  } finally {
+    db.close();
+  }
   let liveRecords = 0, liveCaptureBytes = 0;
   for (const rawFile of new Set(sessions.flatMap((session) => session.rawFile ? [session.rawFile] : []))) {
     const bytes = await readFile(rawFile);
@@ -303,9 +312,23 @@ function sourceFrameCount(bytes: Buffer): number {
   return [...iterateSessionFrames(capture)].length;
 }
 
+async function prepareSparseUpload(testCase: typeof GAMES[number]) {
+  const bytes = await loadFixtureBytes(`test/artifacts/sessions/${testCase.fixture}`);
+  const capture = decompressIfGzipSync(bytes);
+  const frames = capture.subarray(0, IRACING_DUMP_MAGIC.length).equals(IRACING_DUMP_MAGIC)
+    ? readIRacingFramesFromBuffer(capture)
+    : hasLMUDumpMagic(capture)
+      ? readLMUFramesFromBuffer(capture)
+      : iterateSessionFrames(capture);
+  return convertSeedFramesToSparse(testCase.gameId, frames);
+}
+
 async function runLive(testCase: typeof GAMES[number], speed: number, trial: number) {
   if (testCase.gameId !== "fm-2023" && testCase.gameId !== "f1-2025") throw Error(`Live UDP replay unsupported for ${testCase.gameId}`);
-  const path = join(FIXTURE_ROOT, testCase.fixture), bytes = await readFile(path);
+  const originalPath = join(FIXTURE_ROOT, testCase.fixture);
+  const originalBytes = await loadFixtureBytes(`test/artifacts/sessions/${testCase.fixture}`);
+  const converted = await prepareSparseUpload(testCase);
+  const uploadBytes = await readFile(converted.path);
   const dataDir = await mkdtemp(join(tmpdir(), "raceiq-live-bench-"));
   const serverPort = 35000 + trial;
   const backend = await launchIsolatedBackend(dataDir, serverPort, testCase.port);
@@ -313,7 +336,7 @@ async function runLive(testCase: typeof GAMES[number], speed: number, trial: num
   let replayFinished = false;
   try {
     const upload = new FormData();
-    upload.set("file", new File([bytes], testCase.fixture, { type: "application/octet-stream" }));
+    upload.set("file", new File([uploadBytes], testCase.fixture, { type: "application/octet-stream" }));
     upload.set("ownership", "others");
     const seedResponse = await fetch(`http://127.0.0.1:${serverPort}/api/laps/import`, { method: "POST", body: upload, signal: abort.signal });
     const seedResult = await seedResponse.json() as Record<string, unknown>;
@@ -348,7 +371,7 @@ async function runLive(testCase: typeof GAMES[number], speed: number, trial: num
       }
     };
     const probeTask = probe().catch((error) => { abort.abort(error); throw error; });
-    const replayTask = replayWithClock(path, testCase.gameId, testCase.port, speed, abort.signal).finally(() => { replayFinished = true; });
+    const replayTask = replayWithClock(originalPath, testCase.gameId, testCase.port, speed, abort.signal).finally(() => { replayFinished = true; });
     const [sourceRecords, importResult] = await Promise.all([replayTask, importPromise, probeTask]);
     await delay(400);
     await stop(backend.proc);
@@ -358,15 +381,22 @@ async function runLive(testCase: typeof GAMES[number], speed: number, trial: num
     const sortedLatencies = [...reviewLatencies].sort((a, b) => a - b);
     const sortedAnalysisLatencies = [...analysisLatencies].sort((a, b) => a - b);
     const analysisHttpLatencyMs = { count: sortedAnalysisLatencies.length, p50: sortedAnalysisLatencies.length ? sortedAnalysisLatencies[Math.floor((sortedAnalysisLatencies.length - 1) * 0.5)] : null, p95: sortedAnalysisLatencies.length ? sortedAnalysisLatencies[Math.floor((sortedAnalysisLatencies.length - 1) * 0.95)] : null, p99: sortedAnalysisLatencies.length ? sortedAnalysisLatencies[Math.floor((sortedAnalysisLatencies.length - 1) * 0.99)] : null };
-    return { fixture: testCase.fixture, fixtureSha256: createHash("sha256").update(bytes).digest("hex"), inputCaptureBytes: bytes.byteLength, elapsedSeconds, ...processMetrics, sourceDatagramsSent: sourceRecords, sourceAcceptedRecords: null, sourceAcceptedRecordsReason: "Recording API does not expose a per-frame accepted-record counter to this harness", sourceRejectedDatagrams: null, sourceRejectedDatagramsReason: "Malformed/rejected source counts are not exposed by the recording API", droppedAtSource: null, droppedAtSourceReason: "UDP sender has no per-datagram ACK/counter", ...liveStats, importedLapCount: importResult.imported ?? null, speedMultiplier: speed, gameClockCadence: "FM TimestampMS / F1 sessionTime native clock proxy; not host acquisition timestamp", analysisHttpLatencyMs, reviewHttpLatencyMs: { count: sortedLatencies.length, p50: sortedLatencies.length ? sortedLatencies[Math.floor((sortedLatencies.length - 1) * 0.5)] : null, p95: sortedLatencies.length ? sortedLatencies[Math.floor((sortedLatencies.length - 1) * 0.95)] : null, p99: sortedLatencies.length ? sortedLatencies[Math.floor((sortedLatencies.length - 1) * 0.99)] : null } };
+    return { fixture: testCase.fixture, fixtureSha256: createHash("sha256").update(originalBytes).digest("hex"), inputCaptureBytes: originalBytes.byteLength, elapsedSeconds, ...processMetrics, sourceDatagramsSent: sourceRecords, sourceAcceptedRecords: null, sourceAcceptedRecordsReason: "Recording API does not expose a per-frame accepted-record counter to this harness", sourceRejectedDatagrams: null, sourceRejectedDatagramsReason: "Malformed/rejected source counts are not exposed by the recording API", droppedAtSource: null, droppedAtSourceReason: "UDP sender has no per-datagram ACK/counter", ...liveStats, importedLapCount: importResult.imported ?? null, speedMultiplier: speed, gameClockCadence: "FM TimestampMS / F1 sessionTime native clock proxy; not host acquisition timestamp", analysisHttpLatencyMs, reviewHttpLatencyMs: { count: sortedLatencies.length, p50: sortedLatencies.length ? sortedLatencies[Math.floor((sortedLatencies.length - 1) * 0.5)] : null, p95: sortedLatencies.length ? sortedLatencies[Math.floor((sortedLatencies.length - 1) * 0.95)] : null, p99: sortedLatencies.length ? sortedLatencies[Math.floor((sortedLatencies.length - 1) * 0.99)] : null } };
   } finally {
     replayFinished = true;
     abort.abort();
     try {
       if (backend.proc.exitCode === null) await stop(backend.proc);
     } finally {
-      try { await resources(backend.sampler); }
-      finally { await rm(dataDir, { recursive: true, force: true }); }
+      try {
+        await resources(backend.sampler);
+      } finally {
+        try {
+          await rm(dataDir, { recursive: true, force: true });
+        } finally {
+          converted.cleanup();
+        }
+      }
     }
   }
 }
@@ -431,15 +461,16 @@ async function runFileImport(testCase: typeof GAMES[number], config: Args) {
   // Keep all module initialization outside the measured HTTP/resource window.
   benchmarkDatabase ??= await import("@raceiq/backend-core/db/index");
   const { validateFileImport } = await import("./recorder-file-import-validation");
-  const path = join(FIXTURE_ROOT, testCase.fixture);
   await mkdir(config.storageRoot, { recursive: true });
   const dataDir = await mkdtemp(join(config.storageRoot, "raceiq-file-import-bench-"));
+  let converted: Awaited<ReturnType<typeof prepareSparseUpload>> | undefined;
   let backend: BenchmarkBackend | undefined;
   let resourceWindowClosed = false;
   let outcome: { failed: false; value: Record<string, unknown> & { elapsedSeconds: number } } | { failed: true; error: unknown };
   const abort = new AbortController();
   const onExit = () => abort.abort(new Error(`File-import backend exited: exit=${backend?.proc.exitCode}, signal=${backend?.proc.signalCode}`));
   try {
+    converted = await prepareSparseUpload(testCase);
     backend = await launchBackend(dataDir, 35010, testCase.port);
     backend.proc.once("exit", onExit);
     if (backend.proc.exitCode !== null || backend.proc.signalCode !== null) onExit();
@@ -448,7 +479,7 @@ async function runFileImport(testCase: typeof GAMES[number], config: Args) {
     const start = process.hrtime.bigint();
     // Bun.file remains lazy: source contents are first read by the multipart upload.
     const form = new FormData();
-    form.set("file", Bun.file(path), testCase.fixture);
+    form.set("file", Bun.file(converted.path), testCase.fixture);
     form.set("ownership", "mine");
     const response = await fetch(`http://127.0.0.1:${backend.serverPort}/api/laps/import`, {
       method: "POST", body: form, signal: abort.signal,
@@ -463,7 +494,7 @@ async function runFileImport(testCase: typeof GAMES[number], config: Args) {
     const hash = createHash("sha256");
     let inputCaptureBytes = 0;
     // Hash only after the measured resource window, without retaining fixture bytes.
-    for await (const chunk of createReadStream(path)) {
+    for await (const chunk of createReadStream(converted.path)) {
       inputCaptureBytes += chunk.byteLength;
       hash.update(chunk);
     }
@@ -473,7 +504,7 @@ async function runFileImport(testCase: typeof GAMES[number], config: Args) {
       fixtureSha256: hash.digest("hex"), inputCaptureBytes,
       elapsedSeconds: Number(end - start) / 1e9,
       packetCount: result.packetCount, importedLapCount: result.imported,
-      captureStorage: "sparse", ownership: "mine",
+      inputCaptureFormat: "sparse", ownership: "mine",
       backendExecution: "source-backend",
       storageRoot: config.storageRoot,
       ...validation, ...processMetrics,
@@ -498,6 +529,9 @@ async function runFileImport(testCase: typeof GAMES[number], config: Args) {
   }
   abort.abort();
   try { await rm(dataDir, { recursive: true, force: true }); } catch (error) { cleanupErrors.push(error); }
+  if (converted) {
+    try { converted.cleanup(); } catch (error) { cleanupErrors.push(error); }
+  }
   if (cleanupErrors.length) {
     throw new AggregateError(outcome.failed ? [outcome.error, ...cleanupErrors] : cleanupErrors,
       `${outcome.failed ? `File import failed: ${outcome.error instanceof Error ? outcome.error.message : String(outcome.error)}; ` : ""}file-import cleanup failed: ${cleanupErrors.map((error) => error instanceof Error ? error.message : String(error)).join("; ")}`);
@@ -513,8 +547,8 @@ async function main() {
   const limitations = {
     inMemoryImports: "Bun parser/detector pipeline runs in memory; results do not include import persistence or reconciliation. No per-trial backend startup or disk writes.",
     diskRecording: "Recording mode uses production database/capture writes without concurrent import or analysis. Timing includes source replay file decoding, paced replay/writes, a 400ms receive-drain allowance and graceful backend shutdown/finalisation; excludes startup, output validation reads and cleanup. OS cache remains enabled: capture bytes are logical output sizes, not disk-device I/O counters or fsync durability proof. UDP delivery/accepted-record counts are not exposed.",
-    diskImports: "Disk-imports uses a fresh source-backend process and database for every measured trial, always zero warmups. Timing covers lazy multipart fixture reading/upload, production decompression/detection, lap replay/finalization and persistence through the completed JSON response. Startup/settings, validation, source hashing and cleanup are excluded. Sparse capture is the production default. No separate lap-finalization duration is instrumented. OS cache remains enabled; trials are not guaranteed cold. Output sizes are logical bytes, not device I/O counters or fsync durability proof.",
-    importCoverage: "One canonical .bin.gz fixture per supported game; MoTeC, IBT, DuckDB, and ZIP archive import paths are excluded.",
+    diskImports: "Disk-imports uses a fresh source-backend process and database for every measured trial, always zero warmups. It prepares each historical source fixture as a sparse capture before backend startup; preparation is excluded from timing. Timing covers lazy multipart sparse-file reading/upload, production decompression/detection, lap replay/finalization and persistence through the completed JSON response. Startup/settings, validation, source hashing and cleanup are excluded. No separate lap-finalization duration is instrumented. OS cache remains enabled; trials are not guaranteed cold. Output sizes are logical bytes, not device I/O counters or fsync durability proof.",
+    importCoverage: "One historical source fixture per supported game, prepared as a sparse import capture; MoTeC, IBT, DuckDB, and ZIP archive import paths are excluded.",
     windowsCapture: "Windows shared-memory acquisition requires Windows; live UDP replay covers FM/F1 only.",
     cadence: "UDP .bin.gz fixtures lack host receive timestamps; FM TimestampMS/F1 sessionTime replay is nominal game-clock cadence, not captured acquisition cadence. 2x/4x replay supported.",
     dashboard: "Live mode measures review HTTP API latency during capture; browser dashboard latency is unavailable without a browser consumer.",

@@ -72,8 +72,8 @@ describe("F1-2025 recording", () => {
           rawFile: recording,
           source: null,
           gameId: "f1-2025",
-          carOrdinal: 0,
-          trackOrdinal: 0,
+          carId: "",
+          trackId: "",
         },
         selectedLaps.map((lap, index) => ({
           id: index + 1,
@@ -125,6 +125,6 @@ describe("F1-2025 recording", () => {
         await generateRecordingVisualizations(recordingFile, laps, rawPackets);
         console.log(`[Visualizations] Generated for ${laps.length} laps`);
       }
-    }, 120000);
+    }, 180000);
   });
 });

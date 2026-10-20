@@ -42,22 +42,22 @@ describe("lap ↔ experiment explicit link", () => {
     createdExperimentIds.push(tsId);
 
     // Race session A. First lap recorded with NO active tuning session → unlinked.
-    const raceA = await insertSession(1, 2, "acc");
+    const raceA = await insertSession("1", "2", "acc");
     createdSessionIds.push(raceA);
-    const unlinkedLap = await insertLap(raceA, 1, 90000, true, null, 0);
+    const unlinkedLap = await insertLap(raceA, 1, 90000, true, null, 0, null, null, null, null, null);
 
     // Activate, then record laps across TWO different race sessions.
     setActiveExperiment(tsId);
     expect(getActiveExperiment()).toBe(tsId);
-    const linkedA = await insertLap(raceA, 2, 89000, true, null, 0);
+    const linkedA = await insertLap(raceA, 2, 89000, true, null, 0, null, null, null, null, null);
 
-    const raceB = await insertSession(1, 2, "acc");
+    const raceB = await insertSession("1", "2", "acc");
     createdSessionIds.push(raceB);
-    const linkedB = await insertLap(raceB, 1, 88000, true, null, 0);
+    const linkedB = await insertLap(raceB, 1, 88000, true, null, 0, null, null, null, null, null);
 
     // Deactivate → subsequent laps are unlinked again.
     setActiveExperiment(null);
-    const afterLap = await insertLap(raceB, 2, 91000, true, null, 0);
+    const afterLap = await insertLap(raceB, 2, 91000, true, null, 0, null, null, null, null, null);
 
     const linked = await getLapsForExperiment(tsId);
     const ids = linked.map((l) => l.id).sort((a, b) => a - b);
@@ -75,10 +75,10 @@ describe("lap ↔ experiment explicit link", () => {
   test("serves persisted fuel and tyre metrics without raw telemetry", async () => {
     const experimentId = await createExperiment({ gameId: "acc", name: "Stored metrics" });
     createdExperimentIds.push(experimentId);
-    const sessionId = await insertSession(1, 2, "acc");
+    const sessionId = await insertSession("1", "2", "acc");
     createdSessionIds.push(sessionId);
     setActiveExperiment(experimentId);
-    const lapId = await insertLap(sessionId, 1, 90, true, null, 0);
+    const lapId = await insertLap(sessionId, 1, 90, true, null, 0, null, null, null, null, null);
     await setLapMetrics(lapId, 2.7, 20);
 
     const response = await experimentLapAnalysisRoutes.request(`/api/experiments/${experimentId}/lap-metrics`);

@@ -1,27 +1,49 @@
 import { eq, desc, and, inArray, isNull } from "drizzle-orm";
 import { db } from "./index";
 import { toLapMeta } from "./lap-meta";
-import { sessions, laps, tunes } from "./schema";
+import { sessions, laps, tunes, experiments, experimentActions } from "./schema";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import type { GameId } from "@raceiq/shared/games/ids";
 
 export async function setLapExperimentExcluded(
   lapId: number,
   excluded: boolean,
+  guard?: { sessionId: number; expectedHeadVersionId: number | null; allowedLapIds: readonly number[] },
+  action?: { kind: string; inversePayload: unknown },
 ): Promise<{ ok: boolean; prev: boolean; experimentId: number | null }> {
-  const row = await db
-    .select({ experimentExcluded: laps.experimentExcluded, experimentId: laps.experimentId })
-    .from(laps)
-    .where(eq(laps.id, lapId))
-    .get();
-  if (!row) return { ok: false, prev: false, experimentId: null };
-  const prev = Boolean(row.experimentExcluded);
-  await db
-    .update(laps)
-    .set({ experimentExcluded: excluded ? 1 : null, experimentExcludedSource: "manual" })
-    .where(eq(laps.id, lapId))
-    .run();
-  return { ok: true, prev, experimentId: row.experimentId };
+  if (!guard) {
+    const row = await db.select({ experimentExcluded: laps.experimentExcluded, experimentId: laps.experimentId })
+      .from(laps).where(eq(laps.id, lapId)).get();
+    if (!row) return { ok: false, prev: false, experimentId: null };
+    const result = await db.update(laps)
+      .set({ experimentExcluded: excluded ? 1 : null, experimentExcludedSource: "manual" })
+      .where(eq(laps.id, lapId)).run();
+    return { ok: result.rowsAffected > 0, prev: Boolean(row.experimentExcluded), experimentId: row.experimentId };
+  }
+  return db.transaction(async (tx) => {
+    const row = await tx.select({
+      experimentExcluded: laps.experimentExcluded, experimentExcludedSource: laps.experimentExcludedSource,
+      experimentId: laps.experimentId, experimentVersionId: laps.experimentVersionId,
+    }).from(laps).where(eq(laps.id, lapId)).get();
+    if (!row) return { ok: false, prev: false, experimentId: null };
+    const prev = Boolean(row.experimentExcluded);
+    if (!guard.allowedLapIds.includes(lapId)) return { ok: false, prev, experimentId: row.experimentId };
+    const current = await tx.select({ headVersionId: experiments.headVersionId })
+      .from(experiments).where(eq(experiments.id, guard.sessionId)).get();
+    if (!current || current.headVersionId !== guard.expectedHeadVersionId) return { ok: false, prev, experimentId: row.experimentId };
+    const belongsToBranch = row.experimentId === guard.sessionId &&
+      (guard.expectedHeadVersionId == null ? row.experimentVersionId == null : row.experimentVersionId === guard.expectedHeadVersionId);
+    if (!belongsToBranch) return { ok: false, prev, experimentId: row.experimentId };
+    await tx.update(laps).set({ experimentExcluded: excluded ? 1 : null, experimentExcludedSource: "manual" })
+      .where(and(eq(laps.id, lapId),
+        eq(laps.experimentId, guard.sessionId),
+        guard.expectedHeadVersionId == null ? isNull(laps.experimentVersionId) : eq(laps.experimentVersionId, guard.expectedHeadVersionId))).run();
+    if (action) await tx.insert(experimentActions).values({
+      experimentId: guard.sessionId, kind: action.kind,
+      inversePayload: JSON.stringify({ ...action.inversePayload as object, prevExcluded: prev, prevExcludedSource: row.experimentExcludedSource ?? null }),
+    }).run();
+    return { ok: true, prev, experimentId: row.experimentId };
+  });
 }
 
 /**
@@ -34,13 +56,14 @@ export async function getLapsForExclusionScope(
   experimentId: number,
   tuneId: number,
 ): Promise<
-  { id: number; lapTime: number; isValid: boolean; invalidReason: string | null; experimentExcluded: boolean; experimentExcludedSource: "auto" | "manual" | null }[]
+  { id: number; lapTime: number; isValid: boolean; invalidReason: string | null; classification: LapMeta["classification"]; experimentExcluded: boolean; experimentExcludedSource: "auto" | "manual" | null }[]
 > {
   const rows = await db
     .select({
       id: laps.id,
       lapTime: laps.lapTime,
       isValid: laps.isValid,
+      classification: laps.classification,
       invalidReason: laps.invalidReason,
       experimentExcluded: laps.experimentExcluded,
       experimentExcludedSource: laps.experimentExcludedSource,
@@ -54,6 +77,7 @@ export async function getLapsForExclusionScope(
     isValid: Boolean(r.isValid),
     invalidReason: r.invalidReason,
     experimentExcluded: Boolean(r.experimentExcluded),
+    classification: r.classification,
     experimentExcludedSource: (r.experimentExcludedSource as "auto" | "manual" | null) ?? null,
   }));
 }
@@ -95,14 +119,13 @@ const experimentLapSelection = {
   sessionId: laps.sessionId,
   lapNumber: laps.lapNumber,
   lapTime: laps.lapTime,
+  classification: laps.classification,
   isValid: laps.isValid,
   invalidReason: laps.invalidReason,
   notes: laps.notes,
   pi: laps.pi,
   carSetup: laps.carSetup,
   createdAt: laps.createdAt,
-  carOrdinal: sessions.carOrdinal,
-  trackOrdinal: sessions.trackOrdinal,
   carId: sessions.carId,
   trackId: sessions.trackId,
   tuneId: laps.tuneId,
@@ -157,23 +180,19 @@ export async function getLapMetaForExperimentVersion(experimentVersionId: number
 }
 
 /**
- * Candidate laps for "Add laps from history" (docs/architecture/setup-engineer.md): laps matching this tuning session's game + car + track that aren't
- * already stamped to ANY tuning session. Ordinal-only match — a name-seeded
- * session already resolves `trackOrdinal` from `trackName` at creation
- * (createExperiment), so by the time this query runs that fallback is
- * already baked into the ordinal; `carOrdinal`/`trackOrdinal` left null on the
- * session (never resolved) are treated as "match any" for that dimension
- * rather than excluding everything. Newest-first, same shape as getLapsForExperiment.
+ * Candidate laps for "Add laps from history": laps matching this tuning session's game + car + track that aren't
+ * already stamped to ANY tuning session. Missing IDs match any for that dimension.
+ * Newest-first, same shape as getLapsForExperiment.
  */
 
 export async function getImportableLapsForExperiment(
   gameId: GameId,
-  carOrdinal: number | null,
-  trackOrdinal: number | null,
+  carId: string | null,
+  trackId: string | null,
 ): Promise<LapMeta[]> {
   const conds = [eq(sessions.gameId, gameId), isNull(laps.experimentId)];
-  if (carOrdinal != null) conds.push(eq(sessions.carOrdinal, carOrdinal));
-  if (trackOrdinal != null) conds.push(eq(sessions.trackOrdinal, trackOrdinal));
+  if (carId != null) conds.push(eq(sessions.carId, carId));
+  if (trackId != null) conds.push(eq(sessions.trackId, trackId));
 
   const rows = await db
     .select(experimentLapSelection)

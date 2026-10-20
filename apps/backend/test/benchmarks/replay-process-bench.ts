@@ -32,7 +32,7 @@ type Case = { name: string; gameId: GameId; capture: Buffer; offsets: number[]; 
 let capture: Buffer;
 let packets: TelemetryPacket[];
 let cases: Case[] = [];
-const source: LapReplaySource = { id: 1, sessionId: 1, createdAt: "2026-04-21T20:24:34.810Z", gameId: "ac-evo", rawFile: null, rawByteOffset: 12, rawFrameCount: FRAME_COUNT };
+const source: LapReplaySource = { id: 1, sessionId: 1, createdAt: "2026-04-21T20:24:34.810Z", gameId: "ac-evo", rawFile: null, rawByteOffset: 12, rawFrameCount: FRAME_COUNT, captureFormatVersion: null };
 const digest = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const records = (buf: Buffer) => [...iterateSessionFrameRecords(buf)];
 

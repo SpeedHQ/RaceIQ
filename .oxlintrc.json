@@ -1,12 +1,24 @@
 {
   "$schema": "./client/node_modules/oxlint/configuration_schema.json",
   "plugins": ["typescript"],
-  "jsPlugins": ["@shadcn/lint"],
+  "jsPlugins": ["@shadcn/lint", { "name": "raceiq", "specifier": "./scripts/quality/sqlite-lint-plugin.js" }],
   "categories": {
     "correctness": "error",
     "suspicious": "error"
   },
   "rules": {
+    "raceiq/no-bun-sqlite-require": "error",
+    "eslint/no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "bun:sqlite",
+            "message": "Use libsql for SQLite tooling or the application-owned @libsql/client connection for runtime code; mixing SQLite drivers can lose WAL writes."
+          }
+        ]
+      }
+    ],
     "typescript/no-explicit-any": "off",
     "eslint/no-shadow": "off",
     "eslint/no-underscore-dangle": "off",

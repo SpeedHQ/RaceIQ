@@ -119,7 +119,7 @@ export function parseForzaPacket(buf: Buffer): TelemetryPacket | null {
     SuspensionTravelMRR: buf.readFloatLE(208),
 
     // Car info
-    CarOrdinal: buf.readInt32LE(212),
+    carId: String(buf.readInt32LE(212)),
     CarClass: buf.readInt32LE(216),
     CarPerformanceIndex: buf.readInt32LE(220),
     DrivetrainType: buf.readInt32LE(224),
@@ -176,7 +176,7 @@ export function parseForzaPacket(buf: Buffer): TelemetryPacket | null {
     TireWearRR: buf.length >= 331 ? buf.readFloatLE(323) : -1,
 
     // Track ordinal (offset 327)
-    TrackOrdinal: buf.length >= 331 ? buf.readInt32LE(327) : 0,
+    trackId: buf.length >= 331 ? String(buf.readInt32LE(327)) : "",
   };
 
   return packet;

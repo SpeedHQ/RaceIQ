@@ -16,7 +16,7 @@ export function isPitLine(value: unknown): value is PitLine {
   });
 }
 
-export function drawPitLines(ctx: CanvasRenderingContext2D, lines: readonly PitLine[] | null | undefined, toCanvas: (x: number, z: number) => [number, number]): void {
+export function drawPitLines(ctx: Pick<CanvasRenderingContext2D, "beginPath" | "strokeStyle" | "lineWidth" | "setLineDash" | "lineCap" | "lineJoin" | "moveTo" | "lineTo" | "stroke">, lines: readonly PitLine[] | null | undefined, toCanvas: (x: number, z: number) => [number, number]): void {
   if (!lines) return;
   for (const line of lines) {
     if (line.points.length < 2) continue;

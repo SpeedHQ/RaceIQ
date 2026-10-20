@@ -9,7 +9,7 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { wheelSlipRatios } from "@raceiq/analysis-core/racing/analysis/laps/physics/vehicle";
 
 export const DEMO_SEMANTIC_IDS = [
-  "identity.track-ordinal", "identity.car-ordinal", "motion.position-x", "motion.position-z", "motion.speed", "motion.yaw", "motion.pitch", "motion.roll",
+  "identity.track-id", "identity.car-id", "motion.position-x", "motion.position-z", "motion.speed", "motion.yaw", "motion.pitch", "motion.roll",
   "inputs.accel", "inputs.brake", "inputs.gear", "inputs.steer", "timing.distance-traveled", "timing.current-lap", "diagnostics.timestamp-ms",
   "suspension.norm-suspension-travel", "tires.tire-slip-ratio", "tires.normalized-tire-slip-angle", "tires.wheel-rotation-speed", "tires.tire-wear", "tire.temperature.surface.representative",
 ] as const;
@@ -25,8 +25,15 @@ function parseCsv(path: string): TelemetryPacket[] {
   const headers = rows[0].split(",");
   return rows.slice(1).filter(Boolean).map((row) => {
     const values = row.split(",");
-    const packet: Record<string, unknown> = {};
-    for (let index = 0; index < headers.length; index += 1) packet[headers[index]] = Number(values[index]);
+    const packet: Record<string, unknown> = { gameId: "fm-2023" };
+    for (let index = 0; index < headers.length; index += 1) {
+      const field = headers[index];
+      if (field === "CarOrdinal" || field === "TrackOrdinal") {
+        packet[field === "CarOrdinal" ? "carId" : "trackId"] = values[index];
+      } else {
+        packet[field] = Number(values[index]);
+      }
+    }
     return packet as unknown as TelemetryPacket;
   });
 }

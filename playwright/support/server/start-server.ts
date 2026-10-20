@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { resetTestDatabase } from "./reset-test-database";
 import { seedE2ESetupData, seedScreenshotData } from "./seed-screenshot-data";
 
@@ -24,7 +24,10 @@ const dir = process.env.DATA_DIR ? resolve(process.env.DATA_DIR) : resolve(repoD
 const udpPort = Number(process.env.UDP_PORT ?? 15318);
 const binaryName = process.platform === "win32" ? "raceiq.exe" : "raceiq";
 const distDir = resolve(repoDir, "dist");
-const binary = resolve(distDir, binaryName);
+const binary = process.env.PW_COMPILED_BINARY ? resolve(process.env.PW_COMPILED_BINARY) : resolve(distDir, binaryName);
+if (process.env.PW_COMPILED_BINARY && !process.env.PW_COMPILED_BINARY.startsWith("/")) {
+  throw new Error("PW_COMPILED_BINARY must be an absolute path");
+}
 
 if (!existsSync(binary)) {
   throw new Error(`Compiled E2E server binary not found at "${binary}". Run "bun run build" first.`);
@@ -34,6 +37,8 @@ mkdirSync(dir, { recursive: true });
 writeFileSync(resolve(dir, "settings.json"), JSON.stringify({ udpPort, onboardingComplete: process.env.RACEIQ_E2E === "1" }));
 if (process.env.PW_SEED_SETUP_DATA === "1") seedE2ESetupData(repoDir, dir);
 seedScreenshotData(repoDir, dir);
+const access = spawnSync("bun", [resolve(repoDir, "playwright/support/server/initialize-access.ts")], { cwd: repoDir, env: { ...process.env, DATA_DIR: dir }, stdio: "inherit" });
+if (access.status !== 0) throw new Error("Failed to initialize dashboard access fixture");
 
 // cwd = dist/ so the binary resolves its native libsql addon from
 // dist/node_modules/@libsql/<target> — native .node modules can't be embedded
@@ -41,7 +46,7 @@ seedScreenshotData(repoDir, dir);
 // installed layout, where raceiq.exe sits next to node_modules/.
 const child = spawn(binary, {
   stdio: "inherit",
-  cwd: distDir,
+  cwd: process.env.PW_COMPILED_BINARY ? resolve(binary, "..") : distDir,
   env: { ...process.env, RACEIQ_APP_ROOT: repoDir },
 });
 

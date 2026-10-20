@@ -16,7 +16,7 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../../src/games/init";
 import { buildAnalystPrompt } from "@raceiq/backend-core/ai/analyst-prompt";
-import { AnalystOutputSchema } from "@raceiq/backend-core/ai/schemas";
+import { AnalystOutputSchema } from "@raceiq/backend-core/ai/output-schema";
 import { compareLapHeader } from "@raceiq/backend-core/ai/compare-engineer";
 import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
 import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
@@ -172,9 +172,9 @@ function buildMinimalComparePrompt(
   packetsA: TelemetryPacket[],
   packetsB: TelemetryPacket[],
 ): string {
-  const trackName = resolveTrackName(fx.lapA.trackOrdinal);
-  const carA = resolveCarName(fx.lapA.carOrdinal);
-  const carB = resolveCarName(fx.lapB.carOrdinal);
+  const trackName = resolveTrackName(fx.lapA.trackId, fx.game);
+  const carA = resolveCarName(fx.lapA.carId, fx.game);
+  const carB = resolveCarName(fx.lapB.carId, fx.game);
   const finalDelta = fx.lapA.lapTime - fx.lapB.lapTime;
   const header = compareLapHeader(trackName, carA, carB, fx.lapA, fx.lapB, finalDelta);
 

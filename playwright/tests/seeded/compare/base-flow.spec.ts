@@ -17,9 +17,9 @@ test("Compare complete seeded flow (FM23) preserves identity/order, renders trac
   }
 
   const query = new URLSearchParams({
-    track: String(pair.trackOrdinal),
-    carA: String(pair.carOrdinal),
-    carB: String(pair.carOrdinal),
+    track: pair.trackId,
+    carA: pair.carId,
+    carB: pair.carId,
     lapA: String(pair.lapA.id),
     lapB: String(pair.lapB.id),
   });

@@ -95,7 +95,7 @@ describe("aligned telemetry fidelity", () => {
   });
 
   test("aligned semantic adapter exposes per-wheel pressure", () => {
-    const samples = semanticTuneSamplesFromAlignedTrace(set([0, 1, 2]).laps[0]!, "acc", 2, 4);
+    const samples = semanticTuneSamplesFromAlignedTrace(set([0, 1, 2]).laps[0]!, "acc", "2", 4);
     expect(samples[1]!.tirePressurePsi).toEqual({ fl: 1, fr: 2, rl: 3, rr: 4 });
   });
   test("normalizes reversed and out-of-domain ranges", () => {

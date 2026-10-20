@@ -1,6 +1,7 @@
 import { zipSync } from "fflate";
 import { describe, expect, test } from "bun:test";
 import { detectLapsZip } from "../../src/laps/archive";
+import { getAllAcEvoCars } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo";
 
 describe("detectLapsZip", () => {
   test("rejects arbitrary ZIP content as a RaceIQ archive", () => {
@@ -21,8 +22,8 @@ describe("detectLapsZip", () => {
         file: member,
         gameId: "acc",
         sessionId: 42,
-        carOrdinal: 1,
-        trackOrdinal: 2,
+        carId: "1",
+        trackId: "2",
         carName: "Car",
         trackName: "Track",
         createdAt: "2026-01-01",
@@ -37,5 +38,31 @@ describe("detectLapsZip", () => {
     expect(result.isRaceIqArchive).toBe(true);
     expect(result.captureCount).toBe(1);
     expect(result.gameIds).toEqual(["acc"]);
+  });
+
+  test.each([
+    ["valid", false, false],
+    ["missing", true, false],
+    ["unknown", true, false],
+    ["unsupported game", true, true],
+  ])("reports %s MoTeC identities for manual assignment", (kind, needsAssignment, unsupported) => {
+    const file = "ac-evo-session42.motec.zip";
+    const carId = getAllAcEvoCars()[0]!.id;
+    const entry = {
+      file, gameId: kind === "unsupported game" ? "unsupported" : "ac-evo",
+      ...(kind === "missing" ? {} : { carId: kind === "unknown" ? "unknown-car" : carId }),
+      trackId: '["Brands Hatch","GP"]',
+    };
+    const result = detectLapsZip(zipSync({
+      [file]: zipSync({ "source.ld": new Uint8Array([1]) }),
+      "manifest.json": new TextEncoder().encode(JSON.stringify({ version: 4, entries: [entry] })),
+    }));
+    expect(result.missingMotecIdentities).toEqual(needsAssignment ? [{
+      file,
+      gameId: unsupported ? null : "ac-evo",
+      carId: null,
+      trackId: unsupported ? null : '["Brands Hatch","GP"]',
+      unsupported,
+    }] : []);
   });
 });

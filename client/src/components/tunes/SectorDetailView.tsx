@@ -20,7 +20,7 @@ interface SectorDetailViewProps {
   telemetry: SemanticTuneSample[];
   sectorTimes: SectorTimes | null;
   sectorIndex: number;
-  trackOrdinal?: number;
+  trackId?: string;
   issues: TuneIssue[];
 }
 
@@ -30,7 +30,7 @@ interface SectorDetailViewProps {
  * sector (temps, brakes, pressure, wear), and the issues located here. Hovering
  * the map scrubs a cursor line across all the metric bars at once.
  */
-export function SectorDetailView({ telemetry, sectorTimes, sectorIndex, trackOrdinal, gameId, issues }: SectorDetailViewProps) {
+export function SectorDetailView({ telemetry, sectorTimes, sectorIndex, trackId, gameId, issues }: SectorDetailViewProps) {
   const units = useUnits(gameId);
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const [markFrac, setMarkFrac] = useState<number | null>(null);
@@ -88,7 +88,7 @@ export function SectorDetailView({ telemetry, sectorTimes, sectorIndex, trackOrd
               sectorTimes={sectorTimes}
               highlight={sectorIndex}
               showTimes={false}
-              trackOrdinal={trackOrdinal}
+              trackId={trackId}
               issueMarkers={issueMarkers}
               readout={readout}
               onHover={setHoverIdx}

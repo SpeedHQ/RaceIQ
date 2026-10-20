@@ -11,7 +11,7 @@ export function shouldStartTray(
   return platform === "win32" && env.RACEIQ_DISABLE_TRAY !== "1";
 }
 
-export function startTray(port: number): void {
+export function startTray(url: string): void {
   if (!shouldStartTray()) return;
 
   const commandFilePath = join(tmpdir(), `raceiq-tray-cmd-${process.pid}.txt`);
@@ -26,8 +26,7 @@ export function startTray(port: number): void {
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
-$port = ${port}
-$url = "http://localhost:$port"
+$url = '${url.replace(/'/g, "''")}'
 $cmdFile = '${commandFilePs}'
 
 # Extract icon from the running exe
@@ -62,7 +61,9 @@ $updateItem = New-Object System.Windows.Forms.ToolStripMenuItem
 $updateItem.Text = "Install Update"
 $updateItem.Visible = $false
 $updateItem.add_Click({
-  Start-Process "http://localhost:${port}?update=1"
+  $updateUrl = [System.UriBuilder]::new($url)
+  $updateUrl.Query = 'update=1'
+  Start-Process $updateUrl.Uri.AbsoluteUri
 })
 $menu.Items.Add($updateItem) | Out-Null
 
@@ -107,7 +108,9 @@ $timer.Start()
 $script:updateVersion = $null
 $tray.add_BalloonTipClicked({
   if ($script:updateVersion) {
-    Start-Process "http://localhost:${port}?update=1"
+    $updateUrl = [System.UriBuilder]::new($url)
+    $updateUrl.Query = 'update=1'
+    Start-Process $updateUrl.Uri.AbsoluteUri
   }
 })
 

@@ -12,7 +12,8 @@
   },
   "dependencies": { "@raceiq/shared": "workspace:*" },
   "scripts": {
-    "typecheck": "bunx tsc --project tsconfig.json --noEmit",
+    "lint": "../../client/node_modules/.bin/oxlint .",
+    "typecheck": "bun check --project tsconfig.json",
     "generate:parser-data": "bun scripts/generate-parser-data.ts",
     "check:parser-data": "bun scripts/generate-parser-data.ts --check"
   }

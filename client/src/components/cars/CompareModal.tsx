@@ -68,7 +68,7 @@ export function CompareModal({ cars, onClose, fmtSpeed, fmtBrake, fmtWeight, isM
               <TableRow>
                 <TableHead className="sticky left-0">{m.cars_stat_column()}</TableHead>
                 {cars.map((car) => (
-                  <TableHead key={car.ordinal} className="text-center">
+                  <TableHead key={car.id} className="text-center">
                     {car.specs?.imageUrl && <img src={car.specs.imageUrl} alt={car.name} loading="lazy" className="mx-auto mb-1 h-14 w-full object-contain" />}
                     <div className="font-semibold leading-tight text-app-text/90">{car.name}</div>
                     {car.specs?.pi && <PiBadge showNumber={false} pi={car.specs.pi} />}
@@ -86,7 +86,7 @@ export function CompareModal({ cars, onClose, fmtSpeed, fmtBrake, fmtWeight, isM
                       const value = car.specs ? row.getValue(car.specs) : "—";
                       const isBest = bestIdxs.includes(index);
                       return (
-                        <TableCell key={car.ordinal} className={`text-center font-mono tabular-nums ${isBest ? "font-semibold text-[var(--status-success)]" : ""}`}>
+                        <TableCell key={car.id} className={`text-center font-mono tabular-nums ${isBest ? "font-semibold text-[var(--status-success)]" : ""}`}>
                           {value}
                         </TableCell>
                       );

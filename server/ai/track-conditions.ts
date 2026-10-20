@@ -39,86 +39,94 @@ export interface TrackConditions {
 /** Mean rain fraction above which the lap is treated as wet. */
 const WET_RAIN_FRACTION = 0.02;
 
-function firstFinite(...vals: (number | null | undefined)[]): number | null {
-  for (const v of vals) if (v != null && Number.isFinite(v)) return v;
+function firstFinite(a: number | null | undefined, b: number | null | undefined, c: number | null | undefined, d: number | null | undefined): number | null {
+  if (a != null && Number.isFinite(a)) return a;
+  if (b != null && Number.isFinite(b)) return b;
+  if (c != null && Number.isFinite(c)) return c;
+  if (d != null && Number.isFinite(d)) return d;
   return null;
 }
 
-function summariseNumeric(values: number[]): { min: number; max: number; avg: number } | null {
-  if (values.length === 0) return null;
-  let min = values[0]!;
-  let max = values[0]!;
-  let sum = 0;
-  for (const v of values) {
-    if (v < min) min = v;
-    if (v > max) max = v;
-    sum += v;
+type NumericRange = { min: number; max: number; sum: number; count: number };
+
+/** Bounded-memory reduction for one-pass capture processing. */
+export class TrackConditionsAccumulator {
+  private frames = 0;
+  private anyData = false;
+  private air: NumericRange | null = null;
+  private road: NumericRange | null = null;
+  private rainSum = 0;
+  private rainCount = 0;
+  private windSum = 0;
+  private windCount = 0;
+  private windDirectionSum = 0;
+  private windDirectionCount = 0;
+  private readonly gripCounts = new Map<string, number>();
+  private startingGrip: string | null = null;
+  private staticWeather: boolean | null = null;
+
+  private addRange(current: NumericRange | null, value: number): NumericRange {
+    if (current) {
+      current.min = Math.min(current.min, value);
+      current.max = Math.max(current.max, value);
+      current.sum += value;
+      current.count++;
+      return current;
+    }
+    return { min: value, max: value, sum: value, count: 1 };
   }
-  const round = (n: number) => Math.round(n * 10) / 10;
-  return { min: round(min), max: round(max), avg: round(sum / values.length) };
-}
 
-export function telemetryToTrackConditions(packets: TelemetryPacket[]): TrackConditions | null {
-  if (packets.length === 0) return null;
-
-  const airTemps: number[] = [];
-  const roadTemps: number[] = [];
-  const rain: number[] = [];
-  const wind: number[] = [];
-  const windDir: number[] = [];
-  const gripCounts = new Map<string, number>();
-  let startingGrip: string | null = null;
-  let staticWeather: boolean | null = null;
-  let anyData = false;
-
-  for (const f of packets) {
+  add(f: TelemetryPacket): void {
+    this.frames++;
     const acc = f.acc;
-    // Air / road temp: ACC-family on acc / acc.acEvo; F1 top-level + f1 mirror.
     const air = firstFinite(acc?.airTempC, acc?.acEvo?.airTempC, f.AirTemp, f.f1?.airTemperature);
     const road = firstFinite(acc?.roadTempC, acc?.acEvo?.roadTempC, f.TrackTemp, f.f1?.trackTemperature);
-    if (air != null) { airTemps.push(air); anyData = true; }
-    if (road != null) { roadTemps.push(road); anyData = true; }
-
-    // Rain: ACC rainIntensity is already 0..1; F1 RainPercent is 0-100.
+    if (air != null) { this.air = this.addRange(this.air, air); this.anyData = true; }
+    if (road != null) { this.road = this.addRange(this.road, road); this.anyData = true; }
     const accRain = acc?.rainIntensity;
     const f1Rain = f.RainPercent ?? f.f1?.rainPercentage;
-    if (accRain != null && Number.isFinite(accRain)) { rain.push(accRain); anyData = true; }
-    else if (f1Rain != null && Number.isFinite(f1Rain)) { rain.push(f1Rain / 100); anyData = true; }
-
-    if (acc?.windSpeed != null && Number.isFinite(acc.windSpeed)) wind.push(acc.windSpeed);
-    if (acc?.windDirection != null && Number.isFinite(acc.windDirection)) windDir.push(acc.windDirection);
-
+    if (accRain != null && Number.isFinite(accRain)) { this.rainSum += accRain; this.rainCount++; this.anyData = true; }
+    else if (f1Rain != null && Number.isFinite(f1Rain)) { this.rainSum += f1Rain / 100; this.rainCount++; this.anyData = true; }
+    if (acc?.windSpeed != null && Number.isFinite(acc.windSpeed)) { this.windSum += acc.windSpeed; this.windCount++; }
+    if (acc?.windDirection != null && Number.isFinite(acc.windDirection)) { this.windDirectionSum += acc.windDirection; this.windDirectionCount++; }
     const grip = acc?.trackGripStatus;
-    if (grip && grip !== "unknown") { gripCounts.set(grip, (gripCounts.get(grip) ?? 0) + 1); anyData = true; }
-    if (acc?.acEvo?.startingGrip && acc.acEvo.startingGrip !== "unknown") {
-      startingGrip = acc.acEvo.startingGrip;
-      anyData = true;
-    }
-    if (acc?.acEvo?.isStaticWeather != null) staticWeather = acc.acEvo.isStaticWeather;
+    if (grip && grip !== "unknown") { this.gripCounts.set(grip, (this.gripCounts.get(grip) ?? 0) + 1); this.anyData = true; }
+    if (acc?.acEvo?.startingGrip && acc.acEvo.startingGrip !== "unknown") { this.startingGrip = acc.acEvo.startingGrip; this.anyData = true; }
+    if (acc?.acEvo?.isStaticWeather != null) this.staticWeather = acc.acEvo.isStaticWeather;
   }
 
-  if (!anyData) return null;
-
-  const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
-  const meanRain = mean(rain);
-  let topGrip = "unknown";
-  let topGripN = 0;
-  for (const [g, n] of gripCounts) {
-    if (n > topGripN) { topGrip = g; topGripN = n; }
+  result(): TrackConditions | null {
+    if (!this.anyData) return null;
+    let trackGripStatus = "unknown";
+    let topGripCount = 0;
+    for (const [grip, count] of this.gripCounts) if (count > topGripCount) { trackGripStatus = grip; topGripCount = count; }
+    const meanRain = this.rainCount ? this.rainSum / this.rainCount : 0;
+    const range = (value: NumericRange | null) => value ? {
+      min: Math.round(value.min * 10) / 10,
+      max: Math.round(value.max * 10) / 10,
+      avg: Math.round(value.sum / value.count * 10) / 10,
+    } : null;
+    return {
+      frames: this.frames,
+      airTempC: range(this.air),
+      roadTempC: range(this.road),
+      rainIntensity: Math.round(meanRain * 100) / 100,
+      wet: meanRain > WET_RAIN_FRACTION,
+      trackGripStatus,
+      windSpeedKmh: Math.round((this.windCount ? this.windSum / this.windCount : 0) * 10) / 10,
+      windDirectionDeg: Math.round(this.windDirectionCount ? this.windDirectionSum / this.windDirectionCount : 0),
+      startingGrip: this.startingGrip,
+      staticWeather: this.staticWeather,
+    };
   }
+}
 
-  return {
-    frames: packets.length,
-    airTempC: summariseNumeric(airTemps),
-    roadTempC: summariseNumeric(roadTemps),
-    rainIntensity: Math.round(meanRain * 100) / 100,
-    wet: meanRain > WET_RAIN_FRACTION,
-    trackGripStatus: topGrip,
-    windSpeedKmh: Math.round(mean(wind) * 10) / 10,
-    windDirectionDeg: Math.round(mean(windDir)),
-    startingGrip,
-    staticWeather,
-  };
+export function telemetryToTrackConditions(input: TelemetryPacket[] | TelemetryPacket): TrackConditions | null {
+  const accumulator = new TrackConditionsAccumulator();
+  if (Array.isArray(input)) {
+    for (const packet of input) accumulator.add(packet);
+  } else accumulator.add(input as TelemetryPacket);
+  return accumulator.result();
 }
 
 /** Human-readable one-liner summary of {@link telemetryToTrackConditions}. */

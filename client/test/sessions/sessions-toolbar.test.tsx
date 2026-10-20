@@ -23,8 +23,8 @@ const { SessionToolbar } = await import("../../src/components/sessions/SessionTo
 
 const session = { id: 1, trackOrdinal: 10, carOrdinal: 20 } as SessionMeta;
 const sessions = [session];
-const lap = { id: 101, sessionId: 1 } as LapMeta;
-const secondLap = { id: 102, sessionId: 1 } as LapMeta;
+const lap: LapMeta = { id: 101, sessionId: 1, lapNumber: 1, lapTime: 90, isValid: true, classification: null, createdAt: "", carId: "", trackId: "" };
+const secondLap: LapMeta = { id: 102, sessionId: 1, lapNumber: 2, lapTime: 90, isValid: true, classification: null, createdAt: "", carId: "", trackId: "" };
 
 type ToolbarOverrides = Partial<Pick<ComponentProps<typeof SessionToolbar>, "exporting" | "runExport">>;
 
@@ -87,6 +87,19 @@ describe("Sessions toolbar controls", () => {
 
     expect(capturedExportButton()?.disabled).toBe(true);
     expect(markup).toContain(m.common_loading());
+  });
+
+  test("keeps legacy exports enabled when readiness metadata is absent", () => {
+    toolbar(new Set([lap.id]), [{ ...lap, source: null, standaloneCaptureReady: undefined }]);
+
+    expect(capturedExportButton()?.disabled).toBeFalsy();
+  });
+
+  test("explains and disables export when capture is explicitly unavailable", () => {
+    const markup = toolbar(new Set([lap.id]), [{ ...lap, source: null, standaloneCaptureReady: false }]);
+
+    expect(capturedExportButton()?.disabled).toBe(true);
+    expect(markup).toContain(m.sessions_export_capture_not_ready());
   });
 
   test("shows Compare button for two laps on same track", () => {

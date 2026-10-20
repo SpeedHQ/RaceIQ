@@ -22,46 +22,47 @@ export function TrackViewer() {
   const navigate = useNavigate();
 
   const gameId = useGameId();
-  const { data: tracks = [], isLoading: loading } = useTracks() as { data: TrackInfo[]; isLoading: boolean };
-  const { data: f125Tracks = [] } = useQuery<{ trackOrdinal: number; setupCount: number; guideCount: number; guideUrl: string }[]>({
+  const { data: tracks = [], isLoading: loading } = useTracks();
+  const { data: f125Tracks = [] } = useQuery<{ trackId: string; setupCount: number; guideCount: number; guideUrl: string }[]>({
     queryKey: ["f125-tracks", gameId],
-    queryFn: () => client.api["f1-25"].tracks.$get().then((r) => r.json() as unknown as { trackOrdinal: number; setupCount: number; guideCount: number; guideUrl: string }[]),
+    queryFn: () => client.api["f1-25"].tracks.$get().then((r) => r.json() as unknown as { trackId: string; setupCount: number; guideCount: number; guideUrl: string }[]),
     enabled: gameId === "f1-2025",
   });
-  const f125ByOrdinal = Object.fromEntries(f125Tracks.map((t) => [t.trackOrdinal, t]));
+  const f125ById = Object.fromEntries(f125Tracks.map((t) => [t.trackId, t]));
 
   // Forza + AC-EVO: setup counts derived client-side from the community catalog.
   const isCatalogGame = gameId === "fm-2023" || gameId === "ac-evo";
   const { data: catalog = [] } = useCatalogTunes();
   const { data: userTunes = [] } = useUserTunes(gameId ?? undefined);
   const catalogCounts = useMemo(() => {
-    if (!isCatalogGame || !gameId) return {} as Record<number, number>;
-    const all = [...catalog, ...(userTunes as { trackOrdinal?: number | null; bestTracks?: string[] }[])];
-    const m: Record<number, number> = {};
+    if (!isCatalogGame || !gameId) return {} as Record<string, number>;
+    const all = [...catalog, ...(userTunes as { trackId?: string | null; bestTracks?: string[] }[])];
+    const m: Record<string, number> = {};
     for (const t of tracks) {
       const n = all.filter((tune) => tuneMatchesTrack(tune, t)).length;
-      if (n > 0) m[t.ordinal] = n;
+      if (n > 0 && t.id != null) m[t.id] = n;
     }
     return m;
   }, [isCatalogGame, gameId, tracks, catalog, userTunes]);
-
   // ACC: setup counts from the dedicated per-track endpoint.
-  const { data: accCounts = {} } = useQuery<Record<number, number>>({
+  const { data: accCounts = {} } = useQuery<Record<string, number>>({
     queryKey: ["acc-setup-counts"],
-    queryFn: () => client.api.acc["setup-counts"].$get().then((r) => r.json() as Promise<Record<number, number>>),
+    queryFn: () => client.api.acc["setup-counts"].$get().then((r) => r.json() as Promise<Record<string, number>>),
     enabled: gameId === "acc",
   });
 
   // Supported games always report a count (0 shows a "0 setups/guides" badge);
   // unsupported games return undefined so no badge renders at all.
-  const setupCountFor = (ordinal: number): number | undefined => {
-    if (gameId === "f1-2025") return f125ByOrdinal[ordinal]?.setupCount ?? 0;
-    if (gameId === "acc") return accCounts[ordinal] ?? 0;
-    if (isCatalogGame) return catalogCounts[ordinal] ?? 0;
+  const setupCountFor = (track: TrackInfo): number | undefined => {
+    if (!track.id) return undefined;
+    if (gameId === "f1-2025") return f125ById[track.id]?.setupCount ?? 0;
+    if (gameId === "acc") return accCounts[track.id] ?? 0;
+    if (isCatalogGame) return catalogCounts[track.id] ?? 0;
     return undefined;
   };
-  const guideCountFor = (ordinal: number): number | undefined => {
-    if (gameId === "f1-2025") return f125ByOrdinal[ordinal]?.guideCount ?? 0;
+  const guideCountFor = (track: TrackInfo): number | undefined => {
+    if (!track.id) return undefined;
+    if (gameId === "f1-2025") return f125ById[track.id]?.guideCount ?? 0;
     if (gameId === "acc" || isCatalogGame) return 0;
     return undefined;
   };
@@ -72,11 +73,8 @@ export function TrackViewer() {
   // Selecting a track is a navigation now — the detail view is its own route.
   const handleSelectTrack = useCallback(
     (t: TrackInfo) => {
-      if (!gameId) return;
-      const trackKey =
-        gameId === "lmu" ? t.id : t.ordinal;
-      if (trackKey == null) return;
-      navigate({ to: trackRoutePath(gameId, trackKey) });
+      if (!gameId || !t.id) return;
+      navigate({ to: trackRoutePath(gameId, t.id) });
     },
     [navigate, gameId],
   );
@@ -141,7 +139,7 @@ export function TrackViewer() {
       {withOutline.length > 0 && (
         <div className="mb-6 grid grid-cols-1 gap-3 @3xl/workspace:grid-cols-2 @7xl/workspace:grid-cols-3">
           {withOutline.map((t) => (
-            <TrackCard key={t.ordinal} track={t} onSelect={handleSelectTrack} gameId={gameId} setupCount={setupCountFor(t.ordinal)} guideCount={guideCountFor(t.ordinal)} />
+            <TrackCard key={t.id} track={t} onSelect={handleSelectTrack} gameId={gameId} setupCount={setupCountFor(t)} guideCount={guideCountFor(t)} />
           ))}
         </div>
       )}
@@ -155,7 +153,7 @@ export function TrackViewer() {
                 variant="plain"
                 size="content"
                 type="button"
-                key={t.ordinal}
+                key={t.id}
                 className="w-full border border-app-border rounded-lg p-3 bg-app-surface/30 cursor-pointer hover:border-app-border-hover text-left"
                 onClick={() => handleSelectTrack(t)}
               >

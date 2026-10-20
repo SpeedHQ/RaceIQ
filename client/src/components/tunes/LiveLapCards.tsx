@@ -5,7 +5,7 @@ import { formatLapTime } from "../../lib/format";
 
 interface LiveLapCardsProps {
   laps: LapMeta[];
-  trackOrdinal?: number;
+  trackId?: string;
   sectors: LiveSectorData | null;
   /** Canonical in-progress lap number for the leading card label. */
   currentLapNumber: number | null;
@@ -18,8 +18,8 @@ interface LiveLapCardsProps {
  * time from WS-pushed LiveSectorData), followed by one card per completed lap
  * (newest first), each showing just the lap number and final time.
  */
-export function LiveLapCards({ laps, trackOrdinal, sectors, currentLapNumber, maxLaps = 20 }: LiveLapCardsProps) {
-  const filtered = trackOrdinal != null ? laps.filter((l) => l.trackOrdinal === trackOrdinal) : laps;
+export function LiveLapCards({ laps, trackId, sectors, currentLapNumber, maxLaps = 20 }: LiveLapCardsProps) {
+  const filtered = trackId != null ? laps.filter((l) => l.trackId === trackId) : laps;
   const sorted = [...filtered].sort((a, b) => b.lapNumber - a.lapNumber).slice(0, maxLaps);
   const best = sorted.length ? Math.min(...sorted.map((l) => l.lapTime)) : 0;
   const running = sectors ? (sectors.estimatedLap > 0 ? sectors.estimatedLap : sectors.currentSectorTime) : 0;

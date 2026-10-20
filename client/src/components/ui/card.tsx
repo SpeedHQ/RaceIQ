@@ -2,7 +2,7 @@ import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-type CardVariant = "default" | "settings-section" | "transparent-panel" | "tune-summary" | "form-section";
+type CardVariant = "default" | "settings-section" | "transparent-panel" | "tune-summary" | "form-section" | "gradient";
 function Card({ className, size = "default", variant = "default", ...props }: React.ComponentProps<"div"> & { size?: "default" | "sm"; variant?: CardVariant }) {
   const variants: Record<CardVariant, string> = {
     default: "",
@@ -10,6 +10,7 @@ function Card({ className, size = "default", variant = "default", ...props }: Re
     "form-section": "gap-0 rounded-lg",
     "transparent-panel": "bg-transparent ring-0",
     "tune-summary": "gap-3 rounded-lg bg-app-surface-alt/60",
+    gradient: "gap-0 border border-app-border bg-app-bg bg-[radial-gradient(ellipse_at_top_right,color-mix(in_srgb,var(--app-accent)_12%,transparent),transparent_70%)] ring-0",
   };
   return (
     <div

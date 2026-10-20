@@ -164,9 +164,9 @@ function buildComparePrompt(
   packetsA: TelemetryPacket[],
   packetsB: TelemetryPacket[],
 ) {
-  const trackName = resolveTrackName(fx.lapA.trackOrdinal);
-  const carA = resolveCarName(fx.lapA.carOrdinal);
-  const carB = resolveCarName(fx.lapB.carOrdinal);
+  const trackName = fx.lapA.trackId;
+  const carA = fx.lapA.carId;
+  const carB = fx.lapB.carId;
   const finalDelta = fx.lapA.lapTime - fx.lapB.lapTime;
   const header = compareLapHeader(trackName, carA, carB, fx.lapA, fx.lapB, finalDelta);
   const summarise = (pkts: typeof packetsA, label: string) => {

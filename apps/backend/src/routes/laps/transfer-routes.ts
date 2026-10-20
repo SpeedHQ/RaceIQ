@@ -4,13 +4,11 @@ import { resolve } from "node:path";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 
-import { KNOWN_GAME_IDS } from "@raceiq/shared/games/ids";
 import { getGame } from "@raceiq/shared/games/registry";
 import { getLapsForSession } from "@raceiq/backend-core/db/lap-reprocessing-queries";
 import { getTuneById as getDbTune } from "@raceiq/backend-core/db/tune-queries";
 import { buildLapsZip, lapsZipFilename, importLapsZip, detectLapsZip } from "../../laps/archive";
 import { importSessionBin, detectGameIdFromBuffer } from "@raceiq/backend-core/session-capture/import-capture";
-import { RealSessionRecorderAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
 import { cancelStagedIbt, commitStagedIbt, stageIbtUpload } from "../../imports/iracing-ibt";
 import { IbtImportError } from "@raceiq/game-iracing/ibt-preview";
 import { importLMUDuckDB } from "../../imports/lmu-duckdb";
@@ -18,6 +16,7 @@ import { isDuckDBFile, previewLMUDuckDB } from "@raceiq/game-lmu/import-duckdb";
 import { importMotec, resolveMotecTarget } from "@raceiq/backend-core/motec/import";
 import { getMotecTargets } from "@raceiq/backend-core/motec/targets";
 import { initMotecTargets } from "../../games/motec-init";
+import { isSessionIdentityInCatalog } from "../../games/session-identity";
 import { loadStagedMotec, removeStagedMotec, stageMotecArchive } from "@raceiq/backend-core/motec/import-staging";
 import { ExportZipQuerySchema, IbtCommitSchema, IbtImportTokenSchema, OwnershipSchema } from "./support";
 
@@ -121,10 +120,13 @@ export const transferRoutes = new Hono()
         const detection = detectLapsZip(bytes);
         return c.json({
           format: "zip" as const,
-          supported: detection.isRaceIqArchive,
+          supported: detection.isRaceIqArchive && !detection.missingMotecIdentities.some((identity) => identity.unsupported),
           gameIds: detection.gameIds,
           captureCount: detection.captureCount,
-          message: detection.isRaceIqArchive ? null : "ZIP does not contain RaceIQ session captures.",
+          missingMotecIdentities: detection.missingMotecIdentities,
+          message: detection.missingMotecIdentities.some((identity) => identity.unsupported)
+            ? "MoTeC archive is missing a supported game identity."
+            : detection.isRaceIqArchive ? null : "ZIP does not contain RaceIQ session captures.",
         });
       } catch {
         return c.json({ format: "unknown" as const, supported: false, gameIds: [], captureCount: 0, message: "File is not a readable ZIP archive." });
@@ -132,7 +134,7 @@ export const transferRoutes = new Hono()
     }
     if (lower.endsWith(".bin") || lower.endsWith(".bin.gz")) {
       let gameId: ReturnType<typeof detectGameIdFromBuffer> = null;
-      let message = "Could not detect a supported game from this capture.";
+      let message = "Only sparse RaceIQ captures are supported.";
       try {
         gameId = detectGameIdFromBuffer(Buffer.from(bytes));
       } catch {
@@ -204,7 +206,15 @@ export const transferRoutes = new Hono()
     if (!ownership.success) return c.json({ error: "ownership must be exactly mine or others" }, 400);
     if (!file.name.toLowerCase().endsWith(".zip")) return c.json({ error: "Expected a .zip file" }, 400);
     try {
-      const result = await importLapsZip(new Uint8Array(await file.arrayBuffer()), { ownership: ownership.data });
+      const rawOverrides = form?.get("identityOverrides");
+      let identityOverrides: Record<string, { carId: string; trackId: string }> | undefined;
+      if (typeof rawOverrides === "string") {
+        let parsed: unknown;
+        try { parsed = JSON.parse(rawOverrides); } catch { return c.json({ error: "identityOverrides must be valid JSON" }, 400); }
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return c.json({ error: "identityOverrides must be an object keyed by archive filename" }, 400);
+        identityOverrides = parsed as Record<string, { carId: string; trackId: string }>;
+      }
+      const result = await importLapsZip(new Uint8Array(await file.arrayBuffer()), { ownership: ownership.data, identityOverrides });
       return c.json(result);
     } catch (err) {
       return c.json({ error: `Failed to import zip: ${err instanceof Error ? err.message : String(err)}` }, 400);
@@ -227,14 +237,6 @@ export const transferRoutes = new Hono()
     }
     const ownership = OwnershipSchema.safeParse(form?.get("ownership"));
     if (!ownership.success) return c.json({ error: "ownership must be exactly mine or others" }, 400);
-    // API-only opt-in for legacy captures; UI uploads keep the sparse default.
-    const captureStorage = form?.get("captureStorage");
-    if (captureStorage !== null && captureStorage !== "raw") {
-      return c.json({ error: "captureStorage must be raw when provided" }, 400);
-    }
-    if (captureStorage === "raw" && lower.endsWith(".duckdb")) {
-      return c.json({ error: "Raw capture storage requires a .bin or .bin.gz file" }, 400);
-    }
     const bytes = Buffer.from(await file.arrayBuffer());
     if (lower.endsWith(".duckdb")) {
       if (!isDuckDBFile(bytes)) {
@@ -282,7 +284,7 @@ export const transferRoutes = new Hono()
     }
     if (!gameId) {
       return c.json(
-        { error: `Could not detect game from "${uploadName}" — no recognized frame format found. Supported games: ${KNOWN_GAME_IDS.join(", ")}.` },
+        { error: `Could not detect a sparse RaceIQ capture from "${uploadName}".` },
         400
       );
     }
@@ -290,7 +292,6 @@ export const transferRoutes = new Hono()
 
       const { packetCount, laps } = await importSessionBin(bytes, gameId, {
         ownership: ownership.data,
-        ...(captureStorage === "raw" ? { recorder: new RealSessionRecorderAdapter() } : {}),
       });
       if (packetCount === 0) return c.json({ error: "No telemetry packets found in file" }, 400);
       return c.json({
@@ -369,16 +370,15 @@ export const transferRoutes = new Hono()
     const sidecar = form?.get("ldx");
     const ldxBytes = stagedBytes?.ldxBytes ?? (sidecar instanceof File ? Buffer.from(await sidecar.arrayBuffer()) : undefined);
     if (!ownership.success) return c.json({ error: "ownership must be exactly mine or others" }, 400);
-    const num = (key: string): number | undefined => {
+    const identity = (key: string): string | undefined => {
       const raw = form?.get(key);
       if (typeof raw !== "string" || raw.trim() === "") return undefined;
-      const parsed = Number(raw);
-      return Number.isFinite(parsed) ? parsed : undefined;
+      return raw.trim();
     };
-    const carOrdinal = num("carOrdinal");
-    const trackOrdinal = num("trackOrdinal");
-    if (carOrdinal === undefined || trackOrdinal === undefined) {
-      return c.json({ error: "carOrdinal and trackOrdinal are required" }, 400);
+    const carId = identity("carId");
+    const trackId = identity("trackId");
+    if (!carId || !trackId) {
+      return c.json({ error: "carId and trackId are required" }, 400);
     }
     const gameIdRaw = form?.get("gameId");
     let target: ReturnType<typeof resolveMotecTarget>;
@@ -387,6 +387,15 @@ export const transferRoutes = new Hono()
     } catch (err: unknown) {
       return c.json({ error: err instanceof Error ? err.message : String(err) }, 400);
     }
+    if (!isSessionIdentityInCatalog(target.gameId, carId, trackId)) {
+      return c.json({ error: "carId and trackId must resolve in current game catalogs" }, 400);
+    }
+    const num = (key: string): number | undefined => {
+      const raw = form?.get(key);
+      if (typeof raw !== "string" || raw.trim() === "") return undefined;
+      const value = Number(raw);
+      return Number.isFinite(value) ? value : undefined;
+    };
     const tuneId = num("tuneId");
     if (tuneId !== undefined && !(await getDbTune(tuneId))) {
       return c.json({ error: `No setup with id ${tuneId}` }, 400);
@@ -394,8 +403,8 @@ export const transferRoutes = new Hono()
     try {
       const result = await importMotec(ldBytes, ldxBytes, {
         gameId: target.gameId,
-        carOrdinal,
-        trackOrdinal,
+        carId,
+        trackId,
         tuneId,
         ownership: ownership.data,
       });

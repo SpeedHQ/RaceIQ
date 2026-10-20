@@ -23,7 +23,7 @@ import { ComparisonCharts } from "./ComparisonCharts";
 import { ComparisonSelectors } from "./ComparisonSelectors";
 
 interface TrackGroup {
-  trackOrdinal: number;
+  trackId: string;
   trackName: string;
   laps: LapMeta[];
 }
@@ -52,19 +52,19 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
   const units = useUnits();
   const gameId = useGameId();
   const { data: allLaps = [] } = useLaps();
-  const laps = useMemo(() => allLaps.filter((l) => l.lapTime > 0 && l.trackOrdinal), [allLaps]);
+  const laps = useMemo(() => allLaps.filter((l) => l.lapTime > 0 && l.trackId != null && l.carId != null), [allLaps]);
   const [trackGroups, setTrackGroups] = useState<TrackGroup[]>([]);
-  const [selectedTrack, setSelectedTrack] = useState<number | null>(search.track ?? null);
-  const [carAOrd, setCarAOrd] = useState<number | null>(search.carA ?? null);
-  const [carBOrd, setCarBOrd] = useState<number | null>(search.carB ?? null);
+  const [selectedTrack, setSelectedTrack] = useState<string | null>(search.track ?? null);
+  const [carAId, setCarAId] = useState<string | null>(search.carA ?? null);
+  const [carBId, setCarBId] = useState<string | null>(search.carB ?? null);
   const [lapAId, setLapAId] = useState<number | null>(search.lapA ?? null);
   const [lapBId, setLapBId] = useState<number | null>(search.lapB ?? null);
   // URL selections can outlive a track/car switch; never query a hidden lap.
-  const visibleLapAId = lapAId != null && laps.some((lap) => lap.id === lapAId && lap.trackOrdinal === selectedTrack && lap.carOrdinal === carAOrd) ? lapAId : null;
-  const visibleLapBId = lapBId != null && laps.some((lap) => lap.id === lapBId && lap.trackOrdinal === selectedTrack && lap.carOrdinal === carBOrd) ? lapBId : null;
+  const visibleLapAId = lapAId != null && laps.some((lap) => lap.id === lapAId && lap.trackId === selectedTrack && lap.carId === carAId) ? lapAId : null;
+  const visibleLapBId = lapBId != null && laps.some((lap) => lap.id === lapBId && lap.trackId === selectedTrack && lap.carId === carBId) ? lapBId : null;
   const { data: comparison, isLoading: loading, error: comparisonError } = useLapComparison(visibleLapAId, visibleLapBId);
   const error = comparisonError ? (comparisonError.message.includes("no telemetry") ? m.compare_telemetry_unavailable() : comparisonError.message || m.compare_load_failed()) : null;
-  const [carNames, setCarNames] = useState<Map<number, string>>(new Map());
+  const [carNames, setCarNames] = useState<Map<string, string>>(new Map());
   const [zoomLevels, setZoomLevels] = useState<Array<ChartRange | null>>([null]);
   const [detailRange, setDetailRange] = useState<{ start: number; end: number; stepMeters: 0.1 } | null>(null);
   const [optimisticRange, setOptimisticRange] = useState<ComparisonRangeData | null>(null);
@@ -108,9 +108,9 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     const s = sectorsData as { segments?: { type: string; name: string; startFrac: number; endFrac: number }[] } | undefined;
     return s?.segments ?? null;
   }, [sectorsData]);
-  const prevTrackRef = useRef<number | null | undefined>(undefined);
-  const prevCarARef = useRef<number | null | undefined>(undefined);
-  const prevCarBRef = useRef<number | null | undefined>(undefined);
+  const prevTrackRef = useRef<string | null | undefined>(undefined);
+  const prevCarARef = useRef<string | null | undefined>(undefined);
+  const prevCarBRef = useRef<string | null | undefined>(undefined);
   const hoveredDistanceRef = useRef<number | null>(null);
   const mapRedrawRef = useRef<(() => void) | null>(null);
   const aiPanelRef = useRef<CompareAiPanelHandle | null>(null);
@@ -223,15 +223,15 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
         ({
           ...prev,
           track: selectedTrack ?? undefined,
-          carA: carAOrd ?? undefined,
-          carB: carBOrd ?? undefined,
+          carA: carAId ?? undefined,
+          carB: carBId ?? undefined,
           lapA: lapAId ?? undefined,
           lapB: lapBId ?? undefined,
         }) as never,
       replace: true,
       resetScroll: false,
     });
-  }, [selectedTrack, carAOrd, carBOrd, lapAId, lapBId, navigate]);
+  }, [selectedTrack, carAId, carBId, lapAId, lapBId, navigate]);
 
   // Build track groups and fetch names when laps data changes
   useEffect(() => {
@@ -239,30 +239,31 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     let cancelled = false;
 
     async function buildGroups() {
-      const byTrack = new Map<number, LapMeta[]>();
+      const byTrack = new Map<string, LapMeta[]>();
       for (const lap of laps) {
-        const t = lap.trackOrdinal!;
-        if (!byTrack.has(t)) byTrack.set(t, []);
-        byTrack.get(t)!.push(lap);
+        const trackId = lap.trackId!;
+        const trackLaps = byTrack.get(trackId);
+        if (trackLaps) trackLaps.push(lap);
+        else byTrack.set(trackId, [lap]);
       }
 
       const groups = await Promise.all(
-        Array.from(byTrack, async ([ordinal, trackLaps]) => {
-          let name = `${m.compare_track_fallback()} ${ordinal}`;
+        Array.from(byTrack, async ([trackId, trackLaps]) => {
+          let trackName = trackId;
           try {
-            name = await client.api["track-name"][":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(ordinal)) }, query: { gameId: gameId! } }).then((r) => (r.ok ? r.text() : name));
+            trackName = await client.api["track-name"][":trackId"].$get({ param: { trackId: encodeURIComponent(trackId) }, query: { gameId: gameId! } }).then((r) => (r.ok ? r.text() : trackName));
           } catch {}
-          return { trackOrdinal: ordinal, trackName: name, laps: trackLaps };
+          return { trackId, trackName, laps: trackLaps };
         }),
       );
       groups.sort((a, b) => a.trackName.localeCompare(b.trackName));
 
-      const carOrds = new Set<number>(laps.map((l) => l.carOrdinal).filter((c): c is number => c != null));
-      const names = new Map<number, string>();
+      const carIds = new Set(laps.map((lap) => lap.carId!));
+      const names = new Map<string, string>();
       await Promise.all(
-        Array.from(carOrds).map(async (ord) => {
+        Array.from(carIds, async (carId) => {
           try {
-            names.set(ord, await client.api["car-name"][":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(ord)) }, query: { gameId: gameId! } }).then((r) => (r.ok ? r.text() : "")));
+            names.set(carId, await client.api["car-name"][":carId"].$get({ param: { carId: encodeURIComponent(carId) }, query: { gameId: gameId! } }).then((r) => (r.ok ? r.text() : "")));
           } catch {}
         }),
       );
@@ -284,10 +285,10 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     const lapB = lapBId == null ? undefined : laps.find((lap) => lap.id === lapBId);
     const contextLap = lapA ?? lapB;
     if (!contextLap) return;
-    if (selectedTrack == null && contextLap.trackOrdinal != null) setSelectedTrack(contextLap.trackOrdinal);
-    if (carAOrd == null && lapA?.carOrdinal != null) setCarAOrd(lapA.carOrdinal);
-    if (carBOrd == null && lapB?.carOrdinal != null) setCarBOrd(lapB.carOrdinal);
-  }, [laps, lapAId, lapBId, selectedTrack, carAOrd, carBOrd]);
+    if (selectedTrack == null && contextLap.trackId != null) setSelectedTrack(contextLap.trackId);
+    if (carAId == null && lapA?.carId != null) setCarAId(lapA.carId);
+    if (carBId == null && lapB?.carId != null) setCarBId(lapB.carId);
+  }, [laps, lapAId, lapBId, selectedTrack, carAId, carBId]);
 
 
   // Reset car/lap selections when track changes (skip initial mount to preserve URL params)
@@ -295,8 +296,8 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     if (prevTrackRef.current === undefined) {
       prevTrackRef.current = selectedTrack;
     } else if (prevTrackRef.current !== selectedTrack) {
-      setCarAOrd(null);
-      setCarBOrd(null);
+      setCarAId(null);
+      setCarBId(null);
       setLapAId(null);
       setLapBId(null);
     }
@@ -305,25 +306,25 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
   // Reset lap A when car A changes, default car B to same
   useEffect(() => {
     if (prevCarARef.current === undefined) {
-      prevCarARef.current = carAOrd;
-    } else if (prevCarARef.current !== carAOrd) {
-      prevCarARef.current = carAOrd;
+      prevCarARef.current = carAId;
+    } else if (prevCarARef.current !== carAId) {
+      prevCarARef.current = carAId;
       setLapAId(null);
-      if (carAOrd != null && carBOrd == null) {
-        setCarBOrd(carAOrd);
+      if (carAId != null && carBId == null) {
+        setCarBId(carAId);
       }
     }
-  }, [carAOrd]);
+  }, [carAId]);
 
   // Reset lap B when car B changes
   useEffect(() => {
     if (prevCarBRef.current === undefined) {
-      prevCarBRef.current = carBOrd;
-    } else if (prevCarBRef.current !== carBOrd) {
-      prevCarBRef.current = carBOrd;
+      prevCarBRef.current = carBId;
+    } else if (prevCarBRef.current !== carBId) {
+      prevCarBRef.current = carBId;
       setLapBId(null);
     }
-  }, [carBOrd]);
+  }, [carBId]);
 
   useEffect(() => {
     setZoomLevels([null]);
@@ -332,14 +333,14 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
   }, [lapAId, lapBId]);
 
   // Laps filtered to selected track
-  const trackLaps = selectedTrack != null ? (trackGroups.find((g) => g.trackOrdinal === selectedTrack)?.laps ?? []) : [];
+  const trackLaps = selectedTrack != null ? (trackGroups.find((group) => group.trackId === selectedTrack)?.laps ?? []) : [];
 
   // Unique cars on this track
-  const trackCars = Array.from(new Set(trackLaps.map((l) => l.carOrdinal).filter((c): c is number => c != null)));
+  const trackCars = Array.from(new Set(trackLaps.map((lap) => lap.carId).filter((carId): carId is string => carId != null)));
 
   // Laps filtered by car
-  const carALaps = trackLaps.filter((l) => l.carOrdinal === carAOrd);
-  const carBLaps = trackLaps.filter((l) => l.carOrdinal === carBOrd);
+  const carALaps = trackLaps.filter((lap) => lap.carId === carAId);
+  const carBLaps = trackLaps.filter((lap) => lap.carId === carBId);
 
   // Synthetic outline fallback: use aligned world positions when no track outline exists.
   const syntheticOutline = useMemo<Point[]>(() => {
@@ -395,10 +396,10 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
         trackGroups={trackGroups}
         selectedTrack={selectedTrack}
         setSelectedTrack={setSelectedTrack}
-        carAOrd={carAOrd}
-        setCarAOrd={setCarAOrd}
-        carBOrd={carBOrd}
-        setCarBOrd={setCarBOrd}
+        carAId={carAId}
+        setCarAId={setCarAId}
+        carBId={carBId}
+        setCarBId={setCarBId}
         lapAId={visibleLapAId}
         setLapAId={setLapAId}
         lapBId={visibleLapBId}
@@ -411,7 +412,6 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
         aiPanelOpen={aiPanelOpen}
         toggleAiPanel={toggleAiPanel}
       />
-
       <ComparisonLoadStatus loading={loading} error={error} hasComparison={comparison != null} />
 
       {/* No selection prompt */}
@@ -432,14 +432,14 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
             <CompareTrackMap
               outline={trackOutline ?? syntheticOutline}
               traces={mergedComparison?.traces ?? comparison.traces}
-              labelA={`${carNames.get(comparison.lapA.carOrdinal!) || m.compare_car_a_fallback()} — ${m.compare_lap_label()} ${comparison.lapA.lapNumber}`}
-              labelB={`${carNames.get(comparison.lapB.carOrdinal!) || m.compare_car_b_fallback()} — ${m.compare_lap_label()} ${comparison.lapB.lapNumber}`}
+              labelA={`${carNames.get(comparison.lapA.carId!) || m.compare_car_a_fallback()} — ${m.compare_lap_label()} ${comparison.lapA.lapNumber}`}
+              labelB={`${carNames.get(comparison.lapB.carId!) || m.compare_car_b_fallback()} — ${m.compare_lap_label()} ${comparison.lapB.lapNumber}`}
               lapTimeA={formatLapTime(comparison.lapA.lapTime)}
               lapTimeB={formatLapTime(comparison.lapB.lapTime)}
               segments={segmentTimings}
               hoveredDistanceRef={hoveredDistanceRef}
               redrawRef={mapRedrawRef}
-              trackOrdinal={selectedTrack}
+              trackId={selectedTrack}
               gameId={gameId}
             />
           </div>
@@ -494,12 +494,12 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
             <CompareAiSidebar
               lapA={{
                 id: lapAId!,
-                label: `${carNames.get(comparison.lapA.carOrdinal!) || m.compare_car_a_fallback()} — ${m.compare_lap_label()} ${comparison.lapA.lapNumber} (${formatLapTime(comparison.lapA.lapTime)})`,
+                label: `${carNames.get(comparison.lapA.carId!) || m.compare_car_a_fallback()} — ${m.compare_lap_label()} ${comparison.lapA.lapNumber} (${formatLapTime(comparison.lapA.lapTime)})`,
                 lapTime: comparison.lapA.lapTime,
               }}
               lapB={{
                 id: lapBId!,
-                label: `${carNames.get(comparison.lapB.carOrdinal!) || m.compare_car_b_fallback()} — ${m.compare_lap_label()} ${comparison.lapB.lapNumber} (${formatLapTime(comparison.lapB.lapTime)})`,
+                label: `${carNames.get(comparison.lapB.carId!) || m.compare_car_b_fallback()} — ${m.compare_lap_label()} ${comparison.lapB.lapNumber} (${formatLapTime(comparison.lapB.lapTime)})`,
                 lapTime: comparison.lapB.lapTime,
               }}
               panelRef={aiPanelRef}

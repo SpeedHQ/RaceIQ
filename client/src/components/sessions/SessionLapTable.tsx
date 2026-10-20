@@ -1,3 +1,4 @@
+import { isPaceLap } from "@raceiq/shared/racing/lap-classification"
 import { isPitCycleLap } from "@raceiq/analysis-core/racing/laps/pit-cycle"
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -8,7 +9,7 @@ import { SortableTableHead } from "@/components/ui/sortable-table-head";
 import { Button } from "@/components/ui/button";
 import { queryKeys } from "@/hooks/query-keys";
 import { bestSectorLapIds } from "@/lib/lap-sectors";
-import { client } from "@/lib/rpc";
+import { authenticatedFetch, client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { exportLapsZip } from "@/lib/lap-export";
 import { useGameRoute } from "@/stores/game";
@@ -25,11 +26,24 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
   const queryClient = useQueryClient();
 
   const [contextMenu, setContextMenu] = useState<ContextMenu>(null);
+  const sessionType = session.sessionType?.trim();
+  const sessionTypeLabel = sessionType && sessionType.toLowerCase() !== "unknown"
+    ? sessionType.replace(/[-_]/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase())
+    : m.common_unknown();
   const sectorLabels = Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`);
+  const classificationLabels = {
+    pace: m.sessions_lap_classification_pace(),
+    out_lap: m.sessions_lap_classification_out_lap(),
+    in_lap: m.sessions_lap_classification_in_lap(),
+    pit_lap: m.sessions_lap_classification_pit_lap(),
+    grid_start: m.sessions_lap_classification_grid_start(),
+    caution: m.sessions_lap_classification_caution(),
+    reset: m.sessions_lap_classification_reset(),
+  };
   const bestSectorLaps = useMemo(
     () =>
       bestSectorLapIds(
-        laps.filter((lap) => lap.isValid && !isPitCycleLap(lap)),
+        laps.filter((lap) => lap.isValid && isPaceLap(lap.classification) && !isPitCycleLap(lap)),
         sectorCount,
       ),
     [laps, sectorCount],
@@ -50,6 +64,8 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
             <SortableTableHead className="w-1 min-w-32" direction={lapSortKey === "time" ? (lapSortDir === "asc" ? "ascending" : "descending") : undefined} onSort={() => toggleLapSort("time")}>
               {m.label_time()}
             </SortableTableHead>
+            <TableHead className="w-1 min-w-28">{m.review_session()}</TableHead>
+            <TableHead className="w-1 min-w-28">{m.sessions_col_classification()}</TableHead>
             {sectorLabels.map((label, index) => (
               <SortableTableHead key={label} className="w-1 min-w-24 text-right" direction={lapSortKey === index ? (lapSortDir === "asc" ? "ascending" : "descending") : undefined} onSort={() => toggleLapSort(index)}>
                 {label}
@@ -104,6 +120,16 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
                     )}
                   </div>
                 </TableCell>
+                <TableCell className="w-1 min-w-28 whitespace-nowrap text-app-label text-app-text-secondary">
+                  {sessionTypeLabel}
+                </TableCell>
+                <TableCell className="w-1 min-w-28 whitespace-nowrap text-app-label text-app-text-secondary">
+                  {lap.classification != null
+                    ? classificationLabels[lap.classification]
+                    : !lap.isValid && (lap.invalidReason === "incomplete" || lap.invalidReason === "incomplete at end of input")
+                      ? m.sessions_lap_classification_incomplete()
+                      : m.sessions_lap_classification_unclassified()}
+                </TableCell>
                 {sectorLabels.map((label, index) => {
                   const value = lap.sectorTimes?.[index] ?? 0;
                   return (
@@ -148,7 +174,7 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
               title={undefined}
               className="w-full !justify-start !rounded-none !px-3 !py-1.5 text-left text-app-text hover:bg-app-surface-hover"
               onClick={async () => {
-                const response = await fetch(`/api/laps/${contextMenu.lapId}/recheck`, { method: "POST" });
+                const response = await authenticatedFetch(`/api/laps/${contextMenu.lapId}/recheck`, { method: "POST" });
                 const data = await response.json();
                 console.log("[Recheck]", data);
                 await queryClient.invalidateQueries({ queryKey: queryKeys.laps });
@@ -161,8 +187,8 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
             <Button
               variant="app-ghost"
               size="app-sm"
-              disabled={false}
-              title={undefined}
+              disabled={contextLap?.source !== "motec" && contextLap?.standaloneCaptureReady === false}
+              title={contextLap?.source !== "motec" && contextLap?.standaloneCaptureReady === false ? m.sessions_export_capture_not_ready() : undefined}
               className="w-full !justify-start !rounded-none !px-3 !py-1.5 text-left text-app-text hover:bg-app-surface-hover"
               onClick={async () => {
                 const lapId = contextMenu.lapId;
@@ -176,6 +202,9 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
             >
               {m.sessions_export_lap()}
             </Button>
+            {contextLap?.source !== "motec" && contextLap?.standaloneCaptureReady === false && (
+              <p className="max-w-64 px-3 py-1 text-xs text-app-text/90" role="status">{m.sessions_export_capture_not_ready()}</p>
+            )}
               </>
             )}
           </div>

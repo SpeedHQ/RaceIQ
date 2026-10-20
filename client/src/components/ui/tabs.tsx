@@ -25,7 +25,7 @@ function Tabs({ className, ...props }: TabsProps) {
 }
 function TabsList({ className, variant = "default", ...props }: TabsListProps) {
   const variants = {
-    default: "flex flex-wrap gap-1",
+    default: "flex w-fit flex-wrap gap-0 overflow-hidden border border-app-border bg-app-bg",
     pills: "flex flex-wrap gap-1 bg-app-surface-alt p-1",
     underline: "flex flex-wrap border-b border-app-border",
   } as const;
@@ -35,7 +35,7 @@ function TabsList({ className, variant = "default", ...props }: TabsListProps) {
 function TabsTrigger({ className, variant = "default", ...props }: TabsTriggerProps) {
   const variants = {
     default:
-      "px-3 py-1.5 text-app-label font-semibold text-app-text-muted transition-colors outline-none hover:bg-app-surface-hover hover:text-app-text data-[active]:bg-app-accent/20 data-[active]:text-app-accent",
+      "h-[30px] border border-transparent bg-app-bg px-3 py-1 text-app-label font-medium text-app-text/90 transition-colors outline-none hover:bg-muted hover:text-app-text data-[active]:border-app-accent data-[active]:bg-app-bg data-[active]:text-app-accent",
     pills: "px-3 py-1.5 text-app-label font-semibold text-app-text-muted transition-colors outline-none hover:text-app-text data-[active]:bg-app-surface data-[active]:text-app-text",
     underline:
       "relative px-3 py-1.5 text-app-label font-semibold text-app-text-muted transition-colors outline-none hover:text-app-text data-[active]:text-app-accent data-[active]:after:absolute data-[active]:after:inset-x-0 data-[active]:after:-bottom-px data-[active]:after:h-0.5 data-[active]:after:bg-app-accent",
@@ -48,7 +48,7 @@ function TabsTrigger({ className, variant = "default", ...props }: TabsTriggerPr
         variants[variant],
         "focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
         className,
-        "rounded",
+        variant === "default" ? "rounded-none" : "rounded",
       )}
       {...props}
     />
