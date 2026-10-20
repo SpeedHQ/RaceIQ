@@ -30,6 +30,7 @@
     "./telemetry/lap-index": "./telemetry/lap-index.ts",
     "./telemetry/lmu": "./telemetry/lmu.ts",
     "./telemetry/lmu-supplemental": "./telemetry/lmu-supplemental.ts",
+    "./telemetry/lmu-source-time": "./telemetry/lmu-source-time.ts",
     "./telemetry/lmu-context": "./telemetry/lmu-context.ts",
     "./telemetry/lmu-rest-channels": "./telemetry/lmu-rest-channels.ts",
     "./telemetry/parser": "./telemetry/parser.ts",

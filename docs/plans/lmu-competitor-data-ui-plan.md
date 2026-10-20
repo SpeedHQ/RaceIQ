@@ -52,6 +52,9 @@ Headless Playwright exercised the real app/backend after the managed browser fai
 
 **Acceptance remains blocked:** actual Windows LMU player/version/mode smoke (`E2E-LMU-REAL-PLAYER`) is unavailable on this macOS workstation. Controlled UI/backend evidence does not replace that gate. Phase 2 remains out of scope.
 
+### Phase 1 review correction gate
+
+The [shared review-correction boundary](lmu-competitor-data-contract.md#phase-1-review-corrections) adds explicit availability for new synthetic DuckDB imports, not a new UI transport or opponent surface. Existing Metrics rendering receives missing state/null for omitted channels rather than fabricated zero/false, while supplied native/imported zeros remain numeric (U-LMU-2/U-LMU-6). Actual production HTTP import/history/export/reimport passed for synthetic v4 and native v3, retaining supplemental context and original historical clocks (U-LMU-4-P1 / LC8). Production WebSocket smoke confirmed stale scoring with independently fresh physics. UI component/layout/locale sources were unchanged; prior presentation evidence is retained, not claimed as a fresh browser run. Actual Windows LMU acceptance remains unrun. Correction logs are local under `.omp/evidence/lmu-review/`.
 
 ## Phase 2 — Multiplayer opponent presentation
 

@@ -74,6 +74,17 @@ implemented. Controlled pipeline and selected-lap round-trip evidence does not
 replace `E2E-LMU-REAL-PLAYER`; the Windows LMU acceptance gate remains unverified
 until run against an actual game/version/mode.
 
+### Phase 1 review corrections
+
+New DuckDB imports use a separately versioned **compact synthetic source frame v4**. It retains the v1 compact native payload/header layout and appends a JSON array of known importer channel names; the decoded `LMUSourceFrameV4.syntheticChannels` is a required `readonly string[]`. Metadata is limited to 4,096 UTF-8 bytes, at most one entry per allowlisted channel, and no duplicates or unknown names. Malformed metadata is rejected; compact v4 cannot enter full-memory v2/v3 sparse encoding. The header retains the original capture timestamp.
+
+Availability is per observation: event channels remain absent before their first recorded event. Omitted player extension fields resolve as missing, including byte/boolean channels; a supplied zero or false remains valid. Availability survives primary recording, replay and selected-lap export/import. Native acquisition remains v3 and native v1/v2 reads remain unchanged. Previously imported, unmarked v1 frames cannot safely be distinguished from native v1 and are not retroactively reclassified.
+
+Selected-lap export must sparse-encode native v3 frames even when context lengths change. Required regression evidence checks bounded decompressed export size and production reimport conservation without increasing archive safety limits.
+
+Scoring-backed channels use the scoring snapshot's native elapsed time, independently of the faster physics clock. Repeated scoring timestamps retain their source observation identity; a new scoring timestamp advances the observation even if its value is unchanged. Live and historical resolution compare compatible native clocks without replacing original capture/REST clocks. Invalid, missing or future scoring clocks yield unknown freshness, never fabricated fresh observations. Native freeze/disconnect deadlines use a monotonic clock; wall-clock corrections do not prolong player availability.
+
+REST cleanup must cancel rejected response bodies before discarding timeout/controller ownership. Condition schemas are semantic-specific: aero is one finite nonnegative scalar, while brakes and suspension are exactly four finite nonnegative wheel values. Malformed shapes are invalid; zero remains valid.
 
 ### Phase 2 — Multiplayer opponents and companion BIN
 

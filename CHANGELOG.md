@@ -10,6 +10,11 @@
 
 ### Fixes
 - Preserve LMU player snapshots, availability states and original observation times through recording, lap export, import and replay.
+- Keep LMU selected-lap exports compact enough to import again, including recordings with supplemental snapshots.
+- Show unrecorded LMU import channels as unavailable instead of artificial zero or false readings, while preserving recorded zeros.
+- Use native scoring update ages for LMU weather and race-control readings without changing historical snapshot ages.
+- Clear frozen or disconnected LMU player data even when the system clock moves backward.
+- Keep LMU snapshots responsive when the local telemetry service returns oversized, rejected, or malformed condition responses.
 - Keep first-run setup responsive by omitting the optional telemetry demo.
 - Use LMU game-world coordinates directly for track geometry, preserving edge-hugging and off-track positions.
 - Prevent overlapping database writes from blocking recording imports and setup or session deletion.
@@ -32,6 +37,7 @@
 - Complete first-run sparse recording migration in compiled builds instead of failing.
 
 ### Internal
+- Rename the shared LMU decoded-frame contract to `LMUSourceFrame` and remove an unused legacy version constant without changing recording compatibility.
 - Stabilize recording and browser E2E checks with bounded fixture reads, metadata-only experiment setup, browser-side playback pausing, and seeded demo capture using the correct Playwright configuration.
 - Reuse generic lap-bundle construction and separate capture-file accounting from `@raceiq/capture-splitting`; keep downsampling orchestration, database publication, and game adapters in the server.
 - Isolate streaming downsampling and its regression suite in `@raceiq/capture-downsampling`, depending on public capture-format codecs without importing backend policy or lap splitting.

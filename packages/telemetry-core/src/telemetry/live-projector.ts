@@ -7,6 +7,7 @@ import { liveSemanticIds } from "./live/semantics";
 import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "@raceiq/shared/telemetry/live/contracts";
 import type { LivePitData, LiveSectorData } from "@raceiq/shared/racing/live/types";
 import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
+import { lmuSourceTimestamp, lmuTelemetryTimestamp } from "@raceiq/shared/telemetry/lmu-source-time";
 import { encodeLiveFrame, encodeLiveSchema } from "./live-wire";
 import { encodeLmuContext } from "@raceiq/shared/telemetry/lmu-context";
 export interface LiveProjectionInput { packet: TelemetryPacket; sessionId?: number | null; sectors?: LiveSectorData | null; pit?: LivePitData | null; liveIssues?: readonly TuneIssue[]; receivedAtMs: number; }
@@ -27,12 +28,15 @@ export class LiveTelemetryProjector {
     const sessionId = input.sessionId ?? null;
     if (this.gameId !== gameId || this.sessionId !== sessionId || !this.resolver) this.startStream(gameId, sessionId);
     const resolver = this.resolver!;
-    const observedMs = gameId === "lmu" && input.packet.lmuContext?.key.frameTime.domain === "session"
-      ? input.packet.lmuContext.key.frameTime.milliseconds
-      : Number.isFinite(input.packet.TimestampMS) ? input.packet.TimestampMS : input.receivedAtMs;
+    const nativeTimestamp = gameId === "lmu" ? lmuTelemetryTimestamp(input.packet) : undefined;
+    const observedMs = nativeTimestamp?.domain === "session"
+      ? nativeTimestamp.milliseconds
+      : gameId === "lmu" && input.packet.lmuContext?.key.frameTime.domain === "session"
+        ? input.packet.lmuContext.key.frameTime.milliseconds
+        : Number.isFinite(input.packet.TimestampMS) ? input.packet.TimestampMS : input.receivedAtMs;
     const timestampDomain = gameId === "acc" || gameId === "ac-evo" ? "wall-clock" as const : "session" as const;
     const observation = { timestamp: { domain: timestampDomain, milliseconds: observedMs }, updateSequence: BigInt(this.sequence + 1) };
-    this.view = resolver.createFrameView(input.packet, observation, this.view);
+    this.view = resolver.createFrameView(input.packet, observation, this.view, gameId === "lmu" ? lmuSourceTimestamp : undefined);
     const resolved = this.view.resolveMany(liveSemanticIds(gameId).map((id) => resolver.slot(id))) as readonly ResolvedValue<unknown>[];
     const states: Record<number, "missing" | "stale" | "invalid" | "not-applicable" | "error"> = {};
     const freshness: Record<number, "stale" | "unknown"> = {};

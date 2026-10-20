@@ -60,11 +60,39 @@ competitor collection or companion BIN in this phase. Selected-lap ZIP export,
 import and historical semantic replay retain that context. Older captures and
 CSV imports cannot reconstruct observations they never recorded.
 
+New DuckDB imports use compact synthetic source-frame v4 with an allowlisted,
+duplicate-free channel inventory bounded to 4,096 metadata bytes. A channel is
+available only when the recording contains an applicable observation; event
+channels remain missing before their first event. Unrecorded player extensions
+stay missing, while supplied zero and false readings remain valid. This
+availability survives selected-lap export and reimport. Previously imported,
+unmarked v1 frames cannot safely be distinguished from native v1 recordings
+and are not retroactively reclassified. Older application versions cannot read
+the new v3/v4 source formats.
+
+The shared decoded TypeScript contract is `LMUSourceFrame`; its name is not
+tied to a source-frame version. Production native acquisition supplies context
+to `encodeLMUSourceFrame` and writes v3; DuckDB imports write v4. The compact
+v1 payload writer and context-free v2 writer remain for legacy compatibility
+fixtures, sharing encoding logic with the current formats rather than adding
+separate recording pipelines.
+
+Selected-lap export sparsifies native v3 frames even when supplemental context
+length changes; it does not expand every frame into a full-memory snapshot.
+
+
 Player battery charge is a fraction, native state of charge is a percentage,
 virtual energy is a separate fraction, and regeneration is reported in kW.
 Engine and electric-motor readings, steering-shaft torque, native rain/wetness,
 timing, controls, flags and penalty counts remain separate channels. Native
 sector-2 reports are cumulative sectors 1–2, not isolated sector-2 durations.
+
+Scoring-backed weather, timing and race-control readings retain the scoring
+snapshot clock rather than inheriting every physics update. Repeated scoring
+times do not refresh source observations. Missing, invalid or future clocks
+produce unknown freshness. Historical envelopes retain their original capture
+clock independently of the native clocks used to resolve channel freshness.
+
 
 Read-only REST acquisition uses loopback HTTP at `http://127.0.0.1:6397` by
 default. `LMU_REST_BASE_URL` can select another loopback HTTP address/port;
@@ -73,6 +101,9 @@ a 500 ms default timeout and a 1 MiB response limit. Vehicle condition and
 pit-estimate endpoints are checked at most once per second; setup, session
 settings and forecasts at most once per minute. Native frames never await
 network requests.
+Rejected response bodies are canceled before request timeout/controller
+ownership is released. Aero condition must be a finite nonnegative scalar;
+brake/suspension condition must contain exactly four finite nonnegative values.
 
 REST snapshots retain acquisition and original observation times separately.
 An unchanged response does not create a source update. Failures expose error
@@ -83,7 +114,8 @@ values have unverified scaling and are not shown as damage/wear percentages.
 
 Player/slot/session changes, rewind, garage return and pause invalidate
 incompatible context. Missing or unchanged native snapshots expire after one
-second; a transient rejected read does not create another session. New
+second measured by a monotonic clock, independent of system-clock changes;
+a transient rejected read does not create another session. New
 generations reject late REST completions. Live and historical player panels
 show observation state and source age, not an inferred measurement.
 

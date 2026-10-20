@@ -203,6 +203,7 @@ export class LmuSupplementalRest {
       if (generation === this.generation) for (const id of ids) this.publish(id, identity, this.now(), null, "error", null);
     } finally {
       clearTimeout(timeout);
+      controller.abort();
       if (this.controllers.get(endpoint) === controller) this.controllers.delete(endpoint);
     }
   }

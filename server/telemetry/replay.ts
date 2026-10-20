@@ -14,6 +14,7 @@ import { loadSessionCapture, resolveLapCaptureArtifact } from "../session-captur
 import { getLiveLapCaptureSnapshot } from "../db/live-capture-queries";
 import { resolveLiveLapCaptureArtifact } from "../session-capture/source-loader";
 import { encodeLmuContext } from "@raceiq/shared/telemetry/lmu-context";
+import { lmuSourceTimestamp, lmuTelemetryTimestamp } from "@raceiq/shared/telemetry/lmu-source-time";
 export interface QueryLapTelemetryOptions {
   readonly rawCaptureRequirement?: "provenance" | "native-values";
 }
@@ -96,6 +97,7 @@ function receivedTimestamp(createdAt: string): TelemetryTimestamp {
 
 function replayTimestamp(packet: TelemetryPacket, fallback: TelemetryTimestamp): TelemetryTimestamp {
   if (packet.extendedRaceIQ?.frameTimeMs !== undefined) return { domain: "wall-clock", milliseconds: packet.extendedRaceIQ.frameTimeMs };
+  if (packet.gameId === "lmu" && packet.lmu && Number.isFinite(packet.TimestampMS)) return { domain: "wall-clock", milliseconds: packet.TimestampMS };
   if (packet.gameId === "acc" || packet.gameId === "ac-evo" || !Number.isFinite(packet.TimestampMS)) return fallback;
   return { domain: "session", milliseconds: packet.TimestampMS };
 }
@@ -136,12 +138,12 @@ export function resolveTelemetryReplay(
     const packet = packets[sequence];
     const observedAt = replayTimestamp(packet, receivedAt);
     const observation: SourceObservation = {
-      timestamp: observedAt,
+      timestamp: packet.gameId === "lmu" ? lmuTelemetryTimestamp(packet) ?? observedAt : observedAt,
       updateSequence: BigInt(sequence),
     };
     nativeFrame.packet = packet;
     nativeFrame.nativeValues = nativeFrames.next().value;
-    view = resolver.createFrameView(nativeFrame, observation, view);
+    view = resolver.createFrameView(nativeFrame, observation, view, source.gameId === "lmu" ? lmuSourceTimestamp : undefined);
     const resolved = view.resolveMany(slots, target);
     const values: CanonicalTelemetryValue[] = new Array(resolved.length);
     for (let index = 0; index < resolved.length; index++) {

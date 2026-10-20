@@ -109,8 +109,9 @@ export class LMUTelemetrySource {
     try {
       const memory = this.reader.readLatest();
       const now = Date.now();
+      const monotonicNow = performance.now();
       if (!memory || memory.length < LMU_SHARED_MEMORY_SIZE) {
-        if (now - this.lastNativeUpdateAt > 1000) await this.invalidate();
+        if (monotonicNow - this.lastNativeUpdateAt > 1000) await this.invalidate();
         return false;
       }
       const count = memory.readUInt8(LMU_TELEMETRY_HEADER_OFFSET);
@@ -141,8 +142,8 @@ export class LMUTelemetrySource {
       const nativeIdentity = `${memory.readUInt32LE(LMU_SESSION_EVENT_OFFSET)}:${memory.readInt32LE(LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.session)}:${vehicleId}:${slot}:${memory.subarray(t + LMU_TELEMETRY.vehicleName, t + LMU_TELEMETRY.trackName + 64).toString("hex")}`;
       // Reader snapshots are reusable: do not yield between validation and encoding.
       if (this.context && (nativeIdentity !== this.nativeIdentity || elapsed < this.lastElapsed)) void this.invalidate();
-      if (elapsed !== this.lastElapsed) this.lastNativeUpdateAt = now;
-      else if (now - this.lastNativeUpdateAt > 1000) { await this.invalidate(); return false; }
+      if (elapsed !== this.lastElapsed) this.lastNativeUpdateAt = monotonicNow;
+      else if (monotonicNow - this.lastNativeUpdateAt > 1000) { await this.invalidate(); return false; }
       this.lastElapsed = elapsed;
       if (!this.context) {
         this.nativeIdentity = nativeIdentity;

@@ -66,6 +66,11 @@ The controlled application harness used the actual `bootServer`, `LMUTelemetrySo
 
 **Acceptance remains blocked:** `E2E-LMU-REAL-PLAYER` could not run on this macOS workstation. Verify the actual Windows LMU version/mode, native source availability and REST behavior before declaring Phase 1 accepted or starting Phase 2. Unsupported absolute capacity, localized refill selection and pit/repair estimates remain unavailable, not measured values.
 
+### Phase 1 review correction gate
+
+Follow the [shared review-correction boundary](lmu-competitor-data-contract.md#phase-1-review-corrections): compact synthetic-v4 availability preserves native-v3 acquisition and legacy native reads. PLAYER-RETENTION / LC8 now covers actual DuckDB HTTP import → semantic history → selected-lap export/reimport, including omitted fields, recorded zero, and an event before its first observation. The native-v3 scenario covers variable context lengths, bounded decompressed export size, exact supplemental context/nanoseconds and original historical capture clocks.
+
+Controlled correction evidence passed: 62 source/resolver regressions; focused scoring-alias regressions; native source → parser → pipeline → production WebSocket with frozen scoring and fresh physics; actual HTTP import/history/export/reimport for synthetic v4 and native v3; root typecheck (31 tasks), root lint (33 tasks) and changed-scope follow-up gates; deterministic catalog (809 variables / 2,010 links); 400-test registration; 11 changelog tests. The 1,423-frame native lap exported to 9,063,881 decompressed bytes rather than full-memory expansion. Local logs are under `.omp/evidence/lmu-review/`. Actual Windows LMU acceptance remains unrun.
 
 ## Phase 2 — Multiplayer opponents and companion BIN
 

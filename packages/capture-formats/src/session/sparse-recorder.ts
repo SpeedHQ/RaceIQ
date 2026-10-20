@@ -33,7 +33,7 @@ export class SparseCaptureEncoder {
   encode(frame: Buffer, recordOffset: number): Buffer {
     const forceCheckpoint = this.forceCheckpoint;
     this.forceCheckpoint = false;
-    // Imported compact v1 frames and unrelated source formats stay legacy raw.
+    // Compact imported v1/v4 frames and unrelated source formats stay legacy raw.
     const isLmu = this.gameId === "lmu" && frame.length >= LMU_SOURCE_FRAME_V2_SIZE && canHandleLMUSourceFrame(frame);
     const kunosMagic = this.gameId === "acc" ? ACC_PACKED_MAGIC : ACEVO_PACKED_MAGIC;
     const isKunos = (this.gameId === "acc" || this.gameId === "ac-evo") &&

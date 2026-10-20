@@ -33,7 +33,9 @@ import {
   iterateSessionCaptureRecords,
   iterateSessionFrames,
   META_FRAME_BYTES,
+  readFramePrefix,
 } from "@raceiq/capture-formats/session/framing";
+import { isLmuSparseFrame } from "@raceiq/capture-formats/session/lmu-sparse";
 import { queryLapTelemetryBySemanticId } from "@raceiq/backend-core/telemetry/replay";
 import { KNOWN_GAME_IDS, type GameId } from "@raceiq/shared/games/ids";
 import { buildLd, buildLdx, syntheticStint } from "@raceiq/backend-core/test-support/motec/ld";
@@ -219,6 +221,27 @@ describe("lap export → import round-trip (real capture)", () => {
     const original = await parseRawLapFrames(captureSource(originalSession), originalRow.rawByteOffset!, originalRow.rawFrameCount!);
     expect(new Set(original.map((packet) => packet.lmuContext?.supplemental[0]?.observation.value)).size).toBe(6);
     const exported = await buildLapsZip([originalRow.id]);
+    const archive = unzipSync(exported.bytes);
+    const captureMember = Object.entries(archive).find(([name]) => name.endsWith(".bin.gz"))?.[1];
+    expect(captureMember).toBeDefined();
+    const sparseCapture = gunzipSync(captureMember!);
+    expect(sparseCapture.length).toBeLessThan(original.length * LMU_SHARED_MEMORY_SIZE * 0.75);
+    let segmentBoundaries = 0;
+    let sparseFrames = 0;
+    for (const record of iterateSessionCaptureRecords(sparseCapture)) {
+      if (record.kind === "segment-boundary") {
+        segmentBoundaries++;
+        continue;
+      }
+      if (record.kind !== "frame") continue;
+      const prefix = readFramePrefix(sparseCapture, record.offset)!;
+      const payload = sparseCapture.subarray(record.offset + prefix.prefixBytes, record.offset + prefix.prefixBytes + prefix.length);
+      if (isLmuSparseFrame(payload)) {
+        sparseFrames++;
+      }
+    }
+    expect(segmentBoundaries).toBeGreaterThan(0);
+    expect(sparseFrames).toBeGreaterThan(0);
     const imported = await importLapsZip(exported.bytes);
     expect(imported.errors).toEqual([]);
     expect(imported.laps).toHaveLength(1);
@@ -230,6 +253,7 @@ describe("lap export → import round-trip (real capture)", () => {
     expect(restored.map((packet) => packet.lmu)).toEqual(original.map((packet) => packet.lmu));
     expect(restored.map((packet) => packet.lmuContext)).toEqual(original.map((packet) => packet.lmuContext));
     const historical = await queryLapTelemetryBySemanticId(importedRow.id, ["fuel.virtual-energy"]);
+    expect(historical!.envelopes[0]!.observedAt).toEqual(restored[0]!.lmuContext!.key.frameTime);
     expect(historical!.envelopes.map((envelope) => envelope.lmu)).toEqual(restored.map((packet) => encodeLmuContext(packet.lmuContext!)));
     expect(historical!.envelopes[0]!.lmu!.supplemental[0]!.observation.provenance.sourceObservation!.updateSequence).toMatch(/^9007199254/);
   }, 120000);

@@ -6,7 +6,7 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.20.0",
-      "sourceHash": "187c1b126d72b392c7989c4f68fc1eb1f3c030c34a60b74f7afa5d2fb5069e70"
+      "sourceHash": "d6dfd2114b95ab38f779a267bf2bc41018bdcb279f86d31c230b2140c7018c8f"
     },
     "sourceHashes": {
       "packages/game-ac-evo/src/parser.ts": "29cb3985fe32c797554d98f107a0c4d76ddcc5279d97e75423365e1a0887f5de",
@@ -15,12 +15,12 @@
       "packages/game-fm-2023/src/parser.ts": "71c348b894f84f6086c9582d0cce473bac75a3c85896010a0e5762854718b835",
       "packages/game-iracing-metadata/src/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "packages/game-iracing/src/normalizer.ts": "bcc73bc4805a310f968b9743e6c9c88a688e3216cd28eecc3ee9f6c3d36b0afc",
-      "packages/game-lmu/src/normalizer.ts": "7bf7e895564866081790d3af4f5b5f090e79ba46a993148c491de0357b783258",
+      "packages/game-lmu/src/normalizer.ts": "bf9b11b3a767535886e530e383ea9f744975ab604fbdc13c2723a4d5a7a3da85",
       "packages/tooling-catalog/src/catalog/derived-projections.ts": "b81b4ebdaeb86a88a289d245946b3e9f32cf104970d11532ac517fb219e0eff7",
       "server/session-capture/frame-time.ts": "55c44a6cede5e2c5fb1e1c45568fe44b4a9a8b156f260f69bb5d89f9c24935a2",
       "shared/racing/setups/schema.ts": "987941bb8f38520920686ef540e67ce2259fdc962de03ccb959f6b5ef773b28f"
     },
-    "contentHash": "7d4f479dcfe58b2b3f546d9fda609557490c6de92e5b84f9a7444cf983f93152"
+    "contentHash": "1c522a0fd79d052925276fd45a315795a6140c55d6f6c091c80ade325e35651f"
   },
   "generatedFrom": [
     "packages/tooling-catalog/src/root.ts",
@@ -1409,7 +1409,7 @@
             "LMU.Telemetry.rearFlapActivated"
           ],
           "freshness": "continuous",
-          "normalization": "lmu.rearFlapActivated ? 1 : 0",
+          "normalization": "channelAvailable(\"RearFlapActivated\") ? telemetry.readUInt8(LMU_TELEMETRY.rearFlapActivated) !== 0 ? 1 : 0 : NaN",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -1424,8 +1424,8 @@
             "declaredInputs": [
               "LMU.Telemetry.rearFlapActivated"
             ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "9c3c47d069b25c19f4c236a706fa0971e121c039e3173bbb1525aacd8b49ad12"
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "cc00d7cf0283344e49011aded21b2ca6d8168497362f6766b1abb09d11e0e452"
           }
         }
       },
@@ -1979,7 +1979,7 @@
           "description": "iracing parser fills this value with a placeholder because source does not provide it."
         },
         "lmu": {
-          "kind": "direct",
+          "kind": "normalized",
           "nativeUnit": "°C",
           "sources": {
             "FL": [
@@ -1996,12 +1996,27 @@
             ]
           },
           "freshness": "continuous",
+          "normalization": "channelAvailable(\"Brakes Temp\") ? wheels.FL.brakeTemperatureC : NaN | channelAvailable(\"Brakes Temp\") ? wheels.FR.brakeTemperatureC : NaN | channelAvailable(\"Brakes Temp\") ? wheels.RL.brakeTemperatureC : NaN | channelAvailable(\"Brakes Temp\") ? wheels.RR.brakeTemperatureC : NaN",
           "description": "lmu maps 4 native source channels into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-lmu/src/normalizer.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "lmu:brakes.brake-temp:normalized",
+            "version": "0.20.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "LMU.Telemetry.wheels.FL.brakeTemperature",
+              "LMU.Telemetry.wheels.FR.brakeTemperature",
+              "LMU.Telemetry.wheels.RL.brakeTemperature",
+              "LMU.Telemetry.wheels.RR.brakeTemperature"
+            ],
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "2dd322d4f56ab45efe360cf4a3774a41ef50bc5cadd91f4ed6334d5b18652c5d"
+          }
         }
       },
       "valueType": "number",
@@ -11165,18 +11180,30 @@
           "limitations": []
         },
         "lmu": {
-          "kind": "direct",
+          "kind": "normalized",
           "nativeUnit": "rpm",
           "sources": [
             "LMU.Telemetry.engineRpm"
           ],
           "freshness": "continuous",
+          "normalization": "extensionAvailable(\"engineRpm\") ? engineRpm : NaN",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-lmu/src/normalizer.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "lmu:engine.current-engine-rpm:normalized",
+            "version": "0.20.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "LMU.Telemetry.engineRpm"
+            ],
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "d3db17eb558151607b96782024c35e881f4d3fde0444c181322ae2d705d03a87"
+          }
         }
       },
       "valueType": "number",
@@ -11618,13 +11645,13 @@
           "limitations": []
         },
         "lmu": {
-          "kind": "derived",
+          "kind": "normalized",
           "nativeUnit": "rpm",
           "sources": [
             "LMU.Telemetry.engineMaxRpm"
           ],
           "freshness": "continuous",
-          "normalization": "Math.max( 0, finiteDouble(telemetry, LMU_TELEMETRY.engineMaxRpm), )",
+          "normalization": "channelAvailable(\"Engine Max RPM\") ? Math.max(0, finiteDouble(telemetry, LMU_TELEMETRY.engineMaxRpm)) : NaN",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -11632,15 +11659,15 @@
           },
           "limitations": [],
           "execution": {
-            "kind": "derivation",
-            "id": "lmu:engine.engine-max-rpm:derived",
+            "kind": "conversion",
+            "id": "lmu:engine.engine-max-rpm:normalized",
             "version": "0.20.0",
             "deterministic": true,
             "declaredInputs": [
               "LMU.Telemetry.engineMaxRpm"
             ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "fec5b6545c3ba0b4c31290ccac0bbba4c407bee27a7e3d0a94f5eccd6d2d75be"
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "6e2d96aa3efec3dd1740707d1016d224426dee9b4f2d8ff165a028b2de1e887a"
           }
         }
       },
@@ -12939,7 +12966,7 @@
           "description": "iracing parser fills this value with a placeholder because source does not provide it."
         },
         "lmu": {
-          "kind": "derived",
+          "kind": "normalized",
           "nativeUnit": "W",
           "sources": [
             "LMU.Telemetry.engineTorque",
@@ -12948,7 +12975,7 @@
             "LMU.Telemetry.electricBoostMotorRpm"
           ],
           "freshness": "continuous",
-          "normalization": "engineTorque * engineRpm * TWO_PI_PER_MINUTE",
+          "normalization": "extensionAvailable(\"engineTorque\") ? engineTorque * engineRpm * TWO_PI_PER_MINUTE : NaN",
           "description": "lmu maps 4 native source channels into this value.",
           "provenance": {
             "origin": "parser",
@@ -12956,8 +12983,8 @@
           },
           "limitations": [],
           "execution": {
-            "kind": "derivation",
-            "id": "lmu:engine.power:derived",
+            "kind": "conversion",
+            "id": "lmu:engine.power:normalized",
             "version": "0.20.0",
             "deterministic": true,
             "declaredInputs": [
@@ -12966,8 +12993,8 @@
               "LMU.Telemetry.electricBoostMotorTorque",
               "LMU.Telemetry.electricBoostMotorRpm"
             ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "8b9cbd434fdcdcbc3dff37bbb699b25a418c8f5f136deff99aa619966ac4fec1"
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "72b2fe665634b8f757914c9cf554f9d60584ea604da59b1c6b8ecdf885ab576b"
           }
         }
       },
@@ -13440,7 +13467,7 @@
           "description": "iracing parser fills this value with a placeholder because source does not provide it."
         },
         "lmu": {
-          "kind": "direct",
+          "kind": "normalized",
           "nativeUnit": "N·m",
           "sources": [
             "LMU.Telemetry.engineTorque",
@@ -13448,12 +13475,26 @@
             "lmu.engineTorque"
           ],
           "freshness": "continuous",
+          "normalization": "extensionAvailable(\"engineTorque\") ? engineTorque : NaN",
           "description": "lmu maps 2 native source channels into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-lmu/src/normalizer.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "lmu:engine.torque:normalized",
+            "version": "0.20.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "LMU.Telemetry.engineTorque",
+              "LMU.Telemetry.electricBoostMotorTorque",
+              "lmu.engineTorque"
+            ],
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "33022b0f9dbdc46e564b19f989eacead40e35ec981c1fec991e362a841a2ec6e"
+          }
         }
       },
       "valueType": "number",
@@ -14507,13 +14548,13 @@
           }
         },
         "lmu": {
-          "kind": "derived",
+          "kind": "normalized",
           "nativeUnit": "L",
           "sources": [
             "LMU.Telemetry.fuel"
           ],
           "freshness": "continuous",
-          "normalization": "Math.max(0, finiteDouble(telemetry, LMU_TELEMETRY.fuel))",
+          "normalization": "channelAvailable(\"Fuel Level\") ? Math.max(0, finiteDouble(telemetry, LMU_TELEMETRY.fuel)) : NaN",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -14521,15 +14562,15 @@
           },
           "limitations": [],
           "execution": {
-            "kind": "derivation",
-            "id": "lmu:fuel.fuel:derived",
+            "kind": "conversion",
+            "id": "lmu:fuel.fuel:normalized",
             "version": "0.20.0",
             "deterministic": true,
             "declaredInputs": [
               "LMU.Telemetry.fuel"
             ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "7f8528a29f89768f56895690642d2e3ff6193d7607e210fd9b7216273b14b4b7"
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "f8a16ccb123df30f755b89142dd3d643bcc7604cdcf1c7251f9bbdc776bcd3b1"
           }
         }
       },
@@ -14651,13 +14692,13 @@
           "limitations": []
         },
         "lmu": {
-          "kind": "derived",
+          "kind": "normalized",
           "nativeUnit": "L",
           "sources": [
             "LMU.Telemetry.fuelCapacity"
           ],
           "freshness": "continuous",
-          "normalization": "Math.max( 0, finiteDouble(telemetry, LMU_TELEMETRY.fuelCapacity), )",
+          "normalization": "frame.schemaVersion === 4 ? NaN : Math.max(0, finiteDouble(telemetry, LMU_TELEMETRY.fuelCapacity))",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -14665,15 +14706,15 @@
           },
           "limitations": [],
           "execution": {
-            "kind": "derivation",
-            "id": "lmu:fuel.fuel-capacity:derived",
+            "kind": "conversion",
+            "id": "lmu:fuel.fuel-capacity:normalized",
             "version": "0.20.0",
             "deterministic": true,
             "declaredInputs": [
               "LMU.Telemetry.fuelCapacity"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "ec521db7fb69f4786986d81e8696a4510324f53435d94c4720961efc8f2b0b04"
+            "codeHash": "b45eec72d669d2bb93a4285755bb9ce9b2897ac767e0a8ea22d0d50cf144d01f"
           }
         }
       },
@@ -18598,7 +18639,7 @@
             "LMU.Telemetry.unfilteredThrottle"
           ],
           "freshness": "continuous",
-          "normalization": "input255(finiteDouble(telemetry, LMU_TELEMETRY.throttle))",
+          "normalization": "extensionAvailable(\"throttle\") ? input255(finiteDouble(telemetry, LMU_TELEMETRY.throttle)) : NaN",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -18613,8 +18654,8 @@
             "declaredInputs": [
               "LMU.Telemetry.unfilteredThrottle"
             ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "e0e662f1e1d65f690961e4eb18fd55e0fb74c4ce5dcfede84431ad01eb02d604"
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "3c16241b7f34b3281adec8fba52a5efcdb2d3069c29c53d3891a78e784bc8533"
           }
         }
       },
@@ -18763,7 +18804,7 @@
             "LMU.Telemetry.unfilteredBrake"
           ],
           "freshness": "continuous",
-          "normalization": "input255(finiteDouble(telemetry, LMU_TELEMETRY.brake))",
+          "normalization": "extensionAvailable(\"brake\") ? input255(finiteDouble(telemetry, LMU_TELEMETRY.brake)) : NaN",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -18778,8 +18819,8 @@
             "declaredInputs": [
               "LMU.Telemetry.unfilteredBrake"
             ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "ad7b5bdb9a9bc5faadda816a6b622b692da3214c063b7bd9534e26860cd454d8"
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "503e5dda1b59583cd954321d9f2296c5c42b9f407581d9303ae37edbbc8a3a4b"
           }
         }
       },
@@ -18947,7 +18988,7 @@
             "LMU.Telemetry.unfilteredClutch"
           ],
           "freshness": "continuous",
-          "normalization": "input255(finiteDouble(telemetry, LMU_TELEMETRY.clutch))",
+          "normalization": "extensionAvailable(\"clutch\") ? input255(finiteDouble(telemetry, LMU_TELEMETRY.clutch)) : NaN",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -18962,8 +19003,8 @@
             "declaredInputs": [
               "LMU.Telemetry.unfilteredClutch"
             ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "388226433c5ffa4fc532656dad6dc44906940defa3dba6fac8208724c3b4ea6b"
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "1267bba06df4f3c4a260598402063c66c5bddf55c099f05b3fff28ffdc612de1"
           }
         }
       },
@@ -19459,7 +19500,7 @@
             "LMU.Telemetry.gear"
           ],
           "freshness": "continuous",
-          "normalization": "canonicalGear(telemetry.readInt32LE(LMU_TELEMETRY.gear))",
+          "normalization": "channelAvailable(\"Gear\") ? canonicalGear(telemetry.readInt32LE(LMU_TELEMETRY.gear)) : NaN",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -19474,8 +19515,8 @@
             "declaredInputs": [
               "LMU.Telemetry.gear"
             ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "049b186423434bc6d96ec8198f94bace8814aff02600ee6de06b9b5092da292a"
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "70a4ac3dc2cb394790733d2aa0ec97d879e189c1d6389c6f028b58bf8b01cf21"
           }
         }
       },
@@ -20284,7 +20325,7 @@
             "LMU.Telemetry.unfilteredSteering"
           ],
           "freshness": "continuous",
-          "normalization": "Math.round( clamp(finiteDouble(telemetry, LMU_TELEMETRY.steering), -1, 1) * 127, )",
+          "normalization": "extensionAvailable(\"steering\") ? Math.round(clamp(finiteDouble(telemetry, LMU_TELEMETRY.steering), -1, 1) * 127) : NaN",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -20299,8 +20340,8 @@
             "declaredInputs": [
               "LMU.Telemetry.unfilteredSteering"
             ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "8e00e2b7843dc23e59dde9b9b6d0fc5d8b76fa0598eaa9801906254c0b7f29bc"
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "3663c6e0bbd6a4878b51a19f198fae69eb14ffdbf38aa4b5a6993f73bdf6294a"
           }
         }
       },
@@ -32912,7 +32953,7 @@
             "LMU.PlayerScoring.place"
           ],
           "freshness": "continuous",
-          "normalization": "scoring ? scoring.readUInt8(LMU_SCORING_VEHICLE.place) : 0",
+          "normalization": "scoring && frame.schemaVersion !== 4 ? scoring.readUInt8(LMU_SCORING_VEHICLE.place) : NaN",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -32928,7 +32969,7 @@
               "LMU.PlayerScoring.place"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "dd41be403c34e9102241b32caf5ac4815e686ef827468f8dff47b53eb4ca25a9"
+            "codeHash": "a317a3018da6a506bbbae1a3c5a091bdd1cb8d8591aa345e32b723b5de1f43e5"
           }
         }
       },
@@ -45596,7 +45637,7 @@
             "LMU.PlayerScoring.bestLapTime"
           ],
           "freshness": "continuous",
-          "normalization": "scoring ? positiveTime(finiteDouble(scoring, LMU_SCORING_VEHICLE.bestLapTime)) : 0",
+          "normalization": "channelAvailable(\"Best LapTime\") && scoring ? positiveTime(finiteDouble(scoring, LMU_SCORING_VEHICLE.bestLapTime)) : NaN",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -45611,8 +45652,8 @@
             "declaredInputs": [
               "LMU.PlayerScoring.bestLapTime"
             ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "72b7ae872ff6af9e57cb02cd47084add8a1969227c791b5a9ef241680d67d469"
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "1f0ffff6c07a63979de78ab23ba9f53f448bc81ab03db898ca467c2c3940ddfc"
           }
         }
       },
@@ -47650,31 +47691,33 @@
           }
         },
         "lmu": {
-          "kind": "derived",
+          "kind": "normalized",
           "nativeUnit": "m",
           "sources": [
+            "LMU.Telemetry.readDoubleLE",
             "LMU.PlayerScoring.readInt16LE",
             "lmu.lapDistanceM"
           ],
           "freshness": "continuous",
-          "normalization": "completedLaps * trackLengthM + Math.max(0, lapDistanceM)",
-          "description": "lmu maps 1 native source channel into this value.",
+          "normalization": "extensionAvailable(\"lapDistanceM\") ? completedLaps * trackLengthM + Math.max(0, lapDistanceM) : NaN",
+          "description": "lmu maps 2 native source channels into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-lmu/src/normalizer.ts"
           },
           "limitations": [],
           "execution": {
-            "kind": "derivation",
-            "id": "lmu:timing.distance-traveled:derived",
+            "kind": "conversion",
+            "id": "lmu:timing.distance-traveled:normalized",
             "version": "0.20.0",
             "deterministic": true,
             "declaredInputs": [
+              "LMU.Telemetry.readDoubleLE",
               "LMU.PlayerScoring.readInt16LE",
               "lmu.lapDistanceM"
             ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "4df08e7b88fa3dab00c866babc73c32cfc9b55ef2bad00eecdf6ca50b7604745"
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "33636249d0a3d7e958945087da16af50c66887677f886d4ad05ef517cb075ac3"
           }
         }
       },
@@ -49296,13 +49339,13 @@
           }
         },
         "lmu": {
-          "kind": "derived",
+          "kind": "normalized",
           "nativeUnit": "count",
           "sources": [
             "LMU.Telemetry.lapNumber"
           ],
           "freshness": "continuous",
-          "normalization": "Math.max( 1, telemetry.readInt32LE(LMU_TELEMETRY.lapNumber) + 1, )",
+          "normalization": "channelAvailable(\"Lap\") ? Math.max(1, telemetry.readInt32LE(LMU_TELEMETRY.lapNumber) + 1) : NaN",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -49310,15 +49353,15 @@
           },
           "limitations": [],
           "execution": {
-            "kind": "derivation",
-            "id": "lmu:timing.lap-number:derived",
+            "kind": "conversion",
+            "id": "lmu:timing.lap-number:normalized",
             "version": "0.20.0",
             "deterministic": true,
             "declaredInputs": [
               "LMU.Telemetry.lapNumber"
             ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "38e5361773b6db8d057ddd344787914b4081f4ffa2f60ce7b5476b2a4add30ac"
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "f344991b40394c600be9651c27a32a0fda2e44757d4326c58192f1adb29211f3"
           }
         }
       },
@@ -49512,7 +49555,7 @@
             "LMU.PlayerScoring.lastLapTime"
           ],
           "freshness": "continuous",
-          "normalization": "scoring ? positiveTime(finiteDouble(scoring, LMU_SCORING_VEHICLE.lastLapTime)) : 0",
+          "normalization": "channelAvailable(\"Lap Time\") && scoring ? positiveTime(finiteDouble(scoring, LMU_SCORING_VEHICLE.lastLapTime)) : NaN",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -49527,8 +49570,8 @@
             "declaredInputs": [
               "LMU.PlayerScoring.lastLapTime"
             ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "1733250898d6d3e40d81c8cbdc534e5b18c8faa7eb9fdec4d348a938f5b15032"
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "7af88ec3062e133e9b47e92eb781d8ac1cab506ff513c66b2ab53dde5b375a7e"
           }
         }
       },
@@ -58342,7 +58385,7 @@
           }
         },
         "lmu": {
-          "kind": "direct",
+          "kind": "normalized",
           "nativeUnit": "psi",
           "sources": {
             "FL": [
@@ -58359,12 +58402,27 @@
             ]
           },
           "freshness": "continuous",
+          "normalization": "channelAvailable(\"TyresPressure\") ? wheels.FL.pressurePsi : NaN | channelAvailable(\"TyresPressure\") ? wheels.FR.pressurePsi : NaN | channelAvailable(\"TyresPressure\") ? wheels.RL.pressurePsi : NaN | channelAvailable(\"TyresPressure\") ? wheels.RR.pressurePsi : NaN",
           "description": "lmu maps 4 native source channels into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-lmu/src/normalizer.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "lmu:tires.tire-pressure:normalized",
+            "version": "0.20.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "LMU.Telemetry.wheels.FL.pressureKpa",
+              "LMU.Telemetry.wheels.FR.pressureKpa",
+              "LMU.Telemetry.wheels.RL.pressureKpa",
+              "LMU.Telemetry.wheels.RR.pressureKpa"
+            ],
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "bb6f082535fdbfd7ffce6cc863604cd2d30b1f76b6a91a12fd61ba5ba23c6413"
+          }
         }
       },
       "valueType": "number",
@@ -60370,18 +60428,30 @@
           }
         },
         "lmu": {
-          "kind": "direct",
+          "kind": "normalized",
           "nativeUnit": "°C",
           "sources": [
             "LMU.ScoringInfo.ambientTemperature"
           ],
           "freshness": "continuous",
+          "normalization": "channelAvailable(\"Ambient Temperature\") ? finiteDouble(scoringInfo, LMU_SCORING_INFO.ambientTemperature) : NaN",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-lmu/src/normalizer.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "lmu:weather.air-temp:normalized",
+            "version": "0.20.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "LMU.ScoringInfo.ambientTemperature"
+            ],
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "62b829aac532390c8aa5d3046a49e2bc89144ba7914f5cfcdda7bb8e30a20a06"
+          }
         }
       },
       "valueType": "number",
@@ -61514,7 +61584,7 @@
             "LMU.ScoringInfo.raining"
           ],
           "freshness": "continuous",
-          "normalization": "Math.round(raining * 100)",
+          "normalization": "frame.schemaVersion === 4 ? NaN : Math.round(raining * 100)",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -61530,7 +61600,7 @@
               "LMU.ScoringInfo.raining"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "a3331a96c2cd18936604f4a0e1aa6eb516ecb0433176cc1a2b0bef201073b502"
+            "codeHash": "b549aa6544b6e20b8350c36355c4cadcbda9828f8f2a5e596b13426a53f61202"
           }
         }
       },
@@ -62107,18 +62177,30 @@
           }
         },
         "lmu": {
-          "kind": "direct",
+          "kind": "normalized",
           "nativeUnit": "°C",
           "sources": [
             "LMU.ScoringInfo.trackTemperature"
           ],
           "freshness": "continuous",
+          "normalization": "channelAvailable(\"Track Temperature\") ? finiteDouble(scoringInfo, LMU_SCORING_INFO.trackTemperature) : NaN",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-lmu/src/normalizer.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "lmu:weather.track-temp:normalized",
+            "version": "0.20.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "LMU.ScoringInfo.trackTemperature"
+            ],
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "23b8b7c08309c9e996b8115b956ce584f8b092459cf5c8580f46f4cdb671fe94"
+          }
         }
       },
       "valueType": "number",
@@ -62418,19 +62500,32 @@
           }
         },
         "lmu": {
-          "kind": "direct",
+          "kind": "normalized",
           "nativeUnit": "enum",
           "sources": [
             "LMU.ScoringInfo.raining",
             "LMU.ScoringInfo.cloudCoverage"
           ],
           "freshness": "continuous",
+          "normalization": "frame.schemaVersion === 4 ? NaN : weatherType(raining, cloudCoverage)",
           "description": "lmu maps 2 native source channels into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-lmu/src/normalizer.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "lmu:weather.weather-type:normalized",
+            "version": "0.20.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "LMU.ScoringInfo.raining",
+              "LMU.ScoringInfo.cloudCoverage"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "1f983d9de56fbddb1b8bfc633d48ec10b85e9c13b34e43261f752f0ad952dc28"
+          }
         }
       },
       "valueType": "enum",

@@ -1,4 +1,7 @@
 import { describe, expect, test, spyOn } from "bun:test";
+import { createServer } from "node:http";
+import { once } from "node:events";
+import { isLmuRestValue } from "@raceiq/shared/telemetry/lmu-rest-channels";
 import { LMUTelemetrySource } from "../src/source";
 import { LmuSupplementalRest } from "../src/supplemental-rest";
 import { normalizeLMUSourceFrame } from "../src/normalizer";
@@ -30,6 +33,7 @@ function playerMemory(): Buffer {
   memory.writeFloatLE(-80, LMU_TELEMETRY_INFO_OFFSET + LMU_TELEMETRY.regenKw);
   memory.writeInt32LE(1, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.numberOfVehicles);
   memory.writeUInt8(1, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.inRealtime);
+  memory.writeDoubleLE(10, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.currentElapsedTime);
   memory.writeDoubleLE(0.4, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.averagePathWetness);
   memory.writeInt32LE(42, LMU_SCORING_VEHICLES_OFFSET + LMU_SCORING_VEHICLE.id);
   memory.writeUInt8(1, LMU_SCORING_VEHICLES_OFFSET + LMU_SCORING_VEHICLE.isPlayer);
@@ -74,29 +78,42 @@ describe("LMU Phase 1 player pipeline", () => {
   });
 
   test("invalidates no-player, duplicate identity, rewind and frozen snapshots without guessing a player", async () => {
-    let now = 10000;
-    const clock = spyOn(Date, "now").mockImplementation(() => now);
+    let wallNow = 100_000;
+    let monotonicNow = 500;
+    const wallClock = spyOn(Date, "now").mockImplementation(() => wallNow);
+    const monotonicClock = spyOn(performance, "now").mockImplementation(() => monotonicNow);
     const memory = playerMemory();
+    let available = true;
     const contexts: LmuLiveContext[] = [];
     const frames: Buffer[] = [];
-    const source = new LMUTelemetrySource({ rest: false, reader: { start() {}, async stop() {}, readLatest: () => memory }, dispatchRawFrame: async (frame) => { frames.push(frame); }, publishUnavailable: (context) => { contexts.push(context); } });
+    const source = new LMUTelemetrySource({ rest: false, reader: { start() {}, async stop() {}, readLatest: () => available ? memory : null }, dispatchRawFrame: async (frame) => { frames.push(frame); }, publishUnavailable: (context) => { contexts.push(context); } });
     try {
       expect(await source.pollOnce()).toBe(true);
       const firstKey = decodeLMUSourceFrame(frames[0]!)!.lmuContext!.key.sessionKey;
       memory.writeDoubleLE(1, LMU_TELEMETRY_INFO_OFFSET + LMU_TELEMETRY.elapsedTime);
       expect(await source.pollOnce()).toBe(true);
       expect(decodeLMUSourceFrame(frames[1]!)!.lmuContext!.key.sessionKey).not.toBe(firstKey);
-      now += 1001;
+      wallNow -= 50_000;
+      monotonicNow += 1001;
       expect(await source.pollOnce()).toBe(false);
       expect(contexts.at(-1)?.status).toBe("unavailable");
+      expect(contexts).toHaveLength(1);
+      memory.writeDoubleLE(2, LMU_TELEMETRY_INFO_OFFSET + LMU_TELEMETRY.elapsedTime);
+      expect(await source.pollOnce()).toBe(true);
+      available = false;
+      wallNow -= 50_000;
+      monotonicNow += 1001;
+      expect(await source.pollOnce()).toBe(false);
+      expect(contexts).toHaveLength(2);
       memory.writeUInt8(0, LMU_SCORING_VEHICLES_OFFSET + LMU_SCORING_VEHICLE.isPlayer);
       expect(await source.pollOnce()).toBe(false);
       memory.writeUInt8(1, LMU_SCORING_VEHICLES_OFFSET + LMU_SCORING_VEHICLE.isPlayer);
+      available = true;
       memory.copy(memory, LMU_SCORING_VEHICLES_OFFSET + LMU_SCORING_VEHICLE_SIZE, LMU_SCORING_VEHICLES_OFFSET, LMU_SCORING_VEHICLES_OFFSET + LMU_SCORING_VEHICLE_SIZE);
       memory.writeInt32LE(2, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.numberOfVehicles);
       expect(await source.pollOnce()).toBe(false);
-      expect(frames).toHaveLength(2);
-    } finally { await source.stop(); clock.mockRestore(); }
+      expect(frames).toHaveLength(3);
+    } finally { await source.stop(); wallClock.mockRestore(); monotonicClock.mockRestore(); }
   });
 
   test("invalidates ambiguous telemetry, garage and pause, and rotates generation after slot and vehicle changes", async () => {
@@ -223,6 +240,83 @@ describe("LMU Phase 1 player pipeline", () => {
       await pending;
       expect(poller.snapshot().every((entry) => entry.sessionKey === "second" && (entry.vehicleId === null || entry.vehicleId === 84))).toBe(true);
     } finally { poller.stop(); release?.(); await server.stop(true); }
+  });
+  test("validates condition values by semantic shape and preserves zero", () => {
+    expect(isLmuRestValue("lmu.rest.condition.aero", 0)).toBe(true);
+    expect(isLmuRestValue("lmu.rest.condition.aero", [0, 0, 0, 0])).toBe(false);
+    expect(isLmuRestValue("lmu.rest.condition.brakes", [0, 0, 0, 0])).toBe(true);
+    expect(isLmuRestValue("lmu.rest.condition.brakes", 0)).toBe(false);
+    expect(isLmuRestValue("lmu.rest.condition.suspension", [0, 0, 0, 0])).toBe(true);
+    expect(isLmuRestValue("lmu.rest.condition.suspension", [0, 0, 0])).toBe(false);
+  });
+
+  test("cancels response bodies rejected by status and declared size", async () => {
+    const closed = new Set<string>();
+    let allClosed!: () => void;
+    const cancelled = new Promise<void>((resolve) => { allClosed = resolve; });
+    // Bun.serve rewrites streamed Content-Length to chunked; Node preserves the rejected header.
+    const server = createServer((req, res) => {
+      const label = req.url?.endsWith("RepairAndRefuel") ? "status" : "length";
+      res.on("close", () => {
+        closed.add(label);
+        if (closed.has("status") && closed.has("length")) allClosed();
+      });
+      res.writeHead(label === "status" ? 503 : 200, label === "length" ? { "content-length": String(1024 * 1024 + 1) } : {});
+      res.flushHeaders();
+      res.write("{");
+    });
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const address = server.address();
+    if (!address || typeof address === "string") throw new Error("Missing loopback server address");
+    const poller = new LmuSupplementalRest({ baseUrl: `http://127.0.0.1:${address.port}`, timeoutMs: 1000 });
+    let deadline: ReturnType<typeof setTimeout> | undefined;
+    try {
+      poller.activate({ sessionKey: "cancel", vehicleId: 42 });
+      await poller.refresh();
+      await Promise.race([cancelled, new Promise<never>((_, reject) => {
+        deadline = setTimeout(() => reject(new Error("Rejected response bodies remained open")), 500);
+      })]);
+      expect(closed.has("status")).toBe(true);
+      expect(closed.has("length")).toBe(true);
+    } finally {
+      clearTimeout(deadline);
+      poller.stop();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => { server.close(() => resolve()); });
+    }
+  });
+
+  test("publishes malformed condition HTTP values as invalid and rejects malformed ok wire values", async () => {
+    let malformed = true;
+    const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch(req) {
+      if (new URL(req.url).pathname.includes("RepairAndRefuel")) {
+        return Response.json({ wearables: { body: { aero: malformed ? [0, 0, 0, 0] : 0 }, brakes: malformed ? 0 : [0, 0, 0, 0], suspension: [0, 0, 0, 0] } });
+      }
+      if (new URL(req.url).pathname === "/rest/sessions") return Response.json({ SESSSET_race_timescale: { currentValue: 2 }, SESSSET_private_qual: { currentValue: 0 } });
+      return Response.json({});
+    } });
+    const poller = new LmuSupplementalRest({ baseUrl: `http://127.0.0.1:${server.port}` });
+    const sample = (id: string) => poller.snapshot().find((entry) => entry.semanticId === id)!;
+    try {
+      poller.activate({ sessionKey: "shape", vehicleId: 42 });
+      await poller.refresh();
+      expect(sample("lmu.rest.condition.aero").observation).toMatchObject({ value: null, state: "invalid" });
+      expect(sample("lmu.rest.condition.brakes").observation).toMatchObject({ value: null, state: "invalid" });
+      const wire = encodeLmuContext({ schemaVersion: 1, key: { sessionKey: "shape", captureSequence: "1", frameTime: { domain: "wall-clock", milliseconds: Date.now() } }, playerVehicleId: 42, status: "active", supplemental: poller.snapshot() });
+      for (const [id, value] of [["lmu.rest.condition.aero", [0, 0, 0, 0]], ["lmu.rest.condition.brakes", 0]] as const) {
+        const bad = structuredClone(wire);
+        const entry = bad.supplemental.find((item) => item.semanticId === id)!;
+        Object.assign(entry.observation, { value, state: "ok" });
+        expect(decodeLmuContext(bad)).toBeNull();
+      }
+      malformed = false;
+      poller.stop();
+      poller.activate({ sessionKey: "shape-valid-zero", vehicleId: 42 });
+      await poller.refresh();
+      expect(sample("lmu.rest.condition.aero").observation).toMatchObject({ value: 0, state: "ok" });
+      expect(sample("lmu.rest.condition.brakes").observation).toMatchObject({ value: [0, 0, 0, 0], state: "ok" });
+    } finally { poller.stop(); await server.stop(true); }
   });
 
   test("retains precise changing contexts through production sparse framing and rejects malformed capture metadata", async () => {

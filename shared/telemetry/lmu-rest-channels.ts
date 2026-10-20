@@ -46,8 +46,10 @@ export function isLmuRestValue(semanticId: string, value: unknown): boolean {
   if (spec.kind === "number") return typeof value === "number" && Number.isFinite(value) && value >= 0;
   if (spec.kind === "boolean") return typeof value === "boolean";
   if (spec.kind === "snapshot") return typeof value === "object" && !Array.isArray(value) && isLmuJsonValue(value);
-  if (spec.kind === "condition") return (typeof value === "number" && Number.isFinite(value) && value >= 0) ||
-    (Array.isArray(value) && value.length === 4 && value.every((item) => typeof item === "number" && Number.isFinite(item) && item >= 0));
+  if (spec.kind === "condition") {
+    if (semanticId === "lmu.rest.condition.aero") return typeof value === "number" && Number.isFinite(value) && value >= 0;
+    return Array.isArray(value) && value.length === 4 && value.every((item) => typeof item === "number" && Number.isFinite(item) && item >= 0);
+  }
   if (typeof value !== "object" || Array.isArray(value)) return false;
   const nodes = value as Record<string, unknown>;
   return Object.keys(nodes).length === LMU_FORECAST_NODES.length && LMU_FORECAST_NODES.every((key) => {
