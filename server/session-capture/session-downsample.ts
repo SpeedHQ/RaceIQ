@@ -11,7 +11,7 @@ import { db } from "../db/index";
 import { laps, sessions } from "../db/schema";
 import { isOwnedSessionRawFile } from "../db/session-queries";
 import { clearSessionCaptureCache, iterateSessionCaptureRecordsFromSource } from "./source-loader";
-import { commitSessionDownsample, commitSessionDownsampleCap } from "../db/lap-reprocessing-queries";
+import { commitSessionCaptureRewrite, commitSessionDownsampleCap } from "../db/lap-reprocessing-queries";
 import { cacheDelete } from "../db/telemetry-replay-storage";
 import { isSessionActive } from "../telemetry/live-pipeline";
 import { hasPendingLayoutMigration } from "./layout-migration";
@@ -543,7 +543,7 @@ export async function executeSessionDownsampleGroup(request: SessionDownsampleRe
       if (sourceBeforeCommit.size !== sourceState.size || sourceBeforeCommit.mtimeMs !== sourceState.mtimeMs || sourceBeforeCommit.ino !== sourceState.ino) {
         throw new Error("Recording source changed before publication");
       }
-      await commitSessionDownsample({
+      await commitSessionCaptureRewrite({
         oldRawFile: group.path,
         newRawFile: newPath,
         captureBundles,

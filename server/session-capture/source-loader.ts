@@ -328,6 +328,7 @@ export async function* iterateSessionCaptureRecordsFromSource(
             else if (magic === SPARSE_CAPTURE_FORMAT_MAGIC && version === SPARSE_CAPTURE_FORMAT_VERSION) {
               // Format marker is metadata, not a segment event.
             }
+            else if (options.strict) throw new Error(`Unknown capture segment marker at ${offset}`);
           }
           else {
             const bootstrap = decodeParserBootstrapPayload(pending.subarray(8, 8 + metaLength));

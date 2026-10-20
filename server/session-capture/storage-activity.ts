@@ -1,5 +1,5 @@
 let imports = 0;
-type StorageOperation = "layout-migration" | "directory-move" | "downsample";
+type StorageOperation = "layout-migration" | "directory-move" | "downsample" | "f1-motion-compaction";
 let reservedOperation: { kind: StorageOperation; token: object } | null = null;
 let relocating = false;
 

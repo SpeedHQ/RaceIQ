@@ -33,6 +33,7 @@ import {
   RecordingMaintenanceValidationError,
 } from "./maintenance-runtime";
 import { cleanupInterruptedSessionDownsampleFiles, runScheduledSessionDownsampleEffect } from "./session-downsample";
+import { runScheduledF1MotionReconcileEffect } from "./f1-motion-reconcile";
 import { isRecordingRetentionPolicyValid } from "@raceiq/shared/platform/runtime/recording-frequency";
 import { RecordingStorageBusyError, reserveRecordingStorageOperation } from "./storage-activity";
 
@@ -242,6 +243,15 @@ function maintenancePassEffect(): Effect.Effect<void, MaintenanceError> {
       try: () => runCompression(),
       catch: (cause) => maintenanceIOError("compression", cause),
     }).pipe(Effect.uninterruptible);
+    if (!isSessionActive()) {
+      const compacted = yield* runScheduledF1MotionReconcileEffect();
+      if (compacted.convertedFiles > 0) console.log(`[F1Motion] Reconciled ${compacted.convertedFiles} recording(s); freed ${compacted.freedBytes} bytes`);
+      for (const warning of compacted.warnings) console.warn("[F1Motion]", warning);
+      if (compacted.failed.length > 0) {
+        for (const failure of compacted.failed) console.error("[F1Motion] Reconciliation failed", failure);
+        return yield* Effect.fail(maintenanceIOError("f1-motion-compaction", new Error(`Failed to reconcile ${compacted.failed.length} recording group(s)`)));
+      }
+    }
     const settings = yield* Effect.sync(() => loadSettings());
     if (!isRecordingRetentionPolicyValid(settings)) {
       return yield* Effect.fail(new RecordingMaintenanceValidationError({

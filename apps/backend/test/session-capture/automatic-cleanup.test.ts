@@ -179,4 +179,56 @@ describe("automatic capture cleanup", () => {
     expect(existsSync(manifest)).toBe(false);
     expect(readFileSync(unrelated, "utf8")).toBe("user notes");
   });
+  test("reclaims interrupted compaction outputs in direct directories without deleting published artifacts", async () => {
+    const directory = join(resolveRecordingDirectory(), "f1-2025", "own", `${timestampForFilename()}-${crypto.randomUUID()}`);
+    mkdirSync(directory, { recursive: true });
+    paths.push(directory);
+    const sourceManifest = join(directory, "capture-manifest.json");
+    const nativePart = join(directory, `${crypto.randomUUID()}.bin`);
+    writeFileSync(sourceManifest, JSON.stringify({
+      version: 3, gameId: "f1-2025", sourceRevision: "live-source",
+      sourceCoordinates: "native-wire-v1", sourceByteLength: 12, sourceRecordCount: 0, chunks: [],
+    }));
+    writeFileSync(nativePart, "unpublished source part");
+    const source = await db.insert(sessions).values({
+      gameId: "f1-2025", carId: "test-car", trackId: "test-track", rawFile: sourceManifest,
+      captureLayoutVersion: 1, captureManifestFile: sourceManifest,
+    }).returning({ id: sessions.id }).get();
+    ids.push(source.id);
+
+    const orphanOutput = join(directory, `f1-2025.motion-compact-${crypto.randomUUID()}.bin.gz`);
+    const temporary = `${orphanOutput}.raw.tmp`;
+    const orphanBundle = `${orphanOutput}.session-${source.id}.bundle`;
+    mkdirSync(orphanBundle);
+    const orphanManifest = join(orphanBundle, "manifest.json");
+    const orphanChunk = join(orphanBundle, "000000-aux.bin");
+    const notes = join(orphanBundle, "notes.txt");
+    for (const path of [orphanOutput, temporary, orphanManifest, orphanChunk, notes]) writeFileSync(path, "interrupted output");
+
+    const publishedOutput = join(directory, `f1-2025.motion-compact-${crypto.randomUUID()}.bin.gz`);
+    const publishedBundle = `${publishedOutput}.session-${source.id}.bundle`;
+    mkdirSync(publishedBundle);
+    const publishedManifest = join(publishedBundle, "manifest.json");
+    const publishedChunk = join(publishedBundle, "000000-aux.bin");
+    const staleChunk = join(publishedBundle, "000001-aux.bin");
+    writeFileSync(publishedOutput, "published source");
+    writeFileSync(publishedChunk, "published chunk");
+    writeFileSync(staleChunk, "unpublished chunk");
+    writeFileSync(publishedManifest, JSON.stringify({
+      version: 3, gameId: "f1-2025", sourceRevision: "published",
+      sourceByteLength: 31, sourceRecordCount: 1,
+      chunks: [{ id: crypto.randomUUID(), kind: "auxiliary", path: "000000-aux.bin",
+        byteLength: 15, firstOrdinal: 0, recordCount: 1, sourceStart: 0, sourceEnd: 1,
+        sourceByteStart: 12, sourceByteEnd: 31 }],
+    }));
+    const published = await db.insert(sessions).values({
+      gameId: "f1-2025", carId: "test-car", trackId: "test-track", rawFile: publishedOutput,
+      captureLayoutVersion: 1, captureManifestFile: publishedManifest,
+    }).returning({ id: sessions.id }).get();
+    ids.push(published.id);
+
+    await cleanupOrphanSessionFiles(() => false);
+    for (const path of [orphanOutput, temporary, orphanManifest, orphanChunk, staleChunk]) expect(existsSync(path)).toBe(false);
+    for (const path of [sourceManifest, nativePart, publishedOutput, publishedManifest, publishedChunk, notes]) expect(existsSync(path)).toBe(true);
+  });
 });

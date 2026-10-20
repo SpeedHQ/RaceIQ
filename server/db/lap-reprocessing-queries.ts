@@ -6,8 +6,9 @@ import { clearSessionCaptureCache, loadCaptureManifest } from "../session-captur
 import type { DownsampleCaptureBundle } from "../session-capture/downsample-bundles";
 import { and, eq, isNotNull, or, inArray, sql } from "drizzle-orm";
 import { db } from "./index";
-import { laps, sessions, lapMetrics, lapAnalyses, compareAnalyses, lineSpreadCache, dashboardSummaryState, sessionCaptureSplitJobs, liveCaptureMembers } from "./schema";
+import { laps, sessions, lapMetrics, lapAnalyses, compareAnalyses, lineSpreadCache, dashboardSummaryState, sessionCaptureSplitJobs, liveCaptureMembers, liveCaptures } from "./schema";
 import type { RecordingFrequencyHz } from "@raceiq/shared/platform/runtime/recording-frequency";
+import { getSessionCaptureSourceRevision } from "./session-queries";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
 
 type DownsampleLapIndex = {
@@ -22,6 +23,7 @@ async function validateDownsampleReferences(
   oldRawFile: string,
   sessionIds: number[],
   expectedIndexes: readonly DownsampleLapIndex[],
+  protectFavorites = true,
 ): Promise<{ sessionIds: number[]; lapRows: Array<{ id: number; sessionId: number; rawByteOffset: number | null; rawFrameCount: number | null; isFavorite: boolean; experimentId: number | null }> }> {
   const resolvedOldPath = resolve(oldRawFile);
   const allSessions = await tx.select({
@@ -38,7 +40,7 @@ async function validateDownsampleReferences(
     id: laps.id, sessionId: laps.sessionId, rawByteOffset: laps.rawByteOffset,
     rawFrameCount: laps.rawFrameCount, isFavorite: laps.isFavorite, experimentId: laps.experimentId,
   }).from(laps).where(inArray(laps.sessionId, actualIds)).all();
-  if (references.some(({ isFavorite }) => isFavorite) || lapRows.some(({ isFavorite }) => isFavorite)) {
+  if (protectFavorites && (references.some(({ isFavorite }) => isFavorite) || lapRows.some(({ isFavorite }) => isFavorite))) {
     throw new Error("Downsample publication includes favorite recording");
   }
   const indexedRows = lapRows.filter((row) => row.rawByteOffset !== null);
@@ -58,15 +60,17 @@ async function validateDownsampleReferences(
   return { sessionIds: actualIds, lapRows };
 }
 
-export async function commitSessionDownsample(input: {
+export async function commitSessionCaptureRewrite(input: {
   oldRawFile: string;
   newRawFile: string;
   sessionIds: number[];
-  targetHz: RecordingFrequencyHz;
+  /** Null preserves the sampling cap for a channel-only rewrite. */
+  targetHz: RecordingFrequencyHz | null;
   lapIndexes: ReadonlyArray<DownsampleLapRewrite>;
   captureBundles?: readonly DownsampleCaptureBundle[];
 }): Promise<void> {
   const bundles = input.captureBundles ?? [];
+  const replacementInfo = input.targetHz === null ? await stat(input.newRawFile) : null;
   if (new Set(bundles.map((bundle) => bundle.sessionId)).size !== bundles.length) {
     throw new Error("Downsample publication includes duplicate bundles");
   }
@@ -81,7 +85,20 @@ export async function commitSessionDownsample(input: {
     }
   }
   await db.transaction(async (tx) => {
-    const checked = await validateDownsampleReferences(tx, input.oldRawFile, input.sessionIds, input.lapIndexes);
+    const checked = await validateDownsampleReferences(tx, input.oldRawFile, input.sessionIds, input.lapIndexes, input.targetHz !== null);
+    if (input.targetHz === null) {
+      const activeJobs = await tx.select().from(sessionCaptureSplitJobs)
+        .where(inArray(sessionCaptureSplitJobs.sessionId, checked.sessionIds)).all();
+      if (activeJobs.some((job) => !["ready", "failed", "queued"].includes(job.status))) {
+        throw new Error("Recording split work is active");
+      }
+      const live = await tx.select().from(liveCaptures).where(inArray(liveCaptures.sessionId, checked.sessionIds)).all();
+      if (live.some((capture) => capture.status !== "sealed")) throw new Error("Live capture is not sealed");
+      const games = await tx.select({ gameId: sessions.gameId, lapDetectorVersion: sessions.lapDetectorVersion }).from(sessions).where(inArray(sessions.id, checked.sessionIds)).all();
+      if (games.some((row) => row.gameId !== "f1-2025" || row.lapDetectorVersion === null) || input.lapIndexes.some((index) => index.rawFrameCount !== index.expectedRawFrameCount)) {
+        throw new Error("Channel compaction requires reconciled F1 lap metadata and unchanged frame counts");
+      }
+    }
     const rewriteById = new Map(input.lapIndexes.map((index) => [index.lapId, index]));
     if (rewriteById.size !== input.lapIndexes.length ||
         checked.lapRows.some((row) => (row.rawByteOffset !== null) !== rewriteById.has(row.id)) ||
@@ -106,6 +123,21 @@ export async function commitSessionDownsample(input: {
       if (!bundle) {
         if (current?.captureLayoutVersion != null || current?.captureManifestFile || current?.captureArchiveFile || currentLaps.some((lap) => lap.captureChunkId !== null)) {
           throw new Error("Downsample publication requires rewritten replay bundle");
+        }
+        // Keep consent-gated split work attached to the replacement, fenced
+        // from any queued attempt that still describes the retired source.
+        if (replacementInfo) {
+          const windows = currentLaps.flatMap((lap) => {
+            const rewrite = rewriteById.get(lap.id);
+            return rewrite ? [{ lapId: String(lap.id), lapNumber: lap.lapNumber, startByteOffset: rewrite.rawByteOffset, frameCount: rewrite.rawFrameCount }] : [];
+          }).sort((a, b) => a.startByteOffset - b.startByteOffset);
+          await tx.update(sessionCaptureSplitJobs).set({
+            jobId: randomUUID(), attemptId: 1, sequence: 0,
+            sourcePath: input.newRawFile, pendingSourceRevision: getSessionCaptureSourceRevision(replacementInfo, windows, "f1-2025"),
+            stagingPath: null, status: "queued", errorCode: null, errorMessage: null,
+            processedSourceFrames: null, totalSourceFrames: null, completedLapArtifacts: 0,
+            totalLapArtifacts: windows.length, updatedAt: new Date().toISOString(),
+          }).where(eq(sessionCaptureSplitJobs.sessionId, id));
         }
         continue;
       }
@@ -136,11 +168,14 @@ export async function commitSessionDownsample(input: {
         captureLayoutVersion: 1, captureManifestFile: bundle.manifestPath, captureArchiveFile: null,
       }).where(eq(sessions.id, id));
     }
-    await tx.delete(sessionCaptureSplitJobs).where(inArray(sessionCaptureSplitJobs.sessionId, checked.sessionIds));
+    const retiredJobIds = input.targetHz === null ? bundles.map((bundle) => bundle.sessionId) : checked.sessionIds;
+    if (retiredJobIds.length) await tx.delete(sessionCaptureSplitJobs).where(inArray(sessionCaptureSplitJobs.sessionId, retiredJobIds));
     for (const id of checked.sessionIds) {
       await tx.update(sessions).set({
         rawFile: input.newRawFile,
-        downsampledFrequencyHz: sql`CASE WHEN ${sessions.downsampledFrequencyHz} IS NULL OR ${sessions.downsampledFrequencyHz} > ${input.targetHz} THEN ${input.targetHz} ELSE ${sessions.downsampledFrequencyHz} END`,
+        ...(input.targetHz === null ? { f1MotionCompactedSource: input.newRawFile } : {
+          downsampledFrequencyHz: sql`CASE WHEN ${sessions.downsampledFrequencyHz} IS NULL OR ${sessions.downsampledFrequencyHz} > ${input.targetHz} THEN ${input.targetHz} ELSE ${sessions.downsampledFrequencyHz} END`,
+        }),
       }).where(eq(sessions.id, id));
     }
     for (const index of input.lapIndexes) {

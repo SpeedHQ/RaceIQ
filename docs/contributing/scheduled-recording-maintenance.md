@@ -1,6 +1,6 @@
 # Scheduled recording maintenance
 
-Recording maintenance combines compression, optional historical downsampling, optional deletion, and file cleanup. The backend owns job lifecycle, policy, eligibility, database publication, and caches; `@raceiq/capture-downsampling` owns streaming inspection and rewriting, using codecs from `@raceiq/capture-formats`. This guide documents current behavior, not a generic Effect pattern.
+Recording maintenance combines compression, automatic historical F1 motion-channel reconciliation, optional historical downsampling, optional deletion, and file cleanup. The backend owns job lifecycle, policy, eligibility, database publication, and caches; `@raceiq/capture-downsampling` owns streaming inspection and rewriting, using codecs from `@raceiq/capture-formats`. This guide documents current behavior, not a generic Effect pattern.
 
 ## Runtime and entry points
 
@@ -21,10 +21,11 @@ Routes remain Promise boundaries; Effect programs do not call `Effect.run*`. Wor
 `maintenancePassEffect()` in [`server/session-capture/compressor.ts`](../../server/session-capture/compressor.ts) runs stages in order:
 
 1. Compress eligible recordings.
-2. Load fresh settings and validate the complete retention policy.
-3. If enabled and no capture is active, automatically downsample recordings strictly older than the configured age.
-4. If enabled and no capture is active, delete recordings strictly older than the configured deletion age.
-5. Clean orphan recordings, expired staged MoTeC imports, and only this operation's interrupted downsample temporary files.
+2. If no capture is active, reconcile historical F1 motion channels automatically, without an opt-in or confirmation.
+3. Load fresh settings and validate the complete retention policy.
+4. If enabled and no capture is active, automatically downsample recordings strictly older than the configured age.
+5. If enabled and no capture is active, delete recordings strictly older than the configured deletion age.
+6. Clean orphan recordings, expired staged MoTeC imports, and only this operation's interrupted downsample temporary files.
 
 Ordinary downsample skips (for example favorites or unsupported timebases) do not fail the stage. A failed/partial automatic downsample skips deletion for that pass. Disabled downsampling leaves existing deletion behavior intact. Cleanup uses the shared session-capture maintenance lock; each downsample group is re-planned and rechecked while holding it.
 
@@ -42,7 +43,7 @@ Segment boundaries reset stream state. Segment context and its markers are retai
 
 The backend planner in [`server/session-capture/session-downsample.ts`](../../server/session-capture/session-downsample.ts) groups rows by resolved file path and reports source byte size, not promised savings. Before publication it rechecks active capture/layout state, settings, file identity, all database references, favorites, and expected lap indexes under the shared lock. The rewrite writes an exclusive unique sibling file preserving compression, then strictly validates replay and remapped lap windows before database publication.
 
-Lap windows count **all frame records**, including ancillary frames; metadata records do not count. Null raw indexes stay null. For indexed laps, retained start/end records keep the span contiguous; new byte offset and all-frame count are committed without redetecting laps or changing lap identity, times, notes, favorites, validity, sectors, or relationships. `commitSessionDownsample` atomically rechecks references/indexes, updates paths and target cap, and invalidates affected derived metrics/analyses/capture facts. Because the replacement is already validated, the transaction also marks its dashboard capture facts ready for processing; post-commit finalization failures cannot leave them blocked. Capture caches are cleared after commit.
+Lap windows count **all frame records**, including ancillary frames; metadata records do not count. Null raw indexes stay null. For indexed laps, retained start/end records keep the span contiguous; new byte offset and all-frame count are committed without redetecting laps or changing lap identity, times, notes, favorites, validity, sectors, or relationships. `commitSessionCaptureRewrite` atomically rechecks references/indexes, updates paths and target cap, and invalidates affected derived metrics/analyses/capture facts. Because the replacement is already validated, the transaction also marks its dashboard capture facts ready for processing; post-commit finalization failures cannot leave them blocked. Capture caches are cleared after commit.
 
 If no frames are removed after preflight establishes the source rate exceeds the target, the validated sibling is discarded and a cap-only transaction records the established target without replacing the file or invalidating derived results. Recordings measured at or below the requested target are skipped before rewriting, so a 50 Hz recording is not needlessly processed for a 50 or 80 Hz request. A target whose output is not smaller on disk is discarded and reported as `not-smaller`; no cap is claimed. A persisted cap at or below a requested target makes a group idempotently ineligible; a lower target can process it again. After successful replacement commit, the old file is unlinked only if no database reference remains. An unlink/finalization failure is a warning: the validated replacement remains authoritative and orphan cleanup can remove the old file.
 
@@ -53,6 +54,28 @@ The format layer's temporary names are narrowly scoped (`.downsample-…`) and c
 JavaScript Promise I/O already in progress is not cancelled by interrupting its Effect fiber. Each locked file operation and final validation/publication bookkeeping is therefore protected until settlement; interruption is allowed between groups. Locks and storage reservations must not be released while their I/O is still running. Shutdown marks admission stopping, interrupts/awaits tracked fibers and finalizers, disposes the runtime, then proceeds with ingress shutdown. Shutdown can wait for protected I/O.
 
 There is no cancel API. Jobs survive browser navigation because they are backend-owned, and the Storage UI polls status while running, displays inline progress/results/skips/failures, and offers retry after partial/error. Established caps cause completed groups to be skipped on retry. Jobs do not survive backend restart with resumable progress; persisted paths/caps support safe later work, but there is no durable workflow engine or exactly-once crash guarantee. Downsampling permanently removes telemetry detail and cannot be undone without a backup. Manual starts require explicit confirmation and a backup warning; automatic processing requires a saved opt-in policy.
+
+## Historical F1 motion-channel compaction
+
+The scheduler automatically strips the audited platform-only channels from existing F1 2025 recordings on its first idle maintenance pass after startup. No user prompt, API call, or saved opt-in is required. Busy or failed work is retried on subsequent five-minute passes. Removed internal values cannot be recovered without an existing backup; older builds without `F1CX` support cannot replay the replacement correctly.
+
+`POST /api/storage/f1-motion-compaction` remains available for immediate reconciliation and requires no request body or confirmation. It waits for completion and returns `{ convertedFiles, freedBytes, skipped, failed, warnings }`. Each skip/failure identifies its `sessionIds`; failures include an error, and skips include a reason. `freedBytes` reports nonnegative net disk savings after actual original-file removal, not an estimate. Results may include successful groups alongside failed groups; inspect `failed` and `warnings`, not just the HTTP status. Missing captures, mixed-game/unowned/unsupported sources, and active capture/split work remain unchanged and are reported. Manual admission conflicts return `409`. Automatic runs log conversions, warnings and failures; a failed reconciliation stage prevents deletion during that pass.
+
+The operation handles raw/gzip sparse recordings, checkpoint-initialized captures, and native-coordinate direct manifests. It groups shared sources, including favorites, and preserves every native frame, timestamp, marker, lap frame count, lap identity and user-authored field. Parser checkpoints are normalized through the F1 codec. Before publication it strictly compares all reconstructed source bytes after the audited projection and all emitted telemetry using real parsers, then regenerates and verifies any replay bundles. Paths and remapped lap offsets switch in one transaction; sampling caps remain unchanged. This is not downsampling.
+
+Compaction uses the existing managed maintenance runtime, storage reservation and shared lock. It rejects active sessions/imports/moves and rechecks source-file identities and publication references before commit. Shutdown finishes the current protected recording group, then stops before admitting another group. A pre-commit failure retains originals; cleanup never removes a referenced replacement after an ambiguous transaction result. Post-commit removal failures are warnings, not rollback claims.
+Recordings with `lap_detector_version IS NULL` are deferred as `pending-lap-reconciliation` until startup repair has published their lap metadata. This prevents background source replacement from racing the startup worker's historical replay; publication rechecks this prerequisite transactionally.
+
+Completion is persisted per session in `f1_motion_compacted_source`, keyed to the exact immutable source path. Rewritten sources receive this marker in the same transaction as their new path/indexes; sources already reduced by a current recorder are marked without replacement after source/reference revalidation. Matching groups report `already-compact` without reopening or rescanning their files, including after backend restart. A different source path is eligible again. Failed or deferred groups remain unmarked and retry automatically. Retries remove only owned operation-specific `.motion-compact-…tmp` siblings. A crash before publication leaves the original authoritative and may leave an orphan output for ordinary cleanup; after publication the replacement remains authoritative. This is group-level resumability, not a durable background workflow or exactly-once job.
+Already-reduced sources are inspected read-only before any staging file is created. Marking these sources complete does not require enough free disk space for a decompressed copy, so a no-op reconciliation cannot prevent later retention cleanup through unnecessary staging exhaustion.
+
+Strict capture iteration rejects unknown metadata magic and unsupported marker versions before publication. Pending consent-gated split jobs are atomically rebased to the replacement source, remapped windows and fresh job identity; compaction does not grant split consent or silently remove queued work. Orphan cleanup recognizes operation-specific replacement files and replay-bundle members inside direct-capture directories as well as flat ownership directories, while preserving referenced outputs, native unpublished parts and unrelated files.
+
+```bash
+curl -X POST "$RACEIQ_URL/api/storage/f1-motion-compaction"
+```
+
+Use the running backend's URL and normal authentication/session credentials. There is no new Storage UI control.
 
 ## Tests
 

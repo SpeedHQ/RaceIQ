@@ -105,6 +105,8 @@ export const sessions = sqliteTable(
 		notes: text("notes"),
 		rawFile: text("raw_file"),
 		downsampledFrequencyHz: integer("downsampled_frequency_hz"),
+		// Exact immutable source path verified by automatic F1 channel reconciliation.
+		f1MotionCompactedSource: text("f1_motion_compacted_source"),
 		isFavorite: integer("is_favorite", { mode: "boolean" }).notNull().default(false),
 		lapDetectorVersion: text("lap_detector_version"),
 		// Runtime telemetry identity snapshot attached at first persisted capture (migration v54).

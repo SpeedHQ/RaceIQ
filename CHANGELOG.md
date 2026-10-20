@@ -3,6 +3,7 @@
 ### Features
 - Choose a 50–100 Hz recording frequency for ACC, AC Evo, iRacing, or LMU during setup to reduce recording size. Live UDP recording is unchanged.
 - Downsample saved recordings manually or with an opt-in age policy in Storage settings; measure the first 1,000 frame timestamps per stream and skip recordings already at or below the target. Track progress and retry failed files. Favorites and MoTeC imports stay unchanged.
+- Automatically compact existing F1 25 recordings while idle, removing motion-platform-only data without a confirmation prompt while preserving replay, analysis, favorites, and lap metadata.
 - Split recordings into individual, lossless per-lap `.bin` files so lap 60 loads as fast as lap 1.
 - Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
 

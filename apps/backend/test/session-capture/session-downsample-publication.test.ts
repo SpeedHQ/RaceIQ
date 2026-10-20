@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { gunzipSync } from "node:zlib";
 import { eq, inArray } from "drizzle-orm";
 import { db, client } from "@raceiq/backend-core/db/index";
-import { commitSessionDownsample, commitSessionDownsampleCap } from "@raceiq/backend-core/db/lap-reprocessing-queries";
+import { commitSessionCaptureRewrite, commitSessionDownsampleCap } from "@raceiq/backend-core/db/lap-reprocessing-queries";
 import { compareAnalyses, dashboardSummaryState, experiments, lapAnalyses, lapMetrics, laps, lineSpreadCache, sessions } from "@raceiq/backend-core/db/schema";
 import { iterateSessionFrames } from "@raceiq/capture-formats/session/framing";
 import { convertSeedFramesToSparse } from "@raceiq/tooling-data/data/seed-capture-conversion";
@@ -94,7 +94,7 @@ test("validated publication makes capture facts processable without postcommit f
     createdAt: "2026-04-23T16:42:16.158Z", sessionType: "practice", rawFile: converted.path,
   }).returning({ id: sessions.id }).get();
   trackedSessions.push(session.id);
-  await commitSessionDownsample({
+  await commitSessionCaptureRewrite({
     oldRawFile: converted.path, newRawFile: replacement, sessionIds: [session.id], targetHz: 50, lapIndexes: [],
   });
   expect(await db.select().from(dashboardSummaryState).where(eq(dashboardSummaryState.sessionId, session.id)).get())
@@ -126,7 +126,7 @@ test("full publication atomically updates shared aliases and indexes while prese
   await db.update(laps).set({ experimentId: experiment.id }).where(inArray(laps.id, [a, b, nullIndex]));
   await db.insert(compareAnalyses).values({ lapAId: a, lapBId: b, analysis: "compare" });
   await db.insert(lineSpreadCache).values({ experimentId: experiment.id, lapSetHash: "set", trace: "trace" });
-  await commitSessionDownsample({
+  await commitSessionCaptureRewrite({
     oldRawFile: path,
     newRawFile: newPath,
     sessionIds: [first, second],
@@ -232,7 +232,7 @@ test("stale references, changed indexes, and favorites reject without partial da
   const a = await seedLap(first, 100, 20);
   const before = await db.select().from(sessions).where(eq(sessions.id, first)).get();
   await expect(
-    commitSessionDownsample({
+    commitSessionCaptureRewrite({
       oldRawFile: path,
       newRawFile: newPath,
       sessionIds: [first],
@@ -265,7 +265,7 @@ test("bundle-backed publication rejects missing replacement bundles without chan
 
   const sessionBefore = await db.select().from(sessions).where(eq(sessions.id, first)).get();
   const lapBefore = await db.select().from(laps).where(eq(laps.id, lapId)).get();
-  await expect(commitSessionDownsample({
+  await expect(commitSessionCaptureRewrite({
     oldRawFile: path,
     newRawFile: newPath,
     sessionIds: [first],

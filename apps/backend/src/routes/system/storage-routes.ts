@@ -12,6 +12,7 @@ import { pickRecordingFolder, RecordingFolderPickerError } from "../../runtime/p
 import { previewSessionCleanup, executeSessionCleanup, SessionCleanupBusyError } from "@raceiq/backend-core/session-capture/session-cleanup";
 import { runUserCompressionNow } from "@raceiq/backend-core/session-capture/compressor";
 import { getSessionDownsampleStatus, previewSessionDownsample, startSessionDownsample } from "@raceiq/backend-core/session-capture/session-downsample";
+import { reconcileF1MotionRecordings } from "@raceiq/backend-core/session-capture/f1-motion-reconcile";
 import { RecordingMaintenanceBusyError, RecordingMaintenanceValidationError } from "@raceiq/backend-core/session-capture/maintenance-runtime";
 import type { SessionDownsampleRequest } from "@raceiq/shared/racing/sessions/downsample";
 import type { SessionCleanupRequest } from "@raceiq/shared/racing/sessions/cleanup";
@@ -206,6 +207,14 @@ export const storageRoutes = new Hono()
     } catch (error) {
       if (error instanceof RecordingMaintenanceBusyError) return c.json({ code: error.code, error: error.message }, 409);
       throw error;
+    }
+  })
+  .post("/api/storage/f1-motion-compaction", async (c) => {
+    try {
+      return c.json(await reconcileF1MotionRecordings());
+    } catch (error) {
+      if (error instanceof RecordingMaintenanceBusyError) return c.json({ code: error.code, error: error.message }, 409);
+      return c.json({ code: "STORAGE_IO_ERROR", error: error instanceof Error ? error.message : "F1 compaction failed" }, 500);
     }
   })
   .post("/api/storage/session-downsample/preview", async (c) => {

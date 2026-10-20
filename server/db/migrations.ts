@@ -2061,6 +2061,11 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
     name: "persist archival recording frequency caps",
     sql: [`ALTER TABLE sessions ADD COLUMN downsampled_frequency_hz INTEGER`],
   },
+  {
+    version: 82,
+    name: "track reconciled F1 motion capture sources",
+    sql: [`ALTER TABLE sessions ADD COLUMN f1_motion_compacted_source TEXT`],
+  },
 ];
 const dashboardCanonicalTriggers = (() => {
   const readModel = migrations.find((migration) => migration.version === 68);

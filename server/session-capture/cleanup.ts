@@ -6,12 +6,15 @@ import { resolveRecordingDirectory } from "../runtime/config/recording-directory
  * Protects published references, shared sources, and active split attempts.
  */
 import { readdir, lstat, unlink } from "node:fs/promises";
-import { existsSync } from "node:fs";
-import { dirname, resolve, join } from "node:path";
+import { existsSync, type Dirent } from "node:fs";
+import { basename, dirname, resolve, join } from "node:path";
 import { db } from "../db/index";
 import { sessions, sessionCaptureSplitJobs, liveCaptures } from "../db/schema";
 import { clearCaptureManifestCache, clearSessionCaptureCache, loadCaptureManifest } from "./source-loader";
 let maintenanceQueue = Promise.resolve();
+const motionUuid = "[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}";
+const motionOutputName = new RegExp(`^f1-2025\\.motion-compact-${motionUuid}\\.bin(?:\\.gz)?(?:\\.(?:raw\\.)?tmp)?$`, "i");
+const motionBundleName = new RegExp(`^f1-2025\\.motion-compact-${motionUuid}\\.bin(?:\\.gz)?\\.session-[1-9][0-9]*\\.bundle$`, "i");
 
 export function withSessionCaptureMaintenanceLock<T>(
   operation: () => Promise<T>,
@@ -118,6 +121,19 @@ async function listBundleFiles(): Promise<string[]> {
   const uuid = "[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}";
   const directDirectory = new RegExp(`^\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}-\\d{3}Z-${uuid}$`, "i");
   const directPart = new RegExp(`^${uuid}\\.bin$`, "i");
+  async function collectMotionArtifacts(directory: string, entries: readonly Dirent[]): Promise<void> {
+    for (const entry of entries) {
+      if (entry.isFile() && motionOutputName.test(entry.name)) files.push(join(directory, entry.name));
+      else if (entry.isDirectory() && motionBundleName.test(entry.name)) {
+        const bundlePath = join(directory, entry.name);
+        for (const member of await readdir(bundlePath, { withFileTypes: true }).catch(() => [])) {
+          if (member.isFile() && (member.name === "manifest.json" || /^[0-9]{6,}-(?:lap-[0-9]+|aux)\.bin(?:\.gz)?$/.test(member.name))) {
+            files.push(join(bundlePath, member.name));
+          }
+        }
+      }
+    }
+  }
   for (const game of games) {
     if (!game.isDirectory()) continue;
     const gamePath = join(root, game.name);
@@ -127,10 +143,13 @@ async function listBundleFiles(): Promise<string[]> {
       .map((entry) => join(gamePath, entry.name))];
     for (const location of locations) {
       const entries = location === gamePath ? gameEntries : await readdir(location, { withFileTypes: true }).catch(() => []);
+      await collectMotionArtifacts(location, entries);
       for (const session of entries) {
         if (session.isDirectory() && directDirectory.test(session.name)) {
           const directory = join(location, session.name);
-          for (const file of await readdir(directory, { withFileTypes: true }).catch(() => [])) {
+          const members = await readdir(directory, { withFileTypes: true }).catch(() => []);
+          await collectMotionArtifacts(directory, members);
+          for (const file of members) {
             if (file.isFile() && (file.name === "capture-manifest.json" || directPart.test(file.name))) {
               files.push(join(directory, file.name));
             }
@@ -182,7 +201,7 @@ export async function cleanupOrphanSessionFiles(
         if (!info.isFile()) continue;
         if (referenced.has(resolve(filePath)) || referenced.has(resolve(dirname(filePath)))) continue;
         // An active or interrupted direct capture can contain an unpublished file.
-        if (referenced.has(resolve(dirname(filePath), "capture-manifest.json"))) continue;
+        if (!motionOutputName.test(basename(filePath)) && referenced.has(resolve(dirname(filePath), "capture-manifest.json"))) continue;
         await unlink(filePath);
         clearSessionCaptureCache(filePath);
         removed++;
