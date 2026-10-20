@@ -6,6 +6,11 @@ import { runtime } from "../../config/runtime";
 const SETTINGS_PATH = resolve(runtime.freshInstall.dataDir, "settings.json");
 const destination = resolve(runtime.freshInstall.dataDir, "sessions");
 
+test.beforeEach(async ({ page }) => {
+  // Migration navigation must not depend on the optional WebGL demo.
+  await page.route("**/demo-lap.json.gz", (route) => route.fulfill({ json: { frames: [] } }));
+});
+
 type LayoutStatus = {
   directory: string;
   destinationDirectory: string | null;
@@ -116,13 +121,15 @@ test.describe("onboarding recording-layout recovery", () => {
       await page.reload({ waitUntil: "domcontentloaded" });
       const getStarted = page.getByRole("button", { name: "Get Started", exact: true, includeHidden: true });
       await expect(getStarted).toBeDisabled();
-      await page.getByRole("button", { name: "Organize recordings", exact: true }).click();
+      await page.getByRole("button", { name: "Organize files", exact: true }).click();
       const dialog = page.getByRole("dialog", { name: "Organize your recordings", exact: true });
       await expect(dialog).toBeVisible();
       await page.keyboard.press("Escape");
-      await expect(dialog).toBeVisible();
+      await expect(dialog).toBeHidden();
       await expect(getStarted).toBeDisabled();
-      await dialog.getByRole("button", { name: "Organize recordings", exact: true }).click();
+      await page.getByRole("button", { name: "Organize files", exact: true }).click();
+      await expect(dialog).toBeVisible();
+      await dialog.getByRole("button", { name: "Organize files", exact: true }).click();
       await expect(getStarted).toBeEnabled();
     } finally {
       fixture.restoreSettings();
@@ -134,11 +141,13 @@ test.describe("onboarding recording-layout recovery", () => {
     const fixture = await startOnboarding(page, false);
     try {
       await reachStorage(page);
+      await page.getByRole("button", { name: "Back", exact: true }).click();
+      await expect(page.getByRole("heading", { name: "Launch on Login" })).toBeVisible();
       fixture.exposeFailure();
-      // Migration status refreshes when the app regains focus, not via a Storage button.
-      await page.clock.fastForward(5_001);
-      await page.clock.resume();
-      await page.evaluate(() => window.dispatchEvent(new Event("visibilitychange")));
+      // Expire cached layout status before reopening Storage without a wall-clock wait.
+      await page.clock.setFixedTime(new Date(Date.now() + 60_000));
+      await page.getByRole("button", { name: "Next", exact: true }).click();
+      await expect(page.getByRole("heading", { name: "Storage", exact: true })).toBeVisible();
       await expect(page.getByRole("button", { name: /^Retry/ })).toBeVisible();
       await expect(page.getByRole("button", { name: "Back" })).toBeDisabled();
       await expect(page.getByRole("button", { name: "Next", exact: true })).toBeDisabled();

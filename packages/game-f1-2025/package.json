@@ -6,6 +6,7 @@
   "dependencies": {
     "@raceiq/shared": "workspace:*",
     "@raceiq/capture-formats": "workspace:*",
+    "@raceiq/capture-downsampling": "workspace:*",
     "@raceiq/backend-core": "workspace:*",
     "@raceiq/game-f1-2025-metadata": "workspace:*",
     "@raceiq/analysis-core": "workspace:*",

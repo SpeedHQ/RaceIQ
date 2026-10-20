@@ -4,7 +4,7 @@ import * as captureFs from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { gzipSync } from "node:zlib";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { db, client } from "@raceiq/backend-core/db/index";
 import { laps, sessions, sessionCaptureSplitJobs, liveCaptures } from "@raceiq/backend-core/db/schema";
 import { SessionCaptureActiveError, deleteEmptySessions, deleteSession, setSessionFavorite, setLapFavorite } from "@raceiq/backend-core/db/session-queries";
@@ -520,8 +520,17 @@ describe("session cleanup edge cases", () => {
       sourcePath: jobPath, status: "queued",
     }).run();
     try {
+      const otherEligibleCount = await db
+        .select({ id: sessions.id })
+        .from(sessions)
+        .leftJoin(laps, eq(laps.sessionId, sessions.id))
+        .where(sql`${sessions.lapDetectorVersion} IS NOT NULL`)
+        .groupBy(sessions.id)
+        .having(sql`count(${laps.id}) = 0`)
+        .all()
+        .then((rows) => rows.filter(({ id }) => id !== activeId && id !== jobId).length);
       const deleted = await deleteEmptySessions();
-      expect(deleted).toBe(1);
+      expect(deleted).toBe(otherEligibleCount);
       expect(await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.id, eligibleId)).get()).toBeUndefined();
       expect(existsSync(eligiblePath)).toBe(false);
       expect((await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.id, activeId)).get())?.id).toBe(activeId);

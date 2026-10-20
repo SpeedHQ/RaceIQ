@@ -3,7 +3,7 @@ import { dashboardCarIdentity, dashboardTrackIdentity } from "@raceiq/shared/rac
 import type { TrackConditions } from "../ai/track-conditions";
 import type { GameId } from "@raceiq/shared/games/ids";
 
-export const DASHBOARD_PROCESSOR_VERSION = 5;
+export const DASHBOARD_PROCESSOR_VERSION = 6;
 const LAP_PAGE_SIZE = 256;
 const TIME_BUCKET_MS = 15 * 60 * 1000;
 
@@ -33,14 +33,15 @@ interface DashboardTransaction {
 }
 type DayContribution = {
   utc_day: string; game_id: string; car_key: string; track_key: string;
-  lap_count: number; positive_laps: number; valid_laps: number;
-  driven_seconds: number; valid_seconds: number; best_lap_seconds: number | null; mean_lap_seconds: number | null; m2_lap_seconds: number | null;
+  lap_count: number; positive_laps: number; valid_laps: number; pace_laps: number;
+  driven_seconds: number; valid_seconds: number; pace_seconds: number;
+  best_lap_seconds: number | null; mean_lap_seconds: number | null; m2_lap_seconds: number | null;
   favourite_laps: number; favourite_seconds: number; distance_laps: number; distance_meters: number | null;
   podium_first: number; podium_second: number; podium_third: number;
 };
 type TimeContribution = {
-  bucket_start_ms: number; game_id: string; valid_laps: number; positive_laps: number;
-  driven_seconds: number; valid_seconds: number; podium_first: number; podium_second: number; podium_third: number;
+  bucket_start_ms: number; game_id: string; valid_laps: number; pace_laps: number; positive_laps: number;
+  driven_seconds: number; valid_seconds: number; pace_seconds: number; podium_first: number; podium_second: number; podium_third: number;
 };
 type LapAggregate = DayContribution;
 type Moment = { count: number; mean: number; m2: number };
@@ -77,7 +78,7 @@ function removeMoments(total: Moment, removed: Moment): Moment {
 function stats(row: DbRow, countName: string, meanName: string, m2Name: string): Moment {
   return { count: number(row[countName]), mean: number(row[meanName]), m2: number(row[m2Name]) };
 }
-const DAY_COLUMNS = ["lap_count", "positive_laps", "valid_laps", "driven_seconds", "valid_seconds", "favourite_laps", "favourite_seconds", "distance_laps", "distance_meters", "podium_first", "podium_second", "podium_third"] as const;
+const DAY_COLUMNS = ["lap_count", "positive_laps", "valid_laps", "pace_laps", "driven_seconds", "valid_seconds", "pace_seconds", "favourite_laps", "favourite_seconds", "distance_laps", "distance_meters", "podium_first", "podium_second", "podium_third"] as const;
 async function adjustDayEntity(tx: DashboardTransaction, row: DayContribution, sign: 1 | -1): Promise<void> {
   const keyArgs = [row.utc_day, row.game_id, row.car_key, row.track_key];
   const result = await tx.execute({ sql: "SELECT * FROM dashboard_day_entities WHERE utc_day=? AND game_id=? AND car_key=? AND track_key=?", args: keyArgs });
@@ -85,13 +86,14 @@ async function adjustDayEntity(tx: DashboardTransaction, row: DayContribution, s
   const contribution = (field: typeof DAY_COLUMNS[number]) => number(row[field]);
   const currentValues = Object.fromEntries(DAY_COLUMNS.map((field) => [field, number(current?.[field])])) as Record<typeof DAY_COLUMNS[number], number>;
   const next = Object.fromEntries(DAY_COLUMNS.map((field) => [field, currentValues[field] + sign * contribution(field)])) as Record<typeof DAY_COLUMNS[number], number>;
-  for (const field of ["lap_count", "positive_laps", "valid_laps", "favourite_laps", "distance_laps", "podium_first", "podium_second", "podium_third"] as const) {
+  for (const field of ["lap_count", "positive_laps", "valid_laps", "pace_laps", "favourite_laps", "distance_laps", "podium_first", "podium_second", "podium_third"] as const) {
     if (next[field] < 0) throw new Error(`Dashboard ${field} contribution underflow`);
   }
-  const currentMoments = current ? stats(current, "valid_laps", "valid_mean_seconds", "valid_m2_seconds") : { count: 0, mean: 0, m2: 0 };
-  const contributionMoments = { count: number(row.valid_laps), mean: number(row.mean_lap_seconds), m2: number(row.m2_lap_seconds) };
+  // Quality counters stay in valid_*; pace moments use pace_laps as denominator.
+  const currentMoments = current ? stats(current, "pace_laps", "valid_mean_seconds", "valid_m2_seconds") : { count: 0, mean: 0, m2: 0 };
+  const contributionMoments = { count: number(row.pace_laps), mean: number(row.mean_lap_seconds), m2: number(row.m2_lap_seconds) };
   const moments = sign === 1 ? mergeMoments(currentMoments, contributionMoments) : removeMoments(currentMoments, contributionMoments);
-  if (next.lap_count === 0 && next.podium_first === 0 && next.podium_second === 0 && next.podium_third === 0) {
+  if (next.lap_count === 0 && next.pace_laps === 0 && next.valid_laps === 0 && next.podium_first === 0 && next.podium_second === 0 && next.podium_third === 0) {
     await tx.execute({ sql: "DELETE FROM dashboard_day_entities WHERE utc_day=? AND game_id=? AND car_key=? AND track_key=?", args: keyArgs });
     return;
   }
@@ -112,13 +114,13 @@ async function adjustMonthEntity(tx: DashboardTransaction, row: DayContribution,
   const current = result.rows[0] as DbRow | undefined;
   const currentValues = Object.fromEntries(DAY_COLUMNS.map((field) => [field, number(current?.[field])])) as Record<typeof DAY_COLUMNS[number], number>;
   const next = Object.fromEntries(DAY_COLUMNS.map((field) => [field, currentValues[field] + sign * number(row[field])])) as Record<typeof DAY_COLUMNS[number], number>;
-  for (const field of ["lap_count", "positive_laps", "valid_laps", "favourite_laps", "distance_laps", "podium_first", "podium_second", "podium_third"] as const) {
+  for (const field of ["lap_count", "positive_laps", "valid_laps", "pace_laps", "favourite_laps", "distance_laps", "podium_first", "podium_second", "podium_third"] as const) {
     if (next[field] < 0) throw new Error(`Dashboard ${field} contribution underflow`);
   }
-  const currentMoments = current ? stats(current, "valid_laps", "valid_mean_seconds", "valid_m2_seconds") : { count: 0, mean: 0, m2: 0 };
-  const contributionMoments = { count: number(row.valid_laps), mean: number(row.mean_lap_seconds), m2: number(row.m2_lap_seconds) };
+  const currentMoments = current ? stats(current, "pace_laps", "valid_mean_seconds", "valid_m2_seconds") : { count: 0, mean: 0, m2: 0 };
+  const contributionMoments = { count: number(row.pace_laps), mean: number(row.mean_lap_seconds), m2: number(row.m2_lap_seconds) };
   const moments = sign === 1 ? mergeMoments(currentMoments, contributionMoments) : removeMoments(currentMoments, contributionMoments);
-  if (next.lap_count === 0 && next.podium_first === 0 && next.podium_second === 0 && next.podium_third === 0) {
+  if (next.lap_count === 0 && next.pace_laps === 0 && next.valid_laps === 0 && next.podium_first === 0 && next.podium_second === 0 && next.podium_third === 0) {
     await tx.execute({ sql: "DELETE FROM dashboard_month_entities WHERE utc_month=? AND game_id=? AND car_key=? AND track_key=?", args: keyArgs });
     return;
   }
@@ -136,10 +138,10 @@ async function adjustTimeBucket(tx: DashboardTransaction, row: TimeContribution,
   const keys = [row.bucket_start_ms, row.game_id];
   const existing = await tx.execute({ sql: "SELECT * FROM dashboard_time_buckets WHERE bucket_start_ms=? AND game_id=?", args: keys });
   const current = existing.rows[0] as DbRow | undefined;
-  const fields = ["valid_laps", "positive_laps", "driven_seconds", "valid_seconds", "podium_first", "podium_second", "podium_third"] as const;
+  const fields = ["valid_laps", "pace_laps", "positive_laps", "driven_seconds", "valid_seconds", "pace_seconds", "podium_first", "podium_second", "podium_third"] as const;
   const next = Object.fromEntries(fields.map((field) => [field, number(current?.[field]) + sign * number(row[field])])) as Record<typeof fields[number], number>;
-  for (const field of ["valid_laps", "positive_laps", "podium_first", "podium_second", "podium_third"] as const) if (next[field] < 0) throw new Error(`Dashboard ${field} bucket underflow`);
-  if (next.valid_laps === 0 && next.positive_laps === 0 && next.podium_first === 0 && next.podium_second === 0 && next.podium_third === 0) {
+  for (const field of ["valid_laps", "pace_laps", "positive_laps", "podium_first", "podium_second", "podium_third"] as const) if (next[field] < 0) throw new Error(`Dashboard ${field} bucket underflow`);
+  if (next.valid_laps === 0 && next.pace_laps === 0 && next.positive_laps === 0 && next.podium_first === 0 && next.podium_second === 0 && next.podium_third === 0) {
     await tx.execute({ sql: "DELETE FROM dashboard_time_buckets WHERE bucket_start_ms=? AND game_id=?", args: keys });
   } else {
     await tx.execute({
@@ -227,26 +229,28 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
   const sectors = sectorLayoutKey && sectorCount ? Array<number | null>(sectorCount).fill(null) : [];
   const entityMap = new Map<string, LapAggregate>();
   const bucketMap = new Map<number, TimeContribution>();
-  let lapCount = 0, positiveLaps = 0, validLaps = 0, drivenSeconds = 0, validSeconds = 0;
-  let validMean = 0, validM2 = 0, bestLap: number | null = null, firstLapAt: number | null = null, lastLapAt: number | null = null;
+  let lapCount = 0, positiveLaps = 0, validLaps = 0, paceLaps = 0, drivenSeconds = 0, validSeconds = 0, paceSeconds = 0;
+  // `valid_mean_seconds` / `valid_m2_seconds` persist pace-only moments; valid_laps stays quality-based.
+  let paceMean = 0, paceM2 = 0, bestLap: number | null = null, firstLapAt: number | null = null, lastLapAt: number | null = null;
   let favouriteLaps = 0, favouriteSeconds = 0, distanceLaps = 0, distanceMeters = 0, lastLapId = 0;
   if (!excluded && session) {
     const carKey = dashboardCarIdentity(gameId as GameId, stringOrNull(session.car_id)) ?? "";
     const trackKey = dashboardTrackIdentity(gameId as GameId, stringOrNull(session.track_id)) ?? "";
     for (;;) {
-      const page = await client.execute({ sql: `SELECT lap_id, created_at_ms, lap_time, is_valid, invalid_reason, sector_times
+      const page = await client.execute({ sql: `SELECT lap_id, created_at_ms, lap_time, is_valid, invalid_reason, classification, sector_times
         FROM dashboard_lap_index WHERE session_id=? AND lap_id>? ORDER BY lap_id LIMIT ?`, args: [sessionId, lastLapId, LAP_PAGE_SIZE] });
       if (!page.rows.length) break;
       for (const raw of page.rows as unknown as DbRow[]) {
         lastLapId = number(raw.lap_id);
         const stamp = number(raw.created_at_ms), time = number(raw.lap_time), valid = number(raw.is_valid) === 1;
+        const pace = raw.classification == null || raw.classification === "pace";
         if (!Number.isFinite(stamp)) throw new RangeError("Invalid dashboard lap timestamp");
         lapCount++;
         const day = new Date(stamp).toISOString().slice(0, 10), dayKey = `${day}\0${carKey}\0${trackKey}`;
         let entity = entityMap.get(dayKey);
         if (!entity) {
           entity = { utc_day: day, game_id: gameId, car_key: carKey, track_key: trackKey, lap_count: 0,
-            positive_laps: 0, valid_laps: 0, driven_seconds: 0, valid_seconds: 0, best_lap_seconds: null, mean_lap_seconds: 0, m2_lap_seconds: 0,
+            positive_laps: 0, valid_laps: 0, pace_laps: 0, driven_seconds: 0, valid_seconds: 0, pace_seconds: 0, best_lap_seconds: null, mean_lap_seconds: 0, m2_lap_seconds: 0,
             favourite_laps: 0, favourite_seconds: 0, distance_laps: 0, distance_meters: 0,
             podium_first: 0, podium_second: 0, podium_third: 0 };
           entityMap.set(dayKey, entity);
@@ -255,8 +259,8 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
         const bucketStart = Math.floor(stamp / TIME_BUCKET_MS) * TIME_BUCKET_MS;
         let bucket = bucketMap.get(bucketStart);
         if (!bucket) {
-          bucket = { bucket_start_ms: bucketStart, game_id: gameId, valid_laps: 0, positive_laps: 0, driven_seconds: 0,
-            valid_seconds: 0, podium_first: 0, podium_second: 0, podium_third: 0 };
+          bucket = { bucket_start_ms: bucketStart, game_id: gameId, valid_laps: 0, pace_laps: 0, positive_laps: 0, driven_seconds: 0,
+            valid_seconds: 0, pace_seconds: 0, podium_first: 0, podium_second: 0, podium_third: 0 };
           bucketMap.set(bucketStart, bucket);
         }
         if (!(time > 0) || !Number.isFinite(time)) continue;
@@ -268,15 +272,19 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
           if (trackLengthMeters !== null) { distanceLaps++; distanceMeters += trackLengthMeters; entity.distance_laps++; entity.distance_meters! += trackLengthMeters; }
         }
         if (valid) {
-          validLaps++; validSeconds += time; bestLap = bestLap === null ? time : Math.min(bestLap, time);
-          const nextCount = validLaps, delta = time - validMean;
-          validMean += delta / nextCount; validM2 += delta * (time - validMean);
-          entity.valid_laps++; entity.valid_seconds += time;
-          const entityDelta = time - number(entity.mean_lap_seconds);
-          entity.mean_lap_seconds = number(entity.mean_lap_seconds) + entityDelta / entity.valid_laps;
-          entity.m2_lap_seconds = number(entity.m2_lap_seconds) + entityDelta * (time - entity.mean_lap_seconds);
+          validLaps++; validSeconds += time; entity.valid_laps++; entity.valid_seconds += time;
           bucket.valid_laps++; bucket.valid_seconds += time;
+        }
+        if (valid && pace) {
+          paceLaps++; paceSeconds += time; bestLap = bestLap === null ? time : Math.min(bestLap, time);
           firstLapAt = firstLapAt === null ? stamp : Math.min(firstLapAt, stamp); lastLapAt = lastLapAt === null ? stamp : Math.max(lastLapAt, stamp);
+          const nextCount = paceLaps, delta = time - paceMean;
+          paceMean += delta / nextCount; paceM2 += delta * (time - paceMean);
+          entity.pace_laps++; entity.pace_seconds += time;
+          const entityDelta = time - number(entity.mean_lap_seconds);
+          entity.mean_lap_seconds = number(entity.mean_lap_seconds) + entityDelta / entity.pace_laps;
+          entity.m2_lap_seconds = number(entity.m2_lap_seconds) + entityDelta * (time - entity.mean_lap_seconds);
+          bucket.pace_laps++; bucket.pace_seconds += time;
           if (sectors.length && raw.sector_times != null) {
             try {
               const values: unknown = JSON.parse(String(raw.sector_times));
@@ -302,7 +310,7 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
     if (!entity) {
       entity = { utc_day: day, game_id: gameId, car_key: dashboardCarIdentity(gameId as GameId, stringOrNull(session!.car_id)) ?? "",
         track_key: dashboardTrackIdentity(gameId as GameId, stringOrNull(session!.track_id)) ?? "",
-        lap_count: 0, positive_laps: 0, valid_laps: 0, driven_seconds: 0, valid_seconds: 0, best_lap_seconds: null, mean_lap_seconds: 0, m2_lap_seconds: 0,
+        lap_count: 0, positive_laps: 0, valid_laps: 0, pace_laps: 0, driven_seconds: 0, valid_seconds: 0, pace_seconds: 0, best_lap_seconds: null, mean_lap_seconds: 0, m2_lap_seconds: 0,
         favourite_laps: 0, favourite_seconds: 0, distance_laps: 0, distance_meters: 0, podium_first: 0, podium_second: 0, podium_third: 0 };
       entityMap.set(dayKey, entity);
     }
@@ -310,8 +318,8 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
     const bucketStart = Math.floor(createdAtMs / TIME_BUCKET_MS) * TIME_BUCKET_MS;
     let bucket = bucketMap.get(bucketStart);
     if (!bucket) {
-      bucket = { bucket_start_ms: bucketStart, game_id: gameId, valid_laps: 0, positive_laps: 0, driven_seconds: 0,
-        valid_seconds: 0, podium_first: 0, podium_second: 0, podium_third: 0 };
+      bucket = { bucket_start_ms: bucketStart, game_id: gameId, valid_laps: 0, pace_laps: 0, positive_laps: 0, driven_seconds: 0,
+        valid_seconds: 0, pace_seconds: 0, podium_first: 0, podium_second: 0, podium_third: 0 };
       bucketMap.set(bucketStart, bucket);
     }
     if (podium === 1) bucket.podium_first++; else if (podium === 2) bucket.podium_second++; else if (podium === 3) bucket.podium_third++;
@@ -333,13 +341,13 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
     }
     if (!excluded && session) {
       await tx.execute({
-        sql: `INSERT INTO dashboard_session_summaries(session_id,source_revision,processor_version,game_id,created_at_ms,car_key,track_key,car_id,track_id,session_type,lap_count,positive_laps,valid_laps,driven_seconds,valid_seconds,valid_mean_seconds,valid_m2_seconds,best_lap_seconds,first_lap_at_ms,last_lap_at_ms,favourite_laps,favourite_seconds,distance_laps,distance_meters,track_length_meters,elapsed_seconds,duration_status,sector_layout_key,sector_count,source_sector_starts_json,sector_status,podium_position,podium_status,capture_revision,weather_revision,weather_status,weather_conditions_json,evidence_version)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        sql: `INSERT INTO dashboard_session_summaries(session_id,source_revision,processor_version,game_id,created_at_ms,car_key,track_key,car_id,track_id,session_type,lap_count,positive_laps,valid_laps,driven_seconds,valid_seconds,pace_laps,pace_seconds,valid_mean_seconds,valid_m2_seconds,best_lap_seconds,first_lap_at_ms,last_lap_at_ms,favourite_laps,favourite_seconds,distance_laps,distance_meters,track_length_meters,elapsed_seconds,duration_status,sector_layout_key,sector_count,source_sector_starts_json,sector_status,podium_position,podium_status,capture_revision,weather_revision,weather_status,weather_conditions_json,evidence_version)
+          VALUES (${Array(40).fill("?").join(",")})`,
         args: [sessionId,revision,DASHBOARD_PROCESSOR_VERSION,gameId,createdAtMs,
           dashboardCarIdentity(gameId as GameId,stringOrNull(session.car_id)),
           dashboardTrackIdentity(gameId as GameId,stringOrNull(session.track_id)),
           stringOrNull(session.car_id),stringOrNull(session.track_id),stringOrNull(session.session_type),
-          lapCount,positiveLaps,validLaps,drivenSeconds,validSeconds,validLaps ? validMean : null,validLaps ? validM2 : null,bestLap,firstLapAt,lastLapAt,
+          lapCount,positiveLaps,validLaps,drivenSeconds,validSeconds,paceLaps,paceSeconds,paceLaps ? paceMean : null,paceLaps ? paceM2 : null,bestLap,firstLapAt,lastLapAt,
           favouriteLaps,favouriteSeconds,distanceLaps,distanceLaps ? distanceMeters : null,trackLengthMeters,elapsedSeconds,durationStatus,sectorLayoutKey,sectorCount,
           sourceSectorStarts ? JSON.stringify(sourceSectorStarts) : null,
           evidence ? (evidence.sectorLayout?.status ?? "unavailable") : (sectorLayoutKey ? "available" : preserveCapture ? String(prior?.sector_status ?? "pending") : "pending"),
@@ -347,17 +355,17 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
           captureRevision,weatherRevision,weatherStatus,weatherConditions ? JSON.stringify(weatherConditions) : null,evidenceVersion],
       });
       for (const row of entityMap.values()) {
-        await tx.execute({ sql: `INSERT INTO dashboard_session_days(session_id,utc_day,game_id,car_key,track_key,lap_count,positive_laps,valid_laps,driven_seconds,valid_seconds,best_lap_seconds,mean_lap_seconds,m2_lap_seconds,favourite_laps,favourite_seconds,distance_laps,distance_meters,podium_first,podium_second,podium_third)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-          args: [sessionId,row.utc_day,row.game_id,row.car_key,row.track_key,row.lap_count,row.positive_laps,row.valid_laps,row.driven_seconds,row.valid_seconds,
-            row.best_lap_seconds,row.valid_laps ? row.mean_lap_seconds : null,row.valid_laps ? row.m2_lap_seconds : null,row.favourite_laps,row.favourite_seconds,row.distance_laps,
+        await tx.execute({ sql: `INSERT INTO dashboard_session_days(session_id,utc_day,game_id,car_key,track_key,lap_count,positive_laps,valid_laps,driven_seconds,valid_seconds,pace_laps,pace_seconds,best_lap_seconds,mean_lap_seconds,m2_lap_seconds,favourite_laps,favourite_seconds,distance_laps,distance_meters,podium_first,podium_second,podium_third)
+          VALUES (${Array(22).fill("?").join(",")})`,
+          args: [sessionId,row.utc_day,row.game_id,row.car_key,row.track_key,row.lap_count,row.positive_laps,row.valid_laps,row.driven_seconds,row.valid_seconds,row.pace_laps,row.pace_seconds,
+            row.best_lap_seconds,row.pace_laps ? row.mean_lap_seconds : null,row.pace_laps ? row.m2_lap_seconds : null,row.favourite_laps,row.favourite_seconds,row.distance_laps,
             row.distance_laps ? row.distance_meters : null,row.podium_first,row.podium_second,row.podium_third] });
         await adjustDayEntity(tx, row, 1);
         await adjustMonthEntity(tx, row, 1);
       }
       for (const row of bucketMap.values()) {
-        await tx.execute({ sql: `INSERT INTO dashboard_session_time_buckets(session_id,bucket_start_ms,game_id,valid_laps,positive_laps,driven_seconds,valid_seconds,podium_first,podium_second,podium_third)
-          VALUES (?,?,?,?,?,?,?,?,?,?)`, args: [sessionId,row.bucket_start_ms,row.game_id,row.valid_laps,row.positive_laps,row.driven_seconds,row.valid_seconds,row.podium_first,row.podium_second,row.podium_third] });
+        await tx.execute({ sql: `INSERT INTO dashboard_session_time_buckets(session_id,bucket_start_ms,game_id,valid_laps,pace_laps,positive_laps,driven_seconds,valid_seconds,pace_seconds,podium_first,podium_second,podium_third)
+          VALUES (${Array(12).fill("?").join(",")})`, args: [sessionId,row.bucket_start_ms,row.game_id,row.valid_laps,row.pace_laps,row.positive_laps,row.driven_seconds,row.valid_seconds,row.pace_seconds,row.podium_first,row.podium_second,row.podium_third] });
         await adjustTimeBucket(tx, row, 1);
       }
       if (sectorLayoutKey && sectorCount && sectors.length === sectorCount && sectors.every((value): value is number => value !== null)) {

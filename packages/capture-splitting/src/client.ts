@@ -2,11 +2,15 @@ import { Schema } from "effect";
 import { SplitRequestSchema, WorkerMessageSchema, type SplitRequest, type WorkerMessage } from "./protocol";
 import { SplitFailure } from "./index";
 import type { PublishedManifest } from "./contract";
+
+const isCompiled = import.meta.url.includes("/$bunfs/") || import.meta.url.includes("~BUN");
 export function runSplitWorker(request: SplitRequest, onProgress?: (message: Extract<WorkerMessage, { type: "progress" }>) => void, signal?: AbortSignal): Promise<PublishedManifest> {
   const validated = Schema.decodeSync(SplitRequestSchema)(request);
   return new Promise((resolve, reject) => {
     let lastSequence = -1;
-    const worker = new Worker(new URL("./worker.ts", import.meta.url), { type: "module" });
+    const worker = isCompiled
+      ? new Worker("./packages/capture-splitting/src/worker.ts")
+      : new Worker(new URL("./worker.ts", import.meta.url), { type: "module" });
     let settled = false;
     const cleanup = () => {
       if (settled) return;

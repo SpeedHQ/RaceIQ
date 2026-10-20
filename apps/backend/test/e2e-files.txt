@@ -1,3 +1,4 @@
+apps/backend/test/e2e/classification-migration.test.ts
 apps/backend/test/e2e/motec-import.test.ts
 apps/backend/test/e2e/udp-recording.test.ts
 apps/backend/test/games/shared/semantic-replay-native.test.ts

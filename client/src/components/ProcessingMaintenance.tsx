@@ -3,6 +3,7 @@ import { client } from "@/lib/rpc";
 import { invalidateDashboardQueries } from "@/hooks/dashboard";
 import { m } from "@/paraglide/messages";
 import { telemetryStore, useTelemetryStore } from "@/stores/telemetry";
+import { ClassificationMigrationMaintenance } from "./ClassificationMigration";
 import { RaceResultStatus } from "./RaceResultStatus";
 import { Button } from "./ui/button";
 
@@ -62,6 +63,7 @@ export function ProcessingMaintenance() {
     <div className="space-y-4">
       <LapDetectorStatus />
       <RaceResultStatus />
+      <ClassificationMigrationMaintenance />
     </div>
   );
 }

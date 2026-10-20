@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { collectBrowserErrors } from "../../support/browser-errors";
 import { SEEDED_GAME_CASES } from "../../support/seeded/cases";
-import { getSeededLapTarget } from "../../support/seeded/laps";
+import { getSeededLapMeta } from "../../support/seeded/laps";
 import { ExperimentSchema, ImportLapsResponseSchema } from "./schemas";
 
 const VersionSchema = z.object({
@@ -19,7 +19,7 @@ for (const game of SEEDED_GAME_CASES.filter(({ supportedFeatures }) => supported
   test(`${game.name} experiment lifecycle persists and recovers disposable state`, async ({ page, request }) => {
     page.setDefaultTimeout(10_000);
     const browserErrors = collectBrowserErrors(page);
-    const seededLap = await getSeededLapTarget(request, game.gameId);
+    const seededLap = await getSeededLapMeta(request, game.gameId);
     const [trackResponse, carResponse] = await Promise.all([
       request.get(`/api/track-name/${encodeURIComponent(seededLap.trackId)}?gameId=${game.gameId}`),
       request.get(`/api/car-name/${encodeURIComponent(seededLap.carId)}?gameId=${game.gameId}`),

@@ -9,6 +9,53 @@ import { ACEVO_PACKED_MAGIC, ACC_PACKED_MAGIC, packTriplet } from "@raceiq/captu
 import { iterateSessionCaptureRecords } from "@raceiq/capture-formats/session/framing";
 import { readIRacingFrames } from "@raceiq/capture-formats/iracing/dump";
 import { readLMUFrames } from "@raceiq/capture-formats/lmu/dump";
+import { F1_HEADER_SIZE, F1_PACKET_IDS } from "@raceiq/capture-formats/f1-2025/f1-wire";
+
+function standingStartFrames(options: { startEvidence?: boolean; distanceScale?: number; duration?: number } = {}): TelemetryBatchInput[] {
+  let sequence = 0;
+  const frames: TelemetryBatchInput[] = [{ type: "segment-context" }];
+  const add = (id: number, time: number, body: Buffer) => {
+    const data = Buffer.alloc(F1_HEADER_SIZE + body.length);
+    data.writeUInt16LE(2025, 0);
+    data[2] = 25; data[3] = 1; data[5] = 1; data[6] = id;
+    data.writeBigUInt64LE(1n, 7);
+    data.writeFloatLE(time, 15);
+    data.writeUInt32LE(++sequence, 19);
+    data.writeUInt32LE(sequence, 23);
+    data[28] = 255;
+    body.copy(data, F1_HEADER_SIZE);
+    frames.push({ data, rawByteOffset: sequence * 100 });
+  };
+  const session = Buffer.alloc(125);
+  session[6] = 15;
+  session.writeUInt16LE(3000, 4);
+  const lap = Buffer.alloc(57);
+  lap[33] = 1;
+  add(F1_PACKET_IDS.MOTION, 0, Buffer.alloc(60));
+  add(F1_PACKET_IDS.SESSION, 0, session);
+  add(F1_PACKET_IDS.LAP_DATA, 0, lap);
+  add(F1_PACKET_IDS.CAR_TELEMETRY, 0, Buffer.alloc(60));
+  if (options.startEvidence !== false) {
+    add(F1_PACKET_IDS.EVENT, 0.01, Buffer.from("STLG\x05", "ascii"));
+    add(F1_PACKET_IDS.EVENT, 0.02, Buffer.from("LGOT", "ascii"));
+  }
+  frames.push({ type: "segment-context-end" });
+  for (let second = 0; second <= 60; second++) {
+    const motion = Buffer.alloc(60);
+    motion.writeFloatLE(-50 * (1 - second / 60), 0);
+    add(F1_PACKET_IDS.MOTION, second + 1, motion);
+    const sample = Buffer.from(lap);
+    sample.writeUInt32LE(second * 1000, 4);
+    sample.writeFloatLE(second * (options.distanceScale ?? 50), 20);
+    add(F1_PACKET_IDS.LAP_DATA, second + 1, sample);
+  }
+  const boundary = Buffer.from(lap);
+  boundary[33] = 2;
+  boundary.writeUInt32LE((options.duration ?? 60) * 1000, 0);
+  boundary.writeFloatLE(3050, 24);
+  add(F1_PACKET_IDS.LAP_DATA, 62, boundary);
+  return frames;
+}
 function forzaFrame(lap: number, currentLap: number, lastLap: number, distance: number): Buffer {
   const data = Buffer.alloc(331);
   data.writeInt32LE(1, 0);
@@ -60,6 +107,16 @@ function sessionFixtureInputs(path: string): TelemetryBatchInput[] {
 }
 
 describe("processTelemetryBatch", () => {
+  test("native standing starts relax only closure, not distance or timing quality", async () => {
+    const clean = await processTelemetryBatch("f1-2025", standingStartFrames());
+    expect(clean.laps[0]).toMatchObject({ classification: "grid_start", valid: true, invalidReason: null });
+    const unknown = await processTelemetryBatch("f1-2025", standingStartFrames({ startEvidence: false }));
+    expect(unknown.laps[0]).toMatchObject({ classification: null, valid: false, invalidReason: "start/end positions too far apart" });
+    const short = await processTelemetryBatch("f1-2025", standingStartFrames({ distanceScale: 1 }));
+    expect(short.laps[0]).toMatchObject({ classification: "grid_start", valid: false, invalidReason: "telemetry distance too short" });
+    const mistimed = await processTelemetryBatch("f1-2025", standingStartFrames({ duration: 70 }));
+    expect(mistimed.laps[0]).toMatchObject({ classification: "grid_start", valid: false, invalidReason: "telemetry lap time mismatch" });
+  });
   test("parses committed FM race capture through session and lap transitions", async () => {
     const frames = udpFixtureFrames(resolve(import.meta.dir, "../../../test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz"));
     expect(frames).toHaveLength(11_912);
@@ -76,6 +133,7 @@ describe("processTelemetryBatch", () => {
       { sessionKey: 2, lapNumber: 1, lapTime: 51.28666687011719, valid: true, invalidReason: null, frameCount: 3_077, complete: true, byteOffset: 2_692_399 },
       { sessionKey: 2, lapNumber: 2, lapTime: 10.968429565429688, valid: false, invalidReason: "incomplete at end of input", frameCount: 654, complete: false, byteOffset: 3_723_194 },
     ]);
+    expect(result.laps.map(({ classification }) => classification)).toEqual([null, "pace", "pace", null]);
   });
 
   test("emits parsed lap at ordinal boundary with real offset and frame count", async () => {
@@ -104,10 +162,11 @@ describe("processTelemetryBatch", () => {
     expect(result.laps.map(({ lapNumber, lapTime, complete, invalidReason, byteOffset, frameCount }) => ({
       lapNumber, lapTime, complete, invalidReason, byteOffset, frameCount,
     }))).toEqual([
-      { lapNumber: 1, lapTime: 92.421, complete: true, invalidReason: "outlap", byteOffset: 17_100, frameCount: 6_865 },
+      { lapNumber: 1, lapTime: 92.421, complete: true, invalidReason: null, byteOffset: 17_100, frameCount: 6_865 },
       { lapNumber: 2, lapTime: 101.358, complete: true, invalidReason: "track limits", byteOffset: 703_500, frameCount: 6_435 },
       { lapNumber: 3, lapTime: 109.441, complete: false, invalidReason: "incomplete at end of input", byteOffset: 1_346_900, frameCount: 6_938 },
     ]);
+    expect(result.laps[0]).toMatchObject({ classification: "out_lap", valid: true, invalidReason: null });
   });
   test("finalizes incomplete ordinal lap at EOF and preserves absent offsets", async () => {
     const withOffsets = await processTelemetryBatch("fm-2023", lapFrames().slice(0, 35));
@@ -148,13 +207,13 @@ describe("processTelemetryBatch", () => {
     const result = await processTelemetryBatch("fm-2023", frames);
     expect(result.laps[0]!.sectors).toEqual([19, 17, 18]);
   });
-  test("preserves policy pit-cycle reason when host transition evidence is absent", async () => {
+  test("classifies policy out-laps without marking them invalid", async () => {
     const policy = {
       resolveLapTime: (_packets: readonly TelemetryPacket[], next: TelemetryPacket) => next.LastLap,
       classifyPitCycle: () => "outlap" as const,
     };
     const result = await processTelemetryBatch("fm-2023", lapFrames(), { policies: { "fm-2023": policy } });
-    expect(result.laps[0]).toMatchObject({ valid: false, invalidReason: "outlap" });
+    expect(result.laps[0]).toMatchObject({ classification: "out_lap", valid: true, invalidReason: null });
   });
   test("merges host pit transition with policy pit evidence", async () => {
     const frames = udpFixtureFrames(resolve(import.meta.dir, "../../../test/artifacts/sessions/fm-2023-with-pitting.bin.gz"));
@@ -163,7 +222,7 @@ describe("processTelemetryBatch", () => {
       classifyPitCycle: () => "outlap" as const,
     };
     const result = await processTelemetryBatch("fm-2023", frames, { policies: { "fm-2023": policy } });
-    expect(result.laps.some(lap => lap.invalidReason === "pit lap")).toBe(true);
+    expect(result.laps.some(lap => lap.classification === "pit_lap")).toBe(true);
   });
 
   test("accepts authoritative iRacing complete-lap-start context on committed capture", async () => {
@@ -175,7 +234,7 @@ describe("processTelemetryBatch", () => {
     ]);
     expect(result.sessions).toHaveLength(1);
     expect(result.laps.slice(0, 1)).toMatchObject([{
-      lapNumber: 1, lapTime: 31.917, byteOffset: 1, frameCount: 65, complete: true, valid: true,
+      lapNumber: 1, lapTime: 31.917, byteOffset: 1, frameCount: 65, complete: true, valid: true, classification: "pace",
     }]);
   });
   test("preserves canonical F1 session, lap, offset, and timing results", async () => {

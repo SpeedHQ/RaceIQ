@@ -8,18 +8,25 @@ import { stopSessionCaptureSplitManager } from "../session-capture/split-manager
 export interface ShutdownOptions {
   getNativeSources(): NativeSourceSupervisor | null;
   getStartupWorker(): StartupWorkerHandle | null;
+  stopClassificationMigrationWorker?(): void;
   clearDashboardPublicationNotifications(): void;
 }
 
 export function installShutdown({
   getNativeSources,
   getStartupWorker,
+  stopClassificationMigrationWorker,
   clearDashboardPublicationNotifications,
 }: ShutdownOptions): void {
   const gracefulShutdown = async (signal: NodeJS.Signals) => {
     console.log(`[Server] Received ${signal} — flushing session recorder...`);
-    stopSessionCompressor();
+    stopClassificationMigrationWorker?.();
     try {
+      try {
+        await stopSessionCompressor();
+      } catch (error) {
+        console.error("[Server] Recording maintenance shutdown failed:", error);
+      }
       const ingressStops: Promise<unknown>[] = [udpListener.stop()];
       const nativeSources = getNativeSources();
       if (nativeSources) ingressStops.push(nativeSources.stop());

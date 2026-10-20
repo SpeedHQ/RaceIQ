@@ -7,7 +7,7 @@ import { queryKeys } from "@/hooks/query-keys";
 import { useSplitMigration, useStartSplitMigration } from "@/hooks/split-migration";
 import { m } from "@/paraglide/messages";
 
-export function SparseSplitMigration({ layoutPrecedence }: { layoutPrecedence: boolean }) {
+export function SparseSplitMigration({ layoutPrecedence, onVisibilityChange }: { layoutPrecedence: boolean; onVisibilityChange: (visible: boolean) => void }) {
   const status = useSplitMigration();
   const start = useStartSplitMigration();
   const starts = useIsMutating({ mutationKey: queryKeys.splitMigrationStart, exact: true });
@@ -21,6 +21,8 @@ export function SparseSplitMigration({ layoutPrecedence }: { layoutPrecedence: b
   const statusError = status.isError;
   const dialogOpen = !layoutPrecedence && (running || completed && !successDismissed || !running && !completed && (needsConsent || retryable || statusError));
   const percent = progress && progress.total > 0 ? Math.min(100, Math.round(progress.done / progress.total * 100)) : 0;
+
+  useEffect(() => { onVisibilityChange(dialogOpen); }, [dialogOpen, onVisibilityChange]);
 
   useEffect(() => {
     if (running) { setObservedRunning(true); setSuccessDismissed(false); }

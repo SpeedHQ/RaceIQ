@@ -19,12 +19,13 @@ function makeLaps(sessionId: number, count: number, base: number): LapMeta[] {
     lapNumber: i + 1,
     lapTime: +(base + Math.sin(i) * 0.4).toFixed(3),
     isValid: i !== 0,
+    classification: null,
     invalidReason: i === 0 ? "outlap" : undefined,
     carId: "42",
     trackId: "7",
     sectorTimes: sessionId === 2 ? undefined : [30.1, 33.5, 30.6],
     createdAt: new Date(Date.now() - (count - i) * 95_000).toISOString(),
-  })) as unknown as LapMeta[];
+  }));
 }
 
 // Two recorded sessions and two MoTeC imports. The imports carry the same

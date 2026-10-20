@@ -1,4 +1,5 @@
-import { stat } from "node:fs/promises";
+import { access, stat } from "node:fs/promises";
+import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { getTrackLengthMetersById } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import type { GameId } from "@raceiq/shared/games/ids";
@@ -15,6 +16,7 @@ import {
 } from "../db/dashboard-summary-queries";
 import { PARSER_BOOTSTRAP_VERSION } from "@raceiq/capture-formats/session/framing";
 import { iterateSessionCaptureRecordsFromSource, type SessionCaptureSource } from "./source-loader";
+import { hasTerminalMigrationCaptureFailure } from "./classification-migration";
 
 const USES_SESSION_CLOCK: Partial<Record<GameId, true>> = { "fm-2023": true, "f1-2025": true, iracing: true, lmu: true };
 const BATCH_SIZE = 25;
@@ -155,7 +157,8 @@ async function readCaptureFacts(candidate: DashboardPublicationCandidate): Promi
     hasTiming = true; segmentDomain = domain; segmentLast = value; segmentMin = Math.min(segmentMin, value); segmentMax = Math.max(segmentMax, value);
   };
   const captureHasher = createHash("sha256");
-  for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: true })) {
+  try {
+  for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: true, allowLegacyFullFrames: true })) {
     captureHasher.update(record.kind);
     if (record.kind === "frame") {
       captureHasher.update(record.frame);
@@ -195,6 +198,10 @@ async function readCaptureFacts(candidate: DashboardPublicationCandidate): Promi
       const found = game.getNativeSectorLayout(packet);
       if (found && found.starts.length >= 2 && found.starts.length <= 16 && found.starts.every((start) => Number.isFinite(start) && start >= 0 && start < 1)) layout = { starts: [...found.starts], trackLengthM: found.trackLengthM };
     }
+  }
+  } catch (error) {
+    if (await hasTerminalMigrationCaptureFailure(candidate.sessionId)) return unavailableCapture(candidate);
+    throw error;
   }
   const fingerprint = captureHasher.digest("hex");
   finishSegment();
@@ -274,6 +281,20 @@ async function recordProcessingFailure(sessionId: number): Promise<void> {
     next_retry_at=datetime('now','+' || MIN(300, (1 << MIN(retry_count, 8))) || ' seconds'),
     last_error_code='dashboard_processing_failed',updated_at=datetime('now') WHERE session_id=?`, args: [sessionId] });
 }
+async function waitForClassificationAggregateTestBarrier(signal: AbortSignal): Promise<void> {
+  if (process.env.RACEIQ_E2E !== "1" ||
+    process.env.RACEIQ_CLASSIFICATION_TEST_BARRIER !== "afterCommitBeforeAggregates") return;
+  const dir = process.env.RACEIQ_CLASSIFICATION_TEST_BARRIER_DIR;
+  if (!dir) return;
+  while (!signal.aborted) {
+    try {
+      await access(join(dir, "afterCommitBeforeAggregates.release"));
+      return;
+    } catch {
+      await new Promise<void>((resolve) => setTimeout(resolve, 20));
+    }
+  }
+}
 
 export interface DashboardProcessorHandle { stop(): Promise<void>; }
 
@@ -287,6 +308,7 @@ export function startDashboardProcessor(options: { signal?: AbortSignal; idleMs?
     let visited = 0;
     let workSessionId: number | null = null;
     while (!stopped && !signal.aborted) {
+      await waitForClassificationAggregateTestBarrier(signal);
       try {
         let id = await selectNextSession(cursor);
         if (id === null) {

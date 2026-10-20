@@ -18,6 +18,7 @@ test("ordered six-sector times round-trip without a three-sector projection", as
       null,
       null,
       sectorTimes,
+      null,
     );
 
     const stored = (await getLaps("iracing")).find((lap) => lap.id === lapId);

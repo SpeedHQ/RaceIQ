@@ -143,7 +143,7 @@ describe("computeLineSpreadTrace", () => {
     const swapped = computeLineSpreadTrace([lapB, lapA], [2, 1], corners)!;
     expect(swapped.consistencyScore).toBe(result.consistencyScore);
     expect(OUTCOME_METRICS.lineSpreadScore.reduce({
-      lap: { id: 2, lapTime: 90, isValid: true, invalidReason: null, experimentExcluded: false, experimentExcludedSource: null },
+      lap: { id: 2, lapTime: 90, isValid: true, classification: null, invalidReason: null, experimentExcluded: false, experimentExcludedSource: null },
       telemetry: lapB,
       referenceTelemetry: lapA,
       corners,

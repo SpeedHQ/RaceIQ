@@ -33,6 +33,7 @@ apps/backend/test/db/database-path.test.ts
 apps/backend/test/db/dashboard-queries.test.ts
 apps/backend/test/db/dashboard-mutations.test.ts
 apps/backend/test/db/dashboard-summaries.test.ts
+apps/backend/test/db/lap-pace-eligibility.test.ts
 apps/backend/test/db/lap-ownership.test.ts
 apps/backend/test/db/lap-read-batching.test.ts
 apps/backend/test/db/lmu-session-identity.test.ts
@@ -86,6 +87,7 @@ apps/backend/test/live-strategy/sector-tracker.test.ts
 apps/backend/test/motec/import-staging.test.ts
 apps/backend/test/motec/motec-import.test.ts
 apps/backend/test/motec/motec-viz.test.ts
+apps/backend/test/race-results/f1-session-metadata-repair.test.ts
 apps/backend/test/race-results/race-results-authority.test.ts
 apps/backend/test/race-results/race-results-derive.test.ts
 apps/backend/test/race-results/race-results-source.test.ts
@@ -134,7 +136,12 @@ apps/backend/test/session-capture/lmu-sparse-recorder.test.ts
 apps/backend/test/session-capture/parse-bin-vs-gz.test.ts
 apps/backend/test/session-capture/parse-dump.test.ts
 apps/backend/test/session-capture/raw-binary-storage.test.ts
+apps/backend/test/session-capture/recording-maintenance-lifecycle.test.ts
 apps/backend/test/session-capture/session-cleanup.test.ts
+apps/backend/test/session-capture/session-downsample.test.ts
+apps/backend/test/session-capture/session-downsample-publication.test.ts
+apps/backend/test/session-capture/session-downsample-rewrite.test.ts
+apps/backend/test/session-capture/session-downsample-routes.test.ts
 apps/backend/test/session-capture/session-compressor.test.ts
 apps/backend/test/session-capture/session-recorder.test.ts
 apps/backend/test/session-capture/bundle-consumers.test.ts

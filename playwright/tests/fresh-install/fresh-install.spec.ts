@@ -7,6 +7,11 @@ import { collectBrowserErrors } from "../support/browser-errors";
 
 const SETTINGS_PATH = resolve(runtime.freshInstall.dataDir, "settings.json");
 
+test.beforeEach(async ({ page }) => {
+  // Exercise onboarding independently of the optional WebGL demo on software renderers.
+  await page.route("**/demo-lap.json.gz", (route) => route.fulfill({ json: { frames: [] } }));
+});
+
 // A retry reuses the server process, but dashboard access is persisted separately
 // from settings. Reset both stores inside this isolated E2E data directory.
 async function resetFreshInstallState() {
@@ -100,6 +105,11 @@ test.describe
 
       // Step 7: Native chooser selection applies immediately without a dialog.
       await expect(page.getByRole("heading", { name: "Storage" })).toBeVisible();
+      const frequencyGroup = page.getByRole("group", { name: "Recording frequency", exact: true });
+      await expect(frequencyGroup.getByRole("button")).toHaveText(["50 Hz", "60 Hz", "70 Hz", "80 Hz", "90 Hz", "100 Hz"]);
+      await expect(frequencyGroup.getByRole("button", { name: "100 Hz", exact: true })).toHaveAttribute("aria-pressed", "true");
+      await frequencyGroup.getByRole("button", { name: "50 Hz", exact: true }).click();
+      await expect(frequencyGroup.getByRole("button", { name: "50 Hz", exact: true })).toHaveAttribute("aria-pressed", "true");
       const initialDirectory = await (await page.request.get("/api/storage/recording-directory")).json() as { directory: string };
       const destination = resolve(initialDirectory.directory, "raceiq");
       let releaseMoveRequest!: () => void;
@@ -151,6 +161,7 @@ test.describe
         resolvedRecordingDirectory: realpathSync(destination),
         driverName: "TestDriver",
         onboardingComplete: true,
+        recordingFrequencyHz: 50,
       });
 
       await assertImagesLoaded(page);
@@ -480,7 +491,7 @@ test("setup wizard applies native recording-folder choices immediately and safel
   await page.route("**/api/storage/recording-directory", async (route) => {
     if (route.request().method() === "POST") {
       moveRequests++;
-      if (moveRequests > 1) await moveGate;
+      if (moveRequests > 0) await moveGate;
     }
     await route.continue();
   });

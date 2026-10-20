@@ -1,3 +1,4 @@
+import type { LapClassification } from "../lap-classification";
 import type { RaceResultOutcomeStatus } from "../results/types";
 
 import type { GameId } from "../../games/ids";
@@ -14,6 +15,7 @@ export interface LapMeta extends Partial<TelemetryVersionIdentity> {
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
+  classification: LapClassification | null;
   invalidReason?: string;
   notes?: string;
   createdAt: string;

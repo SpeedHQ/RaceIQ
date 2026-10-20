@@ -159,7 +159,7 @@ describe("dashboard embedded migrations", () => {
       ] as const) {
         expect(Math.abs(Number(month.rows[0]?.[field]) - expected)).toBeLessThan(1e-6);
       }
-      expect((await client.execute("SELECT * FROM dashboard_day_entities ORDER BY utc_day")).rows).toEqual(sourceBefore.rows);
+      expect((await client.execute(`SELECT ${sourceBefore.columns.join(",")} FROM dashboard_day_entities ORDER BY utc_day`)).rows).toEqual(sourceBefore.rows);
       expect(await runMigrations(client)).toBe(0);
       expect((await client.execute(`SELECT * FROM dashboard_month_entities
         WHERE utc_month='2024-02' AND game_id='acc' AND car_key='["acc","n:7"]' AND track_key='["acc","n:8"]'`)).rows).toEqual(month.rows);
