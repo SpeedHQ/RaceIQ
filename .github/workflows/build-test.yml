@@ -39,6 +39,9 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Build RaceIQ
+        env:
+          RACEIQ_FEATURE_F1_EXPERIMENTS: "true"
+          RACEIQ_FEATURE_IRACING_ADAPTER: "true"
         run: bunx turbo run build
 
       - name: Upload compiled Paraglide artifact

@@ -52,7 +52,7 @@ function toEvaluable(meta: LapMeta): EvaluableLap {
     id: meta.id,
     lapTime: meta.lapTime,
     isValid: meta.isValid,
-    invalidReason: meta.invalidReason ?? null,
+    classification: meta.classification,
     experimentExcluded: meta.experimentExcluded ?? false,
     experimentExcludedSource: meta.experimentExcludedSource ?? null,
   };

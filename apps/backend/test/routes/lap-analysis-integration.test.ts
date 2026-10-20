@@ -122,7 +122,7 @@ describe("F1 Analyse semantic telemetry integration", () => {
         for (const recording of recordings) {
           const sessionId = await insertSession("41", "19", "f1-2025");
           sessionIds.push(sessionId);
-          const lapId = await insertLap(sessionId, 1, 1, true, recording.offset, 1_000);
+          const lapId = await insertLap(sessionId, 1, 1, true, recording.offset, 1_000, null, null, null, null, null);
           lapIds.push(lapId);
           if (results.length === 1) {
             await db.update(laps).set({ createdAt: "2000-01-01 00:00:00" }).where(eq(laps.id, lapId)).run();
@@ -181,7 +181,7 @@ describe("F1 Analyse semantic telemetry integration", () => {
     if (firstFrameOffset == null) throw new Error("Recording contains no frames");
 
     const sessionId = await insertSession("41", "19", "f1-2025");
-    const lapId = await insertLap(sessionId, 1, 1, true, firstFrameOffset, 1_000);
+    const lapId = await insertLap(sessionId, 1, 1, true, firstFrameOffset, 1_000, null, null, null, null, null);
     await updateSessionRawFile(sessionId, sparseRecording, "test-detector");
 
     const originalFile = Bun.file;

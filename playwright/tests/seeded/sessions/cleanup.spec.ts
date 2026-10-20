@@ -26,6 +26,15 @@ test("confirmed cleanup removes disposable capture while preserving session and 
     const sessionIds = disposable.sessionIds;
     await waitForCleanupEligibility(request, sessionIds);
     const lapIds = disposable.lapIds;
+    // Imported captures are protected while their real per-lap split is still publishing.
+    await expect.poll(async () => {
+      const response = await request.post("/api/storage/session-cleanup/preview", {
+        data: { mode: "selected", sessionIds },
+      });
+      expect(response.ok()).toBe(true);
+      const preview = await response.json() as SessionCleanupPreview;
+      return [...preview.candidateSessionIds].sort((a, b) => a - b);
+    }, { timeout: 60_000 }).toEqual([...sessionIds].sort((a, b) => a - b));
     const newCaptures = readdirSync(capturesDir).filter((name) => (name.endsWith(".bin") || name.endsWith(".bin.gz")) && !capturesBefore.has(name));
     expect(newCaptures.length, "import creates disposable capture files").toBeGreaterThan(0);
     const captures = newCaptures.map((name) => join(capturesDir, name));

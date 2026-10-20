@@ -778,10 +778,12 @@
       "cache": true
     },
     "build": {
-      "cache": false
+      "cache": false,
+      "env": ["RACEIQ_FEATURE_F1_EXPERIMENTS", "RACEIQ_FEATURE_IRACING_ADAPTER"]
     },
     "client#build": {
-      "dependsOn": ["i18n:compile"]
+      "dependsOn": ["i18n:compile"],
+      "env": ["RACEIQ_FEATURE_F1_EXPERIMENTS", "RACEIQ_FEATURE_IRACING_ADAPTER"]
     },
     "client#typecheck": {
       "dependsOn": ["transit", "i18n:compile"]

@@ -65,14 +65,15 @@ function parseGameId(value: string): GameId {
 function asLap(row: {
   id: number; sessionId: number; lapNumber: number; lapTime: number; isValid: boolean;
   createdAt: string; gameId: string; ownership: string; carId: string;
-  trackId: string;
+  trackId: string; classification?: LapMeta["classification"];
 }): LapMeta {
   if (row.ownership !== "mine" && row.ownership !== "others") throw new Error(`Unexpected session ownership: ${row.ownership}`);
-  return { ...row, gameId: parseGameId(row.gameId), ownership: row.ownership, invalidReason: undefined };
+  return { ...row, classification: row.classification ?? null, gameId: parseGameId(row.gameId), ownership: row.ownership, invalidReason: undefined };
 }
 
 const baseLap = (overrides: Partial<LapMeta> = {}): LapMeta => ({
   id: 1, sessionId: 1, lapNumber: 1, lapTime: 90, isValid: true,
+  classification: null,
   createdAt: "2026-06-01T12:00:00.000Z", gameId: "acc" as GameId,
   ownership: "mine", carId: "7", trackId: "8",
   ...overrides,
@@ -1050,4 +1051,49 @@ test("dashboard distinguishes unknown from confirmed zero session duration", () 
   expect(response.sessionTypes.sessionsWithDuration).toBe(1);
   expect(response.sessionTypes.sessionsWithoutDuration).toBe(1);
   expect(response.sessionTypes.totalSeconds).toBe(0);
+});
+
+const sprintShootoutVariants = ["sprint-shootout-1", "short-sprint-shootout", "one-shot-sprint-shootout"];
+
+test("sprint-shootout variants count as qualifying in shared dashboard reducer", () => {
+  const reducerSessions = sprintShootoutVariants.map((sessionType, index) => baseSession({
+    id: index + 1, elapsedSeconds: (index + 1) * 10, sessionType,
+  }));
+  const reduced = reduceDashboard([], reducerSessions, request);
+  expect(reduced.sessionTypes.shares).toEqual([
+    { kind: "practice", seconds: 0, share: 0 },
+    { kind: "qualifying", seconds: 60, share: 1 },
+    { kind: "race", seconds: 0, share: 0 },
+    { kind: "unknown", seconds: 0, share: 0 },
+  ]);
+  expect(reduced.sessionTypes.unknownSeconds).toBe(0);
+});
+
+test("sprint-shootout variants count as qualifying in persisted dashboard SQL", async () => {
+  for (const [index, sessionType] of sprintShootoutVariants.entries()) {
+    const createdAt = `2026-06-01T12:0${index}:00.000Z`;
+    const sessionId = await addSession("acc" as GameId, createdAt);
+    await addLap(sessionId, 1, 90 + index, true, createdAt);
+    await db.update(sessions).set({ sessionType }).where(eq(sessions.id, sessionId)).run();
+    const candidate = await prepareDashboardPublicationCandidate(sessionId);
+    if (!candidate || !(await publishDashboardSession(candidate, {
+      sourceRevision: candidate.sourceRevision,
+      captureRevision: `sprint-shootout-${index}`,
+      duration: { status: "available", elapsedSeconds: (index + 1) * 10 },
+      sectorLayout: null,
+      weather: { status: "unavailable", revision: null, conditions: null },
+      trackLengthMeters: null,
+      sourceSectorStarts: null,
+    }))) throw new Error(`Failed to publish dashboard facts for ${sessionId}`);
+  }
+  const persisted = await getDashboard({ from: "2026-06-01T00:00:00.000Z", to: "2026-06-02T00:00:00.000Z", gameId: "acc" as GameId });
+  expect(persisted.sessionTypes).toMatchObject({
+    totalSeconds: 60, unknownSeconds: 0, sessionsWithDuration: 3, sessionsWithoutDuration: 0,
+  });
+  expect(persisted.sessionTypes.shares).toEqual([
+    { kind: "practice", seconds: 0, share: 0 },
+    { kind: "qualifying", seconds: 60, share: 1 },
+    { kind: "race", seconds: 0, share: 0 },
+    { kind: "unknown", seconds: 0, share: 0 },
+  ]);
 });

@@ -42,6 +42,11 @@ describe("race result derivation", () => {
   test("normalizes session families", () => {
     expect(normalizeSessionType("race-2")).toBe("race");
     expect(normalizeSessionType("qualifying-1")).toBe("qualifying");
+    expect(normalizeSessionType("short-qualifying")).toBe("qualifying");
+    expect(normalizeSessionType("one-shot-qualifying")).toBe("qualifying");
+    expect(normalizeSessionType("sprint-shootout-1")).toBe("qualifying");
+    expect(normalizeSessionType("short-sprint-shootout")).toBe("qualifying");
+    expect(normalizeSessionType("one-shot-sprint-shootout")).toBe("qualifying");
     expect(normalizeSessionType(undefined)).toBe("unknown");
   });
 

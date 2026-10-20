@@ -62,6 +62,7 @@ function makeGraphicsBuf(overrides: Record<string, number> = {}): Buffer {
   const buf = Buffer.alloc(GRAPHICS.SIZE);
   buf.writeInt32LE(overrides.status ?? 2, GRAPHICS.status.offset);
   buf.writeInt32LE(overrides.session ?? 0, GRAPHICS.session.offset);
+  buf.writeInt32LE(overrides.flag ?? 0, GRAPHICS.flag.offset);
   buf.writeInt32LE(overrides.completedLaps ?? 3, GRAPHICS.completedLaps.offset);
   buf.writeInt32LE(overrides.position ?? 1, GRAPHICS.position.offset);
   buf.writeInt32LE(overrides.iCurrentTime ?? 45000, GRAPHICS.iCurrentTime.offset);
@@ -161,11 +162,17 @@ describe("ACC parser", () => {
   test("full and compact parsers agree on known, unknown, and legacy validity", () => {
     const physics = makePhysicsBuf();
     const stat = makeStaticBuf();
+    const graphics = makeGraphicsBuf({ session: 1, flag: 2 });
     for (const [raw, expected] of [[0, false], [1, true], [2, null]] as const) {
-      const graphics = makeGraphicsBuf();
       graphics.writeInt32LE(raw, GRAPHICS.isValidLap.offset);
-      expect(parseAccBuffers(physics, graphics, stat)?.acc?.isValidLap).toBe(expected);
-      expect(parseAccLapIndex(physics, graphics, stat, "", "")?.acc?.isValidLap).toBe(expected);
+      const full = parseAccBuffers(physics, graphics, stat);
+      const compact = parseAccLapIndex(physics, graphics, stat, "", "");
+      expect(full?.acc?.isValidLap).toBe(expected);
+      expect(compact?.acc?.isValidLap).toBe(expected);
+      expect(compact?.acc?.sessionType).toBe(full?.acc?.sessionType);
+      expect(compact?.acc?.flagStatus).toBe(full?.acc?.flagStatus);
+      expect(full?.acc?.sessionType).toBe("qualifying");
+      expect(full?.acc?.flagStatus).toBe("yellow");
     }
     const legacy = makeGraphicsBuf().subarray(0, 1320);
     expect(parseAccBuffers(physics, legacy, stat)?.acc?.isValidLap).toBeNull();

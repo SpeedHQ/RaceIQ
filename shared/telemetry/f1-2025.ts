@@ -82,6 +82,10 @@ export interface F1ExtendedData {
   drsActivationDistance?: number;
   actualTyreCompound?: number;
   vehicleFIAFlags?: number;
+  vehicleFIAFlagsUpdatedAt?: number;
+  safetyCarStatusUpdatedAt?: number;
+  /** Time of LGOT only when preceded by a positive STLG light-count event. */
+  raceStartAt?: number;
   enginePowerICE?: number;
   enginePowerMGUK?: number;
   // Extended CarDamage fields

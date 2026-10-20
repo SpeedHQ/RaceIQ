@@ -19,10 +19,6 @@ export function TrackCarAnalyseReviewPage({ gameId, trackId, carId, sessionId }:
   const selectedSession = sessionId == null ? undefined : sessions.find((session) => session.id === sessionId);
   const resolvedTrackId = trackId ?? selectedSession?.trackId;
   const resolvedCarId = carId ?? selectedSession?.carId;
-  const groupSessions = useMemo(
-    () => sessions.filter((session) => session.trackId === resolvedTrackId && session.carId === resolvedCarId),
-    [resolvedCarId, resolvedTrackId, sessions],
-  );
   const groupQuery = useReviewLaps(resolvedTrackId ?? null, resolvedCarId ?? null);
   const sessionQuery = useSessionLaps(sessionId ?? null);
   const reviewLaps = sessionId != null ? (sessionQuery.data ?? []) : (groupQuery.data ?? []);
@@ -89,11 +85,11 @@ export function TrackCarAnalyseReviewPage({ gameId, trackId, carId, sessionId }:
       </div>
     );
   }
-  if (sessionId == null && evaluationLaps.length === 0) {
+  if (evaluationLaps.length === 0 && search.laps == null) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
         <p role="status" className="text-sm text-app-text-muted">
-          {groupSessions.length === 0 ? m.review_no_matching_session() : m.review_no_valid_laps()}
+          {m.review_no_valid_laps()}
         </p>
         <Button variant="app-outline" size="app-sm" onClick={backToSession}>
           {m.review_back_to_sessions()}
