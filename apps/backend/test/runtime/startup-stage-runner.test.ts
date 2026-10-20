@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { createStartupStageRunner, defineStartupStage } from "../../src/runtime/startup-stage-runner";
+import { createStartupStageRunner, defineStartupStage, orderStartupStages, registerStartupStage } from "../../src/runtime/startup-stage-runner";
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -7,6 +7,49 @@ function deferred<T>() {
   const promise = new Promise<T>((done, fail) => { resolve = done; reject = fail; });
   return { promise, resolve, reject };
 }
+
+test("registry keys determine stage identity and explicit order overrides registration order", async () => {
+  const called: string[] = [];
+  const registry = {
+    successor: registerStartupStage({
+      name: "successor",
+      run: async () => { called.push("successor"); return { complete: true }; },
+      isComplete: (result) => result.complete,
+      blockedReason: () => "pending",
+    }),
+    prerequisite: registerStartupStage({
+      name: "prerequisite",
+      run: async () => { called.push("prerequisite"); return 0; },
+      isComplete: (count) => count === 0,
+      blockedReason: () => "pending",
+    }),
+  };
+  const entered: string[] = [];
+  const runner = createStartupStageRunner(orderStartupStages(registry, ["prerequisite", "successor"]), () => {}, async (stage) => { entered.push(stage.id); });
+  try {
+    expect(await runner.run()).toBe(true);
+    expect(called).toEqual(["prerequisite", "successor"]);
+    expect(entered).toEqual(["prerequisite", "successor"]);
+  } finally { await runner.stop(); }
+});
+
+test("invalid registry orders reject before any stage is constructed or executed", () => {
+  let constructed = 0;
+  const registry = {
+    first: <const Id extends string>(id: Id) => {
+      constructed++;
+      return defineStartupStage({ id, name: id, run: async () => 0, isComplete: (count) => count === 0, blockedReason: () => "pending" });
+    },
+    next: registerStartupStage({ name: "next", run: async () => true, isComplete: (complete) => complete, blockedReason: () => "pending" }),
+  };
+  expect(() => orderStartupStages(registry, ["first", "first", "next"])).toThrow("Duplicate startup stage: first");
+  expect(() => orderStartupStages(registry, ["first"])).toThrow("Missing startup stage: next");
+  // @ts-expect-error Unknown keys are also rejected at compile time.
+  expect(() => orderStartupStages(registry, ["first", "unknown", "next"])).toThrow("Unknown startup stage: unknown");
+  // @ts-expect-error Inherited object properties are not registered stages.
+  expect(() => orderStartupStages(registry, ["first", "toString", "next"])).toThrow("Unknown startup stage: toString");
+  expect(constructed).toBe(0);
+});
 
 for (const status of ["pending", "running", "partial", "failed", "interrupted"] as const) {
   test(`${status} prerequisite blocks every startup successor`, async () => {

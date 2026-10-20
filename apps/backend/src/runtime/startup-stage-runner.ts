@@ -52,6 +52,28 @@ export function defineStartupStage<const Id extends string, Result>(spec: Startu
   };
 }
 
+/** Captures each result type while leaving stage identity to its registry key. */
+export function registerStartupStage<Result>(spec: Omit<StartupStageSpec<string, Result>, "id">) {
+  return <const Id extends string>(id: Id): StartupStage<Id> => defineStartupStage({ ...spec, id });
+}
+
+/** Resolves an exact permutation of the registry before any repair can run. */
+export function orderStartupStages<const Key extends string>(
+  registry: Readonly<Record<Key, (id: NoInfer<Key>) => StartupStage<NoInfer<Key>>>>,
+  order: readonly NoInfer<Key>[],
+): readonly StartupStage<Key>[] {
+  const seen = new Set<Key>();
+  for (const key of order) {
+    if (!Object.hasOwn(registry, key)) throw new Error(`Unknown startup stage: ${key}`);
+    if (seen.has(key)) throw new Error(`Duplicate startup stage: ${key}`);
+    seen.add(key);
+  }
+  for (const key of Object.keys(registry)) {
+    if (!seen.has(key as Key)) throw new Error(`Missing startup stage: ${key}`);
+  }
+  return order.map((key) => registry[key](key));
+}
+
 export type StartupLifecycleState<Id extends string = string> =
   | { state: "pending" }
   | { state: "running"; stage: Id }

@@ -19,8 +19,8 @@ import { injectDiscoveredIRacingIdentity } from "@raceiq/game-iracing-metadata/i
 import { injectDiscoveredLMUIdentity } from "@raceiq/game-lmu-metadata/index";
 
 import { configureDatabaseWriteWorkerTransport, type WriteLeaseRequest, type WriteLeaseResponse } from "@raceiq/backend-core/db/write-coordination";
-import { createStartupStageRunner, defineStartupStage } from "./startup-stage-runner";
-type StartupStageId = "historical" | "lmu-identity" | "race-results";
+import { createStartupStageRunner, orderStartupStages, registerStartupStage } from "./startup-stage-runner";
+type StartupStageId = keyof typeof startupStages;
 const port = parentPort!;
 let stopping = false;
 let backgroundTasks: Promise<void>[] = [];
@@ -113,9 +113,8 @@ function formatFailure(error: unknown): string {
   return chain.join(" <- ");
 }
 
-const startupStages = [
-  defineStartupStage({
-    id: "historical",
+const startupStages = {
+  historical: registerStartupStage({
     name: "Historical session reconciliation",
     async run() {
       const counts = await reconcileHistoricalSessions((reprocessed) => {
@@ -136,8 +135,7 @@ const startupStages = [
       console.log("[SessionRepair] Historical session reconciliation complete:", counts);
     },
   }),
-  defineStartupStage({
-    id: "lmu-identity",
+  "lmu-identity": registerStartupStage({
     name: "LMU session identity backfill",
     async run() {
       const counts = await backfillLMUSessionIdentity();
@@ -148,8 +146,7 @@ const startupStages = [
     blockedReason: (counts) => `unresolved=${counts.unresolved}`,
     onComplete: (counts) => { console.log("[LMU] Session identity backfill complete:", counts); },
   }),
-  defineStartupStage({
-    id: "race-results",
+  "race-results": registerStartupStage({
     name: "Race-result backfill",
     run: () => backfillAllRaceResults(),
     isComplete: (counts) => counts.errors === 0 && counts.failedGames.length === 0,
@@ -159,10 +156,16 @@ const startupStages = [
     },
     onComplete: (counts) => { console.log("[RaceResults] Backfill complete:", counts); },
   }),
-] as const;
+} as const;
+
+const startupOrder = [
+  "historical",
+  "lmu-identity",
+  "race-results",
+] as const satisfies readonly StartupStageId[];
 
 const startupStageRunner = createStartupStageRunner(
-  startupStages,
+  orderStartupStages(startupStages, startupOrder),
   (stage, reason, kind) => port.postMessage({
     type: "error",
     task: stage.name,
