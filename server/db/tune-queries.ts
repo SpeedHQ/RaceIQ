@@ -1,3 +1,4 @@
+import { paceLapCondition } from "./lap-eligibility";
 import { eq, and, desc, sql, asc } from "drizzle-orm";
 import { db, readDb } from "./index"
 import { tunes, tuneAssignments, laps, sessions } from "./schema";
@@ -62,6 +63,7 @@ export async function getTunes(filters: { gameId?: string; carId?: string } = {}
     .where(and(
       sql`${laps.tuneId} IS NOT NULL`,
       eq(laps.isValid, true),
+      paceLapCondition(),
       sql`${laps.lapTime} > 0`,
       eq(sessions.gameId, tunes.gameId),
       eq(sessions.carId, tunes.carId),

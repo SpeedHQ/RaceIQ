@@ -1,3 +1,4 @@
+import { isPaceLap } from "@raceiq/shared/racing/lap-classification";
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { F125Leaderboard } from "@/components/f1/F125Leaderboard";
@@ -269,13 +270,13 @@ export function LapManagement(props: LapManagementProps) {
                   <div className="snap-center shrink-0 w-full flex flex-col gap-2">
                     {selectionActions}
                     {(() => {
-                      const validLaps = filteredLaps.filter((l) => l.isValid !== false);
+                      const validLaps = filteredLaps.filter((l) => l.isValid !== false && isPaceLap(l.classification));
                       const fastestTime = validLaps.length > 0 ? Math.min(...validLaps.map((l) => l.lapTime)) : null;
                       if (filteredLaps.length === 0) {
                         return <div className="px-3 py-6 text-center text-sm text-app-text-dim">{m.track_detail_no_laps_match_filters()}</div>;
                       }
                       return filteredLaps.map((lap) => {
-                        const isFastest = fastestTime !== null && lap.lapTime === fastestTime && lap.isValid !== false;
+                        const isFastest = fastestTime !== null && lap.lapTime === fastestTime && lap.isValid !== false && isPaceLap(lap.classification);
                         const selected = selectedLaps.has(lap.lapId);
                         return (
                           <div key={lap.lapId} className={`rounded-lg border border-app-border p-3 ${selected ? "bg-app-accent/5 border-app-accent/30" : ""}`}>
@@ -389,10 +390,10 @@ export function LapManagement(props: LapManagementProps) {
                     </TableHeader>
                     <TableBody>
                       {(() => {
-                        const validLaps = filteredLaps.filter((l) => l.isValid !== false);
+                        const validLaps = filteredLaps.filter((l) => l.isValid !== false && isPaceLap(l.classification));
                         const fastestTime = validLaps.length > 0 ? Math.min(...validLaps.map((l) => l.lapTime)) : null;
                         return filteredLaps.map((lap) => {
-                          const isFastest = fastestTime !== null && lap.lapTime === fastestTime && lap.isValid !== false;
+                          const isFastest = fastestTime !== null && lap.lapTime === fastestTime && lap.isValid !== false && isPaceLap(lap.classification);
                           return (
                             <TableRow key={lap.lapId} data-testid={`track-lap-${lap.lapId}`} data-state={selectedLaps.has(lap.lapId) ? "selected" : undefined}>
                               <TableCell>

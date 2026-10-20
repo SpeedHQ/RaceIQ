@@ -12,18 +12,26 @@ import { drainLayoutMigration, stopLayoutMigrationAdmission } from "@raceiq/back
 export interface ShutdownOptions {
   getNativeSources(): NativeSourceSupervisor | null;
   getStartupWorker(): StartupWorkerHandle | null;
+  stopClassificationMigrationWorker?(): Promise<void> | void;
   clearDashboardPublicationNotifications(): void;
 }
 
-export function installShutdown({ getNativeSources, getStartupWorker, clearDashboardPublicationNotifications }: ShutdownOptions): void {
+export function installShutdown({
+  getNativeSources,
+  getStartupWorker,
+  stopClassificationMigrationWorker,
+  clearDashboardPublicationNotifications,
+}: ShutdownOptions): void {
   let shutdownPromise: Promise<void> | null = null;
   const gracefulShutdown = (signal: NodeJS.Signals): Promise<void> => {
     if (shutdownPromise) return shutdownPromise;
     console.log(`[Server] Received ${signal} — flushing session recorder...`);
     stopLayoutMigrationAdmission();
+    const classificationStop = stopClassificationMigrationWorker?.();
     const startupStop = getStartupWorker()?.stop();
     // Observe rejection immediately while the other ingress owners are draining.
     const startupSettled = Promise.resolve(startupStop).then(() => ({ ok: true as const }), (error: unknown) => ({ ok: false as const, error }));
+    const classificationSettled = Promise.resolve(classificationStop).then(() => ({ ok: true as const }), (error: unknown) => ({ ok: false as const, error }));
     shutdownPromise = (async () => {
       let failed = false;
       const settle = async (owner: string, drain: () => Promise<unknown>) => {
@@ -41,8 +49,8 @@ export function installShutdown({ getNativeSources, getStartupWorker, clearDashb
       await settle("Capture splitting", stopSessionCaptureSplitManager);
       const startup = await startupSettled;
       if (!startup.ok) { failed = true; console.error("[Server] Startup worker shutdown failed:", startup.error); }
-      // Never exit from a finally block: a diagnostic failure must not bypass
-      // another owner's protected I/O, finalizers, or the global write drain.
+      const classification = await classificationSettled;
+      if (!classification.ok) { failed = true; console.error("[Server] Classification migration shutdown failed:", classification.error); }
       await stopDatabaseWriteAuthority();
       await settle("Dashboard read connection", async () => { closeDashboardReadDatabase(); });
       await settle("Database connections", async () => { closeDb(); });

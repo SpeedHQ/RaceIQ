@@ -4,6 +4,7 @@ import { db } from "./index";
 import { laps, sessions } from "./schema";
 import { withDatabaseWrite } from "./write-coordination";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
+import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
 import { getActiveExperiment } from "../experiments/active";
 import { resolveActiveTestId } from "./experiment-version-queries";
 
@@ -41,10 +42,11 @@ export function insertLap(
   profileId: number | null = null,
   tuneId: number | null = null,
   invalidReason: string | null = null,
-  sectors: number[] | null = null,
+  sectors: number[] | null,
+  classification: LapClassification | null,
   versionIdentity?: TelemetryVersionIdentity,
 ): Promise<number> {
-  return withDatabaseWrite(() => doInsertLap(sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity), undefined, "lap.insert");
+  return withDatabaseWrite(() => doInsertLap(sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, classification, versionIdentity), undefined, "lap.insert");
 }
 
 async function doInsertLap(
@@ -57,7 +59,8 @@ async function doInsertLap(
   profileId: number | null,
   tuneId: number | null,
   invalidReason: string | null,
-  sectors: number[] | null = null,
+  sectors: number[] | null,
+  classification: LapClassification | null,
   versionIdentity?: TelemetryVersionIdentity,
 ): Promise<number> {
   // Stamp the lap with the active tuning session (if any). This is the single
@@ -77,8 +80,9 @@ async function doInsertLap(
       isValid,
       rawByteOffset,
       rawFrameCount,
-      sectorTimes: sectors,
       profileId,
+      sectorTimes: sectors,
+      classification,
       tuneId,
       invalidReason,
       experimentId: activeExperimentId,

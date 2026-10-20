@@ -216,6 +216,33 @@ describe("migration regressions", () => {
     client.close();
   });
 
+  test("classification backfill maps main's legacy pit reasons without restoring quality validity", async () => {
+    const client = newClient();
+    try {
+      await bootstrap(client);
+      await runMigrations(client, 80);
+      await client.execute("INSERT INTO sessions (id, car_id, track_id, game_id) VALUES (1, '10', '20', 'iracing')");
+      await client.execute(`INSERT INTO laps (session_id, lap_number, lap_time, is_valid, invalid_reason)
+        VALUES (1, 7, 110, 0, 'inlap'), (1, 8, 150, 0, 'outlap'),
+          (1, 9, 100, 0, 'track limits'), (1, 10, 160, 0, 'pit lap'), (1, 11, 99, 1, NULL)`);
+
+      await runMigrations(client);
+      const rows = await client.execute("SELECT lap_number, is_valid, invalid_reason, classification FROM laps ORDER BY lap_number");
+      expect(rows.rows.map((row) => ({
+        lapNumber: Number(row.lap_number), isValid: Number(row.is_valid),
+        invalidReason: row.invalid_reason, classification: row.classification,
+      }))).toEqual([
+        { lapNumber: 7, isValid: 0, invalidReason: "inlap", classification: "in_lap" },
+        { lapNumber: 8, isValid: 0, invalidReason: "outlap", classification: "out_lap" },
+        { lapNumber: 9, isValid: 0, invalidReason: "track limits", classification: null },
+        { lapNumber: 10, isValid: 0, invalidReason: "pit lap", classification: "pit_lap" },
+        { lapNumber: 11, isValid: 1, invalidReason: null, classification: null },
+      ]);
+    } finally {
+      client.close();
+    }
+  });
+
   test("v58 normalizes pre-existing null and invalid ownership values", async () => {
     const client = newClient();
     await bootstrap(client);

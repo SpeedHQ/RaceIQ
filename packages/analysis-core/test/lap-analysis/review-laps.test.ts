@@ -40,6 +40,7 @@ describe("selectEvaluationLaps", () => {
     id,
     lapTime,
     isValid: true,
+    classification: null,
     invalidReason: null,
     ...over,
   });

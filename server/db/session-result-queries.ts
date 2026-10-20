@@ -71,15 +71,30 @@ export type PitEventInput = {
 
 async function markPitCycleLaps(sessionId: number, events: readonly PitEventInput[]): Promise<void> {
   const inlapNumbers = [...new Set(events.filter((event) => (event.eventType ?? "pit") === "pit" && event.linkage === "linked" && event.lapNumber !== null).map((event) => event.lapNumber!))];
+  if (inlapNumbers.length === 0) return;
+  const session = await readDb.select({ source: sessions.source }).from(sessions).where(eq(sessions.id, sessionId)).get();
+  if (session?.source === "motec") return;
 
-  await withDatabaseWrite(async () => {
-    await db.update(laps).set({ isValid: false, invalidReason: "inlap" })
-      .where(and(eq(laps.sessionId, sessionId), eq(laps.isValid, true), inArray(laps.lapNumber, inlapNumbers))).run();
-    await db.update(laps).set({ isValid: false, invalidReason: "outlap" })
-      .where(and(eq(laps.sessionId, sessionId), eq(laps.isValid, true), inArray(laps.lapNumber, inlapNumbers.map((lapNumber) => lapNumber + 1)))).run();
-  });
-
-
+  // Pit-event inference supplements telemetry categories; it must not turn an
+  // observed out-lap into an in-lap when event lap numbering is ambiguous.
+  const inLapEligibleCategory = or(
+    isNull(laps.classification),
+    inArray(laps.classification, ["pace", "caution"]),
+  );
+  const notIncomplete = or(isNull(laps.invalidReason), ne(laps.invalidReason, "incomplete"));
+  await withDatabaseWrite(() => db.transaction(async (tx) => {
+    await tx
+      .update(laps)
+      .set({ classification: "in_lap" })
+      .where(and(eq(laps.sessionId, sessionId), inArray(laps.lapNumber, inlapNumbers), inLapEligibleCategory, notIncomplete))
+      .run();
+    const outLapEligibleCategory = or(isNull(laps.classification), inArray(laps.classification, ["pace", "caution"]));
+    await tx
+      .update(laps)
+      .set({ classification: "out_lap" })
+      .where(and(eq(laps.sessionId, sessionId), inArray(laps.lapNumber, inlapNumbers.map((lapNumber) => lapNumber + 1)), outLapEligibleCategory, notIncomplete))
+      .run();
+  }));
 }
 export async function upsertSessionResult(
   input: SessionResultInput,

@@ -116,17 +116,16 @@ test("legacy recordings automatically prompt for consent and migrate to the user
     const prompt = page.getByRole("dialog", { name: "Organize your recordings", exact: true });
     await expect(prompt).toBeVisible();
     await expect(prompt.getByRole("radio", { name: /Keep current folder/ })).toBeChecked();
-    await expect(prompt.getByRole("button", { name: "Organize recordings", exact: true })).toBeEnabled();
+    await expect(prompt.getByRole("button", { name: "Organize files", exact: true })).toBeEnabled();
     await expect(prompt).toContainText(source);
     // Detection and rendering must not move anything before the user consents.
     legacyFiles.forEach((file, index) => expect(readFileSync(file)).toEqual(originalCaptures[index]));
     importedFiles.forEach((filename) => expect(existsSync(join(source, "fm-2023", "own", filename))).toBe(false));
 
-    // Required migration cannot be skipped by a button, Escape, or backdrop click.
-    await expect(prompt.getByRole("button", { name: "Later", exact: true })).toHaveCount(0);
-    await page.keyboard.press("Escape");
-    await expect(prompt).toBeVisible();
-    await page.mouse.click(4, 4);
+    // Deferring consent must leave every recording untouched; reload offers it again.
+    await prompt.getByRole("button", { name: "Later", exact: true }).click();
+    await expect(prompt).toBeHidden();
+    await page.reload({ waitUntil: "domcontentloaded" });
     await expect(prompt).toBeVisible();
     legacyFiles.forEach((file, index) => expect(readFileSync(file)).toEqual(originalCaptures[index]));
     importedFiles.forEach((filename) => expect(existsSync(join(source, "fm-2023", "own", filename))).toBe(false));

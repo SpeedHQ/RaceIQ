@@ -13,6 +13,7 @@ export function lap(overrides: Partial<RecapLapInput>): RecapLapInput {
     lapNumber: 1,
     lapTime: 100,
     isValid: true,
+    classification: null,
     sectorTimes: null,
     ...overrides,
   };
