@@ -1,3 +1,5 @@
+import type { LiveStrategy } from "./strategy";
+
 export interface LiveSectorData {
   sectorCount: number;
   currentSector: number;
@@ -13,6 +15,8 @@ export interface LiveSectorData {
 }
 
 export interface LivePitData {
+  /** Durable per-metric provenance; null until a persisted session is available. */
+  strategy?: LiveStrategy | null;
   fuelPerLap: number;
   fuelLapsRemaining: number | null;
   currentLapFuelUsed: number;

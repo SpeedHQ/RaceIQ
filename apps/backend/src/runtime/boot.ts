@@ -31,6 +31,8 @@ import { registerDriverProfileLapNotifier } from "@raceiq/backend-core/driver-pr
 import { notifyDriverProfileLap } from "../driver-profile/runner";
 import { DashboardAuth, setDashboardAuth } from "./dashboard-auth";
 import { configureHttpAccess, httpAccess } from "./http-access";
+import { interruptActiveStrategyStints } from "@raceiq/backend-core/db/strategy-queries";
+import { subscribeStrategyHistory } from "@raceiq/backend-core/live-strategy/history-events";
 
 export interface BootOptions {
   httpPort?: number;
@@ -76,6 +78,8 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   }
 
   await initDb();
+  await interruptActiveStrategyStints();
+  subscribeStrategyHistory((event) => wsManager.broadcastNotification({ ...event }));
   await recoverRecordingDirectoryMove();
   const auth = await DashboardAuth.create(client, DB_PATH, process.env);
   await auth.initialize(upgradingAccess);

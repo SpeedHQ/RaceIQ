@@ -44,6 +44,7 @@ export interface LapOwnershipSource {
 export interface LapDetectorCallbacks {
   onLapSaved?: (event: LapSavedEvent | LapSavedNotification) => void;
   onSessionStart?: (session: SessionState) => void | Promise<void>;
+  /** Every closed recorded lap, including invalid/pit laps, before onLapSaved. Partial tails are excluded. */
   onLapComplete?: (event: LapCompleteEvent) => void;
 }
 

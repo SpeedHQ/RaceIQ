@@ -416,16 +416,14 @@ export class LapDetector implements ILapDetector, LapOwnershipSource {
         this.currentSession!.bestLapTime = lapTime;
       }
 
-      // Notify pipeline so sector tracker can update reference lap for delta
-      if (valid) {
-        this.onLapComplete_?.({
-          packets: this.lapBuffer,
-          lapDistStart: this.lapBuffer[0].DistanceTraveled,
-          lapTime,
-          isValid: valid,
-          sectors,
-        });
-      }
+      // Every closed recorded lap is evidence. Consumers gate reference pace on isValid.
+      this.onLapComplete_?.({
+        packets: this.lapBuffer,
+        lapDistStart: this.lapBuffer[0].DistanceTraveled,
+        lapTime,
+        isValid: valid,
+        sectors,
+      });
       traceCapture(this.currentSession.gameId, "lap-boundary-stage", {
         sessionId: this.currentSession.sessionId,
         lapNumber: this.currentLapNumber,

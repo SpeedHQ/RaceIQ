@@ -21,6 +21,7 @@ import { useAlignedTelemetry } from "@/hooks/aligned-telemetry";
 import { useLapIssues } from "@/hooks/tunes";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { ArmHeadline, ReviewOverviewSkeleton, ReviewTrackStats } from "./OverviewSkeleton";
+import { StrategyStints } from "./StrategyStints";
 import { IssuePill } from "./ReviewIssues";
 import { tireSnapshotFromAlignedTrace } from "./tire-snapshot";
 import { semanticTuneSamplesFromAlignedTrace, type SemanticTuneSample, wheelValue } from "../semantic-tune";
@@ -282,6 +283,7 @@ export function SessionReviewDashboard({
 
         {test && <ArmHeadline kind={test.kind} laps={validLaps} />}
         {isOverview && <ReviewTrackStats stats={reviewStats} issueCount={issues?.length ?? 0} />}
+        {isOverview && stayOnSessionReview && sessionId != null && <StrategyStints key={`${gameId}:${sessionId}`} gameId={gameId} sessionId={sessionId} />}
 
         {(test?.driverComment || test?.notes) && (
           <div className="border-b border-app-border px-4 py-2.5 space-y-2">

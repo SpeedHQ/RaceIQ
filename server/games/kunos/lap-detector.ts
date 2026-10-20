@@ -132,18 +132,32 @@ export class KunosLapDetector implements ILapDetector {
     const sectors = await computeLapSectors(session.trackId, session.gameId, packets, lapTime, { sectors: resolveTrack(session.gameId, session.trackId).sectors });
     traceStageAt = performance.now();
     if (isValid && (session.bestLapTime === 0 || lapTime < session.bestLapTime)) session.bestLapTime = lapTime;
-    const lapId = await this.db.insertLap(session.sessionId, lapNum, lapTime, isValid, lapByteOffset, lapFrameCount, null, null, invalidReason, sectors);
+    let lapId: number;
+    try {
+      lapId = await this.db.insertLap(session.sessionId, lapNum, lapTime, isValid, lapByteOffset, lapFrameCount, null, null, invalidReason, sectors);
+    } catch (error) {
+      console.error(`${this.loggerLabel} Failed to save lap ${lapNum}:`, error);
+      return;
+    }
     traceLap(traceGameId, "lap-boundary-stage", { sessionId: traceSessionId, lapNumber: lapNum, lapId, stage: "insert", durationMs: performance.now() - traceStageAt });
     traceStageAt = performance.now();
-    await persistLapMetrics(this.db, lapId, packets);
+    try {
+      await persistLapMetrics(this.db, lapId, packets);
+    } catch (error) {
+      console.error(`${this.loggerLabel} Failed to persist lap metrics for ${lapId}:`, error);
+    }
     traceLap(traceGameId, "lap-boundary-stage", { sessionId: traceSessionId, lapNumber: lapNum, lapId, stage: "metrics", durationMs: performance.now() - traceStageAt });
     traceStageAt = performance.now();
-    await reconcileAutoExclusionsForLap(this.db, lapId);
+    try {
+      await reconcileAutoExclusionsForLap(this.db, lapId);
+    } catch (error) {
+      console.error(`${this.loggerLabel} Failed to reconcile lap exclusions for ${lapId}:`, error);
+    }
     traceLap(traceGameId, "lap-boundary-stage", { sessionId: traceSessionId, lapNumber: lapNum, lapId, stage: "auto-exclusion", durationMs: performance.now() - traceStageAt });
     traceStageAt = performance.now();
     if (!capture.silent) {
-      this.onLapSaved?.({ type: "lap-saved", sessionId: session.sessionId, lapId, lapNumber: lapNum, lapTime, isValid, sectors, estimatedBestLapTime: session.bestLapTime });
       this.onLapComplete_?.({ packets, lapDistStart: packets[0]?.DistanceTraveled ?? 0, lapTime, isValid, sectors });
+      this.onLapSaved?.({ type: "lap-saved", sessionId: session.sessionId, lapId, lapNumber: lapNum, lapTime, isValid, sectors, estimatedBestLapTime: session.bestLapTime });
     }
     traceLap(traceGameId, "lap-boundary-stage", { sessionId: traceSessionId, lapNumber: lapNum, stage: "callbacks", durationMs: performance.now() - traceStageAt });
     traceLap(traceGameId, "lap-boundary-end", { sessionId: traceSessionId, lapNumber: lapNum, totalMs: performance.now() - traceStartedAt });

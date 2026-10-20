@@ -25,6 +25,8 @@ import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 import { enqueueSessionCaptureSplit } from "../db/session-queries";
 import { materializeParserInitializationPlan, subscribeParserSource, type ParserSourceInput, type ParserReplayLocator } from "../games/packet-dispatch";
 import { DirectSessionRecorderAdapter, type DirectCaptureRecording } from "../session-capture/direct-recorder";
+import { DurableStrategyTracker } from "../live-strategy/durable-strategy";
+import { clearPitEstimates } from "../db/strategy-queries";
 
 import { DashboardCaptureObservation } from "../session-capture/dashboard-observation";
 import { markDashboardCaptureCheckpoint, publishObservedDashboardCaptureFacts } from "../session-capture/dashboard-processor";
@@ -52,6 +54,8 @@ export class LiveTelemetryPipeline {
   private _skipDevState: boolean;
   private projector = new LiveTelemetryProjector();
   private _sessionLaps: LapMeta[] = [];
+  private readonly strategy: DurableStrategyTracker | null;
+  private strategyInput: TelemetryPacket | null = null;
   /** Live Tuning Dashboard: gates the per-packet transient issue detector.
    *  Off by default — client opts in via `POST /api/live-analysis`. */
   private _liveIssuesEnabled = false;
@@ -119,6 +123,7 @@ export class LiveTelemetryPipeline {
   ) {
     this.db = db;
     this.ws = ws;
+    this.strategy = db instanceof RealDbAdapter ? new DurableStrategyTracker((message) => ws.broadcastNotification(message)) : null;
     this.recorder = options?.recorder ?? (db instanceof RealDbAdapter
       ? new DirectSessionRecorderAdapter()
       : new SparseSessionRecorderAdapter("mine", {}, "offline"));
@@ -132,9 +137,10 @@ export class LiveTelemetryPipeline {
         if (binding.sessionId === this._recordingSession?.sessionId) this._recordingSession.directCapture?.bindLap(binding);
         else this._retiringSessions.get(binding.sessionId)?.directCapture?.bindLap(binding);
       });
-      db.subscribeLapWriteFailures((sessionId, error) => {
+      db.subscribeLapWriteFailures((sessionId, lapNumber, error) => {
         const session = sessionId === this._recordingSession?.sessionId ? this._recordingSession : this._retiringSessions.get(sessionId);
         session?.directCapture?.fail(error);
+        this.strategy?.lapWriteFailed(sessionId, lapNumber, error);
       });
       db.subscribeLapInvalidations((lapId) => {
         this._recordingSession?.directCapture?.invalidateLap(lapId);
@@ -425,6 +431,8 @@ export class LiveTelemetryPipeline {
   private _buildCallbacks(): LapDetectorCallbacks {
     return {
       onSessionStart: async (session) => {
+        // Reserve durable ownership before exposing an empty session to startup cleanup.
+        if (this.strategyInput) await this.strategy?.start(session, this.strategyInput, session.sessionUID ?? `session-${session.sessionId}`);
         const previousSession = this._recordingSession;
         const previousCapture = previousSession
           ? this._dashboardCaptureObservations.get(previousSession.sessionId) ?? null
@@ -501,12 +509,12 @@ export class LiveTelemetryPipeline {
         this._calibrationBoundary = getTrackBoundariesById(trackIdentity, session.gameId);
 
         await this.sectorTracker.reset(trackIdentity, session.gameId, carIdentity);
+        this.strategy?.bindCaptureEpoch(String(this.recorder.epoch));
         this.pitTracker.reset();
         const adapter = getServerGame(session.gameId);
         this.pitTracker.setTireThresholds(adapter.tireHealthThresholds.yellow);
         this.pitTracker.setTireWearAvailable(resolveAnalysisTelemetry(adapter).tireWearRate.source !== "unavailable");
         if (!this._skipHistorySeeding) {
-          await this.pitTracker.seedFromHistory(trackIdentity, carIdentity, session.carPI, session.gameId, adapter.runtime.pit);
           await this._seedSessionLaps(session.sessionId, session.gameId);
         } else {
           this._sessionLaps = [];
@@ -515,17 +523,19 @@ export class LiveTelemetryPipeline {
       },
 
       onLapComplete: (event) => {
+        const session = this._lapDetector?.session ?? null;
+        this.strategy?.prepareLap(event);
         if (event.isValid) {
           this.sectorTracker.updateRefLap(event.packets, event.lapTime, event.sectors);
-          // Update distance-based wear curves when enabled by the adapter.
-          const session = this._lapDetector?.session ?? null;
-          if (session && getServerGame(session.gameId).runtime.pit.useDistanceBasedWearCurves) {
+          const adapter = session ? getServerGame(session.gameId) : null;
+          if (session && adapter?.runtime.pit.useDistanceBasedWearCurves) {
             this.pitTracker.updateWearCurves(event.packets, event.lapDistStart);
           }
         }
       },
 
       onLapSaved: (event) => {
+        this.strategy?.savedLap(event);
         this.ws.broadcastNotification({ type: "lap-saved", ...event });
 
         // Only populate the active session snapshot with laps owned by that session.
@@ -553,6 +563,7 @@ export class LiveTelemetryPipeline {
       },
     };
   }
+
 
   private _getOrCreateDetector(gameId: GameId): ILapDetector {
     // Create a fresh detector if none exists, or if the game changed
@@ -597,10 +608,19 @@ export class LiveTelemetryPipeline {
     await this._withIngressPaused(() => this._finalizeCurrentSession());
   }
 
+  async clearStrategyHistory(sessionId: number, driverKey: string): Promise<number> {
+    return this._withIngressPaused(async () => {
+      await this.strategy?.admitClearBoundary(sessionId, driverKey);
+      return clearPitEstimates(sessionId, driverKey);
+    });
+  }
+
   private async _finalizeCurrentSession(): Promise<void> {
     const session = this._recordingSession;
-    this._observeSourceTail();
     await this._lapDetector?.finalizeCurrentSession?.();
+    this._observeSourceTail();
+    if (this.db instanceof RealDbAdapter && session) await this.db.drainLapWrites(session.sessionId);
+    await this.strategy?.finish();
     await this._finishRecordedSession(session);
     await Promise.all(this._retiringCaptures);
   }
@@ -613,6 +633,7 @@ export class LiveTelemetryPipeline {
       await this._lapDetector?.flushStaleLap?.();
       this._drainOwnership();
       if (session && !this._lapDetector?.session) {
+        await this.strategy?.finish();
         await this._finishRecordedSession(session);
       }
     });
@@ -738,6 +759,8 @@ export class LiveTelemetryPipeline {
       detector.observeSourceRecord?.(rawByteOffset, end, rawOrdinal);
       if (detector.shouldCheckpointBeforeWrite(packet)) this.recorder.requestFullCheckpoint?.();
     }
+    this.strategyInput = packet;
+    this.strategy?.beginFrame(packet);
     await detector.feed(packet, rawByteOffset, rawOrdinal);
 
     // If feed rotates the session, write the triggering source into the new recorder
@@ -750,6 +773,14 @@ export class LiveTelemetryPipeline {
       }
     }
     this._drainOwnership();
+    const currentSession = detector.session;
+    const strategyIdentityMatches = !this.strategy || currentSession != null &&
+      currentSession.gameId === packet.gameId && currentSession.carId === packet.carId && currentSession.trackId === packet.trackId;
+    if (strategyIdentityMatches) this.strategy?.observe(packet);
+    if (this.strategy?.consumeTireReset()) {
+      this.pitTracker.setTireWearAvailable(false);
+      this.pitTracker.setTireWearAvailable(resolveAnalysisTelemetry(adapter).tireWearRate.source !== "unavailable");
+    }
 
     this._observeDashboardPacket(detector.session?.sessionId, packet, source, frameTimeMs);
     const sectors = this.sectorTracker.feed(packet);
@@ -760,7 +791,8 @@ export class LiveTelemetryPipeline {
       packet.BestLap = sessionBest;
     }
 
-    const pit = this.pitTracker.feed(packet, this.sectorTracker.getTrackLength(), this.sectorTracker.getLapDistStart());
+    const pit = strategyIdentityMatches ? this.pitTracker.feed(packet, this.sectorTracker.getTrackLength(), this.sectorTracker.getLapDistStart()) : null;
+    if (pit) this.strategy?.apply(packet, pit);
 
     // Collect calibration positions for adapters that require track-outline alignment.
     if (this._totalProcessed % 6 === 0 && adapter.runtime.requiresTrackCalibration) {
@@ -895,6 +927,7 @@ export class LiveTelemetryPipeline {
     return this._withIngressPaused(async () => {
       const activeSessionId = this._lapDetector?.session?.sessionId;
       if (activeSessionId === undefined || !sessionIds.includes(activeSessionId)) return false;
+      this.strategy?.discardSession(activeSessionId);
       const capture = this._recordingSession?.directCapture;
       const invalidated = new Error("Recording session was deleted");
       capture?.fail(invalidated);
@@ -1001,6 +1034,10 @@ export const lapDetector = {
 /** Reset live ownership when user deletes active session. */
 export function recoverDeletedSessions(sessionIds: readonly number[]): Promise<boolean> {
   return _default.recoverDeletedSessions(sessionIds);
+}
+
+export function clearStrategyHistory(sessionId: number, driverKey: string): Promise<number> {
+  return _default.clearStrategyHistory(sessionId, driverKey);
 }
 
 /** Toggle the Live Tuning Dashboard's per-packet transient issue detector. */

@@ -5,7 +5,7 @@
 import { getServerGame } from "../games/registry";
 import { CapturingDbAdapter, currentTelemetryVersionIdentity } from "../telemetry/pipeline-ports";
 import type { GameId } from "@raceiq/shared/games/ids";
-import { loadSessionSource, iterateSessionCaptureRecordsFromSource } from "./source-loader";
+import { loadSessionSource, iterateSessionCaptureRecordsFromSource, loadCaptureManifest, resolveLapCaptureArtifact } from "./source-loader";
 import { packetIndexToLegacyMotecOffset } from "../motec/source-archive";
 import { getLapsForSession, updateLapRawIndex, replaceLapsForSession } from "../db/lap-reprocessing-queries";
 import { liveCaptures, sessions } from "../db/schema";
@@ -17,6 +17,11 @@ import { PARSER_BOOTSTRAP_VERSION } from "@raceiq/capture-formats/session/framin
 import { applyFrameTime } from "./frame-time";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { isDelayedFinishContext } from "../db/telemetry-replay-storage";
+import { randomUUID } from "node:crypto";
+import { StrategyRebuild } from "../live-strategy/strategy-rebuild";
+import { activateStrategyRebuild } from "../db/strategy-queries";
+import { STRATEGY_ALGORITHM_VERSION } from "../live-strategy/lap-metrics";
+import type { LapDetectorCallbacks } from "../lap-detection/types";
 export interface ReprocessResult {
   sessionId: number;
   lapsDetected: number;
@@ -54,7 +59,7 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
 
 async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessResult> {
   const sessionRows = await db
-    .select({ rawFile: sessions.rawFile, source: sessions.source, gameId: sessions.gameId, carId: sessions.carId, trackId: sessions.trackId, lapDetectorVersion: sessions.lapDetectorVersion, captureFormatVersion: sessions.captureFormatVersion })
+    .select({ rawFile: sessions.rawFile, source: sessions.source, gameId: sessions.gameId, carId: sessions.carId, trackId: sessions.trackId, ownership: sessions.ownership, createdAt: sessions.createdAt, lapDetectorVersion: sessions.lapDetectorVersion, captureFormatVersion: sessions.captureFormatVersion })
     .from(sessions)
     .where(eq(sessions.id, sessionId))
     .all();
@@ -85,13 +90,22 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
   const loaded = session.rawFile.endsWith(".motec.zip") ? await loadSessionSource(source) : null;
   const existingLaps = await getLapsForSession(sessionId);
   const capturingDb = new CapturingDbAdapter();
-  let detector = serverGame.createLapDetector({ db: capturingDb, bypassPacketRateFilter: true });
+  const createdAt = new Date(/[zZ]|[+-]\d\d:\d\d$/.test(session.createdAt) ? session.createdAt : `${session.createdAt}Z`).toISOString();
+  const strategyRebuild = new StrategyRebuild(sessionId, session.ownership === "mine" ? "local-player" : `unidentified-source:${sessionId}`, createdAt);
+  const callbacks: LapDetectorCallbacks = {
+    onLapComplete: (event) => strategyRebuild.prepare(event),
+    onLapSaved: (event) => strategyRebuild.saved(event, capturingDb.getCapturedLap(event.lapId)),
+  };
+  let detector = serverGame.createLapDetector({ db: capturingDb, bypassPacketRateFilter: true, callbacks });
+  let unownedCompletionTail = false;
   if (loaded?.kind === "packets") {
     for (let index = 0; index < loaded.packets.length; index++) {
       const offset = loaded.offsetEncoding === "packet-index"
         ? index
         : packetIndexToLegacyMotecOffset(gameId, index);
+      strategyRebuild.ensure(loaded.packets[index]);
       await detector.feed(loaded.packets[index], offset);
+      strategyRebuild.observe(loaded.packets[index]);
     }
   } else {
     // Canonical captures, including gzip and sparse records, stream one frame
@@ -105,7 +119,8 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
       if (record.kind === "segment-boundary") {
         // Imports start a fresh detector per segment while retaining the same
         // session. A boundary discards the previous detector's partial lap.
-        detector = serverGame.createLapDetector({ db: capturingDb, bypassPacketRateFilter: true });
+        strategyRebuild.breakSegment();
+        detector = serverGame.createLapDetector({ db: capturingDb, bypassPacketRateFilter: true, callbacks });
         detector.expectCompleteLapStart?.();
         parserState = serverGame.createParserState?.() ?? null;
         segmentHasFrames = false;
@@ -141,17 +156,45 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
         if (lastOwnedPacket && (packet.LapNumber > lastOwnedPacket.LapNumber ||
             isDelayedFinishContext(lastOwnedPacket, packet))) {
           await detector.feed(packet, undefined, ordinal);
+          unownedCompletionTail = true;
         }
       } else {
         segmentHasFrames = true;
+        unownedCompletionTail = false;
         lastOwnedPacket = packet;
+        strategyRebuild.ensure(packet);
         await detector.feed(packet, record.offset, ordinal);
+        strategyRebuild.observe(packet);
+      }
+    }
+    // Native-wire manifests intentionally expose owned frames only. The final lap's
+    // independently replayable artifact retains its real finish-line context.
+    if (source.rawFile.endsWith("manifest.json") && lastOwnedPacket) {
+      const manifest = await loadCaptureManifest(source.rawFile);
+      const tail = manifest.chunks.findLast((chunk) => chunk.kind === "lap");
+      if (tail && (tail.trailingContextFrameCount ?? 0) > 0) {
+        const artifact = await resolveLapCaptureArtifact(source.rawFile, tail.id);
+        let frames = 0;
+        let trailing = 0;
+        for await (const record of iterateSessionCaptureRecordsFromSource({ ...source, rawFile: artifact.path, artifact: artifact.artifact }, { strict: true })) {
+          if (record.kind !== "frame" || record.offset < tail.ownedFrameByteOffset!) continue;
+          if (frames++ < tail.ownedFrameCount!) continue;
+          if (trailing++ >= (tail.trailingContextFrameCount ?? 0)) break;
+          const packet = serverGame.tryParse(record.frame, parserState);
+          if (!packet) continue;
+          applyFrameTime(packet, record.frameTimeMs);
+          if (packet.LapNumber > lastOwnedPacket.LapNumber || isDelayedFinishContext(lastOwnedPacket, packet)) {
+            await detector.feed(packet, undefined, sourceOrdinal++);
+            unownedCompletionTail = true;
+          }
+        }
       }
     }
   }
 
-  await detector.flushIncompleteLap?.();
+  if (!unownedCompletionTail) await detector.flushIncompleteLap?.();
   const detectedLaps = capturingDb.laps;
+  strategyRebuild.finish();
   if (existingLaps.length > 0 && detectedLaps.length === 0) {
     throw new Error(`Session ${sessionId} replay detected no laps; preserving ${existingLaps.length} existing lap(s)`);
   }
@@ -254,6 +297,17 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
   }
 
   await updateSessionRawFile(sessionId, session.rawFile, detector.detectorId, versionIdentity);
+  const savedLaps = await getLapsForSession(sessionId);
+  const byWindow = new Map(savedLaps.map((lap) => [`${lap.rawByteOffset}:${lap.rawFrameCount}:${lap.lapNumber}`, lap.id]));
+  const contributions = strategyRebuild.contributions.map((entry) => {
+    const window = entry.window;
+    const lapId = window ? byWindow.get(`${window.rawByteOffset}:${window.rawFrameCount}:${window.lapNumber}`) : undefined;
+    if (lapId == null) throw new Error("Strategy rebuild could not associate a completed source lap with its saved identity");
+    const summary = entry.accumulator.snapshot();
+    return { sessionId, driverKey: summary.driverKey, lapId, stintId: summary.id, algorithmVersion: STRATEGY_ALGORITHM_VERSION, contribution: entry.contribution };
+  });
+  await activateStrategyRebuild(sessionId, { gameId, carId, trackId, ownership: session.ownership }, randomUUID(),
+    strategyRebuild.accumulators.map((accumulator) => ({ summary: accumulator.snapshot(), totals: accumulator.totals() })), contributions);
 
   return { sessionId, lapsDetected: detectedLaps.length, lapsUpdated, strategy };
 }

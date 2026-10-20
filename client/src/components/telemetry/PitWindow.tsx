@@ -29,7 +29,7 @@ export function PitWindow({ pit }: PitWindowProps) {
       <span className="text-sm text-app-text-muted">{m.pitwindow_laps()}</span>
       {pit != null && limitedBy && (
         <span className="text-base text-app-text-dim whitespace-nowrap">
-          · {m.pitwindow_limited_by()} <span className={`font-bold ${limitedBy === "fuel" ? fuelColor : "text-app-text"}`}>{limitedBy}</span>
+          · {m.pitwindow_limited_by()} <span className={`font-bold ${limitedBy === "fuel" ? fuelColor : "text-app-text"}`}>{limitedBy === "fuel" ? m.label_fuel() : m.label_tires()}</span>
         </span>
       )}
     </div>

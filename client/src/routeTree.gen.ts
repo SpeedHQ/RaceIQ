@@ -40,6 +40,7 @@ import { Route as F125TunesRouteImport } from './routes/f125/tunes'
 import { Route as Fm23IndexRouteImport } from './routes/fm23/index'
 import { Route as Fm23SetupsRouteImport } from './routes/fm23/setups'
 import { Route as IracingIndexRouteImport } from './routes/iracing/index'
+import { Route as LiveIndexRouteImport } from './routes/live.index'
 import { Route as LivePitRouteImport } from './routes/live.pit'
 import { Route as LmuIndexRouteImport } from './routes/lmu/index'
 import { Route as PortableIndexRouteImport } from './routes/portable.index'
@@ -225,6 +226,11 @@ const IracingIndexRoute = IracingIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => IracingRoute,
+} as any)
+const LiveIndexRoute = LiveIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => LiveRoute,
 } as any)
 const LivePitRoute = LivePitRouteImport.update({
   id: '/pit',
@@ -417,6 +423,7 @@ export interface FileRoutesByFullPath {
   '/f125/': typeof F125IndexRoute
   '/fm23/': typeof Fm23IndexRoute
   '/iracing/': typeof IracingIndexRoute
+  '/live/': typeof LiveIndexRoute
   '/lmu/': typeof LmuIndexRoute
   '/portable/': typeof PortableIndexRoute
   '/$gameid/experiments/$experimentId': typeof GameidExperimentsExperimentIdRoute
@@ -449,7 +456,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$gameid': typeof GameidRouteWithChildren
   '/dev': typeof DevRoute
-  '/live': typeof LiveRouteWithChildren
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/overlay': typeof OverlayRoute
@@ -466,6 +472,7 @@ export interface FileRoutesByTo {
   '/f125': typeof F125IndexRoute
   '/fm23': typeof Fm23IndexRoute
   '/iracing': typeof IracingIndexRoute
+  '/live': typeof LiveIndexRoute
   '/lmu': typeof LmuIndexRoute
   '/portable': typeof PortableIndexRoute
   '/$gameid/experiments/$experimentId': typeof GameidExperimentsExperimentIdRoute
@@ -530,6 +537,7 @@ export interface FileRoutesById {
   '/f125/': typeof F125IndexRoute
   '/fm23/': typeof Fm23IndexRoute
   '/iracing/': typeof IracingIndexRoute
+  '/live/': typeof LiveIndexRoute
   '/lmu/': typeof LmuIndexRoute
   '/portable/': typeof PortableIndexRoute
   '/$gameid/experiments/$experimentId': typeof GameidExperimentsExperimentIdRoute
@@ -595,6 +603,7 @@ export interface FileRouteTypes {
     | '/f125/'
     | '/fm23/'
     | '/iracing/'
+    | '/live/'
     | '/lmu/'
     | '/portable/'
     | '/$gameid/experiments/$experimentId'
@@ -627,7 +636,6 @@ export interface FileRouteTypes {
     | '/'
     | '/$gameid'
     | '/dev'
-    | '/live'
     | '/login'
     | '/onboarding'
     | '/overlay'
@@ -644,6 +652,7 @@ export interface FileRouteTypes {
     | '/f125'
     | '/fm23'
     | '/iracing'
+    | '/live'
     | '/lmu'
     | '/portable'
     | '/$gameid/experiments/$experimentId'
@@ -707,6 +716,7 @@ export interface FileRouteTypes {
     | '/f125/'
     | '/fm23/'
     | '/iracing/'
+    | '/live/'
     | '/lmu/'
     | '/portable/'
     | '/$gameid/experiments/$experimentId'
@@ -973,6 +983,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/iracing/'
       preLoaderRoute: typeof IracingIndexRouteImport
       parentRoute: typeof IracingRoute
+    }
+    '/live/': {
+      id: '/live/'
+      path: '/'
+      fullPath: '/live/'
+      preLoaderRoute: typeof LiveIndexRouteImport
+      parentRoute: typeof LiveRoute
     }
     '/live/pit': {
       id: '/live/pit'
@@ -1406,10 +1423,12 @@ const IracingRouteWithChildren =
 
 interface LiveRouteChildren {
   LivePitRoute: typeof LivePitRoute
+  LiveIndexRoute: typeof LiveIndexRoute
 }
 
 const LiveRouteChildren: LiveRouteChildren = {
   LivePitRoute: LivePitRoute,
+  LiveIndexRoute: LiveIndexRoute,
 }
 
 const LiveRouteWithChildren = LiveRoute._addFileChildren(LiveRouteChildren)

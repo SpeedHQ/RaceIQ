@@ -35,7 +35,7 @@ export function clearHttpPort(port: number): void {
         windowsHide: true,
       });
     } else {
-      execSync(`lsof -ti:${port} | xargs kill -9`, { stdio: "ignore" });
+      execSync(`lsof -tiTCP:${port} -sTCP:LISTEN | xargs kill -9`, { stdio: "ignore" });
     }
   } catch {
     // Nothing was listening — that's fine.

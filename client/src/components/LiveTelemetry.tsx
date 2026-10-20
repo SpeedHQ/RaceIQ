@@ -117,6 +117,17 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
     </div>
   );
 
+  const pitSection = (
+    <div className="border-b border-app-border">
+      <div className="p-2 border-b border-app-border">
+        <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.live_pit_window()}</h2>
+      </div>
+      <div className="p-3">
+        <PitEstimate view={view} pit={pit} />
+      </div>
+    </div>
+  );
+
   // ── DRIVER MODE ──────────────────────────────────────────────
   if (mode === "driver") {
     return (
@@ -136,14 +147,7 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
             />
           </div>
         )}
-        <div className="border-b border-app-border">
-          <div className="p-2 border-b border-app-border">
-            <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.live_pit_window()}</h2>
-          </div>
-          <div className="p-3">
-            <PitEstimate view={view} pit={pit} />
-          </div>
-        </div>
+        {pitSection}
       </div>
     );
   }
@@ -152,6 +156,7 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
   return (
     <div className="grid gap-0 p-0">
       {heroSection}
+      {pitSection}
 
       {/* Inputs: Throttle/Brake + Power/Boost */}
       <div className="px-3 py-2 border-b border-app-border/50">

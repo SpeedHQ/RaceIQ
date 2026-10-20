@@ -8,7 +8,7 @@ import { getRecordedElapsedSeconds } from "../session-capture/elapsed-duration";
 import { cacheDelete } from "./telemetry-replay-storage";
 import { eq, desc, and, or, sql, inArray, notInArray, isNull, lt, asc } from "drizzle-orm";
 import { db } from "./index";
-import { sessions, laps, sessionResults, pitEvents, sessionCaptureSplitJobs, liveCaptures } from "./schema";
+import { sessions, laps, sessionResults, pitEvents, sessionCaptureSplitJobs, liveCaptures, strategyStints, strategyHistoryRevisions, pitEstimates } from "./schema";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 import type { SessionMeta, SessionOwnership, SessionCaptureSplitPhase, SessionCaptureSplitErrorCode } from "@raceiq/shared/racing/sessions/types";
 import type { GameId } from "@raceiq/shared/games/ids";
@@ -24,6 +24,9 @@ import { getLapById } from "./lap-read-queries";
 import type { PublishedManifest } from "@raceiq/capture-splitting";
 import { clearCaptureManifestCache, loadCaptureManifest } from "../session-capture/source-loader";
 import { recoverLiveCaptureStorage } from "../session-capture/live-recovery";
+import { GameIdSchema } from "@raceiq/shared/games/ids";
+import type { StrategyHistoryUpdatedMessage } from "@raceiq/shared/racing/live/strategy";
+import { publishStrategyChanges } from "./strategy-queries";
 
 export interface SessionCaptureSplitWork {
   sessionId: number;
@@ -407,8 +410,20 @@ export async function updateSessionCarTrack(
   carId: string,
   trackId: string,
 ): Promise<boolean> {
-  const result = await db.update(sessions).set({ carId, trackId }).where(eq(sessions.id, sessionId)).run();
-  return result.rowsAffected > 0;
+  const result = await db.transaction(async (tx) => {
+    const scopes = await tx.select({ gameId: sessions.gameId, driverKey: strategyStints.driverKey })
+      .from(strategyStints).innerJoin(sessions, eq(sessions.id, strategyStints.sessionId)).where(eq(sessions.id, sessionId)).all();
+    const updated = await tx.update(sessions).set({ carId, trackId }).where(eq(sessions.id, sessionId)).run();
+    const changes: StrategyHistoryUpdatedMessage[] = [];
+    for (const scope of scopes) {
+      const revision = await tx.select({ revision: strategyHistoryRevisions.revision }).from(strategyHistoryRevisions)
+        .where(and(eq(strategyHistoryRevisions.gameId, scope.gameId), eq(strategyHistoryRevisions.driverKey, scope.driverKey))).get();
+      changes.push({ type: "strategy-history-updated", gameId: GameIdSchema.parse(scope.gameId), driverKey: scope.driverKey, historyRevision: revision?.revision ?? 0 });
+    }
+    return { changed: updated.rowsAffected > 0, changes };
+  });
+  publishStrategyChanges(result.changes);
+  return result.changed;
 }
 
 export async function setSessionFavorite(id: number, favorite: boolean): Promise<boolean> {
@@ -663,10 +678,19 @@ async function deleteSessionUnlocked(sessionId: number): Promise<number> {
       eq(sessionCaptureSplitJobs.status, "queued"),
     )).run();
     const lapRows = await tx.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, sessionId)).all();
+    const scopes = await tx.select({ gameId: sessions.gameId, driverKey: strategyStints.driverKey })
+      .from(strategyStints).innerJoin(sessions, eq(sessions.id, strategyStints.sessionId)).where(eq(sessions.id, sessionId)).all();
     await tx.delete(sessions).where(eq(sessions.id, sessionId)).run();
-    return { ...session, lapIds: lapRows.map(({ id }) => id) };
+    const changes: StrategyHistoryUpdatedMessage[] = [];
+    for (const scope of scopes) {
+      const revision = await tx.select({ revision: strategyHistoryRevisions.revision }).from(strategyHistoryRevisions)
+        .where(and(eq(strategyHistoryRevisions.gameId, scope.gameId), eq(strategyHistoryRevisions.driverKey, scope.driverKey))).get();
+      changes.push({ type: "strategy-history-updated", gameId: GameIdSchema.parse(scope.gameId), driverKey: scope.driverKey, historyRevision: revision?.revision ?? 0 });
+    }
+    return { ...session, lapIds: lapRows.map(({ id }) => id), changes };
   });
   if (!deleted) return 0;
+  publishStrategyChanges(deleted.changes);
   for (const lapId of deleted.lapIds) cacheDelete(lapId);
   await unlinkOwnedSessionRawFile(deleted.rawFile);
   await unlinkUnsharedCaptureBundle(deleted.manifestFile, deleted.archiveFile);
@@ -683,7 +707,9 @@ export async function deleteEmptySessions(activeSessionId?: number): Promise<num
       .select({ id: sessions.id })
       .from(sessions)
       .leftJoin(laps, eq(laps.sessionId, sessions.id))
-      .where(sql`${sessions.lapDetectorVersion} IS NOT NULL`)
+      .where(sql`${sessions.lapDetectorVersion} IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM ${strategyStints} WHERE ${strategyStints.sessionId}=${sessions.id} AND ${strategyStints.status}='active')
+        AND NOT EXISTS (SELECT 1 FROM ${pitEstimates} WHERE ${pitEstimates.sessionId}=${sessions.id})`)
       .groupBy(sessions.id)
       .having(sql`count(${laps.id}) = 0`)
       .all();
