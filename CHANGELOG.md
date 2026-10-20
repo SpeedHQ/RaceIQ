@@ -10,8 +10,10 @@
 
 ### Fixes
 - Preserve LMU player snapshots, availability states and original observation times through recording, lap export, import and replay.
-- Keep LMU selected-lap exports compact enough to import again, including recordings with supplemental snapshots.
+- Keep LMU selected-lap exports compact enough to import again, including supplemental snapshots at the recording frame-size limit.
 - Show unrecorded LMU import channels as unavailable instead of artificial zero or false readings, while preserving recorded zeros.
+- Import completed LMU laps even when the first lap-number event arrives after other telemetry.
+- Keep litre-based fuel percentages unavailable when tank capacity is missing instead of interpreting low fuel volumes as fractions.
 - Use native scoring update ages for LMU weather and race-control readings without changing historical snapshot ages.
 - Clear frozen or disconnected LMU player data even when the system clock moves backward.
 - Keep LMU snapshots responsive when the local telemetry service returns oversized, rejected, or malformed condition responses.

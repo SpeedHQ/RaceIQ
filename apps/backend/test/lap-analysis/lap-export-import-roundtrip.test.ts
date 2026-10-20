@@ -35,15 +35,15 @@ import {
   META_FRAME_BYTES,
   readFramePrefix,
 } from "@raceiq/capture-formats/session/framing";
-import { isLmuSparseFrame } from "@raceiq/capture-formats/session/lmu-sparse";
+import { encodeLmuSparseFrame, isLmuSparseFrame } from "@raceiq/capture-formats/session/lmu-sparse";
 import { queryLapTelemetryBySemanticId } from "@raceiq/backend-core/telemetry/replay";
 import { KNOWN_GAME_IDS, type GameId } from "@raceiq/shared/games/ids";
 import { buildLd, buildLdx, syntheticStint } from "@raceiq/backend-core/test-support/motec/ld";
 import { getAllAcEvoCars } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo";
 import { registerDriverProfileLapNotifier } from "@raceiq/backend-core/driver-profile/lap-notifier";
 import { initMotecTargets } from "../../src/games/motec-init";
-import { decodeLMUSourceFrame, encodeLMUSourceFrame } from "@raceiq/capture-formats/lmu/source-frame";
-import { LMU_SHARED_MEMORY_SIZE, LMU_GAME_VERSION_OFFSET, LMU_SESSION_EVENT_OFFSET, LMU_TELEMETRY_HEADER_OFFSET, LMU_TELEMETRY_INFO_OFFSET, LMU_TELEMETRY, LMU_SCORING_INFO_OFFSET, LMU_SCORING_VEHICLES_OFFSET } from "@raceiq/capture-formats/lmu/layout";
+import { decodeLMUSourceFrame, encodeLMUSourceFrame, LMU_MAX_SOURCE_FRAME_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
+import { LMU_SHARED_MEMORY_SIZE, LMU_GAME_VERSION_OFFSET, LMU_SESSION_EVENT_OFFSET, LMU_TELEMETRY_HEADER_OFFSET, LMU_TELEMETRY_INFO_OFFSET, LMU_TELEMETRY, LMU_SCORING_INFO, LMU_SCORING_INFO_OFFSET, LMU_SCORING_VEHICLE, LMU_SCORING_VEHICLES_OFFSET } from "@raceiq/capture-formats/lmu/layout";
 import type { LmuLiveContext } from "@raceiq/shared/telemetry/lmu";
 import { encodeLmuContext } from "@raceiq/shared/telemetry/lmu-context";
 initGameAdapters();
@@ -173,8 +173,10 @@ describe("lap export → import round-trip (real capture)", () => {
     expect(match).toBeDefined();
   }, 120000);
   test("LMU changing supplemental values and original nanoseconds survive selected-lap export, import and historical replay", async () => {
+    let oversizedDeltaExercised = false;
     function* sourceFrames() {
       let index = 0;
+      let previous: Buffer | null = null;
       for (const bytes of readLMUFrames(GAME_CAPTURES.lmu.capture)) {
         const native = decodeLMUSourceFrame(bytes)!;
         const memory = Buffer.alloc(LMU_SHARED_MEMORY_SIZE);
@@ -207,12 +209,38 @@ describe("lap export → import round-trip (real capture)", () => {
             },
           }],
         };
+        let frame: Buffer;
+        if (index === 3_000) {
+          // Change every native block, retaining the lap/session clock fields.
+          for (let offset = 63; offset < memory.length; offset += 64) memory[offset] ^= 1;
+          for (const offset of [LMU_TELEMETRY.elapsedTime, LMU_TELEMETRY.lapStartElapsedTime]) {
+            native.telemetry.copy(memory, LMU_TELEMETRY_INFO_OFFSET + offset, offset, offset + 8);
+          }
+          for (const [offset, size] of [[LMU_TELEMETRY.vehicleName, 64], [LMU_TELEMETRY.trackName, 64], [LMU_TELEMETRY.vehicleModel, 30]]) {
+            native.telemetry.copy(memory, LMU_TELEMETRY_INFO_OFFSET + offset, offset, offset + size);
+          }
+          native.scoringInfo.copy(memory, LMU_SCORING_INFO_OFFSET, 0, 64);
+          native.scoringInfo.copy(memory, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.lapDistance, LMU_SCORING_INFO.lapDistance, LMU_SCORING_INFO.lapDistance + 8);
+          native.playerScoring!.copy(memory, LMU_SCORING_VEHICLES_OFFSET + LMU_SCORING_VEHICLE.lapDistance, LMU_SCORING_VEHICLE.lapDistance, LMU_SCORING_VEHICLE.lapDistance + 8);
+          native.telemetry.copy(memory, LMU_TELEMETRY_INFO_OFFSET + LMU_TELEMETRY.lapNumber, LMU_TELEMETRY.lapNumber, LMU_TELEMETRY.lapNumber + 4);
+          const largeContext = { ...context, supplemental: [{ ...context.supplemental[0]!, responseVersion: "" }] };
+          const base = encodeLMUSourceFrame(memory, native.captureTimestampMs, { context: largeContext })!;
+          largeContext.supplemental[0]!.responseVersion = "x".repeat(LMU_MAX_SOURCE_FRAME_SIZE - base.length);
+          frame = encodeLMUSourceFrame(memory, native.captureTimestampMs, { context: largeContext })!;
+          expect(decodeLMUSourceFrame(frame)).not.toBeNull();
+          expect(encodeLmuSparseFrame(frame, previous!, 0).length).toBeGreaterThan(LMU_MAX_SOURCE_FRAME_SIZE);
+          oversizedDeltaExercised = true;
+        } else {
+          frame = encodeLMUSourceFrame(memory, native.captureTimestampMs, { context })!;
+        }
         index++;
-        yield encodeLMUSourceFrame(memory, native.captureTimestampMs, { context })!;
+        previous = frame;
+        yield frame;
       }
     }
     const seeded = await importSessionFrames(sourceFrames(), "lmu");
     createdSessions.push(...seeded.laps.map((lap) => lap.sessionId));
+    expect(oversizedDeltaExercised).toBe(true);
     const exportedLap = seeded.laps.find((lap) => lap.isValid)!;
     expect(exportedLap).toBeDefined();
     const originalSession = (await db.select().from(sessions).where(eq(sessions.id, exportedLap.sessionId)).get())!;

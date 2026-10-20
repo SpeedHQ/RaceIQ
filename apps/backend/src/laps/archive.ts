@@ -410,13 +410,13 @@ function sparseLapRecords(
     let frame = record.frame;
     let full = !canDelta || !sameIdentity || emitted % 128 === 0;
     if (!full) {
-      if (isLmu) frame = encodeLmuSparseFrame(record.frame, previous!, outputOffset - checkpoint);
-      else if (isKunos) frame = encodeKunosSparseFrame(record.frame, previous!, outputOffset - checkpoint);
-      else {
-        const sparse = encodeGenericSparseFrame(record.frame, previous!, outputOffset - checkpoint);
-        if (sparse.length < record.frame.length) frame = sparse;
-        else full = true;
-      }
+      const sparse = isLmu
+        ? encodeLmuSparseFrame(record.frame, previous!, outputOffset - checkpoint)
+        : isKunos
+          ? encodeKunosSparseFrame(record.frame, previous!, outputOffset - checkpoint)
+          : encodeGenericSparseFrame(record.frame, previous!, outputOffset - checkpoint);
+      if (sparse.length < record.frame.length) frame = sparse;
+      else full = true;
     }
     if (full) {
       frame = record.frame;

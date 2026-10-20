@@ -70,6 +70,13 @@ unmarked v1 frames cannot safely be distinguished from native v1 recordings
 and are not retroactively reclassified. Older application versions cannot read
 the new v3/v4 source formats.
 
+Lap detection waits for a finite lap number without inventing one for earlier
+observations. Missing lap numbers cannot replace an established lap number or
+prevent later valid boundaries from being detected. Fuel recorded in litres
+requires a usable tank capacity to resolve a percentage; values below one litre
+are not interpreted as fractions. Fraction-valued sources use their declared
+catalog conversions instead.
+
 The shared decoded TypeScript contract is `LMUSourceFrame`; its name is not
 tied to a source-frame version. Production native acquisition supplies context
 to `encodeLMUSourceFrame` and writes v3; DuckDB imports write v4. The compact
@@ -78,7 +85,9 @@ fixtures, sharing encoding logic with the current formats rather than adding
 separate recording pipelines.
 
 Selected-lap export sparsifies native v3 frames even when supplemental context
-length changes; it does not expand every frame into a full-memory snapshot.
+length changes. A sparse payload is used only when smaller than its full source
+frame; otherwise export writes a full checkpoint. This preserves the frame-size
+limit and lets subsequent deltas reconstruct against the correct checkpoint.
 
 
 Player battery charge is a fraction, native state of charge is a percentage,

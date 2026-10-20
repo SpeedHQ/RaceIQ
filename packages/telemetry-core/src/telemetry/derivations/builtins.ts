@@ -1,7 +1,7 @@
 import type { TelemetryDerivation } from "@raceiq/shared/telemetry/derivations/contracts";
 
 const FUEL_PERCENT_DERIVATION_ID = "raceiq.fuel.percent";
-const DERIVATION_VERSION = "1.0.0";
+const DERIVATION_VERSION = "1.0.1";
 
 const FUEL_PERCENT_DERIVATION: TelemetryDerivation = {
   id: FUEL_PERCENT_DERIVATION_ID,
@@ -26,7 +26,7 @@ const FUEL_PERCENT_DERIVATION: TelemetryDerivation = {
   missingDataPolicy: "unavailable",
   deterministic: true,
   codeHash:
-    "sha256:60836f23f692ccfb12d9a337b7ca132364a5db7c902f5f56addf1af81c9c120e",
+    "sha256:1dd0d346102061451ba8e3d0329cfc70561ce97b20c245540dda65647830660b",
   evaluate(context) {
     const fuel = context.number("fuel.fuel");
     if (fuel === undefined || !Number.isFinite(fuel)) {
@@ -34,9 +34,6 @@ const FUEL_PERCENT_DERIVATION: TelemetryDerivation = {
     }
 
     const capacity = context.number("fuel.fuel-capacity");
-    if (capacity === undefined && fuel >= 0 && fuel <= 1) {
-      return context.value(fuel * 100);
-    }
     if (capacity === undefined || !Number.isFinite(capacity) || capacity === 0) {
       return context.unavailable("fuel.fuel-capacity unavailable");
     }
