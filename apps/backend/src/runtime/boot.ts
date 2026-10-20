@@ -1,3 +1,4 @@
+import type { MessagePort } from "node:worker_threads";
 import { recoverRecordingDirectoryMove } from "@raceiq/backend-core/session-capture/relocate-recordings";
 import { existsSync } from "node:fs";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
@@ -8,7 +9,7 @@ import { injectDiscoveredIRacingIdentity } from "@raceiq/game-iracing-metadata/i
 import { injectDiscoveredLMUIdentity } from "@raceiq/game-lmu-metadata/index";
 import app from "../routes/index";
 import { initServerGameAdapters } from "../games/init";
-import { initDb, DB_PATH, client } from "@raceiq/backend-core/db/index";
+import { initDb, DB_PATH, client, readClient } from "@raceiq/backend-core/db/index";
 import { listDiscoveredCars } from "@raceiq/backend-core/db/discovered-cars";
 import { hydrateDiscoveredAcEvoTracks, listDiscoveredTracks } from "@raceiq/backend-core/db/discovered-tracks";
 import { setCacheMaxBytes } from "@raceiq/backend-core/db/telemetry-replay-storage";
@@ -36,6 +37,7 @@ export interface BootOptions {
   httpPort?: number;
   udpPort?: number;
   recordingGameId?: string | null;
+  testDependencies?: { workerPort: MessagePort };
 }
 
 export interface RunningServer {
@@ -77,7 +79,7 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
 
   await initDb();
   await recoverRecordingDirectoryMove();
-  const auth = await DashboardAuth.create(client, DB_PATH, process.env);
+  const auth = await DashboardAuth.create(client, DB_PATH, process.env, false, readClient);
   await auth.initialize(upgradingAccess);
   setDashboardAuth(auth);
   await configureHttpAccess(auth, httpPort);
@@ -143,6 +145,7 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
     () => wsManager.notifyDashboardUpdated(),
     (reprocessed) => wsManager.broadcastNotification({ type: "lap-reprocessed", ...reprocessed }),
     () => wsManager.setStaleSessionsNotification(null),
+    options.testDependencies?.workerPort,
   );
 
   const udpPort = options.udpPort ?? (Number(process.env.RACEIQ_DEV_UDP_PORT) || settings.udpPort || Number(process.env.UDP_PORT) || 5301);

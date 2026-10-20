@@ -3,7 +3,7 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { getLapById } from "../db/lap-read-queries";
 import { getLapsForSession } from "../db/lap-reprocessing-queries";
 import { and, eq, gt } from "drizzle-orm";
-import { db } from "../db/index";
+import { readDb as db } from "../db/index";
 import { sessions } from "../db/schema";
 import { getSessionResult, getStaleRaceResultSessionIds, upsertSessionResult } from "../db/session-result-queries";
 import { getSessionRawFile, iterateSessionTelemetry } from "../db/telemetry-replay-storage";

@@ -7,7 +7,7 @@ import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
 import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
 import { tryGetGame } from "@raceiq/shared/games/registry";
 import { DASHBOARD_PROCESSOR_VERSION } from "./dashboard-summary-queries";
-import { client } from "./index";
+import { readClient } from "./index";
 
 const asNumber = (value: unknown): number => Number(value);
 const maybeNumber = (value: unknown): number | null => value == null ? null : asNumber(value);
@@ -19,7 +19,7 @@ const parseJson = <T>(value: unknown): T | null => {
 
 /** Capture-free, exact-mine dashboard recap. Returns null for unavailable sessions. */
 export async function getDashboardSessionRecap(id: number, gameId: GameId): Promise<SessionRecap | null> {
-  const tx = await client.transaction("read");
+  const tx = await readClient.transaction("read");
   try {
     const selected = await tx.execute({
       sql: `SELECT s.id,s.game_id,s.created_at,s.car_id,s.track_id,

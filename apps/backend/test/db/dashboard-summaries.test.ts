@@ -190,15 +190,114 @@ test("republication replaces prior contributions and repeated publication is sta
   );
   expect(total[0]).toMatchObject({ valid_laps: 2, valid_seconds: 170 });
   const globalEntities = await read(
-    "SELECT SUM(lap_count) AS lap_count, SUM(valid_laps) AS valid_laps, SUM(valid_seconds) AS valid_seconds FROM dashboard_day_entities WHERE utc_day = '2099-01-02' AND game_id = 'acc'",
+    "SELECT SUM(lap_count) AS lap_count, SUM(positive_laps) AS positive_laps, SUM(valid_laps) AS valid_laps, SUM(driven_seconds) AS driven_seconds, SUM(valid_seconds) AS valid_seconds, SUM(valid_mean_seconds) AS valid_mean_seconds, SUM(valid_m2_seconds) AS valid_m2_seconds FROM dashboard_day_entities WHERE utc_day = '2099-01-02' AND game_id = 'acc'",
   );
-  expect(globalEntities[0]).toMatchObject({ lap_count: 2, valid_laps: 2, valid_seconds: 170 });
+  expect(globalEntities[0]).toMatchObject({ lap_count: 2, positive_laps: 2, valid_laps: 2, driven_seconds: 170, valid_seconds: 170, valid_mean_seconds: 85, valid_m2_seconds: 50 });
+  const monthly = await read(
+    "SELECT SUM(lap_count) AS lap_count, SUM(positive_laps) AS positive_laps, SUM(valid_laps) AS valid_laps, SUM(driven_seconds) AS driven_seconds, SUM(valid_seconds) AS valid_seconds FROM dashboard_month_entities WHERE utc_month = '2099-01' AND game_id = 'acc'",
+  );
+  expect(monthly[0]).toMatchObject({ lap_count: 2, positive_laps: 2, valid_laps: 2, driven_seconds: 170, valid_seconds: 170 });
+  const sessionDay = await read("SELECT utc_day,game_id,lap_count,positive_laps,valid_laps,driven_seconds,valid_seconds FROM dashboard_session_days WHERE session_id=?", [sessionId]);
+  expect(sessionDay).toHaveLength(1);
+  expect(sessionDay[0]).toMatchObject({ utc_day: "2099-01-02", game_id: "acc", lap_count: 2, positive_laps: 2, valid_laps: 2, driven_seconds: 170, valid_seconds: 170 });
   const dayStart = Date.parse("2099-01-02T00:00:00.000Z");
   const globalBuckets = await read(
     "SELECT SUM(valid_laps) AS valid_laps, SUM(valid_seconds) AS valid_seconds FROM dashboard_time_buckets WHERE bucket_start_ms >= ? AND bucket_start_ms < ? AND game_id = 'acc'",
     [dayStart, dayStart + 24 * 60 * 60 * 1000],
   );
   expect(globalBuckets[0]).toMatchObject({ valid_laps: 2, valid_seconds: 170 });
+});
+test("candidate prepared before deletion cannot recreate its projection", async () => {
+  const sessionId = await seedSession("2099-01-04T12:00:00.000Z");
+  await db.insert(laps).values([
+    { sessionId, lapNumber: 1, lapTime: 90, isValid: true, createdAt: "2099-01-04T12:01:00.000Z" },
+  ]).run();
+  const stale = await prepareDashboardPublicationCandidate(sessionId);
+  expect(stale).not.toBeNull();
+
+  let markPrepared!: () => void;
+  const prepared = new Promise<void>((resolve) => { markPrepared = resolve; });
+  let continuePublication!: () => void;
+  const resume = new Promise<void>((resolve) => { continuePublication = resolve; });
+  const publication = publishDashboardSession(stale!, undefined, {}, {
+    candidatePrepared: async () => { markPrepared(); await resume; },
+  });
+  await prepared;
+  await deleteSession(sessionId);
+  ids.splice(ids.indexOf(sessionId), 1);
+  continuePublication();
+
+  expect(await publication).toBe(false);
+  expect((await read("SELECT COUNT(*) AS count FROM dashboard_session_summaries WHERE session_id = ?", [sessionId]))[0]?.count).toBe(0);
+
+  const tombstone = await prepareDashboardPublicationCandidate(sessionId);
+  expect(tombstone).toMatchObject({ deleted: true, session: null });
+  expect(await publishDashboardSession(tombstone!)).toBe(true);
+  expect((await read(
+    "SELECT COUNT(*) AS count FROM dashboard_session_days WHERE session_id = ?",
+    [sessionId],
+  ))[0]?.count).toBe(0);
+});
+
+test("candidate prepared before source mutation cannot overwrite newer source totals", async () => {
+  const sessionId = await seedSession("2099-01-06T12:00:00.000Z");
+  await db.insert(laps).values([
+    { sessionId, lapNumber: 1, lapTime: 90, isValid: true, createdAt: "2099-01-06T12:01:00.000Z" },
+  ]).run();
+  const stale = await prepareDashboardPublicationCandidate(sessionId);
+  expect(stale).not.toBeNull();
+  await client.execute({ sql: "UPDATE laps SET lap_time=80 WHERE session_id=? AND lap_number=1", args: [sessionId] });
+  expect(await publishDashboardSession(stale!)).toBe(false);
+  expect(await publish(sessionId)).toBe(true);
+  expect((await read("SELECT best_lap_seconds,lap_count FROM dashboard_session_summaries WHERE session_id=?", [sessionId]))[0])
+    .toMatchObject({ best_lap_seconds: 80, lap_count: 1 });
+  expect((await read("SELECT SUM(valid_seconds) AS seconds FROM dashboard_session_days WHERE session_id=?", [sessionId]))[0]?.seconds).toBe(80);
+});
+test("prepared capture baseline cannot overwrite a newer same-revision publication", async () => {
+  const sessionId = await seedSession("2099-01-07T12:00:00.000Z");
+  await db.insert(laps).values({ sessionId, lapNumber: 1, lapTime: 90, isValid: true }).run();
+  expect(await publish(sessionId, { captureRevision: "old", elapsedSeconds: 180, sectorLayout: null, weatherRevision: null })).toBe(true);
+  await client.execute({ sql: "UPDATE dashboard_summary_state SET capture_dirty=1,capture_ready=1 WHERE session_id=?", args: [sessionId] });
+  const stale = await prepareDashboardPublicationCandidate(sessionId);
+  expect(stale).not.toBeNull();
+  const evidence = {
+    sourceRevision: stale!.sourceRevision,
+    captureRevision: "new",
+    duration: { status: "available" as const, elapsedSeconds: 240 },
+    sectorLayout: null,
+    weather: { status: "unavailable" as const, revision: null, conditions: null },
+    trackLengthMeters: null,
+    sourceSectorStarts: null,
+  };
+  expect(await publishDashboardSession(stale!, evidence, { metadataOnly: true })).toBe(true);
+  expect(await publishDashboardSession(stale!)).toBe(false);
+  const fresh = await prepareDashboardPublicationCandidate(sessionId);
+  expect(fresh?.sourceRevision).toBe(stale!.sourceRevision);
+  expect(fresh?.publishedRevision).toBe(stale!.publishedRevision);
+  expect(await publishDashboardSession(fresh!, evidence)).toBe(true);
+  expect((await read("SELECT capture_revision,elapsed_seconds,best_lap_seconds FROM dashboard_session_summaries WHERE session_id=?", [sessionId]))[0])
+    .toMatchObject({ capture_revision: "new", elapsed_seconds: 240, best_lap_seconds: 90 });
+  expect((await read("SELECT SUM(valid_seconds) AS seconds FROM dashboard_session_days WHERE session_id=?", [sessionId]))[0]?.seconds).toBe(90);
+});
+
+test("publication failure before commit rolls back projection changes and releases writer admission", async () => {
+  const sessionId = await seedSession("2099-01-05T12:00:00.000Z");
+  await db.insert(laps).values([
+    { sessionId, lapNumber: 1, lapTime: 90, isValid: true, createdAt: "2099-01-05T12:01:00.000Z" },
+  ]).run();
+  const candidate = await prepareDashboardPublicationCandidate(sessionId);
+  expect(candidate).not.toBeNull();
+
+  await expect(publishDashboardSession(candidate!, undefined, {}, {
+    beforeCommit: () => { throw new Error("injected precommit failure"); },
+  })).rejects.toThrow("injected precommit failure");
+  expect((await read("SELECT COUNT(*) AS count FROM dashboard_session_summaries WHERE session_id = ?", [sessionId]))[0]?.count).toBe(0);
+  expect((await read("SELECT published_revision FROM dashboard_summary_state WHERE session_id = ?", [sessionId]))[0]?.published_revision).toBe(0);
+
+  const retryCandidate = await prepareDashboardPublicationCandidate(sessionId);
+  expect(retryCandidate).not.toBeNull();
+  expect(await publishDashboardSession(retryCandidate!)).toBe(true);
+  expect((await read("SELECT best_lap_seconds FROM dashboard_session_summaries WHERE session_id = ?", [sessionId]))[0]?.best_lap_seconds).toBe(90);
 });
 
 test("session deletion retains contributions until tombstone publication subtracts them", async () => {
@@ -236,6 +335,17 @@ test("session deletion retains contributions until tombstone publication subtrac
   );
   expect(removed[0]).toMatchObject({ summaries: 0, days: 0, buckets: 0, global_laps: 0, global_bucket_laps: 0 });
   expect((await read("SELECT COUNT(*) AS count FROM dashboard_month_entities WHERE utc_month='2099-01' AND game_id='acc'")).map((row) => Number(row.count))).toEqual([0]);
+  await publishDashboardSession(tombstone!);
+  const repeated = await read(
+    `SELECT
+       (SELECT COUNT(*) FROM dashboard_session_summaries WHERE session_id = ?) AS summaries,
+       (SELECT COUNT(*) FROM dashboard_session_days WHERE session_id = ?) AS days,
+       (SELECT COUNT(*) FROM dashboard_session_time_buckets WHERE session_id = ?) AS buckets,
+       COALESCE((SELECT SUM(valid_laps) FROM dashboard_day_entities WHERE utc_day = '2099-01-03' AND game_id = 'acc'), 0) AS global_laps,
+       COALESCE((SELECT SUM(valid_laps) FROM dashboard_time_buckets WHERE bucket_start_ms >= ? AND bucket_start_ms < ? AND game_id = 'acc'), 0) AS global_bucket_laps`,
+    [sessionId, sessionId, sessionId, Date.parse("2099-01-03T12:00:00.000Z"), Date.parse("2099-01-03T12:15:00.000Z")],
+  );
+  expect(repeated[0]).toEqual(removed[0]);
 });
 
 test("monthly entity publication subtracts dirty revisions and removes ownership transitions", async () => {

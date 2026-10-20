@@ -9,7 +9,8 @@
 ### Fixes
 - Keep first-run setup responsive by omitting the optional telemetry demo.
 - Use LMU game-world coordinates directly for track geometry, preserving edge-hugging and off-track positions.
-- Prevent overlapping database writes from blocking recording imports and setup or session deletion.
+- Coordinate dashboard refresh with recording imports and session deletion without blocking read-only requests.
+- Start dashboard processing only after consented recording organization and successful historical, identity, and race-result repairs; wait for active writes during shutdown.
 - Allow repeated recording downsampling without exceeding filesystem filename limits.
 - Keep the selected iRacing capture rate stable despite telemetry arrival jitter without recording duplicate frames.
 - Preserve position, speed, and other lap-start and lap-end telemetry when downsampling F1 recordings.

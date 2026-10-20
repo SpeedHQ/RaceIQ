@@ -25,6 +25,11 @@ function getDashboardDatabase(): InstanceType<typeof Database> {
   }
   return dashboardDatabase;
 }
+
+export function closeDashboardReadDatabase(): void {
+  dashboardDatabase?.close();
+  dashboardDatabase = null;
+}
 type DashboardQueryObserver = (sql: string, args: (string | number | null)[], rows: unknown[], elapsedMs: number) => void;
 let dashboardQueryObserver: DashboardQueryObserver | undefined;
 

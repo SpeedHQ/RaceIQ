@@ -67,6 +67,8 @@
     "./db/telemetry-replay-storage": "./db/telemetry-replay-storage.ts",
     "./db/track-queries": "./db/track-queries.ts",
     "./db/tune-queries": "./db/tune-queries.ts",
+    "./db/write-coordination": "./db/write-coordination.ts",
+    "./db/worker-sql": "./db/worker-sql.ts",
     "./driver-profile/detectors": "./driver-profile/detectors.ts",
     "./driver-profile/lap-notifier": "./driver-profile/lap-notifier.ts",
     "./driver-profile/trend": "./driver-profile/trend.ts",

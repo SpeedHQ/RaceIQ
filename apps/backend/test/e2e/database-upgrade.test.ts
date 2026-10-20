@@ -1,8 +1,9 @@
 import { expect, test } from "bun:test";
 import Database from "libsql";
+import { createHash } from "node:crypto";
 import { LAP_DETECTOR_ID } from "@raceiq/backend-core/lap-detection/detector";
 import { LAP_DETECTOR_AC_EVO_ID } from "@raceiq/game-ac-evo/lap-detector";
-import { copyFileSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
@@ -18,13 +19,15 @@ type Session = { id: number; track_id: string; lap_detector_version: string | nu
 interface StartupBackend {
   ready(): Promise<void>;
   waitFor(marker: string): Promise<void>;
+  request(path: string, init?: RequestInit): Promise<Response>;
   organize(): Promise<"success" | "failed">;
+  releaseStage(): Promise<void>;
   output(): string;
   stop(): Promise<void>;
 }
 
 function environment(dataDir: string): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = { ...process.env, DATA_DIR: dataDir, NODE_ENV: "production" };
+  const env: NodeJS.ProcessEnv = { ...process.env, DATA_DIR: dataDir, NODE_ENV: "production", SERVER_HOST: "127.0.0.1", SERVER_PASSWORD: "", SERVER_ALLOWED_ORIGINS: "" };
   delete env.RACEIQ_TEST_MODE;
   delete env.DB_IN_MEMORY;
   delete env.RACEIQ_TEST_DATA_DIR;
@@ -41,32 +44,42 @@ async function command(args: string[], cwd = ROOT, env = process.env) {
   return stdout;
 }
 
-function startBranch(dataDir: string): StartupBackend {
+function startBranch(dataDir: string, pauseStage: "historical" | "lmu-identity" | "race-results" | "dashboard" | null = null): StartupBackend {
   const proc = Bun.spawn([process.execPath, "--eval", `
     import { captureConsole } from "./server/runtime/logger";
     import { bootServer } from "./apps/backend/src/runtime/boot";
-    import { getLayoutMigrationStatus, startLayoutMigration } from "./server/session-capture/layout-migration";
+    import { MessageChannel } from "node:worker_threads";
+    import { withSessionCaptureMaintenanceLock } from "./server/session-capture/cleanup";
+    import { getRecordingStorageActivity } from "./server/session-capture/storage-activity";
+    let pausedStage = ${JSON.stringify(pauseStage)};
+    let testDependencies;
+    if (pausedStage) {
+      const { port1, port2 } = new MessageChannel();
+      port1.on("message", async (event) => {
+        if (event.type === "stageEntered" && event.stage === pausedStage) {
+          const resources = await withSessionCaptureMaintenanceLock(async () => getRecordingStorageActivity());
+          console.log("[E2E] Stage resources:", JSON.stringify(resources));
+          console.log("[E2E] Stage entered:", event.stage);
+          return;
+        }
+        if (event.type === "stageEntered") console.log("[E2E] Stage entered:", event.stage);
+        if (event.eventId) port1.postMessage({ type: "release", eventId: event.eventId });
+      });
+      testDependencies = { workerPort: port2 };
+      const control = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch() {
+        pausedStage = null;
+        port1.postMessage({ type: "release-all" });
+        return new Response(null, { status: 204 });
+      } });
+      console.log("[E2E] Stage control:", control.port);
+    }
     captureConsole();
-    // Migration filesystem work can exceed Bun's HTTP idle timeout; the parent enforces a deadline.
-    const control = Bun.serve({ hostname: "127.0.0.1", port: 0, idleTimeout: 0, async fetch(request) {
-      if (request.method === "POST") {
-        void startLayoutMigration().catch((error) => console.error("[E2E] Layout migration admission failed", error));
-        return Response.json({ accepted: true }, { status: 202 });
-      }
-      if (request.method !== "GET") return new Response(null, { status: 405 });
-      const status = await getLayoutMigrationStatus();
-      if (status.progress.status === "success") {
-        console.log("[E2E] Layout migration success");
-        return Response.json({ status: "success" });
-      }
-      if (status.progress.status === "partial" || status.progress.status === "error") {
-        console.log("[E2E] Layout migration failed");
-        return Response.json({ status: "failed" });
-      }
-      return Response.json({ status: status.progress.status });
-    } });
-    console.log("[E2E] Migration control:", control.port);
-    await bootServer({ httpPort: 0, udpPort: 0, recordingGameId: null });
+    const backend = await bootServer({ httpPort: 0, udpPort: 0, recordingGameId: null, testDependencies });
+    const authSetup = await fetch("http://127.0.0.1:" + backend.httpServer.port + "/api/auth/setup", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ password: null, exposureConfirmed: true }),
+    });
+    if (authSetup.status !== 200 && authSetup.status !== 409) throw new Error("Fixture auth setup failed: " + authSetup.status);
+    console.log("[E2E] Backend HTTP:", backend.httpServer.port);
   `], { cwd: ROOT, env: environment(dataDir), stdout: "pipe", stderr: "pipe" });
   let output = "";
   const consume = async (stream: ReadableStream<Uint8Array>) => {
@@ -78,6 +91,7 @@ function startBranch(dataDir: string): StartupBackend {
   };
   const drained = Promise.all([consume(proc.stdout), consume(proc.stderr)]);
   let exited = false;
+  let stopPromise: Promise<void> | null = null;
   void proc.exited.then(() => { exited = true; });
   const waitFor = async (marker: string) => {
     const deadline = Date.now() + 180_000;
@@ -87,33 +101,57 @@ function startBranch(dataDir: string): StartupBackend {
     }
   };
   return {
+    async request(path, init) {
+      await waitFor("[E2E] Backend HTTP:");
+      const match = output.match(/\[E2E\] Backend HTTP: (\d+)/);
+      if (!match) throw new Error("Backend HTTP port missing");
+      return fetch(`http://127.0.0.1:${match[1]}${path}`, init);
+    },
     async ready() {
       await waitFor(COMPLETE);
       expect(output).not.toContain("reconciliation failed:");
     },
     waitFor,
+    async releaseStage() {
+      await waitFor("[E2E] Stage control:");
+      const match = output.match(/\[E2E\] Stage control: (\d+)/);
+      if (!match) throw new Error("Stage control port missing");
+      const response = await fetch(`http://127.0.0.1:${match[1]}`, { method: "POST" });
+      expect(response.status).toBe(204);
+    },
     async organize() {
-      await waitFor("[E2E] Migration control:");
-      const match = output.match(/\[E2E\] Migration control: (\d+)/);
-      if (!match) throw new Error("Migration control port missing");
-      const url = `http://127.0.0.1:${match[1]}`;
-      const response = await fetch(url, { method: "POST" });
-      if (response.status !== 202) throw new Error(`Migration control returned ${response.status}`);
+      const response = await this.request("/api/storage/layout-migration", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{}",
+      });
+      if (response.status !== 202) throw new Error(`Layout migration returned ${response.status}: ${await response.text()}`);
       const deadline = Date.now() + 180_000;
       while (Date.now() < deadline) {
-        const statusResponse = await fetch(url, { signal: AbortSignal.timeout(Math.max(1, deadline - Date.now())) });
-        if (!statusResponse.ok) throw new Error(`Migration control status returned ${statusResponse.status}`);
-        const result = await statusResponse.json() as { status?: unknown };
-        if (result.status === "success" || result.status === "failed") return result.status;
+        const statusResponse = await this.request("/api/storage/layout-migration", { signal: AbortSignal.timeout(Math.max(1, deadline - Date.now())) });
+        if (!statusResponse.ok) throw new Error(`Layout status returned ${statusResponse.status}`);
+        const result = await statusResponse.json() as { progress: { status: string } };
+        if (result.progress.status === "success") return "success";
+        if (result.progress.status === "partial" || result.progress.status === "error") return "failed";
         await Bun.sleep(25);
       }
       throw new Error(`Layout migration did not finish:\n${output}`);
     },
     output: () => output,
-    async stop() {
-      if (!exited) proc.kill("SIGTERM");
-      await proc.exited;
-      await drained;
+    stop() {
+      if (stopPromise) return stopPromise;
+      stopPromise = (async () => {
+        if (!exited) {
+          proc.kill("SIGTERM");
+          if (pauseStage && output.includes("[E2E] Stage entered:")) {
+            await waitFor("[Server] Received SIGTERM");
+            await this.releaseStage();
+          }
+        }
+        await proc.exited;
+        await drained;
+      })();
+      return stopPromise;
     },
   };
 }
@@ -148,12 +186,24 @@ test("current startup reprocesses release-seeded Tourist sessions into correct l
     const before = database.prepare("SELECT id,lap_detector_version FROM sessions ORDER BY id").all() as Array<{ id: number; lap_detector_version: string | null }>;
     expect(before.every((session) => session.lap_detector_version !== null)).toBe(true);
     // Deliberately stale results distinguish replay from a marker-only migration.
-    database.exec("UPDATE laps SET lap_time=999; UPDATE sessions SET track_id='obsolete layout';");
+    database.exec("UPDATE laps SET lap_time=999, notes='preserved lap annotation', is_favorite=1; UPDATE sessions SET track_id='obsolete layout', notes='preserved session annotation', is_favorite=1;");
+    const lapMetadata = database.prepare("SELECT id,session_id,notes,is_favorite,profile_id,car_setup,tune_id,experiment_id,experiment_version_id FROM laps ORDER BY id").all();
 
     const firstRecording = database.prepare("SELECT raw_file, ownership FROM sessions ORDER BY id LIMIT 1").get() as { raw_file: string; ownership: string };
-    // Full-frame conversion is a prerequisite to this upgrade, separate from folder organization.
+    // Full-frame conversion is a prerequisite, not part of folder organization.
+    // Preserve the release capture's frame ordinals when its byte encoding changes.
+    const releaseBytes = decompressIfGzipSync(readFileSync(firstRecording.raw_file));
+    const indexedLaps = database.prepare("SELECT id,raw_byte_offset FROM laps ORDER BY id").all() as Array<{ id: number; raw_byte_offset: number }>;
+    const requestedOffsets = new Set(indexedLaps.map((lap) => lap.raw_byte_offset));
+    const ordinals = new Map<number, number>();
+    let ordinal = 0;
+    for (const record of iterateSessionCaptureRecords(releaseBytes)) {
+      if (record.kind !== "frame") continue;
+      if (requestedOffsets.has(record.offset)) ordinals.set(record.offset, ordinal);
+      ordinal++;
+    }
     const converted = await convertSeedFramesToSparse("ac-evo", (function* () {
-      for (const record of iterateSessionCaptureRecords(decompressIfGzipSync(Buffer.from(readFileSync(fixture))))) {
+      for (const record of iterateSessionCaptureRecords(releaseBytes)) {
         if (record.kind === "frame") yield { frame: record.frame, frameTimeMs: record.frameTimeMs };
         else if (record.kind === "segment-boundary") yield SESSION_SEGMENT_BOUNDARY;
         else if (record.kind === "segment-context") yield SESSION_SEGMENT_CONTEXT;
@@ -165,14 +215,34 @@ test("current startup reprocesses release-seeded Tourist sessions into correct l
     try {
       mkdirSync(gameDirectory, { recursive: true });
       copyFileSync(converted.path, legacyPath);
+      const requestedOrdinals = new Set(ordinals.values());
+      const convertedOffsets = new Map<number, number>();
+      ordinal = 0;
+      for (const record of iterateSessionCaptureRecords(readFileSync(converted.path))) {
+        if (record.kind !== "frame") continue;
+        if (requestedOrdinals.has(ordinal)) convertedOffsets.set(ordinal, record.offset);
+        ordinal++;
+      }
+      for (const lap of indexedLaps) {
+        const oldOrdinal = ordinals.get(lap.raw_byte_offset);
+        const offset = oldOrdinal === undefined ? undefined : convertedOffsets.get(oldOrdinal);
+        if (offset === undefined) throw new Error(`Release lap ${lap.id} has no corresponding converted source frame`);
+        database.prepare("UPDATE laps SET raw_byte_offset=? WHERE id=?").run(offset, lap.id);
+      }
     } finally {
       converted.cleanup();
     }
     database.prepare("UPDATE sessions SET raw_file=?").run(legacyPath);
     const ownerDirectory = firstRecording.ownership === "others" ? "others" : "own";
     const collision = join(gameDirectory, ownerDirectory, basename(legacyPath));
+    const legacyBytes = readFileSync(legacyPath);
     backend = startBranch(dataDir);
     await backend.waitFor(DEFERRED);
+    const consentStatus = await backend.request("/api/storage/layout-migration");
+    expect(consentStatus.status).toBe(200);
+    expect((await consentStatus.json() as { fileCount: number }).fileCount).toBeGreaterThan(0);
+    expect(readFileSync(legacyPath)).toEqual(legacyBytes);
+    expect(database.prepare("SELECT DISTINCT raw_file FROM sessions").all()).toEqual([{ raw_file: legacyPath }]);
     database.exec("UPDATE sessions SET capture_format_version=1, lap_detector_version=NULL");
     expect(database.prepare("SELECT id FROM sessions WHERE track_id='obsolete layout'").all()).toHaveLength(before.length);
     expect(database.prepare("SELECT id FROM laps WHERE lap_time=999").all().length).toBeGreaterThan(0);
@@ -187,7 +257,7 @@ test("current startup reprocesses release-seeded Tourist sessions into correct l
     `).run(collision, LAP_DETECTOR_AC_EVO_ID).lastInsertRowid;
     mkdirSync(dirname(collision), { recursive: true });
     writeFileSync(collision, "pre-existing user capture");
-    backend = startBranch(dataDir);
+    backend = startBranch(dataDir, "historical");
     await backend.waitFor(DEFERRED);
     expect(await backend.organize()).toBe("failed");
     expect(readFileSync(collision, "utf8")).toBe("pre-existing user capture");
@@ -198,7 +268,17 @@ test("current startup reprocesses release-seeded Tourist sessions into correct l
     database.prepare("DELETE FROM sessions WHERE id=?").run(collisionSessionId);
     await rm(collision);
     expect(await backend.organize()).toBe("success");
+    await backend.waitFor("[E2E] Stage entered: historical");
+    expect(backend.output()).toContain('[E2E] Stage resources: {"imports":0,"relocating":false}');
+    expect(() => readFileSync(join(dataDir, "recording-layout-migration.json"))).toThrow();
+    expect(database.prepare("SELECT DISTINCT raw_file FROM sessions").all()).toEqual([{ raw_file: collision }]);
+    expect(database.prepare("SELECT id FROM laps WHERE lap_time=999").all().length).toBeGreaterThan(0);
+    await backend.releaseStage();
     await backend.ready();
+    await backend.waitFor("[StartupWorker] Starting dashboard processor");
+    expect(backend.output().split("[StartupWorker] Starting dashboard processor")).toHaveLength(2);
+    expect(database.prepare("SELECT id,session_id,notes,is_favorite,profile_id,car_setup,tune_id,experiment_id,experiment_version_id FROM laps ORDER BY id").all()).toEqual(lapMetadata);
+    expect(database.prepare("SELECT notes,is_favorite FROM sessions").all()).toEqual(before.map(() => ({ notes: "preserved session annotation", is_favorite: 1 })));
     const after = database.prepare("SELECT id,track_id,lap_detector_version,raw_file,ownership FROM sessions ORDER BY id").all() as Session[];
     expect(after.map((session) => session.id)).toEqual(before.map((session) => session.id));
     for (const session of after) {
@@ -208,6 +288,31 @@ test("current startup reprocesses release-seeded Tourist sessions into correct l
     const finishes = database.prepare("SELECT lap_time FROM laps WHERE is_valid=1 AND invalid_reason IS NULL ORDER BY lap_time").all() as Array<{ lap_time: number }>;
     expect(finishes.map((lap) => lap.lap_time)).toEqual([398.781, 401.277]);
     expect(database.prepare("SELECT id FROM laps WHERE lap_time=999").all()).toEqual([]);
+    await backend.stop();
+    backend = undefined;
+    database.exec("UPDATE laps SET lap_time=123.456 WHERE is_valid=1 AND invalid_reason IS NULL");
+    const recordingRoot = join(dataDir, "sessions");
+    const destinations = [...new Set(after.map((session) => session.raw_file!))];
+    writeFileSync(join(dataDir, "recording-layout-migration.json"), JSON.stringify({
+      version: 1, root: recordingRoot, destination: recordingRoot, phase: "relocating",
+      entries: [{
+        source: legacyPath, destinations, published: destinations,
+        digest: createHash("sha256").update(legacyBytes).digest("hex"), cutover: true,
+        references: after.map((session) => ({ sessionId: session.id, oldPath: legacyPath, newPath: session.raw_file })),
+      }],
+      progress: { status: "running", done: 1, total: 1, migrated: 1, failed: 0, error: null },
+    }));
+    backend = startBranch(dataDir);
+    await backend.waitFor(DEFERRED);
+    const recoveredStatus = await backend.request("/api/storage/layout-migration");
+    expect((await recoveredStatus.json() as { fileCount: number }).fileCount).toBe(0);
+    expect(backend.output()).not.toContain(COMPLETE);
+    expect(await backend.organize()).toBe("success");
+    await backend.ready();
+    await backend.waitFor("[StartupWorker] Starting dashboard processor");
+    const resumedTimes = database.prepare("SELECT lap_time FROM laps WHERE is_valid=1 AND invalid_reason IS NULL ORDER BY id").all() as Array<{ lap_time: number }>;
+    expect(resumedTimes.map((lap) => lap.lap_time)).toEqual([123.456, 123.456]);
+    expect(database.prepare("SELECT id,session_id,notes,is_favorite,profile_id,car_setup,tune_id,experiment_id,experiment_version_id FROM laps ORDER BY id").all()).toEqual(lapMetadata);
   } finally {
     await backend?.stop();
     database?.close();
@@ -266,7 +371,125 @@ test("startup discovers Tourist in already-processed AC Evo recordings and does 
     await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 }, 240_000);
-test("incomplete historical replay blocks later startup stages while HTTP remains available", async () => {
+test("stop drains a paused startup stage and suppresses every successor", async () => {
+  const temporary = mkdtempSync(join(tmpdir(), "raceiq-startup-stop-"));
+  const dataDir = join(temporary, "data");
+  mkdirSync(dataDir);
+  let backend: StartupBackend | undefined;
+  try {
+    backend = startBranch(dataDir, "historical");
+    await backend.waitFor("[E2E] Stage entered: historical");
+    expect((await backend.request("/api/storage/layout-migration")).status).toBe(200);
+    await Promise.all([backend.stop(), backend.stop()]);
+    expect(backend.output()).not.toContain("[E2E] Stage entered: lmu-identity");
+    expect(backend.output()).not.toContain("[LMU] Session identity backfill");
+    expect(backend.output()).not.toContain("[RaceResults] Backfill");
+    expect(backend.output()).not.toContain("[StartupWorker] Starting dashboard processor");
+    expect(backend.output()).not.toContain("Shutdown grace expired");
+  } finally {
+    await backend?.stop();
+    await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  }
+}, 60_000);
+
+test("current ambiguous and nonrace results remain terminal across real backend restart", async () => {
+  const temporary = mkdtempSync(join(tmpdir(), "raceiq-startup-terminal-"));
+  const dataDir = join(temporary, "data");
+  mkdirSync(dataDir);
+  let backend: StartupBackend | undefined;
+  let database: InstanceType<typeof Database> | undefined;
+  try {
+    await command([process.execPath, "--eval", `
+      import { initDb, closeDb } from "./server/db/index";
+      await initDb();
+      closeDb();
+    `], ROOT, environment(dataDir));
+    database = new Database(join(dataDir, "app.db"));
+    const insert = database.prepare("INSERT INTO sessions(game_id,car_id,track_id,session_type,lap_detector_version,capture_format_version) VALUES('ac-evo','Test car',?, ?, ?,1)");
+    for (const sessionType of ["race", "practice"]) {
+      const sessionId = insert.run('["Nurburgring","Touristenfahrten"]', sessionType, LAP_DETECTOR_AC_EVO_ID).lastInsertRowid;
+      database.prepare("INSERT INTO laps(session_id,lap_number,lap_time) VALUES(?,1,100)").run(sessionId);
+    }
+    backend = startBranch(dataDir);
+    await backend.ready();
+    await backend.waitFor("[StartupWorker] Starting dashboard processor");
+    await backend.stop();
+    backend = undefined;
+    const terminal = database.prepare("SELECT session_id,session_type,outcome_status,processor_version,updated_at FROM session_results ORDER BY session_id").all() as Array<{ session_id: number; session_type: string; outcome_status: string; processor_version: string }>;
+    expect(terminal).toHaveLength(2);
+    expect(terminal.some((row) => row.session_type === "race" && row.outcome_status === "unavailable")).toBe(true);
+    expect(terminal.some((row) => row.session_type === "practice")).toBe(true);
+    database.exec(`
+      CREATE TRIGGER reject_completed_result_insert BEFORE INSERT ON session_results BEGIN SELECT RAISE(ABORT,'completed result replayed'); END;
+      CREATE TRIGGER reject_completed_result_update BEFORE UPDATE ON session_results BEGIN SELECT RAISE(ABORT,'completed result replayed'); END;
+    `);
+    backend = startBranch(dataDir);
+    await backend.ready();
+    await backend.waitFor("[StartupWorker] Starting dashboard processor");
+    expect((await backend.request("/api/storage/layout-migration")).status).toBe(200);
+    expect(database.prepare("SELECT session_id,session_type,outcome_status,processor_version,updated_at FROM session_results ORDER BY session_id").all()).toEqual(terminal);
+    expect(backend.output()).not.toContain("completed result replayed");
+  } finally {
+    await backend?.stop();
+    database?.close();
+    await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  }
+}, 120_000);
+
+for (const journalState of ["unfinished", "malformed", "unreadable"] as const) {
+  test(`${journalState} layout journal blocks startup with zero legacy files`, async () => {
+    const temporary = mkdtempSync(join(tmpdir(), "raceiq-startup-journal-"));
+    const dataDir = join(temporary, "data");
+    mkdirSync(dataDir);
+    let backend: StartupBackend | undefined;
+    try {
+      await command([process.execPath, "--eval", `
+        import { initDb, client } from "./server/db/index";
+        await initDb();
+        await client.close();
+      `], ROOT, environment(dataDir));
+      const root = join(dataDir, "sessions");
+      mkdirSync(root, { recursive: true });
+      const journalPath = join(dataDir, "recording-layout-migration.json");
+      const journal = journalState === "malformed" ? "{invalid" : JSON.stringify({
+        version: 1, root, destination: root, phase: "relocating", entries: [],
+        progress: { status: "running", done: 0, total: 0, migrated: 0, failed: 0, error: null },
+      });
+      writeFileSync(journalPath, journal);
+      if (journalState === "unreadable") chmodSync(journalPath, 0);
+      backend = startBranch(dataDir);
+      await backend.waitFor(DEFERRED);
+      const response = await backend.request("/api/storage/layout-migration");
+      expect(response.status).toBe(200);
+      const status = await response.json() as { fileCount: number; progress: { status: string; error: string } };
+      expect(status.fileCount).toBe(0);
+      expect(status.progress.status).toBe("error");
+      if (journalState !== "unreadable") expect(readFileSync(journalPath, "utf8")).toBe(journal);
+      expect(backend.output()).not.toContain(COMPLETE);
+      expect(backend.output()).not.toContain("[StartupWorker] Starting dashboard processor");
+      if (journalState === "unfinished") {
+        expect(await backend.organize()).toBe("success");
+        await backend.ready();
+        await backend.waitFor("[StartupWorker] Starting dashboard processor");
+        expect(() => readFileSync(journalPath)).toThrow();
+        expect(backend.output().split("[StartupWorker] Starting dashboard processor")).toHaveLength(2);
+      } else {
+        const retry = await backend.request("/api/storage/layout-migration", {
+          method: "POST", headers: { "content-type": "application/json" }, body: "{}",
+        });
+        expect(retry.status).toBe(500);
+        if (journalState === "unreadable") chmodSync(journalPath, 0o600);
+        expect(readFileSync(journalPath, "utf8")).toBe(journal);
+      }
+    } finally {
+      await backend?.stop();
+      await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    }
+  }, 60_000);
+}
+
+for (const captureFailure of ["missing", "corrupt"] as const) {
+test(`${captureFailure} historical capture preserves pending repairs while HTTP remains available`, async () => {
   const temporary = mkdtempSync(join(tmpdir(), "raceiq-startup-blocked-"));
   const dataDir = join(temporary, "data");
   mkdirSync(dataDir);
@@ -279,27 +502,42 @@ test("incomplete historical replay blocks later startup stages while HTTP remain
     )));
     await command([process.execPath, "run", "db:seed", "--games=ac-evo", `--fixtures=${fixture}`], ROOT, environment(dataDir));
     const corruptCapture = join(temporary, "broken-sparse.bin");
-    writeFileSync(corruptCapture, Buffer.from([255, 255, 255, 127]));
+    if (captureFailure === "corrupt") writeFileSync(corruptCapture, Buffer.from([255, 255, 255, 127]));
     database = new Database(join(dataDir, "app.db"));
     database.exec("PRAGMA busy_timeout=5000;");
     const previousFiles = database.prepare("SELECT DISTINCT raw_file FROM sessions").all() as Array<{ raw_file: string }>;
+    const originalCapture = readFileSync(previousFiles[0]!.raw_file);
+    database.exec("UPDATE sessions SET notes='preserve repair annotation', is_favorite=1");
+    const history = database.prepare("SELECT id,session_id,lap_time FROM laps ORDER BY id").all();
     for (const recording of previousFiles) rmSync(recording.raw_file, { force: true });
     database.prepare("UPDATE sessions SET raw_file = ?, lap_detector_version = NULL").run(corruptCapture);
 
     backend = startBranch(dataDir);
     await backend.waitFor("[StartupWorker] Historical session reconciliation failed: Startup reconciliation incomplete:");
     expect(backend.output()).toContain("[Server] HTTP/WS server listening");
+    expect((await backend.request("/api/storage/layout-migration")).status).toBe(200);
+    expect(database.prepare("SELECT id,session_id,lap_time FROM laps ORDER BY id").all()).toEqual(history);
+    const pending = database.prepare("SELECT lap_detector_version,notes,is_favorite,raw_file FROM sessions").all() as Array<{ lap_detector_version: string | null; notes: string; is_favorite: number; raw_file: string }>;
+    expect(pending.every((row) => row.lap_detector_version === null && row.notes === "preserve repair annotation" && row.is_favorite === 1 && row.raw_file === corruptCapture)).toBe(true);
     expect(backend.output()).not.toContain("[LMU] Session identity backfill");
     expect(backend.output()).not.toContain("[RaceResults] Backfill");
     expect(backend.output()).not.toContain("[StartupWorker] Starting dashboard processor");
+    await backend.stop();
+    writeFileSync(corruptCapture, originalCapture);
+    backend = startBranch(dataDir);
+    await backend.ready();
+    await backend.waitFor("[StartupWorker] Starting dashboard processor");
+    expect(database.prepare("SELECT id FROM sessions WHERE lap_detector_version IS NULL").all()).toEqual([]);
+    expect(database.prepare("SELECT notes,is_favorite FROM sessions").all()).toEqual(pending.map(() => ({ notes: "preserve repair annotation", is_favorite: 1 })));
   } finally {
     await backend?.stop();
     database?.close();
     await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 }, 240_000);
+}
 
-for (const failure of ["lmu", "race"] as const) {
+for (const failure of ["lmu", "lmu-numeric", "race"] as const) {
   test(`${failure} incomplete result blocks dependent startup stages`, async () => {
     const temporary = mkdtempSync(join(tmpdir(), `raceiq-startup-${failure}-blocked-`));
     const dataDir = join(temporary, "data");
@@ -318,10 +556,10 @@ for (const failure of ["lmu", "race"] as const) {
         INSERT INTO sessions (game_id, car_id, track_id, lap_detector_version, capture_format_version)
         VALUES (?, ?, ?, ?, 1)
       `).run(
-        failure === "lmu" ? "lmu" : "ac-evo",
-        failure === "lmu" ? "" : "Test car",
-        failure === "lmu" ? "" : '["Nurburgring","Touristenfahrten"]',
-        failure === "lmu" ? LAP_DETECTOR_ID : LAP_DETECTOR_AC_EVO_ID,
+        failure !== "race" ? "lmu" : "ac-evo",
+        failure === "lmu-numeric" ? "12345" : failure === "lmu" ? "" : "Test car",
+        failure === "lmu-numeric" ? "67890" : failure === "lmu" ? "" : '["Nurburgring","Touristenfahrten"]',
+        failure !== "race" ? LAP_DETECTOR_ID : LAP_DETECTOR_AC_EVO_ID,
       );
       database.exec("INSERT INTO laps (session_id, lap_number, lap_time) VALUES (1, 1, 100)");
       if (failure === "race") {
@@ -333,11 +571,11 @@ for (const failure of ["lmu", "race"] as const) {
         `);
       }
       backend = startBranch(dataDir);
-      const stage = failure === "lmu" ? "LMU session identity backfill" : "Race-result backfill";
+      const stage = failure !== "race" ? "LMU session identity backfill" : "Race-result backfill";
       await backend.waitFor(`[StartupWorker] ${stage} failed: Startup reconciliation incomplete:`);
       await backend.stop();
       expect(backend.output()).toContain(COMPLETE);
-      if (failure === "lmu") {
+      if (failure !== "race") {
         expect(backend.output()).toContain("unresolved=1");
         expect(backend.output()).not.toContain("[RaceResults] Backfill");
       } else {

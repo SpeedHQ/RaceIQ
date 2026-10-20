@@ -1,5 +1,5 @@
 import { and, eq, gt, isNull, lte, or, sql } from "drizzle-orm";
-import { db } from "../db/index";
+import { readDb as db } from "../db/index";
 import { sessions } from "../db/schema";
 import { MOTEC_SESSION_SOURCE } from "@raceiq/shared/integrations/motec";
 import { SessionRawFileMissingError, reprocessSession } from "./reprocess";

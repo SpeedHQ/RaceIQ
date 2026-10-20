@@ -1,6 +1,7 @@
 import { open, stat } from "node:fs/promises";
 import { eq, inArray } from "drizzle-orm";
-import { db } from "../db/index";
+import { db, readDb } from "../db/index";
+import { withDatabaseWrite } from "../db/write-coordination";
 import { liveCaptures } from "../db/schema";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
 
@@ -30,7 +31,7 @@ export function registerLiveCaptureRecoveryReplay(replay: LiveCaptureRecoveryRep
 /** Reconcile physical live files against durable DB watermarks before offline job recovery. */
 export async function recoverLiveCaptureStorage(): Promise<void> {
   await withSessionCaptureMaintenanceLock(async () => {
-    const captures = await db.select().from(liveCaptures)
+    const captures = await readDb.select().from(liveCaptures)
       .where(inArray(liveCaptures.status, ["recording", "finalizing", "recovering"])).all();
     for (const capture of captures) {
       if (activeCaptureEpochs.has(capture.captureEpoch)) continue;
@@ -68,14 +69,14 @@ export async function recoverLiveCaptureStorage(): Promise<void> {
         }
         if (activeCaptureEpochs.has(capture.captureEpoch)) continue;
         if (!replayUnpublished) throw new Error("Live restart replay callback is unavailable");
-        await db.update(liveCaptures).set({ status: "recovering", error: "Restart recovery replay in progress" })
-          .where(eq(liveCaptures.captureEpoch, capture.captureEpoch)).run();
+        await withDatabaseWrite(() => db.update(liveCaptures).set({ status: "recovering", error: "Restart recovery replay in progress" })
+          .where(eq(liveCaptures.captureEpoch, capture.captureEpoch)).run());
         if (activeCaptureEpochs.has(capture.captureEpoch)) continue;
         await replayUnpublished(capture.captureEpoch);
       } catch (error) {
         if (activeCaptureEpochs.has(capture.captureEpoch)) continue;
-        await db.update(liveCaptures).set({ status: "failed", error: error instanceof Error ? error.message : String(error) })
-          .where(eq(liveCaptures.captureEpoch, capture.captureEpoch)).run();
+        await withDatabaseWrite(() => db.update(liveCaptures).set({ status: "failed", error: error instanceof Error ? error.message : String(error) })
+          .where(eq(liveCaptures.captureEpoch, capture.captureEpoch)).run());
       }
     }
   });
