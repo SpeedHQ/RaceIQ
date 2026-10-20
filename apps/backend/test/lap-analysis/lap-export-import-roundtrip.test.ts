@@ -40,6 +40,10 @@ import { buildLd, buildLdx, syntheticStint } from "@raceiq/backend-core/test-sup
 import { getAllAcEvoCars } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo";
 import { registerDriverProfileLapNotifier } from "@raceiq/backend-core/driver-profile/lap-notifier";
 import { initMotecTargets } from "../../src/games/motec-init";
+import { decodeLMUSourceFrame, encodeLMUSourceFrame } from "@raceiq/capture-formats/lmu/source-frame";
+import { LMU_SHARED_MEMORY_SIZE, LMU_GAME_VERSION_OFFSET, LMU_SESSION_EVENT_OFFSET, LMU_TELEMETRY_HEADER_OFFSET, LMU_TELEMETRY_INFO_OFFSET, LMU_TELEMETRY, LMU_SCORING_INFO_OFFSET, LMU_SCORING_VEHICLES_OFFSET } from "@raceiq/capture-formats/lmu/layout";
+import type { LmuLiveContext } from "@raceiq/shared/telemetry/lmu";
+import { encodeLmuContext } from "@raceiq/shared/telemetry/lmu-context";
 initGameAdapters();
 initServerGameAdapters();
 initMotecTargets();
@@ -166,6 +170,70 @@ describe("lap export → import round-trip (real capture)", () => {
     const match = result.laps.find((l) => Math.abs(l.lapTime - exported.lapTime) < 0.001);
     expect(match).toBeDefined();
   }, 120000);
+  test("LMU changing supplemental values and original nanoseconds survive selected-lap export, import and historical replay", async () => {
+    function* sourceFrames() {
+      let index = 0;
+      for (const bytes of readLMUFrames(GAME_CAPTURES.lmu.capture)) {
+        const native = decodeLMUSourceFrame(bytes)!;
+        const memory = Buffer.alloc(LMU_SHARED_MEMORY_SIZE);
+        if (native.rawSharedMemory) native.rawSharedMemory.copy(memory);
+        else {
+          memory.writeInt32LE(native.gameVersion, LMU_GAME_VERSION_OFFSET);
+          memory.writeUInt32LE(native.sessionEvent, LMU_SESSION_EVENT_OFFSET);
+          memory.writeUInt8(1, LMU_TELEMETRY_HEADER_OFFSET);
+          memory.writeUInt8(1, LMU_TELEMETRY_HEADER_OFFSET + 2);
+          native.telemetry.copy(memory, LMU_TELEMETRY_INFO_OFFSET);
+          native.scoringInfo.copy(memory, LMU_SCORING_INFO_OFFSET);
+          native.playerScoring?.copy(memory, LMU_SCORING_VEHICLES_OFFSET);
+        }
+        const sessionKey = `phase1-retention:${native.sessionEvent}`;
+        const timestamp = { domain: "monotonic" as const, nanoseconds: 9_007_199_254_740_993_123n + BigInt(index) * 1_000_000n };
+        const state = index % 7 === 0 ? "error" as const : "ok" as const;
+        const context: LmuLiveContext = {
+          schemaVersion: 1, status: "active", playerVehicleId: native.telemetry.readInt32LE(LMU_TELEMETRY.id),
+          key: { sessionKey, captureSequence: String(index), frameTime: { domain: "wall-clock", milliseconds: native.captureTimestampMs } },
+          supplemental: [{
+            semanticId: "lmu.rest.session.time-scale", endpoint: "/rest/sessions", method: "GET", sessionKey,
+            vehicleId: null, applicability: "session", acquiredAt: timestamp, responseVersion: "fixture-v1",
+            observation: {
+              semanticId: "lmu.rest.session.time-scale", value: state === "ok" ? index % 5 : null,
+              unit: "ratio", mappingStatus: "direct", state, confidence: null, freshness: "unknown",
+              confidenceComponents: { semanticFidelity: 1, freshness: null, inputCompleteness: state === "ok" ? 1 : 0 },
+              provenance: { simulator: "lmu", parserId: "lmu-rest", parserVersion: "1", resolverVersion: "1", catalogVersion: "fixture-v1", catalogHash: "fixture-v1", observedAt: timestamp,
+                sourceObservation: { timestamp, updateSequence: 9_007_199_254_740_993n + BigInt(index) },
+              }, schemaVersion: "1", limitations: ["Controlled storage integration fixture"],
+            },
+          }],
+        };
+        index++;
+        yield encodeLMUSourceFrame(memory, native.captureTimestampMs, { context })!;
+      }
+    }
+    const seeded = await importSessionFrames(sourceFrames(), "lmu");
+    createdSessions.push(...seeded.laps.map((lap) => lap.sessionId));
+    const exportedLap = seeded.laps.find((lap) => lap.isValid)!;
+    expect(exportedLap).toBeDefined();
+    const originalSession = (await db.select().from(sessions).where(eq(sessions.id, exportedLap.sessionId)).get())!;
+    if (originalSession.rawFile) tmpFiles.push(originalSession.rawFile);
+    const originalRow = (await db.select().from(laps).where(eq(laps.id, exportedLap.lapId)).get())!;
+    const original = await parseRawLapFrames(captureSource(originalSession), originalRow.rawByteOffset!, originalRow.rawFrameCount!);
+    expect(new Set(original.map((packet) => packet.lmuContext?.supplemental[0]?.observation.value)).size).toBe(6);
+    const exported = await buildLapsZip([originalRow.id]);
+    const imported = await importLapsZip(exported.bytes);
+    expect(imported.errors).toEqual([]);
+    expect(imported.laps).toHaveLength(1);
+    createdSessions.push(imported.laps[0]!.sessionId);
+    const importedSession = (await db.select().from(sessions).where(eq(sessions.id, imported.laps[0]!.sessionId)).get())!;
+    if (importedSession.rawFile) tmpFiles.push(importedSession.rawFile);
+    const importedRow = (await db.select().from(laps).where(eq(laps.id, imported.laps[0]!.lapId)).get())!;
+    const restored = await parseRawLapFrames(captureSource(importedSession), importedRow.rawByteOffset!, importedRow.rawFrameCount!);
+    expect(restored.map((packet) => packet.lmu)).toEqual(original.map((packet) => packet.lmu));
+    expect(restored.map((packet) => packet.lmuContext)).toEqual(original.map((packet) => packet.lmuContext));
+    const historical = await queryLapTelemetryBySemanticId(importedRow.id, ["fuel.virtual-energy"]);
+    expect(historical!.envelopes.map((envelope) => envelope.lmu)).toEqual(restored.map((packet) => encodeLmuContext(packet.lmuContext!)));
+    expect(historical!.envelopes[0]!.lmu!.supplemental[0]!.observation.provenance.sourceObservation!.updateSequence).toMatch(/^9007199254/);
+  }, 120000);
+
   for (const gameId of KNOWN_GAME_IDS) {
     const { capture, label } = GAME_CAPTURES[gameId];
     test(`${label} selected lap preserves source telemetry through export and import`, async () => {

@@ -34,6 +34,25 @@ Zero vs missing/stale/invalid → independent state presentation (U-LMU-2/U-LMU-
 
 Run these scenarios through existing production backend and live/historical browser surfaces with controlled inputs; verify affected desktop/mobile states and relevant locales. `E2E-LMU-REAL-PLAYER` is required for actual source-backed player coverage before Phase 2 starts. Record fixtures, commands and visible outcomes; backend source/environment limits remain blockers. Player criteria do not require multiplayer fixtures, grid UI or companion files.
 
+### Implementation and controlled evidence — 2026-10-20
+
+The existing live dashboard and historical Metrics panel reuse one localized player-data component. It shows 63 native channels and the typed 14-channel REST inventory without adding an opponent surface. Live ages use the backend receive clock; historical ages use the original frame observation clock, not the replay-request time. Incomparable or future timestamps show age unavailable.
+
+| Criteria / scenario | Executed browser evidence |
+|---|---|
+| U-LMU-2, U-LMU-6; ENERGY / PLAYER-CHANNELS | Actual English desktop live route at 1440×1000 showed separate engine/motor channels and units. Controlled zero remained numeric; invalid virtual energy showed Invalid rather than zero. Rain and TC/ABS setting units resolved without conversion errors. |
+| U-LMU-3; REST | The actual player panel retained native coolant at 95 °C while the REST condition snapshot showed Error/Stale. Acquisition and original observation ages remained distinct. Delayed native/HTTP independence is additionally covered by backend smoke. |
+| U-LMU-4-P1; PLAYER-LIFECYCLE | No-player transition removed the retained battery value; resume restored the correct generation. Production wire smoke additionally exercised garage, pause, freeze, disconnect and vehicle swap. |
+| U-LMU-4-P1; PLAYER-RETENTION | Actual captured V3 native/context frames were encoded with production sparse framing and uploaded through `/api/laps/import`: 1,678 packets, nine imported laps. The real replay route rendered 63 native and 14 supplemental channels from historical telemetry. At the selected original frame, both acquisition and observation age were 7 ms, not the later replay-request age. The selected-lap ZIP round-trip test separately verifies changing values/states and nanosecond precision. |
+| U-LMU-5-P1; locale / UDP-COEXIST | All 16 locales include the added labels. German mobile live route at 390×844 had no horizontal panel overflow; German historical replay also rendered correctly. The actual Forza live surface accepted 230 real UDP packets with no LMU player panel or browser errors, then native LMU resumed. |
+
+Additional U-LMU-3/U-LMU-4-P1 clock-edge fixtures changed only timestamp metadata in 64 captured native frames each and passed through the real import/replay endpoints. Monotonic observations and wall-clock observations one second later than their frame both rendered age unavailable instead of a false zero. Snapshot disclosures toggled with Enter; all 14 summary names were nonempty.
+
+Headless Playwright exercised the real app/backend after the managed browser failed to recover. Fresh-load and interaction passes had no page errors. Browser captures and selected DOM/age evidence are retained locally under `.omp/evidence/lmu-phase1/` (not committed). Temporary fixture/control scaffolding was removed; no mock production fallback was added.
+
+**Acceptance remains blocked:** actual Windows LMU player/version/mode smoke (`E2E-LMU-REAL-PLAYER`) is unavailable on this macOS workstation. Controlled UI/backend evidence does not replace that gate. Phase 2 remains out of scope.
+
+
 ## Phase 2 — Multiplayer opponent presentation
 
 ### Tasks and owned surfaces
@@ -56,4 +75,4 @@ Run these scenarios through existing production backend and live/historical brow
 
 ID reuse/no player/duplicate IDs → incarnation-aware keys and explicit unavailability (U-LMU-1). Restricted placeholders/inaccurate remote pit report → source-limited presentation, no fabricated measurements (U-LMU-1/U-LMU-2-P2). Missing/corrupt companion/legacy data → readable player view and unavailable opponents (U-LMU-4-P2). Player/opponent lifecycle changes → replace incompatible context, never cross-attribute values (U-LMU-4-P2).
 
-Run contract scenarios through actual UI/backend multiplayer and companion integrations, including selected-lap export/reimport and failure states. `E2E-LMU-REAL-OPPONENTS` confirms source/mode coverage; reuse Phase 1 evidence only when unchanged inputs and scope justify it. Record commands, visible outcomes and environment limits. No implementation, browser validation or E2E execution is claimed by this planning revision.
+Run contract scenarios through actual UI/backend multiplayer and companion integrations, including selected-lap export/reimport and failure states. `E2E-LMU-REAL-OPPONENTS` confirms source/mode coverage; reuse Phase 1 evidence only when unchanged inputs and scope justify it. Record commands, visible outcomes and environment limits. Phase 2 implementation and validation remain unexecuted; Phase 1 evidence and its remaining acceptance blocker are recorded above.

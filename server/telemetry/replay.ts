@@ -13,6 +13,7 @@ import { createRawCaptureIdentity, loadRawCaptureIdentity, type RawCaptureIdenti
 import { loadSessionCapture, resolveLapCaptureArtifact } from "../session-capture/source-loader";
 import { getLiveLapCaptureSnapshot } from "../db/live-capture-queries";
 import { resolveLiveLapCaptureArtifact } from "../session-capture/source-loader";
+import { encodeLmuContext } from "@raceiq/shared/telemetry/lmu-context";
 export interface QueryLapTelemetryOptions {
   readonly rawCaptureRequirement?: "provenance" | "native-values";
 }
@@ -161,6 +162,7 @@ export function resolveTelemetryReplay(
       recordedWith: source.versionIdentity,
       values,
       rawReference,
+      ...(source.gameId === "lmu" && packet.lmuContext ? { lmu: encodeLmuContext(packet.lmuContext) } : {}),
     };
   }
 

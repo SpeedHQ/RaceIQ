@@ -66,13 +66,12 @@ function finiteDouble(buffer: Buffer, offset: number, fallback = 0): number {
   return Number.isFinite(value) ? value : fallback;
 }
 
-function finiteFloat(buffer: Buffer, offset: number, fallback = 0): number {
-  const value = buffer.readFloatLE(offset);
-  return Number.isFinite(value) ? value : fallback;
-}
-
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function nativeFraction(value: number): number {
+  return Number.isFinite(value) && value >= 0 && value <= 1 ? value : NaN;
 }
 
 function vector(buffer: Buffer, offset: number): Vec3 {
@@ -267,21 +266,17 @@ export function normalizeLMUSourceFrame(
     : Math.max(0, telemetry.readInt32LE(LMU_TELEMETRY.lapNumber) - 1);
   const currentSector = telemetry.readInt32LE(LMU_TELEMETRY.currentSector);
   const currentSectorIndex = currentSector & 0x7fffffff;
-  const positiveScoringTime = (offset: number) =>
-    scoring ? positiveTime(finiteDouble(scoring, offset)) : 0;
-  const engineRpm = Math.max(
-    0,
-    finiteDouble(telemetry, LMU_TELEMETRY.engineRpm),
-  );
-  const engineTorque = finiteDouble(telemetry, LMU_TELEMETRY.engineTorque);
-  const motorRpm = finiteDouble(
-    telemetry,
-    LMU_TELEMETRY.electricBoostMotorRpm,
-  );
-  const motorTorque = finiteDouble(
-    telemetry,
-    LMU_TELEMETRY.electricBoostMotorTorque,
-  );
+  const positiveScoringTime = (offset: number) => {
+    if (!scoring) return undefined;
+    const value = scoring.readDoubleLE(offset);
+    return value < 0 ? undefined : value;
+  };
+  const engineRpm = telemetry.readDoubleLE(LMU_TELEMETRY.engineRpm);
+  const engineTorque = telemetry.readDoubleLE(LMU_TELEMETRY.engineTorque);
+  const motorRpm = telemetry.readDoubleLE(LMU_TELEMETRY.electricBoostMotorRpm);
+  const motorTorque = telemetry.readDoubleLE(LMU_TELEMETRY.electricBoostMotorTorque);
+  const motorState = telemetry.readUInt8(LMU_TELEMETRY.electricBoostMotorState);
+  const stateOfCharge = telemetry.readFloatLE(LMU_TELEMETRY.stateOfCharge);
   const raining = clamp(
     finiteDouble(scoringInfo, LMU_SCORING_INFO.raining),
     0,
@@ -363,33 +358,73 @@ export function normalizeLMUSourceFrame(
     migration: telemetry.readUInt8(LMU_TELEMETRY.migration),
     frontAntiSway: telemetry.readUInt8(LMU_TELEMETRY.frontAntiSway),
     rearAntiSway: telemetry.readUInt8(LMU_TELEMETRY.rearAntiSway),
-    batteryChargeFraction: clamp(
-      finiteDouble(telemetry, LMU_TELEMETRY.batteryChargeFraction),
-      0,
-      1,
-    ),
-    stateOfCharge: finiteFloat(telemetry, LMU_TELEMETRY.stateOfCharge),
-    virtualEnergy: finiteFloat(telemetry, LMU_TELEMETRY.virtualEnergy),
-    regenKw: finiteFloat(telemetry, LMU_TELEMETRY.regenKw),
+    batteryChargeFraction: nativeFraction(telemetry.readDoubleLE(LMU_TELEMETRY.batteryChargeFraction)),
+    stateOfCharge: stateOfCharge >= 0 && stateOfCharge <= 100 ? stateOfCharge : NaN,
+    virtualEnergy: nativeFraction(telemetry.readFloatLE(LMU_TELEMETRY.virtualEnergy)),
+    regenKw: telemetry.readFloatLE(LMU_TELEMETRY.regenKw),
     trackLimitsSteps: telemetry.readUInt8(LMU_TELEMETRY.trackLimitsSteps),
     trackGripLevel: scoringInfo.readUInt8(
       LMU_SCORING_INFO.trackGripLevel,
     ),
     cloudCoverage,
+    engineRpm,
+    engineWaterTemp: telemetry.readDoubleLE(LMU_TELEMETRY.engineWaterTemp),
+    engineOilTemp: telemetry.readDoubleLE(LMU_TELEMETRY.engineOilTemp),
+    engineTorque,
+    ...(motorState > 0 ? {
+      motorRpm,
+      motorTorque,
+      motorTemperature: telemetry.readDoubleLE(LMU_TELEMETRY.electricBoostMotorTemperature),
+      motorWaterTemperature: telemetry.readDoubleLE(LMU_TELEMETRY.electricBoostWaterTemperature),
+    } : {}),
+    motorState,
+    steeringShaftTorque: telemetry.readDoubleLE(LMU_TELEMETRY.steeringShaftTorque),
+    throttle: telemetry.readDoubleLE(LMU_TELEMETRY.throttle),
+    brake: telemetry.readDoubleLE(LMU_TELEMETRY.brake),
+    steering: telemetry.readDoubleLE(LMU_TELEMETRY.steering),
+    clutch: telemetry.readDoubleLE(LMU_TELEMETRY.clutch),
+    timeGapCarAhead: telemetry.readFloatLE(LMU_TELEMETRY.timeGapCarAhead),
+    timeGapCarBehind: telemetry.readFloatLE(LMU_TELEMETRY.timeGapCarBehind),
+    timeGapPlaceAhead: telemetry.readFloatLE(LMU_TELEMETRY.timeGapPlaceAhead),
+    timeGapPlaceBehind: telemetry.readFloatLE(LMU_TELEMETRY.timeGapPlaceBehind),
+    rainIntensity: nativeFraction(scoringInfo.readDoubleLE(LMU_SCORING_INFO.raining)),
+    darkCloud: nativeFraction(scoringInfo.readDoubleLE(LMU_SCORING_INFO.darkCloud)),
+    minimumPathWetness: nativeFraction(scoringInfo.readDoubleLE(LMU_SCORING_INFO.minimumPathWetness)),
+    maximumPathWetness: nativeFraction(scoringInfo.readDoubleLE(LMU_SCORING_INFO.maximumPathWetness)),
+    averagePathWetness: nativeFraction(scoringInfo.readDoubleLE(LMU_SCORING_INFO.averagePathWetness)),
+    wind: [scoringInfo.readDoubleLE(LMU_SCORING_INFO.wind), scoringInfo.readDoubleLE(LMU_SCORING_INFO.wind + 8), scoringInfo.readDoubleLE(LMU_SCORING_INFO.wind + 16)],
+    ignitionStarter: telemetry.readUInt8(LMU_TELEMETRY.ignitionStarter),
+    scheduledStops: telemetry.readUInt8(LMU_TELEMETRY.scheduledStops),
+    overheating: telemetry.readUInt8(LMU_TELEMETRY.overheating) !== 0,
+    ...(scoring ? {
+      penaltyCount: scoring.readInt16LE(LMU_SCORING_VEHICLE.penaltyCount),
+      pitStopCount: scoring.readInt16LE(LMU_SCORING_VEHICLE.pitStopCount),
+      primaryFlag: scoring.readUInt8(LMU_SCORING_VEHICLE.primaryFlag),
+      underYellow: scoring.readUInt8(LMU_SCORING_VEHICLE.underYellow) !== 0,
+      countLapFlag: scoring.readUInt8(LMU_SCORING_VEHICLE.countLapFlag),
+      inGarageStall: scoring.readUInt8(LMU_SCORING_VEHICLE.inGarageStall) !== 0,
+      finishStatus: scoring.readUInt8(LMU_SCORING_VEHICLE.finishStatus),
+      control: scoring.readInt8(LMU_SCORING_VEHICLE.control),
+    } : {}),
+    yellowFlagState: scoringInfo.readInt8(LMU_SCORING_INFO.yellowFlagState),
+    sectorFlags: [scoringInfo.readUInt8(LMU_SCORING_INFO.sectorFlags), scoringInfo.readUInt8(LMU_SCORING_INFO.sectorFlags + 1), scoringInfo.readUInt8(LMU_SCORING_INFO.sectorFlags + 2)],
+    gamePhase: scoringInfo.readUInt8(LMU_SCORING_INFO.gamePhase),
   };
 
   return {
     gameId: "lmu",
     lmu,
+    ...(frame.lmuContext ? { lmuContext: frame.lmuContext } : {}),
     sessionUID: JSON.stringify([
       frame.gameVersion,
       frame.sessionEvent,
       scoringInfo.readInt32LE(LMU_SCORING_INFO.session),
       identity.carId,
       identity.trackId,
+      ...(frame.lmuContext ? [frame.lmuContext.key.sessionKey] : []),
     ]),
     IsRaceOn:
-      scoringInfo.readUInt8(LMU_SCORING_INFO.inRealtime) !== 0 ? 1 : 0,
+      scoring !== null && scoringInfo.readUInt8(LMU_SCORING_INFO.inRealtime) !== 0 ? 1 : 0,
     TimestampMS: Math.round(frame.captureTimestampMs),
     EngineMaxRpm: Math.max(
       0,
@@ -522,10 +557,8 @@ export function normalizeLMUSourceFrame(
       localVelocity.y,
       localVelocity.z,
     ),
-    Power:
-      engineTorque * engineRpm * TWO_PI_PER_MINUTE +
-      motorTorque * motorRpm * TWO_PI_PER_MINUTE,
-    Torque: engineTorque + motorTorque,
+    Power: engineTorque * engineRpm * TWO_PI_PER_MINUTE,
+    Torque: engineTorque,
     trackId: identity.trackId,
     BrakeTempFrontLeft: wheels.FL.brakeTemperatureC,
     BrakeTempFrontRight: wheels.FR.brakeTemperatureC,

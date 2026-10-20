@@ -3,6 +3,13 @@ import { SETUP_CONCEPT_DEFINITIONS } from "@raceiq/shared/racing/setups/catalog/
 import type { SemanticDefinition } from "./model";
 
 const SEMANTIC_DEFINITIONS_LIVE: Record<string, SemanticDefinition> = {
+  "weather.rain-intensity": {
+    label: "Rain intensity",
+    description: "Native rain severity fraction, distinct from precipitation probability.",
+    parentId: "weather",
+    canonicalUnit: "fraction",
+    shape: "scalar",
+  },
   "identity.source-identity": {
     label: "Source identity",
     description: "Source vehicle name, venue name, and exact track configuration before ordinal allocation.",

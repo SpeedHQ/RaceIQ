@@ -2,6 +2,7 @@ import type { GameId } from "../../games/ids";
 import type { MappingStatus } from "../derivations/contracts";
 import type { ConfidenceComponents, FreshnessState, ResolutionProvenance, ResolutionState, SemanticSlot, TelemetryTimestamp } from "../resolver/contracts";
 import type { TelemetryVersionIdentity } from "../version";
+import type { LmuLiveContextWire } from "../lmu-context";
 
 export type CanonicalTelemetryScalar = number | boolean | string | null | readonly CanonicalTelemetryScalar[] | { readonly [key: string]: CanonicalTelemetryScalar };
 
@@ -50,6 +51,7 @@ export interface CanonicalTelemetryEnvelope {
   readonly recordedWith?: TelemetryVersionIdentity;
   readonly values: readonly CanonicalTelemetryValue[];
   readonly rawReference?: TelemetryRawReference;
+  readonly lmu?: LmuLiveContextWire;
 }
 
 export interface SemanticTelemetryReplay {

@@ -49,6 +49,24 @@ Use shared-contract scenarios through production boundaries, not mock-only tests
 
 Phase 1 completion requires these passing scenarios including real Windows player smoke, applicable package checks and root `bun run typecheck`. Record commands, fixtures, source/game versions and outcomes. A missing environment is a blocker, not permission to claim completion or silently bypass the phase gate.
 
+### Implementation and controlled evidence — 2026-10-20
+
+Phase 1 is integrated against the [shared implementation boundary](lmu-competitor-data-contract.md#phase-1-implementation-boundary). Native values use the audited ABI; independent bounded REST acquisition carries generation-scoped provenance. V3 player context is retained in the existing primary stream, including sparse records and JSON-safe history/dev transport. There is no opponent collection or companion format.
+
+| Criteria / scenario | Executed evidence |
+|---|---|
+| B-LMU-2, B-LMU-4, B-LMU-6-P1; ENERGY / PLAYER-CHANNELS / PLAYER-LIFECYCLE | `bun test packages/game-lmu/test/phase1.test.ts packages/game-lmu/test/lmu-adapter.test.ts --timeout 60000`: 17 passed, 143 assertions. Covers distinct units, valid zero, invalid energy, ambiguous IDs, slot/vehicle changes, garage/pause/freeze/rewind and queued identity invalidation. |
+| B-LMU-3; REST | Controlled real HTTP → native source → production WebSocket smoke passed unchanged, malformed, failed, delayed/expired and recovered responses without blocking native frames. Unchanged recovery remains stale rather than inventing a source update. |
+| B-LMU-6-P1, B-LMU-8; PLAYER-LIFECYCLE / PLAYER-RETENTION | `bun test apps/backend/test/session-capture/direct-recording-ingress.test.ts --timeout 120000`: 6 passed, 21,721 assertions, including four real V3 LMU context generations with two held finalizations. Session admission backpressures outside the maintenance lock instead of exceeding the two-retirement budget. |
+| B-LMU-8; PLAYER-RETENTION | `bun test apps/backend/test/lap-analysis/lap-export-import-roundtrip.test.ts --test-name-pattern 'LMU changing supplemental' --timeout 120000`: passed selected-lap export, real import and historical replay with changing observations and original nanosecond/update-sequence precision. |
+| B-LMU-7-P1; UDP-COEXIST | Recording-enabled production HTTP/WebSocket smoke passed all ten scenarios with 218 valid frames, including a real Forza UDP datagram and subsequent native LMU continuation without cross-game context. Existing direct-capture FM, ACC and iRacing integration cases also passed. |
+| Shared gates | Root `bun run typecheck`: 31 tasks passed. Root `bun run lint`: 33 tasks passed without warnings/errors. `bun run telemetry:catalog:check`: deterministic, 809 variables / 2,010 source links. `bun scripts/test/check-shards.ts`: all 400 test files assigned exactly once. Release-note suite: 14 passed. |
+
+The controlled application harness used the actual `bootServer`, `LMUTelemetrySource`, loopback HTTP endpoints and UDP listener; temporary scaffolding was removed after validation. Fixture ABI version 1202 is synthetic, not an observed running game version. Local logs, scenario JSON and browser captures are retained under `.omp/evidence/lmu-phase1/` and `.omp/evidence/lmu-phase1-live-smoke.json` (not committed).
+
+**Acceptance remains blocked:** `E2E-LMU-REAL-PLAYER` could not run on this macOS workstation. Verify the actual Windows LMU version/mode, native source availability and REST behavior before declaring Phase 1 accepted or starting Phase 2. Unsupported absolute capacity, localized refill selection and pit/repair estimates remain unavailable, not measured values.
+
+
 ## Phase 2 — Multiplayer opponents and companion BIN
 
 ### Scope and owned surfaces
@@ -84,4 +102,4 @@ After Phase 1 acceptance, extend multi-vehicle native decoding/normalization and
 | Interrupted publication/corrupt companion/lap export-import/partial deletion → committed references, explicit unavailability and safe ownership | B-LMU-5, B-LMU-6-P2 | E2E-LMU-COMPANION-FAILURE |
 | Actual multiplayer source/version behavior → verified channel availability, identity and companion parity | All Phase 2 criteria | E2E-LMU-REAL-OPPONENTS |
 
-Phase 2 completion requires its scenarios, applicable package/root gates, actual opponent UI/backend integration and Phase 1 regression checks invalidated by changed inputs. Reuse unchanged successful evidence only while its scope remains valid. Neither phase has been implemented or executed by this planning revision.
+Phase 2 completion requires its scenarios, applicable package/root gates, actual opponent UI/backend integration and Phase 1 regression checks invalidated by changed inputs. Reuse unchanged successful evidence only while its scope remains valid. Phase 2 remains unimplemented and unverified; Phase 1 implementation and its remaining real-Windows acceptance blocker are recorded above.

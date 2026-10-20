@@ -50,6 +50,48 @@ Recorders use different binary formats:
 Use the corresponding reader or `server/test-support/recordings/parse-dump.ts` helper
 rather than decoding recordings ad hoc.
 
+### LMU player observations
+
+LMU source frames remain readable in compact v1 and full-memory v2 form. New
+player captures use source-frame v3 to retain the native memory snapshot plus
+typed player/session REST observations. Sparse records delta-encode native
+blocks and retain each context's original timestamps and states; there is no
+competitor collection or companion BIN in this phase. Selected-lap ZIP export,
+import and historical semantic replay retain that context. Older captures and
+CSV imports cannot reconstruct observations they never recorded.
+
+Player battery charge is a fraction, native state of charge is a percentage,
+virtual energy is a separate fraction, and regeneration is reported in kW.
+Engine and electric-motor readings, steering-shaft torque, native rain/wetness,
+timing, controls, flags and penalty counts remain separate channels. Native
+sector-2 reports are cumulative sectors 1–2, not isolated sector-2 durations.
+
+Read-only REST acquisition uses loopback HTTP at `http://127.0.0.1:6397` by
+default. `LMU_REST_BASE_URL` can select another loopback HTTP address/port;
+credentials, redirects and non-loopback targets are rejected. Requests have
+a 500 ms default timeout and a 1 MiB response limit. Vehicle condition and
+pit-estimate endpoints are checked at most once per second; setup, session
+settings and forecasts at most once per minute. Native frames never await
+network requests.
+
+REST snapshots retain acquisition and original observation times separately.
+An unchanged response does not create a source update. Failures expose error
+state without refreshing the last successful acquisition time. Capacity,
+localized refill selection and pit/repair time estimates remain explicitly
+unavailable until their physical units/formats are verified. Reported condition
+values have unverified scaling and are not shown as damage/wear percentages.
+
+Player/slot/session changes, rewind, garage return and pause invalidate
+incompatible context. Missing or unchanged native snapshots expire after one
+second; a transient rejected read does not create another session. New
+generations reject late REST completions. Live and historical player panels
+show observation state and source age, not an inferred measurement.
+
+Schema and unit references are recorded in the
+[LMU contract](../plans/lmu-competitor-data-contract.md). Controlled native,
+HTTP and capture tests are not a substitute for the required Windows LMU
+player smoke. Runtime game-version/mode coverage is not claimed without it.
+
 ## Work with published lap archives
 
 New completed-session splits publish one `capture.bin.gz` data file and a manifest v4 JSON index in an immutable attempt directory. The gzip file contains independent members, not one solid compressed session. Use the production artifact resolver and `SessionCaptureSource.artifact` to replay or export one lap; do not gunzip the whole data file, extract members to a cache, invent entry filesystem paths, or silently use the retained source when a published layout is invalid.

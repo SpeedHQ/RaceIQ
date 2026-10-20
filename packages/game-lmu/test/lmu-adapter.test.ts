@@ -416,6 +416,7 @@ describe("LMU adapter", () => {
     const clockSpy = spyOn(performance, "now").mockImplementation(() => nowMs);
     const source = new LMUTelemetrySource({
       pollIntervalMs: 10,
+      rest: false,
       reader: {
         start() {},
         async stop() {},

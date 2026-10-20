@@ -4,7 +4,7 @@
 
 ## Status and evidence
 
-Planning boundary for [issue #478](https://github.com/SpeedHQ/RaceIQ/issues/478), audited against TinyPedal on 2026-10-20. This is source research, not proof of behavior in a running LMU session. Native one-to-one [semantic rules](../reference/semantics.md) and existing [`ResolvedValue<T>` / timestamps / provenance](../../shared/telemetry/resolver/contracts.ts) remain authoritative. Do not copy TinyPedal implementation.
+Shared boundary for [issue #478](https://github.com/SpeedHQ/RaceIQ/issues/478), audited against TinyPedal on 2026-10-20. Phase 1 is implemented with controlled native/HTTP, recording, import/export and browser evidence recorded in the linked plans. This is not proof of behavior in a running Windows LMU session; `E2E-LMU-REAL-PLAYER` remains an acceptance blocker. Phase 2 is not implemented. Native one-to-one [semantic rules](../reference/semantics.md) and existing [`ResolvedValue<T>` / timestamps / provenance](../../shared/telemetry/resolver/contracts.ts) remain authoritative. Do not copy TinyPedal implementation.
 
 Immutable references:
 
@@ -21,6 +21,59 @@ Immutable references:
 Deliver player data end to end before opponent work: expose existing energy with corrected units/semantics; project supported separate engine/motor channels, steering-shaft torque, detailed weather/wetness, player timing/gaps and already-read controls/pit state; integrate verified player/session REST; fix player extension/history/export retention and lifecycle invalidation. Resolve source-supported penalties/flags/services and document unsupported channels with evidence. Existing player data remains usable when REST is absent or a source is unavailable.
 
 Use the existing canonical capture path for Phase 1; preserve existing raw opponent bytes already present in v2 without adding competitor collections or duplicating them. Phase 1 does not require a companion BIN, multi-car normalization, opponent UI, or partition migration. It must preserve new player/REST observations with source timestamps/states through supported recording/replay/history/export/import. Any required player preservation format change must stand alone without a dependency on Phase 2.
+
+#### Phase 1 implementation boundary
+
+The implemented native inventory is generated from
+[`LMUExtendedData`](../../shared/telemetry/lmu.ts),
+the [audited ABI offsets](../../packages/capture-formats/src/lmu/layout.ts)
+and [catalog metadata](../../packages/tooling-catalog/src/catalog/extension-metadata.ts).
+The REST inventory, exact types/units and per-semantic stale thresholds are
+authoritative in [`LMU_REST_CHANNELS`](../../shared/telemetry/lmu-rest-channels.ts);
+the shared [context codec](../../shared/telemetry/lmu-context.ts) validates
+applicability, state/value consistency, semantic IDs and precision-safe JSON.
+`status: "active" | "unavailable"` explicitly invalidates lost player context.
+Capture sequence is a decimal string in process and on the wire; monotonic
+timestamp nanoseconds and source update sequences use `bigint` in process and
+validated decimal strings on the wire. Native frame time and REST acquisition
+time remain separate clock domains.
+
+The immutable native schema documents battery charge as a fraction, state of
+charge as **percent**, virtual energy as a **fraction**, and regeneration in
+**kW**. Engine temperatures are Celsius; the audited reader separately labels
+motor temperatures Celsius. Engine torque is not the sum of engine and motor
+torques. Best/last/current sector-2 reports retain their native cumulative
+sectors 1–2 meaning and seconds. Motor state 0 means unavailable; no motor
+physics are projected for that state.
+
+Player race control includes outstanding penalty count, completed/scheduled pit
+stops, ignition/starter, overheating, primary flag, full-course yellow state,
+local sector flags, finish/control/count-lap indicators and pit/garage state.
+The schema exposes a penalty **count**, not penalty type, service or duration;
+its steward-results member is a filesystem path, not an observed penalty
+record. Unsupported detailed penalty/service channels remain unavailable.
+Primary flag is limited to the source's green/blue codes, and local sector
+ordering remains unverified; neither is promoted to a generic flag model.
+
+Read-only REST requests use the official LMU HTTP port
+[`6397`](https://lemansultimate.com/how-to-setup-broadcast-overlay/) on loopback,
+with configurable `LMU_REST_BASE_URL`, 500 ms default timeout, a 1 MiB response
+limit, 1 s vehicle-condition/estimate cadence and 60 s setup/session/forecast
+cadence. Unchanged successes update acquisition time only; failures retain
+original successful acquisition and observation ages with explicit error state.
+Capacity, localized refill selection and pit/repair estimate units are still
+unverified and are deliberately unavailable. Raw condition scaling is not
+claimed as a damage/wear percentage.
+
+Source-frame v3 retains the entire v2 native-memory block plus the typed context.
+Its sparse records delta-encode native blocks and retain changing observations,
+states and original timestamp precision in the primary stream. Legacy v1/v2
+remain readable; absent legacy observations cannot be reconstructed. No
+competitor collection, companion BIN, partition migration or opponent UI is
+implemented. Controlled pipeline and selected-lap round-trip evidence does not
+replace `E2E-LMU-REAL-PLAYER`; the Windows LMU acceptance gate remains unverified
+until run against an actual game/version/mode.
+
 
 ### Phase 2 — Multiplayer opponents and companion BIN
 

@@ -2,12 +2,17 @@ import type { PitLine } from "@/lib/canvas/draw-track";
 import { isTelemetryVariableId } from "@raceiq/shared/telemetry/catalog/query";
 import type { TelemetryVariableId } from "@raceiq/shared/telemetry/catalog/generated/telemetry-catalog.types";
 import type { GameId } from "@raceiq/shared/games/ids";
+import type { LmuLiveContextWire } from "@raceiq/shared/telemetry/lmu-context";
 
 export interface SemanticAnalysisFrame {
   values: Readonly<Record<string, unknown>>;
   states: Readonly<Record<string, string | undefined>>;
   freshness: Readonly<Record<string, string | undefined>>;
   source?: "motec" | null;
+  units?: Readonly<Record<string, string | null | undefined>>;
+  lmu?: LmuLiveContextWire;
+  observedAtMs?: number;
+  observedAt?: { domain: string; milliseconds: number };
 }
 
 export interface SemanticValueEntry {
