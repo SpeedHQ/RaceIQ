@@ -19,7 +19,7 @@ import { createAnalysisWheels, updateAnalysisWheels, type AnalysisWheelConfig } 
 import { createTireTrailResource, updateTireTrailResource, disposeTireTrailResource, type TireTrailResource } from "@raceiq/scene-3d/wireframe/TireTrails";
 import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import { inputFocusColor, type SpectateFocus } from "./spectate-focus";
-import { FOCUS_ZOOM_NEAR, FOCUS_ZOOM_SNAP_OUT, focusLaneWidth, focusZoomBlend, offsetFocusLane, projectFocusCenterline, sampleFocusLane, zoomIndicatorPosition, type FocusCenterPoint, type TimedFocusPoint } from "./spectate-focus-lanes";
+import { FOCUS_ZOOM_NEAR, FOCUS_ZOOM_SNAP_OUT, focusLaneWidth, focusZoomBlend, offsetFocusLane, projectFocusCenterline, sampleFocusLane, smallestAvailableModelLength, zoomIndicatorPosition, type FocusCenterPoint, type TimedFocusPoint } from "./spectate-focus-lanes";
 import { sampleMotion } from "../../../lib/spectate-replay";
 const color = (name: string) => resolveCssColor(`var(${name})`);
 type TrackPoint = { x: number; z: number };
@@ -661,7 +661,7 @@ export class SpectateSceneRuntime {
     const first = snapshot.a?.pose ?? null,
       second = snapshot.b?.pose ?? null;
     let radius = Math.max(0.1, this.camera.position.distanceTo(this.controls.target));
-    const modelScale = Math.min(first ? this.modelLengths[0] : Infinity, second ? this.modelLengths[1] : Infinity) * Math.max(1, this.canvas.clientHeight) / (2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)));
+    const modelScale = smallestAvailableModelLength(this.modelLengths, !!first, !!second) * Math.max(1, this.canvas.clientHeight) / (2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)));
     if (this.zoomIdleUntil && now >= this.zoomIdleUntil) {
       this.zoomIdleUntil = 0;
       const partial = this.focusLaneAvailable ? focusZoomBlend(modelScale / radius) : 0;

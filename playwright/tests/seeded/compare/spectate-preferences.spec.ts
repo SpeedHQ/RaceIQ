@@ -65,6 +65,24 @@ test("Spectate panel headers stay aligned and remember opened panels", async ({ 
   for (const id of ids) await toggle(id, true);
   await page.reload();
   for (const id of ids) await expect(page.locator(`[data-panel-toggle="${id}"]`)).toHaveAttribute("aria-expanded", "true");
+  await page.setViewportSize({ width: 900, height: 950 });
+  const compactLayout = await page.locator("[data-spectate-view]").evaluate((root) => {
+    const rail = root.querySelector<HTMLElement>("aside")!;
+    const scene = root.querySelector<HTMLElement>("main")!;
+    const playback = root.querySelector<HTMLElement>("[data-spectate-playback]")!;
+    return {
+      workspace: root.getBoundingClientRect().width,
+      rail: rail.getBoundingClientRect().width,
+      railContent: rail.scrollWidth,
+      scene: scene.getBoundingClientRect().width,
+      playback: playback.getBoundingClientRect().width,
+    };
+  });
+  const minSceneWidth = Math.min(320, compactLayout.workspace * 0.5);
+  expect(compactLayout.scene, "open panels must leave scene space").toBeGreaterThanOrEqual(minSceneWidth);
+  expect(compactLayout.playback, "playback controls remain visible").toBeGreaterThan(0);
+  expect(compactLayout.rail, "panel rail must stay within scene-preserving width").toBeLessThanOrEqual(compactLayout.workspace - minSceneWidth + 1);
+  expect(compactLayout.railContent, "overflowing panels remain horizontally scrollable").toBeGreaterThan(compactLayout.rail);
 });
 
 type ReplayEntry = { semanticId: string; value: unknown; state?: string; freshness?: string };

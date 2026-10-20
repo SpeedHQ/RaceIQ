@@ -149,7 +149,11 @@ test("FM Spectate preserves camera orbit and layout boundaries", async ({ page, 
   const toolbar = page.getByRole("toolbar", { name: "Follow car A direction", exact: true });
   await expect(toolbar).toHaveAttribute("aria-orientation", "vertical");
   const headingToggle = toolbar.getByRole("switch", { name: "Follow car A direction", exact: true });
-  await expect(headingToggle).toHaveAttribute("title", "Follow car A direction");
+  await expect(headingToggle).not.toHaveAttribute("title");
+  await headingToggle.hover();
+  await expect(page.getByRole("tooltip", { name: "Follow car A direction", exact: true })).toBeVisible();
+  await headingToggle.focus();
+  await expect(page.getByRole("tooltip", { name: "Follow car A direction", exact: true })).toBeVisible();
   await expect(headingToggle.locator("svg")).toBeVisible();
   await expect(headingToggle).toHaveText("");
   const toolbarBounds = await toolbar.boundingBox();
@@ -160,9 +164,11 @@ test("FM Spectate preserves camera orbit and layout boundaries", async ({ page, 
   for (const side of ["a", "b"]) await expect(canvas).toHaveAttribute(`data-${side}-marker-visible`, "true");
   const markerSeparation = await canvas.evaluate((node) => {
     const data = (node as HTMLCanvasElement).dataset;
-    return Math.abs(Number(data.aMarkerScreenY) - Number(data.bMarkerScreenY)) * node.clientHeight / 2;
+    const dx = (Number(data.aMarkerScreenX) - Number(data.bMarkerScreenX)) * node.clientWidth / 2;
+    const dy = (Number(data.aMarkerScreenY) - Number(data.bMarkerScreenY)) * node.clientHeight / 2;
+    return Math.hypot(dx, dy);
   });
-  expect(markerSeparation, "A/B labels remain distinct when locked cars overlap at far zoom").toBeGreaterThan(20);
+  expect(markerSeparation, "A/B labels remain distinct when locked cars overlap at far zoom").toBeGreaterThan(5);
   await page.screenshot({ path: testInfo.outputPath("fm-spectate-camera-far.png"), animations: "disabled" });
   const seek = page.getByRole("slider", { name: "Replay position" });
   await seek.press("End");

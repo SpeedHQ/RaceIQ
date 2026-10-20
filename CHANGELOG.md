@@ -69,6 +69,8 @@
 - Preserve Spectate's camera angle when zooming in or out; drag to change the viewing angle manually.
 - Keep Spectate brake and throttle readout widths fixed when percentages reach 100%, preventing dashboard layout shifts.
 - Keep the Spectate 3D scene visible while opening, closing, or resizing side panels.
+- Keep the Spectate scene and playback area usable with multiple panels open by making the panel rail scrollable.
+- Keep failed or invalid Spectate car models from affecting the shared zoom scale of valid models.
 - Open Spectate by default and reuse cached or in-progress telemetry when switching between Spectate and Compare, without duplicate requests.
 - Apply Spectate's A/B colors only to car bodies; keep wheels on Lap Analysis's default appearance.
 - Thin Spectate racing lines smoothly when zooming out while preserving close-up detail.

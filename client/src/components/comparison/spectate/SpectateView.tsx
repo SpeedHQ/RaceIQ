@@ -19,6 +19,7 @@ const DEFAULT_WIDTH = 310;
 const MIN_WIDTH = 270;
 const CAR_PANEL_WIDTH = 384;
 const MAX_WIDTH = 650;
+const MIN_SCENE_WIDTH = 320;
 function clampWidth(value: number, available: number) {
   const maximum = Math.min(MAX_WIDTH, available * 0.88);
   const minimum = Math.min(MIN_WIDTH, maximum);
@@ -63,6 +64,9 @@ export function SpectateView({
   const collapsed = !telemetryOpen;
   const [viewport, setViewport] = useState(typeof window === "undefined" ? 1024 : window.innerWidth);
   const narrow = viewport <= 800;
+  const [workspaceWidth, setWorkspaceWidth] = useState(0);
+  const availableWorkspaceWidth = root.current?.clientWidth || workspaceWidth || viewport;
+  const panelRailMaxWidth = narrow ? "88vw" : Math.max(0, availableWorkspaceWidth - Math.min(MIN_SCENE_WIDTH, availableWorkspaceWidth * 0.5));
   const aiWidth = clampWidth(DEFAULT_WIDTH, root.current?.clientWidth || viewport);
   const setPanelWidth = useCallback((next: number, persist = true) => {
     const value = clampWidth(next, root.current?.clientWidth || window.innerWidth);
@@ -88,10 +92,12 @@ export function SpectateView({
       if (next <= 800 && previousViewport > 800) onTelemetryOpenChange(false);
       previousViewport = next;
       const available = root.current?.clientWidth || window.innerWidth;
+      setWorkspaceWidth(available);
       setWidth((current) => clampWidth(current, available));
     };
     const observer = new ResizeObserver(() => {
       const available = root.current?.clientWidth || window.innerWidth;
+      setWorkspaceWidth(available);
       setWidth((current) => clampWidth(current, available));
     });
     if (root.current) observer.observe(root.current);
@@ -164,7 +170,7 @@ export function SpectateView({
             {leadingClosedTabs.map((tab) => renderPanelTab(tab))}
           </div>}
           <div ref={panelHeaders} data-spectate-panel-headers="" className="flex shrink-0 overflow-x-auto"
-            style={{ width: openPanelsWidth, maxWidth: narrow ? "88vw" : undefined }}
+            style={{ width: openPanelsWidth, maxWidth: panelRailMaxWidth }}
             onScroll={(event) => { if (panelBody.current) panelBody.current.scrollLeft = event.currentTarget.scrollLeft; }}>
             {panelTabs.map((tab, index) => {
               if (!tab.open) return null;
@@ -196,7 +202,7 @@ export function SpectateView({
       <aside ref={panelBody}
         onScroll={(event) => { if (panelHeaders.current) panelHeaders.current.scrollLeft = event.currentTarget.scrollLeft; }}
         className={`inset-y-0 z-30 flex min-h-0 shrink-0 overflow-x-auto overflow-y-hidden border-l border-app-border bg-app-bg ${narrow ? "absolute right-0" : "relative"}`}
-        style={{ width: openPanelsWidth, maxWidth: narrow ? "88vw" : undefined }}
+        style={{ width: openPanelsWidth, maxWidth: panelRailMaxWidth }}
         aria-label={m.spectate_telemetry()}>
         {!collapsed && <section id="spectate-telemetry-panel" aria-label={m.spectate_telemetry()} className="relative h-full shrink-0 bg-app-bg" style={{ width }}>
           <div role="separator" tabIndex={0} aria-orientation="vertical" aria-label={m.spectate_resize_panel()}

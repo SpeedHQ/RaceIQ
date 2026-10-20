@@ -18,7 +18,7 @@ export function SpectateFocusToolbar({ focus, onChange }: { focus: SpectateFocus
               className={`flex size-7 items-center justify-center border p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent ${focus.mode === mode ? "border-app-accent bg-app-accent/10 text-app-accent" : "border-transparent text-app-text-secondary hover:text-app-accent"}`} />}>
               <Icon size={16} aria-hidden="true" />
             </TooltipTrigger>
-            <TooltipContent side="right">{label}</TooltipContent>
+            <TooltipContent role="tooltip" side="right">{label}</TooltipContent>
           </Tooltip>
         );
       })}

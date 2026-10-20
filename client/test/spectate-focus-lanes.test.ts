@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { FOCUS_ZOOM_SNAP_ZONE_END, focusLaneWidth, focusZoomBlend, offsetFocusLane, projectFocusCenterline, sampleFocusLane, zoomIndicatorPosition } from "../src/components/comparison/spectate/spectate-focus-lanes";
+import { FOCUS_ZOOM_SNAP_ZONE_END, focusLaneWidth, focusZoomBlend, offsetFocusLane, projectFocusCenterline, sampleFocusLane, smallestAvailableModelLength, zoomIndicatorPosition } from "../src/components/comparison/spectate/spectate-focus-lanes";
 
 describe("projectFocusCenterline", () => {
   it("projects onto nearest center segment, stripping racing-line lateral jitter", () => {
@@ -148,6 +148,12 @@ describe("zoom interpolation", () => {
     const outward = pixels.map(focusZoomBlend);
     expect(outward.every((value, i) => !i || value > outward[i - 1])).toBe(true);
     expect([...pixels].reverse().map(focusZoomBlend)).toEqual([...outward].reverse());
+  });
+  it("ignores failed and invalid model lengths when selecting a shared zoom scale", () => {
+    expect(smallestAvailableModelLength([0, 2], true, true)).toBe(2);
+    expect(smallestAvailableModelLength([Number.NaN, 2], true, true)).toBe(2);
+    expect(smallestAvailableModelLength([0, 0], true, true)).toBe(Infinity);
+    expect(smallestAvailableModelLength([1, 2], true, true)).toBe(1);
   });
 
   it("thins focus lanes as camera zooms farther out", () => {

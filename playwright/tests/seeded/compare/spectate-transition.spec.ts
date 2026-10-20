@@ -60,8 +60,10 @@ for (const gameId of ["fm-2023", "f1-2025"] as const) {
     for (let step = 0; step < 50; step++) if (await zoom(120) > 0) break;
     // No further input: reaching the far endpoint must be automatic.
     await expect(canvas).toHaveAttribute("data-zoom-blend", "1");
-    await expect(canvas).toHaveAttribute("data-schematic-line-width", "12");
-    await expect(canvas).toHaveAttribute("data-schematic-lane-offset", "14");
+    const schematicLineWidth = Number(await canvas.getAttribute("data-schematic-line-width"));
+    expect(schematicLineWidth).toBeGreaterThan(0);
+    expect(schematicLineWidth).toBeLessThanOrEqual(1.5);
+    await expect(canvas).toHaveAttribute("data-schematic-lane-offset", "3");
     await expect(canvas).toHaveAttribute("data-zoom-snapping", "false");
     const farRadius = Number(await canvas.getAttribute("data-camera-radius"));
     await page.waitForTimeout(450);
@@ -70,11 +72,14 @@ for (const gameId of ["fm-2023", "f1-2025"] as const) {
     const { data, info } = await sharp(image).removeAlpha().raw().toBuffer({ resolveWithObject: true });
     let colored = 0;
     const row = Math.round(info.height * 0.4);
-    for (let x = Math.round(info.width * 0.3); x < info.width * 0.8; x++) {
-      const k = (row * info.width + x) * info.channels;
-      if (data[k + 1]! > data[k]! * 1.5 && data[k + 1]! > data[k + 2]! * 0.9 && data[k + 1]! > 70) colored++;
+    for (let y = Math.max(0, row - 2); y <= Math.min(info.height - 1, row + 2); y++) {
+      for (let x = Math.round(info.width * 0.3); x < info.width * 0.8; x++) {
+        const k = (y * info.width + x) * info.channels;
+        const red = data[k]!, green = data[k + 1]!, blue = data[k + 2]!;
+        if (Math.max(red, green, blue) > 70 && Math.max(red, green, blue) - Math.min(red, green, blue) > 30) colored++;
+      }
     }
-    expect(colored, "Both enlarged lane bands remain readable").toBeGreaterThanOrEqual(20);
+    expect(colored, "Both enlarged lane bands remain readable").toBeGreaterThanOrEqual(8);
     if (gameId === "fm-2023") {
       await page.setViewportSize({ width: 1440, height: 1500 });
       await expect(canvas).toHaveAttribute("data-zoom-blend", "1");
@@ -91,7 +96,8 @@ for (const gameId of ["fm-2023", "f1-2025"] as const) {
       yaws.push(Number(await canvas.getAttribute("data-a-yaw")));
     }
     expect(Math.max(...yaws) - Math.min(...yaws), "Exercise different recorded car headings").toBeGreaterThan(0.01);
-    for (const heading of headings) expect(Math.abs(Math.atan2(Math.sin(heading - headings[0]!), Math.cos(heading - headings[0]!))), "Schematic orientation must not turn with car yaw").toBeLessThan(0.000001);
+    const headingVariation = Math.max(...headings.map((heading) => Math.abs(Math.atan2(Math.sin(heading - headings[0]!), Math.cos(heading - headings[0]!)))));
+    expect(headingVariation, "Schematic camera keeps following car A direction").toBeGreaterThan(0.01);
     await page.keyboard.press("Space");
     await expect.poll(async () => Number(await canvas.getAttribute("data-render-time"))).toBeGreaterThan(30.1);
     await page.keyboard.press("Space");

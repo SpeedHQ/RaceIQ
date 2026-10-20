@@ -102,6 +102,16 @@ export function focusZoomBlend(modelPixels: number): number {
   return t * t * (3 - 2 * t);
 }
 
+export function smallestAvailableModelLength(
+  lengths: readonly [number, number],
+  hasPoseA: boolean,
+  hasPoseB: boolean,
+): number {
+  const lengthA = hasPoseA && Number.isFinite(lengths[0]) && lengths[0] > 0 ? lengths[0] : Infinity;
+  const lengthB = hasPoseB && Number.isFinite(lengths[1]) && lengths[1] > 0 ? lengths[1] : Infinity;
+  return Math.min(lengthA, lengthB);
+}
+
 export function zoomIndicatorPosition(modelPixels: number): number {
   return Math.max(0, Math.min(1, Math.log(FOCUS_ZOOM_NEAR / Math.max(Number.MIN_VALUE, modelPixels)) / Math.log(FOCUS_ZOOM_NEAR / FOCUS_ZOOM_SNAP_OUT)));
 }

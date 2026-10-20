@@ -74,7 +74,7 @@ for (const gameId of ["fm-2023", "f1-2025"] as const) {
     await expect(page.getByRole("tooltip", { name: "Inputs", exact: true })).toBeVisible();
     await focusInputButton.focus();
     await expect(page.getByRole("tooltip", { name: "Inputs", exact: true })).toBeVisible();
-    const sceneToolbar = scene.getByRole("toolbar", { name: "Direction lock", exact: true });
+    const sceneToolbar = scene.getByRole("toolbar", { name: "Follow car A direction", exact: true });
     const overviewButton = sceneToolbar.getByRole("switch", { name: "Circuit overview", exact: true });
     await expect(overviewButton).not.toHaveAttribute("title");
     await overviewButton.hover();
@@ -109,8 +109,10 @@ for (const gameId of ["fm-2023", "f1-2025"] as const) {
     await expect(canvas).toHaveAttribute("data-native-view-visible", "false");
     const laneWidth = Number(await canvas.getAttribute("data-schematic-line-width"));
     const laneOffset = Number(await canvas.getAttribute("data-schematic-lane-offset"));
-    expect(laneWidth).toBeGreaterThanOrEqual(6);
-    expect(laneOffset * 2).toBeGreaterThan(laneWidth);
+    expect(laneWidth).toBeGreaterThan(0);
+    expect(laneWidth).toBeLessThanOrEqual(3.75);
+    expect(laneOffset).toBeGreaterThanOrEqual(1.5);
+    expect(laneOffset).toBeLessThanOrEqual(3);
     for (const side of ["a", "b"]) {
       await expect(canvas).toHaveAttribute(`data-${side}-marker-visible`, "true");
       await expect(canvas).toHaveAttribute(`data-${side}-marker-opacity`, "1");

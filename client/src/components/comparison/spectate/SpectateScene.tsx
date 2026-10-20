@@ -19,7 +19,7 @@ function ToolbarTooltip({ tooltip, side = "right", children, ...buttonProps }: T
   return (
     <Tooltip>
       <TooltipTrigger render={<button {...buttonProps} />}>{children}</TooltipTrigger>
-      <TooltipContent side={side}>{tooltip}</TooltipContent>
+      <TooltipContent role="tooltip" side={side}>{tooltip}</TooltipContent>
     </Tooltip>
   );
 }
