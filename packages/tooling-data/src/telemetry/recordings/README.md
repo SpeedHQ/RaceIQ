@@ -15,6 +15,7 @@ Cross-game tools for inspecting, replaying, compressing, and auditing recorded t
 | `bun packages/tooling-data/src/telemetry/recordings/scan-currentlap.ts` | Built-in FM and F1 fixtures | Current-lap ranges and reset transitions |
 | `bun run apps/backend/scripts/telemetry/recordings/scan-lap-offsets.ts <sessionId>` | Database session ID with raw file | Lap transitions and raw byte offsets |
 | `bun run apps/backend/scripts/telemetry/recordings/verify-lap-alignment.ts <sessionId>` | Database session ID with raw file and laps | DB/file offset skew report |
+| `bun packages/game-f1-2025/test/measure-f1-capture-size.ts [fixtureName]` | Committed F1 recording fixture; defaults to the April 22 capture | Same-framing before/after raw and gzip byte counts for motion-channel omission |
 
 ## Boundaries and verification
 

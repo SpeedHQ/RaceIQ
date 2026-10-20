@@ -1,6 +1,7 @@
 import type { Stats } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import type { GameId } from "@raceiq/shared/games/ids";
+import { decodeF1CaptureFrame, isF1CaptureFrame } from "@raceiq/capture-formats/f1-2025/f1-wire";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { MOTEC_SESSION_SOURCE } from "@raceiq/shared/integrations/motec";
 import { decodeMotecSourceArchive, type MotecOffsetEncoding } from "../motec/source-archive";
@@ -390,8 +391,9 @@ export async function* iterateSessionCaptureRecordsFromSource(
           checkpointOffset = checkpointIdentity ? frameOffset : -1;
         }
         previous = frame;
-        if (prefix.frameTimeMs === undefined) yield { kind: "frame", offset: frameOffset, endOffset: offset, frame };
-        else yield { kind: "frame", offset: frameOffset, endOffset: offset, frame, frameTimeMs: prefix.frameTimeMs };
+        const outputFrame = isF1CaptureFrame(frame) ? decodeF1CaptureFrame(frame) : frame;
+        if (prefix.frameTimeMs === undefined) yield { kind: "frame", offset: frameOffset, endOffset: offset, frame: outputFrame };
+        else yield { kind: "frame", offset: frameOffset, endOffset: offset, frame: outputFrame, frameTimeMs: prefix.frameTimeMs };
       }
     }
     if (options.strict && (!initialized || pending.length !== 0)) throw new Error(`Truncated capture record at ${offset}`);

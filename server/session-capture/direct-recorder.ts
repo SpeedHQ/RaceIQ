@@ -3,7 +3,7 @@ import { mkdir, open, rename, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import { Schema } from "effect";
 import { ChunkSchema, ManifestSchema, type Chunk, type Manifest } from "@raceiq/capture-splitting";
-import { encodeFrameLength, encodeMetaFrame, encodeParserBootstrapFrame, encodeSegmentBoundaryFrame, encodeSegmentContextEndFrame, encodeSegmentContextFrame, encodeSparseCaptureFormatFrame, iterateSessionCaptureRecords, META_FRAME_BYTES } from "@raceiq/capture-formats/session/framing";
+import { compactF1CaptureRecords, encodeFrameLength, encodeMetaFrame, encodeParserBootstrapFrame, encodeSegmentBoundaryFrame, encodeSegmentContextEndFrame, encodeSegmentContextFrame, encodeSparseCaptureFormatFrame, iterateSessionCaptureRecords, META_FRAME_BYTES } from "@raceiq/capture-formats/session/framing";
 import { PreopenedFileWriter, type PreopenedFileInfo, type PreopenedFileWriterOptions } from "@raceiq/capture-formats/session/preopened-file-writer";
 import { SparseCaptureEncoder } from "@raceiq/capture-formats/session/sparse-recorder";
 import type { GameId } from "@raceiq/shared/games/ids";
@@ -224,8 +224,9 @@ export class DirectCaptureRecording {
   }
   writeRawCaptureBytes(bytes: Buffer): void {
     this.current.encoder!.reset();
-    this.append(bytes);
-    for (const record of iterateSessionCaptureRecords(bytes, 0, { strict: true })) {
+    const captureBytes = this.gameId === "f1-2025" ? compactF1CaptureRecords(bytes) : bytes;
+    this.append(captureBytes);
+    for (const record of iterateSessionCaptureRecords(captureBytes, 0, { strict: true })) {
       if (record.kind === "parser-bootstrap") this.current.bootstrapHash = createHash("sha256").update(record.payload).digest("hex");
       const start = this.sourceBytes;
       const timestamp = record.kind === "frame" && "frameTimeMs" in record ? record.frameTimeMs : undefined;
@@ -285,7 +286,8 @@ export class DirectCaptureRecording {
       if (plan.precedingRecords.length) {
         const contextStart = encodeSegmentContextFrame(); next.prefixBytes += contextStart.length; this.append(contextStart);
         for (const record of plan.precedingRecords) {
-          const bytes = Buffer.concat([encodeFrameLength(record.frame.length, record.timestampMs), record.frame]);
+          const nativeBytes = Buffer.concat([encodeFrameLength(record.frame.length, record.timestampMs), record.frame]);
+          const bytes = this.gameId === "f1-2025" ? compactF1CaptureRecords(nativeBytes) : nativeBytes;
           next.prefixBytes += bytes.length; this.append(bytes);
         }
         const end = encodeSegmentContextEndFrame(); next.prefixBytes += end.length; this.append(end);
@@ -313,7 +315,7 @@ export class DirectCaptureRecording {
     this.lastFrame = { ...frame, localOffset };
   }
   private part(info: PreopenedFileInfo, ordinal: number, sourceStart: number, kind: Part["kind"]): Part {
-    return { info, encoder: new SparseCaptureEncoder(this.gameId), localOffset: 0, prefixBytes: 0, records: 0, firstOrdinal: ordinal, sourceStart, sourceEnd: sourceStart, kind };
+    return { info, encoder: new SparseCaptureEncoder(this.gameId, true), localOffset: 0, prefixBytes: 0, records: 0, firstOrdinal: ordinal, sourceStart, sourceEnd: sourceStart, kind };
   }
   private append(bytes: Buffer): void { this.writer.appendOwned(bytes); this.current.localOffset += bytes.length; }
   private ordinalAt(offset: number): number | null { return this.lastFrame?.start === offset ? this.lastFrame.ordinal : null; }

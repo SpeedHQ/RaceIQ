@@ -13,6 +13,7 @@ import { isLmuSparseFrame } from "@raceiq/capture-formats/session/lmu-sparse";
 import { SparseCaptureEncoder } from "@raceiq/capture-formats/session/sparse-recorder";
 import { runSplitWorker, splitCapturePromise } from "@raceiq/capture-splitting";
 import type { ServerGameAdapter } from "@raceiq/backend-core/games/types";
+import { F1StateAccumulator } from "@raceiq/game-f1-2025/f1-state";
 import { prepareLapWindowsForSplit } from "../../src/session-capture/split-windows";
 
 const directories: string[] = [];
@@ -100,6 +101,46 @@ test("splits exact detector windows from plain and gzip sources with timestamps 
         expect(context?.kind === "frame" ? context.frame : null).toEqual(sourceFrames[chunk.sourceEnd]!.frame);
       }
     }
+  }
+});
+
+test("F1 splitting conserves historical motion-platform values and compact zero-filled recordings", async () => {
+  for (const omittedValue of [7, 0]) {
+    const root = directory();
+    const sourcePath = join(root, "f1-source.bin");
+    const outputDirectory = join(root, "staged");
+    const frames = [1, 2, 3].map((angle) => {
+      const frame = Buffer.alloc(253);
+      frame.writeUInt16LE(2025, 0);
+      frame[2] = 25; frame[5] = 1; frame[6] = 13;
+      frame.writeFloatLE(omittedValue, 29 + 16);
+      frame.writeFloatLE(omittedValue, 29 + 132);
+      frame.writeFloatLE(omittedValue, 29 + 156);
+      frame.writeFloatLE(angle, 29 + 168);
+      return frame;
+    });
+    const encoder = new SparseCaptureEncoder("f1-2025");
+    let offset = 12;
+    const offsets: number[] = [];
+    const records = frames.map((frame, index) => {
+      offsets.push(offset);
+      const record = encodeRecord(encoder.encode(frame, offset), index * 10);
+      offset += record.length;
+      return record;
+    });
+    writeFileSync(sourcePath, Buffer.concat([encodeMetaFrame(3), ...records]));
+    const manifest = await splitCapturePromise({
+      sourcePath, outputDirectory, gameId: "f1-2025", sourceRevision: `f1-${omittedValue}`,
+      lapWindows: [{
+        lapId: "lap-1", lapNumber: 1, startByteOffset: offsets[1]!, frameCount: 2,
+        parserCheckpoint: new F1StateAccumulator().captureCheckpoint(),
+      }],
+    });
+    const chunk = manifest.chunks.find(({ lapId }) => lapId === "lap-1")!;
+    const replayed = (await readChunkRecords(manifest, outputDirectory, chunk))
+      .filter((record) => record.kind === "frame");
+    expect(replayed.map((record) => record.frame)).toEqual(frames.slice(1));
+    expect(replayed.map((record) => record.frameTimeMs)).toEqual([10, 20]);
   }
 });
 

@@ -7,6 +7,7 @@
 - Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
 
 ### Fixes
+- Reduce new F1 25 recording sizes by omitting motion-platform-only data while preserving replay, maps, and analysis telemetry.
 - Keep first-run setup responsive by omitting the optional telemetry demo.
 - Use LMU game-world coordinates directly for track geometry, preserving edge-hugging and off-track positions.
 - Prevent overlapping database writes from blocking recording imports and setup or session deletion.

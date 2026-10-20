@@ -16,6 +16,7 @@ import {
   F1_HEADER_SIZE,
   type F1Header,
 } from "@raceiq/capture-formats/f1-2025/f1-wire";
+import { SparseSessionRecorder } from "@raceiq/capture-formats/session/sparse-recorder";
 
 function header(packetId: number): F1Header {
   return {
@@ -114,15 +115,18 @@ describe("F1 telemetry contract", () => {
         add(6, time, tick, telemetryData(100 + tick));
         add(13, time, tick, motionExData(tick));
       }
+      const capturePath = join(root, "sparse-source.bin");
+      const sparseRecorder = new SparseSessionRecorder("f1-2025");
+      sparseRecorder.start(capturePath);
+      sparseRecorder.writeMetaFrame();
+      for (const sourceFrame of sourceFrames) sparseRecorder.writeRecord(sourceFrame);
+      await sparseRecorder.stop();
+      const persistedRecords = [...iterateSessionCaptureRecords(readFileSync(capturePath))]
+        .filter((record) => record.kind === "frame");
       const source = {
         gameId: "f1-2025" as const,
         records: async function* () {
-          let offset = 0;
-          for (const frame of sourceFrames) {
-            const endOffset = offset + encodeFrameLength(frame.length).length + frame.length;
-            yield { kind: "frame" as const, offset, endOffset, frame };
-            offset = endOffset;
-          }
+          for (const record of persistedRecords) if (record.kind === "frame") yield record;
         },
         createTelemetryParser: () => {
           const state = f1Parser.createParserState();
@@ -134,7 +138,7 @@ describe("F1 telemetry contract", () => {
             reset() { state.reset(); },
           };
         },
-        lapIndexes: [{ lapId: 1, rawByteOffset: 0, rawFrameCount: 35 }],
+        lapIndexes: [{ lapId: 1, rawByteOffset: persistedRecords[0]!.offset, rawFrameCount: 35 }],
       };
       const outputPath = join(root, "replayed.bin");
       const inspection = await inspectDownsampleRecording(source);

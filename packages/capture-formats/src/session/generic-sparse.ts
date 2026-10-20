@@ -1,3 +1,4 @@
+import { isF1CaptureFrame } from "../f1-2025/f1-wire";
 import { readSourceFrameHeader, SOURCE_FRAME_HEADER_SIZE, SOURCE_FRAME_MAGIC } from "@raceiq/capture-formats/iracing/source-frame-codec";
 
 // RQSD v1: [magic 4][version 1][checkpoint distance 4][source length 4]
@@ -17,6 +18,11 @@ export function genericFrameIdentity(frame: Buffer): string | null {
     const header = readSourceFrameHeader(frame);
     return header && header.payloadLength + SOURCE_FRAME_HEADER_SIZE === frame.length
       ? `iracing:${header.schemaVersion}:${header.frameType}:${frame.length}` : null;
+  }
+  if (isF1CaptureFrame(frame) && frame.length >= 38 && frame[4] === 1 &&
+      frame.readUInt16LE(9) === 2025 && frame[15] === 13) {
+    const nativeLength = frame.readUInt32LE(5) + 29;
+    return `f1:${frame.subarray(9, 16).toString("hex")}:${frame.subarray(16, 24).toString("hex")}:${nativeLength}`;
   }
   if (frame.length >= 29 && frame.readUInt16LE(0) === 2025) {
     return `f1:${frame.subarray(0, 7).toString("hex")}:${frame.subarray(7, 15).toString("hex")}:${frame.length}`;

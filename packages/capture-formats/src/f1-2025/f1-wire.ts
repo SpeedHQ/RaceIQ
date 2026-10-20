@@ -31,6 +31,82 @@ export const F1_PACKET_IDS = {
 
 export type F1PacketId = (typeof F1_PACKET_IDS)[keyof typeof F1_PACKET_IDS];
 
+const F1_CAPTURE_MAGIC = Buffer.from("F1CX", "ascii");
+const F1_CAPTURE_VERSION = 1;
+const F1_CAPTURE_HEADER_BYTES = 9;
+const F1_MOTION_EX_PACKET_ID = F1_PACKET_IDS.MOTION_EX;
+const F1_OMITTED_BODY_RANGES = [[16, 48], [132, 144], [156, 168]] as const;
+
+export function isF1CaptureFrame(payload: Buffer): boolean {
+  return payload.length >= 4 && payload.subarray(0, 4).equals(F1_CAPTURE_MAGIC);
+}
+
+/** Compact only the platform-only MOTION_EX body channels. Invalid inputs stay byte-identical. */
+export function encodeF1CaptureFrame(frame: Buffer): Buffer {
+  if (frame.length < F1_HEADER_SIZE || frame.readUInt16LE(0) !== 2025 ||
+      frame.readUInt8(2) !== 25 || frame.readUInt8(5) !== 1 ||
+      frame.readUInt8(6) !== F1_MOTION_EX_PACKET_ID) return frame;
+  const bodyLength = frame.length - F1_HEADER_SIZE;
+  if (bodyLength < 224 || bodyLength > 16 * 1024 * 1024) return frame;
+  const compactLength = bodyLength - 56;
+  const result = Buffer.allocUnsafe(F1_CAPTURE_HEADER_BYTES + F1_HEADER_SIZE + compactLength);
+  F1_CAPTURE_MAGIC.copy(result);
+  result[4] = F1_CAPTURE_VERSION;
+  result.writeUInt32LE(bodyLength, 5);
+  frame.copy(result, F1_CAPTURE_HEADER_BYTES, 0, F1_HEADER_SIZE);
+  let source = F1_HEADER_SIZE;
+  let target = F1_CAPTURE_HEADER_BYTES + F1_HEADER_SIZE;
+  for (const [start, end] of F1_OMITTED_BODY_RANGES) {
+    const keep = start - (source - F1_HEADER_SIZE);
+    frame.copy(result, target, source, source + keep);
+    source += keep + end - start;
+    target += keep;
+  }
+  frame.copy(result, target, source);
+  return result;
+}
+/** Compact without changing native bytes, for lossless splitting/downsampling. */
+export function encodeLosslessF1CaptureFrame(frame: Buffer): Buffer {
+  if (frame.length < F1_HEADER_SIZE + 224 || frame.readUInt16LE(0) !== 2025 ||
+      frame[6] !== F1_MOTION_EX_PACKET_ID) return frame;
+  for (const [start, end] of F1_OMITTED_BODY_RANGES) {
+    for (let offset = F1_HEADER_SIZE + start; offset < F1_HEADER_SIZE + end; offset++) {
+      if (frame[offset] !== 0) return frame;
+    }
+  }
+  return encodeF1CaptureFrame(frame);
+}
+
+
+/** Restore compact capture envelope to native layout; unrecognized bytes stay unchanged. */
+export function decodeF1CaptureFrame(payload: Buffer): Buffer {
+  if (!isF1CaptureFrame(payload)) return payload;
+  if (payload.length < F1_CAPTURE_HEADER_BYTES + F1_HEADER_SIZE || payload[4] !== F1_CAPTURE_VERSION) {
+    throw new Error("Invalid F1 capture frame version or header");
+  }
+  const bodyLength = payload.readUInt32LE(5);
+  if (bodyLength < 224 || bodyLength > 16 * 1024 * 1024 ||
+      payload.length !== F1_CAPTURE_HEADER_BYTES + F1_HEADER_SIZE + bodyLength - 56 ||
+      payload.readUInt16LE(F1_CAPTURE_HEADER_BYTES) !== 2025 ||
+      payload[F1_CAPTURE_HEADER_BYTES + 2] !== 25 ||
+      payload[F1_CAPTURE_HEADER_BYTES + 5] !== 1 ||
+      payload[F1_CAPTURE_HEADER_BYTES + 6] !== F1_MOTION_EX_PACKET_ID) {
+    throw new Error("Invalid F1 capture frame length or packet");
+  }
+  const frame = Buffer.alloc(payload.length - F1_CAPTURE_HEADER_BYTES + 56);
+  payload.copy(frame, 0, F1_CAPTURE_HEADER_BYTES, F1_CAPTURE_HEADER_BYTES + F1_HEADER_SIZE);
+  let source = F1_CAPTURE_HEADER_BYTES + F1_HEADER_SIZE;
+  let nativeBodyOffset = 0;
+  for (const [start, end] of F1_OMITTED_BODY_RANGES) {
+    const keep = start - nativeBodyOffset;
+    payload.copy(frame, F1_HEADER_SIZE + nativeBodyOffset, source, source + keep);
+    source += keep;
+    nativeBodyOffset = end;
+  }
+  payload.copy(frame, F1_HEADER_SIZE + nativeBodyOffset, source);
+  return frame;
+}
+
 export function parseF1Header(buf: Buffer): F1Header {
   return {
     packetFormat: buf.readUInt16LE(0),

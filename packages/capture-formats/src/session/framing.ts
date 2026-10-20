@@ -1,3 +1,4 @@
+import { decodeF1CaptureFrame, encodeF1CaptureFrame, isF1CaptureFrame } from "../f1-2025/f1-wire";
 import { decodeLmuSparseFrame, isLmuSparseFrame } from "./lmu-sparse";
 import { decodeGenericSparseFrame, genericFrameIdentity, isGenericSparseFrame } from "./generic-sparse";
 import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
@@ -148,6 +149,34 @@ function readRecorderFrameStreamStart(bytes: Buffer): number {
   if (bytes.length < META_FRAME_BYTES) throw new Error("Truncated session capture record");
   return META_FRAME_BYTES;
 }
+
+/** Compact framed F1 MOTION_EX records in raw session-context batches only. */
+export function compactF1CaptureRecords(bytes: Buffer): Buffer {
+  const parts: Buffer[] = [];
+  let changed = false;
+  let offset = 0;
+  while (offset < bytes.length) {
+    if (offset + 8 <= bytes.length && bytes.readUInt32LE(offset) === META_FRAME_MAGIC) {
+      const end = offset + 8 + bytes.readUInt32LE(offset + 4);
+      if (end > bytes.length) return bytes;
+      parts.push(bytes.subarray(offset, end));
+      offset = end;
+      continue;
+    }
+    const prefix = readFramePrefix(bytes, offset);
+    if (!prefix || offset + prefix.prefixBytes + prefix.length > bytes.length) return bytes;
+    const payloadOffset = offset + prefix.prefixBytes;
+    const payload = bytes.subarray(payloadOffset, payloadOffset + prefix.length);
+    const compact = encodeF1CaptureFrame(payload);
+    if (compact === payload) parts.push(bytes.subarray(offset, payloadOffset + prefix.length));
+    else {
+      changed = true;
+      parts.push(encodeFrameLength(compact.length, prefix.frameTimeMs), compact);
+    }
+    offset = payloadOffset + prefix.length;
+  }
+  return changed ? Buffer.concat(parts) : bytes;
+}
 interface SessionFrameIterationOptions { skipMetaFrames?: boolean; allowEmptyFrames?: boolean; strict?: boolean; }
 
 /**
@@ -292,9 +321,10 @@ export function* iterateSessionCaptureRecords(
       checkpointOffset = checkpointIdentity ? recordOffset : -1;
     }
     previous = frame;
+    const outputFrame = isF1CaptureFrame(frame) ? decodeF1CaptureFrame(frame) : frame;
     if (recordOffset >= requestedOffset) {
-      if (frameTimeMs === undefined) yield { kind: "frame", offset: recordOffset, endOffset: payloadOffset + length, frame };
-      else yield { kind: "frame", offset: recordOffset, endOffset: payloadOffset + length, frame, frameTimeMs };
+      if (frameTimeMs === undefined) yield { kind: "frame", offset: recordOffset, endOffset: payloadOffset + length, frame: outputFrame };
+      else yield { kind: "frame", offset: recordOffset, endOffset: payloadOffset + length, frame: outputFrame, frameTimeMs };
     }
     offset = payloadOffset + length;
   }
@@ -432,8 +462,9 @@ export async function* iterateSessionCaptureRecordsAsync(
         checkpointOffset = checkpointIdentity ? recordOffset : -1;
       }
       previous = frame;
+      const outputFrame = isF1CaptureFrame(frame) ? decodeF1CaptureFrame(frame) : frame;
       const endOffset = offset;
-      yield frameTimeMs === undefined ? { kind: "frame", offset: recordOffset, endOffset, frame } : { kind: "frame", offset: recordOffset, endOffset, frame, frameTimeMs };
+      yield frameTimeMs === undefined ? { kind: "frame", offset: recordOffset, endOffset, frame: outputFrame } : { kind: "frame", offset: recordOffset, endOffset, frame: outputFrame, frameTimeMs };
     }
   } finally {
     await iterator.return?.();

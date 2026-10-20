@@ -137,7 +137,14 @@ export class F1StateAccumulator {
       sessionUID: this.sessionUID.toString(10),
       motion: this.motion, carTelemetry: this.carTelemetry, lapData: this.lapData,
       finalClassification: this.finalClassification, carStatus: this.carStatus,
-      carDamage: this.carDamage, carSetup: this.carSetup, motionEx: this.motionEx,
+      carDamage: this.carDamage, carSetup: this.carSetup,
+      // V1 checkpoint shape remains stable; zero capture-only channels on copied state.
+      motionEx: this.motionEx ? {
+        ...this.motionEx,
+        suspensionVelocityRL: 0, suspensionVelocityRR: 0, suspensionVelocityFL: 0, suspensionVelocityFR: 0,
+        localVelocityX: 0, localVelocityY: 0, localVelocityZ: 0,
+        angularAccelerationX: 0, angularAccelerationY: 0, angularAccelerationZ: 0,
+      } : null,
       session: this.session, participants: this.participants.slice(),
       driverHistory: [...this.driverHistory],
       driverLapSectors: [...this.driverLapSectors].map(([driver, sectors]) => [driver, [...sectors]]),

@@ -46,6 +46,16 @@ function fixtureFrames(name: string, gameId: GameId): Buffer[] {
   return frames;
 }
 
+function recordedFrames(frames: Buffer[], gameId: GameId): Buffer[] {
+  if (gameId !== "f1-2025") return frames;
+  return frames.map((frame) => {
+    if (frame[6] !== 13 || frame[2] !== 25 || frame[5] !== 1 || frame.length < 253) return frame;
+    const expected = Buffer.from(frame);
+    for (const [start, end] of [[16, 48], [132, 144], [156, 168]]) expected.fill(0, 29 + start, 29 + end);
+    return expected;
+  });
+}
+
 describe("generic sparse session recorder", () => {
   test.each([
     ["fm-2023", "fm-2023-2026-04-09T21-55-03-186Z.bin.gz"],
@@ -61,6 +71,7 @@ describe("generic sparse session recorder", () => {
     const recorder = new SparseSessionRecorderAdapter();
     recorder.start(gameId); recorder.writeMetaFrame();
     const frames = fixtureFrames(fixture, gameId);
+    const expectedFrames = recordedFrames(frames, gameId);
     const offsets: number[] = [];
     for (const frame of frames) { offsets.push(recorder.getCurrentByteOffset()); recorder.writeRecord(frame); }
     const file = recorder.path!;
@@ -73,18 +84,18 @@ describe("generic sparse session recorder", () => {
     const bytes = readFileSync(file);
     const records = [...iterateSessionCaptureRecords(bytes)];
     expect(records.map((record) => record.kind === "frame" ? record.offset : -1)).toEqual(offsets);
-    expect(records.map((record) => record.kind === "frame" ? record.frame : null)).toEqual(frames);
+    expect(records.map((record) => record.kind === "frame" ? record.frame : null)).toEqual(expectedFrames);
     for (const index of [0, 1, 126, 127, 128, 129, 259]) {
-      if (index < frames.length) expect(sessionFrameAt(bytes, offsets[index]!)).toEqual(frames[index]);
+      if (index < frames.length) expect(sessionFrameAt(bytes, offsets[index]!)).toEqual(expectedFrames[index]);
     }
     const streamed: Buffer[] = [];
     for await (const record of iterateSessionCaptureFrames({ rawFile: file, source: null, gameId, carId: "0", trackId: "0" })) streamed.push(record.frame);
-    expect(streamed).toEqual(frames);
+    expect(streamed).toEqual(expectedFrames);
     const gzFile = join(dir, "capture.bin.gz");
     writeFileSync(gzFile, gzipSync(bytes));
     const gzFrames: Buffer[] = [];
     for await (const record of iterateSessionCaptureFrames({ rawFile: gzFile, source: null, gameId, carId: "0", trackId: "0" })) gzFrames.push(record.frame);
-    expect(gzFrames).toEqual(frames);
+    expect(gzFrames).toEqual(expectedFrames);
     if (gameId === "fm-2023" || gameId === "f1-2025") {
       const deltas = records.filter((record) => record.kind === "frame" && isGenericSparseFrame(bytes.subarray(record.offset + 4, record.offset + 4 + bytes.readUInt32LE(record.offset))));
       expect(deltas.length).toBeGreaterThan(0);
@@ -101,6 +112,7 @@ describe("generic sparse session recorder", () => {
   ] as const)("preserves acquisition UTC, gaps and source bytes for %s", async (gameId, fixture) => {
     const dir = mkdtempSync(join(tmpdir(), "raceiq-captured-utc-")); dirs.push(dir);
     const frames = fixtureFrames(fixture, gameId);
+    const expectedFrames = recordedFrames(frames, gameId);
     const timestamps = frames.map((_, i) => 1_745_000_000_000 + i * 10 + (i >= 2 ? 5_000 : 0));
     const sparseFile = join(dir, "sparse.bin");
     const sparse = new SparseSessionRecorder(gameId);
@@ -115,11 +127,11 @@ describe("generic sparse session recorder", () => {
     const bytes = readFileSync(sparseFile);
     const records = [...iterateSessionCaptureRecords(bytes)].filter((record) => record.kind === "frame");
     expect(records.map((record) => record.frameTimeMs)).toEqual(timestamps);
-    expect(records.map((record) => record.frame)).toEqual(frames);
+    expect(records.map((record) => record.frame)).toEqual(expectedFrames);
     expect(records.map((record) => record.offset)).toEqual(offsets);
     expect(timestamps[2]! - timestamps[1]!).toBe(5_010);
     for (const index of [0, 1, 127, 128, frames.length - 1]) {
-      if (index < frames.length) expect(sessionFrameAt(bytes, offsets[index]!)).toEqual(frames[index]);
+      if (index < frames.length) expect(sessionFrameAt(bytes, offsets[index]!)).toEqual(expectedFrames[index]);
     }
     const source = (rawFile: string) => ({ rawFile, source: null, gameId, carId: "0", trackId: "0" });
     const sparsePackets = await parseRawLapFrames(source(sparseFile), 12, frames.length);

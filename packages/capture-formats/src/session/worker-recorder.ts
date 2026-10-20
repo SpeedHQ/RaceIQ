@@ -1,5 +1,5 @@
 import { Worker } from "node:worker_threads";
-import { encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, META_FRAME_BYTES, encodeSparseCaptureFormatFrame, iterateSessionCaptureRecords } from "./framing";
+import { compactF1CaptureRecords, encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, META_FRAME_BYTES, encodeSparseCaptureFormatFrame, iterateSessionCaptureRecords } from "./framing";
 import { SparseCaptureEncoder } from "./sparse-recorder";
 
 export type WorkerRecorderState = "recording" | "closing" | "closed" | "failed";
@@ -45,6 +45,7 @@ const RECORD_TRANSPORT_OVERHEAD_BYTES = 128;
 const SPARSE_MARKER_FRAME_BYTES = 16;
 /** Sparse source recorder whose ingress path only encodes, reserves, and copies bounded transport bytes. */
 export class WorkerSessionRecorder {
+  private readonly gameId: ConstructorParameters<typeof SparseCaptureEncoder>[0];
   private readonly encoder: SparseCaptureEncoder;
   readonly worker: Worker;
   private readonly ownsWorker: boolean;
@@ -83,7 +84,8 @@ export class WorkerSessionRecorder {
   private failureListeners = new Set<(error: Error) => void>();
   constructor(gameId: ConstructorParameters<typeof SparseCaptureEncoder>[0] = "lmu", options: WorkerRecorderOptions = {}) {
 
-    this.encoder = new SparseCaptureEncoder(gameId);
+    this.gameId = gameId;
+    this.encoder = new SparseCaptureEncoder(gameId, true);
     this.options = {
       ...DEFAULTS,
       ...options,
@@ -148,11 +150,12 @@ export class WorkerSessionRecorder {
   }
   writeRawCaptureBytes(bytes: Buffer): void {
     this.assertAccepting();
+    const captureBytes = this.gameId === "f1-2025" ? compactF1CaptureRecords(bytes) : bytes;
     let sourceRecordDelta = 0;
     if (this.options.canonicalRawCaptureBytes) {
-      for (const _record of iterateSessionCaptureRecords(bytes, 0, { strict: true })) sourceRecordDelta++;
+      for (const _record of iterateSessionCaptureRecords(captureBytes, 0, { strict: true })) sourceRecordDelta++;
     }
-    this.reserve("raw", bytes, undefined, false, false, bytes, bytes.length, 0, sourceRecordDelta);
+    this.reserve("raw", captureBytes, undefined, false, false, captureBytes, captureBytes.length, 0, sourceRecordDelta);
     this.encoder.reset();
   }
   writeRawCaptureRecord(bytes: Buffer, countDelta = 1): void {
