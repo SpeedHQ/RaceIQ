@@ -12,12 +12,11 @@ import type { AnalyseSearch } from "../../lib/game-routes";
 import { mergeNameCache } from "../../lib/name-cache";
 import { routePrefixForGameId } from "../../lib/game-routes";
 import { isPitLine } from "@/lib/canvas/draw-track";
+import { semanticValues, type SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import {
   DEFAULT_TRACK_OVERLAYS,
-  semanticValues,
   type Point,
   type SectorBoundaries,
-  type SemanticAnalysisFrame,
   type TrackMapBoundaries,
   type TrackMapLabel,
   type TrackOverlays,

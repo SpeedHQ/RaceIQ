@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import uPlot from "uplot";
 import "uplot/dist/uPlot.min.css";
 import { clampVisibleRange, type ChartRange } from "../lib/chart-range";
-import { resolveCssColor, resolveCssFont } from "../lib/rendering/css-values";
+import { resolveCssColor, resolveCssFont } from "@raceiq/scene-3d/rendering/css-values";
 
 interface Props {
   data: {
@@ -54,6 +54,7 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
   const containerRef = useRef<HTMLDivElement>(null);
   const outerRef = useRef<HTMLDivElement>(null);
   const plotRef = useRef<uPlot | null>(null);
+  const previousCursorRef = useRef<{ left: number; top: number } | null>(null);
   const onCursorMoveRef = useRef(onCursorMove);
   onCursorMoveRef.current = onCursorMove;
   const cleanupOverlayRef = useRef<(() => void) | null>(null);
@@ -226,8 +227,14 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
       const clampedRange = clampVisibleRange(visibleRange, { min: domainMin, max: domainMax });
       if (clampedRange) plot.setScale("x", clampedRange);
     }
+    const cursor = previousCursorRef.current;
+    if (cursor && cursor.left <= plot.over.clientWidth && cursor.top <= plot.over.clientHeight) {
+      plot.setCursor(cursor);
+    }
 
     return () => {
+      const { left, top } = plot.cursor;
+      previousCursorRef.current = left != null && top != null && left >= 0 && top >= 0 ? { left, top } : null;
       cleanupOverlayRef.current?.();
       cleanupOverlayRef.current = null;
       plot.destroy();

@@ -1,4 +1,4 @@
-import { semanticNumber, semanticWheelNumbers, type SemanticAnalysisFrame } from "./track-map/types";
+import { semanticNumber, semanticWheelNumbers, type SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 
 export interface ChartData {
   speed: number[];

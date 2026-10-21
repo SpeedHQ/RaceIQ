@@ -61,7 +61,7 @@ for (const game of SEEDED_GAME_CASES) {
       await route.continue();
     });
 
-    await page.goto(`/${game.prefix}/compare?${compareQuery(pair)}`, { waitUntil: "domcontentloaded" });
+    await page.goto(`/${game.prefix}/compare?${compareQuery(pair)}&view=compare`, { waitUntil: "domcontentloaded" });
     const originalStorage = await page.evaluate(() => ({
       mapWidth: localStorage.getItem("compare-left-column-width"),
       aiPanel: localStorage.getItem("compare-ai-panel-open"),

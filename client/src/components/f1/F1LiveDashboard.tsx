@@ -1,7 +1,7 @@
 import { Cloud, CloudLightning, CloudRain, CloudSun, Sun } from "lucide-react";
 import { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { severityColor } from "@/lib/colors";
+import { severityColor } from "@raceiq/scene-3d/colors";
 import { CarDamageDiagram, damageColor } from "./CarDamageDiagram";
 import { m } from "@/paraglide/messages";
 import type { LiveTelemetryView } from "../../lib/live-telemetry-view";

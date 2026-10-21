@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useSettings } from "@/hooks/settings";
 import { type ChatStreamError, type ChatStreamStatus, readChatStream } from "@/lib/chat-stream";
 import { isAiAnalysisConfigured, launchAiFeature } from "@/lib/is-ai-configured";
-import { resolveCssColor } from "@/lib/rendering/css-values";
+import { resolveCssColor } from "@raceiq/scene-3d/rendering/css-values";
 import { authenticatedFetch, client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { uiStore } from "@/stores/ui";

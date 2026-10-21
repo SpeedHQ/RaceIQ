@@ -56,7 +56,7 @@
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { type EvaluableLap, type EvaluationReason, REVIEW_LAP_CAP, selectEvaluationLaps } from "@raceiq/analysis-core/racing/laps/review-selection";
 import type { Corner } from "../../lap-analysis/corners";
-import { computeLapConsistencyDelta, LINE_SPREAD_FULL_SCALE_M } from "../../lap-analysis/consistency";
+import { computeLapConsistencyDelta, computeLineSpreadTrace } from "../../lap-analysis/consistency";
 import { medianSorted, percentileSorted } from "../statistics";
 import { MIN_TELEMETRY_FRAMES } from "../lap-policy";
 
@@ -503,9 +503,7 @@ function inputVarianceMetric(channel: InputChannel): PairwiseFramesOutcomeMetric
 
 /**
  * Racing-line repeatability, 0-100, per lap against the arm's reference lap.
- * Same scale as `LineSpreadTrace.consistencyScore`: 100 = identical line, 0 at
- * `LINE_SPREAD_FULL_SCALE_M` of lateral scatter. Higher-better, so it also
- * exercises the non-lap-time direction end to end.
+ * Uses the same signed bundle spread and score as Compare and Session Analysis.
  */
 const lineSpreadScore: PairwiseFramesOutcomeMetric = {
   id: "lineSpreadScore",
@@ -515,9 +513,11 @@ const lineSpreadScore: PairwiseFramesOutcomeMetric = {
   curation: { mode: "all-valid", outlierRule: "blunder-fence" },
   sampling: "pairwise-frames",
   reduce: (input) => {
-    const spread = pairwiseDelta(input).overall.lateralSpreadM;
-    const frac = Math.min(1, Math.max(0, spread / LINE_SPREAD_FULL_SCALE_M));
-    return 100 * (1 - frac);
+    return computeLineSpreadTrace(
+      [input.telemetry, input.referenceTelemetry],
+      [0, 1],
+      input.corners,
+    )?.consistencyScore ?? null;
   },
 };
 

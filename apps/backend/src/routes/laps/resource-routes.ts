@@ -31,8 +31,9 @@ import { computeNativeSectorTimeline, computeLapSectors } from "@raceiq/telemetr
 import { generateExport } from "@raceiq/backend-core/lap-analysis/report";
 import { resolveTrack } from "@raceiq/backend-core/tracks/info";
 import { computeLineSpreadTrace } from "@raceiq/backend-core/lap-analysis/consistency";
+import { hasWorldPositions } from "@raceiq/shared/racing/tracks/path";
 import { resolveLapCorners } from "../../tracks/corner-resolution";
-import { BulkDeleteSchema, LapsQuerySchema, ReviewLapsQuerySchema, ReviewLineSpreadQuerySchema, AlignedTelemetryRequestSchema, LapInsightBackfillSchema } from "./support";
+import { BulkDeleteSchema, LapsQuerySchema, ReviewLapsQuerySchema, ReviewLineSpreadQuerySchema, CompareLineSpreadQuerySchema, AlignedTelemetryRequestSchema, LapInsightBackfillSchema } from "./support";
 import { resolveTelemetryReplay } from "@raceiq/backend-core/telemetry/replay";
 import { resolveLapF1Setup } from "@raceiq/backend-core/ai/f1-setup-identity";
 
@@ -69,6 +70,23 @@ export const resourceRoutes = new Hono()
     const { lapLines: _lapLines, ...compactTrace } = trace;
     return c.json(compactTrace);
   })
+  .get("/api/laps/compare-line-spread", zValidator("query", CompareLineSpreadQuerySchema), async (c) => {
+    const { gameId, lapIds } = c.req.valid("query");
+    const loaded = await getLapsByIds(lapIds);
+    if (loaded.length !== lapIds.length) return c.json({ error: "Selected laps not found." }, 400);
+    const ordered = lapIds.map((id) => loaded.find((lap) => lap.id === id)!);
+    const [first, second] = ordered;
+    if (first!.gameId !== gameId || second!.gameId !== gameId || first!.trackId !== second!.trackId) {
+      return c.json({ error: "Selected laps must share game and track." }, 400);
+    }
+    if (ordered.some((lap) => lap.parseError || lap.telemetry.length < 30 || !hasWorldPositions(lap.telemetry))) return c.json(null);
+    const corners = await resolveLapCorners(first!.trackId, gameId, first!.telemetry);
+    const trace = computeLineSpreadTrace(ordered.map((lap) => lap.telemetry), lapIds, corners);
+    if (!trace || !Number.isFinite(trace.consistencyScore) || !Number.isFinite(trace.overallSpreadM)) return c.json(null);
+    const { lapLines: _lapLines, ...compactTrace } = trace;
+    return c.json(compactTrace);
+  })
+
 
   .get("/api/laps/:id/semantic-telemetry", zValidator("param", IdParamSchema), async (c) => {
     const { id } = c.req.valid("param");
