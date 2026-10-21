@@ -12,7 +12,8 @@ import { pipeline } from "node:stream/promises";
 import { createGzip } from "node:zlib";
 import { Cause, Effect, Fiber, Schedule } from "effect";
 import { getUncompressedSessions } from "../db/session-queries";
-import { db } from "../db/index";
+import { db, readDb } from "../db/index";
+import { withDatabaseWrite } from "../db/write-coordination";
 import { isSessionActive } from "../telemetry/live-pipeline";
 import { and, eq, inArray, or, gt } from "drizzle-orm";
 import { dashboardSummaryState, sessions, sessionCaptureSplitJobs, liveCaptures } from "../db/schema";
@@ -78,14 +79,10 @@ async function writeCompressedFile(binPath: string): Promise<CompressedFile> {
 async function compressSessionGroup(ids: number[], binPath: string): Promise<void> {
   const compressedFile = await writeCompressedFile(binPath);
   try {
-    await db.transaction(async (tx) => {
-      await tx
-        .update(sessions)
-        .set({ rawFile: compressedFile.gzPath })
-        .where(eq(sessions.rawFile, binPath))
-        .run();
+    await withDatabaseWrite(() => db.transaction(async (tx) => {
+      await tx.update(sessions).set({ rawFile: compressedFile.gzPath }).where(eq(sessions.rawFile, binPath)).run();
       await tx.update(dashboardSummaryState).set({ captureReady: 0 }).where(inArray(dashboardSummaryState.sessionId, ids)).run();
-    });
+    }));
   } catch (error) {
     await rm(compressedFile.gzPath, { force: true }).catch((cleanupError) => {
       console.error(`[Compressor] Failed to remove uncommitted target ${compressedFile.gzPath}:`, cleanupError);
@@ -163,10 +160,10 @@ async function runCompression(userTriggered = false): Promise<void> {
       // paths owned by live epochs or pending split work. The shared path set
       // also includes every sessions.raw_file, so consulting it here would
       // make every DB-backed capture ineligible for compression.
-      const rows = await db.select({ id: sessions.id, captureLayoutVersion: sessions.captureLayoutVersion, captureArchiveFile: sessions.captureArchiveFile })
+      const rows = await readDb.select({ id: sessions.id, captureLayoutVersion: sessions.captureLayoutVersion, captureArchiveFile: sessions.captureArchiveFile })
         .from(sessions).where(eq(sessions.rawFile, rawFile)).all();
       if (rows.some((row) => row.captureLayoutVersion != null || row.captureArchiveFile != null)) continue;
-      const activeLiveCapture = await db.select({ sessionId: liveCaptures.sessionId })
+      const activeLiveCapture = await readDb.select({ sessionId: liveCaptures.sessionId })
         .from(liveCaptures)
         .where(and(
           or(
@@ -180,7 +177,7 @@ async function runCompression(userTriggered = false): Promise<void> {
           ),
         )).limit(1).get();
       if (activeLiveCapture) continue;
-      const activeJob = await db.select({ sessionId: sessionCaptureSplitJobs.sessionId })
+      const activeJob = await readDb.select({ sessionId: sessionCaptureSplitJobs.sessionId })
         .from(sessionCaptureSplitJobs)
         .where(and(
           or(

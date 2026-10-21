@@ -3,7 +3,7 @@ import { cacheGet, cacheSet, LapParseError, parseRawLapFrames, parseSessionLapsB
 import { resolveLapCaptureArtifact } from "../session-capture/source-loader";
 import { toLapMeta } from "./lap-meta";
 import { eq, desc, and, or, sql, inArray } from "drizzle-orm";
-import { db } from "./index";
+import { db, readDb } from "./index";
 import { sessions, laps, tunes } from "./schema";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
@@ -74,45 +74,44 @@ export async function getLapStats(gameId?: GameId): Promise<LapStats> {
  */
 
 export async function getLaps(gameId?: GameId, limit: number = 200, sessionId?: number): Promise<LapMeta[]> {
-  const query = db
-    .select({
-      id: laps.id,
-      sessionId: laps.sessionId,
-      lapNumber: laps.lapNumber,
-      lapTime: laps.lapTime,
-      isValid: laps.isValid,
-      classification: laps.classification,
-      invalidReason: laps.invalidReason,
-      notes: laps.notes,
-      pi: laps.pi,
-      carSetup: laps.carSetup,
-      createdAt: laps.createdAt,
-      carId: sessions.carId,
-      trackId: sessions.trackId,
-      tuneId: laps.tuneId,
-      tuneName: tunes.name,
-      gameId: sessions.gameId,
-      sectorTimes: laps.sectorTimes,
-      isFavorite: laps.isFavorite,
-      rawByteOffset: laps.rawByteOffset,
-      rawFrameCount: laps.rawFrameCount,
-      rawFile: sessions.rawFile,
-      ownership: sessions.ownership,
-      source: sessions.source,
-      experimentId: laps.experimentId,
-      experimentVersionId: laps.experimentVersionId,
-      experimentExcluded: laps.experimentExcluded,
-      experimentExcludedSource: laps.experimentExcludedSource,
-      fuelPerLap: laps.fuelPerLap,
-      tyreWear: laps.tyreWear,
-      catalogVersion: laps.catalogVersion,
-      catalogHash: laps.catalogHash,
-      catalogSchemaVersion: laps.catalogSchemaVersion,
-      parserVersion: laps.parserVersion,
-      resolverVersion: laps.resolverVersion,
-      derivationVersion: laps.derivationVersion,
-      standaloneCaptureReady: sql<boolean>`(${sessions.captureLayoutVersion} IS NULL AND ${sessions.rawFile} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 1 AND ${sessions.captureManifestFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 2 AND ${sessions.captureManifestFile} IS NOT NULL AND ${sessions.captureArchiveFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 3 AND ${laps.captureChunkId} IS NOT NULL AND EXISTS (SELECT 1 FROM live_capture_members m JOIN live_captures c ON c.capture_epoch = m.capture_epoch WHERE m.lap_id = ${laps.id} AND c.session_id = ${sessions.id} AND json_extract(m.descriptor, '$.id') = ${laps.captureChunkId}))`,
-    })
+  const query = readDb.select({
+    id: laps.id,
+    sessionId: laps.sessionId,
+    lapNumber: laps.lapNumber,
+    lapTime: laps.lapTime,
+    isValid: laps.isValid,
+    classification: laps.classification,
+    invalidReason: laps.invalidReason,
+    notes: laps.notes,
+    pi: laps.pi,
+    carSetup: laps.carSetup,
+    createdAt: laps.createdAt,
+    carId: sessions.carId,
+    trackId: sessions.trackId,
+    tuneId: laps.tuneId,
+    tuneName: tunes.name,
+    gameId: sessions.gameId,
+    sectorTimes: laps.sectorTimes,
+    isFavorite: laps.isFavorite,
+    rawByteOffset: laps.rawByteOffset,
+    rawFrameCount: laps.rawFrameCount,
+    rawFile: sessions.rawFile,
+    ownership: sessions.ownership,
+    source: sessions.source,
+    experimentId: laps.experimentId,
+    experimentVersionId: laps.experimentVersionId,
+    experimentExcluded: laps.experimentExcluded,
+    experimentExcludedSource: laps.experimentExcludedSource,
+    fuelPerLap: laps.fuelPerLap,
+    tyreWear: laps.tyreWear,
+    catalogVersion: laps.catalogVersion,
+    catalogHash: laps.catalogHash,
+    catalogSchemaVersion: laps.catalogSchemaVersion,
+    parserVersion: laps.parserVersion,
+    resolverVersion: laps.resolverVersion,
+    derivationVersion: laps.derivationVersion,
+    standaloneCaptureReady: sql<boolean>`(${sessions.captureLayoutVersion} IS NULL AND ${sessions.rawFile} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 1 AND ${sessions.captureManifestFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 2 AND ${sessions.captureManifestFile} IS NOT NULL AND ${sessions.captureArchiveFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 3 AND ${laps.captureChunkId} IS NOT NULL AND EXISTS (SELECT 1 FROM live_capture_members m JOIN live_captures c ON c.capture_epoch = m.capture_epoch WHERE m.lap_id = ${laps.id} AND c.session_id = ${sessions.id} AND json_extract(m.descriptor, '$.id') = ${laps.captureChunkId}))`,
+  })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .leftJoin(tunes, eq(laps.tuneId, tunes.id))
@@ -284,9 +283,8 @@ type LapSummary = {
   notes: string | null;
 };
 
-
 export async function getLapSummariesByTrack(trackId: string, gameId?: GameId): Promise<LapSummary[]> {
-  const query = db
+  const query = readDb
     .select({
       lapId: laps.id,
       lapNumber: laps.lapNumber,
@@ -362,26 +360,22 @@ type LapMetadataRow = {
   standaloneCaptureReady?: boolean | number | null;
 };
 
-
 async function getLapMetadataRow(id: number): Promise<LapMetadataRow | undefined> {
-  return db
-    .select({
-      id: laps.id, sessionId: laps.sessionId, lapNumber: laps.lapNumber, lapTime: laps.lapTime,
-      isValid: laps.isValid, isFavorite: laps.isFavorite, createdAt: laps.createdAt, rawByteOffset: laps.rawByteOffset,
-      classification: laps.classification,
-      rawFrameCount: laps.rawFrameCount, rawFile: sessions.rawFile, source: sessions.source,
-      carId: sessions.carId, trackId: sessions.trackId,
-      captureManifestFile: sessions.captureManifestFile, captureLayoutVersion: sessions.captureLayoutVersion, captureChunkId: laps.captureChunkId,
-// keep capture archive ref and capture format version
-      captureFormatVersion: sessions.captureFormatVersion,
-      captureArchiveFile: sessions.captureArchiveFile,
-      tuneId: laps.tuneId, tuneName: tunes.name, gameId: sessions.gameId,
-      ownership: sessions.ownership, carSetup: laps.carSetup,
-      sectorTimes: laps.sectorTimes, catalogVersion: laps.catalogVersion, catalogHash: laps.catalogHash,
-      catalogSchemaVersion: laps.catalogSchemaVersion, parserVersion: laps.parserVersion,
-      resolverVersion: laps.resolverVersion, derivationVersion: laps.derivationVersion,
-      standaloneCaptureReady: sql<boolean>`(${sessions.captureLayoutVersion} IS NULL AND ${sessions.rawFile} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 1 AND ${sessions.captureManifestFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 2 AND ${sessions.captureManifestFile} IS NOT NULL AND ${sessions.captureArchiveFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 3 AND ${laps.captureChunkId} IS NOT NULL AND EXISTS (SELECT 1 FROM live_capture_members m JOIN live_captures c ON c.capture_epoch = m.capture_epoch WHERE m.lap_id = ${laps.id} AND c.session_id = ${sessions.id} AND json_extract(m.descriptor, '$.id') = ${laps.captureChunkId}))`,
-    })
+  return readDb.select({
+    id: laps.id, sessionId: laps.sessionId, lapNumber: laps.lapNumber, lapTime: laps.lapTime,
+    isValid: laps.isValid, classification: laps.classification, isFavorite: laps.isFavorite, createdAt: laps.createdAt, rawByteOffset: laps.rawByteOffset,
+    rawFrameCount: laps.rawFrameCount, rawFile: sessions.rawFile, source: sessions.source,
+    carId: sessions.carId, trackId: sessions.trackId,
+    captureManifestFile: sessions.captureManifestFile, captureLayoutVersion: sessions.captureLayoutVersion, captureChunkId: laps.captureChunkId,
+    captureFormatVersion: sessions.captureFormatVersion,
+    captureArchiveFile: sessions.captureArchiveFile,
+    tuneId: laps.tuneId, tuneName: tunes.name, gameId: sessions.gameId,
+    ownership: sessions.ownership, carSetup: laps.carSetup,
+    sectorTimes: laps.sectorTimes, catalogVersion: laps.catalogVersion, catalogHash: laps.catalogHash,
+    catalogSchemaVersion: laps.catalogSchemaVersion, parserVersion: laps.parserVersion,
+    resolverVersion: laps.resolverVersion, derivationVersion: laps.derivationVersion,
+    standaloneCaptureReady: sql<boolean>`(${sessions.captureLayoutVersion} IS NULL AND ${sessions.rawFile} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 1 AND ${sessions.captureManifestFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 2 AND ${sessions.captureManifestFile} IS NOT NULL AND ${sessions.captureArchiveFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 3 AND ${laps.captureChunkId} IS NOT NULL AND EXISTS (SELECT 1 FROM live_capture_members m JOIN live_captures c ON c.capture_epoch = m.capture_epoch WHERE m.lap_id = ${laps.id} AND c.session_id = ${sessions.id} AND json_extract(m.descriptor, '$.id') = ${laps.captureChunkId}))`,
+  })
     .from(laps).innerJoin(sessions, eq(laps.sessionId, sessions.id)).leftJoin(tunes, eq(laps.tuneId, tunes.id))
     .where(eq(laps.id, id)).get();
 }
@@ -539,7 +533,7 @@ export async function getLapsByIds(
 ): Promise<(LapMeta & { telemetry: TelemetryPacket[]; parseError?: string })[]> {
   if (ids.length === 0) return [];
 
-  const rows = await db
+  const rows = await readDb
     .select({
       id: laps.id,
       sessionId: laps.sessionId,
@@ -700,34 +694,33 @@ export async function getLapsByIds(
 }
 
 export async function getLapsRaw(ids?: number[]) {
-  const base = db
-    .select({
-      id: laps.id,
-      sessionId: laps.sessionId,
-      lapNumber: laps.lapNumber,
-      createdAt: laps.createdAt,
-      lapTime: laps.lapTime,
-      isValid: laps.isValid,
-      pi: laps.pi,
-      rawByteOffset: laps.rawByteOffset,
-      rawFrameCount: laps.rawFrameCount,
-      rawFile: sessions.rawFile,
-      source: sessions.source,
-      captureManifestFile: sessions.captureManifestFile,
-      captureLayoutVersion: sessions.captureLayoutVersion,
-      captureArchiveFile: sessions.captureArchiveFile,
-      captureChunkId: laps.captureChunkId,
-      carId: sessions.carId,
-      trackId: sessions.trackId,
-      gameId: sessions.gameId,
-      captureFormatVersion: sessions.captureFormatVersion,
-      catalogVersion: laps.catalogVersion,
-      catalogHash: laps.catalogHash,
-      catalogSchemaVersion: laps.catalogSchemaVersion,
-      parserVersion: laps.parserVersion,
-      resolverVersion: laps.resolverVersion,
-      derivationVersion: laps.derivationVersion,
-    })
+  const base = readDb.select({
+    id: laps.id,
+    sessionId: laps.sessionId,
+    lapNumber: laps.lapNumber,
+    createdAt: laps.createdAt,
+    lapTime: laps.lapTime,
+    isValid: laps.isValid,
+    pi: laps.pi,
+    rawByteOffset: laps.rawByteOffset,
+    rawFrameCount: laps.rawFrameCount,
+    rawFile: sessions.rawFile,
+    source: sessions.source,
+    captureManifestFile: sessions.captureManifestFile,
+    captureLayoutVersion: sessions.captureLayoutVersion,
+    captureArchiveFile: sessions.captureArchiveFile,
+    captureChunkId: laps.captureChunkId,
+    carId: sessions.carId,
+    trackId: sessions.trackId,
+    gameId: sessions.gameId,
+    captureFormatVersion: sessions.captureFormatVersion,
+    catalogVersion: laps.catalogVersion,
+    catalogHash: laps.catalogHash,
+    catalogSchemaVersion: laps.catalogSchemaVersion,
+    parserVersion: laps.parserVersion,
+    resolverVersion: laps.resolverVersion,
+    derivationVersion: laps.derivationVersion,
+  })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id));
 
@@ -740,8 +733,7 @@ export async function getLapsRaw(ids?: number[]) {
 
 
 export async function getLapCountsByTrack(gameId: GameId): Promise<Map<string, number>> {
-  const rows = await db
-    .select({ trackId: sessions.trackId, count: sql<number>`count(*)` })
+  const rows = await readDb.select({ trackId: sessions.trackId, count: sql<number>`count(*)` })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .where(and(eq(sessions.gameId, gameId), sql`${sessions.trackId} != ''`))

@@ -8,7 +8,7 @@ import { resolveRecordingDirectory } from "../runtime/config/recording-directory
 import { readdir, lstat, unlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { dirname, resolve, join } from "node:path";
-import { db } from "../db/index";
+import { readDb } from "../db/index";
 import { sessions, sessionCaptureSplitJobs, liveCaptures } from "../db/schema";
 import { clearCaptureManifestCache, clearSessionCaptureCache, loadCaptureManifest } from "./source-loader";
 let maintenanceQueue = Promise.resolve();
@@ -26,10 +26,10 @@ export function withSessionCaptureMaintenanceLock<T>(
 
 export async function loadReferencedCapturePaths(): Promise<Set<string>> {
   const [sessionRows, jobRows, liveRows] = await Promise.all([
-    db.select({ rawFile: sessions.rawFile, archiveFile: sessions.captureArchiveFile, manifestFile: sessions.captureManifestFile }).from(sessions).all(),
-    db.select({ sourcePath: sessionCaptureSplitJobs.sourcePath, stagingPath: sessionCaptureSplitJobs.stagingPath })
+    readDb.select({ rawFile: sessions.rawFile, archiveFile: sessions.captureArchiveFile, manifestFile: sessions.captureManifestFile }).from(sessions).all(),
+    readDb.select({ sourcePath: sessionCaptureSplitJobs.sourcePath, stagingPath: sessionCaptureSplitJobs.stagingPath })
       .from(sessionCaptureSplitJobs).all(),
-    db.select({ sourcePath: liveCaptures.sourcePath, archivePath: liveCaptures.archivePath, status: liveCaptures.status, committedArchiveLength: liveCaptures.committedArchiveLength })
+    readDb.select({ sourcePath: liveCaptures.sourcePath, archivePath: liveCaptures.archivePath, status: liveCaptures.status, committedArchiveLength: liveCaptures.committedArchiveLength })
       .from(liveCaptures).all(),
   ]);
   const referenced = new Set<string>();

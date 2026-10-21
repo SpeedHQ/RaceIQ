@@ -25,6 +25,10 @@ apps/backend/test/lap-analysis/segments/segment-alignment.test.ts
 apps/backend/test/lap-analysis/segments/segment-label.test.ts
 apps/backend/test/lap-analysis/tire-temperature-insights.test.ts
 apps/backend/test/laps/archive-detection.test.ts
+apps/backend/test/runtime/database-write-coordination.test.ts
+apps/backend/test/runtime/worker-sql.test.ts
+apps/backend/test/runtime/startup-stage-runner.test.ts
+apps/backend/test/runtime/startup-readiness.test.ts
 apps/backend/test/runtime/diagnostic-log-store.test.ts
 apps/backend/test/runtime/hud-hostname.test.ts
 apps/backend/test/runtime/http-access.test.ts

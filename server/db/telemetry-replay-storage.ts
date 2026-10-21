@@ -1,5 +1,5 @@
 import { eq, and } from "drizzle-orm";
-import { db } from "./index";
+import { readDb as db } from "./index";
 import { sessions, laps } from "./schema";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { GameId } from "@raceiq/shared/games/ids";

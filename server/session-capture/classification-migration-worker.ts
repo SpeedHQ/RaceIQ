@@ -3,7 +3,8 @@ import type { Stats } from "node:fs";
 import { and, eq, inArray, lte } from "drizzle-orm";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { PARSER_BOOTSTRAP_VERSION } from "@raceiq/capture-formats/session/framing";
-import { client, db } from "../db/index";
+import { client, readDb } from "../db/index";
+import { withDatabaseTransaction } from "../db/write-coordination";
 import { classificationMigrationMeta, classificationMigrationRecordings, laps, sessions } from "../db/schema";
 import { CapturingDbAdapter } from "../telemetry/pipeline-ports";
 import { getServerGame } from "../games/registry";
@@ -39,28 +40,22 @@ export function hasKnownClassificationOutcome(lap: {
 /** Process one capture then yield before claiming another. */
 export async function processNextClassificationRecording(): Promise<boolean> {
   if (isSessionActive()) return false;
-  const candidate = await db.select().from(classificationMigrationRecordings)
+  const candidate = await readDb.select().from(classificationMigrationRecordings)
     .where(and(
       eq(classificationMigrationRecordings.version, CLASSIFICATION_MIGRATION_VERSION),
       eq(classificationMigrationRecordings.state, "pending"),
     )).orderBy(classificationMigrationRecordings.recordingId).limit(1).get();
   if (!candidate) return false;
-  const claim = await client.transaction("write");
-  try {
-    const claimed = await claim.execute({
+  const claimed = await withDatabaseTransaction(client, async (tx) => {
+    const result = await tx.execute({
       sql: "UPDATE classification_migration_recordings SET state='running',attempt=attempt+1,reason=NULL WHERE recording_id=? AND state='pending'",
       args: [candidate.recordingId],
     });
-    if (Number(claimed.rowsAffected) !== 1) {
-      await claim.rollback();
-      return true;
-    }
-    await claim.execute("UPDATE classification_migration_meta SET revision=revision+1 WHERE id=1");
-    await claim.commit();
-  } catch (error) {
-    await claim.rollback();
-    throw error;
-  }
+    if (Number(result.rowsAffected) !== 1) return false;
+    await tx.execute("UPDATE classification_migration_meta SET revision=revision+1 WHERE id=1");
+    return true;
+  });
+  if (!claimed) return true;
   try {
     await processClaimedRecording(candidate.recordingId, candidate.sourceKey, candidate.sourceRevision);
   } catch (error) {
@@ -75,9 +70,9 @@ async function processClaimedRecording(recordingId: string, sourceKey: string, s
   if (!sourcePath) return finish(recordingId, sourceRevision, "limited", "missing_source");
   let sourceStat: Stats;
   try { sourceStat = await stat(sourcePath); } catch { return finish(recordingId, sourceRevision, "limited", "missing_source", sourcePath); }
-  const migrationMeta = await db.select({ cutoffSessionId: classificationMigrationMeta.cutoffSessionId })
+  const migrationMeta = await readDb.select({ cutoffSessionId: classificationMigrationMeta.cutoffSessionId })
     .from(classificationMigrationMeta).where(eq(classificationMigrationMeta.id, 1)).get();
-  const existing = await db.select({
+  const existing = await readDb.select({
     id: sessions.id,
     gameId: sessions.gameId,
     carId: sessions.carId,
@@ -163,7 +158,7 @@ async function processClaimedRecording(recordingId: string, sourceKey: string, s
   } catch {
     return finish(recordingId, sourceRevision, "failed", "corrupt_source", sourcePath, sourceStat);
   }
-  const existingLaps = await db.select().from(laps).where(inArray(laps.sessionId, existing.map((session) => session.id))).all();
+  const existingLaps = await readDb.select().from(laps).where(inArray(laps.sessionId, existing.map((session) => session.id))).all();
   const detected = capture.laps;
   if (!existingLaps.length || !detected.length) return finish(recordingId, sourceRevision, "limited", "insufficient_evidence", sourcePath, sourceStat);
   const used = new Set<number>();
@@ -225,30 +220,24 @@ async function processClaimedRecording(recordingId: string, sourceKey: string, s
   }
 
   let committed = false;
+  const stalePublication = Symbol("stale classification publication");
   await classificationMigrationBarrier("beforeTransaction");
   await withSessionCaptureMaintenanceLock(async () => {
     if (isSessionActive()) {
       await deferRecording(recordingId, "active_capture");
       return;
     }
-    const tx = await client.transaction("write");
+    let published: boolean;
     try {
+      published = await withDatabaseTransaction(client, async (tx) => {
       const current = await tx.execute({
         sql: "SELECT source_revision FROM classification_migration_recordings WHERE recording_id=? AND state='running'",
         args: [recordingId],
       });
-      if (!current.rows.length || Number(current.rows[0]!.source_revision) !== sourceRevision) {
-        await tx.rollback();
-        await requeueRecording(recordingId, "source_changed");
-        return;
-      }
+      if (!current.rows.length || Number(current.rows[0]!.source_revision) !== sourceRevision) throw stalePublication;
       await classificationMigrationBarrier("insideTransaction");
       const currentFile = await stat(sourcePath);
-      if (classificationSourceSignature(currentFile) !== classificationSourceSignature(sourceStat)) {
-        await tx.rollback();
-        await requeueRecording(recordingId, "source_changed");
-        return;
-      }
+      if (classificationSourceSignature(currentFile) !== classificationSourceSignature(sourceStat)) throw stalePublication;
       for (const change of changes) {
         const updated = await tx.execute({
           sql: `UPDATE laps SET classification=?,is_valid=?,invalid_reason=?
@@ -258,28 +247,25 @@ async function processClaimedRecording(recordingId: string, sourceKey: string, s
             change.expectedClassification, Number(change.expectedIsValid), change.expectedInvalidReason,
           ],
         });
-        if (Number(updated.rowsAffected) !== 1) {
-          await tx.rollback();
-          await requeueRecording(recordingId, "source_changed");
-          return;
-        }
+        if (Number(updated.rowsAffected) !== 1) throw stalePublication;
       }
       const completed = await tx.execute({
         sql: "UPDATE classification_migration_recordings SET state='completed',reason=NULL,source_signature=?,result_revision=source_revision WHERE recording_id=? AND state='running' AND source_revision=?",
         args: [classificationSourceSignature(currentFile), recordingId, sourceRevision],
       });
-      if (Number(completed.rowsAffected) !== 1) {
-        await tx.rollback();
-        await requeueRecording(recordingId, "source_changed");
-        return;
-      }
+      if (Number(completed.rowsAffected) !== 1) throw stalePublication;
       await tx.execute("UPDATE classification_migration_meta SET revision=revision+1 WHERE id=1");
-      await tx.commit();
-      committed = true;
+      return true;
+    });
     } catch (error) {
-      await tx.rollback();
-      throw error;
+      if (error !== stalePublication) throw error;
+      published = false;
     }
+    if (!published) {
+      await requeueRecording(recordingId, "source_changed");
+      return;
+    }
+    committed = true;
   });
   if (!committed) return;
   await classificationMigrationBarrier("afterCommitBeforeAggregates");
@@ -295,33 +281,23 @@ async function processClaimedRecording(recordingId: string, sourceKey: string, s
 }
 
 async function requeueRecording(recordingId: string, reason: "source_changed"): Promise<void> {
-  const tx = await client.transaction("write");
-  try {
+  await withDatabaseTransaction(client, async (tx) => {
     const updated = await tx.execute({
       sql: "UPDATE classification_migration_recordings SET state='pending',source_revision=source_revision+1,source_signature=NULL,reason=? WHERE recording_id=? AND state='running'",
       args: [reason, recordingId],
     });
     if (Number(updated.rowsAffected) > 0) await tx.execute("UPDATE classification_migration_meta SET revision=revision+1 WHERE id=1");
-    await tx.commit();
-  } catch (error) {
-    await tx.rollback();
-    throw error;
-  }
+  });
 }
 
 async function deferRecording(recordingId: string, reason: "active_capture"): Promise<void> {
-  const tx = await client.transaction("write");
-  try {
+  await withDatabaseTransaction(client, async (tx) => {
     const updated = await tx.execute({
       sql: "UPDATE classification_migration_recordings SET state='pending',source_signature=NULL,reason=? WHERE recording_id=? AND state='running'",
       args: [reason, recordingId],
     });
     if (Number(updated.rowsAffected) > 0) await tx.execute("UPDATE classification_migration_meta SET revision=revision+1 WHERE id=1");
-    await tx.commit();
-  } catch (error) {
-    await tx.rollback();
-    throw error;
-  }
+  });
 }
 
 async function finish(
@@ -332,20 +308,16 @@ async function finish(
   sourcePath?: string,
   originalStat?: Stats,
 ): Promise<void> {
-  const tx = await client.transaction("write");
-  try {
+  const currentStat = sourcePath ? await stat(sourcePath).catch(() => null) : null;
+  await withDatabaseTransaction(client, async (tx) => {
     const current = await tx.execute({
       sql: "SELECT source_revision,state FROM classification_migration_recordings WHERE recording_id=?",
       args: [recordingId],
     });
-    if (!current.rows.length || current.rows[0]!.state !== "running") {
-      await tx.rollback();
-      return;
-    }
+    if (!current.rows.length || current.rows[0]!.state !== "running") return;
     const revision = Number(current.rows[0]!.source_revision);
     let sourceChanged = false;
     if (sourcePath) {
-      const currentStat = await stat(sourcePath).catch(() => null);
       sourceChanged = originalStat
         ? currentStat === null || classificationSourceSignature(currentStat) !== classificationSourceSignature(originalStat)
         : currentStat !== null;
@@ -359,24 +331,21 @@ async function finish(
         sourceChanged && revision === sourceRevision ? 1 : 0, recordingId, revision],
     });
     if (Number(updated.rowsAffected) > 0) await tx.execute("UPDATE classification_migration_meta SET revision=revision+1 WHERE id=1");
-    await tx.commit();
-  } catch (error) {
-    await tx.rollback();
-    throw error;
-  }
+  });
 }
 
 export interface ClassificationMigrationWorkerHandle {
-  stop(): void;
+  stop(): Promise<void>;
 }
 
 export function startClassificationMigrationWorker(options: { resetInterrupted?: boolean } = {}): ClassificationMigrationWorkerHandle {
   let inventoryReconciled = false;
   let stopped = false;
   let timer: NodeJS.Timeout | undefined;
+  let activeRun: Promise<void>;
   const schedule = (delayMs: number) => {
     if (stopped) return;
-    timer = setTimeout(() => void run(), delayMs);
+    timer = setTimeout(() => { activeRun = run(); }, delayMs);
     timer.unref?.();
   };
   const run = async (): Promise<void> => {
@@ -410,11 +379,12 @@ export function startClassificationMigrationWorker(options: { resetInterrupted?:
       schedule(5_000);
     }
   };
-  void run();
+  activeRun = run();
   return {
-    stop() {
+    async stop() {
       stopped = true;
       clearTimeout(timer);
+      await activeRun;
     },
   };
 }

@@ -8,7 +8,7 @@
 import { importLapsZip } from "../../src/laps/archive";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { client, initDb } from "@raceiq/backend-core/db/index";
+import { closeDb, initDb } from "@raceiq/backend-core/db/index";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
 import { developmentReleaseFeatures } from "@raceiq/tooling-release/release/development-release-features";
@@ -44,6 +44,6 @@ try {
   exitCode = 1;
 } finally {
   stopMaintenanceTasks();
-  client.close();
+  closeDb();
 }
 process.exitCode = exitCode;

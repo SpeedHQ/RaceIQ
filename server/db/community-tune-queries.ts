@@ -1,6 +1,8 @@
 import { eq } from "drizzle-orm";
-import { db } from "./index";
+import { db, readDb } from "./index"
 import { communityTunes } from "./schema";
+import { withDatabaseWrite } from "./write-coordination";
+
 
 export interface CommunityTuneRow {
   id: string;
@@ -18,8 +20,7 @@ export interface CommunityTuneRow {
 
 /** All community tunes for a game (raw rows; `settings` is still JSON text). */
 export async function getCommunityTunes(gameId: string) {
-  return await db
-    .select()
+  return await readDb.select()
     .from(communityTunes)
     .where(eq(communityTunes.gameId, gameId))
     .all();
@@ -28,7 +29,7 @@ export async function getCommunityTunes(gameId: string) {
 /** Single community tune by its `community-<messageId>` id. */
 export async function getCommunityTuneById(id: string) {
   return (
-    (await db.select().from(communityTunes).where(eq(communityTunes.id, id)).get()) ??
+    (await readDb.select().from(communityTunes).where(eq(communityTunes.id, id)).get()) ??
     null
   );
 }
@@ -42,7 +43,7 @@ export async function replaceCommunityTunes(
   gameId: string,
   rows: CommunityTuneRow[],
 ): Promise<number> {
-  return await db.transaction(async (tx) => {
+  return await withDatabaseWrite(async () => db.transaction(async (tx) => {
     await tx.delete(communityTunes).where(eq(communityTunes.gameId, gameId));
     for (const row of rows) {
       await tx.insert(communityTunes).values({
@@ -59,5 +60,5 @@ export async function replaceCommunityTunes(
       });
     }
     return rows.length;
-  });
+  }));
 }
