@@ -1,4 +1,4 @@
-import { suspColor } from "@/lib/colors";
+import { suspColor } from "@raceiq/scene-3d/colors";
 
 /** Standard 0–100% suspension bar. */
 function SuspBarStandard({ norm, thresholds }: { norm: number; thresholds: number[] }) {

@@ -83,7 +83,10 @@ export function Combobox02({
       value={selectedOption}
       disabled={disabled}
       onValueChange={(option) => {
-        if (option && "value" in option && !("items" in option)) onChange(option.value);
+        if (option && "value" in option && !("items" in option)) {
+          onChange(option.value);
+          setOpen(false);
+        }
       }}
     >
       <ComboboxInput

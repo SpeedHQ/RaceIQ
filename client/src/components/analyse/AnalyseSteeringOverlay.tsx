@@ -1,6 +1,6 @@
 import { getSteeringLock } from "@/lib/settings-storage";
-import { semanticNumber, type SemanticAnalysisFrame } from "./track-map/types";
-import { brakeBarColor } from "@/lib/colors";
+import { semanticNumber, type SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
+import { brakeBarColor } from "@raceiq/scene-3d/colors";
 
 interface Props {
   frame: SemanticAnalysisFrame;

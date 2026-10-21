@@ -3,6 +3,7 @@
 ### Features
 - Show separate LMU player energy, engine, electric motor, steering feedback, weather and race-control readings in live telemetry and recorded-lap analysis when provided by the game.
 - Show read-only LMU setup, forecast and condition snapshots with source age and availability, without waiting for network requests before displaying live telemetry.
+- Compare laps in Spectate with synchronized 3D replay, configurable cameras and overlays, live A/B instruments, sector deltas, and telemetry, car, AI, Focus View, and lap-statistics panels.
 - Choose a 50–100 Hz recording frequency for ACC, AC Evo, iRacing, or LMU during setup to reduce recording size. Live UDP recording is unchanged.
 - Downsample saved recordings manually or with an opt-in age policy in Storage settings; measure the first 1,000 frame timestamps per stream and skip recordings already at or below the target. Track progress and retry failed files. Favorites and MoTeC imports stay unchanged.
 - Split recordings into individual, lossless per-lap `.bin` files so lap 60 loads as fast as lap 1.
@@ -23,6 +24,8 @@
 - Use native scoring update ages for LMU weather and race-control readings without changing historical snapshot ages.
 - Clear frozen or disconnected LMU player data even when the system clock moves backward.
 - Keep LMU snapshots responsive when the local telemetry service returns oversized, rejected, or malformed condition responses.
+- Open the dashboard in your default browser when launching RaceIQ from the optional desktop shortcut or Start menu, even when the server was stopped.
+- Preserve incomplete-lap eligibility and LMU first-outlap classification across ordinal detector transitions.
 - Keep first-run setup responsive by omitting the optional telemetry demo.
 - Label the community setup copy action “Clone” in the setup browser.
 - Leave MoTeC imports unchanged during historical lap-classification upgrades.

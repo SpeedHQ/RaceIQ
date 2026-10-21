@@ -2,8 +2,8 @@ import { segmentDisplayNames } from "@raceiq/shared/racing/tracks/segment-label"
 import { useEffect, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { Button } from "@/components/ui/button";
-import { SECTOR_COLOR_VARS, TRACK_CORNER_COLOR_VARS, TRACK_STRAIGHT_COLOR_VARS, VISUALIZATION_COLOR_VARS } from "@/lib/colors";
-import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
+import { SECTOR_COLOR_VARS, TRACK_CORNER_COLOR_VARS, TRACK_STRAIGHT_COLOR_VARS, VISUALIZATION_COLOR_VARS } from "@raceiq/scene-3d/colors";
+import { getSemanticCanvasContext } from "@raceiq/scene-3d/rendering/css-canvas";
 import type { Point, TrackBoundaries, TrackCurb, TrackSectors } from "../types";
 import { transformCalibrationPath, type CalibrationComparison } from "./calibration-comparison";
 import { getLocale } from "@/paraglide/runtime";

@@ -114,6 +114,28 @@ describe("aligned telemetry", () => {
     expect(ranged.distanceMeters.length).toBeLessThanOrEqual(50_000);
   });
 
+  test("projects through repeated reference points without reversing progress or losing missing positions", () => {
+    const reference = Array.from({ length: 202 }, (_, i) => {
+      const distance = Math.max(0, i - 1) * 10;
+      return { ...telemetry()[0], DistanceTraveled: distance, PositionX: 100 + distance, PositionZ: 10 };
+    });
+    const distances = [0, 10, 20, 15, 30, 40, 50, ...Array.from({ length: 195 }, (_, i) => 60 + i * 10)];
+    const candidate = distances.map((distance, i) => ({
+      ...reference[i],
+      DistanceTraveled: i * 10,
+      PositionX: i === 5 ? Number.NaN : 100 + distance,
+    }));
+    const index = prepareLapSetAlignmentIndex([
+      { ...input(1), telemetry: reference },
+      { ...input(2), telemetry: candidate },
+    ], { gridStepMeters: 1, trackLengthMeters: 2000 });
+    expect(index.referenceLapId).toBe(1);
+    const projected = index.distancesByLapId.get(2)!;
+    expect(projected.slice(0, 7)).toEqual([0, 10, 20, 20, 30, 30, 50]);
+    expect(projected.at(-1)).toBe(2000);
+    expect(projected.every((distance, i) => i === 0 || distance >= projected[i - 1])).toBe(true);
+  });
+
   test("rejects empty alignment input", () => {
     expect(() => alignLapSet([], { gridStepMeters: 1 })).toThrow("At least one lap required");
   });

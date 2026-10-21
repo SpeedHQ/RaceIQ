@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { LapTrace } from "../../../lib/stint-traces";
 import { syncCanvasSize } from "../../../lib/rendering/canvas-size";
-import { getSemanticCanvasContext } from "../../../lib/rendering/css-canvas";
+import { getSemanticCanvasContext } from "@raceiq/scene-3d/rendering/css-canvas"
 import { useMeasuredWidth } from "./use-measured-width";
 
 interface GgScatterProps {

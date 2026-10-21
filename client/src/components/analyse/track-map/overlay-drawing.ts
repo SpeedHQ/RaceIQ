@@ -1,8 +1,9 @@
 import type { SceneBuilder } from "./scene";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
-import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
+import { getSemanticCanvasContext } from "@raceiq/scene-3d/rendering/css-canvas";
 import { resolveFrameDirection } from "./path";
-import type { Point, SemanticAnalysisFrame, TrackTransform } from "./types";
+import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
+import type { Point, TrackTransform } from "./types";
 
 export interface OverlayOptions {
   canvas: HTMLCanvasElement;

@@ -4,7 +4,7 @@ import type { GameId } from "@raceiq/shared/games/ids";
 import { Check, Copy, Info } from "lucide-react";
 import { useCallback, useState } from "react";
 import type { useUnits } from "../../hooks/useUnits";
-import type { SemanticAnalysisFrame } from "./track-map/types";
+import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import { m } from "../../paraglide/messages";
 import { InsightPanel } from "../InsightPanel";
 import { Button } from "../ui/button";

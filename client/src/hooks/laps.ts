@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
+import type { GameId } from "@raceiq/shared/games/ids";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { LineSpreadTrace } from "./experiments";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
@@ -70,6 +71,20 @@ export function useSessionLineSpread(sessionId: number | null, lapIds: readonly 
     enabled: enabled && !!gameId && sessionId != null && orderedIds.length > 0,
   });
 }
+
+export function useCompareLineSpread(gameId: GameId, lapIds: readonly number[], enabled = true) {
+  const orderedIds = useMemo(() => [...lapIds], [lapIds]);
+  return useQuery({
+    queryKey: ["compare-line-spread", gameId, orderedIds],
+    queryFn: async () => {
+      const res = await client.api.laps["compare-line-spread"].$get({
+        query: { gameId, lapIds: orderedIds.join(",") },
+      });
+      return rpcJson<LineSpreadTrace | null>(res);
+    },
+    enabled: enabled && !!gameId && orderedIds.length === 2 && orderedIds[0] !== orderedIds[1],
+  });
+}
 function alignedComparison(set: AlignedLapSet, lapA: LapMeta, lapB: LapMeta): ComparisonData {
   const a = set.laps[0]!,
     b = set.laps[1]!;
@@ -108,7 +123,8 @@ export function useLapComparison(lapAId: number | null, lapBId: number | null) {
   const laps = useLaps().data ?? [];
   const lapA = laps.find((lap) => lap.id === lapAId);
   const lapB = laps.find((lap) => lap.id === lapBId);
-  return { ...aligned, data: aligned.data && lapA && lapB ? alignedComparison(aligned.data, lapA, lapB) : undefined, isLoading: aligned.isLoading, error: aligned.error };
+  const data = useMemo(() => aligned.data && lapA && lapB ? alignedComparison(aligned.data, lapA, lapB) : undefined, [aligned.data, lapA, lapB]);
+  return { ...aligned, data, isLoading: aligned.isLoading, error: aligned.error };
 }
 export function useLapComparisonRange(lapAId: number | null, lapBId: number | null, stepMeters: 0.1 | null, start: number | null, end: number | null) {
   const ids = lapAId != null && lapBId != null && lapAId !== lapBId ? [lapAId, lapBId] : [];
@@ -163,10 +179,11 @@ export function useLapSemanticTelemetry(lapId: number | null) {
   const gameId = useGameId();
   return useQuery({
     queryKey: ["lap-semantic-telemetry", lapId, gameId ?? null],
+    // Keep replay work alive across view/page changes so new observers await it.
     queryFn: async () => {
       if (lapId == null) throw new Error("Missing lap ID");
       if (!gameId) throw new Error("Missing game context");
-      const res = await fetch(`/api/laps/${lapId}/semantic-telemetry`, { headers: { "X-Game-Id": gameId } });
+      const res: Pick<Response, "ok" | "statusText" | "json"> = await client.api.laps[":id"]["semantic-telemetry"].$get({ param: { id: String(lapId) } }, { headers: { "X-Game-Id": gameId } });
       const body = (await res.json().catch(() => null)) as (SemanticLapTelemetry & { error?: string; parseError?: string }) | null;
       if (!res.ok || body?.parseError) {
         const message = body?.parseError ?? body?.error ?? res.statusText;
@@ -179,7 +196,7 @@ export function useLapSemanticTelemetry(lapId: number | null) {
       return body;
     },
     enabled: lapId != null && gameId != null,
-    gcTime: 0,
+    gcTime: 5 * 60 * 1000,
     staleTime: Number.POSITIVE_INFINITY,
     refetchOnMount: false,
   });

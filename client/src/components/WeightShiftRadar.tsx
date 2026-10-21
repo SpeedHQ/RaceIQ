@@ -1,17 +1,18 @@
 import { useEffect, useRef } from "react";
-import { severityRangeColor } from "@/lib/colors";
-import { normalizeSuspensionTravel } from "@/lib/suspension";
+import { severityRangeColor } from "@raceiq/scene-3d/colors";
+import { normalizeSuspensionTravel } from "@raceiq/scene-3d/suspension";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
-import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
+import { getSemanticCanvasContext } from "@raceiq/scene-3d/rendering/css-canvas";
 import { m } from "@/paraglide/messages";
-import type { SemanticAnalysisFrame } from "./analyse/track-map/types";
+import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 /**
  * WeightShiftRadar — Canvas-drawn weight transfer visualization.
  * Uses the 4 normalized suspension travel values (0-1) to compute
  * where weight is concentrated. More compression = more load on that corner.
  * Dot position is the weighted centroid of the four corners.
  */
-export function WeightShiftRadar({ frame }: { frame: SemanticAnalysisFrame }) {
+export function WeightShiftRadar({ frame, compact = false }: { frame: SemanticAnalysisFrame; compact?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const size = 85;
 
@@ -121,6 +122,14 @@ export function WeightShiftRadar({ frame }: { frame: SemanticAnalysisFrame }) {
   }, [semanticLoads]);
 
   if (!semanticLoads || semanticLoads.length < 4) return null;
+  if (compact) return (
+    <Tooltip>
+      <TooltipTrigger render={<div tabIndex={0} className="rounded outline-none focus-visible:ring-2 focus-visible:ring-app-accent" />} aria-label={`${m.label_load()} ${m.label_distribution()}`}>
+        <canvas ref={canvasRef} style={{ width: size, height: size }} className="block rounded" />
+      </TooltipTrigger>
+      <TooltipContent role="tooltip">{m.label_load()} {m.label_distribution()}</TooltipContent>
+    </Tooltip>
+  );
   return (
     <div className="flex flex-col items-center gap-1">
       <canvas ref={canvasRef} style={{ width: size, height: size }} className="rounded" />
