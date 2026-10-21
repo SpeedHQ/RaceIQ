@@ -10,6 +10,8 @@
 - Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
 
 ### Fixes
+- Open the dashboard in your default browser when launching RaceIQ from the optional desktop shortcut or Start menu, even when the server was stopped.
+- Preserve incomplete-lap eligibility and LMU first-outlap classification across ordinal detector transitions.
 - Keep first-run setup responsive by omitting the optional telemetry demo.
 - Label the community setup copy action “Clone” in the setup browser.
 - Leave MoTeC imports unchanged during historical lap-classification upgrades.
