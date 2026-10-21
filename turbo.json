@@ -858,7 +858,8 @@
         "package.json",
         "../bun.lock",
         "$TURBO_ROOT$/scripts/dev/paraglide-build.ts",
-        "$TURBO_ROOT$/scripts/dev/paraglide-cache.ts"
+        "$TURBO_ROOT$/scripts/dev/paraglide-cache.ts",
+        "$TURBO_ROOT$/scripts/dev/paraglide-declarations.ts"
       ],
       "outputs": [
         "src/paraglide/**",
