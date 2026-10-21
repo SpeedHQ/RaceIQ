@@ -1,6 +1,7 @@
 ## Unreleased
 
 ### Features
+- Keep Sessions actions in a bottom-center floating bar with a selection count and Deselect all. Keep Compare visible and enable it only for two compatible laps; filter comparison laps by Mine, Others, or All inside the lap-picker dropdown.
 - Show separate LMU player energy, engine, electric motor, steering feedback, weather and race-control readings in live telemetry and recorded-lap analysis when provided by the game.
 - Show read-only LMU setup, forecast and condition snapshots with source age and availability, without waiting for network requests before displaying live telemetry.
 - Compare laps in Spectate with synchronized 3D replay, configurable cameras and overlays, live A/B instruments, sector deltas, and telemetry, car, AI, Focus View, and lap-statistics panels.
@@ -13,6 +14,8 @@
 - Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
 
 ### Fixes
+- Select and deselect child laps with the Sessions table header checkbox, preserving selections on other pages and ownership tabs.
+- Stop recording curb maps and using detected curbs to recalibrate track boundaries; preserve telemetry-based curb detection.
 - Keep Spectate racing lines visible when zooming out to the full circuit.
 - Distinguish native fractional LMU brake and clutch inputs from normalized control readings in the telemetry catalog.
 - Keep unchanged LMU supplemental snapshots available while successful polling continues, without resetting their original observation ages.
@@ -75,6 +78,7 @@
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
+- Verify LMU recorded pit-cycle classifications independently of lap validity, preserving telemetry-quality failures and incomplete tails.
 - Run native Spectate camera and transition checks on macOS GPU runners while retaining cross-platform coverage for CPU-compatible rendering paths.
 - Synchronize zoom-reversal checks with rendered transition frames and wait for concurrent SQLite writers during migration fixture setup.
 - Keep sparse-capture fixtures schema-valid and verify failed classification recordings without waiting for dashboard work blocked by startup repair prerequisites.

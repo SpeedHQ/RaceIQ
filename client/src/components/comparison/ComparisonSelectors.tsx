@@ -1,14 +1,8 @@
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { SearchSelect } from "@/components/ui/SearchSelect";
-import { formatLapTime } from "@/lib/format";
+import { ComparisonLapSelect } from "./ComparisonLapSelect";
 import { m } from "@/paraglide/messages";
 
-function buildComparisonLapOption(lap: LapMeta, locale?: "en" | "de") {
-  return {
-    value: String(lap.id),
-    label: `${m.compare_lap_label({}, { locale })} ${lap.lapNumber} — ${formatLapTime(lap.lapTime)} — ${lap.ownership === "others" ? m.import_ownership_others({}, { locale }) : m.import_ownership_mine({}, { locale })}${!lap.isValid ? " (inv)" : ""}`,
-  };
-}
 type TrackGroup = { trackId: string; trackName: string; laps: LapMeta[] };
 
 
@@ -78,22 +72,8 @@ export function ComparisonSelectors({
         <label htmlFor="compare-lap-a" className="text-app-caption text-app-text-muted uppercase tracking-wider">
           {m.compare_lap_a()}
         </label>
-        <div className="flex items-center gap-2">
-          <SearchSelect
-            id="compare-lap-a"
-            ariaLabel={m.compare_lap_a()}
-            value={lapAId != null ? String(lapAId) : ""}
-            onChange={(v) => setLapAId(v ? Number(v) : null)}
-            options={carALaps.map((lap) => buildComparisonLapOption(lap))}
-            placeholder={m.compare_search_laps()}
-            disabled={!carAId}
-          />
-          {lapAId != null && (
-            <span className="shrink-0 rounded border border-app-border px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-app-text-muted">
-              {carALaps.find((lap) => lap.id === lapAId)?.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}
-            </span>
-          )}
-        </div>
+          <ComparisonLapSelect id="compare-lap-a" label={m.compare_lap_a()} lapId={lapAId}
+            onChange={setLapAId} laps={carALaps} disabled={!carAId} />
       </div>
       <div className="flex w-full min-w-0 flex-col gap-1 @sm/workspace:w-auto @sm/workspace:min-w-[120px] @sm/workspace:flex-1 @3xl/workspace:max-w-[220px]">
         <div className="flex items-center gap-1.5">
@@ -115,21 +95,8 @@ export function ComparisonSelectors({
         <label htmlFor="compare-lap-b" className="text-app-caption text-app-text-muted uppercase tracking-wider">
           {m.compare_lap_b()}
         </label>
-        <div className="flex items-center gap-2">
-          <SearchSelect
-            id="compare-lap-b"
-            ariaLabel={m.compare_lap_b()}
-            value={lapBId != null ? String(lapBId) : ""}
-            onChange={(v) => setLapBId(v ? Number(v) : null)}
-            disabled={!carBId}
-            options={carBLaps.map((lap) => buildComparisonLapOption(lap))}
-          />
-          {lapBId != null && (
-            <span className="shrink-0 rounded border border-app-border px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-app-text-muted">
-              {carBLaps.find((lap) => lap.id === lapBId)?.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}
-            </span>
-          )}
-        </div>
+          <ComparisonLapSelect id="compare-lap-b" label={m.compare_lap_b()} lapId={lapBId}
+            onChange={setLapBId} laps={carBLaps} disabled={!carBId} />
       </div>
     </div>
   );

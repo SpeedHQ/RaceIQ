@@ -4,7 +4,7 @@ import { m } from "@/paraglide/messages";
 import { Button } from "@/components/ui/button";
 import { SECTOR_COLOR_VARS, TRACK_CORNER_COLOR_VARS, TRACK_STRAIGHT_COLOR_VARS, VISUALIZATION_COLOR_VARS } from "@raceiq/scene-3d/colors";
 import { getSemanticCanvasContext } from "@raceiq/scene-3d/rendering/css-canvas";
-import type { Point, TrackBoundaries, TrackCurb, TrackSectors } from "../types";
+import type { Point, TrackBoundaries, TrackSectors } from "../types";
 import { transformCalibrationPath, type CalibrationComparison } from "./calibration-comparison";
 import { getLocale } from "@/paraglide/runtime";
 import { parseUtcTimestamp } from "@/lib/utc-date";
@@ -12,7 +12,6 @@ import { parseUtcTimestamp } from "@/lib/utc-date";
 type TrackDebugCanvasProps = {
   outline: Point[] | null;
   boundaries: TrackBoundaries | null;
-  curbs: TrackCurb[] | null;
   flipX: boolean;
   displaySectors?: TrackSectors | null;
   sectorBounds?: { s1End: number; s2End: number } | null;
@@ -29,7 +28,6 @@ type TrackDebugCanvasProps = {
 export function TrackDebugCanvas({
   outline,
   boundaries,
-  curbs,
   flipX,
   displaySectors,
   sectorBounds,
@@ -336,22 +334,6 @@ export function TrackDebugCanvas({
       ctx.lineWidth = 2.5;
     }
 
-    // Draw curbs as dots
-    if (curbs && curbs.length > 0) {
-      for (const seg of curbs) {
-        const color = seg.side === "left" ? "var(--track-curb-left)" : seg.side === "right" ? "var(--track-curb-right)" : "var(--track-curb-unknown)";
-        for (const pt of seg.points) {
-          const [cx, cy] = toCanvas(pt.x, pt.z);
-          ctx.beginPath();
-          ctx.arc(cx, cy, 3, 0, Math.PI * 2);
-          ctx.fillStyle = color;
-          ctx.globalAlpha = 0.8;
-          ctx.fill();
-        }
-      }
-      ctx.globalAlpha = 1;
-    }
-
     const drawCalibrationPath = (points: Point[], strokeStyle: string, lineWidth: number, alpha: number, dash: number[] = []) => {
       if (points.length < 2) return;
       ctx.beginPath();
@@ -402,17 +384,12 @@ export function TrackDebugCanvas({
       ctx.fillRect(172, legendY - 5, 14, 2);
       ctx.fillText(m.trackdebugpanel_right_edge(), 190, legendY);
     }
-    if (curbs && curbs.length > 0) {
-      ctx.fillStyle = "var(--track-curb-right)";
-      ctx.fillRect(272, legendY - 5, 14, 2);
-      ctx.fillText(m.curbdebug_curbs(), 290, legendY);
-    }
     if (boundaries?.pitLane) {
       ctx.fillStyle = "var(--track-pit-lane)";
       ctx.fillRect(340, legendY - 5, 14, 2);
       ctx.fillText(m.trackdebugpanel_pit_lane(), 358, legendY);
     }
-  }, [outline, boundaries, curbs, zoom, pan, flipX, displaySectors, sectorBounds, overlayMode, editingSegments, editingSectors, calibrationComparison, showCalibrationHistory]);
+  }, [outline, boundaries, zoom, pan, flipX, displaySectors, sectorBounds, overlayMode, editingSegments, editingSectors, calibrationComparison, showCalibrationHistory]);
 
   return (
     <div className="bg-app-bg rounded-lg border border-app-border relative h-[320px] min-h-0 @5xl/workspace:h-auto">

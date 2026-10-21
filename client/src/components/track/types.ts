@@ -65,8 +65,3 @@ export interface TrackCalibration {
   calibrated: boolean;
   pointsCollected: number;
 }
-
-export interface TrackCurb {
-  points: Point[];
-  side: string;
-}
