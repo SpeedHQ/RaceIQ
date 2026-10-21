@@ -6,7 +6,7 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.20.0",
-      "sourceHash": "a95aa8983eb9ea6957dada211bf46ac4131ac21629301398ee063e967da3b6af"
+      "sourceHash": "42c0eadfc2e8d112d1a4b6704c76f88a7f064027a5022b52f53cbbf15a423f34"
     },
     "sourceHashes": {
       "packages/game-ac-evo/src/parser.ts": "29cb3985fe32c797554d98f107a0c4d76ddcc5279d97e75423365e1a0887f5de",
@@ -20,7 +20,7 @@
       "server/session-capture/frame-time.ts": "55c44a6cede5e2c5fb1e1c45568fe44b4a9a8b156f260f69bb5d89f9c24935a2",
       "shared/racing/setups/schema.ts": "987941bb8f38520920686ef540e67ce2259fdc962de03ccb959f6b5ef773b28f"
     },
-    "contentHash": "18e2f031392e4fd8affbfadbde81a446371c6d2762a63ae9c8036d73365af249"
+    "contentHash": "391a1b422b06e3170983081b3e17a47b1d4c3fc9f29a2d6ef0f6cfedaa62a3d2"
   },
   "generatedFrom": [
     "packages/tooling-catalog/src/root.ts",
@@ -1789,9 +1789,18 @@
           "limitations": []
         },
         "iracing": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "direct",
+          "nativeUnit": "%",
+          "sources": [
+            "iRacing.dcBrakeBias"
+          ],
+          "freshness": "continuous",
+          "description": "Native iRacing SDK variable linked to shared semantic value.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-iracing/src/normalizer.ts"
+          },
+          "limitations": []
         },
         "lmu": {
           "kind": "unavailable",
@@ -84687,6 +84696,18 @@
         "retention": "not-recorded"
       },
       {
+        "path": "dcBrakeBias",
+        "label": "Dc Brake Bias",
+        "unit": "%",
+        "dataType": "float",
+        "count": 1,
+        "description": "In car brake bias adjustment",
+        "semanticId": "brakes.brake-bias",
+        "sourceKind": "sdk",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "dcStarter",
         "label": "Dc Starter",
         "unit": "boolean",
@@ -87644,13 +87665,13 @@
         "recorded": 226
       },
       "iracing": {
-        "total": 955,
+        "total": 956,
         "packet": 115,
         "extension": 18,
-        "sdk": 327,
+        "sdk": 328,
         "yaml": 495,
         "setup": 0,
-        "recorded": 705
+        "recorded": 706
       },
       "lmu": {
         "total": 210,

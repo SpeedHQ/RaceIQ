@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import Database from "libsql";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { z } from "zod";
@@ -12,6 +13,10 @@ import { readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump";
 import { DASHBOARD_PROCESSOR_VERSION } from "@raceiq/backend-core/db/dashboard-summary-queries";
 import { dashboardCarIdentity, dashboardTrackIdentity } from "@raceiq/shared/racing/sessions/dashboard";
 import type { GameId } from "@raceiq/shared/games/ids";
+import { IRacingIbtReader } from "@raceiq/game-iracing/ibt-reader";
+import type { CanonicalTelemetryEnvelope, SemanticTelemetryReplay } from "@raceiq/shared/telemetry/replay/contracts";
+import type { SyntheticIbtRecording } from "@raceiq/game-iracing/test-support/games/iracing-ibt";
+import { TELEMETRY_CATALOG } from "@raceiq/shared/telemetry/catalog/data";
 
 const ROOT = resolve(import.meta.dir, "../../../..");
 const PublicationSchema = z.object({ type: z.enum(["candidatePrepared", "transactionOpen", "beforeCommit", "afterCommit"]), eventId: z.number(), sessionId: z.number() });
@@ -207,8 +212,8 @@ async function postFile(backend: Backend, path: string, name: string, bytes: Uin
   for (const [key,value] of Object.entries(fields)) body.append(key,value);
   return backend.api(path, { method:"POST", body });
 }
-async function stagedIbt(backend: Backend) {
-  const preview = await backend.api("/api/laps/import-ibt/preview", {method:"POST",headers:{"x-file-name":"driven.ibt","x-file-size":String(ibtBytes.byteLength)},body:ibtBytes});
+async function stagedIbt(backend: Backend, bytes = ibtBytes, fileName = "driven.ibt") {
+  const preview = await backend.api("/api/laps/import-ibt/preview", {method:"POST",headers:{"x-file-name":fileName,"x-file-size":String(bytes.byteLength)},body:bytes});
   expect(preview.status).toBe(200);
   const staged = z.object({token:z.string(),preview:z.object({canImport:z.boolean()})}).parse(await preview.json());
   expect(staged.preview.canImport).toBe(true);
@@ -242,8 +247,8 @@ async function fixture() {
     const openedDatabase = new Database(join(dataDir,"app.db"));
     database = openedDatabase;
     await drain(openedDatabase);
-    return {directory,dataDir,backend,database:openedDatabase,lap,async close() { await backend.stop(); openedDatabase.close(); rmSync(directory,{recursive:true,force:true}); }};
-  } catch(error) { await backend.stop(); database?.close(); rmSync(directory,{recursive:true,force:true}); throw error; }
+    return {directory,dataDir,backend,database:openedDatabase,lap,async close() { await backend.stop(); openedDatabase.close(); await rm(directory,{recursive:true,force:true,maxRetries:10,retryDelay:100}); }};
+  } catch(error) { await backend.stop(); database?.close(); await rm(directory,{recursive:true,force:true,maxRetries:10,retryDelay:100}); throw error; }
 }
 async function dirty(backend: Backend, lap: { lapId: number; sessionId: number }, favorite: boolean) {
   const response = await backend.api(`/api/laps/${lap.lapId}/favorite`,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({favorite})});
@@ -453,3 +458,148 @@ test("W-E7: worker exit rolls back mutated projections before a queued HTTP dele
     expect(restarted.output()).not.toContain("SQLITE_BUSY");
   } finally {await restarted?.stop();await f.close();}
 },180_000);
+
+test("IBT E1–E5: separate imports retain measured geography and optional brake bias through HTTP replay reload", async () => {
+  const f = await fixture();
+  let reloaded: Backend | undefined;
+  const recordings: SyntheticIbtRecording[] = [];
+  const value = (frame: CanonicalTelemetryEnvelope, id: string) => {
+    const found = frame.values.find((entry) => entry.semanticId === id);
+    if (!found) throw new Error(`Replay omitted requested channel ${id}`);
+    return found;
+  };
+  const replay = async (backend: Backend, lapId: number) => {
+    const response = await backend.api(`/api/laps/${lapId}/semantic-telemetry`, { headers: { "X-Game-Id": "iracing" } });
+    expect(response.status).toBe(200);
+    return await response.json() as SemanticTelemetryReplay;
+  };
+  const atTime = (body: SemanticTelemetryReplay, seconds: number) => {
+    const frame = body.envelopes.find((entry) => value(entry, "timing.current-race-time").value === seconds);
+    if (!frame) throw new Error(`Replay omitted SessionTime ${seconds}`);
+    return frame;
+  };
+  const source = (sessionId: number) => {
+    const row = z.object({ raw_file: z.string(), source: z.literal("ibt") }).parse(
+      f.database.prepare("SELECT raw_file, source FROM sessions WHERE id = ?").get(sessionId),
+    );
+    expect(row.raw_file).toEndWith(".ibt");
+    return readFileSync(row.raw_file);
+  };
+  const importBytes = async (bytes: Uint8Array<ArrayBuffer>, name: string) => {
+    const response = await stagedIbt(f.backend, bytes, name);
+    expect(response.status).toBe(200);
+    const imported = ImportedSchema.parse(await response.json());
+    expect(imported.errors ?? []).toEqual([]);
+    if (!imported.laps?.length) throw new Error("Import produced no laps");
+    await drain(f.database);
+    expect(imported.laps[0]!.sessionId).not.toBe(f.lap.sessionId);
+    expect(source(imported.laps[0]!.sessionId).equals(Buffer.from(bytes))).toBe(true);
+    return imported.laps;
+  };
+  const storedColumns = (row: unknown) => {
+    const { _metadata, ...columns } = z.record(z.string(), z.unknown()).parse(row);
+    return columns;
+  };
+  try {
+    // Settle the existing boot-time profile backfill before taking isolation evidence.
+    await f.backend.stop();
+    f.backend = startBackend(f.dataDir);
+    await f.backend.ready();
+    await drain(f.database);
+    const baselineSession = storedColumns(f.database.prepare("SELECT * FROM sessions WHERE id = ?").get(f.lap.sessionId));
+    const baselineLaps = f.database.prepare("SELECT * FROM laps WHERE session_id = ? ORDER BY id").all(f.lap.sessionId).map(storedColumns);
+    const baselineSource = source(f.lap.sessionId);
+    const baseline = await replay(f.backend, f.lap.lapId);
+    for (const id of ["brakes.brake-bias", "motion.latitude", "motion.longitude", "motion.altitude"]) {
+      expect(value(atTime(baseline, 50), id)).toMatchObject({ value: null, state: "missing" });
+    }
+    const biasedLaps: { lapId: number; sessionId: number; middle: number }[] = [];
+    for (const middle of [50, NaN]) {
+      const rows = drivenRows().map((row) => ({ ...row, brakeBias: row.sessionTime === 50 ? 0 : row.sessionTime === 105 ? 100 : 50 }));
+      rows.splice(3, 0, { sessionTime: 75, sessionTick: 4500, speed: 45, lap: 2, lapDistancePct: 0.5, currentLapTime: 30, brakeBias: middle });
+      const recording = createRecording(Number.isNaN(middle) ? "invalid-bias.ibt" : "bias.ibt", rows);
+      recordings.push(recording);
+      const [lap] = await importBytes(new Uint8Array(readFileSync(recording.path)), "bias.ibt");
+      biasedLaps.push({ ...lap!, middle });
+    }
+    const assertBias = (body: SemanticTelemetryReplay, middle: number) => {
+      // HTTP intentionally omits provenance; verify the authoritative mapping separately.
+      expect(TELEMETRY_CATALOG.variables.find((entry) => entry.id === "brakes.brake-bias")?.games.iracing).toMatchObject({
+        kind: "direct", nativeUnit: "%", sources: ["iRacing.dcBrakeBias"],
+      });
+      for (const [time, expected] of [[50, 0], [75, middle], [105, 100]]) {
+        const bias = value(atTime(body, time!), "brakes.brake-bias");
+        if (Number.isNaN(expected)) {
+          expect(bias.value).toBeNull();
+          expect(bias.state).not.toBe("ok");
+        } else {
+          expect(bias).toMatchObject({ value: expected, unit: "%", state: "ok", freshness: "fresh" });
+        }
+      }
+    };
+    for (const lap of biasedLaps) assertBias(await replay(f.backend, lap.lapId), lap.middle);
+
+    const realPath = join(ROOT, "test/artifacts/sessions/iracing-navarra-mx5-2026-10-19.ibt");
+    const reader = new IRacingIbtReader(realPath);
+    let native: { values: Readonly<Record<string, unknown>> } | null = null;
+    try {
+      reader.start();
+      while (!reader.done) {
+        const row = reader.readLatest();
+        if (row?.values.SessionTime === 794.8166666697496 && row.values.RPM === 6366.2939453125) { native = row; break; }
+      }
+    } finally { await reader.stop(); }
+    if (!native) throw new Error("Navarra original lacks matching SessionTime/RPM sample");
+    const realBytes = new Uint8Array(readFileSync(realPath));
+    const realLaps = await importBytes(realBytes, "navarra.ibt");
+    let matchingLap: number | undefined;
+    const assertMeasured = (frame: CanonicalTelemetryEnvelope) => {
+      for (const [id, expected] of [
+        ["motion.latitude", 42.56038796677783], ["motion.longitude", -2.1656309237694855],
+        ["motion.altitude", 427.71051025390625], ["motion.yaw-north", 0.5409646034240723],
+        ["engine.current-engine-rpm", 6366.2939453125], ["timing.current-race-time", 794.8166666697496],
+        ["motion.speed", native!.values.Speed], ["motion.yaw", -Number(native!.values.Yaw)],
+        ["inputs.accel", Math.round(Number(native!.values.Throttle) * 255)],
+        ["inputs.brake", Math.round(Number(native!.values.Brake) * 255)],
+        ["inputs.steer", Math.round(Math.max(-1, Math.min(1, -Number(native!.values.SteeringWheelAngle) / Math.abs(Number(native!.values.SteeringWheelAngleMax)))) * 127)],
+      ] as const) {
+        expect(value(frame, id)).toMatchObject({ value: expected, state: "ok", freshness: "fresh" });
+      }
+      for (const id of [
+        "motion.position-x", "motion.position-z", "aero.drs-active",
+        "fuel.ers-store-energy", "fuel.ers-deploy-mode", "fuel.ers-deployed", "fuel.ers-harvested",
+        "brakes.brake-bias", "brakes.brake-temp", "tires.tire-radius",
+        "tire.temperature.surface.representative", "tire.temperature.surface.inner",
+        "tire.temperature.surface.middle", "tire.temperature.surface.outer",
+        "tire.temperature.core", "tire.temperature.carcass.representative",
+      ]) expect(value(frame, id)).toMatchObject({ value: null, state: "missing" });
+    };
+    for (const lap of realLaps) {
+      const body = await replay(f.backend, lap.lapId);
+      const frame = body.envelopes.find((entry) => value(entry, "timing.current-race-time").value === 794.8166666697496 && value(entry, "engine.current-engine-rpm").value === 6366.2939453125);
+      if (frame) { matchingLap = lap.lapId; assertMeasured(frame); break; }
+    }
+    expect(matchingLap).toBeDefined();
+    await drain(f.database);
+    // A fresh backend process must reload native values from persisted original bytes.
+    await f.backend.stop();
+    reloaded = startBackend(f.dataDir);
+    await reloaded.ready();
+    assertMeasured(atTime(await replay(reloaded, matchingLap!), 794.8166666697496));
+    for (const lap of biasedLaps) assertBias(await replay(reloaded, lap.lapId), lap.middle);
+    expect(await replay(reloaded, f.lap.lapId)).toEqual(baseline);
+    expect(source(realLaps[0]!.sessionId).equals(Buffer.from(realBytes))).toBe(true);
+    expect(storedColumns(f.database.prepare("SELECT * FROM sessions WHERE id = ?").get(f.lap.sessionId))).toEqual(baselineSession);
+    expect(f.database.prepare("SELECT * FROM laps WHERE session_id = ? ORDER BY id").all(f.lap.sessionId).map(storedColumns)).toEqual(baselineLaps);
+    expect(source(f.lap.sessionId).equals(baselineSource)).toBe(true);
+    expect(new Set([f.lap.sessionId, ...biasedLaps.map((lap) => lap.sessionId), realLaps[0]!.sessionId]).size).toBe(4);
+  } catch (error) {
+    console.error("IBT HTTP replay assertion failed:", error);
+    throw error;
+  } finally {
+    await reloaded?.stop();
+    await f.backend.stop();
+    await f.close();
+    for (const recording of recordings) recording.cleanup();
+  }
+}, 180_000);

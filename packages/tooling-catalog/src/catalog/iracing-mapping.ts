@@ -103,6 +103,7 @@ const IRACING_SDK_ALIASES: Record<string, string> = {
   LapLasNLapSeq: "timing.n-lap-average.clean-lap-count",
   LapLastNLapTime: "timing.n-lap-average.current-time",
   LoadNumTextures: "diagnostics.car-number-texture-loading",
+  dcBrakeBias: "brakes.brake-bias",
   LapDistPct: "timing.lap-fraction",
   Lat: "motion.latitude",
   Lon: "motion.longitude",

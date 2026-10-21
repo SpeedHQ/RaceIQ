@@ -350,10 +350,12 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
   }
   // Disk-only IBT channels are absent from the captured live SDK inventory.
   const diskOnly = new Set(["Lat", "Lon", "Alt"]);
+  const ibtRetained = new Set([...diskOnly, "dcBrakeBias"]);
   for (const [name, type, unit, description] of [
     ["Lat", "double", "deg", "Recorded vehicle latitude; available only in native IBT telemetry."],
     ["Lon", "double", "deg", "Recorded vehicle longitude; available only in native IBT telemetry."],
     ["Alt", "float", "m", "Recorded vehicle altitude; available only in native IBT telemetry."],
+    ["dcBrakeBias", "float", "", "In car brake bias adjustment"],
   ]) {
     if (!diagnostic.variables.some((variable) => variable.name === name)) {
       diagnostic.variables.push({ name, type, unit, description, count: 1 });
@@ -453,8 +455,8 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
         description: raw.description,
         semanticId: existingSemantic,
         sourceKind: "sdk",
-        recordedByRaceIQ: selected.has(raw.name) || diskOnly.has(raw.name),
-        retention: selected.has(raw.name) || diskOnly.has(raw.name) ? "exact" : "not-recorded",
+        recordedByRaceIQ: selected.has(raw.name) || ibtRetained.has(raw.name),
+        retention: selected.has(raw.name) || ibtRetained.has(raw.name) ? "exact" : "not-recorded",
       });
       continue;
     }
