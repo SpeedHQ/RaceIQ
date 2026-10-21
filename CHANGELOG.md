@@ -79,6 +79,7 @@
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
+- Generate Paraglide declarations with the installed native TypeScript compiler and stop abandoned translation watchers from consuming CPU after development exits.
 - Use Ubuntu instead of macOS for CI runners and cap Mars memory requests at 6 GB.
 - Invalidate cached frontend builds when source changes in dependent workspaces.
 - Extract tracks and cars catalogues into feature-owned UI, server, contract, and E2E workspaces with enforced browser boundaries, inherited Turbo impact inputs, and isolated compiled-app browser tasks.
