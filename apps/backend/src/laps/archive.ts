@@ -20,6 +20,7 @@ import { zipSync } from "fflate";
 import { readFile } from "node:fs/promises";
 import { eq } from "drizzle-orm";
 import { db } from "@raceiq/backend-core/db/index";
+import { withDatabaseWrite } from "@raceiq/backend-core/db/write-coordination";
 import { laps as storedLaps } from "@raceiq/backend-core/db/schema";
 import { LAPS_ZIP_LIMITS, unzipBounded } from "@raceiq/backend-core/archive/bounded-unzip";
 import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
@@ -703,7 +704,7 @@ export async function importLapsZip(zipData: Uint8Array, options: { ownership?: 
       const result = await importSessionBin(bytes, gameId, {
         ownership: options.ownership,
         onImportedLaps: entry && Array.isArray(entry.laps) ? async (imported) => {
-          await db.transaction(async (tx) => {
+          await withDatabaseWrite(() => db.transaction(async (tx) => {
             for (const lap of imported) {
               const matches = entry.laps.filter((metadata) => metadata.lapNumber === lap.lapNumber);
               if (matches.length !== 1) continue;
@@ -718,7 +719,7 @@ export async function importLapsZip(zipData: Uint8Array, options: { ownership?: 
               lap.lapTime = metadata.lapTime;
               lap.isValid = metadata.isValid;
             }
-          });
+          }));
         } : undefined,
       });
       laps.push(...result.laps);

@@ -4,7 +4,8 @@ import { createHash } from "node:crypto";
 import { stat as statFile } from "node:fs/promises";
 import type { Stats } from "node:fs";
 import { z } from "zod";
-import { client } from "../db/index";
+import { client, readClient } from "../db/index";
+import { withDatabaseTransaction } from "../db/write-coordination";
 import { ClassificationMigrationCursorSchema } from "@raceiq/shared/racing/laps/classification-migration";
 import type {
   ClassificationMigrationRecording,
@@ -43,10 +44,9 @@ export function classificationSourceSignature(stats: Stats): string {
 }
 
 export async function invalidateClassificationMigrationSource(sourcePath: string): Promise<void> {
-  const tx = await client.transaction("write");
-  try {
-    const sourceKey = `file:${sourcePath}`;
-    const id = recordingId(sourceKey);
+  const sourceKey = `file:${sourcePath}`;
+  const id = recordingId(sourceKey);
+  await withDatabaseTransaction(client, async (tx) => {
     const updated = await tx.execute({
       sql: `INSERT INTO classification_migration_recordings
         (recording_id,source_key,version,source_revision,result_revision,attempt,state,reason,source_signature)
@@ -68,16 +68,11 @@ export async function invalidateClassificationMigrationSource(sourcePath: string
         args: [id, sourceKey],
       });
       if (Number(removed.rowsAffected) > 0) await tx.execute("UPDATE classification_migration_meta SET revision=revision+1 WHERE id=1");
-      await tx.commit();
       return;
     }
     await tx.execute({ sql: MARK_CAPTURE_FACTS_DIRTY_SQL, args: [sourcePath] });
     await tx.execute("UPDATE classification_migration_meta SET revision=revision+1 WHERE id=1");
-    await tx.commit();
-  } catch (error) {
-    await tx.rollback();
-    throw error;
-  }
+  });
 }
 
 export async function invalidateStaleCompletedClassificationSources(
@@ -105,8 +100,7 @@ export async function invalidateStaleCompletedClassificationSources(
       catch { /* Missing source invalidates completed outcome; worker will record attention. */ }
       if (row.source_signature == null || signature !== String(row.source_signature)) {
         const sourcePath = sourceKey.slice(5);
-        const tx = await client.transaction("write");
-        try {
+        await withDatabaseTransaction(client, async (tx) => {
           const updated = await tx.execute({
             sql: `UPDATE classification_migration_recordings SET state='pending',source_revision=source_revision+1,
               source_signature=NULL,reason='source_changed'
@@ -117,11 +111,7 @@ export async function invalidateStaleCompletedClassificationSources(
             await tx.execute({ sql: MARK_CAPTURE_FACTS_DIRTY_SQL, args: [sourcePath] });
             await tx.execute("UPDATE classification_migration_meta SET revision=revision+1 WHERE id=1");
           }
-          await tx.commit();
-        } catch (error) {
-          await tx.rollback();
-          throw error;
-        }
+        });
       }
     }
     staleSourceCursor = String(row.recording_id);
@@ -149,9 +139,8 @@ export async function hasTerminalMigrationCaptureFailure(sessionId: number): Pro
 
 /** Discover immutable source groups, including NULL/missing paths, without exposing paths in API identifiers. */
 export async function reconcileClassificationMigrationInventory(options: { resetInterrupted?: boolean } = {}): Promise<void> {
-  const initialization = await client.transaction("write");
-  let cutoff: number;
-  try {
+  let cutoff = 0;
+  await withDatabaseTransaction(client, async (initialization) => {
     const meta = await initialization.execute("SELECT version,cutoff_session_id FROM classification_migration_meta WHERE id=1");
     cutoff = Number(meta.rows[0]?.cutoff_session_id ?? 0);
     let changed = false;
@@ -169,18 +158,13 @@ export async function reconcileClassificationMigrationInventory(options: { reset
       changed ||= Number(reset.rowsAffected) > 0;
     }
     if (changed) await initialization.execute("UPDATE classification_migration_meta SET revision=revision+1 WHERE id=1");
-    await initialization.commit();
-  } catch (error) {
-    await initialization.rollback();
-    throw error;
-  }
+  });
 
   const pageSize = 25;
   let afterId = 0;
   while (true) {
-    const tx = await client.transaction("write");
     let pageLength = 0;
-    try {
+    await withDatabaseTransaction(client, async (tx) => {
       const rows = await tx.execute({
         sql: "SELECT id,raw_file FROM sessions WHERE id>? AND id<=? AND coalesce(source,'')!='motec' ORDER BY id LIMIT ?",
         args: [afterId, cutoff, pageSize],
@@ -224,17 +208,12 @@ export async function reconcileClassificationMigrationInventory(options: { reset
         changed = true;
       }
       if (changed) await tx.execute("UPDATE classification_migration_meta SET revision=revision+1 WHERE id=1");
-      await tx.commit();
-    } catch (error) {
-      await tx.rollback();
-      throw error;
-    }
+    });
     if (pageLength < pageSize) break;
     await new Promise<void>((resolve) => setImmediate(resolve));
   }
 
-  const cleanup = await client.transaction("write");
-  try {
+  await withDatabaseTransaction(client, async (cleanup) => {
     const removed = await cleanup.execute({
       sql: `DELETE FROM classification_migration_recordings WHERE NOT EXISTS (
         SELECT 1 FROM sessions s WHERE s.id<=? AND coalesce(s.source,'')!='motec' AND
@@ -243,11 +222,7 @@ export async function reconcileClassificationMigrationInventory(options: { reset
       args: [cutoff],
     });
     if (Number(removed.rowsAffected) > 0) await cleanup.execute("UPDATE classification_migration_meta SET revision=revision+1 WHERE id=1");
-    await cleanup.commit();
-  } catch (error) {
-    await cleanup.rollback();
-    throw error;
-  }
+  });
 }
 
 function migrationStatusFrom(
@@ -267,7 +242,7 @@ function migrationStatusFrom(
 }
 
 export async function getClassificationMigrationStatus(): Promise<ClassificationMigrationStatus> {
-  const tx = await client.transaction("read");
+  const tx = await readClient.transaction("read");
   try {
     const counts = await tx.execute({
       sql: "SELECT state, COUNT(*) AS count FROM classification_migration_recordings WHERE version=? GROUP BY state",
@@ -286,12 +261,14 @@ export async function getClassificationMigrationStatus(): Promise<Classification
   } catch (error) {
     await tx.rollback();
     throw error;
+  } finally {
+    await tx.close();
   }
 }
 
 type MigrationCursor = z.infer<typeof ClassificationMigrationCursorSchema>;
 export async function listClassificationMigrationRecordings(limit: number, cursor?: string): Promise<{ revision: number; recordings: ClassificationMigrationRecording[]; nextCursor: string | null } | null> {
-  const tx = await client.transaction("read");
+  const tx = await readClient.transaction("read");
   try {
     const counts = await tx.execute({
       sql: "SELECT state, COUNT(*) AS count FROM classification_migration_recordings WHERE version=? GROUP BY state",
@@ -345,25 +322,20 @@ export async function listClassificationMigrationRecordings(limit: number, curso
   } catch (error) {
     await tx.rollback();
     throw error;
+  } finally {
+    await tx.close();
   }
 }
 
 export async function retryClassificationMigrationRecording(id: string): Promise<"pending" | "running" | "completed" | null> {
-  const tx = await client.transaction("write");
-  try {
+  return withDatabaseTransaction(client, async (tx) => {
     const rows = await tx.execute({
       sql: "SELECT state,source_key FROM classification_migration_recordings WHERE recording_id=?",
       args: [id],
     });
     const state = rows.rows[0]?.state;
-    if (state === undefined) {
-      await tx.commit();
-      return null;
-    }
-    if (state === "completed" || state === "running" || state === "pending") {
-      await tx.commit();
-      return state;
-    }
+    if (state === undefined) return null;
+    if (state === "completed" || state === "running" || state === "pending") return state;
     const updated = await tx.execute({
       sql: "UPDATE classification_migration_recordings SET state='pending',reason=NULL,source_signature=NULL WHERE recording_id=? AND state IN ('limited','failed')",
       args: [id],
@@ -375,10 +347,6 @@ export async function retryClassificationMigrationRecording(id: string): Promise
       }
       await tx.execute("UPDATE classification_migration_meta SET revision=revision+1 WHERE id=1");
     }
-    await tx.commit();
     return "pending";
-  } catch (error) {
-    await tx.rollback();
-    throw error;
-  }
+  });
 }
