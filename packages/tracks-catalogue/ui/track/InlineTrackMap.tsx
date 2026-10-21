@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTracksCatalogueHost } from "../host";
 
 type TrackMapLayers = "centerline" | "debug";
@@ -94,6 +94,17 @@ export function InlineTrackMap({ src, alt, className, layers = "centerline" }: I
     };
   }, [src, layers]);
 
+  // Exported viewports frame debug layers, not the filtered centerline.
+  useLayoutEffect(() => {
+    if (layers !== "centerline") return;
+    const root = containerRef.current?.querySelector("svg");
+    if (!root) return;
+    const { x, y, width, height } = root.getBBox();
+    if (width <= 0 || height <= 0) return;
+    const padding = 2.5;
+    root.setAttribute("viewBox", `${x - padding} ${y - padding} ${width + padding * 2} ${height + padding * 2}`);
+  }, [layers, svg]);
+
   useEffect(() => {
     if (layers !== "debug") return;
     const container = containerRef.current;
@@ -119,7 +130,7 @@ export function InlineTrackMap({ src, alt, className, layers = "centerline" }: I
 
   if (!svg) return <div className={className} aria-label={`${alt} ${m.track_map_loading()}`} />;
   if (layers === "centerline") {
-    return <div className={className} role="img" aria-label={alt} data-track-map-layers={layers} dangerouslySetInnerHTML={{ __html: svg }} />;
+    return <div ref={containerRef} className={className} role="img" aria-label={alt} data-track-map-layers={layers} dangerouslySetInnerHTML={{ __html: svg }} />;
   }
 
   const resetView = () => {

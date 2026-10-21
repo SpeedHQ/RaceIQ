@@ -10,6 +10,7 @@
 - Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
 
 ### Fixes
+- Center Le Mans Ultimate track outlines within catalogue cards.
 - Keep first-run setup responsive by omitting the optional telemetry demo.
 - Label the community setup copy action “Clone” in the setup browser.
 - Leave MoTeC imports unchanged during historical lap-classification upgrades.
@@ -58,6 +59,7 @@
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
+- Invalidate cached frontend builds when source changes in dependent workspaces.
 - Extract tracks and cars catalogues into feature-owned UI, server, contract, and E2E workspaces with enforced browser boundaries, inherited Turbo impact inputs, and isolated compiled-app browser tasks.
 - Define startup repair stages in a keyed registry with an explicit order; reject unknown, duplicate, or omitted stages before repairs run.
 - Run browser and responsive verification against production builds with all release-gated features enabled, including the historical classification upgrade fixture.
