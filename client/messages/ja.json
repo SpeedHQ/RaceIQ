@@ -2950,5 +2950,7 @@
   "race_plan_draft_retained": "下書きを保持しました。接続を確認してから再試行してください。",
   "race_plan_retry": "再試行",
   "race_plan_laps": "{count}周",
+  "race_plan_tire_life": "タイヤ寿命：性能低下まで{cliff}周・摩耗限界まで{dead}周。",
+  "race_plan_tire_no_wear": "摩耗の測定値はゼロ",
   "sparse_split_migration_description": "録音を分割する必要があります {sessions} 既存のセッションを個別のラップファイルに分割します。これにより、60周目が1周目と同じくらい速く読み込まれ、過去59周をスキャンする必要がなくなります。分割処理はバックグラウンドで実行されます。"
 }

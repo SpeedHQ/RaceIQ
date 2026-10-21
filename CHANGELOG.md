@@ -5,6 +5,7 @@
 - Open an expanded pit-estimate dialog with a projected lap horizon, four-wheel readings, and evidence.
 - Design and save race strategies from previous stint history, then load planned stops, fuel, and tires into the live dashboard.
 - Plan races by lap count or race duration using your measured lap time, save the chosen basis, and estimate required fuel and refueling at selected pit stops.
+- Replace live pit estimates with the selected matching race strategy, including planned stops, next-stint compounds/fuel, and measured compound-specific tire life with cliff/dead and fuel-shortfall warnings.
 - Keep pit-estimate history across sessions and restarts, with per-driver clearing and evidence from compatible previous stints.
 - Review per-stint fuel use and four-wheel tire wear, then compare two stints with explicit units, sample counts, and unavailable data.
 - Choose a 50–100 Hz recording frequency for ACC, AC Evo, iRacing, or LMU during setup to reduce recording size. Live UDP recording is unchanged.

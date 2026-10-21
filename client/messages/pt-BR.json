@@ -2950,5 +2950,7 @@
   "pit_timeline_evidence_unavailable": "Evidências da projeção indisponíveis",
   "pit_timeline_projection_note": "As posições descrevem limites projetados, não eventos observados.",
   "pit_timeline_projection_history": "Histórico da projeção",
+  "race_plan_tire_life": "Vida útil do pneu: {cliff} voltas até a queda · {dead} voltas até o limite.",
+  "race_plan_tire_no_wear": "Nenhum desgaste medido",
   "pit_mixed_thresholds": "Misto"
 }

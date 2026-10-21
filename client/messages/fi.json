@@ -2951,5 +2951,7 @@
   "pit_timeline_evidence_unavailable": "Ennusteen näyttöaineisto ei ole saatavilla",
   "pit_timeline_projection_note": "Sijainnit kuvaavat ennustettuja raja-arvoja, eivät havaittuja tapahtumia.",
   "pit_timeline_projection_history": "Ennustehistoria",
+  "race_plan_tire_life": "Renkaan kesto: {cliff} kierrosta pidon romahdukseen · {dead} kierrosta kulumisrajaan.",
+  "race_plan_tire_no_wear": "Ei mitattua kulumista",
   "pit_mixed_thresholds": "Sekoitettu"
 }

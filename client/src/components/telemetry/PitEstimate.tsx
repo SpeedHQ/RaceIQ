@@ -14,6 +14,9 @@ import { useTelemetryStore } from "@/stores/telemetry";
 import { PitWindow } from "./PitWindow";
 import { PitEstimateDialog } from "./PitEstimateDialog";
 import { strategyRateText } from "@/lib/strategy-format";
+import { useActiveRacePlan } from "@/hooks/race-plans";
+import { isRacePlanApplicable } from "@/lib/race-plan-projection";
+import { CompactRaceStrategy } from "./LiveRaceStrategy";
 
 interface PitEstimateProps {
   packet?: TelemetryPacket;
@@ -28,6 +31,7 @@ interface PitEstimateProps {
  */
 export function PitEstimate({ packet, view, pit }: PitEstimateProps) {
   const serverStatus = useTelemetryStore((state) => state.serverStatus);
+  const activePlanQuery = useActiveRacePlan();
   const gameCandidate = view?.simulator ?? packet?.gameId ?? serverStatus?.detectedGame?.id;
   const gameId = GameIdSchema.safeParse(gameCandidate).success ? gameCandidate as GameId : null;
   const sessionId = pit?.strategy?.sessionId ?? serverStatus?.currentSession?.id ?? null;
@@ -107,6 +111,12 @@ export function PitEstimate({ packet, view, pit }: PitEstimateProps) {
   const pitBadge = pitStatus === "in_pit" ? { label: m.pit_in_pit(), color: "var(--status-info)" } : pitStatus === "pit_lane" ? { label: m.pit_pit_lane(), color: "var(--status-warning)" } : null;
 
   const currentLap = view?.timing.lapNumber ?? packet?.LapNumber ?? null;
+  const selectedPlan = activePlanQuery.data?.plan ?? null;
+  const activePlan = !activePlanQuery.isError && isRacePlanApplicable(selectedPlan, {
+    gameId, carId: view?.identity.carId ?? packet?.carId ?? null,
+    trackId: view?.identity.trackId ?? packet?.trackId ?? null,
+    pi: view?.identity.performanceIndex ?? packet?.CarPerformanceIndex ?? null,
+  }) ? selectedPlan : null;
   const strategyFuelRate = strategy?.fuel;
   const fuelRate = fuelAvailable && strategyFuelRate?.value != null
     ? strategyRateText(strategyFuelRate)
@@ -117,9 +127,9 @@ export function PitEstimate({ packet, view, pit }: PitEstimateProps) {
       : "—";
 
   return (
-    <section data-testid="pit-estimate-live" className="min-w-0 text-sm">
+    <section data-testid={activePlan ? "race-strategy-live" : "pit-estimate-live"} className="min-w-0 text-sm">
       <header className="flex min-h-8 items-center justify-between gap-2 border-b border-app-border px-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-app-text-muted">{m.label_pit_window()}{pitBadge && <span className="ml-2" style={{ color: pitBadge.color }}>{pitBadge.label}</span>}</h3>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-app-text-muted">{activePlan ? m.race_plan_title() : m.label_pit_window()}{pitBadge && <span className="ml-2" style={{ color: pitBadge.color }}>{pitBadge.label}</span>}</h3>
         <PitEstimateDialog
           gameId={gameId}
           sessionId={sessionId}
@@ -136,6 +146,7 @@ export function PitEstimate({ packet, view, pit }: PitEstimateProps) {
         />
       </header>
       <div className="space-y-2 p-3">
+      {activePlan ? <CompactRaceStrategy plan={activePlan} currentLap={currentLap} /> : <>
       <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-center gap-3">
         <div className="min-w-0">
           <p className="mb-1 text-xs text-app-text-muted">{m.pit_timeline_estimate_current()}</p>
@@ -172,6 +183,7 @@ export function PitEstimate({ packet, view, pit }: PitEstimateProps) {
           </tbody>
         </table>
       </div>
+      </>}
       </div>
     </section>
   );

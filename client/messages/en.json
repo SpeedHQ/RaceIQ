@@ -2954,5 +2954,7 @@
   "pit_timeline_evidence_unavailable": "Projection evidence unavailable",
   "pit_timeline_projection_note": "Positions describe projected thresholds, not observed events.",
   "pit_timeline_projection_history": "Projection history",
+  "race_plan_tire_life": "Tire life: {cliff} laps to cliff · {dead} laps to dead.",
+  "race_plan_tire_no_wear": "No measured wear",
   "pit_mixed_thresholds": "Mixed"
 }

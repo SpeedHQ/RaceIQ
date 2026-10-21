@@ -2950,5 +2950,7 @@
   "pit_timeline_evidence_unavailable": "Projectiebewijs niet beschikbaar",
   "pit_timeline_projection_note": "Posities geven verwachte grenzen aan, geen waargenomen gebeurtenissen.",
   "pit_timeline_projection_history": "Projectiegeschiedenis",
+  "race_plan_tire_life": "Bandenlevensduur: {cliff} ronden tot gripverlies · {dead} ronden tot slijtagelimiet.",
+  "race_plan_tire_no_wear": "Geen gemeten slijtage",
   "pit_mixed_thresholds": "Gemengd"
 }

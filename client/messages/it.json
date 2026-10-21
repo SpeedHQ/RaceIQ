@@ -2950,5 +2950,7 @@
   "pit_timeline_evidence_unavailable": "Prova della proiezione non disponibile",
   "pit_timeline_projection_note": "Le posizioni indicano soglie previste, non eventi osservati.",
   "pit_timeline_projection_history": "Cronologia delle proiezioni",
+  "race_plan_tire_life": "Durata gomme: {cliff} giri al calo · {dead} giri al limite.",
+  "race_plan_tire_no_wear": "Nessuna usura misurata",
   "pit_mixed_thresholds": "Miste"
 }

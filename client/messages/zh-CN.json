@@ -2950,5 +2950,7 @@
   "race_plan_draft_retained": "草稿已保留。请检查连接后重试。",
   "race_plan_retry": "重试",
   "race_plan_laps": "{count} 圈",
+  "race_plan_tire_life": "轮胎寿命：距性能骤降 {cliff} 圈 · 距磨损极限 {dead} 圈。",
+  "race_plan_tire_no_wear": "测得磨损为零",
   "sparse_split_migration_description": "我们需要将 {sessions} 个现有会话的录音拆分为单圈文件。这样加载第 60 圈会和加载第 1 圈一样快，无需扫描前 59 圈。拆分将在后台运行。"
 }

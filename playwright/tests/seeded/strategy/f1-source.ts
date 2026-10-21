@@ -3,7 +3,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { F1_HEADER_SIZE, F1_PACKET_IDS } from "@raceiq/capture-formats/f1-2025/f1-wire";
 
 /** Native F1 packets; the production adapter normalizes fuel to tank fraction and percentage wear to fraction worn. */
-export async function ingestF1Laps(port: number, laps: number, sessionUID = 460n, wearPerLapPct = 0.8, tireChangeAtLap: number | null = null): Promise<void> {
+export async function ingestF1Laps(port: number, laps: number, sessionUID = 460n, wearPerLapPct = 0.8, tireChangeAtLap: number | null = null, firstLap = 1): Promise<void> {
   const socket = createSocket("udp4");
   let frameId = 0;
   const packet = (packetId: number, body: Buffer, time: number): Buffer => {
@@ -72,9 +72,9 @@ export async function ingestF1Laps(port: number, laps: number, sessionUID = 460n
         lapData.writeUInt32LE(lap > 0 ? 60_000 : 0, 0);
         lapData.writeUInt32LE(Math.round(progress * 60_000), 4);
         lapData.writeFloatLE(progress * 3_000, 20);
-        lapData.writeFloatLE((lap + progress) * 3_000, 24);
+        lapData.writeFloatLE((lap + firstLap - 1 + progress) * 3_000, 24);
         lapData.writeUInt8(1, 32);
-        lapData.writeUInt8(lap + 1, 33);
+        lapData.writeUInt8(lap + firstLap, 33);
         lapData.writeUInt8(Math.min(2, Math.floor(progress * 3)), 36);
         lapData.writeUInt8(1, 44);
         lapData.writeUInt8(2, 45);

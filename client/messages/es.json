@@ -2950,5 +2950,7 @@
   "pit_timeline_evidence_unavailable": "Pruebas de previsión no disponibles",
   "pit_timeline_projection_note": "Las posiciones indican umbrales previstos, no eventos observados.",
   "pit_timeline_projection_history": "Historial de previsiones",
+  "race_plan_tire_life": "Vida del neumático: {cliff} vueltas hasta la caída · {dead} vueltas hasta el límite.",
+  "race_plan_tire_no_wear": "Sin desgaste medido",
   "pit_mixed_thresholds": "Mixtos"
 }

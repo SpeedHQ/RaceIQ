@@ -2954,5 +2954,7 @@
   "pit_timeline_evidence_unavailable": "Prognosenachweis nicht verfügbar",
   "pit_timeline_projection_note": "Positionen zeigen prognostizierte Schwellen, keine beobachteten Ereignisse.",
   "pit_timeline_projection_history": "Prognoseverlauf",
+  "race_plan_tire_life": "Reifenlebensdauer: {cliff} Runden bis zum Einbruch · {dead} Runden bis zum Verschleißlimit.",
+  "race_plan_tire_no_wear": "Kein gemessener Verschleiß",
   "pit_mixed_thresholds": "Gemischt"
 }
