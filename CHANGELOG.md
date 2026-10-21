@@ -19,6 +19,7 @@
 - Replace the iRacing session review's end-of-lap tire section with the incident report below detected telemetry issues.
 - Prevent live recording startup from failing on Windows, leaving empty capture manifests and recorded laps without replay telemetry.
 - Restore recording-layout migration and interrupted-recording recovery on Windows by avoiding unsupported directory synchronization and serializing migration journal reads and replacement.
+- Persist the iRacing automatic IBT capture opt-in and restore capture after backend restart.
 - Keep iRacing telemetry flowing when native lap timing stalls; mark unresolved lap data incomplete instead of stopping capture.
 - Replace iRacing comparison-map yaw ticks with lap-colored travel-direction chevrons and align follow view to the plotted path; retain plain dots when nearby positions cannot establish direction.
 - Keep first-run setup responsive by omitting the optional telemetry demo.
