@@ -8,6 +8,7 @@ import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { TireGrid } from "@/components/telemetry/TireGrid";
+import { IRacingIncidentReport } from "@/components/iracing/IRacingIncidentReport";
 import { SectorDetailView } from "@/components/tunes/SectorDetailView";
 import { SectorMap } from "@/components/tunes/SectorMap";
 import { bandColor, buildSectorRanges, CORNERS, CornerBars, sectorIndexForTelemetryIndex, type CornerKey, METRICS, metricDisplayValue, type MetricKey, tuneMetricValue, tuneMetricsFor } from "@/components/tunes/SectorRangeBreakdown";
@@ -459,24 +460,27 @@ export function SessionReviewDashboard({
               )}
             </div>
 
-            {/* Tyres */}
-            <div>
+            {gameId === "iracing" ? (
+              sessionId != null && <IRacingIncidentReport sessionId={sessionId} />
+            ) : (
               <div>
-                {corners ? (
-                  <TireGrid
-                    title={m.analyse_tires_end_of_lap()}
-                    corners={corners}
-                    healthThresholds={game?.tireHealthThresholds ?? { green: 0.85, yellow: 0.7 }}
-                    tempThresholds={{ blue: 70, orange: 100, red: 110 }}
-                    pressureOptimal={pressureOptimal}
-                    brakeTempThresholds={game?.brakeTempThresholds}
-                    healthAvailable={tireHealthAvailable}
-                  />
-                ) : (
-                  <div className="p-3 text-xs text-app-text-dim">{aligned.isLoading ? m.review_loading_tyre_state() : m.review_no_stored_telemetry()}</div>
-                )}
+                <div>
+                  {corners ? (
+                    <TireGrid
+                      title={m.analyse_tires_end_of_lap()}
+                      corners={corners}
+                      healthThresholds={game?.tireHealthThresholds ?? { green: 0.85, yellow: 0.7 }}
+                      tempThresholds={{ blue: 70, orange: 100, red: 110 }}
+                      pressureOptimal={pressureOptimal}
+                      brakeTempThresholds={game?.brakeTempThresholds}
+                      healthAvailable={tireHealthAvailable}
+                    />
+                  ) : (
+                    <div className="p-3 text-xs text-app-text-dim">{aligned.isLoading ? m.review_loading_tyre_state() : m.review_no_stored_telemetry()}</div>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </>
         )}
       </div>

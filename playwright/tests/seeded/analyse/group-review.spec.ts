@@ -145,3 +145,34 @@ test("Analyse session route rejects mixed session and lap selections", async ({ 
   await expect(page.getByRole("heading", { name: "Invalid Analyse selection" })).toBeVisible();
   await expect(page.getByRole("alert")).toHaveText("Session selection must contain only a positive session ID.");
 });
+
+test("iRacing overview shows incident report below detected issues instead of end-of-lap tires", async ({ page, request }, testInfo) => {
+  const response = await request.get("/api/laps?gameId=iracing");
+  expect(response.ok()).toBe(true);
+  const laps = await response.json() as LapMeta[];
+  const sessions = new Map<number, number>();
+  for (const lap of laps) {
+    if (lap.isValid) sessions.set(lap.sessionId, (sessions.get(lap.sessionId) ?? 0) + 1);
+  }
+  const sessionId = [...sessions].sort((a, b) => b[1] - a[1])[0]?.[0];
+  if (sessionId == null) throw new Error("iRacing seed has no reviewable session");
+  const incidentResponse = await request.get(`/api/iracing/sessions/${sessionId}/incidents`);
+  expect(incidentResponse.ok()).toBe(true);
+  const incidentReport = await incidentResponse.json() as { observedIncidentPoints: number | null };
+  await page.goto(`/iracing/sessions/${sessionId}/analyse`, { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("button", { name: "Overview", exact: true })).toBeVisible();
+  const report = page.getByRole("region", { name: "Incident report", exact: true });
+  await expect(report).toHaveCount(1);
+  await expect(report.getByText("Observed incident points", { exact: true })).toBeVisible();
+  await expect(report.locator("dd").first()).toHaveText(incidentReport.observedIncidentPoints === null ? "—" : String(incidentReport.observedIncidentPoints));
+  await expect(page.getByText("Tires at end of lap", { exact: true })).toHaveCount(0);
+  const issues = page.getByText("Detected from telemetry", { exact: true });
+  await expect(issues).toBeVisible();
+  expect(await issues.evaluate((element) => Boolean(element.compareDocumentPosition(document.querySelector('[aria-labelledby="iracing-incident-report-heading"]')!) & Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
+  await report.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath("incident-report-placement.png") });
+  await page.getByRole("button", { name: "Sector 1", exact: true }).click();
+  await expect(report).toHaveCount(0);
+  await page.getByRole("button", { name: "Overview", exact: true }).click();
+  await expect(report).toHaveCount(1);
+});

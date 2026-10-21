@@ -16,6 +16,7 @@
 - Smooth iRacing lap replay by interpolating the track marker and timeline cursor between recorded telemetry frames.
 
 ### Fixes
+- Replace the iRacing session review's end-of-lap tire section with the incident report below detected telemetry issues.
 - Prevent live recording startup from failing on Windows, leaving empty capture manifests and recorded laps without replay telemetry.
 - Restore recording-layout migration and interrupted-recording recovery on Windows by avoiding unsupported directory synchronization and serializing migration journal reads and replacement.
 - Keep iRacing telemetry flowing when native lap timing stalls; mark unresolved lap data incomplete instead of stopping capture.
@@ -71,6 +72,7 @@
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
+- Run workspace lint through the installed Oxlint CLI and isolate native database test fixtures in subprocesses to keep Windows pre-commit checks reliable.
 - Define startup repair stages in a keyed registry with an explicit order; reject unknown, duplicate, or omitted stages before repairs run.
 - Run browser and responsive verification against production builds with all release-gated features enabled, including the historical classification upgrade fixture.
 - Align recording and browser E2E coverage with independent lap classification, pace-only review, current setup-source labels, and recording-organization consent controls.
