@@ -1,4 +1,5 @@
-import { client } from "./index";
+import { client, readClient } from "./index";
+import { withDatabaseTransaction } from "./write-coordination";
 import { dashboardCarIdentity, dashboardTrackIdentity } from "@raceiq/shared/racing/sessions/dashboard";
 import type { TrackConditions } from "../ai/track-conditions";
 import type { GameId } from "@raceiq/shared/games/ids";
@@ -6,6 +7,13 @@ import type { GameId } from "@raceiq/shared/games/ids";
 export const DASHBOARD_PROCESSOR_VERSION = 6;
 const LAP_PAGE_SIZE = 256;
 const TIME_BUCKET_MS = 15 * 60 * 1000;
+const CAPTURE_BASELINE_FIELDS = [
+  "track_key", "sector_layout_key", "sector_count", "sector_status",
+  "elapsed_seconds", "duration_status", "weather_revision", "weather_status",
+  "capture_revision", "evidence_version", "track_length_meters",
+  "source_sector_starts_json", "weather_conditions_json",
+] as const;
+const CAPTURE_BASELINE_SQL = `json_array(${CAPTURE_BASELINE_FIELDS.map((field) => `p.${field}`).join(",")})`;
 
 export type EvidenceStatus = "available" | "unavailable" | "pending";
 export interface DashboardCaptureFacts {
@@ -18,11 +26,19 @@ export interface DashboardCaptureFacts {
   sourceSectorStarts: readonly number[] | null;
 }
 type DbRow = Record<string, unknown>;
+export interface DashboardPublicationHooks {
+  signal?: AbortSignal;
+  candidatePrepared?: (sessionId: number, candidate: DashboardPublicationCandidate) => Promise<void> | void;
+  transactionOpen?: (sessionId: number) => Promise<void> | void;
+  beforeCommit?: (sessionId: number) => Promise<void> | void;
+  afterCommit?: (sessionId: number) => Promise<void> | void;
+}
 export interface DashboardPublicationCandidate {
   readonly sessionId: number;
   readonly sourceRevision: number;
   readonly deleted: boolean;
   readonly publishedRevision: number;
+  readonly publicationBaseline: string | null;
   readonly metadataDirty: boolean;
   readonly captureDirty: boolean;
   readonly captureReady: boolean;
@@ -154,12 +170,14 @@ async function adjustTimeBucket(tx: DashboardTransaction, row: TimeContribution,
 
 /** Snapshot candidate before expensive work. Evidence must carry this exact revision. */
 export async function prepareDashboardPublicationCandidate(sessionId: number): Promise<DashboardPublicationCandidate | null> {
-  const result = await client.execute({
+  const result = await readClient.execute({
     sql: `SELECT st.source_revision, st.published_revision, st.metadata_dirty, st.deleted, st.capture_dirty, st.capture_ready, s.id, s.game_id, s.ownership, s.created_at,
         s.car_id, s.track_id, s.session_type, s.raw_file, s.source,
-        s.capture_format_version, r.outcome_status, r.classification, r.finishing_position
+        s.capture_format_version, r.outcome_status, r.classification, r.finishing_position,
+        CASE WHEN p.session_id IS NULL THEN NULL ELSE ${CAPTURE_BASELINE_SQL} END AS publication_baseline
       FROM dashboard_summary_state st LEFT JOIN sessions s ON s.id=st.session_id
-      LEFT JOIN session_results r ON r.session_id=s.id WHERE st.session_id=?`,
+      LEFT JOIN session_results r ON r.session_id=s.id
+      LEFT JOIN dashboard_session_summaries p ON p.session_id=st.session_id WHERE st.session_id=?`,
     args: [sessionId],
   });
   const row = result.rows[0] as DbRow | undefined;
@@ -169,6 +187,7 @@ export async function prepareDashboardPublicationCandidate(sessionId: number): P
     sessionId,
     sourceRevision: number(row.source_revision),
     publishedRevision: number(row.published_revision),
+    publicationBaseline: stringOrNull(row.publication_baseline),
     metadataDirty: number(row.metadata_dirty) !== 0,
     deleted: number(row.deleted) !== 0,
     captureDirty: number(row.capture_dirty) !== 0,
@@ -182,7 +201,13 @@ export function setDashboardPublicationNotifier(notifier: (() => void) | null): 
   dashboardPublicationNotifier = notifier;
 }
 /** Build exact session/day/time contributions, then atomically replace them iff candidate revision remains current. */
-export async function publishDashboardSession(candidate: DashboardPublicationCandidate, evidence?: DashboardCaptureFacts, options: { metadataOnly?: boolean } = {}): Promise<boolean> {
+export async function publishDashboardSession(
+  candidate: DashboardPublicationCandidate,
+  evidence?: DashboardCaptureFacts,
+  options: { metadataOnly?: boolean } = {},
+  hooks: DashboardPublicationHooks = {},
+): Promise<boolean> {
+  await hooks.candidatePrepared?.(candidate.sessionId, candidate);
   const { sessionId, sourceRevision: revision, session } = candidate;
   if (evidence && (evidence.sourceRevision !== revision || !evidence.captureRevision.trim()
     || !["available", "unavailable", "pending"].includes(evidence.duration.status)
@@ -198,7 +223,7 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
     || (evidence.trackLengthMeters !== null && (!Number.isFinite(evidence.trackLengthMeters) || evidence.trackLengthMeters <= 0)))) {
     throw new RangeError("Invalid or stale dashboard capture evidence");
   }
-  const priorResult = await client.execute({ sql: "SELECT * FROM dashboard_session_summaries WHERE session_id=?", args: [sessionId] });
+  const priorResult = await readClient.execute({ sql: "SELECT * FROM dashboard_session_summaries WHERE session_id=?", args: [sessionId] });
   const prior = priorResult.rows[0] as DbRow | undefined;
   const preserveCapture = !evidence && !candidate.captureDirty && !!prior;
   const gameId = session ? String(session.game_id) : "";
@@ -237,7 +262,7 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
     const carKey = dashboardCarIdentity(gameId as GameId, stringOrNull(session.car_id)) ?? "";
     const trackKey = dashboardTrackIdentity(gameId as GameId, stringOrNull(session.track_id)) ?? "";
     for (;;) {
-      const page = await client.execute({ sql: `SELECT lap_id, created_at_ms, lap_time, is_valid, invalid_reason, classification, sector_times
+      const page = await readClient.execute({ sql: `SELECT lap_id, created_at_ms, lap_time, is_valid, invalid_reason, classification, sector_times
         FROM dashboard_lap_index WHERE session_id=? AND lap_id>? ORDER BY lap_id LIMIT ?`, args: [sessionId, lastLapId, LAP_PAGE_SIZE] });
       if (!page.rows.length) break;
       for (const raw of page.rows as unknown as DbRow[]) {
@@ -324,14 +349,28 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
     }
     if (podium === 1) bucket.podium_first++; else if (podium === 2) bucket.podium_second++; else if (podium === 3) bucket.podium_third++;
   }
-  const tx = await client.transaction("write");
-  try {
-    const latest = await tx.execute({ sql: "SELECT source_revision, metadata_dirty, capture_dirty, published_revision, processor_version, deleted FROM dashboard_summary_state WHERE session_id=?", args: [sessionId] });
+  const published = await withDatabaseTransaction(client, async (tx) => {
+    await hooks.transactionOpen?.(sessionId);
+    const latest = await tx.execute({ sql: "SELECT source_revision, metadata_dirty, capture_dirty, capture_ready, published_revision, processor_version, deleted FROM dashboard_summary_state WHERE session_id=?", args: [sessionId] });
     const currentState = latest.rows[0] as DbRow | undefined;
-    if (!currentState || number(currentState.source_revision) !== revision) { await tx.rollback(); return false; }
+    const exists = await tx.execute({ sql: "SELECT 1 AS present FROM sessions WHERE id=?", args: [sessionId] });
+    const sessionExists = exists.rows.length !== 0;
+    if (!currentState || number(currentState.source_revision) !== revision
+      || number(currentState.published_revision) !== candidate.publishedRevision
+      || number(currentState.capture_dirty) !== Number(candidate.captureDirty)
+      || number(currentState.capture_ready) !== Number(candidate.captureReady)
+      || number(currentState.metadata_dirty) !== Number(candidate.metadataDirty)
+      || number(currentState.deleted) !== Number(candidate.deleted)
+      || (candidate.deleted ? sessionExists : !sessionExists)) {
+      return false;
+    }
+    const currentPriorResult = await tx.execute({ sql: `SELECT p.*, ${CAPTURE_BASELINE_SQL} AS publication_baseline FROM dashboard_session_summaries p WHERE session_id=?`, args: [sessionId] });
+    const currentPrior = currentPriorResult.rows[0] as DbRow | undefined;
+    if (stringOrNull(currentPrior?.publication_baseline) !== candidate.publicationBaseline || Boolean(currentPrior) !== Boolean(prior)
+      || CAPTURE_BASELINE_FIELDS.some((field) => currentPrior?.[field] !== prior?.[field])) return false;
     const alreadyPublished = number(currentState.published_revision) === revision && number(currentState.processor_version) === DASHBOARD_PROCESSOR_VERSION
       && number(currentState.metadata_dirty) === 0 && number(currentState.capture_dirty) === 0 && number(currentState.deleted) === 0;
-    if (alreadyPublished && !candidate.deleted && !excluded) { await tx.rollback(); return true; }
+    if (alreadyPublished && !candidate.deleted && !excluded) return true;
     const oldDays = await tx.execute({ sql: "SELECT * FROM dashboard_session_days WHERE session_id=?", args: [sessionId] });
     for (const row of oldDays.rows as unknown as DayContribution[]) { await adjustDayEntity(tx, row, -1); await adjustMonthEntity(tx, row, -1); }
     const oldBuckets = await tx.execute({ sql: "SELECT * FROM dashboard_session_time_buckets WHERE session_id=?", args: [sessionId] });
@@ -381,14 +420,16 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
         retry_count=0,next_retry_at=NULL,last_error_code=NULL,updated_at=datetime('now') WHERE session_id=? AND source_revision=?`,
       args: [revision,DASHBOARD_PROCESSOR_VERSION,evidenceReady && !options.metadataOnly ? 1 : 0,evidenceReady && !options.metadataOnly ? 1 : 0,candidate.deleted ? 1 : 0,evidenceReady ? 1 : 0,sessionId,revision],
     });
-    await tx.commit();
-    dashboardPublicationNotifier?.();
+    await hooks.beforeCommit?.(sessionId);
     return true;
-  } catch (error) { await tx.rollback(); throw error; }
+  }, { signal: hooks.signal });
+  if (published) await hooks.afterCommit?.(sessionId);
+  if (published) dashboardPublicationNotifier?.();
+  return published;
 }
 
 export async function publishNextDashboardSession(): Promise<number | null> {
-  const result = await client.execute({ sql: `SELECT st.session_id FROM dashboard_summary_state st
+  const result = await readClient.execute({ sql: `SELECT st.session_id FROM dashboard_summary_state st
     LEFT JOIN dashboard_session_summaries p ON p.session_id=st.session_id
     WHERE (st.metadata_dirty=1 OR st.capture_dirty=1 OR st.processor_version!=? OR st.published_revision!=st.source_revision OR (st.deleted=0 AND p.session_id IS NULL))
       AND (st.next_retry_at IS NULL OR st.next_retry_at<=datetime('now'))

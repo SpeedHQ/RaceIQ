@@ -35,7 +35,8 @@
 - Refresh track lap classifications after background processing and reconnects.
 - Prevent recording maintenance panels from overlapping.
 - Use LMU game-world coordinates directly for track geometry, preserving edge-hugging and off-track positions.
-- Prevent overlapping database writes from blocking recording imports and setup or session deletion.
+- Coordinate dashboard refresh with recording imports and session deletion without blocking read-only requests.
+- Start dashboard processing only after consented recording organization and successful historical, identity, and race-result repairs; wait for active writes and lap-classification work during shutdown.
 - Allow repeated recording downsampling without exceeding filesystem filename limits.
 - Keep the selected iRacing capture rate stable despite telemetry arrival jitter without recording duplicate frames.
 - Preserve position, speed, and other lap-start and lap-end telemetry when downsampling F1 recordings.
@@ -57,6 +58,7 @@
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
+- Define startup repair stages in a keyed registry with an explicit order; reject unknown, duplicate, or omitted stages before repairs run.
 - Run browser and responsive verification against production builds with all release-gated features enabled, including the historical classification upgrade fixture.
 - Align recording and browser E2E coverage with independent lap classification, pace-only review, current setup-source labels, and recording-organization consent controls.
 - Stabilize recording and browser E2E checks with bounded fixture reads, metadata-only experiment setup, browser-side playback pausing, and seeded demo capture using the correct Playwright configuration.

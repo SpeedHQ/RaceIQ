@@ -3,7 +3,7 @@ import { createReadStream, existsSync, readFileSync } from "node:fs";
 import { link, mkdir, unlink } from "node:fs/promises";
 import { basename, join, relative, resolve, sep } from "node:path";
 import { createGunzip } from "node:zlib";
-import { db, client, initDb } from "@raceiq/backend-core/db/index";
+import { db, closeDb, initDb } from "@raceiq/backend-core/db/index";
 import { importSessionBin } from "@raceiq/backend-core/session-capture/import-capture";
 import {
   decompressIfGzipSync,
@@ -203,5 +203,5 @@ try {
   await main();
 } finally {
   stopMaintenanceTasks();
-  client.close();
+  closeDb();
 }

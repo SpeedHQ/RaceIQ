@@ -1,8 +1,7 @@
 process.title = "RaceIQ";
 
 import { captureConsole } from "@raceiq/backend-core/runtime/logger";
-import { client } from "@raceiq/backend-core/db/index";
-import { bootServer } from "./runtime/boot";
+import { closeDb } from "@raceiq/backend-core/db/index";
 import { disableDashboardProtection, resetDashboardPassword } from "./runtime/auth-cli";
 
 captureConsole();
@@ -13,9 +12,10 @@ if (process.argv.slice(2)[0] === "auth") {
     else if (args[1] === "reset") await resetDashboardPassword(args);
     else throw new Error("Usage: raceiq auth reset | raceiq auth disable --confirm-exposure");
   } finally {
-    client.close();
+    closeDb();
   }
   process.exit(0);
 } else {
+  const { bootServer } = await import("./runtime/boot");
   await bootServer();
 }
