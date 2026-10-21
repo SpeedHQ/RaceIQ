@@ -1,7 +1,8 @@
 import { cacheDelete } from "./telemetry-replay-storage";
-import { eq } from "drizzle-orm";
+import { and, eq, or, sql } from "drizzle-orm";
 import { db } from "./index";
-import { sessions, laps } from "./schema";
+import { sessions, laps, lapGuidReconciliation, originalActivitySourceLaps, lapMetrics, lapAnalyses, compareAnalyses } from "./schema";
+import { createLapGuid } from "./lap-guid";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
 import { getActiveExperiment } from "../experiments/active";
 import { resolveActiveTestId } from "./experiment-version-queries";
@@ -69,26 +70,73 @@ async function doInsertLap(
   const activeExperimentId = getActiveExperiment();
   const activeExperimentVersionId =
     activeExperimentId != null ? await resolveActiveTestId(activeExperimentId) : null;
-  const result = await db
-    .insert(laps)
-    .values({
-      sessionId,
-      lapNumber,
-      lapTime,
-      isValid,
-      rawByteOffset,
-      rawFrameCount,
-      sectorTimes: sectors,
-      profileId,
-      tuneId,
-      invalidReason,
-      experimentId: activeExperimentId,
-      experimentVersionId: activeExperimentVersionId,
-      ...versionIdentity,
-    })
-    .returning({ id: laps.id })
-    .get();
-  return result.id;
+  return db.transaction(async (tx) => {
+    const session = await tx.select({ nativeCaptureOrigin: sessions.nativeCaptureOrigin, originalSourceRevision: sessions.originalSourceRevision,
+      originalActivityId: sessions.originalActivityId, ownerUserId: sessions.ownerUserId })
+      .from(sessions).where(eq(sessions.id, sessionId)).get();
+    if (!session) throw new Error(`Session ${sessionId} does not exist`);
+    const lapGuid = session.nativeCaptureOrigin ? createLapGuid() : null;
+    const result = await tx
+      .insert(laps)
+      .values({
+        sessionId,
+        lapNumber,
+        lapTime,
+        isValid,
+        rawByteOffset,
+        rawFrameCount,
+        sectorTimes: sectors,
+        profileId,
+        tuneId,
+        invalidReason,
+        lapGuid,
+        experimentId: activeExperimentId,
+        experimentVersionId: activeExperimentVersionId,
+        ...versionIdentity,
+      })
+      .returning({ id: laps.id })
+      .get();
+    await tx.insert(lapGuidReconciliation).values({
+      lapId: result.id,
+      lapGuid,
+      sourceGuid: null,
+      status: lapGuid ? "resolved" : "held_ambiguous",
+    }).run();
+    if (lapGuid) await tx.insert(originalActivitySourceLaps).values({
+      lapGuid, originalActivityId: session.originalActivityId, ownerUserId: session.ownerUserId, sourceRevision: session.originalSourceRevision,
+    }).run();
+    return result.id;
+  });
+}
+
+/** Complete the exact retained provisional row; never delete, remint, or infer a GUID. */
+export async function updateCapturedLap(
+  lapId: number, sessionId: number, lapNumber: number, lapTime: number, isValid: boolean,
+  rawByteOffset: number | null, rawFrameCount: number, profileId: number | null,
+  tuneId: number | null, invalidReason: string | null, sectors: number[] | null,
+  versionIdentity?: TelemetryVersionIdentity,
+): Promise<number> {
+  await db.transaction(async (tx) => {
+    const previous = await tx.select({ sessionId: laps.sessionId, lapNumber: laps.lapNumber,
+      rawByteOffset: laps.rawByteOffset, rawFrameCount: laps.rawFrameCount, isValid: laps.isValid })
+      .from(laps).where(eq(laps.id, lapId)).get();
+    if (!previous || previous.sessionId !== sessionId || previous.lapNumber !== lapNumber ||
+        previous.rawByteOffset !== rawByteOffset || previous.isValid ||
+        rawFrameCount < (previous.rawFrameCount ?? 0)) throw new Error("Provisional lap source window changed");
+    const updated = await tx.update(laps).set({
+      lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectorTimes: sectors,
+      fuelPerLap: null, tyreWear: null, captureChunkId: null, sourceFrameStart: null, sourceFrameCount: null,
+      driverAttribution: "Unknown", driverAttributionStints: null,
+      sourceClockDomain: null, sourceLapStartMs: null, sourceLapEndMs: null, ...versionIdentity,
+    }).where(and(eq(laps.id, lapId), eq(laps.sessionId, sessionId), eq(laps.lapNumber, lapNumber),
+      sql`${laps.rawByteOffset} IS ${rawByteOffset}`, eq(laps.isValid, false))).returning({ id: laps.id }).get();
+    if (!updated) throw new Error("Provisional lap source window changed");
+    await tx.delete(lapMetrics).where(eq(lapMetrics.lapId, lapId));
+    await tx.delete(lapAnalyses).where(eq(lapAnalyses.lapId, lapId));
+    await tx.delete(compareAnalyses).where(or(eq(compareAnalyses.lapAId, lapId), eq(compareAnalyses.lapBId, lapId)));
+  });
+  cacheDelete(lapId);
+  return lapId;
 }
 export async function updateLapCarSetup(lapId: number, carSetup: object | null): Promise<void> {
   await db.update(laps).set({ carSetup: carSetup ? JSON.stringify(carSetup) : null }).where(eq(laps.id, lapId)).run();
@@ -118,18 +166,19 @@ export async function deleteLapOnly(id: number): Promise<void> {
 }
 
 export async function deleteLap(id: number): Promise<boolean> {
-  // Get session ID before deleting
-  const lap = await db.select({ sessionId: laps.sessionId }).from(laps).where(eq(laps.id, id)).get();
-  const result = await db.delete(laps).where(eq(laps.id, id)).returning().all();
+  const visibility = sql`EXISTS (
+    SELECT 1 FROM sessions s
+    WHERE s.id = ${laps.sessionId}
+      AND (s.ownership = 'mine' OR (s.ownership = 'others' AND s.cloud_import_origin IS NOT NULL))
+  )`;
+  const lap = await db.select({ sessionId: laps.sessionId }).from(laps)
+    .where(and(eq(laps.id, id), visibility)).get();
+  if (!lap) return false;
+  const result = await db.delete(laps).where(and(eq(laps.id, id), visibility)).returning().all();
   if (result.length > 0) {
     cacheDelete(id);
-    // Clean up empty parent session
-    if (lap) {
-      const remaining = await db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, lap.sessionId)).limit(1).all();
-      if (remaining.length === 0) {
-        await db.delete(sessions).where(eq(sessions.id, lap.sessionId)).run();
-      }
-    }
+    const remaining = await db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, lap.sessionId)).limit(1).all();
+    if (remaining.length === 0) await db.delete(sessions).where(eq(sessions.id, lap.sessionId)).run();
   }
   return result.length > 0;
 }

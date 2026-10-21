@@ -100,7 +100,7 @@ export const PHYSICS = {
   tyreTempOuterFR: { offset: 404, type: "f32" },
   tyreTempOuterRL: { offset: 408, type: "f32" },
   tyreTempOuterRR: { offset: 412, type: "f32" },
-  // isAIControlled @ 416, contact[Point|Normal] @ 420-516
+  isAIControlled: { offset: 416, type: "i32" },
   contactHeadingBase: { offset: 516, type: "f32" }, // stride 12 per tire
   brakeBias:      { offset: 564, type: "f32" },
   localVelocityX: { offset: 568, type: "f32" },

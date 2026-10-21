@@ -91,12 +91,14 @@ export async function getRecordedElapsedSeconds(source: SessionCaptureSource): P
           } else if (useSimulatorClock && game) {
             const packet = game.tryParse(record.frame, parserState);
             if (!packet) continue;
-            if (source.gameId === "lmu" && Number.isFinite(packet.TimestampMS) && packet.TimestampMS >= 0) {
+            if (source.gameId === "lmu" && Number.isFinite(packet.TimestampMS) && packet.TimestampMS > 0) {
               // LMU source frames embed acquisition UTC, unlike the recorder prefix.
               addTime(packet.TimestampMS, "utc");
-            } else if (Number.isFinite(packet.CurrentRaceTime) && packet.CurrentRaceTime >= 0) {
-              addTime(packet.CurrentRaceTime, "simulator");
-            } else known = false;
+            } else {
+              const elapsed = source.gameId === "lmu" ? packet.lmu?.elapsedTime : packet.CurrentRaceTime;
+              if (typeof elapsed === "number" && Number.isFinite(elapsed) && elapsed >= 0) addTime(elapsed, "simulator");
+              else known = false;
+            }
           } else if (!inContext) known = false;
           if (!known) break;
         }

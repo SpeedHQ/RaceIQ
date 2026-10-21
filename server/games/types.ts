@@ -56,6 +56,9 @@ export interface ServerGameAdapter extends GameAdapter {
   /** Restore parser state from a game-owned checkpoint payload. */
   restoreParserCheckpoint?(state: unknown, payload: Uint8Array): unknown;
 
+  /** Invalidate only active-driver freshness, preserving unrelated parser state. */
+  invalidateDriverEvidence?(state: unknown): void;
+
   /**
    * True only when parser state is stateless/frame-local and an empty checkpoint
    * is an exact pre-frame initialization. Stateful parsers need checkpoint codecs.

@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./driver-attribution": "./src/driver-attribution.ts",
     "./index": "./src/index.ts",
     "./racing/cars/acc": "./src/racing/cars/acc.ts",
     "./racing/cars/acc-specs": "./src/racing/cars/acc-specs.ts",

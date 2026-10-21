@@ -1,5 +1,5 @@
 import { createHash, type Hash } from "node:crypto";
-import { encodeMetaFrame, encodeParserBootstrapFrame, encodeSegmentBoundaryFrame, encodeSegmentContextEndFrame, encodeSegmentContextFrame, encodeSparseCaptureFormatFrame, type SessionCaptureRecord } from "@raceiq/capture-formats/session/framing";
+import { encodeMetaFrame, encodeParserBootstrapFrame, encodeSessionMetadataRecord, encodeSparseCaptureFormatFrame, type SessionCaptureRecord } from "@raceiq/capture-formats/session/framing";
 import { SparseCaptureEncoder } from "@raceiq/capture-formats/session/sparse-recorder";
 import type { LapWindow } from "./contract";
 import { encodeStreamingFrame, updateNativeRecordDigest, type StreamingMemberDescriptor, type StreamingMemberKind, type StreamingMemberStage, type StreamingSplitterOptions } from "./streaming";
@@ -151,7 +151,7 @@ export class StreamingCaptureSplitter {
 
   enqueue(record: SessionCaptureRecord): boolean {
     this.assertLive();
-    const wireBytes = (record.kind === "frame" ? record.frame.byteLength : record.kind === "parser-bootstrap" ? record.payload.byteLength : 16) + 64;
+    const wireBytes = (record.kind === "frame" ? record.frame.byteLength : record.kind === "parser-bootstrap" ? record.payload.byteLength : record.kind === "clock-anchor" ? 32 : 16) + 64;
     if (this.queuedBytes + wireBytes > Math.min(this.options.host.maxQueuedBytes, this.options.host.maxUnresolvedBytes)) return false;
     if (!Number.isSafeInteger(record.offset) || !Number.isSafeInteger(record.endOffset) || record.offset < this.lastQueuedEnd || record.endOffset <= record.offset) throw new Error("Source records are not ordered");
     this.lastQueuedEnd = record.endOffset;
@@ -378,9 +378,7 @@ export class StreamingCaptureSplitter {
       if (!context) active.frames++;
     } else {
       if (context) throw new Error("Completion context must be a native frame");
-      const bytes = record.kind === "segment-boundary" ? encodeSegmentBoundaryFrame()
-        : record.kind === "segment-context" ? encodeSegmentContextFrame()
-        : record.kind === "segment-context-end" ? encodeSegmentContextEndFrame() : encodeParserBootstrapFrame(record.gameId, record.payload);
+      const bytes = encodeSessionMetadataRecord(record);
       await active.stage.append(bytes); active.bytes += bytes.length;
       if (record.kind !== "segment-context") active.encoder.reset();
     }

@@ -1,6 +1,6 @@
 import type { TelemetryParser } from "@raceiq/shared/telemetry/parser";
 import type { LapIndexPacket } from "@raceiq/shared/telemetry/lap-index";
-import { createIRacingParserState, primeIRacingFrameState, type IRacingParserState, normalizeIRacingFrame, projectIRacingLapIndex } from "./normalizer";
+import { createIRacingParserState, primeIRacingFrameState, restoreIRacingParserCheckpoint, invalidateIRacingDriverEvidence, type IRacingParserState, normalizeIRacingFrame, projectIRacingLapIndex } from "./normalizer";
 import { canHandleIRacingSourceFrame, decodeIRacingSourceFrame } from "@raceiq/capture-formats/iracing/source-frame";
 
 export const iracingParser: TelemetryParser<IRacingParserState> = {
@@ -18,4 +18,6 @@ export const iracingParser: TelemetryParser<IRacingParserState> = {
     if (frame) primeIRacingFrameState(frame, state);
   },
   createParserState() { return createIRacingParserState(); },
+  restoreParserCheckpoint(_state, payload) { return restoreIRacingParserCheckpoint(payload); },
+  invalidateDriverEvidence(state) { invalidateIRacingDriverEvidence(state); },
 };

@@ -8,7 +8,7 @@
  *   - Live capture accepts AC_LIVE/AC_PAUSE; recording writes raw buffers only
  */
 
-import { parsePacket, resetParserState } from "@raceiq/backend-core/games/packet-dispatch";
+import { invalidateParserDriverEvidence, parsePacket, resetParserState } from "@raceiq/backend-core/games/packet-dispatch";
 import { processPacket } from "@raceiq/backend-core/telemetry/live-pipeline";
 import { BufferedKunosMemoryReader } from "@raceiq/backend-core/games/kunos/buffered-memory-reader";
 import type { IRealtimeKunosMemoryReader } from "@raceiq/backend-core/games/kunos/memory-reader";
@@ -28,10 +28,11 @@ import { ACEVO_STATUS, GRAPHICS_EVO, PHYSICS, STATIC_EVO } from "@raceiq/capture
 export class AcEvoStatusCheckProcessor implements TripletProcessor {
   private loggedInvalidStatus = false;
 
-  async process(triplet: { graphics: Buffer }): Promise<boolean> {
+  async process(triplet: { graphics: Buffer; frameTimeMs?: number }): Promise<boolean> {
     const status = triplet.graphics.readInt32LE(GRAPHICS_EVO.status.offset);
     if (status !== ACEVO_STATUS.AC_LIVE && status !== ACEVO_STATUS.AC_PAUSE) {
       if (!this.loggedInvalidStatus) {
+        invalidateParserDriverEvidence("ac-evo", triplet.frameTimeMs);
         console.log(
           `[AC Evo StatusCheck] Pausing pipeline, status=${status} ` +
             `(AC_OFF=${ACEVO_STATUS.AC_OFF}, AC_REPLAY=${ACEVO_STATUS.AC_REPLAY})`,
@@ -52,7 +53,7 @@ class AcEvoParsingProcessor implements TripletProcessor {
   async process(triplet: { physics: Buffer; graphics: Buffer; staticData: Buffer; frameTimeMs?: number }): Promise<undefined> {
     try {
       const sourceFrame = packTriplet(ACEVO_PACKED_MAGIC, 0, 0, triplet.physics, triplet.graphics, triplet.staticData);
-      const packet = parsePacket(sourceFrame, triplet.frameTimeMs ?? Date.now());
+      const packet = parsePacket(sourceFrame, triplet.frameTimeMs ?? 0);
       if (packet) await processPacket(packet, sourceFrame, triplet.frameTimeMs);
     } catch (err) {
       console.error("[AC Evo ParsingProcessor] Error:", err instanceof Error ? err.message : err);

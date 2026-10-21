@@ -12,6 +12,7 @@ import { rpcJson } from "@/lib/rpc-json";
 import { HomePageView } from "./HomePageView";
 import type { GameStats, PeriodKey } from "./types";
 import { useDashboardCars } from "@/hooks/dashboard-cars";
+import { OnlineDriverSummary } from "./OnlineDriverSummary";
 
 function cardStats(cards: Record<string, { laps: number; drivenSeconds: number }>): GameStats {
   const display = (seconds: number) => seconds <= 0 ? "—" : seconds >= 86400 ? `${Math.floor(seconds / 86400)}d` : seconds >= 3600 ? `${Math.floor(seconds / 3600)}h` : `${Math.floor(seconds / 60)}m`;
@@ -98,6 +99,7 @@ export function HomePageContainer() {
     gameId={gameId}
     gameDisplayName={gameAdapter?.displayName ?? null}
     response={response}
+    driverSummary={<OnlineDriverSummary gameId={gameId} from={dashboard.from} to={dashboard.to} />}
     periodStart={selectedFrom}
     sessions={recentSessions}
     carNames={names.cars}

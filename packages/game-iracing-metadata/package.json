@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./driver-attribution": "./src/driver-attribution.ts",
     "./index": "./src/index.ts",
     "./session-info/catalog": "./src/session-info/catalog.ts",
     "./session-info/contracts": "./src/session-info/contracts.ts",

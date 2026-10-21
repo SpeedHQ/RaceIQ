@@ -17,6 +17,7 @@ export type UploadOutcome =
   | { readonly kind: "withdrawn" }
   | { readonly kind: "definitely_not_sent"; readonly code: string; readonly retryable: boolean; readonly retryAfterMs?: number }
   | { readonly kind: "rejected"; readonly code: string }
+  | {readonly kind:"held";readonly code:"driver_identity_required"|"activity_identity_ambiguous"|"stale_state"|"recording_not_ready"}
   | { readonly kind: "ambiguous"; readonly code: string };
 
 export type DispatchResult =
@@ -82,6 +83,9 @@ export async function processOutboxDelivery(input: ProcessOutboxDeliveryInput): 
       return { kind: "retry" };
     }
     if (result.reason === "withdrawn") {
+      if(current.status==="ambiguous"||current.status==="dispatching"){
+        await settleOutboxDelivery({job,status:"ambiguous",errorCode:"dispatch_barrier"});return {kind:"retry"};
+      }
       await settleOutboxDelivery({ job, status: "withdrawn", errorCode: "dispatch_barrier" });
       return { kind: "ack" };
     }
@@ -108,8 +112,14 @@ export async function processOutboxDelivery(input: ProcessOutboxDeliveryInput): 
     return { kind: "retry" };
   }
   if (outcome.kind === "withdrawn") {
+    if(wasAmbiguous){await settleOutboxDelivery({job,status:"ambiguous",errorCode:"dispatch_barrier"});return {kind:"retry"};}
     await settleOutboxDelivery({ job, status: "withdrawn", errorCode: "dispatch_barrier" });
     return { kind: "ack" };
+  }
+  if(outcome.kind==="held"){
+    const retryNotBeforeAt=Date.now()+60_000;
+    await settleOutboxDelivery({job,status:wasAmbiguous?"ambiguous":"pending",retryNotBeforeAt,errorCode:outcome.code});
+    return {kind:"retry",retryNotBeforeAt};
   }
   if (outcome.kind === "definitely_not_sent") {
     const retryNotBeforeAt = Number.isSafeInteger(outcome.retryAfterMs) && Number(outcome.retryAfterMs) >= 0

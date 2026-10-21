@@ -15,6 +15,7 @@
     "./telemetry/normalization": "./src/telemetry/normalization.ts",
     "./telemetry/live-wire": "./src/telemetry/live-wire.ts",
     "./telemetry/live-projector": "./src/telemetry/live-projector.ts",
+    "./processor/batch": "./src/processor/batch.ts",
     "./processor/boundaries": "./src/processor/boundaries.ts",
     "./processor/ordinal-engine": "./src/processor/ordinal-engine.ts",
     "./processor/kunos-engine": "./src/processor/kunos-engine.ts",

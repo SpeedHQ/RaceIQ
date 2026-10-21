@@ -6,7 +6,55 @@ import {
   runMigrations,
 } from "@raceiq/backend-core/test-support/db/migrations";
 
+
 describe("migration regressions", () => {
+  test("v88 marks historical sessions non-native and freezes established original activity identity", async () => {
+
+    const client = newClient();
+    try {
+      await bootstrap(client);
+      await runMigrations(client, 87);
+      await client.execute(`INSERT INTO sessions (car_id,track_id,game_id,original_activity_id)
+        VALUES ('car-1','track-1','iracing','original-1')`);
+      await runMigrations(client);
+      const native = await client.execute("SELECT native_capture_origin FROM sessions");
+      expect(native.rows.map((row) => row.native_capture_origin)).toEqual([0]);
+      await expect(client.execute("UPDATE sessions SET original_activity_id='original-2' WHERE id=1"))
+        .rejects.toThrow("session original activity identity is immutable");
+      expect((await client.execute("SELECT original_activity_id FROM sessions WHERE id=1")).rows[0]?.original_activity_id)
+        .toBe("original-1");
+    } finally {
+      client.close();
+    }
+  });
+  test("v87 preserves driver-summary lap GUID associations through profile-table removal", async () => {
+    const client = newClient();
+    try {
+      await bootstrap(client);
+      await runMigrations(client, 86);
+      const lapGuid = "018f0f8a-7b21-7cc2-9f3a-5c7d09a681ac";
+      await client.execute(`INSERT INTO driver_summary_activities
+        (activity_id,driver_profile_id,game_id,lap_guids_json,payload_json,content_hash,state)
+        VALUES ('activity-preserved','local-default','iracing',?,'{}','hash-preserved','ready')`,
+        [JSON.stringify([lapGuid])],
+      );
+      await client.execute(`INSERT INTO driver_summary_activity_laps (lap_guid,activity_id,driver_profile_id)
+        VALUES (?,'activity-preserved','local-default')`, [lapGuid]);
+      await runMigrations(client, 87);
+      const preserved = await client.execute(
+        "SELECT lap_guid,activity_id,owner_user_id FROM driver_summary_activity_laps WHERE lap_guid=?",
+        [lapGuid],
+      );
+      expect(preserved.rows.map((row) => ({
+        lap_guid: row.lap_guid,
+        activity_id: row.activity_id,
+        owner_user_id: row.owner_user_id,
+      }))).toEqual([{ lap_guid: lapGuid, activity_id: "activity-preserved", owner_user_id: null }]);
+      expect((await client.execute("PRAGMA foreign_key_check")).rows).toEqual([]);
+    } finally {
+      client.close();
+    }
+  });
   test("AC Evo layout backfill queues every stored layout once without invalidating other games", async () => {
     const client = newClient();
     try {

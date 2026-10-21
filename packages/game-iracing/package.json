@@ -6,6 +6,7 @@
     ".": "./src/index.ts",
     "./ibt-preview": "./src/ibt-preview.ts",
     "./ibt-reader": "./src/ibt-reader.ts",
+    "./driver-attribution": "./src/driver-attribution.ts",
     "./identity": "./src/identity.ts",
     "./lap-detector": "./src/lap-detector.ts",
     "./live-capabilities": "./src/live-capabilities.ts",

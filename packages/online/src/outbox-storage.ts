@@ -3,6 +3,8 @@ import { createClient, type Client } from "@libsql/client/sqlite3";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { resolveOnlineDataDir } from "./runtime";
+import type { OnlineLapIdentity } from "./payload";
+import type { UploadItem, OnlineErrorCode } from "./contracts";
 function uuidV7(now = Date.now()): string {
   const bytes = randomFillSync(new Uint8Array(16));
   const timestamp = BigInt(now);
@@ -17,6 +19,7 @@ function toOutboxJob(row: Record<string, unknown>, status = String(row.status)):
     rowId: Number(row.row_id), accountId: String(row.account_id), accountEpoch: String(row.account_epoch),
     gameId: String(row.game_id), trackId: String(row.track_id), carId: String(row.car_id),
     lapId: Number(row.lap_id), lapTimeMs: Number(row.lap_time_ms),
+    identity: row.identity_json == null ? null : JSON.parse(String(row.identity_json)) as OnlineLapIdentity,
     uploadKey: row.upload_key == null ? null : String(row.upload_key),
     payloadFingerprint: row.payload_fingerprint == null ? null : String(row.payload_fingerprint),
     recordingPath: row.recording_path == null ? null : String(row.recording_path),
@@ -41,6 +44,7 @@ export type OutboxJob = {
   carId: string;
   lapId: number;
   lapTimeMs: number;
+  identity: OnlineLapIdentity | null;
   uploadKey: string | null;
   payloadFingerprint: string | null;
   recordingPath: string | null;
@@ -63,7 +67,7 @@ export type RetiredOutboxPayload = {
 
 export type EnqueueOutboxJob = Pick<OutboxJob,
   "accountId" | "accountEpoch" | "gameId" | "trackId" | "carId" | "lapId" | "lapTimeMs"
->;
+> & { identity: OnlineLapIdentity };
 
 let client: Client | null = null;
 let initPromise: Promise<void> | null = null;
@@ -135,40 +139,51 @@ export function ensureOutboxStorage(): Promise<void> {
         await tx.commit();
       } catch (cause) { await tx.rollback(); throw cause; }
     }
-    await db.execute(`UPDATE raceiq_online_outbox SET status='ambiguous',last_error_code='legacy_identity_missing'
+    await db.execute(`UPDATE raceiq_online_outbox SET status='ambiguous',last_error_code='activity_identity_ambiguous'
       WHERE status='pending' AND upload_key IS NULL`);
     await db.execute(`CREATE INDEX IF NOT EXISTS idx_raceiq_online_outbox_due
       ON raceiq_online_outbox(account_id, account_epoch, status, retry_not_before_at)`);
-    await db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS idx_raceiq_online_outbox_pending_track
-      ON raceiq_online_outbox(account_id, account_epoch, game_id, track_id) WHERE status='pending'`);
+    await db.execute("DROP INDEX IF EXISTS idx_raceiq_online_outbox_pending_track");
     await db.execute(`UPDATE raceiq_online_outbox SET status='pending',last_error_code=NULL
       WHERE status='dispatching' AND upload_key IS NOT NULL AND payload_fingerprint IS NULL
       AND recording_path IS NULL AND setup_path IS NULL AND reservation_token IS NULL AND remote_job_id IS NULL
       AND NOT EXISTS (SELECT 1 FROM raceiq_online_outbox p WHERE p.status='pending'
         AND p.account_id=raceiq_online_outbox.account_id
-        AND p.game_id=raceiq_online_outbox.game_id AND p.track_id=raceiq_online_outbox.track_id)`);
+        AND p.game_id=raceiq_online_outbox.game_id AND p.track_id=raceiq_online_outbox.track_id AND p.car_id=raceiq_online_outbox.car_id)`);
     await db.execute(`UPDATE raceiq_online_outbox SET status='withdrawn',last_error_code='superseded_interrupted'
       WHERE status='dispatching' AND upload_key IS NOT NULL AND payload_fingerprint IS NULL
       AND recording_path IS NULL AND setup_path IS NULL AND reservation_token IS NULL AND remote_job_id IS NULL
       AND EXISTS (SELECT 1 FROM raceiq_online_outbox p WHERE p.status='pending'
         AND p.account_id=raceiq_online_outbox.account_id
-        AND p.game_id=raceiq_online_outbox.game_id AND p.track_id=raceiq_online_outbox.track_id)`);
+        AND p.game_id=raceiq_online_outbox.game_id AND p.track_id=raceiq_online_outbox.track_id AND p.car_id=raceiq_online_outbox.car_id)`);
     await db.execute(`UPDATE raceiq_online_outbox SET status='pending',last_error_code=NULL
       WHERE status='ambiguous' AND last_error_code='process_interrupted' AND upload_key IS NOT NULL
       AND payload_fingerprint IS NULL AND recording_path IS NULL AND setup_path IS NULL
       AND reservation_token IS NULL AND remote_job_id IS NULL
       AND NOT EXISTS (SELECT 1 FROM raceiq_online_outbox p WHERE p.status='pending'
         AND p.account_id=raceiq_online_outbox.account_id
-        AND p.game_id=raceiq_online_outbox.game_id AND p.track_id=raceiq_online_outbox.track_id)`);
+        AND p.game_id=raceiq_online_outbox.game_id AND p.track_id=raceiq_online_outbox.track_id AND p.car_id=raceiq_online_outbox.car_id)`);
     await db.execute(`UPDATE raceiq_online_outbox SET status='withdrawn',last_error_code='superseded_interrupted'
       WHERE status='ambiguous' AND last_error_code='process_interrupted' AND upload_key IS NOT NULL
       AND payload_fingerprint IS NULL AND recording_path IS NULL AND setup_path IS NULL
       AND reservation_token IS NULL AND remote_job_id IS NULL AND EXISTS
       (SELECT 1 FROM raceiq_online_outbox p WHERE p.status='pending'
         AND p.account_id=raceiq_online_outbox.account_id
-        AND p.game_id=raceiq_online_outbox.game_id AND p.track_id=raceiq_online_outbox.track_id)`);
+        AND p.game_id=raceiq_online_outbox.game_id AND p.track_id=raceiq_online_outbox.track_id AND p.car_id=raceiq_online_outbox.car_id)`);
     await db.execute(`UPDATE raceiq_online_outbox SET status='ambiguous', last_error_code='process_interrupted'
       WHERE status='dispatching'`);
+    const columns = await db.execute("PRAGMA table_info(raceiq_online_outbox)");
+    if (!columns.rows.some(row => row.name === "identity_json")) {
+      await db.execute("ALTER TABLE raceiq_online_outbox ADD COLUMN identity_json TEXT");
+    }
+    await db.execute(`UPDATE raceiq_online_outbox SET status='ambiguous',last_error_code='activity_identity_ambiguous'
+      WHERE identity_json IS NULL AND (status IN ('pending','dispatching') OR (status='ambiguous' AND last_error_code='legacy_identity_missing'))`);
+    for (const column of ["validation_status TEXT NOT NULL DEFAULT 'not_requested'", "publication_status TEXT NOT NULL DEFAULT 'not_requested'", "remote_status_checked_at INTEGER NOT NULL DEFAULT 0"]) {
+      const name = column.split(" ")[0]!;
+      if (!columns.rows.some(row => row.name === name)) await db.execute(`ALTER TABLE raceiq_online_outbox ADD COLUMN ${column}`);
+    }
+    await db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS idx_raceiq_online_outbox_pending_board
+      ON raceiq_online_outbox(account_id,game_id,track_id,car_id) WHERE status='pending'`);
   })();
   return initPromise;
 }
@@ -184,40 +199,44 @@ function validateJob(job: EnqueueOutboxJob): void {
   })) assertIdentity(value, name);
   if (!Number.isSafeInteger(job.lapId) || job.lapId <= 0) throw new TypeError("Invalid lapId");
   if (!Number.isSafeInteger(job.lapTimeMs) || job.lapTimeMs <= 0) throw new TypeError("Invalid lapTimeMs");
+  if (job.identity.ownerUserId !== job.accountId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(job.identity.lapGuid)
+    || !job.identity.originalActivityId || !job.identity.sourceRevision || !job.identity.driverBindingId
+    || !Number.isSafeInteger(job.identity.driverBindingRevision) || job.identity.driverBindingRevision < 1
+    || (job.identity.sourceKind !== "native_capture" && job.identity.sourceKind !== "verified_portable")) throw new TypeError("Invalid immutable lap identity");
 }
 
 /** Inserts/coalesces only pending work; terminal send history is immutable. */
-export async function enqueueOutboxJob(job: EnqueueOutboxJob, now = Date.now()): Promise<"queued" | "coalesced" | "unchanged" | "full"> {
+export async function enqueueOutboxJob(job:EnqueueOutboxJob,now=Date.now()):Promise<"queued"|"coalesced"|"unchanged"|"rejected"|"full"> {
   validateJob(job);
   await ensureOutboxStorage();
   const tx = await getClient().transaction("write");
   try {
     const unresolved = await tx.execute({ sql: `SELECT status FROM raceiq_online_outbox
-      WHERE account_id=? AND game_id=? AND track_id=? AND status IN ('ambiguous','dispatching') LIMIT 1`,
-      args: [job.accountId, job.gameId, job.trackId] });
+      WHERE account_id=? AND game_id=? AND track_id=? AND car_id=? AND status IN ('ambiguous','dispatching') LIMIT 1`,
+      args: [job.accountId, job.gameId, job.trackId, job.carId] });
     const priorSent = await tx.execute({ sql: `SELECT MIN(lap_time_ms) AS fastest_ms, MAX(lap_id=?) AS seen_lap
-      FROM raceiq_online_outbox WHERE account_id=? AND game_id=? AND track_id=? AND status='transmitted'`,
-      args: [job.lapId, job.accountId, job.gameId, job.trackId] });
+      FROM raceiq_online_outbox WHERE account_id=? AND game_id=? AND track_id=? AND car_id=? AND status='transmitted'`,
+      args: [job.lapId, job.accountId, job.gameId, job.trackId, job.carId] });
     const prior = priorSent.rows[0];
     if (unresolved.rows.length || (prior?.fastest_ms != null &&
         (Number(prior.seen_lap) === 1 || Number(prior.fastest_ms) <= job.lapTimeMs))) {
       await tx.commit(); return "unchanged";
     }
     const rejectedLap = await tx.execute({ sql: `SELECT 1 FROM raceiq_online_outbox
-      WHERE account_id=? AND game_id=? AND track_id=? AND lap_id=? AND status='rejected' LIMIT 1`,
-      args: [job.accountId, job.gameId, job.trackId, job.lapId] });
-    if (rejectedLap.rows.length) { await tx.commit(); return "unchanged"; }
+      WHERE account_id=? AND game_id=? AND track_id=? AND car_id=? AND lap_id=? AND status='rejected' LIMIT 1`,
+      args: [job.accountId, job.gameId, job.trackId, job.carId, job.lapId] });
+    if(rejectedLap.rows.length){await tx.commit();return "rejected";}
     const existing = await tx.execute({ sql: `SELECT * FROM raceiq_online_outbox
-      WHERE account_id=? AND game_id=? AND track_id=? AND status='pending' ORDER BY row_id DESC LIMIT 1`,
-      args: [job.accountId, job.gameId, job.trackId] });
+      WHERE account_id=? AND game_id=? AND track_id=? AND car_id=? AND status='pending' ORDER BY row_id DESC LIMIT 1`,
+      args: [job.accountId, job.gameId, job.trackId, job.carId] });
     const row = existing.rows[0];
     if (row && Number(row.lap_time_ms) <= job.lapTimeMs) { await tx.commit(); return "unchanged"; }
     if (row) {
       if (row.recording_path == null && row.setup_path == null) {
         await tx.execute({ sql: `UPDATE raceiq_online_outbox SET account_epoch=?,car_id=?,lap_id=?,lap_time_ms=?,
           upload_key=?,payload_fingerprint=NULL,reservation_token=NULL,attempts=0,retry_not_before_at=?,
-          updated_at=?,last_error_code=NULL WHERE row_id=? AND status='pending'`,
-        args: [job.accountEpoch, job.carId, job.lapId, job.lapTimeMs, uuidV7(now), now, now, Number(row.row_id)] });
+          updated_at=?,last_error_code=NULL,identity_json=? WHERE row_id=? AND status='pending'`,
+        args: [job.accountEpoch, job.carId, job.lapId, job.lapTimeMs, uuidV7(now), now, now, JSON.stringify(job.identity), Number(row.row_id)] });
         await tx.commit(); return "coalesced";
       }
       await tx.execute({ sql: `UPDATE raceiq_online_outbox SET status='withdrawn',updated_at=?,last_error_code='coalesced'
@@ -232,9 +251,9 @@ export async function enqueueOutboxJob(job: EnqueueOutboxJob, now = Date.now()):
     }
     await tx.execute({ sql: `INSERT INTO raceiq_online_outbox
       (account_id,account_epoch,game_id,track_id,car_id,lap_id,lap_time_ms,status,attempts,retry_not_before_at,
-       created_at,updated_at,upload_key) VALUES (?,?,?,?,?,?,?,'pending',0,?,?,?,?)`,
+       created_at,updated_at,upload_key,identity_json) VALUES (?,?,?,?,?,?,?,'pending',0,?,?,?,?,?)`,
     args: [job.accountId, job.accountEpoch, job.gameId, job.trackId, job.carId, job.lapId, job.lapTimeMs,
-      now, now, now, uuidV7(now)] });
+      now, now, now, uuidV7(now), JSON.stringify(job.identity)] });
     await tx.commit(); return "queued";
   } catch (error) { await tx.rollback(); throw error; }
 }
@@ -296,7 +315,7 @@ export async function saveOutboxReservation(job: OutboxJob, reservationToken: st
 export async function recordOutboxAcceptance(job: OutboxJob, remoteJobId: string, now = Date.now()): Promise<boolean> {
   assertIdentity(remoteJobId, "remoteJobId"); await ensureOutboxStorage();
   const result = await getClient().execute({ sql: `UPDATE raceiq_online_outbox SET status='transmitted',
-    remote_job_id=?,transmitted_at=COALESCE(transmitted_at,?),updated_at=?,retry_not_before_at=0,last_error_code=NULL
+    remote_job_id=?,transmitted_at=COALESCE(transmitted_at,?),updated_at=?,retry_not_before_at=0,last_error_code=NULL,validation_status='pending',publication_status='pending'
     WHERE row_id=? AND account_id=? AND upload_key=? AND status IN ('dispatching','ambiguous')`,
   args: [remoteJobId, now, now, job.rowId, job.accountId, job.uploadKey] });
   return Number(result.rowsAffected ?? 0) === 1;
@@ -406,7 +425,7 @@ export async function withdrawUnsentOutboxJobs(accountId: string, accountEpoch: 
   await ensureOutboxStorage();
   const result = await getClient().execute({
     sql: `UPDATE raceiq_online_outbox SET status='withdrawn', updated_at=?, last_error_code='dispatch_barrier'
-      WHERE account_id=? AND status IN ('pending','ambiguous') AND remote_job_id IS NULL`,
+      WHERE account_id=? AND status='pending' AND remote_job_id IS NULL`,
     args: [now, accountId],
   });
   return Number(result.rowsAffected ?? 0);
@@ -418,7 +437,7 @@ export async function withdrawAccountOutboxJobs(accountId: string, now = Date.no
   await ensureOutboxStorage();
   const result = await getClient().execute({
     sql: `UPDATE raceiq_online_outbox SET status='withdrawn',updated_at=?,last_error_code='dispatch_barrier'
-      WHERE account_id=? AND status IN ('pending','ambiguous') AND remote_job_id IS NULL`,
+      WHERE account_id=? AND status='pending' AND remote_job_id IS NULL`,
     args: [now, accountId],
   });
   return Number(result.rowsAffected ?? 0);
@@ -485,4 +504,59 @@ export async function getAccountOutboxStatus(accountId: string): Promise<{
     lastSyncedAt: syncedAt == null ? null : new Date(Number(syncedAt)).toISOString(),
     lastErrorCode: row.last_error_code == null ? null : String(row.last_error_code),
   };
+}
+
+export interface UploadPageBoundary { time: number; id: string }
+export async function readLapUploadItems(accountId: string, view: "queue" | "history", boundary: UploadPageBoundary | null, limit: number): Promise<UploadItem[]> {
+  await ensureOutboxStorage();
+  const terminal = view === "history";
+  const direction = terminal ? "DESC" : "ASC";
+  const comparison = terminal ? "<" : ">";
+  const time = terminal ? "updated_at" : "created_at";
+  const result = await getClient().execute({
+    sql: `SELECT * FROM raceiq_online_outbox WHERE account_id=?
+      AND status ${terminal ? "IN" : "NOT IN"} ('transmitted','rejected','withdrawn')
+      ${boundary ? `AND (${time} ${comparison} ? OR (${time}=? AND ('lap:' || printf('%020d',row_id)) ${comparison} ?))` : ""}
+      ORDER BY ${time} ${direction},row_id ${direction} LIMIT ?`,
+    args: [accountId,...(boundary ? [boundary.time,boundary.time,boundary.id] : []),limit],
+  });
+  const iso = (value: unknown) => new Date(Number(value)).toISOString();
+  return result.rows.map((row): UploadItem => {
+    const job = toOutboxJob(row);
+    const code = row.last_error_code;
+    const errorCode: OnlineErrorCode = code === "rate_limited" ? code : code === "offline" ? code
+      : code==="unsupported_recording_format"||code==="recording_too_large"||code==="recording_not_ready"?code
+      : code==="f1_sanitization_failed"||code==="unsupported_game"||code==="ineligible_lap"?code
+      : code==="driver_identity_required"||code==="mixed_driver_lap"||code==="activity_identity_ambiguous"?code
+      : code==="activity_owner_conflict"||code==="lap_owner_conflict"||code==="lap_identity_conflict"?code:"service_unavailable";
+    return {
+      id: `lap:${String(job.rowId).padStart(20,"0")}`,kind: "lap",gameId: job.gameId,lapId: job.lapId,
+      lapGuid: job.identity?.lapGuid ?? null,trackId: job.trackId,carId: job.carId,
+      delivery: job.status === "transmitted" ? "accepted" : job.status === "dispatching" ? "uploading"
+        : job.status === "pending" ? (job.retryNotBeforeAt>Date.now() ? "retry_wait" : "queued")
+        : job.status === "withdrawn" && code === "coalesced" ? "superseded" : job.status,
+      admittedAt: iso(job.createdAt),updatedAt: iso(job.updatedAt),settledAt: terminal ? iso(job.updatedAt) : null,
+      attemptCount: job.attempts,nextAttemptAt: job.retryNotBeforeAt>Date.now() ? iso(job.retryNotBeforeAt) : null,
+      acceptedAt: row.transmitted_at == null ? null : iso(row.transmitted_at),remoteJobId: job.remoteJobId,
+      validation: row.validation_status as UploadItem["validation"],publication: row.publication_status as UploadItem["publication"],
+      error: code == null ? null : { code: errorCode,retryable: job.status==="pending" || job.status==="ambiguous",retryAfter: job.retryNotBeforeAt>Date.now() ? iso(job.retryNotBeforeAt) : null },
+      activityId: null,activityRevision: null,
+    };
+  });
+}
+export async function recordOutboxRemoteStatus(job: OutboxJob, validation: UploadItem["validation"], publication: UploadItem["publication"]): Promise<void> {
+  await ensureOutboxStorage();
+  await getClient().execute({ sql: `UPDATE raceiq_online_outbox SET validation_status=?,publication_status=?,remote_status_checked_at=?
+    WHERE row_id=? AND account_id=? AND remote_job_id=? AND status='transmitted'`,
+    args: [validation,publication,Date.now(),job.rowId,job.accountId,job.remoteJobId] });
+}
+export async function listAcceptedOutboxJobs(accountId: string, limit = 100): Promise<OutboxJob[]> {
+  await ensureOutboxStorage();
+  const result = await getClient().execute({ sql: `SELECT * FROM raceiq_online_outbox WHERE account_id=? AND status='transmitted'
+    ORDER BY remote_status_checked_at,row_id LIMIT ?`,args: [accountId,limit] });
+  return result.rows.map(row => toOutboxJob(row));
+}
+export async function closeOutboxStorage(): Promise<void> {
+  if (initPromise) await initPromise;
+  client?.close(); client=null; initPromise=null;
 }

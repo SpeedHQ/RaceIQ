@@ -54,6 +54,7 @@ function sessionFixtureInputs(path: string): TelemetryBatchInput[] {
   return [...iterateSessionCaptureRecords(bytes)].map(record => {
     if (record.kind === "frame") return { data: record.frame, rawByteOffset: record.offset, ...(record.frameTimeMs === undefined ? {} : { frameTimeMs: record.frameTimeMs }) };
     if (record.kind === "segment-boundary") return { type: "segment-boundary" };
+    if (record.kind === "parser-bootstrap") return { type: "parser-bootstrap", gameId: record.gameId, formatVersion: record.formatVersion, payload: record.payload };
     if (record.kind === "segment-context") return { type: "segment-context" };
     return { type: "segment-context-end" };
   });
@@ -81,6 +82,7 @@ describe("processTelemetryBatch", () => {
   test("emits parsed lap at ordinal boundary with real offset and frame count", async () => {
     const result = await processTelemetryBatch("fm-2023", lapFrames());
     expect(result.sessions).toHaveLength(1);
+    expect(result.logicalLapCount).toBe(1);
     expect(result.laps).toHaveLength(1);
     expect(result.laps[0]).toMatchObject({ lapNumber: 1, lapTime: 34, byteOffset: 100, frameCount: 35, complete: true, sectors: null });
     expect(result.laps[0]!.packets).toHaveLength(35);
@@ -112,6 +114,7 @@ describe("processTelemetryBatch", () => {
   test("finalizes incomplete ordinal lap at EOF and preserves absent offsets", async () => {
     const withOffsets = await processTelemetryBatch("fm-2023", lapFrames().slice(0, 35));
     expect(withOffsets.laps).toHaveLength(1);
+    expect(withOffsets.logicalLapCount).toBe(1);
     expect(withOffsets.laps[0]).toMatchObject({ lapNumber: 1, byteOffset: 100, frameCount: 35, complete: false, valid: false });
     const withoutOffsets = await processTelemetryBatch("fm-2023", lapFrames().slice(0, 35).map(({ data }) => ({ data })));
     expect(withoutOffsets.laps[0]).toMatchObject({ byteOffset: null, frameCount: 0, complete: false });
@@ -210,12 +213,13 @@ describe("processTelemetryBatch", () => {
       { type: "segment-boundary" }, ...lapFrames(20_000),
     ]);
     expect(withContext.sessions).toHaveLength(2);
+    expect(withContext.logicalLapCount).toBe(2);
     expect(withContext.laps).toHaveLength(2);
     expect(withContext.laps.map(lap => lap.byteOffset)).toEqual([100, 20_000]);
     expect(withContext.laps.every(lap => lap.packets.length === 35)).toBe(true);
   });
 
   test("returns empty outcomes for empty complete payload", async () => {
-    expect(await processTelemetryBatch("fm-2023", [])).toEqual({ sessions: [], laps: [] });
+    expect(await processTelemetryBatch("fm-2023", [])).toEqual({ sessions: [], laps: [], logicalLapCount: 0 });
   });
 });

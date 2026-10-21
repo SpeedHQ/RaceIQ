@@ -5,6 +5,8 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { LapIndexPacket } from "@raceiq/shared/telemetry/lap-index";
 import type { LapMeta, SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
+import type { DriverAttributionStint } from "@raceiq/shared/driver-attribution";
+import type { GameIdentityBinding } from "@raceiq/online/contracts";
 import { deleteSession, enqueueSessionCaptureSplit, updateSessionSource } from "../db/session-queries";
 import { isDelayedFinishContext } from "../db/telemetry-replay-storage";
 import { getServerGame } from "../games/registry";
@@ -12,7 +14,7 @@ import { isIRacingSessionFrame } from "@raceiq/capture-formats/iracing/source-fr
 import { PARSER_BOOTSTRAP_VERSION, SESSION_SEGMENT_BOUNDARY, SESSION_SEGMENT_CONTEXT, SESSION_SEGMENT_CONTEXT_END } from "@raceiq/capture-formats/session/framing";
 import { applyFrameTime } from "./frame-time";
 import { LiveTelemetryPipeline } from "../telemetry/live-pipeline";
-import { NullWsAdapter, RealDbAdapter, SparseSessionRecorderAdapter, type DbAdapter, type SessionRecorderAdapter } from "../telemetry/pipeline-ports";
+import { NullWsAdapter, RealDbAdapter, SparseSessionRecorderAdapter, type CapturedDriverAttribution, type DbAdapter, type SessionRecorderAdapter } from "../telemetry/pipeline-ports";
 import { reconcileSessionResult } from "../race-results/reconcile";
 
 import { countIndexSampleMaterialized, countSourceFrameScanned } from "./test-instrumentation";
@@ -63,6 +65,19 @@ export class ImportCaptureAdapter implements DbAdapter {
     for (const path of options.rollbackFiles ?? []) this.rawFiles.add(path);
   }
 
+
+  getDriverBindings(): Promise<{ revision: number; bindings: GameIdentityBinding[] }> {
+    // Legacy files have no captured binding history. Current bindings cannot
+    // retroactively identify their drivers; portable identities bypass replay.
+    return Promise.resolve({ revision: 0, bindings: [] });
+  }
+  setSessionDriverAttribution(sessionId: number, stints: readonly DriverAttributionStint[]): Promise<void> {
+    return this._inner.setSessionDriverAttribution(sessionId, stints);
+  }
+  finalizeOriginalActivitySource(sessionId: number): Promise<void> {
+    // The inner offline adapter cannot attest a genuine native original.
+    return this._inner.finalizeOriginalActivitySource(sessionId);
+  }
 
   async insertSession(
     carId: string,
@@ -115,9 +130,10 @@ export class ImportCaptureAdapter implements DbAdapter {
     invalidReason: string | null,
     sectors: number[] | null,
     versionIdentity?: TelemetryVersionIdentity,
+    driverAttribution?: CapturedDriverAttribution,
   ): Promise<number> {
     const pending = this._inner.insertLap(
-      sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity
+      sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity, driverAttribution
     ).then((id) => {
       const meta = this._sessionMeta.get(sessionId);
       this.laps.push({
@@ -139,6 +155,28 @@ export class ImportCaptureAdapter implements DbAdapter {
         this._lapWriteFailure ??= error;
       },
     );
+    return pending;
+  }
+
+  completeProvisionalLap(
+    lapId: number, sessionId: number, lapNumber: number, lapTime: number, isValid: boolean,
+    rawByteOffset: number | null, rawFrameCount: number, profileId: number | null, tuneId: number | null,
+    invalidReason: string | null, sectors: number[] | null, versionIdentity?: TelemetryVersionIdentity,
+    driverAttribution?: CapturedDriverAttribution,
+  ): Promise<number> {
+    const pending = this._inner.completeProvisionalLap(lapId, sessionId, lapNumber, lapTime, isValid,
+      rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity, driverAttribution).then((id) => {
+      const imported = this.laps.find((lap) => lap.lapId === id);
+      if (!imported) throw new Error("Retained imported provisional lap is missing");
+      imported.lapTime = lapTime;
+      imported.isValid = isValid;
+      return id;
+    });
+    this._pendingLapWrites.add(pending);
+    void pending.then(() => this._pendingLapWrites.delete(pending), (error) => {
+      this._pendingLapWrites.delete(pending);
+      this._lapWriteFailure ??= error;
+    });
     return pending;
   }
   async deleteLap(lapId: number): Promise<void> {

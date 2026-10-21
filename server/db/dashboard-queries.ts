@@ -1,18 +1,33 @@
 import Database from "libsql";
 import { DASHBOARD_PROCESSOR_VERSION } from "./dashboard-summary-queries";
 import { DB_PATH } from "./index";
-import { dashboardCarIdentity, dashboardTrackIdentity, validateDashboardRequest } from "@raceiq/shared/racing/sessions/dashboard";
+import { classifySessionType, dashboardCarIdentity, dashboardTrackIdentity, validateDashboardRequest } from "@raceiq/shared/racing/sessions/dashboard";
 import { KNOWN_GAME_IDS, type GameId } from "@raceiq/shared/games/ids";
 import type { DashboardRequest, DashboardResponse, DashboardMetricTotals, DashboardCardTotal, DashboardCalendarBucket, DashboardEntityTotal, DashboardFavourite, DashboardSessionType } from "@raceiq/shared/racing/sessions/dashboard";
+import { dashboardLapAttribution, dashboardHasSelfStint, dashboardDurationAttribution } from "../driver-summary/dashboard-input";
 
 const DAY_MS = 86_400_000;
 const BUCKET_MS = 900_000;
 const MAX_FALLBACK_SESSIONS = 128;
+// shortcut: cap synchronous raw attribution at 32,768 laps; move larger exact-edge reads off main if needed.
+const MAX_FALLBACK_LAPS = MAX_FALLBACK_SESSIONS * 256;
 type Row = Record<string, unknown>;
 
 const n = (value: unknown): number => Number(value ?? 0);
 const nullableNumber = (value: unknown): number | null => value == null ? null : Number(value);
 const instant = (value: string): number => Date.parse(value);
+export interface DashboardRankingFacts {
+  seconds: number;
+  laps: number;
+  gameId: string;
+  identity: string;
+}
+
+/** Shared favourite order: accumulated seconds, then laps, then stable identity. */
+export function compareDashboardRanking(left: DashboardRankingFacts, right: DashboardRankingFacts): number {
+  return right.seconds - left.seconds || right.laps - left.laps
+    || left.gameId.localeCompare(right.gameId) || left.identity.localeCompare(right.identity);
+}
 let dashboardDatabase: InstanceType<typeof Database> | null = null;
 
 function getDashboardDatabase(): InstanceType<typeof Database> {
@@ -22,6 +37,24 @@ function getDashboardDatabase(): InstanceType<typeof Database> {
   if (!dashboardDatabase) {
     dashboardDatabase = new Database(DB_PATH, { readonly: true });
     dashboardDatabase.exec("PRAGMA busy_timeout=5000");
+    // libSQL does not implement JavaScript SQL functions. Populate connection-local
+    // inputs with the shared attribution classifiers inside each read snapshot.
+    dashboardDatabase.exec(`
+      CREATE TEMP TABLE dashboard_personal_sessions (
+        session_id INTEGER PRIMARY KEY,
+        personal_duration REAL,
+        personal_duration_coverage TEXT NOT NULL,
+        personal_session_type TEXT NOT NULL
+      );
+      CREATE TEMP TABLE dashboard_personal_laps (lap_id INTEGER PRIMARY KEY);
+      CREATE TEMP VIEW dashboard_session_index AS
+        SELECT si.*, ps.personal_duration, ps.personal_duration_coverage, ps.personal_session_type
+        FROM main.dashboard_session_index si
+        JOIN dashboard_personal_sessions ps ON ps.session_id=si.session_id;
+      CREATE TEMP VIEW dashboard_lap_index AS
+        SELECT di.* FROM main.dashboard_lap_index di
+        JOIN dashboard_personal_laps pl ON pl.lap_id=di.lap_id;
+    `);
   }
   return dashboardDatabase;
 }
@@ -76,7 +109,7 @@ function emptyDashboard(request: DashboardRequest, coverage: DashboardReadCovera
     favouriteTrack: null, favouriteCar: null,
     consistency: { sessions: 0, averageStandardDeviation: null, deviations: Array(7).fill(0) },
     sessionTypes: { shares: (["practice", "qualifying", "race", "unknown"] as DashboardSessionType[]).map((kind) => ({ kind, seconds: 0, share: 0 })),
-      totalSeconds: 0, unknownSeconds: 0, unknownShare: 0, sessionsWithDuration: 0, sessionsWithoutDuration: 0 },
+      totalSeconds: 0, unknownSeconds: 0, unknownShare: 0, sessionsWithDuration: 0, sessionsWithoutDuration: 0, durationCoverage: "unavailable" },
     podiums: { total: 0, first: 0, second: 0, third: 0, available: false },
     recentSessions: [], latestRecapSessionId: null,
   };
@@ -99,6 +132,50 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
     },
   };
   return database.transaction(() => {
+    database.exec("DELETE FROM temp.dashboard_personal_laps; DELETE FROM temp.dashboard_personal_sessions;");
+    const sourceSessions = tx.execute({
+      sql: `SELECT s.id,s.driver_attribution_stints,p.duration_attribution_json,p.session_type,p.lap_count,
+          st.metadata_dirty,st.deleted,st.processor_version,p.processor_version summary_processor_version,
+          st.source_revision,st.published_revision,p.source_revision summary_source_revision
+        FROM main.dashboard_session_index si JOIN main.sessions s ON s.id=si.session_id
+        LEFT JOIN main.dashboard_session_summaries p ON p.session_id=s.id
+        LEFT JOIN main.dashboard_summary_state st ON st.session_id=s.id
+        WHERE s.ownership='mine' AND s.cloud_import_origin IS NULL AND s.cloud_import_lap_id IS NULL
+          AND (s.owner_user_id IS NULL OR s.owner_user_id=(SELECT online_user_id FROM main.local_account_owner WHERE id=1))
+          AND ((si.created_at_ms>=? AND si.created_at_ms<?)
+            OR EXISTS(SELECT 1 FROM main.dashboard_lap_index l
+              WHERE l.session_id=s.id AND l.created_at_ms>=? AND l.created_at_ms<?))`,
+      args: [bounds.from, bounds.to, bounds.from, bounds.to],
+    });
+    const insertSession = database.prepare("INSERT INTO temp.dashboard_personal_sessions VALUES (?,?,?,?)");
+    let remainingSourceLaps = MAX_FALLBACK_LAPS;
+    for (const row of sourceSessions.rows) {
+      const duration = dashboardDurationAttribution(row.duration_attribution_json);
+      const personalDuration = duration?.selfObserved && duration.coverage !== "unavailable" ? duration.selfSeconds : null;
+      const current = row.metadata_dirty === 0 && row.deleted === 0
+        && row.processor_version === DASHBOARD_PROCESSOR_VERSION && row.summary_processor_version === DASHBOARD_PROCESSOR_VERSION
+        && row.published_revision === row.source_revision && row.summary_source_revision === row.source_revision;
+      let eligible = (current && n(row.lap_count) > 0) || personalDuration !== null
+        || dashboardHasSelfStint(row.driver_attribution_stints);
+      let lastLapId = 0;
+      while (!eligible && !current) {
+        const page = tx.execute({
+          sql: `SELECT id,driver_attribution_stints,source_clock_domain,source_lap_start_ms,source_lap_end_ms
+            FROM main.laps WHERE session_id=? AND id>? ORDER BY id LIMIT ?`,
+          args: [n(row.id), lastLapId, Math.min(256, remainingSourceLaps + 1)],
+        }).rows;
+        if (page.length > remainingSourceLaps) return emptyDashboard(request, {
+          status: "pending", metadataComplete: false, mineSessions: 0, readySessions: 0, pendingSessions: 0,
+        });
+        remainingSourceLaps -= page.length;
+        if (!page.length) break;
+        lastLapId = n(page[page.length - 1]!.id);
+        eligible = page.some((lap) => dashboardLapAttribution(lap.driver_attribution_stints, row.driver_attribution_stints,
+          lap.source_clock_domain, lap.source_lap_start_ms, lap.source_lap_end_ms) === "Self");
+      }
+      if (eligible) insertSession.run(n(row.id), personalDuration, duration?.coverage ?? "unavailable",
+        classifySessionType(row.session_type == null ? null : String(row.session_type)));
+    }
     const filter = scope(request.gameId, "si");
     const coverageResult = tx.execute({
       sql: `SELECT COUNT(*) AS mine_sessions,MAX(st.source_revision) AS revision,
@@ -118,15 +195,20 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
       sql: `SELECT candidate.session_id FROM (
           SELECT st.session_id FROM dashboard_summary_state st
           LEFT JOIN dashboard_session_summaries p ON p.session_id=st.session_id
-          LEFT JOIN dashboard_session_index si ON si.session_id=st.session_id
+          LEFT JOIN main.dashboard_session_index si ON si.session_id=st.session_id
           WHERE (st.metadata_dirty!=0 OR st.deleted!=0
             OR COALESCE(st.processor_version,-1)!=${DASHBOARD_PROCESSOR_VERSION}
             OR COALESCE(p.processor_version,-1)!=${DASHBOARD_PROCESSOR_VERSION}
             OR st.published_revision!=st.source_revision OR p.session_id IS NULL
             OR p.source_revision!=st.source_revision)
+            AND (EXISTS(SELECT 1 FROM dashboard_personal_sessions ps WHERE ps.session_id=st.session_id)
+              OR COALESCE(p.lap_count,0)>0)
             AND ((si.created_at_ms>=? AND si.created_at_ms<?${request.gameId ? " AND si.game_id=?" : ""})
               OR EXISTS(SELECT 1 FROM dashboard_session_days old WHERE old.session_id=st.session_id AND old.utc_day>=? AND old.utc_day<?)
-              OR EXISTS(SELECT 1 FROM dashboard_lap_index l WHERE l.session_id=st.session_id AND l.created_at_ms>=? AND l.created_at_ms<?))
+              OR EXISTS(SELECT 1 FROM main.dashboard_lap_index l
+                WHERE l.session_id=st.session_id AND l.created_at_ms>=? AND l.created_at_ms<?)
+              OR EXISTS(SELECT 1 FROM dashboard_session_time_buckets old WHERE old.session_id=st.session_id
+                AND old.bucket_start_ms+${BUCKET_MS}>? AND old.bucket_start_ms<?))
           UNION
           SELECT si.session_id FROM dashboard_session_index si
           LEFT JOIN dashboard_summary_state st ON st.session_id=si.session_id
@@ -137,6 +219,7 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
       args: [
         bounds.from, bounds.to, ...(request.gameId ? [request.gameId] : []),
         new Date(bounds.from).toISOString().slice(0, 10), new Date(bounds.to).toISOString().slice(0, 10), bounds.from, bounds.to,
+        bounds.from, bounds.to,
         bounds.from, bounds.to, ...(request.gameId ? [request.gameId] : []), MAX_FALLBACK_SESSIONS + 1,
       ],
     });
@@ -177,6 +260,31 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
     const dirtyBindings = dirtyIds.slice(0, MAX_FALLBACK_SESSIONS);
     const dirtyIn = dirtyBindings.length ? dirtyBindings.map(() => "?").join(",") : "NULL";
     const dirtyCte = dirtyBindings.length ? `VALUES ${dirtyBindings.map(() => "(?)").join(",")}` : "SELECT NULL WHERE 0";
+    const sourceLaps = tx.execute({
+      sql: `SELECT l.id,l.driver_attribution_stints,s.driver_attribution_stints session_stints,
+          l.source_clock_domain,l.source_lap_start_ms,l.source_lap_end_ms
+        FROM main.dashboard_lap_index di JOIN main.laps l ON l.id=di.lap_id
+        JOIN main.sessions s ON s.id=l.session_id
+        JOIN dashboard_personal_sessions ps ON ps.session_id=s.id
+        LEFT JOIN main.dashboard_session_summaries p ON p.session_id=s.id
+        WHERE l.session_id IN (${dirtyIn})
+          OR (di.created_at_ms>=? AND di.created_at_ms<? AND
+            (di.created_at_ms<? OR di.created_at_ms>=? OR di.created_at_ms<? OR di.created_at_ms>=?
+              OR p.first_lap_at_ms<? OR p.last_lap_at_ms>=?)) LIMIT ?`,
+      args: [...dirtyBindings, bounds.from, bounds.to, firstFullDayMs, endFullDayMs,
+        Math.ceil(bounds.from / BUCKET_MS) * BUCKET_MS, Math.floor(bounds.to / BUCKET_MS) * BUCKET_MS,
+        bounds.from, bounds.to, remainingSourceLaps + 1],
+    });
+    if (sourceLaps.rows.length > remainingSourceLaps) {
+      response.coverage.status = "pending";
+      response.coverage.metadataComplete = false;
+      return response;
+    }
+    const insertLap = database.prepare("INSERT INTO temp.dashboard_personal_laps VALUES (?)");
+    for (const lap of sourceLaps.rows) {
+      if (dashboardLapAttribution(lap.driver_attribution_stints, lap.session_stints,
+        lap.source_clock_domain, lap.source_lap_start_ms, lap.source_lap_end_ms) === "Self") insertLap.run(n(lap.id));
+    }
     const needsDaySource = dirtyBindings.length > 0 || bounds.from !== firstFullDayMs || bounds.to !== endFullDayMs;
     const entityResult = tx.execute({
       sql: `WITH dirty(session_id) AS (${dirtyCte}),
@@ -472,8 +580,7 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
       }
     }
     const chooseFavourite = (map: Map<string, EntityFacts>): DashboardFavourite | null => {
-      const winner = [...map.values()].sort((a, b) => b.seconds - a.seconds || b.laps - a.laps
-        || a.gameId.localeCompare(b.gameId) || a.identity.localeCompare(b.identity))[0];
+      const winner = [...map.values()].sort(compareDashboardRanking)[0];
       return winner ? { gameId: winner.gameId, identity: winner.identity, nativeId: winner.nativeId ?? "",
         seconds: winner.seconds, laps: winner.laps, sessions: winner.sessions,
         distanceMeters: winner.distanceLaps ? winner.distanceMeters : null, distanceLaps: winner.distanceLaps,
@@ -626,8 +733,9 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
     response.latestRecapSessionId = response.recentSessions[0]?.id ?? null;
     const sessionStats = tx.execute({
       sql: `SELECT
-          SUM(CASE WHEN duration_status='available' AND elapsed_seconds>=0 THEN elapsed_seconds ELSE 0 END) duration_seconds,
-          SUM(CASE WHEN duration_status='available' AND elapsed_seconds>=0 THEN 1 ELSE 0 END) with_duration,
+          SUM(CASE WHEN st.capture_dirty=0 THEN si.personal_duration ELSE 0 END) duration_seconds,
+          SUM(CASE WHEN st.capture_dirty=0 AND si.personal_duration IS NOT NULL THEN 1 ELSE 0 END) with_duration,
+          SUM(CASE WHEN si.personal_duration_coverage='partial' THEN 1 ELSE 0 END) partial_duration,
           COUNT(*) sessions_in_scope,
           EXISTS (SELECT 1 FROM session_results r JOIN dashboard_session_index result_si ON result_si.session_id=r.session_id
             WHERE result_si.ownership='mine' AND result_si.created_at_ms>=? AND result_si.created_at_ms<?
@@ -649,13 +757,12 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
     const withDuration = n(stats?.with_duration);
     const classified: Record<DashboardSessionType, number> = { practice: 0, qualifying: 0, race: 0, unknown: 0 };
     const durationRows = tx.execute({
-      sql: `SELECT CASE WHEN lower(trim(COALESCE(p.session_type,'')))='test-day' OR lower(trim(COALESCE(p.session_type,''))) LIKE 'practice%' THEN 'practice'
-          WHEN lower(trim(COALESCE(p.session_type,''))) LIKE 'qualifying%' OR lower(trim(COALESCE(p.session_type,''))) LIKE 'qualify%' THEN 'qualifying'
-          WHEN lower(trim(COALESCE(p.session_type,''))) LIKE 'race%' THEN 'race' ELSE 'unknown' END kind,
-        SUM(p.elapsed_seconds) seconds
+      sql: `SELECT si.personal_session_type kind,
+        SUM(si.personal_duration) seconds
         FROM dashboard_session_summaries p JOIN dashboard_session_index si ON si.session_id=p.session_id
         JOIN dashboard_summary_state st ON st.session_id=p.session_id
-        WHERE si.ownership='mine' AND si.created_at_ms>=? AND si.created_at_ms<? AND p.duration_status='available' AND p.elapsed_seconds>=0
+        WHERE si.ownership='mine' AND si.created_at_ms>=? AND si.created_at_ms<?
+          AND st.capture_dirty=0 AND si.personal_duration IS NOT NULL
           AND st.metadata_dirty=0 AND st.deleted=0
           AND st.processor_version=${DASHBOARD_PROCESSOR_VERSION} AND p.processor_version=${DASHBOARD_PROCESSOR_VERSION}
           AND st.published_revision=st.source_revision AND p.source_revision=st.source_revision${request.gameId ? " AND si.game_id=?" : ""}
@@ -670,6 +777,8 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
       shares: (Object.entries(classified) as [DashboardSessionType, number][]).map(([kind, seconds]) => ({ kind, seconds, share: durationSeconds ? seconds / durationSeconds : 0 })),
       totalSeconds: durationSeconds, unknownSeconds: classified.unknown, unknownShare: durationSeconds ? classified.unknown / durationSeconds : 0,
       sessionsWithDuration: withDuration, sessionsWithoutDuration: Math.max(0, n(stats?.sessions_in_scope) - withDuration),
+      durationCoverage: withDuration === 0 ? "unavailable"
+        : mineSessions > withDuration || n(stats?.partial_duration) > 0 ? "partial" : "complete",
     };
     const first = n(stats?.firsts), second = n(stats?.seconds), third = n(stats?.thirds);
     response.podiums = { total: first + second + third, first, second, third, available: n(stats?.podium_evidence) > 0 };

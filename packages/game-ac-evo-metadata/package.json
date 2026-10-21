@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./driver-attribution": "./src/driver-attribution.ts",
     "./index": "./src/index.ts",
     "./identity": "./src/identity.ts",
     "./racing/cars/ac-evo": "./src/racing/cars/ac-evo.ts",

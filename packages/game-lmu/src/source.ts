@@ -1,5 +1,5 @@
-import { parsePacket } from "@raceiq/backend-core/games/packet-dispatch";
-import { processPacket } from "@raceiq/backend-core/telemetry/live-pipeline";
+import { invalidateParserDriverEvidence, parsePacket } from "@raceiq/backend-core/games/packet-dispatch";
+import { invalidateNativeBindingCandidates, processPacket } from "@raceiq/backend-core/telemetry/live-pipeline";
 import { getRecordingFrequencyHz } from "@raceiq/backend-core/runtime/config/recording-frequency";
 import { NativeCaptureRateLimiter } from "@raceiq/backend-core/games/shared/native-capture-rate-limiter";
 import {
@@ -14,6 +14,7 @@ import {
   encodeLMUSourceFrame,
   type LMUIdentity,
 } from "@raceiq/capture-formats/lmu/source-frame";
+import { LMU_SCORING_INFO, LMU_SCORING_VEHICLE, LMU_TELEMETRY } from "@raceiq/capture-formats/lmu/layout";
 
 export interface LMUFrameReader {
   start(): void;
@@ -64,6 +65,8 @@ export class LMUTelemetrySource {
   private activeIdentityKey = "";
   private identity: LMUIdentity | null = null;
   private lastErrorLogAt = 0;
+  private nativeControl: { role: number | null; realtime: boolean; player: boolean; fresh: boolean;
+    gameVersion: number; sessionEvent: number; sessionOrdinal: number; vehicleId: number; elapsedTime: number } | null = null;
 
   constructor(options: LMUTelemetrySourceOptions = {}) {
     this.reader = options.reader ?? new LMUSharedMemoryReader();
@@ -101,6 +104,8 @@ export class LMUTelemetrySource {
 
   async stop(): Promise<void> {
     this.running = false;
+    invalidateParserDriverEvidence("lmu", Date.now());
+    this.nativeControl = null;
     this.captureRateLimiter.reset();
     if (this.timer) {
       clearInterval(this.timer);
@@ -138,8 +143,25 @@ export class LMUTelemetrySource {
         acquireHighResolutionTimer();
         this.holdsTimerResolution = true;
       }
-      const elapsedTime = frame.telemetry.readDoubleLE(12);
-      const frameKey = `${frame.sessionEvent}:${elapsedTime}`;
+      const elapsedTime = frame.telemetry.readDoubleLE(LMU_TELEMETRY.elapsedTime);
+      const scoringTime = frame.scoringInfo.readDoubleLE(LMU_SCORING_INFO.currentElapsedTime);
+      const role = frame.playerScoring?.readInt8(LMU_SCORING_VEHICLE.mControl) ?? null;
+      const player = frame.playerScoring?.readUInt8(LMU_SCORING_VEHICLE.isPlayer) === 1;
+      const realtime = frame.scoringInfo.readUInt8(LMU_SCORING_INFO.inRealtime) !== 0;
+      const fresh = Number.isFinite(elapsedTime) && elapsedTime >= 0 && Number.isFinite(scoringTime) &&
+        scoringTime >= 0 && scoringTime <= elapsedTime && (elapsedTime - scoringTime) * 1000 <= 2_000;
+      const sessionOrdinal = frame.scoringInfo.readInt32LE(LMU_SCORING_INFO.session);
+      const vehicleId = frame.telemetry.readInt32LE(LMU_TELEMETRY.id);
+      const previous = this.nativeControl;
+      if (!previous || previous.role !== role || previous.player !== player || previous.realtime !== realtime ||
+        previous.fresh !== fresh || previous.gameVersion !== frame.gameVersion || previous.sessionEvent !== frame.sessionEvent ||
+        previous.sessionOrdinal !== sessionOrdinal || previous.vehicleId !== vehicleId || elapsedTime < previous.elapsedTime) {
+        invalidateNativeBindingCandidates("lmu", frameTimeMs);
+        if (!realtime && previous?.realtime !== false) invalidateParserDriverEvidence("lmu", frameTimeMs);
+        this.nativeControl = { role, player, realtime, fresh, gameVersion: frame.gameVersion,
+          sessionEvent: frame.sessionEvent, sessionOrdinal, vehicleId, elapsedTime };
+      } else previous.elapsedTime = elapsedTime;
+      const frameKey = `${frame.gameVersion}:${frame.sessionEvent}:${sessionOrdinal}:${vehicleId}:${elapsedTime}:${role}:${player}:${realtime}:${fresh}`;
       if (frameKey === this.lastFrameKey) return false;
       this.lastFrameKey = frameKey;
 

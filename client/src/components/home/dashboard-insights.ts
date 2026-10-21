@@ -8,7 +8,7 @@ export interface DashboardInsights {
   podiums: { total: number; first: number; second: number; third: number; available: boolean; trend: { timestamp: number; podiums: number }[] };
   trackDistribution: { totalSeconds: number; tracks: { key: string; gameId: GameId; trackIdentity: string; seconds: number; share: number }[]; othersSeconds: number; othersShare: number; othersCount: number };
   consistency: { sessions: number; averageStandardDeviation: number | null; deviations: number[] };
-  sessionStats: { sessionTypes: { kind: SessionTypeKind; seconds: number; share: number }[]; sessionTypeTotalSeconds: number; unclassifiedSeconds: number; unclassifiedShare: number };
+  sessionStats: { durationCoverage: DashboardResponse["sessionTypes"]["durationCoverage"]; sessionTypes: { kind: SessionTypeKind; seconds: number; share: number }[]; sessionTypeTotalSeconds: number; unclassifiedSeconds: number; unclassifiedShare: number };
   favouriteTrack: FavouriteInsight | null;
   favouriteCar: FavouriteInsight | null;
 }
@@ -38,7 +38,7 @@ export function dashboardInsights(response: DashboardResponse): DashboardInsight
     podiums: { total: response.podiums.total, first: response.podiums.first, second: response.podiums.second, third: response.podiums.third, available: response.podiums.available, trend: podiumTrend },
     trackDistribution: { totalSeconds: distribution.totalSeconds, tracks: distribution.topFive.map((track) => ({ key: `${track.gameId}:${track.identity}`, gameId: track.gameId, trackIdentity: track.identity, seconds: track.seconds, share: track.share })), othersSeconds: distribution.othersSeconds, othersShare: distribution.othersShare, othersCount: distribution.othersCount },
     consistency: response.consistency,
-    sessionStats: { sessionTypes: response.sessionTypes.shares.filter((share): share is typeof share & { kind: SessionTypeKind } => share.kind !== "unknown"), sessionTypeTotalSeconds: response.sessionTypes.totalSeconds, unclassifiedSeconds: response.sessionTypes.unknownSeconds, unclassifiedShare: response.sessionTypes.unknownShare },
+    sessionStats: { durationCoverage: response.sessionTypes.durationCoverage, sessionTypes: response.sessionTypes.shares.filter((share): share is typeof share & { kind: SessionTypeKind } => share.kind !== "unknown"), sessionTypeTotalSeconds: response.sessionTypes.totalSeconds, unclassifiedSeconds: response.sessionTypes.unknownSeconds, unclassifiedShare: response.sessionTypes.unknownShare },
     favouriteTrack: response.favouriteTrack,
     favouriteCar: response.favouriteCar,
   };

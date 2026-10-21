@@ -9,7 +9,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@raceiq/backend-core/db/index";
 import { laps, sessions, liveCaptures, liveCaptureMembers, liveCaptureJournal } from "@raceiq/backend-core/db/schema";
 import { beginLiveCapture, bindLiveCaptureSourceIdentity, commitLiveCaptureMember, getLiveLapCaptureSnapshot, persistLiveCaptureProgress, setLiveCaptureStatus } from "@raceiq/backend-core/db/live-capture-queries";
-import { encodeFrameLength, encodeMetaFrame, decompressIfGzipSync, iterateSessionCaptureRecords, type SessionCaptureRecord } from "@raceiq/capture-formats/session/framing";
+import { encodeFrameLength, encodeMetaFrame, encodeSessionMetadataRecord, decompressIfGzipSync, iterateSessionCaptureRecords, type SessionCaptureRecord } from "@raceiq/capture-formats/session/framing";
 import { SparseSessionRecorder } from "@raceiq/capture-formats/session/sparse-recorder";
 import { recoverLiveCaptureStorage, registerLiveCaptureRecoveryReplay } from "@raceiq/backend-core/session-capture/live-recovery";
 import { LiveCanonicalSourceReader } from "../../src/session-capture/live-source-reader";
@@ -43,6 +43,11 @@ async function sourcePrefix(count = 16) {
 
 test("restart recovery replays durable source prefix through pinned reader and real worker", async () => {
   const { sourcePath, frames } = await sourcePrefix();
+  const sourceBytes = await readFile(sourcePath);
+  const firstFrame = [...iterateSessionCaptureRecords(sourceBytes)].find((record) => record.kind === "frame")!;
+  const anchor = { kind: "clock-anchor" as const, offset: firstFrame.offset, endOffset: firstFrame.offset, frameTimeMs: 0, utcTimeMs: 1_700_000_000_000 };
+  await writeFile(sourcePath, Buffer.concat([sourceBytes.subarray(0, firstFrame.offset), encodeSessionMetadataRecord(anchor), sourceBytes.subarray(firstFrame.offset)]));
+  const sourceRecordCount = frames.length + 1;
   const archivePath = join(root, `archive-${randomUUID()}.bin.gz`);
   const session = await db.insert(sessions).values({ carId: "test-car", trackId: "test-track", gameId: "fm-2023", rawFile: sourcePath })
     .returning({ id: sessions.id }).get();
@@ -57,7 +62,7 @@ test("restart recovery replays durable source prefix through pinned reader and r
   const info = await stat(sourcePath, { bigint: true });
   expect(await bindLiveCaptureSourceIdentity(identity, String(info.dev), String(info.ino))).toBe(true);
   expect(await persistLiveCaptureProgress(identity, {
-    sequence: 0, sourceByteLength: length, sourceRecordCount: frames.length,
+    sequence: 0, sourceByteLength: length, sourceRecordCount,
     sourceDurableWatermark: length, metadataDurableWatermark: length,
   }, [])).toBe(true);
   expect(await setLiveCaptureStatus(identity, "recovering")).toBe(true);
@@ -74,18 +79,20 @@ test("restart recovery replays durable source prefix through pinned reader and r
     sourceRecordCount: liveCaptures.sourceRecordCount, sourceDurableWatermark: liveCaptures.sourceDurableWatermark,
     metadataDurableWatermark: liveCaptures.metadataDurableWatermark }).from(liveCaptures)
     .where(eq(liveCaptures.captureEpoch, identity.captureEpoch)).get();
-  expect(state).toMatchObject({ status: "sealed", generation: 1, sourceRecordCount: frames.length,
+  expect(state).toMatchObject({ status: "sealed", generation: 1, sourceRecordCount,
     sourceDurableWatermark: length, metadataDurableWatermark: length });
   const members = await db.select().from(liveCaptureMembers).where(eq(liveCaptureMembers.captureEpoch, identity.captureEpoch)).all();
   expect(members).toHaveLength(1);
   const archive = await readFile(archivePath);
   const member = Schema.decodeUnknownSync(LiveArchiveMemberSchema)(JSON.parse(members[0]!.descriptor));
-  expect(member).toMatchObject({ kind: "auxiliary", generation: 1, sourceStart: 0, sourceEnd: frames.length,
-    recordCount: frames.length, sourceByteEnd: length });
+  expect(member).toMatchObject({ kind: "auxiliary", generation: 1, sourceStart: 0, sourceEnd: sourceRecordCount,
+    recordCount: sourceRecordCount, sourceByteEnd: length });
   const nativeRecords = [...iterateSessionCaptureRecords(decompressIfGzipSync(archive), 0, { strict: true })]
     .filter((record) => record.kind === "frame");
   expect(nativeRecords.map((record) => record.frame)).toEqual(frames);
   expect(nativeRecords.map((record) => record.frameTimeMs)).toEqual(frames.map((_, index) => index * 10));
+  expect([...iterateSessionCaptureRecords(decompressIfGzipSync(archive), 0, { strict: true })].find((record) => record.kind === "clock-anchor"))
+    .toMatchObject({ frameTimeMs: anchor.frameTimeMs, utcTimeMs: anchor.utcTimeMs });
   expect(await stat(sourcePath).then((value) => value.size)).toBe(sourceLengthAfterCrash);
   registerLiveCaptureRecoveryReplay(replayLiveCaptureTail);
   await recoverLiveCaptureStorage();
@@ -93,7 +100,7 @@ test("restart recovery replays durable source prefix through pinned reader and r
     .from(liveCaptures).where(eq(liveCaptures.captureEpoch, identity.captureEpoch)).get();
   expect(repeated).toEqual({ status: "sealed", generation: 1 });
   expect(await persistLiveCaptureProgress(identity, {
-    sequence: 1, sourceByteLength: length, sourceRecordCount: frames.length,
+    sequence: 1, sourceByteLength: length, sourceRecordCount,
     sourceDurableWatermark: length, metadataDurableWatermark: length,
   }, [])).toBe(false);
   expect(await db.select().from(liveCaptureMembers).where(eq(liveCaptureMembers.captureEpoch, identity.captureEpoch)).all()).toHaveLength(1);

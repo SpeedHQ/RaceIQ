@@ -6,11 +6,12 @@ import {
   type IRacingSourceFrame,
   type IRacingValue,
 } from "@raceiq/capture-formats/iracing/source-frame";
-import { parseIRacingFuelCapacity } from "@raceiq/capture-formats/iracing/session-info";
+import { iracingActorFromSessionInfo } from "./driver-attribution";
 import {
   startsAtIRacingSectorOrigin,
   warnInvalidIRacingSectorLayout,
 } from "./sector-layout";
+import { parseIRacingFuelCapacity } from "@raceiq/capture-formats/iracing/session-info";
 
 const KPA_TO_PSI = 0.1450377377;
 
@@ -21,6 +22,13 @@ export interface IRacingParserState {
   lapStartSessionTime: number;
   fuelCapacitySessionInfo: string | null;
   fuelCapacityL: number | undefined;
+}
+
+const invalidatedDriverSessions = new WeakMap<IRacingParserState, IRacingParserState["source"]["session"]>();
+
+/** Cached SDK metadata remains display state until a genuine native session frame replaces it. */
+export function invalidateIRacingDriverEvidence(state: IRacingParserState): void {
+  invalidatedDriverSessions.set(state, state.source.session);
 }
 
 export function createIRacingParserState(): IRacingParserState {
@@ -117,7 +125,7 @@ export function restoreIRacingParserCheckpoint(bytes: Uint8Array): IRacingParser
       throw new Error("Invalid or unsupported iRacing parser checkpoint");
     }
   }
-  return {
+  const restored: IRacingParserState = {
     sessionKey: state.sessionKey,
     rawLap: state.rawLap,
     lapStartSessionTime: state.lapStartSessionTime,
@@ -134,6 +142,8 @@ export function restoreIRacingParserCheckpoint(bytes: Uint8Array): IRacingParser
       sessionInfoUpdate: source.sessionInfoUpdate,
     },
   };
+  invalidateIRacingDriverEvidence(restored);
+  return restored;
 }
 
 function scalar(
@@ -285,6 +295,17 @@ export function normalizeIRacingFrame(
   );
   const sdkLastLapTime = Math.max(0, scalar(values, "LapLastLapTime", 0));
   const sessionKey = `${session.subSessionId}:${session.sessionId}:${session.sessionNum}`;
+  const invalidatedSession = state ? invalidatedDriverSessions.get(state) : undefined;
+  const driverEvidenceCurrent = invalidatedSession === undefined || state?.source.session !== invalidatedSession;
+  if (state && invalidatedSession !== undefined && driverEvidenceCurrent) invalidatedDriverSessions.delete(state);
+  const driverActor = driverEvidenceCurrent && "sessionInfo" in frame && typeof frame.sessionInfo === "string"
+    ? iracingActorFromSessionInfo(
+      frame.sessionInfo,
+      sessionKey,
+      sessionTime * 1000,
+      `iracing-session:${sessionKey}`,
+    )
+    : null;
   let fuelCapacityL: number | undefined;
   if ("sessionInfo" in frame) {
     if (!state) {
@@ -328,6 +349,7 @@ export function normalizeIRacingFrame(
   );
 
   return {
+    driverActor,
     gameId: "iracing",
     iracing: {
       sessionTick: Math.trunc(scalar(values, "SessionTick", 0)),

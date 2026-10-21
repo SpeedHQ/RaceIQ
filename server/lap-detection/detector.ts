@@ -29,6 +29,7 @@ import {
   type OrdinalEngineState,
 } from "@raceiq/telemetry-core/processor/ordinal-engine";
 import { logger } from "../runtime/logger";
+import { captureLapDriverAttribution } from "./native-attribution";
 
 function traceCapture(game: string, event: string, fields: Record<string, unknown>): void {
   logger.trace({ component: "capture", event, game, ...fields }, "Lap capture trace");
@@ -96,6 +97,20 @@ export class LapDetector implements ILapDetector, LapOwnershipSource {
   private _loggedFeedOnce = false;
   private pendingIncompleteLapId: number | null = null;
   private pendingIncompleteLapWrite: Promise<void> | null = null;
+  private attributionLapStartObserved = false;
+  private readonly pendingLapWrites = new Set<Promise<void>>();
+
+  private trackLapWrite(write: Promise<void>): void {
+    this.pendingLapWrites.add(write);
+    void write.finally(() => this.pendingLapWrites.delete(write)).catch(() => {});
+  }
+
+  private persistDetectedLap(...args: Parameters<LapDetectorOptions["db"]["insertLap"]>): Promise<number> {
+    const retainedLapId = this.pendingIncompleteLapId;
+    if (retainedLapId === null) return this.db.insertLap(...args);
+    this.pendingIncompleteLapId = null;
+    return this.db.completeProvisionalLap(retainedLapId, ...args);
+  }
 
   private get state(): OrdinalEngineState { return this.engine.state; }
   private get currentLapNumber() { return this.state.lapNumber; }
@@ -160,17 +175,9 @@ export class LapDetector implements ILapDetector, LapOwnershipSource {
         };
       },
       onSessionStarted: async () => { if (this.currentSession) await this.onSessionStart?.(this.currentSession); },
-      onProvisionalLapResume: async (startsNewSession) => {
+      onProvisionalLapResume: async () => {
         if (this.pendingIncompleteLapWrite) await this.pendingIncompleteLapWrite;
-        if (this.pendingIncompleteLapId === null) return;
-        if (startsNewSession) {
-          this.pendingIncompleteLapId = null;
-          return "discard";
-        }
-        const id = this.pendingIncompleteLapId;
-        this.pendingIncompleteLapId = null;
-        await this.db.deleteLap(id);
-        return "retain";
+        if (this.pendingIncompleteLapId !== null) return "retain";
       },
       pitTransition: (previous, next, raceOffObserved) => {
         const evidence = forzaPitTransitionEvidence(previous, next, raceOffObserved);
@@ -190,7 +197,8 @@ export class LapDetector implements ILapDetector, LapOwnershipSource {
         const lapNum = state.lapNumber;
         const packetCount = state.lapBuffer.length;
         const lapPackets = state.lapBuffer;
-        this.db.insertLap(
+        const attribution = captureLapDriverAttribution(lapPackets, undefined, isComplete && (this.attributionLapStartObserved || lapPackets[0]?.CurrentLap === 0));
+        this.trackLapWrite(this.persistDetectedLap(
           session.sessionId,
           lapNum,
           lapTime,
@@ -201,6 +209,8 @@ export class LapDetector implements ILapDetector, LapOwnershipSource {
           tuneAssignment?.tuneId ?? null,
           isComplete ? state.invalidReason : "incomplete",
           null,
+          undefined,
+          attribution ?? undefined,
         ).then(async (lapId) => {
           await this.persistLapFollowups(lapId, lapPackets);
           console.log(
@@ -208,9 +218,12 @@ export class LapDetector implements ILapDetector, LapOwnershipSource {
           );
         }).catch((err) => {
           console.error("[Lap] Failed to flush stale lap:", err);
-        });
+        }));
       },
-      finalizeSession: async () => { this.currentSession = null; },
+      finalizeSession: async () => {
+        await Promise.all(this.pendingLapWrites);
+        this.currentSession = null;
+      },
     }, { bypassPacketRateFilter: this.bypassPacketRateFilter });
   }
   clampCurrentLapOwnership(endOrdinal: number): void { this.engine.clampCurrentLapOwnership(endOrdinal); }
@@ -232,9 +245,10 @@ export class LapDetector implements ILapDetector, LapOwnershipSource {
     const session = this.currentSession, lapNumber = this.currentLapNumber;
     const lapTime = this.lapBuffer.at(-1)!.CurrentLap;
     if (lapTime < 10) return;
+    const attribution = captureLapDriverAttribution(this.lapBuffer, undefined, false);
     this.pendingIncompleteLapWrite = (async () => {
       const tune = await this.db.getTuneAssignment(session.gameId, session.carId, session.trackId);
-      this.pendingIncompleteLapId = await this.db.insertLap(session.sessionId, lapNumber, lapTime, false, this._lapByteOffset, this._lapFrameCount, null, tune?.tuneId ?? null, this.currentPitCycleReason ?? "incomplete", null);
+      this.pendingIncompleteLapId = await this.db.insertLap(session.sessionId, lapNumber, lapTime, false, this._lapByteOffset, this._lapFrameCount, null, tune?.tuneId ?? null, this.currentPitCycleReason ?? "incomplete", null, undefined, attribution ?? undefined);
       console.log(`[Lap] Saved provisional incomplete lap ${lapNumber}`);
     })();
     try { await this.pendingIncompleteLapWrite; } finally { this.pendingIncompleteLapWrite = null; }
@@ -249,11 +263,7 @@ export class LapDetector implements ILapDetector, LapOwnershipSource {
   }
   async flushIncompleteLap(): Promise<void> {
     await this.pendingIncompleteLapWrite;
-    if (this.pendingIncompleteLapId === null) await this.engine.flushIncompleteLap();
-    else {
-      this.engine.finalizeRetainedIncompleteOwnership();
-      this.engine.discardIncompleteLap();
-    }
+    await this.engine.flushIncompleteLap();
     this.pendingIncompleteLapId = null;
   }
   async feed(packet: TelemetryPacket, rawByteOffset?: number, rawOrdinal?: number): Promise<void> {
@@ -267,6 +277,8 @@ export class LapDetector implements ILapDetector, LapOwnershipSource {
 
 
   private async startNewSession(packet: TelemetryPacket): Promise<SessionState | null> {
+    await Promise.all(this.pendingLapWrites);
+    this.attributionLapStartObserved = false;
     const gameId = packet.gameId;
     const sessionType = packet.f1?.sessionType ?? packet.lmu?.sessionType;
     const carId = packet.carId;
@@ -296,6 +308,8 @@ export class LapDetector implements ILapDetector, LapOwnershipSource {
   private async onLapComplete(newLapFirstPacket: TelemetryPacket): Promise<boolean> {
 
     if (!this.currentSession || this.lapBuffer.length === 0) return false;
+    const attributionStartObserved = this.attributionLapStartObserved || this.lapBuffer[0]?.CurrentLap === 0;
+    this.attributionLapStartObserved = true;
     const traceStartedAt = performance.now();
 
 
@@ -439,7 +453,8 @@ export class LapDetector implements ILapDetector, LapOwnershipSource {
       const savedBestLapTime = this.currentSession.bestLapTime;
       const lapPackets = this.lapBuffer;
       const insertStartedAt = performance.now();
-      this.db.insertLap(
+      const attribution = captureLapDriverAttribution(lapPackets, newLapFirstPacket, attributionStartObserved || lapPackets[0]?.CurrentLap === 0);
+      this.trackLapWrite(this.persistDetectedLap(
         savedSessionId,
         lapNum,
         lapTime,
@@ -449,7 +464,9 @@ export class LapDetector implements ILapDetector, LapOwnershipSource {
         null,
         tuneId,
         invalidReason,
-        sectors
+        sectors,
+        undefined,
+        attribution ?? undefined,
       ).then(async (lapId) => {
         traceCapture(lapPackets[0]?.gameId ?? "unknown", "lap-insert", {
           lapId,
@@ -473,7 +490,7 @@ export class LapDetector implements ILapDetector, LapOwnershipSource {
         });
       }).catch((err) => {
         console.error(`[Lap] Failed to save lap ${lapNum}:`, err);
-      });
+      }));
 
     }
 
@@ -510,7 +527,7 @@ export class LapDetector implements ILapDetector, LapOwnershipSource {
       this.currentSession.trackId
     );
     const lapPackets = this.lapBuffer;
-    this.db.insertLap(
+    this.trackLapWrite(this.persistDetectedLap(
       this.currentSession.sessionId,
       this.currentLapNumber,
       lapPackets[lapPackets.length - 1].CurrentLap,
@@ -520,13 +537,15 @@ export class LapDetector implements ILapDetector, LapOwnershipSource {
       null,
       tuneAssignment?.tuneId ?? null,
       this.currentPitCycleReason ?? "incomplete",
-      null
+      null,
+      undefined,
+      captureLapDriverAttribution(lapPackets, undefined, false) ?? undefined,
     ).then(async (lapId) => {
       await this.persistLapFollowups(lapId, lapPackets);
       console.log(`[Lap] Saved incomplete lap (session ended)`);
     }).catch((err) => {
       console.error("[Lap] Failed to save incomplete lap:", err);
-    });
+    }));
   }
 
   /**

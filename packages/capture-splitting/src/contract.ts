@@ -6,7 +6,57 @@ export const ManifestVersion = 3;
 export const MAX_CAPTURE_MANIFEST_BYTES = 16 * 1024 * 1024;
 export const GameId = Schema.Literals(["acc", "ac-evo", "f1-2025", "fm-2023", "iracing", "lmu"]);
 export type GameId = typeof GameId.Type;
+export const SourceDescriptorSchema = Schema.Struct({ path: Schema.String, revision: Schema.String });
+export type SourceDescriptor = typeof SourceDescriptorSchema.Type;
 
+
+export const DriverGameId = Schema.Literals(["acc", "ac-evo", "f1-2025", "fm-2023", "iracing", "lmu"]);
+export const DriverActorSchema = Schema.Struct({
+  gameId: DriverGameId,
+  source: Schema.String,
+  actorId: Schema.String,
+  bindingScope: Schema.Literals(["session", "installation"]),
+  sessionId: Schema.String,
+  clockDomain: Schema.String,
+  observedAtMs: Schema.Finite,
+  evidenceExpiresAtMs: Schema.optional(Schema.Finite),
+});
+export const DriverAttributionStintSchema = Schema.Struct({
+  gameId: DriverGameId,
+  source: Schema.String,
+  sessionId: Schema.String,
+  startMs: Schema.Finite,
+  endMs: Schema.NullOr(Schema.Finite),
+  evidenceValidUntilMs: Schema.Finite,
+  clockDomain: Schema.String,
+  actor: Schema.NullOr(DriverActorSchema),
+  attribution: Schema.Literals(["Self", "Other", "Unknown"]),
+  bindingRevision: Schema.NullOr(PositiveInt),
+  bindingSnapshot: Schema.optional(Schema.Struct({
+    id: Schema.String,
+    gameId: DriverGameId,
+    sourceKind: Schema.String,
+    nativeIdentity: Schema.String,
+    confirmation: Schema.Literals(["native_verified", "user_confirmed"]),
+    revision: PositiveInt,
+  })),
+});
+export type DriverAttributionStint = typeof DriverAttributionStintSchema.Type;
+
+export const LapProvenanceFields = {
+  lapGuid: Schema.optional(Schema.String),
+  originalActivityId: Schema.optional(Schema.String),
+  originalSourceRevision: Schema.optional(Schema.String),
+  driverAttribution: Schema.optional(Schema.Literals(["Self", "Other", "Mixed", "Unknown"])),
+  driverAttributionStints: Schema.optional(Schema.Array(DriverAttributionStintSchema)),
+  sourceCoverageStart: Schema.optional(NonNegativeInt),
+  sourceCoverageEnd: Schema.optional(NonNegativeInt),
+  sourceCoverageComplete: Schema.optional(Schema.Boolean),
+  sourceRevision: Schema.optional(Schema.String),
+  sourceClockDomain: Schema.optional(Schema.String),
+  sourceLapStartMs: Schema.optional(Schema.Finite),
+  sourceLapEndMs: Schema.optional(Schema.Finite),
+};
 export const LapWindowSchema = Schema.Struct({
   lapId: Schema.String,
   lapNumber: NonNegativeInt,
@@ -14,17 +64,17 @@ export const LapWindowSchema = Schema.Struct({
   frameCount: PositiveInt,
   parserCheckpoint: Schema.optional(Schema.Uint8Array),
   trailingContextFrameCount: Schema.optional(NonNegativeInt),
+  ...LapProvenanceFields,
 });
 export type LapWindow = typeof LapWindowSchema.Type;
 
-export const SourceDescriptorSchema = Schema.Struct({ path: Schema.String, revision: Schema.String });
-export type SourceDescriptor = typeof SourceDescriptorSchema.Type;
 
 export const ChunkSchema = Schema.Struct({
   id: Schema.String,
   kind: Schema.Literals(["lap", "auxiliary"]),
   lapId: Schema.optional(Schema.String),
   lapNumber: Schema.optional(NonNegativeInt),
+  ...LapProvenanceFields,
   path: Schema.String,
   byteLength: NonNegativeInt,
   firstOrdinal: NonNegativeInt,
@@ -52,6 +102,10 @@ export const ManifestSchema = Schema.Struct({
   sourceRecordCount: NonNegativeInt,
   /** Direct capture offsets use decoded native frame wire lengths, not sparse file positions. */
   sourceCoordinates: Schema.optional(Schema.Literal("native-wire-v1")),
+  /** Written only after the recorder has closed every source part and resolved every lap binding. */
+  sourceClosed: Schema.optional(Schema.Boolean),
+  originalActivityId: Schema.optional(Schema.String),
+  ownerUserId: Schema.optional(Schema.NullOr(Schema.String)),
   chunks: Schema.Array(ChunkSchema),
 });
 export type Manifest = typeof ManifestSchema.Type;
@@ -61,6 +115,7 @@ export const ArchiveChunkSchema = Schema.Struct({
   kind: Schema.Literals(["lap", "auxiliary"]),
   lapId: Schema.optional(Schema.String),
   lapNumber: Schema.optional(NonNegativeInt),
+  ...LapProvenanceFields,
   entryName: Schema.String,
   memberOffset: NonNegativeInt,
   compressedByteLength: PositiveInt,
@@ -86,6 +141,8 @@ export const ArchiveManifestSchema = Schema.Struct({
   sourceByteLength: NonNegativeInt,
   sourceRecordCount: NonNegativeInt,
   archiveFile: Schema.Literal("capture.bin.gz"),
+  originalActivityId: Schema.optional(Schema.String),
+  ownerUserId: Schema.optional(Schema.NullOr(Schema.String)),
   chunks: Schema.Array(ArchiveChunkSchema),
 });
 export type ArchiveManifest = typeof ArchiveManifestSchema.Type;
@@ -135,7 +192,6 @@ export const LiveArchiveSnapshotSchema = Schema.Struct({
 export type LiveArchiveSnapshot = typeof LiveArchiveSnapshotSchema.Type;
 export const PublishedManifestSchema = Schema.Union([ManifestSchema, ArchiveManifestSchema]);
 export type PublishedManifest = typeof PublishedManifestSchema.Type;
-
 export const ProgressSchema = Schema.Struct({
   phase: Schema.Literals(["scan", "write", "verify"]),
   records: NonNegativeInt,

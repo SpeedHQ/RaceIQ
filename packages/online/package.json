@@ -15,6 +15,9 @@
     "./upload-dispatch": "./src/upload-dispatch.ts",
     "./state-storage": "./src/state-storage.ts",
     "./outbox-storage": "./src/outbox-storage.ts",
+    "./profile-storage": "./src/profile-storage.ts",
+    "./profile-coordinator": "./src/profile-coordinator.ts",
+    "./binding-storage": "./src/binding-storage.ts",
     "./runtime": "./src/runtime.ts"
   },
   "scripts": {
@@ -31,7 +34,7 @@
     "@raceiq/game-f1-2025-metadata": "workspace:*",
     "@raceiq/game-iracing-metadata": "workspace:*",
     "@raceiq/game-lmu-metadata": "workspace:*",
-    "@speedhq/live-client": "0.1.13",
+    "@speedhq/live-client": "0.2.0",
     "effect": "4.0.4",
     "zod": "^4.6.5"
   }

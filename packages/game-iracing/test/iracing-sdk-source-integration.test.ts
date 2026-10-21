@@ -10,6 +10,7 @@ import {
   restoreIRacingParserCheckpoint,
 } from "../src/normalizer";
 import {
+  iracingActorFromSessionInfo,
   type IRacingFrameReader,
   IRacingTelemetrySource,
 } from "../src/source";
@@ -20,6 +21,8 @@ import {
   IRacingSourceFrameEncoder,
   type IRacingSourceFrameV3,
 } from "@raceiq/capture-formats/iracing/source-frame";
+import { iracingParser } from "../src/game-parser";
+import { resolveDriverAttribution } from "@raceiq/shared/driver-attribution";
 import { parsePacket } from "@raceiq/backend-core/games/packet-dispatch";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { timerResolutionRefCount } from "@raceiq/backend-core/games/shared/win-timer-resolution";
@@ -60,6 +63,88 @@ class CapturingIRacingRecorder extends IRacingRecorder {
 }
 
 describe("iRacing source ownership integration", () => {
+  test("active UserID creates a source actor; missing active UserID stays absent", () => {
+    const sessionInfo = [
+      "DriverInfo:",
+      "  DriverCarIdx: 7",
+      "  Drivers:",
+      "  - CarIdx: 7",
+      "    UserID: 222",
+      "    UserName: example",
+    ].join("\n");
+    expect(iracingActorFromSessionInfo(sessionInfo, "s-1", 1500, "iracing:s-1")).toEqual({
+      gameId: "iracing",
+      source: "iracing-sdk-session-info",
+      actorId: "222",
+      bindingScope: "installation",
+      sessionId: "s-1",
+      clockDomain: "iracing:s-1",
+      observedAtMs: 1500,
+    });
+    expect(iracingActorFromSessionInfo(sessionInfo.replace("UserID: 222", "UserID: 0"), "s-1", 1500, "iracing:s-1"))
+      .toBeNull();
+    expect(iracingActorFromSessionInfo(sessionInfo, "", 1500, "iracing:s-1")).toBeNull();
+  });
+  test("normalizes current DriverCarIdx UserID as native actor, not car slot", () => {
+    const sessionInfo = [
+      "DriverInfo:",
+      "  DriverCarIdx: 7",
+      "  Drivers:",
+      "  - CarIdx: 7",
+      "    UserID: 222",
+    ].join("\n");
+    const frame = {
+      ...sampleFrame(),
+      schemaVersion: 3 as const,
+      sessionInfo,
+      sessionInfoUpdate: 1,
+    };
+    expect(normalizeIRacingFrame(frame).driverActor).toMatchObject({
+      gameId: "iracing",
+      source: "iracing-sdk-session-info",
+      actorId: "222",
+      sessionId: "456:123:2",
+      clockDomain: "iracing-session:456:123:2",
+      observedAtMs: 125_500,
+    });
+    expect(normalizeIRacingFrame(sampleFrame()).driverActor).toBeNull();
+  });
+  test("fractional native SessionTime resolves Self without accepting genuinely future actor evidence", () => {
+    const sessionInfo = "DriverInfo:\n  DriverCarIdx: 7\n  Drivers:\n  - CarIdx: 7\n    UserID: 222\n";
+    const frame: IRacingSourceFrameV3 = { ...sampleFrame(), schemaVersion: 3, sessionInfo, sessionInfoUpdate: 1,
+      values: { ...sampleFrame().values, SessionTime: 125.50075 } };
+    const packet = normalizeIRacingFrame(frame);
+    const actor = packet.driverActor!;
+    const observation = { actor, gameId: actor.gameId, source: actor.source, sessionId: actor.sessionId,
+      clockDomain: actor.clockDomain, observedAtMs: packet.CurrentRaceTime * 1000, maxAgeMs: 2_000,
+      bindings: [{ gameId: actor.gameId, source: actor.source, actorId: "222", revision: 1 }] };
+    expect(actor.observedAtMs).toBe(packet.CurrentRaceTime * 1000);
+    expect(resolveDriverAttribution(observation).attribution).toBe("Self");
+    expect(resolveDriverAttribution({ ...observation, actor: { ...actor, observedAtMs: actor.observedAtMs + 0.0001 } }).attribution)
+      .toBe("Unknown");
+  });
+
+  test("restored native metadata keeps physics but requires genuine session metadata before driver proof", () => {
+    const sessionInfo = "DriverInfo:\n  DriverCarIdx: 7\n  Drivers:\n  - CarIdx: 7\n    UserID: 222\n";
+    const initial: IRacingSourceFrameV3 = { ...sampleFrame(), schemaVersion: 3, sessionInfo, sessionInfoUpdate: 1 };
+    const encoder = new IRacingSourceFrameEncoder();
+    const state = iracingParser.createParserState();
+    expect(iracingParser.tryParse(encoder.encode(initial), state)?.driverActor?.actorId).toBe("222");
+    const restored = iracingParser.restoreParserCheckpoint!(iracingParser.createParserState(), captureIRacingParserCheckpoint(state));
+    const next: IRacingSourceFrameV3 = { ...initial,
+      values: { ...initial.values, SessionTime: 125.75, SessionTick: 7531, Speed: 70 } };
+    const cached = iracingParser.tryParse(encoder.encode(next), restored)!;
+    expect(cached.CurrentRaceTime).toBe(125.75);
+    expect(cached.Speed).toBe(70);
+    expect(cached.driverActor).toBeNull();
+    const actualMetadata = new IRacingSourceFrameEncoder().encode(next);
+    expect(iracingParser.tryParse(actualMetadata, restored)?.driverActor?.actorId).toBe("222");
+    iracingParser.invalidateDriverEvidence!(restored);
+    const later = { ...next, values: { ...next.values, SessionTime: 126, SessionTick: 7532, Speed: 65 } };
+    const invalidated = iracingParser.tryParse(encoder.encode(later), restored)!;
+    expect(invalidated.Speed).toBe(65);
+    expect(invalidated.driverActor).toBeNull();
+  });
   test("repeated start owns one polling loop and stop releases it", async () => {
     const callbacks = new Map<number, () => void>();
     let nextTimerId = 0;
@@ -240,7 +325,9 @@ DriverInfo:
     let nowMs = 0;
     let latest: IRacingSdkSnapshot | null = null;
     const delivered: Buffer[] = [];
+    const acquisitionTimes: Array<number | undefined> = [];
     const clockSpy = spyOn(performance, "now").mockImplementation(() => nowMs);
+    const acquisitionClockSpy = spyOn(Date, "now").mockImplementation(() => 1_000_000 + nowMs);
     setRecordingFrequencyHz(60);
     const reader: IRacingFrameReader = {
       start() {},
@@ -254,7 +341,10 @@ DriverInfo:
     const source = new IRacingTelemetrySource({
       reader,
       pollIntervalMs: 60_000,
-      dispatchRawFrame: async (raw) => { delivered.push(Buffer.from(raw)); },
+      dispatchRawFrame: async (raw, frameTimeMs) => {
+        delivered.push(Buffer.from(raw));
+        acquisitionTimes.push(frameTimeMs);
+      },
     });
     const snapshot = (tick: number) => ({
       tick,
@@ -291,6 +381,7 @@ DriverInfo:
       const decoder = createIRacingSourceDecoderState();
       expect(delivered.map((raw) => decodeIRacingSourceFrame(raw, decoder)?.values.SessionTick))
         .toEqual([1, 2, 4, 5]);
+      expect(acquisitionTimes).toEqual([1_000_000, 1_000_016, 1_000_034, 1_000_051]);
       await source.stop();
       await source.start();
       latest = null;
@@ -313,6 +404,7 @@ DriverInfo:
       await source.stop();
       setRecordingFrequencyHz(previousFrequency);
       clockSpy.mockRestore();
+      acquisitionClockSpy.mockRestore();
     }
   });
 

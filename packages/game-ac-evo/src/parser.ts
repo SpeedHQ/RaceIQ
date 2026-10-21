@@ -10,8 +10,8 @@
  */
 
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import type { KunosExtendedData, AcEvoExtendedData } from "@raceiq/shared/telemetry/kunos";
-import type { GameId } from "@raceiq/shared/games/ids";
+import type { AcEvoExtendedData, KunosExtendedData } from "@raceiq/shared/telemetry/kunos";
+import type { NativeDriverActor } from "@raceiq/shared/driver-attribution";
 import { createAcEvoDistanceState, integrateDistance, type AcEvoDistanceState } from "./distance";
 import { calibratePlayerSlot, createPlayerSlotState, type PlayerSlotState } from "./player-slot";
 import {
@@ -40,6 +40,7 @@ export interface AcEvoParserCache {
   lastTrackConfiguration: string;
   playerSlotState: PlayerSlotState;
   distanceState: AcEvoDistanceState;
+  driverEvidence: AcEvoDriverEvidenceState;
 }
 
 export function createAcEvoParserCache(): AcEvoParserCache {
@@ -51,6 +52,7 @@ export function createAcEvoParserCache(): AcEvoParserCache {
     lastTrackConfiguration: "",
     playerSlotState: createPlayerSlotState(),
     distanceState: createAcEvoDistanceState(),
+    driverEvidence: createDriverEvidenceState(),
   };
 }
 export type AcEvoParserCheckpointBytes = Uint8Array;
@@ -127,8 +129,136 @@ export function restoreAcEvoParserCheckpoint(bytes: Uint8Array): AcEvoParserCach
       previousCoordinates: Float32Array.from(player.previousCoordinates),
     },
     distanceState: { ...distance },
+    driverEvidence: createDriverEvidenceState(),
   };
 }
+type AcEvoGuidWords = [number, number, number, number];
+
+// Both native pages normally update many times within this interval. A stalled
+// page cannot borrow freshness from the other page or from wrapper timestamps.
+const DRIVER_EVIDENCE_MAX_AGE_MS = 500;
+
+interface AcEvoDriverEvidenceState {
+  physicsPacketId: number | null;
+  graphicsPacketId: number | null;
+  captureAtMs: number | null;
+  physicsObservedAtMs: number | null;
+  graphicsObservedAtMs: number | null;
+  isAIControlled: number | null;
+  playerCarIdWords: AcEvoGuidWords | null;
+  focusedCarIdWords: AcEvoGuidWords | null;
+  sessionId: string;
+  actor: NativeDriverActor | null;
+}
+
+function createDriverEvidenceState(): AcEvoDriverEvidenceState {
+  return {
+    physicsPacketId: null,
+    graphicsPacketId: null,
+    captureAtMs: null,
+    physicsObservedAtMs: null,
+    graphicsObservedAtMs: null,
+    isAIControlled: null,
+    playerCarIdWords: null,
+    focusedCarIdWords: null,
+    sessionId: "",
+    actor: null,
+  };
+}
+
+function invalidateDriverEvidence(state: AcEvoDriverEvidenceState): void {
+  state.physicsObservedAtMs = null;
+  state.graphicsObservedAtMs = null;
+  state.actor = null;
+}
+
+function readGuidWords(buffer: Buffer, offset: number, previous: AcEvoGuidWords | null): AcEvoGuidWords {
+  const a = buffer.readUInt32LE(offset);
+  const b = buffer.readUInt32LE(offset + 4);
+  const c = buffer.readUInt32LE(offset + 8);
+  const d = buffer.readUInt32LE(offset + 12);
+  return previous && previous[0] === a && previous[1] === b && previous[2] === c && previous[3] === d
+    ? previous
+    : [a, b, c, d];
+}
+
+function guidFromWords(words: AcEvoGuidWords): string {
+  return words[0].toString(16).padStart(8, "0") +
+    words[1].toString(16).padStart(8, "0") +
+    words[2].toString(16).padStart(8, "0") +
+    words[3].toString(16).padStart(8, "0");
+}
+
+function hasGuid(words: AcEvoGuidWords): boolean {
+  return (words[0] | words[1] | words[2] | words[3]) !== 0;
+}
+
+function observeDriverEvidence(
+  state: AcEvoDriverEvidenceState,
+  physicsPacketId: number,
+  graphicsPacketId: number,
+  isAIControlled: number,
+  playerCarIdWords: AcEvoGuidWords,
+  focusedCarIdWords: AcEvoGuidWords,
+  timestampMs: number,
+  liveSupportedLayout: boolean,
+): NativeDriverActor | null {
+  // Unsigned deltas handle signed int32 rollover, not backwards/reset counters.
+  const physicsDelta = state.physicsPacketId === null ? 0 : (physicsPacketId - state.physicsPacketId) >>> 0;
+  const graphicsDelta = state.graphicsPacketId === null ? 0 : (graphicsPacketId - state.graphicsPacketId) >>> 0;
+  const physicsAdvanced = physicsDelta > 0 && physicsDelta < 0x80000000;
+  const graphicsAdvanced = graphicsDelta > 0 && graphicsDelta < 0x80000000;
+  const countersReset = physicsDelta >= 0x80000000 || graphicsDelta >= 0x80000000;
+  const hasClock = Number.isFinite(timestampMs) && timestampMs > 0;
+  const continuousCapture = hasClock && state.captureAtMs !== null &&
+    timestampMs >= state.captureAtMs && timestampMs - state.captureAtMs <= DRIVER_EVIDENCE_MAX_AGE_MS &&
+    (timestampMs > state.captureAtMs || (!physicsAdvanced && !graphicsAdvanced));
+  const playerChanged = state.playerCarIdWords !== playerCarIdWords;
+  const focusedChanged = state.focusedCarIdWords !== focusedCarIdWords;
+  const controlChanged = state.isAIControlled !== isAIControlled;
+  const conflictingPages = (!physicsAdvanced && controlChanged) ||
+    (!graphicsAdvanced && (playerChanged || focusedChanged));
+  const hasBaseline = state.physicsPacketId !== null && state.graphicsPacketId !== null;
+  state.physicsPacketId = physicsPacketId;
+  state.graphicsPacketId = graphicsPacketId;
+  state.captureAtMs = hasClock ? timestampMs : null;
+  state.isAIControlled = isAIControlled;
+  state.playerCarIdWords = playerCarIdWords;
+  state.focusedCarIdWords = focusedCarIdWords;
+  if (playerChanged) state.sessionId = `ac-evo-player-car:${guidFromWords(playerCarIdWords)}`;
+  if (!liveSupportedLayout || !hasBaseline || !continuousCapture || countersReset ||
+      conflictingPages || playerChanged || !hasGuid(playerCarIdWords) || !hasGuid(focusedCarIdWords) ||
+      (isAIControlled !== 0 && isAIControlled !== 1)) {
+    invalidateDriverEvidence(state);
+    return null;
+  }
+  if (physicsAdvanced) state.physicsObservedAtMs = timestampMs;
+  if (graphicsAdvanced) state.graphicsObservedAtMs = timestampMs;
+  if (state.physicsObservedAtMs === null || state.graphicsObservedAtMs === null ||
+      timestampMs - state.physicsObservedAtMs > DRIVER_EVIDENCE_MAX_AGE_MS ||
+      timestampMs - state.graphicsObservedAtMs > DRIVER_EVIDENCE_MAX_AGE_MS) {
+    state.actor = null;
+    return null;
+  }
+  const sameCar = playerCarIdWords[0] === focusedCarIdWords[0] &&
+    playerCarIdWords[1] === focusedCarIdWords[1] && playerCarIdWords[2] === focusedCarIdWords[2] &&
+    playerCarIdWords[3] === focusedCarIdWords[3];
+  const actorId = isAIControlled === 1 || !sameCar ? "ac-evo-control:other" : "ac-evo-control:local-player";
+  const observedAtMs = Math.min(state.physicsObservedAtMs, state.graphicsObservedAtMs);
+  if (!state.actor || state.actor.actorId !== actorId || state.actor.observedAtMs !== observedAtMs) {
+    state.actor = {
+      gameId: "ac-evo",
+      source: "ac-evo-shared-memory",
+      actorId,
+      bindingScope: "installation",
+      sessionId: state.sessionId,
+      clockDomain: "ac-evo-capture-utc-ms",
+      observedAtMs,
+    };
+  }
+  return state.actor;
+}
+
 export function parseAcEvoBuffers(
   physicsBuf: Buffer,
   graphicsBuf: Buffer,
@@ -141,6 +271,7 @@ export function parseAcEvoBuffers(
     graphicsBuf.length < GRAPHICS_EVO.SIZE ||
     staticBuf.length < STATIC_EVO.SIZE
   ) {
+    cache.driverEvidence = createDriverEvidenceState();
     return null;
   }
 
@@ -150,6 +281,9 @@ export function parseAcEvoBuffers(
   const trackStr = readCString(staticBuf, STATIC_EVO.track.offset, STATIC_EVO.track.size);
   const trackCfgStr = readCString(staticBuf, STATIC_EVO.track_configuration.offset, STATIC_EVO.track_configuration.size);
 
+  if (carModelStr !== cache.lastCarModel || trackStr !== cache.lastTrack || trackCfgStr !== cache.lastTrackConfiguration) {
+    cache.driverEvidence = createDriverEvidenceState();
+  }
   if (carModelStr !== cache.lastCarModel) {
     cache.lastCarModel = carModelStr;
     cache.carId = acEvoCarId(carModelStr);
@@ -303,6 +437,7 @@ export function parseAcEvoBuffers(
   // session as stale. Only hard-exit to main menu (AC_OFF) or replay viewer
   // (AC_REPLAY) is treated as session-over.
   if (status === ACEVO_STATUS.AC_OFF || status === ACEVO_STATUS.AC_REPLAY) {
+    cache.driverEvidence = createDriverEvidenceState();
     return null;
   }
   const completedLaps = graphicsBuf.readInt32LE(GRAPHICS_EVO.total_lap_count.offset);
@@ -359,11 +494,30 @@ export function parseAcEvoBuffers(
   const sessBase = GRAPHICS_EVO.session_state_base.offset;
   const timBase = GRAPHICS_EVO.timing_state_base.offset;
 
+  const acEvoVersion = readCString(staticBuf, STATIC_EVO.ac_evo_version.offset, STATIC_EVO.ac_evo_version.size);
+  const sharedMemoryVersion = readCString(staticBuf, STATIC_EVO.sm_version.offset, STATIC_EVO.sm_version.size);
+  // Recorded 0.6.2/SM 1.0 pages match the documented 2026-03-31 ABI.
+  // Unknown versions or different page sizes must not certify these offsets.
+  const supportedLayout = sharedMemoryVersion === "1.0" && /^0\.6(?:\.\d+)*$/.test(acEvoVersion) &&
+    physicsBuf.length === PHYSICS.SIZE && graphicsBuf.length === GRAPHICS_EVO.SIZE &&
+    staticBuf.length === STATIC_EVO.SIZE;
+  const focusedCarIdWords = supportedLayout
+    ? readGuidWords(graphicsBuf, GRAPHICS_EVO.focused_car_id_a.offset, cache.driverEvidence.focusedCarIdWords)
+    : null;
+  const playerCarIdWords = supportedLayout
+    ? readGuidWords(graphicsBuf, GRAPHICS_EVO.player_car_id_a.offset, cache.driverEvidence.playerCarIdWords)
+    : null;
+  const isAIControlled = supportedLayout ? physicsBuf.readInt32LE(PHYSICS.isAIControlled.offset) : null;
   const acEvoExt: AcEvoExtendedData = {
     physicsPacketId: physPacketId,
     graphicsPacketId: graphicsBuf.readInt32LE(GRAPHICS_EVO.packetId.offset),
-    acEvoVersion: readCString(staticBuf, STATIC_EVO.ac_evo_version.offset, STATIC_EVO.ac_evo_version.size),
-
+    acEvoVersion,
+    sharedMemoryVersion,
+    status,
+    sourceCaptureUtcMs: Number.isFinite(timestampMs) && timestampMs > 0 ? timestampMs : null,
+    isAIControlled,
+    focusedCarIdWords,
+    playerCarIdWords,
     sessionType: ACEVO_SESSION_TYPE_NAMES[sessionRaw] ?? "unknown",
     sessionName: readCString(staticBuf, STATIC_EVO.session_name.offset, STATIC_EVO.session_name.size),
     startingGrip: ACEVO_STARTING_GRIP_NAMES[startingGripRaw] ?? "unknown",
@@ -434,6 +588,16 @@ export function parseAcEvoBuffers(
     timeOfDayMinutes: graphicsBuf.readInt32LE(GRAPHICS_EVO.time_of_day_minutes.offset),
     timeOfDaySeconds: graphicsBuf.readInt32LE(GRAPHICS_EVO.time_of_day_seconds.offset),
   };
+  let driverActor: NativeDriverActor | null = null;
+  if (playerCarIdWords && focusedCarIdWords && isAIControlled !== null) {
+    driverActor = observeDriverEvidence(
+      cache.driverEvidence, physPacketId, acEvoExt.graphicsPacketId, isAIControlled,
+      playerCarIdWords, focusedCarIdWords, timestampMs, status === ACEVO_STATUS.AC_LIVE,
+    );
+  } else {
+    cache.driverEvidence = createDriverEvidenceState();
+  }
+
 
   // --- Derived ---
   const gear = accGear <= 1 ? 0 : accGear - 1;
@@ -529,7 +693,8 @@ export function parseAcEvoBuffers(
   (acc as any).trackLengthM = trackLengthM;
 
   const packet: TelemetryPacket = {
-    gameId: "ac-evo" as GameId,
+    gameId: "ac-evo",
+    driverActor,
     carId: cache.carId,
     trackId: cache.trackId,
     acEvoIdentity: { carName: carModelStr, trackName: trackStr, trackConfiguration: trackCfgStr },

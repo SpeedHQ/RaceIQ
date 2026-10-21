@@ -279,6 +279,7 @@ export class LiveParserEvidenceTracker {
       }
       return;
     }
+    if (record.kind === "clock-anchor") return;
     // Auxiliary-only recovery tails require conservation, not lap parser evidence.
     if (!this.sourceInitialized && this.candidates.size === 0) return;
     if (!this.sourceInitialized || record.offset < this.sourceStartByteOffset!) {

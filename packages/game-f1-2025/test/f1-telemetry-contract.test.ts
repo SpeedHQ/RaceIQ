@@ -14,8 +14,140 @@ import { processLap } from "@raceiq/analysis-core/racing/analysis/laps/insights/
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import {
   F1_HEADER_SIZE,
+  F1_PACKET_IDS,
   type F1Header,
 } from "@raceiq/capture-formats/f1-2025/f1-wire";
+
+import { decodeF1Participants } from "../src/f1-packet-decoders";
+import { f1ActorFromParticipant } from "@raceiq/game-f1-2025-metadata/driver-attribution";
+
+test("F1 actor identity requires current human-controlled network participant", () => {
+  expect(f1ActorFromParticipant("123", 0, 8, 12)).toEqual({
+    gameId: "f1-2025",
+    source: "f1-2025-udp-participant",
+    actorId: "123:network:8",
+    bindingScope: "session",
+    sessionId: "123",
+    clockDomain: "f1-2025-session:123",
+    observedAtMs: 12_000,
+  });
+  expect(f1ActorFromParticipant("123", 1, 8, 12)).toBeNull();
+  expect(f1ActorFromParticipant("123", 0, 255, 12)).toBeNull();
+  expect(f1ActorFromParticipant("0", 0, 8, 12)).toBeNull();
+  expect(f1ActorFromParticipant("123", 0, 8, Number.NaN)).toBeNull();
+});
+test("F1 participant decoder retains AI control and native network identity", () => {
+  const packet = Buffer.alloc(1 + 57);
+  packet[0] = 1;
+  packet[1] = 0;
+  packet[2] = 8;
+  packet[3] = 42;
+  packet[4] = 3;
+  packet.write("Driver Name", 8, "utf8");
+  expect(decodeF1Participants(packet)[0]).toEqual({
+    aiControlled: 0,
+    driverId: 8,
+    networkId: 42,
+    teamId: 3,
+    name: "Driver Name",
+  });
+});
+test("F1 actor freshness follows participant packet time and is lost across parser restore", () => {
+  const accumulator = new F1StateAccumulator();
+  accumulator.feed(header(F1_PACKET_IDS.MOTION), frame(Buffer.alloc(60)));
+  accumulator.feed(header(F1_PACKET_IDS.SESSION), frame(Buffer.alloc(16)));
+  accumulator.feed(header(F1_PACKET_IDS.LAP_DATA), frame(Buffer.alloc(57)));
+  const participants = Buffer.alloc(1 + 57);
+  participants[0] = 1;
+  participants[1] = 0;
+  participants[2] = 8;
+  participants[3] = 42;
+  participants[4] = 3;
+  accumulator.feed({
+    ...header(F1_PACKET_IDS.PARTICIPANTS),
+    sessionTime: 10,
+  }, frame(participants));
+
+  const packetAt11 = accumulator.feed({
+    ...header(F1_PACKET_IDS.CAR_TELEMETRY),
+    sessionTime: 11,
+  }, frame(Buffer.alloc(60)));
+  accumulator.feed({ ...header(F1_PACKET_IDS.SESSION), sessionTime: 20 }, frame(Buffer.alloc(16)));
+  const packetAt20 = accumulator.feed({
+    ...header(F1_PACKET_IDS.CAR_TELEMETRY),
+    sessionTime: 20,
+  }, frame(Buffer.alloc(60)));
+  expect(packetAt11?.driverActor?.observedAtMs).toBe(10_000);
+  expect(packetAt20?.driverActor?.observedAtMs).toBe(10_000);
+
+  const restored = new F1StateAccumulator();
+  restored.restoreCheckpoint(accumulator.captureCheckpoint());
+  const packetAfterRestore = restored.feed({
+    ...header(F1_PACKET_IDS.CAR_TELEMETRY),
+    sessionTime: 21,
+  }, frame(Buffer.alloc(60)));
+  expect(packetAfterRestore?.driverActor).toBeNull();
+  restored.feed({ ...header(F1_PACKET_IDS.PARTICIPANTS), sessionTime: 21 }, frame(participants));
+  expect(restored.feed({ ...header(F1_PACKET_IDS.CAR_TELEMETRY), sessionTime: 21 }, frame(Buffer.alloc(60)))?.driverActor).toBeNull();
+  restored.feed({ ...header(F1_PACKET_IDS.SESSION), sessionTime: 21 }, frame(Buffer.alloc(16)));
+  expect(restored.feed({ ...header(F1_PACKET_IDS.CAR_TELEMETRY), sessionTime: 21.25 }, frame(Buffer.alloc(60)))?.driverActor?.observedAtMs).toBe(21_000);
+});
+test("offline local human role survives networkId 255 without inventing a persistent person", () => {
+  const accumulator = new F1StateAccumulator();
+  accumulator.feed(header(F1_PACKET_IDS.MOTION), frame(Buffer.alloc(60)));
+  accumulator.feed(header(F1_PACKET_IDS.SESSION), frame(Buffer.alloc(16)));
+  accumulator.feed(header(F1_PACKET_IDS.LAP_DATA), frame(Buffer.alloc(57)));
+  const participants = Buffer.alloc(1 + 57 * 2);
+  participants[0] = 2;
+  participants[1] = 0;
+  participants[3] = 255;
+  participants[58] = 0;
+  participants[60] = 255;
+  participants.write("Same Name", 8, "utf8");
+  participants.write("Same Name", 65, "utf8");
+  accumulator.feed(header(F1_PACKET_IDS.PARTICIPANTS), frame(participants));
+  const offline = accumulator.feed({ ...header(F1_PACKET_IDS.CAR_TELEMETRY), sessionTime: 10.25 }, frame(Buffer.alloc(60)));
+  expect(offline?.driverActor).toEqual({
+    gameId: "f1-2025", source: "f1-2025-udp-local-controller", actorId: "1:local-player",
+    bindingScope: "session", sessionId: "1", clockDomain: "f1-2025-session:1", observedAtMs: 10_000,
+    evidenceExpiresAtMs: 11_000,
+  });
+  participants[1] = 1;
+  accumulator.feed({ ...header(F1_PACKET_IDS.PARTICIPANTS), sessionTime: 11 }, frame(participants));
+  const ai = accumulator.feed({ ...header(F1_PACKET_IDS.CAR_TELEMETRY), sessionTime: 11.25 }, frame(Buffer.alloc(60)));
+  expect(ai?.driverActor).toBeNull();
+  accumulator.reset();
+  accumulator.feed({ ...header(F1_PACKET_IDS.MOTION), sessionUID: 2n }, frame(Buffer.alloc(60)));
+  accumulator.feed({ ...header(F1_PACKET_IDS.SESSION), sessionUID: 2n }, frame(Buffer.alloc(16)));
+  accumulator.feed({ ...header(F1_PACKET_IDS.LAP_DATA), sessionUID: 2n }, frame(Buffer.alloc(57)));
+  participants[1] = 0;
+  accumulator.feed({ ...header(F1_PACKET_IDS.PARTICIPANTS), sessionUID: 2n }, frame(participants));
+  const nextSession = accumulator.feed({ ...header(F1_PACKET_IDS.CAR_TELEMETRY), sessionUID: 2n }, frame(Buffer.alloc(60)));
+  expect(nextSession?.driverActor?.actorId).toBe("2:local-player");
+});
+test("native SESSION control gates reject paused, spectator, truncated and stale observations", () => {
+  const accumulator = new F1StateAccumulator();
+  accumulator.feed(header(F1_PACKET_IDS.MOTION), frame(Buffer.alloc(60)));
+  accumulator.feed(header(F1_PACKET_IDS.LAP_DATA), frame(Buffer.alloc(57)));
+  const participants = Buffer.alloc(58);
+  participants[0] = 1;
+  participants[3] = 7;
+  accumulator.feed(header(F1_PACKET_IDS.PARTICIPANTS), frame(participants));
+  accumulator.feed(header(F1_PACKET_IDS.SESSION), frame(Buffer.alloc(16)));
+  expect(accumulator.feed(header(F1_PACKET_IDS.CAR_TELEMETRY), frame(Buffer.alloc(60)))?.driverActor?.actorId).toBe("1:network:7");
+  for (const offset of [14, 15]) {
+    const inactive = Buffer.alloc(16);
+    inactive[offset] = 1;
+    expect(accumulator.feed(header(F1_PACKET_IDS.SESSION), frame(inactive))?.driverActor).toBeNull();
+  }
+  expect(accumulator.feed(header(F1_PACKET_IDS.SESSION), frame(Buffer.alloc(9)))?.driverActor).toBeNull();
+  accumulator.feed(header(F1_PACKET_IDS.SESSION), frame(Buffer.alloc(16)));
+  expect(accumulator.feed({ ...header(F1_PACKET_IDS.CAR_TELEMETRY), sessionTime: 11.001 }, frame(Buffer.alloc(60)))?.driverActor).toBeNull();
+  accumulator.feed({ ...header(F1_PACKET_IDS.SESSION), sessionTime: 11.001 }, frame(Buffer.alloc(16)));
+  expect(accumulator.feed({ ...header(F1_PACKET_IDS.CAR_TELEMETRY), sessionTime: 11.25 }, frame(Buffer.alloc(60)))?.driverActor?.observedAtMs).toBe(10_000);
+  accumulator.invalidateDriverEvidence();
+  expect(accumulator.feed({ ...header(F1_PACKET_IDS.CAR_TELEMETRY), sessionTime: 11.25 }, frame(Buffer.alloc(60)))?.driverActor).toBeNull();
+});
 
 function header(packetId: number): F1Header {
   return {

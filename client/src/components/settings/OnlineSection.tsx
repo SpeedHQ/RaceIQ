@@ -1,33 +1,24 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useEffect, useState } from "react";
-import type { OnlinePreferences, OnlineState, OnlineSyncBlock, OnlineVisibility } from "@raceiq/online/contracts";
-import { getLocale } from "@/paraglide/runtime";
+import type { OnlinePreferences, OnlineVisibility } from "@raceiq/online/contracts";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { useRaceIqOnline } from "@/hooks/raceiq-online";
 import { m } from "@/paraglide/messages";
 import { onlineErrorMessage } from "@/components/online/messages";
+import { DriverIdentitySettings } from "./DriverIdentitySettings";
 
 const accountUrl = "https://raceiq.snazzie.space/account";
 const visibilityLabels: Record<OnlineVisibility, () => string> = {
   public: m.online_visibility_public,
   private: m.online_visibility_private,
 };
-const syncBlockMessages: Record<OnlineSyncBlock, () => string> = {
-  signed_out: m.online_block_signed_out,
-  consent_required: m.online_block_consent_required,
-  private: m.online_block_private,
-  preferences_unconfirmed: m.online_block_preferences_unconfirmed,
-  offline: m.online_block_offline,
-  service_unavailable: m.online_block_service_unavailable,
-  account_unavailable: m.online_block_account_unavailable,
-};
 
 export function OnlineSection({ onboarding = false, stage = "permissions", onSkip, onComplete }: { onboarding?: boolean; stage?: "auth" | "permissions"; onSkip?: () => void; onComplete?: () => void } = {}) {
   const online = useRaceIqOnline();
   const [confirmed, setConfirmed] = useState(false);
-  const [draft, setDraft] = useState<OnlinePreferences>({ visibility: "public", setupUploads: false });
+  const [draft, setDraft] = useState<OnlinePreferences>({ visibility: "private", setupUploads: false });
   const [draftReady, setDraftReady] = useState(false);
   const [nameDraft, setNameDraft] = useState<{ accountEpoch: string; value: string } | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -40,7 +31,7 @@ export function OnlineSection({ onboarding = false, stage = "permissions", onSki
   const leaderboardName = nameDraft?.accountEpoch === state?.accountEpoch ? nameDraft?.value ?? "" : account?.displayName ?? "";
   const nameDirty = !!account && leaderboardName.trim() !== account.displayName;
   const policy = state?.policy.status === "available" ? state.policy : null;
-  const needsConsent = state?.consent.status === "required" || state?.consent.status === "not_accepted";
+  const needsConsent = state?.consent.status !== "accepted" || !policy || state.consent.versions.termsVersion !== policy.versions.termsVersion || state.consent.versions.privacyVersion !== policy.versions.privacyVersion;
   const accountHidden = online.accountHidden || signOutRequested;
   const connected = state?.connection.status === "connected" && !accountHidden;
   const pending = online.isMutating || online.signOutPending;
@@ -49,7 +40,7 @@ export function OnlineSection({ onboarding = false, stage = "permissions", onSki
   useEffect(() => { setConfirmed(false); }, [confirmationKey, draft.visibility, draft.setupUploads]);
   useEffect(() => { if (state?.connection.status === "signed_out") setSignOutRequested(false); }, [state?.accountEpoch, state?.connection.status]);
   useEffect(() => {
-    setDraft(state?.preferences ?? { visibility: "public", setupUploads: false });
+    setDraft(state?.preferences ?? { visibility: "private", setupUploads: false });
     setDraftReady(false);
     setActionError(null);
   }, [state?.accountEpoch, onboarding]);
@@ -145,7 +136,6 @@ export function OnlineSection({ onboarding = false, stage = "permissions", onSki
   if (!onboarding && accountHidden) {
     return <section className="max-w-2xl" aria-busy={pending}>
       <h2 className="mb-1 text-lg font-semibold text-app-text">{title}</h2>
-      <UploadQueuePanel state={undefined} stale={false} pending={online.isPending} unavailable={true} />
       {online.signOutPending && <p role="status" className="mb-3 text-sm text-app-text-muted">{m.online_signout_pending()}</p>}
       {(online.transportError || online.commandError) && <p role="alert" className="mb-3 text-sm text-status-danger">{m.online_signout_unknown()}</p>}
       <Button variant="outline" disabled={online.isMutating} onClick={() => void signOut()}>{m.online_retry_signout()}</Button>
@@ -155,7 +145,8 @@ export function OnlineSection({ onboarding = false, stage = "permissions", onSki
     return <section className="max-w-2xl" aria-busy={pending}>
       <h2 className="mb-1 text-lg font-semibold text-app-text">{title}</h2>
       <p className="mb-4 text-sm text-app-text-muted">{m.online_intro()}</p>
-      {!onboarding && <UploadQueuePanel state={state} stale={online.isCachedState} pending={online.isPending} unavailable={!!online.transportError} />}
+      <p className="mb-4 text-sm text-app-text-muted">{m.online_first_signin_ownership()}</p>
+      {!onboarding && <DriverIdentitySettings />}
       {online.isPending && !state && <p role="status">{m.online_loading()}</p>}
       {failure && !online.transportError && <p role="alert" className="mb-3 text-sm text-status-danger">{failure}</p>}
       {!online.transportError && state?.service !== "available" && state && <p role="status" className="mb-3 text-sm text-app-text-muted">{m.online_service_unavailable()}</p>}
@@ -183,7 +174,7 @@ export function OnlineSection({ onboarding = false, stage = "permissions", onSki
         <PreferenceControl title={m.online_public_title()} description={m.online_public_desc()} checked={draft.visibility === "public"} disabled={pending || !online.canMutate} onChange={(checked) => { setDraft({ ...draft, visibility: checked ? "public" : "private" }); setDraftReady(true); }} />
         <PreferenceControl title={m.online_setup_title()} description={m.online_setup_desc()} checked={draft.setupUploads} disabled={pending || !online.canMutate} onChange={(checked) => { setDraft({ ...draft, setupUploads: checked }); setDraftReady(true); }} />
         {policy && <div className="my-4 flex gap-4 text-sm"><a className="text-app-accent underline" href={policy.termsUrl} target="_blank" rel="noopener noreferrer">{m.online_terms()}</a><a className="text-app-accent underline" href={policy.privacyUrl} target="_blank" rel="noopener noreferrer">{m.online_privacy()}</a></div>}
-        <ul className="my-4 list-disc space-y-1 pl-5 text-sm text-app-text-muted"><li>{m.online_disclosure_public()}</li><li>{m.online_disclosure_private()}</li><li>{m.online_disclosure_setup()}</li><li>{m.online_disclosure_sanitization()}</li><li>{m.online_disclosure_withdrawal()}</li></ul>
+        <ul className="my-4 list-disc space-y-1 pl-5 text-sm text-app-text-muted"><li>{m.online_disclosure_public()}</li><li>{m.online_future_transfers_note()}</li><li>{m.online_disclosure_setup()}</li><li>{m.online_disclosure_sanitization()}</li><li>{m.online_summary_aggregate_note()}</li><li>{m.online_community_best_effort()}</li></ul>
         {needsConsent && <label className="my-4 flex items-start gap-3 text-sm text-app-text"><input type="checkbox" className="mt-1 accent-app-accent" checked={confirmed} disabled={!policy || pending || !online.canMutate} onChange={(event) => setConfirmed(event.currentTarget.checked)} /><span>{m.online_confirm_policy()}</span></label>}
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
           {onboarding ? <Button className="min-h-11" variant="outline" disabled={pending} onClick={() => void abortSignIn()}>{m.ob_continue_offline()}</Button> : <Button className="min-h-11" variant="outline" disabled={pending} onClick={() => void signOut()}>{m.online_sign_out()}</Button>}
@@ -197,7 +188,7 @@ export function OnlineSection({ onboarding = false, stage = "permissions", onSki
     <section className="max-w-2xl" aria-busy={pending}>
       <h2 className="text-lg font-semibold text-app-text mb-1">{title}</h2>
       <p className="text-sm text-app-text-muted mb-4">{m.online_intro()}</p>
-        <UploadQueuePanel state={state} stale={online.isCachedState || !!online.transportError} pending={online.isPending} unavailable={!!online.transportError} />
+      <DriverIdentitySettings />
       <>
         {online.signOutPending && <p role="status" className="mb-3 text-sm text-app-text-muted">{m.online_signout_pending()}</p>}
         {accountHidden && (online.transportError || online.commandError) && <p role="alert" className="mb-3 text-sm text-status-danger">{m.online_signout_unknown()} <Button variant="outline" size="sm" disabled={online.isMutating} onClick={() => void signOut()}>{m.online_retry_signout()}</Button></p>}
@@ -232,62 +223,21 @@ export function OnlineSection({ onboarding = false, stage = "permissions", onSki
           {state.persistedPreferences && <p className="text-sm text-app-text-muted">{m.online_preferences_persisted_values({ visibility: visibilityLabels[state.persistedPreferences.visibility](), setup: state.persistedPreferences.setupUploads ? m.common_on() : m.common_off() })}</p>}
           {!needsConsent && <Button variant="app-primary" size="sm" disabled={pending || !online.canMutate || (!settingsDirty && !nameDirty && state.preferencePersistence === "confirmed") || !retryReady} onClick={() => void saveSettings()}>{pending ? m.common_saving() : state.preferencePersistence === "confirmed" ? m.common_save() : m.online_retry_preferences()}</Button>}
         </div>}
+        <p className="mt-3 text-sm text-app-text-muted">{m.online_future_transfers_note()}</p>
+        <p className="mt-3 text-sm text-app-text-muted">{m.online_summary_aggregate_note()}</p>
         {connected && needsConsent && <div className="my-4 border-b border-app-border pb-4">
-          <ul className="my-4 list-disc space-y-1 pl-5 text-sm text-app-text-muted"><li>{m.online_disclosure_public()}</li><li>{m.online_disclosure_private()}</li><li>{m.online_disclosure_setup()}</li><li>{m.online_disclosure_sanitization()}</li><li>{m.online_disclosure_withdrawal()}</li></ul>
+          <h3 className="font-medium">{m.online_reconsent_title()}</h3>
+          <ul className="my-4 list-disc space-y-1 pl-5 text-sm text-app-text-muted"><li>{m.online_disclosure_public()}</li><li>{m.online_future_transfers_note()}</li><li>{m.online_disclosure_setup()}</li><li>{m.online_disclosure_sanitization()}</li><li>{m.online_community_best_effort()}</li></ul>
           <label className="my-4 flex items-start gap-3 text-sm text-app-text"><input type="checkbox" className="mt-1 accent-app-accent" checked={confirmed} disabled={!policy || pending || !online.canMutate} onChange={(event) => setConfirmed(event.currentTarget.checked)} /><span>{m.online_confirm_policy()}</span></label>
           <Button variant="app-primary" disabled={!confirmed || pending || !online.canMutate || !policy} onClick={() => void acceptSettingsConsent()}>{m.online_connect_accept()}</Button>
         </div>}
         {!accountHidden && policy && <div className="my-4 flex gap-4 text-sm"><a className="text-app-accent underline" href={policy.termsUrl} target="_blank" rel="noopener noreferrer">{m.online_terms()}</a><a className="text-app-accent underline" href={policy.privacyUrl} target="_blank" rel="noopener noreferrer">{m.online_privacy()}</a></div>}
-        {state && state.publicationWithdrawal.status !== "none" && <p role="status" className="mt-4 text-sm text-app-text-muted">{state.publicationWithdrawal.status === "pending" ? m.online_withdrawal_pending() : state.publicationWithdrawal.status === "failed" ? m.online_withdrawal_failed() : state.publicationWithdrawal.status === "unavailable" ? m.online_withdrawal_limited() : m.online_withdrawal_complete()}</p>}
         {!accountHidden && draftReady && (settingsDirty || !connected || online.isMutating || state?.preferencePersistence !== "confirmed" || !!online.transportError) && <p role="status" className="mt-2 text-sm text-app-text-muted">{m.online_draft_only()} {visibilityLabels[draft.visibility]()} · {m.online_setup_title()}: {draft.setupUploads ? m.common_on() : m.common_off()}</p>}
       </>
     </section>
   );
 }
 
-function UploadQueuePanel({ state, stale, pending, unavailable }: { state?: OnlineState; stale: boolean; pending: boolean; unavailable: boolean }) {
-  const sync = state?.sync;
-  const connected = state?.connection.status === "connected";
-  const locale = getLocale();
-  const status = unavailable || stale
-    ? m.online_queue_unavailable()
-    : !sync
-      ? pending ? m.online_queue_checking() : m.online_queue_unavailable()
-      : sync.status === "running" ? m.online_queue_uploading()
-        : sync.status === "paused" ? m.online_queue_paused()
-          : sync.status === "blocked" ? m.online_queue_blocked() : m.online_queue_idle();
-  const syncError = sync?.lastError ? onlineErrorMessage(sync.lastError.code) : null;
-  const block = sync?.blockedBy ? m.online_sync_blocked({ reason: syncBlockMessages[sync.blockedBy]() }) : null;
-  const lastSynced = connected && sync?.lastSyncedAt
-    ? new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(sync.lastSyncedAt))
-    : null;
-  return <section className="my-4 rounded-md border border-app-border bg-app-surface p-3 text-sm" aria-label={m.online_queue_title()}>
-    <h3 className="font-medium text-app-text">{m.online_queue_title()}</h3>
-    <div role="status" className="mt-2 text-app-text-muted" aria-atomic="true">
-      <p>{status}</p>
-      {stale && <p className="mt-1">{m.online_queue_stale()}</p>}
-      {connected && sync && <>
-        <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-4">
-          <QueueValue label={m.online_queue_queued()} value={String(sync.queued)} />
-          <QueueValue label={m.online_queue_in_flight()} value={String(sync.inFlight)} />
-          <QueueValue label={m.online_queue_rejected()} value={String(sync.rejected)} />
-          <div><dt>{m.online_queue_last_synced()}</dt><dd>{lastSynced
-            ? <time dateTime={sync.lastSyncedAt!} title={sync.lastSyncedAt!}>{lastSynced}</time>
-            : !stale && !unavailable ? m.online_queue_never_synced() : m.online_queue_unknown()}</dd></div>
-        </dl>
-        {sync.queued === 0 && sync.inFlight === 0 && <p className="mt-2">{m.online_queue_empty()}</p>}
-        {syncError && <p className="mt-2 text-status-danger">{syncError}</p>}
-      </>}
-      {block && <p className="mt-2">{block}</p>}
-      {(!connected || !sync) && !pending && !unavailable && <p className="mt-2">{m.online_queue_unknown()}</p>}
-    </div>
-    <p className="mt-2 text-app-text-muted">{m.online_queue_acceptance_note()}</p>
-  </section>;
-}
-
-function QueueValue({ label, value }: { label: string; value: string }) {
-  return <div><dt>{label}</dt><dd className="font-medium text-app-text">{value}</dd></div>;
-}
 
 function PreferenceControl({ title, description, checked, disabled, onChange }: { title: string; description: string; checked: boolean; disabled: boolean; onChange?: (checked: boolean) => void }) {
   return <div className="flex items-start justify-between gap-4 py-3"><div><p className="font-medium text-app-text">{title}</p><p className="mt-1 max-w-xl text-sm text-app-text-muted">{description}</p></div><Switch aria-label={title} checked={checked} disabled={disabled} onCheckedChange={onChange} /></div>;

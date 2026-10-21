@@ -13,7 +13,7 @@ import { closeSync, createReadStream, existsSync, fsyncSync, linkSync, openSync,
 import { createWriteStream } from "node:fs";
 import { createGunzip, createGzip } from "node:zlib";
 import { pipeline } from "node:stream/promises";
-import { encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, encodeSegmentContextFrame, encodeSegmentContextEndFrame, encodeSparseCaptureFormatFrame } from "@raceiq/capture-formats/session/framing";
+import { encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, encodeSegmentContextFrame, encodeSegmentContextEndFrame, encodeSessionClockAnchor, encodeSparseCaptureFormatFrame } from "@raceiq/capture-formats/session/framing";
 import { SparseCaptureEncoder } from "@raceiq/capture-formats/session/sparse-recorder";
 
 export type DownsampleLapIndex = { lapId: number; rawByteOffset: number | null; rawFrameCount: number | null };
@@ -379,6 +379,10 @@ function updateSemanticDigest(hash: Hash, value: unknown): void {
 
 function updateDigest(hash: Hash, record: SessionCaptureRecord, decoded?: IRacingSourceFrame): void {
   if (record.kind !== "frame") {
+    if (record.kind === "clock-anchor") {
+      hash.update(encodeSessionClockAnchor(record.frameTimeMs, record.utcTimeMs));
+      return;
+    }
     hash.update(`marker:${record.kind}\0`);
     return;
   }
@@ -488,6 +492,13 @@ export async function rewriteDownsampleRecording(
     for await (const record of input.records()) {
       if (record.kind === "parser-bootstrap") {
         throw new DownsampleRecordingError("unsupported-format", "Checkpoint-initialized recordings cannot be downsampled");
+      }
+      if (record.kind === "clock-anchor") {
+        const anchor = encodeSessionClockAnchor(record.frameTimeMs, record.utcTimeMs);
+        updateDigest(hash, record);
+        writeAll(fd, anchor);
+        outputOffset += anchor.length;
+        continue;
       }
       if (record.kind === "segment-boundary") {
         updateDigest(hash, record);

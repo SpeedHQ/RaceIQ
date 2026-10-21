@@ -3,9 +3,11 @@ import { HTTPException } from "hono/http-exception";
 import { IS_DEV } from "@raceiq/backend-core/runtime/config/env";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import type { RaceIqOnlinePort, OnlineErrorCode, OnlineCommandResult } from "@raceiq/online/contracts";
+import type { RaceIqOnlinePort,OnlineCommandResult } from "@raceiq/online/contracts";
 import { getOnlineService } from "../integrations/online";
 import { onlineAuthPage } from "./online-auth-page";
+import { createOnlineDataRoutes } from "./online-data-routes";
+import { onlineErrorStatus } from "./online-errors";
 
 const id = z.string().min(1).max(512);
 const context = z.object({ expectedRevision: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER), accountEpoch: id }).strict();
@@ -23,18 +25,6 @@ const displayName = context.extend({ displayName: z.string().refine((value) => {
 const cancel = context.extend({ flowId: id });
 const board = z.object({ trackId: id, carId: id }).strict();
 
-type CommandStatus = 200 | 202 | 400 | 401 | 403 | 409 | 429 | 500 | 503;
-export function onlineErrorStatus(code: OnlineErrorCode): CommandStatus {
-  switch (code) {
-    case "invalid_request": case "unsupported_game": case "unknown_track": case "unknown_car": case "ineligible_lap": return 400;
-    case "not_connected": case "auth_failed": case "auth_cancelled": return 401;
-    case "consent_required": case "account_unavailable": return 403;
-    case "stale_state": case "policy_changed": return 409;
-    case "rate_limited": return 429;
-    case "offline": case "service_unavailable": case "policy_unavailable": case "preferences_failed": return 503;
-    default: return 500;
-  }
-}
 
 const trustedHosts: Record<string, true> = { localhost: true, "127.0.0.1": true, "[::1]": true, "raceiq.localhost": true };
 function trustedUrl(value: string): boolean {
@@ -51,7 +41,8 @@ export function createOnlineRoutes(port: OnlineRoutePort) {
     if (!result.success) return c.json({ ok: false, error: { code: "invalid_request", retryable: false, retryAfter: null }, state: await port.getState() } satisfies OnlineCommandResult, 400);
   });
   return new Hono()
-    .use("/api/online/*", async (c, next) => {
+    .use("/api/*", async (c, next) => {
+      if (!c.req.path.startsWith("/api/online/") && c.req.path!=="/api/driver-bindings" && c.req.path!=="/api/driver-summary") return next();
       const requestUrl = new URL(c.req.url);
       const origin = c.req.header("Origin");
       const fetchSite = c.req.header("Sec-Fetch-Site");
@@ -78,9 +69,10 @@ export function createOnlineRoutes(port: OnlineRoutePort) {
       c.header("Cache-Control", "no-store");
       await next();
     })
-    .onError(async (error, c) => {
-      const invalid = error instanceof HTTPException && error.status === 400;
-      return c.json({ ok: false, error: { code: invalid ? "invalid_request" : "internal_error", retryable: false, retryAfter: null }, state: await port.getState() } satisfies OnlineCommandResult, invalid ? 400 : 500);
+    .onError((cause, c) => {
+      const code = cause instanceof Error && "code" in cause && cause.code==="stale_state" ? "stale_state"
+        : cause instanceof HTTPException && cause.status===400 ? "invalid_request" : "service_unavailable";
+      return c.json({ok:false,error:{code,retryable:code==="service_unavailable",retryAfter:null}},onlineErrorStatus(code));
     })
     .get("/api/online/auth/callback", async (c) => {
       const nonce = crypto.randomUUID();
@@ -143,5 +135,5 @@ const port: RaceIqOnlinePort & { handleAuthCallback(url: string): Promise<boolea
   getLeaderboard: (input) => getOnlineService().getLeaderboard(input),
   handleAuthCallback: (url) => getOnlineService().handleAuthCallback(url),
 };
-export const onlineRoutes = createOnlineRoutes(port);
+export const onlineRoutes = createOnlineRoutes(port).route("/",createOnlineDataRoutes(getOnlineService()));
 export type OnlineRoutes = typeof onlineRoutes;

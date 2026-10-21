@@ -9,18 +9,18 @@
       "sourceHash": "fb7491d9e14283715f01bb02aa1e44e5a53c121ef63d537c5d3ea3e61dadd073"
     },
     "sourceHashes": {
-      "packages/game-ac-evo/src/parser.ts": "29cb3985fe32c797554d98f107a0c4d76ddcc5279d97e75423365e1a0887f5de",
+      "packages/game-ac-evo/src/parser.ts": "82923a36c65ef196fe5c0817b27860213a87b1d9328742337ae62719d406064e",
       "packages/game-acc/src/parser.ts": "f527d6448320e78072fb9dbfff0df28d5ce1029f020510d148bded12df8cb7ba",
-      "packages/game-f1-2025/src/f1-state.ts": "2c3ad3f21293094cf564b912a4b8ea35d1e16df713f863e47fdf763184e8de79",
+      "packages/game-f1-2025/src/f1-state.ts": "8758068821d3b19ce9e9d2385a9678e4ecdfa87481c71765c2fa541014e37f43",
       "packages/game-fm-2023/src/parser.ts": "71c348b894f84f6086c9582d0cce473bac75a3c85896010a0e5762854718b835",
       "packages/game-iracing-metadata/src/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
-      "packages/game-iracing/src/normalizer.ts": "bcc73bc4805a310f968b9743e6c9c88a688e3216cd28eecc3ee9f6c3d36b0afc",
-      "packages/game-lmu/src/normalizer.ts": "1c2d9c9bd1a9b1bdae8f587f009ee6d087dcddf821c7ce56c14a4301bc4789e9",
+      "packages/game-iracing/src/normalizer.ts": "15f41077dd33bfbefbbe28e9c1b0918f5c833de37cd2e8b5d9d50be7111cc62f",
+      "packages/game-lmu/src/normalizer.ts": "0861272ad37a67b4af85e13d9094c2ba38f33f84b9602f37941872ea9c98b4a5",
       "packages/tooling-catalog/src/catalog/derived-projections.ts": "b81b4ebdaeb86a88a289d245946b3e9f32cf104970d11532ac517fb219e0eff7",
-      "server/session-capture/frame-time.ts": "55c44a6cede5e2c5fb1e1c45568fe44b4a9a8b156f260f69bb5d89f9c24935a2",
+      "server/session-capture/frame-time.ts": "0a4e1deb75c07ff8df189f420adde728e9c699056d934f1ffa21ca3c479c9dc8",
       "shared/racing/setups/schema.ts": "987941bb8f38520920686ef540e67ce2259fdc962de03ccb959f6b5ef773b28f"
     },
-    "contentHash": "8bf22ea63cb8e505d6234aba5765aa5b87f322129d9e058aa798a4639fc8d4f3"
+    "contentHash": "37b93c3c23d4703a589842ddf91790d4171b9d4454c400f190a4bd23a3cf86b3"
   },
   "generatedFrom": [
     "packages/tooling-catalog/src/root.ts",
@@ -163,6 +163,7 @@
         "diagnostics.front-anti-sway",
         "diagnostics.gpu-usage",
         "diagnostics.instantaneous-km-per-liter",
+        "diagnostics.is-ai-controlled",
         "diagnostics.is-disk-logging-active",
         "diagnostics.is-disk-logging-enabled",
         "diagnostics.is-garage-visible",
@@ -186,6 +187,7 @@
         "diagnostics.sim-build-version",
         "diagnostics.solar-altitude",
         "diagnostics.solar-azimuth",
+        "diagnostics.source-capture-utc-ms",
         "diagnostics.state-of-charge",
         "diagnostics.surface-type",
         "diagnostics.telemetry.disk-file",
@@ -365,13 +367,16 @@
         "identity.car-model-name",
         "identity.car-name",
         "identity.car-performance-index",
+        "identity.driver-actor",
         "identity.driver-name",
         "identity.drivetrain-type",
+        "identity.focused-car-id-words",
         "identity.game-version",
         "identity.is-in-garage",
         "identity.is-on-track-car",
         "identity.player-car-class-id",
         "identity.player-car-electric",
+        "identity.player-car-id-words",
         "identity.player-car-index",
         "identity.player-car-version",
         "identity.player-driver-id",
@@ -379,6 +384,7 @@
         "identity.player-track-surface",
         "identity.player-track-surface-material",
         "identity.session-name",
+        "identity.shared-memory-version",
         "identity.source-identity",
         "identity.track-id",
         "identity.track-limits-steps",
@@ -553,6 +559,7 @@
         "race.session-summary.laps-complete",
         "race.session-summary.lead-changes",
         "race.session-summary.official",
+        "race.status",
         "race.team-incident-count",
         "race.competitor",
         "race.pit-service"
@@ -1005,6 +1012,7 @@
         "timing.delta-to-session-last-lap-valid",
         "timing.distance-traveled",
         "timing.drs-activation-distance",
+        "timing.elapsed-time",
         "timing.frame-time-ms",
         "timing.gap-ahead-ms",
         "timing.gap-behind-ms",
@@ -1037,6 +1045,7 @@
         "timing.player-car-tow-time",
         "timing.predicted-lap-time",
         "timing.replay-session-time",
+        "timing.scoring-current-elapsed-time",
         "timing.sector2-lap-distance-start",
         "timing.sector3-lap-distance-start",
         "timing.session-average-lap-time",
@@ -5786,6 +5795,63 @@
       "limitations": []
     },
     {
+      "id": "diagnostics.is-ai-controlled",
+      "label": "Is AI Controlled",
+      "description": "Raw AC Evo identity/control facts for independent native-source verification.",
+      "parentId": "diagnostics",
+      "canonicalUnit": "boolean",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "direct",
+          "nativeUnit": "boolean",
+          "sources": [
+            "acc.acEvo.isAIControlled"
+          ],
+          "freshness": "continuous",
+          "description": "ac-evo parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-ac-evo/src/parser.ts"
+          },
+          "limitations": []
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "boolean",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "diagnostics.is-disk-logging-active",
       "label": "Is Disk Logging Active",
       "description": "0=disk based telemetry file not being written  1=being written",
@@ -8835,6 +8901,63 @@
       "limitations": []
     },
     {
+      "id": "diagnostics.source-capture-utc-ms",
+      "label": "Source Capture Utc Ms",
+      "description": "Explicit wrapper source-capture UTC clock; absent clocks stay unavailable.",
+      "parentId": "diagnostics",
+      "canonicalUnit": "count",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "acc.acEvo.sourceCaptureUtcMs"
+          ],
+          "freshness": "continuous",
+          "description": "ac-evo parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-ac-evo/src/parser.ts"
+          },
+          "limitations": []
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "diagnostics.state-of-charge",
       "label": "State Of Charge",
       "description": "State Of Charge source value reported by lmu in count.",
@@ -9198,30 +9321,18 @@
           }
         },
         "lmu": {
-          "kind": "normalized",
+          "kind": "direct",
           "nativeUnit": "ms",
           "sources": [
             "RaceIQ.SystemClock"
           ],
           "freshness": "continuous",
-          "normalization": "Math.round(frame.captureTimestampMs)",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "derivation",
             "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
-          "limitations": [],
-          "execution": {
-            "kind": "conversion",
-            "id": "lmu:diagnostics.timestamp-ms:normalized",
-            "version": "0.20.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "RaceIQ.SystemClock"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "fac5800ec709a3bdc06157ced3391b0fbce8124c64d5bdafc85f4aa71864b9b1"
-          }
+          "limitations": []
         }
       },
       "valueType": "number",
@@ -15833,6 +15944,163 @@
       "limitations": []
     },
     {
+      "id": "identity.driver-actor",
+      "label": "Driver Actor",
+      "description": "Source-native actor token; absent when source cannot establish one.",
+      "parentId": "identity",
+      "canonicalUnit": "unitless",
+      "shape": "scalar",
+      "packetFields": [
+        "driverActor"
+      ],
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "fm-2023 parser fills this value with a placeholder because source does not provide it."
+        },
+        "f1-2025": {
+          "kind": "normalized",
+          "nativeUnit": "unitless",
+          "sources": [
+            "F1.Header.sessionTime",
+            "F1.Header.sessionUID",
+            "F1.Header.playerCarIndex",
+            "F1.Header.sessionUID.toString"
+          ],
+          "freshness": "continuous",
+          "normalization": "driverActor => offlineLocalActor ?? (humanPlayer && matchingHumanNetworkIds === 1 && freshParticipant ? f1ActorFromParticipant(sessionUID, humanPlayer.aiControlled, humanPlayer.networkId, participantObservedAtSeconds!) : null)",
+          "description": "f1-2025 maps 4 native source channels into this value.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-f1-2025/src/f1-state.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "f1-2025:identity.driver-actor:normalized",
+            "version": "0.20.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "F1.Header.sessionTime",
+              "F1.Header.sessionUID",
+              "F1.Header.playerCarIndex",
+              "F1.Header.sessionUID.toString"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "3702bac5f9103f5b4fd8e3c7d7079fa1a316ad60606c3a22d1fa71012b310930"
+          }
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "acc parser fills this value with a placeholder because source does not provide it."
+        },
+        "ac-evo": {
+          "kind": "direct",
+          "nativeUnit": "unitless",
+          "sources": [
+            "RaceIQ.ParserState.driverActor"
+          ],
+          "freshness": "continuous",
+          "description": "ac-evo maps 1 native source channel into this value.",
+          "provenance": {
+            "origin": "derivation",
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
+          },
+          "limitations": []
+        },
+        "iracing": {
+          "kind": "normalized",
+          "nativeUnit": "unitless",
+          "sources": [
+            "iRacing.SessionInfo.subSessionId",
+            "iRacing.SessionInfo.sessionId",
+            "iRacing.SessionInfo.sessionNum",
+            "iRacing.Lap",
+            "iRacing.SourceFrame.session",
+            "iRacing.SourceFrame.session.sectorStarts",
+            "iRacing.SessionInfo.sectorStarts",
+            "iRacing.SourceFrame.session.sectorStarts.slice",
+            "iRacing.SourceFrame.variables.map",
+            "iRacing.SourceFrame.schemaVersion",
+            "iRacing.SourceFrame.sessionInfo",
+            "iRacing.SourceFrame.sessionInfoUpdate",
+            "iRacing.SessionTime"
+          ],
+          "freshness": "continuous",
+          "normalization": "driverActor => driverEvidenceCurrent && \"sessionInfo\" in frame && typeof frame.sessionInfo === \"string\" ? iracingActorFromSessionInfo( frame.sessionInfo, sessionKey, sessionTime * 1000, `iracing-session:${sessionKey}`, ) : null",
+          "description": "iracing maps 13 native source channels into this value.",
+          "provenance": {
+            "origin": "yaml",
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "iracing:identity.driver-actor:normalized",
+            "version": "0.20.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "iRacing.SessionInfo.subSessionId",
+              "iRacing.SessionInfo.sessionId",
+              "iRacing.SessionInfo.sessionNum",
+              "iRacing.Lap",
+              "iRacing.SourceFrame.session",
+              "iRacing.SourceFrame.session.sectorStarts",
+              "iRacing.SessionInfo.sectorStarts",
+              "iRacing.SourceFrame.session.sectorStarts.slice",
+              "iRacing.SourceFrame.variables.map",
+              "iRacing.SourceFrame.schemaVersion",
+              "iRacing.SourceFrame.sessionInfo",
+              "iRacing.SourceFrame.sessionInfoUpdate",
+              "iRacing.SessionTime"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "86ef97434c78cd5ecd853ea739e3a125f75d0b34a1da1d0891b5dc08dc236b0c"
+          }
+        },
+        "lmu": {
+          "kind": "normalized",
+          "nativeUnit": "unitless",
+          "sources": [
+            "LMU.PlayerScoring.readInt8",
+            "LMU.Telemetry.readDoubleLE",
+            "LMU.ScoringInfo.readDoubleLE"
+          ],
+          "freshness": "continuous",
+          "normalization": "driverActor => scoring && scoring.readUInt8(LMU_SCORING_VEHICLE.isPlayer) === 1 && (controlRole === 0 || controlRole === 1 || controlRole === 2) && hasSourceElapsedTime && hasSourceScoringTime && sourceScoringTime <= sourceElapsedTime && (sourceElapsedTime - sourceScoringTime) * 1000 <= 2_000 ? { gameId: \"lmu\", source: lmuDriverAttributionCapability.source, actorId: `lmu-control:${controlRole}`, bindingScope: \"installation\", sessionId: sessionUID, clockDomain: `lmu-session:${sessionUID}`, observedAtMs: sourceScoringTime * 1000, } : null",
+          "description": "lmu maps 3 native source channels into this value.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "lmu:identity.driver-actor:normalized",
+            "version": "0.20.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "LMU.PlayerScoring.readInt8",
+              "LMU.Telemetry.readDoubleLE",
+              "LMU.ScoringInfo.readDoubleLE"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "ebeee9e8e244b945e20e731440eb070c47d60612effe485cfda7a14f9bac4fb8"
+          }
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "unit:unitless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "identity.driver-name",
       "label": "Driver Name",
       "description": "Driver Name source value reported by lmu in text.",
@@ -15938,6 +16206,63 @@
           "kind": "unavailable",
           "reason": "parser-placeholder",
           "description": "LMU normalizer emits a fixed rear-wheel-drive enum rather than a source value."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "identity.focused-car-id-words",
+      "label": "Focused Car Id Words",
+      "description": "Focused Car Id Words source value reported by ac-evo in count.",
+      "parentId": "identity",
+      "canonicalUnit": "count",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "acc.acEvo.focusedCarIdWords"
+          ],
+          "freshness": "continuous",
+          "description": "ac-evo parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-ac-evo/src/parser.ts"
+          },
+          "limitations": []
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         }
       },
       "valueType": "number",
@@ -16226,6 +16551,63 @@
         }
       },
       "valueType": "boolean",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "identity.player-car-id-words",
+      "label": "Player Car Id Words",
+      "description": "Player Car Id Words source value reported by ac-evo in count.",
+      "parentId": "identity",
+      "canonicalUnit": "count",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "acc.acEvo.playerCarIdWords"
+          ],
+          "freshness": "continuous",
+          "description": "ac-evo parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-ac-evo/src/parser.ts"
+          },
+          "limitations": []
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "number",
       "dimensions": [
         "dimensionless"
       ],
@@ -16621,6 +17003,63 @@
           "nativeUnit": "text",
           "sources": [
             "acc.acEvo.sessionName"
+          ],
+          "freshness": "static",
+          "description": "ac-evo parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-ac-evo/src/parser.ts"
+          },
+          "limitations": []
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "string",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "identity.shared-memory-version",
+      "label": "Shared Memory Version",
+      "description": "Shared Memory Version source value reported by ac-evo in text.",
+      "parentId": "identity",
+      "canonicalUnit": "text",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "direct",
+          "nativeUnit": "text",
+          "sources": [
+            "acc.acEvo.sharedMemoryVersion"
           ],
           "freshness": "static",
           "description": "ac-evo parser exposes 1 linked field.",
@@ -32333,6 +32772,63 @@
       "limitations": []
     },
     {
+      "id": "race.status",
+      "label": "Status",
+      "description": "Native graphics status; only AC_LIVE supplies active-control evidence.",
+      "parentId": "race",
+      "canonicalUnit": "count",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "acc.acEvo.status"
+          ],
+          "freshness": "continuous",
+          "description": "ac-evo parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-ac-evo/src/parser.ts"
+          },
+          "limitations": []
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "race.team-incident-count",
       "label": "Team incident count",
       "description": "Incident points assigned to current player team.",
@@ -45504,13 +46000,13 @@
           }
         },
         "lmu": {
-          "kind": "derived",
+          "kind": "normalized",
           "nativeUnit": "s",
           "sources": [
             "LMU.Telemetry.elapsedTime"
           ],
           "freshness": "continuous",
-          "normalization": "elapsedTime => Math.max( 0, finiteDouble(telemetry, LMU_TELEMETRY.elapsedTime), )",
+          "normalization": "elapsedTime => hasSourceElapsedTime ? sourceElapsedTime : 0",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -45518,15 +46014,15 @@
           },
           "limitations": [],
           "execution": {
-            "kind": "derivation",
-            "id": "lmu:timing.current-race-time:derived",
+            "kind": "conversion",
+            "id": "lmu:timing.current-race-time:normalized",
             "version": "0.20.0",
             "deterministic": true,
             "declaredInputs": [
               "LMU.Telemetry.elapsedTime"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "1e055c46c1252794fbadccc2521928aef1e99f8d2e8ee7bb658212c4ec963828"
+            "codeHash": "e36674e87f8f5a5e31397010baef08f1f3767b48b4927d4b3091f8fc67aeaa61"
           }
         }
       },
@@ -46142,6 +46638,63 @@
       "valueType": "number",
       "dimensions": [
         "length"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "timing.elapsed-time",
+      "label": "Elapsed Time",
+      "description": "Native telemetry mElapsedTime, in session seconds; invalid source values stay unavailable.",
+      "parentId": "timing",
+      "canonicalUnit": "s",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "s",
+          "sources": [
+            "lmu.elapsedTime"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "time"
       ],
       "cardinality": {
         "kind": "scalar"
@@ -48366,6 +48919,63 @@
           "kind": "unavailable",
           "reason": "source-not-provided",
           "description": "No equivalent source variable is currently identified for this parser."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "time"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "timing.scoring-current-elapsed-time",
+      "label": "Scoring Current Elapsed Time",
+      "description": "Native scoring mCurrentET, in the same session clock, sampled at scoring cadence.",
+      "parentId": "timing",
+      "canonicalUnit": "s",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "s",
+          "sources": [
+            "lmu.scoringCurrentElapsedTime"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
         }
       },
       "valueType": "number",
@@ -63135,6 +63745,18 @@
         "retention": "exact"
       },
       {
+        "path": "TelemetryPacket.driverActor",
+        "label": "Driver Actor",
+        "unit": "unitless",
+        "dataType": "NativeDriverActor | null",
+        "count": 1,
+        "description": "Source-native actor token; absent when source cannot establish one.",
+        "semanticId": "identity.driver-actor",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "TelemetryPacket.sessionUID",
         "label": "Session UID",
         "unit": "text",
@@ -69547,6 +70169,18 @@
         "retention": "exact"
       },
       {
+        "path": "TelemetryPacket.driverActor",
+        "label": "Driver Actor",
+        "unit": "unitless",
+        "dataType": "NativeDriverActor | null",
+        "count": 1,
+        "description": "Source-native actor token; absent when source cannot establish one.",
+        "semanticId": "identity.driver-actor",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "TelemetryPacket.trackId",
         "label": "Track Id",
         "unit": "text",
@@ -69751,6 +70385,18 @@
         "retention": "exact"
       },
       {
+        "path": "acc.acEvo.focusedCarIdWords",
+        "label": "Focused Car Id Words",
+        "unit": "count",
+        "dataType": "[number, number, number, number] | null",
+        "count": 1,
+        "description": "Focused Car Id Words source value reported by ac-evo in count.",
+        "semanticId": "identity.focused-car-id-words",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "acc.acEvo.fuelLiters",
         "label": "Fuel Liters",
         "unit": "L",
@@ -69866,6 +70512,18 @@
         "count": 1,
         "description": "Instantaneous Km Per Liter source value reported by ac-evo in L.",
         "semanticId": "diagnostics.instantaneous-km-per-liter",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.acEvo.isAIControlled",
+        "label": "Is AI Controlled",
+        "unit": "boolean",
+        "dataType": "number | null",
+        "count": 1,
+        "description": "Raw AC Evo identity/control facts for independent native-source verification.",
+        "semanticId": "diagnostics.is-ai-controlled",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -70027,6 +70685,18 @@
         "retention": "exact"
       },
       {
+        "path": "acc.acEvo.playerCarIdWords",
+        "label": "Player Car Id Words",
+        "unit": "count",
+        "dataType": "[number, number, number, number] | null",
+        "count": 1,
+        "description": "Player Car Id Words source value reported by ac-evo in count.",
+        "semanticId": "identity.player-car-id-words",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "acc.acEvo.predictedLapTimeMs",
         "label": "Predicted Lap Time Ms",
         "unit": "ms",
@@ -70123,6 +70793,30 @@
         "retention": "exact"
       },
       {
+        "path": "acc.acEvo.sharedMemoryVersion",
+        "label": "Shared Memory Version",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "Shared Memory Version source value reported by ac-evo in text.",
+        "semanticId": "identity.shared-memory-version",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.acEvo.sourceCaptureUtcMs",
+        "label": "Source Capture Utc Ms",
+        "unit": "count",
+        "dataType": "number | null",
+        "count": 1,
+        "description": "Explicit wrapper source-capture UTC clock; absent clocks stay unavailable.",
+        "semanticId": "diagnostics.source-capture-utc-ms",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "acc.acEvo.startingGrip",
         "label": "Starting Grip",
         "unit": "text",
@@ -70130,6 +70824,18 @@
         "count": 1,
         "description": "\"green\" | \"fast\" | \"optimum\" | \"unknown\"",
         "semanticId": "weather.starting-grip",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.acEvo.status",
+        "label": "Status",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native graphics status; only AC_LIVE supplies active-control evidence.",
+        "semanticId": "race.status",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -81285,6 +81991,18 @@
         "retention": "exact"
       },
       {
+        "path": "TelemetryPacket.driverActor",
+        "label": "Driver Actor",
+        "unit": "unitless",
+        "dataType": "NativeDriverActor | null",
+        "count": 1,
+        "description": "Source-native actor token; absent when source cannot establish one.",
+        "semanticId": "identity.driver-actor",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "TelemetryPacket.sessionUID",
         "label": "Session UID",
         "unit": "text",
@@ -83566,6 +84284,18 @@
         "retention": "exact"
       },
       {
+        "path": "TelemetryPacket.driverActor",
+        "label": "Driver Actor",
+        "unit": "unitless",
+        "dataType": "NativeDriverActor | null",
+        "count": 1,
+        "description": "Source-native actor token; absent when source cannot establish one.",
+        "semanticId": "identity.driver-actor",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "TelemetryPacket.sessionUID",
         "label": "Session UID",
         "unit": "text",
@@ -83770,6 +84500,18 @@
         "retention": "exact"
       },
       {
+        "path": "lmu.elapsedTime",
+        "label": "Elapsed Time",
+        "unit": "s",
+        "dataType": "number | null",
+        "count": 1,
+        "description": "Native telemetry mElapsedTime, in session seconds; invalid source values stay unavailable.",
+        "semanticId": "timing.elapsed-time",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "lmu.frontAntiSway",
         "label": "Front Anti Sway",
         "unit": "count",
@@ -83962,6 +84704,18 @@
         "retention": "exact"
       },
       {
+        "path": "lmu.scoringCurrentElapsedTime",
+        "label": "Scoring Current Elapsed Time",
+        "unit": "s",
+        "dataType": "number | null",
+        "count": 1,
+        "description": "Native scoring mCurrentET, in the same session clock, sampled at scoring cadence.",
+        "semanticId": "timing.scoring-current-elapsed-time",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "lmu.sessionType",
         "label": "Session Type",
         "unit": "text",
@@ -84144,8 +84898,8 @@
     ]
   },
   "coverage": {
-    "normalizedPacketFields": 150,
-    "semanticVariables": 773,
+    "normalizedPacketFields": 151,
+    "semanticVariables": 782,
     "sourceCounts": {
       "fm-2023": {
         "total": 96,
@@ -84157,13 +84911,13 @@
         "recorded": 96
       },
       "f1-2025": {
-        "total": 289,
-        "packet": 119,
+        "total": 290,
+        "packet": 120,
         "extension": 170,
         "sdk": 0,
         "yaml": 0,
         "setup": 0,
-        "recorded": 289
+        "recorded": 290
       },
       "acc": {
         "total": 205,
@@ -84175,31 +84929,31 @@
         "recorded": 172
       },
       "ac-evo": {
-        "total": 258,
-        "packet": 126,
-        "extension": 100,
+        "total": 265,
+        "packet": 127,
+        "extension": 106,
         "sdk": 0,
         "yaml": 0,
         "setup": 32,
-        "recorded": 226
+        "recorded": 233
       },
       "iracing": {
-        "total": 952,
-        "packet": 115,
+        "total": 953,
+        "packet": 116,
         "extension": 18,
         "sdk": 324,
         "yaml": 495,
         "setup": 0,
-        "recorded": 702
+        "recorded": 703
       },
       "lmu": {
-        "total": 172,
-        "packet": 126,
-        "extension": 46,
+        "total": 175,
+        "packet": 127,
+        "extension": 48,
         "sdk": 0,
         "yaml": 0,
         "setup": 0,
-        "recorded": 172
+        "recorded": 175
       }
     }
   }

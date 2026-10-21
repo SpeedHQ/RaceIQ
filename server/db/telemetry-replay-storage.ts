@@ -465,6 +465,7 @@ async function parseRawLapFramesFromSource(
       inContext = false;
       continue;
     }
+    if (record.kind !== "frame") continue;
     const { offset, frame, frameTimeMs } = record;
     fileSize = Math.max(fileSize, offset + (frameTimeMs === undefined ? 4 : 12) + frame.length);
     if (!found) {

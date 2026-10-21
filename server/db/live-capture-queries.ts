@@ -133,7 +133,7 @@ export interface LiveMemberCommit {
 
 /** Only call after independent verification and archive fsync/directory durability. */
 export async function commitLiveCaptureMember(input: LiveMemberCommit): Promise<boolean> {
-  const member = Schema.decodeSync(LiveArchiveMemberSchema)(input.member);
+  let member = Schema.decodeSync(LiveArchiveMemberSchema)(input.member);
   if (!natural(input.priorGeneration) || !natural(input.ownershipRevision) || member.generation !== input.priorGeneration + 1) throw new Error("Invalid live member generation");
   const verification = input.verification;
   if (!/^[a-f0-9]{64}$/.test(verification.nativeDigest)) throw new Error("Missing native semantic verification digest");
@@ -160,16 +160,37 @@ export async function commitLiveCaptureMember(input: LiveMemberCommit): Promise<
     const window = JSON.parse(journal.payload) as LiveCaptureWindow;
     if (window.kind !== "window" || window.revision !== input.ownershipRevision || window.lapId !== lapId ||
         window.startByteOffset !== expected.startByteOffset || window.frameCount !== expected.frameCount) return false;
-    const lap = await db.select({ sessionId: laps.sessionId, rawByteOffset: laps.rawByteOffset, rawFrameCount: laps.rawFrameCount }).from(laps).where(eq(laps.id, lapId!)).get();
+    const lap = await db.select({
+      sessionId: laps.sessionId, rawByteOffset: laps.rawByteOffset, rawFrameCount: laps.rawFrameCount,
+      lapGuid: laps.lapGuid, originalActivityId: sessions.originalActivityId,
+      originalSourceRevision: sessions.originalSourceRevision,
+      driverAttribution: laps.driverAttribution, driverAttributionStints: laps.driverAttributionStints,
+      sourceClockDomain: laps.sourceClockDomain, sourceLapStartMs: laps.sourceLapStartMs, sourceLapEndMs: laps.sourceLapEndMs,
+    }).from(laps).innerJoin(sessions, eq(laps.sessionId, sessions.id)).where(eq(laps.id, lapId!)).get();
     if (!lap || lap.sessionId !== input.identity.sessionId || lap.rawByteOffset !== expected.startByteOffset || lap.rawFrameCount !== expected.frameCount) return false;
     if (member.sourceByteStart !== expected.startByteOffset || member.ownedFrameCount == null || member.ownedFrameByteOffset == null ||
         (member.ownedFrameCount !== expected.frameCount && !(member.trailingContextFrameCount === 1 && member.ownedFrameCount === expected.frameCount - 1))) return false;
+    member = Schema.decodeSync(LiveArchiveMemberSchema)({
+      ...member,
+      ...(lap.lapGuid == null ? {} : { lapGuid: lap.lapGuid }),
+      ...(lap.originalActivityId == null ? {} : { originalActivityId: lap.originalActivityId }),
+      ...(lap.originalSourceRevision == null ? {} : { originalSourceRevision: lap.originalSourceRevision }),
+      ...(lap.driverAttribution == null ? {} : { driverAttribution: lap.driverAttribution }),
+      ...(lap.driverAttributionStints == null ? {} : { driverAttributionStints: lap.driverAttributionStints }),
+      ...(lap.sourceClockDomain == null ? {} : { sourceClockDomain: lap.sourceClockDomain }),
+      ...(lap.sourceLapStartMs == null ? {} : { sourceLapStartMs: lap.sourceLapStartMs }),
+      ...(lap.sourceLapEndMs == null ? {} : { sourceLapEndMs: lap.sourceLapEndMs }),
+      sourceCoverageStart: member.sourceStart, sourceCoverageEnd: member.sourceStart + member.ownedFrameCount!,
+      sourceCoverageComplete: true, sourceRevision: input.identity.captureEpoch,
+    });
     ownershipGuard = sql`EXISTS (SELECT 1 FROM ${liveCaptureJournal}
       WHERE ${liveCaptureJournal.captureEpoch} = ${input.identity.captureEpoch} AND ${liveCaptureJournal.sequence} = ${input.ownershipJournalSequence}
         AND ${liveCaptureJournal.payload} = ${journal.payload} AND ${liveCaptureJournal.sequence} <= ${liveCaptures.durableSequence}
         AND ${liveCaptureJournal.sourceByteEnd} <= ${liveCaptures.metadataDurableWatermark})
       AND EXISTS (SELECT 1 FROM ${laps} WHERE ${laps.id} = ${lapId} AND ${laps.sessionId} = ${input.identity.sessionId}
         AND ${laps.rawByteOffset} = ${expected.startByteOffset} AND ${laps.rawFrameCount} = ${expected.frameCount}
+        AND ${laps.lapGuid} IS ${lap.lapGuid} AND ${laps.sourceClockDomain} IS ${lap.sourceClockDomain}
+        AND ${laps.sourceLapStartMs} IS ${lap.sourceLapStartMs} AND ${laps.sourceLapEndMs} IS ${lap.sourceLapEndMs}
         AND ${laps.captureChunkId} IS NULL)`;
   } else if (lapId !== null || input.expectedWindow !== undefined) return false;
   const end = member.memberOffset + member.compressedByteLength;

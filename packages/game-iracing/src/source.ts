@@ -1,7 +1,7 @@
-import { parsePacket } from "@raceiq/backend-core/games/packet-dispatch";
-import { processPacket } from "@raceiq/backend-core/telemetry/live-pipeline";
+import { invalidateParserDriverEvidence, parsePacket } from "@raceiq/backend-core/games/packet-dispatch";
+import { invalidateNativeBindingCandidates, processPacket } from "@raceiq/backend-core/telemetry/live-pipeline";
 import { IRacingSdkReader, type IRacingSdkSnapshot } from "./sdk-reader";
-import { parseIRacingSessionInfo } from "@raceiq/capture-formats/iracing/session-info";
+import { parseIRacingSessionInfo, parseIRacingDriverUserId } from "@raceiq/capture-formats/iracing/session-info";
 import {
   IRacingSourceFrameEncoder,
   type IRacingSessionSnapshot,
@@ -17,6 +17,7 @@ import {
   ParsingProcessor,
 } from "./frame-pipeline";
 import { acquireHighResolutionTimer, releaseHighResolutionTimer } from "@raceiq/backend-core/games/shared/win-timer-resolution";
+export { iracingActorFromSessionInfo } from "./driver-attribution";
 
 export interface IRacingFrameReader {
   start(): void;
@@ -79,10 +80,13 @@ export class IRacingTelemetrySource {
   private cachedSessionNum: number | null = null;
   private cachedSession: IRacingSessionSnapshot | null = null;
   private cachedIdentityKey: string | null = null;
+  private nativeDriverUserId: string | null = null;
+  private nativeDriverActive: boolean | null = null;
   // SDK retains only its newest row. Capture and encode on every timer tick;
   // serialize slower persistence and pipeline work behind this in-memory queue.
   private readonly frameQueue: QueuedIRacingFrame[] = [];
   private pendingSnapshot: IRacingSdkSnapshot | null = null;
+  private pendingSnapshotFrameTimeMs = 0;
   private drainPromise: Promise<void> | null = null;
   constructor(options: IRacingTelemetrySourceOptions = {}) {
     this.reader = options.reader ?? new IRacingSdkReader();
@@ -118,6 +122,9 @@ export class IRacingTelemetrySource {
 
   async stop(): Promise<void> {
     this.running = false;
+    invalidateParserDriverEvidence("iracing", Date.now());
+    this.nativeDriverActive = null;
+    this.nativeDriverUserId = null;
     this.captureRateLimiter.reset();
     this.pendingSnapshot = null;
     if (this.timer) {
@@ -150,19 +157,27 @@ export class IRacingTelemetrySource {
   async pollOnce(): Promise<boolean> {
     try {
       const latest = this.reader.readLatest();
-      if (latest) this.pendingSnapshot = latest;
+      if (latest) {
+        this.pendingSnapshot = latest;
+        this.pendingSnapshotFrameTimeMs = Date.now();
+      }
       const snapshot = this.pendingSnapshot;
       if (!snapshot) return false;
-      if (
-        this.running &&
-        !this.captureRateLimiter.shouldCapture(performance.now(), getRecordingFrequencyHz())
-      ) {
-        return false;
-      }
-      this.pendingSnapshot = null;
-      const frameTimeMs = Date.now();
-
+      const frameTimeMs = this.pendingSnapshotFrameTimeMs;
       const sessionNum = Math.trunc(numeric(snapshot.values, "SessionNum", 0));
+      const active = snapshot.values.IsOnTrack === true || snapshot.values.IsOnTrack === 1;
+      const activeChanged = this.nativeDriverActive !== active;
+      const contextChanged = !this.cachedSession || this.cachedSessionInfoUpdate !== snapshot.sessionInfoUpdate ||
+        this.cachedSessionInfo !== snapshot.sessionInfo || this.cachedSessionNum !== sessionNum;
+      if (activeChanged) {
+        invalidateNativeBindingCandidates("iracing", frameTimeMs);
+        if (!active) invalidateParserDriverEvidence("iracing", frameTimeMs);
+        this.nativeDriverActive = active;
+      }
+      if (this.running && !this.captureRateLimiter.shouldCapture(performance.now(), getRecordingFrequencyHz()) &&
+        !activeChanged && !contextChanged) return false;
+      this.pendingSnapshot = null;
+
       let identity: IRacingSessionSnapshot | undefined;
       if (
         !this.cachedSession ||
@@ -174,6 +189,12 @@ export class IRacingTelemetrySource {
           snapshot.sessionInfo,
           sessionNum,
         );
+        const driverUserId = parseIRacingDriverUserId(snapshot.sessionInfo);
+        if (driverUserId !== this.nativeDriverUserId || !this.cachedSession ||
+          session.sessionId !== this.cachedSession.sessionId || session.subSessionId !== this.cachedSession.subSessionId ||
+          session.sessionNum !== this.cachedSession.sessionNum || session.carId !== this.cachedSession.carId ||
+          session.trackId !== this.cachedSession.trackId) invalidateNativeBindingCandidates("iracing", frameTimeMs);
+        this.nativeDriverUserId = driverUserId;
         this.cachedSessionInfoUpdate = snapshot.sessionInfoUpdate;
         this.cachedSessionInfo = snapshot.sessionInfo;
         this.cachedSessionNum = sessionNum;

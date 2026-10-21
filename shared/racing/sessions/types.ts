@@ -4,12 +4,15 @@ import type { GameId } from "../../games/ids";
 
 import type { TelemetryVersionIdentity } from "../../telemetry/version";
 
+import type { DriverAttributionStint, LapDriverAttribution } from "../../driver-attribution";
 export type SessionOwnership = "mine" | "others";
 
 
 
 export interface LapMeta extends Partial<TelemetryVersionIdentity> {
   id: number;
+  /** Stable original lap GUID; absent/null when legacy source lacks one. */
+  lapGuid?: string | null;
   sessionId: number;
   lapNumber: number;
   lapTime: number;
@@ -29,6 +32,10 @@ export interface LapMeta extends Partial<TelemetryVersionIdentity> {
   sourceAuthorUserId?: string | null;
   sourceAuthorDisplayName?: string | null;
   recordedAt?: string | null;
+  /** Whole-lap attribution; absent on legacy rows, never inferred from ownership. */
+  driverAttribution?: LapDriverAttribution;
+  /** Portable source/session/clock actor evidence retained for reprocessing; missing coverage stays Unknown. */
+  driverAttributionStints?: DriverAttributionStint[];
   ownership?: SessionOwnership;
   // Car setup snapshot (JSON string of F1CarSetup)
   carSetup?: string;
@@ -101,6 +108,8 @@ export interface SessionMeta extends Partial<TelemetryVersionIdentity> {
   /** Recorded elapsed span in seconds; null/undefined when capture timing is unavailable. */
   elapsedSeconds?: number | null;
   ownership?: SessionOwnership;
+  /** Portable source/session/clock actor evidence retained for attribution and reprocessing. */
+  driverAttributionStints?: DriverAttributionStint[];
   /** Whether raw telemetry remains available for this session. */
   telemetryAvailable?: boolean;
   /** User flag protecting this session's capture from space cleanup. */

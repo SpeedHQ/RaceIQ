@@ -2,7 +2,8 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createOnlineRoutes, type OnlineRoutes } from "../../src/routes/online-routes";
+import { createOnlineRoutes } from "../../src/routes/online-routes";
+import type { Hono } from "hono";
 import { createRaceIqOnlineService } from "@raceiq/online/service";
 import { OnlineStateStorage } from "@raceiq/online/state-storage";
 import { OnlineAdapterError } from "@raceiq/online/adapter";
@@ -21,14 +22,14 @@ function isolatedKeystore() {
 function setup() {
   const directory = mkdtempSync(join(tmpdir(), "raceiq-online-routes-"));
   directories.push(directory);
-  const service = createRaceIqOnlineService({ storage: new OnlineStateStorage(directory), keystore: isolatedKeystore(), adapter: {
+  const service = createRaceIqOnlineService({ recordingProducer: async () => { throw new Error("Auth-only fixture must not prepare a recording"); }, storage: new OnlineStateStorage(directory), keystore: isolatedKeystore(), adapter: {
     async getPolicy() { throw new OnlineAdapterError("policy_unavailable", false); },
     async getLeaderboard() { throw new Error("test offline"); },
   } });
   return { directory, service, routes: createOnlineRoutes(service) };
 }
 
-async function command(routes: OnlineRoutes, path: string, body: unknown, headers: Record<string, string> = {}) {
+async function command(routes: Pick<Hono,"request">, path: string, body: unknown, headers: Record<string, string> = {}) {
   return routes.request(`http://localhost${path}`, { method: path.includes("preferences") || path.includes("consent") || path.includes("profile") ? "PUT" : "POST", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify(body) });
 }
 
@@ -113,7 +114,7 @@ describe("Online account route safety", () => {
     const before = await service.getState();
     await service.signOut({ expectedRevision: before.revision, accountEpoch: before.accountEpoch });
     const previous = await service.getState();
-    const restarted = createRaceIqOnlineService({ storage: new OnlineStateStorage(directory), keystore: isolatedKeystore(), adapter: {
+    const restarted = createRaceIqOnlineService({ recordingProducer: async () => { throw new Error("Auth-only fixture must not prepare a recording"); }, storage: new OnlineStateStorage(directory), keystore: isolatedKeystore(), adapter: {
       async getPolicy() { throw new Error("test offline"); },
       async getLeaderboard() { throw new Error("test offline"); },
     } });

@@ -94,30 +94,28 @@ describe("HTTP listener access controls", () => {
         NODE_ENV: "production", SERVER_PASSWORD: "abcdefgh", SERVER_PORT: String(server.port),
       });
       const base = `http://127.0.0.1:${server.port}`;
-      const service = createRaceIqOnlineService({
-        storage: new OnlineStateStorage(directory),
-        redirectUri: `${base}/api/online/auth/callback`,
-        keystore: { getSecret: async () => secret, setSecret: async (_key, value) => { secret = value; } },
-        auth: {
-          async refreshSession() { throw new Error("No prior session"); },
-          async beginSignIn() {
-            return {
-              authorizationUrl: "https://auth.example/auth/v1/authorize",
-              expiresAt: Date.now() + 60_000, cancel() {},
-              async complete(url) {
-                if (new URL(url).searchParams.get("code") !== "single-use") throw new Error("Invalid authorization code");
-                return { accessToken: "access", refreshToken: "refresh", userId: "driver", discordAccountName: "Driver", expiresAt: Date.now() / 1000 + 3600 };
-              },
-            };
-          },
+      const service = createRaceIqOnlineService({ recordingProducer: async () => { throw new Error("Auth-only fixture must not prepare a recording"); }, storage: new OnlineStateStorage(directory),
+      redirectUri: `${base}/api/online/auth/callback`,
+      keystore: { getSecret: async () => secret, setSecret: async (_key, value) => { secret = value; } },
+      auth: {
+        async refreshSession() { throw new Error("No prior session"); },
+        async beginSignIn() {
+          return {
+            authorizationUrl: "https://auth.example/auth/v1/authorize",
+            expiresAt: Date.now() + 60_000, cancel() {},
+            async complete(url) {
+              if (new URL(url).searchParams.get("code") !== "single-use") throw new Error("Invalid authorization code");
+              return { accessToken: "access", refreshToken: "refresh", userId: "driver", discordAccountName: "Driver", expiresAt: Date.now() / 1000 + 3600 };
+            },
+          };
         },
-        adapter: {
-          async getPolicy() { return { available: true, termsVersion: "1", privacyVersion: "1", termsUrl: "https://example.com/terms", privacyUrl: "https://example.com/privacy" }; },
-          async getMe() { return { userId: "driver", displayName: "Driver", avatarUrl: null }; },
-          async getConsent() { return { accepted: false, currentAcceptance: null, policy: { available: true, termsVersion: "1", privacyVersion: "1", termsUrl: "https://example.com/terms", privacyUrl: "https://example.com/privacy" } }; },
-          async getPreferences() { return { visibility: "private", setupUploads: false }; },
-        },
-      });
+      },
+      adapter: {
+        async getPolicy() { return { available: true, termsVersion: "1", privacyVersion: "1", termsUrl: "https://example.com/terms", privacyUrl: "https://example.com/privacy" }; },
+        async getMe() { return { userId: "driver", displayName: "Driver", avatarUrl: null }; },
+        async getConsent() { return { accepted: false, currentAcceptance: null, policy: { available: true, termsVersion: "1", privacyVersion: "1", termsUrl: "https://example.com/terms", privacyUrl: "https://example.com/privacy" } }; },
+        async getPreferences() { return { visibility: "private", setupUploads: false }; },
+      }, });
       routes = createOnlineRoutes(service);
       const state = await service.getState();
       expect((await service.connect({ expectedRevision: state.revision, accountEpoch: state.accountEpoch })).ok).toBe(true);

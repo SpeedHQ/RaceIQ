@@ -1,5 +1,6 @@
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { F1ExtendedData, F1GridEntry } from "@raceiq/shared/telemetry/f1-2025";
+import type { NativeDriverActor } from "@raceiq/shared/driver-attribution";
 import {
   F1_HEADER_SIZE,
   F1_PACKET_IDS,
@@ -32,6 +33,7 @@ import {
   type F1SessionData,
   type F1SessionHistoryData,
 } from "./f1-packet-decoders";
+import { f1ActorFromParticipant } from "@raceiq/game-f1-2025-metadata/driver-attribution";
 import { getF1CompoundName } from "@raceiq/game-f1-2025-metadata/racing/compounds";
 
 
@@ -109,10 +111,17 @@ export class F1StateAccumulator {
   private carSetup: F1CarSetupData | null = null;
   private motionEx: F1MotionExData | null = null;
   private session: F1SessionData | null = null;
+  private sessionObservedAtSeconds: number | null = null;
   private participants: F1ParticipantData[] = [];
+  private participantsObservedAtSeconds: number | null = null;
   private driverHistory = new Map<number, F1DriverHistoryData>();
   private driverLapSectors = new Map<number, Map<number, F1LapSectorData>>();
   private playerCarIndex = 0;
+
+  invalidateDriverEvidence(): void {
+    this.participantsObservedAtSeconds = null;
+    this.sessionObservedAtSeconds = null;
+  }
 
   reset(): void {
     this.sessionUID = 0n;
@@ -125,7 +134,9 @@ export class F1StateAccumulator {
     this.carSetup = null;
     this.motionEx = null;
     this.session = null;
+    this.sessionObservedAtSeconds = null;
     this.participants = [];
+    this.participantsObservedAtSeconds = null;
     this.driverHistory = new Map();
     this.playerCarIndex = 0;
   }
@@ -159,7 +170,11 @@ export class F1StateAccumulator {
     if (!checkpoint || checkpoint.format !== "raceiq:f1-2025-parser" || checkpoint.version !== 1 ||
         !Array.isArray(checkpoint.participants) || !checkpoint.participants.every(
           (participant) => hasFiniteFields(participant, ["driverId", "teamId"]) &&
-            typeof participant.name === "string") ||
+            typeof participant.name === "string" &&
+            (participant.aiControlled === undefined ||
+              (Number.isInteger(participant.aiControlled) && (participant.aiControlled === 0 || participant.aiControlled === 1))) &&
+            (participant.networkId === undefined ||
+              (Number.isInteger(participant.networkId) && participant.networkId >= 0 && participant.networkId <= 255))) ||
         !Array.isArray(checkpoint.driverHistory) || !checkpoint.driverHistory.every(
           (entry) => Array.isArray(entry) && entry.length === 2 && Number.isInteger(entry[0]) &&
             validDriverHistory(entry[1])) ||
@@ -187,6 +202,8 @@ export class F1StateAccumulator {
     this.finalClassification = checkpoint.finalClassification; this.carStatus = checkpoint.carStatus;
     this.carDamage = checkpoint.carDamage; this.carSetup = checkpoint.carSetup; this.motionEx = checkpoint.motionEx;
     this.session = checkpoint.session; this.participants = checkpoint.participants.slice();
+    this.participantsObservedAtSeconds = null;
+    this.sessionObservedAtSeconds = null;
     this.driverHistory = new Map(checkpoint.driverHistory);
     this.driverLapSectors = new Map(checkpoint.driverLapSectors.map(([driver, sectors]) => [driver, new Map(sectors)]));
     this.playerCarIndex = checkpoint.playerCarIndex;
@@ -221,14 +238,20 @@ export class F1StateAccumulator {
       case F1_PACKET_IDS.MOTION:
         this.motion = decodeF1Motion(data, this.playerCarIndex) ?? this.motion;
         break;
-      case F1_PACKET_IDS.SESSION:
-        this.session = decodeF1Session(data) ?? this.session;
+      case F1_PACKET_IDS.SESSION: {
+        const session = decodeF1Session(data);
+        this.session = session ?? this.session;
+        this.sessionObservedAtSeconds = session && header.packetVersion === 1 && header.gameYear === 25 &&
+          Number.isFinite(header.sessionTime) ? header.sessionTime : null;
         break;
+      }
       case F1_PACKET_IDS.LAP_DATA:
         this.lapData = decodeF1LapData(data, this.playerCarIndex) ?? this.lapData;
         break;
       case F1_PACKET_IDS.PARTICIPANTS:
         this.participants = decodeF1Participants(data);
+        this.participantsObservedAtSeconds = header.packetVersion === 1 && header.gameYear === 25 &&
+          Number.isFinite(header.sessionTime) ? header.sessionTime : null;
         break;
       case F1_PACKET_IDS.CAR_SETUP:
         this.carSetup = decodeF1CarSetup(data, this.playerCarIndex) ?? this.carSetup;
@@ -471,13 +494,48 @@ export class F1StateAccumulator {
       } : undefined,
     };
 
+    const sessionUID = header.sessionUID.toString();
+    // SESSION is native 2 Hz. A restored cache is display state, not fresh control evidence.
+    const activeControl = this.session?.gamePaused === 0 && this.session.isSpectating === 0 &&
+      this.sessionObservedAtSeconds !== null && this.sessionObservedAtSeconds <= header.sessionTime &&
+      header.sessionTime - this.sessionObservedAtSeconds <= 1;
+    const humanPlayer = activeControl && player?.aiControlled === 0 && Number.isInteger(player.networkId) ? player : null;
+    let matchingHumanNetworkIds = 0;
+    if (humanPlayer) {
+      for (const participant of this.participants) {
+        if (participant.aiControlled === 0 && participant.networkId === humanPlayer.networkId) {
+          matchingHumanNetworkIds++;
+          if (matchingHumanNetworkIds > 1) break;
+        }
+      }
+    }
+    const participantObservedAtSeconds = this.participantsObservedAtSeconds;
+    const freshParticipant = participantObservedAtSeconds !== null && participantObservedAtSeconds <= header.sessionTime;
+    // The UDP header selects the sender's local player; networkId 255 means offline,
+    // not AI. This identifies a session-local control role, never a stable person.
+    const offlineLocalActor: NativeDriverActor | null = humanPlayer?.networkId === 255 && freshParticipant &&
+      header.sessionUID !== 0n && Number.isInteger(header.playerCarIndex) && header.playerCarIndex >= 0 &&
+      header.playerCarIndex < this.participants.length
+      ? { gameId: "f1-2025", source: "f1-2025-udp-local-controller", actorId: `${sessionUID}:local-player`,
+          bindingScope: "session", sessionId: sessionUID, clockDomain: `f1-2025-session:${sessionUID}`,
+          observedAtMs: participantObservedAtSeconds! * 1000 }
+      : null;
+    const driverActor = offlineLocalActor ?? (humanPlayer && matchingHumanNetworkIds === 1 && freshParticipant
+      ? f1ActorFromParticipant(sessionUID, humanPlayer.aiControlled, humanPlayer.networkId, participantObservedAtSeconds!)
+      : null);
+    // Preserve the native fractional source observation for exact stint boundaries.
+    if (driverActor && participantObservedAtSeconds !== null) {
+      driverActor.observedAtMs = participantObservedAtSeconds * 1000;
+      driverActor.evidenceExpiresAtMs = Math.min(participantObservedAtSeconds * 1000 + 6_000,
+        this.sessionObservedAtSeconds! * 1000 + 1_000);
+    }
     const packet: TelemetryPacket = {
       gameId: "f1-2025",
-      sessionUID: header.sessionUID.toString(),
+      sessionUID,
+      driverActor,
       f1,
       IsRaceOn: 1,
       TimestampMS: Math.round(header.sessionTime * 1000),
-
       EngineMaxRpm: cs?.maxRPM ?? 15000,
       EngineIdleRpm: cs?.idleRPM ?? 4000,
       CurrentEngineRpm: ct.rpm,

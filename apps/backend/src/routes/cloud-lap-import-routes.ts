@@ -1,142 +1,22 @@
-import { Hono } from "hono";
+import { Hono,type Context } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
-import type { CloudLapImportState } from "@raceiq/shared/integrations/cloud-lap-import";
-import { importCloudLap, CloudLapImportError, validateCloudLapImportUrl } from "@raceiq/backend-core/session-capture/cloud-lap-import";
+import { IDLE_CLOUD_LAP_IMPORT,type CloudLapImportState } from "@raceiq/shared/integrations/cloud-lap-import";
 import { getOnlineService } from "../integrations/online";
+import { cloudImportStart,cloudImportQuery,cloudImportActivation } from "../integrations/online-import-contract";
 
-const body = z.union([
-  z.object({ lapId: z.string().min(1).max(512) }).strict(),
-  z.object({ url: z.string().min(1).max(4096) }).strict(),
-]);
-export interface CloudLapImportControllerOptions {
-  getAccessToken?: () => Promise<string | null>;
-  importLap?: typeof importCloudLap;
+async function proxy(c:Context,path:string,method:"GET"|"POST",body:string|null,query:string|null=null){
+  try{
+    const result=await getOnlineService().importRequest({path,method,body,query,gameId:c.req.header("X-Game-Id")??null});
+    c.header("Cache-Control","no-store");
+    return c.json(result.body,result.status);
+  }catch{return c.json({...IDLE_CLOUD_LAP_IMPORT,status:"error",error:{code:"service_unavailable",retryable:true}} satisfies CloudLapImportState,503);}
 }
-
-export function createCloudLapImportController(options: CloudLapImportControllerOptions = {}) {
-  const idle: CloudLapImportState = { status: "idle", lapId: null, localLap: null, error: null, activationId: null };
-  let state: CloudLapImportState = idle;
-  type Intent = { lapId: string; sourceUrl: string | null; activationId: number };
-  const pending: Intent[] = [];
-  let running: Promise<void> | null = null;
-  let nextActivationId = Date.now();
-  let completionObserved = true;
-  const getAccessToken = options.getAccessToken ?? (() => getOnlineService().getImportAccessToken());
-  const importLap = options.importLap ?? importCloudLap;
-
-  function enqueue(lapId: string, sourceUrl: string | null): CloudLapImportState {
-    const existing = pending.find((intent) => intent.lapId === lapId);
-    if (existing) return { status: "awaiting_sign_in", lapId, localLap: null, error: null, activationId: existing.activationId };
-    if (pending.length >= 32) throw new CloudLapImportError("import_busy", true);
-    const intent = { lapId, sourceUrl, activationId: nextActivationId++ };
-    pending.push(intent);
-    if (!running && (state.status !== "complete" || completionObserved)) {
-      state = { status: "awaiting_sign_in", lapId, localLap: null, error: null, activationId: intent.activationId };
-      void runImport().catch(() => undefined);
-    }
-    return state.status === "complete" && !completionObserved || running && state.activationId !== intent.activationId
-      ? { status: "awaiting_sign_in", lapId, localLap: null, error: null, activationId: intent.activationId }
-      : state;
-  }
-
-  async function dispatchCloudLapImport(url: string): Promise<CloudLapImportState> {
-    const lapId = lapIdForUrl(url);
-    return enqueue(lapId, new URL(url).searchParams.get("url"));
-  }
-
-  async function runImport() {
-    if (running || !pending.length || (state.status === "complete" && !completionObserved)) return running;
-    const intent = pending[0]!;
-    running = (async () => {
-      try {
-        const token = await getAccessToken();
-        if (!token) {
-          state = { status: "awaiting_sign_in", lapId: intent.lapId, localLap: null, error: null, activationId: intent.activationId };
-          return;
-        }
-        state = { status: "downloading", lapId: intent.lapId, localLap: null, error: null, activationId: intent.activationId };
-        const result = await importLap({ lapId: intent.lapId, sourceUrl: intent.sourceUrl, accessToken: token, onState(status) { state = { status, lapId: intent.lapId, localLap: null, error: null, activationId: intent.activationId }; } });
-        state = { status: "complete", lapId: intent.lapId, localLap: result, error: null, activationId: intent.activationId };
-        completionObserved = false;
-        pending.shift();
-      } catch (cause) {
-        const error = cause instanceof CloudLapImportError ? cause : new CloudLapImportError("download_failed", true);
-        if (error.code === "auth_required") {
-          state = { status: "awaiting_sign_in", lapId: intent.lapId, localLap: null, error: null, activationId: intent.activationId };
-          return;
-        }
-        state = { status: "error", lapId: intent.lapId, localLap: null, error: { code: error.code, retryable: error.retryable }, activationId: intent.activationId };
-        completionObserved = false;
-        if (!error.retryable) pending.shift();
-      }
-    })().finally(() => { running = null; });
-    return running;
-  }
-
-  const routes = new Hono()
-    .get("/api/online/lap-import", async (c) => {
-      const responseState = state;
-      if (state.status === "awaiting_sign_in") void runImport().catch(() => undefined);
-      if (state.status === "error" && !completionObserved) {
-        completionObserved = true;
-        if (pending.length && state.error?.retryable === false) {
-          const next = pending[0]!;
-          state = { status: "awaiting_sign_in", lapId: next.lapId, localLap: null, error: null, activationId: next.activationId };
-          void runImport().catch(() => undefined);
-        }
-      }
-      return c.json(responseState);
-    })
-    .post("/api/online/lap-import/ack", zValidator("json", z.object({ activationId: z.number().int().positive() }).strict()), async (c) => {
-      const { activationId } = c.req.valid("json");
-      if (state.status !== "complete" || state.activationId !== activationId) return c.json(state, 409);
-      completionObserved = true;
-      if (pending.length) {
-        const next = pending[0]!;
-        state = { status: "awaiting_sign_in", lapId: next.lapId, localLap: null, error: null, activationId: next.activationId };
-        void runImport().catch(() => undefined);
-      } else {
-        state = idle;
-      }
-      return c.json(state, 200);
-    })
-    .post("/api/online/lap-import", zValidator("json", body), async (c) => {
-      const request = c.req.valid("json");
-      try {
-        const lapId = "url" in request ? lapIdForUrl(request.url) : request.lapId;
-        const next = enqueue(lapId, "url" in request ? new URL(request.url).searchParams.get("url") : null);
-        return c.json(next, 202);
-      } catch (cause) {
-        const error = cause instanceof CloudLapImportError ? cause : new CloudLapImportError("invalid_request", false);
-        const rejected: CloudLapImportState = { status: "error", lapId: null, localLap: null, error: { code: error.code, retryable: error.retryable }, activationId: null };
-        return c.json(rejected, 400);
-      }
-    })
-    .post("/api/online/lap-import/retry", zValidator("json", z.object({}).strict()), async (c) => {
-      const intent = pending[0];
-      if (!intent || state.status !== "error" && state.status !== "awaiting_sign_in") return c.json(state, 409);
-      state = { status: "awaiting_sign_in", lapId: intent.lapId, localLap: null, error: null, activationId: intent.activationId };
-      void runImport().catch(() => undefined);
-      return c.json(state, 202);
-    });
-
-  return { routes, dispatchCloudLapImport };
-}
-
-const productionController = createCloudLapImportController();
-export const cloudLapImportRoutes = productionController.routes;
-export const dispatchCloudLapImport = productionController.dispatchCloudLapImport;
-
-function lapIdForUrl(value: string): string {
-  let url: URL;
-  try { url = new URL(value); } catch { throw new CloudLapImportError("invalid_url", false); }
-  const selectors = [...url.searchParams.entries()];
-  if (url.protocol !== "raceiq:" || url.hostname !== "import" || url.port || (url.pathname !== "" && url.pathname !== "/") || url.username || url.password || url.hash || selectors.length !== 1 || selectors[0]?.[0] !== "url") throw new CloudLapImportError("invalid_url", false);
-  return validateCloudLapImportUrl(selectors[0]![1]);
-}
-
-
-
-
-
+export const cloudLapImportRoutes=new Hono()
+  .get("/api/online/lap-import",zValidator("query",cloudImportQuery),c=>{
+    const input=c.req.valid("query");
+    return proxy(c,"/api/online/lap-import","GET",null,new URLSearchParams({accountEpoch:input.accountEpoch,expectedRevision:String(input.expectedRevision)}).toString());
+  })
+  .post("/api/online/lap-import",zValidator("json",cloudImportStart),c=>proxy(c,"/api/online/lap-import","POST",JSON.stringify(c.req.valid("json"))))
+  .post("/api/online/lap-import/retry",zValidator("json",cloudImportActivation),c=>proxy(c,"/api/online/lap-import/retry","POST",JSON.stringify(c.req.valid("json"))))
+  .post("/api/online/lap-import/ack",zValidator("json",cloudImportActivation),c=>proxy(c,"/api/online/lap-import/ack","POST",JSON.stringify(c.req.valid("json"))));
+export function dispatchCloudLapImport(url:string):Promise<CloudLapImportState>{return getOnlineService().dispatchCloudLapImport(url);}

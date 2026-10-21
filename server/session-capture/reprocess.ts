@@ -14,6 +14,7 @@ import { db } from "../db/index";
 import { enqueueSessionCaptureSplit, updateSessionRawFile } from "../db/session-queries";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { PARSER_BOOTSTRAP_VERSION } from "@raceiq/capture-formats/session/framing";
+import { isIRacingSessionFrame } from "@raceiq/capture-formats/iracing/source-frame";
 import { applyFrameTime } from "./frame-time";
 import { notifyOnlineSync } from "@raceiq/online/sync-events";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
@@ -101,6 +102,7 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
     let parserState: unknown = serverGame.createParserState?.() ?? null;
     let inContext = false;
     let segmentHasFrames = false;
+    let expectsSessionContext = false;
     let lastOwnedPacket: TelemetryPacket | null = null;
     let sourceOrdinal = 0;
     for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: true })) {
@@ -109,6 +111,7 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
         // session. A boundary discards the previous detector's partial lap.
         detector = serverGame.createLapDetector({ db: capturingDb, bypassPacketRateFilter: true });
         detector.expectCompleteLapStart?.();
+        expectsSessionContext = true;
         parserState = serverGame.createParserState?.() ?? null;
         segmentHasFrames = false;
         inContext = false;
@@ -116,7 +119,10 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
         continue;
       }
       if (record.kind === "segment-context") {
-        if (!segmentHasFrames) detector.expectCompleteLapStart?.();
+        if (!segmentHasFrames) {
+          detector.expectCompleteLapStart?.();
+          expectsSessionContext = true;
+        }
         inContext = true;
         continue;
       }
@@ -130,13 +136,18 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
         }
         if (!serverGame.restoreParserCheckpoint) throw new Error(`Parser checkpoint restore unavailable for ${gameId}`);
         parserState = serverGame.restoreParserCheckpoint(parserState, record.payload);
-        inContext = false;
         continue;
       }
       if (record.kind !== "frame") continue;
       const ordinal = sourceOrdinal++;
-      const packet = serverGame.tryParse(record.frame, parserState);
+      const contextOnly = expectsSessionContext && gameId === "iracing" && isIRacingSessionFrame(record.frame);
+      const packet = serverGame.tryParse(record.frame, parserState, record.frameTimeMs);
+      if (contextOnly) {
+        expectsSessionContext = false;
+        continue;
+      }
       if (!packet) continue;
+      expectsSessionContext = false;
       applyFrameTime(packet, record.frameTimeMs);
       if (inContext) {
         // Completion context may finish the preceding lap, but never owns source records.

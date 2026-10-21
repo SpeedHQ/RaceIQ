@@ -23,17 +23,20 @@ import { applyFrameTime } from "../session-capture/frame-time";
 import { wsManager } from "../runtime/websocket-manager";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 import { enqueueSessionCaptureSplit } from "../db/session-queries";
-import { materializeParserInitializationPlan, subscribeParserSource, type ParserSourceInput, type ParserReplayLocator } from "../games/packet-dispatch";
+import { materializeParserInitializationPlan, subscribeParserSource, subscribeParserDriverEvidenceInvalidation, type ParserSourceInput, type ParserReplayLocator } from "../games/packet-dispatch";
 import { DirectSessionRecorderAdapter, type DirectCaptureRecording } from "../session-capture/direct-recorder";
 
 import { DashboardCaptureObservation } from "../session-capture/dashboard-observation";
 import { markDashboardCaptureCheckpoint, publishObservedDashboardCaptureFacts } from "../session-capture/dashboard-processor";
+import { NativeAttributionTracker, NativeBindingCandidateCache, nativeDriverBindings, getNativeSourceClock, nativeDriverEvidenceMaxAgeMs } from "../lap-detection/native-attribution";
+import type { DriverActorBinding, NativeDriverActor } from "@raceiq/shared/driver-attribution";
 type CaptureObservationEntry = { observation: DashboardCaptureObservation; rawFile: string | null };
 type RecordingSession = { sessionId: number; gameId: GameId; directCapture?: DirectCaptureRecording };
 type CapturedParserSource = {
   parserSequence: number; epoch: number; locator: ParserReplayLocator | null;
   rawOffset?: number; rawEndOffset?: number; rawOrdinal?: number;
   pendingDirect?: boolean;
+  timestampMs?: number;
 };
 type PendingDirectSource = { input: ParserSourceInput; reference: CapturedParserSource; bytes: number };
 const CURRENT_SESSION_LAP_SNAPSHOT_LIMIT = 500;
@@ -78,6 +81,81 @@ export class LiveTelemetryPipeline {
   private readonly _retiringCaptures = new Set<Promise<void>>();
   private _processingNativeFrame: Buffer | null = null;
   private _processingTimestamp: number | undefined;
+  private _attributionTracker = new NativeAttributionTracker();
+  private _attributionSessionId: number | null = null;
+  private _driverBindings: DriverActorBinding[] = [];
+  private _driverBindingRevision = -1;
+  private _bindingReadSequence = 0;
+  private _bindingAppliedSequence = 0;
+  private _processingDriverBindings: readonly DriverActorBinding[] = [];
+  private readonly _nativeBindingCandidates: NativeBindingCandidateCache | null;
+  private _processingPacket: TelemetryPacket | null = null;
+  private _lastAttributionLap: number | null = null;
+  private readonly _completeNativeSources = new Set<number>();
+  private readonly _driverEvidenceEpochs = new Map<GameId, number>();
+  private _attributionEvidenceEpoch = -1;
+  private _originalSourceIntegrityComplete = true;
+
+  /** Native OFF/replay/status suppression breaks proof even when no telemetry packet is emitted. */
+  invalidateNativeDriverEvidence(gameId: GameId, timestampMs?: number): void {
+    this._driverEvidenceEpochs.set(gameId, (this._driverEvidenceEpochs.get(gameId) ?? 0) + 1);
+    this._nativeBindingCandidates?.invalidate(gameId, timestampMs);
+    if (this._lapDetectorGameId === gameId) this._attributionTracker.sourceComplete = false;
+  }
+
+  private async _readDriverBindings(actor?: NativeDriverActor | null): Promise<DriverActorBinding[]> {
+    const sequence = ++this._bindingReadSequence;
+    const snapshot = await this.db.getDriverBindings(actor);
+    const bindings = snapshot.revision === this._driverBindingRevision
+      ? this._driverBindings : nativeDriverBindings(snapshot.bindings);
+    if (sequence >= this._bindingAppliedSequence) {
+      this._bindingAppliedSequence = sequence;
+      this._driverBindings = bindings;
+      this._driverBindingRevision = snapshot.revision;
+      this._nativeBindingCandidates?.updateBindings(snapshot);
+    }
+    return bindings;
+  }
+
+  async refreshNativeDriverBindings(): Promise<void> {
+    await this._readDriverBindings();
+  }
+
+  private async _closeNativeAttribution(): Promise<void> {
+    const sessionId = this._attributionSessionId;
+    if (sessionId === null) return;
+    await this.db.setSessionDriverAttribution(sessionId, this._attributionTracker.stints);
+    if (this.db instanceof RealDbAdapter) {
+      try { await this.db.drainLapWrites(sessionId); }
+      catch (error) {
+        this._originalSourceIntegrityComplete = false;
+        console.error(`[NativeAttribution] Incomplete source ${sessionId}:`, error);
+        this.ws.broadcastNotification({ type: "recording-failed", sessionId,
+          error: "Native capture could not be fully saved; original activity remains incomplete" });
+      }
+    }
+    const observation = this._dashboardCaptureObservations.get(sessionId)?.observation;
+    if (this.db instanceof RealDbAdapter && observation) {
+      const capture = this._recordingSession?.sessionId === sessionId
+        ? this._recordingSession.directCapture : this._retiringSessions.get(sessionId)?.directCapture;
+      // Recorded native originals retain the manifest's actual revision. A
+      // recording-off original has only its observed native packet-pass revision.
+      this.db.setOriginalActivitySourceRevision(sessionId, capture?.sourceRevision ?? observation.toFacts().captureRevision);
+    }
+    if (this._originalSourceIntegrityComplete && observation) {
+      // Recording can stop while native detection continues. Its earlier file close
+      // cannot complete the original, but a later genuine detector close can.
+      if (this._finalizedResultSessions.has(sessionId)) await this.db.finalizeOriginalActivitySource(sessionId);
+      else this._completeNativeSources.add(sessionId);
+    } else if (this.db instanceof RealDbAdapter) {
+      this.db.releaseSessionSourceTracking(sessionId);
+    }
+    this._attributionSessionId = null;
+    this._attributionTracker = new NativeAttributionTracker();
+    this._lastAttributionLap = null;
+    this._attributionEvidenceEpoch = -1;
+    this._originalSourceIntegrityComplete = true;
+  }
 
   /** Expose the current lap detector for external readers (routes, UDP handler). */
   get lapDetector(): ILapDetector | null {
@@ -114,11 +192,13 @@ export class LiveTelemetryPipeline {
       skipDevState?: boolean;
       recorder?: SessionRecorderAdapter;
       enqueueSessionCaptureSplits?: boolean;
+      nativeBindingCandidates?: NativeBindingCandidateCache;
       onSessionFinalized?: (sessionId: number, gameId: GameId) => Promise<void>;
     },
   ) {
     this.db = db;
     this.ws = ws;
+    this._nativeBindingCandidates = options?.nativeBindingCandidates ?? null;
     this.recorder = options?.recorder ?? (db instanceof RealDbAdapter
       ? new DirectSessionRecorderAdapter()
       : new SparseSessionRecorderAdapter("mine", {}, "offline"));
@@ -150,12 +230,14 @@ export class LiveTelemetryPipeline {
 
   /** Capture recognized native input before parsing, including parser-null records. */
   captureParserSource(input: ParserSourceInput): void {
-    const reference: CapturedParserSource = { parserSequence: input.sequence, epoch: this.recorder.epoch, locator: input.locator };
+    this._nativeBindingCandidates?.observeRawSource(input.gameId, input.frame, input.timestampMs);
+    const reference: CapturedParserSource = { parserSequence: input.sequence, epoch: this.recorder.epoch, locator: input.locator, timestampMs: input.timestampMs };
     this._parserSourceFrames.set(input.frame, reference);
     if (this.recorder instanceof DirectSessionRecorderAdapter && this.recorder.active && !this._recordingSession?.directCapture?.hasFailed) {
       const bytes = input.frame.byteLength + (input.locator?.byteCost ?? 0) + 128;
       if (this._pendingDirectBytes + bytes > 8 * 1024 * 1024 || this._pendingDirectSources.length - this._pendingDirectHead >= 1024) {
         const error = new Error("Direct recording source queue capacity exhausted");
+        this._originalSourceIntegrityComplete = false;
         this._recordingSession?.directCapture?.fail(error);
         return;
       }
@@ -164,7 +246,10 @@ export class LiveTelemetryPipeline {
       this._pendingDirectBytes += bytes;
       try {
         if (this._activePacketProcessing.size === 0 && !this._ingressBarrier) this._flushDirectSourcesThrough(reference);
-      } catch (error) { this._recordingSession?.directCapture?.fail(error); }
+      } catch (error) {
+        this._originalSourceIntegrityComplete = false;
+        this._recordingSession?.directCapture?.fail(error);
+      }
       return;
     }
     if (!this.recorder.active || this._recordingSession?.gameId !== input.gameId || this._recordingSession.directCapture?.hasFailed) return;
@@ -177,6 +262,7 @@ export class LiveTelemetryPipeline {
       }
       this._latestSource = reference;
     } catch (error) {
+      this._originalSourceIntegrityComplete = false;
       this._recordingSession?.directCapture?.fail(error);
       this.ws.broadcastNotification({
         type: "recording-failed",
@@ -261,6 +347,10 @@ export class LiveTelemetryPipeline {
       } catch (error) {
         console.error(`[CaptureSplit] Failed to enqueue closed session ${session.sessionId}:`, error);
       }
+      if (this._completeNativeSources.has(session.sessionId)) {
+        await this.db.finalizeOriginalActivitySource(session.sessionId);
+        this._completeNativeSources.delete(session.sessionId);
+      }
       await this._onSessionFinalized?.(session.sessionId, session.gameId);
       this._finalizedResultSessions.add(session.sessionId);
     })();
@@ -312,6 +402,8 @@ export class LiveTelemetryPipeline {
       if (this.db instanceof RealDbAdapter) await this.db.drainLapWrites(session.sessionId);
       await capture.stop();
     } catch (error) {
+      this._completeNativeSources.delete(session.sessionId);
+      if (this.db instanceof RealDbAdapter) this.db.releaseSessionSourceTracking(session.sessionId);
       capture.fail(error);
       await capture.stop().catch((failure) => console.error("[DirectCapture] Failed to drain capture:", failure));
       throw error;
@@ -371,7 +463,13 @@ export class LiveTelemetryPipeline {
   ): void {
     if (sessionId === undefined) return;
     const entry = this._dashboardCaptureObservations.get(sessionId);
-    if (entry) entry.observation.observe(packet, source, frameTimeMs);
+    if (entry) {
+      const clock = getNativeSourceClock(packet, frameTimeMs);
+      entry.observation.observe(packet, source, frameTimeMs, clock ? {
+        sessionId: clock.sessionId, clockDomain: clock.domain, sourceTimeMs: clock.atMs,
+        stints: this._attributionTracker.stints,
+      } : undefined);
+    }
   }
 
   /** Persist packet-pass facts only after raw capture is closed and source revision checkpointed. */
@@ -425,6 +523,11 @@ export class LiveTelemetryPipeline {
   private _buildCallbacks(): LapDetectorCallbacks {
     return {
       onSessionStart: async (session) => {
+        if (this._attributionSessionId !== null && this._attributionSessionId !== session.sessionId) {
+          await this._closeNativeAttribution();
+          if (this._processingPacket) this._attributionTracker.observe(this._processingPacket, this._processingDriverBindings, this._processingTimestamp);
+        }
+        this._attributionSessionId = session.sessionId;
         const previousSession = this._recordingSession;
         const previousCapture = previousSession
           ? this._dashboardCaptureObservations.get(previousSession.sessionId) ?? null
@@ -601,6 +704,7 @@ export class LiveTelemetryPipeline {
     const session = this._recordingSession;
     this._observeSourceTail();
     await this._lapDetector?.finalizeCurrentSession?.();
+    await this._closeNativeAttribution();
     await this._finishRecordedSession(session);
     await Promise.all(this._retiringCaptures);
   }
@@ -611,6 +715,7 @@ export class LiveTelemetryPipeline {
       const session = this._recordingSession;
       this._observeSourceTail();
       await this._lapDetector?.flushStaleLap?.();
+      if (!this._lapDetector?.session) await this._closeNativeAttribution();
       this._drainOwnership();
       if (session && !this._lapDetector?.session) {
         await this._finishRecordedSession(session);
@@ -643,10 +748,19 @@ export class LiveTelemetryPipeline {
    * Stages: record sourceFrame → optional native dev copy → normalize → detector/sector/pit/BestLap → project → publish.
    */
   async processPacket(packet: TelemetryPacket, source?: PacketSourceReference, frameTimeMs?: number): Promise<void> {
+    frameTimeMs ??= Buffer.isBuffer(source) ? this._parserSourceFrames.get(source)?.timestampMs : undefined;
+    this._nativeBindingCandidates?.observeSource(packet, getNativeSourceClock(packet, frameTimeMs), frameTimeMs);
+    const evidenceEpoch = this._driverEvidenceEpochs.get(packet.gameId) ?? 0;
+    // Queued historical frames must not inherit a later user confirmation.
+    const bindingsAtIngress = this._driverBindingRevision >= 0 && (this._ingressBarrier ||
+      this._queuedPacketBytes > 0 || (this._lapDetectorGameId && this._lapDetectorGameId !== packet.gameId))
+      ? this._driverBindings : undefined;
     while (this._ingressBarrier) await this._ingressBarrier;
     const reservedBytes = 16 * 1024 + (Buffer.isBuffer(source) ? source.length + (this._parserSourceFrames.get(source)?.locator?.byteCost ?? 0) : 0);
     if (this._queuedPacketBytes + reservedBytes > 8 * 1024 * 1024) {
       const error = new Error("Recording detector queue capacity exhausted");
+      this._originalSourceIntegrityComplete = false;
+      this._attributionTracker.invalidate();
       this.ws.broadcastNotification({ type: "recording-failed", sessionId: this._recordingSession?.sessionId, error: error.message });
       this._recordingSession?.directCapture?.fail(error);
       throw error;
@@ -658,14 +772,17 @@ export class LiveTelemetryPipeline {
     const processing = (async () => {
       await previous;
       try {
-        await this._processPacket(packet, source, frameTimeMs);
+        await this._processPacket(packet, source, frameTimeMs, evidenceEpoch, bindingsAtIngress);
       } catch (error) {
         this._recordingSession?.directCapture?.fail(error);
+        this._originalSourceIntegrityComplete = false;
+        this._attributionTracker.invalidate();
         throw error;
       } finally {
         this._processingNativeFrame = null;
         this._processingSource = null;
         this._processingTimestamp = undefined;
+        this._processingPacket = null;
         this._queuedPacketBytes -= reservedBytes;
         release();
       }
@@ -679,18 +796,37 @@ export class LiveTelemetryPipeline {
     }
   }
 
-  private async _processPacket(packet: TelemetryPacket, source: PacketSourceReference | undefined, frameTimeMs?: number): Promise<void> {
+  private async _processPacket(packet: TelemetryPacket, source: PacketSourceReference | undefined, frameTimeMs?: number,
+    evidenceEpoch = 0, bindingsAtIngress?: readonly DriverActorBinding[]): Promise<void> {
+    frameTimeMs ??= Buffer.isBuffer(source) ? this._parserSourceFrames.get(source)?.timestampMs : undefined;
     applyFrameTime(packet, frameTimeMs);
     this._totalProcessed++;
     if (this._lapDetector && this._lapDetectorGameId !== packet.gameId) {
       this._observeSourceTail();
       await this._lapDetector.finalizeCurrentSession?.();
+      await this._closeNativeAttribution();
       this._drainOwnership();
     }
     const detector = this._getOrCreateDetector(packet.gameId);
     this._processingNativeFrame = Buffer.isBuffer(source) ? source : null;
     this._processingTimestamp = frameTimeMs;
     this._processingSource = Buffer.isBuffer(source) ? this._parserSourceFrames.get(source) ?? null : null;
+    this._processingPacket = packet;
+    const clock = getNativeSourceClock(packet, frameTimeMs);
+    const actor = packet.driverActor;
+    const freshActor = packet.IsRaceOn === 1 && actor && actor.gameId === packet.gameId && clock && actor.clockDomain === clock.domain && actor.sessionId === clock.sessionId &&
+      Number.isFinite(actor.observedAtMs) && actor.observedAtMs <= clock.atMs &&
+      clock.atMs - actor.observedAtMs <= nativeDriverEvidenceMaxAgeMs(packet.gameId) &&
+      (actor.evidenceExpiresAtMs === undefined || clock.atMs <= actor.evidenceExpiresAtMs)
+      ? actor : null;
+    const bindings = await this._readDriverBindings(freshActor);
+    const automaticNativeRole = bindings.some((binding) => binding.gameId === packet.gameId &&
+      binding.snapshot?.confirmation === "native_verified" && (binding.source === "ac-evo-shared-memory" ||
+        binding.source === "lmu-shared-memory-player-scoring" || binding.source === "f1-2025-udp-local-controller"));
+    this._processingDriverBindings = bindingsAtIngress && !automaticNativeRole ? bindingsAtIngress : bindings;
+    if (this._attributionEvidenceEpoch !== -1 && this._attributionEvidenceEpoch !== evidenceEpoch) this._attributionTracker.invalidate();
+    this._attributionEvidenceEpoch = evidenceEpoch;
+    this._attributionTracker.observe(packet, this._processingDriverBindings, frameTimeMs);
     if (this._processingSource) this._flushDirectSourcesThrough(this._processingSource);
 
     let rawByteOffset: number | undefined;
@@ -739,6 +875,10 @@ export class LiveTelemetryPipeline {
       if (detector.shouldCheckpointBeforeWrite(packet)) this.recorder.requestFullCheckpoint?.();
     }
     await detector.feed(packet, rawByteOffset, rawOrdinal);
+    if (detector.session && packet.LapNumber !== this._lastAttributionLap) {
+      await this.db.setSessionDriverAttribution(detector.session.sessionId, this._attributionTracker.stints);
+      this._lastAttributionLap = packet.LapNumber;
+    }
 
     // If feed rotates the session, write the triggering source into the new recorder
     // and patch the detector offset to the canonical source position.
@@ -903,6 +1043,11 @@ export class LiveTelemetryPipeline {
       this._lapDetectorGameId = null;
       this._recordingSession = null;
       for (const sessionId of sessionIds) this._dashboardCaptureObservations.delete(sessionId);
+      this._attributionSessionId = null;
+      this._attributionTracker = new NativeAttributionTracker();
+      this._lastAttributionLap = null;
+      this._originalSourceIntegrityComplete = true;
+      this._attributionEvidenceEpoch = -1;
       this._continuingSegment = false;
       this._pendingSessionContextFrames = [];
       this._sessionLaps = [];
@@ -925,6 +1070,8 @@ export class LiveTelemetryPipeline {
     this._dashboardCaptureObservations.get(this._recordingSession.sessionId)?.observation.finishSegment();
     this.recorder.writeSegmentBoundary();
     this._lapDetector = null;
+    this._attributionTracker.sourceComplete = false;
+    this._originalSourceIntegrityComplete = false;
     this._lapDetectorGameId = null;
     this._continuingSegment = true;
     this._expectCompleteLapStart = true;
@@ -964,7 +1111,24 @@ const _defaultWs: WsAdapter = {
   broadcastNotification: (event) => wsManager.broadcastNotification(event),
   broadcastDevState: (state) => wsManager.broadcastDevState(state),
 };
-const _default = new LiveTelemetryPipeline(new RealDbAdapter(), _defaultWs, {
+const _nativeBindingCandidateCache = new NativeBindingCandidateCache();
+const _defaultDb = new RealDbAdapter({ sourceOrigin: { kind: "native_capture" } });
+export const nativeBindingCandidateHost = {
+  sourceRevisionBuffer: _nativeBindingCandidateCache.sourceRevisionBuffer,
+  listCandidates: () => _nativeBindingCandidateCache.listCandidates(),
+  resolveCandidate: (candidateId: string, expectedBindingRevision: number) =>
+    _nativeBindingCandidateCache.resolveCandidate(candidateId, expectedBindingRevision),
+  subscribeChanges: (listener: (sourceRevision: number) => void) => _nativeBindingCandidateCache.subscribeChanges(listener),
+  consumeCandidate: (candidateId: string, sourceRevision: number) => {
+    _nativeBindingCandidateCache.consumeCandidate(candidateId, sourceRevision);
+    _defaultDb.invalidateDriverBindingSnapshot();
+    void _default.refreshNativeDriverBindings().catch((error) =>
+      console.warn("[NativeBindingCandidate] Committed binding refresh failed", error));
+  },
+};
+
+const _default = new LiveTelemetryPipeline(_defaultDb, _defaultWs, {
+  nativeBindingCandidates: _nativeBindingCandidateCache,
   onSessionFinalized: async (sessionId, gameId) => {
     try {
       await reconcileSessionResult(sessionId, gameId);
@@ -974,10 +1138,14 @@ const _default = new LiveTelemetryPipeline(new RealDbAdapter(), _defaultWs, {
   },
 });
 subscribeParserSource((input) => _default.captureParserSource(input));
+subscribeParserDriverEvidenceInvalidation(({ gameId, timestampMs }) => _default.invalidateNativeDriverEvidence(gameId, timestampMs));
 
 // Wire session laps provider so WS manager can send laps on client connect
 wsManager.setSessionLapsProvider(() => _default.sessionLaps);
 export const processPacket = (packet: TelemetryPacket, source?: PacketSourceReference, frameTimeMs?: number) => _default.processPacket(packet, source, frameTimeMs);
+/** Reader-level control changes invalidate UI capabilities without discarding captured historical stints. */
+export const invalidateNativeBindingCandidates = (gameId: GameId, receivedAtMs: number): void =>
+  _nativeBindingCandidateCache.invalidate(gameId, receivedAtMs);
 
 /** Returns the current lap detector (may be null before the first packet is processed). */
 export const lapDetector = {

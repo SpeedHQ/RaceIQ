@@ -125,6 +125,18 @@ function parseDrivers(lines: readonly string[]): Array<Record<string, string>> {
   return drivers;
 }
 
+/** Current iRacing driver identity from native SessionInfo, matched by active DriverCarIdx. */
+export function parseIRacingDriverUserId(yaml: string): string | null {
+  const lines = yaml.split(/\r?\n/);
+  const driverCarIdx = toNumber(findScalar(lines, "DriverCarIdx"), -1);
+  if (!Number.isInteger(driverCarIdx) || driverCarIdx < 0) return null;
+  const driver = parseDrivers(lines).find(
+    (entry) => toNumber(entry.CarIdx, -2) === driverCarIdx,
+  );
+  const userId = driver?.UserID;
+  return userId && /^\d+$/.test(userId) && Number(userId) > 0 ? userId : null;
+}
+
 export function parseIRacingSessionInfo(
   yaml: string,
   sessionNumOverride?: number,

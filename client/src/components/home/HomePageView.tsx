@@ -17,6 +17,7 @@ import { getGameRoute } from "@/stores/game";
 export function HomePageView({
   gameId,
   response,
+  driverSummary,
   periodStart,
   sessions,
   carNames,
@@ -112,6 +113,7 @@ export function HomePageView({
       <div className="mx-auto max-w-[1400px] space-y-4 px-3 pt-2 pb-3 @3xl/workspace:px-6 @3xl/workspace:pb-6">
         <PeriodSelector periodTab={periodTab} onPeriodTabChange={onPeriodTabChange} />
         <GameBrandCards gameStats={gameStats} hiddenGames={hiddenGames} loading={lapsLoading || sessionsLoading} error={lapsError || sessionsError} selectedGameId={gameId} />
+        {driverSummary}
 
 
         <div className="space-y-4">

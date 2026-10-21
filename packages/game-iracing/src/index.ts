@@ -10,6 +10,7 @@ import { iracingParser } from "./game-parser";
 import {
   captureIRacingParserCheckpoint,
   restoreIRacingParserCheckpoint,
+  invalidateIRacingDriverEvidence,
   type IRacingParserState,
 } from "./normalizer";
 
@@ -70,6 +71,7 @@ export const iracingServerAdapter: ServerGameAdapter = {
   createParserState: iracingParser.createParserState,
   captureParserCheckpoint(state) { return captureIRacingParserCheckpoint(state as IRacingParserState); },
   restoreParserCheckpoint(_state, payload) { return restoreIRacingParserCheckpoint(payload); },
+  invalidateDriverEvidence(state) { invalidateIRacingDriverEvidence(state as IRacingParserState); },
 
   createLapDetector: (opts) => new LapDetectorIRacing(opts),
   aiSystemPrompt: IRACING_SYSTEM_PROMPT,

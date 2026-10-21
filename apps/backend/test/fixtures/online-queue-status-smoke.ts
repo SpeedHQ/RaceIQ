@@ -13,11 +13,14 @@ const storage = new OnlineStateStorage(dir);
 const persisted = storage.load();
 persisted.profile = { userId: 'queue-owner', displayName: 'Queue Driver', avatarUrl: null };
 storage.save(persisted);
-const create = () => createRaceIqOnlineService({ storage: new OnlineStateStorage(dir), keystore: { getSecret: async () => '', setSecret: async () => {} }, adapter: { getPolicy: async () => ({ available: true, termsVersion: 'terms-1', privacyVersion: 'privacy-1', termsUrl: 'https://example.com/terms', privacyUrl: 'https://example.com/privacy' }) } });
+const create = () => createRaceIqOnlineService({ recordingProducer: async () => { throw new Error("Auth-only fixture must not prepare a recording"); }, storage: new OnlineStateStorage(dir), keystore: { getSecret: async () => '', setSecret: async () => {} }, adapter: { getPolicy: async () => ({ available: true, termsVersion: 'terms-1', privacyVersion: 'privacy-1', termsUrl: 'https://example.com/terms', privacyUrl: 'https://example.com/privacy' }) } });
 try {
   const service = create();
   const state = await service.getState();
-  const identity = { accountId: 'queue-owner', accountEpoch: state.accountEpoch };
+  const identity = { accountId: 'queue-owner', accountEpoch: state.accountEpoch,identity:{
+    lapGuid:'018f0000-0000-7000-8000-000000000001',originalActivityId:'018f0000-0000-7000-8000-000000000002',sourceRevision:'fixture',
+    sourceKind:'native_capture' as const,ownerUserId:'queue-owner',driverBindingId:'fixture-binding',driverBindingRevision:1,
+  } };
   await enqueueOutboxJob({ ...identity, gameId: 'acc', trackId: 'track-a', carId: 'car-a', lapId: 1, lapTimeMs: 90000 }, 1000);
   assert.equal((await service.getState()).sync.queued, 1, 'Online state must expose real durable pending work');
   const first = (await listDeliverableOutboxJobs(identity.accountId)).find(job => job.lapId === 1);

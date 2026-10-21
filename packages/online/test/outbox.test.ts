@@ -6,9 +6,10 @@ import { processOutboxDelivery } from "../src/outbox";
 import {
   beginOutboxAttempt, enqueueOutboxJob, getAccountOutboxStatus, getOutboxJob,
   listDeliverableOutboxJobs, listRetiredOutboxPayloads, persistOutboxPayload,
-  recordOutboxAcceptance, saveOutboxReservation, settleOutboxDelivery,
+  recordOutboxAcceptance, saveOutboxReservation, settleOutboxDelivery,withdrawAccountOutboxJobs,
   type EnqueueOutboxJob, type OutboxJob,
 } from "../src/outbox-storage";
+import { lapIdentity } from "./lap-identity.fixture";
 
 async function getQueuedJob(input: EnqueueOutboxJob): Promise<OutboxJob> {
   await enqueueOutboxJob(input);
@@ -28,14 +29,40 @@ async function begin(job: OutboxJob, attempts = 1): Promise<OutboxJob> {
 const identity = () => ({ accountId: `account-${crypto.randomUUID()}`, accountEpoch: `epoch-${crypto.randomUUID()}` });
 const candidate = (key: { accountId: string; accountEpoch: string }) => ({
   ...key, gameId: "acc", trackId: `track-${crypto.randomUUID()}`, carId: "car-a", lapId: 1, lapTimeMs: 90_000,
+  identity:lapIdentity(key.accountId),
 });
 
 describe("RaceIQ Online outbox ledger", () => {
-  test("coalesces pending fastest lap per game and track", async () => {
+  test("coalesces pending fastest lap per game, track and car", async () => {
     const job = candidate(identity());
     expect(await enqueueOutboxJob({ ...job, lapTimeMs: 96_000 })).toBe("queued");
     expect(await enqueueOutboxJob({ ...job, lapId: 2, lapTimeMs: 91_000 })).toBe("coalesced");
     expect(await enqueueOutboxJob({ ...job, lapId: 3, lapTimeMs: 93_000 })).toBe("unchanged");
+  });
+  test("different cars on one track never coalesce or suppress each other's acceptance",async()=>{
+    const first=candidate(identity());
+    expect(await enqueueOutboxJob(first)).toBe("queued");
+    expect(await enqueueOutboxJob({...first,carId:"car-b",lapId:2,lapTimeMs:100_000,identity:{...first.identity,lapGuid:"018f0000-0000-7000-8000-000000000003"}})).toBe("queued");
+    const rows=await listDeliverableOutboxJobs(first.accountId);
+    expect(rows.map(row=>row.carId).sort()).toEqual(["car-a","car-b"]);
+  });
+  test("queued original ownership cannot be reassigned",async()=>{
+    const first=candidate(identity());
+    await expect(enqueueOutboxJob({...first,accountId:"different-account"})).rejects.toThrow("Invalid immutable lap identity");
+    expect(await listDeliverableOutboxJobs("different-account")).toEqual([]);
+  });
+  test("sign-out preserves an uncertain receipt and its idempotency identity",async()=>{
+    const candidateJob=candidate(identity());
+    await enqueueOutboxJob(candidateJob);
+    const [row]=await listDeliverableOutboxJobs(candidateJob.accountId);
+    const input={reference:{rowId:row.rowId,uploadKey:row.uploadKey!},accountId:row.accountId,accountEpoch:row.accountEpoch,attempts:1,maxAttempts:5};
+    await processOutboxDelivery({...input,dispatch:async()=>({kind:"ambiguous",code:"offline"}),dispatchUnderPrivacyBarrier:async(_job,send)=>({authorized:true,outcome:await send()})});
+    await withdrawAccountOutboxJobs(row.accountId);
+    let sends=0;
+    expect(await processOutboxDelivery({...input,dispatch:async()=>{sends++;return {kind:"request_accepted",remoteJobId:"must-not-send"};},
+      dispatchUnderPrivacyBarrier:async()=>({authorized:false,reason:"withdrawn"})})).toEqual({kind:"retry"});
+    expect(sends).toBe(0);
+    expect(await getOutboxJob(row.rowId,row.accountId)).toMatchObject({status:"ambiguous",uploadKey:row.uploadKey,identity:candidateJob.identity});
   });
   test("privacy barrier prevents dispatch and permanently withdraws pending intent", async () => {
     const job = candidate(identity());
@@ -166,7 +193,7 @@ describe("RaceIQ Online outbox ledger", () => {
     const queued = await getQueuedJob(input);
     const attempt = await begin(queued);
     expect(await settleOutboxDelivery({ job: attempt, status: "rejected", errorCode: "validation_rejected" })).toBe(true);
-    expect(await enqueueOutboxJob(input)).toBe("unchanged");
+    expect(await enqueueOutboxJob(input)).toBe("rejected");
     expect(await enqueueOutboxJob({ ...input, lapId: input.lapId + 1, lapTimeMs: input.lapTimeMs - 1_000 })).toBe("queued");
   });
 
@@ -205,7 +232,7 @@ describe("RaceIQ Online outbox ledger", () => {
         });
         expect(child.exitCode).toBe(0);
         return JSON.parse(child.stdout.toString()) as {
-          rows: { status: string; upload_key: string | null; transmitted_at: number | null }[];
+          rows:{status:string;upload_key:string|null;transmitted_at:number|null;identity_json:string|null}[];
           deliverableCount: number;
           recovered: { uploadKey: string; trackId: string }[];
         };
@@ -219,16 +246,16 @@ describe("RaceIQ Online outbox ledger", () => {
       expect(first.rows[4]).toMatchObject({ status: "ambiguous", upload_key: "uncertain-upload-key" });
       expect(first.rows[5]).toMatchObject({ status: "dispatching", upload_key: "old-cross-epoch-key" });
       expect(first.rows[6]).toMatchObject({ status: "pending", upload_key: "new-cross-epoch-key" });
-      expect(second.rows[2]).toMatchObject({ status: "pending", upload_key: "same-upload-key" });
-      expect(second.rows[3]).toMatchObject({ status: "pending", upload_key: "stranded-upload-key" });
+      expect(second.rows[2]).toMatchObject({status:"ambiguous",upload_key:"same-upload-key",identity_json:null});
+      expect(second.rows[3]).toMatchObject({status:"ambiguous",upload_key:"stranded-upload-key",identity_json:null});
       expect(second.rows[4]).toMatchObject({ status: "ambiguous", upload_key: "uncertain-upload-key" });
       expect(second.rows[5]).toMatchObject({ status: "withdrawn", upload_key: "old-cross-epoch-key" });
-      expect(second.rows[6]).toMatchObject({ status: "pending", upload_key: "new-cross-epoch-key" });
-      expect(second.recovered).toEqual([
-        { uploadKey: "same-upload-key", trackId: "prepayload-track" },
-        { uploadKey: "stranded-upload-key", trackId: "stranded-track" },
-        { uploadKey: "new-cross-epoch-key", trackId: "cross-epoch-track" },
-      ]);
+      expect(second.rows[6]).toMatchObject({status:"ambiguous",upload_key:"new-cross-epoch-key",identity_json:null});
+      expect(second.rows[0]?.transmitted_at).toBe(1234);
+      expect(second.rows.every(row=>row.identity_json===null)).toBe(true);
+      expect(first.deliverableCount).toBe(0);
+      expect(second.deliverableCount).toBe(0);
+      expect(second.recovered).toEqual([]);
     } finally {
       rmSync(dataDir, { recursive: true, force: true });
     }

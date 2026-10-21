@@ -6,7 +6,7 @@ import { clearSessionCaptureCache, loadCaptureManifest } from "../session-captur
 import type { DownsampleCaptureBundle } from "../session-capture/downsample-bundles";
 import { and, eq, isNotNull, or, inArray, sql } from "drizzle-orm";
 import { db } from "./index";
-import { laps, sessions, lapMetrics, lapAnalyses, compareAnalyses, lineSpreadCache, dashboardSummaryState, sessionCaptureSplitJobs, liveCaptureMembers } from "./schema";
+import { laps, sessions, lapMetrics, lapAnalyses, compareAnalyses, lineSpreadCache, dashboardSummaryState, sessionCaptureSplitJobs, liveCaptureMembers, lapGuidReconciliation } from "./schema";
 import type { RecordingFrequencyHz } from "@raceiq/shared/platform/runtime/recording-frequency";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
 
@@ -252,11 +252,12 @@ export async function replaceLapsForSession(
     const rows = await tx.select({
       id: laps.id, lapNumber: laps.lapNumber, rawByteOffset: laps.rawByteOffset, rawFrameCount: laps.rawFrameCount,
     }).from(laps).where(eq(laps.sessionId, sessionId)).all();
-    const ownershipChanged = Boolean(sessionIdentity) || rows.length !== replacements.length || replacements.some((replacement) => {
+    const identityChanged = rows.length !== replacements.length || replacements.some((replacement) => {
       const previous = replacement.lapId === null ? undefined : rows.find(({ id }) => id === replacement.lapId);
       return !previous || previous.lapNumber !== replacement.lapNumber ||
         previous.rawByteOffset !== replacement.rawByteOffset || previous.rawFrameCount !== replacement.rawFrameCount;
     });
+    const ownershipChanged = Boolean(sessionIdentity) || identityChanged;
     const deleted = rows.map(({ id }) => id).filter((id) => !matchedIds.has(id));
     const invalidated = [...matchedIds];
     if (ownershipChanged) {
@@ -273,6 +274,10 @@ export async function replaceLapsForSession(
         eq(sessionCaptureSplitJobs.status, "verifying"), eq(sessionCaptureSplitJobs.status, "publishing"),
         eq(sessionCaptureSplitJobs.status, "ready"),
       )));
+    }
+    if (identityChanged && rows.length > 0) {
+      await tx.update(lapGuidReconciliation).set({ status: "held_ambiguous" })
+        .where(inArray(lapGuidReconciliation.lapId, rows.map(({ id }) => id)));
     }
     const invalidate = async (ids: readonly number[]) => {
       for (const id of ids) {
@@ -308,6 +313,14 @@ export async function replaceLapsForSession(
         ...replacement.versionIdentity,
       };
       if (replacement.lapId !== null) {
+        const previous = rows.find(({ id }) => id === replacement.lapId);
+        if (!previous || previous.rawByteOffset !== replacement.rawByteOffset ||
+            previous.rawFrameCount !== replacement.rawFrameCount) {
+          await tx.update(laps).set({
+            driverAttribution: "Unknown", driverAttributionStints: null,
+            sourceClockDomain: null, sourceLapStartMs: null, sourceLapEndMs: null,
+          }).where(eq(laps.id, replacement.lapId));
+        }
         await tx.update(laps).set({ ...values, fuelPerLap: null, tyreWear: null }).where(eq(laps.id, replacement.lapId));
       } else {
         const inserted = await tx.insert(laps).values({
@@ -317,6 +330,12 @@ export async function replaceLapsForSession(
           tuneId: replacement.tuneId,
           notes: replacement.notes,
         }).returning({ id: laps.id }).get();
+        await tx.insert(lapGuidReconciliation).values({
+          lapId: inserted.id,
+          lapGuid: null,
+          sourceGuid: null,
+          status: "held_ambiguous",
+        }).run();
         invalidated.push(inserted.id);
       }
     }

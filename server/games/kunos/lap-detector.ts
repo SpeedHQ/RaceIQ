@@ -18,6 +18,7 @@ import type {
 import { resolveAccRecordedLapValidity } from "@raceiq/telemetry-core/processor/kunos-policy";
 import { classifyPitCycleLap } from "@raceiq/analysis-core/racing/laps/pit-cycle";
 import { logger } from "../../runtime/logger";
+import { captureLapDriverAttribution } from "../../lap-detection/native-attribution";
 
 function traceLap(game: string, event: string, fields: Record<string, unknown>): void {
   logger.trace({ component: "capture", event, game, ...fields }, "Kunos lap capture trace");
@@ -34,6 +35,7 @@ export class KunosLapDetector implements ILapDetector {
   private readonly onLapComplete_?: LapDetectorCallbacks["onLapComplete"];
   private currentSession: SessionState | null = null;
   private lastAcEvoSourceIdentity: TelemetryPacket["acEvoIdentity"] | null = null;
+  private attributionLapStartObserved = false;
 
   protected constructor(opts: LapDetectorOptions, detectorId: string, loggerLabel: string) {
     this.db = opts.db;
@@ -44,6 +46,7 @@ export class KunosLapDetector implements ILapDetector {
     this.loggerLabel = loggerLabel;
     this.engine = new KunosDetectorEngine({
       createSession: async packet => {
+        this.attributionLapStartObserved = false;
         const identity = await this.resolveSessionIdentity(packet);
         const carId = identity?.carId ?? packet.carId;
         const trackId = identity?.trackId ?? packet.trackId;
@@ -132,7 +135,10 @@ export class KunosLapDetector implements ILapDetector {
     const sectors = await computeLapSectors(session.trackId, session.gameId, packets, lapTime, { sectors: resolveTrack(session.gameId, session.trackId).sectors });
     traceStageAt = performance.now();
     if (isValid && (session.bestLapTime === 0 || lapTime < session.bestLapTime)) session.bestLapTime = lapTime;
-    const lapId = await this.db.insertLap(session.sessionId, lapNum, lapTime, isValid, lapByteOffset, lapFrameCount, null, null, invalidReason, sectors);
+    const wholeStartObserved = this.attributionLapStartObserved || packets[0]?.CurrentLap === 0;
+    const attribution = captureLapDriverAttribution(packets, capture.trigger, wholeStartObserved && !capture.silent);
+    if (capture.trigger) this.attributionLapStartObserved = true;
+    const lapId = await this.db.insertLap(session.sessionId, lapNum, lapTime, isValid, lapByteOffset, lapFrameCount, null, null, invalidReason, sectors, undefined, attribution ?? undefined);
     traceLap(traceGameId, "lap-boundary-stage", { sessionId: traceSessionId, lapNumber: lapNum, lapId, stage: "insert", durationMs: performance.now() - traceStageAt });
     traceStageAt = performance.now();
     await persistLapMetrics(this.db, lapId, packets);

@@ -5,6 +5,8 @@ import { decodeKunosSparseFrame, isKunosSparseFrame, kunosSourceMagic } from "./
 import { gzip, gzipSync, gunzip, gunzipSync } from "node:zlib";
 import { promisify } from "node:util";
 import { MAX_DECOMPRESSED_CAPTURE_BYTES } from "./limits";
+export type { PortableCaptureIdentity, PortableLapIdentity } from "./original-source";
+export { MAX_DECOMPRESSED_CAPTURE_BYTES } from "./limits";
 
 function isLmuSourceFrame(frame: Buffer): boolean {
   return frame.length === LMU_SOURCE_FRAME_V2_SIZE && frame.subarray(0, LMU_SOURCE_FRAME_MAGIC.length).equals(LMU_SOURCE_FRAME_MAGIC);
@@ -17,6 +19,8 @@ export const SEGMENT_BOUNDARY_VERSION = 1;
 export const SEGMENT_CONTEXT_MAGIC = 0x58544753;
 export const SEGMENT_CONTEXT_VERSION = 1;
 export const SEGMENT_CONTEXT_END_MAGIC = 0x454e4353;
+export const SESSION_CLOCK_ANCHOR_MAGIC = 0x31414352;
+export const SESSION_CLOCK_ANCHOR_VERSION = 1;
 export const PARSER_BOOTSTRAP_MAGIC = 0x54425043;
 export const PARSER_BOOTSTRAP_VERSION = 1;
 export type ParserBootstrapGameId = "acc" | "ac-evo" | "f1-2025" | "fm-2023" | "iracing" | "lmu";
@@ -36,6 +40,7 @@ export type ParserBootstrapRecord = {
 export type ParserBootstrapPayload = Omit<ParserBootstrapRecord, "offset" | "endOffset">;
 export type SessionCaptureRecord =
   | { kind: "frame"; offset: number; endOffset: number; frame: Buffer; frameTimeMs?: number }
+  | { kind: "clock-anchor"; offset: number; endOffset: number; frameTimeMs: number; utcTimeMs: number }
   | { kind: "segment-boundary"; offset: number; endOffset: number }
   | { kind: "segment-context"; offset: number; endOffset: number }
   | { kind: "segment-context-end"; offset: number; endOffset: number }
@@ -74,6 +79,40 @@ export function encodeSegmentContextEndFrame(): Buffer {
   frame.writeUInt32LE(SEGMENT_CONTEXT_END_MAGIC, 8);
   frame.writeUInt32LE(SEGMENT_CONTEXT_VERSION, 12);
   return frame;
+}
+/** Encode an actual clock pair, or an explicitly proven capture-UTC identity mapping. */
+export function encodeSessionClockAnchor(frameTimeMs: number, utcTimeMs: number): Buffer {
+  if (!Number.isSafeInteger(frameTimeMs) || frameTimeMs < 0 ||
+      !Number.isSafeInteger(utcTimeMs) || utcTimeMs < 0 || utcTimeMs > 253_402_300_799_999) {
+    throw new RangeError("Invalid session clock anchor");
+  }
+  const frame = Buffer.alloc(32);
+  frame.writeUInt32LE(META_FRAME_MAGIC, 0);
+  frame.writeUInt32LE(24, 4);
+  frame.writeUInt32LE(SESSION_CLOCK_ANCHOR_MAGIC, 8);
+  frame.writeUInt32LE(SESSION_CLOCK_ANCHOR_VERSION, 12);
+  frame.writeBigUInt64LE(BigInt(frameTimeMs), 16);
+  frame.writeBigUInt64LE(BigInt(utcTimeMs), 24);
+  return frame;
+}
+export function decodeSessionClockAnchorPayload(payload: Buffer): Omit<Extract<SessionCaptureRecord, { kind: "clock-anchor" }>, "offset" | "endOffset"> | null {
+  if (payload.length < 4 || payload.readUInt32LE(0) !== SESSION_CLOCK_ANCHOR_MAGIC) return null;
+  if (payload.length !== 24) throw new Error("Malformed session clock anchor");
+  if (payload.readUInt32LE(4) !== SESSION_CLOCK_ANCHOR_VERSION) throw new Error("Unsupported session clock anchor version");
+  const frameTimeMs = payload.readBigUInt64LE(8);
+  const utcTimeMs = payload.readBigUInt64LE(16);
+  if (frameTimeMs > BigInt(Number.MAX_SAFE_INTEGER) || utcTimeMs > BigInt(Number.MAX_SAFE_INTEGER) ||
+      utcTimeMs > 8_640_000_000_000_000n) throw new Error("Invalid session clock anchor");
+  return { kind: "clock-anchor", frameTimeMs: Number(frameTimeMs), utcTimeMs: Number(utcTimeMs) };
+}
+export function encodeSessionMetadataRecord(record: Exclude<SessionCaptureRecord, { kind: "frame" }>): Buffer {
+  switch (record.kind) {
+    case "clock-anchor": return encodeSessionClockAnchor(record.frameTimeMs, record.utcTimeMs);
+    case "segment-boundary": return encodeSegmentBoundaryFrame();
+    case "segment-context": return encodeSegmentContextFrame();
+    case "segment-context-end": return encodeSegmentContextEndFrame();
+    case "parser-bootstrap": return encodeParserBootstrapFrame(record.gameId, record.payload);
+  }
 }
 export function encodeParserBootstrapFrame(gameId: ParserBootstrapGameId, payload: Uint8Array): Buffer {
   const gameCode = CAPTURE_GAME_IDS.indexOf(gameId) + 1;
@@ -209,6 +248,8 @@ export function* iterateSessionCaptureRecords(
   let checkpointOffset = -1;
   let previous: Buffer | null = null;
   let checkpointIdentity: string | null = null;
+  let sawFrame = false;
+  let sawClockAnchor = false;
   while (offset + 4 <= bytes.length) {
     const recordOffset = offset;
     const isMeta = bytes.readUInt32LE(offset) === META_FRAME_MAGIC;
@@ -225,10 +266,18 @@ export function* iterateSessionCaptureRecords(
       }
       const payloadBytes = bytes.readUInt32LE(offset + 4);
       if (offset + 8 + payloadBytes > bytes.length) {
+        if (bytes.length - (offset + 8) >= 4 && bytes.readUInt32LE(offset + 8) === SESSION_CLOCK_ANCHOR_MAGIC) {
+          throw new Error("Truncated session clock anchor");
+        }
         if (options.strict) throw new Error(`Truncated session capture record at ${offset}`);
         return;
       }
-      if (payloadBytes === 8) {
+      const anchor = decodeSessionClockAnchorPayload(bytes.subarray(offset + 8, offset + 8 + payloadBytes));
+      if (anchor) {
+        if (sawFrame || sawClockAnchor) throw new Error("Invalid or misplaced session clock anchor");
+        sawClockAnchor = true;
+        if (recordOffset >= requestedOffset) yield { ...anchor, offset: recordOffset, endOffset: offset + 8 + payloadBytes };
+      } else if (payloadBytes === 8) {
         const magic = bytes.readUInt32LE(offset + 8);
         const version = bytes.readUInt32LE(offset + 12);
         if (magic === SEGMENT_BOUNDARY_MAGIC && version === SEGMENT_BOUNDARY_VERSION) {
@@ -244,6 +293,9 @@ export function* iterateSessionCaptureRecords(
           checkpointOffset = -1;
           if (recordOffset >= requestedOffset) yield { kind: "segment-context-end", offset: recordOffset, endOffset: offset + 8 + payloadBytes };
         }
+        else if (!(magic === SPARSE_CAPTURE_FORMAT_MAGIC && version === SPARSE_CAPTURE_FORMAT_VERSION) && options.strict) {
+          throw new Error(`Unknown capture segment marker at ${offset}`);
+        }
       } else {
         const bootstrap = decodeParserBootstrapPayload(bytes.subarray(offset + 8, offset + 8 + payloadBytes));
         if (bootstrap) {
@@ -252,10 +304,12 @@ export function* iterateSessionCaptureRecords(
           checkpointIdentity = null;
           if (recordOffset >= requestedOffset) yield { ...bootstrap, offset: recordOffset, endOffset: offset + 8 + payloadBytes };
         }
+        else if (payloadBytes !== META_FRAME_PAYLOAD_BYTES && options.strict) throw new Error(`Unknown capture metadata at ${offset}`);
       }
       offset += 8 + payloadBytes;
       continue;
     }
+    sawFrame = true;
     const frameTimeMs = prefix?.frameTimeMs;
     const payloadOffset = offset + prefix!.prefixBytes;
     if (payloadOffset + length > bytes.length) {
@@ -359,6 +413,8 @@ export async function* iterateSessionCaptureRecordsAsync(
     let previous: Buffer | null = null;
     let checkpointOffset = -1;
     let checkpointIdentity: string | null = null;
+    let sawFrame = false;
+    let sawClockAnchor = false;
     for (;;) {
       const initialMetadata = initialMetadataSize !== undefined;
       const availablePrefix = initialMetadata ? first : await take(4);
@@ -379,7 +435,12 @@ export async function* iterateSessionCaptureRecordsAsync(
         const payload = await take(size);
         if (!payload) throw new Error("Truncated session capture record");
         const endOffset = offset;
-        if (size === 8) {
+        const anchor = decodeSessionClockAnchorPayload(payload);
+        if (anchor) {
+          if (sawFrame || sawClockAnchor) throw new Error("Invalid or misplaced session clock anchor");
+          sawClockAnchor = true;
+          yield { ...anchor, offset: recordOffset, endOffset };
+        } else if (size === 8) {
           const magic = payload.readUInt32LE(0), version = payload.readUInt32LE(4);
           if (magic === SPARSE_CAPTURE_FORMAT_MAGIC && version === SPARSE_CAPTURE_FORMAT_VERSION) {
             // Format marker does not change checkpoint state.
@@ -401,6 +462,7 @@ export async function* iterateSessionCaptureRecordsAsync(
         }
         continue;
       }
+      sawFrame = true;
       const timestamped = (stored & TIMESTAMPED_LENGTH_FLAG) !== 0;
       const length = timestamped ? stored & ~TIMESTAMPED_LENGTH_FLAG : stored;
       if (length > MAX_FRAME_LENGTH) throw new Error("Invalid capture frame length");
@@ -451,7 +513,7 @@ export function* iterateSessionImportFrames(bytes: Buffer): Generator<SessionImp
     else if (record.kind === "segment-context") yield SESSION_SEGMENT_CONTEXT;
     else if (record.kind === "segment-context-end") yield SESSION_SEGMENT_CONTEXT_END;
     else if (record.kind === "parser-bootstrap") yield { kind: record.kind, gameId: record.gameId, formatVersion: record.formatVersion, payload: record.payload };
-    else yield record.frame;
+    else if (record.kind === "frame") yield record.frame;
   }
 }
 export function* iterateSessionFrameRecords(

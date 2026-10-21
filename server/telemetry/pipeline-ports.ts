@@ -18,8 +18,8 @@ import {
   TELEMETRY_PARSER_VERSIONS,
   TELEMETRY_RESOLVER_VERSION,
 } from "@raceiq/shared/telemetry/resolver/versions";
-import { insertSession, updateSessionRawFile, updateSessionCarTrack, markSessionCaptureFormatCurrent } from "../db/session-queries";
-import { deleteLapOnly, insertLap, setLapMetrics, updateLapCarSetup as updateLapCarSetupQuery } from "../db/lap-mutation-queries";
+import { insertSession, updateSessionRawFile, updateSessionCarTrack, markSessionCaptureFormatCurrent, type SessionSourceOrigin } from "../db/session-queries";
+import { deleteLapOnly, insertLap, updateCapturedLap, setLapMetrics, updateLapCarSetup as updateLapCarSetupQuery } from "../db/lap-mutation-queries";
 import { getLaps } from "../db/lap-read-queries";
 import { getLapsForExclusionScope, setLapAutoExclusion, getLapExperimentScope } from "../db/experiment-lap-queries";
 import { notifyDriverProfileLap } from "../driver-profile/lap-notifier";
@@ -30,6 +30,21 @@ import { SparseSessionRecorder } from "@raceiq/capture-formats/session/sparse-re
 import { resolveRecordingGameDirectory } from "../runtime/config/recording-directory";
 import { timestampForFilename } from "../session-capture/filename";
 import { notifyOnlineSync } from "@raceiq/online/sync-events";
+import type { GameIdentityBinding } from "@raceiq/online/contracts";
+import type { DriverAttributionStint, LapDriverAttribution, NativeDriverActor } from "@raceiq/shared/driver-attribution";
+import { getLocalGameBindingSnapshot, upsertLocalGameBinding } from "../db/local-account-queries";
+import { setLapDriverAttribution, replaceSessionDriverAttributionStints } from "../db/driver-summary-ledger-queries";
+import { closeNativeOriginalActivitySource, finalizeNativeOriginalActivitySource } from "../db/original-activity-queries";
+import { encodeNativeDriverBinding } from "../lap-detection/native-attribution";
+
+const AC_EVO_LOCAL_ROLE_IDENTITY = JSON.stringify({ schemaVersion: 1, actorId: "ac-evo-control:local-player", bindingScope: "installation" });
+const LMU_LOCAL_ROLE_IDENTITY = JSON.stringify({ schemaVersion: 1, actorId: "lmu-control:0", bindingScope: "installation" });
+
+export interface CapturedDriverAttribution {
+  stints: DriverAttributionStint[];
+  attribution: LapDriverAttribution;
+  source: { domain: string; startMs: number; endMs: number };
+}
 
 export function currentTelemetryVersionIdentity(gameId: GameId): TelemetryVersionIdentity {
   return {
@@ -70,6 +85,7 @@ export interface CapturedLap {
   /** Populated by parseDump helpers for test assertions only — not present in production. */
   packets?: TelemetryPacket[];
   versionIdentity?: TelemetryVersionIdentity;
+  driverAttribution?: CapturedDriverAttribution;
 }
 
 export interface PersistedLapBinding {
@@ -81,6 +97,10 @@ export interface PersistedLapBinding {
 }
 
 export interface DbAdapter {
+  getDriverBindings(actor?: NativeDriverActor | null): Promise<{ revision: number; bindings: GameIdentityBinding[] }>;
+  setSessionDriverAttribution(sessionId: number, stints: readonly DriverAttributionStint[]): Promise<void>;
+  /** Only a genuine fully drained native source close may publish complete original coverage. */
+  finalizeOriginalActivitySource(sessionId: number): Promise<void>;
   insertSession(
     carId: string,
     trackId: string,
@@ -101,7 +121,10 @@ export interface DbAdapter {
     invalidReason: string | null,
     sectors: number[] | null,
     versionIdentity?: TelemetryVersionIdentity,
+    driverAttribution?: CapturedDriverAttribution,
   ): Promise<number>;
+  /** Complete the exact retained provisional row without changing its durable identity. */
+  completeProvisionalLap(lapId: number, ...args: Parameters<DbAdapter["insertLap"]>): Promise<number>;
   deleteLap(lapId: number): Promise<void>;
   /** Persist precomputed per-lap fuel/tyre metrics (migration v32 columns).
    *  Called right after insertLap so /lap-metrics is a pure column read and
@@ -171,14 +194,19 @@ export class RealDbAdapter implements DbAdapter {
   private readonly lapInvalidationListeners = new Set<(lapId: number) => void>();
 
   async drainLapWrites(sessionId: number): Promise<void> {
-    try {
-      const writes = this.pendingLapWrites.get(sessionId);
-      if (writes) await Promise.all(writes);
-      const failure = this.lapWriteFailures.get(sessionId);
-      if (failure) throw failure;
-    } finally {
-      this.lapWriteFailures.delete(sessionId);
+    const writes = this.pendingLapWrites.get(sessionId);
+    let rejectedWrite: Error | null = null;
+    if (writes) {
+      const results = await Promise.allSettled(writes);
+      for (const result of results) {
+        if (result.status === "rejected" && !rejectedWrite) {
+          rejectedWrite = result.reason instanceof Error ? result.reason : new Error(String(result.reason));
+        }
+      }
     }
+    // A failed source write is not repaired by a second drain. Never certify its partial membership.
+    const failure = this.lapWriteFailures.get(sessionId) ?? rejectedWrite;
+    if (failure) throw failure;
   }
 
   subscribeLapBindings(listener: (binding: PersistedLapBinding) => void): () => void {
@@ -200,21 +228,108 @@ export class RealDbAdapter implements DbAdapter {
     carId: string;
     trackId: string;
     versionIdentity: TelemetryVersionIdentity;
+    lapIds: Set<number>;
+    sourceRevision: string | null;
   }>();
-  private readonly options: { notifyDriverProfile?: boolean; ownership?: SessionOwnership };
+  private readonly options: { notifyDriverProfile?: boolean; ownership?: SessionOwnership; sourceOrigin?: SessionSourceOrigin };
+  private bindingSnapshot: Promise<{ revision: number; bindings: GameIdentityBinding[] }> | null = null;
+  private bindingSnapshotAt = -Infinity;
+  private f1NativeIdentity: { sessionId: string; actorId: string; value: string } | null = null;
 
-  constructor(options: { notifyDriverProfile?: boolean; ownership?: SessionOwnership } = {}) {
+  constructor(options: { notifyDriverProfile?: boolean; ownership?: SessionOwnership; sourceOrigin?: SessionSourceOrigin } = {}) {
     this.options = options;
   }
 
+  invalidateDriverBindingSnapshot(): void {
+    this.bindingSnapshot = null;
+    this.bindingSnapshotAt = -Infinity;
+  }
+
+  async getDriverBindings(actor?: NativeDriverActor | null): Promise<{ revision: number; bindings: GameIdentityBinding[] }> {
+    // This wall clock only throttles DB reads; it is never attribution/source evidence.
+    const now = performance.now();
+    if (!this.bindingSnapshot || now - this.bindingSnapshotAt >= 250) {
+      this.bindingSnapshotAt = now;
+      this.bindingSnapshot = getLocalGameBindingSnapshot().catch((error) => {
+        this.bindingSnapshot = null;
+        throw error;
+      });
+    }
+    const snapshotPromise = this.bindingSnapshot;
+    const snapshot = await snapshotPromise;
+    const localRole = actor && (
+      (actor.gameId === "ac-evo" && actor.source === "ac-evo-shared-memory" &&
+        (actor.actorId === "ac-evo-control:local-player" || actor.actorId === "ac-evo-control:other") && actor.bindingScope === "installation") ||
+      (actor.gameId === "lmu" && actor.source === "lmu-shared-memory-player-scoring" &&
+        (actor.actorId === "lmu-control:0" || actor.actorId === "lmu-control:1" || actor.actorId === "lmu-control:2") && actor.bindingScope === "installation") ||
+      (actor.gameId === "f1-2025" && actor.source === "f1-2025-udp-local-controller" &&
+        actor.bindingScope === "session" && actor.actorId === (this.f1NativeIdentity?.sessionId === actor.sessionId
+          ? this.f1NativeIdentity.actorId : `${actor.sessionId}:local-player`)));
+    if (!localRole || this.options.sourceOrigin?.kind !== "native_capture") return snapshot;
+    const existing = snapshot.bindings.find((binding) => binding.gameId === actor.gameId);
+    if (existing && (existing.confirmation === "user_confirmed" || existing.sourceKind !== actor.source)) return snapshot;
+    // Bind the SDK's defined local control role, not the currently observed actor.
+    // A current AI/remote observation stays Other; no synthetic Self observation is made.
+    if (actor.gameId === "f1-2025" && this.f1NativeIdentity?.sessionId !== actor.sessionId) {
+      this.f1NativeIdentity = { sessionId: actor.sessionId, actorId: actor.actorId, value: encodeNativeDriverBinding(actor) };
+    }
+    const nativeIdentity = actor.gameId === "ac-evo" ? AC_EVO_LOCAL_ROLE_IDENTITY
+      : actor.gameId === "lmu" ? LMU_LOCAL_ROLE_IDENTITY : this.f1NativeIdentity!.value;
+    if (existing?.nativeIdentity === nativeIdentity) return snapshot;
+    try {
+      await upsertLocalGameBinding({ id: existing?.id ?? randomUUID(), gameId: actor.gameId,
+        sourceKind: actor.source, nativeIdentity, confirmation: "native_verified", revision: (existing?.revision ?? 0) + 1 },
+      { expectedSnapshotRevision: snapshot.revision, isCurrent: () => this.bindingSnapshot === snapshotPromise });
+    } catch (error) {
+      if (typeof error !== "object" || error === null || !("code" in error) || error.code !== "stale_state") throw error;
+      // A concurrent explicit confirmation wins; observe its actual row without retrying a write.
+      this.invalidateDriverBindingSnapshot();
+      return this.getDriverBindings();
+    }
+    this.bindingSnapshot = getLocalGameBindingSnapshot();
+    return this.bindingSnapshot;
+  }
+  setSessionDriverAttribution(sessionId: number, stints: readonly DriverAttributionStint[]): Promise<void> {
+    return replaceSessionDriverAttributionStints(sessionId, stints);
+  }
+  setOriginalActivitySourceRevision(sessionId: number, sourceRevision: string): void {
+    const scope = this.sessionScopes.get(sessionId);
+    if (scope && sourceRevision.trim()) scope.sourceRevision = sourceRevision;
+  }
+  /** Release only after genuine source close; this never publishes coverage. */
+  releaseSessionSourceTracking(sessionId: number): void {
+    this.sessionScopes.delete(sessionId);
+    this.lapWriteFailures.delete(sessionId);
+  }
+  async finalizeOriginalActivitySource(sessionId: number): Promise<void> {
+    if (this.options.sourceOrigin?.kind !== "native_capture") return;
+    await this.drainLapWrites(sessionId);
+    const scope = this.sessionScopes.get(sessionId);
+    if (!scope?.sourceRevision) return;
+    // The actual manifest/observed-source revision is independent of the DB's
+    // source-content equivalence hash and immutable original activity identity.
+    await closeNativeOriginalActivitySource(sessionId, {
+      sourceRevision: scope.sourceRevision, lapCount: scope.lapIds.size, gapCount: 0,
+    });
+    await finalizeNativeOriginalActivitySource(sessionId);
+    this.releaseSessionSourceTracking(sessionId);
+  }
   async insertSession(carId: string, trackId: string, gameId: GameId, sessionType?: string, versionIdentity?: TelemetryVersionIdentity, ownership?: SessionOwnership): Promise<number> {
     const identity = versionIdentity ?? currentTelemetryVersionIdentity(gameId);
-    const sessionId = await insertSession(carId, trackId, gameId, sessionType, identity, ownership ?? this.options.ownership);
-    this.sessionScopes.set(sessionId, { gameId, carId, trackId, versionIdentity: identity });
+    const sessionId = await insertSession(carId, trackId, gameId, sessionType, identity, ownership ?? this.options.ownership, this.options.sourceOrigin ?? { kind: "unknown" });
+    this.sessionScopes.set(sessionId, { gameId, carId, trackId, versionIdentity: identity, lapIds: new Set(), sourceRevision: null });
     return sessionId;
   }
 
-  insertLap(sessionId: number, lapNumber: number, lapTime: number, isValid: boolean, rawByteOffset: number | null, rawFrameCount: number, profileId: number | null, tuneId: number | null, invalidReason: string | null, sectors: number[] | null, versionIdentity?: TelemetryVersionIdentity): Promise<number> {
+  insertLap(sessionId: number, lapNumber: number, lapTime: number, isValid: boolean, rawByteOffset: number | null, rawFrameCount: number, profileId: number | null, tuneId: number | null, invalidReason: string | null, sectors: number[] | null, versionIdentity?: TelemetryVersionIdentity, driverAttribution?: CapturedDriverAttribution): Promise<number> {
+    return this.writeLap(null, sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity, driverAttribution);
+  }
+  completeProvisionalLap(lapId: number, ...args: Parameters<DbAdapter["insertLap"]>): Promise<number> {
+    return this.writeLap(lapId, ...args);
+  }
+  private writeLap(retainedLapId: number | null, sessionId: number, lapNumber: number, lapTime: number, isValid: boolean, rawByteOffset: number | null, rawFrameCount: number, profileId: number | null, tuneId: number | null, invalidReason: string | null, sectors: number[] | null, versionIdentity?: TelemetryVersionIdentity, driverAttribution?: CapturedDriverAttribution): Promise<number> {
+    // Remove the short provisional capture binding before the engine seals its extended window.
+    if (retainedLapId !== null) for (const listener of this.lapInvalidationListeners) listener(retainedLapId);
     let writes = this.pendingLapWrites.get(sessionId);
     if (!writes) {
       writes = new Set();
@@ -222,7 +337,11 @@ export class RealDbAdapter implements DbAdapter {
     }
     const pending = (async () => {
       const scope = this.sessionScopes.get(sessionId);
-      const lapId = await insertLap(sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity ?? scope?.versionIdentity);
+      const lapId = retainedLapId === null
+        ? await insertLap(sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity ?? scope?.versionIdentity)
+        : await updateCapturedLap(retainedLapId, sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity ?? scope?.versionIdentity);
+      if (driverAttribution) await setLapDriverAttribution(lapId, driverAttribution.stints, driverAttribution.attribution, driverAttribution.source);
+      scope?.lapIds.add(lapId);
       if (scope && this.options.notifyDriverProfile !== false) notifyDriverProfileLap(scope.gameId);
       if (rawByteOffset !== null) {
         const binding = { sessionId, lapId, lapNumber, startByteOffset: rawByteOffset, frameCount: rawFrameCount };
@@ -245,6 +364,7 @@ export class RealDbAdapter implements DbAdapter {
   }
   async deleteLap(lapId: number): Promise<void> {
     await deleteLapOnly(lapId);
+    for (const scope of this.sessionScopes.values()) scope.lapIds.delete(lapId);
     for (const listener of this.lapInvalidationListeners) listener(lapId);
   }
   setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void> {
@@ -287,17 +407,45 @@ export class CapturingDbAdapter implements DbAdapter {
   private _sessionId = 0;
   private _lapId = 0;
   private readonly _lapIds: number[] = [];
+  readonly finalizedOriginalActivities: number[] = [];
+  readonly sessionAttribution = new Map<number, readonly DriverAttributionStint[]>();
+  driverBindings: { revision: number; bindings: GameIdentityBinding[] } = { revision: 0, bindings: [] };
+  getDriverBindings(): Promise<{ revision: number; bindings: GameIdentityBinding[] }> {
+    return Promise.resolve(this.driverBindings);
+  }
+  setSessionDriverAttribution(sessionId: number, stints: readonly DriverAttributionStint[]): Promise<void> {
+    this.sessionAttribution.set(sessionId, structuredClone(stints));
+    return Promise.resolve();
+  }
+  finalizeOriginalActivitySource(sessionId: number): Promise<void> {
+    this.finalizedOriginalActivities.push(sessionId);
+    return Promise.resolve();
+  }
 
   insertSession(carId: string, trackId: string, gameId: GameId, sessionType?: string, versionIdentity?: TelemetryVersionIdentity, ownership?: SessionOwnership): Promise<number> {
     this.sessions.push({ carId, trackId, gameId, sessionType, versionIdentity, ownership });
     return Promise.resolve(++this._sessionId);
   }
 
-  insertLap(sessionId: number, lapNumber: number, lapTime: number, isValid: boolean, rawByteOffset: number | null, rawFrameCount: number, profileId: number | null, tuneId: number | null, invalidReason: string | null, sectors: number[] | null, versionIdentity?: TelemetryVersionIdentity): Promise<number> {
-    this.laps.push({ sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity });
+  insertLap(sessionId: number, lapNumber: number, lapTime: number, isValid: boolean, rawByteOffset: number | null, rawFrameCount: number, profileId: number | null, tuneId: number | null, invalidReason: string | null, sectors: number[] | null, versionIdentity?: TelemetryVersionIdentity, driverAttribution?: CapturedDriverAttribution): Promise<number> {
+    this.laps.push({ sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity, driverAttribution });
     const id = ++this._lapId;
     this._lapIds.push(id);
     return Promise.resolve(id);
+  }
+
+  completeProvisionalLap(lapId: number, ...args: Parameters<DbAdapter["insertLap"]>): Promise<number> {
+    const index = this._lapIds.indexOf(lapId);
+    const existing = this.laps[index];
+    const [sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId,
+      invalidReason, sectors, versionIdentity, driverAttribution] = args;
+    if (!existing || existing.sessionId !== sessionId || existing.lapNumber !== lapNumber ||
+      existing.rawByteOffset !== rawByteOffset || existing.rawFrameCount > rawFrameCount || existing.isValid) {
+      return Promise.reject(new Error("Provisional lap source window changed"));
+    }
+    this.laps[index] = { sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId,
+      tuneId, invalidReason, sectors, versionIdentity, driverAttribution };
+    return Promise.resolve(lapId);
   }
 
   readonly lapMetrics: { lapId: number; fuelPerLap: number | null; tyreWear: number | null }[] = [];
@@ -364,11 +512,17 @@ export class NullWsAdapter implements WsAdapter {
 
 /** No-op database adapter. Used in benchmarks and tests that don't need DB output. */
 export class NullDbAdapter implements DbAdapter {
+  getDriverBindings(): Promise<{ revision: number; bindings: GameIdentityBinding[] }> { return Promise.resolve({ revision: 0, bindings: [] }); }
+  setSessionDriverAttribution(_sessionId: number, _stints: readonly DriverAttributionStint[]): Promise<void> { return Promise.resolve(); }
+  finalizeOriginalActivitySource(_sessionId: number): Promise<void> { return Promise.resolve(); }
   insertSession(_carId: string, _trackId: string, _gameId: GameId, _sessionType?: string, _versionIdentity?: TelemetryVersionIdentity, _ownership?: SessionOwnership): Promise<number> {
     return Promise.resolve(1);
   }
   insertLap(_sessionId: number, _lapNumber: number, _lapTime: number, _isValid: boolean, _rawByteOffset: number | null, _rawFrameCount: number, _profileId: number | null, _tuneId: number | null, _invalidReason: string | null, _sectors: number[] | null, _versionIdentity?: TelemetryVersionIdentity): Promise<number> {
     return Promise.resolve(1);
+  }
+  completeProvisionalLap(lapId: number, ..._args: Parameters<DbAdapter["insertLap"]>): Promise<number> {
+    return Promise.resolve(lapId);
   }
   setLapMetrics(_lapId: number, _fuelPerLap: number | null, _tyreWear: number | null): Promise<void> {
     return Promise.resolve();

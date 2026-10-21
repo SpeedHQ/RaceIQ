@@ -2,6 +2,8 @@
 
 
 ### Features
+- Track personal driving separately from shared-car teammates and borrowed laps, retaining incomplete coverage when driver or duration evidence is unavailable.
+- Show account-wide reported lifetime statistics separately from local dashboard periods.
 - Open downloadable Community Laps directly in RaceIQ for replay and comparison, with the original driver's name and recording time.
 - Open website lap links in the installed Windows app, resume downloads after sign-in, and reuse already imported laps.
 - Add optional RaceIQ Online onboarding, Online controls in General settings, and separate Community Laps while keeping offline features available.
@@ -13,6 +15,13 @@
 - Split recordings into individual, lossless per-lap `.bin` files so lap 60 loads as fast as lap 1.
 
 ### Fixes
+- Preserve the recorded controller coverage at LMU lap starts when preparing Online uploads, including older recordings and polls with equal recording timestamps.
+- Accept supported F1 25 ancillary packets in Online uploads while keeping F1 World eligibility and setup-sharing choices unchanged.
+- Save downloaded Community replays in the other-driver recording folder without repeatedly asking to organize recordings; retain setup cleanup and interrupted-import recovery.
+- Preserve original lap identifiers, driver provenance and recorded timing when exporting, importing or reprocessing portable recordings.
+- Preserve recorded clock mappings when recovering interrupted recordings.
+- Remove stale personal dashboard credit when a lap's driver attribution changes.
+- Restore Online connection state after refreshing a saved sign-in.
 - Report Online queue counts and the last successful upload from durable account-owned outcomes, preserving sync history across restarts without advancing it after failures or status refreshes.
 - Keep cloud lap import polling off login and setup screens, and acknowledge opened laps so new dashboard tabs do not reopen old imports.
 - Keep overlays on their current page when cloud laps are opened.
@@ -48,10 +57,11 @@
 - Hide iRacing 3D track, racing-line, tire-trail, and input overlays because live telemetry does not provide world-position samples.
 
 ### Internal
+- Run Online delivery and preparation in a dedicated worker, with loopback-only E2E transports, including replay downloads, and an empty test credential store.
 - Preserve Online cloud imports and queue delivery alongside main's per-lap recording publication; cloud upload integration must consume published lap files rather than split sessions again.
 - Use pinned Effect PersistedQueue and SQLite for Online delivery, retaining account-owned request identity and sync history.
 - Extract Online contracts, account service, adapter, upload delivery and storage into a dedicated workspace.
-- Upgrade Online to `@speedhq/live-client@0.1.13`, including authenticated leaderboards, reserved uploads, and manifest-v2 lap imports.
+- Upgrade Online to `@speedhq/live-client@0.2.0`, including original-activity contribution hashing, owner readback and manifest-v3 lap imports.
 - Reuse generic lap-bundle construction and separate capture-file accounting from `@raceiq/capture-splitting`; keep downsampling orchestration, database publication, and game adapters in the server.
 - Isolate streaming downsampling and its regression suite in `@raceiq/capture-downsampling`, depending on public capture-format codecs without importing backend policy or lap splitting.
 - Verify onboarding migration recovery through Storage re-entry with deterministic cache expiry, without relying on a hidden no-work Refresh control.

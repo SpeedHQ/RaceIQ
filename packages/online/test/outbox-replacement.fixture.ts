@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { clearRetiredOutboxPayloads, enqueueOutboxJob, getOutboxJob, listDeliverableOutboxJobs, listRetiredOutboxPayloads, persistOutboxPayload, withdrawAccountOutboxJobs } from "../src/outbox-storage";
 import { cleanupRetiredOnlinePayloads } from "../src/upload-dispatch";
+import { lapIdentity } from "./lap-identity.fixture";
 
 const root = join(process.env.DATA_DIR!, "online-upload-payloads");
 const original = join(root, "recording-original.bin");
@@ -15,7 +16,7 @@ if (process.argv[2] === "prepare") {
   await mkdir(root, { recursive: true });
   await writeFile(original, "original-recording");
   await writeFile(originalSetup, "original-setup");
-  const identity = { accountId, accountEpoch: "replacement-epoch", gameId: "acc", trackId: "replacement-track", carId: "car", lapId: 1, lapTimeMs: 90_000 };
+  const identity = { accountId, accountEpoch: "replacement-epoch", gameId: "acc", trackId: "replacement-track", carId: "car", lapId: 1, lapTimeMs: 90_000,identity:lapIdentity(accountId) };
   assert.equal(await enqueueOutboxJob(identity), "queued");
   const [job] = await listDeliverableOutboxJobs(accountId);
   assert.ok(job);
@@ -69,6 +70,7 @@ if (process.argv[2] === "prepare") {
   assert.equal(await enqueueOutboxJob({
     accountId: terminalAccount, accountEpoch: "terminal-epoch", gameId: "acc", trackId: "terminal-track",
     carId: "car", lapId: 2, lapTimeMs: 91_000,
+    identity:lapIdentity(terminalAccount),
   }), "queued");
   const [terminalJob] = await listDeliverableOutboxJobs(terminalAccount);
   assert.ok(terminalJob);

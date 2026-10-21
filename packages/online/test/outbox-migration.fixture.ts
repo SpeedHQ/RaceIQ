@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { createClient } from "@libsql/client/sqlite3";
-import { enqueueOutboxJob, listDeliverableOutboxJobs, ensureOutboxStorage } from "../src/outbox-storage";
+import { listDeliverableOutboxJobs,ensureOutboxStorage } from "../src/outbox-storage";
 
 const directory = process.env.DATA_DIR;
 if (!directory) throw new Error("DATA_DIR required");
@@ -34,7 +34,7 @@ await seedDb.execute(`INSERT OR IGNORE INTO raceiq_online_outbox
          (7,'recovery-owner','new-epoch','acc','cross-epoch-track','car',7,84000,'pending',0,0,34,34,'new-cross-epoch-key',NULL)`);
 await seedDb.close();
 const resultDb = createClient({ url: `file:${join(directory, "raceiq-online-outbox.db")}` });
-const rows = await resultDb.execute("SELECT status,upload_key,transmitted_at FROM raceiq_online_outbox ORDER BY row_id");
+const rows=await resultDb.execute("SELECT status,upload_key,transmitted_at,identity_json FROM raceiq_online_outbox ORDER BY row_id");
 const deliverable = await listDeliverableOutboxJobs("legacy-owner");
 const recovered = await listDeliverableOutboxJobs("recovery-owner");
 console.log(JSON.stringify({ rows: rows.rows, deliverableCount: deliverable.length,

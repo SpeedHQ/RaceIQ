@@ -3,6 +3,8 @@ import {
   resolveLMUCar,
   resolveLMUTrack,
 } from "@raceiq/game-lmu-metadata/catalog";
+import type { NativeDriverActor } from "@raceiq/shared/driver-attribution";
+import { lmuDriverAttributionCapability } from "@raceiq/game-lmu-metadata/driver-attribution";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { LMUExtendedData } from "@raceiq/shared/telemetry/lmu";
 import {
@@ -247,10 +249,11 @@ export function normalizeLMUSourceFrame(
     WHEEL_KEYS.map((key, index) => [key, wheel(telemetry, index)]),
   ) as Record<WheelKey, NormalizedWheel>;
 
-  const elapsedTime = Math.max(
-    0,
-    finiteDouble(telemetry, LMU_TELEMETRY.elapsedTime),
-  );
+  const sourceElapsedTime = telemetry.readDoubleLE(LMU_TELEMETRY.elapsedTime);
+  const sourceScoringTime = scoringInfo.readDoubleLE(LMU_SCORING_INFO.currentElapsedTime);
+  const hasSourceElapsedTime = Number.isFinite(sourceElapsedTime) && sourceElapsedTime >= 0;
+  const hasSourceScoringTime = Number.isFinite(sourceScoringTime) && sourceScoringTime >= 0;
+  const elapsedTime = hasSourceElapsedTime ? sourceElapsedTime : 0;
   const lapStartElapsedTime = Math.max(
     0,
     finiteDouble(telemetry, LMU_TELEMETRY.lapStartElapsedTime),
@@ -321,6 +324,8 @@ export function normalizeLMUSourceFrame(
     carId: identity.carId,
     trackId: identity.trackId,
     gameVersion: frame.gameVersion,
+    elapsedTime: hasSourceElapsedTime ? sourceElapsedTime : null,
+    scoringCurrentElapsedTime: hasSourceScoringTime ? sourceScoringTime : null,
     sessionType: LMU_SESSION_TYPES[sessionTypeOrdinal] ?? "unknown",
     sessionTypeOrdinal,
     deltaBest: finiteDouble(telemetry, LMU_TELEMETRY.deltaBest),
@@ -377,20 +382,39 @@ export function normalizeLMUSourceFrame(
     ),
     cloudCoverage,
   };
+  const sessionUID = JSON.stringify([
+    frame.gameVersion,
+    frame.sessionEvent,
+    scoringInfo.readInt32LE(LMU_SCORING_INFO.session),
+    identity.carId,
+    identity.trackId,
+    telemetry.readInt32LE(LMU_TELEMETRY.id),
+  ]);
+  const controlRole = scoring?.readInt8(LMU_SCORING_VEHICLE.mControl);
+  const driverActor: NativeDriverActor | null = scoring &&
+    scoring.readUInt8(LMU_SCORING_VEHICLE.isPlayer) === 1 &&
+    (controlRole === 0 || controlRole === 1 || controlRole === 2) &&
+    hasSourceElapsedTime && hasSourceScoringTime && sourceScoringTime <= sourceElapsedTime &&
+    (sourceElapsedTime - sourceScoringTime) * 1000 <= 2_000
+    ? {
+      gameId: "lmu",
+      source: lmuDriverAttributionCapability.source,
+      actorId: `lmu-control:${controlRole}`,
+      bindingScope: "installation",
+      sessionId: sessionUID,
+      clockDomain: `lmu-session:${sessionUID}`,
+      observedAtMs: sourceScoringTime * 1000,
+    }
+    : null;
 
   return {
+    driverActor,
     gameId: "lmu",
     lmu,
-    sessionUID: JSON.stringify([
-      frame.gameVersion,
-      frame.sessionEvent,
-      scoringInfo.readInt32LE(LMU_SCORING_INFO.session),
-      identity.carId,
-      identity.trackId,
-    ]),
+    sessionUID,
     IsRaceOn:
       scoringInfo.readUInt8(LMU_SCORING_INFO.inRealtime) !== 0 ? 1 : 0,
-    TimestampMS: Math.round(frame.captureTimestampMs),
+    TimestampMS: frame.captureTimestampMs,
     EngineMaxRpm: Math.max(
       0,
       finiteDouble(telemetry, LMU_TELEMETRY.engineMaxRpm),

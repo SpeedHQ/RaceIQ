@@ -9,4 +9,9 @@ export const f1Parser: TelemetryParser<F1StateAccumulator> = {
   tryParseLapIndex(buf, state): LapIndexPacket | null { return this.tryParse(buf, state) as unknown as LapIndexPacket; },
   primeParserState(buf, state) { state.primeParserState(parseF1Header(buf), buf); },
   createParserState() { return new F1StateAccumulator(); },
+  restoreParserCheckpoint(state, payload) {
+    state.restoreCheckpoint(payload);
+    return state;
+  },
+  invalidateDriverEvidence(state) { state.invalidateDriverEvidence(); },
 };

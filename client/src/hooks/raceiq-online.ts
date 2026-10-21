@@ -21,7 +21,7 @@ function getSession(qc: QueryClient, port: RaceIqOnlinePort): OnlineSession {
   return session;
 }
 function update(session: OnlineSession, change: Partial<Snapshot>): void { session.snapshot = { ...session.snapshot, ...change }; for (const listener of session.listeners) listener(); }
-const leaderboardAllowed = (state: OnlineState | undefined): boolean => !!state && state.connection.status === "connected" && state.consent.status === "accepted" && state.preferences?.visibility === "public" && state.preferencePersistence === "confirmed";
+const leaderboardAllowed = (state: OnlineState | undefined): boolean => !!state && state.service === "available" && state.connection.status === "connected" && state.policy.status === "available" && state.consent.status === "accepted" && state.consent.versions.termsVersion === state.policy.versions.termsVersion && state.consent.versions.privacyVersion === state.policy.versions.privacyVersion && state.preferences?.visibility === "public" && state.persistedPreferences?.visibility === "public" && state.preferencePersistence === "confirmed";
 function syncLeaderboardAccess(session: OnlineSession, state = session.snapshot.state): boolean {
   const allowed = leaderboardAllowed(state) && !session.snapshot.signOutPending && !session.snapshot.accountHidden && !session.snapshot.privacyBarrier;
   if (allowed === session.snapshot.leaderboardAccess) return allowed;
@@ -259,7 +259,10 @@ export function useRaceIqOnline(options: { enabled?: boolean } = {}) {
   const transportError = snapshot.transportError ?? (stateQuery.error instanceof OnlineTransportFailure ? stateQuery.error : null);
   const canAuthenticate = !!state && !snapshot.isCachedState && !transportError && !snapshot.signOutPending && !snapshot.accountHidden;
   const canMutate = !!state && canAuthenticate && state.service === "available" && state.connection.status === "connected" && state.policy.status === "available";
-  return { state, isCachedState: snapshot.isCachedState, canAuthenticate, canMutate, isPending: options.enabled !== false && stateQuery.isPending && !stateQuery.error && !snapshot.state && !snapshot.accountHidden, transportError, commandError: snapshot.commandError, isMutating: snapshot.mutations > 0, signOutPending: snapshot.signOutPending, accountHidden: snapshot.accountHidden, refresh, connect, cancelSignIn, acceptConsent, setPreferences, setDisplayName, signOut };
+  const communityAllowed = !snapshot.isCachedState && !transportError && leaderboardAllowed(state) && snapshot.leaderboardAccess && !snapshot.privacyBarrier;
+  const isCurrentContext = () => session.snapshot.generation === snapshot.generation && session.snapshot.leaderboardGeneration === snapshot.leaderboardGeneration && session.snapshot.state?.accountEpoch === state?.accountEpoch && session.snapshot.state?.revision === state?.revision && !session.snapshot.accountHidden && !session.snapshot.signOutPending;
+  const isCurrentCommunityContext = () => isCurrentContext() && session.snapshot.leaderboardGeneration === snapshot.leaderboardGeneration && !session.snapshot.isCachedState && !session.snapshot.transportError && !session.snapshot.privacyBarrier && session.snapshot.leaderboardAccess && leaderboardAllowed(session.snapshot.state);
+  return { state, isCachedState: snapshot.isCachedState, canAuthenticate, canMutate, communityAllowed, communityGeneration: snapshot.leaderboardGeneration, isCurrentContext, isCurrentCommunityContext, isPending: options.enabled !== false && stateQuery.isPending && !stateQuery.error && !snapshot.state && !snapshot.accountHidden, transportError, commandError: snapshot.commandError, isMutating: snapshot.mutations > 0, signOutPending: snapshot.signOutPending, accountHidden: snapshot.accountHidden, refresh, connect, cancelSignIn, acceptConsent, setPreferences, setDisplayName, signOut };
 }
 
 export function useOnlineLeaderboard(input: LeaderboardInput | null) {
@@ -269,8 +272,8 @@ export function useOnlineLeaderboard(input: LeaderboardInput | null) {
   const session = getSession(qc, port);
   const epoch = online.state?.accountEpoch ?? null;
   const generation = session.snapshot.generation;
-  const allowed = !online.isCachedState && leaderboardAllowed(online.state) && !online.signOutPending && !online.accountHidden && !session.snapshot.privacyBarrier && session.snapshot.leaderboardAccess;
-  const key = queryKeys.raceIqOnlineLeaderboard(input?.gameId ?? "", input?.trackId ?? "", input?.carId ?? "", epoch);
+  const allowed = online.communityAllowed;
+  const key = [...queryKeys.raceIqOnlineLeaderboard(input?.gameId ?? "", input?.trackId ?? "", input?.carId ?? "", epoch), online.state?.revision, online.communityGeneration] as const;
   const query = useQuery<OnlineLeaderboard>({
     queryKey: key,
     queryFn: async () => {
@@ -278,7 +281,7 @@ export function useOnlineLeaderboard(input: LeaderboardInput | null) {
       const startedAtGeneration = session.snapshot.generation;
       const startedLeaderboardGeneration = session.snapshot.leaderboardGeneration;
       const board = await port.getLeaderboard(input);
-      if (!session.snapshot.leaderboardAccess || !isCurrentOnlineGeneration(startedLeaderboardGeneration, session.snapshot.leaderboardGeneration) || !isCurrentOnlineGeneration(startedAtGeneration, session.snapshot.generation) || !isCurrentOnlineGeneration(generation, startedAtGeneration) || session.snapshot.signOutPending || session.snapshot.accountHidden) throw new CancelledError({ silent: true });
+      if (!online.isCurrentCommunityContext() || !session.snapshot.leaderboardAccess || !isCurrentOnlineGeneration(startedLeaderboardGeneration, session.snapshot.leaderboardGeneration) || !isCurrentOnlineGeneration(startedAtGeneration, session.snapshot.generation) || !isCurrentOnlineGeneration(generation, startedAtGeneration) || session.snapshot.signOutPending || session.snapshot.accountHidden) throw new CancelledError({ silent: true });
       if (board.key.gameId !== input.gameId || board.key.trackId !== input.trackId || board.key.carId !== input.carId) throw new OnlineTransportFailure("invalid_response");
       return board;
     },
@@ -291,7 +294,7 @@ export function useOnlineLeaderboard(input: LeaderboardInput | null) {
     if (allowed) return;
     void qc.cancelQueries({ queryKey: key });
     void qc.removeQueries({ queryKey: key });
-  }, [allowed, qc, key[1], key[2], key[3], key[4]]);
+  }, [allowed, qc, key[2], key[3], key[4], epoch, online.state?.revision, online.communityGeneration]);
   if (!allowed) {
     return { ...query, accessAllowed: false, data: undefined, isPending: false, refetch: async () => ({ ...query, data: undefined }) };
   }

@@ -93,6 +93,10 @@ export const f1ServerAdapter: ServerGameAdapter = {
     state.restoreCheckpoint(payload);
     return state;
   },
+  invalidateDriverEvidence(state) {
+    if (!(state instanceof F1StateAccumulator)) throw new Error("Missing f1-2025 parser state for driver evidence invalidation");
+    state.invalidateDriverEvidence();
+  },
 
   aiSystemPrompt: F1_SYSTEM_PROMPT,
 

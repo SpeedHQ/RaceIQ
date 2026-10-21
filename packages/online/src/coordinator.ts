@@ -24,6 +24,7 @@ export type OnlineUploadCoordinatorService = {
   dispatchUnderPrivacyBarrier: DispatchUnderPrivacyBarrier;
   onReconciled?: (accountId: string) => void;
   afterDelivery?: () => void | Promise<void>;
+  scan?: (context:OnlineUploadContext)=>Promise<void>;
 };
 
 export type OnlineUploadCoordinatorTestOptions = {
@@ -32,7 +33,7 @@ export type OnlineUploadCoordinatorTestOptions = {
   readonly queuePollInterval?: Duration.Input;
   readonly retrySchedule?: Schedule.Schedule<unknown, number>;
 };
-export interface OnlineUploadCoordinator { stop(): Promise<void> }
+export interface OnlineUploadCoordinator {readonly ready:Promise<void>;readonly completion:Promise<void>;stop():Promise<void>}
 
 export function startOnlineUploadCoordinator(
   service: OnlineUploadCoordinatorService,
@@ -46,13 +47,15 @@ export function startOnlineUploadCoordinator(
     ...(testOptions.lockExpiration === undefined ? {} : { lockExpiration: testOptions.lockExpiration }),
   });
   let stopping = false;
+  const started=Promise.withResolvers<void>();
   const unsubscribe = subscribeOnlineSync(() => { void Effect.runPromise(Queue.offer(wakeups, undefined)); });
   const program = Effect.gen(function*() {
+    yield* Effect.sync(()=>started.resolve());
     while (!stopping) {
       yield* Effect.tryPromise({ try: cleanupRetiredOnlinePayloads, catch: (error) => error }).pipe(
         Effect.catchCause((cause) => {
           if (Cause.hasInterruptsOnly(cause)) return Effect.failCause(cause);
-          console.error("[OnlineUpload] Payload cleanup failed", Cause.pretty(cause));
+          console.error("[OnlineUpload] Payload cleanup unavailable");
           return Effect.void;
         }),
       );
@@ -60,7 +63,7 @@ export function startOnlineUploadCoordinator(
       const context = yield* Effect.tryPromise({ try: () => service.getUploadContext(), catch: (error) => error }).pipe(
         Effect.catchCause((cause) => {
           if (Cause.hasInterruptsOnly(cause)) return Effect.failCause(cause);
-          console.error("[OnlineUpload] Credential recheck failed", Cause.pretty(cause));
+          console.error("[OnlineUpload] Credentials unavailable");
           return Effect.succeed(null);
         }),
       );
@@ -120,11 +123,12 @@ export function startOnlineUploadCoordinator(
           }
         })).pipe(Effect.catchCause((cause) => {
           if (Cause.hasInterruptsOnly(cause)) return Effect.failCause(cause);
-          console.error("[OnlineUpload] Queue delivery failed", Cause.pretty(cause));
+          console.error("[OnlineUpload] Delivery unavailable");
           return Effect.void;
         })));
         const deliveryFiber = yield* Effect.forkScoped()(delivery);
         const reconcile = Effect.gen(function*() {
+          if(service.scan) yield* Effect.tryPromise({try:()=>service.scan!(context),catch:()=>new Error("online_scan")});
           const jobs = yield* Effect.tryPromise({ try: () => listDeliverableOutboxJobs(context.accountId), catch: (error) => error });
           for (const job of jobs) {
             if (job.uploadKey) {
@@ -139,7 +143,7 @@ export function startOnlineUploadCoordinator(
           }
         }).pipe(Effect.catchCause((cause) => {
           if (Cause.hasInterruptsOnly(cause)) return Effect.failCause(cause);
-          console.error("[OnlineUpload] Queue reconciliation failed", Cause.pretty(cause));
+          console.error("[OnlineUpload] Reconciliation unavailable");
           return Effect.void;
         }));
         yield* reconcile;
@@ -156,8 +160,13 @@ export function startOnlineUploadCoordinator(
     Effect.provide(SqliteClient.layer({ filename: join(dataDir, "raceiq-online-queue.db") })),
   );
   const fiber = Effect.runFork(Effect.scoped(program));
+  const completion=Effect.runPromise(Fiber.await(fiber)).then(()=>{
+    if(!stopping){const failure=new Error("Online delivery runtime unavailable");started.reject(failure);throw failure;}
+  });
   notifyOnlineSync();
   return {
+    ready:started.promise,
+    completion,
     async stop() {
       stopping = true;
       unsubscribe();

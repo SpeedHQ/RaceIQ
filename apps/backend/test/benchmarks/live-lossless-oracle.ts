@@ -73,7 +73,8 @@ export async function verifyLiveCaptureAgainstOffline({ sessionId, outputDirecto
       else if (record.kind === "segment-boundary") yield SESSION_SEGMENT_BOUNDARY;
       else if (record.kind === "segment-context") yield SESSION_SEGMENT_CONTEXT;
       else if (record.kind === "segment-context-end") yield SESSION_SEGMENT_CONTEXT_END;
-      else yield record;
+      else if (record.kind === "parser-bootstrap") yield record;
+      // Clock anchors remain byte-for-byte in the linked source, never detector inputs.
     }
   }
   const imported = await importSessionFrames(frames(), source.gameId, { requireLaps: false, notifyDriverProfile: false, ownership: "others", recorder });

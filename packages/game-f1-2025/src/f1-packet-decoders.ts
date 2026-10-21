@@ -10,6 +10,9 @@ export interface F1SessionData {
   safetyCarStatus: number; trackLength: number; pitSpeedLimit: number;
   formula: number; sector2LapDistanceStart: number; sector3LapDistanceStart: number;
   pitStopWindowIdealLap: number; pitStopWindowLatestLap: number;
+  /** Missing or truncated native control fields cannot establish active player control. */
+  gamePaused: number | null;
+  isSpectating: number | null;
 }
 export interface F1LapCarData {
   currentLapTime: number; lastLapTime: number; bestLapTime: number;
@@ -28,7 +31,15 @@ export interface F1FinalClassificationData {
   position: number; gridPosition: number; resultStatus: number; resultReason: number;
   bestLapTime: number; numPitStops: number;
 }
-export interface F1ParticipantData { driverId: number; teamId: number; name: string; }
+export interface F1ParticipantData {
+  /** Native control state: 0=human-controlled, 1=AI-controlled. */
+  aiControlled?: number;
+  driverId: number;
+  /** Native network participant ID; 255 is source's unavailable sentinel. */
+  networkId?: number;
+  teamId: number;
+  name: string;
+}
 export interface F1CarTelemetryData {
   speed: number; throttle: number; brake: number; steer: number; gear: number; rpm: number; drs: boolean; clutch: number;
   tyreTempFL: number; tyreTempFR: number; tyreTempRL: number; tyreTempRR: number;
@@ -88,10 +99,12 @@ export function decodeF1Motion(data: Buffer, playerCarIndex: number): F1MotionDa
   return { posX: data.readFloatLE(o), posY: data.readFloatLE(o + 4), posZ: data.readFloatLE(o + 8), velX: data.readFloatLE(o + 12), velY: data.readFloatLE(o + 16), velZ: data.readFloatLE(o + 20), gForceX: data.readFloatLE(o + 36), gForceY: data.readFloatLE(o + 40), gForceZ: data.readFloatLE(o + 44), yaw: data.readFloatLE(o + 48), pitch: data.readFloatLE(o + 52), roll: data.readFloatLE(o + 56) };
 }
 export function decodeF1Session(data: Buffer): F1SessionData | null {
-  if (data.length < 8) return null;
+  if (data.length < 9) return null;
   const samples = data.length >= 127 ? data.readUInt8(126) : 0;
   const rainPercentage = samples > 0 && data.length >= 135 ? data.readUInt8(134) : 0;
-  return { weather: data.readUInt8(0), trackTemp: data.readInt8(1), airTemp: data.readInt8(2), totalLaps: data.readUInt8(3), trackLength: data.readUInt16LE(4), sessionType: data.readUInt8(6), trackId: data.readInt8(7), formula: data.readUInt8(8), pitSpeedLimit: data.length >= 14 ? data.readUInt8(13) : 0, safetyCarStatus: data.length >= 125 ? data.readUInt8(124) : 0, rainPercentage, sector2LapDistanceStart: 0, sector3LapDistanceStart: 0, pitStopWindowIdealLap: data.length >= 646 ? data.readUInt8(645) : 0, pitStopWindowLatestLap: data.length >= 647 ? data.readUInt8(646) : 0 };
+  return { weather: data.readUInt8(0), trackTemp: data.readInt8(1), airTemp: data.readInt8(2), totalLaps: data.readUInt8(3), trackLength: data.readUInt16LE(4), sessionType: data.readUInt8(6), trackId: data.readInt8(7), formula: data.readUInt8(8), pitSpeedLimit: data.length >= 14 ? data.readUInt8(13) : 0, safetyCarStatus: data.length >= 125 ? data.readUInt8(124) : 0, rainPercentage, sector2LapDistanceStart: 0, sector3LapDistanceStart: 0, pitStopWindowIdealLap: data.length >= 646 ? data.readUInt8(645) : 0, pitStopWindowLatestLap: data.length >= 647 ? data.readUInt8(646) : 0,
+    gamePaused: data.length >= 16 ? data.readUInt8(14) : null,
+    isSpectating: data.length >= 16 ? data.readUInt8(15) : null };
 }
 export function decodeF1LapData(data: Buffer, playerCarIndex: number): F1LapData | null {
   const size = 57; const allCars: F1LapCarData[] = [];
@@ -106,8 +119,21 @@ export function decodeF1FinalClassification(data: Buffer, playerCarIndex: number
   return { position: data.readUInt8(o), gridPosition: data.readUInt8(o + 2), numPitStops: data.readUInt8(o + 4), resultStatus: data.readUInt8(o + 5), resultReason: data.readUInt8(o + 6), bestLapTime: data.readUInt32LE(o + 7) / 1000 };
 }
 export function decodeF1Participants(data: Buffer): F1ParticipantData[] {
-  const count = data.readUInt8(0); const body = data.subarray(1); const result: F1ParticipantData[] = [];
-  for (let i = 0; i < count && body.length >= (i + 1) * 57; i++) { const o = i * 57; const bytes = body.subarray(o + 7, o + 39); const end = bytes.indexOf(0); result.push({ driverId: body.readUInt8(o + 1), teamId: body.readUInt8(o + 3), name: bytes.subarray(0, end >= 0 ? end : 32).toString("utf8") }); }
+  const count = data.readUInt8(0);
+  const body = data.subarray(1);
+  const result: F1ParticipantData[] = [];
+  for (let i = 0; i < count && body.length >= (i + 1) * 57; i++) {
+    const o = i * 57;
+    const bytes = body.subarray(o + 7, o + 39);
+    const end = bytes.indexOf(0);
+    result.push({
+      aiControlled: body.readUInt8(o),
+      driverId: body.readUInt8(o + 1),
+      networkId: body.readUInt8(o + 2),
+      teamId: body.readUInt8(o + 3),
+      name: bytes.subarray(0, end >= 0 ? end : 32).toString("utf8"),
+    });
+  }
   return result;
 }
 export function decodeF1CarTelemetry(data: Buffer, playerCarIndex: number): F1CarTelemetryData | null {

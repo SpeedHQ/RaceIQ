@@ -16,6 +16,7 @@ import { SoundSection } from "./sound/SoundSection";
 import { SpeedSection } from "./speed/SpeedSection";
 import { UpdatesSection } from "./UpdatesSection";
 import { WheelSection } from "./wheel/WheelSection";
+import { UploadSection } from "./UploadSection";
 
 
 export function Settings({ initialSection, onClose }: { initialSection?: SectionId; onClose?: () => void } = {}) {
@@ -79,6 +80,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
       {/* Right content */}
       <div className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
         {activeSection === "general" && <GeneralSection />}
+        {activeSection === "upload" && <UploadSection onOpenAccount={() => setActiveSection("general")} />}
 
         {activeSection === "games" && <GamesSection />}
 

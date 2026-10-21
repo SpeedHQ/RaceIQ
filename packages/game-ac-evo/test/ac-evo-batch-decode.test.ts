@@ -20,14 +20,49 @@ import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeli
 import { parseRawLapFrames, parseSessionLapsBatchedForTest } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { parseAcEvoLapIndex } from "../src/lap-index";
 import { createAcEvoParserCache, parseAcEvoBuffers } from "../src/parser";
-import { unpackTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
+import { ACEVO_PACKED_MAGIC, packTriplet, unpackTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
 import { loadSessionCapture, setCaptureFileFactoryForTest, clearSessionCaptureCache } from "@raceiq/backend-core/session-capture/source-loader";
 import { SparseSessionRecorder } from "@raceiq/capture-formats/session/sparse-recorder";
+import { ACEVO_STATUS, GRAPHICS_EVO, PHYSICS, STATIC_EVO } from "@raceiq/capture-formats/ac-evo/structs";
 
 registerGame(acEvoServerAdapter);
 registerServerGame(acEvoServerAdapter);
 
 afterAll(() => stopMaintenanceTasks());
+
+test("AC Evo adapter replay requires the recorded source clock, not host wall time", () => {
+  const physics = Buffer.alloc(PHYSICS.SIZE);
+  const graphics = Buffer.alloc(GRAPHICS_EVO.SIZE);
+  const staticData = Buffer.alloc(STATIC_EVO.SIZE);
+  staticData.write("1.0", STATIC_EVO.sm_version.offset, "ascii");
+  staticData.write("0.6.2", STATIC_EVO.ac_evo_version.offset, "ascii");
+  graphics.writeInt32LE(ACEVO_STATUS.AC_LIVE, GRAPHICS_EVO.status.offset);
+  graphics.writeBigUInt64LE(0xffffffffffffffffn, GRAPHICS_EVO.focused_car_id_a.offset);
+  graphics.writeBigUInt64LE(0xffffffffffffffffn, GRAPHICS_EVO.player_car_id_a.offset);
+  const state = createAcEvoParserCache();
+  for (const counter of [1, 2]) {
+    physics.writeInt32LE(counter, PHYSICS.packetId.offset);
+    graphics.writeInt32LE(counter, GRAPHICS_EVO.packetId.offset);
+    const frame = packTriplet(ACEVO_PACKED_MAGIC, 0, 0, physics, graphics, staticData);
+    const packet = acEvoServerAdapter.tryParse(frame, state)!;
+    expect(packet.TimestampMS).toBe(0);
+    expect(packet.driverActor).toBeNull();
+    expect(packet.acc?.acEvo?.sourceCaptureUtcMs).toBeNull();
+    expect(acEvoServerAdapter.tryParseLapIndex!(frame, createAcEvoParserCache())?.TimestampMS).toBe(0);
+  }
+  for (const counter of [3, 4]) {
+    physics.writeInt32LE(counter, PHYSICS.packetId.offset);
+    graphics.writeInt32LE(counter, GRAPHICS_EVO.packetId.offset);
+    const frame = packTriplet(ACEVO_PACKED_MAGIC, 0, 0, physics, graphics, staticData);
+    const packet = acEvoServerAdapter.tryParse(frame, state, 1000 + counter)!;
+    expect(packet.TimestampMS).toBe(1000 + counter);
+    if (counter === 4) {
+      expect(packet.driverActor?.actorId).toBe("ac-evo-control:local-player");
+      expect(packet.driverActor?.observedAtMs).toBe(1004);
+      expect(packet.acc?.acEvo?.sourceCaptureUtcMs).toBe(1004);
+    }
+  }
+});
 
 const FIXTURE = "test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz";
 test("direct AC Evo lap index coordinates match full parser", () => {

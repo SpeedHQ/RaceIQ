@@ -9,7 +9,7 @@ import { getLapById } from "./lap-read-queries";
 import { cacheDelete } from "./telemetry-replay-storage";
 import { eq, desc, and, or, sql, inArray, notInArray, isNull, ne, lt, asc } from "drizzle-orm";
 import { db } from "./index";
-import { sessions, laps, sessionResults, pitEvents, sessionCaptureSplitJobs, liveCaptures } from "./schema";
+import { sessions, laps, sessionResults, pitEvents, sessionCaptureSplitJobs, liveCaptures, localAccountOwner } from "./schema";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 import type { SessionMeta, SessionOwnership, SessionCaptureSplitPhase, SessionCaptureSplitErrorCode } from "@raceiq/shared/racing/sessions/types";
 import type { GameId } from "@raceiq/shared/games/ids";
@@ -21,7 +21,7 @@ import type { RecapLapInput, RecapSessionInput } from "../lap-analysis/recap";
 import { getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import { wsManager } from "../runtime/websocket-manager";
 import type { SessionCaptureSplitStatus } from "@raceiq/shared/racing/sessions/types";
-import type { PublishedManifest } from "@raceiq/capture-splitting";
+import type { PublishedManifest, LapWindow } from "@raceiq/capture-splitting";
 import { clearCaptureManifestCache, loadCaptureManifest } from "../session-capture/source-loader";
 import { recoverLiveCaptureStorage } from "../session-capture/live-recovery";
 
@@ -34,7 +34,7 @@ export interface SessionCaptureSplitWork {
   gameId: GameId;
   carId: string;
   trackId: string;
-  windows: { lapId: string; lapNumber: number; startByteOffset: number; frameCount: number }[];
+  windows: LapWindow[];
   ownership: SessionOwnership;
   captureManifestFile?: string | null;
   captureLayoutVersion?: number | null;
@@ -74,6 +74,20 @@ async function notifySessionCaptureSplitStatus(sessionId: number): Promise<void>
   }
 }
 
+function captureLapWindow(lap: typeof laps.$inferSelect, originalActivityId?: string | null, originalSourceRevision?: string | null): LapWindow {
+  return {
+    lapId: String(lap.id), lapNumber: lap.lapNumber, startByteOffset: lap.rawByteOffset!, frameCount: lap.rawFrameCount!,
+    ...(lap.lapGuid == null ? {} : { lapGuid: lap.lapGuid }),
+    ...(originalActivityId == null ? {} : { originalActivityId }),
+    ...(originalSourceRevision == null ? {} : { originalSourceRevision }),
+    ...(lap.driverAttribution == null ? {} : { driverAttribution: lap.driverAttribution }),
+    ...(lap.driverAttributionStints == null ? {} : { driverAttributionStints: lap.driverAttributionStints }),
+    ...(lap.sourceClockDomain == null ? {} : { sourceClockDomain: lap.sourceClockDomain }),
+    ...(lap.sourceLapStartMs == null ? {} : { sourceLapStartMs: lap.sourceLapStartMs }),
+    ...(lap.sourceLapEndMs == null ? {} : { sourceLapEndMs: lap.sourceLapEndMs }),
+  };
+}
+
 /** Queue an eligible closed BIN; ownership and provenance do not alter frame ownership. */
 export async function enqueueSessionCaptureSplit(sessionId: number): Promise<boolean> {
   return withSessionCaptureMaintenanceLock(async () => {
@@ -81,6 +95,8 @@ export async function enqueueSessionCaptureSplit(sessionId: number): Promise<boo
       rawFile: sessions.rawFile, gameId: sessions.gameId, carId: sessions.carId, trackId: sessions.trackId,
       captureLayoutVersion: sessions.captureLayoutVersion, captureManifestFile: sessions.captureManifestFile,
       captureArchiveFile: sessions.captureArchiveFile,
+      originalActivityId: sessions.originalActivityId,
+      originalSourceRevision: sessions.originalSourceRevision,
     }).from(sessions).where(eq(sessions.id, sessionId)).get();
     const liveCapture = await db.select({ status: liveCaptures.status }).from(liveCaptures)
       .where(eq(liveCaptures.sessionId, sessionId)).get();
@@ -91,11 +107,9 @@ export async function enqueueSessionCaptureSplit(sessionId: number): Promise<boo
     }
     if (!row?.rawFile || (row.captureLayoutVersion !== null && row.captureLayoutVersion !== 2) ||
         !(row.rawFile.endsWith(".bin") || row.rawFile.endsWith(".bin.gz"))) return false;
-    const lapRows = await db.select({
-      id: laps.id, lapNumber: laps.lapNumber, rawByteOffset: laps.rawByteOffset, rawFrameCount: laps.rawFrameCount,
-    }).from(laps).where(eq(laps.sessionId, sessionId)).all();
+    const lapRows = await db.select().from(laps).where(eq(laps.sessionId, sessionId)).all();
     const windows = lapRows.filter((lap) => lap.rawByteOffset != null && lap.rawFrameCount != null && lap.rawFrameCount > 0)
-      .map((lap) => ({ lapId: String(lap.id), lapNumber: lap.lapNumber, startByteOffset: lap.rawByteOffset!, frameCount: lap.rawFrameCount! }))
+      .map((lap) => captureLapWindow(lap, row.originalActivityId, row.originalSourceRevision))
       .sort((a, b) => a.startByteOffset - b.startByteOffset);
     if (windows.length !== lapRows.length || windows.length === 0) return false;
     for (let i = 0; i < windows.length; i++) {
@@ -193,15 +207,15 @@ export async function validateSessionCaptureSplitRevision(work: SessionCaptureSp
   const session = await db.select({
     rawFile: sessions.rawFile, gameId: sessions.gameId, captureLayoutVersion: sessions.captureLayoutVersion,
     captureManifestFile: sessions.captureManifestFile, captureArchiveFile: sessions.captureArchiveFile,
+    originalActivityId: sessions.originalActivityId,
+    originalSourceRevision: sessions.originalSourceRevision,
   }).from(sessions).where(eq(sessions.id, work.sessionId)).get();
   if (session?.rawFile !== work.sourcePath || session.gameId !== work.gameId ||
       session.captureLayoutVersion !== work.captureLayoutVersion ||
       session.captureManifestFile !== work.captureManifestFile || session.captureArchiveFile !== work.captureArchiveFile) return false;
-  const rows = await db.select({
-    id: laps.id, lapNumber: laps.lapNumber, rawByteOffset: laps.rawByteOffset, rawFrameCount: laps.rawFrameCount,
-  }).from(laps).where(eq(laps.sessionId, work.sessionId)).all();
+  const rows = await db.select().from(laps).where(eq(laps.sessionId, work.sessionId)).all();
   const windows = rows.filter((lap) => lap.rawByteOffset != null && lap.rawFrameCount != null && lap.rawFrameCount > 0)
-    .map((lap) => ({ lapId: String(lap.id), lapNumber: lap.lapNumber, startByteOffset: lap.rawByteOffset!, frameCount: lap.rawFrameCount! }))
+    .map((lap) => captureLapWindow(lap, session.originalActivityId, session.originalSourceRevision))
     .sort((a, b) => a.startByteOffset - b.startByteOffset);
   if (windows.length !== rows.length || JSON.stringify(windows) !== JSON.stringify(work.windows)) return false;
   const info = await stat(work.sourcePath);
@@ -238,12 +252,12 @@ export async function publishSessionCaptureSplit(
     const session = await tx.select({
       rawFile: sessions.rawFile, gameId: sessions.gameId, captureLayoutVersion: sessions.captureLayoutVersion,
       captureManifestFile: sessions.captureManifestFile, captureArchiveFile: sessions.captureArchiveFile,
+      originalActivityId: sessions.originalActivityId,
+      originalSourceRevision: sessions.originalSourceRevision,
     }).from(sessions).where(eq(sessions.id, work.sessionId)).get();
-    const currentRows = await tx.select({
-      id: laps.id, lapNumber: laps.lapNumber, rawByteOffset: laps.rawByteOffset, rawFrameCount: laps.rawFrameCount,
-    }).from(laps).where(eq(laps.sessionId, work.sessionId)).all();
+    const currentRows = await tx.select().from(laps).where(eq(laps.sessionId, work.sessionId)).all();
     const currentWindows = currentRows.filter((lap) => lap.rawByteOffset != null && lap.rawFrameCount != null && lap.rawFrameCount > 0)
-      .map((lap) => ({ lapId: String(lap.id), lapNumber: lap.lapNumber, startByteOffset: lap.rawByteOffset!, frameCount: lap.rawFrameCount! }))
+      .map((lap) => captureLapWindow(lap, session?.originalActivityId, session?.originalSourceRevision))
       .sort((a, b) => a.startByteOffset - b.startByteOffset);
     if (!job || session?.rawFile !== work.sourcePath || session.gameId !== work.gameId ||
         session.captureLayoutVersion !== work.captureLayoutVersion ||
@@ -354,6 +368,8 @@ export async function getQueuedSessionCaptureSplitJobs(includeFailed = false): P
     ownership: sessions.ownership, captureFormatVersion: sessions.captureFormatVersion,
     captureLayoutVersion: sessions.captureLayoutVersion, captureArchiveFile: sessions.captureArchiveFile,
     currentRawFile: sessions.rawFile, captureManifestFile: sessions.captureManifestFile,
+    originalActivityId: sessions.originalActivityId,
+    originalSourceRevision: sessions.originalSourceRevision,
   }).from(sessionCaptureSplitJobs).innerJoin(sessions, eq(sessions.id, sessionCaptureSplitJobs.sessionId))
     .where(and(
       includeFailed
@@ -363,10 +379,9 @@ export async function getQueuedSessionCaptureSplitJobs(includeFailed = false): P
     )).orderBy(asc(sessionCaptureSplitJobs.sessionId)).all();
   const result: SessionCaptureSplitWork[] = [];
   for (const job of jobs) {
-    const lapRows = await db.select({ id: laps.id, lapNumber: laps.lapNumber, rawByteOffset: laps.rawByteOffset, rawFrameCount: laps.rawFrameCount })
-      .from(laps).where(eq(laps.sessionId, job.sessionId)).all();
+    const lapRows = await db.select().from(laps).where(eq(laps.sessionId, job.sessionId)).all();
     const windows = lapRows.filter((lap) => lap.rawByteOffset != null && lap.rawFrameCount != null && lap.rawFrameCount > 0)
-      .map((lap) => ({ lapId: String(lap.id), lapNumber: lap.lapNumber, startByteOffset: lap.rawByteOffset!, frameCount: lap.rawFrameCount! }))
+      .map((lap) => captureLapWindow(lap, job.originalActivityId, job.originalSourceRevision))
       .sort((a, b) => a.startByteOffset - b.startByteOffset);
     if (windows.length !== lapRows.length || windows.length === 0) continue;
     result.push({ ...job, gameId: job.gameId as GameId, windows, captureLayoutVersion: job.captureLayoutVersion,
@@ -375,6 +390,11 @@ export async function getQueuedSessionCaptureSplitJobs(includeFailed = false): P
   return result;
 }
 
+export type SessionSourceOrigin =
+  | { kind: "native_capture" }
+  | { kind: "portable_import"; originalActivityId: string }
+  | { kind: "unknown" };
+
 export async function insertSession(
   carId: string,
   trackId: string,
@@ -382,13 +402,29 @@ export async function insertSession(
   sessionType?: string,
   versionIdentity?: TelemetryVersionIdentity,
   ownership?: SessionOwnership,
+  sourceOrigin: SessionSourceOrigin = { kind: "unknown" },
 ): Promise<number> {
-  const result = await db
-    .insert(sessions)
-    .values({ carId, trackId, gameId, sessionType, ownership, ...versionIdentity })
-    .returning({ id: sessions.id })
-    .get();
-  return result.id;
+  const sessionOwnership = ownership ?? "mine";
+  const nativeOrigin = sourceOrigin.kind === "native_capture" && sessionOwnership === "mine";
+  const originalActivityId = nativeOrigin ? randomUUID()
+    : sourceOrigin.kind === "portable_import" ? sourceOrigin.originalActivityId : null;
+  return db.transaction(async (tx) => {
+    const owner = nativeOrigin
+      ? await tx.select({ onlineUserId: localAccountOwner.onlineUserId }).from(localAccountOwner).where(eq(localAccountOwner.id, 1)).get()
+      : undefined;
+    const result = await tx
+      .insert(sessions)
+      .values({
+        carId, trackId, gameId, sessionType, ownership: sessionOwnership,
+        ownerUserId: nativeOrigin ? owner?.onlineUserId ?? null : null,
+        originalActivityId,
+        nativeCaptureOrigin: nativeOrigin,
+        ...versionIdentity,
+      })
+      .returning({ id: sessions.id })
+      .get();
+    return result.id;
+  });
 }
 
 /**

@@ -7,6 +7,7 @@ import { existsSync, mkdirSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { resolveDataDir } from "../runtime/config/data-dir";
 import { assertDashboardDatabasePresent } from "../runtime/config/dashboard-access-state";
+import { backfillLapGuids } from "./lap-guid";
 
 // Always resolve the data dir, even when the DB itself lives in memory: the
 // call doubles as the safety net that throws if a test run somehow reaches
@@ -261,6 +262,7 @@ async function runMigrations() {
 }
 
 await runMigrations();
+await backfillLapGuids(client);
 
 // Seed default profile if none exist
 const profileCount = await client.execute("SELECT COUNT(*) as c FROM profiles");
@@ -289,4 +291,23 @@ if (orphanCleared > 0) {
 }
   })();
   return initPromise;
+}
+
+let workerConnectionInitPromise: Promise<void> | null = null;
+
+/**
+ * Configure an additional worker-owned SQLite connection after the app's main
+ * thread has completed initDb(). This never runs migrations, backfills, or seeds.
+ */
+export function initDbWorkerConnection(): Promise<void> {
+  if (!workerConnectionInitPromise) workerConnectionInitPromise = (async () => {
+    await client.execute("PRAGMA foreign_keys = ON");
+    await client.execute("PRAGMA busy_timeout = 5000");
+    const latest = Math.max(...migrations.map((migration) => migration.version));
+    const result = await client.execute("SELECT COALESCE(MAX(version), 0) AS version FROM schema_migrations");
+    if (Number(result.rows[0]?.version ?? 0) < latest) {
+      throw new Error("Main process must initialize and migrate the application database before worker queries");
+    }
+  })();
+  return workerConnectionInitPromise;
 }

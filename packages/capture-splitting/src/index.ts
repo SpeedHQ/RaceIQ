@@ -8,7 +8,7 @@ import { createGunzip } from "node:zlib";
 import { Effect, Schema } from "effect";
 import {
   encodeMetaFrame, encodeParserBootstrapFrame, encodeSegmentBoundaryFrame, encodeSparseCaptureFormatFrame,
-  encodeSegmentContextEndFrame, encodeSegmentContextFrame, iterateSessionCaptureRecordsAsync,
+  encodeSegmentContextEndFrame, encodeSegmentContextFrame, encodeSessionClockAnchor, iterateSessionCaptureRecordsAsync,
   type SessionCaptureRecord,
 } from "@raceiq/capture-formats/session/framing";
 import { SparseCaptureEncoder } from "@raceiq/capture-formats/session/sparse-recorder";
@@ -49,6 +49,7 @@ const markerBytes = (record: SessionCaptureRecord): Buffer | null => {
     case "segment-boundary": return encodeSegmentBoundaryFrame();
     case "segment-context": return encodeSegmentContextFrame();
     case "segment-context-end": return encodeSegmentContextEndFrame();
+    case "clock-anchor": return encodeSessionClockAnchor(record.frameTimeMs, record.utcTimeMs);
     case "parser-bootstrap": return encodeParserBootstrapFrame(record.gameId, record.payload);
     default: return null;
   }
@@ -183,6 +184,18 @@ export const splitCapture = (options: SplitOptions): Effect.Effect<PublishedMani
           kind: lap ? "lap" : "auxiliary",
           ...(lap ? {
             lapId: lap.lapId, lapNumber: lap.lapNumber, ownedFrameCount: lap.frameCount,
+            ...(lap.lapGuid === undefined ? {} : { lapGuid: lap.lapGuid }),
+            ...(lap.originalActivityId === undefined ? {} : { originalActivityId: lap.originalActivityId }),
+            ...(lap.originalSourceRevision === undefined ? {} : { originalSourceRevision: lap.originalSourceRevision }),
+            ...(lap.driverAttribution === undefined ? {} : { driverAttribution: lap.driverAttribution }),
+            ...(lap.driverAttributionStints === undefined ? {} : { driverAttributionStints: lap.driverAttributionStints }),
+            ...(lap.sourceClockDomain === undefined ? {} : { sourceClockDomain: lap.sourceClockDomain }),
+            ...(lap.sourceLapStartMs === undefined ? {} : { sourceLapStartMs: lap.sourceLapStartMs }),
+            ...(lap.sourceLapEndMs === undefined ? {} : { sourceLapEndMs: lap.sourceLapEndMs }),
+            sourceCoverageStart: ordinal,
+            sourceCoverageEnd: ordinal + lap.frameCount,
+            sourceCoverageComplete: lap.sourceCoverageComplete ?? true,
+            sourceRevision: lap.sourceRevision ?? options.sourceRevision,
             trailingContextFrameCount: 0, ...(parserBootstrapHash ? { parserBootstrapHash } : {}),
           } : {}),
           path: name, byteLength: 0, firstOrdinal: ordinal, recordCount: 0, sourceStart: ordinal,
@@ -410,17 +423,36 @@ export const verifyManifest = (
           throw new SplitFailure("VERIFY", `invalid chunk range: ${chunkPath}`);
         }
         if (chunk.kind === "lap") {
+          const provenance = [
+            chunk.lapGuid, chunk.originalActivityId, chunk.driverAttribution, chunk.driverAttributionStints,
+            chunk.sourceCoverageStart, chunk.sourceCoverageEnd, chunk.sourceCoverageComplete, chunk.sourceRevision,
+            chunk.originalSourceRevision, chunk.sourceClockDomain, chunk.sourceLapStartMs, chunk.sourceLapEndMs,
+          ];
+          const hasProvenance = provenance.some((value) => value !== undefined);
+          const guidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
           if (!chunk.lapId || chunk.lapNumber === undefined || seenLapIds.has(chunk.lapId) ||
               chunk.ownedFrameByteOffset === undefined || chunk.ownedFrameCount === undefined ||
               (STATEFUL_GAME_IDS.has(manifest.gameId) !== (chunk.parserBootstrapHash !== undefined)) ||
               (chunk.parserBootstrapHash !== undefined && !/^[0-9a-f]{64}$/.test(chunk.parserBootstrapHash)) ||
-              ![0, 1].includes(chunk.trailingContextFrameCount ?? 0)) {
+              ![0, 1].includes(chunk.trailingContextFrameCount ?? 0) ||
+              (chunk.lapGuid !== undefined && !guidPattern.test(chunk.lapGuid)) ||
+              (chunk.originalActivityId !== undefined && !chunk.originalActivityId.trim()) ||
+              (chunk.originalSourceRevision !== undefined && !chunk.originalSourceRevision.trim()) ||
+              (hasProvenance && (chunk.sourceCoverageStart === undefined || chunk.sourceCoverageEnd === undefined ||
+                chunk.sourceCoverageEnd <= chunk.sourceCoverageStart || chunk.sourceCoverageComplete === undefined ||
+                !chunk.sourceRevision))) {
             throw new SplitFailure("VERIFY", `invalid or duplicate lap chunk: ${chunkPath}`);
           }
           seenLapIds.add(chunk.lapId);
         } else if (chunk.lapId !== undefined || chunk.lapNumber !== undefined ||
           chunk.ownedFrameByteOffset !== undefined || chunk.ownedFrameCount !== undefined ||
-          chunk.parserBootstrapHash !== undefined || chunk.trailingContextFrameCount !== undefined) {
+          chunk.parserBootstrapHash !== undefined || chunk.trailingContextFrameCount !== undefined ||
+          chunk.lapGuid !== undefined || chunk.originalActivityId !== undefined ||
+          chunk.originalSourceRevision !== undefined || chunk.sourceClockDomain !== undefined ||
+          chunk.sourceLapStartMs !== undefined || chunk.sourceLapEndMs !== undefined ||
+          chunk.driverAttribution !== undefined || chunk.driverAttributionStints !== undefined ||
+          chunk.sourceCoverageStart !== undefined || chunk.sourceCoverageEnd !== undefined ||
+          chunk.sourceCoverageComplete !== undefined || chunk.sourceRevision !== undefined) {
           throw new SplitFailure("VERIFY", `auxiliary chunk has lap metadata: ${chunkPath}`);
         }
         if (chunk.firstOrdinal !== expectedOrdinal) throw new SplitFailure("VERIFY", `ordinal gap or overlap at ${expectedOrdinal}`);

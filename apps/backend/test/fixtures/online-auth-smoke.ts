@@ -2,7 +2,7 @@ import { strict as assert } from 'node:assert';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createRaceIqOnlineService, type OnlineAuthPort, type OnlineAuthSession } from '@raceiq/online/service';
+import { createRaceIqOnlineService,type OnlineAuthPort,type OnlineAuthSession,type OnlineServiceOptions } from '@raceiq/online/service';
 import { OnlineStateStorage } from '@raceiq/online/state-storage';
 import type { OnlineState } from '@raceiq/online/contracts';
 let resolveSession: (value: OnlineAuthSession) => void;
@@ -65,9 +65,9 @@ const awaitStage = async (promise: Promise<unknown>, name: string) => {
     })]);
   } finally { clearTimeout(timeout); }
 };
-function setup(dir = mkdtempSync(join(tmpdir(), 'raceiq-auth-smoke-'))) {
+function setup(dir=mkdtempSync(join(tmpdir(),'raceiq-auth-smoke-')),onAccountConnected?:OnlineServiceOptions["onAccountConnected"]) {
   if (!dirs.includes(dir)) dirs.push(dir);
-  return createRaceIqOnlineService({ storage: new OnlineStateStorage(dir), keystore, auth, adapter: {
+  return createRaceIqOnlineService({recordingProducer:async()=>{throw new Error("Auth-only fixture must not prepare a recording");},storage:new OnlineStateStorage(dir),keystore,auth,onAccountConnected,adapter:{
     async getPolicy() {
       if (policyFailure) throw new Error('temporary policy outage');
       return { available: true, ...versions, termsUrl: 'https://raceiq.example/terms', privacyUrl: 'https://raceiq.example/privacy' };
@@ -111,7 +111,7 @@ function setup(dir = mkdtempSync(join(tmpdir(), 'raceiq-auth-smoke-'))) {
       leaderboardCalls++;
       if (leaderboardGate) await leaderboardGate;
       if (leaderboardFailure) throw new Error('leaderboard offline');
-      return { status: 'ready', rows: [{ rank: 1, lapId: 'shared-lap', driver: { userId: 'user-1', displayName: 'Driver', avatarUrl: null }, lapTimeMs: 90_000, importAvailable: true }], fetchedAt: new Date().toISOString(), stale: false };
+      return { status: 'ready', rows: [{ rank: 1, lapId: 'shared-lap', lapGuid: '019a08b0-0000-7000-8000-000000000001', driver: { userId: 'user-1', displayName: 'Driver', avatarUrl: null }, lapTimeMs: 90_000, importAvailable: true }], fetchedAt: new Date().toISOString(), stale: false };
     },
     async setDisplayName(name) {
       if (profileGate) await profileGate;
@@ -153,7 +153,6 @@ try {
   assert.equal(leaderboardCalls, 0, 'unconfirmed preferences must deny before adapter read');
   const prefs = await service.setPreferences({ ...ctx(consent.state), preferences: { visibility: 'public', setupUploads: false } });
   assert.equal(prefs.ok, true); assert.equal(prefs.state.uploadAllowed, true);
-  assert.equal(await service.getUploadContext(), null, 'public sharing permission must not activate recording dispatch without a per-lap producer');
   const publicBoard = await service.getLeaderboard(boardKey);
   assert.equal(publicBoard.status, 'ready');
   assert.equal(publicBoard.rows[0]?.lapId, 'shared-lap');
@@ -532,6 +531,47 @@ try {
   consentGate = null; consentRead.resolve();
   assert.equal(await lateConsentCallback, false);
   assert.equal((await lateConsentService.getState()).connection.status, 'signed_out', 'late server consent read cannot restore signed-out state');
+  serverConsents['user-1']={...versions,acceptedAt:'2026-10-21T00:00:00.000Z'};
+  serverConsents['user-2']={...versions,acceptedAt:'2026-10-21T00:00:00.000Z'};
+  serverPreferences['user-1']={visibility:'public',setupUploads:false};
+  serverPreferences['user-2']={visibility:'public',setupUploads:false};
+  const enforceOwner:NonNullable<OnlineServiceOptions["onAccountConnected"]>=async(userId,isCurrent)=>{
+    if(!isCurrent())throw Object.assign(new Error("Account claim canceled"),{code:"stale_state"});
+    if(userId!=='user-1')throw Object.assign(new Error("Installation owner is fixed"),{code:"account_unavailable"});
+  };
+  secret='refresh';profileUserId='user-1';refreshedUserId='user-1';
+  const ownedRestore=setup(undefined,enforceOwner);
+  const ownedRestoredState=await ownedRestore.getState();
+  assert.equal(ownedRestoredState.connection.status,'connected');
+  assert.equal((await ownedRestore.setPreferences({...ctx(ownedRestoredState),preferences:{visibility:'public',setupUploads:false}})).ok,true);
+  assert.equal((await ownedRestore.getCommunityEntitlement()).allowed,true);
+  secret='another-refresh';profileUserId='user-2';refreshedUserId='user-2';
+  const rejectedRestore=setup(undefined,enforceOwner);
+  const rejectedState=await rejectedRestore.getState();
+  assert.equal(rejectedState.connection.status,'error','restored credentials must pass immutable installation ownership');
+  assert.equal(rejectedState.connection.status==='error'&&rejectedState.connection.error.code,'account_unavailable');
+  assert.equal((await rejectedRestore.getCommunityEntitlement()).allowed,false,'another authenticated public account cannot activate Community access');
+  secret='';profileUserId='user-1';refreshedUserId='user-1';session.userId='user-1';
+  const claimEntered=Promise.withResolvers<void>(),releaseClaim=Promise.withResolvers<void>();
+  let committedOwner:string|null=null;
+  const cancelClaimService=setup(undefined,async(userId,isCurrent)=>{
+    claimEntered.resolve();await releaseClaim.promise;
+    if(!isCurrent())throw Object.assign(new Error("Account claim canceled"),{code:"stale_state"});
+    committedOwner=userId;
+  });
+  const claimAttempt=await cancelClaimService.connect(ctx(await cancelClaimService.getState()));
+  if(!claimAttempt.ok)throw new Error('guarded claim sign-in failed');
+  const claimCallback=cancelClaimService.handleAuthCallback('http://127.0.0.1:3117/api/online/auth/callback?code=claim-race');
+  resolveSession!(session);
+  await awaitStage(claimEntered.promise,'ownership transaction before commit');
+  const canceledClaim=await cancelClaimService.cancelSignIn({...ctx(claimAttempt.state),flowId:claimAttempt.flowId});
+  assert.equal(canceledClaim.ok,true);
+  releaseClaim.resolve();
+  assert.equal(await claimCallback,false);
+  assert.equal(committedOwner,null,'a canceled first connection cannot commit its owner');
+  assert.equal((await cancelClaimService.getState()).connection.status,'signed_out','polling cannot restore credentials from a canceled claim');
+  assert.equal(secret,'');
+  console.log('PASS: immutable owner on restored credentials and cancellation before ownership commit');
   console.log('PASS: server consent restore, policy-version invalidation, account isolation, failed writes, and sign-out race');
   console.log('PASS: restart credential isolation, outage retention, legacy profile hydration, mismatched refresh rejection, explicit sign-out restart');
   console.log('PASS: auth callback/persistence race, consent/preferences gate, leaderboard privacy/cache generations, profile save/failure/stale/sign-out race, cancelled callback');

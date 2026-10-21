@@ -3,26 +3,26 @@ import { stopSessionCompressor } from "@raceiq/backend-core/session-capture/comp
 import { udpListener } from "./udp-listener";
 import type { NativeSourceSupervisor } from "./native-sources";
 import type { StartupWorkerHandle } from "./startup-worker";
-import type { OnlineUploadCoordinator } from "@raceiq/online/coordinator";
 import { stopSessionCaptureSplitManager } from "../session-capture/split-manager";
 
 export interface ShutdownOptions {
   getNativeSources(): NativeSourceSupervisor | null;
   getStartupWorker(): StartupWorkerHandle | null;
-  getOnlineUploadCoordinator(): OnlineUploadCoordinator | null;
+  getOnlineWorker(): {stop():Promise<void>} | null;
   clearDashboardPublicationNotifications(): void;
 }
 
 export function installShutdown({
   getNativeSources,
   getStartupWorker,
-  getOnlineUploadCoordinator,
+  getOnlineWorker,
   clearDashboardPublicationNotifications,
 }: ShutdownOptions): void {
   const gracefulShutdown = async (signal: NodeJS.Signals) => {
     console.log(`[Server] Received ${signal} — flushing session recorder...`);
     try {
-      await getOnlineUploadCoordinator()?.stop();
+      try { await getOnlineWorker()?.stop(); }
+      catch { console.error("[OnlineWorker] Shutdown grace ended; continuing local capture flush"); }
       try {
         await stopSessionCompressor();
       } catch (error) {

@@ -6,6 +6,7 @@ import {
   getOutboxJob, listDeliverableOutboxJobs, listRetiredOutboxPayloads, persistOutboxPayload,
   settleOutboxDelivery, withdrawAccountOutboxJobs,
 } from "../src/outbox-storage";
+import { lapIdentity } from "./lap-identity.fixture";
 
 const directory = process.env.DATA_DIR;
 if (!directory) throw new Error("DATA_DIR required for isolated capacity fixture");
@@ -14,6 +15,7 @@ const database = createClient({ url: `file:${join(directory, "raceiq-online-outb
 const candidate = {
   accountId: "history-owner", accountEpoch: "epoch", gameId: "acc", trackId: "track",
   carId: "car", lapId: 2001, lapTimeMs: 90000,
+  identity:lapIdentity("history-owner"),
 };
 try {
   await database.execute(`WITH RECURSIVE sequence(n) AS (
@@ -38,7 +40,7 @@ try {
     SELECT 'capacity-owner','epoch','acc','track-'||n,'car',n,90000,
       CASE n%3 WHEN 1 THEN 'pending' WHEN 2 THEN 'dispatching' ELSE 'ambiguous' END,
       0,0,0,'active-'||n FROM sequence`);
-  const fullCandidate = { ...candidate, accountId: "capacity-owner", trackId: "new-track" };
+  const fullCandidate = { ...candidate, accountId: "capacity-owner", trackId: "new-track",identity:lapIdentity("capacity-owner") };
   assert.equal(await enqueueOutboxJob(fullCandidate), "full", "all unresolved statuses must consume account capacity");
   const original = (await listDeliverableOutboxJobs(fullCandidate.accountId)).find(row => row.trackId === "track-1");
   assert.ok(original);
@@ -61,7 +63,7 @@ try {
     SELECT 'global-owner-'||n,'epoch','acc','track','car',n,90000,
       CASE n%3 WHEN 1 THEN 'pending' WHEN 2 THEN 'dispatching' ELSE 'ambiguous' END,
       0,0,0,'global-'||n FROM sequence`);
-  const globalCandidate = { ...candidate, accountId: "global-new-owner" };
+  const globalCandidate = { ...candidate, accountId: "global-new-owner",identity:lapIdentity("global-new-owner") };
   assert.equal(await enqueueOutboxJob(globalCandidate), "full", "global active-work cap must remain enforced");
   const pending = (await listDeliverableOutboxJobs(replacement.accountId)).find(row => row.lapId === replacement.lapId);
   assert.ok(pending?.uploadKey);

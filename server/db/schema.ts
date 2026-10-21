@@ -8,16 +8,115 @@ import {
 	unique,
 	uniqueIndex,
 	primaryKey,
+	check,
 } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 import type { RaceResultEvidence, RaceResultOutcomeStatus, RaceResultProvenance } from "@raceiq/shared/racing/results/types";
 import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
+import type { DriverAttributionStint } from "@raceiq/shared/driver-attribution";
+import type { DashboardDurationAttribution } from "../driver-summary/dashboard-input";
 
 export const profiles = sqliteTable("profiles", {
 	id: integer("id").primaryKey({ autoIncrement: true }),
 	name: text("name").notNull(),
 	createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 });
+/** Singleton installation owner and global native-binding revision. */
+export const localAccountOwner = sqliteTable("local_account_owner", {
+	id: integer("id").primaryKey(),
+	onlineUserId: text("online_user_id"),
+	bindingRevision: integer("binding_revision").notNull().default(0),
+	createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+}, (table) => [
+	check("local_account_owner_singleton_check", sql`${table.id} = 1`),
+	check("local_account_owner_binding_revision_check", sql`${table.bindingRevision} >= 0`),
+]);
+
+/** Explicit native-game identities bound to this installation's local user. */
+export const localGameBindings = sqliteTable("local_game_bindings", {
+	id: text("id").primaryKey(),
+	gameId: text("game_id").notNull().unique(),
+	sourceKind: text("source_kind").notNull(),
+	nativeIdentity: text("native_identity").notNull(),
+	confirmation: text("confirmation", { enum: ["native_verified", "user_confirmed"] }).notNull(),
+	revision: integer("revision").notNull(),
+	updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
+}, (table) => [check("local_game_bindings_revision_check", sql`${table.revision} > 0`)]);
+
+/** Durable contribution identity and reconciliation receipt ledger. */
+export const driverSummaryActivities = sqliteTable("driver_summary_activities", {
+	activityId: text("activity_id").primaryKey(),
+	ownerUserId: text("owner_user_id"),
+	gameId: text("game_id").notNull(),
+	lapGuidsJson: text("lap_guids_json").notNull(),
+	payloadJson: text("payload_json").notNull(),
+	contentHash: text("content_hash").notNull(),
+	expectedCloudRevision: integer("expected_cloud_revision"),
+	cloudRevision: integer("cloud_revision"),
+	receiptJson: text("receipt_json"),
+	heldCloudRevision: integer("held_cloud_revision"),
+	heldReceiptJson: text("held_receipt_json"),
+	state: text("state", { enum: ["ready", "held_ambiguous", "conflict", "synced"] }).notNull(),
+	heldReason: text("held_reason"),
+	updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
+}, (table) => [index("driver_summary_activities_owner_state_idx").on(table.ownerUserId, table.state, table.updatedAt)]);
+
+/** A GUID belongs to at most one durable activity contribution. */
+export const driverSummaryActivityLaps = sqliteTable("driver_summary_activity_laps", {
+	lapGuid: text("lap_guid").primaryKey(),
+	activityId: text("activity_id").notNull().references(() => driverSummaryActivities.activityId, { onDelete: "cascade" }),
+	ownerUserId: text("owner_user_id"),
+}, (table) => [index("driver_summary_activity_laps_activity_idx").on(table.activityId)]);
+
+/** Original source footprint survives local session and recording deletion. */
+export const originalActivitySources = sqliteTable("original_activity_sources", {
+	originalActivityId: text("original_activity_id").primaryKey(),
+	sourceRevision: text("source_revision").notNull(),
+	originalLapGuidsJson: text("original_lap_guids_json").notNull(),
+	nativeSourceHash: text("native_source_hash"),
+	ownerUserId: text("owner_user_id"),
+	origin: text("origin", { enum: ["native_capture", "verified_portable"] }).notNull(),
+	claimable: integer("claimable", { mode: "boolean" }).notNull().default(false),
+});
+
+export const originalActivitySourceLaps = sqliteTable("original_activity_source_laps", {
+	lapGuid: text("lap_guid").primaryKey(),
+	originalActivityId: text("original_activity_id"),
+	ownerUserId: text("owner_user_id"),
+	sourceRevision: text("source_revision"),
+}, (table) => [index("original_activity_source_laps_activity_idx").on(table.originalActivityId)]);
+
+export const originalActivityRepresentations = sqliteTable("original_activity_representations", {
+	sessionId: integer("session_id").primaryKey().references(() => sessions.id, { onDelete: "cascade" }),
+	originalActivityId: text("original_activity_id").notNull(),
+	sourceRevision: text("source_revision").notNull(),
+	origin: text("origin", { enum: ["native_capture", "verified_portable"] }).notNull(),
+});
+
+/** Only the live pipeline may attest closure, after draining every lap write. */
+export const nativeOriginalSourceClosures = sqliteTable("native_original_source_closures", {
+	sessionId: integer("session_id").primaryKey().references(() => sessions.id, { onDelete: "cascade" }),
+	originalActivityId: text("original_activity_id").notNull(),
+	sourceRevision: text("source_revision").notNull(),
+	lapCount: integer("lap_count").notNull(),
+	gapCount: integer("gap_count").notNull(),
+});
+
+/** Source-bound preparation survives deletion; dirty sources never erase accepted remote history. */
+export const originalActivityPreparations = sqliteTable("original_activity_preparations", {
+	originalActivityId: text("original_activity_id").primaryKey(),
+	generation: integer("generation").notNull().default(1),
+	preparedGeneration: integer("prepared_generation"),
+	snapshotJson: text("snapshot_json"),
+	holdReason: text("hold_reason"),
+	heldLaps: integer("held_laps").notNull().default(0),
+}, (table) => [
+	index("idx_original_activity_preparations_dirty").on(table.originalActivityId)
+		.where(sql`${table.preparedGeneration} IS NULL OR ${table.generation} <> ${table.preparedGeneration}`),
+]);
+
+
+
 
 // Server-only credentials. Never include these tables in dashboard exports.
 export const dashboardAccess = sqliteTable("dashboard_access", {
@@ -102,6 +201,7 @@ export const sessions = sqliteTable(
 		trackId: text("track_id").notNull(),
 		gameId: text("game_id").notNull(),
 		sessionType: text("session_type"),
+		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 		notes: text("notes"),
 		rawFile: text("raw_file"),
 		downsampledFrequencyHz: integer("downsampled_frequency_hz"),
@@ -116,6 +216,10 @@ export const sessions = sqliteTable(
 		resolverVersion: text("resolver_version"),
 		derivationVersion: text("derivation_version"),
 		captureFormatVersion: integer("capture_format_version"),
+		captureFrameClock: text("capture_frame_clock", { enum: ["capture_utc", "unknown"] }),
+		captureClockAnchorJson: text("capture_clock_anchor_json"),
+		/** Restored only from a full portable source whose native digest and GUID membership were verified. */
+		verifiedOriginalDurationJson: text("verified_original_duration_json"),
 		// Cloud lap imports retain archive attribution independently of local account.
 		sourceAuthorUserId: text("source_author_user_id"),
 		sourceAuthorDisplayName: text("source_author_display_name"),
@@ -139,11 +243,17 @@ export const sessions = sqliteTable(
 		// racing line is dead-reckoned rather than logged — see MOTEC_IMPORT_LIMITATIONS.
 		source: text("source"),
 		ownership: text("ownership").$type<SessionOwnership>().notNull().default("mine"),
-		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+		ownerUserId: text("owner_user_id"),
+		originalActivityId: text("original_activity_id"),
+		originalSourceRevision: text("original_source_revision"),
+		nativeCaptureOrigin: integer("native_capture_origin", { mode: "boolean" }).notNull().default(false),
+		driverAttributionStints: text("driver_attribution_stints", { mode: "json" }).$type<DriverAttributionStint[]>(),
+		driverAttribution: text("driver_attribution", { enum: ["Self", "Other", "Mixed", "Unknown"] }),
 	},
 	(table) => [
 		index("idx_sessions_game_car_id").on(table.gameId, table.carId),
 		index("idx_sessions_game_track_id").on(table.gameId, table.trackId),
+		index("idx_sessions_original_activity").on(table.originalActivityId),
 		uniqueIndex("idx_sessions_cloud_import").on(table.cloudImportOrigin, table.cloudImportLapId).where(sql`${table.cloudImportOrigin} IS NOT NULL`),
 	],
 );
@@ -231,6 +341,7 @@ export const laps = sqliteTable(
 		sectorTimes: text("sector_times", { mode: "json" }).$type<number[]>(),
 		totalTimeMs: integer("total_time_ms"),
 		sectorTimesMs: text("sector_times_ms", { mode: "json" }).$type<number[]>(),
+		recordedAt: text("recorded_at"),
 		rawByteOffset: integer("raw_byte_offset"),
 		rawFrameCount: integer("raw_frame_count"),
 		captureChunkId: text("capture_chunk_id"),
@@ -267,14 +378,28 @@ export const laps = sqliteTable(
 		// (lazily filled on first read) or no usable telemetry channel.
 		fuelPerLap: real("fuel_per_lap"),
 		tyreWear: real("tyre_wear"),
-		recordedAt: text("recorded_at"),
+		sourceClockDomain: text("source_clock_domain"),
+		sourceLapStartMs: real("source_lap_start_ms"),
+		sourceLapEndMs: real("source_lap_end_ms"),
+		lapGuid: text("lap_guid"),
+		driverAttributionStints: text("driver_attribution_stints", { mode: "json" }).$type<DriverAttributionStint[]>(),
+		driverAttribution: text("driver_attribution", { enum: ["Self", "Other", "Mixed", "Unknown"] }),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 	},
 	(table) => ({
 		sessionIdx: index("idx_laps_session").on(table.sessionId),
 		experimentIdx: index("idx_laps_experiment").on(table.experimentId),
+		guidIdx: index("idx_laps_guid").on(table.lapGuid),
+		canonicalGuidIdx: index("idx_laps_guid_canonical").on(sql`lower(${table.lapGuid})`),
 	}),
 );
+/** Durable reconciliation records distinguish resolved originals from held imports. */
+export const lapGuidReconciliation = sqliteTable("lap_guid_reconciliation", {
+	lapId: integer("lap_id").primaryKey().references(() => laps.id, { onDelete: "cascade" }),
+	lapGuid: text("lap_guid"),
+	sourceGuid: text("source_guid"),
+	status: text("status", { enum: ["resolved", "held_ambiguous"] }).notNull(),
+}, (table) => [index("idx_lap_guid_reconciliation_canonical").on(sql`lower(${table.lapGuid})`)]);
 export const sessionCaptureSplitJobs = sqliteTable("session_capture_split_jobs", {
 	sessionId: integer("session_id").primaryKey().references(() => sessions.id, { onDelete: "cascade" }),
 	jobId: text("job_id").notNull().unique(),
@@ -777,6 +902,7 @@ export const dashboardSessionSummaries = sqliteTable("dashboard_session_summarie
 	distanceMeters: real("distance_meters"),
 	trackLengthMeters: real("track_length_meters"),
 	elapsedSeconds: real("elapsed_seconds"),
+	durationAttribution: text("duration_attribution_json", { mode: "json" }).$type<DashboardDurationAttribution>(),
 	durationStatus: text("duration_status").notNull().default("pending"),
 	podiumStatus: text("podium_status").notNull().default("unavailable"),
 	sectorLayoutKey: text("sector_layout_key"),

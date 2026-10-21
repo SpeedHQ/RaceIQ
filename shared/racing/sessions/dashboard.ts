@@ -19,6 +19,17 @@ export interface DashboardMetricTotals {
   cars: number;
   sessions: number;
 }
+export interface DashboardLapMetricFlags {
+  positive: boolean;
+  favouriteEligible: boolean;
+  valid: boolean;
+}
+
+/** Shared lap-time eligibility used by dashboard materialization and personal projections. */
+export function dashboardLapMetricFlags(lapTime: number, isValid: boolean, invalidReason: string | null): DashboardLapMetricFlags {
+  const positive = Number.isFinite(lapTime) && lapTime > 0;
+  return { positive, favouriteEligible: positive && invalidReason !== "incomplete", valid: positive && isValid };
+}
 export interface DashboardCoverage {
   status: "complete" | "pending" | "unavailable";
   /** False only when exact metadata aggregates could not be computed. */
@@ -100,6 +111,7 @@ export interface DashboardResponse {
     unknownShare: number;
     sessionsWithDuration: number;
     sessionsWithoutDuration: number;
+    durationCoverage: "complete" | "partial" | "unavailable";
   };
   podiums: { total: number; first: number; second: number; third: number; available: boolean };
   recentSessions: DashboardRecentSession[];
@@ -212,7 +224,7 @@ function finishTotals(value: MutableTotals): DashboardMetricTotals {
   };
 }
 function finitePositive(value: number): boolean { return Number.isFinite(value) && value > 0 }
-function classifySessionType(value: string | null | undefined): DashboardSessionType {
+export function classifySessionType(value: string | null | undefined): DashboardSessionType {
   const kind = value?.trim().toLowerCase();
   if (isPracticeSession(kind)) return "practice";
   if (kind?.startsWith("qualifying") || kind?.startsWith("qualify")) return "qualifying";
@@ -322,16 +334,17 @@ export function reduceDashboardLaps(laps: readonly LapMeta[], request: Dashboard
   for (const lap of laps) {
     if (!isDashboardOwned(lap.ownership) || !lap.gameId || (request.gameId && lap.gameId !== request.gameId)
       || !isInDashboardInterval(lap.createdAt, request.from, request.to)) continue;
+    const flags = dashboardLapMetricFlags(lap.lapTime, lap.isValid, lap.invalidReason ?? null);
     totals.laps++;
     totals.sessions.add(lap.sessionId);
     const track = dashboardTrackIdentity(lap.gameId, lap.trackId);
     const car = dashboardCarIdentity(lap.gameId, lap.carId);
     if (track) totals.tracks.add(track);
     if (car) totals.cars.add(car);
-    if (!finitePositive(lap.lapTime)) continue;
+    if (!flags.positive) continue;
     totals.positiveLaps++;
     totals.drivenSeconds += lap.lapTime;
-    if (lap.isValid) {
+    if (flags.valid) {
       totals.validLaps++;
       totals.validSeconds += lap.lapTime;
       totals.bestLapSeconds = totals.bestLapSeconds === null ? lap.lapTime : Math.min(totals.bestLapSeconds, lap.lapTime);
@@ -378,6 +391,7 @@ export function reduceDashboard(
       if (finitePositive(lap.lapTime)) card.drivenSeconds += lap.lapTime;
     }
     if (request.gameId && lap.gameId !== request.gameId) continue;
+    const flags = dashboardLapMetricFlags(lap.lapTime, lap.isValid, lap.invalidReason ?? null);
     totals.laps++;
     totals.sessions.add(lap.sessionId);
     const track = canonicalIdentity(lap.trackId);
@@ -391,11 +405,11 @@ export function reduceDashboard(
     if (lap.isValid && finitePositive(lap.lapTime)) sessionFact.best = sessionFact.best === null ? lap.lapTime : Math.min(sessionFact.best, lap.lapTime);
     sessionFacts.set(lap.sessionId, sessionFact);
 
-    if (finitePositive(lap.lapTime)) {
+    if (flags.positive) {
       totals.positiveLaps++;
       totals.drivenSeconds += lap.lapTime;
       if (day >= 0) { buckets[day]!.positiveLaps++; buckets[day]!.drivenSeconds += lap.lapTime; }
-      if (lap.isValid) {
+      if (flags.valid) {
         totals.validLaps++;
         totals.validSeconds += lap.lapTime;
         totals.bestLapSeconds = totals.bestLapSeconds === null ? lap.lapTime : Math.min(totals.bestLapSeconds, lap.lapTime);
@@ -404,13 +418,13 @@ export function reduceDashboard(
       const trackLength = lap.trackId != null ? input.trackLengthsMeters?.[`${lap.gameId}:${lap.trackId}`] : undefined;
       if (track) {
         addEntityLap(tracks, lap, track, trackLength);
-        if (lap.invalidReason !== "incomplete") addEntityLap(favouriteTracks, lap, track, trackLength);
+        if (flags.favouriteEligible) addEntityLap(favouriteTracks, lap, track, trackLength);
       }
       if (car) {
         addEntityLap(cars, lap, car, trackLength);
-        if (lap.invalidReason !== "incomplete") addEntityLap(favouriteCars, lap, car, trackLength);
+        if (flags.favouriteEligible) addEntityLap(favouriteCars, lap, car, trackLength);
       }
-      if (lap.isValid) {
+      if (flags.valid) {
         const session = ownedSessions.get(lap.sessionId);
         if (session) {
           const trackKey = dashboardTrackIdentity(lap.gameId, lap.trackId);
@@ -550,6 +564,7 @@ export function reduceDashboard(
       shares: sessionTypeShares, totalSeconds: durationTotal, unknownSeconds: typeSeconds.unknown,
       unknownShare: durationTotal ? typeSeconds.unknown / durationTotal : 0,
       sessionsWithDuration, sessionsWithoutDuration,
+      durationCoverage: sessionsWithDuration === 0 ? "unavailable" : sessionsWithoutDuration > 0 ? "partial" : "complete",
     },
     podiums: { total: first + second + third, first, second, third, available: podiumEvidence },
     recentSessions, latestRecapSessionId: recentSessions[0]?.id ?? null,

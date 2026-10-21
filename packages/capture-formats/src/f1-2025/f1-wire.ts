@@ -15,6 +15,7 @@ export interface F1Header {
 
 export const F1_HEADER_SIZE = 29;
 
+/** Packet kinds consumed by the telemetry accumulator, not the transport allowlist. */
 export const F1_PACKET_IDS = {
   MOTION: 0,
   SESSION: 1,
@@ -30,6 +31,71 @@ export const F1_PACKET_IDS = {
 } as const;
 
 export type F1PacketId = (typeof F1_PACKET_IDS)[keyof typeof F1_PACKET_IDS];
+
+/** All native packet kinds in EA's F1 25 UDP specification, including opaque ancillary data. */
+export const F1_NATIVE_PACKET_IDS = {
+  ...F1_PACKET_IDS,
+  EVENT: 3,
+  LOBBY_INFO: 9,
+  TYRE_SETS: 12,
+  TIME_TRIAL: 14,
+  LAP_POSITIONS: 15,
+} as const;
+
+// EA, Data Output from F1 25 v3: packed version-1 sizes, including the 29-byte header.
+const F1_NATIVE_PACKET_SIZES: Readonly<Record<number, number>> = {
+  [F1_NATIVE_PACKET_IDS.MOTION]: 1349,
+  [F1_NATIVE_PACKET_IDS.SESSION]: 753,
+  [F1_NATIVE_PACKET_IDS.LAP_DATA]: 1285,
+  [F1_NATIVE_PACKET_IDS.EVENT]: 45,
+  [F1_NATIVE_PACKET_IDS.PARTICIPANTS]: 1284,
+  [F1_NATIVE_PACKET_IDS.CAR_SETUP]: 1133,
+  [F1_NATIVE_PACKET_IDS.CAR_TELEMETRY]: 1352,
+  [F1_NATIVE_PACKET_IDS.CAR_STATUS]: 1239,
+  [F1_NATIVE_PACKET_IDS.FINAL_CLASSIFICATION]: 1042,
+  [F1_NATIVE_PACKET_IDS.LOBBY_INFO]: 954,
+  [F1_NATIVE_PACKET_IDS.CAR_DAMAGE]: 1041,
+  [F1_NATIVE_PACKET_IDS.SESSION_HISTORY]: 1460,
+  [F1_NATIVE_PACKET_IDS.TYRE_SETS]: 231,
+  [F1_NATIVE_PACKET_IDS.MOTION_EX]: 273,
+  [F1_NATIVE_PACKET_IDS.TIME_TRIAL]: 101,
+  [F1_NATIVE_PACKET_IDS.LAP_POSITIONS]: 1131,
+};
+
+const F1_EVENT_CODES: ReadonlySet<number> = new Set([
+  "SSTA", "SEND", "FTLP", "RTMT", "DRSE", "DRSD",
+  "TMPT", "CHQF", "RCWN", "PENA", "SPTP", "STLG",
+  "LGOT", "DTSV", "SGSV", "FLBK", "BUTN", "RDFL",
+  "OVTK", "SCAR", "COLL",
+].map(code => code.charCodeAt(0) * 0x1000000 + code.charCodeAt(1) * 0x10000 + code.charCodeAt(2) * 0x100 + code.charCodeAt(3)));
+
+/** Validate native transport layout without decoding or changing ancillary packet bytes. */
+export function isF1NativePacket(buf: Buffer): boolean {
+  if (buf.length < F1_HEADER_SIZE || buf.readUInt16LE(0) !== 2025 ||
+      buf[2] !== 25 || buf[5] !== 1 || buf[27]! >= 22 ||
+      (buf[28] !== 255 && buf[28]! >= 22)) return false;
+  const sessionTime = buf.readFloatLE(15);
+  if (!Number.isFinite(sessionTime) || sessionTime < 0) return false;
+  const packetId = buf[6]!;
+  if (buf.length !== F1_NATIVE_PACKET_SIZES[packetId]) return false;
+  switch (packetId) {
+    case F1_NATIVE_PACKET_IDS.EVENT:
+      return F1_EVENT_CODES.has(buf.readUInt32BE(F1_HEADER_SIZE));
+    case F1_NATIVE_PACKET_IDS.PARTICIPANTS:
+    case F1_NATIVE_PACKET_IDS.FINAL_CLASSIFICATION:
+    case F1_NATIVE_PACKET_IDS.LOBBY_INFO:
+      return buf[F1_HEADER_SIZE]! <= 22;
+    case F1_NATIVE_PACKET_IDS.SESSION_HISTORY:
+      return buf[F1_HEADER_SIZE]! < 22 && buf[F1_HEADER_SIZE + 1]! <= 100 &&
+        buf[F1_HEADER_SIZE + 2]! <= 8;
+    case F1_NATIVE_PACKET_IDS.TYRE_SETS:
+      return buf[F1_HEADER_SIZE]! < 22;
+    case F1_NATIVE_PACKET_IDS.LAP_POSITIONS:
+      return buf[F1_HEADER_SIZE]! <= 50;
+    default:
+      return true;
+  }
+}
 
 export function parseF1Header(buf: Buffer): F1Header {
   return {

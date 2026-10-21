@@ -3,6 +3,7 @@ import { m } from "@/paraglide/messages";
 
 export const NAV_ITEMS = [
   { id: "general", label: "General" },
+  { id: "upload", label: "Upload" },
   { id: "games", label: "Games" },
   { id: "connection", label: "Connection" },
   { id: "access", label: "Access & security" },
@@ -20,6 +21,7 @@ export type SectionId = (typeof NAV_ITEMS)[number]["id"];
 
 export const NAV_LABELS: Record<SectionId, () => string> = {
   general: m.label_general,
+  upload: m.online_upload_title,
   games: m.label_games,
   connection: m.label_connection,
   access: m.access_title,

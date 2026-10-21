@@ -3,13 +3,14 @@ import { resolveLapCaptureArtifact } from "../session-capture/source-loader";
 import { toLapMeta } from "./lap-meta";
 import { eq, desc, and, or, sql, inArray } from "drizzle-orm";
 import { db } from "./index";
-import { sessions, laps, tunes } from "./schema";
+import { sessions, laps, tunes, localAccountOwner } from "./schema";
+import type { GameId } from "@raceiq/shared/games/ids";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
-import type { GameId } from "@raceiq/shared/games/ids";
 import { getLiveLapCaptureSnapshot } from "./live-capture-queries";
 import { resolveLiveLapCaptureArtifact } from "../session-capture/source-loader";
 const inFlightSessionDecodes = new Map<string, Promise<void>>();
+const localOriginalOwner = sql`(${sessions.ownerUserId} IS NULL OR ${sessions.ownerUserId} = (SELECT ${localAccountOwner.onlineUserId} FROM ${localAccountOwner} WHERE ${localAccountOwner.id} = 1))`;
 
 interface LapStats {
   totalLaps: number;
@@ -22,7 +23,7 @@ interface LapStats {
 
 
 export async function getLapStats(gameId?: GameId): Promise<LapStats> {
-  const owned = sql`COALESCE(sessions.ownership, 'mine') != 'others'`;
+  const owned = sql`${sessions.ownership} = 'mine' AND ${localOriginalOwner} AND ${laps.driverAttribution} = 'Self'`;
   const whereClause = gameId ? sql`WHERE sessions.game_id = ${gameId} AND ${owned}` : sql`WHERE ${owned}`;
   const carIdentity = sql`sessions.car_id`;
   const trackIdentity = sql`sessions.track_id`;
@@ -68,11 +69,12 @@ export async function getLapStats(gameId?: GameId): Promise<LapStats> {
 }
 
 /**
- * Get all laps with session metadata, newest first.
- * Optionally filter by profileId.
+ * Get library laps with session metadata, newest first. Local originals and
+ * borrowed imports remain viewable; personal selection uses separate filters.
  */
 
 export async function getLaps(gameId?: GameId, limit: number = 200, sessionId?: number): Promise<LapMeta[]> {
+  const filters = [sql`1=1`];
   const query = db
     .select({
       id: laps.id,
@@ -122,11 +124,9 @@ export async function getLaps(gameId?: GameId, limit: number = 200, sessionId?: 
     .orderBy(sessionId != null ? laps.lapNumber : desc(laps.id))
     .limit(sessionId != null ? 1_000_000 : limit);
 
-  const rows = sessionId != null
-    ? await query.where(and(eq(sessions.gameId, gameId!), eq(laps.sessionId, sessionId))).all()
-    : gameId
-      ? await query.where(eq(sessions.gameId, gameId)).all()
-      : await query.all();
+  if (sessionId != null) filters.push(eq(sessions.gameId, gameId!), eq(laps.sessionId, sessionId));
+  else if (gameId) filters.push(eq(sessions.gameId, gameId));
+  const rows = await query.where(and(...filters)).all();
 
   return rows.map(toLapMeta);
 }
@@ -145,7 +145,10 @@ export async function getReviewLaps(
   limit = 5,
   sessionId?: number,
 ): Promise<LapMeta[]> {
-  const filters = [eq(sessions.gameId, gameId), eq(laps.isValid, true), sql`${laps.lapTime} > 0`, sql`${sessions.rawFile} IS NOT NULL`];
+  const filters = [
+    eq(sessions.ownership, "mine"), localOriginalOwner, eq(laps.driverAttribution, "Self"),
+    eq(sessions.gameId, gameId), eq(laps.isValid, true), sql`${laps.lapTime} > 0`, sql`${sessions.rawFile} IS NOT NULL`,
+  ];
   if (sessionId != null) filters.push(eq(laps.sessionId, sessionId));
   else {
     if (trackId != null) filters.push(eq(sessions.trackId, trackId));
@@ -216,7 +219,9 @@ export async function getReviewLaps(
  * separately by MAX_PROFILE_LAPS in driver-profile-aggregate.ts.
  */
 export async function getLapMetaForProfileScope(gameId: GameId, carId?: string, trackId?: string): Promise<LapMeta[]> {
-  const filters = [eq(sessions.gameId, gameId), sql`COALESCE(${sessions.ownership}, 'mine') != 'others'`];
+  const filters = [
+    eq(sessions.gameId, gameId), eq(sessions.ownership, "mine"), localOriginalOwner, eq(laps.driverAttribution, "Self"),
+  ];
   if (carId != null) filters.push(eq(sessions.carId, carId));
   if (trackId != null) filters.push(eq(sessions.trackId, trackId));
 

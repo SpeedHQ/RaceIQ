@@ -6,6 +6,8 @@ export type CloudLapImportStatus =
   | "registering"
   | "complete"
   | "error";
+export interface CloudLapImportAccessContext { accountEpoch:string;expectedRevision:number }
+export interface CloudLapImportSelection { gameId:string;trackId:string;carId:string }
 
 export interface CloudLapImportState {
   status: CloudLapImportStatus;
@@ -13,6 +15,9 @@ export interface CloudLapImportState {
   localLap: { id: number; gameId: string; sessionId: number } | null;
   error: { code: string; retryable: boolean } | null;
   activationId: number | null;
+  access:CloudLapImportAccessContext|null;
+  lapGuid:string|null;
+  selection:CloudLapImportSelection|null;
 }
 
 export const IDLE_CLOUD_LAP_IMPORT: CloudLapImportState = {
@@ -21,4 +26,7 @@ export const IDLE_CLOUD_LAP_IMPORT: CloudLapImportState = {
   localLap: null,
   error: null,
   activationId: null,
+  access:null,
+  lapGuid:null,
+  selection:null,
 };

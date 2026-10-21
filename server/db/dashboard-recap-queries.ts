@@ -1,6 +1,6 @@
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { SessionRecap } from "@raceiq/shared/racing/sessions/types";
-import { dashboardCarIdentity, dashboardTrackIdentity } from "@raceiq/shared/racing/sessions/dashboard";
+import { dashboardCarIdentity, dashboardLapMetricFlags, dashboardTrackIdentity } from "@raceiq/shared/racing/sessions/dashboard";
 import { computeRecap, type RecapLapInput } from "../lap-analysis/recap";
 import { getLMUCar, getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
@@ -8,6 +8,7 @@ import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-na
 import { tryGetGame } from "@raceiq/shared/games/registry";
 import { DASHBOARD_PROCESSOR_VERSION } from "./dashboard-summary-queries";
 import { client } from "./index";
+import { dashboardLapAttribution } from "../driver-summary/dashboard-input";
 
 const asNumber = (value: unknown): number => Number(value);
 const maybeNumber = (value: unknown): number | null => value == null ? null : asNumber(value);
@@ -22,7 +23,7 @@ export async function getDashboardSessionRecap(id: number, gameId: GameId): Prom
   const tx = await client.transaction("read");
   try {
     const selected = await tx.execute({
-      sql: `SELECT s.id,s.game_id,s.created_at,s.car_id,s.track_id,
+      sql: `SELECT s.id,s.game_id,s.created_at,s.car_id,s.track_id,s.driver_attribution_stints,
           p.source_revision,p.published_revision,p.processor_version,p.metadata_dirty,p.capture_dirty,p.deleted,
           d.source_revision AS summary_source_revision,d.processor_version AS summary_processor_version,d.evidence_version,
           d.best_lap_seconds,d.track_length_meters,d.sector_layout_key,d.sector_count,d.sector_status,
@@ -34,10 +35,14 @@ export async function getDashboardSessionRecap(id: number, gameId: GameId): Prom
     const session = selected.rows[0];
     if (!session) { await tx.commit(); return null; }
     const lapResult = await tx.execute({
-      sql: `SELECT id,lap_number,lap_time,is_valid,sector_times,invalid_reason FROM laps
+      sql: `SELECT id,lap_number,lap_time,is_valid,sector_times,invalid_reason,
+          driver_attribution_stints,source_clock_domain,source_lap_start_ms,source_lap_end_ms FROM laps
         WHERE session_id=? ORDER BY lap_number,id`, args: [id],
     });
-    const sourceLaps: RecapLapInput[] = lapResult.rows.map((row) => ({
+    const sourceLaps: RecapLapInput[] = lapResult.rows.filter((row) => dashboardLapAttribution(
+      row.driver_attribution_stints, session.driver_attribution_stints, row.source_clock_domain,
+      row.source_lap_start_ms, row.source_lap_end_ms,
+    ) === "Self").map((row) => ({
       id: asNumber(row.id), lapNumber: asNumber(row.lap_number), lapTime: asNumber(row.lap_time),
       isValid: Boolean(row.is_valid), sectorTimes: parseJson<number[]>(row.sector_times),
       invalidReason: row.invalid_reason == null ? null : String(row.invalid_reason),
@@ -63,54 +68,71 @@ export async function getDashboardSessionRecap(id: number, gameId: GameId): Prom
       : adapter ? adapter.getTrackName(trackId) : resolveTrackName(trackId, gameId);
     const trackLengthM = captureEvidenceCurrent ? maybeNumber(session.track_length_meters) : null;
 
-    // Clean published summaries provide indexed historical minima. Dirty/missing rows are
-    // reconciled directly from source in one bounded SQL statement; ownership is checked
-    // against the live parent row, never trusted from the derived snapshot.
+    // Published and raw fallback minima share the same historical Self interval classifier.
     const bestResult = await tx.execute({
-      sql: `SELECT MIN(best_seconds) AS best FROM (
-          SELECT d.best_lap_seconds AS best_seconds FROM dashboard_session_summaries d
-          JOIN sessions s ON s.id=d.session_id JOIN dashboard_summary_state st ON st.session_id=d.session_id
-          WHERE s.ownership='mine' AND s.game_id=? AND d.session_id!=? AND d.car_key=? AND d.track_key=?
-            AND st.metadata_dirty=0 AND st.capture_dirty=0 AND st.deleted=0 AND st.source_revision=st.published_revision AND st.processor_version=d.processor_version AND st.processor_version=?
-          UNION ALL
-          SELECT l.lap_time FROM laps l JOIN sessions s ON s.id=l.session_id
-          LEFT JOIN dashboard_summary_state st ON st.session_id=s.id
-          WHERE s.ownership='mine' AND s.game_id=? AND s.id!=?
-            AND ${carSourcePredicate}
-            AND ${trackSourcePredicate}
-            AND l.is_valid=1 AND l.lap_time>0 AND (st.session_id IS NULL OR st.metadata_dirty=1 OR st.capture_dirty=1 OR st.deleted=1 OR st.source_revision!=st.published_revision OR st.processor_version!=?)
-        )`,
-      args: [gameId,id,carKey,trackKey,DASHBOARD_PROCESSOR_VERSION,gameId,id,...carSourceArgs,...trackSourceArgs,DASHBOARD_PROCESSOR_VERSION],
+      sql: `SELECT MIN(d.best_lap_seconds) AS best FROM dashboard_session_summaries d
+        JOIN sessions s ON s.id=d.session_id JOIN dashboard_summary_state st ON st.session_id=d.session_id
+        WHERE s.ownership='mine' AND s.game_id=? AND d.session_id!=? AND d.car_key=? AND d.track_key=?
+          AND st.metadata_dirty=0 AND st.capture_dirty=0 AND st.deleted=0 AND st.source_revision=st.published_revision
+          AND st.processor_version=d.processor_version AND st.processor_version=?`,
+      args: [gameId,id,carKey,trackKey,DASHBOARD_PROCESSOR_VERSION],
     });
-    const allTimeBestSec = maybeNumber(bestResult.rows[0]?.best);
+    let allTimeBestSec = maybeNumber(bestResult.rows[0]?.best);
 
     let allTimeBestSectors: Array<number | null> | null = null;
     const layoutKey = captureEvidenceCurrent && session.sector_status === "available" ? String(session.sector_layout_key ?? "") : "";
     const sectorCount = captureEvidenceCurrent ? asNumber(session.sector_count ?? 0) : 0;
     if (layoutKey && sectorCount > 0) {
       const sectorResult = await tx.execute({
-        sql: `SELECT sector_index,MIN(best_seconds) AS best FROM (
-            SELECT hs.sector_index,hs.best_seconds FROM dashboard_session_sectors hs
-            JOIN dashboard_session_summaries h ON h.session_id=hs.session_id JOIN sessions s ON s.id=h.session_id
-            JOIN dashboard_summary_state st ON st.session_id=h.session_id
-            WHERE s.ownership='mine' AND s.game_id=? AND h.session_id!=? AND h.car_key=? AND h.track_key=? AND hs.layout_key=?
-              AND st.metadata_dirty=0 AND st.capture_dirty=0 AND st.deleted=0 AND st.source_revision=st.published_revision AND st.processor_version=h.processor_version AND st.processor_version=?
-            UNION ALL
-            SELECT json_each.key AS sector_index,CAST(json_each.value AS REAL) AS best_seconds FROM laps l JOIN sessions s ON s.id=l.session_id
-            LEFT JOIN dashboard_summary_state st ON st.session_id=s.id, json_each(l.sector_times)
-            WHERE s.ownership='mine' AND s.game_id=? AND s.id!=?
-              AND ${carSourcePredicate}
-              AND ${trackSourcePredicate}
-              AND l.is_valid=1 AND l.lap_time>0 AND (st.session_id IS NULL OR st.metadata_dirty=1 OR st.capture_dirty=1 OR st.deleted=1 OR st.source_revision!=st.published_revision OR st.processor_version!=?)
-              AND EXISTS(SELECT 1 FROM dashboard_session_summaries hd JOIN dashboard_summary_state hst ON hst.session_id=hd.session_id
-                WHERE hd.session_id=s.id AND hd.sector_layout_key=? AND hd.sector_status='available' AND hd.evidence_version=? AND hst.capture_dirty=0)
-          ) WHERE CAST(sector_index AS INTEGER) < ? GROUP BY sector_index`,
-        args: [gameId,id,carKey,trackKey,layoutKey,DASHBOARD_PROCESSOR_VERSION,gameId,id,...carSourceArgs,...trackSourceArgs,DASHBOARD_PROCESSOR_VERSION,layoutKey,DASHBOARD_PROCESSOR_VERSION,sectorCount],
+        sql: `SELECT hs.sector_index,MIN(hs.best_seconds) AS best FROM dashboard_session_sectors hs
+          JOIN dashboard_session_summaries h ON h.session_id=hs.session_id JOIN sessions s ON s.id=h.session_id
+          JOIN dashboard_summary_state st ON st.session_id=h.session_id
+          WHERE s.ownership='mine' AND s.game_id=? AND h.session_id!=? AND h.car_key=? AND h.track_key=? AND hs.layout_key=?
+            AND st.metadata_dirty=0 AND st.capture_dirty=0 AND st.deleted=0 AND st.source_revision=st.published_revision
+            AND st.processor_version=h.processor_version AND st.processor_version=? AND hs.sector_index<?
+          GROUP BY hs.sector_index`,
+        args: [gameId,id,carKey,trackKey,layoutKey,DASHBOARD_PROCESSOR_VERSION,sectorCount],
       });
       allTimeBestSectors = new Array<number | null>(sectorCount).fill(null);
       for (const row of sectorResult.rows) allTimeBestSectors[asNumber(row.sector_index)] = asNumber(row.best);
-      if (!allTimeBestSectors.some((value) => value !== null)) allTimeBestSectors = null;
     }
+    let afterLapId = 0;
+    for (;;) {
+      const raw = await tx.execute({
+        sql: `SELECT l.id,l.lap_time,l.is_valid,l.invalid_reason,l.sector_times,l.driver_attribution_stints,
+            l.source_clock_domain,l.source_lap_start_ms,l.source_lap_end_ms,s.driver_attribution_stints AS session_stints,
+            CASE WHEN d.sector_layout_key=? AND d.sector_status='available' AND d.evidence_version=?
+              AND st.capture_dirty=0 THEN 1 ELSE 0 END AS sectors_current
+          FROM laps l JOIN sessions s ON s.id=l.session_id
+          LEFT JOIN dashboard_summary_state st ON st.session_id=s.id
+          LEFT JOIN dashboard_session_summaries d ON d.session_id=s.id
+          WHERE s.ownership='mine' AND s.game_id=? AND s.id!=? AND ${carSourcePredicate} AND ${trackSourcePredicate}
+            AND l.id>? AND l.is_valid=1 AND l.lap_time>0
+            AND (st.session_id IS NULL OR d.session_id IS NULL OR st.metadata_dirty=1 OR st.capture_dirty=1 OR st.deleted=1
+              OR st.source_revision!=st.published_revision OR st.processor_version!=? OR d.processor_version!=st.processor_version)
+          ORDER BY l.id LIMIT 256`,
+        args: [layoutKey,DASHBOARD_PROCESSOR_VERSION,gameId,id,...carSourceArgs,...trackSourceArgs,afterLapId,DASHBOARD_PROCESSOR_VERSION],
+      });
+      for (const row of raw.rows) {
+        afterLapId = asNumber(row.id);
+        if (dashboardLapAttribution(row.driver_attribution_stints, row.session_stints, row.source_clock_domain,
+          row.source_lap_start_ms, row.source_lap_end_ms) !== "Self") continue;
+        const time = asNumber(row.lap_time);
+        if (!dashboardLapMetricFlags(time, Boolean(row.is_valid), row.invalid_reason == null ? null : String(row.invalid_reason)).valid) continue;
+        allTimeBestSec = allTimeBestSec === null ? time : Math.min(allTimeBestSec, time);
+        if (!layoutKey || sectorCount <= 0 || row.sectors_current !== 1) continue;
+        const values = parseJson<unknown>(row.sector_times);
+        if (!Array.isArray(values) || values.length !== sectorCount
+          || !values.every((value) => typeof value === "number" && Number.isFinite(value) && value > 0)) continue;
+        allTimeBestSectors ??= new Array<number | null>(sectorCount).fill(null);
+        for (let index = 0; index < sectorCount; index++) {
+          const previous = allTimeBestSectors[index];
+          allTimeBestSectors[index] = previous == null ? values[index] : Math.min(previous, values[index]);
+        }
+      }
+      if (raw.rows.length < 256) break;
+    }
+    if (allTimeBestSectors && !allTimeBestSectors.some((value) => value !== null)) allTimeBestSectors = null;
     const recap = computeRecap({
       session: { id, gameId, createdAt: String(session.created_at), carId, trackId, ownership: "mine" },
       laps: sourceLaps, carName, trackName, trackLengthM,

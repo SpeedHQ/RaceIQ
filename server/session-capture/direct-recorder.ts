@@ -62,6 +62,7 @@ export class DirectCaptureRecording {
   get path(): string { return this.sourcePath; }
   get active(): boolean { return !this.closing && !this.sealed && !this.failure; }
   get sourceOrdinal(): number | undefined { return this.nativeFrameCount ? this.nativeFrameCount - 1 : undefined; }
+  get sourceRevision(): string { return this.manifestRevision; }
   get rotationCount(): number { return this.parts.size - 1; }
   isLapReady(lapId: number): boolean { return this.publishedLapIds.has(lapId); }
 
@@ -90,7 +91,7 @@ export class DirectCaptureRecording {
   attachSession(sessionId: number, sourceRegistered: Promise<void>, notify: (event: Record<string, unknown>) => void): void {
     this.sessionId = sessionId; this.sourceRegistered = sourceRegistered; this.notify = notify;
     this.startupTask = this.ready.then(() => sourceRegistered).then(async () => {
-      const snapshot = this.buildManifestSnapshot();
+      const snapshot = await this.buildManifestSnapshot();
       await this.persistManifest(snapshot);
       this.persistedManifest = snapshot;
       const updated = await db.update(sessions).set({ rawFile: this.manifestPath, captureManifestFile: this.manifestPath, captureLayoutVersion: 1, captureArchiveFile: null }).where(eq(sessions.id, sessionId)).run();
@@ -265,6 +266,14 @@ export class DirectCaptureRecording {
     }
     this.lastFrame = null;
     if (this.failure) throw this.failure;
+    const finalSnapshot = await this.buildManifestSnapshot(true);
+    if (finalSnapshot.sourceByteLength !== this.sourceBytes || finalSnapshot.sourceRecordCount !== this.sourceRecordCount) {
+      const error = new Error("Closed capture does not cover the complete original source");
+      this.fail(error);
+      throw error;
+    }
+    await this.persistManifest(finalSnapshot);
+    this.persistedManifest = finalSnapshot;
     this.sealed = true;
   }
 
@@ -325,10 +334,14 @@ export class DirectCaptureRecording {
     part.encoder = null;
     this.schedulePublication();
   }
-  private buildManifestSnapshot(): Manifest {
+  private async buildManifestSnapshot(sourceClosed = false): Promise<Manifest> {
     const chunks: Chunk[] = [];
     let sourceEnd = META_FRAME_BYTES;
     let recordEnd = 0;
+    const session = this.sessionId === null ? null : await db.select({
+      originalActivityId: sessions.originalActivityId, ownerUserId: sessions.ownerUserId,
+      originalSourceRevision: sessions.originalSourceRevision,
+    }).from(sessions).where(eq(sessions.id, this.sessionId)).get();
     for (const part of this.parts.values()) {
       if (!part.closed) break;
       if (part.owner && !part.owner.abandoned && (!part.owner.finalized || !part.owner.binding)) break;
@@ -336,9 +349,29 @@ export class DirectCaptureRecording {
       const binding = owner?.binding;
       const id = part.chunkId ?? randomUUID();
       part.chunkId = id;
+      const lap = binding && this.sessionId !== null
+        ? await db.select({
+            lapGuid: laps.lapGuid, driverAttribution: laps.driverAttribution,
+            driverAttributionStints: laps.driverAttributionStints,
+            sourceClockDomain: laps.sourceClockDomain, sourceLapStartMs: laps.sourceLapStartMs,
+            sourceLapEndMs: laps.sourceLapEndMs,
+          }).from(laps).where(and(eq(laps.id, binding.lapId), eq(laps.sessionId, this.sessionId))).get()
+        : undefined;
+      if (binding && !lap?.lapGuid) throw new Error(`Lap ${binding.lapId} has no persistent original GUID`);
       const chunk = Schema.decodeSync(ChunkSchema)({
         id, kind: binding ? "lap" : "auxiliary",
-        ...(binding ? { lapId: String(binding.lapId), lapNumber: binding.lapNumber } : {}),
+        ...(binding ? {
+          lapId: String(binding.lapId), lapNumber: binding.lapNumber, lapGuid: lap!.lapGuid!,
+          ...(session?.originalActivityId ? { originalActivityId: session.originalActivityId } : {}),
+          ...(session?.originalSourceRevision == null ? {} : { originalSourceRevision: session.originalSourceRevision }),
+          ...(lap!.sourceClockDomain == null ? {} : { sourceClockDomain: lap!.sourceClockDomain }),
+          ...(lap!.sourceLapStartMs == null ? {} : { sourceLapStartMs: lap!.sourceLapStartMs }),
+          ...(lap!.sourceLapEndMs == null ? {} : { sourceLapEndMs: lap!.sourceLapEndMs }),
+          ...(lap!.driverAttribution ? { driverAttribution: lap!.driverAttribution } : {}),
+          ...(lap!.driverAttributionStints ? { driverAttributionStints: lap!.driverAttributionStints } : {}),
+          sourceCoverageStart: part.firstOrdinal, sourceCoverageEnd: part.firstOrdinal + owner!.count,
+          sourceCoverageComplete: true, sourceRevision: this.manifestRevision,
+        } : {}),
         path: basename(part.info.path), byteLength: part.info.byteLength, firstOrdinal: part.firstOrdinal,
         recordCount: part.records, sourceStart: part.firstOrdinal, sourceEnd: part.firstOrdinal + part.records,
         sourceByteStart: part.sourceStart, sourceByteEnd: part.sourceEnd, sourceRecordByteOffset: part.prefixBytes,
@@ -353,6 +386,8 @@ export class DirectCaptureRecording {
     }
     this.manifest = Schema.decodeSync(ManifestSchema)({
       version: 3, gameId: this.gameId, sourceRevision: this.manifestRevision,
+      ...(session?.originalActivityId ? { originalActivityId: session.originalActivityId, ownerUserId: session.ownerUserId } : {}),
+      sourceClosed,
       sourceByteLength: sourceEnd, sourceRecordCount: recordEnd,
       sourceCoordinates: "native-wire-v1", chunks,
     });
@@ -367,7 +402,7 @@ export class DirectCaptureRecording {
       await this.startupTask;
       while (this.publicationRequested && !this.failure) {
         this.publicationRequested = false;
-        const snapshot = this.buildManifestSnapshot();
+        const snapshot = await this.buildManifestSnapshot();
         await this.persistManifest(snapshot);
         this.persistedManifest = snapshot;
         await this.publishReady(snapshot);

@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./driver-attribution": "./src/driver-attribution.ts",
     "./index": "./src/index.ts",
     "./catalog": "./src/catalog.ts",
     "./track-boundaries": "./src/track-boundaries.ts",

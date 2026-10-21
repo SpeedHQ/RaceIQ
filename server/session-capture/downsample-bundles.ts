@@ -49,17 +49,31 @@ export async function prepareDownsampleCaptureBundles(
     for (const row of rows) {
       const lapRows = await db.select().from(laps).where(eq(laps.sessionId, row.id)).all();
       if (row.captureLayoutVersion === null && !row.captureManifestFile && !row.captureArchiveFile && !lapRows.some((lap) => lap.captureChunkId !== null)) continue;
-      const windows = lapRows.map((lap) => {
+      const metadataWindows = lapRows.map((lap) => {
         const index = rewritten.get(lap.id);
         if (!index) throw new Error(`Cannot publish downsampled bundle without lap ${lap.id} index`);
-        return { lapId: String(lap.id), lapNumber: lap.lapNumber, startByteOffset: index.rawByteOffset, frameCount: index.rawFrameCount };
-      }).sort((a, b) => a.startByteOffset - b.startByteOffset);
+        return {
+          lapId: String(lap.id), lapNumber: lap.lapNumber,
+          startByteOffset: index.rawByteOffset, frameCount: index.rawFrameCount,
+          ...(lap.lapGuid == null ? {} : { lapGuid: lap.lapGuid }),
+          ...(row.originalActivityId == null ? {} : { originalActivityId: row.originalActivityId }),
+          ...(row.originalSourceRevision == null ? {} : { originalSourceRevision: row.originalSourceRevision }),
+          ...(lap.sourceClockDomain == null ? {} : { sourceClockDomain: lap.sourceClockDomain }),
+          ...(lap.sourceLapStartMs == null ? {} : { sourceLapStartMs: lap.sourceLapStartMs }),
+          ...(lap.sourceLapEndMs == null ? {} : { sourceLapEndMs: lap.sourceLapEndMs }),
+          ...(lap.driverAttribution == null ? {} : { driverAttribution: lap.driverAttribution }),
+          ...(lap.driverAttributionStints == null ? {} : { driverAttributionStints: lap.driverAttributionStints }),
+          sourceCoverageComplete: false,
+        };
+      });
+      const sourceRevision = getSessionCaptureSourceRevision(await stat(source.rawFile), metadataWindows, source.gameId);
+      const windows = metadataWindows.map((window) => ({ ...window, sourceRevision }));
       const game = getServerGame(source.gameId);
       const directory = `${source.rawFile}.session-${row.id}.bundle`;
       const bundle = await prepareCaptureBundle({
         sourcePath: source.rawFile,
         outputDirectory: directory,
-        sourceRevision: getSessionCaptureSourceRevision(await stat(source.rawFile), windows, source.gameId),
+        sourceRevision,
         windows,
         source: () => iterateSessionCaptureRecordsFromSource(source, { strict: true }),
         codec: {

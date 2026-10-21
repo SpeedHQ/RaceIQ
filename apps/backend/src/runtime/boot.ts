@@ -24,8 +24,9 @@ import { clearHttpPort, startHttpServer } from "./http-server";
 import { startNativeSourceSupervisor, type NativeSourceSupervisor } from "./native-sources";
 import { installShutdown } from "./shutdown";
 import { startStartupWorker, type StartupWorkerHandle } from "./startup-worker";
-import { startOnlineUploadCoordinator, type OnlineUploadCoordinator } from "@raceiq/online/coordinator";
-import { getOnlineService } from "../integrations/online";
+import { startOnlineWorker,wakeOnlineWorker } from "../integrations/online";
+import { nativeBindingCandidateHost } from "@raceiq/backend-core/telemetry/live-pipeline";
+import { OnlineTestPlatformError } from "../integrations/online-test-platform";
 import { startMaintenanceJobs, startSyncAndStaleSessionJobs } from "./startup-jobs";
 import { setDashboardPublicationNotifier } from "@raceiq/backend-core/db/dashboard-summary-queries";
 import { startTray } from "@raceiq/backend-core/runtime/platform/tray";
@@ -135,20 +136,21 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
 
   let nativeSources: NativeSourceSupervisor | null = null;
   let startupWorker: StartupWorkerHandle | null = null;
-  let onlineUploadCoordinator: OnlineUploadCoordinator | null = null;
+  let onlineWorker: {stop():Promise<void>} | null = null;
   installShutdown({
     getNativeSources: () => nativeSources,
     getStartupWorker: () => startupWorker,
-    getOnlineUploadCoordinator: () => onlineUploadCoordinator,
+    getOnlineWorker: () => onlineWorker,
     clearDashboardPublicationNotifications: () => {
       setDashboardPublicationNotifier(null);
       wsManager.clearDashboardUpdateNotification();
     },
   });
-  setDashboardPublicationNotifier(() => wsManager.notifyDashboardUpdated());
+  const notifyPublication=()=>{wsManager.notifyDashboardUpdated();wakeOnlineWorker();};
+  setDashboardPublicationNotifier(notifyPublication);
   startupWorker = startStartupWorker(
-    () => wsManager.notifyDashboardUpdated(),
-    (reprocessed) => wsManager.broadcastNotification({ type: "lap-reprocessed", ...reprocessed }),
+    notifyPublication,
+    (reprocessed) => {wsManager.broadcastNotification({ type: "lap-reprocessed", ...reprocessed });wakeOnlineWorker();},
     () => wsManager.setStaleSessionsNotification(null),
   );
 
@@ -156,7 +158,8 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   void udpListener.start(udpPort);
 
   startSyncAndStaleSessionJobs();
-  onlineUploadCoordinator = startOnlineUploadCoordinator(getOnlineService());
+  try { onlineWorker = await startOnlineWorker(nativeBindingCandidateHost); }
+  catch(cause) { console.error("[OnlineWorker] Unavailable; local recording remains active",cause instanceof OnlineTestPlatformError?cause.reason:"startup_failed"); }
 
   nativeSources = startNativeSourceSupervisor(recordingGameId);
   const trayCandidates = httpAccess.hosts

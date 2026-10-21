@@ -1,19 +1,22 @@
 import { api, createRaceIqClient } from "@speedhq/live-client";
-import { prepareUploadPayload } from "./payload";
-import type { VerifiedRecordingCodec, UploadGame } from "./payload";
+import { prepareUploadPayload,uploadPayloadFingerprint,MAX_ONLINE_UPLOAD_BYTES,MAX_ONLINE_SETUP_BYTES } from "./payload";
+import type { VerifiedRecordingCodec, UploadGame, OnlineLapIdentity } from "./payload";
+import type { GameIdentityBinding } from "./contracts";
 
 type AcceptanceInput = api.AcceptanceInput;
 type OwnLap = api.OwnLap;
 type UploadPreferencesInput = api.UploadPreferencesInput;
 type ProfilePatch = api.ProfilePatch;
 const REQUEST_TIMEOUT_MS = 8_000;
-const MAX_UPLOAD_BYTES = 128 * 1024 * 1024;
+const UPLOAD_TRANSFER_TIMEOUT_MS=600_000;
 
-export type OnlineFailureCode = "offline" | "service_unavailable" | "policy_unavailable" | "policy_changed" | "not_connected" | "auth_failed" | "rate_limited" | "invalid_response" | "unknown_track" | "unknown_car" | "unsupported_game" | "f1_sanitization_failed";
+export type OnlineFailureCode = "offline" | "service_unavailable" | "policy_unavailable" | "policy_changed" | "not_connected" | "auth_failed" | "rate_limited" | "invalid_response" | "unknown_track" | "unknown_car" | "unsupported_game" | "unsupported_recording_format" | "recording_too_large" | "f1_sanitization_failed" | "activity_identity_ambiguous" | "activity_owner_conflict" | "activity_revision_conflict" | "lap_owner_conflict" | "lap_identity_conflict";
 const STATUS_BY_CODE: Record<OnlineFailureCode, number> = {
   offline: 503, service_unavailable: 503, policy_unavailable: 503, policy_changed: 409,
   not_connected: 403, auth_failed: 401, rate_limited: 429, invalid_response: 500,
+  unsupported_recording_format:400,recording_too_large:413,
   unknown_track: 400, unknown_car: 400, unsupported_game: 400, f1_sanitization_failed: 400,
+  activity_identity_ambiguous: 409,activity_owner_conflict: 409,activity_revision_conflict: 409,lap_owner_conflict: 409,lap_identity_conflict: 409,
 };
 export class OnlineAdapterError extends Error {
   readonly status: number;
@@ -47,6 +50,7 @@ export interface BoardIdentifierResolver {
 export interface LeaderboardRow {
   rank: number;
   lapId: string;
+  lapGuid: string;
   driver: { userId: string; displayName: string; avatarUrl: string | null };
   lapTimeMs: number;
   importAvailable: boolean;
@@ -57,13 +61,15 @@ export interface LeaderboardSnapshot {
   fetchedAt: string;
   stale: false;
 }
-export interface SanitizedLapUpload {
+export interface SanitizedLapUpload extends OnlineLapIdentity {
   gameId: UploadGame;
+  carId:string;
   filename: string;
   recording: Uint8Array;
   setup?: Uint8Array;
   idempotencyKey: string;
   reservationToken: string;
+  payloadFingerprint:string;
   consentAccepted: boolean;
   visibility: "public" | "private";
   setupUploads: boolean;
@@ -131,10 +137,18 @@ function retryAfterTimestamp(value: string | null): string | null {
   async function writeHeaders(requireConsent = true) {
     return { ...(await authHeaders(requireConsent)), Origin: base.origin };
   }
-  function uploadFetch(isAuthorized: () => boolean) {
-    return (request: Request): Promise<Response> => {
+  function uploadFetch(isAuthorized:()=>boolean,timeoutMs=REQUEST_TIMEOUT_MS,beforeSend?:()=>Promise<boolean>) {
+    return async (request: Request): Promise<Response> => {
+      await Bun.sleep(0);
+      if(beforeSend){
+        let current:boolean;
+        try{current=await beforeSend();}catch{throw new OnlineAdapterError("service_unavailable",true);}
+        if(!current)throw new OnlineAdapterError("activity_revision_conflict",false);
+      }
+      const credentials=await options.credentials();
+      if(!credentials?.accessToken||!credentials.consentAccepted||request.headers.get("Authorization")!==`Bearer ${credentials.accessToken}`)throw new OnlineAdapterError("not_connected",false);
       if (!isAuthorized()) throw new OnlineAdapterError("not_connected", false);
-      return fetcher(request, { redirect: "error", signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+      return fetcher(request,{redirect:"error",signal:AbortSignal.timeout(timeoutMs)});
     };
   }
 
@@ -143,6 +157,12 @@ function retryAfterTimestamp(value: string | null): string | null {
       const result = await run();
       if (!result.response.ok || (result.data === undefined && !allowNoData)) {
         const status = result.response.status;
+        const remote = result.error && typeof result.error === "object" && "error" in result.error ? result.error.error : null;
+        const remoteCode = remote && typeof remote === "object" && "code" in remote ? remote.code : null;
+        const conflict = remoteCode === "LAP_OWNER_CONFLICT" ? "lap_owner_conflict" : remoteCode === "LAP_IDENTITY_CONFLICT" ? "lap_identity_conflict"
+          : remoteCode === "ACTIVITY_OWNER_CONFLICT" ? "activity_owner_conflict" : remoteCode === "ACTIVITY_REVISION_CONFLICT" ? "activity_revision_conflict"
+          : remoteCode === "ACTIVITY_IDENTITY_AMBIGUOUS" ? "activity_identity_ambiguous" : null;
+        if (conflict) throw new OnlineAdapterError(conflict,false,null,status);
         const code: OnlineFailureCode = status === 401 ? "auth_failed" : status === 403 ? "not_connected" : status === 409 ? "policy_changed" : status === 429 ? "rate_limited" : status >= 500 ? "service_unavailable" : "invalid_response";
         throw new OnlineAdapterError(code, status === 429 || status >= 500, status === 429 ? retryAfterTimestamp(result.response.headers.get("retry-after")) : null, status);
       }
@@ -154,6 +174,37 @@ function retryAfterTimestamp(value: string | null): string | null {
   }
 
   return {
+    async registerGameBinding(binding:GameIdentityBinding,confirmedByUser:true,isAuthorized:()=>boolean) {
+      if(confirmedByUser!==true)throw new OnlineAdapterError("not_connected",false);
+      const headers=await writeHeaders();
+      const bindings=await request(()=>api.listMyGameBindings({client:client.apiClient,headers,fetch:uploadFetch(isAuthorized)}));
+      const current=bindings.find(candidate=>candidate.gameId===binding.gameId);
+      if(current&&current.confirmation==="user_confirmed"&&current.sourceKind===binding.sourceKind&&current.nativeIdentity===binding.nativeIdentity)return {id:current.id,revision:current.revision};
+      const registered=await request(()=>api.putMyGameBinding({client:client.apiClient,headers,fetch:uploadFetch(isAuthorized),path:{game_id:binding.gameId},
+        body:{sourceKind:binding.sourceKind,nativeIdentity:binding.nativeIdentity,confirmation:"user_confirmed",expectedRevision:current?.revision??null}}));
+      if(registered.gameId!==binding.gameId||registered.sourceKind!==binding.sourceKind||registered.nativeIdentity!==binding.nativeIdentity||registered.confirmation!=="user_confirmed")throw new OnlineAdapterError("invalid_response",false);
+      return {id:registered.id,revision:registered.revision};
+    },
+    async writeActivityContribution(contribution:api.ActivityContribution,isAuthorized:()=>boolean,isSourceCurrent:()=>Promise<boolean>) {
+      const headers=await writeHeaders();
+      return request(()=>api.upsertMyActivityContribution({client:client.apiClient,headers,fetch:uploadFetch(isAuthorized,REQUEST_TIMEOUT_MS,isSourceCurrent),body:{schemaVersion:2,contribution}}));
+    },
+    async readActivityReceipt(activityId:string,isAuthorized:()=>boolean) {
+      const headers = await authHeaders();
+      const result = await api.getMyActivityReceipt({ client:client.apiClient,headers,fetch:uploadFetch(isAuthorized),path:{activity_id:activityId} });
+      if (result.response.status===404) return null;
+      return request(()=>Promise.resolve(result));
+    },
+    async readOwnerStats(isAuthorized:()=>boolean) {
+      const headers=await authHeaders();
+      const result=await api.getMyStats({client:client.apiClient,headers,fetch:uploadFetch(isAuthorized)});
+      if(result.response.status===404) return null;
+      return request(()=>Promise.resolve(result));
+    },
+    async getLapJob(jobId:string,isAuthorized:()=>boolean) {
+      const headers=await authHeaders();
+      return request(()=>api.getLapJob({client:client.apiClient,headers,fetch:uploadFetch(isAuthorized),path:{jobId}}));
+    },
     async getPolicy() {
       const policy = await request(() => api.getConsentPolicy({ client: client.apiClient }));
       const termsVersion = stringField(policy.termsVersion);
@@ -165,15 +216,17 @@ function retryAfterTimestamp(value: string | null): string | null {
       }
       return { available: true as const, termsUrl, privacyUrl, termsVersion, privacyVersion };
     },
-    async getMe() {
-      const credentials = await options.credentials();
-      if (!credentials?.accessToken) throw new OnlineAdapterError("not_connected", false);
-      const headers = { Authorization: `Bearer ${credentials.accessToken}` };
+    async getMe(accessToken?:string,discordAccountName?:string|null) {
+      // Bootstrap verification must not re-enter the refresh promise that is waiting for this read.
+      const credentials=accessToken===undefined?await options.credentials():null;
+      const token=accessToken??credentials?.accessToken;
+      if (!token) throw new OnlineAdapterError("not_connected", false);
+      const headers = { Authorization: `Bearer ${token}` };
       const profile = await request(() => api.getMe({ client: client.apiClient, headers }));
       const userId = stringField(profile.userId);
       const displayName = stringField(profile.displayName);
       if (!userId || !displayName) throw new OnlineAdapterError("invalid_response", false);
-      return { userId, displayName, avatarUrl: safeUrl(profile.avatarUrl), discordUsername: stringField(credentials.discordAccountName) };
+      return { userId, displayName, avatarUrl: safeUrl(profile.avatarUrl), discordUsername: stringField(discordAccountName??credentials?.discordAccountName) };
     },
     async setDisplayName(displayName: string) {
       const credentials = await options.credentials();
@@ -212,7 +265,7 @@ function retryAfterTimestamp(value: string | null): string | null {
       const headers = await writeHeaders();
       await request(() => api.unpublishLap({ client: client.apiClient, headers, path: { lapId } }), true);
     },
-    async reserveLapUpload(input: { gameId: UploadGame; idempotencyKey: string; consentAccepted: boolean; visibility: "private" | "public"; isAuthorized: () => boolean }) {
+    async reserveLapUpload(input: OnlineLapIdentity & { gameId: UploadGame; idempotencyKey: string; consentAccepted: boolean; visibility: "private" | "public"; isAuthorized: () => boolean }) {
       if (!input.consentAccepted || input.visibility !== "public") throw new OnlineAdapterError("not_connected", false);
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(input.idempotencyKey)) {
         throw new OnlineAdapterError("invalid_response", false);
@@ -222,7 +275,8 @@ function retryAfterTimestamp(value: string | null): string | null {
         client: client.apiClient,
         fetch: uploadFetch(input.isAuthorized),
         headers: { ...headers, "Idempotency-Key": input.idempotencyKey },
-        body: { gameId: input.gameId },
+        body: { gameId:input.gameId,lapGuid:input.lapGuid,driverBindingId:input.driverBindingId,driverBindingRevision:input.driverBindingRevision,
+          originalActivityId:input.originalActivityId,sourceRevision:input.sourceRevision,sourceKind:input.sourceKind },
       });
       const accepted = acceptedJobId(result.error);
       if (result.response.status === 409 && accepted) return { reservationToken: null, acceptedJobId: accepted };
@@ -235,10 +289,11 @@ function retryAfterTimestamp(value: string | null): string | null {
     },
     async uploadLap(input: SanitizedLapUpload) {
       if (!input.consentAccepted || input.visibility !== "public") throw new OnlineAdapterError("not_connected", false);
+      if(input.gameId==="f1-2025"&&input.carId!=="41")throw new OnlineAdapterError("unsupported_game",false);
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(input.idempotencyKey) ||
           !input.reservationToken) throw new OnlineAdapterError("invalid_response", false);
-      if (!(input.recording instanceof Uint8Array) || input.recording.byteLength === 0 || input.recording.byteLength > MAX_UPLOAD_BYTES) throw new OnlineAdapterError("invalid_response", false);
-      const prepared = prepareUploadPayload({
+      if (!(input.recording instanceof Uint8Array) || input.recording.byteLength === 0 || input.recording.byteLength > MAX_ONLINE_UPLOAD_BYTES) throw new OnlineAdapterError("invalid_response", false);
+      const prepared = await prepareUploadPayload({
         gameId: input.gameId,
         recording: input.recording,
         filename: input.filename,
@@ -246,15 +301,18 @@ function retryAfterTimestamp(value: string | null): string | null {
         setupUploadsAllowed: input.setupUploads,
         codec: input.codec,
       });
-      if (!prepared.ok) throw new OnlineAdapterError(prepared.reason === "f1_sanitization_failed" ? "f1_sanitization_failed" : "unsupported_game", false);
-      if (prepared.recording.byteLength === 0 || prepared.recording.byteLength > MAX_UPLOAD_BYTES) throw new OnlineAdapterError("invalid_response", false);
-      if (prepared.setup && (prepared.setup.byteLength === 0 || prepared.setup.byteLength > MAX_UPLOAD_BYTES)) throw new OnlineAdapterError("invalid_response", false);
+      if(!prepared.ok)throw new OnlineAdapterError(prepared.reason,false);
+      if(prepared.recording.byteLength===0)throw new OnlineAdapterError("unsupported_recording_format",false);
+      if(prepared.recording.byteLength>MAX_ONLINE_UPLOAD_BYTES)throw new OnlineAdapterError("recording_too_large",false);
+      if(prepared.setup&&(prepared.setup.byteLength===0||prepared.setup.byteLength>MAX_ONLINE_SETUP_BYTES))throw new OnlineAdapterError("invalid_response",false);
+      if(await uploadPayloadFingerprint(prepared.recording,prepared.setup)!==input.payloadFingerprint)throw new OnlineAdapterError("lap_identity_conflict",false);
       const headers = await writeHeaders();
       const result = await api.submitLap({
         client: client.apiClient,
-        fetch: uploadFetch(input.isAuthorized),
+        fetch:uploadFetch(input.isAuthorized,UPLOAD_TRANSFER_TIMEOUT_MS),
         headers: { ...headers, "Idempotency-Key": input.idempotencyKey, "Upload-Reservation-Token": input.reservationToken },
-        query: { gameId: input.gameId },
+        query: { gameId:input.gameId,lapGuid:input.lapGuid,driverBindingId:input.driverBindingId,driverBindingRevision:input.driverBindingRevision,
+          originalActivityId:input.originalActivityId,sourceRevision:input.sourceRevision,sourceKind:input.sourceKind },
         body: { recording: new Blob([prepared.recording], { type: "application/octet-stream" }), setup: prepared.setup ? new Blob([prepared.setup]) : undefined },
       });
       const accepted = result.response.status === 409 ? acceptedJobId(result.error) : null;
@@ -263,11 +321,12 @@ function retryAfterTimestamp(value: string | null): string | null {
       if (result.response.status === 409 && isReservationExpired(result.error)) throw new OnlineAdapterError("service_unavailable", true, null, 409);
       return request(() => Promise.resolve(result));
     },
-    async getLeaderboard(input: LocalBoardKey): Promise<LeaderboardSnapshot> {
+    async getLeaderboard(input: LocalBoardKey,isAuthorized:()=>boolean): Promise<LeaderboardSnapshot> {
       const resolution = options.identifiers.resolve(input);
       if (resolution.status !== "mapped") throw new OnlineAdapterError(resolution.status, false);
+      if(resolution.key.gameId==="f1-2025"&&resolution.key.carId!=="41")throw new OnlineAdapterError("unsupported_game",false);
       const headers = await authHeaders();
-      const page = await request(() => api.getLeaderboard({ client: client.apiClient, headers, query: { ...resolution.key, limit: 50, offset: 0 } }));
+      const page = await request(() => api.getLeaderboard({ client: client.apiClient, headers,fetch:uploadFetch(isAuthorized),query: { ...resolution.key, limit: 50, offset: 0 } }));
       if (!page || !Array.isArray(page.items)) throw new OnlineAdapterError("invalid_response", false);
       const rows = page.items.map((item) => {
         const driver = item?.driver;
@@ -275,8 +334,9 @@ function retryAfterTimestamp(value: string | null): string | null {
         const userId = stringField(driver.userId);
         const displayName = stringField(driver.displayName);
         const lapId = stringField(item.id);
-        if (!userId || !displayName || !lapId || !Number.isSafeInteger(item.rank) || item.rank < 1 || !Number.isSafeInteger(item.totalTimeMs) || item.totalTimeMs < 0) throw new OnlineAdapterError("invalid_response", false);
-        return { rank: item.rank, lapId, driver: { userId, displayName, avatarUrl: safeUrl(driver.avatarUrl) }, lapTimeMs: item.totalTimeMs, importAvailable: item.importAvailable === true };
+        const lapGuid = stringField("lapGuid" in item ? item.lapGuid : null);
+        if (!userId || !displayName || !lapId || !lapGuid || !Number.isSafeInteger(item.rank) || item.rank < 1 || !Number.isSafeInteger(item.totalTimeMs) || item.totalTimeMs < 0) throw new OnlineAdapterError("invalid_response", false);
+        return { rank: item.rank, lapId, lapGuid, driver: { userId, displayName, avatarUrl: safeUrl(driver.avatarUrl) }, lapTimeMs: item.totalTimeMs, importAvailable: item.importAvailable === true };
       });
       return { status: rows.length ? "ready" : "empty", rows, fetchedAt: new Date().toISOString(), stale: false };
     },

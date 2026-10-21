@@ -258,6 +258,46 @@ const acEvoCatalogSeedSql = [
 
 
 
+function dirtyOriginalPreparation(selection: string, condition = "1"): string {
+  return `INSERT INTO original_activity_preparations(original_activity_id,generation)
+    SELECT source.original_activity_id,1 FROM (${selection}) AS source
+    WHERE source.original_activity_id IS NOT NULL AND (${condition})
+    ON CONFLICT(original_activity_id) DO UPDATE SET generation=original_activity_preparations.generation+1;`;
+}
+
+const originalPreparationTriggers = [
+  { table: "sessions", source: "original_activity_id", selection: (ref: string) => `SELECT ${ref}.original_activity_id AS original_activity_id`,
+    columns: ["original_activity_id", "owner_user_id", "ownership", "original_source_revision", "native_capture_origin", "source_author_user_id",
+      "game_id", "car_id", "track_id", "source", "cloud_import_origin", "cloud_import_lap_id", "downsampled_frequency_hz",
+      "raw_file", "capture_layout_version", "capture_manifest_file", "capture_archive_file", "driver_attribution", "driver_attribution_stints"] },
+  { table: "laps", source: "session_id", selection: (ref: string) => `SELECT original_activity_id FROM sessions WHERE id=${ref}.session_id`,
+    columns: ["session_id", "lap_guid", "lap_number", "lap_time", "is_valid", "invalid_reason", "sector_times", "total_time_ms", "sector_times_ms",
+      "raw_byte_offset", "raw_frame_count", "source_clock_domain", "source_lap_start_ms", "source_lap_end_ms", "driver_attribution", "driver_attribution_stints"] },
+  { table: "lap_guid_reconciliation", source: "lap_id", selection: (ref: string) => `SELECT s.original_activity_id FROM sessions s JOIN laps l ON l.session_id=s.id WHERE l.id=${ref}.lap_id`,
+    columns: ["lap_id", "lap_guid", "source_guid", "status"] },
+  { table: "dashboard_session_summaries", source: "session_id", selection: (ref: string) => `SELECT original_activity_id FROM sessions WHERE id=${ref}.session_id`,
+    columns: ["session_id", "source_revision", "track_length_meters", "duration_attribution_json", "driven_seconds", "elapsed_seconds", "duration_status",
+      "distance_laps", "distance_meters", "valid_laps", "positive_laps", "best_lap_seconds", "sector_count", "source_sector_starts_json", "sector_status"] },
+  { table: "original_activity_sources", source: "original_activity_id", selection: (ref: string) => `SELECT ${ref}.original_activity_id AS original_activity_id`,
+    columns: ["original_activity_id", "source_revision", "original_lap_guids_json", "native_source_hash", "owner_user_id", "origin", "claimable"] },
+  { table: "original_activity_source_laps", source: "original_activity_id", selection: (ref: string) => `SELECT ${ref}.original_activity_id AS original_activity_id`,
+    columns: ["lap_guid", "original_activity_id", "owner_user_id", "source_revision"] },
+  { table: "original_activity_representations", source: "original_activity_id", selection: (ref: string) => `SELECT ${ref}.original_activity_id AS original_activity_id`,
+    columns: ["session_id", "original_activity_id", "source_revision", "origin"] },
+  { table: "native_original_source_closures", source: "original_activity_id", selection: (ref: string) => `SELECT ${ref}.original_activity_id AS original_activity_id`,
+    columns: ["session_id", "original_activity_id", "source_revision", "lap_count", "gap_count"] },
+].flatMap((spec) => (["INSERT", "UPDATE", "DELETE"] as const).map((event) => {
+  const reference = event === "DELETE" ? "OLD" : "NEW";
+  const changed = spec.columns.map((column) => `OLD.${column} IS NOT NEW.${column}`).join(" OR ");
+  return `CREATE TRIGGER original_preparation_${spec.table}_${event.toLowerCase()}
+    AFTER ${event}${event === "UPDATE" ? ` OF ${spec.columns.join(",")}` : ""} ON ${spec.table}
+    ${event === "UPDATE" ? `WHEN ${changed}` : ""}
+    BEGIN
+      ${dirtyOriginalPreparation(spec.selection(reference))}
+      ${event === "UPDATE" ? dirtyOriginalPreparation(spec.selection("OLD"), `OLD.${spec.source} IS NOT NEW.${spec.source}`) : ""}
+    END`;
+}));
+
 export const migrations: { version: number; name: string; sql: string[] }[] = [
   {
     version: 1,
@@ -2093,6 +2133,392 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
     sql: [
       `ALTER TABLE sessions ADD COLUMN cloud_import_setup_path TEXT`,
       `ALTER TABLE sessions ADD COLUMN cloud_import_setup_file_name TEXT`,
+    ],
+  },
+  {
+    version: 85,
+    name: "persist local driver ownership and lap GUIDs",
+    sql: [
+      `CREATE TABLE local_driver_profiles (
+        id TEXT PRIMARY KEY,
+        display_name TEXT NOT NULL,
+        online_user_id TEXT UNIQUE,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE TABLE local_driver_state (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        selected_driver_profile_id TEXT NOT NULL REFERENCES local_driver_profiles(id),
+        driver_generation INTEGER NOT NULL DEFAULT 0
+      )`,
+      `ALTER TABLE sessions ADD COLUMN driver_profile_id TEXT REFERENCES local_driver_profiles(id)`,
+      `ALTER TABLE laps ADD COLUMN lap_guid TEXT`,
+      `CREATE TABLE lap_guid_reconciliation (
+        lap_id INTEGER PRIMARY KEY REFERENCES laps(id) ON DELETE CASCADE,
+        lap_guid TEXT UNIQUE,
+        source_guid TEXT,
+        status TEXT NOT NULL CHECK (status IN ('resolved','held_ambiguous'))
+      )`,
+      `INSERT INTO local_driver_profiles(id,display_name)
+        VALUES ('local-default','Driver 1')`,
+      `INSERT INTO local_driver_state(id,selected_driver_profile_id,driver_generation)
+        VALUES (1,'local-default',0)`,
+      `UPDATE sessions SET driver_profile_id='local-default'
+        WHERE ownership='mine' AND cloud_import_origin IS NULL AND cloud_import_lap_id IS NULL`,
+      `CREATE INDEX sessions_driver_profile_idx ON sessions(driver_profile_id,ownership,id)`,
+      `CREATE TRIGGER local_driver_assign_on_insert AFTER INSERT ON sessions
+        WHEN NEW.driver_profile_id IS NULL AND NEW.ownership='mine'
+          AND NEW.cloud_import_origin IS NULL AND NEW.cloud_import_lap_id IS NULL
+        BEGIN
+          UPDATE sessions SET driver_profile_id=(SELECT selected_driver_profile_id FROM local_driver_state WHERE id=1)
+          WHERE id=NEW.id;
+        END`,
+      `CREATE TRIGGER sessions_driver_profile_immutable BEFORE UPDATE OF driver_profile_id ON sessions
+        WHEN OLD.driver_profile_id IS NOT NULL AND NEW.driver_profile_id IS NOT OLD.driver_profile_id
+        BEGIN SELECT RAISE(ABORT,'session driver ownership is immutable'); END`,
+    ],
+  },
+  {
+    version: 86,
+    name: "persist driver summary ledger and attribution visibility",
+    sql: [
+      `CREATE TABLE driver_summary_activities (
+        activity_id TEXT PRIMARY KEY,
+        driver_profile_id TEXT NOT NULL REFERENCES local_driver_profiles(id) ON DELETE CASCADE,
+        game_id TEXT NOT NULL,
+        lap_guids_json TEXT NOT NULL,
+        payload_json TEXT NOT NULL,
+        content_hash TEXT NOT NULL,
+        expected_cloud_revision INTEGER,
+        cloud_revision INTEGER,
+        receipt_json TEXT,
+        state TEXT NOT NULL CHECK (state IN ('ready','held_ambiguous','conflict','synced')),
+        held_reason TEXT,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX driver_summary_activities_profile_state_idx
+        ON driver_summary_activities(driver_profile_id,state,updated_at)`,
+      `CREATE TABLE driver_summary_activity_laps (
+        lap_guid TEXT PRIMARY KEY,
+        activity_id TEXT NOT NULL REFERENCES driver_summary_activities(activity_id) ON DELETE CASCADE,
+        driver_profile_id TEXT NOT NULL REFERENCES local_driver_profiles(id) ON DELETE CASCADE
+      )`,
+      `CREATE INDEX driver_summary_activity_laps_activity_idx ON driver_summary_activity_laps(activity_id)`,
+      `CREATE TABLE driver_profile_game_bindings (
+        driver_profile_id TEXT NOT NULL REFERENCES local_driver_profiles(id) ON DELETE CASCADE,
+        game_id TEXT NOT NULL,
+        source_kind TEXT NOT NULL,
+        native_identity TEXT NOT NULL,
+        confirmation TEXT NOT NULL CHECK (confirmation IN ('native_verified','user_confirmed')),
+        revision INTEGER NOT NULL CHECK (revision > 0),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (driver_profile_id,game_id,source_kind,native_identity)
+      )`,
+      `ALTER TABLE sessions ADD COLUMN driver_attribution_stints TEXT`,
+      `ALTER TABLE sessions ADD COLUMN driver_attribution TEXT
+        CHECK (driver_attribution IN ('Self','Other','Mixed','Unknown') OR driver_attribution IS NULL)`,
+      `ALTER TABLE laps ADD COLUMN driver_attribution_stints TEXT`,
+      `ALTER TABLE laps ADD COLUMN driver_attribution TEXT
+        CHECK (driver_attribution IN ('Self','Other','Mixed','Unknown') OR driver_attribution IS NULL)`,
+      `CREATE TABLE driver_profile_library_visibility (
+        driver_profile_id TEXT NOT NULL REFERENCES local_driver_profiles(id) ON DELETE CASCADE,
+        lap_guid TEXT NOT NULL,
+        source_session_id INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (driver_profile_id,lap_guid)
+      )`,
+      `CREATE INDEX driver_profile_library_visibility_session_idx
+        ON driver_profile_library_visibility(driver_profile_id,source_session_id)`,
+      `CREATE TRIGGER live_capture_selected_driver_guard BEFORE INSERT ON live_captures
+        WHEN NOT EXISTS (
+          SELECT 1 FROM sessions s JOIN local_driver_state d ON d.id = 1
+          WHERE s.id = NEW.session_id AND s.ownership = 'mine'
+            AND s.driver_profile_id = d.selected_driver_profile_id
+        )
+        BEGIN SELECT RAISE(ABORT,'capture driver profile changed'); END`,
+    ],
+  },
+  {
+    version: 87,
+    name: "cut over to single-user local ownership",
+    sql: [
+      `DROP TRIGGER IF EXISTS live_capture_selected_driver_guard`,
+      `DROP TRIGGER IF EXISTS local_driver_assign_on_insert`,
+      `DROP TRIGGER IF EXISTS sessions_driver_profile_immutable`,
+      `DROP INDEX IF EXISTS sessions_driver_profile_idx`,
+      `DROP INDEX IF EXISTS driver_summary_activities_profile_state_idx`,
+      `DROP INDEX IF EXISTS driver_profile_library_visibility_session_idx`,
+      `CREATE TABLE local_account_owner (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        online_user_id TEXT,
+        binding_revision INTEGER NOT NULL DEFAULT 0 CHECK (binding_revision >= 0),
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `INSERT INTO local_account_owner (id, online_user_id)
+        SELECT 1, p.online_user_id
+        FROM local_driver_state d
+        JOIN local_driver_profiles p ON p.id = d.selected_driver_profile_id
+        WHERE d.id = 1`,
+      `INSERT OR IGNORE INTO local_account_owner (id) VALUES (1)`,
+      `CREATE TRIGGER local_account_owner_immutable
+        BEFORE UPDATE OF online_user_id ON local_account_owner
+        WHEN OLD.online_user_id IS NOT NULL AND NEW.online_user_id IS NOT OLD.online_user_id
+        BEGIN SELECT RAISE(ABORT,'local account owner is immutable'); END`,
+      `ALTER TABLE sessions ADD COLUMN owner_user_id TEXT`,
+      `ALTER TABLE sessions ADD COLUMN original_activity_id TEXT`,
+      `UPDATE sessions SET owner_user_id = (
+        SELECT p.online_user_id FROM local_driver_profiles p WHERE p.id = sessions.driver_profile_id
+      ) WHERE driver_profile_id IS NOT NULL`,
+      `CREATE TRIGGER sessions_owner_user_immutable
+        BEFORE UPDATE OF owner_user_id ON sessions
+        WHEN OLD.owner_user_id IS NOT NULL AND NEW.owner_user_id IS NOT OLD.owner_user_id
+        BEGIN SELECT RAISE(ABORT,'session original owner is immutable'); END`,
+      `CREATE TABLE local_game_bindings (
+        id TEXT PRIMARY KEY,
+        game_id TEXT NOT NULL UNIQUE,
+        source_kind TEXT NOT NULL,
+        native_identity TEXT NOT NULL,
+        confirmation TEXT NOT NULL CHECK (confirmation IN ('native_verified','user_confirmed')),
+        revision INTEGER NOT NULL CHECK (revision > 0),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `INSERT INTO local_game_bindings (id, game_id, source_kind, native_identity, confirmation, revision, updated_at)
+        SELECT lower(hex(randomblob(16))), b.game_id, b.source_kind, b.native_identity, b.confirmation, b.revision, b.updated_at
+        FROM driver_profile_game_bindings b
+        JOIN local_driver_state d ON d.id = 1 AND d.selected_driver_profile_id = b.driver_profile_id
+        WHERE 1 = (SELECT COUNT(*) FROM driver_profile_game_bindings candidate
+          WHERE candidate.driver_profile_id = b.driver_profile_id AND candidate.game_id = b.game_id)`,
+      `CREATE TABLE driver_summary_activities_v87 (
+        activity_id TEXT PRIMARY KEY,
+        owner_user_id TEXT,
+        game_id TEXT NOT NULL,
+        lap_guids_json TEXT NOT NULL,
+        payload_json TEXT NOT NULL,
+        content_hash TEXT NOT NULL,
+        expected_cloud_revision INTEGER,
+        cloud_revision INTEGER,
+        receipt_json TEXT,
+        state TEXT NOT NULL CHECK (state IN ('ready','held_ambiguous','conflict','synced')),
+        held_reason TEXT,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `INSERT INTO driver_summary_activities_v87
+        SELECT a.activity_id, p.online_user_id, a.game_id, a.lap_guids_json, a.payload_json, a.content_hash,
+          a.expected_cloud_revision, a.cloud_revision, a.receipt_json, a.state, a.held_reason, a.updated_at
+        FROM driver_summary_activities a
+        LEFT JOIN local_driver_profiles p ON p.id = a.driver_profile_id`,
+      `DROP TABLE driver_summary_activities`,
+      `ALTER TABLE driver_summary_activities_v87 RENAME TO driver_summary_activities`,
+      `CREATE INDEX driver_summary_activities_owner_state_idx
+        ON driver_summary_activities(owner_user_id,state,updated_at)`,
+      `CREATE TABLE driver_summary_activity_laps_v87 (
+        lap_guid TEXT PRIMARY KEY,
+        activity_id TEXT NOT NULL REFERENCES driver_summary_activities(activity_id) ON DELETE CASCADE,
+        owner_user_id TEXT
+      )`,
+      `INSERT INTO driver_summary_activity_laps_v87
+        SELECT l.lap_guid, l.activity_id, p.online_user_id
+        FROM driver_summary_activity_laps l
+        LEFT JOIN local_driver_profiles p ON p.id = l.driver_profile_id`,
+      `DROP TABLE driver_summary_activity_laps`,
+      `ALTER TABLE driver_summary_activity_laps_v87 RENAME TO driver_summary_activity_laps`,
+      `CREATE INDEX driver_summary_activity_laps_activity_idx ON driver_summary_activity_laps(activity_id)`,
+      `ALTER TABLE laps ADD COLUMN source_clock_domain TEXT`,
+      `ALTER TABLE laps ADD COLUMN source_lap_start_ms INTEGER`,
+      `ALTER TABLE laps ADD COLUMN source_lap_end_ms INTEGER`,
+      `DROP TABLE driver_profile_library_visibility`,
+      `DROP TABLE driver_profile_game_bindings`,
+      `DROP TABLE local_driver_state`,
+      `DROP TABLE local_driver_profiles`,
+      `ALTER TABLE sessions DROP COLUMN driver_profile_id`,
+    ],
+  },
+  {
+    version: 88,
+    name: "mark positively identified native capture origins",
+    sql: [
+      `ALTER TABLE sessions ADD COLUMN native_capture_origin INTEGER NOT NULL DEFAULT 0 CHECK (native_capture_origin IN (0,1))`,
+      `CREATE TRIGGER sessions_original_activity_immutable
+        BEFORE UPDATE OF original_activity_id ON sessions
+        WHEN OLD.original_activity_id IS NOT NULL AND NEW.original_activity_id IS NOT OLD.original_activity_id
+        BEGIN SELECT RAISE(ABORT,'session original activity identity is immutable'); END`,
+    ],
+  },
+  {
+    version: 89,
+    name: "retain verified original source closure and membership independently of recordings",
+    sql: [
+      `ALTER TABLE sessions ADD COLUMN original_source_revision TEXT`,
+      `CREATE INDEX idx_laps_guid ON laps(lap_guid)`,
+      `CREATE INDEX idx_laps_guid_canonical ON laps(lower(lap_guid))`,
+      `CREATE INDEX idx_lap_guid_reconciliation_canonical ON lap_guid_reconciliation(lower(lap_guid))`,
+      `CREATE TRIGGER sessions_original_source_revision_immutable
+        BEFORE UPDATE OF original_source_revision ON sessions
+        WHEN OLD.original_source_revision IS NOT NULL AND NEW.original_source_revision IS NOT OLD.original_source_revision
+        BEGIN SELECT RAISE(ABORT,'original source revision is immutable'); END`,
+      `CREATE TABLE original_activity_sources (
+        original_activity_id TEXT PRIMARY KEY,
+        source_revision TEXT NOT NULL,
+        original_lap_guids_json TEXT NOT NULL,
+        native_source_hash TEXT,
+        owner_user_id TEXT,
+        origin TEXT NOT NULL CHECK(origin IN ('native_capture','verified_portable')),
+        claimable INTEGER NOT NULL DEFAULT 0 CHECK(claimable IN (0,1))
+      )`,
+      `CREATE TABLE original_activity_source_laps (
+        lap_guid TEXT PRIMARY KEY,
+        original_activity_id TEXT,
+        owner_user_id TEXT,
+        source_revision TEXT
+      )`,
+      `CREATE TRIGGER original_lap_source_revision_immutable
+        BEFORE UPDATE OF source_revision ON original_activity_source_laps
+        WHEN OLD.source_revision IS NOT NULL AND NEW.source_revision IS NOT OLD.source_revision
+        BEGIN SELECT RAISE(ABORT,'original lap source revision is immutable'); END`,
+      `CREATE INDEX original_activity_source_laps_activity_idx ON original_activity_source_laps(original_activity_id)`,
+      `INSERT INTO original_activity_source_laps(lap_guid,original_activity_id,owner_user_id)
+        SELECT l.lap_guid,s.original_activity_id,COALESCE(s.owner_user_id,s.source_author_user_id)
+        FROM laps l JOIN sessions s ON s.id=l.session_id
+        JOIN lap_guid_reconciliation r ON r.lap_id=l.id AND r.lap_guid=l.lap_guid AND r.status='resolved'
+        WHERE l.lap_guid IS NOT NULL
+          AND (s.native_capture_origin=1 OR s.cloud_import_origin IS NOT NULL OR s.original_activity_id IS NOT NULL)
+          AND NOT EXISTS (SELECT 1 FROM laps duplicate WHERE duplicate.lap_guid=l.lap_guid AND duplicate.id<>l.id)`,
+      `CREATE TRIGGER original_lap_owner_immutable
+        BEFORE UPDATE OF owner_user_id ON original_activity_source_laps
+        WHEN OLD.owner_user_id IS NOT NULL AND NEW.owner_user_id IS NOT OLD.owner_user_id
+        BEGIN SELECT RAISE(ABORT,'original lap owner is immutable'); END`,
+      `CREATE TRIGGER original_lap_activity_immutable
+        BEFORE UPDATE OF original_activity_id ON original_activity_source_laps
+        WHEN OLD.original_activity_id IS NOT NULL AND NEW.original_activity_id IS NOT OLD.original_activity_id
+        BEGIN SELECT RAISE(ABORT,'original lap activity is immutable'); END`,
+      `CREATE TRIGGER original_source_hash_immutable
+        BEFORE UPDATE OF native_source_hash ON original_activity_sources
+        WHEN OLD.native_source_hash IS NOT NULL AND NEW.native_source_hash IS NOT OLD.native_source_hash
+        BEGIN SELECT RAISE(ABORT,'original source native digest is immutable'); END`,
+      `CREATE TABLE original_activity_representations (
+        session_id INTEGER PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+        original_activity_id TEXT NOT NULL,
+        source_revision TEXT NOT NULL,
+        origin TEXT NOT NULL CHECK(origin IN ('native_capture','verified_portable'))
+      )`,
+      `CREATE TABLE native_original_source_closures (
+        session_id INTEGER PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+        original_activity_id TEXT NOT NULL,
+        source_revision TEXT NOT NULL,
+        lap_count INTEGER NOT NULL CHECK(lap_count >= 0),
+        gap_count INTEGER NOT NULL CHECK(gap_count >= 0)
+      )`,
+      `CREATE TRIGGER original_source_identity_immutable
+        BEFORE UPDATE OF original_activity_id,source_revision,original_lap_guids_json ON original_activity_sources
+        WHEN NEW.original_activity_id IS NOT OLD.original_activity_id OR NEW.source_revision IS NOT OLD.source_revision
+          OR NEW.original_lap_guids_json IS NOT OLD.original_lap_guids_json
+        BEGIN SELECT RAISE(ABORT,'original source identity is immutable'); END`,
+      `CREATE TRIGGER original_source_owner_immutable
+        BEFORE UPDATE OF owner_user_id ON original_activity_sources
+        WHEN OLD.owner_user_id IS NOT NULL AND NEW.owner_user_id IS NOT OLD.owner_user_id
+        BEGIN SELECT RAISE(ABORT,'original source owner is immutable'); END`,
+      `CREATE TRIGGER original_source_first_claim
+        AFTER UPDATE OF online_user_id ON local_account_owner
+        WHEN OLD.online_user_id IS NULL AND NEW.online_user_id IS NOT NULL
+        BEGIN
+          UPDATE original_activity_sources SET owner_user_id=NEW.online_user_id
+          WHERE owner_user_id IS NULL AND claimable=1;
+          UPDATE original_activity_source_laps SET owner_user_id=NEW.online_user_id
+          WHERE owner_user_id IS NULL AND original_activity_id IN (
+            SELECT original_activity_id FROM original_activity_sources WHERE claimable=1 AND owner_user_id=NEW.online_user_id
+          );
+        END`,
+      `CREATE TRIGGER native_original_lap_first_claim
+        AFTER UPDATE OF owner_user_id ON sessions
+        WHEN OLD.owner_user_id IS NULL AND NEW.owner_user_id IS NOT NULL
+          AND NEW.native_capture_origin=1 AND NEW.ownership='mine'
+          AND NEW.cloud_import_origin IS NULL AND NEW.cloud_import_lap_id IS NULL
+        BEGIN
+          UPDATE original_activity_source_laps SET owner_user_id=NEW.owner_user_id
+          WHERE owner_user_id IS NULL AND original_activity_id=NEW.original_activity_id;
+        END`,
+    ],
+  },
+  {
+    version: 90,
+    name: "persist measured driver duration allocation and source-bound preparation generations",
+    sql: [
+      `ALTER TABLE dashboard_session_summaries ADD COLUMN duration_attribution_json TEXT`,
+      `CREATE INDEX idx_sessions_original_activity ON sessions(original_activity_id)`,
+      `CREATE TABLE original_activity_preparations (
+        original_activity_id TEXT PRIMARY KEY NOT NULL,
+        generation INTEGER NOT NULL DEFAULT 1 CHECK(generation>0),
+        prepared_generation INTEGER CHECK(prepared_generation IS NULL OR prepared_generation>0),
+        snapshot_json TEXT CHECK(snapshot_json IS NULL OR json_valid(snapshot_json)),
+        hold_reason TEXT,
+        held_laps INTEGER NOT NULL DEFAULT 0 CHECK(held_laps>=0)
+      )`,
+      `CREATE INDEX idx_original_activity_preparations_dirty ON original_activity_preparations(original_activity_id)
+        WHERE prepared_generation IS NULL OR generation<>prepared_generation`,
+      `INSERT INTO original_activity_preparations(original_activity_id,generation)
+        SELECT DISTINCT original_activity_id,1 FROM sessions WHERE original_activity_id IS NOT NULL`,
+      ...originalPreparationTriggers,
+    ],
+  },
+  {
+    version: 91,
+    name: "retain held cloud baselines without changing confirmed acceptance receipts",
+    sql: [
+      `ALTER TABLE driver_summary_activities ADD COLUMN held_cloud_revision INTEGER`,
+      `ALTER TABLE driver_summary_activities ADD COLUMN held_receipt_json TEXT`,
+    ],
+  },
+  {
+    version: 92,
+    name: "retain proven capture clock semantics and full portable original duration facts",
+    sql: [
+      `ALTER TABLE sessions ADD COLUMN capture_frame_clock TEXT CHECK(capture_frame_clock IS NULL OR capture_frame_clock IN ('capture_utc','unknown'))`,
+      `ALTER TABLE sessions ADD COLUMN capture_clock_anchor_json TEXT CHECK(capture_clock_anchor_json IS NULL OR json_valid(capture_clock_anchor_json))`,
+      `ALTER TABLE sessions ADD COLUMN verified_original_duration_json TEXT CHECK(verified_original_duration_json IS NULL OR json_valid(verified_original_duration_json))`,
+      `CREATE TRIGGER original_preparation_restored_facts_update
+        AFTER UPDATE OF capture_frame_clock,capture_clock_anchor_json,verified_original_duration_json ON sessions
+        WHEN OLD.capture_frame_clock IS NOT NEW.capture_frame_clock OR OLD.capture_clock_anchor_json IS NOT NEW.capture_clock_anchor_json
+          OR OLD.verified_original_duration_json IS NOT NEW.verified_original_duration_json
+        BEGIN ${dirtyOriginalPreparation("SELECT NEW.original_activity_id AS original_activity_id")} END`,
+      `CREATE TRIGGER dashboard_restored_original_duration_update
+        AFTER UPDATE OF verified_original_duration_json ON sessions
+        WHEN OLD.verified_original_duration_json IS NOT NEW.verified_original_duration_json AND NEW.ownership='mine'
+        BEGIN
+          INSERT INTO dashboard_summary_state(session_id,source_revision,metadata_dirty,capture_dirty,capture_ready)
+          VALUES(NEW.id,1,1,1,1)
+          ON CONFLICT(session_id) DO UPDATE SET source_revision=source_revision+1,metadata_dirty=1,capture_dirty=1,capture_ready=1;
+        END`,
+    ],
+  },
+  {
+    version: 93,
+    name: "invalidate personal dashboard projections when native attribution changes",
+    sql: [
+      `CREATE TRIGGER dashboard_lap_driver_attribution_update
+        AFTER UPDATE OF driver_attribution,driver_attribution_stints,source_clock_domain,source_lap_start_ms,source_lap_end_ms ON laps
+        WHEN OLD.driver_attribution IS NOT NEW.driver_attribution
+          OR OLD.driver_attribution_stints IS NOT NEW.driver_attribution_stints
+          OR OLD.source_clock_domain IS NOT NEW.source_clock_domain
+          OR OLD.source_lap_start_ms IS NOT NEW.source_lap_start_ms
+          OR OLD.source_lap_end_ms IS NOT NEW.source_lap_end_ms
+        BEGIN
+          INSERT INTO dashboard_summary_state(session_id,source_revision,metadata_dirty)
+          SELECT NEW.session_id,1,1 WHERE EXISTS (SELECT 1 FROM sessions WHERE id=NEW.session_id AND ownership='mine')
+            OR EXISTS (SELECT 1 FROM dashboard_summary_state WHERE session_id=NEW.session_id)
+            OR EXISTS (SELECT 1 FROM dashboard_session_summaries WHERE session_id=NEW.session_id)
+          ON CONFLICT(session_id) DO UPDATE SET source_revision=source_revision+1,metadata_dirty=1,updated_at=datetime('now');
+        END`,
+      `CREATE TRIGGER dashboard_session_driver_attribution_update
+        AFTER UPDATE OF driver_attribution,driver_attribution_stints ON sessions
+        WHEN OLD.driver_attribution IS NOT NEW.driver_attribution
+          OR OLD.driver_attribution_stints IS NOT NEW.driver_attribution_stints
+        BEGIN
+          INSERT INTO dashboard_summary_state(session_id,source_revision,metadata_dirty)
+          SELECT NEW.id,1,1 WHERE NEW.ownership='mine'
+            OR EXISTS (SELECT 1 FROM dashboard_summary_state WHERE session_id=NEW.id)
+            OR EXISTS (SELECT 1 FROM dashboard_session_summaries WHERE session_id=NEW.id)
+          ON CONFLICT(session_id) DO UPDATE SET source_revision=source_revision+1,metadata_dirty=1,updated_at=datetime('now');
+        END`,
+      `UPDATE dashboard_summary_state SET source_revision=source_revision+1,metadata_dirty=1,updated_at=datetime('now')`,
     ],
   },
 ];

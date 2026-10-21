@@ -1,5 +1,5 @@
 import { temporaryDirectory, createLMUDuckDB } from "./support/duckdb";
-import { describe, expect, spyOn, test } from "bun:test";
+import { beforeEach, describe, expect, spyOn, test } from "bun:test";
 
 
 import { join } from "node:path";
@@ -12,7 +12,11 @@ import {
 import { resolveLMUInvalidReason } from "@raceiq/telemetry-core/processor/kunos-policy";
 import { loadLabelledSegments } from "@raceiq/shared/racing/tracks/storage/meta";
 import { lmuServerAdapter } from "../src/index";
+import { registerServerGame } from "@raceiq/backend-core/games/registry";
 import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
+import { NativeAttributionTracker, nativeDriverBindings, getNativeSourceClock, encodeNativeDriverBinding } from "@raceiq/backend-core/lap-detection/native-attribution";
+import { classifyLapAttribution } from "@raceiq/shared/driver-attribution";
+import { DashboardCaptureObservation } from "@raceiq/backend-core/session-capture/dashboard-observation";
 import { TELEMETRY_CATALOG } from "@raceiq/shared/telemetry/catalog/data";
 import { compileTelemetryResolver } from "@raceiq/telemetry-core/telemetry/resolver/compile";
 
@@ -44,6 +48,8 @@ import {
   encodeLMUSourceFrame,
 } from "@raceiq/capture-formats/lmu/source-frame";
 import { setRecordingFrequencyHz } from "@raceiq/backend-core/runtime/config/recording-frequency";
+
+beforeEach(() => registerServerGame(lmuServerAdapter));
 
 
 
@@ -123,6 +129,7 @@ function lmuSharedMemoryFixture(): Buffer {
   memory.writeDoubleLE(13_626, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.lapDistance);
   memory.writeInt32LE(1, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.numberOfVehicles);
   memory.writeUInt8(1, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.inRealtime);
+  memory.writeDoubleLE(321.5, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.currentElapsedTime);
   memory.writeDoubleLE(24, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.ambientTemperature);
   memory.writeInt32LE(10, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.session);
   memory.writeDoubleLE(31, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.trackTemperature);
@@ -138,6 +145,7 @@ function lmuSharedMemoryFixture(): Buffer {
   memory.writeDoubleLE(230.5, scoring + LMU_SCORING_VEHICLE.bestLapTime);
   memory.writeDoubleLE(232.25, scoring + LMU_SCORING_VEHICLE.lastLapTime);
   memory.writeUInt8(1, scoring + LMU_SCORING_VEHICLE.isPlayer);
+  memory.writeInt8(0, scoring + LMU_SCORING_VEHICLE.mControl);
   memory.writeUInt8(2, scoring + LMU_SCORING_VEHICLE.place);
   memory.writeUInt8(0, scoring + LMU_SCORING_VEHICLE.inPits);
   expect(scoring + LMU_SCORING_VEHICLE_SIZE).toBeLessThan(LMU_TELEMETRY_INFO_OFFSET);
@@ -211,6 +219,7 @@ describe("LMU adapter", () => {
       carId: "ferrari_499p_2023",
       trackId: "lemans_2023/lemanswec",
     });
+    expect(packet?.driverActor?.actorId).toBe("lmu-control:0");
     expect(packet).toMatchObject({
       TireTempFL: 92,
       TireSurfaceTempInnerFL: 94,
@@ -255,6 +264,99 @@ describe("LMU adapter", () => {
       absLevel: 2,
       rearFlapActivated: true,
     });
+  });
+  test("distinguishes control roles when active driver label is unchanged", () => {
+    const localMemory = lmuSharedMemoryFixture();
+    const aiMemory = lmuSharedMemoryFixture();
+    const scoringOffset = LMU_SCORING_VEHICLES_OFFSET;
+    aiMemory.writeInt8(1, scoringOffset + LMU_SCORING_VEHICLE.mControl);
+
+    const localPacket = lmuServerAdapter.tryParse(
+      encodeLMUSourceFrame(localMemory, 1_800_000_000_000)!,
+      null,
+    );
+    const aiPacket = lmuServerAdapter.tryParse(
+      encodeLMUSourceFrame(aiMemory, 1_800_000_001_000)!,
+      null,
+    );
+
+    expect(localPacket?.lmu?.driverName).toBe(aiPacket?.lmu?.driverName);
+    expect(localPacket?.driverActor?.actorId).toBe("lmu-control:0");
+    expect(aiPacket?.driverActor?.actorId).toBe("lmu-control:1");
+  });
+  test("uses actual SDK session/scoring clocks without capture UTC and preserves fractional milliseconds", () => {
+    const firstMemory = lmuSharedMemoryFixture();
+    firstMemory.writeDoubleLE(321.50075, LMU_TELEMETRY_INFO_OFFSET + LMU_TELEMETRY.elapsedTime);
+    firstMemory.writeDoubleLE(321.50025, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.currentElapsedTime);
+    const lastMemory = lmuSharedMemoryFixture();
+    lastMemory.writeDoubleLE(322.00075, LMU_TELEMETRY_INFO_OFFSET + LMU_TELEMETRY.elapsedTime);
+    lastMemory.writeDoubleLE(321.90025, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.currentElapsedTime);
+    const first = lmuServerAdapter.tryParse(encodeLMUSourceFrame(firstMemory, 0)!, null)!;
+    const last = lmuServerAdapter.tryParse(encodeLMUSourceFrame(lastMemory, 0)!, null)!;
+    const clock = getNativeSourceClock(first)!;
+    expect(first.TimestampMS).toBe(0);
+    expect(clock.atMs).toBe(321.50075 * 1000);
+    expect(first.driverActor?.observedAtMs).toBe(321.50025 * 1000);
+    expect(first.driverActor?.clockDomain).toBe(clock.domain);
+    const bindings = nativeDriverBindings([{ id: "lmu-native-local", gameId: "lmu",
+      sourceKind: first.driverActor!.source, nativeIdentity: encodeNativeDriverBinding(first.driverActor!),
+      confirmation: "user_confirmed", revision: 1 }]);
+    const tracker = new NativeAttributionTracker();
+    const observer = new DashboardCaptureObservation("lmu", null);
+    for (const current of [first, last]) {
+      tracker.observe(current, bindings);
+      const currentClock = getNativeSourceClock(current)!;
+      observer.observe(current, undefined, undefined, { sessionId: currentClock.sessionId,
+        clockDomain: currentClock.domain, sourceTimeMs: currentClock.atMs, stints: tracker.stints });
+    }
+    expect(classifyLapAttribution(tracker.stints, clock.atMs, getNativeSourceClock(last)!.atMs, clock.domain)).toBe("Self");
+    expect(observer.toFacts().duration).toEqual({ status: "available", elapsedSeconds: 0.5,
+      attribution: { selfSeconds: 0.5, otherSeconds: 0, unknownSeconds: 0, selfObserved: true, coverage: "complete" } });
+  });
+
+  test("stale, future or invalid native scoring clocks cannot renew controller evidence", () => {
+    for (const scoringTime of [318, 322, Number.NaN, Number.POSITIVE_INFINITY, -1]) {
+      const memory = lmuSharedMemoryFixture();
+      memory.writeDoubleLE(scoringTime, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.currentElapsedTime);
+      const packet = lmuServerAdapter.tryParse(encodeLMUSourceFrame(memory, 1_800_000_000_000)!, null)!;
+      expect(packet.driverActor).toBeNull();
+    }
+    const invalid = lmuSharedMemoryFixture();
+    invalid.writeDoubleLE(Number.NaN, LMU_TELEMETRY_INFO_OFFSET + LMU_TELEMETRY.elapsedTime);
+    const packet = lmuServerAdapter.tryParse(encodeLMUSourceFrame(invalid, 0)!, null)!;
+    expect(packet.lmu?.elapsedTime).toBeNull();
+    expect(packet.driverActor).toBeNull();
+    expect(getNativeSourceClock(packet)).toBeNull();
+    const observer = new DashboardCaptureObservation("lmu", null);
+    observer.observe(packet, undefined);
+    observer.observe(packet, undefined);
+    expect(observer.toFacts().duration).toEqual({ status: "unavailable", elapsedSeconds: null,
+      attribution: { selfSeconds: 0, otherSeconds: 0, unknownSeconds: 0, selfObserved: false, coverage: "unavailable" } });
+  });
+
+
+  test("leaves invalid and replay LMU control roles unattributed", () => {
+    for (const controlRole of [-1, 3, 4]) {
+      const memory = lmuSharedMemoryFixture();
+      memory.writeInt8(
+        controlRole,
+        LMU_SCORING_VEHICLES_OFFSET + LMU_SCORING_VEHICLE.mControl,
+      );
+      const packet = lmuServerAdapter.tryParse(
+        encodeLMUSourceFrame(memory, 1_800_000_000_000)!,
+        null,
+      );
+      expect(packet?.driverActor).toBeNull();
+    }
+    const invalidPlayerFlag = lmuSharedMemoryFixture();
+    invalidPlayerFlag.writeUInt8(
+      2,
+      LMU_SCORING_VEHICLES_OFFSET + LMU_SCORING_VEHICLE.isPlayer,
+    );
+    expect(lmuServerAdapter.tryParse(
+      encodeLMUSourceFrame(invalidPlayerFlag, 1_800_000_000_000)!,
+      null,
+    )?.driverActor).toBeNull();
   });
 
   test("propagates game's lap-invalidated flag into lap validity", () => {
@@ -341,6 +443,31 @@ describe("LMU adapter", () => {
     recorder.writeFrame(delivered[0]!);
     await recorder.stop();
     expect(readLMUFrames(path)).toEqual(delivered);
+  });
+
+  test("retains native control transitions even while the SDK physics clock is frozen", async () => {
+    const snapshot = lmuSharedMemoryFixture();
+    const observed: Array<{ role: string | null; active: number }> = [];
+    const source = new LMUTelemetrySource({
+      reader: { start() {}, async stop() {}, readLatest: () => snapshot },
+      dispatchRawFrame: async (frame) => {
+        const packet = lmuServerAdapter.tryParse(frame, null)!;
+        observed.push({ role: packet.driverActor?.actorId ?? null, active: packet.IsRaceOn });
+      },
+    });
+    try {
+      expect(await source.pollOnce()).toBe(true);
+      snapshot.writeInt8(1, LMU_SCORING_VEHICLES_OFFSET + LMU_SCORING_VEHICLE.mControl);
+      expect(await source.pollOnce()).toBe(true);
+      snapshot.writeUInt8(0, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.inRealtime);
+      expect(await source.pollOnce()).toBe(true);
+      expect(await source.pollOnce()).toBe(false);
+      expect(observed).toEqual([
+        { role: "lmu-control:0", active: 1 },
+        { role: "lmu-control:1", active: 1 },
+        { role: "lmu-control:1", active: 0 },
+      ]);
+    } finally { await source.stop(); }
   });
 
   test("queues changed snapshots FIFO and drains before recorder finalization", async () => {

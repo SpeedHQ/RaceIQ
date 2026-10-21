@@ -2,7 +2,7 @@ import { registerGame } from "@raceiq/shared/games/registry";
 import { iracingServerAdapter } from "../src/index";
 import { registerServerGame } from "@raceiq/backend-core/games/registry";
 import { describe, expect, test } from "bun:test";
-import { parseIRacingSessionInfo } from "@raceiq/capture-formats/iracing/session-info";
+import { parseIRacingDriverUserId, parseIRacingSessionInfo } from "@raceiq/capture-formats/iracing/session-info";
 import {
   IRacingSdkReader,
   isValidIRacingMappingRange,
@@ -283,6 +283,20 @@ DriverInfo:
     expect(session.carName).toBe("GT3 Test Car");
     expect(session.carClassName).toBe("GT3");
     expect(session.sessionNum).toBe(2);
+  });
+  test("extracts native UserID only from the active car row", () => {
+    const sessionInfo = `
+DriverInfo:
+  DriverCarIdx: 7
+  Drivers:
+  - CarIdx: 2
+    UserID: 111
+  - CarIdx: 7
+    UserID: 222
+`;
+    expect(parseIRacingDriverUserId(sessionInfo)).toBe("222");
+    expect(parseIRacingDriverUserId(sessionInfo.replace("DriverCarIdx: 7", "DriverCarIdx: 9"))).toBeNull();
+    expect(parseIRacingDriverUserId(sessionInfo.replace("UserID: 222", "UserName: Driver"))).toBeNull();
   });
 
   test("uses contextual class metadata when session YAML omits class name", () => {

@@ -27,8 +27,9 @@ import {
   restoreAcEvoParserCheckpoint,
 } from "../src/parser";
 import { AcEvoStatusCheckProcessor } from "../src/shared-memory";
-import { ACEVO_STATUS, GRAPHICS_EVO, STATIC_EVO } from "@raceiq/capture-formats/ac-evo/structs";
-import { unpackTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
+import { ACEVO_STATUS, GRAPHICS_EVO, PHYSICS, STATIC_EVO } from "@raceiq/capture-formats/ac-evo/structs";
+import { ACEVO_PACKED_MAGIC, packTriplet, unpackTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
+import { parsePacket, resetParserState } from "@raceiq/backend-core/games/packet-dispatch";
 import { TripletPipeline } from "@raceiq/backend-core/games/kunos/triplet-pipeline";
 
 registerGame(acEvoServerAdapter);
@@ -132,6 +133,50 @@ describe("AC Evo live pipeline — status gating", () => {
       ACEVO_STATUS.AC_PAUSE,
       ACEVO_STATUS.AC_LIVE,
     ]);
+  });
+
+  test("rapid OFF/REPLAY transitions invalidate native actor evidence before live parsing resumes", async () => {
+    for (const inactiveStatus of [ACEVO_STATUS.AC_OFF, ACEVO_STATUS.AC_REPLAY]) {
+      resetParserState("ac-evo");
+      const pipeline = new TripletPipeline();
+      const observations: { actorId: string | null; timestampMs: number }[] = [];
+      pipeline.register(new AcEvoStatusCheckProcessor(), {
+        async process(triplet): Promise<undefined> {
+          const frame = packTriplet(
+            ACEVO_PACKED_MAGIC, 0, 0, triplet.physics, triplet.graphics, triplet.staticData,
+          );
+          const packet = parsePacket(frame, triplet.frameTimeMs);
+          if (packet) observations.push({ actorId: packet.driverActor?.actorId ?? null, timestampMs: packet.TimestampMS });
+          return undefined;
+        },
+      });
+      try {
+        for (const counter of [1, 2, 3, 4, 5]) {
+          const triplet = readFirstTriplet();
+          triplet.physics.writeInt32LE(counter, PHYSICS.packetId.offset);
+          triplet.physics.writeInt32LE(0, PHYSICS.isAIControlled.offset);
+          triplet.graphics.writeInt32LE(counter, GRAPHICS_EVO.packetId.offset);
+          triplet.graphics.writeInt32LE(
+            counter === 3 ? inactiveStatus : ACEVO_STATUS.AC_LIVE, GRAPHICS_EVO.status.offset,
+          );
+          triplet.graphics.fill(0, GRAPHICS_EVO.focused_car_id_a.offset, GRAPHICS_EVO.player_car_id_b.offset + 8);
+          triplet.graphics.writeBigUInt64LE(0x1000000000000001n, GRAPHICS_EVO.focused_car_id_a.offset);
+          triplet.graphics.writeBigUInt64LE(0x1000000000000001n, GRAPHICS_EVO.player_car_id_a.offset);
+          triplet.staticData.fill(0, STATIC_EVO.sm_version.offset, STATIC_EVO.ac_evo_version.offset + STATIC_EVO.ac_evo_version.size);
+          triplet.staticData.write("1.0", STATIC_EVO.sm_version.offset, "ascii");
+          triplet.staticData.write("0.6.2", STATIC_EVO.ac_evo_version.offset, "ascii");
+          await pipeline.process({ ...triplet, frameTimeMs: 1000 + counter });
+        }
+        expect(observations).toEqual([
+          { actorId: null, timestampMs: 1001 },
+          { actorId: "ac-evo-control:local-player", timestampMs: 1002 },
+          { actorId: null, timestampMs: 1004 },
+          { actorId: "ac-evo-control:local-player", timestampMs: 1005 },
+        ]);
+      } finally {
+        resetParserState("ac-evo");
+      }
+    }
   });
 });
 

@@ -6,6 +6,7 @@ import * as SqliteClient from "@effect/sql-sqlite-bun/SqliteClient";
 import { beginOutboxAttempt, enqueueOutboxJob, getOutboxJob, listDeliverableOutboxJobs, persistOutboxPayload, settleOutboxDelivery } from "../src/outbox-storage";
 import { startOnlineUploadCoordinator, type OnlineUploadCoordinatorService } from "../src/coordinator";
 import { notifyOnlineSync } from "../src/sync-events";
+import { lapIdentity } from "./lap-identity.fixture";
 
 const dataDir = process.env.DATA_DIR;
 if (!dataDir) throw new Error("DATA_DIR is required for isolated queue fixture");
@@ -19,6 +20,7 @@ const intent = {
   carId: "car-a",
   lapId: 1,
   lapTimeMs: 90_000,
+  identity:lapIdentity("persisted-queue-child-account"),
 };
 const queueOptions = {
   lockExpiration: "100 millis",
@@ -73,7 +75,7 @@ async function payloadJob(account: typeof intent) {
 }
 
 async function testAmbiguousReconciliation(): Promise<void> {
-  const ambiguousIntent = { ...intent, accountId: "persisted-queue-ambiguous-account", trackId: "ambiguous-track" };
+  const ambiguousIntent = { ...intent, accountId: "persisted-queue-ambiguous-account", identity: lapIdentity("persisted-queue-ambiguous-account"), trackId: "ambiguous-track" };
   const job = await payloadJob(ambiguousIntent);
   let attempts = 0;
   let acceptedKey: string | undefined;
@@ -137,7 +139,7 @@ async function seedFailedOldNamespace(accountId: string, rowId: number, uploadKe
 }
 
 async function recoverFailedOldNamespace(): Promise<void> {
-  const legacyIntent = { ...intent, accountId: "persisted-queue-legacy-account", trackId: "legacy-track" };
+  const legacyIntent = { ...intent, accountId: "persisted-queue-legacy-account", identity: lapIdentity("persisted-queue-legacy-account"), trackId: "legacy-track" };
   const row = await payloadJob(legacyIntent);
   const attempted = await beginOutboxAttempt({
     rowId: row.rowId, accountId: row.accountId, accountEpoch: row.accountEpoch, uploadKey: row.uploadKey!,
@@ -196,7 +198,7 @@ async function recoverAfterCrash(): Promise<void> {
 }
 
 async function testDefiniteFailureBudget(): Promise<void> {
-  const rejectedIntent = { ...intent, accountId: "persisted-queue-rejected-account", trackId: "rejected-track" };
+  const rejectedIntent = { ...intent, accountId: "persisted-queue-rejected-account", identity: lapIdentity("persisted-queue-rejected-account"), trackId: "rejected-track" };
   const row = await payloadJob(rejectedIntent);
   let sends = 0;
   const coordinator = startOnlineUploadCoordinator(service(() => rejectedIntent, async () => {
@@ -221,7 +223,7 @@ async function testDefiniteFailureBudget(): Promise<void> {
 }
 
 async function testRetryAccountAndStop(): Promise<void> {
-  const retryIntent = { ...intent, accountId: "persisted-queue-retry-account", trackId: "retry-track" };
+  const retryIntent = { ...intent, accountId: "persisted-queue-retry-account", identity: lapIdentity("persisted-queue-retry-account"), trackId: "retry-track" };
   await enqueueOutboxJob(retryIntent);
   let attempts = 0;
   const retried = signal();
@@ -242,9 +244,9 @@ async function testRetryAccountAndStop(): Promise<void> {
     throw new Error("Retry did not honor ledger retry deadline and eventually accept");
   }
 
-  const owner = { ...intent, accountId: "persisted-queue-owner-account", trackId: "owner-track" };
+  const owner = { ...intent, accountId: "persisted-queue-owner-account", identity: lapIdentity("persisted-queue-owner-account"), trackId: "owner-track" };
   await enqueueOutboxJob(owner);
-  const other = { ...intent, accountId: "persisted-queue-other-account", trackId: "other-track" };
+  const other = { ...intent, accountId: "persisted-queue-other-account", identity: lapIdentity("persisted-queue-other-account"), trackId: "other-track" };
   let current: typeof owner | typeof other = other;
   const reconciled = signal();
   const sent = signal();
@@ -263,7 +265,7 @@ async function testRetryAccountAndStop(): Promise<void> {
   await waitFor(sent.promise);
   await accountCoordinator.stop();
 
-  const stopIntent = { ...intent, accountId: "persisted-queue-stop-account", trackId: "stop-track" };
+  const stopIntent = { ...intent, accountId: "persisted-queue-stop-account", identity: lapIdentity("persisted-queue-stop-account"), trackId: "stop-track" };
   await enqueueOutboxJob(stopIntent);
   const started = signal();
   const release = signal();

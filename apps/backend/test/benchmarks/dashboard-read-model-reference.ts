@@ -171,7 +171,7 @@ export async function sourceDashboardReference(request: DashboardRequest): Promi
     args: [from, to, ...(request.gameId ? [request.gameId] : [])] }))[0] ?? {};
   const mineSessions = n(coverage.mine_sessions), readySessions = n(coverage.ready_sessions);
   const sessionTypes: DashboardResponse["sessionTypes"] = { shares: (["practice", "qualifying", "race", "unknown"] as DashboardSessionType[]).map((kind) => ({ kind, seconds: 0, share: 0 })),
-    totalSeconds: 0, unknownSeconds: 0, unknownShare: 0, sessionsWithDuration: 0, sessionsWithoutDuration: mineSessions };
+    totalSeconds: 0, unknownSeconds: 0, unknownShare: 0, sessionsWithDuration: 0, sessionsWithoutDuration: mineSessions, durationCoverage: "unavailable" };
   const first = n(podiumRows.firsts), second = n(podiumRows.seconds), third = n(podiumRows.thirds);
   const totalsOut: DashboardResponse["totals"] = { laps: n(totals.laps), positiveLaps: n(totals.positive_laps), validLaps: n(totals.valid_laps),
     drivenSeconds: n(totals.driven_seconds), validSeconds: n(totals.valid_seconds), bestLapSeconds: nullable(totals.best_lap_seconds),

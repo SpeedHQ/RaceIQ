@@ -1,6 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { and, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { GameIdSchema, type GameId } from "@raceiq/shared/games/ids";
+import type { DriverAttributionStint } from "@raceiq/shared/driver-attribution";
 import {
   dashboardCarIdentity,
   dashboardTrackIdentity,
@@ -26,6 +27,14 @@ import { dashboardRoutes } from "../../src/routes/dashboard-routes";
 import { sourceDashboardReference } from "../benchmarks/dashboard-read-model-reference";
 
 const ownedSessionIds: number[] = [];
+const sessionEvidence = new Map<number, DriverAttributionStint>();
+function fixtureSelfStint(gameId: GameId, nativeSessionId: string, startMs = 0, endMs = 100): DriverAttributionStint {
+  const clockDomain = `dashboard-fixture:${nativeSessionId}`;
+  return { gameId, source: "fixture-native", sessionId: nativeSessionId, clockDomain, startMs, endMs,
+    evidenceValidUntilMs: endMs, attribution: "Self", bindingRevision: 1,
+    actor: { gameId, source: "fixture-native", actorId: "fixture-self", bindingScope: "installation",
+      sessionId: nativeSessionId, clockDomain, observedAtMs: startMs } };
+}
 const request: DashboardRequest = {
   from: "2026-01-01T00:00:00.000Z",
   to: "2027-01-01T00:00:00.000Z",
@@ -34,6 +43,7 @@ const request: DashboardRequest = {
 afterEach(async () => {
   for (const id of ownedSessionIds.splice(0)) {
     await deleteSession(id);
+    sessionEvidence.delete(id);
     const tombstone = await prepareDashboardPublicationCandidate(id);
     if (tombstone) await publishDashboardSession(tombstone);
   }
@@ -43,11 +53,14 @@ async function addSession(
   gameId: GameId, createdAt: string, ownership: SessionOwnership = "mine",
   carId: number | string | null = 7, trackId: number | string | null = 8,
 ) {
+  const evidence = fixtureSelfStint(gameId, crypto.randomUUID());
   const inserted = await db.insert(sessions).values({
     gameId, carId: carId === null ? "" : String(carId), trackId: trackId === null ? "" : String(trackId),
     ownership, createdAt,
+    driverAttribution: "Self", driverAttributionStints: [evidence],
   }).returning({ id: sessions.id }).get();
   ownedSessionIds.push(inserted.id);
+  sessionEvidence.set(inserted.id, evidence);
   return inserted.id;
 }
 
@@ -55,7 +68,12 @@ async function addLap(
   sessionId: number, lapNumber: number, lapTime: number, isValid = true,
   createdAt = "2026-06-01T12:00:00.000Z",
 ) {
-  await db.insert(laps).values({ sessionId, lapNumber, lapTime, isValid, createdAt }).run();
+  const session = sessionEvidence.get(sessionId);
+  if (!session) throw new Error("Missing native dashboard fixture evidence");
+  const evidence = fixtureSelfStint(session.gameId, session.sessionId, lapNumber * 100, (lapNumber + 1) * 100);
+  await db.insert(laps).values({ sessionId, lapNumber, lapTime, isValid, createdAt,
+    driverAttribution: "Self", driverAttributionStints: [evidence],
+    sourceClockDomain: evidence.clockDomain, sourceLapStartMs: evidence.startMs, sourceLapEndMs: evidence.endMs }).run();
 }
 
 function parseGameId(value: string): GameId {
@@ -478,7 +496,9 @@ test("getDashboard includes over 128 clean published boundary sessions without l
       if (!candidate || !(await publishDashboardSession(candidate, {
         sourceRevision: candidate.sourceRevision,
         captureRevision: `boundary-${id}`,
-        duration: index === 0 ? { status: "available", elapsedSeconds: 3600 } : { status: "unavailable", elapsedSeconds: null },
+        duration: index === 0 ? { status: "available", elapsedSeconds: 3600,
+          attribution: { selfSeconds: 3600, otherSeconds: 0, unknownSeconds: 0, selfObserved: true, coverage: "complete" } }
+          : { status: "unavailable", elapsedSeconds: null },
         sectorLayout: null,
         weather: { status: "unavailable", revision: null, conditions: null },
         trackLengthMeters: null,
@@ -686,7 +706,8 @@ test("getDashboard treats clean previous-version publications as stale and uses 
   expect(await publishDashboardSession(candidate!, {
     sourceRevision: candidate!.sourceRevision,
     captureRevision: "capture-v1",
-    duration: { status: "available", elapsedSeconds: 3600 },
+    duration: { status: "available", elapsedSeconds: 3600,
+      attribution: { selfSeconds: 3600, otherSeconds: 0, unknownSeconds: 0, selfObserved: true, coverage: "complete" } },
     sectorLayout: null,
     weather: { status: "unavailable", revision: null, conditions: null },
     trackLengthMeters: null,

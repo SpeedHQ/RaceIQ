@@ -36,11 +36,20 @@ describe("RaceIQ Online DTO and response validation", () => {
   });
 
   it("validates board identities, integer lap fields, and status-row consistency", () => {
-    const board = { key: { gameId: "f1-2025", trackId: "track", carId: "car" }, status: "ready", rows: [{ rank: 1, lapId: "lap", driver: { userId: "public-user", displayName: "Driver", avatarUrl: null }, lapTimeMs: 91_234, importAvailable: true }], fetchedAt: "2026-10-12T10:00:00Z", stale: false, error: null };
+    const board = { key: { gameId: "f1-2025", trackId: "track", carId: "car" }, status: "ready", rows: [{ rank: 1, lapId: "lap", lapGuid: "019a6d86-a1b2-7c3d-8e4f-001122334455", driver: { userId: "public-user", displayName: "Driver", avatarUrl: null }, lapTimeMs: 91_234, importAvailable: true }], fetchedAt: "2026-10-12T10:00:00Z", stale: false, error: null };
     expect(isOnlineLeaderboard(board)).toBe(true);
     expect(isOnlineLeaderboard({ ...board, rows: [{ ...board.rows[0], rank: 1.5 }] })).toBe(false);
+    expect(isOnlineLeaderboard({ ...board, rows: [{ ...board.rows[0], lapGuid: undefined }] })).toBe(false);
+    expect(isOnlineLeaderboard({ ...board, rows: [{ ...board.rows[0], lapGuid: "another-lap" }] })).toBe(false);
     expect(isOnlineLeaderboard({ ...board, rows: [], status: "ready" })).toBe(false);
     expect(isOnlineLeaderboard({ ...board, status: "unavailable", rows: [], error: { code: "sharing_required", retryable: false, retryAfter: null } })).toBe(true);
+  });
+
+  it("preserves actionable ownership and attribution holds instead of hiding the entire Online state", () => {
+    const state = onlineState();
+    for (const code of ["capture_active", "driver_identity_required", "mixed_driver_lap", "activity_identity_ambiguous", "activity_revision_conflict", "activity_owner_conflict", "lap_owner_conflict", "lap_identity_conflict"]) {
+      expect(isOnlineState({ ...state, sync: { ...state.sync, status: "blocked", blockedBy: "account_unavailable", lastError: { code, retryable: false, retryAfter: null } } })).toBe(true);
+    }
   });
 
   it("accepts documented failure responses but rejects success bodies on failure status", async () => {

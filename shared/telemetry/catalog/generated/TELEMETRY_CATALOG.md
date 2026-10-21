@@ -8,18 +8,18 @@
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.20.0`
 - Generator source SHA-256: `fb7491d9e14283715f01bb02aa1e44e5a53c121ef63d537c5d3ea3e61dadd073`
-- Content SHA-256: `8bf22ea63cb8e505d6234aba5765aa5b87f322129d9e058aa798a4639fc8d4f3`
+- Content SHA-256: `37b93c3c23d4703a589842ddf91790d4171b9d4454c400f190a4bd23a3cf86b3`
 
 ## Coverage
 
 | Simulator | Sources | Recorded | Packet | Extension | SDK | YAML | Setup |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | fm-2023 | 96 | 96 | 95 | 1 | 0 | 0 | 0 |
-| f1-2025 | 289 | 289 | 119 | 170 | 0 | 0 | 0 |
+| f1-2025 | 290 | 290 | 120 | 170 | 0 | 0 | 0 |
 | acc | 205 | 172 | 124 | 48 | 0 | 0 | 33 |
-| ac-evo | 258 | 226 | 126 | 100 | 0 | 0 | 32 |
-| iracing | 952 | 702 | 115 | 18 | 324 | 495 | 0 |
-| lmu | 172 | 172 | 126 | 46 | 0 | 0 | 0 |
+| ac-evo | 265 | 233 | 127 | 106 | 0 | 0 | 32 |
+| iracing | 953 | 703 | 116 | 18 | 324 | 495 | 0 |
+| lmu | 175 | 175 | 127 | 48 | 0 | 0 | 0 |
 
 ## Semantic variables
 
@@ -94,6 +94,7 @@
 | `diagnostics.front-anti-sway` | Front Anti Sway | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.gpu-usage` | Gpu Usage | number | dimensionless | % | scalar |  |  |  |
 | `diagnostics.instantaneous-km-per-liter` | Instantaneous Km Per Liter | number | length^3 | L | scalar |  |  |  |
+| `diagnostics.is-ai-controlled` | Is AI Controlled | boolean | dimensionless | boolean | scalar |  |  |  |
 | `diagnostics.is-disk-logging-active` | Is Disk Logging Active | boolean | dimensionless | boolean | scalar |  |  |  |
 | `diagnostics.is-disk-logging-enabled` | Is Disk Logging Enabled | boolean | dimensionless | boolean | scalar |  |  |  |
 | `diagnostics.is-garage-visible` | Is Garage Visible | boolean | dimensionless | boolean | scalar |  |  |  |
@@ -137,6 +138,7 @@
 | `diagnostics.sim-build-version` | Simulator build version | string | dimensionless | text | scalar |  |  |  |
 | `diagnostics.solar-altitude` | Solar Altitude | number | angle | rad | scalar |  |  |  |
 | `diagnostics.solar-azimuth` | Solar Azimuth | number | angle | rad | scalar |  |  |  |
+| `diagnostics.source-capture-utc-ms` | Source Capture Utc Ms | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.state-of-charge` | State Of Charge | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.surface-type` | Surface Type | number | dimensionless | count | fixed:4 | FL, FR, RL, RR |  |  |
 | `diagnostics.telemetry.disk-file` | Telemetry Disk File | string | dimensionless | text | scalar |  |  |  |
@@ -233,13 +235,16 @@
 | `identity.car-model-name` | Car Model Name | string | dimensionless | text | scalar |  |  |  |
 | `identity.car-name` | Car Name | string | dimensionless | text | scalar |  |  |  |
 | `identity.car-performance-index` | Car Performance Index | number | dimensionless | count | scalar |  |  |  |
+| `identity.driver-actor` | Driver Actor | number | unit:unitless | unitless | scalar |  |  |  |
 | `identity.driver-name` | Driver Name | string | dimensionless | text | scalar |  |  |  |
 | `identity.drivetrain-type` | Drivetrain Type | number | dimensionless | id | scalar |  |  |  |
+| `identity.focused-car-id-words` | Focused Car Id Words | number | dimensionless | count | scalar |  |  |  |
 | `identity.game-version` | Game Version | number | dimensionless | count | scalar |  |  |  |
 | `identity.is-in-garage` | Is In Garage | boolean | dimensionless | boolean | scalar |  |  |  |
 | `identity.is-on-track-car` | Is On Track Car | boolean | dimensionless | boolean | scalar |  |  |  |
 | `identity.player-car-class-id` | Player car-class ID | number | dimensionless | id | scalar |  |  |  |
 | `identity.player-car-electric` | Driver Car Is Electric | boolean | dimensionless | boolean | scalar |  |  |  |
+| `identity.player-car-id-words` | Player Car Id Words | number | dimensionless | count | scalar |  |  |  |
 | `identity.player-car-index` | Player car index | number | dimensionless | index | scalar |  |  |  |
 | `identity.player-car-version` | Player car version | string | dimensionless | text | scalar |  |  |  |
 | `identity.player-driver-id` | Player driver ID | number | dimensionless | id | scalar |  |  |  |
@@ -247,6 +252,7 @@
 | `identity.player-track-surface` | Player Track Surface | number | dimensionless | count | scalar |  |  |  |
 | `identity.player-track-surface-material` | Player Track Surface Material | number | unit:irsdk_trksurf | irsdk_TrkSurf | scalar |  |  |  |
 | `identity.session-name` | Session Name | string | dimensionless | text | scalar |  |  |  |
+| `identity.shared-memory-version` | Shared Memory Version | string | dimensionless | text | scalar |  |  |  |
 | `identity.source-identity` | Source identity | structured | dimensionless | structured | variable:0-* | source-path:source-order | indices: source-path (variable:0-*, source-order); fields: value:string |  |
 | `identity.track-id` | Track Id | string | dimensionless | text | scalar |  |  |  |
 | `identity.track-limits-steps` | Track Limits Steps | number | dimensionless | count | scalar |  |  |  |
@@ -443,6 +449,7 @@
 | `race.session-summary.laps-complete` | Results Laps Complete | structured | dimensionless | count | variable:0-* | session-index:source-order | indices: session-index (variable:0-*, source-order); fields: value:number |  |
 | `race.session-summary.lead-changes` | Results Num Lead Changes | structured | dimensionless | count | variable:0-* | session-index:source-order | indices: session-index (variable:0-*, source-order); fields: value:number |  |
 | `race.session-summary.official` | Results Official | structured | dimensionless | boolean | variable:0-* | session-index:source-order | indices: session-index (variable:0-*, source-order); fields: value:boolean |  |
+| `race.status` | Status | number | dimensionless | count | scalar |  |  |  |
 | `race.team-incident-count` | Team incident count | number | dimensionless | count | scalar |  |  |  |
 | `session.car-class-count` | Num Car Classes | number | dimensionless | count | scalar |  |  |  |
 | `session.car-type-count` | Num Car Types | number | dimensionless | count | scalar |  |  |  |
@@ -625,6 +632,7 @@
 | `timing.delta-to-session-last-lap-valid` | Delta to session last lap valid | boolean | dimensionless | boolean | scalar |  |  |  |
 | `timing.distance-traveled` | Distance Traveled | number | length | m | scalar |  |  |  |
 | `timing.drs-activation-distance` | DRS Activation Distance | number | length | m | scalar |  |  |  |
+| `timing.elapsed-time` | Elapsed Time | number | time | s | scalar |  |  |  |
 | `timing.frame-time-ms` | Frame Time Ms | number | time | ms | scalar |  |  |  |
 | `timing.gap-ahead-ms` | Gap Ahead Ms | number | time | s | scalar |  |  |  |
 | `timing.gap-behind-ms` | Gap Behind Ms | number | time | s | scalar |  |  |  |
@@ -658,6 +666,7 @@
 | `timing.player-car-tow-time` | Player Car Tow Time | number | time | s | scalar |  |  |  |
 | `timing.predicted-lap-time` | Predicted lap time | number | time | s | scalar |  |  |  |
 | `timing.replay-session-time` | Replay Session Time | number | time | s | scalar |  |  |  |
+| `timing.scoring-current-elapsed-time` | Scoring Current Elapsed Time | number | time | s | scalar |  |  |  |
 | `timing.sector.best-times` | Best sector times | number | time | s | variable:0-* | source-order |  |  |
 | `timing.sector.competitor-best.s1` | Competitor best S1 | structured | time | s | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |
 | `timing.sector.competitor-best.s2` | Competitor best S2 | structured | time | s | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |

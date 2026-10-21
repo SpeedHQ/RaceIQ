@@ -2,3 +2,4 @@ server/test/games/shared/native-capture-rate-limiter.test.ts
 server/test/games/shared/win-timer-resolution.test.ts
 server/test/runtime/mac-keychain.test.ts
 server/test/session-capture/cloud-import-admission.test.ts
+server/test/session-capture/portable-identity.test.ts

@@ -1,10 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { createDesktopAuth, type DesktopSignInAttempt, type api } from "@speedhq/live-client";
+import { createDesktopAuth, type DesktopAuthOptions, type DesktopSignInAttempt, type api } from "@speedhq/live-client";
 import type { OnlineKeystore } from "./contracts";
 import type {
-  CancelSignInInput, ConnectInput, ConnectResult, ConsentInput, DisplayNameInput, LeaderboardInput, OnlineCommandResult,
-  OnlineError, OnlineLeaderboard, OnlineMutationContext, OnlinePolicy, OnlineState, OnlineSyncBlock, PolicyVersions,
-  PreferencesInput, RaceIqOnlinePort,
+  CancelSignInInput, CommunityEntitlement, ConnectInput, ConnectResult, ConsentInput, DisplayNameInput,
+  LeaderboardInput, OnlineCommandResult, OnlineError, OnlineLeaderboard, OnlineMutationContext, OnlinePolicy, OnlineState,
+  OnlineSyncBlock, PolicyVersions, PreferencesInput, RaceIqOnlinePort,GameIdentityBinding,
 } from "./contracts";
 import { createRaceIqOnlineAdapter, OnlineAdapterError } from "./adapter";
 import { createNativeBoardIdentifierResolver } from "./identifiers";
@@ -14,17 +14,24 @@ import { createOnlineUploadDispatcher, type OnlineUploadContext, type OnlineUplo
 import type { DispatchUnderPrivacyBarrier, UploadOutcome } from "./outbox";
 import { notifyOnlineSync } from "./sync-events";
 export type { OnlineUploadContext } from "./upload-dispatch";
+import type { RegisteredOnlineDriverBinding } from "./payload";
+export interface OnlineProfileSyncContext { accountId:string;accountEpoch:string;revision:number }
 export interface OnlineServiceAdapter {
   getPolicy(): Promise<unknown>;
   getConsent(accessToken: string): Promise<api.ConsentState>;
-  getLeaderboard(input: LeaderboardInput): Promise<{ status: "ready" | "empty"; rows: OnlineLeaderboard["rows"]; fetchedAt: string; stale: false }>;
-  getMe(accessToken: string): Promise<{ userId: string; displayName: string; avatarUrl: string | null; discordUsername?: string | null }>;
+  getLeaderboard(input: LeaderboardInput,isAuthorized:()=>boolean): Promise<{ status: "ready" | "empty"; rows: OnlineLeaderboard["rows"]; fetchedAt: string; stale: false }>;
+  getMe(accessToken:string,discordAccountName?:string|null): Promise<{ userId: string; displayName: string; avatarUrl: string | null; discordUsername?: string | null }>;
   setDisplayName(displayName: string, accessToken: string): Promise<{ userId: string; displayName: string; avatarUrl: string | null; discordUsername?: string | null }>;
   acceptConsent(input: PolicyVersions, accessToken: string): Promise<{ acceptedAt: string }>;
   getPreferences(accessToken: string): Promise<unknown>;
   setPreferences(input: PreferencesInput["preferences"], accessToken: string): Promise<unknown>;
   reserveLapUpload: ReturnType<typeof createRaceIqOnlineAdapter>["reserveLapUpload"];
   uploadLap: ReturnType<typeof createRaceIqOnlineAdapter>["uploadLap"];
+  writeActivityContribution(contribution:api.ActivityContribution,isAuthorized:()=>boolean,isSourceCurrent:()=>Promise<boolean>):Promise<api.ActivityReceipt>;
+  readActivityReceipt(activityId:string,isAuthorized:()=>boolean):Promise<api.ActivityContributionView|null>;
+  readOwnerStats(isAuthorized:()=>boolean):Promise<api.OwnerOnlineStatsView|null>;
+  getLapJob(jobId:string,isAuthorized:()=>boolean):Promise<api.UploadJob>;
+  registerGameBinding(binding:GameIdentityBinding,confirmedByUser:true,isAuthorized:()=>boolean):Promise<RegisteredOnlineDriverBinding>;
 }
 type OnlineAttempt = { attempt: DesktopSignInAttempt; epoch: string };
 export interface OnlineAuthSession {
@@ -42,22 +49,43 @@ export type OnlineServiceOptions = {
   storage?: OnlineStateStorage;
   adapter?: Partial<OnlineServiceAdapter>;
   keystore: OnlineKeystore;
-  recordingProducer?: OnlineUploadDispatchPort["prepareRecording"];
+  recordingProducer: OnlineUploadDispatchPort["prepareRecording"];
+  onAccountConnected?:(onlineUserId:string,isCurrent:()=>boolean)=>Promise<void>;
   redirectUri?: string;
+  baseUrl?: string;
+  authConfig?: Required<Pick<DesktopAuthOptions,"supabaseUrl"|"publishableKey">>;
+  fetch?: typeof globalThis.fetch;
   auth?: OnlineAuthPort;
 };
 const error = (code: OnlineError["code"], retryable = false): OnlineError => ({ code, retryable, retryAfter: null });
 const sameVersions = (a: PolicyVersions, b: PolicyVersions) => a.termsVersion === b.termsVersion && a.privacyVersion === b.privacyVersion;
+const isAccountOwnershipRejection=(cause:unknown)=>cause instanceof Error&&"code"in cause&&(cause.code==="account_unavailable"||cause.code==="account_conflict");
 export type RaceIqOnlineService = RaceIqOnlinePort & {
   handleAuthCallback(url: string): Promise<boolean>;
   getImportAccessToken(): Promise<string | null>;
+  getCommunityEntitlement(): Promise<CommunityEntitlement>;
+  isCommunityEntitlementCurrent(entitlement: Extract<CommunityEntitlement, { allowed: true }>): Promise<boolean>;
   getUploadContext(): Promise<OnlineUploadContext | null>;
   isUploadContextCurrent(context: OnlineUploadContext): boolean;
   uploadOutboxJob(job: OutboxJob, mayStart?: () => boolean): Promise<UploadOutcome>;
   dispatchUnderPrivacyBarrier: DispatchUnderPrivacyBarrier;
+  getProfileSyncContext():Promise<OnlineProfileSyncContext|null>;
+  isProfileSyncContextCurrent(context:OnlineProfileSyncContext):boolean;
+  invalidatePreparation(input:OnlineMutationContext):Promise<OnlineCommandResult>;
+  isMutationContextCurrent(input:OnlineMutationContext):boolean;
+  invalidateSourceBindings():void;
+  writeActivityContribution(contribution:api.ActivityContribution,context:OnlineProfileSyncContext,isSourceCurrent:()=>Promise<boolean>):Promise<api.ActivityReceipt>;
+  readActivityReceipt(activityId:string,context:OnlineProfileSyncContext):Promise<api.ActivityContributionView|null>;
+  readOwnerStats(context:OnlineProfileSyncContext):Promise<api.OwnerOnlineStatsView|null>;
+  getLapJob(jobId:string,context:OnlineProfileSyncContext):Promise<api.UploadJob>;
+  stopAdmission():void;
+  registerGameBinding(binding:GameIdentityBinding,confirmedByUser:true,context:OnlineProfileSyncContext,mayStart:()=>boolean):Promise<RegisteredOnlineDriverBinding>;
 };
 const OUTBOX_ERROR_CODES: Readonly<Record<string, OnlineError["code"]>> = {
   validation_rejected: "validation_rejected", f1_sanitization_failed: "f1_sanitization_failed",
+  unsupported_recording_format:"unsupported_recording_format",recording_too_large:"recording_too_large",recording_not_ready:"recording_not_ready",
+  driver_identity_required:"driver_identity_required",mixed_driver_lap:"mixed_driver_lap",activity_identity_ambiguous:"activity_identity_ambiguous",
+  activity_owner_conflict:"activity_owner_conflict",lap_owner_conflict:"lap_owner_conflict",lap_identity_conflict:"lap_identity_conflict",
   ineligible_lap: "ineligible_lap", unsupported_game: "unsupported_game", unknown_track: "unknown_track",
   unknown_car: "unknown_car", rate_limited: "rate_limited", offline: "offline",
   service_unavailable: "service_unavailable", policy_unavailable: "policy_unavailable",
@@ -65,17 +93,27 @@ const OUTBOX_ERROR_CODES: Readonly<Record<string, OnlineError["code"]>> = {
 };
 const OUTBOX_NON_RETRYABLE_ERRORS: ReadonlySet<string> = new Set([
   "validation_rejected", "f1_sanitization_failed", "ineligible_lap", "unsupported_game", "unknown_track", "unknown_car",
+  "unsupported_recording_format","recording_too_large","driver_identity_required","mixed_driver_lap","activity_identity_ambiguous",
+  "activity_owner_conflict","lap_owner_conflict","lap_identity_conflict",
 ]);
 
 export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIqOnlineService {
   const { getSecret, setSecret } = options.keystore;
   const storage = options.storage ?? new OnlineStateStorage();
   let persisted = storage.load();
+  let acceptingTransport=true;
   persisted.accountEpoch = randomUUID();
   persisted.revision = 0;
   storage.save(persisted);
   const redirectUri = options.redirectUri ?? `http://127.0.0.1:${Number(process.env.SERVER_PORT) || 3117}/api/online/auth/callback`;
-  const auth = options.auth ?? createDesktopAuth({ redirectUri });
+  const fetcher=options.fetch??globalThis.fetch;
+  const auth=options.auth??createDesktopAuth({...options.authConfig,redirectUri,fetch:Object.assign(
+    (input:RequestInfo|URL,init?:RequestInit)=>{
+      const signal=init?.signal??(input instanceof Request?input.signal:undefined);
+      const deadline=AbortSignal.timeout(8_000);
+      return fetcher(input,{...init,redirect:"error",signal:signal?AbortSignal.any([signal,deadline]):deadline});
+    },{preconnect:fetcher.preconnect},
+  )});
   const attempts = new Map<string, OnlineAttempt>();
   let activeAccessToken: string | null = null;
   let activeUserId: string | null = null;
@@ -92,7 +130,7 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
     if (await getSecret("raceiq-online-refresh")) throw new Error();
   };
   const accessToken = async (): Promise<string | null> => {
-    if (persisted.explicitlySignedOut) return null;
+    if(!acceptingTransport||persisted.explicitlySignedOut)return null;
     if (activeAccessToken && accessExpiresAt > Date.now() / 1000 + 60) return activeAccessToken;
     if (tokenRefresh) return tokenRefresh;
     const epoch = persisted.accountEpoch;
@@ -110,30 +148,40 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
         }
         await setSecret("raceiq-online-refresh", session.refreshToken);
         if (epoch !== persisted.accountEpoch || await getSecret("raceiq-online-refresh") !== session.refreshToken) return null;
+        if(options.onAccountConnected){
+          const profile=await adapter.getMe(session.accessToken,session.discordAccountName);
+          if(profile.userId!==session.userId)throw Object.assign(new Error("Account identity unavailable"),{code:"account_unavailable"});
+          const isCurrent=()=>acceptingTransport&&epoch===persisted.accountEpoch&&!persisted.explicitlySignedOut&&connectedAccount.status!=="signing_in";
+          if(!isCurrent())return null;
+          await options.onAccountConnected(profile.userId,isCurrent);
+          if(!isCurrent()||await getSecret("raceiq-online-refresh")!==session.refreshToken)return null;
+        }
         activeAccessToken = session.accessToken;
         activeUserId = session.userId;
         activeDiscordAccountName = session.discordAccountName;
         accessExpiresAt = session.expiresAt;
         return activeAccessToken;
-      } catch {
+      }catch(cause){
         if (epoch === persisted.accountEpoch) {
           activeAccessToken = null;
           accessExpiresAt = 0;
           activeUserId = null;
+          if(isAccountOwnershipRejection(cause)){persisted.explicitlySignedOut=true;connectedAccount={status:"error",error:error("account_unavailable")};save();}
         }
         return null;
       }
     })();
     try { return await tokenRefresh; } finally { tokenRefresh = null; }
   };
-  const defaultAdapter = createRaceIqOnlineAdapter({
-    baseUrl: "https://raceiq.snazzie.space",
+  const defaultAdapter:OnlineServiceAdapter = createRaceIqOnlineAdapter({
+    baseUrl: options.baseUrl??"https://raceiq.snazzie.space",
     credentials: async () => {
       const token = await accessToken();
       return token ? { accessToken: token, consentAccepted: activeConsent.status === "accepted", discordAccountName: activeDiscordAccountName } : null;
     },
     identifiers: createNativeBoardIdentifierResolver(),
-  }) as OnlineServiceAdapter;
+    fetch:fetcher,
+  });
   adapter = options.adapter ? { ...defaultAdapter, ...options.adapter } : defaultAdapter;
   let policy: OnlinePolicy = { status: "unavailable", error: error("policy_unavailable", true) };
   let service: OnlineState["service"] = "unavailable";
@@ -189,14 +237,15 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
       contractVersion: 1, revision: persisted.revision, accountEpoch: persisted.accountEpoch, service,
       connection: connectedAccount, policy, consent: base.consent, preferences: base.effectivePreferences, persistedPreferences: activePersistedPreferences,
       preferencePersistence: persisted.preferencePersistence,
-      uploadAllowed: service === "available" && policy.status === "available" && base.credentialAligned && base.consent.status === "accepted" && persisted.preferencePersistence === "confirmed" && !persisted.privacyBarrier && base.effectivePreferences?.visibility === "public",
+      uploadAllowed: acceptingTransport&&service === "available" && policy.status === "available" && base.credentialAligned && base.consent.status === "accepted" && persisted.preferencePersistence === "confirmed" && !persisted.privacyBarrier && base.effectivePreferences?.visibility === "public",
       sync: { status: blockedBy ? "blocked" : outbox.inFlight ? "running" : pending ? "paused" : "idle", blockedBy, queued: outbox.queued, inFlight: outbox.inFlight, rejected: outbox.rejected, lastSyncedAt: outbox.lastSyncedAt, lastError },
       publicationWithdrawal: { status: "none", error: null },
     });
   };
   const failure = async (code: OnlineError["code"], retryable = false): Promise<OnlineCommandResult> => ({ ok: false, error: error(code, retryable), state: await snapshot() });
-  const stale = (ctx: OnlineMutationContext) => ctx.accountEpoch !== persisted.accountEpoch || ctx.expectedRevision !== persisted.revision;
+  const stale=(ctx:OnlineMutationContext)=>!acceptingTransport||ctx.accountEpoch!==persisted.accountEpoch||ctx.expectedRevision!==persisted.revision;
   const refreshPolicy = async () => {
+    if(!acceptingTransport)return;
     if (Date.now() - policyAt < 30_000) return;
     if (policyRefresh) return policyRefresh;
     policyRefresh = (async () => {
@@ -292,8 +341,19 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
       save();
     } catch { /* Keep local choices; missing Live confirmation remains fail-closed. */ }
   };
+  const profileSyncContext = (): OnlineProfileSyncContext|null => {
+    if (!acceptingTransport || service!=="available" || policy.status!=="available" || persisted.explicitlySignedOut ||
+      connectedAccount.status!=="connected" || !activeAccessToken || accessExpiresAt<=Date.now()/1000+60 ||
+      activeUserId!==connectedAccount.account.userId || persisted.profile?.userId!==activeUserId ||
+      activeConsent.status!=="accepted" || !sameVersions(activeConsent.versions,policy.versions)) return null;
+    return {accountId:connectedAccount.account.userId,accountEpoch:persisted.accountEpoch,revision:persisted.revision};
+  };
+  const isProfileSyncContextCurrent = (context:OnlineProfileSyncContext):boolean => {
+    const current=profileSyncContext();
+    return current!==null && current.accountId===context.accountId && current.accountEpoch===context.accountEpoch && current.revision===context.revision;
+  };
   const currentUploadContext = (): OnlineUploadContext | null => {
-    if (service !== "available" || policy.status !== "available" || connectedAccount.status !== "connected" ||
+    if (!acceptingTransport || service !== "available" || policy.status !== "available" || connectedAccount.status !== "connected" ||
         !activeAccessToken || accessExpiresAt <= Date.now() / 1000 + 60 ||
         activeUserId !== connectedAccount.account.userId || persisted.profile?.userId !== activeUserId ||
         activeConsent.status !== "accepted" || !sameVersions(activeConsent.versions, policy.versions) ||
@@ -306,23 +366,67 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
     return !!current && current.accountId === context.accountId && current.accountEpoch === context.accountEpoch &&
       current.revision === context.revision;
   };
-  const uploadDispatcher = options.recordingProducer ? createOnlineUploadDispatcher({
+  const communityError = (state: OnlineState): OnlineError | null => {
+    if (state.connection.status !== "connected") return error("not_connected");
+    if (state.service !== "available" || state.policy.status !== "available") {
+      return error(state.service === "offline" ? "offline" : "service_unavailable", true);
+    }
+    if (state.consent.status !== "accepted") return error("consent_required");
+    if (state.preferencePersistence !== "confirmed" || state.preferences?.visibility !== "public" || !state.uploadAllowed) {
+      return error("sharing_required");
+    }
+    return null;
+  };
+  const getCommunityEntitlement = async (): Promise<CommunityEntitlement> => {
+    if(!acceptingTransport)return {allowed:false,error:error("service_unavailable",true)};
+    let state: OnlineState;
+    try { state = await port.getState(); }
+    catch { return { allowed: false, error: error("service_unavailable", true) }; }
+    const denied = communityError(state);
+    if (denied) return { allowed: false, error: denied };
+    return { allowed: true, accountEpoch: state.accountEpoch, onlineRevision: state.revision };
+  };
+  const isCommunityEntitlementCurrent = async (entitlement: Extract<CommunityEntitlement, { allowed: true }>): Promise<boolean> => {
+    const current = await getCommunityEntitlement();
+    return current.allowed && current.accountEpoch === entitlement.accountEpoch &&
+      current.onlineRevision === entitlement.onlineRevision;
+  };
+  const uploadDispatcher = createOnlineUploadDispatcher({
     getContext: () => port.getUploadContext(),
     isAuthorized: (context, includesSetup) => isUploadContextCurrent(context) && (!includesSetup || currentUploadContext()?.setupUploads === true),
     reserveLapUpload: (input) => adapter.reserveLapUpload(input),
     uploadLap: (input) => adapter.uploadLap(input),
     prepareRecording: options.recordingProducer,
-  }) : null;
+  });
   const port: RaceIqOnlineService = {
+    stopAdmission() { acceptingTransport=false; },
+    isMutationContextCurrent(input){return acceptingTransport&&!stale(input);},
+    invalidateSourceBindings(){save();},
+    isProfileSyncContextCurrent,
+    async getProfileSyncContext() {
+      await refreshPolicy();
+      await accessToken();
+      if(connectedAccount.status==="signed_out"&&!persisted.explicitlySignedOut)await port.getState();
+      return profileSyncContext();
+    },
+    async invalidatePreparation(input) {
+      if (stale(input)) return failure("stale_state");
+      save();
+      return {ok:true,state:await snapshot()};
+    },
+    async writeActivityContribution(contribution,context,isSourceCurrent){return adapter.writeActivityContribution(contribution,()=>isProfileSyncContextCurrent(context),isSourceCurrent);},
+    async readActivityReceipt(activityId,context) { return adapter.readActivityReceipt(activityId,()=>isProfileSyncContextCurrent(context)); },
+    async readOwnerStats(context) { return adapter.readOwnerStats(()=>isProfileSyncContextCurrent(context)); },
+    async getLapJob(jobId,context) { return adapter.getLapJob(jobId,()=>isProfileSyncContextCurrent(context)); },
+    async registerGameBinding(binding,confirmedByUser,context,mayStart){return adapter.registerGameBinding(binding,confirmedByUser,()=>isProfileSyncContextCurrent(context)&&mayStart());},
     isUploadContextCurrent,
+    getCommunityEntitlement,
+    isCommunityEntitlementCurrent,
     async uploadOutboxJob(job, mayStart) {
-      if (!uploadDispatcher) throw new Error("Per-lap recording producer is unavailable");
       return uploadDispatcher(job, mayStart);
     },
     async getUploadContext() {
-      // Recording integration is held until the per-lap BIN producer is available.
-      if (!uploadDispatcher) return null;
-      await port.getState();
+      await port.getProfileSyncContext();
       return currentUploadContext();
     },
     async dispatchUnderPrivacyBarrier(job, send) {
@@ -349,7 +453,7 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
       }
       if (persisted.accountEpoch === epoch && token && activeUserId && connectedAccount.status !== "signing_in") {
         try {
-          const profile = await adapter.getMe(token);
+          const profile = await adapter.getMe(token,activeDiscordAccountName);
           if (persisted.accountEpoch !== epoch) return await snapshot();
           if (activeUserId !== profile.userId) {
             activeAccessToken = null; activeUserId = null; accessExpiresAt = 0;
@@ -420,8 +524,10 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
         const session = await pending.attempt.complete(url);
         const clearPendingSession = async () => {
           if (pending.epoch !== persisted.accountEpoch) return;
-          if (await getSecret("raceiq-online-refresh") === session.refreshToken) await setSecret("raceiq-online-refresh", "");
-          if (activeAccessToken === session.accessToken) {
+          const stored=await getSecret("raceiq-online-refresh");
+          if(pending.epoch!==persisted.accountEpoch)return;
+          if(pending.epoch===persisted.accountEpoch&&stored===session.refreshToken)await setSecret("raceiq-online-refresh","");
+          if(pending.epoch===persisted.accountEpoch&&activeAccessToken===session.accessToken) {
             activeAccessToken = null; activeUserId = null; accessExpiresAt = 0;
           }
         };
@@ -434,13 +540,18 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
           await clearPendingSession();
           return false;
         }
-        persisted.explicitlySignedOut = false;
-        const profile = await adapter.getMe(session.accessToken);
+        const profile = await adapter.getMe(session.accessToken,session.discordAccountName);
         if (profile.userId !== session.userId) throw new Error();
         if (pending.epoch !== persisted.accountEpoch || connectedAccount.status !== "signing_in" || connectedAccount.flowId !== flowId) {
           await clearPendingSession();
           return false;
         }
+        if(options.onAccountConnected)await options.onAccountConnected(profile.userId,()=>acceptingTransport&&pending.epoch===persisted.accountEpoch&&connectedAccount.status==="signing_in"&&connectedAccount.flowId===flowId&&activeUserId===profile.userId&&activeAccessToken===session.accessToken);
+        if (pending.epoch !== persisted.accountEpoch || connectedAccount.status !== "signing_in" || connectedAccount.flowId !== flowId) {
+          await clearPendingSession();
+          return false;
+        }
+        persisted.explicitlySignedOut=false;
         if (persisted.profile?.userId !== profile.userId) {
           activePreferences = null; activePersistedPreferences = null;
           persisted.consent = null; persisted.preferences = null; persisted.persistedPreferences = null;
@@ -459,14 +570,20 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
         save();
         attempts.delete(flowId);
         return true;
-      } catch {
+      }catch(cause){
         attempts.delete(flowId);
         if (pending.epoch !== persisted.accountEpoch || connectedAccount.status !== "signing_in" || connectedAccount.flowId !== flowId) return false;
+        let clearFailed = false;
+        try { await clearRefreshToken(); } catch { clearFailed = true; }
+        if(pending.epoch!==persisted.accountEpoch||connectedAccount.status!=="signing_in"||connectedAccount.flowId!==flowId)return false;
         activeAccessToken = null; activeUserId = null; accessExpiresAt = 0;
         activeConsent = { status: "not_accepted" };
-        connectedAccount = persisted.profile
-          ? { status: "connected", account: persisted.profile }
-          : { status: "error", error: error("auth_failed", true) };
+        connectedAccount = clearFailed
+          ? { status: "error", error: error("internal_error", true) }
+          : isAccountOwnershipRejection(cause)?{status:"error",error:error("account_unavailable")}
+          : persisted.profile&&!persisted.explicitlySignedOut
+            ? { status: "connected", account: persisted.profile }
+            : { status: "error", error: error("auth_failed", true) };
         try { save(); } catch { /* State remains fail-closed. */ }
         return false;
       }
@@ -476,9 +593,13 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
       const pending = attempts.get(input.flowId);
       if (!pending || connectedAccount.status !== "signing_in" || connectedAccount.flowId !== input.flowId) return await failure("auth_cancelled");
       pending.attempt.cancel(); attempts.delete(input.flowId);
-      connectedAccount = { status: "signed_out" };
+      persisted.explicitlySignedOut=true;persisted.accountEpoch=randomUUID();persisted.revision=0;
+      persisted.privacyBarrier=true;persisted.setupBarrier=true;
+      activeAccessToken=null;activeUserId=null;accessExpiresAt=0;activeConsent={status:"not_accepted"};
+      connectedAccount={status:"signed_out"};
       save();
-      return { ok: true, state: await snapshot() };
+      try{await clearRefreshToken();}catch{return await failure("internal_error",true);}
+      return {ok:true,state:await snapshot()};
     },
     async acceptConsent(input: ConsentInput) {
       await refreshPolicy();
@@ -619,6 +740,8 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
     },
     async getLeaderboard(input: LeaderboardInput): Promise<OnlineLeaderboard> {
       await refreshPolicy();
+      const entitlement = await getCommunityEntitlement();
+      if (!entitlement.allowed) return { key: input, status: "unavailable", rows: [], fetchedAt: null, stale: false, error: entitlement.error };
       const epoch = persisted.accountEpoch;
       const denied = leaderboardAccessError();
       if (denied) return { key: input, status: "unavailable", rows: [], fetchedAt: null, stale: false, error: denied };
@@ -635,13 +758,16 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
       const accessDenied = leaderboardAccessError();
       if (accessDenied || persisted.profile?.userId !== userId || connectedAccount.status !== "connected" || connectedAccount.account.userId !== userId) return { key: input, status: "unavailable", rows: [], fetchedAt: null, stale: false, error: accessDenied ?? error("auth_failed", true) };
       const generation = boardGeneration;
-      const stillEntitled = () => generation === boardGeneration && epoch === persisted.accountEpoch
+      const stillEntitled = async () => generation === boardGeneration && epoch === persisted.accountEpoch
         && activeAccessToken === token && accessExpiresAt > Date.now() / 1000 + 60 && activeUserId === userId
         && persisted.profile?.userId === userId && connectedAccount.status === "connected"
-        && connectedAccount.account.userId === userId && leaderboardAccessError() === null;
+        && connectedAccount.account.userId === userId && leaderboardAccessError() === null
+        && await isCommunityEntitlementCurrent(entitlement);
       try {
-        const result = await adapter.getLeaderboard(input);
-        if (!stillEntitled()) {
+        if (!await stillEntitled()) return { key: input, status: "unavailable", rows: [], fetchedAt: null, stale: false, error: error("sharing_required") };
+        const result = await adapter.getLeaderboard(input,()=>acceptingTransport&&generation===boardGeneration&&epoch===persisted.accountEpoch
+          &&activeAccessToken===token&&accessExpiresAt>Date.now()/1000+60&&activeUserId===userId&&leaderboardAccessError()===null);
+        if (!await stillEntitled()) {
           const accessError = leaderboardAccessError() ?? error("sharing_required");
           return { key: input, status: "unavailable", rows: [], fetchedAt: null, stale: false, error: accessError };
         }
@@ -656,7 +782,7 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
         const failure: OnlineError = cause instanceof OnlineAdapterError
           ? { code: cause.code === "invalid_response" ? "internal_error" : cause.code, retryable: cause.retryable, retryAfter: cause.retryAfter }
           : error("service_unavailable", true);
-        if (!stillEntitled()) {
+        if (!await stillEntitled()) {
           return { key: input, status: "unavailable", rows: [], fetchedAt: null, stale: false, error: leaderboardAccessError() ?? error("sharing_required") };
         }
         const cached = boardCache.get(key);
@@ -666,7 +792,10 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
       }
       },
       async getImportAccessToken() {
-        return accessToken();
+        const entitlement = await getCommunityEntitlement();
+        if (!entitlement.allowed) return null;
+        const token = await accessToken();
+        return token && await isCommunityEntitlementCurrent(entitlement) ? token : null;
       },
   };
   return port;

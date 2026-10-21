@@ -1,10 +1,7 @@
 import { stat } from "node:fs/promises";
-import { createHash } from "node:crypto";
-import { getTrackLengthMetersById } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import type { GameId } from "@raceiq/shared/games/ids";
-import { TrackConditionsAccumulator, type TrackConditions } from "../ai/track-conditions";
+import type { TrackConditions } from "../ai/track-conditions";
 import { getServerGame } from "../games/registry";
-import { dashboardTrackIdentity } from "@raceiq/shared/racing/sessions/dashboard";
 import { client } from "../db/index";
 import {
   DASHBOARD_PROCESSOR_VERSION,
@@ -15,11 +12,14 @@ import {
 } from "../db/dashboard-summary-queries";
 import { PARSER_BOOTSTRAP_VERSION } from "@raceiq/capture-formats/session/framing";
 import { iterateSessionCaptureRecordsFromSource, type SessionCaptureSource } from "./source-loader";
+import { DashboardCaptureObservation } from "./dashboard-observation";
+import { dashboardStints, dashboardDurationAttribution } from "../driver-summary/dashboard-input";
+import { getNativeSourceClock } from "../lap-detection/native-attribution";
+import { readVerifiedPortableOriginalDuration } from "../db/original-activity-queries";
 
-const USES_SESSION_CLOCK: Partial<Record<GameId, true>> = { "fm-2023": true, "f1-2025": true, iracing: true, lmu: true };
 const BATCH_SIZE = 25;
 const checkpointYield = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
-type SessionInfo = { raw_file: string | null; source: string | null; game_id: string; car_id: string | null; track_id: string | null; capture_format_version: number | null };
+type SessionInfo = { raw_file: string | null; source: string | null; game_id: string; car_id: string | null; track_id: string | null; capture_format_version: number | null; driver_attribution_stints: unknown };
 
 
 function unavailableCapture(candidate: DashboardPublicationCandidate): DashboardCaptureFacts {
@@ -35,8 +35,14 @@ export async function publishObservedDashboardCaptureFacts(
 ): Promise<boolean> {
   const candidate = await prepareDashboardPublicationCandidate(sessionId);
   if (!candidate || candidate.deleted || !candidate.captureDirty) return false;
-  return publishDashboardSession(candidate, { ...facts, sourceRevision: candidate.sourceRevision });
+  return publishDashboardSession(candidate, await withVerifiedOriginalDuration(sessionId, { ...facts, sourceRevision: candidate.sourceRevision }));
 }
+
+async function withVerifiedOriginalDuration(sessionId: number, facts: DashboardCaptureFacts): Promise<DashboardCaptureFacts> {
+  const duration = await readVerifiedPortableOriginalDuration(sessionId);
+  return duration ? { ...facts, duration } : facts;
+}
+
 function persistedTrackConditions(value: unknown): value is TrackConditions {
   if (typeof value !== "object" || value === null) return false;
   const row = value as Record<string, unknown>;
@@ -112,7 +118,7 @@ export async function republishPersistedDashboardCaptureFacts(sessionIds: readon
     const evidence: DashboardCaptureFacts = {
       sourceRevision: candidate.sourceRevision,
       captureRevision: row.capture_revision,
-      duration: { status: durationStatus, elapsedSeconds },
+      duration: { status: durationStatus, elapsedSeconds, attribution: dashboardDurationAttribution(row.duration_attribution_json) },
       sectorLayout,
       weather: {
         status: weatherStatus,
@@ -122,7 +128,7 @@ export async function republishPersistedDashboardCaptureFacts(sessionIds: readon
       trackLengthMeters: trackLength,
       sourceSectorStarts: starts,
     };
-    if (!await publishDashboardSession(candidate, evidence)) return false;
+    if (!await publishDashboardSession(candidate, await withVerifiedOriginalDuration(sessionId, evidence))) return false;
   }
   return true;
 }
@@ -134,41 +140,16 @@ async function readCaptureFacts(candidate: DashboardPublicationCandidate): Promi
   const initialStat = await stat(source.rawFile).catch(() => null);
   if (!initialStat) return unavailableCapture(candidate);
   const game = getServerGame(source.gameId);
-  const useClock = USES_SESSION_CLOCK[source.gameId] === true;
   let parserState = game.createParserState();
-  let segmentDomain: "utc" | "simulator" | null = null;
-  let segmentMin = Infinity;
-  let segmentMax = -Infinity;
-  let segmentLast = -Infinity;
-  let elapsedSeconds = 0;
-  let timingKnown = true;
-  let hasTiming = false;
-  let layout: { starts: number[]; trackLengthM?: number } | null = null;
-  const weather = new TrackConditionsAccumulator();
-  let packetCount = 0;
-  const finishSegment = () => {
-    if (segmentMin !== Infinity) elapsedSeconds += (segmentMax - segmentMin) / (segmentDomain === "utc" ? 1000 : 1);
-    segmentDomain = null; segmentMin = Infinity; segmentMax = -Infinity; segmentLast = -Infinity;
-  };
-  const addTime = (value: number, domain: "utc" | "simulator") => {
-    if (!Number.isFinite(value) || (segmentDomain !== null && segmentDomain !== domain) || value < segmentLast) { timingKnown = false; return; }
-    hasTiming = true; segmentDomain = domain; segmentLast = value; segmentMin = Math.min(segmentMin, value); segmentMax = Math.max(segmentMax, value);
-  };
-  const captureHasher = createHash("sha256");
+  const observation = new DashboardCaptureObservation(source.gameId, source.trackId);
+  const stints = dashboardStints(session.driver_attribution_stints);
+  let inContext = false;
   for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: true })) {
-    captureHasher.update(record.kind);
-    if (record.kind === "frame") {
-      captureHasher.update(record.frame);
-      captureHasher.update(String(record.frameTimeMs ?? ""));
+    if (record.kind === "segment-boundary") {
+      observation.finishSegment(); parserState = game.createParserState(); continue;
     }
-    if (record.kind === "parser-bootstrap") {
-      captureHasher.update(record.gameId);
-      captureHasher.update(String(record.formatVersion));
-      captureHasher.update(record.payload);
-    }
-    if (record.kind === "segment-boundary") { finishSegment(); parserState = game.createParserState(); continue; }
-    if (record.kind === "segment-context") continue;
-    if (record.kind === "segment-context-end") continue;
+    if (record.kind === "segment-context") { inContext = true; observation.finishSegment(); continue; }
+    if (record.kind === "segment-context-end") { inContext = false; observation.finishSegment(); continue; }
     if (record.kind === "parser-bootstrap") {
       if (record.gameId !== source.gameId || record.formatVersion !== PARSER_BOOTSTRAP_VERSION) {
         throw new Error("Parser bootstrap does not match dashboard source");
@@ -182,42 +163,14 @@ async function readCaptureFacts(candidate: DashboardPublicationCandidate): Promi
     if (record.kind !== "frame") continue;
     const packet = game.tryParse(record.frame, parserState);
     if (!packet) continue;
-    packetCount++;
-    if (record.frameTimeMs !== undefined) addTime(record.frameTimeMs, "utc");
-    else if (useClock) {
-      const useUtc = source.gameId === "lmu" && Number.isFinite(packet.TimestampMS) && packet.TimestampMS >= 0;
-      const value = useUtc ? packet.TimestampMS! : packet.CurrentRaceTime;
-      if (Number.isFinite(value) && value! >= 0) addTime(value!, useUtc ? "utc" : "simulator");
-      else timingKnown = false;
-    } else timingKnown = false;
-    weather.add(packet);
-    if (!layout && game.getNativeSectorLayout) {
-      const found = game.getNativeSectorLayout(packet);
-      if (found && found.starts.length >= 2 && found.starts.length <= 16 && found.starts.every((start) => Number.isFinite(start) && start >= 0 && start < 1)) layout = { starts: [...found.starts], trackLengthM: found.trackLengthM };
-    }
+    if (inContext) continue;
+    const clock = getNativeSourceClock(packet, record.frameTimeMs);
+    observation.observe(packet, record.frame, record.frameTimeMs,
+      clock ? { sessionId: clock.sessionId, clockDomain: clock.domain, sourceTimeMs: clock.atMs, stints } : undefined);
   }
-  const fingerprint = captureHasher.digest("hex");
-  finishSegment();
-  if (!packetCount) timingKnown = false;
-  const weatherConditions = weather.result();
   const finalStat = await stat(source.rawFile).catch(() => null);
   if (!finalStat || finalStat.size !== initialStat.size || finalStat.mtimeMs !== initialStat.mtimeMs) throw new Error("Capture changed during dashboard processing");
-  const revision = `${fingerprint}:${DASHBOARD_PROCESSOR_VERSION}`;
-  const trackLengthMeters = layout?.trackLengthM ?? getTrackLengthMetersById(source.trackId, source.gameId);
-  const trackKey = dashboardTrackIdentity(source.gameId, session.track_id);
-  const sectorLayout = layout && layout.starts.length <= 16
-    ? { status: "available" as const, key: `${trackKey}:${layout.starts.join(",")}`, sectorCount: layout.starts.length, starts: layout.starts }
-    : null;
-  const weatherRevision = weatherConditions ? createHash("sha256").update(JSON.stringify(weatherConditions)).digest("hex") : null;
-  return {
-    sourceRevision: candidate.sourceRevision,
-    captureRevision: revision,
-    duration: { status: timingKnown && hasTiming ? "available" : "unavailable", elapsedSeconds: timingKnown && hasTiming ? elapsedSeconds : null },
-    sectorLayout,
-    weather: { status: weatherConditions ? "available" : "unavailable", revision: weatherRevision, conditions: weatherConditions },
-    trackLengthMeters: Number.isFinite(trackLengthMeters) && trackLengthMeters! > 0 ? trackLengthMeters! : null,
-    sourceSectorStarts: layout?.starts ?? null,
-  };
+  return { ...observation.toFacts(), sourceRevision: candidate.sourceRevision };
 }
 
 async function selectNextSession(lastSessionId: number): Promise<number | null> {
@@ -246,7 +199,7 @@ export async function processDashboardSession(id: number): Promise<boolean> {
     if (!candidate) return false;
   }
   if (!candidate.captureDirty || !candidate.captureReady) return true;
-  const evidence = await readCaptureFacts(candidate);
+  const evidence = await withVerifiedOriginalDuration(id, await readCaptureFacts(candidate));
   const afterRead = await prepareDashboardPublicationCandidate(id);
   if (!afterRead || afterRead.sourceRevision !== evidence.sourceRevision || !afterRead.captureReady) return false;
   return publishDashboardSession(afterRead, evidence);

@@ -81,6 +81,12 @@ async function listCloudSetupFiles(): Promise<string[]> {
     const directory = join(root, game.name);
     for (const entry of await readdir(directory, { withFileTypes: true }).catch(() => [])) {
       if (entry.isFile() && /^cloud-[0-9a-f-]{36}\.setup$/.test(entry.name)) files.push(join(directory, entry.name));
+      else if (entry.isDirectory() && (entry.name === "own" || entry.name === "others")) {
+        const ownershipDirectory = join(directory, entry.name);
+        for (const file of await readdir(ownershipDirectory, { withFileTypes: true }).catch(() => [])) {
+          if (file.isFile() && /^cloud-[0-9a-f-]{36}\.setup$/.test(file.name)) files.push(join(ownershipDirectory, file.name));
+        }
+      }
     }
   }
   return files;

@@ -65,12 +65,19 @@ export const acEvoServerAdapter: ServerGameAdapter = {
   getTrackName(identity: string): string { return getAcEvoTrackName(identity); },
   getSharedTrackName(identity: string): string | undefined { return getAcEvoSharedTrackName(identity); },
   canHandle: acEvoParser.canHandle,
-  tryParse(buf, state, timestampMs) { return acEvoParser.tryParse(buf, state as never, timestampMs ?? Date.now()); },
-  tryParseLapIndex(buf, state, timestampMs) { return acEvoParser.tryParseLapIndex(buf, state as never, timestampMs ?? Date.now()); },
+  tryParse(buf, state, timestampMs) { return acEvoParser.tryParse(buf, state as never, timestampMs); },
+  tryParseLapIndex(buf, state, timestampMs) { return acEvoParser.tryParseLapIndex(buf, state as never, timestampMs); },
   primeParserState(buf, state) { acEvoParser.primeParserState(buf, state as never); },
   createParserState: acEvoParser.createParserState,
   captureParserCheckpoint(state) { return captureAcEvoParserCheckpoint(state as AcEvoParserCache); },
   restoreParserCheckpoint(_state, payload) { return restoreAcEvoParserCheckpoint(payload); },
+  invalidateDriverEvidence(state) {
+    const cache = state as AcEvoParserCache;
+    cache.driverEvidence.captureAtMs = null;
+    cache.driverEvidence.physicsObservedAtMs = null;
+    cache.driverEvidence.graphicsObservedAtMs = null;
+    cache.driverEvidence.actor = null;
+  },
   createLapDetector: (opts) => new LapDetectorAcEvo(opts),
   aiSystemPrompt: AC_EVO_SYSTEM_PROMPT,
   buildAiContext(packets: TelemetryPacket[]): string { return buildKunosAiContext(packets, false); },

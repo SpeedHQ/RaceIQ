@@ -401,7 +401,7 @@ function SessionStats({ insights, loading, error, periodSummary }: {
   periodSummary?: PeriodSummary;
 }) {
   const stats = insights.sessionStats;
-  const unavailable = loading || error || stats.sessionTypeTotalSeconds <= 0;
+  const unavailable = loading || error || stats.durationCoverage === "unavailable";
   const colors: Record<SessionTypeKind, string> = {
     practice: "var(--app-accent)",
     qualifying: "var(--app-text-muted)",
@@ -424,13 +424,13 @@ function SessionStats({ insights, loading, error, periodSummary }: {
         </div>
         {periodSummary && (
           <dl className="flex flex-wrap gap-x-3 gap-y-1">
-            <SummaryMetric label={m.label_sessions()} value={unavailable ? "—" : periodSummary.sessions} loading={loading && !error} />
-            <SummaryMetric label={m.home_stat_time_driven()} value={unavailable ? "—" : formatDrivenTime(periodSummary.totalTime)} accent loading={loading && !error} />
+            <SummaryMetric label={m.label_sessions()} value={loading || error ? "—" : periodSummary.sessions} loading={loading && !error} />
+            <SummaryMetric label={m.home_stat_time_driven()} value={loading || error ? "—" : formatDrivenTime(periodSummary.totalTime)} accent loading={loading && !error} />
           </dl>
         )}
       </div>
       <div className="mt-3 grid min-h-0 flex-1 grid-cols-[7rem_minmax(0,1fr)] items-center gap-3">
-            <div className="relative mx-auto size-28" role="img" aria-label={unavailable ? m.home_insights_no_data() : m.home_insights_session_time_total({ duration: formatDuration(stats.sessionTypeTotalSeconds) })}>
+            <div className="relative mx-auto size-28" role="img" aria-describedby={loading || error ? undefined : "insights-session-duration-coverage"} aria-label={loading ? m.home_insights_analytics_loading() : error ? m.home_insights_analytics_error() : unavailable ? m.online_summary_duration_unavailable() : m.home_insights_session_time_total({ duration: formatDuration(stats.sessionTypeTotalSeconds) })}>
               <Skeleton loading={loading && !error} shape="circle" className="absolute inset-0">
                 <svg viewBox="0 0 100 100" className="size-full -rotate-90" aria-hidden="true">
                   <circle cx="50" cy="50" r="38" fill="none" stroke="var(--app-progress-track)" strokeWidth="12" />
@@ -446,7 +446,6 @@ function SessionStats({ insights, loading, error, periodSummary }: {
                 <span className={unavailable ? "text-app-detail text-app-text-muted" : "font-mono text-app-heading font-semibold tabular-nums text-app-text"}><Skeleton loading={loading && !error}>{unavailable ? "—" : `${(stats.sessionTypeTotalSeconds / 3600).toFixed(1)} h`}</Skeleton></span>
                 <span className="text-app-caption text-app-text-muted">{m.home_insights_total()}</span>
               </div>
-              {!loading && !error && stats.sessionTypeTotalSeconds <= 0 && <EmptyStateOverlay />}
             </div>
             <ul className="min-w-0 space-y-1" aria-label={m.home_insights_session_time_note()}>
               {slices.map((slice) => (
@@ -458,6 +457,7 @@ function SessionStats({ insights, loading, error, periodSummary }: {
               ))}
             </ul>
           </div>
+      {!loading && !error && <p id="insights-session-duration-coverage" className="mt-2 text-app-caption text-app-text-muted">{stats.durationCoverage === "unavailable" ? m.online_summary_duration_unavailable() : stats.durationCoverage === "partial" ? m.online_summary_duration_partial() : m.online_summary_duration_note()}</p>}
       {(loading || error) && <p className="sr-only" role={error ? "alert" : "status"}>{error ? m.home_insights_analytics_error() : m.home_insights_analytics_loading()}</p>}
     </section>
   );

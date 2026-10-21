@@ -2,6 +2,10 @@ export interface LMUExtendedData {
   carId: string;
   trackId: string;
   gameVersion: number;
+  /** Native telemetry mElapsedTime, in session seconds; invalid source values stay unavailable. */
+  elapsedTime?: number | null;
+  /** Native scoring mCurrentET, in the same session clock, sampled at scoring cadence. */
+  scoringCurrentElapsedTime?: number | null;
   sessionType: string;
   sessionTypeOrdinal: number;
   deltaBest: number;

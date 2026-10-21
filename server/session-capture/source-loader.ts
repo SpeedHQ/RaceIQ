@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { Stats } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import type { GameId } from "@raceiq/shared/games/ids";
@@ -30,6 +31,7 @@ import {
   SEGMENT_CONTEXT_VERSION,
   SEGMENT_CONTEXT_END_MAGIC,
   decodeParserBootstrapPayload,
+  decodeSessionClockAnchorPayload,
   SPARSE_CAPTURE_FORMAT_MAGIC,
   SPARSE_CAPTURE_FORMAT_VERSION,
   readFramePrefix,
@@ -53,6 +55,12 @@ export interface SessionCaptureSource {
   trackId: string;
   captureFormatVersion?: number | null;
   artifact?: { archivePath: string; entryName: string; manifest: ArchiveManifest; liveSnapshot?: LiveArchiveSnapshot };
+}
+export interface SessionCapturePart {
+  readonly capture: SessionCaptureSource;
+  readonly chunk: Chunk | ArchiveChunk;
+  readonly manifestPath?: string;
+  readonly manifestSourceRevision?: string;
 }
 export type LoadedSessionSource =
   | { kind: "capture"; buffer: Buffer; frameIndex: SessionCaptureFrameIndex }
@@ -280,6 +288,8 @@ export async function* iterateSessionCaptureRecordsFromSource(
   let previous: Buffer | null = null;
   let checkpointOffset = -1;
   let checkpointIdentity: string | null = null;
+  let sawFrame = false;
+  let sawClockAnchor = false;
   try {
     while (true) {
       const next = await reader.read();
@@ -308,7 +318,12 @@ export async function* iterateSessionCaptureRecordsFromSource(
           const metaLength = pending.readUInt32LE(4);
           assertCaptureRecordLength(metaLength);
           if (pending.length < 8 + metaLength) break;
-          if (metaLength === 8) {
+          const anchor = decodeSessionClockAnchorPayload(pending.subarray(8, 8 + metaLength));
+          if (anchor) {
+            if (sawFrame || sawClockAnchor) throw new Error("Invalid or misplaced session clock anchor");
+            sawClockAnchor = true;
+            yield { ...anchor, offset, endOffset: offset + 8 + metaLength };
+          } else if (metaLength === 8) {
             const magic = pending.readUInt32LE(8);
             const version = pending.readUInt32LE(12);
             if (magic === SEGMENT_BOUNDARY_MAGIC && version === SEGMENT_BOUNDARY_VERSION) {
@@ -327,6 +342,7 @@ export async function* iterateSessionCaptureRecordsFromSource(
             else if (magic === SPARSE_CAPTURE_FORMAT_MAGIC && version === SPARSE_CAPTURE_FORMAT_VERSION) {
               // Format marker is metadata, not a segment event.
             }
+            else if (options.strict) throw new Error(`Unknown capture segment marker at ${offset}`);
           }
           else {
             const bootstrap = decodeParserBootstrapPayload(pending.subarray(8, 8 + metaLength));
@@ -341,6 +357,7 @@ export async function* iterateSessionCaptureRecordsFromSource(
           offset += 8 + metaLength;
           continue;
         }
+        sawFrame = true;
         assertCaptureRecordLength(frameLength & 0x7fffffff);
         if ((frameLength & 0x80000000) !== 0 && pending.length < 12) break;
         const prefix = readFramePrefix(pending, 0);
@@ -504,7 +521,26 @@ export function resolveLiveLapCaptureArtifact(
     chunk, publicationIdentity: `${snapshot.captureEpoch}\0${snapshot.generation}\0${chunk.id}\0${chunk.memberOffset}:${chunk.compressedByteLength}:${chunk.byteLength}`,
   };
 }
-export async function resolveLapCaptureArtifact(manifestPath: string, chunkId: string, expectedLapId?: number, reference?: { captureLayoutVersion?: number | null; captureArchiveFile?: string | null }): Promise<{ path: string; artifact?: SessionCaptureSource["artifact"]; manifest: PublishedManifest; chunk: Chunk | ArchiveChunk; publicationIdentity: string }> {
+export interface ResolvedCaptureArtifact {
+  path: string;
+  artifact?: SessionCaptureSource["artifact"];
+  manifest: PublishedManifest;
+  chunk: Chunk | ArchiveChunk;
+  publicationIdentity: string;
+}
+interface CaptureArtifactReference {
+  captureLayoutVersion?: number | null;
+  captureArchiveFile?: string | null;
+  lapGuid?: string | null;
+}
+export async function resolveLapCaptureArtifact(manifestPath: string, chunkId: string, expectedLapId?: number, reference?: CaptureArtifactReference): Promise<ResolvedCaptureArtifact> {
+  return resolvePublishedCaptureArtifact(manifestPath, chunkId, true, expectedLapId, reference);
+}
+/** Apply the same path, symlink, size, and archive checks to actual native context members. */
+export async function resolveCaptureContextArtifact(manifestPath: string, chunkId: string): Promise<ResolvedCaptureArtifact> {
+  return resolvePublishedCaptureArtifact(manifestPath, chunkId, false);
+}
+async function resolvePublishedCaptureArtifact(manifestPath: string, chunkId: string, lapOnly: boolean, expectedLapId?: number, reference?: CaptureArtifactReference): Promise<ResolvedCaptureArtifact> {
   const absoluteManifest = resolve(manifestPath);
   const manifest = await loadCaptureManifest(absoluteManifest);
   if (reference && !((reference.captureLayoutVersion === 1 && manifest.version === 3) ||
@@ -512,10 +548,13 @@ export async function resolveLapCaptureArtifact(manifestPath: string, chunkId: s
     throw new Error("Capture layout version does not match manifest version");
   }
   const manifestIdentity = `${absoluteManifest}\0${manifestCache.get(absoluteManifest)!.key}\0${chunkId}`;
-  const chunk = manifest.chunks.find((candidate) => candidate.id === chunkId && candidate.kind === "lap");
-  if (!chunk) throw new Error(`Capture manifest ${absoluteManifest} has no lap chunk ${chunkId}`);
+  const chunk = manifest.chunks.find((candidate) => candidate.id === chunkId && (!lapOnly || candidate.kind === "lap"));
+  if (!chunk) throw new Error(`Capture manifest ${absoluteManifest} has no ${lapOnly ? "lap " : ""}chunk ${chunkId}`);
   if (expectedLapId != null && chunk.lapId !== String(expectedLapId)) throw new Error(`Capture chunk ${chunkId} lap ID mismatch: expected ${expectedLapId}, got ${chunk.lapId}`);
-  if (!chunk.lapId || chunk.ownedFrameByteOffset == null || chunk.ownedFrameCount == null) throw new Error(`Capture manifest lap chunk ${chunkId} is missing owned frame window`);
+  if (reference?.lapGuid && chunk.lapGuid && reference.lapGuid.toLowerCase() !== chunk.lapGuid.toLowerCase()) {
+    throw new Error(`Capture chunk ${chunkId} original GUID disagrees with its lap record`);
+  }
+  if (lapOnly && (!chunk.lapId || chunk.ownedFrameByteOffset == null || chunk.ownedFrameCount == null)) throw new Error(`Capture manifest lap chunk ${chunkId} is missing owned frame window`);
   if (manifest.version === 4) {
     const path = resolve(dirname(absoluteManifest), manifest.archiveFile);
     if (reference && (!reference.captureArchiveFile || resolve(reference.captureArchiveFile) !== path)) throw new Error("Capture archive reference does not match manifest archive");
@@ -542,4 +581,40 @@ export async function resolveLapCaptureArtifact(manifestPath: string, chunkId: s
 }
 export async function loadSessionCapture(source: SessionCaptureSource): Promise<Buffer> {
   const loaded = await loadSessionSource(source); if (loaded.kind === "packets") throw new Error("Session source contains canonical packets, not BIN frames"); return loaded.buffer;
+}
+
+/** Original records only; synthetic member priming and trailing duplicates are excluded. */
+export async function* iterateOriginalCapturePartRecords(part: SessionCapturePart): AsyncGenerator<SessionCaptureRecord> {
+  let capture = part.capture;
+  let chunk = part.chunk;
+  if (part.manifestPath) {
+    const resolved = await resolveCaptureContextArtifact(part.manifestPath, chunk.id);
+    if (resolved.manifest.sourceRevision !== part.manifestSourceRevision ||
+        resolved.chunk.sourceStart !== chunk.sourceStart || resolved.chunk.sourceEnd !== chunk.sourceEnd ||
+        resolved.chunk.sourceByteStart !== chunk.sourceByteStart || resolved.chunk.sourceByteEnd !== chunk.sourceByteEnd ||
+        resolved.chunk.recordCount !== chunk.recordCount || resolved.chunk.parserBootstrapHash !== chunk.parserBootstrapHash) {
+      throw new Error("Original capture source changed");
+    }
+    chunk = resolved.chunk;
+    capture = { ...capture, rawFile: resolved.path, artifact: resolved.artifact };
+  }
+  const explicitStart = "sourceRecordByteOffset" in chunk ? chunk.sourceRecordByteOffset : undefined;
+  const start = explicitStart ?? chunk.ownedFrameByteOffset;
+  let count = 0;
+  let first = true;
+  for await (const record of iterateSessionCaptureRecordsFromSource(capture, { strict: true })) {
+    if (start !== undefined && record.offset < start) continue;
+    if (start === undefined && first && chunk.parserBootstrapHash) {
+      first = false;
+      if (record.kind !== "parser-bootstrap" || createHash("sha256").update(record.payload).digest("hex") !== chunk.parserBootstrapHash) {
+        throw new Error("Original capture parser context is unavailable");
+      }
+      continue;
+    }
+    first = false;
+    if (count === chunk.recordCount) break;
+    count++;
+    yield record;
+  }
+  if (count !== chunk.recordCount) throw new Error("Original capture record coverage is incomplete");
 }

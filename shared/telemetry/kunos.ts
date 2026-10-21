@@ -119,6 +119,16 @@ export interface AcEvoExtendedData {
   physicsPacketId: number;
   graphicsPacketId: number;
   acEvoVersion: string;
+  sharedMemoryVersion: string;
+  /** Native graphics status; only AC_LIVE supplies active-control evidence. */
+  status: number;
+  /** Explicit wrapper source-capture UTC clock; absent clocks stay unavailable. */
+  sourceCaptureUtcMs: number | null;
+
+  // Raw AC Evo identity/control facts for independent native-source verification.
+  isAIControlled: number | null;
+  focusedCarIdWords: [number, number, number, number] | null;
+  playerCarIdWords: [number, number, number, number] | null;
 
   // Session context (STATIC_EVO)
   sessionType: string;          // "time_attack" | "race" | "hot_stint" | "cruise" | "unknown"

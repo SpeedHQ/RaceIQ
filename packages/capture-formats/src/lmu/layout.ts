@@ -170,6 +170,7 @@ export const LMU_SCORING_VEHICLE = {
   currentSector1: 176,
   currentSector2: 184,
   isPlayer: 196,
+  mControl: 197, // signed byte: -1=nobody, 0=local player, 1=local AI, 2=remote, 3=replay
   inPits: 198,
   place: 199,
   vehicleClass: 200,

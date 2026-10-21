@@ -1,9 +1,10 @@
 import { client } from "./index";
-import { dashboardCarIdentity, dashboardTrackIdentity } from "@raceiq/shared/racing/sessions/dashboard";
+import { dashboardCarIdentity, dashboardTrackIdentity, dashboardLapMetricFlags } from "@raceiq/shared/racing/sessions/dashboard";
 import type { TrackConditions } from "../ai/track-conditions";
 import type { GameId } from "@raceiq/shared/games/ids";
+import { dashboardLapAttribution, dashboardHasSelfStint, dashboardDurationAttribution, type DashboardDurationAttribution } from "../driver-summary/dashboard-input";
 
-export const DASHBOARD_PROCESSOR_VERSION = 5;
+export const DASHBOARD_PROCESSOR_VERSION = 6;
 const LAP_PAGE_SIZE = 256;
 const TIME_BUCKET_MS = 15 * 60 * 1000;
 
@@ -11,7 +12,7 @@ export type EvidenceStatus = "available" | "unavailable" | "pending";
 export interface DashboardCaptureFacts {
   sourceRevision: number;
   captureRevision: string;
-  duration: { status: EvidenceStatus; elapsedSeconds: number | null };
+  duration: { status: EvidenceStatus; elapsedSeconds: number | null; attribution?: DashboardDurationAttribution | null };
   sectorLayout: { status: EvidenceStatus; key: string; sectorCount: number; starts: readonly number[] } | null;
   weather: { status: EvidenceStatus; revision: string | null; conditions: TrackConditions | null };
   trackLengthMeters: number | null;
@@ -153,9 +154,10 @@ async function adjustTimeBucket(tx: DashboardTransaction, row: TimeContribution,
 /** Snapshot candidate before expensive work. Evidence must carry this exact revision. */
 export async function prepareDashboardPublicationCandidate(sessionId: number): Promise<DashboardPublicationCandidate | null> {
   const result = await client.execute({
-    sql: `SELECT st.source_revision, st.published_revision, st.metadata_dirty, st.deleted, st.capture_dirty, st.capture_ready, s.id, s.game_id, s.ownership, s.created_at,
-        s.car_id, s.track_id, s.session_type, s.raw_file, s.source,
-        s.capture_format_version, r.outcome_status, r.classification, r.finishing_position
+    sql: `SELECT st.source_revision, st.published_revision, st.processor_version, st.metadata_dirty, st.deleted, st.capture_dirty, st.capture_ready, s.id, s.game_id, s.ownership, s.created_at,
+        s.car_id, s.track_id, s.session_type, s.raw_file, s.source,s.owner_user_id,s.cloud_import_origin,s.cloud_import_lap_id,
+        s.driver_attribution_stints,s.capture_format_version, r.outcome_status, r.classification, r.finishing_position,
+        (SELECT online_user_id FROM local_account_owner WHERE id=1) local_owner_user_id
       FROM dashboard_summary_state st LEFT JOIN sessions s ON s.id=st.session_id
       LEFT JOIN session_results r ON r.session_id=s.id WHERE st.session_id=?`,
     args: [sessionId],
@@ -167,7 +169,7 @@ export async function prepareDashboardPublicationCandidate(sessionId: number): P
     sessionId,
     sourceRevision: number(row.source_revision),
     publishedRevision: number(row.published_revision),
-    metadataDirty: number(row.metadata_dirty) !== 0,
+    metadataDirty: number(row.metadata_dirty) !== 0 || number(row.processor_version) !== DASHBOARD_PROCESSOR_VERSION,
     deleted: number(row.deleted) !== 0,
     captureDirty: number(row.capture_dirty) !== 0,
     captureReady: number(row.capture_ready) !== 0,
@@ -200,7 +202,9 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
   const prior = priorResult.rows[0] as DbRow | undefined;
   const preserveCapture = !evidence && !candidate.captureDirty && !!prior;
   const gameId = session ? String(session.game_id) : "";
-  const excluded = !session || candidate.deleted || session.ownership !== "mine";
+  const excluded = !session || candidate.deleted || session.ownership !== "mine"
+    || session.cloud_import_origin != null || session.cloud_import_lap_id != null
+    || (session.owner_user_id != null && session.owner_user_id !== session.local_owner_user_id);
   const trackKeyForSectors = session
     ? dashboardTrackIdentity(gameId as GameId, stringOrNull(session.track_id))
     : null;
@@ -211,6 +215,8 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
   const elapsedSeconds = evidence ? (evidence.duration.status === "available" ? evidence.duration.elapsedSeconds : null)
     : preserveCapture ? nullableNumber(prior?.elapsed_seconds) : null;
   const durationStatus = evidence?.duration.status ?? (preserveCapture ? String(prior?.duration_status ?? "pending") : "pending");
+  const durationAttribution = evidence ? dashboardDurationAttribution(evidence.duration.attribution)
+    : preserveCapture ? dashboardDurationAttribution(prior?.duration_attribution_json) : null;
   const weatherRevision = evidence ? evidence.weather.revision : preserveCapture ? stringOrNull(prior?.weather_revision) : null;
   const weatherStatus = evidence?.weather.status ?? (preserveCapture ? String(prior?.weather_status ?? "pending") : "pending");
   const captureRevision = evidence?.captureRevision ?? (preserveCapture ? stringOrNull(prior?.capture_revision) : null);
@@ -234,11 +240,15 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
     const carKey = dashboardCarIdentity(gameId as GameId, stringOrNull(session.car_id)) ?? "";
     const trackKey = dashboardTrackIdentity(gameId as GameId, stringOrNull(session.track_id)) ?? "";
     for (;;) {
-      const page = await client.execute({ sql: `SELECT lap_id, created_at_ms, lap_time, is_valid, invalid_reason, sector_times
-        FROM dashboard_lap_index WHERE session_id=? AND lap_id>? ORDER BY lap_id LIMIT ?`, args: [sessionId, lastLapId, LAP_PAGE_SIZE] });
+      const page = await client.execute({ sql: `SELECT di.lap_id,di.created_at_ms,di.lap_time,di.is_valid,di.invalid_reason,di.sector_times,
+          l.driver_attribution_stints,l.source_clock_domain,l.source_lap_start_ms,l.source_lap_end_ms
+        FROM dashboard_lap_index di JOIN laps l ON l.id=di.lap_id
+        WHERE di.session_id=? AND di.lap_id>? ORDER BY di.lap_id LIMIT ?`, args: [sessionId, lastLapId, LAP_PAGE_SIZE] });
       if (!page.rows.length) break;
       for (const raw of page.rows as unknown as DbRow[]) {
         lastLapId = number(raw.lap_id);
+        if (dashboardLapAttribution(raw.driver_attribution_stints, session.driver_attribution_stints,
+          raw.source_clock_domain, raw.source_lap_start_ms, raw.source_lap_end_ms) !== "Self") continue;
         const stamp = number(raw.created_at_ms), time = number(raw.lap_time), valid = number(raw.is_valid) === 1;
         if (!Number.isFinite(stamp)) throw new RangeError("Invalid dashboard lap timestamp");
         lapCount++;
@@ -259,15 +269,16 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
             valid_seconds: 0, podium_first: 0, podium_second: 0, podium_third: 0 };
           bucketMap.set(bucketStart, bucket);
         }
-        if (!(time > 0) || !Number.isFinite(time)) continue;
+        const flags = dashboardLapMetricFlags(time, valid, stringOrNull(raw.invalid_reason));
+        if (!flags.positive) continue;
         positiveLaps++; drivenSeconds += time; entity.positive_laps++; entity.driven_seconds += time;
         bucket.positive_laps++; bucket.driven_seconds += time;
-        if (String(raw.invalid_reason ?? "") !== "incomplete") {
+        if (flags.favouriteEligible) {
           favouriteLaps++; favouriteSeconds += time;
           entity.favourite_laps++; entity.favourite_seconds += time;
           if (trackLengthMeters !== null) { distanceLaps++; distanceMeters += trackLengthMeters; entity.distance_laps++; entity.distance_meters! += trackLengthMeters; }
         }
-        if (valid) {
+        if (flags.valid) {
           validLaps++; validSeconds += time; bestLap = bestLap === null ? time : Math.min(bestLap, time);
           const nextCount = validLaps, delta = time - validMean;
           validMean += delta / nextCount; validM2 += delta * (time - validMean);
@@ -295,7 +306,7 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
     && session.outcome_status === "confirmed" && session.classification === "finished"
     && Number.isInteger(Number(session.finishing_position)) && number(session.finishing_position) > 0
     ? number(session.finishing_position) : 0;
-  if (!excluded && podium > 0) {
+  if (!excluded && (lapCount > 0 || dashboardHasSelfStint(session?.driver_attribution_stints) || durationAttribution?.selfObserved) && podium > 0) {
     const day = new Date(createdAtMs).toISOString().slice(0, 10);
     const dayKey = `${day}\0${dashboardCarIdentity(gameId as GameId, stringOrNull(session!.car_id)) ?? ""}\0${dashboardTrackIdentity(gameId as GameId, stringOrNull(session!.track_id)) ?? ""}`;
     let entity = entityMap.get(dayKey);
@@ -333,8 +344,8 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
     }
     if (!excluded && session) {
       await tx.execute({
-        sql: `INSERT INTO dashboard_session_summaries(session_id,source_revision,processor_version,game_id,created_at_ms,car_key,track_key,car_id,track_id,session_type,lap_count,positive_laps,valid_laps,driven_seconds,valid_seconds,valid_mean_seconds,valid_m2_seconds,best_lap_seconds,first_lap_at_ms,last_lap_at_ms,favourite_laps,favourite_seconds,distance_laps,distance_meters,track_length_meters,elapsed_seconds,duration_status,sector_layout_key,sector_count,source_sector_starts_json,sector_status,podium_position,podium_status,capture_revision,weather_revision,weather_status,weather_conditions_json,evidence_version)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        sql: `INSERT INTO dashboard_session_summaries(session_id,source_revision,processor_version,game_id,created_at_ms,car_key,track_key,car_id,track_id,session_type,lap_count,positive_laps,valid_laps,driven_seconds,valid_seconds,valid_mean_seconds,valid_m2_seconds,best_lap_seconds,first_lap_at_ms,last_lap_at_ms,favourite_laps,favourite_seconds,distance_laps,distance_meters,track_length_meters,elapsed_seconds,duration_status,sector_layout_key,sector_count,source_sector_starts_json,sector_status,podium_position,podium_status,capture_revision,weather_revision,weather_status,weather_conditions_json,evidence_version,duration_attribution_json)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         args: [sessionId,revision,DASHBOARD_PROCESSOR_VERSION,gameId,createdAtMs,
           dashboardCarIdentity(gameId as GameId,stringOrNull(session.car_id)),
           dashboardTrackIdentity(gameId as GameId,stringOrNull(session.track_id)),
@@ -344,7 +355,8 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
           sourceSectorStarts ? JSON.stringify(sourceSectorStarts) : null,
           evidence ? (evidence.sectorLayout?.status ?? "unavailable") : (sectorLayoutKey ? "available" : preserveCapture ? String(prior?.sector_status ?? "pending") : "pending"),
           podium,session.outcome_status === "confirmed" ? "confirmed" : "unavailable",
-          captureRevision,weatherRevision,weatherStatus,weatherConditions ? JSON.stringify(weatherConditions) : null,evidenceVersion],
+          captureRevision,weatherRevision,weatherStatus,weatherConditions ? JSON.stringify(weatherConditions) : null,evidenceVersion,
+          durationAttribution ? JSON.stringify(durationAttribution) : null],
       });
       for (const row of entityMap.values()) {
         await tx.execute({ sql: `INSERT INTO dashboard_session_days(session_id,utc_day,game_id,car_key,track_key,lap_count,positive_laps,valid_laps,driven_seconds,valid_seconds,best_lap_seconds,mean_lap_seconds,m2_lap_seconds,favourite_laps,favourite_seconds,distance_laps,distance_meters,podium_first,podium_second,podium_third)

@@ -81,6 +81,22 @@ export function subscribeParserSource(listener: ParserSourceListener): () => voi
   };
 }
 
+export interface ParserDriverEvidenceInvalidation {
+  gameId: GameId;
+  /** Explicit source capture clock when available; never synthesized at replay. */
+  timestampMs?: number;
+}
+type ParserDriverEvidenceInvalidationListener = (input: ParserDriverEvidenceInvalidation) => void;
+const parserDriverEvidenceInvalidationListeners = new Set<ParserDriverEvidenceInvalidationListener>();
+
+/** Native gates notify attribution consumers even when the source frame is suppressed. */
+export function subscribeParserDriverEvidenceInvalidation(listener: ParserDriverEvidenceInvalidationListener): () => void {
+  parserDriverEvidenceInvalidationListeners.add(listener);
+  return () => {
+    parserDriverEvidenceInvalidationListeners.delete(listener);
+  };
+}
+
 function checkpointFor(adapter: ServerGameAdapter): Uint8Array | null {
   const state = parserStates.get(adapter.id) ?? null;
   const payload = adapter.captureParserCheckpoint
@@ -105,6 +121,34 @@ export function resetParserState(gameId: string): void {
   const payload = checkpointFor(adapter);
   history.anchor = payload ? { sequence: nextSequence, payload } : null;
   history.usable = payload !== null;
+}
+
+/** Native status gates may hide frames without resetting telemetry calibration. */
+export function invalidateParserDriverEvidence(gameId: GameId, timestampMs?: number): void {
+  const adapter = getAllServerGames().find((candidate) => candidate.id === gameId);
+  if (!adapter?.invalidateDriverEvidence) return;
+  const state = parserStates.get(gameId);
+  if (state != null) {
+    adapter.invalidateDriverEvidence(state);
+    const history = parserHistories.get(gameId);
+    if (history) {
+      // Do not replay pre-boundary frames to reconstruct fresh driver evidence.
+      // Previously published immutable locators keep their original anchors.
+      const payload = checkpointFor(adapter);
+      history.anchor = payload ? { sequence: history.nextSequence, payload } : null;
+      history.tail = null;
+      history.deltaBytes = 0;
+      history.usable = payload !== null;
+    }
+  }
+  if (parserDriverEvidenceInvalidationListeners.size > 0) {
+    const input: ParserDriverEvidenceInvalidation = { gameId, timestampMs };
+    let remaining = parserDriverEvidenceInvalidationListeners.size;
+    for (const listener of parserDriverEvidenceInvalidationListeners) {
+      if (remaining-- === 0) break;
+      listener(input);
+    }
+  }
 }
 
 function historyFor(gameId: string): ParserHistory {

@@ -1,26 +1,23 @@
 /**
  * Lap / session ZIP export + import.
  *
- * Telemetry is NOT stored as a per-lap blob any more — the canonical source is
- * the per-session raw capture on disk (`sessions.rawFile`: optional 12-byte
- * meta frame, then repeated `[uint32 LE len][frame bytes]`), with each lap row
- * pointing at a `rawByteOffset` / `rawFrameCount` window inside it.
- *
- * So an export is just a slice of that frame stream, and an import replays the
- * slice through the normal pipeline (`importSessionBin`) — the exact same code
- * path as the single-file `.bin` import. Nothing here re-implements parsing or
- * lap detection, which is what the old CSV-blob format did (and why it rotted).
+ * Native telemetry remains in source files or capture bundles, with exact lap
+ * windows stored separately. A proven full original exports every source record;
+ * selected or transformed lap copies retain identity without claiming full coverage.
+ * Identity-bearing archives register saved windows, timing, and attribution
+ * transactionally. Legacy archives use the normal detector import and remain
+ * unproven until their original identity can actually be resolved.
  *
  * Zip layout:
  *   manifest.json                              — describes every entry
- *   <gameId>-<track>-session<id>.bin.gz        — one gzip'd frame slice per session
+ *   <gameId>-<track>-session<id>.bin.gz        — complete source or selected lap slices
  *   <gameId>-<track>-session<id>.motec.zip     — one complete MoTeC source archive per session
  */
 import { zipSync } from "fflate";
 import { readFile } from "node:fs/promises";
 import { eq } from "drizzle-orm";
 import { db } from "@raceiq/backend-core/db/index";
-import { laps as storedLaps } from "@raceiq/backend-core/db/schema";
+import { laps as storedLaps, sessions as storedSessions } from "@raceiq/backend-core/db/schema";
 import { LAPS_ZIP_LIMITS, unzipBounded } from "@raceiq/backend-core/archive/bounded-unzip";
 import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import { getLapsRaw } from "@raceiq/backend-core/db/lap-read-queries";
@@ -45,6 +42,9 @@ import {
   importSessionBin,
 } from "@raceiq/backend-core/session-capture/import-capture";
 import type { ImportedLap } from "@raceiq/backend-core/session-capture/import-pipeline";
+import { buildPortableCaptureIdentity, importPortableCapture, loadFullOriginalPortableCapture } from "@raceiq/backend-core/session-capture/portable-identity";
+import type { PortableCaptureIdentity } from "@raceiq/capture-formats/session/framing";
+import { recordedCaptureClockAnchor } from "@raceiq/backend-core/session-capture/frame-time";
 import {
   META_FRAME_MAGIC,
   PARSER_BOOTSTRAP_MAGIC,
@@ -58,6 +58,7 @@ import {
   encodeFrameLength,
   encodeMetaFrame,
   encodeParserBootstrapFrame,
+  encodeSessionClockAnchor,
   encodeSparseCaptureFormatFrame,
   encodeSegmentBoundaryFrame,
   encodeSegmentContextEndFrame,
@@ -78,7 +79,7 @@ import {
 import { parseF1Header } from "@raceiq/capture-formats/f1-2025/f1-wire";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
-export const LAPS_ZIP_VERSION = 4;
+export const LAPS_ZIP_VERSION = 5;
 
 export interface ManifestLap {
   lapNumber: number;
@@ -90,7 +91,7 @@ export interface ManifestEntry {
   /** Zip entry name holding this session's gzip'd frame slice or MoTeC source archive. */
   file: string;
   gameId: GameId;
-  /** Session id in the *source* database (informational — import always creates a new session). */
+  /** Source database row ID is informational, never original activity or lap identity. */
   sessionId: number;
   carId: string;
   trackId: string;
@@ -98,6 +99,7 @@ export interface ManifestEntry {
   trackName: string;
   createdAt: string;
   laps: ManifestLap[];
+  identity?: PortableCaptureIdentity;
 }
 
 export interface LapsZipManifest {
@@ -512,7 +514,33 @@ export async function buildLapsZip(
     const usable = usableRawLaps(rows).sort((a, b) => (a.rawByteOffset ?? 0) - (b.rawByteOffset ?? 0));
     if (usable.length === 0) continue;
     const first = usable[0]!;
+    // A complete original retains every native record, including auxiliary source context.
+    // Selected lap slices never masquerade as complete original source coverage.
+    if (usable.length === allRows.filter((row) => row.sessionId === sessionId).length) {
+      const full = await loadFullOriginalPortableCapture(sessionId);
+      if (full) {
+        const gameId = first.gameId as GameId;
+        const trackName = resolveTrackName(first.trackId ?? "", gameId);
+        const carName = resolveCarName(first.carId ?? "", gameId);
+        const fileName = `${gameId}-${slugify(trackName) || `track${first.trackId ?? ""}`}-session${sessionId}.bin.gz`;
+        const windows = usable.map((row) => {
+          const window = full.windows.get(row.id);
+          if (!window) throw new Error("Complete original is missing a lap source window");
+          return { lapId: row.id, ...window };
+        });
+        const identity = await buildPortableCaptureIdentity(sessionId, full.bytes, windows);
+        files[fileName] = gzipBufferSync(full.bytes);
+        entries.push({ file: fileName, gameId, sessionId, carId: first.carId, trackId: first.trackId,
+          carName, trackName, createdAt: first.createdAt,
+          laps: usable.map((row) => ({ lapNumber: row.lapNumber, lapTime: row.lapTime, isValid: row.isValid })), identity });
+        continue;
+      }
+    }
     const segments: Buffer[] = [];
+    const exportedWindows: { lapId: number; rawByteOffset: number; rawFrameCount: number }[] = [];
+    const clockRow = await db.select({ anchor: storedSessions.captureClockAnchorJson }).from(storedSessions).where(eq(storedSessions.id, sessionId)).get();
+    let sourceClockAnchor = recordedCaptureClockAnchor(clockRow?.anchor);
+    let exportOffset = encodeMetaFrame().length;
     let sparseFormatMarkerWritten = false;
     for (const row of usable) {
       let buf: Buffer | null;
@@ -543,6 +571,12 @@ export async function buildLapsZip(
       if (!buf || start >= buf.length) continue;
       for (const record of iterateSessionCaptureRecords(buf)) {
         if (record.offset >= start) break;
+        if (record.kind === "clock-anchor") {
+          if (sourceClockAnchor && sourceClockAnchor.utcTimeMs - sourceClockAnchor.frameTimeMs !== record.utcTimeMs - record.frameTimeMs) {
+            throw new Error("Archive source clock mapping changed");
+          }
+          sourceClockAnchor ??= { frameTimeMs: record.frameTimeMs, utcTimeMs: record.utcTimeMs };
+        }
         if (record.kind === "segment-boundary") parserBootstrap = null;
         if (record.kind === "parser-bootstrap") {
           if (record.gameId !== first.gameId) throw new Error("Parser bootstrap does not match archive game");
@@ -577,22 +611,30 @@ export async function buildLapsZip(
         ? sparseLapRecords(buf, start, ownedEnd, first.gameId as GameId, !sparseFormatMarkerWritten)
         : [buf.subarray(start, ownedEnd)];
       if (sparseRecords.length > 0) sparseFormatMarkerWritten = true;
-      segments.push(Buffer.concat([
+      const leading = [
         encodeSegmentBoundaryFrame(),
         ...(parserBootstrap ? [parserBootstrap] : []),
         ...(context.length > 0
           ? [encodeSegmentContextFrame(), ...context, encodeSegmentContextEndFrame()]
           : []),
         ...(prefix ? [prefix] : []),
+      ];
+      const segment = Buffer.concat([
+        ...leading,
         ...sparseRecords,
         ...(trailingContext.length > 0
           ? [encodeSegmentContextFrame(), ...trailingContext, encodeSegmentContextEndFrame()]
           : []),
-      ]));
+      ]);
+      exportedWindows.push({ lapId: row.id, rawByteOffset: exportOffset + leading.reduce((sum, part) => sum + part.length, 0), rawFrameCount: frameCount });
+      segments.push(segment);
+      exportOffset += segment.length;
     }
     if (segments.length === 0) continue;
     const gameId = first.gameId as GameId;
-    const slice = Buffer.concat([encodeMetaFrame(), ...segments]);
+    const anchor = sourceClockAnchor ? encodeSessionClockAnchor(sourceClockAnchor.frameTimeMs, sourceClockAnchor.utcTimeMs) : null;
+    if (anchor) for (const window of exportedWindows) window.rawByteOffset += anchor.length;
+    const slice = Buffer.concat([encodeMetaFrame(), ...(anchor ? [anchor] : []), ...segments]);
     const trackName = resolveTrackName(first.trackId ?? "", gameId);
     const carName = resolveCarName(first.carId ?? "", gameId);
     const fileName = `${gameId}-${slugify(trackName) || `track${first.trackId ?? ""}`}-session${sessionId}.bin.gz`;
@@ -602,6 +644,7 @@ export async function buildLapsZip(
       carId: first.carId ?? "", trackId: first.trackId ?? "",
       carName, trackName, createdAt: first.createdAt,
       laps: usable.map((r) => ({ lapNumber: r.lapNumber, lapTime: r.lapTime, isValid: r.isValid })),
+      identity: await buildPortableCaptureIdentity(sessionId, slice, exportedWindows),
     });
   }
   if (entries.length === 0) {
@@ -632,12 +675,7 @@ export interface ImportZipResult {
   errors: string[];
 }
 
-/**
- * Import a zip produced by {@link buildLapsZip}: every `.bin`/`.bin.gz` member is
- * replayed through the pipeline, landing as a fresh session with its laps
- * re-detected. Duplicates are not merged — importing the same zip twice gives
- * you the laps twice, same as the single-file `.bin` import.
- */
+/** Import preserved portable identity directly; legacy archives remain unproven detector imports. */
 export async function importLapsZip(zipData: Uint8Array, options: { ownership?: SessionOwnership; identityOverrides?: Record<string, { carId: string; trackId: string }> } = {}): Promise<ImportZipResult> {
   const files = unzipBounded(zipData, LAPS_ZIP_LIMITS);
   const manifest = parseManifestFile(files);
@@ -698,6 +736,13 @@ export async function importLapsZip(zipData: Uint8Array, options: { ownership?: 
       if (!gameId) {
         skipped++;
         errors.push(`${name}: could not determine which game this capture came from`);
+        continue;
+      }
+      if (entry?.identity !== undefined) {
+        const result = await importPortableCapture(bytes, entry.identity, {
+          gameId, carId: entry.carId, trackId: entry.trackId, ownership: options.ownership,
+        });
+        laps.push(...result.laps);
         continue;
       }
       const result = await importSessionBin(bytes, gameId, {

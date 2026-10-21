@@ -1,3 +1,4 @@
+import type { NativeDriverActor } from "../driver-attribution";
 import type { GameId } from "../games/ids";
 import type { F1ExtendedData } from "./f1-2025";
 import type { KunosExtendedData } from "./kunos";
@@ -21,6 +22,8 @@ export interface TelemetryPacket {
   acc?: KunosExtendedData;
   iracing?: IRacingExtendedData;
   lmu?: LMUExtendedData;
+  /** Source-native actor token; absent when source cannot establish one. */
+  driverActor?: NativeDriverActor | null;
   extendedRaceIQ?: RaceIQExtendedData;
 
   // Game session UID (used for reliable session boundary detection)

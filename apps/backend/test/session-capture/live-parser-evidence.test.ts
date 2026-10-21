@@ -56,6 +56,7 @@ test("later wrong candidate checkpoint cannot self-validate against independent 
   tracker.sourceRecord(frame(0, 2));
 
   const checkpoint = tracker.candidateStart("later", 1, plan(1, 99), false);
+  tracker.sourceRecord({ kind: "clock-anchor", offset: 1, endOffset: 1, frameTimeMs: 0, utcTimeMs: 1_700_000_000_000 });
   expect([...checkpoint]).toEqual([99]);
   tracker.sourceRecord(frame(1, 0));
   tracker.sourceRecord(frame(2, 1));

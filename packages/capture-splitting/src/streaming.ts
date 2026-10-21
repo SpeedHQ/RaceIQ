@@ -1,7 +1,7 @@
 import type { Hash } from "node:crypto";
 import {
   encodeFrameLength, encodeParserBootstrapFrame, encodeSegmentBoundaryFrame,
-  encodeSegmentContextEndFrame, encodeSegmentContextFrame,
+  encodeSegmentContextEndFrame, encodeSegmentContextFrame, encodeSessionClockAnchor,
   iterateSessionCaptureRecords, type SessionCaptureRecord,
 } from "@raceiq/capture-formats/session/framing";
 import { SparseCaptureEncoder } from "@raceiq/capture-formats/session/sparse-recorder";
@@ -50,6 +50,9 @@ export function matchesNativeRecord(outputRecord: SessionCaptureRecord, sourceRe
     return outputRecord.gameId === sourceRecord.gameId && outputRecord.formatVersion === sourceRecord.formatVersion &&
       outputRecord.payload.equals(sourceRecord.payload);
   }
+  if (outputRecord.kind === "clock-anchor" && sourceRecord.kind === "clock-anchor") {
+    return outputRecord.frameTimeMs === sourceRecord.frameTimeMs && outputRecord.utcTimeMs === sourceRecord.utcTimeMs;
+  }
   return true;
 }
 
@@ -67,6 +70,7 @@ export function updateNativeRecordDigest(hash: Hash, record: SessionCaptureRecor
     const marker = record.kind === "segment-boundary" ? encodeSegmentBoundaryFrame()
       : record.kind === "segment-context" ? encodeSegmentContextFrame()
       : record.kind === "segment-context-end" ? encodeSegmentContextEndFrame()
+      : record.kind === "clock-anchor" ? encodeSessionClockAnchor(record.frameTimeMs, record.utcTimeMs)
       : encodeParserBootstrapFrame(record.gameId, record.payload);
     hash.update(marker);
   }

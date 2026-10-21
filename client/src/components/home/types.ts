@@ -2,6 +2,7 @@ import type { GameId } from "@raceiq/shared/games/ids";
 import type { DashboardRecentSession, DashboardResponse } from "@raceiq/shared/racing/sessions/dashboard";
 import type { SessionRecap as SessionRecapDto } from "@raceiq/shared/racing/sessions/types";
 import type { TrackOutlineData, TrackSectorBounds } from "@/components/SessionRecap";
+import type { ReactNode } from "react";
 
 export type PeriodKey = "today" | "week" | "month" | "year";
 
@@ -27,6 +28,7 @@ export interface HomePageViewProps {
   gameId: GameId | null;
   gameDisplayName: string | null;
   response: DashboardResponse | undefined;
+  driverSummary?: ReactNode;
   periodStart: number;
   sessions: DashboardRecentSession[];
   carNames: Record<string, string>;

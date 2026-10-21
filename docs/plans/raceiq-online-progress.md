@@ -1,12 +1,12 @@
 # RaceIQ Online upload recovery progress
 
-Updated: 2026-10-19. This records completed work and remaining gates, not a claim that automatic recording uploads are finished.
+Current implementation status updated 2026-10-21. The [release contract](raceiq-online-contract.md), [desktop backend plan](raceiq-live-service.md) and [UI plan](raceiq-online-ui.md) retain all acceptance requirements. Checked implementation items below do not imply full application or release acceptance. Current evidence and E01–E19 gaps are recorded in [verification](../../.omp/evidence/raceiq-online-implementation/verification.md).
 
 ## Current status
 
-**Queue infrastructure and persistent status are implemented. Main now supplies lossless per-lap BIN publication.** Cloud upload preparation must consume those published artifacts; this branch must not implement a competing session slicer.
+**Queue infrastructure, persistent status, dedicated worker and native recording producer integration are implemented.** Upload preparation reuses published artifacts and existing native framing/context infrastructure, not a competing session slicer.
 
-The reported successful sign-in is not the missing prerequisite. Default recording dispatch remains gated until the published per-lap artifacts are wired to upload preparation and the recording codec is verified against the service parser.
+Genuine F1 World and both Bahrain LMU laps pass isolated Rust HTTP publication, archive download and canonical native reparse with original GUIDs and matching-binding Self. Connected desktop upload/Community/Open Replay remains under verification. ACC fixture coverage is parked, not a reason to force attribution or keep searching; iRacing is excluded from the current investigation.
 
 ## Done
 
@@ -18,7 +18,7 @@ The reported successful sign-in is not the missing prerequisite. Default recordi
   - Last synced advances only after confirmed transfer/accepted-key reconciliation, not refresh, failure or validation alone.
   - History survives restart and authorization-epoch rotation; storage failures propagate instead of returning invented empty status.
 - [x] Replace custom generic claiming, leases and retry scheduling with **Effect PersistedQueue + SQLite**.
-  - Pin `effect` and `@effect/sql-sqlite-bun` to `4.0.4`; retain `@speedhq/live-client@0.1.13`.
+  - Pin `effect` and `@effect/sql-sqlite-bun` to `4.0.4`; the installed local `@speedhq/live-client@0.2.0` candidate remains unpublished.
   - Package owns durable delivery, locks, heartbeats, retries and cleanup in `raceiq-online-queue.db`.
   - One account-scoped consumer; durable work contains job reference/request key, not credentials, recording bytes or authorization epochs. The v2 namespace re-admits legacy exhausted references from the ledger without changing upload identity.
 - [x] Keep upload-specific identity and outcomes in the separate business ledger.
@@ -42,15 +42,15 @@ The reported successful sign-in is not the missing prerequisite. Default recordi
 
 - [x] Main supplies automatic per-lap BIN publication and its metadata contract.
   - Use `resolveLapCaptureArtifact` in `server/session-capture/source-loader.ts`; do not guess filenames, offsets, framing or readiness signals.
-- [ ] Bind that producer to upload preparation; enable production selection/enqueue only when recordings are durably ready.
-  - Cover historical best-per-game/track backfill, new laps, imports, reprocessing and faster replacements.
-  - Existing wake notifications/coordinator are implemented; they do not replace producer integration.
+- [x] Bind the native recording producer to production candidate selection and upload preparation.
+  - Dedicated worker resolves immutable original membership, native bindings, GUIDs and artifact readiness before preparing a candidate.
+  - Producer/source/codec regressions pass; full connected desktop selection/enqueue and auth-transition acceptance remains unchecked below.
 - [ ] Verify all supported game formats against the authoritative service parser.
   - Every recording must contain exactly one intended logical lap with required sparse context/boundaries.
   - Reject missing, truncated, oversized, unsupported or identity-mismatched data without sending bytes.
-- [ ] Complete and verify embedded F1 setup sanitization for per-lap recordings.
-  - Preserve local originals; optional attachments require separate current opt-in and verified game support.
-  - Do not invent an opaque setup attachment from the local JSON setup snapshot.
+- [x] Implement embedded F1 setup sanitization for per-lap recordings.
+  - Native codec and actual HTTP/archive checks preserve local originals and omit embedded setup packets; separate setup attachments remain opt-in.
+  - The complete desktop privacy/setup/account race matrix remains part of production-path acceptance below.
 - [ ] Exercise the complete production recording path after integration.
   - Real per-lap input → selection/enqueue → reservation → immutable payload → transfer → persisted acceptance.
   - Cover restart, privacy/setup/account races, source changes, rate limits and same-key reconciliation.
@@ -68,7 +68,7 @@ The reported successful sign-in is not the missing prerequisite. Default recordi
 - **Passed:** `bun run i18n:check-keys` — complete supported catalogs.
 - **Passed:** `bun test packages/tooling-release/test/changelog.test.ts --timeout 60000`.
 - **Earlier UI proof:** real local Hono/RPC/SQLite status, desktop/mobile DOM and mobile accessibility audit. Package extraction changes UI imports, not presentation; no new visual inspection or screenshot is claimed.
-- **Not run / not established:** per-game recording compatibility, final producer wiring and authenticated live recording uploads. Cloud preparation must reuse main's published per-lap artifacts, not restart session extraction.
+- **Current native correction gates:** desktop20 tests, cloud30 native/trend plus10 scoped parser tests, final desktop34/34 typecheck, cloud processor typecheck and11 changelog tests pass. Actual HTTP/archive smoke covers April09 primary, both Bahrain LMU laps and four April22 additional F1 laps. Exact evidence is linked from the current verification report.
 
 ## Relevant implementation and tests
 
@@ -83,4 +83,4 @@ The reported successful sign-in is not the missing prerequisite. Default recordi
 
 ## Next action
 
-Integrate main's published per-lap artifacts and verify compatibility/privacy before enabling recording dispatch. Do not restart session extraction or require another sign-in to compensate for missing upload integration.
+Verify the actual connected F1/LMU desktop journey: safe loopback authentication, current consent and confirmed public sharing → real Community rows → exact selected Open Replay → original GUID/author, correct replay data, repeated reuse and mobile. Keep missing ACC/Evo fixture coverage and all unexecuted release scenarios explicitly open; do not require another production sign-in or search for more ACC recordings.
