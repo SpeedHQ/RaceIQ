@@ -81,6 +81,7 @@
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
+- Ignore terminal color codes when waiting for compiler startup in the Paraglide lifecycle CI test.
 - Generate Paraglide declarations with the installed native TypeScript compiler and stop abandoned translation watchers from consuming CPU after development exits.
 - Use Ubuntu instead of macOS for CI runners and cap Mars memory requests at 6 GB.
 - Invalidate cached frontend builds when source changes in dependent workspaces.
