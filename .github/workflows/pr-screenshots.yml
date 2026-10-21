@@ -42,7 +42,7 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     runs-on:
-      - mars-ubuntu-2vcpu-10g
+      - mars-ubuntu-2vcpu-6g
       - mars-retry-3
     env:
       PR_NUMBER: ${{ inputs.pr || github.event.pull_request.number }}
@@ -102,6 +102,8 @@ jobs:
         continue-on-error: true
         env:
           SHARD: ${{ matrix.shard }}
+          RACEIQ_FEATURE_F1_EXPERIMENTS: "true"
+          RACEIQ_FEATURE_IRACING_ADAPTER: "true"
         run: bun scripts/ci/workflow-ops.ts screenshot-current
 
       - name: Capture base responsive screenshots with current tests
@@ -110,6 +112,8 @@ jobs:
         timeout-minutes: 15
         env:
           SHARD: ${{ matrix.shard }}
+          RACEIQ_FEATURE_F1_EXPERIMENTS: "true"
+          RACEIQ_FEATURE_IRACING_ADAPTER: "true"
         run: bun scripts/ci/workflow-ops.ts screenshot-base
       - name: Save shard render outputs
         if: always()
@@ -141,7 +145,7 @@ jobs:
     if: needs.render.result == 'success' && (github.event_name != 'pull_request' || !github.event.pull_request.draft)
     needs: render
     runs-on:
-      - mars-ubuntu-2vcpu-10g
+      - mars-ubuntu-2vcpu-6g
       - mars-retry-3
     steps:
       - uses: actions/checkout@v7

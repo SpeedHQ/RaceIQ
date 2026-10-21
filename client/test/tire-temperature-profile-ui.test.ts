@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { hasSurfaceTemperatureProfile, tireTemperatureProfile, tireTemperatureReadings } from "../src/components/analyse/tire-temperature-profile";
-import type { SemanticAnalysisFrame } from "../src/components/analyse/track-map/types";
+import { hasSurfaceTemperatureProfile, tireTemperatureProfile, tireTemperatureReadings } from "@raceiq/scene-3d/tire-temperature-profile"
+import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import { lmuAdapter } from "@raceiq/game-lmu-metadata/index";
 import { analyseSemanticIds } from "@raceiq/shared/games/metric-contracts";
 

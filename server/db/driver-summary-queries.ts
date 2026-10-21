@@ -24,7 +24,7 @@ import {
 } from "./driver-summary-ledger-queries";
 import { getLocalAccountOwner } from "./local-account-queries";
 import { readOriginalActivitySourceProof, type OriginalActivitySourceProof } from "./original-activity-queries";
-import { client } from "./index";
+import { readClient } from "./index";
 import { dashboardLapAttribution, dashboardHasSelfStint, dashboardStints, dashboardDurationAttribution, type DashboardDurationAttribution } from "../driver-summary/dashboard-input";
 import { readDirtyDriverSummaryPreparations, settleDriverSummaryPreparation, type DriverSummaryPreparationSnapshot } from "../driver-summary/preparation";
 type ActivityContribution = {
@@ -88,7 +88,7 @@ function requestedSessionCohort(request: DashboardRequest): { sql: string; args:
       new Date(from).toISOString().slice(0, 10), new Date(to).toISOString().slice(0, 10), ...(request.gameId ? [request.gameId] : [])] };
 }
 
-async function readSourceLaps(ownerUserId: string | null, source: Pick<typeof client, "execute"> = client,
+async function readSourceLaps(ownerUserId: string | null, source: Pick<typeof readClient, "execute"> = readClient,
   request?: DashboardRequest, activityIds?: readonly string[]): Promise<SourceLap[]> {
   if (activityIds?.length === 0) return [];
   const cohort = request ? requestedSessionCohort(request) : { sql: "", args: [] };
@@ -274,7 +274,7 @@ export function reduceDriverSummaryFacts(rows: readonly DriverSummaryLapFact[]):
 }
 
 type LocalDriverSummarySnapshot = { allRows: SourceLap[]; localRevision: number };
-async function readLocalDriverSummarySnapshot(request: DashboardRequest, source: Pick<typeof client, "execute">): Promise<LocalDriverSummarySnapshot> {
+async function readLocalDriverSummarySnapshot(request: DashboardRequest, source: Pick<typeof readClient, "execute">): Promise<LocalDriverSummarySnapshot> {
   const cohort = requestedSessionCohort(request);
   const account = await source.execute({ sql: "SELECT online_user_id FROM local_account_owner WHERE id=1" });
   const ownerUserId = nullableString(account.rows[0]?.online_user_id);
@@ -301,7 +301,7 @@ async function readLocalDriverSummarySnapshot(request: DashboardRequest, source:
 
 export async function buildLocalDriverSummary(request: DashboardRequest): Promise<DriverSummaryResponse> {
   if (!validateDashboardRequest(request)) throw new RangeError("Invalid dashboard request");
-  const tx = await client.transaction("read");
+  const tx = await readClient.transaction("read");
   let snapshot: LocalDriverSummarySnapshot;
   try {
     snapshot = await readLocalDriverSummarySnapshot(request, tx);
@@ -362,7 +362,7 @@ async function readSourceRepresentations(rows: readonly SourceLap[], partialPeri
 /** Local source gaps have local addresses, never fabricated global activity receipts. */
 export async function getLocalDriverSummaryHolds(): Promise<{ heldAmbiguous: number; heldLaps: number }> {
   const owner = await getLocalAccountOwner();
-  const result = await client.execute({ sql: `WITH source_holds AS (
+  const result = await readClient.execute({ sql: `WITH source_holds AS (
       SELECT COALESCE(s.original_activity_id,'session:'||s.id) source_key,
         MAX(CASE WHEN p.original_activity_id IS NULL OR p.prepared_generation IS NULL OR p.generation<>p.prepared_generation OR p.hold_reason IS NOT NULL THEN 1 ELSE 0 END) unresolved,
         MAX(COALESCE(p.held_laps,0)) cached_held_laps,COUNT(l.id) unresolved_laps
@@ -382,7 +382,7 @@ export async function prepareDriverSummaryContributions(hash: ActivityContributi
   const accountOwner = await getLocalAccountOwner();
   const sources = await readDirtyDriverSummaryPreparations();
   if (!sources.length) return [];
-  const rows = await readSourceLaps(accountOwner, client, undefined, sources.map((source) => source.activityId));
+  const rows = await readSourceLaps(accountOwner, readClient, undefined, sources.map((source) => source.activityId));
   const representations = await readSourceRepresentations(rows);
   const groups = new Map<string, SourceLap[]>();
   let grouped = 0;
@@ -397,9 +397,9 @@ export async function prepareDriverSummaryContributions(hash: ActivityContributi
   for (let offset = 0; offset < guids.length; offset += 256) {
     const page = guids.slice(offset, offset + 256), placeholders = page.map(() => "?").join(",");
     const [live, historical] = await Promise.all([
-      client.execute({ sql: `SELECT l.lap_guid,s.original_activity_id FROM laps l JOIN sessions s ON s.id=l.session_id
+      readClient.execute({ sql: `SELECT l.lap_guid,s.original_activity_id FROM laps l JOIN sessions s ON s.id=l.session_id
         WHERE l.lap_guid IN (${placeholders}) AND s.original_activity_id IS NOT NULL`, args: page }),
-      client.execute({ sql: `SELECT lap_guid,activity_id FROM driver_summary_activity_laps
+      readClient.execute({ sql: `SELECT lap_guid,activity_id FROM driver_summary_activity_laps
         WHERE lap_guid IN (${placeholders})`, args: page }),
     ]);
     for (const row of live.rows) {

@@ -14,7 +14,8 @@ test("packaged access policy stays in production without runtime NODE_ENV", () =
     writeFileSync(
       entry,
       `
-      import { httpAccess } from ${JSON.stringify(source)};
+      import { getHttpAccess } from ${JSON.stringify(source)};
+      const httpAccess = getHttpAccess();
       const req = (origin) => new Request("http://localhost:3117/ws", { headers: { origin } });
       const [unlisted, local] = await Promise.all([
         httpAccess.authorize(req("http://unrelated.localhost:1355")),

@@ -63,7 +63,7 @@ export async function exercisePlaybackControls(page: Page, semanticFrames: Seman
   if (startFrame < 0) throw new Error("Seeded Analyse fixture lacks 120-frame motion.speed variation window");
   await expect.poll(() => page.evaluate(() => typeof (window as typeof window & { __setFrame?: unknown }).__setFrame), { timeout: 30_000 }).toBe("function");
   await setAnalyseFrame(page, startFrame);
-  await page.getByRole("tab", { name: "3D", exact: true }).click();
+  await page.getByRole("tab", { name: "3D", exact: true }).click({ timeout: 30_000 });
   const oneX = page.getByRole("button", { name: "1x", exact: true });
   if (await oneX.getAttribute("aria-pressed") !== "true") await oneX.click();
 
@@ -72,13 +72,21 @@ export async function exercisePlaybackControls(page: Page, semanticFrames: Seman
     const grid = panel?.querySelector(".grid");
     if (!grid) throw new Error("Analyse Data metric grid unavailable");
     let mutations = 0;
-    new MutationObserver((records) => { mutations += records.length; }).observe(grid, { childList: true, subtree: true, characterData: true });
+    const observer = new MutationObserver((records) => {
+      mutations += records.length;
+      if (mutations < 10) return;
+      const pause = document.querySelector<HTMLButtonElement>('button[aria-label="Pause playback"]');
+      if (!pause) return;
+      // Pause in the same browser turn; short laps can finish before a host round trip.
+      observer.disconnect();
+      pause.click();
+    });
+    observer.observe(grid, { childList: true, subtree: true, characterData: true });
     (window as typeof window & { __analyseMetricMutations?: () => number }).__analyseMetricMutations = () => mutations;
   });
   await page.getByRole("button", { name: "Play playback", exact: true }).click();
-  await page.waitForTimeout(2000);
-  // Timeline rerenders every frame; dispatch pause without waiting on replaced DOM.
-  await page.getByRole("button", { name: "Pause playback", exact: true }).evaluate((button) => (button as HTMLButtonElement).click());
+  await expect.poll(() => page.evaluate(() => (window as typeof window & { __analyseMetricMutations?: () => number }).__analyseMetricMutations?.() ?? 0)).toBeGreaterThanOrEqual(10);
+  await expect(page.getByRole("button", { name: "Play playback", exact: true })).toBeVisible();
   const pausedFrame = Number(await slider.getAttribute("aria-valuenow"));
   expect(await page.evaluate(() => (window as typeof window & { __analyseMetricMutations?: () => number }).__analyseMetricMutations?.() ?? 0)).toBeGreaterThanOrEqual(10);
   expect(pausedFrame).toBeGreaterThan(startFrame);
@@ -95,7 +103,7 @@ export async function exercisePlaybackControls(page: Page, semanticFrames: Seman
     await expect(speedButton).toHaveAttribute("aria-pressed", "true");
   }
   await page.getByRole("button", { name: "2x", exact: true }).click();
-  await slider.press("Home");
+  await setAnalyseFrame(page, 0);
   const beforeKeyboardStep = Number(await slider.getAttribute("aria-valuenow"));
   await slider.press("ArrowRight");
   await expect.poll(async () => Number(await slider.getAttribute("aria-valuenow"))).toBeGreaterThan(beforeKeyboardStep);
@@ -137,9 +145,9 @@ export async function exerciseInsightsAndMap(page: Page): Promise<void> {
 }
 
 export async function exercise3dGuide(page: Page, assertClosed = true): Promise<void> {
-  await page.getByRole("tab", { name: "3D", exact: true }).click();
+  await page.getByRole("tab", { name: "3D", exact: true }).click({ timeout: 30_000 });
   await expect(page.getByRole("tab", { name: "3D", exact: true })).toHaveAttribute("aria-selected", "true");
-  await page.getByRole("tab", { name: "2D", exact: true }).click();
+  await page.getByRole("tab", { name: "2D", exact: true }).click({ timeout: 30_000 });
   const activeVizPanel = page.getByRole("tabpanel", { name: "2D" });
   await expect(activeVizPanel).toBeVisible();
   await expect(activeVizPanel.getByRole("img", { name: /^FL (?:surface|core|carcass):/ })).toBeVisible();

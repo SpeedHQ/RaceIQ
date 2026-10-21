@@ -1,8 +1,9 @@
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import type { DriverAttributionStint } from "@raceiq/shared/driver-attribution";
-import { db } from "./index";
+import { db, readDb } from "./index";
 import { driverSummaryActivities, driverSummaryActivityLaps, laps, localAccountOwner, originalActivityPreparations, originalActivitySources, sessions } from "./schema";
 import { parseDriverSummaryPreparationSnapshot } from "../driver-summary/preparation";
+import { withDatabaseWrite } from "./write-coordination";
 
 export type DriverSummaryActivityState = "ready" | "held_ambiguous" | "conflict" | "synced";
 export type LapDriverAttribution = "Self" | "Other" | "Mixed" | "Unknown";
@@ -43,7 +44,7 @@ export async function putDriverSummaryActivity(
     || (preparation.holdReason === null && snapshot.contentHash !== input.contentHash))) {
     throw new TypeError("Driver summary preparation fence is invalid");
   }
-  await db.transaction(async (tx) => {
+  await withDatabaseWrite(() => db.transaction(async (tx) => {
     if (preparation) {
       const generation = await tx.select().from(originalActivityPreparations)
         .where(eq(originalActivityPreparations.originalActivityId, input.activityId)).get();
@@ -114,7 +115,7 @@ export async function putDriverSummaryActivity(
         throw Object.assign(new Error("Driver summary source changed during publication"), { code: "stale_source" });
       }
     }
-  });
+  }));
 }
 
 /** The caller validates canonical hashes; this transaction binds that readback to immutable local ownership. */
@@ -122,7 +123,7 @@ export async function recordDriverSummaryActivityHold(input: {
   activityId: string; ownerUserId: string; receipt: { activityId: string; revision: number; contentHash: string };
   lapGuids: readonly string[]; observedContentHash: string; observedPayloadJson: string; holdReason: string | null;
 }): Promise<void> {
-  await db.transaction(async (tx) => {
+  await withDatabaseWrite(() => db.transaction(async (tx) => {
     const owner = await tx.select().from(localAccountOwner).where(eq(localAccountOwner.id, 1)).get();
     const existing = await tx.select().from(driverSummaryActivities)
       .where(eq(driverSummaryActivities.activityId, input.activityId)).get();
@@ -157,7 +158,7 @@ export async function recordDriverSummaryActivityHold(input: {
       state: sameBody ? "held_ambiguous" : "ready", heldReason: sameBody ? input.holdReason : null,
       updatedAt: new Date().toISOString(),
     }).where(eq(driverSummaryActivities.activityId, input.activityId)).run();
-  });
+  }));
 }
 
 /** Store authenticated confirmation without replacing a newer locally prepared canonical body. */
@@ -166,7 +167,7 @@ export async function recordDriverSummaryActivityConfirmation(input: {
   receipt: { activityId: string; revision: number; contentHash: string };
   lapGuids: readonly string[]; observedContentHash: string; observedPayloadJson: string;
 }): Promise<void> {
-  await db.transaction(async (tx) => {
+  await withDatabaseWrite(() => db.transaction(async (tx) => {
     const owner = await tx.select().from(localAccountOwner).where(eq(localAccountOwner.id, 1)).get();
     const existing = await tx.select().from(driverSummaryActivities)
       .where(eq(driverSummaryActivities.activityId, input.activityId)).get();
@@ -208,12 +209,12 @@ export async function recordDriverSummaryActivityConfirmation(input: {
       heldCloudRevision: null, heldReceiptJson: null,
       state: sameBody ? "synced" : "ready", heldReason: null, updatedAt: new Date().toISOString(),
     }).where(eq(driverSummaryActivities.activityId, input.activityId)).run();
-  });
+  }));
 }
 
 
 export async function listDriverSummaryActivities(ownerUserId: string | null, state?: DriverSummaryActivityState) {
-  return db.select().from(driverSummaryActivities).where(state
+  return readDb.select().from(driverSummaryActivities).where(state
     ? and(ownerUserId === null ? isNull(driverSummaryActivities.ownerUserId) : eq(driverSummaryActivities.ownerUserId, ownerUserId), eq(driverSummaryActivities.state, state))
     : ownerUserId === null ? isNull(driverSummaryActivities.ownerUserId) : eq(driverSummaryActivities.ownerUserId, ownerUserId))
     .orderBy(driverSummaryActivities.updatedAt, driverSummaryActivities.activityId).all();
@@ -222,7 +223,7 @@ export async function listDriverSummaryActivities(ownerUserId: string | null, st
 export async function listReadyDriverSummaryActivityPage(ownerUserId: string | null, afterId: string | null, limit: number) {
   if (!Number.isSafeInteger(limit) || limit < 1) throw new RangeError("Driver summary page size must be a positive integer");
   const pageSize = Math.min(limit, 256);
-  const rows = await db.select().from(driverSummaryActivities).where(and(
+  const rows = await readDb.select().from(driverSummaryActivities).where(and(
     ownerUserId === null ? isNull(driverSummaryActivities.ownerUserId) : eq(driverSummaryActivities.ownerUserId, ownerUserId),
     eq(driverSummaryActivities.state, "ready"), afterId === null ? undefined : gt(driverSummaryActivities.activityId, afterId),
   )).orderBy(driverSummaryActivities.activityId).limit(pageSize + 1).all();
@@ -232,13 +233,13 @@ export async function listReadyDriverSummaryActivityPage(ownerUserId: string | n
 }
 
 export async function getDriverSummaryActivity(activityId: string, ownerUserId: string | null) {
-  return db.select().from(driverSummaryActivities).where(and(
+  return readDb.select().from(driverSummaryActivities).where(and(
     eq(driverSummaryActivities.activityId, activityId), ownerUserId === null ? isNull(driverSummaryActivities.ownerUserId) : eq(driverSummaryActivities.ownerUserId, ownerUserId),
   )).get();
 }
 
 export async function listDriverSummaryActivityLaps(ownerUserId: string | null) {
-  return db.select().from(driverSummaryActivityLaps)
+  return readDb.select().from(driverSummaryActivityLaps)
     .where(ownerUserId === null ? isNull(driverSummaryActivityLaps.ownerUserId) : eq(driverSummaryActivityLaps.ownerUserId, ownerUserId))
     .orderBy(driverSummaryActivityLaps.lapGuid).all();
 }
@@ -256,14 +257,14 @@ export async function setDriverSummaryActivityState(
   if (details.heldReason !== undefined) values.heldReason = details.heldReason;
   if (state === "synced") { values.heldCloudRevision = null; values.heldReceiptJson = null; }
   const ownerFilter = ownerUserId === null ? isNull(driverSummaryActivities.ownerUserId) : eq(driverSummaryActivities.ownerUserId, ownerUserId);
-  const result = await db.update(driverSummaryActivities).set(values).where(and(
+  const result = await withDatabaseWrite(() => db.update(driverSummaryActivities).set(values).where(and(
     eq(driverSummaryActivities.activityId, activityId), ownerFilter,
     receiptFence ? and(eq(driverSummaryActivities.contentHash, receiptFence.contentHash),
       eq(driverSummaryActivities.payloadJson, receiptFence.payloadJson),
       sql`COALESCE(${driverSummaryActivities.cloudRevision},0)<=${receiptFence.revision}`,
       sql`COALESCE(${driverSummaryActivities.heldCloudRevision},0)<=${receiptFence.revision}`,
       sql`COALESCE(${driverSummaryActivities.expectedCloudRevision},0)<=${receiptFence.revision}`) : undefined,
-  )).run();
+  )).run());
   if (result.rowsAffected !== 1) throw Object.assign(new Error(receiptFence
     ? "Driver summary activity changed during receipt validation" : "Driver summary activity not found"),
     { code: receiptFence ? "activity_revision_conflict" : "not_found" });
@@ -273,11 +274,11 @@ export async function replaceSessionDriverAttributionStints(
   sessionId: number,
   stints: readonly DriverAttributionStint[],
 ): Promise<void> {
-  await db.update(sessions).set({ driverAttributionStints: [...stints] }).where(eq(sessions.id, sessionId)).run();
+  await withDatabaseWrite(() => db.update(sessions).set({ driverAttributionStints: [...stints] }).where(eq(sessions.id, sessionId)).run());
 }
 
 export async function listSessionDriverAttributionStints(sessionId: number): Promise<DriverAttributionStint[]> {
-  const row = await db.select({ stints: sessions.driverAttributionStints }).from(sessions).where(eq(sessions.id, sessionId)).get();
+  const row = await readDb.select({ stints: sessions.driverAttributionStints }).from(sessions).where(eq(sessions.id, sessionId)).get();
   return row?.stints ?? [];
 }
 
@@ -290,22 +291,22 @@ export async function setLapDriverAttribution(
   if (!source.domain || !Number.isFinite(source.startMs) || !Number.isFinite(source.endMs) || source.endMs <= source.startMs) {
     throw new Error("Lap source-clock range is invalid");
   }
-  await db.update(laps).set({
+  await withDatabaseWrite(() => db.update(laps).set({
     driverAttributionStints: [...stints], driverAttribution: attribution,
     sourceClockDomain: source.domain, sourceLapStartMs: source.startMs, sourceLapEndMs: source.endMs,
-  }).where(eq(laps.id, lapId)).run();
+  }).where(eq(laps.id, lapId)).run());
 }
 
 /** Preserve a known original identity; only capture code assigns a new original activity ID. */
 export async function bindSessionOriginalActivityId(sessionId: number, originalActivityId: string): Promise<void> {
   if (!originalActivityId.trim()) throw new Error("Original activity identity is required");
-  const result = await db.update(sessions).set({ originalActivityId })
+  const result = await withDatabaseWrite(() => db.update(sessions).set({ originalActivityId })
     .where(and(
       eq(sessions.id, sessionId), sql`${sessions.originalActivityId} IS NULL`,
       sql`${sessions.cloudImportOrigin} IS NULL AND ${sessions.cloudImportLapId} IS NULL`,
-    )).run();
+    )).run());
   if (result.rowsAffected === 0) {
-    const row = await db.select({ originalActivityId: sessions.originalActivityId }).from(sessions)
+    const row = await readDb.select({ originalActivityId: sessions.originalActivityId }).from(sessions)
       .where(eq(sessions.id, sessionId)).get();
     if (!row) throw Object.assign(new Error("Session not found"), { code: "not_found" });
     if (row.originalActivityId !== originalActivityId) {

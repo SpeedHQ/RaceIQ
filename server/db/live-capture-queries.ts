@@ -1,8 +1,9 @@
 import { and, eq, sql } from "drizzle-orm";
 import { Schema } from "effect";
 import { LiveArchiveMemberSchema, LiveArchiveSnapshotSchema, type LiveArchiveMember, type LiveArchiveSnapshot } from "@raceiq/capture-splitting";
-import { db, client } from "./index";
+import { db, client, readDb } from "./index";
 import { laps, sessions, liveCaptures, liveCaptureMembers, liveCaptureJournal } from "./schema";
+import { withDatabaseWrite } from "./write-coordination";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { cacheDelete } from "./telemetry-replay-storage";
 
@@ -32,7 +33,7 @@ function fence(identity: LiveCaptureIdentity) {
 export async function beginLiveCapture(identity: LiveCaptureIdentity & { sourcePath: string; archivePath: string }): Promise<void> {
   if (!identity.captureEpoch || !identity.attempt || !identity.sourcePath || !identity.archivePath) throw new Error("Invalid live capture identity");
   // Local libSQL write transactions must not yield while ingress writes share the DB.
-  const result = await client.batch([
+  const result = await withDatabaseWrite(() => client.batch([
     {
       sql: `INSERT INTO live_captures(session_id,capture_epoch,attempt,source_path,archive_path,status)
         SELECT id,?,?,?,?,'recording' FROM sessions
@@ -43,18 +44,18 @@ export async function beginLiveCapture(identity: LiveCaptureIdentity & { sourceP
       sql: "UPDATE sessions SET capture_layout_version=3,capture_archive_file=? WHERE id=? AND changes()=1",
       args: [identity.archivePath, identity.sessionId],
     },
-  ], "write");
+  ], "write"));
   if (result[0]!.rowsAffected !== 1 || result[1]!.rowsAffected !== 1) throw new Error("Live capture source changed before start");
 }
 
 /** Bind the worker-opened inode once; growth and header patching do not replace it. */
 export async function bindLiveCaptureSourceIdentity(identity: LiveCaptureIdentity, device: string, inode: string): Promise<boolean> {
   if (!/^\d+$/.test(device) || !/^\d+$/.test(inode)) throw new Error("Invalid live source filesystem identity");
-  const result = await db.update(liveCaptures).set({ sourceDevice: device, sourceInode: inode }).where(and(
+  const result = await withDatabaseWrite(() => db.update(liveCaptures).set({ sourceDevice: device, sourceInode: inode }).where(and(
     fence(identity),
     sql`(${liveCaptures.sourceDevice} IS NULL OR ${liveCaptures.sourceDevice} = ${device})`,
     sql`(${liveCaptures.sourceInode} IS NULL OR ${liveCaptures.sourceInode} = ${inode})`,
-  )).run();
+  )).run());
   return result.rowsAffected === 1;
 }
 
@@ -74,40 +75,46 @@ export async function persistLiveCaptureProgress(
     if (payload === undefined || Buffer.byteLength(payload) > 16 * 1024 * 1024) throw new Error("Live capture journal entry exceeds limit");
     return { captureEpoch: identity.captureEpoch, sequence: entry.sequence, sourceByteEnd: entry.sourceByteEnd, payload };
   });
-  const current = await db.select().from(liveCaptures).where(fence(identity)).get();
-  if (!current || (current.status !== "recording" && current.status !== "finalizing") || progress.sequence < current.durableSequence ||
-      progress.sourceByteLength < current.sourceByteLength || progress.sourceRecordCount < current.sourceRecordCount ||
-      progress.sourceDurableWatermark < current.sourceDurableWatermark || progress.metadataDurableWatermark < current.metadataDurableWatermark) return false;
-  for (const entry of encoded) {
-    const existing = await db.select().from(liveCaptureJournal).where(and(eq(liveCaptureJournal.captureEpoch, identity.captureEpoch), eq(liveCaptureJournal.sequence, entry.sequence))).get();
-    if (existing && (existing.payload !== entry.payload || existing.sourceByteEnd !== entry.sourceByteEnd)) throw new Error("Live capture journal sequence was reused");
-  }
-  const update = db.update(liveCaptures).set({
-    sourceByteLength: progress.sourceByteLength, sourceRecordCount: progress.sourceRecordCount,
-    sourceDurableWatermark: progress.sourceDurableWatermark, metadataDurableWatermark: progress.metadataDurableWatermark,
-    durableSequence: progress.sequence,
-  }).where(and(fence(identity), sql`${liveCaptures.status} IN ('recording','finalizing')`,
-    sql`${liveCaptures.durableSequence} <= ${progress.sequence}`,
-    sql`${liveCaptures.sourceByteLength} <= ${progress.sourceByteLength}`,
-    sql`${liveCaptures.sourceRecordCount} <= ${progress.sourceRecordCount}`,
-    sql`${liveCaptures.sourceDurableWatermark} <= ${progress.sourceDurableWatermark}`,
-    sql`${liveCaptures.metadataDurableWatermark} <= ${progress.metadataDurableWatermark}`,
-  )).toSQL();
-  const gate = db.select({ one: sql`1` }).from(liveCaptures).where(and(
-    fence(identity), sql`${liveCaptures.status} IN ('recording','finalizing')`,
-    eq(liveCaptures.durableSequence, progress.sequence), eq(liveCaptures.sourceByteLength, progress.sourceByteLength),
-    eq(liveCaptures.sourceRecordCount, progress.sourceRecordCount), eq(liveCaptures.sourceDurableWatermark, progress.sourceDurableWatermark),
-    eq(liveCaptures.metadataDurableWatermark, progress.metadataDurableWatermark),
-  )).toSQL();
-  const statements = [{ sql: update.sql, args: update.params as (string | number | null)[] }];
-  for (const entry of encoded) statements.push({
-    sql: `INSERT INTO live_capture_journal(capture_epoch,sequence,source_byte_end,payload)
-      SELECT ?,?,?,? WHERE EXISTS (${gate.sql}) AND NOT EXISTS (
-        SELECT 1 FROM live_capture_journal WHERE capture_epoch=? AND sequence=? AND source_byte_end=? AND payload=?)`,
-    args: [entry.captureEpoch, entry.sequence, entry.sourceByteEnd, entry.payload, ...gate.params as (string | number | null)[],
-      entry.captureEpoch, entry.sequence, entry.sourceByteEnd, entry.payload],
+  return withDatabaseWrite(async () => {
+    const current = await readDb.select().from(liveCaptures).where(fence(identity)).get();
+    if (!current || (current.status !== "recording" && current.status !== "finalizing") || progress.sequence < current.durableSequence ||
+        progress.sourceByteLength < current.sourceByteLength || progress.sourceRecordCount < current.sourceRecordCount ||
+        progress.sourceDurableWatermark < current.sourceDurableWatermark || progress.metadataDurableWatermark < current.metadataDurableWatermark) return false;
+    for (const entry of encoded) {
+      const existing = await readDb.select().from(liveCaptureJournal).where(and(
+        eq(liveCaptureJournal.captureEpoch, identity.captureEpoch), eq(liveCaptureJournal.sequence, entry.sequence),
+      )).get();
+      if (existing && (existing.payload !== entry.payload || existing.sourceByteEnd !== entry.sourceByteEnd)) {
+        throw new Error("Live capture journal sequence was reused");
+      }
+    }
+    const update = db.update(liveCaptures).set({
+      sourceByteLength: progress.sourceByteLength, sourceRecordCount: progress.sourceRecordCount,
+      sourceDurableWatermark: progress.sourceDurableWatermark, metadataDurableWatermark: progress.metadataDurableWatermark,
+      durableSequence: progress.sequence,
+    }).where(and(fence(identity), sql`${liveCaptures.status} IN ('recording','finalizing')`,
+      sql`${liveCaptures.durableSequence} <= ${progress.sequence}`,
+      sql`${liveCaptures.sourceByteLength} <= ${progress.sourceByteLength}`,
+      sql`${liveCaptures.sourceRecordCount} <= ${progress.sourceRecordCount}`,
+      sql`${liveCaptures.sourceDurableWatermark} <= ${progress.sourceDurableWatermark}`,
+      sql`${liveCaptures.metadataDurableWatermark} <= ${progress.metadataDurableWatermark}`,
+    )).toSQL();
+    const gate = db.select({ one: sql`1` }).from(liveCaptures).where(and(
+      fence(identity), sql`${liveCaptures.status} IN ('recording','finalizing')`,
+      eq(liveCaptures.durableSequence, progress.sequence), eq(liveCaptures.sourceByteLength, progress.sourceByteLength),
+      eq(liveCaptures.sourceRecordCount, progress.sourceRecordCount), eq(liveCaptures.sourceDurableWatermark, progress.sourceDurableWatermark),
+      eq(liveCaptures.metadataDurableWatermark, progress.metadataDurableWatermark),
+    )).toSQL();
+    const statements = [{ sql: update.sql, args: update.params as (string | number | null)[] }];
+    for (const entry of encoded) statements.push({
+      sql: `INSERT INTO live_capture_journal(capture_epoch,sequence,source_byte_end,payload)
+        SELECT ?,?,?,? WHERE EXISTS (${gate.sql}) AND NOT EXISTS (
+          SELECT 1 FROM live_capture_journal WHERE capture_epoch=? AND sequence=? AND source_byte_end=? AND payload=?)`,
+      args: [entry.captureEpoch, entry.sequence, entry.sourceByteEnd, entry.payload, ...gate.params as (string | number | null)[],
+        entry.captureEpoch, entry.sequence, entry.sourceByteEnd, entry.payload],
+    });
+    return (await client.batch(statements, "write"))[0]!.rowsAffected === 1;
   });
-  return (await client.batch(statements, "write"))[0]!.rowsAffected === 1;
 }
 
 export interface LiveMemberVerification {
@@ -145,7 +152,7 @@ export async function commitLiveCaptureMember(input: LiveMemberCommit): Promise<
         evidence.sourceFrameCount !== member.ownedFrameCount ||
         !/^[a-f0-9]{64}$/.test(evidence.orderedTelemetryDigest ?? "")) return false;
   }
-  const current = await db.select().from(liveCaptures).where(fence(input.identity)).get();
+  const current = await readDb.select().from(liveCaptures).where(fence(input.identity)).get();
   if (!current || current.sourceDevice === null || current.sourceInode === null ||
       (current.status !== "recording" && current.status !== "finalizing") || current.generation !== input.priorGeneration ||
       member.memberOffset !== current.committedArchiveLength || member.sourceByteEnd > current.metadataDurableWatermark ||
@@ -155,12 +162,12 @@ export async function commitLiveCaptureMember(input: LiveMemberCommit): Promise<
   if (member.kind === "lap") {
     const expected = input.expectedWindow;
     if (!expected || lapId !== expected.lapId || !Number.isSafeInteger(lapId) || input.ownershipJournalSequence === undefined) return false;
-    const journal = await db.select().from(liveCaptureJournal).where(and(eq(liveCaptureJournal.captureEpoch, input.identity.captureEpoch), eq(liveCaptureJournal.sequence, input.ownershipJournalSequence))).get();
+    const journal = await readDb.select().from(liveCaptureJournal).where(and(eq(liveCaptureJournal.captureEpoch, input.identity.captureEpoch), eq(liveCaptureJournal.sequence, input.ownershipJournalSequence))).get();
     if (!journal || journal.sequence > current.durableSequence || journal.sourceByteEnd > current.metadataDurableWatermark) return false;
     const window = JSON.parse(journal.payload) as LiveCaptureWindow;
     if (window.kind !== "window" || window.revision !== input.ownershipRevision || window.lapId !== lapId ||
         window.startByteOffset !== expected.startByteOffset || window.frameCount !== expected.frameCount) return false;
-    const lap = await db.select({
+    const lap = await readDb.select({
       sessionId: laps.sessionId, rawByteOffset: laps.rawByteOffset, rawFrameCount: laps.rawFrameCount,
       lapGuid: laps.lapGuid, originalActivityId: sessions.originalActivityId,
       originalSourceRevision: sessions.originalSourceRevision,
@@ -213,7 +220,7 @@ export async function commitLiveCaptureMember(input: LiveMemberCommit): Promise<
     sql: "UPDATE laps SET capture_chunk_id=?,source_frame_start=NULL,source_frame_count=? WHERE id=? AND changes()=1",
     args: [member.id, member.ownedFrameCount!, lapId],
   });
-  const result = await client.batch(statements, "write");
+  const result = await withDatabaseWrite(() => client.batch(statements, "write"));
   const committed = result[0]!.rowsAffected === 1;
   if (committed && (result[1]!.rowsAffected !== 1 || (lapId !== null && result[2]!.rowsAffected !== 1))) throw new Error("Live publication batch did not bind every row");
   if (committed && input.member.lapId !== undefined) cacheDelete(Number(input.member.lapId));
@@ -222,7 +229,7 @@ export async function commitLiveCaptureMember(input: LiveMemberCommit): Promise<
 
 /** One joined SQLite statement gives descriptor and progress the same snapshot. */
 export async function getLiveLapCaptureSnapshot(sessionId: number, lapId: number): Promise<{ archivePath: string; snapshot: LiveArchiveSnapshot } | null> {
-  const row = await db.select({ capture: liveCaptures, descriptor: liveCaptureMembers.descriptor, gameId: sessions.gameId }).from(liveCaptures)
+  const row = await readDb.select({ capture: liveCaptures, descriptor: liveCaptureMembers.descriptor, gameId: sessions.gameId }).from(liveCaptures)
     .innerJoin(sessions, eq(sessions.id, liveCaptures.sessionId))
     .innerJoin(liveCaptureMembers, and(eq(liveCaptureMembers.captureEpoch, liveCaptures.captureEpoch), eq(liveCaptureMembers.lapId, lapId)))
     .innerJoin(laps, and(eq(laps.id, liveCaptureMembers.lapId), eq(laps.sessionId, sessions.id), sql`${laps.captureChunkId} IS NOT NULL`))
@@ -239,6 +246,7 @@ export async function getLiveLapCaptureSnapshot(sessionId: number, lapId: number
 }
 
 export async function setLiveCaptureStatus(identity: LiveCaptureIdentity, status: "finalizing" | "failed" | "recovering", error?: string): Promise<boolean> {
-  const result = await db.update(liveCaptures).set({ status, error: error?.slice(0, 2000) ?? null }).where(and(fence(identity), sql`${liveCaptures.status} <> 'sealed'`)).run();
+  const result = await withDatabaseWrite(() => db.update(liveCaptures).set({ status, error: error?.slice(0, 2000) ?? null })
+    .where(and(fence(identity), sql`${liveCaptures.status} <> 'sealed'`)).run());
   return result.rowsAffected === 1;
 }

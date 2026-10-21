@@ -1,3 +1,4 @@
+import { isPaceLap } from "../lap-classification";
 import { KNOWN_GAME_IDS, type GameId } from "../../games/ids";
 import { isPracticeSession } from "./session-type";
 import type { LapMeta, SessionMeta } from "./types";
@@ -208,18 +209,18 @@ function calendarBounds(request: DashboardRequest): Array<{ day: string; from: n
 }
 
 interface MutableTotals {
-  laps: number; positiveLaps: number; validLaps: number; drivenSeconds: number; validSeconds: number;
+  laps: number; positiveLaps: number; validLaps: number; paceValidLaps: number; drivenSeconds: number; validSeconds: number; paceValidSeconds: number;
   bestLapSeconds: number | null; tracks: Set<string>; cars: Set<string>; sessions: Set<number>;
 }
 function emptyTotals(): MutableTotals {
-  return { laps: 0, positiveLaps: 0, validLaps: 0, drivenSeconds: 0, validSeconds: 0, bestLapSeconds: null, tracks: new Set(), cars: new Set(), sessions: new Set() };
+  return { laps: 0, positiveLaps: 0, validLaps: 0, paceValidLaps: 0, drivenSeconds: 0, validSeconds: 0, paceValidSeconds: 0, bestLapSeconds: null, tracks: new Set(), cars: new Set(), sessions: new Set() };
 }
 function finishTotals(value: MutableTotals): DashboardMetricTotals {
   return {
     laps: value.laps, positiveLaps: value.positiveLaps, validLaps: value.validLaps,
     drivenSeconds: value.drivenSeconds, validSeconds: value.validSeconds,
     bestLapSeconds: value.bestLapSeconds,
-    averageLapSeconds: value.validLaps ? value.validSeconds / value.validLaps : null,
+    averageLapSeconds: value.paceValidLaps ? value.paceValidSeconds / value.paceValidLaps : null,
     tracks: value.tracks.size, cars: value.cars.size, sessions: value.sessions.size,
   };
 }
@@ -227,7 +228,7 @@ function finitePositive(value: number): boolean { return Number.isFinite(value) 
 export function classifySessionType(value: string | null | undefined): DashboardSessionType {
   const kind = value?.trim().toLowerCase();
   if (isPracticeSession(kind)) return "practice";
-  if (kind?.startsWith("qualifying") || kind?.startsWith("qualify")) return "qualifying";
+  if (kind?.startsWith("qualifying") || kind?.startsWith("qualify") || kind?.includes("sprint-shootout")) return "qualifying";
   if (kind?.startsWith("race")) return "race";
   return "unknown";
 }
@@ -315,7 +316,7 @@ export function reduceDashboardRecapHistory(
   const bestSectorSeconds: Array<number | null> = Array.from({ length: current.sectorCount }, () => null);
   for (const lap of laps) {
     if (!ids.has(lap.sessionId) || lap.gameId !== current.gameId || !isDashboardOwned(lap.ownership)
-      || !lap.isValid || !finitePositive(lap.lapTime)) continue;
+      || !lap.isValid || !isPaceLap(lap.classification) || !finitePositive(lap.lapTime)) continue;
     bestLapSeconds = bestLapSeconds === null ? lap.lapTime : Math.min(bestLapSeconds, lap.lapTime);
     if (current.sectorCount < 2 || current.sectorLayoutKey === null || sectorLayoutBySession[lap.sessionId] !== current.sectorLayoutKey
       || !lap.sectorTimes || lap.sectorTimes.length !== current.sectorCount || !lap.sectorTimes.every(finitePositive)) continue;
@@ -347,7 +348,11 @@ export function reduceDashboardLaps(laps: readonly LapMeta[], request: Dashboard
     if (flags.valid) {
       totals.validLaps++;
       totals.validSeconds += lap.lapTime;
-      totals.bestLapSeconds = totals.bestLapSeconds === null ? lap.lapTime : Math.min(totals.bestLapSeconds, lap.lapTime);
+      if (isPaceLap(lap.classification)) {
+        totals.paceValidLaps++;
+        totals.paceValidSeconds += lap.lapTime;
+        totals.bestLapSeconds = totals.bestLapSeconds === null ? lap.lapTime : Math.min(totals.bestLapSeconds, lap.lapTime);
+      }
     }
   }
   return finishTotals(totals);
@@ -402,7 +407,7 @@ export function reduceDashboard(
     const day = bucketIndex(time, buckets);
     const sessionFact = sessionFacts.get(lap.sessionId) ?? { laps: 0, best: null };
     sessionFact.laps++;
-    if (lap.isValid && finitePositive(lap.lapTime)) sessionFact.best = sessionFact.best === null ? lap.lapTime : Math.min(sessionFact.best, lap.lapTime);
+    if (lap.isValid && isPaceLap(lap.classification) && finitePositive(lap.lapTime)) sessionFact.best = sessionFact.best === null ? lap.lapTime : Math.min(sessionFact.best, lap.lapTime);
     sessionFacts.set(lap.sessionId, sessionFact);
 
     if (flags.positive) {
@@ -412,7 +417,11 @@ export function reduceDashboard(
       if (flags.valid) {
         totals.validLaps++;
         totals.validSeconds += lap.lapTime;
-        totals.bestLapSeconds = totals.bestLapSeconds === null ? lap.lapTime : Math.min(totals.bestLapSeconds, lap.lapTime);
+        if (isPaceLap(lap.classification)) {
+          totals.paceValidLaps++;
+          totals.paceValidSeconds += lap.lapTime;
+          totals.bestLapSeconds = totals.bestLapSeconds === null ? lap.lapTime : Math.min(totals.bestLapSeconds, lap.lapTime);
+        }
         if (day >= 0) buckets[day]!.validLaps++;
       }
       const trackLength = lap.trackId != null ? input.trackLengthsMeters?.[`${lap.gameId}:${lap.trackId}`] : undefined;
@@ -424,7 +433,7 @@ export function reduceDashboard(
         addEntityLap(cars, lap, car, trackLength);
         if (flags.favouriteEligible) addEntityLap(favouriteCars, lap, car, trackLength);
       }
-      if (flags.valid) {
+      if (flags.valid && isPaceLap(lap.classification)) {
         const session = ownedSessions.get(lap.sessionId);
         if (session) {
           const trackKey = dashboardTrackIdentity(lap.gameId, lap.trackId);

@@ -12,6 +12,8 @@ import { client } from "@raceiq/backend-core/db/index";
 import { claimLocalAccountOwner, getLocalAccountOwner, getLocalGameBindingSnapshot, upsertLocalGameBinding } from "@raceiq/backend-core/db/local-account-queries";
 import { readOriginalActivitySourceProof } from "@raceiq/backend-core/db/original-activity-queries";
 import { deleteSession } from "@raceiq/backend-core/db/session-queries";
+import { listSessionDriverAttributionStints } from "@raceiq/backend-core/db/driver-summary-ledger-queries";
+import { installDatabaseWriteTestHooks, withDatabaseTransaction, withDatabaseWrite } from "@raceiq/backend-core/db/write-coordination";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -197,6 +199,34 @@ describe("native source -> live pipeline -> detector -> attribution persistence"
       const provisional = (await client.execute({ sql: "SELECT id,lap_guid FROM laps WHERE session_id=? AND lap_number=1", args: [sessionId] })).rows[0]!;
       const provisionalGuid = provisional.lap_guid;
       if (typeof provisionalGuid !== "string") throw new Error("Native provisional lap has no GUID");
+      const stints = await listSessionDriverAttributionStints(sessionId);
+      const entered = Promise.withResolvers<void>();
+      const release = Promise.withResolvers<void>();
+      const waiting = Promise.withResolvers<void>();
+      const competingWrite = withDatabaseTransaction(client, async (tx) => {
+        await tx.execute({ sql: "UPDATE sessions SET is_favorite=1 WHERE id=?", args: [sessionId!] });
+        entered.resolve();
+        await release.promise;
+      });
+      let attributionWrite: Promise<void> | undefined;
+      let restoreHooks: (() => void) | undefined;
+      try {
+        await Promise.race([entered.promise, competingWrite]);
+        restoreHooks = installDatabaseWriteTestHooks({ waiting: () => waiting.resolve() });
+        attributionWrite = db.setSessionDriverAttribution(sessionId, stints);
+        await Promise.race([waiting.promise, attributionWrite.then(() => {
+          throw new Error("Native attribution bypassed the competing database transaction");
+        })]);
+      } finally {
+        release.resolve();
+        try { await competingWrite; }
+        finally {
+          try { await attributionWrite; }
+          finally { restoreHooks?.(); }
+        }
+      }
+      expect((await client.execute({ sql: "SELECT is_favorite FROM sessions WHERE id=?", args: [sessionId] })).rows[0]?.is_favorite).toBe(1);
+      expect(await listSessionDriverAttributionStints(sessionId)).toEqual(stints);
       for (let index = 21; index <= 40; index++) await pipeline.processPacket(next(100.00025 + index * 0.5,
         index === 40 ? 0 : index * 0.5, index === 40 ? 2 : 1));
       await pipeline.finalizeCurrentSession();
@@ -211,7 +241,7 @@ describe("native source -> live pipeline -> detector -> attribution persistence"
       if (sessionId !== undefined) await deleteSession(sessionId);
       const current = (await getLocalGameBindingSnapshot()).bindings.find((row) => row.gameId === "f1-2025");
       if (prior) await upsertLocalGameBinding({ ...prior, revision: (current?.revision ?? fixture.revision) + 1 });
-      else await client.execute({ sql: "DELETE FROM local_game_bindings WHERE id=?", args: [fixture.id] });
+      else await withDatabaseWrite(() => client.execute({ sql: "DELETE FROM local_game_bindings WHERE id=?", args: [fixture.id] }));
     }
   });
   test("original closure waits for pending lap follow-ups", async () => {
@@ -250,12 +280,13 @@ describe("native source -> live pipeline -> detector -> attribution persistence"
       const first = nativePackets("1");
       await pipeline.processPacket(first(100.00025, 0, 1));
       firstSessionId = pipeline.lapDetector!.session!.sessionId;
-      await client.execute(`CREATE TRIGGER ${trigger} BEFORE INSERT ON laps
-        WHEN NEW.session_id=${firstSessionId} BEGIN SELECT RAISE(FAIL,'native source write interrupted'); END`);
+      await withDatabaseWrite(() => client.execute(`CREATE TRIGGER ${trigger} BEFORE INSERT ON laps
+        WHEN NEW.session_id=${firstSessionId} BEGIN SELECT RAISE(FAIL,'native source write interrupted'); END`));
       for (let index = 1; index <= 40; index++) {
         await pipeline.processPacket(first(100.00025 + index * 0.5, index === 40 ? 0 : index * 0.5, index === 40 ? 2 : 1));
       }
-      await client.execute(`DROP TRIGGER ${trigger}`);
+      await expect(db.drainLapWrites(firstSessionId)).rejects.toMatchObject({ cause: { code: "SQLITE_CONSTRAINT", message: expect.stringContaining("native source write interrupted") } });
+      await withDatabaseWrite(() => client.execute(`DROP TRIGGER ${trigger}`));
       const second = nativePackets("2");
       await pipeline.processPacket(second(200.00025, 0, 1));
       secondSessionId = pipeline.lapDetector!.session!.sessionId;
@@ -268,13 +299,13 @@ describe("native source -> live pipeline -> detector -> attribution persistence"
       expect(await readOriginalActivitySourceProof(firstSessionId)).toBeNull();
       expect((await readOriginalActivitySourceProof(secondSessionId))?.coverage).toBe("complete");
     } finally {
-      await client.execute(`DROP TRIGGER IF EXISTS ${trigger}`);
+      await withDatabaseWrite(() => client.execute(`DROP TRIGGER IF EXISTS ${trigger}`));
       await pipeline.finalizeCurrentSession();
       if (firstSessionId !== undefined) await deleteSession(firstSessionId);
       if (secondSessionId !== undefined) await deleteSession(secondSessionId);
       const current = (await getLocalGameBindingSnapshot()).bindings.find((value) => value.gameId === "f1-2025");
       if (prior) await upsertLocalGameBinding({ ...prior, revision: (current?.revision ?? fixture.revision) + 1 });
-      else await client.execute({ sql: "DELETE FROM local_game_bindings WHERE id=?", args: [fixture.id] });
+      else await withDatabaseWrite(() => client.execute({ sql: "DELETE FROM local_game_bindings WHERE id=?", args: [fixture.id] }));
     }
   });
   test("same display name never matches another native actor; native swap is Mixed", async () => {

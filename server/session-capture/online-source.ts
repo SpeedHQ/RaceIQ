@@ -9,7 +9,7 @@ import { LMU_TELEMETRY } from "@raceiq/capture-formats/lmu/layout";
 import type { SessionCaptureRecord } from "@raceiq/capture-formats/session/framing";
 import { KNOWN_GAME_IDS, type GameId } from "@raceiq/shared/games/ids";
 import { classifyLapAttribution, type CapturedDriverBinding, type DriverAttributionStint } from "@raceiq/shared/driver-attribution";
-import { db } from "../db/index";
+import { readDb } from "../db/index";
 import { laps, sessions, lapGuidReconciliation, liveCaptureMembers, originalActivitySourceLaps } from "../db/schema";
 import { getLocalAccountOwner } from "../db/local-account-queries";
 import { getLiveLapCaptureSnapshot } from "../db/live-capture-queries";
@@ -80,7 +80,7 @@ function sameBinding(a: CapturedDriverBinding, b: CapturedDriverBinding): boolea
 /** No current per-game binding lookup: historical identity must come from its captured stints. */
 export async function readOnlineLapSource(lapId: number): Promise<OnlineLapSourceResult> {
   const held = (reason: OnlineLapSourceHoldReason): OnlineLapSourceResult => ({ kind: "held", reason });
-  const row = await db.select({ lap: laps, session: sessions, identity: lapGuidReconciliation }).from(laps)
+  const row = await readDb.select({ lap: laps, session: sessions, identity: lapGuidReconciliation }).from(laps)
     .innerJoin(sessions, eq(sessions.id, laps.sessionId))
     .leftJoin(lapGuidReconciliation, eq(lapGuidReconciliation.lapId, laps.id)).where(eq(laps.id, lapId)).get();
   if (!row) return held("source_unavailable");
@@ -96,7 +96,7 @@ export async function readOnlineLapSource(lapId: number): Promise<OnlineLapSourc
   if (!session.originalActivityId || !session.originalSourceRevision) return held("source_identity_unavailable");
   let sourceKind: OnlineLapSource["sourceKind"] = "native_capture";
   if (!session.nativeCaptureOrigin) {
-    const proof = await db.select().from(originalActivitySourceLaps)
+    const proof = await readDb.select().from(originalActivitySourceLaps)
       .where(eq(originalActivitySourceLaps.lapGuid, lap.lapGuid.toLowerCase())).get();
     if (!proof || proof.ownerUserId !== session.ownerUserId ||
         proof.originalActivityId !== session.originalActivityId || proof.sourceRevision !== session.originalSourceRevision) return held("source_identity_unavailable");
@@ -128,7 +128,7 @@ export async function readOnlineLapSource(lapId: number): Promise<OnlineLapSourc
       capture = { ...base, rawFile: artifact.path, artifact: artifact.artifact };
       chunk = artifact.chunk;
       publicationIdentity = artifact.publicationIdentity;
-      const previous = await db.select({ descriptor: liveCaptureMembers.descriptor }).from(liveCaptureMembers)
+      const previous = await readDb.select({ descriptor: liveCaptureMembers.descriptor }).from(liveCaptureMembers)
         .where(and(eq(liveCaptureMembers.captureEpoch, live.snapshot.captureEpoch), lt(liveCaptureMembers.generation, live.snapshot.member.generation)))
         .orderBy(liveCaptureMembers.generation).all();
       for (const memberRow of previous) {

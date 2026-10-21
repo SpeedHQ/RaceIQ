@@ -4,7 +4,7 @@ import { resolveGripDemand, resolveWheelMetric } from "@raceiq/analysis-core/rac
 import { useEffect, useRef, useState } from "react";
 import { useUnits } from "@/hooks/useUnits";
 import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
-import { controlInputPercent } from "@/lib/vehicle-dynamics";
+import { controlInputPercent } from "@raceiq/scene-3d/vehicle-dynamics";
 import type { SemanticMetricFrame } from "@raceiq/analysis-core/racing/analysis/metric-values";
 import { m } from "@/paraglide/messages";
 

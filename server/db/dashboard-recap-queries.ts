@@ -1,3 +1,4 @@
+import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { SessionRecap } from "@raceiq/shared/racing/sessions/types";
 import { dashboardCarIdentity, dashboardLapMetricFlags, dashboardTrackIdentity } from "@raceiq/shared/racing/sessions/dashboard";
@@ -7,7 +8,7 @@ import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
 import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
 import { tryGetGame } from "@raceiq/shared/games/registry";
 import { DASHBOARD_PROCESSOR_VERSION } from "./dashboard-summary-queries";
-import { client } from "./index";
+import { readClient } from "./index";
 import { dashboardLapAttribution } from "../driver-summary/dashboard-input";
 
 const asNumber = (value: unknown): number => Number(value);
@@ -20,7 +21,7 @@ const parseJson = <T>(value: unknown): T | null => {
 
 /** Capture-free, exact-mine dashboard recap. Returns null for unavailable sessions. */
 export async function getDashboardSessionRecap(id: number, gameId: GameId): Promise<SessionRecap | null> {
-  const tx = await client.transaction("read");
+  const tx = await readClient.transaction("read");
   try {
     const selected = await tx.execute({
       sql: `SELECT s.id,s.game_id,s.created_at,s.car_id,s.track_id,s.driver_attribution_stints,
@@ -30,12 +31,14 @@ export async function getDashboardSessionRecap(id: number, gameId: GameId): Prom
           d.weather_status,d.weather_conditions_json,d.source_sector_starts_json
         FROM sessions s LEFT JOIN dashboard_summary_state p ON p.session_id=s.id
         LEFT JOIN dashboard_session_summaries d ON d.session_id=s.id
-        WHERE s.id=? AND s.game_id=? AND s.ownership='mine'`, args: [id, gameId],
+        WHERE s.id=? AND s.game_id=? AND s.ownership='mine'
+          AND s.cloud_import_origin IS NULL AND s.cloud_import_lap_id IS NULL
+          AND (s.owner_user_id IS NULL OR s.owner_user_id=(SELECT online_user_id FROM local_account_owner WHERE id=1))`, args: [id, gameId],
     });
     const session = selected.rows[0];
     if (!session) { await tx.commit(); return null; }
     const lapResult = await tx.execute({
-      sql: `SELECT id,lap_number,lap_time,is_valid,sector_times,invalid_reason,
+      sql: `SELECT id,lap_number,lap_time,is_valid,classification,sector_times,invalid_reason,
           driver_attribution_stints,source_clock_domain,source_lap_start_ms,source_lap_end_ms FROM laps
         WHERE session_id=? ORDER BY lap_number,id`, args: [id],
     });
@@ -44,6 +47,7 @@ export async function getDashboardSessionRecap(id: number, gameId: GameId): Prom
       row.source_lap_start_ms, row.source_lap_end_ms,
     ) === "Self").map((row) => ({
       id: asNumber(row.id), lapNumber: asNumber(row.lap_number), lapTime: asNumber(row.lap_time),
+      classification: row.classification == null ? null : String(row.classification) as LapClassification,
       isValid: Boolean(row.is_valid), sectorTimes: parseJson<number[]>(row.sector_times),
       invalidReason: row.invalid_reason == null ? null : String(row.invalid_reason),
     }));
@@ -73,6 +77,8 @@ export async function getDashboardSessionRecap(id: number, gameId: GameId): Prom
       sql: `SELECT MIN(d.best_lap_seconds) AS best FROM dashboard_session_summaries d
         JOIN sessions s ON s.id=d.session_id JOIN dashboard_summary_state st ON st.session_id=d.session_id
         WHERE s.ownership='mine' AND s.game_id=? AND d.session_id!=? AND d.car_key=? AND d.track_key=?
+          AND s.cloud_import_origin IS NULL AND s.cloud_import_lap_id IS NULL
+          AND (s.owner_user_id IS NULL OR s.owner_user_id=(SELECT online_user_id FROM local_account_owner WHERE id=1))
           AND st.metadata_dirty=0 AND st.capture_dirty=0 AND st.deleted=0 AND st.source_revision=st.published_revision
           AND st.processor_version=d.processor_version AND st.processor_version=?`,
       args: [gameId,id,carKey,trackKey,DASHBOARD_PROCESSOR_VERSION],
@@ -88,6 +94,8 @@ export async function getDashboardSessionRecap(id: number, gameId: GameId): Prom
           JOIN dashboard_session_summaries h ON h.session_id=hs.session_id JOIN sessions s ON s.id=h.session_id
           JOIN dashboard_summary_state st ON st.session_id=h.session_id
           WHERE s.ownership='mine' AND s.game_id=? AND h.session_id!=? AND h.car_key=? AND h.track_key=? AND hs.layout_key=?
+            AND s.cloud_import_origin IS NULL AND s.cloud_import_lap_id IS NULL
+            AND (s.owner_user_id IS NULL OR s.owner_user_id=(SELECT online_user_id FROM local_account_owner WHERE id=1))
             AND st.metadata_dirty=0 AND st.capture_dirty=0 AND st.deleted=0 AND st.source_revision=st.published_revision
             AND st.processor_version=h.processor_version AND st.processor_version=? AND hs.sector_index<?
           GROUP BY hs.sector_index`,
@@ -107,7 +115,9 @@ export async function getDashboardSessionRecap(id: number, gameId: GameId): Prom
           LEFT JOIN dashboard_summary_state st ON st.session_id=s.id
           LEFT JOIN dashboard_session_summaries d ON d.session_id=s.id
           WHERE s.ownership='mine' AND s.game_id=? AND s.id!=? AND ${carSourcePredicate} AND ${trackSourcePredicate}
-            AND l.id>? AND l.is_valid=1 AND l.lap_time>0
+            AND s.cloud_import_origin IS NULL AND s.cloud_import_lap_id IS NULL
+            AND (s.owner_user_id IS NULL OR s.owner_user_id=(SELECT online_user_id FROM local_account_owner WHERE id=1))
+            AND l.id>? AND l.is_valid=1 AND (l.classification IS NULL OR l.classification='pace') AND l.lap_time>0
             AND (st.session_id IS NULL OR d.session_id IS NULL OR st.metadata_dirty=1 OR st.capture_dirty=1 OR st.deleted=1
               OR st.source_revision!=st.published_revision OR st.processor_version!=? OR d.processor_version!=st.processor_version)
           ORDER BY l.id LIMIT 256`,

@@ -410,12 +410,15 @@ describe("persistent dashboard authentication", () => {
       const session = await f.auth.login("abcdefgh", request());
       const run = async (args: string[], override = "") => {
         const child = Bun.spawn([process.execPath, join(import.meta.dir, "../../src/index.ts"), "auth", "disable", ...args], {
-          env: { ...process.env, DATA_DIR: dirname(f.path), RACEIQ_TEST_MODE: "0", SERVER_PASSWORD: override },
+          env: { ...process.env, DATA_DIR: dirname(f.path), RACEIQ_TEST_MODE: "0", NODE_ENV: "development",
+            SERVER_PASSWORD: override, SERVER_HOST: "not-an-ip.invalid", SERVER_ALLOWED_ORIGINS: "not-an-origin" },
           stdout: "pipe",
           stderr: "pipe",
         });
         try {
           const [code, stdout, stderr] = await Promise.all([child.exited, new Response(child.stdout).text(), new Response(child.stderr).text()]);
+          expect(existsSync(join(dirname(f.path), "chat-memory.db"))).toBe(false);
+          expect(existsSync(join(dirname(f.path), "mastra-observability.duckdb"))).toBe(false);
           return { code, output: `${stdout}\n${stderr}` };
         } finally {
           child.kill();

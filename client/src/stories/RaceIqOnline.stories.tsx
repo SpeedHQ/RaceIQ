@@ -6,7 +6,7 @@ import type { OnlineErrorCode, OnlineLeaderboard, OnlineState } from "@raceiq/on
 import { RaceIqOnlineProvider } from "../hooks/raceiq-online";
 import { OnlineSection } from "../components/settings/OnlineSection";
 import { Settings } from "../components/settings/Settings";
-import { OnlineCommunityLaps } from "../components/track/OnlineCommunityLaps";
+import { OnlineCommunityLaps } from "../components/online/OnlineCommunityLaps";
 import { setLocale, locales, type Locale } from "../paraglide/runtime";
 import { m } from "../paraglide/messages";
 import { connectedConsentRequiredUnavailableFixture, connectedServiceUnavailableFixture, consentRequiredFixture, createOnlineFixturePort, fixtureBoard, preferencesFailedFixture, preferencesWithoutProfileFixture, privateFixture, publicFixture, signedOutFixture, unavailableFixture } from "./raceiq-online-fixtures";

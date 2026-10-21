@@ -5,11 +5,11 @@ import { Info } from "lucide-react";
 import type { ReactNode } from "react";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { useUnits } from "../../hooks/useUnits";
-import { severityRangeColor, signedBalanceColor } from "../../lib/colors";
-import { frictionUtilColor, slipRatioColor, tireState, tireTempLabel } from "../../lib/vehicle-dynamics";
+import { severityRangeColor, signedBalanceColor } from "@raceiq/scene-3d/colors";
+import { frictionUtilColor, slipRatioColor, tireState, tireTempLabel } from "@raceiq/scene-3d/vehicle-dynamics";
 import { m } from "../../paraglide/messages";
 import { WheelTable } from "./WheelTable";
-import { semanticNumber, semanticWheelNumbers, type SemanticAnalysisFrame } from "./track-map/types";
+import { semanticNumber, semanticWheelNumbers, type SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import { Button } from "../ui/button";
 const number = (frame: SemanticAnalysisFrame, id: Parameters<typeof semanticNumber>[1]): number | null => {
   if (frame.states[id] === "missing") return null;

@@ -6,6 +6,7 @@ import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemet
 import { type DbAdapter, type WsAdapter, type SessionRecorderAdapter, RealDbAdapter, SparseSessionRecorderAdapter } from "./pipeline-ports";
 import { LiveTelemetryProjector } from "@raceiq/telemetry-core/telemetry/live-projector";
 import type { ILapDetector, LapDetectorCallbacks } from "../lap-detection/types";
+import { isPaceLap } from "@raceiq/shared/racing/lap-classification";
 import type { LapIndexPacket } from "@raceiq/shared/telemetry/lap-index";
 import { SectorTracker } from "../live-strategy/sector-tracker";
 import { PitTracker } from "../live-strategy/pit-tracker";
@@ -538,6 +539,13 @@ export class LiveTelemetryPipeline {
         const continuing = this._continuingSegment && previousSession?.sessionId === session.sessionId && previousSession.gameId === session.gameId;
         this._continuingSegment = false;
         if (!continuing) {
+          if (previousSession?.directCapture && this.recorder instanceof DirectSessionRecorderAdapter) {
+            while (this._retiringCaptures.size >= 2) {
+              const oldestRetirement = this._retiringCaptures.values().next().value;
+              if (!oldestRetirement) break;
+              await oldestRetirement;
+            }
+          }
           await withSessionCaptureMaintenanceLock(async () => {
             if (previousSession?.directCapture && this.recorder instanceof DirectSessionRecorderAdapter) {
               if (this._retiringCaptures.size >= 2) throw new Error("Direct recording finalization budget exhausted");
@@ -618,8 +626,10 @@ export class LiveTelemetryPipeline {
       },
 
       onLapComplete: (event) => {
-        if (event.isValid) {
+        if (event.isValid && isPaceLap(event.classification)) {
           this.sectorTracker.updateRefLap(event.packets, event.lapTime, event.sectors);
+        }
+        if (event.isValid) {
           // Update distance-based wear curves when enabled by the adapter.
           const session = this._lapDetector?.session ?? null;
           if (session && getServerGame(session.gameId).runtime.pit.useDistanceBasedWearCurves) {
@@ -642,6 +652,7 @@ export class LiveTelemetryPipeline {
           lapNumber: event.lapNumber,
           lapTime: event.lapTime,
           isValid: event.isValid,
+          classification: event.classification,
           createdAt: new Date().toISOString(),
           gameId: session.gameId,
           carId: session.carId,
@@ -1176,20 +1187,23 @@ export function setLiveIssuesEnabled(enabled: boolean): void {
   _default.setLiveIssuesEnabled(enabled);
 }
 
-// Periodic check: flush stale laps when packets stop (e.g. race ended, game
-// closed). `.unref()` so bun test's event loop can exit once the tests are
-// done — without it every test that transitively imports this module hangs
-// the runner waiting for a never-arriving interval tick.
-const _maintenanceInterval = setInterval(() => {
-  void _default.flushStaleSession().catch((error) => {
-    console.error("[Live Telemetry] Stale session finalization failed:", error);
-  });
-}, 5_000);
-_maintenanceInterval.unref?.();
+let _maintenanceInterval: NodeJS.Timeout | undefined;
 
-/** Stop the module-level maintenance interval. Call in test/bench contexts to allow clean exit. */
+/** Start only after runtime initialization; importing the pipeline must not start background work. */
+export function startMaintenanceTasks(): void {
+  if (_maintenanceInterval) return;
+  _maintenanceInterval = setInterval(() => {
+    void _default.flushStaleSession().catch((error) => {
+      console.error("[Live Telemetry] Stale session finalization failed:", error);
+    });
+  }, 5_000);
+  _maintenanceInterval.unref?.();
+}
+
+/** Stop the module-level maintenance interval. */
 export function stopMaintenanceTasks(): void {
   clearInterval(_maintenanceInterval);
+  _maintenanceInterval = undefined;
 }
 
 /** True while a session records or its capture files are still draining. */

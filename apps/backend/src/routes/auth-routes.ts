@@ -5,7 +5,7 @@ import { loadSettings, saveSettings } from "@raceiq/backend-core/runtime/config/
 import { withOnboardingOverride } from "@raceiq/backend-core/runtime/options";
 import { LOCALE_CODES } from "@raceiq/shared/platform/i18n/locales";
 import { AccessError, availableInterfaces, getDashboardAuth, NetworkSchema } from "../runtime/dashboard-auth";
-import { httpAccess } from "../runtime/http-access";
+import { getHttpAccess } from "../runtime/http-access";
 import { serverReleaseFeatures } from "@raceiq/backend-core/runtime/config/release-features";
 
 const ChoiceSchema = z.object({ password: z.string().max(1024).nullable(), exposureConfirmed: z.boolean(), language: z.enum(LOCALE_CODES as [string, ...string[]]).optional() });
@@ -30,6 +30,7 @@ export const authRoutes = new Hono()
     // and stall telemetry processing. Launch-on-login is unrelated to auth.
     const settings = withOnboardingOverride(loadSettings({ syncLaunchOnLogin: false }));
     const network = status.authenticated ? await auth.getNetwork() : null;
+    const httpAccess = getHttpAccess();
     return c.json({
       ...status,
       language: settings.language,

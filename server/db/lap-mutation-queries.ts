@@ -3,21 +3,21 @@ import { and, eq, or, sql } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps, lapGuidReconciliation, originalActivitySourceLaps, lapMetrics, lapAnalyses, compareAnalyses } from "./schema";
 import { createLapGuid } from "./lap-guid";
+import { withDatabaseWrite } from "./write-coordination";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
+import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
 import { getActiveExperiment } from "../experiments/active";
 import { resolveActiveTestId } from "./experiment-version-queries";
 
 export async function updateLapNotes(id: number, notes: string | null): Promise<void> {
-  await db.update(laps).set({ notes }).where(eq(laps.id, id)).run();
+  await withDatabaseWrite(() => db.update(laps).set({ notes }).where(eq(laps.id, id)).run());
 }
 
 
 export async function updateLapValidity(id: number, isValid: boolean, invalidReason: string | null, sectors?: number[] | null): Promise<void> {
   const values: Record<string, unknown> = { isValid, invalidReason };
-  if (sectors !== undefined) {
-    values.sectorTimes = sectors;
-  }
-  await db.update(laps).set(values).where(eq(laps.id, id)).run();
+  if (sectors !== undefined) values.sectorTimes = sectors;
+  await withDatabaseWrite(() => db.update(laps).set(values).where(eq(laps.id, id)).run());
 }
 
 /**
@@ -44,9 +44,10 @@ export function insertLap(
   tuneId: number | null = null,
   invalidReason: string | null = null,
   sectors: number[] | null = null,
+  classification: LapClassification | null = null,
   versionIdentity?: TelemetryVersionIdentity,
 ): Promise<number> {
-  return doInsertLap(sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity);
+  return withDatabaseWrite(() => doInsertLap(sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, classification, versionIdentity), undefined, "lap.insert");
 }
 
 async function doInsertLap(
@@ -59,7 +60,8 @@ async function doInsertLap(
   profileId: number | null,
   tuneId: number | null,
   invalidReason: string | null,
-  sectors: number[] | null = null,
+  sectors: number[] | null,
+  classification: LapClassification | null,
   versionIdentity?: TelemetryVersionIdentity,
 ): Promise<number> {
   // Stamp the lap with the active tuning session (if any). This is the single
@@ -86,6 +88,7 @@ async function doInsertLap(
         rawByteOffset,
         rawFrameCount,
         sectorTimes: sectors,
+        classification,
         profileId,
         tuneId,
         invalidReason,
@@ -114,9 +117,10 @@ export async function updateCapturedLap(
   lapId: number, sessionId: number, lapNumber: number, lapTime: number, isValid: boolean,
   rawByteOffset: number | null, rawFrameCount: number, profileId: number | null,
   tuneId: number | null, invalidReason: string | null, sectors: number[] | null,
+  classification: LapClassification | null,
   versionIdentity?: TelemetryVersionIdentity,
 ): Promise<number> {
-  await db.transaction(async (tx) => {
+  await withDatabaseWrite(() => db.transaction(async (tx) => {
     const previous = await tx.select({ sessionId: laps.sessionId, lapNumber: laps.lapNumber,
       rawByteOffset: laps.rawByteOffset, rawFrameCount: laps.rawFrameCount, isValid: laps.isValid })
       .from(laps).where(eq(laps.id, lapId)).get();
@@ -124,7 +128,7 @@ export async function updateCapturedLap(
         previous.rawByteOffset !== rawByteOffset || previous.isValid ||
         rawFrameCount < (previous.rawFrameCount ?? 0)) throw new Error("Provisional lap source window changed");
     const updated = await tx.update(laps).set({
-      lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectorTimes: sectors,
+      lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectorTimes: sectors, classification,
       fuelPerLap: null, tyreWear: null, captureChunkId: null, sourceFrameStart: null, sourceFrameCount: null,
       driverAttribution: "Unknown", driverAttributionStints: null,
       sourceClockDomain: null, sourceLapStartMs: null, sourceLapEndMs: null, ...versionIdentity,
@@ -134,12 +138,12 @@ export async function updateCapturedLap(
     await tx.delete(lapMetrics).where(eq(lapMetrics.lapId, lapId));
     await tx.delete(lapAnalyses).where(eq(lapAnalyses.lapId, lapId));
     await tx.delete(compareAnalyses).where(or(eq(compareAnalyses.lapAId, lapId), eq(compareAnalyses.lapBId, lapId)));
-  });
+  }));
   cacheDelete(lapId);
   return lapId;
 }
 export async function updateLapCarSetup(lapId: number, carSetup: object | null): Promise<void> {
-  await db.update(laps).set({ carSetup: carSetup ? JSON.stringify(carSetup) : null }).where(eq(laps.id, lapId)).run();
+  await withDatabaseWrite(() => db.update(laps).set({ carSetup: carSetup ? JSON.stringify(carSetup) : null }).where(eq(laps.id, lapId)).run());
 }
 
 /**
@@ -155,13 +159,13 @@ export async function updateLapCarSetup(lapId: number, carSetup: object | null):
  */
 
 export async function setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void> {
-  await db.update(laps).set({ fuelPerLap, tyreWear }).where(eq(laps.id, lapId)).run();
+  await withDatabaseWrite(() => db.update(laps).set({ fuelPerLap, tyreWear }).where(eq(laps.id, lapId)).run());
 }
 
 
 /** Delete one transient lap row without deleting its still-active parent session. */
 export async function deleteLapOnly(id: number): Promise<void> {
-  await db.delete(laps).where(eq(laps.id, id)).run();
+  await withDatabaseWrite(() => db.delete(laps).where(eq(laps.id, id)).run());
   cacheDelete(id);
 }
 
@@ -171,14 +175,16 @@ export async function deleteLap(id: number): Promise<boolean> {
     WHERE s.id = ${laps.sessionId}
       AND (s.ownership = 'mine' OR (s.ownership = 'others' AND s.cloud_import_origin IS NOT NULL))
   )`;
-  const lap = await db.select({ sessionId: laps.sessionId }).from(laps)
-    .where(and(eq(laps.id, id), visibility)).get();
-  if (!lap) return false;
-  const result = await db.delete(laps).where(and(eq(laps.id, id), visibility)).returning().all();
-  if (result.length > 0) {
-    cacheDelete(id);
-    const remaining = await db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, lap.sessionId)).limit(1).all();
-    if (remaining.length === 0) await db.delete(sessions).where(eq(sessions.id, lap.sessionId)).run();
-  }
-  return result.length > 0;
+  const deleted = await withDatabaseWrite(() => db.transaction(async (tx) => {
+    const lap = await tx.select({ sessionId: laps.sessionId }).from(laps)
+      .where(and(eq(laps.id, id), visibility)).get();
+    if (!lap) return false;
+    const result = await tx.delete(laps).where(and(eq(laps.id, id), visibility)).returning().all();
+    if (!result.length) return false;
+    const remaining = await tx.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, lap.sessionId)).limit(1).all();
+    if (!remaining.length) await tx.delete(sessions).where(eq(sessions.id, lap.sessionId)).run();
+    return true;
+  }));
+  if (deleted) cacheDelete(id);
+  return deleted;
 }

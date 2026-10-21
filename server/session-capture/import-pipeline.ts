@@ -1,3 +1,4 @@
+import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
 import { beginRecordingStorageImport } from "./storage-activity";
 import { existsSync, unlinkSync } from "node:fs";
 import type { GameId } from "@raceiq/shared/games/ids";
@@ -28,6 +29,7 @@ export interface ImportedLap {
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
+  classification: LapClassification | null;
   carId: string;
   trackId: string;
 }
@@ -129,11 +131,12 @@ export class ImportCaptureAdapter implements DbAdapter {
     tuneId: number | null,
     invalidReason: string | null,
     sectors: number[] | null,
+    classification: LapClassification | null,
     versionIdentity?: TelemetryVersionIdentity,
     driverAttribution?: CapturedDriverAttribution,
   ): Promise<number> {
     const pending = this._inner.insertLap(
-      sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity, driverAttribution
+      sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, classification, versionIdentity, driverAttribution
     ).then((id) => {
       const meta = this._sessionMeta.get(sessionId);
       this.laps.push({
@@ -142,6 +145,7 @@ export class ImportCaptureAdapter implements DbAdapter {
         lapNumber,
         lapTime,
         isValid,
+        classification,
         carId: meta?.carId ?? "",
         trackId: meta?.trackId ?? "",
       });
@@ -161,15 +165,16 @@ export class ImportCaptureAdapter implements DbAdapter {
   completeProvisionalLap(
     lapId: number, sessionId: number, lapNumber: number, lapTime: number, isValid: boolean,
     rawByteOffset: number | null, rawFrameCount: number, profileId: number | null, tuneId: number | null,
-    invalidReason: string | null, sectors: number[] | null, versionIdentity?: TelemetryVersionIdentity,
+    invalidReason: string | null, sectors: number[] | null, classification: LapClassification | null, versionIdentity?: TelemetryVersionIdentity,
     driverAttribution?: CapturedDriverAttribution,
   ): Promise<number> {
     const pending = this._inner.completeProvisionalLap(lapId, sessionId, lapNumber, lapTime, isValid,
-      rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity, driverAttribution).then((id) => {
+      rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, classification, versionIdentity, driverAttribution).then((id) => {
       const imported = this.laps.find((lap) => lap.lapId === id);
       if (!imported) throw new Error("Retained imported provisional lap is missing");
       imported.lapTime = lapTime;
       imported.isValid = isValid;
+      imported.classification = classification;
       return id;
     });
     this._pendingLapWrites.add(pending);

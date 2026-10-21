@@ -1,4 +1,5 @@
 import type { DriverAttributionStint, DriverDurationAttribution } from "@raceiq/shared/driver-attribution";
+import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
 
 /** Coordinates refer to this exact uncompressed sparse capture, never another representation. */
 export interface PortableLapIdentity {
@@ -8,6 +9,8 @@ export interface PortableLapIdentity {
   lapTime: number;
   isValid: boolean;
   invalidReason: string | null;
+  /** Older portable archives omit classification; absence remains unknown. */
+  classification?: LapClassification | null;
   rawByteOffset: number;
   rawFrameCount: number;
   /** Only the explicit final completion frame may overlap the next lap's owned span. */

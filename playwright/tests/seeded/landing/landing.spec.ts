@@ -27,10 +27,20 @@ test("global landing cards, period filters, and recent sessions navigate", async
   await expect(fmRow).toBeVisible();
   await fmRow.click();
   await expect(page).toHaveURL(/\/(fm23|f125|acc|ac-evo|iracing|lmu)\/sessions\/\d+\/analyse(?:\?|$)/);
-  await expect(page.getByRole("button", { name: /^Laps: \d+ · Primary: Lap \d+$/ })).toBeVisible();
-  await page.getByRole("button", { name: /^Analyse lap \d+$/ }).click();
-  await expect(page).toHaveURL(/\/(fm23|f125|acc|ac-evo|iracing|lmu)\/sessions\/\d+\/replay\/\d+(?:\?|$)/);
-  await expect(page.getByRole("heading", { name: "Metrics at Cursor" })).toBeVisible({ timeout: 20_000 });
+  const sessionId = Number(new URL(page.url()).pathname.match(/\/sessions\/(\d+)\/analyse$/)?.[1]);
+  expect(sessionId, "recent session destination ID").toBeGreaterThan(0);
+  const reviewResponse = await page.request.get(`/api/laps/review?gameId=fm-2023&sessionId=${sessionId}&limit=5`);
+  expect(reviewResponse.ok()).toBe(true);
+  const reviewLaps = await reviewResponse.json() as Array<{ id: number; lapNumber: number }>;
+  if (reviewLaps.length === 0) {
+    await expect(page.getByText("No valid laps are available for review.", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Back to Sessions", exact: true })).toBeVisible();
+  } else {
+    await expect(page.getByRole("button", { name: /^Laps: \d+ · Primary: Lap \d+$/ })).toBeVisible();
+    await page.getByRole("button", { name: `Analyse lap ${reviewLaps[0].lapNumber}`, exact: true }).click();
+    await expect(page).toHaveURL(/\/(fm23|f125|acc|ac-evo|iracing|lmu)\/sessions\/\d+\/replay\/\d+(?:\?|$)/);
+    await expect(page.getByRole("heading", { name: "Metrics at Cursor" })).toBeVisible({ timeout: 20_000 });
+  }
   expect(browserErrors.errors, "unexpected browser errors in landing flow").toEqual([]);
 });
 
@@ -49,12 +59,16 @@ for (const game of SEEDED_GAME_CASES) {
     expect(latestSession!.gameId).toBe(game.gameId);
     expect(latestSession!.lapCount).toBeGreaterThan(0);
 
+    const reviewResponse = await request.get(`/api/laps/review?gameId=${game.gameId}&sessionId=${latestSession!.id}&limit=5`);
+    expect(reviewResponse.ok()).toBe(true);
+    const reviewLaps = await reviewResponse.json() as Array<{ id: number; lapNumber: number }>;
+    const eligibleLapIds = new Set(reviewLaps.map((lap) => lap.id));
     const recapResponse = await request.get(`/api/dashboard/sessions/${latestSession!.id}/recap`, {
       headers: { "X-Game-Id": game.gameId },
     });
     expect(recapResponse.ok(), `${game.gameId} current dashboard recap`).toBe(true);
     const recap = await recapResponse.json() as SessionRecap;
-    const validLaps = recap.sparkline.filter((lap) => lap.isValid && lap.lapTimeSec > 0);
+    const validLaps = recap.sparkline.filter((lap) => lap.isValid && lap.lapTimeSec > 0 && eligibleLapIds.has(lap.lapId));
     if (validLaps.length > 0) {
       expect(recap.bestLapId, `${game.gameId} recap best lap id`).not.toBeNull();
       expect(recap.bestLapSec, `${game.gameId} recap best lap time`).toBeGreaterThan(0);
@@ -68,12 +82,20 @@ for (const game of SEEDED_GAME_CASES) {
     await expect(latestSessionAction).toBeVisible();
     await latestSessionAction.click();
     await expect(page).toHaveURL(new RegExp(`/${game.prefix}/sessions/${latestSession!.id}/analyse(?:\\?|$)`));
-    await expect(page.getByRole("button", { name: /^Laps: \d+ · Primary: Lap \d+$/ })).toBeVisible();
-    const targetLap = recap.bestLapId == null ? recap.sparkline[0] : recap.sparkline.find((lap) => lap.lapId === recap.bestLapId);
-    expect(targetLap, `${game.gameId} recap lap available in session`).toBeDefined();
-    await page.getByRole("button", { name: `Analyse lap ${targetLap!.lapNumber}`, exact: true }).click();
-    await expect(page).toHaveURL(new RegExp(`/${game.prefix}/sessions/${latestSession!.id}/replay/${targetLap!.lapId}(?:\\?|$)`));
-    await expect(page.getByRole("heading", { name: "Metrics at Cursor" })).toBeVisible({ timeout: 20_000 });
+    if (reviewLaps.length === 0) {
+      const inventoryResponse = await request.get(`/api/laps?gameId=${game.gameId}`);
+      expect(inventoryResponse.ok()).toBe(true);
+      const inventory = await inventoryResponse.json() as Array<{ id: number; sessionId: number }>;
+      expect(inventory.some((lap) => lap.sessionId === latestSession!.id), `${game.gameId} session inventory remains available`).toBe(true);
+      await expect(page.getByText("No valid laps are available for review.", { exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Back to Sessions", exact: true })).toBeVisible();
+    } else {
+      await expect(page.getByRole("button", { name: /^Laps: \d+ · Primary: Lap \d+$/ })).toBeVisible();
+      const targetLap = reviewLaps[0];
+      await page.getByRole("button", { name: `Analyse lap ${targetLap.lapNumber}`, exact: true }).click();
+      await expect(page).toHaveURL(new RegExp(`/${game.prefix}/sessions/${latestSession!.id}/replay/${targetLap.id}(?:\\?|$)`));
+      await expect(page.getByRole("heading", { name: "Metrics at Cursor" })).toBeVisible({ timeout: 20_000 });
+    }
     expect(browserErrors.errors, `unexpected browser errors on ${game.prefix} dashboard`).toEqual([]);
   });
 }

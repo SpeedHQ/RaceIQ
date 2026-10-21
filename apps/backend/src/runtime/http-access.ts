@@ -1,7 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { isIP } from "node:net";
 import { networkInterfaces } from "node:os";
-import type { DashboardAuth } from "./dashboard-auth";
+import type { DashboardAuth, DashboardNetwork } from "./dashboard-auth";
 
 const sharedAuthorizationRequests = new WeakSet<Request>();
 const sharedAuthorizationCache = new WeakMap<Request, Promise<Response | undefined>>();
@@ -15,8 +15,12 @@ export function endRequestAuthorization(request: Request): void {
   sharedAuthorizationCache.delete(request);
 }
 
-export async function createHttpAccess(env: NodeJS.ProcessEnv = process.env, auth?: DashboardAuth) {
+export async function createHttpAccess(env: NodeJS.ProcessEnv = process.env, auth?: DashboardAuth): Promise<HttpAccess> {
   const network = auth ? await auth.getNetwork() : undefined;
+  return createHttpAccessPolicy(env, auth, network);
+}
+
+function createHttpAccessPolicy(env: NodeJS.ProcessEnv, auth?: DashboardAuth, network?: DashboardNetwork): HttpAccess {
   // Preserve Bun's existing all-interface listener for upgrades, including Docker.
   const hosts = env.SERVER_HOST ? [env.SERVER_HOST] : (network?.hosts ?? ["0.0.0.0"]);
   const hostname = hosts[0];
@@ -178,7 +182,10 @@ export interface HttpAccess {
   allowsOrigin(origin: string, request: Request): boolean;
   usesSessions: boolean;
 }
-export let httpAccess: HttpAccess = await createHttpAccess();
+let httpAccess: HttpAccess | undefined;
+export function getHttpAccess(): HttpAccess {
+  return httpAccess ??= createHttpAccessPolicy(process.env);
+}
 export async function configureHttpAccess(auth: DashboardAuth, port = Number(process.env.SERVER_PORT) || 3117) {
   httpAccess = await createHttpAccess({ ...process.env, SERVER_PORT: String(port) }, auth);
 }

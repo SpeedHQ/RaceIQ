@@ -1,21 +1,26 @@
-import { stat } from "node:fs/promises";
+import { access, stat } from "node:fs/promises";
+import { join } from "node:path";
+import { createHash } from "node:crypto";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { TrackConditions } from "../ai/track-conditions";
 import { getServerGame } from "../games/registry";
-import { client } from "../db/index";
+import { client, readClient } from "../db/index";
 import {
   DASHBOARD_PROCESSOR_VERSION,
   prepareDashboardPublicationCandidate,
   publishDashboardSession,
   type DashboardCaptureFacts,
   type DashboardPublicationCandidate,
+  type DashboardPublicationHooks,
 } from "../db/dashboard-summary-queries";
+import { withDatabaseWrite } from "../db/write-coordination";
 import { PARSER_BOOTSTRAP_VERSION } from "@raceiq/capture-formats/session/framing";
 import { iterateSessionCaptureRecordsFromSource, type SessionCaptureSource } from "./source-loader";
 import { DashboardCaptureObservation } from "./dashboard-observation";
 import { dashboardStints, dashboardDurationAttribution } from "../driver-summary/dashboard-input";
 import { getNativeSourceClock } from "../lap-detection/native-attribution";
 import { readVerifiedPortableOriginalDuration } from "../db/original-activity-queries";
+import { hasTerminalMigrationCaptureFailure } from "./classification-migration";
 
 const BATCH_SIZE = 25;
 const checkpointYield = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
@@ -80,7 +85,7 @@ export async function republishPersistedDashboardCaptureFacts(sessionIds: readon
     const candidate = await prepareDashboardPublicationCandidate(sessionId);
     if (!candidate || !candidate.captureDirty || candidate.deleted || !candidate.session || !candidate.session.raw_file
       || candidate.sourceRevision !== candidate.publishedRevision + 1) return false;
-    const result = await client.execute({ sql: "SELECT * FROM dashboard_session_summaries WHERE session_id=?", args: [sessionId] });
+    const result = await readClient.execute({ sql: "SELECT * FROM dashboard_session_summaries WHERE session_id=?", args: [sessionId] });
     const row = result.rows[0];
     if (!row) return false;
     const durationStatus = row.duration_status === "available" || row.duration_status === "unavailable" ? row.duration_status : null;
@@ -143,8 +148,20 @@ async function readCaptureFacts(candidate: DashboardPublicationCandidate): Promi
   let parserState = game.createParserState();
   const observation = new DashboardCaptureObservation(source.gameId, source.trackId);
   const stints = dashboardStints(session.driver_attribution_stints);
+  const captureHasher = createHash("sha256");
   let inContext = false;
-  for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: true })) {
+  try {
+  for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: true, allowLegacyFullFrames: true })) {
+    captureHasher.update(record.kind);
+    if (record.kind === "frame") {
+      captureHasher.update(record.frame);
+      captureHasher.update(String(record.frameTimeMs ?? ""));
+    }
+    if (record.kind === "parser-bootstrap") {
+      captureHasher.update(record.gameId);
+      captureHasher.update(String(record.formatVersion));
+      captureHasher.update(record.payload);
+    }
     if (record.kind === "segment-boundary") {
       observation.finishSegment(); parserState = game.createParserState(); continue;
     }
@@ -168,41 +185,48 @@ async function readCaptureFacts(candidate: DashboardPublicationCandidate): Promi
     observation.observe(packet, record.frame, record.frameTimeMs,
       clock ? { sessionId: clock.sessionId, clockDomain: clock.domain, sourceTimeMs: clock.atMs, stints } : undefined);
   }
+  } catch (error) {
+    if (await hasTerminalMigrationCaptureFailure(candidate.sessionId)) return unavailableCapture(candidate);
+    throw error;
+  }
+  const fingerprint = captureHasher.digest("hex");
   const finalStat = await stat(source.rawFile).catch(() => null);
   if (!finalStat || finalStat.size !== initialStat.size || finalStat.mtimeMs !== initialStat.mtimeMs) throw new Error("Capture changed during dashboard processing");
-  return { ...observation.toFacts(), sourceRevision: candidate.sourceRevision };
+  return { ...observation.toFacts(), sourceRevision: candidate.sourceRevision,
+    captureRevision: `${fingerprint}:${DASHBOARD_PROCESSOR_VERSION}` };
 }
 
 async function selectNextSession(lastSessionId: number): Promise<number | null> {
-  const result = await client.execute({ sql: `SELECT s.id FROM sessions s LEFT JOIN dashboard_summary_state st ON st.session_id=s.id
+  const result = await readClient.execute({ sql: `SELECT s.id FROM sessions s LEFT JOIN dashboard_summary_state st ON st.session_id=s.id
     LEFT JOIN dashboard_session_summaries p ON p.session_id=s.id
     WHERE s.ownership='mine' AND s.id>? AND (st.session_id IS NULL OR ((st.processor_version!=? OR st.metadata_dirty=1 OR (st.capture_dirty=1 AND st.capture_ready=1) OR p.session_id IS NULL OR (st.published_revision!=st.source_revision AND (st.capture_dirty=0 OR st.capture_ready=1))) AND (st.next_retry_at IS NULL OR st.next_retry_at<=datetime('now'))))
     ORDER BY s.id LIMIT 1`, args: [lastSessionId, DASHBOARD_PROCESSOR_VERSION] });
   return result.rows.length ? Number((result.rows[0] as Record<string, unknown>).id) : null;
 }
 
-async function rememberBackfillCursor(id: number): Promise<void> {
-  await client.execute({ sql: `UPDATE dashboard_backfill_cursor SET last_session_id=?,updated_at=datetime('now') WHERE id=1`, args: [id] });
+async function rememberBackfillCursor(id: number, signal?: AbortSignal): Promise<void> {
+  await withDatabaseWrite(() => client.execute({ sql: `UPDATE dashboard_backfill_cursor SET last_session_id=?,updated_at=datetime('now') WHERE id=1`, args: [id] }), signal);
 }
 
-async function resetBackfillCursor(): Promise<void> {
-  await client.execute({ sql: `UPDATE dashboard_backfill_cursor SET last_session_id=0,updated_at=datetime('now') WHERE id=1` });
+async function resetBackfillCursor(signal?: AbortSignal): Promise<void> {
+  await withDatabaseWrite(() => client.execute({ sql: `UPDATE dashboard_backfill_cursor SET last_session_id=0,updated_at=datetime('now') WHERE id=1` }), signal);
 }
 
-export async function processDashboardSession(id: number): Promise<boolean> {
+export async function processDashboardSession(id: number, hooks: DashboardPublicationHooks = {}): Promise<boolean> {
   let candidate = await prepareDashboardPublicationCandidate(id);
   if (!candidate) return false;
-  if (candidate.deleted || !candidate.session) return publishDashboardSession(candidate);
+  if (candidate.deleted || !candidate.session) return publishDashboardSession(candidate, undefined, {}, hooks);
   if (candidate.metadataDirty || candidate.publishedRevision !== candidate.sourceRevision) {
-    if (!await publishDashboardSession(candidate, undefined, { metadataOnly: true })) return false;
+    if (!await publishDashboardSession(candidate, undefined, { metadataOnly: true }, hooks)) return false;
     candidate = await prepareDashboardPublicationCandidate(id);
     if (!candidate) return false;
   }
   if (!candidate.captureDirty || !candidate.captureReady) return true;
   const evidence = await withVerifiedOriginalDuration(id, await readCaptureFacts(candidate));
   const afterRead = await prepareDashboardPublicationCandidate(id);
-  if (!afterRead || afterRead.sourceRevision !== evidence.sourceRevision || !afterRead.captureReady) return false;
-  return publishDashboardSession(afterRead, evidence);
+  if (!afterRead || afterRead.sourceRevision !== evidence.sourceRevision || !afterRead.captureReady
+    || afterRead.publicationBaseline !== candidate.publicationBaseline) return false;
+  return publishDashboardSession(afterRead, evidence, {}, hooks);
 }
 
 export type DashboardCheckpointExecutor = Pick<typeof client, "execute">;
@@ -212,60 +236,90 @@ export async function markDashboardCaptureCheckpoint(
   finalized = false,
   executor: DashboardCheckpointExecutor = client,
 ): Promise<void> {
-  await executor.execute({ sql: `INSERT INTO dashboard_summary_state(session_id,source_revision,capture_dirty,metadata_dirty,capture_ready)
+  await withDatabaseWrite(() => executor.execute({ sql: `INSERT INTO dashboard_summary_state(session_id,source_revision,capture_dirty,metadata_dirty,capture_ready)
     SELECT s.id,1,1,0,? FROM sessions s
     WHERE s.ownership='mine' AND (s.id=? OR s.raw_file=(SELECT raw_file FROM sessions WHERE id=? AND raw_file IS NOT NULL))
     ON CONFLICT(session_id) DO UPDATE SET source_revision=source_revision+1,capture_dirty=1,capture_ready=excluded.capture_ready,updated_at=datetime('now')`,
-    args: [finalized ? 1 : 0, sessionId, sessionId] });
+    args: [finalized ? 1 : 0, sessionId, sessionId] }));
 }
 export async function releaseDashboardCaptureCheckpoint(sessionId: number): Promise<void> {
-  await client.execute({ sql: `UPDATE dashboard_summary_state SET capture_ready=1,updated_at=datetime('now')
-    WHERE session_id=? AND capture_dirty=1 AND deleted=0`, args: [sessionId] });
+  await withDatabaseWrite(() => client.execute({ sql: `UPDATE dashboard_summary_state SET capture_ready=1,updated_at=datetime('now')
+    WHERE session_id=? AND capture_dirty=1 AND deleted=0`, args: [sessionId] }));
 }
-async function recordProcessingFailure(sessionId: number): Promise<void> {
-  await client.execute({ sql: `UPDATE dashboard_summary_state SET retry_count=retry_count+1,
+async function recordProcessingFailure(sessionId: number, signal?: AbortSignal): Promise<void> {
+  await withDatabaseWrite(() => client.execute({ sql: `UPDATE dashboard_summary_state SET retry_count=retry_count+1,
     next_retry_at=datetime('now','+' || MIN(300, (1 << MIN(retry_count, 8))) || ' seconds'),
-    last_error_code='dashboard_processing_failed',updated_at=datetime('now') WHERE session_id=?`, args: [sessionId] });
+    last_error_code='dashboard_processing_failed',updated_at=datetime('now') WHERE session_id=?`, args: [sessionId] }), signal);
+}
+async function waitForClassificationAggregateTestBarrier(signal: AbortSignal): Promise<void> {
+  if (process.env.RACEIQ_E2E !== "1" ||
+    process.env.RACEIQ_CLASSIFICATION_TEST_BARRIER !== "afterCommitBeforeAggregates") return;
+  const dir = process.env.RACEIQ_CLASSIFICATION_TEST_BARRIER_DIR;
+  if (!dir) return;
+  while (!signal.aborted) {
+    try {
+      await access(join(dir, "afterCommitBeforeAggregates.release"));
+      return;
+    } catch {
+      await new Promise<void>((resolve) => setTimeout(resolve, 20));
+    }
+  }
 }
 
 export interface DashboardProcessorHandle { stop(): Promise<void>; }
 
-export function startDashboardProcessor(options: { signal?: AbortSignal; idleMs?: number } = {}): DashboardProcessorHandle {
+export function startDashboardProcessor(options: { signal?: AbortSignal; idleMs?: number; publicationHooks?: DashboardPublicationHooks } = {}): DashboardProcessorHandle {
   const controller = new AbortController();
-  const signal = options.signal ?? controller.signal;
+  const signal = options.signal ? AbortSignal.any([options.signal, controller.signal]) : controller.signal;
   let stopped = false;
+  let stopPromise: Promise<void> | null = null;
+  const wait = (milliseconds: number) => new Promise<void>((resolve) => {
+    if (signal.aborted) { resolve(); return; }
+    const finish = () => { clearTimeout(timer); signal.removeEventListener("abort", finish); resolve(); };
+    const timer = setTimeout(finish, milliseconds);
+    signal.addEventListener("abort", finish, { once: true });
+  });
   const run = async () => {
-    const cursorRow = await client.execute({ sql: "SELECT last_session_id FROM dashboard_backfill_cursor WHERE id=1" });
+    const cursorRow = await readClient.execute({ sql: "SELECT last_session_id FROM dashboard_backfill_cursor WHERE id=1" });
     let cursor = Number((cursorRow.rows[0] as Record<string, unknown> | undefined)?.last_session_id ?? 0);
     let visited = 0;
     let workSessionId: number | null = null;
     while (!stopped && !signal.aborted) {
+      await waitForClassificationAggregateTestBarrier(signal);
       try {
         let id = await selectNextSession(cursor);
         if (id === null) {
-          if (cursor !== 0) { await resetBackfillCursor(); cursor = 0; visited = 0; }
-          const queued = await client.execute({ sql: `SELECT session_id FROM dashboard_summary_state
+          if (cursor !== 0) { await resetBackfillCursor(signal); cursor = 0; visited = 0; }
+          const queued = await readClient.execute({ sql: `SELECT session_id FROM dashboard_summary_state
             WHERE (metadata_dirty=1 OR (capture_dirty=1 AND capture_ready=1) OR (published_revision!=source_revision AND (capture_dirty=0 OR capture_ready=1)))
               AND (next_retry_at IS NULL OR next_retry_at<=datetime('now')) ORDER BY session_id LIMIT 1` });
           if (queued.rows.length) id = Number((queued.rows[0] as Record<string, unknown>).session_id);
-          else { await new Promise((resolve) => setTimeout(resolve, options.idleMs ?? 1000)); continue; }
+          else { await wait(options.idleMs ?? 1000); continue; }
         }
+        if (stopped || signal.aborted) break;
         workSessionId = id;
         cursor = id;
-        await rememberBackfillCursor(id);
-        await processDashboardSession(id);
+        await rememberBackfillCursor(id, signal);
+        await processDashboardSession(id, { ...options.publicationHooks, signal });
         visited++;
         if (visited % BATCH_SIZE === 0) await checkpointYield();
       } catch (error) {
+        if (stopped || signal.aborted) break;
         console.error("[DashboardProcessor] Session processing failed:", error);
         if (workSessionId !== null) {
-          await recordProcessingFailure(workSessionId).catch((recordError) => console.error("[DashboardProcessor] Failed to persist retry state:", recordError));
+          await recordProcessingFailure(workSessionId, signal).catch((recordError) => { if (!signal.aborted) console.error("[DashboardProcessor] Failed to persist retry state:", recordError); });
           workSessionId = null;
         }
-        await new Promise((resolve) => setTimeout(resolve, Math.min(30_000, 1000 * Math.max(1, visited))));
+        await wait(Math.min(30_000, 1000 * Math.max(1, visited)));
       }
     }
   };
   const done = run();
-  return { async stop() { if (stopped) return; stopped = true; if (!options.signal) controller.abort(); await done; } };
+  return { stop() {
+    if (stopPromise) return stopPromise;
+    stopped = true;
+    controller.abort();
+    stopPromise = done;
+    return stopPromise;
+  } };
 }

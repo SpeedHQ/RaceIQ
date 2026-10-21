@@ -86,6 +86,7 @@ test("native capture snapshots installation owner and persists lap identity", as
       lapNumber: 1,
       lapTime: 73.125,
       isValid: false,
+      classification: null,
       isFavorite: false,
       rawByteOffset: null,
       rawFrameCount: 0,

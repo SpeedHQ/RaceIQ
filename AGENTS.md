@@ -39,6 +39,10 @@ Always run `bun run typecheck` before handing work back to user as complete.
 
 Before adding, changing, debugging, or reviewing Effect-based code, read [Working with Effect](docs/contributing/effect.md) and the relevant [Effect Solutions](https://www.effect.solutions/quick-start) topics. Target the repository's pinned Effect v4 APIs; verify version-specific behavior against upstream references and preserve existing subsystem boundaries.
 
+## Cross-layer implementation plans
+
+When a feature plan includes both UI and backend changes, split implementation into separate UI and backend plans so the work can proceed in parallel. Both plans MUST reference the same agreed contract Markdown document defining their shared API and data behavior. Agree on that contract before implementation; make each plan's dependencies and acceptance criteria explicit against it.
+
 ## Commands
 
 ```bash
@@ -405,6 +409,8 @@ When creating or updating a pull request:
 5. Do not list files in the PR description. Describe behavior, motivation, risk, and verification instead.
 
 ### Pull Request Changelog
+
+Read and follow the [update-release-notes skill](.agents/skills/update-release-notes/SKILL.md) before writing or updating PR changelog entries.
 
 Classify each change before editing `CHANGELOG.md`:
 - **Customer-facing behavior** — add concise user-facing bullet under `## Unreleased` in `### Breaking`, `### Features`, or `### Fixes`.

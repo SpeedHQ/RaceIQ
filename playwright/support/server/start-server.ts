@@ -24,7 +24,10 @@ const dir = process.env.DATA_DIR ? resolve(process.env.DATA_DIR) : resolve(repoD
 const udpPort = Number(process.env.UDP_PORT ?? 15318);
 const binaryName = process.platform === "win32" ? "raceiq.exe" : "raceiq";
 const distDir = resolve(repoDir, "dist");
-const binary = resolve(distDir, binaryName);
+const binary = process.env.PW_COMPILED_BINARY ? resolve(process.env.PW_COMPILED_BINARY) : resolve(distDir, binaryName);
+if (process.env.PW_COMPILED_BINARY && !process.env.PW_COMPILED_BINARY.startsWith("/")) {
+  throw new Error("PW_COMPILED_BINARY must be an absolute path");
+}
 
 if (!existsSync(binary)) {
   throw new Error(`Compiled E2E server binary not found at "${binary}". Run "bun run build" first.`);
@@ -43,7 +46,7 @@ if (access.status !== 0) throw new Error("Failed to initialize dashboard access 
 // installed layout, where raceiq.exe sits next to node_modules/.
 const child = spawn(binary, {
   stdio: "inherit",
-  cwd: distDir,
+  cwd: process.env.PW_COMPILED_BINARY ? resolve(binary, "..") : distDir,
   env: { ...process.env, RACEIQ_APP_ROOT: repoDir },
 });
 

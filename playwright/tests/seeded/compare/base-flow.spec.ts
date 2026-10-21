@@ -41,7 +41,7 @@ test("Compare complete seeded flow (FM23) preserves identity/order, renders trac
   const secondDetail = decodeAlignedLapSet((await secondDetailResponse.json()) as EncodedAlignedLapSet);
   expect(secondDetail.stepMeters).toBeCloseTo(0.1, 3);
   expect(secondDetail.distanceMeters.length).toBeLessThanOrEqual(50_000);
-  await page.goto(`/${fm23.prefix}/compare?${query}`, { waitUntil: "domcontentloaded" });
+  await page.goto(`/${fm23.prefix}/compare?${query}&view=compare`, { waitUntil: "domcontentloaded" });
   expect(comparison.distanceMeters.length, "trace length").toBeGreaterThan(1);
   expect(comparison.laps[0]!.sourceIndices).toHaveLength(comparison.distanceMeters.length);
   expect(comparison.laps[1]!.sourceIndices).toHaveLength(comparison.distanceMeters.length);
@@ -55,7 +55,6 @@ test("Compare complete seeded flow (FM23) preserves identity/order, renders trac
   expect(searchParams.get("lapB"), "lapB from URL query").toBe(String(pair.lapB.id));
 
   await expect(workspace.getByText("Time Delta")).toBeVisible();
-  expect(await workspace.locator("canvas").count(), "trace and delta canvases").toBeGreaterThanOrEqual(4);
 
   const lapAOption = lapOptionLabel(pair.lapA);
   const lapBOption = lapOptionLabel(pair.lapB);

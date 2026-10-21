@@ -1,13 +1,15 @@
-import { createClient as createSqliteClient, type Client, type Transaction } from "@libsql/client/sqlite3";
+import { createClient as createSqliteClient, type Client } from "@libsql/client/sqlite3";
 import { drizzle } from "drizzle-orm/libsql";
 import * as schema from "./schema";
-import { migrations } from "./migrations";
+import { migrations, migrationHistoryRelocations } from "./migrations";
 import { pendingMigrations, relocateMigrationHistory } from "./migration-plan";
 import { existsSync, mkdirSync, renameSync } from "node:fs";
 import { join } from "node:path";
+import { isMainThread } from "node:worker_threads";
 import { resolveDataDir } from "../runtime/config/data-dir";
 import { assertDashboardDatabasePresent } from "../runtime/config/dashboard-access-state";
 import { backfillLapGuids } from "./lap-guid";
+import { createDatabaseWorkerClient, installDatabaseWriteAuthority, withDatabaseWrite } from "./write-coordination";
 
 // Always resolve the data dir, even when the DB itself lives in memory: the
 // call doubles as the safety net that throws if a test run somehow reaches
@@ -55,96 +57,27 @@ if (!IN_MEMORY && process.env.RACEIQ_TEST_MODE !== "1") {
   migrateLegacyDatabase();
 }
 
-// The local driver executes synchronously. A second connection's busy wait
-// blocks the JS continuation that must commit the first transaction. Keep
-// this client's operations ordered, holding its slot for the entire transaction.
-// Independent worker clients still coordinate through SQLite's busy timeout.
-function serializeClient(nativeClient: Client): Client {
-  let tail: Promise<void> = Promise.resolve();
-  const enqueue = <T>(operation: () => Promise<T>): Promise<T> => {
-    const result = tail.then(operation);
-    tail = result.then(() => undefined, () => undefined);
-    return result;
-  };
-  return new Proxy(nativeClient, {
-    get(target, property) {
-      if (property === "execute" || property === "batch" || property === "executeMultiple" || property === "migrate") {
-        const method = Reflect.get(target, property, target) as (...args: unknown[]) => Promise<unknown>;
-        return (...args: unknown[]) => enqueue(() => method.apply(target, args));
-      }
-      if (property === "transaction") {
-        const begin = target.transaction.bind(target);
-        return (...args: Parameters<Client["transaction"]>) => {
-          let expose!: (tx: Transaction) => void;
-          let reject!: (error: unknown) => void;
-          const exposed = new Promise<Transaction>((resolve, fail) => { expose = resolve; reject = fail; });
-          const slot = enqueue(async () => {
-            let nativeTx: Transaction;
-            try {
-              nativeTx = await begin(...args);
-            } catch (error) {
-              reject(error);
-              throw error;
-            }
-            let release!: () => void;
-            const lifetime = new Promise<void>((resolve) => { release = resolve; });
-            let released = false;
-            const finish = () => {
-              if (!released) {
-                released = true;
-                release();
-              }
-            };
-            const tx = new Proxy(nativeTx, {
-              get(txTarget, txProperty) {
-                if (txProperty === "commit" || txProperty === "rollback" || txProperty === "close") {
-                  const fn = Reflect.get(txTarget, txProperty, txTarget) as (...a: unknown[]) => unknown;
-                  return (...a: unknown[]) => {
-                    try {
-                      const value = fn.apply(txTarget, a);
-                      if (value instanceof Promise) return value.finally(() => {
-                        try {
-                          if (!txTarget.closed) txTarget.close();
-                        } finally {
-                          finish();
-                        }
-                      });
-                      finish();
-                      return value;
-                    } catch (error) {
-                      try {
-                        if (!txTarget.closed) txTarget.close();
-                      } finally {
-                        finish();
-                      }
-                      throw error;
-                    }
-                  };
-                }
-                const value = Reflect.get(txTarget, txProperty, txTarget);
-                return typeof value === "function" ? value.bind(txTarget) : value;
-              },
-            });
-            expose(tx);
-            await lifetime;
-          });
-          void slot.catch(reject);
-          return exposed;
-        };
-      }
-      const value = Reflect.get(target, property, target);
-      return typeof value === "function" ? value.bind(target) : value;
-    },
-  });
-}
+// Worker contexts must receive the backend authority through the lease bridge.
+// Only the backend/main entry point can install the local permit owner.
+if (isMainThread) installDatabaseWriteAuthority();
 
-const client: Client = serializeClient(createSqliteClient({ url: IN_MEMORY ? ":memory:" : `file:${DB_PATH}` }));
+const client: Client = isMainThread ? createSqliteClient({ url: IN_MEMORY ? ":memory:" : `file:${DB_PATH}` }) : createDatabaseWorkerClient();
 
 // Bindings are created synchronously so importing this module can never block
 // and `db` can never be observed in its temporal dead zone. All async setup
 // (PRAGMAs, migrations, backfills) moved into initDb() below.
 export const db = drizzle(client, { schema });
 export { client };
+
+// Application reads use a separate connection so they never enter another
+// operation's write transaction or wait for the application write permit.
+export const readClient: Client = IN_MEMORY ? client : createSqliteClient({ url: `file:${DB_PATH}` });
+export const readDb = drizzle(readClient, { schema });
+
+export function closeDb(): void {
+  if (readClient !== client) readClient.close();
+  client.close();
+}
 
 let initPromise: Promise<void> | null = null;
 
@@ -160,13 +93,17 @@ let initPromise: Promise<void> | null = null;
  * "Cannot access 'db' before initialization".
  */
 export function initDb(): Promise<void> {
-  if (!initPromise) initPromise = (async () => {
+  if (!initPromise) initPromise = withDatabaseWrite(async () => {
 
 // Enable WAL mode for better concurrent read/write performance
 await client.execute("PRAGMA journal_mode = WAL");
 await client.execute("PRAGMA foreign_keys = ON");
 // Wait up to 5s when another process holds the write lock (e.g. during hot-reload)
 await client.execute("PRAGMA busy_timeout = 5000");
+if (readClient !== client) {
+  await readClient.execute("PRAGMA foreign_keys = ON");
+  await readClient.execute("PRAGMA query_only = ON");
+}
 
 // ── Migration system ────────────────────────────────────────────────
 await client.execute(`
@@ -180,14 +117,7 @@ await client.execute(`
 async function runMigrations() {
   // Earlier feature builds used IDs now owned by main. Relocate only known
   // named entries, preserving timestamps and the schema changes already applied.
-  const recordingHistory = [
-    { name: "persist archival recording frequency caps", oldVersions: [76, 77], version: 81 },
-    { name: "reconcile all AC Evo recordings to discover Tourist layouts", oldVersions: [76], version: 78 },
-    { name: "retain cloud lap import attribution", oldVersions: [76], version: 82 },
-    { name: "preserve cloud lap millisecond values", oldVersions: [77], version: 83 },
-    { name: "retain cloud lap setup attachment", oldVersions: [78], version: 84 },
-  ];
-  await relocateMigrationHistory(client, recordingHistory);
+  await relocateMigrationHistory(client, migrationHistoryRelocations);
   // Unreleased feature builds used IDs now owned by main. Move only their
   // named ledger entries; preserve their tables, credentials, and sessions.
   const legacy = await client.execute(`SELECT version, name FROM schema_migrations
@@ -289,7 +219,7 @@ const orphanCleared = Number(orphanSession.rowsAffected ?? 0) + Number(orphanTes
 if (orphanCleared > 0) {
   console.log(`[DB] Cleared ${orphanCleared} orphaned tuning stamp(s) on laps (parent session/test gone)`);
 }
-  })();
+  });
   return initPromise;
 }
 
@@ -300,14 +230,18 @@ let workerConnectionInitPromise: Promise<void> | null = null;
  * thread has completed initDb(). This never runs migrations, backfills, or seeds.
  */
 export function initDbWorkerConnection(): Promise<void> {
-  if (!workerConnectionInitPromise) workerConnectionInitPromise = (async () => {
+  if (!workerConnectionInitPromise) workerConnectionInitPromise = withDatabaseWrite(async () => {
     await client.execute("PRAGMA foreign_keys = ON");
     await client.execute("PRAGMA busy_timeout = 5000");
+    if (readClient !== client) {
+      await readClient.execute("PRAGMA foreign_keys = ON");
+      await readClient.execute("PRAGMA query_only = ON");
+    }
     const latest = Math.max(...migrations.map((migration) => migration.version));
     const result = await client.execute("SELECT COALESCE(MAX(version), 0) AS version FROM schema_migrations");
     if (Number(result.rows[0]?.version ?? 0) < latest) {
       throw new Error("Main process must initialize and migrate the application database before worker queries");
     }
-  })();
+  });
   return workerConnectionInitPromise;
 }

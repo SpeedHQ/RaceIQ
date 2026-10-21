@@ -4,9 +4,9 @@ Current implementation status updated 2026-10-21. The [release contract](raceiq-
 
 ## Current status
 
-**Queue infrastructure, persistent status, dedicated worker and native recording producer integration are implemented.** Upload preparation reuses published artifacts and existing native framing/context infrastructure, not a competing session slicer.
+**Queue infrastructure, persistent status, dedicated worker and native recording producer integration are implemented.** Upload preparation reuses published artifacts and existing native framing/context infrastructure, not a competing session slicer. Main integration retains released classification migration82, relocates named Online migrations to83–94, and routes Online worker SQL through the shared application authority with separate read connections.
 
-Genuine F1 World and both Bahrain LMU laps pass isolated Rust HTTP publication, archive download and canonical native reparse with original GUIDs and matching-binding Self. Connected desktop upload/Community/Open Replay remains under verification. ACC fixture coverage is parked, not a reason to force attribution or keep searching; iRacing is excluded from the current investigation.
+Genuine F1 World and both Bahrain LMU laps pass isolated Rust HTTP publication, archive download and canonical native reparse with original GUIDs and matching-binding Self. Premerge connected Community rows opened exact F1/LMU replays with original GUID/author and borrowed ownership; repeated/mobile and postmerge connected playback remain under verification. ACC fixture coverage is parked, not a reason to force attribution or keep searching; iRacing is excluded from the current investigation.
 
 ## Done
 
@@ -68,7 +68,8 @@ Genuine F1 World and both Bahrain LMU laps pass isolated Rust HTTP publication, 
 - **Passed:** `bun run i18n:check-keys` — complete supported catalogs.
 - **Passed:** `bun test packages/tooling-release/test/changelog.test.ts --timeout 60000`.
 - **Earlier UI proof:** real local Hono/RPC/SQLite status, desktop/mobile DOM and mobile accessibility audit. Package extraction changes UI imports, not presentation; no new visual inspection or screenshot is claimed.
-- **Current native correction gates:** desktop20 tests, cloud30 native/trend plus10 scoped parser tests, final desktop34/34 typecheck, cloud processor typecheck and11 changelog tests pass. Actual HTTP/archive smoke covers April09 primary, both Bahrain LMU laps and four April22 additional F1 laps. Exact evidence is linked from the current verification report.
+- **Premerge native correction gates:** desktop20 tests, cloud30 native/trend plus10 scoped parser tests, desktop34/34 typecheck, cloud processor typecheck and11 changelog tests passed at recorded inputs. Actual HTTP/archive smoke covers April09 primary, both Bahrain LMU laps and four April22 additional F1 laps.
+- **Post-main integration gates:** migration/dashboard105, native/classification107, runtime/portable-import101, real worker write-coordination E2E13 and changelog11 tests pass. An actual isolated backend retains auth/setup/Online-state200 with an occupied UDP port. Main's worker SQL authority, migration lineage and extracted catalogue boundaries are retained; exact commands, typecheck outcomes and remaining connected/release gaps are linked from the verification report.
 
 ## Relevant implementation and tests
 

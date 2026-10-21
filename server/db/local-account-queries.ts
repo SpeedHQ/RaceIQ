@@ -1,10 +1,11 @@
 import { and, eq, sql } from "drizzle-orm";
 import type { GameIdentityBinding } from "@raceiq/online/contracts";
-import { db } from "./index";
+import { db, readClient, readDb } from "./index";
 import { driverSummaryActivities, driverSummaryActivityLaps, localAccountOwner, localGameBindings, sessions } from "./schema";
+import { withDatabaseWrite } from "./write-coordination";
 
 export async function getLocalAccountOwner(): Promise<string | null> {
-  const owner = await db.select({ onlineUserId: localAccountOwner.onlineUserId })
+  const owner = await readDb.select({ onlineUserId: localAccountOwner.onlineUserId })
     .from(localAccountOwner).where(eq(localAccountOwner.id, 1)).get();
   return owner?.onlineUserId ?? null;
 }
@@ -15,7 +16,7 @@ export async function claimLocalAccountOwner(onlineUserId:string,guard?:{isCurre
   if (!userId) throw new Error("Online account identity is required");
   const assertCurrent=()=>{if(guard&&!guard.isCurrent())throw Object.assign(new Error("Account claim is no longer current"),{code:"stale_state"});};
   assertCurrent();
-  await db.transaction(async (tx) => {
+  await withDatabaseWrite(() => db.transaction(async (tx) => {
     assertCurrent();
     await tx.insert(localAccountOwner).values({ id: 1, onlineUserId: null }).onConflictDoNothing().run();
     const owner = await tx.select().from(localAccountOwner).where(eq(localAccountOwner.id, 1)).get();
@@ -64,11 +65,11 @@ export async function claimLocalAccountOwner(onlineUserId:string,guard?:{isCurre
     // Process queued cancellation before the final synchronous guard and commit.
     if(guard)await Bun.sleep(0);
     assertCurrent();
-  });
+  }));
 }
 
 export async function listLocalGameBindings(): Promise<GameIdentityBinding[]> {
-  return db.select({
+  return readDb.select({
     id: localGameBindings.id,
     gameId: localGameBindings.gameId,
     sourceKind: localGameBindings.sourceKind,
@@ -79,19 +80,28 @@ export async function listLocalGameBindings(): Promise<GameIdentityBinding[]> {
 }
 
 export async function getLocalGameBindingSnapshot(): Promise<{ revision: number; bindings: GameIdentityBinding[] }> {
-  return db.transaction(async (tx) => {
-    const owner = await tx.select({ revision: localAccountOwner.bindingRevision })
-      .from(localAccountOwner).where(eq(localAccountOwner.id, 1)).get();
-    const bindings = await tx.select({
-      id: localGameBindings.id,
-      gameId: localGameBindings.gameId,
-      sourceKind: localGameBindings.sourceKind,
-      nativeIdentity: localGameBindings.nativeIdentity,
-      confirmation: localGameBindings.confirmation,
-      revision: localGameBindings.revision,
-    }).from(localGameBindings).orderBy(localGameBindings.gameId).all();
-    return { revision: owner?.revision ?? 0, bindings };
-  });
+  const tx = await readClient.transaction("read");
+  try {
+    const owner = await tx.execute("SELECT binding_revision FROM local_account_owner WHERE id=1");
+    const bindings = await tx.execute(`SELECT id, game_id, source_kind, native_identity, confirmation, revision
+      FROM local_game_bindings ORDER BY game_id`);
+    const snapshot = {
+      revision: Number(owner.rows[0]?.binding_revision ?? 0),
+      bindings: bindings.rows.map((row): GameIdentityBinding => ({
+        id: String(row.id),
+        gameId: String(row.game_id),
+        sourceKind: row.source_kind as GameIdentityBinding["sourceKind"],
+        nativeIdentity: String(row.native_identity),
+        confirmation: row.confirmation as GameIdentityBinding["confirmation"],
+        revision: Number(row.revision),
+      })),
+    };
+    await tx.commit();
+    return snapshot;
+  } catch (error) {
+    await tx.rollback();
+    throw error;
+  }
 }
 
 export interface GameBindingMutationGuard {expectedSnapshotRevision:number;isCurrent():boolean}
@@ -102,7 +112,7 @@ export async function upsertLocalGameBinding(binding: GameIdentityBinding,guard?
     || (binding.confirmation !== "native_verified" && binding.confirmation !== "user_confirmed")) {
     throw new Error("Game binding identity or revision is invalid");
   }
-  await db.transaction(async (tx) => {
+  await withDatabaseWrite(() => db.transaction(async (tx) => {
     await tx.insert(localAccountOwner).values({ id: 1, onlineUserId: null }).onConflictDoNothing().run();
     const owner = await tx.select().from(localAccountOwner).where(eq(localAccountOwner.id, 1)).get();
     if (!owner) throw new Error("Local account owner state is not initialized");
@@ -128,5 +138,5 @@ export async function upsertLocalGameBinding(binding: GameIdentityBinding,guard?
       },
     }).run();
     if(guard&&!guard.isCurrent())throw Object.assign(new Error("Game binding candidate is stale"),{code:"stale_state"});
-  });
+  }));
 }

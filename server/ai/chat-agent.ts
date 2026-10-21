@@ -22,18 +22,18 @@ function chatMemoryDbPath(): string {
   return `file:${root}/chat-memory.db`;
 }
 
-// Singleton memory instance — stores chat threads in a separate SQLite file
-const memory = new Memory({
-  storage: new LibSQLStore({
-    id: "chat-memory",
-    url: chatMemoryDbPath(),
-  }),
-  options: { lastMessages: 50 },
-});
+// Open persistent memory only when a chat operation or agent actually needs it.
+let memory: Memory | undefined;
 
 /** Get the shared memory instance for direct thread management. */
-export function getChatMemory() {
-  return memory;
+export function getChatMemory(): Memory {
+  return memory ??= new Memory({
+    storage: new LibSQLStore({
+      id: "chat-memory",
+      url: chatMemoryDbPath(),
+    }),
+    options: { lastMessages: 50 },
+  });
 }
 
 export type DiagnosticChatSnapshot = {
@@ -42,7 +42,7 @@ export type DiagnosticChatSnapshot = {
   messageCount: number;
 };
 
-export async function collectDiagnosticChatContext(mem = memory): Promise<DiagnosticChatSnapshot> {
+export async function collectDiagnosticChatContext(mem = getChatMemory()): Promise<DiagnosticChatSnapshot> {
   const output: DiagnosticChatSnapshot = { threads: [], error: null, messageCount: 0 };
   try {
     const listed = await (mem as unknown as { listThreads(args: unknown): Promise<{ threads: Array<{ id: string; metadata?: unknown }> }> }).listThreads({
@@ -144,7 +144,7 @@ type ChatThreadRecord = { id: string; title?: string; metadata?: Record<string, 
 export async function ensureSystemPrompt(
   threadId: string,
   systemPrompt: string,
-  mem: ChatExportMemory = memory as unknown as ChatExportMemory,
+  mem: ChatExportMemory = getChatMemory() as unknown as ChatExportMemory,
 ): Promise<void> {
   if (!systemPrompt.trim() || !mem.getThreadById) return;
   const thread = (await mem.getThreadById({ threadId })) as ChatThreadRecord | null;
@@ -160,7 +160,7 @@ export async function ensureSystemPrompt(
   });
 }
 
-export async function getChatSystemPrompt(threadId: string, mem: ChatExportMemory = memory as unknown as ChatExportMemory): Promise<string | undefined> {
+export async function getChatSystemPrompt(threadId: string, mem: ChatExportMemory = getChatMemory() as unknown as ChatExportMemory): Promise<string | undefined> {
   const thread = (await mem.getThreadById?.({ threadId })) as ChatThreadRecord | null | undefined;
   const value = thread?.metadata?.raceiqSystemPrompt;
   return typeof value === "string" ? value : undefined;
@@ -272,7 +272,7 @@ export async function listThreadGenerations(
   return out;
 }
 
-export async function deleteChatLineage(baseThreadId: string, mem: ChatExportMemory = memory as unknown as ChatExportMemory): Promise<void> {
+export async function deleteChatLineage(baseThreadId: string, mem: ChatExportMemory = getChatMemory() as unknown as ChatExportMemory): Promise<void> {
   if (!mem.deleteThread || !mem.getThreadById) throw new Error("Chat memory cannot delete threads");
   const generations = await listThreadGenerations(baseThreadId, {
     getThreadById: mem.getThreadById.bind(mem) as ThreadProbeMemory["getThreadById"],

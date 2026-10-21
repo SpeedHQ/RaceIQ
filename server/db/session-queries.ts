@@ -1,19 +1,23 @@
 import { MOTEC_SESSION_SOURCE } from "@raceiq/shared/integrations/motec";
+import { isPaceLap } from "@raceiq/shared/racing/lap-classification";
+import { paceLapCondition } from "./lap-eligibility";
 import { resolveRecordingDirectory } from "../runtime/config/recording-directory";
+import { getRecordedElapsedSeconds } from "../session-capture/elapsed-duration";
 import { createHash, randomUUID } from "node:crypto";
 import { rm, stat } from "node:fs/promises";
 import type { Stats } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import { getRecordedElapsedSeconds } from "../session-capture/elapsed-duration";
 import { getLapById } from "./lap-read-queries";
 import { cacheDelete } from "./telemetry-replay-storage";
-import { eq, desc, and, or, sql, inArray, notInArray, isNull, ne, lt, asc } from "drizzle-orm";
-import { db } from "./index";
-import { sessions, laps, sessionResults, pitEvents, sessionCaptureSplitJobs, liveCaptures, localAccountOwner } from "./schema";
+import { eq, desc, and, or, sql, inArray, notInArray, isNull, ne, lt, asc, gt, notExists } from "drizzle-orm";
+import { withDatabaseWrite } from "./write-coordination";
+import { db, readDb } from "./index";
+import { sessions, laps, sessionResults, pitEvents, sessionCaptureSplitJobs, liveCaptures, localAccountOwner, classificationMigrationMeta, classificationMigrationRecordings } from "./schema";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 import type { SessionMeta, SessionOwnership, SessionCaptureSplitPhase, SessionCaptureSplitErrorCode } from "@raceiq/shared/racing/sessions/types";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
+import { invalidateClassificationMigrationSource } from "../session-capture/classification-migration";
 import { tryGetGame } from "@raceiq/shared/games/registry";
 import { existsSync, readFileSync, unlinkSync } from "node:fs";
 import { getTrackLengthMetersById } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
@@ -46,7 +50,7 @@ export interface SessionCaptureSplitWork {
 
 async function notifySessionCaptureSplitStatus(sessionId: number): Promise<void> {
   try {
-    const job = await db.select({
+    const job = await readDb.select({
       jobId: sessionCaptureSplitJobs.jobId,
       attemptId: sessionCaptureSplitJobs.attemptId,
       sequence: sessionCaptureSplitJobs.sequence,
@@ -91,14 +95,14 @@ function captureLapWindow(lap: typeof laps.$inferSelect, originalActivityId?: st
 /** Queue an eligible closed BIN; ownership and provenance do not alter frame ownership. */
 export async function enqueueSessionCaptureSplit(sessionId: number): Promise<boolean> {
   return withSessionCaptureMaintenanceLock(async () => {
-    const row = await db.select({
+    const row = await readDb.select({
       rawFile: sessions.rawFile, gameId: sessions.gameId, carId: sessions.carId, trackId: sessions.trackId,
       captureLayoutVersion: sessions.captureLayoutVersion, captureManifestFile: sessions.captureManifestFile,
       captureArchiveFile: sessions.captureArchiveFile,
       originalActivityId: sessions.originalActivityId,
       originalSourceRevision: sessions.originalSourceRevision,
     }).from(sessions).where(eq(sessions.id, sessionId)).get();
-    const liveCapture = await db.select({ status: liveCaptures.status }).from(liveCaptures)
+    const liveCapture = await readDb.select({ status: liveCaptures.status }).from(liveCaptures)
       .where(eq(liveCaptures.sessionId, sessionId)).get();
     if (liveCapture && ["recording", "finalizing", "recovering"].includes(liveCapture.status)) return false;
     if (row?.captureLayoutVersion === 1 || row?.captureLayoutVersion === 3) return false;
@@ -107,7 +111,7 @@ export async function enqueueSessionCaptureSplit(sessionId: number): Promise<boo
     }
     if (!row?.rawFile || (row.captureLayoutVersion !== null && row.captureLayoutVersion !== 2) ||
         !(row.rawFile.endsWith(".bin") || row.rawFile.endsWith(".bin.gz"))) return false;
-    const lapRows = await db.select().from(laps).where(eq(laps.sessionId, sessionId)).all();
+    const lapRows = await readDb.select().from(laps).where(eq(laps.sessionId, sessionId)).all();
     const windows = lapRows.filter((lap) => lap.rawByteOffset != null && lap.rawFrameCount != null && lap.rawFrameCount > 0)
       .map((lap) => captureLapWindow(lap, row.originalActivityId, row.originalSourceRevision))
       .sort((a, b) => a.startByteOffset - b.startByteOffset);
@@ -130,81 +134,65 @@ export async function enqueueSessionCaptureSplit(sessionId: number): Promise<boo
     }
     if (!info.isFile() || info.size === 0) return false;
     const sourceRevision = getSessionCaptureSourceRevision(info, windows, row.gameId);
-    const result = await db.insert(sessionCaptureSplitJobs).values({
+    const sourcePath = row.rawFile;
+    const result = await withDatabaseWrite(() => db.insert(sessionCaptureSplitJobs).values({
       sessionId, jobId: randomUUID(), attemptId: 1, sequence: 0, pendingSourceRevision: sourceRevision,
-      sourcePath: row.rawFile, stagingPath: null,
+      sourcePath, stagingPath: null,
       status: "queued", totalLapArtifacts: windows.length, completedLapArtifacts: 0,
     }).onConflictDoUpdate({
       target: sessionCaptureSplitJobs.sessionId,
       set: {
         jobId: randomUUID(), attemptId: 1, sequence: 0, pendingSourceRevision: sourceRevision,
-        sourcePath: row.rawFile, stagingPath: null, status: "queued", errorCode: null, errorMessage: null,
+        sourcePath, stagingPath: null, status: "queued", errorCode: null, errorMessage: null,
         processedSourceFrames: null, totalSourceFrames: null, completedLapArtifacts: 0,
         totalLapArtifacts: windows.length, updatedAt: new Date().toISOString(),
       },
       where: or(
-        and(
-          inArray(sessionCaptureSplitJobs.status, ["failed", "ready", "queued"]),
-          sql`${sessionCaptureSplitJobs.sourcePath} <> ${row.rawFile}`,
-        ),
-        and(
-          eq(sessionCaptureSplitJobs.status, "failed"),
-          or(
-            sql`${sessionCaptureSplitJobs.errorCode} <> 'worker-failed'`,
-            sql`${sessionCaptureSplitJobs.pendingSourceRevision} <> ${sourceRevision}`,
-          ),
-        ),
-        and(
-          or(eq(sessionCaptureSplitJobs.status, "ready"), eq(sessionCaptureSplitJobs.status, "queued")),
+        and(inArray(sessionCaptureSplitJobs.status, ["failed", "ready", "queued"]), sql`${sessionCaptureSplitJobs.sourcePath} <> ${row.rawFile}`),
+        and(eq(sessionCaptureSplitJobs.status, "failed"), or(
+          sql`${sessionCaptureSplitJobs.errorCode} <> 'worker-failed'`,
           sql`${sessionCaptureSplitJobs.pendingSourceRevision} <> ${sourceRevision}`,
-        ),
+        )),
+        and(or(eq(sessionCaptureSplitJobs.status, "ready"), eq(sessionCaptureSplitJobs.status, "queued")),
+          sql`${sessionCaptureSplitJobs.pendingSourceRevision} <> ${sourceRevision}`),
         row.captureLayoutVersion === 2 ? eq(sessionCaptureSplitJobs.status, "ready") : undefined,
       ),
-    }).run();
+    }).run());
     if (result.rowsAffected > 0) await notifySessionCaptureSplitStatus(sessionId);
     return result.rowsAffected > 0;
   });
 }
 
 export async function claimSessionCaptureSplitJob(work: SessionCaptureSplitWork): Promise<boolean> {
-  const result = await db.update(sessionCaptureSplitJobs).set({
+  const result = await withDatabaseWrite(() => db.update(sessionCaptureSplitJobs).set({
     status: "splitting", sequence: sql`${sessionCaptureSplitJobs.sequence} + 1`, updatedAt: new Date().toISOString(),
-  }).where(and(
-    eq(sessionCaptureSplitJobs.sessionId, work.sessionId),
-    eq(sessionCaptureSplitJobs.jobId, work.jobId),
-    eq(sessionCaptureSplitJobs.attemptId, work.attemptId),
-    eq(sessionCaptureSplitJobs.pendingSourceRevision, work.sourceRevision),
-    eq(sessionCaptureSplitJobs.status, "queued"),
-  )).run();
+  }).where(and(eq(sessionCaptureSplitJobs.sessionId, work.sessionId), eq(sessionCaptureSplitJobs.jobId, work.jobId),
+    eq(sessionCaptureSplitJobs.attemptId, work.attemptId), eq(sessionCaptureSplitJobs.pendingSourceRevision, work.sourceRevision),
+    eq(sessionCaptureSplitJobs.status, "queued"))).run());
   if (result.rowsAffected === 1) await notifySessionCaptureSplitStatus(work.sessionId);
   return result.rowsAffected === 1;
 }
 
 export async function setSessionCaptureSplitStagingPath(work: SessionCaptureSplitWork, stagingPath: string): Promise<boolean> {
-  const result = await db.update(sessionCaptureSplitJobs).set({ stagingPath }).where(and(
+  const result = await withDatabaseWrite(() => db.update(sessionCaptureSplitJobs).set({ stagingPath }).where(and(
     eq(sessionCaptureSplitJobs.sessionId, work.sessionId), eq(sessionCaptureSplitJobs.jobId, work.jobId),
-    eq(sessionCaptureSplitJobs.attemptId, work.attemptId),
-    eq(sessionCaptureSplitJobs.pendingSourceRevision, work.sourceRevision),
-    eq(sessionCaptureSplitJobs.status, "splitting"),
-  )).run();
+    eq(sessionCaptureSplitJobs.attemptId, work.attemptId), eq(sessionCaptureSplitJobs.pendingSourceRevision, work.sourceRevision),
+    eq(sessionCaptureSplitJobs.status, "splitting"))).run());
   return result.rowsAffected === 1;
 }
 
 export async function failSessionCaptureSplitJob(work: SessionCaptureSplitWork, errorCode: string, errorMessage: string): Promise<void> {
-  const result = await db.update(sessionCaptureSplitJobs).set({
+  const result = await withDatabaseWrite(() => db.update(sessionCaptureSplitJobs).set({
     status: "failed", sequence: sql`${sessionCaptureSplitJobs.sequence} + 1`, errorCode, errorMessage: errorMessage.slice(0, 2000), updatedAt: new Date().toISOString(),
-  }).where(and(
-    eq(sessionCaptureSplitJobs.sessionId, work.sessionId), eq(sessionCaptureSplitJobs.jobId, work.jobId),
-    eq(sessionCaptureSplitJobs.attemptId, work.attemptId),
-    eq(sessionCaptureSplitJobs.pendingSourceRevision, work.sourceRevision),
-    or(eq(sessionCaptureSplitJobs.status, "splitting"), eq(sessionCaptureSplitJobs.status, "verifying"), eq(sessionCaptureSplitJobs.status, "publishing")),
-  )).run();
+  }).where(and(eq(sessionCaptureSplitJobs.sessionId, work.sessionId), eq(sessionCaptureSplitJobs.jobId, work.jobId),
+    eq(sessionCaptureSplitJobs.attemptId, work.attemptId), eq(sessionCaptureSplitJobs.pendingSourceRevision, work.sourceRevision),
+    or(eq(sessionCaptureSplitJobs.status, "splitting"), eq(sessionCaptureSplitJobs.status, "verifying"), eq(sessionCaptureSplitJobs.status, "publishing")))).run());
   if (result.rowsAffected === 1) await notifySessionCaptureSplitStatus(work.sessionId);
 }
 
 
 export async function validateSessionCaptureSplitRevision(work: SessionCaptureSplitWork): Promise<boolean> {
-  const session = await db.select({
+  const session = await readDb.select({
     rawFile: sessions.rawFile, gameId: sessions.gameId, captureLayoutVersion: sessions.captureLayoutVersion,
     captureManifestFile: sessions.captureManifestFile, captureArchiveFile: sessions.captureArchiveFile,
     originalActivityId: sessions.originalActivityId,
@@ -213,7 +201,7 @@ export async function validateSessionCaptureSplitRevision(work: SessionCaptureSp
   if (session?.rawFile !== work.sourcePath || session.gameId !== work.gameId ||
       session.captureLayoutVersion !== work.captureLayoutVersion ||
       session.captureManifestFile !== work.captureManifestFile || session.captureArchiveFile !== work.captureArchiveFile) return false;
-  const rows = await db.select().from(laps).where(eq(laps.sessionId, work.sessionId)).all();
+  const rows = await readDb.select().from(laps).where(eq(laps.sessionId, work.sessionId)).all();
   const windows = rows.filter((lap) => lap.rawByteOffset != null && lap.rawFrameCount != null && lap.rawFrameCount > 0)
     .map((lap) => captureLapWindow(lap, session.originalActivityId, session.originalSourceRevision))
     .sort((a, b) => a.startByteOffset - b.startByteOffset);
@@ -241,8 +229,11 @@ export async function publishSessionCaptureSplit(
     }),
   );
   if (publicationFiles.some((isFile) => !isFile)) return false;
+  let sourceInfo: Stats;
+  try { sourceInfo = await stat(work.sourcePath); } catch { return false; }
+  if (!sourceInfo.isFile() || getSessionCaptureSourceRevision(sourceInfo, work.windows, work.gameId) !== work.sourceRevision) return false;
   signal?.throwIfAborted();
-  const published = await db.transaction(async (tx) => {
+  const published = await withDatabaseWrite(() => db.transaction(async (tx) => {
     const job = await tx.select({ status: sessionCaptureSplitJobs.status }).from(sessionCaptureSplitJobs).where(and(
       eq(sessionCaptureSplitJobs.sessionId, work.sessionId), eq(sessionCaptureSplitJobs.jobId, work.jobId),
       eq(sessionCaptureSplitJobs.attemptId, work.attemptId),
@@ -263,9 +254,6 @@ export async function publishSessionCaptureSplit(
         session.captureLayoutVersion !== work.captureLayoutVersion ||
         session.captureManifestFile !== work.captureManifestFile || session.captureArchiveFile !== work.captureArchiveFile ||
         currentWindows.length !== currentRows.length || JSON.stringify(currentWindows) !== JSON.stringify(work.windows)) return false;
-    let sourceInfo: Stats;
-    try { sourceInfo = await stat(work.sourcePath); } catch { return false; }
-    if (!sourceInfo.isFile() || getSessionCaptureSourceRevision(sourceInfo, currentWindows, session.gameId) !== work.sourceRevision) return false;
     const lapChunks = chunks.filter((chunk) => chunk.lapId != null);
     const expectedLapIds = new Set(work.windows.map((window) => window.lapId));
     if (lapChunks.length !== expectedLapIds.size || lapChunks.some((chunk) => !expectedLapIds.has(chunk.lapId!)) ||
@@ -299,7 +287,7 @@ export async function publishSessionCaptureSplit(
     if (jobUpdated.rowsAffected !== 1) throw new Error("Split job attempt changed during publication");
     signal?.throwIfAborted();
     return true;
-  });
+  }));
   if (published) {
     clearCaptureManifestCache(manifestPath);
     for (const window of work.windows) cacheDelete(Number(window.lapId));
@@ -311,7 +299,7 @@ export async function publishSessionCaptureSplit(
 /** Startup repairs missed close enqueue and fences interrupted attempts with a new identity. */
 export async function recoverSessionCaptureSplitJobs(): Promise<void> {
   await recoverLiveCaptureStorage();
-  const interrupted = await db.select({
+  const interrupted = await readDb.select({
     sessionId: sessionCaptureSplitJobs.sessionId, attemptId: sessionCaptureSplitJobs.attemptId,
     stagingPath: sessionCaptureSplitJobs.stagingPath,
   }).from(sessionCaptureSplitJobs).where(or(
@@ -321,7 +309,7 @@ export async function recoverSessionCaptureSplitJobs(): Promise<void> {
   )).all();
   for (const { sessionId, attemptId, stagingPath } of interrupted) {
     if (stagingPath) {
-      const publications = await db.select({
+      const publications = await readDb.select({
         rawFile: sessions.rawFile, manifestFile: sessions.captureManifestFile, archiveFile: sessions.captureArchiveFile,
       }).from(sessions).all();
       const references = publications.flatMap((row) => [row.rawFile, row.manifestFile, row.archiveFile])
@@ -341,27 +329,27 @@ export async function recoverSessionCaptureSplitJobs(): Promise<void> {
       completedLapArtifacts: 0, updatedAt: new Date().toISOString(),
     };
     if (attemptId >= 3) {
-      await db.update(sessionCaptureSplitJobs).set({
+      await withDatabaseWrite(() => db.update(sessionCaptureSplitJobs).set({
         ...reset, sequence: sql`${sessionCaptureSplitJobs.sequence} + 1`,
         status: "failed", errorCode: "worker-failed", errorMessage: "Interrupted split exceeded retry limit",
-      }).where(eq(sessionCaptureSplitJobs.sessionId, sessionId)).run();
+      }).where(eq(sessionCaptureSplitJobs.sessionId, sessionId)).run());
       await notifySessionCaptureSplitStatus(sessionId);
     } else {
-      await db.update(sessionCaptureSplitJobs).set({
+      await withDatabaseWrite(() => db.update(sessionCaptureSplitJobs).set({
         ...reset, attemptId: sql`${sessionCaptureSplitJobs.attemptId} + 1`,
         status: "queued", errorCode: null, errorMessage: null,
-      }).where(eq(sessionCaptureSplitJobs.sessionId, sessionId)).run();
+      }).where(eq(sessionCaptureSplitJobs.sessionId, sessionId)).run());
       await notifySessionCaptureSplitStatus(sessionId);
     }
   }
-  const candidates = await db.select({ id: sessions.id }).from(sessions)
+  const candidates = await readDb.select({ id: sessions.id }).from(sessions)
     .where(or(isNull(sessions.captureLayoutVersion), eq(sessions.captureLayoutVersion, 2)))
     .all();
   for (const { id } of candidates) await enqueueSessionCaptureSplit(id);
 }
 
 export async function getQueuedSessionCaptureSplitJobs(includeFailed = false): Promise<SessionCaptureSplitWork[]> {
-  const jobs = await db.select({
+  const jobs = await readDb.select({
     sessionId: sessionCaptureSplitJobs.sessionId, jobId: sessionCaptureSplitJobs.jobId,
     attemptId: sessionCaptureSplitJobs.attemptId, sourceRevision: sessionCaptureSplitJobs.pendingSourceRevision,
     sourcePath: sessionCaptureSplitJobs.sourcePath, gameId: sessions.gameId, carId: sessions.carId, trackId: sessions.trackId,
@@ -379,7 +367,7 @@ export async function getQueuedSessionCaptureSplitJobs(includeFailed = false): P
     )).orderBy(asc(sessionCaptureSplitJobs.sessionId)).all();
   const result: SessionCaptureSplitWork[] = [];
   for (const job of jobs) {
-    const lapRows = await db.select().from(laps).where(eq(laps.sessionId, job.sessionId)).all();
+    const lapRows = await readDb.select().from(laps).where(eq(laps.sessionId, job.sessionId)).all();
     const windows = lapRows.filter((lap) => lap.rawByteOffset != null && lap.rawFrameCount != null && lap.rawFrameCount > 0)
       .map((lap) => captureLapWindow(lap, job.originalActivityId, job.originalSourceRevision))
       .sort((a, b) => a.startByteOffset - b.startByteOffset);
@@ -408,7 +396,7 @@ export async function insertSession(
   const nativeOrigin = sourceOrigin.kind === "native_capture" && sessionOwnership === "mine";
   const originalActivityId = nativeOrigin ? randomUUID()
     : sourceOrigin.kind === "portable_import" ? sourceOrigin.originalActivityId : null;
-  return db.transaction(async (tx) => {
+  return withDatabaseWrite(() => db.transaction(async (tx) => {
     const owner = nativeOrigin
       ? await tx.select({ onlineUserId: localAccountOwner.onlineUserId }).from(localAccountOwner).where(eq(localAccountOwner.id, 1)).get()
       : undefined;
@@ -424,7 +412,7 @@ export async function insertSession(
       .returning({ id: sessions.id })
       .get();
     return result.id;
-  });
+  }), undefined, "session.insert");
 }
 
 /**
@@ -435,7 +423,7 @@ export async function updateSession(
   id: number,
   updates: { sessionType?: string; notes?: string | null }
 ): Promise<void> {
-  await db.update(sessions).set(updates).where(eq(sessions.id, id)).run();
+  await withDatabaseWrite(() => db.update(sessions).set(updates).where(eq(sessions.id, id)).run());
 }
 
 export async function updateSessionCarTrack(
@@ -443,28 +431,27 @@ export async function updateSessionCarTrack(
   carId: string,
   trackId: string,
 ): Promise<boolean> {
-  const result = await db.update(sessions).set({ carId, trackId }).where(eq(sessions.id, sessionId)).run();
+  const result = await withDatabaseWrite(() => db.update(sessions).set({ carId, trackId }).where(eq(sessions.id, sessionId)).run());
   return result.rowsAffected > 0;
 }
 
 export async function setSessionFavorite(id: number, favorite: boolean): Promise<boolean> {
-  return withSessionCaptureMaintenanceLock(async () => {
+  return withSessionCaptureMaintenanceLock(() => withDatabaseWrite(async () => {
     const result = await db.update(sessions).set({ isFavorite: favorite }).where(eq(sessions.id, id)).run();
     return result.rowsAffected > 0;
-  });
+  }));
 }
 
 export async function setLapFavorite(id: number, favorite: boolean): Promise<boolean> {
-  return withSessionCaptureMaintenanceLock(async () => {
+  return withSessionCaptureMaintenanceLock(() => withDatabaseWrite(async () => {
     const result = await db.update(laps).set({ isFavorite: favorite }).where(eq(laps.id, id)).run();
     return result.rowsAffected > 0;
-  });
+  }));
 }
+
 export async function updateSessionSource(sessionId: number, source: string): Promise<void> {
-  await db.update(sessions).set({ source }).where(eq(sessions.id, sessionId)).run();
+  await withDatabaseWrite(() => db.update(sessions).set({ source }).where(eq(sessions.id, sessionId)).run());
 }
-
-
 
 export async function updateSessionRawFile(
   sessionId: number,
@@ -472,11 +459,14 @@ export async function updateSessionRawFile(
   lapDetectorVersion: string,
   versionIdentity?: TelemetryVersionIdentity,
 ): Promise<void> {
-  await db
-    .update(sessions)
+  const previous = await readDb.select({ rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, sessionId)).get();
+  await withDatabaseWrite(() => db.update(sessions)
     .set({ rawFile, lapDetectorVersion, ...versionIdentity })
-    .where(eq(sessions.id, sessionId))
-    .run();
+    .where(eq(sessions.id, sessionId)).run());
+  if (previous?.rawFile && previous.rawFile !== rawFile) {
+    await invalidateClassificationMigrationSource(previous.rawFile);
+  }
+  await invalidateClassificationMigrationSource(rawFile);
 }
 export interface SessionCaptureSplitProgressUpdate {
   sessionId: number;
@@ -494,7 +484,7 @@ export interface SessionCaptureSplitProgressUpdate {
 
 /** Persist only the newest event for the current split attempt. */
 export async function updateSessionCaptureSplitProgress(update: SessionCaptureSplitProgressUpdate): Promise<boolean> {
-  const result = await db
+  const result = await withDatabaseWrite(() => db
     .update(sessionCaptureSplitJobs)
     .set({
       sequence: update.sequence,
@@ -518,7 +508,7 @@ export async function updateSessionCaptureSplitProgress(update: SessionCaptureSp
         eq(sessionCaptureSplitJobs.status, "publishing"),
       ),
     ))
-    .run();
+    .run());
   if (result.rowsAffected > 0) await notifySessionCaptureSplitStatus(update.sessionId);
   return result.rowsAffected > 0;
 }
@@ -534,11 +524,17 @@ async function getAvailableStaleSessionRows(
   reprocessableGameIds: GameId[],
 ): Promise<{ id: number; rawFile: string }[]> {
   const ids = Array.isArray(currentIds) ? currentIds : [currentIds];
-  const rows = await db
-    .select({ id: sessions.id, rawFile: sessions.rawFile })
+  const rows = await readDb.select({ id: sessions.id, rawFile: sessions.rawFile })
     .from(sessions)
     .where(
       and(
+        // Historical captures belong to the non-destructive classification pass,
+        // not the stale-session repair queue or its startup completion gate.
+        gt(sessions.id, sql`coalesce((select ${classificationMigrationMeta.cutoffSessionId} from ${classificationMigrationMeta} where ${classificationMigrationMeta.id}=1), 0)`),
+        notExists(db.select({ value: sql`1` }).from(classificationMigrationRecordings).where(eq(
+          classificationMigrationRecordings.sourceKey,
+          sql`CASE WHEN ${sessions.rawFile} IS NULL THEN 'session:' || ${sessions.id} ELSE 'file:' || ${sessions.rawFile} END`,
+        ))),
         sql`${sessions.rawFile} IS NOT NULL`,
         inArray(sessions.gameId, reprocessableGameIds),
         or(isNull(sessions.source), ne(sessions.source, "cloud-import")),
@@ -576,14 +572,13 @@ export async function getStaleSessions(
 
 export async function getUncompressedSessions(olderThanMs: number): Promise<{ id: number; rawFile: string }[]> {
   const cutoff = new Date(Date.now() - olderThanMs).toISOString();
-  const rows = await db
-    .select({ id: sessions.id, rawFile: sessions.rawFile })
+  const rows = await readDb.select({ id: sessions.id, rawFile: sessions.rawFile })
     .from(sessions)
     .where(
       and(
         sql`${sessions.rawFile} LIKE '%.bin'`,
         sql`${sessions.createdAt} < ${cutoff}`,
-        notInArray(sessions.rawFile, db.select({ sourcePath: sessionCaptureSplitJobs.sourcePath })
+        notInArray(sessions.rawFile, readDb.select({ sourcePath: sessionCaptureSplitJobs.sourcePath })
           .from(sessionCaptureSplitJobs).where(or(
             eq(sessionCaptureSplitJobs.status, "queued"), eq(sessionCaptureSplitJobs.status, "splitting"),
             eq(sessionCaptureSplitJobs.status, "verifying"), eq(sessionCaptureSplitJobs.status, "publishing"),
@@ -595,7 +590,7 @@ export async function getUncompressedSessions(olderThanMs: number): Promise<{ id
 }
 /** Mark only freshly-created sparse recordings current. */
 export async function markSessionCaptureFormatCurrent(sessionId: number): Promise<void> {
-  await db.update(sessions).set({ captureFormatVersion: 1 }).where(eq(sessions.id, sessionId)).run();
+  await withDatabaseWrite(() => db.update(sessions).set({ captureFormatVersion: 1 }).where(eq(sessions.id, sessionId)).run());
 }
 export function isOwnedSessionRawFile(rawFile: string): boolean {
   const sessionsDir = resolveRecordingDirectory();
@@ -612,10 +607,10 @@ export class SessionCaptureActiveError extends Error {
 
 async function unlinkOwnedSessionRawFile(rawFile: string | null): Promise<void> {
   if (!rawFile || !isOwnedSessionRawFile(rawFile)) return;
-  const stillReferenced = await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.rawFile, rawFile)).limit(1).get();
-  const jobReference = await db.select({ sessionId: sessionCaptureSplitJobs.sessionId })
+  const stillReferenced = await readDb.select({ id: sessions.id }).from(sessions).where(eq(sessions.rawFile, rawFile)).limit(1).get();
+  const jobReference = await readDb.select({ sessionId: sessionCaptureSplitJobs.sessionId })
     .from(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sourcePath, rawFile)).limit(1).get();
-  const liveReference = await db.select({ sessionId: liveCaptures.sessionId }).from(liveCaptures)
+  const liveReference = await readDb.select({ sessionId: liveCaptures.sessionId }).from(liveCaptures)
     .where(eq(liveCaptures.sourcePath, rawFile)).limit(1).get();
   if (stillReferenced || jobReference || liveReference) return;
   try {
@@ -655,7 +650,7 @@ function manifestMemberPaths(manifestPath: string): string[] {
 async function unlinkUnsharedCaptureBundle(manifestFile: string | null, archiveFile: string | null): Promise<void> {
   if (!manifestFile || !isOwnedSessionRawFile(manifestFile)) return;
   const candidates = new Set([resolve(manifestFile), ...manifestMemberPaths(resolve(manifestFile)), ...(archiveFile ? [resolve(archiveFile)] : [])]);
-  const remaining = await db.select({ manifestFile: sessions.captureManifestFile, archiveFile: sessions.captureArchiveFile }).from(sessions).all();
+  const remaining = await readDb.select({ manifestFile: sessions.captureManifestFile, archiveFile: sessions.captureArchiveFile }).from(sessions).all();
   const referenced = new Set<string>();
   for (const row of remaining) {
     if (row.archiveFile) referenced.add(resolve(row.archiveFile));
@@ -664,7 +659,7 @@ async function unlinkUnsharedCaptureBundle(manifestFile: string | null, archiveF
     referenced.add(manifestPath);
     for (const path of manifestMemberPaths(manifestPath)) referenced.add(path);
   }
-  const liveRefs = await db.select({ archivePath: liveCaptures.archivePath, sourcePath: liveCaptures.sourcePath }).from(liveCaptures).all();
+  const liveRefs = await readDb.select({ archivePath: liveCaptures.archivePath, sourcePath: liveCaptures.sourcePath }).from(liveCaptures).all();
   for (const row of liveRefs) {
     referenced.add(resolve(row.archivePath));
     referenced.add(resolve(row.sourcePath));
@@ -684,7 +679,7 @@ async function unlinkUnsharedCaptureBundle(manifestFile: string | null, archiveF
  * Delete a session and its laps. Refuse deletion while a split attempt owns its source.
  */
 async function deleteSessionUnlocked(sessionId: number): Promise<number> {
-  const deleted = await db.transaction(async (tx) => {
+  const deleted = await withDatabaseWrite(() => db.transaction(async (tx) => {
     const session = await tx.select({
       rawFile: sessions.rawFile,
       manifestFile: sessions.captureManifestFile,
@@ -697,8 +692,7 @@ async function deleteSessionUnlocked(sessionId: number): Promise<number> {
     if (liveCapture && (["recording", "finalizing", "recovering"].includes(liveCapture.status) ||
         (liveCapture.status === "failed" && liveCapture.committedArchiveLength > 0))) throw new SessionCaptureActiveError();
     const activeJob = await tx.select({ sessionId: sessionCaptureSplitJobs.sessionId })
-      .from(sessionCaptureSplitJobs)
-      .where(and(
+      .from(sessionCaptureSplitJobs).where(and(
         eq(sessionCaptureSplitJobs.sessionId, sessionId),
         inArray(sessionCaptureSplitJobs.status, ["splitting", "verifying", "publishing"]),
       )).get();
@@ -710,7 +704,7 @@ async function deleteSessionUnlocked(sessionId: number): Promise<number> {
     const lapRows = await tx.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, sessionId)).all();
     await tx.delete(sessions).where(eq(sessions.id, sessionId)).run();
     return { ...session, lapIds: lapRows.map(({ id }) => id) };
-  });
+  }), undefined, "session.delete");
   if (!deleted) return 0;
   for (const lapId of deleted.lapIds) cacheDelete(lapId);
   await unlinkOwnedSessionRawFile(deleted.rawFile);
@@ -725,8 +719,7 @@ export async function deleteSession(sessionId: number): Promise<number> {
 
 export async function deleteEmptySessions(activeSessionId?: number): Promise<number> {
   return withSessionCaptureMaintenanceLock(async () => {
-    const empties = await db
-      .select({ id: sessions.id })
+    const empties = await readDb.select({ id: sessions.id })
       .from(sessions)
       .leftJoin(laps, eq(laps.sessionId, sessions.id))
       .where(sql`${sessions.lapDetectorVersion} IS NOT NULL`)
@@ -735,7 +728,7 @@ export async function deleteEmptySessions(activeSessionId?: number): Promise<num
       .all();
     const candidateIds = empties.filter(({ id }) => id !== activeSessionId).map(({ id }) => id);
     if (candidateIds.length === 0) return 0;
-    const activeJobs = await db.select({ sessionId: sessionCaptureSplitJobs.sessionId })
+    const activeJobs = await readDb.select({ sessionId: sessionCaptureSplitJobs.sessionId })
       .from(sessionCaptureSplitJobs)
       .where(and(
         inArray(sessionCaptureSplitJobs.sessionId, candidateIds),
@@ -764,27 +757,26 @@ export async function deleteEmptySessions(activeSessionId?: number): Promise<num
  */
 
 export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
-  const query = db
-    .select({
-      id: sessions.id,
-      carId: sessions.carId,
-      trackId: sessions.trackId,
-      createdAt: sessions.createdAt,
-      gameId: sessions.gameId,
-      ownership: sessions.ownership,
-      isFavorite: sessions.isFavorite,
-      telemetryAvailable: sql<number>`${sessions.rawFile} IS NOT NULL OR ${sessions.captureManifestFile} IS NOT NULL`,
-      capturePath: sessions.rawFile,
-      notes: sessions.notes,
-      source: sessions.source,
-      sessionType: sessions.sessionType,
-      catalogVersion: sessions.catalogVersion,
-      catalogHash: sessions.catalogHash,
-      catalogSchemaVersion: sessions.catalogSchemaVersion,
-      parserVersion: sessions.parserVersion,
-      resolverVersion: sessions.resolverVersion,
-      derivationVersion: sessions.derivationVersion,
-    })
+  const query = readDb.select({
+    id: sessions.id,
+    carId: sessions.carId,
+    trackId: sessions.trackId,
+    createdAt: sessions.createdAt,
+    gameId: sessions.gameId,
+    ownership: sessions.ownership,
+    isFavorite: sessions.isFavorite,
+    telemetryAvailable: sql<number>`${sessions.rawFile} IS NOT NULL OR ${sessions.captureManifestFile} IS NOT NULL`,
+    capturePath: sessions.rawFile,
+    notes: sessions.notes,
+    source: sessions.source,
+    sessionType: sessions.sessionType,
+    catalogVersion: sessions.catalogVersion,
+    catalogHash: sessions.catalogHash,
+    catalogSchemaVersion: sessions.catalogSchemaVersion,
+    parserVersion: sessions.parserVersion,
+    resolverVersion: sessions.resolverVersion,
+    derivationVersion: sessions.derivationVersion,
+  })
     .from(sessions)
     .orderBy(desc(sessions.id));
 
@@ -792,7 +784,7 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
     ? await query.where(eq(sessions.gameId, gameId)).all()
     : await query.all();
   const splitJobRows = rows.length
-    ? await db.select({
+    ? await readDb.select({
       sessionId: sessionCaptureSplitJobs.sessionId,
       jobId: sessionCaptureSplitJobs.jobId,
       attemptId: sessionCaptureSplitJobs.attemptId,
@@ -810,7 +802,7 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
   // Shared paths lack per-session interval metadata; never count one full file twice.
   const capturePaths = [...new Set(rows.flatMap((session) => session.capturePath ? [session.capturePath] : []))];
   const sharedCaptureRows = capturePaths.length
-    ? await db.select({ rawFile: sessions.rawFile }).from(sessions).where(inArray(sessions.rawFile, capturePaths)).all()
+    ? await readDb.select({ rawFile: sessions.rawFile }).from(sessions).where(inArray(sessions.rawFile, capturePaths)).all()
     : [];
   const sessionsByFile = new Map<string, number>();
   for (const session of sharedCaptureRows) {
@@ -832,12 +824,12 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
   // Get lap counts and best lap per session
   const result: SessionMeta[] = [];
   for (const session of rows) {
-    const lapRows = await db
-      .select({ id: laps.id, lapTime: laps.lapTime, isValid: laps.isValid })
+    const lapRows = await readDb
+      .select({ id: laps.id, lapTime: laps.lapTime, isValid: laps.isValid, classification: laps.classification })
       .from(laps)
       .where(eq(laps.sessionId, session.id))
       .all();
-    const validLapTimes = lapRows.filter((lap) => Boolean(lap.isValid)).map((lap) => lap.lapTime);
+    const validLapTimes = lapRows.filter((lap) => Boolean(lap.isValid) && isPaceLap(lap.classification)).map((lap) => lap.lapTime);
     const bestLapTime = validLapTimes.length > 0 ? Math.min(...validLapTimes) : 0;
 
     const { capturePath: _capturePath, ...sessionMetadata } = session;
@@ -862,23 +854,21 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
         }
         : undefined,
     };
-    const resultRow = await db
-      .select({
-        id: sessionResults.id,
-        classification: sessionResults.classification,
-        finishingPosition: sessionResults.finishingPosition,
-        qualifyingPosition: sessionResults.qualifyingPosition,
-        outcomeStatus: sessionResults.outcomeStatus,
-        isPodium: sessionResults.isPodium,
-        isFastestLap: sessionResults.isFastestLap,
-        pitCount: sessionResults.pitCount,
-      })
+    const resultRow = await readDb.select({
+      id: sessionResults.id,
+      classification: sessionResults.classification,
+      finishingPosition: sessionResults.finishingPosition,
+      qualifyingPosition: sessionResults.qualifyingPosition,
+      outcomeStatus: sessionResults.outcomeStatus,
+      isPodium: sessionResults.isPodium,
+      isFastestLap: sessionResults.isFastestLap,
+      pitCount: sessionResults.pitCount,
+    })
       .from(sessionResults)
       .where(eq(sessionResults.sessionId, session.id))
       .get();
     const pitDurationRow = resultRow
-      ? await db
-        .select({ duration: sql<number | null>`sum(${pitEvents.durationSeconds})` })
+      ? await readDb.select({ duration: sql<number | null>`sum(${pitEvents.durationSeconds})` })
         .from(pitEvents)
         .where(eq(pitEvents.resultId, resultRow.id))
         .get()
@@ -931,27 +921,27 @@ export async function getSessionRecapData(
   allTimeBestSectors: Array<number | null> | null;
   sectorStarts: number[] | null;
 } | null> {
-  const sessionRow = await db
-    .select({
-      id: sessions.id,
-      carId: sessions.carId,
-      trackId: sessions.trackId,
-      gameId: sessions.gameId,
-      createdAt: sessions.createdAt,
-      ownership: sessions.ownership,
-    })
+  const sessionRow = await readDb.select({
+    id: sessions.id,
+    carId: sessions.carId,
+    trackId: sessions.trackId,
+    gameId: sessions.gameId,
+    createdAt: sessions.createdAt,
+    ownership: sessions.ownership,
+  })
     .from(sessions)
     .where(eq(sessions.id, id))
     .get();
 
   if (!sessionRow || sessionRow.gameId !== gameId) return null;
 
-  const lapRows = await db
+  const lapRows = await readDb
     .select({
       id: laps.id,
       lapNumber: laps.lapNumber,
       lapTime: laps.lapTime,
       isValid: laps.isValid,
+      classification: laps.classification,
       sectorTimes: laps.sectorTimes,
       invalidReason: laps.invalidReason,
     })
@@ -992,8 +982,7 @@ export async function getSessionRecapData(
     eq(sessions.carId, sessionRow.carId),
   ];
 
-  const bestOtherRow = await db
-    .select({ lapTime: laps.lapTime })
+  const bestOtherRow = await readDb.select({ lapTime: laps.lapTime })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .where(
@@ -1002,6 +991,7 @@ export async function getSessionRecapData(
         eq(sessions.gameId, gameId),
         sql`${sessions.id} != ${id}`,
         eq(laps.isValid, true),
+        paceLapCondition(),
         sql`${laps.lapTime} > 0`,
       ),
     )
@@ -1009,8 +999,7 @@ export async function getSessionRecapData(
     .limit(1)
     .get();
 
-  const otherSectorRows = await db
-    .select({ sectorTimes: laps.sectorTimes })
+  const otherSectorRows = await readDb.select({ sectorTimes: laps.sectorTimes })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .where(
@@ -1019,6 +1008,7 @@ export async function getSessionRecapData(
         eq(sessions.gameId, gameId),
         sql`${sessions.id} != ${id}`,
         eq(laps.isValid, true),
+        paceLapCondition(),
         sql`${laps.lapTime} > 0`,
         sql`${laps.sectorTimes} IS NOT NULL`,
       ),

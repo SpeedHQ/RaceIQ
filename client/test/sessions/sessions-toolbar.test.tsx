@@ -23,8 +23,8 @@ const { SessionToolbar } = await import("../../src/components/sessions/SessionTo
 
 const session = { id: 1, trackOrdinal: 10, carOrdinal: 20 } as SessionMeta;
 const sessions = [session];
-const lap = { id: 101, sessionId: 1 } as LapMeta;
-const secondLap = { id: 102, sessionId: 1 } as LapMeta;
+const lap: LapMeta = { id: 101, sessionId: 1, lapNumber: 1, lapTime: 90, isValid: true, classification: null, createdAt: "", carId: "", trackId: "" };
+const secondLap: LapMeta = { id: 102, sessionId: 1, lapNumber: 2, lapTime: 90, isValid: true, classification: null, createdAt: "", carId: "", trackId: "" };
 
 type ToolbarOverrides = Partial<Pick<ComponentProps<typeof SessionToolbar>, "exporting" | "runExport">>;
 
@@ -44,6 +44,7 @@ function toolbar(selectedLaps: Set<number>, allLaps: LapMeta[] = [lap], toolbarS
       setPage: () => undefined,
       selectedSessions: new Set(),
       selectedLaps,
+      clearSelection: () => undefined,
       exporting: overrides.exporting ?? false,
       runExport: overrides.runExport ?? (() => undefined),
       setImportOpen: () => undefined,
@@ -104,5 +105,15 @@ describe("Sessions toolbar controls", () => {
 
   test("shows Compare button for two laps on same track", () => {
     expect(toolbar(new Set([lap.id, secondLap.id]), [lap, secondLap])).toContain(m.sessions_compare_two());
+  });
+
+  test.each([{ ids: [] }, { ids: [lap.id] }, { ids: [lap.id, secondLap.id, 103] }])("keeps Compare visible but disabled for selection %j", ({ ids }) => {
+    toolbar(new Set(ids), [lap, secondLap]);
+    expect(capturedButtons.find(({ children }) => children === m.sessions_compare_two())?.disabled).toBe(true);
+  });
+
+  test("enables Compare for exactly two compatible laps", () => {
+    toolbar(new Set([lap.id, secondLap.id]), [lap, secondLap]);
+    expect(capturedButtons.find(({ children }) => children === m.sessions_compare_two())?.disabled).toBe(false);
   });
 });

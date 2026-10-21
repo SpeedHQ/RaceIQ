@@ -38,5 +38,7 @@ export function openDashboard(url: string): void {
 }
 
 export function openFirstRunDashboard(port: number): void {
+  // Installed shortcuts wait for HTTP readiness and open the dashboard themselves.
+  if (process.env.RACEIQ_LAUNCHER_OPENS_BROWSER === "1") return;
   openDashboard(`http://localhost:${port}`);
 }

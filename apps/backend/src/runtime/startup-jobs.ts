@@ -35,8 +35,11 @@ export interface StartupJobDependencies {
 export async function startSyncAndStaleSessionJobs(dependencies: StartupJobDependencies = {}): Promise<void> {
   (dependencies.startCommunityTunesSync ?? startCommunityTunesSync)();
   try {
-    await (dependencies.recoverSessionCaptureSplitJobs ?? recoverSessionCaptureSplitJobs)();
-    await (dependencies.initializeStartupSplitMigration ?? initializeStartupSplitMigration)();
+    // General Playwright fixtures retain raw captures; dedicated migration coverage omits this flag.
+    if (process.env.PW_SKIP_STARTUP_SPLIT_MIGRATION !== "1") {
+      await (dependencies.recoverSessionCaptureSplitJobs ?? recoverSessionCaptureSplitJobs)();
+      await (dependencies.initializeStartupSplitMigration ?? initializeStartupSplitMigration)();
+    }
     (dependencies.startSessionCaptureSplitManager ?? startSessionCaptureSplitManager)();
   } catch (error) {
     console.error("[CaptureSplit] Startup recovery failed:", error);

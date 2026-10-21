@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { constants } from "node:fs";
+import type { Stats } from "node:fs";
 import { copyFile, lstat, mkdir, open, readFile, realpath, rename, rm, readdir, unlink, rmdir, link, stat } from "node:fs/promises";
 import { basename, dirname, isAbsolute, parse, relative, resolve, sep } from "node:path";
 import { eq, sql } from "drizzle-orm";
@@ -8,7 +9,8 @@ import { cacheDelete } from "../db/telemetry-replay-storage";
 import { clearSessionCaptureCache } from "./source-loader";
 import { getSessionCaptureSourceRevision } from "../db/session-queries";
 import { laps, sessions, sessionCaptureSplitJobs, liveCaptures } from "../db/schema";
-import { db } from "../db/index";
+import { db, readDb } from "../db/index";
+import { withDatabaseWrite } from "../db/write-coordination";
 import { resolveDataDir } from "../runtime/config/data-dir";
 import { loadSettings, saveSettings } from "../runtime/config/settings";
 import { resolveRecordingDirectory } from "../runtime/config/recording-directory";
@@ -238,7 +240,17 @@ async function hasSymlinkDirectory(root: string, path: string): Promise<boolean>
   return false;
 }
 async function updateReferences(references: Journal["references"], pathKey: "oldPath" | "newPath"): Promise<void> {
-  await db.transaction(async (tx) => {
+  const sourceMetadata = new Map<string, Stats | null>();
+  for (const reference of references) {
+    if (reference.table !== "sessionCaptureSplitJobs" || reference.field !== "sourcePath") continue;
+    const sourcePath = reference[pathKey];
+    if (sourceMetadata.has(sourcePath)) continue;
+    sourceMetadata.set(sourcePath, await stat(sourcePath).catch((error) => {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      return null;
+    }));
+  }
+  await withDatabaseWrite(() => db.transaction(async (tx) => {
     for (const rawReference of references) {
       const reference = { ...rawReference, table: rawReference.table ?? "sessions", field: rawReference.field ?? "rawFile" };
       if (reference.table === "sessions") {
@@ -248,10 +260,7 @@ async function updateReferences(references: Journal["references"], pathKey: "old
           .from(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId, reference.sessionId)).get();
         if (reference.field === "sourcePath" && job?.status === "queued") {
           const sourcePath = reference[pathKey];
-          const source = await stat(sourcePath).catch((error) => {
-            if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-            return null;
-          });
+          const source = sourceMetadata.get(sourcePath);
           if (!source) {
             await tx.update(sessionCaptureSplitJobs).set({ sourcePath })
               .where(eq(sessionCaptureSplitJobs.sessionId, reference.sessionId)).run();
@@ -280,10 +289,10 @@ async function updateReferences(references: Journal["references"], pathKey: "old
         await tx.update(liveCaptures).set({ [reference.field]: reference[pathKey] }).where(eq(liveCaptures.sessionId, reference.sessionId)).run();
       }
     }
-  });
+  }));
   clearSessionCaptureCache();
   for (const reference of references) {
-    const rows = await db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, reference.sessionId)).all();
+    const rows = await readDb.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, reference.sessionId)).all();
     for (const row of rows) cacheDelete(row.id);
   }
 }
@@ -327,14 +336,14 @@ async function executeMove(directory: string, operationId: string, hooks: Requir
   const oldDirectory = await realpath(rawOld).catch((error) => (error as NodeJS.ErrnoException).code === "ENOENT" ? resolve(rawOld) : Promise.reject(error));
   const newDirectory = await validateDirectory(directory);
   const lexicalOldDirectory = resolve(rawOld);
-  const liveCapture = await db.select({ sessionId: liveCaptures.sessionId }).from(liveCaptures)
+  const liveCapture = await readDb.select({ sessionId: liveCaptures.sessionId }).from(liveCaptures)
     .where(sql`${liveCaptures.status} IN ('recording', 'finalizing', 'recovering')`).limit(1).get();
   if (liveCapture) throw Object.assign(new Error("Live capture storage is active or recovering"), { code: "RECORDING_ACTIVE" });
   if (oldDirectory === newDirectory) return;
   const [rows, jobs, captures] = await Promise.all([
-    db.select({ id: sessions.id, rawFile: sessions.rawFile, captureManifestFile: sessions.captureManifestFile, captureArchiveFile: sessions.captureArchiveFile }).from(sessions).all(),
-    db.select({ sessionId: sessionCaptureSplitJobs.sessionId, sourcePath: sessionCaptureSplitJobs.sourcePath, stagingPath: sessionCaptureSplitJobs.stagingPath }).from(sessionCaptureSplitJobs).all(),
-    db.select({ sessionId: liveCaptures.sessionId, sourcePath: liveCaptures.sourcePath, archivePath: liveCaptures.archivePath }).from(liveCaptures).where(eq(liveCaptures.status, "sealed")).all(),
+    readDb.select({ id: sessions.id, rawFile: sessions.rawFile, captureManifestFile: sessions.captureManifestFile, captureArchiveFile: sessions.captureArchiveFile }).from(sessions).all(),
+    readDb.select({ sessionId: sessionCaptureSplitJobs.sessionId, sourcePath: sessionCaptureSplitJobs.sourcePath, stagingPath: sessionCaptureSplitJobs.stagingPath }).from(sessionCaptureSplitJobs).all(),
+    readDb.select({ sessionId: liveCaptures.sessionId, sourcePath: liveCaptures.sourcePath, archivePath: liveCaptures.archivePath }).from(liveCaptures).where(eq(liveCaptures.status, "sealed")).all(),
   ]);
   const files = new Set(await enumerate(oldDirectory, newDirectory)); const references: Journal["references"] = [];
   const relocateReference = async (sessionId: number, table: "sessions" | "sessionCaptureSplitJobs" | "liveCaptures", field: ReferenceField, value: string | null) => {

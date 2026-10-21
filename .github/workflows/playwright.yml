@@ -12,7 +12,7 @@ on:
         description: "Runner label; compiled server builds on selected runner"
         required: false
         type: string
-        default: '["mars-macos-arm64-2vcpu-10g", "mars-ubuntu-2vcpu-10g", "mars-retry-3"]'
+        default: '["mars-ubuntu-2vcpu-6g", "mars-retry-3"]'
       projects:
         description: "Playwright project flags passed to the gate"
         required: false
@@ -66,7 +66,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.target-ref || github.ref }}
-
+          fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4
@@ -103,7 +103,10 @@ jobs:
         continue-on-error: true
       - name: Build local compiled server
         if: inputs.server-mode == 'compiled' && (inputs.dist-artifact == '' || runner.os != 'Linux' || runner.arch != 'X64')
-        run: bunx turbo run build
+        env:
+          RACEIQ_FEATURE_F1_EXPERIMENTS: "true"
+          RACEIQ_FEATURE_IRACING_ADAPTER: "true"
+        run: bunx turbo run build --concurrency=1
 
       - name: Install Chromium
         working-directory: playwright
@@ -113,6 +116,8 @@ jobs:
         working-directory: playwright
         env:
           E2E_SERVER_MODE: ${{ inputs.server-mode }}
+          RACEIQ_FEATURE_F1_EXPERIMENTS: "true"
+          RACEIQ_FEATURE_IRACING_ADAPTER: "true"
           PW_SERVER_SET: ${{ inputs.server-set }}
           PW_WORKERS: "1"
           PLAYWRIGHT_PROJECTS: ${{ inputs.projects }}
@@ -124,13 +129,14 @@ jobs:
           # Collect replay allocations sooner inside memory-limited CI runners.
           BUN_OPTIONS: "--smol"
           E2E_SERVER_MODE: ${{ inputs.server-mode }}
+          RACEIQ_FEATURE_F1_EXPERIMENTS: "true"
+          RACEIQ_FEATURE_IRACING_ADAPTER: "true"
           PW_SERVER_SET: ${{ inputs.server-set }}
           PW_WORKERS: "1"
           RACEIQ_DISABLE_TRAY: "1"
           PLAYWRIGHT_PROJECTS: ${{ inputs.projects }}
           PW_SEEDED_DATABASE: ${{ inputs.server-set == 'seeded' && inputs.seed-database-artifact != '' && 'playwright/test-data-seed-artifact/app.db' || '' }}
         run: bun run ../scripts/playwright-ci.ts test ${{ inputs.shard != '' && format('--shard={0}', inputs.shard) || '' }}
-
 
       - name: Upload Playwright artifacts
         if: always()

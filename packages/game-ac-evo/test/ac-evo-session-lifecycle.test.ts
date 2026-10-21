@@ -30,6 +30,7 @@ import { AcEvoStatusCheckProcessor } from "../src/shared-memory";
 import { ACEVO_STATUS, GRAPHICS_EVO, PHYSICS, STATIC_EVO } from "@raceiq/capture-formats/ac-evo/structs";
 import { ACEVO_PACKED_MAGIC, packTriplet, unpackTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
 import { parsePacket, resetParserState } from "@raceiq/backend-core/games/packet-dispatch";
+import { parseAcEvoLapIndex } from "../src/lap-index";
 import { TripletPipeline } from "@raceiq/backend-core/games/kunos/triplet-pipeline";
 
 registerGame(acEvoServerAdapter);
@@ -98,6 +99,16 @@ describe("AC Evo parser — status gating", () => {
     const packet = parseAcEvoBuffers(t.physics, graphics, t.staticData, createAcEvoParserCache());
     expect(packet).toBeNull();
   });
+});
+test("AC Evo native parser and lap-index projection preserve nested session context", () => {
+  const t = readFirstTriplet();
+  const graphics = setStatus(t.graphics, ACEVO_STATUS.AC_LIVE);
+  const native = parseAcEvoBuffers(t.physics, graphics, t.staticData, createAcEvoParserCache());
+  const indexed = parseAcEvoLapIndex(t.physics, graphics, t.staticData, createAcEvoParserCache());
+  expect(native).not.toBeNull();
+  expect(indexed).not.toBeNull();
+  expect(indexed?.acc?.acEvo?.sessionType).toBe(native?.acc?.acEvo?.sessionType);
+  expect(indexed).not.toHaveProperty("acEvo");
 });
 
 describe("AC Evo live pipeline — status gating", () => {

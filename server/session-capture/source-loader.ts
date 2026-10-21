@@ -38,7 +38,7 @@ import {
   type SessionCaptureRecord,
 } from "@raceiq/capture-formats/session/framing";
 import { decodeLmuSparseFrame, isLmuSparseFrame } from "@raceiq/capture-formats/session/lmu-sparse";
-import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
+import { canHandleLMUSourceFrame, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
 import { decodeKunosSparseFrame, isKunosSparseFrame, kunosSourceMagic } from "@raceiq/capture-formats/session/kunos-sparse";
 import { decodeGenericSparseFrame, genericFrameIdentity, isGenericSparseFrame } from "@raceiq/capture-formats/session/generic-sparse";
 
@@ -255,7 +255,7 @@ async function* iterateStandaloneManifest(source: SessionCaptureSource): AsyncGe
  */
 export async function* iterateSessionCaptureRecordsFromSource(
   source: SessionCaptureSource,
-  options: { strict?: boolean } = {},
+  options: { strict?: boolean; allowLegacyFullFrames?: boolean } = {},
 ): AsyncGenerator<SessionCaptureRecord> {
   if (source.rawFile.endsWith("manifest.json")) {
     yield* iterateStandaloneManifest(source);
@@ -266,8 +266,8 @@ export async function* iterateSessionCaptureRecordsFromSource(
   }
 
   const file = captureFileFactory(source.rawFile);
-  // Persisted converted captures can contain only full checkpoints; match buffered replay eligibility.
-  if (source.captureFormatVersion !== 1) {
+  if (!options.allowLegacyFullFrames && source.captureFormatVersion !== 1) {
+    // Persisted converted captures can contain only full checkpoints; match buffered replay eligibility.
     const first = await streamForSource(source, file);
     if (!await hasSparseCaptureFormat(file, first.stream, first.gzip)) {
       throw new Error("Legacy full-frame captures are not supported; provide a sparse RaceIQ capture.");
@@ -392,16 +392,14 @@ export async function* iterateSessionCaptureRecordsFromSource(
           }
           frame = genericDelta ? decodeGenericSparseFrame(payload, previous)
             : lmuDelta ? decodeLmuSparseFrame(payload, previous) : decodeKunosSparseFrame(payload, previous);
-          if (lmuDelta && (frame.length !== LMU_SOURCE_FRAME_V2_SIZE ||
-              !frame.subarray(0, LMU_SOURCE_FRAME_MAGIC.length).equals(LMU_SOURCE_FRAME_MAGIC))) {
+          if (lmuDelta && !canHandleLMUSourceFrame(frame)) {
             throw new Error(`Invalid LMU sparse frame at ${frameOffset}`);
           }
           if (kunosDelta && kunosSourceMagic(frame) !== Number(checkpointIdentity!.slice(6))) {
             throw new Error(`Invalid Kunos sparse frame identity at ${frameOffset}`);
           }
         } else {
-          const isLmu = payload.length === LMU_SOURCE_FRAME_V2_SIZE &&
-            payload.subarray(0, LMU_SOURCE_FRAME_MAGIC.length).equals(LMU_SOURCE_FRAME_MAGIC);
+          const isLmu = payload.length >= LMU_SOURCE_FRAME_V2_SIZE && canHandleLMUSourceFrame(payload);
           const magic = kunosSourceMagic(payload);
           checkpointIdentity = isLmu ? "lmu-v2" : magic ? `kunos-${magic}` : genericFrameIdentity(payload);
           checkpointOffset = checkpointIdentity ? frameOffset : -1;

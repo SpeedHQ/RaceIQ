@@ -5,15 +5,86 @@ import {
   relocateMigrationHistory,
   runMigrations,
 } from "@raceiq/backend-core/test-support/db/migrations";
+import { migrations, migrationHistoryRelocations } from "@raceiq/backend-core/db/migrations";
 
 
 describe("migration regressions", () => {
-  test("v88 marks historical sessions non-native and freezes established original activity identity", async () => {
+  const oldOnlineMigrations = migrations.filter(({ version }) => version !== 82)
+    .map((migration) => ({ ...migration, version: migration.version > 82 ? migration.version - 1 : migration.version }));
+  for (const lineage of ["fresh", "main82", ...Array.from({ length: 12 }, (_, index) => index + 82)] as const) {
+    test(`preserves ${lineage} history while installing classification and Online ownership`, async () => {
+      const client = newClient();
+      try {
+        await bootstrap(client);
+        if (lineage === "main82") await runMigrations(client, 82);
+        else if (typeof lineage === "number") await runMigrations(client, lineage, oldOnlineMigrations);
+        const historical = lineage !== "fresh";
+        if (historical) {
+          await client.execute("INSERT INTO sessions(car_id,track_id,game_id,ownership) VALUES('car','track','acc','mine')");
+          await client.execute("INSERT INTO laps(session_id,lap_number,lap_time,is_valid,invalid_reason) VALUES(1,1,40,1,'outlap')");
+          if (typeof lineage === "number" && lineage >= 85) {
+            await client.execute("UPDATE laps SET lap_guid='018f0f8a-7b21-7cc2-9f3a-5c7d09a681ac' WHERE id=1");
+          }
+          if (typeof lineage === "number" && lineage >= 87) {
+            await client.execute("UPDATE sessions SET owner_user_id='historical-owner',original_activity_id='historical-original' WHERE id=1");
+          }
+          await client.execute("UPDATE schema_migrations SET applied_at='2025-02-03 04:05:06'");
+        }
+        const prior = (await client.execute("SELECT name,applied_at FROM schema_migrations ORDER BY name")).rows;
+        await relocateMigrationHistory(client, migrationHistoryRelocations);
+        await runMigrations(client);
+        const after = (await client.execute("SELECT name,applied_at FROM schema_migrations ORDER BY name")).rows;
+        for (const entry of prior) expect(after.find((row) => row.name === entry.name)).toEqual(entry);
+        expect((await client.execute("SELECT name FROM schema_migrations WHERE version=82")).rows[0]?.name)
+          .toBe("classify historical non-pace laps");
+        expect((await client.execute("SELECT name FROM schema_migrations WHERE version=94")).rows[0]?.name)
+          .toBe("invalidate personal dashboard projections when native attribution changes");
+        if (historical && lineage !== "main82") {
+          expect((await client.execute("SELECT classification FROM laps WHERE id=1")).rows[0]?.classification).toBe("out_lap");
+        }
+        if (typeof lineage === "number" && lineage >= 85) {
+          expect((await client.execute("SELECT lap_guid FROM laps WHERE id=1")).rows[0]?.lap_guid)
+            .toBe("018f0f8a-7b21-7cc2-9f3a-5c7d09a681ac");
+        }
+        if (typeof lineage === "number" && lineage >= 87) {
+          expect((await client.execute("SELECT owner_user_id,original_activity_id FROM sessions WHERE id=1")).rows[0])
+            .toMatchObject({ owner_user_id: "historical-owner", original_activity_id: "historical-original" });
+        }
+        await client.execute(`INSERT INTO sessions(car_id,track_id,game_id,ownership,original_activity_id,native_capture_origin,owner_user_id)
+          VALUES('native-car','native-track','acc','mine','preserved-original',1,'original-owner')`);
+        const sessionId = Number((await client.execute("SELECT id FROM sessions WHERE original_activity_id='preserved-original'")).rows[0]?.id);
+        await client.execute({ sql: `INSERT INTO laps(session_id,lap_number,lap_time,is_valid,classification,lap_guid)
+          VALUES(?,1,60,1,'in_lap','018f0f8a-7b21-7cc2-9f3a-5c7d09a681ad')`, args: [sessionId] });
+        const lapId = Number((await client.execute("SELECT id FROM laps WHERE lap_guid='018f0f8a-7b21-7cc2-9f3a-5c7d09a681ad'")).rows[0]?.id);
+        expect((await client.execute({ sql: "SELECT classification FROM dashboard_lap_index WHERE lap_id=?", args: [lapId] })).rows[0]?.classification)
+          .toBe("in_lap");
+        await client.execute({ sql: "UPDATE laps SET classification='pace' WHERE id=?", args: [lapId] });
+        expect((await client.execute({ sql: "SELECT classification FROM dashboard_lap_index WHERE lap_id=?", args: [lapId] })).rows[0]?.classification)
+          .toBe("pace");
+        const revision = Number((await client.execute({ sql: "SELECT source_revision FROM dashboard_summary_state WHERE session_id=?", args: [sessionId] })).rows[0]?.source_revision);
+        await client.execute({ sql: "UPDATE laps SET driver_attribution='Other' WHERE id=?", args: [lapId] });
+        expect(Number((await client.execute({ sql: "SELECT source_revision FROM dashboard_summary_state WHERE session_id=?", args: [sessionId] })).rows[0]?.source_revision))
+          .toBeGreaterThan(revision);
+        expect((await client.execute({ sql: "SELECT lap_guid FROM laps WHERE id=?", args: [lapId] })).rows[0]?.lap_guid)
+          .toBe("018f0f8a-7b21-7cc2-9f3a-5c7d09a681ad");
+        await expect(client.execute({ sql: "UPDATE sessions SET owner_user_id='replacement-owner' WHERE id=?", args: [sessionId] }))
+          .rejects.toThrow("session original owner is immutable");
+        await expect(client.execute({ sql: "UPDATE sessions SET original_activity_id='replacement-original' WHERE id=?", args: [sessionId] }))
+          .rejects.toThrow("session original activity identity is immutable");
+        expect((await client.execute("PRAGMA foreign_key_check")).rows).toEqual([]);
+        await relocateMigrationHistory(client, migrationHistoryRelocations);
+        expect(await runMigrations(client)).toBe(0);
+      } finally {
+        client.close();
+      }
+    });
+  }
+  test("v89 marks historical sessions non-native and freezes established original activity identity", async () => {
 
     const client = newClient();
     try {
       await bootstrap(client);
-      await runMigrations(client, 87);
+      await runMigrations(client, 88);
       await client.execute(`INSERT INTO sessions (car_id,track_id,game_id,original_activity_id)
         VALUES ('car-1','track-1','iracing','original-1')`);
       await runMigrations(client);
@@ -27,11 +98,11 @@ describe("migration regressions", () => {
       client.close();
     }
   });
-  test("v87 preserves driver-summary lap GUID associations through profile-table removal", async () => {
+  test("v88 preserves driver-summary lap GUID associations through profile-table removal", async () => {
     const client = newClient();
     try {
       await bootstrap(client);
-      await runMigrations(client, 86);
+      await runMigrations(client, 87);
       const lapGuid = "018f0f8a-7b21-7cc2-9f3a-5c7d09a681ac";
       await client.execute(`INSERT INTO driver_summary_activities
         (activity_id,driver_profile_id,game_id,lap_guids_json,payload_json,content_hash,state)
@@ -40,7 +111,7 @@ describe("migration regressions", () => {
       );
       await client.execute(`INSERT INTO driver_summary_activity_laps (lap_guid,activity_id,driver_profile_id)
         VALUES (?,'activity-preserved','local-default')`, [lapGuid]);
-      await runMigrations(client, 87);
+      await runMigrations(client, 88);
       const preserved = await client.execute(
         "SELECT lap_guid,activity_id,owner_user_id FROM driver_summary_activity_laps WHERE lap_guid=?",
         [lapGuid],
@@ -113,11 +184,7 @@ describe("migration regressions", () => {
           (78, 'retain cloud lap setup attachment')
       `);
 
-      await relocateMigrationHistory(client, [
-        { name: "retain cloud lap import attribution", oldVersions: [76], version: 82 },
-        { name: "preserve cloud lap millisecond values", oldVersions: [77], version: 83 },
-        { name: "retain cloud lap setup attachment", oldVersions: [78], version: 84 },
-      ]);
+      await relocateMigrationHistory(client, migrationHistoryRelocations);
       await runMigrations(client);
 
       const session = await client.execute("SELECT source_author_user_id, cloud_import_origin FROM sessions");
@@ -127,11 +194,12 @@ describe("migration regressions", () => {
       expect(sessionColumns.rows.map((row) => row.name)).toContain("capture_manifest_file");
       const lapColumns = await client.execute("PRAGMA table_info(laps)");
       expect(lapColumns.rows.map((row) => row.name)).toContain("capture_chunk_id");
-      const ledger = await client.execute("SELECT version, name FROM schema_migrations WHERE version BETWEEN 76 AND 84 ORDER BY version");
+      const ledger = await client.execute("SELECT version, name FROM schema_migrations WHERE version BETWEEN 76 AND 85 ORDER BY version");
       expect(ledger.rows.map((row) => row.version)).toContain(76);
       expect(ledger.rows.map((row) => row.version)).toContain(82);
       expect(ledger.rows.map((row) => row.version)).toContain(83);
       expect(ledger.rows.map((row) => row.version)).toContain(84);
+      expect(ledger.rows.map((row) => row.version)).toContain(85);
     } finally {
       client.close();
     }
@@ -315,6 +383,33 @@ describe("migration regressions", () => {
       { lapNumber: 9, isValid: 1, invalidReason: null },
     ]);
     client.close();
+  });
+
+  test("classification backfill maps main's legacy pit reasons without restoring quality validity", async () => {
+    const client = newClient();
+    try {
+      await bootstrap(client);
+      await runMigrations(client, 80);
+      await client.execute("INSERT INTO sessions (id, car_id, track_id, game_id) VALUES (1, '10', '20', 'iracing')");
+      await client.execute(`INSERT INTO laps (session_id, lap_number, lap_time, is_valid, invalid_reason)
+        VALUES (1, 7, 110, 0, 'inlap'), (1, 8, 150, 0, 'outlap'),
+          (1, 9, 100, 0, 'track limits'), (1, 10, 160, 0, 'pit lap'), (1, 11, 99, 1, NULL)`);
+
+      await runMigrations(client);
+      const rows = await client.execute("SELECT lap_number, is_valid, invalid_reason, classification FROM laps ORDER BY lap_number");
+      expect(rows.rows.map((row) => ({
+        lapNumber: Number(row.lap_number), isValid: Number(row.is_valid),
+        invalidReason: row.invalid_reason, classification: row.classification,
+      }))).toEqual([
+        { lapNumber: 7, isValid: 0, invalidReason: "inlap", classification: "in_lap" },
+        { lapNumber: 8, isValid: 0, invalidReason: "outlap", classification: "out_lap" },
+        { lapNumber: 9, isValid: 0, invalidReason: "track limits", classification: null },
+        { lapNumber: 10, isValid: 0, invalidReason: "pit lap", classification: "pit_lap" },
+        { lapNumber: 11, isValid: 1, invalidReason: null, classification: null },
+      ]);
+    } finally {
+      client.close();
+    }
   });
 
   test("v58 normalizes pre-existing null and invalid ownership values", async () => {

@@ -12,9 +12,10 @@ import type { ServerWebSocket } from "bun";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { LiveSectorData, LivePitData } from "@raceiq/shared/racing/live/types";
 import type { LapMeta, SessionCaptureSplitStatus } from "@raceiq/shared/racing/sessions/types";
+import type { DashboardUpdatedMessage } from "@raceiq/shared/racing/sessions/dashboard";
 import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import type { LiveProjection } from "@raceiq/telemetry-core/telemetry/live-projector";
-import type { DashboardUpdatedMessage } from "@raceiq/shared/racing/sessions/dashboard";
+import type { ClassificationMigrationStatusNotification } from "@raceiq/shared/racing/laps/classification-migration";
 import { IS_DEV, IS_E2E } from "./config/env";
 import {
   isDevTelemetryControlMessageV1,
@@ -22,6 +23,8 @@ import {
   type DevTelemetryPacketMessageV1,
   type DevTelemetrySubscriptionMessageV1,
 } from "@raceiq/shared/telemetry/live/contracts";
+import { encodeLmuContext, encodeLmuPacket } from "@raceiq/shared/telemetry/lmu-context";
+import type { LmuLiveContext } from "@raceiq/shared/telemetry/lmu";
 
 export interface WSData {
   createdAt: number;
@@ -93,6 +96,7 @@ export class WebSocketManager {
   private _staleSessionsNotification: Record<string, unknown> | null = null;
   /** Stale race-result notification — sent to each new client on connect */
   private _staleRaceResultsNotification: Record<string, unknown> | null = null;
+  private _classificationMigrationStatusNotification: ClassificationMigrationStatusNotification | null = null;
   private dashboardUpdateTimer: ReturnType<typeof setTimeout> | null = null;
   private liveCaptureLifecycle = new Map<number, Record<string, unknown>>();
   private readonly maxLiveCaptureSessions = 128;
@@ -141,6 +145,10 @@ export class WebSocketManager {
   }
   setStaleRaceResultsNotification(payload: Record<string, unknown> | null): void {
     this._staleRaceResultsNotification = payload;
+  }
+  setClassificationMigrationStatusNotification(payload: ClassificationMigrationStatusNotification): void {
+    this._classificationMigrationStatusNotification = payload;
+    this.broadcastNotification(payload);
   }
   private telemetryHistory: TelemetryHistoryData = {
     grip: { fl: [], fr: [], rl: [], rr: [] },
@@ -199,6 +207,9 @@ export class WebSocketManager {
     }
     if (this._staleRaceResultsNotification) {
       try { ws.send(JSON.stringify(this._staleRaceResultsNotification)); } catch { sendFailed = true; }
+    }
+    if (this._classificationMigrationStatusNotification) {
+      try { ws.send(JSON.stringify(this._classificationMigrationStatusNotification)); } catch { sendFailed = true; }
     }
     for (const lifecycle of this.liveCaptureLifecycle.values()) {
       try { ws.send(JSON.stringify(lifecycle)); } catch { sendFailed = true; }
@@ -299,6 +310,17 @@ export class WebSocketManager {
     }
   }
 
+  /** Clear only the LMU generation that lost its player/native source. */
+  invalidateLmuTelemetry(context: LmuLiveContext): void {
+    const frame = this.lastFrame;
+    if (!frame?.lmu || frame.lmu.key.sessionKey !== context.key.sessionKey) return;
+    this.publishTelemetry({ frame: {
+      ...frame, receivedAtMs: Date.now(), values: frame.values.map(() => null),
+      states: Object.fromEntries(frame.values.map((_, index) => [index, "missing" as const])),
+      freshness: undefined, context: {}, lmu: encodeLmuContext(context),
+    } });
+  }
+
   private serializeLatestFrame(): string | null {
     if (!this.lastFrameJson && this.lastFrame) this.lastFrameJson = JSON.stringify(this.lastFrame);
     return this.lastFrameJson;
@@ -328,7 +350,7 @@ export class WebSocketManager {
   }
 
   stageDevTelemetry(packet: TelemetryPacket): void {
-    this.lastDevPacketJson = JSON.stringify({ type: "dev-telemetry", protocolVersion: 1, packet } satisfies DevTelemetryPacketMessageV1);
+    this.lastDevPacketJson = JSON.stringify({ type: "dev-telemetry", protocolVersion: 1, packet: encodeLmuPacket(packet) } satisfies DevTelemetryPacketMessageV1);
   }
 
   flushLatest(): void { this._pushToClients(); }

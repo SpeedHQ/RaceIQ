@@ -218,12 +218,14 @@ describe("FM-2023 recording", () => {
       expect(laps.map((lap) => lap.lapNumber)).toEqual([0, 1, 2]);
       expect(laps[1]).toMatchObject({
         isValid: false,
-        invalidReason: "inlap",
+        classification: "in_lap",
+        invalidReason: "telemetry lap time mismatch",
       });
       expect(laps[1].lapTime).toBeCloseTo(98.955, 3);
       expect(laps[1].packets.length).toBeGreaterThan(4_000);
       expect(laps[2]).toMatchObject({
         isValid: false,
+        classification: "out_lap",
         invalidReason: "outlap",
       });
       expect(laps[2].lapTime).toBeCloseTo(82.296, 3);

@@ -105,7 +105,7 @@ export const driverCoachAgent = new Agent({
     get_lap_issues: driverCoachTools.getLapIssuesTool,
     compare_laps: driverCoachTools.compareLapsTool,
   },
-  memory: getChatMemory(),
+  memory: getChatMemory,
   // Live scoring in Studio. `drill-quality` is the one that matters here:
   // nothing else stops unmeasurable coaching becoming an experiment arm.
   scorers: liveCoachScorers,

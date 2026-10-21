@@ -45,6 +45,23 @@ function fixture() {
   return { bytes, identity, offsets };
 }
 
+test("valid non-pace classification survives portable validation independently of validity", () => {
+  const { bytes, identity } = fixture();
+  identity.laps[0]!.classification = "caution";
+  identity.laps[1]!.classification = "pace";
+  const restored = validatePortableCaptureIdentity(bytes, JSON.parse(JSON.stringify(identity)));
+  expect(restored.laps.map(({ classification, isValid }) => [classification, isValid])).toEqual([
+    ["caution", true], ["pace", true],
+  ]);
+});
+
+test("missing historical portable classification remains unknown and invalid categories are rejected", () => {
+  const { bytes, identity } = fixture();
+  expect(validatePortableCaptureIdentity(bytes, identity).laps.map(({ classification }) => classification)).toEqual([null, null]);
+  const invalid = { ...identity, laps: identity.laps.map((lap) => ({ ...lap, classification: "unrecognized" })) };
+  expect(() => validatePortableCaptureIdentity(bytes, invalid)).toThrow();
+});
+
 test("a recomputed wrapper hash and record count cannot promote a truncated original", () => {
   const { bytes, identity, offsets } = fixture();
   const truncated = bytes.subarray(0, offsets[3]);

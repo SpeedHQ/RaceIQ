@@ -22,6 +22,8 @@ Migration identities are append-only: never renumber or rename applied migration
 
 Translation build reuse hashes message files, project settings, dependency lockfile, installed compiler version, and generation options. Every generated file is validated before reuse; missing, modified, or obsolete output triggers staged regeneration. Failed compilation preserves the previous valid output. Development watching keeps its separate locale-module profile.
 
+Paraglide generates JavaScript without its in-process TypeScript declaration pass. The installed `@effect/tsgo` compiler then emits declarations for both profiles, preserving typed message inputs and locales without enabling `allowJs` in the client. The development launcher terminates its preparation, watcher, and Vite children on exit. The translation watcher also shuts down its active compiler and exits on signals or POSIX parent loss.
+
 Boundary: development orchestration and generated translation preparation. Release packaging remains under `packages/tooling-build/src/build/`; scripts here do not modify application service configuration.
 
 Focused verification: run each command from repository root and confirm child process startup, inherited output, and non-zero propagation on failure.

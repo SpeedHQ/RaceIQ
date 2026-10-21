@@ -1,4 +1,5 @@
-import { client } from "./index";
+import { client, readClient } from "./index";
+import { withDatabaseTransaction } from "./write-coordination";
 import { dashboardCarIdentity, dashboardTrackIdentity, dashboardLapMetricFlags } from "@raceiq/shared/racing/sessions/dashboard";
 import type { TrackConditions } from "../ai/track-conditions";
 import type { GameId } from "@raceiq/shared/games/ids";
@@ -7,6 +8,14 @@ import { dashboardLapAttribution, dashboardHasSelfStint, dashboardDurationAttrib
 export const DASHBOARD_PROCESSOR_VERSION = 6;
 const LAP_PAGE_SIZE = 256;
 const TIME_BUCKET_MS = 15 * 60 * 1000;
+const CAPTURE_BASELINE_FIELDS = [
+  "track_key", "sector_layout_key", "sector_count", "sector_status",
+  "elapsed_seconds", "duration_status", "weather_revision", "weather_status",
+  "capture_revision", "evidence_version", "track_length_meters",
+  "source_sector_starts_json", "weather_conditions_json",
+  "duration_attribution_json",
+] as const;
+const CAPTURE_BASELINE_SQL = `json_array(${CAPTURE_BASELINE_FIELDS.map((field) => `p.${field}`).join(",")})`;
 
 export type EvidenceStatus = "available" | "unavailable" | "pending";
 export interface DashboardCaptureFacts {
@@ -19,11 +28,19 @@ export interface DashboardCaptureFacts {
   sourceSectorStarts: readonly number[] | null;
 }
 type DbRow = Record<string, unknown>;
+export interface DashboardPublicationHooks {
+  signal?: AbortSignal;
+  candidatePrepared?: (sessionId: number, candidate: DashboardPublicationCandidate) => Promise<void> | void;
+  transactionOpen?: (sessionId: number) => Promise<void> | void;
+  beforeCommit?: (sessionId: number) => Promise<void> | void;
+  afterCommit?: (sessionId: number) => Promise<void> | void;
+}
 export interface DashboardPublicationCandidate {
   readonly sessionId: number;
   readonly sourceRevision: number;
   readonly deleted: boolean;
   readonly publishedRevision: number;
+  readonly publicationBaseline: string | null;
   readonly metadataDirty: boolean;
   readonly captureDirty: boolean;
   readonly captureReady: boolean;
@@ -34,14 +51,15 @@ interface DashboardTransaction {
 }
 type DayContribution = {
   utc_day: string; game_id: string; car_key: string; track_key: string;
-  lap_count: number; positive_laps: number; valid_laps: number;
-  driven_seconds: number; valid_seconds: number; best_lap_seconds: number | null; mean_lap_seconds: number | null; m2_lap_seconds: number | null;
+  lap_count: number; positive_laps: number; valid_laps: number; pace_laps: number;
+  driven_seconds: number; valid_seconds: number; pace_seconds: number;
+  best_lap_seconds: number | null; mean_lap_seconds: number | null; m2_lap_seconds: number | null;
   favourite_laps: number; favourite_seconds: number; distance_laps: number; distance_meters: number | null;
   podium_first: number; podium_second: number; podium_third: number;
 };
 type TimeContribution = {
-  bucket_start_ms: number; game_id: string; valid_laps: number; positive_laps: number;
-  driven_seconds: number; valid_seconds: number; podium_first: number; podium_second: number; podium_third: number;
+  bucket_start_ms: number; game_id: string; valid_laps: number; pace_laps: number; positive_laps: number;
+  driven_seconds: number; valid_seconds: number; pace_seconds: number; podium_first: number; podium_second: number; podium_third: number;
 };
 type LapAggregate = DayContribution;
 type Moment = { count: number; mean: number; m2: number };
@@ -78,7 +96,7 @@ function removeMoments(total: Moment, removed: Moment): Moment {
 function stats(row: DbRow, countName: string, meanName: string, m2Name: string): Moment {
   return { count: number(row[countName]), mean: number(row[meanName]), m2: number(row[m2Name]) };
 }
-const DAY_COLUMNS = ["lap_count", "positive_laps", "valid_laps", "driven_seconds", "valid_seconds", "favourite_laps", "favourite_seconds", "distance_laps", "distance_meters", "podium_first", "podium_second", "podium_third"] as const;
+const DAY_COLUMNS = ["lap_count", "positive_laps", "valid_laps", "pace_laps", "driven_seconds", "valid_seconds", "pace_seconds", "favourite_laps", "favourite_seconds", "distance_laps", "distance_meters", "podium_first", "podium_second", "podium_third"] as const;
 async function adjustDayEntity(tx: DashboardTransaction, row: DayContribution, sign: 1 | -1): Promise<void> {
   const keyArgs = [row.utc_day, row.game_id, row.car_key, row.track_key];
   const result = await tx.execute({ sql: "SELECT * FROM dashboard_day_entities WHERE utc_day=? AND game_id=? AND car_key=? AND track_key=?", args: keyArgs });
@@ -86,13 +104,14 @@ async function adjustDayEntity(tx: DashboardTransaction, row: DayContribution, s
   const contribution = (field: typeof DAY_COLUMNS[number]) => number(row[field]);
   const currentValues = Object.fromEntries(DAY_COLUMNS.map((field) => [field, number(current?.[field])])) as Record<typeof DAY_COLUMNS[number], number>;
   const next = Object.fromEntries(DAY_COLUMNS.map((field) => [field, currentValues[field] + sign * contribution(field)])) as Record<typeof DAY_COLUMNS[number], number>;
-  for (const field of ["lap_count", "positive_laps", "valid_laps", "favourite_laps", "distance_laps", "podium_first", "podium_second", "podium_third"] as const) {
+  for (const field of ["lap_count", "positive_laps", "valid_laps", "pace_laps", "favourite_laps", "distance_laps", "podium_first", "podium_second", "podium_third"] as const) {
     if (next[field] < 0) throw new Error(`Dashboard ${field} contribution underflow`);
   }
-  const currentMoments = current ? stats(current, "valid_laps", "valid_mean_seconds", "valid_m2_seconds") : { count: 0, mean: 0, m2: 0 };
-  const contributionMoments = { count: number(row.valid_laps), mean: number(row.mean_lap_seconds), m2: number(row.m2_lap_seconds) };
+  // Quality counters stay in valid_*; pace moments use pace_laps as denominator.
+  const currentMoments = current ? stats(current, "pace_laps", "valid_mean_seconds", "valid_m2_seconds") : { count: 0, mean: 0, m2: 0 };
+  const contributionMoments = { count: number(row.pace_laps), mean: number(row.mean_lap_seconds), m2: number(row.m2_lap_seconds) };
   const moments = sign === 1 ? mergeMoments(currentMoments, contributionMoments) : removeMoments(currentMoments, contributionMoments);
-  if (next.lap_count === 0 && next.podium_first === 0 && next.podium_second === 0 && next.podium_third === 0) {
+  if (next.lap_count === 0 && next.pace_laps === 0 && next.valid_laps === 0 && next.podium_first === 0 && next.podium_second === 0 && next.podium_third === 0) {
     await tx.execute({ sql: "DELETE FROM dashboard_day_entities WHERE utc_day=? AND game_id=? AND car_key=? AND track_key=?", args: keyArgs });
     return;
   }
@@ -113,13 +132,13 @@ async function adjustMonthEntity(tx: DashboardTransaction, row: DayContribution,
   const current = result.rows[0] as DbRow | undefined;
   const currentValues = Object.fromEntries(DAY_COLUMNS.map((field) => [field, number(current?.[field])])) as Record<typeof DAY_COLUMNS[number], number>;
   const next = Object.fromEntries(DAY_COLUMNS.map((field) => [field, currentValues[field] + sign * number(row[field])])) as Record<typeof DAY_COLUMNS[number], number>;
-  for (const field of ["lap_count", "positive_laps", "valid_laps", "favourite_laps", "distance_laps", "podium_first", "podium_second", "podium_third"] as const) {
+  for (const field of ["lap_count", "positive_laps", "valid_laps", "pace_laps", "favourite_laps", "distance_laps", "podium_first", "podium_second", "podium_third"] as const) {
     if (next[field] < 0) throw new Error(`Dashboard ${field} contribution underflow`);
   }
-  const currentMoments = current ? stats(current, "valid_laps", "valid_mean_seconds", "valid_m2_seconds") : { count: 0, mean: 0, m2: 0 };
-  const contributionMoments = { count: number(row.valid_laps), mean: number(row.mean_lap_seconds), m2: number(row.m2_lap_seconds) };
+  const currentMoments = current ? stats(current, "pace_laps", "valid_mean_seconds", "valid_m2_seconds") : { count: 0, mean: 0, m2: 0 };
+  const contributionMoments = { count: number(row.pace_laps), mean: number(row.mean_lap_seconds), m2: number(row.m2_lap_seconds) };
   const moments = sign === 1 ? mergeMoments(currentMoments, contributionMoments) : removeMoments(currentMoments, contributionMoments);
-  if (next.lap_count === 0 && next.podium_first === 0 && next.podium_second === 0 && next.podium_third === 0) {
+  if (next.lap_count === 0 && next.pace_laps === 0 && next.valid_laps === 0 && next.podium_first === 0 && next.podium_second === 0 && next.podium_third === 0) {
     await tx.execute({ sql: "DELETE FROM dashboard_month_entities WHERE utc_month=? AND game_id=? AND car_key=? AND track_key=?", args: keyArgs });
     return;
   }
@@ -137,10 +156,10 @@ async function adjustTimeBucket(tx: DashboardTransaction, row: TimeContribution,
   const keys = [row.bucket_start_ms, row.game_id];
   const existing = await tx.execute({ sql: "SELECT * FROM dashboard_time_buckets WHERE bucket_start_ms=? AND game_id=?", args: keys });
   const current = existing.rows[0] as DbRow | undefined;
-  const fields = ["valid_laps", "positive_laps", "driven_seconds", "valid_seconds", "podium_first", "podium_second", "podium_third"] as const;
+  const fields = ["valid_laps", "pace_laps", "positive_laps", "driven_seconds", "valid_seconds", "pace_seconds", "podium_first", "podium_second", "podium_third"] as const;
   const next = Object.fromEntries(fields.map((field) => [field, number(current?.[field]) + sign * number(row[field])])) as Record<typeof fields[number], number>;
-  for (const field of ["valid_laps", "positive_laps", "podium_first", "podium_second", "podium_third"] as const) if (next[field] < 0) throw new Error(`Dashboard ${field} bucket underflow`);
-  if (next.valid_laps === 0 && next.positive_laps === 0 && next.podium_first === 0 && next.podium_second === 0 && next.podium_third === 0) {
+  for (const field of ["valid_laps", "pace_laps", "positive_laps", "podium_first", "podium_second", "podium_third"] as const) if (next[field] < 0) throw new Error(`Dashboard ${field} bucket underflow`);
+  if (next.valid_laps === 0 && next.pace_laps === 0 && next.positive_laps === 0 && next.podium_first === 0 && next.podium_second === 0 && next.podium_third === 0) {
     await tx.execute({ sql: "DELETE FROM dashboard_time_buckets WHERE bucket_start_ms=? AND game_id=?", args: keys });
   } else {
     await tx.execute({
@@ -153,13 +172,15 @@ async function adjustTimeBucket(tx: DashboardTransaction, row: TimeContribution,
 
 /** Snapshot candidate before expensive work. Evidence must carry this exact revision. */
 export async function prepareDashboardPublicationCandidate(sessionId: number): Promise<DashboardPublicationCandidate | null> {
-  const result = await client.execute({
+  const result = await readClient.execute({
     sql: `SELECT st.source_revision, st.published_revision, st.processor_version, st.metadata_dirty, st.deleted, st.capture_dirty, st.capture_ready, s.id, s.game_id, s.ownership, s.created_at,
         s.car_id, s.track_id, s.session_type, s.raw_file, s.source,s.owner_user_id,s.cloud_import_origin,s.cloud_import_lap_id,
         s.driver_attribution_stints,s.capture_format_version, r.outcome_status, r.classification, r.finishing_position,
-        (SELECT online_user_id FROM local_account_owner WHERE id=1) local_owner_user_id
+        (SELECT online_user_id FROM local_account_owner WHERE id=1) local_owner_user_id,
+        CASE WHEN p.session_id IS NULL THEN NULL ELSE ${CAPTURE_BASELINE_SQL} END AS publication_baseline
       FROM dashboard_summary_state st LEFT JOIN sessions s ON s.id=st.session_id
-      LEFT JOIN session_results r ON r.session_id=s.id WHERE st.session_id=?`,
+      LEFT JOIN session_results r ON r.session_id=s.id
+      LEFT JOIN dashboard_session_summaries p ON p.session_id=st.session_id WHERE st.session_id=?`,
     args: [sessionId],
   });
   const row = result.rows[0] as DbRow | undefined;
@@ -169,7 +190,8 @@ export async function prepareDashboardPublicationCandidate(sessionId: number): P
     sessionId,
     sourceRevision: number(row.source_revision),
     publishedRevision: number(row.published_revision),
-    metadataDirty: number(row.metadata_dirty) !== 0 || number(row.processor_version) !== DASHBOARD_PROCESSOR_VERSION,
+    publicationBaseline: stringOrNull(row.publication_baseline),
+    metadataDirty: number(row.metadata_dirty) !== 0,
     deleted: number(row.deleted) !== 0,
     captureDirty: number(row.capture_dirty) !== 0,
     captureReady: number(row.capture_ready) !== 0,
@@ -182,7 +204,13 @@ export function setDashboardPublicationNotifier(notifier: (() => void) | null): 
   dashboardPublicationNotifier = notifier;
 }
 /** Build exact session/day/time contributions, then atomically replace them iff candidate revision remains current. */
-export async function publishDashboardSession(candidate: DashboardPublicationCandidate, evidence?: DashboardCaptureFacts, options: { metadataOnly?: boolean } = {}): Promise<boolean> {
+export async function publishDashboardSession(
+  candidate: DashboardPublicationCandidate,
+  evidence?: DashboardCaptureFacts,
+  options: { metadataOnly?: boolean } = {},
+  hooks: DashboardPublicationHooks = {},
+): Promise<boolean> {
+  await hooks.candidatePrepared?.(candidate.sessionId, candidate);
   const { sessionId, sourceRevision: revision, session } = candidate;
   if (evidence && (evidence.sourceRevision !== revision || !evidence.captureRevision.trim()
     || !["available", "unavailable", "pending"].includes(evidence.duration.status)
@@ -198,7 +226,7 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
     || (evidence.trackLengthMeters !== null && (!Number.isFinite(evidence.trackLengthMeters) || evidence.trackLengthMeters <= 0)))) {
     throw new RangeError("Invalid or stale dashboard capture evidence");
   }
-  const priorResult = await client.execute({ sql: "SELECT * FROM dashboard_session_summaries WHERE session_id=?", args: [sessionId] });
+  const priorResult = await readClient.execute({ sql: "SELECT * FROM dashboard_session_summaries WHERE session_id=?", args: [sessionId] });
   const prior = priorResult.rows[0] as DbRow | undefined;
   const preserveCapture = !evidence && !candidate.captureDirty && !!prior;
   const gameId = session ? String(session.game_id) : "";
@@ -233,14 +261,15 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
   const sectors = sectorLayoutKey && sectorCount ? Array<number | null>(sectorCount).fill(null) : [];
   const entityMap = new Map<string, LapAggregate>();
   const bucketMap = new Map<number, TimeContribution>();
-  let lapCount = 0, positiveLaps = 0, validLaps = 0, drivenSeconds = 0, validSeconds = 0;
-  let validMean = 0, validM2 = 0, bestLap: number | null = null, firstLapAt: number | null = null, lastLapAt: number | null = null;
+  let lapCount = 0, positiveLaps = 0, validLaps = 0, paceLaps = 0, drivenSeconds = 0, validSeconds = 0, paceSeconds = 0;
+  // `valid_mean_seconds` / `valid_m2_seconds` persist pace-only moments; valid_laps stays quality-based.
+  let paceMean = 0, paceM2 = 0, bestLap: number | null = null, firstLapAt: number | null = null, lastLapAt: number | null = null;
   let favouriteLaps = 0, favouriteSeconds = 0, distanceLaps = 0, distanceMeters = 0, lastLapId = 0;
   if (!excluded && session) {
     const carKey = dashboardCarIdentity(gameId as GameId, stringOrNull(session.car_id)) ?? "";
     const trackKey = dashboardTrackIdentity(gameId as GameId, stringOrNull(session.track_id)) ?? "";
     for (;;) {
-      const page = await client.execute({ sql: `SELECT di.lap_id,di.created_at_ms,di.lap_time,di.is_valid,di.invalid_reason,di.sector_times,
+      const page = await readClient.execute({ sql: `SELECT di.lap_id,di.created_at_ms,di.lap_time,di.is_valid,di.invalid_reason,di.classification,di.sector_times,
           l.driver_attribution_stints,l.source_clock_domain,l.source_lap_start_ms,l.source_lap_end_ms
         FROM dashboard_lap_index di JOIN laps l ON l.id=di.lap_id
         WHERE di.session_id=? AND di.lap_id>? ORDER BY di.lap_id LIMIT ?`, args: [sessionId, lastLapId, LAP_PAGE_SIZE] });
@@ -250,13 +279,14 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
         if (dashboardLapAttribution(raw.driver_attribution_stints, session.driver_attribution_stints,
           raw.source_clock_domain, raw.source_lap_start_ms, raw.source_lap_end_ms) !== "Self") continue;
         const stamp = number(raw.created_at_ms), time = number(raw.lap_time), valid = number(raw.is_valid) === 1;
+        const pace = raw.classification == null || raw.classification === "pace";
         if (!Number.isFinite(stamp)) throw new RangeError("Invalid dashboard lap timestamp");
         lapCount++;
         const day = new Date(stamp).toISOString().slice(0, 10), dayKey = `${day}\0${carKey}\0${trackKey}`;
         let entity = entityMap.get(dayKey);
         if (!entity) {
           entity = { utc_day: day, game_id: gameId, car_key: carKey, track_key: trackKey, lap_count: 0,
-            positive_laps: 0, valid_laps: 0, driven_seconds: 0, valid_seconds: 0, best_lap_seconds: null, mean_lap_seconds: 0, m2_lap_seconds: 0,
+            positive_laps: 0, valid_laps: 0, pace_laps: 0, driven_seconds: 0, valid_seconds: 0, pace_seconds: 0, best_lap_seconds: null, mean_lap_seconds: 0, m2_lap_seconds: 0,
             favourite_laps: 0, favourite_seconds: 0, distance_laps: 0, distance_meters: 0,
             podium_first: 0, podium_second: 0, podium_third: 0 };
           entityMap.set(dayKey, entity);
@@ -265,8 +295,8 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
         const bucketStart = Math.floor(stamp / TIME_BUCKET_MS) * TIME_BUCKET_MS;
         let bucket = bucketMap.get(bucketStart);
         if (!bucket) {
-          bucket = { bucket_start_ms: bucketStart, game_id: gameId, valid_laps: 0, positive_laps: 0, driven_seconds: 0,
-            valid_seconds: 0, podium_first: 0, podium_second: 0, podium_third: 0 };
+          bucket = { bucket_start_ms: bucketStart, game_id: gameId, valid_laps: 0, pace_laps: 0, positive_laps: 0, driven_seconds: 0,
+            valid_seconds: 0, pace_seconds: 0, podium_first: 0, podium_second: 0, podium_third: 0 };
           bucketMap.set(bucketStart, bucket);
         }
         const flags = dashboardLapMetricFlags(time, valid, stringOrNull(raw.invalid_reason));
@@ -279,15 +309,20 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
           if (trackLengthMeters !== null) { distanceLaps++; distanceMeters += trackLengthMeters; entity.distance_laps++; entity.distance_meters! += trackLengthMeters; }
         }
         if (flags.valid) {
-          validLaps++; validSeconds += time; bestLap = bestLap === null ? time : Math.min(bestLap, time);
-          const nextCount = validLaps, delta = time - validMean;
-          validMean += delta / nextCount; validM2 += delta * (time - validMean);
-          entity.valid_laps++; entity.valid_seconds += time;
-          const entityDelta = time - number(entity.mean_lap_seconds);
-          entity.mean_lap_seconds = number(entity.mean_lap_seconds) + entityDelta / entity.valid_laps;
-          entity.m2_lap_seconds = number(entity.m2_lap_seconds) + entityDelta * (time - entity.mean_lap_seconds);
+          validLaps++; validSeconds += time; entity.valid_laps++; entity.valid_seconds += time;
           bucket.valid_laps++; bucket.valid_seconds += time;
+        }
+        if (valid && pace) {
+          paceLaps++; paceSeconds += time; bestLap = bestLap === null ? time : Math.min(bestLap, time);
           firstLapAt = firstLapAt === null ? stamp : Math.min(firstLapAt, stamp); lastLapAt = lastLapAt === null ? stamp : Math.max(lastLapAt, stamp);
+          const nextCount = paceLaps, delta = time - paceMean;
+          paceMean += delta / nextCount; paceM2 += delta * (time - paceMean);
+          entity.pace_laps++; entity.pace_seconds += time;
+          entity.best_lap_seconds = entity.best_lap_seconds === null ? time : Math.min(entity.best_lap_seconds, time);
+          const entityDelta = time - number(entity.mean_lap_seconds);
+          entity.mean_lap_seconds = number(entity.mean_lap_seconds) + entityDelta / entity.pace_laps;
+          entity.m2_lap_seconds = number(entity.m2_lap_seconds) + entityDelta * (time - entity.mean_lap_seconds);
+          bucket.pace_laps++; bucket.pace_seconds += time;
           if (sectors.length && raw.sector_times != null) {
             try {
               const values: unknown = JSON.parse(String(raw.sector_times));
@@ -313,7 +348,7 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
     if (!entity) {
       entity = { utc_day: day, game_id: gameId, car_key: dashboardCarIdentity(gameId as GameId, stringOrNull(session!.car_id)) ?? "",
         track_key: dashboardTrackIdentity(gameId as GameId, stringOrNull(session!.track_id)) ?? "",
-        lap_count: 0, positive_laps: 0, valid_laps: 0, driven_seconds: 0, valid_seconds: 0, best_lap_seconds: null, mean_lap_seconds: 0, m2_lap_seconds: 0,
+        lap_count: 0, positive_laps: 0, valid_laps: 0, pace_laps: 0, driven_seconds: 0, valid_seconds: 0, pace_seconds: 0, best_lap_seconds: null, mean_lap_seconds: 0, m2_lap_seconds: 0,
         favourite_laps: 0, favourite_seconds: 0, distance_laps: 0, distance_meters: 0, podium_first: 0, podium_second: 0, podium_third: 0 };
       entityMap.set(dayKey, entity);
     }
@@ -321,20 +356,34 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
     const bucketStart = Math.floor(createdAtMs / TIME_BUCKET_MS) * TIME_BUCKET_MS;
     let bucket = bucketMap.get(bucketStart);
     if (!bucket) {
-      bucket = { bucket_start_ms: bucketStart, game_id: gameId, valid_laps: 0, positive_laps: 0, driven_seconds: 0,
-        valid_seconds: 0, podium_first: 0, podium_second: 0, podium_third: 0 };
+      bucket = { bucket_start_ms: bucketStart, game_id: gameId, valid_laps: 0, pace_laps: 0, positive_laps: 0, driven_seconds: 0,
+        valid_seconds: 0, pace_seconds: 0, podium_first: 0, podium_second: 0, podium_third: 0 };
       bucketMap.set(bucketStart, bucket);
     }
     if (podium === 1) bucket.podium_first++; else if (podium === 2) bucket.podium_second++; else if (podium === 3) bucket.podium_third++;
   }
-  const tx = await client.transaction("write");
-  try {
-    const latest = await tx.execute({ sql: "SELECT source_revision, metadata_dirty, capture_dirty, published_revision, processor_version, deleted FROM dashboard_summary_state WHERE session_id=?", args: [sessionId] });
+  const published = await withDatabaseTransaction(client, async (tx) => {
+    await hooks.transactionOpen?.(sessionId);
+    const latest = await tx.execute({ sql: "SELECT source_revision, metadata_dirty, capture_dirty, capture_ready, published_revision, processor_version, deleted FROM dashboard_summary_state WHERE session_id=?", args: [sessionId] });
     const currentState = latest.rows[0] as DbRow | undefined;
-    if (!currentState || number(currentState.source_revision) !== revision) { await tx.rollback(); return false; }
+    const exists = await tx.execute({ sql: "SELECT 1 AS present FROM sessions WHERE id=?", args: [sessionId] });
+    const sessionExists = exists.rows.length !== 0;
+    if (!currentState || number(currentState.source_revision) !== revision
+      || number(currentState.published_revision) !== candidate.publishedRevision
+      || number(currentState.capture_dirty) !== Number(candidate.captureDirty)
+      || number(currentState.capture_ready) !== Number(candidate.captureReady)
+      || number(currentState.metadata_dirty) !== Number(candidate.metadataDirty)
+      || number(currentState.deleted) !== Number(candidate.deleted)
+      || (candidate.deleted ? sessionExists : !sessionExists)) {
+      return false;
+    }
+    const currentPriorResult = await tx.execute({ sql: `SELECT p.*, ${CAPTURE_BASELINE_SQL} AS publication_baseline FROM dashboard_session_summaries p WHERE session_id=?`, args: [sessionId] });
+    const currentPrior = currentPriorResult.rows[0] as DbRow | undefined;
+    if (stringOrNull(currentPrior?.publication_baseline) !== candidate.publicationBaseline || Boolean(currentPrior) !== Boolean(prior)
+      || CAPTURE_BASELINE_FIELDS.some((field) => currentPrior?.[field] !== prior?.[field])) return false;
     const alreadyPublished = number(currentState.published_revision) === revision && number(currentState.processor_version) === DASHBOARD_PROCESSOR_VERSION
       && number(currentState.metadata_dirty) === 0 && number(currentState.capture_dirty) === 0 && number(currentState.deleted) === 0;
-    if (alreadyPublished && !candidate.deleted && !excluded) { await tx.rollback(); return true; }
+    if (alreadyPublished && !candidate.deleted && !excluded) return true;
     const oldDays = await tx.execute({ sql: "SELECT * FROM dashboard_session_days WHERE session_id=?", args: [sessionId] });
     for (const row of oldDays.rows as unknown as DayContribution[]) { await adjustDayEntity(tx, row, -1); await adjustMonthEntity(tx, row, -1); }
     const oldBuckets = await tx.execute({ sql: "SELECT * FROM dashboard_session_time_buckets WHERE session_id=?", args: [sessionId] });
@@ -344,13 +393,13 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
     }
     if (!excluded && session) {
       await tx.execute({
-        sql: `INSERT INTO dashboard_session_summaries(session_id,source_revision,processor_version,game_id,created_at_ms,car_key,track_key,car_id,track_id,session_type,lap_count,positive_laps,valid_laps,driven_seconds,valid_seconds,valid_mean_seconds,valid_m2_seconds,best_lap_seconds,first_lap_at_ms,last_lap_at_ms,favourite_laps,favourite_seconds,distance_laps,distance_meters,track_length_meters,elapsed_seconds,duration_status,sector_layout_key,sector_count,source_sector_starts_json,sector_status,podium_position,podium_status,capture_revision,weather_revision,weather_status,weather_conditions_json,evidence_version,duration_attribution_json)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        sql: `INSERT INTO dashboard_session_summaries(session_id,source_revision,processor_version,game_id,created_at_ms,car_key,track_key,car_id,track_id,session_type,lap_count,positive_laps,valid_laps,driven_seconds,valid_seconds,pace_laps,pace_seconds,valid_mean_seconds,valid_m2_seconds,best_lap_seconds,first_lap_at_ms,last_lap_at_ms,favourite_laps,favourite_seconds,distance_laps,distance_meters,track_length_meters,elapsed_seconds,duration_status,sector_layout_key,sector_count,source_sector_starts_json,sector_status,podium_position,podium_status,capture_revision,weather_revision,weather_status,weather_conditions_json,evidence_version,duration_attribution_json)
+          VALUES (${Array(41).fill("?").join(",")})`,
         args: [sessionId,revision,DASHBOARD_PROCESSOR_VERSION,gameId,createdAtMs,
           dashboardCarIdentity(gameId as GameId,stringOrNull(session.car_id)),
           dashboardTrackIdentity(gameId as GameId,stringOrNull(session.track_id)),
           stringOrNull(session.car_id),stringOrNull(session.track_id),stringOrNull(session.session_type),
-          lapCount,positiveLaps,validLaps,drivenSeconds,validSeconds,validLaps ? validMean : null,validLaps ? validM2 : null,bestLap,firstLapAt,lastLapAt,
+          lapCount,positiveLaps,validLaps,drivenSeconds,validSeconds,paceLaps,paceSeconds,paceLaps ? paceMean : null,paceLaps ? paceM2 : null,bestLap,firstLapAt,lastLapAt,
           favouriteLaps,favouriteSeconds,distanceLaps,distanceLaps ? distanceMeters : null,trackLengthMeters,elapsedSeconds,durationStatus,sectorLayoutKey,sectorCount,
           sourceSectorStarts ? JSON.stringify(sourceSectorStarts) : null,
           evidence ? (evidence.sectorLayout?.status ?? "unavailable") : (sectorLayoutKey ? "available" : preserveCapture ? String(prior?.sector_status ?? "pending") : "pending"),
@@ -359,17 +408,17 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
           durationAttribution ? JSON.stringify(durationAttribution) : null],
       });
       for (const row of entityMap.values()) {
-        await tx.execute({ sql: `INSERT INTO dashboard_session_days(session_id,utc_day,game_id,car_key,track_key,lap_count,positive_laps,valid_laps,driven_seconds,valid_seconds,best_lap_seconds,mean_lap_seconds,m2_lap_seconds,favourite_laps,favourite_seconds,distance_laps,distance_meters,podium_first,podium_second,podium_third)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-          args: [sessionId,row.utc_day,row.game_id,row.car_key,row.track_key,row.lap_count,row.positive_laps,row.valid_laps,row.driven_seconds,row.valid_seconds,
-            row.best_lap_seconds,row.valid_laps ? row.mean_lap_seconds : null,row.valid_laps ? row.m2_lap_seconds : null,row.favourite_laps,row.favourite_seconds,row.distance_laps,
+        await tx.execute({ sql: `INSERT INTO dashboard_session_days(session_id,utc_day,game_id,car_key,track_key,lap_count,positive_laps,valid_laps,driven_seconds,valid_seconds,pace_laps,pace_seconds,best_lap_seconds,mean_lap_seconds,m2_lap_seconds,favourite_laps,favourite_seconds,distance_laps,distance_meters,podium_first,podium_second,podium_third)
+          VALUES (${Array(22).fill("?").join(",")})`,
+          args: [sessionId,row.utc_day,row.game_id,row.car_key,row.track_key,row.lap_count,row.positive_laps,row.valid_laps,row.driven_seconds,row.valid_seconds,row.pace_laps,row.pace_seconds,
+            row.best_lap_seconds,row.pace_laps ? row.mean_lap_seconds : null,row.pace_laps ? row.m2_lap_seconds : null,row.favourite_laps,row.favourite_seconds,row.distance_laps,
             row.distance_laps ? row.distance_meters : null,row.podium_first,row.podium_second,row.podium_third] });
         await adjustDayEntity(tx, row, 1);
         await adjustMonthEntity(tx, row, 1);
       }
       for (const row of bucketMap.values()) {
-        await tx.execute({ sql: `INSERT INTO dashboard_session_time_buckets(session_id,bucket_start_ms,game_id,valid_laps,positive_laps,driven_seconds,valid_seconds,podium_first,podium_second,podium_third)
-          VALUES (?,?,?,?,?,?,?,?,?,?)`, args: [sessionId,row.bucket_start_ms,row.game_id,row.valid_laps,row.positive_laps,row.driven_seconds,row.valid_seconds,row.podium_first,row.podium_second,row.podium_third] });
+        await tx.execute({ sql: `INSERT INTO dashboard_session_time_buckets(session_id,bucket_start_ms,game_id,valid_laps,pace_laps,positive_laps,driven_seconds,valid_seconds,pace_seconds,podium_first,podium_second,podium_third)
+          VALUES (${Array(12).fill("?").join(",")})`, args: [sessionId,row.bucket_start_ms,row.game_id,row.valid_laps,row.pace_laps,row.positive_laps,row.driven_seconds,row.valid_seconds,row.pace_seconds,row.podium_first,row.podium_second,row.podium_third] });
         await adjustTimeBucket(tx, row, 1);
       }
       if (sectorLayoutKey && sectorCount && sectors.length === sectorCount && sectors.every((value): value is number => value !== null)) {
@@ -385,14 +434,16 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
         retry_count=0,next_retry_at=NULL,last_error_code=NULL,updated_at=datetime('now') WHERE session_id=? AND source_revision=?`,
       args: [revision,DASHBOARD_PROCESSOR_VERSION,evidenceReady && !options.metadataOnly ? 1 : 0,evidenceReady && !options.metadataOnly ? 1 : 0,candidate.deleted ? 1 : 0,evidenceReady ? 1 : 0,sessionId,revision],
     });
-    await tx.commit();
-    dashboardPublicationNotifier?.();
+    await hooks.beforeCommit?.(sessionId);
     return true;
-  } catch (error) { await tx.rollback(); throw error; }
+  }, { signal: hooks.signal });
+  if (published) await hooks.afterCommit?.(sessionId);
+  if (published) dashboardPublicationNotifier?.();
+  return published;
 }
 
 export async function publishNextDashboardSession(): Promise<number | null> {
-  const result = await client.execute({ sql: `SELECT st.session_id FROM dashboard_summary_state st
+  const result = await readClient.execute({ sql: `SELECT st.session_id FROM dashboard_summary_state st
     LEFT JOIN dashboard_session_summaries p ON p.session_id=st.session_id
     WHERE (st.metadata_dirty=1 OR st.capture_dirty=1 OR st.processor_version!=? OR st.published_revision!=st.source_revision OR (st.deleted=0 AND p.session_id IS NULL))
       AND (st.next_retry_at IS NULL OR st.next_retry_at<=datetime('now'))

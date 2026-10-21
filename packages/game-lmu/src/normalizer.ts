@@ -14,7 +14,7 @@ import {
   LMU_WHEEL,
   LMU_WHEEL_SIZE,
 } from "@raceiq/capture-formats/lmu/layout";
-import { readCString, type LMUSourceFrameV1 } from "@raceiq/capture-formats/lmu/source-frame";
+import { readCString, type LMUSourceFrame } from "@raceiq/capture-formats/lmu/source-frame";
 
 const KELVIN_TO_CELSIUS = 273.15;
 
@@ -68,13 +68,12 @@ function finiteDouble(buffer: Buffer, offset: number, fallback = 0): number {
   return Number.isFinite(value) ? value : fallback;
 }
 
-function finiteFloat(buffer: Buffer, offset: number, fallback = 0): number {
-  const value = buffer.readFloatLE(offset);
-  return Number.isFinite(value) ? value : fallback;
-}
-
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function nativeFraction(value: number): number {
+  return Number.isFinite(value) && value >= 0 && value <= 1 ? value : NaN;
 }
 
 function vector(buffer: Buffer, offset: number): Vec3 {
@@ -179,7 +178,7 @@ function weatherType(raining: number, cloudCoverage: number): number {
 }
 
 export function identityFromLMUSourceFrame(
-  frame: LMUSourceFrameV1,
+  frame: LMUSourceFrame,
 ): LMUIdentityRecord {
   const carName = readCString(
     frame.telemetry,
@@ -217,8 +216,34 @@ export function identityFromLMUSourceFrame(
   };
 }
 
+const syntheticExtensionChannels: Partial<Record<keyof LMUExtendedData, string>> = {
+  bestSector1: "Best Sector 1",
+  bestSector2: "Best Sector 2",
+  brake: "Brake Pos Unfiltered",
+  clutch: "Clutch Pos Unfiltered",
+  currentSector1: "Current Sector 1",
+  currentSector2: "Current Sector 2",
+  currentSectorIndex: "Current Sector",
+  engineRpm: "Engine RPM",
+  frontTireCompound: "TyresCompound",
+  inPits: "In Pits",
+  lastSector1: "Last Sector 1",
+  lastSector2: "Last Sector 2",
+  lapDistanceM: "Lap Dist",
+  rearFlapActivated: "RearFlapActivated",
+  rearTireCompound: "TyresCompound",
+  regenKw: "Regen Rate",
+  speedLimiterActive: "Speed Limiter",
+  stateOfCharge: "SoC",
+  tcActive: "TC",
+  throttle: "Throttle Pos Unfiltered",
+  steering: "Steering Pos Unfiltered",
+  virtualEnergy: "Virtual Energy",
+  absLevel: "ABSLevel",
+};
+
 export function normalizeLMUSourceFrame(
-  frame: LMUSourceFrameV1,
+  frame: LMUSourceFrame,
 ): TelemetryPacket {
   const telemetry = frame.telemetry;
   const scoringInfo = frame.scoringInfo;
@@ -251,9 +276,9 @@ export function normalizeLMUSourceFrame(
 
   const sourceElapsedTime = telemetry.readDoubleLE(LMU_TELEMETRY.elapsedTime);
   const sourceScoringTime = scoringInfo.readDoubleLE(LMU_SCORING_INFO.currentElapsedTime);
-  const hasSourceElapsedTime = Number.isFinite(sourceElapsedTime) && sourceElapsedTime >= 0;
-  const hasSourceScoringTime = Number.isFinite(sourceScoringTime) && sourceScoringTime >= 0;
-  const elapsedTime = hasSourceElapsedTime ? sourceElapsedTime : 0;
+  const hasSourceElapsedTime = frame.schemaVersion !== 4 && Number.isFinite(sourceElapsedTime) && sourceElapsedTime >= 0;
+  const hasSourceScoringTime = frame.schemaVersion !== 4 && Number.isFinite(sourceScoringTime) && sourceScoringTime >= 0;
+  const elapsedTime = Number.isFinite(sourceElapsedTime) && sourceElapsedTime >= 0 ? sourceElapsedTime : 0;
   const lapStartElapsedTime = Math.max(
     0,
     finiteDouble(telemetry, LMU_TELEMETRY.lapStartElapsedTime),
@@ -270,21 +295,17 @@ export function normalizeLMUSourceFrame(
     : Math.max(0, telemetry.readInt32LE(LMU_TELEMETRY.lapNumber) - 1);
   const currentSector = telemetry.readInt32LE(LMU_TELEMETRY.currentSector);
   const currentSectorIndex = currentSector & 0x7fffffff;
-  const positiveScoringTime = (offset: number) =>
-    scoring ? positiveTime(finiteDouble(scoring, offset)) : 0;
-  const engineRpm = Math.max(
-    0,
-    finiteDouble(telemetry, LMU_TELEMETRY.engineRpm),
-  );
-  const engineTorque = finiteDouble(telemetry, LMU_TELEMETRY.engineTorque);
-  const motorRpm = finiteDouble(
-    telemetry,
-    LMU_TELEMETRY.electricBoostMotorRpm,
-  );
-  const motorTorque = finiteDouble(
-    telemetry,
-    LMU_TELEMETRY.electricBoostMotorTorque,
-  );
+  const positiveScoringTime = (offset: number) => {
+    if (!scoring) return undefined;
+    const value = scoring.readDoubleLE(offset);
+    return value < 0 ? undefined : value;
+  };
+  const engineRpm = telemetry.readDoubleLE(LMU_TELEMETRY.engineRpm);
+  const engineTorque = telemetry.readDoubleLE(LMU_TELEMETRY.engineTorque);
+  const motorRpm = telemetry.readDoubleLE(LMU_TELEMETRY.electricBoostMotorRpm);
+  const motorTorque = telemetry.readDoubleLE(LMU_TELEMETRY.electricBoostMotorTorque);
+  const motorState = telemetry.readUInt8(LMU_TELEMETRY.electricBoostMotorState);
+  const stateOfCharge = telemetry.readFloatLE(LMU_TELEMETRY.stateOfCharge);
   const raining = clamp(
     finiteDouble(scoringInfo, LMU_SCORING_INFO.raining),
     0,
@@ -320,67 +341,170 @@ export function normalizeLMUSourceFrame(
   const inPits = scoring
     ? scoring.readUInt8(LMU_SCORING_VEHICLE.inPits) !== 0
     : false;
+  const syntheticChannels = frame.syntheticChannels === undefined
+    ? null
+    : new Set(frame.syntheticChannels);
+  const channelAvailable = (channel: string) =>
+    frame.schemaVersion !== 4 || syntheticChannels?.has(channel) === true;
+  const extensionAvailable = (field: keyof LMUExtendedData) => {
+    if (frame.schemaVersion !== 4) return true;
+    const channel = syntheticExtensionChannels[field];
+    return channel !== undefined && channelAvailable(channel);
+  };
   const lmu: LMUExtendedData = {
     carId: identity.carId,
     trackId: identity.trackId,
     gameVersion: frame.gameVersion,
     elapsedTime: hasSourceElapsedTime ? sourceElapsedTime : null,
     scoringCurrentElapsedTime: hasSourceScoringTime ? sourceScoringTime : null,
+    ...(hasSourceElapsedTime ? { telemetryElapsedTime: sourceElapsedTime } : {}),
+    ...(hasSourceScoringTime ? { scoringElapsedTime: sourceScoringTime } : {}),
     sessionType: LMU_SESSION_TYPES[sessionTypeOrdinal] ?? "unknown",
     sessionTypeOrdinal,
-    deltaBest: finiteDouble(telemetry, LMU_TELEMETRY.deltaBest),
-    vehicleId: telemetry.readInt32LE(LMU_TELEMETRY.id),
+    ...(extensionAvailable("deltaBest") ? { deltaBest: finiteDouble(telemetry, LMU_TELEMETRY.deltaBest) } : {}),
+    ...(extensionAvailable("vehicleId") ? { vehicleId: telemetry.readInt32LE(LMU_TELEMETRY.id) } : {}),
     driverName,
     carName,
     carModel,
     vehicleClass,
     trackName: identity.trackName,
     trackLengthM,
-    lapDistanceM,
-    currentSectorIndex,
-    bestSector1: positiveScoringTime(LMU_SCORING_VEHICLE.bestSector1),
-    bestSector2: positiveScoringTime(LMU_SCORING_VEHICLE.bestSector2),
-    lastSector1: positiveScoringTime(LMU_SCORING_VEHICLE.lastSector1),
-    lastSector2: positiveScoringTime(LMU_SCORING_VEHICLE.lastSector2),
-    currentSector1: positiveScoringTime(LMU_SCORING_VEHICLE.currentSector1),
-    currentSector2: positiveScoringTime(LMU_SCORING_VEHICLE.currentSector2),
-    lapInvalidated:
-      telemetry.readUInt8(LMU_TELEMETRY.lapInvalidated) !== 0,
-    inPits,
-    pitState: scoring
-      ? scoring.readUInt8(LMU_SCORING_VEHICLE.pitState)
-      : 0,
-    frontTireCompound,
-    rearTireCompound,
-    rearFlapActivated:
-      telemetry.readUInt8(LMU_TELEMETRY.rearFlapActivated) !== 0,
-    rearFlapLegalStatus: telemetry.readUInt8(
-      LMU_TELEMETRY.rearFlapLegalStatus,
-    ),
-    speedLimiterActive:
-      telemetry.readUInt8(LMU_TELEMETRY.speedLimiterActive) !== 0,
-    tcActive: telemetry.readUInt8(LMU_TELEMETRY.tcActive) !== 0,
-    absActive: telemetry.readUInt8(LMU_TELEMETRY.absActive) !== 0,
-    tcLevel: telemetry.readUInt8(LMU_TELEMETRY.tc),
-    tcCutLevel: telemetry.readUInt8(LMU_TELEMETRY.tcCut),
-    absLevel: telemetry.readUInt8(LMU_TELEMETRY.abs),
-    motorMap: telemetry.readUInt8(LMU_TELEMETRY.motorMap),
-    migration: telemetry.readUInt8(LMU_TELEMETRY.migration),
-    frontAntiSway: telemetry.readUInt8(LMU_TELEMETRY.frontAntiSway),
-    rearAntiSway: telemetry.readUInt8(LMU_TELEMETRY.rearAntiSway),
-    batteryChargeFraction: clamp(
-      finiteDouble(telemetry, LMU_TELEMETRY.batteryChargeFraction),
-      0,
-      1,
-    ),
-    stateOfCharge: finiteFloat(telemetry, LMU_TELEMETRY.stateOfCharge),
-    virtualEnergy: finiteFloat(telemetry, LMU_TELEMETRY.virtualEnergy),
-    regenKw: finiteFloat(telemetry, LMU_TELEMETRY.regenKw),
-    trackLimitsSteps: telemetry.readUInt8(LMU_TELEMETRY.trackLimitsSteps),
-    trackGripLevel: scoringInfo.readUInt8(
-      LMU_SCORING_INFO.trackGripLevel,
-    ),
-    cloudCoverage,
+    ...(extensionAvailable("lapDistanceM") ? { lapDistanceM } : {}),
+    ...(extensionAvailable("currentSectorIndex") ? { currentSectorIndex } : {}),
+    ...(extensionAvailable("bestSector1") ? { bestSector1: positiveScoringTime(LMU_SCORING_VEHICLE.bestSector1) } : {}),
+    ...(extensionAvailable("bestSector2") ? { bestSector2: positiveScoringTime(LMU_SCORING_VEHICLE.bestSector2) } : {}),
+    ...(extensionAvailable("lastSector1") ? { lastSector1: positiveScoringTime(LMU_SCORING_VEHICLE.lastSector1) } : {}),
+    ...(extensionAvailable("lastSector2") ? { lastSector2: positiveScoringTime(LMU_SCORING_VEHICLE.lastSector2) } : {}),
+    ...(extensionAvailable("currentSector1") ? { currentSector1: positiveScoringTime(LMU_SCORING_VEHICLE.currentSector1) } : {}),
+    ...(extensionAvailable("currentSector2") ? { currentSector2: positiveScoringTime(LMU_SCORING_VEHICLE.currentSector2) } : {}),
+    ...(frame.schemaVersion !== 4 && channelAvailable("Lap Invalidated") ? {
+      lapInvalidated: telemetry.readUInt8(LMU_TELEMETRY.lapInvalidated) !== 0,
+    } : {}),
+    ...(extensionAvailable("inPits") ? { inPits } : {}),
+    ...(frame.schemaVersion !== 4 && scoring ? {
+      pitState: scoring.readUInt8(LMU_SCORING_VEHICLE.pitState),
+    } : {}),
+    ...(extensionAvailable("frontTireCompound") ? { frontTireCompound } : {}),
+    ...(extensionAvailable("rearTireCompound") ? { rearTireCompound } : {}),
+    ...(extensionAvailable("rearFlapActivated") ? {
+      rearFlapActivated: telemetry.readUInt8(LMU_TELEMETRY.rearFlapActivated) !== 0,
+    } : {}),
+    ...(frame.schemaVersion !== 4 ? {
+      rearFlapLegalStatus: telemetry.readUInt8(LMU_TELEMETRY.rearFlapLegalStatus),
+    } : {}),
+    ...(extensionAvailable("speedLimiterActive") ? {
+      speedLimiterActive: telemetry.readUInt8(LMU_TELEMETRY.speedLimiterActive) !== 0,
+    } : {}),
+    ...(extensionAvailable("tcActive") ? {
+      tcActive: telemetry.readUInt8(LMU_TELEMETRY.tcActive) !== 0,
+    } : {}),
+    ...(frame.schemaVersion !== 4 ? {
+      absActive: telemetry.readUInt8(LMU_TELEMETRY.absActive) !== 0,
+      tcCutLevel: telemetry.readUInt8(LMU_TELEMETRY.tcCut),
+    } : {}),
+    ...(extensionAvailable("tcLevel") ? { tcLevel: telemetry.readUInt8(LMU_TELEMETRY.tc) } : {}),
+    ...(extensionAvailable("absLevel") ? { absLevel: telemetry.readUInt8(LMU_TELEMETRY.abs) } : {}),
+    ...(extensionAvailable("motorMap") ? { motorMap: telemetry.readUInt8(LMU_TELEMETRY.motorMap) } : {}),
+    ...(extensionAvailable("migration") ? { migration: telemetry.readUInt8(LMU_TELEMETRY.migration) } : {}),
+    ...(extensionAvailable("frontAntiSway") ? { frontAntiSway: telemetry.readUInt8(LMU_TELEMETRY.frontAntiSway) } : {}),
+    ...(extensionAvailable("rearAntiSway") ? { rearAntiSway: telemetry.readUInt8(LMU_TELEMETRY.rearAntiSway) } : {}),
+    ...(extensionAvailable("batteryChargeFraction") ? {
+      batteryChargeFraction: nativeFraction(telemetry.readDoubleLE(LMU_TELEMETRY.batteryChargeFraction)),
+    } : {}),
+    ...(extensionAvailable("stateOfCharge") && stateOfCharge >= 0 && stateOfCharge <= 100 ? { stateOfCharge } : {}),
+    ...(extensionAvailable("virtualEnergy") ? { virtualEnergy: nativeFraction(telemetry.readFloatLE(LMU_TELEMETRY.virtualEnergy)) } : {}),
+    ...(extensionAvailable("regenKw") ? { regenKw: telemetry.readFloatLE(LMU_TELEMETRY.regenKw) } : {}),
+    ...(extensionAvailable("trackLimitsSteps") ? { trackLimitsSteps: telemetry.readUInt8(LMU_TELEMETRY.trackLimitsSteps) } : {}),
+    ...(frame.schemaVersion !== 4 && channelAvailable("Track Grip") ? {
+      trackGripLevel: scoringInfo.readUInt8(LMU_SCORING_INFO.trackGripLevel),
+    } : {}),
+    ...(frame.schemaVersion !== 4 && channelAvailable("Cloud Coverage") ? { cloudCoverage } : {}),
+    ...(extensionAvailable("engineRpm") ? { engineRpm } : {}),
+    ...(frame.schemaVersion !== 4 && channelAvailable("Engine Water Temp") ? {
+      engineWaterTemp: telemetry.readDoubleLE(LMU_TELEMETRY.engineWaterTemp),
+    } : {}),
+    ...(frame.schemaVersion !== 4 && channelAvailable("Engine Oil Temp") ? {
+      engineOilTemp: telemetry.readDoubleLE(LMU_TELEMETRY.engineOilTemp),
+    } : {}),
+    ...(extensionAvailable("engineTorque") ? { engineTorque } : {}),
+    ...(frame.schemaVersion !== 4 && motorState > 0 ? {
+      motorRpm,
+      motorTorque,
+      motorTemperature: telemetry.readDoubleLE(LMU_TELEMETRY.electricBoostMotorTemperature),
+      motorWaterTemperature: telemetry.readDoubleLE(LMU_TELEMETRY.electricBoostWaterTemperature),
+    } : {}),
+    ...(extensionAvailable("motorState") ? { motorState } : {}),
+    ...(frame.schemaVersion !== 4 && channelAvailable("Steering Shaft Torque") ? {
+      steeringShaftTorque: telemetry.readDoubleLE(LMU_TELEMETRY.steeringShaftTorque),
+    } : {}),
+    ...(extensionAvailable("throttle") ? { throttle: telemetry.readDoubleLE(LMU_TELEMETRY.throttle) } : {}),
+    ...(extensionAvailable("brake") ? { brake: telemetry.readDoubleLE(LMU_TELEMETRY.brake) } : {}),
+    ...(extensionAvailable("steering") ? { steering: telemetry.readDoubleLE(LMU_TELEMETRY.steering) } : {}),
+    ...(extensionAvailable("clutch") ? { clutch: telemetry.readDoubleLE(LMU_TELEMETRY.clutch) } : {}),
+    ...(extensionAvailable("timeGapCarAhead") ? { timeGapCarAhead: telemetry.readFloatLE(LMU_TELEMETRY.timeGapCarAhead) } : {}),
+    ...(extensionAvailable("timeGapCarBehind") ? { timeGapCarBehind: telemetry.readFloatLE(LMU_TELEMETRY.timeGapCarBehind) } : {}),
+    ...(extensionAvailable("timeGapPlaceAhead") ? { timeGapPlaceAhead: telemetry.readFloatLE(LMU_TELEMETRY.timeGapPlaceAhead) } : {}),
+    ...(extensionAvailable("timeGapPlaceBehind") ? { timeGapPlaceBehind: telemetry.readFloatLE(LMU_TELEMETRY.timeGapPlaceBehind) } : {}),
+    ...(extensionAvailable("rainIntensity") ? {
+      rainIntensity: nativeFraction(scoringInfo.readDoubleLE(LMU_SCORING_INFO.raining)),
+    } : {}),
+    ...(extensionAvailable("darkCloud") ? {
+      darkCloud: nativeFraction(scoringInfo.readDoubleLE(LMU_SCORING_INFO.darkCloud)),
+    } : {}),
+    ...(extensionAvailable("minimumPathWetness") ? {
+      minimumPathWetness: nativeFraction(scoringInfo.readDoubleLE(LMU_SCORING_INFO.minimumPathWetness)),
+    } : {}),
+    ...(extensionAvailable("maximumPathWetness") ? {
+      maximumPathWetness: nativeFraction(scoringInfo.readDoubleLE(LMU_SCORING_INFO.maximumPathWetness)),
+    } : {}),
+    ...(extensionAvailable("averagePathWetness") ? {
+      averagePathWetness: nativeFraction(scoringInfo.readDoubleLE(LMU_SCORING_INFO.averagePathWetness)),
+    } : {}),
+    ...(extensionAvailable("wind") ? {
+      wind: [scoringInfo.readDoubleLE(LMU_SCORING_INFO.wind), scoringInfo.readDoubleLE(LMU_SCORING_INFO.wind + 8), scoringInfo.readDoubleLE(LMU_SCORING_INFO.wind + 16)],
+    } : {}),
+    ...(extensionAvailable("ignitionStarter") ? {
+      ignitionStarter: telemetry.readUInt8(LMU_TELEMETRY.ignitionStarter),
+    } : {}),
+    ...(extensionAvailable("scheduledStops") ? {
+      scheduledStops: telemetry.readUInt8(LMU_TELEMETRY.scheduledStops),
+    } : {}),
+    ...(extensionAvailable("overheating") ? {
+      overheating: telemetry.readUInt8(LMU_TELEMETRY.overheating) !== 0,
+    } : {}),
+    ...(extensionAvailable("penaltyCount") && scoring ? {
+      penaltyCount: scoring.readInt16LE(LMU_SCORING_VEHICLE.penaltyCount),
+    } : {}),
+    ...(extensionAvailable("pitStopCount") && scoring ? {
+      pitStopCount: scoring.readInt16LE(LMU_SCORING_VEHICLE.pitStopCount),
+    } : {}),
+    ...(extensionAvailable("primaryFlag") && scoring ? {
+      primaryFlag: scoring.readUInt8(LMU_SCORING_VEHICLE.primaryFlag),
+    } : {}),
+    ...(extensionAvailable("underYellow") && scoring ? {
+      underYellow: scoring.readUInt8(LMU_SCORING_VEHICLE.underYellow) !== 0,
+    } : {}),
+    ...(extensionAvailable("countLapFlag") && scoring ? {
+      countLapFlag: scoring.readUInt8(LMU_SCORING_VEHICLE.countLapFlag),
+    } : {}),
+    ...(extensionAvailable("inGarageStall") && scoring ? {
+      inGarageStall: scoring.readUInt8(LMU_SCORING_VEHICLE.inGarageStall) !== 0,
+    } : {}),
+    ...(extensionAvailable("finishStatus") && scoring ? {
+      finishStatus: scoring.readUInt8(LMU_SCORING_VEHICLE.finishStatus),
+    } : {}),
+    ...(extensionAvailable("control") && scoring ? {
+      control: scoring.readInt8(LMU_SCORING_VEHICLE.control),
+    } : {}),
+    ...(extensionAvailable("yellowFlagState") ? {
+      yellowFlagState: scoringInfo.readInt8(LMU_SCORING_INFO.yellowFlagState),
+    } : {}),
+    ...(extensionAvailable("sectorFlags") ? {
+      sectorFlags: [scoringInfo.readUInt8(LMU_SCORING_INFO.sectorFlags), scoringInfo.readUInt8(LMU_SCORING_INFO.sectorFlags + 1), scoringInfo.readUInt8(LMU_SCORING_INFO.sectorFlags + 2)],
+    } : {}),
+    ...(extensionAvailable("gamePhase") ? {
+      gamePhase: scoringInfo.readUInt8(LMU_SCORING_INFO.gamePhase),
+    } : {}),
   };
   const sessionUID = JSON.stringify([
     frame.gameVersion,
@@ -389,8 +513,9 @@ export function normalizeLMUSourceFrame(
     identity.carId,
     identity.trackId,
     telemetry.readInt32LE(LMU_TELEMETRY.id),
+    ...(frame.lmuContext ? [frame.lmuContext.key.sessionKey] : []),
   ]);
-  const controlRole = scoring?.readInt8(LMU_SCORING_VEHICLE.mControl);
+  const controlRole = scoring?.readInt8(LMU_SCORING_VEHICLE.control);
   const driverActor: NativeDriverActor | null = scoring &&
     scoring.readUInt8(LMU_SCORING_VEHICLE.isPlayer) === 1 &&
     (controlRole === 0 || controlRole === 1 || controlRole === 2) &&
@@ -411,16 +536,16 @@ export function normalizeLMUSourceFrame(
     driverActor,
     gameId: "lmu",
     lmu,
+    ...(frame.lmuContext ? { lmuContext: frame.lmuContext } : {}),
     sessionUID,
     IsRaceOn:
-      scoringInfo.readUInt8(LMU_SCORING_INFO.inRealtime) !== 0 ? 1 : 0,
-    TimestampMS: frame.captureTimestampMs,
-    EngineMaxRpm: Math.max(
-      0,
-      finiteDouble(telemetry, LMU_TELEMETRY.engineMaxRpm),
-    ),
+      scoring !== null && scoringInfo.readUInt8(LMU_SCORING_INFO.inRealtime) !== 0 ? 1 : 0,
+    TimestampMS: Math.round(frame.captureTimestampMs),
+    EngineMaxRpm: channelAvailable("Engine Max RPM")
+      ? Math.max(0, finiteDouble(telemetry, LMU_TELEMETRY.engineMaxRpm))
+      : NaN,
     EngineIdleRpm: 0,
-    CurrentEngineRpm: engineRpm,
+    CurrentEngineRpm: extensionAvailable("engineRpm") ? engineRpm : NaN,
     AccelerationX: localAcceleration.x,
     AccelerationY: localAcceleration.y,
     AccelerationZ: -localAcceleration.z,
@@ -479,38 +604,47 @@ export function normalizeLMUSourceFrame(
     TireSurfaceTempOuterRL: wheels.RL.temperatureLeftC,
     TireSurfaceTempOuterRR: wheels.RR.temperatureRightC,
     Boost: 0,
-    Fuel: Math.max(0, finiteDouble(telemetry, LMU_TELEMETRY.fuel)),
-    FuelCapacity: Math.max(
-      0,
-      finiteDouble(telemetry, LMU_TELEMETRY.fuelCapacity),
-    ),
-    DistanceTraveled:
-      completedLaps * trackLengthM + Math.max(0, lapDistanceM),
-    BestLap: scoring
+    Fuel: channelAvailable("Fuel Level")
+      ? Math.max(0, finiteDouble(telemetry, LMU_TELEMETRY.fuel))
+      : NaN,
+    FuelCapacity: frame.schemaVersion === 4
+      ? NaN
+      : Math.max(0, finiteDouble(telemetry, LMU_TELEMETRY.fuelCapacity)),
+    DistanceTraveled: extensionAvailable("lapDistanceM")
+      ? completedLaps * trackLengthM + Math.max(0, lapDistanceM)
+      : NaN,
+    BestLap: channelAvailable("Best LapTime") && scoring
       ? positiveTime(finiteDouble(scoring, LMU_SCORING_VEHICLE.bestLapTime))
-      : 0,
-    LastLap: scoring
+      : NaN,
+    LastLap: channelAvailable("Lap Time") && scoring
       ? positiveTime(finiteDouble(scoring, LMU_SCORING_VEHICLE.lastLapTime))
-      : 0,
+      : NaN,
     CurrentLap: Math.max(0, elapsedTime - lapStartElapsedTime),
     CurrentRaceTime: elapsedTime,
     // LMU telemetry reports zero-based current-lap numbers. RaceIQ lap
     // identity is one-based, matching the displayed lap and persisted laps.
-    LapNumber: Math.max(
-      1,
-      telemetry.readInt32LE(LMU_TELEMETRY.lapNumber) + 1,
-    ),
-    RacePosition: scoring
+    LapNumber: channelAvailable("Lap")
+      ? Math.max(1, telemetry.readInt32LE(LMU_TELEMETRY.lapNumber) + 1)
+      : NaN,
+    RacePosition: scoring && frame.schemaVersion !== 4
       ? scoring.readUInt8(LMU_SCORING_VEHICLE.place)
-      : 0,
-    Accel: input255(finiteDouble(telemetry, LMU_TELEMETRY.throttle)),
-    Brake: input255(finiteDouble(telemetry, LMU_TELEMETRY.brake)),
-    Clutch: input255(finiteDouble(telemetry, LMU_TELEMETRY.clutch)),
+      : NaN,
+    Accel: extensionAvailable("throttle")
+      ? input255(finiteDouble(telemetry, LMU_TELEMETRY.throttle))
+      : NaN,
+    Brake: extensionAvailable("brake")
+      ? input255(finiteDouble(telemetry, LMU_TELEMETRY.brake))
+      : NaN,
+    Clutch: extensionAvailable("clutch")
+      ? input255(finiteDouble(telemetry, LMU_TELEMETRY.clutch))
+      : NaN,
     HandBrake: 0,
-    Gear: canonicalGear(telemetry.readInt32LE(LMU_TELEMETRY.gear)),
-    Steer: Math.round(
-      clamp(finiteDouble(telemetry, LMU_TELEMETRY.steering), -1, 1) * 127,
-    ),
+    Gear: channelAvailable("Gear")
+      ? canonicalGear(telemetry.readInt32LE(LMU_TELEMETRY.gear))
+      : NaN,
+    Steer: extensionAvailable("steering")
+      ? Math.round(clamp(finiteDouble(telemetry, LMU_TELEMETRY.steering), -1, 1) * 127)
+      : NaN,
     NormDrivingLine: 0,
     NormAIBrakeDiff: 0,
     TireWearFL: wheels.FL.wear,
@@ -538,6 +672,10 @@ export function normalizeLMUSourceFrame(
     CarPerformanceIndex: 0,
     DrivetrainType: 1,
     NumCylinders: 0,
+    Power: extensionAvailable("engineTorque")
+      ? engineTorque * engineRpm * TWO_PI_PER_MINUTE
+      : NaN,
+    Torque: extensionAvailable("engineTorque") ? engineTorque : NaN,
     PositionX: position.x,
     PositionY: position.y,
     PositionZ: position.z,
@@ -546,29 +684,25 @@ export function normalizeLMUSourceFrame(
       localVelocity.y,
       localVelocity.z,
     ),
-    Power:
-      engineTorque * engineRpm * TWO_PI_PER_MINUTE +
-      motorTorque * motorRpm * TWO_PI_PER_MINUTE,
-    Torque: engineTorque + motorTorque,
     trackId: identity.trackId,
-    BrakeTempFrontLeft: wheels.FL.brakeTemperatureC,
-    BrakeTempFrontRight: wheels.FR.brakeTemperatureC,
-    BrakeTempRearLeft: wheels.RL.brakeTemperatureC,
-    BrakeTempRearRight: wheels.RR.brakeTemperatureC,
-    TirePressureFrontLeft: wheels.FL.pressurePsi,
-    TirePressureFrontRight: wheels.FR.pressurePsi,
-    TirePressureRearLeft: wheels.RL.pressurePsi,
-    TirePressureRearRight: wheels.RR.pressurePsi,
-    DrsActive: lmu.rearFlapActivated ? 1 : 0,
-    TrackTemp: finiteDouble(
-      scoringInfo,
-      LMU_SCORING_INFO.trackTemperature,
-    ),
-    AirTemp: finiteDouble(
-      scoringInfo,
-      LMU_SCORING_INFO.ambientTemperature,
-    ),
-    RainPercent: Math.round(raining * 100),
-    WeatherType: weatherType(raining, cloudCoverage),
+    BrakeTempFrontLeft: channelAvailable("Brakes Temp") ? wheels.FL.brakeTemperatureC : NaN,
+    BrakeTempFrontRight: channelAvailable("Brakes Temp") ? wheels.FR.brakeTemperatureC : NaN,
+    BrakeTempRearLeft: channelAvailable("Brakes Temp") ? wheels.RL.brakeTemperatureC : NaN,
+    BrakeTempRearRight: channelAvailable("Brakes Temp") ? wheels.RR.brakeTemperatureC : NaN,
+    TirePressureFrontLeft: channelAvailable("TyresPressure") ? wheels.FL.pressurePsi : NaN,
+    TirePressureFrontRight: channelAvailable("TyresPressure") ? wheels.FR.pressurePsi : NaN,
+    TirePressureRearLeft: channelAvailable("TyresPressure") ? wheels.RL.pressurePsi : NaN,
+    TirePressureRearRight: channelAvailable("TyresPressure") ? wheels.RR.pressurePsi : NaN,
+    DrsActive: channelAvailable("RearFlapActivated")
+      ? telemetry.readUInt8(LMU_TELEMETRY.rearFlapActivated) !== 0 ? 1 : 0
+      : NaN,
+    TrackTemp: channelAvailable("Track Temperature")
+      ? finiteDouble(scoringInfo, LMU_SCORING_INFO.trackTemperature)
+      : NaN,
+    AirTemp: channelAvailable("Ambient Temperature")
+      ? finiteDouble(scoringInfo, LMU_SCORING_INFO.ambientTemperature)
+      : NaN,
+    RainPercent: frame.schemaVersion === 4 ? NaN : Math.round(raining * 100),
+    WeatherType: frame.schemaVersion === 4 ? NaN : weatherType(raining, cloudCoverage),
   };
 }

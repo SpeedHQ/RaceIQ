@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { errorLogger } from "@raceiq/backend-core/runtime/logger";
 import { IS_DEV, IS_E2E } from "@raceiq/backend-core/runtime/config/env";
-import { httpAccess } from "../runtime/http-access";
+import { getHttpAccess } from "../runtime/http-access";
 
 import { settingsRoutes } from "./settings-routes";
 import { authRoutes } from "./auth-routes";
@@ -11,8 +11,8 @@ import { driverRoutes } from "./driver-routes";
 import { chatsRoutes } from "./chats-routes";
 import { chatRunRoutes } from "./chat-run-routes";
 import { sessionRoutes } from "./session-routes";
-import { trackRoutes } from "./tracks/index";
-import { carRoutes } from "./car-routes";
+import { trackRoutes } from "@raceiq/tracks-catalogue/server";
+import { carRoutes, accCarRoutes, acEvoCarRoutes } from "@raceiq/cars-catalogue/server";
 import { tuneRoutes } from "./tune-routes";
 import { accRoutes } from "./games/acc";
 import { acEvoRoutes } from "./games/ac-evo";
@@ -26,6 +26,7 @@ import { cloudLapImportRoutes } from "./cloud-lap-import-routes";
 
 const app = new Hono()
   .use("/*", async (c, next) => {
+    const httpAccess = getHttpAccess();
     const denied = await httpAccess.authorize(c.req.raw);
     if (denied) return denied;
     if (httpAccess.usesSessions) c.header("Cache-Control", "no-store");
@@ -34,7 +35,7 @@ const app = new Hono()
   .use(
     "/*",
     cors({
-      origin: (origin, c) => (httpAccess.allowsOrigin(origin, c.req.raw) ? origin : ""),
+      origin: (origin, c) => (getHttpAccess().allowsOrigin(origin, c.req.raw) ? origin : ""),
       credentials: true,
       exposeHeaders: ["X-RaceIQ-CSRF"],
       // Studio needs its own headers; reflect them only for trusted origins.
@@ -53,7 +54,9 @@ const app = new Hono()
   .route("/", trackRoutes)
   .route("/", carRoutes)
   .route("/", tuneRoutes)
+  .route("/", accCarRoutes)
   .route("/", accRoutes)
+  .route("/", acEvoCarRoutes)
   .route("/", acEvoRoutes)
   .route("/", f125Routes)
   .route("/", miscRoutes)

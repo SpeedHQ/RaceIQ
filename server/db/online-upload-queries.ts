@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { db } from "./index";
+import { readDb } from "./index";
 import { getLocalAccountOwner } from "./local-account-queries";
 import { decodeNativeDriverBinding } from "../lap-detection/native-attribution";
 import { isWholeLapSelf, type DriverAttributionStint } from "@raceiq/shared/driver-attribution";
@@ -31,7 +31,7 @@ export async function getOnlineUploadCandidatePage(cursor:OnlineUploadCandidateC
   const ownerUserId=await getLocalAccountOwner();
   if(!ownerUserId)return {items:[],nextCursor:null};
   const after=cursor??{gameId:"",trackId:"",carId:"",lapTimeMs:0,lapId:0};
-  const rows=await db.all<CandidateRow>(sql`
+  const rows=await readDb.all<CandidateRow>(sql`
     WITH candidates AS (
       SELECT laps.id AS lapId,laps.lap_guid AS lapGuid,sessions.id AS sessionId,
         CAST(ROUND(CASE WHEN laps.total_time_ms>0 THEN laps.total_time_ms ELSE laps.lap_time*1000 END) AS INTEGER) AS lapTimeMs,

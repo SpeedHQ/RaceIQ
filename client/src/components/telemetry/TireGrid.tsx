@@ -1,5 +1,5 @@
 import { useUnits } from "@/hooks/useUnits";
-import { type BrakeTempThresholds, brakeTempColor, tireHealthColor, tirePressureColor, tireTempColor } from "@/lib/vehicle-dynamics";
+import { type BrakeTempThresholds, brakeTempColor, tireHealthColor, tirePressureColor, tireTempColor } from "@raceiq/scene-3d/vehicle-dynamics";
 import { m } from "@/paraglide/messages";
 
 const PAD_NEW_MM = 29; // ACC: pads start at 29mm when new

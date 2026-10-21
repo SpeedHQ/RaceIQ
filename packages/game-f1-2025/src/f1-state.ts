@@ -18,6 +18,7 @@ import {
   decodeF1MotionEx,
   decodeF1Participants,
   decodeF1Session,
+  decodeF1Event,
   decodeF1SessionHistory,
   type F1CarDamageData,
   type F1CarSetupData,
@@ -32,6 +33,7 @@ import {
   type F1ParticipantData,
   type F1SessionData,
   type F1SessionHistoryData,
+  type F1EventData,
 } from "./f1-packet-decoders";
 import { f1ActorFromParticipant } from "@raceiq/game-f1-2025-metadata/driver-attribution";
 import { getF1CompoundName } from "@raceiq/game-f1-2025-metadata/racing/compounds";
@@ -61,6 +63,11 @@ export interface F1ParserCheckpointV1 {
   driverHistory: [number, F1DriverHistoryData][];
   driverLapSectors: [number, [number, F1LapSectorData][]][];
   playerCarIndex: number;
+  carStatusUpdatedAt?: number;
+  sessionUpdatedAt?: number;
+  seenStartLightsAt?: number;
+  raceStartAt?: number;
+  lastHeaderSessionTime?: number;
 }
 
 function hasFiniteFields(value: unknown, fields: string[], booleanFields: string[] = []): boolean {
@@ -117,6 +124,11 @@ export class F1StateAccumulator {
   private driverHistory = new Map<number, F1DriverHistoryData>();
   private driverLapSectors = new Map<number, Map<number, F1LapSectorData>>();
   private playerCarIndex = 0;
+  private carStatusUpdatedAt: number | undefined;
+  private sessionUpdatedAt: number | undefined;
+  private seenStartLightsAt: number | undefined;
+  private raceStartAt: number | undefined;
+  private lastHeaderSessionTime: number | undefined;
 
   invalidateDriverEvidence(): void {
     this.participantsObservedAtSeconds = null;
@@ -139,6 +151,11 @@ export class F1StateAccumulator {
     this.participantsObservedAtSeconds = null;
     this.driverHistory = new Map();
     this.playerCarIndex = 0;
+    this.carStatusUpdatedAt = undefined;
+    this.sessionUpdatedAt = undefined;
+    this.seenStartLightsAt = undefined;
+    this.raceStartAt = undefined;
+    this.lastHeaderSessionTime = undefined;
   }
 
   captureCheckpoint(): Uint8Array {
@@ -153,6 +170,11 @@ export class F1StateAccumulator {
       driverHistory: [...this.driverHistory],
       driverLapSectors: [...this.driverLapSectors].map(([driver, sectors]) => [driver, [...sectors]]),
       playerCarIndex: this.playerCarIndex,
+      carStatusUpdatedAt: this.carStatusUpdatedAt,
+      sessionUpdatedAt: this.sessionUpdatedAt,
+      seenStartLightsAt: this.seenStartLightsAt,
+      raceStartAt: this.raceStartAt,
+      lastHeaderSessionTime: this.lastHeaderSessionTime,
     };
     // JSON numbers support -0, but stringify normally discards its sign.
     const json = JSON as typeof JSON & { rawJSON(text: string): unknown };
@@ -183,6 +205,10 @@ export class F1StateAccumulator {
             Array.isArray(entry[1]) && entry[1].every((sector) => Array.isArray(sector) && sector.length === 2 &&
               Number.isInteger(sector[0]) && hasFiniteFields(sector[1], ["s1", "s2", "s3", "lapTime"]))) ||
         !Number.isInteger(checkpoint.playerCarIndex) ||
+        !["carStatusUpdatedAt", "sessionUpdatedAt", "seenStartLightsAt", "raceStartAt", "lastHeaderSessionTime"]
+          .every((key) => checkpoint[key as keyof F1ParserCheckpointV1] === undefined ||
+            (typeof checkpoint[key as keyof F1ParserCheckpointV1] === "number" &&
+              Number.isFinite(checkpoint[key as keyof F1ParserCheckpointV1]))) ||
         !["motion", "carTelemetry", "lapData", "finalClassification", "carStatus", "carDamage", "carSetup", "motionEx", "session"]
           .every((key) => validF1StateObject(key, checkpoint[key as keyof F1ParserCheckpointV1]))) {
       throw new Error("Invalid or unsupported F1-2025 parser checkpoint");
@@ -207,6 +233,11 @@ export class F1StateAccumulator {
     this.driverHistory = new Map(checkpoint.driverHistory);
     this.driverLapSectors = new Map(checkpoint.driverLapSectors.map(([driver, sectors]) => [driver, new Map(sectors)]));
     this.playerCarIndex = checkpoint.playerCarIndex;
+    this.carStatusUpdatedAt = checkpoint.carStatusUpdatedAt;
+    this.sessionUpdatedAt = checkpoint.sessionUpdatedAt;
+    this.seenStartLightsAt = checkpoint.seenStartLightsAt;
+    this.raceStartAt = checkpoint.raceStartAt;
+    this.lastHeaderSessionTime = checkpoint.lastHeaderSessionTime;
   }
 
   /**
@@ -232,6 +263,11 @@ export class F1StateAccumulator {
       this.sessionUID = header.sessionUID;
     }
     this.playerCarIndex = header.playerCarIndex;
+    if (this.lastHeaderSessionTime !== undefined && header.sessionTime < this.lastHeaderSessionTime) {
+      this.seenStartLightsAt = undefined;
+      this.raceStartAt = undefined;
+    }
+    this.lastHeaderSessionTime = header.sessionTime;
 
     const data = buf.subarray(F1_HEADER_SIZE);
     switch (header.packetId) {
@@ -240,9 +276,12 @@ export class F1StateAccumulator {
         break;
       case F1_PACKET_IDS.SESSION: {
         const session = decodeF1Session(data);
-        this.session = session ?? this.session;
         this.sessionObservedAtSeconds = session && header.packetVersion === 1 && header.gameYear === 25 &&
           Number.isFinite(header.sessionTime) ? header.sessionTime : null;
+        if (session) {
+          this.session = session;
+          this.sessionUpdatedAt = header.sessionTime;
+        }
         break;
       }
       case F1_PACKET_IDS.LAP_DATA:
@@ -259,9 +298,19 @@ export class F1StateAccumulator {
       case F1_PACKET_IDS.CAR_TELEMETRY:
         this.carTelemetry = decodeF1CarTelemetry(data, this.playerCarIndex) ?? this.carTelemetry;
         break;
-      case F1_PACKET_IDS.CAR_STATUS:
-        this.carStatus = decodeF1CarStatus(data, this.playerCarIndex) ?? this.carStatus;
+      case F1_PACKET_IDS.CAR_STATUS: {
+        const carStatus = decodeF1CarStatus(data, this.playerCarIndex);
+        if (carStatus) {
+          this.carStatus = carStatus;
+          this.carStatusUpdatedAt = header.sessionTime;
+        }
         break;
+      }
+      case F1_PACKET_IDS.EVENT: {
+        const event = decodeF1Event(data);
+        if (event) this.applyEvent(event, header.sessionTime);
+        break;
+      }
       case F1_PACKET_IDS.FINAL_CLASSIFICATION:
         this.finalClassification =
           decodeF1FinalClassification(data, this.playerCarIndex) ?? this.finalClassification;
@@ -281,6 +330,18 @@ export class F1StateAccumulator {
         return false;
     }
     return true;
+  }
+
+  private applyEvent(event: F1EventData, sessionTime: number): void {
+    if (event.code === "SSTA") {
+      this.seenStartLightsAt = undefined;
+      this.raceStartAt = undefined;
+    } else if (event.code === "STLG") {
+      this.seenStartLightsAt = event.numLights && event.numLights > 0 ? sessionTime : undefined;
+    } else if (event.code === "LGOT" && this.seenStartLightsAt !== undefined && sessionTime >= this.seenStartLightsAt) {
+      this.raceStartAt = sessionTime;
+      this.seenStartLightsAt = undefined;
+    }
   }
 
   private applySessionHistory(decoded: F1SessionHistoryData): void {
@@ -417,6 +478,7 @@ export class F1StateAccumulator {
       drsActivationDistance: cs?.drsActivationDistance,
       actualTyreCompound: cs?.actualTyreCompound,
       vehicleFIAFlags: cs?.vehicleFIAFlags,
+      vehicleFIAFlagsUpdatedAt: this.carStatusUpdatedAt,
       enginePowerICE: cs?.enginePowerICE,
       enginePowerMGUK: cs?.enginePowerMGUK,
       // Extended CarDamage fields
@@ -468,6 +530,8 @@ export class F1StateAccumulator {
       gridPosition: this.finalClassification?.gridPosition ?? ld.gridPosition,
       // Extended Session fields
       safetyCarStatus: sess?.safetyCarStatus,
+      safetyCarStatusUpdatedAt: this.sessionUpdatedAt,
+      raceStartAt: this.raceStartAt,
       trackLength: sess?.trackLength,
       pitSpeedLimit: sess?.pitSpeedLimit,
       formula: sess?.formula,

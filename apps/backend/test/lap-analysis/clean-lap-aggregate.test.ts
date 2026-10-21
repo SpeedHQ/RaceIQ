@@ -16,6 +16,7 @@ function lap(overrides: Partial<LapMeta> & { id: number }): LapMeta {
     lapNumber: overrides.id,
     lapTime: 90,
     isValid: true,
+    classification: null,
     createdAt: "2026-07-15T12:00:00.000Z",
     experimentId: 1,
     experimentVersionId: 1,

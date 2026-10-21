@@ -49,6 +49,21 @@ describe("pure telemetry batch validation", () => {
     expect(result.laps[0]!.packets).toEqual(packets.slice(0, 35));
   });
 
+  test("keeps non-pace classification independent of recording quality", async () => {
+    const policies: TelemetryBatchOptions["policies"] = {
+      "fm-2023": {
+        resolveLapTime: (_packets, next) => next.LastLap,
+        classifyPitCycle: () => "outlap",
+      },
+    };
+    const packets = completeLap();
+    const clean = await processTelemetryBatch("fm-2023", inputs(packets), { parser: parser(packets), policies });
+    expect(clean.laps[0]).toMatchObject({ classification: "out_lap", valid: true, invalidReason: null });
+    const short = packets.map(value => ({ ...value, DistanceTraveled: 0 }));
+    const invalid = await processTelemetryBatch("fm-2023", inputs(short), { parser: parser(short), policies });
+    expect(invalid.laps[0]).toMatchObject({ classification: "out_lap", valid: false, invalidReason: "telemetry distance too short" });
+  });
+
   test("counts a short partial logical lap even when detector persistence omits it", async () => {
     const packets = [packet({ CurrentLap: 2 }), packet({ CurrentLap: 3, TimestampMS: 2 })];
     const result = await processTelemetryBatch("fm-2023", inputs(packets), { parser: parser(packets) });

@@ -1,7 +1,8 @@
 import type { Transaction } from "@libsql/client/sqlite3";
-import { client } from "./index";
+import { client, readClient } from "./index";
 import type { PortableCaptureIdentity } from "@raceiq/capture-formats/session/framing";
 import { dashboardDurationAttribution } from "../driver-summary/dashboard-input";
+import { withDatabaseTransaction } from "./write-coordination";
 
 export interface OriginalActivitySourceProof {
   schemaVersion: 1;
@@ -55,8 +56,7 @@ export async function closeNativeOriginalActivitySource(sessionId: number, closu
 }): Promise<void> {
   if (!closure.sourceRevision.trim() || !Number.isSafeInteger(closure.lapCount) || closure.lapCount < 0
     || !Number.isSafeInteger(closure.gapCount) || closure.gapCount < 0) throw new Error("Invalid native original closure");
-  const tx = await client.transaction("write");
-  try {
+  await withDatabaseTransaction(client, async (tx) => {
     const result = await tx.execute({ sql: `SELECT original_activity_id FROM sessions
       WHERE id=? AND native_capture_origin=1 AND ownership='mine' AND cloud_import_origin IS NULL AND cloud_import_lap_id IS NULL`, args: [sessionId] });
     const activityId = result.rows[0]?.original_activity_id;
@@ -71,8 +71,7 @@ export async function closeNativeOriginalActivitySource(sessionId: number, closu
         args: [sessionId, activityId, closure.sourceRevision, closure.lapCount, closure.gapCount] });
     }
     await bindSourceRevision(tx, sessionId, closure.sourceRevision);
-    await tx.commit();
-  } catch (error) { await tx.rollback(); throw error; }
+  });
 }
 
 async function bindSourceRevision(tx: Transaction, sessionId: number, sourceRevision: string): Promise<void> {
@@ -84,8 +83,7 @@ async function bindSourceRevision(tx: Transaction, sessionId: number, sourceRevi
 
 /** Positively verifies closure and every resolved original lap, not just personal laps. */
 export async function finalizeNativeOriginalActivitySource(sessionId: number): Promise<void> {
-  const tx = await client.transaction("write");
-  try {
+  await withDatabaseTransaction(client, async (tx) => {
     const result = await tx.execute({ sql: `SELECT s.original_activity_id,s.owner_user_id,c.source_revision,c.lap_count,c.gap_count
       FROM sessions s JOIN native_original_source_closures c ON c.session_id=s.id AND c.original_activity_id=s.original_activity_id
       WHERE s.id=? AND s.native_capture_origin=1 AND s.ownership='mine' AND s.cloud_import_origin IS NULL AND s.cloud_import_lap_id IS NULL`, args: [sessionId] });
@@ -99,8 +97,7 @@ export async function finalizeNativeOriginalActivitySource(sessionId: number): P
         coverage: "complete", origin: "native_capture",
       }, true);
     }
-    await tx.commit();
-  } catch (error) { await tx.rollback(); throw error; }
+  });
 }
 
 async function registerFootprint(tx: Transaction, sessionId: number, proof: OriginalActivitySourceProof, claimable: boolean, nativeSourceHash: string | null = null): Promise<void> {
@@ -163,18 +160,16 @@ export async function registerVerifiedPortableOriginalInTransaction(tx: Transact
 export async function bindOriginalActivityNativeSourceHash(sessionId: number, nativeRecordHash: string): Promise<void> {
   const proof = await readOriginalActivitySourceProof(sessionId, { includeBorrowed: true });
   if (!proof) throw new Error("Complete original source proof is unavailable");
-  const tx = await client.transaction("write");
-  try {
+  await withDatabaseTransaction(client, async (tx) => {
     const actual = await membership(tx, sessionId);
     if (!actual || JSON.stringify(actual) !== JSON.stringify(proof.originalLapGuids)) throw new Error("Original source changed while hashing");
     await registerFootprint(tx, sessionId, proof, false, nativeRecordHash);
-    await tx.commit();
-  } catch (error) { await tx.rollback(); throw error; }
+  });
 }
 
 /** Missing/deleted/resegmented or partially restored representations stay held; footprint remains. */
 export async function readOriginalActivitySourceProof(sessionId: number, options: { includeBorrowed?: boolean } = {}): Promise<OriginalActivitySourceProof | null> {
-  const tx = await client.transaction("read");
+  const tx = await readClient.transaction("read");
   try {
     const result = await tx.execute({ sql: `SELECT f.*,r.origin AS representation_origin,
       c.original_activity_id AS closed_activity_id,c.source_revision AS closed_revision,c.lap_count AS closed_lap_count,c.gap_count AS closed_gap_count
@@ -211,7 +206,7 @@ export async function readOriginalActivitySourceProof(sessionId: number, options
 export async function readVerifiedPortableOriginalDuration(sessionId: number): Promise<NonNullable<PortableCaptureIdentity["session"]["duration"]> | null> {
   const proof = await readOriginalActivitySourceProof(sessionId);
   if (!proof) return null;
-  const result = await client.execute({ sql: `SELECT s.verified_original_duration_json
+  const result = await readClient.execute({ sql: `SELECT s.verified_original_duration_json
     FROM sessions s JOIN original_activity_sources f ON f.original_activity_id=s.original_activity_id
       AND f.source_revision=s.original_source_revision AND f.owner_user_id IS s.owner_user_id
     WHERE s.id=? AND s.original_activity_id=? AND s.original_source_revision=?

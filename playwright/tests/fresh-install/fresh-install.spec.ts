@@ -7,6 +7,11 @@ import { collectBrowserErrors } from "../support/browser-errors";
 
 const SETTINGS_PATH = resolve(runtime.freshInstall.dataDir, "settings.json");
 
+test.beforeEach(async ({ page }) => {
+  // Exercise onboarding independently of the optional WebGL demo on software renderers.
+  await page.route("**/demo-lap.json.gz", (route) => route.fulfill({ json: { frames: [] } }));
+});
+
 // A retry reuses the server process, but dashboard access is persisted separately
 // from settings. Reset both stores inside this isolated E2E data directory.
 async function resetFreshInstallState() {
@@ -490,7 +495,7 @@ test("setup wizard applies native recording-folder choices immediately and safel
   await page.route("**/api/storage/recording-directory", async (route) => {
     if (route.request().method() === "POST") {
       moveRequests++;
-      if (moveRequests > 1) await moveGate;
+      if (moveRequests > 0) await moveGate;
     }
     await route.continue();
   });

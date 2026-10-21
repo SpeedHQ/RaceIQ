@@ -1,5 +1,5 @@
 import { parentPort,workerData } from "node:worker_threads";
-import { initDbWorkerConnection,client } from "@raceiq/backend-core/db/index";
+import { initDbWorkerConnection,closeDb } from "@raceiq/backend-core/db/index";
 import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
 import { claimLocalAccountOwner,getLocalAccountOwner } from "@raceiq/backend-core/db/local-account-queries";
 import { getOnlineUploadCandidatePage,type OnlineUploadCandidateCursor } from "@raceiq/backend-core/db/online-upload-queries";
@@ -30,6 +30,7 @@ import { createOnlineProfileSync } from "../integrations/online-profile-sync";
 import { createCloudLapImportController } from "../integrations/cloud-lap-import-controller";
 import { readOnlineTestPlatform,createOnlineTestFetch } from "../integrations/online-test-platform";
 import type { WorkerRequest,WorkerResponse,HostResponse,HostRequest,OnlineHostPort,HostMethod,NativeBindingsChanged } from "../integrations/online-worker-protocol";
+import { configureDatabaseWriteWorkerTransport, type WriteLeaseRequest, type WriteLeaseResponse } from "@raceiq/backend-core/db/write-coordination";
 
 const host=parentPort;
 if(!host) throw new Error("Online worker requires a host");
@@ -37,7 +38,21 @@ const initialControl:unknown=workerData;
 if(!initialControl||typeof initialControl!=="object"||!("nativeSourceRevisionBuffer"in initialControl)||
   !(initialControl.nativeSourceRevisionBuffer instanceof SharedArrayBuffer)||initialControl.nativeSourceRevisionBuffer.byteLength!==Uint32Array.BYTES_PER_ELEMENT)throw new Error("Native control unavailable");
 const nativeRevisions=new Uint32Array(initialControl.nativeSourceRevisionBuffer);
+const leaseListeners = new Set<(message: WriteLeaseResponse) => void>();
+const disconnectLeaseTransport = configureDatabaseWriteWorkerTransport({
+  request: (message: WriteLeaseRequest) => host.postMessage(message),
+  subscribe(listener) { leaseListeners.add(listener); return () => { leaseListeners.delete(listener); }; },
+});
+host.on("message", (message: { type: string }) => {
+  if (message.type.startsWith("write-lease-")) for (const listener of leaseListeners) listener(message as WriteLeaseResponse);
+});
 const hostPending=new Map<string,{resolve(value:unknown):void;reject(error:Error):void;timer:ReturnType<typeof setTimeout>}>();
+host.on("close", () => {
+  for (const listener of leaseListeners) listener({ type: "write-lease-channel-closed", reason: "Online worker lease channel closed" });
+  disconnectLeaseTransport();
+  for (const pending of hostPending.values()) { clearTimeout(pending.timer); pending.reject(new Error("host_unavailable")); }
+  hostPending.clear();
+});
 function hostRequest<K extends HostMethod>(method:K,...args:Parameters<OnlineHostPort[K]>):ReturnType<OnlineHostPort[K]> {
   const {promise,resolve,reject}=Promise.withResolvers<unknown>();
   const requestId=crypto.randomUUID();
@@ -168,15 +183,20 @@ async function readbackUploads():Promise<void>{
   }
 }
 let stopPromise:Promise<void>|null=null;
+const inFlight = new Set<Promise<void>>();
 function stop():Promise<void>{
   stopPromise??=(async()=>{
     stopping=true;service.stopAdmission();notifyOnlineSync();
-    await Promise.all([uploads.stop(),profiles.stop(),imports.stop()]);
-    await Promise.all([closeOutboxStorage(),closeProfileStorage(),closeBindingStorage()]);
-    await client.close();
+    const coordinators = await Promise.allSettled([uploads.stop(),profiles.stop(),imports.stop(),...inFlight]);
+    const storage = await Promise.allSettled([closeOutboxStorage(),closeProfileStorage(),closeBindingStorage()]);
+    try { closeDb(); }
+    finally { disconnectLeaseTransport(); }
+    const failures = [...coordinators,...storage].filter(result => result.status === "rejected");
+    if (failures.length) throw new AggregateError(failures.map(result => result.reason), "Online worker shutdown failed");
   })();
   return stopPromise;
 }
+host.on("close", () => { void stop().catch(cause => console.error("[OnlineWorker] Shutdown failed:", cause)); });
 async function dispatch(request:WorkerRequest):Promise<unknown>{
   if(stopping&&request.method!=="stop")throw new Error("service_unavailable");
   switch(request.method){
@@ -224,13 +244,20 @@ host.on("message",(message:WorkerRequest|HostResponse|NativeBindingsChanged)=>{
     if(message.ok)pending.resolve(message.value);else pending.reject(new Error("keystore_unavailable"));
     return;
   }
-  void dispatch(message).then(value=>{
+  if(message.type!=="request")return;
+  const response = dispatch(message).then(value=>{
     host.postMessage({type:"response",requestId:message.requestId,ok:true,value} satisfies WorkerResponse);
     if(message.method==="stop")host.close();
   },cause=>{
     const code=cause instanceof Error&&"code"in cause&&cause.code==="building"?"building":cause instanceof Error&&"code"in cause&&cause.code==="stale_state"?"stale_state":"service_unavailable";
     const error:Extract<WorkerResponse,{ok:false}>["error"]=code==="building"?{code:"building",retryable:true,retryAfter:null}:{code,retryable:code!=="stale_state",retryAfter:null};
     host.postMessage({type:"response",requestId:message.requestId,ok:false,error,status:code==="building"?202:code==="stale_state"?409:503} satisfies WorkerResponse);
+    if(message.method==="stop")host.close();
+  });
+  if (message.method !== "stop") inFlight.add(response);
+  void response.then(() => { inFlight.delete(response); }, cause => {
+    inFlight.delete(response);
+    console.error("[OnlineWorker] Response channel failed:", cause);
   });
 });
 for(const handle of [uploads,profiles])void handle.completion.catch(()=>{

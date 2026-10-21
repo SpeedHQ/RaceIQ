@@ -41,5 +41,5 @@ export const compareChatAgent = new Agent({
     get_compare_analysis: getCompareAnalysisTool,
     generate_lap_analysis: generateLapAnalysisTool,
   },
-  memory: getChatMemory(),
+  memory: getChatMemory,
 });

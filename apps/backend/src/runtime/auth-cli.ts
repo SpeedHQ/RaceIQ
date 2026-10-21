@@ -1,4 +1,4 @@
-import { initDb, DB_PATH, client } from "@raceiq/backend-core/db/index";
+import { initDb, DB_PATH, client, readClient } from "@raceiq/backend-core/db/index";
 import { DashboardAuth, PasswordSchema } from "./dashboard-auth";
 
 export function readHiddenPassword(prompt: string): Promise<string> {
@@ -39,7 +39,7 @@ export async function resetDashboardPassword(args: string[]) {
   if (args.length !== 2 || args[0] !== "auth" || args[1] !== "reset") throw new Error("Usage: raceiq auth reset. Password arguments are not accepted.");
   if (process.env.SERVER_PASSWORD) throw new Error("Remove SERVER_PASSWORD from the server and recovery environment before resetting the UI-managed password.");
   await initDb();
-  const auth = await DashboardAuth.create(client, DB_PATH, process.env, true);
+  const auth = await DashboardAuth.create(client, DB_PATH, process.env, true, readClient);
   const password = await readHiddenPassword("New password: ");
   const confirmation = await readHiddenPassword("Confirm new password: ");
   if (password !== confirmation) throw new Error("Passwords do not match.");
@@ -54,7 +54,7 @@ export async function disableDashboardProtection(args: string[]) {
   }
   if (process.env.SERVER_PASSWORD) throw new Error("Remove SERVER_PASSWORD from the server and command environment before disabling dashboard protection.");
   await initDb();
-  const auth = await DashboardAuth.create(client, DB_PATH, process.env, true);
+  const auth = await DashboardAuth.create(client, DB_PATH, process.env, true, readClient);
   await auth.disable();
   console.log("Dashboard password protection disabled. Previous sessions are invalid. Anyone who can reach the dashboard can read and edit its data and settings. Network access is unchanged; restart after removing environment overrides.");
 }

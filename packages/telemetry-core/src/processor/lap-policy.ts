@@ -4,7 +4,7 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 export interface LapDetectorPolicy {
   resolveLapTime(packets: readonly TelemetryPacket[], newLapFirstPacket: TelemetryPacket): number;
   classifyPitCycle(packets: readonly TelemetryPacket[], completedLapCount: number): PitCycleReason | null;
-  invalidReason?(packets: readonly TelemetryPacket[]): string | null;
+  invalidReason?(packets: readonly TelemetryPacket[], completedLapCount: number): string | null;
 }
 
 export interface LapQualityResult {
@@ -49,9 +49,6 @@ export function assessLapRecording(
   for (const packet of packets) peakTelemetryLapTime = Math.max(peakTelemetryLapTime, packet.CurrentLap);
   if (peakTelemetryLapTime > 0 && Math.abs(peakTelemetryLapTime - lapTime) > 2) {
     return { valid: false, reason: "telemetry lap time mismatch" };
-  }
-  if (first.gameId === "acc" && first.LapNumber === 0 && lapTime < 30) {
-    return { valid: false, reason: "starting lap" };
   }
   if (closed && first.gameId !== "acc") {
     const dx = last.PositionX - first.PositionX;

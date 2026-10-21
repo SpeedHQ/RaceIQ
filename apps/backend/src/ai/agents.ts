@@ -59,7 +59,8 @@ export function shouldUseMastraRuntime(
   nodeEnv = process.env.NODE_ENV,
   argv = process.argv,
 ): boolean {
-  return nodeEnv !== "production" && argv.some((arg) => /(?:^|[\\/])apps[\\/]backend[\\/]src[\\/]index\.ts$/.test(arg));
+  const entrypoint = argv.findIndex((arg) => /(?:^|[\\/])apps[\\/]backend[\\/]src[\\/]index\.ts$/.test(arg));
+  return nodeEnv !== "production" && entrypoint !== -1 && argv[entrypoint + 1] !== "auth";
 }
 
 if (process.env.NODE_ENV !== "production" && process.env.NODE_ENV !== "test" && shouldUseMastraRuntime()) {

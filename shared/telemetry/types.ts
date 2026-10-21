@@ -3,7 +3,7 @@ import type { GameId } from "../games/ids";
 import type { F1ExtendedData } from "./f1-2025";
 import type { KunosExtendedData } from "./kunos";
 import type { IRacingExtendedData } from "./iracing";
-import type { LMUExtendedData } from "./lmu";
+import type { LMUExtendedData, LmuLiveContext } from "./lmu";
 export interface RaceIQExtendedData {
   /** UTC epoch milliseconds when source frame was acquired; absent in historical captures. */
   frameTimeMs?: number;
@@ -24,6 +24,7 @@ export interface TelemetryPacket {
   lmu?: LMUExtendedData;
   /** Source-native actor token; absent when source cannot establish one. */
   driverActor?: NativeDriverActor | null;
+  lmuContext?: LmuLiveContext;
   extendedRaceIQ?: RaceIQExtendedData;
 
   // Game session UID (used for reliable session boundary detection)

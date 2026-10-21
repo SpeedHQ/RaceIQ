@@ -3,7 +3,7 @@ import type { GameId } from "../../games/ids";
 import type { LivePitData, LiveSectorData } from "../../racing/live/types";
 import type { TuneIssue } from "../../racing/tuning/issues";
 import type { MappingStatus } from "../derivations/contracts";
-import type { TelemetryPacket } from "../types";
+import { isLmuLiveContextWire, type LmuLiveContextWire, type LmuPacketWire } from "../lmu-context";
 import type { FreshnessState, ResolutionState } from "../resolver/contracts";
 import type { CanonicalTelemetryScalar } from "../replay/contracts";
 
@@ -11,10 +11,10 @@ export const LIVE_TELEMETRY_PROTOCOL_VERSION = 1 as const;
 
 export interface LiveTelemetryDefinitionV1 { semanticId: string; unit: string | null; mappingStatus: MappingStatus; schemaVersion: string; limitations: readonly string[]; }
 export interface LiveTelemetrySchemaMessageV1 { type: "telemetry-schema"; protocolVersion: 1; schemaId: string; simulator: GameId; catalogVersion: string; catalogHash: string; catalogSchemaVersion: string; parserVersion: string; resolverVersion: string; derivationVersion: string; definitions: readonly LiveTelemetryDefinitionV1[]; }
-export interface LiveTelemetryFrameMessageV1 { type: "telemetry-frame"; protocolVersion: 1; schemaId: string; streamId: string; sessionId: number | null; sequence: number; observedAt: { domain: "session" | "wall-clock"; milliseconds: number }; receivedAtMs: number; values: readonly CanonicalTelemetryScalar[]; states?: Readonly<Record<number, Exclude<ResolutionState, "ok">>>; freshness?: Readonly<Record<number, Exclude<FreshnessState, "fresh">>>; context: { sectors?: LiveSectorData; pit?: LivePitData; liveIssues?: readonly TuneIssue[]; }; }
+export interface LiveTelemetryFrameMessageV1 { type: "telemetry-frame"; protocolVersion: 1; schemaId: string; streamId: string; sessionId: number | null; sequence: number; observedAt: { domain: "session" | "wall-clock"; milliseconds: number }; receivedAtMs: number; values: readonly CanonicalTelemetryScalar[]; states?: Readonly<Record<number, Exclude<ResolutionState, "ok">>>; freshness?: Readonly<Record<number, Exclude<FreshnessState, "fresh">>>; context: { sectors?: LiveSectorData; pit?: LivePitData; liveIssues?: readonly TuneIssue[]; }; lmu?: LmuLiveContextWire; }
 export type DevTelemetryControlMessageV1 = { type: "subscribe"; channel: "dev-telemetry" | "dev-state" } | { type: "unsubscribe"; channel: "dev-telemetry" | "dev-state" };
 export interface DevTelemetrySubscriptionMessageV1 { type: "subscription"; channel: "dev-telemetry" | "dev-state"; subscribed: boolean; error?: "not-available" | "invalid-message"; }
-export interface DevTelemetryPacketMessageV1 { type: "dev-telemetry"; protocolVersion: 1; packet: TelemetryPacket; }
+export interface DevTelemetryPacketMessageV1 { type: "dev-telemetry"; protocolVersion: 1; packet: LmuPacketWire; }
 
 const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 const record = (value: unknown): Record<string, unknown> | undefined =>
@@ -64,6 +64,7 @@ export function isLiveTelemetryFrameMessageV1(value: unknown, schema?: LiveTelem
     (v.sessionId === null || finite(v.sessionId)) && finite(v.sequence) && finite(v.receivedAtMs) && !!observed &&
     (observed.domain === "session" || observed.domain === "wall-clock") && finite(observed.milliseconds) &&
     Array.isArray(v.values) && v.values.every(scalar) && sparseStates(v.states) && sparseFreshness(v.freshness) &&
+    (v.lmu === undefined || isLmuLiveContextWire(v.lmu) && (!schema || schema.simulator === "lmu")) &&
     (!schema || (v.schemaId === schema.schemaId && v.values.length === schema.definitions.length));
 }
 export function isDevTelemetryControlMessageV1(value: unknown): value is DevTelemetryControlMessageV1 {

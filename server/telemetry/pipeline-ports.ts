@@ -1,3 +1,4 @@
+import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
 import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import type { Worker } from "node:worker_threads";
@@ -81,6 +82,7 @@ export interface CapturedLap {
   profileId: number | null;
   tuneId: number | null;
   invalidReason: string | null;
+  classification: LapClassification | null;
   sectors: number[] | null;
   /** Populated by parseDump helpers for test assertions only — not present in production. */
   packets?: TelemetryPacket[];
@@ -120,6 +122,7 @@ export interface DbAdapter {
     tuneId: number | null,
     invalidReason: string | null,
     sectors: number[] | null,
+    classification: LapClassification | null,
     versionIdentity?: TelemetryVersionIdentity,
     driverAttribution?: CapturedDriverAttribution,
   ): Promise<number>;
@@ -321,13 +324,13 @@ export class RealDbAdapter implements DbAdapter {
     return sessionId;
   }
 
-  insertLap(sessionId: number, lapNumber: number, lapTime: number, isValid: boolean, rawByteOffset: number | null, rawFrameCount: number, profileId: number | null, tuneId: number | null, invalidReason: string | null, sectors: number[] | null, versionIdentity?: TelemetryVersionIdentity, driverAttribution?: CapturedDriverAttribution): Promise<number> {
-    return this.writeLap(null, sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity, driverAttribution);
+  insertLap(sessionId: number, lapNumber: number, lapTime: number, isValid: boolean, rawByteOffset: number | null, rawFrameCount: number, profileId: number | null, tuneId: number | null, invalidReason: string | null, sectors: number[] | null, classification: LapClassification | null, versionIdentity?: TelemetryVersionIdentity, driverAttribution?: CapturedDriverAttribution): Promise<number> {
+    return this.writeLap(null, sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, classification, versionIdentity, driverAttribution);
   }
   completeProvisionalLap(lapId: number, ...args: Parameters<DbAdapter["insertLap"]>): Promise<number> {
     return this.writeLap(lapId, ...args);
   }
-  private writeLap(retainedLapId: number | null, sessionId: number, lapNumber: number, lapTime: number, isValid: boolean, rawByteOffset: number | null, rawFrameCount: number, profileId: number | null, tuneId: number | null, invalidReason: string | null, sectors: number[] | null, versionIdentity?: TelemetryVersionIdentity, driverAttribution?: CapturedDriverAttribution): Promise<number> {
+  private writeLap(retainedLapId: number | null, sessionId: number, lapNumber: number, lapTime: number, isValid: boolean, rawByteOffset: number | null, rawFrameCount: number, profileId: number | null, tuneId: number | null, invalidReason: string | null, sectors: number[] | null, classification: LapClassification | null, versionIdentity?: TelemetryVersionIdentity, driverAttribution?: CapturedDriverAttribution): Promise<number> {
     // Remove the short provisional capture binding before the engine seals its extended window.
     if (retainedLapId !== null) for (const listener of this.lapInvalidationListeners) listener(retainedLapId);
     let writes = this.pendingLapWrites.get(sessionId);
@@ -338,8 +341,8 @@ export class RealDbAdapter implements DbAdapter {
     const pending = (async () => {
       const scope = this.sessionScopes.get(sessionId);
       const lapId = retainedLapId === null
-        ? await insertLap(sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity ?? scope?.versionIdentity)
-        : await updateCapturedLap(retainedLapId, sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity ?? scope?.versionIdentity);
+        ? await insertLap(sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, classification, versionIdentity ?? scope?.versionIdentity)
+        : await updateCapturedLap(retainedLapId, sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, classification, versionIdentity ?? scope?.versionIdentity);
       if (driverAttribution) await setLapDriverAttribution(lapId, driverAttribution.stints, driverAttribution.attribution, driverAttribution.source);
       scope?.lapIds.add(lapId);
       if (scope && this.options.notifyDriverProfile !== false) notifyDriverProfileLap(scope.gameId);
@@ -427,8 +430,8 @@ export class CapturingDbAdapter implements DbAdapter {
     return Promise.resolve(++this._sessionId);
   }
 
-  insertLap(sessionId: number, lapNumber: number, lapTime: number, isValid: boolean, rawByteOffset: number | null, rawFrameCount: number, profileId: number | null, tuneId: number | null, invalidReason: string | null, sectors: number[] | null, versionIdentity?: TelemetryVersionIdentity, driverAttribution?: CapturedDriverAttribution): Promise<number> {
-    this.laps.push({ sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity, driverAttribution });
+  insertLap(sessionId: number, lapNumber: number, lapTime: number, isValid: boolean, rawByteOffset: number | null, rawFrameCount: number, profileId: number | null, tuneId: number | null, invalidReason: string | null, sectors: number[] | null, classification: LapClassification | null, versionIdentity?: TelemetryVersionIdentity, driverAttribution?: CapturedDriverAttribution): Promise<number> {
+    this.laps.push({ sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, classification, sectors, versionIdentity, driverAttribution });
     const id = ++this._lapId;
     this._lapIds.push(id);
     return Promise.resolve(id);
@@ -438,13 +441,13 @@ export class CapturingDbAdapter implements DbAdapter {
     const index = this._lapIds.indexOf(lapId);
     const existing = this.laps[index];
     const [sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId,
-      invalidReason, sectors, versionIdentity, driverAttribution] = args;
+      invalidReason, sectors, classification, versionIdentity, driverAttribution] = args;
     if (!existing || existing.sessionId !== sessionId || existing.lapNumber !== lapNumber ||
       existing.rawByteOffset !== rawByteOffset || existing.rawFrameCount > rawFrameCount || existing.isValid) {
       return Promise.reject(new Error("Provisional lap source window changed"));
     }
     this.laps[index] = { sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId,
-      tuneId, invalidReason, sectors, versionIdentity, driverAttribution };
+      tuneId, invalidReason, classification, sectors, versionIdentity, driverAttribution };
     return Promise.resolve(lapId);
   }
 
@@ -518,7 +521,7 @@ export class NullDbAdapter implements DbAdapter {
   insertSession(_carId: string, _trackId: string, _gameId: GameId, _sessionType?: string, _versionIdentity?: TelemetryVersionIdentity, _ownership?: SessionOwnership): Promise<number> {
     return Promise.resolve(1);
   }
-  insertLap(_sessionId: number, _lapNumber: number, _lapTime: number, _isValid: boolean, _rawByteOffset: number | null, _rawFrameCount: number, _profileId: number | null, _tuneId: number | null, _invalidReason: string | null, _sectors: number[] | null, _versionIdentity?: TelemetryVersionIdentity): Promise<number> {
+  insertLap(_sessionId: number, _lapNumber: number, _lapTime: number, _isValid: boolean, _rawByteOffset: number | null, _rawFrameCount: number, _profileId: number | null, _tuneId: number | null, _invalidReason: string | null, _sectors: number[] | null, _classification: LapClassification | null, _versionIdentity?: TelemetryVersionIdentity, _driverAttribution?: CapturedDriverAttribution): Promise<number> {
     return Promise.resolve(1);
   }
   completeProvisionalLap(lapId: number, ..._args: Parameters<DbAdapter["insertLap"]>): Promise<number> {

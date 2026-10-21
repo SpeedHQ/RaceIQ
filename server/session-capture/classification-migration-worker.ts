@@ -1,0 +1,390 @@
+import { stat } from "node:fs/promises";
+import type { Stats } from "node:fs";
+import { and, eq, inArray, lte } from "drizzle-orm";
+import type { GameId } from "@raceiq/shared/games/ids";
+import { PARSER_BOOTSTRAP_VERSION } from "@raceiq/capture-formats/session/framing";
+import { client, readDb } from "../db/index";
+import { withDatabaseTransaction } from "../db/write-coordination";
+import { classificationMigrationMeta, classificationMigrationRecordings, laps, sessions } from "../db/schema";
+import { CapturingDbAdapter } from "../telemetry/pipeline-ports";
+import { getServerGame } from "../games/registry";
+import { iterateSessionCaptureRecordsFromSource } from "./source-loader";
+import { applyFrameTime } from "./frame-time";
+import { withSessionCaptureMaintenanceLock } from "./cleanup";
+import { isSessionActive } from "../telemetry/live-pipeline";
+import { isDelayedFinishContext } from "../db/telemetry-replay-storage";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { wsManager } from "../runtime/websocket-manager";
+import {
+  classificationMigrationBarrier,
+  CLASSIFICATION_MIGRATION_VERSION,
+  getClassificationMigrationStatus,
+  reconcileClassificationMigrationInventory,
+  invalidateStaleCompletedClassificationSources,
+  classificationSourceSignature,
+} from "./classification-migration";
+const LEGACY_CATEGORY_BY_REASON: Record<string, string> = {
+  inlap: "in_lap",
+  outlap: "out_lap",
+  "pit lap": "pit_lap",
+};
+
+/** Incomplete laps are known outcomes even though no classification applies. */
+export function hasKnownClassificationOutcome(lap: {
+  classification: string | null;
+  invalidReason: string | null;
+}): boolean {
+  return Boolean(lap.classification) || lap.invalidReason === "incomplete";
+}
+
+/** Process one capture then yield before claiming another. */
+export async function processNextClassificationRecording(): Promise<boolean> {
+  if (isSessionActive()) return false;
+  const candidate = await readDb.select().from(classificationMigrationRecordings)
+    .where(and(
+      eq(classificationMigrationRecordings.version, CLASSIFICATION_MIGRATION_VERSION),
+      eq(classificationMigrationRecordings.state, "pending"),
+    )).orderBy(classificationMigrationRecordings.recordingId).limit(1).get();
+  if (!candidate) return false;
+  const claimed = await withDatabaseTransaction(client, async (tx) => {
+    const result = await tx.execute({
+      sql: "UPDATE classification_migration_recordings SET state='running',attempt=attempt+1,reason=NULL WHERE recording_id=? AND state='pending'",
+      args: [candidate.recordingId],
+    });
+    if (Number(result.rowsAffected) !== 1) return false;
+    await tx.execute("UPDATE classification_migration_meta SET revision=revision+1 WHERE id=1");
+    return true;
+  });
+  if (!claimed) return true;
+  try {
+    await processClaimedRecording(candidate.recordingId, candidate.sourceKey, candidate.sourceRevision);
+  } catch (error) {
+    await finish(candidate.recordingId, candidate.sourceRevision, "failed", "processing_error");
+    throw error;
+  }
+  return true;
+}
+
+async function processClaimedRecording(recordingId: string, sourceKey: string, sourceRevision: number): Promise<void> {
+  const sourcePath = sourceKey.startsWith("file:") ? sourceKey.slice(5) : null;
+  if (!sourcePath) return finish(recordingId, sourceRevision, "limited", "missing_source");
+  let sourceStat: Stats;
+  try { sourceStat = await stat(sourcePath); } catch { return finish(recordingId, sourceRevision, "limited", "missing_source", sourcePath); }
+  const migrationMeta = await readDb.select({ cutoffSessionId: classificationMigrationMeta.cutoffSessionId })
+    .from(classificationMigrationMeta).where(eq(classificationMigrationMeta.id, 1)).get();
+  const existing = await readDb.select({
+    id: sessions.id,
+    gameId: sessions.gameId,
+    carId: sessions.carId,
+    trackId: sessions.trackId,
+    source: sessions.source,
+  }).from(sessions).where(and(
+    eq(sessions.rawFile, sourcePath),
+    lte(sessions.id, migrationMeta?.cutoffSessionId ?? 0),
+  )).orderBy(sessions.id).all();
+  if (!existing.length) return finish(recordingId, sourceRevision, "failed", "source_changed", sourcePath, sourceStat);
+  if (new Set(existing.map((session) => session.gameId)).size !== 1) return finish(recordingId, sourceRevision, "limited", "ambiguous_match", sourcePath, sourceStat);
+  const gameId = existing[0]!.gameId as GameId;
+  let game;
+  try { game = getServerGame(gameId); } catch { return finish(recordingId, sourceRevision, "limited", "insufficient_evidence", sourcePath, sourceStat); }
+  const capture = new CapturingDbAdapter();
+  let detector = game.createLapDetector({ db: capture, bypassPacketRateFilter: true });
+  let parserState: unknown = game.createParserState?.() ?? null;
+  let segmentHasFrames = false;
+  let inContext = false;
+  let lastOwnedPacket: TelemetryPacket | null = null;
+  let frameIndex = 0;
+  try {
+    for await (const record of iterateSessionCaptureRecordsFromSource({
+      rawFile: sourcePath,
+      source: existing[0]!.source,
+      gameId,
+      carId: existing[0]!.carId,
+      trackId: existing[0]!.trackId,
+    }, { strict: true, allowLegacyFullFrames: true })) {
+      if (record.kind === "segment-boundary") {
+        detector = game.createLapDetector({ db: capture, bypassPacketRateFilter: true });
+        detector.expectCompleteLapStart?.();
+        parserState = game.createParserState?.() ?? null;
+        segmentHasFrames = false;
+        inContext = false;
+        lastOwnedPacket = null;
+        continue;
+      }
+      if (record.kind === "segment-context") {
+        if (!segmentHasFrames) detector.expectCompleteLapStart?.();
+        inContext = true;
+        continue;
+      }
+      if (record.kind === "segment-context-end") {
+        inContext = false;
+        continue;
+      }
+      if (record.kind === "parser-bootstrap") {
+        if (record.gameId !== gameId || record.formatVersion !== PARSER_BOOTSTRAP_VERSION) {
+          throw new Error("Parser bootstrap does not match migration game");
+        }
+        if (!game.restoreParserCheckpoint) throw new Error(`Parser checkpoint restore unavailable for ${gameId}`);
+        parserState = game.restoreParserCheckpoint(parserState, record.payload);
+        inContext = false;
+        continue;
+      }
+      if (record.kind !== "frame") continue;
+      const packet = game.tryParse(record.frame, parserState);
+      if (packet) {
+        applyFrameTime(packet, record.frameTimeMs);
+        if (inContext) {
+          if (lastOwnedPacket && (packet.LapNumber > lastOwnedPacket.LapNumber ||
+            isDelayedFinishContext(lastOwnedPacket, packet))) {
+            await detector.feed(packet);
+          }
+        } else {
+          segmentHasFrames = true;
+          lastOwnedPacket = packet;
+          await detector.feed(packet, record.offset);
+        }
+      }
+      frameIndex++;
+      if (frameIndex % 256 === 0) {
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        await classificationMigrationBarrier("duringDecodeBatch");
+        if (isSessionActive()) {
+          await deferRecording(recordingId, "active_capture");
+          return;
+        }
+      }
+    }
+    await detector.flushIncompleteLap?.();
+  } catch {
+    return finish(recordingId, sourceRevision, "failed", "corrupt_source", sourcePath, sourceStat);
+  }
+  const existingLaps = await readDb.select().from(laps).where(inArray(laps.sessionId, existing.map((session) => session.id))).all();
+  const detected = capture.laps;
+  if (!existingLaps.length || !detected.length) return finish(recordingId, sourceRevision, "limited", "insufficient_evidence", sourcePath, sourceStat);
+  const used = new Set<number>();
+  const capturedToStoredSession = new Map<number, number>();
+  const changes: {
+    id: number;
+    classification: string | null;
+    isValid: boolean;
+    invalidReason: string | null;
+    expectedClassification: string | null;
+    expectedIsValid: boolean;
+    expectedInvalidReason: string | null;
+  }[] = [];
+  for (const detectedLap of detected) {
+    const capturedSession = capture.sessions[detectedLap.sessionId - 1];
+    if (!capturedSession) return finish(recordingId, sourceRevision, "limited", "ambiguous_match", sourcePath, sourceStat);
+    const matches = existingLaps.filter((lap) =>
+      !used.has(lap.id) &&
+      lap.rawByteOffset != null &&
+      lap.rawByteOffset === detectedLap.rawByteOffset &&
+      lap.rawFrameCount === detectedLap.rawFrameCount
+    );
+    if (matches.length !== 1) return finish(recordingId, sourceRevision, "limited", "ambiguous_match", sourcePath, sourceStat);
+    const matchedLap = matches[0]!;
+    const owner = existing.find((session) => session.id === matchedLap.sessionId);
+    if (!owner) return finish(recordingId, sourceRevision, "limited", "ambiguous_match", sourcePath, sourceStat);
+    const mappedOwner = capturedToStoredSession.get(detectedLap.sessionId);
+    if (mappedOwner !== undefined && mappedOwner !== owner.id) {
+      return finish(recordingId, sourceRevision, "limited", "ambiguous_match", sourcePath, sourceStat);
+    }
+    const hasIdentity = (value: string | null) => value !== null && value !== "" && value !== "0" && value !== "unknown";
+    if ((hasIdentity(capturedSession.carId) && hasIdentity(owner.carId) && capturedSession.carId !== owner.carId) ||
+      (hasIdentity(capturedSession.trackId) && hasIdentity(owner.trackId) && capturedSession.trackId !== owner.trackId)) {
+      return finish(recordingId, sourceRevision, "limited", "ambiguous_match", sourcePath, sourceStat);
+    }
+    capturedToStoredSession.set(detectedLap.sessionId, owner.id);
+    used.add(matchedLap.id);
+    const isLegacyCategoryReason = matchedLap.invalidReason !== null &&
+      LEGACY_CATEGORY_BY_REASON[matchedLap.invalidReason] !== undefined;
+    const isGridStartClosureReason = detectedLap.classification === "grid_start" &&
+      matchedLap.invalidReason === "start/end positions too far apart";
+    const preserveExistingDecision = !isLegacyCategoryReason && !isGridStartClosureReason &&
+      (!matchedLap.isValid || matchedLap.invalidReason !== null);
+    if (hasKnownClassificationOutcome(detectedLap)) {
+      changes.push({
+        id: matchedLap.id,
+        classification: detectedLap.classification,
+        isValid: preserveExistingDecision ? matchedLap.isValid : detectedLap.isValid,
+        invalidReason: preserveExistingDecision ? matchedLap.invalidReason : detectedLap.invalidReason,
+        expectedClassification: matchedLap.classification,
+        expectedIsValid: matchedLap.isValid,
+        expectedInvalidReason: matchedLap.invalidReason,
+      });
+    }
+  }
+  if (used.size !== existingLaps.length) return finish(recordingId, sourceRevision, "limited", "ambiguous_match", sourcePath, sourceStat);
+  if (detected.some((lap) => !hasKnownClassificationOutcome(lap))) {
+    return finish(recordingId, sourceRevision, "limited", "insufficient_evidence", sourcePath, sourceStat);
+  }
+
+  let committed = false;
+  const stalePublication = Symbol("stale classification publication");
+  await classificationMigrationBarrier("beforeTransaction");
+  await withSessionCaptureMaintenanceLock(async () => {
+    if (isSessionActive()) {
+      await deferRecording(recordingId, "active_capture");
+      return;
+    }
+    let published: boolean;
+    try {
+      published = await withDatabaseTransaction(client, async (tx) => {
+      const current = await tx.execute({
+        sql: "SELECT source_revision FROM classification_migration_recordings WHERE recording_id=? AND state='running'",
+        args: [recordingId],
+      });
+      if (!current.rows.length || Number(current.rows[0]!.source_revision) !== sourceRevision) throw stalePublication;
+      await classificationMigrationBarrier("insideTransaction");
+      const currentFile = await stat(sourcePath);
+      if (classificationSourceSignature(currentFile) !== classificationSourceSignature(sourceStat)) throw stalePublication;
+      for (const change of changes) {
+        const updated = await tx.execute({
+          sql: `UPDATE laps SET classification=?,is_valid=?,invalid_reason=?
+            WHERE id=? AND classification IS ? AND is_valid=? AND invalid_reason IS ?`,
+          args: [
+            change.classification, Number(change.isValid), change.invalidReason, change.id,
+            change.expectedClassification, Number(change.expectedIsValid), change.expectedInvalidReason,
+          ],
+        });
+        if (Number(updated.rowsAffected) !== 1) throw stalePublication;
+      }
+      const completed = await tx.execute({
+        sql: "UPDATE classification_migration_recordings SET state='completed',reason=NULL,source_signature=?,result_revision=source_revision WHERE recording_id=? AND state='running' AND source_revision=?",
+        args: [classificationSourceSignature(currentFile), recordingId, sourceRevision],
+      });
+      if (Number(completed.rowsAffected) !== 1) throw stalePublication;
+      await tx.execute("UPDATE classification_migration_meta SET revision=revision+1 WHERE id=1");
+      return true;
+    });
+    } catch (error) {
+      if (error !== stalePublication) throw error;
+      published = false;
+    }
+    if (!published) {
+      await requeueRecording(recordingId, "source_changed");
+      return;
+    }
+    committed = true;
+  });
+  if (!committed) return;
+  await classificationMigrationBarrier("afterCommitBeforeAggregates");
+  for (const session of existing) {
+    wsManager.broadcastNotification({
+      type: "lap-reprocessed",
+      sessionId: session.id,
+      lapsDetected: changes.length,
+      lapsUpdated: changes.length,
+      strategy: "in-place",
+    });
+  }
+}
+
+async function requeueRecording(recordingId: string, reason: "source_changed"): Promise<void> {
+  await withDatabaseTransaction(client, async (tx) => {
+    const updated = await tx.execute({
+      sql: "UPDATE classification_migration_recordings SET state='pending',source_revision=source_revision+1,source_signature=NULL,reason=? WHERE recording_id=? AND state='running'",
+      args: [reason, recordingId],
+    });
+    if (Number(updated.rowsAffected) > 0) await tx.execute("UPDATE classification_migration_meta SET revision=revision+1 WHERE id=1");
+  });
+}
+
+async function deferRecording(recordingId: string, reason: "active_capture"): Promise<void> {
+  await withDatabaseTransaction(client, async (tx) => {
+    const updated = await tx.execute({
+      sql: "UPDATE classification_migration_recordings SET state='pending',source_signature=NULL,reason=? WHERE recording_id=? AND state='running'",
+      args: [reason, recordingId],
+    });
+    if (Number(updated.rowsAffected) > 0) await tx.execute("UPDATE classification_migration_meta SET revision=revision+1 WHERE id=1");
+  });
+}
+
+async function finish(
+  recordingId: string,
+  sourceRevision: number,
+  state: "limited" | "failed",
+  reason: "missing_source" | "insufficient_evidence" | "corrupt_source" | "ambiguous_match" | "source_changed" | "processing_error",
+  sourcePath?: string,
+  originalStat?: Stats,
+): Promise<void> {
+  const currentStat = sourcePath ? await stat(sourcePath).catch(() => null) : null;
+  await withDatabaseTransaction(client, async (tx) => {
+    const current = await tx.execute({
+      sql: "SELECT source_revision,state FROM classification_migration_recordings WHERE recording_id=?",
+      args: [recordingId],
+    });
+    if (!current.rows.length || current.rows[0]!.state !== "running") return;
+    const revision = Number(current.rows[0]!.source_revision);
+    let sourceChanged = false;
+    if (sourcePath) {
+      sourceChanged = originalStat
+        ? currentStat === null || classificationSourceSignature(currentStat) !== classificationSourceSignature(originalStat)
+        : currentStat !== null;
+    }
+    const stale = revision !== sourceRevision || sourceChanged;
+    const updated = await tx.execute({
+      sql: `UPDATE classification_migration_recordings
+        SET state=?,reason=?,source_signature=NULL,source_revision=source_revision+?
+        WHERE recording_id=? AND state='running' AND source_revision=?`,
+      args: [stale ? "pending" : state, stale ? "source_changed" : reason,
+        sourceChanged && revision === sourceRevision ? 1 : 0, recordingId, revision],
+    });
+    if (Number(updated.rowsAffected) > 0) await tx.execute("UPDATE classification_migration_meta SET revision=revision+1 WHERE id=1");
+  });
+}
+
+export interface ClassificationMigrationWorkerHandle {
+  stop(): Promise<void>;
+}
+
+export function startClassificationMigrationWorker(options: { resetInterrupted?: boolean } = {}): ClassificationMigrationWorkerHandle {
+  let inventoryReconciled = false;
+  let stopped = false;
+  let timer: NodeJS.Timeout | undefined;
+  let activeRun: Promise<void>;
+  const schedule = (delayMs: number) => {
+    if (stopped) return;
+    timer = setTimeout(() => { activeRun = run(); }, delayMs);
+    timer.unref?.();
+  };
+  const run = async (): Promise<void> => {
+    if (isSessionActive()) {
+      schedule(1_000);
+      return;
+    }
+    try {
+      if (!inventoryReconciled) {
+        await withSessionCaptureMaintenanceLock(() => reconcileClassificationMigrationInventory({ resetInterrupted: options.resetInterrupted }));
+        inventoryReconciled = true;
+        await invalidateStaleCompletedClassificationSources(isSessionActive);
+        const status = await getClassificationMigrationStatus();
+        wsManager.setClassificationMigrationStatusNotification({ type: "classification-migration-status", ...status });
+        schedule(5_000);
+        return;
+      }
+      if (await processNextClassificationRecording()) {
+        const status = await getClassificationMigrationStatus();
+        wsManager.setClassificationMigrationStatusNotification({ type: "classification-migration-status", ...status });
+        schedule(0);
+      } else {
+        await withSessionCaptureMaintenanceLock(() => reconcileClassificationMigrationInventory());
+        await invalidateStaleCompletedClassificationSources(isSessionActive);
+        const status = await getClassificationMigrationStatus();
+        wsManager.setClassificationMigrationStatusNotification({ type: "classification-migration-status", ...status });
+        schedule(5_000);
+      }
+    } catch (error) {
+      console.error("[ClassificationMigration] Worker attempt failed:", error);
+      schedule(5_000);
+    }
+  };
+  activeRun = run();
+  return {
+    async stop() {
+      stopped = true;
+      clearTimeout(timer);
+      await activeRun;
+    },
+  };
+}

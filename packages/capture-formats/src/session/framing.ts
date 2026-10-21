@@ -1,7 +1,7 @@
 import { decodeLmuSparseFrame, isLmuSparseFrame } from "./lmu-sparse";
-import { decodeGenericSparseFrame, genericFrameIdentity, isGenericSparseFrame } from "./generic-sparse";
-import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
+import { canHandleLMUSourceFrame } from "@raceiq/capture-formats/lmu/source-frame";
 import { decodeKunosSparseFrame, isKunosSparseFrame, kunosSourceMagic } from "./kunos-sparse";
+import { decodeGenericSparseFrame, genericFrameIdentity, isGenericSparseFrame } from "./generic-sparse";
 import { gzip, gzipSync, gunzip, gunzipSync } from "node:zlib";
 import { promisify } from "node:util";
 import { MAX_DECOMPRESSED_CAPTURE_BYTES } from "./limits";
@@ -9,7 +9,7 @@ export type { PortableCaptureIdentity, PortableLapIdentity } from "./original-so
 export { MAX_DECOMPRESSED_CAPTURE_BYTES } from "./limits";
 
 function isLmuSourceFrame(frame: Buffer): boolean {
-  return frame.length === LMU_SOURCE_FRAME_V2_SIZE && frame.subarray(0, LMU_SOURCE_FRAME_MAGIC.length).equals(LMU_SOURCE_FRAME_MAGIC);
+  return canHandleLMUSourceFrame(frame);
 }
 export const META_FRAME_MAGIC = 0xffffffff;
 const META_FRAME_PAYLOAD_BYTES = 4;

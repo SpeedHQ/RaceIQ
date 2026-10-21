@@ -4,9 +4,12 @@ import { getSecret, setSecret } from "@raceiq/backend-core/runtime/platform/keys
 import { subscribeOnlineSync } from "@raceiq/online/sync-events";
 import { OnlineWorkerUnavailable,type HostRequest,type WorkerRequest,type WorkerResponse,type OnlineWorkerPort,type WorkerMethod,type NativeBindingHostControl,type OnlineWorkerData } from "./online-worker-protocol";
 import { readOnlineTestPlatform,createOnlineTestKeystore } from "./online-test-platform";
+import { client } from "@raceiq/backend-core/db/index";
+import { createDatabaseWriteLeaseAuthority, type WriteLeaseRequest } from "@raceiq/backend-core/db/write-coordination";
 
 let worker: Worker | null = null;
 let ready: Promise<void> | null = null;
+let workerExit: Promise<void> | null = null;
 let stopping = false;
 let available=false;
 let stopPromise: Promise<void> | null = null;
@@ -23,13 +26,14 @@ function request<K extends WorkerMethod>(method: K, ...args: Parameters<OnlineWo
     if (!worker || !ready || (stopping && method !== "stop")) throw new OnlineWorkerUnavailable();
     await ready;
     const active = worker;
-    if (!active) throw new OnlineWorkerUnavailable();
+    if (!active || (stopping && method !== "stop")) throw new OnlineWorkerUnavailable();
     if(!available&&method!=="stop")throw new OnlineWorkerUnavailable();
     const {promise,resolve,reject}=Promise.withResolvers<unknown>();
     const requestId=crypto.randomUUID();
     const timer=setTimeout(()=>{pending.delete(requestId);reject(new OnlineWorkerUnavailable());},method==="stop"?5_000:30_000);
     pending.set(requestId,{resolve,reject,timer});
-    active.postMessage({type:"request",requestId,method,args} as WorkerRequest);
+    try { active.postMessage({type:"request",requestId,method,args} as WorkerRequest); }
+    catch { pending.delete(requestId); clearTimeout(timer); reject(new OnlineWorkerUnavailable()); }
     return promise;
   })();
   // The single private channel is implemented by the exhaustive worker dispatcher.
@@ -71,14 +75,21 @@ export async function startOnlineWorker(nativeBindings:NativeBindingHostControl)
   const active=new Worker(IS_COMPILED?"./apps/backend/src/runtime/online-worker-entry.ts":new URL("../runtime/online-worker-entry.ts",import.meta.url),
     {workerData:{nativeSourceRevisionBuffer:nativeBindings.sourceRevisionBuffer} satisfies OnlineWorkerData});
   worker = active;
+  let exited = false;
+  const authority = createDatabaseWriteLeaseAuthority((message) => { if (!exited) active.postMessage(message); }, client);
+  const cleanup = Promise.withResolvers<void>();
+  workerExit = cleanup.promise;
+  void workerExit.catch((cause) => console.error("[OnlineWorker] Parent SQL cleanup failed:", cause));
   const initialized=Promise.withResolvers<void>();
   ready=initialized.promise;
   const {resolve,reject}=initialized;
-  const timer=setTimeout(()=>{available=false;reject(new OnlineWorkerUnavailable());void active.terminate();},30_000);
-    active.on("message", (message:WorkerResponse|HostRequest|{type:"ready"}|{type:"fatal"}) => {
+  const terminate = () => { void active.terminate().catch((cause) => console.error("[OnlineWorker] Termination failed:", cause)); };
+  const timer=setTimeout(()=>{available=false;reject(new OnlineWorkerUnavailable());terminate();},30_000);
+    active.on("message", (message:WorkerResponse|HostRequest|{type:"ready"}|{type:"fatal"}|WriteLeaseRequest) => {
       if (active !== worker) return;
+      if (message.type.startsWith("write-lease-")) { authority.receive(message as WriteLeaseRequest); return; }
       if (message.type === "ready") { available=true;clearTimeout(timer);resolve();return; }
-      if(message.type==="fatal"){available=false;reject(new OnlineWorkerUnavailable());rejectPending();void active.terminate();return;}
+      if(message.type==="fatal"){available=false;reject(new OnlineWorkerUnavailable());rejectPending();terminate();return;}
       if (message.type === "host") {
         void (async () => {
           try {
@@ -94,11 +105,12 @@ export async function startOnlineWorker(nativeBindings:NativeBindingHostControl)
               case "resolveDriverBindingCandidate":value=nativeBindings.resolveCandidate(...message.args);break;
               case "consumeDriverBindingCandidate":value=nativeBindings.consumeCandidate(...message.args);break;
             }
-            if (worker === active) active.postMessage({ type: "host-response", requestId: message.requestId, ok: true, value });
-          } catch { if (worker === active) active.postMessage({ type: "host-response", requestId: message.requestId, ok: false }); }
-        })();
+            if (!exited && worker === active) active.postMessage({ type: "host-response", requestId: message.requestId, ok: true, value });
+          } catch { if (!exited && worker === active) active.postMessage({ type: "host-response", requestId: message.requestId, ok: false }); }
+        })().catch((cause) => console.error("[OnlineWorker] Host response failed:", cause));
         return;
       }
+      if (message.type !== "response") return;
       const entry = pending.get(message.requestId);
       if (!entry) return;
       pending.delete(message.requestId); clearTimeout(entry.timer);
@@ -110,10 +122,17 @@ export async function startOnlineWorker(nativeBindings:NativeBindingHostControl)
       reject(new OnlineWorkerUnavailable());
       if (worker === active) { available=false;unsubscribe?.(); unsubscribe = null;unsubscribeNative?.();unsubscribeNative=null;rejectPending(); }
     };
-    active.on("error", () => { unavailable(); void active.terminate(); });
-    active.on("exit",()=>{unavailable();if(worker===active){worker=null;ready=null;}});
-  await ready;
+    active.on("error", () => { unavailable(); terminate(); });
+    active.on("exit",()=>{
+      exited = true;
+      unavailable();
+      void authority.workerExited().finally(()=>{
+        if(worker===active){worker=null;ready=null;workerExit=null;}
+      }).then(cleanup.resolve,cleanup.reject);
+    });
   try{
+    await ready;
+    if (stopping || worker !== active) throw new OnlineWorkerUnavailable();
     unsubscribe=subscribeOnlineSync(wakeOnlineWorker);
     unsubscribeNative=nativeBindings.subscribeChanges(sourceRevision=>{if(worker===active&&!stopping)active.postMessage({type:"native-bindings-changed",sourceRevision});});
     active.postMessage({type:"native-bindings-changed",sourceRevision:nativeBindings.listCandidates().sourceRevision});
@@ -125,13 +144,18 @@ export async function startOnlineWorker(nativeBindings:NativeBindingHostControl)
 }
 export function stopOnlineWorker(): Promise<void> {
   if (stopPromise) return stopPromise;
+  const wasAvailable = available;
   stopping=true;available=false;
   unsubscribe?.(); unsubscribe = null;
   unsubscribeNative?.();unsubscribeNative=null;
   const active = worker;
+  const exit = workerExit;
   stopPromise = (async () => {
-    try { if (active) await request("stop"); }
-    finally { if (active) await active.terminate(); if (worker === active) { worker = null; ready = null; } rejectPending(); }
+    try { if (active && wasAvailable) await request("stop"); }
+    finally {
+      try { if (active) await active.terminate(); }
+      finally { await exit; }
+    }
   })();
   return stopPromise;
 }

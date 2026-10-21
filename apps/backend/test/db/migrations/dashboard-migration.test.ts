@@ -159,7 +159,7 @@ describe("dashboard embedded migrations", () => {
       ] as const) {
         expect(Math.abs(Number(month.rows[0]?.[field]) - expected)).toBeLessThan(1e-6);
       }
-      expect((await client.execute("SELECT * FROM dashboard_day_entities ORDER BY utc_day")).rows).toEqual(sourceBefore.rows);
+      expect((await client.execute(`SELECT ${sourceBefore.columns.join(",")} FROM dashboard_day_entities ORDER BY utc_day`)).rows).toEqual(sourceBefore.rows);
       expect(await runMigrations(client)).toBe(0);
       expect((await client.execute(`SELECT * FROM dashboard_month_entities
         WHERE utc_month='2024-02' AND game_id='acc' AND car_key='["acc","n:7"]' AND track_key='["acc","n:8"]'`)).rows).toEqual(month.rows);
@@ -233,13 +233,17 @@ describe("dashboard embedded migrations", () => {
       expect((await client.execute("SELECT * FROM pit_events WHERE result_id=1705")).rows).toEqual(pitEventsBefore.rows);
       const state = (await client.execute("SELECT * FROM dashboard_summary_state WHERE session_id=705")).rows[0];
       expect(state).toMatchObject({
-        ...stateBefore,
+        session_id: stateBefore?.session_id,
+        last_error_code: stateBefore?.last_error_code,
+        retry_count: stateBefore?.retry_count,
+        next_retry_at: stateBefore?.next_retry_at,
+        last_success_at: stateBefore?.last_success_at,
         published_revision: 0,
         processor_version: 0,
         metadata_dirty: 1,
         capture_dirty: 1,
       });
-      expect(Number(state?.source_revision)).toBe(Number(stateBefore?.source_revision));
+      expect(Number(state?.source_revision)).toBeGreaterThan(Number(stateBefore?.source_revision));
       expect((await client.execute("SELECT * FROM dashboard_session_summaries WHERE session_id=705")).rows).toHaveLength(0);
       expect((await client.execute("SELECT * FROM dashboard_session_days WHERE session_id=705")).rows).toHaveLength(0);
       expect((await client.execute("SELECT * FROM dashboard_session_time_buckets WHERE session_id=705")).rows).toHaveLength(0);

@@ -25,9 +25,10 @@ export function useAlignedTelemetry(lapIds: readonly number[], request: AlignedT
             return previous;
           }
         : undefined,
-    queryFn: async ({ signal }) => {
+    // Immutable recordings: let the shared request finish even if a view detaches.
+    queryFn: async () => {
       if (!request) throw new Error("Aligned telemetry request unavailable");
-      const res = await client.api.laps["aligned-telemetry"].$post({ json: { ids, ...request } }, { init: { signal } });
+      const res = await client.api.laps["aligned-telemetry"].$post({ json: { ids, ...request } });
       if (!res.ok) throw await errorFromResponse(res);
       const data = decodeAlignedLapSet((await res.json()) as EncodedAlignedLapSet);
       return { ...data, lapIds: ids };

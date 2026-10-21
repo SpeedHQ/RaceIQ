@@ -2,7 +2,8 @@ import { and, asc, eq, gt, inArray, isNull, ne, or } from "drizzle-orm";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { LapInsight } from "@raceiq/analysis-core/racing/analysis/laps/insights/types";
-import { db } from "../db/index";
+import { db, readDb } from "../db/index"
+import { withDatabaseWrite } from "../db/write-coordination";
 import { lapMetrics, laps } from "../db/schema";
 import { getLapById, getLapsByIds } from "../db/lap-read-queries";
 import { resolveLapSegments, resolveRacingLineReference, STATIC_LAP_ANALYSIS_VERSION } from "./insights";
@@ -76,7 +77,7 @@ function rowToMetrics(row: MetricsRow): LapMetrics | null {
 async function persist(metrics: LapMetrics): Promise<void> {
   const insights = JSON.stringify(metrics.insights);
   const segmentStats = JSON.stringify(metrics.segmentStats);
-  await db
+  await withDatabaseWrite(() => db
     .insert(lapMetrics)
     .values({
       lapId: metrics.lapId,
@@ -95,15 +96,15 @@ async function persist(metrics: LapMetrics): Promise<void> {
         segmentStats,
         computedAt: metrics.computedAt,
       },
-    });
+    }).run());
 }
 
 async function persistInsights(lapId: number, insights: LapInsight[]): Promise<void> {
-  await db.update(lapMetrics).set({
+  await withDatabaseWrite(() => db.update(lapMetrics).set({
     insightVersion: STATIC_LAP_ANALYSIS_VERSION,
     insights: JSON.stringify(insights),
     computedAt: new Date().toISOString(),
-  }).where(eq(lapMetrics.lapId, lapId));
+  }).where(eq(lapMetrics.lapId, lapId)).run());
 }
 
 function computeForLap(lap: NonNullable<Awaited<ReturnType<typeof getLapById>>>, cachedInsights?: LapInsight[]): LapMetrics {
@@ -142,7 +143,7 @@ async function computeMissingMetrics(lapId: number, existing?: MetricsRow): Prom
 
 export function getOrComputeLapMetrics(lapId: number): Promise<LapMetrics | null> {
   return withLapWork(lapId, async () => {
-    const existing = await db.select().from(lapMetrics).where(eq(lapMetrics.lapId, lapId)).get();
+    const existing = await readDb.select().from(lapMetrics).where(eq(lapMetrics.lapId, lapId)).get();
     const hit = existing ? rowToMetrics(existing) : null;
     return hit ?? computeMissingMetrics(lapId, existing);
   });
@@ -150,14 +151,14 @@ export function getOrComputeLapMetrics(lapId: number): Promise<LapMetrics | null
 
 export function getOrComputeLapInsights(lapId: number): Promise<LapInsight[] | null> {
   return withLapWork(lapId, async () => {
-    const existing = await db.select().from(lapMetrics).where(eq(lapMetrics.lapId, lapId)).get();
+    const existing = await readDb.select().from(lapMetrics).where(eq(lapMetrics.lapId, lapId)).get();
     const hit = existing ? rowInsights(existing) : null;
     return hit ?? (await rerunLapInsights(lapId, existing))?.insights ?? null;
   });
 }
 
 async function rerunLapInsights(lapId: number, existing?: MetricsRow): Promise<LapMetrics | null> {
-  const row = existing ?? await db.select().from(lapMetrics).where(eq(lapMetrics.lapId, lapId)).get();
+  const row = existing ?? await readDb.select().from(lapMetrics).where(eq(lapMetrics.lapId, lapId)).get();
   const lap = await getLapById(lapId);
   if (!lap || lap.telemetry.length === 0 || !lap.gameId) return null;
   const gameId = lap.gameId as GameId;
@@ -187,7 +188,7 @@ export async function getOrComputeLapMetricsBatch(lapIds: number[]): Promise<Map
 
   const ids = [...new Set(lapIds)];
   await Promise.all(ids.map((id) => lapWork.get(id)));
-  const rows = await db.select().from(lapMetrics).where(inArray(lapMetrics.lapId, ids)).all();
+  const rows = await readDb.select().from(lapMetrics).where(inArray(lapMetrics.lapId, ids)).all();
   for (const row of rows) {
     const hit = rowToMetrics(row);
     if (hit) output.set(hit.lapId, hit);
@@ -200,7 +201,7 @@ export async function getOrComputeLapMetricsBatch(lapIds: number[]): Promise<Map
   for (const lap of loaded) {
     if (lap.telemetry.length === 0 || !lap.gameId) continue;
     const metrics = await withLapWork(lap.id, async () => {
-      const current = await db.select().from(lapMetrics).where(eq(lapMetrics.lapId, lap.id)).get();
+      const current = await readDb.select().from(lapMetrics).where(eq(lapMetrics.lapId, lap.id)).get();
       const hit = current ? rowToMetrics(current) : null;
       if (hit) return hit;
       const computed = computeForLap(lap, current ? rowInsights(current) ?? undefined : undefined);
@@ -217,7 +218,7 @@ export async function getCachedLapInsightsBatch(lapIds: number[]): Promise<Map<n
   const output = new Map<number, LapInsight[]>();
   if (lapIds.length === 0) return output;
   const ids = [...new Set(lapIds)];
-  const rows = await db.select().from(lapMetrics).where(inArray(lapMetrics.lapId, ids)).all();
+  const rows = await readDb.select().from(lapMetrics).where(inArray(lapMetrics.lapId, ids)).all();
   for (const row of rows) {
     const hit = rowInsights(row);
     if (hit) output.set(row.lapId, hit);
@@ -231,7 +232,7 @@ export async function getOrComputeLapInsightsBatch(lapIds: number[]): Promise<Ma
 
   const ids = [...new Set(lapIds)];
   await Promise.all(ids.map((id) => lapWork.get(id)));
-  const rows = await db.select().from(lapMetrics).where(inArray(lapMetrics.lapId, ids)).all();
+  const rows = await readDb.select().from(lapMetrics).where(inArray(lapMetrics.lapId, ids)).all();
   for (const row of rows) {
     const hit = rowInsights(row);
     if (hit) output.set(row.lapId, hit);
@@ -242,7 +243,7 @@ export async function getOrComputeLapInsightsBatch(lapIds: number[]): Promise<Ma
   for (const lap of loaded) {
     if (lap.telemetry.length === 0 || !lap.gameId) continue;
     const insights = await withLapWork(lap.id, async () => {
-      const current = await db.select().from(lapMetrics).where(eq(lapMetrics.lapId, lap.id)).get();
+      const current = await readDb.select().from(lapMetrics).where(eq(lapMetrics.lapId, lap.id)).get();
       const hit = current ? rowInsights(current) : null;
       if (hit) return hit;
       const gameId = lap.gameId as GameId;
@@ -277,8 +278,7 @@ export async function backfillLapInsights(options: {
   const limit = Math.max(1, Math.min(500, Math.trunc(options.limit)));
   const afterLapId = options.afterLapId ?? 0;
   const stale = or(isNull(lapMetrics.lapId), ne(lapMetrics.insightVersion, STATIC_LAP_ANALYSIS_VERSION));
-  const candidates = await db
-    .select({ lapId: laps.id })
+  const candidates = await readDb.select({ lapId: laps.id })
     .from(laps)
     .leftJoin(lapMetrics, eq(lapMetrics.lapId, laps.id))
     .where(and(gt(laps.id, afterLapId), options.force ? undefined : stale))

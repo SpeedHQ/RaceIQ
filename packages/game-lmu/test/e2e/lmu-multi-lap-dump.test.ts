@@ -9,25 +9,26 @@ let recording: Awaited<ReturnType<typeof parseDump>>;
 
 beforeAll(async () => {
   recording = await parseDump(lmuRecordingSupport, FIXTURE);
-});
+}, 60_000);
 
 afterAll(() => stopMaintenanceTasks());
 
 describe("LMU multi-lap dump", () => {
   test("detects one-based laps, pit-cycle boundaries, and sectors", () => {
     expect(
-      recording.laps.map(({ lapNumber, lapTime, isValid, invalidReason }) => ({
+      recording.laps.map(({ lapNumber, lapTime, classification, isValid, invalidReason }) => ({
         lapNumber,
         lapTime,
+        classification,
         isValid,
         invalidReason,
       })),
     ).toEqual([
-      { lapNumber: 4, lapTime: 133.14650390625002, isValid: false, invalidReason: "outlap" },
-      { lapNumber: 5, lapTime: 95.47928710937504, isValid: true, invalidReason: null },
-      { lapNumber: 6, lapTime: 85.16931640624989, isValid: true, invalidReason: null },
-      { lapNumber: 7, lapTime: 85.161865234375, isValid: false, invalidReason: "inlap" },
-      { lapNumber: 8, lapTime: 14.863720703125182, isValid: false, invalidReason: "incomplete" },
+      { lapNumber: 4, lapTime: 133.14650390625002, classification: "out_lap", isValid: true, invalidReason: null },
+      { lapNumber: 5, lapTime: 95.47928710937504, classification: "pace", isValid: true, invalidReason: null },
+      { lapNumber: 6, lapTime: 85.16931640624989, classification: "pace", isValid: true, invalidReason: null },
+      { lapNumber: 7, lapTime: 85.161865234375, classification: "in_lap", isValid: false, invalidReason: "telemetry lap time mismatch" },
+      { lapNumber: 8, lapTime: 14.863720703125182, classification: null, isValid: false, invalidReason: "incomplete" },
     ]);
 
     expect(recording.laps[4].sectors).toBeNull();

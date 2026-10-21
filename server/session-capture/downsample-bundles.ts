@@ -4,7 +4,7 @@ import type { Manifest } from "@raceiq/capture-splitting";
 import { prepareCaptureBundle } from "@raceiq/capture-splitting/prepare-bundle";
 import { captureSourceFiles } from "@raceiq/capture-splitting/source-files";
 import { PARSER_BOOTSTRAP_VERSION } from "@raceiq/capture-formats/session/framing";
-import { db } from "../db/index";
+import { readDb } from "../db/index";
 import { laps, sessions } from "../db/schema";
 import { getSessionCaptureSourceRevision } from "../db/session-queries";
 import { getServerGame } from "../games/registry";
@@ -22,7 +22,7 @@ export type DownsampleCaptureBundle = {
 
 /** Include all authoritative replay files, not just a manifest's JSON bytes. */
 export async function downsampleSourceFiles(rawFile: string, sessionIds: readonly number[]): Promise<Map<string, number>> {
-  const rows = await db.select({ manifestFile: sessions.captureManifestFile, archiveFile: sessions.captureArchiveFile })
+  const rows = await readDb.select({ manifestFile: sessions.captureManifestFile, archiveFile: sessions.captureArchiveFile })
     .from(sessions).where(inArray(sessions.id, [...sessionIds])).all();
   const manifests = new Set(rows.flatMap((row) => row.manifestFile ? [row.manifestFile] : []));
   if (rawFile.endsWith("manifest.json")) manifests.add(rawFile);
@@ -41,13 +41,13 @@ export async function prepareDownsampleCaptureBundles(
   sessionIds: readonly number[],
   indexes: readonly { lapId: number; rawByteOffset: number; rawFrameCount: number }[],
 ): Promise<DownsampleCaptureBundle[]> {
-  const rows = await db.select().from(sessions).where(inArray(sessions.id, [...sessionIds])).all();
+  const rows = await readDb.select().from(sessions).where(inArray(sessions.id, [...sessionIds])).all();
   const bundles: DownsampleCaptureBundle[] = [];
   const created: string[] = [];
   const rewritten = new Map(indexes.map((index) => [index.lapId, index]));
   try {
     for (const row of rows) {
-      const lapRows = await db.select().from(laps).where(eq(laps.sessionId, row.id)).all();
+      const lapRows = await readDb.select().from(laps).where(eq(laps.sessionId, row.id)).all();
       if (row.captureLayoutVersion === null && !row.captureManifestFile && !row.captureArchiveFile && !lapRows.some((lap) => lap.captureChunkId !== null)) continue;
       const metadataWindows = lapRows.map((lap) => {
         const index = rewritten.get(lap.id);

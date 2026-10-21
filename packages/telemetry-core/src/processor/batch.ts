@@ -1,6 +1,8 @@
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { TelemetryParser } from "@raceiq/shared/telemetry/parser";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { classifyLapCategory } from "@raceiq/analysis-core/racing/laps/classification";
+import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
 import { classifyPitCycleLap, forzaPitTransitionEvidence, PIT_CYCLE_REASONS, type PitCycleReason } from "@raceiq/analysis-core/racing/laps/pit-cycle";
 import { OrdinalDetectorEngine } from "./ordinal-engine";
 import { KunosDetectorEngine, type KunosLapCapture } from "./kunos-engine";
@@ -22,6 +24,7 @@ export interface TelemetryBatchBootstrap {
 }
 export type TelemetryBatchInput = TelemetryBatchFrame | TelemetryBatchBootstrap | { type: "segment-context"; completeLapStart?: boolean } | { type: "segment-context-end" } | { type: "segment-boundary" };
 export interface TelemetryBatchLap {
+  classification: LapClassification | null;
   sessionKey: number; lapNumber: number; lapTime: number; packets: readonly TelemetryPacket[];
   sectors: number[] | null; valid: boolean; invalidReason: string | null;
   byteOffset: number | null; frameCount: number; complete: boolean;
@@ -80,9 +83,9 @@ export async function processTelemetryBatch<State>(gameId: GameId, frames: reado
     let latestCompleteOrder: number | null = null;
     let latestCompletionTailStart: number | null = null;
     let flushing = false;
-    const push = (sessionKey: number, lapNumber: number, lapTime: number, lapPackets: readonly TelemetryPacket[], valid: boolean, reason: string | null, byteOffset: number | null, frameCount: number, complete: boolean) => {
+    const push = (sessionKey: number, lapNumber: number, lapTime: number, lapPackets: readonly TelemetryPacket[], valid: boolean, reason: string | null, byteOffset: number | null, frameCount: number, complete: boolean, classification: LapClassification | null = null) => {
       const sectors = complete ? computeLapSectors(lapPackets.at(-1)?.trackId ?? "", gameId, lapPackets as TelemetryPacket[], lapTime, options.sectors ? { sectors: options.sectors } : {}) : null;
-      result.laps.push({ sessionKey, lapNumber, lapTime, packets: lapPackets, sectors, valid: valid && !reason, invalidReason: reason, byteOffset, frameCount, complete });
+      result.laps.push({ sessionKey, lapNumber, lapTime, packets: lapPackets, sectors, valid: valid && !reason, invalidReason: reason, classification, byteOffset, frameCount, complete });
       if (complete) {
         completeLapCount++;
         latestCompleteOrder = completionOrder;
@@ -100,13 +103,14 @@ export async function processTelemetryBatch<State>(gameId: GameId, frames: reado
       },
       isPitOnly: packets => classifyPitCycleLap(packets) === "pit lap",
       emitLap: async (capture: KunosLapCapture) => {
-        const quality = assessLapRecording(capture.packets, capture.lapTime);
         const pitReason = classifyPitCycleLap(capture.packets);
         const recordedValidity = gameId === "acc" ? resolveAccRecordedLapValidity(capture.packets, capture.trigger !== undefined) : null;
-        const classification = gameId === "ac-evo" && quality.valid && !pitReason ? classifyKunosTrackLimits(capture.packets) : null;
-        const valid = capture.silent ? false : recordedValidity !== null ? recordedValidity : quality.valid && !pitReason && !classification;
-        const reason = capture.silent ? "incomplete at end of input" : recordedValidity === false ? "game reported invalid" : recordedValidity === true ? null : pitReason ?? quality.reason ?? classification;
-        push(sessionKey, capture.lapNumber, capture.lapTime, capture.packets, valid, reason, capture.byteOffset, capture.byteOffset === null ? 0 : capture.frameCount, !capture.silent);
+        const quality = assessLapRecording(capture.packets, capture.lapTime, { closed: !pitReason });
+        const classification = classifyLapCategory(capture.packets, pitReason, capture.trigger, quality.valid);
+        const trackLimitReason = gameId === "ac-evo" && quality.valid && !pitReason ? classifyKunosTrackLimits(capture.packets) : null;
+        const valid = !capture.silent && !capture.invalidReason && recordedValidity !== false && quality.valid && !trackLimitReason;
+        const reason = capture.invalidReason ?? (capture.silent ? "incomplete at end of input" : recordedValidity === false ? "game reported invalid" : !quality.valid ? quality.reason : trackLimitReason);
+        push(sessionKey, capture.lapNumber, capture.lapTime, capture.packets, valid, reason, capture.byteOffset, capture.byteOffset === null ? 0 : capture.frameCount, !capture.silent, classification);
       },
     }) : null;
     if (!kunos) ordinal = new OrdinalDetectorEngine({
@@ -122,13 +126,13 @@ export async function processTelemetryBatch<State>(gameId: GameId, frames: reado
         const time = policy.resolveLapTime(s.lapBuffer, packet);
         if (time < 10) return false;
         ordinal.trimRunningStartPackets();
-        const pitReason = mergePitCycleReason(asPitCycleReason(s.currentPitCycleReason), asPitCycleReason(policy.classifyPitCycle(s.lapBuffer, s.completedLapCount)));
-        const hostInvalidReason = asPitCycleReason(s.invalidReason);
-        const mergedPitReason = mergePitCycleReason(hostInvalidReason, pitReason);
-        const q = assessLapRecording(s.lapBuffer, time);
-        const policyReason = policy.invalidReason?.(s.lapBuffer) ?? null;
-        const reason = hostInvalidReason ? mergedPitReason ?? hostInvalidReason : s.invalidReason ?? policyReason ?? pitReason ?? (!q.valid ? q.reason : null);
-        push(sessionKey, s.lapNumber, time, s.lapBuffer, s.lapIsValid && !policyReason && !pitReason && q.valid, reason, s.lapByteOffset, s.lapByteOffset === null ? 0 : s.lapFrameCount, true);
+        const pitReason = mergePitCycleReason(asPitCycleReason(s.currentPitCycleReason), policy.classifyPitCycle(s.lapBuffer, s.completedLapCount));
+        const detectedCategory = classifyLapCategory(s.lapBuffer, pitReason, undefined, true);
+        const q = assessLapRecording(s.lapBuffer, time, { closed: !pitReason && detectedCategory !== "grid_start" });
+        const policyReason = policy.invalidReason?.(s.lapBuffer, s.completedLapCount) ?? null;
+        const classification = policyReason === "incomplete" || (detectedCategory === "pace" && !q.valid) ? null : detectedCategory;
+        const reason = s.invalidReason ?? policyReason ?? (!q.valid ? q.reason : null);
+        push(sessionKey, s.lapNumber, time, s.lapBuffer, s.lapIsValid && !policyReason && q.valid, reason, s.lapByteOffset, s.lapByteOffset === null ? 0 : s.lapFrameCount, true, classification);
         return true;
       },
       finalizeIncompleteLap: async s => {
@@ -139,7 +143,13 @@ export async function processTelemetryBatch<State>(gameId: GameId, frames: reado
       finalizeStaleLap: async (time, complete, _silence, s) => {
         if (time < 10) return;
         if (complete) ordinal.trimRunningStartPackets();
-        push(sessionKey, s.lapNumber, time, s.lapBuffer, s.lapIsValid, s.invalidReason ?? (complete ? null : "incomplete at end of input"), s.lapByteOffset, s.lapByteOffset === null ? 0 : s.lapFrameCount, complete);
+        const pitReason = complete ? mergePitCycleReason(asPitCycleReason(s.currentPitCycleReason), policy.classifyPitCycle(s.lapBuffer, s.completedLapCount)) : null;
+        const detectedCategory = complete ? classifyLapCategory(s.lapBuffer, pitReason, undefined, true) : null;
+        const q = complete ? assessLapRecording(s.lapBuffer, time, { closed: !pitReason && detectedCategory !== "grid_start" }) : { valid: false, reason: "incomplete at end of input" };
+        const policyReason = complete ? policy.invalidReason?.(s.lapBuffer, s.completedLapCount) ?? null : null;
+        const classification = policyReason === "incomplete" || (detectedCategory === "pace" && !q.valid) ? null : detectedCategory;
+        const reason = s.invalidReason ?? policyReason ?? (q.valid ? null : q.reason);
+        push(sessionKey, s.lapNumber, time, s.lapBuffer, complete && s.lapIsValid && !policyReason && q.valid, reason, s.lapByteOffset, s.lapByteOffset === null ? 0 : s.lapFrameCount, complete, classification);
       },
       pitTransition: (before, after, raceOffObserved) => forzaPitTransitionEvidence(before, after, raceOffObserved).detected,
       finalizeSession: async () => {},

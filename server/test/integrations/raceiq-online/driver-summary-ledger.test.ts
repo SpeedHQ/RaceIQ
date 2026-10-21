@@ -447,6 +447,19 @@ test("actual dashboard materialization and exact-edge fallbacks exclude Other, M
     expect(personal.summary.metrics).toMatchObject({ laps: 1, drivenSeconds: 60 });
     expect(personal.context).toEqual({ basis: "positive_lap_time",
       other: { laps: 1, seconds: 70 }, mixed: { laps: 1, seconds: 80 }, unknown: { laps: 1, seconds: 90 } });
+    await client.execute({ sql: "UPDATE laps SET classification='out_lap' WHERE id=?", args: [selfLapId] });
+    const nonPaceFallback = await getDashboard(request);
+    expect(nonPaceFallback.totals).toMatchObject({
+      laps: 1, validLaps: 1, drivenSeconds: 60, validSeconds: 60, bestLapSeconds: null, averageLapSeconds: null,
+    });
+    await publishMetadata(sessionId);
+    const nonPacePublished = await getDashboard({ ...request, from: "2025-05-12T00:00:00.000Z", to: "2025-05-13T00:00:00.000Z" });
+    expect(nonPacePublished.totals).toMatchObject({
+      laps: 1, validLaps: 1, drivenSeconds: 60, validSeconds: 60, bestLapSeconds: null, averageLapSeconds: null,
+    });
+    expect((await buildLocalDriverSummary(request)).summary.metrics).toMatchObject({
+      laps: 1, validLaps: 1, drivenSeconds: 60, validSeconds: 60,
+    });
     await setLapDriverAttribution(selfLapId, [], "Unknown", { domain: "source-clock", startMs: 10, endMs: 90 });
     const corrected = await getDashboard({ ...request, to: "2025-05-12T12:15:00.000Z" });
     expect(corrected.totals).toMatchObject({ laps: 0, drivenSeconds: 0 });

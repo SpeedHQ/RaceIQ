@@ -1,5 +1,5 @@
 import { eq, and } from "drizzle-orm";
-import { db } from "./index";
+import { readDb as db } from "./index";
 import { sessions, laps } from "./schema";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { GameId } from "@raceiq/shared/games/ids";
@@ -161,7 +161,8 @@ export function alignedTelemetryCacheGet(ids: readonly number[]): string | undef
 export function alignedTelemetryCacheSet(ids: readonly number[], body: string): void {
   const key = alignedKey(ids); const existing = telemetryCache.get(key);
   if (existing) cacheBytesUsed -= existing.bytes;
-  const entry: AlignedTelemetryCacheEntry = { kind: "aligned", body, bytes: alignedBytes(body, existing?.kind === "aligned" ? existing.alignmentIndex : undefined), ids: [...ids] };
+  const alignmentIndex = existing?.kind === "aligned" ? existing.alignmentIndex : undefined;
+  const entry: AlignedTelemetryCacheEntry = { kind: "aligned", body, alignmentIndex, bytes: alignedBytes(body, alignmentIndex), ids: [...ids] };
   telemetryCache.set(key, entry); cacheBytesUsed += entry.bytes; evictUntilWithinBudget();
 }
 export function lapSetAlignmentIndexCacheGet(ids: readonly number[]): LapSetAlignmentIndex | undefined {

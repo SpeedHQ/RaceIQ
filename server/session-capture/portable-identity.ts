@@ -4,15 +4,17 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { db, client } from "../db/index";
+import { client, readClient, readDb } from "../db/index";
 import { laps, sessions, lapGuidReconciliation, liveCaptures, liveCaptureMembers } from "../db/schema";
 import { bindAuthoritativeLapGuidInTransaction } from "../db/lap-guid";
 import { bindOriginalActivityNativeSourceHash, readOriginalActivitySourceProof, registerVerifiedPortableOriginalInTransaction, retainOriginalLapIdentityInTransaction } from "../db/original-activity-queries";
 import { enqueueSessionCaptureSplit } from "../db/session-queries";
 import { DASHBOARD_PROCESSOR_VERSION } from "../db/dashboard-summary-queries";
 import { dashboardDurationAttribution } from "../driver-summary/dashboard-input";
+import { withDatabaseTransaction } from "../db/write-coordination";
 import { resolveRecordingGameDirectory } from "../runtime/config/recording-directory";
 import type { GameId } from "@raceiq/shared/games/ids";
+import { LAP_CLASSIFICATIONS } from "@raceiq/shared/racing/lap-classification";
 import { containsSparseCaptureFrames, decompressIfGzipSync, encodeFrameLength, encodeMetaFrame,
   encodeSessionMetadataRecord, encodeSparseCaptureFormatFrame,
   iterateSessionCaptureRecords, MAX_DECOMPRESSED_CAPTURE_BYTES,
@@ -31,6 +33,7 @@ import { recordedCaptureFrameClock, recordedCaptureClockAnchor } from "./frame-t
 const finite = z.number().finite();
 const count = z.number().int().nonnegative().safe();
 const attribution = z.enum(["Self", "Other", "Mixed", "Unknown"]);
+const lapClassificationSchema = z.enum(LAP_CLASSIFICATIONS).nullable();
 const clockAnchorSchema = z.object({ frameTimeMs: count, utcTimeMs: count.max(8_640_000_000_000_000) }).strict();
 const durationSchema = z.object({
   status: z.enum(["available", "unavailable"]),
@@ -42,6 +45,7 @@ const durationSchema = z.object({
     && (value.attribution.coverage !== "complete" || value.attribution.unknownSeconds === 0))), "Invalid original duration facts");
 const lapSchema = z.object({ lapGuid: z.string().uuid().nullable(), lapNumber: count, lapTime: finite, isValid: z.boolean(), invalidReason: z.string().nullable(),
   lapGuidStatus: z.enum(["resolved", "held_ambiguous"]),
+  classification: lapClassificationSchema.default(null),
   rawByteOffset: count, rawFrameCount: count.positive(), sectorTimes: z.array(finite).nullable(), recordedAt: z.string().nullable(), createdAt: z.string().min(1),
   trailingContextFrameCount: count.max(1).optional(),
   totalTimeMs: z.number().int().safe().nullable(), sectorTimesMs: z.array(z.number().int().safe()).nullable(),
@@ -88,10 +92,10 @@ function writeNativeRecord(record: SessionCaptureRecord, output: Buffer, offset:
 export async function loadFullOriginalPortableCapture(sessionId: number): Promise<{ bytes: Buffer; windows: Map<number, { rawByteOffset: number; rawFrameCount: number; trailingContextFrameCount?: number }> } | null> {
   const proof = await readOriginalActivitySourceProof(sessionId, { includeBorrowed: true });
   if (!proof) return null;
-  const session = await db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
+  const session = await readDb.select().from(sessions).where(eq(sessions.id, sessionId)).get();
   if (!session || session.downsampledFrequencyHz !== null) return null;
-  const rows = await db.select().from(laps).where(eq(laps.sessionId, sessionId)).all();
-  const retained = await client.execute({ sql: "SELECT native_source_hash FROM original_activity_sources WHERE original_activity_id=?", args: [proof.originalActivityId] });
+  const rows = await readDb.select().from(laps).where(eq(laps.sessionId, sessionId)).all();
+  const retained = await readClient.execute({ sql: "SELECT native_source_hash FROM original_activity_sources WHERE original_activity_id=?", args: [proof.originalActivityId] });
   const retainedHash = retained.rows[0]?.native_source_hash;
   const trailing = (row: typeof rows[number], owned?: number, knownTrailing = 0): number => {
     const value = row.sourceFrameCount === null ? knownTrailing : (row.rawFrameCount ?? 0) - row.sourceFrameCount;
@@ -118,13 +122,13 @@ export async function loadFullOriginalPortableCapture(sessionId: number): Promis
   let genuineNativeClosure = false;
   let nativeWireCoordinates = false;
   if (session.captureLayoutVersion === 3) {
-    const capture = await db.select().from(liveCaptures).where(eq(liveCaptures.sessionId, sessionId)).get();
+    const capture = await readDb.select().from(liveCaptures).where(eq(liveCaptures.sessionId, sessionId)).get();
     if (!capture || capture.status !== "sealed" || capture.captureEpoch !== proof.sourceRevision ||
         capture.sourceDurableWatermark !== capture.sourceByteLength || capture.metadataDurableWatermark !== capture.sourceByteLength) return null;
     sourceByteLength = capture.sourceByteLength;
     sourceRecordCount = capture.sourceRecordCount;
     genuineNativeClosure = session.nativeCaptureOrigin && proof.origin === "native_capture";
-    const members = await db.select({ descriptor: liveCaptureMembers.descriptor }).from(liveCaptureMembers)
+    const members = await readDb.select({ descriptor: liveCaptureMembers.descriptor }).from(liveCaptureMembers)
       .where(eq(liveCaptureMembers.captureEpoch, capture.captureEpoch)).orderBy(liveCaptureMembers.generation).all();
     for (const value of members) {
       const member = Schema.decodeSync(Schema.fromJsonString(LiveArchiveMemberSchema))(value.descriptor);
@@ -208,10 +212,10 @@ export async function loadFullOriginalPortableCapture(sessionId: number): Promis
 /** Exact saved identity/native attribution; no name/time matching or new IDs on export. */
 export async function buildPortableCaptureIdentity(sessionId: number, bytes: Buffer,
   exportedWindows: readonly { lapId: number; rawByteOffset: number; rawFrameCount: number; trailingContextFrameCount?: number }[]): Promise<PortableCaptureIdentity> {
-  const session = await db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
+  const session = await readDb.select().from(sessions).where(eq(sessions.id, sessionId)).get();
   if (!session) throw new Error("Original session disappeared during export");
-  const rows = await db.select().from(laps).where(eq(laps.sessionId, sessionId)).all();
-  const reconciliation = await db.select({ lapId: lapGuidReconciliation.lapId, lapGuid: lapGuidReconciliation.lapGuid,
+  const rows = await readDb.select().from(laps).where(eq(laps.sessionId, sessionId)).all();
+  const reconciliation = await readDb.select({ lapId: lapGuidReconciliation.lapId, lapGuid: lapGuidReconciliation.lapGuid,
     sourceGuid: lapGuidReconciliation.sourceGuid, status: lapGuidReconciliation.status }).from(lapGuidReconciliation)
     .innerJoin(laps, eq(laps.id, lapGuidReconciliation.lapId)).where(eq(laps.sessionId, sessionId)).all();
   const reconciledById = new Map(reconciliation.map((row) => [row.lapId, row]));
@@ -222,7 +226,7 @@ export async function buildPortableCaptureIdentity(sessionId: number, bytes: Buf
     const resolved = reconciledById.get(lap.id);
     const lapGuidStatus = resolved?.status === "resolved" && resolved.lapGuid === lap.lapGuid
       && (resolved.sourceGuid === null || resolved.sourceGuid === lap.lapGuid) ? "resolved" : "held_ambiguous";
-    return { lapGuid: lap.lapGuid, lapNumber: lap.lapNumber, lapTime: lap.lapTime, isValid: lap.isValid, invalidReason: lap.invalidReason,
+    return { lapGuid: lap.lapGuid, lapNumber: lap.lapNumber, lapTime: lap.lapTime, isValid: lap.isValid, invalidReason: lap.invalidReason, classification: lap.classification,
       lapGuidStatus,
       rawByteOffset: window.rawByteOffset, rawFrameCount: window.rawFrameCount, sectorTimes: lap.sectorTimes, recordedAt: lap.recordedAt, createdAt: lap.createdAt,
       ...(window.trailingContextFrameCount === undefined ? {} : { trailingContextFrameCount: window.trailingContextFrameCount }),
@@ -231,7 +235,7 @@ export async function buildPortableCaptureIdentity(sessionId: number, bytes: Buf
       sourceClockDomain: lap.sourceClockDomain, sourceLapStartMs: lap.sourceLapStartMs, sourceLapEndMs: lap.sourceLapEndMs };
   });
   const guids = metadata.map((lap) => lap.lapGuid).sort();
-  const retained = proof ? await client.execute({ sql: "SELECT native_source_hash FROM original_activity_sources WHERE original_activity_id=?", args: [proof.originalActivityId] }) : null;
+  const retained = proof ? await readClient.execute({ sql: "SELECT native_source_hash FROM original_activity_sources WHERE original_activity_id=?", args: [proof.originalActivityId] }) : null;
   const nativeSource = inspectPortableWindows(bytes, metadata);
   const complete = proof !== null && retained?.rows[0]?.native_source_hash === nativeSource.nativeRecordHash
     && guids.length === proof.originalLapGuids.length && guids.every((guid, index) => guid === proof.originalLapGuids[index]);
@@ -239,7 +243,7 @@ export async function buildPortableCaptureIdentity(sessionId: number, bytes: Buf
   if (complete) {
     if (session.verifiedOriginalDurationJson !== null) duration = durationSchema.parse(JSON.parse(session.verifiedOriginalDurationJson));
     else {
-      const measured = await client.execute({ sql: `SELECT d.duration_status,d.elapsed_seconds,d.duration_attribution_json
+      const measured = await readClient.execute({ sql: `SELECT d.duration_status,d.elapsed_seconds,d.duration_attribution_json
         FROM dashboard_session_summaries d JOIN dashboard_summary_state st ON st.session_id=d.session_id
         WHERE d.session_id=? AND d.source_revision=st.source_revision AND st.published_revision=st.source_revision
           AND st.processor_version=? AND st.metadata_dirty=0 AND st.capture_dirty=0 AND st.deleted=0`,
@@ -340,10 +344,10 @@ export function validatePortableCaptureIdentity(bytes: Buffer, input: unknown): 
 }
 
 async function insertPortableLap(tx: Transaction, sessionId: number, lap: PortableLapIdentity, identity: PortableCaptureIdentity): Promise<number> {
-  const inserted = await tx.execute({ sql: `INSERT INTO laps(session_id,lap_number,lap_time,is_valid,invalid_reason,raw_byte_offset,raw_frame_count,source_frame_count,sector_times,recorded_at,created_at,driver_attribution,driver_attribution_stints,source_clock_domain,source_lap_start_ms,source_lap_end_ms,total_time_ms,sector_times_ms)
-    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id`, args: [sessionId, lap.lapNumber, lap.lapTime, lap.isValid ? 1 : 0, lap.invalidReason, lap.rawByteOffset, lap.rawFrameCount,
+  const inserted = await tx.execute({ sql: `INSERT INTO laps(session_id,lap_number,lap_time,is_valid,invalid_reason,raw_byte_offset,raw_frame_count,source_frame_count,sector_times,recorded_at,created_at,driver_attribution,driver_attribution_stints,source_clock_domain,source_lap_start_ms,source_lap_end_ms,total_time_ms,sector_times_ms,classification)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id`, args: [sessionId, lap.lapNumber, lap.lapTime, lap.isValid ? 1 : 0, lap.invalidReason, lap.rawByteOffset, lap.rawFrameCount,
       lap.rawFrameCount - (lap.trailingContextFrameCount ?? 0), lap.sectorTimes === null ? null : JSON.stringify(lap.sectorTimes), lap.recordedAt, lap.createdAt, lap.driverAttribution, lap.driverAttributionStints === null ? null : JSON.stringify(lap.driverAttributionStints), lap.sourceClockDomain, lap.sourceLapStartMs, lap.sourceLapEndMs,
-      lap.totalTimeMs, lap.sectorTimesMs === null ? null : JSON.stringify(lap.sectorTimesMs)] });
+      lap.totalTimeMs, lap.sectorTimesMs === null ? null : JSON.stringify(lap.sectorTimesMs), lap.classification ?? null] });
   const lapId = Number(inserted.rows[0]!.id);
   if (lap.lapGuid && lap.lapGuidStatus === "resolved") {
     await bindAuthoritativeLapGuidInTransaction(tx, lapId, lap.lapGuid);
@@ -399,10 +403,9 @@ async function registerPortableCapture(bytesInput: Buffer, input: unknown, conte
   await mkdir(directory, { recursive: true });
   const path = join(directory, `portable-${randomUUID()}.bin`);
   await writeFile(path, bytes, { flag: "wx", mode: 0o600 });
-  const tx = await client.transaction("write");
   let used = false;
   let committed = false;
-  try {
+  const register = async (tx: Transaction): Promise<RegisteredPortableCapture> => {
     const local = await tx.execute("SELECT online_user_id FROM local_account_owner WHERE id=1");
     const localOwner = local.rows[0]?.online_user_id ?? null;
     const retained = identity.originalActivityId
@@ -423,7 +426,7 @@ async function registerPortableCapture(bytesInput: Buffer, input: unknown, conte
         throw new Error("Portable lap identity conflicts with retained original ownership");
       }
       if (known.rows[0]?.source_revision != null && identity.sourceRevision !== null && known.rows[0].source_revision !== identity.sourceRevision) throw new Error("Portable original revision conflicts with retained lap identity");
-      const matches = await tx.execute({ sql: `SELECT l.id,l.session_id,s.owner_user_id,s.original_activity_id,s.original_source_revision,s.game_id,s.car_id,s.track_id,s.raw_file,s.ownership
+      const matches = await tx.execute({ sql: `SELECT l.id,l.session_id,l.classification,s.owner_user_id,s.original_activity_id,s.original_source_revision,s.game_id,s.car_id,s.track_id,s.raw_file,s.ownership
         FROM laps l JOIN sessions s ON s.id=l.session_id WHERE l.lap_guid=?`, args: [lap.lapGuid] });
       for (const row of matches.rows) {
         if (row.owner_user_id !== identity.ownerUserId || row.original_activity_id !== identity.originalActivityId || row.game_id !== context.gameId || row.car_id !== context.carId || row.track_id !== context.trackId) throw new Error("Portable original identity conflicts with local ownership or source");
@@ -459,10 +462,12 @@ async function registerPortableCapture(bytesInput: Buffer, input: unknown, conte
         || current.rows.some((row) => typeof row.lap_guid !== "string" || !fullGuids.has(row.lap_guid) || row.status !== "resolved"))) {
         throw new Error("Portable original overlaps unresolved or resegmented local membership");
       }
-      const knownIds = new Map(existing.map(({ row, lap }) => [lap.lapGuid, Number(row.id)]));
+      const knownLaps = new Map(existing.map(({ row, lap }) => [lap.lapGuid, row]));
       for (const lap of identity.laps) {
-        const lapId = knownIds.get(lap.lapGuid) ?? await insertPortableLap(tx, sessionId, lap, identity);
-        result.push({ lapId, sessionId, lapNumber: lap.lapNumber, lapTime: lap.lapTime, isValid: lap.isValid, carId: context.carId, trackId: context.trackId });
+        const known = knownLaps.get(lap.lapGuid);
+        const lapId = known ? Number(known.id) : await insertPortableLap(tx, sessionId, lap, identity);
+        const classification = known ? lapClassificationSchema.parse(known.classification) : lap.classification ?? null;
+        result.push({ lapId, sessionId, lapNumber: lap.lapNumber, lapTime: lap.lapTime, isValid: lap.isValid, classification, carId: context.carId, trackId: context.trackId });
       }
       if (identity.representation.kind === "original" && identity.originalSource && identity.originalActivityId) {
         // Restore source bytes, but never repair ambiguous lap identity or reassign ownership.
@@ -480,13 +485,6 @@ async function registerPortableCapture(bytesInput: Buffer, input: unknown, conte
         used = true;
       }
       await preservePortableSourceFacts(tx, sessionId, identity);
-      await tx.commit();
-      committed = true;
-      if (used) {
-        await markDashboardCaptureCheckpoint(sessionId, true);
-        await processDashboardSession(sessionId);
-        notifyOnlineSync();
-      }
       return { packetCount: 0, laps: result, sessionIds: [sessionId] };
     }
     const inserted = await tx.execute({ sql: `INSERT INTO sessions(car_id,track_id,game_id,session_type,raw_file,capture_format_version,ownership,owner_user_id,original_activity_id,native_capture_origin,source_author_user_id,source_author_display_name,driver_attribution,driver_attribution_stints,created_at,original_source_revision)
@@ -495,22 +493,32 @@ async function registerPortableCapture(bytesInput: Buffer, input: unknown, conte
     const sessionId = Number(inserted.rows[0]!.id);
     for (const lap of identity.laps) {
       const lapId = await insertPortableLap(tx, sessionId, lap, identity);
-      result.push({ lapId, sessionId, lapNumber: lap.lapNumber, lapTime: lap.lapTime, isValid: lap.isValid, carId: context.carId, trackId: context.trackId });
+      result.push({ lapId, sessionId, lapNumber: lap.lapNumber, lapTime: lap.lapTime, isValid: lap.isValid, classification: lap.classification ?? null, carId: context.carId, trackId: context.trackId });
     }
     if (identity.representation.kind === "original" && identity.originalSource && identity.originalActivityId) {
       await registerVerifiedPortableOriginalInTransaction(tx, sessionId, { schemaVersion: 1, originalActivityId: identity.originalActivityId, sourceRevision: identity.originalSource.sourceRevision,
         originalLapGuids: identity.originalSource.originalLapGuids, ownerUserId: identity.ownerUserId, coverage: "complete", origin: "verified_portable" }, identity.originalSource.nativeRecordHash);
     }
     await preservePortableSourceFacts(tx, sessionId, identity);
-    await tx.commit();
     used = true;
-    committed = true;
-    await markDashboardCaptureCheckpoint(sessionId, true);
-    await processDashboardSession(sessionId);
-    notifyOnlineSync();
     return { packetCount: identity.laps.reduce((sum, lap) => sum + lap.rawFrameCount, 0), laps: result, sessionIds: [sessionId] };
-  } catch (error) {
-    if (!committed) { await tx.rollback(); used = false; }
-    throw error;
-  } finally { if (!used) await rm(path, { force: true }); }
+  };
+  try {
+    const registered = await withDatabaseTransaction(client, register);
+    committed = true;
+    if (used) {
+      for (const sessionId of registered.sessionIds) {
+        await markDashboardCaptureCheckpoint(sessionId, true);
+        await processDashboardSession(sessionId);
+      }
+      notifyOnlineSync();
+    }
+    return registered;
+  } finally {
+    if (!committed || !used) {
+      // Commit may succeed before transaction cleanup reports a failure.
+      const retained = await readDb.select({ id: sessions.id }).from(sessions).where(eq(sessions.rawFile, path)).get();
+      if (!retained) await rm(path, { force: true });
+    }
+  }
 }

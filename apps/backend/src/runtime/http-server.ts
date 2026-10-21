@@ -4,7 +4,7 @@ import { wsManager, type WSData } from "@raceiq/backend-core/runtime/websocket-m
 import { MAX_IBT_BYTES } from "../imports/iracing-ibt";
 import { IS_WINDOWS } from "@raceiq/backend-core/runtime/platform/shell";
 import { gameAssetsDir } from "@raceiq/shared/platform/runtime/data-paths";
-import { beginRequestAuthorization, endRequestAuthorization, httpAccess, type HttpAccess } from "./http-access";
+import { beginRequestAuthorization, endRequestAuthorization, getHttpAccess, type HttpAccess } from "./http-access";
 
 type HttpApp = {
   fetch: (request: Request) => Response | Promise<Response>;
@@ -35,14 +35,18 @@ export function clearHttpPort(port: number): void {
         windowsHide: true,
       });
     } else {
-      execSync(`lsof -ti:${port} | xargs kill -9`, { stdio: "ignore" });
+      execSync(`lsof -tiTCP:${port} -sTCP:LISTEN | xargs kill -9`, { stdio: "ignore" });
     }
   } catch {
     // Nothing was listening — that's fine.
   }
 }
 
-export function startHttpServer({ app, port, staticDir, devPublicDir, access = httpAccess }: HttpServerOptions): Bun.Server<WSData> {
+export function startHttpServer({ app, port, staticDir, devPublicDir, access = {
+  ...getHttpAccess(),
+  authorize: (request) => getHttpAccess().authorize(request),
+  allowsOrigin: (origin, request) => getHttpAccess().allowsOrigin(origin, request),
+} }: HttpServerOptions): Bun.Server<WSData> {
   // Also disconnect already-open sockets after logout/password replacement,
   // including resets performed by another process against the shared DB.
   const sockets = new Map<Bun.ServerWebSocket<WSData>, Request>();
@@ -97,10 +101,10 @@ export function startHttpServer({ app, port, staticDir, devPublicDir, access = h
         if (filePath.startsWith(staticDir)) {
           const file = Bun.file(filePath);
           if (await file.exists()) {
-            return new Response(file, { headers: staticAssetHeaders(filePath) });
+            return new Response(file, { headers: { ...staticAssetHeaders(filePath), "X-RaceIQ": "1" } });
           }
         }
-        return new Response(Bun.file(resolve(staticDir, "index.html")));
+        return new Response(Bun.file(resolve(staticDir, "index.html")), { headers: { "X-RaceIQ": "1" } });
       }
 
       if (process.env.NODE_ENV !== "production" && url.pathname === "/") {
