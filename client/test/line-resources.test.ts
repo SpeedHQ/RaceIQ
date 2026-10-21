@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import * as THREE from "three/webgpu";
-import { createRetainedGrid, createRibbonPool, disposeRibbonPool, updateRibbonPool } from "../src/components/wireframe/LineResources";
-import { buildTrackIndex, filterByDistanceIndexed } from "../src/lib/wireframe-utils";
+import { createRetainedGrid, createRibbonPool, disposeRibbonPool, updateRibbonPool } from "@raceiq/scene-3d/wireframe/LineResources"
+import { buildTrackIndex, filterByDistanceIndexed } from "@raceiq/scene-3d/wireframe-utils"
 
 const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
 camera.position.set(0, 0, 5);

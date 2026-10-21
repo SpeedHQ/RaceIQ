@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from "react";
 import type { ChartsPanelHandle } from "../components/analyse/AnalyseChartsPanel";
-import { type SemanticAnalysisFrame, semanticNumber, type TrackMapHandle } from "../components/analyse/track-map/types";
-
+import { type SemanticAnalysisFrame, semanticNumber } from "@raceiq/scene-3d/semantic-frame";
+import type { TrackMapHandle } from "../components/analyse/track-map/types";
 // React-owned gauges publish at display cadence while canvas animation stays smooth.
 export const REACT_STATE_INTERVAL_MS = 1000 / 60;
 

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { resolveCssColor } from "../src/lib/rendering/css-values";
+import { resolveCssColor } from "@raceiq/scene-3d/rendering/css-values"
 
 describe("CSS renderer color resolution", () => {
   const originalDocument = globalThis.document;

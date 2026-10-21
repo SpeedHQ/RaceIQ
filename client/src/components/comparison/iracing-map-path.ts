@@ -1,6 +1,6 @@
 import type { IRacingTrackMapTelemetry } from "@/hooks/laps";
 import { createLapFractionProjector } from "@raceiq/shared/racing/tracks/path";
-import { geographicPosition } from "../wireframe/ScenePlacement";
+import { geographicPosition } from "@raceiq/scene-3d/wireframe/ScenePlacement";
 import type { Point } from "../analyse/track-map/types";
 
 type GeographicOrigin = { latitude: number; longitude: number };

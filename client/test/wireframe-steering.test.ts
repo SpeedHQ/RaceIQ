@@ -1,10 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { steeringAngleRadians } from "../src/lib/wireframe-utils";
+import { steeringAngleRadians } from "@raceiq/scene-3d/wireframe-utils";
 
 describe("steeringAngleRadians", () => {
-  test("normalizes signed int8 steering input before converting to wheel angle", () => {
-    expect(steeringAngleRadians(127)).toBeCloseTo(-0.35);
-    expect(steeringAngleRadians(-127)).toBeCloseTo(0.35);
-    expect(steeringAngleRadians(0)).toBe(0);
+  test("centers steering and maps positive input to positive angle", () => {
+    const metadata = { steeringCenter: 0, steeringRange: 127 };
+    expect(steeringAngleRadians(0, metadata)).toBeCloseTo(0);
+    expect(steeringAngleRadians(127, metadata)).toBeCloseTo(0.35);
+    expect(steeringAngleRadians(-127, metadata)).toBeCloseTo(-0.35);
   });
 });

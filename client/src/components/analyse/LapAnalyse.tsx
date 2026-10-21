@@ -20,8 +20,9 @@ import { AnalyseWorkspaceModals } from "./AnalyseWorkspaceModals";
 import { AnalyseWorkspacePanels } from "./AnalyseWorkspacePanels";
 import { AnalyseWorkspaceStatus } from "./AnalyseWorkspaceStatus";
 import { flushSync } from "react-dom";
-import { semanticNumber, type Point, type TrackMapHandle, type TrackOverlayKey, type TrackZoomBehavior } from "./track-map/types";
-import type { SceneRuntime, SceneSource } from "../wireframe/SceneRuntime";
+import { semanticNumber } from "@raceiq/scene-3d/semantic-frame";
+import type { Point, TrackMapHandle, TrackOverlayKey, TrackZoomBehavior } from "./track-map/types";
+import type { SceneRuntime, SceneSource } from "@raceiq/scene-3d/wireframe/SceneRuntime"
 import { useAnalyseImports } from "./useAnalyseImports";
 import { useAnalyseSelections } from "./useAnalyseSelections";
 import { SessionIdentityDialog } from "../import/SessionIdentityDialog";

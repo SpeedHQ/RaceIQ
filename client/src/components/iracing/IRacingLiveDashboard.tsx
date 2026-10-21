@@ -4,7 +4,7 @@ import { m } from "@/paraglide/messages";
 import { useCarName } from "../../hooks/catalog-queries";
 import { useTrackName } from "../../hooks/track-queries";
 import { formatLapTime } from "../../lib/format";
-import { controlInputPercent } from "../../lib/vehicle-dynamics";
+import { controlInputPercent } from "@raceiq/scene-3d/vehicle-dynamics";
 import { useUnits } from "../../hooks/useUnits";
 import { useTelemetryStore } from "../../stores/telemetry";
 import { selectFreshIRacingLiveView } from "./live-state";

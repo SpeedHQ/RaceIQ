@@ -1,4 +1,4 @@
-import type { SemanticAnalysisFrame } from "./analyse/track-map/types";
+import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 
 const toDeg = 180 / Math.PI;
 

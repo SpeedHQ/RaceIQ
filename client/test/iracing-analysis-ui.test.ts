@@ -7,7 +7,7 @@ import { IRacingReplayDataPanel } from "../src/components/iracing/IRacingReplayD
 import { buildSegmentData } from "../src/components/analyse/AnalyseSegmentList";
 import { pathForwardOffsets, projectPointOntoPath, resolveFrameDirection } from "../src/components/analyse/track-map/path";
 import { sectorIndexForTelemetryIndex } from "../src/components/tunes/SectorRangeBreakdown";
-import type { SemanticAnalysisFrame } from "../src/components/analyse/track-map/types";
+import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import type { useUnits } from "../src/hooks/useUnits";
 
 initGameAdapters({ iracingAdapter: true, f1Experiments: true });

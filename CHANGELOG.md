@@ -6,6 +6,7 @@
 - Review observed personal incident-point increases, sampled off-track spans, and recorded clean-lap streaks in saved iRacing sessions, with event links and replay timeline markers limited to recorded lap evidence.
 - Simplify iRacing lap replay around the track map and recorded channels, adding clutch, engine, weather, and session readouts while separating pit-only tire snapshots from current telemetry.
 - Render iRacing comparison laps from recorded GPS; project live lap progress onto official track geometry when GPS is unavailable.
+- Compare laps in Spectate with synchronized 3D replay, configurable cameras and overlays, live A/B instruments, sector deltas, and telemetry, car, AI, Focus View, and lap-statistics panels.
 - Choose a 50–100 Hz recording frequency for ACC, AC Evo, iRacing, or LMU during setup to reduce recording size. Live UDP recording is unchanged.
 - Downsample saved recordings manually or with an opt-in age policy in Storage settings; measure the first 1,000 frame timestamps per stream and skip recordings already at or below the target. Track progress and retry failed files. Favorites and MoTeC imports stay unchanged.
 - Split recordings into individual, lossless per-lap `.bin` files so lap 60 loads as fast as lap 1.
@@ -22,6 +23,8 @@
 - Persist the iRacing automatic IBT capture opt-in and restore capture after backend restart.
 - Keep iRacing telemetry flowing when native lap timing stalls; mark unresolved lap data incomplete instead of stopping capture.
 - Replace iRacing comparison-map yaw ticks with lap-colored travel-direction chevrons and align follow view to the plotted path; retain plain dots when nearby positions cannot establish direction.
+- Open the dashboard in your default browser when launching RaceIQ from the optional desktop shortcut or Start menu, even when the server was stopped.
+- Preserve incomplete-lap eligibility and LMU first-outlap classification across ordinal detector transitions.
 - Keep first-run setup responsive by omitting the optional telemetry demo.
 - Label the community setup copy action “Clone” in the setup browser.
 - Leave MoTeC imports unchanged during historical lap-classification upgrades.

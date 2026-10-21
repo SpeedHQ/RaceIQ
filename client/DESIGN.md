@@ -107,7 +107,7 @@ components:
 
 ### Imperative rendering boundary
 
-DOM and SVG code consume theme variables directly. Main-thread renderers that require concrete browser values use `src/lib/rendering/css-values.ts`, which resolves the CSS contract with native `getComputedStyle()`. HTML Canvas drawing uses the focused proxy in `src/lib/rendering/css-canvas.ts`; uPlot, Three.js, and image export use the value bridge directly. Neither module is a Tailwind theme layer or a general color library.
+DOM and SVG code consume theme variables directly. Main-thread renderers that require concrete browser values use `@raceiq/scene-3d/rendering/css-values`, which resolves the CSS contract with native `getComputedStyle()`. HTML Canvas drawing uses the focused proxy in `@raceiq/scene-3d/rendering/css-canvas`; uPlot, Three.js, and image export use the value bridge directly. Both bridges belong to the shared 3D scene package; neither is a Tailwind theme layer or a general color library.
 
 The bridge is deliberately DOM-bound. `OffscreenCanvas` worker code cannot read the document theme and must receive already-resolved theme values from the main thread.
 

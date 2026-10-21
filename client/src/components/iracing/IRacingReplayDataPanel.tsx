@@ -1,7 +1,7 @@
 import type { TelemetryVariableId } from "@raceiq/shared/telemetry/catalog/generated/telemetry-catalog.types";
-import type { SemanticAnalysisFrame } from "../analyse/track-map/types";
+import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import { formatLapTime } from "@/lib/format";
-import { controlInputPercent } from "@/lib/vehicle-dynamics";
+import { controlInputPercent } from "@raceiq/scene-3d/vehicle-dynamics";
 import { m } from "@/paraglide/messages";
 import { WheelTable } from "../analyse/WheelTable";
 

@@ -1,7 +1,7 @@
 import { lapWrappedSegmentGroup, segmentDisplayNames } from "@raceiq/shared/racing/tracks/segment-label";
 import { memo, useMemo } from "react";
 import { m } from "@/paraglide/messages";
-import { semanticNumber, type SemanticAnalysisFrame } from "./track-map/types";
+import { semanticNumber, type SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 
 
 interface Segment {

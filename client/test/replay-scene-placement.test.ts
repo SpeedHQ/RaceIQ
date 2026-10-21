@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { alignProjectionToMeasured, resolveScenePoses, type TrackProjection } from "../src/components/wireframe/ScenePlacement";
+import { alignProjectionToMeasured, resolveScenePoses, type TrackProjection } from "@raceiq/scene-3d/wireframe/ScenePlacement";
 import { alignOfficialReferenceToPositions, resolveTrackPositions } from "../src/components/analyse/track-map/path";
-import type { SemanticAnalysisFrame } from "../src/components/analyse/track-map/types";
-import { buildTrackIndex, filterByDistanceIndexed } from "../src/lib/wireframe-utils";
+import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
+import { buildTrackIndex, filterByDistanceIndexed } from "@raceiq/scene-3d/wireframe-utils";
 
 const projection: TrackProjection = {
   points: [[100, 100, 0, 1], [100, 200, 1, 0], [200, 200, 0, -1], [200, 100, -1, 0]]

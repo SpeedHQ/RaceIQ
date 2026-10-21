@@ -124,6 +124,7 @@
         "@raceiq/frontend-pure": "workspace:*",
         "@raceiq/game-catalogs": "workspace:*",
         "@raceiq/game-lmu-metadata": "workspace:*",
+        "@raceiq/scene-3d": "workspace:*",
         "@raceiq/telemetry-core": "workspace:*",
         "@raceiq/tooling-data": "workspace:*",
         "@raceiq/tooling-ui": "workspace:*",
@@ -140,7 +141,6 @@
         "hono": "4.13.8",
         "html-to-image": "^1.11.13",
         "lucide-react": "^1.47.0",
-        "meshoptimizer": "1.2.0",
         "qrcode.react": "^4.2.0",
         "react": "^19.3.0",
         "react-dom": "^19.3.0",
@@ -228,6 +228,7 @@
         "@raceiq/game-ac-evo": "workspace:*",
         "@raceiq/game-ac-evo-metadata": "workspace:*",
         "@raceiq/game-catalogs": "workspace:*",
+        "@raceiq/scene-3d": "workspace:*",
         "@raceiq/shared": "workspace:*",
         "@raceiq/telemetry-core": "workspace:*",
         "@raceiq/tooling-ui": "workspace:*",
@@ -348,6 +349,26 @@
       "name": "@raceiq/game-lmu-metadata",
       "dependencies": {
         "@raceiq/shared": "workspace:*",
+      },
+    },
+    "packages/scene-3d": {
+      "name": "@raceiq/scene-3d",
+      "dependencies": {
+        "@raceiq/analysis-core": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+        "meshoptimizer": "1.2.0",
+      },
+      "devDependencies": {
+        "@raceiq/game-ac-evo-metadata": "workspace:*",
+        "@raceiq/game-acc-metadata": "workspace:*",
+        "@raceiq/game-f1-2025-metadata": "workspace:*",
+        "@raceiq/game-fm-2023-metadata": "workspace:*",
+        "@raceiq/game-iracing-metadata": "workspace:*",
+        "@raceiq/game-lmu-metadata": "workspace:*",
+        "@types/three": "^0.185.4",
+      },
+      "peerDependencies": {
+        "three": "^0.185.1",
       },
     },
     "packages/telemetry-core": {
@@ -1208,6 +1229,8 @@
     "@raceiq/game-lmu": ["@raceiq/game-lmu@workspace:packages/game-lmu"],
 
     "@raceiq/game-lmu-metadata": ["@raceiq/game-lmu-metadata@workspace:packages/game-lmu-metadata"],
+
+    "@raceiq/scene-3d": ["@raceiq/scene-3d@workspace:packages/scene-3d"],
 
     "@raceiq/shared": ["@raceiq/shared@workspace:shared"],
 

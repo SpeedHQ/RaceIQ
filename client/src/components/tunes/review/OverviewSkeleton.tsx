@@ -3,7 +3,7 @@ import { headlineMetricForVersionKind, type VersionKind } from "@raceiq/shared/r
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { SECTOR_COLOR_VARS } from "@/lib/colors";
+import { SECTOR_COLOR_VARS } from "@raceiq/scene-3d/colors";
 import { formatLapTime } from "@/lib/format";
 
 /** Overview skeleton shown when the session has no recorded lap yet — mirrors

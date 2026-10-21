@@ -9,11 +9,11 @@ import { Button } from "../ui/button";
 import { Switch } from "../ui/switch";
 import { DropdownMenu } from "../ui/DropdownMenu";
 import { AnalyseTrackMap } from "./AnalyseTrackMap";
+import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import {
   DEFAULT_TRACK_OVERLAYS,
   type Point,
   type SectorBoundaries,
-  type SemanticAnalysisFrame,
   type TrackMapBoundaries,
   type TrackMapHandle,
   type TrackMapLabel,

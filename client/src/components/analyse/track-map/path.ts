@@ -1,7 +1,8 @@
 import { applyAlignment, computeAlignment } from "@raceiq/shared/racing/tracks/geometry/points";
 import { createLapFractionProjector } from "@raceiq/shared/racing/tracks/path";
-import { geographicPosition } from "../../wireframe/ScenePlacement";
-import { semanticNumber, type Point, type SemanticAnalysisFrame, type TrackMapBoundaries, type TrackMapProps } from "./types";
+import { geographicPosition } from "@raceiq/scene-3d/wireframe/ScenePlacement";
+import { semanticNumber, type SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
+import type { Point, TrackMapBoundaries, TrackMapProps } from "./types";
 
 const fresh = (frame: SemanticAnalysisFrame, id: string) => {
   const state = frame.states[id];

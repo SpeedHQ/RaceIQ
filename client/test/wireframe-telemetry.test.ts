@@ -1,10 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { wheelLabelRows, type WheelLabelConfig } from "../src/components/wireframe/WheelLabels";
-import { readSceneWheelValue, sceneTemperatureReadings } from "../src/components/wireframe/SceneOverlays";
+import { wheelLabelRows, type WheelLabelConfig } from "@raceiq/scene-3d/wireframe/WheelLabels";
+import { readSceneWheelValue, sceneTemperatureReadings } from "@raceiq/scene-3d/wireframe/SceneOverlays";
 const config = (overrides: Partial<WheelLabelConfig> = {}): WheelLabelConfig => ({
   temperatureReadings: [], carcassBands: [null, null, null], fmtTemp: (value) => `${value}°`,
-  temperatureThresholds: { cold: 60, warm: 85, hot: 100 }, wear: null, wearRate: 0,
-  brakeTemp: 0, pressurePsi: null, coldPressure: false, side: "left", isRear: false,
+  temperatureThresholds: { cold: 60, warm: 85, hot: 100 },
+  temperatureLabels: { inner: "Inner", middle: "Middle", outer: "Outer", core: "Core", carcass: "Carcass", surface: "Surface" },
+  pitTemperatureLabel: "Last pit temp", carcassLabel: "Carcass", pitHealthLabel: "Last pit health", coldPressureLabel: "Cold pressure",
+  pressureLabel: "Pressure", brakeLabel: "Brake", wearRateLabel: "Wear /s", snapshotStaleLabel: "Snapshot stale",
+  wear: null, wearRate: 0, brakeTemp: 0, pressurePsi: null, coldPressure: false, side: "left", isRear: false,
   ...overrides,
 });
 

@@ -1,4 +1,4 @@
-import type { TrackProjection } from "../components/wireframe/ScenePlacement";
+import type { TrackProjection } from "@raceiq/scene-3d/wireframe/ScenePlacement";
 import { useQuery } from "@tanstack/react-query";
 import { resolveLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import type { GameId } from "@raceiq/shared/games/ids";

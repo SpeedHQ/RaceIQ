@@ -1,7 +1,7 @@
 import { AppInput } from "@/components/ui/AppInput";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { SECTOR_COLOR_VARS } from "@/lib/colors";
+import { SECTOR_COLOR_VARS } from "@raceiq/scene-3d/colors";
 import { isDevelopment } from "@/lib/env";
 import { m } from "@/paraglide/messages";
 import type { TrackInfo, TrackSectors, TrackSegment } from "../types";
