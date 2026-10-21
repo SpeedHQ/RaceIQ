@@ -2490,7 +2490,7 @@
   "storage_recording_summary": "{files} Aufnahmedateien · {size}",
   "classification_migration_title": "Historische Rundenklassifizierung",
   "classification_migration_historical_caveat": "Historische Pace-Ergebnisse können sich bei der Neuverarbeitung ändern.",
-  "classification_migration_complete": "Historische Aufzeichnungen klassifiziert.",
+  "classification_migration_complete": "Die Klassifizierung historischer Runden ist abgeschlossen.",
   "classification_migration_attention": "Einige Aufzeichnungen benötigen Aufmerksamkeit; abgeschlossene Klassifizierungen bleiben verfügbar.",
   "classification_migration_counts": "{completed} klassifiziert · {pending} ausstehend · {limited} eingeschränkt · {failed} fehlgeschlagen",
   "classification_migration_refresh": "Aktualisieren",

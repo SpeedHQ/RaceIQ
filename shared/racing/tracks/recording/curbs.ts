@@ -1,63 +1,10 @@
-import { existsSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
 import type { Point } from "../geometry/types";
-import { listDataFiles, readDataFile, userDir, userGameDir, validateGameId } from "../storage/files";
-import { KNOWN_GAME_IDS } from "../../../games/ids";
 
-function gk(gameId: string, trackId: string): string { return `${gameId}:${trackId}`; }
-
-// ── Curb/Kerb Detection ─────────────────────────────────────────────────────
-// Curbs are detected from WheelOnRumbleStrip telemetry fields. When any wheel
-// is on a rumble strip, we record the car's position. Consecutive rumble-strip
-// positions are grouped into segments. Multiple laps are merged to build a
-// complete curb map for each track.
+// Pure telemetry detection; curb segments are not persisted as track geometry.
 
 export interface CurbSegment {
   points: Point[];
   side: "left" | "right" | "both";
-}
-
-const curbsByOrdinal = new Map<string, CurbSegment[]>();
-const curbLapCounts = new Map<string, number>();
-const curbOrdinals = new Set<string>();
-
-let _curbsScanned = false;
-function scanCurbFiles(): void {
-  _curbsScanned = true;
-  curbOrdinals.clear();
-  for (const gid of KNOWN_GAME_IDS) {
-    const dir = resolve(userDir, gid);
-    if (!existsSync(dir)) continue;
-    for (const filePath of listDataFiles(dir, (f) => f.startsWith("curbs-") && f.endsWith(".json"))) {
-      const match = filePath.match(/(?:^|[\\/])curbs-(.+)\.json$/);
-      if (match) {
-        try {
-          curbOrdinals.add(gk(gid, decodeURIComponent(match[1])));
-        } catch {
-          // Ignore filenames that do not encode a native track identity.
-        }
-      }
-    }
-  }
-}
-function ensureCurbsScanned() { if (!_curbsScanned) scanCurbFiles(); }
-
-function loadCurbs(trackId: string, gameId: string): CurbSegment[] | null {
-  ensureCurbsScanned();
-  const key = gk(gameId, trackId);
-  if (curbsByOrdinal.has(key)) return curbsByOrdinal.get(key)!;
-  if (!curbOrdinals.has(key)) return null;
-  const userPath = resolve(userGameDir(gameId), `curbs-${encodeURIComponent(trackId)}.json`);
-  const content = readDataFile(userPath);
-  if (!content) return null;
-  try {
-    const data = JSON.parse(content);
-    if (Array.isArray(data)) {
-      curbsByOrdinal.set(key, data);
-      return data;
-    }
-    return null;
-  } catch { return null; }
 }
 
 /**
@@ -83,8 +30,7 @@ export function extractCurbSegments(packets: { PositionX: number; PositionZ: num
     const anyRumble = fl || fr || rl || rr;
 
     if (anyRumble) {
-      // Don't assign side from wheel position — a left wheel can hit a right curb.
-      // Side is determined later by correlating with track boundaries.
+      // Wheel position does not identify which side of the track contains the curb.
       if (currentPoints.length === 0) {
         currentSide = "both";
       }
@@ -109,97 +55,4 @@ export function extractCurbSegments(packets: { PositionX: number; PositionZ: num
   }
 
   return segments;
-}
-
-/**
- * Record curb data from a completed lap. Merges with existing curb data
- * for the track, deduplicating overlapping segments.
- */
-export function recordCurbData(trackId: string, newSegments: CurbSegment[], gameId: string): void {
-  validateGameId(gameId);
-  if (newSegments.length === 0) return;
-
-  const key = gk(gameId, trackId);
-  const count = (curbLapCounts.get(key) ?? 0) + 1;
-  curbLapCounts.set(key, count);
-
-  const existing = curbsByOrdinal.get(key) ?? [];
-
-  // Downsample segment points (curbs at 60Hz produce too many points)
-  const downsampled = newSegments.map(seg => ({
-    ...seg,
-    points: downsamplePoints(seg.points, 3), // keep every ~3m
-  }));
-
-  // Merge: for each new segment, check if it overlaps an existing one
-  const merged = [...existing];
-  for (const newSeg of downsampled) {
-    if (newSeg.points.length < 2) continue;
-    const mid = newSeg.points[Math.floor(newSeg.points.length / 2)];
-    let foundOverlap = false;
-
-    for (let i = 0; i < merged.length; i++) {
-      const eMid = merged[i].points[Math.floor(merged[i].points.length / 2)];
-      const dx = mid.x - eMid.x;
-      const dz = mid.z - eMid.z;
-      if (dx * dx + dz * dz < 100) { // within 10m = same curb
-        // Average the points for a smoother result
-        if (merged[i].points.length === newSeg.points.length) {
-          for (let j = 0; j < merged[i].points.length; j++) {
-            // Weighted average favoring accumulated data
-            const w = Math.min(count - 1, 5);
-            merged[i].points[j] = {
-              x: (merged[i].points[j].x * w + newSeg.points[j].x) / (w + 1),
-              z: (merged[i].points[j].z * w + newSeg.points[j].z) / (w + 1),
-            };
-          }
-        }
-        foundOverlap = true;
-        break;
-      }
-    }
-
-    if (!foundOverlap) {
-      merged.push(newSeg);
-    }
-  }
-
-  curbsByOrdinal.set(key, merged);
-
-  // Save to disk on first lap and periodically
-  if (count === 1 || count === 3 || count === 5 || count % 5 === 0) {
-    const filePath = resolve(userGameDir(gameId), `curbs-${encodeURIComponent(trackId)}.json`);
-    try {
-      writeFileSync(filePath, JSON.stringify(merged, null, 2));
-      console.log(`[Tracks] Saved curb data for track ${trackId}: ${merged.length} segments from ${count} laps`);
-    } catch (err) {
-      console.error(`[Tracks] Failed to save curb data:`, err);
-    }
-  }
-}
-
-/** Downsample points keeping minimum spacing. */
-function downsamplePoints(points: Point[], minDist: number): Point[] {
-  if (points.length <= 2) return points;
-  const result = [points[0]];
-  for (let i = 1; i < points.length; i++) {
-    const last = result[result.length - 1];
-    const dx = points[i].x - last.x;
-    const dz = points[i].z - last.z;
-    if (dx * dx + dz * dz >= minDist * minDist) {
-      result.push(points[i]);
-    }
-  }
-  // Always include last point
-  const lastPt = points[points.length - 1];
-  if (result[result.length - 1] !== lastPt) result.push(lastPt);
-  return result;
-}
-
-/**
- * Get curb segments for a native track identity.
- */
-export function getTrackCurbs(trackId: string, gameId: string): CurbSegment[] | null {
-  validateGameId(gameId);
-  return loadCurbs(trackId, gameId);
 }

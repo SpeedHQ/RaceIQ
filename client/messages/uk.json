@@ -2474,7 +2474,7 @@
   "storage_recording_summary": "{files} файлів записів · {size}",
   "classification_migration_title": "Класифікація історичних кіл",
   "classification_migration_historical_caveat": "Історичні результати темпу можуть змінитися під час повторної обробки.",
-  "classification_migration_complete": "Історичні записи класифіковано.",
+  "classification_migration_complete": "Класифікацію історичних кіл завершено.",
   "classification_migration_attention": "Деякі записи потребують уваги.",
   "classification_migration_counts": "Класифіковано: {completed} · очікує: {pending} · обмежено: {limited} · помилок: {failed}",
   "classification_migration_refresh": "Оновити",

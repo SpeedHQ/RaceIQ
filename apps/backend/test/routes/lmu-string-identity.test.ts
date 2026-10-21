@@ -3,7 +3,7 @@ import { insertLap } from "@raceiq/backend-core/db/lap-mutation-queries";
 import { getLapStats, getReviewLaps } from "@raceiq/backend-core/db/lap-read-queries";
 import { deleteSession, insertSession, updateSessionRawFile } from "@raceiq/backend-core/db/session-queries";
 import { sessionRoutes } from "../../src/routes/session-routes";
-import { trackRoutes } from "../../src/routes/tracks/index";
+import { trackRoutes } from "@raceiq/tracks-catalogue/server"
 import { settingsRoutes } from "../../src/routes/settings-routes";
 import tracksJson from "@raceiq/game-lmu-metadata/tracks.json";
 import { loadLabelledSegments } from "@raceiq/shared/racing/tracks/storage/meta";

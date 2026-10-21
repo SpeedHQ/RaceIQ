@@ -63,6 +63,8 @@
     "@raceiq/game-fm-2023-metadata": "workspace:*",
     "@raceiq/game-f1-2025-metadata": "workspace:*",
     "@raceiq/analysis-core": "workspace:*",
-    "@raceiq/telemetry-core": "workspace:*"
+    "@raceiq/telemetry-core": "workspace:*",
+    "@raceiq/tracks-catalogue": "workspace:*",
+    "@raceiq/cars-catalogue": "workspace:*"
   }
 }

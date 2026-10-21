@@ -2474,7 +2474,7 @@
   "storage_recording_summary": "{files} opnamebestanden · {size}",
   "classification_migration_title": "Historische rondes classificeren",
   "classification_migration_historical_caveat": "Historische raceresultaten kunnen wijzigen tijdens het opnieuw verwerken.",
-  "classification_migration_complete": "Historische opnamen geclassificeerd.",
+  "classification_migration_complete": "De classificatie van historische ronden is voltooid.",
   "classification_migration_attention": "Sommige opnamen vereisen aandacht.",
   "classification_migration_counts": "{completed} geclassificeerd · {pending} in wachtrij · {limited} beperkt · {failed} mislukt",
   "classification_migration_refresh": "Vernieuwen",

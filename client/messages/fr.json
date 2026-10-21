@@ -2474,7 +2474,7 @@
   "storage_recording_summary": "{files} fichiers d’enregistrement · {size}",
   "classification_migration_title": "Classification des tours historiques",
   "classification_migration_historical_caveat": "Les résultats de rythme historiques peuvent changer pendant le retraitement.",
-  "classification_migration_complete": "Enregistrements historiques classés.",
+  "classification_migration_complete": "La classification des tours historiques est terminée.",
   "classification_migration_attention": "Certains enregistrements nécessitent votre attention.",
   "classification_migration_counts": "{completed} classés · {pending} en attente · {limited} limités · {failed} en échec",
   "classification_migration_refresh": "Actualiser",

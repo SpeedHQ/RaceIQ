@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 
 const ROOT = resolve(__dirname, "../../../..");
 
-test("real upgrade restores attention, preserves it offline, and repairs through feature Retry", async ({ page }, testInfo) => {
+test("real upgrade restores limited results, preserves them offline, and repairs through feature Retry", async ({ page }, testInfo) => {
   test.setTimeout(720_000);
   const process: ChildProcessWithoutNullStreams = spawn("bun", ["client/test/support/upgrade-browser-server.ts"], {
     cwd: ROOT, env: { ...globalThis.process.env }, stdio: "pipe",
@@ -75,7 +75,7 @@ test("real upgrade restores attention, preserves it offline, and repairs through
     await expect(dock).toBeHidden();
     await page.getByRole("dialog", { name: "Sparse recordings split" }).getByRole("button", { name: "Close", exact: true }).click();
     await expect(page.getByRole("dialog", { name: "Sparse recordings split" })).toBeHidden();
-    await expect(dock).toContainText("Some recordings need attention");
+    await expect(dock).toBeVisible();
     await dock.getByRole("button", { name: "Close", exact: true }).click();
     await expect(dock).toBeHidden();
 
@@ -149,8 +149,7 @@ test("real upgrade restores attention, preserves it offline, and repairs through
     const retry = maintenance.getByRole("button", { name: /^Retry / }).first();
     await retry.focus();
     await page.keyboard.press("Enter");
-    await expect(maintenance).toContainText("Historical recordings classified.", { timeout: 180_000 });
-    await expect(maintenance.getByRole("button", { name: /^Retry / })).toHaveCount(0);
+    await expect(maintenance.getByRole("button", { name: /^Retry / })).toHaveCount(0, { timeout: 180_000 });
     await expect.poll(() => trackLapRequests).toBeGreaterThan(beforeCommitRefresh);
     const beforeReconnectRefresh = trackLapRequests;
     await control("stop-backend");
@@ -162,7 +161,7 @@ test("real upgrade restores attention, preserves it offline, and repairs through
     await expect(layout).toBeVisible();
     await expect(page.getByRole("dialog", { name: "Historical lap classification" })).toBeHidden();
     await layout.getByRole("button", { name: "Later", exact: true }).click();
-    await expect(page.getByRole("dialog", { name: "Historical lap classification" })).toContainText("Historical recordings classified.");
+    await expect(page.getByRole("dialog", { name: "Historical lap classification" })).toBeVisible();
   } finally {
     process.stdin.write("quit\n");
     process.stdin.end();

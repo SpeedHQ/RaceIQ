@@ -218,7 +218,7 @@ export function SessionsPage() {
   const emptyMessage = favoriteOnly ? m.sessions_none_favorites() : tab === "others" ? m.sessions_none_others() : m.sessions_none();
 
   return (
-    <div className="h-full flex flex-col p-4 gap-3">
+    <div className="h-full flex flex-col p-4 pb-40 gap-3">
       {importOpen && (
         <SessionImportModal
           gameId={gameId}
@@ -250,6 +250,12 @@ export function SessionsPage() {
         setPage={setPage}
         selectedSessions={selectedSessions}
         selectedLaps={selectedLaps}
+        clearSelection={() => {
+          setSelectedLaps(new Set());
+          setSelectedSessions(new Set());
+          setConfirmDelete(false);
+          setDeleteError(null);
+        }}
         exporting={exporting}
         runExport={runExport}
         setImportOpen={setImportOpen}
@@ -305,6 +311,7 @@ export function SessionsPage() {
         analyseSession={analyseSession}
         selectedLaps={selectedLaps}
         toggleLapSelection={toggleLapSelection}
+        setSelectedLaps={setSelectedLaps}
         sectorCount={sectorCount}
         lapSortKey={lapSortKey}
         lapSortDir={lapSortDir}

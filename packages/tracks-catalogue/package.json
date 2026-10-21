@@ -1,0 +1,41 @@
+{
+  "name": "@raceiq/tracks-catalogue",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./ui": "./ui/index.ts",
+    "./server": "./server/index.ts",
+    "./contracts": "./contracts/index.ts"
+  },
+  "scripts": {
+    "lint": "../../client/node_modules/.bin/oxlint .",
+    "typecheck": "bun check --project tsconfig.ui.json && bun check --project tsconfig.server.json",
+    "test:boundaries": "bun ../../scripts/test/check-feature-boundaries.ts tracks-catalogue",
+    "e2e:impact": "bun ../../scripts/test/check-feature-boundaries.ts tracks-catalogue",
+    "test:e2e": "cd ../../playwright && E2E_SERVER_MODE=compiled PW_SERVER_SET=seeded PW_SEEDED_E2E_PORT=3124 PW_SEEDED_E2E_CLIENT_PORT=4124 PW_SEEDED_E2E_UDP_PORT=15324 PW_SEEDED_E2E_DATA_DIR=./test-results/test-data-tracks-catalogue RACEIQ_FEATURE_F1_EXPERIMENTS=true RACEIQ_FEATURE_IRACING_ADAPTER=true bun ../scripts/playwright-ci.ts test --config=playwright.config.ts --project=tracks-catalogue --output=test-results/tracks-catalogue"
+  },
+  "dependencies": {
+    "react": "^19.3.0",
+    "@base-ui/react": "^1.8.0",
+    "@tanstack/react-query": "^5.103.1",
+    "@tanstack/react-router": "^1.170.38",
+    "hono": "4.13.8",
+    "@hono/zod-validator": "0.9.1",
+    "zod": "^4.6.5",
+    "@raceiq/shared": "workspace:*",
+    "@raceiq/backend-core": "workspace:*",
+    "@raceiq/telemetry-core": "workspace:*",
+    "@raceiq/game-iracing": "workspace:*",
+    "@raceiq/game-catalogs": "workspace:*",
+    "@raceiq/game-fm-2023-metadata": "workspace:*",
+    "@raceiq/game-f1-2025-metadata": "workspace:*",
+    "@raceiq/game-acc-metadata": "workspace:*",
+    "@raceiq/game-ac-evo-metadata": "workspace:*",
+    "@raceiq/game-iracing-metadata": "workspace:*",
+    "@raceiq/game-lmu-metadata": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@playwright/test": "1.62.1"
+  }
+}

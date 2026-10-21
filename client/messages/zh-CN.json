@@ -2631,7 +2631,7 @@
   "streaming_gap_to_leader": "与领跑者的差距",
   "classification_migration_title": "历史圈速分类",
   "classification_migration_historical_caveat": "重新处理录制文件时，历史节奏成绩可能会发生变化。",
-  "classification_migration_complete": "历史录制文件已完成分类。",
+  "classification_migration_complete": "历史圈速分类处理已完成。",
   "classification_migration_attention": "部分录制文件需要处理；已完成的分类仍可查看。",
   "classification_migration_counts": "已分类 {completed} · 待处理 {pending} · 受限 {limited} · 失败 {failed}",
   "classification_migration_refresh": "刷新",

@@ -2,6 +2,41 @@
 
 Proposed on 2026-10-09 against commit `466c5501b` and inspected working-tree source. Existing root `plans/` documents unrelated rendering proposals, so this work uses `advisor-plans/`. This index records implementation status, not a checkpoint or benchmark history.
 
+## E2E-aware package extraction proposal
+
+Planned on 2026-10-21 against `4eef7739c` and inspected working-tree source. Goal: reduce unnecessary E2E executions, first through conservative CI gating and then through feature-owned UI/backend/E2E workspaces. Planning only; no application code, tests, workflows or package configuration changed.
+
+| Document | Purpose | Status |
+| --- | --- | --- |
+| [002 contract](002-e2e-extraction-contract.md) | Shared selection operation, vertical package boundaries, AC-01–12, integrated E01–10 scenarios | PROPOSED |
+| [003 CI plan](003-e2e-selection-plan.md) | Skip unaffected provisioning; own feature E2Es, discovery and final integration | TODO |
+| [004 backend plan](004-e2e-backend-plan.md) | Dashboard backend pilot, followed by neutral game-replay extraction | TODO |
+| [005 UI plan](005-e2e-ui-plan.md) | Dashboard UI pilot, followed by accidental server-boundary cleanup | TODO |
+| [006 change list](006-feature-extraction-change-list.md) | Ordered review/landing slices, file scope, dependencies and acceptance gates | PLANNED |
+
+ADR: [0015 — feature-owned E2E boundaries](../docs/adr/0015-e2e-aware-package-extraction.md).
+
+### Recommended execution order
+
+1. Agree shared contract; establish controlled positive/negative selection evidence.
+2. Ship conservative all-or-none browser gating before seed/build/matrix provisioning. Existing eligible PRs currently schedule all ten browser matrix entries.
+3. Reconcile active dashboard plan 001 edits. Create ONE `@raceiq/dashboard` workspace: UI/backend implementers work in top-level `ui/` and `server/`, with feature bindings in `contracts/` and Home E2Es in `test/e2e/`. CI owner controls its manifest/exports/configuration, application smoke and selective impact tasks. Keep full compiled-app integration.
+4. Validate dashboard-only UI/backend/spec changes select dashboard and genuine cross-feature consumers, not unrelated tuning suites. Shared auth/router/DB/seed changes must still fan out.
+5. Extend the proven vertical pattern to tuning/setup, then sessions/import. Specify each feature's contract before implementation. Live/Analyse/Compare follow later because they share more telemetry state.
+6. Narrow recording replay fanout using backend plan's later contracts/pipeline/analysis-composition milestone; existing game packages are not recreated.
+
+Every stage requires its mapped passing runtime/E2E evidence. No test-result caching changes or unmeasured savings claims. Existing full-mode coverage, unknown-change fallback and failure propagation remain mandatory. Plan 001's outstanding verification/performance work is neither claimed complete nor silently included.
+
+### Evidence, risks and rejected shortcuts
+
+- Observed root recording E2E definition contains 148 input patterns; game owners extend it. AI/tuning/backend-core changes can therefore reach unrelated replay owners.
+- Turbo 2.11.7 dry-run confirms browser execution depends on the complete app build, while its current task dependency override lacks its own runtime transit edge. Do not use that incomplete graph as a safe impact oracle.
+- One controlled actual comparison (`HEAD^` → `HEAD`) selected eight executable recording owners. This is not a per-file benchmark or proof of expected savings.
+- Each feature package owns UI, server, feature contracts and E2Es together. Explicit `./ui`, `./server` and `./contracts` exports plus scoped typechecks/import rules protect browser/server boundaries; subpaths do not claim separate Turbo package invalidation. Runtime impact selection and full-app build prerequisites remain separate.
+- App/source moves alone, deleted dependency declarations, broad `ui-shared` barrels, per-page packages, weakened tests and mock-only integration are rejected.
+- Scope audited: workspace manifests, E2E ownership/runners, Turbo task configuration, CI provisioning, app composition and representative dashboard/game/client dependency seams. Not a whole-repository correctness/security audit; no runtime suites, builds or timings were executed for this planning request.
+
+
 ## Execution order and status
 
 | Plan | Title | Priority | Effort | Depends on | Status |

@@ -2467,7 +2467,7 @@
   "storage_recording_summary": "{files} tallennetiedostoa · {size}",
   "classification_migration_title": "Historiallisten kierrosten luokittelu",
   "classification_migration_historical_caveat": "Historialliset vauhtitulokset voivat muuttua tallenteiden käsittelyn aikana.",
-  "classification_migration_complete": "Historialliset tallenteet luokiteltu.",
+  "classification_migration_complete": "Historiallisten kierrosten luokittelu on valmis.",
   "classification_migration_attention": "Osa tallenteista vaatii huomiota; valmiit luokitukset säilyvät.",
   "classification_migration_counts": "{completed} luokiteltu · {pending} odottaa · {limited} rajoitettu · {failed} epäonnistui",
   "classification_migration_refresh": "Päivitä",
