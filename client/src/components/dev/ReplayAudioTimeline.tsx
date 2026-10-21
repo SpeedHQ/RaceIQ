@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { LiveEngineerReplayAnnotationV1 } from "@shared/racing/live/engineer-replay-contracts";
+import type { LiveEngineerReplayAnnotationV1 } from "@raceiq/shared/racing/live/engineer-replay-contracts";
 import { AUDIO_START_LEAD_MS, getSegmentPauseMs } from "@/lib/live-engineer-audio";
 import { cn } from "@/lib/utils";
 

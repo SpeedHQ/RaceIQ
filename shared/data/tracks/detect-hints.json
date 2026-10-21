@@ -4,80 +4,14 @@
       "spans": 3
     }
   },
-  "baku": {
-    "13": {
-      "optional": true
-    },
-    "14": {
-      "optional": true
-    }
-  },
-  "brands-hatch": {
-    "7": {
-      "optional": true
-    }
-  },
   "budapest": {
     "1": {
       "spans": 2
     }
   },
   "catalunya": {
-    "6": {
-      "optional": true
-    },
-    "13": {
-      "optional": true
-    },
-    "14": {
-      "optional": true
-    },
-    "15": {
-      "optional": true
-    },
     "16": {
       "spans": 2
-    }
-  },
-  "donington": {
-    "6": {
-      "optional": true
-    }
-  },
-  "hockenheim": {
-    "4": {
-      "optional": true
-    },
-    "5": {
-      "optional": true
-    },
-    "11": {
-      "optional": true
-    }
-  },
-  "imola": {
-    "1": {
-      "optional": true
-    },
-    "8": {
-      "optional": true
-    },
-    "10": {
-      "optional": true
-    },
-    "13": {
-      "optional": true
-    },
-    "16": {
-      "optional": true
-    }
-  },
-  "jeddah": {
-    "19": {
-      "optional": true
-    },
-    "25": {
-      "optional": true
     }
   },
   "kyalami": {
@@ -86,26 +20,8 @@
     }
   },
   "laguna-seca": {
-    "1": {
-      "optional": true
-    },
     "8": {
       "spans": 2
-    }
-  },
-  "las-vegas": {
-    "11": {
-      "optional": true
-    }
-  },
-  "lusail": {
-    "11": {
-      "optional": true
-    }
-  },
-  "mid-ohio": {
-    "3": {
-      "optional": true
     }
   },
   "monaco": {
@@ -116,11 +32,6 @@
       "spans": 2
     },
     "17": {
-      "optional": true
-    }
-  },
-  "montreal": {
-    "11": {
       "optional": true
     }
   },
@@ -137,50 +48,20 @@
       "spans": 2
     }
   },
-  "road-america": {
-    "2": {
-      "optional": true
-    },
-    "4": {
-      "optional": true
-    }
-  },
   "road-atlanta": {
     "5": {
       "spans": 4
-    },
-    "8": {
-      "optional": true
     },
     "10": {
       "spans": 2
     }
   },
-  "sakhir": {
-    "15": {
-      "optional": true
-    }
-  },
   "sebring": {
-    "2": {
-      "optional": true
-    },
-    "12": {
-      "optional": true
-    },
     "15": {
       "spans": 2
     }
   },
-  "shanghai": {
-    "15": {
-      "optional": true
-    }
-  },
   "silverstone": {
-    "5": {
-      "optional": true
-    },
     "17": {
       "spans": 2
     }
@@ -188,27 +69,11 @@
   "spa": {
     "10": {
       "spans": 2
-    },
-    "16": {
-      "optional": true
-    }
-  },
-  "spielberg": {
-    "2": {
-      "optional": true
-    },
-    "8": {
-      "optional": true
     }
   },
   "suzuka": {
     "12": {
       "spans": 2
-    }
-  },
-  "vir": {
-    "2": {
-      "optional": true
     }
   },
   "watkins-glen": {
@@ -233,9 +98,6 @@
     },
     "11": {
       "spans": 2
-    },
-    "13": {
-      "optional": true
     },
     "14": {
       "spans": 2

@@ -1,5 +1,5 @@
-import type { GameId } from "@shared/games/ids";
-import type { ReleaseFeatureFlags } from "@shared/platform/runtime/release-feature-flags";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { ReleaseFeatureFlags } from "@raceiq/shared/platform/runtime/release-feature-flags";
 
 const resolvedClientReleaseFeatures = {
   f1Experiments: false,

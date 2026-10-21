@@ -1,16 +1,18 @@
-import { flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
+import { flipPoints, needsTrackFlip } from "@raceiq/shared/racing/tracks/coords"
 import { useMeasuredWidth } from "./use-measured-width";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Settings2 } from "lucide-react";
 import { useLocalStorage } from "../../../hooks/useLocalStorage";
-import type { GameId } from "../../../../../shared/games/ids";
-import type { AlignedLapSet, AlignedLapTrace, WheelAverages } from "@shared/racing/laps/alignment/types";
-import type { TuneIssue } from "../../../../../shared/racing/tuning/issues";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { AlignedLapSet, AlignedLapTrace, WheelAverages } from "@raceiq/analysis-core/racing/laps/alignment/types";
+import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
+import type { LapInsight } from "@raceiq/analysis-core/racing/analysis/laps/insights/types"
 import type { LineSpreadTrace } from "../../../hooks/experiments";
 import { useLineSpread } from "../../../hooks/experiments";
 import type { TrackCorner } from "../../../hooks/track-queries";
 import { useTrackBoundaries, useTrackCorners, useTrackSectorBoundaries } from "../../../hooks/track-queries";
 import { useLapIssues } from "../../../hooks/tunes";
+import { useLapInsights } from "../../../hooks/laps";
 import { useAlignedTelemetryZoom } from "../../../hooks/useAlignedTelemetryZoom";
 import { semanticTuneSamplesFromAlignedTrace, type SemanticTuneSample } from "../semantic-tune";
 import type { TuneReviewTrackTab } from "../../../lib/game-routes";
@@ -18,6 +20,7 @@ import { trackFractionRange } from "../../../lib/aligned-telemetry-fidelity";
 
 import { extractEdges, type Pt, type SectorTimesLite } from "../track-map-geometry";
 import { Button } from "../../ui/button";
+import { ToggleGroup03 } from "../../shadcn-studio/toggle-group/toggle-group-03";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../ui/dialog";
 import { BalanceLanes } from "./BalanceLanes";
 import { ConsistencyLanes } from "./ConsistencyLanes";
@@ -34,7 +37,7 @@ import { SuspensionLanes } from "./SuspensionLanes";
 import { FuelPanel, TiresPanel } from "./TiresPanel";
 import type { TooltipDisplayMode } from "./ChartTooltip";
 import { TrackFocusMap } from "./TrackFocusMap";
-import { tryGetGame } from "@shared/games/registry";
+import { tryGetGame } from "@raceiq/shared/games/registry"
 import type { TrackFocusTrace } from "./types";
 import { TrackFocusZoom } from "./TrackFocusZoom";
 function alignedToLapTrace(t: AlignedLapTrace): TrackFocusTrace {
@@ -85,7 +88,7 @@ export function TrackFocusView({
   gameId,
   alignedSet,
   lapIds,
-  trackOrdinal,
+  trackId,
   primaryLapId,
   experimentId,
   lineSpreadOverride,
@@ -113,12 +116,13 @@ export function TrackFocusView({
   const lineSpread = lineSpreadOverride ?? fetchedLineSpread ?? null;
   const focusTelemetry = useMemo(() => {
     const lap = alignedSet?.laps.find((candidate) => candidate.lapId === primaryLapId);
-    return lap ? semanticTuneSamplesFromAlignedTrace(lap, gameId, trackOrdinal, alignedSet?.nominalSpanMeters ?? 0) : null;
-  }, [alignedSet, gameId, primaryLapId, trackOrdinal]);
+    return lap ? semanticTuneSamplesFromAlignedTrace(lap, gameId, trackId, alignedSet?.nominalSpanMeters ?? 0) : null;
+  }, [alignedSet, gameId, primaryLapId, trackId]);
   const { data: issues } = useLapIssues(primaryLapId);
-  const { data: bounds } = useTrackBoundaries(trackOrdinal, gameId);
-  const { data: corners } = useTrackCorners(trackOrdinal, gameId);
-  const { data: sectorBoundaries } = useTrackSectorBoundaries(trackOrdinal, gameId);
+  const { data: lapInsights } = useLapInsights(primaryLapId);
+  const { data: bounds } = useTrackBoundaries(trackId, gameId);
+  const { data: corners } = useTrackCorners(trackId, gameId);
+  const { data: sectorBoundaries } = useTrackSectorBoundaries(trackId, gameId);
   const edges = useMemo(() => {
     const e = extractEdges(bounds);
     if (!e) return null;
@@ -156,6 +160,7 @@ export function TrackFocusView({
       corners={corners ?? []}
       focusTelemetry={focusTelemetry}
       issues={issues ?? []}
+      insights={lapInsights ?? []}
       lineSpread={lineSpread ?? null}
       metaSectors={metaSectors}
       gameId={gameId}
@@ -174,7 +179,7 @@ export interface TrackFocusViewProps {
   gameId: GameId;
   alignedSet: AlignedLapSet | undefined;
   lapIds: readonly number[];
-  trackOrdinal?: number;
+  trackId?: string;
   primaryLapId: number;
   experimentId?: number | null;
   lineSpreadOverride?: LineSpreadTrace | null;
@@ -196,6 +201,7 @@ export interface TrackFocusViewInnerProps {
   edges: { left: Pt[]; right: Pt[] } | null;
   corners: TrackCorner[];
   issues: TuneIssue[];
+  insights?: LapInsight[];
   lineSpread: LineSpreadTrace | null;
   metaSectors?: { s1End: number; s2End: number } | null;
   nominalSpanMeters: number;
@@ -215,6 +221,7 @@ export function TrackFocusViewInner({
   edges,
   corners,
   issues,
+  insights = [],
   lineSpread,
   metaSectors,
   activeTab: controlledActiveTab,
@@ -436,6 +443,24 @@ export function TrackFocusViewInner({
             <div className="mb-1 flex-none text-app-compact font-semibold uppercase tracking-wider text-app-text-muted">Issues</div>
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
               <IssuesList issues={issues} onIssueClick={setCursorFrac} onIssueHover={handleIssueHover} highlightedIssueKey={highlightedIssueKey} />
+              {insights.length > 0 && (
+                <section className="mt-3 space-y-1" aria-label="Detector findings">
+                  <h3 className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Detector findings ({insights.length})</h3>
+                  <ul className="space-y-1">
+                    {insights.map((insight) => (
+                      <li key={insight.id} className="rounded border border-app-border px-2 py-1.5 text-sm">
+                        <div className="flex items-start gap-2">
+                          <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: insight.severity === "critical" ? "var(--status-danger)" : insight.severity === "warning" ? "var(--status-warning)" : "var(--status-info)" }} />
+                          <div>
+                            <div className="text-app-text">{insight.label}</div>
+                            <div className="text-app-caption text-app-text-muted">{insight.detail}</div>
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
             </div>
           </div>
         </div>
@@ -452,14 +477,19 @@ export function TrackFocusViewInner({
                 {TAB_LABELS[t]}
               </Button>
             ))}
-            {activeTab !== "consistency" && <div className="ml-auto flex items-center gap-1 pl-2 text-app-caption text-app-text-muted" aria-label="Tooltip display">
+            {activeTab !== "consistency" && <div className="ml-auto flex items-center gap-1 pl-2 text-app-caption text-app-text-muted">
               <span className="hidden @md/workspace:inline">Tooltip:</span>
-              <Button variant={tooltipMode === "per-lap" ? "selected-toggle" : "app-outline"} size="app-sm" aria-pressed={tooltipMode === "per-lap"} onClick={() => setTooltipMode("per-lap")}>
-                Per lap
-              </Button>
-              <Button variant={tooltipMode === "summary" ? "selected-toggle" : "app-outline"} size="app-sm" aria-pressed={tooltipMode === "summary"} onClick={() => setTooltipMode("summary")}>
-                Primary · median · max · min
-              </Button>
+              <ToggleGroup03
+                ariaLabel="Tooltip display"
+                value={tooltipMode}
+                onValueChange={(mode) => {
+                  if (mode === "per-lap" || mode === "summary") setTooltipMode(mode);
+                }}
+                options={[
+                  { value: "per-lap", label: "Per lap" },
+                  { value: "summary", label: "Primary · median · max · min" },
+                ]}
+              />
             </div>}
           </div>
 

@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import type { E2ERuntime, ServerPorts } from "./runtime";
+import { DEFAULT_GAMES } from "@raceiq/tooling-data/data/seed-db-options";
 
 type WebServerDefinition = {
   command: string;
@@ -14,22 +15,24 @@ type WebServerDefinition = {
 function serverDefinition(runtime: E2ERuntime, ports: ServerPorts, seeded: boolean, seedSetups = false): WebServerDefinition {
   const command = runtime.devServer ? "bun support/server/start-dev-server.ts" : "bun support/server/start-server.ts";
   const env: Record<string, string> = {
+    RACEIQ_E2E: "1",
     DATA_DIR: ports.dataDir,
     SERVER_PORT: ports.port,
     UDP_PORT: ports.udpPort,
     NODE_ENV: runtime.devServer ? "test" : "production",
+    PW_ACCESS_MODE: ports === runtime.freshInstall ? "pending" : "disabled",
     RACEIQ_SETUP_HOME: resolve(ports.dataDir, "setup-home"),
+    RACEIQ_FEATURE_F1_EXPERIMENTS: "true",
   };
   if (runtime.devServer) {
     env.CLIENT_PORT = ports.clientPort;
     if (runtime.appRoot) env.RACEIQ_APP_ROOT = runtime.appRoot;
   }
   if (seeded) {
+    env.PW_SKIP_STARTUP_SPLIT_MIGRATION = "1";
     env.PW_SEED_SCREENSHOTS = "1";
-    env.RACEIQ_E2E = "1";
-    env.RACEIQ_FEATURE_F1_EXPERIMENTS = "true";
     env.RACEIQ_FEATURE_IRACING_ADAPTER = "true";
-    env.PW_SEED_GAMES = "fm-2023,f1-2025,acc,ac-evo,iracing";
+    env.PW_SEED_GAMES = DEFAULT_GAMES.join(",");
     if (seedSetups) env.PW_SEED_SETUP_DATA = "1";
   }
 

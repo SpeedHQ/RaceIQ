@@ -1,11 +1,12 @@
-import { fastestLaps, REVIEW_LAP_CAP } from "../../shared/racing/laps/review-selection";
-import { isPitCycleLap } from "../../shared/racing/laps/pit-cycle";
+import { isPaceLap, type LapClassification } from "@raceiq/shared/racing/lap-classification";
+import { fastestLaps, REVIEW_LAP_CAP } from "@raceiq/analysis-core/racing/laps/review-selection";
+import { isPitCycleLap } from "@raceiq/analysis-core/racing/laps/pit-cycle";
 
 /**
  * Tuning auto-exclude: fastest-5 lap curation
  * (docs/architecture/setup-engineer.md).
  *
- * Persists the fastest-5 decision (the same rule `shared/racing/laps/review-selection.ts` uses
+ * Persists the fastest-5 decision (the same rule `@raceiq/analysis-core/racing/laps/review-selection` uses
  * to curate laps for the per-frame heavy review paths) onto
  * `laps.experiment_excluded`, scoped per `(experiment_id, tune_id)`, without
  * stomping deliberate user/AI exclusions.
@@ -16,6 +17,7 @@ export interface ExclusionScopeLap {
   lapTime: number;
   isValid: boolean;
   invalidReason: string | null;
+  classification: LapClassification | null;
   experimentExcluded: boolean;
   experimentExcludedSource: "auto" | "manual" | null;
 }
@@ -63,7 +65,7 @@ export async function reconcileAutoExclusions(
 
   for (const lap of scopeLaps) {
     if (lap.experimentExcludedSource === "manual") continue; // never read, never written
-    if (!lap.isValid || isPitCycleLap({ invalidReason: lap.invalidReason ?? undefined })) {
+    if (!lap.isValid || !isPaceLap(lap.classification) || isPitCycleLap({ invalidReason: lap.invalidReason ?? undefined })) {
       ineligible.push(lap);
     } else {
       candidates.push(lap);

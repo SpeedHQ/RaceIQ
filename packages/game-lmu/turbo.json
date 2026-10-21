@@ -1,0 +1,13 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tags": ["game"],
+  "tasks": {
+    "test": {
+      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/test/artifacts/sessions/lmu-spa-iron-lynx-gte.bin.gz", "$TURBO_ROOT$/test/artifacts/laps/lmu-2026-09-19T20-09-44-686Z.bin.gz", "$TURBO_ROOT$/test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part1", "$TURBO_ROOT$/test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part2"]
+    },
+    "test:e2e:recordings": {
+      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/test/artifacts/sessions/lmu-spa-iron-lynx-gte.bin.gz", "$TURBO_ROOT$/test/artifacts/laps/lmu-2026-09-19T20-09-44-686Z.bin.gz", "$TURBO_ROOT$/test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part1", "$TURBO_ROOT$/test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part2"]
+    }
+  }
+}

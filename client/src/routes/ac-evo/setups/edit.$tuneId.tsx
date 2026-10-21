@@ -9,7 +9,8 @@ import { client } from "../../../lib/rpc";
 interface TuneRow {
   name: string;
   author: string;
-  carOrdinal: number;
+  carId: string;
+  trackId: string | null;
   category: string;
   description: string;
   settings: Record<string, unknown>;
@@ -30,8 +31,8 @@ function EditAcEvoTunePage() {
   if (!tune) return <div className="p-4 text-app-text-muted text-sm">{m.tuneedit_not_found()}</div>;
 
   return (
-    <div className="flex-1 overflow-auto">
-      <div className="max-w-3xl mx-auto">
+    <div className="flex-1">
+      <div className="w-full min-w-0">
         <SetupTuneForm
           gameId="ac-evo"
           cars={cars}
@@ -39,9 +40,10 @@ function EditAcEvoTunePage() {
           initialData={{
             name: tune.name,
             author: tune.author,
-            carOrdinal: tune.carOrdinal,
+            carId: tune.carId,
             category: tune.category,
             description: tune.description,
+            trackId: tune.trackId,
             settings: tune.settings,
           }}
           onCancel={() => navigate({ to: "/ac-evo/setups" })}

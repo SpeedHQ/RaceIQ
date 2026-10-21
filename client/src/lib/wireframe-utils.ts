@@ -1,4 +1,4 @@
-import { SLIP_ANGLE_PEAK_RAD } from "../../../shared/racing/analysis/laps/physics/vehicle";
+import { SLIP_ANGLE_PEAK_RAD } from "@raceiq/analysis-core/racing/analysis/laps/physics/vehicle";
 import * as THREE from "three";
 import { operatingRangeColor } from "./colors";
 import { resolveCssColor } from "./rendering/css-values";

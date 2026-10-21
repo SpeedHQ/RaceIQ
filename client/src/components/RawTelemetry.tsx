@@ -1,7 +1,7 @@
-import type { TelemetryGameLink, TelemetryVariableDefinition } from "@shared/telemetry/catalog/contracts";
-import { TELEMETRY_CATALOG } from "@shared/telemetry/catalog/data";
+import type { TelemetryGameLink, TelemetryVariableDefinition } from "@raceiq/shared/telemetry/catalog/contracts"
+import { TELEMETRY_CATALOG } from "@raceiq/shared/telemetry/catalog/data"
 import { m } from "@/paraglide/messages";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 interface Props {
   packet: TelemetryPacket | null;

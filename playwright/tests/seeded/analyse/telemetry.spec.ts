@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { SEEDED_GAME_CASES, type SeededGame } from "../../support/seeded/cases";
 import { collectBrowserErrors } from "../../support/browser-errors";
 import { getSeededLapTarget } from "../../support/seeded/laps";

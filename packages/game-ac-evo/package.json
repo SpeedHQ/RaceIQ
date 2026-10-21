@@ -1,0 +1,21 @@
+{
+  "name": "@raceiq/game-ac-evo",
+  "private": true,
+  "type": "module",
+  "exports": {".":"./src/index.ts","./carsetup-wire":"./src/carsetup-wire.ts","./carsetup-writer":"./src/carsetup-writer.ts","./carsetup":"./src/carsetup.ts","./lap-detector":"./src/lap-detector.ts","./motec":"./src/motec.ts","./parser":"./src/parser.ts","./game-parser":"./src/game-parser.ts","./shared-memory":"./src/shared-memory.ts","./utils":"./src/utils.ts","./test-support/recordings":"./test/support/recordings.ts"},
+  "dependencies": {
+    "@raceiq/shared": "workspace:*",
+    "@raceiq/backend-core": "workspace:*",
+    "@raceiq/capture-formats": "workspace:*",
+    "@raceiq/game-catalogs": "workspace:*",
+    "@raceiq/game-ac-evo-metadata": "workspace:*",
+    "@raceiq/telemetry-core": "workspace:*"
+  },
+  "scripts": {
+    "lint": "../../client/node_modules/.bin/oxlint .",
+    "typecheck": "bun check --project tsconfig.json",
+    "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/game-ac-evo",
+    "test:e2e:recordings": "bun ../../scripts/test/run-suite.ts e2e --package @raceiq/game-ac-evo",
+    "test:integration": "bun ../../scripts/test/run-suite.ts integration --package @raceiq/game-ac-evo"
+  }
+}

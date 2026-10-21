@@ -1,0 +1,178 @@
+import { recoverRecordingDirectoryMove } from "@raceiq/backend-core/session-capture/relocate-recordings";
+import { existsSync } from "node:fs";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
+import { resolve } from "node:path";
+import { serverReleaseFeatures } from "@raceiq/backend-core/runtime/config/release-features";
+import { hydrateDiscoveredAcEvoCars } from "@raceiq/backend-core/db/discovered-cars";
+import { injectDiscoveredIRacingIdentity } from "@raceiq/game-iracing-metadata/index";
+import { injectDiscoveredLMUIdentity } from "@raceiq/game-lmu-metadata/index";
+import app from "../routes/index";
+import { initServerGameAdapters } from "../games/init";
+import { initDb, DB_PATH, client } from "@raceiq/backend-core/db/index";
+import { listDiscoveredCars } from "@raceiq/backend-core/db/discovered-cars";
+import { hydrateDiscoveredAcEvoTracks, listDiscoveredTracks } from "@raceiq/backend-core/db/discovered-tracks";
+import { setCacheMaxBytes } from "@raceiq/backend-core/db/telemetry-replay-storage";
+import { isFirstRun, loadSettings } from "@raceiq/backend-core/runtime/config/settings";
+import { setRecordingFrequencyHz } from "@raceiq/backend-core/runtime/config/recording-frequency";
+import { wsManager, type WSData } from "@raceiq/backend-core/runtime/websocket-manager";
+import { udpListener } from "./udp-listener";
+import { PUBLIC_DIR, IS_COMPILED } from "@raceiq/backend-core/runtime/config/paths";
+import { getOnboardingOverride } from "@raceiq/backend-core/runtime/options";
+import { openFirstRunDashboard, preventMacSleep } from "@raceiq/backend-core/runtime/desktop";
+import { clearHttpPort, startHttpServer } from "./http-server";
+import { startNativeSourceSupervisor, type NativeSourceSupervisor } from "./native-sources";
+import { installShutdown } from "./shutdown";
+import { startStartupWorker, type StartupWorkerHandle } from "./startup-worker";
+import { startMaintenanceJobs, startSyncAndStaleSessionJobs } from "./startup-jobs";
+import { startClassificationMigrationWorker, type ClassificationMigrationWorkerHandle } from "@raceiq/backend-core/session-capture/classification-migration-worker";
+import { setDashboardPublicationNotifier } from "@raceiq/backend-core/db/dashboard-summary-queries";
+import { startTray } from "@raceiq/backend-core/runtime/platform/tray";
+import { initMotecTargets } from "../games/motec-init";
+import { registerDriverProfileLapNotifier } from "@raceiq/backend-core/driver-profile/lap-notifier";
+import { notifyDriverProfileLap } from "../driver-profile/runner";
+import { DashboardAuth, setDashboardAuth } from "./dashboard-auth";
+import { configureHttpAccess, httpAccess } from "./http-access";
+
+export interface BootOptions {
+  httpPort?: number;
+  udpPort?: number;
+  recordingGameId?: string | null;
+}
+
+export interface RunningServer {
+  httpServer: Bun.Server<WSData>;
+  httpPort: number;
+  udpPort: number;
+}
+
+function recordingGameIdFromArgs(args: readonly string[]): string | null {
+  const arg = args.find((value) => value.startsWith("--record="));
+  return arg ? (arg.split("=")[1] ?? null) : null;
+}
+
+export async function bootServer(options: BootOptions = {}): Promise<RunningServer> {
+  const upgradingAccess = !isFirstRun();
+  initGameAdapters(serverReleaseFeatures);
+  initServerGameAdapters(serverReleaseFeatures);
+  initMotecTargets();
+  registerDriverProfileLapNotifier(notifyDriverProfileLap);
+
+  const staticDir = IS_COMPILED && existsSync(resolve(PUBLIC_DIR, "index.html")) ? PUBLIC_DIR : null;
+  if (staticDir) {
+    console.log(`[Server] Serving static assets from ${staticDir}`);
+  }
+  const devPublicDir = !IS_COMPILED ? PUBLIC_DIR : null;
+
+  preventMacSleep();
+
+  const httpPort = options.httpPort ?? (Number(process.env.SERVER_PORT) || 3117);
+  const onboardingOverride = getOnboardingOverride();
+  if (onboardingOverride !== null) {
+    console.log(`[Server] Development onboarding override: ${onboardingOverride ? "show" : "skip"}`);
+  }
+
+  const recordingGameId = options.recordingGameId === undefined ? recordingGameIdFromArgs(process.argv) : options.recordingGameId;
+  if (recordingGameId) {
+    console.log(`[Server] Recording mode enabled for game: ${recordingGameId}`);
+  }
+
+  await initDb();
+  await recoverRecordingDirectoryMove();
+  const auth = await DashboardAuth.create(client, DB_PATH, process.env);
+  await auth.initialize(upgradingAccess);
+  setDashboardAuth(auth);
+  await configureHttpAccess(auth, httpPort);
+  await hydrateDiscoveredAcEvoCars();
+  await hydrateDiscoveredAcEvoTracks();
+
+  const [iracingCars, iracingTracks] = await Promise.all([listDiscoveredCars("iracing"), listDiscoveredTracks("iracing")]);
+  injectDiscoveredIRacingIdentity(iracingCars, iracingTracks);
+  const [lmuCars, lmuTracks] = await Promise.all([listDiscoveredCars("lmu"), listDiscoveredTracks("lmu")]);
+  injectDiscoveredLMUIdentity(lmuCars, lmuTracks);
+
+  const firstRun = IS_COMPILED && isFirstRun();
+  const settings = loadSettings();
+  setRecordingFrequencyHz(settings.recordingFrequencyHz);
+  if (settings.wsRefreshRate) {
+    wsManager.setRefreshRate(settings.wsRefreshRate);
+  }
+  setCacheMaxBytes(settings.cacheMaxMB * 1024 * 1024);
+
+  // Empty-session cleanup runs after repair so pending candidates remain available.
+
+  console.log("[Server] Starting RaceIQ Server...");
+  clearHttpPort(httpPort);
+  console.log("[Boot] Port cleared");
+
+  // Dynamic import is required here: dev-studio pulls @mastra/hono and the
+  // DuckDB-backed Mastra instance, which must stay out of the production bundle.
+  if (process.env.NODE_ENV !== "production") {
+    const { mountStudioServer } = await import("./dev-studio");
+    await mountStudioServer(app);
+  }
+
+  await startSyncAndStaleSessionJobs();
+  const httpServer = startHttpServer({
+    app,
+    port: httpPort,
+    staticDir,
+    devPublicDir,
+  });
+  const boundHttpPort = httpServer.port;
+  if (boundHttpPort === undefined) throw new Error("HTTP server did not bind a TCP port");
+  if (httpPort === 0) await configureHttpAccess(auth, boundHttpPort);
+  for (const hostname of httpAccess.hosts.slice(1)) {
+    startHttpServer({ app, port: boundHttpPort, staticDir, devPublicDir, access: { ...httpAccess, hostname } });
+  }
+  for (const host of httpAccess.hosts) {
+    console.log(`[Server] HTTP/WS server listening on http://${host.includes(":") ? `[${host}]` : host}:${boundHttpPort}`);
+  }
+
+  if (recordingGameId === "fm-2023" || recordingGameId === "f1-2025") {
+    udpListener.setRecordingGameId(recordingGameId);
+  }
+
+  let nativeSources: NativeSourceSupervisor | null = null;
+  let startupWorker: StartupWorkerHandle | null = null;
+  let classificationWorker: ClassificationMigrationWorkerHandle | null = null;
+  installShutdown({
+    getNativeSources: () => nativeSources,
+    getStartupWorker: () => startupWorker,
+    stopClassificationMigrationWorker: () => classificationWorker?.stop(),
+    clearDashboardPublicationNotifications: () => {
+      setDashboardPublicationNotifier(null);
+      wsManager.clearDashboardUpdateNotification();
+    },
+  });
+  setDashboardPublicationNotifier(() => wsManager.notifyDashboardUpdated());
+  startupWorker = startStartupWorker(
+    () => wsManager.notifyDashboardUpdated(),
+    (reprocessed) => wsManager.broadcastNotification({ type: "lap-reprocessed", ...reprocessed }),
+    () => wsManager.setStaleSessionsNotification(null),
+  );
+
+  const udpPort = options.udpPort ?? (Number(process.env.RACEIQ_DEV_UDP_PORT) || settings.udpPort || Number(process.env.UDP_PORT) || 5301);
+  await udpListener.start(udpPort);
+
+
+  nativeSources = startNativeSourceSupervisor(recordingGameId);
+  classificationWorker = startClassificationMigrationWorker({ resetInterrupted: true });
+  const trayCandidates = httpAccess.hosts
+    .map((host) => host === "0.0.0.0" || host === "::" ? "localhost" : host)
+    .map((host) => `http://${host.includes(":") ? `[${host}]` : host}:${boundHttpPort}`);
+  const trayUrl = trayCandidates.find((url) => httpAccess.allowsOrigin(url, new Request(url)))
+    ?? process.env.SERVER_ALLOWED_ORIGINS?.split(",").map((origin) => origin.trim()).find(Boolean)
+    ?? trayCandidates[0];
+  startTray(trayUrl);
+
+  if (firstRun) {
+    openFirstRunDashboard(boundHttpPort);
+  }
+
+  startMaintenanceJobs();
+
+  console.log("[Server] RaceIQ Server is ready!");
+  console.log(`[Server] Listening for UDP on port ${udpPort}`);
+
+  return { httpServer, httpPort: boundHttpPort, udpPort };
+}

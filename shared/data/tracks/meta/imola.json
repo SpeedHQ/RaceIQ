@@ -48,7 +48,7 @@
     {
       "number": 8,
       "name": "",
-      "direction": "left"
+      "direction": "right"
     },
     {
       "number": 9,
@@ -58,7 +58,7 @@
     {
       "number": 10,
       "name": "",
-      "direction": "left"
+      "direction": "right"
     },
     {
       "number": 11,
@@ -75,7 +75,7 @@
     {
       "number": 13,
       "name": "",
-      "direction": "right"
+      "direction": "left"
     },
     {
       "number": 14,
@@ -86,13 +86,13 @@
     {
       "number": 15,
       "name": "",
-      "direction": "right",
+      "direction": "left",
       "group": "Variante Alta"
     },
     {
       "number": 16,
       "name": "",
-      "direction": "left"
+      "direction": "right"
     },
     {
       "number": 17,
@@ -109,7 +109,7 @@
     {
       "number": 19,
       "name": "",
-      "direction": "left"
+      "direction": "right"
     }
   ]
 }

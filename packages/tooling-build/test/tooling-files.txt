@@ -1,0 +1,4 @@
+packages/tooling-build/test/optimize-client-images.test.ts
+packages/tooling-build/test/optimize-f1-model.test.ts
+packages/tooling-build/test/optimize-gt3-model.test.ts
+packages/tooling-build/test/optimize-peugeot-model.test.ts

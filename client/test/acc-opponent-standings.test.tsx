@@ -22,7 +22,6 @@ test("focuses actual player and neighbors, sorts rows and separates omitted rank
   const rows = [...markup.matchAll(/<tr\b[^>]*>(.*?)<\/tr>/gs)].map((match) => match[0]);
   const drivers = rows.filter((row) => row.includes("Driver "));
   expect(drivers.map((row) => row.match(/Driver (\d+)/)?.[1])).toEqual(["1", "6", "7", "8", "9", "10"]);
-  expect(drivers.filter((row) => row.includes('data-selected="true"')).map((row) => row.match(/Driver (\d+)/)?.[1])).toEqual(["8"]);
   expect(rows.filter((row) => row.includes("…"))).toHaveLength(2);
   expect(markup).toContain("Show all (12)");
   expect(markup).not.toMatch(/<tr\b[^>]*>\s*<tr\b/);

@@ -12,10 +12,19 @@ export const SHARED_DIR = IS_COMPILED
   ? resolve(dirname(process.execPath), "data")
   : resolve(sourceDir, "..", "..", "data");
 
-/** Read-only game catalogs. */
-export const GAMES_DIR = IS_COMPILED
-  ? resolve(dirname(process.execPath), "data", "games")
-  : resolve(sourceDir, "..", "..", "games");
+/** Read-only metadata catalogs, relocated beside their owning game adapter. */
+export function gameCatalogDir(gameId: string): string {
+  return IS_COMPILED
+    ? resolve(SHARED_DIR, "games", gameId)
+    : resolve(sourceDir, "..", "..", "..", "packages", `game-${gameId}-metadata`, "src");
+}
+
+/** Read-only game-owned assets, separate from metadata source catalogs. */
+export function gameAssetsDir(gameId: string): string {
+  return IS_COMPILED
+    ? resolve(dirname(process.execPath), "data", "games", gameId)
+    : resolve(sourceDir, "..", "..", "..", "packages", `game-${gameId}`, "assets");
+}
 
 /** Writable extracted/recorded/generated track root. */
 export const USER_TRACKS_DIR = IS_COMPILED

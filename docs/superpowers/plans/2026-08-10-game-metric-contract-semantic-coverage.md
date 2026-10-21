@@ -67,7 +67,7 @@ Analysis binding decisions:
 - Regenerate `shared/telemetry/catalog/generated/telemetry-catalog.types.ts`
 - Regenerate `shared/telemetry/catalog/generated/TELEMETRY_CATALOG.md`
 - Regenerate `shared/telemetry/catalog/generated/telemetry-catalog-matrix.md`
-- Inspect generator sources under `scripts/catalog/`
+- Inspect generator sources under `packages/tooling-catalog/src/catalog/`
 
 **Interfaces:**
 - Consumes: `buildTelemetryCatalogArtifacts(): Promise<Map<string, string>>`
@@ -95,7 +95,7 @@ Expected: generator writes all five artifacts and reports semantic-variable and 
 
 - [ ] **Step 3: Classify generated changes before contract edits**
 
-Review only the five generated files. For each changed mapping, identify its source declaration in `scripts/catalog/semantic-definitions*.ts`, `packet-mapping.ts`, `extension-mapping.ts`, `iracing-mapping.ts`, or `derived-projections.ts`. Reject generated output that silently changes canonical unit, shape, source path, or availability without a matching source declaration.
+Review only the five generated files. For each changed mapping, identify its source declaration in `packages/tooling-catalog/src/catalog/semantic-definitions*.ts`, `packet-mapping.ts`, `extension-mapping.ts`, `iracing-mapping.ts`, or `derived-projections.ts`. Reject generated output that silently changes canonical unit, shape, source path, or availability without a matching source declaration.
 
 - [ ] **Step 4: Prove determinism**
 

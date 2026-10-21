@@ -1,30 +1,23 @@
 import { getRecentSessionResults } from "../db/session-result-queries";
-import type { RaceResult } from "../../shared/racing/results/types";
+import type { RaceResult } from "@raceiq/shared/racing/results/types";
 import { and, eq, sql } from "drizzle-orm";
-import type { GameId } from "../../shared/games/ids";
-import type { RaceResultAggregate } from "../../shared/racing/results/types";
-import { db } from "../db";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { RaceResultAggregate } from "@raceiq/shared/racing/results/types";
+import { db } from "../db/index";
 import { pitEvents, sessionResults, sessions } from "../db/schema";
 
 // Results are materialized when a session completes or through explicit
 // backfill. Read endpoints never derive incomplete live sessions.
 export interface ResultAggregateScope {
   gameId: GameId;
-  carOrdinal?: number;
-  trackOrdinal?: number;
   carId?: string;
   trackId?: string;
 }
 
 export async function getRaceResultAggregate(scope: ResultAggregateScope): Promise<RaceResultAggregate> {
   const filters = [eq(sessions.gameId, scope.gameId)];
-  if (scope.gameId === "lmu") {
-    if (scope.carId != null) filters.push(eq(sessions.carId, scope.carId));
-    if (scope.trackId != null) filters.push(eq(sessions.trackId, scope.trackId));
-  } else {
-    if (scope.carOrdinal != null) filters.push(eq(sessions.carOrdinal, scope.carOrdinal));
-    if (scope.trackOrdinal != null) filters.push(eq(sessions.trackOrdinal, scope.trackOrdinal));
-  }
+  if (scope.carId != null) filters.push(eq(sessions.carId, scope.carId));
+  if (scope.trackId != null) filters.push(eq(sessions.trackId, scope.trackId));
   const [row] = await db
     .select({
       sessions: sql<number>`count(${sessionResults.id})`,

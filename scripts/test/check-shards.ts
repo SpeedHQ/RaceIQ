@@ -1,12 +1,11 @@
-import { existsSync, readFileSync } from "node:fs";
-import { relative, resolve, sep } from "node:path";
-
-const SUITES = ["unit", "integration", "tooling", "e2e"] as const;
-type Suite = (typeof SUITES)[number];
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+import { discoverTestOwners, readSuiteFiles, SUITES, type Suite } from "./owners";
 
 interface Assignment {
   location: string;
   suite: Suite;
+  owner: string;
 }
 
 export interface ShardCoverage {
@@ -14,11 +13,14 @@ export interface ShardCoverage {
   testCount: number;
 }
 
-function ordinaryTestFiles(root: string): string[] {
+function ordinaryTests(root: string, directory: string): string[] {
   const files = new Set<string>();
-  for (const pattern of ["test/**/*.test.ts", "test/**/*.test.tsx"]) {
-    for (const file of new Bun.Glob(pattern).scanSync({ cwd: root, onlyFiles: true })) {
-      files.add(file.replaceAll("\\", "/"));
+  if (!existsSync(resolve(root, directory))) return [];
+  for (const pattern of ["**/*.test.ts", "**/*.test.tsx"]) {
+    for (const file of new Bun.Glob(pattern).scanSync({ cwd: resolve(root, directory), onlyFiles: true })) {
+      const normalized = file.replaceAll("\\", "/");
+      if (normalized.split("/").some((part) => part === "fixtures" || part === "artifacts")) continue;
+      files.add(`${directory}/${normalized}`);
     }
   }
   return [...files].sort();
@@ -28,61 +30,47 @@ export function checkTestShards(root = resolve(import.meta.dir, "../..")): Shard
   const assignments = new Map<string, Assignment>();
   const errors: string[] = [];
   const suiteCounts = Object.fromEntries(SUITES.map((suite) => [suite, 0])) as Record<Suite, number>;
+  const owners = discoverTestOwners(root);
+  const ownerTests = new Set<string>();
 
-  for (const suite of SUITES) {
-    const manifestRelativePath = `scripts/test/${suite}-files.txt`;
-    const manifestPath = resolve(root, manifestRelativePath);
-    const text = readFileSync(manifestPath, "utf8");
-
-    for (const [index, raw] of text.split(/\r?\n/).entries()) {
-      const line = raw.trim();
-      if (!line || line.startsWith("#")) continue;
-
-      const normalized = line.replaceAll("\\", "/");
-      const absolute = resolve(root, normalized);
-      const relativePath = relative(root, absolute).replaceAll(sep, "/");
-      const location = `${manifestRelativePath}:${index + 1}`;
-
-      if (relativePath !== normalized || !relativePath.startsWith("test/")) {
-        errors.push(`${location}: path must stay inside test/: ${line}`);
-        continue;
+  for (const owner of owners) {
+    const discovered = ordinaryTests(root, owner.root).filter((file) =>
+      file.startsWith(`${owner.root}/test/`),
+    );
+    for (const file of discovered) ownerTests.add(file);
+    for (const suite of SUITES) {
+      const manifestRelativePath = `${owner.root}/test/${suite}-files.txt`;
+      try {
+        const files = readSuiteFiles(root, owner, suite);
+        for (const file of files) {
+          const previous = assignments.get(file);
+          const location = `${manifestRelativePath}`;
+          if (previous) {
+            errors.push(`${file}: listed more than once (${previous.location}, ${location})`);
+            continue;
+          }
+          assignments.set(file, { location, suite, owner: owner.name });
+          suiteCounts[suite] += 1;
+        }
+      } catch (error) {
+        if (!existsSync(resolve(root, manifestRelativePath))) continue;
+        errors.push(error instanceof Error ? error.message : String(error));
       }
-      if (!/\.test\.tsx?$/.test(relativePath)) {
-        errors.push(`${location}: invalid test path: ${line}`);
-        continue;
-      }
-      if (!existsSync(absolute)) {
-        errors.push(`${location}: listed test file does not exist: ${relativePath}`);
-      }
-
-      const previous = assignments.get(relativePath);
-      if (previous) {
-        errors.push(`${relativePath}: listed more than once (${previous.location}, ${location})`);
-        continue;
-      }
-
-      assignments.set(relativePath, { location, suite });
-      suiteCounts[suite] += 1;
     }
-
-    if (suiteCounts[suite] === 0) errors.push(`${manifestRelativePath}: no test files`);
   }
 
-  const discovered = ordinaryTestFiles(root);
-  const discoveredSet = new Set(discovered);
-  for (const file of discovered) {
-    if (!assignments.has(file)) errors.push(`${file}: not assigned to a test suite`);
-  }
+  const discovered = [...ownerTests].sort();
+  for (const file of discovered) if (!assignments.has(file)) errors.push(`${file}: not assigned to a test suite`);
   for (const [file, assignment] of assignments) {
-    if (existsSync(resolve(root, file)) && !discoveredSet.has(file)) {
-      errors.push(`${assignment.location}: listed path is not an ordinary test file: ${file}`);
-    }
+    if (!ownerTests.has(file)) errors.push(`${assignment.location}: listed path is not an ordinary test file: ${file}`);
+  }
+  for (const file of ordinaryTests(root, "test")) {
+    if (!ownerTests.has(file)) errors.push(`${file}: ordinary test is outside an owner test root`);
   }
 
   if (errors.length > 0) {
     throw new Error(`Test shard coverage failed:\n${errors.map((error) => `- ${error}`).join("\n")}`);
   }
-
   return { suiteCounts, testCount: discovered.length };
 }
 

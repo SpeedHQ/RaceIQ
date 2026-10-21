@@ -1,4 +1,4 @@
-import type { SpotterEventV1, SpotterFrameV1, SpotterOpponentPoseV1 } from "../../shared/racing/live/spotter-contracts";
+import type { SpotterEventV1, SpotterFrameV1, SpotterOpponentPoseV1 } from "@raceiq/shared/racing/live/spotter-contracts";
 
 export interface SpotterTrackerOptions {
   overlapDelayMs?: number;

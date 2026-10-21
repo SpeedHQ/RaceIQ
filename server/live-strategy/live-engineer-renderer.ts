@@ -1,7 +1,7 @@
-import type { OpponentPaceRenderParametersV1, OpponentPaceTextKeyV1, LiveEngineerVoiceModeV1 } from "../../shared/racing/live/engineer-contracts";
-import fullLineCatalog from "../../shared/racing/live/full-lines.json";
+import type { OpponentPaceRenderParametersV1, OpponentPaceTextKeyV1, LiveEngineerVoiceModeV1 } from "@raceiq/shared/racing/live/engineer-contracts";
+import fullLineCatalog from "@raceiq/shared/racing/live/full-lines.json";
 import type { CrewChiefTriggerEventV1 } from "./crewchief-triggers/contracts";
-import type { SpotterStateV1 } from "../../shared/racing/live/spotter-contracts";
+import type { SpotterStateV1 } from "@raceiq/shared/racing/live/spotter-contracts";
 
 export interface LiveEngineerRenderedSpeech {
   textKey: string;

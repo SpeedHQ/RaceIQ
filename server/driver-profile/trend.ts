@@ -1,5 +1,6 @@
-import { repeatabilityStats } from "../../shared/racing/laps/stint-stats";
-import type { LapMeta } from "../../shared/racing/sessions/types";
+import { isPaceLap } from "@raceiq/shared/racing/lap-classification";
+import { repeatabilityStats } from "@raceiq/analysis-core/racing/laps/stint-stats";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { median, round4 } from "./math";
 
 export const DRIVER_TREND_WINDOW_LAPS = 30;
@@ -47,7 +48,7 @@ export interface DriverTrend {
 }
 
 function trendContextKey(lap: LapMeta): string {
-  return `${lap.gameId ?? "?"}|${lap.carOrdinal ?? "?"}|${lap.trackOrdinal ?? "?"}`;
+  return JSON.stringify([lap.gameId ?? null, lap.carId ?? null, lap.trackId ?? null]);
 }
 
 function direction(delta: number | null, improveAt: number, declineAt: number): TrendDirection {
@@ -66,7 +67,7 @@ function trendWindow(laps: readonly LapMeta[], benchmarks: ReadonlyMap<string, n
     const benchmark = benchmarks.get(context);
     if (benchmark !== undefined) comparableContexts.add(context);
     const relativePacePct =
-      benchmark !== undefined && Number.isFinite(lap.lapTime) && lap.lapTime > 0
+      isPaceLap(lap.classification) && benchmark !== undefined && Number.isFinite(lap.lapTime) && lap.lapTime > 0
         ? Math.max(0, (lap.lapTime / benchmark - 1) * 100)
         : null;
     return { id: lap.id, createdAt: lap.createdAt, isValid: lap.isValid, relativePacePct };
@@ -124,7 +125,7 @@ function adviceFor(
 export function buildDriverTrend(candidatesNewestFirst: readonly LapMeta[]): DriverTrend {
   const benchmarks = new Map<string, number>();
   for (const lap of candidatesNewestFirst) {
-    if (!lap.isValid || !Number.isFinite(lap.lapTime) || lap.lapTime <= 0) continue;
+    if (!lap.isValid || !isPaceLap(lap.classification) || !Number.isFinite(lap.lapTime) || lap.lapTime <= 0) continue;
     const key = trendContextKey(lap);
     const current = benchmarks.get(key);
     if (current === undefined || lap.lapTime < current) benchmarks.set(key, lap.lapTime);

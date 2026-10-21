@@ -1,5 +1,5 @@
 import { m } from "@/paraglide/messages";
-import { EXPERIMENT_FOCUSES, type ExperimentFocus } from "@shared/racing/experiments/focus";
+import { EXPERIMENT_FOCUSES, type ExperimentFocus } from "@raceiq/shared/racing/experiments/focus";
 import { Button } from "../ui/button";
 
 /**

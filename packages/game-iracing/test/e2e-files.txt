@@ -1,0 +1,3 @@
+packages/game-iracing/test/catalog/telemetry-catalog-iracing-e2e.test.ts
+packages/game-iracing/test/e2e/iracing-recording-fixture.test.ts
+packages/game-iracing/test/e2e/iracing-recording.test.ts

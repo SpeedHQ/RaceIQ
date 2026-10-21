@@ -67,7 +67,7 @@ export function ConnectionStatus({ connected, packetsPerSec, forzaReceiving, col
   }
 
   return (
-    <div role="status" aria-label={accessibleLabel} className="flex w-full flex-col gap-0.5 px-2 py-2">
+    <div role="status" aria-label={accessibleLabel} className="flex w-full flex-col gap-0.5 pl-4 pr-3 py-2">
       <div className="flex min-w-0 items-center gap-2">
         <span className={`size-2.5 shrink-0 rounded-full ${DOT_CLASS[view.dotColor]}`} />
         <span className="truncate text-xs font-medium text-app-text">{statusText}</span>

@@ -1,5 +1,6 @@
 import { m } from "@/paraglide/messages";
 import { type ExperimentVersion, useExperimentFocusHistory } from "../../hooks/experiments";
+import { parseUtcTimestamp } from "@/lib/utc-date";
 
 /**
  * The experiment's focus ledger, oldest first — what the driver was working on,
@@ -47,7 +48,7 @@ export function FocusTimeline({ experimentId, versions = [] }: { experimentId: n
             <div className="min-w-0">
               <span className="text-app-text-dim">
                 {i === 0 ? m.tunes_focus_opened() : m.tunes_focus_switched()}
-                {at ? ` ${m.tunes_focus_at({ version: at })}` : ""} · {new Date(e.createdAt).toLocaleString()}
+                {at ? ` ${m.tunes_focus_at({ version: at })}` : ""} · {parseUtcTimestamp(e.createdAt).toLocaleString()}
               </span>
               {/* Only ever the driver's own words — never inferred. */}
               {e.note && <div className="text-app-text">“{e.note}”</div>}

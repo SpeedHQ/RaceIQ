@@ -1,4 +1,5 @@
 {
+  "override": true,
   "sectors": {
     "s1End": 0.3838,
     "s2End": 0.614,
@@ -18,16 +19,31 @@
     {
       "key": "s1",
       "startFrac": 0.1227,
-      "endFrac": 0.1475
+      "endFrac": 0.1371
+    },
+    {
+      "key": "t2",
+      "startFrac": 0.1371,
+      "endFrac": 0.1597
     },
     {
       "key": "t3",
-      "startFrac": 0.1475,
+      "startFrac": 0.1597,
       "endFrac": 0.1964
     },
     {
       "key": "s3",
       "startFrac": 0.1964,
+      "endFrac": 0.22
+    },
+    {
+      "key": "t4",
+      "startFrac": 0.22,
+      "endFrac": 0.2727
+    },
+    {
+      "key": "s4",
+      "startFrac": 0.2727,
       "endFrac": 0.3354
     },
     {

@@ -20,7 +20,7 @@ Shared setup-file contracts, lossless setup-form field paths, and semantic setup
 ## Dependency direction
 - `shared/racing/setups/*` may depend on shared primitive contracts such as `shared/games/ids.ts` and Zod.
 - Client and server setup flows consume `schema.ts` and `file-formats.ts` directly.
-- `scripts/catalog/generate-telemetry-catalog.ts` consumes `schema.ts` plus every file in `catalog/`; generated telemetry artifacts depend on these definitions, never the reverse.
+- `packages/tooling-catalog/src/catalog/generate-telemetry-catalog.ts` consumes neutral definitions plus the assembled setup catalog from `@raceiq/game-catalogs`; generated artifacts depend on those definitions, never the reverse.
 - Do not import client UI or server file I/O into this folder.
 
 ## Add/extend safely
@@ -34,7 +34,7 @@ Shared setup-file contracts, lossless setup-form field paths, and semantic setup
 
 ## Source of truth and regeneration
 - `catalog/file-source-mappings.ts` is source of truth for typed Kunos setup-file sections and fields; `schema.ts` derives form sections and safe read/write handles from those catalog entries.
-- `catalog/data.ts` assembles setup variables and per-game sources, including known iRacing `CarSetup` fields for future setup surfaces.
+- `@raceiq/game-catalogs/racing/setups/catalog/data` assembles setup variables and per-game sources, including iRacing `CarSetup` fields from its metadata owner.
 - `catalog/groups.ts`, `catalog/concepts.ts`, and `catalog/parser-source-mappings.ts` are source inputs for semantic setup coverage in telemetry catalog.
 - These files are hand-maintained. Regenerate only downstream telemetry artifacts after changes.
 
@@ -43,7 +43,7 @@ Use direct file imports only.
 
 ```ts
 import { getSchemaForGame, readSetupField, readSetupSection, writeSetupField } from "@shared/racing/setups/schema";
-import { SETUP_CATALOG } from "@shared/racing/setups/catalog/data";
-import { getSetupCatalogSources } from "@shared/racing/setups/catalog/query";
+import { SETUP_CATALOG } from "@raceiq/game-catalogs/racing/setups/catalog/data";
+import { getSetupCatalogSources } from "@raceiq/game-catalogs/racing/setups/catalog/query";
 import { AccSetupJsonSchema, setupFileFormat } from "@shared/racing/setups/file-formats";
 ```

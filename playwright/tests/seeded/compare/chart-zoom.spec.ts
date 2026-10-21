@@ -61,7 +61,28 @@ async function hoverAndAssertCursorMarkers(chart: Locator, fraction: number): Pr
   await overlay.hover({ position: { x: overlayBox.width * fraction, y: overlayBox.height / 2 } });
 
   const markers = chart.locator(".u-cursor-pt");
-  await expect(markers).toHaveCount(2);
+  await expect.poll(
+    async () => {
+      const boxes = await markers.evaluateAll((elements) =>
+        elements.map((element) => {
+          const rect = element.getBoundingClientRect();
+          return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height };
+        }),
+      );
+      return (
+        boxes.length === 2 &&
+        Math.abs(boxes[0].left - boxes[1].left) <= 1 &&
+        boxes.every(
+          (box) =>
+            box.left >= overlayBox.x - box.width &&
+            box.right <= overlayBox.x + overlayBox.width + box.width &&
+            box.top >= overlayBox.y - box.height &&
+            box.bottom <= overlayBox.y + overlayBox.height + box.height,
+        )
+      );
+    },
+    { message: "cursor markers settle within zoomed chart bounds" },
+  ).toBe(true);
   const markerBoxes = await markers.evaluateAll((elements) =>
     elements.map((element) => {
       const rect = element.getBoundingClientRect();

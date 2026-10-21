@@ -1,12 +1,12 @@
-import type { GameId } from "../../../shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 import {
   CREWCHIEF_AUTOMATIC_EVENTS,
   CREWCHIEF_EVENT_GROUPS,
   CREWCHIEF_EVENT_SOURCES,
   CREWCHIEF_SEMANTIC_GROUPS,
   type CrewChiefEventFamily,
-} from "../../../shared/telemetry/live/crewchief-callout-contract";
-import type { LiveResolvedSemanticFrame } from "../../telemetry/live-projector";
+} from "@raceiq/shared/telemetry/live/crewchief-callout-contract";
+import type { LiveResolvedSemanticFrame } from "@raceiq/telemetry-core/telemetry/live-projector";
 import type {
   CrewChiefTriggerBatchV1,
   CrewChiefTriggerDraftV1,

@@ -2,49 +2,44 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { LineSpreadTrace } from "./experiments";
-import type { LapMeta } from "../../../shared/racing/sessions/types";
-import type { ComparisonData, AlignedTrace } from "../../../shared/racing/comparison/types";
-import type { AlignedLapSet } from "@shared/racing/laps/alignment/types";
-import type { LapDetectorCoverage } from "@shared/racing/analysis/laps/insights/types";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
+import type { ComparisonData, AlignedTrace } from "@raceiq/shared/racing/comparison/types";
+import type { AlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/types";
+import type { LapDetectorCoverage, LapInsight } from "@raceiq/analysis-core/racing/analysis/laps/insights/types"
 import { useAlignedTelemetry } from "./aligned-telemetry";
 import { client } from "../lib/rpc";
 import { errorFromResponse } from "../lib/rpc-error";
 import { rpcJson } from "../lib/rpc-json";
 import { useGameId } from "../stores/game";
 import { queryKeys } from "./query-keys";
+import { invalidateDashboardQueries } from "./dashboard";
 
-export function useLaps(options?: { refetchInterval?: number | false }) {
+export function useLaps(options?: { refetchInterval?: number | false; allGames?: boolean }) {
   const gameId = useGameId();
+  const { allGames = false, ...queryOptions } = options ?? {};
+  const queryGameId = allGames ? null : gameId;
   return useQuery({
-    queryKey: ["laps", gameId ?? null],
+    queryKey: ["laps", queryGameId],
     queryFn: async () => {
-      const res = await client.api.laps.$get({ query: { gameId: gameId ?? undefined } });
+      const res = await client.api.laps.$get({ query: { gameId: queryGameId ?? undefined } });
       return rpcJson<LapMeta[]>(res);
     },
-    ...options,
+    ...queryOptions,
   });
 }
 
-export function useReviewLaps(trackKey: number | string | null, carKey: number | string | null, limit = 5) {
+export function useReviewLaps(trackId: string | null, carId: string | null, limit = 5) {
   const gameId = useGameId();
   return useQuery({
-    queryKey: ["review-laps", gameId ?? null, trackKey, carKey, limit],
+    queryKey: ["review-laps", gameId ?? null, trackId, carId, limit],
     queryFn: async () => {
-      if (!gameId || trackKey == null || carKey == null) return [];
-      const lmu = gameId === "lmu";
+      if (!gameId || trackId == null || carId == null) return [];
       const res = await client.api.laps.review.$get({
-        query: {
-          gameId,
-          trackOrdinal: !lmu && typeof trackKey === "number" ? String(trackKey) : undefined,
-          carOrdinal: !lmu && typeof carKey === "number" ? String(carKey) : undefined,
-          trackId: lmu ? String(trackKey) : undefined,
-          carId: lmu ? String(carKey) : undefined,
-          limit: String(limit),
-        },
+        query: { gameId, trackId, carId, limit: String(limit) },
       });
       return rpcJson<LapMeta[]>(res);
     },
-    enabled: !!gameId && trackKey != null && carKey != null,
+    enabled: !!gameId && trackId != null && carId != null,
   });
 }
 
@@ -187,6 +182,20 @@ export function useLapSemanticTelemetry(lapId: number | null) {
   });
 }
 
+/** Findings only; avoids loading full semantic replay in session Analyse. */
+export function useLapInsights(lapId: number | null) {
+  const gameId = useGameId();
+  return useQuery({
+    queryKey: ["lap-insights", lapId, gameId ?? null],
+    queryFn: async () => {
+      const res = await fetch(`/api/laps/${lapId}/insights`, { headers: { "X-Game-Id": gameId! } });
+      if (!res.ok) throw await errorFromResponse(res);
+      return (await res.json() as { insights: LapInsight[] }).insights;
+    },
+    enabled: lapId != null && gameId != null,
+  });
+}
+
 export function useDeleteLap() {
   const qc = useQueryClient();
   return useMutation({
@@ -196,6 +205,8 @@ export function useDeleteLap() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.laps });
       qc.invalidateQueries({ queryKey: queryKeys.sessions });
+      qc.invalidateQueries({ queryKey: queryKeys.userTunes });
+      invalidateDashboardQueries();
     },
   });
 }
@@ -210,6 +221,8 @@ export function useBulkDeleteLaps() {
       qc.invalidateQueries({ queryKey: queryKeys.laps });
       qc.invalidateQueries({ queryKey: queryKeys.sessions });
       qc.invalidateQueries({ queryKey: queryKeys.tracks });
+      qc.invalidateQueries({ queryKey: queryKeys.userTunes });
+      invalidateDashboardQueries();
     },
   });
 }
@@ -228,6 +241,7 @@ export function useSetLapExcluded() {
     },
     onSuccess: (_data, { experimentId }) => {
       qc.invalidateQueries({ queryKey: queryKeys.laps });
+      qc.invalidateQueries({ queryKey: queryKeys.userTunes });
       if (experimentId != null) {
         qc.invalidateQueries({ queryKey: ["experiment", experimentId] });
         qc.invalidateQueries({ queryKey: ["experiment-tests", experimentId] });

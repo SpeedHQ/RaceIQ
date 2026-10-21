@@ -1,5 +1,5 @@
 import * as m from "@/paraglide/messages";
-import type { StyleAxes } from "../../../../server/driver-profile/detectors";
+import type { StyleAxes } from "@raceiq/backend-core/driver-profile/detectors";
 
 interface CompactGaugeProps {
   label: string;

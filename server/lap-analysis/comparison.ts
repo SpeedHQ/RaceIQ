@@ -1,5 +1,5 @@
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import { hasWorldPositions, lapPath } from "../../shared/racing/tracks/path";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { hasWorldPositions, lapPath } from "@raceiq/shared/racing/tracks/path";
 import type { Corner } from "./corners";
 import { speedMphFromPacket } from "./metrics";
 

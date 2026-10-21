@@ -9,7 +9,7 @@ import { m } from "@/paraglide/messages";
 import remarkGfm from "remark-gfm";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { Table, TD, TH, TRow } from "@/components/ui/AppTable";
+import { Table, TableCell, TableHead, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
 const MarkdownTextImpl = () => {
@@ -74,9 +74,9 @@ const defaultComponents = memoizeMarkdownComponents({
       <Table>{children}</Table>
     </div>
   ),
-  th: ({ align, children }) => <TH align={align === "right" ? "end" : align === "center" ? "center" : "start"}>{children}</TH>,
-  td: ({ align, children }) => <TD align={align === "right" ? "end" : align === "center" ? "center" : "start"}>{children}</TD>,
-  tr: ({ children }) => <TRow>{children}</TRow>,
+  th: ({ align, children }) => <TableHead className={align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left"}>{children}</TableHead>,
+  td: ({ align, children }) => <TableCell className={align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left"}>{children}</TableCell>,
+  tr: ({ children }) => <TableRow>{children}</TableRow>,
   li: ({ className, ...props }) => <li className={cn("aui-md-li leading-relaxed", className)} {...props} />,
   strong: ({ className, ...props }) => <strong className={cn("aui-md-strong font-semibold", className)} {...props} />,
   sup: ({ className, ...props }) => <sup className={cn("aui-md-sup [&>a]:text-xs [&>a]:no-underline", className)} {...props} />,

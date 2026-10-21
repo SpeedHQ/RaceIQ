@@ -1,12 +1,13 @@
-import type { RaceResult, RaceResultAggregate, RaceResultOutcomeStatus, RaceResultStatus } from "@shared/racing/results/types";
+import type { RaceResult, RaceResultAggregate, RaceResultOutcomeStatus, RaceResultStatus } from "@raceiq/shared/racing/results/types";
+import { isPracticeSession } from "@raceiq/shared/racing/sessions/session-type";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
+import { SessionTypeBadge } from "@/components/sessions/SessionTypeBadge";
 import { m } from "@/paraglide/messages";
 import { cn } from "@/lib/utils";
-import type { GameId } from "../../../../shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 import { queryKeys } from "../../hooks/query-keys";
 import { client } from "../../lib/rpc";
-
 const classificationLabels: Record<RaceResultStatus, string> = {
   finished: m.race_result_finished(),
   dnf: m.race_result_dnf(),
@@ -89,7 +90,8 @@ function SummaryShell({ children, className, title, busy }: { children: ReactNod
 
 function RecentResult({ result }: { result: RaceResult }) {
   const { fieldStatus, conflicts } = result.evidence;
-  const position =
+  const practice = isPracticeSession(result.sessionType);
+  const position = practice ? null :
     result.finishingPosition != null && fieldStatus.finishingPosition !== "unavailable"
       ? { label: m.race_result_finished(), value: result.finishingPosition }
       : result.qualifyingPosition != null && fieldStatus.qualifyingPosition !== "unavailable"
@@ -100,7 +102,7 @@ function RecentResult({ result }: { result: RaceResult }) {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="font-medium text-app-text">{m.race_result_session_number({ id: result.sessionId })}</div>
-          <div className="text-app-caption text-app-text-muted">{fieldStatus.sessionType === "unavailable" || result.sessionType === "unknown" ? m.race_result_session_type_unavailable() : result.sessionType}</div>
+          <div className="mt-1"><SessionTypeBadge type={fieldStatus.sessionType === "unavailable" ? "unknown" : result.sessionType} label={fieldStatus.sessionType === "unavailable" || result.sessionType === "unknown" ? m.race_result_session_type_unavailable() : undefined} /></div>
         </div>
         <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
           <ResultAuthorityBadge status={result.outcomeStatus} />
@@ -110,7 +112,7 @@ function RecentResult({ result }: { result: RaceResult }) {
               {position.label} P{position.value}
             </span>
           )}
-          {result.isPodium === true && fieldStatus.isPodium !== "unavailable" && <span className="text-app-caption text-app-text-muted">{m.race_result_podium()}</span>}
+          {!practice && result.isPodium === true && fieldStatus.isPodium !== "unavailable" && <span className="text-app-caption text-app-text-muted">{m.race_result_podium()}</span>}
           {result.isFastestLap === true && fieldStatus.isFastestLap !== "unavailable" && <span className="text-app-caption text-app-text-muted">{m.race_result_fastest_lap()}</span>}
         </div>
       </div>
@@ -133,17 +135,17 @@ export interface RaceResultSummaryProps {
   className?: string;
   gameId: GameId | null;
   title?: string;
-  trackOrdinal?: number;
+  trackId?: string;
 }
 
-export function RaceResultSummary({ className, gameId, title = m.race_result_summary_title(), trackOrdinal }: RaceResultSummaryProps) {
+export function RaceResultSummary({ className, gameId, title = m.race_result_summary_title(), trackId }: RaceResultSummaryProps) {
   const query = useQuery({
-    queryKey: queryKeys.raceResultSummary(gameId, trackOrdinal),
+    queryKey: queryKeys.raceResultSummary(gameId, trackId),
     enabled: gameId != null,
     queryFn: async () => {
       if (!gameId) return null;
       const response = await client.api["race-results"].summary.$get({
-        query: { gameId, trackOrdinal: trackOrdinal == null ? undefined : String(trackOrdinal) },
+        query: { gameId, trackId },
       });
       if (!response.ok) throw new Error(response.statusText);
       return response.json() as Promise<RaceResultAggregate>;
@@ -151,7 +153,7 @@ export function RaceResultSummary({ className, gameId, title = m.race_result_sum
   });
   const recentQuery = useQuery({
     queryKey: queryKeys.raceResultRecent(gameId),
-    enabled: gameId != null && trackOrdinal == null,
+    enabled: gameId != null && trackId == null,
     queryFn: async () => {
       if (!gameId) return [] as RaceResult[];
       const response = await client.api["race-results"].recent.$get({ query: { gameId, limit: "5" } });
@@ -191,7 +193,7 @@ export function RaceResultSummary({ className, gameId, title = m.race_result_sum
     <SummaryShell className={className} title={title}>
       <p className="mt-1 mb-3 text-xs text-app-text-muted">{m.race_result_outcome_explanation()}</p>
       <ResultAggregateGrid aggregate={query.data} />
-      {trackOrdinal == null && (
+      {trackId == null && (
         <div className="mt-4">
           <h3 className="text-sm font-medium text-app-text">{m.race_result_recent_sessions()}</h3>
           {recentQuery.isLoading && (

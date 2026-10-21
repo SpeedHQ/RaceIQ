@@ -1,4 +1,4 @@
-import type { AlignedLapSet, AlignedLapTrace, WheelTrace } from "@shared/racing/laps/alignment/types";
+import type { AlignedLapSet, AlignedLapTrace, WheelTrace } from "@raceiq/analysis-core/racing/laps/alignment/types";
 
 export const HIGH_FIDELITY_STEP = 0.1 as const;
 export function shouldLoadHighFidelity(selectedSpan: number, currentSpan: number): boolean {

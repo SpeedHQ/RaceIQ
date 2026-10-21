@@ -7,6 +7,7 @@ Setup Engineer provides a persistent workspace for tuning one car at one track. 
 - An experiment is scoped to one game, car, and track.
 - Setup versions form a forest. Base setups are roots; applied changes and branches create immutable descendants.
 - ACC and AC Evo versions refer to setup files. F1 25 versions store telemetry-derived setup snapshots and present changes as values to enter in-game.
+- AC Evo selections persist stable car ordinals and exact venue/configuration track ordinals. Track selectors display layout names; a new setup derives its default car from loaded options rather than assuming ordinal zero. Existing saved ordinals remain unchanged.
 - Laps can be recorded during a deliberate run or imported from matching history. Imported laps may be assigned to a version or retained as experiment-level baseline data.
 - Deleting a version moves its subtree to trash. Action history supports restoring and undoing mutations without deleting laps or setup files.
 
@@ -34,12 +35,12 @@ Low-confidence data never blocks a recommendation. The response reports its limi
 
 ## Primary implementation
 
-- `mastra/workflows/setup-engineer-turn.ts`: prerequisite workflow
-- `mastra/agents/setup-engineer.ts`: agent instructions and tool registration
-- `mastra/tools/setup-engineer.ts`: experiment actions and optional analyses
-- `server/experiments/lap-evidence/aggregate.ts`: lap selection and aggregate context
+- `apps/backend/src/mastra/workflows/setup-engineer-turn.ts`: prerequisite workflow
+- `apps/backend/src/mastra/agents/setup-engineer.ts`: agent instructions and tool registration
+- `apps/backend/src/mastra/tools/setup-engineer.ts`: experiment actions and optional analyses
+- `apps/backend/src/experiments/lap-evidence/aggregate.ts`: lap selection and aggregate context
 - `server/lap-analysis/consistency.ts`: per-corner consistency analysis
-- `server/setups/io.ts`: file and snapshot setup adapters
+- `apps/backend/src/setups/io.ts`: file and snapshot setup adapters
 - `server/experiments/undo.ts`: action reversal
 - `server/db/experiment-action-queries.ts`: action history persistence
 

@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test";
 import { drawStaticTrack } from "../src/components/analyse/track-map/static-drawing";
-import { needsTrackFlip } from "../../shared/racing/tracks/coords";
-import { initGameAdapters } from "../../shared/games/init";
+import { needsTrackFlip } from "@raceiq/shared/racing/tracks/coords";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import type { Point, TrackMapBoundaries, TrackTransform } from "../src/components/analyse/track-map/types";
-import { alignTrackBoundariesToPositions, resolveTrackPositions } from "../src/components/analyse/track-map/path";
+import { resolveTrackPositions } from "../src/components/analyse/track-map/path";
 
 initGameAdapters();
 test("returns no transform when replay has no drawable track points", () => {
@@ -148,6 +148,8 @@ interface StrokeRecord {
   commands: PathCommand[];
 }
 
+interface FillRecord { color: string; commands: PathCommand[] }
+
 const outlineFixture: Point[] = [
   { x: -4, z: 0 },
   { x: -2, z: 4 },
@@ -174,8 +176,10 @@ function boundaryFixture(raceLine?: Point[] | null, includeRaceLine = true): Tra
   return boundaries;
 }
 
-function createDrawingHarness(): { canvas: HTMLCanvasElement; strokes: StrokeRecord[] } {
+function createDrawingHarness(): { canvas: HTMLCanvasElement; strokes: StrokeRecord[]; fills: FillRecord[]; texts: string[] } {
   const strokes: StrokeRecord[] = [];
+  const fills: FillRecord[] = [];
+  const texts: string[] = [];
   let commands: PathCommand[] = [];
   const context = {
     strokeStyle: "",
@@ -201,7 +205,9 @@ function createDrawingHarness(): { canvas: HTMLCanvasElement; strokes: StrokeRec
     arc(x: number, y: number, radius: number, startAngle: number, endAngle: number) {
       commands.push({ kind: "arc", values: [x, y, radius, startAngle, endAngle] });
     },
-    fill() {},
+    fill() {
+      fills.push({ color: String(this.fillStyle), commands: commands.map((command) => ({ ...command, values: [...command.values] }) as PathCommand) });
+    },
     stroke() {
       strokes.push({
         color: String(this.strokeStyle),
@@ -215,6 +221,7 @@ function createDrawingHarness(): { canvas: HTMLCanvasElement; strokes: StrokeRec
     save() {},
     restore() {},
     drawImage() {},
+    fillText(text: string) { texts.push(text); },
   } as unknown as CanvasRenderingContext2D;
   const canvas = {
     width: 0,
@@ -223,8 +230,38 @@ function createDrawingHarness(): { canvas: HTMLCanvasElement; strokes: StrokeRec
     getBoundingClientRect: () => ({ width: 800, height: 600 }),
     getContext: () => context,
   } as unknown as HTMLCanvasElement;
-  return { canvas, strokes };
+  return { canvas, strokes, fills, texts };
 }
+test("marks open route endpoints with Start and Finish", () => {
+  const previousWindow = globalThis.window;
+  Object.defineProperty(globalThis, "window", { configurable: true, value: { devicePixelRatio: 1 } });
+  try {
+    const { canvas, fills, texts } = createDrawingHarness();
+    const result = drawStaticTrack({
+      canvas,
+      bufferCanvas: canvas,
+      telemetry: [],
+      gameId: "ac-evo",
+      resolvedPositions: [],
+      outline: [{ x: 0, z: 0 }, { x: 10, z: 2 }, { x: 20, z: 0 }],
+      closed: false,
+      boundaries: null,
+      sectors: null,
+      segments: null,
+      showTrace: false,
+      rotateWithCar: false,
+      zoom: 1,
+    });
+    const markers = fills.filter(({ commands }) => commands.some(({ kind }) => kind === "arc"));
+    expect(markers).toHaveLength(2);
+    expect(markers[0]!.color).not.toBe(markers[1]!.color);
+    expect(markers[0]!.commands[0]!.values.slice(0, 2)).not.toEqual(markers[1]!.commands[0]!.values.slice(0, 2));
+    expect(texts).toEqual(["Start", "Finish"]);
+    expect(result.transform).not.toBeNull();
+  } finally {
+    Object.defineProperty(globalThis, "window", { configurable: true, value: previousWindow });
+  }
+});
 
 function drawRaceLineCase(boundaries: TrackMapBoundaries | null, showRaceLine: boolean, gameId: "acc" | "ac-evo" = "acc") {
   const harness = createDrawingHarness();
@@ -480,39 +517,3 @@ for (const gameId of ["acc", "ac-evo"] as const) {
     }
   });
 }
-
-test("aligns LMU boundary geometry to selected lap coordinates", () => {
-  const centerLine = Array.from({ length: 80 }, (_, index) => {
-    const angle = (index / 80) * Math.PI * 2;
-    const radius = 100 + 20 * Math.sin(angle * 3) + 7 * Math.cos(angle * 5);
-    return { x: Math.cos(angle) * radius, z: Math.sin(angle) * radius * 0.7 };
-  });
-  const boundaries: TrackMapBoundaries = {
-    leftEdge: centerLine.map((point) => ({ x: point.x - 4, z: point.z })),
-    rightEdge: centerLine.map((point) => ({ x: point.x + 4, z: point.z })),
-    centerLine,
-    pitLane: null,
-    coordSystem: "lmu",
-  };
-  const rotation = 0.61;
-  const cos = Math.cos(rotation);
-  const sin = Math.sin(rotation);
-  const positions = centerLine.map((point) => {
-    const reflectedX = -point.x;
-    return {
-      x: 1.2 * (cos * reflectedX - sin * point.z) + 300,
-      z: 1.2 * (sin * reflectedX + cos * point.z) - 140,
-    };
-  });
-
-  const aligned = alignTrackBoundariesToPositions(boundaries, positions);
-
-  expect(aligned).not.toBeNull();
-  expect(
-    Math.max(
-      ...aligned!.centerLine.map((point, index) =>
-        Math.hypot(point.x - positions[index].x, point.z - positions[index].z),
-      ),
-    ),
-  ).toBeLessThan(0.001);
-});

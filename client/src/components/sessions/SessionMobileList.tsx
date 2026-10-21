@@ -1,24 +1,28 @@
-import type { GameId } from "@shared/games/ids";
-import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
+import { isPaceLap } from "@raceiq/shared/racing/lap-classification";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { LapMeta, SessionMeta } from "@raceiq/shared/racing/sessions/types";
 import { formatLapTime } from "@/components/LiveTelemetry";
 import { RaceResultLedger } from "@/components/race-results/RaceResultLedger";
 import { FavoriteToggleButton } from "../FavoriteToggleButton";
 import { Button } from "@/components/ui/button";
-import { formatSessionType, sessionCarName, sessionTrackName } from "./helpers";
+import { sessionCarName, sessionTrackName } from "./helpers";
+import { SessionTypeBadge } from "./SessionTypeBadge";
 import { MotecBadge } from "./MotecBadge";
-import { NoteCell } from "./NoteCell";
 import { SessionLapTable } from "./SessionLapTable";
 import { SessionResultMeta } from "./SessionResultMeta";
+import { SessionCaptureSplitStatus } from "./SessionCaptureSplitStatus";
+import { NoteCell } from "./NoteCell";
 import type { LapSortKey, SessionSelectionEvent, SortDir } from "./types";
 import { getLocale } from "@/paraglide/runtime";
 import { m } from "@/paraglide/messages";
+import { parseUtcTimestamp } from "@/lib/utc-date";
 
 
 export type SessionMobileListProps = {
   sessions: SessionMeta[];
   lapsBySession: Map<number, LapMeta[]>;
-  trackNames: Record<number, string>;
-  carNames: Record<number, string>;
+  trackNames: Record<string, string>;
+  carNames: Record<string, string>;
   isLoading: boolean;
   sessionsError: boolean;
   showSessionType: boolean;
@@ -35,9 +39,6 @@ export type SessionMobileListProps = {
   lapSortDir: SortDir;
   toggleLapSort: (key: LapSortKey) => void;
   saveSessionNotes: (id: number, notes: string) => void;
-  exporting: boolean;
-  runExport: (selection: { sessionIds?: number[] }) => void;
-  setRecapSessionId: (id: number) => void;
   analyseSession: (session: SessionMeta) => void;
 };
 
@@ -62,9 +63,6 @@ export function SessionMobileList({
   lapSortDir,
   toggleLapSort,
   saveSessionNotes,
-  exporting,
-  runExport,
-  setRecapSessionId,
   analyseSession,
 }: SessionMobileListProps) {
   return (
@@ -77,9 +75,10 @@ export function SessionMobileList({
         sessions.map((session) => {
           const isExpanded = expandedSessions.has(session.id);
           const sessionLaps = lapsBySession.get(session.id) ?? [];
-          const bestTime = session.bestLapTime || (sessionLaps.length > 0 ? Math.min(...sessionLaps.map((lap) => lap.lapTime)) : 0);
+          const paceLaps = sessionLaps.filter((lap) => lap.isValid && isPaceLap(lap.classification));
+          const bestTime = session.bestLapTime || (paceLaps.length > 0 ? Math.min(...paceLaps.map((lap) => lap.lapTime)) : 0);
           return (
-            <div key={session.id} className={`rounded-lg border border-app-border bg-app-surface ${isExpanded ? "bg-app-surface-alt/40" : ""}`}>
+            <div key={session.id} className={`min-w-0 overflow-hidden rounded-lg border border-app-border bg-app-surface ${isExpanded ? "bg-app-surface-alt/40" : ""}`}>
               {/* oxlint-disable-next-line a11y/useSemanticElements: wraps checkbox and buttons */}
               <div
                 role="button"
@@ -107,20 +106,10 @@ export function SessionMobileList({
                     <div className="text-sm font-semibold text-app-text truncate">{sessionTrackName(session, { trackNames, carNames })}</div>
                     <div className="flex items-center gap-2 shrink-0">
                       <div className="text-app-compact text-app-text/90">
-                        {new Date(session.createdAt).toLocaleDateString(getLocale())} {new Date(session.createdAt).toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" })}
+                        {parseUtcTimestamp(session.createdAt).toLocaleDateString(getLocale())} {parseUtcTimestamp(session.createdAt).toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" })}
                         {session.source === "motec" && <MotecBadge />}
                       </div>
                       <FavoriteToggleButton target="session" id={session.id} isFavorite={Boolean(session.isFavorite)} />
-                      <Button
-                        variant="app-outline"
-                        size="app-sm"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setRecapSessionId(session.id);
-                        }}
-                      >
-                        Recap
-                      </Button>
                       <Button
                         variant="app-primary"
                         size="app-sm"
@@ -133,26 +122,15 @@ export function SessionMobileList({
                       >
                         {m.sessions_analyse_session()}
                       </Button>
-                      <Button
-                        variant="app-outline"
-                        size="app-sm"
-                        disabled={exporting || session.telemetryAvailable === false}
-                        title={session.telemetryAvailable === false ? m.sessions_raw_telemetry_removed() : m.sessions_export_session()}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          runExport({ sessionIds: [session.id] });
-                        }}
-                      >
-                        {m.label_export()}
-                      </Button>
                     </div>
                   </div>
                   <div className="text-xs text-app-text/90 truncate mt-0.5">
                     {sessionCarName(session, { trackNames, carNames })}
-                    {showSessionType && session.sessionType && session.sessionType !== "unknown" && <> · {formatSessionType(session.sessionType)}</>}
+                    {showSessionType && session.sessionType && session.sessionType !== "unknown" && <span className="ml-2 inline-flex align-middle"><SessionTypeBadge type={session.sessionType} /></span>}
                   </div>
                   <div className="mt-2">
                     <SessionResultMeta session={session} />
+                    <SessionCaptureSplitStatus status={session.captureSplit} sessionId={session.id} />
                   </div>
                   <div className="flex items-center gap-4 mt-2 text-xs">
                     <span className="text-app-text/90">
@@ -169,9 +147,13 @@ export function SessionMobileList({
                   </div>
                 </div>
               </div>
-              {isExpanded && gameId && <RaceResultLedger sessionId={session.id} gameId={gameId} enabled={isExpanded} />}
+              {isExpanded && gameId && (
+                <div className={sessionLaps.length > 0 ? "[&>section]:border-b-0 [&>div]:border-b-0" : undefined}>
+                  <RaceResultLedger sessionId={session.id} gameId={gameId} enabled={isExpanded} laps={sessionLaps} />
+                </div>
+              )}
               {isExpanded && sessionLaps.length > 0 && (
-                <div className="border-t border-app-border overflow-x-auto">
+                <div className="min-w-0 bg-transparent [&>[data-slot=table-container]]:max-w-full [&>[data-slot=table-container]]:rounded-none [&>[data-slot=table-container]]:border-0 [&_[data-slot=table-head]]:bg-transparent">
                   <SessionLapTable
                     session={session}
                     laps={sessionLaps}

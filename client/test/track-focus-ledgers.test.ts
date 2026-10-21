@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { readFile } from "node:fs/promises";
 
-const viewPath = new URL("../src/components/tunes/track-focus/TrackFocusView.tsx", import.meta.url);
-const ledgerPath = new URL("../src/components/tunes/track-focus/SegmentLedger.tsx", import.meta.url);
+const viewPath = new URL("../src/components/tunes/track-focus/TrackFocusView", import.meta.url);
+const ledgerPath = new URL("../src/components/tunes/track-focus/SegmentLedger", import.meta.url);
 
 describe("track focus ledger layout", () => {
   test("renders sector ledger above segment ledger without a granularity toggle", async () => {

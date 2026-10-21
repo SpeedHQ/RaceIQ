@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { realpathSync } from "node:fs";
 import { createServer } from "node:net";
-import { parseOnboardingOverride } from "../../server/runtime/options";
+import { parseOnboardingOverride } from "@raceiq/backend-core/runtime/options";
 
 async function availableHttpPort(): Promise<number> {
   const server = createServer();
@@ -59,7 +59,7 @@ const environment = {
 };
 console.log(`[Dev] Portless name: ${portlessName}; backend HTTP: ${serverPort}${udpPort ? `; worktree UDP: ${udpPort}` : ""}`);
 
-const serverCommand = ["bun", "--env-file=.env.development", "--watch", "run", "server/index.ts"];
+const serverCommand = ["bun", "--env-file=.env.development", "--watch", "run", "apps/backend/src/index.ts"];
 if (onboarding !== null) {
   serverCommand.push("--onboarding", String(onboarding));
 }
@@ -69,7 +69,7 @@ const developmentProcesses = Bun.spawn(
     "bunx",
     "concurrently",
     serverCommand.join(" "),
-    "bun scripts/dev/client.ts",
+    "bun --env-file=.env.development scripts/dev/client.ts",
   ],
   {
     env: environment,

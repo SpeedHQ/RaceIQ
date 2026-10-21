@@ -1,4 +1,4 @@
-import type { TelemetryVariableId } from "../../../shared/telemetry/catalog/generated/telemetry-catalog.types";
+import type { TelemetryVariableId } from "@raceiq/shared/telemetry/catalog/generated/telemetry-catalog.types";
 import type { CrewChiefTriggerDraftV1, CrewChiefTriggerFunction } from "./contracts";
 
 export interface PreviousValueState { previous: unknown; armed: boolean; }

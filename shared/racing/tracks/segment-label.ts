@@ -24,6 +24,27 @@ type LabelSegment = {
   group?: string;
 };
 
+export interface LapWrappedSegmentGroup {
+  group: string;
+  firstIndex: number;
+  lastIndex: number;
+}
+
+/**
+ * Identify logical section split at lap-fraction boundary. Geometry keeps both
+ * ranges; presentation can count and render them as one section.
+ */
+export function lapWrappedSegmentGroup(
+  segments: readonly Pick<LabelSegment, "type" | "group">[],
+): LapWrappedSegmentGroup | null {
+  if (segments.length < 2) return null;
+  const first = segments[0];
+  const lastIndex = segments.length - 1;
+  const last = segments[lastIndex];
+  if (!first.group || first.group !== last.group || first.type !== last.type) return null;
+  return { group: first.group, firstIndex: 0, lastIndex };
+}
+
 /** Official turn numbers a corner entry accounts for, lowest first. */
 export function turnNumbers(seg: Pick<LabelSegment, "number" | "covers">): number[] {
   return seg.number === undefined ? [] : [seg.number, ...(seg.covers ?? [])];
@@ -38,7 +59,7 @@ export function formatTurnNumbers(numbers: number[]): string {
   return contiguous ? `${nums[0]}-${nums[nums.length - 1]}` : nums.join(",");
 }
 
-export const AUTO_TURN_TOKEN = /^T\d+$/;
+export const AUTO_TURN_TOKEN = /^T\d+(?:[-,/]\d+)*$/;
 const AUTO_STRAIGHT_NAME = /^S[\d?]*$/;
 /** A corner with no name yet: blank, or the editor's "T"/"T?" placeholder.
  *  "T6" is NOT one — that token carries an official turn number. */

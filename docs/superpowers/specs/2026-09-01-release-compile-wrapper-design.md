@@ -6,7 +6,7 @@ Release workflow invokes `bun build` through Windows PowerShell. PowerShell remo
 
 ## Decision
 
-Move only server compilation into `scripts/build/compile-release.ts`. Keep dependency installation, client build, data copying, native-addon staging, smoke testing, and installer creation as separate workflow steps.
+Move only server compilation into `packages/tooling-build/src/build/compile-release.ts`. Keep dependency installation, client build, data copying, native-addon staging, smoke testing, and installer creation as separate workflow steps.
 
 The script will accept one positional release version, validate it as `MAJOR.MINOR.PATCH`, and invoke `bun build` with `Bun.spawn`. Every argument will occupy its own array element, bypassing shell parsing and preserving quoted JavaScript string literals used by `--define`.
 
@@ -15,7 +15,7 @@ The script will accept one positional release version, validate it as `MAJOR.MIN
 Invocation:
 
 ```text
-bun scripts/build/compile-release.ts 0.15.1
+bun packages/tooling-build/src/build/compile-release.ts 0.15.1
 ```
 
 The script will:
@@ -37,7 +37,7 @@ Replace the inline PowerShell compile block with one shell-independent command:
 
 ```yaml
 - name: Compile server binary
-  run: bun scripts/build/compile-release.ts "${{ needs.compute-version.outputs.version }}"
+  run: bun packages/tooling-build/src/build/compile-release.ts "${{ needs.compute-version.outputs.version }}"
 ```
 
 No other release step changes.

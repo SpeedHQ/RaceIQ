@@ -5,8 +5,8 @@ import { communityTunes } from "./schema";
 export interface CommunityTuneRow {
   id: string;
   gameId: string;
-  carOrdinal: number;
-  trackOrdinal: number | null;
+  carId: string;
+  trackId: string | null;
   name: string;
   author: string;
   category: string;
@@ -48,8 +48,8 @@ export async function replaceCommunityTunes(
       await tx.insert(communityTunes).values({
         id: row.id,
         gameId: row.gameId,
-        carOrdinal: row.carOrdinal,
-        trackOrdinal: row.trackOrdinal,
+        carId: row.carId,
+        trackId: row.trackId,
         name: row.name,
         author: row.author,
         category: row.category,

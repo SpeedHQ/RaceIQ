@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import type { F125TrackData, F125TrackSummary } from "@/components/f1/f125/types";
-import { Table, TBody, TD, TRow } from "@/components/ui/AppTable";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
@@ -23,12 +23,12 @@ function toEmbedUrl(url: string): string {
   return url;
 }
 
-export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
+export function F125TrackGuide({ trackId }: { trackId: string }) {
   const { data: tracks = [] } = useQuery<F125TrackSummary[]>({
     queryKey: ["f125-tracks"],
     queryFn: () => client.api["f1-25"].tracks.$get().then((r) => r.json() as unknown as F125TrackSummary[]),
   });
-  const trackSlug = tracks.find((t) => t.trackOrdinal === trackOrdinal)?.trackSlug;
+  const trackSlug = tracks.find((t) => t.trackId === trackId)?.trackSlug;
   const { data: trackData } = useQuery<F125TrackData>({
     queryKey: ["f125-setups", trackSlug],
     queryFn: () => client.api["f1-25"].setups.$get({ query: { track: trackSlug! } }).then((r) => r.json() as unknown as F125TrackData),
@@ -72,21 +72,21 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
                   </span>
                 )}
               </div>
-              <Table density="compact" fit variant="embedded">
-                <TBody>
+              <Table className="w-full text-xs">
+                <TableBody>
                   {g.setupTips && (
-                    <TRow>
-                      <TD tone="dim">{m.f1setup_setup_tips_label()}</TD>
-                      <TD>{m.f1setup_yes()}</TD>
-                    </TRow>
+                    <TableRow>
+                      <TableCell className="text-app-text-dim">{m.f1setup_setup_tips_label()}</TableCell>
+                      <TableCell>{m.f1setup_yes()}</TableCell>
+                    </TableRow>
                   )}
                   {g.drivingTips && (
-                    <TRow>
-                      <TD tone="dim">{m.f1setup_driving_tips_label()}</TD>
-                      <TD>{m.f1setup_yes()}</TD>
-                    </TRow>
+                    <TableRow>
+                      <TableCell className="text-app-text-dim">{m.f1setup_driving_tips_label()}</TableCell>
+                      <TableCell>{m.f1setup_yes()}</TableCell>
+                    </TableRow>
                   )}
-                </TBody>
+                </TableBody>
               </Table>
             </Button>
           );

@@ -63,7 +63,7 @@ export function TrackDebugSidebar(props: TrackDebugSidebarProps) {
     setEditS2,
   } = props;
   return (
-    <div className="w-80 shrink-0 flex flex-col gap-3 overflow-auto">
+    <div className="flex w-full shrink-0 flex-col gap-3 @3xl/workspace:min-h-0 @3xl/workspace:w-80 @3xl/workspace:overflow-auto">
       {/* Segment list / editor */}
       {displaySectors && displaySectors.segments.length > 0 && (
         <Card>

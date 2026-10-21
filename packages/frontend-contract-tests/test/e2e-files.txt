@@ -1,0 +1,1 @@
+packages/frontend-contract-tests/test/telemetry/catalog/ac-evo-live-view.test.ts

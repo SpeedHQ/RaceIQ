@@ -1,4 +1,4 @@
-import { parseTestChanges, summarizeTestChange } from "@shared/racing/experiments/test-changes";
+import { parseTestChanges, summarizeTestChange } from "@raceiq/shared/racing/experiments/test-changes";
 
 /** Parse stored appliedChanges JSON into normalized typed change rows. */
 export const parseAppliedChanges = parseTestChanges;

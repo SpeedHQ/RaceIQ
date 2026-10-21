@@ -1,7 +1,7 @@
-import type { GameId } from "../../../shared/games/ids";
-import type { TelemetryVariableId } from "../../../shared/telemetry/catalog/generated/telemetry-catalog.types";
-import { CREWCHIEF_REFERENCE, type CrewChiefEventFamily, type CrewChiefSourceRef } from "../../../shared/telemetry/live/crewchief-callout-contract";
-import type { LiveResolvedSemanticFrame } from "../../telemetry/live-projector";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { TelemetryVariableId } from "@raceiq/shared/telemetry/catalog/generated/telemetry-catalog.types";
+import { CREWCHIEF_REFERENCE, type CrewChiefEventFamily, type CrewChiefSourceRef } from "@raceiq/shared/telemetry/live/crewchief-callout-contract";
+import type { LiveResolvedSemanticFrame } from "@raceiq/telemetry-core/telemetry/live-projector";
 import type { CrewChiefTriggerFrame } from "./frame";
 
 export type CrewChiefTriggerScalarV1 = string | number | boolean | null;

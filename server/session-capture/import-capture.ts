@@ -1,15 +1,15 @@
-import { KNOWN_GAME_IDS, type GameId } from "../../shared/games/ids";
+import { KNOWN_GAME_IDS, type GameId } from "@raceiq/shared/games/ids";
 import { getAllServerGames } from "../games/registry";
-import { hasLMUDumpMagic, readLMUFramesFromBuffer } from "../games/lmu/recorder";
-import { IRACING_DUMP_MAGIC, readIRacingFramesFromBuffer } from "../games/iracing/recorder";
 import {
+  containsSparseCaptureFrames,
   decompressIfGzipSync,
   iterateSessionFrames,
   iterateSessionCaptureRecords,
   SESSION_SEGMENT_BOUNDARY,
   SESSION_SEGMENT_CONTEXT,
   SESSION_SEGMENT_CONTEXT_END,
-} from "./framing";
+} from "@raceiq/capture-formats/session/framing";
+import { hasKunosDumpMagic } from "@raceiq/capture-formats/kunos/dump";
 import { importSessionFrames, type ImportedLap, type ImportSessionOptions } from "./import-pipeline";
 
 const GAME_IDS_BY_FILENAME_PRECEDENCE = [...KNOWN_GAME_IDS].sort(
@@ -27,12 +27,10 @@ export function detectGameIdFromFilename(name: string): GameId | null {
 /** Detect a gameId from actual capture frame content. */
 export function detectGameIdFromBuffer(bytes: Buffer): GameId | null {
   const buf = decompressIfGzipSync(bytes);
+  if (!containsSparseCaptureFrames(buf) || hasKunosDumpMagic(buf)) return null;
   const games = getAllServerGames();
   let checked = 0;
-  const frames = hasLMUDumpMagic(buf) ? readLMUFramesFromBuffer(buf)
-    : buf.subarray(0, IRACING_DUMP_MAGIC.length).equals(IRACING_DUMP_MAGIC)
-      ? readIRacingFramesFromBuffer(buf, 20) : iterateSessionFrames(buf);
-  for (const frame of frames) {
+  for (const frame of iterateSessionFrames(buf)) {
     for (const game of games) {
       if (game.canHandle(frame)) return game.id;
     }
@@ -42,12 +40,14 @@ export function detectGameIdFromBuffer(bytes: Buffer): GameId | null {
   return null;
 }
 function* canonicalImportFrames(bytes: Buffer) {
-  for (const record of iterateSessionCaptureRecords(bytes)) {
+  for (const record of iterateSessionCaptureRecords(bytes, undefined, { strict: true })) {
     if (record.kind === "frame") yield { frame: record.frame, frameTimeMs: record.frameTimeMs };
     else if (record.kind === "segment-boundary") yield SESSION_SEGMENT_BOUNDARY;
     else if (record.kind === "segment-context") yield SESSION_SEGMENT_CONTEXT;
     else if (record.kind === "segment-context-end") yield SESSION_SEGMENT_CONTEXT_END;
-    else {
+    else if (record.kind === "parser-bootstrap") {
+      yield { kind: "parser-bootstrap" as const, gameId: record.gameId, formatVersion: record.formatVersion, payload: record.payload };
+    } else {
       const recordBytes = record.kind === "metadata"
         ? record.bytes
         : bytes.subarray(record.offset, record.offset + 8 + bytes.readUInt32LE(record.offset + 4));
@@ -64,10 +64,10 @@ export async function importSessionBin(
   options: ImportSessionOptions = {},
 ): Promise<{ packetCount: number; laps: ImportedLap[] }> {
   const buf = decompressIfGzipSync(bytes);
-  const frames = gameId === "lmu" && hasLMUDumpMagic(buf)
-    ? readLMUFramesFromBuffer(buf)
-    : gameId === "iracing" && buf.subarray(0, IRACING_DUMP_MAGIC.length).equals(IRACING_DUMP_MAGIC)
-      ? readIRacingFramesFromBuffer(buf) : canonicalImportFrames(buf);
+  if (!containsSparseCaptureFrames(buf)) {
+    throw new Error("Legacy recording imports are no longer supported; provide a sparse RaceIQ capture.");
+  }
+  const frames = canonicalImportFrames(buf);
   const { packetCount, laps } = await importSessionFrames(
     frames,
     gameId,

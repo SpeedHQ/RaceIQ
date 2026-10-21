@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { decodeAlignedLapSet } from "../../../../shared/racing/laps/alignment/codec";
-import type { EncodedAlignedLapSet } from "../../../../shared/racing/laps/alignment/types";
+import { decodeAlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/codec";
+import type { EncodedAlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/types";
 import { SEEDED_GAME_CASES } from "../../support/seeded/cases";
 import { collectBrowserErrors } from "../../support/browser-errors";
 import { alignedRequestMatches, ALIGNED_TELEMETRY_ENDPOINT, findTrackCarPairWithTwoLaps, getSeededLaps, lapOptionLabel } from "./helpers";
@@ -17,9 +17,9 @@ test("Compare complete seeded flow (FM23) preserves identity/order, renders trac
   }
 
   const query = new URLSearchParams({
-    track: String(pair.trackOrdinal),
-    carA: String(pair.carOrdinal),
-    carB: String(pair.carOrdinal),
+    track: pair.trackId,
+    carA: pair.carId,
+    carB: pair.carId,
     lapA: String(pair.lapA.id),
     lapB: String(pair.lapB.id),
   });

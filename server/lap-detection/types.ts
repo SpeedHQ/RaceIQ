@@ -4,45 +4,8 @@
  * protocol-specific detectors or shared detector state machines.
  */
 import type { DbAdapter } from "../telemetry/pipeline-ports";
-import type { PitCycleReason } from "../../shared/racing/laps/pit-cycle";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-/**
- * Minimal packet projection consumed by lap detection.  Canonical parsers may
- * return this shape during metadata scans without materializing live-only
- * telemetry fields.
- */
-export type LapIndexPacket = Pick<
-  TelemetryPacket,
-  | "gameId"
-  | "sessionUID"
-  | "IsRaceOn"
-  | "TimestampMS"
-  | "CarOrdinal"
-  | "TrackOrdinal"
-  | "CarPerformanceIndex"
-  | "CarClass"
-  | "LapNumber"
-  | "CurrentLap"
-  | "LastLap"
-  | "BestLap"
-  | "DistanceTraveled"
-  | "PositionX"
-  | "PositionZ"
-  | "Yaw"
-  | "Fuel"
-  | "TireWearFL"
-  | "TireWearFR"
-  | "TireWearRL"
-  | "TireWearRR"
-  | "RacePosition"
-  | "WheelOnRumbleStripFL"
-  | "WheelOnRumbleStripFR"
-  | "WheelOnRumbleStripRL"
-  | "WheelOnRumbleStripRR"
-  | "f1"
-  | "acc"
-  | "iracing"
->;
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { LapDetectorPolicy } from "@raceiq/telemetry-core/processor/lap-policy";
 
 // Re-export all event/state types so callers only need one import point
 export type {
@@ -63,6 +26,20 @@ import type {
   LapTireWearData,
 } from "./detector";
 
+import type {
+  DetectorOwnershipState,
+  DetectorOwnershipTransition,
+  DetectorOwnershipWindow,
+} from "@raceiq/telemetry-core/processor/ordinal-engine";
+
+export type { DetectorOwnershipState, DetectorOwnershipTransition, DetectorOwnershipWindow };
+export type LapOwnershipTransition = DetectorOwnershipTransition;
+export interface LapOwnershipSource {
+  getOwnershipState(): DetectorOwnershipState;
+  subscribeOwnership(listener: (transition: LapOwnershipTransition) => void): () => void;
+}
+
+
 /** Optional event callbacks available to every detector implementation. */
 export interface LapDetectorCallbacks {
   onLapSaved?: (event: LapSavedEvent | LapSavedNotification) => void;
@@ -79,23 +56,12 @@ export interface LapDetectorOptions {
   policy?: LapDetectorPolicy;
 }
 
-export interface LapDetectorPolicy {
-  resolveLapTime(
-    packets: readonly TelemetryPacket[],
-    newLapFirstPacket: TelemetryPacket,
-  ): number;
-  classifyPitCycle(
-    packets: readonly TelemetryPacket[],
-    completedLapCount: number,
-  ): PitCycleReason | null;
-  invalidReason?(packets: readonly TelemetryPacket[]): string | null;
-}
 
 /** Common interface implemented by all lap detector variants. */
 export interface ILapDetector {
   readonly detectorId: string;
   readonly session: SessionState | null;
-  feed(packet: TelemetryPacket, rawByteOffset?: number): Promise<void>;
+  feed(packet: TelemetryPacket, rawByteOffset?: number, rawOrdinal?: number): Promise<void>;
   /** Rolling fuel data when the detector tracks per-lap consumption. */
   readonly fuelHistory?: LapFuelData[];
   /** Rolling tire-wear data when the detector tracks per-lap wear. */
@@ -114,7 +80,11 @@ export interface ILapDetector {
    * packet is retroactively written — without this, lap 1's byte offset is
    * stuck at null.
    */
-  setCurrentLapByteOffset?(offset: number): void;
+  setCurrentLapByteOffset?(offset: number, rawOrdinal?: number): void;
+  observeSourceRecord?(offset: number, endOffset: number, ordinal: number): void;
+  drainOwnershipTransitions?(): LapOwnershipTransition[];
+  /** Whether this source record may begin or reset a lap; queried before recording bytes. */
+  shouldCheckpointBeforeWrite(packet: TelemetryPacket): boolean;
   /** Treat the first observed lap as complete rather than an attach-mid-lap fragment. */
   expectCompleteLapStart?(): void;
   /** Return implementation-specific debug state for the dev panel. */

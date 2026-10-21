@@ -1,3 +1,4 @@
+import { gameImagesPlugin } from "../game-images.ts";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { StorybookConfig } from "@storybook/react-vite";
@@ -7,7 +8,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const config: StorybookConfig = {
   stories: ["../src/**/*.stories.@(js|jsx|ts|tsx)"],
-  addons: ["storybook/viewport", "@storybook/addon-docs"],
+  addons: ["storybook/viewport"],
   framework: {
     name: "@storybook/react-vite",
     options: {},
@@ -19,6 +20,7 @@ const config: StorybookConfig = {
     return mergeConfig(config, {
       envDir: path.resolve(__dirname, "../.."),
       envPrefix: ["VITE_", "RACEIQ_"],
+      plugins: [gameImagesPlugin()],
       resolve: {
         alias: {
           "@": path.resolve(__dirname, "../src"),

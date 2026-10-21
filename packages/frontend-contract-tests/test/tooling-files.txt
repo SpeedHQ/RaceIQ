@@ -1,0 +1,3 @@
+packages/frontend-contract-tests/test/tooling/local-ui-diff.test.ts
+packages/frontend-contract-tests/test/tooling/story-isolation.test.ts
+packages/frontend-contract-tests/test/tooling/storybook-ready.test.ts

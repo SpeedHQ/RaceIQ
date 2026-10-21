@@ -1,8 +1,10 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { z } from "zod";
+import { normalizeHudHostname } from "@raceiq/shared/platform/network/hud-hostname";
 import { resolveDataDir } from "./data-dir";
 import { isLaunchOnLoginEnabled } from "../platform/launch-on-login";
-import { LOCALE_CODES } from "@shared/platform/i18n/locales";
+import { LOCALE_CODES } from "@raceiq/shared/platform/i18n/locales";
+import { DEFAULT_RECORDING_FREQUENCY_HZ, isRecordingRetentionPolicyValid } from "@raceiq/shared/platform/runtime/recording-frequency";
 const SETTINGS_DIR = resolveDataDir();
 const SETTINGS_PATH = `${SETTINGS_DIR}/settings.json`;
 
@@ -15,6 +17,7 @@ const AiProviderSchema = z.enum(["", "gemini", "openai", "openai-compatible"]).d
 const AppSettingsSchema = z.object({
   onboardingComplete: z.boolean().default(false),
   driverName: z.string().default(""),
+  hudHostname: z.string().trim().toLowerCase().refine(value => normalizeHudHostname(value) !== null).default(""),
   udpPort: z.number().int().min(1024).max(65535).default(5301),
   unit: z.enum(["metric", "imperial"]).default("metric"),
   temperatureUnit: z.enum(["C", "F"]).default("C"),
@@ -50,15 +53,20 @@ const AppSettingsSchema = z.object({
   // size of the per-lap TelemetryPacket[] cache used by analyse/compare/chat
   // workflows. LRU eviction kicks in once the budget is exceeded.
   cacheMaxMB: z.number().int().min(16).max(2048).default(256),
-  // Preserve opponent grid snapshots in compressed recordings for Engineer Replay.
+// Preserve opponent grid snapshots in compressed recordings for Engineer Replay.
   storeOpponentGrid: z.boolean().default(true),
   radioSpotterEnabled: z.boolean().default(false),
   radioRaceEngineerEnabled: z.boolean().default(false),
   radioTextCalloutsEnabled: z.boolean().default(true),
   radioVolume: z.number().min(0).max(1).default(0.8),
   // Automatic deletion of raw captures is opt-in; session/lap metadata remains.
+  recordingDirectory: z.string().nullable().default(null),
+  recordingFrequencyHz: z.union([z.literal(50), z.literal(60), z.literal(70), z.literal(80), z.literal(90), z.literal(100)]).default(DEFAULT_RECORDING_FREQUENCY_HZ),
   sessionCleanupEnabled: z.boolean().default(false),
   sessionCleanupAgeDays: z.union([z.literal(30), z.literal(90), z.literal(180), z.literal(365)]).default(90),
+  sessionDownsampleEnabled: z.boolean().default(false),
+  sessionDownsampleAgeDays: z.union([z.literal(30), z.literal(90), z.literal(180), z.literal(365)]).default(30),
+  sessionDownsampleFrequencyHz: z.union([z.literal(50), z.literal(60), z.literal(70), z.literal(80), z.literal(90), z.literal(100)]).default(50),
   hiddenGames: z.array(z.string()).default([]),
   launchOnLogin: z.boolean().default(false),
   // Community-tunes CDN sync bookkeeping. Not user-facing; written by the
@@ -78,12 +86,12 @@ function ensureSettingsDir(): void {
   }
 }
 
-/** Returns true if settings file doesn't exist yet (fresh install) */
+/** A fresh install has no settings file yet. Check before loadSettings creates it. */
 export function isFirstRun(): boolean {
   return !existsSync(SETTINGS_PATH);
 }
 
-export function loadSettings(): AppSettings {
+export function loadSettings(options: { syncLaunchOnLogin?: boolean } = {}): AppSettings {
   ensureSettingsDir();
   if (!existsSync(SETTINGS_PATH)) {
     saveSettings(DEFAULTS);
@@ -138,8 +146,12 @@ export function loadSettings(): AppSettings {
     }
 
     const result = AppSettingsSchema.parse(parsed);
+    if (!isRecordingRetentionPolicyValid(result)) {
+      console.error("[Settings] Conflicting retention policies; automatic deletion disabled");
+      result.sessionCleanupEnabled = false;
+    }
     // Always sync launchOnLogin from the actual registry state
-    result.launchOnLogin = isLaunchOnLoginEnabled();
+    if (options.syncLaunchOnLogin !== false) result.launchOnLogin = isLaunchOnLoginEnabled();
     return result;
   } catch (err) {
     console.error(`[Settings] Failed to load ${SETTINGS_PATH}:`, err instanceof Error ? err.message : err);
@@ -152,6 +164,9 @@ export function saveSettings(settings: AppSettings): void {
   ensureSettingsDir();
   // Validate before writing
   const validated = AppSettingsSchema.parse(settings);
+  if (!isRecordingRetentionPolicyValid(validated)) {
+    throw new Error("Automatic deletion must be scheduled after automatic downsampling.");
+  }
   const tmpPath = `${SETTINGS_PATH}.tmp`;
   writeFileSync(tmpPath, `${JSON.stringify(validated, null, 2)}\n`);
   renameSync(tmpPath, SETTINGS_PATH);

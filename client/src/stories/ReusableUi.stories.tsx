@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
 import { expect, userEvent, waitFor, within } from "storybook/test";
-import { Table, TBody, TD, TH, THead, TRow, SortableTH } from "../components/ui/AppTable";
+import { SortableTableHead } from "@/components/ui/sortable-table-head";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AppInput } from "../components/ui/AppInput";
 import { Avatar, AvatarBadge, AvatarFallback, AvatarGroup, AvatarGroupCount, AvatarImage } from "../components/ui/avatar";
 import { Badge } from "../components/ui/badge";
@@ -451,30 +452,32 @@ export const TableShell: Story = {
         <p className="mt-1 text-app-subtext text-app-text-secondary">Latest recorded laps for this track.</p>
       </div>
       <Table>
-        <THead>
-          <TH scope="col">Driver</TH>
-          <SortableTH scope="col" direction="ascending" onSort={() => undefined}>
-            Lap
-          </SortableTH>
-          <TH scope="col">Delta</TH>
-        </THead>
-        <TBody>
-          <TRow>
-            <TD>A. Cooper</TD>
-            <TD numeric>1:42.318</TD>
-            <TD tone="success">-0.214</TD>
-          </TRow>
-          <TRow>
-            <TD>M. Rossi</TD>
-            <TD numeric>1:42.532</TD>
-            <TD>+0.000</TD>
-          </TRow>
-          <TRow>
-            <TD>J. Smith</TD>
-            <TD numeric>1:43.087</TD>
-            <TD tone="warning">+0.555</TD>
-          </TRow>
-        </TBody>
+        <TableHeader>
+          <TableRow>
+            <TableHead scope="col">Driver</TableHead>
+            <SortableTableHead scope="col" direction="ascending" onSort={() => undefined}>
+              Lap
+            </SortableTableHead>
+            <TableHead scope="col">Delta</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow>
+            <TableCell>A. Cooper</TableCell>
+            <TableCell className="text-right tabular-nums">1:42.318</TableCell>
+            <TableCell className="text-[var(--status-success)]">-0.214</TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell>M. Rossi</TableCell>
+            <TableCell className="text-right tabular-nums">1:42.532</TableCell>
+            <TableCell>+0.000</TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell>J. Smith</TableCell>
+            <TableCell className="text-right tabular-nums">1:43.087</TableCell>
+            <TableCell className="text-[var(--status-warning)]">+0.555</TableCell>
+          </TableRow>
+        </TableBody>
       </Table>
     </div>
   ),
@@ -502,7 +505,7 @@ export const AppInputStates: Story = {
         Disabled value
         <AppInput id="app-input-disabled" value="Read only state" disabled readOnly />
       </label>
-      <AppInput id="app-input-placeholder" aria-label="Session search" placeholder="Search sessions..." />
+      <AppInput id="app-input-placeholder" type="search" aria-label="Session search" placeholder="Search sessions..." />
     </div>
   ),
   play: async ({ canvasElement }) => {
@@ -673,16 +676,27 @@ export const PanelSectionHeaderStates: Story = {
 };
 
 export const SearchSelectMenu: Story = {
-  render: () => <SearchSelectDemo />,
+  render: () => <div data-visual-ready="pending"><SearchSelectDemo /></div>,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole("combobox", { name: "" }));
+    const input = canvas.getByRole("combobox", { name: "Search tracks..." });
+    await userEvent.click(input);
+    await userEvent.clear(input);
+    await userEvent.type(input, "Silver");
+    await expect(input).toHaveAttribute("aria-expanded", "true");
     const body = within(document.body);
     await expect(body.getByRole("listbox", { name: "Search tracks..." })).toBeVisible();
-    await userEvent.click(body.getByRole("option", { name: "Brands Hatch" }));
-    await expect(body.getByRole("listbox", { name: "Search tracks..." })).toHaveCount(0);
-    await userEvent.click(canvas.getByRole("combobox"));
-    await expect(body.getByRole("listbox", { name: "Search tracks..." })).toBeVisible();
+    await expect(body.getByRole("option", { name: "Silverstone" })).toBeVisible();
+    await userEvent.click(body.getByRole("option", { name: "Silverstone" }));
+    await expect(input).toHaveAttribute("aria-expanded", "false");
+    await expect(input).toHaveValue("Silverstone");
+
+    // Finish behavior checks before exposing the named open-menu snapshot state.
+    await userEvent.click(input);
+    await waitFor(() => expect(body.getByRole("listbox", { name: "Search tracks..." })).toBeVisible());
+    const readyMarker = canvasElement.querySelector<HTMLElement>("[data-visual-ready]");
+    await expect(readyMarker).not.toBeNull();
+    readyMarker?.setAttribute("data-visual-ready", "ready");
   },
 };
 

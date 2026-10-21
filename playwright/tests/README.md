@@ -6,7 +6,7 @@
 
 - `fresh-install/`: onboarding and first-run behavior.
 - `marketing/`: public marketing routes and visual checks.
-- `responsive/`: responsive workspaces, mobile screenshot registry, and Chromium device behavior.
+- `responsive/`: screenshot comparison cases run through dedicated config, not E2E projects.
 - `tunes/`: compiled/dev tune workflows that use dedicated tune data.
 - `recording/`: hardware-oriented demo capture.
 - `seeded/<domain>/`: functional workflows against committed seeded rows, grouped by product surface (`analyse`, `catalog`, `chats`, `compare`, `dash`, `dev-tools`, `driver`, `experiments`, `landing`, `live`, `raw`, `routes`, `sessions`, `settings`, and `setups`).
@@ -19,9 +19,17 @@ Put reusable code in `tests/support/`, next to its owning domain when possible. 
 
 Seeded specs import support with `../../support/...`; imports from seeded domain folders to repository `shared`, `server`, or `test` use `../../../../...`. Non-seeded specs use support paths appropriate to their depth. Separate `client/playwright.config.ts` and Storybook snapshot tests are outside this taxonomy.
 
+Use `getSeededLapMeta` for seeded route/control tests that need lap identity or persisted setup metadata. Use `getSeededLapTarget` only when assertions need decoded telemetry; full lap responses can exceed 200 MB. The shared Analyse controls matrix reads F1 setup availability from lap metadata and leaves telemetry loading to the browser.
+
+Session-review telemetry reuse requires valid recorded laps. Invalid-only recordings remain useful for replay coverage but cannot satisfy review eligibility; do not change recorded validity or skip review assertions to make those fixtures pass.
+
+Live iRacing coverage verifies the Tires section is absent in Driver and Pit Crew views while the Pit Crew Race panel remains visible, alongside committed-recording channel updates and disconnect/reconnect behavior.
+
 ## Isolation and cleanup
 
 Treat each spec as runnable alone under its project. Use deterministic seeded rows and test-owned disposable records. Never depend on another spec's order unless existing serial/stateful semantics require it. Restore settings, notes, imports, sessions, and deletions in `finally`; cancel destructive UI actions when testing cancellation. Keep server/data paths and generated output locations unchanged.
+
+Do not import recording fixtures merely to set up seeded route/control tests; use shared seeded laps and sessions. Keep imports that exercise import/export or capture conversion behavior, and imports that create disposable copies for destructive lifecycle tests. Shared baseline rows must survive those tests.
 
 ## Size guidance
 

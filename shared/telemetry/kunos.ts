@@ -45,10 +45,9 @@ export interface KunosExtendedData {
   abs: number;
   engineMap: number;
   brakeBias: number;
-  // Electronics — runtime intervention. tc@204 and abs@252 are the canonical
-  // aid floats; slipVibrations@788 and absVibrations@796 are fallbacks that
-  // some ACC versions populate instead. `tcIntervention`/`absIntervention`
-  // are 1 when any of the sources indicates activity.
+  // ACC's physics tc@204 and abs@252 are aid-related signals, not explicit
+  // active flags. AC Evo uses its explicit graphics tc_active/abs_active flags.
+  // Vibration is independent road/tyre feedback, not intervention evidence.
   tcIntervention: number;
   absIntervention: number;
   tcRaw: number;
@@ -71,6 +70,14 @@ export interface KunosExtendedData {
   roadTempC?: number | null;
 
   // Race state
+  /** ACC session mode; absent for imports without game-reported session context. */
+  sessionType?: string;
+  /** ACC native penalty enum code; absent for sources without this field. */
+  penalty?: number;
+  /** Stable kebab-case ACC penalty label, or "unknown" for unmapped codes. */
+  penaltyType?: string;
+  /** ACC Graphics.penaltyTime native float seconds; not served stop duration. */
+  penaltyTime?: number;
   flagStatus: string;
   drsAvailable: boolean;
   drsEnabled: boolean;
@@ -84,8 +91,6 @@ export interface KunosExtendedData {
   isValidLap: boolean | null;
   /** ACC native countdown converted from milliseconds to seconds. */
   sessionTimeRemainingSeconds?: number;
-  /** ACC shared-memory session type; does not require Broadcasting Protocol. */
-  sessionType?: string;
   /** ACC penalty enum; never interpret as a cumulative penalty count. */
   penaltyCode?: number;
   /** ACC coolant temperature in degrees Celsius. */

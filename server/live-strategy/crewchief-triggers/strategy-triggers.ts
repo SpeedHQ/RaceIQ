@@ -1,4 +1,4 @@
-import type { TelemetryVariableId } from "../../../shared/telemetry/catalog/generated/telemetry-catalog.types";
+import type { TelemetryVariableId } from "@raceiq/shared/telemetry/catalog/generated/telemetry-catalog.types";
 import type { CrewChiefTriggerDraftV1, CrewChiefTriggerFunction, CrewChiefTriggerInputV1 } from "./contracts";
 import type { PreviousValueState } from "./common";
 const finite = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);

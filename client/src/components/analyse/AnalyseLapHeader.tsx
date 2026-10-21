@@ -1,15 +1,17 @@
 import { memo, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getLocale } from "@/paraglide/runtime";
+import { parseUtcTimestamp } from "../../lib/utc-date";
 import { ChevronDown, Download, FileDown, NotebookPen, Sparkles, Trash2 } from "lucide-react";
-import type { LapMeta, SessionOwnership } from "../../../../shared/racing/sessions/types";
-import type { GameId } from "../../../../shared/games/ids";
+import type { LapMeta, SessionOwnership } from "@raceiq/shared/racing/sessions/types";
+import type { GameId } from "@raceiq/shared/games/ids";
 import { formatLapTime } from "../../lib/format";
 import { useMotecTargets, type MotecTargetInfo } from "../../hooks/catalog-queries";
 import { m } from "../../paraglide/messages";
 import { Button } from "../ui/button";
 import { SearchSelect } from "../ui/SearchSelect";
 import { FavoriteToggleButton } from "../FavoriteToggleButton";
+import { queryKeys } from "../../hooks/query-keys";
 
 function buildAnalyseLapOption(lap: LapMeta, locale?: "en" | "de") {
   return {
@@ -30,14 +32,14 @@ interface Props {
   sessionFocused?: boolean;
   onAnalyseSession?: () => void;
   // Selection state
-  selectedTrack: number | string | null;
-  selectedCar: number | string | null;
+  selectedTrack: string | null;
+  selectedCar: string | null;
   selectedLapId: number | null;
   selectedLap: LapMeta | undefined;
   trackNames: Record<string, string>;
   carNames: Record<string, string>;
-  tracks: [number | string, number][];
-  carsForTrack: [number | string, number][];
+  tracks: [string, number][];
+  carsForTrack: [string, number][];
   filteredLaps: LapMeta[];
   // Tune state
   hasTelemetry: boolean;
@@ -48,8 +50,8 @@ interface Props {
   loading: boolean;
   aiPanelOpen: boolean;
   // Callbacks
-  onTrackChange: (v: number | string | null) => void;
-  onCarChange: (v: number | string | null) => void;
+  onTrackChange: (v: string | null) => void;
+  onCarChange: (v: string | null) => void;
   onLapChange: (v: number | null) => void;
   onTuneChange: (tuneId: number | null) => void;
   onViewTune: (tuneId: number) => void;
@@ -110,8 +112,8 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
   const queryClient = useQueryClient();
   const [noteOpen, setNoteOpen] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
-  const trackOptions = useMemo(() => tracks.map(([ordinal, count]) => ({ value: String(ordinal), label: `${trackNames[ordinal] || `Track ${ordinal}`} (${count})` })), [trackNames, tracks]);
-  const carOptions = useMemo(() => carsForTrack.map(([ordinal, count]) => ({ value: String(ordinal), label: `${carNames[ordinal] || `Car ${ordinal}`} (${count})` })), [carNames, carsForTrack]);
+  const trackOptions = useMemo(() => tracks.map(([trackId, count]) => ({ value: trackId, label: `${trackNames[trackId] || `Track ${trackId}`} (${count})` })), [trackNames, tracks]);
+  const carOptions = useMemo(() => carsForTrack.map(([carId, count]) => ({ value: carId, label: `${carNames[carId] || `Car ${carId}`} (${count})` })), [carNames, carsForTrack]);
   const lapOptions = useMemo(() => {
     const sessions = new Map<number, LapMeta[]>();
     for (const lap of filteredLaps) {
@@ -121,7 +123,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
     }
     return filteredLaps.map((lap) => {
       const sessionLaps = sessions.get(lap.sessionId) ?? [lap];
-      const sessionDate = new Date(sessionLaps[sessionLaps.length - 1].createdAt);
+      const sessionDate = parseUtcTimestamp(sessionLaps[sessionLaps.length - 1].createdAt);
       const sessionLabel = m.analyse_session_group({ date: sessionDate.toLocaleDateString(getLocale()), time: sessionDate.toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" }), count: sessionLaps.length });
       return { ...buildAnalyseLapOption(lap), group: sessionLabel };
     });
@@ -187,7 +189,10 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
                 <SearchSelect
                   value={selectedLap?.tuneId != null ? String(selectedLap.tuneId) : ""}
                   onChange={(value) => onTuneChange(value ? Number.parseInt(value, 10) : null)}
-                  options={availableTunes?.map((tune) => ({ value: String(tune.id), label: tune.name })) ?? []}
+                  options={[
+                    { value: "", label: m.analyse_no_tune() },
+                    ...(availableTunes?.map((tune) => ({ value: String(tune.id), label: tune.name })) ?? []),
+                  ]}
                   placeholder={m.analyse_no_tune()}
                   ariaLabel={m.analyse_tune_label()}
                   disabled={tunePending}
@@ -205,8 +210,8 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
         )}
         {sessionFocused && (
           <div className="order-2 flex min-w-0 basis-full flex-wrap items-center gap-x-3 text-sm text-app-text-muted">
-            <span className="truncate">Track: {trackNames[selectedTrack ?? ""] ?? selectedLap?.trackId ?? (selectedLap?.trackOrdinal != null ? `Track ${selectedLap.trackOrdinal}` : "")}</span>
-            <span className="truncate">Car: {carNames[selectedCar ?? ""] ?? selectedLap?.carId ?? (selectedLap?.carOrdinal != null ? `Car ${selectedLap.carOrdinal}` : "")}</span>
+            <span className="truncate">Track: {trackNames[selectedTrack ?? ""] ?? selectedLap?.trackId ?? ""}</span>
+            <span className="truncate">Car: {carNames[selectedCar ?? ""] ?? selectedLap?.carId ?? ""}</span>
           </div>
         )}
 
@@ -349,6 +354,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
           onImported={() => {
             queryClient.invalidateQueries({ queryKey: ["laps"] });
             queryClient.invalidateQueries({ queryKey: ["sessions"] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.userTunes });
           }}
         />
       )}

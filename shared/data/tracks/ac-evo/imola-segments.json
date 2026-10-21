@@ -1,4 +1,5 @@
 {
+  "override": true,
   "sectors": {
     "s1End": 0.3242,
     "s2End": 0.7308,
@@ -11,8 +12,13 @@
       "endFrac": 0.1072
     },
     {
-      "key": "t2",
+      "key": "t1",
       "startFrac": 0.1072,
+      "endFrac": 0.1213
+    },
+    {
+      "key": "t2",
+      "startFrac": 0.1213,
       "endFrac": 0.152
     },
     {
@@ -48,6 +54,11 @@
     {
       "key": "s7",
       "startFrac": 0.3754,
+      "endFrac": 0.4077
+    },
+    {
+      "key": "t8",
+      "startFrac": 0.4077,
       "endFrac": 0.4373
     },
     {
@@ -56,8 +67,13 @@
       "endFrac": 0.5073
     },
     {
-      "key": "s9",
+      "key": "t10",
       "startFrac": 0.5073,
+      "endFrac": 0.5284
+    },
+    {
+      "key": "s10",
+      "startFrac": 0.5284,
       "endFrac": 0.5469
     },
     {
@@ -68,46 +84,66 @@
     {
       "key": "t12",
       "startFrac": 0.5841,
-      "endFrac": 0.6069
+      "endFrac": 0.5965
     },
     {
-      "key": "s12",
-      "startFrac": 0.6069,
+      "key": "t13",
+      "startFrac": 0.5965,
+      "endFrac": 0.6041
+    },
+    {
+      "key": "s13",
+      "startFrac": 0.6041,
       "endFrac": 0.6507
     },
     {
       "key": "t14",
       "startFrac": 0.6507,
-      "endFrac": 0.685
+      "endFrac": 0.6897
     },
     {
       "key": "t15",
-      "startFrac": 0.685,
-      "endFrac": 0.6896
+      "startFrac": 0.6897,
+      "endFrac": 0.7066
+    },
+    {
+      "key": "s15",
+      "startFrac": 0.7066,
+      "endFrac": 0.7865
+    },
+    {
+      "key": "t16",
+      "startFrac": 0.7865,
+      "endFrac": 0.8185
+    },
+    {
+      "key": "s16",
+      "startFrac": 0.8185,
+      "endFrac": 0.8336
     },
     {
       "key": "t17",
-      "startFrac": 0.6896,
-      "endFrac": 0.6946
+      "startFrac": 0.8336,
+      "endFrac": 0.8603
     },
     {
       "key": "t18",
-      "startFrac": 0.6946,
-      "endFrac": 0.7151
+      "startFrac": 0.8603,
+      "endFrac": 0.8930
     },
     {
       "key": "s18",
-      "startFrac": 0.7151,
-      "endFrac": 0.8091
+      "startFrac": 0.8930,
+      "endFrac": 0.9271
     },
     {
       "key": "t19",
-      "startFrac": 0.8091,
-      "endFrac": 0.896
+      "startFrac": 0.9271,
+      "endFrac": 0.9626
     },
     {
       "key": "s19",
-      "startFrac": 0.896,
+      "startFrac": 0.9626,
       "endFrac": 1
     }
   ]

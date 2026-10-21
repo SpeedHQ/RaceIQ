@@ -1,9 +1,9 @@
-import { getGame } from "@shared/games/registry";
-import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
-import { resolveBalance, resolveGripDemand, resolveWheelMetric, resolveWheelStates } from "../../../../shared/racing/analysis/metric-values";
+import { getGame } from "@raceiq/shared/games/registry"
+import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities"
+import { resolveBalance, resolveGripDemand, resolveWheelMetric, resolveWheelStates } from "@raceiq/analysis-core/racing/analysis/metric-values";
 import { Info } from "lucide-react";
 import type { ReactNode } from "react";
-import type { GameId } from "../../../../shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 import type { useUnits } from "../../hooks/useUnits";
 import { severityRangeColor, signedBalanceColor } from "../../lib/colors";
 import { frictionUtilColor, slipRatioColor, tireState, tireTempLabel } from "../../lib/vehicle-dynamics";
@@ -124,6 +124,7 @@ export function AnalyseDynamicsPanel({ frame, gameId, units }: Props) {
         })}
         <text x="100" y="70" textAnchor="middle" fill={balance.slipAvailable ? (balance.signalsAgree ? "var(--status-success)" : "var(--status-warning)") : "var(--status-warning)"} fontSize="7" fontWeight="var(--font-weight-semibold)">{balance.slipAvailable ? (balance.signalsAgree ? m.analyse_dynamics_signals_agree() : m.analyse_dynamics_conflict()) : m.analyse_dynamics_yaw_only()}</text>
         <text x="0" y="80" fill="currentColor" opacity="0.5" fontSize="6.5">{m.analyse_combined()}</text><rect x="0" y="82" width="200" height="10" rx="1" fill="currentColor" opacity="0.06" /><rect x="0" y="82" width={balanceBarX(-0.3)} height="10" fill="var(--balance-negative)" opacity="0.18" /><rect x={balanceBarX(-0.3)} y="82" width={balanceBarX(0.3) - balanceBarX(-0.3)} height="10" fill="var(--balance-neutral)" opacity="0.18" /><rect x={balanceBarX(0.3)} y="82" width={200 - balanceBarX(0.3)} height="10" fill="var(--balance-positive)" opacity="0.18" />
+        <circle cx={balanceBarX(balance.balance)} cy="87" r="4" fill={balanceColor} stroke="var(--app-surface)" strokeWidth="1" />
         <text x="0" y="124" fill="currentColor" fontSize="7" fontWeight="var(--font-weight-semibold)"> {m.analyse_decision()} — <tspan fill={balanceColor}>{balance.state === "neutral" ? m.dynamics_state_neutral() : balance.state === "understeer" ? m.dynamics_state_understeer() : m.dynamics_state_oversteer()} ({balance.balance > 0 ? "+" : ""}{balance.balance.toFixed(2)})</tspan></text>
       </svg>
     </span>

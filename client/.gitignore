@@ -1,6 +1,7 @@
 
 # inlang / paraglide (compiled output + module cache are regenerated on build)
 project.inlang/cache/
+project.inlang/.cache/
 src/paraglide/
 
 # impeccable-live-ignore-start

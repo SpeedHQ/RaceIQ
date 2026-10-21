@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { GameId } from "../../shared/games/ids";
-import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "../../shared/telemetry/live/contracts";
-import { liveSemanticIds } from "../../shared/telemetry/live/semantics";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "@raceiq/shared/telemetry/live/contracts";
+import { liveSemanticIds } from "@raceiq/telemetry-core/telemetry/live/semantics";
 import { buildLiveTelemetryView, indexTelemetrySchema, normalizeAccCompetitors, readIndexedValue } from "../src/lib/live-telemetry-view";
 
 function schema(semanticIds: string[], simulator: GameId = "acc", units: Readonly<Record<string, string | null>> = {}): LiveTelemetrySchemaMessageV1 {
@@ -80,10 +80,15 @@ describe("live telemetry view", () => {
     expect(view.statusBySemanticId["identity.track-id"]).toEqual({ resolution: "ok", freshness: "stale" });
   });
 
-  it("preserves numeric identities and existing ordinal consumers for other games", () => {
-    const definition = schema(["identity.car-ordinal", "identity.track-ordinal", "identity.car-class"]);
-    const view = buildLiveTelemetryView(definition, frame([42, 7, 3]))!;
-    expect(view.identity).toMatchObject({ carId: 42, trackId: 7, carOrdinal: 42, trackOrdinal: 7, carClass: 3 });
+  it("keeps native string identities separate from numeric ordinals", () => {
+    const definition = schema(["identity.car-id", "identity.track-id", "identity.car-ordinal", "identity.track-ordinal", "identity.car-class"]);
+    const native = buildLiveTelemetryView(definition, frame(["car-id", "track-id", 42, 7, 3], { schemaId: definition.schemaId }))!;
+    expect(native.identity).toMatchObject({ carId: "car-id", trackId: "track-id", carClass: 3 });
+    const ordinalOnly = schema(["identity.car-ordinal", "identity.track-ordinal", "identity.car-class"]);
+    const view = buildLiveTelemetryView(ordinalOnly, frame([42, 7, 3], { schemaId: ordinalOnly.schemaId }))!;
+    expect(view.identity.carId).toBeUndefined();
+    expect(view.identity.trackId).toBeUndefined();
+    expect(view.identity.carClass).toBe(3);
   });
 
   it("indexes semantic values and rejects schema mismatch", () => {

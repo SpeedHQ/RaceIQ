@@ -1,4 +1,4 @@
-import type { TelemetryPacket } from "@shared/telemetry/types";
+import type { TelemetryPacket } from "../../telemetry/types";
 
 export const LAP_PATH_SEMANTIC_IDS = [
   "motion.position-x",

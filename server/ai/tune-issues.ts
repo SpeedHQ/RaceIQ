@@ -6,8 +6,8 @@
  * both reuse the exact constants from `tune-symptoms.ts` so the feed and the
  * live alerts never disagree about what counts as "locked" or "bottomed".
  */
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type { TuneIssue } from "../../shared/racing/tuning/issues";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import type { TuneSymptoms } from "./tune-symptoms";
 import {
   BALANCE_THRESHOLD,

@@ -17,8 +17,8 @@ const fakeSession: Experiment = {
   gameId: "acc",
   seq: 7,
   name: "Spa qualifying setup",
-  carOrdinal: null,
-  trackOrdinal: null,
+  carId: null,
+  trackId: null,
   carName: "Huracan GT3",
   trackName: "Spa-Francorchamps",
   headVersionId: 101,
@@ -93,8 +93,8 @@ const statusExampleLaps = statusExampleLapsBase.map((l, i) => ({
   isValid: l.invalidReason === null,
   lapTime: 94.2 + i * 0.3,
   createdAt: new Date(Date.now() - (statusLapCount - i) * 95_000).toISOString(),
-  carOrdinal: 42,
-  trackOrdinal: 7,
+  carId: "42",
+  trackId: "7",
   sectorTimes: [30.1, 33.5, 30.6],
 }));
 

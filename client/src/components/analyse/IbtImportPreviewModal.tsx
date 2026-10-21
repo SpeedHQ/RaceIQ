@@ -1,4 +1,4 @@
-import type { SessionOwnership } from "../../../../shared/racing/sessions/types";
+import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import { OwnershipChoice } from "../import/OwnershipChoice";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
@@ -14,9 +14,9 @@ export interface IbtImportPreview {
   recordCount: number;
   durationSeconds: number;
   sessionStartDate: string;
-  trackId: number;
+  trackId: string;
   trackName: string;
-  carId: number;
+  carId: string;
   carName: string;
   carClassName: string;
   missingRaceIQVariables: string[];

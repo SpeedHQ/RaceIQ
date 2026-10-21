@@ -2,14 +2,25 @@
   "name": "raceiq-e2e",
   "private": true,
   "scripts": {
-    "build": "cd .. && bun run build",
-    "test": "bun run build && playwright test",
-    "test:ui": "bun run build && playwright test --ui",
-    "screenshots": "playwright test --project=marketing",
-    "screenshots:mobile": "bun run build && playwright test --project=mobile-screenshots",
-    "typecheck": "bunx tsc --noEmit -p tsconfig.json"
+    "lint": "../client/node_modules/.bin/oxlint .",
+    "test": "playwright test --workers=1",
+    "test:ui": "bunx turbo run test --filter=raceiq-e2e -- --ui",
+    "screenshots": "playwright test --config=marketing-screenshots.config.ts",
+    "screenshots:mobile": "bun ../scripts/run-browser-verification.ts screenshots",
+    "test:tooling": "bun ../scripts/test/run-suite.ts tooling --package raceiq-e2e"
   },
   "devDependencies": {
-    "@playwright/test": "1.62.1"
+    "@playwright/test": "1.62.1",
+    "@raceiq/tooling": "workspace:*",
+    "@raceiq/backend-core": "workspace:*",
+    "@raceiq/shared": "workspace:*"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.18.0",
+    "sharp": "^0.35.4",
+    "libsql": "^0.5.29",
+    "zod": "^4.6.5",
+    "@raceiq/tooling-data": "workspace:*",
+    "@raceiq/analysis-core": "workspace:*"
   }
 }

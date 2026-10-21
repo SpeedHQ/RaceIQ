@@ -1,7 +1,7 @@
 import * as m from "@/paraglide/messages";
-import type { DriverProfileSummary } from "../../../../server/ai/schemas";
-import type { RankedWeakness } from "../../../../server/driver-profile/detectors";
-import type { DriverFingerprint } from "../../../../server/driver-profile/fingerprint";
+import type { DriverProfileSummary } from "@raceiq/shared/integrations/ai/driver-profile-summary";
+import type { RankedWeakness } from "@raceiq/backend-core/driver-profile/detectors";
+import type { DriverFingerprint } from "@raceiq/backend/driver-profile/fingerprint";
 import type { DriverProfileRun, DriverProfileState } from "../../hooks/driver-profile";
 import { DriverTrendOverview } from "./DriverTrendOverview";
 import { StyleGauges } from "./StyleGauges";

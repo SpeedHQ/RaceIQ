@@ -1,6 +1,6 @@
-import { getGame, tryGetGame } from "@shared/games/registry";
-import { WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
-import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
+import { getGame, tryGetGame } from "@raceiq/shared/games/registry"
+import { WATTS_PER_HORSEPOWER } from "@raceiq/shared/games/telemetry"
+import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities"
 import { m } from "@/paraglide/messages";
 import { useCarName } from "../hooks/catalog-queries";
 import { useUnits } from "../hooks/useUnits";
@@ -29,9 +29,9 @@ interface Props {
 
 export function LiveTelemetry({ view, mode = "driver" }: Props) {
   const pit = useTelemetryStore((s) => s.pit);
-  const carOrdinal = view?.identity.carOrdinal;
-  const { data: resolvedCarName } = useCarName(carOrdinal);
-  const carName = resolvedCarName || (carOrdinal != null ? `Car #${carOrdinal}` : "");
+  const carId = view?.identity.carId;
+  const { data: resolvedCarName } = useCarName(carId);
+  const carName = resolvedCarName || carId || "";
 
 
   const units = useUnits();
@@ -49,6 +49,7 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
   const adapter = getGame(view.simulator);
   const telemetryModel = adapter.telemetry;
   const analysis = resolveAnalysisTelemetry(adapter);
+  const showTires = view.simulator !== "iracing";
   const pitTemperature = analysis.tireTemperature.source === "direct" && analysis.tireTemperature.freshness === "pit-snapshot";
   const pitHealth = analysis.tireHealth.source === "direct" && analysis.tireHealth.freshness === "pit-snapshot";
   const temperatureAvailable = primaryTireTemperaturesC(view.tires) !== undefined;
@@ -120,19 +121,21 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
   if (mode === "driver") {
     return (
       <div className="grid gap-0 p-0">
-        <div className="border-b border-app-border">
-          <TireGrid
-            fl={wheelData("fl")}
-            fr={wheelData("fr")}
-            rl={wheelData("rl")}
-            rr={wheelData("rr")}
-            healthThresholds={(tryGetGame(view.simulator)?.tireHealthThresholds) ?? { green: 0.7, yellow: 0.4 }}
-            tempThresholds={{ blue: 60, orange: 85, red: 100 }}
-            freshnessNote={tireFreshnessNote}
-            temperatureAvailable={temperatureAvailable}
-            healthAvailable={healthAvailable}
-          />
-        </div>
+        {showTires && (
+          <div className="border-b border-app-border">
+            <TireGrid
+              fl={wheelData("fl")}
+              fr={wheelData("fr")}
+              rl={wheelData("rl")}
+              rr={wheelData("rr")}
+              healthThresholds={(tryGetGame(view.simulator)?.tireHealthThresholds) ?? { green: 0.7, yellow: 0.4 }}
+              tempThresholds={{ blue: 60, orange: 85, red: 100 }}
+              freshnessNote={tireFreshnessNote}
+              temperatureAvailable={temperatureAvailable}
+              healthAvailable={healthAvailable}
+            />
+          </div>
+        )}
         <div className="border-b border-app-border">
           <div className="p-2 border-b border-app-border">
             <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.live_pit_window()}</h2>
@@ -204,10 +207,12 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
       </div>
 
       {/* Full tire diagram with suspension */}
-      <div className="px-3 py-2 border-b border-app-border/50">
-        <div className="text-app-caption text-app-text-muted uppercase tracking-wider font-semibold mb-2">{m.label_tires()}</div>
-        <TireDiagram view={view} />
-      </div>
+      {showTires && (
+        <div className="px-3 py-2 border-b border-app-border/50">
+          <div className="text-app-caption text-app-text-muted uppercase tracking-wider font-semibold mb-2">{m.label_tires()}</div>
+          <TireDiagram view={view} />
+        </div>
+      )}
 
       {/* Surface conditions */}
       {showPerWheelSurface && (

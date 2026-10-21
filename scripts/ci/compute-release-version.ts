@@ -1,5 +1,5 @@
 import { appendFileSync } from "node:fs";
-import { computeNextReleaseVersion, type Bump } from "./release-version";
+import { computeNextReleaseVersion, type Bump } from "@raceiq/tooling-release/ci/release-version";
 
 const bump = process.env.RELEASE_BUMP;
 const repo = process.env.REPO;

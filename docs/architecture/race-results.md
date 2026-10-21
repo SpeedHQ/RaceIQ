@@ -24,7 +24,7 @@ Game adapters expose source data without changing the shared result contract.
 
 `server/race-results/reconcile.ts` provides the common path for live completion and historical enrichment. It processes sessions in bounded order, decodes available raw telemetry, derives a result, and upserts the result and pit ledger. Stable session and event identities make reconciliation safe to rerun without duplicate rows.
 
-Reconciliation streams capture frames (including segment boundaries and parser context), incrementally hashes canonical packets and raw capture bytes, and accumulates only result evidence (pit transitions, lap positions, and classification claims). It does not populate the whole-capture source cache or retain every parsed packet. Motec archives retain their existing decoded-packet path.
+Reconciliation streams capture frames (including segment boundaries and parser context), hashes raw capture bytes, and accumulates only result evidence (pit transitions, lap positions, and classification claims). It does not serialize or hash every decoded packet, populate the whole-capture source cache, or retain every parsed packet. Provenance retains raw capture identity and processing versions; historical decoded fingerprints disappear when their results are reconciled again. Motec archives retain their existing decoded-packet path.
 
 Failures enrich reconciliation status instead of invalidating the underlying session. Results report processed, enriched, unchanged, skipped, ambiguous, and error outcomes with per-session reasons.
 

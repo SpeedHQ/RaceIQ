@@ -1,0 +1,645 @@
+import { accRecordingSupport } from "@raceiq/game-acc/test-support/recordings";
+import { describe, test, expect, afterAll } from "bun:test";
+import { parseDump } from "@raceiq/backend-core/test-support/recordings/parse-dump";
+import { LapDetectorAcc } from "@raceiq/game-acc/lap-detector"
+import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"
+import { accParser } from "@raceiq/game-acc/game-parser";
+import { PHYSICS, GRAPHICS, STATIC } from "@raceiq/capture-formats/acc/structs";
+import { ACC_PACKED_MAGIC, packTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
+import { normalizeTelemetryPacket } from "@raceiq/telemetry-core/telemetry/normalization";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
+
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
+
+afterAll(() => stopMaintenanceTasks());
+
+initGameAdapters();
+
+// Fake DB stub captures detector persistence without touching application data.
+function makeFakeDb() {
+  const inserted: Array<{
+    lapNumber: number;
+    lapTime: number;
+    valid: boolean;
+    invalidReason: string | null;
+    classification: LapClassification | null;
+    rawByteOffset: number | null;
+    rawFrameCount: number;
+  }> = [];
+  return {
+    inserted,
+    insertSession: async () => 1,
+    insertLap: async (
+      _sessionId: number,
+      lapNumber: number,
+      lapTime: number,
+      valid: boolean,
+      rawByteOffset: number | null,
+      rawFrameCount: number,
+      _profileId: unknown,
+      _tuneId: unknown,
+      invalidReason: string | null,
+      _sectors: unknown,
+      classification: LapClassification | null,
+    ) => {
+      inserted.push({
+        lapNumber,
+        lapTime,
+        valid,
+        invalidReason,
+        classification,
+        rawByteOffset,
+        rawFrameCount,
+      });
+      return inserted.length;
+    },
+    getTuneAssignment: async () => null,
+    getTrackOutlineSectors: async () => null,
+    // These fake laps never carry a tuning session / tune, so
+    // reconcileAutoExclusionsForLap (server/experiments/auto-exclude.ts) always
+    // no-ops after seeing null/null here.
+    getLapExperimentScope: async () => ({ experimentId: null, tuneId: null }),
+  } as any;
+}
+
+function packet(fields: Partial<TelemetryPacket>): TelemetryPacket {
+  return {
+    gameId: "acc",
+    carId: "34",
+    trackId: "2",
+    CarPerformanceIndex: 0,
+    CarClass: 0,
+    LapNumber: 0,
+    CurrentLap: 0,
+    LastLap: 0,
+    BestLap: 0,
+    CurrentRaceTime: 0,
+    DistanceTraveled: 0,
+    PositionX: 0,
+    PositionY: 0,
+    PositionZ: 0,
+    Speed: 0,
+    TimestampMS: 0,
+    ...fields,
+  } as TelemetryPacket;
+}
+
+test.each([["full", true], ["indexed", true], ["full", false], ["indexed", false]] as const)("native ACC %s import isolates reset and next-lap yellow evidence (reset=%s)", async (mode, reset) => {
+  const db = { ...makeFakeDb(), setLapMetrics: async () => {} };
+  const detector = new LapDetectorAcc({ db, bypassPacketRateFilter: true });
+  const physics = Buffer.alloc(PHYSICS.SIZE);
+  const stat = Buffer.alloc(STATIC.SIZE);
+  stat.write("bmw_m4_gt3", STATIC.carModel.offset, "utf16le");
+  stat.write("monza", STATIC.track.offset, "utf16le");
+  for (let second = 0; second <= (reset ? 41 : 82); second++) {
+    const graphics = Buffer.alloc(GRAPHICS.SIZE);
+    graphics.writeInt32LE(2, GRAPHICS.status.offset);
+    graphics.writeInt32LE(1 + Math.floor(second / 41), GRAPHICS.completedLaps.offset);
+    graphics.writeInt32LE((second % 41) * 1000, GRAPHICS.iCurrentTime.offset);
+    graphics.writeInt32LE(second >= 41 ? 40_000 : 0, GRAPHICS.iLastTime.offset);
+    graphics.writeInt32LE(!reset && second === 41 ? 2 : 0, GRAPHICS.flag.offset);
+    graphics.writeFloatLE(second * 100, GRAPHICS.distanceTraveled.offset);
+    graphics.writeFloatLE(reset && second >= 39 ? 500 : 100, GRAPHICS.carCoordinatesBase.offset);
+    graphics.writeFloatLE(5, GRAPHICS.carCoordinatesBase.offset + 4);
+    graphics.writeFloatLE(200, GRAPHICS.carCoordinatesBase.offset + 8);
+    graphics.writeInt32LE(reset && second >= 39 ? 1 : 0, GRAPHICS.isInPitLane.offset);
+    graphics.writeInt32LE(1, GRAPHICS.isValidLap.offset);
+    const frame = packTriplet(ACC_PACKED_MAGIC, 0, 0, physics, graphics, stat);
+    const parsed = mode === "full"
+      ? accParser.tryParse(frame, null, second * 1000)
+      : accParser.tryParseLapIndex(frame, null, second * 1000);
+    if (!parsed) throw new Error("Invalid ACC fixture");
+    const telemetry = parsed as TelemetryPacket;
+    normalizeTelemetryPacket(telemetry, true);
+    await detector.feed(telemetry, second * 100);
+  }
+  expect(db.inserted).toHaveLength(reset ? 1 : 2);
+  expect(db.inserted[0]).toMatchObject({ valid: true, classification: reset ? "reset" : "pace", invalidReason: null });
+  if (!reset) expect(db.inserted[1]).toMatchObject({ valid: true, classification: "caution", invalidReason: null });
+});
+
+describe("ACC live ownership and persisted rows", () => {
+  test("abandons a short initial partial, binds completed lap, persists final incomplete", async () => {
+    const db = makeFakeDb();
+    const detector = new LapDetectorAcc({ db });
+    const transitions: Array<{ kind: string; window: { startOffset: number | null; frameCount: number } | null }> = [];
+    detector.subscribeOwnership((transition) => transitions.push({ kind: transition.kind, window: transition.window }));
+    let ordinal = 0;
+    const feed = async (fields: Partial<TelemetryPacket>) => {
+      ordinal++;
+      await detector.feed(packet(fields), ordinal * 100, ordinal);
+      detector.drainOwnershipTransitions();
+    };
+
+    for (let second = 40; second <= 43; second++) {
+      await feed({ LapNumber: 1, CurrentLap: second, DistanceTraveled: second, TimestampMS: second * 1_000 });
+    }
+    await feed({ LapNumber: 2, CurrentLap: 0.2, LastLap: 0, DistanceTraveled: 44, TimestampMS: 44_000 });
+    expect(db.inserted).toHaveLength(0);
+    expect(transitions.map(({ kind }) => kind)).toContain("window-abandoned");
+
+    for (let second = 1; second <= 40; second++) {
+      await feed({ LapNumber: 2, CurrentLap: second, DistanceTraveled: 44 + second * 100, TimestampMS: (44 + second) * 1_000 });
+    }
+    await feed({ LapNumber: 3, CurrentLap: 0.2, LastLap: 40, DistanceTraveled: 4_144, TimestampMS: 85_000 });
+    expect(db.inserted).toHaveLength(1);
+    expect(transitions.map(({ kind }) => kind)).toContain("window-finalized");
+
+    for (let second = 1; second <= 10; second++) {
+      await feed({ LapNumber: 3, CurrentLap: second, DistanceTraveled: 4_144 + second * 20, TimestampMS: (85 + second) * 1_000 });
+    }
+    await detector.finalizeCurrentSession();
+    detector.drainOwnershipTransitions();
+    expect(db.inserted).toHaveLength(2);
+    expect(db.inserted[1]).toMatchObject({ valid: false, invalidReason: "incomplete" });
+    expect(transitions.map(({ kind }) => kind)).toContain("final-incomplete");
+    const persistedWindows = transitions.filter(({ kind }) => kind === "window-finalized" || kind === "final-incomplete");
+    expect(persistedWindows).toHaveLength(db.inserted.length);
+    for (const [index, { window }] of persistedWindows.entries()) {
+      expect(window).toMatchObject({
+        startOffset: db.inserted[index]!.rawByteOffset,
+        frameCount: db.inserted[index]!.rawFrameCount,
+      });
+    }
+  });
+});
+
+describe("LapDetectorAc — reset detection", () => {
+  test("emits a lap when CurrentLap resets from >30 to <2", async () => {
+    const db = makeFakeDb();
+    const saved: Array<{ lapNumber: number; lapTime: number }> = [];
+    const d = new LapDetectorAcc({
+      db,
+      callbacks: {
+        onLapSaved: (n) => saved.push({ lapNumber: n.lapNumber, lapTime: n.lapTime }),
+      },
+    });
+
+    // Drive a fake lap: CurrentLap climbs 0 -> 90, DistanceTraveled accumulates
+    for (let t = 0; t <= 90; t += 1) {
+      await d.feed(packet({ CurrentLap: t, DistanceTraveled: t * 50, TimestampMS: t * 1000 }));
+    }
+    // Reset: CurrentLap drops, DistanceTraveled keeps climbing
+    await d.feed(packet({ CurrentLap: 0.3, DistanceTraveled: 90 * 50 + 30, TimestampMS: 91 * 1000 }));
+
+    expect(saved.length).toBe(1);
+    expect(saved[0].lapNumber).toBe(1);
+    expect(saved[0].lapTime).toBeCloseTo(90, 0);
+  });
+
+  test("drops a short pit timer prefix and aligns the recorded lap window", async () => {
+    const db = makeFakeDb();
+    const completed: TelemetryPacket[][] = [];
+    const detector = new LapDetectorAcc({
+      db,
+      callbacks: {
+        onLapComplete: (event) => completed.push(event.packets),
+      },
+    });
+
+    for (let second = 0; second <= 21; second++) {
+      await detector.feed(
+        packet({
+          LapNumber: 1,
+          CurrentLap: second,
+          DistanceTraveled: second / 2,
+          TimestampMS: second * 1_000,
+          acc: { pitStatus: "pit_lane" } as never,
+        }),
+        12 + second * 100,
+      );
+    }
+
+    const timedLapOffset = 2_212;
+    await detector.feed(
+      packet({
+        LapNumber: 1,
+        CurrentLap: 0.012,
+        DistanceTraveled: 10.9,
+        TimestampMS: 21_012,
+        acc: { pitStatus: "pit_lane" } as never,
+      }),
+      timedLapOffset,
+    );
+    for (let second = 1; second <= 90; second++) {
+      await detector.feed(
+        packet({
+          LapNumber: 1,
+          CurrentLap: second,
+          DistanceTraveled: 10.9 + second * 43,
+          TimestampMS: 21_012 + second * 1_000,
+          acc: { pitStatus: "out" } as never,
+        }),
+        timedLapOffset + second * 100,
+      );
+    }
+    await detector.feed(
+      packet({
+        LapNumber: 2,
+        CurrentLap: 0.1,
+        LastLap: 90,
+        DistanceTraveled: 3_900,
+        TimestampMS: 112_000,
+        acc: { pitStatus: "out" } as never,
+      }),
+      timedLapOffset + 9_100,
+    );
+
+    expect(db.inserted).toHaveLength(1);
+    expect(db.inserted[0]).toMatchObject({
+      lapNumber: 1,
+      lapTime: 90,
+      valid: true,
+      invalidReason: null,
+      classification: "out_lap",
+      rawByteOffset: timedLapOffset,
+      rawFrameCount: 92,
+    });
+    expect(completed).toHaveLength(1);
+    expect(completed[0]![0]!.CurrentLap).toBe(0.012);
+    expect(completed[0]).toHaveLength(92);
+  });
+
+  test("fires onLapComplete with lap event when a lap is emitted", async () => {
+    const db = makeFakeDb();
+    const completeEvents: Array<{
+      packetCount: number;
+      lapDistStart: number;
+      lapTime: number;
+      isValid: boolean;
+    }> = [];
+    const d = new LapDetectorAcc({
+      db,
+      callbacks: {
+        onLapComplete: (e) =>
+          completeEvents.push({
+            packetCount: e.packets.length,
+            lapDistStart: e.lapDistStart,
+            lapTime: e.lapTime,
+            isValid: e.isValid,
+          }),
+      },
+    });
+
+    // Drive one fake lap, then reset to trigger emission
+    for (let t = 0; t <= 90; t += 1) {
+      await d.feed(packet({ CurrentLap: t, DistanceTraveled: 1000 + t * 50, TimestampMS: t * 1000 }));
+    }
+    await d.feed(packet({ CurrentLap: 0.3, DistanceTraveled: 1000 + 90 * 50 + 30, TimestampMS: 91 * 1000 }));
+
+    expect(completeEvents.length).toBe(1);
+    expect(completeEvents[0].packetCount).toBeGreaterThan(0);
+    expect(completeEvents[0].lapDistStart).toBe(1000);
+    expect(completeEvents[0].lapTime).toBeCloseTo(90, 0);
+  });
+
+  test("does not fire onLapComplete for silent incomplete-flush events", async () => {
+    const db = makeFakeDb();
+    let completeCount = 0;
+    const d = new LapDetectorAcc({
+      db,
+      callbacks: {
+        onLapComplete: () => completeCount++,
+      },
+    });
+
+    // Drive a partial in-progress lap, then flush
+    for (let t = 0; t <= 30; t += 1) {
+      await d.feed(packet({ CurrentLap: t, DistanceTraveled: t * 50, TimestampMS: t * 1000 }));
+    }
+    await d.flushIncompleteLap();
+
+    expect(completeCount).toBe(0);
+  });
+
+  test("classifies the initial pit-exit window without category-only invalidation", async () => {
+    const db = makeFakeDb();
+    const d = new LapDetectorAcc({ db });
+
+    // Recording starts with the car in the pit lane, ~50s into some pre-recording lap
+    for (let t = 50; t <= 70; t += 1) {
+      await d.feed(
+        packet({
+          CurrentLap: t,
+          DistanceTraveled: t * 50,
+          TimestampMS: t * 1000,
+          acc: { pitStatus: "pit_lane" } as any,
+        })
+      );
+    }
+    // Driver exits the pit lane partway through and spends the rest of the pre-recording lap on track
+    for (let t = 71; t <= 90; t += 1) {
+      await d.feed(
+        packet({
+          CurrentLap: t,
+          DistanceTraveled: t * 50,
+          TimestampMS: t * 1000,
+          acc: { pitStatus: "out" } as any,
+        })
+      );
+    }
+    // First reset (end of that pre-recording lap) — on track now
+    await d.feed(
+      packet({
+        CurrentLap: 0.3,
+        DistanceTraveled: 90 * 50 + 30,
+        TimestampMS: 91 * 1000,
+        acc: { pitStatus: "out" } as any,
+      })
+    );
+
+    // Full clean lap on track
+    for (let t = 1; t <= 85; t += 1) {
+      await d.feed(
+        packet({
+          CurrentLap: t,
+          DistanceTraveled: 90 * 50 + 30 + t * 50,
+          TimestampMS: (91 + t) * 1000,
+          acc: { pitStatus: "out" } as any,
+        })
+      );
+    }
+    await d.feed(
+      packet({
+        CurrentLap: 0.2,
+        DistanceTraveled: 999999,
+        TimestampMS: 999999,
+        acc: { pitStatus: "out" } as any,
+      })
+    );
+
+    // Pit classification is independent of recording quality; neither lap has a quality failure.
+    expect(db.inserted.length).toBe(2);
+    expect(db.inserted[0].lapNumber).toBe(1);
+    expect(db.inserted[0]).toMatchObject({ valid: true, invalidReason: null, classification: "out_lap" });
+    expect(db.inserted[1].lapNumber).toBe(2);
+    expect(db.inserted[1].valid).toBe(true);
+    expect(db.inserted[1].lapTime).toBeCloseTo(85, 0);
+  });
+
+  test("teleport to pits with continuing timer preserves lap ownership and persists reset classification", async () => {
+    const db = makeFakeDb();
+    const d = new LapDetectorAcc({ db });
+    for (let t = 0; t <= 10; t++) {
+      await d.feed(packet({
+        LapNumber: 4, CurrentLap: t, DistanceTraveled: 11_758 + t * 25,
+        TimestampMS: t * 1_000, PositionX: 100, PositionY: 5, PositionZ: 200,
+        acc: { pitStatus: "out" } as never,
+      }), 100 + t * 10, t);
+    }
+    d.drainOwnershipTransitions();
+    const reset = packet({
+      LapNumber: 4, CurrentLap: 11.112, DistanceTraveled: 0, TimestampMS: 10_190,
+      PositionX: 343.5, PositionY: 5, PositionZ: 200, acc: { pitStatus: "pit_lane" } as never,
+    });
+    expect(d.shouldCheckpointBeforeWrite(reset)).toBe(false);
+    await d.feed(reset, 210, 11);
+    expect(d.drainOwnershipTransitions().some(({ kind }) => kind === "window-abandoned")).toBe(false);
+    for (let t = 12; t <= 15; t++) {
+      await d.feed(packet({
+        LapNumber: 4, CurrentLap: t, DistanceTraveled: 0.1, TimestampMS: t * 1_000,
+        PositionX: 343.5, PositionY: 5, PositionZ: 200, acc: { pitStatus: "pit_lane" } as never,
+      }), 100 + t * 10, t);
+    }
+    await d.flushIncompleteLap();
+    expect(db.inserted).toHaveLength(1);
+    expect(db.inserted[0]).toMatchObject({
+      lapNumber: 4, rawByteOffset: 100, rawFrameCount: 16, lapTime: 15, classification: "reset",
+    });
+  });
+
+  test("timer restart discards in-progress prefix and keeps new packet", async () => {
+    const db = makeFakeDb();
+    const saved: Array<{ lapNumber: number; lapTime: number }> = [];
+    const d = new LapDetectorAcc({
+      db,
+      callbacks: {
+        onLapSaved: (n) => saved.push({ lapNumber: n.lapNumber, lapTime: n.lapTime }),
+      },
+    });
+
+    // Drive 20 seconds into lap 0 (distance accumulating)
+    for (let t = 0; t <= 20; t += 1) {
+      await d.feed(packet({ CurrentLap: t, DistanceTraveled: t * 50, TimestampMS: t * 1000 }));
+    }
+    // Restart: distance drops back to ~0, CurrentLap also near 0
+    await d.feed(packet({ CurrentLap: 0.1, DistanceTraveled: 0, TimestampMS: 100000 }));
+
+    // No lap should have been emitted
+    expect(saved.length).toBe(0);
+
+    // The new packet IS the start of the post-restart lap; drive a full lap from here
+    for (let t = 1; t <= 80; t += 1) {
+      await d.feed(packet({ CurrentLap: t, DistanceTraveled: t * 50, TimestampMS: (100 + t) * 1000 }));
+    }
+    // Complete that lap
+    await d.feed(packet({ CurrentLap: 0.2, DistanceTraveled: 80 * 50 + 30, TimestampMS: 200000 }));
+
+    expect(saved.length).toBe(1);
+    expect(saved[0].lapNumber).toBe(1);
+    expect(saved[0].lapTime).toBeCloseTo(80, 0);
+  });
+
+  test("calls assessLapRecording and marks short-distance laps invalid", async () => {
+    const db = makeFakeDb();
+    const saved: Array<{ lapNumber: number; lapTime: number; isValid: boolean }> = [];
+    const d = new LapDetectorAcc({
+      db,
+      callbacks: {
+        onLapSaved: (n) => saved.push({ lapNumber: n.lapNumber, lapTime: n.lapTime, isValid: n.isValid }),
+      },
+    });
+
+    // 50 packets with DistanceTraveled increasing only ~50m total — fails the "lapDistance < 100" rule
+    for (let t = 0; t <= 50; t += 1) {
+      await d.feed(packet({ CurrentLap: t * 2, DistanceTraveled: t * 1, TimestampMS: t * 100 }));
+    }
+    // Reset
+    await d.feed(packet({ CurrentLap: 0.1, DistanceTraveled: 52, TimestampMS: 51000 }));
+
+    expect(saved.length).toBe(1);
+    expect(saved[0].isValid).toBe(false);
+  });
+
+  test("classifies a quality-valid lap as out_lap when it starts in the pit lane", async () => {
+    const db = makeFakeDb();
+    const d = new LapDetectorAcc({ db });
+
+    // Out-lap: starts in pit lane, exits to track, drives a full clean lap
+    // First packet: CurrentLap=0, pitStatus=pit_lane (car in pit exit)
+    await d.feed(
+      packet({
+        CurrentLap: 0,
+        DistanceTraveled: 0,
+        TimestampMS: 0,
+        acc: { pitStatus: "pit_lane" } as any,
+      })
+    );
+    // Next 40 packets: still in pit lane, creeping towards track
+    for (let t = 1; t <= 40; t += 1) {
+      await d.feed(
+        packet({
+          CurrentLap: t,
+          DistanceTraveled: t * 50,
+          TimestampMS: t * 1000,
+          acc: { pitStatus: "pit_lane" } as any,
+        })
+      );
+    }
+    // Car exits pit, on track for the rest of the lap
+    for (let t = 41; t <= 90; t += 1) {
+      await d.feed(
+        packet({
+          CurrentLap: t,
+          DistanceTraveled: t * 50,
+          TimestampMS: t * 1000,
+          acc: { pitStatus: "out" } as any,
+        })
+      );
+    }
+    // Lap boundary — reset
+    await d.feed(
+      packet({
+        CurrentLap: 0.2,
+        DistanceTraveled: 91 * 50,
+        TimestampMS: 91 * 1000,
+        acc: { pitStatus: "out" } as any,
+      })
+    );
+
+    expect(db.inserted.length).toBe(1);
+    expect(db.inserted[0]).toMatchObject({ valid: true, invalidReason: null, classification: "out_lap" });
+  });
+
+  test("classifies a quality-valid lap as in_lap when it ends in the pit lane", async () => {
+    const db = makeFakeDb();
+    const d = new LapDetectorAcc({ db });
+
+    // In-lap: drives most of the lap on track, enters pit lane near the finish
+    for (let t = 0; t <= 60; t += 1) {
+      await d.feed(
+        packet({
+          CurrentLap: t,
+          DistanceTraveled: t * 50,
+          TimestampMS: t * 1000,
+          acc: { pitStatus: "out" } as any,
+        })
+      );
+    }
+    // Enters pit lane for the last ~30s of the lap
+    for (let t = 61; t <= 90; t += 1) {
+      await d.feed(
+        packet({
+          CurrentLap: t,
+          DistanceTraveled: t * 50,
+          TimestampMS: t * 1000,
+          acc: { pitStatus: "pit_lane" } as any,
+        })
+      );
+    }
+    // Lap boundary — reset, still in pit
+    await d.feed(
+      packet({
+        CurrentLap: 0.2,
+        DistanceTraveled: 91 * 50,
+        TimestampMS: 91 * 1000,
+        acc: { pitStatus: "pit_lane" } as any,
+      })
+    );
+
+    expect(db.inserted.length).toBe(1);
+    expect(db.inserted[0]).toMatchObject({ valid: true, invalidReason: null, classification: "in_lap" });
+  });
+});
+
+describe("ACC recorded validity precedence", () => {
+  async function completeLap(
+    recorded: boolean | null,
+    options: { pit?: boolean; short?: boolean; resetValidity?: boolean | null; flush?: boolean } = {},
+  ) {
+    const db = makeFakeDb();
+    const detector = new LapDetectorAcc({ db });
+    for (let t = 0; t <= 90; t++) {
+      await detector.feed(packet({
+        CurrentLap: t,
+        DistanceTraveled: t * (options.short ? 1 : 50),
+        TimestampMS: t * 1000,
+        acc: { pitStatus: options.pit && t < 20 ? "pit_lane" : "out", isValidLap: recorded } as TelemetryPacket["acc"],
+      }));
+    }
+    if (options.flush) await detector.flushIncompleteLap();
+    else await detector.feed(packet({
+      CurrentLap: 0.2,
+      DistanceTraveled: 91 * (options.short ? 1 : 50),
+      TimestampMS: 91000,
+      acc: { pitStatus: "out", isValidLap: options.resetValidity ?? null } as TelemetryPacket["acc"],
+    }));
+    return db.inserted[0];
+  }
+
+  test("native validity retains pit classification without overriding recording-quality failures", async () => {
+    expect(await completeLap(true, { pit: true })).toMatchObject({ valid: true, invalidReason: null, classification: "out_lap" });
+    expect(await completeLap(true, { short: true })).toMatchObject({ valid: false, invalidReason: "telemetry distance too short" });
+  });
+
+  test("false invalidates a clean lap even when reset signal turns true", async () => {
+    expect(await completeLap(false, { resetValidity: true })).toMatchObject({
+      valid: false, invalidReason: "game reported invalid",
+    });
+  });
+
+  test("unknown last-lap validity retains positive pit classification", async () => {
+    expect(await completeLap(null, { pit: true, resetValidity: true })).toMatchObject({
+      valid: true, invalidReason: null, classification: "out_lap",
+    });
+  });
+
+  test("incomplete laps remain invalid despite recorded true", async () => {
+    expect(await completeLap(true, { flush: true })).toMatchObject({
+      valid: false, invalidReason: "incomplete",
+    });
+  });
+
+  test("session best lap includes only completed valid laps", async () => {
+    const db = makeFakeDb();
+    const detector = new LapDetectorAcc({ db });
+    for (const [lap, validity, duration] of [[0, false, 70], [1, true, 90]] as const) {
+      for (let t = 0; t <= duration; t++) {
+        await detector.feed(packet({
+          LapNumber: lap,
+          CurrentLap: t,
+          DistanceTraveled: lap * 5000 + t * 50,
+          TimestampMS: lap * 100000 + t * 1000,
+          acc: { pitStatus: "out", isValidLap: validity } as TelemetryPacket["acc"],
+        }));
+      }
+      await detector.feed(packet({
+        LapNumber: lap + 1,
+        CurrentLap: 0.2,
+        DistanceTraveled: lap * 5000 + (duration + 1) * 50,
+        TimestampMS: lap * 100000 + (duration + 1) * 1000,
+        acc: { pitStatus: "out", isValidLap: true } as TelemetryPacket["acc"],
+      }));
+    }
+    expect(db.inserted.map(({ valid, invalidReason }: { valid: boolean; invalidReason: string | null }) => ({ valid, invalidReason }))).toEqual([
+      { valid: false, invalidReason: "game reported invalid" },
+      { valid: true, invalidReason: null },
+    ]);
+    expect(detector.session?.bestLapTime).toBeCloseTo(90, 0);
+  });
+});
+
+test("parseDump runs against the problem recording without throwing", async () => {
+  const result = await parseDump(accRecordingSupport, "test/artifacts/sessions/acc-2026-04-10T02-59-28-972Z.bin.gz");
+  expect(result.laps.length).toBeGreaterThan(0);
+}, { timeout: 30000 });
+
+test("V3 recording persists ACC source validity for completed laps", async () => {
+  const result = await parseDump(accRecordingSupport, "test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz");
+  const byLap = new Map(result.laps.map((lap) => [lap.lapNumber, lap]));
+  expect(byLap.get(2)).toMatchObject({ isValid: true, invalidReason: null });
+  expect(byLap.get(3)).toMatchObject({ isValid: false, invalidReason: "game reported invalid" });
+  expect(byLap.get(4)).toMatchObject({ isValid: false, invalidReason: "incomplete" });
+  expect(byLap.get(3)?.packets.at(-2)?.acc?.isValidLap).toBe(false);
+}, { timeout: 60000 });

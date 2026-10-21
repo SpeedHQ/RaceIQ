@@ -3,7 +3,7 @@ import sharp from "sharp";
 
 import { collectBrowserErrors } from "../../support/browser-errors";
 import { SEEDED_GAME_CASES } from "../../support/seeded/cases";
-import { getSeededLapTarget } from "../../support/seeded/laps";
+import { getSeededLapMeta, getSeededLapTarget } from "../../support/seeded/laps";
 import { exerciseCrossGameControls } from "./controls";
 import { openAnalyseLap } from "./fixtures";
 
@@ -60,7 +60,7 @@ async function seekToClosestRacingLine(page: Page, request: APIRequestContext, l
   expect(Math.sqrt(bestDistanceSquared), `${gameId} replay should cross its reference line`).toBeLessThan(1);
 
   const firstTime = frameTimes[0];
-  const lastTime = frameTimes.at(-1)!;
+  const lastTime = frameTimes.reduce((maximum, time) => Math.max(maximum, time), firstTime);
   const bestTime = frameTimes[bestFrameIndex];
   const timeFraction = (bestTime - firstTime) / (lastTime - firstTime);
   const slider = page.getByRole("slider", { name: "Lap timeline" });
@@ -122,9 +122,9 @@ test("Analyse shared controls work across seeded game recordings", async ({ page
   const browserErrors = collectBrowserErrors(page);
 
   for (const game of SEEDED_GAME_CASES) {
-    const target = await getSeededLapTarget(request, game.gameId);
+    const target = await getSeededLapMeta(request, game.gameId);
     await openAnalyseLap(page, target, game.prefix);
-    await exerciseCrossGameControls(page, game.gameId === "f1-2025" && Boolean(target.telemetry[0]?.f1?.setup), target.lapNumber);
+    await exerciseCrossGameControls(page, game.gameId === "f1-2025" && Boolean(target.carSetup), target.lapNumber);
   }
 
   expect(browserErrors.errors, "unexpected browser errors in seeded Analyse matrix").toEqual([]);
@@ -147,8 +147,37 @@ test("Session MoTeC import locks current game selection", async ({ page }) => {
   await motecDialog.getByPlaceholder("Search cars...").click();
   await page.getByRole("option", { name: "Ferrari 296 GT3 2023", exact: true }).click();
   await expect(motecDialog.getByPlaceholder("Search cars...")).toHaveValue("Ferrari 296 GT3 2023");
+  await expect(motecDialog.getByPlaceholder("Search setups...")).toBeVisible();
   await motecDialog.getByPlaceholder("Search tracks...").click();
   await expect(page.getByRole("option", { name: "Brands Hatch (GP)" })).toBeVisible();
+});
+
+test("F1 MoTeC import searches team cars and tracks without a setup picker", async ({ page }) => {
+  await page.route("**/api/laps/detect-import", async (route) => {
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify({ format: "motec", supported: true, gameIds: [], captureCount: 1, message: null }) });
+  });
+  await page.goto("/f125/sessions");
+  await page.getByRole("button", { name: /import/i }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.locator('input[type="file"]').setInputFiles({ name: "sample.ld", mimeType: "application/octet-stream", buffer: Buffer.from("synthetic") });
+  await expect(dialog).toContainText("Import MoTeC log");
+  const cars = dialog.getByPlaceholder("Search cars...");
+  await cars.click();
+  await expect(page.getByRole("option", { name: "Ferrari", exact: true })).toBeVisible();
+  await expect(page.getByRole("option", { name: "Mercedes", exact: true })).toBeVisible();
+  await cars.fill("F1 World");
+  await page.getByRole("option", { name: "F1 World", exact: true }).click();
+  await expect(cars).toHaveValue("F1 World");
+  const tracks = dialog.getByPlaceholder("Search tracks...");
+  await tracks.fill("Silverstone");
+  await page.getByRole("option", { name: "Silverstone Circuit (Grand Prix)", exact: true }).click();
+  await expect(tracks).toHaveValue("Silverstone Circuit (Grand Prix)");
+  await expect(dialog.getByPlaceholder("Search setups...")).toHaveCount(0);
+  await expect(dialog.getByPlaceholder("Pick a car first")).toHaveCount(0);
+  await expect(dialog.getByText("Setup (optional)", { exact: true })).toHaveCount(0);
+  await expect(dialog).toContainText("MoTeC import is not supported for F1 2025 yet.");
+  await dialog.locator('input[accept=".ldx"]').setInputFiles({ name: "sample.ldx", mimeType: "application/octet-stream", buffer: Buffer.from("<LDX />") });
+  await expect(dialog.getByRole("button", { name: "Import", exact: true })).toBeDisabled();
 });
 
 test("Analyse racing-line overlay follows seeded track availability", async ({ page, request }) => {
@@ -159,7 +188,7 @@ test("Analyse racing-line overlay follows seeded track availability", async ({ p
   });
 
   const accTarget = await getSeededLapTarget(request, "acc");
-  const accBoundariesResponse = await request.get(`/api/track-boundaries/${accTarget.trackOrdinal}?gameId=acc`);
+  const accBoundariesResponse = await request.get(`/api/track-boundaries/${encodeURIComponent(accTarget.trackId)}?gameId=acc`);
   expect(accBoundariesResponse.ok(), "ACC track boundaries response").toBe(true);
   const accBoundaries = (await accBoundariesResponse.json()) as { raceLine?: Array<{ x: number; z: number }> } | null;
   expect(accBoundaries, "ACC bundled track boundaries").not.toBeNull();
@@ -182,7 +211,7 @@ test("Analyse racing-line overlay follows seeded track availability", async ({ p
   await expectVisible3dRacingLine(page);
 
   const acEvoTarget = await getSeededLapTarget(request, "ac-evo");
-  const acEvoBoundariesResponse = await request.get(`/api/track-boundaries/${acEvoTarget.trackOrdinal}?gameId=ac-evo`);
+  const acEvoBoundariesResponse = await request.get(`/api/track-boundaries/${encodeURIComponent(acEvoTarget.trackId)}?gameId=ac-evo`);
   expect(acEvoBoundariesResponse.ok(), "AC Evo track boundaries response").toBe(true);
   const acEvoBoundaries = (await acEvoBoundariesResponse.json()) as { raceLine?: unknown };
   expect(Array.isArray(acEvoBoundaries.raceLine), "AC Evo racing-line payload").toBe(true);

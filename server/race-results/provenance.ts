@@ -1,19 +1,19 @@
-import type { RaceResultProvenance } from "../../shared/racing/results/types";
-import type { GameId } from "../../shared/games/ids";
+import type { RaceResultProvenance } from "@raceiq/shared/racing/results/types";
+import type { GameId } from "@raceiq/shared/games/ids";
 import {
   TELEMETRY_CATALOG_HASH,
   TELEMETRY_CATALOG_SCHEMA_VERSION,
   TELEMETRY_CATALOG_VERSION,
-} from "../../shared/telemetry/catalog/data";
+} from "@raceiq/shared/telemetry/catalog/data";
 import {
   TELEMETRY_PARSER_VERSIONS,
   TELEMETRY_RESOLVER_VERSION,
-} from "../../shared/telemetry/resolver/versions";
+} from "@raceiq/shared/telemetry/resolver/versions";
 import { RACE_RESULT_OUTCOME_POLICY } from "./authority";
 
 const RACE_RESULT_DERIVATION_ID = "race-result-derivation";
-const RACE_RESULT_DERIVATION_VERSION = "3";
-const RACE_RESULT_DERIVATION_CODE_HASH = "sha256:cffa4cebb957096212111001a2dcc14186df97a4bf74734fc853db6054c4c8e8";
+const RACE_RESULT_DERIVATION_VERSION = "5";
+const RACE_RESULT_DERIVATION_CODE_HASH = "sha256:679c2a2e740f21cacf5fd4dd831f8a78a6a511705897861def7761c5a8652bc5";
 
 export function createRaceResultProvenance(
   gameId: GameId,
@@ -29,7 +29,6 @@ export function createRaceResultProvenance(
     derivationVersion: RACE_RESULT_DERIVATION_VERSION,
     derivationCodeHash: RACE_RESULT_DERIVATION_CODE_HASH,
     rawInput: null,
-    canonicalInput: null,
     authorityPolicyId: RACE_RESULT_OUTCOME_POLICY.id,
     authorityPolicyVersion: RACE_RESULT_OUTCOME_POLICY.version,
     ...overrides,

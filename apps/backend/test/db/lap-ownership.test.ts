@@ -1,0 +1,43 @@
+import { afterEach, expect, test } from "bun:test";
+import type { GameId } from "@raceiq/shared/games/ids";
+import { eq, sql } from "drizzle-orm";
+import { getLapStats, getLapMetaForProfileScope, getLaps } from "@raceiq/backend-core/db/lap-read-queries";
+import { deleteSession, getSessions, insertSession } from "@raceiq/backend-core/db/session-queries";
+import { insertLap } from "@raceiq/backend-core/db/lap-mutation-queries";
+import { db } from "@raceiq/backend-core/db/index";
+import { sessions } from "@raceiq/backend-core/db/schema";
+
+const sessionIds: number[] = [];
+const testGameId = "lap-ownership-test" as GameId;
+afterEach(async () => {
+  for (const id of sessionIds.splice(0)) await deleteSession(id);
+});
+
+test("owned stats and profile pool exclude others while general reads preserve ownership", async () => {
+  const mine = await insertSession("1", "2", testGameId, "race", undefined, "mine");
+  const others = await insertSession("1", "2", testGameId, "race", undefined, "others");
+  sessionIds.push(mine, others);
+  await insertLap(mine, 1, 90_000, true, null, 0, null, null, null, null, null);
+  await insertLap(others, 1, 80_000, true, null, 0, null, null, null, null, null);
+
+  const stats = await getLapStats(testGameId);
+  expect(stats.totalLaps).toBe(1);
+  expect(stats.totalTimeSec).toBe(90_000);
+  const profile = await getLapMetaForProfileScope(testGameId);
+  expect(profile.map((lap) => lap.sessionId)).toEqual([mine]);
+  expect(profile[0]?.ownership).toBe("mine");
+
+  const laps = await getLaps(testGameId);
+  expect(laps.map((lap) => lap.ownership).sort()).toEqual(["mine", "others"]);
+  const sessionsRead = await getSessions(testGameId);
+  expect(sessionsRead.map((session) => session.ownership).sort()).toEqual(["mine", "others"]);
+});
+
+test("legacy null ownership normalizes to mine at read boundary", async () => {
+  const id = await insertSession("3", "4", testGameId);
+  sessionIds.push(id);
+  await db.update(sessions).set({ ownership: sql`'legacy'` }).where(eq(sessions.id, id)).run();
+  await insertLap(id, 1, 100_000, true, null, 0, null, null, null, null, null);
+  expect((await getSessions(testGameId)).find((session) => session.id === id)?.ownership).toBe("mine");
+  expect((await getLaps(testGameId)).find((lap) => lap.sessionId === id)?.ownership).toBe("mine");
+});

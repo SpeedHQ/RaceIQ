@@ -29,7 +29,7 @@ try {
     cwd: baseDir,
     env: { ...process.env, DATA_DIR: upgradeDataDir },
   });
-  run([process.execPath, "test", "./test/db/database-path.test.ts", "--timeout", "120000"], {
+  run([process.execPath, "test", "./apps/backend/test/db/database-path.test.ts", "--timeout", "120000"], {
     env: {
       ...process.env,
       RACEIQ_DB_UPGRADE_TESTS: "1",

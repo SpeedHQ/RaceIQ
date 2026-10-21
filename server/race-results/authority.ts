@@ -6,7 +6,7 @@ import type {
   RaceResultClaimScope,
   RaceResultEvidenceRejectionReason,
   RaceResultSourceStatus,
-} from "../../shared/racing/results/types";
+} from "@raceiq/shared/racing/results/types";
 
 export function resolveRaceResultSourceStatusFromAuthority(authority: string | undefined): RaceResultSourceStatus {
   if (authority === "simulator-final") return "direct";

@@ -3,18 +3,17 @@
  * Includes the same telemetry context as the analysis prompt,
  * plus the original analysis as reference.
  */
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type { Tune } from "../../shared/racing/tuning/types";
-import type { GameId } from "../../shared/games/ids";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { Tune } from "@raceiq/shared/racing/tuning/types";
+import type { GameId } from "@raceiq/shared/games/ids";
 import { generateExport, type UnitSystem, type TemperatureUnit } from "../lap-analysis/report"
-import { resolveCarName } from "../../shared/racing/cars/resolve-name";
-import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
+import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
+import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
 import { buildCornerData } from "./corner-data";
-import type { LapInsight } from "../../shared/racing/analysis/laps/insights/types";
 import { formatTuneForPrompt } from "./format-tune";
 import { tryGetServerGame } from "../games/registry";
-import { aiLanguageInstruction } from "../../shared/integrations/ai/language";
-import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/integrations/ai/prompt-snippets";
+import { aiLanguageInstruction } from "@raceiq/shared/integrations/ai/language";
+import { ADJUSTMENT_FORMAT_PROMPT } from "@raceiq/shared/integrations/ai/prompt-snippets";
 interface CornerDef {
   index: number;
   label: string;
@@ -31,7 +30,7 @@ Be brief. Use bullet points. Cite specific numbers in ${units}. Address them as 
 }
 
 export function formatLapChatIdentity(lap: { id?: number; lapNumber: number; lapTime: number }): string {
-  return `Lap ID: ${lap.id ?? "unknown"}\nLap #${lap.lapNumber} — ${lap.lapTime.toFixed(3)}s`;
+  return `Current lap: Lap #${lap.lapNumber} — ${lap.lapTime.toFixed(3)}s\nInternal lap reference (for RaceIQ tools only; never ask the driver to look it up): ${lap.id ?? "unavailable"}`;
 }
 
 export function buildChatSystemPrompt(
@@ -40,8 +39,8 @@ export function buildChatSystemPrompt(
     lapNumber: number;
     lapTime: number;
     isValid: boolean;
-    carOrdinal?: number;
-    trackOrdinal?: number;
+    carId: string;
+    trackId: string;
     gameId?: GameId;
   },
   packets: TelemetryPacket[],
@@ -50,34 +49,18 @@ export function buildChatSystemPrompt(
   temperatureUnit: TemperatureUnit = unit === "metric" ? "C" : "F",
   tune?: Tune,
   analysisJson?: string,
-  /** UI/AI language code (e.g. "en", "de"). Steers prose language. */
   language: string = "en",
-  /** Versioned deterministic insights loaded from the per-lap cache. */
-  insights: LapInsight[] = [],
 ): string {
   const gameId: GameId = lap.gameId ?? packets[0]?.gameId;
   const serverAdapter = tryGetServerGame(gameId);
-  const carOrdinal = lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0;
-  const trackOrdinal = lap.trackOrdinal ?? packets[0]?.TrackOrdinal ?? 0;
+  const carIdentity = lap.carId;
+  const trackIdentity = lap.trackId;
   const gameName = serverAdapter?.displayName ?? gameId ?? "unknown game";
-  const carName = resolveCarName(carOrdinal, gameId);
-  const trackName = resolveTrackName(trackOrdinal, gameId);
+  const carName = resolveCarName(carIdentity, gameId);
+  const trackName = resolveTrackName(trackIdentity, gameId);
 
   const exportText = generateExport(lap, packets, unit, temperatureUnit);
   const cornerData = buildCornerData(packets, corners, unit === "metric" ? "kmh" : "mph");
-
-  // Format versioned deterministic insights supplied by the persistence layer.
-  let insightsText = "";
-  if (insights.length > 0) {
-    insightsText = "\n--- Precomputed Insights ---\n";
-    for (const insight of insights) {
-      const frameIdx = insight.frameIndices[0];
-      const pkt = packets[frameIdx];
-      const timestamp = pkt ? `${pkt.DistanceTraveled.toFixed(0)}m` : "?";
-      insightsText += `[${insight.severity.toUpperCase()}] ${insight.category}: ${insight.label} (at ${timestamp})\n`;
-      insightsText += `  ${insight.detail}\n`;
-    }
-  }
 
   let tuneText = "";
   if (tune) {
@@ -96,7 +79,7 @@ export function buildChatSystemPrompt(
   if (analysisJson) {
     try {
       const parsed = JSON.parse(analysisJson);
-      analysisContext = `\n--- PREVIOUS ANALYSIS (already shown to driver) ---\nVerdict: ${parsed.verdict}\n`;
+      analysisContext = `\n--- PREVIOUS ANALYSIS (already shown to driver) ---\nVerdict: ${parsed.verdict ?? "Not provided"}\n`;
       if (parsed.corners?.length) {
         analysisContext += `Problem corners: ${parsed.corners.map((c: any) => `${c.name} (${c.severity}): ${c.issue}`).join("; ")}\n`;
       }
@@ -104,10 +87,9 @@ export function buildChatSystemPrompt(
         analysisContext += `Technique tips: ${parsed.technique.map((t: any) => t.tip).join("; ")}\n`;
       }
       if (parsed.setup?.length) {
-        analysisContext += `Setup changes: ${parsed.setup.map((s: any) => `${s.change}: ${s.fix}`).join("; ")}\n`;
+        analysisContext += `Setup changes: ${parsed.setup.map((s: any) => `${s.component ?? "Setup"}: current ${s.current ?? "unspecified"}, target ${s.target ?? "unspecified"}${s.reason ? ` (${s.reason})` : ""}`).join("; ")}\n`;
       }
     } catch {
-      // If analysis JSON is invalid, include raw
       analysisContext = `\n--- PREVIOUS ANALYSIS ---\n${analysisJson}\n`;
     }
   }
@@ -128,9 +110,9 @@ ${gameSystemNote}
 Game: ${gameName}
 Game ID: ${gameId ?? "unknown"}
 Car: ${carName}
-Car ID: ${carOrdinal}
+Car ID: ${carIdentity}
 Track: ${trackName}
-Track ID: ${trackOrdinal}
+Track ID: ${trackIdentity}
 ${formatLapChatIdentity(lap)}
 --- LAP CONTEXT ---
 Car: ${carName}
@@ -140,5 +122,5 @@ ${tuneText}${analysisContext}
 --- TELEMETRY DATA ---
 ${exportText}
 ${cornerData}
-${insightsText}${extendedContext}`;
+${extendedContext}`;
 }

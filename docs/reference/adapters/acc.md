@@ -10,7 +10,7 @@ RaceIQ reads ACC through local Windows shared memory and the ACC Broadcasting Ne
 | Graphics | `Local\\acpmf_graphics` | 1,588 bytes | 60 Hz | timing, position, pits, flags, electronics |
 | Static | `Local\\acpmf_static` | 688 bytes | session change | car, track, engine, fuel and suspension constants |
 
-The graphics parser accepts the 1,320-byte legacy base layout and reads extended fields only when available. Raw offsets and vendor definitions belong in the [ACC v1.8.12 specification](../external/acc/acc-shared-memory-v1.8.12.pdf); `server/games/acc/structs.ts` is RaceIQ's executable layout.
+The graphics parser accepts the 1,320-byte legacy base layout and reads extended fields only when available. Raw offsets and vendor definitions belong in the [ACC v1.8.12 specification](../external/acc/acc-shared-memory-v1.8.12.pdf); `packages/capture-formats/src/acc/structs.ts` is RaceIQ's executable layout.
 
 ## Broadcasting Network Protocol
 
@@ -34,7 +34,7 @@ Windows mappings
 ```
 In parallel, `AccBroadcastClient` receives ACC UDP datagrams, `AccBroadcastState` joins entry-list identity with realtime car updates, and `ParsingProcessor` copies the latest snapshot into the normalized packet before `Pipeline.processPacket`.
 
-`server/index.ts` checks for the ACC process every two seconds and starts or stops `AccSharedMemoryReader` with the game. `BufferedAccMemoryReader` polls the pages at their native cadences and retries unavailable mappings every ten seconds. `TripletAssembler` snapshots the latest complete triplet on a 10 ms timer.
+`apps/backend/src/index.ts` checks for the ACC process every two seconds and starts or stops `AccSharedMemoryReader` with the game. `BufferedAccMemoryReader` polls the pages at their native cadences and retries unavailable mappings every ten seconds. `TripletAssembler` snapshots the latest complete triplet on a 10 ms timer.
 
 `StatusCheckProcessor` passes live or paused states. Parsing normalizes the source into `TelemetryPacket`, resolves car and track names to RaceIQ ordinals, and preserves ACC-specific values under `packet.acc`.
 
@@ -72,21 +72,21 @@ The packed bytes enter the common session recorder. Replay and import call the s
 - Graphics and physics pages update independently. A packed triplet is a snapshot of the latest page values, not an atomic simulator transaction.
 - ACC reports `completedLaps` late. Lap detection uses the current-lap timer reset instead of treating that counter as the boundary. See [Lap detection](../../architecture/lap-detection.md).
 - ACC SDK reserves physics `tyreWear[4]` fields but marks them unused. RaceIQ reports tire wear and degradation unavailable instead of treating zero placeholders as fresh tyres.
-- Extended ACC layouts may grow. Keep minimum-size checks and optional reads aligned with `server/games/acc/structs.ts`.
+- Extended ACC layouts may grow. Keep minimum-size checks and optional reads aligned with `packages/capture-formats/src/acc/structs.ts`.
 
 ## Implementation map
 
-- `server/games/acc/shared-memory.ts` — reader and processor wiring
+- `packages/game-acc/src/shared-memory.ts` — reader and processor wiring
 - `server/games/kunos/buffered-memory-reader.ts` — Windows mappings and polling
 - `server/games/kunos/triplet-assembler.ts` — latest-page assembly
 - `server/games/kunos/triplet-pipeline.ts` — status, dump, parse processors
-- `server/games/acc/structs.ts` — offsets and layout sizes
-- `server/games/acc/parser.ts` — source normalization
-- `server/games/kunos/pack-triplet.ts` — packed replay frame
-- `server/games/acc/lap-detector.ts` — ACC policy over shared Kunos lap lifecycle
-- `server/games/acc/broadcast-protocol.ts` — protocol v4 binary encoding/decoding
-- `server/games/acc/broadcast-client.ts` — UDP registration and receive lifecycle
-- `server/games/acc/broadcast-state.ts` — entry-list/realtime join and semantic snapshot
+- `packages/capture-formats/src/acc/structs.ts` — offsets and layout sizes
+- `packages/game-acc/src/parser.ts` — source normalization
+- `packages/capture-formats/src/kunos/pack-triplet.ts` — packed replay frame
+- `packages/game-acc/src/lap-detector.ts` — ACC policy over shared Kunos lap lifecycle
+- `packages/capture-formats/src/acc/broadcast-protocol.ts` — protocol v4 binary encoding/decoding
+- `packages/game-acc/src/broadcast-client.ts` — UDP registration and receive lifecycle
+- `packages/capture-formats/src/acc/broadcast-state.ts` — entry-list/realtime join and semantic snapshot
 
 ## ACC Broadcast capture
 

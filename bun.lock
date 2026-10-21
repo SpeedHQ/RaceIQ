@@ -20,7 +20,6 @@
         "ai": "7.0.105",
         "drizzle-orm": "^0.45.2",
         "fflate": "^0.8.3",
-        "fzstd": "^0.1.1",
         "hono": "4.13.8",
         "libsql": "^0.5.29",
         "mitata": "^1.0.34",
@@ -30,6 +29,7 @@
       },
       "devDependencies": {
         "@babel/parser": "^8.0.5",
+        "@effect/tsgo": "0.53.0",
         "@gltf-transform/core": "4.5.0",
         "@gltf-transform/extensions": "4.5.0",
         "@gltf-transform/functions": "4.5.0",
@@ -39,7 +39,7 @@
         "@mastra/observability": "^1.17.8",
         "@playwright/test": "1.62.1",
         "@shadcn/lint": "^0.1.5",
-        "@types/bun": "^1.4.2",
+        "@types/bun": "^1.4.3",
         "cheerio": "^1.2.0",
         "concurrently": "^10.0.5",
         "drizzle-kit": "^0.31.10",
@@ -48,10 +48,63 @@
         "meshoptimizer": "1.2.0",
         "pixelmatch": "^7.2.0",
         "portless": "^0.15.6",
+        "turbo": "2.11.7",
         "typescript": "^7.0.2",
       },
       "optionalDependencies": {
         "@libsql/darwin-arm64": "^0.5.29",
+      },
+    },
+    "apps/backend": {
+      "name": "@raceiq/backend",
+      "dependencies": {
+        "@ai-sdk/google": "4.0.74",
+        "@ai-sdk/openai": "^4.0.69",
+        "@ai-sdk/provider-utils": "^5.0.43",
+        "@duckdb/node-api": "1.5.2-r.2",
+        "@gltf-transform/core": "4.5.0",
+        "@gltf-transform/extensions": "4.5.0",
+        "@hono/zod-validator": "0.9.1",
+        "@mastra/ai-sdk": "^1.10.3",
+        "@mastra/core": "^1.67.0",
+        "@mastra/duckdb": "^1.9.0",
+        "@mastra/evals": "^1.10.2",
+        "@mastra/hono": "^1.7.9",
+        "@mastra/libsql": "^1.23.0",
+        "@mastra/loggers": "^1.3.2",
+        "@mastra/memory": "^1.30.0",
+        "@mastra/observability": "^1.17.8",
+        "@raceiq/analysis-core": "workspace:*",
+        "@raceiq/backend-core": "workspace:*",
+        "@raceiq/capture-formats": "workspace:*",
+        "@raceiq/capture-splitting": "workspace:*",
+        "@raceiq/game-ac-evo": "workspace:*",
+        "@raceiq/game-ac-evo-metadata": "workspace:*",
+        "@raceiq/game-acc": "workspace:*",
+        "@raceiq/game-acc-metadata": "workspace:*",
+        "@raceiq/game-catalogs": "workspace:*",
+        "@raceiq/game-f1-2025": "workspace:*",
+        "@raceiq/game-f1-2025-metadata": "workspace:*",
+        "@raceiq/game-fm-2023": "workspace:*",
+        "@raceiq/game-fm-2023-metadata": "workspace:*",
+        "@raceiq/game-iracing": "workspace:*",
+        "@raceiq/game-iracing-metadata": "workspace:*",
+        "@raceiq/game-lmu": "workspace:*",
+        "@raceiq/game-lmu-metadata": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+        "@raceiq/telemetry-core": "workspace:*",
+        "@raceiq/tooling-catalog": "workspace:*",
+        "@raceiq/tooling-data": "workspace:*",
+        "@raceiq/tooling-release": "workspace:*",
+        "ai": "7.0.105",
+        "drizzle-orm": "^0.45.2",
+        "effect": "4.0.4",
+        "fflate": "^0.8.3",
+        "hono": "4.13.8",
+        "libsql": "^0.5.29",
+        "meshoptimizer": "1.2.0",
+        "mitata": "^1.0.34",
+        "zod": "^4.6.5",
       },
     },
     "client": {
@@ -67,6 +120,13 @@
         "@base-ui/react": "^1.8.0",
         "@fontsource-variable/geist": "^5.3.0",
         "@inlang/paraglide-js": "^2.25.4",
+        "@raceiq/analysis-core": "workspace:*",
+        "@raceiq/frontend-pure": "workspace:*",
+        "@raceiq/game-catalogs": "workspace:*",
+        "@raceiq/game-lmu-metadata": "workspace:*",
+        "@raceiq/telemetry-core": "workspace:*",
+        "@raceiq/tooling-data": "workspace:*",
+        "@raceiq/tooling-ui": "workspace:*",
         "@tailwindcss/typography": "^0.5.20",
         "@tailwindcss/vite": "^4.3.3",
         "@tanstack/react-query": "^5.103.1",
@@ -76,6 +136,7 @@
         "ai": "7.0.105",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
+        "cn": "^0.4.0",
         "hono": "4.13.8",
         "html-to-image": "^1.11.13",
         "lucide-react": "^1.47.0",
@@ -93,11 +154,19 @@
         "tw-animate-css": "^1.4.0",
         "tw-shimmer": "^0.4.13",
         "uplot": "^1.6.32",
+        "zod": "^4.6.5",
         "zustand": "^5.0.15",
       },
       "devDependencies": {
         "@playwright/test": "1.62.1",
-        "@storybook/addon-docs": "10.6.0",
+        "@raceiq/backend": "workspace:*",
+        "@raceiq/backend-core": "workspace:*",
+        "@raceiq/game-acc": "workspace:*",
+        "@raceiq/game-f1-2025": "workspace:*",
+        "@raceiq/game-fm-2023": "workspace:*",
+        "@raceiq/game-iracing": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+        "@raceiq/tooling": "workspace:*",
         "@storybook/react": "10.6.0",
         "@storybook/react-vite": "10.6.0",
         "@tanstack/devtools-event-client": "0.5.0",
@@ -113,14 +182,325 @@
         "oxfmt": "0.68.0",
         "oxlint": "1.83.0",
         "storybook": "10.6.0",
-        "typescript": "7.0.2",
+        "typescript": "6.0.3",
         "vite": "8.3.0",
+      },
+    },
+    "packages/analysis-core": {
+      "name": "@raceiq/analysis-core",
+      "dependencies": {
+        "@raceiq/shared": "workspace:*",
+      },
+      "devDependencies": {
+        "@raceiq/game-ac-evo-metadata": "workspace:*",
+        "@raceiq/game-acc-metadata": "workspace:*",
+        "@raceiq/game-fm-2023-metadata": "workspace:*",
+      },
+    },
+    "packages/capture-downsampling": {
+      "name": "@raceiq/capture-downsampling",
+      "dependencies": {
+        "@raceiq/capture-formats": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+      },
+    },
+    "packages/capture-formats": {
+      "name": "@raceiq/capture-formats",
+      "dependencies": {
+        "@raceiq/game-iracing-metadata": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+      },
+    },
+    "packages/capture-splitting": {
+      "name": "@raceiq/capture-splitting",
+      "dependencies": {
+        "@raceiq/capture-formats": "workspace:*",
+        "effect": "4.0.4",
+      },
+    },
+    "packages/frontend-contract-tests": {
+      "name": "@raceiq/frontend-contract-tests",
+      "dependencies": {
+        "@raceiq/analysis-core": "workspace:*",
+        "@raceiq/backend": "workspace:*",
+        "@raceiq/backend-core": "workspace:*",
+        "@raceiq/capture-formats": "workspace:*",
+        "@raceiq/game-ac-evo": "workspace:*",
+        "@raceiq/game-ac-evo-metadata": "workspace:*",
+        "@raceiq/game-catalogs": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+        "@raceiq/telemetry-core": "workspace:*",
+        "@raceiq/tooling-ui": "workspace:*",
+        "client": "workspace:*",
+      },
+    },
+    "packages/frontend-pure": {
+      "name": "@raceiq/frontend-pure",
+    },
+    "packages/game-ac-evo": {
+      "name": "@raceiq/game-ac-evo",
+      "dependencies": {
+        "@raceiq/backend-core": "workspace:*",
+        "@raceiq/capture-formats": "workspace:*",
+        "@raceiq/game-ac-evo-metadata": "workspace:*",
+        "@raceiq/game-catalogs": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+        "@raceiq/telemetry-core": "workspace:*",
+      },
+    },
+    "packages/game-ac-evo-metadata": {
+      "name": "@raceiq/game-ac-evo-metadata",
+      "dependencies": {
+        "@raceiq/shared": "workspace:*",
+      },
+    },
+    "packages/game-acc": {
+      "name": "@raceiq/game-acc",
+      "dependencies": {
+        "@raceiq/backend-core": "workspace:*",
+        "@raceiq/capture-formats": "workspace:*",
+        "@raceiq/game-acc-metadata": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+      },
+    },
+    "packages/game-acc-metadata": {
+      "name": "@raceiq/game-acc-metadata",
+      "dependencies": {
+        "@raceiq/shared": "workspace:*",
+      },
+    },
+    "packages/game-catalogs": {
+      "name": "@raceiq/game-catalogs",
+      "dependencies": {
+        "@raceiq/game-ac-evo-metadata": "workspace:*",
+        "@raceiq/game-acc-metadata": "workspace:*",
+        "@raceiq/game-f1-2025-metadata": "workspace:*",
+        "@raceiq/game-fm-2023-metadata": "workspace:*",
+        "@raceiq/game-iracing-metadata": "workspace:*",
+        "@raceiq/game-lmu-metadata": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+      },
+    },
+    "packages/game-f1-2025": {
+      "name": "@raceiq/game-f1-2025",
+      "dependencies": {
+        "@raceiq/analysis-core": "workspace:*",
+        "@raceiq/backend-core": "workspace:*",
+        "@raceiq/capture-downsampling": "workspace:*",
+        "@raceiq/capture-formats": "workspace:*",
+        "@raceiq/game-f1-2025-metadata": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+        "@raceiq/telemetry-core": "workspace:*",
+      },
+    },
+    "packages/game-f1-2025-metadata": {
+      "name": "@raceiq/game-f1-2025-metadata",
+      "dependencies": {
+        "@raceiq/shared": "workspace:*",
+      },
+    },
+    "packages/game-fm-2023": {
+      "name": "@raceiq/game-fm-2023",
+      "dependencies": {
+        "@raceiq/backend-core": "workspace:*",
+        "@raceiq/capture-formats": "workspace:*",
+        "@raceiq/game-catalogs": "workspace:*",
+        "@raceiq/game-fm-2023-metadata": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+      },
+    },
+    "packages/game-fm-2023-metadata": {
+      "name": "@raceiq/game-fm-2023-metadata",
+      "dependencies": {
+        "@raceiq/shared": "workspace:*",
+      },
+    },
+    "packages/game-iracing": {
+      "name": "@raceiq/game-iracing",
+      "dependencies": {
+        "@raceiq/backend-core": "workspace:*",
+        "@raceiq/capture-formats": "workspace:*",
+        "@raceiq/game-iracing-metadata": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+        "@raceiq/telemetry-core": "workspace:*",
+        "drizzle-orm": "^0.45.2",
+      },
+    },
+    "packages/game-iracing-metadata": {
+      "name": "@raceiq/game-iracing-metadata",
+      "dependencies": {
+        "@raceiq/shared": "workspace:*",
+      },
+    },
+    "packages/game-lmu": {
+      "name": "@raceiq/game-lmu",
+      "dependencies": {
+        "@duckdb/node-api": "1.5.2-r.2",
+        "@raceiq/analysis-core": "workspace:*",
+        "@raceiq/backend-core": "workspace:*",
+        "@raceiq/capture-formats": "workspace:*",
+        "@raceiq/game-lmu-metadata": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+        "@raceiq/telemetry-core": "workspace:*",
+      },
+    },
+    "packages/game-lmu-metadata": {
+      "name": "@raceiq/game-lmu-metadata",
+      "dependencies": {
+        "@raceiq/shared": "workspace:*",
+      },
+    },
+    "packages/telemetry-core": {
+      "name": "@raceiq/telemetry-core",
+      "dependencies": {
+        "@raceiq/analysis-core": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+      },
+    },
+    "packages/telemetry-processor": {
+      "name": "@raceiq/telemetry-processor",
+      "dependencies": {
+        "@raceiq/analysis-core": "workspace:*",
+        "@raceiq/game-ac-evo": "workspace:*",
+        "@raceiq/game-acc": "workspace:*",
+        "@raceiq/game-f1-2025": "workspace:*",
+        "@raceiq/game-fm-2023": "workspace:*",
+        "@raceiq/game-iracing": "workspace:*",
+        "@raceiq/game-lmu": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+        "@raceiq/telemetry-core": "workspace:*",
+      },
+      "devDependencies": {
+        "@raceiq/capture-formats": "workspace:*",
+      },
+    },
+    "packages/tooling-build": {
+      "name": "@raceiq/tooling-build",
+      "dependencies": {
+        "@duckdb/node-api": "1.5.2-r.2",
+        "@gltf-transform/core": "4.5.0",
+        "@gltf-transform/extensions": "4.5.0",
+        "@gltf-transform/functions": "4.5.0",
+        "@raceiq/shared": "workspace:*",
+        "meshoptimizer": "1.2.0",
+        "sharp": "^0.35.4",
+      },
+    },
+    "packages/tooling-catalog": {
+      "name": "@raceiq/tooling-catalog",
+      "dependencies": {
+        "@raceiq/analysis-core": "workspace:*",
+        "@raceiq/game-iracing-metadata": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+        "@raceiq/telemetry-core": "workspace:*",
+      },
+      "devDependencies": {
+        "@babel/parser": "^8.0.5",
+      },
+    },
+    "packages/tooling-data": {
+      "name": "@raceiq/tooling-data",
+      "dependencies": {
+        "@raceiq/analysis-core": "workspace:*",
+        "@raceiq/backend-core": "workspace:*",
+        "@raceiq/capture-formats": "workspace:*",
+        "@raceiq/game-acc": "workspace:*",
+        "@raceiq/game-acc-metadata": "workspace:*",
+        "@raceiq/game-fm-2023": "workspace:*",
+        "@raceiq/game-iracing": "workspace:*",
+        "@raceiq/game-iracing-metadata": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+        "@raceiq/telemetry-core": "workspace:*",
+        "cheerio": "^1.2.0",
+        "drizzle-orm": "^0.45.2",
+      },
+    },
+    "packages/tooling-marketing": {
+      "name": "@raceiq/tooling-marketing",
+      "dependencies": {
+        "@playwright/test": "1.62.1",
+        "@raceiq/game-ac-evo-metadata": "workspace:*",
+        "@raceiq/game-acc-metadata": "workspace:*",
+        "@raceiq/game-catalogs": "workspace:*",
+        "@raceiq/game-f1-2025-metadata": "workspace:*",
+        "@raceiq/game-fm-2023-metadata": "workspace:*",
+        "@raceiq/game-iracing-metadata": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+        "@raceiq/tooling-ui": "workspace:*",
+      },
+    },
+    "packages/tooling-release": {
+      "name": "@raceiq/tooling-release",
+      "dependencies": {
+        "@raceiq/shared": "workspace:*",
+      },
+    },
+    "packages/tooling-ui": {
+      "name": "@raceiq/tooling-ui",
+      "dependencies": {
+        "pixelmatch": "^7.2.0",
+        "sharp": "^0.35.4",
       },
     },
     "playwright": {
       "name": "raceiq-e2e",
+      "dependencies": {
+        "@libsql/client": "^0.18.0",
+        "@raceiq/analysis-core": "workspace:*",
+        "@raceiq/tooling-data": "workspace:*",
+        "libsql": "^0.5.29",
+        "sharp": "^0.35.4",
+        "zod": "^4.6.5",
+      },
       "devDependencies": {
         "@playwright/test": "1.62.1",
+        "@raceiq/backend-core": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+        "@raceiq/tooling": "workspace:*",
+      },
+    },
+    "scripts": {
+      "name": "@raceiq/tooling",
+      "dependencies": {
+        "@raceiq/backend-core": "workspace:*",
+        "@raceiq/tooling-build": "workspace:*",
+        "@raceiq/tooling-release": "workspace:*",
+        "libsql": "^0.5.29",
+      },
+    },
+    "server": {
+      "name": "@raceiq/backend-core",
+      "dependencies": {
+        "@libsql/client": "^0.18.0",
+        "@libsql/win32-x64-msvc": "^0.5.29",
+        "@mastra/ai-sdk": "^1.10.3",
+        "@mastra/core": "^1.67.0",
+        "@mastra/libsql": "^1.23.0",
+        "@mastra/memory": "^1.30.0",
+        "@raceiq/analysis-core": "workspace:*",
+        "@raceiq/capture-downsampling": "workspace:*",
+        "@raceiq/capture-formats": "workspace:*",
+        "@raceiq/capture-splitting": "workspace:*",
+        "@raceiq/game-ac-evo-metadata": "workspace:*",
+        "@raceiq/game-catalogs": "workspace:*",
+        "@raceiq/game-fm-2023-metadata": "workspace:*",
+        "@raceiq/game-iracing-metadata": "workspace:*",
+        "@raceiq/game-lmu-metadata": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+        "@raceiq/telemetry-core": "workspace:*",
+        "ai": "7.0.105",
+        "drizzle-orm": "^0.45.2",
+        "effect": "4.0.4",
+        "fflate": "^0.8.3",
+        "hono": "4.13.8",
+        "pino": "^10.3.1",
+        "zod": "^4.6.5",
+      },
+    },
+    "shared": {
+      "name": "@raceiq/shared",
+      "dependencies": {
+        "zod": "^4.6.5",
       },
     },
   },
@@ -290,6 +670,22 @@
     "@duckdb/node-bindings-win32-arm64": ["@duckdb/node-bindings-win32-arm64@1.5.2-r.2", "", { "os": "win32", "cpu": "arm64" }, "sha512-g5ZWK07c0Qh7UFhJC37iC5y8oW8ZqxEgpNM2vTFD3ShM9Rn1NDXkxA7zjcheHRI+My5T1JpE9kNpCvhzItJrgw=="],
 
     "@duckdb/node-bindings-win32-x64": ["@duckdb/node-bindings-win32-x64@1.5.2-r.2", "", { "os": "win32", "cpu": "x64" }, "sha512-VUMbdeXQHWKHEXVWtfVaOSu7Mb4jR9gT56Yzu9FHyLyP9ogY/D6wpeohY5gAHZS9PHQGGq24qRtCn5g6vUolqA=="],
+
+    "@effect/tsgo": ["@effect/tsgo@0.53.0", "", { "optionalDependencies": { "@effect/tsgo-darwin-arm64": "0.53.0", "@effect/tsgo-darwin-x64": "0.53.0", "@effect/tsgo-linux-arm": "0.53.0", "@effect/tsgo-linux-arm64": "0.53.0", "@effect/tsgo-linux-x64": "0.53.0", "@effect/tsgo-win32-arm64": "0.53.0", "@effect/tsgo-win32-x64": "0.53.0" }, "bin": { "effect-tsgo": "dist/effect-tsgo.cjs" } }, "sha512-a8Ss/rI9QoOvJTQPet0YUpLqXp+/Qaydil+WpIHOhhsqvCu3l6aqN5xB+C/Mff/QW51r54n3Frk7a/joFszHgw=="],
+
+    "@effect/tsgo-darwin-arm64": ["@effect/tsgo-darwin-arm64@0.53.0", "", { "os": "darwin", "cpu": "arm64" }, "sha512-YDwx3cFpohEMtjbd+65iH/tVxIZs39pkR8KW2Vy7c5GB1LjOzkB+jo2rcku6DOueV/bfpS1wiSmsD1jsTVNIRg=="],
+
+    "@effect/tsgo-darwin-x64": ["@effect/tsgo-darwin-x64@0.53.0", "", { "os": "darwin", "cpu": "x64" }, "sha512-6XvsEyNo5HAxSOum/zdvHHANu4sp5u6GqOyqZ00Pq+jPP1gFAvavS4kp3PZVR6mBaGv4sLRu6QMjwc3SbQz4uA=="],
+
+    "@effect/tsgo-linux-arm": ["@effect/tsgo-linux-arm@0.53.0", "", { "os": "linux", "cpu": "arm" }, "sha512-JXPq2BJdMu1TEc71bb6kCHnDgBImKqdxbk1etI4uoEot6PeUYogvjSCTjw7y+Lo2Uk/i1hVYx9sxR+824Dm5Mg=="],
+
+    "@effect/tsgo-linux-arm64": ["@effect/tsgo-linux-arm64@0.53.0", "", { "os": "linux", "cpu": "arm64" }, "sha512-Io1RblTJ6hvff99rqsZSjEz18Yyprq8R7eZS7g/fzqMQ3aYqzbouUjpZaiCGRnZZfXS4Ft6I/1b4Nu3lBrEMhQ=="],
+
+    "@effect/tsgo-linux-x64": ["@effect/tsgo-linux-x64@0.53.0", "", { "os": "linux", "cpu": "x64" }, "sha512-4A0osORqB2HG9egjPe7JPz1X2KwZM8H0hkl81pYsJ4qEYOVHoFVdNDvZ0Y6qxLS2eZBmsxdS+/jXuZJ39nzuvw=="],
+
+    "@effect/tsgo-win32-arm64": ["@effect/tsgo-win32-arm64@0.53.0", "", { "os": "win32", "cpu": "arm64" }, "sha512-qM7Aqw1uGmMDs8x/Iy2/kxKzzXx0WzH3/u66bjlEExSTv6DzHuAMXZmmb/1iUsth+TfqrwHwhHErFkwyyaLATg=="],
+
+    "@effect/tsgo-win32-x64": ["@effect/tsgo-win32-x64@0.53.0", "", { "os": "win32", "cpu": "x64" }, "sha512-87/Ep6F7yU06vev9LZMU0MxpUkuD9joOMwXrx9OH3aXDL1SlImHlux/uHqXWGrFcKND7oMe/SX15XWAjWdy4Ag=="],
 
     "@emnapi/core": ["@emnapi/core@1.9.2", "", { "dependencies": { "@emnapi/wasi-threads": "1.2.1", "tslib": "^2.4.0" } }, "sha512-UC+ZhH3XtczQYfOlu3lNEkdW/p4dsJ1r/bP7H8+rhao3TTTMO1ATq/4DdIi23XuGoFY+Cz0JmCbdVl0hz9jZcA=="],
 
@@ -531,8 +927,6 @@
 
     "@mastra/server": ["@mastra/server@1.58.0", "", { "dependencies": { "hono": "^4.12.8" }, "peerDependencies": { "@mastra/core": ">=1.50.0-0 <2.0.0-0", "zod": "^3.25.0 || ^4.0.0" } }, "sha512-YKVOnuNQeOv/I92VsExqRUdc42ZEOdh+7n2ewm8RrtnX7hPW4doDeKs+UYpTNiur0IG/o8J2RSu4Fwy1KfCJPw=="],
 
-    "@mdx-js/react": ["@mdx-js/react@3.1.1", "", { "dependencies": { "@types/mdx": "^2.0.0" }, "peerDependencies": { "@types/react": ">=16", "react": ">=16" } }, "sha512-f++rKLQgUVYDAtECQ6fn/is15GkEH9+nZPM3MS0RcxVqoTfawHvDlSCH7JbMhAM6uJ32v3eXLvLmLvjGu7PTQw=="],
-
     "@modelcontextprotocol/sdk": ["@modelcontextprotocol/sdk@1.30.0", "", { "dependencies": { "@hono/node-server": "^1.19.9 || ^2.0.5", "ajv": "^8.17.1", "ajv-formats": "^3.0.1", "content-type": "^1.0.5", "cors": "^2.8.5", "cross-spawn": "^7.0.5", "eventsource": "^3.0.2", "eventsource-parser": "^3.0.0", "express": "^5.2.1", "express-rate-limit": "^8.2.1", "hono": "^4.11.4", "jose": "^6.1.3", "json-schema-typed": "^8.0.2", "pkce-challenge": "^5.0.0", "raw-body": "^3.0.0", "zod": "^3.25 || ^4.0", "zod-to-json-schema": "^3.25.1" }, "peerDependencies": { "@cfworker/json-schema": "^4.1.1" }, "optionalPeers": ["@cfworker/json-schema"] }, "sha512-xKd8OIzlqNzcqcNumGAa6g+PW2kjD5vrpcKOnfldAUPP3j7lnqMPwlTXQm8gF+UwH72z0lqaRbjr9hqGz0eITA=="],
 
     "@napi-rs/wasm-runtime": ["@napi-rs/wasm-runtime@1.2.1", "", { "dependencies": { "@tybys/wasm-util": "^0.10.3" }, "peerDependencies": { "@emnapi/core": "^1.7.1 || ^2.0.0-alpha.3", "@emnapi/runtime": "^1.7.1 || ^2.0.0-alpha.3" } }, "sha512-KjZdi8Q1wh89gsVmghvbrMgWl6ZWmRmHV6wjB7/g4Zf0dyO+hH3neZUtuDNPO00qq5YE5RITVWvrIZKRaAmzGQ=="],
@@ -773,6 +1167,68 @@
 
     "@puppeteer/browsers": ["@puppeteer/browsers@3.0.6", "", { "dependencies": { "modern-tar": "^0.7.6", "yargs": "^18.0.0" }, "peerDependencies": { "proxy-agent": ">=8.0.1", "yauzl": "^2.10.0 || ^3.4.0" }, "optionalPeers": ["proxy-agent", "yauzl"], "bin": { "browsers": "lib/main-cli.js" } }, "sha512-B/gKoqlFkzhvzsI6jo9K1cZz9o5ypviVv/xu8CwA4grZzyVwN+XfkT+tu8T1zrauuEXv6VhS2oGX+6NL95WcKA=="],
 
+    "@raceiq/analysis-core": ["@raceiq/analysis-core@workspace:packages/analysis-core"],
+
+    "@raceiq/backend": ["@raceiq/backend@workspace:apps/backend"],
+
+    "@raceiq/backend-core": ["@raceiq/backend-core@workspace:server"],
+
+    "@raceiq/capture-downsampling": ["@raceiq/capture-downsampling@workspace:packages/capture-downsampling"],
+
+    "@raceiq/capture-formats": ["@raceiq/capture-formats@workspace:packages/capture-formats"],
+
+    "@raceiq/capture-splitting": ["@raceiq/capture-splitting@workspace:packages/capture-splitting"],
+
+    "@raceiq/frontend-contract-tests": ["@raceiq/frontend-contract-tests@workspace:packages/frontend-contract-tests"],
+
+    "@raceiq/frontend-pure": ["@raceiq/frontend-pure@workspace:packages/frontend-pure"],
+
+    "@raceiq/game-ac-evo": ["@raceiq/game-ac-evo@workspace:packages/game-ac-evo"],
+
+    "@raceiq/game-ac-evo-metadata": ["@raceiq/game-ac-evo-metadata@workspace:packages/game-ac-evo-metadata"],
+
+    "@raceiq/game-acc": ["@raceiq/game-acc@workspace:packages/game-acc"],
+
+    "@raceiq/game-acc-metadata": ["@raceiq/game-acc-metadata@workspace:packages/game-acc-metadata"],
+
+    "@raceiq/game-catalogs": ["@raceiq/game-catalogs@workspace:packages/game-catalogs"],
+
+    "@raceiq/game-f1-2025": ["@raceiq/game-f1-2025@workspace:packages/game-f1-2025"],
+
+    "@raceiq/game-f1-2025-metadata": ["@raceiq/game-f1-2025-metadata@workspace:packages/game-f1-2025-metadata"],
+
+    "@raceiq/game-fm-2023": ["@raceiq/game-fm-2023@workspace:packages/game-fm-2023"],
+
+    "@raceiq/game-fm-2023-metadata": ["@raceiq/game-fm-2023-metadata@workspace:packages/game-fm-2023-metadata"],
+
+    "@raceiq/game-iracing": ["@raceiq/game-iracing@workspace:packages/game-iracing"],
+
+    "@raceiq/game-iracing-metadata": ["@raceiq/game-iracing-metadata@workspace:packages/game-iracing-metadata"],
+
+    "@raceiq/game-lmu": ["@raceiq/game-lmu@workspace:packages/game-lmu"],
+
+    "@raceiq/game-lmu-metadata": ["@raceiq/game-lmu-metadata@workspace:packages/game-lmu-metadata"],
+
+    "@raceiq/shared": ["@raceiq/shared@workspace:shared"],
+
+    "@raceiq/telemetry-core": ["@raceiq/telemetry-core@workspace:packages/telemetry-core"],
+
+    "@raceiq/telemetry-processor": ["@raceiq/telemetry-processor@workspace:packages/telemetry-processor"],
+
+    "@raceiq/tooling": ["@raceiq/tooling@workspace:scripts"],
+
+    "@raceiq/tooling-build": ["@raceiq/tooling-build@workspace:packages/tooling-build"],
+
+    "@raceiq/tooling-catalog": ["@raceiq/tooling-catalog@workspace:packages/tooling-catalog"],
+
+    "@raceiq/tooling-data": ["@raceiq/tooling-data@workspace:packages/tooling-data"],
+
+    "@raceiq/tooling-marketing": ["@raceiq/tooling-marketing@workspace:packages/tooling-marketing"],
+
+    "@raceiq/tooling-release": ["@raceiq/tooling-release@workspace:packages/tooling-release"],
+
+    "@raceiq/tooling-ui": ["@raceiq/tooling-ui@workspace:packages/tooling-ui"],
+
     "@radix-ui/number": ["@radix-ui/number@1.1.3", "", {}, "sha512-Road2bidD0uu/1BGDOWNdPI06g0lIRy6IF9GZcIrDK2KGItfor8IQwQa+yM2ERgHM1MmHxaxpTzk0/Jp42lNfA=="],
 
     "@radix-ui/primitive": ["@radix-ui/primitive@1.1.7", "", {}, "sha512-rqWnm76nYT8HoNNqEjpgJ7Pw/DrBj5iBTrmEPo6HTX5+VJyBNOqTdv4g89G63HuR5g0AaENoAcH7Is5fF2kZ8Q=="],
@@ -981,8 +1437,6 @@
 
     "@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
 
-    "@storybook/addon-docs": ["@storybook/addon-docs@10.6.0", "", { "dependencies": { "@mdx-js/react": "^3.0.0", "@storybook/icons": "^2.0.2", "@storybook/react-dom-shim": "10.6.0", "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0", "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0", "ts-dedent": "^2.0.0", "unplugin": "^2.3.5" }, "peerDependencies": { "@types/react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0", "storybook": "^10.6.0" }, "optionalPeers": ["@types/react"] }, "sha512-Fk3rUQWeGyCfL170OkmRp6Ruyv7MHPb/xrKa6YNk7FlGmlVLi5tKzh2T/0J13vWEy8wiu2MV3IBu8iRsaUR+Cw=="],
-
     "@storybook/builder-vite": ["@storybook/builder-vite@10.6.0", "", { "dependencies": { "ts-dedent": "^2.0.0" }, "peerDependencies": { "storybook": "^10.6.0", "vite": "^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0" } }, "sha512-7zt8tYB6dnSO8fbjUz91MHexGDpf9HrLlA3FAmlVb+2ZL3eWUs499L3I6BDUymcWu7oW5WCBJlB8ERj8ZLLzig=="],
 
     "@storybook/global": ["@storybook/global@5.0.0", "", {}, "sha512-FcOqPAXACP0I3oJ/ws6/rrPT9WGhu915Cg8D02a9YxLo0DE9zI+a9A5gRGvmQ09fiWPukqI8ZAEoQEdWUKMQdQ=="],
@@ -1087,6 +1541,18 @@
 
     "@ts-morph/common": ["@ts-morph/common@0.27.0", "", { "dependencies": { "fast-glob": "^3.3.3", "minimatch": "^10.0.1", "path-browserify": "^1.0.1" } }, "sha512-Wf29UqxWDpc+i61k3oIOzcUfQt79PIT9y/MWfAGlrkjg6lBC1hwDECLXPVJAhWjiGbfBCxZd65F/LIZF3+jeJQ=="],
 
+    "@turbo/darwin-64": ["@turbo/darwin-64@2.11.7", "", { "os": "darwin", "cpu": "x64" }, "sha512-Z2LFOxwbiJueD1miByXJS/BrW21vv6YaQXZustty5jEX4vQYw6zyh101Sz1QO7WG0mqBzKagZ/DoAeeujI0/Sw=="],
+
+    "@turbo/darwin-arm64": ["@turbo/darwin-arm64@2.11.7", "", { "os": "darwin", "cpu": "arm64" }, "sha512-Vhv8ybgIflosNDSSRD9fNXHlCFA60dsGyTqQmc7l28SEX5jOaweCCD4BBYNd8/p0WGkw3e7tZbfA9w6FsujGvw=="],
+
+    "@turbo/linux-64": ["@turbo/linux-64@2.11.7", "", { "os": [ "linux", "android", ], "cpu": "x64" }, "sha512-rAqRp3blQKk1+ylMGlZHAW0eJjVNuuGUm4ZrC6RU1Im8tLryvaO4a2zLQ/FQi1TRlmKqKV9YXBki2YeytlLbXA=="],
+
+    "@turbo/linux-arm64": ["@turbo/linux-arm64@2.11.7", "", { "os": [ "linux", "android", ], "cpu": "arm64" }, "sha512-thVYGov7S+llXAxrl3kBb/efalav0xhrjl5NHCR6AfKx14JkbqaetvbVwyss4FvZ9rt+Pv3xsTb+8SIYix8DTg=="],
+
+    "@turbo/windows-64": ["@turbo/windows-64@2.11.7", "", { "os": "win32", "cpu": "x64" }, "sha512-ZIoKT7J7KutgYl4bGxmmgeUQjG+7E0nY8BF9dxUOiMH2vdTsM4JQ2uSwTYFkTR2Llbg6ghGjSmuZ8LQtkLEYjg=="],
+
+    "@turbo/windows-arm64": ["@turbo/windows-arm64@2.11.7", "", { "os": "win32", "cpu": "arm64" }, "sha512-88Xv2f7SLGVJ68lRRx8o375dKmnZYNdDtvlKcPA0kZpcF93eAQd8l96BKQ0/AMHG0bMJA0Z5QqoqtetxzNsC+g=="],
+
     "@tweenjs/tween.js": ["@tweenjs/tween.js@23.1.3", "", {}, "sha512-vJmvvwFxYuGnF2axRtPYocag6Clbb5YS7kLL+SO/TeVFzHqDIWrNKYtcsPMibjDx9O+bu+psAy9NKfWklassUA=="],
 
     "@tybys/wasm-util": ["@tybys/wasm-util@0.10.3", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-F3fo1MYrRJYL3zER0OUOmkutjr1Vp23m7OsSgp7nq4SP6OqX6C/56XFIPAl5bt3zaBRjmW7SGz3u/6LwFpYcOg=="],
@@ -1101,7 +1567,7 @@
 
     "@types/babel__traverse": ["@types/babel__traverse@7.28.0", "", { "dependencies": { "@babel/types": "^7.28.2" } }, "sha512-8PvcXf70gTDZBgt9ptxJ8elBeBjcLOAcOtoO/mPJjtji1+CdGbHgm77om1GrsPxsiE+uXIpNSK64UYaIwQXd4Q=="],
 
-    "@types/bun": ["@types/bun@1.3.14", "", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
+    "@types/bun": ["@types/bun@1.4.3", "", { "dependencies": { "bun-types": "1.4.3" } }, "sha512-N67Pqy8JXbAY/j0tNraS3V5mubGvc6rrrNDmDCtZLlFzccbUJPDb0tvgUBC5q4m8ybkP93Jcn1QB+RYQ6PvBhw=="],
 
     "@types/chai": ["@types/chai@5.2.3", "", { "dependencies": { "@types/deep-eql": "*", "assertion-error": "^2.0.1" } }, "sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA=="],
 
@@ -1120,8 +1586,6 @@
     "@types/json-schema": ["@types/json-schema@7.0.15", "", {}, "sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA=="],
 
     "@types/mdast": ["@types/mdast@4.0.4", "", { "dependencies": { "@types/unist": "*" } }, "sha512-kGaNbPh1k7AFzgpud/gMdvIm5xuECykRR+JnWKQno9TAXVa6WIVCGTPvYGekIDL4uwCZQSYbUxNBSb1aUo79oA=="],
-
-    "@types/mdx": ["@types/mdx@2.0.14", "", {}, "sha512-T48PeuJtvLosNTPVhfnIp3i/n3a4g4Bad7YCq5k64D4u7NwDrAotikQ+5+sjtUvBmxCMlbo3dVL+C2dP0rWHzg=="],
 
     "@types/ms": ["@types/ms@2.1.0", "", {}, "sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA=="],
 
@@ -1271,7 +1735,7 @@
 
     "buffer-from": ["buffer-from@1.1.2", "", {}, "sha512-E+XQCRwSbaaiChtv6k6Dwgc+bx+Bs6vuKJHHl5kox/BaKbhiXzqQOwK4cO22yElGp2OCmjwVhT3HmxgyPGnJfQ=="],
 
-    "bun-types": ["bun-types@1.3.14", "", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
+    "bun-types": ["bun-types@1.4.3", "", { "dependencies": { "@types/node": "*", "undici-types": "*" } }, "sha512-tinRJNGOmUN+tEAsn2y2e942n9JHRHR42iUYzDH75NmhJqVBokGSQkkfSFdNWwsANIdrK6ACH9t01M452YyTwg=="],
 
     "bundle-name": ["bundle-name@4.1.0", "", { "dependencies": { "run-applescript": "^7.0.0" } }, "sha512-tjwM5exMg6BGRI+kNmTntNsvdZS1X8BFYS6tnJ2hdH0kVxM6/eVZ2xy+FqStSWvYmtfFMDLIxurorHwDKfDz5Q=="],
 
@@ -1329,7 +1793,7 @@
 
     "clsx": ["clsx@2.1.1", "", {}, "sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA=="],
 
-    "cn": ["cn@0.3.2", "", { "bin": { "cn": "bin/cn.mjs" } }, "sha512-RKzY5Edavc8B2Ka6tjJecKFC4nm0p7lADY72xzICmiJSf4TkaxWXt0fHsib2P2G4FkFyXfSDi9oDtIBuCZvY2g=="],
+    "cn": ["cn@0.4.0", "", { "bin": { "cn": "bin/cn.mjs" } }, "sha512-qOAeUhPwPzBxx6jaeQdo646XIKliKHc2j1ZF7Ngb1o0pJZKH5gq8FkA0aVdUdPFUDXNXyUCXpCtoJISo6dhizg=="],
 
     "code-block-writer": ["code-block-writer@13.0.3", "", {}, "sha512-Oofo0pq3IKnsFtuHqSF7TqBfr71aeyZDVJ0HpmqB7FBM2qEigL0iPONSCZSO9pE9dZTAxANe5XHG9Uy0YMv8cg=="],
 
@@ -1453,6 +1917,8 @@
 
     "ee-first": ["ee-first@1.1.1", "", {}, "sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow=="],
 
+    "effect": ["effect@4.0.4", "", {}, "sha512-Sr50OeVSC3M5UkoUYUhFf3EULryhGaZZUf6OzDHTvaznOw7HRlxOKdF3/4nvQXHL22StOyMG3Cvo8Bt7xUp+Ng=="],
+
     "efrt": ["efrt@2.7.0", "", {}, "sha512-/RInbCy1d4P6Zdfa+TMVsf/ufZVotat5hCw3QXmWtjU+3pFEOvOQ7ibo3aIxyCJw2leIeAMjmPj+1SLJiCpdrQ=="],
 
     "electron-to-chromium": ["electron-to-chromium@1.5.398", "", {}, "sha512-AsvhAxopJGh6museTDMIjn6JpDYOfgu4RLlygomt87MUwBUqTfd/1EiPtx10/LZE8xpTvkP2E9Gafq7lkLtodQ=="],
@@ -1558,8 +2024,6 @@
     "function-bind": ["function-bind@1.1.2", "", {}, "sha512-7XHNxH7qX9xG5mIwxkhumTox/MIRNcOgDrxWsMt2pAr23WHp6MrRlN7FBSFpCpr+oVO0F744iUgR82nJMfG2SA=="],
 
     "fuzzysort": ["fuzzysort@3.1.0", "", {}, "sha512-sR9BNCjBg6LNgwvxlBd0sBABvQitkLzoVY9MYYROQVX/FvfJ4Mai9LsGhDgd8qYdds0bY77VzYd5iuB+v5rwQQ=="],
-
-    "fzstd": ["fzstd@0.1.1", "", {}, "sha512-dkuVSOKKwh3eas5VkJy1AW1vFpet8TA/fGmVA5krThl8YcOVE/8ZIoEA1+U1vEn5ckxxhLirSdY837azmbaNHA=="],
 
     "gensync": ["gensync@1.0.0-beta.2", "", {}, "sha512-3hN7NaskYvMDLQY55gnW3NQ+mesEAepTqlg+VEbj7zzqEMBVNhzcGYYeqFo/TlYz6eQiFcp1HcsCZO+nGgS8zg=="],
 
@@ -2369,6 +2833,8 @@
 
     "tsx": ["tsx@4.23.1", "", { "dependencies": { "esbuild": "~0.28.0" }, "optionalDependencies": { "fsevents": "~2.3.3" }, "bin": { "tsx": "dist/cli.mjs" } }, "sha512-GQHnkIfxyx1wYCOS/wonik5MVRZU9hi1TEZmzGZSCJB1y9YgoZ8H6itNE/u4suE+yLmOzuE4E5S4TZ/ZX2wcWQ=="],
 
+    "turbo": ["turbo@2.11.7", "", { "optionalDependencies": { "@turbo/darwin-64": "2.11.7", "@turbo/darwin-arm64": "2.11.7", "@turbo/linux-64": "2.11.7", "@turbo/linux-arm64": "2.11.7", "@turbo/windows-64": "2.11.7", "@turbo/windows-arm64": "2.11.7" }, "bin": { "turbo": "bin/turbo" } }, "sha512-RhXHbqfvY6o3xt/zSHCwSNwLrZlXiqHzewi4eAj9PtZ1T1CqgMJ2yIDb7SKPTG9IikTm925mfzL6hldQVdyNWw=="],
+
     "tw-animate-css": ["tw-animate-css@1.4.0", "", {}, "sha512-7bziOlRqH0hJx80h/3mbicLW7o8qLsH5+RaLR2t+OHM3D0JlWGODQKQ4cxbK7WlvmUxpcj6Kgu6EKqjrGFe3QQ=="],
 
     "tw-shimmer": ["tw-shimmer@0.4.13", "", { "peerDependencies": { "tailwindcss": ">=4.0.0-0" } }, "sha512-hEkTdCdOeDAr/Yx37U/W6BQjiXjLkGxugVIHsbCdSGDGHWzWMSyNNAqH+wVt0TinAtVsRsnwPYrIDbt2HSUAQg=="],
@@ -2541,7 +3007,21 @@
 
     "@puppeteer/browsers/yargs": ["yargs@18.1.0", "", { "dependencies": { "cliui": "^9.0.1", "escalade": "^3.1.1", "get-caller-file": "^2.0.5", "string-width": "^8.2.1", "y18n": "^5.0.5", "yargs-parser": "^22.0.0" } }, "sha512-2rAgRKu54VsHkqI0/tYkmluGXHD4KW7yZoycuqDQ15QOTnc2VVfy0nN/1eMhnQLO00A+dwtK20xuCnc1YGeUyg=="],
 
+    "@raceiq/backend/@ai-sdk/provider-utils": ["@ai-sdk/provider-utils@5.0.46", "", { "dependencies": { "@ai-sdk/provider": "4.0.18", "@standard-schema/spec": "^1.1.0", "@workflow/serde": "4.1.0", "eventsource-parser": "^3.0.8", "undici": "^7.29.0" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-XYpiJbd3jW12HC4yzqNmUuPbZ7ooKXVxQjnXCC3O/VzzV2OvRWD6lDFUYYPLs/ZJgTcWWUkmHL/vIyvnxyplVA=="],
+
+    "@raceiq/backend/@mastra/duckdb": ["@mastra/duckdb@1.12.1", "", { "dependencies": { "@duckdb/node-api": "^1.5.2-r.2" }, "peerDependencies": { "@mastra/core": ">=1.68.0-0 <2.0.0-0" } }, "sha512-m/wpZFpDVsDJJ1PfrJjM5ZDXpiH/hPymdbHjgnu5SSQfzMC/nSugQVDHfNu6S/jnX+0/C45kNlxRKP5Nfoue/Q=="],
+
+    "@raceiq/backend/@mastra/hono": ["@mastra/hono@1.7.16", "", { "dependencies": { "@hono/node-ws": "^1.3.0", "@mastra/server": "1.74.0", "fetch-to-node": "^2.1.0", "ws": "^8.21.3" }, "peerDependencies": { "@mastra/core": ">=1.58.0-0 <2.0.0-0", "hono": "^4.13.5" } }, "sha512-Q76u+jfg/nexSUnLXfHxAp9wxHEsZYDApysUXRpa/J3ksBjhDUQVl9u5rI3mR+QCZVjspP88BL1ifnSVrPYy/Q=="],
+
+    "@raceiq/backend/@mastra/loggers": ["@mastra/loggers@1.3.4", "", { "dependencies": { "pino": "^10.3.1", "pino-pretty": "^13.1.3" }, "peerDependencies": { "@mastra/core": ">=1.0.0-0 <2.0.0-0" } }, "sha512-Rqjf/DzCZVKH+7lMjy/aQOozWWqU9WyHCtXKb288HqzEP6yMSd6pRafDuwZYnoXHxe5mby0eUY+xU5Z4LFi2eg=="],
+
+    "@raceiq/backend/@mastra/observability": ["@mastra/observability@1.18.3", "", { "peerDependencies": { "@mastra/core": ">=1.16.0-0 <2.0.0-0", "zod": "^3.25.0 || ^4.0.0" } }, "sha512-WYw3gouK3c1U3dvpi6M56duRUyVlx94vE1Qs1OfETOgGXiFdW9AyO64YIchQmD+mqKpVxIq1ASvEssRHMag45Q=="],
+
+    "@raceiq/tooling-catalog/@babel/parser": ["@babel/parser@8.0.6", "", { "dependencies": { "@babel/types": "^8.0.6" }, "bin": "./bin/babel-parser.js" }, "sha512-LpGDIYJAzc3Y3PT9x+FxBrGYu2PlWxLmyN7SwPTzaX0LSwEmFJBsRnPBqmaXF2r1v+Zhz6lNiEJ+7yKtM5+Ugg=="],
+
     "@rollup/pluginutils/picomatch": ["picomatch@4.0.5", "", {}, "sha512-RvwwcruNjI1ncT5xRakeyS9Lf8lcItv34KD+aif+VH9kduAyfYBipGh12274xtenIPZ119/R9BdTBa8gAwSh0A=="],
+
+    "@shadcn/lint/cn": ["cn@0.3.2", "", { "bin": { "cn": "bin/cn.mjs" } }, "sha512-RKzY5Edavc8B2Ka6tjJecKFC4nm0p7lADY72xzICmiJSf4TkaxWXt0fHsib2P2G4FkFyXfSDi9oDtIBuCZvY2g=="],
 
     "@tailwindcss/node/lightningcss": ["lightningcss@1.32.0", "", { "dependencies": { "detect-libc": "^2.0.3" }, "optionalDependencies": { "lightningcss-android-arm64": "1.32.0", "lightningcss-darwin-arm64": "1.32.0", "lightningcss-darwin-x64": "1.32.0", "lightningcss-freebsd-x64": "1.32.0", "lightningcss-linux-arm-gnueabihf": "1.32.0", "lightningcss-linux-arm64-gnu": "1.32.0", "lightningcss-linux-arm64-musl": "1.32.0", "lightningcss-linux-x64-gnu": "1.32.0", "lightningcss-linux-x64-musl": "1.32.0", "lightningcss-win32-arm64-msvc": "1.32.0", "lightningcss-win32-x64-msvc": "1.32.0" } }, "sha512-NXYBzinNrblfraPGyrbPoD19C1h9lfI/1mzgWYvXUTe414Gz/X1FD2XBZSZM7rRTrMA8JL3OtAaGifrIKhQ5yQ=="],
 
@@ -2590,6 +3070,8 @@
     "chat/@workflow/serde": ["@workflow/serde@4.1.0-beta.2", "", {}, "sha512-8kkeoQKLDaKXefjV5dbhBj2aErfKp1Mc4pb6tj8144cF+Em5SPbyMbyLCHp+BVrFfFVCBluCtMx+jjvaFVZGww=="],
 
     "chromium-bidi/zod": ["zod@3.25.76", "", {}, "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="],
+
+    "client/typescript": ["typescript@6.0.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw=="],
 
     "cliui/strip-ansi": ["strip-ansi@7.2.0", "", { "dependencies": { "ansi-regex": "^6.2.2" } }, "sha512-yDPMNjp4WyfYBkHnjIRLfca1i6KMyGCtsVgoKe/z1+6vukgaENdgGBZt+ZmKPc4gavvEZ5OgHfHdrazhgNyG7w=="],
 
@@ -2762,6 +3244,14 @@
     "@puppeteer/browsers/yargs/string-width": ["string-width@8.2.2", "", { "dependencies": { "get-east-asian-width": "^1.5.0", "strip-ansi": "^7.1.2" } }, "sha512-GaPUh5gfdrYzqeVNZvUfT23vYYxXzKYidUcnMtJg/3rxRV63EFZy3k6xfKlmfeJD0176lnUV/Usr3XcwSvFzpg=="],
 
     "@puppeteer/browsers/yargs/yargs-parser": ["yargs-parser@22.0.0", "", {}, "sha512-rwu/ClNdSMpkSrUb+d6BRsSkLUq1fmfsY6TOpYzTwvwkg1/NRG85KBy3kq++A8LKQwX6lsu+aWad+2khvuXrqw=="],
+
+    "@raceiq/backend/@ai-sdk/provider-utils/@ai-sdk/provider": ["@ai-sdk/provider@4.0.18", "", { "dependencies": { "json-schema": "^0.4.0" } }, "sha512-+GZJIgz1jk86pwEbb3f1BD2bdoSKyWE4Jg4YUc7NMnMozbWemSKYZcw2F4nMaO5qwsL5A8RmioAKW81YktRpIQ=="],
+
+    "@raceiq/backend/@mastra/hono/@mastra/server": ["@mastra/server@1.74.0", "", { "dependencies": { "hono": "^4.13.7" }, "peerDependencies": { "@mastra/core": ">=1.58.0-0 <2.0.0-0", "zod": "^3.25.0 || ^4.0.0" } }, "sha512-g6lfXPD8IVhrTQgzLoCT6grEqzs+HMw8TTuMPYzWbNyYFmz6hQNIpjAw3DFLVhMNO1IBnC2fvgTIfjSP9TdZ5g=="],
+
+    "@raceiq/backend/@mastra/hono/ws": ["ws@8.21.3", "", { "peerDependencies": { "bufferutil": "^4.0.1", "utf-8-validate": ">=5.0.2" }, "optionalPeers": ["bufferutil", "utf-8-validate"] }, "sha512-201TZ/kPWxoPr/OKWjquZR1SWKXcvxdH+e1xrx89b3YbmzLMFCLfnaG1HFIgWzJOEWZ7MvpK++odZufgYR50Rw=="],
+
+    "@raceiq/tooling-catalog/@babel/parser/@babel/types": ["@babel/types@8.0.6", "", { "dependencies": { "@babel/helper-string-parser": "^8.0.6", "@babel/helper-validator-identifier": "^8.0.6" } }, "sha512-c+xgSWboV2pdwXP67BUWDVRHi2BO5Q3KwxyFVs7taVTY+fsK47/L51ZXQoV9rozHJDNHvJ4v4WEsI/IlxV2l2A=="],
 
     "@tailwindcss/node/lightningcss/detect-libc": ["detect-libc@2.1.2", "", {}, "sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ=="],
 
@@ -3010,6 +3500,10 @@
     "wrap-ansi/strip-ansi/ansi-regex": ["ansi-regex@6.2.2", "", {}, "sha512-Bq3SmSpyFHaWjPk8If9yc6svM8c56dB5BAtW4Qbw5jHTwwXXcTLoRMkpDJp6VL0XzlWaCHTXrkFURMYmD0sLqg=="],
 
     "@puppeteer/browsers/yargs/string-width/strip-ansi": ["strip-ansi@7.2.0", "", { "dependencies": { "ansi-regex": "^6.2.2" } }, "sha512-yDPMNjp4WyfYBkHnjIRLfca1i6KMyGCtsVgoKe/z1+6vukgaENdgGBZt+ZmKPc4gavvEZ5OgHfHdrazhgNyG7w=="],
+
+    "@raceiq/tooling-catalog/@babel/parser/@babel/types/@babel/helper-string-parser": ["@babel/helper-string-parser@8.0.6", "", {}, "sha512-+6HYEBnsDRZHJtUTAEfMQd0zMDqdFHS7C+5vAsEZqBUr3vEMWOWlHJ0Jz1gS8jJIlCvLsuA6ivmeoqzH936YcA=="],
+
+    "@raceiq/tooling-catalog/@babel/parser/@babel/types/@babel/helper-validator-identifier": ["@babel/helper-validator-identifier@8.0.6", "", {}, "sha512-HYx0YmuchRxRSpnjvcNffnPS8DCauKNmnumIuHG3jnQAVewRA7kfJGwF13ayEpSZs7s4R/oBH4eppuXcAQd5JQ=="],
 
     "lighthouse/yargs/cliui/wrap-ansi": ["wrap-ansi@7.0.0", "", { "dependencies": { "ansi-styles": "^4.0.0", "string-width": "^4.1.0", "strip-ansi": "^6.0.0" } }, "sha512-YVGIj2kamLSTxw6NsZjoBxfSwsn0ycdesmc4p+Q21c5zPuZ1pl+NfxVdxPtdHvmNVOQ6XSYG4AUtyt/Fi7D16Q=="],
 

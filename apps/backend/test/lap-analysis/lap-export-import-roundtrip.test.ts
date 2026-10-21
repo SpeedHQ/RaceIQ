@@ -1,0 +1,565 @@
+/**
+ * End-to-end round-trip for the lap/session ZIP feature, against a *real*
+ * recorded capture rather than the synthetic frames used in
+ * lap-export-zip.test.ts.
+ *
+ * lap-export-zip.test.ts proves the export byte maths in isolation; it cannot
+ * prove the bytes it produces are actually importable, because its frames are
+ * 8-byte stubs that no parser accepts. This suite closes that gap: seed a real
+ * session by replaying a committed capture, export a lap from it, import the
+ * zip back, and assert the same lap reappears with the same lap time.
+ */
+import { describe, test, expect, afterEach } from "bun:test";
+import { gzipSync, gunzipSync } from "node:zlib";
+import { rmSync, readFileSync } from "node:fs";
+import { and, eq, inArray } from "drizzle-orm";
+import { unzipSync, zipSync } from "fflate";
+import { db } from "@raceiq/backend-core/db/index";
+import { sessions, laps } from "@raceiq/backend-core/db/schema";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
+import { initServerGameAdapters } from "../../src/games/init";
+import { readLMUFrames } from "@raceiq/capture-formats/lmu/dump";
+import { isIRacingSessionFrame } from "@raceiq/capture-formats/iracing/source-frame";
+import { readIRacingFrames } from "@raceiq/capture-formats/iracing/dump";
+import { importSessionFrames } from "@raceiq/backend-core/session-capture/import-pipeline";
+import { getSessionResult } from "@raceiq/backend-core/db/session-result-queries";
+import { buildLapsZip, importLapsZip, type LapsZipManifest } from "../../src/laps/archive";
+import { importMotec } from "@raceiq/backend-core/motec/import";
+import { parseRawLapFrames, parseSessionLapsBatched } from "@raceiq/backend-core/db/telemetry-replay-storage";
+import { readRecordedTelemetry } from "../../src/session-capture/replay-packets";
+import { reprocessSession } from "@raceiq/backend-core/session-capture/reprocess";
+import { setCaptureFileFactoryForTest, type SessionCaptureSource } from "@raceiq/backend-core/session-capture/source-loader";
+import {
+  iterateSessionCaptureRecords,
+  iterateSessionFrames,
+  META_FRAME_BYTES,
+} from "@raceiq/capture-formats/session/framing";
+import { queryLapTelemetryBySemanticId } from "@raceiq/backend-core/telemetry/replay";
+import { KNOWN_GAME_IDS, type GameId } from "@raceiq/shared/games/ids";
+import { buildLd, buildLdx, syntheticStint } from "@raceiq/backend-core/test-support/motec/ld";
+import { getAllAcEvoCars } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo";
+import { registerDriverProfileLapNotifier } from "@raceiq/backend-core/driver-profile/lap-notifier";
+import { initMotecTargets } from "../../src/games/motec-init";
+initGameAdapters();
+initServerGameAdapters();
+initMotecTargets();
+registerDriverProfileLapNotifier(() => {});
+
+/** Complete laps from committed capture with valid raw windows. */
+const MIN_FRAMES = 0;
+
+const CAPTURE = "test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz";
+const IRACING_CAPTURE = "test/artifacts/sessions/iracing-daytona-am-vantage-gt3-pit.bin.gz";
+const GAME_CAPTURES: Record<GameId, { capture: string; label: string }> = {
+  "fm-2023": { capture: CAPTURE, label: "Forza Motorsport" },
+  "f1-2025": { capture: "test/artifacts/sessions/f1-2025-2026-04-22T11-42-43-029Z.bin.gz", label: "F1 25" },
+  acc: { capture: "test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz", label: "Assetto Corsa Competizione" },
+  "ac-evo": { capture: "test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz", label: "Assetto Corsa Evo" },
+  iracing: { capture: IRACING_CAPTURE, label: "iRacing" },
+  lmu: { capture: "test/artifacts/sessions/lmu-spa-iron-lynx-gte.bin.gz", label: "Le Mans Ultimate" },
+};
+function captureSource(session: {
+  rawFile: string | null;
+  source: string | null;
+  gameId: string;
+  carId: string;
+  trackId: string;
+}): SessionCaptureSource {
+  if (!session.rawFile) throw new Error("Session has no capture");
+  return {
+    rawFile: session.rawFile,
+    source: session.source,
+    gameId: session.gameId as GameId,
+    carId: session.carId,
+    trackId: session.trackId,
+  };
+}
+
+
+
+describe("lap export → import round-trip (real capture)", () => {
+  const createdSessions: number[] = [];
+  const tmpFiles: string[] = [];
+
+  afterEach(async () => {
+    if (createdSessions.length) {
+      await db.delete(laps).where(inArray(laps.sessionId, createdSessions)).run();
+      await db.delete(sessions).where(inArray(sessions.id, createdSessions)).run();
+    }
+    createdSessions.length = 0;
+    for (const f of tmpFiles) rmSync(f, { force: true });
+    tmpFiles.length = 0;
+  });
+
+  /**
+   * Replay a committed capture. The replay runs the real pipeline, so the UDP
+   * recorder writes its own .bin and the lap rows' raw offsets point into it —
+   * exactly the state a live-recorded session is in. Do NOT repoint rawFile at
+   * the source capture: the recorder's file is framed differently and the
+   * offsets would no longer line up.
+   *
+   * A replay can produce several sessions (a race restart splits them), most of
+   * which are junk — e.g. a 2-frame "incomplete lap (session ended)" stub. Pick
+   * the session holding the real laps rather than assuming it is the first.
+   */
+  async function seedSession({
+    capture = CAPTURE,
+    gameId = "fm-2023",
+    minimumLaps = 2,
+    frameTimeStartMs,
+  }: {
+    capture?: string;
+    gameId?: GameId;
+    minimumLaps?: number;
+    frameTimeStartMs?: number;
+  } = {}) {
+    const frames = gameId === "iracing"
+      ? readIRacingFrames(capture)
+      : gameId === "lmu"
+        ? readLMUFrames(capture)
+        : iterateSessionFrames(
+            Buffer.from(gunzipSync(await Bun.file(capture).arrayBuffer())),
+          );
+    const sourceFrames = frameTimeStartMs === undefined ? frames : (function* () {
+      let index = 0;
+      for (const frame of frames) {
+        yield { frame, frameTimeMs: frameTimeStartMs + index * 10 + Math.floor(index / 100) * 5_000 };
+        index++;
+      }
+    })();
+    const res = await importSessionFrames(sourceFrames, gameId);
+    expect(res.laps.length).toBeGreaterThan(0);
+
+    const sids = [...new Set(res.laps.map((l) => l.sessionId))];
+    createdSessions.push(...sids);
+
+    const all = await db.select().from(laps).where(inArray(laps.sessionId, sids)).all();
+    const withCapture = all.filter((r) => r.rawByteOffset !== null && (r.rawFrameCount ?? 0) > MIN_FRAMES);
+    expect(withCapture.length).toBeGreaterThan(0);
+
+    const sessionCounts = new Map<number, number>();
+    for (const row of withCapture) sessionCounts.set(row.sessionId, (sessionCounts.get(row.sessionId) ?? 0) + 1);
+    const sid = [...sessionCounts.entries()].sort((a, b) => b[1] - a[1])[0]![0];
+    expect(sessionCounts.get(sid)).toBeGreaterThanOrEqual(minimumLaps);
+    if (gameId === "fm-2023") {
+      expect(await getSessionResult(sid, gameId)).not.toBeNull();
+    }
+    const rows = withCapture.filter((r) => r.sessionId === sid);
+
+    const session = await db.select().from(sessions).where(eq(sessions.id, sid)).get();
+    if (session?.rawFile) tmpFiles.push(session.rawFile);
+
+    return { sid, rows };
+  }
+
+  test("a lap exported from a real session imports back with the same lap time", async () => {
+    const { rows } = await seedSession();
+    const exported = rows[0];
+
+    const { bytes: zip } = await buildLapsZip([exported.id]);
+    const result = await importLapsZip(zip);
+
+    expect(result.errors).toEqual([]);
+    expect(result.imported).toBeGreaterThan(0);
+    for (const l of result.laps) createdSessions.push(l.sessionId);
+
+    const match = result.laps.find((l) => Math.abs(l.lapTime - exported.lapTime) < 0.001);
+    expect(match).toBeDefined();
+  }, 120000);
+  for (const gameId of KNOWN_GAME_IDS) {
+    const { capture, label } = GAME_CAPTURES[gameId];
+    test(`${label} selected lap preserves source telemetry through export and import`, async () => {
+      const { sid, rows } = await seedSession({
+        capture, gameId, minimumLaps: 1,
+        frameTimeStartMs: gameId === "fm-2023" ? 1_745_000_000_000 : undefined,
+      });
+      // Committed iRacing captures do not produce complete persisted sector times.
+      // Keep their timing/telemetry coverage; other games require actual sector values.
+      const exported = gameId === "iracing" ? rows.at(-1) : rows.findLast((lap) =>
+        lap.sectorTimes !== null && lap.sectorTimes.length >= 2 &&
+        lap.sectorTimes.every((time) => time > 0),
+      );
+      expect(exported).toBeDefined();
+      if (!exported) throw new Error(`${label} fixture has no lap with complete sector times`);
+      const sourceSession = await db.select().from(sessions).where(eq(sessions.id, sid)).get();
+      expect(sourceSession?.captureFormatVersion).toBe(1);
+      const sourcePackets = await parseRawLapFrames(
+        captureSource(sourceSession!),
+        exported.rawByteOffset!,
+        exported.rawFrameCount!,
+      );
+      expect(sourcePackets.length).toBeGreaterThan(0);
+
+      const { bytes: zip } = await buildLapsZip([exported.id]);
+      const result = await importLapsZip(zip);
+      expect(result.errors).toEqual([]);
+      expect(result.laps).toHaveLength(1);
+      const imported = result.laps[0]!;
+      createdSessions.push(imported.sessionId);
+      const importedSession = await db.select().from(sessions).where(eq(sessions.id, imported.sessionId)).get();
+      expect(importedSession?.captureFormatVersion).toBe(1);
+      expect(importedSession).toMatchObject({
+        gameId: sourceSession!.gameId,
+        carId: sourceSession!.carId,
+        trackId: sourceSession!.trackId,
+      });
+      if (importedSession?.rawFile) tmpFiles.push(importedSession.rawFile);
+      const importedRow = (await db.select().from(laps).where(eq(laps.sessionId, imported.sessionId)).all())
+        .find((lap) => lap.lapNumber === exported.lapNumber);
+      expect(importedRow).toBeDefined();
+      const importedPackets = await parseRawLapFrames(
+        captureSource(importedSession!),
+        importedRow!.rawByteOffset!,
+        importedRow!.rawFrameCount!,
+      );
+
+      expect(imported.lapNumber).toBe(exported.lapNumber);
+      expect(imported.lapTime).toBe(exported.lapTime);
+      expect(importedRow!.lapTime).toBe(exported.lapTime);
+      expect(importedRow!.isValid).toBe(exported.isValid);
+      expect(importedRow!.sectorTimes).toEqual(exported.sectorTimes);
+      expect(importedPackets.length).toBe(sourcePackets.length);
+      expect(importedPackets.map(({ TimestampMS: _timestamp, ...packet }) => packet))
+        .toEqual(sourcePackets.map(({ TimestampMS: _timestamp, ...packet }) => packet));
+      if (gameId === "fm-2023") {
+        const reexported = await buildLapsZip([importedRow!.id]);
+        const reexportFiles = unzipSync(reexported.bytes);
+        const captureBytes = reexportFiles[reexported.manifest.entries[0]!.file]!;
+        const reexportFrames = [...iterateSessionCaptureRecords(gunzipSync(Buffer.from(captureBytes)))]
+          .filter((record) => record.kind === "frame");
+        expect(reexportFrames.length).toBeGreaterThan(importedRow!.rawFrameCount!);
+      }
+      if (gameId === "fm-2023") {
+        expect(sourcePackets[0]?.extendedRaceIQ?.frameTimeMs).toBeDefined();
+        expect(sourcePackets.some((packet, index) =>
+          index > 0 && packet.extendedRaceIQ!.frameTimeMs! - sourcePackets[index - 1]!.extendedRaceIQ!.frameTimeMs! > 5_000,
+        )).toBe(true);
+        expect(importedPackets.map((packet) => packet.extendedRaceIQ?.frameTimeMs))
+          .toEqual(sourcePackets.map((packet) => packet.extendedRaceIQ?.frameTimeMs));
+        const replay = await queryLapTelemetryBySemanticId(importedRow!.id, ["motion.speed"]);
+        expect(replay?.envelopes.map((envelope) => envelope.observedAt))
+          .toEqual(importedPackets.map((packet) => ({ domain: "wall-clock", milliseconds: packet.extendedRaceIQ!.frameTimeMs! })));
+      }
+    }, 120000);
+
+    test(`${label} selected laps preserve telemetry and metadata in one imported session`, async () => {
+      const { sid, rows } = await seedSession({ capture, gameId, minimumLaps: 2 });
+      const ordered = rows.filter((lap) => lap.invalidReason !== "incomplete")
+        .toSorted((a, b) => a.lapNumber - b.lapNumber);
+      expect(ordered.length).toBeGreaterThanOrEqual(2);
+      const selected = [ordered[0]!, ordered.at(-1)!];
+      const sourceSession = await db.select().from(sessions).where(eq(sessions.id, sid)).get();
+      const { bytes } = await buildLapsZip(selected.map((lap) => lap.id));
+      const result = await importLapsZip(bytes);
+      result.laps.forEach((lap) => createdSessions.push(lap.sessionId));
+      expect(result.errors).toEqual([]);
+      expect(result.laps).toHaveLength(selected.length);
+      expect(new Set(result.laps.map((lap) => lap.sessionId)).size).toBe(1);
+      const importedSid = result.laps[0]!.sessionId;
+      const importedSession = await db.select().from(sessions).where(eq(sessions.id, importedSid)).get();
+      if (importedSession?.rawFile) tmpFiles.push(importedSession.rawFile);
+      expect(importedSession).toMatchObject({
+        gameId: sourceSession!.gameId,
+        carId: sourceSession!.carId,
+        trackId: sourceSession!.trackId,
+      });
+      const importedRows = await db.select().from(laps).where(eq(laps.sessionId, importedSid)).all();
+      expect(importedRows.map((lap) => lap.lapNumber).sort((a, b) => a - b))
+        .toEqual(selected.map((lap) => lap.lapNumber));
+      for (const sourceLap of selected) {
+        const importedLap = importedRows.find((lap) => lap.lapNumber === sourceLap.lapNumber)!;
+        expect(importedLap).toMatchObject({
+          lapTime: sourceLap.lapTime,
+          sectorTimes: sourceLap.sectorTimes,
+          isValid: sourceLap.isValid,
+        });
+        const sourcePackets = await parseRawLapFrames(
+          captureSource(sourceSession!), sourceLap.rawByteOffset!, sourceLap.rawFrameCount!,
+        );
+        const importedPackets = await parseRawLapFrames(
+          captureSource(importedSession!), importedLap.rawByteOffset!, importedLap.rawFrameCount!,
+        );
+        expect(sourcePackets.length).toBeGreaterThan(0);
+        expect(importedPackets.map(({ TimestampMS: _timestamp, ...packet }) => packet))
+          .toEqual(sourcePackets.map(({ TimestampMS: _timestamp, ...packet }) => packet));
+      }
+    }, 120000);
+
+  }
+  test("mixed BIN and MoTeC selection keeps BIN sliced and MoTeC whole-session", async () => {
+    const { rows: binRows } = await seedSession({ minimumLaps: 1 });
+    const { spec, beacons } = syntheticStint({ laps: 3, lapSeconds: 120, hz: 60 });
+    const ldBytes = buildLd(spec);
+    const ldxBytes = Buffer.from(buildLdx(beacons));
+    const motecImport = await importMotec(ldBytes, ldxBytes, {
+      gameId: "ac-evo", carId: getAllAcEvoCars()[0]!.id, trackId: '["Brands Hatch","GP"]',
+    });
+    const motecSessionId = motecImport.laps[0]!.sessionId;
+    createdSessions.push(motecSessionId);
+    const motecSession = await db.select().from(sessions).where(eq(sessions.id, motecSessionId)).get();
+    if (motecSession?.rawFile) tmpFiles.push(motecSession.rawFile);
+    const motecRows = await db.select().from(laps).where(eq(laps.sessionId, motecSessionId)).all();
+    const { bytes, manifest } = await buildLapsZip([binRows[0]!.id, motecRows[0]!.id]);
+
+    expect(manifest.entries).toHaveLength(2);
+    expect(manifest.entries.map((entry) => entry.file)).toEqual(expect.arrayContaining([
+      expect.stringMatching(/\.bin\.gz$/),
+      expect.stringMatching(/\.motec\.zip$/),
+    ]));
+    expect(manifest.entries.find((entry) => entry.file.endsWith(".bin.gz"))!.laps).toHaveLength(1);
+    expect(manifest.entries.find((entry) => entry.file.endsWith(".motec.zip"))!.laps).toHaveLength(motecRows.length);
+    const member = manifest.entries.find((entry) => entry.file.endsWith(".motec.zip"))!.file;
+    const exportedSource = unzipSync(bytes)[member]!;
+    expect(Buffer.from(exportedSource)).toEqual(readFileSync(motecSession!.rawFile!));
+    const sourceFiles = Object.values(unzipSync(exportedSource));
+    expect(sourceFiles.map((file) => Buffer.from(file))).toEqual(expect.arrayContaining([ldBytes, ldxBytes]));
+
+    const result = await importLapsZip(bytes);
+    expect(result.errors).toEqual([]);
+    expect(result.skipped).toBe(0);
+    expect(result.imported).toBe(1 + motecRows.length);
+    result.laps.forEach((lap) => createdSessions.push(lap.sessionId));
+    const importedSession = await db.select().from(sessions).where(and(
+      eq(sessions.gameId, "ac-evo"), inArray(sessions.id, result.laps.map((lap) => lap.sessionId)),
+    )).get();
+    tmpFiles.push(importedSession!.rawFile!);
+    expect(Object.values(unzipSync(readFileSync(importedSession!.rawFile!))).map((file) => Buffer.from(file)))
+      .toEqual(expect.arrayContaining([ldBytes, ldxBytes]));
+  }, 120_000);
+
+  test("MoTeC ZIP assignment repairs missing identities without rewriting source content", async () => {
+    const { spec, beacons } = syntheticStint({ laps: 2, lapSeconds: 120, hz: 60 });
+    const ldBytes = buildLd(spec);
+    const ldxBytes = Buffer.from(buildLdx(beacons));
+    const member = "ac-evo-session42.motec.zip";
+    const sourceBytes = zipSync({ "source.ld": ldBytes, "source.ldx": ldxBytes });
+    const manifestBytes = Buffer.from(JSON.stringify({
+      version: 4, entries: [{ file: member, gameId: "ac-evo", laps: [] }],
+    }));
+    const bytes = zipSync({ [member]: sourceBytes, "manifest.json": manifestBytes });
+    const rejected = await importLapsZip(bytes);
+    expect(rejected.imported).toBe(0);
+    expect(rejected.errors).toEqual([`${member}: MoTeC car and track must resolve in current game catalogs`]);
+    const identity = { carId: getAllAcEvoCars()[0]!.id, trackId: '["Brands Hatch","GP"]' };
+    const result = await importLapsZip(bytes, { identityOverrides: { [member]: identity } });
+    expect(result.errors).toEqual([]);
+    result.laps.forEach((lap) => createdSessions.push(lap.sessionId));
+    const saved = await db.select().from(sessions).where(eq(sessions.id, result.laps[0]!.sessionId)).get();
+    tmpFiles.push(saved!.rawFile!);
+    expect({ carId: saved!.carId, trackId: saved!.trackId }).toEqual(identity);
+    expect(Object.values(unzipSync(readFileSync(saved!.rawFile!))).map((file) => Buffer.from(file)))
+      .toEqual(expect.arrayContaining([ldBytes, ldxBytes]));
+    const untouched = unzipSync(bytes);
+    expect(Buffer.from(untouched[member]!)).toEqual(Buffer.from(sourceBytes));
+    expect(Buffer.from(untouched["manifest.json"]!)).toEqual(manifestBytes);
+  });
+
+  test("first and last selected laps round-trip as compact segments", async () => {
+    const { sid, rows } = await seedSession();
+    const exportable = rows.sort((a, b) => a.lapNumber - b.lapNumber);
+    expect(exportable.length).toBeGreaterThanOrEqual(2);
+    const [first, last] = exportable;
+    const { bytes: zip, manifest } = await buildLapsZip([first.id, last.id]);
+    expect(manifest.version).toBe(4);
+    expect(manifest.entries).toHaveLength(1);
+    expect(manifest.entries[0]?.laps.map((l) => l.lapNumber)).toEqual([first.lapNumber, last.lapNumber]);
+    expect(manifest.entries[0]?.laps.map((l) => l.lapTime)).toEqual([first.lapTime, last.lapTime]);
+    const result = await importLapsZip(zip);
+    expect(result.errors).toEqual([]);
+    expect(result.laps).toHaveLength(2);
+    result.laps.forEach((l) => createdSessions.push(l.sessionId));
+    expect(new Set(result.laps.map((l) => l.sessionId)).size).toBe(1);
+    expect(result.laps.map((l) => l.lapNumber).sort((a, b) => a - b)).toEqual([first.lapNumber, last.lapNumber]);
+    const importedSid = result.laps[0]!.sessionId;
+    const importedRows = await db.select().from(laps).where(eq(laps.sessionId, importedSid)).all();
+    expect(importedRows).toHaveLength(2);
+    expect(importedRows.every((l) => l.lapNumber === first.lapNumber || l.lapNumber === last.lapNumber)).toBe(true);
+    const importedSession = await db.select().from(sessions).where(eq(sessions.id, importedSid)).get();
+    const rawFile = importedSession!.rawFile!;
+    const raw = readFileSync(rawFile);
+    expect([...iterateSessionCaptureRecords(raw)].filter((r) => r.kind === "segment-boundary")).toHaveLength(1);
+    const sourceSession = await db.select().from(sessions).where(eq(sessions.id, sid)).get();
+    expect(raw.length).toBeLessThan(readFileSync(sourceSession!.rawFile!).length);
+    expect(readRecordedTelemetry("fm-2023", rawFile).packets.length).toBeGreaterThan(0);
+    const metas = importedRows.map((l) => ({ id: l.id, rawByteOffset: l.rawByteOffset!, rawFrameCount: l.rawFrameCount! }));
+    const batch = await parseSessionLapsBatched(captureSource(importedSession!), metas);
+    for (const meta of metas) {
+      const individual = await parseRawLapFrames(captureSource(importedSession!), meta.rawByteOffset, meta.rawFrameCount);
+      expect(individual.length).toBeGreaterThan(0);
+      expect(batch.get(meta.id)).toEqual(individual);
+    }
+    await reprocessSession(importedSid);
+    expect(await db.select().from(laps).where(eq(laps.sessionId, importedSid)).all()).toHaveLength(2);
+  }, 120000);
+
+  test("non-contiguous iRacing laps preserve source telemetry through export, import, replay, and reprocess", async () => {
+    const { sid, rows } = await seedSession({
+      capture: IRACING_CAPTURE,
+      gameId: "iracing",
+      minimumLaps: 4,
+    });
+    const exportable = rows.sort((a, b) => a.lapNumber - b.lapNumber);
+    const selected = [exportable[0]!, exportable.at(-1)!];
+    const selectedNumbers = selected.map((lap) => lap.lapNumber);
+    const omittedNumbers = exportable.slice(1, -1).map((lap) => lap.lapNumber);
+    expect(omittedNumbers.length).toBeGreaterThan(0);
+
+    const { bytes: zip, manifest } = await buildLapsZip(selected.map((lap) => lap.id));
+    expect(manifest.entries[0]?.laps.map((lap) => lap.lapNumber)).toEqual(selectedNumbers);
+
+    const archived = unzipSync(zip);
+    const exportedCapture = Buffer.from(gunzipSync(archived[manifest.entries[0]!.file]!));
+    const records = [...iterateSessionCaptureRecords(exportedCapture)];
+    const boundaryIndexes = records.flatMap((record, index) =>
+      record.kind === "segment-boundary" ? [index] : [],
+    );
+    expect(boundaryIndexes).toHaveLength(2);
+    for (const boundaryIndex of boundaryIndexes) {
+      const record = records[boundaryIndex + 1];
+      expect(record?.kind === "frame" && isIRacingSessionFrame(record.frame)).toBe(true);
+    }
+
+    const result = await importLapsZip(zip);
+    expect(result.errors).toEqual([]);
+    expect(result.laps.map((lap) => lap.lapNumber).sort((a, b) => a - b)).toEqual(selectedNumbers);
+    expect(result.laps.some((lap) => omittedNumbers.includes(lap.lapNumber))).toBe(false);
+    expect(new Set(result.laps.map((lap) => lap.sessionId)).size).toBe(1);
+    result.laps.forEach((lap) => createdSessions.push(lap.sessionId));
+
+    const importedSid = result.laps[0]!.sessionId;
+    const importedSession = await db.select().from(sessions).where(eq(sessions.id, importedSid)).get();
+    const sourceSession = await db.select().from(sessions).where(eq(sessions.id, sid)).get();
+    const importedRawFile = importedSession!.rawFile!;
+    const sourceRawFile = sourceSession!.rawFile!;
+    tmpFiles.push(importedRawFile);
+    const importedRows = await db.select().from(laps).where(eq(laps.sessionId, importedSid)).all();
+
+    for (const sourceLap of selected) {
+      const importedLap = importedRows.find((lap) => lap.lapNumber === sourceLap.lapNumber)!;
+      const sourcePackets = await parseRawLapFrames(
+        captureSource(sourceSession!),
+        sourceLap.rawByteOffset!,
+        sourceLap.rawFrameCount!,
+      );
+      const importedPackets = await parseRawLapFrames(
+        captureSource(importedSession!),
+        importedLap.rawByteOffset!,
+        importedLap.rawFrameCount!,
+      );
+      expect(importedPackets).toEqual(sourcePackets);
+      expect((await queryLapTelemetryBySemanticId(importedLap.id, ["motion.speed"]))?.envelopes.length).toBeGreaterThan(0);
+    }
+
+    const batchMetas = importedRows.map((lap) => ({
+      id: lap.id,
+      rawByteOffset: lap.rawByteOffset!,
+      rawFrameCount: lap.rawFrameCount!,
+    }));
+    const batch = await parseSessionLapsBatched(captureSource(importedSession!), batchMetas);
+    for (const meta of batchMetas) {
+      const individual = await parseRawLapFrames(
+        captureSource(importedSession!),
+        meta.rawByteOffset,
+        meta.rawFrameCount,
+      );
+      expect(batch.get(meta.id)).toEqual(individual);
+    }
+
+    const streamedReprocess = async () => {
+      setCaptureFileFactoryForTest((path) => {
+        const file = Bun.file(path);
+        return {
+          size: file.size,
+          lastModified: file.lastModified,
+          slice: (start, end) => file.slice(start, end),
+          stream: () => file.stream(),
+          arrayBuffer: () => { throw new Error("Reprocessing must stream captures"); },
+        };
+      });
+      try {
+        return await reprocessSession(importedSid);
+      } finally {
+        setCaptureFileFactoryForTest(null);
+      }
+    };
+    const staleLap = importedRows[0]!;
+    const originalTime = staleLap.lapTime;
+    await db.update(laps).set({ lapTime: 1 }).where(eq(laps.id, staleLap.id)).run();
+    await db.update(sessions).set({ lapDetectorVersion: "stale" }).where(eq(sessions.id, importedSid)).run();
+    const reprocessResult = await streamedReprocess();
+    const reprocessed = await db.select().from(laps).where(eq(laps.sessionId, importedSid)).all();
+    expect(reprocessResult.lapsDetected).toBe(selectedNumbers.length);
+    expect(reprocessed.map((lap) => lap.lapNumber).sort((a, b) => a - b)).toEqual(selectedNumbers);
+    expect(reprocessed.find((lap) => lap.id === staleLap.id)?.lapTime).toBe(originalTime);
+    expect((await db.select().from(sessions).where(eq(sessions.id, importedSid)).get())?.lapDetectorVersion).not.toBe("stale");
+    await db.update(laps).set({ lapNumber: 999, notes: "keep this lap", isFavorite: true })
+      .where(eq(laps.id, staleLap.id)).run();
+    await streamedReprocess();
+    const restored = await db.select().from(laps).where(eq(laps.sessionId, importedSid)).all();
+    expect(restored.map((lap) => lap.lapNumber).sort((a, b) => a - b)).toEqual(selectedNumbers);
+    expect(restored.find((lap) => lap.rawByteOffset === staleLap.rawByteOffset))
+      .toMatchObject({ lapNumber: staleLap.lapNumber, notes: "keep this lap", isFavorite: true });
+  }, 120000);
+
+  test("imports legacy v2 manifest for a single segment", async () => {
+    const { rows } = await seedSession();
+    const { bytes: zip } = await buildLapsZip([rows[0]!.id]);
+    const entries = unzipSync(zip);
+    const manifest = JSON.parse(new TextDecoder().decode(entries["manifest.json"])) as LapsZipManifest;
+    const memberName = manifest.entries[0]!.file;
+    const capture = Buffer.from(gunzipSync(entries[memberName]!));
+    const firstFrame = [...iterateSessionCaptureRecords(capture)].find(
+      (record) => record.kind === "frame",
+    );
+    expect(firstFrame).toBeDefined();
+    entries[memberName] = gzipSync(
+      Buffer.concat([
+        capture.subarray(0, META_FRAME_BYTES),
+        capture.subarray(firstFrame!.offset),
+      ]),
+    );
+    manifest.version = 2;
+    const legacyZip = zipSync({ ...entries, "manifest.json": new TextEncoder().encode(JSON.stringify(manifest)) });
+    const result = await importLapsZip(legacyZip);
+    expect(result.errors).toEqual([]);
+    expect(result.laps.some((l) => Math.abs(l.lapTime - rows[0]!.lapTime) < 0.001)).toBe(true);
+    for (const l of result.laps) createdSessions.push(l.sessionId);
+  }, 120000);
+
+  test("a corrupt capture member does not prevent importing later valid members", async () => {
+    const { rows } = await seedSession({ minimumLaps: 1 });
+    const exported = rows[0]!;
+    const { bytes } = await buildLapsZip([exported.id]);
+    const result = await importLapsZip(zipSync({
+      "fm-2023-corrupt.bin.gz": new Uint8Array([0x1f, 0x8b, 0x08]),
+      ...unzipSync(bytes),
+    }));
+    result.laps.forEach((lap) => createdSessions.push(lap.sessionId));
+
+    expect(result.skipped).toBe(1);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toStartWith("fm-2023-corrupt.bin.gz:");
+    expect(result.laps.map(({ lapNumber, lapTime, isValid }) => ({ lapNumber, lapTime, isValid })))
+      .toEqual([{ lapNumber: exported.lapNumber, lapTime: exported.lapTime, isValid: exported.isValid }]);
+  }, 120000);
+
+
+  test("a whole session round-trips every lap that has a raw capture", async () => {
+    const { rows } = await seedSession();
+    const exportable = rows;
+    expect(exportable.length).toBeGreaterThan(1);
+
+    const { bytes: zip } = await buildLapsZip(exportable.map((r) => r.id));
+    const result = await importLapsZip(zip);
+    for (const l of result.laps) createdSessions.push(l.sessionId);
+
+    expect(result.errors).toEqual([]);
+    const got = result.laps.map((l) => Math.round(l.lapTime * 1000)).sort((a, b) => a - b);
+    const want = exportable.map((r) => Math.round(r.lapTime * 1000)).sort((a, b) => a - b);
+    expect(got).toEqual(want);
+    const importedRows = await db.select().from(laps).where(inArray(laps.id, result.laps.map((l) => l.lapId))).all();
+    expect(importedRows).toHaveLength(result.laps.length);
+    expect(importedRows.every((l) => l.rawFrameCount !== null && l.rawFrameCount > 0)).toBe(true);
+    expect(importedRows.map((l) => l.isValid).sort()).toEqual(exportable.map((l) => l.isValid).sort());
+  }, 120000);
+});

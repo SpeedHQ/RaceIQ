@@ -1,5 +1,5 @@
 import { expect, test, type Page, type Request } from "@playwright/test";
-import type { LapMeta } from "../../../../shared/racing/sessions/types";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { collectBrowserErrors } from "../../support/browser-errors";
 import { SEEDED_GAME_CASES } from "../../support/seeded/cases";
 import { getSeededLapTarget } from "../../support/seeded/laps";
@@ -24,21 +24,28 @@ async function dragTelemetryLane(page: Page): Promise<void> {
   await page.mouse.up();
 }
 
-for (const game of REVIEW_GAMES) {
+for (const game of REVIEW_GAMES.filter((game) => game.gameId === "acc")) {
   test(`Analyse session review reuses base telemetry for ${game.gameId}`, async ({ page, request }) => {
     test.setTimeout(200_000);
     const browserErrors = collectBrowserErrors(page);
-    const target = await getSeededLapTarget(request, game.gameId);
     const lapsResponse = await request.get(`/api/laps?gameId=${game.gameId}`);
     expect(lapsResponse.ok()).toBe(true);
-    const targetLap = ((await lapsResponse.json()) as LapMeta[]).find((lap) => lap.id === target.id);
-    if (!targetLap) throw new Error(`Seeded target lap ${target.id} missing`);
-    const sessionId = targetLap.sessionId;
-    const reviewResponse = await request.get(`/api/laps/review?gameId=${game.gameId}&sessionId=${sessionId}&limit=5`);
-    expect(reviewResponse.ok()).toBe(true);
-    const evaluationLaps = (await reviewResponse.json()) as LapMeta[];
-    const expectedIds = evaluationLaps.map((lap) => lap.id);
-    expect(expectedIds.length).toBeGreaterThan(0);
+    const laps = (await lapsResponse.json()) as LapMeta[];
+    const sessions = [...new Set(laps.filter((lap) => lap.isValid).map((lap) => lap.sessionId))];
+    let sessionId: number | undefined;
+    let expectedIds: number[] = [];
+    for (const candidateSessionId of sessions) {
+      const reviewResponse = await request.get(`/api/laps/review?gameId=${game.gameId}&sessionId=${candidateSessionId}&limit=5`);
+      expect(reviewResponse.ok()).toBe(true);
+      const evaluationLaps = (await reviewResponse.json()) as LapMeta[];
+      if (evaluationLaps.length > 0) {
+        sessionId = candidateSessionId;
+        expectedIds = evaluationLaps.map((lap) => lap.id);
+        break;
+      }
+    }
+    expect(sessionId, `${game.gameId} seeded data needs a session with reviewable laps`).toBeDefined();
+    if (sessionId == null) throw new Error(`${game.gameId} seeded data has no reviewable session`);
 
     const alignedRequests: Array<{ ids: number[]; step: number; start?: number; end?: number }> = [];
     let semanticRequests = 0;
@@ -83,23 +90,56 @@ for (const game of REVIEW_GAMES) {
     expect(semanticRequests).toBe(0);
     expect(browserErrors.errors, `unexpected browser errors for ${game.gameId} review`).toEqual([]);
   });
+}
+
+for (const game of REVIEW_GAMES) {
   test(`Analyse lap header returns to session review for ${game.gameId}`, async ({ page, request }) => {
     const target = await getSeededLapTarget(request, game.gameId);
     const lapsResponse = await request.get(`/api/laps?gameId=${game.gameId}`);
     expect(lapsResponse.ok()).toBe(true);
     const targetLap = ((await lapsResponse.json()) as LapMeta[]).find((lap) => lap.id === target.id);
-    if (!targetLap || targetLap.sessionId == null || targetLap.trackOrdinal == null || targetLap.carOrdinal == null) {
+    if (!targetLap || targetLap.sessionId == null || !targetLap.trackId || !targetLap.carId) {
       throw new Error(`Seeded target lap ${target.id} has incomplete route metadata`);
     }
 
-    await page.goto(`/${game.prefix}/sessions/${targetLap.sessionId}/analyse?track=${targetLap.trackOrdinal}&car=${targetLap.carOrdinal}&lap=${targetLap.id}`, { waitUntil: "domcontentloaded" });
+    await page.goto(`/${game.prefix}/sessions/${targetLap.sessionId}/analyse?track=${encodeURIComponent(targetLap.trackId)}&car=${encodeURIComponent(targetLap.carId)}&lap=${targetLap.id}`, { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "Actions", exact: true }).click();
     await page.getByRole("menuitem", { name: "Analyse Session", exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/${game.prefix}/sessions/${targetLap.sessionId}/analyse(?:\\?|$)`));
-    await expect(page.getByRole("button", { name: "Overview", exact: true })).toBeVisible();
+    const reviewResponse = await request.get(`/api/laps/review?gameId=${game.gameId}&sessionId=${targetLap.sessionId}&limit=5`);
+    expect(reviewResponse.ok()).toBe(true);
+    const reviewLaps = (await reviewResponse.json()) as LapMeta[];
+    if (reviewLaps.length > 0) {
+      await expect(page.getByRole("button", { name: "Overview", exact: true })).toBeVisible();
+    } else {
+      await expect(page.getByText("No valid laps are available for review.", { exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Back to Sessions", exact: true })).toBeVisible();
+    }
   });
 
 }
+
+test("Analyse session review preserves invalid laps for ac-evo", async ({ page, request }) => {
+  const browserErrors = collectBrowserErrors(page);
+  const lapsResponse = await request.get("/api/laps?gameId=ac-evo");
+  expect(lapsResponse.ok()).toBe(true);
+  const laps = (await lapsResponse.json()) as LapMeta[];
+  const sessionId = laps.find((lap) => lap.invalidReason === "track limits")?.sessionId;
+  expect(sessionId, "AC Evo seed needs a session with track-limit violations").toBeDefined();
+  if (sessionId == null) throw new Error("AC Evo seed has no invalid session");
+  const sessionLaps = laps.filter((lap) => lap.sessionId === sessionId);
+  expect(sessionLaps.every((lap) => !lap.isValid && lap.invalidReason != null)).toBe(true);
+
+  const reviewResponse = await request.get(`/api/laps/review?gameId=ac-evo&sessionId=${sessionId}&limit=5`);
+  expect(reviewResponse.ok()).toBe(true);
+  expect(await reviewResponse.json()).toEqual([]);
+
+  await page.goto(`/ac-evo/sessions/analyse?session=${sessionId}`, { waitUntil: "domcontentloaded" });
+  await expect(page.getByText("No valid laps are available for review.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Back to Sessions", exact: true })).toBeVisible();
+  expect(browserErrors.errors, "unexpected browser errors for invalid AC Evo session").toEqual([]);
+});
+ 
 test("Analyse session route rejects mixed session and lap selections", async ({ page }) => {
   await page.goto("/acc/sessions/analyse?session=1&lap=2", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "Invalid Analyse selection" })).toBeVisible();

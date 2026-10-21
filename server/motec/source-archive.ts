@@ -1,10 +1,11 @@
+import { resolveRecordingGameDirectory } from "../runtime/config/recording-directory";
 import { mkdir, rename, unlink, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { zipSync } from "fflate";
 import { MOTEC_ZIP_LIMITS, unzipBounded } from "../archive/bounded-unzip";
-import type { GameId } from "../../shared/games/ids";
-import { resolveDataDir } from "../runtime/config/data-dir";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import { timestampForFilename } from "../session-capture/filename";
 
 const LD_ENTRY = "session.ld";
@@ -12,8 +13,8 @@ const LDX_ENTRY = "session.ldx";
 const MANIFEST_ENTRY = "manifest.json";
 export const MOTEC_SOURCE_SUFFIX = ".motec.zip";
 export type MotecOffsetEncoding = "packet-index" | "legacy-bin-byte-offset";
-import { PHYSICS as ACC_PHYSICS, GRAPHICS as ACC_GRAPHICS, STATIC as ACC_STATIC } from "../games/acc/structs";
-import { PHYSICS as EVO_PHYSICS, GRAPHICS_EVO as EVO_GRAPHICS, STATIC_EVO as EVO_STATIC } from "../games/ac-evo/structs";
+import { PHYSICS as ACC_PHYSICS, GRAPHICS as ACC_GRAPHICS, STATIC as ACC_STATIC } from "@raceiq/capture-formats/acc/structs";
+import { PHYSICS as EVO_PHYSICS, GRAPHICS_EVO as EVO_GRAPHICS, STATIC_EVO as EVO_STATIC } from "@raceiq/capture-formats/ac-evo/structs";
 export function motecLegacyRecordLength(gameId: GameId): number {
   const sizes = gameId === "acc"
     ? [ACC_PHYSICS.SIZE, ACC_GRAPHICS.SIZE, ACC_STATIC.SIZE]
@@ -79,8 +80,9 @@ export async function persistMotecSourceArchive(
   gameId: GameId,
   ldBytes: Uint8Array,
   ldxBytes?: Uint8Array,
+  ownership: SessionOwnership = "mine",
 ): Promise<string> {
-  const directory = join(resolveDataDir(), "sessions", gameId);
+  const directory = resolveRecordingGameDirectory(gameId, ownership);
   await mkdir(directory, { recursive: true });
 
   const archivePath = join(

@@ -21,11 +21,11 @@
  * name for those turns. See `TrackGuideCornerFile.numbers` in shared/racing/tracks/guide/types.ts.
  */
 
-import { loadTrackFacts } from "../../shared/racing/tracks/storage/meta";
-import { cornerNumbers } from "../../shared/racing/tracks/facts";
-import { cornerPromptLabel } from "../../shared/racing/tracks/segment-label";
-import { listTrackGuideSlugs, loadTrackGuide } from "../../shared/racing/tracks/guide/data";
-import type { ResolvedTrackGuide, TrackGuideCornerFile, TrackGuideFile } from "../../shared/racing/tracks/guide/types";
+import { loadTrackFacts } from "@raceiq/shared/racing/tracks/storage/meta";
+import { cornerNumbers } from "@raceiq/shared/racing/tracks/facts";
+import { cornerPromptLabel } from "@raceiq/shared/racing/tracks/segment-label";
+import { listTrackGuideSlugs, loadTrackGuide } from "@raceiq/shared/racing/tracks/guide/data";
+import type { ResolvedTrackGuide, TrackGuideCornerFile, TrackGuideFile } from "@raceiq/shared/racing/tracks/guide/types";
 
 function normalise(name: string): string {
   return name

@@ -2,8 +2,9 @@ import { existsSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { Point } from "../geometry/types";
 import { listDataFiles, readDataFile, userDir, userGameDir, validateGameId } from "../storage/files";
+import { KNOWN_GAME_IDS } from "../../../games/ids";
 
-function gk(gameId: string, ordinal: number): string { return `${gameId}:${ordinal}`; }
+function gk(gameId: string, trackId: string): string { return `${gameId}:${trackId}`; }
 
 // ── Curb/Kerb Detection ─────────────────────────────────────────────────────
 // Curbs are detected from WheelOnRumbleStrip telemetry fields. When any wheel
@@ -24,23 +25,29 @@ let _curbsScanned = false;
 function scanCurbFiles(): void {
   _curbsScanned = true;
   curbOrdinals.clear();
-  for (const gid of ["fm-2023", "f1-2025"]) {
+  for (const gid of KNOWN_GAME_IDS) {
     const dir = resolve(userDir, gid);
     if (!existsSync(dir)) continue;
     for (const filePath of listDataFiles(dir, (f) => f.startsWith("curbs-") && f.endsWith(".json"))) {
-      const match = filePath.split("/").pop()!.match(/curbs-(\d+)\.json/);
-      if (match) curbOrdinals.add(gk(gid, parseInt(match[1], 10)));
+      const match = filePath.match(/(?:^|[\\/])curbs-(.+)\.json$/);
+      if (match) {
+        try {
+          curbOrdinals.add(gk(gid, decodeURIComponent(match[1])));
+        } catch {
+          // Ignore filenames that do not encode a native track identity.
+        }
+      }
     }
   }
 }
 function ensureCurbsScanned() { if (!_curbsScanned) scanCurbFiles(); }
 
-function loadCurbs(ordinal: number, gameId: string): CurbSegment[] | null {
+function loadCurbs(trackId: string, gameId: string): CurbSegment[] | null {
   ensureCurbsScanned();
-  const key = gk(gameId, ordinal);
+  const key = gk(gameId, trackId);
   if (curbsByOrdinal.has(key)) return curbsByOrdinal.get(key)!;
   if (!curbOrdinals.has(key)) return null;
-  const userPath = resolve(userGameDir(gameId), `curbs-${ordinal}.json`);
+  const userPath = resolve(userGameDir(gameId), `curbs-${encodeURIComponent(trackId)}.json`);
   const content = readDataFile(userPath);
   if (!content) return null;
   try {
@@ -108,11 +115,11 @@ export function extractCurbSegments(packets: { PositionX: number; PositionZ: num
  * Record curb data from a completed lap. Merges with existing curb data
  * for the track, deduplicating overlapping segments.
  */
-export function recordCurbData(ordinal: number, newSegments: CurbSegment[], gameId: string): void {
+export function recordCurbData(trackId: string, newSegments: CurbSegment[], gameId: string): void {
   validateGameId(gameId);
   if (newSegments.length === 0) return;
 
-  const key = gk(gameId, ordinal);
+  const key = gk(gameId, trackId);
   const count = (curbLapCounts.get(key) ?? 0) + 1;
   curbLapCounts.set(key, count);
 
@@ -161,10 +168,10 @@ export function recordCurbData(ordinal: number, newSegments: CurbSegment[], game
 
   // Save to disk on first lap and periodically
   if (count === 1 || count === 3 || count === 5 || count % 5 === 0) {
-    const filePath = resolve(userGameDir(gameId), `curbs-${ordinal}.json`);
+    const filePath = resolve(userGameDir(gameId), `curbs-${encodeURIComponent(trackId)}.json`);
     try {
       writeFileSync(filePath, JSON.stringify(merged, null, 2));
-      console.log(`[Tracks] Saved curb data for track ${ordinal}: ${merged.length} segments from ${count} laps`);
+      console.log(`[Tracks] Saved curb data for track ${trackId}: ${merged.length} segments from ${count} laps`);
     } catch (err) {
       console.error(`[Tracks] Failed to save curb data:`, err);
     }
@@ -190,9 +197,9 @@ function downsamplePoints(points: Point[], minDist: number): Point[] {
 }
 
 /**
- * Get curb segments for a track by ordinal.
+ * Get curb segments for a native track identity.
  */
-export function getTrackCurbs(ordinal: number, gameId: string): CurbSegment[] | null {
+export function getTrackCurbs(trackId: string, gameId: string): CurbSegment[] | null {
   validateGameId(gameId);
-  return loadCurbs(ordinal, gameId);
+  return loadCurbs(trackId, gameId);
 }

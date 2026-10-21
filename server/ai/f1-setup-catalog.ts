@@ -9,30 +9,30 @@
  * identically in the Bun server, the compiled `raceiq.exe`, and the Mastra
  * dev bundle — none of which share a working-directory layout.
  */
-import australia from "../../shared/data/tunes/f1-25/f1laps/australia/setups.json";
-import austria from "../../shared/data/tunes/f1-25/f1laps/austria/setups.json";
-import azerbaijan from "../../shared/data/tunes/f1-25/f1laps/azerbaijan/setups.json";
-import bahrain from "../../shared/data/tunes/f1-25/f1laps/bahrain/setups.json";
-import brazil from "../../shared/data/tunes/f1-25/f1laps/brazil/setups.json";
-import canada from "../../shared/data/tunes/f1-25/f1laps/canada/setups.json";
-import china from "../../shared/data/tunes/f1-25/f1laps/china/setups.json";
-import hungary from "../../shared/data/tunes/f1-25/f1laps/hungary/setups.json";
-import imola from "../../shared/data/tunes/f1-25/f1laps/imola/setups.json";
-import japan from "../../shared/data/tunes/f1-25/f1laps/japan/setups.json";
-import lasVegas from "../../shared/data/tunes/f1-25/f1laps/las_vegas/setups.json";
-import mexico from "../../shared/data/tunes/f1-25/f1laps/mexico/setups.json";
-import miami from "../../shared/data/tunes/f1-25/f1laps/miami/setups.json";
-import monaco from "../../shared/data/tunes/f1-25/f1laps/monaco/setups.json";
-import monza from "../../shared/data/tunes/f1-25/f1laps/monza/setups.json";
-import netherlands from "../../shared/data/tunes/f1-25/f1laps/netherlands/setups.json";
-import qatar from "../../shared/data/tunes/f1-25/f1laps/qatar/setups.json";
-import saudiArabia from "../../shared/data/tunes/f1-25/f1laps/saudi_arabia/setups.json";
-import silverstone from "../../shared/data/tunes/f1-25/f1laps/silverstone/setups.json";
-import singapore from "../../shared/data/tunes/f1-25/f1laps/singapore/setups.json";
-import spa from "../../shared/data/tunes/f1-25/f1laps/spa/setups.json";
-import spain from "../../shared/data/tunes/f1-25/f1laps/spain/setups.json";
-import abudhabi from "../../shared/data/tunes/f1-25/f1laps/abudhabi/setups.json";
-import usa from "../../shared/data/tunes/f1-25/f1laps/usa/setups.json";
+import australia from "@raceiq/shared/data/tunes/f1-25/f1laps/australia/setups.json";
+import austria from "@raceiq/shared/data/tunes/f1-25/f1laps/austria/setups.json";
+import azerbaijan from "@raceiq/shared/data/tunes/f1-25/f1laps/azerbaijan/setups.json";
+import bahrain from "@raceiq/shared/data/tunes/f1-25/f1laps/bahrain/setups.json";
+import brazil from "@raceiq/shared/data/tunes/f1-25/f1laps/brazil/setups.json";
+import canada from "@raceiq/shared/data/tunes/f1-25/f1laps/canada/setups.json";
+import china from "@raceiq/shared/data/tunes/f1-25/f1laps/china/setups.json";
+import hungary from "@raceiq/shared/data/tunes/f1-25/f1laps/hungary/setups.json";
+import imola from "@raceiq/shared/data/tunes/f1-25/f1laps/imola/setups.json";
+import japan from "@raceiq/shared/data/tunes/f1-25/f1laps/japan/setups.json";
+import lasVegas from "@raceiq/shared/data/tunes/f1-25/f1laps/las_vegas/setups.json";
+import mexico from "@raceiq/shared/data/tunes/f1-25/f1laps/mexico/setups.json";
+import miami from "@raceiq/shared/data/tunes/f1-25/f1laps/miami/setups.json";
+import monaco from "@raceiq/shared/data/tunes/f1-25/f1laps/monaco/setups.json";
+import monza from "@raceiq/shared/data/tunes/f1-25/f1laps/monza/setups.json";
+import netherlands from "@raceiq/shared/data/tunes/f1-25/f1laps/netherlands/setups.json";
+import qatar from "@raceiq/shared/data/tunes/f1-25/f1laps/qatar/setups.json";
+import saudiArabia from "@raceiq/shared/data/tunes/f1-25/f1laps/saudi_arabia/setups.json";
+import silverstone from "@raceiq/shared/data/tunes/f1-25/f1laps/silverstone/setups.json";
+import singapore from "@raceiq/shared/data/tunes/f1-25/f1laps/singapore/setups.json";
+import spa from "@raceiq/shared/data/tunes/f1-25/f1laps/spa/setups.json";
+import spain from "@raceiq/shared/data/tunes/f1-25/f1laps/spain/setups.json";
+import abudhabi from "@raceiq/shared/data/tunes/f1-25/f1laps/abudhabi/setups.json";
+import usa from "@raceiq/shared/data/tunes/f1-25/f1laps/usa/setups.json";
 
 export type F1Setup = Record<string, number>;
 
@@ -62,9 +62,9 @@ interface TrackCatalogMeta {
 }
 
 /**
- * `trackOrdinal` → catalog metadata. Keys correspond to F1 25 track IDs
- * (see `shared/games/f1-2025/tracks.csv`). Tracks without community data
- * are omitted; tool returns `available: false` for those.
+ * `trackId` → catalog metadata. Keys correspond to F1 25 track IDs
+ * (native ID represented as string; see `shared/games/f1-2025/tracks.csv`).
+ * Tracks without community data are omitted; tool returns `available: false` for those.
  *
  * Bundled at import time instead of via `getF1TrackInfo()` so this module
  * doesn't pull `readFileSync` into the Mastra tool bundle.
@@ -101,13 +101,16 @@ const PACKET_TO_CATALOG_KEY: Record<string, string> = {
   offThrottle: "diffOffThrottle",
 };
 
-export function getCatalogFolderForTrack(trackOrdinal: number): string | undefined {
-  return TRACK_CATALOG[trackOrdinal]?.folder;
+export function getCatalogFolderForTrack(trackId: string): string | undefined {
+  if (!/^(0|[1-9]\d*)$/.test(trackId)) return undefined;
+  return TRACK_CATALOG[Number(trackId)]?.folder;
 }
 
-export function getCatalogDisplayName(trackOrdinal: number): string | undefined {
-  return TRACK_CATALOG[trackOrdinal]?.displayName;
+export function getCatalogDisplayName(trackId: string): string | undefined {
+  if (!/^(0|[1-9]\d*)$/.test(trackId)) return undefined;
+  return TRACK_CATALOG[Number(trackId)]?.displayName;
 }
+
 
 /**
  * Remap packet-shape setup keys (`onThrottle`, `offThrottle`) onto the
@@ -129,8 +132,9 @@ export function parseLapTime(raw: string): number {
   return parseInt(m[1], 10) * 60 + parseFloat(m[2]);
 }
 
-function loadCatalogEntries(trackOrdinal: number): CatalogEntry[] {
-  const meta = TRACK_CATALOG[trackOrdinal];
+function loadCatalogEntries(trackId: string): CatalogEntry[] {
+  if (!/^(0|[1-9]\d*)$/.test(trackId)) return [];
+  const meta = TRACK_CATALOG[Number(trackId)];
   if (!meta) return [];
   const raw = meta.raw as Array<Omit<CatalogEntry, "lapTimeSeconds">>;
   if (!Array.isArray(raw)) return [];
@@ -138,11 +142,11 @@ function loadCatalogEntries(trackOrdinal: number): CatalogEntry[] {
 }
 
 export function topCatalogReferences(
-  trackOrdinal: number,
+  trackId: string,
   limit = 5,
   currentSetup?: F1Setup,
 ): CatalogReference[] {
-  const entries = loadCatalogEntries(trackOrdinal);
+  const entries = loadCatalogEntries(trackId);
   entries.sort((a, b) => a.lapTimeSeconds - b.lapTimeSeconds);
 
   return entries.slice(0, limit).map((e, i) => ({

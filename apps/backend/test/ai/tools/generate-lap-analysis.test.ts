@@ -1,0 +1,409 @@
+import { describe, expect, test } from "bun:test";
+import { strFromU8, unzipSync } from "fflate";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+
+import {
+  generateLapAnalysis,
+  type GenerateLapAnalysisDeps,
+} from "../../../src/ai/generate-lap-analysis";
+import { diagnosticsRoutes } from "../../../src/routes/system/diagnostics-routes";
+
+const validAnalysis = JSON.stringify({
+  verdict: "Clean lap",
+  pace: [],
+  handling: [],
+  corners: [],
+  technique: [],
+  setup: [],
+});
+
+const lap = {
+  id: 7,
+  lapTime: 91.2,
+  gameId: "fm-2023" as const,
+  trackId: "1",
+  telemetry: [{ DistanceTraveled: 0 }, { DistanceTraveled: 100 }],
+};
+
+function makeDeps(
+  options: {
+    cached?: string;
+    generated?: string;
+    generateError?: Error;
+    onSave?: (analysis: string) => void;
+  } = {},
+): GenerateLapAnalysisDeps & { generateCalls: number; saves: string[] } {
+  let generateCalls = 0;
+  const saves: string[] = [];
+  let cached = options.cached
+    ? {
+        analysis: options.cached,
+        inputTokens: 1,
+        outputTokens: 2,
+        costUsd: 0,
+        durationMs: 3,
+        model: "test-model",
+      }
+    : null;
+  const deps: GenerateLapAnalysisDeps & {
+    generateCalls: number;
+    saves: string[];
+  } = {
+    generateCalls,
+    saves,
+    getLapById: async () => lap as never,
+    resolveLapCorners: async () => [],
+    getOrComputeLapInsights: async () => [],
+    getAnalysis: async () => cached,
+    saveAnalysis: async (_lapId, analysis) => {
+      saves.push(analysis);
+      options.onSave?.(analysis);
+      cached = {
+        analysis,
+        inputTokens: 1,
+        outputTokens: 2,
+        costUsd: 0,
+        durationMs: 3,
+        model: "test-model",
+      };
+    },
+    loadSettings: () =>
+      ({
+        aiProvider: "openai-compatible",
+        aiModel: "test-model",
+        localEndpoint: "http://localhost:1234/v1",
+        unit: "metric",
+        temperatureUnit: "C",
+        language: "en",
+        aiThinkingBudget: null,
+      }) as never,
+    resolveTrack: () => ({ segments: [], sectors: {} }) as never,
+    buildAnalystPrompt: () => "prompt" as never,
+    resolveAi: async () => ({
+      feature: "analysis",
+      provider: "openai-compatible",
+      model: "test-model",
+      generateText: async () => {
+        throw new Error("unused");
+      },
+      generateStructured: async () => {
+        throw new Error("unused");
+      },
+    }),
+    getRuntimeContextLength: async () => undefined,
+    runAiStructured: async () => {
+      generateCalls++;
+      if (options.generateError) throw options.generateError;
+      return {
+        analysis: options.generated ?? validAnalysis,
+        usage: {
+          inputTokens: 4,
+          outputTokens: 5,
+          costUsd: 0,
+          durationMs: 6,
+          model: "test-model",
+        },
+      };
+    },
+  };
+  Object.defineProperty(deps, "generateCalls", { get: () => generateCalls });
+  return deps;
+}
+
+describe("generateLapAnalysis", () => {
+  test("reuses valid cache without generation", async () => {
+    const deps = makeDeps({ cached: validAnalysis });
+    const result = await generateLapAnalysis(7, {}, deps);
+
+    const output = JSON.parse(result.analysis!);
+    expect(output.setup).toEqual([]);
+    expect(output.setupProvenance).toMatchObject({ gameId: "fm-2023", lapId: 7, setupVersion: null });
+  });
+
+  test("later-lap corner highlights use lap-relative fractions", async () => {
+    const deps = makeDeps({ cached: validAnalysis });
+    deps.getLapById = async () => ({
+      ...lap,
+      telemetry: [{ DistanceTraveled: 3520 }, { DistanceTraveled: 4520 }],
+    }) as never;
+    deps.resolveLapCorners = async () => [{
+      index: 1, label: "T1", distanceStart: 200, distanceEnd: 300,
+    }];
+    const result = await generateLapAnalysis(7, { cacheOnly: true }, deps);
+    expect(result.cornerFracs).toEqual([{ label: "T1", startFrac: 0.2, endFrac: 0.3 }]);
+  });
+
+  test("drops unsupported cached setup recommendations before returning them", async () => {
+    const cached = JSON.stringify({
+      verdict: "Clean lap", pace: [], handling: [], corners: [], technique: [],
+      setup: [{ component: "Front Anti-Roll Bar", symptom: "x", fix: "x", current: "3", target: "4", direction: "increase" }],
+    });
+    const result = await generateLapAnalysis(7, {}, makeDeps({ cached }));
+    expect(result.cached).toBe(true);
+    expect(JSON.parse(result.analysis!).setup).toEqual([]);
+  });
+
+  test("does not cache unsupported generated setup recommendations", async () => {
+    const generated = JSON.stringify({
+      verdict: "Clean lap", pace: [], handling: [], corners: [], technique: [],
+      setup: [{ component: "Front Anti-Roll Bar", symptom: "x", fix: "x", current: "3", target: "4", direction: "increase" }],
+    });
+    const deps = makeDeps({ generated });
+    const result = await generateLapAnalysis(7, { regenerate: true }, deps);
+    expect(result.analysis && JSON.parse(result.analysis).setup).toEqual([]);
+    expect(JSON.parse(deps.saves[0]!).setup).toEqual([]);
+  });
+
+
+  test("validates linked AC-EVO tune recommendations against that lap's setup snapshot", async () => {
+    const deps = makeDeps({
+      generated: JSON.stringify({
+        verdict: "Clean lap", pace: [], handling: [], corners: [], technique: [],
+        setup: [{
+          component: "Front Anti-Roll Bar", symptom: "balance", fix: "Increase one click",
+          current: "3 clicks", target: "3 clicks", direction: "increase",
+        }],
+      }),
+    });
+    deps.getLapById = async () => ({
+      ...lap, gameId: "ac-evo", carId: "42", trackId: "7", tuneId: 9,
+    } as never);
+    deps.getDbTune = async () => ({
+      id: 9, gameId: "ac-evo", carId: "42", trackId: "7", settings: JSON.stringify({ frontARB: 2 }),
+      strengths: null, weaknesses: null, bestTracks: null, strategies: null,
+    }) as never;
+    deps.getGame = (() => ({
+      getCarName: () => "audi_r8_lms_gt3_evo_2",
+      getTrackName: () => "Test track",
+    })) as never;
+
+    const result = await generateLapAnalysis(7, { regenerate: true }, deps);
+    const analysis = JSON.parse(result.analysis!);
+    expect(analysis.setup).toEqual([expect.objectContaining({ current: "2 clicks", target: "3 clicks" })]);
+    expect(analysis.setupProvenance).toMatchObject({
+      gameId: "ac-evo", carModel: "audi_r8_lms_gt3_evo_2", trackName: "Test track", lapId: 7,
+    });
+  });
+  test("returns missing lap error", async () => {
+    const deps = makeDeps();
+    deps.getLapById = async () => null;
+
+    const result = await generateLapAnalysis(404, {}, deps);
+
+    expect(result.error).toBe("Lap not found");
+    expect(deps.generateCalls).toBe(0);
+  });
+
+  test("returns preflight error before regeneration for a missing lap", async () => {
+    const deps = makeDeps();
+    deps.getLapById = async () => null;
+
+    const result = await generateLapAnalysis(
+      404,
+      { regenerate: true, cacheOnly: true },
+      deps,
+    );
+
+    expect(result.error).toBe("Lap not found");
+    expect(result.analysis).toBeNull();
+    expect(deps.generateCalls).toBe(0);
+  });
+
+  test("returns provider setup errors before opening regeneration stream", async () => {
+    const deps = makeDeps();
+    deps.resolveAi = async () => {
+      throw new Error("provider unavailable");
+    };
+
+    const result = await generateLapAnalysis(
+      7,
+      { regenerate: true, cacheOnly: true, preflight: true },
+      deps,
+    );
+
+    expect(result.error).toBe("provider unavailable");
+    expect(result.analysis).toBeNull();
+    expect(deps.generateCalls).toBe(0);
+  });
+  test("uses Mastra structured output and caches canonical object", async () => {
+    const deps = makeDeps();
+    deps.generate = async () => {
+      return { object: JSON.parse(validAnalysis) };
+    };
+    deps.runAiStructured = async (_ai, _input, runMastra) => {
+      const response = await runMastra(undefined as never) as { object: unknown };
+      return {
+        analysis: JSON.stringify(response.object),
+        usage: {
+          inputTokens: 4,
+          outputTokens: 5,
+          costUsd: 0,
+          durationMs: 6,
+          model: "test-model",
+        },
+      };
+    };
+
+    const result = await generateLapAnalysis(7, { regenerate: true }, deps);
+
+    expect(result.error).toBeUndefined();
+    expect(result.cached).toBe(false);
+    expect(JSON.parse(result.analysis!)).toMatchObject(JSON.parse(validAnalysis));
+    expect(deps.saves).toHaveLength(1);
+  });
+
+
+  test("rejects malformed and schema-invalid output without caching", async () => {
+    const malformedDeps = makeDeps({ generated: "not-json" });
+    const malformed = await generateLapAnalysis(
+      7,
+      { regenerate: true },
+      malformedDeps,
+    );
+    expect(malformed.error).toContain("invalid analysis structure");
+    expect(malformedDeps.saves).toHaveLength(0);
+
+    const schemaDeps = makeDeps({
+      generated: JSON.stringify({ verdict: "missing required arrays" }),
+    });
+    const schemaInvalid = await generateLapAnalysis(
+      7,
+      { regenerate: true },
+      schemaDeps,
+    );
+    expect(schemaInvalid.error).toContain("invalid analysis structure");
+    expect(schemaDeps.saves).toHaveLength(0);
+  });
+
+  test("explicit regeneration bypasses valid cache", async () => {
+    const deps = makeDeps({
+      cached: validAnalysis,
+      generated: JSON.stringify({
+        verdict: "Regenerated",
+        pace: [],
+        handling: [],
+        corners: [],
+        technique: [],
+        setup: [],
+      }),
+    });
+
+    const result = await generateLapAnalysis(7, { regenerate: true }, deps);
+
+    expect(result.cached).toBe(false);
+    expect(JSON.parse(result.analysis!).verdict).toBe("Regenerated");
+    expect(deps.generateCalls).toBe(1);
+    expect(deps.saves).toHaveLength(1);
+  });
+
+  test("failed regeneration leaves prior valid cache untouched", async () => {
+    const deps = makeDeps({
+      cached: validAnalysis,
+      generateError: new Error("provider unavailable"),
+    });
+
+    const result = await generateLapAnalysis(7, { regenerate: true }, deps);
+
+    expect(result.error).toBe("provider unavailable");
+    expect(deps.saves).toHaveLength(0);
+    expect((await deps.getAnalysis!(7))?.analysis).toBe(validAnalysis);
+  });
+
+  test("returns upstream provider detail instead of generic bad request", async () => {
+    const providerError = Object.assign(new Error("Bad Request"), {
+      statusCode: 400,
+      responseBody: JSON.stringify({
+        error: {
+          code: 400,
+          message: "request exceeds available context size",
+          status: "INVALID_ARGUMENT",
+        },
+      }),
+    });
+
+    const result = await generateLapAnalysis(
+      7,
+      { regenerate: true },
+      makeDeps({ generateError: providerError }),
+    );
+
+    expect(result.error).toBe(
+      "Bad Request: request exceeds available context size",
+    );
+  });
+
+  test("exports lap analysis generation failures in diagnostic logs", async () => {
+    const marker = `lap-analysis-diagnostic-${crypto.randomUUID()}`;
+    const result = await generateLapAnalysis(
+      7,
+      { regenerate: true },
+      makeDeps({ generateError: new Error(marker) }),
+    );
+    expect(result.error).toBe(marker);
+
+    const response = await diagnosticsRoutes.request("/api/diagnostics");
+    expect(response.status).toBe(200);
+    const archive = unzipSync(new Uint8Array(await response.arrayBuffer()));
+    const logs = strFromU8(archive["logs.txt"]);
+    const line = logs.split("\n").find(
+      (candidate) =>
+        candidate.includes(marker) &&
+        candidate.includes('"event":"llm-error"') &&
+        candidate.includes('"operation":"lap-analysis"'),
+    );
+    expect(line).toBeDefined();
+    expect(line).toMatch(/ ERROR \[raceiq\] llm-error\t/);
+  });
+});
+
+test("uses every native sector in iRacing analysis context", async () => {
+  let capturedSectors: unknown;
+  const deps = Object.assign(makeDeps(), {
+    getLapById: async () =>
+      ({
+        ...lap,
+        gameId: "iracing",
+        telemetry: Array.from({ length: 60 }, (_, index) => ({
+          DistanceTraveled: index * 10,
+          CurrentLap: index / 2,
+          iracing: {
+            lapDistancePct: index / 59,
+            sectorStarts: [0, 0.34, 0.67],
+          },
+        })),
+      }) as never,
+    getGame: () => ({
+      nativeSectors: true,
+      getNativeSectorLayout: (packet: TelemetryPacket) => packet.iracing,
+    }),
+    computeNativeSectorTimeline: () => ({
+      sectorCount: 6,
+      times: [10, 11, 12, 13, 14, 15],
+      boundaryIndices: [10, 20, 30, 40, 50],
+      sectorStarts: [0, 0.17, 0.34, 0.51, 0.68, 0.84],
+    }),
+    resolveTrack: () => ({ segments: [], sectors: {} }),
+    buildAnalystPrompt: (
+      _lap: unknown,
+      _telemetry: unknown,
+      _corners: unknown,
+      _unit: unknown,
+      _temperatureUnit: unknown,
+      _tune: unknown,
+      _segments: unknown,
+      _externalGuide: unknown,
+      _language: unknown,
+      sectors: unknown,
+    ) => {
+      capturedSectors = sectors;
+      return "prompt";
+    },
+  });
+
+  await generateLapAnalysis(7, { regenerate: true }, deps);
+
+  expect(capturedSectors).toEqual({
+    times: [10, 11, 12, 13, 14, 15],
+    sectorStarts: [0, 0.17, 0.34, 0.51, 0.68, 0.84],
+  });
+});

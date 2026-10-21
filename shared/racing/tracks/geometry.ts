@@ -16,6 +16,8 @@ export interface GeometrySegment {
 }
 
 export interface TrackGeometry {
+  /** Human-curated segment boundaries; generation must not redetect or replace them. */
+  override?: boolean;
   sectors?: TrackSectors & { source?: string };
   segments: GeometrySegment[];
 }

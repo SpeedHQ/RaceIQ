@@ -1,5 +1,5 @@
-import type { GameId } from "../../shared/games/ids";
-import type { LapMeta } from "../../shared/racing/sessions/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 
 type StoredLapMetaRow = {
   id: number;
@@ -7,15 +7,14 @@ type StoredLapMetaRow = {
   lapNumber: number;
   lapTime: number;
   isValid: boolean | number;
+  classification: LapMeta["classification"];
   invalidReason: string | null;
   notes: string | null;
   pi: number | null;
   carSetup: string | null;
   createdAt: string;
-  carOrdinal: number;
-  trackOrdinal: number;
-  carId: string | null;
-  trackId: string | null;
+  carId: string;
+  trackId: string;
   tuneId: number | null;
   tuneName: string | null;
   gameId: string;
@@ -39,11 +38,13 @@ type StoredLapMetaRow = {
   isFavorite?: boolean | number | null;
   telemetryAvailable?: boolean | number | null;
   ownership?: string | null;
+  standaloneCaptureReady?: boolean | number | null;
 };
 /** Normalize nullable SQLite fields into the public LapMeta representation. */
 export function toLapMeta(row: StoredLapMetaRow): LapMeta {
   const {
     isValid,
+    classification,
     invalidReason,
     notes,
     pi,
@@ -73,6 +74,7 @@ export function toLapMeta(row: StoredLapMetaRow): LapMeta {
     rawFile: _rawFile,
     isFavorite,
     telemetryAvailable,
+    standaloneCaptureReady,
     ...base
   } = row;
 
@@ -97,11 +99,12 @@ export function toLapMeta(row: StoredLapMetaRow): LapMeta {
 
   return {
     ...base,
-    carId: carId ?? row.carOrdinal,
-    trackId: trackId ?? row.trackOrdinal,
+    carId,
+    trackId,
     ...versionIdentity,
     ...frameCount,
     isValid: Boolean(isValid),
+    classification: classification ?? null,
     invalidReason: invalidReason ?? undefined,
     notes: notes ?? undefined,
     pi: pi ?? 0,
@@ -123,5 +126,6 @@ export function toLapMeta(row: StoredLapMetaRow): LapMeta {
     tyreWear: tyreWear ?? null,
     isFavorite: Boolean(isFavorite),
     telemetryAvailable: lapTelemetryAvailable,
+    standaloneCaptureReady: standaloneCaptureReady === undefined ? undefined : Boolean(standaloneCaptureReady),
   };
 }

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { clampVisibleRange } from "../src/lib/chart-range";
 import { cropComparisonData, cropComparisonRange, mergeComparisonRange, normalizeFidelityRange, selectFidelity } from "../src/lib/comparison-fidelity";
-import type { ComparisonData, ComparisonRangeData } from "../../shared/racing/comparison/types";
+import type { ComparisonData, ComparisonRangeData } from "@raceiq/shared/racing/comparison/types";
 
 const trace = (distance: number[]) => ({
   distance,

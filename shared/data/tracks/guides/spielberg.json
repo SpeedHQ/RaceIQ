@@ -2,7 +2,7 @@
   "id": "spielberg",
   "locale": "en",
   "character": "Short, high-elevation-change circuit in the Styrian mountains with only a handful of corners but big speed differentials. Traction out of the tight corners is everything given the short lap.",
-  "sources": "https://www.formula1.com/en/racing/2026/austria/circuit official F1 circuit guide (numbered-turn convention)",
+  "sources": "https://www.redbullring.com/en/events-tickets/formula-1/formula-1-circuit/ (official numbered corners)",
   "corners": [
     {
       "key": "turn-1",
@@ -32,8 +32,8 @@
       "key": "turn-6-7",
       "name": "Turn 6-7",
       "numbers": [6, 7],
-      "type": "downhill right-left combination",
-      "technique": "Trust the downhill grip, smooth direction change, prioritise the exit onto the final straight",
+      "type": "two consecutive left-handers",
+      "technique": "Carry speed through Rauch T6 with a smooth line into T7, preparing for the fast right-hand T8",
       "trap": "Braking too hard on the downhill entry and missing the ideal line"
     }
   ],

@@ -18,8 +18,8 @@ const fakeOutline = Array.from({ length: 64 }, (_, i) => {
   const t = (i / 64) * Math.PI * 2;
   return { x: Math.cos(t) * 400, z: Math.sin(t) * 200 };
 });
-queryClient.setQueryData(["track-outline", 7, "acc"], fakeOutline);
-queryClient.setQueryData(["track-boundaries", 7, "acc"], null);
+queryClient.setQueryData(["track-outline", "7", "acc"], fakeOutline);
+queryClient.setQueryData(["track-boundaries", "7", "acc"], null);
 queryClient.setQueryData(["settings"], DEFAULT_DISPLAY_SETTINGS);
 
 // Full lap trace so the live tyre bars have a real min→max range to render, not a single point.
@@ -96,5 +96,5 @@ type Story = StoryObj<typeof LiveTestDashboard>;
 
 export const Default: Story = {
   // @ts-expect-error — animate is a story-only arg, not a component prop
-  args: { gameId: "acc", trackOrdinal: 7, initialViews: liveViews, animate: false },
+  args: { gameId: "acc", trackId: "7", initialViews: liveViews, animate: false },
 };

@@ -5,7 +5,7 @@
  * memory surface-band fields are reserved placeholders. Keep this analysis
  * restricted to the measured core channel.
  */
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 export type TireCorner = "FL" | "FR" | "RL" | "RR";
 type ThermalState = "cold" | "optimal" | "hot";

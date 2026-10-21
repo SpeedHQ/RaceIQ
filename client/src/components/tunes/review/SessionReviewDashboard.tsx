@@ -1,9 +1,10 @@
-import type { GameId } from "@shared/games/ids";
-import { tryGetGame } from "@shared/games/registry";
-import { selectEvaluationLaps } from "@shared/racing/laps/review-selection";
-import { stintStats } from "@shared/racing/laps/stint-stats";
-import type { TuneIssue } from "@shared/racing/tuning/issues";
-import type { LapMeta } from "@shared/racing/sessions/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import { isPaceLap } from "@raceiq/shared/racing/lap-classification";
+import { tryGetGame } from "@raceiq/shared/games/registry"
+import { selectEvaluationLaps } from "@raceiq/analysis-core/racing/laps/review-selection";
+import { stintStats } from "@raceiq/analysis-core/racing/laps/stint-stats";
+import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { TireGrid } from "@/components/telemetry/TireGrid";
@@ -71,13 +72,11 @@ export function SessionReviewDashboard({
   lineSpread,
   onOpenLapContextChange,
 }: TuneReviewDashboardProps) {
-  const validLaps = useMemo(() => [...laps].filter((l) => l.isValid).sort((a, b) => b.lapNumber - a.lapNumber), [laps]);
+  const validLaps = useMemo(() => [...laps].filter((l) => l.isValid && isPaceLap(l.classification) && Number.isFinite(l.lapTime) && l.lapTime > 0 && !l.experimentExcluded).sort((a, b) => b.lapNumber - a.lapNumber), [laps]);
   const evaluationLaps = useMemo(() => selectEvaluationLaps(laps).chosen, [laps]);
-  const fallbackLaps = useMemo(() => [...laps].sort((a, b) => a.lapNumber - b.lapNumber).slice(0, 5), [laps]);
   const search = useSearch({ strict: false }) as { lap?: number; laps?: string; primary?: number; view?: ReviewView; tab?: TuneReviewTrackTab };
   const requestedIds = search.laps?.split(",").map(Number);
-  const defaultDisplayedLaps = evaluationLaps.length > 0 ? evaluationLaps : fallbackLaps;
-  const displayedLaps = stayOnSessionReview ? (requestedIds && requestedIds.every(Number.isInteger) ? laps.filter((lap) => requestedIds.includes(lap.id)) : defaultDisplayedLaps) : evaluationLaps;
+  const displayedLaps = stayOnSessionReview && requestedIds && requestedIds.every(Number.isInteger) ? laps.filter((lap) => requestedIds.includes(lap.id)) : evaluationLaps;
   const displayedLapIds = useMemo(() => displayedLaps.map((lap) => lap.id), [displayedLaps]);
   const selectionInvalid = stayOnSessionReview && (requestedIds != null && (requestedIds.length === 0 || requestedIds.length > 5 || requestedIds.some((id) => !Number.isInteger(id) || id <= 0) || displayedLaps.length !== requestedIds.length || (search.primary != null && !requestedIds.includes(search.primary))));
   const primaryLapId = stayOnSessionReview ? (selectionInvalid ? 0 : search.primary ?? displayedLaps[0]?.id ?? 0) : evaluationLaps[0]?.id ?? 0;
@@ -105,8 +104,8 @@ export function SessionReviewDashboard({
   }, [displayedLapIds, displayedLaps.length, navigate, search.laps, stayOnSessionReview]);
   const selectedTrace = aligned.data?.laps.find((trace) => trace.lapId === focusLap?.id);
   const telemetry = useMemo(
-    () => (selectedTrace ? semanticTuneSamplesFromAlignedTrace(selectedTrace, gameId, focusLap?.trackOrdinal, aligned.data?.nominalSpanMeters ?? 0) : []),
-    [aligned.data, focusLap?.trackOrdinal, focusLap?.id, gameId, selectedTrace],
+    () => (selectedTrace ? semanticTuneSamplesFromAlignedTrace(selectedTrace, gameId, focusLap?.trackId, aligned.data?.nominalSpanMeters ?? 0) : []),
+    [aligned.data, focusLap?.trackId, focusLap?.id, gameId, selectedTrace],
   );
   const sectorTimes = selectedTrace?.sectorTimes
     ? (() => {
@@ -124,13 +123,13 @@ export function SessionReviewDashboard({
   const game = tryGetGame(gameId);
   const units = useUnits(gameId);
   const tireHealthAvailable = telemetry.some((sample) => wheelValue(sample, "tireWearFraction", 0) != null);
-  const reviewStats = useMemo(() => stintStats(displayedLaps, { dropOutLap: false }), [displayedLaps]);
+  const reviewStats = useMemo(() => stintStats(displayedLaps), [displayedLaps]);
   const metrics = useMemo(() => tuneMetricsFor(telemetry), [telemetry]);
   const [metricKey, setMetricKey] = useState<MetricKey>("tireSurfaceTemp");
   const metric = metrics.find((candidate) => candidate.key === metricKey) ?? metrics[0] ?? METRICS[0];
   const ranges = useMemo(() => buildSectorRanges(telemetry, sectorTimes, metric), [telemetry, sectorTimes, metric]);
   const { data: issues } = useLapIssues(focusLap?.id ?? null);
-  const pressureOptimal = useTirePressureOptimal(gameId, focusLap?.carOrdinal);
+  const pressureOptimal = useTirePressureOptimal(gameId, focusLap?.carId);
 
   // no position (lap-wide, e.g. average tyre pressure) go to the whole-lap strip.
   const issueGroups = useMemo(() => {
@@ -345,7 +344,7 @@ export function SessionReviewDashboard({
                     telemetry={telemetry}
                     sectorTimes={sectorTimes}
                     showTimes={false}
-                    trackOrdinal={focusLap.trackOrdinal}
+                    trackId={focusLap.trackId}
                     issueMarkers={issueMarkers}
                     readout={readout}
                     onHover={(idx) =>
@@ -407,7 +406,7 @@ export function SessionReviewDashboard({
             gameId={gameId}
             alignedSet={aligned.data}
             lapIds={displayedLapIds}
-            trackOrdinal={focusLap.trackOrdinal}
+            trackId={focusLap.trackId}
             primaryLapId={primaryLapId}
             experimentId={experimentId ?? test?.experimentId ?? null}
             activeTab={tab}
@@ -415,7 +414,7 @@ export function SessionReviewDashboard({
             onActiveTabChange={setTrackTab}
           />
         ) : sectorIndex != null ? (
-          <SectorDetailView gameId={gameId} telemetry={telemetry} sectorTimes={sectorTimes} sectorIndex={sectorIndex} trackOrdinal={focusLap.trackOrdinal} issues={issueGroups.bySector[sectorIndex]} />
+          <SectorDetailView gameId={gameId} telemetry={telemetry} sectorTimes={sectorTimes} sectorIndex={sectorIndex} trackId={focusLap.trackId} issues={issueGroups.bySector[sectorIndex]} />
         ) : (
           <>
             {/* Detected issues, laid out per sector */}

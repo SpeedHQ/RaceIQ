@@ -3,6 +3,7 @@ import { client } from "../lib/rpc";
 import { errorFromResponse } from "../lib/rpc-error";
 import { rpcJson } from "../lib/rpc-json";
 import type { ExperimentVersion } from "./experiments";
+import { queryKeys } from "./query-keys";
 
 export function useDeletedExperimentVersions(id: number | null | undefined, enabled: boolean) {
   return useQuery({
@@ -65,6 +66,7 @@ export function useUndo() {
       qc.invalidateQueries({ queryKey: ["experiment-actions", sessionId] });
       qc.invalidateQueries({ queryKey: ["experiment-chat-history", sessionId] });
       qc.invalidateQueries({ queryKey: ["laps"] });
+      qc.invalidateQueries({ queryKey: queryKeys.userTunes });
     },
   });
 }

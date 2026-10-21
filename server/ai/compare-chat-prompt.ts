@@ -3,20 +3,20 @@
  * Provides comparison context; cached analyses are retrieved through the
  * visible get_lap_analysis tool call instead of being embedded here.
  */
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 import type { ComparisonResult } from "../lap-analysis/comparison";
 import type { UnitSystem, TemperatureUnit } from "../lap-analysis/report";
 import { getPromptCarName, getPromptTrackName, compareEngineerPersona, compareLapHeader } from "./compare-engineer";
 import { buildSegmentTimingTable, type PromptSegment } from "./inputs-compare-prompt";
-import { TRACK_GUIDE_PROMPT } from "../../shared/integrations/ai/prompt-snippets";
+import { TRACK_GUIDE_PROMPT } from "@raceiq/shared/integrations/ai/prompt-snippets";
 
 interface LapInfo {
   id: number;
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
-  carOrdinal?: number;
-  trackOrdinal?: number;
+  carId: string;
+  trackId: string;
   gameId?: GameId;
 }
 
@@ -66,9 +66,9 @@ export function buildCompareChatContext(
   comparison: ComparisonResult,
   segments: PromptSegment[] | null = null,
 ): string {
-  const carA = getPromptCarName(lapA.carOrdinal ?? 0, lapA.gameId);
-  const carB = getPromptCarName(lapB.carOrdinal ?? 0, lapB.gameId);
-  const trackName = getPromptTrackName(lapA.trackOrdinal ?? 0, lapA.gameId);
+  const carA = getPromptCarName(lapA.carId, lapA.gameId);
+  const carB = getPromptCarName(lapB.carId, lapB.gameId);
+  const trackName = getPromptTrackName(lapA.trackId, lapA.gameId);
   const finalDelta =
     comparison.timeDelta[comparison.timeDelta.length - 1] ??
     lapA.lapTime - lapB.lapTime;
@@ -127,9 +127,9 @@ export function buildCompareChatSystemPrompt(
       ? languageOrUnit
       : "en"
     : legacyLanguage;
-  const carA = getPromptCarName(lapA.carOrdinal ?? 0, lapA.gameId);
-  const carB = getPromptCarName(lapB.carOrdinal ?? 0, lapB.gameId);
-  const trackName = getPromptTrackName(lapA.trackOrdinal ?? 0, lapA.gameId);
+  const carA = getPromptCarName(lapA.carId, lapA.gameId);
+  const carB = getPromptCarName(lapB.carId, lapB.gameId);
+  const trackName = getPromptTrackName(lapA.trackId, lapA.gameId);
   const finalDelta =
     comparison.timeDelta[comparison.timeDelta.length - 1] ??
     lapA.lapTime - lapB.lapTime;

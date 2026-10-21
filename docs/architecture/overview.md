@@ -18,14 +18,19 @@ graph LR
   Query --> UI
 ```
 
-- `shared/` holds telemetry types, game metadata, and shared game adapters.
-- `server/` owns telemetry ingestion, parsing, authoritative session computation, persistence, API routes, and WebSocket broadcast.
+- `shared/` holds neutral telemetry types, game identities, adapter contracts, and mutable registries, with no concrete metadata dependency.
+- `server/` (`@raceiq/backend-core`) owns neutral telemetry pipelines, authoritative session computation, persistence, and shared runtime services.
+- `packages/capture-formats/` owns persisted capture layouts and codecs without live-reader dependencies.
+- Six `packages/game-<id>/` workspaces own backend adapters, parsers, native sources, recorders, and game-local replay helpers.
+- Six `packages/game-<id>-metadata/` workspaces own browser-safe adapters, static metadata, and separate Node car/track catalog leaves.
+- `packages/game-catalogs/` owns cross-game adapter registration, name/geometry composition, and assembled setup catalogs.
+- `apps/backend/` composes adapters, API routes, boot orchestration, imports, MoTeC targets, and AI workflows.
 - `client/` owns navigation, presentation state, live telemetry rendering, and historical-data queries.
 - HTTP and WebSocket traffic uses port `3117` by default. Forza and F1 telemetry use UDP port `5301` by default.
 
 ## Current game adapters
 
-Six adapters are registered by `shared/games/init.ts` and `server/games/init.ts`:
+Six metadata and backend adapters are available. Metadata adapters are composed by `packages/game-catalogs/src/games/init.ts`; backend adapters are registered by `apps/backend/src/games/init.ts`. Both registration lists include iRacing only when the `iracingAdapter` release feature is enabled; the other five adapters are registered unconditionally:
 
 | Game | Internal ID | Ingestion | Route prefix |
 |---|---|---|---|
@@ -36,11 +41,11 @@ Six adapters are registered by `shared/games/init.ts` and `server/games/init.ts`
 | iRacing | `iracing` | Windows SDK/shared-memory source | `/iracing` |
 | Le Mans Ultimate | `lmu` | Windows `LMU_Data` shared-memory source | `/lmu` |
 
-Each shared `GameAdapter` owns identity, route prefix, telemetry capabilities, coordinate conventions, and car/track resolution. Each server `ServerGameAdapter` adds the ingestion source, parsing state, lap detector, and analysis context.
+Each shared `GameAdapter` owns identity, route prefix, telemetry capabilities, coordinate conventions, and car/track resolution. Each server `ServerGameAdapter` adds parsing and parser-state contracts, runtime policy, a lap-detector factory, and analysis context. Source lifecycle is composed separately: `apps/backend/src/runtime/native-sources.ts` supervises native readers, `live-readers.ts` holds their active instances, and `udp-listener.ts` receives UDP frames.
 
 ## Telemetry data flow
 
-1. UDP sources enter through `server/runtime/udp-listener.ts`; native sources enter through their adapter-owned readers.
+1. UDP sources enter through `apps/backend/src/runtime/udp-listener.ts`; native sources enter through their adapter-owned readers.
 2. Adapter parsing produces typed `TelemetryPacket` values using each source's coordinate conventions.
 3. `server/telemetry/live-pipeline.ts` applies coordinate normalization, lap detection, sector and pit tracking, track calibration, persistence callbacks, and live broadcast.
 4. Completed sessions and laps are stored in SQLite; raw telemetry is retained through game-specific recording paths for replay and reprocessing.
@@ -49,7 +54,35 @@ Each shared `GameAdapter` owns identity, route prefix, telemetry capabilities, c
 
 ## Persistence and API
 
-`server/db/schema.ts` is the typed schema reference. Runtime migrations are embedded in `server/db/migrations.ts` and applied at startup. `server/routes/index.ts` composes feature route modules under `/api`; the client uses `client/src/lib/rpc.ts` rather than untyped fetch calls.
+`server/db/schema.ts` is the typed schema reference. Runtime migrations are embedded in `server/db/migrations.ts` and applied at startup. `apps/backend/src/routes/index.ts` composes feature route modules under `/api`; the client uses `client/src/lib/rpc.ts` rather than untyped fetch calls.
+
+## SQLite dashboard read model
+
+SQLite migration v64 persists capture-derived dashboard evidence and a `capture_ready` gate. The revision-checked publication model is implemented by `server/db/dashboard-summary-queries.ts`; `DASHBOARD_PROCESSOR_VERSION` is 5. Source mutations mark durable per-session work state, while publication replaces derived contributions only when the source revision observed by the candidate is still current.
+Migration v65 idempotently restores a missing `dashboard_backfill_cursor` table and its singleton row on existing databases, preserving any cursor already present.
+
+The backend starts `startDashboardProcessor()` during runtime boot and awaits its stop during graceful shutdown. Its resumable keyset backfill cursor, capture readiness, dirty flags, and retry schedule live in SQLite. The worker publishes metadata before expensive capture facts, streams one session capture through the game parser without constructing another lap detector, yields after each batch of 25 sessions, and persists retry timing/error codes after failures. Pending evidence remains distinct from unavailable evidence; incomplete capture work is not published as complete.
+
+Live recording and import pipelines publish observed facts from their existing packet-processing pass. A completed-capture checkpoint makes those facts eligible for publication; file lifecycle changes explicitly invalidate or safely preserve them. Capture fingerprints describe parsed record content, independent of file size or modification time, so lossless compression does not change content identity.
+
+`GET /api/dashboard` validates a half-open `from`/`to` UTC instant interval (maximum 366 days); optional `X-Game-Id` selects metrics while `cards` remain all-game totals. Calendar aggregation uses fixed 86,400,000 ms UTC days; browser-local timezone affects presentation only. Dashboard reads include only exact `ownership='mine'`, return at most ten recent allow-listed sessions, and never include raw capture paths or provenance. `GET /api/dashboard/sessions/:id/recap` requires `X-Game-Id`, returns only an exact-mine session for that game, and uses persisted facts without capture access. Generic `/api/sessions/:id/recap` remains unchanged.
+
+Older entity totals use maintained UTC monthly rollups. The latest 30 days relative to the later of wall clock and request end remain at daily grain; only complete UTC months before that cutoff and wholly inside the requested interval use monthly rows. Historical whole-month requests therefore use monthly grain too. Disjoint indexed daily ranges exclude the superseded daily interval; exact partial-day source edges complete the request without double counting. Publication subtracts old and adds new day/month contributions in one revision-checked transaction, including edits, deletion and ownership changes. Migration v67 backfills monthly counters and stable pooled moments from retained day aggregates; source rows, recordings and daily detail remain unchanged. Favourite session counts deduplicate published boundary/interior members and include disjoint dirty members after canonical identity decoding. Calendar values remain UTC; clients may format labels in browser-local time.
+
+Dashboard upgrades also repair historical databases whose recorded migration version predates the expanded projection schema. Versions 67–69 restore missing projection dependencies and canonical source-index maintenance before monthly backfill. Only an incomplete schema invalidates disposable dashboard projections; source sessions, laps, results, recordings, and retry history remain intact. Coverage stays pending until affected summaries are republished. Databases with complete schemas retain their existing summaries and day aggregates.
+
+Successful dashboard summary publication broadcasts `{ type: "dashboard_updated" }` to invalidate period and recap queries; rapid publications are coalesced. `getDashboardSessionRecap()` is the capture-free query behind the dedicated route.
+
+The processor resumes version-driven metadata and capture backfill from its persisted cursor; coverage reports pending or unavailable facts rather than claiming completion. Rebuilds operate on disposable derived summaries and preserve source sessions, laps, and recordings. Migration adds SQLite indexes and summary storage; allow for database-file growth during upgrade/backfill. There is no separate operator-facing rebuild command.
+
+Phase 5 benchmark entrypoints use isolated fixtures and never target the application database:
+
+- `bun apps/backend/test/benchmarks/dashboard-read-model.bench.ts` measures the active-user baseline: 120 stored laps and 12 sessions/week, approximately three driving hours at 90 seconds/lap, over two years (12,480 laps/1,248 sessions). Games are interleaved with skew; recurring car/track identities and excluded ownership remain present. Reports include each period's exact UTC bounds and source-counted stored/mine laps and sessions outside the timed samples. These assumptions are not observed production usage.
+- Add `bench-archive-100k` or `bench-archive-1m` to that command for archive stress. Those counts describe total stored history, not weekly activity; high-cardinality identities and a 500-lap recap session remain in the archive profiles. The default recap uses ten laps. Latency, memory, SQL and payload budgets are unchanged; failed scopes retain measurements and the runner exits nonzero.
+- `bun apps/backend/test/benchmarks/dashboard-read-model-smoke.ts` retains the original archive and adversarial-boundary correctness shapes.
+- `bun apps/backend/test/benchmarks/dashboard-contention.bench.ts --output=.omp/evidence/sqlite-dashboard/<unique-run>.json` measures actual recording/backfill; output is required. Default history is the active-user baseline, with a 120-lap/12-session small comparison. For archive stress, specify `--profile=archive-stress --laps=1000000 --sessions=100000`. The committed real recording fixture is `test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz`. Cadence or isolated finalization proof alone does not establish full recording/backfill acceptance.
+
+These are engineering tools, not production recovery commands. Results and outstanding acceptance gates are tracked in [the dashboard read-model execution index](../../advisor-plans/README.md).
 
 ## Boundaries
 
@@ -57,6 +90,8 @@ Each shared `GameAdapter` owns identity, route prefix, telemetry capabilities, c
 - Client may own presentation state, but must not duplicate authoritative telemetry calculations. See [Frontend contribution guide](../contributing/frontend.md).
 - Game-specific behavior belongs in registered adapters. Shared consumers resolve the active game instead of falling back to `fm-2023`.
 - Pipeline dependencies are injected through `DbAdapter`, `WsAdapter`, and session-recorder adapters so focused code can use real, null, or capturing implementations.
+- Intended dependency direction: foundation workspaces (`shared`, capture formats, backend core) remain independent of games and application composition; game packages should depend on foundations rather than sibling games, application, tooling, or client. Current game adapters also import assembled geometry/catalog helpers from `packages/game-catalogs/` (for example, `packages/game-fm-2023/src/index.ts`); this is an existing composition exception, not a requirement for new adapters.
+- Tests live beside their workspace owners. `packages/frontend-contract-tests/` owns backend-era tests that consume frontend contracts without adding frontend dependencies to backend production packages.
 
 ## Related architecture
 

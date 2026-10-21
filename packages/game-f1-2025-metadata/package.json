@@ -1,0 +1,18 @@
+{
+  "name": "@raceiq/game-f1-2025-metadata",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./index": "./src/index.ts",
+    "./racing/cars/f1": "./src/racing/cars/f1.ts",
+    "./racing/tracks/catalogs/f1": "./src/racing/tracks/catalogs/f1.ts",
+    "./racing/compounds": "./src/racing/compounds.ts"
+  },
+  "dependencies": {
+    "@raceiq/shared": "workspace:*"
+  },
+  "scripts": {
+    "lint": "../../client/node_modules/.bin/oxlint .",
+    "typecheck": "bun check --project tsconfig.json"
+  }
+}

@@ -1,4 +1,4 @@
-import type { TuneIssue } from "@shared/racing/tuning/issues";
+import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import { Button } from "@/components/ui/button";
 
 const SEVERITY_COLOR: Record<TuneIssue["severity"], string> = {

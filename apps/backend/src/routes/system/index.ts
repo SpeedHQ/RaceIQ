@@ -1,0 +1,15 @@
+import { Hono } from "hono";
+import { serverReleaseFeatures } from "@raceiq/backend-core/runtime/config/release-features";
+import { createRuntimeFeaturesRoutes } from "./runtime-features";
+
+import { updateRoutes } from "./update-routes";
+import { telemetryHistoryRoutes } from "./telemetry-history-routes";
+import { diagnosticsRoutes } from "./diagnostics-routes";
+import { storageRoutes } from "./storage-routes";
+
+export const miscRoutes = new Hono()
+  .route("/", createRuntimeFeaturesRoutes(serverReleaseFeatures))
+  .route("/", updateRoutes)
+  .route("/", telemetryHistoryRoutes)
+  .route("/", diagnosticsRoutes)
+  .route("/", storageRoutes);

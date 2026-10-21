@@ -1,5 +1,5 @@
-import type { LapMeta } from "@shared/racing/sessions/types";
-import type { TuneIssue } from "@shared/racing/tuning/issues";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
+import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import type { ExperimentVersion } from "@/hooks/experiments";
 
 type CornerSnapshot = { tempC?: number; wear?: number; pressure?: number; brakeTemp?: number };

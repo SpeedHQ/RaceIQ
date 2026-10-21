@@ -1,17 +1,19 @@
-import type { RaceResult } from "@shared/racing/results/types";
+import type { RaceResult } from "@raceiq/shared/racing/results/types";
 import { useQuery } from "@tanstack/react-query";
-import type { GameId } from "../../../shared/games/ids";
-import type { SessionMeta, SessionRecap } from "../../../shared/racing/sessions/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { SessionMeta, SessionRecap } from "@raceiq/shared/racing/sessions/types";
 import { client } from "../lib/rpc";
 import { rpcJson } from "../lib/rpc-json";
 import { useGameId } from "../stores/game";
 import { queryKeys } from "./query-keys";
 
-export function useSessions() {
+export function useSessions(options?: { allGames?: boolean }) {
   const gameId = useGameId();
+  const { allGames = false } = options ?? {};
+  const queryGameId = allGames ? null : gameId;
   return useQuery({
-    queryKey: ["sessions", gameId ?? null],
-    queryFn: async () => rpcJson<SessionMeta[]>(await client.api.sessions.$get({ query: { gameId: gameId ?? undefined } })),
+    queryKey: ["sessions", queryGameId],
+    queryFn: async () => rpcJson<SessionMeta[]>(await client.api.sessions.$get({ query: { gameId: queryGameId ?? undefined } })),
   });
 }
 

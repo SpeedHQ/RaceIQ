@@ -17,7 +17,7 @@ const installerName = `RaceIQ-Setup-v${version}.exe`;
 // Step 1: Build installer if it doesn't already exist
 if (!existsSync(installerName)) {
   console.log(`\n→ Building installer (${installerName})...\n`);
-  execSync("bun scripts/build/build-installer.ts", { stdio: "inherit" });
+  execSync("bun packages/tooling-build/src/build/build-installer.ts", { stdio: "inherit" });
 } else {
   console.log(`\n→ Installer already exists: ${installerName}\n`);
 }

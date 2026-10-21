@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import type { LapMeta } from "../../../../shared/racing/sessions/types";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { collectBrowserErrors } from "../../support/browser-errors";
 import { getSeededLapTarget } from "../../support/seeded/laps";
 import { assertLapSelectors, exercise3dGuide, exerciseAiSetup, exerciseDynamicsTooltip, exerciseInsightsAndMap, exercisePlaybackControls } from "./controls";

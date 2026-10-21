@@ -1,19 +1,21 @@
-import { createHash } from "node:crypto";
-import type { GameId } from "../../shared/games/ids";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { getLapById } from "../db/lap-read-queries";
 import { getLapsForSession } from "../db/lap-reprocessing-queries";
-import { getSessions } from "../db/session-queries";
+import { and, eq, gt } from "drizzle-orm";
+import { db } from "../db/index";
+import { sessions } from "../db/schema";
+import { updateSession } from "../db/session-queries";
 import { getSessionResult, getStaleRaceResultSessionIds, upsertSessionResult } from "../db/session-result-queries";
 import { getSessionRawFile, iterateSessionTelemetry } from "../db/telemetry-replay-storage";
 import { deriveRaceResult, normalizeSessionType } from "./derive";
 import { RaceSourceAccumulator } from "./source";
 import type { PitEvent } from "./types";
-import type { RaceResultRawInputIdentity } from "../../shared/racing/results/types";
+import type { RaceResultRawInputIdentity } from "@raceiq/shared/racing/results/types";
 import { hashRawCapture, rawCaptureObjectId } from "../session-capture/identity";
 import { getAllServerGames } from "../games/registry";
 
-export const RACE_RESULT_PROCESSOR_ID = "race-result-v2";
+export const RACE_RESULT_PROCESSOR_ID = "race-result-v5";
 
 async function rawInputIdentity(sessionId: number, rawFile: string | null | undefined): Promise<RaceResultRawInputIdentity | null> {
   if (!rawFile) return null;
@@ -62,18 +64,18 @@ export interface BackfillReport {
 }
 
 export async function reconcileSessionResult(sessionId: number, gameId: GameId): Promise<ReconcileSessionReport> {
-  const sessions = await getSessions(gameId);
-  const session = sessions.find((candidate) => candidate.id === sessionId);
+  const session = await db
+    .select({ sessionType: sessions.sessionType })
+    .from(sessions)
+    .where(and(eq(sessions.id, sessionId), eq(sessions.gameId, gameId)))
+    .get();
   if (!session) return { sessionId, status: "skipped", eventCount: 0, reasons: ["session-not-found"] };
 
   const readReasons: string[] = [];
   let accumulator = new RaceSourceAccumulator(gameId);
-  let canonicalHash = createHash("sha256");
   let packetCount = 0;
   const addPacket = (packet: TelemetryPacket): void => {
     accumulator.add(packet);
-    canonicalHash.update(JSON.stringify(packet));
-    canonicalHash.update("\n");
     packetCount++;
   };
   try {
@@ -81,7 +83,6 @@ export async function reconcileSessionResult(sessionId: number, gameId: GameId):
   } catch {
     readReasons.push("session-raw-parse-error");
     accumulator = new RaceSourceAccumulator(gameId);
-    canonicalHash = createHash("sha256");
     packetCount = 0;
   }
   if (packetCount === 0) {
@@ -98,7 +99,12 @@ export async function reconcileSessionResult(sessionId: number, gameId: GameId):
   }
 
   const source = accumulator.finish();
-  if (session.sessionType) {
+  const sessionTypeConflict = source.evidence.conflicts.some((conflict) => conflict.startsWith("session-type:"));
+  const hasDirectTypeEvidence = source.evidence.fieldStatus.sessionType === "direct" && !!source.sessionType;
+  const canRepairF1Type = gameId === "f1-2025" && hasDirectTypeEvidence && !sessionTypeConflict;
+  if (canRepairF1Type) {
+    if (source.sessionType !== session.sessionType) await updateSession(sessionId, { sessionType: source.sessionType! });
+  } else if (session.sessionType) {
     if (!source.sessionType) {
       source.sessionType = session.sessionType;
       source.evidence.fieldStatus.sessionType = "direct";
@@ -112,10 +118,6 @@ export async function reconcileSessionResult(sessionId: number, gameId: GameId):
   derived.provenance = {
     ...derived.provenance,
     rawInput: await rawInputIdentity(sessionId, await getSessionRawFile(sessionId, gameId)),
-    canonicalInput: packetCount === 0 ? null : {
-      sessionId: String(sessionId), firstSequence: 0, lastSequence: packetCount - 1,
-      contentHash: `sha256:${canonicalHash.digest("hex")}`,
-    },
   };
   const existing = await getSessionResult(sessionId, gameId);
   const unchanged = existing != null &&
@@ -191,13 +193,21 @@ export async function backfillRaceResults(options: {
   eligibleSessionIds?: ReadonlySet<number>;
 }): Promise<BackfillReport> {
   const limit = Math.max(1, Math.min(100, Math.trunc(options.limit)));
-  const sessions = (await getSessions(options.gameId))
+  // Select metadata only: listing sessions also scans recordings for duration.
+  const candidates = await db
+    .select({ id: sessions.id })
+    .from(sessions)
+    .where(and(
+      eq(sessions.gameId, options.gameId),
+      options.afterSessionId == null ? undefined : gt(sessions.id, options.afterSessionId),
+    ))
+    .orderBy(sessions.id)
+    .all();
+  const selectedSessions = candidates
     .filter((session) => options.eligibleSessionIds?.has(session.id) ?? true)
-    .filter((session) => options.afterSessionId == null || session.id > options.afterSessionId)
-    .sort((a, b) => a.id - b.id)
     .slice(0, limit);
   const results: ReconcileSessionReport[] = [];
-  for (const session of sessions) {
+  for (const session of selectedSessions) {
     try {
       results.push(await reconcileSessionResult(session.id, options.gameId));
     } catch (error) {
@@ -221,28 +231,49 @@ export async function backfillStaleRaceResults(options: {
   );
   return backfillRaceResults({ ...options, eligibleSessionIds });
 }
-export async function backfillAllRaceResults(): Promise<void> {
+export interface BackfillAllRaceResultsResult {
+  processed: number;
+  enriched: number;
+  unchanged: number;
+  skipped: number;
+  ambiguous: number;
+  errors: number;
+  failedGames: { gameId: GameId; error: string }[];
+}
+
+export async function backfillAllRaceResults(): Promise<BackfillAllRaceResultsResult> {
+  const totals: BackfillAllRaceResultsResult = {
+    processed: 0,
+    enriched: 0,
+    unchanged: 0,
+    skipped: 0,
+    ambiguous: 0,
+    errors: 0,
+    failedGames: [],
+  };
   for (const game of getAllServerGames()) {
     let afterSessionId: number | undefined;
-    let totals = { processed: 0, enriched: 0, unchanged: 0, ambiguous: 0, errors: 0 };
+    const gameTotals = { processed: 0, enriched: 0, unchanged: 0, skipped: 0, ambiguous: 0, errors: 0 };
     try {
       while (true) {
         const report = await backfillStaleRaceResults({ gameId: game.id, limit: 100, afterSessionId });
-        totals = {
-          processed: totals.processed + report.processed,
-          enriched: totals.enriched + report.enriched,
-          unchanged: totals.unchanged + report.unchanged,
-          ambiguous: totals.ambiguous + report.ambiguous,
-          errors: totals.errors + report.errors,
-        };
+        for (const key of Object.keys(gameTotals) as (keyof typeof gameTotals)[]) {
+          gameTotals[key] += report[key];
+        }
         const lastSessionId = report.results.at(-1)?.sessionId;
         if (lastSessionId != null) afterSessionId = lastSessionId;
         if (report.processed < 100 || lastSessionId == null) break;
         await Bun.sleep(0);
       }
-      console.log(`[RaceResults] Backfill ${game.id}: ${JSON.stringify(totals)}`);
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      totals.failedGames.push({ gameId: game.id, error: message });
       console.error(`[RaceResults] Backfill failed for ${game.id}:`, error);
     }
+    for (const key of Object.keys(gameTotals) as (keyof typeof gameTotals)[]) {
+      totals[key] += gameTotals[key];
+    }
+    console.log(`[RaceResults] Backfill ${game.id}: ${JSON.stringify(gameTotals)}`);
   }
+  return totals;
 }

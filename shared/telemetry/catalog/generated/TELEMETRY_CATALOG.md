@@ -4,20 +4,20 @@
 
 ## Manifest
 
-- Catalog version: `0.19.0`
+- Catalog version: `0.20.0`
 - Schema version: `v7`
-- Generator: `RaceIQ telemetry-catalog generator@0.19.0`
-- Generator source SHA-256: `9810526e2c0a2bc398635b83822093e4c097b2934c9412638766e0be5b9a4999`
-- Content SHA-256: `610a27a319d298b268472aa0dc7d0050c1c719a39cd5599094e619907afa63a6`
+- Generator: `RaceIQ telemetry-catalog generator@0.20.0`
+- Generator source SHA-256: `2b77e278a3d4d70360a299eb01fd01884a8ab3fe1b046e2f683b6d9b64a7984b`
+- Content SHA-256: `10da0f5095ccf3c22386d974192c9ddb9423420b10a2dc075351db80b04877cf`
 
 ## Coverage
 
 | Simulator | Sources | Recorded | Packet | Extension | SDK | YAML | Setup |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | fm-2023 | 96 | 96 | 95 | 1 | 0 | 0 | 0 |
-| f1-2025 | 315 | 315 | 118 | 197 | 0 | 0 | 0 |
-| acc | 231 | 198 | 124 | 74 | 0 | 0 | 33 |
-| ac-evo | 286 | 250 | 124 | 126 | 0 | 0 | 36 |
+| f1-2025 | 318 | 318 | 118 | 200 | 0 | 0 | 0 |
+| acc | 234 | 201 | 124 | 77 | 0 | 0 | 33 |
+| ac-evo | 287 | 255 | 126 | 129 | 0 | 0 | 32 |
 | iracing | 972 | 722 | 115 | 38 | 324 | 495 | 0 |
 | lmu | 172 | 172 | 126 | 46 | 0 | 0 | 0 |
 
@@ -151,6 +151,7 @@
 | `diagnostics.total-warnings` | Total Warnings | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.track-content-version` | Track Version | string | dimensionless | text | scalar |  |  |  |
 | `diagnostics.vehicle-fia-flags` | Vehicle FIA Flags | number | dimensionless | count | scalar |  |  |  |
+| `diagnostics.vehicle-fia-flags-updated-at` | Vehicle FIA Flags Updated At | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.vehicle-id` | Vehicle Id | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.vid-cap-active` | Vid Cap Active | boolean | dimensionless | boolean | scalar |  |  |  |
 | `diagnostics.vid-cap-enabled` | Vid Cap Enabled | boolean | dimensionless | boolean | scalar |  |  |  |
@@ -238,7 +239,6 @@
 | `identity.car-model` | Car Model | string | dimensionless | text | scalar |  |  |  |
 | `identity.car-model-name` | Car Model Name | string | dimensionless | text | scalar |  |  |  |
 | `identity.car-name` | Car Name | string | dimensionless | text | scalar |  |  |  |
-| `identity.car-ordinal` | Car Ordinal | number | dimensionless | id | scalar |  |  |  |
 | `identity.car-performance-index` | Car Performance Index | number | dimensionless | count | scalar |  |  |  |
 | `identity.driver-name` | Driver Name | string | dimensionless | text | scalar |  |  |  |
 | `identity.drivetrain-type` | Drivetrain Type | number | dimensionless | id | scalar |  |  |  |
@@ -254,10 +254,10 @@
 | `identity.player-track-surface` | Player Track Surface | number | dimensionless | count | scalar |  |  |  |
 | `identity.player-track-surface-material` | Player Track Surface Material | number | unit:irsdk_trksurf | irsdk_TrkSurf | scalar |  |  |  |
 | `identity.session-name` | Session Name | string | dimensionless | text | scalar |  |  |  |
+| `identity.source-identity` | Source identity | structured | dimensionless | structured | variable:0-* | source-path:source-order | indices: source-path (variable:0-*, source-order); fields: value:string |  |
 | `identity.track-id` | Track Id | string | dimensionless | text | scalar |  |  |  |
 | `identity.track-limits-steps` | Track Limits Steps | number | dimensionless | count | scalar |  |  |  |
 | `identity.track-name` | Track name | string | dimensionless | text | scalar |  |  |  |
-| `identity.track-ordinal` | Track Ordinal | number | dimensionless | id | scalar |  |  |  |
 | `identity.track.altitude` | Track altitude | number | length | m | scalar |  |  |  |
 | `identity.track.city` | Track city | string | dimensionless | text | scalar |  |  |  |
 | `identity.track.configuration-name` | Track configuration name | string | dimensionless | text | scalar |  |  |  |
@@ -439,7 +439,9 @@
 | `race.on-pit-road` | On Pit Road | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.pace-car-index` | Pace-car index | number | dimensionless | index | scalar |  |  |  |
 | `race.penalties` | Penalties | number | dimensionless | count | scalar |  |  |  |
-| `race.penalty-code` | Penalty Code | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21 |  |
+| `race.penalty-code` | Penalty | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22 |  |
+| `race.penalty-time` | Penalty Time | number | time | s | scalar |  |  |  |
+| `race.penalty-type` | Penalty Type | string | dimensionless | text | scalar |  |  |  |
 | `race.pit-lane-timer-active` | Pit Lane Timer Active | number | time | s | scalar |  |  |  |
 | `race.pit-service.flags` | Requested pit-service flags | number | unit:bitfield | bitfield | scalar |  |  |  |
 | `race.pit-service.fuel-add-amount` | Pit-service fuel add amount | number | unit:l or kwh | L or kWh | scalar |  |  |  |
@@ -462,9 +464,11 @@
 | `race.player.push-to-pass-count` | Player push-to-pass count | number | dimensionless | count | scalar |  |  |  |
 | `race.race-laps` | Race Laps | number | dimensionless | count | scalar |  |  |  |
 | `race.race-position` | Race Position | number | dimensionless | count | scalar |  |  |  |
+| `race.race-start-at` | Race Start At | number | dimensionless | count | scalar |  |  |  |
 | `race.rear-flap-legal-status` | Rear Flap Legal Status | number | dimensionless | count | scalar |  |  |  |
 | `race.result-status` | Result Status | number | dimensionless | count | scalar |  |  |  |
 | `race.safety-car-status` | Safety Car Status | number | dimensionless | count | scalar |  |  |  |
+| `race.safety-car-status-updated-at` | Safety Car Status Updated At | number | dimensionless | count | scalar |  |  |  |
 | `race.session-summary.caution-flags` | Results Num Caution Flags | structured | dimensionless | count | variable:0-* | session-index:source-order | indices: session-index (variable:0-*, source-order); fields: value:number |  |
 | `race.session-summary.caution-laps` | Results Num Caution Laps | structured | dimensionless | count | variable:0-* | session-index:source-order | indices: session-index (variable:0-*, source-order); fields: value:number |  |
 | `race.session-summary.laps-complete` | Results Laps Complete | structured | dimensionless | count | variable:0-* | session-index:source-order | indices: session-index (variable:0-*, source-order); fields: value:number |  |
@@ -592,7 +596,6 @@
 | `setup.strategy.fuel-volume` | Configured fuel volume | number | length^3 | L | scalar |  |  |  |
 | `setup.suspension.bump-stop-range` | Bump-stop range | number | length | mm | fixed:4 | FL, FR, RL, RR |  |  |
 | `setup.suspension.bump-stop-rate` | Bump-stop rate | number | unit:n/mm | N/mm | fixed:4 | FL, FR, RL, RR |  |  |
-| `setup.suspension.bumpstops` | Bump-stop selection | number | unit:level | level | fixed:4 | FL, FR, RL, RR |  |  |
 | `setup.suspension.front-anti-roll-bar.arms` | Front anti-roll-bar arms | number | dimensionless | count | scalar |  |  |  |
 | `setup.suspension.front-anti-roll-bar.blades` | Front anti-roll-bar blades | number | unit:level | level | scalar |  |  |  |
 | `setup.suspension.front-anti-roll-bar.connection` | Front anti-roll-bar connection | number | unit:configuration | configuration | scalar |  |  |  |
@@ -600,8 +603,6 @@
 | `setup.suspension.front-anti-roll-bar.outer-diameter` | Front anti-roll-bar outer diameter | number | length | mm | scalar |  |  |  |
 | `setup.suspension.front-anti-roll-bar.rate` | Front anti-roll-bar rate | number | unit:configuration | configuration | scalar |  |  |  |
 | `setup.suspension.front-anti-roll-bar.setting` | Front anti-roll-bar setting | number | unit:configuration | configuration | scalar |  |  |  |
-| `setup.suspension.helper-springs` | Helper springs | number | unit:level | level | fixed:4 | FL, FR, RL, RR |  |  |
-| `setup.suspension.packers` | Packers | number | length | mm | fixed:4 | FL, FR, RL, RR |  |  |
 | `setup.suspension.rear-anti-roll-bar.arms` | Rear anti-roll-bar arms | number | dimensionless | count | scalar |  |  |  |
 | `setup.suspension.rear-anti-roll-bar.blades` | Rear anti-roll-bar blades | number | unit:level | level | scalar |  |  |  |
 | `setup.suspension.rear-anti-roll-bar.connection` | Rear anti-roll-bar connection | number | unit:configuration | configuration | scalar |  |  |  |

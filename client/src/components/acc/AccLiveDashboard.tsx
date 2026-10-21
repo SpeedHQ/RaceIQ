@@ -1,6 +1,6 @@
-import { tryGetGame } from "@shared/games/registry";
+import { tryGetGame } from "@raceiq/shared/games/registry"
 import { m } from "@/paraglide/messages";
-import type { GameId } from "../../../../shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 import { useCarName, useTirePressureOptimal } from "../../hooks/catalog-queries";
 import { useTrackName } from "../../hooks/track-queries";
 import { useTelemetryStore } from "../../stores/telemetry";
@@ -19,9 +19,9 @@ export function AccLiveDashboard({ gameId = "acc" }: { gameId?: GameId }) {
   const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
   const sectors = useTelemetryStore((s) => s.sectors);
   const pit = useTelemetryStore((s) => s.pit);
-  const { data: trackName } = useTrackName(view?.identity.trackOrdinal);
-  const { data: carName } = useCarName(view?.identity.carOrdinal);
-  const pressureOptimal = useTirePressureOptimal(gameId, view?.identity.carOrdinal);
+  const { data: trackName } = useTrackName(view?.identity.trackId);
+  const { data: carName } = useCarName(view?.identity.carId);
+  const pressureOptimal = useTirePressureOptimal(gameId, view?.identity.carId);
 
   if (!view || view.simulator !== gameId) {
     return (

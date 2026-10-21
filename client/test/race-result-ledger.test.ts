@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { buildRaceResultTimeline, formatService } from "../src/components/race-results/RaceResultLedger";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import type { SessionMeta } from "@raceiq/shared/racing/sessions/types";
+import { SessionResultMeta } from "../src/components/sessions/SessionResultMeta";
 const result = {
   id: 1,
   sessionId: 7,
@@ -33,14 +37,86 @@ const result = {
 } as const;
 
 describe("race result timeline", () => {
-  test("builds start, pit, and finish nodes in order", () => {
-    expect(buildRaceResultTimeline(result).map((node) => node.kind)).toEqual(["start", "pit", "finish"]);
-    expect(buildRaceResultTimeline(result)[1]).toMatchObject({ lapNumber: 12, service: "tyres" });
-    expect(buildRaceResultTimeline(result)[0]).toMatchObject({ kind: "start", position: 5 });
+  test("inserts in-laps as pits in lap order without duplicating recorded stops", () => {
+    const timeline = buildRaceResultTimeline(result, [
+      { id: 3, lapNumber: 15, classification: "in_lap" },
+      { id: 2, lapNumber: 12, classification: "in_lap" },
+      { id: 1, lapNumber: 4, classification: "in_lap" },
+      { id: 4, lapNumber: 5, classification: "out_lap" },
+      { id: 5, lapNumber: 6, classification: "reset" },
+    ]);
+    expect(timeline.map((node) => node.kind)).toEqual(["qualifying", "start", "pit", "pit", "pit", "finish"]);
+    expect(timeline.filter((node) => node.kind === "pit")).toEqual([
+      expect.objectContaining({ lapNumber: 4, service: "unknown", durationSeconds: null }),
+      expect.objectContaining({ lapNumber: 12, service: "tyres", durationSeconds: 22.4 }),
+      expect.objectContaining({ lapNumber: 15, service: "unknown", durationSeconds: null }),
+    ]);
   });
 
+  test("shows in-lap pits without a native result, without inventing a finish", () => {
+    expect(buildRaceResultTimeline(null, [
+      { id: 1, lapNumber: 2, classification: "in_lap" },
+    ])).toEqual([
+      { kind: "start", position: null },
+      { kind: "pit", sequence: -1, lapNumber: 2, service: "unknown", durationSeconds: null, tyreChange: null, fuelAdded: null },
+    ]);
+    expect(buildRaceResultTimeline(null, [{ id: 1, lapNumber: 1, classification: null }])).toEqual([]);
+  });
+
+  test("hides stale LMU practice positions while retaining pit activity", () => {
+    const timeline = buildRaceResultTimeline({
+      ...result, gameId: "lmu", sessionType: "practice",
+      events: [
+        { ...result.events[0], eventType: "position-change", sequence: 1, positionAfter: 2 },
+        { ...result.events[0], sequence: 2 },
+      ],
+    });
+    expect(timeline.map((node) => node.kind)).toEqual(["start", "pit", "finish"]);
+    expect(timeline[0]).toMatchObject({ position: null });
+    expect(timeline[2]).toMatchObject({ finishingPosition: null });
+  });
+
+  test("never labels LMU practice or test day as a race result position", () => {
+    for (const sessionType of ["practice-1", "test-day"]) {
+      const session = { gameId: "lmu", sessionType, finishingPosition: 1 } as SessionMeta;
+      const markup = renderToStaticMarkup(createElement(SessionResultMeta, { session }));
+      expect(markup).not.toMatch(/P\d/);
+    }
+    const race = { gameId: "lmu", sessionType: "race", finishingPosition: 1 } as SessionMeta;
+    expect(renderToStaticMarkup(createElement(SessionResultMeta, { session: race }))).toMatch(/P<!-- -->1|P1/);
+  });
+
+  test("places qualifying before start, race events, and finish", () => {
+    const timeline = buildRaceResultTimeline(result);
+    expect(timeline.map((node) => node.kind)).toEqual(["qualifying", "start", "pit", "finish"]);
+    expect(timeline[0]).toMatchObject({ kind: "qualifying", position: 5 });
+    expect(timeline[1]).toMatchObject({ kind: "start", position: 5 });
+    expect(timeline[2]).toMatchObject({ lapNumber: 12, service: "tyres" });
+    expect(timeline[3]).not.toHaveProperty("qualifyingPosition");
+  });
+
+  test("places penalty event in sequence without treating it as a pit stop", () => {
+    const timeline = buildRaceResultTimeline({
+      ...result,
+      events: [
+        { ...result.events[0], eventType: "penalty", sequence: 2, lapNumber: 8, service: "unknown", source: { penalty: 2, penaltyType: "drive-through", penaltyTime: 30 } },
+        { ...result.events[0], eventType: "position-change", sequence: 1, service: "unknown", positionBefore: 5, positionAfter: 4 },
+        { ...result.events[0], sequence: 3 },
+      ],
+    });
+    expect(timeline.map((node) => node.kind)).toEqual(["qualifying", "start", "position", "penalty", "pit", "finish"]);
+    expect(timeline[3]).toMatchObject({ kind: "penalty", sequence: 2, lapNumber: 8, penaltyType: "drive through", penaltyTime: 30 });
+  });
+
+
   test("keeps start and finish when no pit events exist", () => {
-    expect(buildRaceResultTimeline({ ...result, events: [] }).map((node) => node.kind)).toEqual(["start", "finish"]);
+    expect(buildRaceResultTimeline({ ...result, events: [] }).map((node) => node.kind)).toEqual(["qualifying", "start", "finish"]);
+  });
+
+  test("omits qualifying when starting position is unknown", () => {
+    const timeline = buildRaceResultTimeline({ ...result, qualifyingPosition: null, events: [] });
+    expect(timeline.map((node) => node.kind)).toEqual(["start", "finish"]);
+    expect(timeline[0]).toMatchObject({ kind: "start", position: null });
   });
 
   test("renders position-change events as position nodes", () => {
@@ -57,7 +133,7 @@ describe("race result timeline", () => {
         },
       ],
     });
-    expect(timeline[1]).toMatchObject({ kind: "position", lapNumber: 4, direction: "up", position: 3 });
+    expect(timeline[2]).toMatchObject({ kind: "position", lapNumber: 4, direction: "up", position: 3 });
   });
 
   test("does not show a false transition back to grid position", () => {
@@ -75,7 +151,7 @@ describe("race result timeline", () => {
         },
       ],
     });
-    expect(timeline.map((node) => node.kind)).toEqual(["start", "finish"]);
+    expect(timeline.map((node) => node.kind)).toEqual(["qualifying", "start", "finish"]);
   });
   test("omits null optional event values", () => {
     const [pit] = buildRaceResultTimeline({ ...result, events: [{ ...result.events[0], lapNumber: null, durationSeconds: null, tyreChange: null }] }).filter((node) => node.kind === "pit");

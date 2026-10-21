@@ -1,8 +1,8 @@
-import type { LiveEngineerReplayFrameV1, LiveEngineerSessionReplayV1 } from "../../../../shared/racing/live/engineer-replay-contracts";
-import type { SessionMeta } from "../../../../shared/racing/sessions/types";
+import type { LiveEngineerReplayFrameV1, LiveEngineerSessionReplayV1 } from "@raceiq/shared/racing/live/engineer-replay-contracts";
+import type { SessionMeta } from "@raceiq/shared/racing/sessions/types";
 
 export const opponentSessions: SessionMeta[] = [91001, 91002].map((id) => ({
-  id, gameId: "acc", carOrdinal: id, trackOrdinal: 1, createdAt: "2026-09-21T12:00:00.000Z", lapCount: 8, sessionType: "Race",
+  id, gameId: "acc", carId: String(id), trackId: "1", createdAt: "2026-09-21T12:00:00.000Z", lapCount: 8, sessionType: "Race",
 }));
 
 export function opponentReplay(sessionId = 91001): LiveEngineerSessionReplayV1 {

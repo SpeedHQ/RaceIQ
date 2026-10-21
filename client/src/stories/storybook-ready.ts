@@ -30,11 +30,16 @@ export async function openStory(page: Page, storyUrl: string, timeoutMs = 60_000
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       await page.goto(storyUrl, { waitUntil: "commit", timeout: timeoutMs });
-      await page.locator(STORY_ROOT_CHILD).first().waitFor({ state: "visible", timeout: timeoutMs });
-      return;
+      await page.locator(`${STORY_ROOT_CHILD}, .sb-errordisplay`).filter({ visible: true }).first().waitFor({ state: "visible", timeout: timeoutMs });
     } catch (error) {
       lastError = error;
+      continue;
     }
+    const storyError = page.locator(".sb-errordisplay");
+    if (await storyError.isVisible()) {
+      throw new Error(`Storybook failed to render ${storyUrl}: ${await storyError.locator("h1").textContent()}`);
+    }
+    return;
   }
   throw lastError;
 }
@@ -55,29 +60,79 @@ async function installSnapshotMode(page: Page): Promise<void> {
   }, SNAPSHOT_STYLE);
 }
 async function waitForStableCanvases(page: Page, timeoutMs: number): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-  let previous = "";
-  let stableSamples = 0;
+  const settled = await page.evaluate(async (timeout) => {
+    const deadline = Date.now() + timeout;
+    let previous = new Map<HTMLCanvasElement, { width: number; height: number; ready: boolean; pixels: Uint8ClampedArray | null }>();
+    const scratch = document.createElement("canvas");
+    let scratchContext: CanvasRenderingContext2D | null = null;
+    let previousCanvases: HTMLCanvasElement[] = [];
+    let stableSamples = 0;
 
-  while (Date.now() < deadline) {
-    await page.waitForTimeout(50);
-    const current = await page.evaluate(() =>
-      Array.from(document.querySelectorAll("canvas"))
-        .map((canvas) => {
+    while (Date.now() < deadline) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 50));
+      const canvases = Array.from(document.querySelectorAll("canvas"));
+      let unchanged = canvases.length === previousCanvases.length;
+      for (let index = 0; unchanged && index < canvases.length; index += 1) {
+        unchanged = canvases[index] === previousCanvases[index];
+      }
+
+      const current = new Map<HTMLCanvasElement, { width: number; height: number; ready: boolean; pixels: Uint8ClampedArray | null }>();
+      for (const canvas of canvases) {
+        const marker = canvas.closest("[data-visual-ready]");
+        const ready = marker?.getAttribute("data-visual-ready") === "ready";
+        const before = previous.get(canvas);
+        if (ready) {
+          current.set(canvas, { width: canvas.width, height: canvas.height, ready, pixels: null });
+          if (!before || before.width !== canvas.width || before.height !== canvas.height || !before.ready) unchanged = false;
+          continue;
+        }
+        if (marker) unchanged = false;
+
+        let pixels: Uint8ClampedArray | null = null;
+        if (canvas.width > 0 && canvas.height > 0) {
           try {
-            return `${canvas.width}x${canvas.height}:${canvas.toDataURL("image/png")}`;
+            if (scratch.width !== canvas.width) scratch.width = canvas.width;
+            if (scratch.height !== canvas.height) scratch.height = canvas.height;
+            scratchContext ??= scratch.getContext("2d", { willReadFrequently: true });
+            if (scratchContext) {
+              scratchContext.clearRect(0, 0, canvas.width, canvas.height);
+              scratchContext.drawImage(canvas, 0, 0);
+              pixels = scratchContext.getImageData(0, 0, canvas.width, canvas.height).data;
+            }
           } catch {
-            return `${canvas.width}x${canvas.height}:unreadable`;
+            pixels = null;
+            scratch.width = 0;
+            scratchContext = null;
           }
-        })
-        .join("|"),
-    );
-    stableSamples = current === previous ? stableSamples + 1 : 0;
-    if (stableSamples >= 2) return;
-    previous = current;
-  }
+        }
 
-  throw new Error(`Storybook canvas state did not settle within ${timeoutMs}ms`);
+        let equal = Boolean(before && before.width === canvas.width && before.height === canvas.height && !before.ready);
+        if (equal && before!.pixels === null && pixels === null) {
+          // Unreadable canvases retain prior dimensions-only stability semantics.
+        } else if (equal && before!.pixels && pixels && before!.pixels.length === pixels.length) {
+          const oldPixels = before!.pixels;
+          for (let pixel = 0; pixel < pixels.length; pixel += 1) {
+            if (pixels[pixel] !== oldPixels[pixel]) {
+              equal = false;
+              break;
+            }
+          }
+        } else {
+          equal = false;
+        }
+        if (!equal) unchanged = false;
+        current.set(canvas, { width: canvas.width, height: canvas.height, ready, pixels });
+      }
+
+      if (unchanged) stableSamples += 1;
+      else stableSamples = 0;
+      if (stableSamples >= 2) return true;
+      previousCanvases = canvases;
+      previous = current;
+    }
+    return false;
+  }, timeoutMs);
+  if (!settled) throw new Error(`Storybook canvas state did not settle within ${timeoutMs}ms`);
 }
 
 /**

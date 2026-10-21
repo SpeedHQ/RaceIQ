@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
 import type { Point, TrackInfo, TrackSectors } from "../types";
 import { InlineTrackMap } from "../InlineTrackMap";
+import { parseUtcTimestamp } from "@/lib/utc-date";
 
 type Pan = { x: number; z: number };
 type DragState = { startX: number; startY: number; startPanX: number; startPanZ: number };
@@ -26,7 +27,7 @@ interface TrackCanvasPanelProps {
 export function TrackCanvasPanel(props: TrackCanvasPanelProps) {
   const { track, outline, canvasRef, dragging, pan, setPan, zoom, setZoom, sectorBounds, displaySectors, mapDisplayMode, setMapDisplayMode, corners, straights } = props;
   return (
-    <div className="relative order-1 h-[260px] min-w-0 flex-1 rounded-lg border border-app-border bg-app-bg @3xl/workspace:order-2 @3xl/workspace:h-auto">
+    <div className="relative h-[260px] min-w-0 shrink-0 rounded-lg border border-app-border bg-app-bg @3xl/workspace:min-h-0 @3xl/workspace:h-auto @3xl/workspace:flex-1">
       {outline ? (
         <canvas
           ref={canvasRef}
@@ -118,7 +119,7 @@ export function TrackCanvasPanel(props: TrackCanvasPanelProps) {
         {track.createdAt && (
           <>
             <span className="text-app-text-dim/40">·</span>
-            <span>{new Date(track.createdAt).toLocaleDateString()}</span>
+            <span>{parseUtcTimestamp(track.createdAt).toLocaleDateString()}</span>
           </>
         )}
       </div>

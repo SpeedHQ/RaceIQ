@@ -1,6 +1,6 @@
 import { Worker } from "node:worker_threads";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type { TuneIssue } from "../../shared/racing/tuning/issues";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import { IS_COMPILED } from "../runtime/config/paths";
 
 interface PendingAnalysis {
@@ -28,7 +28,7 @@ function failWorker(current: Worker, error: Error): void {
 function getWorker(): Worker {
   if (worker) return worker;
   // Bun resolves embedded entrypoint names directly; file URLs fail on compiled Windows builds.
-  const current = new Worker(IS_COMPILED ? "./server/experiments/lap-issues-worker.ts" : new URL("./lap-issues-worker.ts", import.meta.url));
+  const current = new Worker(IS_COMPILED ? "./server/experiments/lap-issues-worker.ts" : new URL("./lap-issues-worker", import.meta.url));
   worker = current;
   current.on("message", (result: { issues: TuneIssue[]; error?: undefined } | { error: string }) => {
     if (worker !== current || !active) return;

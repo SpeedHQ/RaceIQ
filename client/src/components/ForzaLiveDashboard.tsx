@@ -53,10 +53,10 @@ export function ForzaLiveDashboard({ mode = "driver" }: { mode?: DashboardMode }
   const serverStatus = useTelemetryStore((s) => s.serverStatus);
   const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
   const sectors = useTelemetryStore((s) => s.sectors);
-  const trackOrd = view?.identity.trackOrdinal ?? serverStatus?.currentSession?.trackOrdinal;
-  const carOrd = view?.identity.carOrdinal;
-  const { data: trackName } = useTrackName(trackOrd);
-  const { data: carName } = useCarName(carOrd);
+  const trackId = view?.identity.trackId ?? serverStatus?.currentSession?.trackId;
+  const carId = view?.identity.carId;
+  const { data: trackName } = useTrackName(trackId);
+  const { data: carName } = useCarName(carId);
   const demo = useDemoMode();
 
   if (!view) {

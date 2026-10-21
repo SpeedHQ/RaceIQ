@@ -1,4 +1,4 @@
-import type { LiveEngineerCandidateV1, LiveEngineerDecisionReasonV1 } from "../../shared/racing/live/engineer-contracts";
+import type { LiveEngineerCandidateV1, LiveEngineerDecisionReasonV1 } from "@raceiq/shared/racing/live/engineer-contracts";
 
 export interface LiveEngineerRuntimeCandidate extends LiveEngineerCandidateV1 {
   sessionId: string;

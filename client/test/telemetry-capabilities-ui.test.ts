@@ -1,13 +1,14 @@
+import { supportsPositionDependentSceneFeature } from "../src/lib/wireframe-capabilities";
 import { describe, expect, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement } from "react";
 
-import { celsiusToFahrenheit } from "../src/lib/temperature";
+import { celsiusToFahrenheit } from "@raceiq/frontend-pure/temperature";
 import { renderToStaticMarkup } from "react-dom/server";
-import { initGameAdapters } from "../../shared/games/init";
-import type { GameId } from "../../shared/games/ids";
-import type { LivePitData, LiveSectorData } from "../../shared/racing/live/types";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { LivePitData, LiveSectorData } from "@raceiq/shared/racing/live/types";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { ComboDash } from "../src/components/dashes/ComboDash";
 import { buildChartData } from "../src/components/analyse/chart-data";
 import { AnalyseF1ErsPanel } from "../src/components/analyse/AnalyseF1ErsPanel";
@@ -614,7 +615,8 @@ describe("telemetry capability UI", () => {
     expect(markup).toContain("100.0");
     expect(markup).toContain("90.0%");
     expect(markup).toContain("500°C");
-    expect(markup).toContain("24.0 psi");
+    expect(markup).toContain("Pressure (psi)");
+    expect(markup).toContain(">24.0</span>");
     expect(markup).toContain("20mm");
     expect(markup.match(/>—</g) ?? []).toHaveLength(2);
   });
@@ -645,7 +647,8 @@ describe("telemetry capability UI", () => {
       expect(markup, gameId).toContain("Rotation /s");
       if (gameId === "ac-evo") expect(markup, gameId).toContain("Wear /s");
       expect(markup, gameId).toContain("500°C");
-      expect(markup, gameId).toContain("24.0 psi");
+      expect(markup, gameId).toContain("Pressure (psi)");
+      expect(markup, gameId).toContain(">24.0</span>");
       expect(markup, gameId).not.toContain("Unavailable in Analyse");
       expect(markup, gameId).toContain("aria-label=\"Unavailable features in Analyse\"");
       expect(markup.match(/>—</g) ?? [], gameId).toHaveLength(gameId === "acc" ? 12 : 0);
@@ -769,5 +772,13 @@ describe("telemetry capability UI", () => {
     expect(available).toContain("Est. Lap");
     expect(available).toContain("1:33.500");
     expect(available).toContain("-0.523");
+  });
+});
+describe("position-dependent 3D features", () => {
+  test("disables world-position overlays for iRacing without affecting other games", () => {
+    for (const feature of ["track", "racingLine", "trails", "inputs"] as const) {
+      expect(supportsPositionDependentSceneFeature("iracing", feature)).toBe(false);
+      expect(supportsPositionDependentSceneFeature("ac-evo", feature)).toBe(true);
+    }
   });
 });

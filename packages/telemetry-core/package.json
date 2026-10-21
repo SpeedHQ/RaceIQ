@@ -1,0 +1,40 @@
+{
+  "name": "@raceiq/telemetry-core",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./telemetry/resolver/compile": "./src/telemetry/resolver/compile.ts",
+    "./telemetry/resolver/frame-view": "./src/telemetry/resolver/frame-view.ts",
+    "./telemetry/resolver/plan": "./src/telemetry/resolver/plan.ts",
+    "./telemetry/resolver/readers": "./src/telemetry/resolver/readers.ts",
+    "./telemetry/resolver/value": "./src/telemetry/resolver/value.ts",
+    "./telemetry/derivations/builtins": "./src/telemetry/derivations/builtins.ts",
+    "./telemetry/replay/canonicalize": "./src/telemetry/replay/canonicalize.ts",
+    "./telemetry/live/history": "./src/telemetry/live/history.ts",
+    "./telemetry/live/semantics": "./src/telemetry/live/semantics.ts",
+    "./telemetry/normalization": "./src/telemetry/normalization.ts",
+    "./telemetry/live-wire": "./src/telemetry/live-wire.ts",
+    "./telemetry/live-projector": "./src/telemetry/live-projector.ts",
+    "./processor/boundaries": "./src/processor/boundaries.ts",
+    "./processor/ordinal-engine": "./src/processor/ordinal-engine.ts",
+    "./processor/kunos-engine": "./src/processor/kunos-engine.ts",
+    "./processor/iracing-engine": "./src/processor/iracing-engine.ts",
+    "./processor/kunos-policy": "./src/processor/kunos-policy.ts",
+    "./processor/lap-policy": "./src/processor/lap-policy.ts",
+    "./processor/sectors": "./src/processor/sectors.ts",
+    "./processor/generated-sector-ordinal-map": "./src/processor/generated-sector-ordinal-map.ts",
+    "./test-support/telemetry/resolver": "./test/support-resolver.ts"
+  },
+  "scripts": {
+    "lint": "../../client/node_modules/.bin/oxlint .",
+    "typecheck": "bun check --project tsconfig.json",
+    "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/telemetry-core",
+    "test:integration": "bun ../../scripts/test/run-suite.ts integration --package @raceiq/telemetry-core",
+    "generate:sector-ordinal-map": "bun scripts/generate-sector-ordinal-map.ts",
+    "check:sector-ordinal-map": "bun scripts/generate-sector-ordinal-map.ts --check"
+  },
+  "dependencies": {
+    "@raceiq/shared": "workspace:*",
+    "@raceiq/analysis-core": "workspace:*"
+  }
+}

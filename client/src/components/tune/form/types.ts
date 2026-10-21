@@ -1,4 +1,4 @@
-import type { TuneCategory } from "@shared/racing/tuning/types";
+import type { TuneCategory } from "@raceiq/shared/racing/tuning/types";
 import type { TuneSettings } from "@/data/tune-catalog";
 
 // Tune form domain types.
@@ -6,7 +6,7 @@ export interface TuneFormData {
   gameId: "fm-2023";
   name: string;
   author: string;
-  carOrdinal: number;
+  carId: string;
   category: TuneCategory;
   description: string;
   settings: TuneSettings;

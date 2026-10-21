@@ -4,7 +4,7 @@
   "layout": "full",
   "layoutName": "Full",
   "name": "Circuit de Spa-Francorchamps",
-  "source": "Official circuit map / FIA F1 track guide (7.004 km GP layout)",
+  "source": "Official Spa Grand Prix circuit map (19 turns); https://www.spa-francorchamps.be/assets/1dc2f8bb-48fc-4ab8-b013-404fc31a0ba3/spagp-map-2024.pdf",
   "corners": [
     {
       "number": 1,
@@ -76,23 +76,25 @@
     },
     {
       "number": 14,
-      "name": "Campus",
-      "direction": "right"
-    },
-    {
-      "number": 15,
       "name": "Stavelot",
       "direction": "right"
     },
     {
-      "number": 16,
+      "number": 15,
       "name": "Courbe Paul Frère",
-      "direction": "left"
+      "direction": "right"
+    },
+    {
+      "number": 16,
+      "name": "Blanchimont",
+      "direction": "left",
+      "group": "Blanchimont"
     },
     {
       "number": 17,
-      "name": "Blanchimont",
-      "direction": "left"
+      "name": "",
+      "direction": "left",
+      "group": "Blanchimont"
     },
     {
       "number": 18,

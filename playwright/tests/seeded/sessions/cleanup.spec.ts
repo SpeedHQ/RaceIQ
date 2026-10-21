@@ -1,22 +1,41 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type APIRequestContext } from "@playwright/test";
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-import type { SessionCleanupPreview, SessionCleanupResult } from "../../../../shared/racing/sessions/cleanup";
+import type { SessionCleanupPreview, SessionCleanupResult } from "@raceiq/shared/racing/sessions/cleanup";
 import { runtime } from "../../../config/runtime";
 import { collectBrowserErrors } from "../../support/browser-errors";
 import { cleanDisposable, importDisposableLap, lapsFor, sessionRows, sessionsFor, type DisposableImport } from "./helpers";
 
+async function waitForCleanupEligibility(request: APIRequestContext, sessionIds: number[]): Promise<void> {
+  await expect.poll(async () => {
+    const response = await request.post("/api/storage/session-cleanup/preview", { data: { mode: "selected", sessionIds } });
+    expect(response.ok(), "cleanup eligibility preview").toBe(true);
+    return ((await response.json()) as SessionCleanupPreview).candidateSessionIds;
+  }, { intervals: [250, 500, 1000], timeout: 30_000 }).toEqual([...sessionIds].sort((a, b) => a - b));
+}
+
+
 test("confirmed cleanup removes disposable capture while preserving session and laps", async ({ page, request }) => {
   const browserErrors = collectBrowserErrors(page);
-  const capturesDir = join(runtime.seeded.dataDir, "sessions", "fm-2023");
-  const capturesBefore = new Set(readdirSync(capturesDir));
+  const capturesDir = join(runtime.seeded.dataDir, "sessions", "fm-2023", "own");
+  const capturesBefore = new Set(readdirSync(capturesDir).filter((name) => name.endsWith(".bin") || name.endsWith(".bin.gz")));
   let disposable: DisposableImport | undefined;
   try {
     disposable = await importDisposableLap(request, "fm-2023", "sessions-cleanup");
     const sessionIds = disposable.sessionIds;
+    await waitForCleanupEligibility(request, sessionIds);
     const lapIds = disposable.lapIds;
-    const newCaptures = readdirSync(capturesDir).filter((name) => !capturesBefore.has(name));
+    // Imported captures are protected while their real per-lap split is still publishing.
+    await expect.poll(async () => {
+      const response = await request.post("/api/storage/session-cleanup/preview", {
+        data: { mode: "selected", sessionIds },
+      });
+      expect(response.ok()).toBe(true);
+      const preview = await response.json() as SessionCleanupPreview;
+      return [...preview.candidateSessionIds].sort((a, b) => a - b);
+    }, { timeout: 60_000 }).toEqual([...sessionIds].sort((a, b) => a - b));
+    const newCaptures = readdirSync(capturesDir).filter((name) => (name.endsWith(".bin") || name.endsWith(".bin.gz")) && !capturesBefore.has(name));
     expect(newCaptures.length, "import creates disposable capture files").toBeGreaterThan(0);
     const captures = newCaptures.map((name) => join(capturesDir, name));
     const bytes = captures.reduce((total, path) => total + statSync(path).size, 0);
@@ -40,8 +59,9 @@ test("confirmed cleanup removes disposable capture while preserving session and 
     expect(previewHttp.ok()).toBe(true);
     const preview = (await previewHttp.json()) as SessionCleanupPreview;
     expect(new Set(preview.candidateSessionIds)).toEqual(new Set(sessionIds));
-    expect(preview.fileCount).toBe(newCaptures.length);
-    expect(preview.reclaimableBytes).toBe(bytes);
+    // Cleanup also counts published manifest and bundle members, not only imported source files.
+    expect(preview.fileCount).toBeGreaterThanOrEqual(newCaptures.length);
+    expect(preview.reclaimableBytes).toBeGreaterThanOrEqual(bytes);
     await expect(page.getByRole("dialog")).toBeVisible();
     expect(captures.every(existsSync), "preview must not delete captures").toBe(true);
 
@@ -51,8 +71,8 @@ test("confirmed cleanup removes disposable capture while preserving session and 
     expect(cleanupHttp.ok()).toBe(true);
     const result = (await cleanupHttp.json()) as SessionCleanupResult;
     expect(new Set(result.cleanedSessionIds)).toEqual(new Set(sessionIds));
-    expect(result.deletedFiles).toBe(newCaptures.length);
-    expect(result.freedBytes).toBe(bytes);
+    expect(result.deletedFiles).toBe(preview.fileCount);
+    expect(result.freedBytes).toBe(preview.reclaimableBytes);
     expect(result.failed).toEqual([]);
     await expect(page.getByRole("dialog")).toHaveCount(0);
     expect(captures.some(existsSync), "cleanup deletes disposable captures").toBe(false);
@@ -60,8 +80,15 @@ test("confirmed cleanup removes disposable capture while preserving session and 
 
     const sessionsAfter = (await sessionsFor(request, "fm-2023")).filter((session) => sessionIds.includes(session.id));
     const lapsAfter = (await lapsFor(request, "fm-2023")).filter((lap) => lapIds.includes(lap.id));
-    expect(sessionsAfter).toEqual(sessionsBefore.map((session) => ({ ...session, telemetryAvailable: false })));
-    expect(lapsAfter).toEqual(lapsBefore.map((lap) => ({ ...lap, telemetryAvailable: false })));
+    // Cleanup clears transient split state and capture-derived timing/availability.
+    expect(sessionsAfter.map(({ id, source, notes }) => ({ id, source, notes })))
+      .toEqual(sessionsBefore.map(({ id, source, notes }) => ({ id, source, notes })));
+    expect(lapsAfter.map(({ id, sessionId, lapNumber, lapTime, isValid, carId, trackId, notes }) => ({
+      id, sessionId, lapNumber, lapTime, isValid, carId, trackId, notes,
+    }))).toEqual(lapsBefore.map(({ id, sessionId, lapNumber, lapTime, isValid, carId, trackId, notes }) => ({
+      id, sessionId, lapNumber, lapTime, isValid, carId, trackId, notes,
+    })));
+    expect(lapsAfter.every((lap) => !lap.telemetryAvailable && !lap.standaloneCaptureReady)).toBe(true);
     expect(browserErrors.errors).toEqual([]);
   } finally {
     await cleanDisposable(request, disposable);
@@ -70,14 +97,15 @@ test("confirmed cleanup removes disposable capture while preserving session and 
 
 for (const favorite of ["session", "lap"] as const) {
   test(`favorited ${favorite} protects capture in real cleanup`, async ({ page, request }) => {
-    const capturesDir = join(runtime.seeded.dataDir, "sessions", "fm-2023");
-    const capturesBefore = new Set(readdirSync(capturesDir));
+    const capturesDir = join(runtime.seeded.dataDir, "sessions", "fm-2023", "own");
+    const capturesBefore = new Set(readdirSync(capturesDir).filter((name) => name.endsWith(".bin") || name.endsWith(".bin.gz")));
     let disposable: DisposableImport | undefined;
     try {
       disposable = await importDisposableLap(request, "fm-2023", `favorite-${favorite}`);
       expect(disposable.sessionIds).toHaveLength(1);
       const sessionId = disposable.sessionIds[0];
-      const capturePaths = readdirSync(capturesDir).filter((name) => !capturesBefore.has(name)).map((name) => join(capturesDir, name));
+      await waitForCleanupEligibility(request, disposable.sessionIds);
+      const capturePaths = readdirSync(capturesDir).filter((name) => (name.endsWith(".bin") || name.endsWith(".bin.gz")) && !capturesBefore.has(name)).map((name) => join(capturesDir, name));
       expect(capturePaths.length).toBeGreaterThan(0);
       const favoriteId = favorite === "session" ? sessionId : disposable.lapIds[0];
       const update = await request.patch(`/api/${favorite === "session" ? "sessions" : "laps"}/${favoriteId}/favorite`, { data: { favorite: true } });

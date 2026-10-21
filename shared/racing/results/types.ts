@@ -1,4 +1,4 @@
-import type { GameId } from "@shared/games/ids";
+import type { GameId } from "../../games/ids";
 
 export type RaceResultSourceStatus = "direct" | "derived" | "simplified" | "unavailable";
 export type RaceResultOutcomeStatus = "confirmed" | "provisional" | "unavailable";
@@ -109,12 +109,6 @@ export interface RaceResultRawInputIdentity {
   byteLength?: number;
 }
 
-export interface RaceResultCanonicalInputIdentity {
-  sessionId: string;
-  firstSequence: number;
-  lastSequence: number;
-  contentHash: string;
-}
 
 export interface RaceResultProvenance {
   catalogVersion: string;
@@ -126,7 +120,6 @@ export interface RaceResultProvenance {
   derivationVersion: string;
   derivationCodeHash: string;
   rawInput: RaceResultRawInputIdentity | null;
-  canonicalInput: RaceResultCanonicalInputIdentity | null;
   authorityPolicyId: string;
   authorityPolicyVersion: string;
   extractor?: {
@@ -171,7 +164,7 @@ export interface RaceResult {
   outcomeStatus: RaceResultOutcomeStatus;
   evidence: RaceResultEvidence;
   events: Array<{
-    eventType?: "pit" | "position-change";
+    eventType?: "pit" | "position-change" | "penalty";
     sequence: number;
     lapNumber: number | null;
     elapsedSeconds: number | null;

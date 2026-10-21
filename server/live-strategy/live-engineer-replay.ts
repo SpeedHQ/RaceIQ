@@ -1,20 +1,20 @@
-import type { GameId } from "../../shared/games/ids";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import { CREWCHIEF_CALLOUT_SEMANTIC_IDS } from "../../shared/telemetry/live/crewchief-callout-contract";
-import { liveEngineerPaceRequiredSemanticIds, liveEngineerRequiredSemanticIds } from "../../shared/telemetry/live/semantics";
-import type { LiveEngineerSessionReplayV1, LiveEngineerReplayAnnotationV1, LiveEngineerReplayFrameV1, LiveEngineerReplayLapV1, LiveEngineerReplaySourceProfileV1, LiveEngineerCalloutSystemV1, LiveEngineerAvailabilityTransitionV1 } from "../../shared/racing/live/engineer-replay-contracts";
-import { LiveTelemetryProjector, type LiveResolvedSemanticFrame } from "../telemetry/live-projector";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { CREWCHIEF_CALLOUT_SEMANTIC_IDS } from "@raceiq/shared/telemetry/live/crewchief-callout-contract";
+import { liveEngineerPaceRequiredSemanticIds, liveEngineerRequiredSemanticIds } from "@raceiq/telemetry-core/telemetry/live/semantics";
+import type { LiveEngineerSessionReplayV1, LiveEngineerReplayAnnotationV1, LiveEngineerReplayFrameV1, LiveEngineerReplayLapV1, LiveEngineerReplaySourceProfileV1, LiveEngineerCalloutSystemV1, LiveEngineerAvailabilityTransitionV1 } from "@raceiq/shared/racing/live/engineer-replay-contracts";
+import { LiveTelemetryProjector, type LiveResolvedSemanticFrame } from "@raceiq/telemetry-core/telemetry/live-projector";
 import { CREWCHIEF_TRIGGER_CATALOG, CrewChiefTriggerCatalog, evaluateCrewChiefAvailability, gameRequirements, type CrewChiefTriggerDescriptor } from "./crewchief-triggers/catalog";
 import { LiveEngineerVoiceEngine } from "./live-engineer-voice-engine";
 import { renderOpponentPace } from "./live-engineer-renderer";
 import type { LiveEngineerRuntimeCandidate } from "./live-engineer-runtime";
-import type { LapMeta } from "../../shared/racing/sessions/types";
-import type { LiveEngineerCalloutMessageV3, LiveEngineerVoiceLineMessageV3 } from "../../shared/racing/live/engineer-contracts";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
+import type { LiveEngineerCalloutMessageV3, LiveEngineerVoiceLineMessageV3 } from "@raceiq/shared/racing/live/engineer-contracts";
 
-import { isLiveEngineerSubsystemSupported } from "../../shared/platform/runtime/release-feature-flags";
+import { isLiveEngineerSubsystemSupported } from "@raceiq/shared/platform/runtime/release-feature-flags";
 export type LiveEngineerReplayScenario = "fuel-warning-escalation" | "critical-fuel-pit-sequence" | "scheduled-pit-sequence" | "f1-opponent-lap-pace";
 export interface LiveEngineerSessionReplayInput {
-  session: { id: number; gameId?: GameId; carOrdinal?: number; trackOrdinal?: number };
+  session: { id: number; gameId?: GameId; carId?: string; trackId?: string };
   laps: readonly LapMeta[];
   packets: readonly TelemetryPacket[];
   sourceProfile: LiveEngineerReplaySourceProfileV1;
@@ -31,7 +31,7 @@ const REPLAY_VALUE_IDS = new Set([
   "tire.temperature.core", "tire.temperature.surface.representative", "tire.temperature.carcass.middle",
   "tires.tire-wear", "tires.tire-pressure", "tires.tire-slip-ratio", "tires.tire-slip-angle", "tires.normalized-tire-slip-angle", "tires.tire-combined-slip", "tires.wheel-rotation-speed", "tires.wheel-on-rumble-strip", "tires.wheel-in-puddle-depth",
   "suspension.norm-suspension-travel", "suspension.suspension-travel-m",
-  "identity.player-track-surface", "identity.car-ordinal", "identity.player-car-index", "identity.player-car-class-id",
+  "identity.player-track-surface", "identity.car-id", "identity.player-car-index", "identity.player-car-class-id",
   "race.pit-status", "race.on-pit-road",
   "race.competitor.car-index", "race.competitor.driver-id", "race.competitor.driver-name", "race.competitor.car-class-id", "race.competitor.car-class-name", "race.competitor.laps-complete", "race.competitor.pit-status", "race.competitor.connected", "race.competitor.position", "race.competitor.pit-stops", "race.competitor.track-location",
   "timing.competitor.last-lap-time", "timing.competitor.last-lap-valid", "timing.competitor.gap-to-ahead", "timing.competitor.gap-to-leader",
@@ -219,5 +219,5 @@ export function runLiveEngineerSessionReplay(input: LiveEngineerSessionReplayInp
     buildSystem("opponent-pace", null, liveEngineerPaceRequiredSemanticIds(gameId), isLiveEngineerSubsystemSupported(gameId, "opponent-pace"), "implemented", persistedOpponentReason),
     buildSystem("live-spotter", null, gameId === "iracing" ? ["identity.car-left-right"] : gameId === "acc" ? ["identity.player-car-index", "session.session-state", "motion.position-x", "motion.position-z", "motion.speed", "motion.yaw", "race.pit-status", "race.competitor.car-index", "race.competitor.connected", "motion.competitor.position-x", "motion.competitor.position-z", "motion.competitor.speed", "race.competitor.pit-status"] : [], isLiveEngineerSubsystemSupported(gameId, "live-spotter"), "implemented", persistedOpponentReason),
   );
-  return { sessionId: input.session.id, gameId, car: { carOrdinal: input.session.carOrdinal ?? null }, track: { trackOrdinal: input.session.trackOrdinal ?? null }, executionMode, sourceProfile: input.sourceProfile, clockQuality: input.sourceProfile.sourceClockCaptured ? gameId === "acc" ? "captured" : "native-session" : "nominal-100hz", frames, laps, annotations, systems, warnings: input.sourceProfile.limitations, sourceCounts: { packets: input.packets.length, annotations: annotations.length } };
+  return { sessionId: input.session.id, gameId, car: { carId: input.session.carId ?? null }, track: { trackId: input.session.trackId ?? null }, executionMode, sourceProfile: input.sourceProfile, clockQuality: input.sourceProfile.sourceClockCaptured ? gameId === "acc" ? "captured" : "native-session" : "nominal-100hz", frames, laps, annotations, systems, warnings: input.sourceProfile.limitations, sourceCounts: { packets: input.packets.length, annotations: annotations.length } };
 }

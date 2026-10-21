@@ -1,4 +1,4 @@
-import type { TelemetryVariableId } from "../../../../shared/telemetry/catalog/generated/telemetry-catalog.types";
+import type { TelemetryVariableId } from "@raceiq/shared/telemetry/catalog/generated/telemetry-catalog.types";
 import { semanticWheelNumbers, type SemanticAnalysisFrame } from "./track-map/types";
 
 export type TireSurfaceBand = "inner" | "middle" | "outer";

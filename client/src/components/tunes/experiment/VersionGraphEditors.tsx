@@ -44,7 +44,7 @@ function NodeTextEditor({
         }}
         rows={rows}
         placeholder={placeholder}
-        className="w-full resize-y rounded-md border border-app-border bg-app-surface/60 px-2 py-1 text-app-compact text-app-text placeholder:text-app-text-dim focus:border-app-text-dim focus:outline-none"
+        className="w-full resize-y rounded-md border border-app-border bg-app-surface/60 px-2 py-1 text-app-compact text-app-text placeholder:text-app-text-dim focus:border-app-accent focus:outline-none"
       />
       {dirty && changed && (
         <div className="flex items-center gap-2">

@@ -1,30 +1,30 @@
-import type { GameId } from "@shared/games/ids";
+import type { GameId } from "../../games/ids";
+import { AC_EVO_SETUP_SCHEMA, normalizeAcEvoTuneSettings } from "./ac-evo-schema";
 import {
   SETUP_FILE_SECTION_DEFINITIONS,
   SETUP_FILE_SOURCE_DEFINITIONS,
   SETUP_FORM_TAB_ORDER,
-  type SetupFileSectionId,
-  type SetupFileSource,
 } from "./catalog/file-source-mappings";
 import type {
   SetupFileGameId,
   SetupFormTab,
+  SetupFileSourceDefinition,
 } from "./catalog/groups";
 
 export { SETUP_FORM_TAB_ORDER };
+export { normalizeAcEvoTuneSettings };
 
-// Kunos stores ACC/EVO setups as nested JSON with in-game "click" values.
-// Catalog entries own source paths, labels, descriptions, units, semantics,
-// and cardinality. Form code receives those exact entries instead of rebuilding
-// dotted paths or parallel label/arity tables.
+// ACC stores nested JSON click values; AC Evo stores decoded flat knob values.
+// Both schemas retain native units and use the same field readers and writers.
 
-export type FieldDef = SetupFileSource;
+export type FieldDef = SetupFileSourceDefinition;
 
 export interface SectionDef {
-  key: SetupFileSectionId;
+  key: string;
   label: string;
   description: string;
   tab: SetupFormTab;
+  storage: "nested" | "flat";
   fields: readonly FieldDef[];
 }
 
@@ -43,6 +43,7 @@ function compileSchema(gameId: SetupFileGameId): readonly SectionDef[] {
     label: section.label,
     description: section.description,
     tab: section.tab,
+    storage: "nested",
     fields: SETUP_FILE_SOURCE_DEFINITIONS.filter((field) =>
       field.path.startsWith(`${section.id}.`),
     ),
@@ -51,7 +52,7 @@ function compileSchema(gameId: SetupFileGameId): readonly SectionDef[] {
 
 const SETUP_SCHEMAS = {
   acc: compileSchema("acc"),
-  "ac-evo": compileSchema("ac-evo"),
+  "ac-evo": AC_EVO_SETUP_SCHEMA,
 } as const satisfies Record<SetupFileGameId, readonly SectionDef[]>;
 
 const EMPTY_SETUP_SCHEMA: readonly SectionDef[] = [];
@@ -72,17 +73,19 @@ function readPath(obj: unknown, path: string): unknown {
   return current;
 }
 
-export function readSetupField(
-  obj: unknown,
-  field: FieldDef,
-): unknown {
-  return readPath(obj, field.path);
+export function readSetupField(obj: unknown, field: FieldDef): unknown {
+  const normalized = field.path.endsWith("Bump") && obj != null && typeof obj === "object"
+    ? normalizeAcEvoTuneSettings(obj as Record<string, unknown>)
+    : obj;
+  return readPath(normalized, field.path);
 }
-
 export function readSetupSection(
   obj: unknown,
   section: SectionDef,
 ): unknown {
+  if (section.storage === "flat") {
+    return section.fields.some((field) => readSetupField(obj, field) != null) ? obj : undefined;
+  }
   return readPath(obj, section.key);
 }
 
@@ -91,6 +94,11 @@ export function writeSetupField(
   field: FieldDef,
   value: unknown,
 ): void {
+  if (field.path.endsWith("Bump")) {
+    const normalized = normalizeAcEvoTuneSettings(obj);
+    for (const key of Object.keys(obj)) delete obj[key];
+    Object.assign(obj, normalized);
+  }
   const segments = field.path.split(".");
   let current: Record<string, unknown> = obj;
   for (let index = 0; index < segments.length - 1; index++) {

@@ -1,10 +1,10 @@
 import { m } from "@/paraglide/messages";
 import { useMemo, useState } from "react";
-import type { GameId } from "@shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 import { formatLapTime } from "@/lib/format";
 import { useUnits } from "../../hooks/useUnits";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
-import type { TuneIssue } from "../../../../shared/racing/tuning/issues";
+import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import { IssuePill } from "./review/ReviewIssues";
 import { SectorMap } from "./SectorMap";
 import { bandColor, buildSectorRanges, CORNERS, CornerBars, type CornerKey, metricDisplayValue, type MetricDef, tuneMetricValue, tuneMetricsFor } from "./SectorRangeBreakdown";
@@ -20,7 +20,7 @@ interface SectorDetailViewProps {
   telemetry: SemanticTuneSample[];
   sectorTimes: SectorTimes | null;
   sectorIndex: number;
-  trackOrdinal?: number;
+  trackId?: string;
   issues: TuneIssue[];
 }
 
@@ -30,7 +30,7 @@ interface SectorDetailViewProps {
  * sector (temps, brakes, pressure, wear), and the issues located here. Hovering
  * the map scrubs a cursor line across all the metric bars at once.
  */
-export function SectorDetailView({ telemetry, sectorTimes, sectorIndex, trackOrdinal, gameId, issues }: SectorDetailViewProps) {
+export function SectorDetailView({ telemetry, sectorTimes, sectorIndex, trackId, gameId, issues }: SectorDetailViewProps) {
   const units = useUnits(gameId);
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const [markFrac, setMarkFrac] = useState<number | null>(null);
@@ -88,7 +88,7 @@ export function SectorDetailView({ telemetry, sectorTimes, sectorIndex, trackOrd
               sectorTimes={sectorTimes}
               highlight={sectorIndex}
               showTimes={false}
-              trackOrdinal={trackOrdinal}
+              trackId={trackId}
               issueMarkers={issueMarkers}
               readout={readout}
               onHover={setHoverIdx}

@@ -10,15 +10,18 @@ Documentation is organized by audience. Start with a user guide; use contributor
 
 - [Windows](installation/windows.md) — install the desktop application and configure native or UDP telemetry.
 - [Docker on Linux](installation/docker.md) — run the published non-root container with persistent storage.
+- [Dashboard access and security](installation/network-access.md) — choose password protection, share dashboard/HUD links, manage the opt-in browser-origin whitelist and environment overrides, authenticate API clients, recover forgotten passwords, and disable password protection from the terminal.
 
 ## Contributors
 
 - [Contributing](../CONTRIBUTING.md) — repository entry point and contribution workflow.
 - [Development](contributing/development.md) — install, run, seed data, and manage schema changes.
 - [Frontend development](contributing/frontend.md) — component ownership, live-state boundaries, and routing contracts.
+- [Background operation flow](contributing/background-operation-flow.md) — reuse sparse recording conversion's confirmation dialog, non-modal bottom-right progress, result/retry, and inline maintenance pattern.
 - [Performance benchmarks](contributing/performance-benchmarks.md) — run parser, replay, and process-isolated performance measurements.
 - [Track curation](contributing/track-curation.md) — curate and verify track metadata and geometry.
 - [Telemetry recordings](contributing/telemetry-recordings.md) — capture, import, and preserve development telemetry.
+- [Adding new game support](contributing/adding-new-game-support.md) — implementation locations, human capture steps, sparse recording, fixture preparation, and correctness verification.
 - [Test troubleshooting](contributing/test-troubleshooting.md) — diagnose test processes that do not exit.
 - [End-to-end testing](contributing/e2e-testing.md) — audit route surfaces, seeded five-game coverage, telemetry semantics, and visual evidence.
 - [Setup range data](contributing/setup-range-data.md) — maintain game setup limits and provenance.

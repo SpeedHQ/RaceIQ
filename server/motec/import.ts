@@ -23,21 +23,22 @@
  * is an entry there.
  */
 
-import { MOTEC_SESSION_SOURCE } from "@shared/integrations/motec";
+import { MOTEC_SESSION_SOURCE } from "@raceiq/shared/integrations/motec";
 import { importSessionPackets, ImportSourceRecorder, type ImportedLap } from "../session-capture/import-pipeline";
 import { updateLapTune } from "../db/tune-queries";
 import { parseLd } from "./ld";
 import { parseLdxBeacons } from "./ldx";
 import type { MotecCarTrack } from "./types";
-import type { SessionOwnership } from "../../shared/racing/sessions/types";
-import type { GameId } from "../../shared/games/ids";
+import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import { beginRecordingStorageImport } from "../session-capture/storage-activity";
 import {
   analyseSemanticIds,
   unavailableAnalysisFeatures,
   type UnavailableAnalysisFeature,
-} from "../../shared/games/metric-contracts";
-import { TELEMETRY_CATALOG } from "../../shared/telemetry/catalog/data";
-import { groupsById } from "../../shared/telemetry/catalog/query";
+} from "@raceiq/shared/games/metric-contracts";
+import { TELEMETRY_CATALOG } from "@raceiq/shared/telemetry/catalog/data";
+import { groupsById } from "@raceiq/shared/telemetry/catalog/query";
 import { resolveMotecTarget } from "./targets";
 import { persistMotecSourceArchive } from "./source-archive";
 import { resolveTelemetryReplay } from "../telemetry/replay";
@@ -73,13 +74,9 @@ export interface MotecImportResult {
 export interface MotecImportOptions {
   /** Which game's transcoder to run the log through. */
   gameId: GameId;
-  /**
-   * Car and track the log was driven on, as chosen by the user. Takes priority
-   * over the log header — see `resolveMotecCarTrack` for why the header is only
-   * a hint.
-   */
-  carOrdinal?: number;
-  trackOrdinal?: number;
+  /** Native or game-normalized string IDs chosen by the user. */
+  carId?: string;
+  trackId?: string;
   /**
    * Optional setup the stint was run on, as a `tunes` row id. Stamped onto every
    * imported lap so the laps sit in the same comparison scope as recorded laps
@@ -98,11 +95,13 @@ export async function importMotec(
   ldxBytes: Buffer | undefined,
   options: MotecImportOptions,
 ): Promise<MotecImportResult> {
+  const releaseStorageImport = beginRecordingStorageImport();
+  try {
   if (!ldxBytes) throw new Error("MoTeC .ldx signal file is required");
   const target = resolveMotecTarget(options.gameId);
   const log = parseLd(ldBytes);
   const beacons = parseLdxBeacons(ldxBytes.toString("utf8"));
-  const carTrack = target.resolveCarTrack(log, { carOrdinal: options.carOrdinal, trackOrdinal: options.trackOrdinal });
+  const carTrack = target.resolveCarTrack(log, { carId: options.carId, trackId: options.trackId });
   const adapter = getServerGame(target.gameId);
   const semanticIds = analyseSemanticIds(adapter);
   const conversion = target.convert(log, beacons, carTrack);
@@ -117,6 +116,7 @@ export async function importMotec(
       rawFile: null,
       rawByteOffset: null,
       rawFrameCount: null,
+      captureFormatVersion: null,
     },
     samplePackets,
     semanticIds,
@@ -138,7 +138,7 @@ export async function importMotec(
     }))
     .sort((a, b) => a.group.localeCompare(b.group) || a.label.localeCompare(b.label));
   const unavailableFeatures = unavailableAnalysisFeatures(adapter, availableSemanticIds);
-  const sourcePath = await persistMotecSourceArchive(options.gameId, ldBytes, ldxBytes);
+  const sourcePath = await persistMotecSourceArchive(options.gameId, ldBytes, ldxBytes, options.ownership);
   const { packetCount, laps } = await importSessionPackets(
     conversion.packets,
     target.gameId,
@@ -178,4 +178,7 @@ export async function importMotec(
     yawFromLateralG: conversion.yawFromLateralG,
     limitations: target.limitations,
   };
+  } finally {
+    releaseStorageImport();
+  }
 }

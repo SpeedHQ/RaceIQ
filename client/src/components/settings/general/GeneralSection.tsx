@@ -1,4 +1,4 @@
-import { LOCALES } from "@shared/platform/i18n/locales";
+import { LOCALES } from "@raceiq/shared/platform/i18n/locales";
 import { useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -35,7 +35,6 @@ export function GeneralSection() {
             }}
             options={LOCALES.map((loc) => ({ value: loc.code, label: `${loc.label} (${loc.code})` }))}
             placeholder={m.settings_language_search_placeholder()}
-            focusColor="app-accent"
           />
         </div>
         <p className="text-app-text-muted text-xs mt-1">{m.settings_language_desc()}</p>

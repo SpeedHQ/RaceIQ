@@ -1,7 +1,7 @@
 import { expect, type APIRequestContext, type Page } from "@playwright/test";
 
-import type { GameId } from "../../../../shared/games/ids";
-import type { LapMeta, SessionMeta } from "../../../../shared/racing/sessions/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { LapMeta, SessionMeta } from "@raceiq/shared/racing/sessions/types";
 
 export type SessionRow = Pick<SessionMeta, "id" | "source" | "notes">;
 
@@ -23,10 +23,13 @@ export async function lapsFor(request: APIRequestContext, gameId: GameId): Promi
   return (await response.json()) as LapMeta[];
 }
 
-export async function importDisposableLap(request: APIRequestContext, gameId: GameId, label: string): Promise<DisposableImport> {
+export async function importDisposableLap(request: APIRequestContext, gameId: GameId, label: string, sourceLapId?: number): Promise<DisposableImport> {
   const sessionsBefore = await sessionsFor(request, gameId);
-  const source = (await lapsFor(request, gameId)).find((lap) => lap.isValid);
-  expect(source, `${gameId} needs valid lap for disposable import`).toBeDefined();
+  const available = await lapsFor(request, gameId);
+  const source = sourceLapId == null
+    ? available.find((lap) => lap.isValid && lap.telemetryAvailable && (lap.rawFrameCount ?? 0) > 0)
+    : available.find((lap) => lap.id === sourceLapId && lap.telemetryAvailable && (lap.rawFrameCount ?? 0) > 0);
+  expect(source, `${gameId} needs a valid lap with an available raw capture for disposable import`).toBeDefined();
 
   const exportResponse = await request.get(`/api/laps/${source!.id}/export-bin`);
   expect(exportResponse.ok(), "seeded lap export for disposable import").toBe(true);
@@ -75,16 +78,20 @@ export async function importDisposableLap(request: APIRequestContext, gameId: Ga
 
 export async function cleanDisposable(request: APIRequestContext, disposable: DisposableImport | undefined, gameId: GameId = "fm-2023"): Promise<void> {
   if (!disposable) return;
-  const lapsCleanup = await request.post("/api/laps/bulk-delete", { data: { ids: disposable.lapIds } });
-  expect(lapsCleanup.ok(), "cleanup disposable laps").toBe(true);
   const sessionsCleanup = await request.post("/api/sessions/bulk-delete", { data: { ids: disposable.sessionIds } });
-  expect(sessionsCleanup.ok(), "cleanup disposable sessions").toBe(true);
+  if (!sessionsCleanup.ok()) {
+    const body = await sessionsCleanup.text();
+    expect(sessionsCleanup.ok(), `cleanup disposable sessions: status ${sessionsCleanup.status()}, body: ${body}`).toBe(true);
+  }
   const remaining = await sessionsFor(request, gameId);
   const remainingLaps = await lapsFor(request, gameId);
-  for (const id of disposable.sessionIds) expect(remaining.some((session) => session.id === id)).toBe(false);
-  for (const id of disposable.lapIds) expect(remainingLaps.some((lap) => lap.id === id)).toBe(false);
+  for (const id of disposable.sessionIds) expect(remaining.some((session) => session.id === id), `disposable session ${id} should be absent after cleanup`).toBe(false);
+  for (const id of disposable.lapIds) expect(remainingLaps.some((lap) => lap.id === id), `disposable lap ${id} should be absent after cleanup`).toBe(false);
 }
 
 export function sessionRows(page: Page) {
-  return page.getByRole("row").filter({ has: page.getByRole("button", { name: "Recap", exact: true }) });
+  // Ignore hidden mobile lap tables when expanded sessions render both layouts.
+  // Restrict rows to the session body, excluding header and nested lap rows.
+  return page.locator("[data-slot='table-container'] table:visible").first().locator(":scope > tbody > tr")
+    .filter({ has: page.getByRole("checkbox") });
 }

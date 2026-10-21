@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { drawTrackCanvas } from "../src/lib/comparison-utils";
-import type { AlignedTrace } from "@shared/racing/comparison/types";
+import type { AlignedTrace } from "@raceiq/shared/racing/comparison/types";
 
 function makeContext() {
   const fills: string[] = [];

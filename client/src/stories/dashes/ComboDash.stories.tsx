@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect } from "react";
-import type { GameId } from "../../../../shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 import { ComboDash } from "../../components/dashes/ComboDash";
 import { gameStore } from "../../stores/game";
 import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
@@ -66,10 +66,8 @@ function render({ game, rpm, gear, unitSystem }: Args) {
 
 const meta: Meta<Args> = {
   title: "Dashes/Combo/Combo Dash 1",
-  tags: ["autodocs"],
   parameters: {
     layout: "fullscreen",
-    docs: { story: { inline: true, height: "420px" } },
   },
   argTypes: {
     game: {

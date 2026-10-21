@@ -4,6 +4,7 @@ import { useExperimentVersions } from "../../hooks/experiments";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { FocusTimeline } from "./FocusTimeline";
+import { parseUtcTimestamp } from "@/lib/utc-date";
 /**
  * History panel (design Phase 9) — session-scoped, newest-first action log
  * with a single top-level Undo button that reverses exactly the newest
@@ -50,7 +51,7 @@ export function HistoryPanel({ sessionId, onClose }: { sessionId: number; onClos
               {actions.map((a) => (
                 <li key={a.id} className={`px-3 py-2 text-xs flex items-center justify-between gap-2 ${a.undone ? "opacity-40 line-through" : ""}`}>
                   <span className="text-app-text">{describeAction(a)}</span>
-                  <span className="text-app-text-muted font-mono shrink-0">{new Date(a.createdAt).toLocaleTimeString()}</span>
+                  <span className="text-app-text-muted font-mono shrink-0">{parseUtcTimestamp(a.createdAt).toLocaleTimeString()}</span>
                 </li>
               ))}
             </ul>

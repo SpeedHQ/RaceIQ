@@ -1,4 +1,4 @@
-import type { TuneSettings } from "@shared/racing/tuning/types";
+import type { TuneSettings } from "@raceiq/shared/racing/tuning/types";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { TuneForm, type TuneFormData } from "@/components/tune/form/TuneForm";
@@ -10,7 +10,7 @@ interface TuneResponse {
   id: number;
   name: string;
   author: string;
-  carOrdinal: number;
+  carId: string;
   category: string;
   description: string;
   settings: TuneSettings | null;
@@ -32,7 +32,7 @@ function EditTunePage() {
   const initialData: Partial<TuneFormData> = {
     name: tune.name,
     author: tune.author,
-    carOrdinal: tune.carOrdinal,
+    carId: tune.carId,
     category: tune.category as TuneFormData["category"],
     description: tune.description,
     settings: tune.settings ?? undefined,

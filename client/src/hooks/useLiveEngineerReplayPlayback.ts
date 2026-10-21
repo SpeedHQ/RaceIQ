@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import type { LiveEngineerSessionReplayV1 } from "@shared/racing/live/engineer-replay-contracts";
+import type { LiveEngineerSessionReplayV1 } from "@raceiq/shared/racing/live/engineer-replay-contracts";
 
 export interface ReplayFrameRange {
   startFrameIndex: number;

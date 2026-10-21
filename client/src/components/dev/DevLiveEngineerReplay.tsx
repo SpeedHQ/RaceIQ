@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { AlertTriangle, ChevronLeft, ChevronRight, CircleStop, Clock3, Gauge, Headphones, Map, Pause, Play, Radio, Volume2, VolumeX } from "lucide-react";
-import type { GameId } from "@shared/games/ids";
-import { getAllGames } from "@shared/games/registry";
-import type { SessionMeta } from "@shared/racing/sessions/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import { getAllGames } from "@raceiq/shared/games/registry";
+import type { SessionMeta } from "@raceiq/shared/racing/sessions/types";
 import type {
   LiveEngineerAvailabilityTransitionV1,
   LiveEngineerCalloutSystemV1,
   LiveEngineerReplayAnnotationV1,
   LiveEngineerReplayStage,
   LiveEngineerSessionReplayV1,
-} from "@shared/racing/live/engineer-replay-contracts";
+} from "@raceiq/shared/racing/live/engineer-replay-contracts";
 import { cn } from "@/lib/utils";
 import { normalizeAccCompetitors } from "@/lib/live-telemetry-view";
 import { AccOpponentStandings } from "../acc/AccOpponentStandings";
@@ -105,7 +105,7 @@ function sessionLabel(session: SessionMeta): string {
   const date = new Date(session.createdAt).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" });
   const type = session.sessionType ?? "Session";
   const laps = session.lapCount ?? 0;
-  return `${date} · ${type} · Car ${session.carOrdinal} · Track ${session.trackOrdinal} · ${laps} lap${laps === 1 ? "" : "s"}`;
+  return `${date} · ${type} · Car ${session.carId} · Track ${session.trackId} · ${laps} lap${laps === 1 ? "" : "s"}`;
 }
 
 function humanize(value: string): string {

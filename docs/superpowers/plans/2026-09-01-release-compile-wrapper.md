@@ -4,7 +4,7 @@
 
 **Goal:** Replace PowerShell-native Bun compile arguments with a Bun TypeScript wrapper that preserves JavaScript string literals and produces the Windows release executable.
 
-**Architecture:** `scripts/build/compile-release.ts` owns release-version validation, construction of the exact Bun argument array, and child-process execution. Workflow passes only computed version to this script, so no shell handles `--define` values. A focused tooling test locks argument values and validation behavior.
+**Architecture:** `packages/tooling-build/src/build/compile-release.ts` owns release-version validation, construction of the exact Bun argument array, and child-process execution. Workflow passes only computed version to this script, so no shell handles `--define` values. A focused tooling test locks argument values and validation behavior.
 
 **Tech Stack:** Bun 1.3.14, TypeScript, Bun test, GitHub Actions YAML
 
@@ -22,7 +22,7 @@
 ### Task 1: Add Tested Release Compile Wrapper
 
 **Files:**
-- Create: `scripts/build/compile-release.ts`
+- Create: `packages/tooling-build/src/build/compile-release.ts`
 - Create: `test/tooling/compile-release.test.ts`
 
 **Interfaces:**
@@ -35,7 +35,7 @@ Create `test/tooling/compile-release.test.ts`:
 
 ```ts
 import { describe, expect, test } from "bun:test";
-import { releaseCompileArgs } from "../../scripts/build/compile-release";
+import { releaseCompileArgs } from "../../packages/tooling-build/src/build/compile-release";
 
 describe("releaseCompileArgs", () => {
   test("preserves JavaScript string literals without shell quoting", () => {
@@ -75,11 +75,11 @@ Run:
 bun test test/tooling/compile-release.test.ts
 ```
 
-Expected: FAIL because `scripts/build/compile-release.ts` does not exist.
+Expected: FAIL because `packages/tooling-build/src/build/compile-release.ts` does not exist.
 
 - [ ] **Step 3: Implement minimal compile wrapper**
 
-Create `scripts/build/compile-release.ts`:
+Create `packages/tooling-build/src/build/compile-release.ts`:
 
 ```ts
 export function releaseCompileArgs(version: string): string[] {
@@ -145,7 +145,7 @@ Expected: exit code 0.
 - [ ] **Step 6: Commit wrapper and tests**
 
 ```text
-git add scripts/build/compile-release.ts test/tooling/compile-release.test.ts
+git add packages/tooling-build/src/build/compile-release.ts test/tooling/compile-release.test.ts
 git commit --no-verify -m "fix(release): wrap server compilation"
 ```
 
@@ -158,7 +158,7 @@ git commit --no-verify -m "fix(release): wrap server compilation"
 
 **Interfaces:**
 - Consumes: `needs.compute-version.outputs.version` from `compute-version` job.
-- Produces: workflow invocation `bun scripts/build/compile-release.ts <version>`; artifact path remains `dist/raceiq.exe`.
+- Produces: workflow invocation `bun packages/tooling-build/src/build/compile-release.ts <version>`; artifact path remains `dist/raceiq.exe`.
 
 - [ ] **Step 1: Replace inline PowerShell compile block**
 
@@ -166,7 +166,7 @@ Replace current `Compile server binary` step with:
 
 ```yaml
       - name: Compile server binary
-        run: bun scripts/build/compile-release.ts "${{ needs.compute-version.outputs.version }}"
+        run: bun packages/tooling-build/src/build/compile-release.ts "${{ needs.compute-version.outputs.version }}"
 ```
 
 Do not modify adjacent release steps.
@@ -176,7 +176,7 @@ Do not modify adjacent release steps.
 Run:
 
 ```text
-bun scripts/build/compile-release.ts 0.15.1
+bun packages/tooling-build/src/build/compile-release.ts 0.15.1
 ```
 
 Expected: exit code 0, compile summary reports `dist/raceiq.exe`, and no `@duckdb/node-bindings-*` resolution errors appear.

@@ -14,7 +14,7 @@ import { TrackDebugCanvas } from "./TrackDebugCanvas";
  * Shows outline + boundaries on a large canvas with drag/zoom and diagnostic info sidebar.
  */
 export function TrackDebugPanel({
-  trackOrdinal,
+  trackId,
   outline,
   mapUrl,
   flipX = false,
@@ -27,7 +27,7 @@ export function TrackDebugPanel({
   corners,
   straights,
 }: {
-  trackOrdinal: number;
+  trackId: string;
   outline: Point[] | null;
   mapUrl?: string | null;
   flipX?: boolean;
@@ -51,16 +51,16 @@ export function TrackDebugPanel({
     if (!gid) return;
     setLoading(true);
     Promise.all([
-      client.api["track-boundaries"][":ordinal"]
-        .$get({ param: { ordinal: encodeURIComponent(String(trackOrdinal)) }, query: { gameId: gid ?? undefined } })
+      client.api["track-boundaries"][":trackId"]
+        .$get({ param: { trackId: encodeURIComponent(trackId) }, query: { gameId: gid ?? undefined } })
         .then((r) => (r.ok ? (r.json() as unknown as TrackBoundaries) : null))
         .catch(() => null),
-      client.api["track-curbs"][":ordinal"]
-        .$get({ param: { ordinal: encodeURIComponent(String(trackOrdinal)) }, query: { gameId: gid ?? undefined } })
+      client.api["track-curbs"][":trackId"]
+        .$get({ param: { trackId: encodeURIComponent(trackId) }, query: { gameId: gid ?? undefined } })
         .then((r) => (r.ok ? (r.json() as unknown as TrackCurb[]) : null))
         .catch(() => null),
-      client.api["track-calibration"][":ordinal"].comparison
-        .$get({ param: { ordinal: encodeURIComponent(String(trackOrdinal)) } })
+      client.api["track-calibration"][":trackId"].comparison
+        .$get({ param: { trackId: encodeURIComponent(trackId) } })
         .then((r) => (r.ok ? r.json() : null))
         .catch(() => null),
     ]).then(([b, c, comparison]) => {
@@ -69,16 +69,16 @@ export function TrackDebugPanel({
       setCalibrationComparison(comparison);
       setLoading(false);
     });
-  }, [trackOrdinal, gid]);
+  }, [trackId, gid]);
 
   if (loading) {
     return <div className="text-app-subtext text-app-text-dim py-8 text-center">{m.trackdebugpanel_loading()}</div>;
   }
 
   return (
-    <div className="grid h-auto grid-cols-1 gap-4 @5xl/workspace:h-[calc(100vh-160px)] @5xl/workspace:grid-cols-[1fr_280px]">
+    <div className="grid grid-cols-1 gap-4 @5xl/workspace:h-full @5xl/workspace:min-h-0 @5xl/workspace:grid-cols-[minmax(0,1fr)_280px] @5xl/workspace:grid-rows-[minmax(0,1fr)]">
       {mapUrl?.startsWith("/api/lmu-assets/") ? (
-        <div className="min-h-0 rounded-lg border border-app-border bg-app-bg">
+        <div className="h-[320px] min-h-0 rounded-lg border border-app-border bg-app-bg @5xl/workspace:h-auto">
           <InlineTrackMap src={mapUrl} alt={m.trackdebugpanel_lmu_geometry()} layers="debug" className="h-full w-full p-3" />
         </div>
       ) : (
@@ -101,7 +101,7 @@ export function TrackDebugPanel({
       )}
 
       {/* Info sidebar */}
-      <div className="flex flex-col gap-3 overflow-auto">
+      <div className="flex flex-col gap-3 @5xl/workspace:min-h-0 @5xl/workspace:overflow-auto">
         <div className="bg-app-surface/50 rounded-lg border border-app-border p-3">
           <div className="text-app-label text-app-text-muted uppercase tracking-wider mb-2">{m.trackdebugpanel_outline()}</div>
           <div className="space-y-1 text-app-body">
@@ -143,7 +143,7 @@ export function TrackDebugPanel({
         </div>
 
         <CalibrationComparisonSection comparison={calibrationComparison} showHistory={showCalibrationHistory} onShowHistoryChange={setShowCalibrationHistory} />
-        <CurbDebugSection trackOrdinal={trackOrdinal} curbs={curbs} setCurbs={setCurbs} setBoundaries={setBoundaries} />
+        <CurbDebugSection trackId={trackId} curbs={curbs} setCurbs={setCurbs} setBoundaries={setBoundaries} />
       </div>
     </div>
   );

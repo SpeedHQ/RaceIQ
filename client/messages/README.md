@@ -19,7 +19,7 @@ exactly as they appear in `en.json`.
 
 ## Adding a new language
 
-1. Add an entry to `shared/locales.ts` (`code`, `label`, `aiName`).
+1. Add an entry to `shared/platform/i18n/locales.ts` (`code`, `label`, `aiName`).
 2. Add the same `code` to `locales` in `client/project.inlang/settings.json`.
 3. Create `client/messages/<code>.json` (copy `en.json` as a starting point).
 4. Optionally run `bun run i18n:machine-translate` to pre-fill it from English,
@@ -29,7 +29,12 @@ exactly as they appear in `en.json`.
 
 - **VS Code:** install the [Sherlock](https://inlang.com/m/r7kp499g/app-inlang-ideExtension)
   extension for inline per-locale coverage and missing-key highlighting.
-- **Terminal:** `bun run i18n:validate` reports missing/broken messages.
+- **Terminal:** run `bun run i18n:check-keys` to compare each configured catalog
+  with `en.json`, reporting missing and extra keys.
+- **Project validation:** `bun run i18n:validate` validates inlang project settings;
+  Paraglide compilation does not check translation-key coverage. Paraglide v2
+  deprecated inlang lint rules ([details](https://paraglidejs.com/changelog#lint-rules-were-deprecated)),
+  so use the repository key checker for terminal/CI enforcement.
 - **Fill gaps automatically:** `bun run i18n:machine-translate`.
 
 ## Notes

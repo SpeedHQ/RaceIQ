@@ -7,6 +7,7 @@ import type { VersionInfo } from "@/stores/telemetry";
 import { telemetryStore, useTelemetryStore } from "@/stores/telemetry";
 import { ProcessingMaintenance } from "../ProcessingMaintenance";
 import { getLocale } from "@/paraglide/runtime";
+import { parseUtcTimestamp } from "@/lib/utc-date";
 export function UpdatesSection() {
   const updateAvailable = useTelemetryStore((s) => s.updateAvailable);
   const updateProgress = useTelemetryStore((s) => s.updateProgress);
@@ -74,7 +75,7 @@ export function UpdatesSection() {
         )}
         {versionInfo?.lastChecked && (
           <p>
-            {m.updates_last_checked()} {new Date(versionInfo.lastChecked).toLocaleString(getLocale())}
+            {m.updates_last_checked()} {parseUtcTimestamp(versionInfo.lastChecked).toLocaleString(getLocale())}
           </p>
         )}
       </div>

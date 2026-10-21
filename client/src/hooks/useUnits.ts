@@ -1,8 +1,8 @@
 import { useEffect, useMemo } from "react";
-import type { GameId } from "../../../shared/games/ids";
-import { tryGetGame } from "../../../shared/games/registry";
-import { convertDistance, convertSpeed, distanceLabel, speedLabel } from "../lib/speed";
-import { convertTemp } from "../lib/temperature";
+import type { GameId } from "@raceiq/shared/games/ids";
+import { tryGetGame } from "@raceiq/shared/games/registry";
+import { convertDistance, convertSpeed, distanceLabel, speedLabel } from "@raceiq/frontend-pure/speed";
+import { convertTemp } from "@raceiq/frontend-pure/temperature";
 import { useGameId } from "../stores/game";
 import { telemetryStore } from "../stores/telemetry";
 import { useSettings } from "./settings";
@@ -15,8 +15,8 @@ const DEFAULT_TIRE_TEMP = { cold: 75, warm: 115, hot: 150 };
  * Provides display labels and converters at presentation boundaries.
  * `temp` accepts canonical Celsius semantic values.
  */
-export function useUnits(gameIdOverride?: GameId) {
-  const { displaySettings } = useSettings();
+export function useUnits(gameIdOverride?: GameId, { enabled = true }: { enabled?: boolean } = {}) {
+  const { displaySettings } = useSettings({ enabled });
   const setDisplayUnits = telemetryStore.actions.setDisplayUnits;
   const storeGameId = useGameId();
   const gameId = gameIdOverride ?? storeGameId;

@@ -1,23 +1,25 @@
 import { type ReactNode, useMemo, useRef, useState } from "react";
 import { AppInput } from "@/components/ui/AppInput";
-import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
+import { SortableTableHead } from "@/components/ui/sortable-table-head";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { SearchSelect } from "@/components/ui/SearchSelect";
+import { ToggleGroup03 } from "@/components/shadcn-studio/toggle-group/toggle-group-03";
 import { m } from "@/paraglide/messages";
 import { TuneBrowserRow } from "./TuneBrowserRow";
 import type { SourceTab, TuneRow } from "./types";
 
 export interface SetupBrowserProps {
   rows: TuneRow[];
-  carNames: Record<number, string>;
-  trackNames: Record<number, string>;
+  carNames: Record<string, string>;
+  trackNames: Record<string, string>;
   trackOptions: Array<{ value: string; label: string }>;
   carOptions: Array<{ value: string; label: string }>;
   sources: SourceTab[];
   renderSettings: (row: TuneRow) => ReactNode;
   onClone?: (row: TuneRow) => void;
   onEdit?: (row: TuneRow) => void;
-  onDelete?: (row: TuneRow) => void;
+  onDelete?: (row: TuneRow) => Promise<void>;
   onDuplicate?: (row: TuneRow) => void;
   isDuplicating?: boolean;
   onNewTune?: () => void;
@@ -35,12 +37,6 @@ export interface SetupBrowserProps {
 
 const PAGE_SIZE = 10;
 
-// Active-tab colouring per source.
-const TAB_ACTIVE: Record<string, string> = {
-  all: "border-app-accent text-app-accent",
-  community: "border-(--tune-source-community) text-(--tune-source-community)",
-  user: "border-(--tune-source-user) text-(--tune-source-user)",
-};
 
 export function SetupBrowser(props: SetupBrowserProps) {
   const { rows, trackOptions, carOptions, sources } = props;
@@ -56,13 +52,13 @@ export function SetupBrowser(props: SetupBrowserProps) {
   const visible = useMemo(() => {
     const authorQuery = author.trim().toLowerCase();
     const filtered = rows.filter((r) => {
-      if (track && r.trackOrdinal !== Number(track)) return false;
-      if (car && r.carOrdinal !== Number(car)) return false;
+      if (track && r.trackId !== track) return false;
+      if (car && r.carId !== car) return false;
       if (source !== "all" && r.source !== source) return false;
       if (authorQuery && !r.author.toLowerCase().includes(authorQuery)) return false;
       return true;
     });
-    filtered.sort((a, b) => {
+    if (track) filtered.sort((a, b) => {
       const ta = a.lapTimeSec ?? Number.POSITIVE_INFINITY;
       const tb = b.lapTimeSec ?? Number.POSITIVE_INFINITY;
       if (ta === tb) return 0;
@@ -96,19 +92,25 @@ export function SetupBrowser(props: SetupBrowserProps) {
   };
 
   return (
-    <div className="w-full min-w-0 p-3 pb-20 text-app-text @3xl/workspace:p-4">
+    <div className="min-w-0 p-4">
       <div className="flex flex-wrap items-center gap-2 pb-4">
-        {sources.map((s) => (
-          <Button
-            type="button"
-            key={s.key}
-            className={`text-app-caption uppercase tracking-wide px-2.5 py-1.5 rounded border ${source === s.key ? (TAB_ACTIVE[s.key] ?? TAB_ACTIVE.all) : "border-app-border text-app-text-muted hover:text-app-text-secondary"}`}
-            onClick={() => pickSource(s.key)}
-          >
-            {s.label}
-          </Button>
-        ))}
-        <AppInput type="text" value={author} placeholder={m.setup_search_author()} onChange={(e) => pickAuthor(e.target.value)} className="text-app-compact w-40" />
+        <div className="min-w-0 max-w-full overflow-x-auto">
+          <ToggleGroup03
+            ariaLabel="Setup sources"
+            value={source}
+            onValueChange={(value) => {
+              if (sources.some((item) => item.key === value)) pickSource(value as SourceTab["key"]);
+            }}
+            options={sources.map((item) => ({ value: item.key, label: item.label }))}
+          />
+        </div>
+        <AppInput
+          type="search"
+          value={author}
+          onChange={(event) => pickAuthor(event.target.value)}
+          placeholder={m.setup_search_author()}
+          className="h-8 w-40"
+        />
         {props.onRefresh && (
           <Button
             type="button"
@@ -154,29 +156,32 @@ export function SetupBrowser(props: SetupBrowserProps) {
         </div>
       </div>
 
-      <Table fit layout="fixed">
-        <THead>
-          <TH>{m.setup_table_rank()}</TH>
-          <TH>{m.setup_table_tune()}</TH>
-          <TH showFrom="workspace-md">{m.label_car()}</TH>
-          <TH showFrom="workspace-md">{m.label_track()}</TH>
-          <TH showFrom="workspace-md">{m.label_category()}</TH>
-          <TH showFrom="workspace-md">{m.label_author()}</TH>
-          <SortableTH align="end" direction={sortAsc ? "ascending" : "descending"} onSort={() => setSortAsc((ascending) => !ascending)}>
-            {m.label_lap()}
-          </SortableTH>
-          <TH showFrom="workspace-md" visuallyHidden>
-            {m.label_actions()}
-          </TH>
-        </THead>
-        <TBody>
+      <Table className="table-fixed">
+        <TableHeader>
+          <TableRow>
+            <TableHead>{m.setup_table_rank()}</TableHead>
+            <TableHead>{m.setup_table_tune()}</TableHead>
+            <TableHead className="hidden @3xl/workspace:table-cell">{m.label_car()}</TableHead>
+            <TableHead className="hidden @3xl/workspace:table-cell">{m.label_track()}</TableHead>
+            <TableHead className="hidden @3xl/workspace:table-cell">{m.label_category()}</TableHead>
+            <TableHead className="hidden @3xl/workspace:table-cell">{m.label_author()}</TableHead>
+            {track && (
+              <SortableTableHead className="text-right" direction={sortAsc ? "ascending" : "descending"} onSort={() => setSortAsc((ascending) => !ascending)}>
+                {m.label_lap()}
+              </SortableTableHead>
+            )}
+            <TableHead className="hidden @3xl/workspace:table-cell sr-only">{m.label_actions()}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {pageRows.map((row, index) => (
             <TuneBrowserRow
               key={row.key}
               row={row}
               rank={safePage * PAGE_SIZE + index + 1}
-              carName={props.carNames[row.carOrdinal] ?? `Car #${row.carOrdinal}`}
-              trackName={row.trackOrdinal != null ? (props.trackNames[row.trackOrdinal] ?? `Track #${row.trackOrdinal}`) : null}
+              showLapTime={Boolean(track)}
+              carName={props.carNames[row.carId] ?? `Car #${row.carId}`}
+              trackName={row.trackId != null ? (props.trackNames[row.trackId] ?? `Track #${row.trackId}`) : null}
               isOpen={openKey === row.key}
               onToggle={() => setOpenKey(openKey === row.key ? null : row.key)}
               onClone={props.onClone}
@@ -189,13 +194,13 @@ export function SetupBrowser(props: SetupBrowserProps) {
             />
           ))}
           {visible.length === 0 && (
-            <TRow variant="separator">
-              <TD align="center" colSpan={8} tone="primary">
+            <TableRow>
+              <TableCell className="text-center" colSpan={track ? 8 : 7}>
                 <div className="py-10">{m.setup_no_matches()}</div>
-              </TD>
-            </TRow>
+              </TableCell>
+            </TableRow>
           )}
-        </TBody>
+        </TableBody>
       </Table>
 
       {visible.length > 0 && (
@@ -221,7 +226,7 @@ export function SetupBrowser(props: SetupBrowserProps) {
           </Button>
         </div>
       )}
-      <p className="text-app-caption text-app-text-dim mt-2.5">{m.setup_sort_info()}</p>
+      {track && <p className="text-app-caption text-app-text-dim mt-2.5">{m.setup_sort_info()}</p>}
     </div>
   );
 }

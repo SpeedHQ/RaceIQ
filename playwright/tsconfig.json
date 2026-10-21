@@ -10,10 +10,7 @@
     "types": ["bun", "@playwright/test"],
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "paths": {
-      "@shared/*": ["../shared/*"]
-    },
     "esModuleInterop": true
   },
-  "include": ["config/**/*.ts", "support/**/*.ts", "tests/**/*.ts"]
+  "include": ["config/**/*.ts", "support/**/*.ts", "tests/**/*.ts", "upgrade-smoke.config.ts"]
 }

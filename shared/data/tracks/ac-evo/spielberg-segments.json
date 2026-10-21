@@ -1,4 +1,5 @@
 {
+  "override": true,
   "sectors": {
     "s1End": 0.2642,
     "s2End": 0.7037,
@@ -18,11 +19,16 @@
     {
       "key": "s1",
       "startFrac": 0.1005,
-      "endFrac": 0.255
+      "endFrac": 0.2031
+    },
+    {
+      "key": "t2",
+      "startFrac": 0.2031,
+      "endFrac": 0.2626
     },
     {
       "key": "t3",
-      "startFrac": 0.255,
+      "startFrac": 0.2626,
       "endFrac": 0.319
     },
     {
@@ -43,26 +49,41 @@
     {
       "key": "t5",
       "startFrac": 0.55,
-      "endFrac": 0.6435
+      "endFrac": 0.5851
     },
     {
       "key": "t6",
+      "startFrac": 0.5851,
+      "endFrac": 0.6435
+    },
+    {
+      "key": "s6",
       "startFrac": 0.6435,
-      "endFrac": 0.7037
+      "endFrac": 0.6587
     },
     {
       "key": "t7",
-      "startFrac": 0.7037,
-      "endFrac": 0.7529
+      "startFrac": 0.6587,
+      "endFrac": 0.696
     },
     {
       "key": "s7",
-      "startFrac": 0.7529,
-      "endFrac": 0.7978
+      "startFrac": 0.696,
+      "endFrac": 0.7113
+    },
+    {
+      "key": "t8",
+      "startFrac": 0.7113,
+      "endFrac": 0.7342
+    },
+    {
+      "key": "s8",
+      "startFrac": 0.7342,
+      "endFrac": 0.8329
     },
     {
       "key": "t9",
-      "startFrac": 0.7978,
+      "startFrac": 0.8329,
       "endFrac": 0.877
     },
     {

@@ -1,9 +1,9 @@
 import { resolve } from "node:path";
-import { SHARED_DIR } from "@shared/platform/runtime/data-paths";
+import { gameAssetsDir } from "../../../platform/runtime/data-paths";
 import { readDataFile } from "../storage/files";
 import type { TrackBoundary } from "./types";
 
-const accTrackDir = resolve(SHARED_DIR, "tracks", "acc");
+const accTrackDir = resolve(gameAssetsDir("acc"), "tracks");
 const boundaryCache = new Map<string, TrackBoundary | null>();
 
 type XY = { x: number; y: number };

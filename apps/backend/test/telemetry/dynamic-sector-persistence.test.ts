@@ -1,0 +1,32 @@
+import { expect, test } from "bun:test";
+import { deleteSession, insertSession } from "@raceiq/backend-core/db/session-queries";
+import { getLapById, getLaps } from "@raceiq/backend-core/db/lap-read-queries";
+import { insertLap } from "@raceiq/backend-core/db/lap-mutation-queries";
+
+test("ordered six-sector times round-trip without a three-sector projection", async () => {
+  const sessionId = await insertSession("car-990134", "track-991134", "iracing");
+  try {
+    const sectorTimes = [8.125, 10.25, 11.375, 12.5, 9.625, 10.75];
+    const lapId = await insertLap(
+      sessionId,
+      1,
+      sectorTimes.reduce((sum, time) => sum + time, 0),
+      true,
+      null,
+      0,
+      null,
+      null,
+      null,
+      sectorTimes,
+      null,
+    );
+
+    const stored = (await getLaps("iracing")).find((lap) => lap.id === lapId);
+    expect(stored?.sectorTimes).toEqual(sectorTimes);
+
+    const detail = await getLapById(lapId);
+    expect(detail?.sectorTimes).toEqual(sectorTimes);
+  } finally {
+    await deleteSession(sessionId);
+  }
+});

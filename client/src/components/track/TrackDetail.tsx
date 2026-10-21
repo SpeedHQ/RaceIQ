@@ -1,26 +1,25 @@
-import { segmentDisplayNames } from "@shared/racing/tracks/segment-label";
+import { segmentDisplayNames } from "@raceiq/shared/racing/tracks/segment-label";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AccTrackGuide, AccTrackSetups } from "@/components/acc/AccTrackSetups";
-import { F125Leaderboard } from "@/components/f1/F125Leaderboard";
 import { F125TrackGuide } from "@/components/f1/f125/TrackGuide";
 import { F125SetupsWithGuide } from "@/components/f1/f125/TrackSetups";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useBulkDeleteLaps } from "@/hooks/laps";
-import { drawTrack } from "@/lib/canvas/draw-track";
-import { countryName } from "@/lib/country-names";
+import { queryKeys } from "@/hooks/query-keys";
+import { drawTrack, type PitLine } from "@/lib/canvas/draw-track";
 import { storedLapsSectorCount } from "@/lib/lap-sectors";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { useGameId } from "@/stores/game";
+import { parseUtcTimestamp } from "@/lib/utc-date";
 import { CatalogTrackSetups } from "./CatalogTrackSetups";
-import { CommunityLeaderboard } from "./CommunityLeaderboard";
 import { TrackDebugPanel } from "./debug/TrackDebugPanel";
 import { LapManagement } from "./detail/LapManagement";
 import { TrackCanvasPanel } from "./detail/TrackCanvasPanel";
 import { TrackDebugSidebar } from "./detail/TrackDebugSidebar";
-import type { TrackLap } from "./detail/types";
+import type { TrackLap, TrackLapSortKey } from "./detail/types";
 import { useTrackSegmentEditor } from "./detail/useTrackSegmentEditor";
 import { TrackInfoPanel } from "./TrackInfoPanel";
 import type { Point, TrackInfo, TrackSectors, TrackSegment } from "./types";
@@ -46,6 +45,7 @@ export function TrackDetail({
   const gid = gameId ?? undefined;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [outline, setOutline] = useState<Point[] | null>(null);
+  const [pitLines, setPitLines] = useState<PitLine[]>([]);
   const [flipX, setFlipX] = useState(false);
   const [sectors, setSectors] = useState<TrackSectors | null>(null);
   const [segSource, setSegSource] = useState<string>(""); // "user" | "extracted" | "named" | "shared" | "auto"
@@ -58,6 +58,8 @@ export function TrackDetail({
   panRef.current = pan;
   const dragging = useRef<{ startX: number; startY: number; startPanX: number; startPanZ: number } | null>(null);
   const [mapDisplayMode, setMapDisplayMode] = useState<"segments" | "sectors">("segments");
+  const [hoveredSegments, setHoveredSegments] = useState<readonly number[] | null>(null);
+  const [hoveredSector, setHoveredSector] = useState<number | null>(null);
   const [editing, setEditing] = useState(false);
   const [editSegments, setEditSegments] = useState<TrackSegment[]>([]);
   const [saving, setSaving] = useState(false);
@@ -67,9 +69,9 @@ export function TrackDetail({
   const [editS2, setEditS2] = useState(66.6);
   const [savingSectors, setSavingSectors] = useState(false);
   const [selectedDivision, setSelectedDivision] = useState<string | null>(null);
-  const [selectedCars, setSelectedCars] = useState<Set<number>>(new Set());
+  const [selectedCars, setSelectedCars] = useState<Set<string>>(new Set());
   const [selectedLaps, setSelectedLaps] = useState<Set<number>>(new Set());
-  const [sortBy, setSortBy] = useState<"time" | "lap" | "date">("time");
+  const [sortBy, setSortBy] = useState<TrackLapSortKey>("time");
   const [sortAsc, setSortAsc] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -77,13 +79,13 @@ export function TrackDetail({
   const isAcc = gameId === "acc";
   const isAcEvo = gameId === "ac-evo";
   const hideClassCol = isF125 || isAcc || isAcEvo;
-  const trackKey = gameId === "lmu" ? track.id! : track.ordinal;
+  const trackKey = track.id;
 
   const hasForzaTunes = gameId === "fm-2023";
   // Forza + AC-EVO share the catalog-driven master-detail setups panel.
   const hasCatalogSetups = hasForzaTunes || isAcEvo;
   const { startEditing, updateSegFrac, toggleSegType, addSegment, removeSegment, saveSegments, startEditingSectors, saveSectorBounds } = useTrackSegmentEditor({
-    trackOrdinal: track.ordinal,
+    trackId: track.id,
     gameId: gid,
     sectors,
     setSectors,
@@ -109,51 +111,78 @@ export function TrackDetail({
         ? (["info", "laps", "setups", "guide", "debug"] as const)
         : (["info", "laps", "debug"] as const);
   type Tab = (typeof allTabs)[number];
-  const validTabs = allTabs;
+  const validTabs = import.meta.env.DEV ? allTabs : allTabs.filter((tab) => tab !== "debug");
   // The tab is the route — the URL owns it, not this component. A tab the
   // current game doesn't have falls back to info rather than rendering blank.
   const activeTab: Tab = (validTabs as readonly string[]).includes(tab) ? (tab as Tab) : "info";
 
-  const { data: trackMapData } = useQuery({
-    queryKey: ["track-map", trackKey, gameId ?? null],
+  useEffect(() => {
+    setHoveredSegments(null);
+    setHoveredSector(null);
+  }, [activeTab, trackKey, gameId]);
+
+  const { data: sectorData, isFetched: sectorsFetched } = useQuery({
+    queryKey: [...queryKeys.trackSectors(trackKey), gameId ?? null],
     queryFn: () =>
-      Promise.all([
-        client.api["track-outline"][":ordinal"]
-          .$get({ param: { ordinal: encodeURIComponent(String(trackKey)) }, query: { gameId: gid ?? undefined } })
-          .then((r) => r.json() as unknown as { points?: Point[]; flipX?: boolean } | Point[]),
-        client.api["track-sectors"][":ordinal"]
-          .$get({ param: { ordinal: encodeURIComponent(String(trackKey)) }, query: { gameId: gid! } })
-          .then((r) => r.json() as unknown as (TrackSectors & { source?: string }) | null),
-        client.api["track-sector-boundaries"][":ordinal"]
-          .$get({ param: { ordinal: encodeURIComponent(String(trackKey)) }, query: { gameId: gid! } })
-          .then((r) => r.json() as unknown as { s1End: number; s2End: number } | null),
-      ]).then(([outlineData, sectorData, boundsData]) => ({ outlineData, sectorData, boundsData })),
-    enabled: !!gameId && (track.hasOutline || !!track.hasMap),
+      client.api["track-sectors"][":trackId"]
+        .$get({ param: { trackId: encodeURIComponent(trackKey) }, query: { gameId: gid! } })
+        .then((r) => r.json() as unknown as (TrackSectors & { source?: string }) | null),
+    enabled: !!gameId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: boundsData, isFetched: boundsFetched } = useQuery({
+    queryKey: [...queryKeys.trackSectorBoundaries(trackKey), gameId ?? null],
+    queryFn: () =>
+      client.api["track-sector-boundaries"][":trackId"]
+        .$get({ param: { trackId: encodeURIComponent(trackKey) }, query: { gameId: gid! } })
+        .then((r) => r.json() as unknown as { s1End: number; s2End: number } | null),
+    enabled: !!gameId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: outlineData } = useQuery({
+    queryKey: [...queryKeys.trackOutline(trackKey), gameId ?? null],
+    queryFn: () =>
+      client.api["track-outline"][":trackId"]
+        .$get({ param: { trackId: encodeURIComponent(trackKey) }, query: { gameId: gid ?? undefined } })
+        .then((r) => r.json() as unknown as { points?: Point[]; pitLines?: PitLine[]; flipX?: boolean } | Point[]),
+    // Return lightweight facts before cold outline alignment can block the server.
+    enabled: !!gameId && (track.hasOutline || !!track.hasMap) && sectorsFetched && boundsFetched,
     staleTime: 5 * 60 * 1000,
   });
 
   useEffect(() => {
-    if (!trackMapData) return;
-    const { outlineData, sectorData, boundsData } = trackMapData;
     if (!Array.isArray(outlineData) && outlineData?.points && Array.isArray(outlineData.points)) {
       setOutline(outlineData.points);
+      setPitLines(Array.isArray(outlineData.pitLines) ? outlineData.pitLines : []);
       setFlipX(outlineData.flipX ?? false);
     } else if (Array.isArray(outlineData)) {
       setOutline(outlineData as Point[]);
+      setPitLines([]);
+      setFlipX(false);
     } else {
       setOutline(null);
+      setPitLines([]);
+      setFlipX(false);
     }
-    setSectors(sectorData);
-    setSegSource((sectorData as (TrackSectors & { source?: string }) | null)?.source ?? "");
+  }, [outlineData]);
+
+  useEffect(() => {
+    setSectors(sectorData ?? null);
+    setSegSource(sectorData?.source ?? "");
+  }, [sectorData]);
+
+  useEffect(() => {
     setSectorBounds(boundsData ?? (gameId === "lmu" ? { s1End: 1 / 3, s2End: 2 / 3 } : null));
-  }, [trackMapData, track.hasOutline, gameId]);
+  }, [boundsData, gameId]);
 
   // Fetch all laps for this track
   const { data: trackLapsData = [], refetch: refetchLaps } = useQuery<TrackLap[]>({
     queryKey: ["track-laps", trackKey, gameId ?? null],
     queryFn: () =>
-      client.api.tracks[":trackOrdinal"]["all-laps"]
-        .$get({ param: { trackOrdinal: encodeURIComponent(String(trackKey)) }, query: { gameId: gameId ?? undefined } } as never)
+      client.api.tracks[":trackId"]["all-laps"]
+        .$get({ param: { trackId: encodeURIComponent(trackKey) }, query: { gameId: gameId ?? undefined } } as never)
         .then((r) => r.json() as unknown as TrackLap[] | null)
         .then((data) => data ?? []),
     staleTime: 30 * 1000,
@@ -166,14 +195,16 @@ export function TrackDetail({
 
   useEffect(() => {
     if (!outline || !canvasRef.current) return;
-    const showSectors = editingSectors || mapDisplayMode === "sectors";
+    const previewSegment = activeTab === "info" ? hoveredSegments : null;
+    const previewSector = activeTab === "info" ? hoveredSector : null;
+    const showSectors = previewSegment == null && (previewSector != null || editingSectors || mapDisplayMode === "sectors");
     const sectorBoundsForDraw = editingSectors ? { starts: [0, editS1 / 100, editS2 / 100] } : sectorBounds ? { starts: [0, sectorBounds.s1End, sectorBounds.s2End] } : undefined;
     const sectorOverride = showSectors ? sectorBoundsForDraw : undefined;
     // While editing, every turn of a complex gets its own label so the row
     // being edited is identifiable on the map; otherwise the complex is
     // labelled once under its group name.
-    drawTrack(canvasRef.current, outline, true, showSectors ? null : displaySectors, zoom, pan, sectorOverride, flipX, undefined, editing);
-  }, [outline, displaySectors, zoom, pan, editingSectors, editS1, editS2, mapDisplayMode, sectorBounds, activeTab, flipX, editing]);
+    drawTrack(canvasRef.current, outline, true, showSectors ? null : displaySectors, zoom, pan, sectorOverride, flipX, undefined, editing, previewSegment, previewSector, pitLines);
+  }, [outline, pitLines, displaySectors, zoom, pan, editingSectors, editS1, editS2, mapDisplayMode, sectorBounds, activeTab, flipX, editing, hoveredSegments, hoveredSector]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -216,9 +247,9 @@ export function TrackDetail({
 
   // Lap manager: unique cars, filtered & sorted laps
   const uniqueCars = useMemo(() => {
-    const map = new Map<number, { carOrdinal: number; carName: string; carClass: string }>();
+    const map = new Map<string, { carId: string; carName: string; carClass: string }>();
     for (const l of trackLaps) {
-      if (!map.has(l.carOrdinal)) map.set(l.carOrdinal, { carOrdinal: l.carOrdinal, carName: l.carName, carClass: l.carClass });
+      if (!map.has(l.carId)) map.set(l.carId, { carId: l.carId, carName: l.carName, carClass: l.carClass });
     }
     return Array.from(map.values()).sort((a, b) => a.carName.localeCompare(b.carName));
   }, [trackLaps]);
@@ -228,17 +259,6 @@ export function TrackDetail({
     return [...divs].sort();
   }, [trackLaps]);
 
-  const filteredLaps = useMemo(() => {
-    return trackLaps
-      .filter((l) => selectedCars.size === 0 || selectedCars.has(l.carOrdinal))
-      .filter((l) => !selectedDivision || l.division === selectedDivision)
-      .sort((a, b) => {
-        const cmp = sortBy === "time" ? a.lapTime - b.lapTime : sortBy === "date" ? new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime() : a.lapNumber - b.lapNumber;
-        return sortAsc ? cmp : -cmp;
-      });
-  }, [trackLaps, selectedCars, selectedDivision, sortBy, sortAsc]);
-  const sectorCount = storedLapsSectorCount(filteredLaps);
-
   const sessionLapCounts = useMemo(() => {
     if (!isF125) return new Map<number, number>();
     const counts = new Map<number, number>();
@@ -247,13 +267,45 @@ export function TrackDetail({
     }
     return counts;
   }, [isF125, trackLaps]);
+  const filteredLaps = useMemo(() => {
+    return trackLaps
+      .filter((l) => selectedCars.size === 0 || selectedCars.has(l.carId))
+      .filter((l) => !selectedDivision || l.division === selectedDivision)
+      .sort((a, b) => {
+        let cmp: number;
+        if (typeof sortBy === "number") {
+          const aTime = a.sectorTimes?.[sortBy] ?? 0;
+          const bTime = b.sectorTimes?.[sortBy] ?? 0;
+          if (aTime <= 0 || bTime <= 0) return (aTime <= 0 ? 1 : 0) - (bTime <= 0 ? 1 : 0);
+          cmp = aTime - bTime;
+        } else {
+          switch (sortBy) {
+            case "car": cmp = a.carName.localeCompare(b.carName); break;
+            case "class": cmp = a.carClass.localeCompare(b.carClass) || a.pi - b.pi; break;
+            case "type": {
+              const aType = a.sessionId != null && (sessionLapCounts.get(a.sessionId) ?? 0) > 1 ? m.track_detail_race() : m.track_detail_quali();
+              const bType = b.sessionId != null && (sessionLapCounts.get(b.sessionId) ?? 0) > 1 ? m.track_detail_race() : m.track_detail_quali();
+              cmp = aType.localeCompare(bType);
+              break;
+            }
+            case "notes": cmp = (a.notes ?? "").localeCompare(b.notes ?? ""); break;
+            case "date": cmp = (a.createdAt ? parseUtcTimestamp(a.createdAt).getTime() : 0) - (b.createdAt ? parseUtcTimestamp(b.createdAt).getTime() : 0); break;
+            case "lap": cmp = a.lapNumber - b.lapNumber; break;
+            case "time": cmp = a.lapTime - b.lapTime; break;
+          }
+        }
+        return sortAsc ? cmp : -cmp;
+      });
+  }, [trackLaps, selectedCars, selectedDivision, sortBy, sortAsc, sessionLapCounts]);
+  const sectorCount = storedLapsSectorCount(filteredLaps);
+
   const hasSessionTypes = useMemo(() => {
     if (!isF125) return false;
     const vals = [...sessionLapCounts.values()];
     return vals.some((c) => c > 1) && vals.some((c) => c === 1);
   }, [isF125, sessionLapCounts]);
 
-  const toggleCar = useCallback((ord: number) => {
+  const toggleCar = useCallback((ord: string) => {
     setSelectedCars((prev) => {
       const next = new Set(prev);
       if (next.has(ord)) next.delete(ord);
@@ -291,7 +343,7 @@ export function TrackDetail({
   }, [selectedLaps, refetchLaps, bulkDelete]);
 
   const handleSort = useCallback(
-    (col: "time" | "lap" | "date") => {
+    (col: TrackLapSortKey) => {
       if (sortBy === col) setSortAsc((a) => !a);
       else {
         setSortBy(col);
@@ -302,9 +354,9 @@ export function TrackDetail({
   );
 
   return (
-    <div className="p-4 overflow-auto h-full">
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-y-auto p-4 @3xl/workspace:overflow-hidden">
       {/* Header */}
-      <div className="mb-4 flex flex-col gap-3 @3xl/workspace:flex-row @3xl/workspace:items-center">
+      <div className="mb-4 flex shrink-0 flex-col gap-3 @3xl/workspace:flex-row @3xl/workspace:items-center">
         <div className="flex items-center gap-3 min-w-0">
           <Button
             type="button"
@@ -316,10 +368,8 @@ export function TrackDetail({
             &larr; {m.common_back()}
           </Button>
           <div className="min-w-0">
-            <div className="text-app-heading font-semibold text-app-text">{track.name}</div>
-            <div className="text-app-label text-app-text-muted">
-              {track.variant} · {track.location}, {countryName(track.country)}
-              {track.lengthKm > 0 && ` · ${track.lengthKm} km`}
+            <div className="text-app-heading font-semibold text-app-text">
+              {track.name}{track.variant ? ` - ${track.variant}` : ""}
             </div>
           </div>
         </div>
@@ -345,10 +395,10 @@ export function TrackDetail({
 
       {/* Debug: full-page view with segments/sectors sidebar */}
       {activeTab === "debug" ? (
-        <div className="flex gap-4 h-[calc(100vh-160px)]">
-          <div className="flex-1 min-h-0 overflow-hidden">
+        <div className="flex shrink-0 flex-col gap-4 @3xl/workspace:min-h-0 @3xl/workspace:flex-1 @3xl/workspace:shrink @3xl/workspace:flex-row @3xl/workspace:overflow-hidden">
+          <div className="min-w-0 @3xl/workspace:min-h-0 @3xl/workspace:flex-1 @3xl/workspace:overflow-auto @5xl/workspace:overflow-hidden">
             <TrackDebugPanel
-              trackOrdinal={track.ordinal}
+              trackId={track.id}
               outline={outline}
               mapUrl={track.mapUrl}
               flipX={flipX}
@@ -391,24 +441,13 @@ export function TrackDetail({
           />
         </div>
       ) : (
-        <div className="flex flex-col gap-4 @5xl/workspace:h-[calc(100vh-160px)] @5xl/workspace:overflow-hidden">
-          <div className="flex min-h-0 flex-1 flex-col gap-4 @3xl/workspace:overflow-hidden">
-            {/* Track map — hidden on setups tab so the setups panel can take the full left column */}
-            {activeTab !== "setups" && (
-              <div className={`flex shrink-0 flex-col gap-3 @3xl/workspace:flex-row ${activeTab === "guide" && isF125 ? "@3xl/workspace:h-[160px]" : "@3xl/workspace:h-[320px]"}`}>
-                {/* Info summary left of map, same shape as the laps leaderboard */}
-                {activeTab === "info" && (
-                  <div className="order-2 min-h-[200px] w-full shrink-0 overflow-auto @3xl/workspace:order-1 @3xl/workspace:min-h-0 @3xl/workspace:w-[560px]">
-                    <TrackInfoPanel track={track} sectors={displaySectors} sectorBounds={sectorBounds} segSource={segSource} lapCount={trackLaps.length} gameId={gameId} part="summary" />
-                  </div>
-                )}
-
-                {/* Leaderboard left of map on laps tab */}
-                {activeTab === "laps" && (
-                  <div className="order-2 min-h-[200px] w-full shrink-0 overflow-hidden @3xl/workspace:order-1 @3xl/workspace:min-h-0 @3xl/workspace:w-[560px]">
-                    {isF125 ? <F125Leaderboard trackOrdinal={track.ordinal} /> : <CommunityLeaderboard trackName={track.name} trackVariant={track.variant} />}
-                  </div>
-                )}
+        <div className="flex shrink-0 flex-col gap-4 @3xl/workspace:min-h-0 @3xl/workspace:flex-1 @3xl/workspace:shrink @3xl/workspace:overflow-hidden">
+          <div className="flex flex-col gap-4 @3xl/workspace:min-h-0 @3xl/workspace:flex-1 @3xl/workspace:overflow-hidden">
+            {/* Track map — reference views only; laps and setups use the full workspace. */}
+            {activeTab !== "setups" && activeTab !== "laps" && (
+              <div className={activeTab === "info"
+                ? "grid shrink-0 grid-cols-1 gap-3 @3xl/workspace:min-h-0 @3xl/workspace:flex-1 @3xl/workspace:shrink @3xl/workspace:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] @3xl/workspace:grid-rows-[minmax(0,1fr)] @3xl/workspace:overflow-hidden"
+                : `flex shrink-0 flex-col gap-3 @3xl/workspace:flex-row ${isF125 ? "@3xl/workspace:h-[min(160px,35%)]" : "@3xl/workspace:h-[min(320px,45%)]"}`}>
                 <TrackCanvasPanel
                   track={track}
                   outline={outline}
@@ -425,36 +464,37 @@ export function TrackDetail({
                   corners={corners}
                   straights={straights}
                 />
+                {activeTab === "info" && (
+                  <div className="min-w-0 @3xl/workspace:min-h-0 @3xl/workspace:overflow-auto">
+                    <TrackInfoPanel track={track} sectors={displaySectors} sectorBounds={sectorBounds} segSource={segSource} gameId={gameId} onSegmentHover={outline ? setHoveredSegments : undefined} onSectorHover={outline ? setHoveredSector : undefined} />
+                  </div>
+                )}
               </div>
             )}
 
             {/* Tab content */}
-            <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+            <div className={`flex flex-col @3xl/workspace:min-h-0 @3xl/workspace:flex-1 @3xl/workspace:overflow-auto ${activeTab === "info" ? "hidden" : ""}`}>
               {/* Setups tab — no outer scroll, component handles its own */}
               {activeTab === "setups" && (
                 <div className="flex-1 min-h-0">
-                  {isF125 && <F125SetupsWithGuide trackOrdinal={track.ordinal} trackName={track.name} />}
-                  {isAcc && <AccTrackSetups trackOrdinal={track.ordinal} />}
-                  {hasCatalogSetups && gameId && <CatalogTrackSetups gameId={gameId} trackName={track.name} trackVariant={track.variant} trackOrdinal={track.ordinal} />}
+                  {isF125 && <F125SetupsWithGuide trackId={track.id} trackName={track.name} />}
+                  {isAcc && <AccTrackSetups trackId={track.id} />}
+                  {hasCatalogSetups && gameId && <CatalogTrackSetups gameId={gameId} trackName={track.name} trackVariant={track.variant} trackId={track.id} />}
                 </div>
               )}
 
               {activeTab === "guide" && isAcc && (
                 <div className="flex-1 min-h-0">
-                  <AccTrackGuide trackOrdinal={track.ordinal} trackName={track.name} />
+                  <AccTrackGuide trackId={track.id} trackName={track.name} />
                 </div>
               )}
               {activeTab === "guide" && isF125 && (
                 <div className="flex-1 min-h-0 p-2">
-                  <F125TrackGuide trackOrdinal={track.ordinal} />
+                  <F125TrackGuide trackId={track.id} />
                 </div>
               )}
 
-              <div className={`min-h-0 flex-1 ${activeTab === "laps" ? "@3xl/workspace:overflow-hidden" : "overflow-auto"} ${activeTab === "setups" || activeTab === "guide" ? "hidden" : ""}`}>
-                {/* Info tab — guide + segments read full width under the map */}
-                {activeTab === "info" && (
-                  <TrackInfoPanel track={track} sectors={displaySectors} sectorBounds={sectorBounds} segSource={segSource} lapCount={trackLaps.length} gameId={gameId} part="details" />
-                )}
+              <div className={`@3xl/workspace:min-h-0 @3xl/workspace:flex-1 ${activeTab === "laps" ? "@3xl/workspace:overflow-hidden" : "@3xl/workspace:overflow-auto"} ${activeTab === "setups" || activeTab === "guide" ? "hidden" : ""}`}>
 
                 {activeTab === "laps" && (
                   <LapManagement

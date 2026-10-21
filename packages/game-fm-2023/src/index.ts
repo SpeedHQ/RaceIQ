@@ -1,0 +1,82 @@
+import type { ServerGameAdapter } from "@raceiq/backend-core/games/types";
+import { forzaAdapter } from "@raceiq/game-fm-2023-metadata/index";
+import { fmCarCatalog } from "@raceiq/game-fm-2023-metadata/racing/cars/fm";
+import { fmTrackCatalog } from "@raceiq/game-fm-2023-metadata/racing/tracks/catalogs/fm";
+import { getForzaSharedOutline } from "@raceiq/game-catalogs/racing/tracks/geometry/outlines";
+import { LapDetector } from "@raceiq/backend-core/lap-detection/detector";
+import { renderAnalystSchemaForPrompt } from "@raceiq/backend-core/ai/schemas";
+import { forzaParser } from "./game-parser";
+
+const FORZA_SYSTEM_PROMPT = `You are an expert Forza Motorsport racing engineer and driving coach. Analyse the telemetry data provided and give specific, actionable feedback.
+
+Your response MUST be valid JSON matching this exact schema. Output ONLY the JSON object, no markdown fences, no extra text.
+
+${renderAnalystSchemaForPrompt()}
+
+CATEGORY GUIDELINES:
+- "pace": 4-6 items covering speed, throttle %, braking efficiency, full-throttle time, gear usage. Each with a concrete value.
+- "handling": 4-6 items covering suspension travel, tire temps, tire wear balance, oversteer/understeer, weight transfer. Each with a concrete value.
+- "corners": Top 3-5 problem corners where time is being lost. Include speed numbers.
+- "technique": 3-5 actionable driving tips. Reference specific telemetry values.
+
+THERMAL REFERENCE (Forza Motorsport, generic):
+- Tyre surface temp (road/sport/street): optimal 70-95°C, warning 50-69°C or 96-115°C, critical <50°C or >115°C.
+- Tyre surface temp (race compound): optimal 85-105°C, warning 65-84°C or 106-125°C, critical <65°C or >125°C.
+- Brake disc temp: optimal 300-600°C for steel/race, warning <250°C or >700°C, critical <150°C or >800°C.
+- Tyre wear (per-tyre %): good 0-20%, warning 20-50%, critical >50% — pace loss becomes meaningful past 30%.
+Grade \`pace\` and \`handling\` \`assessment\` values against these bands; note when the data suggests a different compound/class than assumed.
+
+RULES:
+- Reference specific numbers from the data — don't be vague
+- Be specific and actionable, not generic
+- Address the driver as "you"
+- Output ONLY valid JSON, nothing else`;
+
+export const forzaServerAdapter: ServerGameAdapter = {
+	parserStateIsFrameLocal: true,
+	...forzaAdapter,
+
+	runtime: {
+		pit: {
+			seedFuelFromHistory: true,
+			seedTireWearFromHistory: false,
+			useDistanceBasedWearCurves: false,
+		},
+		bestLapFromSession: false,
+		requiresTrackCalibration: true,
+		normSuspensionTravelMm: { min: 20, max: 80 },
+	},
+
+	processNames: ["ForzaMotorsport.exe", "forza_steamworks_release_final"],
+
+	getCarName(carId: string) {
+		const car = fmCarCatalog.get(Number(carId));
+		if (!car) return `Car #${carId}`;
+		return `${car.year} ${car.make} ${car.model}`;
+	},
+
+	getTrackName(trackId: string) {
+		const track = fmTrackCatalog.get(Number(trackId));
+		if (!track) return `Track #${trackId}`;
+		return `${track.name} - ${track.variant}`;
+	},
+
+	getSharedTrackName(trackId: string) {
+		return getForzaSharedOutline(Number(trackId));
+	},
+
+	canHandle: forzaParser.canHandle,
+	tryParse(buf, state) {
+		return forzaParser.tryParse(buf, state as never);
+	},
+	tryParseLapIndex(buf, state) {
+		return forzaParser.tryParseLapIndex(buf, state as never);
+	},
+	primeParserState(buf, state) {
+		forzaParser.primeParserState(buf, state as never);
+	},
+	createParserState: forzaParser.createParserState,
+	createLapDetector: (opts) => new LapDetector(opts),
+
+	aiSystemPrompt: FORZA_SYSTEM_PROMPT,
+};

@@ -1,5 +1,5 @@
 import { Select } from "@base-ui/react/select";
-import { getAllGames } from "@shared/games/registry";
+import { getAllGames } from "@raceiq/shared/games/registry"
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   Binary,
@@ -8,8 +8,8 @@ import {
   Code2,
   FlaskConical,
   Gamepad2,
-  History,
   Gauge,
+  History,
   GitCompareArrows,
   House,
   LayoutDashboard,
@@ -58,7 +58,7 @@ type SidebarLinkProps = {
 };
 
 function SidebarLink({ collapsed, exact = false, icon: Icon, label, logoSrc, onClick, to }: SidebarLinkProps) {
-  const className = `flex min-h-9 items-center gap-2 border-l-2 px-3 text-xs font-semibold uppercase tracking-wider transition-colors ${collapsed ? "justify-center px-0" : ""}`;
+  const className = `flex min-h-9 items-center gap-2 px-3 text-xs font-semibold transition-colors ${collapsed ? "justify-center px-0" : ""}`;
   const activeProps = { className: `${className} border-app-accent bg-app-surface-alt text-app-accent` };
   const inactiveProps = { className: `${className} border-transparent text-app-text-muted hover:bg-app-surface-hover hover:text-app-text-secondary` };
   const content = (
@@ -95,7 +95,7 @@ function SidebarLink({ collapsed, exact = false, icon: Icon, label, logoSrc, onC
 }
 
 function SidebarAction({ children, collapsed, label, onClick, className: customClassName }: { children: ReactNode; collapsed: boolean; label: string; onClick: () => void; className?: string }) {
-  const className = `w-full justify-start ${collapsed ? "justify-center px-0" : ""} ${customClassName ?? ""}`;
+  const className = `w-full min-h-9 justify-start px-3 py-0 text-xs font-semibold ${collapsed ? "justify-center px-0" : "px-3"} ${customClassName ?? ""}`;
 
   if (!collapsed) {
     return (
@@ -255,7 +255,7 @@ export function AppSidebar({
                 to="/"
                 onClick={onClose}
                 aria-label={m.nav_home()}
-                className={`flex min-h-9 min-w-0 items-center gap-2 border-l-2 border-transparent px-1 text-xs font-semibold uppercase tracking-wider text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text-secondary ${
+                className={`flex min-h-9 min-w-0 items-center gap-2 border-l-2 border-transparent px-1 text-xs font-semibold text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text-secondary ${
                   showCollapsed ? "size-9 justify-center px-0" : "flex-1"
                 }`}
               >
@@ -346,8 +346,7 @@ export function AppSidebar({
           </div>
         ) : null}
 
-        <div className="mt-auto border-t border-app-border p-2">
-          <SidebarLink collapsed={showCollapsed} icon={Gauge} label={m.tab_live()} to="/live" onClick={onClose} />
+        <div className="mt-auto border-t border-app-border py-2 pr-2 pl-0">
           {import.meta.env.DEV && <SidebarLink collapsed={showCollapsed} icon={Code2} label={m.nav_dev()} to="/dev" onClick={onClose} />}
           {updateAvailable && (
             <SidebarAction collapsed={showCollapsed} label={updateLabel} onClick={handleUpdate}>

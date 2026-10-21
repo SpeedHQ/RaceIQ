@@ -8,11 +8,11 @@ import type { Car, Formatters } from "./types";
 
 type CarsGridProps = {
   cars: Car[];
-  selected: Set<number>;
+  selected: Set<string>;
   configsReady: boolean;
-  onSelect: (ordinal: number) => void;
+  onSelect: (carId: string) => void;
   onDetail: (car: Car) => void;
-  onModel: (ordinal: number) => void;
+  onModel: (carId: string) => void;
 } & Formatters;
 
 export function CarsGrid({ cars, selected, configsReady, onSelect, onDetail, onModel, fmtSpeed, fmtBrake, fmtWeight }: CarsGridProps) {
@@ -22,11 +22,11 @@ export function CarsGrid({ cars, selected, configsReady, onSelect, onDetail, onM
     <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
       {cars.map((car) => {
         const specs = car.specs!;
-        const isSelected = selected.has(car.ordinal);
+        const isSelected = selected.has(car.id);
         return (
           // oxlint-disable-next-line a11y/useSemanticElements: card contains nested checkbox and navigation button
           <div
-            key={car.ordinal}
+            key={car.id}
             role="button"
             tabIndex={0}
             onClick={() => onDetail(car)}
@@ -43,7 +43,7 @@ export function CarsGrid({ cars, selected, configsReady, onSelect, onDetail, onM
                 type="checkbox"
                 checked={isSelected}
                 onClick={(event) => event.stopPropagation()}
-                onChange={() => onSelect(car.ordinal)}
+                onChange={() => onSelect(car.id)}
                 className="w-3.5 h-3.5 accent-app-accent cursor-pointer"
               />
             </div>
@@ -53,13 +53,13 @@ export function CarsGrid({ cars, selected, configsReady, onSelect, onDetail, onM
               ) : (
                 <div className="text-xs text-app-text/90">{m.cars_no_image()}</div>
               )}
-              {configsReady && getCarModel(car.ordinal).hasModel && (
+              {configsReady && getCarModel(car.id).hasModel && (
                 <Button
                   variant="app-primary"
                   size="app-sm"
                   onClick={(event) => {
                     event.stopPropagation();
-                    onModel(car.ordinal);
+                    onModel(car.id);
                   }}
                   className="absolute top-2 right-2 !px-1.5 !py-0.5 text-app-micro font-bold bg-app-accent/80 hover:bg-app-accent-hover border border-app-accent/30"
                   title={m.cars_view_3d_model()}

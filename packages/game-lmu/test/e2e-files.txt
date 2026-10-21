@@ -1,0 +1,3 @@
+packages/game-lmu/test/e2e/lmu-live-recording-fixture.test.ts
+packages/game-lmu/test/e2e/lmu-multi-lap-dump.test.ts
+packages/game-lmu/test/e2e/lmu-recording-fixture.test.ts

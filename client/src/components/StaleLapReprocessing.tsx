@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { canStartReprocess, submitStaleSessionReprocess } from "@/lib/reprocess-state";
 import { client } from "@/lib/rpc";
+import { invalidateDashboardQueries } from "@/hooks/dashboard";
 import { m } from "@/paraglide/messages";
 import { telemetryStore, useTelemetryStore } from "@/stores/telemetry";
 
@@ -18,9 +19,6 @@ function ReprocessStatusIcon({ status }: { status: "submitting" | "progressing" 
 
 export function StaleLapReprocessing({ notificationPlacement = "fixed" }: { notificationPlacement?: "fixed" | "inline" } = {}) {
   const staleLapDetection = useTelemetryStore((state) => state.staleLapDetection);
-  const captureMigration = useTelemetryStore((state) => state.captureMigration);
-  const captureMigrationStatusReady = useTelemetryStore((state) => state.captureMigrationStatusReady);
-  const captureMigrationState = useTelemetryStore((state) => state.captureMigrationState);
   const reprocessState = useTelemetryStore((state) => state.reprocessState);
   const dismissReprocess = telemetryStore.actions.dismissReprocess;
 
@@ -35,15 +33,15 @@ export function StaleLapReprocessing({ notificationPlacement = "fixed" }: { noti
     try {
       await submitStaleSessionReprocess(() => client.api.sessions["reprocess-stale"].$post());
       telemetryStore.actions.setStaleLapDetection(null);
+      invalidateDashboardQueries();
       telemetryStore.actions.completeReprocess();
     } catch {
       telemetryStore.actions.failReprocess(m.root_reprocessing_failed_description());
     }
   };
 
-  const migrationPending = Boolean(captureMigration?.captureCount) || captureMigrationState.status === "running";
-  const showNotification = captureMigrationStatusReady && !migrationPending && staleLapDetection && reprocessState.status === "idle";
-  const showDialog = captureMigrationStatusReady && !migrationPending && reprocessState.open;
+  const showNotification = Boolean(staleLapDetection) && reprocessState.status === "idle";
+  const showDialog = reprocessState.open;
   if (!showNotification && !showDialog) return null;
 
   const title =
@@ -59,7 +57,7 @@ export function StaleLapReprocessing({ notificationPlacement = "fixed" }: { noti
 
   return (
     <>
-      {showNotification && (
+      {showNotification && staleLapDetection && (
         <div role="status" className={`${notificationPlacement === "fixed" ? "fixed right-4 bottom-4 z-50 " : ""}w-72 rounded-lg border border-status-info/30 bg-app-surface p-4 shadow-xl`}>
           <div className="mb-2 flex items-center gap-2">
             <RefreshCw aria-hidden="true" className="size-4 shrink-0 text-status-info" />

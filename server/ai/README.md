@@ -20,6 +20,6 @@ Collect all AI-facing logic: deterministic telemetry symptom extraction, prompt 
 - `track-guides` owns track-name -> guide slug resolution and label normalization.
 
 ## Testing
-- Type-check changed surface with TypeScript: `bunx tsc --noEmit`.
+- Type-check changed surface with Bun: `bun check`.
 - Smoke affected user flow through server route tests that touch auto-tune and chat providers (or rerun targeted `bun test` subsets if focused on AI quality).
 - For logic-only verification, compare generated symptom payloads from `telemetryToSymptoms` against known telemetry fixtures before/after edits for invariants like `null` on missing channels and stable aggregate shape.

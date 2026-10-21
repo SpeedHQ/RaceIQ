@@ -63,7 +63,7 @@ For each case, functional tests should open game home, sessions, tracks, track d
 | Chats | all | Conversation selection, new/delete flows, empty/loading/error states, prompt submission, streamed response handling, Analyse/Compare/Tune context, and unsupported AI configuration | Response quality with paid providers remains opt-in |
 | Tracks and track detail | all | Search, sorting, map controls, detail/tab navigation, geometry/capability routes, sector/segment controls, lap actions, imports, guide/setup links, no-data/error states, and cleanup | Transition-rich lap evidence remains recording-dependent |
 | Cars | all | Every game catalog, search/category filters, detail navigation, table/grid modes, compare controls, setup links, empty states, keyboard/accessible selection, and unsupported routes | External model/image availability is not semantic coverage |
-| Setups/tunes | FM, F1, ACC, AC Evo | Source/author/track/car filters, pagination, create/edit/import/validation, clone/duplicate/delete/refresh, persisted state, F1 and ACC workflows, and honest unsupported CRUD controls | AC Evo native setup inspection depends on installed-game evidence and is asserted as unavailable when absent |
+| Setups/tunes | FM, F1, ACC, AC Evo | Source/author/track/car filters, pagination, create/edit/import/validation, clone/duplicate/delete/refresh, persisted state, F1 and ACC workflows, and honest unsupported CRUD controls | AC Evo native setup inspection is unavailable |
 | Raw telemetry | all | Catalog metadata, populated/unsupported/static/event categories, provenance, replay-driven changes, and AC Evo parsed/fields/verify/hex inspection | Event fields stay fixture-limited when recording contains no transition |
 | Dash catalogue/combinations | global | Loading/error/no-data states, both combo routes, dashboard selection, persisted layout, responsive fit, replay-driven values, disconnect state, and route navigation | FM combo-2 completed-lap pace values remain fixture-limited by bounded replay |
 | Dev tools | global | Recording list/viewer, AC Evo parsed/fields/verify/hex tabs, replay scrubber, disconnect isolation, invalid/empty responses, dump import, and cleanup | Native provider status is reported honestly when game process is absent |
@@ -174,19 +174,41 @@ inspection confirms project selection and artifact paths, but only an observed
 GitHub run confirms runner behavior. Mobile/tablet projects use real Playwright
 touch/user-agent emulation in Chromium; they are not physical-device tests.
 
-### Recorded same-lap telemetry contract
+### Release database upgrade regression
 
-Use isolated test storage. POSIX:
+`apps/backend/test/e2e/database-upgrade.test.ts` belongs to the existing recording
+E2E collection. Run only this scenario with:
 
 ```sh
-DATA_DIR="$PWD/.data-test" bun test test/e2e test/telemetry/catalog/telemetry-catalog-fm-2023-e2e.test.ts test/telemetry/catalog/telemetry-catalog-f1-2025-e2e.test.ts test/telemetry/catalog/telemetry-catalog-acc-e2e.test.ts test/telemetry/catalog/telemetry-catalog-ac-evo-e2e.test.ts test/telemetry/catalog/telemetry-catalog-iracing-e2e.test.ts
+bun test apps/backend/test/e2e/database-upgrade.test.ts
 ```
 
-Windows PowerShell:
+The test selects the highest locally available stable `vX.Y.Z` tag, installs
+its frozen dependencies in temporary storage, and uses that release's `db:seed`
+with the Tourist recording. Current working-branch server then opens the same
+database and captures. Stale lap times and layout are deliberately set before
+startup while existing detector markers remain filled. The test does not call
+reprocessing directly: normal server startup must trigger reconciliation.
+Assertions require native Tourist layout and valid finish times 398.781 s and
+401.277 s, with no stale lap times left afterward.
 
-```powershell
-$env:DATA_DIR=(Join-Path (Get-Location) '.data-test')
-bun test test/e2e test/telemetry/catalog/telemetry-catalog-fm-2023-e2e.test.ts test/telemetry/catalog/telemetry-catalog-f1-2025-e2e.test.ts test/telemetry/catalog/telemetry-catalog-acc-e2e.test.ts test/telemetry/catalog/telemetry-catalog-ac-evo-e2e.test.ts test/telemetry/catalog/telemetry-catalog-iracing-e2e.test.ts
+Fetch release tags before running. Requires Git, `tar`, Bun, and access to release
+dependencies. Release installation is isolated from current workspace links;
+only temporary databases are upgraded. Working data and checkout stay intact.
+
+### Recorded same-lap telemetry contract
+
+Owner runners allocate isolated test storage and ignore inherited production
+`DATA_DIR`. The same command works in POSIX shells and PowerShell:
+
+```sh
+bun run test:e2e:recordings
+```
+
+For one simulator, use its owner task without cache reuse:
+
+```sh
+bun scripts/test/run-turbo.ts test:e2e:recordings --filter=@raceiq/game-acc --force
 ```
 
 Failures must report game, recording, selected lap segment, semantic or packet field, observed range, and required range.

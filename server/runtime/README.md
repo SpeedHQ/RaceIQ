@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`server/runtime` owns process orchestration: configuration and filesystem locations, logging, HTTP/WebSocket and UDP listeners, native telemetry-source supervision, desktop integration, update scheduling, and graceful shutdown. `bootServer()` is the server entry point; `server/index.ts` installs console capture before calling it.
+`server/runtime` owns process orchestration: configuration and filesystem locations, logging, HTTP/WebSocket and UDP listeners, native telemetry-source supervision, desktop integration, update scheduling, and graceful shutdown. `bootServer()` is the server entry point; `apps/backend/src/index.ts` installs console capture before calling it.
 
 ## Structure
 
@@ -27,4 +27,4 @@
 
 ## Testing
 
-Focused coverage lives in `test/runtime-options.test.ts`, `test/settings.test.ts`, `test/source-supervisor.test.ts`, `test/update-check.test.ts`, and `test/e2e/udp-recording.test.ts`. Network or lifecycle changes also require exercising startup, listener restart, WebSocket connect/disconnect, platform guards, update scheduling, and signal-driven shutdown without changing their order or external contracts.
+Focused coverage lives in `test/runtime-options.test.ts`, `test/settings.test.ts`, `test/source-supervisor.test.ts`, `test/update-check.test.ts`, and `apps/backend/test/e2e/udp-recording.test.ts`. Network or lifecycle changes also require exercising startup, listener restart, WebSocket connect/disconnect, platform guards, update scheduling, and signal-driven shutdown without changing their order or external contracts.

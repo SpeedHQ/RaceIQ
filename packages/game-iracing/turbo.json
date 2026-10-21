@@ -1,0 +1,16 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tags": ["game"],
+  "tasks": {
+    "test": {
+      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/test/artifacts/sessions/iracing-road-america-gt3.bin.gz", "$TURBO_ROOT$/test/artifacts/sessions/iracing-daytona-am-vantage-gt3-pit.bin.gz"]
+    },
+    "test:integration": {
+      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/test/artifacts/sessions/iracing-road-america-gt3.bin.gz"]
+    },
+    "test:e2e:recordings": {
+      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/test/artifacts/sessions/iracing-road-america-gt3.bin.gz", "$TURBO_ROOT$/test/artifacts/sessions/iracing-daytona-am-vantage-gt3-pit.bin.gz"]
+    }
+  }
+}

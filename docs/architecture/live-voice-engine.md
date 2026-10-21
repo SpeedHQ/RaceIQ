@@ -198,10 +198,10 @@ Do not add a line by reading raw game packets in the renderer or by making the b
 - `server/live-strategy/live-engineer-renderer.ts` — text and segment rendering
 - `server/live-strategy/live-engineer-runtime.ts` — queue, priority, expiry, dedupe, cooldown
 - `shared/racing/live/engineer-contracts.ts` — WebSocket message contracts
-- `shared/telemetry/live/semantics.ts` — per-game semantic requirements
-- `scripts/catalog/crewchief-callout-coverage.ts` — CrewChief event/group coverage matrix
-- `server/games/acc/broadcast-protocol.ts` — ACC Broadcasting Network Protocol v4 binary parser/encoder
-- `server/games/acc/broadcast-client.ts` — ACC UDP registration and receive lifecycle
-- `server/games/acc/broadcast-state.ts` — ACC entry-list/realtime join and semantic snapshot
+- `packages/telemetry-core/src/telemetry/live/semantics.ts` — per-game semantic requirements
+- `packages/tooling-catalog/src/catalog/crewchief-callout-coverage.ts` — CrewChief event/group coverage matrix
+- `packages/capture-formats/src/acc/broadcast-protocol.ts` — ACC Broadcasting Network Protocol v4 binary parser/encoder
+- `packages/game-acc/src/broadcast-client.ts` — ACC UDP registration and receive lifecycle
+- `packages/capture-formats/src/acc/broadcast-state.ts` — ACC entry-list/realtime join and semantic snapshot
 - `client/src/stores/live-engineer.ts` — browser callout and voice queues
 - `client/src/lib/live-engineer-playback-session.ts` — playback status transitions

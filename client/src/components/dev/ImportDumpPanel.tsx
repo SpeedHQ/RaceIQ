@@ -1,19 +1,21 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
-import type { SessionOwnership } from "../../../../shared/racing/sessions/types";
+import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import { OwnershipChoice } from "../import/OwnershipChoice";
 import { formatLapTime } from "@/lib/format";
 import { m } from "@/paraglide/messages";
 import { Button } from "../ui/button";
+import { queryKeys } from "@/hooks/query-keys";
+import { authenticatedFetch } from "@/lib/rpc";
 interface ImportedLap {
   lapId: number;
   sessionId: number;
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
-  carId: number | string;
-  trackId: number | string;
+  carId: string;
+  trackId: string;
 }
 
 interface ImportResult {
@@ -45,7 +47,7 @@ export function ImportDumpPanel() {
     });
   };
 
-  const hasIdentity = (value: number | string) => typeof value === "string" ? value.length > 0 : value > 0;
+  const hasIdentity = (value: string) => value.length > 0;
   const handleSelect = (f: File | null) => {
     setFile(f);
     setResult(null);
@@ -61,7 +63,7 @@ export function ImportDumpPanel() {
       const form = new FormData();
       form.append("file", file);
       form.append("ownership", ownership);
-      const res = await fetch("/api/dev/import-dump", {
+      const res = await authenticatedFetch("/api/dev/import-dump", {
         method: "POST",
         body: form,
       });
@@ -74,6 +76,7 @@ export function ImportDumpPanel() {
         // Refresh lap/session lists so new data appears in the app
         qc.invalidateQueries({ queryKey: ["laps"] });
         qc.invalidateQueries({ queryKey: ["sessions"] });
+        qc.invalidateQueries({ queryKey: queryKeys.userTunes });
       }
     } catch (e) {
       setError((e as Error).message);

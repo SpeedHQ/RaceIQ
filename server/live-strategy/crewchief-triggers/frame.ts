@@ -1,6 +1,6 @@
-import type { GameId } from "../../../shared/games/ids";
-import type { ResolvedValue } from "../../../shared/telemetry/resolver/contracts";
-import type { LiveResolvedSemanticFrame } from "../../telemetry/live-projector";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { ResolvedValue } from "@raceiq/shared/telemetry/resolver/contracts";
+import type { LiveResolvedSemanticFrame } from "@raceiq/telemetry-core/telemetry/live-projector";
 import type { CrewChiefTriggerContextV1 } from "./contracts";
 
 const finite = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);

@@ -67,15 +67,15 @@
   <line x1="351.2" y1="504.7" x2="326.2" y2="511.9" stroke="#d1d5db" stroke-width="1" />
   <text x="326.2" y="511.9" text-anchor="end" class="name" fill="#111827">T13 Piff Paff</text>
   <line x1="281.3" y1="523.1" x2="256.3" y2="530.2" stroke="#d1d5db" stroke-width="1" />
-  <text x="256.3" y="530.2" text-anchor="end" class="name" fill="#111827">T14 Campus</text>
+  <text x="256.3" y="530.2" text-anchor="end" class="name" fill="#111827">T14 Stavelot</text>
   <line x1="263.7" y1="453.4" x2="237.7" y2="454.0" stroke="#d1d5db" stroke-width="1" />
-  <text x="237.7" y="454.0" text-anchor="end" class="name" fill="#111827">T15 Stavelot</text>
+  <text x="237.7" y="454.0" text-anchor="end" class="name" fill="#111827">T15 Courbe Paul Frère</text>
   <line x1="354.2" y1="418.9" x2="328.4" y2="415.3" stroke="#d1d5db" stroke-width="1" />
   <text x="328.4" y="415.3" text-anchor="end" class="name" fill="#6b7280">St5 363m</text>
   <line x1="464.2" y1="435.2" x2="438.4" y2="431.9" stroke="#d1d5db" stroke-width="1" />
-  <text x="438.4" y="431.9" text-anchor="end" class="name" fill="#111827">T16 Courbe Paul Frère</text>
+  <text x="438.4" y="431.9" text-anchor="end" class="name" fill="#111827">T16 Blanchimont</text>
   <line x1="557.1" y1="401.1" x2="559.7" y2="375.3" stroke="#d1d5db" stroke-width="1" />
-  <text x="559.7" y="375.3" text-anchor="start" class="name" fill="#111827">T17 Blanchimont</text>
+  <text x="559.7" y="375.3" text-anchor="start" class="name" fill="#111827">T17</text>
   <line x1="591.6" y1="321.9" x2="599.3" y2="297.1" stroke="#d1d5db" stroke-width="1" />
   <text x="599.3" y="297.1" text-anchor="start" class="name" fill="#6b7280">St6 264m</text>
   <line x1="629.3" y1="261.6" x2="639.3" y2="237.6" stroke="#d1d5db" stroke-width="1" />

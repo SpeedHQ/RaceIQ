@@ -1,13 +1,13 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { SessionCleanupRequest, SessionCleanupResult } from "@shared/racing/sessions/cleanup";
+import type { SessionCleanupRequest, SessionCleanupResult } from "@raceiq/shared/racing/sessions/cleanup"
 import { SessionCleanupDialog } from "@/components/SessionCleanupDialog";
-import { SessionRecapModal } from "@/components/SessionRecapModal";
 import { Button } from "@/components/ui/button";
 import { useDeleteLap, useLaps } from "@/hooks/laps";
 import { queryKeys } from "@/hooks/query-keys";
 import { useSessions } from "@/hooks/session-queries";
+import { invalidateDashboardQueries } from "@/hooks/dashboard";
 import { useResolveNames } from "@/hooks/catalog-queries";
 import { client } from "@/lib/rpc";
 import { exportLapsZip } from "@/lib/lap-export";
@@ -20,7 +20,7 @@ import { SessionDesktopTable } from "./SessionDesktopTable";
 import { SessionMobileList } from "./SessionMobileList";
 import { SessionImportModal } from "./SessionImportModal";
 import { SessionToolbar } from "./SessionToolbar";
-import type { SessionMeta } from "@shared/racing/sessions/types";
+import type { SessionMeta } from "@raceiq/shared/racing/sessions/types";
 import type { LapSortKey, SessionSelectionEvent, SessionsTab, SortDir, SortKey } from "./types";
 
 export function SessionsPage() {
@@ -36,9 +36,9 @@ export function SessionsPage() {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [lapSortKey, setLapSortKey] = useState<LapSortKey>("lap");
   const [lapSortDir, setLapSortDir] = useState<SortDir>("asc");
-  const trackOrdinals = useMemo(() => [...new Set(sessions.map((session) => session.trackOrdinal).filter((ordinal): ordinal is number => !!ordinal))].sort((a, b) => a - b), [sessions]);
-  const carOrdinals = useMemo(() => [...new Set(sessions.map((session) => session.carOrdinal).filter((ordinal): ordinal is number => !!ordinal))].sort((a, b) => a - b), [sessions]);
-  const { data: resolvedNames } = useResolveNames(trackOrdinals, carOrdinals);
+  const trackIds = useMemo(() => [...new Set(sessions.map((session) => session.trackId).filter((id): id is string => id != null))].sort(), [sessions]);
+  const carIds = useMemo(() => [...new Set(sessions.map((session) => session.carId).filter((id): id is string => id != null))].sort(), [sessions]);
+  const { data: resolvedNames } = useResolveNames(trackIds, carIds);
   const trackNames = resolvedNames?.trackNames ?? {};
   const lapsBySession = useMemo(() => groupLapsBySession(allLaps), [allLaps]);
   const carNames = resolvedNames?.carNames ?? {};
@@ -53,7 +53,6 @@ export function SessionsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [cleanupRequest, setCleanupRequest] = useState<SessionCleanupRequest | null>(null);
-  const [recapSessionId, setRecapSessionId] = useState<number | null>(null);
   const routeSearch = useSearch({ strict: false }) as { tab?: string };
   const tab: SessionsTab = routeSearch.tab === "others" ? "others" : "mine";
   const setTab = useCallback(
@@ -176,7 +175,8 @@ export function SessionsPage() {
       setSelectedLaps(new Set());
       setSelectedSessions(new Set());
       setConfirmDelete(false);
-      await Promise.all([queryClient.invalidateQueries({ queryKey: queryKeys.sessions }), queryClient.invalidateQueries({ queryKey: queryKeys.laps })]);
+      await Promise.all([queryClient.invalidateQueries({ queryKey: queryKeys.sessions }), queryClient.invalidateQueries({ queryKey: queryKeys.laps }), queryClient.invalidateQueries({ queryKey: queryKeys.userTunes })]);
+      invalidateDashboardQueries();
     } catch (error) {
       setDeleteError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -200,7 +200,9 @@ export function SessionsPage() {
         queryClient.invalidateQueries({ queryKey: queryKeys.laps }),
         queryClient.invalidateQueries({ queryKey: queryKeys.storageSessions }),
         queryClient.invalidateQueries({ queryKey: queryKeys.cacheStatus }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.userTunes }),
       ]);
+      invalidateDashboardQueries();
     },
     [allLaps, queryClient],
   );
@@ -211,13 +213,12 @@ export function SessionsPage() {
     },
     [queryClient],
   );
-  const showSessionType = gameId === "f1-2025" || gameId === "lmu";
+  const showSessionType = gameId === "f1-2025" || gameId === "lmu" || gameId === "acc" || gameId === "ac-evo";
   const colCount = showSessionType ? 9 : 8;
   const emptyMessage = favoriteOnly ? m.sessions_none_favorites() : tab === "others" ? m.sessions_none_others() : m.sessions_none();
 
   return (
     <div className="h-full flex flex-col p-4 gap-3">
-      {recapSessionId != null && <SessionRecapModal sessionId={recapSessionId} gameId={gameId} onClose={() => setRecapSessionId(null)} />}
       {importOpen && (
         <SessionImportModal
           gameId={gameId}
@@ -225,6 +226,8 @@ export function SessionsPage() {
           onImported={() => {
             void queryClient.invalidateQueries({ queryKey: queryKeys.sessions });
             void queryClient.invalidateQueries({ queryKey: queryKeys.laps });
+            void queryClient.invalidateQueries({ queryKey: queryKeys.userTunes });
+            invalidateDashboardQueries();
           }}
         />
       )}
@@ -279,9 +282,6 @@ export function SessionsPage() {
         lapSortDir={lapSortDir}
         toggleLapSort={toggleLapSort}
         saveSessionNotes={saveSessionNotes}
-        exporting={exporting}
-        runExport={runExport}
-        setRecapSessionId={setRecapSessionId}
       />
       <SessionDesktopTable
         lapsBySession={lapsBySession}
@@ -310,9 +310,6 @@ export function SessionsPage() {
         lapSortDir={lapSortDir}
         toggleLapSort={toggleLapSort}
         saveSessionNotes={saveSessionNotes}
-        exporting={exporting}
-        runExport={runExport}
-        setRecapSessionId={setRecapSessionId}
       />
       {totalPages > 1 && (
         <div className="flex items-center justify-between text-xs text-app-text/90">

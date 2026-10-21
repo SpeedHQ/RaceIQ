@@ -1,6 +1,9 @@
 import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
+import Database from "libsql";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { restoreSeededDatabase } from "./seeded-database";
+import { DEFAULT_GAMES } from "@raceiq/tooling-data/data/seed-db-options";
 
 export function seedE2ESetupData(repoDir: string, dataDir: string): void {
   const setupHome = resolve(dataDir, "setup-home");
@@ -12,17 +15,41 @@ export function seedE2ESetupData(repoDir: string, dataDir: string): void {
   copyFileSync(resolve(repoDir, "test", "artifacts", "carsetup", "Default-12312.carsetup"), resolve(acEvoDir, "e2e.carsetup"));
 }
 
+// This large capture is covered by game-lmu recording tests; the small LMU session
+// still seeds landing flows without making screenshot setup exceed CI resources.
+const EXCLUDED_SCREENSHOT_SEED_FIXTURES = [
+  "test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part1",
+  "test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part2",
+] as const;
 export function seedScreenshotData(repoDir: string, dataDir: string): void {
   if (process.env.PW_SEED_SCREENSHOTS !== "1") return;
+  if (process.env.PW_SEEDED_DATABASE) {
+    restoreSeededDatabase(repoDir, dataDir, process.env.PW_SEEDED_DATABASE);
+  } else {
+    const seedArgs = [
+      "run",
+      "apps/backend/scripts/data/seed-db.ts",
+      `--games=${process.env.PW_SEED_GAMES ?? DEFAULT_GAMES.join(",")}`,
+      ...EXCLUDED_SCREENSHOT_SEED_FIXTURES.map((fixture) => `--exclude-fixture=${fixture}`),
+    ];
+    const result = spawnSync("bun", seedArgs, {
+      cwd: repoDir,
+      env: { ...process.env, DATA_DIR: dataDir },
+      stdio: "inherit",
+    });
 
-  const result = spawnSync("bun", ["run", "scripts/data/seed-db.ts", `--games=${process.env.PW_SEED_GAMES ?? "fm-2023,f1-2025,acc,ac-evo,iracing"}`], {
-    cwd: repoDir,
-    env: { ...process.env, DATA_DIR: dataDir },
-    stdio: "inherit",
-  });
+    if (result.error) throw result.error;
+    if (result.status !== 0) {
+      const cause = result.signal ? `signal ${result.signal}` : `exit code ${result.status ?? "unknown"}`;
+      throw new Error(`Screenshot database seed failed with ${cause}`);
+    }
+  }
 
-  if (result.error) throw result.error;
-  if (result.status !== 0) {
-    throw new Error(`Screenshot database seed failed with exit code ${result.status ?? "unknown"}`);
+  // Generic screenshot fixtures are not the startup-migration scenario; that flow has isolated coverage.
+  const database = new Database(resolve(dataDir, "app.db"));
+  try {
+    database.prepare("DELETE FROM session_capture_split_jobs WHERE status IN ('queued', 'failed')").run();
+  } finally {
+    database.close();
   }
 }

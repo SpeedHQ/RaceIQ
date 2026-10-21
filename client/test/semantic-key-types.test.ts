@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { TelemetryVariableId } from "../../shared/telemetry/catalog/generated/telemetry-catalog.types";
+import type { TelemetryVariableId } from "@raceiq/shared/telemetry/catalog/generated/telemetry-catalog.types";
 import { semanticValues } from "../src/components/analyse/track-map/types";
 
 describe("semantic key contract", () => {

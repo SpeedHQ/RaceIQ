@@ -1,5 +1,5 @@
-import type { ResolvedValue } from "../../shared/telemetry/resolver/contracts";
-import type { LiveResolvedSemanticFrame } from "../telemetry/live-projector";
+import type { ResolvedValue } from "@raceiq/shared/telemetry/resolver/contracts";
+import type { LiveResolvedSemanticFrame } from "@raceiq/telemetry-core/telemetry/live-projector";
 import type { CrewChiefTriggerBatchV1, CrewChiefTriggerEventV1 } from "./crewchief-triggers/contracts";
 import { extractLiveEngineerSemanticInput, type LiveEngineerPaceInput } from "./live-engineer-semantic-input";
 import {
@@ -11,7 +11,7 @@ import {
   type OpponentPaceCalloutMessageV3,
   type SpotterCalloutMessageV3,
   type RaceEngineerCalloutMessageV3,
-} from "../../shared/racing/live/engineer-contracts";
+} from "@raceiq/shared/racing/live/engineer-contracts";
 import { OpponentPaceTracker, type OpponentLapFactV1, type PlayerLapForPaceV1 } from "./opponent-pace-tracker";
 import { LiveEngineerRuntime, type LiveEngineerRuntimeCandidate } from "./live-engineer-runtime";
 import { renderOpponentPace, renderSpotter, renderCrewChiefEvent } from "./live-engineer-renderer";
@@ -350,7 +350,7 @@ export class LiveEngineerVoiceEngine {
     this.emitSpotterEvents(events, frame);
   }
 
-  private emitSpotterEvents(events: readonly { state: Exclude<import("../../shared/racing/live/spotter-contracts").SpotterStateV1, "clear">; side: "left" | "right"; overlapCount: number; sourceSequence: number; sessionTimeMs: number; opponentIds: readonly string[] }[], frame: LiveResolvedSemanticFrame): void {
+  private emitSpotterEvents(events: readonly { state: Exclude<import("@raceiq/shared/racing/live/spotter-contracts").SpotterStateV1, "clear">; side: "left" | "right"; overlapCount: number; sourceSequence: number; sessionTimeMs: number; opponentIds: readonly string[] }[], frame: LiveResolvedSemanticFrame): void {
     for (const event of events) {
       this.options.onSpotterEvent?.(event, frame);
       const rendered = renderSpotter(event.state);

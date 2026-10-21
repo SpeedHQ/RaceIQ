@@ -1,6 +1,6 @@
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import { tryGetGame } from "../../shared/games/registry";
-import { resolveAnalysisTelemetry } from "../../shared/racing/analysis/telemetry-capabilities";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { tryGetGame } from "@raceiq/shared/games/registry";
+import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities";
 
 export type UnitSystem = "metric" | "imperial";
 export type TemperatureUnit = "C" | "F";
@@ -25,8 +25,8 @@ export function generateExport(
     lapNumber: number;
     lapTime: number;
     isValid: boolean;
-    carOrdinal?: number;
-    trackOrdinal?: number;
+    carId: string;
+    trackId: string;
   },
   packets: TelemetryPacket[],
   unit: UnitSystem = "metric",
@@ -153,8 +153,8 @@ export function generateExport(
   const lapTimeStr = `${mins}:${secs.toFixed(3).padStart(6, "0")}`;
 
   let output = `=== RaceIQ Lap Export ===
-Car: #${first.CarOrdinal} | Class: ${className} (PI ${first.CarPerformanceIndex}) | Drivetrain: ${drivetrainName}
-Track: #${lap.trackOrdinal ?? 0} | Lap: ${lap.lapNumber} | Time: ${lapTimeStr} | Valid: ${lap.isValid ? "Yes" : "No"}
+Car: ${lap.carId} | Class: ${className} (PI ${first.CarPerformanceIndex}) | Drivetrain: ${drivetrainName}
+Track: ${lap.trackId} | Lap: ${lap.lapNumber} | Time: ${lapTimeStr} | Valid: ${lap.isValid ? "Yes" : "No"}
 
 --- Performance Summary ---
 Speed (${speedLabel}):    min=${minSpeed.toFixed(1)}  avg=${avgSpeed.toFixed(1)}  max=${maxSpeed.toFixed(1)}

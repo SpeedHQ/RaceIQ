@@ -1,6 +1,6 @@
 import type { TrackCorner } from "../../../hooks/track-queries";
 import { sampleAt, type LapTrace } from "../../../lib/stint-traces";
-import type { TuneIssue } from "../../../../../shared/racing/tuning/issues";
+import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import { Lane, type LaneSeries } from "./Lane";
 import { buildCornerInputMetrics } from "./input-analysis";
 import { ChartTooltip, type TooltipDisplayMode } from "./ChartTooltip";

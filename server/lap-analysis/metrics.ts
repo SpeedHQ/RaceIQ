@@ -4,13 +4,13 @@
  */
 
 import { resolveRacingLineReference, STATIC_LAP_ANALYSIS_VERSION } from "./insights";
-import { analyzeLap } from "../../shared/racing/analysis/laps/insights/analyze";
-import { processLap, restoreF1FrameIndices } from "../../shared/racing/analysis/laps/insights/process";
-import type { LapInsight } from "../../shared/racing/analysis/laps/insights/types";
-import { tryGetGame } from "../../shared/games/registry";
-import type { NamedSegment } from "../../shared/racing/tracks/named-segments";
-import type { GameId } from "../../shared/games/ids";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { analyzeLap } from "@raceiq/analysis-core/racing/analysis/laps/insights/analyze";
+import { processLap, restoreFrameIndices } from "@raceiq/analysis-core/racing/analysis/laps/insights/process";
+import type { LapInsight } from "@raceiq/analysis-core/racing/analysis/laps/insights/types";
+import { tryGetGame } from "@raceiq/shared/games/registry";
+import type { NamedSegment } from "@raceiq/shared/racing/tracks/named-segments";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 /**
  * Bump when any detector or segment-stat definition changes, so cached rows
@@ -312,7 +312,7 @@ export function computeLapMetrics(
   lapId: number,
   packets: TelemetryPacket[],
   gameId: GameId,
-  trackId: number | string | null | undefined,
+  trackId: string | null | undefined,
   segments: NamedSegment[],
   insights?: LapInsight[],
 ): LapMetrics {
@@ -321,7 +321,7 @@ export function computeLapMetrics(
     insights = analyzeLap(processed.packets, gameId, {
       racingLine: resolveRacingLineReference(gameId, trackId),
     });
-    restoreF1FrameIndices(insights, processed.sourceIndices);
+    restoreFrameIndices(insights, processed.sourceIndices);
   }
   return {
     lapId,

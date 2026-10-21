@@ -1,4 +1,4 @@
-import { getAllGames } from "@shared/games/registry";
+import { getAllGames } from "@raceiq/shared/games/registry"
 import { clientReleaseFeatures } from "../lib/release-features";
 import { useSettings } from "../hooks/settings";
 import { m } from "@/paraglide/messages";

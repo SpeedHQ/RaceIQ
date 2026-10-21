@@ -1,4 +1,4 @@
-import { segmentDisplayNames } from "@shared/racing/tracks/segment-label";
+import { segmentDisplayNames } from "@raceiq/shared/racing/tracks/segment-label";
 import { useEffect, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import type { Point, TrackBoundaries, TrackCurb, TrackSectors } from "../types";
 import { transformCalibrationPath, type CalibrationComparison } from "./calibration-comparison";
 import { getLocale } from "@/paraglide/runtime";
+import { parseUtcTimestamp } from "@/lib/utc-date";
 
 type TrackDebugCanvasProps = {
   outline: Point[] | null;
@@ -414,7 +415,7 @@ export function TrackDebugCanvas({
   }, [outline, boundaries, curbs, zoom, pan, flipX, displaySectors, sectorBounds, overlayMode, editingSegments, editingSectors, calibrationComparison, showCalibrationHistory]);
 
   return (
-    <div className="bg-app-bg rounded-lg border border-app-border relative min-h-0">
+    <div className="bg-app-bg rounded-lg border border-app-border relative h-[320px] min-h-0 @5xl/workspace:h-auto">
       <canvas
         ref={canvasRef}
         className="w-full h-full cursor-grab active:cursor-grabbing"
@@ -490,7 +491,7 @@ export function TrackDebugCanvas({
           {trackCreatedAt && (
             <>
               <span className="text-app-text-dim/40">·</span>
-              <span>{new Date(trackCreatedAt).toLocaleDateString(getLocale())}</span>
+              <span>{parseUtcTimestamp(trackCreatedAt).toLocaleDateString(getLocale())}</span>
             </>
           )}
         </div>

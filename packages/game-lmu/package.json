@@ -1,0 +1,30 @@
+{
+  "name": "@raceiq/game-lmu",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./import-duckdb": "./src/import-duckdb.ts",
+    "./normalizer": "./src/normalizer.ts",
+    "./source": "./src/source.ts",
+    "./test-support/duckdb": "./test/support/duckdb.ts",
+    "./test-support/recordings": "./test/support/recordings.ts",
+    "./game-parser": "./src/game-parser.ts"
+  },
+  "dependencies": {
+    "@duckdb/node-api": "1.5.2-r.2",
+    "@raceiq/capture-formats": "workspace:*",
+    "@raceiq/shared": "workspace:*",
+    "@raceiq/backend-core": "workspace:*",
+    "@raceiq/game-lmu-metadata": "workspace:*",
+    "@raceiq/analysis-core": "workspace:*",
+    "@raceiq/telemetry-core": "workspace:*"
+  },
+  "scripts": {
+    "lint": "../../client/node_modules/.bin/oxlint .",
+    "typecheck": "bun check --project tsconfig.json",
+    "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/game-lmu",
+    "test:e2e:recordings": "bun ../../scripts/test/run-suite.ts e2e --package @raceiq/game-lmu",
+    "test:integration": "bun ../../scripts/test/run-suite.ts integration --package @raceiq/game-lmu"
+  }
+}

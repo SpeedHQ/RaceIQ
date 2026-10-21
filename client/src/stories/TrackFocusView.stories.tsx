@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import type { LapMeta } from "../../../shared/racing/sessions/types";
-import type { TuneIssue } from "../../../shared/racing/tuning/issues";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
+import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { TrackFocusViewInner } from "../components/tunes/track-focus/TrackFocusView";
 import { downsampleLap, stintStats } from "../lib/stint-traces";
 
@@ -41,8 +41,10 @@ const laps: LapMeta[] = LAP_TIMES.map((t, i) => ({
   lapNumber: i + 1,
   lapTime: t,
   isValid: i !== 3,
+  classification: null,
   createdAt: new Date().toISOString(),
-  sectorTimes: [t * 0.32, t * 0.4, t * 0.28],
+  carId: "42",
+  trackId: "7",
 }));
 
 const telemetryByLap = new Map(laps.map((l, i) => [l.id, makeLapTelemetry(l.lapTime, i === 3 ? 40 : 6)]));

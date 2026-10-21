@@ -1,0 +1,17 @@
+{
+  "name": "@raceiq/game-fm-2023-metadata",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./index": "./src/index.ts",
+    "./racing/cars/fm": "./src/racing/cars/fm.ts",
+    "./racing/tracks/catalogs/fm": "./src/racing/tracks/catalogs/fm.ts"
+  },
+  "dependencies": {
+    "@raceiq/shared": "workspace:*"
+  },
+  "scripts": {
+    "lint": "../../client/node_modules/.bin/oxlint .",
+    "typecheck": "bun check --project tsconfig.json"
+  }
+}

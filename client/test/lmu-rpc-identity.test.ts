@@ -4,7 +4,7 @@ import { createMemoryHistory, createRootRoute, createRouter, RouterContextProvid
 import { Hono } from "hono";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { initGameAdapters } from "../../shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { LMULiveDashboard } from "../src/components/lmu/LMULiveDashboard";
 import { TrackDetail } from "../src/components/track/TrackDetail";
 import { useCarName } from "../src/hooks/catalog-queries";
@@ -68,6 +68,11 @@ function IdentityQueries({ trackId, carId }: { trackId: number | string; carId: 
   return null;
 }
 
+function TrackOutlineQuery({ trackId }: { trackId: string }) {
+  useTrackOutline(trackId);
+  return null;
+}
+
 describe("LMU Hono identity requests", () => {
   test("routes slash-containing layouts and exact native car keys as single path parameters", async () => {
     const trackId = "spa_2023/spawec";
@@ -89,6 +94,17 @@ describe("LMU Hono identity requests", () => {
     });
   });
 
+  test("does not request an outline for an ambiguous LMU display name", async () => {
+    const trackId = "Circuit de Spa-Francorchamps";
+    await withIdentityRoutes(trackId, "ferrari_499p_2023", async ({ queries, urls, render }) => {
+      render(createElement(TrackOutlineQuery, { trackId }));
+      const [outlineQuery] = queries.getQueryCache().getAll();
+      expect(outlineQuery).toBeDefined();
+      expect(await outlineQuery!.fetch()).toEqual([]);
+      expect(urls).toEqual([]);
+    });
+  });
+
   test("keeps legacy numeric route parameters unchanged", async () => {
     await withIdentityRoutes(7, 42, async ({ queries, urls, render }) => {
       render(createElement(IdentityQueries, { trackId: 7, carId: 42 }));
@@ -107,8 +123,7 @@ describe("LMU Hono identity requests", () => {
         track: { id: trackId, ordinal: -1, name: "Spa", location: "Spa", country: "BE", variant: "WEC", lengthKm: 7.004, hasOutline: true, createdAt: null },
         onBack: () => {}, tab: "laps", onTabChange: () => {},
       }));
-      const directQueries = queries.getQueryCache().getAll().filter((query) => query.queryKey[0] === "track-map" || query.queryKey[0] === "track-laps");
-      expect(directQueries.length).toBe(2);
+      const directQueries = queries.getQueryCache().getAll();
       await Promise.all(directQueries.map((query) => query.fetch()));
       expect(urls.map((url) => url.pathname).sort()).toEqual([
         "/api/track-outline/spa_2023%2Fspawec",

@@ -31,7 +31,7 @@ const frame: SemanticAnalysisFrame = {
     "tires.tire-wear": [0.1, 0.2, 0.3, 0.4],
     "tires.tire-pressure": [24, 24.5, 23.5, 24],
     "suspension.suspension-travel-m": [0.02, 0.04, 0.06, 0.08],
-    "identity.car-ordinal": 1,
+    "identity.car-id": "1",
     "fuel.ers-store-energy": 2_000_000,
     "fuel.ers-deployed": 400_000,
     "fuel.ers-harvested": 200_000,

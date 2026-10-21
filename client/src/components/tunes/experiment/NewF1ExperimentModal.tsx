@@ -1,5 +1,5 @@
 import { m } from "@/paraglide/messages";
-import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "@shared/racing/experiments/focus";
+import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "@raceiq/shared/racing/experiments/focus";
 import { useEffect, useMemo, useState } from "react";
 import { AppInput } from "@/components/ui/AppInput";
 import { FocusPicker } from "@/components/tunes/FocusPicker";
@@ -12,11 +12,11 @@ import { useTelemetryStore } from "@/stores/telemetry";
 
 export function NewF1ExperimentModal({ onClose, onCreated }: { onClose: () => void; onCreated: (id: number) => void }) {
   const view = useTelemetryStore((s) => s.telemetryView);
-  const trackOrdinal = view?.identity.trackOrdinal;
-  const carOrdinal = view?.identity.carOrdinal;
-  const { data: names } = useResolveNames(trackOrdinal != null ? [trackOrdinal] : [], carOrdinal != null ? [carOrdinal] : []);
-  const liveCar = carOrdinal != null ? (names?.carNames[String(carOrdinal)] ?? "") : "";
-  const liveTrack = trackOrdinal != null ? (names?.trackNames[String(trackOrdinal)] ?? "") : "";
+  const trackId = view?.identity.trackId;
+  const carId = view?.identity.carId;
+  const { data: names } = useResolveNames(trackId != null ? [trackId] : [], carId != null ? [carId] : []);
+  const liveCar = carId != null ? (names?.carNames[carId] ?? "") : "";
+  const liveTrack = trackId != null ? (names?.trackNames[trackId] ?? "") : "";
 
   const { data: tracksData } = useTracks();
 
@@ -87,7 +87,7 @@ export function NewF1ExperimentModal({ onClose, onCreated }: { onClose: () => vo
           </label>
           <div className="flex flex-col gap-1 flex-1">
             <span className="text-app-compact text-app-text-muted uppercase tracking-wider">{m.label_track()}</span>
-            <SearchSelect value={track} onChange={setTrack} options={trackOptions} placeholder={m.experiment_search_tracks()} focusColor="purple-500" />
+            <SearchSelect value={track} onChange={setTrack} options={trackOptions} placeholder={m.experiment_search_tracks()} />
           </div>
         </div>
 

@@ -1,10 +1,10 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { SEEDED_GAME_CASES, type SeededGame } from "../../support/seeded/cases";
 import { collectBrowserErrors } from "../../support/browser-errors";
-import type { GameId } from "../../../../shared/games/ids";
-import type { TelemetryGameLink } from "../../../../shared/telemetry/catalog/contracts";
-import { TELEMETRY_CATALOG } from "../../../../shared/telemetry/catalog/data";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { TelemetryGameLink } from "@raceiq/shared/telemetry/catalog/contracts";
+import { TELEMETRY_CATALOG } from "@raceiq/shared/telemetry/catalog/data";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 const RECORDING_BY_GAME: Record<SeededGame["gameId"], string> = {
   "fm-2023": "fm-2023-2026-04-09T21-55-03-186Z",

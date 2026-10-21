@@ -1,7 +1,7 @@
 /**
- * Core of the track segment generator: turns extracted game centerlines +
+ * Core of the track segment generator: turns committed game centerlines +
  * curated track facts into a track's shared facts plus one geometry file
- * per game. Used by scripts/tracks/generate-track-segments.ts (CLI) and by tests, so
+ * per game. Used by packages/tooling-data/src/tracks/generate-track-segments.ts (CLI) and by tests, so
  * the exact code path that produces committed meta is what the test suite
  * exercises.
  */
@@ -19,18 +19,19 @@ import {
 } from "../storage/meta";
 import { cornerNumbers, type CornerFact, type StraightFact, type TrackFacts } from "../facts";
 import type { TrackGeometry } from "../geometry";
-import { splitSegments } from "./join";
+import type { NamedSegment } from "../named-segments";
+import { joinSegments, splitSegments } from "./join";
 import { cornerKey } from "../keys";
 import { loadDetectHints } from "../detect-hints";
-import type { NamedSegment } from "../named-segments";
-import { SHARED_DIR } from "@shared/platform/runtime/data-paths";
-import type { GameId } from "@shared/games/ids";
+import { gameAssetsDir, SHARED_DIR } from "../../../platform/runtime/data-paths";
+import type { GameId } from "../../../games/ids";
+import { loadAccSvgBoundaryByName } from "../geometry/acc-svg";
 
 export const TRACK_META_DIR = resolve(SHARED_DIR, "tracks", "meta");
 const NO_CENTERLINE_DIR = null;
 const GAME_DIRS: Record<GameId, string | typeof NO_CENTERLINE_DIR> = {
   "f1-2025": resolve(SHARED_DIR, "tracks", "f1-2025"),
-  acc: resolve(SHARED_DIR, "tracks", "acc"),
+  acc: resolve(gameAssetsDir("acc"), "tracks"),
   "fm-2023": resolve(SHARED_DIR, "tracks", "fm-2023"),
   "ac-evo": resolve(SHARED_DIR, "tracks", "ac-evo"),
   iracing: NO_CENTERLINE_DIR,
@@ -62,6 +63,9 @@ export function listCuratedSlugs(): string[] {
 }
 
 export function loadCenterline(filePath: string): { x: number; z: number }[] | null {
+  if (filePath.endsWith(".track.svg")) {
+    return loadAccSvgBoundaryByName(basename(filePath, ".track.svg"))?.centerLine ?? null;
+  }
   try {
     const lines = readFileSync(filePath, "utf-8").split("\n").filter(Boolean);
     const pts = lines.slice(1).map((l) => {
@@ -74,7 +78,7 @@ export function loadCenterline(filePath: string): { x: number; z: number }[] | n
   }
 }
 
-/** Find centerline files for a slug per game. FM files embed the ordinal. */
+/** Find geometry sources per game: ACC SVGs, CSV centerlines elsewhere. */
 export function findCenterlines(slug: string, gameFilter?: string): { gameId: GameId; file: string }[] {
   const found: { gameId: GameId; file: string }[] = [];
   for (const [gameId, dir] of Object.entries(GAME_DIRS) as [GameId, string | null][]) {
@@ -87,7 +91,7 @@ export function findCenterlines(slug: string, gameFilter?: string): { gameId: Ga
         if (re.test(f)) found.push({ gameId, file: resolve(dir, f) });
       }
     } else {
-      const f = resolve(dir, `${slug}-centerline.csv`);
+      const f = resolve(dir, gameId === "acc" ? `${slug}.track.svg` : `${slug}-centerline.csv`);
       if (existsSync(f)) found.push({ gameId, file: f });
     }
   }
@@ -152,6 +156,30 @@ export function generateTrackSegments(
   for (const { gameId, file } of centerlines) {
     // FM can have several layout variants per slug — first aligned one wins
     if (seenGames.has(gameId)) continue;
+
+    const committed = loadTrackGeometry(slug, gameId);
+    if (committed?.override) {
+      const segments = joinSegments(facts, committed);
+      const corners: AlignedCorner[] = segments
+        .filter((s) => s.type === "corner")
+        .map((s) => ({
+          regionIndex: -1,
+          number: s.number!,
+          ...(s.covers ? { covers: s.covers } : {}),
+          name: s.name,
+          direction: s.direction ?? null,
+          startFrac: s.startFrac,
+          endFrac: s.endFrac,
+          ...(s.group ? { group: s.group } : {}),
+        }));
+      seenGames.add(gameId);
+      aligned.push({ gameId, file, segments, corners, cost: 0 });
+      outcomes.push({
+        slug, gameId, ok: true, cost: 0, wrote: false,
+        detail: `${segments.length} segments, ${corners.length} corners — curated override; detection skipped`,
+      });
+      continue;
+    }
 
     const outline = loadCenterline(file);
     if (!outline) {
@@ -219,6 +247,11 @@ export function buildUpdatedMeta(
   const geometry: Record<string, TrackGeometry> = {};
 
   for (const a of writable) {
+    const committed = existingGeometry[a.gameId];
+    if (committed?.override) {
+      geometry[a.gameId] = committed;
+      continue;
+    }
     const split = splitSegments(a.segments);
     // Sectors are curated per game and live only in geometry — regeneration
     // rewrites segments and must carry them through untouched.
@@ -330,15 +363,16 @@ export function autoTrackSegments(outline: { x: number; z: number }[]): {
   };
 }
 
-/** Every centerline file per game (basename without -centerline.csv suffix). */
+/** Every per-game geometry source, keyed by its track slug. */
 export function listAllCenterlines(): { gameId: GameId; slug: string; file: string }[] {
   const found: { gameId: GameId; slug: string; file: string }[] = [];
   for (const [gameId, dir] of Object.entries(GAME_DIRS) as [GameId, string | null][]) {
     if (dir === NO_CENTERLINE_DIR) continue;
     if (!existsSync(dir)) continue;
     for (const f of readdirSync(dir)) {
-      if (!f.endsWith("-centerline.csv")) continue;
-      found.push({ gameId, slug: f.replace(/-centerline\.csv$/, ""), file: resolve(dir, f) });
+      const suffix = gameId === "acc" ? ".track.svg" : "-centerline.csv";
+      if (!f.endsWith(suffix)) continue;
+      found.push({ gameId, slug: f.slice(0, -suffix.length), file: resolve(dir, f) });
     }
   }
   return found;
@@ -351,7 +385,8 @@ export function writeTrackMeta(
   aligned: GameAlignment[],
   allowFuzzy = false,
 ): string[] {
-  const writable = writableAlignments(aligned, allowFuzzy);
+  const writable = writableAlignments(aligned, allowFuzzy)
+    .filter((a) => !loadTrackGeometry(slug, a.gameId)?.override);
   if (writable.length === 0) return [];
   const existingGeometry: Record<string, TrackGeometry> = {};
   for (const a of writable) {

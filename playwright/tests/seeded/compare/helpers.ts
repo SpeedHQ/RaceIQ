@@ -1,12 +1,12 @@
 import { expect, type APIRequestContext, type Response } from "@playwright/test";
-import type { GameId } from "../../../../shared/games/ids";
-import type { LapMeta } from "../../../../shared/racing/sessions/types";
-import { decodeAlignedLapSet } from "../../../../shared/racing/laps/alignment/codec";
-import type { EncodedAlignedLapSet } from "../../../../shared/racing/laps/alignment/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
+import { decodeAlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/codec";
+import type { EncodedAlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/types";
 
 export interface SeededLapMeta extends LapMeta {
-  trackOrdinal: number;
-  carOrdinal: number;
+  trackId: string;
+  carId: string;
   lapNumber: number;
 }
 
@@ -16,8 +16,8 @@ export type SeededLapPair = {
 };
 
 export type TrackCarLapPair = SeededLapPair & {
-  trackOrdinal: number;
-  carOrdinal: number;
+  trackId: string;
+  carId: string;
 };
 
 export function formatLapTime(seconds: number): string {
@@ -32,27 +32,27 @@ export function lapOptionLabel(lap: SeededLapMeta): string {
 
 export function findTrackCarPairWithTwoLaps(laps: readonly SeededLapMeta[]): TrackCarLapPair | null {
   const findPair = (requireValid: boolean): TrackCarLapPair | null => {
-    const byTrack = new Map<number, Map<number, SeededLapMeta[]>>();
+    const byTrack = new Map<string, Map<string, SeededLapMeta[]>>();
     for (const lap of laps) {
-      if (!lap.trackOrdinal || !lap.carOrdinal || (requireValid && !lap.isValid)) continue;
-      let cars = byTrack.get(lap.trackOrdinal);
+      if (!lap.trackId || !lap.carId || (requireValid && !lap.isValid)) continue;
+      let cars = byTrack.get(lap.trackId);
       if (!cars) {
         cars = new Map();
-        byTrack.set(lap.trackOrdinal, cars);
+        byTrack.set(lap.trackId, cars);
       }
-      const list = cars.get(lap.carOrdinal) ?? [];
+      const list = cars.get(lap.carId) ?? [];
       list.push(lap);
-      cars.set(lap.carOrdinal, list);
+      cars.set(lap.carId, list);
     }
 
-    const tracks = Array.from(byTrack.keys()).sort((a, b) => a - b);
-    for (const trackOrdinal of tracks) {
-      const cars = byTrack.get(trackOrdinal);
+    const tracks = Array.from(byTrack.keys()).sort();
+    for (const trackId of tracks) {
+      const cars = byTrack.get(trackId);
       if (!cars) continue;
-      const carOrdinals = Array.from(cars.keys()).sort((a, b) => a - b);
-      for (const carOrdinal of carOrdinals) {
-        const candidate = cars.get(carOrdinal)?.slice().sort((a, b) => a.lapNumber - b.lapNumber || a.id - b.id) ?? [];
-        if (candidate.length >= 2) return { trackOrdinal, carOrdinal, lapA: candidate[0], lapB: candidate[1] };
+      const carIds = Array.from(cars.keys()).sort();
+      for (const carId of carIds) {
+        const candidate = cars.get(carId)?.slice().sort((a, b) => a.lapNumber - b.lapNumber || a.id - b.id) ?? [];
+        if (candidate.length >= 2) return { trackId, carId, lapA: candidate[0], lapB: candidate[1] };
       }
     }
     return null;
@@ -64,7 +64,7 @@ export function findTrackCarPairWithTwoLaps(laps: readonly SeededLapMeta[]): Tra
 }
 
 export function getFirstSeededLap(laps: readonly SeededLapMeta[]): SeededLapMeta | null {
-  return laps.filter((lap) => lap.trackOrdinal !== undefined && lap.carOrdinal !== undefined).sort((a, b) => a.id - b.id)[0] ?? null;
+  return laps.filter((lap) => lap.trackId !== undefined && lap.carId !== undefined).sort((a, b) => a.id - b.id)[0] ?? null;
 }
 
 export const ALIGNED_TELEMETRY_ENDPOINT = "/api/laps/aligned-telemetry";
@@ -84,6 +84,7 @@ export async function fetchAlignedSet(
     data: detail
       ? { ids: [pair.lapA.id, pair.lapB.id], step: 0.1, start: detail.start, end: detail.end }
       : { ids: [pair.lapA.id, pair.lapB.id], step: 1 },
+    timeout: 60_000,
   });
   if (!response.ok()) return { response, set: null };
   const set = decodeAlignedLapSet((await response.json()) as EncodedAlignedLapSet);

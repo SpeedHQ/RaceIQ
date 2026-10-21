@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { GameId } from "../../../shared/games/ids";
-import type { TuneIssue } from "../../../shared/racing/tuning/issues";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import type { CatalogTune } from "../data/tune-catalog";
 import { client } from "../lib/rpc";
 import { errorFromResponse } from "../lib/rpc-error";
@@ -80,11 +80,22 @@ export function useUpdateTune() {
 export function useDeleteTune() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: number) => {
-      const res = await client.api.tunes[":id"].$delete({ param: { id: String(id) } });
+    mutationFn: async ({ id, confirmInUse }: { id: number; confirmInUse?: boolean }) => {
+      const res = await client.api.tunes[":id"].$delete({
+        param: { id: String(id) },
+        query: confirmInUse ? { confirmInUse: "true" } : {},
+      });
       if (!res.ok) throw await errorFromResponse(res);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.userTunes }),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: queryKeys.userTunes }),
+        qc.invalidateQueries({ queryKey: ["tunes"] }),
+        qc.invalidateQueries({ queryKey: queryKeys.laps }),
+        qc.invalidateQueries({ queryKey: queryKeys.sessions }),
+        qc.invalidateQueries({ queryKey: ["tune-assignments"] }),
+      ]);
+    },
   });
 }
 

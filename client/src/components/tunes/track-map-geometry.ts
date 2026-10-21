@@ -1,4 +1,4 @@
-import { makeTrackProjection } from "@shared/racing/tracks/projection";
+import { makeTrackProjection } from "@raceiq/shared/racing/tracks/projection";
 import type { SemanticTuneSample } from "./semantic-tune";
 
 export interface Pt {

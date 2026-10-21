@@ -1,0 +1,34 @@
+{
+  "name": "@raceiq/tooling-data",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./data/seed-db-demo": "./src/data/seed-db-demo.ts",
+    "./data/seed-db-iracing": "./src/data/seed-db-iracing.ts",
+    "./data/seed-capture-conversion": "./src/data/seed-capture-conversion.ts",
+    "./data/seed-db-options": "./src/data/seed-db-options.ts",
+    "./data/seed-db-reset": "./src/data/seed-db-reset.ts",
+    "./data/seed-db-safety": "./src/data/seed-db-safety.ts",
+    "./lib/compression": "./src/lib/compression.ts",
+    "./tracks/track-coverage": "./src/tracks/track-coverage.ts",
+    "./telemetry/generate-demo-fixture": "./src/telemetry/generate-demo-fixture.ts"
+  },
+  "scripts": {
+    "lint": "../../client/node_modules/.bin/oxlint .",
+    "typecheck": "bun check --project tsconfig.json"
+  },
+  "dependencies": {
+    "@raceiq/backend-core": "workspace:*",
+    "@raceiq/capture-formats": "workspace:*",
+    "@raceiq/game-acc": "workspace:*",
+    "@raceiq/game-fm-2023": "workspace:*",
+    "@raceiq/game-iracing": "workspace:*",
+    "@raceiq/game-iracing-metadata": "workspace:*",
+    "@raceiq/shared": "workspace:*",
+    "cheerio": "^1.2.0",
+    "drizzle-orm": "^0.45.2",
+    "@raceiq/game-acc-metadata": "workspace:*",
+    "@raceiq/telemetry-core": "workspace:*",
+    "@raceiq/analysis-core": "workspace:*"
+  }
+}

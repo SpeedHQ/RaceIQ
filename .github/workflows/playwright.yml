@@ -12,12 +12,12 @@ on:
         description: "Runner label; compiled server builds on selected runner"
         required: false
         type: string
-        default: '["mars-windows-x64-4vcpu-10g", "mars-macos-arm64-2vcpu-10g", "mars-ubuntu-arm64-2vcpu-10g", "mars-retry-3"]'
+        default: '["mars-macos-arm64-2vcpu-10g", "mars-ubuntu-2vcpu-10g", "mars-retry-3"]'
       projects:
         description: "Playwright project flags passed to the gate"
         required: false
         type: string
-        default: "--project=fresh-install --project=tunes --project=tunes-unseeded --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device"
+        default: "--project=fresh-install --project=tunes --project=tunes-unseeded --project=seeded-e2e --project=seeded-routes --project=seeded-imports"
       shard:
         description: "Optional Playwright shard in N/M format"
         required: false
@@ -29,7 +29,17 @@ on:
         type: string
         default: all
       dist-artifact:
-        description: "Optional prebuilt dist artifact for compiled-server gate"
+        description: "Optional prebuilt dist artifact for Linux compiled-server gate"
+        required: false
+        type: string
+        default: ""
+      paraglide-artifact:
+        description: "Optional compiled Paraglide artifact for local compiled-server builds"
+        required: false
+        type: string
+        default: ""
+      seed-database-artifact:
+        description: "Optional pre-seeded app.db artifact for seeded Playwright gate"
         required: false
         type: string
         default: ""
@@ -56,7 +66,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.target-ref || github.ref }}
-
+          fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4
@@ -64,22 +74,39 @@ jobs:
         with:
           node-version: 22
 
-      - name: Download dist artifact
-        if: inputs.dist-artifact != ''
+      - name: Download seeded database artifact
+        if: inputs.server-set == 'seeded' && inputs.seed-database-artifact != ''
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.seed-database-artifact }}
+          path: playwright/test-data-seed-artifact
+
+      - name: Download Linux dist artifact
+        if: inputs.server-mode == 'compiled' && inputs.dist-artifact != '' && runner.os == 'Linux' && runner.arch == 'X64'
         uses: actions/download-artifact@v8
         with:
           name: ${{ inputs.dist-artifact }}
           path: dist
       - name: Restore compiled server permissions
-        if: inputs.dist-artifact != '' && runner.os != 'Windows'
+        if: inputs.server-mode == 'compiled' && inputs.dist-artifact != '' && runner.os == 'Linux' && runner.arch == 'X64'
         run: chmod +x dist/raceiq
 
 
       - name: Install workspace dependencies
         run: bun scripts/ci/workflow-ops.ts install-retry
+      - name: Download upstream Paraglide
+        if: inputs.server-mode == 'compiled' && (inputs.dist-artifact == '' || runner.os != 'Linux' || runner.arch != 'X64') && inputs.paraglide-artifact != ''
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.paraglide-artifact }}
+          path: client
+        continue-on-error: true
       - name: Build local compiled server
-        if: inputs.server-mode == 'compiled' && inputs.dist-artifact == ''
-        run: bun run build
+        if: inputs.server-mode == 'compiled' && (inputs.dist-artifact == '' || runner.os != 'Linux' || runner.arch != 'X64')
+        env:
+          RACEIQ_FEATURE_F1_EXPERIMENTS: "true"
+          RACEIQ_FEATURE_IRACING_ADAPTER: "true"
+        run: bunx turbo run build --concurrency=1
 
       - name: Install Chromium
         working-directory: playwright
@@ -89,6 +116,8 @@ jobs:
         working-directory: playwright
         env:
           E2E_SERVER_MODE: ${{ inputs.server-mode }}
+          RACEIQ_FEATURE_F1_EXPERIMENTS: "true"
+          RACEIQ_FEATURE_IRACING_ADAPTER: "true"
           PW_SERVER_SET: ${{ inputs.server-set }}
           PW_WORKERS: "1"
           PLAYWRIGHT_PROJECTS: ${{ inputs.projects }}
@@ -97,13 +126,17 @@ jobs:
       - name: Run Playwright gate
         working-directory: playwright
         env:
+          # Collect replay allocations sooner inside memory-limited CI runners.
+          BUN_OPTIONS: "--smol"
           E2E_SERVER_MODE: ${{ inputs.server-mode }}
+          RACEIQ_FEATURE_F1_EXPERIMENTS: "true"
+          RACEIQ_FEATURE_IRACING_ADAPTER: "true"
           PW_SERVER_SET: ${{ inputs.server-set }}
           PW_WORKERS: "1"
           RACEIQ_DISABLE_TRAY: "1"
           PLAYWRIGHT_PROJECTS: ${{ inputs.projects }}
+          PW_SEEDED_DATABASE: ${{ inputs.server-set == 'seeded' && inputs.seed-database-artifact != '' && 'playwright/test-data-seed-artifact/app.db' || '' }}
         run: bun run ../scripts/playwright-ci.ts test ${{ inputs.shard != '' && format('--shard={0}', inputs.shard) || '' }}
-
 
       - name: Upload Playwright artifacts
         if: always()

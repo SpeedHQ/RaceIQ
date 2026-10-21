@@ -4,7 +4,7 @@ RaceIQ reads iRacing directly through the local Windows SDK memory map. It does 
 
 ## Live data flow
 
-1. `server/index.ts` detects `iRacingSim64DX11` and starts `IRacingTelemetrySource`.
+1. `apps/backend/src/index.ts` detects `iRacingSim64DX11` and starts `IRacingTelemetrySource`.
 2. `IRacingSdkReader` opens `Local\\IRSDKMemMapFileName` through `kernel32`.
 3. The reader parses the SDK header and variable descriptors, then copies the newest stable telemetry row. It checks the tick counter again after the copy and rejects a row changed during the read.
 4. The source combines telemetry values with the current SessionInfo snapshot and encodes a versioned RaceIQ source frame.
@@ -46,11 +46,11 @@ Cancel, commit, and preview expiry remove the staged file. Confirmed previews ex
 
 ## Implementation map
 
-- `server/games/iracing/sdk-reader.ts` — memory map and SDK descriptor decoding
-- `server/games/iracing/source.ts` — supervised polling and source-frame emission
-- `server/games/iracing/source-frame.ts` — v2/v3 replay contract
-- `server/games/iracing/session-info.ts` — targeted SessionInfo extraction
-- `server/games/iracing/normalizer.ts` — canonical telemetry mapping
-- `server/games/iracing/index.ts` — server adapter
-- `server/games/iracing/ibt-reader.ts` — streaming IBT decoder
+- `packages/game-iracing/src/sdk-reader.ts` — memory map and SDK descriptor decoding
+- `packages/game-iracing/src/source.ts` — supervised polling and source-frame emission
+- `packages/capture-formats/src/iracing/source-frame.ts` — v2/v3 replay contract
+- `packages/capture-formats/src/iracing/session-info.ts` — targeted SessionInfo extraction
+- `packages/game-iracing/src/normalizer.ts` — canonical telemetry mapping
+- `packages/game-iracing/src/index.ts` — server adapter
+- `packages/game-iracing/src/ibt-reader.ts` — streaming IBT decoder
 - `server/games/iracing/import-ibt.ts` — preview, staging, commit, and cleanup

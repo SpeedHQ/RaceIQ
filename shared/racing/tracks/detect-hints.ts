@@ -15,7 +15,7 @@
  */
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { SHARED_DIR } from "@shared/platform/runtime/data-paths";
+import { SHARED_DIR } from "../../platform/runtime/data-paths";
 
 /** Detector tolerances for one corner. Absent fields mean "no allowance". */
 export interface CornerDetectHint {

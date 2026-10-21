@@ -1,0 +1,19 @@
+{
+  "name": "@raceiq/game-acc",
+  "private": true,
+  "type": "module",
+  "exports": {".":"./src/index.ts","./lap-detector":"./src/lap-detector.ts","./motec":"./src/motec.ts","./parser":"./src/parser.ts","./game-parser":"./src/game-parser.ts","./replay":"./src/replay.ts","./shared-memory":"./src/shared-memory.ts","./utils":"./src/utils.ts","./broadcast-capture":"./src/broadcast-capture.ts","./broadcast-client":"./src/broadcast-client.ts","./test-support/recordings":"./test/support/recordings.ts"},
+  "dependencies": {
+    "@raceiq/backend-core": "workspace:*",
+    "@raceiq/shared": "workspace:*",
+    "@raceiq/capture-formats": "workspace:*",
+    "@raceiq/game-acc-metadata": "workspace:*"
+  },
+  "scripts": {
+    "lint": "../../client/node_modules/.bin/oxlint .",
+    "typecheck": "bun check --project tsconfig.json",
+    "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/game-acc",
+    "test:e2e:recordings": "bun ../../scripts/test/run-suite.ts e2e --package @raceiq/game-acc",
+    "test:integration": "bun ../../scripts/test/run-suite.ts integration --package @raceiq/game-acc"
+  }
+}

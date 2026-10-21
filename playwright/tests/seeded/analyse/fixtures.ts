@@ -1,6 +1,6 @@
 import { expect, type APIRequestContext, type Page } from "@playwright/test";
 
-import type { LapMeta } from "../../../../shared/racing/sessions/types";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import type { SeededLapTarget } from "../../support/seeded/laps";
 
 export async function gameRows<T>(request: APIRequestContext, resource: "laps" | "sessions", gameId = "fm-2023"): Promise<T[]> {
@@ -10,7 +10,7 @@ export async function gameRows<T>(request: APIRequestContext, resource: "laps" |
 }
 
 export async function getAlternateSeededLap(request: APIRequestContext, initialLap: SeededLapTarget): Promise<LapMeta> {
-  const alternate = (await gameRows<LapMeta>(request, "laps")).find((lap) => lap.id !== initialLap.id && lap.trackOrdinal === initialLap.trackOrdinal && lap.carOrdinal === initialLap.carOrdinal);
+  const alternate = (await gameRows<LapMeta>(request, "laps")).find((lap) => lap.id !== initialLap.id && lap.trackId === initialLap.trackId && lap.carId === initialLap.carId);
   if (!alternate) throw new Error("Missing alternate seeded FM lap");
   return alternate;
 }

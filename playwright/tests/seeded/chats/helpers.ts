@@ -57,7 +57,7 @@ export async function saveDisposableChat(threadId: string, messages: ChatMessage
   process.env.DATA_DIR = resolve(process.env.PW_SEEDED_E2E_DATA_DIR ?? resolve(__dirname, "../../../test-results/test-data-seeded"));
   try {
     // Dynamic import required: production Memory singleton reads DATA_DIR during module initialization.
-    const persistence = await import("../../../../server/ai/chat-agent");
+    const persistence = await import("@raceiq/backend-core/ai/chat-agent");
     await persistence.saveChatMessages(threadId, messages);
     return persistence.getChatMemory() as DisposableChatMemory;
   } finally {

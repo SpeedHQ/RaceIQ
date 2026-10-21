@@ -62,7 +62,7 @@ Remove this instrumentation after identifying the owner.
 
 ## Historical example: default memory adapter
 
-`test/ai/chat/chat-generations.test.ts` once omitted its fake memory argument.
+`apps/backend/test/ai/chat/chat-generations.test.ts` once omitted its fake memory argument.
 fell back to the production memory store, which opened a live database
 connection. The visible hang appeared in a later test file.
 

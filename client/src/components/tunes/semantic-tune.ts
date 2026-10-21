@@ -1,5 +1,5 @@
-import type { GameId } from "@shared/games/ids";
-import { getGame } from "@shared/games/registry";
+import type { GameId } from "@raceiq/shared/games/ids";
+import { getGame } from "@raceiq/shared/games/registry"
 import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
 import type { SemanticReplayFrame } from "../../hooks/laps";
 
@@ -12,7 +12,7 @@ export interface TuneWheelValues {
 
 export interface SemanticTuneSample {
   gameId: GameId;
-  trackOrdinal?: number;
+  trackId?: string;
   positionM?: { x: number; z: number };
   distanceM?: number;
   speedMps?: number;
@@ -46,7 +46,7 @@ function sampleFromValues(gameId: GameId, values: Readonly<Record<string, unknow
     gameId,
     distanceM: finiteNumber(values["timing.distance-traveled"]),
     speedMps: finiteNumber(values["motion.speed"]),
-    trackOrdinal: finiteNumber(values["identity.track-ordinal"]),
+    trackId: typeof values["identity.track-id"] === "string" ? values["identity.track-id"] : undefined,
     positionM: positionX === undefined || positionZ === undefined ? undefined : { x: positionX, z: positionZ },
     tireSurfaceTemperatureC: wheelValues(values["tire.temperature.surface.representative"]),
     tireCoreTemperatureC: wheelValues(values["tire.temperature.core"]),
@@ -90,7 +90,7 @@ export function semanticTuneSampleFromView(view: LiveTelemetryView): SemanticTun
     gameId: view.simulator,
     distanceM: view.motion.distanceM,
     speedMps: view.motion.speedMps,
-    trackOrdinal: view.identity.trackOrdinal,
+    trackId: view.identity.trackId,
     positionM: view.motion.position,
     tireSurfaceTemperatureC,
     tireCoreTemperatureC: view.tires.coreTemperatureC,
@@ -108,13 +108,13 @@ export function wheelValue(sample: SemanticTuneSample, metric: TuneWheelMetric, 
   if (!values) return undefined;
   return [values.fl, values.fr, values.rl, values.rr][index];
 }
-import type { AlignedLapTrace } from "@shared/racing/laps/alignment/types";
+import type { AlignedLapTrace } from "@raceiq/analysis-core/racing/laps/alignment/types";
 
-export function semanticTuneSamplesFromAlignedTrace(trace: AlignedLapTrace, gameId: GameId, trackOrdinal: number | undefined, distanceMeters: number): SemanticTuneSample[] {
+export function semanticTuneSamplesFromAlignedTrace(trace: AlignedLapTrace, gameId: GameId, trackId: string | undefined, distanceMeters: number): SemanticTuneSample[] {
   const fuelUnit = getGame(gameId).telemetry.fuel.packetUnit;
   return Array.from({ length: trace.speedMps.length }, (_, i) => ({
     gameId,
-    trackOrdinal,
+    trackId,
     distanceM: trace.frac[i]! * distanceMeters,
     speedMps: trace.speedMps[i]!,
     positionM: Number.isFinite(trace.positionX[i]) && Number.isFinite(trace.positionZ[i]) ? { x: trace.positionX[i]!, z: trace.positionZ[i]! } : undefined,

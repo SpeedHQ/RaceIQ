@@ -1,5 +1,5 @@
-import type { ResolvedValue } from "../../shared/telemetry/resolver/contracts";
-import type { LiveResolvedSemanticFrame } from "../telemetry/live-projector";
+import type { ResolvedValue } from "@raceiq/shared/telemetry/resolver/contracts";
+import type { LiveResolvedSemanticFrame } from "@raceiq/telemetry-core/telemetry/live-projector";
 
 export type LiveEngineerLapStateInput = {
   lapNumber: number;

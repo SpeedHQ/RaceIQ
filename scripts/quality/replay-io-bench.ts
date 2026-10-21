@@ -7,7 +7,7 @@ import { join, resolve } from "node:path";
 const tempRoot = mkdtempSync(join(tmpdir(), "raceiq-replay-io-benchmark-"));
 try {
   const child = Bun.spawn({
-    cmd: [process.execPath, resolve("test/benchmarks/replay-io.bench.ts"), ...process.argv.slice(2)],
+    cmd: [process.execPath, resolve("apps/backend/test/benchmarks/replay-io.bench.ts"), ...process.argv.slice(2)],
     cwd: process.cwd(),
     env: {
       ...process.env,

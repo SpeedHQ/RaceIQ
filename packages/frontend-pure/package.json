@@ -1,0 +1,17 @@
+{
+  "name": "@raceiq/frontend-pure",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./speed": "./src/speed.ts",
+    "./temperature": "./src/temperature.ts",
+    "./parse-lap-time": "./src/parse-lap-time.ts",
+    "./iracing-car-sort": "./src/iracing-car-sort.ts"
+  },
+  "scripts": {
+    "lint": "../../client/node_modules/.bin/oxlint .",
+    "typecheck": "bun check --project tsconfig.json",
+    "test": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/frontend-pure",
+    "test:unit": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/frontend-pure"
+  }
+}

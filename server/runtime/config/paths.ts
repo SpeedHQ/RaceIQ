@@ -14,7 +14,6 @@ import { homedir } from "node:os";
  *
  * Directory layout:
  *   SHARED_DIR  — read-only bundled static data
- *   GAMES_DIR   — read-only game catalogs
  *   PUBLIC_DIR  — client static assets
  *   USER_DATA_DIR — writable user data (db, settings, extracted tracks, recordings)
  */
@@ -31,11 +30,6 @@ export const ROOT_DIR = IS_COMPILED
 export const SHARED_DIR = IS_COMPILED
   ? resolve(ROOT_DIR, "data")
   : resolve(ROOT_DIR, "shared", "data");
-
-/** shared/games in dev, data/games next to the exe in compiled. */
-export const GAMES_DIR = IS_COMPILED
-  ? resolve(ROOT_DIR, "data", "games")
-  : resolve(ROOT_DIR, "shared", "games");
 
 /** client/public in dev, public/ next to the exe in compiled. */
 export const PUBLIC_DIR = IS_COMPILED

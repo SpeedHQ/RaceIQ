@@ -1,10 +1,14 @@
-import { getLMUCar, getLMUTrack } from "@shared/games/lmu/catalog";
-import type { SessionMeta } from "@shared/racing/sessions/types";
+import type { DashboardRecentSession } from "@raceiq/shared/racing/sessions/dashboard";
+import { Card } from "@/components/ui/card";
+import { EmptyStateOverlay } from "@/components/ui/empty-state-overlay";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatLapTime } from "@/components/LiveTelemetry";
-import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { m } from "@/paraglide/messages";
 import { getLocale } from "@/paraglide/runtime";
+import { parseUtcTimestamp } from "@/lib/utc-date";
+import { SessionTypeBadge } from "@/components/sessions/SessionTypeBadge";
 
 function formatTimeAgo(date: Date): string {
   const sec = Math.floor((Date.now() - date.getTime()) / 1000);
@@ -17,71 +21,53 @@ function formatTimeAgo(date: Date): string {
 
 export function RecentSessionsTable({
   sessions,
-  carNames,
-  trackNames,
   gameId,
   onAnalyseSession,
   loading = false,
   error = false,
 }: {
-  sessions: SessionMeta[];
-  carNames: Record<string, string>;
-  trackNames: Record<string, string>;
+  sessions: DashboardRecentSession[];
   gameId: string | null;
-  onAnalyseSession: (session: SessionMeta) => void;
+  onAnalyseSession: (session: DashboardRecentSession) => void;
   loading?: boolean;
   error?: boolean;
 }) {
-  if (loading) {
-    return (
-      <div role="status" className="p-6 text-center text-app-text/90">
-        {m.common_loading()}
-      </div>
-    );
-  }
-  if (error) {
-    return (
-      <div role="alert" className="p-6 text-center text-status-danger">
-        {m.common_error()}
-      </div>
-    );
-  }
-  if (sessions.length === 0) {
-    return <div className="p-6 text-center text-app-text/90">{m.home_no_sessions()}</div>;
-  }
-
+  const stateMessage = error ? m.common_error() : loading ? m.common_loading() : sessions.length === 0 ? m.home_no_sessions() : null;
+  const placeholderRows = stateMessage ? Array.from({ length: 8 }, (_, index) => index) : [];
   return (
-    <Table>
-      <THead>
-        {!gameId && <TH>{m.home_col_game()}</TH>}
-        <TH>{m.label_track()}</TH>
-        <TH>{m.label_car()}</TH>
-        <TH>{m.label_laps()}</TH>
-        <TH>{m.sessions_col_best_lap()}</TH>
-        <TH align="end">{m.home_col_when()}</TH>
-      </THead>
-      <TBody>
-        {sessions.map((session) => {
-          const track = session.gameId === "lmu" && typeof session.trackId === "string"
-            ? getLMUTrack(session.trackId)?.name ?? session.trackId
-            : trackNames[`${session.gameId}:${session.trackOrdinal}`] ?? "";
-          const car = session.gameId === "lmu" && typeof session.carId === "string"
-            ? getLMUCar(session.carId)?.name ?? session.carId
-            : carNames[`${session.gameId}:${session.carOrdinal}`] ?? "";
+    <Card className="relative flex h-[440px] min-h-0 flex-col gap-2 overflow-hidden p-3" aria-busy={loading}>
+      <h2 className="shrink-0 text-app-heading font-semibold text-app-text/90">{m.home_recent_sessions()}</h2>
+      <div className="relative min-h-0 flex-1 overflow-auto">
+    <Table containerClassName="rounded-none border-0">
+      <TableHeader>
+        <TableRow>
+          {!gameId && <TableHead className="bg-transparent">{m.home_col_game()}</TableHead>}
+          <TableHead className="bg-transparent">{m.label_track()}</TableHead>
+          <TableHead className="bg-transparent">{m.label_car()}</TableHead>
+          <TableHead className="bg-transparent">{m.label_type()}</TableHead>
+          <TableHead className="bg-transparent">{m.label_laps()}</TableHead>
+          <TableHead className="bg-transparent">{m.sessions_col_best_lap()}</TableHead>
+          <TableHead className="bg-transparent text-right">{m.home_col_when()}</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {stateMessage ? placeholderRows.map((row) => <TableRow key={row} aria-hidden="true">{Array.from({ length: gameId ? 6 : 7 }, (_, column) => <TableCell key={column} className="text-app-text-muted">{row === 0 && column === 0 ? <span className="sr-only" role={error ? "alert" : loading ? "status" : undefined}>{stateMessage}</span> : <Skeleton loading={loading}>—</Skeleton>}</TableCell>)}</TableRow>) : sessions.map((session) => {
+          const track = session.track.name ?? "—";
+          const car = session.car.name ?? "—";
           return (
-            <TRow key={session.id} onClick={() => onAnalyseSession(session)}>
+            <TableRow key={session.id} className="cursor-pointer" onClick={() => onAnalyseSession(session)}>
               {!gameId && (
-                <TD>
-                  <Badge variant="game-brand" size="compact" data-game-brand={session.gameId ?? "fm-2023"}>
+                <TableCell>
+                  <Badge variant="game-brand" size="compact" data-game-brand={session.gameId}>
                     {session.gameId === "f1-2025" ? "F1" : session.gameId === "acc" ? "ACC" : session.gameId === "ac-evo" ? "ACE" : session.gameId === "iracing" ? "iR" : session.gameId === "lmu" ? "LMU" : "FM"}
                   </Badge>
-                </TD>
+                </TableCell>
               )}
-              <TD tone="primary" truncate="narrow" title={track}>
+              <TableCell className="text-app-text" title={track}>
                 <button
                   type="button"
-                  className="text-left focus-visible:outline-2 focus-visible:outline-app-text"
-                  aria-label={`${m.sessions_analyse_session()}: ${track || "—"}, ${new Date(session.createdAt).toLocaleDateString(getLocale())}`}
+                  className="cursor-pointer text-left focus-visible:outline-2 focus-visible:outline-app-text"
+                  aria-label={`${m.sessions_analyse_session()}: ${track || "—"}, ${parseUtcTimestamp(session.createdAt).toLocaleDateString(getLocale())}`}
                   onClick={(event) => {
                     event.stopPropagation();
                     onAnalyseSession(session);
@@ -89,15 +75,19 @@ export function RecentSessionsTable({
                 >
                   {track || "—"}
                 </button>
-              </TD>
-              <TD tone="primary" truncate="narrow" title={car}>{car || "—"}</TD>
-              <TD numeric tone="primary">{session.lapCount ?? 0}</TD>
-              <TD emphasis numeric nowrap tone="primary">{session.bestLapTime ? formatLapTime(session.bestLapTime) : "—"}</TD>
-              <TD align="end" nowrap tone="primary">{formatTimeAgo(new Date(session.createdAt))}</TD>
-            </TRow>
+              </TableCell>
+              <TableCell className="text-app-text" title={car}>{car || "—"}</TableCell>
+              <TableCell className="text-app-text"><SessionTypeBadge type={session.sessionType} /></TableCell>
+              <TableCell className="text-right tabular-nums text-app-text">{session.lapCount ?? 0}</TableCell>
+              <TableCell className="text-right tabular-nums font-medium text-app-text">{session.bestLapSeconds != null ? formatLapTime(session.bestLapSeconds) : "—"}</TableCell>
+              <TableCell className="text-right tabular-nums text-app-text">{formatTimeAgo(parseUtcTimestamp(session.createdAt))}</TableCell>
+            </TableRow>
           );
         })}
-      </TBody>
-    </Table>
+      </TableBody>
+      </Table>
+      {!loading && !error && sessions.length === 0 && <EmptyStateOverlay />}
+      </div>
+    </Card>
   );
 }

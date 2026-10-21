@@ -6,8 +6,7 @@ import { errorFromResponse } from "../../lib/rpc-error";
 import { AppInput } from "../ui/AppInput";
 import { Button } from "../ui/button";
 interface LMUCatalogCar {
-  id: string | null;
-  ordinal: number | null;
+  id: string;
   name: string;
   class?: string;
   series?: string[];
@@ -39,13 +38,13 @@ export function LMUCars() {
     const query = search.trim().toLowerCase();
     return cars
       .filter((car) => (!filterClass || car.class === filterClass) && (!query || car.name.toLowerCase().includes(query) || car.series?.some((series) => series.toLowerCase().includes(query))))
-      .toSorted((left, right) => left.name.localeCompare(right.name) || (left.id ?? "").localeCompare(right.id ?? "") || (left.ordinal ?? 0) - (right.ordinal ?? 0));
+      .toSorted((left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id));
   }, [cars, filterClass, search]);
 
   return (
     <div className="flex-1 overflow-auto p-4 space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
-        <AppInput value={search} onChange={(event) => setSearch(event.target.value)} placeholder={m.cars_search_placeholder()} className="w-full @3xl/workspace:w-72" />
+        <AppInput type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={m.cars_search_placeholder()} className="w-full @3xl/workspace:w-72" />
         {!isLoading && <span className="text-xs text-app-text/90 whitespace-nowrap">{filtered.length} / {cars.length}</span>}
       </div>
 
@@ -84,7 +83,7 @@ export function LMUCars() {
       ) : (
         <div className="grid grid-cols-1 gap-3 @3xl/workspace:grid-cols-2 @5xl/workspace:grid-cols-3 @7xl/workspace:grid-cols-4">
           {filtered.map((car) => (
-            <article key={car.id ?? `discovered-${car.ordinal}`} className="group overflow-hidden rounded-lg border border-app-border/10 bg-app-surface-alt/20 transition-colors hover:border-app-border-hover/30">
+            <article key={car.id} className="group overflow-hidden rounded-lg border border-app-border/10 bg-app-surface-alt/20 transition-colors hover:border-app-border-hover/30">
               <div className="relative h-40 overflow-hidden bg-gradient-to-br from-app-text/10 via-app-surface-alt/20 to-app-bg/20">
                 <div className="absolute inset-0 flex items-center justify-center text-3xl font-black italic text-app-text/10">LMU</div>
                 {car.imageUrl && <img src={car.imageUrl} alt={car.name} loading="lazy" className="relative h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-[1.02]" onError={(event) => { event.currentTarget.style.display = "none"; }} />}

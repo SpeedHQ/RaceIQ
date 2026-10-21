@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { DriverProfileSummary } from "../../../server/ai/schemas";
-import type { DriverFingerprint } from "../../../server/driver-profile/fingerprint";
-import type { GameId } from "../../../shared/games/ids";
+import type { DriverProfileSummary } from "@raceiq/shared/integrations/ai/driver-profile-summary";
+import type { DriverFingerprint } from "@raceiq/backend/driver-profile/fingerprint";
+import type { GameId } from "@raceiq/shared/games/ids";
 import { client } from "../lib/rpc";
 import { rpcJson } from "../lib/rpc-json";
 import { useGameId } from "../stores/game";
@@ -18,8 +18,8 @@ export interface DriverProfileRun {
   id: number;
   scopeKey: string;
   gameId: GameId;
-  carOrdinal: number | null;
-  trackOrdinal: number | null;
+  carId: string | null;
+  trackId: string | null;
   poolKey: string;
   status: DriverProfileRunStatus;
   fingerprint: string | null;

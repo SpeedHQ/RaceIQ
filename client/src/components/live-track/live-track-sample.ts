@@ -1,5 +1,5 @@
-import type { GameId } from "@shared/games/ids";
-import { pointAtLapFraction } from "@shared/racing/tracks/path";
+import type { GameId } from "@raceiq/shared/games/ids";
+import { pointAtLapFraction } from "@raceiq/shared/racing/tracks/path";
 import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
 
 export interface LiveTrackPoint {
@@ -10,7 +10,7 @@ export interface LiveTrackPoint {
 export interface LiveTrackSample {
   simulator: GameId;
   observedAtMs: number;
-  trackOrdinal?: number;
+  trackId?: string;
   lapNumber?: number;
   distanceM?: number;
   lapFraction?: number;
@@ -23,7 +23,7 @@ export function liveTrackSampleFromView(view: LiveTelemetryView): LiveTrackSampl
   return {
     simulator: view.simulator,
     observedAtMs: view.observedAtMs,
-    trackOrdinal: view.identity.trackOrdinal,
+    trackId: view.identity.trackId,
     lapNumber: view.timing.lapNumber,
     distanceM: view.motion.distanceM,
     lapFraction: view.timing.lapFraction,

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { KNOWN_GAME_IDS, type GameId } from "../../../shared/games/ids";
+import { KNOWN_GAME_IDS, type GameId } from "@raceiq/shared/games/ids";
 import { useMemo, useRef, useState } from "react";
 import { expect, userEvent, within } from "storybook/test";
 import { AnalyseTrackPanel } from "../components/analyse/AnalyseTrackPanel";
@@ -10,7 +10,7 @@ import type { SceneSource } from "../components/wireframe/SceneRuntime";
 
 const frame: SemanticAnalysisFrame = {
   values: {
-    "identity.car-ordinal": 1,
+    "identity.car-id": "1",
     "motion.speed": 58,
     "motion.position-x": 120,
     "motion.position-z": 240,

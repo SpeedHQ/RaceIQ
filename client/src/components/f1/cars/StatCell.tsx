@@ -1,10 +1,10 @@
-import { TD } from "@/components/ui/AppTable";
+import { TableCell } from "@/components/ui/table";
 import { getRatingColor } from "./utils";
 
 export function StatCell({ value, bold }: { value: number; bold?: boolean }) {
   return (
-    <TD align="end">
+    <TableCell className="text-right">
       <span className={`font-mono text-xs ${getRatingColor(value)} ${bold ? "font-bold" : ""}`}>{value}</span>
-    </TD>
+    </TableCell>
   );
 }

@@ -5,6 +5,7 @@
 @import "tw-shimmer";
 @import "./styles/theme.css";
 @import "./styles/branding.css";
+@import "./components/SessionRecap.css";
 @plugin "@tailwindcss/typography";
 
 @keyframes drawLine {
@@ -64,6 +65,21 @@
   html {
     @apply font-sans;
   }
+}
+
+html.overlay-source,
+html.overlay-source body,
+html.overlay-source #root,
+html.overlay-source #root > * {
+  background: transparent !important;
+}
+
+html.overlay-source,
+html.overlay-source body,
+html.overlay-source #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
 /* Compact markdown for AI chat messages */

@@ -1,8 +1,8 @@
 import { eq, desc, and, inArray, ne, or, isNull } from "drizzle-orm";
 import { db } from "./index";
 import { laps, sessions, sessionResults, pitEvents } from "./schema";
-import type { GameId } from "../../shared/games/ids";
-import type { RaceResultEvidence, RaceResultOutcomeStatus, RaceResultProvenance, RaceResultStatus } from "../../shared/racing/results/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { RaceResultEvidence, RaceResultOutcomeStatus, RaceResultProvenance, RaceResultStatus } from "@raceiq/shared/racing/results/types";
 
 const UNAVAILABLE_RACE_RESULT_EVIDENCE: RaceResultEvidence = {
   fieldStatus: {
@@ -28,7 +28,6 @@ const LEGACY_RACE_RESULT_PROVENANCE: RaceResultProvenance = {
   derivationVersion: "unavailable",
   derivationCodeHash: "unavailable",
   rawInput: null,
-  canonicalInput: null,
   authorityPolicyId: "legacy-outcome-status",
   authorityPolicyVersion: "unavailable",
 };
@@ -71,16 +70,27 @@ export type PitEventInput = {
 
 async function markPitCycleLaps(sessionId: number, events: readonly PitEventInput[]): Promise<void> {
   const inlapNumbers = [...new Set(events.filter((event) => (event.eventType ?? "pit") === "pit" && event.linkage === "linked" && event.lapNumber !== null).map((event) => event.lapNumber!))];
+  if (inlapNumbers.length === 0) return;
+  const session = await db.select({ source: sessions.source }).from(sessions).where(eq(sessions.id, sessionId)).get();
+  if (session?.source === "motec") return;
 
+  // Pit-event inference supplements telemetry categories; it must not turn an
+  // observed out-lap into an in-lap when event lap numbering is ambiguous.
+  const inLapEligibleCategory = or(
+    isNull(laps.classification),
+    inArray(laps.classification, ["pace", "caution"]),
+  );
+  const notIncomplete = or(isNull(laps.invalidReason), ne(laps.invalidReason, "incomplete"));
   await db
     .update(laps)
-    .set({ isValid: false, invalidReason: "inlap" })
-    .where(and(eq(laps.sessionId, sessionId), eq(laps.isValid, true), inArray(laps.lapNumber, inlapNumbers)))
+    .set({ classification: "in_lap" })
+    .where(and(eq(laps.sessionId, sessionId), inArray(laps.lapNumber, inlapNumbers), inLapEligibleCategory, notIncomplete))
     .run();
+  const outLapEligibleCategory = or(isNull(laps.classification), inArray(laps.classification, ["pace", "caution"]));
   await db
     .update(laps)
-    .set({ isValid: false, invalidReason: "outlap" })
-    .where(and(eq(laps.sessionId, sessionId), eq(laps.isValid, true), inArray(laps.lapNumber, inlapNumbers.map((lapNumber) => lapNumber + 1))))
+    .set({ classification: "out_lap" })
+    .where(and(eq(laps.sessionId, sessionId), inArray(laps.lapNumber, inlapNumbers.map((lapNumber) => lapNumber + 1)), outLapEligibleCategory, notIncomplete))
     .run();
 }
 

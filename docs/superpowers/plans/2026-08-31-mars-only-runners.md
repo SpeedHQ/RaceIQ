@@ -124,7 +124,7 @@ git commit -m "ci: run PR snapshots on Mars Windows"
 
 **Files:**
 - Modify: `.github/workflows/update-baselines.yml:28-58,77-90`
-- Review: `scripts/ui/snapshot-in-docker.sh` only to preserve canonical image documentation; do not alter it.
+- Review: `packages/tooling-ui/src/ui/snapshot-in-docker.sh` only to preserve canonical image documentation; do not alter it.
 
 **Interfaces:**
 - Consumes: `target_ref` and `delivery` dispatch inputs.

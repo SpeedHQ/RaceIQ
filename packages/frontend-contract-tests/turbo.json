@@ -1,0 +1,28 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tags": ["app"],
+  "tasks": {
+    "transit": {
+      "inputs": ["$TURBO_DEFAULT$", "!**/*.test.ts", "!**/*.test.tsx", "!test/**"]
+    },
+    "typecheck": {
+      "dependsOn": ["transit", "client#i18n:compile"]
+    },
+    "test": {
+      "dependsOn": ["transit", "client#i18n:compile"],
+      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/test/artifacts/carsetup/mustang.carsetup", "$TURBO_ROOT$/test/artifacts/carsetup/Tourist.carsetup", "$TURBO_ROOT$/test/artifacts/carsetup/Default-12312.carsetup"]
+    },
+    "test:unit": { "dependsOn": ["transit", "client#i18n:compile"] },
+    "test:tooling": { "dependsOn": ["transit", "client#i18n:compile"] },
+    "test:integration": {
+      "dependsOn": ["transit", "client#i18n:compile"],
+      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/test/artifacts/carsetup/mustang.carsetup", "$TURBO_ROOT$/test/artifacts/carsetup/Tourist.carsetup", "$TURBO_ROOT$/test/artifacts/carsetup/Default-12312.carsetup"]
+    },
+    "test:e2e:recordings": {
+      "dependsOn": ["transit", "client#i18n:compile"],
+      "cache": false,
+      "outputs": []
+    }
+  }
+}

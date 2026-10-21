@@ -36,7 +36,7 @@ export function tireSnapshot(samples: SemanticTuneSample[]): Record<"FL" | "FR" 
   return snapshots;
 }
 
-import type { AlignedLapTrace } from "@shared/racing/laps/alignment/types";
+import type { AlignedLapTrace } from "@raceiq/analysis-core/racing/laps/alignment/types";
 export function tireSnapshotFromAlignedTrace(trace: AlignedLapTrace): Record<"FL" | "FR" | "RL" | "RR", CornerSnap> | null {
   if (trace.speedMps.length === 0) return null;
   const corners = ["FL", "FR", "RL", "RR"] as const;

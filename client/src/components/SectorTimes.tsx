@@ -4,7 +4,7 @@ import { formatLapTime } from "@/lib/format";
 import { getSoundEnabled } from "@/lib/settings-storage";
 import { playBlip } from "@/lib/sound";
 import { m } from "@/paraglide/messages";
-import type { LiveSectorData } from "../../../shared/racing/live/types";
+import type { LiveSectorData } from "@raceiq/shared/racing/live/types";
 
 
 /**

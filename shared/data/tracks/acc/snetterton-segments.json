@@ -1,89 +1,90 @@
 {
   "sectors": {
-    "s1End": 0.3882,
-    "s2End": 0.7452,
+    "s1End": 0.389536,
+    "s2End": 0.745355,
     "source": "corner-anchored"
   },
   "segments": [
     {
       "key": "s12",
       "startFrac": 0,
-      "endFrac": 0.038
+      "endFrac": 0.037883
     },
     {
       "key": "t1",
-      "startFrac": 0.038,
-      "endFrac": 0.1367
+      "startFrac": 0.037883,
+      "endFrac": 0.136723
     },
     {
       "key": "t2",
-      "startFrac": 0.1367,
-      "endFrac": 0.2004
+      "startFrac": 0.136723,
+      "endFrac": 0.200935
     },
     {
       "key": "t3",
-      "startFrac": 0.2004,
-      "endFrac": 0.2764
+      "startFrac": 0.200935,
+      "endFrac": 0.276319
     },
     {
       "key": "s3",
-      "startFrac": 0.2764,
-      "endFrac": 0.3176
+      "startFrac": 0.276319,
+      "endFrac": 0.317328
     },
     {
       "key": "t4",
-      "startFrac": 0.3176,
-      "endFrac": 0.3882
+      "startFrac": 0.317328,
+      "endFrac": 0.389536
     },
     {
       "key": "t5",
-      "startFrac": 0.3882,
-      "endFrac": 0.4499
+      "startFrac": 0.389536,
+      "endFrac": 0.450872
     },
     {
       "key": "t6",
-      "startFrac": 0.4499,
-      "endFrac": 0.4947
+      "startFrac": 0.450872,
+      "endFrac": 0.49536
     },
     {
       "key": "t7",
-      "startFrac": 0.4947,
-      "endFrac": 0.5506
+      "startFrac": 0.49536,
+      "endFrac": 0.551332
     },
     {
       "key": "s7",
-      "startFrac": 0.5506,
-      "endFrac": 0.6741
+      "startFrac": 0.551332,
+      "endFrac": 0.674076
     },
     {
       "key": "t8",
-      "startFrac": 0.6741,
-      "endFrac": 0.7189
+      "startFrac": 0.674076,
+      "endFrac": 0.719009
     },
     {
       "key": "t9",
-      "startFrac": 0.7189,
-      "endFrac": 0.7452
+      "startFrac": 0.719009,
+      "endFrac": 0.745355
     },
     {
       "key": "t10",
-      "startFrac": 0.7452,
-      "endFrac": 0.7985
+      "startFrac": 0.745355,
+      "endFrac": 0.79864
     },
     {
       "key": "t11",
-      "startFrac": 0.7985,
-      "endFrac": 0.8929
+      "startFrac": 0.79864,
+      "endFrac": 0.893176
     },
     {
       "key": "t12",
-      "startFrac": 0.8929,
-      "endFrac": 0.922
+      "startFrac": 0.893176,
+      "endFrac": 0.922389
     },
     {
       "key": "s12",
-      "startFrac": 0.922,
+      "startFrac": 0.922389,
       "endFrac": 1
     }
-  ]
+  ],
+  "override": true
 }

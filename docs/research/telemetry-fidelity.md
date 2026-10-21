@@ -17,7 +17,7 @@ further curated per-channel-rate saving that we are not taking (section 6).
 Measured against `test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz`
 (AC Evo, Porsche 992 GT3 R Rennsport at Brands Hatch, two complete laps) and
 `2.16.967_Spa_AMGEVO_MoTeC` (Mercedes AMG GT3 Evo at Spa, 137.2 s stint,
-55 channels). Locked in by `test/telemetry/telemetry-fidelity.test.ts`.
+55 channels). Locked in by `apps/backend/test/telemetry/telemetry-fidelity.test.ts`.
 
 ## 1. We are not capturing at 100 Hz, and a third of each frame is a re-read
 
@@ -85,7 +85,7 @@ Two consequences the earlier draft missed:
 `server/games/shared/win-timer-resolution.ts` raises the process timer
 resolution via `timeBeginPeriod` on `winmm.dll`, clamped to the platform floor
 reported by `timeGetDevCaps`. Both shared-memory readers
-(`server/games/acc/shared-memory.ts`, `server/games/ac-evo/shared-memory.ts`)
+(`packages/game-acc/src/shared-memory.ts`, `packages/game-ac-evo/src/shared-memory.ts`)
 acquire it immediately before arming any capture interval and release it in
 `stop()`. It is **refcounted**, so ACC and AC Evo running back to back do not
 fight over it, and **scoped to an active capture** rather than the process
@@ -125,7 +125,7 @@ genuinely only change ~40 times a second because that is all the sim publishes.
 "our effective rate is 39.5 Hz". `CurrentRaceTime` comes off the *graphics*
 page, so that number was a graphics-page statistic mislabelled as stale physics.
 It has been corrected here and the assertion in
-`test/telemetry/telemetry-fidelity.test.ts` now checks each page separately.
+`apps/backend/test/telemetry/telemetry-fidelity.test.ts` now checks each page separately.
 
 **The actionable finding.** "Retain 100 Hz physics" is a statement about intent,
 not about the data — the honest headline is 63.5 Hz physics. And because
@@ -273,7 +273,7 @@ not by an error threshold.**
 ## Reproducing
 
 ```bash
-bun run test test/telemetry/telemetry-fidelity.test.ts
+bun run test apps/backend/test/telemetry/telemetry-fidelity.test.ts
 ```
 
 The test asserts both halves — that smooth channels survive *and* that events do

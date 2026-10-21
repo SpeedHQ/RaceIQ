@@ -1,24 +1,29 @@
+import { isPaceLap } from "@raceiq/shared/racing/lap-classification";
 import { Fragment } from "react";
-import type { GameId } from "@shared/games/ids";
-import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { LapMeta, SessionMeta } from "@raceiq/shared/racing/sessions/types";
 import { formatLapTime } from "@/components/LiveTelemetry";
 import { RaceResultLedger } from "@/components/race-results/RaceResultLedger";
-import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { SortableTableHead } from "@/components/ui/sortable-table-head";
 import { FavoriteToggleButton } from "../FavoriteToggleButton";
 import { Button } from "@/components/ui/button";
-import { formatSessionType, sessionCarName, sessionTrackName } from "./helpers";
+import { sessionCarName, sessionTrackName } from "./helpers";
+import { SessionTypeBadge } from "./SessionTypeBadge";
 import { NoteCell } from "./NoteCell";
 import { MotecBadge } from "./MotecBadge";
 import { SessionLapTable } from "./SessionLapTable";
 import { SessionResultMeta } from "./SessionResultMeta";
+import { SessionCaptureSplitStatus } from "./SessionCaptureSplitStatus";
 import type { LapSortKey, SessionSelectionEvent, SortDir, SortKey } from "./types";
 import { getLocale } from "@/paraglide/runtime";
 import { m } from "@/paraglide/messages";
+import { parseUtcTimestamp } from "@/lib/utc-date";
 
 export type SessionDesktopTableProps = {
   lapsBySession: Map<number, LapMeta[]>;
-  trackNames: Record<number, string>;
-  carNames: Record<number, string>;
+  trackNames: Record<string, string>;
+  carNames: Record<string, string>;
   isLoading: boolean;
   sessionsError: boolean;
   showSessionType: boolean;
@@ -41,9 +46,6 @@ export type SessionDesktopTableProps = {
   lapSortDir: SortDir;
   toggleLapSort: (key: LapSortKey) => void;
   saveSessionNotes: (id: number, notes: string) => void;
-  exporting: boolean;
-  runExport: (selection: { sessionIds?: number[] }) => void;
-  setRecapSessionId: (id: number) => void;
   analyseSession: (session: SessionMeta) => void;
 };
 
@@ -73,92 +75,82 @@ export function SessionDesktopTable({
   lapSortDir,
   toggleLapSort,
   saveSessionNotes,
-  exporting,
-  runExport,
-  setRecapSessionId,
   analyseSession,
 }: SessionDesktopTableProps) {
   return (
     <div className="hidden flex-1 overflow-auto @3xl/workspace:block">
-      <Table fit>
-        <THead>
-          <TH>
-            <input
-              type="checkbox"
-              checked={pageItems.length > 0 && pageItems.every((session) => selectedSessions.has(session.id))}
-              onChange={() => {
-                const allSelected = pageItems.every((session) => selectedSessions.has(session.id));
-                setSelectedSessions((previous) => {
-                  const next = new Set(previous);
-                  for (const session of pageItems) {
-                    if (allSelected) next.delete(session.id);
-                    else next.add(session.id);
-                  }
-                  return next;
-                });
-              }}
-              className="accent-app-accent w-4 h-4"
-            />
-          </TH>
-          {(
-            [
-              ["date", m.sessions_col_date()],
-              ["laps", m.label_laps()],
-              ["best", m.sessions_col_best_lap()],
-              ["track", m.label_track()],
-              ["car", m.label_car()],
-              ["result", m.label_result()],
-              ...(showSessionType ? [["type", m.label_type()] as const] : []),
-            ] as const
-          ).map(([field, label]) => (
-            <SortableTH key={field} direction={sortKey === field ? (sortDir === "asc" ? "ascending" : "descending") : undefined} onSort={() => toggleSort(field)}>
-              {label}
-            </SortableTH>
-          ))}
-          <TH>{m.sessions_col_notes()}</TH>
-        </THead>
-        <TBody>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>
+              <input
+                type="checkbox"
+                checked={pageItems.length > 0 && pageItems.every((session) => selectedSessions.has(session.id))}
+                onChange={() => {
+                  const allSelected = pageItems.every((session) => selectedSessions.has(session.id));
+                  setSelectedSessions((previous) => {
+                    const next = new Set(previous);
+                    for (const session of pageItems) {
+                      if (allSelected) next.delete(session.id);
+                      else next.add(session.id);
+                    }
+                    return next;
+                  });
+                }}
+                className="accent-app-accent w-4 h-4"
+              />
+            </TableHead>
+            {(
+              [
+                ["date", m.sessions_col_date()],
+                ["laps", m.label_laps()],
+                ["best", m.sessions_col_best_lap()],
+                ["track", m.label_track()],
+                ["car", m.label_car()],
+                ["result", m.label_result()],
+                ...(showSessionType ? [["type", m.label_type()] as const] : []),
+              ] as const
+            ).map(([field, label]) => (
+              <SortableTableHead key={field} direction={sortKey === field ? (sortDir === "asc" ? "ascending" : "descending") : undefined} onSort={() => toggleSort(field)}>
+                {label}
+              </SortableTableHead>
+            ))}
+            <TableHead>{m.sessions_col_notes()}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {isLoading ? (
-            <TRow variant="separator">
-              <TD align="center" colSpan={colCount} tone="primary">
+            <TableRow className="hover:bg-transparent">
+              <TableCell className="text-center text-app-label" colSpan={colCount}>
                 <div className="py-6">{m.common_loading()}</div>
-              </TD>
-            </TRow>
+              </TableCell>
+            </TableRow>
           ) : sessionsError ? null : pageItems.length === 0 ? (
-            <TRow variant="separator">
-              <TD align="center" colSpan={colCount} tone="primary">
+            <TableRow className="hover:bg-transparent">
+              <TableCell className="text-center text-app-label" colSpan={colCount}>
                 <div className="py-6">{emptyMessage}</div>
-              </TD>
-            </TRow>
+              </TableCell>
+            </TableRow>
           ) : (
             pageItems.map((session) => {
               const isExpanded = expandedSessions.has(session.id);
               const sessionLaps = lapsBySession.get(session.id) ?? [];
-              const bestTime = session.bestLapTime || (sessionLaps.length > 0 ? Math.min(...sessionLaps.map((lap) => lap.lapTime)) : 0);
+              const paceLaps = sessionLaps.filter((lap) => lap.isValid && isPaceLap(lap.classification));
+              const bestTime = session.bestLapTime || (paceLaps.length > 0 ? Math.min(...paceLaps.map((lap) => lap.lapTime)) : 0);
               return (
                 <Fragment key={session.id}>
-                  <TRow onClick={() => toggleExpand(session.id)} selected={isExpanded}>
-                    <TD align="center" onClick={(event) => event.stopPropagation()}>
+                  <TableRow onClick={() => toggleExpand(session.id)} data-state={isExpanded ? "selected" : undefined} className={isExpanded && sessionLaps.length > 0 ? "border-b-0" : undefined}>
+                    <TableCell className="text-center" onClick={(event) => event.stopPropagation()}>
                       <input type="checkbox" checked={selectedSessions.has(session.id)} onChange={(event) => toggleSessionSelection(session.id, event)} className="accent-app-accent w-4 h-4" />
-                    </TD>
-                    <TD nowrap tone="primary">
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-app-label">
                       <div className="flex items-center gap-2">
                         <span>
-                          {new Date(session.createdAt).toLocaleDateString(getLocale())}{" "}
-                          <span className="text-app-text/90">{new Date(session.createdAt).toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" })}</span>
+                          {parseUtcTimestamp(session.createdAt).toLocaleDateString(getLocale())}{" "}
+                          <span className="text-app-text/90">{parseUtcTimestamp(session.createdAt).toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" })}</span>
                         </span>
                         {session.source === "motec" && <MotecBadge />}
                         <FavoriteToggleButton target="session" id={session.id} isFavorite={Boolean(session.isFavorite)} />
-                        <Button
-                          variant="app-outline"
-                          size="app-sm"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setRecapSessionId(session.id);
-                          }}
-                        >
-                          Recap
-                        </Button>
                         <Button
                           variant="app-primary"
                           size="app-sm"
@@ -171,47 +163,32 @@ export function SessionDesktopTable({
                         >
                           {m.sessions_analyse_session()}
                         </Button>
-                        <Button
-                          variant="app-outline"
-                          size="app-sm"
-                          disabled={exporting || session.telemetryAvailable === false}
-                          title={session.telemetryAvailable === false ? m.sessions_raw_telemetry_removed() : m.sessions_export_session()}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            runExport({ sessionIds: [session.id] });
-                          }}
-                        >
-                          {m.label_export()}
-                        </Button>
                       </div>
-                    </TD>
-                    <TD numeric tone="primary">
-                      {session.lapCount ?? 0}
-                    </TD>
-                    <TD numeric tone="primary">
-                      {bestTime ? formatLapTime(bestTime) : "—"}
-                    </TD>
-                    <TD tone="primary">{sessionTrackName(session, { trackNames, carNames })}</TD>
-                    <TD tone="primary">{sessionCarName(session, { trackNames, carNames })}</TD>
-                    <TD tone="primary">
+                    </TableCell>
+                    <TableCell className="font-mono tabular-nums text-app-label">{session.lapCount ?? 0}</TableCell>
+                    <TableCell className="font-mono tabular-nums text-app-label">{bestTime ? formatLapTime(bestTime) : "—"}</TableCell>
+                    <TableCell className="text-app-label">{sessionTrackName(session, { trackNames, carNames })}</TableCell>
+                    <TableCell className="text-app-label">{sessionCarName(session, { trackNames, carNames })}</TableCell>
+                    <TableCell className="text-app-label">
                       <SessionResultMeta session={session} />
-                    </TD>
-                    {showSessionType && <TD tone="primary">{formatSessionType(session.sessionType)}</TD>}
-                    <TD>
+                      <SessionCaptureSplitStatus status={session.captureSplit} sessionId={session.id} />
+                    </TableCell>
+                    {showSessionType && <TableCell className="text-app-label"><SessionTypeBadge type={session.sessionType} /></TableCell>}
+                    <TableCell>
                       <NoteCell value={session.notes ?? undefined} onSave={(notes) => saveSessionNotes(session.id, notes)} />
-                    </TD>
-                  </TRow>
+                    </TableCell>
+                  </TableRow>
                   {isExpanded && gameId && (
-                    <TRow variant="separator">
-                      <TD colSpan={colCount}>
-                        <RaceResultLedger sessionId={session.id} gameId={gameId} enabled={isExpanded} />
-                      </TD>
-                    </TRow>
+                    <TableRow className={sessionLaps.length > 0 ? "border-b-0 hover:bg-transparent" : "hover:bg-transparent"}>
+                      <TableCell colSpan={colCount} className={sessionLaps.length > 0 ? "[&>section]:border-b-0 [&>div]:border-b-0" : undefined}>
+                        <RaceResultLedger sessionId={session.id} gameId={gameId} enabled={isExpanded} laps={sessionLaps} />
+                      </TableCell>
+                    </TableRow>
                   )}
                   {isExpanded && sessionLaps.length > 0 && (
-                    <TRow variant="separator">
-                      <TD colSpan={colCount}>
-                        <div className="bg-app-surface-alt/20 border-b border-app-border pl-8">
+                    <TableRow className="hover:bg-transparent">
+                      <TableCell colSpan={colCount} className="p-0 max-w-0">
+                        <div className="bg-transparent [&>[data-slot=table-container]]:rounded-none [&>[data-slot=table-container]]:border-0 [&_[data-slot=table-head]]:bg-transparent">
                           <SessionLapTable
                             session={session}
                             laps={sessionLaps}
@@ -223,14 +200,14 @@ export function SessionDesktopTable({
                             toggleLapSelection={toggleLapSelection}
                           />
                         </div>
-                      </TD>
-                    </TRow>
+                      </TableCell>
+                    </TableRow>
                   )}
                 </Fragment>
               );
             })
           )}
-        </TBody>
+        </TableBody>
       </Table>
     </div>
   );

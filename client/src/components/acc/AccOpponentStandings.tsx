@@ -1,9 +1,9 @@
 import { Fragment, useMemo, useState } from "react";
-import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
+import { Table, TableBody as TBody, TableCell as TD, TableHead as TH, TableHeader as THead, TableRow as TRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { LiveCompetitorView } from "@/lib/live-telemetry-view";
-import type { OpponentSourceStatusV1 } from "../../../../shared/telemetry/live/contracts";
+import type { OpponentSourceStatusV1 } from "@raceiq/shared/telemetry/live/contracts";
 
 export interface AccOpponentStandingsProps {
   competitors: readonly LiveCompetitorView[];
@@ -31,17 +31,17 @@ export function AccOpponentStandings({ competitors, playerCarIndex, opponentSour
       {available && sorted.length > 7 && <CardAction><Button type="button" variant="plain" size="content" onClick={() => setFocused((value) => !value)}>{focused ? `Show all (${sorted.length})` : "Focus view"}</Button></CardAction>}
     </CardHeader>
     {available && <CardContent><Table aria-label={title}>
-      <THead><TH>Pos</TH><TH>Driver</TH><TH>Class</TH><TH>Gap</TH><TH>Laps</TH><TH>Last lap</TH><TH>Pit</TH><TH>Status</TH></THead>
+      <THead><TRow><TH>Pos</TH><TH>Driver</TH><TH>Class</TH><TH>Gap</TH><TH>Laps</TH><TH>Last lap</TH><TH>Pit</TH><TH>Status</TH></TRow></THead>
       <TBody>{rows.map(({ row, rank }, index) => <Fragment key={row.carIndex}>
-        {rank > (rows[index - 1]?.rank ?? -1) + 1 && <TRow variant="separator"><TD colSpan={8}>…</TD></TRow>}
-        <TRow selected={row.carIndex === playerCarIndex} aria-current={row.carIndex === playerCarIndex ? "true" : undefined}>
+        {rank > (rows[index - 1]?.rank ?? -1) + 1 && <TRow className="text-app-text-muted"><TD colSpan={8}>…</TD></TRow>}
+        <TRow data-state={row.carIndex === playerCarIndex ? "selected" : undefined} aria-current={row.carIndex === playerCarIndex ? "true" : undefined}>
           <TD>{row.position}</TD><TD>{row.name || "—"}</TD><TD>{row.className || row.classId || "—"}</TD>
           <TD>{row.gapToAheadS === undefined ? "—" : `+${row.gapToAheadS.toFixed(3)}`}</TD><TD>{row.lapsComplete}</TD>
           <TD>{lap(row.lastLapS)}{row.lastLapValid === false && row.lastLapS !== undefined && row.lastLapS > 0 ? " (invalid)" : ""}</TD>
           <TD>{row.pitStatus === "out" ? "On track" : row.pitStatus === "pit_lane" ? "Pit lane" : row.pitStatus === "pit_entry" ? "Pit entry" : row.pitStatus === "pit_exit" ? "Pit exit" : row.pitStatus ?? "—"}</TD>
           <TD>{row.connected === false ? "Disconnected" : "Connected"}</TD>
         </TRow>
-      </Fragment>)}{rows.length > 0 && rows[rows.length - 1]!.rank < sorted.length - 1 && <TRow variant="separator"><TD colSpan={8}>…</TD></TRow>}</TBody>
+      </Fragment>)}{rows.length > 0 && rows[rows.length - 1]!.rank < sorted.length - 1 && <TRow className="text-app-text-muted"><TD colSpan={8}>…</TD></TRow>}</TBody>
     </Table></CardContent>}
   </Card>;
 }

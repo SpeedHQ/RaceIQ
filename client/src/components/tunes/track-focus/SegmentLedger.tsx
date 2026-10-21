@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { SetupRangeBar } from "@/components/SetupRangeBar";
-import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
+import { Table, TableBody as TBody, TableCell as TD, TableHead as TH, TableHeader as THead, TableRow as TRow } from "@/components/ui/table";
 import type { TrackCorner } from "../../../hooks/track-queries";
 import type { LapTrace } from "../../../lib/stint-traces";
 import { detectCorners, ZONE_HALF_WIDTH } from "./detect-corners";
@@ -232,14 +232,15 @@ export function SegmentLedger({ traces, primaryLapId, cornerFracs, corners, curs
   return (
     <div className="space-y-2">
       <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Segment Ledger</div>
-      <div className="rounded border border-app-border overflow-x-auto">
-        <Table density="compact" fit>
+        <Table className="w-full min-w-0 text-app-detail text-app-compact [&_th]:px-2 [&_th]:py-1.5 [&_td]:px-2 [&_td]:py-1.5 [&_tbody]:divide-y [&_tbody]:divide-app-border/40">
           <THead>
-            {["Segment", "Speed range", "Δ worst", "Brake pt var", "Throttle pt var", "Consistency"].map((h) => (
-              <TH key={h} nowrap>
-                {h}
-              </TH>
-            ))}
+            <TRow className="border-b border-app-border">
+              {["Segment", "Speed range", "Δ worst", "Brake pt var", "Throttle pt var", "Consistency"].map((h) => (
+                <TH key={h} className="whitespace-nowrap px-2 py-1.5 text-left">
+                  {h}
+                </TH>
+              ))}
+            </TRow>
           </THead>
           <TBody>
             {scopedRows.map((r) => {
@@ -262,12 +263,13 @@ export function SegmentLedger({ traces, primaryLapId, cornerFracs, corners, curs
                     const pinned = pinnedFrac == null ? null : rows.find((row) => row.frac === pinnedFrac);
                     onHoverRange?.(pinned ? { startFrac: pinned.corner.distanceStart, endFrac: pinned.corner.distanceEnd } : null);
                   }}
-                  selected={pinnedFrac === r.frac || isActive}
+                  className={`group/row relative transition-colors ${pinnedFrac === r.frac || isActive ? "bg-app-accent/10" : "hover:bg-app-surface-hover/50"}`}
                 >
-                  <TD nowrap emphasis tone="primary">
+                  <TD className="whitespace-nowrap px-2 py-1.5 font-semibold text-app-text">
                     {r.corner.label}
                   </TD>
                   <TD
+                    className="px-2 py-1.5 text-app-text-secondary"
                     title={
                       r.minSpeedBest != null && r.medianSpeedBest != null && r.topSpeedBest != null
                         ? `min ${r.minSpeedBest.toFixed(0)} · median ${r.medianSpeedBest.toFixed(0)} · max ${r.topSpeedBest.toFixed(0)} km/h`
@@ -286,16 +288,16 @@ export function SegmentLedger({ traces, primaryLapId, cornerFracs, corners, curs
                       <span className="font-mono text-app-text">—</span>
                     )}
                   </TD>
-                  <TD numeric>
+                  <TD className="px-2 py-1.5 text-right font-mono tabular-nums text-app-text-secondary">
                     <span className={deltaColor(r.deltaBest)}>{r.deltaBest != null ? `${r.deltaBest >= 0 ? "+" : ""}${r.deltaBest.toFixed(1)}` : "—"}</span>
                   </TD>
-                  <TD numeric>
+                  <TD className="px-2 py-1.5 text-right font-mono tabular-nums text-app-text-secondary">
                     <span className={brakeVarColor(r.brakeVarPct)}>{r.brakeVarPct != null ? `±${r.brakeVarPct.toFixed(1)}%` : "—"}</span>
                   </TD>
-                  <TD numeric>
+                  <TD className="px-2 py-1.5 text-right font-mono tabular-nums text-app-text-secondary">
                     <span className={brakeVarColor(r.throttleVarPct)}>{r.throttleVarPct != null ? `±${r.throttleVarPct.toFixed(1)}%` : "—"}</span>
                   </TD>
-                  <TD>
+                  <TD className="px-2 py-1.5 text-app-text-secondary">
                     <Verdict brakeVarPct={r.brakeVarPct} throttleVarPct={r.throttleVarPct} />
                   </TD>
                 </TRow>
@@ -303,7 +305,6 @@ export function SegmentLedger({ traces, primaryLapId, cornerFracs, corners, curs
             })}
           </TBody>
         </Table>
-      </div>
     </div>
   );
 }

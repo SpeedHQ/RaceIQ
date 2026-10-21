@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { AnalystOutputSchema } from "@raceiq/backend-core/ai/output-schema";
 
 import { getSeededLapTarget } from "../../support/seeded/laps";
 import { getAlternateSeededLap, openAnalyseLap } from "./fixtures";
@@ -53,7 +54,8 @@ test("Analyse calls Qwen through frontend and returns structured output", async 
     expect(response.ok, `Analyse request failed (${response.status})`).toBe(true);
     const event = response.body.trim().split("\n").map((line) => JSON.parse(line)).findLast((item: { type?: string }) => item.type === "result") as { analysis?: string; cached?: boolean } | undefined;
     expect(event?.cached).toBe(false);
-    expect(Object.keys(JSON.parse(event!.analysis!))).toEqual(["verdict", "pace", "handling", "corners", "technique", "setup"]);
+    const analysis = AnalystOutputSchema.parse(JSON.parse(event!.analysis!));
+    expect(analysis.verdict.trim()).not.toBe("");
   } finally {
     await request.delete(`/api/laps/${lap.id}/analyse`);
     await request.put("/api/settings", { data: original });
@@ -87,7 +89,7 @@ test("Compare chat calls Qwen through frontend", async ({ page, request }) => {
     await request.delete(`/api/laps/${alternate.id}/analyse`);
     await generateAnalysis(request, lap.id);
     await generateAnalysis(request, alternate.id);
-    await page.goto(`/fm23/compare?track=${lap.trackOrdinal}&carA=${lap.carOrdinal}&carB=${alternate.carOrdinal}&lapA=${lap.id}&lapB=${alternate.id}&ai=1`, { waitUntil: "domcontentloaded" });
+    await page.goto(`/fm23/compare?track=${encodeURIComponent(lap.trackId)}&carA=${encodeURIComponent(lap.carId)}&carB=${encodeURIComponent(alternate.carId)}&lapA=${lap.id}&lapB=${alternate.id}&ai=1`, { waitUntil: "domcontentloaded" });
     const response = await sendThroughChatUi(page, `/api/laps/${lap.id}/compare/${alternate.id}/chat`);
     expect(response.ok, `Compare chat failed (${response.status})`).toBe(true);
   } finally {

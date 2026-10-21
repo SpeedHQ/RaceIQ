@@ -1,4 +1,4 @@
-import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { deltaColor } from "@/lib/colors";
 import { COLOR_A, COLOR_B, compareSegmentKey, formatSectionTime } from "@/lib/comparison-utils";
 import { m } from "@/paraglide/messages";
@@ -8,41 +8,37 @@ export function CompareSegmentTable({ segments, tableRef }: { segments: SegmentT
   if (segments.length === 0) return null;
   return (
     <div className="min-h-24 flex-1 overflow-auto">
-      <Table density="compact" fit variant="embedded">
-        <THead>
-          <TH>{m.compare_segment()}</TH>
-          <TH align="end">
-            <span style={{ color: COLOR_A }}>A</span>
-          </TH>
-          <TH align="end">
-            <span style={{ color: COLOR_B }}>B</span>
-          </TH>
-          <TH align="end">+/-</TH>
-        </THead>
-        <TBody ref={tableRef}>
+      <Table className="w-full text-xs">
+        <TableHeader>
+          <TableRow>
+            <TableHead>{m.compare_segment()}</TableHead>
+            <TableHead className="text-right">
+              <span style={{ color: COLOR_A }}>A</span>
+            </TableHead>
+            <TableHead className="text-right">
+              <span style={{ color: COLOR_B }}>B</span>
+            </TableHead>
+            <TableHead className="text-right">+/-</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody ref={tableRef}>
           {segments.map((s) => {
             const fasterA = s.timeA > 0 && s.timeB > 0 && s.timeA < s.timeB;
             const fasterB = s.timeA > 0 && s.timeB > 0 && s.timeB < s.timeA;
             const delta = s.timeA - s.timeB;
             const segmentDeltaColor = Math.abs(delta) < 0.005 ? "var(--app-text-secondary)" : deltaColor(delta);
             return (
-              <TRow key={compareSegmentKey(s.name, s.startFrac, s.endFrac)}>
-                <TD nowrap numeric tone="primary">
-                  {s.name}
-                </TD>
-                <TD align="end" numeric tone={fasterA ? "success" : "default"}>
-                  {formatSectionTime(s.timeA)}
-                </TD>
-                <TD align="end" numeric tone={fasterB ? "success" : "default"}>
-                  {formatSectionTime(s.timeB)}
-                </TD>
-                <TD align="end" numeric>
+              <TableRow key={compareSegmentKey(s.name, s.startFrac, s.endFrac)}>
+                <TableCell className="whitespace-nowrap font-mono font-medium">{s.name}</TableCell>
+                <TableCell className={`text-right font-mono tabular-nums ${fasterA ? "text-[var(--status-success)]" : ""}`}>{formatSectionTime(s.timeA)}</TableCell>
+                <TableCell className={`text-right font-mono tabular-nums ${fasterB ? "text-[var(--status-success)]" : ""}`}>{formatSectionTime(s.timeB)}</TableCell>
+                <TableCell className="text-right font-mono tabular-nums">
                   <span style={{ color: segmentDeltaColor }}>{s.timeA > 0 && s.timeB > 0 ? `${delta > 0 ? "+" : ""}${delta.toFixed(3)}` : "-"}</span>
-                </TD>
-              </TRow>
+                </TableCell>
+              </TableRow>
             );
           })}
-        </TBody>
+        </TableBody>
       </Table>
     </div>
   );
