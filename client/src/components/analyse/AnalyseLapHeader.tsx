@@ -48,7 +48,6 @@ interface Props {
   tunePending: boolean;
   // UI state
   loading: boolean;
-  aiPanelOpen: boolean;
   // Callbacks
   onTrackChange: (v: string | null) => void;
   onCarChange: (v: string | null) => void;
@@ -63,7 +62,6 @@ interface Props {
   importingBin: boolean;
   ownership: SessionOwnership;
   onOwnershipChange: (value: SessionOwnership) => void;
-  onToggleAi: () => void;
   onDeleteLap: () => void;
   onNotesChange: (notes: string) => void;
 }
@@ -87,7 +85,6 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
   availableTunes,
   tunePending,
   loading,
-  aiPanelOpen,
   onTrackChange,
   onCarChange,
   onLapChange,
@@ -101,7 +98,6 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
   importingBin,
   ownership,
   onOwnershipChange,
-  onToggleAi,
   onDeleteLap,
   onNotesChange,
 }: Props) {
@@ -310,12 +306,6 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
                 : []),
             ]}
           />
-          {hasTelemetry && (
-            <Button variant={aiPanelOpen ? "selected-toggle" : "app-outline"} size="app-md" onClick={onToggleAi}>
-              <Sparkles className="size-3.5" />
-              {m.label_ai_analysis()}
-            </Button>
-          )}
           {loading && <span className="text-xs text-app-text-muted animate-pulse">{m.common_loading()}</span>}
         </div>
       </div>

@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AnalyseDataPanel } from "../components/analyse/AnalyseDataPanel";
+import { AnalyseDataContent } from "../components/analyse/AnalyseDataPanel";
+import { InsightPanel } from "@raceiq/lap-replay/ui";
+import { LapReplayHostProvider } from "../features/lap-replay-host";
 import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
@@ -42,25 +44,24 @@ const frame: SemanticAnalysisFrame = {
   freshness: {},
 };
 
-const meta: Meta<typeof AnalyseDataPanel> = {
+const meta: Meta<typeof AnalyseDataContent> = {
   title: "Screens/AnalyseDataPanelParity",
-  component: AnalyseDataPanel,
+  component: AnalyseDataContent,
   parameters: { layout: "fullscreen", viewport: { defaultViewport: "1080p" } },
   decorators: [
     (Story) => (
       <QueryClientProvider client={queryClient}>
-        <Story />
+        <LapReplayHostProvider><div className="flex h-screen w-[22rem] flex-col overflow-y-auto"><Story /></div></LapReplayHostProvider>
       </QueryClientProvider>
     ),
   ],
 };
 export default meta;
-type Story = StoryObj<typeof AnalyseDataPanel>;
+type Story = StoryObj<typeof AnalyseDataContent>;
 
 export const LoadedMainParity: Story = {
   args: {
-    sidebarTab: "live",
-    onSidebarTabChange: () => {},
+    packetNumber: 1,
     currentFrame: frame,
     startFuel: 0.8,
     gameId: "f1-2025",
@@ -73,23 +74,18 @@ export const LoadedMainParity: Story = {
       temp: (value: number) => value,
     } as never,
     wearRate: { FL: 0.1, FR: 0.2, RL: 0.3, RR: 0.4 },
-    lapInsights: [],
-    detectorCoverage: [],
-    onJumpToFrame: () => {},
   },
 };
 export const DetectorCoverage: Story = {
-  ...LoadedMainParity,
-  args: {
-    ...LoadedMainParity.args,
-    sidebarTab: "insights",
-    lapInsights: [{ id: "tire-lockup-FL", category: "tires", severity: "warning", label: "Wheel Lockup", detail: "FL locked once", frameIndices: [25] }],
-    detectorCoverage: [
+  render: () => <InsightPanel
+    insights={[{ id: "tire-lockup-FL", category: "tires", severity: "warning", label: "Wheel Lockup", detail: "FL locked once", frameIndices: [25] }]}
+    detectorCoverage={[
       { id: "tire-lockup", category: "tires", label: "Wheel Lockup", status: "finding" },
       { id: "tire-spin", category: "tires", label: "Wheelspin", status: "checked" },
       { id: "driving-traction-control-activation", category: "driving", label: "Traction Control Activation", status: "unavailable", reason: "Wheel-rotation telemetry unavailable" },
-    ],
-  },
+    ]}
+    onJumpToFrame={() => {}}
+  />,
 };
 
 export const LMUTireTemperatures: Story = {

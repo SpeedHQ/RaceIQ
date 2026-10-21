@@ -63,12 +63,11 @@ export async function exercisePlaybackControls(page: Page, semanticFrames: Seman
   if (startFrame < 0) throw new Error("Seeded Analyse fixture lacks 120-frame motion.speed variation window");
   await expect.poll(() => page.evaluate(() => typeof (window as typeof window & { __setFrame?: unknown }).__setFrame), { timeout: 30_000 }).toBe("function");
   await setAnalyseFrame(page, startFrame);
-  await page.getByRole("tab", { name: "3D", exact: true }).click({ timeout: 30_000 });
   const oneX = page.getByRole("button", { name: "1x", exact: true });
   if (await oneX.getAttribute("aria-pressed") !== "true") await oneX.click();
 
   await page.evaluate(() => {
-    const panel = Array.from(document.querySelectorAll('[role="tabpanel"]')).find((element) => element.textContent?.includes("Metrics at Cursor"));
+    const panel = document.querySelector("#replay-data-panel");
     const grid = panel?.querySelector(".grid");
     if (!grid) throw new Error("Analyse Data metric grid unavailable");
     let mutations = 0;
@@ -108,6 +107,7 @@ export async function exercisePlaybackControls(page: Page, semanticFrames: Seman
   await slider.press("ArrowRight");
   await expect.poll(async () => Number(await slider.getAttribute("aria-valuenow"))).toBeGreaterThan(beforeKeyboardStep);
 
+  await page.locator('[data-panel-toggle="replay-telemetry-panel"]').click();
   const chart = page.locator("canvas.cursor-crosshair").first();
   await expect(chart).toBeVisible();
   const beforeChartSeek = Number(await slider.getAttribute("aria-valuenow"));
@@ -116,13 +116,13 @@ export async function exercisePlaybackControls(page: Page, semanticFrames: Seman
 }
 
 export async function exerciseInsightsAndMap(page: Page): Promise<void> {
-  const insightsTab = page.getByRole("tab", { name: /Insights/ });
+  const insightsTab = page.locator('[data-panel-toggle="replay-insights-panel"]');
   await insightsTab.click();
-  await expect(insightsTab).toHaveAttribute("aria-selected", "true");
-  const insightsPanel = page.getByRole("tabpanel", { name: /Insights/ });
+  await expect(insightsTab).toHaveAttribute("aria-expanded", "true");
+  const insightsPanel = page.getByRole("region", { name: "Insights", exact: true });
   await expect(insightsPanel.getByRole("heading", { name: "Suspension" })).toBeVisible();
   await expect(insightsPanel.getByRole("button").first()).toBeVisible();
-  await page.getByRole("tab", { name: "Data", exact: true }).click();
+  await insightsTab.click();
 
   const fixedSwitch = page.getByRole("switch", { name: "Fixed", exact: true });
   await fixedSwitch.click();
@@ -145,13 +145,13 @@ export async function exerciseInsightsAndMap(page: Page): Promise<void> {
 }
 
 export async function exercise3dGuide(page: Page, assertClosed = true): Promise<void> {
-  await page.getByRole("tab", { name: "3D", exact: true }).click({ timeout: 30_000 });
-  await expect(page.getByRole("tab", { name: "3D", exact: true })).toHaveAttribute("aria-selected", "true");
-  await page.getByRole("tab", { name: "2D", exact: true }).click({ timeout: 30_000 });
-  const activeVizPanel = page.getByRole("tabpanel", { name: "2D" });
+  const carTab = page.locator('[data-panel-toggle="replay-car-panel"]');
+  await carTab.click({ timeout: 30_000 });
+  const activeVizPanel = page.getByRole("region", { name: "Car layout" });
   await expect(activeVizPanel).toBeVisible();
   await expect(activeVizPanel.getByRole("img", { name: /^FL (?:surface|core|carcass):/ })).toBeVisible();
   await expect(activeVizPanel.getByRole("img", { name: /^RR (?:surface|core|carcass):/ })).toBeVisible();
+  await carTab.click();
 
   await page.getByRole("button", { name: "Guide", exact: true }).click();
   const guideDialog = page.getByRole("dialog", { name: "Data Panel Guide" });
@@ -173,11 +173,11 @@ export async function exerciseCrossGameControls(page: Page, hasF1Setup: boolean,
   await assertLapSelectors(page, expectedLapNumber);
   await assertTuneSelector(page);
 
-  const insightsTab = page.getByRole("tab", { name: /Insights/ });
+  const insightsTab = page.locator('[data-panel-toggle="replay-insights-panel"]');
   await insightsTab.click();
-  await expect(insightsTab).toHaveAttribute("aria-selected", "true");
-  await expect(page.getByRole("tabpanel", { name: /Insights/ }).getByRole("heading", { name: "Suspension" })).toBeVisible();
-  await page.getByRole("tab", { name: "Data", exact: true }).click();
+  await expect(insightsTab).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByRole("region", { name: "Insights", exact: true }).getByRole("heading", { name: "Suspension" })).toBeVisible();
+  await insightsTab.click();
 
   for (const speed of [0.1, 0.25, 0.5, 1, 1.5, 2, 2.5]) {
     const speedButton = page.getByRole("button", { name: `${speed}x`, exact: true });

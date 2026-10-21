@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { hasTelemetryGap } from "../src/components/analyse/AnalyseTelemetryChart";
+import { hasTelemetryGap } from "@raceiq/lap-replay/ui"
 import { REACT_STATE_INTERVAL_MS } from "../src/hooks/useLapPlayback";
 
 describe("Analyse playback cadence", () => {

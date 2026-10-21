@@ -21,7 +21,7 @@ import { AnalyseWorkspacePanels } from "./AnalyseWorkspacePanels";
 import { AnalyseWorkspaceStatus } from "./AnalyseWorkspaceStatus";
 import { flushSync } from "react-dom";
 import { semanticNumber } from "@raceiq/scene-3d/semantic-frame";
-import type { Point, TrackMapHandle, TrackOverlayKey, TrackZoomBehavior } from "./track-map/types";
+import type { TrackMapHandle, TrackOverlayKey, TrackZoomBehavior } from "./track-map/types";
 import type { SceneRuntime, SceneSource } from "@raceiq/scene-3d/wireframe/SceneRuntime"
 import { useAnalyseImports } from "./useAnalyseImports";
 import { useAnalyseSelections } from "./useAnalyseSelections";
@@ -68,14 +68,6 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
     setRotateWithCar,
     trackOverlays,
     setTrackOverlays,
-    vizMode,
-    setWheelTab,
-    leftColWidth,
-    setLeftColWidth,
-    rightColWidth,
-    setRightColWidth,
-    topHeight,
-    setTopHeight,
     trackNames,
     carNames,
     tracks,
@@ -139,7 +131,6 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
   const loading = lapLoading;
   const [cursorIdx, setCursorIdx] = useState(0);
   const [visualTimeFrac, setVisualTimeFrac] = useState<number | null>(null);
-  const [sidebarTab, setSidebarTab] = useState<"live" | "insights">("live");
   const [playing, setPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [aiPanelOpen, setAiPanelOpen] = useCookieState("analyse-aiPanel", false);
@@ -154,16 +145,6 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
   const [setup, setSetup] = useState<F1CarSetup | null>(null);
   const aiPanelRef = useRef<AiPanelHandle>(null);
   const [viewingTuneId, setViewingTuneId] = useState<number | null>(null);
-  const lapLine = useMemo(() => {
-    if (semanticFrames.length < 2) return null;
-    const pts: Point[] = [];
-    for (const p of semanticFrames) {
-      const x = semanticNumber(p, "motion.position-x");
-      const z = semanticNumber(p, "motion.position-z");
-      if (x != null || z != null) pts.push({ x: x ?? 0, z: z ?? 0 });
-    }
-    return pts.length > 2 ? pts : null;
-  }, [semanticFrames]);
   const playRef = useRef(false);
   const speedRef = useRef(1);
   const displayTelemetryRef = useRef(semanticFrames);
@@ -262,7 +243,7 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
         const generation = publishSeek();
         flushSync(() => setCursorIdx(idx));
         const runtime = runtimeRef.current;
-        if (runtime && vizMode === "3d") runtime.requestFrame(generation).then(resolve, reject);
+        if (runtime) runtime.requestFrame(generation).then(resolve, reject);
         else resolve();
       });
     };
@@ -274,7 +255,7 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
       w.__totalFrames = undefined;
       w.__frameTimes = undefined;
     };
-  }, [semanticFrames.length, publishSeek, vizMode]);
+  }, [semanticFrames.length, publishSeek]);
 
   // Playback animation + keyboard controls
   const { updateOverlays } = useLapPlayback({
@@ -417,7 +398,6 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
   }, [selectedLapId, filteredLaps, deleteLapMutation.mutate]);
   const handleTuneChange = useCallback((tuneId: number | null) => updateLapTune.mutate(tuneId), [updateLapTune.mutate]);
   const handleNotesChange = useCallback((notes: string) => updateLapNotesMutation.mutate(notes), [updateLapNotesMutation.mutate]);
-  const handleToggleAi = useCallback(() => setAiPanelOpen((open) => !open), [setAiPanelOpen]);
   const handleRotateWithCarToggle = useCallback(() => setRotateWithCar((rotate) => !rotate), [setRotateWithCar]);
   const handleTrackOverlayChange = useCallback(
     (overlay: TrackOverlayKey, checked: boolean) => {
@@ -485,7 +465,6 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
         availableTunes={availableTunes}
         tunePending={updateLapTune.isPending}
         loading={loading}
-        aiPanelOpen={aiPanelOpen}
         onTrackChange={handleTrackChange}
         onCarChange={handleCarChange}
         onLapChange={setSelectedLapId}
@@ -497,7 +476,6 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
         importingBin={importingBin}
         ownership={ownership}
         onOwnershipChange={setOwnership}
-        onToggleAi={handleToggleAi}
         onDeleteLap={handleDeleteLap}
         onNotesChange={handleNotesChange}
       />
@@ -506,27 +484,19 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
 
       {semanticFrames.length > 0 && (
         <AnalyseWorkspacePanels
-          topSectionProps={{
-            semanticFrames,
+          sceneProps={{ lmuCarClass, source: sceneSource, onRuntime: handleRuntime }}
+          trackPanelProps={{
             gameId,
-            lmuCarClass,
-            topHeight,
-            leftColWidth,
-            rightColWidth,
-            onLeftResize: setLeftColWidth,
-            onRightResize: setRightColWidth,
+            telemetry: semanticFrames,
             cursorIdx,
             outline,
             closed,
             mapLabels,
             pitLines,
-            sceneSource,
-            onRuntime: handleRuntime,
             boundaries,
             sectors,
             segments,
-            lapLine,
-            units,
+            currentFrame,
             aiPanelOpen,
             aiHighlights,
             rotateWithCar,
@@ -537,13 +507,8 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
             onRotateWithCarToggle: handleRotateWithCarToggle,
             onTrackOverlayChange: handleTrackOverlayChange,
             onMapZoomChange: setMapZoom,
-            vizMode,
-            onVizModeChange: setWheelTab,
             trackMapRef,
-            cursorRef,
-            displayTelemetryRef,
           }}
-          resizeHandleProps={{ topHeight, onHeightChange: setTopHeight }}
           timelineScrubberProps={{
             displayTelemetry: semanticFrames,
             cursorIdx,
@@ -574,18 +539,19 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
           }}
           chartsPanelRef={chartsPanelRef}
           dataPanelProps={{
-            sidebarTab,
             packetNumber: cursorIdx + 1,
-            onSidebarTabChange: setSidebarTab,
             currentFrame,
             startFuel: semanticNumber(semanticFrames[0], "fuel.fuel") ?? undefined,
             gameId,
             units,
             wearRate,
-            lapInsights,
+          }}
+          insightsProps={{
+            insights: lapInsights,
             detectorCoverage,
             onJumpToFrame: handleChartClick,
           }}
+          onAiOpenChange={setAiPanelOpen}
           aiSidebarProps={
             aiPanelOpen && selectedLapId
               ? {

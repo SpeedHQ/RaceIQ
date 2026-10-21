@@ -66,6 +66,7 @@
     "@raceiq/telemetry-core": "workspace:*",
     "@raceiq/frontend-pure": "workspace:*",
     "@raceiq/tracks-catalogue": "workspace:*",
+    "@raceiq/lap-replay": "workspace:*",
     "@raceiq/cars-catalogue": "workspace:*",
     "@raceiq/scene-3d": "workspace:*"
   },

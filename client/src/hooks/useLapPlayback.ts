@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import type { ChartsPanelHandle } from "../components/analyse/AnalyseChartsPanel";
 import { type SemanticAnalysisFrame, semanticNumber } from "@raceiq/scene-3d/semantic-frame";
 import type { TrackMapHandle } from "../components/analyse/track-map/types";
@@ -40,16 +40,25 @@ export function useLapPlayback({
   setCursorIdx,
   setPlaying,
 }: UseLapPlaybackOptions) {
+  const timeFracs = useMemo(() => {
+    const start = semanticNumber(telemetry[0], "timing.current-lap") ?? 0;
+    let end = start;
+    for (const frame of telemetry) end = Math.max(end, semanticNumber(frame, "timing.current-lap") ?? 0);
+    let previous = 0;
+    return telemetry.map((frame) => {
+      previous = Math.max(previous, ((semanticNumber(frame, "timing.current-lap") ?? 0) - start) / (end - start || 1));
+      return previous;
+    });
+  }, [telemetry]);
   const updateOverlays = useCallback(
     (idx: number) => {
       trackMapRef.current?.updateCursor(idx);
       chartsPanelRef.current?.updateCursor(idx);
-      const tf = chartsPanelRef.current?.timeFracs;
-      const pct = tf ? `${(tf[idx] ?? 0) * 100}%` : `${(idx / Math.max(1, telemetry.length - 1)) * 100}%`;
+      const pct = `${(timeFracs[idx] ?? 0) * 100}%`;
       if (thumbRef.current) thumbRef.current.style.left = pct;
       if (progressRef.current) progressRef.current.style.width = pct;
     },
-    [telemetry.length, trackMapRef, chartsPanelRef, thumbRef, progressRef],
+    [timeFracs, trackMapRef, chartsPanelRef, thumbRef, progressRef],
   );
 
   // Play/pause animation — uses CurrentLap timer for accurate real-time playback

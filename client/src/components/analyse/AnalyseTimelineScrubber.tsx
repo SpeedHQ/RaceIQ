@@ -3,7 +3,7 @@ import { SECTOR_COLOR_VARS } from "@raceiq/scene-3d/colors";
 import { formatLapTime } from "@/lib/format";
 import { Button } from "../ui/button";
 import { type SemanticAnalysisFrame, semanticNumber } from "@raceiq/scene-3d/semantic-frame";
-import { hasTelemetryGap } from "./AnalyseTelemetryChart";
+import { hasTelemetryGap } from "@raceiq/lap-replay/ui"
 import { m } from "../../paraglide/messages";
 
 const currentLap = (frame: SemanticAnalysisFrame): number => semanticNumber(frame, "timing.current-lap") ?? 0;

@@ -12,7 +12,7 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { ComboDash } from "../src/components/dashes/ComboDash";
 import { buildChartData } from "../src/components/analyse/chart-data";
 import { AnalyseF1ErsPanel } from "../src/components/analyse/AnalyseF1ErsPanel";
-import { AnalyseDataPanel, buildAnalyseClipboardJson } from "../src/components/analyse/AnalyseDataPanel";
+import { AnalyseDataContent, buildAnalyseClipboardJson } from "../src/components/analyse/AnalyseDataPanel";
 import { AnalyseDynamicsPanel } from "../src/components/analyse/AnalyseDynamicsPanel";
 import { MetricsPanel } from "../src/components/analyse/AnalyseMetricsPanel";
 import { AnalyseSuspensionPanel } from "../src/components/analyse/AnalyseSuspensionPanel";
@@ -584,18 +584,13 @@ describe("telemetry capability UI", () => {
       createElement(
         QueryClientProvider,
         { client: new QueryClient() },
-        createElement(AnalyseDataPanel, {
-          sidebarTab: "live",
-          onSidebarTabChange: () => {},
+        createElement(AnalyseDataContent, {
           packetNumber: 1,
           currentFrame: f1ParityFrame,
           startFuel: 0.8,
           gameId: "f1-2025",
           units: parityUnits,
           wearRate: { FL: 0.1, FR: 0.2, RL: 0.3, RR: 0.4 },
-          lapInsights: [],
-          detectorCoverage: [],
-          onJumpToFrame: () => {},
         }),
       ),
     );
@@ -627,18 +622,13 @@ describe("telemetry capability UI", () => {
         createElement(
           QueryClientProvider,
           { client: new QueryClient() },
-          createElement(AnalyseDataPanel, {
-            sidebarTab: "live",
-            onSidebarTabChange: () => {},
+          createElement(AnalyseDataContent, {
             packetNumber: 1,
             currentFrame: f1ParityFrame,
             startFuel: 0.8,
             gameId,
             units: parityUnits,
             wearRate: { FL: 0.1, FR: 0.2, RL: 0.3, RR: 0.4 },
-            lapInsights: [],
-            detectorCoverage: [],
-            onJumpToFrame: () => {},
           }),
         ),
       );

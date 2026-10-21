@@ -1,59 +1,76 @@
-import type { ComponentProps, RefObject } from "react";
+import { useMemo, useState, type ComponentProps, type RefObject } from "react";
+import { semanticNumber } from "@raceiq/scene-3d/semantic-frame";
+import { m } from "@/paraglide/messages";
+import { SingleReplayWorkspace } from "@raceiq/lap-replay/ui";
+import { CarWireframe } from "../CarWireframe";
+import { TireDiagram } from "../telemetry/TireDiagram";
 import { AnalyseAiSidebar } from "./AnalyseAiSidebar";
 import { AnalyseChartsPanel, type ChartsPanelHandle } from "./AnalyseChartsPanel";
-import { AnalyseDataPanel } from "./AnalyseDataPanel";
-import { AnalyseResizeHandle } from "./AnalyseResizeHandle";
+import { AnalyseDataContent } from "./AnalyseDataPanel";
 import { AnalyseTimelineScrubber } from "./AnalyseTimelineScrubber";
-import { AnalyseTopSection } from "./AnalyseTopSection";
+import { AnalyseTrackPanel } from "./AnalyseTrackPanel";
 
-type TopSectionProps = ComponentProps<typeof AnalyseTopSection>;
-type ResizeHandleProps = ComponentProps<typeof AnalyseResizeHandle>;
-type TimelineScrubberProps = ComponentProps<typeof AnalyseTimelineScrubber>;
-type ChartsPanelProps = ComponentProps<typeof AnalyseChartsPanel>;
-type DataPanelProps = ComponentProps<typeof AnalyseDataPanel>;
-type AiSidebarProps = ComponentProps<typeof AnalyseAiSidebar>;
-
+type TrackPanelProps = ComponentProps<typeof AnalyseTrackPanel>;
+type SceneProps = Pick<ComponentProps<typeof CarWireframe>, "lmuCarClass" | "source" | "onRuntime">;
 interface AnalyseWorkspacePanelsProps {
-  topSectionProps: TopSectionProps;
-  resizeHandleProps: ResizeHandleProps;
-  timelineScrubberProps: TimelineScrubberProps;
-  chartsPanelProps: ChartsPanelProps;
+  trackPanelProps: TrackPanelProps;
+  sceneProps: SceneProps;
+  timelineScrubberProps: ComponentProps<typeof AnalyseTimelineScrubber>;
+  chartsPanelProps: ComponentProps<typeof AnalyseChartsPanel>;
   chartsPanelRef: RefObject<ChartsPanelHandle | null>;
-  dataPanelProps: DataPanelProps;
-  aiSidebarProps: AiSidebarProps | null;
+  dataPanelProps: ComponentProps<typeof AnalyseDataContent>;
+  insightsProps: ComponentProps<typeof SingleReplayWorkspace>["insightsProps"];
+  aiSidebarProps: ComponentProps<typeof AnalyseAiSidebar> | null;
+  onAiOpenChange: (open: boolean) => void;
 }
 
 export function AnalyseWorkspacePanels({
-  topSectionProps,
-  resizeHandleProps,
+  trackPanelProps,
+  sceneProps,
   timelineScrubberProps,
   chartsPanelProps,
   chartsPanelRef,
   dataPanelProps,
+  insightsProps,
   aiSidebarProps,
+  onAiOpenChange,
 }: AnalyseWorkspacePanelsProps) {
+  const [mapOpen, setMapOpen] = useState(true);
+  const frames = chartsPanelProps.semanticFrames;
+  const lapLine = useMemo(() => {
+    const points: { x: number; z: number }[] = [];
+    for (const frame of frames) {
+      const x = semanticNumber(frame, "motion.position-x");
+      const z = semanticNumber(frame, "motion.position-z");
+      if (x != null && z != null) points.push({ x, z });
+    }
+    return points.length > 2 ? points : null;
+  }, [frames]);
   return (
-    <div className="relative flex flex-none flex-col overflow-visible @5xl/workspace:min-h-0 @5xl/workspace:flex-1 @5xl/workspace:flex-row @5xl/workspace:overflow-hidden">
-      {/* Left: main content (map, charts, scrubber) */}
-      <div className="@container/analyse-main flex min-w-0 flex-none flex-col overflow-visible @5xl/workspace:h-full @5xl/workspace:flex-1 @5xl/workspace:overflow-x-hidden @5xl/workspace:overflow-y-auto">
-        {/* Top section: Track Map + Metrics */}
-        <AnalyseTopSection {...topSectionProps} />
-
-        <AnalyseResizeHandle {...resizeHandleProps} />
-        <div className="contents @5xl/workspace:flex @5xl/workspace:min-h-64 @5xl/workspace:flex-1 @5xl/workspace:flex-col">
-          {/* Lap time + Timeline scrubber */}
-          <AnalyseTimelineScrubber {...timelineScrubberProps} />
-
-          {/* Stacked charts — with own scroll */}
-          {chartsPanelProps.semanticFrames.length > 0 && <AnalyseChartsPanel ref={chartsPanelRef} {...chartsPanelProps} />}
+    <SingleReplayWorkspace
+      telemetry={<AnalyseChartsPanel ref={chartsPanelRef} {...chartsPanelProps} />}
+      carLayout={<div className="h-full overflow-y-auto p-2">{dataPanelProps.currentFrame && <TireDiagram frame={dataPanelProps.currentFrame} gameId={dataPanelProps.gameId} />}</div>}
+      data={<div className="h-full overflow-y-auto"><AnalyseDataContent {...dataPanelProps} /></div>}
+      insightsProps={insightsProps}
+      ai={aiSidebarProps && <AnalyseAiSidebar {...aiSidebarProps} />}
+      aiOpen={aiSidebarProps != null}
+      onAiOpenChange={onAiOpenChange}
+      scene={
+      <div data-replay-scene="" className="relative min-h-0 flex-1">
+        <div className="absolute inset-0">
+        <CarWireframe gameId={dataPanelProps.gameId} frame={frames[0]!} telemetry={frames} cursorIdx={0}
+          outline={lapLine} boundaries={trackPanelProps.boundaries} tempLabel={dataPanelProps.units.tempLabel} {...sceneProps} />
         </div>
+        <button type="button" aria-expanded={mapOpen} aria-controls="replay-track-overview" onClick={() => setMapOpen((open) => !open)}
+          className="absolute top-2 right-2 z-10 rounded border border-app-border bg-app-bg px-2 py-1 text-app-caption focus-visible:outline-2 focus-visible:outline-app-accent">
+          {m.spectate_overview()}
+        </button>
+        {mapOpen && <div id="replay-track-overview" className="absolute top-12 right-2 h-56 w-64 max-w-[70%] overflow-hidden rounded border border-app-border bg-app-bg/90">
+          <AnalyseTrackPanel {...trackPanelProps} />
+        </div>}
       </div>
-
-      {/* Right panel – full height */}
-      <AnalyseDataPanel {...dataPanelProps} />
-
-      {/* AI panel — analysis + chat */}
-      {aiSidebarProps && <AnalyseAiSidebar {...aiSidebarProps} />}
-    </div>
+      }
+      playback={<AnalyseTimelineScrubber {...timelineScrubberProps} />}
+    />
   );
 }

@@ -18,7 +18,7 @@ async function openOverlayMenu(page: Page, hasRacingLine: boolean): Promise<void
 }
 
 async function openWireframeViewMenu(page: Page, hasRacingLine: boolean): Promise<void> {
-  await page.getByRole("tabpanel", { name: "3D", exact: true }).getByRole("button", { name: "View", exact: true }).click();
+  await page.locator("[data-replay-scene]").getByRole("button", { name: "View", exact: true }).click();
   for (const label of ["Trails", "Inputs", "Track", "Grid", "Tire Info"]) {
     await expect(page.getByRole("menuitemcheckbox", { name: label, exact: true })).toBeVisible();
   }
@@ -84,7 +84,7 @@ async function expectVisible3dRacingLine(page: Page): Promise<void> {
   await expect(carRenderMode).toHaveText("Hidden");
   await page.getByRole("button", { name: /^Top$/i }).click();
 
-  const canvas = page.getByRole("tabpanel", { name: "3D", exact: true }).locator("canvas").first();
+  const canvas = page.locator("[data-replay-scene] canvas").first();
   await expect(canvas).toBeVisible();
   await expect
     .poll(
@@ -205,7 +205,6 @@ test("Analyse racing-line overlay follows seeded track availability", async ({ p
   }
   await page.keyboard.press("Escape");
   await seekToClosestRacingLine(page, request, accTarget.id, "acc", accBoundaries!.raceLine!);
-  await page.getByRole("tab", { name: "3D", exact: true }).click();
   await openWireframeViewMenu(page, true);
   await expect(page.getByRole("menuitemcheckbox", { name: "Racing line", exact: true })).toHaveAttribute("aria-checked", "false");
   await expectVisible3dRacingLine(page);
@@ -232,7 +231,6 @@ test("Analyse racing-line overlay follows seeded track availability", async ({ p
   await expectTrackMapCanvases(page);
   await openOverlayMenu(page, false);
   await page.keyboard.press("Escape");
-  await page.getByRole("tab", { name: "3D", exact: true }).click();
   await openWireframeViewMenu(page, false);
 
   expect(browserErrors.errors, "unexpected browser errors while toggling racing-line overlays").toEqual([]);

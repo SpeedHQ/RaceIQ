@@ -2,12 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { syncCanvasSize } from "../../lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@raceiq/scene-3d/rendering/css-canvas";
 
-const TELEMETRY_GAP_SECONDS = 0.1;
-const TELEMETRY_GAP_TOLERANCE_SECONDS = 0.001;
-
-export function hasTelemetryGap(previousTime: number, currentTime: number): boolean {
-  return currentTime - previousTime > TELEMETRY_GAP_SECONDS + TELEMETRY_GAP_TOLERANCE_SECONDS;
-}
+import { hasTelemetryGap } from "@raceiq/lap-replay/ui";
 
 export interface ChartSeries {
   data: number[];
