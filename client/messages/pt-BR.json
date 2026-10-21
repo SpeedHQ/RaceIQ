@@ -2467,7 +2467,7 @@
   "storage_recording_summary": "{files} arquivos de gravação · {size}",
   "classification_migration_title": "Classificação de voltas históricas",
   "classification_migration_historical_caveat": "Os resultados históricos de ritmo podem mudar durante o reprocessamento.",
-  "classification_migration_complete": "Gravações históricas classificadas.",
+  "classification_migration_complete": "A classificação das voltas históricas foi concluída.",
   "classification_migration_attention": "Algumas gravações precisam de atenção.",
   "classification_migration_counts": "{completed} classificadas · {pending} pendentes · {limited} limitadas · {failed} com falha",
   "classification_migration_refresh": "Atualizar",

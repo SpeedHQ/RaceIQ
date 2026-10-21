@@ -2467,7 +2467,7 @@
   "storage_recording_summary": "{files} file di registrazione · {size}",
   "classification_migration_title": "Classificazione giri storici",
   "classification_migration_historical_caveat": "I risultati storici di ritmo possono cambiare durante la rielaborazione.",
-  "classification_migration_complete": "Registrazioni storiche classificate.",
+  "classification_migration_complete": "La classificazione dei giri storici è terminata.",
   "classification_migration_attention": "Alcune registrazioni richiedono attenzione.",
   "classification_migration_counts": "{completed} classificate · {pending} in attesa · {limited} limitate · {failed} non riuscite",
   "classification_migration_refresh": "Aggiorna",

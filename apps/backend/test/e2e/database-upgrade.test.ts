@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import Database from "libsql";
 import { createHash } from "node:crypto";
+import dgram from "node:dgram";
 import { LAP_DETECTOR_AC_EVO_ID } from "@raceiq/game-ac-evo/lap-detector";
 import { CLASSIFICATION_MIGRATION_VERSION } from "@raceiq/backend-core/session-capture/classification-migration";
 import { LAP_DETECTOR_ID } from "@raceiq/backend-core/lap-detection/detector";
@@ -48,7 +49,7 @@ async function command(args: string[], cwd = ROOT, env = process.env) {
   return stdout;
 }
 
-function startBranch(dataDir: string, pauseStage: "historical" | "lmu-identity" | "race-results" | "dashboard" | null = null): StartupBackend {
+function startBranch(dataDir: string, pauseStage: "historical" | "lmu-identity" | "race-results" | "dashboard" | null = null, udpPort = 0): StartupBackend {
   const proc = Bun.spawn([process.execPath, "--eval", `
     import { captureConsole } from "./server/runtime/logger";
     import { bootServer } from "./apps/backend/src/runtime/boot";
@@ -78,7 +79,7 @@ function startBranch(dataDir: string, pauseStage: "historical" | "lmu-identity" 
       console.log("[E2E] Stage control:", control.port);
     }
     captureConsole();
-    const backend = await bootServer({ httpPort: 0, udpPort: 0, recordingGameId: null, testDependencies });
+    const backend = await bootServer({ httpPort: 0, udpPort: ${udpPort}, recordingGameId: null, testDependencies });
     const authSetup = await fetch("http://127.0.0.1:" + backend.httpServer.port + "/api/auth/setup", {
       method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ password: null, exposureConfirmed: true }),
     });
@@ -309,7 +310,7 @@ test("startup preserves ambiguous historical Tourist classification without chan
     expect(database.prepare("SELECT * FROM sessions ORDER BY id").all()).toEqual(sessionsBeforeClassification);
     expect(database.prepare("SELECT * FROM laps ORDER BY id").all()).toEqual(lapsBeforeClassification);
     expect(outcomes.some((row) => row.state === "failed" || row.state === "limited")).toBe(true);
-    expect(outcomes).toContainEqual({ state: "failed", reason: "ambiguous_match" });
+    expect(outcomes).toContainEqual({ state: "limited", reason: "ambiguous_match" });
     const resumedTimes = database.prepare("SELECT lap_time FROM laps ORDER BY id").all() as Array<{ lap_time: number }>;
     expect(resumedTimes.map((lap) => lap.lap_time)).toEqual(lapMetadata.map(() => 123.456));
     expect(database.prepare("SELECT id,session_id,notes,is_favorite,profile_id,car_setup,tune_id,experiment_id,experiment_version_id FROM laps ORDER BY id").all()).toEqual(lapMetadata);
@@ -489,6 +490,49 @@ for (const journalState of ["unfinished", "malformed", "unreadable"] as const) {
     }
   }, 60_000);
 }
+
+test.each([true, false])("recording splitting completes with UDP conflict %s", async (conflict) => {
+  const temporary = mkdtempSync(join(tmpdir(), "raceiq-udp-conflict-"));
+  const dataDir = join(temporary, "data");
+  const occupied = dgram.createSocket("udp4");
+  let backend: StartupBackend | undefined;
+  try {
+    const listening = Promise.withResolvers<void>();
+    occupied.once("error", listening.reject);
+    occupied.bind(0, "0.0.0.0", listening.resolve);
+    await listening.promise;
+    const port = conflict ? occupied.address().port : 0;
+    await command([process.execPath, "run", "db:seed", "--games=fm-2023"], ROOT, environment(dataDir));
+    backend = startBranch(dataDir, null, port);
+    if (!conflict) await backend.waitFor("[UDP] Listening on");
+    const initial = await backend.request("/api/storage/split-migration");
+    expect(initial.status).toBe(200);
+    expect(await initial.json()).toMatchObject({
+      sessionCount: 3, progress: { status: "idle", done: 0, total: 3 },
+    });
+    const confirmed = await backend.request("/api/storage/split-migration", {
+      method: "POST", headers: { "content-type": "application/json" }, body: "{}",
+    });
+    expect(confirmed.status).toBe(202);
+    const deadline = Date.now() + 30_000;
+    let progress;
+    do {
+      const response = await backend.request("/api/storage/split-migration");
+      expect(response.status).toBe(200);
+      progress = await response.json() as { sessionCount: number; progress: { status: string; done: number; total: number; migrated: number; failed: number } };
+      if (progress.progress.status !== "running") break;
+      // The separate backend process owns the real split-queue timer.
+      await Bun.sleep(100);
+    } while (Date.now() < deadline);
+    expect(progress).toMatchObject({
+      sessionCount: 0, progress: { status: "success", done: 3, total: 3, migrated: 3, failed: 0 },
+    });
+  } finally {
+    await backend?.stop();
+    occupied.close();
+    await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  }
+}, 60_000);
 
 for (const captureFailure of ["missing", "corrupt"] as const) {
 test(`${captureFailure} historical capture preserves pending repairs while HTTP remains available`, async () => {
