@@ -4,7 +4,8 @@ import { constants } from "node:fs";
 import { chmod, copyFile, link, lstat, mkdir, open, readFile, readdir, realpath, rename, rmdir, stat, unlink, utimes } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { eq } from "drizzle-orm";
-import { db } from "../db/index";
+import { db, readDb } from "../db/index";
+import { withDatabaseWrite } from "../db/write-coordination";
 import { laps, sessions } from "../db/schema";
 import { resolveDataDir } from "../runtime/config/data-dir";
 import { resolveRecordingDirectory } from "../runtime/config/recording-directory";
@@ -25,7 +26,16 @@ const journalFile = join(resolveDataDir(), "recording-layout-migration.json");
 let active = false;
 let progress: LayoutMigrationProgress = { status: "idle", done: 0, total: 0, migrated: 0, failed: 0, error: null };
 let migrationGeneration = 0;
+let stopping = false;
+let migrationSettlement: Promise<void> | null = null;
 const completionListeners = new Set<() => void>();
+export function stopLayoutMigrationAdmission(): void {
+  stopping = true;
+  migrationGeneration++;
+}
+export async function drainLayoutMigration(): Promise<void> {
+  await migrationSettlement;
+}
 export function subscribeLayoutMigrationComplete(listener: () => void): () => void {
   completionListeners.add(listener);
   return () => completionListeners.delete(listener);
@@ -120,7 +130,7 @@ async function readJournal(): Promise<Journal | null> {
   for (const entry of journal.entries) {
     let referenced = false;
     for (const ref of entry.references) {
-      const row = await db.select({ gameId: sessions.gameId, ownership: sessions.ownership, rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, ref.sessionId)).get();
+      const row = await readDb.select({ gameId: sessions.gameId, ownership: sessions.ownership, rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, ref.sessionId)).get();
       if (row && expectedDestination(journal.root, ref.oldPath, row.ownership, row.gameId) !== ref.newPath) throw new Error("Unsafe recording migration reference destination");
       if (row && (row.rawFile === ref.oldPath || row.rawFile === ref.newPath || row.rawFile === expectedDestination(journal.destination, ref.oldPath, row.ownership, row.gameId))) referenced = true;
     }
@@ -153,7 +163,7 @@ async function findLegacyFiles(root: string): Promise<string[]> {
 async function buildEntries(): Promise<JournalEntry[]> {
   const root = resolveRecordingDirectory();
   const legacy = await findLegacyFiles(root);
-  const refs = await db.select({ id: sessions.id, gameId: sessions.gameId, ownership: sessions.ownership, rawFile: sessions.rawFile, captureArchiveFile: sessions.captureArchiveFile }).from(sessions).all();
+  const refs = await readDb.select({ id: sessions.id, gameId: sessions.gameId, ownership: sessions.ownership, rawFile: sessions.rawFile, captureArchiveFile: sessions.captureArchiveFile }).from(sessions).all();
   const referencedArchives = new Set(refs.flatMap((ref) => ref.captureArchiveFile ? [resolve(ref.captureArchiveFile)] : []));
   const unreferencedLegacy = legacy.filter((path) => !referencedArchives.has(resolve(path)));
   const grouped = new Map<string, typeof refs>();
@@ -200,7 +210,7 @@ export async function getLayoutMigrationStatus(): Promise<{ directory: string; f
   const entries = journal ? journal.entries : await buildEntries();
   const paths = new Set(entries.map((entry) => entry.source));
   const physicalPaths = new Set(await Promise.all(entries.map((entry) => canonicalFilesystemPath(entry.source).catch(() => entry.source))));
-  const referenced = await db.select({ rawFile: sessions.rawFile }).from(sessions).all();
+  const referenced = await readDb.select({ rawFile: sessions.rawFile }).from(sessions).all();
   let sessionCount = 0;
   for (const row of referenced) {
     if (!row.rawFile) continue;
@@ -227,7 +237,7 @@ export async function hasPendingLayoutMigration(): Promise<boolean> {
 }
 export async function isLayoutMigrationReadyForStartup(): Promise<boolean> {
   const generation = migrationGeneration;
-  const blocked = () => active || progress.status === "running" || progress.status === "partial" || progress.status === "error";
+  const blocked = () => stopping || active || progress.status === "running" || progress.status === "partial" || progress.status === "error";
   if (blocked()) return false;
   if (await readJournal()) return false;
   const move = getRecordingDirectoryMoveStatus();
@@ -236,7 +246,7 @@ export async function isLayoutMigrationReadyForStartup(): Promise<boolean> {
   if ((await findLegacyFiles(root)).length) return false;
   const knownGames = new Set<string>(getAllGames().map((game) => game.id));
   const filesystemRoot = await realpath(root).catch((error) => (error as NodeJS.ErrnoException).code === "ENOENT" ? root : Promise.reject(error));
-  for (const ref of await db.select({ rawFile: sessions.rawFile }).from(sessions).all()) {
+  for (const ref of await readDb.select({ rawFile: sessions.rawFile }).from(sessions).all()) {
     if (!ref.rawFile) continue;
     const rawPath = resolve(ref.rawFile);
     const rawInfo = await lstat(rawPath).catch((error) => (error as NodeJS.ErrnoException).code === "ENOENT" ? null : Promise.reject(error));
@@ -267,9 +277,9 @@ async function publish(source: string, target: string, digest: string): Promise<
   } finally { await unlink(temp).catch(() => undefined); }
 }
 export async function startLayoutMigration(directory?: string): Promise<void> {
+  if (stopping) throw Object.assign(new Error("Server is stopping"), { code: "MIGRATION_STOPPING" });
   if (active) throw Object.assign(new Error("Layout migration is already running"), { code: "MIGRATION_ACTIVE" });
   const release = reserveRecordingStorageOperation("layout-migration");
-  if (isSessionActive()) { release(); throw Object.assign(new Error("Recording is active"), { code: "RECORDING_ACTIVE" }); }
   migrationGeneration++;
   active = true;
   let admit!: () => void;
@@ -279,7 +289,7 @@ export async function startLayoutMigration(directory?: string): Promise<void> {
   let admissionFailed = false;
   const admission = new Promise<void>((resolveAdmission, reject) => { admit = resolveAdmission; rejectAdmission = reject; });
   progress = { status: "running", phase: "organizing", done: 0, total: progress.total, migrated: 0, failed: 0, error: null };
-  void withSessionCaptureMaintenanceLock(async () => {
+migrationSettlement = withSessionCaptureMaintenanceLock(async () => {
     if (isSessionActive()) throw Object.assign(new Error("Recording is active"), { code: "RECORDING_ACTIVE" });
     const existing = await readJournal();
     if (existing && directory !== undefined && await canonicalFilesystemPath(directory) !== await canonicalFilesystemPath(existing.destination)) {
@@ -322,18 +332,18 @@ export async function startLayoutMigration(directory?: string): Promise<void> {
           entry.published.push(destination);
           await saveJournal(journal);
         }
-        await db.transaction(async (tx) => {
+        await withDatabaseWrite(() => db.transaction(async (tx) => {
           for (const reference of entry.references) {
             const row = await tx.select({ rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, reference.sessionId)).get();
             if (!row) continue;
             if (resolve(row.rawFile ?? "") === resolve(reference.oldPath)) await tx.update(sessions).set({ rawFile: reference.newPath }).where(eq(sessions.id, reference.sessionId)).run();
             else if (resolve(row.rawFile ?? "") !== resolve(reference.newPath)) throw new Error("Session recording reference changed during migration");
           }
-        });
+        }));
         const changedSources = new Set(entry.references.flatMap(({ oldPath, newPath }) => [oldPath, newPath]));
         for (const source of changedSources) await invalidateClassificationMigrationSource(source);
         for (const target of entry.destinations) if (await fileHash(target) !== entry.digest) throw new Error(`Published recording changed: ${target}`);
-        for (const reference of entry.references) for (const lap of await db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, reference.sessionId)).all()) cacheDelete(lap.id);
+        for (const reference of entry.references) for (const lap of await readDb.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, reference.sessionId)).all()) cacheDelete(lap.id);
         clearSessionCaptureCache();
         if (sourceExists) await unlink(entry.source);
         entry.cutover = true;
