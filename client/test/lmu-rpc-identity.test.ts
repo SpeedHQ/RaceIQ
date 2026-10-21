@@ -6,12 +6,13 @@ import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { LMULiveDashboard } from "../src/components/lmu/LMULiveDashboard";
-import { TrackDetail } from "../src/components/track/TrackDetail";
+import { TrackDetail } from "@raceiq/tracks-catalogue/ui"
+import { TracksCatalogueHostProvider } from "../src/features/tracks-catalogue-host";
 import { useCarName } from "../src/hooks/catalog-queries";
 import { useTrackBoundaries, useTrackName, useTrackOutline, useTrackSectorBoundaries, useTrackSectors } from "../src/hooks/track-queries";
 import { buildLiveTelemetryView } from "../src/lib/live-telemetry-view";
 import { fakeAccSemanticFixture } from "../src/stories/fakeData";
-import * as game from "../src/stores/game";
+import { GameRouteProvider } from "../src/stores/game";
 import { telemetryStore } from "../src/stores/telemetry";
 
 initGameAdapters({ f1Experiments: false, iracingAdapter: false });
@@ -38,7 +39,6 @@ async function withIdentityRoutes(
       if (resource === "track-boundaries") return c.json({ leftEdge: [], rightEdge: [], pitLane: null, coordSystem: "lmu" });
       return c.notFound();
     });
-  const gameId = spyOn(game, "useGameId").mockReturnValue("lmu");
   const fetch = spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const url = new URL(input instanceof Request ? input.url : String(input), "http://localhost");
     urls.push(url);
@@ -47,24 +47,30 @@ async function withIdentityRoutes(
   const render = (element: ReactElement) => renderToStaticMarkup(createElement(
     QueryClientProvider,
     { client: queries },
-    createElement(RouterContextProvider, { router, children: element }),
+    createElement(RouterContextProvider, {
+      router,
+      children: createElement(GameRouteProvider, {
+        value: "lmu",
+        children: createElement(TracksCatalogueHostProvider, { children: element }),
+      }),
+    }),
   ));
   try {
     await run({ queries, urls, render });
   } finally {
     fetch.mockRestore();
-    gameId.mockRestore();
     queries.clear();
   }
 }
 
 function IdentityQueries({ trackId, carId }: { trackId: number | string; carId: number | string }) {
-  useTrackName(trackId);
-  useCarName(carId);
-  useTrackSectors(trackId);
-  useTrackSectorBoundaries(trackId);
-  useTrackOutline(trackId);
-  useTrackBoundaries(trackId);
+  const trackKey = String(trackId);
+  useTrackName(trackKey);
+  useCarName(String(carId));
+  useTrackSectors(trackKey);
+  useTrackSectorBoundaries(trackKey);
+  useTrackOutline(trackKey);
+  useTrackBoundaries(trackKey);
   return null;
 }
 

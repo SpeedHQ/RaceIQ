@@ -78,6 +78,7 @@
         "@raceiq/backend-core": "workspace:*",
         "@raceiq/capture-formats": "workspace:*",
         "@raceiq/capture-splitting": "workspace:*",
+        "@raceiq/cars-catalogue": "workspace:*",
         "@raceiq/game-ac-evo": "workspace:*",
         "@raceiq/game-ac-evo-metadata": "workspace:*",
         "@raceiq/game-acc": "workspace:*",
@@ -96,6 +97,7 @@
         "@raceiq/tooling-catalog": "workspace:*",
         "@raceiq/tooling-data": "workspace:*",
         "@raceiq/tooling-release": "workspace:*",
+        "@raceiq/tracks-catalogue": "workspace:*",
         "ai": "7.0.105",
         "drizzle-orm": "^0.45.2",
         "effect": "4.0.4",
@@ -121,6 +123,7 @@
         "@fontsource-variable/geist": "^5.3.0",
         "@inlang/paraglide-js": "^2.25.4",
         "@raceiq/analysis-core": "workspace:*",
+        "@raceiq/cars-catalogue": "workspace:*",
         "@raceiq/frontend-pure": "workspace:*",
         "@raceiq/game-catalogs": "workspace:*",
         "@raceiq/game-lmu-metadata": "workspace:*",
@@ -128,6 +131,7 @@
         "@raceiq/telemetry-core": "workspace:*",
         "@raceiq/tooling-data": "workspace:*",
         "@raceiq/tooling-ui": "workspace:*",
+        "@raceiq/tracks-catalogue": "workspace:*",
         "@tailwindcss/typography": "^0.5.20",
         "@tailwindcss/vite": "^4.3.3",
         "@tanstack/react-query": "^5.103.1",
@@ -216,6 +220,32 @@
       "dependencies": {
         "@raceiq/capture-formats": "workspace:*",
         "effect": "4.0.4",
+      },
+    },
+    "packages/cars-catalogue": {
+      "name": "@raceiq/cars-catalogue",
+      "dependencies": {
+        "@base-ui/react": "^1.8.0",
+        "@hono/zod-validator": "0.9.1",
+        "@raceiq/backend-core": "workspace:*",
+        "@raceiq/frontend-pure": "workspace:*",
+        "@raceiq/game-ac-evo-metadata": "workspace:*",
+        "@raceiq/game-acc-metadata": "workspace:*",
+        "@raceiq/game-catalogs": "workspace:*",
+        "@raceiq/game-f1-2025-metadata": "workspace:*",
+        "@raceiq/game-fm-2023-metadata": "workspace:*",
+        "@raceiq/game-iracing-metadata": "workspace:*",
+        "@raceiq/game-lmu-metadata": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+        "@tanstack/react-query": "^5.103.1",
+        "@tanstack/react-router": "^1.170.38",
+        "hono": "4.13.8",
+        "react": "^19.3.0",
+        "zod": "^4.6.5",
+      },
+      "devDependencies": {
+        "@playwright/test": "1.62.1",
+        "@types/react": "^19.3.0",
       },
     },
     "packages/frontend-contract-tests": {
@@ -463,6 +493,33 @@
         "sharp": "^0.35.4",
       },
     },
+    "packages/tracks-catalogue": {
+      "name": "@raceiq/tracks-catalogue",
+      "dependencies": {
+        "@base-ui/react": "^1.8.0",
+        "@hono/zod-validator": "0.9.1",
+        "@raceiq/backend-core": "workspace:*",
+        "@raceiq/game-ac-evo-metadata": "workspace:*",
+        "@raceiq/game-acc-metadata": "workspace:*",
+        "@raceiq/game-catalogs": "workspace:*",
+        "@raceiq/game-f1-2025-metadata": "workspace:*",
+        "@raceiq/game-fm-2023-metadata": "workspace:*",
+        "@raceiq/game-iracing": "workspace:*",
+        "@raceiq/game-iracing-metadata": "workspace:*",
+        "@raceiq/game-lmu-metadata": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+        "@raceiq/telemetry-core": "workspace:*",
+        "@tanstack/react-query": "^5.103.1",
+        "@tanstack/react-router": "^1.170.38",
+        "hono": "4.13.8",
+        "react": "^19.3.0",
+        "zod": "^4.6.5",
+      },
+      "devDependencies": {
+        "@playwright/test": "1.62.1",
+        "@types/react": "^19.3.0",
+      },
+    },
     "playwright": {
       "name": "raceiq-e2e",
       "dependencies": {
@@ -483,6 +540,7 @@
     "scripts": {
       "name": "@raceiq/tooling",
       "dependencies": {
+        "@babel/parser": "^8.0.5",
         "@raceiq/backend-core": "workspace:*",
         "@raceiq/tooling-build": "workspace:*",
         "@raceiq/tooling-release": "workspace:*",
@@ -1200,6 +1258,8 @@
 
     "@raceiq/capture-splitting": ["@raceiq/capture-splitting@workspace:packages/capture-splitting"],
 
+    "@raceiq/cars-catalogue": ["@raceiq/cars-catalogue@workspace:packages/cars-catalogue"],
+
     "@raceiq/frontend-contract-tests": ["@raceiq/frontend-contract-tests@workspace:packages/frontend-contract-tests"],
 
     "@raceiq/frontend-pure": ["@raceiq/frontend-pure@workspace:packages/frontend-pure"],
@@ -1251,6 +1311,8 @@
     "@raceiq/tooling-release": ["@raceiq/tooling-release@workspace:packages/tooling-release"],
 
     "@raceiq/tooling-ui": ["@raceiq/tooling-ui@workspace:packages/tooling-ui"],
+
+    "@raceiq/tracks-catalogue": ["@raceiq/tracks-catalogue@workspace:packages/tracks-catalogue"],
 
     "@radix-ui/number": ["@radix-ui/number@1.1.3", "", {}, "sha512-Road2bidD0uu/1BGDOWNdPI06g0lIRy6IF9GZcIrDK2KGItfor8IQwQa+yM2ERgHM1MmHxaxpTzk0/Jp42lNfA=="],
 
@@ -3040,6 +3102,8 @@
 
     "@raceiq/backend/@mastra/observability": ["@mastra/observability@1.18.3", "", { "peerDependencies": { "@mastra/core": ">=1.16.0-0 <2.0.0-0", "zod": "^3.25.0 || ^4.0.0" } }, "sha512-WYw3gouK3c1U3dvpi6M56duRUyVlx94vE1Qs1OfETOgGXiFdW9AyO64YIchQmD+mqKpVxIq1ASvEssRHMag45Q=="],
 
+    "@raceiq/tooling/@babel/parser": ["@babel/parser@8.0.6", "", { "dependencies": { "@babel/types": "^8.0.6" }, "bin": "./bin/babel-parser.js" }, "sha512-LpGDIYJAzc3Y3PT9x+FxBrGYu2PlWxLmyN7SwPTzaX0LSwEmFJBsRnPBqmaXF2r1v+Zhz6lNiEJ+7yKtM5+Ugg=="],
+
     "@raceiq/tooling-catalog/@babel/parser": ["@babel/parser@8.0.6", "", { "dependencies": { "@babel/types": "^8.0.6" }, "bin": "./bin/babel-parser.js" }, "sha512-LpGDIYJAzc3Y3PT9x+FxBrGYu2PlWxLmyN7SwPTzaX0LSwEmFJBsRnPBqmaXF2r1v+Zhz6lNiEJ+7yKtM5+Ugg=="],
 
     "@rollup/pluginutils/picomatch": ["picomatch@4.0.5", "", {}, "sha512-RvwwcruNjI1ncT5xRakeyS9Lf8lcItv34KD+aif+VH9kduAyfYBipGh12274xtenIPZ119/R9BdTBa8gAwSh0A=="],
@@ -3275,6 +3339,8 @@
     "@raceiq/backend/@mastra/hono/ws": ["ws@8.21.3", "", { "peerDependencies": { "bufferutil": "^4.0.1", "utf-8-validate": ">=5.0.2" }, "optionalPeers": ["bufferutil", "utf-8-validate"] }, "sha512-201TZ/kPWxoPr/OKWjquZR1SWKXcvxdH+e1xrx89b3YbmzLMFCLfnaG1HFIgWzJOEWZ7MvpK++odZufgYR50Rw=="],
 
     "@raceiq/tooling-catalog/@babel/parser/@babel/types": ["@babel/types@8.0.6", "", { "dependencies": { "@babel/helper-string-parser": "^8.0.6", "@babel/helper-validator-identifier": "^8.0.6" } }, "sha512-c+xgSWboV2pdwXP67BUWDVRHi2BO5Q3KwxyFVs7taVTY+fsK47/L51ZXQoV9rozHJDNHvJ4v4WEsI/IlxV2l2A=="],
+
+    "@raceiq/tooling/@babel/parser/@babel/types": ["@babel/types@8.0.6", "", { "dependencies": { "@babel/helper-string-parser": "^8.0.6", "@babel/helper-validator-identifier": "^8.0.6" } }, "sha512-c+xgSWboV2pdwXP67BUWDVRHi2BO5Q3KwxyFVs7taVTY+fsK47/L51ZXQoV9rozHJDNHvJ4v4WEsI/IlxV2l2A=="],
 
     "@tailwindcss/node/lightningcss/detect-libc": ["detect-libc@2.1.2", "", {}, "sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ=="],
 
@@ -3527,6 +3593,10 @@
     "@raceiq/tooling-catalog/@babel/parser/@babel/types/@babel/helper-string-parser": ["@babel/helper-string-parser@8.0.6", "", {}, "sha512-+6HYEBnsDRZHJtUTAEfMQd0zMDqdFHS7C+5vAsEZqBUr3vEMWOWlHJ0Jz1gS8jJIlCvLsuA6ivmeoqzH936YcA=="],
 
     "@raceiq/tooling-catalog/@babel/parser/@babel/types/@babel/helper-validator-identifier": ["@babel/helper-validator-identifier@8.0.6", "", {}, "sha512-HYx0YmuchRxRSpnjvcNffnPS8DCauKNmnumIuHG3jnQAVewRA7kfJGwF13ayEpSZs7s4R/oBH4eppuXcAQd5JQ=="],
+
+    "@raceiq/tooling/@babel/parser/@babel/types/@babel/helper-string-parser": ["@babel/helper-string-parser@8.0.6", "", {}, "sha512-+6HYEBnsDRZHJtUTAEfMQd0zMDqdFHS7C+5vAsEZqBUr3vEMWOWlHJ0Jz1gS8jJIlCvLsuA6ivmeoqzH936YcA=="],
+
+    "@raceiq/tooling/@babel/parser/@babel/types/@babel/helper-validator-identifier": ["@babel/helper-validator-identifier@8.0.6", "", {}, "sha512-HYx0YmuchRxRSpnjvcNffnPS8DCauKNmnumIuHG3jnQAVewRA7kfJGwF13ayEpSZs7s4R/oBH4eppuXcAQd5JQ=="],
 
     "lighthouse/yargs/cliui/wrap-ansi": ["wrap-ansi@7.0.0", "", { "dependencies": { "ansi-styles": "^4.0.0", "string-width": "^4.1.0", "strip-ansi": "^6.0.0" } }, "sha512-YVGIj2kamLSTxw6NsZjoBxfSwsn0ycdesmc4p+Q21c5zPuZ1pl+NfxVdxPtdHvmNVOQ6XSYG4AUtyt/Fi7D16Q=="],
 

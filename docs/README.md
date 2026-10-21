@@ -30,6 +30,7 @@ Documentation is organized by audience. Start with a user guide; use contributor
 ## Architecture
 
 - [Overview](architecture/overview.md) — service boundaries, five game adapters, ports, and telemetry flow.
+- [Feature packages](architecture/feature-packages.md) — agreed target pattern: one feature workspace with `ui/`, `server/`, `contracts/` and colocated E2Es; import boundaries, host composition and Turbo selection.
 - [Race results](architecture/race-results.md) — persisted results, pit events, provenance, and reconciliation.
 - [Setup Engineer](architecture/setup-engineer.md) — tuning experiment and agent boundaries.
 - [Track calibration](architecture/track-calibration.md) — live/static transform lifecycle, fit requirements, and verification.
