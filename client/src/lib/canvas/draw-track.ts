@@ -1,5 +1,5 @@
 import { segmentDisplayNames, segmentGroupLabels } from "@raceiq/shared/racing/tracks/segment-label";
-import type { Point, TrackSectors } from "@/components/track/types";
+import type { Point, TrackSectors } from "@raceiq/tracks-catalogue/contracts"
 import { SECTOR_COLOR_VARS, TRACK_CORNER_COLOR_VARS, TRACK_STRAIGHT_COLOR_VARS } from "@/lib/colors";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 

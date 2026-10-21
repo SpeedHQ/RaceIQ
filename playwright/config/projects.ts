@@ -1,4 +1,5 @@
 import type { PlaywrightTestConfig } from "@playwright/test";
+import { resolve } from "node:path";
 import type { E2ERuntime } from "./runtime";
 
 export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestConfig["projects"]> {
@@ -8,7 +9,6 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
   const tunesUnseededBaseURL = `http://localhost:${runtime.devServer ? runtime.tunesUnseeded.clientPort : runtime.tunesUnseeded.port}`;
   const sequentialImportSpecs = [
     "seeded/analyse/core-flow.spec.ts",
-    "seeded/catalog/tracks.spec.ts",
     "seeded/dev-tools/server-import.spec.ts",
     "seeded/sessions/import.spec.ts",
     "seeded/sessions/lifecycle.spec.ts",
@@ -50,6 +50,15 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
       workers: 1,
       use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
     },
+    ...(["tracks-catalogue", "cars-catalogue"] as const).map((name) => ({
+      name,
+      testDir: resolve(__dirname, "../../packages", name, "test/e2e"),
+      dependencies: ["seeded-setup"],
+      fullyParallel: true,
+      workers: name === "tracks-catalogue" ? 1 : undefined,
+      timeout: 140_000,
+      use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
+    })),
     {
       name: "seeded-routes",
       dependencies: ["seeded-setup"],
@@ -76,7 +85,7 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
       use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
     },
     {
-      dependencies: ["seeded-routes", "seeded-e2e", "seeded-imports"],
+      dependencies: ["seeded-routes", "seeded-e2e", "seeded-imports", "tracks-catalogue", "cars-catalogue"],
       fullyParallel: true,
       name: "record-demo",
       testMatch: "recording/demo.spec.ts",
