@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./identity": "./src/identity.ts",
     "./index": "./src/index.ts",
     "./track-boundaries": "./src/track-boundaries.ts"
   },

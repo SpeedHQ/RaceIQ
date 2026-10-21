@@ -7,19 +7,19 @@ import { client } from "../../lib/rpc";
 import { errorFromResponse } from "../../lib/rpc-error";
 import { AppInput } from "../ui/AppInput";
 import { Button } from "../ui/button";
-interface IRacingCatalogCar {
+export interface IRacingCatalogCar {
   id: string;
   name: string;
-  shortName: string;
+  shortName?: string | null;
   path: string;
   category: string;
   imageUrl: string;
-  hp: number | null;
-  weightLb: number | null;
-  hasHeadlights: boolean | null;
-  rainEnabled: boolean | null;
-  hasMultipleDryTireTypes: boolean | null;
-  searchTerms: string;
+  hp?: number | null;
+  weightLb?: number | null;
+  hasHeadlights?: boolean | null;
+  rainEnabled?: boolean | null;
+  hasMultipleDryTireTypes?: boolean | null;
+  searchTerms?: string | null;
 }
 
 
@@ -45,6 +45,17 @@ function categoryLabel(category: string): string {
   }
 }
 
+export function filterCatalogCars(cars: IRacingCatalogCar[], search: string, filterCategory: string | null) {
+  const query = search.trim().toLowerCase();
+  return sortIRacingCars(cars.filter((car) =>
+    (!filterCategory || car.category === filterCategory) &&
+    (!query || car.name.toLowerCase().includes(query) ||
+      (car.shortName ?? "").toLowerCase().includes(query) ||
+      (car.searchTerms ?? "").toLowerCase().includes(query) ||
+      categoryLabel(car.category).toLowerCase().includes(query)),
+  ));
+}
+
 export function IRacingCars({ gameId = "iracing" }: { gameId?: "iracing" | "ams2" }) {
   const units = useUnits();
   const [search, setSearch] = useState("");
@@ -62,20 +73,7 @@ export function IRacingCars({ gameId = "iracing" }: { gameId?: "iracing" | "ams2
 
   const categories = useMemo(() => Array.from(new Set(cars.map((car) => car.category))).sort((a, b) => categoryLabel(a).localeCompare(categoryLabel(b))), [cars]);
 
-  const filtered = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return sortIRacingCars(
-      cars.filter(
-        (car) =>
-          (!filterCategory || car.category === filterCategory) &&
-          (!query ||
-            car.name.toLowerCase().includes(query) ||
-            car.shortName.toLowerCase().includes(query) ||
-            car.searchTerms.toLowerCase().includes(query) ||
-            categoryLabel(car.category).toLowerCase().includes(query)),
-      ),
-    );
-  }, [cars, filterCategory, search]);
+  const filtered = useMemo(() => filterCatalogCars(cars, search, filterCategory), [cars, filterCategory, search]);
   return (
     <div className="flex-1 overflow-auto p-4 space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
@@ -123,58 +121,59 @@ export function IRacingCars({ gameId = "iracing" }: { gameId?: "iracing" | "ams2
         <div className="text-center py-12 text-app-text/90 text-sm">{m.cars_no_match()}</div>
       ) : (
         <div className="grid grid-cols-1 gap-3 @3xl/workspace:grid-cols-2 @5xl/workspace:grid-cols-3 @7xl/workspace:grid-cols-4">
-          {filtered.map((car) => {
-            return (
-              <article key={car.id} className="group overflow-hidden rounded-lg border border-app-border/10 bg-app-surface-alt/20 transition-colors hover:border-app-border-hover/30">
-                <div className="relative h-40 overflow-hidden bg-gradient-to-br from-app-text/10 via-app-surface-alt/20 to-app-bg/20">
-                  <div className="absolute inset-0 flex items-center justify-center text-3xl font-black italic text-app-text/10">{gameId === "ams2" ? "AMS2" : "iR"}</div>
-                  {car.imageUrl && (
-                    <img
-                      src={car.imageUrl}
-                      alt={car.name}
-                      loading="lazy"
-                      className="relative h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-[1.02]"
-                      onError={(event) => {
-                        event.currentTarget.style.display = "none";
-                      }}
-                    />
-                  )}
-                  <span
-                    className="catalog-category-badge absolute bottom-2 right-2 rounded border px-2 py-0.5 text-app-caption font-bold shadow-sm backdrop-blur-sm"
-                    data-catalog-category={car.category}
-                  >
-                    {categoryLabel(car.category)}
-                  </span>
-                </div>
-                <div className="p-3 space-y-2">
-                  <h2 className="text-sm font-semibold leading-tight text-app-text">{car.name}</h2>
-                  {(car.hp !== null || car.weightLb !== null) && (
-                    <div className="text-app-caption text-app-text-muted tabular-nums">
-                      {[
-                        car.hp !== null ? `${car.hp} hp` : null,
-                        car.weightLb !== null
-                          ? units.unit === "metric"
-                            ? `${Math.round(car.weightLb * 0.453592)} kg`
-                            : `${Math.round(car.weightLb).toLocaleString()} lb`
-                          : null,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </div>
-                  )}
-                  {(car.rainEnabled || car.hasHeadlights || car.hasMultipleDryTireTypes) && (
-                    <div className="flex flex-wrap gap-1">
-                      {car.rainEnabled && <span className="rounded border border-app-border bg-app-surface-alt px-1.5 py-0.5 text-app-caption text-app-text-muted">{m.iracingcars_rain_ready()}</span>}
-                      {car.hasHeadlights && <span className="rounded border border-app-border bg-app-surface-alt px-1.5 py-0.5 text-app-caption text-app-text-muted">{m.iracingcars_headlights()}</span>}
-                      {car.hasMultipleDryTireTypes && <span className="rounded border border-app-border bg-app-surface-alt px-1.5 py-0.5 text-app-caption text-app-text-muted">{m.iracingcars_multiple_dry_tires()}</span>}
-                    </div>
-                  )}
-                </div>
-              </article>
-            );
-          })}
+          {filtered.map((car) => <CatalogCarCard key={car.id} car={car} gameId={gameId} unit={units.unit} />)}
         </div>
       )}
     </div>
+  );
+}
+
+
+export function CatalogCarCard({ car, gameId, unit }: { car: IRacingCatalogCar; gameId: "iracing" | "ams2"; unit: "metric" | "imperial" }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const hasImage = Boolean(car.imageUrl?.trim()) && !imageFailed;
+  const specifications: string[] = [];
+  if (typeof car.hp === "number" && Number.isFinite(car.hp) && car.hp > 0) specifications.push(`${car.hp} hp`);
+  if (typeof car.weightLb === "number" && Number.isFinite(car.weightLb) && car.weightLb > 0) {
+    specifications.push(unit === "metric" ? `${Math.round(car.weightLb * 0.453592)} kg` : `${Math.round(car.weightLb).toLocaleString()} lb`);
+  }
+  return (
+    <article className="group self-start overflow-hidden rounded-lg border border-app-border/10 bg-app-surface-alt/20 transition-colors hover:border-app-border-hover/30">
+      {hasImage && <div className="relative h-40 overflow-hidden bg-gradient-to-br from-app-text/10 via-app-surface-alt/20 to-app-bg/20">
+        <div className="absolute inset-0 flex items-center justify-center text-3xl font-black italic text-app-text/10">{gameId === "ams2" ? "AMS2" : "iR"}</div>
+        {hasImage && (
+          <img
+            src={car.imageUrl}
+            alt={car.name}
+            loading="lazy"
+            className="relative h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-[1.02]"
+            onError={() => setImageFailed(true)}
+          />
+        )}
+        <span
+          className="catalog-category-badge absolute bottom-2 right-2 rounded border px-2 py-0.5 text-app-caption font-bold shadow-sm backdrop-blur-sm"
+          data-catalog-category={car.category}
+        >
+          {categoryLabel(car.category)}
+        </span>
+      </div>}
+      <div className="p-3 space-y-2">
+        {!hasImage && <div className="flex items-center justify-between gap-2">
+          <span className="text-app-caption font-bold text-app-text-muted">{gameId === "ams2" ? "AMS2" : "iR"}</span>
+          <span className="catalog-category-badge rounded border px-2 py-0.5 text-app-caption font-bold" data-catalog-category={car.category}>{categoryLabel(car.category)}</span>
+        </div>}
+        <h2 className="text-sm font-semibold leading-tight text-app-text">{car.name}</h2>
+        {specifications.length > 0 && (
+          <div className="text-app-caption text-app-text-muted tabular-nums">{specifications.join(" · ")}</div>
+        )}
+        {(car.rainEnabled || car.hasHeadlights || car.hasMultipleDryTireTypes) && (
+          <div className="flex flex-wrap gap-1">
+            {car.rainEnabled && <span className="rounded border border-app-border bg-app-surface-alt px-1.5 py-0.5 text-app-caption text-app-text-muted">{m.iracingcars_rain_ready()}</span>}
+            {car.hasHeadlights && <span className="rounded border border-app-border bg-app-surface-alt px-1.5 py-0.5 text-app-caption text-app-text-muted">{m.iracingcars_headlights()}</span>}
+            {car.hasMultipleDryTireTypes && <span className="rounded border border-app-border bg-app-surface-alt px-1.5 py-0.5 text-app-caption text-app-text-muted">{m.iracingcars_multiple_dry_tires()}</span>}
+          </div>
+        )}
+      </div>
+    </article>
   );
 }

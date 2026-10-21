@@ -20,6 +20,7 @@ import { getAcEvoCarName } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo
 import { getAcEvoTrackName } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
 import { tryGetServerGame } from "@raceiq/backend-core/games/registry";
 import { getAllF1Cars } from "@raceiq/game-f1-2025-metadata/racing/cars/f1";
+import { ams2CarCatalog } from "@raceiq/game-ams2-metadata/index";
 // ─── Car model config paths ────────────────────────────────────────────────────
 
 import { USER_DATA_DIR } from "@raceiq/backend-core/runtime/config/paths";
@@ -126,7 +127,11 @@ export const carRoutes = new Hono()
     }
 
     if (gameIdResult.data === "ams2") {
-      return c.json((await listDiscoveredCars("ams2")).map(({carId,name}) => ({id:carId,name,path:"",category:"discovered",imageUrl:""})));
+      const cars: Map<string, {id:string;name:string;path:string;category:string;imageUrl:string}> = new Map(ams2CarCatalog.map(car => [car.id, { ...car, path: "", category: car.classes.join(" / "), imageUrl: "" }]));
+      for (const { carId, name } of await listDiscoveredCars("ams2")) {
+        if (!cars.has(carId)) cars.set(carId, { id: carId, name, path: "", category: "discovered", imageUrl: "" });
+      }
+      return c.json([...cars.values()].sort((a, b) => a.name.localeCompare(b.name)));
     }
     if (gameIdResult.data === "iracing") {
       const catalogCars = getAllIRacingCars().map(({ ordinal, ...car }) => ({ id: String(ordinal), ...car }));
@@ -197,6 +202,8 @@ export const carRoutes = new Hono()
         : c.json({ error: "Car not found" }, 404);
     }
     if (gameIdResult.data === "ams2") {
+      const car = ams2CarCatalog.find(car => car.id === carId);
+      if (car) return c.json(car);
       const name = await getDiscoveredCarName("ams2", carId);
       return name ? c.json({ id: carId, name }) : c.json({ error: "Car not found" }, 404);
     }

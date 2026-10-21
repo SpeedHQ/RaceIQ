@@ -1,15 +1,11 @@
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { registerAMS2Identity } from "@raceiq/game-ams2-metadata/index";
+import { ams2IdentityId } from "@raceiq/game-ams2-metadata/identity";
 import { AMS2_LAYOUT as L, PARTICIPANT_OFFSET, PARTICIPANT_SIZE } from "./layout";
 import { decodeAMS2Frame } from "./frame";
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 const input255 = (v: number) => Math.round(clamp(v, 0, 1) * 255);
 const canonicalGear = (v: number) => v < 0 ? 0 : v === 0 ? 11 : v;
-function identityOrdinal(name: string): number {
-  let hash = 2166136261;
-  for (const byte of Buffer.from(name, "utf8")) hash = Math.imul(hash ^ byte, 16777619);
-  return (hash >>> 0) & 0x7fffffff || 1;
-}
 export function normalizeAMS2Frame(raw: Buffer): TelemetryPacket | null {
   const frame = decodeAMS2Frame(raw); if (!frame) return null;
   const memory = frame.memory;
@@ -22,7 +18,7 @@ export function normalizeAMS2Frame(raw: Buffer): TelemetryPacket | null {
   const str = (offset: number): string => memory.subarray(offset, offset + 64).toString("utf8").split("\0")[0].trim();
   const carName = str(L.mCarName); const trackName = [str(L.mTrackLocation), str(L.mTrackVariation)].filter(Boolean).join(" - ");
   if (!carName || !trackName || f(L.mTrackLength) <= 0) return null;
-  const carOrdinal = identityOrdinal(carName); const trackOrdinal = identityOrdinal(trackName);
+  const carOrdinal = Number(ams2IdentityId(carName)); const trackOrdinal = Number(ams2IdentityId(trackName));
   registerAMS2Identity(carOrdinal, carName, trackOrdinal, trackName, f(L.mTrackLength));
   const gameState = memory.readUInt32LE(L.mGameState);
   const active = (gameState === 2 || gameState === 4) && memory[p] !== 0;

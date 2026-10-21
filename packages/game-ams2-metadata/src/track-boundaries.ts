@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { gameAssetsDir } from "@raceiq/shared/platform/runtime/data-paths";
 import { readDataFile } from "@raceiq/shared/racing/tracks/storage/files";
 import type { Point, TrackBoundary } from "@raceiq/shared/racing/tracks/geometry/types";
-import { getAMS2DiscoveredTrackName, getAMS2TrackLength } from "./index";
+import { getAMS2CatalogTrack, getAMS2DiscoveredTrackName, getAMS2TrackLength } from "./index";
 
 interface LayoutEntry { layout: string; file: string; lengthM: number }
 let catalog: LayoutEntry[] | undefined;
@@ -36,7 +36,7 @@ export function getAMS2TrackBoundaries(ordinal: number): TrackBoundary | null {
       if (data.schemaVersion !== 1 || !Array.isArray(data.layouts) || !data.layouts.every((entry: LayoutEntry) => typeof entry.layout === "string" && typeof entry.file === "string" && /^[a-z0-9-]+-boundaries\.json$/.test(entry.file) && Number.isFinite(entry.lengthM) && entry.lengthM > 0)) return null;
       catalog = data.layouts;
     }
-    const name = getAMS2DiscoveredTrackName(ordinal);
+    const name = getAMS2DiscoveredTrackName(ordinal) ?? getAMS2CatalogTrack(String(ordinal))?.geometryLayout;
     if (!name) return null;
     const match = matchAMS2Layout(name, getAMS2TrackLength(ordinal), catalog!);
     if (!match) return null;

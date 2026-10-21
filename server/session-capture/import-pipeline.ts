@@ -14,6 +14,9 @@ import { applyFrameTime } from "./frame-time";
 import { LiveTelemetryPipeline } from "../telemetry/live-pipeline";
 import { NullWsAdapter, RealDbAdapter, SparseSessionRecorderAdapter, type DbAdapter, type SessionRecorderAdapter } from "../telemetry/pipeline-ports";
 import { reconcileSessionResult } from "../race-results/reconcile";
+import { getAMS2DiscoveredCarName, getAMS2DiscoveredTrackName } from "@raceiq/game-ams2-metadata/index";
+import { registerDiscoveredCar } from "../db/discovered-cars";
+import { registerDiscoveredTrack } from "../db/discovered-tracks";
 
 import { countIndexSampleMaterialized, countSourceFrameScanned } from "./test-instrumentation";
 
@@ -71,6 +74,13 @@ export class ImportCaptureAdapter implements DbAdapter {
     versionIdentity?: TelemetryVersionIdentity,
     ownership?: SessionOwnership,
   ): Promise<number> {
+    if (gameId === "ams2") {
+      // Parsing has already read the original names. Persist once per session,
+      // so offline imports have the same restart behavior as the native source.
+      const carName=getAMS2DiscoveredCarName(carId), trackName=getAMS2DiscoveredTrackName(trackId);
+      if(carName) await registerDiscoveredCar("ams2",carId,carName);
+      if(trackName) await registerDiscoveredTrack("ams2",trackId,trackName);
+    }
     if (this._continueSession) {
       this._continueSession = false;
       const sessionId = [...this.sessionIds].at(-1);

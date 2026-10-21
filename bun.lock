@@ -411,6 +411,7 @@
       "name": "@raceiq/tooling-catalog",
       "dependencies": {
         "@raceiq/analysis-core": "workspace:*",
+        "@raceiq/game-ams2-metadata": "workspace:*",
         "@raceiq/game-iracing-metadata": "workspace:*",
         "@raceiq/shared": "workspace:*",
         "@raceiq/telemetry-core": "workspace:*",
@@ -503,6 +504,7 @@
         "@raceiq/capture-formats": "workspace:*",
         "@raceiq/capture-splitting": "workspace:*",
         "@raceiq/game-ac-evo-metadata": "workspace:*",
+        "@raceiq/game-ams2-metadata": "workspace:*",
         "@raceiq/game-catalogs": "workspace:*",
         "@raceiq/game-fm-2023-metadata": "workspace:*",
         "@raceiq/game-iracing-metadata": "workspace:*",

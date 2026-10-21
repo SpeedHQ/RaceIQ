@@ -1,5 +1,6 @@
 
 import { getAcEvoSharedTrackName } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
+import { getAMS2TrackBoundaries } from "@raceiq/game-ams2-metadata/track-boundaries";
 import { copyFileSync, existsSync, unlinkSync, writeFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { bundledTrackDir as bundledGameDir, computedAverageFileName, getBundledTrackName, loadBundledPointCsv, loadBundledPointCsvByName } from "../resolve-name";
@@ -17,6 +18,11 @@ import { listDataFiles, readDataFile, userDir, userGameDir, validateGameId } fro
 export function getTrackOutlineById(trackId: string, gameId: string, sharedName?: string): Point[] | null {
   validateGameId(gameId);
   if (!trackId) return null;
+  if (gameId === "ams2") {
+    const ordinal=Number(trackId);
+    return loadRecordedOutline(trackId,gameId)
+      ?? (Number.isInteger(ordinal) ? getAMS2TrackBoundaries(ordinal)?.centerLine ?? null : null);
+  }
   if (gameId !== "ac-evo") {
     const ordinal = Number(trackId);
     if (!Number.isInteger(ordinal)) {

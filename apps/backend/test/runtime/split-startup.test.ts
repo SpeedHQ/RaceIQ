@@ -32,7 +32,8 @@ test("startup splitting completes when the telemetry UDP port is occupied", asyn
     });
     const preparationOutput = Promise.all([new Response(prepare.stdout).text(), new Response(prepare.stderr).text()]);
     expect(await prepare.exited, (await preparationOutput).join("\n")).toBe(0);
-    server = Bun.spawn([process.execPath, "--watch", "run", "apps/backend/src/index.ts"], {
+    // Exercise startup directly; hot-reload watchers are unrelated to UDP recovery.
+    server = Bun.spawn([process.execPath, "run", "apps/backend/src/index.ts"], {
       cwd: ROOT_DIR, env, stdin: "ignore", stdout: "pipe", stderr: "pipe",
     });
     logs = Promise.all([new Response(server.stdout).text(), new Response(server.stderr).text()]).then((parts) => parts.join("\n"));
@@ -65,7 +66,8 @@ test("startup splitting completes when the telemetry UDP port is occupied", asyn
       const output = await logs;
       if (!passed && output) console.error(output);
     }
-    blocker.close();
-    await rm(directory, { recursive: true, force: true });
+    await new Promise<void>((resolve) => blocker.close(resolve));
+    // Windows can retain file handles briefly after the subprocess has exited.
+    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 }, 20_000);

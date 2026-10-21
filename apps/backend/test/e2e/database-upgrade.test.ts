@@ -458,7 +458,8 @@ for (const history of ["v75", "upstream-v76", "frequency-v76", "frequency-v77", 
       }
     } finally {
       database?.close();
-      await rm(dataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      database = undefined;
+      temporaryDirectories.push(dataDir);
     }
   }, 60_000);
 }

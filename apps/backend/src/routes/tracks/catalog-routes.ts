@@ -1,4 +1,5 @@
-import { getAMS2TrackLength, getAMS2DisplayTrackName, getAMS2SharedTrackName } from "@raceiq/game-ams2-metadata/index";
+import { ams2TrackCatalog, getAMS2CatalogTrack, getAMS2TrackLength, getAMS2DisplayTrackName, getAMS2SharedTrackName, injectDiscoveredAMS2Identity } from "@raceiq/game-ams2-metadata/index";
+import { getTrackBoundariesById } from "@raceiq/game-catalogs/racing/tracks/geometry/extracted";
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { existsSync, readFileSync } from "node:fs";
@@ -197,12 +198,23 @@ export const trackCatalogRoutes = new Hono()
 
       if (gameId === "ams2") {
         const counts = await getLapCountsByTrack("ams2");
-        const tracks = (await listDiscoveredTracks("ams2")).map(track => {
-          const hasOutline = hasRecordedOutlineById(track.trackId, "ams2");
-          return {id: track.trackId, name: getAMS2DisplayTrackName(track.trackId), location: "", country: "", variant: "",
-            lengthKm: (getAMS2TrackLength(track.trackId) ?? getTrackLengthMetersById(track.trackId, "ams2") ?? 0) / 1000,
+        const identities = new Map(ams2TrackCatalog.map(track => [track.id, { trackId: track.id, createdAt: null as string | null }]));
+        const discovered = await listDiscoveredTracks("ams2");
+        injectDiscoveredAMS2Identity([], discovered);
+        for (const track of discovered) {
+          const catalog=getAMS2CatalogTrack(track.trackId);
+          if(catalog && catalog.id !== track.trackId) identities.delete(catalog.id);
+          identities.set(track.trackId, track);
+        }
+        const tracks = [...identities.values()].map(track => {
+          const catalogTrack = getAMS2CatalogTrack(track.trackId);
+          const recorded = hasRecordedOutlineById(track.trackId, "ams2");
+          const extracted = getTrackBoundariesById(track.trackId, "ams2") !== null;
+          const hasOutline = recorded || extracted;
+          return {id: track.trackId, name: getAMS2DisplayTrackName(track.trackId), location: "", country: "", variant: catalogTrack?.variant ?? "",
+            lengthKm: (getAMS2TrackLength(track.trackId) ?? catalogTrack?.lengthM ?? getTrackLengthMetersById(track.trackId, "ams2") ?? 0) / 1000,
             category: "", hasOutline, hasMap: hasOutline, mapUrl: null,
-            outlineSource: hasOutline ? "generated" : null, commonTrackName: getAMS2SharedTrackName(track.trackId) ?? null,
+            outlineSource: extracted ? "extracted" : recorded ? "generated" : null, commonTrackName: getAMS2SharedTrackName(track.trackId) ?? null,
             createdAt: track.createdAt, lapCount: counts.get(track.trackId) ?? 0};
         });
         return c.json(tracks.sort((a, b) => a.name.localeCompare(b.name)));
