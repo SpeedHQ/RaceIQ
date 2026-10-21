@@ -5,12 +5,14 @@ import { cacheDelete } from "./telemetry-replay-storage";
 import { clearSessionCaptureCache, loadCaptureManifest } from "../session-capture/source-loader";
 import type { DownsampleCaptureBundle } from "../session-capture/downsample-bundles";
 import { and, eq, isNotNull, or, inArray, sql } from "drizzle-orm";
-import { db } from "./index";
+import { db, readDb } from "./index";
 import { laps, sessions, lapMetrics, lapAnalyses, compareAnalyses, lineSpreadCache, dashboardSummaryState, sessionCaptureSplitJobs, liveCaptureMembers } from "./schema";
 import type { RecordingFrequencyHz } from "@raceiq/shared/platform/runtime/recording-frequency";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
 import type { Transaction } from "@libsql/client";
 import { executeTransactionStatement } from "./transaction-statements";
+import { withDatabaseWrite } from "./write-coordination";
+import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
 
 type DownsampleLapIndex = {
   lapId: number;
@@ -82,7 +84,7 @@ export async function commitSessionDownsample(input: {
       if (!info.isFile() || info.size !== chunk.byteLength) throw new Error("Downsample publication chunk changed");
     }
   }
-  await db.transaction(async (tx) => {
+  await withDatabaseWrite(() => db.transaction(async (tx) => {
     const checked = await validateDownsampleReferences(tx, input.oldRawFile, input.sessionIds, input.lapIndexes);
     const rewriteById = new Map(input.lapIndexes.map((index) => [index.lapId, index]));
     if (rewriteById.size !== input.lapIndexes.length ||
@@ -161,7 +163,7 @@ export async function commitSessionDownsample(input: {
     }
     await tx.update(dashboardSummaryState).set({ captureDirty: 1, captureReady: 1 })
       .where(inArray(dashboardSummaryState.sessionId, checked.sessionIds));
-  });
+  }));
 }
 
 export async function commitSessionDownsampleCap(input: {
@@ -170,14 +172,14 @@ export async function commitSessionDownsampleCap(input: {
   targetHz: RecordingFrequencyHz;
   lapIndexes: ReadonlyArray<DownsampleLapIndex>;
 }): Promise<void> {
-  await db.transaction(async (tx) => {
+  await withDatabaseWrite(() => db.transaction(async (tx) => {
     const checked = await validateDownsampleReferences(tx, input.oldRawFile, input.sessionIds, input.lapIndexes);
     for (const id of checked.sessionIds) {
       await tx.update(sessions).set({
         downsampledFrequencyHz: sql`CASE WHEN ${sessions.downsampledFrequencyHz} IS NULL OR ${sessions.downsampledFrequencyHz} > ${input.targetHz} THEN ${input.targetHz} ELSE ${sessions.downsampledFrequencyHz} END`,
       }).where(eq(sessions.id, id));
     }
-  });
+  }));
 }
 
 export async function getLapsForSession(sessionId: number): Promise<Array<{
@@ -186,7 +188,7 @@ export async function getLapsForSession(sessionId: number): Promise<Array<{
   rawByteOffset: number | null; rawFrameCount: number | null;
   sectorTimes: number[] | null;
 }>> {
-  const rows = await db
+  const rows = await readDb
     .select({
       id: laps.id,
       lapNumber: laps.lapNumber,
@@ -216,6 +218,7 @@ export async function updateLapRawIndex(
   isValid: boolean,
   invalidReason: string | null,
   sectors: number[] | null,
+  classification: LapClassification | null,
   versionIdentity: TelemetryVersionIdentity | undefined,
   transaction: Transaction,
 ): Promise<void> {
@@ -226,6 +229,7 @@ export async function updateLapRawIndex(
     isValid,
     invalidReason,
     sectorTimes: sectors,
+    classification,
     ...versionIdentity,
   }).where(eq(laps.id, lapId)));
 }
@@ -245,95 +249,97 @@ export async function replaceLapsForSession(
     notes: string | null;
     invalidReason: string | null;
     sectors: number[] | null;
+    classification: LapClassification | null;
     versionIdentity?: TelemetryVersionIdentity;
   }>,
   sessionIdentity: { carId: string; trackId: string } | undefined,
   transaction: Transaction,
 ): Promise<() => void> {
-    const matchedIds = new Set(replacements.flatMap(({ lapId }) => lapId === null ? [] : [lapId]));
-    const result = await transaction.execute({
-      sql: "SELECT id, lap_number, raw_byte_offset, raw_frame_count FROM laps WHERE session_id = ?",
-      args: [sessionId],
-    });
-    const rows = result.rows.map((row) => ({
-      id: Number(row.id), lapNumber: Number(row.lap_number),
-      rawByteOffset: row.raw_byte_offset == null ? null : Number(row.raw_byte_offset),
-      rawFrameCount: row.raw_frame_count == null ? null : Number(row.raw_frame_count),
-    }));
-    const ownershipChanged = Boolean(sessionIdentity) || rows.length !== replacements.length || replacements.some((replacement) => {
-      const previous = replacement.lapId === null ? undefined : rows.find(({ id }) => id === replacement.lapId);
-      return !previous || previous.lapNumber !== replacement.lapNumber ||
-        previous.rawByteOffset !== replacement.rawByteOffset || previous.rawFrameCount !== replacement.rawFrameCount;
-    });
-    const deleted = rows.map(({ id }) => id).filter((id) => !matchedIds.has(id));
-    const invalidated = [...matchedIds];
-    if (ownershipChanged) {
-      await executeTransactionStatement(transaction, db.delete(liveCaptureMembers).where(inArray(liveCaptureMembers.lapId, rows.map(({ id }) => id))));
-      await executeTransactionStatement(transaction, db.update(sessions).set({ captureLayoutVersion: null, captureManifestFile: null, captureArchiveFile: null }).where(eq(sessions.id, sessionId)));
-      await executeTransactionStatement(transaction, db.update(laps).set({ captureChunkId: null, sourceFrameStart: null, sourceFrameCount: null }).where(eq(laps.sessionId, sessionId)));
-      await executeTransactionStatement(transaction, db.update(sessionCaptureSplitJobs).set({
-        jobId: randomUUID(), attemptId: sql`${sessionCaptureSplitJobs.attemptId} + 1`,
-        status: "failed", sequence: sql`${sessionCaptureSplitJobs.sequence} + 1`,
-        errorCode: "stale-publication", errorMessage: "Lap ownership changed during reprocessing",
-        stagingPath: null, updatedAt: new Date().toISOString(),
-      }).where(and(eq(sessionCaptureSplitJobs.sessionId, sessionId), or(
-        eq(sessionCaptureSplitJobs.status, "queued"), eq(sessionCaptureSplitJobs.status, "splitting"),
-        eq(sessionCaptureSplitJobs.status, "verifying"), eq(sessionCaptureSplitJobs.status, "publishing"),
-        eq(sessionCaptureSplitJobs.status, "ready"),
-      ))));
+  const matchedIds = new Set(replacements.flatMap(({ lapId }) => lapId === null ? [] : [lapId]));
+  const result = await transaction.execute({
+    sql: "SELECT id, lap_number, raw_byte_offset, raw_frame_count FROM laps WHERE session_id = ?",
+    args: [sessionId],
+  });
+  const rows = result.rows.map((row) => ({
+    id: Number(row.id), lapNumber: Number(row.lap_number),
+    rawByteOffset: row.raw_byte_offset == null ? null : Number(row.raw_byte_offset),
+    rawFrameCount: row.raw_frame_count == null ? null : Number(row.raw_frame_count),
+  }));
+  const ownershipChanged = Boolean(sessionIdentity) || rows.length !== replacements.length || replacements.some((replacement) => {
+    const previous = replacement.lapId === null ? undefined : rows.find(({ id }) => id === replacement.lapId);
+    return !previous || previous.lapNumber !== replacement.lapNumber ||
+      previous.rawByteOffset !== replacement.rawByteOffset || previous.rawFrameCount !== replacement.rawFrameCount;
+  });
+  const deleted = rows.map(({ id }) => id).filter((id) => !matchedIds.has(id));
+  const invalidated = [...matchedIds];
+  if (ownershipChanged) {
+    await executeTransactionStatement(transaction, db.delete(liveCaptureMembers).where(inArray(liveCaptureMembers.lapId, rows.map(({ id }) => id))));
+    await executeTransactionStatement(transaction, db.update(sessions).set({ captureLayoutVersion: null, captureManifestFile: null, captureArchiveFile: null }).where(eq(sessions.id, sessionId)));
+    await executeTransactionStatement(transaction, db.update(laps).set({ captureChunkId: null, sourceFrameStart: null, sourceFrameCount: null }).where(eq(laps.sessionId, sessionId)));
+    await executeTransactionStatement(transaction, db.update(sessionCaptureSplitJobs).set({
+      jobId: randomUUID(), attemptId: sql`${sessionCaptureSplitJobs.attemptId} + 1`,
+      status: "failed", sequence: sql`${sessionCaptureSplitJobs.sequence} + 1`,
+      errorCode: "stale-publication", errorMessage: "Lap ownership changed during reprocessing",
+      stagingPath: null, updatedAt: new Date().toISOString(),
+    }).where(and(eq(sessionCaptureSplitJobs.sessionId, sessionId), or(
+      eq(sessionCaptureSplitJobs.status, "queued"), eq(sessionCaptureSplitJobs.status, "splitting"),
+      eq(sessionCaptureSplitJobs.status, "verifying"), eq(sessionCaptureSplitJobs.status, "publishing"),
+      eq(sessionCaptureSplitJobs.status, "ready"),
+    ))));
+  }
+  const invalidate = async (ids: readonly number[]) => {
+    for (const id of ids) {
+      await executeTransactionStatement(transaction, db.delete(lapMetrics).where(eq(lapMetrics.lapId, id)));
+      await executeTransactionStatement(transaction, db.delete(lapAnalyses).where(eq(lapAnalyses.lapId, id)));
     }
-    const invalidate = async (ids: readonly number[]) => {
-      for (const id of ids) {
-        await executeTransactionStatement(transaction, db.delete(lapMetrics).where(eq(lapMetrics.lapId, id)));
-        await executeTransactionStatement(transaction, db.delete(lapAnalyses).where(eq(lapAnalyses.lapId, id)));
-      }
-      if (ids.length > 0) {
-        await executeTransactionStatement(transaction, db.delete(compareAnalyses).where(
-          or(inArray(compareAnalyses.lapAId, ids), inArray(compareAnalyses.lapBId, ids)),
-        ));
-      }
+    if (ids.length > 0) {
+      await executeTransactionStatement(transaction, db.delete(compareAnalyses).where(
+        or(inArray(compareAnalyses.lapAId, ids), inArray(compareAnalyses.lapBId, ids)),
+      ));
+    }
+  };
+  const affectedExperiments = await transaction.execute({
+    sql: "SELECT DISTINCT experiment_id FROM laps WHERE session_id = ? AND experiment_id IS NOT NULL",
+    args: [sessionId],
+  });
+  for (const row of affectedExperiments.rows) {
+    await executeTransactionStatement(transaction, db.delete(lineSpreadCache).where(eq(lineSpreadCache.experimentId, Number(row.experiment_id))));
+  }
+  await invalidate(rows.map(({ id }) => id));
+  for (const id of deleted) await executeTransactionStatement(transaction, db.delete(laps).where(eq(laps.id, id)));
+  for (const replacement of replacements) {
+    const values = {
+      lapNumber: replacement.lapNumber,
+      lapTime: replacement.lapTime,
+      isValid: replacement.isValid,
+      rawByteOffset: replacement.rawByteOffset,
+      rawFrameCount: replacement.rawFrameCount,
+      invalidReason: replacement.invalidReason,
+      sectorTimes: replacement.sectors,
+      classification: replacement.classification,
+      ...replacement.versionIdentity,
     };
-    const affectedExperiments = await transaction.execute({
-      sql: "SELECT DISTINCT experiment_id FROM laps WHERE session_id = ? AND experiment_id IS NOT NULL",
-      args: [sessionId],
-    });
-    for (const row of affectedExperiments.rows) {
-      await executeTransactionStatement(transaction, db.delete(lineSpreadCache).where(eq(lineSpreadCache.experimentId, Number(row.experiment_id))));
+    if (replacement.lapId !== null) {
+      await executeTransactionStatement(transaction, db.update(laps).set({ ...values, fuelPerLap: null, tyreWear: null }).where(eq(laps.id, replacement.lapId)));
+    } else {
+      const inserted = await executeTransactionStatement(transaction, db.insert(laps).values({
+        sessionId,
+        ...values,
+        isFavorite: replacement.isFavorite,
+        tuneId: replacement.tuneId,
+        notes: replacement.notes,
+      }).returning({ id: laps.id }));
+      invalidated.push(Number(inserted.rows[0]!.id));
     }
-    await invalidate(rows.map(({ id }) => id));
-    for (const id of deleted) await executeTransactionStatement(transaction, db.delete(laps).where(eq(laps.id, id)));
-    for (const replacement of replacements) {
-      const values = {
-        lapNumber: replacement.lapNumber,
-        lapTime: replacement.lapTime,
-        isValid: replacement.isValid,
-        rawByteOffset: replacement.rawByteOffset,
-        rawFrameCount: replacement.rawFrameCount,
-        invalidReason: replacement.invalidReason,
-        sectorTimes: replacement.sectors,
-        ...replacement.versionIdentity,
-      };
-      if (replacement.lapId !== null) {
-        await executeTransactionStatement(transaction, db.update(laps).set({ ...values, fuelPerLap: null, tyreWear: null }).where(eq(laps.id, replacement.lapId)));
-      } else {
-        const inserted = await executeTransactionStatement(transaction, db.insert(laps).values({
-          sessionId,
-          ...values,
-          isFavorite: replacement.isFavorite,
-          tuneId: replacement.tuneId,
-          notes: replacement.notes,
-        }).returning({ id: laps.id }));
-        invalidated.push(Number(inserted.rows[0]!.id));
-      }
-    }
-    if (sessionIdentity) {
-      await executeTransactionStatement(transaction, db.update(sessions).set(sessionIdentity).where(eq(sessions.id, sessionId)));
-    }
-    return () => {
-      for (const id of deleted) cacheDelete(id);
-      for (const id of invalidated) cacheDelete(id);
-      if (ownershipChanged) clearSessionCaptureCache();
-    };
+  }
+  if (sessionIdentity) {
+    await executeTransactionStatement(transaction, db.update(sessions).set(sessionIdentity).where(eq(sessions.id, sessionId)));
+  }
+  return () => {
+    for (const id of deleted) cacheDelete(id);
+    for (const id of invalidated) cacheDelete(id);
+    if (ownershipChanged) clearSessionCaptureCache();
+  };
 }
 
 

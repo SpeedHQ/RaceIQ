@@ -10,14 +10,16 @@ import { packetIndexToLegacyMotecOffset } from "../motec/source-archive";
 import { getLapsForSession, updateLapRawIndex, replaceLapsForSession } from "../db/lap-reprocessing-queries";
 import { liveCaptures, sessions } from "../db/schema";
 import { eq } from "drizzle-orm";
-import { client, db } from "../db/index";
+import { client, readDb } from "../db/index";
 import { enqueueSessionCaptureSplit, updateSessionRawFile } from "../db/session-queries";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { PARSER_BOOTSTRAP_VERSION } from "@raceiq/capture-formats/session/framing";
 import { applyFrameTime } from "./frame-time";
+import { invalidateClassificationMigrationSource } from "./classification-migration";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { isDelayedFinishContext } from "../db/telemetry-replay-storage";
 import { randomUUID } from "node:crypto";
+import { withDatabaseWrite } from "../db/write-coordination";
 import { StrategyRebuild } from "../live-strategy/strategy-rebuild";
 import { activateStrategyRebuild, publishStrategyChanges } from "../db/strategy-queries";
 import { STRATEGY_ALGORITHM_VERSION } from "../live-strategy/lap-metrics";
@@ -60,12 +62,11 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
 }
 
 async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessResult> {
-  const sessionRows = await db
-    .select({ rawFile: sessions.rawFile, source: sessions.source, gameId: sessions.gameId, carId: sessions.carId, trackId: sessions.trackId, ownership: sessions.ownership, createdAt: sessions.createdAt, lapDetectorVersion: sessions.lapDetectorVersion, captureFormatVersion: sessions.captureFormatVersion })
+  const sessionRows = await readDb.select({ rawFile: sessions.rawFile, source: sessions.source, gameId: sessions.gameId, carId: sessions.carId, trackId: sessions.trackId, ownership: sessions.ownership, createdAt: sessions.createdAt, lapDetectorVersion: sessions.lapDetectorVersion, captureFormatVersion: sessions.captureFormatVersion })
     .from(sessions)
     .where(eq(sessions.id, sessionId))
     .all();
-  const liveCapture = await db.select({ status: liveCaptures.status }).from(liveCaptures)
+  const liveCapture = await readDb.select({ status: liveCaptures.status }).from(liveCaptures)
     .where(eq(liveCaptures.sessionId, sessionId)).get();
   if (liveCapture && ["recording", "finalizing", "recovering"].includes(liveCapture.status)) {
     throw new Error(`Session ${sessionId} live capture is ${liveCapture.status}; reprocess after capture recovery/seal`);
@@ -207,7 +208,7 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
   const carId = detectedSession?.carId || session.carId;
   const trackId = detectedSession?.trackId || session.trackId;
 
-  let strategy: "in-place" | "replace";
+  let strategy!: "in-place" | "replace";
   let lapsUpdated = 0;
 
   const frameOrdinals = new Map<number, number>();
@@ -245,10 +246,11 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
     return candidates[0]?.lap;
   });
   const uniqueInPlaceMatches = new Set(inPlaceMatches.filter(Boolean).map((lap) => lap!.id)).size === inPlaceMatches.length;
-  const transaction = await client.transaction("write");
   const afterCommit: Array<() => void> = [];
-  let historyChanges: StrategyHistoryUpdatedMessage[];
-  try {
+  let historyChanges!: StrategyHistoryUpdatedMessage[];
+  await withDatabaseWrite(async () => {
+    const transaction = await client.transaction("write");
+    try {
   if (detectedLaps.length === existingLaps.length && uniqueInPlaceMatches &&
       inPlaceMatches.every((lap, index) => lap?.lapNumber === detectedLaps[index]!.lapNumber &&
         lap.rawByteOffset === detectedLaps[index]!.rawByteOffset && lap.rawFrameCount === detectedLaps[index]!.rawFrameCount) &&
@@ -266,6 +268,7 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
         detected.isValid,
         detected.invalidReason,
         sectors,
+        detected.classification,
         versionIdentity,
         transaction,
       );
@@ -297,6 +300,7 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
         notes: preserved?.notes ?? null,
         invalidReason: detected.invalidReason,
         sectors: detected.sectors ? [...detected.sectors] : null,
+        classification: detected.classification,
         versionIdentity,
       };
     });
@@ -304,7 +308,7 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
     lapsUpdated = detectedLaps.length;
   }
 
-  await updateSessionRawFile(sessionId, session.rawFile, detector.detectorId, versionIdentity, transaction);
+  await updateSessionRawFile(sessionId, session.rawFile!, detector.detectorId, versionIdentity, transaction);
   const savedLaps = await transaction.execute({
     sql: "SELECT id, raw_byte_offset, raw_frame_count, lap_number FROM laps WHERE session_id = ?",
     args: [sessionId],
@@ -324,6 +328,8 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
     await transaction.rollback();
     throw error;
   }
+  });
+  await invalidateClassificationMigrationSource(session.rawFile!);
   for (const publish of afterCommit) publish();
   publishStrategyChanges(historyChanges);
 

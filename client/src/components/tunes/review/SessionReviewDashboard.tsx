@@ -1,4 +1,5 @@
 import type { GameId } from "@raceiq/shared/games/ids";
+import { isPaceLap } from "@raceiq/shared/racing/lap-classification";
 import { tryGetGame } from "@raceiq/shared/games/registry"
 import { selectEvaluationLaps } from "@raceiq/analysis-core/racing/laps/review-selection";
 import { stintStats } from "@raceiq/analysis-core/racing/laps/stint-stats";
@@ -72,13 +73,11 @@ export function SessionReviewDashboard({
   lineSpread,
   onOpenLapContextChange,
 }: TuneReviewDashboardProps) {
-  const validLaps = useMemo(() => [...laps].filter((l) => l.isValid).sort((a, b) => b.lapNumber - a.lapNumber), [laps]);
+  const validLaps = useMemo(() => [...laps].filter((l) => l.isValid && isPaceLap(l.classification) && Number.isFinite(l.lapTime) && l.lapTime > 0 && !l.experimentExcluded).sort((a, b) => b.lapNumber - a.lapNumber), [laps]);
   const evaluationLaps = useMemo(() => selectEvaluationLaps(laps).chosen, [laps]);
-  const fallbackLaps = useMemo(() => [...laps].sort((a, b) => a.lapNumber - b.lapNumber).slice(0, 5), [laps]);
   const search = useSearch({ strict: false }) as { lap?: number; laps?: string; primary?: number; view?: ReviewView; tab?: TuneReviewTrackTab };
   const requestedIds = search.laps?.split(",").map(Number);
-  const defaultDisplayedLaps = evaluationLaps.length > 0 ? evaluationLaps : fallbackLaps;
-  const displayedLaps = stayOnSessionReview ? (requestedIds && requestedIds.every(Number.isInteger) ? laps.filter((lap) => requestedIds.includes(lap.id)) : defaultDisplayedLaps) : evaluationLaps;
+  const displayedLaps = stayOnSessionReview && requestedIds && requestedIds.every(Number.isInteger) ? laps.filter((lap) => requestedIds.includes(lap.id)) : evaluationLaps;
   const displayedLapIds = useMemo(() => displayedLaps.map((lap) => lap.id), [displayedLaps]);
   const selectionInvalid = stayOnSessionReview && (requestedIds != null && (requestedIds.length === 0 || requestedIds.length > 5 || requestedIds.some((id) => !Number.isInteger(id) || id <= 0) || displayedLaps.length !== requestedIds.length || (search.primary != null && !requestedIds.includes(search.primary))));
   const primaryLapId = stayOnSessionReview ? (selectionInvalid ? 0 : search.primary ?? displayedLaps[0]?.id ?? 0) : evaluationLaps[0]?.id ?? 0;
@@ -125,7 +124,7 @@ export function SessionReviewDashboard({
   const game = tryGetGame(gameId);
   const units = useUnits(gameId);
   const tireHealthAvailable = telemetry.some((sample) => wheelValue(sample, "tireWearFraction", 0) != null);
-  const reviewStats = useMemo(() => stintStats(displayedLaps, { dropOutLap: false }), [displayedLaps]);
+  const reviewStats = useMemo(() => stintStats(displayedLaps), [displayedLaps]);
   const metrics = useMemo(() => tuneMetricsFor(telemetry), [telemetry]);
   const [metricKey, setMetricKey] = useState<MetricKey>("tireSurfaceTemp");
   const metric = metrics.find((candidate) => candidate.key === metricKey) ?? metrics[0] ?? METRICS[0];

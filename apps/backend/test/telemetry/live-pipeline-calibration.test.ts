@@ -1,3 +1,5 @@
+import type { LapCompleteEvent } from "@raceiq/backend-core/lap-detection/detector";
+import { SectorTracker } from "@raceiq/backend-core/live-strategy/sector-tracker";
 import { afterAll, describe, expect, spyOn, test } from "bun:test";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
@@ -71,6 +73,91 @@ describe("LiveTelemetryPipeline track calibration integration", () => {
     } finally {
       feed.mockRestore();
     }
+  });
+});
+test.each([true, false])("live standing-start closure exemption requires positive evidence: %s", async (confirmedStart) => {
+  const db = new CapturingDbAdapter();
+  const pipeline = new LiveTelemetryPipeline(db, new CapturingWsAdapter(), {
+    bypassPacketRateFilter: true, skipHistorySeeding: true, skipDevState: true,
+    recorder: new NullSessionRecorderAdapter(),
+  });
+  for (let second = 0; second <= 61; second++) {
+    const boundary = second === 61;
+    await pipeline.processPacket({
+      ...packet("f1-2025", second * 50),
+      TimestampMS: second * 1000,
+      CurrentRaceTime: second,
+      CurrentLap: boundary ? 0 : second,
+      LastLap: boundary ? 60 : 0,
+      LapNumber: boundary ? 2 : 1,
+      PositionX: boundary ? 0 : -50 * (1 - second / 60),
+      PositionZ: 0,
+      f1: { sessionType: "race", ...(confirmedStart ? { raceStartAt: 0 } : {}) },
+    } as TelemetryPacket);
+  }
+  expect(db.laps).toHaveLength(1);
+  expect(db.laps[0]).toMatchObject(confirmedStart
+    ? { classification: "grid_start", isValid: true, invalidReason: null }
+    : { classification: null, isValid: false, invalidReason: "start/end positions too far apart" });
+});
+
+describe("LiveTelemetryPipeline pace reference integration", () => {
+  test("non-pace laps do not seed references or sector bests, while valid-lap wear remains independent", () => {
+    const pipeline = new LiveTelemetryPipeline(new CapturingDbAdapter(), new CapturingWsAdapter(), {
+      skipHistorySeeding: true,
+      skipDevState: true,
+      recorder: new NullSessionRecorderAdapter(),
+    });
+    const tracker = new SectorTracker();
+    tracker._initForTest({ s1End: 300, s2End: 700, trackLength: 1000 });
+    const wearUpdates: unknown[][] = [];
+    const seams = pipeline as unknown as {
+      sectorTracker: SectorTracker;
+      pitTracker: { updateWearCurves: (...args: unknown[]) => void };
+      _lapDetector: { session: { gameId: "acc" } };
+      _buildCallbacks: () => { onLapComplete: (event: LapCompleteEvent) => void };
+    };
+    seams.sectorTracker = tracker;
+    seams.pitTracker = { updateWearCurves: (...args) => wearUpdates.push(args) };
+    seams._lapDetector = { session: { gameId: "acc" } };
+    const completeLap = seams._buildCallbacks().onLapComplete;
+    const packets = [0, 1, 2].map((index) => ({
+      gameId: "acc",
+      DistanceTraveled: index * 500,
+      CurrentLap: index * 30,
+    }) as TelemetryPacket);
+
+    completeLap({
+      lapNumber: 1,
+      packets,
+      lapDistStart: 0,
+      lapTime: 70,
+      isValid: true,
+      classification: "in_lap",
+      sectors: [20, 20, 30],
+    });
+    expect(tracker.getDebugState()).toMatchObject({
+      bestLapTime: Infinity,
+      bestTimes: [Infinity, Infinity, Infinity],
+      refLapTime: null,
+    });
+    expect(wearUpdates).toHaveLength(1);
+
+    completeLap({
+      lapNumber: 2,
+      packets,
+      lapDistStart: 0,
+      lapTime: 90,
+      isValid: true,
+      classification: "pace",
+      sectors: [30, 30, 30],
+    });
+    expect(tracker.getDebugState()).toMatchObject({
+      bestLapTime: 90,
+      bestTimes: [30, 30, 30],
+      refLapTime: 90,
+    });
+    expect(wearUpdates).toHaveLength(2);
   });
 });
 describe("LiveTelemetryPipeline deleted-session recovery", () => {

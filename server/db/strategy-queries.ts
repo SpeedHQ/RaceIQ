@@ -7,6 +7,7 @@ import type { LapMetricContribution } from "../live-strategy/lap-metrics";
 import type { StrategyTotals } from "../live-strategy/stint-accumulator";
 import { publishStrategyHistory } from "../live-strategy/history-events";
 import { z } from "zod";
+import { withDatabaseWrite } from "./write-coordination";
 
 export interface PersistStrategyLapInput {
   sessionId: number; driverKey: string; lapId: number; stintId: string; algorithmVersion: string;
@@ -48,6 +49,7 @@ async function writeStint(tx: Transaction, summary: StintSummary, totals: Strate
 }
 /** A saved lap contributes once; source evidence, numerators and summary commit together. */
 export async function persistStrategyLapMetrics(input: PersistStrategyLapInput, summary: StintSummary, totals: StrategyTotals, estimate?: PitEstimateRecord): Promise<boolean> {
+  return withDatabaseWrite(async () => {
   const tx = await client.transaction("write");
   try {
     const existing = await tx.execute({ sql: "SELECT 1 FROM strategy_lap_metrics WHERE session_id=? AND driver_key=? AND lap_id=? AND algorithm_version=?", args: [input.sessionId,input.driverKey,input.lapId,input.algorithmVersion] });
@@ -63,8 +65,10 @@ export async function persistStrategyLapMetrics(input: PersistStrategyLapInput, 
     publishStrategyChanges(changes);
     return true;
   } catch (error) { await tx.rollback(); throw error; }
+  });
 }
 export async function saveStrategyStint(summary: StintSummary, totals: StrategyTotals): Promise<void> {
+  return withDatabaseWrite(async () => {
   const tx = await client.transaction("write");
   try {
     await writeStint(tx, summary, totals);
@@ -72,9 +76,11 @@ export async function saveStrategyStint(summary: StintSummary, totals: StrategyT
     await tx.commit();
     publishStrategyChanges(changes);
   } catch (error) { await tx.rollback(); throw error; }
+  });
 }
 export async function closeStrategyStint(summary: StintSummary): Promise<void> {
   if (summary.status === "active") throw new Error("Cannot finalize an active strategy snapshot");
+  return withDatabaseWrite(async () => {
   const tx = await client.transaction("write");
   try {
     await assertStrategyIdentity(tx, summary);
@@ -83,9 +89,10 @@ export async function closeStrategyStint(summary: StintSummary): Promise<void> {
     await tx.commit();
     publishStrategyChanges(changes);
   } catch (error) { await tx.rollback(); throw error; }
+  });
 }
-/** Main-runtime startup only; opening another database reader must not interrupt live stints. */
 export async function interruptActiveStrategyStints(): Promise<void> {
+  return withDatabaseWrite(async () => {
   const tx = await client.transaction("write");
   try {
     const rows = await tx.execute("SELECT payload FROM strategy_stints WHERE status='active'");
@@ -101,6 +108,7 @@ export async function interruptActiveStrategyStints(): Promise<void> {
     await tx.commit();
     publishStrategyChanges(changes);
   } catch (error) { await tx.rollback(); throw error; }
+  });
 }
 export async function getStrategyHistoryRevision(gameId: GameId, driverKey: string): Promise<number> {
   const result = await client.execute({ sql: "SELECT revision FROM strategy_history_revisions WHERE game_id=? AND driver_key=?", args: [gameId,driverKey] });
@@ -124,7 +132,8 @@ export async function getStrategyStints(sessionId: number, driverKey?: string): 
 export async function admitStrategyObservation(sessionId: number, sourceEpoch: string, sourceKey: string): Promise<SourceOrder> {
   if (sourceEpoch.length === 0 || sourceKey.length === 0) throw new Error("Strategy source epoch and key must be nonempty");
   const admissionKey = `${sourceEpoch}\0${sourceKey}`;
-  const tx = await client.transaction("write");
+  return withDatabaseWrite(async () => {
+    const tx = await client.transaction("write");
   try {
     const source = await tx.execute({ sql: "SELECT 1 FROM sessions WHERE id=?", args: [sessionId] });
     if (!source.rows.length) throw new StaleStrategyIdentityError("Strategy source session was removed");
@@ -176,6 +185,7 @@ export async function admitStrategyObservation(sessionId: number, sourceEpoch: s
     await tx.rollback();
     throw error;
   }
+  });
 }
 async function writePitEstimate(tx: Transaction, record: PitEstimateRecord): Promise<boolean> {
   await assertStrategyIdentity(tx, record);
@@ -190,16 +200,19 @@ async function writePitEstimate(tx: Transaction, record: PitEstimateRecord): Pro
   return result.rowsAffected > 0;
 }
 export async function savePitEstimate(record: PitEstimateRecord): Promise<boolean> {
+  return withDatabaseWrite(async () => {
   const tx = await client.transaction("write");
   try {
     const inserted = await writePitEstimate(tx, record);
     await tx.commit();
     return inserted;
   } catch (error) { await tx.rollback(); throw error; }
+  });
 }
 
 export async function clearPitEstimates(sessionId: number, driverKey?: string): Promise<number> {
-  const tx = await client.transaction("write");
+  return withDatabaseWrite(async () => {
+    const tx = await client.transaction("write");
   try {
     const current = await tx.execute({ sql: `SELECT high_water_epoch, high_water_sequence FROM strategy_session_state WHERE session_id = ?`, args: [sessionId] });
     const state = current.rows[0];
@@ -223,6 +236,7 @@ export async function clearPitEstimates(sessionId: number, driverKey?: string): 
     await tx.commit();
     return deletedCount;
   } catch (error) { await tx.rollback(); throw error; }
+  });
 }
 
 export class InvalidStrategyCursorError extends Error {}

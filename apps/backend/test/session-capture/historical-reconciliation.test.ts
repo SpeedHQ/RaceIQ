@@ -8,6 +8,7 @@ import { sessions, laps, profiles, tunes, experiments, experimentVersions, lapMe
 import { reprocessSession } from "@raceiq/backend-core/session-capture/reprocess";
 import { reconcileHistoricalSessions } from "@raceiq/backend-core/session-capture/reconcile";
 import { commitLapReconciliation } from "../support/reconcile-laps";
+import { hasKnownClassificationOutcome } from "@raceiq/backend-core/session-capture/classification-migration-worker";
 import { combineRecordingParts } from "@raceiq/backend-core/session-capture/combine-recording-parts";
 import type { GameId } from "@raceiq/shared/games/ids";
 import {
@@ -162,7 +163,7 @@ describe("historical session reconciliation", () => {
     await commitLapReconciliation(session.id, [{
       lapId: matched.id, lapNumber: 1, lapTime: 99, isValid: true, isFavorite: false,
       rawByteOffset: null, rawFrameCount: 0, tuneId: null, notes: "preserve me",
-      invalidReason: null, sectors: null,
+      invalidReason: null, sectors: null, classification: null,
     }]);
 
     expect(await db.select().from(laps).where(eq(laps.id, matched.id)).get()).toMatchObject({ lapTime: 99, notes: "preserve me" });
@@ -206,4 +207,12 @@ describe("historical session reconciliation", () => {
       lapDetectorVersion: null, carId: "wrong historical car",
     });
   });
+
+  test("accepts known incomplete classification and rejects unknown evidence", () => {
+    expect(hasKnownClassificationOutcome({ classification: null, invalidReason: "incomplete" })).toBe(true);
+    expect(hasKnownClassificationOutcome({ classification: "out_lap", invalidReason: null })).toBe(true);
+    expect(hasKnownClassificationOutcome({ classification: null, invalidReason: null })).toBe(false);
+    expect(hasKnownClassificationOutcome({ classification: null, invalidReason: "outlap" })).toBe(false);
+  });
+
 });

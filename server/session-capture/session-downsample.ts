@@ -7,7 +7,7 @@ import type { SessionDownsamplePreview, SessionDownsampleRequest, SessionDownsam
 import type { DownsampleLapIndex, DownsampleRecordingInput, DownsampleRecordingInspection } from "@raceiq/capture-downsampling";
 import { DownsampleRecordingError, inspectDownsampleRecording, rewriteDownsampleRecording, validateDownsampleRecording } from "@raceiq/capture-downsampling";
 import { getServerGame } from "../games/registry";
-import { db } from "../db/index";
+import { readDb } from "../db/index";
 import { laps, sessions } from "../db/schema";
 import { isOwnedSessionRawFile } from "../db/session-queries";
 import { clearSessionCaptureCache, iterateSessionCaptureRecordsFromSource } from "./source-loader";
@@ -283,30 +283,28 @@ async function fileSize(path: string): Promise<number | null> {
 }
 
 export async function buildSessionDownsamplePlan(request: SessionDownsampleRequest, options: { onlyPath?: string } = {}): Promise<SessionDownsamplePlan> {
-  const rows = (await db
-    .select({
-      id: sessions.id,
-      gameId: sessions.gameId,
-      source: sessions.source,
-      rawFile: sessions.rawFile,
-      createdAt: sessions.createdAt,
-      isFavorite: sessions.isFavorite,
-      downsampledFrequencyHz: sessions.downsampledFrequencyHz,
-      carId: sessions.carId,
-      trackId: sessions.trackId,
-    })
+  const rows = (await readDb.select({
+    id: sessions.id,
+    gameId: sessions.gameId,
+    source: sessions.source,
+    rawFile: sessions.rawFile,
+    createdAt: sessions.createdAt,
+    isFavorite: sessions.isFavorite,
+    downsampledFrequencyHz: sessions.downsampledFrequencyHz,
+    carId: sessions.carId,
+    trackId: sessions.trackId,
+  })
     .from(sessions)
     .all()) as SessionDownsampleRow[];
-  const lapIndexes = await db
-    .select({
-      lapId: laps.id,
-      sessionId: laps.sessionId,
-      rawByteOffset: laps.rawByteOffset,
-      rawFrameCount: laps.rawFrameCount,
-    })
+  const lapIndexes = await readDb.select({
+    lapId: laps.id,
+    sessionId: laps.sessionId,
+    rawByteOffset: laps.rawByteOffset,
+    rawFrameCount: laps.rawFrameCount,
+  })
     .from(laps)
     .all();
-  const favoriteLaps = await db.select({ sessionId: laps.sessionId }).from(laps).where(eq(laps.isFavorite, true)).all();
+  const favoriteLaps = await readDb.select({ sessionId: laps.sessionId }).from(laps).where(eq(laps.isFavorite, true)).all();
   const favorites = new Set(rows.filter((row) => row.isFavorite).map((row) => row.id));
   for (const lap of favoriteLaps) favorites.add(lap.sessionId);
   const cutoff = request.mode === "older-than" ? Date.now() - request.olderThanDays * DAY_MS : null;
@@ -552,7 +550,7 @@ export async function executeSessionDownsampleGroup(request: SessionDownsampleRe
         lapIndexes: result.lapIndexes,
       });
       committed = true;
-      const affectedLaps = await db.select({ id: laps.id }).from(laps).where(inArray(laps.sessionId, sessionIds)).all();
+      const affectedLaps = await readDb.select({ id: laps.id }).from(laps).where(inArray(laps.sessionId, sessionIds)).all();
       for (const lap of affectedLaps) cacheDelete(lap.id);
       for (const path of new Set([group.path, newPath, ...group.rows.flatMap((row) => (row.rawFile ? [row.rawFile] : []))])) {
         clearSessionCaptureCache(path);
@@ -579,13 +577,13 @@ export async function executeSessionDownsampleGroup(request: SessionDownsampleRe
       }
       if (outputCreated) {
         // A transport error can be ambiguous after commit. Never delete a referenced replacement.
-        const refs = await db.select({ rawFile: sessions.rawFile }).from(sessions).where(isNotNull(sessions.rawFile)).all();
+        const refs = await readDb.select({ rawFile: sessions.rawFile }).from(sessions).where(isNotNull(sessions.rawFile)).all();
         if (!refs.some((row) => row.rawFile !== null && resolve(row.rawFile) === newPath)) {
           await unlink(newPath).catch((cleanupError: unknown) => {
             console.error("[Downsample] Failed to remove uncommitted output", newPath, cleanupError);
           });
         }
-        const manifestRefs = await db.select({ path: sessions.captureManifestFile }).from(sessions).all();
+        const manifestRefs = await readDb.select({ path: sessions.captureManifestFile }).from(sessions).all();
         for (const bundle of captureBundles) {
           if (!manifestRefs.some((row) => row.path !== null && resolve(row.path) === resolve(bundle.manifestPath))) {
             await rm(dirname(bundle.manifestPath), { recursive: true, force: true });
@@ -602,7 +600,7 @@ export async function cleanupInterruptedSessionDownsampleFiles(): Promise<number
   return withSessionCaptureMaintenanceLock(async () => {
     await assertDownsampleQuiescent();
     const dirs = new Set((await listSessionCaptureFiles()).map(dirname));
-    const refs = await db.select({ rawFile: sessions.rawFile }).from(sessions).where(isNotNull(sessions.rawFile)).all();
+    const refs = await readDb.select({ rawFile: sessions.rawFile }).from(sessions).where(isNotNull(sessions.rawFile)).all();
     for (const row of refs) if (row.rawFile !== null && isOwnedSessionRawFile(row.rawFile)) dirs.add(dirname(resolve(row.rawFile)));
     const tempName = /\.downsample-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.bin(?:\.gz)?(?:\.raw)?\.tmp$/i;
     let removed = 0;

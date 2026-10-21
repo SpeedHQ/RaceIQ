@@ -94,7 +94,7 @@ describe("StrategyRebuild segment breaks", () => {
     const first = packet(0.05, 3_000, 3_000);
     const last = packet(0.03, 4_000, 4_000);
     rebuild.observe(first);
-    rebuild.prepare({ lapNumber: 1, packets: [first, last], lapDistStart: 0, lapTime: 70, isValid: true, sectors: null } satisfies LapCompleteEvent);
+    rebuild.prepare({ lapNumber: 1, packets: [first, last], lapDistStart: 0, lapTime: 70, isValid: true, classification: "pace", sectors: null } satisfies LapCompleteEvent);
 
     expect(rebuild.summaries().at(-1)?.fuel.eligibleLaps).toBe(1);
     expect(rebuild.summaries().at(-1)?.fuel.value).toBeCloseTo(0.02, 4);

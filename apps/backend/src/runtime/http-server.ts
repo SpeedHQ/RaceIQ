@@ -42,7 +42,11 @@ export function clearHttpPort(port: number): void {
   }
 }
 
-export function startHttpServer({ app, port, staticDir, devPublicDir, access = httpAccess }: HttpServerOptions): Bun.Server<WSData> {
+export function startHttpServer({ app, port, staticDir, devPublicDir, access = {
+  ...httpAccess,
+  authorize: (request) => httpAccess.authorize(request),
+  allowsOrigin: (origin, request) => httpAccess.allowsOrigin(origin, request),
+} }: HttpServerOptions): Bun.Server<WSData> {
   // Also disconnect already-open sockets after logout/password replacement,
   // including resets performed by another process against the shared DB.
   const sockets = new Map<Bun.ServerWebSocket<WSData>, Request>();

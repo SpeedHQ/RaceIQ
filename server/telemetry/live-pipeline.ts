@@ -6,6 +6,7 @@ import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemet
 import { type DbAdapter, type WsAdapter, type SessionRecorderAdapter, RealDbAdapter, SparseSessionRecorderAdapter } from "./pipeline-ports";
 import { LiveTelemetryProjector } from "@raceiq/telemetry-core/telemetry/live-projector";
 import type { ILapDetector, LapDetectorCallbacks } from "../lap-detection/types";
+import { isPaceLap } from "@raceiq/shared/racing/lap-classification";
 import type { LapIndexPacket } from "@raceiq/shared/telemetry/lap-index";
 import { SectorTracker } from "../live-strategy/sector-tracker";
 import { PitTracker } from "../live-strategy/pit-tracker";
@@ -552,12 +553,14 @@ export class LiveTelemetryPipeline {
       },
 
       onLapComplete: (event) => {
-        const session = this._lapDetector?.session ?? null;
         this.strategy?.prepareLap(event);
-        if (event.isValid) {
+        if (event.isValid && isPaceLap(event.classification)) {
           this.sectorTracker.updateRefLap(event.packets, event.lapTime, event.sectors);
-          const adapter = session ? getServerGame(session.gameId) : null;
-          if (session && adapter?.runtime.pit.useDistanceBasedWearCurves) {
+        }
+        if (event.isValid) {
+          // Update distance-based wear curves when enabled by the adapter.
+          const session = this._lapDetector?.session ?? null;
+          if (session && getServerGame(session.gameId).runtime.pit.useDistanceBasedWearCurves) {
             this.pitTracker.updateWearCurves(event.packets, event.lapDistStart);
           }
         }
@@ -578,6 +581,7 @@ export class LiveTelemetryPipeline {
           lapNumber: event.lapNumber,
           lapTime: event.lapTime,
           isValid: event.isValid,
+          classification: event.classification,
           createdAt: new Date().toISOString(),
           gameId: session.gameId,
           carId: session.carId,

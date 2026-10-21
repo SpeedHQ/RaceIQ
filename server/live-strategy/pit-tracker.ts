@@ -1,3 +1,8 @@
+import { getLapById, getLaps } from "../db/lap-read-queries";
+import type { ServerGameRuntimePolicy } from "../games/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
+import { isPaceLap } from "@raceiq/shared/racing/lap-classification";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { LivePitData } from "@raceiq/shared/racing/live/types";
 import type { TireThresholds } from "@raceiq/shared/racing/live/tire-thresholds";
@@ -76,6 +81,61 @@ export class PitTracker {
     this.liveWearAtLapStart = { fl: 0, fr: 0, rl: 0, rr: 0 };
   }
 
+  /**
+   * Seed enabled fuel and tire histories from previous sessions.
+   * The active adapter decides which historical signals are comparable.
+   */
+  async seedFromHistory(trackIdentity: string, carIdentity: string, currentCarPI: number, gameId: GameId, pitRuntime: ServerGameRuntimePolicy["pit"]): Promise<void> {
+    const seedFuel = pitRuntime.seedFuelFromHistory;
+    const seedTires = this.tireWearAvailable && pitRuntime.seedTireWearFromHistory;
+    try {
+      const allLaps = await getLaps(gameId, 200);
+      const matching = allLaps
+        .filter((l: LapMeta) => l.trackId === trackIdentity && l.carId === carIdentity && l.pi === currentCarPI && l.isValid && isPaceLap(l.classification) && l.lapTime > 10)
+        .sort((a: LapMeta, b: LapMeta) => b.id - a.id)
+        .slice(0, 5);
+
+      const fuelRates: number[] = [];
+      const wearRates: { fl: number; fr: number; rl: number; rr: number }[] = [];
+
+      for (const lapMeta of matching) {
+        if ((!seedFuel || fuelRates.length >= 2) && (!seedTires || wearRates.length >= 1)) break;
+        const lap = await getLapById(lapMeta.id);
+        if (!lap?.telemetry || lap.telemetry.length < 50) continue;
+
+        const first = lap.telemetry[0];
+        const last = lap.telemetry[lap.telemetry.length - 1];
+
+        // Fuel
+        const fuelUsed = first.Fuel - last.Fuel;
+        if (fuelUsed > 0 && fuelRates.length < 2) {
+          fuelRates.push(fuelUsed);
+        }
+
+        // Tire wear is only read when the adapter marks history comparable.
+        if (seedTires && wearRates.length < 1) {
+          const worn = {
+            fl: Math.max(0, last.TireWearFL - first.TireWearFL),
+            fr: Math.max(0, last.TireWearFR - first.TireWearFR),
+            rl: Math.max(0, last.TireWearRL - first.TireWearRL),
+            rr: Math.max(0, last.TireWearRR - first.TireWearRR),
+          };
+          if (Math.max(worn.fl, worn.fr, worn.rl, worn.rr) > 0) {
+            wearRates.push(worn);
+          }
+        }
+      }
+
+      if (seedFuel) this.fuelHistory.push(...fuelRates);
+      if (seedTires) this.tireWearHistory.push(...wearRates);
+
+      if (fuelRates.length > 0 || wearRates.length > 0) {
+        console.log(`[Pit] Seeded from history: ${fuelRates.length} fuel, ${wearRates.length} tire entries (PI=${currentCarPI}, game=${gameId})`);
+      }
+    } catch (err) {
+      console.warn("[Pit] Failed to seed from history:", err);
+    }
+  }
 
   /** Check if a lap's data should be excluded (formation lap, pit lap, etc.) */
   private isOutlier(fuelUsed: number, lapTime: number): boolean {

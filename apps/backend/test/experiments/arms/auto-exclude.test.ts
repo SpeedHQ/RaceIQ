@@ -55,6 +55,7 @@ function lap(
     id,
     lapTime,
     isValid: true,
+    classification: null,
     invalidReason: null,
     experimentExcluded: false,
     experimentExcludedSource: null,

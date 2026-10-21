@@ -239,8 +239,8 @@ describe("durable stint strategy contract", () => {
       expect(live.tires[0].source).toBeNull();
       for (let number = 1; number <= 2; number++) {
         const packets = [packet(0.8, 0.1, number * 3_000, number), packet(0.77, 0.108, number * 3_000 + 1_000, number)];
-        tracker.prepareLap({ lapNumber: number, packets, lapDistStart: 0, lapTime: 60, isValid: true, sectors: null });
-        tracker.savedLap({ sessionId: current, lapId: await savedLap(current, number), lapNumber: number, lapTime: 60, isValid: true, sectors: null, estimatedBestLapTime: 60 });
+        tracker.prepareLap({ lapNumber: number, packets, lapDistStart: 0, lapTime: 60, isValid: true, classification: "pace", sectors: null });
+        tracker.savedLap({ sessionId: current, lapId: await savedLap(current, number), lapNumber: number, lapTime: 60, isValid: true, classification: "pace", sectors: null, estimatedBestLapTime: 60 });
         await tracker.flush();
         live = tracker.apply(packets[1], legacy.feed(packets[1], 3_000)).strategy!;
         expect(live.fuel.source).toBe(number === 1 ? "history" : "current-stint");

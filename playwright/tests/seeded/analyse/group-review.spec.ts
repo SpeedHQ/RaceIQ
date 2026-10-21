@@ -106,7 +106,15 @@ for (const game of REVIEW_GAMES) {
     await page.getByRole("button", { name: "Actions", exact: true }).click();
     await page.getByRole("menuitem", { name: "Analyse Session", exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/${game.prefix}/sessions/${targetLap.sessionId}/analyse(?:\\?|$)`));
-    await expect(page.getByRole("button", { name: "Overview", exact: true })).toBeVisible();
+    const reviewResponse = await request.get(`/api/laps/review?gameId=${game.gameId}&sessionId=${targetLap.sessionId}&limit=5`);
+    expect(reviewResponse.ok()).toBe(true);
+    const reviewLaps = (await reviewResponse.json()) as LapMeta[];
+    if (reviewLaps.length > 0) {
+      await expect(page.getByRole("button", { name: "Overview", exact: true })).toBeVisible();
+    } else {
+      await expect(page.getByText("No valid laps are available for review.", { exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Back to Sessions", exact: true })).toBeVisible();
+    }
   });
 
 }
@@ -127,9 +135,8 @@ test("Analyse session review preserves invalid laps for ac-evo", async ({ page, 
   expect(await reviewResponse.json()).toEqual([]);
 
   await page.goto(`/ac-evo/sessions/analyse?session=${sessionId}`, { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("button", { name: "Overview", exact: true })).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByTitle("Invalid", { exact: true })).toBeVisible();
-  await expect(page.getByTitle("valid lap", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("No valid laps are available for review.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Back to Sessions", exact: true })).toBeVisible();
   expect(browserErrors.errors, "unexpected browser errors for invalid AC Evo session").toEqual([]);
 });
  
