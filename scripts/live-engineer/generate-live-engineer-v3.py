@@ -50,7 +50,8 @@ def expand_spec(spec: dict) -> list[dict]:
     for segment_id, text in spec["paceTails"] + spec["opponentTails"]: clips.append({"id": segment_id, "text": text, "role": "fixed"})
     for segment_id, text in spec["raceEngineer"]: clips.append({"id": f"race-engineer.{segment_id}", "text": text, "role": "fixed"})
     for location in spec["damageLocations"]:
-        clips += [{"id": f"race-engineer.damage-{location}", "text": f"You've got damage at the {location}.", "role": "fixed"}, {"id": f"race-engineer.damage-heavy-{location}", "text": f"Heavy damage at the {location}.", "role": "fixed"}]
+        position = f"at the {location}" if location in ("front", "rear") else f"in the {location}" if location == "centre" else f"on the {location}"
+        clips += [{"id": f"race-engineer.damage-{location}", "text": f"You've got damage {position}.", "role": "fixed"}, {"id": f"race-engineer.damage-heavy-{location}", "text": f"Heavy damage {position}.", "role": "fixed"}]
     spotter = {"car-left":"Car left.", "car-right":"Car right.", "still-there":"Still there.", "three-wide-left":"Three wide, left.", "three-wide-right":"Three wide, right.", "clear-left":"Clear left.", "clear-right":"Clear right."}
     for state, text in spotter.items():
         if not any(item["id"] == f"spotter.{state}" for item in clips): clips.append({"id": f"spotter.{state}", "text": text, "role": "fixed"})
@@ -80,7 +81,7 @@ def save_audio(path: Path, audio: np.ndarray, rate: int) -> dict:
     path.parent.mkdir(parents=True, exist_ok=True); temporary = path.with_suffix(".tmp.flac"); sf.write(temporary, audio, rate, format="FLAC", subtype="PCM_16"); temporary.replace(path)
     return {"path": str(path.relative_to(OUT)).replace("\\", "/"), "sha256": sha256(path), "frames": len(audio), "sampleRate": rate, "durationMs": round(len(audio) * 1000 / rate)}
 
-def synthesize(spec: dict, device: str, dtype: str, work_dir: Path) -> dict:
+def synthesize(spec: dict, device: str, dtype: str, work_dir: Path, regenerate_prefix: str | None = None) -> dict:
     import torch
     from huggingface_hub import snapshot_download
     from qwen_tts import Qwen3TTSModel
@@ -89,12 +90,15 @@ def synthesize(spec: dict, device: str, dtype: str, work_dir: Path) -> dict:
     snapshot = snapshot_download(MODEL, revision=REVISION, local_files_only=True)
     model = Qwen3TTSModel.from_pretrained(snapshot, device_map=device, dtype=getattr(torch, dtype), attn_implementation="sdpa", local_files_only=True)
     prompt = model.create_voice_clone_prompt(ref_audio=str(REFERENCE), ref_text=REFERENCE_TEXT, x_vector_only_mode=False)
+    existing_manifest_path = OUT / "manifest.json"
+    existing_manifest = read_json(existing_manifest_path) if existing_manifest_path.is_file() else {}
+    existing_clips = {clip["segmentId"]: clip for clip in existing_manifest.get("clips", [])}
     torch.set_num_threads(8)
     clips = []
     for index, item in enumerate(expand_spec(spec), 1):
         segment_id, text = item["id"], item["text"]; seed = int(fingerprint(segment_id)[:8], 16); destination = OUT / "chunks" / f"{segment_id}.flac"
-        metadata_path = work_dir / "clips" / f"{segment_id}.json"; old = read_json(metadata_path) if metadata_path.is_file() else {}
-        if old.get("text") == text and old.get("sha256") and destination.is_file() and sha256(destination) == old["sha256"]:
+        metadata_path = work_dir / "clips" / f"{segment_id}.json"; old = read_json(metadata_path) if metadata_path.is_file() else existing_clips.get(segment_id, {})
+        if not (regenerate_prefix and segment_id.startswith(regenerate_prefix)) and old.get("spokenText") == text and old.get("sha256") and destination.is_file() and sha256(destination) == old["sha256"]:
             record = old
         else:
             print(f"synthesizing clip {index}/{len(expand_spec(spec))}: {segment_id}", flush=True)
@@ -105,8 +109,6 @@ def synthesize(spec: dict, device: str, dtype: str, work_dir: Path) -> dict:
             write_json(metadata_path, record)
         clips.append(record)
         if index % 100 == 0: print(f"generated {index}/{len(expand_spec(spec))}", flush=True)
-    existing_manifest_path = OUT / "manifest.json"
-    existing_manifest = read_json(existing_manifest_path) if existing_manifest_path.is_file() else {}
     existing_full_lines = {line["lineId"]: line for line in existing_manifest.get("fullLines", [])}
     full_lines = []
     for line in read_json(ROOT / "shared/racing/live/full-lines.json"):
@@ -137,8 +139,9 @@ def check_catalog(spec: dict) -> dict:
     return {"clipCount": len(actual), "fullLineCount": len(manifest.get("fullLines", [])), "catalogVersion": manifest["catalogVersion"]}
 
 def main() -> None:
-    parser = argparse.ArgumentParser(); parser.add_argument("--check-spec", action="store_true"); parser.add_argument("--check", action="store_true"); parser.add_argument("--work-dir", type=Path, default=WORK_DEFAULT); parser.add_argument("--device", default="cuda:0"); parser.add_argument("--dtype", choices=("bfloat16", "float16"), default="bfloat16"); args = parser.parse_args(); spec = read_json(SPEC_PATH)
+    parser = argparse.ArgumentParser(); parser.add_argument("--check-spec", action="store_true"); parser.add_argument("--check", action="store_true"); parser.add_argument("--work-dir", type=Path, default=WORK_DEFAULT); parser.add_argument("--device", default="cuda:0"); parser.add_argument("--dtype", choices=("bfloat16", "float16"), default="bfloat16"); parser.add_argument("--regenerate-prefix", help="Regenerate matching clip IDs; reuse other verified packaged clips"); args = parser.parse_args(); spec = read_json(SPEC_PATH)
     if args.check_spec: print(json.dumps(check_spec(spec), sort_keys=True)); return
     if args.check: print(json.dumps(check_catalog(spec), sort_keys=True)); return
-    print(json.dumps(synthesize(spec, args.device, args.dtype, args.work_dir), sort_keys=True))
+    if args.regenerate_prefix is not None and not any(item["id"].startswith(args.regenerate_prefix) for item in expand_spec(spec)): raise SystemExit("regenerate prefix matches no clips")
+    print(json.dumps(synthesize(spec, args.device, args.dtype, args.work_dir, args.regenerate_prefix), sort_keys=True))
 if __name__ == "__main__": main()

@@ -4,7 +4,7 @@ import type { SpotterFrameV1 } from "@raceiq/shared/racing/live/spotter-contract
 
 const frame = (time: number, opponents: SpotterFrameV1["opponents"], extra: Partial<SpotterFrameV1> = {}): SpotterFrameV1 => ({ sessionId: "s", timelineEpoch: 1, sourceSequence: time, sessionTimeMs: time, player: { x: 0, z: 0, rotationRad: 0, speedMps: 20, widthM: 1.8, lengthM: 4.8 }, opponents, ...extra });
 
-describe("CrewChief-style spotter tracker", () => {
+describe("Race Engineer-style spotter tracker", () => {
   test("announces entry, repeats still there, then clears after hysteresis", () => {
     const tracker = new SpotterTracker();
     expect(tracker.update(frame(0, [{ id: "a", x: 2.2, z: -1 }])).map((x) => x.state)).toEqual(["car-left"]);

@@ -109,7 +109,7 @@ function sessionLabel(session: SessionMeta): string {
 }
 
 function humanize(value: string): string {
-  return value.replace(/^crewchief:/, "").replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+  return value.replace(/^race-engineer:/, "").replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function formatTime(milliseconds: number): string {

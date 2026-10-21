@@ -5,7 +5,7 @@
 
 ## Context
 
-RaceIQ needs a development debugger that replays persisted sessions through current semantic projection, CrewChief triggers, opponent pace, spotter, runtime selection, rendering, and voice-line recipes. Lap selection must not change stateful evaluation. Registered games must remain loadable even when production voice support is unavailable.
+RaceIQ needs a development debugger that replays persisted sessions through current semantic projection, Race Engineer triggers, opponent pace, spotter, runtime selection, rendering, and voice-line recipes. Lap selection must not change stateful evaluation. Registered games must remain loadable even when production voice support is unavailable.
 
 ## Decision
 
@@ -25,7 +25,7 @@ Engineer Replay reconstructs the resulting playback schedule from voice-line ann
 
 | Game | Persisted limitations | Debugger behavior |
 | --- | --- | --- |
-| fm-2023 | Player-only Car Dash fields; no complete class/index, session-state, validity, competitor, or occupancy evidence. | Timeline/map and mapped player-only CrewChief systems remain useful; opponent pace and spotter are unavailable. |
+| fm-2023 | Player-only Car Dash fields; no complete class/index, session-state, validity, competitor, or occupancy evidence. | Timeline/map and mapped player-only Race Engineer systems remain useful; opponent pace and spotter are unavailable. |
 | f1-2025 | UDP state can rebuild retained packets, but sparse prefix, canonical player links, competitor validity/class, coordinates, and spotter branch may be absent. | Only fully mapped ready systems run; no speculative mappings. |
 | acc | ACCB v1 retains raw Broadcast datagrams/lifecycle and per-frame receive clocks alongside unchanged ACCP pages. Old ACCP/ACCTEST files have no Broadcast evidence; mixed-clock captures cannot claim a complete captured clock. | Diagnostic reconstruction and source parity are fixture-tested; pace/spotter require complete fresh source evidence. Accepted persisted-replay support remains unavailable pending native ACC capture/audio acceptance. Legacy recordings retain player telemetry and nominal 100 Hz replay. |
 | ac-evo | ACEP retains player fields and feature-specific race/timing evidence, but no complete opponent feed or native occupancy; inherited ACC Broadcast mappings are excluded and placeholders are not fresh values. | Only mapped ready player systems run; pace/spotter unavailable; nominal 100 Hz replay. |

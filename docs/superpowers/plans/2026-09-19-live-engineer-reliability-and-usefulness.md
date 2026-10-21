@@ -6,7 +6,7 @@ Make the ACC live engineer trustworthy under missing telemetry, concurrent warni
 
 **Architecture retained:** source-backed semantic telemetry → stateful server detectors → server delivery policy → deterministic text/audio rendering → browser playback and acknowledgements.
 
-**Scope:** detection, delivery, existing announcement content, capability reporting, and focused verification. No LLM in the live decision path, new speech provider, generic rules engine, broad CrewChief parity project, or new game release enablement.
+**Scope:** detection, delivery, existing announcement content, capability reporting, and focused verification. No LLM in the live decision path, new speech provider, generic rules engine, broad Race Engineer parity project, or new game release enablement.
 
 **Completion:** all reliability gates below pass on the actual browser playback surface and an ACC session; supported capabilities and limitations match documentation. A unit-test pass alone is not release evidence.
 
@@ -52,7 +52,7 @@ The focused evaluation run reported **87 passed, 2 failed across 16 files**. The
 
 ### Task 2: Standardize freshness, initialization, and lap continuity
 
-**Primary files:** `server/live-strategy/crewchief-triggers/{catalog,frame,car-health-triggers,strategy-triggers,timing-opponent-triggers}.ts`, `live-engineer-semantic-input.ts`, `live-engineer-voice-engine.ts`.
+**Primary files:** `server/live-strategy/race-engineer-triggers/{catalog,frame,car-health-triggers,strategy-triggers,timing-opponent-triggers}.ts`, `live-engineer-semantic-input.ts`, `live-engineer-voice-engine.ts`.
 
 - [ ] Declare the actual mandatory inputs for each implemented trigger, including all damage regions currently required by its calculation. Separate optional evidence explicitly.
 - [ ] Make fresh required evidence a condition for detection. `partial` capability must not imply permission to consume stale required values.
@@ -136,7 +136,7 @@ The focused evaluation run reported **87 passed, 2 failed across 16 files**. The
 
 ### Task 8: Improve existing speech and health decisions
 
-**Primary files:** existing CrewChief trigger modules, `live-engineer-renderer.ts`, current audio generator/catalog, game/car threshold sources.
+**Primary files:** existing Race Engineer trigger modules, `live-engineer-renderer.ts`, current audio generator/catalog, game/car threshold sources.
 
 - [ ] Replace generic position announcements with an unambiguous overall/class position where supported.
 - [ ] Restrict opponent notifications to a useful relationship such as relevant class rival or adjacent competitor. Do not announce every competitor lap merely because it changed.
@@ -154,7 +154,7 @@ The focused evaluation run reported **87 passed, 2 failed across 16 files**. The
 
 ### Task 9: Align capability reporting, tests, and documentation
 
-**Primary files:** `server/live-strategy/crewchief-triggers/catalog.ts`, `shared/telemetry/live/semantics.ts`, `shared/platform/runtime/release-feature-flags.ts`, `docs/architecture/live-voice-engine.md`, `server/live-strategy/README.md`, relevant test suites.
+**Primary files:** `server/live-strategy/race-engineer-triggers/catalog.ts`, `shared/telemetry/live/semantics.ts`, `shared/platform/runtime/release-feature-flags.ts`, `docs/architecture/live-voice-engine.md`, `server/live-strategy/README.md`, relevant test suites.
 
 - [ ] Distinguish source availability, implemented detector, render/audio availability, validation evidence, and release enablement. Extend existing capability reporting only as needed; do not build a new monitoring service.
 - [ ] Fix required-semantic declarations and report runtime unavailability with a concrete reason.
@@ -199,4 +199,4 @@ Use existing focused tests and replay/dev tooling. ACC UDP competitor snapshots 
 
 ## Deferred work
 
-Additional CrewChief families, F1/iRacing release enablement, conversational voice commands, and broader strategy coaching are outside this plan. Reconsider only after the reliability matrix passes and the specific game's source-backed inputs, clock semantics, and live acceptance evidence exist.
+Additional Race Engineer families, F1/iRacing release enablement, conversational voice commands, and broader strategy coaching are outside this plan. Reconsider only after the reliability matrix passes and the specific game's source-backed inputs, clock semantics, and live acceptance evidence exist.

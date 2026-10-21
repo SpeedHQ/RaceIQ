@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { CrewChiefTriggerCatalog } from "@raceiq/backend-core/live-strategy/crewchief-triggers/catalog";
+import { RaceEngineerTriggerCatalog } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/catalog";
 import type { LiveResolvedSemanticFrame } from "@raceiq/telemetry-core/telemetry/live-projector";
 import type { ResolvedValue } from "@raceiq/shared/telemetry/resolver/contracts";
-import { CrewChiefTriggerFrame } from "@raceiq/backend-core/live-strategy/crewchief-triggers/frame";
-import { createPreviousValueState, type PreviousValueState } from "@raceiq/backend-core/live-strategy/crewchief-triggers/common";
-import type { CrewChiefTriggerFunction } from "@raceiq/backend-core/live-strategy/crewchief-triggers/contracts";
-import { triggerDriverSwaps, triggerRatings, triggerTimings, triggerWatchedOpponents } from "@raceiq/backend-core/live-strategy/crewchief-triggers/timing-opponent-triggers";
+import { RaceEngineerTriggerFrame } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/frame";
+import { createPreviousValueState, type PreviousValueState } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/common";
+import type { RaceEngineerTriggerFunction } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/contracts";
+import { triggerDriverSwaps, triggerRatings, triggerTimings, triggerWatchedOpponents } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/timing-opponent-triggers";
 import { AccBroadcastState } from "@raceiq/capture-formats/acc/broadcast-state";
 import type { AccBroadcastCar } from "@raceiq/shared/telemetry/acc-broadcast";
 
@@ -57,7 +57,7 @@ const frame = (sequence: number, values: Record<string, unknown>): LiveResolvedS
   };
 };
 
-const events = (catalog: CrewChiefTriggerCatalog, source: LiveResolvedSemanticFrame) => catalog.consume(source).events;
+const events = (catalog: RaceEngineerTriggerCatalog, source: LiveResolvedSemanticFrame) => catalog.consume(source).events;
 const timingValues = (overrides: Record<string, unknown> = {}): Record<string, unknown> => ({
   "session.session-type": "race",
   "race.competitor.car-index": [0, 7, 9],
@@ -70,27 +70,27 @@ const timingValues = (overrides: Record<string, unknown> = {}): Record<string, u
   ...overrides,
 });
 const run = (
-  trigger: CrewChiefTriggerFunction<PreviousValueState>,
+  trigger: RaceEngineerTriggerFunction<PreviousValueState>,
   state: PreviousValueState,
   seconds: number,
   values: Record<string, unknown>,
   simulator: LiveResolvedSemanticFrame["simulator"] = "acc",
 ) => {
-  const source = new CrewChiefTriggerFrame({ ...frame(seconds, values), simulator });
+  const source = new RaceEngineerTriggerFrame({ ...frame(seconds, values), simulator });
   const result = trigger({ frame: source, context: source.context(), sessionTimeMs: seconds * 1_000 }, state);
   return result === null ? [] : "eventKey" in result ? [result] : result;
 };
 
-describe("ACC CrewChief timing and opponent triggers", () => {
+describe("ACC Race Engineer timing and opponent triggers", () => {
   test("emits one LapTimes lap-completed event with lap/time payload only for valid lap edge", () => {
-    const catalog = new CrewChiefTriggerCatalog();
+    const catalog = new RaceEngineerTriggerCatalog();
     events(catalog, frame(0, {}));
     const emitted = events(catalog, frame(1, { "timing.lap-number": 3, "timing.last-lap": 90.5 }));
     expect(emitted.filter((event) => event.family === "LapTimes")).toEqual([
       expect.objectContaining({ eventKey: "lap-completed", payload: { lap: 2, time: 90.5 } }),
     ]);
 
-    const invalid = new CrewChiefTriggerCatalog();
+    const invalid = new RaceEngineerTriggerCatalog();
     events(invalid, frame(0, { "timing.current-lap-valid": false }));
     expect(events(invalid, frame(1, {
       "timing.lap-number": 3,
@@ -98,7 +98,7 @@ describe("ACC CrewChief timing and opponent triggers", () => {
       "timing.current-lap-valid": true,
     })).filter((event) => event.family === "LapTimes")).toHaveLength(0);
 
-    const inPit = new CrewChiefTriggerCatalog();
+    const inPit = new RaceEngineerTriggerCatalog();
     events(inPit, frame(0, {}));
     expect(events(inPit, frame(1, {
       "timing.lap-number": 3,
@@ -107,7 +107,7 @@ describe("ACC CrewChief timing and opponent triggers", () => {
   });
 
   test("emits one opponent lap-completed event per competitor increment, not fresh-array churn", () => {
-    const catalog = new CrewChiefTriggerCatalog();
+    const catalog = new RaceEngineerTriggerCatalog();
     events(catalog, frame(0, { "race.competitor.laps-complete": [1] }));
     const increment = events(catalog, frame(1, { "race.competitor.laps-complete": [2] }));
     expect(increment.filter((event) => event.family === "Opponents")).toEqual([
@@ -118,7 +118,7 @@ describe("ACC CrewChief timing and opponent triggers", () => {
   });
 
   test("latches multiclass traffic for faster different-class competitor inside spatial window", () => {
-    const catalog = new CrewChiefTriggerCatalog();
+    const catalog = new RaceEngineerTriggerCatalog();
     events(catalog, frame(0, { "race.competitor.car-class-id": ["gt4"] }));
     const emitted = events(catalog, frame(1, {
       "race.competitor.car-class-id": ["gt4"],
@@ -136,7 +136,7 @@ describe("ACC CrewChief timing and opponent triggers", () => {
   });
 
   test("keeps unconfigured or source-incomplete families silent", () => {
-    const catalog = new CrewChiefTriggerCatalog();
+    const catalog = new RaceEngineerTriggerCatalog();
     events(catalog, frame(0, {}));
     const emitted = events(catalog, frame(1, {
       "timing.lap-fraction": 0.5,
@@ -261,7 +261,7 @@ describe("source-backed timing and driver changes", () => {
   });
 
   test("catalog reset does not turn previous gaps or drivers into historical events", () => {
-    const catalog = new CrewChiefTriggerCatalog();
+    const catalog = new RaceEngineerTriggerCatalog();
     const relevant = (seconds: number, overrides: Record<string, unknown> = {}) =>
       events(catalog, frame(seconds, timingValues(overrides))).filter(event => event.family === "Timings" || event.family === "DriverSwaps");
     expect(relevant(0)).toEqual([]);

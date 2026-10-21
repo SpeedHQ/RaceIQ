@@ -66,10 +66,10 @@ ACC capture instrumentation runs whenever ACC runs, independently of voice enabl
 - **Scope:** Watched-opponent and rating features.
 - **Prerequisites:** User watch selection and trustworthy game-provided rating data.
 - **Game coverage:** Only games meeting both prerequisites.
-- **Completion evidence:** A game-specific source and user selection are proven end to end; never infer either from names, positions, or generic CrewChief catalog coverage.
+- **Completion evidence:** A game-specific source and user selection are proven end to end; never infer either from names, positions, or generic reference catalog coverage.
 
 ## Consequences
 
-CrewChief catalog coverage remains reference inventory, not a spoken-output promise. Missing, stale, invalid, misaligned, or unsupported opponent evidence continues to fail closed; RaceIQ creates no synthetic opponents and does not widen capability claims.
+Reference catalog coverage remains reference inventory, not a spoken-output promise. Missing, stale, invalid, misaligned, or unsupported opponent evidence continues to fail closed; RaceIQ creates no synthetic opponents and does not widen capability claims.
 
 Phases 2–5 do not become shipped behavior by appearing in this ADR. Each requires its stated evidence and the existing release gates. Any adapter, capture, semantic requirement, supported-game set, or release-state change must update this ADR matrix in the same change.

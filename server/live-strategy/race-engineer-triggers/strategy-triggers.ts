@@ -1,11 +1,11 @@
 import type { TelemetryVariableId } from "@raceiq/shared/telemetry/catalog/generated/telemetry-catalog.types";
-import type { CrewChiefTriggerDraftV1, CrewChiefTriggerFunction, CrewChiefTriggerInputV1 } from "./contracts";
+import type { RaceEngineerTriggerDraftV1, RaceEngineerTriggerFunction, RaceEngineerTriggerInputV1 } from "./contracts";
 import type { PreviousValueState } from "./common";
 const finite = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
-const draft = (eventKey: string, severity: CrewChiefTriggerDraftV1["severity"], payload: Record<string, CrewChiefTriggerDraftV1["payload"][string]>, evidence: readonly TelemetryVariableId[]): CrewChiefTriggerDraftV1 => ({ eventKey, severity, payload, evidenceSemanticIds: evidence });
-export const triggerPitStops: CrewChiefTriggerFunction<PreviousValueState> = (input, state) => { const current = input.frame.ok("race.pit-status"); if (!state.armed) { state.armed = true; state.previous = current; return null; } const previous = state.previous; state.previous = current; if (current === undefined || previous === undefined || Object.is(current, previous)) return null; const isPit = (value: unknown) => value === true || value === 1 || value === "pit" || value === "in-pit" || value === "pit_lane" || value === "in_pit" || value === "pit-stall"; const wasPit = isPit(previous), nowPit = isPit(current); if (wasPit === nowPit) return null; return draft(nowPit ? "pit-entry" : "pit-exit", "info", { status: nowPit ? "in-pit" : "out-of-pit" }, ["race.pit-status"]); };
+const draft = (eventKey: string, severity: RaceEngineerTriggerDraftV1["severity"], payload: Record<string, RaceEngineerTriggerDraftV1["payload"][string]>, evidence: readonly TelemetryVariableId[]): RaceEngineerTriggerDraftV1 => ({ eventKey, severity, payload, evidenceSemanticIds: evidence });
+export const triggerPitStops: RaceEngineerTriggerFunction<PreviousValueState> = (input, state) => { const current = input.frame.ok("race.pit-status"); if (!state.armed) { state.armed = true; state.previous = current; return null; } const previous = state.previous; state.previous = current; if (current === undefined || previous === undefined || Object.is(current, previous)) return null; const isPit = (value: unknown) => value === true || value === 1 || value === "pit" || value === "in-pit" || value === "pit_lane" || value === "in_pit" || value === "pit-stall"; const wasPit = isPit(previous), nowPit = isPit(current); if (wasPit === nowPit) return null; return draft(nowPit ? "pit-entry" : "pit-exit", "info", { status: nowPit ? "in-pit" : "out-of-pit" }, ["race.pit-status"]); };
 type FuelState = PreviousValueState & { previousFuel?: number; lowLatched?: boolean; criticalLatched?: boolean };
-export const triggerFuel: CrewChiefTriggerFunction<FuelState> = (input, state) => {
+export const triggerFuel: RaceEngineerTriggerFunction<FuelState> = (input, state) => {
   const f1 = input.frame.simulator === "f1-2025";
   const value = f1 ? input.frame.ok("fuel.laps-remaining") : input.frame.ok("fuel.remaining-volume");
   const perLap = input.frame.ok("fuel.fuel-per-lap");
@@ -54,9 +54,9 @@ export const triggerFuel: CrewChiefTriggerFunction<FuelState> = (input, state) =
   return null;
 };
 // No supported non-F1 packet exposes traction state of charge. Voltage is not SOC.
-export const triggerBattery: CrewChiefTriggerFunction<PreviousValueState> = () => null;
+export const triggerBattery: RaceEngineerTriggerFunction<PreviousValueState> = () => null;
 
-type StrategyInput = CrewChiefTriggerInputV1;
+type StrategyInput = RaceEngineerTriggerInputV1;
 type FinishProjection = {
   basis: "timed" | "laps";
   estimatedRaceLapsRemaining: number;
@@ -109,7 +109,7 @@ const finishProjection = ({ frame }: StrategyInput): FinishProjection | null => 
   return { basis: "timed", estimatedRaceLapsRemaining: remaining, fuelLapsRemaining: fuelLaps, finalPushWindow: seconds <= 2 * lastLap, evidence: game === "acc" ? accFinishEvidence : evoTimedFinishEvidence };
 };
 
-export const triggerStrategy: CrewChiefTriggerFunction<PreviousValueState> = (input, state) => {
+export const triggerStrategy: RaceEngineerTriggerFunction<PreviousValueState> = (input, state) => {
   if (!raceRunning(input)) {
     state.armed = false;
     state.previous = undefined;
@@ -132,7 +132,7 @@ export const triggerStrategy: CrewChiefTriggerFunction<PreviousValueState> = (in
   }, projection.evidence);
 };
 
-export const triggerPushNow: CrewChiefTriggerFunction<PreviousValueState> = (input, state) => {
+export const triggerPushNow: RaceEngineerTriggerFunction<PreviousValueState> = (input, state) => {
   if (!raceRunning(input)) {
     state.armed = false;
     state.previous = undefined;

@@ -4,7 +4,7 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { compileTelemetryResolver } from "./resolver/compile";
 import type { CompiledTelemetryResolver, ResolvedValue, TelemetryFrameView, TelemetryTimestamp, SemanticSlot } from "@raceiq/shared/telemetry/resolver/contracts";
 import { isEngineerSupportedGameId, liveEngineerRequiredSemanticIds, liveSemanticIds } from "./live/semantics";
-import { CREWCHIEF_CALLOUT_SEMANTIC_IDS } from "@raceiq/shared/telemetry/live/crewchief-callout-contract";
+import { RACE_ENGINEER_CALLOUT_SEMANTIC_IDS } from "@raceiq/shared/telemetry/live/race-engineer-callout-contract";
 import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "@raceiq/shared/telemetry/live/contracts";
 import type { LivePitData, LiveSectorData } from "@raceiq/shared/racing/live/types";
 import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
@@ -80,7 +80,7 @@ export class LiveTelemetryProjector {
     this.publicIds = liveSemanticIds(gameId);
     const engineerSupported = this.options.allowUnsupportedGame || isEngineerSupportedGameId(gameId);
     this.engineerIds = engineerSupported
-      ? (this.options.engineerSemanticIds ? [...this.options.engineerSemanticIds] : [...new Set([...liveEngineerRequiredSemanticIds(gameId), ...CREWCHIEF_CALLOUT_SEMANTIC_IDS])])
+      ? (this.options.engineerSemanticIds ? [...this.options.engineerSemanticIds] : [...new Set([...liveEngineerRequiredSemanticIds(gameId), ...RACE_ENGINEER_CALLOUT_SEMANTIC_IDS])])
       : [];
     const enabled = engineerSupported && (this.options.engineerSemanticIds !== undefined || (typeof this.options.engineerEnabled === "function" ? this.options.engineerEnabled(gameId) : this.options.engineerEnabled ?? true));
     if (!enabled) this.engineerIds = [];

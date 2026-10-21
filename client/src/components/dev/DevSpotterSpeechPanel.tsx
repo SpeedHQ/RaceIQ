@@ -44,7 +44,7 @@ export function DevSpotterSpeechPanel() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold">Spotter Speech</h2>
-          <p className="text-sm text-app-text-muted">CrewChief-style spotter state transitions and audio.</p>
+          <p className="text-sm text-app-text-muted">Race Engineer-style spotter state transitions and audio.</p>
         </div>
         <Button onClick={() => void audio.loadCatalog()}>Refresh catalog</Button>
       </div>

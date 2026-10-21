@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
-import { renderCrewChiefEvent, renderLapTime, renderOpponentLapPace, renderOpponentPace, renderOpponentPaceText, renderPreviewLine } from "@raceiq/backend-core/live-strategy/live-engineer-renderer";
-import { crewChiefSource } from "@raceiq/backend-core/live-strategy/crewchief-triggers/contracts";
+import { renderRaceEngineerEvent, renderLapTime, renderOpponentLapPace, renderOpponentPace, renderOpponentPaceText, renderPreviewLine } from "@raceiq/backend-core/live-strategy/live-engineer-renderer";
+import { raceEngineerSource } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/contracts";
 
 test("renders compound v3 pace and lap recipes", () => {
   const base = { relation: "within-class-pace" as const, scope: "class" as const, playerLapNumber: 1, playerLapTimeMs: 60_400, benchmarkLapTimeMs: 60_000, deltaMs: 400, benchmarkKind: "session-best" as const };
@@ -15,7 +15,7 @@ test("renders compound v3 pace and lap recipes", () => {
   expect(renderLapTime(92_417)).toMatchObject({ text: "Your lap was one thirty two point four.", segmentIds: ["lap.lead.your-lap-was", "lap.body.1-32", "lap.tenth.4"] });
   expect(renderLapTime(59_950)).toMatchObject({ text: "Your lap was one minute flat.", segmentIds: ["lap.lead.your-lap-was", "lap.body.1-00", "lap.tail.flat"] });
   expect(renderLapTime(0).segmentIds).toEqual([]);
-  expect(renderCrewChiefEvent({
+  expect(renderRaceEngineerEvent({
     eventKey: "lap-completed",
     family: "LapTimes",
     severity: "info",
@@ -24,7 +24,7 @@ test("renders compound v3 pace and lap recipes", () => {
     timelineEpoch: 1,
     sourceSequence: 2,
     sessionTimeMs: 92_417,
-    source: crewChiefSource("LapTimes"),
+    source: raceEngineerSource("LapTimes"),
     payload: { lap: 2, time: 92.417 },
     evidenceSemanticIds: [],
   })).toMatchObject({
@@ -34,7 +34,7 @@ test("renders compound v3 pace and lap recipes", () => {
 });
 
 test("does not voice pit entry after commitment", () => {
-  expect(renderCrewChiefEvent({
+  expect(renderRaceEngineerEvent({
     eventKey: "pit-entry",
     family: "PitStops",
     severity: "info",
@@ -43,7 +43,7 @@ test("does not voice pit entry after commitment", () => {
     timelineEpoch: 1,
     sourceSequence: 1,
     sessionTimeMs: 10_000,
-    source: crewChiefSource("PitStops"),
+    source: raceEngineerSource("PitStops"),
     payload: { status: "in-pit" },
     evidenceSemanticIds: [],
   })).toBeNull();

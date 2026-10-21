@@ -1,5 +1,5 @@
 import type { TelemetryVariableId } from "@raceiq/shared/telemetry/catalog/generated/telemetry-catalog.types";
-import type { CrewChiefTriggerDraftV1, CrewChiefTriggerFunction } from "./contracts";
+import type { RaceEngineerTriggerDraftV1, RaceEngineerTriggerFunction } from "./contracts";
 
 export interface PreviousValueState { previous: unknown; armed: boolean; }
 export const createPreviousValueState = (): PreviousValueState => ({ previous: undefined, armed: false });
@@ -14,12 +14,12 @@ const equal = (a: unknown, b: unknown): boolean => {
   }
   return false;
 };
-export const transition = (input: Parameters<CrewChiefTriggerFunction<PreviousValueState>>[0], state: PreviousValueState, family: string, eventKey: string, id: TelemetryVariableId, severity: CrewChiefTriggerDraftV1["severity"] = "info"): CrewChiefTriggerDraftV1 | null => {
+export const transition = (input: Parameters<RaceEngineerTriggerFunction<PreviousValueState>>[0], state: PreviousValueState, family: string, eventKey: string, id: TelemetryVariableId, severity: RaceEngineerTriggerDraftV1["severity"] = "info"): RaceEngineerTriggerDraftV1 | null => {
   void family;
   const current = input.frame.ok(id);
   if (!state.armed) { state.armed = true; state.previous = current; return null; }
   const previous = state.previous;
   state.previous = current;
   if (current === undefined || equal(current, previous)) return null;
-  return { eventKey, severity, payload: { previous: previous as CrewChiefTriggerDraftV1["payload"][string], current: current as CrewChiefTriggerDraftV1["payload"][string] }, evidenceSemanticIds: [id] };
+  return { eventKey, severity, payload: { previous: previous as RaceEngineerTriggerDraftV1["payload"][string], current: current as RaceEngineerTriggerDraftV1["payload"][string] }, evidenceSemanticIds: [id] };
 };

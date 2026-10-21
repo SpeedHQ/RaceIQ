@@ -1,6 +1,6 @@
 import type { OpponentPaceRenderParametersV1, OpponentPaceTextKeyV1, LiveEngineerVoiceModeV1 } from "@raceiq/shared/racing/live/engineer-contracts";
 import fullLineCatalog from "@raceiq/shared/racing/live/full-lines.json";
-import type { CrewChiefTriggerEventV1 } from "./crewchief-triggers/contracts";
+import type { RaceEngineerTriggerEventV1 } from "./race-engineer-triggers/contracts";
 import type { SpotterStateV1 } from "@raceiq/shared/racing/live/spotter-contracts";
 
 export interface LiveEngineerRenderedSpeech {
@@ -153,7 +153,7 @@ const CREW_CHIEF_EVENT_TEXT: Readonly<Record<string, string>> = {
   "fuel-to-finish": "You now have enough fuel to finish at this consumption.",
   "push-now": "Closing laps. Fuel looks good. Push now.", "drs-open": "DRS is open.", "drs-closed": "DRS is closed.",
 };
-export function renderCrewChiefEvent(event: CrewChiefTriggerEventV1, options: { voiceMode?: LiveEngineerVoiceModeV1 } = {}): LiveEngineerRenderedSpeech | null {
+export function renderRaceEngineerEvent(event: RaceEngineerTriggerEventV1, options: { voiceMode?: LiveEngineerVoiceModeV1 } = {}): LiveEngineerRenderedSpeech | null {
   // Entry notification arrives after driver already committed to pit lane; it adds no actionable information.
   if (event.eventKey === "pit-entry") return null;
   const minutes = event.payload.minutesRemaining;
@@ -165,7 +165,7 @@ export function renderCrewChiefEvent(event: CrewChiefTriggerEventV1, options: { 
   if (!baseText) return null;
   const flag = event.eventKey === "flag-change" ? String(event.payload.current ?? "").toLowerCase() : "";
   const damageEntries = event.eventKey === "damage-reported" ? (["front", "rear", "left", "right", "centre"] as const).map((location) => [location, Number(event.payload[location])] as const).filter((entry) => Number.isFinite(entry[1])) : [];
-  const damage = damageEntries.sort((a, b) => b[1] - a[1])[0];
+  const damage = damageEntries.find(([location]) => location === event.payload.location) ?? damageEntries.sort((a, b) => b[1] - a[1])[0];
   const damageLocation = damage?.[0];
   const damageHeavy = damage !== undefined && damage[1] >= 0.3;
   const text = flag === "black" ? "Black flag. Black flag." : flag === "blue" ? "Blue flag." : flag === "green" ? "Green flag." : damageLocation ? `${damageHeavy ? "Heavy damage" : "You've got damage"} ${damageLocation === "front" ? "at the front." : damageLocation === "rear" ? "at the rear." : damageLocation === "left" ? "on the left." : damageLocation === "right" ? "on the right." : "in the centre."}` : baseText;

@@ -3,14 +3,14 @@
 ## Scope
 See [Session Engineer Replay and Semantic Availability](decisions/session-engineer-replay-and-semantic-availability.md) for debugger replay boundaries and fail-closed semantic lifecycle.
 
-This document describes **voice-line triggers**, not the full CrewChief parity inventory.
+This document describes **voice-line triggers**, not the full reference parity inventory.
 
 Current production voice output has two families:
 
 - **Opponent pace** — evaluates the player's completed lap against valid opponent lap facts.
 - **Spotter** — detects a car alongside the player and announces occupancy transitions.
 
-The CrewChief event catalog contains 24 automatic event names plus `Spotter`. That catalog is a source-coverage contract and semantic-input inventory; it is not a claim that all 25 event families currently emit RaceIQ voice lines.
+The reference event catalog contains 24 automatic event names plus `Spotter`. That catalog is a source-coverage contract and semantic-input inventory; it is not a claim that all 25 event families currently emit RaceIQ voice lines.
 
 ## End-to-end trigger path
 
@@ -167,7 +167,7 @@ A server voice line does not guarantee audible output. The browser applies these
 6. A new spotter line preempts a current opponent-pace line and removes queued pace lines behind the active spotter.
 7. Playback volume is controlled client-side; the server never owns browser audio state.
 
-## CrewChief-style trigger inventory
+## Race Engineer trigger inventory
 
 The pinned source reference is `mr_belowski/CrewChiefV4` at commit `147d31f8a5db26d238b59c7d9837b99c0ac78dab`.
 
@@ -175,7 +175,17 @@ The semantic coverage contract currently names these automatic events:
 
 `Position`, `LapCounter`, `Timings`, `LapTimes`, `Opponents`, `Penalties`, `PitStops`, `Fuel`, `Battery`, `WatchedOpponents`, `Strategy`, `RaceTime`, `TyreMonitor`, `EngineMonitor`, `DamageReporting`, `PushNow`, `FlagsMonitor`, `ConditionsMonitor`, `OvertakingAidsMonitor`, `FrozenOrderMonitor`, `Ratings`, `MulticlassWarnings`, `DriverSwaps`, and `SessionEndMessages`.
 
-The inventory distinguishes implemented detectors from unavailable families and production gates. Current implementations include source-backed session/position/lap, fuel/strategy, timing, car-health, weather/flags, and selected adjacent-opponent events in addition to opponent pace, positional spotter, and exact-pace response. Game-specific requirements in `CREWCHIEF_TRIGGER_CATALOG` and executable semantic mappings are authoritative; inventory membership alone promises neither a ready detector nor spoken output. Watched-opponent and rating capabilities remain unavailable without their required source and user-selection contracts.
+The inventory distinguishes implemented detectors from unavailable families and production gates. Current implementations include source-backed session/position/lap, fuel/strategy, timing, car-health, weather/flags, and selected adjacent-opponent events in addition to opponent pace, positional spotter, and exact-pace response. Game-specific requirements in `RACE_ENGINEER_TRIGGER_CATALOG` and executable semantic mappings are authoritative; inventory membership alone promises neither a ready detector nor spoken output. Watched-opponent and rating capabilities remain unavailable without their required source and user-selection contracts.
+
+### Damage announcements
+
+ACC and AC Evo use front, rear, left, right, and centre damage zones. F1 25 maps the worse front-wing value to front, rear wing to rear, and the worst floor/diffuser/sidepod value to centre; its source percentages are divided by 100 before applying announcement thresholds.
+
+Each zone reports damage above 0.05 after three seconds in the same severity band. Heavy damage starts at 0.30 and gets a fresh three-second debounce. Newly damaged zones and normal-to-heavy escalation can speak even when another zone remains more damaged. When several zones are ready together, the worst speaks first; remaining zones are eligible on subsequent frames. Unchanged damage never repeats. Repair to 0.05 or below rearms that zone. Missing or stale required telemetry and session changes reset detector state and require fresh debounce.
+
+Warnings reuse the ten packaged normal/heavy zone clips. Damage events use detector-owned debounce/rearming rather than the generic 60-second event cooldown, so a second impact or post-repair impact is not hidden.
+
+Damage audio uses the same pinned `Qwen/Qwen3-TTS-12Hz-1.7B-Base` model, `voices/Aussie-short.flac` clone reference, deterministic seeds, and generation settings as the other qwen-v3 clips. To regenerate damage clips only, run `.venv-qwen/Scripts/python.exe scripts/live-engineer/generate-live-engineer-v3.py --regenerate-prefix race-engineer.damage`, then the same command with `--check` instead of `--regenerate-prefix race-engineer.damage`. CUDA and the cached model are required. Other packaged clips are reused only when transcript and file hash match. Generated audio remains `not-listened` until human review.
 
 ## Extension rule
 
@@ -199,7 +209,7 @@ Do not add a line by reading raw game packets in the renderer or by making the b
 - `server/live-strategy/live-engineer-runtime.ts` — queue, priority, expiry, dedupe, cooldown
 - `shared/racing/live/engineer-contracts.ts` — WebSocket message contracts
 - `packages/telemetry-core/src/telemetry/live/semantics.ts` — per-game semantic requirements
-- `packages/tooling-catalog/src/catalog/crewchief-callout-coverage.ts` — CrewChief event/group coverage matrix
+- `packages/tooling-catalog/src/catalog/race-engineer-callout-coverage.ts` — reference event/group coverage matrix
 - `packages/capture-formats/src/acc/broadcast-protocol.ts` — ACC Broadcasting Network Protocol v4 binary parser/encoder
 - `packages/game-acc/src/broadcast-client.ts` — ACC UDP registration and receive lifecycle
 - `packages/capture-formats/src/acc/broadcast-state.ts` — ACC entry-list/realtime join and semantic snapshot

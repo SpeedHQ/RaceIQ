@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { CrewChiefTriggerCatalog } from "@raceiq/backend-core/live-strategy/crewchief-triggers/catalog";
-import { createPreviousValueState, type PreviousValueState } from "@raceiq/backend-core/live-strategy/crewchief-triggers/common";
-import type { CrewChiefTriggerFunction } from "@raceiq/backend-core/live-strategy/crewchief-triggers/contracts";
-import { CrewChiefTriggerFrame } from "@raceiq/backend-core/live-strategy/crewchief-triggers/frame";
-import { triggerOvertakingAidsMonitor, triggerPenalties } from "@raceiq/backend-core/live-strategy/crewchief-triggers/race-control-triggers";
-import { triggerFuel, triggerPushNow, triggerStrategy } from "@raceiq/backend-core/live-strategy/crewchief-triggers/strategy-triggers";
+import { RaceEngineerTriggerCatalog } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/catalog";
+import { createPreviousValueState, type PreviousValueState } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/common";
+import type { RaceEngineerTriggerFunction } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/contracts";
+import { RaceEngineerTriggerFrame } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/frame";
+import { triggerOvertakingAidsMonitor, triggerPenalties } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/race-control-triggers";
+import { triggerFuel, triggerPushNow, triggerStrategy } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/strategy-triggers";
 import type { LiveResolvedSemanticFrame } from "@raceiq/telemetry-core/telemetry/live-projector";
 import type { ResolvedValue } from "@raceiq/shared/telemetry/resolver/contracts";
 
@@ -16,18 +16,18 @@ const frame = (sequence: number, observedAt: number, changes: Record<string, unk
   ];
   return { simulator: "acc", sessionId: 1, streamId, sequence, observedAt: { domain: "wall-clock", milliseconds: observedAt }, ids: entries.map(([id]) => id), values: entries.map(([id, current]) => value(id, current)) };
 };
-const keys = (catalog: CrewChiefTriggerCatalog, source: LiveResolvedSemanticFrame) => catalog.consume(source).events.map((event) => event.eventKey);
-const familyKeys = (catalog: CrewChiefTriggerCatalog, source: LiveResolvedSemanticFrame, family: string) =>
+const keys = (catalog: RaceEngineerTriggerCatalog, source: LiveResolvedSemanticFrame) => catalog.consume(source).events.map((event) => event.eventKey);
+const familyKeys = (catalog: RaceEngineerTriggerCatalog, source: LiveResolvedSemanticFrame, family: string) =>
   catalog.consume(source).events.filter((event) => event.family === family).map((event) => event.eventKey);
 
-const detector = (trigger: CrewChiefTriggerFunction<PreviousValueState>, simulator: LiveResolvedSemanticFrame["simulator"], defaults: Record<string, unknown>) => {
+const detector = (trigger: RaceEngineerTriggerFunction<PreviousValueState>, simulator: LiveResolvedSemanticFrame["simulator"], defaults: Record<string, unknown>) => {
   let state = createPreviousValueState();
   let sequence = 0;
   return {
     reset: () => { state = createPreviousValueState(); },
     consume(changes: Record<string, unknown> = {}) {
       const source = { ...frame(sequence++, 0, { ...defaults, ...changes }), simulator };
-      const projected = new CrewChiefTriggerFrame(source);
+      const projected = new RaceEngineerTriggerFrame(source);
       const result = trigger({ frame: projected, context: projected.context(), sessionTimeMs: sequence * 1000 }, state);
       return result === null ? [] : "eventKey" in result ? [result] : result;
     },
@@ -45,9 +45,9 @@ const evoRace = {
   "timing.total-laps": 20, "timing.lap-number": 18, "fuel.laps-remaining": 10,
 };
 
- describe("CrewChief ACC race-control and strategy triggers", () => {
+ describe("Race Engineer ACC race-control and strategy triggers", () => {
   test("ACC penalty enums emit on changed nonzero codes, not numeric increases", () => {
-    const catalog = new CrewChiefTriggerCatalog();
+    const catalog = new RaceEngineerTriggerCatalog();
     keys(catalog, frame(0, 0));
     expect(keys(catalog, frame(1, 1000, { "race.penalty-code": 3 }))).toEqual(["penalty-issued"]);
     expect(keys(catalog, frame(2, 2000, { "race.penalty-code": 1 }))).toEqual(["penalty-issued"]);
@@ -57,14 +57,14 @@ const evoRace = {
   });
 
   test("pit out to pit_lane to out emits exactly pit-entry and pit-exit", () => {
-    const catalog = new CrewChiefTriggerCatalog();
+    const catalog = new RaceEngineerTriggerCatalog();
     keys(catalog, frame(0, 0));
     expect(keys(catalog, frame(1, 1000, { "race.pit-status": "pit_lane" }))).toEqual(["pit-entry"]);
     expect(keys(catalog, frame(2, 2000, { "race.pit-status": "out" }))).toEqual(["pit-exit"]);
   });
 
   test("fuel threshold crossings emit low then critical once and reset after recovery", () => {
-    const catalog = new CrewChiefTriggerCatalog();
+    const catalog = new RaceEngineerTriggerCatalog();
     keys(catalog, frame(0, 0));
     expect(keys(catalog, frame(1, 1000, { "fuel.remaining-volume": 19 }))).toEqual(["fuel-low"]);
     expect(keys(catalog, frame(2, 2000, { "fuel.remaining-volume": 9 }))).toEqual(["fuel-critical"]);
@@ -74,20 +74,20 @@ const evoRace = {
   });
 
   test("flag change emits after ACC stable-settle interval, but not during pit or formation", () => {
-    const catalog = new CrewChiefTriggerCatalog();
+    const catalog = new RaceEngineerTriggerCatalog();
     familyKeys(catalog, frame(0, 0), "FlagsMonitor");
     expect(familyKeys(catalog, frame(1, 100, { "race.flag-status": "yellow" }), "FlagsMonitor")).toEqual([]);
     expect(familyKeys(catalog, frame(2, 1000, { "race.flag-status": "yellow" }), "FlagsMonitor")).toEqual([]);
     expect(familyKeys(catalog, frame(3, 2500, { "race.flag-status": "yellow" }), "FlagsMonitor")).toEqual(["flag-change"]);
 
-    const suppressed = new CrewChiefTriggerCatalog();
+    const suppressed = new RaceEngineerTriggerCatalog();
     familyKeys(suppressed, frame(0, 0), "FlagsMonitor");
     expect(familyKeys(suppressed, frame(1, 2500, { "race.flag-status": "red", "race.pit-status": "pit_lane" }), "FlagsMonitor")).toEqual([]);
     expect(familyKeys(suppressed, frame(2, 5000, { "race.flag-status": "red", "session.session-state": 2 }), "FlagsMonitor")).toEqual([]);
   });
 
   test("ACC missing battery and overtaking sources stay static even with synthetic values", () => {
-    const catalog = new CrewChiefTriggerCatalog();
+    const catalog = new RaceEngineerTriggerCatalog();
     keys(catalog, frame(0, 0));
     const changed = catalog.consume(frame(1, 1000, { "engine.battery-state-of-charge": 0.1, "race.player.push-to-pass-active": true, "aero.drs-active": true }));
     expect(changed.events.filter((event) => ["Battery", "OvertakingAidsMonitor"].includes(event.family))).toEqual([]);

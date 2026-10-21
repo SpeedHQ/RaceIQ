@@ -29,7 +29,7 @@ import { applyFrameTime } from "../session-capture/frame-time";
 import { wsManager } from "../runtime/websocket-manager";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 import { LiveEngineerVoiceEngine } from "../live-strategy/live-engineer-voice-engine";
-import { CrewChiefTriggerCatalog } from "../live-strategy/crewchief-triggers/catalog";
+import { RaceEngineerTriggerCatalog } from "../live-strategy/race-engineer-triggers/catalog";
 import type { LiveEngineerVoiceRequestV3, LiveEngineerDeliveryStatusV3 } from "@raceiq/shared/racing/live/engineer-contracts";
 import { isLiveEngineerEnabled, releaseFeatureFlags } from "@raceiq/shared/platform/runtime/release-feature-flags";
 
@@ -75,7 +75,7 @@ export class LiveTelemetryPipeline {
   private _liveIssuesEnabled = false;
   private _timelineEpoch = 0;
   private _voiceEngine: LiveEngineerVoiceEngine;
-  private _triggerCatalog = new CrewChiefTriggerCatalog();
+  private _triggerCatalog = new RaceEngineerTriggerCatalog();
   private _recordingSession: RecordingSession | null = null;
   private _dashboardCaptureObservations = new Map<number, CaptureObservationEntry>();
   private _continuingSegment = false;

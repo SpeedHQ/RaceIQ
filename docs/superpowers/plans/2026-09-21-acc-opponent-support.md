@@ -24,7 +24,7 @@ Update ACC opponent support end-to-end:
 4. Preserve fail-closed behavior when Broadcast data is absent, stale, malformed, or misaligned.
 5. Prove behavior with deterministic fixtures and an actual ACC session.
 
-Out of scope: new CrewChief families, synthetic opponent values, changes to shared-memory physics capture, generic feature-flag replacement, or release enablement before acceptance evidence exists.
+- Out of scope: new Race Engineer families, synthetic opponent values, changes to shared-memory physics capture, generic feature-flag replacement, or release enablement before acceptance evidence exists.
 
 ## Source and recording design
 

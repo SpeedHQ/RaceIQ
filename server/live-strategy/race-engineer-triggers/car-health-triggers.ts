@@ -1,11 +1,11 @@
 import type { TelemetryVariableId } from "@raceiq/shared/telemetry/catalog/generated/telemetry-catalog.types";
-import type { CrewChiefTriggerDraftV1, CrewChiefTriggerFunction } from "./contracts";
+import type { RaceEngineerTriggerDraftV1, RaceEngineerTriggerFunction } from "./contracts";
 import type { PreviousValueState } from "./common";
 type State = PreviousValueState;
 const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
-const draft = (eventKey: string, severity: CrewChiefTriggerDraftV1["severity"], payload: Record<string, number | string>, evidenceSemanticIds: TelemetryVariableId[]): CrewChiefTriggerDraftV1 => ({ eventKey, severity, payload, evidenceSemanticIds });
+const draft = (eventKey: string, severity: RaceEngineerTriggerDraftV1["severity"], payload: Record<string, number | string>, evidenceSemanticIds: TelemetryVariableId[]): RaceEngineerTriggerDraftV1 => ({ eventKey, severity, payload, evidenceSemanticIds });
 const bucket = (v: number): "cold" | "normal" | "hot" | "cooking" => v <= 70 ? "cold" : v >= 180 ? "cooking" : v >= 100 ? "hot" : "normal";
-export const triggerTyreMonitor: CrewChiefTriggerFunction<State> = (input, state) => {
+export const triggerTyreMonitor: RaceEngineerTriggerFunction<State> = (input, state) => {
   const lap = input.frame.hasFresh("timing.lap-number") ? input.frame.ok("timing.lap-number") : undefined;
   const sector = input.frame.hasFresh("timing.sector.current-index") ? input.frame.ok("timing.sector.current-index") : undefined;
   const fm = input.frame.simulator === "fm-2023";
@@ -29,8 +29,8 @@ export const triggerTyreMonitor: CrewChiefTriggerFunction<State> = (input, state
   const severity = fm ? nextBucket === "cold" || nextBucket === "cooking" ? "warning" : "info" : nextBucket === "cooking" ? "critical" : "warning";
   return draft(`tyres-${nextBucket}`, severity, payload, evidence);
 };
-export const triggerEngineMonitor: CrewChiefTriggerFunction<State> = (input, state) => { const temp = input.frame.hasFresh("engine.coolant-temperature") ? input.frame.ok("engine.coolant-temperature") : undefined, s = (state.previous ?? {}) as { started?: number; hot?: boolean }; if (!state.armed) state.armed = true; state.previous = s; if (!finite(temp)) return null; s.started ??= input.sessionTimeMs; if (input.context.pit || input.sessionTimeMs - s.started < 120000) return null; if (temp >= 110 && !s.hot) { s.hot = true; return draft("water-temperature-hot", "critical", { temperature: temp }, ["engine.coolant-temperature"]); } if (temp <= 100 && s.hot) { s.hot = false; return draft("water-temperature-clear", "info", { temperature: temp }, ["engine.coolant-temperature"]); } return null; };
-export const triggerDamageReporting: CrewChiefTriggerFunction<State> = (input, state) => {
+export const triggerEngineMonitor: RaceEngineerTriggerFunction<State> = (input, state) => { const temp = input.frame.hasFresh("engine.coolant-temperature") ? input.frame.ok("engine.coolant-temperature") : undefined, s = (state.previous ?? {}) as { started?: number; hot?: boolean }; if (!state.armed) state.armed = true; state.previous = s; if (!finite(temp)) return null; s.started ??= input.sessionTimeMs; if (input.context.pit || input.sessionTimeMs - s.started < 120000) return null; if (temp >= 110 && !s.hot) { s.hot = true; return draft("water-temperature-hot", "critical", { temperature: temp }, ["engine.coolant-temperature"]); } if (temp <= 100 && s.hot) { s.hot = false; return draft("water-temperature-clear", "info", { temperature: temp }, ["engine.coolant-temperature"]); } return null; };
+export const triggerDamageReporting: RaceEngineerTriggerFunction<State> = (input, state) => {
   const fields = ["front", "rear", "left", "right", "centre"] as const;
   const semanticIds: TelemetryVariableId[] = input.frame.simulator === "f1-2025"
     ? ["damage.front-left-wing-damage", "damage.front-right-wing-damage", "damage.rear-wing-damage", "damage.floor-damage", "damage.diffuser-damage", "damage.sidepod-damage"]
@@ -47,18 +47,31 @@ export const triggerDamageReporting: CrewChiefTriggerFunction<State> = (input, s
         centre: Math.max(values[3] as number, values[4] as number, values[5] as number) / 100,
       }
     : Object.fromEntries(fields.map((field, index) => [field, values[index] as number])) as Record<(typeof fields)[number], number>;
-  const s = (state.previous ?? {}) as { since?: number; reported?: boolean };
-  if (!state.armed) state.armed = true;
+  type ZoneState = { reported: number; pending?: number; since?: number };
+  const s = (state.previous ?? {}) as Partial<Record<(typeof fields)[number], ZoneState>>;
+  state.armed = true;
   state.previous = s;
-  if (fields.every((field) => damage[field] <= .05)) {
-    s.since = undefined;
-    s.reported = false;
-    return null;
+  let location: (typeof fields)[number] | undefined;
+  for (const field of fields) {
+    const zone = s[field] ??= { reported: 0 };
+    const level = damage[field] <= .05 ? 0 : damage[field] >= .3 ? 2 : 1;
+    if (level === 0) zone.reported = 0;
+    if (level <= zone.reported) {
+      zone.pending = undefined;
+      zone.since = undefined;
+      continue;
+    }
+    if (zone.pending !== level) {
+      zone.pending = level;
+      zone.since = input.sessionTimeMs;
+    }
+    if (input.sessionTimeMs - zone.since! >= 3000 &&
+        (location === undefined || damage[field] > damage[location])) location = field;
   }
-  s.since ??= input.sessionTimeMs;
-  if (!s.reported && input.sessionTimeMs - s.since >= 3000) {
-    s.reported = true;
-    return draft("damage-reported", "warning", damage, semanticIds);
-  }
-  return null;
+  if (location === undefined) return null;
+  const zone = s[location]!;
+  zone.reported = zone.pending!;
+  zone.pending = undefined;
+  zone.since = undefined;
+  return draft("damage-reported", "warning", { ...damage, location }, semanticIds);
 };

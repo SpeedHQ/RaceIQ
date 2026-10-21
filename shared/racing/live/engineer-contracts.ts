@@ -1,5 +1,5 @@
 import { isSpotterRenderParametersV1, type SpotterRenderParametersV1 } from "./spotter-contracts";
-import { CREWCHIEF_AUTOMATIC_EVENTS, CREWCHIEF_REFERENCE, type CrewChiefEventFamily, type CrewChiefSourceRef } from "../../telemetry/live/crewchief-callout-contract";
+import { RACE_ENGINEER_AUTOMATIC_EVENTS, RACE_ENGINEER_REFERENCE, type RaceEngineerEventFamily, type RaceEngineerSourceRef } from "../../telemetry/live/race-engineer-callout-contract";
 export const LIVE_ENGINEER_AUDIO_CATALOG_VERSION = "live-engineer-qwen-v3" as const;
 export const LIVE_ENGINEER_PROTOCOL_VERSION = 3 as const;
 export const LIVE_ENGINEER_RENDERING_VERSION = "opponent-pace-v1" as const;
@@ -22,19 +22,19 @@ export interface LiveEngineerCandidateV1 {
   sourceFactIds: readonly string[];
   policyVersion: string;
   renderParameters: OpponentPaceRenderParametersV1 | {
-    triggerFamily: CrewChiefEventFamily;
+    triggerFamily: RaceEngineerEventFamily;
     eventKey: string;
     payload: Readonly<Record<string, string | number | boolean | null | readonly (string | number | boolean | null)[]>>;
-    source: CrewChiefSourceRef;
+    source: RaceEngineerSourceRef;
   };
 }
 export interface RaceEngineerCalloutMessageV3 extends LiveEngineerCalloutCommonV3 {
   family: "race-engineer";
-  render: { renderingVersion: "crewchief-v1"; text: string; textKey: string; parameters: {
-    triggerFamily: CrewChiefEventFamily;
+  render: { renderingVersion: "race-engineer-v1"; text: string; textKey: string; parameters: {
+    triggerFamily: RaceEngineerEventFamily;
     eventKey: string;
     payload: Readonly<Record<string, string | number | boolean | null | readonly (string | number | boolean | null)[]>>;
-    source: CrewChiefSourceRef;
+    source: RaceEngineerSourceRef;
   }};
 }
 export type LiveEngineerVoiceLineOptions = { mode: "automatic" } | { mode: "exact-response"; requestId: string };
@@ -49,12 +49,12 @@ const wirePayload = (v: unknown): boolean => {
   const payload = record(v);
   return !!payload && Object.values(payload).every((value) => wireScalar(value) || Array.isArray(value) && value.every(wireScalar));
 };
-const crewChiefSource = (v: unknown): boolean => {
+const raceEngineerSource = (v: unknown): boolean => {
   const source = record(v);
   return !!source &&
-    source.host === CREWCHIEF_REFERENCE.host &&
-    source.project === CREWCHIEF_REFERENCE.project &&
-    source.commit === CREWCHIEF_REFERENCE.commit &&
+    source.host === RACE_ENGINEER_REFERENCE.host &&
+    source.project === RACE_ENGINEER_REFERENCE.project &&
+    source.commit === RACE_ENGINEER_REFERENCE.commit &&
     typeof source.path === "string" && source.path.length > 0 &&
     Array.isArray(source.symbols) && source.symbols.length > 0 && source.symbols.every((symbol) => typeof symbol === "string" && symbol.length > 0);
 };
@@ -68,13 +68,13 @@ export function isLiveEngineerCalloutMessageV3(v: unknown): v is LiveEngineerCal
   if (x.family === "opponent-pace") return r.renderingVersion === "opponent-pace-v1" && textKeys.includes(r.textKey as OpponentPaceTextKeyV1) && isOpponentPaceRenderParametersV1(r.parameters);
   if (x.family === "spotter") return r.renderingVersion === "spotter-v1" && spotterKeys.includes(r.textKey as SpotterTextKeyV1) && isSpotterRenderParametersV1(r.parameters);
   return x.family === "race-engineer" &&
-    r.renderingVersion === "crewchief-v1" &&
+    r.renderingVersion === "race-engineer-v1" &&
     typeof r.text === "string" && r.text.length > 0 &&
     typeof r.textKey === "string" && r.textKey.length > 0 &&
-    !!p && typeof p.triggerFamily === "string" && CREWCHIEF_AUTOMATIC_EVENTS.includes(p.triggerFamily as CrewChiefEventFamily & (typeof CREWCHIEF_AUTOMATIC_EVENTS)[number]) &&
+    !!p && typeof p.triggerFamily === "string" && RACE_ENGINEER_AUTOMATIC_EVENTS.includes(p.triggerFamily as RaceEngineerEventFamily & (typeof RACE_ENGINEER_AUTOMATIC_EVENTS)[number]) &&
     typeof p.eventKey === "string" && p.eventKey.length > 0 &&
     wirePayload(p.payload) &&
-    crewChiefSource(p.source);
+    raceEngineerSource(p.source);
 }
 export function isLiveEngineerVoiceLineMessageV3(v: unknown): v is LiveEngineerVoiceLineMessageV3 { const x = record(v); return !!x && x.type === "live-engineer-voice-line" && x.protocolVersion === 3 && typeof x.deliveryId === "string" && typeof x.decisionId === "string" && typeof x.sessionId === "string" && nonNegative(x.timelineEpoch) && nonNegative(x.createdSessionTimeMs) && nonNegative(x.expiresSessionTimeMs) && x.expiresSessionTimeMs > x.createdSessionTimeMs && ["opponent-pace", "spotter", "race-engineer"].includes(x.family as string) && ["automatic", "exact-response"].includes(x.mode as string) && ["high", "normal", "low"].includes(x.priority as string) && nonNegative(x.sourceSequence) && typeof x.catalogVersion === "string" && Array.isArray(x.segmentIds) && x.segmentIds.length > 0 && x.segmentIds.every((id) => typeof id === "string" && id.length > 0); }
 export function isLiveEngineerVoiceRequestV3(v: unknown): v is LiveEngineerVoiceRequestV3 { const x = record(v); return !!x && x.type === "live-engineer-voice-request" && x.protocolVersion === 3 && x.action === "exact-pace" && typeof x.requestId === "string" && typeof x.decisionId === "string"; }

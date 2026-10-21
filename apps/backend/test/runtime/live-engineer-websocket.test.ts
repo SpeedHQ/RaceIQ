@@ -5,7 +5,7 @@ import {
   isLiveEngineerVoiceLineMessageV3,
   isLiveEngineerVoiceRequestV3,
 } from "@raceiq/shared/racing/live/engineer-contracts";
-import { crewChiefSource } from "@raceiq/backend-core/live-strategy/crewchief-triggers/contracts";
+import { raceEngineerSource } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/contracts";
 import { WebSocketManager } from "@raceiq/backend-core/runtime/websocket-manager";
 
 const v3Voice = {
@@ -37,14 +37,14 @@ const raceEngineerCallout = {
   createdSessionTimeMs: 100,
   expiresSessionTimeMs: 12_100,
   render: {
-    renderingVersion: "crewchief-v1",
+    renderingVersion: "race-engineer-v1",
     text: "Fuel is low.",
     textKey: "fuel-low",
     parameters: {
       triggerFamily: "Fuel",
       eventKey: "fuel-low",
       payload: { remainingLaps: 1.9 },
-      source: crewChiefSource("Fuel"),
+      source: raceEngineerSource("Fuel"),
     },
   },
 } as const;
@@ -54,7 +54,7 @@ test("accepts V3 voice metadata and rejects missing expiry", () => {
   expect(isLiveEngineerVoiceLineMessageV3({ ...v3Voice, expiresSessionTimeMs: undefined })).toBe(false);
 });
 
-test("accepts pinned CrewChief race-engineer callouts", () => {
+test("accepts pinned Race Engineer callouts", () => {
   expect(isLiveEngineerCalloutMessageV3(raceEngineerCallout)).toBe(true);
   expect(isLiveEngineerCalloutMessageV3({
     ...raceEngineerCallout,

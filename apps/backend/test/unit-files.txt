@@ -35,5 +35,5 @@ apps/backend/test/live-strategy/live-engineer-runtime.test.ts
 apps/backend/test/live-strategy/live-engineer-voice-engine.test.ts
 apps/backend/test/live-strategy/opponent-pace-tracker.test.ts
 apps/backend/test/live-strategy/spotter-tracker.test.ts
-apps/backend/test/telemetry/catalog/crewchief-callout-coverage.test.ts
+apps/backend/test/telemetry/catalog/race-engineer-callout-coverage.test.ts
 apps/backend/test/runtime/live-engineer-websocket.test.ts

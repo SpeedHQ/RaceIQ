@@ -223,11 +223,11 @@ apps/backend/test/session-capture/direct-recorder.test.ts
 apps/backend/test/session-capture/direct-recording-ingress.test.ts
 apps/backend/test/live-strategy/acc-fuel-scenarios.test.ts
 apps/backend/test/live-strategy/acc-opponent-replay.test.ts
-apps/backend/test/live-strategy/crewchief-triggers/car-health-conditions-triggers.test.ts
-apps/backend/test/live-strategy/crewchief-triggers/catalog.test.ts
-apps/backend/test/live-strategy/crewchief-triggers/race-control-strategy-triggers.test.ts
-apps/backend/test/live-strategy/crewchief-triggers/session-triggers.test.ts
-apps/backend/test/live-strategy/crewchief-triggers/timing-opponent-triggers.test.ts
+apps/backend/test/live-strategy/race-engineer-triggers/car-health-conditions-triggers.test.ts
+apps/backend/test/live-strategy/race-engineer-triggers/catalog.test.ts
+apps/backend/test/live-strategy/race-engineer-triggers/race-control-strategy-triggers.test.ts
+apps/backend/test/live-strategy/race-engineer-triggers/session-triggers.test.ts
+apps/backend/test/live-strategy/race-engineer-triggers/timing-opponent-triggers.test.ts
 apps/backend/test/live-strategy/f1-opponent-replay-scenarios.test.ts
 apps/backend/test/live-strategy/live-engineer-replay.test.ts
 apps/backend/test/live-strategy/live-engineer-audio-catalog.test.ts

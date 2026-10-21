@@ -1,12 +1,12 @@
-import type { CrewChiefTriggerFunction, CrewChiefTriggerResultV1 } from "./contracts";
+import type { RaceEngineerTriggerFunction, RaceEngineerTriggerResultV1 } from "./contracts";
 import { createPreviousValueState, type PreviousValueState } from "./common";
 
 export type SessionTriggerState = PreviousValueState;
 
-const unavailable = (): CrewChiefTriggerResultV1 => null;
+const unavailable = (): RaceEngineerTriggerResultV1 => null;
 
 // ACC broadcast phases are native values: Session=5, SessionOver=6.
-const sessionPhase = (frame: Parameters<CrewChiefTriggerFunction<SessionTriggerState>>[0]["frame"]): number | undefined => {
+const sessionPhase = (frame: Parameters<RaceEngineerTriggerFunction<SessionTriggerState>>[0]["frame"]): number | undefined => {
   const maximum = frame.simulator === "acc" ? 8 : undefined;
   const phase = frame.hasFresh("session.session-state") ? frame.ok<number>("session.session-state") : undefined;
   return maximum !== undefined && typeof phase === "number" && Number.isInteger(phase) && phase >= 1 && phase <= maximum
@@ -31,7 +31,7 @@ interface SessionEndState {
   ended: boolean;
 }
 
-const position: CrewChiefTriggerFunction<SessionTriggerState> = (input, state): CrewChiefTriggerResultV1 => {
+const position: RaceEngineerTriggerFunction<SessionTriggerState> = (input, state): RaceEngineerTriggerResultV1 => {
   const { frame } = input;
   const current = frame.hasFresh("race.race-position") ? frame.ok<number>("race.race-position") : undefined;
   if (!state.armed) {
@@ -62,7 +62,7 @@ const position: CrewChiefTriggerFunction<SessionTriggerState> = (input, state): 
   };
 };
 
-const lapCounter: CrewChiefTriggerFunction<SessionTriggerState> = (input, state) => {
+const lapCounter: RaceEngineerTriggerFunction<SessionTriggerState> = (input, state) => {
   const { frame } = input;
   if (frame.simulator === "f1-2025") {
     const currentLap = frame.hasFresh("timing.lap-number") ? frame.ok<number>("timing.lap-number") : undefined;
@@ -79,7 +79,7 @@ const lapCounter: CrewChiefTriggerFunction<SessionTriggerState> = (input, state)
     const previous = state.previous as typeof current;
     state.previous = current;
     if (!current || !previous || current.currentLap !== current.totalLaps || previous.currentLap >= current.totalLaps) return null;
-    const event: CrewChiefTriggerResultV1 = {
+    const event: RaceEngineerTriggerResultV1 = {
       eventKey: "final-lap",
       severity: "info",
       payload: { lap: current.currentLap, totalLaps: current.totalLaps },
@@ -139,7 +139,7 @@ const lapCounter: CrewChiefTriggerFunction<SessionTriggerState> = (input, state)
   return { eventKey, severity: "info", payload: { sessionPhase: eventKey === "pre-lights" ? "formation" : "green" }, evidenceSemanticIds: ["session.session-state"] };
 };
 
-const raceTime: CrewChiefTriggerFunction<SessionTriggerState> = ({ frame }, state) => {
+const raceTime: RaceEngineerTriggerFunction<SessionTriggerState> = ({ frame }, state) => {
   const nativePhase = frame.hasFresh("session.session-state") ? frame.ok<number>("session.session-state") : undefined;
   const evo = frame.simulator === "ac-evo";
   const clockId = evo ? "timing.session-time-left-ms" : "timing.session-time-remain";
@@ -179,7 +179,7 @@ const raceTime: CrewChiefTriggerFunction<SessionTriggerState> = ({ frame }, stat
   };
 };
 
-const sessionEndMessages: CrewChiefTriggerFunction<SessionTriggerState> = ({ frame }, state) => {
+const sessionEndMessages: RaceEngineerTriggerFunction<SessionTriggerState> = ({ frame }, state) => {
   const current = sessionPhase(frame);
   if (current === undefined) {
     state.armed = false;
@@ -210,6 +210,6 @@ export const triggerPosition = position;
 export const triggerLapCounter = lapCounter;
 export const triggerRaceTime = raceTime;
 // ACC/AC Evo/Forza do not expose an assigned frozen-order target.
-export const triggerFrozenOrderMonitor: CrewChiefTriggerFunction<SessionTriggerState> = unavailable;
+export const triggerFrozenOrderMonitor: RaceEngineerTriggerFunction<SessionTriggerState> = unavailable;
 export const triggerSessionEndMessages = sessionEndMessages;
 export { createPreviousValueState };

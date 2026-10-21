@@ -1,6 +1,6 @@
 import type { GameId } from "../../games/ids";
 import type { ResolvedValue } from "../../telemetry/resolver/contracts";
-import type { CrewChiefEventFamily } from "../../telemetry/live/crewchief-callout-contract";
+import type { RaceEngineerEventFamily } from "../../telemetry/live/race-engineer-callout-contract";
 
 export type LiveEngineerReplayExecutionMode = "production-equivalent" | "diagnostic-all-games";
 export type LiveEngineerReplayClockQuality = "captured" | "native-session" | "nominal-100hz";
@@ -36,7 +36,7 @@ export interface LiveEngineerReplayAnnotationV1 {
   lapNumber: number | null;
   position: { x: number; z: number } | null;
   stage: LiveEngineerReplayStage;
-  family: CrewChiefEventFamily | "opponent-pace" | "live-spotter";
+  family: RaceEngineerEventFamily | "opponent-pace" | "live-spotter";
   action: string;
   candidateId: string | null;
   decisionId: string | null;
@@ -67,7 +67,7 @@ export interface LiveEngineerAvailabilityTransitionV1 {
 }
 
 export interface LiveEngineerCalloutSystemV1 {
-  systemId: `crewchief:${string}` | "opponent-pace" | "live-spotter";
+  systemId: `race-engineer:${string}` | "opponent-pace" | "live-spotter";
   implementationStatus: LiveEngineerImplementationStatus;
   productionEligible: boolean;
   diagnosticEligible: boolean;

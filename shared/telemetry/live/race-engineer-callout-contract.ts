@@ -1,15 +1,15 @@
 import type { TelemetryVariableId } from "../catalog/generated/telemetry-catalog.types";
 
-export const CREWCHIEF_REFERENCE = {
+export const RACE_ENGINEER_REFERENCE = {
   host: "gitlab.com",
   project: "mr_belowski/CrewChiefV4",
   commit: "97dc39c219b94de1099242fb8a5958869083603c",
 } as const;
 
-export type CrewChiefSourceRef = {
-  host: typeof CREWCHIEF_REFERENCE.host;
-  project: typeof CREWCHIEF_REFERENCE.project;
-  commit: typeof CREWCHIEF_REFERENCE.commit;
+export type RaceEngineerSourceRef = {
+  host: typeof RACE_ENGINEER_REFERENCE.host;
+  project: typeof RACE_ENGINEER_REFERENCE.project;
+  commit: typeof RACE_ENGINEER_REFERENCE.commit;
   path: string;
   symbols: readonly string[];
 };
@@ -19,32 +19,32 @@ export type RaceIQSourceRef = {
   symbols: readonly string[];
 };
 
-export type CrewChiefCoverageState =
+export type RaceEngineerCoverageState =
   | {
       kind: "mapped";
       semanticId: TelemetryVariableId;
-      parity: "crew-chief-native" | "source-equivalent";
-      crewChiefSources: readonly CrewChiefSourceRef[];
+      parity: "reference-native" | "source-equivalent";
+      referenceSources: readonly RaceEngineerSourceRef[];
       raceIqSources: readonly RaceIQSourceRef[];
     }
   | {
       kind: "source-unavailable";
       reasonCode: string;
       reason: string;
-      crewChiefSources: readonly CrewChiefSourceRef[];
+      referenceSources: readonly RaceEngineerSourceRef[];
       raceIqEvidence?: readonly RaceIQSourceRef[];
     }
   | {
       kind: "not-applicable";
       reasonCode: string;
       reason: string;
-      crewChiefSources?: readonly CrewChiefSourceRef[];
+      referenceSources?: readonly RaceEngineerSourceRef[];
       raceIqEvidence?: readonly RaceIQSourceRef[];
     };
 
 const ids = <const T extends readonly TelemetryVariableId[]>(...values: T) => values;
 
-export const CREWCHIEF_SEMANTIC_GROUPS = {
+export const RACE_ENGINEER_SEMANTIC_GROUPS = {
   SESSION_TIMING: ids(
     "session.session-type", "session.session-state", "session.phase", "session.session-flags", "session.is-spectating",
     "timing.session-time-remain", "timing.session-time-total", "session.laps-remaining", "timing.lap-number",
@@ -105,18 +105,18 @@ export const CREWCHIEF_SEMANTIC_GROUPS = {
   DRIVER_TEAM_RATINGS: ids("identity.player-driver-id", "race.competitor.team-id", "race.competitor.team-name", "race.competitor.rating", "race.competitor.license-level", "race.competitor.license-name", "race.competitor.driver-incident-count", "race.competitor.team-incident-count", "session.driver-change-rule-set", "session.driver-change.drivers-used"),
 } as const;
 
-export const CREWCHIEF_AUTOMATIC_EVENTS = [
+export const RACE_ENGINEER_AUTOMATIC_EVENTS = [
   "Position", "LapCounter", "Timings", "LapTimes", "Opponents", "Penalties", "PitStops", "Fuel", "Battery", "WatchedOpponents",
   "Strategy", "RaceTime", "TyreMonitor", "EngineMonitor", "DamageReporting", "PushNow", "FlagsMonitor", "ConditionsMonitor",
   "OvertakingAidsMonitor", "FrozenOrderMonitor", "Ratings", "MulticlassWarnings", "DriverSwaps", "SessionEndMessages",
 ] as const;
 
-export type CrewChiefAutomaticEvent = (typeof CREWCHIEF_AUTOMATIC_EVENTS)[number];
-export type CrewChiefEventFamily = CrewChiefAutomaticEvent | "Spotter";
-export const CREWCHIEF_CALLOUT_SEMANTIC_IDS = Object.freeze(
-  [...new Set(Object.values(CREWCHIEF_SEMANTIC_GROUPS).flat())],
+export type RaceEngineerAutomaticEvent = (typeof RACE_ENGINEER_AUTOMATIC_EVENTS)[number];
+export type RaceEngineerEventFamily = RaceEngineerAutomaticEvent | "Spotter";
+export const RACE_ENGINEER_CALLOUT_SEMANTIC_IDS = Object.freeze(
+  [...new Set(Object.values(RACE_ENGINEER_SEMANTIC_GROUPS).flat())],
 ) as readonly TelemetryVariableId[];
-export const CREWCHIEF_EVENT_GROUPS = {
+export const RACE_ENGINEER_EVENT_GROUPS = {
   Spotter: ["SESSION_TIMING", "OPPONENT", "SPATIAL_SPOTTER", "PITS_STRATEGY"],
   Position: ["SESSION_TIMING", "OPPONENT", "FLAGS_PENALTIES", "PITS_STRATEGY", "SPATIAL_SPOTTER"],
   LapCounter: ["SESSION_TIMING", "OPPONENT", "FLAGS_PENALTIES", "PITS_STRATEGY", "ENERGY", "CONDITIONS"],
@@ -144,22 +144,22 @@ export const CREWCHIEF_EVENT_GROUPS = {
   SessionEndMessages: ["SESSION_TIMING"],
 } as const;
 
-export const CREWCHIEF_EVENT_SOURCES: Record<string, readonly CrewChiefSourceRef[]> = Object.fromEntries(
-  ["CrewChief.cs::createListOfAllEvents", ...CREWCHIEF_AUTOMATIC_EVENTS].map((family) => {
-    const isFactory = family === "CrewChief.cs::createListOfAllEvents";
+export const RACE_ENGINEER_EVENT_SOURCES: Record<string, readonly RaceEngineerSourceRef[]> = Object.fromEntries(
+  ["event-factory", ...RACE_ENGINEER_AUTOMATIC_EVENTS].map((family) => {
+    const isFactory = family === "event-factory";
     return [family, [{
-      host: CREWCHIEF_REFERENCE.host,
-      project: CREWCHIEF_REFERENCE.project,
-      commit: CREWCHIEF_REFERENCE.commit,
+      host: RACE_ENGINEER_REFERENCE.host,
+      project: RACE_ENGINEER_REFERENCE.project,
+      commit: RACE_ENGINEER_REFERENCE.commit,
       path: isFactory ? "CrewChiefV4/CrewChief.cs" : `CrewChiefV4/Events/${family}.cs`,
       symbols: [isFactory ? "createListOfAllEvents" : family === "SessionEndMessages" ? "trigger" : "triggerInternal"],
     }]];
   }),
 );
-CREWCHIEF_EVENT_SOURCES.Spotter = [{
-  host: CREWCHIEF_REFERENCE.host,
-  project: CREWCHIEF_REFERENCE.project,
-  commit: CREWCHIEF_REFERENCE.commit,
+RACE_ENGINEER_EVENT_SOURCES.Spotter = [{
+  host: RACE_ENGINEER_REFERENCE.host,
+  project: RACE_ENGINEER_REFERENCE.project,
+  commit: RACE_ENGINEER_REFERENCE.commit,
   path: "CrewChiefV4/Events/Spotter.cs",
   symbols: ["trigger"],
 }];

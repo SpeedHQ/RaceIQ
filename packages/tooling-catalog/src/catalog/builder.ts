@@ -17,7 +17,7 @@ import {
   IRACING_SESSION_INFO_CATALOG_FIELDS,
 } from "@raceiq/game-iracing-metadata/session-info/catalog";
 import { getSchemaForGame } from "@raceiq/shared/racing/setups/schema";
-import { CREWCHIEF_CALLOUT_SEMANTIC_IDS } from "@raceiq/shared/telemetry/live/crewchief-callout-contract";
+import { RACE_ENGINEER_CALLOUT_SEMANTIC_IDS } from "@raceiq/shared/telemetry/live/race-engineer-callout-contract";
 import {
   assertIRacingSessionInfoCaptureCoverage,
   readIRacingSessionInfoCaptures,
@@ -556,7 +556,7 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
   }
 
   addCrossSourceProjections(variables, groups);
-  const semanticCapabilityIds = new Set([...CREWCHIEF_CALLOUT_SEMANTIC_IDS, "timing.sector.current-lap.times"]);
+  const semanticCapabilityIds = new Set([...RACE_ENGINEER_CALLOUT_SEMANTIC_IDS, "timing.sector.current-lap.times"]);
   for (const id of semanticCapabilityIds) {
     if (id === "timing.sector.current-lap.times") continue;
     if (variables.has(id)) continue;

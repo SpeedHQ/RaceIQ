@@ -1,9 +1,9 @@
 import type { TelemetryVariableId } from "@raceiq/shared/telemetry/catalog/generated/telemetry-catalog.types";
-import type { CrewChiefTriggerDraftV1, CrewChiefTriggerFunction } from "./contracts";
+import type { RaceEngineerTriggerDraftV1, RaceEngineerTriggerFunction } from "./contracts";
 import type { PreviousValueState } from "./common";
 const finite = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
-const draft = (eventKey: string, severity: CrewChiefTriggerDraftV1["severity"], payload: Record<string, CrewChiefTriggerDraftV1["payload"][string]>, evidence: readonly TelemetryVariableId[]): CrewChiefTriggerDraftV1 => ({ eventKey, severity, payload, evidenceSemanticIds: evidence });
-export const triggerPenalties: CrewChiefTriggerFunction<PreviousValueState> = (input, state) => {
+const draft = (eventKey: string, severity: RaceEngineerTriggerDraftV1["severity"], payload: Record<string, RaceEngineerTriggerDraftV1["payload"][string]>, evidence: readonly TelemetryVariableId[]): RaceEngineerTriggerDraftV1 => ({ eventKey, severity, payload, evidenceSemanticIds: evidence });
+export const triggerPenalties: RaceEngineerTriggerFunction<PreviousValueState> = (input, state) => {
   if (input.frame.simulator === "acc") {
     const code = input.frame.ok("race.penalty-code");
     if (!finite(code) || !Number.isInteger(code) || code < 0 || code > 21) {
@@ -24,8 +24,8 @@ export const triggerPenalties: CrewChiefTriggerFunction<PreviousValueState> = (i
   if (!finite(current) || !finite(previous) || current <= previous) return null;
   return draft("penalty-issued", "warning", { previous, count: current }, ["race.penalties"]);
 };
-export const triggerFlagsMonitor: CrewChiefTriggerFunction<PreviousValueState> = (input, state) => { type FlagState = PreviousValueState & { candidate?: unknown; changedAt?: number }; const s = state as FlagState; const current = input.frame.ok("race.flag-status"); if (!s.armed) { s.armed = true; s.previous = current; return null; } if (current === undefined) return null; if (!Object.is(current, s.previous) && !Object.is(current, s.candidate)) { s.candidate = current; s.changedAt = input.sessionTimeMs; } if (Object.is(current, s.previous) || s.changedAt === undefined || input.sessionTimeMs - s.changedAt < 2000 || input.context.pit || input.context.formation) return null; const previous = s.previous; s.previous = current; s.candidate = undefined; s.changedAt = undefined; return draft("flag-change", "warning", { previous: String(previous), current: String(current) }, ["race.flag-status"]); };
-export const triggerOvertakingAidsMonitor: CrewChiefTriggerFunction<PreviousValueState> = (input, state) => {
+export const triggerFlagsMonitor: RaceEngineerTriggerFunction<PreviousValueState> = (input, state) => { type FlagState = PreviousValueState & { candidate?: unknown; changedAt?: number }; const s = state as FlagState; const current = input.frame.ok("race.flag-status"); if (!s.armed) { s.armed = true; s.previous = current; return null; } if (current === undefined) return null; if (!Object.is(current, s.previous) && !Object.is(current, s.candidate)) { s.candidate = current; s.changedAt = input.sessionTimeMs; } if (Object.is(current, s.previous) || s.changedAt === undefined || input.sessionTimeMs - s.changedAt < 2000 || input.context.pit || input.context.formation) return null; const previous = s.previous; s.previous = current; s.candidate = undefined; s.changedAt = undefined; return draft("flag-change", "warning", { previous: String(previous), current: String(current) }, ["race.flag-status"]); };
+export const triggerOvertakingAidsMonitor: RaceEngineerTriggerFunction<PreviousValueState> = (input, state) => {
   const { frame, context } = input;
   if (frame.simulator !== "ac-evo") return null;
   const running = frame.ok("race.is-race-on") === true;

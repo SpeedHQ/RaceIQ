@@ -1,16 +1,16 @@
 import type { TelemetryVariableId } from "@raceiq/shared/telemetry/catalog/generated/telemetry-catalog.types";
-import type { CrewChiefTriggerFunction, CrewChiefTriggerDraftV1, CrewChiefTriggerInputV1 } from "./contracts";
+import type { RaceEngineerTriggerFunction, RaceEngineerTriggerDraftV1, RaceEngineerTriggerInputV1 } from "./contracts";
 import type { PreviousValueState } from "./common";
 
 const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 const arr = (v: unknown): readonly unknown[] | undefined => Array.isArray(v) ? v : undefined;
-const draft = (eventKey: string, payload: Record<string, CrewChiefTriggerDraftV1["payload"][string]>, evidenceSemanticIds: TelemetryVariableId[]): CrewChiefTriggerDraftV1 => ({ eventKey, severity: "info", payload, evidenceSemanticIds });
+const draft = (eventKey: string, payload: Record<string, RaceEngineerTriggerDraftV1["payload"][string]>, evidenceSemanticIds: TelemetryVariableId[]): RaceEngineerTriggerDraftV1 => ({ eventKey, severity: "info", payload, evidenceSemanticIds });
 
 const index = (value: unknown): value is number => finite(value) && Number.isInteger(value) && value >= 0;
 const outOfPits = (value: unknown): boolean => value === false || value === "out";
 const disarm = (state: PreviousValueState): null => { state.armed = false; state.previous = undefined; return null; };
 const roster = (
-  input: CrewChiefTriggerInputV1,
+  input: RaceEngineerTriggerInputV1,
   columns: readonly (readonly unknown[] | undefined)[],
 ): { cars: readonly number[]; drivers: readonly string[] } | null => {
   const cars = arr(input.frame.ok("race.competitor.car-index"));
@@ -41,7 +41,7 @@ const timingEvidence = [
   "race.competitor.car-index", "race.competitor.driver-id", "race.competitor.position", "race.competitor.pit-status",
 ] satisfies TelemetryVariableId[];
 
-export const triggerTimings: CrewChiefTriggerFunction<PreviousValueState> = (input, state) => {
+export const triggerTimings: RaceEngineerTriggerFunction<PreviousValueState> = (input, state) => {
   if (input.context.simulator !== "acc") return disarm(state);
   const phase = input.frame.ok("session.session-state");
   if (input.frame.ok("session.session-type") !== "race" || phase !== 5 ||
@@ -68,7 +68,7 @@ export const triggerTimings: CrewChiefTriggerFunction<PreviousValueState> = (inp
   previous.observedAt = now;
   state.armed = true;
   state.previous = previous;
-  const events: CrewChiefTriggerDraftV1[] = [];
+  const events: RaceEngineerTriggerDraftV1[] = [];
   for (const side of ["ahead", "behind"] as const) {
     const row = positions.indexOf(position + (side === "ahead" ? -1 : 1));
     const rawGap = input.frame.ok(side === "ahead" ? "timing.gap-ahead-ms" : "timing.gap-behind-ms");
@@ -104,20 +104,20 @@ export const triggerTimings: CrewChiefTriggerFunction<PreviousValueState> = (inp
 };
 
 // No watch selection exists in the engineer input/config; never invent watched cars.
-export const triggerWatchedOpponents: CrewChiefTriggerFunction<PreviousValueState> = () => null;
+export const triggerWatchedOpponents: RaceEngineerTriggerFunction<PreviousValueState> = () => null;
 
 // ACC, AC Evo and Forza do not publish a source-backed skill rating.
-export const triggerRatings: CrewChiefTriggerFunction<PreviousValueState> = () => null;
+export const triggerRatings: RaceEngineerTriggerFunction<PreviousValueState> = () => null;
 
 type DriverState = { observedAt: number; drivers: Map<number, string> };
-export const triggerDriverSwaps: CrewChiefTriggerFunction<PreviousValueState> = (input, state) => {
+export const triggerDriverSwaps: RaceEngineerTriggerFunction<PreviousValueState> = (input, state) => {
   if (input.context.simulator !== "acc") return disarm(state);
   const connected = arr(input.frame.ok("race.competitor.connected"));
   const identity = roster(input, [connected]);
   if (!identity || !finite(input.sessionTimeMs)) return disarm(state);
   const previous = state.armed ? state.previous as DriverState : undefined;
   const drivers = new Map<number, string>();
-  const events: CrewChiefTriggerDraftV1[] = [];
+  const events: RaceEngineerTriggerDraftV1[] = [];
   for (let i = 0; i < identity.cars.length; i++) {
     if (connected?.[i] !== true) continue;
     const car = identity.cars[i]!;
@@ -136,7 +136,7 @@ export const triggerDriverSwaps: CrewChiefTriggerFunction<PreviousValueState> = 
   return events.length ? events : null;
 };
 
-export const triggerLapTimes: CrewChiefTriggerFunction<PreviousValueState> = (input, state) => {
+export const triggerLapTimes: RaceEngineerTriggerFunction<PreviousValueState> = (input, state) => {
   if (input.frame.simulator === "fm-2023") {
     const lap = input.frame.ok("timing.lap-number");
     const last = input.frame.ok("timing.last-lap");
@@ -160,13 +160,13 @@ export const triggerLapTimes: CrewChiefTriggerFunction<PreviousValueState> = (in
 };
 
 type OppState = { laps: Map<number, number> };
-export const triggerOpponents: CrewChiefTriggerFunction<PreviousValueState> = (input, state) => {
+export const triggerOpponents: RaceEngineerTriggerFunction<PreviousValueState> = (input, state) => {
   const cars = arr(input.frame.ok("race.competitor.car-index"));
   const laps = arr(input.frame.ok("race.competitor.laps-complete"));
   if (!cars || !laps || cars.length !== laps.length || cars.length > 64) return null;
   const s = (state.previous && typeof state.previous === "object" && "laps" in state.previous ? state.previous : { laps: new Map<number, number>() }) as OppState;
   if (!state.armed) { state.armed = true; state.previous = s; }
-  const events: CrewChiefTriggerDraftV1[] = [];
+  const events: RaceEngineerTriggerDraftV1[] = [];
   for (let i = 0; i < cars.length; i++) {
     const car = cars[i];
     const lap = laps[i];
@@ -184,7 +184,7 @@ export const triggerOpponents: CrewChiefTriggerFunction<PreviousValueState> = (i
 };
 
 type MultiState = { latched: Set<number> };
-export const triggerMulticlassWarnings: CrewChiefTriggerFunction<PreviousValueState> = (input, state) => {
+export const triggerMulticlassWarnings: RaceEngineerTriggerFunction<PreviousValueState> = (input, state) => {
   const cls = input.frame.ok("identity.player-car-class-id");
   const px = input.frame.ok("motion.position-x");
   const pz = input.frame.ok("motion.position-z");
@@ -200,7 +200,7 @@ export const triggerMulticlassWarnings: CrewChiefTriggerFunction<PreviousValueSt
   const s = (state.previous && typeof state.previous === "object" && "latched" in state.previous ? state.previous : { latched: new Set<number>() }) as MultiState;
   if (!state.armed) { state.armed = true; state.previous = s; return null; }
   const next = new Set<number>();
-  let event: CrewChiefTriggerDraftV1 | null = null;
+  let event: RaceEngineerTriggerDraftV1 | null = null;
   for (let i = 0; i < classes.length; i++) {
     const competitorClass = classes[i];
     const car = cars[i];

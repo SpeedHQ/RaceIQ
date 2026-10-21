@@ -43,9 +43,9 @@ export function releaseFeatureFlags(env: ReleaseFeatureFlagEnvironment): Release
   };
 }
 
-export type LiveEngineerSubsystem = "crewchief" | "opponent-pace" | "live-spotter";
+export type LiveEngineerSubsystem = "race-engineer" | "opponent-pace" | "live-spotter";
 const SUBSYSTEM_GAMES: Readonly<Record<LiveEngineerSubsystem, readonly GameId[]>> = {
-  crewchief: ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing"],
+  "race-engineer": ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing"],
   "opponent-pace": ["f1-2025", "acc", "iracing"],
   "live-spotter": ["acc", "iracing"],
 };
@@ -56,7 +56,7 @@ export function isLiveEngineerSubsystemEnabled(flags: ReleaseFeatureFlags, gameI
   return flags.liveSpotterEngineer && flags.liveSpotterEngineerGameIds.includes(gameId) && isLiveEngineerSubsystemSupported(gameId, subsystem);
 }
 export function isLiveEngineerEnabled(flags: ReleaseFeatureFlags, gameId: GameId): boolean {
-  return (["crewchief", "opponent-pace", "live-spotter"] as const).some((subsystem) =>
+  return (["race-engineer", "opponent-pace", "live-spotter"] as const).some((subsystem) =>
     isLiveEngineerSubsystemEnabled(flags, gameId, subsystem),
   );
 }

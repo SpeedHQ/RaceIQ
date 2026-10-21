@@ -14,7 +14,7 @@ test("replay availability retains loss and recovery at their original frames", (
     gameId: "fm-2023", TimestampMS: index * 10, LapNumber: lap, Speed: 20,
   } as TelemetryPacket));
   const replay = runLiveEngineerSessionReplay({ session: { id: 1, gameId: "fm-2023" }, laps: [], packets, sourceProfile: profile("fm-2023") });
-  const lapCounter = replay.systems.find((system) => system.systemId === "crewchief:LapCounter")!;
+  const lapCounter = replay.systems.find((system) => system.systemId === "race-engineer:LapCounter")!;
   expect(lapCounter.transitions.map(({ frameIndex, lifecycle }) => [frameIndex, lifecycle])).toEqual([
     [0, "baseline"], [1, "ready"], [2, "unavailable"], [3, "baseline"], [4, "ready"],
   ]);

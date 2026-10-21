@@ -1,9 +1,9 @@
-import type { CrewChiefTriggerFunction } from "./contracts";
+import type { RaceEngineerTriggerFunction } from "./contracts";
 import type { PreviousValueState } from "./common";
 
 const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 
-export const triggerConditionsMonitor: CrewChiefTriggerFunction<PreviousValueState> = (input, state) => {
+export const triggerConditionsMonitor: RaceEngineerTriggerFunction<PreviousValueState> = (input, state) => {
   const f1 = input.frame.simulator === "f1-2025";
   const acc = input.frame.simulator === "acc";
   const semanticId = f1 ? "weather.weather-type" : acc ? "weather.rain-intensity-code" : "weather.rain-intensity";

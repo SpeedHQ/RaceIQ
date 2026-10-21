@@ -1,21 +1,21 @@
 import type { GameId } from "@raceiq/shared/games/ids";
 import {
-  CREWCHIEF_AUTOMATIC_EVENTS,
-  CREWCHIEF_EVENT_GROUPS,
-  CREWCHIEF_EVENT_SOURCES,
-  CREWCHIEF_SEMANTIC_GROUPS,
-  type CrewChiefEventFamily,
-} from "@raceiq/shared/telemetry/live/crewchief-callout-contract";
+  RACE_ENGINEER_AUTOMATIC_EVENTS,
+  RACE_ENGINEER_EVENT_GROUPS,
+  RACE_ENGINEER_EVENT_SOURCES,
+  RACE_ENGINEER_SEMANTIC_GROUPS,
+  type RaceEngineerEventFamily,
+} from "@raceiq/shared/telemetry/live/race-engineer-callout-contract";
 import type { LiveResolvedSemanticFrame } from "@raceiq/telemetry-core/telemetry/live-projector";
 import type {
-  CrewChiefTriggerBatchV1,
-  CrewChiefTriggerDraftV1,
-  CrewChiefTriggerEventV1,
-  CrewChiefTriggerFunction,
-  CrewChiefTriggerResultV1,
+  RaceEngineerTriggerBatchV1,
+  RaceEngineerTriggerDraftV1,
+  RaceEngineerTriggerEventV1,
+  RaceEngineerTriggerFunction,
+  RaceEngineerTriggerResultV1,
 } from "./contracts";
 import { createPreviousValueState, type PreviousValueState } from "./common";
-import { CrewChiefTriggerFrame } from "./frame";
+import { RaceEngineerTriggerFrame } from "./frame";
 import { triggerTyreMonitor, triggerEngineMonitor, triggerDamageReporting } from "./car-health-triggers";
 import { triggerConditionsMonitor } from "./conditions-triggers";
 import { triggerFlagsMonitor, triggerOvertakingAidsMonitor, triggerPenalties } from "./race-control-triggers";
@@ -24,12 +24,12 @@ import { triggerSpotter } from "./spotter-trigger";
 import { triggerBattery, triggerFuel, triggerPitStops, triggerPushNow, triggerStrategy } from "./strategy-triggers";
 import { triggerDriverSwaps, triggerLapTimes, triggerMulticlassWarnings, triggerOpponents, triggerRatings, triggerTimings, triggerWatchedOpponents } from "./timing-opponent-triggers";
 
-export type CrewChiefRequiredSemanticId = (typeof CREWCHIEF_SEMANTIC_GROUPS)[keyof typeof CREWCHIEF_SEMANTIC_GROUPS][number];
+export type RaceEngineerRequiredSemanticId = (typeof RACE_ENGINEER_SEMANTIC_GROUPS)[keyof typeof RACE_ENGINEER_SEMANTIC_GROUPS][number];
 export type CapabilityState = "active" | "partial" | "unavailable";
-export type CrewChiefImplementationStatus = "implemented" | "detector-not-implemented" | "renderer-unavailable" | "no-game-branch";
-export interface CrewChiefCapability { state: CapabilityState; reasonCode?: string }
-export interface CrewChiefTriggerCatalogOptions { allowUnsupportedGame?: boolean }
-export interface CrewChiefSystemEvaluation {
+export type RaceEngineerImplementationStatus = "implemented" | "detector-not-implemented" | "renderer-unavailable" | "no-game-branch";
+export interface RaceEngineerCapability { state: CapabilityState; reasonCode?: string }
+export interface RaceEngineerTriggerCatalogOptions { allowUnsupportedGame?: boolean }
+export interface RaceEngineerSystemEvaluation {
   lifecycle: "unavailable" | "baseline" | "ready";
   reasonCode: string;
   dependencies: readonly {
@@ -42,32 +42,32 @@ export interface CrewChiefSystemEvaluation {
     aligned: boolean | null;
   }[];
 }
-export interface CrewChiefTriggerDescriptor<S = unknown> {
-  family: CrewChiefEventFamily;
-  source: (typeof CREWCHIEF_EVENT_SOURCES)[string][number];
-  requiredSemanticIds: readonly CrewChiefRequiredSemanticId[];
+export interface RaceEngineerTriggerDescriptor<S = unknown> {
+  family: RaceEngineerEventFamily;
+  source: (typeof RACE_ENGINEER_EVENT_SOURCES)[string][number];
+  requiredSemanticIds: readonly RaceEngineerRequiredSemanticId[];
   requiredGroups: readonly string[];
-  implementationStatus: CrewChiefImplementationStatus;
+  implementationStatus: RaceEngineerImplementationStatus;
   requiredSemanticIdsByGame?: Partial<Record<GameId, readonly string[] | null>>;
   accParity?: CapabilityState;
   accReasonCode?: string;
   createState: () => S;
-  trigger: CrewChiefTriggerFunction<S>;
+  trigger: RaceEngineerTriggerFunction<S>;
 }
 
 const descriptor = (
-  family: CrewChiefEventFamily,
-  trigger: CrewChiefTriggerFunction<PreviousValueState>,
-  requiredSemanticIds: readonly CrewChiefRequiredSemanticId[],
+  family: RaceEngineerEventFamily,
+  trigger: RaceEngineerTriggerFunction<PreviousValueState>,
+  requiredSemanticIds: readonly RaceEngineerRequiredSemanticId[],
   accParity: CapabilityState = "partial",
   accReasonCode = accParity === "partial" ? "partial-semantic-coverage" : undefined,
-  implementationStatus: CrewChiefImplementationStatus = "implemented",
+  implementationStatus: RaceEngineerImplementationStatus = "implemented",
   requiredSemanticIdsByGame?: Partial<Record<GameId, readonly string[] | null>>,
-): CrewChiefTriggerDescriptor<PreviousValueState> => ({
+): RaceEngineerTriggerDescriptor<PreviousValueState> => ({
   family,
-  source: CREWCHIEF_EVENT_SOURCES[family]![0]!,
+  source: RACE_ENGINEER_EVENT_SOURCES[family]![0]!,
   requiredSemanticIds,
-  requiredGroups: CREWCHIEF_EVENT_GROUPS[family],
+  requiredGroups: RACE_ENGINEER_EVENT_GROUPS[family],
   implementationStatus,
   ...(requiredSemanticIdsByGame ? { requiredSemanticIdsByGame } : {}),
   ...(accParity ? { accParity } : {}),
@@ -75,12 +75,12 @@ const descriptor = (
   createState: createPreviousValueState,
   trigger,
 });
-const unavailable = (family: CrewChiefEventFamily, trigger: CrewChiefTriggerFunction<PreviousValueState>) =>
+const unavailable = (family: RaceEngineerEventFamily, trigger: RaceEngineerTriggerFunction<PreviousValueState>) =>
   descriptor(family, trigger, [], "unavailable", "no-source-backed-semantic-branch", "detector-not-implemented");
 
 const implementedFor = (
-  family: CrewChiefEventFamily,
-  trigger: CrewChiefTriggerFunction<PreviousValueState>,
+  family: RaceEngineerEventFamily,
+  trigger: RaceEngineerTriggerFunction<PreviousValueState>,
   games: Partial<Record<GameId, readonly string[]>>,
 ) => descriptor(family, trigger, [], "partial", undefined, "implemented", {
   "fm-2023": null, "f1-2025": null, acc: null, "ac-evo": null, iracing: null, ...games,
@@ -94,7 +94,7 @@ const EVO_FINISH_REQUIREMENTS = [
   "timing.session-time-left-ms", "timing.last-lap", "timing.total-laps", "timing.lap-number", "fuel.laps-remaining",
 ] as const;
 
-export const CREWCHIEF_TRIGGER_CATALOG = [
+export const RACE_ENGINEER_TRIGGER_CATALOG = [
   descriptor("Position", triggerPosition, ["race.race-position", "identity.player-car-class-id", "race.competitor.car-class-id"], "partial", undefined, "implemented", {
     "f1-2025": ["race.race-position", "identity.player-car-class-id", "race.competitor.car-class-id"],
     "fm-2023": ["race.race-position"],
@@ -159,16 +159,16 @@ export const CREWCHIEF_TRIGGER_CATALOG = [
   }),
   implementedFor("SessionEndMessages", triggerSessionEndMessages, { acc: ["session.session-state"] }),
   descriptor("Spotter", triggerSpotter, ["identity.car-left-right"], "active", undefined, "implemented", { "f1-2025": null }),
-] as const satisfies readonly CrewChiefTriggerDescriptor<PreviousValueState>[];
+] as const satisfies readonly RaceEngineerTriggerDescriptor<PreviousValueState>[];
 
-if (new Set(CREWCHIEF_TRIGGER_CATALOG.map(({ family }) => family)).size !== 25 ||
-    CREWCHIEF_TRIGGER_CATALOG.some(({ family }, index) => family !== [...CREWCHIEF_AUTOMATIC_EVENTS, "Spotter"][index])) {
-  throw new Error("CrewChief trigger catalog membership mismatch");
+if (new Set(RACE_ENGINEER_TRIGGER_CATALOG.map(({ family }) => family)).size !== 25 ||
+    RACE_ENGINEER_TRIGGER_CATALOG.some(({ family }, index) => family !== [...RACE_ENGINEER_AUTOMATIC_EVENTS, "Spotter"][index])) {
+  throw new Error("Race Engineer trigger catalog membership mismatch");
 }
 
 const sessionTime = (frame: LiveResolvedSemanticFrame): number =>
   "milliseconds" in frame.observedAt ? frame.observedAt.milliseconds : Number(frame.observedAt.nanoseconds / 1_000_000n);
-const normalize = (result: CrewChiefTriggerResultV1): readonly CrewChiefTriggerDraftV1[] =>
+const normalize = (result: RaceEngineerTriggerResultV1): readonly RaceEngineerTriggerDraftV1[] =>
   result === null ? [] : "eventKey" in result ? [result] : result;
 const dependencyShape = (value: LiveResolvedSemanticFrame["values"][number] | undefined): "scalar" | "array" | "missing" | "invalid" => {
   if (!value || value.state !== "ok" || value.value === null || value.value === undefined) return "missing";
@@ -182,17 +182,17 @@ const chooseReason = (reasons: readonly string[]): string => [...reasons].sort((
   return (left < 0 ? 999 : left) - (right < 0 ? 999 : right);
 })[0] ?? "semantic-not-projected";
 export function gameRequirements(
-  descriptor: CrewChiefTriggerDescriptor<any>,
+  descriptor: RaceEngineerTriggerDescriptor<any>,
   gameId: GameId,
 ): readonly string[] {
   const gameRequirements = descriptor.requiredSemanticIdsByGame?.[gameId];
   return gameRequirements ?? descriptor.requiredSemanticIds;
 }
-export function evaluateCrewChiefAvailability(
-  descriptor: CrewChiefTriggerDescriptor<any>,
+export function evaluateRaceEngineerAvailability(
+  descriptor: RaceEngineerTriggerDescriptor<any>,
   frame: LiveResolvedSemanticFrame,
   gameId: GameId = frame.simulator,
-): CrewChiefSystemEvaluation {
+): RaceEngineerSystemEvaluation {
   const required = gameRequirements(descriptor, gameId);
   if (descriptor.implementationStatus !== "implemented") return { lifecycle: "unavailable", reasonCode: descriptor.implementationStatus, dependencies: [] };
   if (descriptor.accParity === "unavailable") return { lifecycle: "unavailable", reasonCode: "source-unavailable", dependencies: [] };
@@ -200,8 +200,8 @@ export function evaluateCrewChiefAvailability(
   const dependencies = required.map((semanticId) => {
     const value = values.get(semanticId);
     const shape = dependencyShape(value);
-    const state: CrewChiefSystemEvaluation["dependencies"][number]["state"] = value?.state ?? "not-requested";
-    const freshness: CrewChiefSystemEvaluation["dependencies"][number]["freshness"] = value?.freshness ?? "unknown";
+    const state: RaceEngineerSystemEvaluation["dependencies"][number]["state"] = value?.state ?? "not-requested";
+    const freshness: RaceEngineerSystemEvaluation["dependencies"][number]["freshness"] = value?.freshness ?? "unknown";
     const aligned = shape === "array" ? (Array.isArray(value?.value) && value.value.length <= 64) : null;
     return { semanticId, state, freshness, mappingStatus: value?.mappingStatus ?? null, limitations: value?.limitations ?? [], shape, aligned };
   });
@@ -221,8 +221,8 @@ export function evaluateCrewChiefAvailability(
   });
   return { lifecycle: reasons.length ? "unavailable" : "ready", reasonCode: reasons.length ? chooseReason(reasons) : "ready", dependencies: normalizedDependencies };
 }
-const capabilityMap = (gameId: GameId, observed?: ReadonlyMap<string, boolean>, _allowUnsupportedGame = false): Record<CrewChiefEventFamily, CrewChiefCapability> =>
-  Object.fromEntries(CREWCHIEF_TRIGGER_CATALOG.map((item) => {
+const capabilityMap = (gameId: GameId, observed?: ReadonlyMap<string, boolean>, _allowUnsupportedGame = false): Record<RaceEngineerEventFamily, RaceEngineerCapability> =>
+  Object.fromEntries(RACE_ENGINEER_TRIGGER_CATALOG.map((item) => {
     const required = gameRequirements(item, gameId);
     if (item.implementationStatus !== "implemented") {
       return [item.family, { state: "unavailable", reasonCode: item.implementationStatus === "detector-not-implemented" ? "detector-not-implemented" : item.implementationStatus }];
@@ -235,37 +235,37 @@ const capabilityMap = (gameId: GameId, observed?: ReadonlyMap<string, boolean>, 
       return [item.family, { state: "unavailable", reasonCode: "semantic-not-projected" }];
     }
     return [item.family, { state: "active", reasonCode: observed ? undefined : "semantic-not-projected" }];
-  })) as Record<CrewChiefEventFamily, CrewChiefCapability>;
-export class CrewChiefTriggerCatalog {
-  private readonly options: CrewChiefTriggerCatalogOptions;
-  private readonly states = new Map<CrewChiefEventFamily, PreviousValueState>(
-    CREWCHIEF_TRIGGER_CATALOG.map((item) => [item.family, item.createState()]),
+  })) as Record<RaceEngineerEventFamily, RaceEngineerCapability>;
+export class RaceEngineerTriggerCatalog {
+  private readonly options: RaceEngineerTriggerCatalogOptions;
+  private readonly states = new Map<RaceEngineerEventFamily, PreviousValueState>(
+    RACE_ENGINEER_TRIGGER_CATALOG.map((item) => [item.family, item.createState()]),
   );
   private readonly observed = new Map<string, boolean>();
-  private readonly ready = new Map<CrewChiefEventFamily, boolean>();
+  private readonly ready = new Map<RaceEngineerEventFamily, boolean>();
   private streamKey = "";
   private observedGameId: GameId | null = null;
   private timelineEpoch = 0;
-  constructor(options: CrewChiefTriggerCatalogOptions = {}) { this.options = options; }
-  consume(source: LiveResolvedSemanticFrame): CrewChiefTriggerBatchV1 {
+  constructor(options: RaceEngineerTriggerCatalogOptions = {}) { this.options = options; }
+  consume(source: LiveResolvedSemanticFrame): RaceEngineerTriggerBatchV1 {
     const key = `${source.simulator}/${source.sessionId ?? ""}/${source.streamId}`;
     if (key !== this.streamKey) {
       this.streamKey = key;
       this.timelineEpoch += 1;
       this.observed.clear();
       this.ready.clear();
-      for (const item of CREWCHIEF_TRIGGER_CATALOG) this.states.set(item.family, item.createState());
+      for (const item of RACE_ENGINEER_TRIGGER_CATALOG) this.states.set(item.family, item.createState());
     }
     this.observedGameId = source.simulator;
     source.ids.forEach((id, index) => {
       const value = source.values[index];
       this.observed.set(id, value?.state === "ok" && value.freshness === "fresh");
     });
-    const frame = new CrewChiefTriggerFrame(source);
+    const frame = new RaceEngineerTriggerFrame(source);
     const context = frame.context();
     const now = sessionTime(source);
     const caps = capabilityMap(source.simulator, this.observed, this.options.allowUnsupportedGame);
-    const drafts = CREWCHIEF_TRIGGER_CATALOG.flatMap((item) => {
+    const drafts = RACE_ENGINEER_TRIGGER_CATALOG.flatMap((item) => {
       const capability = caps[item.family];
       const wasReady = this.ready.get(item.family) === true;
       const isReady = capability.state === "active";
@@ -283,14 +283,14 @@ export class CrewChiefTriggerCatalog {
       return normalize(item.trigger({ frame, context, sessionTimeMs: now }, this.states.get(item.family)!))
         .map((draft) => ({ ...draft, family: item.family }));
     });
-    const events: CrewChiefTriggerEventV1[] = drafts.map((draft, ordinal) => ({
+    const events: RaceEngineerTriggerEventV1[] = drafts.map((draft, ordinal) => ({
       ...draft,
       triggerId: `${source.streamId}/${this.timelineEpoch}/${source.sequence}/${draft.family}/${draft.eventKey}/${ordinal}`,
       sessionId: String(source.sessionId ?? ""),
       timelineEpoch: this.timelineEpoch,
       sourceSequence: source.sequence,
       sessionTimeMs: now,
-      source: CREWCHIEF_EVENT_SOURCES[draft.family]![0]!,
+      source: RACE_ENGINEER_EVENT_SOURCES[draft.family]![0]!,
     }));
     return {
       streamId: source.streamId,
@@ -309,11 +309,11 @@ export class CrewChiefTriggerCatalog {
     this.observed.clear();
     this.ready.clear();
     this.observedGameId = null;
-    for (const item of CREWCHIEF_TRIGGER_CATALOG) this.states.set(item.family, item.createState());
+    for (const item of RACE_ENGINEER_TRIGGER_CATALOG) this.states.set(item.family, item.createState());
   }
-  capabilities(gameId: GameId): Record<CrewChiefEventFamily, CrewChiefCapability> {
+  capabilities(gameId: GameId): Record<RaceEngineerEventFamily, RaceEngineerCapability> {
     return capabilityMap(gameId, this.observedGameId === gameId ? this.observed : undefined, this.options.allowUnsupportedGame);
   }
 }
-export const capabilities = (gameId: GameId): Record<CrewChiefEventFamily, CrewChiefCapability> => capabilityMap(gameId);
+export const capabilities = (gameId: GameId): Record<RaceEngineerEventFamily, RaceEngineerCapability> => capabilityMap(gameId);
 

@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { ResolvedValue } from "@raceiq/shared/telemetry/resolver/contracts";
 import { LiveEngineerVoiceEngine } from "@raceiq/backend-core/live-strategy/live-engineer-voice-engine";
-import { crewChiefSource, type CrewChiefTriggerEventV1 } from "@raceiq/backend-core/live-strategy/crewchief-triggers/contracts";
+import { raceEngineerSource, type RaceEngineerTriggerEventV1 } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/contracts";
 import { extractLiveEngineerSemanticInput } from "@raceiq/backend-core/live-strategy/live-engineer-semantic-input";
 import type { LiveResolvedSemanticFrame } from "@raceiq/telemetry-core/telemetry/live-projector";
 
@@ -143,7 +143,7 @@ test("F1 pace falls back to car index identity and follows a lap time with overa
 test("chains lap time and pace without repeating the lap lead", () => {
   const emitted: unknown[] = [];
   const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
-  const batch = (semanticFrame: LiveResolvedSemanticFrame, events: readonly CrewChiefTriggerEventV1[]) => ({
+  const batch = (semanticFrame: LiveResolvedSemanticFrame, events: readonly RaceEngineerTriggerEventV1[]) => ({
     streamId: semanticFrame.streamId,
     sessionId: "1",
     timelineEpoch: 1,
@@ -176,7 +176,7 @@ test("chains lap time and pace without repeating the lap lead", () => {
     timelineEpoch: 1,
     sourceSequence: 0,
     sessionTimeMs: 1_000,
-    source: crewChiefSource("LapTimes"),
+    source: raceEngineerSource("LapTimes"),
     payload: { lap: 1, time: 90.5 },
     evidenceSemanticIds: ["timing.lap-number", "timing.last-lap"],
   }]));
@@ -271,7 +271,7 @@ test("ACC fuel-low structured trigger emits matching V3 callout and voice line",
       timelineEpoch: 12,
       sourceSequence: 7,
       sessionTimeMs: 3456,
-      source: crewChiefSource("Fuel"),
+      source: raceEngineerSource("Fuel"),
       payload: {},
       evidenceSemanticIds: [],
     }],
@@ -280,7 +280,7 @@ test("ACC fuel-low structured trigger emits matching V3 callout and voice line",
   const lines = messagesOfType(emitted, "live-engineer-voice-line");
   expect(callouts).toHaveLength(1);
   expect(lines).toHaveLength(1);
-  expect(callouts[0]).toMatchObject({ family: "race-engineer", sessionId: "1", timelineEpoch: 12, sourceSequence: 7, expiresSessionTimeMs: 3456 + 12_000, render: { renderingVersion: "crewchief-v1", parameters: { triggerFamily: "Fuel", eventKey: "fuel-low" } } });
+  expect(callouts[0]).toMatchObject({ family: "race-engineer", sessionId: "1", timelineEpoch: 12, sourceSequence: 7, expiresSessionTimeMs: 3456 + 12_000, render: { renderingVersion: "race-engineer-v1", parameters: { triggerFamily: "Fuel", eventKey: "fuel-low" } } });
   expect(lines[0]).toMatchObject({ sessionId: "1", timelineEpoch: 12, sourceSequence: 7 });
 });
 
@@ -301,7 +301,7 @@ test("automatic speech keeps player lap callouts and suppresses low-value positi
     timelineEpoch: 12,
     sourceSequence: 8,
     sessionTimeMs: 4_000,
-    source: crewChiefSource(family),
+    source: raceEngineerSource(family),
     payload,
     evidenceSemanticIds: [],
   });
@@ -338,7 +338,7 @@ test("structured batch epoch remains authoritative across reset and stream chang
       events: [{
         eventKey: "fuel-low", family: "Fuel" as const, severity: "warning" as const,
         triggerId: `${streamId}/${epoch}/${sequence}`, sessionId: "1", timelineEpoch: epoch,
-        sourceSequence: sequence, sessionTimeMs: sequence * 100, source: crewChiefSource("Fuel"),
+        sourceSequence: sequence, sessionTimeMs: sequence * 100, source: raceEngineerSource("Fuel"),
         payload: {}, evidenceSemanticIds: [],
       }],
     };

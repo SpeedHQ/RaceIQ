@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import * as renderer from "@raceiq/backend-core/live-strategy/live-engineer-renderer";
 import { renderLapTime, renderOpponentLapPace, renderOpponentPace, renderSpotter } from "@raceiq/backend-core/live-strategy/live-engineer-renderer";
 import { SPOTTER_STATES } from "@raceiq/shared/racing/live/spotter-contracts";
+import { raceEngineerSource } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/contracts";
 
 type Manifest = {
   clips: Array<{ segmentId: string; path: string; spokenText: string }>;
@@ -40,12 +41,12 @@ test("all live engineer renderer combinations resolve to rendered Qwen clips", (
 });
 
 
-test("every reachable CrewChief event renders deterministic packaged speech", () => {
-  const renderCrewChiefEvent = (renderer as typeof renderer & {
-    renderCrewChiefEvent?: (event: unknown, options?: { voiceMode?: string }) => { text: string; segmentIds: readonly string[]; voiceMode: string };
-  }).renderCrewChiefEvent;
-  expect(typeof renderCrewChiefEvent).toBe("function");
-  if (!renderCrewChiefEvent) return;
+test("every reachable Race Engineer event renders deterministic packaged speech", () => {
+  const renderRaceEngineerEvent = (renderer as typeof renderer & {
+    renderRaceEngineerEvent?: (event: unknown, options?: { voiceMode?: string }) => { text: string; segmentIds: readonly string[]; voiceMode: string };
+  }).renderRaceEngineerEvent;
+  expect(typeof renderRaceEngineerEvent).toBe("function");
+  if (!renderRaceEngineerEvent) return;
   const events = [
     ["position-changed", { position: 2, previousPosition: 3 }], ["pre-lights", { sessionPhase: "formation" }],
     ["green-flag", { sessionPhase: "green" }], ["final-lap", { lap: 5, totalLaps: 5 }],
@@ -59,8 +60,8 @@ test("every reachable CrewChief event renders deterministic packaged speech", ()
     ["damage-reported", { front: 0.45, rear: 0.02, left: 0.01, right: 0.03, centre: 0 }],
   ] as const;
   for (const [eventKey, payload] of events) {
-    const rendered = renderCrewChiefEvent({ eventKey, family: "CrewChief", severity: "info", triggerId: `test/${eventKey}`, sessionId: "test-session", timelineEpoch: 1, sourceSequence: 1, sessionTimeMs: 120_000, source: { path: "CrewChiefV4/Events/test.cs", symbols: ["test"] }, payload }, { voiceMode: "automatic" });
-    const renderedAgain = renderCrewChiefEvent({ eventKey, family: "CrewChief", severity: "info", triggerId: `test/${eventKey}`, sessionId: "test-session", timelineEpoch: 1, sourceSequence: 1, sessionTimeMs: 120_000, source: { path: "CrewChiefV4/Events/test.cs", symbols: ["test"] }, payload }, { voiceMode: "automatic" });
+    const rendered = renderRaceEngineerEvent({ eventKey, family: "Fuel", severity: "info", triggerId: `test/${eventKey}`, sessionId: "test-session", timelineEpoch: 1, sourceSequence: 1, sessionTimeMs: 120_000, source: raceEngineerSource("Fuel"), payload }, { voiceMode: "automatic" });
+    const renderedAgain = renderRaceEngineerEvent({ eventKey, family: "Fuel", severity: "info", triggerId: `test/${eventKey}`, sessionId: "test-session", timelineEpoch: 1, sourceSequence: 1, sessionTimeMs: 120_000, source: raceEngineerSource("Fuel"), payload }, { voiceMode: "automatic" });
     expect(renderedAgain).toEqual(rendered);
     expect(rendered.text, eventKey).not.toBe("");
     expect(rendered.segmentIds.length, eventKey).toBeGreaterThan(0);
@@ -69,6 +70,23 @@ test("every reachable CrewChief event renders deterministic packaged speech", ()
     expect(rendered.segmentIds.some((id) => id === expectedSegmentId), eventKey).toBe(true);
     expect(rendered.voiceMode, eventKey).toBe("automatic");
     expectRenderedClipsReady(eventKey, rendered.segmentIds);
+  }
+});
+
+test("damage captions match synthesized speech for every zone and severity", () => {
+  for (const location of ["front", "rear", "left", "right", "centre"] as const) {
+    for (const damage of [0.2, 0.3]) {
+      const rendered = renderer.renderRaceEngineerEvent({
+        eventKey: "damage-reported", family: "DamageReporting", severity: "warning",
+        triggerId: "test/damage", sessionId: "test-session", timelineEpoch: 1,
+        sourceSequence: 1, sessionTimeMs: 120_000,
+        source: raceEngineerSource("DamageReporting"),
+        evidenceSemanticIds: [], payload: { location, [location]: damage },
+      });
+      const clip = manifest.clips.find((entry) => entry.segmentId === rendered?.segmentIds[0]);
+      expect(clip, `${location}/${damage}`).toBeDefined();
+      expect(rendered?.text, `${location}/${damage}`).toBe(clip?.spokenText);
+    }
   }
 });
 

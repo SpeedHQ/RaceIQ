@@ -1,10 +1,10 @@
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import { CREWCHIEF_CALLOUT_SEMANTIC_IDS } from "@raceiq/shared/telemetry/live/crewchief-callout-contract";
+import { RACE_ENGINEER_CALLOUT_SEMANTIC_IDS } from "@raceiq/shared/telemetry/live/race-engineer-callout-contract";
 import { liveEngineerPaceRequiredSemanticIds, liveEngineerRequiredSemanticIds } from "@raceiq/telemetry-core/telemetry/live/semantics";
 import type { LiveEngineerSessionReplayV1, LiveEngineerReplayAnnotationV1, LiveEngineerReplayFrameV1, LiveEngineerReplayLapV1, LiveEngineerReplaySourceProfileV1, LiveEngineerCalloutSystemV1, LiveEngineerAvailabilityTransitionV1 } from "@raceiq/shared/racing/live/engineer-replay-contracts";
 import { LiveTelemetryProjector, type LiveResolvedSemanticFrame } from "@raceiq/telemetry-core/telemetry/live-projector";
-import { CREWCHIEF_TRIGGER_CATALOG, CrewChiefTriggerCatalog, evaluateCrewChiefAvailability, gameRequirements, type CrewChiefTriggerDescriptor } from "./crewchief-triggers/catalog";
+import { RACE_ENGINEER_TRIGGER_CATALOG, RaceEngineerTriggerCatalog, evaluateRaceEngineerAvailability, gameRequirements, type RaceEngineerTriggerDescriptor } from "./race-engineer-triggers/catalog";
 import { LiveEngineerVoiceEngine } from "./live-engineer-voice-engine";
 import { renderOpponentPace } from "./live-engineer-renderer";
 import type { LiveEngineerRuntimeCandidate } from "./live-engineer-runtime";
@@ -96,10 +96,10 @@ export function runLiveEngineerSessionReplay(input: LiveEngineerSessionReplayInp
   const gameId = input.sourceProfile.gameId;
   const scenarioPlan = input.scenario ? buildReplayScenarioPlan(input.packets) : null;
   const scenarioFuelPerLap = input.scenario ? input.packets.find((packet) => packet.acc?.fuelPerLap && packet.acc.fuelPerLap > 0)?.acc?.fuelPerLap : null;
-  const semanticIds = [...new Set([...liveEngineerRequiredSemanticIds(gameId), ...CREWCHIEF_CALLOUT_SEMANTIC_IDS, ...REPLAY_VALUE_IDS])];
+  const semanticIds = [...new Set([...liveEngineerRequiredSemanticIds(gameId), ...RACE_ENGINEER_CALLOUT_SEMANTIC_IDS, ...REPLAY_VALUE_IDS])];
   const executionMode = "diagnostic-all-games" as const;
   const projector = new LiveTelemetryProjector({ engineerSemanticIds: semanticIds, allowUnsupportedGame: true, engineerEnabled: true });
-  const catalog = new CrewChiefTriggerCatalog({ allowUnsupportedGame: true });
+  const catalog = new RaceEngineerTriggerCatalog({ allowUnsupportedGame: true });
   const annotations: LiveEngineerReplayAnnotationV1[] = [];
   const frames: LiveEngineerReplayFrameV1[] = [];
   const semanticFrames: LiveResolvedSemanticFrame[] = [];
@@ -170,13 +170,13 @@ export function runLiveEngineerSessionReplay(input: LiveEngineerSessionReplayInp
     const matching = frames.filter((frame) => frame.values["timing.lap-number"] === lap.lapNumber);
     return { lapId: lap.id, lapNumber: lap.lapNumber, startFrameIndex: matching[0]?.frameIndex ?? null, endFrameIndex: matching.at(-1)?.frameIndex ?? null, metadata: { ...lap } };
   });
-  const buildSystem = (systemId: LiveEngineerCalloutSystemV1["systemId"], descriptor: CrewChiefTriggerDescriptor<any> | null, requiredSemanticIds: readonly string[], productionEligible: boolean, implementationStatus: LiveEngineerCalloutSystemV1["implementationStatus"] = "implemented", staticReason?: string): LiveEngineerCalloutSystemV1 => {
+  const buildSystem = (systemId: LiveEngineerCalloutSystemV1["systemId"], descriptor: RaceEngineerTriggerDescriptor<any> | null, requiredSemanticIds: readonly string[], productionEligible: boolean, implementationStatus: LiveEngineerCalloutSystemV1["implementationStatus"] = "implemented", staticReason?: string): LiveEngineerCalloutSystemV1 => {
     const transitions: LiveEngineerAvailabilityTransitionV1[] = [];
     let previous: "unavailable" | "baseline" | "ready" | null = null;
     if (implementationStatus === "implemented") semanticFrames.forEach((semanticFrame, frameIndex) => {
       const baseEvaluation = descriptor
-        ? evaluateCrewChiefAvailability(descriptor, semanticFrame, gameId)
-        : evaluateCrewChiefAvailability({ family: "Spotter", source: CREWCHIEF_TRIGGER_CATALOG[0]!.source, requiredSemanticIds: requiredSemanticIds as never, requiredGroups: [], implementationStatus, createState: () => ({}), trigger: () => null } as CrewChiefTriggerDescriptor<any>, semanticFrame, gameId);
+        ? evaluateRaceEngineerAvailability(descriptor, semanticFrame, gameId)
+        : evaluateRaceEngineerAvailability({ family: "Spotter", source: RACE_ENGINEER_TRIGGER_CATALOG[0]!.source, requiredSemanticIds: requiredSemanticIds as never, requiredGroups: [], implementationStatus, createState: () => ({}), trigger: () => null } as RaceEngineerTriggerDescriptor<any>, semanticFrame, gameId);
       const opponentSource = frames[frameIndex]?.opponentSource;
       const sourceReason = gameId === "acc" && (systemId === "opponent-pace" || systemId === "live-spotter")
         ? opponentSource && opponentSource.state !== "available" ? opponentSource.reasonCode
@@ -204,13 +204,13 @@ export function runLiveEngineerSessionReplay(input: LiveEngineerSessionReplayInp
       optionalSemanticIds: [],
     };
   };
-  const systems: LiveEngineerCalloutSystemV1[] = CREWCHIEF_TRIGGER_CATALOG.map((descriptor) => {
+  const systems: LiveEngineerCalloutSystemV1[] = RACE_ENGINEER_TRIGGER_CATALOG.map((descriptor) => {
     const requirements = gameRequirements(descriptor, gameId);
     return buildSystem(
-      `crewchief:${descriptor.family}`,
+      `race-engineer:${descriptor.family}`,
       descriptor,
       requirements,
-      isLiveEngineerSubsystemSupported(gameId, "crewchief"),
+      isLiveEngineerSubsystemSupported(gameId, "race-engineer"),
       descriptor.implementationStatus,
     );
   });

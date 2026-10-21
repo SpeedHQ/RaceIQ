@@ -4,7 +4,7 @@ import { parseDump } from "@raceiq/backend-core/test-support/recordings/parse-du
 import { accRecordingSupport } from "@raceiq/game-acc/test-support/recordings";
 import { fmRecordingSupport } from "@raceiq/game-fm-2023/test-support/recordings";
 import { LiveTelemetryProjector } from "@raceiq/telemetry-core/telemetry/live-projector";
-import { CrewChiefTriggerCatalog } from "@raceiq/backend-core/live-strategy/crewchief-triggers/catalog";
+import { RaceEngineerTriggerCatalog } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/catalog";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { runLiveEngineerSessionReplay, type LiveEngineerReplayScenario } from "@raceiq/backend-core/live-strategy/live-engineer-replay";
 import type { LiveEngineerSessionReplayV1 } from "@raceiq/shared/racing/live/engineer-replay-contracts";
@@ -24,7 +24,7 @@ test("ACC fixture lap can drive artificial fuel and pit strategy scenarios", asy
     allowUnsupportedGame: true,
     engineerEnabled: true,
   });
-  const catalog = new CrewChiefTriggerCatalog({ allowUnsupportedGame: true });
+  const catalog = new RaceEngineerTriggerCatalog({ allowUnsupportedGame: true });
   const scenarioPacket = (fuelLaps: number): TelemetryPacket => ({
     ...source,
     Fuel: source.acc!.fuelPerLap * fuelLaps,
@@ -128,7 +128,7 @@ test("FM recording preserves player fuel without inventing pit advice from missi
   expect(activeFrame.states["fuel.fuel-percent"]).toBe("ok");
   expect(activeFrame.freshness["fuel.fuel-percent"]).toBe("fresh");
 
-  const fuelSystem = replay.systems.find((system) => system.systemId === "crewchief:Fuel");
+  const fuelSystem = replay.systems.find((system) => system.systemId === "race-engineer:Fuel");
   expect(fuelSystem?.lifecycle).toBe("unavailable");
   expect(fuelSystem?.transitions.every((transition) => transition.lifecycle === "unavailable")).toBe(true);
   for (const semanticId of ["fuel.remaining-volume", "fuel.fuel-per-lap"]) {

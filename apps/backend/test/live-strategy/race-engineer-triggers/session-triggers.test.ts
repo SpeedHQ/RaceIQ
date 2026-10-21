@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { CrewChiefTriggerCatalog } from "@raceiq/backend-core/live-strategy/crewchief-triggers/catalog";
+import { RaceEngineerTriggerCatalog } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/catalog";
 import type { LiveResolvedSemanticFrame } from "@raceiq/telemetry-core/telemetry/live-projector";
-import type { CrewChiefTriggerBatchV1, CrewChiefTriggerFunction } from "@raceiq/backend-core/live-strategy/crewchief-triggers/contracts";
+import type { RaceEngineerTriggerBatchV1, RaceEngineerTriggerFunction } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/contracts";
 import type { ResolvedValue } from "@raceiq/shared/telemetry/resolver/contracts";
-import { CrewChiefTriggerFrame } from "@raceiq/backend-core/live-strategy/crewchief-triggers/frame";
+import { RaceEngineerTriggerFrame } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/frame";
 import {
   createPreviousValueState,
   triggerFrozenOrderMonitor,
@@ -12,7 +12,7 @@ import {
   triggerRaceTime,
   triggerSessionEndMessages,
   type SessionTriggerState,
-} from "@raceiq/backend-core/live-strategy/crewchief-triggers/session-triggers";
+} from "@raceiq/backend-core/live-strategy/race-engineer-triggers/session-triggers";
 
 const value = (semanticId: string, current: unknown): ResolvedValue<unknown> => ({
   semanticId,
@@ -56,14 +56,14 @@ const frame = (sequence: number, overrides: Record<string, unknown> = {}): LiveR
   };
 };
 
-const eventsFor = (batch: CrewChiefTriggerBatchV1, family: string) => batch.events.filter((event) => event.family === family);
+const eventsFor = (batch: RaceEngineerTriggerBatchV1, family: string) => batch.events.filter((event) => event.family === family);
 
-const detector = (trigger: CrewChiefTriggerFunction<SessionTriggerState>, simulator: LiveResolvedSemanticFrame["simulator"]) => {
+const detector = (trigger: RaceEngineerTriggerFunction<SessionTriggerState>, simulator: LiveResolvedSemanticFrame["simulator"]) => {
   let state = createPreviousValueState();
   let sequence = 0;
   return {
     consume(overrides: Record<string, unknown> = {}) {
-      const current = new CrewChiefTriggerFrame({ ...frame(sequence++, overrides), simulator });
+      const current = new RaceEngineerTriggerFrame({ ...frame(sequence++, overrides), simulator });
       return trigger({ frame: current, context: current.context(), sessionTimeMs: current.sequence * 1000 }, state);
     },
     reset() {
@@ -72,9 +72,9 @@ const detector = (trigger: CrewChiefTriggerFunction<SessionTriggerState>, simula
   };
 };
 
-describe("CrewChief ACC session triggers", () => {
+describe("Race Engineer ACC session triggers", () => {
   test("arms first frame silently, then emits one single-class position change without repeating", () => {
-    const catalog = new CrewChiefTriggerCatalog();
+    const catalog = new RaceEngineerTriggerCatalog();
     expect(catalog.consume(frame(0)).events).toEqual([]);
 
     const changed = catalog.consume(frame(1, { "race.race-position": 3 }));
@@ -87,7 +87,7 @@ describe("CrewChief ACC session triggers", () => {
   });
 
   test("emits LapCounter pre-lights then green once across Formation to Green", () => {
-    const catalog = new CrewChiefTriggerCatalog();
+    const catalog = new RaceEngineerTriggerCatalog();
     expect(catalog.consume(frame(0, { "session.session-state": 2 })).events).toEqual([]);
 
     const formation = catalog.consume(frame(1, { "session.session-state": 3 }));
@@ -103,7 +103,7 @@ describe("CrewChief ACC session triggers", () => {
   });
 
   test("announces F1 final lap once when current lap reaches race distance", () => {
-    const catalog = new CrewChiefTriggerCatalog();
+    const catalog = new RaceEngineerTriggerCatalog();
     const f1Frame = (sequence: number, lap: number): LiveResolvedSemanticFrame => ({
       ...frame(sequence, { "timing.lap-number": lap, "timing.total-laps": 5 }),
       simulator: "f1-2025",
@@ -118,14 +118,14 @@ describe("CrewChief ACC session triggers", () => {
   });
 
   test("keeps FrozenOrderMonitor silent without actual target-order facts", () => {
-    const catalog = new CrewChiefTriggerCatalog();
+    const catalog = new RaceEngineerTriggerCatalog();
     catalog.consume(frame(0, { "session.session-state": 2, "race.race-position": 4 }));
     const changed = catalog.consume(frame(1, { "session.session-state": 5, "race.race-position": 1 }));
     expect(eventsFor(changed, "FrozenOrderMonitor")).toEqual([]);
   });
 });
 
-describe("CrewChief native session phases", () => {
+describe("Race Engineer native session phases", () => {
   test("does not announce starts at baseline, after invalid phases, or on unsupported games", () => {
     const acc = detector(triggerLapCounter, "acc");
     expect(acc.consume({ "session.session-state": 5 })).toBeNull();
@@ -146,7 +146,7 @@ describe("CrewChief native session phases", () => {
   });
 });
 
-describe("CrewChief RaceTime", () => {
+describe("Race Engineer RaceTime", () => {
   test("announces ACC second-based countdown crossings once, including sparse samples", () => {
     const run = detector(triggerRaceTime, "acc");
     expect(run.consume({ "timing.session-time-remain": 901 })).toBeNull();
@@ -216,7 +216,7 @@ describe("CrewChief RaceTime", () => {
   });
 });
 
-describe("CrewChief SessionEndMessages", () => {
+describe("Race Engineer SessionEndMessages", () => {
   test("announces ACC SessionOver once, not again through PostSession and ResultUI", () => {
     const run = detector(triggerSessionEndMessages, "acc");
     expect(run.consume({ "session.session-state": 5 })).toBeNull();
@@ -260,7 +260,7 @@ describe("CrewChief SessionEndMessages", () => {
   });
 });
 
-describe("CrewChief Forza overall position", () => {
+describe("Race Engineer Forza overall position", () => {
   test("announces overall position without inventing a single-class grid", () => {
     const run = detector(triggerPosition, "fm-2023");
     const noClass = { "identity.player-car-class-id": undefined, "race.competitor.car-class-id": undefined };

@@ -6,7 +6,7 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.20.0",
-      "sourceHash": "2b77e278a3d4d70360a299eb01fd01884a8ab3fe1b046e2f683b6d9b64a7984b"
+      "sourceHash": "7579bcb351118644980a37d6f3966a2256c3a1c281707984c24b11790e941eef"
     },
     "sourceHashes": {
       "packages/game-ac-evo/src/parser.ts": "29cb3985fe32c797554d98f107a0c4d76ddcc5279d97e75423365e1a0887f5de",
@@ -20,7 +20,7 @@
       "server/session-capture/frame-time.ts": "55c44a6cede5e2c5fb1e1c45568fe44b4a9a8b156f260f69bb5d89f9c24935a2",
       "shared/racing/setups/schema.ts": "987941bb8f38520920686ef540e67ce2259fdc962de03ccb959f6b5ef773b28f"
     },
-    "contentHash": "10da0f5095ccf3c22386d974192c9ddb9423420b10a2dc075351db80b04877cf"
+    "contentHash": "4a53a1f2da15fa2b48067c16aead0f422389cde48f4f37e0ca571a00460abe20"
   },
   "generatedFrom": [
     "packages/tooling-catalog/src/root.ts",

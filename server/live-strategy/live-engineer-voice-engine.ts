@@ -1,6 +1,6 @@
 import type { ResolvedValue } from "@raceiq/shared/telemetry/resolver/contracts";
 import type { LiveResolvedSemanticFrame } from "@raceiq/telemetry-core/telemetry/live-projector";
-import type { CrewChiefTriggerBatchV1, CrewChiefTriggerEventV1 } from "./crewchief-triggers/contracts";
+import type { RaceEngineerTriggerBatchV1, RaceEngineerTriggerEventV1 } from "./race-engineer-triggers/contracts";
 import { extractLiveEngineerSemanticInput, type LiveEngineerPaceInput } from "./live-engineer-semantic-input";
 import {
   createLiveEngineerVoiceLine as createVoiceLine,
@@ -14,7 +14,7 @@ import {
 } from "@raceiq/shared/racing/live/engineer-contracts";
 import { OpponentPaceTracker, type OpponentLapFactV1, type PlayerLapForPaceV1 } from "./opponent-pace-tracker";
 import { LiveEngineerRuntime, type LiveEngineerRuntimeCandidate } from "./live-engineer-runtime";
-import { renderOpponentPace, renderSpotter, renderCrewChiefEvent } from "./live-engineer-renderer";
+import { renderOpponentPace, renderSpotter, renderRaceEngineerEvent } from "./live-engineer-renderer";
 import { SpotterTracker } from "./spotter-tracker";
 
 export type LiveEngineerVoiceLineOptions =
@@ -53,7 +53,7 @@ export function createLiveEngineerVoiceLine(
 }
 
 export class LiveEngineerVoiceEngine {
-  readonly triggerDiagnostics: CrewChiefTriggerEventV1[] = [];
+  readonly triggerDiagnostics: RaceEngineerTriggerEventV1[] = [];
   private readonly options: LiveEngineerVoiceEngineOptions;
   private readonly emitMessage: LiveEngineerVoiceEngineOptions["emit"];
   private readonly tracker = new OpponentPaceTracker();
@@ -68,7 +68,7 @@ export class LiveEngineerVoiceEngine {
   private runtimeClockMs = 0;
   private readonly decisions = new Map<string, OpponentPaceCalloutMessageV3>();
   private readonly diagnostics = new Map<string, LiveEngineerDeliveryStatusV3["status"]>();
-  private readonly triggerEvents = new Map<string, CrewChiefTriggerEventV1>();
+  private readonly triggerEvents = new Map<string, RaceEngineerTriggerEventV1>();
   private latest: LiveResolvedSemanticFrame | null = null;
   private slots = new Map<string, number>();
   private streamKey = "";
@@ -85,8 +85,8 @@ export class LiveEngineerVoiceEngine {
     this.emitMessage = options.emit;
   }
 
-  consume(input: LiveResolvedSemanticFrame | CrewChiefTriggerBatchV1): void {
-    const batch = "events" in input ? input as CrewChiefTriggerBatchV1 : undefined;
+  consume(input: LiveResolvedSemanticFrame | RaceEngineerTriggerBatchV1): void {
+    const batch = "events" in input ? input as RaceEngineerTriggerBatchV1 : undefined;
     const frame = batch ? batch.semanticFrame : input as LiveResolvedSemanticFrame;
     if (!frame) return;
     const key = `${frame.simulator}/${frame.sessionId ?? "none"}/${frame.streamId}`;
@@ -118,8 +118,9 @@ export class LiveEngineerVoiceEngine {
     if (batch) {
       for (const event of batch.events) {
         if (NON_ACTIONABLE_AUTOMATIC_EVENTS.has(event.eventKey)) continue;
+        // Damage detector owns per-zone debounce and rearming; global cooldown would hide a new impact.
         const candidate: LiveEngineerRuntimeCandidate = {
-          candidateId: event.triggerId, actionKey: event.eventKey, cooldownGroup: `race-engineer:${event.family}:${event.eventKey}`, sourceFactIds: [...event.evidenceSemanticIds], policyVersion: "race-engineer-v3",
+          candidateId: event.triggerId, actionKey: event.eventKey, cooldownGroup: event.eventKey === "damage-reported" ? event.triggerId : `race-engineer:${event.family}:${event.eventKey}`, sourceFactIds: [...event.evidenceSemanticIds], policyVersion: "race-engineer-v3",
           renderParameters: { triggerFamily: event.family, eventKey: event.eventKey, payload: event.payload, source: event.source },
           sessionId: event.sessionId, timelineEpoch: event.timelineEpoch, sourceSequence: event.sourceSequence, priority: event.severity === "critical" ? "high" : event.severity === "warning" ? "normal" : "low", createdSessionTimeMs: event.sessionTimeMs, expiresSessionTimeMs: event.sessionTimeMs + 12_000,
         };
@@ -140,9 +141,9 @@ export class LiveEngineerVoiceEngine {
         } else {
           const event = this.triggerEvents.get(selected.candidateId);
           this.triggerEvents.delete(selected.candidateId);
-          const rendered = event ? renderCrewChiefEvent(event, { voiceMode: "automatic" }) : null;
+          const rendered = event ? renderRaceEngineerEvent(event, { voiceMode: "automatic" }) : null;
           if (event && rendered) {
-            const callout: RaceEngineerCalloutMessageV3 = { type: "live-engineer-callout", protocolVersion: 3, decisionId: `${event.triggerId}/race-engineer-v3`, candidateId: event.triggerId, family: "race-engineer", sessionId: event.sessionId, timelineEpoch: event.timelineEpoch, sourceSequence: event.sourceSequence, priority: selected.priority, createdSessionTimeMs: selected.createdSessionTimeMs, expiresSessionTimeMs: selected.expiresSessionTimeMs, render: { renderingVersion: "crewchief-v1", text: rendered.text, textKey: event.eventKey, parameters } };
+            const callout: RaceEngineerCalloutMessageV3 = { type: "live-engineer-callout", protocolVersion: 3, decisionId: `${event.triggerId}/race-engineer-v3`, candidateId: event.triggerId, family: "race-engineer", sessionId: event.sessionId, timelineEpoch: event.timelineEpoch, sourceSequence: event.sourceSequence, priority: selected.priority, createdSessionTimeMs: selected.createdSessionTimeMs, expiresSessionTimeMs: selected.expiresSessionTimeMs, render: { renderingVersion: "race-engineer-v1", text: rendered.text, textKey: event.eventKey, parameters } };
             if (event.eventKey === "lap-completed" && this.armed) {
               this.flushPendingLapVoice();
               this.emitMessage(callout);
