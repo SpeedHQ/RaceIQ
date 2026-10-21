@@ -436,6 +436,13 @@ export class LiveTelemetryPipeline {
         const continuing = this._continuingSegment && previousSession?.sessionId === session.sessionId && previousSession.gameId === session.gameId;
         this._continuingSegment = false;
         if (!continuing) {
+          if (previousSession?.directCapture && this.recorder instanceof DirectSessionRecorderAdapter) {
+            while (this._retiringCaptures.size >= 2) {
+              const oldestRetirement = this._retiringCaptures.values().next().value;
+              if (!oldestRetirement) break;
+              await oldestRetirement;
+            }
+          }
           await withSessionCaptureMaintenanceLock(async () => {
             if (previousSession?.directCapture && this.recorder instanceof DirectSessionRecorderAdapter) {
               if (this._retiringCaptures.size >= 2) throw new Error("Direct recording finalization budget exhausted");

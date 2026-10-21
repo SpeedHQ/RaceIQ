@@ -9,6 +9,7 @@ This suite owns route-level browser tests and screenshot evidence. It is separat
 | `fresh-install` | `fresh-install/**/*.spec.ts` | Fresh compiled or dev app |
 | `tunes` | `tunes/**/*.spec.ts` | Tunes app |
 | `seeded-e2e` | `seeded/**/*.spec.ts` | Seeded app |
+| `seeded-webgpu` | Native Spectate camera and transition specs | Seeded app with a hardware WebGPU adapter |
 | `record-demo` | `recording/demo.spec.ts` | Seeded replay with GPU launch flags |
 
 `record-demo` waits for `seeded-routes`, `seeded-e2e`, and `seeded-imports` to finish before frame capture because all share seeded server state.
@@ -18,6 +19,8 @@ From the repository root, `bun run record:demo` builds the app and selects this 
 Marketing screenshot captures use `marketing-screenshots.config.ts`; responsive captures use `responsive-screenshots.config.ts`. Both live outside E2E projects. PR CI runs responsive captures only for base-vs-PR visual comparison.
 
 The main config uses `tests/` as `testDir`; no E2E specs belong at `tests/` root. Screenshot capture uses dedicated configs. Stateful E2E projects stay ordered on one worker.
+
+The `seeded-webgpu` project requires a hardware adapter (`GPUAdapterInfo.isFallbackAdapter === false`) and fails rather than skips if one is unavailable. CI runs it on GitHub-hosted macOS runners. Zoom-reversal checks synchronize with rendered mid-snap frames so browser-driver latency cannot move the input beyond the transition. CPU-compatible Spectate camera and full-range zoom scenarios remain in the cross-platform `seeded-e2e` project.
 
 Root `test:e2e` (including `test:e2e:compiled`), its `fresh`/`tunes`/`seeded` variants, and root `screenshots` use `scripts/run-browser-verification.ts`: this cross-platform runner builds the production app with both F1 experiments and iRacing adapter flags, then starts compiled-server verification. `build:browser` exposes the feature-enabled build alone; ordinary `build` and release builds retain default feature settings. `ui:diff` builds both compared revisions with those flags before compiled responsive captures; `ui:diff:storybook` remains Storybook-only. The general `bun run test` sequence also performs a feature-enabled browser build immediately before Playwright E2E.
 

@@ -40,7 +40,7 @@ export class SpectateSceneRuntime {
   readonly canvas: HTMLCanvasElement;
   private renderer: WebGPURenderer;
   private scene = new THREE.Scene();
-  private camera = new THREE.PerspectiveCamera(SCENE_PRESENTATION.fov, 1, 0.05, 10000);
+  private camera = new THREE.PerspectiveCamera(SCENE_PRESENTATION.fov, 1, 0.05, 50000);
   private controls: OrbitControls;
   private observer: ResizeObserver;
   private edgePool: RibbonPool = createRibbonPool({ depthTest: false, opacity: SCENE_PRESENTATION.trackOpacity });

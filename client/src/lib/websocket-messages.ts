@@ -1,6 +1,7 @@
 import { isDevTelemetryPacketMessageV1, isDevTelemetrySubscriptionMessageV1, isLiveTelemetryFrameMessageV1, isLiveTelemetrySchemaMessageV1 } from "@raceiq/shared/telemetry/live/contracts";
 import { devTelemetryStore } from "../stores/dev-telemetry";
 import { telemetryStore } from "../stores/telemetry";
+import { decodeLmuPacket } from "@raceiq/shared/telemetry/lmu-context";
 
 export function handleWebSocketMessage(data: unknown): boolean {
   if (isLiveTelemetrySchemaMessageV1(data)) {
@@ -17,7 +18,8 @@ export function handleWebSocketMessage(data: unknown): boolean {
     return false;
   }
   if (isDevTelemetryPacketMessageV1(data)) {
-    devTelemetryStore.actions.setPacket(data.packet);
+    const packet = decodeLmuPacket(data.packet);
+    if (packet) devTelemetryStore.actions.setPacket(packet);
   }
   return false;
 }

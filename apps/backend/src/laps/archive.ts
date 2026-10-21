@@ -30,7 +30,7 @@ import { loadSessionCapture } from "@raceiq/backend-core/session-capture/source-
 import { getLiveLapCaptureSnapshot } from "@raceiq/backend-core/db/live-capture-queries";
 import { resolveLiveLapCaptureArtifact } from "@raceiq/backend-core/session-capture/source-loader";
 import { encodeLmuSparseFrame } from "@raceiq/capture-formats/session/lmu-sparse";
-import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
+import { canHandleLMUSourceFrame, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
 import { ACC_PACKED_MAGIC, ACEVO_PACKED_MAGIC } from "@raceiq/capture-formats/kunos/pack-triplet";
 import { encodeKunosSparseFrame } from "@raceiq/capture-formats/session/kunos-sparse";
 import { encodeGenericSparseFrame, genericFrameIdentity } from "@raceiq/capture-formats/session/generic-sparse";
@@ -394,30 +394,30 @@ function sparseLapRecords(
   if (firstFrameOffset === null) return parts;
   for (const record of iterateSessionFrameRecords(buf, firstFrameOffset)) {
     if (record.offset >= end) break;
-    const isLmuV2 = gameId === "lmu" && record.frame.length === LMU_SOURCE_FRAME_V2_SIZE &&
-      record.frame.subarray(0, LMU_SOURCE_FRAME_MAGIC.length).equals(LMU_SOURCE_FRAME_MAGIC);
+    const isLmu = gameId === "lmu" && record.frame.length >= LMU_SOURCE_FRAME_V2_SIZE &&
+      canHandleLMUSourceFrame(record.frame);
     const magic = record.frame.length >= 4 ? record.frame.readUInt32LE(0) : 0;
     const isKunos = (gameId === "acc" && magic === ACC_PACKED_MAGIC) ||
       (gameId === "ac-evo" && magic === ACEVO_PACKED_MAGIC);
     const supportsGeneric = gameId === "fm-2023" || gameId === "f1-2025" || gameId === "iracing";
     const identity = supportsGeneric ? genericFrameIdentity(record.frame) : null;
-    const canDelta = isLmuV2 || isKunos || identity !== null;
+    const canDelta = isLmu || isKunos || identity !== null;
     const previousLength = previous?.length;
     const sameIdentity = previous !== null && (
-      (isLmuV2 && previousLength === record.frame.length) ||
+      (isLmu && previousLength !== undefined && previousLength >= LMU_SOURCE_FRAME_V2_SIZE && canHandleLMUSourceFrame(previous)) ||
       (isKunos && previousLength === record.frame.length) ||
       (identity !== null && genericFrameIdentity(previous) === identity)
     );
     let frame = record.frame;
     let full = !canDelta || !sameIdentity || emitted % 128 === 0;
     if (!full) {
-      if (isLmuV2) frame = encodeLmuSparseFrame(record.frame, previous!, outputOffset - checkpoint);
-      else if (isKunos) frame = encodeKunosSparseFrame(record.frame, previous!, outputOffset - checkpoint);
-      else {
-        const sparse = encodeGenericSparseFrame(record.frame, previous!, outputOffset - checkpoint);
-        if (sparse.length < record.frame.length) frame = sparse;
-        else full = true;
-      }
+      const sparse = isLmu
+        ? encodeLmuSparseFrame(record.frame, previous!, outputOffset - checkpoint)
+        : isKunos
+          ? encodeKunosSparseFrame(record.frame, previous!, outputOffset - checkpoint)
+          : encodeGenericSparseFrame(record.frame, previous!, outputOffset - checkpoint);
+      if (sparse.length < record.frame.length) frame = sparse;
+      else full = true;
     }
     if (full) {
       frame = record.frame;

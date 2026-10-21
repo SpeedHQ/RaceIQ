@@ -42,6 +42,7 @@ import {
   canHandleLMUSourceFrame,
   decodeLMUSourceFrame,
   encodeLMUSourceFrame,
+  LMU_SOURCE_FRAME_SIZE,
 } from "@raceiq/capture-formats/lmu/source-frame";
 import { setRecordingFrequencyHz } from "@raceiq/backend-core/runtime/config/recording-frequency";
 
@@ -100,6 +101,8 @@ function lmuSharedMemoryFixture(): Buffer {
   memory.writeUInt8(1, telemetry + LMU_TELEMETRY.tcActive);
   memory.writeUInt8(5, telemetry + LMU_TELEMETRY.tc);
   memory.writeUInt8(2, telemetry + LMU_TELEMETRY.abs);
+  memory.writeUInt8(1, telemetry + LMU_TELEMETRY.absActive);
+  memory.writeUInt8(6, telemetry + LMU_TELEMETRY.tcCut);
   memory.writeFloatLE(72, telemetry + LMU_TELEMETRY.stateOfCharge);
   memory.writeFloatLE(63, telemetry + LMU_TELEMETRY.virtualEnergy);
   memory.writeFloatLE(-80, telemetry + LMU_TELEMETRY.regenKw);
@@ -222,6 +225,13 @@ describe("LMU adapter", () => {
       TireCarcassAverageTempFL: 87,
     });
     expect(packet!.TireCarcassTempLeftFL).toBeUndefined();
+    expect(packet!.lmu).toMatchObject({
+      engineWaterTemp: 0,
+      engineOilTemp: 0,
+      steeringShaftTorque: 0,
+      rainIntensity: 0,
+      overheating: false,
+    });
     expect(packet!.TireCarcassTempFL).toBeUndefined();
     const semanticIds = ["tire.temperature.surface.inner", "tire.temperature.surface.middle", "tire.temperature.surface.outer", "tire.temperature.carcass.representative", "tire.temperature.core"];
     const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, { simulator: "lmu", requested: semanticIds.map((semanticId) => ({ semanticId })) });
@@ -239,6 +249,9 @@ describe("LMU adapter", () => {
     );
     expect(packet!.Speed).toBeCloseTo(70, 5);
     expect(packet!.DistanceTraveled).toBeCloseTo(32_252, 3);
+    expect(packet!.BrakeTempFrontLeft).toBe(500);
+    expect(packet!.TirePressureFrontLeft).toBeCloseTo(180 / 6.8947572932, 6);
+    expect(packet!.DrsActive).toBe(1);
     expect(packet!.lmu).toMatchObject({
       carId: "ferrari_499p_2023",
       trackId: "lemans_2023/lemanswec",
@@ -253,6 +266,8 @@ describe("LMU adapter", () => {
       tcActive: true,
       tcLevel: 5,
       absLevel: 2,
+      absActive: true,
+      tcCutLevel: 6,
       rearFlapActivated: true,
     });
   });
@@ -417,6 +432,7 @@ describe("LMU adapter", () => {
     const clockSpy = spyOn(performance, "now").mockImplementation(() => nowMs);
     const source = new LMUTelemetrySource({
       pollIntervalMs: 10,
+      rest: false,
       reader: {
         start() {},
         async stop() {},
@@ -519,6 +535,123 @@ describe("LMU adapter", () => {
       LapNumber: 3,
       LastLap: 15,
     });
+    expect(firstPacket?.lmu?.engineWaterTemp).toBeUndefined();
+    expect(firstPacket?.lmu?.engineOilTemp).toBeUndefined();
+    expect(firstPacket?.lmu?.steeringShaftTorque).toBeUndefined();
+    expect(firstPacket?.lmu?.rainIntensity).toBeUndefined();
+    expect(firstPacket?.lmu?.cloudCoverage).toBeUndefined();
+    expect(firstPacket?.lmu?.ignitionStarter).toBeUndefined();
+    expect(firstPacket?.lmu?.scheduledStops).toBeUndefined();
+    expect(firstPacket?.lmu?.primaryFlag).toBeUndefined();
+    expect(firstPacket?.lmu?.control).toBeUndefined();
+    for (const field of [
+      "batteryChargeFraction",
+      "stateOfCharge",
+      "virtualEnergy",
+      "regenKw",
+      "throttle",
+      "brake",
+      "steering",
+      "clutch",
+      "timeGapCarAhead",
+      "timeGapCarBehind",
+      "timeGapPlaceAhead",
+      "timeGapPlaceBehind",
+      "motorMap",
+      "migration",
+      "frontAntiSway",
+      "rearAntiSway",
+      "engineTorque",
+      "tcActive",
+      "tcLevel",
+      "absActive",
+      "tcCutLevel",
+    ] as const) {
+      expect(firstPacket?.lmu?.[field]).toBeUndefined();
+    }
+    expect(Number.isNaN(firstPacket?.Torque)).toBe(true);
+    expect(Number.isNaN(firstPacket?.Power)).toBe(true);
+    const extensionResolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "lmu",
+      requested: [
+        "engine.water-temperature",
+        "engine.oil-temperature",
+        "steering.shaft-torque",
+        "weather.rain-intensity",
+        "weather.cloud-coverage",
+        "race.control",
+        "fuel.virtual-energy",
+      ].map((semanticId) => ({ semanticId })),
+    });
+    const extensionFrame = extensionResolver.createFrameView(firstPacket!, {
+      timestamp: { domain: "session", milliseconds: 1_000 },
+      updateSequence: 1n,
+    });
+    for (const semanticId of [
+      "engine.water-temperature",
+      "engine.oil-temperature",
+      "steering.shaft-torque",
+      "weather.rain-intensity",
+      "weather.cloud-coverage",
+      "race.control",
+      "fuel.virtual-energy",
+    ]) {
+      expect(extensionFrame.resolveValue(extensionResolver.slot(semanticId)).state)
+        .toBe("missing");
+    }
+    const suppliedPath = join(
+      temporaryDirectory(),
+      "with-extensions.duckdb",
+    );
+    await createLMUDuckDB(suppliedPath, undefined, true, true);
+    const suppliedFrame = await readLMUDuckDBFrames(suppliedPath).next();
+    const decodedSuppliedFrame = decodeLMUSourceFrame(suppliedFrame.value!);
+    expect(decodedSuppliedFrame?.schemaVersion).toBe(4);
+    expect(decodedSuppliedFrame?.syntheticChannels).toContain(
+      "Throttle Pos Unfiltered",
+    );
+    const duplicateMetadata = Buffer.from(JSON.stringify([
+      "Throttle Pos Unfiltered",
+      "Throttle Pos Unfiltered",
+    ]));
+    const duplicateFrame = Buffer.alloc(
+      LMU_SOURCE_FRAME_SIZE + duplicateMetadata.length,
+    );
+    suppliedFrame.value!.copy(duplicateFrame, 0, 0, LMU_SOURCE_FRAME_SIZE);
+    duplicateMetadata.copy(duplicateFrame, LMU_SOURCE_FRAME_SIZE);
+    expect(canHandleLMUSourceFrame(duplicateFrame)).toBe(true);
+    expect(decodeLMUSourceFrame(duplicateFrame)).toBeNull();
+
+    const oversizedMetadata = Buffer.from(
+      JSON.stringify(["Throttle Pos Unfiltered"]).padEnd(4_097, " "),
+    );
+    const oversizedFrame = Buffer.alloc(
+      LMU_SOURCE_FRAME_SIZE + oversizedMetadata.length,
+    );
+    suppliedFrame.value!.copy(oversizedFrame, 0, 0, LMU_SOURCE_FRAME_SIZE);
+    oversizedMetadata.copy(oversizedFrame, LMU_SOURCE_FRAME_SIZE);
+    expect(canHandleLMUSourceFrame(oversizedFrame)).toBe(false);
+    expect(decodeLMUSourceFrame(oversizedFrame)).toBeNull();
+    const suppliedPacket = lmuServerAdapter.tryParse(suppliedFrame.value!, null);
+    expect(suppliedPacket?.lmu).toMatchObject({
+      throttle: 0,
+      stateOfCharge: 0,
+      virtualEnergy: 0,
+      regenKw: 12,
+      tcActive: false,
+      rearFlapActivated: false,
+      speedLimiterActive: true,
+    });
+    const suppliedSemanticFrame = extensionResolver.createFrameView(
+      suppliedPacket!,
+      {
+        timestamp: { domain: "session", milliseconds: 2_000 },
+        updateSequence: 2n,
+      },
+    );
+    expect(suppliedSemanticFrame.resolveValue<number>(
+      extensionResolver.slot("fuel.virtual-energy"),
+    )).toMatchObject({ value: 0, state: "ok" });
   }, 60_000);
 
   

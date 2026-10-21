@@ -8,6 +8,8 @@ import { IdParamSchema } from "@raceiq/shared/platform/http/route-schemas";
 import { GameIdSchema, type GameId } from "@raceiq/shared/games/ids";
 import { getGame, tryGetGame } from "@raceiq/shared/games/registry";
 import { analyseSemanticIds } from "@raceiq/shared/games/metric-contracts";
+import { encodeLmuPacket } from "@raceiq/shared/telemetry/lmu-context";
+import { liveSemanticIds } from "@raceiq/telemetry-core/telemetry/live/semantics";
 import { runInsightScanWithCoverage } from "@raceiq/analysis-core/racing/analysis/laps/insights/scan";
 import { processLap, restoreFrameIndices } from "@raceiq/analysis-core/racing/analysis/laps/insights/process";
 import { INSIGHT_DETECTORS } from "@raceiq/analysis-core/racing/analysis/laps/insights/types";
@@ -123,7 +125,8 @@ export const resourceRoutes = new Hono()
             )
           : source.rawFile ? await loadRawCaptureIdentity(source.rawFile) : undefined
         : undefined;
-      const replay = resolveTelemetryReplay(id, replaySource, lap.telemetry, semanticReplayIds(meta.gameId), rawCapture);
+      const semanticIds = meta.gameId === "lmu" ? [...new Set([...semanticReplayIds(meta.gameId), ...liveSemanticIds("lmu")])] : semanticReplayIds(meta.gameId);
+      const replay = resolveTelemetryReplay(id, replaySource, lap.telemetry, semanticIds, rawCapture);
       const nativeLayout = getGame(meta.gameId).getNativeSectorLayout?.(lap.telemetry[0]);
       const processed = processLap(lap.telemetry, meta.gameId);
       const analysis = runInsightScanWithCoverage(processed.packets, meta.gameId, { racingLine: resolveRacingLineReference(meta.gameId, meta.trackId) });
@@ -137,7 +140,8 @@ export const resourceRoutes = new Hono()
           observedAt: { domain: "wall-clock", milliseconds: timestampMilliseconds(envelope.observedAt) },
           receivedAt: { domain: "wall-clock", milliseconds: timestampMilliseconds(envelope.receivedAt) },
           simulator: envelope.simulator,
-          values: envelope.values.map(({ semanticId, value, state, freshness }) => ({ semanticId, value, state, freshness })),
+          values: envelope.values.map(({ semanticId, value, unit, state, freshness }) => ({ semanticId, value, unit, state, freshness })),
+          ...(envelope.lmu ? { lmu: envelope.lmu } : {}),
         })),
       });
     } catch (error) {
@@ -293,7 +297,7 @@ export const resourceRoutes = new Hono()
     // initial fetch instead of re-deriving on every render
     const insights = await getOrComputeLapInsights(id) ?? [];
 
-    return c.json({ ...lap, sectorTimes, insights });
+    return c.json({ ...lap, telemetry: gameId === "lmu" ? lap.telemetry.map(encodeLmuPacket) : lap.telemetry, sectorTimes, insights });
   })
 
   .get("/api/laps/:id/export", zValidator("param", IdParamSchema), async (c) => {

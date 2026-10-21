@@ -89,7 +89,7 @@ export function computeLapSectors(trackId: string, gameId: GameId, packets: Tele
   const { s1End, s2End } = options.sectors ?? packagedSectors;
   if (gameId === "lmu") {
     const native = packets.findLast((packet) => (packet.lmu?.lastSector1 ?? 0) > 0 && (packet.lmu?.lastSector2 ?? 0) > 0);
-    if (native?.lmu) {
+    if (native?.lmu?.lastSector1 !== undefined && native.lmu.lastSector2 !== undefined) {
       const s1 = native.lmu.lastSector1;
       const s2 = native.lmu.lastSector2 - s1;
       const s3 = lapTime - native.lmu.lastSector2;

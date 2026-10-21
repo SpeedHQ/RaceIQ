@@ -2,7 +2,6 @@ import type { PitLine } from "@/lib/canvas/draw-track";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 
-
 export interface Point {
   x: number;
   z: number;
