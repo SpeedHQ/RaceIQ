@@ -19,7 +19,7 @@ Marketing screenshot captures use `marketing-screenshots.config.ts`; responsive 
 
 The main config uses `tests/` as `testDir`; no E2E specs belong at `tests/` root. Screenshot capture uses dedicated configs. Stateful E2E projects stay ordered on one worker.
 
-Root `test:e2e` (including `test:e2e:compiled`) and workspace `test`/`test:ui` force `--workers=1`, overriding `PW_WORKERS`. Root `test:e2e:all` inherits the workspace limit. Capture migration and ordinary seeded projects share one database; per-project worker limits do not prevent cross-project overlap. Keep direct multi-project invocations containing capture migration on `--workers=1`.
+Root `test:e2e` (including `test:e2e:compiled`), its `fresh`/`tunes`/`seeded` variants, and root `screenshots` use `scripts/run-browser-verification.ts`: this cross-platform runner builds the production app with both F1 experiments and iRacing adapter flags, then starts compiled-server verification. `build:browser` exposes the feature-enabled build alone; ordinary `build` and release builds retain default feature settings. `ui:diff` builds both compared revisions with those flags before compiled responsive captures; `ui:diff:storybook` remains Storybook-only. The general `bun run test` sequence also performs a feature-enabled browser build immediately before Playwright E2E.
 
 ## Commands and server modes
 
@@ -30,12 +30,10 @@ bun run typecheck
 bun run build
 bun run test                         # build, then full Playwright run
 bunx playwright test --project=seeded-e2e
-PW_SERVER_SET=seeded PW_SCREENSHOT_ONLY=1 PW_SEED_SCREENSHOTS=1 bun run screenshots:mobile # standalone capture
-E2E_SERVER_MODE=dev bunx playwright test --project=seeded-e2e
-PW_SERVER_SET=fresh bunx playwright test --project=fresh-install
+E2E_SERVER_MODE=dev PW_SERVER_SET=fresh bunx playwright test --project=fresh-install # direct dev-mode diagnostic only
 ```
 
-`E2E_SERVER_MODE` is `compiled` by default and accepts `dev` or `compiled`. Compiled mode launches `dist/raceiq` (`raceiq.exe` on Windows); build first. Dev mode launches Bun server and Vite client. `PW_SERVER_SET` accepts `all`, `fresh`, `tunes`, or `seeded` and limits web-server instances. `PW_SCREENSHOT_ONLY=1` omits tunes server; pair with `PW_SEED_SCREENSHOTS=1` for read-only parallel screenshot capture. Port and data overrides are `PW_FRESH_INSTALL_*`, `PW_TUNES_*`, and `PW_SEEDED_E2E_*` (`PORT`, `CLIENT_PORT`, `UDP_PORT`, `DATA_DIR`). `RACEIQ_APP_ROOT` overrides repository root for dev launcher subprocesses. `CI` controls retry/reporter defaults; `PW_SCREENSHOT_WORKERS` controls screenshot worker count.
+`E2E_SERVER_MODE` is `compiled` by default and accepts `dev` or `compiled`; canonical verification commands use compiled production binaries. Compiled mode launches `dist/raceiq` (`raceiq.exe` on Windows); build first. Dev mode launches Bun server and Vite client and is for deliberate developer diagnostics, not canonical visual verification. `PW_SERVER_SET` accepts `all`, `fresh`, `tunes`, or `seeded` and limits web-server instances. `PW_SCREENSHOT_ONLY=1` omits tunes server; pair with `PW_SEED_SCREENSHOTS=1` for read-only parallel screenshot capture. Port and data overrides are `PW_FRESH_INSTALL_*`, `PW_TUNES_*`, and `PW_SEEDED_E2E_*` (`PORT`, `CLIENT_PORT`, `UDP_PORT`, `DATA_DIR`). `RACEIQ_APP_ROOT` overrides repository root for dev launcher subprocesses. `CI` controls retry/reporter defaults; `PW_SCREENSHOT_WORKERS` controls screenshot worker count.
 
 Generate marketing images in `assets/screenshots/` with `E2E_SERVER_MODE=dev PW_SERVER_SET=seeded PW_SCREENSHOT_ONLY=1 PW_SEED_SCREENSHOTS=1 bun run screenshots` from `playwright/`. To refresh Home only, append `--grep 'screenshot: home$'`. The Home capture waits for dashboard metadata and loading panels to finish; it fails instead of saving a loading or error state. This screenshot-capture runner is separate from E2E projects. The root-level `bun run screenshots` command generates responsive evidence, not these marketing assets.
 Storybook screenshot tests create missing baselines on first run and compare them on later runs.
@@ -93,7 +91,7 @@ Playwright output goes to `playwright/test-results/`. Responsive captures go to 
 
 ## Responsive visual baselines
 
-Pull-request screenshot CI renders every responsive screenshot case twice in the same runner environment: once from the PR and once from its current base revision. Both renders use dev mode (Bun backend and Vite client), so no compiled artifact download or base production build is needed. Both renders use the PR's screenshot spec so renamed selectors do not break baseline capture. The base render is the visual baseline. Screenshot-only menu cases use keyboard activation so overlapping controls in the base revision do not prevent capturing visual differences. Pixel differences at or below the shared 1% tolerance are treated as rendering noise; added, removed, resized, or materially changed screenshots fail the `screenshots` check.
+Pull-request screenshot CI renders every responsive screenshot case twice in the same runner environment: once from the PR and once from its current base revision. Both renders use compiled production apps built with both F1 experiments and iRacing adapter flags enabled. Each shard builds its revision before rendering; the base render uses the PR's screenshot spec so renamed selectors do not break baseline capture. The base render is the visual baseline. Screenshot-only menu cases use keyboard activation so overlapping controls in the base revision do not prevent capturing visual differences. Pixel differences at or below the shared 1% tolerance are treated as rendering noise; added, removed, resized, or materially changed screenshots fail the `screenshots` check.
 
 Dashboard render CI uses four shards (`--shard=1/4` through `--shard=4/4`) for both revisions. Each shard captures 23 of the 92 screenshots; the collector merges all four artifacts before comparison.
 

@@ -151,7 +151,7 @@ test("native-values replay skips non-native raw capture identity loading", async
   await Bun.write(rawFile, Buffer.from("not gzip"));
   try {
     await updateSessionRawFile(sessionId, rawFile, "test-detector");
-    lapId = await insertLap(sessionId, 1, 1, true, 0, 0);
+    lapId = await insertLap(sessionId, 1, 1, true, 0, 0, null, null, null, null, null);
     cacheSet(lapId, [
       packet("f1-2025", { Speed: 10, TimestampMS: 1_000 }),
       packet("f1-2025", { Speed: 20, TimestampMS: 1_000 }),
@@ -186,7 +186,7 @@ test("semantic replay aligns native session frames and hashes decompressed captu
   const sessionId = await insertSession("42", "99", "iracing");
   try {
     await updateSessionRawFile(sessionId, rawFile, "test-detector");
-    const lapId = await insertLap(sessionId, 1, 1, true, rawByteOffset, 2);
+    const lapId = await insertLap(sessionId, 1, 1, true, rawByteOffset, 2, null, null, null, null, null);
 
     const replay = await queryLapTelemetryBySemanticId(lapId, ["session.session-state", "motion.speed", "motion.latitude", "motion.longitude", "motion.altitude", "identity.track.latitude", "identity.track.longitude", "identity.track.altitude", "engine.oil-temperature", "engine.voltage", "race.player-incident-count"], { rawCaptureRequirement: "native-values" });
     expect(replay?.envelopes).toHaveLength(2);

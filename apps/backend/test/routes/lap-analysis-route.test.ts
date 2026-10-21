@@ -33,7 +33,7 @@ describe("GET /api/laps/:id/semantic-telemetry", () => {
   test("returns full F1 Analyse replay with adapter channels", async () => {
     const sessionId = await insertSession("0", "0", "f1-2025");
     await updateSessionRawFile(sessionId, "/virtual/f1-replay.bin", "test");
-    const lapId = await insertLap(sessionId, 1, 80.9, true, 12, 2);
+    const lapId = await insertLap(sessionId, 1, 80.9, true, 12, 2, null, null, null, null, null);
     cacheSet(lapId, [
       packet("f1-2025", { TimestampMS: 1_000, Speed: 10 }),
       packet("f1-2025", { TimestampMS: 1_017, Speed: 20 }),
@@ -72,7 +72,7 @@ describe("GET /api/laps/:id/semantic-telemetry?view=track-map", () => {
   test("returns compact iRacing GPS and progress samples", async () => {
     const sessionId = await insertSession("0", "0", "iracing");
     await updateSessionRawFile(sessionId, "/virtual/iracing-replay.bin", "test");
-    const lapId = await insertLap(sessionId, 1, 80.9, true, 12, 2);
+    const lapId = await insertLap(sessionId, 1, 80.9, true, 12, 2, null, null, null, null, null);
     cacheSet(lapId, [0.25, 0.75].map((lapDistancePct, index) => packet("iracing", {
       iracing: { lapDistancePct, sessionTick: index + 1 } as TelemetryPacket["iracing"],
       CurrentRaceTime: index,
@@ -110,8 +110,8 @@ describe("GET /api/laps/review", () => {
     const sessionId = await insertSession("10", "20", "acc");
     await updateSessionRawFile(sessionId, "review-capture.bin", "test");
     const noCaptureSession = await insertSession("10", "20", "acc");
-    await insertLap(noCaptureSession, 1, 55, true, null, 0);
-    const lapIds = await Promise.all([61, 59, 62, 58, 60, 57].map((time, index) => insertLap(sessionId, index + 1, time, true, null, 0)));
+    await insertLap(noCaptureSession, 1, 55, true, null, 0, null, null, null, null, null);
+    const lapIds = await Promise.all([61, 59, 62, 58, 60, 57].map((time, index) => insertLap(sessionId, index + 1, time, true, null, 0, null, null, null, null, null)));
     try {
       const response = await lapRoutes.request("/api/laps/review?gameId=acc&trackId=20&carId=10");
       expect(response.status).toBe(200);
@@ -130,8 +130,8 @@ describe("POST /api/laps/aligned-telemetry", () => {
   test("preserves requested order, wheel wear, sectors, and base cache identity", async () => {
     const sessionId = await insertSession("10", "20", "acc");
     await updateSessionRawFile(sessionId, "/virtual/alignment-capture.bin", "test");
-    const lapA = await insertLap(sessionId, 1, 61, true, 12, 3, null, null, null, [20, 21, 20]);
-    const lapB = await insertLap(sessionId, 2, 60, true, 1_012, 3, null, null, null, [19, 21, 20]);
+    const lapA = await insertLap(sessionId, 1, 61, true, 12, 3, null, null, null, [20, 21, 20], null);
+    const lapB = await insertLap(sessionId, 2, 60, true, 1_012, 3, null, null, null, [19, 21, 20], null);
     const telemetry = (offset: number) => [0, 1, 2].map((distance, index) => packet("acc", {
       DistanceTraveled: distance,
       CurrentLap: index,

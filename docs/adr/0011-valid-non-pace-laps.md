@@ -1,0 +1,36 @@
+---
+status: proposed
+---
+# Separate lap validity from pace classification
+
+## Context
+
+[Issue #229](https://github.com/SpeedHQ/RaceIQ/issues/229) requires valid telemetry from pit cycles, grid starts, and caution/yellow laps to remain inspectable without distorting normal pace analysis. Existing pit-cycle invalid reasons and first-lap exclusions conflate recording validity with representativeness. [Issue #222](https://github.com/SpeedHQ/RaceIQ/issues/222) demonstrates the grid-start case, but its reported scalar values alone do not establish a reliable start detector.
+
+The committed F1 recording `test/artifacts/sessions/f1-2025-2026-04-22T11-42-43-029Z.bin.gz` reproduces the reported #222 scalar values, but contains no event packet codes and retains unknown session context. Those bytes do not establish a standing start. Its first released lap window (`12/27312`) also differs from current detection (`187842/27145`), although four later windows match exactly. The automatic migration must report `ambiguous_match` and preserve the whole recording rather than partially commit, manufacture `grid_start`, or mark processing successful. A correctly matched recording with unavailable signals instead reports `limited / insufficient_evidence`.
+
+## Decision
+
+Add an independent lap classification: `pace`, `out_lap`, `in_lap`, `pit_lap`, `grid_start`, or `caution`. Reserve `null` for historical/unclassified rows. Keep `isValid` and `invalidReason` for genuine native-invalid and recording-quality outcomes. Classification can coexist with invalidity.
+
+Use one primary category with deterministic overlap precedence: grid start, pit lap, in lap, out lap, caution, then pace. All non-pace categories share default exclusion. A multi-tag framework is unnecessary for this requirement; native flags remain available in telemetry.
+
+Share pure classification and pace eligibility through existing analysis/telemetry packages. Persist and expose classification through lap metadata. Apply equivalent SQL eligibility before ranking or limiting candidates, and migrate every normal pace consumer. Explicit telemetry inspection and intentional comparison remain possible with category labels.
+
+Normal pace eligibility requires validity, finite positive lap time, and `pace` or legacy `null` classification. Legacy-null inclusion is temporary compatibility during automatic migration, or an explicit limitation when evidence is unavailable; it does not replace migration. Backfill recognized pit reasons before cutover, but do not restore historical validity without reassessing raw telemetry.
+
+Upgrading automatically schedules a versioned, bounded background classification migration over existing recordings. Reuse the shared processing path with session context, update matched laps in place, and atomically commit metadata, per-recording completion state, and durable aggregate dirty flags/source revisions. Extend classification-aware read-model projection/trigger handling; rebuild asynchronously after commit and drain dirty work after restart even when classification is already completed. Preserve lap IDs, annotations, associations, timing, raw bytes, and indexes. Resume interrupted work, skip unchanged completed passes, coordinate concurrent processing through maintenance ownership and source/result revision checks, and expose progress/source limitations. Missing or corrupt input must not stop other recordings or be reported as successfully classified. Restore status and query caches on reconnect; notification delivery alone is not durable. Manual reprocessing or confirmation is not required for users to receive the fix.
+
+Detection must use session-scoped native evidence, not lap ordinal or slow pace. Confirm source scope and freshness; missing signals are not observed clear flags. Preserve supported yellow/caution observations across the affected lap. Only evidence-backed start/pit paths may adjust inappropriate closure assumptions; retain other quality checks. Prove the actual #222 capture scenario before shipping.
+
+An unavailable native signal is distinct from a corrupt source. Preserve reliable legacy categories and existing validity for evidence-limited input, account for it as `limited` with `insufficient_evidence`, and stop retrying unchanged bytes. A repaired source can be durably requeued through the feature-owned Retry operation. Do not route that operation through manual reprocessing, which may replace laps or change historical timing. The [official F1 25 UDP specification](https://forums.ea.com/t5/s/tghpe58374/attachments/tghpe58374/f1-games-game-info-hub-en/61/4/Data%20Output%20from%20F1%2025%20v3.pdf) distinguishes session start, start lights, and lights-out events; default accumulator values do not substitute for observing those events.
+
+The Sessions timeline must consume persisted lap classification alongside, not instead of, native race-result events. Compose separate recorded-lap and race-event lanes in one expanded-session panel: classification does not establish a pit-stop duration, event position, or a shared elapsed-time axis. Keep validity independent and legacy-null visibly unclassified. Expose existing nullable capture offsets through lap metadata for source ordering; do not add timeline storage, infer order from lap number, or decode captures for display. The focused [timeline contract](../plans/session-classification-timeline-contract.md), [UI plan](../plans/session-classification-timeline-ui-plan.md), and [backend plan](../plans/session-classification-timeline-backend-plan.md) define the proposed additive boundary, fallback ordering, refresh behavior and TL acceptance/E2E matrix. This extension is planned, not implemented or verified.
+
+## Rationale and consequences
+
+The model preserves telemetry, separates two independent concepts, and removes conflicting pace heuristics without another detector architecture. A single category cannot express every overlapping cause; deterministic precedence is sufficient for default exclusion. Automatic migration repairs historical classifications wherever source evidence permits without blocking startup or discarding user data. Pending or source-limited historical rows retain compatibility behavior and visible status rather than being silently treated as migrated. Unsupported native signals remain documented limitations, never fabricated telemetry.
+
+Use separate [backend](../plans/valid-non-pace-laps-backend-plan.md) and [UI](../plans/valid-non-pace-laps-ui-plan.md) implementation plans against one [shared contract and E2E matrix](../plans/valid-non-pace-laps-contract.md). The contract specifies typed status/list/retry operations, notification restoration, recording outcomes, transaction boundaries, and AC-01–AC-09 mapped to real-system E2E-01–E2E-07. Resolve boundary changes in both plans before implementation; neither proposed status nor planning checks imply architectural approval. UI and backend work can proceed in parallel after boundary agreement, but completion requires recorded passing real integration evidence, including crash immediately after commit and before aggregate rebuild.
+
+Plan: [Implementation scope, phases, and acceptance](../plans/valid-non-pace-laps.md).

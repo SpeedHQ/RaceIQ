@@ -5,6 +5,11 @@ import { GameIdQuerySchema, IdParamSchema } from "@raceiq/shared/platform/http/r
 import { GameIdSchema } from "@raceiq/shared/games/ids";
 import { getSessions, deleteSession, updateSession, updateSessionCarTrack, countStaleSessions, getStaleSessions, getSessionRecapData, setSessionFavorite, SessionCaptureActiveError } from "@raceiq/backend-core/db/session-queries";
 import { reprocessSession, SessionNotFoundError, SessionRawFileMissingError } from "@raceiq/backend-core/session-capture/reprocess";
+import {
+  getClassificationMigrationStatus,
+  listClassificationMigrationRecordings,
+  retryClassificationMigrationRecording,
+} from "@raceiq/backend-core/session-capture/classification-migration";
 import { getSessionResult, getStaleRaceResultSessionIds } from "@raceiq/backend-core/db/session-result-queries";
 import { LAP_DETECTOR_ID } from "@raceiq/backend-core/lap-detection/detector";
 import { LAP_DETECTOR_ACC_ID } from "@raceiq/game-acc/lap-detector";
@@ -28,7 +33,32 @@ import { isSessionIdentityInCatalog } from "../games/session-identity";
 import type { SessionMeta } from "@raceiq/shared/racing/sessions/types";
 const ALL_DETECTOR_IDS = [LAP_DETECTOR_ID, LAP_DETECTOR_ACC_ID, LAP_DETECTOR_AC_EVO_ID, LAP_DETECTOR_IRACING_ID];
 
+
 export const sessionRoutes = new Hono()
+  .get("/api/sessions/classification-migration-status", async (c) =>
+    c.json(await getClassificationMigrationStatus()))
+  .get("/api/sessions/classification-migration-recordings", async (c) => {
+    const query = c.req.query();
+    const limit = query.limit === undefined ? 50 : Number(query.limit);
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) return c.json({ error: "limit must be an integer from 1 to 100" }, 400);
+    try {
+      const result = await listClassificationMigrationRecordings(limit, query.cursor);
+      if (!result) return c.json({ error: "stale snapshot cursor" }, 409);
+      return c.json(result);
+    } catch {
+      return c.json({ error: "invalid cursor" }, 400);
+    }
+  })
+  .post("/api/sessions/classification-migration-retry", zValidator("json", z.object({ recordingId: z.string().min(1) }).strict(), (result, c) => {
+    if (!result.success) return c.json({ error: "Invalid retry request" }, 400);
+  }), async (c) => {
+    const { recordingId } = c.req.valid("json");
+    const state = await retryClassificationMigrationRecording(recordingId);
+    if (!state) return c.json({ error: "Recording not found" }, 404);
+    const status = await getClassificationMigrationStatus();
+    wsManager.setClassificationMigrationStatusNotification({ type: "classification-migration-status", ...status });
+    return c.json({ recordingId, state }, 202);
+  })
   .get("/api/sessions", zValidator("query", GameIdQuerySchema), async (c) => {
     const { gameId } = c.req.valid("query");
     return c.json<SessionMeta[]>(await getSessions(gameId));

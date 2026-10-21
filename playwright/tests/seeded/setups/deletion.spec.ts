@@ -31,7 +31,7 @@ async function createSetup(page: Page, gameId: GameId, carId: string) {
 
 async function openDelete(page: Page, prefix: string, name: string) {
   await page.goto(`/${prefix}/setups`, { waitUntil: "domcontentloaded" });
-  await page.getByRole("group", { name: "Setup sources" }).getByRole("button", { name: prefix === "fm23" ? "Mine" : "Yours", exact: true }).click();
+  await page.getByRole("group", { name: "Setup sources" }).getByRole("button", { name: "Yours", exact: true }).click();
   await page.getByText(name, { exact: true }).click();
   await page.getByRole("table").getByRole("button", { name: "Delete", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Delete setup?", exact: true });

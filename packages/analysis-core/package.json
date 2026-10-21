@@ -19,6 +19,7 @@
     "./racing/analysis/laps/insights/tires": "./src/racing/analysis/laps/insights/tires.ts",
     "./racing/analysis/laps/physics/vehicle": "./src/racing/analysis/laps/physics/vehicle.ts",
     "./racing/laps/pit-cycle": "./src/racing/laps/pit-cycle.ts",
+    "./racing/laps/classification": "./src/racing/laps/classification.ts",
     "./racing/laps/review-selection": "./src/racing/laps/review-selection.ts",
     "./racing/laps/stint-stats": "./src/racing/laps/stint-stats.ts",
     "./racing/laps/alignment/build": "./src/racing/laps/alignment/build.ts",
