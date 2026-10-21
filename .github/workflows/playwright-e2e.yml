@@ -107,7 +107,7 @@ jobs:
           - name: seeded-webgpu
             server_set: seeded
             projects: --project=seeded-webgpu
-            runs_on: '["mars-macos-arm64-2vcpu-10g", "mars-retry-3"]'
+            runs_on: '["macos-15"]'
     uses: ./.github/workflows/playwright.yml
     with:
       server-mode: compiled
