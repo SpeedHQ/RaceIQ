@@ -51,7 +51,7 @@ describe("game route helpers", () => {
     expect(validateAnalyseSearch({ track: 12, car: 34 })).toMatchObject({ track: "12", car: "34" });
     expect(validateAnalyseSearch({ track: trackId, car: "McLaren 720S" })).toMatchObject({ track: trackId, car: "McLaren 720S" });
     expect(validateAnalyseSearch({ track: JSON.parse(trackId), car: "McLaren 720S" })).toMatchObject({ track: trackId, car: "McLaren 720S" });
-    expect(validateCompareSearch({ track: JSON.parse(trackId), carA: "McLaren 720S", carB: "McLaren 720S" })).toMatchObject({ track: trackId });
+    expect(validateCompareSearch({ track: JSON.parse(trackId), carA: "McLaren 720S", carB: "McLaren 720S" })).toMatchObject({ track: "Circuit Park", layout: "Grand Prix" });
     for (const value of [[], ["venue"], ["venue", ""], ["venue", 1], ["venue", "layout", "extra"]]) {
       expect(parseOptionalIdentityKey(value)).toBeUndefined();
     }
