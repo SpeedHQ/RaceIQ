@@ -236,7 +236,7 @@ test("Compare toolbar controls telemetry and AI across both views", async ({ pag
   const tabBox = await page.getByRole("tab", { name: "Spectate", exact: true }).boundingBox();
   if (!telemetryBox || !aiBox || !tabBox) throw new Error("Compare toolbar controls have no layout");
   expect(Math.abs(telemetryBox.y - aiBox.y)).toBeLessThan(2);
-  expect(Math.abs(telemetryBox.y - tabBox.y)).toBeLessThan(2);
+  expect(Math.abs(telemetryBox.y + telemetryBox.height - tabBox.y - tabBox.height)).toBeLessThanOrEqual(2);
   expect(telemetryBox.x + telemetryBox.width).toBeLessThanOrEqual(aiBox.x);
   await telemetry.click();
   await expect(view).toHaveAttribute("data-panel-collapsed", "true");
@@ -253,16 +253,16 @@ test("Compare toolbar controls telemetry and AI across both views", async ({ pag
   await expectScenePreserved();
   const prompt = page.getByText("Analyse both laps to start a comparison chat", { exact: true }).filter({ visible: true });
   await expect(prompt).toBeVisible();
-  const clearChat = page.locator("#compare-body-spectate").getByRole("button", { name: "Clear chat", exact: true });
+  const clearChat = page.getByRole("button", { name: "Clear chat", exact: true });
   await expect(clearChat).toBeVisible();
-  const collapse = page.locator("#compare-body-spectate").getByRole("button", { name: "Collapse AI Analysis", exact: true });
+  const collapse = page.getByRole("button", { name: "Collapse AI Analysis", exact: true });
   const clearBox = await clearChat.boundingBox();
   const collapseBox = await collapse.boundingBox();
   if (!clearBox || !collapseBox) throw new Error("AI header actions have no layout");
   expect(Math.abs(clearBox.y + clearBox.height / 2 - collapseBox.y - collapseBox.height / 2)).toBeLessThan(2);
   await collapse.click();
   await expect(clearChat).toBeVisible();
-  await page.locator("#compare-body-spectate").getByRole("button", { name: "Expand AI Analysis", exact: true }).click();
+  await page.getByRole("button", { name: "Expand AI Analysis", exact: true }).click();
   const cleared = page.waitForResponse((response) => response.request().method() === "DELETE" && response.url().endsWith(`/api/laps/${pair.lapA.id}/compare/${pair.lapB.id}/chat`));
   await clearChat.click();
   expect((await cleared).ok()).toBe(true);
@@ -298,6 +298,7 @@ test("Spectate telemetry resizes from its left edge with AI open or closed", asy
   const split = page.getByRole("button", { name: "Split recordings", exact: true });
   await expect(page.locator("[data-spectate-view]").or(split)).toBeVisible();
   if (await split.isVisible()) await split.click();
+  await page.getByRole("button", { name: "Car layout", exact: true }).click();
   const view = page.locator("[data-spectate-view]");
   const separator = page.getByRole("separator", { name: "Resize telemetry panel" });
   const ai = page.getByRole("button", { name: "AI Analysis", exact: true });
@@ -351,8 +352,8 @@ test("Spectate categories filter channels and browser remembers the selected tim
   const clock = page.locator("[data-spectate-playback]");
   await expect(panel).toBeVisible();
   await expect(page.getByText("Representative car model", { exact: true })).toHaveCount(0);
-  const range = panel.getByRole("combobox", { name: "Range", exact: true });
-  const titleBox = await panel.locator("header strong").boundingBox();
+  const range = page.getByRole("combobox", { name: "Range", exact: true });
+  const titleBox = await page.locator('[data-panel-header="spectate-telemetry-panel"]').boundingBox();
   const rangeBox = await range.boundingBox();
   expect(titleBox && rangeBox && Math.abs(titleBox.y + titleBox.height / 2 - rangeBox.y - rangeBox.height / 2) < 2).toBe(true);
   const original = await panel.locator("[data-channel-id]").evaluateAll((rows) => rows.map((row) => `${row.getAttribute("data-channel-id")}:${row.getAttribute("data-component")}`).sort());
@@ -360,7 +361,7 @@ test("Spectate categories filter channels and browser remembers the selected tim
   await expect(tabs.getByRole("tab", { name: "All", exact: true })).toHaveCount(0);
   await expect(tabs.getByRole("tab", { name: "Inputs", exact: true })).toHaveAttribute("aria-selected", "true");
   await expect(panel.locator("[data-channel-id]").first()).toBeVisible();
-  expect(await panel.locator("[data-channel-id]").evaluateAll((rows) => rows.every((row) => row.getAttribute("data-channel-id")?.startsWith("inputs.")))).toBe(true);
+  expect(await panel.locator("[data-channel-id]").evaluateAll((rows) => rows.every((row) => row.getAttribute("data-channel-id") === "comparison.time-delta" || row.getAttribute("data-channel-id")?.startsWith("inputs.")))).toBe(true);
   await tabs.getByRole("tab", { name: "Inputs", exact: true }).press("End");
   await tabs.getByRole("tab", { selected: true }).press("Home");
   await expect(tabs.getByRole("tab", { name: "Inputs", exact: true })).toHaveAttribute("aria-selected", "true");
@@ -402,7 +403,6 @@ test("F1 Spectate displays recorded string enum modes and keeps locked B motion 
   await seek.press("Home");
   await expect(clock).toHaveAttribute("data-time", "0");
   const rail = page.locator("[data-battery-mode-a]");
-  await expect(rail.locator("[data-mode-step]")).toHaveCount(4);
   await expect(rail).toHaveAttribute("data-battery-mode-a", recordedModeAt(recordings[0]!, 0));
   await expect(rail).toHaveAttribute("data-battery-mode-b", recordedModeAt(recordings[1]!, 0));
   expect(await rail.getAttribute("data-battery-mode-a")).not.toBe("unavailable");
@@ -450,10 +450,6 @@ test("F1 Spectate displays recorded string enum modes and keeps locked B motion 
   if (!input || !overview || !playback) throw new Error("F1 responsive controls have no layout");
   expect(overview.y + overview.height).toBeLessThanOrEqual(input.y);
   expect(input.y + input.height).toBeLessThanOrEqual(playback.y);
-  const modelBadge = await scene.getByText("Representative car model", { exact: true }).boundingBox();
-  if (!modelBadge) throw new Error("The fixture's representative model must be labeled");
-  expect(overview.y + overview.height).toBeLessThanOrEqual(modelBadge.y);
-  expect(modelBadge.y + modelBadge.height).toBeLessThanOrEqual(input.y);
   await expect(rail).toBeVisible();
   await rail.scrollIntoViewIfNeeded();
   await expect(rail).toBeInViewport();

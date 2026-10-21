@@ -13,6 +13,7 @@
 - Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
 
 ### Fixes
+- Keep Spectate racing lines visible when zooming out to the full circuit.
 - Distinguish native fractional LMU brake and clutch inputs from normalized control readings in the telemetry catalog.
 - Keep unchanged LMU supplemental snapshots available while successful polling continues, without resetting their original observation ages.
 - Render LMU developer telemetry snapshots without crashing on precision-preserved observation sequences.

@@ -63,5 +63,5 @@ test("Compare ignores a stale URL lap before selecting another F1 lap", async ({
   await lapA.click();
   const listbox = await lapA.getAttribute("aria-controls");
   await page.locator(`[id="${listbox}"]`).getByRole("option", { name: lapOptionLabel(nextLap), exact: true }).click();
-  await expect(page.getByTestId("lap-compare-workspace").getByText("Time Delta")).toBeVisible();
+  await expect(page.getByTestId("compare-time-delta")).toBeVisible();
 });
