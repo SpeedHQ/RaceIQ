@@ -7,8 +7,8 @@
 - Catalog version: `0.20.0`
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.20.0`
-- Generator source SHA-256: `fb7491d9e14283715f01bb02aa1e44e5a53c121ef63d537c5d3ea3e61dadd073`
-- Content SHA-256: `7ad3d47913bf88ac5f1b28ba00569965f03eb9ea6496b39b396a957cd1629558`
+- Generator source SHA-256: `eb906c80e364654832725bf35a0341a4450961000417a1ee6ac47d6f05d21d12`
+- Content SHA-256: `57fd86ccffc2e72f50fafb9da6c346df151da0895bccfb003a3f2d70321d0bd1`
 
 ## Coverage
 
@@ -19,7 +19,7 @@
 | acc | 205 | 172 | 124 | 48 | 0 | 0 | 33 |
 | ac-evo | 258 | 226 | 126 | 100 | 0 | 0 | 32 |
 | iracing | 952 | 702 | 115 | 18 | 324 | 495 | 0 |
-| lmu | 172 | 172 | 126 | 46 | 0 | 0 | 0 |
+| lmu | 210 | 210 | 126 | 84 | 0 | 0 | 0 |
 
 ## Semantic variables
 
@@ -35,6 +35,10 @@
 | `brakes.brake-line-press` | Brake Line Press | number | mass × length^-1 × time^-2 | bar | fixed:4 | FL, FR, RL, RR |  |  |
 | `brakes.brake-temp` | Brake Temp | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
 | `brakes.hand-brake` | Hand Brake | number | unit:0–255 | 0–255 | scalar |  |  |  |
+| `control.brake` | Brake input (fraction) | number | dimensionless | fraction | scalar |  |  |  |
+| `control.clutch` | Clutch input (fraction) | number | dimensionless | fraction | scalar |  |  |  |
+| `control.steering` | Steering | number | dimensionless | fraction | scalar |  |  |  |
+| `control.throttle` | Throttle | number | dimensionless | fraction | scalar |  |  |  |
 | `damage.brake-disc-life` | Brake Disc Life | number | dimensionless | % | scalar |  |  |  |
 | `damage.brake-pad-wear` | Brake Pad Wear | number | length | mm | fixed:4 | FL, FR, RL, RR |  |  |
 | `damage.brakes-damage` | Brakes Damage | number | dimensionless | % | fixed:4 | FL, FR, RL, RR |  |  |
@@ -59,8 +63,8 @@
 | `damage.rear-wing-damage` | Rear Wing Damage | number | dimensionless | % | scalar |  |  |  |
 | `damage.sidepod-damage` | Sidepod Damage | number | dimensionless | % | scalar |  |  |  |
 | `damage.tyres-damage` | Tyres Damage | number | dimensionless | % | fixed:4 | FL, FR, RL, RR |  |  |
-| `diagnostics.best-sector1` | Best Sector1 | number | dimensionless | count | scalar |  |  |  |
-| `diagnostics.best-sector2` | Best Sector2 | number | dimensionless | count | scalar |  |  |  |
+| `diagnostics.best-sector1` | Best Sector1 | number | time | s | scalar |  |  |  |
+| `diagnostics.best-sector2` | Best Sector2 | number | time | s | scalar |  |  |  |
 | `diagnostics.camera.active-camera-number` | Active camera number | number | dimensionless | index | scalar |  |  |  |
 | `diagnostics.camera.active-group-number` | Active camera group number | number | dimensionless | index | scalar |  |  |  |
 | `diagnostics.camera.group-name` | Camera group name | structured | dimensionless | text | variable:0-* | group-index:source-order | indices: group-index (variable:0-*, source-order); fields: value:string |  |
@@ -75,13 +79,12 @@
 | `diagnostics.chan-latency` | Chan Latency | number | time | s | scalar |  |  |  |
 | `diagnostics.chan-partner-quality` | Chan Partner Quality | number | dimensionless | % | scalar |  |  |  |
 | `diagnostics.chan-quality` | Chan Quality | number | dimensionless | % | scalar |  |  |  |
-| `diagnostics.cloud-coverage` | Cloud Coverage | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.corner-cutting-warnings` | Corner Cutting Warnings | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.cpu-usage-bg` | Cpu Usage BG | number | dimensionless | % | scalar |  |  |  |
 | `diagnostics.cpu-usage-fg` | Cpu Usage FG | number | dimensionless | % | scalar |  |  |  |
 | `diagnostics.current-bhp` | Current Bhp | number | unit:bhp | bhp | scalar |  |  |  |
-| `diagnostics.current-sector1` | Current Sector1 | number | dimensionless | count | scalar |  |  |  |
-| `diagnostics.current-sector2` | Current Sector2 | number | dimensionless | count | scalar |  |  |  |
+| `diagnostics.current-sector1` | Current Sector1 | number | time | s | scalar |  |  |  |
+| `diagnostics.current-sector2` | Current Sector2 | number | time | s | scalar |  |  |  |
 | `diagnostics.display-units` | Display Units | number | unit:unitless | unitless | scalar |  |  |  |
 | `diagnostics.dp-fast-repair` | Dp Fast Repair | number | unit:unitless | unitless | scalar |  |  |  |
 | `diagnostics.dp-windshield-tearoff` | Dp Windshield Tearoff | number | unit:unitless | unitless | scalar |  |  |  |
@@ -97,8 +100,9 @@
 | `diagnostics.is-disk-logging-active` | Is Disk Logging Active | boolean | dimensionless | boolean | scalar |  |  |  |
 | `diagnostics.is-disk-logging-enabled` | Is Disk Logging Enabled | boolean | dimensionless | boolean | scalar |  |  |  |
 | `diagnostics.is-garage-visible` | Is Garage Visible | boolean | dimensionless | boolean | scalar |  |  |  |
-| `diagnostics.last-sector1` | Last Sector1 | number | dimensionless | count | scalar |  |  |  |
-| `diagnostics.last-sector2` | Last Sector2 | number | dimensionless | count | scalar |  |  |  |
+| `diagnostics.last-sector1` | Last Sector1 | number | time | s | scalar |  |  |  |
+| `diagnostics.last-sector2` | Last Sector2 | number | time | s | scalar |  |  |  |
+| `diagnostics.lmu-context` | Lmu Context | number | unit:unitless | unitless | scalar |  |  |  |
 | `diagnostics.mem-page-fault-sec` | Mem Page Fault Sec | number | unit:unitless | unitless | scalar |  |  |  |
 | `diagnostics.mem-soft-page-fault-sec` | Mem Soft Page Fault Sec | number | unit:unitless | unitless | scalar |  |  |  |
 | `diagnostics.migration` | Migration | number | dimensionless | ratio | scalar |  |  |  |
@@ -129,7 +133,7 @@
 | `diagnostics.raw-session-metadata` | Complete SessionInfo YAML | structured | dimensionless | structured | variable:0-* | source-path:source-order | indices: source-path (variable:0-*, source-order); fields: value:string |  |
 | `diagnostics.rear-anti-sway` | Rear Anti Sway | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.rear-flap-activated` | Rear Flap Activated | boolean | dimensionless | boolean | scalar |  |  |  |
-| `diagnostics.regen-kw` | Regen Kw | number | dimensionless | count | scalar |  |  |  |
+| `diagnostics.regen-kw` | Regen Kw | number | mass × length^2 × time^-3 | kW | scalar |  |  |  |
 | `diagnostics.result-reason` | Result Reason | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.result-source` | Result Source | number | unit:unitless | unitless | scalar |  |  |  |
 | `diagnostics.sim-build-target` | Build Target | string | dimensionless | text | scalar |  |  |  |
@@ -137,7 +141,6 @@
 | `diagnostics.sim-build-version` | Simulator build version | string | dimensionless | text | scalar |  |  |  |
 | `diagnostics.solar-altitude` | Solar Altitude | number | angle | rad | scalar |  |  |  |
 | `diagnostics.solar-azimuth` | Solar Azimuth | number | angle | rad | scalar |  |  |  |
-| `diagnostics.state-of-charge` | State Of Charge | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.surface-type` | Surface Type | number | dimensionless | count | fixed:4 | FL, FR, RL, RR |  |  |
 | `diagnostics.telemetry.disk-file` | Telemetry Disk File | string | dimensionless | text | scalar |  |  |  |
 | `diagnostics.texture-reload-allowed` | Texture reload allowed | boolean | dimensionless | boolean | scalar |  |  |  |
@@ -179,18 +182,21 @@
 | `engine.engine-warnings` | Engine Warnings | number | unit:irsdk_enginewarnings | irsdk_EngineWarnings | scalar |  |  |  |
 | `engine.engine0-rpm` | Engine0 RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
 | `engine.exhaust-temp-c` | Exhaust Temp C | number | temperature | °C | scalar |  |  |  |
+| `engine.ignition-starter` | Ignition Starter | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2 |  |
 | `engine.manifold-press` | Manifold Press | number | mass × length^-1 × time^-2 | bar | scalar |  |  |  |
 | `engine.manual-boost` | Manual Boost | boolean | dimensionless | boolean | scalar |  |  |  |
 | `engine.manual-no-boost` | Manual No Boost | boolean | dimensionless | boolean | scalar |  |  |  |
 | `engine.oil-level` | Oil Level | number | length^3 | L | scalar |  |  |  |
 | `engine.oil-pressure` | Oil pressure | number | mass × length^-1 × time^-2 | bar | scalar |  |  |  |
 | `engine.oil-temperature` | Oil temperature | number | temperature | °C | scalar |  |  |  |
+| `engine.overheating` | Overheating | boolean | dimensionless | boolean | scalar |  |  |  |
 | `engine.player-car-power-adjust` | Player Car Power Adjust | number | dimensionless | % | scalar |  |  |  |
 | `engine.player-car-sl-blink-rpm` | Player Car SL Blink RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
 | `engine.player-car-sl-first-rpm` | Player Car SL First RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
 | `engine.player-car-sl-last-rpm` | Player Car SL Last RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
 | `engine.player-car-sl-shift-rpm` | Player Car SL Shift RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
 | `engine.power` | Power | number | mass × length^2 × time^-3 | W | scalar |  |  |  |
+| `engine.rpm` | Engine RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
 | `engine.shift-indicator-pct` | Shift Indicator Pct | number | dimensionless | % | scalar |  |  |  |
 | `engine.shift-light.blink-rpm` | Shift-light blink RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
 | `engine.shift-light.first-rpm` | Shift-light first RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
@@ -201,7 +207,8 @@
 | `engine.turbo-boost` | Turbo Boost | number | dimensionless | count | scalar |  |  |  |
 | `engine.voltage` | Voltage | number | mass × length^2 × time^-3 × electric-current^-1 | V | scalar |  |  |  |
 | `engine.water-level` | Water Level | number | length^3 | L | scalar |  |  |  |
-| `fuel.battery-charge-fraction` | Battery Charge Fraction | number | dimensionless | ratio | scalar |  |  |  |
+| `engine.water-temperature` | Engine Water Temp | number | temperature | °C | scalar |  |  |  |
+| `fuel.battery-charge-fraction` | Battery Charge Fraction | number | dimensionless | fraction | scalar |  |  |  |
 | `fuel.density` | Fuel density | number | unit:kg/l | kg/L | scalar |  |  |  |
 | `fuel.dp-fuel-add-kg` | Dp Fuel Add Kg | number | mass | kg | scalar |  |  |  |
 | `fuel.dp-fuel-auto-fill-active` | Dp Fuel Auto Fill Active | number | length^3 | L | scalar |  |  |  |
@@ -224,7 +231,13 @@
 | `fuel.laps-remaining` | Fuel laps remaining | number | dimensionless | count | scalar |  |  |  |
 | `fuel.maximum-fill-percentage` | Maximum fuel fill percentage | number | dimensionless | % | scalar |  |  |  |
 | `fuel.remaining-volume` | Fuel remaining volume | number | length^3 | L | scalar |  |  |  |
-| `fuel.virtual-energy` | Virtual Energy | number | mass × length^2 × time^-2 | J | scalar |  |  |  |
+| `fuel.state-of-charge` | State Of Charge | number | dimensionless | % | scalar |  |  |  |
+| `fuel.virtual-energy` | Virtual Energy | number | dimensionless | fraction | scalar |  |  |  |
+| `hybrid.motor.rpm` | Motor RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
+| `hybrid.motor.state` | Motor State | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2, 3 |  |
+| `hybrid.motor.temperature` | Motor Temperature | number | temperature | °C | scalar |  |  |  |
+| `hybrid.motor.torque` | Motor Torque | number | unit:n·m | N·m | scalar |  |  |  |
+| `hybrid.motor.water-temperature` | Motor Water Temperature | number | temperature | °C | scalar |  |  |  |
 | `identity.camera-focus-car-index` | Camera focus car index | number | dimensionless | index | scalar |  |  |  |
 | `identity.car-class` | Car Class | number | dimensionless | id | scalar |  |  |  |
 | `identity.car-class-name` | Car Class Name | string | dimensionless | text | scalar |  |  |  |
@@ -397,12 +410,16 @@
 | `race.competitor.team-name` | Competitor team name | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
 | `race.competitor.track-location` | Competitor track location | structured | unit:enum | enum | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.track-surface-material` | Competitor track-surface material | structured | unit:enum | enum | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
+| `race.control` | Control | enum | unit:enum | enum | scalar |  | domain: -1, 0, 1, 2, 3 |  |
+| `race.count-lap-flag` | Count Lap Flag | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2 |  |
 | `race.driver-change-lap-status` | Driver-change lap status | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2, 3 |  |
 | `race.driver-incident-count` | Current-driver incident count | number | dimensionless | count | scalar |  |  |  |
 | `race.driver-marker` | Driver Marker | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.driver-status` | Driver Status | number | dimensionless | count | scalar |  |  |  |
 | `race.extended-race-iq` | Extended Race IQ | number | unit:unitless | unitless | scalar |  |  |  |
+| `race.finish-status` | Finish Status | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2, 3 |  |
 | `race.flag-status` | Flag Status | string | dimensionless | text | scalar |  |  |  |
+| `race.in-garage-stall` | In Garage Stall | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.incident-flags` | Player incident flags | number | dimensionless | flags | scalar |  |  |  |
 | `race.is-online` | Is Online | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.is-race-on` | Is Race On | boolean | dimensionless | boolean | scalar |  |  |  |
@@ -412,6 +429,7 @@
 | `race.pace-car-index` | Pace-car index | number | dimensionless | index | scalar |  |  |  |
 | `race.penalties` | Penalties | number | dimensionless | count | scalar |  |  |  |
 | `race.penalty-code` | Penalty | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22 |  |
+| `race.penalty-count` | Penalty Count | number | dimensionless | count | scalar |  |  |  |
 | `race.penalty-time` | Penalty Time | number | time | s | scalar |  |  |  |
 | `race.penalty-type` | Penalty Type | string | dimensionless | text | scalar |  |  |  |
 | `race.pit-lane-timer-active` | Pit Lane Timer Active | number | time | s | scalar |  |  |  |
@@ -426,6 +444,7 @@
 | `race.pit-stall-lap-fraction` | Pit-stall lap fraction | number | dimensionless | fraction | scalar |  |  |  |
 | `race.pit-state` | Pit State | number | dimensionless | count | scalar |  |  |  |
 | `race.pit-status` | Pit Status | string | dimensionless | text | scalar |  |  |  |
+| `race.pit-stop-count` | Pit Stop Count | number | dimensionless | count | scalar |  |  |  |
 | `race.pits-open` | Pits Open | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.pitstop-active` | Pitstop Active | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.player-car-in-pit-stall` | Player Car In Pit Stall | boolean | dimensionless | boolean | scalar |  |  |  |
@@ -434,6 +453,7 @@
 | `race.player-incident-count` | Player incident count | number | dimensionless | count | scalar |  |  |  |
 | `race.player.push-to-pass-active` | Player push-to-pass active | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.player.push-to-pass-count` | Player push-to-pass count | number | dimensionless | count | scalar |  |  |  |
+| `race.primary-flag` | Primary Flag | enum | unit:enum | enum | scalar |  | domain: 0, 6 |  |
 | `race.race-laps` | Race Laps | number | dimensionless | count | scalar |  |  |  |
 | `race.race-position` | Race Position | number | dimensionless | count | scalar |  |  |  |
 | `race.race-start-at` | Race Start At | number | dimensionless | count | scalar |  |  |  |
@@ -441,12 +461,16 @@
 | `race.result-status` | Result Status | number | dimensionless | count | scalar |  |  |  |
 | `race.safety-car-status` | Safety Car Status | number | dimensionless | count | scalar |  |  |  |
 | `race.safety-car-status-updated-at` | Safety Car Status Updated At | number | dimensionless | count | scalar |  |  |  |
+| `race.scheduled-stops` | Scheduled Stops | number | dimensionless | count | scalar |  |  |  |
+| `race.sector-flags` | Sector Flags | structured | dimensionless | code | variable:0-* | source-path:source-order | indices: source-path (variable:0-*, source-order); fields: value:number |  |
 | `race.session-summary.caution-flags` | Results Num Caution Flags | structured | dimensionless | count | variable:0-* | session-index:source-order | indices: session-index (variable:0-*, source-order); fields: value:number |  |
 | `race.session-summary.caution-laps` | Results Num Caution Laps | structured | dimensionless | count | variable:0-* | session-index:source-order | indices: session-index (variable:0-*, source-order); fields: value:number |  |
 | `race.session-summary.laps-complete` | Results Laps Complete | structured | dimensionless | count | variable:0-* | session-index:source-order | indices: session-index (variable:0-*, source-order); fields: value:number |  |
 | `race.session-summary.lead-changes` | Results Num Lead Changes | structured | dimensionless | count | variable:0-* | session-index:source-order | indices: session-index (variable:0-*, source-order); fields: value:number |  |
 | `race.session-summary.official` | Results Official | structured | dimensionless | boolean | variable:0-* | session-index:source-order | indices: session-index (variable:0-*, source-order); fields: value:boolean |  |
 | `race.team-incident-count` | Team incident count | number | dimensionless | count | scalar |  |  |  |
+| `race.under-yellow` | Under Yellow | boolean | dimensionless | boolean | scalar |  |  |  |
+| `race.yellow-flag-state` | Yellow Flag State | enum | unit:enum | enum | scalar |  | domain: -1, 0, 1, 2, 3, 4, 5, 6, 7 |  |
 | `session.car-class-count` | Num Car Classes | number | dimensionless | count | scalar |  |  |  |
 | `session.car-type-count` | Num Car Types | number | dimensionless | count | scalar |  |  |  |
 | `session.category` | Category | string | dimensionless | text | scalar |  |  |  |
@@ -474,6 +498,7 @@
 | `session.driver-change-rule-set` | DC Rule Set | string | dimensionless | text | scalar |  |  |  |
 | `session.driver-change.drivers-used` | Team drivers used | number | dimensionless | count | scalar |  |  |  |
 | `session.event-type` | Event Type | string | dimensionless | text | scalar |  |  |  |
+| `session.game-phase` | Game Phase | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 |  |
 | `session.graphics-packet-id` | Graphics Packet Id | number | dimensionless | count | scalar |  |  |  |
 | `session.heat-racing` | Heat Racing | boolean | dimensionless | boolean | scalar |  |  |  |
 | `session.is-replay-playing` | Is Replay Playing | boolean | dimensionless | boolean | scalar |  |  |  |
@@ -593,6 +618,7 @@
 | `setup.weight.corner-weight` | Corner weight | number | mass × length × time^-2 | N | fixed:4 | FL, FR, RL, RR |  |  |
 | `setup.weight.cross-weight` | Cross weight | number | dimensionless | % | scalar |  |  |  |
 | `setup.weight.front-distribution` | Front weight distribution | number | dimensionless | % | scalar |  |  |  |
+| `steering.shaft-torque` | Steering Shaft Torque | number | unit:n·m | N·m | scalar |  |  |  |
 | `suspension.cg-height` | Center-of-gravity height | number | length | m | scalar |  |  |  |
 | `suspension.norm-suspension-travel` | Norm Suspension Travel | number | dimensionless | ratio | fixed:4 | FL, FR, RL, RR |  |  |
 | `suspension.ride-height` | Live ride height | number | length | m | variable:0-* | source-order |  |  |
@@ -631,6 +657,10 @@
 | `timing.frame-time-ms` | Frame Time Ms | number | time | ms | scalar |  |  |  |
 | `timing.gap-ahead-ms` | Gap Ahead Ms | number | time | s | scalar |  |  |  |
 | `timing.gap-behind-ms` | Gap Behind Ms | number | time | s | scalar |  |  |  |
+| `timing.gap.car-ahead` | Time Gap Car Ahead | number | time | s | scalar |  |  |  |
+| `timing.gap.car-behind` | Time Gap Car Behind | number | time | s | scalar |  |  |  |
+| `timing.gap.place-ahead` | Time Gap Place Ahead | number | time | s | scalar |  |  |  |
+| `timing.gap.place-behind` | Time Gap Place Behind | number | time | s | scalar |  |  |  |
 | `timing.grid-position` | Grid Position | number | dimensionless | count | scalar |  |  |  |
 | `timing.ideal-lap-time` | Ideal lap time | string | time | s | scalar |  |  |  |
 | `timing.lap-delta-to-best-lap` | Lap Delta To Best Lap | number | time | s | scalar |  |  |  |
@@ -773,6 +803,9 @@
 | `weather.air-density` | Air Density | number | mass × length^-3 | kg/m^3 | scalar |  |  |  |
 | `weather.air-pressure` | Current air pressure | number | mass × length^-1 × time^-2 | kPa | scalar |  |  |  |
 | `weather.air-temp` | Air Temp | number | temperature | °C | scalar |  |  |  |
+| `weather.average-path-wetness` | Average Path Wetness | number | dimensionless | fraction | scalar |  |  |  |
+| `weather.cloud-coverage` | Cloud Coverage | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 |  |
+| `weather.cloud-darkness` | Dark Cloud | number | dimensionless | fraction | scalar |  |  |  |
 | `weather.configured.fog-level` | Configured fog level | number | dimensionless | % | scalar |  |  |  |
 | `weather.configured.relative-humidity` | Configured relative humidity | number | dimensionless | % | scalar |  |  |  |
 | `weather.configured.skies` | Configured skies | string | dimensionless | text | scalar |  |  |  |
@@ -783,7 +816,9 @@
 | `weather.dynamic-track-mode` | Dynamic track mode | string | dimensionless | text | scalar |  |  |  |
 | `weather.fog-level` | Current fog level | number | dimensionless | % | scalar |  |  |  |
 | `weather.is-static-weather` | Is Static Weather | boolean | dimensionless | boolean | scalar |  |  |  |
-| `weather.rain-intensity` | Rain Intensity | number | dimensionless | count | scalar |  |  |  |
+| `weather.maximum-path-wetness` | Maximum Path Wetness | number | dimensionless | fraction | scalar |  |  |  |
+| `weather.minimum-path-wetness` | Minimum Path Wetness | number | dimensionless | fraction | scalar |  |  |  |
+| `weather.rain-intensity` | Rain intensity | number | dimensionless | fraction | scalar |  |  |  |
 | `weather.rain-percent` | Rain Percent | number | dimensionless | % | scalar |  |  |  |
 | `weather.relative-humidity` | Current relative humidity | number | dimensionless | % | scalar |  |  |  |
 | `weather.skies` | Current skies | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2, 3, clear, partly cloudy, mostly cloudy, overcast |  |
@@ -797,6 +832,7 @@
 | `weather.track-wetness` | Track Wetness | number | dimensionless | count | scalar |  |  |  |
 | `weather.weather-declared-wet` | Weather Declared Wet | boolean | dimensionless | boolean | scalar |  |  |  |
 | `weather.weather-type` | Current weather type | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2, 3, 4, 5, constant, dynamic |  |
+| `weather.wind` | Wind | structured | length × time^-1 | m/s | variable:0-* | source-path:source-order | indices: source-path (variable:0-*, source-order); fields: value:number |  |
 | `weather.wind-dir` | Wind Dir | number | angle | rad | scalar |  |  |  |
 | `weather.wind-direction` | Current wind direction | number | angle | deg | scalar |  |  |  |
 | `weather.wind-speed` | Current wind speed | number | length × time^-1 | m/s | scalar |  |  |  |

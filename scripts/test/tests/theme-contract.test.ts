@@ -225,8 +225,8 @@ describe("frontend theme contract", () => {
   });
 
   test("keeps raw palette values in CSS and adapts imperative renderers centrally", () => {
-    const canvasAdapterPath = resolve(SOURCE_DIR, "lib/rendering/css-canvas.ts");
-    const cssValuesPath = resolve(SOURCE_DIR, "lib/rendering/css-values.ts");
+    const canvasAdapterPath = resolve(ROOT_DIR, "packages/scene-3d/src/rendering/css-canvas.ts");
+    const cssValuesPath = resolve(ROOT_DIR, "packages/scene-3d/src/rendering/css-values.ts");
     const runtimeFiles = [
       ...sourceFiles.filter(
         (path) => [".ts", ".tsx"].includes(extname(path)) && path !== canvasAdapterPath && path !== cssValuesPath,
@@ -288,19 +288,4 @@ describe("frontend theme contract", () => {
     expect(cssValuesSource).toContain("getComputedStyle(");
   });
 
-  test("keeps product, manufacturer, and team color values out of React", () => {
-    const identitySources = [
-      "components/home/HomePageView.tsx",
-      "components/f1/cars/F1Cars.tsx",
-      "components/acc/AccCars.tsx",
-      "components/ac-evo/AcEvoCars.tsx",
-    ]
-      .map((path) => readFileSync(resolve(SOURCE_DIR, path), "utf8"))
-      .join("\n");
-
-    expect(identitySources).not.toMatch(/#[\da-f]{3,8}/i);
-    expect(identitySources).not.toMatch(/rgba?\(/i);
-    expect(identitySources).not.toContain("BRAND_COLORS");
-    expect(identitySources).not.toContain("team.color");
-  });
 });

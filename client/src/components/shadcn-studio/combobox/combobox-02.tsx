@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import {
   Combobox,
   ComboboxCollection,
@@ -33,6 +33,7 @@ export interface Combobox02Props {
   disabled?: boolean;
   className?: string;
   fallbackLabel?: string;
+  popupHeader?: ReactNode;
 }
 
 interface OptionGroup {
@@ -64,6 +65,7 @@ export function Combobox02({
   disabled = false,
   className = "w-full max-w-xs",
   fallbackLabel,
+  popupHeader,
 }: Combobox02Props) {
   const [open, setOpen] = useState(false);
   const optionsWithFallback = useMemo(() => {
@@ -83,7 +85,10 @@ export function Combobox02({
       value={selectedOption}
       disabled={disabled}
       onValueChange={(option) => {
-        if (option && "value" in option && !("items" in option)) onChange(option.value);
+        if (option && "value" in option && !("items" in option)) {
+          onChange(option.value);
+          setOpen(false);
+        }
       }}
     >
       <ComboboxInput
@@ -107,6 +112,7 @@ export function Combobox02({
         </button>
       </ComboboxInput>
       <ComboboxContent className="border border-app-border-input bg-app-surface-alt text-app-text shadow-lg">
+        {popupHeader && <div className="border-b border-app-border-input p-2">{popupHeader}</div>}
         <ComboboxEmpty>{m.common_no_results()}</ComboboxEmpty>
         <ComboboxList aria-label={placeholder}>
           {(group) => (

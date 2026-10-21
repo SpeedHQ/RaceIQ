@@ -17,7 +17,7 @@ import { getTrackOutlineByOrdinal } from "@raceiq/game-catalogs/racing/tracks/re
 import { registerDiscoveredTrack } from "@raceiq/backend-core/db/discovered-tracks";
 import { db } from "@raceiq/backend-core/db/index";
 import { discoveredTracks } from "@raceiq/backend-core/db/schema";
-import { trackRoutes } from "../../../src/routes/tracks/index";
+import { trackRoutes } from "@raceiq/tracks-catalogue/server"
 
 const FUTURE_TRACK_ID = "future-test-circuit";
 

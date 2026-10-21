@@ -1,11 +1,12 @@
 import { getGame } from "@raceiq/shared/games/registry"
 import { getFuelDisplaySemantic, WATTS_PER_HORSEPOWER } from "@raceiq/shared/games/telemetry"
 import type { GameId } from "@raceiq/shared/games/ids";
-import { semanticNumber, type SemanticAnalysisFrame } from "./track-map/types";
+import { semanticNumber, type SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import { useUnits } from "../../hooks/useUnits";
 import { getSteeringLock } from "@/lib/settings-storage";
-import { operatingRangeColor, severityRangeColor } from "../../lib/colors";
+import { operatingRangeColor, severityRangeColor } from "@raceiq/scene-3d/colors";
 import { m } from "../../paraglide/messages";
+import { LmuPlayerData } from "../lmu/LmuPlayerData";
 
 
 export function MetricsPanel({ frame, startFuel, gameId }: { frame: SemanticAnalysisFrame; startFuel?: number; gameId: GameId }) {
@@ -27,6 +28,7 @@ export function MetricsPanel({ frame, startFuel, gameId }: { frame: SemanticAnal
   const fuelUsed = startFuel != null && fuel != null ? getFuelDisplaySemantic(startFuel - fuel, capacity, telemetry.fuel) : null;
   const value = (n: number | null) => (n == null ? "—" : `${n.toFixed(0)}`);
   return (
+    <>
     <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs font-mono">
       <MetricRow label={m.dataguide_speed()} value={speed == null ? "—" : `${speed.toFixed(0)} ${units.speedLabel}`} />
       <MetricRow label={m.dataguide_rpm()} value={value(rpm)} />
@@ -47,6 +49,15 @@ export function MetricsPanel({ frame, startFuel, gameId }: { frame: SemanticAnal
         </span>
       </div>
     </div>
+    {gameId === "lmu" && <LmuPlayerData
+      values={frame.values}
+      units={frame.units ?? {}}
+      states={frame.states}
+      freshness={frame.freshness}
+      context={frame.lmu}
+      referenceTime={frame.observedAt}
+    />}
+    </>
   );
 }
 

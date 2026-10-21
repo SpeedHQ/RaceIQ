@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { syncCanvasSize } from "../../lib/rendering/canvas-size";
-import { getSemanticCanvasContext } from "../../lib/rendering/css-canvas";
+import { getSemanticCanvasContext } from "@raceiq/scene-3d/rendering/css-canvas";
 
 const TELEMETRY_GAP_SECONDS = 0.1;
 const TELEMETRY_GAP_TOLERANCE_SECONDS = 0.001;

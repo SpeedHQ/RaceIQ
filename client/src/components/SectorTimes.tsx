@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { lapPaceColor, SECTOR_COLOR_VARS } from "@/lib/colors";
+import { lapPaceColor, SECTOR_COLOR_VARS } from "@raceiq/scene-3d/colors";
 import { formatLapTime } from "@/lib/format";
 import { getSoundEnabled } from "@/lib/settings-storage";
 import { playBlip } from "@/lib/sound";

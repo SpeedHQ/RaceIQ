@@ -2,8 +2,8 @@ import { getGame } from "@raceiq/shared/games/registry"
 import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities"
 import type { GameId } from "@raceiq/shared/games/ids";
 import { forwardRef, memo, useCallback, useImperativeHandle, useMemo, useRef } from "react";
-import { WHEEL_COLOR_VARS } from "@/lib/colors";
-import type { SemanticAnalysisFrame } from "./track-map/types";
+import { WHEEL_COLOR_VARS } from "@raceiq/scene-3d/colors";
+import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import { m } from "../../paraglide/messages";
 import { TelemetryChart } from "./AnalyseTelemetryChart";
 import { useUnits } from "../../hooks/useUnits";

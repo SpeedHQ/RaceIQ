@@ -406,6 +406,8 @@ When creating or updating a pull request:
 
 ### Pull Request Changelog
 
+Read and follow the [update-release-notes skill](.agents/skills/update-release-notes/SKILL.md) before writing or updating PR changelog entries.
+
 Classify each change before editing `CHANGELOG.md`:
 - **Customer-facing behavior** — add concise user-facing bullet under `## Unreleased` in `### Breaking`, `### Features`, or `### Fixes`.
 - **Internal-only CI, tooling, maintenance, tests, or developer workflow** — add concise note under `## Unreleased` → `### Internal`, not under customer-facing sections.

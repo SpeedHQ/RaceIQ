@@ -254,7 +254,7 @@ export const telemetryStore = createStore(initialTelemetryState, (store): Teleme
     store.setState((prev) => ({
       ...prev,
       telemetryFrame,
-      telemetryView: prev.telemetrySchema ? (buildLiveTelemetryView(prev.telemetrySchema, telemetryFrame) ?? prev.telemetryView) : prev.telemetryView,
+      telemetryView: prev.telemetrySchema ? (buildLiveTelemetryView(prev.telemetrySchema, telemetryFrame) ?? null) : null,
       sectors: telemetryFrame.context.sectors ?? null,
       pit: telemetryFrame.context.pit ?? null,
       liveIssues: [...(telemetryFrame.context.liveIssues ?? [])],

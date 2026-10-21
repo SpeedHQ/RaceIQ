@@ -3,6 +3,7 @@ import { KNOWN_GAME_IDS } from "@raceiq/shared/games/ids";
 import { TELEMETRY_CATALOG } from "@raceiq/shared/telemetry/catalog/data";
 import { compileTelemetryResolver } from "@raceiq/telemetry-core/telemetry/resolver/compile";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { lmuSourceTimestamp } from "@raceiq/shared/telemetry/lmu-source-time";
 import { packet } from "../../support-resolver";
 
 describe("compiled telemetry resolver native sources", () => {
@@ -182,4 +183,36 @@ describe("compiled telemetry resolver native sources", () => {
     expect(frame.readValue<readonly number[]>(resolver.slot("timing.competitor.gap-to-leader"))).toEqual([0, 1.5]);
     expect(frame.readValue<readonly number[]>(resolver.slot("timing.sector.competitor-last.s1"))).toEqual([31.2, 32.4]);
   });
+  test("uses scoring time only for scoring-backed source channels and advances unchanged values on new scoring time", () => {
+    type NativeFrame = { packet: TelemetryPacket };
+    const resolver = compileTelemetryResolver<NativeFrame>(TELEMETRY_CATALOG, {
+      simulator: "lmu",
+      requested: [{ semanticId: "weather.rain-intensity" }, { semanticId: "engine.rpm" }],
+    });
+    const weatherSlot = resolver.slot("weather.rain-intensity");
+    const engineSlot = resolver.slot("engine.rpm");
+    const native: NativeFrame = {
+      packet: packet("lmu", {
+        lmu: { telemetryElapsedTime: 10, scoringElapsedTime: 10, rainIntensity: 0, engineRpm: 9_000 } as never,
+      }),
+    };
+    const first = resolver.createFrameView(native, { timestamp: { domain: "session", milliseconds: 10_000 }, updateSequence: 5n }, undefined, lmuSourceTimestamp);
+    const firstWeather = first.resolveNumber(weatherSlot).provenance.sourceObservation;
+    expect(firstWeather).toEqual({ timestamp: { domain: "session", milliseconds: 10_000 }, updateSequence: 5n });
+
+    native.packet = packet("lmu", {
+      lmu: { telemetryElapsedTime: 10.5, scoringElapsedTime: 10, rainIntensity: 0, engineRpm: 9_000 } as never,
+    });
+    const frozenScoring = resolver.createFrameView(native, { timestamp: { domain: "session", milliseconds: 10_500 }, updateSequence: 6n }, first, lmuSourceTimestamp);
+    expect(frozenScoring.resolveNumber(weatherSlot).provenance.sourceObservation).toBe(firstWeather);
+    expect(frozenScoring.resolveNumber(engineSlot).provenance.sourceObservation).toEqual({ timestamp: { domain: "session", milliseconds: 10_500 }, updateSequence: 6n });
+    expect(frozenScoring.resolveNumber(weatherSlot).value).toBe(0);
+
+    native.packet = packet("lmu", {
+      lmu: { telemetryElapsedTime: 11, scoringElapsedTime: 11, rainIntensity: 0, engineRpm: 9_000 } as never,
+    });
+    const advancedScoring = resolver.createFrameView(native, { timestamp: { domain: "session", milliseconds: 11_000 }, updateSequence: 7n }, frozenScoring, lmuSourceTimestamp);
+    expect(advancedScoring.resolveNumber(weatherSlot).provenance.sourceObservation).toEqual({ timestamp: { domain: "session", milliseconds: 11_000 }, updateSequence: 7n });
+  });
+
 });

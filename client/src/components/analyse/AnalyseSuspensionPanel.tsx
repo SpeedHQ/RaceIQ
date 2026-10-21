@@ -3,9 +3,9 @@ import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemet
 import { resolveWheelMetric } from "@raceiq/analysis-core/racing/analysis/metric-values";
 import { suspensionCompressionBias } from "@raceiq/analysis-core/racing/analysis/laps/physics/vehicle";
 import { Info } from "lucide-react";
-import { operatingRangeColor } from "../../lib/colors";
+import { operatingRangeColor } from "@raceiq/scene-3d/colors";
 import { m } from "../../paraglide/messages";
-import type { SemanticAnalysisFrame } from "./track-map/types";
+import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import { WheelTable } from "./WheelTable";
 
 interface Props {

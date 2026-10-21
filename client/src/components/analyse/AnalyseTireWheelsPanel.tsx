@@ -4,11 +4,11 @@ import { resolveWheelMetric } from "@raceiq/analysis-core/racing/analysis/metric
 import type { GameId } from "@raceiq/shared/games/ids";
 import { useTirePressureOptimal } from "../../hooks/catalog-queries";
 import type { useUnits } from "../../hooks/useUnits";
-import { brakeTempColor, tireHealthColor, tirePressureColor, tireTempColor, wearRateColor } from "../../lib/vehicle-dynamics";
+import { brakeTempColor, tireHealthColor, tirePressureColor, tireTempColor, wearRateColor } from "@raceiq/scene-3d/vehicle-dynamics";
 import { m } from "../../paraglide/messages";
 import { WheelTable } from "./WheelTable";
-import { semanticWheelNumbers, type SemanticAnalysisFrame } from "./track-map/types";
-import { hasSurfaceTemperatureProfile } from "./tire-temperature-profile";
+import { semanticWheelNumbers, type SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
+import { hasSurfaceTemperatureProfile } from "@raceiq/scene-3d/tire-temperature-profile"
 interface WearRate {
   FL: number;
   FR: number;

@@ -28,8 +28,7 @@ jobs:
       github.event.workflow_run.event == 'pull_request' ||
       github.event.workflow_run.event == 'workflow_call'
     runs-on:
-      - mars-macos-arm64-2vcpu-10g
-      - mars-ubuntu-2vcpu-10g
+      - mars-ubuntu-2vcpu-6g
       - mars-retry-3
     permissions:
       contents: write

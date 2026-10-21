@@ -6,7 +6,7 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.20.0",
-      "sourceHash": "fb7491d9e14283715f01bb02aa1e44e5a53c121ef63d537c5d3ea3e61dadd073"
+      "sourceHash": "eb906c80e364654832725bf35a0341a4450961000417a1ee6ac47d6f05d21d12"
     },
     "sourceHashes": {
       "packages/game-ac-evo/src/parser.ts": "29cb3985fe32c797554d98f107a0c4d76ddcc5279d97e75423365e1a0887f5de",
@@ -15,12 +15,12 @@
       "packages/game-fm-2023/src/parser.ts": "71c348b894f84f6086c9582d0cce473bac75a3c85896010a0e5762854718b835",
       "packages/game-iracing-metadata/src/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "packages/game-iracing/src/normalizer.ts": "bcc73bc4805a310f968b9743e6c9c88a688e3216cd28eecc3ee9f6c3d36b0afc",
-      "packages/game-lmu/src/normalizer.ts": "1c2d9c9bd1a9b1bdae8f587f009ee6d087dcddf821c7ce56c14a4301bc4789e9",
+      "packages/game-lmu/src/normalizer.ts": "bf9b11b3a767535886e530e383ea9f744975ab604fbdc13c2723a4d5a7a3da85",
       "packages/tooling-catalog/src/catalog/derived-projections.ts": "b81b4ebdaeb86a88a289d245946b3e9f32cf104970d11532ac517fb219e0eff7",
       "server/session-capture/frame-time.ts": "55c44a6cede5e2c5fb1e1c45568fe44b4a9a8b156f260f69bb5d89f9c24935a2",
       "shared/racing/setups/schema.ts": "987941bb8f38520920686ef540e67ce2259fdc962de03ccb959f6b5ef773b28f"
     },
-    "contentHash": "7ad3d47913bf88ac5f1b28ba00569965f03eb9ea6496b39b396a957cd1629558"
+    "contentHash": "57fd86ccffc2e72f50fafb9da6c346df151da0895bccfb003a3f2d70321d0bd1"
   },
   "generatedFrom": [
     "packages/tooling-catalog/src/root.ts",
@@ -144,7 +144,6 @@
         "diagnostics.chan-latency",
         "diagnostics.chan-partner-quality",
         "diagnostics.chan-quality",
-        "diagnostics.cloud-coverage",
         "diagnostics.corner-cutting-warnings",
         "diagnostics.cpu-usage-bg",
         "diagnostics.cpu-usage-fg",
@@ -168,6 +167,7 @@
         "diagnostics.is-garage-visible",
         "diagnostics.last-sector1",
         "diagnostics.last-sector2",
+        "diagnostics.lmu-context",
         "diagnostics.mem-page-fault-sec",
         "diagnostics.mem-soft-page-fault-sec",
         "diagnostics.migration",
@@ -186,7 +186,6 @@
         "diagnostics.sim-build-version",
         "diagnostics.solar-altitude",
         "diagnostics.solar-azimuth",
-        "diagnostics.state-of-charge",
         "diagnostics.surface-type",
         "diagnostics.telemetry.disk-file",
         "diagnostics.texture-reload-allowed",
@@ -200,6 +199,21 @@
         "diagnostics.vehicle-id",
         "diagnostics.vid-cap-active",
         "diagnostics.vid-cap-enabled",
+        "engine.ignition-starter",
+        "engine.overheating",
+        "fuel.state-of-charge",
+        "hybrid.motor.state",
+        "hybrid.motor.temperature",
+        "race.control",
+        "race.in-garage-stall",
+        "race.scheduled-stops",
+        "race.under-yellow",
+        "session.game-phase",
+        "weather.average-path-wetness",
+        "weather.cloud-coverage",
+        "weather.cloud-darkness",
+        "weather.maximum-path-wetness",
+        "weather.minimum-path-wetness",
         "diagnostics.camera",
         "diagnostics.radio"
       ]
@@ -273,6 +287,7 @@
       "label": "Engine",
       "description": "Engine speed, output, temperature, and health values.",
       "children": [
+        "control.throttle",
         "engine.boost",
         "engine.coolant-temperature",
         "engine.current-engine-rpm",
@@ -299,12 +314,17 @@
         "engine.player-car-sl-last-rpm",
         "engine.player-car-sl-shift-rpm",
         "engine.power",
+        "engine.rpm",
         "engine.shift-indicator-pct",
         "engine.shift-power-pct",
         "engine.torque",
         "engine.turbo-boost",
         "engine.voltage",
         "engine.water-level",
+        "engine.water-temperature",
+        "hybrid.motor.rpm",
+        "hybrid.motor.torque",
+        "hybrid.motor.water-temperature",
         "engine.shift-light"
       ]
     },
@@ -415,6 +435,9 @@
       "label": "Driver inputs",
       "description": "Driver control inputs and requested control positions.",
       "children": [
+        "control.brake",
+        "control.clutch",
+        "control.steering",
         "inputs.accel",
         "inputs.brake",
         "inputs.brake-raw",
@@ -449,7 +472,8 @@
         "inputs.steering-wheel-torque-st",
         "inputs.steering-wheel-use-linear",
         "inputs.suggested-gear",
-        "inputs.throttle-raw"
+        "inputs.throttle-raw",
+        "steering.shaft-torque"
       ]
     },
     {
@@ -520,6 +544,7 @@
         "race.driver-marker",
         "race.driver-status",
         "race.extended-race-iq",
+        "race.finish-status",
         "race.flag-status",
         "race.incident-flags",
         "race.is-online",
@@ -530,12 +555,14 @@
         "race.pace-car-index",
         "race.penalties",
         "race.penalty-code",
+        "race.penalty-count",
         "race.penalty-type",
         "race.pit-lane-timer-active",
         "race.pit-speed-limit",
         "race.pit-stall-lap-fraction",
         "race.pit-state",
         "race.pit-status",
+        "race.pit-stop-count",
         "race.pits-open",
         "race.pitstop-active",
         "race.player-car-in-pit-stall",
@@ -544,6 +571,7 @@
         "race.player-incident-count",
         "race.player.push-to-pass-active",
         "race.player.push-to-pass-count",
+        "race.primary-flag",
         "race.race-laps",
         "race.race-position",
         "race.race-start-at",
@@ -557,6 +585,7 @@
         "race.session-summary.lead-changes",
         "race.session-summary.official",
         "race.team-incident-count",
+        "race.yellow-flag-state",
         "race.competitor",
         "race.pit-service"
       ]
@@ -990,7 +1019,9 @@
       "label": "Timing",
       "description": "Lap, sector, delta, and race-timing values.",
       "children": [
+        "race.count-lap-flag",
         "race.penalty-time",
+        "race.sector-flags",
         "timing.best-lap",
         "timing.best-lap-number",
         "timing.car-dist-ahead",
@@ -1011,6 +1042,10 @@
         "timing.frame-time-ms",
         "timing.gap-ahead-ms",
         "timing.gap-behind-ms",
+        "timing.gap.car-ahead",
+        "timing.gap.car-behind",
+        "timing.gap.place-ahead",
+        "timing.gap.place-behind",
         "timing.grid-position",
         "timing.ideal-lap-time",
         "timing.lap-delta-to-best-lap",
@@ -1275,6 +1310,7 @@
         "weather.track-temp-crew",
         "weather.weather-declared-wet",
         "weather.weather-type",
+        "weather.wind",
         "weather.wind-dir",
         "weather.wind-direction",
         "weather.wind-speed",
@@ -1376,7 +1412,7 @@
             "LMU.Telemetry.rearFlapActivated"
           ],
           "freshness": "continuous",
-          "normalization": "lmu.rearFlapActivated ? 1 : 0",
+          "normalization": "channelAvailable(\"RearFlapActivated\") ? telemetry.readUInt8(LMU_TELEMETRY.rearFlapActivated) !== 0 ? 1 : 0 : NaN",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -1391,8 +1427,8 @@
             "declaredInputs": [
               "LMU.Telemetry.rearFlapActivated"
             ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "9c3c47d069b25c19f4c236a706fa0971e121c039e3173bbb1525aacd8b49ad12"
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "cc00d7cf0283344e49011aded21b2ca6d8168497362f6766b1abb09d11e0e452"
           }
         }
       },
@@ -1946,7 +1982,7 @@
           "description": "iracing parser fills this value with a placeholder because source does not provide it."
         },
         "lmu": {
-          "kind": "direct",
+          "kind": "normalized",
           "nativeUnit": "°C",
           "sources": {
             "FL": [
@@ -1963,12 +1999,27 @@
             ]
           },
           "freshness": "continuous",
+          "normalization": "channelAvailable(\"Brakes Temp\") ? wheels.FL.brakeTemperatureC : NaN | channelAvailable(\"Brakes Temp\") ? wheels.FR.brakeTemperatureC : NaN | channelAvailable(\"Brakes Temp\") ? wheels.RL.brakeTemperatureC : NaN | channelAvailable(\"Brakes Temp\") ? wheels.RR.brakeTemperatureC : NaN",
           "description": "lmu maps 4 native source channels into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-lmu/src/normalizer.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "lmu:brakes.brake-temp:normalized",
+            "version": "0.20.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "LMU.Telemetry.wheels.FL.brakeTemperature",
+              "LMU.Telemetry.wheels.FR.brakeTemperature",
+              "LMU.Telemetry.wheels.RL.brakeTemperature",
+              "LMU.Telemetry.wheels.RR.brakeTemperature"
+            ],
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "2dd322d4f56ab45efe360cf4a3774a41ef50bc5cadd91f4ed6334d5b18652c5d"
+          }
         }
       },
       "valueType": "number",
@@ -2044,6 +2095,250 @@
       ],
       "cardinality": {
         "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "control.brake",
+      "label": "Brake input (fraction)",
+      "description": "Native brake input as a fraction, distinct from RaceIQ's 0–255 control scale.",
+      "parentId": "inputs",
+      "canonicalUnit": "fraction",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "fraction",
+          "sources": [
+            "lmu.brake"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "range": {
+        "min": 0,
+        "max": 1
+      },
+      "limitations": []
+    },
+    {
+      "id": "control.clutch",
+      "label": "Clutch input (fraction)",
+      "description": "Native clutch input as a fraction, distinct from RaceIQ's 0–255 control scale.",
+      "parentId": "inputs",
+      "canonicalUnit": "fraction",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "fraction",
+          "sources": [
+            "lmu.clutch"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "range": {
+        "min": 0,
+        "max": 1
+      },
+      "limitations": []
+    },
+    {
+      "id": "control.steering",
+      "label": "Steering",
+      "description": "LMU player steering input.",
+      "parentId": "inputs",
+      "canonicalUnit": "fraction",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "fraction",
+          "sources": [
+            "lmu.steering"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "range": {
+        "min": 0,
+        "max": 1
+      },
+      "limitations": []
+    },
+    {
+      "id": "control.throttle",
+      "label": "Throttle",
+      "description": "LMU player throttle input.",
+      "parentId": "engine",
+      "canonicalUnit": "fraction",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "fraction",
+          "sources": [
+            "lmu.throttle"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "range": {
+        "min": 0,
+        "max": 1
       },
       "limitations": []
     },
@@ -3599,9 +3894,9 @@
     {
       "id": "diagnostics.best-sector1",
       "label": "Best Sector1",
-      "description": "Best Sector1 source value reported by lmu in count.",
+      "description": "LMU best first-sector time.",
       "parentId": "diagnostics",
-      "canonicalUnit": "count",
+      "canonicalUnit": "s",
       "shape": "scalar",
       "games": {
         "fm-2023": {
@@ -3631,7 +3926,7 @@
         },
         "lmu": {
           "kind": "direct",
-          "nativeUnit": "count",
+          "nativeUnit": "s",
           "sources": [
             "lmu.bestSector1"
           ],
@@ -3646,7 +3941,7 @@
       },
       "valueType": "number",
       "dimensions": [
-        "dimensionless"
+        "time"
       ],
       "cardinality": {
         "kind": "scalar"
@@ -3656,9 +3951,9 @@
     {
       "id": "diagnostics.best-sector2",
       "label": "Best Sector2",
-      "description": "Best Sector2 source value reported by lmu in count.",
+      "description": "LMU best cumulative sectors 1–2 time.",
       "parentId": "diagnostics",
-      "canonicalUnit": "count",
+      "canonicalUnit": "s",
       "shape": "scalar",
       "games": {
         "fm-2023": {
@@ -3688,7 +3983,7 @@
         },
         "lmu": {
           "kind": "direct",
-          "nativeUnit": "count",
+          "nativeUnit": "s",
           "sources": [
             "lmu.bestSector2"
           ],
@@ -3703,7 +3998,7 @@
       },
       "valueType": "number",
       "dimensions": [
-        "dimensionless"
+        "time"
       ],
       "cardinality": {
         "kind": "scalar"
@@ -4694,63 +4989,6 @@
       "limitations": []
     },
     {
-      "id": "diagnostics.cloud-coverage",
-      "label": "Cloud Coverage",
-      "description": "Cloud Coverage source value reported by lmu in count.",
-      "parentId": "diagnostics",
-      "canonicalUnit": "count",
-      "shape": "scalar",
-      "games": {
-        "fm-2023": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "f1-2025": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "iracing": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "lmu": {
-          "kind": "direct",
-          "nativeUnit": "count",
-          "sources": [
-            "lmu.cloudCoverage"
-          ],
-          "freshness": "continuous",
-          "description": "lmu parser exposes 1 linked field.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "packages/game-lmu/src/normalizer.ts"
-          },
-          "limitations": []
-        }
-      },
-      "valueType": "number",
-      "dimensions": [
-        "dimensionless"
-      ],
-      "cardinality": {
-        "kind": "scalar"
-      },
-      "limitations": []
-    },
-    {
       "id": "diagnostics.corner-cutting-warnings",
       "label": "Corner Cutting Warnings",
       "description": "Corner Cutting Warnings source value reported by f1-2025 in count.",
@@ -4989,9 +5227,9 @@
     {
       "id": "diagnostics.current-sector1",
       "label": "Current Sector1",
-      "description": "Current Sector1 source value reported by lmu in count.",
+      "description": "LMU current first-sector time.",
       "parentId": "diagnostics",
-      "canonicalUnit": "count",
+      "canonicalUnit": "s",
       "shape": "scalar",
       "games": {
         "fm-2023": {
@@ -5021,7 +5259,7 @@
         },
         "lmu": {
           "kind": "direct",
-          "nativeUnit": "count",
+          "nativeUnit": "s",
           "sources": [
             "lmu.currentSector1"
           ],
@@ -5036,7 +5274,7 @@
       },
       "valueType": "number",
       "dimensions": [
-        "dimensionless"
+        "time"
       ],
       "cardinality": {
         "kind": "scalar"
@@ -5046,9 +5284,9 @@
     {
       "id": "diagnostics.current-sector2",
       "label": "Current Sector2",
-      "description": "Current Sector2 source value reported by lmu in count.",
+      "description": "LMU current cumulative sectors 1–2 time.",
       "parentId": "diagnostics",
-      "canonicalUnit": "count",
+      "canonicalUnit": "s",
       "shape": "scalar",
       "games": {
         "fm-2023": {
@@ -5078,7 +5316,7 @@
         },
         "lmu": {
           "kind": "direct",
-          "nativeUnit": "count",
+          "nativeUnit": "s",
           "sources": [
             "lmu.currentSector2"
           ],
@@ -5093,7 +5331,7 @@
       },
       "valueType": "number",
       "dimensions": [
-        "dimensionless"
+        "time"
       ],
       "cardinality": {
         "kind": "scalar"
@@ -5962,9 +6200,9 @@
     {
       "id": "diagnostics.last-sector1",
       "label": "Last Sector1",
-      "description": "Last Sector1 source value reported by lmu in count.",
+      "description": "LMU last first-sector time.",
       "parentId": "diagnostics",
-      "canonicalUnit": "count",
+      "canonicalUnit": "s",
       "shape": "scalar",
       "games": {
         "fm-2023": {
@@ -5994,7 +6232,7 @@
         },
         "lmu": {
           "kind": "direct",
-          "nativeUnit": "count",
+          "nativeUnit": "s",
           "sources": [
             "lmu.lastSector1"
           ],
@@ -6009,7 +6247,7 @@
       },
       "valueType": "number",
       "dimensions": [
-        "dimensionless"
+        "time"
       ],
       "cardinality": {
         "kind": "scalar"
@@ -6019,9 +6257,9 @@
     {
       "id": "diagnostics.last-sector2",
       "label": "Last Sector2",
-      "description": "Last Sector2 source value reported by lmu in count.",
+      "description": "LMU last cumulative sectors 1–2 time.",
       "parentId": "diagnostics",
-      "canonicalUnit": "count",
+      "canonicalUnit": "s",
       "shape": "scalar",
       "games": {
         "fm-2023": {
@@ -6051,7 +6289,7 @@
         },
         "lmu": {
           "kind": "direct",
-          "nativeUnit": "count",
+          "nativeUnit": "s",
           "sources": [
             "lmu.lastSector2"
           ],
@@ -6066,7 +6304,58 @@
       },
       "valueType": "number",
       "dimensions": [
-        "dimensionless"
+        "time"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "diagnostics.lmu-context",
+      "label": "Lmu Context",
+      "description": "Lmu Context reported by normalized RaceIQ telemetry.",
+      "parentId": "diagnostics",
+      "canonicalUnit": "unitless",
+      "shape": "scalar",
+      "packetFields": [
+        "lmuContext"
+      ],
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "fm-2023 parser fills this value with a placeholder because source does not provide it."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "f1-2025 parser fills this value with a placeholder because source does not provide it."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "acc parser fills this value with a placeholder because source does not provide it."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "ac-evo parser fills this value with a placeholder because source does not provide it."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "iracing parser fills this value with a placeholder because source does not provide it."
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "lmu parser fills this value with a placeholder because source does not provide it."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "unit:unitless"
       ],
       "cardinality": {
         "kind": "scalar"
@@ -8375,9 +8664,9 @@
     {
       "id": "diagnostics.regen-kw",
       "label": "Regen Kw",
-      "description": "Regen Kw source value reported by lmu in count.",
+      "description": "LMU player regenerative power.",
       "parentId": "diagnostics",
-      "canonicalUnit": "count",
+      "canonicalUnit": "kW",
       "shape": "scalar",
       "games": {
         "fm-2023": {
@@ -8407,7 +8696,7 @@
         },
         "lmu": {
           "kind": "direct",
-          "nativeUnit": "count",
+          "nativeUnit": "kW",
           "sources": [
             "lmu.regenKw"
           ],
@@ -8422,7 +8711,9 @@
       },
       "valueType": "number",
       "dimensions": [
-        "dimensionless"
+        "mass",
+        "length^2",
+        "time^-3"
       ],
       "cardinality": {
         "kind": "scalar"
@@ -8831,63 +9122,6 @@
       "valueType": "number",
       "dimensions": [
         "angle"
-      ],
-      "cardinality": {
-        "kind": "scalar"
-      },
-      "limitations": []
-    },
-    {
-      "id": "diagnostics.state-of-charge",
-      "label": "State Of Charge",
-      "description": "State Of Charge source value reported by lmu in count.",
-      "parentId": "diagnostics",
-      "canonicalUnit": "count",
-      "shape": "scalar",
-      "games": {
-        "fm-2023": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "f1-2025": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "iracing": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "lmu": {
-          "kind": "direct",
-          "nativeUnit": "count",
-          "sources": [
-            "lmu.stateOfCharge"
-          ],
-          "freshness": "continuous",
-          "description": "lmu parser exposes 1 linked field.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "packages/game-lmu/src/normalizer.ts"
-          },
-          "limitations": []
-        }
-      },
-      "valueType": "number",
-      "dimensions": [
-        "dimensionless"
       ],
       "cardinality": {
         "kind": "scalar"
@@ -9993,30 +10227,18 @@
           "description": "This parser does not expose an equivalent source value."
         },
         "lmu": {
-          "kind": "normalized",
-          "nativeUnit": "count",
+          "kind": "direct",
+          "nativeUnit": "level",
           "sources": [
             "lmu.absLevel"
           ],
           "freshness": "continuous",
           "description": "lmu parser exposes 1 linked field.",
-          "normalization": "convert count to level",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-lmu/src/normalizer.ts"
           },
-          "limitations": [],
-          "execution": {
-            "kind": "conversion",
-            "id": "lmu:electronics.abs-level:normalized",
-            "version": "0.20.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "lmu.absLevel"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "b23245cfe66cb238aa9e54bbb9ae7b3fbc77a5253c27d71251719ad4cea4ae67"
-          }
+          "limitations": []
         }
       },
       "valueType": "number",
@@ -10675,30 +10897,18 @@
           "description": "This parser does not expose an equivalent source value."
         },
         "lmu": {
-          "kind": "normalized",
-          "nativeUnit": "count",
+          "kind": "direct",
+          "nativeUnit": "level",
           "sources": [
             "lmu.tcLevel"
           ],
           "freshness": "continuous",
           "description": "lmu parser exposes 1 linked field.",
-          "normalization": "convert count to level",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-lmu/src/normalizer.ts"
           },
-          "limitations": [],
-          "execution": {
-            "kind": "conversion",
-            "id": "lmu:electronics.traction-control-level:normalized",
-            "version": "0.20.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "lmu.tcLevel"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "bf0600de9131d7aa92f4eb2071a027423202dc0da502afc972ea7aadc26c07cc"
-          }
+          "limitations": []
         }
       },
       "valueType": "number",
@@ -11030,13 +11240,13 @@
           "limitations": []
         },
         "lmu": {
-          "kind": "derived",
+          "kind": "normalized",
           "nativeUnit": "rpm",
           "sources": [
             "LMU.Telemetry.engineRpm"
           ],
           "freshness": "continuous",
-          "normalization": "engineRpm => Math.max( 0, finiteDouble(telemetry, LMU_TELEMETRY.engineRpm), )",
+          "normalization": "extensionAvailable(\"engineRpm\") ? engineRpm : NaN",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -11044,15 +11254,15 @@
           },
           "limitations": [],
           "execution": {
-            "kind": "derivation",
-            "id": "lmu:engine.current-engine-rpm:derived",
+            "kind": "conversion",
+            "id": "lmu:engine.current-engine-rpm:normalized",
             "version": "0.20.0",
             "deterministic": true,
             "declaredInputs": [
               "LMU.Telemetry.engineRpm"
             ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "dcccc17c4f47735d5598953edd2d707ccfde92c5783122dce5cf09f4f75196d7"
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "d3db17eb558151607b96782024c35e881f4d3fde0444c181322ae2d705d03a87"
           }
         }
       },
@@ -11495,13 +11705,13 @@
           "limitations": []
         },
         "lmu": {
-          "kind": "derived",
+          "kind": "normalized",
           "nativeUnit": "rpm",
           "sources": [
             "LMU.Telemetry.engineMaxRpm"
           ],
           "freshness": "continuous",
-          "normalization": "Math.max( 0, finiteDouble(telemetry, LMU_TELEMETRY.engineMaxRpm), )",
+          "normalization": "channelAvailable(\"Engine Max RPM\") ? Math.max(0, finiteDouble(telemetry, LMU_TELEMETRY.engineMaxRpm)) : NaN",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -11509,15 +11719,15 @@
           },
           "limitations": [],
           "execution": {
-            "kind": "derivation",
-            "id": "lmu:engine.engine-max-rpm:derived",
+            "kind": "conversion",
+            "id": "lmu:engine.engine-max-rpm:normalized",
             "version": "0.20.0",
             "deterministic": true,
             "declaredInputs": [
               "LMU.Telemetry.engineMaxRpm"
             ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "fec5b6545c3ba0b4c31290ccac0bbba4c407bee27a7e3d0a94f5eccd6d2d75be"
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "6e2d96aa3efec3dd1740707d1016d224426dee9b4f2d8ff165a028b2de1e887a"
           }
         }
       },
@@ -11888,6 +12098,68 @@
       "cardinality": {
         "kind": "scalar"
       },
+      "limitations": []
+    },
+    {
+      "id": "engine.ignition-starter",
+      "label": "Ignition Starter",
+      "description": "Native ignition/starter code: 0 off, 1 ignition, 2 ignition and starter.",
+      "parentId": "diagnostics",
+      "canonicalUnit": "enum",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "enum",
+          "sources": [
+            "lmu.ignitionStarter"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "enum",
+      "dimensions": [
+        "unit:enum"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "enumDomain": [
+        "0",
+        "1",
+        "2"
+      ],
       "limitations": []
     },
     {
@@ -12264,14 +12536,80 @@
           }
         },
         "lmu": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "direct",
+          "nativeUnit": "°C",
+          "sources": [
+            "lmu.engineOilTemp"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
         }
       },
       "valueType": "number",
       "dimensions": [
         "temperature"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "engine.overheating",
+      "label": "Overheating",
+      "description": "Native overheating indicator, not an inferred engine state.",
+      "parentId": "diagnostics",
+      "canonicalUnit": "boolean",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "boolean",
+          "sources": [
+            "lmu.overheating"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "boolean",
+      "dimensions": [
+        "dimensionless"
       ],
       "cardinality": {
         "kind": "scalar"
@@ -12688,7 +13026,7 @@
           "description": "iracing parser fills this value with a placeholder because source does not provide it."
         },
         "lmu": {
-          "kind": "derived",
+          "kind": "normalized",
           "nativeUnit": "W",
           "sources": [
             "LMU.Telemetry.engineTorque",
@@ -12697,7 +13035,7 @@
             "LMU.Telemetry.electricBoostMotorRpm"
           ],
           "freshness": "continuous",
-          "normalization": "engineTorque * engineRpm * TWO_PI_PER_MINUTE + motorTorque * motorRpm * TWO_PI_PER_MINUTE",
+          "normalization": "extensionAvailable(\"engineTorque\") ? engineTorque * engineRpm * TWO_PI_PER_MINUTE : NaN",
           "description": "lmu maps 4 native source channels into this value.",
           "provenance": {
             "origin": "parser",
@@ -12705,8 +13043,8 @@
           },
           "limitations": [],
           "execution": {
-            "kind": "derivation",
-            "id": "lmu:engine.power:derived",
+            "kind": "conversion",
+            "id": "lmu:engine.power:normalized",
             "version": "0.20.0",
             "deterministic": true,
             "declaredInputs": [
@@ -12715,8 +13053,8 @@
               "LMU.Telemetry.electricBoostMotorTorque",
               "LMU.Telemetry.electricBoostMotorRpm"
             ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "a3cd465f669d971316bc5126846e3adf6980732bb85ff9c1b63a84c6d09d78d7"
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "72b2fe665634b8f757914c9cf554f9d60584ea604da59b1c6b8ecdf885ab576b"
           }
         }
       },
@@ -12725,6 +13063,64 @@
         "mass",
         "length^2",
         "time^-3"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "engine.rpm",
+      "label": "Engine RPM",
+      "description": "LMU player engine speed.",
+      "parentId": "engine",
+      "canonicalUnit": "rpm",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "rpm",
+          "sources": [
+            "lmu.engineRpm"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "angle",
+        "time^-1"
       ],
       "cardinality": {
         "kind": "scalar"
@@ -13131,14 +13527,15 @@
           "description": "iracing parser fills this value with a placeholder because source does not provide it."
         },
         "lmu": {
-          "kind": "derived",
+          "kind": "normalized",
           "nativeUnit": "N·m",
           "sources": [
             "LMU.Telemetry.engineTorque",
-            "LMU.Telemetry.electricBoostMotorTorque"
+            "LMU.Telemetry.electricBoostMotorTorque",
+            "lmu.engineTorque"
           ],
           "freshness": "continuous",
-          "normalization": "engineTorque + motorTorque",
+          "normalization": "extensionAvailable(\"engineTorque\") ? engineTorque : NaN",
           "description": "lmu maps 2 native source channels into this value.",
           "provenance": {
             "origin": "parser",
@@ -13146,16 +13543,17 @@
           },
           "limitations": [],
           "execution": {
-            "kind": "derivation",
-            "id": "lmu:engine.torque:derived",
+            "kind": "conversion",
+            "id": "lmu:engine.torque:normalized",
             "version": "0.20.0",
             "deterministic": true,
             "declaredInputs": [
               "LMU.Telemetry.engineTorque",
-              "LMU.Telemetry.electricBoostMotorTorque"
+              "LMU.Telemetry.electricBoostMotorTorque",
+              "lmu.engineTorque"
             ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "a83bb5deecf1f177724b168e6d493d3ebb8556ba3b30880146075af05afd9694"
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "33022b0f9dbdc46e564b19f989eacead40e35ec981c1fec991e362a841a2ec6e"
           }
         }
       },
@@ -13355,11 +13753,11 @@
       "limitations": []
     },
     {
-      "id": "fuel.battery-charge-fraction",
-      "label": "Battery Charge Fraction",
-      "description": "Battery Charge Fraction source value reported by lmu in ratio.",
-      "parentId": "fuel",
-      "canonicalUnit": "ratio",
+      "id": "engine.water-temperature",
+      "label": "Engine Water Temp",
+      "description": "LMU player engine water temperature, as reported by native LMU telemetry.",
+      "parentId": "engine",
+      "canonicalUnit": "°C",
       "shape": "scalar",
       "games": {
         "fm-2023": {
@@ -13389,7 +13787,64 @@
         },
         "lmu": {
           "kind": "direct",
-          "nativeUnit": "ratio",
+          "nativeUnit": "°C",
+          "sources": [
+            "lmu.engineWaterTemp"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "temperature"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "fuel.battery-charge-fraction",
+      "label": "Battery Charge Fraction",
+      "description": "LMU player battery charge fraction.",
+      "parentId": "fuel",
+      "canonicalUnit": "fraction",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "fraction",
           "sources": [
             "lmu.batteryChargeFraction"
           ],
@@ -14153,13 +14608,13 @@
           }
         },
         "lmu": {
-          "kind": "derived",
+          "kind": "normalized",
           "nativeUnit": "L",
           "sources": [
             "LMU.Telemetry.fuel"
           ],
           "freshness": "continuous",
-          "normalization": "Math.max(0, finiteDouble(telemetry, LMU_TELEMETRY.fuel))",
+          "normalization": "channelAvailable(\"Fuel Level\") ? Math.max(0, finiteDouble(telemetry, LMU_TELEMETRY.fuel)) : NaN",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -14167,15 +14622,15 @@
           },
           "limitations": [],
           "execution": {
-            "kind": "derivation",
-            "id": "lmu:fuel.fuel:derived",
+            "kind": "conversion",
+            "id": "lmu:fuel.fuel:normalized",
             "version": "0.20.0",
             "deterministic": true,
             "declaredInputs": [
               "LMU.Telemetry.fuel"
             ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "7f8528a29f89768f56895690642d2e3ff6193d7607e210fd9b7216273b14b4b7"
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "f8a16ccb123df30f755b89142dd3d643bcc7604cdcf1c7251f9bbdc776bcd3b1"
           }
         }
       },
@@ -14297,13 +14752,13 @@
           "limitations": []
         },
         "lmu": {
-          "kind": "derived",
+          "kind": "normalized",
           "nativeUnit": "L",
           "sources": [
             "LMU.Telemetry.fuelCapacity"
           ],
           "freshness": "continuous",
-          "normalization": "Math.max( 0, finiteDouble(telemetry, LMU_TELEMETRY.fuelCapacity), )",
+          "normalization": "frame.schemaVersion === 4 ? NaN : Math.max(0, finiteDouble(telemetry, LMU_TELEMETRY.fuelCapacity))",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -14311,15 +14766,15 @@
           },
           "limitations": [],
           "execution": {
-            "kind": "derivation",
-            "id": "lmu:fuel.fuel-capacity:derived",
+            "kind": "conversion",
+            "id": "lmu:fuel.fuel-capacity:normalized",
             "version": "0.20.0",
             "deterministic": true,
             "declaredInputs": [
               "LMU.Telemetry.fuelCapacity"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "ec521db7fb69f4786986d81e8696a4510324f53435d94c4720961efc8f2b0b04"
+            "codeHash": "b45eec72d669d2bb93a4285755bb9ce9b2897ac767e0a8ea22d0d50cf144d01f"
           }
         }
       },
@@ -15174,11 +15629,11 @@
       "limitations": []
     },
     {
-      "id": "fuel.virtual-energy",
-      "label": "Virtual Energy",
-      "description": "Virtual Energy source value reported by lmu in J.",
-      "parentId": "fuel",
-      "canonicalUnit": "J",
+      "id": "fuel.state-of-charge",
+      "label": "State Of Charge",
+      "description": "LMU native battery state of charge in percent, separate from battery charge fraction.",
+      "parentId": "diagnostics",
+      "canonicalUnit": "%",
       "shape": "scalar",
       "games": {
         "fm-2023": {
@@ -15208,7 +15663,68 @@
         },
         "lmu": {
           "kind": "direct",
-          "nativeUnit": "J",
+          "nativeUnit": "%",
+          "sources": [
+            "lmu.stateOfCharge"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "range": {
+        "min": 0,
+        "max": 100
+      },
+      "limitations": []
+    },
+    {
+      "id": "fuel.virtual-energy",
+      "label": "Virtual Energy",
+      "description": "LMU player virtual-energy fraction; not absolute energy.",
+      "parentId": "fuel",
+      "canonicalUnit": "fraction",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "fraction",
           "sources": [
             "lmu.virtualEnergy"
           ],
@@ -15223,9 +15739,303 @@
       },
       "valueType": "number",
       "dimensions": [
-        "mass",
-        "length^2",
-        "time^-2"
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "range": {
+        "min": 0,
+        "max": 1
+      },
+      "limitations": []
+    },
+    {
+      "id": "hybrid.motor.rpm",
+      "label": "Motor RPM",
+      "description": "LMU player electric motor speed, separate from engine speed.",
+      "parentId": "engine",
+      "canonicalUnit": "rpm",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "rpm",
+          "sources": [
+            "lmu.motorRpm"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "angle",
+        "time^-1"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "hybrid.motor.state",
+      "label": "Motor State",
+      "description": "LMU player electric motor native state code.",
+      "parentId": "diagnostics",
+      "canonicalUnit": "enum",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "enum",
+          "sources": [
+            "lmu.motorState"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "enum",
+      "dimensions": [
+        "unit:enum"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "enumDomain": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "limitations": []
+    },
+    {
+      "id": "hybrid.motor.temperature",
+      "label": "Motor Temperature",
+      "description": "LMU player electric motor temperature, as reported by native LMU telemetry.",
+      "parentId": "diagnostics",
+      "canonicalUnit": "°C",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "°C",
+          "sources": [
+            "lmu.motorTemperature"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "temperature"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "hybrid.motor.torque",
+      "label": "Motor Torque",
+      "description": "LMU player electric motor torque.",
+      "parentId": "engine",
+      "canonicalUnit": "N·m",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "N·m",
+          "sources": [
+            "lmu.motorTorque"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "unit:n·m"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "hybrid.motor.water-temperature",
+      "label": "Motor Water Temperature",
+      "description": "LMU player electric motor water temperature, as reported by native LMU telemetry.",
+      "parentId": "engine",
+      "canonicalUnit": "°C",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "°C",
+          "sources": [
+            "lmu.motorWaterTemperature"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "temperature"
       ],
       "cardinality": {
         "kind": "scalar"
@@ -17889,7 +18699,7 @@
             "LMU.Telemetry.unfilteredThrottle"
           ],
           "freshness": "continuous",
-          "normalization": "input255(finiteDouble(telemetry, LMU_TELEMETRY.throttle))",
+          "normalization": "extensionAvailable(\"throttle\") ? input255(finiteDouble(telemetry, LMU_TELEMETRY.throttle)) : NaN",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -17904,8 +18714,8 @@
             "declaredInputs": [
               "LMU.Telemetry.unfilteredThrottle"
             ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "e0e662f1e1d65f690961e4eb18fd55e0fb74c4ce5dcfede84431ad01eb02d604"
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "3c16241b7f34b3281adec8fba52a5efcdb2d3069c29c53d3891a78e784bc8533"
           }
         }
       },
@@ -18054,7 +18864,7 @@
             "LMU.Telemetry.unfilteredBrake"
           ],
           "freshness": "continuous",
-          "normalization": "input255(finiteDouble(telemetry, LMU_TELEMETRY.brake))",
+          "normalization": "extensionAvailable(\"brake\") ? input255(finiteDouble(telemetry, LMU_TELEMETRY.brake)) : NaN",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -18069,8 +18879,8 @@
             "declaredInputs": [
               "LMU.Telemetry.unfilteredBrake"
             ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "ad7b5bdb9a9bc5faadda816a6b622b692da3214c063b7bd9534e26860cd454d8"
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "503e5dda1b59583cd954321d9f2296c5c42b9f407581d9303ae37edbbc8a3a4b"
           }
         }
       },
@@ -18238,7 +19048,7 @@
             "LMU.Telemetry.unfilteredClutch"
           ],
           "freshness": "continuous",
-          "normalization": "input255(finiteDouble(telemetry, LMU_TELEMETRY.clutch))",
+          "normalization": "extensionAvailable(\"clutch\") ? input255(finiteDouble(telemetry, LMU_TELEMETRY.clutch)) : NaN",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -18253,8 +19063,8 @@
             "declaredInputs": [
               "LMU.Telemetry.unfilteredClutch"
             ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "388226433c5ffa4fc532656dad6dc44906940defa3dba6fac8208724c3b4ea6b"
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "1267bba06df4f3c4a260598402063c66c5bddf55c099f05b3fff28ffdc612de1"
           }
         }
       },
@@ -18750,7 +19560,7 @@
             "LMU.Telemetry.gear"
           ],
           "freshness": "continuous",
-          "normalization": "canonicalGear(telemetry.readInt32LE(LMU_TELEMETRY.gear))",
+          "normalization": "channelAvailable(\"Gear\") ? canonicalGear(telemetry.readInt32LE(LMU_TELEMETRY.gear)) : NaN",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -18765,8 +19575,8 @@
             "declaredInputs": [
               "LMU.Telemetry.gear"
             ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "049b186423434bc6d96ec8198f94bace8814aff02600ee6de06b9b5092da292a"
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "70a4ac3dc2cb394790733d2aa0ec97d879e189c1d6389c6f028b58bf8b01cf21"
           }
         }
       },
@@ -19575,7 +20385,7 @@
             "LMU.Telemetry.unfilteredSteering"
           ],
           "freshness": "continuous",
-          "normalization": "Math.round( clamp(finiteDouble(telemetry, LMU_TELEMETRY.steering), -1, 1) * 127, )",
+          "normalization": "extensionAvailable(\"steering\") ? Math.round(clamp(finiteDouble(telemetry, LMU_TELEMETRY.steering), -1, 1) * 127) : NaN",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -19590,8 +20400,8 @@
             "declaredInputs": [
               "LMU.Telemetry.unfilteredSteering"
             ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "8e00e2b7843dc23e59dde9b9b6d0fc5d8b76fa0598eaa9801906254c0b7f29bc"
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "3663c6e0bbd6a4878b51a19f198fae69eb14ffdbf38aa4b5a6993f73bdf6294a"
           }
         }
       },
@@ -29269,6 +30079,132 @@
       "limitations": []
     },
     {
+      "id": "race.control",
+      "label": "Control",
+      "description": "Native player vehicle control source.",
+      "parentId": "diagnostics",
+      "canonicalUnit": "enum",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "enum",
+          "sources": [
+            "lmu.control"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "enum",
+      "dimensions": [
+        "unit:enum"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "enumDomain": [
+        "-1",
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "limitations": []
+    },
+    {
+      "id": "race.count-lap-flag",
+      "label": "Count Lap Flag",
+      "description": "Native lap/time counting rule.",
+      "parentId": "timing",
+      "canonicalUnit": "enum",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "enum",
+          "sources": [
+            "lmu.countLapFlag"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "enum",
+      "dimensions": [
+        "unit:enum"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "enumDomain": [
+        "0",
+        "1",
+        "2"
+      ],
+      "limitations": []
+    },
+    {
       "id": "race.driver-change-lap-status",
       "label": "Driver-change lap status",
       "description": "Status of driver-change lap requirements.",
@@ -29555,6 +30491,69 @@
       "limitations": []
     },
     {
+      "id": "race.finish-status",
+      "label": "Finish Status",
+      "description": "Native finish status: none, finished, DNF or disqualified.",
+      "parentId": "race",
+      "canonicalUnit": "enum",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "enum",
+          "sources": [
+            "lmu.finishStatus"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "enum",
+      "dimensions": [
+        "unit:enum"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "enumDomain": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "limitations": []
+    },
+    {
       "id": "race.flag-status",
       "label": "Flag Status",
       "description": "Flag Status source value reported by acc in text.",
@@ -29612,6 +30611,63 @@
         }
       },
       "valueType": "string",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.in-garage-stall",
+      "label": "In Garage Stall",
+      "description": "Player is in its garage stall.",
+      "parentId": "diagnostics",
+      "canonicalUnit": "boolean",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "boolean",
+          "sources": [
+            "lmu.inGarageStall"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "boolean",
       "dimensions": [
         "dimensionless"
       ],
@@ -29850,7 +30906,7 @@
             "LMU.ScoringInfo.inRealtime"
           ],
           "freshness": "continuous",
-          "normalization": "scoringInfo.readUInt8(LMU_SCORING_INFO.inRealtime) !== 0 ? 1 : 0",
+          "normalization": "scoring !== null && scoringInfo.readUInt8(LMU_SCORING_INFO.inRealtime) !== 0 ? 1 : 0",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -29866,7 +30922,7 @@
               "LMU.ScoringInfo.inRealtime"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "2c26053b2da3932bee4a174cb0aebbe775dc71f9a3cd0f2a1a5e04a98b3eed90"
+            "codeHash": "742a29012551fbe9c789f49a8640b5f6e39a015fda955d8a21e71c70c8611c7b"
           }
         }
       },
@@ -30254,6 +31310,63 @@
         "21",
         "22"
       ],
+      "limitations": []
+    },
+    {
+      "id": "race.penalty-count",
+      "label": "Penalty Count",
+      "description": "Outstanding native penalty count; does not identify penalty type or service.",
+      "parentId": "race",
+      "canonicalUnit": "count",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "lmu.penaltyCount"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
       "limitations": []
     },
     {
@@ -31158,6 +32271,63 @@
       "limitations": []
     },
     {
+      "id": "race.pit-stop-count",
+      "label": "Pit Stop Count",
+      "description": "Completed native pit-stop count.",
+      "parentId": "race",
+      "canonicalUnit": "count",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "lmu.pitStopCount"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "race.pits-open",
       "label": "Pits Open",
       "description": "True if pit stop is allowed for the current player",
@@ -31614,6 +32784,67 @@
       "limitations": []
     },
     {
+      "id": "race.primary-flag",
+      "label": "Primary Flag",
+      "description": "Native player primary flag; schema supports green or blue, not all race flags.",
+      "parentId": "race",
+      "canonicalUnit": "enum",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "enum",
+          "sources": [
+            "lmu.primaryFlag"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "enum",
+      "dimensions": [
+        "unit:enum"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "enumDomain": [
+        "0",
+        "6"
+      ],
+      "limitations": []
+    },
+    {
       "id": "race.race-laps",
       "label": "Race Laps",
       "description": "Laps completed in race",
@@ -31782,7 +33013,7 @@
             "LMU.PlayerScoring.place"
           ],
           "freshness": "continuous",
-          "normalization": "scoring ? scoring.readUInt8(LMU_SCORING_VEHICLE.place) : 0",
+          "normalization": "scoring && frame.schemaVersion !== 4 ? scoring.readUInt8(LMU_SCORING_VEHICLE.place) : NaN",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -31798,7 +33029,7 @@
               "LMU.PlayerScoring.place"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "dd41be403c34e9102241b32caf5ac4815e686ef827468f8dff47b53eb4ca25a9"
+            "codeHash": "a317a3018da6a506bbbae1a3c5a091bdd1cb8d8591aa345e32b723b5de1f43e5"
           }
         }
       },
@@ -32093,6 +33324,145 @@
       ],
       "cardinality": {
         "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.scheduled-stops",
+      "label": "Scheduled Stops",
+      "description": "Native scheduled pit-stop count.",
+      "parentId": "diagnostics",
+      "canonicalUnit": "count",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "lmu.scheduledStops"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.sector-flags",
+      "label": "Sector Flags",
+      "description": "Native local sector flag reports; source sector order is unverified.",
+      "parentId": "timing",
+      "canonicalUnit": "code",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "code",
+          "sources": [
+            "lmu.sectorFlags"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0
+      },
+      "ordering": [
+        "source-path:source-order"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "source-path",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0
+            },
+            "ordering": "source-order"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
       },
       "limitations": []
     },
@@ -32561,6 +33931,131 @@
       "cardinality": {
         "kind": "scalar"
       },
+      "limitations": []
+    },
+    {
+      "id": "race.under-yellow",
+      "label": "Under Yellow",
+      "description": "Player has taken full-course caution at the start/finish line.",
+      "parentId": "diagnostics",
+      "canonicalUnit": "boolean",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "boolean",
+          "sources": [
+            "lmu.underYellow"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "boolean",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.yellow-flag-state",
+      "label": "Yellow Flag State",
+      "description": "Native full-course yellow state; -1 means invalid.",
+      "parentId": "race",
+      "canonicalUnit": "enum",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "enum",
+          "sources": [
+            "lmu.yellowFlagState"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "enum",
+      "dimensions": [
+        "unit:enum"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "enumDomain": [
+        "-1",
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7"
+      ],
       "limitations": []
     },
     {
@@ -34125,6 +35620,75 @@
       "cardinality": {
         "kind": "scalar"
       },
+      "limitations": []
+    },
+    {
+      "id": "session.game-phase",
+      "label": "Game Phase",
+      "description": "Native session phase; code 9 is paused.",
+      "parentId": "diagnostics",
+      "canonicalUnit": "enum",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "enum",
+          "sources": [
+            "lmu.gamePhase"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "enum",
+      "dimensions": [
+        "unit:enum"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "enumDomain": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
       "limitations": []
     },
     {
@@ -36373,7 +37937,7 @@
           }
         },
         "lmu": {
-          "kind": "direct",
+          "kind": "normalized",
           "nativeUnit": "text",
           "sources": [
             "LMU.Generic.gameVersion",
@@ -36383,12 +37947,28 @@
             "LMU.Telemetry.vehicleModel"
           ],
           "freshness": "continuous",
+          "normalization": "JSON.stringify([ frame.gameVersion, frame.sessionEvent, scoringInfo.readInt32LE(LMU_SCORING_INFO.session), identity.carId, identity.trackId, ...(frame.lmuContext ? [frame.lmuContext.key.sessionKey] : []), ])",
           "description": "lmu maps 5 native source channels into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-lmu/src/normalizer.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "lmu:session.session-uid:normalized",
+            "version": "0.20.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "LMU.Generic.gameVersion",
+              "LMU.Generic.startSessionEvent",
+              "LMU.ScoringInfo.session",
+              "LMU.ScoringInfo.trackName",
+              "LMU.Telemetry.vehicleModel"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "d0496ae73ea317402d7587bec79e406b12371bdff6a5716e76722b0ff60a2f2a"
+          }
         }
       },
       "valueType": "string",
@@ -43249,6 +44829,63 @@
       "limitations": []
     },
     {
+      "id": "steering.shaft-torque",
+      "label": "Steering Shaft Torque",
+      "description": "LMU player steering-shaft torque.",
+      "parentId": "inputs",
+      "canonicalUnit": "N·m",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "N·m",
+          "sources": [
+            "lmu.steeringShaftTorque"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "unit:n·m"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "suspension.cg-height",
       "label": "Center-of-gravity height",
       "description": "Vehicle center-of-gravity height above ground.",
@@ -44174,7 +45811,7 @@
             "LMU.PlayerScoring.bestLapTime"
           ],
           "freshness": "continuous",
-          "normalization": "scoring ? positiveTime(finiteDouble(scoring, LMU_SCORING_VEHICLE.bestLapTime)) : 0",
+          "normalization": "channelAvailable(\"Best LapTime\") && scoring ? positiveTime(finiteDouble(scoring, LMU_SCORING_VEHICLE.bestLapTime)) : NaN",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -44189,8 +45826,8 @@
             "declaredInputs": [
               "LMU.PlayerScoring.bestLapTime"
             ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "72b7ae872ff6af9e57cb02cd47084add8a1969227c791b5a9ef241680d67d469"
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "1f0ffff6c07a63979de78ab23ba9f53f448bc81ab03db898ca467c2c3940ddfc"
           }
         }
       },
@@ -46228,31 +47865,33 @@
           }
         },
         "lmu": {
-          "kind": "derived",
+          "kind": "normalized",
           "nativeUnit": "m",
           "sources": [
+            "LMU.Telemetry.readDoubleLE",
             "LMU.PlayerScoring.readInt16LE",
             "lmu.lapDistanceM"
           ],
           "freshness": "continuous",
-          "normalization": "completedLaps * trackLengthM + Math.max(0, lapDistanceM)",
-          "description": "lmu maps 1 native source channel into this value.",
+          "normalization": "extensionAvailable(\"lapDistanceM\") ? completedLaps * trackLengthM + Math.max(0, lapDistanceM) : NaN",
+          "description": "lmu maps 2 native source channels into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-lmu/src/normalizer.ts"
           },
           "limitations": [],
           "execution": {
-            "kind": "derivation",
-            "id": "lmu:timing.distance-traveled:derived",
+            "kind": "conversion",
+            "id": "lmu:timing.distance-traveled:normalized",
             "version": "0.20.0",
             "deterministic": true,
             "declaredInputs": [
+              "LMU.Telemetry.readDoubleLE",
               "LMU.PlayerScoring.readInt16LE",
               "lmu.lapDistanceM"
             ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "4df08e7b88fa3dab00c866babc73c32cfc9b55ef2bad00eecdf6ca50b7604745"
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "33636249d0a3d7e958945087da16af50c66887677f886d4ad05ef517cb075ac3"
           }
         }
       },
@@ -46527,6 +48166,234 @@
           "kind": "unavailable",
           "reason": "source-not-provided",
           "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "time"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "timing.gap.car-ahead",
+      "label": "Time Gap Car Ahead",
+      "description": "LMU native time gap to car ahead.",
+      "parentId": "timing",
+      "canonicalUnit": "s",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "s",
+          "sources": [
+            "lmu.timeGapCarAhead"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "time"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "timing.gap.car-behind",
+      "label": "Time Gap Car Behind",
+      "description": "LMU native time gap to car behind.",
+      "parentId": "timing",
+      "canonicalUnit": "s",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "s",
+          "sources": [
+            "lmu.timeGapCarBehind"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "time"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "timing.gap.place-ahead",
+      "label": "Time Gap Place Ahead",
+      "description": "LMU native time gap to place ahead.",
+      "parentId": "timing",
+      "canonicalUnit": "s",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "s",
+          "sources": [
+            "lmu.timeGapPlaceAhead"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "time"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "timing.gap.place-behind",
+      "label": "Time Gap Place Behind",
+      "description": "LMU native time gap to place behind.",
+      "parentId": "timing",
+      "canonicalUnit": "s",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "s",
+          "sources": [
+            "lmu.timeGapPlaceBehind"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
         }
       },
       "valueType": "number",
@@ -47646,13 +49513,13 @@
           }
         },
         "lmu": {
-          "kind": "derived",
+          "kind": "normalized",
           "nativeUnit": "count",
           "sources": [
             "LMU.Telemetry.lapNumber"
           ],
           "freshness": "continuous",
-          "normalization": "Math.max( 1, telemetry.readInt32LE(LMU_TELEMETRY.lapNumber) + 1, )",
+          "normalization": "channelAvailable(\"Lap\") ? Math.max(1, telemetry.readInt32LE(LMU_TELEMETRY.lapNumber) + 1) : NaN",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -47660,15 +49527,15 @@
           },
           "limitations": [],
           "execution": {
-            "kind": "derivation",
-            "id": "lmu:timing.lap-number:derived",
+            "kind": "conversion",
+            "id": "lmu:timing.lap-number:normalized",
             "version": "0.20.0",
             "deterministic": true,
             "declaredInputs": [
               "LMU.Telemetry.lapNumber"
             ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "38e5361773b6db8d057ddd344787914b4081f4ffa2f60ce7b5476b2a4add30ac"
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "f344991b40394c600be9651c27a32a0fda2e44757d4326c58192f1adb29211f3"
           }
         }
       },
@@ -47862,7 +49729,7 @@
             "LMU.PlayerScoring.lastLapTime"
           ],
           "freshness": "continuous",
-          "normalization": "scoring ? positiveTime(finiteDouble(scoring, LMU_SCORING_VEHICLE.lastLapTime)) : 0",
+          "normalization": "channelAvailable(\"Lap Time\") && scoring ? positiveTime(finiteDouble(scoring, LMU_SCORING_VEHICLE.lastLapTime)) : NaN",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -47877,8 +49744,8 @@
             "declaredInputs": [
               "LMU.PlayerScoring.lastLapTime"
             ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "1733250898d6d3e40d81c8cbdc534e5b18c8faa7eb9fdec4d348a938f5b15032"
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "7af88ec3062e133e9b47e92eb781d8ac1cab506ff513c66b2ab53dde5b375a7e"
           }
         }
       },
@@ -56692,7 +58559,7 @@
           }
         },
         "lmu": {
-          "kind": "direct",
+          "kind": "normalized",
           "nativeUnit": "psi",
           "sources": {
             "FL": [
@@ -56709,12 +58576,27 @@
             ]
           },
           "freshness": "continuous",
+          "normalization": "channelAvailable(\"TyresPressure\") ? wheels.FL.pressurePsi : NaN | channelAvailable(\"TyresPressure\") ? wheels.FR.pressurePsi : NaN | channelAvailable(\"TyresPressure\") ? wheels.RL.pressurePsi : NaN | channelAvailable(\"TyresPressure\") ? wheels.RR.pressurePsi : NaN",
           "description": "lmu maps 4 native source channels into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-lmu/src/normalizer.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "lmu:tires.tire-pressure:normalized",
+            "version": "0.20.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "LMU.Telemetry.wheels.FL.pressureKpa",
+              "LMU.Telemetry.wheels.FR.pressureKpa",
+              "LMU.Telemetry.wheels.RL.pressureKpa",
+              "LMU.Telemetry.wheels.RR.pressureKpa"
+            ],
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "bb6f082535fdbfd7ffce6cc863604cd2d30b1f76b6a91a12fd61ba5ba23c6413"
+          }
         }
       },
       "valueType": "number",
@@ -58720,13 +60602,82 @@
           }
         },
         "lmu": {
-          "kind": "direct",
+          "kind": "normalized",
           "nativeUnit": "°C",
           "sources": [
             "LMU.ScoringInfo.ambientTemperature"
           ],
           "freshness": "continuous",
+          "normalization": "channelAvailable(\"Ambient Temperature\") ? finiteDouble(scoringInfo, LMU_SCORING_INFO.ambientTemperature) : NaN",
           "description": "lmu maps 1 native source channel into this value.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "lmu:weather.air-temp:normalized",
+            "version": "0.20.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "LMU.ScoringInfo.ambientTemperature"
+            ],
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "62b829aac532390c8aa5d3046a49e2bc89144ba7914f5cfcdda7bb8e30a20a06"
+          }
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "temperature"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "weather.average-path-wetness",
+      "label": "Average Path Wetness",
+      "description": "Native average main-path wetness; not an average of min and max.",
+      "parentId": "diagnostics",
+      "canonicalUnit": "fraction",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "fraction",
+          "sources": [
+            "lmu.averagePathWetness"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-lmu/src/normalizer.ts"
@@ -58736,10 +60687,145 @@
       },
       "valueType": "number",
       "dimensions": [
-        "temperature"
+        "dimensionless"
       ],
       "cardinality": {
         "kind": "scalar"
+      },
+      "range": {
+        "min": 0,
+        "max": 1
+      },
+      "limitations": []
+    },
+    {
+      "id": "weather.cloud-coverage",
+      "label": "Cloud Coverage",
+      "description": "Native sky type code, not a cloud fraction.",
+      "parentId": "diagnostics",
+      "canonicalUnit": "enum",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "enum",
+          "sources": [
+            "lmu.cloudCoverage"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "enum",
+      "dimensions": [
+        "unit:enum"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "enumDomain": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10"
+      ],
+      "limitations": []
+    },
+    {
+      "id": "weather.cloud-darkness",
+      "label": "Dark Cloud",
+      "description": "Native cloud darkness report.",
+      "parentId": "diagnostics",
+      "canonicalUnit": "fraction",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "fraction",
+          "sources": [
+            "lmu.darkCloud"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "range": {
+        "min": 0,
+        "max": 1
       },
       "limitations": []
     },
@@ -59401,11 +61487,133 @@
       "limitations": []
     },
     {
+      "id": "weather.maximum-path-wetness",
+      "label": "Maximum Path Wetness",
+      "description": "Native maximum main-path wetness.",
+      "parentId": "diagnostics",
+      "canonicalUnit": "fraction",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "fraction",
+          "sources": [
+            "lmu.maximumPathWetness"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "range": {
+        "min": 0,
+        "max": 1
+      },
+      "limitations": []
+    },
+    {
+      "id": "weather.minimum-path-wetness",
+      "label": "Minimum Path Wetness",
+      "description": "Native minimum main-path wetness; may be zero under cover.",
+      "parentId": "diagnostics",
+      "canonicalUnit": "fraction",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "fraction",
+          "sources": [
+            "lmu.minimumPathWetness"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "range": {
+        "min": 0,
+        "max": 1
+      },
+      "limitations": []
+    },
+    {
       "id": "weather.rain-intensity",
-      "label": "Rain Intensity",
-      "description": "Rain Intensity source value reported by acc in count.",
+      "label": "Rain intensity",
+      "description": "Native rain severity fraction, distinct from precipitation probability.",
       "parentId": "weather",
-      "canonicalUnit": "count",
+      "canonicalUnit": "fraction",
       "shape": "scalar",
       "games": {
         "fm-2023": {
@@ -59434,9 +61642,18 @@
           "description": "This parser does not expose an equivalent source value."
         },
         "lmu": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "direct",
+          "nativeUnit": "fraction",
+          "sources": [
+            "lmu.rainIntensity"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
         }
       },
       "valueType": "number",
@@ -59445,6 +61662,10 @@
       ],
       "cardinality": {
         "kind": "scalar"
+      },
+      "range": {
+        "min": 0,
+        "max": 1
       },
       "limitations": []
     },
@@ -59537,7 +61758,7 @@
             "LMU.ScoringInfo.raining"
           ],
           "freshness": "continuous",
-          "normalization": "Math.round(raining * 100)",
+          "normalization": "frame.schemaVersion === 4 ? NaN : Math.round(raining * 100)",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -59553,7 +61774,7 @@
               "LMU.ScoringInfo.raining"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "a3331a96c2cd18936604f4a0e1aa6eb516ecb0433176cc1a2b0bef201073b502"
+            "codeHash": "b549aa6544b6e20b8350c36355c4cadcbda9828f8f2a5e596b13426a53f61202"
           }
         }
       },
@@ -60130,18 +62351,30 @@
           }
         },
         "lmu": {
-          "kind": "direct",
+          "kind": "normalized",
           "nativeUnit": "°C",
           "sources": [
             "LMU.ScoringInfo.trackTemperature"
           ],
           "freshness": "continuous",
+          "normalization": "channelAvailable(\"Track Temperature\") ? finiteDouble(scoringInfo, LMU_SCORING_INFO.trackTemperature) : NaN",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-lmu/src/normalizer.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "lmu:weather.track-temp:normalized",
+            "version": "0.20.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "LMU.ScoringInfo.trackTemperature"
+            ],
+            "missingDataPolicy": "drop-missing",
+            "codeHash": "23b8b7c08309c9e996b8115b956ce584f8b092459cf5c8580f46f4cdb671fe94"
+          }
         }
       },
       "valueType": "number",
@@ -60441,19 +62674,32 @@
           }
         },
         "lmu": {
-          "kind": "direct",
+          "kind": "normalized",
           "nativeUnit": "enum",
           "sources": [
             "LMU.ScoringInfo.raining",
             "LMU.ScoringInfo.cloudCoverage"
           ],
           "freshness": "continuous",
+          "normalization": "frame.schemaVersion === 4 ? NaN : weatherType(raining, cloudCoverage)",
           "description": "lmu maps 2 native source channels into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-lmu/src/normalizer.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "lmu:weather.weather-type:normalized",
+            "version": "0.20.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "LMU.ScoringInfo.raining",
+              "LMU.ScoringInfo.cloudCoverage"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "1f983d9de56fbddb1b8bfc633d48ec10b85e9c13b34e43261f752f0ad952dc28"
+          }
         }
       },
       "valueType": "enum",
@@ -60473,6 +62719,90 @@
         "constant",
         "dynamic"
       ],
+      "limitations": []
+    },
+    {
+      "id": "weather.wind",
+      "label": "Wind",
+      "description": "Native world-coordinate wind vector.",
+      "parentId": "weather",
+      "canonicalUnit": "m/s",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "m/s",
+          "sources": [
+            "lmu.wind"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "length",
+        "time^-1"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0
+      },
+      "ordering": [
+        "source-path:source-order"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "source-path",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0
+            },
+            "ordering": "source-order"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "length",
+              "time^-1"
+            ]
+          }
+        ]
+      },
       "limitations": []
     },
     {
@@ -83826,7 +86156,7 @@
       {
         "path": "lmu.absLevel",
         "label": "ABS Level",
-        "unit": "count",
+        "unit": "level",
         "dataType": "number",
         "count": 1,
         "description": "LMU anti-lock brake setting level.",
@@ -83836,12 +86166,24 @@
         "retention": "exact"
       },
       {
-        "path": "lmu.batteryChargeFraction",
-        "label": "Battery Charge Fraction",
-        "unit": "ratio",
+        "path": "lmu.averagePathWetness",
+        "label": "Average Path Wetness",
+        "unit": "fraction",
         "dataType": "number",
         "count": 1,
-        "description": "Battery Charge Fraction source value reported by lmu in ratio.",
+        "description": "Native average main-path wetness; not an average of min and max.",
+        "semanticId": "weather.average-path-wetness",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.batteryChargeFraction",
+        "label": "Battery Charge Fraction",
+        "unit": "fraction",
+        "dataType": "number",
+        "count": 1,
+        "description": "LMU player battery charge fraction.",
         "semanticId": "fuel.battery-charge-fraction",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
@@ -83850,10 +86192,10 @@
       {
         "path": "lmu.bestSector1",
         "label": "Best Sector1",
-        "unit": "count",
+        "unit": "s",
         "dataType": "number",
         "count": 1,
-        "description": "Best Sector1 source value reported by lmu in count.",
+        "description": "LMU best first-sector time.",
         "semanticId": "diagnostics.best-sector1",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
@@ -83862,11 +86204,23 @@
       {
         "path": "lmu.bestSector2",
         "label": "Best Sector2",
-        "unit": "count",
+        "unit": "s",
         "dataType": "number",
         "count": 1,
-        "description": "Best Sector2 source value reported by lmu in count.",
+        "description": "LMU best cumulative sectors 1–2 time.",
         "semanticId": "diagnostics.best-sector2",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.brake",
+        "label": "Brake",
+        "unit": "fraction",
+        "dataType": "number",
+        "count": 1,
+        "description": "LMU player brake input.",
+        "semanticId": "control.brake",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -83910,11 +86264,47 @@
       {
         "path": "lmu.cloudCoverage",
         "label": "Cloud Coverage",
-        "unit": "count",
+        "unit": "enum",
         "dataType": "number",
         "count": 1,
-        "description": "Cloud Coverage source value reported by lmu in count.",
-        "semanticId": "diagnostics.cloud-coverage",
+        "description": "Native sky type code, not a cloud fraction.",
+        "semanticId": "weather.cloud-coverage",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.clutch",
+        "label": "Clutch",
+        "unit": "fraction",
+        "dataType": "number",
+        "count": 1,
+        "description": "LMU player clutch input.",
+        "semanticId": "control.clutch",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.control",
+        "label": "Control",
+        "unit": "enum",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native player vehicle control source.",
+        "semanticId": "race.control",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.countLapFlag",
+        "label": "Count Lap Flag",
+        "unit": "enum",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native lap/time counting rule.",
+        "semanticId": "race.count-lap-flag",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -83922,10 +86312,10 @@
       {
         "path": "lmu.currentSector1",
         "label": "Current Sector1",
-        "unit": "count",
+        "unit": "s",
         "dataType": "number",
         "count": 1,
-        "description": "Current Sector1 source value reported by lmu in count.",
+        "description": "LMU current first-sector time.",
         "semanticId": "diagnostics.current-sector1",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
@@ -83934,10 +86324,10 @@
       {
         "path": "lmu.currentSector2",
         "label": "Current Sector2",
-        "unit": "count",
+        "unit": "s",
         "dataType": "number",
         "count": 1,
-        "description": "Current Sector2 source value reported by lmu in count.",
+        "description": "LMU current cumulative sectors 1–2 time.",
         "semanticId": "diagnostics.current-sector2",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
@@ -83951,6 +86341,18 @@
         "count": 1,
         "description": "LMU current zero-based sector index.",
         "semanticId": "timing.sector.current-index",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.darkCloud",
+        "label": "Dark Cloud",
+        "unit": "fraction",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native cloud darkness report.",
+        "semanticId": "weather.cloud-darkness",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -83980,6 +86382,66 @@
         "retention": "exact"
       },
       {
+        "path": "lmu.engineOilTemp",
+        "label": "Engine Oil Temp",
+        "unit": "°C",
+        "dataType": "number",
+        "count": 1,
+        "description": "LMU player engine oil temperature, as reported by native LMU telemetry.",
+        "semanticId": "engine.oil-temperature",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.engineRpm",
+        "label": "Engine RPM",
+        "unit": "rpm",
+        "dataType": "number",
+        "count": 1,
+        "description": "LMU player engine speed.",
+        "semanticId": "engine.rpm",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.engineTorque",
+        "label": "Engine Torque",
+        "unit": "N·m",
+        "dataType": "number",
+        "count": 1,
+        "description": "LMU player engine torque.",
+        "semanticId": "engine.torque",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.engineWaterTemp",
+        "label": "Engine Water Temp",
+        "unit": "°C",
+        "dataType": "number",
+        "count": 1,
+        "description": "LMU player engine water temperature, as reported by native LMU telemetry.",
+        "semanticId": "engine.water-temperature",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.finishStatus",
+        "label": "Finish Status",
+        "unit": "enum",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native finish status: none, finished, DNF or disqualified.",
+        "semanticId": "race.finish-status",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "lmu.frontAntiSway",
         "label": "Front Anti Sway",
         "unit": "count",
@@ -84004,6 +86466,18 @@
         "retention": "exact"
       },
       {
+        "path": "lmu.gamePhase",
+        "label": "Game Phase",
+        "unit": "enum",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native session phase; code 9 is paused.",
+        "semanticId": "session.game-phase",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "lmu.gameVersion",
         "label": "Game Version",
         "unit": "count",
@@ -84011,6 +86485,30 @@
         "count": 1,
         "description": "Game Version source value reported by lmu in count.",
         "semanticId": "identity.game-version",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.ignitionStarter",
+        "label": "Ignition Starter",
+        "unit": "enum",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native ignition/starter code: 0 off, 1 ignition, 2 ignition and starter.",
+        "semanticId": "engine.ignition-starter",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.inGarageStall",
+        "label": "In Garage Stall",
+        "unit": "boolean",
+        "dataType": "boolean",
+        "count": 1,
+        "description": "Player is in its garage stall.",
+        "semanticId": "race.in-garage-stall",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -84054,10 +86552,10 @@
       {
         "path": "lmu.lastSector1",
         "label": "Last Sector1",
-        "unit": "count",
+        "unit": "s",
         "dataType": "number",
         "count": 1,
-        "description": "Last Sector1 source value reported by lmu in count.",
+        "description": "LMU last first-sector time.",
         "semanticId": "diagnostics.last-sector1",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
@@ -84066,11 +86564,23 @@
       {
         "path": "lmu.lastSector2",
         "label": "Last Sector2",
-        "unit": "count",
+        "unit": "s",
         "dataType": "number",
         "count": 1,
-        "description": "Last Sector2 source value reported by lmu in count.",
+        "description": "LMU last cumulative sectors 1–2 time.",
         "semanticId": "diagnostics.last-sector2",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.maximumPathWetness",
+        "label": "Maximum Path Wetness",
+        "unit": "fraction",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native maximum main-path wetness.",
+        "semanticId": "weather.maximum-path-wetness",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -84088,6 +86598,18 @@
         "retention": "exact"
       },
       {
+        "path": "lmu.minimumPathWetness",
+        "label": "Minimum Path Wetness",
+        "unit": "fraction",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native minimum main-path wetness; may be zero under cover.",
+        "semanticId": "weather.minimum-path-wetness",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "lmu.motorMap",
         "label": "Motor Map",
         "unit": "count",
@@ -84100,6 +86622,90 @@
         "retention": "exact"
       },
       {
+        "path": "lmu.motorRpm",
+        "label": "Motor RPM",
+        "unit": "rpm",
+        "dataType": "number",
+        "count": 1,
+        "description": "LMU player electric motor speed, separate from engine speed.",
+        "semanticId": "hybrid.motor.rpm",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.motorState",
+        "label": "Motor State",
+        "unit": "enum",
+        "dataType": "number",
+        "count": 1,
+        "description": "LMU player electric motor native state code.",
+        "semanticId": "hybrid.motor.state",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.motorTemperature",
+        "label": "Motor Temperature",
+        "unit": "°C",
+        "dataType": "number",
+        "count": 1,
+        "description": "LMU player electric motor temperature, as reported by native LMU telemetry.",
+        "semanticId": "hybrid.motor.temperature",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.motorTorque",
+        "label": "Motor Torque",
+        "unit": "N·m",
+        "dataType": "number",
+        "count": 1,
+        "description": "LMU player electric motor torque.",
+        "semanticId": "hybrid.motor.torque",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.motorWaterTemperature",
+        "label": "Motor Water Temperature",
+        "unit": "°C",
+        "dataType": "number",
+        "count": 1,
+        "description": "LMU player electric motor water temperature, as reported by native LMU telemetry.",
+        "semanticId": "hybrid.motor.water-temperature",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.overheating",
+        "label": "Overheating",
+        "unit": "boolean",
+        "dataType": "boolean",
+        "count": 1,
+        "description": "Native overheating indicator, not an inferred engine state.",
+        "semanticId": "engine.overheating",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.penaltyCount",
+        "label": "Penalty Count",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Outstanding native penalty count; does not identify penalty type or service.",
+        "semanticId": "race.penalty-count",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "lmu.pitState",
         "label": "Pit State",
         "unit": "count",
@@ -84107,6 +86713,42 @@
         "count": 1,
         "description": "Pit State source value reported by lmu in count.",
         "semanticId": "race.pit-state",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.pitStopCount",
+        "label": "Pit Stop Count",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Completed native pit-stop count.",
+        "semanticId": "race.pit-stop-count",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.primaryFlag",
+        "label": "Primary Flag",
+        "unit": "enum",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native player primary flag; schema supports green or blue, not all race flags.",
+        "semanticId": "race.primary-flag",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.rainIntensity",
+        "label": "Rain Intensity",
+        "unit": "fraction",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native rain severity, not precipitation probability.",
+        "semanticId": "weather.rain-intensity",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -84162,11 +86804,34 @@
       {
         "path": "lmu.regenKw",
         "label": "Regen Kw",
+        "unit": "kW",
+        "dataType": "number",
+        "count": 1,
+        "description": "LMU player regenerative power.",
+        "semanticId": "diagnostics.regen-kw",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.scheduledStops",
+        "label": "Scheduled Stops",
         "unit": "count",
         "dataType": "number",
         "count": 1,
-        "description": "Regen Kw source value reported by lmu in count.",
-        "semanticId": "diagnostics.regen-kw",
+        "description": "Native scheduled pit-stop count.",
+        "semanticId": "race.scheduled-stops",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.sectorFlags",
+        "label": "Sector Flags",
+        "unit": "code",
+        "dataType": "readonly number[]",
+        "description": "Native local sector flag reports; source sector order is unverified.",
+        "semanticId": "race.sector-flags",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -84210,11 +86875,35 @@
       {
         "path": "lmu.stateOfCharge",
         "label": "State Of Charge",
-        "unit": "count",
+        "unit": "%",
         "dataType": "number",
         "count": 1,
-        "description": "State Of Charge source value reported by lmu in count.",
-        "semanticId": "diagnostics.state-of-charge",
+        "description": "LMU native battery state of charge in percent, separate from battery charge fraction.",
+        "semanticId": "fuel.state-of-charge",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.steering",
+        "label": "Steering",
+        "unit": "fraction",
+        "dataType": "number",
+        "count": 1,
+        "description": "LMU player steering input.",
+        "semanticId": "control.steering",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.steeringShaftTorque",
+        "label": "Steering Shaft Torque",
+        "unit": "N·m",
+        "dataType": "number",
+        "count": 1,
+        "description": "LMU player steering-shaft torque.",
+        "semanticId": "steering.shaft-torque",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -84246,11 +86935,71 @@
       {
         "path": "lmu.tcLevel",
         "label": "TC Level",
-        "unit": "count",
+        "unit": "level",
         "dataType": "number",
         "count": 1,
         "description": "LMU traction-control setting level.",
         "semanticId": "electronics.traction-control-level",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.throttle",
+        "label": "Throttle",
+        "unit": "fraction",
+        "dataType": "number",
+        "count": 1,
+        "description": "LMU player throttle input.",
+        "semanticId": "control.throttle",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.timeGapCarAhead",
+        "label": "Time Gap Car Ahead",
+        "unit": "s",
+        "dataType": "number",
+        "count": 1,
+        "description": "LMU native time gap to car ahead.",
+        "semanticId": "timing.gap.car-ahead",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.timeGapCarBehind",
+        "label": "Time Gap Car Behind",
+        "unit": "s",
+        "dataType": "number",
+        "count": 1,
+        "description": "LMU native time gap to car behind.",
+        "semanticId": "timing.gap.car-behind",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.timeGapPlaceAhead",
+        "label": "Time Gap Place Ahead",
+        "unit": "s",
+        "dataType": "number",
+        "count": 1,
+        "description": "LMU native time gap to place ahead.",
+        "semanticId": "timing.gap.place-ahead",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.timeGapPlaceBehind",
+        "label": "Time Gap Place Behind",
+        "unit": "s",
+        "dataType": "number",
+        "count": 1,
+        "description": "LMU native time gap to place behind.",
+        "semanticId": "timing.gap.place-behind",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -84316,6 +87065,18 @@
         "retention": "exact"
       },
       {
+        "path": "lmu.underYellow",
+        "label": "Under Yellow",
+        "unit": "boolean",
+        "dataType": "boolean",
+        "count": 1,
+        "description": "Player has taken full-course caution at the start/finish line.",
+        "semanticId": "race.under-yellow",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "lmu.vehicleClass",
         "label": "Vehicle Class",
         "unit": "count",
@@ -84342,11 +87103,34 @@
       {
         "path": "lmu.virtualEnergy",
         "label": "Virtual Energy",
-        "unit": "J",
+        "unit": "fraction",
         "dataType": "number",
         "count": 1,
-        "description": "Virtual Energy source value reported by lmu in J.",
+        "description": "LMU player virtual-energy fraction; not absolute energy.",
         "semanticId": "fuel.virtual-energy",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.wind",
+        "label": "Wind",
+        "unit": "m/s",
+        "dataType": "readonly number[]",
+        "description": "Native world-coordinate wind vector.",
+        "semanticId": "weather.wind",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.yellowFlagState",
+        "label": "Yellow Flag State",
+        "unit": "enum",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native full-course yellow state; -1 means invalid.",
+        "semanticId": "race.yellow-flag-state",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -84354,8 +87138,8 @@
     ]
   },
   "coverage": {
-    "normalizedPacketFields": 150,
-    "semanticVariables": 776,
+    "normalizedPacketFields": 151,
+    "semanticVariables": 812,
     "sourceCounts": {
       "fm-2023": {
         "total": 96,
@@ -84403,13 +87187,13 @@
         "recorded": 702
       },
       "lmu": {
-        "total": 172,
+        "total": 210,
         "packet": 126,
-        "extension": 46,
+        "extension": 84,
         "sdk": 0,
         "yaml": 0,
         "setup": 0,
-        "recorded": 172
+        "recorded": 210
       }
     }
   }

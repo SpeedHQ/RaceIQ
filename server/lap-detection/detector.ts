@@ -18,7 +18,6 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { ILapDetector, LapDetectorOptions, LapOwnershipSource, LapOwnershipTransition, DetectorOwnershipState } from "./types";
 import { DEFAULT_LAP_DETECTOR_POLICY, assessLapRecording, mergePitCycleReason, type LapDetectorPolicy } from "@raceiq/telemetry-core/processor/lap-policy";
-import { extractCurbSegments, recordCurbData } from "@raceiq/shared/racing/tracks/recording/curbs";
 import { recordLapTrace } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import { getIRacingSharedTrackName } from "@raceiq/game-iracing-metadata/racing/tracks/catalogs/iracing"
 import { lapPath } from "@raceiq/shared/racing/tracks/path";
@@ -487,20 +486,6 @@ export class LapDetector implements ILapDetector, LapOwnershipSource {
 
     }
 
-
-    // Extract and record curb data from any valid lap
-    if (this.lapIsValid && this.currentSession.trackId && this.lapBuffer.length > 50) {
-      const curbSegments = extractCurbSegments(this.lapBuffer);
-      if (curbSegments.length > 0) {
-        recordCurbData(this.currentSession.trackId, curbSegments, this.currentSession.gameId);
-      }
-    }
-    traceCapture(this.currentSession.gameId, "lap-boundary-stage", {
-      sessionId: this.currentSession.sessionId,
-      lapNumber: this.currentLapNumber,
-      stage: "curb-recording",
-      durationMs: performance.now() - traceStageAt,
-    });
     traceCapture(this.currentSession.gameId, "lap-boundary-end", {
       sessionId: this.currentSession.sessionId,
       lapNumber: this.currentLapNumber,

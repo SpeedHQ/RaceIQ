@@ -93,6 +93,30 @@ describe("compiled telemetry resolver", () => {
     }
   });
 
+  test("keeps litre-based fuel percentages missing without usable capacity", () => {
+    for (const simulator of ["acc", "ac-evo", "lmu"] as const) {
+      const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+        simulator,
+        requested: [{ semanticId: "fuel.fuel-percent" }],
+      });
+      const slot = resolver.slot("fuel.fuel-percent");
+      for (const Fuel of [0, 0.5, 1]) {
+        for (const FuelCapacity of [NaN, 0]) {
+          const frame = resolver.createFrameView(
+            packet(simulator, { Fuel, FuelCapacity }),
+            { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: 1n },
+          );
+          expect(frame.resolveNumber(slot)).toMatchObject({ value: null, state: Number.isNaN(FuelCapacity) ? "invalid" : "missing" });
+        }
+      }
+      const frame = resolver.createFrameView(
+        packet(simulator, { Fuel: 0.5, FuelCapacity: 100 }),
+        { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: 1n },
+      );
+      expect(frame.resolveNumber(slot)).toMatchObject({ value: 0.5, state: "ok" });
+    }
+  });
+
   test("normalizes Forza representative tire temperatures to Celsius", () => {
     const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
       simulator: "fm-2023",

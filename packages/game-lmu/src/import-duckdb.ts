@@ -12,7 +12,7 @@ import {
   LMU_WHEEL,
   LMU_WHEEL_SIZE,
 } from "@raceiq/capture-formats/lmu/layout";
-import { encodeLMUSourcePayload } from "@raceiq/capture-formats/lmu/source-frame";
+import { encodeLMUSyntheticSourcePayload } from "@raceiq/capture-formats/lmu/source-frame";
 
 const IMPORT_FRAME_RATE = 50;
 const GRAVITY_MPS2 = 9.80665;
@@ -60,6 +60,7 @@ interface LoadedLMUDuckDB {
   metadata: LMUDuckDBMetadata;
   continuous: Map<string, ContinuousSeries>;
   events: Map<string, EventSeries>;
+  availableChannels: readonly string[];
   startTime: number;
   duration: number;
   trackLengthM: number;
@@ -342,6 +343,7 @@ async function loadLMUDuckDB(path: string): Promise<LoadedLMUDuckDB> {
       metadata,
       continuous,
       events,
+      availableChannels: [...continuous.keys(), ...events.keys()],
       startTime,
       duration,
       trackLengthM,
@@ -723,15 +725,19 @@ function buildSyntheticFrame(
     loaded.metadata.carClass,
   );
   scoring.writeDoubleLE(lapStartTime, LMU_SCORING_VEHICLE.lapStartElapsedTime);
+  scoringInfo.writeUInt8(
+    eventValue(loaded, "Game Phase", time),
+    LMU_SCORING_INFO.gamePhase,
+  );
 
-  return encodeLMUSourcePayload({
+  return encodeLMUSyntheticSourcePayload({
     gameVersion: loaded.metadata.version,
     sessionEvent: sessionEventChecksum(loaded.metadata.recordingTime),
     captureTimestampMs: epochMs + (time - loaded.startTime) * 1_000,
     telemetry,
     scoringInfo,
     playerScoring: scoring,
-  });
+  }, loaded.availableChannels.filter((channel) => !loaded.events.has(channel) || eventEntry(loaded, channel, time) !== null));
 }
 
 export function isDuckDBFile(bytes: Buffer): boolean {

@@ -298,6 +298,10 @@ export class OrdinalDetectorEngine {
       }
     }
     if (!s.session) return;
+    if (!Number.isFinite(packet.LapNumber)) {
+      s.lastPacketTime = now;
+      return;
+    }
     if (s.lapNumber >= 0 && s.lapBuffer.length > 30 && packet.LapNumber === s.lapNumber) {
       const reset = detectLapReset(s.lapBuffer[s.lapBuffer.length - 1], s.lastLastLap, packet);
       if (reset.action === "complete-final-lap") {

@@ -8,6 +8,8 @@ import { IdParamSchema } from "@raceiq/shared/platform/http/route-schemas";
 import { GameIdSchema, type GameId } from "@raceiq/shared/games/ids";
 import { getGame, tryGetGame } from "@raceiq/shared/games/registry";
 import { analyseSemanticIds } from "@raceiq/shared/games/metric-contracts";
+import { encodeLmuPacket } from "@raceiq/shared/telemetry/lmu-context";
+import { liveSemanticIds } from "@raceiq/telemetry-core/telemetry/live/semantics";
 import { runInsightScanWithCoverage } from "@raceiq/analysis-core/racing/analysis/laps/insights/scan";
 import { processLap, restoreFrameIndices } from "@raceiq/analysis-core/racing/analysis/laps/insights/process";
 import { INSIGHT_DETECTORS } from "@raceiq/analysis-core/racing/analysis/laps/insights/types";
@@ -31,8 +33,9 @@ import { computeNativeSectorTimeline, computeLapSectors } from "@raceiq/telemetr
 import { generateExport } from "@raceiq/backend-core/lap-analysis/report";
 import { resolveTrack } from "@raceiq/backend-core/tracks/info";
 import { computeLineSpreadTrace } from "@raceiq/backend-core/lap-analysis/consistency";
+import { hasWorldPositions } from "@raceiq/shared/racing/tracks/path";
 import { resolveLapCorners } from "../../tracks/corner-resolution";
-import { BulkDeleteSchema, LapsQuerySchema, ReviewLapsQuerySchema, ReviewLineSpreadQuerySchema, AlignedTelemetryRequestSchema, LapInsightBackfillSchema } from "./support";
+import { BulkDeleteSchema, LapsQuerySchema, ReviewLapsQuerySchema, ReviewLineSpreadQuerySchema, CompareLineSpreadQuerySchema, AlignedTelemetryRequestSchema, LapInsightBackfillSchema } from "./support";
 import { resolveTelemetryReplay } from "@raceiq/backend-core/telemetry/replay";
 import { resolveLapF1Setup } from "@raceiq/backend-core/ai/f1-setup-identity";
 
@@ -69,6 +72,23 @@ export const resourceRoutes = new Hono()
     const { lapLines: _lapLines, ...compactTrace } = trace;
     return c.json(compactTrace);
   })
+  .get("/api/laps/compare-line-spread", zValidator("query", CompareLineSpreadQuerySchema), async (c) => {
+    const { gameId, lapIds } = c.req.valid("query");
+    const loaded = await getLapsByIds(lapIds);
+    if (loaded.length !== lapIds.length) return c.json({ error: "Selected laps not found." }, 400);
+    const ordered = lapIds.map((id) => loaded.find((lap) => lap.id === id)!);
+    const [first, second] = ordered;
+    if (first!.gameId !== gameId || second!.gameId !== gameId || first!.trackId !== second!.trackId) {
+      return c.json({ error: "Selected laps must share game and track." }, 400);
+    }
+    if (ordered.some((lap) => lap.parseError || lap.telemetry.length < 30 || !hasWorldPositions(lap.telemetry))) return c.json(null);
+    const corners = await resolveLapCorners(first!.trackId, gameId, first!.telemetry);
+    const trace = computeLineSpreadTrace(ordered.map((lap) => lap.telemetry), lapIds, corners);
+    if (!trace || !Number.isFinite(trace.consistencyScore) || !Number.isFinite(trace.overallSpreadM)) return c.json(null);
+    const { lapLines: _lapLines, ...compactTrace } = trace;
+    return c.json(compactTrace);
+  })
+
 
   .get("/api/laps/:id/semantic-telemetry", zValidator("param", IdParamSchema), async (c) => {
     const { id } = c.req.valid("param");
@@ -105,7 +125,8 @@ export const resourceRoutes = new Hono()
             )
           : source.rawFile ? await loadRawCaptureIdentity(source.rawFile) : undefined
         : undefined;
-      const replay = resolveTelemetryReplay(id, replaySource, lap.telemetry, semanticReplayIds(meta.gameId), rawCapture);
+      const semanticIds = meta.gameId === "lmu" ? [...new Set([...semanticReplayIds(meta.gameId), ...liveSemanticIds("lmu")])] : semanticReplayIds(meta.gameId);
+      const replay = resolveTelemetryReplay(id, replaySource, lap.telemetry, semanticIds, rawCapture);
       const nativeLayout = getGame(meta.gameId).getNativeSectorLayout?.(lap.telemetry[0]);
       const processed = processLap(lap.telemetry, meta.gameId);
       const analysis = runInsightScanWithCoverage(processed.packets, meta.gameId, { racingLine: resolveRacingLineReference(meta.gameId, meta.trackId) });
@@ -119,7 +140,8 @@ export const resourceRoutes = new Hono()
           observedAt: { domain: "wall-clock", milliseconds: timestampMilliseconds(envelope.observedAt) },
           receivedAt: { domain: "wall-clock", milliseconds: timestampMilliseconds(envelope.receivedAt) },
           simulator: envelope.simulator,
-          values: envelope.values.map(({ semanticId, value, state, freshness }) => ({ semanticId, value, state, freshness })),
+          values: envelope.values.map(({ semanticId, value, unit, state, freshness }) => ({ semanticId, value, unit, state, freshness })),
+          ...(envelope.lmu ? { lmu: envelope.lmu } : {}),
         })),
       });
     } catch (error) {
@@ -275,7 +297,7 @@ export const resourceRoutes = new Hono()
     // initial fetch instead of re-deriving on every render
     const insights = await getOrComputeLapInsights(id) ?? [];
 
-    return c.json({ ...lap, sectorTimes, insights });
+    return c.json({ ...lap, telemetry: gameId === "lmu" ? lap.telemetry.map(encodeLmuPacket) : lap.telemetry, sectorTimes, insights });
   })
 
   .get("/api/laps/:id/export", zValidator("param", IdParamSchema), async (c) => {

@@ -8,6 +8,10 @@
 - Replace live pit estimates with the selected matching race strategy, including planned stops, next-stint compounds/fuel, and measured compound-specific tire life with cliff/dead and fuel-shortfall warnings.
 - Keep pit-estimate history across sessions and restarts, with per-driver clearing and evidence from compatible previous stints.
 - Review per-stint fuel use and four-wheel tire wear, then compare two stints with explicit units, sample counts, and unavailable data.
+- Keep Sessions actions in a bottom-center floating bar with a selection count and Deselect all. Keep Compare visible and enable it only for two compatible laps; filter comparison laps by Mine, Others, or All inside the lap-picker dropdown.
+- Show separate LMU player energy, engine, electric motor, steering feedback, weather and race-control readings in live telemetry and recorded-lap analysis when provided by the game.
+- Show read-only LMU setup, forecast and condition snapshots with source age and availability, without waiting for network requests before displaying live telemetry.
+- Compare laps in Spectate with synchronized 3D replay, configurable cameras and overlays, live A/B instruments, sector deltas, and telemetry, car, AI, Focus View, and lap-statistics panels.
 - Choose a 50–100 Hz recording frequency for ACC, AC Evo, iRacing, or LMU during setup to reduce recording size. Live UDP recording is unchanged.
 - Downsample saved recordings manually or with an opt-in age policy in Storage settings; measure the first 1,000 frame timestamps per stream and skip recordings already at or below the target. Track progress and retry failed files. Favorites and MoTeC imports stay unchanged.
 - Split recordings into individual, lossless per-lap `.bin` files so lap 60 loads as fast as lap 1.
@@ -31,6 +35,25 @@
 - Treat continuous refueling as one stint boundary, including repeated unchanged fuel readings.
 - Recover pit-estimate history selection when another client deletes the selected session.
 - Keep local browsers open when restarting the server.
+- Keep recording splitting and background processing available when the UDP telemetry port is already in use.
+- Report inconclusive historical lap classification as limited without requesting attention, and correct earlier results.
+- Center Le Mans Ultimate track outlines within catalogue cards.
+- Select and deselect child laps with the Sessions table header checkbox, preserving selections on other pages and ownership tabs.
+- Stop recording curb maps and using detected curbs to recalibrate track boundaries; preserve telemetry-based curb detection.
+- Keep Spectate racing lines visible when zooming out to the full circuit.
+- Distinguish native fractional LMU brake and clutch inputs from normalized control readings in the telemetry catalog.
+- Keep unchanged LMU supplemental snapshots available while successful polling continues, without resetting their original observation ages.
+- Render LMU developer telemetry snapshots without crashing on precision-preserved observation sequences.
+- Preserve LMU player snapshots, availability states and original observation times through recording, lap export, import and replay.
+- Keep LMU selected-lap exports compact enough to import again, including supplemental snapshots at the recording frame-size limit.
+- Show unrecorded LMU import channels as unavailable instead of artificial zero or false readings, while preserving recorded zeros.
+- Import completed LMU laps even when the first lap-number event arrives after other telemetry.
+- Keep litre-based fuel percentages unavailable when tank capacity is missing instead of interpreting low fuel volumes as fractions.
+- Use native scoring update ages for LMU weather and race-control readings without changing historical snapshot ages.
+- Clear frozen or disconnected LMU player data even when the system clock moves backward.
+- Keep LMU snapshots responsive when the local telemetry service returns oversized, rejected, or malformed condition responses.
+- Open the dashboard in your default browser when launching RaceIQ from the optional desktop shortcut or Start menu, even when the server was stopped.
+- Preserve incomplete-lap eligibility and LMU first-outlap classification across ordinal detector transitions.
 - Keep first-run setup responsive by omitting the optional telemetry demo.
 - Label the community setup copy action “Clone” in the setup browser.
 - Leave MoTeC imports unchanged during historical lap-classification upgrades.
@@ -80,6 +103,16 @@
 
 ### Internal
 - Invalidate cached translation modules before development previews reload so Storybook and the app pick up newly generated messages.
+- Ignore terminal color codes when waiting for compiler startup in the Paraglide lifecycle CI test.
+- Generate Paraglide declarations with the installed native TypeScript compiler and stop abandoned translation watchers from consuming CPU after development exits.
+- Use Ubuntu instead of macOS for CI runners and cap Mars memory requests at 6 GB.
+- Invalidate cached frontend builds when source changes in dependent workspaces.
+- Extract tracks and cars catalogues into feature-owned UI, server, contract, and E2E workspaces with enforced browser boundaries, inherited Turbo impact inputs, and isolated compiled-app browser tasks.
+- Run native Spectate camera and transition checks in a dedicated browser lane while retaining coverage for CPU-compatible rendering paths.
+- Verify LMU recorded pit-cycle classifications independently of lap validity, preserving telemetry-quality failures and incomplete tails.
+- Synchronize zoom-reversal checks with rendered transition frames and wait for concurrent SQLite writers during migration fixture setup.
+- Keep sparse-capture fixtures schema-valid and verify failed classification recordings without waiting for dashboard work blocked by startup repair prerequisites.
+- Rename the shared LMU decoded-frame contract to `LMUSourceFrame` and remove an unused legacy version constant without changing recording compatibility.
 - Define startup repair stages in a keyed registry with an explicit order; reject unknown, duplicate, or omitted stages before repairs run.
 - Run browser and responsive verification against production builds with all release-gated features enabled, including the historical classification upgrade fixture.
 - Align recording and browser E2E coverage with independent lap classification, pace-only review, current setup-source labels, and recording-organization consent controls.

@@ -4,8 +4,8 @@ import type { GameId } from "@raceiq/shared/games/ids";
 import { getGame } from "@raceiq/shared/games/registry"
 import { getFuelDisplay } from "@raceiq/shared/games/telemetry"
 import { hasTireHealthData, hasTireHealthDataSemantic, resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities"
-import { severityColor } from "@/lib/colors";
-import { tireHealthPctColor } from "@/lib/vehicle-dynamics";
+import { severityColor } from "@raceiq/scene-3d/colors";
+import { tireHealthPctColor } from "@raceiq/scene-3d/vehicle-dynamics";
 import { m } from "@/paraglide/messages";
 import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
 import type { LivePitData } from "@raceiq/shared/racing/live/types";

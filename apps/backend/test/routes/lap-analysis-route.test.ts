@@ -87,6 +87,52 @@ describe("GET /api/laps/review", () => {
   });
 });
 
+describe("GET /api/laps/compare-line-spread", () => {
+  test("returns null for zero-filled position telemetry across compatible sessions", async () => {
+    const sessionA = await insertSession("10", "20", "acc");
+    const sessionB = await insertSession("10", "20", "acc");
+    const lapA = await insertLap(sessionA, 1, 61, true, null, 0, null, null, null, null, null);
+    const lapB = await insertLap(sessionB, 1, 62, true, null, 0, null, null, null, null, null);
+    const missingPositionTelemetry = () => Array.from({ length: 30 }, (_, index) => packet("acc", {
+      DistanceTraveled: index,
+      CurrentLap: index,
+      TimestampMS: index * 1_000,
+      PositionX: 0,
+      PositionZ: 0,
+    }));
+    cacheSet(lapA, missingPositionTelemetry());
+    cacheSet(lapB, missingPositionTelemetry());
+    try {
+      const response = await lapRoutes.request(`/api/laps/compare-line-spread?gameId=acc&lapIds=${lapA},${lapB}`);
+      expect(response.status).toBe(200);
+      expect(await response.json()).toBeNull();
+    } finally {
+      cacheDelete(lapA);
+      cacheDelete(lapB);
+      await deleteSession(sessionA);
+      await deleteSession(sessionB);
+    }
+  });
+
+  test("rejects malformed, missing, and incompatible lap pairs", async () => {
+    expect((await lapRoutes.request("/api/laps/compare-line-spread?gameId=acc&lapIds=1,1")).status).toBe(400);
+    expect((await lapRoutes.request("/api/laps/compare-line-spread?gameId=acc&lapIds=1")).status).toBe(400);
+    expect((await lapRoutes.request("/api/laps/compare-line-spread?gameId=acc&lapIds=999999,999998")).status).toBe(400);
+
+    const sessionA = await insertSession("10", "20", "acc");
+    const sessionB = await insertSession("10", "21", "acc");
+    const lapA = await insertLap(sessionA, 1, 61, true, null, 0, null, null, null, null, null);
+    const lapB = await insertLap(sessionB, 1, 62, true, null, 0, null, null, null, null, null);
+    try {
+      expect((await lapRoutes.request(`/api/laps/compare-line-spread?gameId=acc&lapIds=${lapA},${lapB}`)).status).toBe(400);
+      expect((await lapRoutes.request(`/api/laps/compare-line-spread?gameId=f1-2025&lapIds=${lapA},${lapB}`)).status).toBe(400);
+    } finally {
+      await deleteSession(sessionA);
+      await deleteSession(sessionB);
+    }
+  });
+});
+
 describe("POST /api/laps/aligned-telemetry", () => {
   test("preserves requested order, wheel wear, sectors, and base cache identity", async () => {
     const sessionId = await insertSession("10", "20", "acc");

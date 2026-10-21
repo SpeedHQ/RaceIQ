@@ -6,6 +6,7 @@ import { dashboardTrackIdentity } from "@raceiq/shared/racing/sessions/dashboard
 import { TrackConditionsAccumulator } from "../ai/track-conditions";
 import { getServerGame } from "../games/registry";
 import type { ObservedDashboardCaptureFacts } from "./dashboard-processor";
+import { encodeLmuPacket } from "@raceiq/shared/telemetry/lmu-context";
 
 const USES_SESSION_CLOCK: Partial<Record<GameId, true>> = { "fm-2023": true, "f1-2025": true, iracing: true, lmu: true };
 
@@ -35,7 +36,7 @@ export class DashboardCaptureObservation {
   observe(packet: TelemetryPacket, source: Buffer | { rawOffset: number } | undefined, frameTimeMs?: number): void {
     this.packetCount++;
     if (Buffer.isBuffer(source)) this.hash.update(source);
-    else this.hash.update(JSON.stringify(packet));
+    else this.hash.update(JSON.stringify(encodeLmuPacket(packet)));
 
     const adapter = getServerGame(this.gameId);
     const time = frameTimeMs ?? packet.extendedRaceIQ?.frameTimeMs;

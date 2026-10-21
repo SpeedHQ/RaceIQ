@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import uPlot from "uplot";
 import "uplot/dist/uPlot.min.css";
-import { resolveCssColor } from "../../../lib/rendering/css-values";
+import { resolveCssColor } from "@raceiq/scene-3d/rendering/css-values"
 
 export interface AnnotationMarker {
   frac: number;
