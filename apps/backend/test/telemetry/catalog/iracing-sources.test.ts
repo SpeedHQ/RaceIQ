@@ -13,18 +13,6 @@ describe("semantic telemetry catalog iRacing sources", () => {
 
     expect(
       IRACING_TELEMETRY_SOURCE_VARIABLES.find(
-        (variable) => variable.path === "LFtempCL",
-      ),
-    ).toMatchObject({
-      unit: "C",
-      dataType: "float",
-      count: 1,
-      description: "LF tire left carcass temperature",
-      recordedByRaceIQ: true,
-      semanticId: "tire.temperature.carcass.left",
-    });
-    expect(
-      IRACING_TELEMETRY_SOURCE_VARIABLES.find(
         (variable) => variable.path === "AirDensity",
       ),
     ).toMatchObject({

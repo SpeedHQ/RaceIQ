@@ -57,6 +57,7 @@ export function WheelCard({
   const coreTemp = temperatureReadings.find(({ kind }) => kind === "core")?.value ?? null;
   const surfaceBands = temperatureReadings.filter(({ kind }) => kind === "inner" || kind === "middle" || kind === "outer");
   const hasCarcassBands = carcassBands.every((value) => value != null);
+  const hasTemperature = hasCarcassBands || temperatureReadings.some(({ value }) => value != null);
   const hasProfile = surfaceBands.length > 0;
   const singleSurface = !hasProfile && surfaceTemp != null && coreTemp == null && carcassTemp == null && !hasCarcassBands;
   const singleTemperature = singleSurface ? surfaceTemp : !hasProfile && surfaceTemp == null ? carcassTemp : null;
@@ -98,7 +99,7 @@ export function WheelCard({
               <animate attributeName="opacity" values="0.6;0.2;0.6" dur="0.6s" repeatCount="indefinite" />
             </rect>
           )}
-          <rect x={cx - tW / 2} y={cy - tH / 2} width={tW} height={tH} rx={6} fill={singleTemperature != null ? tireTempColor(singleTemperature, thresholds) : "var(--app-bg)"} fillOpacity={singleTemperature != null ? undefined : 0.6} />
+          <rect x={cx - tW / 2} y={cy - tH / 2} width={tW} height={tH} rx={6} fill={singleTemperature != null ? tireTempColor(singleTemperature, thresholds) : hasTemperature ? "var(--app-bg)" : "var(--app-surface-alt)"} fillOpacity={hasTemperature && singleTemperature == null ? 0.6 : undefined} stroke={!hasTemperature ? "var(--app-text-muted)" : undefined} strokeWidth={!hasTemperature ? 1 : undefined} />
           {(hasProfile || (surfaceTemp != null && !singleSurface)) && [cy - tH / 2, cy + tH / 2 - 6].map((y) => [0, 1, 2].map((index) => {
             const value = hasProfile ? surfaceBands[index]?.value : surfaceTemp;
             const x = cx - tW / 2 + index * (tW / 3);

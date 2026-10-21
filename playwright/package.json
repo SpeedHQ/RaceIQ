@@ -13,6 +13,7 @@
     "@playwright/test": "1.62.1",
     "@raceiq/tooling": "workspace:*",
     "@raceiq/backend-core": "workspace:*",
+    "@raceiq/game-catalogs": "workspace:*",
     "@raceiq/shared": "workspace:*"
   },
   "dependencies": {

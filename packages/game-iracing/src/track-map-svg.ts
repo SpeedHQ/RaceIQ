@@ -630,6 +630,49 @@ function allContours(svg: string): SvgPoint[][] {
     (pathData) => parsePathData(pathData).contours,
   );
 }
+function startFinishMarkerContours(svg: string): SvgPoint[] {
+  const symbols = new Map<string, SvgPoint>();
+  for (const match of svg.matchAll(/<symbol\b([^>]*)>([\s\S]*?)<\/symbol>/gi)) {
+    const id = svgAttribute(match[1]!, "id");
+    const viewBox = svgAttribute(match[1]!, "viewBox");
+    if (!id || !/start[_-]?finish/i.test(id) || !viewBox) continue;
+    const values = numberTokens(viewBox);
+    if (values.length >= 4) symbols.set(id, { x: values[0]! + values[2]! / 2, y: values[1]! + values[3]! / 2 });
+  }
+  const markers: SvgPoint[] = [];
+  for (const match of svg.matchAll(/<use\b[^>]*>/gi)) {
+    const tag = match[0];
+    const href = svgAttribute(tag, "href") ?? svgAttribute(tag, "xlink:href");
+    if (!href || !/start[_-]?finish/i.test(href)) continue;
+    const id = href.replace(/^#/, "");
+    const point = symbols.get(id);
+    if (!point) continue;
+    let { x, y } = point;
+    const transforms = [...(svgAttribute(tag, "transform") ?? "").matchAll(/(translate|rotate|scale)\(([^)]*)\)/gi)].reverse();
+    for (const transform of transforms) {
+      const values = numberTokens(transform[2]!);
+      switch (transform[1]!.toLowerCase()) {
+        case "translate":
+          x += values[0] ?? 0; y += values[1] ?? 0;
+          break;
+        case "scale":
+          x *= values[0] ?? 1; y *= values[1] ?? values[0] ?? 1;
+          break;
+        case "rotate": {
+          const angle = (values[0] ?? 0) * Math.PI / 180;
+          const cx = values[1] ?? 0, cy = values[2] ?? 0;
+          const dx = x - cx, dy = y - cy;
+          x = cx + dx * Math.cos(angle) - dy * Math.sin(angle);
+          y = cy + dx * Math.sin(angle) + dy * Math.cos(angle);
+          break;
+        }
+      }
+    }
+    if (Number.isFinite(x) && Number.isFinite(y)) markers.push({ x, y });
+  }
+  return markers;
+}
+
 
 function closedPerimeter(points: readonly SvgPoint[]): number {
   let total = 0;
@@ -828,7 +871,7 @@ export function parseIRacingActiveSvg(
 
   let startFinishAligned = false;
   if (startFinishSvg) {
-    const markerPoints = allContours(startFinishSvg).flat();
+    const markerPoints = [...allContours(startFinishSvg).flat(), ...startFinishMarkerContours(startFinishSvg)];
     if (markerPoints.length > 0) {
       const startIndex = nearestPointIndex(centerline, markerPoints);
       centerline = rotateToIndex(centerline, startIndex);

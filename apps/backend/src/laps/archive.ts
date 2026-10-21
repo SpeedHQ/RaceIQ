@@ -1,20 +1,15 @@
 /**
  * Lap / session ZIP export + import.
  *
- * Telemetry is NOT stored as a per-lap blob any more — the canonical source is
- * the per-session raw capture on disk (`sessions.rawFile`: optional 12-byte
- * meta frame, then repeated `[uint32 LE len][frame bytes]`), with each lap row
- * pointing at a `rawByteOffset` / `rawFrameCount` window inside it.
- *
- * So an export is just a slice of that frame stream, and an import replays the
- * slice through the normal pipeline (`importSessionBin`) — the exact same code
- * path as the single-file `.bin` import. Nothing here re-implements parsing or
- * lap detection, which is what the old CSV-blob format did (and why it rotted).
+ * IBT source sessions export their complete original file; BIN captures export
+ * selected frame windows. Imports reuse the production MoTeC and IBT pipelines
+ * or the normal BIN importer, preserving each source's native representation.
  *
  * Zip layout:
  *   manifest.json                              — describes every entry
  *   <gameId>-<track>-session<id>.bin.gz        — one gzip'd frame slice per session
  *   <gameId>-<track>-session<id>.motec.zip     — one complete MoTeC source archive per session
+ *   iracing-<track>-session<id>.ibt             — one original iRacing IBT per session
  */
 import { zipSync } from "fflate";
 import { readFile } from "node:fs/promises";
@@ -79,6 +74,7 @@ import {
 import { parseF1Header } from "@raceiq/capture-formats/f1-2025/f1-wire";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
+import { commitStagedIbt, stageIbtUpload } from "../imports/iracing-ibt";
 export const LAPS_ZIP_VERSION = 4;
 
 export interface ManifestLap {
@@ -88,7 +84,7 @@ export interface ManifestLap {
 }
 
 export interface ManifestEntry {
-  /** Zip entry name holding this session's gzip'd frame slice or MoTeC source archive. */
+  /** Session source bytes: gzip'd frame slice, MoTeC archive, or original IBT. */
   file: string;
   gameId: GameId;
   /** Session id in the *source* database (informational — import always creates a new session). */
@@ -150,7 +146,7 @@ function captureFileName(memberName: string): string {
 
 function fileNamesForZip(files: Record<string, Uint8Array>): string[] {
   return Object.keys(files)
-    .filter((name) => name.endsWith(".bin") || name.endsWith(".bin.gz") || name.endsWith(".motec.zip"))
+    .filter((name) => name.endsWith(".bin") || name.endsWith(".bin.gz") || name.endsWith(".motec.zip") || name.toLowerCase().endsWith(".ibt"))
     .sort();
 }
 
@@ -478,10 +474,28 @@ export async function buildLapsZip(
       }
     }
     const firstSelected = rows[0]!;
-    const isMotec = rows.some((row) => row.source === "motec" || row.rawFile?.endsWith(".motec.zip"));
-    if (isMotec && rows.some((row) => row.captureLayoutVersion != null)) {
-      throw new Error("Published MoTeC capture layouts cannot be exported as source archives");
+    const isIbt = rows.some((row) => row.source === "ibt" || row.rawFile?.toLowerCase().endsWith(".ibt"));
+    if (isIbt) {
+      if (rows.some((row) => row.gameId !== "iracing" || row.captureLayoutVersion != null)) {
+        throw new Error("IBT source archives require original iRacing recordings without published BIN layouts");
+      }
+      const first = allRows.find((row) => row.sessionId === sessionId) ?? firstSelected;
+      if (!first.rawFile) throw new Error("Original IBT source is missing");
+      const sourceBytes = await readFile(first.rawFile);
+      const trackName = resolveTrackName(first.trackId ?? "", "iracing");
+      const carName = resolveCarName(first.carId ?? "", "iracing");
+      const fileName = `iracing-${slugify(trackName) || `track${first.trackId ?? ""}`}-session${sessionId}.ibt`;
+      files[fileName] = sourceBytes;
+      const sourceLaps = allRows.filter((row) => row.sessionId === sessionId).sort((a, b) => a.lapNumber - b.lapNumber);
+      entries.push({
+        file: fileName, gameId: "iracing", sessionId,
+        carId: first.carId ?? "", trackId: first.trackId ?? "",
+        carName, trackName, createdAt: first.createdAt,
+        laps: sourceLaps.map((r) => ({ lapNumber: r.lapNumber, lapTime: r.lapTime, isValid: r.isValid })),
+      });
+      continue;
     }
+    const isMotec = rows.some((row) => row.source === "motec" || row.rawFile?.endsWith(".motec.zip"));
     if (isMotec) {
       const first = allRows.find((row) => row.sessionId === sessionId) ?? firstSelected;
       const rawFile = first.rawFile;
@@ -634,10 +648,9 @@ export interface ImportZipResult {
 }
 
 /**
- * Import a zip produced by {@link buildLapsZip}: every `.bin`/`.bin.gz` member is
- * replayed through the pipeline, landing as a fresh session with its laps
- * re-detected. Duplicates are not merged — importing the same zip twice gives
- * you the laps twice, same as the single-file `.bin` import.
+ * Import ZIP members through their production source pipeline: original IBT is
+ * staged and committed as IBT, MoTeC is restored as MoTeC, and BIN replays as BIN.
+ * Duplicates are not merged; importing the same archive twice creates sessions twice.
  */
 export async function importLapsZip(zipData: Uint8Array, options: { ownership?: SessionOwnership; identityOverrides?: Record<string, { carId: string; trackId: string }> } = {}): Promise<ImportZipResult> {
   const files = unzipBounded(zipData, LAPS_ZIP_LIMITS);
@@ -653,7 +666,7 @@ export async function importLapsZip(zipData: Uint8Array, options: { ownership?: 
 
   if (names.length === 0) {
     throw new Error(
-      "Zip contains no session captures (.bin/.bin.gz/.motec.zip). Exports from an older RaceIQ version can't be imported."
+      "Zip contains no session captures (.bin/.bin.gz/.motec.zip/.ibt). Exports from an older RaceIQ version can't be imported."
     );
   }
 
@@ -665,6 +678,29 @@ export async function importLapsZip(zipData: Uint8Array, options: { ownership?: 
       memberBytes.byteLength,
     );
     const entry = manifestEntries.get(name);
+    if (name.toLowerCase().endsWith(".ibt")) {
+      try {
+        if (entry && entry.gameId !== "iracing") throw new Error("IBT manifest metadata must identify iRacing");
+        const stream = new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(memberBytes);
+            controller.close();
+          },
+        });
+        const staged = await stageIbtUpload(stream, name, memberBytes.byteLength);
+        if (!staged.token) {
+          skipped++;
+          errors.push(`${name}: ${staged.preview.reason ?? "IBT preview was not importable"}`);
+          continue;
+        }
+        const result = await commitStagedIbt(staged.token, options.ownership);
+        laps.push(...result.laps);
+      } catch (error) {
+        skipped++;
+        errors.push(`${name}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+      continue;
+    }
     if (name.endsWith(".motec.zip")) {
       if (!entry) {
         skipped++;

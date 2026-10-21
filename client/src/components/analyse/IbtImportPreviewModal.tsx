@@ -58,7 +58,7 @@ function formatSize(bytes: number): string {
 
 export function IbtImportPreviewModal({ token, preview, importing, ownership, onOwnershipChange, onImport, onClose }: Props) {
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
+    <Dialog open onOpenChange={(open) => !open && !importing && onClose()}>
       <DialogContent size="md" showCloseButton={false} overlayClassName="bg-app-bg/60">
         <DialogHeader>
           <DialogTitle className="text-xs font-medium text-app-text/90 uppercase tracking-wider">{m.analyse_import_preview_title()}</DialogTitle>

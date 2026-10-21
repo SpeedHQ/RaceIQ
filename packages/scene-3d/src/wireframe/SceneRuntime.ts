@@ -42,7 +42,6 @@ export interface SceneRuntimeConfig {
   frame: SemanticAnalysisFrame;
   telemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
-  outline: { x: number; z: number }[] | null;
   measuredPath?: { x: number; z: number; y?: number }[] | null;
   poses?: (ScenePose | null)[];
   boundaries: SceneTrackBoundaries | null;

@@ -15,6 +15,7 @@ import { iterateIRacingNativeFramesForTest, queryLapTelemetryBySemanticId, resol
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { canonicalizeTelemetryScalar } from "@raceiq/telemetry-core/telemetry/replay/canonicalize";
 import { convertSeedFramesToSparse } from "@raceiq/tooling-data/data/seed-capture-conversion";
+import { attachImportedNativeValues } from "@raceiq/backend-core/session-capture/source-loader";
 
 import { packet } from "@raceiq/telemetry-core/test-support/telemetry/resolver";
 initGameAdapters();
@@ -269,4 +270,21 @@ test("native semantic replay matches trimmed and appended frames and rejects amb
   expect(replay.envelopes[2].values.find((value) => value.semanticId === "engine.voltage")?.value).toBe(12.5);
   expect(replay.envelopes[2].values.find((value) => value.semanticId === "race.player-incident-count")?.value).toBe(4);
   expect(replay.envelopes[3].values.find((value) => value.semanticId === "engine.oil-temperature")).toMatchObject({ value: null, state: "missing" });
+});
+
+test("IBT semantic replay resolves original native values without BIN decoding", () => {
+  const source: LapReplaySource = {
+    id: 1, sessionId: 1, createdAt: "2026-08-04 00:00:00", gameId: "iracing",
+    rawFile: "source.ibt", rawByteOffset: 0, rawFrameCount: 2, captureFormatVersion: null,
+  };
+  const packets = [1, 1].map((tick) => packet("iracing", {
+    sessionUID: "205:202:1",
+    iracing: { sessionTick: tick } as TelemetryPacket["iracing"],
+    CurrentRaceTime: tick / 60,
+  }));
+  attachImportedNativeValues(packets, [{ OilTemp: 81 }, { OilTemp: 82 }]);
+  const replay = resolveTelemetryReplay(1, source, packets, ["engine.oil-temperature"]);
+  expect(replay.envelopes.map((envelope) =>
+    envelope.values.find((value) => value.semanticId === "engine.oil-temperature")?.value,
+  )).toEqual([81, 82]);
 });

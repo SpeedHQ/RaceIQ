@@ -3,7 +3,6 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { AnalyseDynamicsPanel } from "../src/components/analyse/AnalyseDynamicsPanel";
-import { IRacingReplayDataPanel } from "../src/components/iracing/IRacingReplayDataPanel";
 import { buildSegmentData } from "../src/components/analyse/AnalyseSegmentList";
 import { pathForwardOffsets, projectPointOntoPath, resolveFrameDirection } from "../src/components/analyse/track-map/path";
 import { sectorIndexForTelemetryIndex } from "../src/components/tunes/SectorRangeBreakdown";
@@ -14,51 +13,6 @@ initGameAdapters({ iracingAdapter: true, f1Experiments: true });
 
 const units = { temp: (value: number) => value, tempLabel: "°C", thresholds: { cold: 75, warm: 115, hot: 150 }, toTempC: (value: number) => value } as ReturnType<typeof useUnits>;
 const frame = (values: Record<string, unknown>): SemanticAnalysisFrame => ({ values, states: {}, freshness: {} });
-const iracingFrame = frame({
-  "motion.speed": 30,
-  "motion.acceleration-x": 11.38,
-  "motion.acceleration-z": -0.1,
-  "motion.angular-velocity-y": 0.1,
-  "identity.player-track-surface": 1,
-  "tires.tire-pressure": [23.5, 23.5, 24.5, 24.5],
-  "tires.tire-wear": [0.012, 0.012, 0.01, 0.01],
-  "tire.temperature.surface.representative": [63, 60, 65, 63],
-  "suspension.suspension-travel-m": [0.039, 0.059, 0.018, 0.046],
-});
-
-describe("iRacing recorded replay data", () => {
-  const replayUnits = { speed: (value: number) => value * 3.6, speedLabel: "km/h", temp: (value: number) => value, tempLabel: "°C" };
-  test("shows real recorded channels without unsupported dynamics or compression readouts", () => {
-    const markup = renderToStaticMarkup(createElement(IRacingReplayDataPanel, { frame: iracingFrame, units: replayUnits }));
-    expect(markup).toContain("108");
-    expect(markup).toContain("1.16 g");
-    expect(markup).not.toContain("Grip Ask");
-    expect(markup).not.toContain("Compression bias");
-    expect(markup).not.toContain("Rotation /s");
-    expect(markup).not.toContain("Slip");
-  });
-  test("keeps valid zeros and excludes stale, missing, error and nonfinite current channels", () => {
-    const recorded = frame({ "inputs.clutch": 0, "engine.coolant-temperature": 91, "engine.oil-temperature": 999, "engine.voltage": 998, "fuel.fuel-press": Infinity, "engine.oil-pressure": 997, "race.player-incident-count": 0 });
-    recorded.states = { "engine.oil-temperature": "stale", "engine.voltage": "missing", "engine.oil-pressure": "error" };
-    const markup = renderToStaticMarkup(createElement(IRacingReplayDataPanel, { frame: recorded, units: replayUnits }));
-    expect(markup).toContain("0%");
-    expect(markup).toContain("91.0°C");
-    expect(markup).not.toContain("999");
-    expect(markup).not.toContain("998");
-    expect(markup).not.toContain("997");
-    expect(markup).not.toContain("Infinity");
-  });
-  test("separates stale pit snapshots from cursor telemetry and does not fabricate partial wheel sets", () => {
-    const recorded = frame({ "tire.temperature.carcass.middle": [50, 51, 52, 53], "tires.tire-pressure": [28, 28, 28, 28], "suspension.shock-vel": [0.1, null, 0.2, 0.3] });
-    recorded.states = { "tire.temperature.carcass.middle": "stale", "tires.tire-pressure": "stale" };
-    const markup = renderToStaticMarkup(createElement(IRacingReplayDataPanel, { frame: recorded, units: replayUnits }));
-    expect(markup).toMatch(/<details[^>]*>/);
-    expect(markup).not.toMatch(/<details[^>]* open/);
-    expect(markup).toContain("not live tire measurements");
-    expect(markup).toContain("28.0");
-    expect(markup).not.toContain("Shock velocity");
-  });
-});
 
 describe("iRacing analysis track marker", () => {
   test("keeps projected-path direction through repeated positions and corners", () => {

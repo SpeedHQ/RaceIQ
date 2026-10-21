@@ -1,3 +1,4 @@
+packages/game-iracing/test/catalog/iracing-tire-availability.test.ts
 packages/game-iracing/test/iracing-incident-report.test.ts
 
 packages/game-iracing/test/iracing-ibt-reader.test.ts

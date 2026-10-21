@@ -133,6 +133,8 @@ export function assertGameMetricContracts(
     const telemetry = adapter.telemetry;
     for (const [metric, spec] of Object.entries(telemetry)) {
       if (metric === "analysis" || !spec || typeof spec !== "object") continue;
+      // Scalar specs may provide unit metadata without advertising a live channel.
+      if ("packetUnit" in spec && !spec.binding) continue;
       if (!("binding" in spec) || !spec.binding) {
         throw new Error(`${adapter.id}.${metric}: available metric missing binding`);
       }

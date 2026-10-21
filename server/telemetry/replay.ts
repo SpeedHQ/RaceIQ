@@ -11,7 +11,7 @@ import { createIRacingSourceDecoderState, decodeIRacingSourceFrame, type IRacing
 import { PARSER_BOOTSTRAP_VERSION, iterateSessionCaptureRecords } from "@raceiq/capture-formats/session/framing";
 import { parseIRacingTrackGeography } from "@raceiq/capture-formats/iracing/session-info";
 import { createRawCaptureIdentity, loadRawCaptureIdentity, type RawCaptureIdentity, rawCaptureObjectId } from "../session-capture/identity";
-import { loadSessionCapture, resolveLapCaptureArtifact } from "../session-capture/source-loader";
+import { importedNativeValuesFor, loadSessionCapture, resolveLapCaptureArtifact } from "../session-capture/source-loader";
 import { getLiveLapCaptureSnapshot } from "../db/live-capture-queries";
 import { resolveLiveLapCaptureArtifact } from "../session-capture/source-loader";
 import { encodeLmuContext } from "@raceiq/shared/telemetry/lmu-context";
@@ -117,17 +117,16 @@ function* iterateIRacingNativeIdentities(source: LapReplaySource, capture: Buffe
 export const iterateIRacingNativeFramesForTest = iterateIRacingNativeFrames;
 
 function resolveRawReference(source: LapReplaySource, capture: RawCaptureIdentity | undefined): TelemetryRawReference | undefined {
-  if (capture && source.rawByteOffset != null && source.rawFrameCount != null) {
-    return {
-      objectId: source.captureChunkId ? `session:${source.sessionId}:lap-capture:${source.captureChunkId}` : rawCaptureObjectId(source.sessionId),
-      contentHash: capture.contentHash,
-      contentEncoding: "identity",
-      storageEncoding: capture.storageEncoding,
-      byteOffset: source.rawByteOffset,
-      frameCount: source.rawFrameCount,
-    };
-  }
-  return undefined;
+  if (!capture) return undefined;
+  const base: TelemetryRawReference = {
+    objectId: source.captureChunkId ? `session:${source.sessionId}:lap-capture:${source.captureChunkId}` : rawCaptureObjectId(source.sessionId),
+    contentHash: capture.contentHash,
+    contentEncoding: "identity",
+    storageEncoding: capture.storageEncoding,
+  };
+  if (source.rawFile?.toLowerCase().endsWith(".ibt")) return base;
+  if (source.rawByteOffset == null || source.rawFrameCount == null) return undefined;
+  return { ...base, byteOffset: source.rawByteOffset, frameCount: source.rawFrameCount };
 }
 
 function receivedTimestamp(createdAt: string): TelemetryTimestamp {
@@ -172,12 +171,15 @@ export function resolveTelemetryReplay(
   const slots = semanticIds.map((semanticId) => resolver.slot(semanticId));
   const receivedAt = receivedTimestamp(source.createdAt);
   const rawReference = resolveRawReference(source, rawCapture);
-  const packetIndices = new Map<string, number | null>();
-  for (let sequence = 0; sequence < packets.length; sequence++) {
-    const packet = packets[sequence];
-    if (packet.gameId !== "iracing" || !packet.sessionUID || !packet.iracing || !Number.isFinite(packet.iracing.sessionTick) || !Number.isFinite(packet.CurrentRaceTime)) continue;
-    const key = `${packet.sessionUID}\u0000${packet.iracing.sessionTick}\u0000${Math.round(packet.CurrentRaceTime * 1000)}`;
-    packetIndices.set(key, packetIndices.has(key) ? null : sequence);
+  const isIbtSource = source.rawFile?.toLowerCase().endsWith(".ibt") ?? false;
+  const packetIndices = isIbtSource ? null : new Map<string, number | null>();
+  if (packetIndices) {
+    for (let sequence = 0; sequence < packets.length; sequence++) {
+      const packet = packets[sequence];
+      if (packet.gameId !== "iracing" || !packet.sessionUID || !packet.iracing || !Number.isFinite(packet.iracing.sessionTick) || !Number.isFinite(packet.CurrentRaceTime)) continue;
+      const key = `${packet.sessionUID}\u0000${packet.iracing.sessionTick}\u0000${Math.round(packet.CurrentRaceTime * 1000)}`;
+      packetIndices.set(key, packetIndices.has(key) ? null : sequence);
+    }
   }
   const envelopes: CanonicalTelemetryEnvelope[] = new Array(packets.length);
   const ambiguous = new Uint8Array(packets.length);
@@ -186,6 +188,7 @@ export function resolveTelemetryReplay(
   const target: ResolvedValue<unknown>[] = [];
   const resolvePacket = (sequence: number, nativeValues?: Readonly<Record<string, IRacingValue>>) => {
     const packet = packets[sequence];
+    nativeValues ??= importedNativeValuesFor(packet) as Readonly<Record<string, IRacingValue>> | undefined;
     const observedAt = replayTimestamp(packet, receivedAt);
     nativeFrame.packet = packet;
     nativeFrame.nativeValues = nativeValues;
@@ -216,7 +219,7 @@ export function resolveTelemetryReplay(
       ...(source.gameId === "lmu" && packet.lmuContext ? { lmu: encodeLmuContext(packet.lmuContext) } : {}),
     };
   };
-  for (const native of iterateIRacingNativeIdentities(source, rawCapture?.bytes)) {
+  if (packetIndices) for (const native of iterateIRacingNativeIdentities(source, rawCapture?.bytes)) {
     if (native.sessionTick === null || native.sessionTimeMs === null) continue;
     const key = `${native.sessionUID}\u0000${native.sessionTick}\u0000${native.sessionTimeMs}`;
     const sequence = packetIndices.get(key);

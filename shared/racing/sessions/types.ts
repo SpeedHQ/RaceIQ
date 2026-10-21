@@ -25,12 +25,13 @@ export interface LapMeta extends Partial<TelemetryVersionIdentity> {
   carId: string;
   trackId: string;
   // How the session's telemetry was obtained (migration v43, joined from
-  // sessions.source). null/undefined = recorded live from the game. 'motec' =
-  // transcoded from a MoTeC .ld, where the racing line is dead-reckoned from
-  // speed and yaw rather than logged. Anything reading a POSITION off a lap
+  // sessions.source). null/undefined = recorded live from the game. 'ibt' =
+  // original iRacing IBT import. 'motec' = imported MoTeC .ld, whose racing line
+  // is dead-reckoned from speed and yaw rather than logged.
+  // Anything reading a POSITION off a lap
   // must degrade for 'motec'; measured channels (speed, brake, throttle, gear,
   // steering) are exact and need no caveat. See MOTEC_IMPORT_LIMITATIONS.
-  source?: "motec" | null;
+  source?: "motec" | "ibt" | null;
   ownership?: SessionOwnership;
   // Car setup snapshot (JSON string of F1CarSetup)
   carSetup?: string;
@@ -91,9 +92,9 @@ export interface SessionMeta extends Partial<TelemetryVersionIdentity> {
   notes?: string;
   /**
    * How the session's telemetry was obtained. `undefined` = recorded live from
-   * the game; `"motec"` = transcoded from a MoTeC export (dead-reckoned line).
-   * Callers must not treat the two as interchangeable when the racing line or
-   * absolute position matters.
+   * the game; `"motec"` = imported MoTeC export (dead-reckoned line);
+   * `"ibt"` = original iRacing IBT import. Position availability depends on the
+   * channels actually recorded, not whether an import produced a BIN capture.
    */
   source?: string;
   /** Recorded elapsed span in seconds; null/undefined when capture timing is unavailable. */

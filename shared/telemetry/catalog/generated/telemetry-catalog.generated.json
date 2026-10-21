@@ -6,7 +6,7 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.20.0",
-      "sourceHash": "9d9ffca31d687071c62a802e6fdb4e0481db3142194725175f2756468f096ef3"
+      "sourceHash": "a95aa8983eb9ea6957dada211bf46ac4131ac21629301398ee063e967da3b6af"
     },
     "sourceHashes": {
       "packages/game-ac-evo/src/parser.ts": "29cb3985fe32c797554d98f107a0c4d76ddcc5279d97e75423365e1a0887f5de",
@@ -20,7 +20,7 @@
       "server/session-capture/frame-time.ts": "55c44a6cede5e2c5fb1e1c45568fe44b4a9a8b156f260f69bb5d89f9c24935a2",
       "shared/racing/setups/schema.ts": "987941bb8f38520920686ef540e67ce2259fdc962de03ccb959f6b5ef773b28f"
     },
-    "contentHash": "a0694b5efeafe503d0be5b3997a2d5aa2041f5e0c163410419ae5eaab97aeec2"
+    "contentHash": "18e2f031392e4fd8affbfadbde81a446371c6d2762a63ae9c8036d73365af249"
   },
   "generatedFrom": [
     "packages/tooling-catalog/src/root.ts",
@@ -1230,6 +1230,7 @@
       "description": "Tire temperature, pressure, wear, slip, and contact values.",
       "children": [
         "tires.actual-tyre-compound",
+        "tires.cold-pressure",
         "tires.competitor.qualifying-compound",
         "tires.competitor.qualifying-compound-locked",
         "tires.dp-lf-tire-change",
@@ -1257,6 +1258,9 @@
         "tires.right-tire-sets-used",
         "tires.slip-vibrations",
         "tires.surface-rumble",
+        "tires.temp-cl",
+        "tires.temp-cm",
+        "tires.temp-cr",
         "tires.tire-camber",
         "tires.tire-combined-slip",
         "tires.tire-compound",
@@ -54914,29 +54918,9 @@
           "description": "ac-evo parser fills this value with a placeholder because source does not provide it."
         },
         "iracing": {
-          "kind": "direct",
-          "nativeUnit": "°C",
-          "sources": {
-            "FL": [
-              "iRacing.LFtempCL"
-            ],
-            "FR": [
-              "iRacing.RFtempCL"
-            ],
-            "RL": [
-              "iRacing.LRtempCL"
-            ],
-            "RR": [
-              "iRacing.RRtempCL"
-            ]
-          },
-          "freshness": "pit-snapshot",
-          "description": "iracing maps 4 native source channels into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "packages/game-iracing/src/normalizer.ts"
-          },
-          "limitations": []
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "iRacing reports tire temperatures only as pit snapshots and cold pressure as a setup value, not live tire telemetry. Raw SDK values remain available for source inspection."
         },
         "lmu": {
           "kind": "unavailable",
@@ -54995,29 +54979,9 @@
           "description": "ac-evo parser fills this value with a placeholder because source does not provide it."
         },
         "iracing": {
-          "kind": "direct",
-          "nativeUnit": "°C",
-          "sources": {
-            "FL": [
-              "iRacing.LFtempCM"
-            ],
-            "FR": [
-              "iRacing.RFtempCM"
-            ],
-            "RL": [
-              "iRacing.LRtempCM"
-            ],
-            "RR": [
-              "iRacing.RRtempCM"
-            ]
-          },
-          "freshness": "pit-snapshot",
-          "description": "iracing maps 4 native source channels into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "packages/game-iracing/src/normalizer.ts"
-          },
-          "limitations": []
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "iRacing reports tire temperatures only as pit snapshots and cold pressure as a setup value, not live tire telemetry. Raw SDK values remain available for source inspection."
         },
         "lmu": {
           "kind": "unavailable",
@@ -55077,8 +55041,8 @@
         },
         "iracing": {
           "kind": "unavailable",
-          "reason": "parser-placeholder",
-          "description": "iracing parser fills this value with a placeholder because source does not provide it."
+          "reason": "source-not-provided",
+          "description": "iRacing reports tire temperatures only as pit snapshots and cold pressure as a setup value, not live tire telemetry. Raw SDK values remain available for source inspection."
         },
         "lmu": {
           "kind": "direct",
@@ -55157,29 +55121,9 @@
           "description": "ac-evo parser fills this value with a placeholder because source does not provide it."
         },
         "iracing": {
-          "kind": "direct",
-          "nativeUnit": "°C",
-          "sources": {
-            "FL": [
-              "iRacing.LFtempCR"
-            ],
-            "FR": [
-              "iRacing.RFtempCR"
-            ],
-            "RL": [
-              "iRacing.LRtempCR"
-            ],
-            "RR": [
-              "iRacing.RRtempCR"
-            ]
-          },
-          "freshness": "pit-snapshot",
-          "description": "iracing maps 4 native source channels into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "packages/game-iracing/src/normalizer.ts"
-          },
-          "limitations": []
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "iRacing reports tire temperatures only as pit snapshots and cold pressure as a setup value, not live tire telemetry. Raw SDK values remain available for source inspection."
         },
         "lmu": {
           "kind": "unavailable",
@@ -55299,8 +55243,8 @@
         },
         "iracing": {
           "kind": "unavailable",
-          "reason": "parser-placeholder",
-          "description": "iRacing TireCarcassTemp averages three carcass bands and is not equivalent to a single core temperature."
+          "reason": "source-not-provided",
+          "description": "iRacing reports tire temperatures only as pit snapshots and cold pressure as a setup value, not live tire telemetry. Raw SDK values remain available for source inspection."
         },
         "lmu": {
           "kind": "unavailable",
@@ -55395,8 +55339,8 @@
         },
         "iracing": {
           "kind": "unavailable",
-          "reason": "parser-placeholder",
-          "description": "iracing parser fills this value with a placeholder because source does not provide it."
+          "reason": "source-not-provided",
+          "description": "iRacing reports tire temperatures only as pit snapshots and cold pressure as a setup value, not live tire telemetry. Raw SDK values remain available for source inspection."
         },
         "lmu": {
           "kind": "direct",
@@ -55511,8 +55455,8 @@
         },
         "iracing": {
           "kind": "unavailable",
-          "reason": "parser-placeholder",
-          "description": "iracing parser fills this value with a placeholder because source does not provide it."
+          "reason": "source-not-provided",
+          "description": "iRacing reports tire temperatures only as pit snapshots and cold pressure as a setup value, not live tire telemetry. Raw SDK values remain available for source inspection."
         },
         "lmu": {
           "kind": "direct",
@@ -55627,8 +55571,8 @@
         },
         "iracing": {
           "kind": "unavailable",
-          "reason": "parser-placeholder",
-          "description": "iracing parser fills this value with a placeholder because source does not provide it."
+          "reason": "source-not-provided",
+          "description": "iRacing reports tire temperatures only as pit snapshots and cold pressure as a setup value, not live tire telemetry. Raw SDK values remain available for source inspection."
         },
         "lmu": {
           "kind": "direct",
@@ -55798,8 +55742,8 @@
         },
         "iracing": {
           "kind": "unavailable",
-          "reason": "parser-placeholder",
-          "description": "iRacing TireTemp aliases the middle carcass band; use the named carcass bands."
+          "reason": "source-not-provided",
+          "description": "iRacing reports tire temperatures only as pit snapshots and cold pressure as a setup value, not live tire telemetry. Raw SDK values remain available for source inspection."
         },
         "lmu": {
           "kind": "direct",
@@ -55898,6 +55842,83 @@
       "cardinality": {
         "kind": "scalar"
       },
+      "limitations": []
+    },
+    {
+      "id": "tires.cold-pressure",
+      "label": "Cold Pressure",
+      "description": "Cold pressure  as set in the garage",
+      "parentId": "tires",
+      "canonicalUnit": "kPa",
+      "shape": "per-wheel",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source variable is currently identified for this parser."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source variable is currently identified for this parser."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source variable is currently identified for this parser."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source variable is currently identified for this parser."
+        },
+        "iracing": {
+          "kind": "direct",
+          "nativeUnit": "kPa",
+          "sources": {
+            "LF": [
+              "iRacing.LFcoldPressure"
+            ],
+            "RF": [
+              "iRacing.RFcoldPressure"
+            ],
+            "LR": [
+              "iRacing.LRcoldPressure"
+            ],
+            "RR": [
+              "iRacing.RRcoldPressure"
+            ]
+          },
+          "freshness": "pit-snapshot",
+          "description": "Native iRacing SDK source recorded by RaceIQ.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-iracing/src/normalizer.ts"
+          },
+          "limitations": []
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source variable is currently identified for this parser."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "mass",
+        "length^-1",
+        "time^-2"
+      ],
+      "cardinality": {
+        "kind": "fixed",
+        "count": 4
+      },
+      "ordering": [
+        "FL",
+        "FR",
+        "RL",
+        "RR"
+      ],
       "limitations": []
     },
     {
@@ -57790,6 +57811,276 @@
       "limitations": []
     },
     {
+      "id": "tires.temp-cl",
+      "label": "Temp CL",
+      "description": "Left carcass temperature",
+      "parentId": "tires",
+      "canonicalUnit": "°C",
+      "shape": "per-wheel",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source variable is currently identified for this parser."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source variable is currently identified for this parser."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source variable is currently identified for this parser."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source variable is currently identified for this parser."
+        },
+        "iracing": {
+          "kind": "normalized",
+          "nativeUnit": "C",
+          "sources": {
+            "LF": [
+              "iRacing.LFtempCL"
+            ],
+            "RF": [
+              "iRacing.RFtempCL"
+            ],
+            "LR": [
+              "iRacing.LRtempCL"
+            ],
+            "RR": [
+              "iRacing.RRtempCL"
+            ]
+          },
+          "freshness": "pit-snapshot",
+          "normalization": "normalize unit notation C to °C",
+          "description": "Native iRacing SDK source recorded by RaceIQ.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-iracing/src/normalizer.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "iracing:tires.temp-cl:normalized",
+            "version": "0.20.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "iRacing.LFtempCL",
+              "iRacing.RFtempCL",
+              "iRacing.LRtempCL",
+              "iRacing.RRtempCL"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "ddd1603eae45cf698704cbb58502b667fe1015a183e91bb226df443f38a2fd00"
+          }
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source variable is currently identified for this parser."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "temperature"
+      ],
+      "cardinality": {
+        "kind": "fixed",
+        "count": 4
+      },
+      "ordering": [
+        "FL",
+        "FR",
+        "RL",
+        "RR"
+      ],
+      "limitations": []
+    },
+    {
+      "id": "tires.temp-cm",
+      "label": "Temp CM",
+      "description": "Middle carcass temperature",
+      "parentId": "tires",
+      "canonicalUnit": "°C",
+      "shape": "per-wheel",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source variable is currently identified for this parser."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source variable is currently identified for this parser."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source variable is currently identified for this parser."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source variable is currently identified for this parser."
+        },
+        "iracing": {
+          "kind": "normalized",
+          "nativeUnit": "C",
+          "sources": {
+            "LF": [
+              "iRacing.LFtempCM"
+            ],
+            "RF": [
+              "iRacing.RFtempCM"
+            ],
+            "LR": [
+              "iRacing.LRtempCM"
+            ],
+            "RR": [
+              "iRacing.RRtempCM"
+            ]
+          },
+          "freshness": "pit-snapshot",
+          "normalization": "normalize unit notation C to °C",
+          "description": "Native iRacing SDK source recorded by RaceIQ.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-iracing/src/normalizer.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "iracing:tires.temp-cm:normalized",
+            "version": "0.20.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "iRacing.LFtempCM",
+              "iRacing.RFtempCM",
+              "iRacing.LRtempCM",
+              "iRacing.RRtempCM"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "e3d07fa3b93cd17402b5d97899825d69a687d926c8f6801dca4bd69131fa9d6c"
+          }
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source variable is currently identified for this parser."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "temperature"
+      ],
+      "cardinality": {
+        "kind": "fixed",
+        "count": 4
+      },
+      "ordering": [
+        "FL",
+        "FR",
+        "RL",
+        "RR"
+      ],
+      "limitations": []
+    },
+    {
+      "id": "tires.temp-cr",
+      "label": "Temp CR",
+      "description": "Right carcass temperature",
+      "parentId": "tires",
+      "canonicalUnit": "°C",
+      "shape": "per-wheel",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source variable is currently identified for this parser."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source variable is currently identified for this parser."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source variable is currently identified for this parser."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source variable is currently identified for this parser."
+        },
+        "iracing": {
+          "kind": "normalized",
+          "nativeUnit": "C",
+          "sources": {
+            "LF": [
+              "iRacing.LFtempCR"
+            ],
+            "RF": [
+              "iRacing.RFtempCR"
+            ],
+            "LR": [
+              "iRacing.LRtempCR"
+            ],
+            "RR": [
+              "iRacing.RRtempCR"
+            ]
+          },
+          "freshness": "pit-snapshot",
+          "normalization": "normalize unit notation C to °C",
+          "description": "Native iRacing SDK source recorded by RaceIQ.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-iracing/src/normalizer.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "iracing:tires.temp-cr:normalized",
+            "version": "0.20.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "iRacing.LFtempCR",
+              "iRacing.RFtempCR",
+              "iRacing.LRtempCR",
+              "iRacing.RRtempCR"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "418dda8842d6dff0007d0021ec4eb9e1a94ca032aea94e8f8299379db22b8ef5"
+          }
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source variable is currently identified for this parser."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "temperature"
+      ],
+      "cardinality": {
+        "kind": "fixed",
+        "count": 4
+      },
+      "ordering": [
+        "FL",
+        "FR",
+        "RL",
+        "RR"
+      ],
+      "limitations": []
+    },
+    {
       "id": "tires.tire-camber",
       "label": "Tire Camber",
       "description": "Tire camber, FL/FR/RL/RR.",
@@ -58693,44 +58984,9 @@
           "limitations": []
         },
         "iracing": {
-          "kind": "normalized",
-          "nativeUnit": "kPa",
-          "sources": {
-            "FL": [
-              "iRacing.LFcoldPressure"
-            ],
-            "FR": [
-              "iRacing.RFcoldPressure"
-            ],
-            "RL": [
-              "iRacing.LRcoldPressure"
-            ],
-            "RR": [
-              "iRacing.RRcoldPressure"
-            ]
-          },
-          "freshness": "pit-snapshot",
-          "normalization": "kilopascals * 0.1450377377",
-          "description": "iracing maps 4 native source channels into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "packages/game-iracing/src/normalizer.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "conversion",
-            "id": "iracing:tires.tire-pressure:normalized",
-            "version": "0.20.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "iRacing.LFcoldPressure",
-              "iRacing.RFcoldPressure",
-              "iRacing.LRcoldPressure",
-              "iRacing.RRcoldPressure"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "92088e36f756100ac1c362395e92a2db2cc3dd0ee6f1f68f2641dde774c6868c"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "iRacing reports tire temperatures only as pit snapshots and cold pressure as a setup value, not live tire telemetry. Raw SDK values remain available for source inspection."
         },
         "lmu": {
           "kind": "normalized",
@@ -74441,7 +74697,7 @@
         "dataType": "float",
         "count": 1,
         "description": "LF tire cold pressure  as set in the garage",
-        "semanticId": "tires.tire-pressure",
+        "semanticId": "tires.cold-pressure",
         "sourceKind": "sdk",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -74513,7 +74769,7 @@
         "dataType": "float",
         "count": 1,
         "description": "LF tire left carcass temperature",
-        "semanticId": "tire.temperature.carcass.left",
+        "semanticId": "tires.temp-cl",
         "sourceKind": "sdk",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -74525,7 +74781,7 @@
         "dataType": "float",
         "count": 1,
         "description": "LF tire middle carcass temperature",
-        "semanticId": "tire.temperature.carcass.middle",
+        "semanticId": "tires.temp-cm",
         "sourceKind": "sdk",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -74537,7 +74793,7 @@
         "dataType": "float",
         "count": 1,
         "description": "LF tire right carcass temperature",
-        "semanticId": "tire.temperature.carcass.right",
+        "semanticId": "tires.temp-cr",
         "sourceKind": "sdk",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -74621,7 +74877,7 @@
         "dataType": "float",
         "count": 1,
         "description": "LR tire cold pressure  as set in the garage",
-        "semanticId": "tires.tire-pressure",
+        "semanticId": "tires.cold-pressure",
         "sourceKind": "sdk",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -74693,7 +74949,7 @@
         "dataType": "float",
         "count": 1,
         "description": "LR tire left carcass temperature",
-        "semanticId": "tire.temperature.carcass.left",
+        "semanticId": "tires.temp-cl",
         "sourceKind": "sdk",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -74705,7 +74961,7 @@
         "dataType": "float",
         "count": 1,
         "description": "LR tire middle carcass temperature",
-        "semanticId": "tire.temperature.carcass.middle",
+        "semanticId": "tires.temp-cm",
         "sourceKind": "sdk",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -74717,7 +74973,7 @@
         "dataType": "float",
         "count": 1,
         "description": "LR tire right carcass temperature",
-        "semanticId": "tire.temperature.carcass.right",
+        "semanticId": "tires.temp-cr",
         "sourceKind": "sdk",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -75857,7 +76113,7 @@
         "dataType": "float",
         "count": 1,
         "description": "RF tire cold pressure  as set in the garage",
-        "semanticId": "tires.tire-pressure",
+        "semanticId": "tires.cold-pressure",
         "sourceKind": "sdk",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -75929,7 +76185,7 @@
         "dataType": "float",
         "count": 1,
         "description": "RF tire left carcass temperature",
-        "semanticId": "tire.temperature.carcass.left",
+        "semanticId": "tires.temp-cl",
         "sourceKind": "sdk",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -75941,7 +76197,7 @@
         "dataType": "float",
         "count": 1,
         "description": "RF tire middle carcass temperature",
-        "semanticId": "tire.temperature.carcass.middle",
+        "semanticId": "tires.temp-cm",
         "sourceKind": "sdk",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -75953,7 +76209,7 @@
         "dataType": "float",
         "count": 1,
         "description": "RF tire right carcass temperature",
-        "semanticId": "tire.temperature.carcass.right",
+        "semanticId": "tires.temp-cr",
         "sourceKind": "sdk",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -76049,7 +76305,7 @@
         "dataType": "float",
         "count": 1,
         "description": "RR tire cold pressure  as set in the garage",
-        "semanticId": "tires.tire-pressure",
+        "semanticId": "tires.cold-pressure",
         "sourceKind": "sdk",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -76121,7 +76377,7 @@
         "dataType": "float",
         "count": 1,
         "description": "RR tire left carcass temperature",
-        "semanticId": "tire.temperature.carcass.left",
+        "semanticId": "tires.temp-cl",
         "sourceKind": "sdk",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -76133,7 +76389,7 @@
         "dataType": "float",
         "count": 1,
         "description": "RR tire middle carcass temperature",
-        "semanticId": "tire.temperature.carcass.middle",
+        "semanticId": "tires.temp-cm",
         "sourceKind": "sdk",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -76145,7 +76401,7 @@
         "dataType": "float",
         "count": 1,
         "description": "RR tire right carcass temperature",
-        "semanticId": "tire.temperature.carcass.right",
+        "semanticId": "tires.temp-cr",
         "sourceKind": "sdk",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -87349,7 +87605,7 @@
   },
   "coverage": {
     "normalizedPacketFields": 151,
-    "semanticVariables": 815,
+    "semanticVariables": 819,
     "sourceCounts": {
       "fm-2023": {
         "total": 96,

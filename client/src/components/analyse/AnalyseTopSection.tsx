@@ -105,7 +105,6 @@ export function AnalyseTopSection({
   sceneSource,
   onRuntime,
 }: AnalyseTopSectionProps) {
-  const isIRacing = gameId === "iracing";
   const resizeCleanupRef = useRef<(() => void) | null>(null);
   useEffect(
     () => () => {
@@ -173,7 +172,7 @@ export function AnalyseTopSection({
           }}
         />
 
-      <div className={`h-[28rem] w-full min-w-0 border-b border-app-border @5xl/workspace:h-full @5xl/workspace:border-b-0 ${isIRacing ? "flex-1" : "@5xl/workspace:flex-1 @5xl/workspace:border-r"}`}>
+      <div className="h-[28rem] w-full min-w-0 border-b border-app-border @5xl/workspace:h-full @5xl/workspace:border-b-0 @5xl/workspace:flex-1 @5xl/workspace:border-r">
         <AnalyseTrackPanel
           gameId={gameId}
           telemetry={semanticFrames}
@@ -199,7 +198,6 @@ export function AnalyseTopSection({
           trackMapRef={trackMapRef}
         />
       </div>
-      {!isIRacing && (
         <button
           type="button"
           aria-label={m.analyse_resize_visualization_panel()}
@@ -231,9 +229,8 @@ export function AnalyseTopSection({
             window.addEventListener("mouseup", onUp);
           }}
         />
-      )}
 
-      {!isIRacing && <AnalyseVizPanel
+      <AnalyseVizPanel
         vizMode={vizMode}
         onVizModeChange={onVizModeChange}
         currentFrame={semanticFrames[cursorIdx] ?? null}
@@ -251,7 +248,7 @@ export function AnalyseTopSection({
         lmuCarClass={lmuCarClass}
         gameId={gameId}
         units={units}
-      />}
+      />
     </div>
   );
 }

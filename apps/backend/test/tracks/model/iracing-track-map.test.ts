@@ -29,6 +29,17 @@ const startFinishSvg = `
   </svg>
 `;
 
+const symbolStartFinishSvg = `
+  <svg xmlns:xlink="http://www.w3.org/1999/xlink">
+    <defs>
+      <symbol id="Start_Finish_Line" viewBox="0 0 10 70"><rect width="10" height="70"/></symbol>
+      <symbol id="Track_Direction" viewBox="0 0 10 10"><polygon points="0,0 10,5 0,10"/></symbol>
+    </defs>
+    <use width="100" height="40" transform="translate(95 95) rotate(-180)" xlink:href="#Track_Direction"/>
+    <use width="10" height="70" transform="translate(55 22.4) rotate(-180) scale(1 .64)" xlink:href="#Start_Finish_Line"/>
+  </svg>
+`;
+
 const turnsSvg = `
   <svg viewBox="0 0 100 100">
     <text transform="matrix(1 0 0 1 92 10)">1</text>
@@ -91,6 +102,15 @@ describe("iRacing official SVG track maps", () => {
     const forward = { x: map!.points[1].x - map!.points[0].x, z: map!.points[1].z - map!.points[0].z };
     const left = { x: edges.leftEdge[0].x - map!.points[0].x, z: edges.leftEdge[0].z - map!.points[0].z };
     expect(-forward.z * left.x + forward.x * left.z).toBeGreaterThan(0);
+  });
+
+  test("recognizes symbol-based official start-finish markers without treating direction arrows as markers", () => {
+    const map = parseIRacingActiveSvg(activeSvg, symbolStartFinishSvg, turnsSvg)!;
+    expect(map.startFinishAligned).toBe(true);
+    expect(Math.abs(map.points[0].x + 50)).toBeLessThan(8);
+    expect(map.points[0].z).toBeLessThan(10);
+    const directionOnlySvg = symbolStartFinishSvg.replace(/<symbol id="Start_Finish_Line"[\s\S]*?<\/symbol>\s*/, "").replace(/<use width="10" height="70"[\s\S]*?<\/use>\s*/, "");
+    expect(parseIRacingActiveSvg(activeSvg, directionOnlySvg, turnsSvg)?.startFinishAligned).toBe(false);
   });
   test("resolves exact layout projection in metres without changing source geometry", () => {
     const map = parseIRacingActiveSvg(activeSvg, startFinishSvg, turnsSvg)!;

@@ -4,6 +4,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./ibt-source": "./src/ibt-source.ts",
     "./ibt-preview": "./src/ibt-preview.ts",
     "./disk-logging": "./src/disk-logging.ts",
     "./ibt-reader": "./src/ibt-reader.ts",

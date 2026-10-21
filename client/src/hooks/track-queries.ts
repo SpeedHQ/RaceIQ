@@ -70,7 +70,7 @@ export function useTrackOutline(trackId: string | undefined, gameIdOverride?: Ga
       if (!resolvedTrackId || !gameId) return null;
       const res = await trackIdRoutes["track-outline"][":trackId"].$get({ param: { trackId: encodeURIComponent(resolvedTrackId) }, query: { gameId } });
       if (res.status === 404) return null;
-      return rpcJson<{ points?: { x: number; z: number }[]; projection?: TrackProjection | null; labels?: { text: string; x: number; z: number }[]; flipX?: boolean; recorded?: boolean; source?: string; pitLines?: PitLine[]; closed?: boolean } | { x: number; z: number }[]>(
+      return rpcJson<{ points?: { x: number; z: number }[]; projection?: TrackProjection | null; ribbonEdges?: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[] } | null; labels?: { text: string; x: number; z: number }[]; flipX?: boolean; recorded?: boolean; source?: string; pitLines?: PitLine[]; closed?: boolean } | { x: number; z: number }[]>(
         res,
       );
     },

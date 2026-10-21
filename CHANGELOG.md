@@ -1,10 +1,11 @@
 ## Unreleased
 
 ### Features
+- Drag and drop recordings into the session import dialog, including matching DuckDB WAL sidecars, while retaining the file picker.
 - Restore iRacing Live sidebar access with a dedicated dashboard for driving inputs, timing, fuel, vehicle motion, suspension travel, and temperatures; hide stale readings when telemetry stops.
 - Add an overall clean-driving score to the iRacing Latest Session card, based on valid timed laps and excluding pit laps.
 - Review observed personal incident-point increases, sampled off-track spans, and recorded clean-lap streaks in saved iRacing sessions, with event links and replay timeline markers limited to recorded lap evidence.
-- Simplify iRacing lap replay around the track map and recorded channels, adding clutch, engine, weather, and session readouts while separating pit-only tire snapshots from current telemetry.
+- Keep iRacing replay incident markers alongside the shared replay visualization and telemetry panels.
 - Render iRacing comparison laps from recorded GPS; project live lap progress onto official track geometry when GPS is unavailable.
 - Show separate LMU player energy, engine, electric motor, steering feedback, weather and race-control readings in live telemetry and recorded-lap analysis when provided by the game.
 - Show read-only LMU setup, forecast and condition snapshots with source age and availability, without waiting for network requests before displaying live telemetry.
@@ -19,6 +20,14 @@
 - Smooth iRacing lap replay by interpolating the track marker and timeline cursor between recorded telemetry frames.
 
 ### Fixes
+- Hide iRacing tire temperatures and pressure in live and replay telemetry views instead of presenting pit-only snapshots or cold setup pressure as live readings.
+- Keep tire silhouettes visible in 2D layouts when temperature telemetry is unavailable, without inventing temperature readings.
+- Restore iRacing track edges and 3D track placement for official maps that use symbol-based start/finish markers.
+- Remove automatic 3D track centerlines and control the recorded purple trajectory with the Racing line toggle independently of track edges.
+- Open iRacing IBT preview and confirmation directly from the session import dialog, preserve the selected ownership, and describe original-file storage accurately.
+- Preserve original iRacing IBT recordings through import, replay, and reprocessing without generating BIN captures; seed Navarra through the same production import workflow instead of a downsampled, preconverted fixture.
+- Restore iRacing replay's shared 2D/3D visualization and data panels; remove the game-specific replay data panel.
+- Detect replay timeline and chart gaps relative to the recording cadence, so regular sparse samples are not painted as missing telemetry.
 - Replace the iRacing session review's end-of-lap tire section with the incident report below detected telemetry issues.
 - Prevent live recording startup from failing on Windows, leaving empty capture manifests and recorded laps without replay telemetry.
 - Restore recording-layout migration and interrupted-recording recovery on Windows by avoiding unsupported directory synchronization and serializing migration journal reads and replacement.

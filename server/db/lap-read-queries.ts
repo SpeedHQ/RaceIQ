@@ -383,9 +383,9 @@ async function getLapMetadataRow(id: number): Promise<LapMetadataRow | undefined
     .where(eq(laps.id, id)).get();
 }
 
-export async function getLapMetaById(id: number): Promise<(LapMeta & { telemetry: TelemetryPacket[]; rawFile: string | null; source: "motec" | null; rawByteOffset: number | null; rawFrameCount: number | null; captureFormatVersion: number | null }) | null> {
+export async function getLapMetaById(id: number): Promise<(LapMeta & { telemetry: TelemetryPacket[]; rawFile: string | null; source: "motec" | "ibt" | null; rawByteOffset: number | null; rawFrameCount: number | null; captureFormatVersion: number | null }) | null> {
   const row = await getLapMetadataRow(id);
-  return row ? { ...buildLapResult(row, []), rawFile: row.rawFile ?? null, source: row.source === "motec" ? "motec" : null, rawByteOffset: row.rawByteOffset, rawFrameCount: row.rawFrameCount, captureFormatVersion: row.captureFormatVersion } : null;
+  return row ? { ...buildLapResult(row, []), rawFile: row.rawFile ?? null, source: row.source === "motec" || row.source === "ibt" ? row.source : null, rawByteOffset: row.rawByteOffset, rawFrameCount: row.rawFrameCount, captureFormatVersion: row.captureFormatVersion } : null;
 }
 
 export async function getLapById(
@@ -431,7 +431,7 @@ export async function getLapById(
   } else if (row.captureLayoutVersion == null && row.rawFile != null && row.rawByteOffset != null && row.rawFrameCount != null) {
     try {
       telemetry = await parseRawLapFrames(
-        { rawFile: row.rawFile, source: row.source === "motec" ? "motec" : null, gameId: row.gameId as GameId, carId: row.carId, trackId: row.trackId, captureFormatVersion: row.captureFormatVersion },
+        { rawFile: row.rawFile, source: row.source === "motec" || row.source === "ibt" ? row.source : null, gameId: row.gameId as GameId, carId: row.carId, trackId: row.trackId, captureFormatVersion: row.captureFormatVersion },
         row.rawByteOffset, row.rawFrameCount,
       );
     } catch (err) {

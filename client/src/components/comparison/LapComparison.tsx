@@ -134,7 +134,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     if (!rawEdges || typeof rawEdges !== "object" || !("leftEdge" in rawEdges) || !("rightEdge" in rawEdges)) return null;
     const isPointList = (value: unknown): value is Point[] =>
       Array.isArray(value) &&
-      value.every((point) => point && typeof point === "object" && "x" in point && "z" in point && typeof point.x === "number" && Number.isFinite(point.x) && typeof point.z === "number" && Number.isFinite(point.z));
+      value.every((point) => point && typeof point === "object" && "x" in point && typeof point.x === "number" && Number.isFinite(point.x) && "z" in point && typeof point.z === "number" && Number.isFinite(point.z));
     const leftEdge = rawEdges.leftEdge;
     const rightEdge = rawEdges.rightEdge;
     if (!isPointList(leftEdge) || !isPointList(rightEdge) || leftEdge.length < 2 || leftEdge.length !== rightEdge.length) return null;

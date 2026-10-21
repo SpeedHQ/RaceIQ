@@ -3,7 +3,7 @@ import { stat } from "node:fs/promises";
 import { db } from "@raceiq/backend-core/db/index";
 import { laps, sessions } from "@raceiq/backend-core/db/schema";
 import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
-import { iterateSessionCaptureRecordsFromSource, type SessionCaptureSource } from "@raceiq/backend-core/session-capture/source-loader";
+import { importedNativeValuesFor, iterateSessionCaptureRecordsFromSource, loadSessionSource, type SessionCaptureSource } from "@raceiq/backend-core/session-capture/source-loader";
 import { createIRacingSourceDecoderState, decodeIRacingSourceFrame } from "@raceiq/capture-formats/iracing/source-frame";
 import { isPitCycleLap } from "@raceiq/analysis-core/racing/laps/pit-cycle";
 import { reduceIRacingIncidents, type IRacingIncidentInput, type IRacingIncidentLapInput } from "@raceiq/game-iracing/incident-report";
@@ -34,12 +34,54 @@ export async function getIRacingIncidentReport(sessionId: number): Promise<IRaci
     return { sessionId, ...metrics, coverage: { scope: "recorded-laps", totalLaps: rows.length, lapsWithCapture: 0, incidentStatus, surfaceStatus, reasons: [...reasons] } };
   };
   if (session.source === "motec" || session.rawFile?.endsWith(".motec.zip")) return unavailable("unsupported-capture");
-  if (!session.rawFile) return unavailable("capture-unavailable");
-  try { await stat(session.rawFile); } catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return unavailable("capture-unavailable"); throw error; }
+  const rawFile = session.rawFile;
+  if (!rawFile) return unavailable("capture-unavailable");
+  try { await stat(rawFile); } catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return unavailable("capture-unavailable"); throw error; }
   if (!windows.length) return unavailable("missing-lap-window");
   windows.sort((left, right) => left.offset - right.offset || left.lapId - right.lapId);
-  const source: SessionCaptureSource = { rawFile: session.rawFile, source: session.source, gameId: "iracing", carId: session.carId, trackId: session.trackId, captureFormatVersion: session.captureFormatVersion };
+  const source: SessionCaptureSource = {
+    rawFile, source: session.source, gameId: "iracing",
+    carId: session.carId, trackId: session.trackId,
+    captureFormatVersion: session.captureFormatVersion,
+  };
   async function* observations(): AsyncGenerator<IRacingIncidentInput> {
+    if (source.rawFile.toLowerCase().endsWith(".ibt")) {
+      const loaded = await loadSessionSource(source);
+      if (loaded.kind !== "packets") throw new Error("Expected original IBT packet source");
+      for (const window of windows) {
+        const end = window.offset + window.count;
+        for (let index = window.offset; index < end; index++) {
+          const packet = loaded.packets[index];
+          if (!packet) {
+            reasons.add("missing-lap-window");
+            yield { kind: "break", reason: "capture-gap", lapId: window.lapId };
+            break;
+          }
+          window.started = true;
+          window.read++;
+          if (window.read === window.count) window.resolved = true;
+          const values = importedNativeValuesFor(packet);
+          if (!values || !packet.iracing) {
+            reasons.add("missing-lap-window");
+            yield { kind: "break", reason: "capture-gap", lapId: window.lapId };
+            continue;
+          }
+          window.observations++;
+          yield { kind: "sample", lapId: window.lapId, rawOffset: index,
+            nativeSessionUid: packet.sessionUID ?? "",
+            driverCarIdx: packet.iracing.driverCarIdx,
+            sessionTick: integer(values.SessionTick), sessionTimeSec: scalar(values.SessionTime),
+            incidentPoints: scalar(values.PlayerCarMyIncidentCount), surface: scalar(values.PlayerTrackSurface) };
+        }
+      }
+      for (const window of windows) {
+        if (!window.started || window.read < window.count) {
+          reasons.add("missing-lap-window");
+          yield { kind: "break", reason: "capture-gap", lapId: window.lapId };
+        }
+      }
+      return;
+    }
     let decoder = createIRacingSourceDecoderState();
     let inContext = false;
     let ownedPreviously = false;

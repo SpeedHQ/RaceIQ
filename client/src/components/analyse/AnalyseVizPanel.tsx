@@ -121,7 +121,6 @@ export const AnalyseVizPanel = memo(function AnalyseVizPanel({
               onRuntime={onRuntime}
               telemetry={semanticFrames}
               cursorIdx={sceneCursorIdx}
-              outline={lapLine}
               trackProjection={trackProjection}
               trackGeometryLoading={trackGeometryLoading}
               trackGeometryError={trackGeometryError}

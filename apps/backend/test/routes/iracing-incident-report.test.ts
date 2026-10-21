@@ -28,10 +28,10 @@ interface WindowInput { lapId: number; lapNumber: number; rawByteOffset: number;
 async function seed(fixture: IRacingIncidentFixture | null, options: { gameId?: string; source?: string; windows?: WindowInput[]; malformedTail?: Buffer; sharedRawFile?: string } = {}) {
   const dir = await mkdtemp(join(tmpdir(), "raceiq-iracing-incidents-"));
   tempDirs.push(dir);
-  const rawFile = fixture ? options.sharedRawFile ?? join(dir, "capture.ibt") : options.sharedRawFile ?? null;
+  const rawFile = fixture ? options.sharedRawFile ?? join(dir, "capture.bin") : options.sharedRawFile ?? null;
   if (fixture && !options.sharedRawFile) await writeFile(rawFile!, options.malformedTail ? Buffer.concat([fixture.bytes, options.malformedTail]) : fixture.bytes);
   else if (fixture && options.malformedTail) await writeFile(rawFile!, Buffer.concat([fixture.bytes, options.malformedTail]));
-  const inserted = await db.insert(sessions).values({ gameId: options.gameId ?? "iracing", carId: "incident-fixture-car", trackId: "incident-fixture-track", source: options.source ?? "ibt", rawFile })
+  const inserted = await db.insert(sessions).values({ gameId: options.gameId ?? "iracing", carId: "incident-fixture-car", trackId: "incident-fixture-track", source: options.source ?? null, rawFile })
     .returning({ id: sessions.id }).get();
   const sessionId = inserted!.id;
   sessionIds.push(sessionId);
@@ -154,7 +154,7 @@ describe("iRacing incident report endpoint", () => {
     const missingWindow = await seed(fixture, { windows: [{ lapId: 1, lapNumber: 1, rawByteOffset: fixture.decompressedBytes.length + 50, rawFrameCount: 2 }] });
     expect((await (await report(missingWindow.sessionId)).json()).coverage.reasons).toContain("missing-lap-window");
     const missingFile = await seed(fixture);
-    await rm(join(tempDirs[tempDirs.length - 1]!, "capture.ibt"));
+    await rm(join(tempDirs[tempDirs.length - 1]!, "capture.bin"));
     expect((await (await report(missingFile.sessionId)).json()).coverage.reasons).toContain("capture-unavailable");
   });
 
@@ -200,7 +200,7 @@ describe("iRacing incident report endpoint", () => {
     const malformed = createIRacingIncidentFixture({ records: [sample(1, 0), { kind: "malformed" }, sample(1, 2)] });
     const failed = await report((await seed(malformed)).sessionId);
     expect(failed.status).toBe(500);
-    expect(JSON.stringify(await failed.json())).not.toContain("capture.ibt");
+    expect(JSON.stringify(await failed.json())).not.toContain("capture.bin");
     const context = createIRacingIncidentFixture({ records: [
       { kind: "sample", sample: { owned: false, values: { SessionTime: 50, SessionTick: 1000, PlayerCarMyIncidentCount: 0, PlayerTrackSurface: 3 } } },
       { kind: "segment-boundary" }, { kind: "segment-context" },

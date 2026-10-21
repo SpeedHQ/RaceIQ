@@ -1,4 +1,6 @@
 import { expect, test, type Page, type Request } from "@playwright/test";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { collectBrowserErrors } from "../../support/browser-errors";
 import { SEEDED_GAME_CASES } from "../../support/seeded/cases";
@@ -146,33 +148,62 @@ test("Analyse session route rejects mixed session and lap selections", async ({ 
   await expect(page.getByRole("alert")).toHaveText("Session selection must contain only a positive session ID.");
 });
 
-test("iRacing overview shows incident report below detected issues instead of end-of-lap tires", async ({ page, request }, testInfo) => {
-  const response = await request.get("/api/laps?gameId=iracing");
-  expect(response.ok()).toBe(true);
-  const laps = await response.json() as LapMeta[];
-  const sessions = new Map<number, number>();
-  for (const lap of laps) {
-    if (lap.isValid) sessions.set(lap.sessionId, (sessions.get(lap.sessionId) ?? 0) + 1);
+test("imported iRacing overview shows incident report below detected issues instead of end-of-lap tires", async ({ page, request }, testInfo) => {
+  test.setTimeout(180_000);
+  const ibt = readFileSync(resolve(__dirname, "../../../../test/artifacts/sessions/iracing-navarra-mx5-2026-10-19.ibt"));
+  const previewResponse = await request.post("/api/laps/import-ibt/preview", {
+    headers: { "Content-Type": "application/octet-stream", "X-File-Name": "navarra.ibt", "X-File-Size": String(ibt.length) },
+    data: ibt,
+    timeout: 60_000,
+  });
+  expect(previewResponse.ok()).toBe(true);
+  const { token } = await previewResponse.json() as { token: string | null };
+  expect(token).not.toBeNull();
+  const importResponse = await request.post("/api/laps/import-ibt/commit", { data: { token, ownership: "mine" }, timeout: 60_000 });
+  expect(importResponse.ok()).toBe(true);
+  const imported = await importResponse.json() as { laps: { sessionId: number; lapId: number; lapNumber: number }[] };
+  const sessionIds = [...new Set(imported.laps.map((lap) => lap.sessionId))];
+  try {
+    const sessionId = sessionIds[0];
+    if (sessionId == null) throw new Error("Imported IBT has no reviewable session");
+    const incidentResponse = await request.get(`/api/iracing/sessions/${sessionId}/incidents`);
+    expect(incidentResponse.ok()).toBe(true);
+    const incidentReport = await incidentResponse.json() as { observedIncidentPoints: number | null };
+    await page.goto(`/iracing/sessions/${sessionId}/analyse`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("button", { name: "Overview", exact: true })).toBeVisible();
+    const report = page.getByRole("region", { name: "Incident report", exact: true });
+    await expect(report).toHaveCount(1);
+    await expect(report.getByText("Observed incident points", { exact: true })).toBeVisible();
+    await expect(report.locator("dd").first()).toHaveText(incidentReport.observedIncidentPoints === null ? "—" : String(incidentReport.observedIncidentPoints));
+    await expect(page.getByText("Tires at end of lap", { exact: true })).toHaveCount(0);
+    const issues = page.getByText("Detected from telemetry", { exact: true });
+    await expect(issues).toBeVisible();
+    expect(await issues.evaluate((element) => Boolean(element.compareDocumentPosition(document.querySelector('[aria-labelledby="iracing-incident-report-heading"]')!) & Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
+    await report.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath("incident-report-placement.png") });
+    await page.getByRole("button", { name: "Sector 1", exact: true }).click();
+    await expect(report).toHaveCount(0);
+    await page.getByRole("button", { name: "Overview", exact: true }).click();
+    await expect(report).toHaveCount(1);
+
+    const replayLap = imported.laps.find((lap) => lap.lapNumber === 3);
+    if (!replayLap) throw new Error("Imported IBT is missing its complete third lap");
+    await page.goto(`/iracing/sessions/${sessionId}/replay/${replayLap.lapId}`, { waitUntil: "domcontentloaded" });
+    const timeline = page.getByRole("slider", { name: "Lap timeline" });
+    await expect(timeline).toBeVisible();
+    await expect.poll(async () => Number(await timeline.getAttribute("aria-valuemax"))).toBeGreaterThan(7_000);
+    await expect(timeline.locator('[title$=" gap"]')).toHaveCount(0);
+    await page.getByRole("tab", { name: "3D", exact: true }).click();
+    await expect(page.locator("canvas[data-renderer-backend]")).toBeVisible({ timeout: 30_000 });
+    await page.screenshot({ path: testInfo.outputPath("original-ibt-replay.png") });
+    await page.getByRole("button", { name: "Play playback", exact: true }).click();
+    await expect.poll(async () => Number(await timeline.getAttribute("aria-valuenow"))).toBeGreaterThan(2);
+    await page.keyboard.press("Space");
+    await expect(page.getByRole("button", { name: "Play playback", exact: true })).toBeVisible();
+  } finally {
+    if (sessionIds.length > 0) {
+      const cleanup = await request.post("/api/sessions/bulk-delete", { data: { ids: sessionIds } });
+      expect(cleanup.ok()).toBe(true);
+    }
   }
-  const sessionId = [...sessions].sort((a, b) => b[1] - a[1])[0]?.[0];
-  if (sessionId == null) throw new Error("iRacing seed has no reviewable session");
-  const incidentResponse = await request.get(`/api/iracing/sessions/${sessionId}/incidents`);
-  expect(incidentResponse.ok()).toBe(true);
-  const incidentReport = await incidentResponse.json() as { observedIncidentPoints: number | null };
-  await page.goto(`/iracing/sessions/${sessionId}/analyse`, { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("button", { name: "Overview", exact: true })).toBeVisible();
-  const report = page.getByRole("region", { name: "Incident report", exact: true });
-  await expect(report).toHaveCount(1);
-  await expect(report.getByText("Observed incident points", { exact: true })).toBeVisible();
-  await expect(report.locator("dd").first()).toHaveText(incidentReport.observedIncidentPoints === null ? "—" : String(incidentReport.observedIncidentPoints));
-  await expect(page.getByText("Tires at end of lap", { exact: true })).toHaveCount(0);
-  const issues = page.getByText("Detected from telemetry", { exact: true });
-  await expect(issues).toBeVisible();
-  expect(await issues.evaluate((element) => Boolean(element.compareDocumentPosition(document.querySelector('[aria-labelledby="iracing-incident-report-heading"]')!) & Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
-  await report.scrollIntoViewIfNeeded();
-  await page.screenshot({ path: testInfo.outputPath("incident-report-placement.png") });
-  await page.getByRole("button", { name: "Sector 1", exact: true }).click();
-  await expect(report).toHaveCount(0);
-  await page.getByRole("button", { name: "Overview", exact: true }).click();
-  await expect(report).toHaveCount(1);
 });

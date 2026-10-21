@@ -3,7 +3,7 @@ import { SECTOR_COLOR_VARS } from "@raceiq/scene-3d/colors";
 import { formatLapTime } from "@/lib/format";
 import { Button } from "../ui/button";
 import { type SemanticAnalysisFrame, semanticNumber } from "@raceiq/scene-3d/semantic-frame";
-import { hasTelemetryGap } from "./AnalyseTelemetryChart";
+import { hasTelemetryGap, telemetryGapThreshold } from "./AnalyseTelemetryChart";
 import { m } from "../../paraglide/messages";
 import type { IRacingIncidentEvent } from "@raceiq/shared/racing/sessions/iracing-incidents";
 import { incidentEventLabel } from "../iracing/incident-format";
@@ -40,6 +40,7 @@ interface TimelineScrubberProps {
 interface TimelineData {
   timeFracs: number[];
   times: number[];
+  gapThreshold: number;
 }
 
 const PlaybackControls = memo(function PlaybackControls({
@@ -82,7 +83,7 @@ const TimelineGapHighlights = memo(function TimelineGapHighlights({ timelineData
   return timelineData.times.map((time, index) => {
     if (index === 0) return null;
     const delta = time - timelineData.times[index - 1];
-    if (!hasTelemetryGap(timelineData.times[index - 1], time)) return null;
+    if (!hasTelemetryGap(timelineData.times[index - 1], time, timelineData.gapThreshold)) return null;
     const left = timelineData.timeFracs[index - 1] * 100;
     const right = timelineData.timeFracs[index] * 100;
     return (
@@ -143,7 +144,7 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
       return frac;
     });
     const times = displayTelemetry.map(currentLap);
-    return { timeFracs, times };
+    return { timeFracs, times, gapThreshold: telemetryGapThreshold(times) };
   }, [displayTelemetry]);
 
   const cursorFrac = visualTimeFrac ?? timelineData?.timeFracs?.[cursorIdx] ?? cursorIdx / (totalPackets - 1);

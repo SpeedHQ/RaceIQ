@@ -67,8 +67,7 @@ export class SceneOverlays {
   private labels: (WheelLabelResource | null)[] = [null, null, null, null];
   private springs: SuspensionSpringResource[] = [];
   private dimensions: DimensionLineResource | null = null;
-  private track: TrackLineResource | null = null;
-  private measuredTrack: TrackLineResource | null = null;
+  private measuredRacingLine: TrackLineResource | null = null;
   private racingLine: TrackLineResource | null = null;
   private boundaries: TrackBoundaryResource[] = [];
   private curbs: CurbMarkerResource | null = null;
@@ -254,16 +253,11 @@ export class SceneOverlays {
       (this.drivetrain.children[3] as THREE.Mesh).position.x = wb;
       (this.drivetrain.children[4] as THREE.Mesh).position.x = -wb;
     }
-    if (config.toggles.track && config.outline?.length && pose) {
-      if (!this.track) this.track = createTrackLineResource(this.scene);
-      updateTrackLineResource(this.track, this.camera, config.outline, pose, viewportHeight, config.autoOrbit ? 80 : undefined);
-      this.track.pool.group.visible = true;
-    } else if (this.track) this.track.pool.group.visible = false;
-    if (config.toggles.track && config.measuredPath?.length && pose?.source === "measured") {
-      if (!this.measuredTrack) this.measuredTrack = createTrackLineResource(this.scene, THREE_COLORS.trackRacingLine, 2, 0.95, -0.42);
-      updateTrackLineResource(this.measuredTrack, this.camera, config.measuredPath, pose, viewportHeight, config.autoOrbit ? 80 : undefined);
-      this.measuredTrack.pool.group.visible = true;
-    } else if (this.measuredTrack) this.measuredTrack.pool.group.visible = false;
+    if (config.toggles.racingLine && config.measuredPath?.length && pose?.source === "measured") {
+      if (!this.measuredRacingLine) this.measuredRacingLine = createTrackLineResource(this.scene, THREE_COLORS.trackRacingLine, 2, 0.95, -0.42);
+      updateTrackLineResource(this.measuredRacingLine, this.camera, config.measuredPath, pose, viewportHeight, config.autoOrbit ? 80 : undefined);
+      this.measuredRacingLine.pool.group.visible = true;
+    } else if (this.measuredRacingLine) this.measuredRacingLine.pool.group.visible = false;
     if (config.toggles.racingLine && config.boundaries?.raceLine?.length && pose?.source === "native") {
       if (!this.racingLine) this.racingLine = createTrackLineResource(this.scene, THREE_COLORS.trackRacingLine, 4, 1, -0.435);
       updateTrackLineResource(this.racingLine, this.camera, config.boundaries.raceLine, pose, viewportHeight, config.autoOrbit ? 80 : undefined);
@@ -321,9 +315,8 @@ export class SceneOverlays {
     for (const wheel of this.wheels) disposeWheelResource(wheel);
     for (const spring of this.springs) disposeSuspensionSpringResource(spring);
     if (this.dimensions) disposeDimensionLineResource(this.dimensions);
-    if (this.track) disposeTrackLineResource(this.track);
     if (this.racingLine) disposeTrackLineResource(this.racingLine);
-    if (this.measuredTrack) disposeTrackLineResource(this.measuredTrack);
+    if (this.measuredRacingLine) disposeTrackLineResource(this.measuredRacingLine);
     for (const resource of this.boundaries) disposeTrackBoundaryResource(resource);
     if (this.curbs) disposeCurbMarkerResource(this.curbs);
     if (this.trail) disposeTireTrailResource(this.trail);

@@ -476,6 +476,7 @@
       "devDependencies": {
         "@playwright/test": "1.62.1",
         "@raceiq/backend-core": "workspace:*",
+        "@raceiq/game-catalogs": "workspace:*",
         "@raceiq/shared": "workspace:*",
         "@raceiq/tooling": "workspace:*",
       },

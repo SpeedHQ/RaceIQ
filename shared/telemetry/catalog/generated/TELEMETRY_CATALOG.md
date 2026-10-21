@@ -7,8 +7,8 @@
 - Catalog version: `0.20.0`
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.20.0`
-- Generator source SHA-256: `9d9ffca31d687071c62a802e6fdb4e0481db3142194725175f2756468f096ef3`
-- Content SHA-256: `a0694b5efeafe503d0be5b3997a2d5aa2041f5e0c163410419ae5eaab97aeec2`
+- Generator source SHA-256: `a95aa8983eb9ea6957dada211bf46ac4131ac21629301398ee063e967da3b6af`
+- Content SHA-256: `18e2f031392e4fd8affbfadbde81a446371c6d2762a63ae9c8036d73365af249`
 
 ## Coverage
 
@@ -745,6 +745,7 @@
 | `tire.temperature.surface.outer` | Outer surface temperature | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
 | `tire.temperature.surface.representative` | Representative surface temperature | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
 | `tires.actual-tyre-compound` | Actual Tyre Compound | number | dimensionless | count | scalar |  |  |  |
+| `tires.cold-pressure` | Cold Pressure | number | mass × length^-1 × time^-2 | kPa | fixed:4 | FL, FR, RL, RR |  |  |
 | `tires.competitor.age` | Competitor tire age | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `tires.competitor.compound` | Competitor tire compound | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
 | `tires.competitor.qualifying-compound` | Competitor qualifying tire compound | structured | dimensionless | id | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
@@ -774,6 +775,9 @@
 | `tires.right-tire-sets-used` | Right Tire Sets Used | number | unit:unitless | unitless | scalar |  |  |  |
 | `tires.slip-vibrations` | Slip Vibrations | number | dimensionless | ratio | scalar |  |  |  |
 | `tires.surface-rumble` | Surface rumble | number | unit:unitless | unitless | fixed:4 | FL, FR, RL, RR |  |  |
+| `tires.temp-cl` | Temp CL | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
+| `tires.temp-cm` | Temp CM | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
+| `tires.temp-cr` | Temp CR | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
 | `tires.tire-camber` | Tire Camber | number | angle | rad | fixed:4 | FL, FR, RL, RR |  |  |
 | `tires.tire-combined-slip` | Tire combined slip | number | dimensionless | ratio | fixed:4 | FL, FR, RL, RR |  |  |
 | `tires.tire-compound` | Tire compound | enum | unit:enum | enum | scalar |  | domain: 7, 8, 16, 17, 18, dry_compound, wet_compound |  |

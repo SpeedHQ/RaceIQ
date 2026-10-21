@@ -37,7 +37,6 @@ export const CarWireframe = React.memo(function CarWireframe({
   frame,
   telemetry,
   cursorIdx,
-  outline,
   trackProjection,
   trackGeometryLoading = false,
   trackGeometryError = false,
@@ -60,7 +59,6 @@ export const CarWireframe = React.memo(function CarWireframe({
   frame: SemanticAnalysisFrame;
   telemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
-  outline: { x: number; z: number }[] | null;
   trackProjection?: TrackProjection | null;
   trackGeometryLoading?: boolean;
   trackGeometryError?: boolean;
@@ -135,7 +133,6 @@ export const CarWireframe = React.memo(function CarWireframe({
   const derivedTrack = gameId === "iracing" && poses.some((pose) => pose?.source === "lap-fraction");
   const measuredProjection = useMemo(() => alignProjectionToMeasured(trackProjection, poses), [trackProjection, poses]);
   const measuredTrack = gameId === "iracing" && poses.some((pose) => pose?.source === "measured");
-  const sceneOutline = measuredTrack ? measuredProjection?.points ?? null : derivedTrack ? trackProjection?.points ?? null : outline;
   const sceneBoundaries = measuredTrack ? measuredProjection?.boundaries ?? null : derivedTrack ? trackProjection?.boundaries ?? null : flippedBoundaries;
   const [placementSource, setPlacementSource] = useState<"native" | "lap-fraction" | "measured" | null>(null);
   useEffect(() => {
@@ -150,7 +147,7 @@ export const CarWireframe = React.memo(function CarWireframe({
   }, [poses, source.cursorRef]);
   const positionAvailable = (feature: "track" | "racingLine" | "trails" | "inputs") =>
     supportsPositionDependentSceneFeature(gameId, feature)
-    || (placementSource !== null && (feature === "track" || feature === "inputs" || placementSource === "native"));
+    || (placementSource !== null && (feature === "track" || feature === "inputs" || (feature === "racingLine" && placementSource === "measured") || placementSource === "native"));
   const effectiveToggles = {
     ...toggles,
     track: toggles.track && positionAvailable("track"),
@@ -162,7 +159,7 @@ export const CarWireframe = React.memo(function CarWireframe({
     { key: "trails" as const, label: m.carwire_trails(), available: positionAvailable("trails") },
     { key: "inputs" as const, label: m.carwire_inputs(), available: positionAvailable("inputs") },
     { key: "track" as const, label: m.carwire_track(), available: positionAvailable("track") },
-    { key: "racingLine" as const, label: m.overlay_racing_line(), available: positionAvailable("racingLine") && Array.isArray(flippedBoundaries?.raceLine) && flippedBoundaries.raceLine.length > 1 },
+    { key: "racingLine" as const, label: m.overlay_racing_line(), available: positionAvailable("racingLine") && ((measuredPath?.length ?? 0) > 1 || (Array.isArray(flippedBoundaries?.raceLine) && flippedBoundaries.raceLine.length > 1)) },
     { key: "grid" as const, label: m.carwire_grid(), available: true },
     { key: "wheelInfo" as const, label: m.carwire_tire_info(), available: true },
   ]
@@ -200,7 +197,7 @@ export const CarWireframe = React.memo(function CarWireframe({
   }, [source]);
   useEffect(() => {
     runtimeRef.current?.updateConfig({
-      gameId, frame, telemetry, cursorIdx, outline: sceneOutline, measuredPath, poses, boundaries: sceneBoundaries,
+      gameId, frame, telemetry, cursorIdx, measuredPath, poses, boundaries: sceneBoundaries,
       boundarySpace: measuredTrack ? "measured" : derivedTrack ? "lap-fraction" : "native",
       toggles: effectiveToggles, viewPreset, carModel, modelOffsetX, hideModelWheels: !minimal,
       autoOrbit: !!autoOrbit, fpsCap: displaySettings.renderFpsCap,
@@ -215,7 +212,7 @@ export const CarWireframe = React.memo(function CarWireframe({
         wearRate: m.analyse_wheels_wear_s(), snapshotStale: m.carwire_snapshot_stale(),
       },
     });
-  }, [gameId, frame, telemetry, cursorIdx, sceneOutline, measuredPath, poses, derivedTrack, measuredTrack, sceneBoundaries, effectiveToggles, viewPreset, carModel, modelOffsetX, minimal, autoOrbit, displaySettings.renderFpsCap, fmtTemp, suspThresholds, pressureOptimal, units.thresholds, temperatureSemanticId]);
+  }, [gameId, frame, telemetry, cursorIdx, measuredPath, poses, derivedTrack, measuredTrack, sceneBoundaries, effectiveToggles, viewPreset, carModel, modelOffsetX, minimal, autoOrbit, displaySettings.renderFpsCap, fmtTemp, suspThresholds, pressureOptimal, units.thresholds, temperatureSemanticId]);
 
   return (
     <div className="w-full h-full relative flex-1">
@@ -224,10 +221,10 @@ export const CarWireframe = React.memo(function CarWireframe({
         return `${wheel} ${value != null && Number.isFinite(value) ? fmtTemp(value) : m.analyse_unavailable()}`;
       }).join(", ")}`} />
       {renderError && <div role="alert" className="absolute inset-0 flex items-center justify-center bg-app-bg text-status-danger p-4">{renderError}</div>}
-      {gameId === "iracing" && toggles.track && (trackGeometryLoading || trackGeometryError || !placementSource || !sceneOutline?.length || placementSource === "lap-fraction" || placementSource === "measured") && (
+      {gameId === "iracing" && toggles.track && (trackGeometryLoading || trackGeometryError || !placementSource || !sceneBoundaries || placementSource === "lap-fraction" || placementSource === "measured") && (
         <Alert className="absolute bottom-2 right-2 max-w-[60%]" role="status">
           <AlertDescription>
-            {trackGeometryLoading ? m.replay_track_loading() : trackGeometryError ? m.replay_track_error() : placementSource === "measured" ? sceneOutline?.length ? m.replay_track_measured() : m.replay_track_unavailable() : placementSource === "lap-fraction" ? sceneBoundaries ? m.replay_track_projected() : m.replay_track_bounds_unavailable() : m.replay_track_unavailable()}
+            {trackGeometryLoading ? m.replay_track_loading() : trackGeometryError ? m.replay_track_error() : placementSource === "measured" ? sceneBoundaries ? m.replay_track_measured() : m.replay_track_unavailable() : placementSource === "lap-fraction" ? sceneBoundaries ? m.replay_track_projected() : m.replay_track_bounds_unavailable() : m.replay_track_unavailable()}
           </AlertDescription>
         </Alert>
       )}

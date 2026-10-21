@@ -53,8 +53,8 @@ function notifyLayoutMigrationComplete(): void {
     try { listener(); } catch (error) { console.error("[LayoutMigration] Completion listener failed:", error); }
   }
 }
-const extensions = [".bin", ".bin.gz", ".motec.zip"];
-const isCapture = (name: string) => extensions.some((extension) => name.endsWith(extension));
+const extensions = [".bin", ".bin.gz", ".motec.zip", ".ibt"];
+const isCapture = (name: string) => extensions.some((extension) => name.toLowerCase().endsWith(extension));
 async function fileHash(path: string): Promise<string> {
   const hash = createHash("sha256");
   for await (const chunk of createReadStream(path)) hash.update(chunk);

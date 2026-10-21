@@ -131,7 +131,9 @@ export function useAnalyseImports(args: {
       }
       setIbtPreview(null);
       const laps = data?.laps ?? [];
-      finalizeImport({ fileName: staged.preview.fileName, packetCount: data?.packetCount ?? 0, laps, gameId: data?.gameId ?? "", routePrefix: data?.routePrefix ?? "" });
+      const result = { fileName: staged.preview.fileName, packetCount: data?.packetCount ?? 0, laps, gameId: data?.gameId ?? "", routePrefix: data?.routePrefix ?? "" };
+      finalizeImport(result);
+      return result;
     } catch (e) {
       setIbtPreview(null);
       window.alert(`IBT import failed: ${e instanceof Error ? e.message : String(e)}`);

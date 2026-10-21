@@ -29,7 +29,7 @@ interface AnalyseSemanticFrame {
   values: SemanticAnalysisFrame["values"];
   states: Readonly<Record<string, string | undefined>>;
   freshness: Readonly<Record<string, string | undefined>>;
-  source?: "motec" | null;
+  source?: SemanticAnalysisFrame["source"];
 }
 const emptyLaps: LapMeta[] = [];
 
@@ -99,8 +99,18 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: GameId, sess
     const labels = (outlineRaw as { labels?: unknown }).labels;
     return Array.isArray(labels) ? (labels as TrackMapLabel[]) : null;
   }, [outlineRaw]);
-  const { data: boundariesRaw } = useTrackBoundaries(trackId ?? undefined);
-  const boundaries = boundariesRaw && typeof boundariesRaw === "object" ? (boundariesRaw as TrackMapBoundaries) : null;
+  const { data: boundariesRaw } = useTrackBoundaries(trackId ?? undefined, gameId);
+  const boundaries = useMemo(() => {
+    if (boundariesRaw && typeof boundariesRaw === "object") return boundariesRaw as TrackMapBoundaries;
+    if (gameId !== "iracing" || !outlineRaw || Array.isArray(outlineRaw)) return null;
+    const edges = outlineRaw.ribbonEdges;
+    if (!edges || !Array.isArray(edges.leftEdge) || !Array.isArray(edges.rightEdge) || edges.leftEdge.length < 2 || edges.leftEdge.length !== edges.rightEdge.length) return null;
+    const centerLine = edges.leftEdge.map((left, index) => ({
+      x: (left.x + edges.rightEdge[index]!.x) / 2,
+      z: (left.z + edges.rightEdge[index]!.z) / 2,
+    }));
+    return { ...edges, centerLine, pitLane: null, coordSystem: "official-map" } as TrackMapBoundaries;
+  }, [boundariesRaw, gameId, outlineRaw]);
   const { data: sectorsRaw } = useTrackSectorBoundaries(trackId ?? undefined);
   const sectorData = useMemo<{ sectorStarts: number[]; sectorCount: number; firstDist: number; lapDist: number; times: number[] } | null>(() => {
     if (!semanticReplay || semanticFrames.length < 2) return null;

@@ -5,8 +5,20 @@ import { getSemanticCanvasContext } from "@raceiq/scene-3d/rendering/css-canvas"
 const TELEMETRY_GAP_SECONDS = 0.1;
 const TELEMETRY_GAP_TOLERANCE_SECONDS = 0.001;
 
-export function hasTelemetryGap(previousTime: number, currentTime: number): boolean {
-  return currentTime - previousTime > TELEMETRY_GAP_SECONDS + TELEMETRY_GAP_TOLERANCE_SECONDS;
+export function hasTelemetryGap(previousTime: number, currentTime: number, threshold = TELEMETRY_GAP_SECONDS): boolean {
+  return currentTime - previousTime > threshold + TELEMETRY_GAP_TOLERANCE_SECONDS;
+}
+
+/** Sparse recordings have a lower regular cadence, not a gap at every sample. */
+export function telemetryGapThreshold(times: readonly number[]): number {
+  const intervals: number[] = [];
+  for (let index = 1; index < times.length; index++) {
+    const delta = times[index] - times[index - 1];
+    if (Number.isFinite(delta) && delta > 0) intervals.push(delta);
+  }
+  if (intervals.length < 3) return TELEMETRY_GAP_SECONDS;
+  intervals.sort((a, b) => a - b);
+  return Math.max(TELEMETRY_GAP_SECONDS, intervals[Math.floor(intervals.length / 2)] * 1.5);
 }
 
 export interface ChartSeries {
@@ -129,11 +141,12 @@ export function TelemetryChart({
       ctx.stroke();
     }
 
+    const gapThreshold = times ? telemetryGapThreshold(times) : TELEMETRY_GAP_SECONDS;
     // Draw gap highlights first (behind data lines)
     if (times && timeFracs) {
       ctx.fillStyle = "color-mix(in srgb, var(--status-danger) 8%, transparent)";
       for (let i = 1; i < times.length; i++) {
-        if (hasTelemetryGap(times[i - 1], times[i])) {
+        if (hasTelemetryGap(times[i - 1], times[i], gapThreshold)) {
           const x1 = leftPad + timeFracs[i - 1] * chartW;
           const x2 = leftPad + timeFracs[i] * chartW;
           ctx.fillRect(x1, topPad, x2 - x1, chartH);
@@ -141,7 +154,7 @@ export function TelemetryChart({
       }
     }
 
-    // Draw each series — break line at data gaps (>0.1s between packets)
+    // Break lines only across gaps beyond the recording's regular cadence.
     for (const s of series) {
       ctx.strokeStyle = s.color;
       ctx.lineWidth = 1.2;
@@ -149,7 +162,7 @@ export function TelemetryChart({
       let drawing = false;
       ctx.beginPath();
       for (let i = 0; i < n; i++) {
-        if (i > 0 && times && hasTelemetryGap(times[i - 1], times[i])) {
+        if (i > 0 && times && hasTelemetryGap(times[i - 1], times[i], gapThreshold)) {
           drawing = false;
         }
         const xFrac = timeFracs ? timeFracs[i] : i / (n - 1);

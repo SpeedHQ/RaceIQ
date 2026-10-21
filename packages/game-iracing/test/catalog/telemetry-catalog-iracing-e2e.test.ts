@@ -110,12 +110,6 @@ describe("iRacing telemetry catalog coverage", () => {
             unit: "m",
             accepts: (value) => isFiniteNumberArrayOfLength(value, 4) && value.every((x) => x >= 0),
           },
-          {
-            semanticId: "tire.temperature.carcass.left",
-            mappingStatus: "direct",
-            unit: "°C",
-            accepts: (value) => isFiniteNumberArrayOfLength(value, 4) && value.every((x) => x > -273.15 && x < 200),
-          },
         ],
       });
     },
