@@ -27,7 +27,7 @@ async function activePlan(api: APIRequestContext) {
 }
 
 test("R1-R5 builds a history-backed plan, survives restart, and applies only to its live identity", async ({ browser, playwright }, testInfo) => {
-  test.setTimeout(240_000);
+  test.setTimeout(360_000);
   const runtime = await StrategyRuntime.start(testInfo.outputPath("test-data-race-plan"));
   const api = await playwright.request.newContext({ baseURL: runtime.apiURL });
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
@@ -116,11 +116,17 @@ test("R1-R5 builds a history-backed plan, survives restart, and applies only to 
     await expect.poll(async () => (await activePlan(api))?.id ?? null).toBe(saved.id);
     await ingestF1Laps(runtime.udpPort, 4, 462n, 1);
     await page.goto(`${runtime.baseURL}/live/pit`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "Open strategy timeline" }).click();
+    await page.getByRole("dialog").locator("summary").filter({ hasText: "Race strategy" }).click();
     const live = page.getByTestId("live-race-strategy");
     await expect(live).toContainText("Native-history race plan");
     await expect(live).toContainText("Planned stint");
     await expect(live).toContainText("Next planned pit: lap 101");
     await ingestNativeRun({ carId: 639, timestampMs: 900_000, laps: [] }, runtime.udpPort);
+    // Switching games remounts the dashboard and closes its expanded strategy view.
+    await expect(page.getByRole("dialog")).not.toBeVisible();
+    await page.getByRole("button", { name: "Open strategy timeline" }).click();
+    await page.getByRole("dialog").locator("summary").filter({ hasText: "Race strategy" }).click();
     await expect(live).toContainText("Not applicable");
 
     await page.goto(analysisUrl, { waitUntil: "domcontentloaded" });
@@ -150,6 +156,8 @@ test("R1-R5 builds a history-backed plan, survives restart, and applies only to 
     const boundaryPlan = await boundaryResponse.json();
     expect((await api.put("/api/race-plans/active", { data: { planId: boundaryPlan.id } })).ok()).toBe(true);
     await page.goto(`${runtime.baseURL}/live/pit`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "Open strategy timeline" }).click();
+    await page.getByRole("dialog").locator("summary").filter({ hasText: "Race strategy" }).click();
     await expect(live).toContainText("Next planned pit: lap 10");
     await ingestNativeRun({ carId: 639, firstLap: 11, timestampMs: 901_000, laps: [] }, runtime.udpPort);
     await expect(live).toContainText("Final stint; finish instead of pit.");
@@ -159,6 +167,165 @@ test("R1-R5 builds a history-backed plan, survives restart, and applies only to 
     await expect(live).toContainText("Next planned pit: lap 10");
     expect((await api.delete(`/api/race-plans/${boundaryPlan.id}`)).ok()).toBe(true);
     await expect.poll(async () => (await activePlan(api))?.id ?? null).toBeNull();
+  } finally {
+    await runtime.stop();
+    await context.close();
+    await api.dispose();
+  }
+});
+
+test("T1-T5 saves a timed race, derives fuel at selected stops, and retains invalid draft edits", async ({ browser, playwright }, testInfo) => {
+  test.setTimeout(360_000);
+  const runtime = await StrategyRuntime.start(testInfo.outputPath("test-data-timed-race"));
+  const api = await playwright.request.newContext({ baseURL: runtime.apiURL });
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await context.newPage();
+  try {
+    await ingestF1Laps(runtime.udpPort, 6, 810n);
+    const source = await sessionFor(api, "f1-2025");
+    await ingestF1Laps(runtime.udpPort, 3, 811n);
+    const readSource = async () => {
+      const response = await api.get(`/api/sessions/${source.id}/stints`, { headers });
+      expect(response.ok()).toBe(true);
+      return StintsResponseSchema.parse(await response.json()).stints.find((stint) =>
+        stint.status !== "active" && stint.averageLapSeconds != null && stint.averageLapSeconds > 0 &&
+        stint.paceLaps > 0 && stint.fuel.value != null && stint.fuel.value > 0);
+    };
+    await expect.poll(async () => (await readSource())?.id).toBeTruthy();
+    const evidence = (await readSource())!;
+    const rate = evidence.fuel.value!;
+    const required = rate * 10;
+    expect(required * 3).toBeLessThan(1);
+    await page.goto(`${runtime.baseURL}/f125/sessions/${source.id}/analyse`, { waitUntil: "domcontentloaded" });
+    const planner = page.getByTestId("race-strategy-planner");
+    await expect(planner).toBeVisible();
+    await planner.getByLabel("Plan name").fill("Timed fuel strategy");
+    await planner.getByLabel("Evidence stint").selectOption(`${source.id}:${evidence.id}`);
+    await planner.getByLabel("Race length", { exact: true }).selectOption("time");
+    await expect(planner.getByLabel("Average lap (s)", { exact: true })).toHaveValue(String(evidence.averageLapSeconds));
+    await planner.getByLabel("Race time (minutes)").fill("30");
+    await expect(planner.getByTestId("race-time-estimate")).toContainText(`${Math.ceil(1800 / evidence.averageLapSeconds!)} laps`);
+    await planner.getByLabel("Average lap (s)", { exact: true }).fill("90");
+    await expect(planner.getByTestId("race-time-estimate")).toContainText("20 laps");
+    await planner.getByLabel("Race time (minutes)").fill("30.01");
+    await expect(planner.getByTestId("race-time-estimate")).toContainText("21 laps");
+    await planner.getByLabel("Race time (minutes)").fill("30");
+    await planner.getByRole("button", { name: "Add pit stop" }).click();
+    const rows = planner.locator("fieldset");
+    await rows.nth(0).getByLabel("Pit / finish lap").fill("10");
+    await rows.nth(1).getByLabel("Evidence stint").selectOption(`${source.id}:${evidence.id}`);
+    await rows.nth(0).getByLabel("Starting fuel").fill(String(required * 150));
+    await rows.nth(1).getByLabel("Starting fuel").fill(String(required * 100));
+    await expect(rows.nth(0).getByTestId("race-plan-required-fuel")).toHaveText(`Required fuel: ${(required * 100).toFixed(1)}%`);
+    await expect(rows.nth(1).getByTestId("race-plan-refuel")).toHaveText(`Fuel to add at stop: ${(required * 50).toFixed(1)}%`);
+    await rows.nth(0).getByLabel("Starting fuel").fill(String(required * 300));
+    await expect(rows.nth(1).getByTestId("race-plan-refuel")).toHaveText("Fuel to add at stop: 0.0%");
+    await rows.nth(0).getByLabel("Starting fuel").fill("");
+    await expect(rows.nth(1).getByTestId("race-plan-refuel")).toContainText("unavailable");
+    await rows.nth(0).getByLabel("Starting fuel").fill("0");
+    await expect(rows.nth(0)).toContainText("Expected consumption exceeds planned starting fuel.");
+    await expect(rows.nth(1).getByTestId("race-plan-refuel")).toContainText("unavailable");
+    await rows.nth(0).getByLabel("Starting fuel").fill(String(required * 150));
+    await planner.getByRole("button", { name: "Save plan", exact: true }).click();
+    await expect(planner.getByRole("status").filter({ hasText: "Plan saved" })).toBeVisible();
+    const saved = RacePlansResponseSchema.parse(await (await api.get("/api/race-plans?gameId=f1-2025")).json()).plans.find((plan) => plan.name === "Timed fuel strategy")!;
+    expect(saved.raceLength).toEqual({ mode: "time", durationSeconds: 1800, averageLapSeconds: 90 });
+    expect(saved.stints.map((stint) => stint.endLap)).toEqual([10, 20]);
+    const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...savedInput } = saved;
+    const input = { ...savedInput, stints: savedInput.stints.map(({ evidence: _evidence, ...stint }) => stint) };
+    for (const raceLength of [
+      { mode: "time", durationSeconds: 1801, averageLapSeconds: 90 },
+      { mode: "time", durationSeconds: 0, averageLapSeconds: 90 },
+      { mode: "time", durationSeconds: 1800, averageLapSeconds: 0 },
+      { mode: "time", durationSeconds: 604801, averageLapSeconds: 90 },
+    ]) {
+      expect((await api.put(`/api/race-plans/${saved.id}`, { data: { ...input, raceLength } })).status()).toBe(400);
+    }
+    expect((await api.put(`/api/race-plans/${saved.id}`, {
+      data: { ...input, stints: input.stints.map((stint, index) => ({ ...stint, endLap: index === 0 ? 20 : 10 })) },
+    })).status()).toBe(400);
+    expect(RacePlansResponseSchema.parse(await (await api.get("/api/race-plans?gameId=f1-2025")).json()).plans.find((plan) => plan.id === saved.id)).toEqual(saved);
+    await runtime.restart();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await planner.getByRole("button", { name: "Timed fuel strategy", exact: false }).click();
+    await expect(planner.getByLabel("Race length", { exact: true })).toHaveValue("time");
+    await expect(planner.getByLabel("Race time (minutes)")).toHaveValue("30");
+    await expect(planner.getByLabel("Average lap (s)", { exact: true })).toHaveValue("90");
+    await expect(rows.nth(1).getByTestId("race-plan-refuel")).toHaveText(`Fuel to add at stop: ${(required * 50).toFixed(1)}%`);
+    await planner.getByLabel("Race time (minutes)").fill("5");
+    await expect(rows.nth(0).getByLabel("Pit / finish lap")).toHaveValue("10");
+    await expect(planner.getByRole("button", { name: "Save changes" })).toBeDisabled();
+    await planner.getByLabel("Average lap (s)", { exact: true }).fill("");
+    await expect(planner.getByTestId("race-time-estimate")).toContainText("Enter race time");
+    await expect(rows.nth(0).getByTestId("race-plan-required-fuel")).toContainText("Unavailable");
+    for (const [duration, pace] of [["30", "0"], ["", "90"], ["0", "90"], ["30", "0.01"], ["10081", "90"]]) {
+      await planner.getByLabel("Race time (minutes)").fill(duration);
+      await planner.getByLabel("Average lap (s)", { exact: true }).fill(pace);
+      await expect(planner.getByTestId("race-time-estimate")).toContainText("Enter race time");
+      await expect(planner.getByRole("button", { name: "Save changes" })).toBeDisabled();
+      await expect(rows.nth(0).getByLabel("Pit / finish lap")).toHaveValue("10");
+      await expect(rows.nth(0).getByTestId("race-plan-required-fuel")).toContainText("Unavailable");
+    }
+    await planner.getByLabel("Race length", { exact: true }).selectOption("laps");
+    await planner.getByLabel("Total laps").fill("20");
+    await expect(planner.getByRole("button", { name: "Save changes" })).toBeEnabled();
+    await planner.getByLabel("Race length", { exact: true }).selectOption("time");
+    await planner.getByLabel("Race time (minutes)").fill("30");
+    await planner.getByLabel("Average lap (s)", { exact: true }).fill("90");
+    await planner.getByRole("button", { name: "Save changes" }).click();
+    await expect(planner.getByRole("status").filter({ hasText: "Plan saved" })).toBeVisible();
+    await ingestF1Laps(runtime.udpPort, 3, 812n);
+    await page.goto(`${runtime.baseURL}/live/pit`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "Open strategy timeline" }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.locator("summary").filter({ hasText: "Race strategy" }).click();
+    await planner.getByRole("button", { name: "Timed fuel strategy", exact: false }).click();
+    await expect(planner.getByLabel("Race time (minutes)")).toHaveValue("30");
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(await planner.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    await planner.getByLabel("Race length", { exact: true }).focus();
+    await page.keyboard.press("Tab");
+    await expect(planner.getByLabel("Race time (minutes)")).toBeFocused();
+    await expect(page.getByRole("dialog")).toHaveJSProperty("scrollTop", 0);
+    await page.screenshot({ path: testInfo.outputPath("timed-strategy-mobile.png") });
+    const { raceLength: _length, ...legacyInput } = input;
+    const legacyResponse = await api.post("/api/race-plans", { data: { ...legacyInput, name: "Legacy lap strategy" } });
+    expect(legacyResponse.status()).toBe(201);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "Open strategy timeline" }).click();
+    await page.getByRole("dialog").locator("summary").filter({ hasText: "Race strategy" }).click();
+    await planner.getByRole("button", { name: "Legacy lap strategy", exact: false }).click();
+    await expect(planner.getByLabel("Race length", { exact: true })).toHaveValue("laps");
+    await expect(planner.getByLabel("Total laps")).toHaveValue("20");
+    // Controlled liter/zero/unknown evidence exercises real UI -> API -> SQLite,
+    // independently of the native F1 adapter's tank-fraction normalization.
+    await runtime.crash();
+    await runtime.databaseStatement("UPDATE sessions SET game_id='acc',raw_file=NULL WHERE id=?", [source.id], true);
+    for (const fuelRate of [2.5, 0, null]) {
+      const literEvidence = {
+        ...evidence, gameId: "acc", fuelUnit: "L",
+        fuel: { ...evidence.fuel, value: fuelRate, unit: "L/lap", source: fuelRate == null ? null : "current-stint", unavailableReason: fuelRate == null ? "missing" : null },
+        compatibility: { ...evidence.compatibility, fuelSemanticVersion: "test-liters" },
+      };
+      await runtime.databaseStatement("INSERT OR REPLACE INTO strategy_stints(id,session_id,driver_key,ordinal,status,payload) VALUES(?,?,?,?,?,?)",
+        [evidence.id, source.id, evidence.driverKey, evidence.ordinal, evidence.status, JSON.stringify(literEvidence)], true);
+      await runtime.restart();
+      const literResponse = await api.get(`/api/sessions/${source.id}/stints`, { headers: { "X-Game-Id": "acc" } });
+      expect(literResponse.ok(), await literResponse.text()).toBe(true);
+      expect(StintsResponseSchema.parse(await literResponse.json()).stints.find((stint) => stint.id === evidence.id)?.fuel.value).toBe(fuelRate);
+      await page.goto(`${runtime.baseURL}/acc/sessions/${source.id}/analyse`, { waitUntil: "domcontentloaded" });
+      await expect(planner).toBeVisible();
+      await planner.getByLabel("Evidence stint").selectOption(`${source.id}:${evidence.id}`);
+      await planner.getByRole("button", { name: "Add pit stop" }).click();
+      await rows.nth(0).getByLabel("Pit / finish lap").fill("10");
+      await rows.nth(1).getByLabel("Evidence stint").selectOption(`${source.id}:${evidence.id}`);
+      await rows.nth(0).getByLabel("Starting fuel").fill(fuelRate ? "37.5" : "0");
+      await rows.nth(1).getByLabel("Starting fuel").fill(fuelRate ? "25" : "0");
+      await expect(rows.nth(0).getByTestId("race-plan-required-fuel")).toHaveText(`Required fuel: ${fuelRate == null ? "Unavailable" : `${(fuelRate * 10).toFixed(1)} L`}`);
+      if (fuelRate == null) await expect(rows.nth(1).getByTestId("race-plan-refuel")).toContainText("unavailable");
+      else await expect(rows.nth(1).getByTestId("race-plan-refuel")).toHaveText(`Fuel to add at stop: ${fuelRate === 0 ? "0.0" : "12.5"} L`);
+      await runtime.crash();
+    }
   } finally {
     await runtime.stop();
     await context.close();

@@ -4,6 +4,7 @@
 - Override tire cliff and dead-health thresholds per game and tire compound.
 - Open an expanded pit-estimate dialog with a projected lap horizon, four-wheel readings, and evidence.
 - Design and save race strategies from previous stint history, then load planned stops, fuel, and tires into the live dashboard.
+- Plan races by lap count or race duration using your measured lap time, save the chosen basis, and estimate required fuel and refueling at selected pit stops.
 - Keep pit-estimate history across sessions and restarts, with per-driver clearing and evidence from compatible previous stints.
 - Review per-stint fuel use and four-wheel tire wear, then compare two stints with explicit units, sample counts, and unavailable data.
 - Choose a 50–100 Hz recording frequency for ACC, AC Evo, iRacing, or LMU during setup to reduce recording size. Live UDP recording is unchanged.
@@ -15,10 +16,12 @@
 - Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
 
 ### Fixes
+- Compact live pit estimates into an integrated countdown, fuel-consumption summary with %/lap rates and both liters and tank percentage when capacity is available, and a four-row tire register; keep evidence, estimate history, and loaded race plans in the expanded dialog with a fixed header.
 - Restore compatible previous-session evidence in live pit estimates.
 - Apply ACC and AC Evo tire-threshold overrides to native dry and wet compounds.
 - Retry failed race-plan saves with the latest draft edits.
 - Prevent draft edits and plan switching while a race-plan save is pending.
+- Save race plans reliably while live telemetry is writing to the database.
 - Preserve Forza performance index when switching compatible history sessions and derive missing values from matching evidence.
 - Let F1 dashboard pit estimates span the full left telemetry column.
 - Reject unknown car or track identities when reusing historical stint averages.
@@ -75,6 +78,7 @@
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
+- Invalidate cached translation modules before development previews reload so Storybook and the app pick up newly generated messages.
 - Define startup repair stages in a keyed registry with an explicit order; reject unknown, duplicate, or omitted stages before repairs run.
 - Run browser and responsive verification against production builds with all release-gated features enabled, including the historical classification upgrade fixture.
 - Align recording and browser E2E coverage with independent lap classification, pace-only review, current setup-source labels, and recording-organization consent controls.

@@ -1,5 +1,4 @@
 import { tryGetGame } from "@raceiq/shared/games/registry"
-import { m } from "@/paraglide/messages";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { useCarName, useTirePressureOptimal } from "../../hooks/catalog-queries";
 import { useTrackName } from "../../hooks/track-queries";
@@ -67,10 +66,7 @@ export function AccLiveDashboard({ gameId = "acc" }: { gameId?: GameId }) {
 
         {/* Pit Window */}
         <div className="border-b border-app-border">
-          <div className="p-2 border-b border-app-border">
-            <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.label_pit_window()}</h2>
-          </div>
-          <div className="p-3">
+          <div>
             <PitEstimate view={view} pit={pit} />
           </div>
         </div>

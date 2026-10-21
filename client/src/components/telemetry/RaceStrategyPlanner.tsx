@@ -3,7 +3,7 @@ import { useQueries } from "@tanstack/react-query";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { getGame } from "@raceiq/shared/games/registry";
 import { getTireCompoundOptions, getTireThresholds } from "@raceiq/shared/racing/live/tire-thresholds";
-import type { RacePlan, RacePlanInput, RacePlanStintInput } from "@raceiq/shared/racing/live/race-plan";
+import { estimateRaceLaps, type RacePlan, type RacePlanInput, type RacePlanStintInput, type RacePlanLength } from "@raceiq/shared/racing/live/race-plan";
 import type { StintSummary, StrategyFuelUnit } from "@raceiq/shared/racing/live/strategy";
 import type { TireThresholds } from "@raceiq/shared/racing/live/tire-thresholds";
 import { StintsResponseSchema } from "@raceiq/shared/racing/live/strategy-schemas";
@@ -14,22 +14,24 @@ import { useSettings } from "@/hooks/settings";
 import { client } from "@/lib/rpc";
 import { rpcJson } from "@/lib/rpc-json";
 import { m } from "@/paraglide/messages";
+import { useTelemetryStore } from "@/stores/telemetry";
 
 const wheels = ["FL", "FR", "RL", "RR"] as const;
 type PlannerDraft = RacePlanInput & { id?: string };
 type RetryAction = { type: "save" } | { type: "delete"; plan: RacePlan };
 function toDraft(plan: RacePlan): PlannerDraft {
-  const { id, name, gameId, carId, trackId, pi, totalLaps, fuelUnit, notes } = plan;
-  return { id, name, gameId, carId, trackId, pi, totalLaps, fuelUnit, notes, stints: plan.stints.map(({ evidence: _evidence, ...stint }) => stint) };
+  const { id, name, gameId, carId, trackId, pi, totalLaps, raceLength, fuelUnit, notes } = plan;
+  return { id, name, gameId, carId, trackId, pi, totalLaps, raceLength: raceLength ?? { mode: "laps" }, fuelUnit, notes, stints: plan.stints.map(({ evidence: _evidence, ...stint }) => stint) };
 }
 function emptyStint(endLap: number): RacePlanStintInput {
   return { endLap, startFuel: null, compounds: [null, null, null, null], sourceSessionId: null, sourceStintId: null };
 }
 function makeDraft(gameId: GameId, carId: string, trackId: string, pi: number | null): PlannerDraft {
   const fuelUnit = getGame(gameId).telemetry.fuel.packetUnit === "fraction" ? "tankFraction" : "L";
-  return { name: "", gameId, carId, trackId, pi, totalLaps: 20, fuelUnit, notes: "", stints: [emptyStint(20)] };
+  return { name: "", gameId, carId, trackId, pi, totalLaps: 20, raceLength: { mode: "laps" }, fuelUnit, notes: "", stints: [emptyStint(20)] };
 }
 function validDraft(draft: PlannerDraft) {
+  if (draft.raceLength?.mode === "time" && estimateRaceLaps(draft.raceLength.durationSeconds, draft.raceLength.averageLapSeconds) !== draft.totalLaps) return false;
   return draft.name.trim().length > 0 && draft.name.trim().length <= 120 && draft.carId.trim().length > 0 && draft.trackId.trim().length > 0 &&
     draft.totalLaps >= 1 && draft.totalLaps <= 10_000 && Number.isInteger(draft.totalLaps) && draft.stints.length > 0 && draft.stints.length <= 100 &&
     draft.stints.every((stint, index) => Number.isInteger(stint.endLap) && stint.endLap > (draft.stints[index - 1]?.endLap ?? 0) && stint.endLap <= draft.totalLaps && (stint.startFuel == null || Number.isFinite(stint.startFuel) && stint.startFuel >= 0 && (draft.fuelUnit !== "tankFraction" || stint.startFuel <= 1))) &&
@@ -42,7 +44,7 @@ function projection(stint: RacePlanStintInput, previousEnd: number, draft: Plann
   const rate = evidence?.fuel.value;
   const expectedFuelUnit = draft.fuelUnit === "L" ? "L/lap" : "tankFraction/lap";
   const compatibleFuel = identityMatches && evidence != null && evidence.fuelUnit === draft.fuelUnit && evidence.fuel.unit === expectedFuelUnit && evidence.compatibility.fuelSemanticVersion != null && rate != null && rate >= 0;
-  const consumed = compatibleFuel ? rate! * laps : null;
+  const consumed = compatibleFuel && laps > 0 && Number.isFinite(rate) ? rate! * laps : null;
   const fuelEnd = consumed != null && stint.startFuel != null ? stint.startFuel - consumed : null;
   const tires = stint.compounds.map((compound, index) => {
     const tire = evidence?.tires[index];
@@ -65,6 +67,8 @@ export function RaceStrategyPlanner({ gameId, sessionId, carId, trackId, pi }: {
   const overrides = displaySettings.tireThresholdOverrides ?? {};
   const initialSession = sessions.find((item) => item.id === sessionId);
   const [draft, setDraft] = useState<PlannerDraft>(() => makeDraft(gameId, carId ?? initialSession?.carId ?? "", trackId ?? initialSession?.trackId ?? "", pi ?? null));
+  const liveView = useTelemetryStore((state) => state.telemetryView);
+  const liveLaps = useTelemetryStore((state) => state.sessionLaps);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [retryAction, setRetryAction] = useState<RetryAction | null>(null);
@@ -85,6 +89,25 @@ export function RaceStrategyPlanner({ gameId, sessionId, carId, trackId, pi }: {
   const update = (patch: Partial<PlannerDraft>) => setDraft((current) => ({ ...current, ...patch }));
   const sourceKey = (sourceSessionId: number | null, sourceStintId: string | null) => `${sourceSessionId}:${sourceStintId}`;
   const sourceFor = (stint: RacePlanStintInput) => sourceSnapshots.get(sourceKey(stint.sourceSessionId, stint.sourceStintId)) ?? sources.find(({ session, stint: source }) => source.sessionId === stint.sourceSessionId && source.id === stint.sourceStintId && session.ownership === "mine")?.stint ?? null;
+  const paceSource = draft.stints.map(sourceFor).find((source) => source != null &&
+    source.gameId === draft.gameId && source.carId === draft.carId && source.trackId === draft.trackId &&
+    (draft.gameId !== "fm-2023" || source.pi === draft.pi) && source.paceLaps > 0 &&
+    source.averageLapSeconds != null && Number.isFinite(source.averageLapSeconds) && source.averageLapSeconds > 0);
+  const matchingLive = liveView?.simulator === draft.gameId && liveView.identity.carId === draft.carId &&
+    liveView.identity.trackId === draft.trackId && (draft.gameId !== "fm-2023" || liveView.identity.performanceIndex === draft.pi);
+  const paceLaps = matchingLive && sessionId != null
+    ? liveLaps.filter((lap) => lap.sessionId === sessionId && lap.isValid && lap.classification === "pace" && Number.isFinite(lap.lapTime) && lap.lapTime > 0)
+    : [];
+  const measuredPace = paceSource?.averageLapSeconds ?? (paceLaps.length ? paceLaps.reduce((sum, lap) => sum + lap.lapTime, 0) / paceLaps.length : null);
+  const timedLength = draft.raceLength?.mode === "time" ? draft.raceLength : null;
+  const estimatedLaps = timedLength ? estimateRaceLaps(timedLength.durationSeconds, timedLength.averageLapSeconds) : null;
+  const setRaceLength = (raceLength: RacePlanLength) => setDraft((current) => {
+    const totalLaps = raceLength.mode === "time" ? estimateRaceLaps(raceLength.durationSeconds, raceLength.averageLapSeconds) : null;
+    return { ...current, raceLength, ...(totalLaps == null ? {} : {
+      totalLaps,
+      stints: current.stints.map((stint, index) => index === current.stints.length - 1 ? { ...stint, endLap: totalLaps } : stint),
+    }) };
+  });
   const compatibleSources = (targetIndex: number) => {
     const attachedSources = draft.stints.flatMap((stint, row) => {
       if (row === targetIndex || stint.sourceSessionId == null || stint.sourceStintId == null) return [];
@@ -172,6 +195,13 @@ export function RaceStrategyPlanner({ gameId, sessionId, carId, trackId, pi }: {
     catch { setError(m.race_plan_delete_error()); setRetryAction({ type: "delete", plan }); }
   };
   const thresholds = (compound: string) => getTireThresholds(overrides, gameId, compound);
+  const forecasts = draft.stints.map((stint, index) => {
+    const result = projection(stint, draft.stints[index - 1]?.endLap ?? 0, draft, sourceFor(stint), thresholds);
+    return timedLength && estimatedLaps == null
+      ? { ...result, consumed: null, fuelEnd: null, fuelWarning: false, tires: result.tires.map((tire) => ({ ...tire, health: null })) }
+      : result;
+  });
+  const fuelText = (value: number) => draft.fuelUnit === "tankFraction" ? `${(value * 100).toFixed(1)}%` : `${value.toFixed(1)} L`;
   return <section data-testid="race-strategy-planner" className="min-w-0 space-y-4 rounded-xl border border-app-border bg-app-surface p-4" aria-labelledby="race-plan-title">
     <div className="flex min-w-0 flex-wrap items-start justify-between gap-3"><div><h2 id="race-plan-title" className="text-base font-semibold">{m.race_plan_title()}</h2><p className="mt-1 text-sm text-app-text-muted">{m.race_plan_manual_notice()}</p></div><button type="button" className="rounded border border-app-border px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-app-accent" disabled={save.isPending} onClick={createBlank}>{m.race_plan_new()}</button></div>
     {(sessionsQuery.isError || sourceQueries.some((query) => query.isError)) && <p role="alert" className="text-sm text-status-danger">{m.race_plan_sources_error()} <button type="button" className="underline" onClick={() => { void sessionsQuery.refetch(); sourceQueries.forEach((query) => void query.refetch()); }}>{m.strategy_retry()}</button></p>}
@@ -182,7 +212,18 @@ export function RaceStrategyPlanner({ gameId, sessionId, carId, trackId, pi }: {
         <div className="grid min-w-0 gap-3 sm:grid-cols-2">
           <label className="min-w-0 text-sm">{m.race_plan_name()}<input className="mt-1 w-full min-w-0 rounded border border-app-border bg-app-bg px-3 py-2" disabled={save.isPending} maxLength={120} value={draft.name} onChange={(event) => update({ name: event.target.value })} /></label>
           <label className="min-w-0 text-sm">{m.race_plan_source_session()}<select className="mt-1 w-full min-w-0 rounded border border-app-border bg-app-bg px-3 py-2" disabled={save.isPending} value={selectedSessionId ?? ""} onChange={(event) => selectSession(event.target.value)}><option value="">{m.race_plan_manual_source()}</option>{sessions.map((session) => <option key={session.id} value={session.id}>{m.review_session()} {session.id} · {new Date(session.createdAt).toLocaleDateString()} · {session.carId}/{session.trackId}</option>)}</select></label>
-          <label className="min-w-0 text-sm">{m.race_plan_total_laps()}<input className="mt-1 w-full rounded border border-app-border bg-app-bg px-3 py-2" disabled={save.isPending} type="number" min={1} max={10000} step={1} value={draft.totalLaps} onChange={(event) => update({ totalLaps: Number(event.target.value) })} /></label>
+          <label className="min-w-0 text-sm">{m.race_plan_length_mode()}<select aria-label={m.race_plan_length_mode()} className="mt-1 w-full rounded border border-app-border bg-app-bg px-3 py-2" disabled={save.isPending} value={timedLength ? "time" : "laps"} onChange={(event) => setRaceLength(event.target.value === "time" ? { mode: "time", durationSeconds: 0, averageLapSeconds: measuredPace ?? 0 } : { mode: "laps" })}><option value="laps">{m.label_laps()}</option><option value="time">{m.race_plan_time()}</option></select></label>
+          {timedLength ? <>
+            <label className="min-w-0 text-sm">{m.race_plan_duration_minutes()}<input className="mt-1 w-full rounded border border-app-border bg-app-bg px-3 py-2" disabled={save.isPending} type="number" min={0} max={10080} step="any" value={timedLength.durationSeconds === 0 ? "" : timedLength.durationSeconds / 60} onChange={(event) => setRaceLength({ ...timedLength, durationSeconds: Number(event.target.value) * 60 })} /></label>
+            <label className="min-w-0 text-sm">{m.strategy_average_lap()} (s)<input className="mt-1 w-full rounded border border-app-border bg-app-bg px-3 py-2" disabled={save.isPending} type="number" min={0} max={86400} step="any" value={timedLength.averageLapSeconds === 0 ? "" : timedLength.averageLapSeconds} onChange={(event) => setRaceLength({ ...timedLength, averageLapSeconds: Number(event.target.value) })} /></label>
+            <div className="min-w-0 text-sm sm:col-span-2">
+              <p data-testid="race-time-estimate" role="status">{estimatedLaps == null ? m.race_plan_time_unavailable() : m.race_plan_time_estimate({ laps: estimatedLaps, seconds: timedLength.averageLapSeconds.toFixed(2) })}</p>
+              <button type="button" className="mt-1 underline disabled:opacity-50" disabled={save.isPending || measuredPace == null} onClick={() => { if (measuredPace != null) setRaceLength({ ...timedLength, averageLapSeconds: measuredPace }); }}>{m.race_plan_use_measured_pace()}</button>
+            </div>
+          </> : <label className="min-w-0 text-sm">{m.race_plan_total_laps()}<input className="mt-1 w-full rounded border border-app-border bg-app-bg px-3 py-2" disabled={save.isPending} type="number" min={1} max={10000} step={1} value={draft.totalLaps} onChange={(event) => {
+            const totalLaps = Number(event.target.value);
+            update({ totalLaps, stints: draft.stints.map((stint, index) => index === draft.stints.length - 1 ? { ...stint, endLap: totalLaps } : stint) });
+          }} /></label>}
           <label className="min-w-0 text-sm">{m.race_plan_fuel_unit()}<select className="mt-1 w-full rounded border border-app-border bg-app-bg px-3 py-2" disabled={save.isPending} value={draft.fuelUnit} onChange={(event) => update({ fuelUnit: event.target.value as StrategyFuelUnit })}><option value="L">L</option><option value="tankFraction">{m.race_plan_tank_fraction()}</option></select></label>
           <label className="min-w-0 text-sm">{m.analyse_car_label()}<input className="mt-1 w-full min-w-0 rounded border border-app-border bg-app-bg px-3 py-2" disabled={save.isPending} value={draft.carId} onChange={(event) => update({ carId: event.target.value })} /></label>
           <label className="min-w-0 text-sm">{m.analyse_track_label()}<input className="mt-1 w-full min-w-0 rounded border border-app-border bg-app-bg px-3 py-2" disabled={save.isPending} value={draft.trackId} onChange={(event) => update({ trackId: event.target.value })} /></label>
@@ -193,14 +234,17 @@ export function RaceStrategyPlanner({ gameId, sessionId, carId, trackId, pi }: {
         {draft.stints.map((stint, index) => {
           const previousEnd = draft.stints[index - 1]?.endLap ?? 0;
           const evidence = sourceFor(stint);
-          const forecast = projection(stint, previousEnd, draft, evidence, thresholds);
+          const forecast = forecasts[index]!;
+          const previousFuel = forecasts[index - 1]?.fuelEnd;
+          const fuelToAdd = index > 0 && forecast.consumed != null && previousFuel != null && previousFuel >= 0
+            ? Math.max(0, forecast.consumed - previousFuel) : null;
           const compatible = compatibleSources(index);
           const sourceValue = stint.sourceSessionId == null || stint.sourceStintId == null ? "" : `${stint.sourceSessionId}:${stint.sourceStintId}`;
           const compoundOptions = [...new Set([...getTireCompoundOptions(gameId), ...stint.compounds.filter((value): value is string => value != null)])];
           return <fieldset key={`${index}:${stint.sourceStintId ?? "manual"}`} className="min-w-0 space-y-3 rounded border border-app-border p-3">
             <legend className="px-1 text-sm font-medium">{m.race_plan_stint({ ordinal: index + 1 })}</legend>
             <div className="grid min-w-0 gap-3 sm:grid-cols-2">
-              <label className="min-w-0 text-sm">{m.race_plan_end_lap()}<input className="mt-1 w-full rounded border border-app-border bg-app-bg px-3 py-2" disabled={save.isPending} type="number" min={previousEnd + 1} max={draft.totalLaps} value={stint.endLap} onChange={(event) => setStint(index, { endLap: Number(event.target.value) })} /></label>
+              <label className="min-w-0 text-sm">{m.race_plan_end_lap()}<input className="mt-1 w-full rounded border border-app-border bg-app-bg px-3 py-2" disabled={save.isPending || timedLength != null && index === draft.stints.length - 1} type="number" min={previousEnd + 1} max={draft.totalLaps} value={stint.endLap} onChange={(event) => setStint(index, { endLap: Number(event.target.value) })} /></label>
               <label className="min-w-0 text-sm">{m.race_plan_evidence()}<select className="mt-1 w-full min-w-0 rounded border border-app-border bg-app-bg px-3 py-2" disabled={save.isPending} value={sourceValue} onChange={(event) => chooseSource(index, event.target.value)}><option value="">{m.race_plan_manual_source()}</option>{sourceValue && !compatible.some(({ stint: source }) => source.id === stint.sourceStintId) && <option value={sourceValue}>{m.race_plan_source_unavailable()}</option>}{compatible.map(({ session, stint: source }) => <option key={`${session.id}:${source.id}`} value={`${session.id}:${source.id}`}>{m.review_session()} {session.id} · {m.strategy_stint({ ordinal: source.ordinal })} · {new Date(source.endedAt ?? source.startedAt).toLocaleString()}</option>)}</select></label>
               <label className="min-w-0 text-sm">{m.race_plan_start_fuel()} ({draft.fuelUnit === "tankFraction" ? "%" : "L"})<input className="mt-1 w-full rounded border border-app-border bg-app-bg px-3 py-2" disabled={save.isPending} type="number" min={0} max={draft.fuelUnit === "tankFraction" ? 100 : undefined} step="any" value={stint.startFuel == null ? "" : draft.fuelUnit === "tankFraction" ? stint.startFuel * 100 : stint.startFuel} onChange={(event) => setStint(index, { startFuel: event.target.value === "" ? null : draft.fuelUnit === "tankFraction" ? Number(event.target.value) / 100 : Number(event.target.value) })} /></label>
             </div>
@@ -210,6 +254,8 @@ export function RaceStrategyPlanner({ gameId, sessionId, carId, trackId, pi }: {
               <p className="break-words text-sm">{m.race_plan_duration({ laps: forecast.laps })}<br />{forecast.consumed == null ? m.race_plan_projection_unavailable() : m.race_plan_fuel_used({ value: draft.fuelUnit === "tankFraction" ? (forecast.consumed * 100).toFixed(1) : forecast.consumed.toFixed(1), unit: draft.fuelUnit === "tankFraction" ? "%" : "L" })} · {forecast.fuelEnd == null ? m.race_plan_fuel_end_unknown() : m.race_plan_fuel_end({ value: draft.fuelUnit === "tankFraction" ? `${(forecast.fuelEnd * 100).toFixed(1)}%` : `${forecast.fuelEnd.toFixed(1)} L` })}{forecast.fuelWarning && <strong className="block text-status-danger">{m.race_plan_fuel_short()}</strong>}</p>
               <div className="min-w-0 text-xs text-app-text-muted"><p>{m.race_plan_fresh_tires()}</p>{forecast.tires.map((tire, wheelIndex) => <p key={wheels[wheelIndex]}>{wheels[wheelIndex]} · {tire.health == null ? m.race_plan_projection_unavailable() : `${tire.health.toFixed(1)}%`} · {m.pit_cliff()} {tire.cliffPct}% · {m.pit_dead()} {tire.deadPct}%{tire.health != null && tire.health <= tire.deadPct ? ` · ${m.race_plan_dead_warning()}` : tire.health != null && tire.health <= tire.cliffPct ? ` · ${m.race_plan_cliff_warning()}` : ""}</p>)}</div>
             </div>
+            <p data-testid="race-plan-required-fuel" className="text-sm font-semibold">{m.race_plan_required_fuel({ value: forecast.consumed == null ? m.strategy_unavailable() : fuelText(forecast.consumed) })}</p>
+            {index > 0 && <p data-testid="race-plan-refuel" className="text-sm">{fuelToAdd == null ? m.race_plan_refuel_unavailable() : m.race_plan_refuel({ value: fuelText(fuelToAdd) })}</p>}
             {draft.stints.length > 1 && <button type="button" className="rounded border border-app-border px-3 py-2 text-sm" disabled={save.isPending} onClick={() => update({ stints: draft.stints.filter((_, row) => row !== index).map((item, row, all) => row === all.length - 1 ? { ...item, endLap: draft.totalLaps } : item) })}>{m.race_plan_remove_stint()}</button>}
           </fieldset>;
         })}

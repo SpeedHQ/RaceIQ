@@ -11,11 +11,31 @@ import {
 import { StintSummarySchema } from "@raceiq/shared/racing/live/strategy-schemas";
 import type { StintSummary } from "@raceiq/shared/racing/live/strategy";
 import { client } from "./index";
+import { withDatabaseWrite } from "./write-coordination";
 
 export class RacePlanNotFoundError extends Error {}
 export class RacePlanSourceNotFoundError extends Error {}
 export class InvalidRacePlanSourceError extends Error {}
 export class InvalidRacePlanError extends Error {}
+
+/** Coordinate with live capture without wrapping domain errors in Effect failures. */
+async function racePlanTransaction<T>(operation: (tx: Transaction) => Promise<T>): Promise<T> {
+  const result = await withDatabaseWrite(async () => {
+    const tx = await client.transaction("write");
+    try {
+      const value = await operation(tx);
+      await tx.commit();
+      return { ok: true as const, value };
+    } catch (error) {
+      await tx.rollback();
+      return { ok: false as const, error };
+    } finally {
+      await tx.close();
+    }
+  }, undefined, "race-plan.write");
+  if (!result.ok) throw result.error;
+  return result.value;
+}
 
 function parsePlan(payload: unknown): RacePlan {
   return RacePlanSchema.parse(JSON.parse(String(payload)));
@@ -81,50 +101,30 @@ export async function listRacePlans(gameId: string): Promise<RacePlan[]> {
 export async function createRacePlan(value: unknown): Promise<RacePlan> {
   const result = RacePlanInputSchema.safeParse(value);
   if (!result.success) throw new InvalidRacePlanError();
-  const tx = await client.transaction("write");
-  try {
+  return racePlanTransaction(async (tx) => {
     const now = new Date().toISOString();
-    const plan = await persist(tx, randomUUID(), result.data, now, now);
-    await tx.commit();
-    return plan;
-  } catch (error) {
-    await tx.rollback();
-    throw error;
-  }
+    return persist(tx, randomUUID(), result.data, now, now);
+  });
 }
 
 export async function updateRacePlan(id: string, value: unknown): Promise<RacePlan> {
   const result = RacePlanInputSchema.safeParse(value);
   if (!result.success) throw new InvalidRacePlanError();
-  const tx = await client.transaction("write");
-  try {
+  return racePlanTransaction(async (tx) => {
     const existing = await tx.execute({ sql: "SELECT created_at FROM race_plans WHERE id = ?", args: [id] });
     if (!existing.rows.length) throw new RacePlanNotFoundError();
-    const plan = await persist(tx, id, result.data, String(existing.rows[0].created_at), new Date().toISOString());
-    await tx.commit();
-    return plan;
-  } catch (error) {
-    await tx.rollback();
-    throw error;
-  }
+    return persist(tx, id, result.data, String(existing.rows[0].created_at), new Date().toISOString());
+  });
 }
 
 export async function deleteRacePlan(id: string): Promise<boolean> {
-  const tx = await client.transaction("write");
-  try {
+  return racePlanTransaction(async (tx) => {
     const existing = await tx.execute({ sql: "SELECT 1 FROM race_plans WHERE id = ?", args: [id] });
-    if (!existing.rows.length) {
-      await tx.commit();
-      return false;
-    }
+    if (!existing.rows.length) return false;
     await tx.execute({ sql: "DELETE FROM race_plans WHERE id = ?", args: [id] });
     await tx.execute({ sql: "UPDATE active_race_plan SET plan_id = NULL WHERE id = 1 AND plan_id = ?", args: [id] });
-    await tx.commit();
     return true;
-  } catch (error) {
-    await tx.rollback();
-    throw error;
-  }
+  });
 }
 
 export async function getActiveRacePlan(): Promise<RacePlan | null> {
@@ -136,8 +136,7 @@ export async function getActiveRacePlan(): Promise<RacePlan | null> {
 }
 
 export async function setActiveRacePlan(planId: string | null): Promise<RacePlan | null> {
-  const tx = await client.transaction("write");
-  try {
+  return racePlanTransaction(async (tx) => {
     let plan: RacePlan | null = null;
     if (planId !== null) {
       const result = await tx.execute({ sql: "SELECT payload FROM race_plans WHERE id = ?", args: [planId] });
@@ -148,10 +147,6 @@ export async function setActiveRacePlan(planId: string | null): Promise<RacePlan
       sql: "INSERT INTO active_race_plan(id, plan_id) VALUES(1, ?) ON CONFLICT(id) DO UPDATE SET plan_id=excluded.plan_id",
       args: [planId],
     });
-    await tx.commit();
     return plan;
-  } catch (error) {
-    await tx.rollback();
-    throw error;
-  }
+  });
 }

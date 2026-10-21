@@ -24,14 +24,14 @@ export function PitWindow({ pit }: PitWindowProps) {
   const urgentColor = pitIn != null ? (pitIn <= 3 ? "text-(--severity-critical)" : pitIn <= 6 ? "text-(--severity-caution)" : "text-(--severity-nominal)") : "text-app-text-muted";
 
   return (
-    <div className="flex items-baseline gap-2 shrink-0">
-      <span className={`text-3xl font-mono font-black tabular-nums leading-none ${urgentColor}`}>{pitIn != null ? pitIn.toFixed(1) : "—"}</span>
-      <span className="text-sm text-app-text-muted">{m.pitwindow_laps()}</span>
-      {pit != null && limitedBy && (
-        <span className="text-base text-app-text-dim whitespace-nowrap">
-          · {m.pitwindow_limited_by()} <span className={`font-bold ${limitedBy === "fuel" ? fuelColor : "text-app-text"}`}>{limitedBy === "fuel" ? m.label_fuel() : m.label_tires()}</span>
-        </span>
-      )}
+    <div className="min-w-0">
+      <div className="flex flex-wrap items-baseline gap-1.5">
+        <span className={`text-3xl font-mono font-black tabular-nums leading-none ${urgentColor}`}>{pitIn != null ? `~${pitIn.toFixed(1)}` : "—"}</span>
+        <span className="text-xs text-app-text-muted">{m.pitwindow_laps()}</span>
+      </div>
+      <p className={`mt-1 text-xs ${limitedBy === "fuel" ? fuelColor : "text-app-text-muted"}`}>
+        {pit != null && limitedBy ? limitedBy === "fuel" ? m.strategy_limited_fuel() : m.strategy_limited_tires() : m.strategy_no_limiter()}
+      </p>
     </div>
   );
 }

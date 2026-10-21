@@ -8,6 +8,7 @@ import { m } from "@/paraglide/messages";
 import { strategyRateText } from "@/lib/strategy-format";
 import { StrategyHistory } from "./StrategyHistory";
 import { RaceStrategyPlanner } from "./RaceStrategyPlanner";
+import { LiveRaceStrategy } from "./LiveRaceStrategy";
 
 type TireReading = {
   label: "FL" | "FR" | "RL" | "RR";
@@ -100,12 +101,12 @@ export function PitEstimateDialog({ gameId, sessionId, currentLap, carId, trackI
 
   return <Dialog>
     <DialogTrigger render={<Button variant="outline" size="sm" className="shrink-0">{m.pit_timeline_open()}</Button>} />
-    <DialogContent size="wide" layout="scrollable" className="max-h-[90dvh] min-w-0 gap-0 overflow-x-hidden p-0">
-      <DialogHeader className="border-b border-app-border px-5 py-4 pr-12 sm:px-7">
+    <DialogContent size="wide" className="flex max-h-[90dvh] min-w-0 flex-col gap-0 overflow-clip p-0">
+      <DialogHeader className="shrink-0 border-b border-app-border px-5 py-4 pr-12 sm:px-7">
         <DialogTitle id={titleId} className="text-2xl font-semibold tracking-tight">{m.pit_timeline_title()}</DialogTitle>
         <DialogDescription>{m.pit_timeline_description()}</DialogDescription>
       </DialogHeader>
-      <div className="min-w-0 space-y-5 p-4 sm:p-6">
+      <div className="min-h-0 min-w-0 flex-1 space-y-5 overflow-y-auto p-4 sm:p-6">
         <section aria-labelledby={`${titleId}-horizon`} className="rounded-xl border border-app-border bg-app-bg p-4 sm:p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div><h2 id={`${titleId}-horizon`} className="text-sm font-semibold uppercase tracking-wide">{m.pit_timeline_horizon()}</h2><p className="mt-1 text-xs text-app-text-muted">{m.pit_timeline_horizon_note()}</p></div>
@@ -142,7 +143,10 @@ export function PitEstimateDialog({ gameId, sessionId, currentLap, carId, trackI
         <details className="rounded-xl border border-app-border bg-app-surface"><summary className="cursor-pointer px-4 py-3 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-accent">{m.pit_timeline_projection_history()}</summary><div className="border-t border-app-border p-4">{sessionId == null ? <p className="text-sm text-app-text-muted">{m.strategy_history_empty()}</p> : <StrategyHistory key={`${gameId}:${sessionId}`} gameId={gameId} currentSessionId={sessionId} defaultDriverKey={historyDriverKey} />}</div></details>
         <details className="rounded-xl border border-app-border bg-app-surface">
           <summary className="cursor-pointer px-4 py-3 font-semibold focus-visible:outline-2 focus-visible:outline-app-accent">{m.race_plan_title()}</summary>
-          <div className="border-t border-app-border p-4"><RaceStrategyPlanner key={`${gameId}:${sessionId}`} gameId={gameId} sessionId={sessionId} carId={carId} trackId={trackId} pi={pi} /></div>
+          <div className="space-y-4 border-t border-app-border p-4">
+            <LiveRaceStrategy gameId={gameId} carId={carId} trackId={trackId} pi={pi} currentLap={currentLap} />
+            <RaceStrategyPlanner key={`${gameId}:${sessionId}`} gameId={gameId} sessionId={sessionId} carId={carId} trackId={trackId} pi={pi} />
+          </div>
         </details>
       </div>
     </DialogContent>

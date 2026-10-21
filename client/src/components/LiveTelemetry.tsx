@@ -119,10 +119,7 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
 
   const pitSection = (
     <div className="border-b border-app-border">
-      <div className="p-2 border-b border-app-border">
-        <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.live_pit_window()}</h2>
-      </div>
-      <div className="p-3">
+      <div>
         <PitEstimate view={view} pit={pit} />
       </div>
     </div>

@@ -7,6 +7,24 @@ const finite = z.number();
 const fourCompounds = z.tuple([z.string().nullable(), z.string().nullable(), z.string().nullable(), z.string().nullable()]);
 const nonemptyTrimmed = (max: number) => z.string().trim().min(1).max(max);
 
+export type RacePlanLength = { mode: "laps" } | { mode: "time"; durationSeconds: number; averageLapSeconds: number };
+
+export function estimateRaceLaps(durationSeconds: number, averageLapSeconds: number): number | null {
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0 || durationSeconds > 604800 ||
+      !Number.isFinite(averageLapSeconds) || averageLapSeconds <= 0 || averageLapSeconds > 86400) return null;
+  const laps = Math.ceil(durationSeconds / averageLapSeconds);
+  return laps >= 1 && laps <= 10000 ? laps : null;
+}
+
+const RacePlanLengthSchema = z.discriminatedUnion("mode", [
+  z.object({ mode: z.literal("laps") }).strict(),
+  z.object({
+    mode: z.literal("time"),
+    durationSeconds: finite.positive().max(604800),
+    averageLapSeconds: finite.positive().max(86400),
+  }).strict(),
+]);
+
 export const RacePlanStintInputSchema = z.object({
   endLap: z.number().int().min(1).max(10_000),
   startFuel: finite.nonnegative().nullable(),
@@ -34,10 +52,15 @@ export const RacePlanInputSchema = z.object({
   trackId: nonemptyTrimmed(200),
   pi: finite.nullable(),
   totalLaps: z.number().int().min(1).max(10_000),
+  raceLength: RacePlanLengthSchema.default({ mode: "laps" }),
   fuelUnit: z.enum(["L", "tankFraction"]),
   notes: z.string().max(4_000),
   stints: z.array(RacePlanStintInputSchema).min(1).max(100),
 }).strict().superRefine((plan, context) => {
+  if (plan.raceLength.mode === "time" &&
+      estimateRaceLaps(plan.raceLength.durationSeconds, plan.raceLength.averageLapSeconds) !== plan.totalLaps) {
+    context.addIssue({ code: "custom", message: "Timed race laps must match duration and average lap time", path: ["totalLaps"] });
+  }
   if (plan.fuelUnit === "tankFraction") {
     plan.stints.forEach((stint, index) => {
       if (stint.startFuel !== null && stint.startFuel > 1) {
@@ -62,6 +85,7 @@ export type RacePlanInput = {
   trackId: string;
   pi: number | null;
   totalLaps: number;
+  raceLength?: RacePlanLength;
   fuelUnit: StrategyFuelUnit;
   notes: string;
   stints: RacePlanStintInput[];

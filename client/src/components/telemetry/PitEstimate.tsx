@@ -1,4 +1,3 @@
-import type { MetricRate } from "@raceiq/shared/racing/live/strategy";
 import { isStrategyHistoryCurrent, useStrategyBaseline, useStrategyHistoryRevision } from "@/hooks/stint-strategy";
 import { GameIdSchema } from "@raceiq/shared/games/ids";
 import type { GameId } from "@raceiq/shared/games/ids";
@@ -13,10 +12,8 @@ import type { LivePitData } from "@raceiq/shared/racing/live/types";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { useTelemetryStore } from "@/stores/telemetry";
 import { PitWindow } from "./PitWindow";
-import { StrategyHistory } from "./StrategyHistory";
 import { PitEstimateDialog } from "./PitEstimateDialog";
 import { strategyRateText } from "@/lib/strategy-format";
-import { LiveRaceStrategy } from "./LiveRaceStrategy";
 
 interface PitEstimateProps {
   packet?: TelemetryPacket;
@@ -25,19 +22,6 @@ interface PitEstimateProps {
 }
 
 
-function rateText(rate: MetricRate) {
-  return `${strategyRateText(rate)} · ${m.strategy_eligible_laps({ count: rate.eligibleLaps })}`;
-}
-
-function StrategyEvidence({ metric, source, provisional, baseline, sessionId, gameId, unavailableReason }: { metric: "fuel" | "fl" | "fr" | "rl" | "rr"; source: "history" | "current-stint" | null; provisional: boolean; baseline: NonNullable<NonNullable<LivePitData["strategy"]>["baseline"]> | null; sessionId: number; gameId: GameId; unavailableReason: string | null }) {
-  if (!source) return <span className="text-app-text-dim">{unavailableReason === "history-refresh-pending" ? m.strategy_refresh_pending() : m.strategy_gathering()}</span>;
-  if (source === "current-stint") return <span className="text-app-text-muted">{m.strategy_current_stint()}{provisional && ` · ${m.race_result_provisional()}`}</span>;
-  const evidence = baseline?.evidence.filter((item) => item.metric === metric) ?? [];
-  const sessions = [...new Set(evidence.map((item) => item.sessionId))];
-  const label = sessions.includes(sessionId) ? sessions.length > 1 ? m.strategy_mixed_history() : m.strategy_earlier_stints() : m.strategy_previous_sessions();
-  const lastObservedAt = evidence.reduce<string | null>((latest, item) => latest == null || item.endedAt > latest ? item.endedAt : latest, null);
-  return <span className="text-app-text-muted">{label} · {m.strategy_evidence_counts({ sessions: sessions.length, stints: new Set(evidence.map((item) => item.stintId)).size, laps: evidence.reduce((sum, item) => sum + item.eligibleLaps, 0) })} · {m.strategy_last_observed({ time: lastObservedAt ? new Date(lastObservedAt).toLocaleString() : m.strategy_unknown() })}{baseline?.limitations.includes("unknown-setup-key") && ` · ${m.strategy_setup_uncertain()}`} {evidence.map((item) => <a key={`${item.sessionId}:${item.stintId}`} className="ml-1 underline" href={`/${getGame(gameId).routePrefix}/sessions/${item.sessionId}/analyse#stint-${encodeURIComponent(item.stintId)}`}>{m.strategy_evidence_link({ session: item.sessionId, stint: item.stintId })}</a>)}</span>;
-}
 /**
  * PitEstimate — Displays server-computed fuel and tire estimates.
  * All computation happens server-side in PitTracker; this component just renders.
@@ -78,12 +62,15 @@ export function PitEstimate({ packet, view, pit }: PitEstimateProps) {
   const rawFuel = view ? view.fuel.amount : packet?.Fuel;
   const fuelAvailable = rawFuel != null && Number.isFinite(rawFuel) && rawFuel >= 0 && (telemetryModel.fuel.packetUnit !== "fraction" || rawFuel <= 1);
   const fuel = getFuelDisplay({ Fuel: rawFuel ?? Number.NaN, FuelCapacity: view?.fuel.capacity ?? packet?.FuelCapacity }, telemetryModel.fuel);
-  const fuelPct = !fuelAvailable || fuel.fillRatio === undefined || !Number.isFinite(fuel.fillRatio) ? undefined : fuel.fillRatio * 100;
+  const fuelCapacity = view?.fuel.capacity ?? packet?.FuelCapacity;
+  const hasFuelCapacity = fuelCapacity != null && Number.isFinite(fuelCapacity) && fuelCapacity > 0;
+  const alternateFuel = !fuelAvailable ? null : fuel.unit === "%"
+    ? hasFuelCapacity ? `${(rawFuel! * fuelCapacity).toFixed(1)} L` : null
+    : fuel.fillRatio != null ? `${(fuel.fillRatio * 100).toFixed(0)}%` : null;
   const isFuelCritical = fuelAvailable && (fuel.fillRatio === undefined ? fuel.amount < 5 : fuel.fillRatio < 0.2);
   const isFuelWarning = fuelAvailable && !isFuelCritical && (fuel.fillRatio === undefined ? fuel.amount < 15 : fuel.fillRatio < 0.4);
   const fuelColor = fuelAvailable ? severityColor(isFuelCritical ? 3 : isFuelWarning ? 1 : 0) : "var(--app-text-dim)";
 
-  const fuelLaps = !fuelAvailable || !receivedRevisionCurrent && receivedStrategy?.fuel.source === "history" ? null : pit?.fuelLapsRemaining ?? null;
   const tireLabels = ["FL", "FR", "RL", "RR"] as const;
   const tireData = tireLabels.map((label, i) => {
     const health = healthAvailable && Number.isFinite(wears[i]) && wears[i] >= 0 && wears[i] <= 1 ? (1 - wears[i]) * 100 : null;
@@ -102,10 +89,15 @@ export function PitEstimate({ packet, view, pit }: PitEstimateProps) {
       deadPct: thresholds?.deadPct ?? pit?.deadPct ?? null,
     };
   });
-  const cliffThresholds = [...new Set(tireData.map((tire) => tire.cliffPct))];
-  const deadThresholds = [...new Set(tireData.map((tire) => tire.deadPct))];
-  const cliffHeader = cliffThresholds.length > 1 ? `${m.pit_cliff()} · ${m.pit_mixed_thresholds()}` : pit ? `${m.pit_cliff()} ${cliffThresholds[0]}%` : m.pit_cliff();
-  const deadHeader = deadThresholds.length > 1 ? `${m.pit_dead()} · ${m.pit_mixed_thresholds()}` : pit ? `${m.pit_dead()} ${deadThresholds[0]}%` : m.pit_dead();
+  const thresholdText = (label: string, values: (number | null)[]) => {
+    const present = values.filter((value): value is number => value != null && Number.isFinite(value));
+    const unique = [...new Set(present)];
+    return present.length === values.length && unique.length === 1
+      ? `${label} ${unique[0]}%`
+      : `${label} ${present.length ? m.pit_mixed_thresholds() : "—"}`;
+  };
+  const cliffHeader = thresholdText(m.pit_cliff(), tireData.map((tire) => tire.cliffPct));
+  const deadHeader = thresholdText(m.pit_dead(), tireData.map((tire) => tire.deadPct));
   const projectionPit = !receivedRevisionCurrent && (receivedStrategy?.fuel.source === "history" || receivedStrategy?.tires.some((rate) => rate.source === "history")) ? null : pit;
   const dialogPit = projectionPit && !fuelAvailable
     ? { ...projectionPit, fuelLapsRemaining: null, ...(projectionPit.limitedBy === "fuel" ? { pitInLaps: null, limitedBy: null } : {}) }
@@ -114,117 +106,73 @@ export function PitEstimate({ packet, view, pit }: PitEstimateProps) {
   const pitStatus = telemetryModel.pitStatus ? (view?.competitors[0]?.pitStatus ?? packet?.acc?.pitStatus ?? (packet?.iracing?.onPitRoad || packet?.lmu?.inPits ? "pit_lane" : "out")) : undefined;
   const pitBadge = pitStatus === "in_pit" ? { label: m.pit_in_pit(), color: "var(--status-info)" } : pitStatus === "pit_lane" ? { label: m.pit_pit_lane(), color: "var(--status-warning)" } : null;
 
+  const currentLap = view?.timing.lapNumber ?? packet?.LapNumber ?? null;
+  const strategyFuelRate = strategy?.fuel;
+  const fuelRate = fuelAvailable && strategyFuelRate?.value != null
+    ? strategyRateText(strategyFuelRate)
+    : fuelAvailable && !strategy && pit && Number.isFinite(pit.fuelPerLap) && pit.fuelPerLap > 0
+      ? fuel.unit === "L"
+        ? m.strategy_rate_litres({ value: pit.fuelPerLap.toFixed(2) })
+        : m.strategy_rate_points({ value: (pit.fuelPerLap * 100).toFixed(1) })
+      : "—";
+
   return (
-    <div>
-      <div className="flex items-center justify-between mb-3">
-        {pitBadge ? (
-          <span
-            className="text-xs font-bold px-2 py-0.5 rounded border tracking-widest uppercase bg-(--pit-badge-color)/20 border-(--pit-badge-color)/30 text-(--pit-badge-color)"
-            style={{ ["--pit-badge-color" as string]: pitBadge.color }}
-          >
-            {pitBadge.label}
-          </span>
-        ) : (
-          <span />
-        )}
-        <div className="flex flex-wrap items-center justify-end gap-3">
-          <PitWindow pit={projectionPit} />
-          <PitEstimateDialog
-            gameId={gameId}
-            sessionId={sessionId}
-            currentLap={view?.timing.lapNumber ?? packet?.LapNumber ?? null}
-            carId={view?.identity.carId ?? packet?.carId ?? null}
-            trackId={view?.identity.trackId ?? packet?.trackId ?? null}
-            pi={view?.identity.performanceIndex ?? packet?.CarPerformanceIndex ?? null}
-            pit={dialogPit}
-            fuelAmount={fuelAvailable ? fuel.amount : null}
-            fuelUnit={fuel.unit}
-            strategy={strategy}
-            tires={tireData}
-            historyDriverKey={historyDriverKey}
-          />
+    <section data-testid="pit-estimate-live" className="min-w-0 text-sm">
+      <header className="flex min-h-8 items-center justify-between gap-2 border-b border-app-border px-2">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-app-text-muted">{m.label_pit_window()}{pitBadge && <span className="ml-2" style={{ color: pitBadge.color }}>{pitBadge.label}</span>}</h3>
+        <PitEstimateDialog
+          gameId={gameId}
+          sessionId={sessionId}
+          currentLap={currentLap}
+          carId={view?.identity.carId ?? packet?.carId ?? null}
+          trackId={view?.identity.trackId ?? packet?.trackId ?? null}
+          pi={view?.identity.performanceIndex ?? packet?.CarPerformanceIndex ?? null}
+          pit={dialogPit}
+          fuelAmount={fuelAvailable ? fuel.amount : null}
+          fuelUnit={fuel.unit}
+          strategy={strategy}
+          tires={tireData}
+          historyDriverKey={historyDriverKey}
+        />
+      </header>
+      <div className="space-y-2 p-3">
+      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-center gap-3">
+        <div className="min-w-0">
+          <p className="mb-1 text-xs text-app-text-muted">{m.pit_timeline_estimate_current()}</p>
+          <PitWindow pit={dialogPit} />
+        </div>
+        <div className="min-w-0 text-right">
+          <p className="font-mono text-xl font-bold tabular-nums" style={{ color: fuelColor }}>
+            {fuelAvailable ? fuel.amount.toFixed(fuel.unit === "L" ? 1 : 0) : "—"}<span className="ml-1 text-xs font-normal text-app-text-muted">{fuel.unit}</span>
+            {alternateFuel && <span className="ml-2 text-sm font-semibold text-app-text-secondary">{alternateFuel}</span>}
+          </p>
+          <p className="text-xs text-app-text-muted">{m.pit_timeline_fuel_remaining()}</p>
+          <p className="mt-1 font-mono text-sm font-bold tabular-nums text-app-text-secondary">{fuelRate}</p>
         </div>
       </div>
-      <div className="mb-3">
-        <LiveRaceStrategy gameId={gameId} carId={view?.identity.carId ?? packet?.carId ?? null} trackId={view?.identity.trackId ?? packet?.trackId ?? null} pi={view?.identity.performanceIndex ?? packet?.CarPerformanceIndex ?? null} currentLap={view?.timing.lapNumber ?? packet?.LapNumber ?? null} />
+      <div>
+        <table className="w-full table-fixed text-xs">
+          <thead className="text-app-text-muted">
+            <tr className="border-b border-app-border">
+              <th scope="col" className="w-10 py-1 text-left font-normal">{m.pit_timeline_corner()}</th>
+              <th scope="col" className="py-1 text-right font-normal">{m.pit_wear_lap()}</th>
+              <th scope="col" className="py-1 text-right font-normal">{m.tune_tire()} {cliffHeader}<span className="block text-app-text-dim">{m.pitwindow_laps()}</span></th>
+              <th scope="col" className="py-1 text-right font-normal">{m.tune_tire()} {deadHeader}<span className="block text-app-text-dim">{m.pitwindow_laps()}</span></th>
+            </tr>
+          </thead>
+          <tbody className="font-mono tabular-nums">
+            {tireData.map((tire) => (
+              <tr key={tire.label} className="border-b border-app-border/50 last:border-0">
+                <th scope="row" className="py-1 text-left font-semibold">{tire.label}</th>
+                <td className="py-1 text-right">{tire.wearPerLap == null ? "—" : `${tire.wearPerLap}%`}</td>
+                <td className="py-1 text-right text-(--severity-caution)">{tire.toCliff == null ? "—" : tire.toCliff.toFixed(1)}</td>
+                <td className="py-1 text-right text-(--severity-critical)">{tire.toDead == null ? "—" : tire.toDead.toFixed(1)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-      <div className="space-y-3">
-        {/* Fuel row */}
-        <div className="py-1">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-xs text-app-text-muted uppercase tracking-wider font-semibold">{m.telemetry_fuel()}</div>
-            <div className="text-lg font-mono font-bold tabular-nums" style={{ color: fuelLaps != null ? fuelColor : "var(--app-text-dim)" }}>
-              {fuelLaps != null ? `~${fuelLaps.toFixed(1)} ${m.gauges_laps_left()}` : "—"}
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            {fuelPct === undefined ? (
-              <div className="flex-1 h-3 rounded-full border border-dashed border-app-border" title={m.pit_fuel_capacity_unavailable()} />
-            ) : (
-              <div className="flex-1 h-3 rounded-full overflow-hidden">
-                <div className="h-full rounded-full" style={{ backgroundColor: fuelColor, width: `${fuelPct}%` }} />
-              </div>
-            )}
-            <div className={`text-2xl font-mono font-black tabular-nums leading-none ${fuel.unit === "L" ? "w-20" : "w-14"} text-right`} style={{ color: fuelColor }}>
-              {fuelAvailable ? fuel.amount.toFixed(fuel.unit === "L" ? 1 : 0) : "—"}
-              {fuel.unit}
-            </div>
-          </div>
-          {strategy && (
-            <p data-testid="strategy-live-evidence" className="mt-1 text-xs leading-4 text-app-text-muted">
-              {rateText(strategy.fuel)} · <StrategyEvidence metric="fuel" source={strategy.fuel.source} provisional={strategy.fuel.provisional} baseline={strategy.baseline} sessionId={strategy.sessionId} gameId={gameId} unavailableReason={strategy.fuel.unavailableReason} />
-            </p>
-          )}
-        </div>
-
-        {/* Tire section */}
-        <div className="py-1">
-          <div className="text-xs text-app-text-muted uppercase tracking-wider font-semibold mb-2">
-            {analysis.tireHealth.source === "direct" && analysis.tireHealth.freshness === "pit-snapshot" ? m.analyse_wheels_pit_health() : m.label_tires()}
-          </div>
-
-          {/* Column headers */}
-          <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-x-2 items-center mb-1 px-0.5">
-            <div className="w-6" />
-            <div />
-            <div className="text-app-caption text-app-text-dim uppercase tracking-wider text-right w-12">{m.pit_health()}</div>
-            <div className="text-app-caption text-app-text-dim uppercase tracking-wider text-right w-14">{m.pit_wear_lap()}</div>
-            <div className="text-app-caption whitespace-normal leading-tight uppercase tracking-wider text-right w-12 text-(--severity-caution)/70">{cliffHeader}</div>
-            <div className="text-app-caption whitespace-normal leading-tight uppercase tracking-wider text-right w-12 text-(--severity-critical)/70">{deadHeader}</div>
-          </div>
-          {tireData.map((t) => (
-            <div key={t.label} className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-x-2 items-center py-1.5 px-0.5">
-              <div className="text-sm font-bold text-app-text-muted w-6">{t.label}</div>
-              <div className="h-3 rounded-full overflow-hidden">
-                <div className="h-full rounded-full" style={{ backgroundColor: t.healthColor, width: t.health === null ? 0 : `${t.health}%` }} />
-              </div>
-              <div className="text-lg font-mono font-black tabular-nums leading-none text-right w-12" style={{ color: t.healthColor }}>
-                {t.health === null ? "—" : `${t.health.toFixed(0)}%`}
-              </div>
-              <div className={`text-sm font-mono font-bold tabular-nums leading-none text-right w-14 ${t.wearPerLap ? "text-app-text-secondary" : "text-app-text-dim"}`}>
-                {t.wearPerLap ? `${t.wearPerLap}%` : "—"}
-              </div>
-              <div className="text-lg font-mono font-bold tabular-nums leading-none text-right w-12" style={{ color: t.toCliff != null ? "var(--severity-caution)" : "var(--app-text-dim)" }}>
-                {t.toCliff != null ? t.toCliff.toFixed(1) : "—"}
-              </div>
-              <div className="text-lg font-mono font-bold tabular-nums leading-none text-right w-12" style={{ color: t.toDead != null ? "var(--severity-critical)" : "var(--app-text-dim)" }}>
-                {t.toDead != null ? t.toDead.toFixed(1) : "—"}
-              </div>
-            </div>
-          ))}
-          {strategy && (
-            <div data-testid="strategy-tire-evidence" className="mt-2 space-y-1 text-xs leading-4">
-              {strategy.tires.map((rate, index) => {
-                const metric = (["fl", "fr", "rl", "rr"] as const)[index]!;
-                return <p key={metric}>{metric.toUpperCase()}: {analysis.tireWearRate.source === "unavailable" ? m.strategy_reason_unsupported() : <>{rateText(rate)} · <StrategyEvidence metric={metric} source={rate.source} provisional={rate.provisional} baseline={strategy.baseline} sessionId={strategy.sessionId} gameId={gameId} unavailableReason={rate.unavailableReason} /></>}</p>;
-              })}
-            </div>
-          )}
-          {strategy?.persistence === "error" && <p data-testid="strategy-persistence-error" role="status" className="text-xs text-status-warning">{m.strategy_persistence_error()}</p>}
-          {baselineQuery.isError && <p role="alert" className="text-xs text-status-danger">{m.common_error()}: {m.strategy_historical_evidence()} <button type="button" className="underline" onClick={() => void baselineQuery.refetch()}>{m.strategy_retry()}</button></p>}
-          <StrategyHistory key={`${gameId}:${sessionId}`} gameId={gameId} currentSessionId={sessionId} defaultDriverKey={historyDriverKey} />
-        </div>
       </div>
-    </div>
+    </section>
   );
 }

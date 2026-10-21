@@ -10,6 +10,7 @@ import {
   setActiveRacePlan,
   updateRacePlan,
 } from "@raceiq/backend-core/db/race-plan-queries";
+import { estimateRaceLaps, RacePlanInputSchema } from "@raceiq/shared/racing/live/race-plan";
 
 const sourceEvidence = {
   id: "",
@@ -115,5 +116,37 @@ describe("saved race plan persistence", () => {
 
     await client.execute({ sql: "UPDATE sessions SET ownership='others' WHERE id=?", args: [sessionId] });
     await expect(createRacePlan(planInput(sessionId))).rejects.toThrow();
+  });
+  test("estimates timed race laps at exact and partial boundaries without accepting invalid inputs", () => {
+    expect(estimateRaceLaps(1800, 90)).toBe(20);
+    expect(estimateRaceLaps(1801, 90)).toBe(21);
+    expect(estimateRaceLaps(90, 90)).toBe(1);
+    expect(estimateRaceLaps(1, 90)).toBe(1);
+    for (const [duration, pace] of [[0, 90], [-1, 90], [1800, 0], [1800, -1], [Infinity, 90], [1800, NaN], [604801, 90], [1800, 86401], [10001, 1]]) {
+      expect(estimateRaceLaps(duration!, pace!)).toBeNull();
+    }
+  });
+
+  test("persists timed length and rejects inconsistent edits without mutating the saved plan", async () => {
+    const sessionId = await sourceSession();
+    const input = { ...planInput(sessionId), raceLength: { mode: "time" as const, durationSeconds: 600, averageLapSeconds: 60 } };
+    const created = await createRacePlan(input);
+    plans.push(created.id);
+    expect(created.raceLength).toEqual(input.raceLength);
+    await setActiveRacePlan(created.id);
+    expect((await getActiveRacePlan())?.raceLength).toEqual(input.raceLength);
+    expect((await listRacePlans("fm-2023")).find((plan) => plan.id === created.id)).toEqual(created);
+    await expect(updateRacePlan(created.id, { ...input, raceLength: { ...input.raceLength, durationSeconds: 601 } })).rejects.toThrow();
+    expect((await listRacePlans("fm-2023")).find((plan) => plan.id === created.id)).toEqual(created);
+    expect(RacePlanInputSchema.safeParse({ ...input, raceLength: { mode: "time", durationSeconds: 600, averageLapSeconds: 0 } }).success).toBe(false);
+  });
+
+  test("reads old saved lap plans without a race-length object", async () => {
+    const sessionId = await sourceSession();
+    const created = await createRacePlan(planInput(sessionId));
+    plans.push(created.id);
+    const { raceLength: _raceLength, ...legacy } = created;
+    await client.execute({ sql: "UPDATE race_plans SET payload=? WHERE id=?", args: [JSON.stringify(legacy), created.id] });
+    expect((await listRacePlans("fm-2023")).find((plan) => plan.id === created.id)?.raceLength).toEqual({ mode: "laps" });
   });
 });

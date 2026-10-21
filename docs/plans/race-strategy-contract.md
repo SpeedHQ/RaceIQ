@@ -8,6 +8,8 @@ Users create/edit/delete named race plans for one exact game, native car, native
 
 Authoritative existing evidence: `shared/racing/live/strategy.ts` StintSummary, session ownership, native identities, sample counts, semantic versions and remaining-health tire thresholds. Do not reuse tune-attached `RaceStrategy` (a different, non-durable tuning annotation).
 
+Timed race length and carry-adjusted refueling extend this boundary through the [timed race strategy contract](timed-race-strategy-contract.md), with separate [UI](timed-race-strategy-ui-plan.md) and [backend](timed-race-strategy-backend-plan.md) plans. Existing lap-only payloads remain valid; the extension defines the additional optional JSON field and its normalization.
+
 ## Shared types / HTTP
 
 New `shared/racing/live/race-plan.ts` exports schemas and types:
