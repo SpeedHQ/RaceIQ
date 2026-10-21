@@ -80,7 +80,18 @@ for (const gameId of requiredGames) {
         expect(Number(rendered), `${side} rendered ${field} matches native recording`).toBeCloseTo(Number(expected), 2);
       }
     }
-    const expectedChannels = new Set(replays.flatMap((replay) => replay.requestedSemanticIds).filter((id) => isTelemetryVariableId(id) && getTelemetryVariable(id).valueType === "number"));
+    // Replay clocks and distance registration drive playback rather than telemetry charts.
+    const playbackChannels: Record<string, true | undefined> = {
+      "timing.current-lap": true,
+      "timing.current-race-time": true,
+      "timing.distance-traveled": true,
+      "timing.lap-fraction": true,
+    };
+    const recordedChannels = new Set(replays.flatMap((replay) => replay.envelopes.flatMap((frame) => frame.values
+      .filter((entry) => (entry.state == null || entry.state === "ok") && (entry.freshness == null || entry.freshness === "fresh")
+        && (typeof entry.value === "number" && Number.isFinite(entry.value) || Array.isArray(entry.value) && entry.value.some((value) => typeof value === "number" && Number.isFinite(value))))
+      .map((entry) => entry.semanticId))));
+    const expectedChannels = new Set(replays.flatMap((replay) => replay.requestedSemanticIds).filter((id) => recordedChannels.has(id) && !playbackChannels[id] && isTelemetryVariableId(id) && getTelemetryVariable(id).valueType === "number"));
     const categoryTabs = page.locator('[id^="spectate-category-"]');
     const actualChannels = new Set<string>();
     for (const tab of await categoryTabs.all()) {

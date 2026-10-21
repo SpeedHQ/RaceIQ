@@ -14,6 +14,8 @@ import { createRawCaptureIdentity, loadRawCaptureIdentity, type RawCaptureIdenti
 import { loadSessionCapture, resolveLapCaptureArtifact } from "../session-capture/source-loader";
 import { getLiveLapCaptureSnapshot } from "../db/live-capture-queries";
 import { resolveLiveLapCaptureArtifact } from "../session-capture/source-loader";
+import { encodeLmuContext } from "@raceiq/shared/telemetry/lmu-context";
+import { lmuSourceTimestamp, lmuTelemetryTimestamp } from "@raceiq/shared/telemetry/lmu-source-time";
 export interface QueryLapTelemetryOptions {
   readonly rawCaptureRequirement?: "provenance" | "native-values";
 }
@@ -139,6 +141,7 @@ function receivedTimestamp(createdAt: string): TelemetryTimestamp {
 
 function replayTimestamp(packet: TelemetryPacket, fallback: TelemetryTimestamp): TelemetryTimestamp {
   if (packet.extendedRaceIQ?.frameTimeMs !== undefined) return { domain: "wall-clock", milliseconds: packet.extendedRaceIQ.frameTimeMs };
+  if (packet.gameId === "lmu" && packet.lmu && Number.isFinite(packet.TimestampMS)) return { domain: "wall-clock", milliseconds: packet.TimestampMS };
   if (packet.gameId === "acc" || packet.gameId === "ac-evo" || !Number.isFinite(packet.TimestampMS)) return fallback;
   return { domain: "session", milliseconds: packet.TimestampMS };
 }
@@ -186,8 +189,11 @@ export function resolveTelemetryReplay(
     const observedAt = replayTimestamp(packet, receivedAt);
     nativeFrame.packet = packet;
     nativeFrame.nativeValues = nativeValues;
-    const observation: SourceObservation = { timestamp: observedAt, updateSequence: BigInt(sequence) };
-    const packetView = resolver.createFrameView(nativeFrame, observation, source.gameId === "iracing" ? undefined : view);
+    const observation: SourceObservation = {
+      timestamp: packet.gameId === "lmu" ? lmuTelemetryTimestamp(packet) ?? observedAt : observedAt,
+      updateSequence: BigInt(sequence),
+    };
+    const packetView = resolver.createFrameView(nativeFrame, observation, source.gameId === "iracing" ? undefined : view, source.gameId === "lmu" ? lmuSourceTimestamp : undefined);
     if (source.gameId !== "iracing") view = packetView;
     const resolved = packetView.resolveMany(slots, target);
     const values: CanonicalTelemetryValue[] = new Array(resolved.length);
@@ -207,6 +213,7 @@ export function resolveTelemetryReplay(
       recordedWith: source.versionIdentity,
       values,
       rawReference,
+      ...(source.gameId === "lmu" && packet.lmuContext ? { lmu: encodeLmuContext(packet.lmuContext) } : {}),
     };
   };
   for (const native of iterateIRacingNativeIdentities(source, rawCapture?.bytes)) {

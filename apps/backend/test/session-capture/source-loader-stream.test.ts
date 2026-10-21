@@ -223,6 +223,7 @@ test("rejects sparse deltas backed by same-size cross-format checkpoints in both
   directories.push(directory);
   const lmu = Buffer.alloc(LMU_SOURCE_FRAME_V2_SIZE);
   LMU_SOURCE_FRAME_MAGIC.copy(lmu);
+  lmu.writeUInt16LE(2, 8);
   const packed = packTriplet(ACC_PACKED_MAGIC, 0, 0, Buffer.alloc(LMU_SOURCE_FRAME_V2_SIZE - 28), Buffer.alloc(0), Buffer.alloc(0));
   for (const wrongCheckpoint of [packed, lmu]) {
     const delta = wrongCheckpoint === packed

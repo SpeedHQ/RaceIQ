@@ -14,6 +14,7 @@ import { rpcJson } from "../lib/rpc-json";
 import { useGameId } from "../stores/game";
 import { queryKeys } from "./query-keys";
 import { invalidateDashboardQueries } from "./dashboard";
+import { isLmuLiveContextWire, type LmuLiveContextWire } from "@raceiq/shared/telemetry/lmu-context";
 
 export function useLaps(options?: { refetchInterval?: number | false; allGames?: boolean }) {
   const gameId = useGameId();
@@ -154,7 +155,8 @@ export interface SemanticReplayFrame {
   observedAt: { domain: string; milliseconds: number };
   receivedAt: { domain: string; milliseconds: number };
   simulator: string;
-  values: Array<{ semanticId: string; value: unknown; state?: string; freshness?: string }>;
+  values: Array<{ semanticId: string; value: unknown; unit?: string | null; state?: string; freshness?: string }>;
+  lmu?: LmuLiveContextWire;
 }
 
 export interface SemanticLapTelemetry {
@@ -190,6 +192,7 @@ export function useLapSemanticTelemetry(lapId: number | null) {
         throw error;
       }
       if (!body) throw new Error("Unable to replay telemetry");
+      if (body.envelopes.some((frame) => frame.lmu !== undefined && !isLmuLiveContextWire(frame.lmu))) throw new Error("Invalid LMU historical context");
       return body;
     },
     enabled: lapId != null && gameId != null,

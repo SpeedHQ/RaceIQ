@@ -151,7 +151,7 @@ test("native-values replay skips non-native raw capture identity loading", async
   await Bun.write(rawFile, Buffer.from("not gzip"));
   try {
     await updateSessionRawFile(sessionId, rawFile, "test-detector");
-    lapId = await insertLap(sessionId, 1, 1, true, 0, 0, null, null, null, null, null);
+    lapId = await insertLap(sessionId, 1, 1, true, 0, 3, null, null, null, null, null);
     cacheSet(lapId, [
       packet("f1-2025", { Speed: 10, TimestampMS: 1_000 }),
       packet("f1-2025", { Speed: 20, TimestampMS: 1_000 }),

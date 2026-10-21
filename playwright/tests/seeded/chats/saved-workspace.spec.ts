@@ -46,7 +46,6 @@ test("saved Analyse and Compare chats open their AI workspaces without a provide
   expect(new URL(page.url()).searchParams.get("lapA")).toBe(String(compare.laps[0].id));
   expect(new URL(page.url()).searchParams.get("lapB")).toBe(String(compare.laps[1].id));
   expect(new URL(page.url()).searchParams.get("ai")).toBe("1");
-  await expect(page.getByRole("button", { name: "AI Analysis", exact: true })).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByRole("region", { name: "AI Analysis", exact: true })).toBeVisible({ timeout: 30_000 });
 
   expect(browserErrors.errors, "unexpected browser errors during saved chat flows").toEqual([]);

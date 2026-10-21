@@ -7,27 +7,34 @@ test("ACC Spectate preserves recorded gaps and recovers beyond them", async ({ p
   const game = SEEDED_GAME_CASES.find((candidate) => candidate.gameId === "acc" && candidate.supportedFeatures.includes("compare"));
   if (!game) throw new Error("Spectate acceptance prerequisite missing: seeded compare case for acc");
   const pair = await getDistinctPair(request, "acc");
-  type Frame = { values: Array<{ semanticId: string; value: unknown; state?: string; freshness?: string }> };
+  type Frame = {
+    observedAt: { domain: string; milliseconds: number };
+    values: Array<{ semanticId: string; value: unknown; state?: string; freshness?: string }>;
+  };
   const native: Array<{ times: number[] }> = [];
   for (const lap of [pair.lapA, pair.lapB]) {
     const result = await request.get(`/api/laps/${lap.id}/semantic-telemetry`, { headers: { "X-Game-Id": "acc" } });
     expect(result.ok(), `ACC native replay for lap ${lap.id}`).toBe(true);
     const replay = (await result.json()) as { envelopes: Frame[] };
-    const times = replay.envelopes.map((frame) => {
+    const firstObserved = replay.envelopes.find((frame) => Number.isFinite(frame.observedAt.milliseconds))?.observedAt;
+    const frames = replay.envelopes.map((frame) => {
       const timing = frame.values.find((value) => value.semanticId === "timing.current-lap" && typeof value.value === "number" && value.state === "ok" && value.freshness === "fresh");
-      return typeof timing?.value === "number" ? timing.value : Number.NaN;
+      const observedElapsed = firstObserved?.domain === frame.observedAt.domain
+        ? (frame.observedAt.milliseconds - firstObserved.milliseconds) / 1000
+        : 0;
+      return { nativeTime: typeof timing?.value === "number" ? timing.value : Number.NaN, observedElapsed };
     });
+    const originFrame = frames.find((frame) => Number.isFinite(frame.nativeTime) && frame.nativeTime >= 0);
+    const origin = originFrame ? originFrame.nativeTime - Math.max(0, originFrame.observedElapsed) : null;
+    const times = frames.map(({ nativeTime }) => origin === null || !Number.isFinite(nativeTime) || nativeTime < 0 ? Number.NaN : nativeTime - origin);
     native.push({ times });
   }
   const gaps = native.flatMap((recording, side) => {
     const valid = recording.times.filter(Number.isFinite);
-    const origin = valid[0];
-    if (origin == null) return [];
     return valid.slice(1).flatMap((time, position) => {
       const previous = valid[position]!;
       const gap = time - previous;
-      const start = previous - origin;
-      return gap > gapThresholdS && start >= 0 ? [{ side, start, end: start + gap, duration: gap }] : [];
+      return gap > gapThresholdS && previous >= 0 ? [{ side, start: previous, end: previous + gap, duration: gap }] : [];
     });
   });
   const selectedGap = gaps.sort((a, b) => b.duration - a.duration)[0];
@@ -35,6 +42,7 @@ test("ACC Spectate preserves recorded gaps and recovers beyond them", async ({ p
   await page.goto(`/${game.prefix}/compare?${compareQuery(pair)}&view=spectate`, { waitUntil: "domcontentloaded" });
   const clock = page.locator("[data-spectate-playback]");
   await expect(clock).toHaveAttribute("data-position-lock", "true");
+  await page.getByRole("tab", { name: "Dynamics", exact: true }).click();
   await page.getByRole("switch", { name: "Lock cars to same track position" }).click();
   const seek = page.getByRole("slider", { name: "Replay position" });
   const bounds = await seek.boundingBox();
