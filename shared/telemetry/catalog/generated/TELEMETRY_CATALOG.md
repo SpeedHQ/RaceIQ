@@ -7,8 +7,8 @@
 - Catalog version: `0.20.0`
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.20.0`
-- Generator source SHA-256: `d6dfd2114b95ab38f779a267bf2bc41018bdcb279f86d31c230b2140c7018c8f`
-- Content SHA-256: `09558b4c9add812a9a9640aa38a5b2ffed147d6feb0ed164154975537645adcc`
+- Generator source SHA-256: `eb906c80e364654832725bf35a0341a4450961000417a1ee6ac47d6f05d21d12`
+- Content SHA-256: `57fd86ccffc2e72f50fafb9da6c346df151da0895bccfb003a3f2d70321d0bd1`
 
 ## Coverage
 
@@ -35,8 +35,8 @@
 | `brakes.brake-line-press` | Brake Line Press | number | mass × length^-1 × time^-2 | bar | fixed:4 | FL, FR, RL, RR |  |  |
 | `brakes.brake-temp` | Brake Temp | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
 | `brakes.hand-brake` | Hand Brake | number | unit:0–255 | 0–255 | scalar |  |  |  |
-| `control.brake` | Brake | number | dimensionless | fraction | scalar |  |  |  |
-| `control.clutch` | Clutch | number | dimensionless | fraction | scalar |  |  |  |
+| `control.brake` | Brake input (fraction) | number | dimensionless | fraction | scalar |  |  |  |
+| `control.clutch` | Clutch input (fraction) | number | dimensionless | fraction | scalar |  |  |  |
 | `control.steering` | Steering | number | dimensionless | fraction | scalar |  |  |  |
 | `control.throttle` | Throttle | number | dimensionless | fraction | scalar |  |  |  |
 | `damage.brake-disc-life` | Brake Disc Life | number | dimensionless | % | scalar |  |  |  |

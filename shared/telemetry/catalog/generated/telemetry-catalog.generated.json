@@ -6,7 +6,7 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.20.0",
-      "sourceHash": "d6dfd2114b95ab38f779a267bf2bc41018bdcb279f86d31c230b2140c7018c8f"
+      "sourceHash": "eb906c80e364654832725bf35a0341a4450961000417a1ee6ac47d6f05d21d12"
     },
     "sourceHashes": {
       "packages/game-ac-evo/src/parser.ts": "29cb3985fe32c797554d98f107a0c4d76ddcc5279d97e75423365e1a0887f5de",
@@ -20,7 +20,7 @@
       "server/session-capture/frame-time.ts": "55c44a6cede5e2c5fb1e1c45568fe44b4a9a8b156f260f69bb5d89f9c24935a2",
       "shared/racing/setups/schema.ts": "987941bb8f38520920686ef540e67ce2259fdc962de03ccb959f6b5ef773b28f"
     },
-    "contentHash": "09558b4c9add812a9a9640aa38a5b2ffed147d6feb0ed164154975537645adcc"
+    "contentHash": "57fd86ccffc2e72f50fafb9da6c346df151da0895bccfb003a3f2d70321d0bd1"
   },
   "generatedFrom": [
     "packages/tooling-catalog/src/root.ts",
@@ -2100,8 +2100,8 @@
     },
     {
       "id": "control.brake",
-      "label": "Brake",
-      "description": "LMU player brake input.",
+      "label": "Brake input (fraction)",
+      "description": "Native brake input as a fraction, distinct from RaceIQ's 0–255 control scale.",
       "parentId": "inputs",
       "canonicalUnit": "fraction",
       "shape": "scalar",
@@ -2161,8 +2161,8 @@
     },
     {
       "id": "control.clutch",
-      "label": "Clutch",
-      "description": "LMU player clutch input.",
+      "label": "Clutch input (fraction)",
+      "description": "Native clutch input as a fraction, distinct from RaceIQ's 0–255 control scale.",
       "parentId": "inputs",
       "canonicalUnit": "fraction",
       "shape": "scalar",

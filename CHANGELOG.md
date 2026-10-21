@@ -12,6 +12,7 @@
 - Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
 
 ### Fixes
+- Distinguish native fractional LMU brake and clutch inputs from normalized control readings in the telemetry catalog.
 - Keep unchanged LMU supplemental snapshots available while successful polling continues, without resetting their original observation ages.
 - Render LMU developer telemetry snapshots without crashing on precision-preserved observation sequences.
 - Preserve LMU player snapshots, availability states and original observation times through recording, lap export, import and replay.
@@ -70,6 +71,7 @@
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
+- Keep sparse-capture fixtures schema-valid and verify failed classification recordings without waiting for dashboard work blocked by startup repair prerequisites.
 - Rename the shared LMU decoded-frame contract to `LMUSourceFrame` and remove an unused legacy version constant without changing recording compatibility.
 - Define startup repair stages in a keyed registry with an explicit order; reject unknown, duplicate, or omitted stages before repairs run.
 - Run browser and responsive verification against production builds with all release-gated features enabled, including the historical classification upgrade fixture.
