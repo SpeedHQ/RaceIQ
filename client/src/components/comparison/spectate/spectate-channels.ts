@@ -38,6 +38,8 @@ export function buildSpectateChannels(pair: SpectatePair): SpectateChannel[] {
   const channels: SpectateChannel[] = [];
   for (const id of numericIds) {
     if (!isTelemetryVariableId(id)) continue;
+    if (id === "timing.current-lap" || id === "timing.current-race-time"
+      || id === "timing.distance-traveled" || id === "timing.lap-fraction") continue;
     const meta = getTelemetryVariable(id);
     if (id === "fuel.ers-deploy-mode" || meta.valueType !== "number") continue;
     const components =

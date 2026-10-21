@@ -44,6 +44,7 @@
 - Close searchable option lists after selecting an item on mobile.
 
 ### Fixes
+- Hide Current Lap, Current Race Time, Distance Traveled, and Lap fraction from comparison telemetry charts.
 - Keep comparison links readable with separate `track` and `layout` parameters, ordered together, instead of JSON-encoded track identities.
 - Show only state labels in Spectate's center Dynamics display, without numeric balance values.
 - Keep Spectate's zoomed-out focus lanes above the track backbone at every zoom and orbit angle, correct A-left/B-right ordering, and anchor both labels directly to their lanes.
