@@ -4,23 +4,26 @@ import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemet
 import { flipBoundaries, needsTrackFlip } from "@raceiq/shared/racing/tracks/coords"
 import { ChevronDownIcon } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { recordGpuSnapshot } from "@/lib/crash-diagnostics";
 import { m } from "@/paraglide/messages";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { TrackMapBoundaries } from "./analyse/track-map/types";
-import { type CarModelEnrichment, DEMO_CAR, F1_CAR, getCarModel, getLMUClassCarModel, loadCarModelConfigs } from "../data/car-models";
+import type { CarModelEnrichment } from "@raceiq/scene-3d/model-types";
+import { loadCarModelConfigs } from "../data/car-models";
+import { resolveCarModel } from "./wireframe/resolve-car-model";
 import { useTirePressureOptimal } from "../hooks/catalog-queries";
 import { useSettings } from "../hooks/settings";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useUnits } from "../hooks/useUnits";
 import { client } from "../lib/rpc";
-import { DEFAULT_TOGGLES, VIEW_PRESETS, type ViewPreset, type ViewToggles } from "../lib/wireframe-data";
+import { DEFAULT_TOGGLES, VIEW_PRESETS, type ViewPreset, type ViewToggles } from "@raceiq/scene-3d/wireframe-data";
 import { useGameId } from "../stores/game";
-import type { SemanticAnalysisFrame } from "./analyse/track-map/types";
+import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import { Button } from "./ui/button";
 import { Switch } from "./ui/switch";
 import { DropdownMenu } from "./ui/DropdownMenu";
-import { preloadCarModel } from "./wireframe/CarBody";
-import { SceneRuntime, type SceneSource } from "./wireframe/SceneRuntime";
+import { preloadCarModel } from "@raceiq/scene-3d/wireframe/CarBody";
+import { SceneRuntime, type SceneSource } from "@raceiq/scene-3d/wireframe/SceneRuntime";
 import { ToggleButton } from "./wireframe/ToggleButton";
 
 preloadCarModel("/models/aston_martin_vantage_gt3_optimised.glb");
@@ -76,26 +79,13 @@ export const CarWireframe = React.memo(function CarWireframe({
   if (!gameId) {
     throw new Error("CarWireframe: gameId missing — pass as prop or mount inside a GameProvider");
   }
-  const isF1 = gameId === "f1-2025";
-  const isLMU = gameId === "lmu";
 
-  const carModel = useMemo(() => {
-    if (carModelProp) return carModelProp;
-    if (isF1) return F1_CAR;
-    // Select the closest available body for every catalog class.
-    if (isLMU) return getLMUClassCarModel(lmuCarClass);
-    // Note: getCarModel reads from module-level state populated by
-    // loadCarModelConfigs(). configsLoaded is in the dep list so the
-    // memo re-runs once configs finish loading — eslint can't see the
-    // dependency because it's hidden behind an impure read.
-    const perCar = carId == null ? { ...DEMO_CAR } : getCarModel(carId);
-    if (perCar.hasModel) return perCar;
-    // Fallback: any non-F1 game with no per-car GLB uses the Aston
-    // Martin GT3 demo model. Previously this was FM-only, which left
-    // ACC (and any future game) without a visible car in the scene.
-    return DEMO_CAR;
+  const carModel = useMemo(
+    () => resolveCarModel(gameId, carId, { lmuCarClass, carModel: carModelProp }),
+    // Model config is module state populated by loadCarModelConfigs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [carId, configsLoaded, isF1, isLMU, lmuCarClass, carModelProp]);
+    [carId, configsLoaded, gameId, lmuCarClass, carModelProp],
+  );
   const units = useUnits(gameId, { enabled: protectedDataEnabled });
   const { displaySettings } = useSettings({ enabled: protectedDataEnabled });
   const pressureOptimal = useTirePressureOptimal(gameId, carId, protectedDataEnabled);
@@ -163,7 +153,10 @@ export const CarWireframe = React.memo(function CarWireframe({
   const [renderError, setRenderError] = useState<string | null>(null);
   useEffect(() => {
     if (!canvasHostRef.current) return;
-    const runtime = new SceneRuntime(canvasHostRef.current, (error) => setRenderError(error.message), { fpsElement: fpsRef.current });
+    const runtime = new SceneRuntime(canvasHostRef.current, (error) => setRenderError(error.message), {
+      fpsElement: fpsRef.current,
+      onGpuSnapshot: recordGpuSnapshot,
+    });
     runtimeRef.current = runtime;
     onRuntime?.(runtime);
     void runtime.init();
@@ -182,6 +175,10 @@ export const CarWireframe = React.memo(function CarWireframe({
       toggles: effectiveToggles, viewPreset, carModel, modelOffsetX, hideModelWheels: !minimal,
       autoOrbit: !!autoOrbit, fpsCap: displaySettings.renderFpsCap,
       fmtTemp, suspThresholds, pressureOptimal, temperatureThresholds: units.thresholds, temperatureSemanticId,
+      temperatureLabels: {
+        inner: m.label_inner(), middle: m.label_middle(), outer: m.label_outer(),
+        core: m.label_core(), carcass: m.label_carcass(), surface: m.label_surface(),
+      },
     });
   }, [gameId, frame, telemetry, cursorIdx, outline, flippedBoundaries, toggles, viewPreset, carModel, modelOffsetX, minimal, autoOrbit, displaySettings.renderFpsCap, fmtTemp, suspThresholds, pressureOptimal, units.thresholds, temperatureSemanticId]);
 

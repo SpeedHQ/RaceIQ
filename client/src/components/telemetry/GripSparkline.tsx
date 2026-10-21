@@ -1,5 +1,5 @@
-import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
-import { severityRangeColor } from "@/lib/colors";
+import { getSemanticCanvasContext } from "@raceiq/scene-3d/rendering/css-canvas";
+import { severityRangeColor } from "@raceiq/scene-3d/colors";
 import { useEffect, useRef } from "react";
 
 // Rolling window constants (shared with GripHistory)

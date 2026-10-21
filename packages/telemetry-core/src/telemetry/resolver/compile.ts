@@ -4,7 +4,7 @@ import { TELEMETRY_CATALOG } from "@raceiq/shared/telemetry/catalog/data";
 import { getBuiltinTelemetryDerivation, TELEMETRY_DERIVATION_VERSION } from "../derivations/builtins";
 import type { TelemetryDerivation } from "@raceiq/shared/telemetry/derivations/contracts";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import type { CompiledTelemetryResolver, ResolverCompileOptions, SemanticSlot, SourceObservation, TelemetryFrameView } from "@raceiq/shared/telemetry/resolver/contracts";
+import type { CompiledTelemetryResolver, ResolverCompileOptions, SemanticSlot, SourceObservation, SourceTimestampReader, TelemetryFrameView } from "@raceiq/shared/telemetry/resolver/contracts";
 import { FrameView } from "./frame-view";
 import type { Mapping, ResolutionPlan, RuntimeCatalogMetadata } from "./plan";
 import { readerFor, trustedNativeExecutor } from "./readers";
@@ -98,9 +98,14 @@ class Resolver<NativeFrame> implements CompiledTelemetryResolver<NativeFrame> {
     if (slot === undefined) throw new Error(`Telemetry semantic not compiled: ${id}`);
     return slot;
   }
-  createFrameView(native: NativeFrame, observation: SourceObservation, reuse?: TelemetryFrameView<NativeFrame>): TelemetryFrameView<NativeFrame> {
-    const view = reuse instanceof FrameView && reuse.resolver === this ? reuse : new FrameView(this, this.plans.length);
-    return view.reset(native, observation);
+  createFrameView(
+    native: NativeFrame,
+    observation: SourceObservation,
+    reuse?: TelemetryFrameView<NativeFrame>,
+    sourceTimestampReader?: SourceTimestampReader<NativeFrame>,
+  ): TelemetryFrameView<NativeFrame> {
+    const view = reuse instanceof FrameView && reuse.resolver === this ? reuse : new FrameView<NativeFrame>(this, this.plans.length);
+    return view.reset(native, observation, sourceTimestampReader);
   }
 }
 

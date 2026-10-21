@@ -36,6 +36,12 @@ export const ReviewLineSpreadQuerySchema = z.object({
   sessionId: z.coerce.number().int().positive(),
   lapIds: z.string().min(1).transform((value) => value.split(",").map(Number)).refine((ids) => ids.length >= 1 && ids.length <= 5 && ids.every((id) => Number.isInteger(id) && id > 0) && new Set(ids).size === ids.length, "lapIds must contain 1–5 unique positive IDs"),
 });
+export const CompareLineSpreadQuerySchema = z.object({
+  gameId: GameIdSchema,
+  lapIds: z.string().min(1).transform((value) => value.split(",").map(Number))
+    .refine((ids) => ids.length === 2 && ids.every((id) => Number.isInteger(id) && id > 0) && new Set(ids).size === ids.length, "lapIds must contain exactly two unique positive IDs"),
+});
+
 
 const AlignedLapIdsSchema = z.array(z.number().int().positive()).min(1).max(20).refine((ids) => new Set(ids).size === ids.length, "Lap IDs must be unique");
 export const AlignedTelemetryRequestSchema = z.union([

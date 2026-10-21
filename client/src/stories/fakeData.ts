@@ -708,6 +708,7 @@ export const fakeAllDataTelemetryView: LiveTelemetryView = {
   sessionId: 1,
   sequence: 1,
   observedAtMs: basePacket.TimestampMS,
+  receivedAtMs: basePacket.TimestampMS,
   identity: {
     carId: basePacket.carId,
     trackId: basePacket.trackId,
@@ -773,6 +774,8 @@ export const fakeAllDataTelemetryView: LiveTelemetryView = {
   race: { pitStatus: 0 },
   competitors: [],
   statusBySemanticId: {},
+  valuesBySemanticId: {},
+  unitsBySemanticId: {},
 };
 
 // ── Sector Data ──────────────────────────────────────────────────────────────
