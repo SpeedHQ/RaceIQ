@@ -2,11 +2,10 @@ import { m } from "@/paraglide/messages";
 import { useEffect, useState } from "react";
 import { client } from "@/lib/rpc";
 import { useGameId } from "@/stores/game";
-import type { Point, TrackBoundaries, TrackCurb, TrackSectors } from "../types";
+import type { Point, TrackBoundaries, TrackSectors } from "../types";
 import { InlineTrackMap } from "../InlineTrackMap";
 import { CalibrationComparisonSection } from "./CalibrationComparisonSection";
 import type { CalibrationComparison } from "./calibration-comparison";
-import { CurbDebugSection } from "./CurbDebugSection";
 import { TrackDebugCanvas } from "./TrackDebugCanvas";
 
 /**
@@ -42,7 +41,6 @@ export function TrackDebugPanel({
 }) {
   const gid = useGameId() ?? undefined;
   const [boundaries, setBoundaries] = useState<TrackBoundaries | null>(null);
-  const [curbs, setCurbs] = useState<TrackCurb[] | null>(null);
   const [calibrationComparison, setCalibrationComparison] = useState<CalibrationComparison | null>(null);
   const [showCalibrationHistory, setShowCalibrationHistory] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -55,17 +53,12 @@ export function TrackDebugPanel({
         .$get({ param: { trackId: encodeURIComponent(trackId) }, query: { gameId: gid ?? undefined } })
         .then((r) => (r.ok ? (r.json() as unknown as TrackBoundaries) : null))
         .catch(() => null),
-      client.api["track-curbs"][":trackId"]
-        .$get({ param: { trackId: encodeURIComponent(trackId) }, query: { gameId: gid ?? undefined } })
-        .then((r) => (r.ok ? (r.json() as unknown as TrackCurb[]) : null))
-        .catch(() => null),
       client.api["track-calibration"][":trackId"].comparison
         .$get({ param: { trackId: encodeURIComponent(trackId) } })
         .then((r) => (r.ok ? r.json() : null))
         .catch(() => null),
-    ]).then(([b, c, comparison]) => {
+    ]).then(([b, comparison]) => {
       setBoundaries(b);
-      setCurbs(c);
       setCalibrationComparison(comparison);
       setLoading(false);
     });
@@ -85,7 +78,6 @@ export function TrackDebugPanel({
         <TrackDebugCanvas
           outline={outline}
           boundaries={boundaries}
-          curbs={curbs}
           flipX={flipX}
           displaySectors={displaySectors}
           sectorBounds={sectorBounds}
@@ -143,7 +135,6 @@ export function TrackDebugPanel({
         </div>
 
         <CalibrationComparisonSection comparison={calibrationComparison} showHistory={showCalibrationHistory} onShowHistoryChange={setShowCalibrationHistory} />
-        <CurbDebugSection trackId={trackId} curbs={curbs} setCurbs={setCurbs} setBoundaries={setBoundaries} />
       </div>
     </div>
   );

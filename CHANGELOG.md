@@ -13,6 +13,7 @@
 
 ### Fixes
 - Select and deselect child laps with the Sessions table header checkbox, preserving selections on other pages and ownership tabs.
+- Stop recording curb maps and using detected curbs to recalibrate track boundaries; preserve telemetry-based curb detection.
 - Open the dashboard in your default browser when launching RaceIQ from the optional desktop shortcut or Start menu, even when the server was stopped.
 - Preserve incomplete-lap eligibility and LMU first-outlap classification across ordinal detector transitions.
 - Keep first-run setup responsive by omitting the optional telemetry demo.

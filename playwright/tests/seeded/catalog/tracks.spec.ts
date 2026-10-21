@@ -20,9 +20,6 @@ for (const game of SEEDED_GAME_CASES) {
   if (game.gameId === "acc") continue;
   test(`${game.name} tracks support search, sorting, map, and capability routes`, async ({ page, request }) => {
     const browserErrors = collectBrowserErrors(page);
-    const curbResponse = await request.get(`/api/track-curbs/${encodeURIComponent(game.trackId)}?gameId=${game.gameId}`);
-    expect([200, 404], `${game.name} curb capability status`).toContain(curbResponse.status());
-    const curbUnavailable = curbResponse.status() === 404;
     await page.goto(`/${game.prefix}/tracks`, { waitUntil: "domcontentloaded" });
     const search = page.getByPlaceholder("Search tracks...");
     await expect(search).toBeVisible({ timeout: 20_000 });
@@ -107,9 +104,8 @@ for (const game of SEEDED_GAME_CASES) {
     if (!runtime.devServer) await expect(debugTab).toHaveCount(0);
     await page.getByRole("tab", { name: "Info", exact: true }).click();
     await expect(page).not.toHaveURL(/\/(laps|setups|guide|debug)\/?$/);
-    const expectedResourceError = "console.error: Failed to load resource: the server responded with a status of 404 (Not Found)";
     expect(
-      browserErrors.errors.filter((error) => !curbUnavailable || (error !== expectedResourceError && !error.includes(`/api/track-curbs/${encodeURIComponent(game.trackId)}?gameId=${game.gameId}`))),
+      browserErrors.errors,
       `${game.name} tracks browser errors`,
     ).toEqual([]);
   });
