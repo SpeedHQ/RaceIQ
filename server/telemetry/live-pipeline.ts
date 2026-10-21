@@ -26,6 +26,8 @@ import { enqueueSessionCaptureSplit } from "../db/session-queries";
 import { materializeParserInitializationPlan, subscribeParserSource, type ParserSourceInput, type ParserReplayLocator } from "../games/packet-dispatch";
 import { DirectSessionRecorderAdapter, type DirectCaptureRecording } from "../session-capture/direct-recorder";
 import { DurableStrategyTracker } from "../live-strategy/durable-strategy";
+import { getPacketTireCompound, getTireThresholds, type TireThresholdOverrides, type TireThresholds } from "@raceiq/shared/racing/live/tire-thresholds";
+import { getTireThresholdOverrides, loadSettings } from "../runtime/config/settings";
 import { clearPitEstimates } from "../db/strategy-queries";
 
 import { DashboardCaptureObservation } from "../session-capture/dashboard-observation";
@@ -83,6 +85,33 @@ export class LiveTelemetryPipeline {
   private _processingNativeFrame: Buffer | null = null;
   private _processingTimestamp: number | undefined;
 
+  private resolvedThresholdOverrides: TireThresholdOverrides | null = null;
+  private resolvedThresholdGameId: GameId | null = null;
+  private resolvedThresholdCompounds: [string, string, string, string] | null = null;
+  private resolvedTireThresholds: [TireThresholds, TireThresholds, TireThresholds, TireThresholds] | null = null;
+
+  private tireThresholdsFor(packet: TelemetryPacket): [TireThresholds, TireThresholds, TireThresholds, TireThresholds] {
+    const overrides = getTireThresholdOverrides();
+    const compound0 = getPacketTireCompound(packet, 0);
+    const compound1 = getPacketTireCompound(packet, 1);
+    const compound2 = getPacketTireCompound(packet, 2);
+    const compound3 = getPacketTireCompound(packet, 3);
+    const prior = this.resolvedThresholdCompounds;
+    if (this.resolvedTireThresholds && this.resolvedThresholdOverrides === overrides &&
+      this.resolvedThresholdGameId === packet.gameId && prior &&
+      prior[0] === compound0 && prior[1] === compound1 &&
+      prior[2] === compound2 && prior[3] === compound3) return this.resolvedTireThresholds;
+    this.resolvedThresholdOverrides = overrides;
+    this.resolvedThresholdGameId = packet.gameId;
+    this.resolvedThresholdCompounds = [compound0, compound1, compound2, compound3];
+    this.resolvedTireThresholds = [
+      getTireThresholds(overrides, packet.gameId, compound0),
+      getTireThresholds(overrides, packet.gameId, compound1),
+      getTireThresholds(overrides, packet.gameId, compound2),
+      getTireThresholds(overrides, packet.gameId, compound3),
+    ];
+    return this.resolvedTireThresholds;
+  }
   /** Expose the current lap detector for external readers (routes, UDP handler). */
   get lapDetector(): ILapDetector | null {
     return this._lapDetector;
@@ -510,9 +539,9 @@ export class LiveTelemetryPipeline {
 
         await this.sectorTracker.reset(trackIdentity, session.gameId, carIdentity);
         this.strategy?.bindCaptureEpoch(String(this.recorder.epoch));
+        loadSettings();
         this.pitTracker.reset();
         const adapter = getServerGame(session.gameId);
-        this.pitTracker.setTireThresholds(adapter.tireHealthThresholds.yellow);
         this.pitTracker.setTireWearAvailable(resolveAnalysisTelemetry(adapter).tireWearRate.source !== "unavailable");
         if (!this._skipHistorySeeding) {
           await this._seedSessionLaps(session.sessionId, session.gameId);
@@ -791,7 +820,9 @@ export class LiveTelemetryPipeline {
       packet.BestLap = sessionBest;
     }
 
-    const pit = strategyIdentityMatches ? this.pitTracker.feed(packet, this.sectorTracker.getTrackLength(), this.sectorTracker.getLapDistStart()) : null;
+    const pit = strategyIdentityMatches
+      ? this.pitTracker.feed(packet, this.sectorTracker.getTrackLength(), this.sectorTracker.getLapDistStart(), this.tireThresholdsFor(packet))
+      : null;
     if (pit) this.strategy?.apply(packet, pit);
 
     // Collect calibration positions for adapters that require track-outline alignment.

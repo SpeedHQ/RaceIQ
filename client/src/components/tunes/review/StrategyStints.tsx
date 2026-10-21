@@ -1,3 +1,4 @@
+import { RaceStrategyPlanner } from "@/components/telemetry/RaceStrategyPlanner";
 import { getGame } from "@raceiq/shared/games/registry";
 import type { ReactNode } from "react";
 import { m } from "@/paraglide/messages";
@@ -111,5 +112,6 @@ export function StrategyStints({ gameId, sessionId }: { gameId: GameId; sessionI
       {selected.length === 1 && <p>{m.strategy_select_another()}</p>}
       {selected.length === 2 && <div className="space-y-2"><h3 className="font-semibold">{m.strategy_comparison_heading({ first: selected[0]!.ordinal, second: selected[1]!.ordinal })}</h3><table className="min-w-[40rem] w-full text-left"><thead><tr><th scope="col">{m.strategy_metric()}</th><th scope="col">{m.strategy_stint({ ordinal: selected[0]!.ordinal })}</th><th scope="col">{m.strategy_stint({ ordinal: selected[1]!.ordinal })}</th><th scope="col">{m.strategy_difference()}</th></tr></thead><tbody>{metrics.map((row) => <tr key={row.label}><th scope="row">{row.label}</th><td>{row.first}</td><td>{row.second}</td><td>{row.diff}</td></tr>)}</tbody></table><p>{m.strategy_conditions()}</p><a className="underline" href={`/${getGame(gameId).routePrefix}/sessions/${selected[0]!.sessionId}/analyse`}>{m.strategy_evidence_link({ session: selected[0]!.sessionId, stint: selected[0]!.id })}</a></div>}
     </div>
+    <RaceStrategyPlanner key={`${gameId}:${sessionId}`} gameId={gameId} sessionId={sessionId} />
   </section>;
 }

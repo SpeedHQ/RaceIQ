@@ -53,6 +53,7 @@
     "./db/experiment-lap-queries": "./db/experiment-lap-queries.ts",
     "./db/experiment-queries": "./db/experiment-queries.ts",
     "./db/experiment-version-queries": "./db/experiment-version-queries.ts",
+    "./db/race-plan-queries": "./db/race-plan-queries.ts",
     "./db/index": "./db/index.ts",
     "./db/lap-mutation-queries": "./db/lap-mutation-queries.ts",
     "./db/lap-read-queries": "./db/lap-read-queries.ts",

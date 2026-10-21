@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Pit estimate / Engineer worksheet</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f5f7fa;
+      --white: #ffffff;
+      --ink: #18243a;
+      --muted: #68758a;
+      --blue: #365d9d;
+      --amber: #9b5c10;
+      --rule: #d7dee8;
+      --soft-blue: #edf2f9;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    a { color: var(--blue); }
+    a:focus-visible, summary:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; }
+    .page { max-width: 1200px; margin: 0 auto; padding: 24px 34px 54px; }
+    .topline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      border-bottom: 1px solid var(--rule);
+      padding-bottom: 13px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .sample-flag { color: var(--amber); font-weight: 650; letter-spacing: .025em; }
+    .topline a { text-decoration-thickness: 1px; text-underline-offset: 3px; }
+    .masthead { padding: 29px 0 24px; border-bottom: 1px solid var(--rule); }
+    .eyebrow { margin: 0 0 7px; color: var(--blue); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+    h1 { max-width: 700px; margin: 0; font-size: clamp(27px, 3.5vw, 40px); line-height: 1.08; letter-spacing: -.04em; font-weight: 640; }
+    .lede { margin: 10px 0 0; max-width: 680px; color: var(--muted); font-size: 15px; }
+    .brief {
+      display: grid;
+      grid-template-columns: minmax(240px, .9fr) minmax(0, 1.5fr);
+      gap: 44px;
+      padding: 25px 0 26px;
+      border-bottom: 1px solid var(--rule);
+    }
+    .section-title { margin: 0 0 13px; font-size: 13px; font-weight: 700; letter-spacing: .02em; }
+    .callout { padding-left: 13px; border-left: 3px solid var(--amber); }
+    .callout-label { margin: 0; color: var(--amber); font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+    .callout strong { display: block; margin-top: 2px; font-size: 27px; line-height: 1.15; letter-spacing: -.04em; font-weight: 620; }
+    .callout p:last-child { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+    .brief-meta { display: flex; gap: 22px; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--rule); }
+    .brief-meta div { min-width: 0; }
+    .meta-label { display: block; color: var(--muted); font-size: 11px; }
+    .meta-value { display: block; margin-top: 2px; font: 600 15px/1.35 var(--mono); font-variant-numeric: tabular-nums; }
+    .fuel-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+    .fuel-heading .section-title { margin-bottom: 11px; }
+    .fuel-tag { color: var(--muted); font-size: 11px; }
+    .fuel-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+    .fuel-cell { padding: 12px 12px 11px 0; }
+    .fuel-cell + .fuel-cell { padding-left: 16px; border-left: 1px solid var(--rule); }
+    .fuel-number { display: block; font: 600 clamp(18px, 2vw, 23px)/1.2 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.055em; white-space: nowrap; }
+    .fuel-unit { color: var(--muted); font: 500 11px var(--sans); letter-spacing: 0; }
+    .fuel-caption { display: block; margin-top: 5px; color: var(--muted); font-size: 11px; }
+    .fuel-note { margin: 9px 0 0; color: var(--amber); font-size: 12px; }
+    .tires { padding: 25px 0 17px; }
+    .tires-head { display: flex; align-items: baseline; justify-content: space-between; gap: 18px; }
+    .tires-head .section-title { margin-bottom: 12px; }
+    .threshold { color: var(--muted); font-size: 11px; text-align: right; }
+    .table-wrap { width: 100%; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    caption { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+    th { padding: 9px 12px 9px 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .075em; text-align: left; text-transform: uppercase; }
+    td { padding: 12px 12px 12px 0; border-bottom: 1px solid var(--rule); vertical-align: middle; }
+    th:first-child, td:first-child { width: 19%; }
+    th:not(:first-child), td:not(:first-child) { width: 20.25%; }
+    .tire-name { display: flex; align-items: center; gap: 9px; font-weight: 660; }
+    .corner { width: 22px; height: 22px; display: inline-grid; place-items: center; flex: 0 0 auto; border: 1px solid var(--rule); color: var(--blue); font: 600 10px var(--mono); }
+    .value { font: 500 clamp(12px, 1.35vw, 15px)/1.35 var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .value strong { font-weight: 700; }
+    .health-track { height: 3px; margin-top: 6px; background: #e3e8ef; }
+    .health-fill { height: 100%; background: var(--blue); }
+    tr:nth-child(2) .health-fill { background: var(--amber); }
+    .unit { color: var(--muted); font-size: 10px; }
+    .evidence { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 34px; padding-top: 8px; }
+    details { border-top: 1px solid var(--rule); }
+    summary { padding: 13px 2px 12px 0; cursor: pointer; color: var(--ink); font-size: 12px; font-weight: 650; list-style-position: inside; }
+    summary::marker { color: var(--blue); }
+    details[open] summary { border-bottom: 1px solid var(--rule); }
+    .detail-content { padding: 11px 0 4px; color: var(--muted); font-size: 12px; }
+    .detail-content p { margin: 0 0 8px; }
+    .detail-content strong { color: var(--ink); font-weight: 650; }
+    .history-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 3px 0 6px; }
+    .history-item { display: flex; justify-content: space-between; gap: 8px; padding-bottom: 5px; border-bottom: 1px solid var(--rule); }
+    .history-item b { color: var(--ink); font: 600 12px var(--mono); }
+    footer { margin-top: 28px; padding-top: 11px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 11px; }
+    @media (max-width: 720px) {
+      .page { padding: 17px 18px 36px; }
+      .brief { grid-template-columns: 1fr; gap: 22px; padding: 20px 0; }
+      .brief-meta { max-width: 370px; }
+      .evidence { grid-template-columns: 1fr; gap: 8px; }
+      .topline { align-items: flex-start; }
+    }
+    @media (max-width: 430px) {
+      body { font-size: 13px; }
+      .page { padding-right: 14px; padding-left: 14px; }
+      .topline { gap: 8px; font-size: 10px; }
+      .sample-flag { max-width: 180px; }
+      .masthead { padding-top: 23px; }
+      .lede { font-size: 14px; }
+      .brief-meta { gap: 15px; }
+      .meta-value { font-size: 13px; }
+      .fuel-cell { padding-right: 7px; }
+      .fuel-cell + .fuel-cell { padding-left: 9px; }
+      .fuel-number { font-size: 17px; letter-spacing: -.07em; }
+      .fuel-unit { font-size: 10px; }
+      .fuel-caption { font-size: 10px; }
+      .tires-head { align-items: flex-start; gap: 8px; }
+      .threshold { max-width: 143px; font-size: 10px; }
+      th { padding-right: 4px; font-size: 8px; letter-spacing: .025em; }
+      td { padding-right: 4px; }
+      th:first-child, td:first-child { width: 18%; }
+      th:not(:first-child), td:not(:first-child) { width: 20.5%; }
+      .tire-name { gap: 5px; font-size: 11px; }
+      .corner { width: 18px; height: 18px; font-size: 9px; }
+      .value { font-size: 11px; }
+      .tire-name > span:not(.corner) { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="topline">
+      <span class="sample-flag">Design concept · Sample telemetry</span>
+      <a href="index.html">Back to concepts</a>
+    </div>
+
+    <header class="masthead">
+      <p class="eyebrow">Race strategy / engineer worksheet</p>
+      <h1>Stint 02 · Pit window assessment</h1>
+      <p class="lede">Working estimate at lap 18. Fuel currently sets the projected pit-in limit; tire life remains available beyond it.</p>
+    </header>
+
+    <section class="brief" aria-label="Strategy brief and fuel estimate">
+      <div>
+        <h2 class="section-title">Current recommendation context</h2>
+        <div class="callout">
+          <p class="callout-label">Projected pit-in limit</p>
+          <strong>~4.2 laps</strong>
+          <p>Fuel-limited projection, not a target stop-time recommendation.</p>
+        </div>
+        <div class="brief-meta" aria-label="Session position">
+          <div><span class="meta-label">Current lap</span><span class="meta-value">18</span></div>
+          <div><span class="meta-label">Stint</span><span class="meta-value">02</span></div>
+          <div><span class="meta-label">Estimate status</span><span class="meta-value">Provisional</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="fuel-heading">
+          <h2 class="section-title">Fuel margin</h2>
+          <span class="fuel-tag">Consumption basis: current stint</span>
+        </div>
+        <div class="fuel-grid" aria-label="Fuel telemetry">
+          <div class="fuel-cell"><span class="fuel-number">12.6 <span class="fuel-unit">L</span></span><span class="fuel-caption">Fuel remaining</span></div>
+          <div class="fuel-cell"><span class="fuel-number">3.0 <span class="fuel-unit">L/lap</span></span><span class="fuel-caption">Average consumption</span></div>
+          <div class="fuel-cell"><span class="fuel-number">4.2 <span class="fuel-unit">laps</span></span><span class="fuel-caption">Projected limit</span></div>
+        </div>
+        <p class="fuel-note">Pit-in timing is bounded by usable fuel. It does not prescribe when to make the stop.</p>
+      </div>
+    </section>
+
+    <section class="tires" aria-labelledby="tires-title">
+      <div class="tires-head">
+        <h2 id="tires-title" class="section-title">Tire life comparison</h2>
+        <span class="threshold">Reference thresholds: cliff 55% · limit 35% health</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <caption>Current health, wear per lap, projected laps to cliff, and laps to limit by tire</caption>
+          <thead><tr><th scope="col">Tire</th><th scope="col">Health</th><th scope="col">Wear / lap</th><th scope="col">To cliff</th><th scope="col">To limit</th></tr></thead>
+          <tbody>
+            <tr>
+              <th scope="row" aria-label="Front left"><span class="tire-name"><span class="corner">FL</span><span>Front left</span></span></th>
+              <td><span class="value"><strong>71</strong><span class="unit">%</span></span><div class="health-track" aria-hidden="true"><div class="health-fill" style="width:71%"></div></div></td>
+              <td class="value">1.3<span class="unit">%/lap</span></td>
+              <td class="value">12.3<span class="unit"> laps</span></td>
+              <td class="value">27.7<span class="unit"> laps</span></td>
+            </tr>
+            <tr>
+              <th scope="row" aria-label="Front right"><span class="tire-name"><span class="corner">FR</span><span>Front right</span></span></th>
+              <td><span class="value"><strong>66</strong><span class="unit">%</span></span><div class="health-track" aria-hidden="true"><div class="health-fill" style="width:66%"></div></div></td>
+              <td class="value">1.6<span class="unit">%/lap</span></td>
+              <td class="value">6.9<span class="unit"> laps</span></td>
+              <td class="value">19.4<span class="unit"> laps</span></td>
+            </tr>
+            <tr>
+              <th scope="row" aria-label="Rear left"><span class="tire-name"><span class="corner">RL</span><span>Rear left</span></span></th>
+              <td><span class="value"><strong>78</strong><span class="unit">%</span></span><div class="health-track" aria-hidden="true"><div class="health-fill" style="width:78%"></div></div></td>
+              <td class="value">0.9<span class="unit">%/lap</span></td>
+              <td class="value">25.6<span class="unit"> laps</span></td>
+              <td class="value">47.8<span class="unit"> laps</span></td>
+            </tr>
+            <tr>
+              <th scope="row" aria-label="Rear right"><span class="tire-name"><span class="corner">RR</span><span>Rear right</span></span></th>
+              <td><span class="value"><strong>75</strong><span class="unit">%</span></span><div class="health-track" aria-hidden="true"><div class="health-fill" style="width:75%"></div></div></td>
+              <td class="value">1.1<span class="unit">%/lap</span></td>
+              <td class="value">18.2<span class="unit"> laps</span></td>
+              <td class="value">36.4<span class="unit"> laps</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="evidence" aria-label="Estimate evidence and history">
+      <details>
+        <summary>Evidence · current stint</summary>
+        <div class="detail-content">
+          <p><strong>Provisional estimate</strong> · based on 6 eligible laps from the current stint.</p>
+          <p>Fuel consumption and tire wear use stint averages; projected laps are estimates, not guaranteed remaining life.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Projection history · previous laps</summary>
+        <div class="detail-content">
+          <div class="history-list" aria-label="Previous fuel-limited pit-in projections">
+            <div class="history-item"><span>Lap 17</span><b>5.1 laps</b></div>
+            <div class="history-item"><span>Lap 16</span><b>6.2 laps</b></div>
+          </div>
+          <p>Prior fuel-limited projections shown for comparison; not stop-time recommendations.</p>
+        </div>
+      </details>
+    </section>
+    <footer>Engineer view · provisional calculations should be read with live race conditions.</footer>
+  </main>
+</body>
+</html>

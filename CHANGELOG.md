@@ -1,6 +1,9 @@
 ## Unreleased
 
 ### Features
+- Override tire cliff and dead-health thresholds per game and tire compound.
+- Open an expanded pit-estimate dialog with a projected lap horizon, four-wheel readings, and evidence.
+- Design and save race strategies from previous stint history, then load planned stops, fuel, and tires into the live dashboard.
 - Keep pit-estimate history across sessions and restarts, with per-driver clearing and evidence from compatible previous stints.
 - Review per-stint fuel use and four-wheel tire wear, then compare two stints with explicit units, sample counts, and unavailable data.
 - Choose a 50–100 Hz recording frequency for ACC, AC Evo, iRacing, or LMU during setup to reduce recording size. Live UDP recording is unchanged.
@@ -9,6 +12,12 @@
 - Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
 
 ### Fixes
+- Restore compatible previous-session evidence in live pit estimates.
+- Apply ACC and AC Evo tire-threshold overrides to native dry and wet compounds.
+- Retry failed race-plan saves with the latest draft edits.
+- Prevent draft edits and plan switching while a race-plan save is pending.
+- Preserve Forza performance index when switching compatible history sessions and derive missing values from matching evidence.
+- Let F1 dashboard pit estimates span the full left telemetry column.
 - Reject unknown car or track identities when reusing historical stint averages.
 - Preserve existing laps and strategy history when session reprocessing fails.
 - Keep valid stint measurements after recording segment breaks.

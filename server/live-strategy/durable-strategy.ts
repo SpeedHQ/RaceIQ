@@ -9,6 +9,8 @@ import { getServerGame } from "../games/registry";
 import { aggregateLapMetrics, STRATEGY_ALGORITHM_VERSION } from "./lap-metrics";
 import { StintMetricAccumulator } from "./stint-accumulator";
 import { strategyContext, strategyBoundaryReason, strategyContinuousWear, StrategyBoundary, StrategyBoundaryTracker } from "./strategy-context";
+import { getPacketTireCompound, getTireThresholds } from "@raceiq/shared/racing/live/tire-thresholds";
+import { getTireThresholdOverrides } from "../runtime/config/settings";
 import { subscribeStrategyHistory } from "./history-events";
 
 interface StintState {
@@ -368,6 +370,18 @@ export class DurableStrategyTracker {
   }
   consumeTireReset(): boolean { const reset = this.tireReset; this.tireReset = false; return reset; }
   private project(packet: TelemetryPacket, pit: LivePitData, state: StintState): LivePitData {
+    // Saved estimates start without PitTracker's frame projection.
+    if (!pit.tireThresholds) {
+      const overrides = getTireThresholdOverrides();
+      pit.tireThresholds = [
+        getTireThresholds(overrides, packet.gameId, getPacketTireCompound(packet, 0)),
+        getTireThresholds(overrides, packet.gameId, getPacketTireCompound(packet, 1)),
+        getTireThresholds(overrides, packet.gameId, getPacketTireCompound(packet, 2)),
+        getTireThresholds(overrides, packet.gameId, getPacketTireCompound(packet, 3)),
+      ];
+      pit.cliffPct = pit.tireThresholds.reduce((sum, value) => sum + value.cliffPct, 0) / 4;
+      pit.deadPct = pit.tireThresholds.reduce((sum, value) => sum + value.deadPct, 0) / 4;
+    }
     const live = state.live;
     const fuelRate = live.fuel.value;
     pit.fuelPerLap = fuelRate ?? 0;
@@ -380,8 +394,10 @@ export class DurableStrategyTracker {
       const wear = packet[wheels[wheel]];
       if (rate == null || !Number.isFinite(wear) || wear < 0 || wear > 1) continue;
       rates[wheel] = rate;
-      const toCliff = Math.max(0, 1 - pit.cliffPct / 100 - wear);
-      const toDead = Math.max(0, 1 - pit.deadPct / 100 - wear);
+      const thresholds = pit.tireThresholds?.[wheel];
+      if (!thresholds) continue;
+      const toCliff = Math.max(0, 1 - thresholds.cliffPct / 100 - wear);
+      const toDead = Math.max(0, 1 - thresholds.deadPct / 100 - wear);
       cliff[wheel] = toCliff === 0 ? 0 : rate > 0 ? toCliff / rate : null;
       dead[wheel] = toDead === 0 ? 0 : rate > 0 ? toDead / rate : null;
       if (getServerGame(packet.gameId).runtime.pit.useDistanceBasedWearCurves && live.tires[wheel].source === "current-stint" && !live.tires[wheel].provisional) {

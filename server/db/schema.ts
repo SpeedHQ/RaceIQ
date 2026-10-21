@@ -994,3 +994,22 @@ export const strategySourceAdmissions = sqliteTable("strategy_source_admissions"
 	primaryKey({ columns: [table.sessionId, table.sourceKey] }),
 	uniqueIndex("strategy_source_admissions_order_idx").on(table.sessionId, table.epochOrdinal, table.sequence),
 ]);
+
+export const racePlans = sqliteTable("race_plans", {
+	id: text("id").primaryKey(),
+	gameId: text("game_id").notNull(),
+	carId: text("car_id").notNull(),
+	trackId: text("track_id").notNull(),
+	pi: real("pi"),
+	createdAt: text("created_at").notNull(),
+	updatedAt: text("updated_at").notNull(),
+	payload: text("payload").notNull(),
+}, (table) => [
+	index("race_plans_game_updated_idx").on(table.gameId, table.updatedAt, table.id),
+	index("race_plans_identity_idx").on(table.gameId, table.carId, table.trackId, table.pi),
+]);
+
+export const activeRacePlan = sqliteTable("active_race_plan", {
+	id: integer("id").primaryKey(),
+	planId: text("plan_id").references(() => racePlans.id, { onDelete: "set null" }),
+});

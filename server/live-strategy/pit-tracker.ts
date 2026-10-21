@@ -1,8 +1,12 @@
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { LivePitData } from "@raceiq/shared/racing/live/types";
+import type { TireThresholds } from "@raceiq/shared/racing/live/tire-thresholds";
 import { appendWithCap, interpolateGrid, lapsUntilThreshold, linearInterpolate, rollingAverage } from "./tracker-math";
 
-const CRITICAL_HEALTH_THRESHOLD = 0.2;
+const DEFAULT_TIRE_THRESHOLDS: TireThresholds = { cliffPct: 40, deadPct: 20 };
+const DEFAULT_TIRE_THRESHOLD_SET: [TireThresholds, TireThresholds, TireThresholds, TireThresholds] = [
+  DEFAULT_TIRE_THRESHOLDS, DEFAULT_TIRE_THRESHOLDS, DEFAULT_TIRE_THRESHOLDS, DEFAULT_TIRE_THRESHOLDS,
+];
 
 /**
  * Server-side pit strategy tracker.
@@ -45,8 +49,6 @@ export class PitTracker {
   private lastCurrentLap = 0;
   private sessionLapCount = 0;
 
-  // Health thresholds supplied by the active adapter.
-  private badHealthThreshold = 0.4;
   private tireWearAvailable = true;
 
   reset(): void {
@@ -63,9 +65,6 @@ export class PitTracker {
     this.sessionLapCount = 0;
   }
 
-  setTireThresholds(yellow: number): void {
-    this.badHealthThreshold = yellow;
-  }
 
   setTireWearAvailable(available: boolean): void {
     this.tireWearAvailable = available;
@@ -92,7 +91,12 @@ export class PitTracker {
     return false;
   }
 
-  feed(packet: TelemetryPacket, trackLength: number, lapDistStart: number = 0): LivePitData {
+  feed(
+    packet: TelemetryPacket,
+    trackLength: number,
+    lapDistStart: number = 0,
+    tireThresholds: [TireThresholds, TireThresholds, TireThresholds, TireThresholds] = DEFAULT_TIRE_THRESHOLD_SET,
+  ): LivePitData {
     // Detect lap boundary
     if (this.lastLap >= 0 && packet.LapNumber > this.lastLap) {
       const lapTime = this.lastCurrentLap; // CurrentLap at end of previous lap
@@ -200,16 +204,16 @@ export class PitTracker {
 
     // Per-tire estimates
     for (let i = 0; i < 4; i++) {
+      if (!Number.isFinite(wears[i]) || wears[i] < 0 || wears[i] > 1) continue;
       const health = 1 - wears[i];
-      toCliff[i] = lapsUntilThreshold(health, this.badHealthThreshold, projectedWearPerLap[i]);
-      toDead[i] = lapsUntilThreshold(health, CRITICAL_HEALTH_THRESHOLD, projectedWearPerLap[i]);
+      toCliff[i] = lapsUntilThreshold(health, tireThresholds[i].cliffPct / 100, projectedWearPerLap[i]);
+      toDead[i] = lapsUntilThreshold(health, tireThresholds[i].deadPct / 100, projectedWearPerLap[i]);
     }
 
-    // Worst-tire summary
-    const worstWear = Math.max(...wears);
-    const health = 1 - worstWear;
-    const tireLapsToBad = lapsUntilThreshold(health, this.badHealthThreshold, worstWearPerLap);
-    const tireLapsToCritical = lapsUntilThreshold(health, CRITICAL_HEALTH_THRESHOLD, worstWearPerLap);
+    const tireLapsToBad = toCliff.reduce<number | null>((soonest, laps) =>
+      laps == null ? soonest : soonest == null ? laps : Math.min(soonest, laps), null);
+    const tireLapsToCritical = toDead.reduce<number | null>((soonest, laps) =>
+      laps == null ? soonest : soonest == null ? laps : Math.min(soonest, laps), null);
 
     const tireLapsRemaining = tireLapsToBad;
 
@@ -237,6 +241,7 @@ export class PitTracker {
       currentLapFuelUsed,
       tireLapsToBad,
       tireLapsToCritical,
+      tireThresholds,
       tireEstimates: {
         toCliff,
         toDead,
@@ -248,8 +253,8 @@ export class PitTracker {
       limitedBy,
       trackLength,
       estimateSource,
-      cliffPct: Math.round(this.badHealthThreshold * 100),
-      deadPct: Math.round(CRITICAL_HEALTH_THRESHOLD * 100),
+      cliffPct: tireThresholds.reduce((sum, threshold) => sum + threshold.cliffPct, 0) / 4,
+      deadPct: tireThresholds.reduce((sum, threshold) => sum + threshold.deadPct, 0) / 4,
     };
   }
 
@@ -350,9 +355,7 @@ export class PitTracker {
       lapTimeHistoryLength: this.lapTimeHistory.length,
       lastCurrentLap: this.lastCurrentLap,
       sessionLapCount: this.sessionLapCount,
-      badHealthThreshold: this.badHealthThreshold,
       tireWearAvailable: this.tireWearAvailable,
-      criticalHealth: CRITICAL_HEALTH_THRESHOLD,
     };
   }
 }

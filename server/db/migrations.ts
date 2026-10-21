@@ -2145,6 +2145,23 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       END`,
     ],
   },
+  {
+    version: 83,
+    name: "persist saved race plans",
+    sql: [
+      `CREATE TABLE race_plans (
+        id TEXT PRIMARY KEY, game_id TEXT NOT NULL, car_id TEXT NOT NULL, track_id TEXT NOT NULL,
+        pi REAL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, payload TEXT NOT NULL
+      )`,
+      `CREATE INDEX race_plans_game_updated_idx ON race_plans(game_id, updated_at DESC, id)`,
+      `CREATE INDEX race_plans_identity_idx ON race_plans(game_id, car_id, track_id, pi)`,
+      `CREATE TABLE active_race_plan (
+        id INTEGER PRIMARY KEY CHECK(id = 1),
+        plan_id TEXT REFERENCES race_plans(id) ON DELETE SET NULL
+      )`,
+      `INSERT INTO active_race_plan(id, plan_id) VALUES(1, NULL)`,
+    ],
+  },
 ];
 const dashboardCanonicalTriggers = (() => {
   const readModel = migrations.find((migration) => migration.version === 68);

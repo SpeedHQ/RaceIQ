@@ -101,7 +101,7 @@ export function F1LiveDashboard() {
               healthAvailable={view.tires.wear !== undefined}
             />
           </div>
-          <div className="p-3">
+          <div className="col-span-2 min-w-0 border-t border-app-border p-3">
             <PitEstimate view={view} pit={pit} />
           </div>
         </div>

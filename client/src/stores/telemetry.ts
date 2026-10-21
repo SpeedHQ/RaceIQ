@@ -1,3 +1,4 @@
+import type { TireThresholdOverrides } from "@raceiq/shared/racing/live/tire-thresholds";
 import { createStore, useSelector, type StoreActionMap } from "@tanstack/react-store";
 import { advanceReprocess, beginReprocess, completeReprocess, dismissReprocess, failReprocess, initialReprocessState, type ReprocessState } from "@/lib/reprocess-state";
 import type { LivePitData, LiveSectorData } from "@raceiq/shared/racing/live/types";
@@ -50,6 +51,8 @@ export interface DisplaySettings {
   onboardingComplete?: boolean;
   /** Game IDs excluded from nav and home page */
   hiddenGames?: string[];
+  /** Per-game, per-compound remaining-health thresholds. */
+  tireThresholdOverrides?: TireThresholdOverrides;
   /** Whether to launch RaceIQ automatically on Windows login */
   launchOnLogin?: boolean;
   /** UI + AI output language (ISO code, e.g. "en", "de"). */

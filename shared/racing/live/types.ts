@@ -1,3 +1,4 @@
+import type { TireThresholds } from "./tire-thresholds";
 import type { LiveStrategy } from "./strategy";
 
 export interface LiveSectorData {
@@ -24,6 +25,8 @@ export interface LivePitData {
   tireLapsToBad: number | null;
   /** Laps until worst tire hits 20% health (critical / near-dead). */
   tireLapsToCritical: number | null;
+  /** Effective cliff/dead health thresholds per tire [FL, FR, RL, RR]. */
+  tireThresholds?: [TireThresholds, TireThresholds, TireThresholds, TireThresholds];
   /** Per-tire laps to cliff and to dead, and wear rate per lap. */
   tireEstimates: {
     toCliff: [number | null, number | null, number | null, number | null]; // FL, FR, RL, RR

@@ -1,3 +1,4 @@
 server/test/games/shared/native-capture-rate-limiter.test.ts
 server/test/games/shared/win-timer-resolution.test.ts
+server/test/games/shared/tire-thresholds.test.ts
 server/test/runtime/mac-keychain.test.ts

@@ -14,7 +14,9 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { useTelemetryStore } from "@/stores/telemetry";
 import { PitWindow } from "./PitWindow";
 import { StrategyHistory } from "./StrategyHistory";
+import { PitEstimateDialog } from "./PitEstimateDialog";
 import { strategyRateText } from "@/lib/strategy-format";
+import { LiveRaceStrategy } from "./LiveRaceStrategy";
 
 interface PitEstimateProps {
   packet?: TelemetryPacket;
@@ -83,12 +85,12 @@ export function PitEstimate({ packet, view, pit }: PitEstimateProps) {
 
   const fuelLaps = !fuelAvailable || !receivedRevisionCurrent && receivedStrategy?.fuel.source === "history" ? null : pit?.fuelLapsRemaining ?? null;
   const tireLabels = ["FL", "FR", "RL", "RR"] as const;
-  // Per-tire display
   const tireData = tireLabels.map((label, i) => {
     const health = healthAvailable && Number.isFinite(wears[i]) && wears[i] >= 0 && wears[i] <= 1 ? (1 - wears[i]) * 100 : null;
     const canEstimateWear = analysis.tireWearRate.source !== "unavailable";
     const wearRate = strategy ? strategy.tires[i]?.value ?? null : canEstimateWear ? pit?.tireEstimates?.wearPerLap[i] ?? null : null;
     const staleProjection = !receivedRevisionCurrent && receivedStrategy?.tires[i]?.source === "history";
+    const thresholds = pit?.tireThresholds?.[i];
     return {
       label,
       health,
@@ -96,8 +98,18 @@ export function PitEstimate({ packet, view, pit }: PitEstimateProps) {
       toCliff: canEstimateWear && !staleProjection ? (pit?.tireEstimates?.toCliff[i] ?? null) : null,
       toDead: canEstimateWear && !staleProjection ? (pit?.tireEstimates?.toDead[i] ?? null) : null,
       wearPerLap: wearRate == null ? null : (wearRate * 100).toFixed(1),
+      cliffPct: thresholds?.cliffPct ?? pit?.cliffPct ?? null,
+      deadPct: thresholds?.deadPct ?? pit?.deadPct ?? null,
     };
   });
+  const cliffThresholds = [...new Set(tireData.map((tire) => tire.cliffPct))];
+  const deadThresholds = [...new Set(tireData.map((tire) => tire.deadPct))];
+  const cliffHeader = cliffThresholds.length > 1 ? `${m.pit_cliff()} · ${m.pit_mixed_thresholds()}` : pit ? `${m.pit_cliff()} ${cliffThresholds[0]}%` : m.pit_cliff();
+  const deadHeader = deadThresholds.length > 1 ? `${m.pit_dead()} · ${m.pit_mixed_thresholds()}` : pit ? `${m.pit_dead()} ${deadThresholds[0]}%` : m.pit_dead();
+  const projectionPit = !receivedRevisionCurrent && (receivedStrategy?.fuel.source === "history" || receivedStrategy?.tires.some((rate) => rate.source === "history")) ? null : pit;
+  const dialogPit = projectionPit && !fuelAvailable
+    ? { ...projectionPit, fuelLapsRemaining: null, ...(projectionPit.limitedBy === "fuel" ? { pitInLaps: null, limitedBy: null } : {}) }
+    : projectionPit;
 
   const pitStatus = telemetryModel.pitStatus ? (view?.competitors[0]?.pitStatus ?? packet?.acc?.pitStatus ?? (packet?.iracing?.onPitRoad || packet?.lmu?.inPits ? "pit_lane" : "out")) : undefined;
   const pitBadge = pitStatus === "in_pit" ? { label: m.pit_in_pit(), color: "var(--status-info)" } : pitStatus === "pit_lane" ? { label: m.pit_pit_lane(), color: "var(--status-warning)" } : null;
@@ -115,7 +127,26 @@ export function PitEstimate({ packet, view, pit }: PitEstimateProps) {
         ) : (
           <span />
         )}
-        <PitWindow pit={!receivedRevisionCurrent && (receivedStrategy?.fuel.source === "history" || receivedStrategy?.tires.some((rate) => rate.source === "history")) ? null : pit} />
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          <PitWindow pit={projectionPit} />
+          <PitEstimateDialog
+            gameId={gameId}
+            sessionId={sessionId}
+            currentLap={view?.timing.lapNumber ?? packet?.LapNumber ?? null}
+            carId={view?.identity.carId ?? packet?.carId ?? null}
+            trackId={view?.identity.trackId ?? packet?.trackId ?? null}
+            pi={view?.identity.performanceIndex ?? packet?.CarPerformanceIndex ?? null}
+            pit={dialogPit}
+            fuelAmount={fuelAvailable ? fuel.amount : null}
+            fuelUnit={fuel.unit}
+            strategy={strategy}
+            tires={tireData}
+            historyDriverKey={historyDriverKey}
+          />
+        </div>
+      </div>
+      <div className="mb-3">
+        <LiveRaceStrategy gameId={gameId} carId={view?.identity.carId ?? packet?.carId ?? null} trackId={view?.identity.trackId ?? packet?.trackId ?? null} pi={view?.identity.performanceIndex ?? packet?.CarPerformanceIndex ?? null} currentLap={view?.timing.lapNumber ?? packet?.LapNumber ?? null} />
       </div>
       <div className="space-y-3">
         {/* Fuel row */}
@@ -158,14 +189,8 @@ export function PitEstimate({ packet, view, pit }: PitEstimateProps) {
             <div />
             <div className="text-app-caption text-app-text-dim uppercase tracking-wider text-right w-12">{m.pit_health()}</div>
             <div className="text-app-caption text-app-text-dim uppercase tracking-wider text-right w-14">{m.pit_wear_lap()}</div>
-            <div className="text-app-caption uppercase tracking-wider text-right w-12 text-(--severity-caution)/70">
-              {m.pit_cliff()}
-              {pit?.cliffPct ? ` ${pit.cliffPct}%` : ""}
-            </div>
-            <div className="text-app-caption uppercase tracking-wider text-right w-12 text-(--severity-critical)/70">
-              {m.pit_dead()}
-              {pit?.deadPct ? ` ${pit.deadPct}%` : ""}
-            </div>
+            <div className="text-app-caption whitespace-normal leading-tight uppercase tracking-wider text-right w-12 text-(--severity-caution)/70">{cliffHeader}</div>
+            <div className="text-app-caption whitespace-normal leading-tight uppercase tracking-wider text-right w-12 text-(--severity-critical)/70">{deadHeader}</div>
           </div>
           {tireData.map((t) => (
             <div key={t.label} className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-x-2 items-center py-1.5 px-0.5">

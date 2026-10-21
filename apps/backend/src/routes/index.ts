@@ -22,6 +22,7 @@ import { cacheRoutes } from "./cache-routes";
 import { devRoutes } from "./dev/index";
 import { dashboardRoutes } from "./dashboard-routes";
 
+import { racePlanRoutes } from "./race-plan-routes";
 const app = new Hono()
   .use("/*", async (c, next) => {
     const denied = await httpAccess.authorize(c.req.raw);
@@ -47,6 +48,7 @@ const app = new Hono()
   .route("/", chatsRoutes)
   .route("/", chatRunRoutes)
   .route("/", dashboardRoutes)
+  .route("/", racePlanRoutes)
   .route("/", sessionRoutes)
   .route("/", trackRoutes)
   .route("/", carRoutes)
