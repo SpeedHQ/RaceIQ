@@ -14,6 +14,7 @@ import soundfile as sf
 
 ROOT = Path(__file__).resolve().parents[2]
 SPEC_PATH = ROOT / "scripts/live-engineer/live-engineer-v3-spec.json"
+DAMAGE_PATH = ROOT / "shared/racing/live/damage-callouts.json"
 OUT = ROOT / "client/public/audio/live-engineer/qwen-v3"
 WORK_DEFAULT = ROOT / ".cache/live-engineer/qwen-v3"
 MODEL = "Qwen/Qwen3-TTS-12Hz-1.7B-Base"
@@ -49,9 +50,9 @@ def expand_spec(spec: dict) -> list[dict]:
     for segment_id, text in spec["fixed"]: clips.append({"id": segment_id, "text": text, "role": "fixed"})
     for segment_id, text in spec["paceTails"] + spec["opponentTails"]: clips.append({"id": segment_id, "text": text, "role": "fixed"})
     for segment_id, text in spec["raceEngineer"]: clips.append({"id": f"race-engineer.{segment_id}", "text": text, "role": "fixed"})
-    for location in spec["damageLocations"]:
-        position = f"at the {location}" if location in ("front", "rear") else f"in the {location}" if location == "centre" else f"on the {location}"
-        clips += [{"id": f"race-engineer.damage-{location}", "text": f"You've got damage {position}.", "role": "fixed"}, {"id": f"race-engineer.damage-heavy-{location}", "text": f"Heavy damage {position}.", "role": "fixed"}]
+    for signal in read_json(DAMAGE_PATH):
+        clips.append({"id": f"race-engineer.damage-{signal['component']}", "text": signal["text"], "role": "fixed"})
+        if signal.get("heavyText"): clips.append({"id": f"race-engineer.damage-heavy-{signal['component']}", "text": signal["heavyText"], "role": "fixed"})
     spotter = {"car-left":"Car left.", "car-right":"Car right.", "still-there":"Still there.", "three-wide-left":"Three wide, left.", "three-wide-right":"Three wide, right.", "clear-left":"Clear left.", "clear-right":"Clear right."}
     for state, text in spotter.items():
         if not any(item["id"] == f"spotter.{state}" for item in clips): clips.append({"id": f"spotter.{state}", "text": text, "role": "fixed"})
@@ -126,15 +127,19 @@ def synthesize(spec: dict, device: str, dtype: str, work_dir: Path, regenerate_p
     oracle_by_line = {line["lineId"]: {"oracleId": f"oracle.{line['lineId']}", "text": line["spokenText"], "path": line["path"], "sha256": line["sha256"], "durationMs": line["durationMs"], "recipeSegmentIds": []} for line in full_lines}
     recipes = [{"approvalId": f"full-line.{line['lineId']}", "mode": "automatic", "scopeOrDirection": line["lineId"], "segmentIds": [], "oracleId": f"oracle.{line['lineId']}", "status": "not-listened"} for line in full_lines]
     manifest = {"catalogVersion": spec["catalogVersion"], "model": MODEL, "modelRevision": REVISION, "sampleRate": clips[0]["sampleRate"], "channels": 1, "format": "FLAC PCM_16", "listeningStatus": "not-listened", "approvals": {"fixed": {clip["segmentId"]: "not-listened" for clip in clips if clip["role"] == "fixed"}, "recipes": recipes}, "assembly": {"mode": "exact-buffer", "gapMs": 0, "edgeFadeMs": 3}, "referenceText": REFERENCE_TEXT, "referenceSha256": sha256(REFERENCE), "sampleSpecification": str(SPEC_PATH.relative_to(ROOT)).replace("\\", "/"), "specificationSha256": sha256(SPEC_PATH), "generator": str(Path(__file__).relative_to(ROOT)).replace("\\", "/"), "generatorSha256": sha256(Path(__file__)), "clips": clips, "fullLines": full_lines, "oracles": list(oracle_by_line.values())}
+    manifest["damageSpecification"] = str(DAMAGE_PATH.relative_to(ROOT)).replace("\\", "/")
+    manifest["damageSpecificationSha256"] = sha256(DAMAGE_PATH)
     write_json(OUT / "manifest.json", manifest); return {"clipCount": len(clips), "fullLineCount": len(full_lines), "generated": True}
 
 def check_catalog(spec: dict) -> dict:
-    manifest = read_json(OUT / "manifest.json"); expected = {clip["id"] for clip in expand_spec(spec)}; actual = {clip.get("segmentId") for clip in manifest.get("clips", [])}
+    manifest = read_json(OUT / "manifest.json"); expected_text = {clip["id"]: clip["text"] for clip in expand_spec(spec)}; expected = set(expected_text); actual = {clip.get("segmentId") for clip in manifest.get("clips", [])}
+    if actual - expected: raise SystemExit(f"manifest contains obsolete clips: {sorted(actual - expected)}")
     missing = expected - actual
     if missing: raise SystemExit(f"manifest missing {len(missing)} clips; first {sorted(missing)[0]}")
     if manifest.get("catalogVersion") != spec["catalogVersion"]: raise SystemExit("catalog version mismatch")
     for clip in manifest["clips"]:
         path = OUT / clip["path"]
+        if clip.get("spokenText") != expected_text[clip["segmentId"]]: raise SystemExit(f"transcript mismatch: {clip['segmentId']}")
         if not path.is_file() or sha256(path) != clip.get("sha256") or clip.get("sampleRate") != 24000 or clip.get("frames", 0) <= 0: raise SystemExit(f"invalid asset: {clip['segmentId']}")
     return {"clipCount": len(actual), "fullLineCount": len(manifest.get("fullLines", [])), "catalogVersion": manifest["catalogVersion"]}
 

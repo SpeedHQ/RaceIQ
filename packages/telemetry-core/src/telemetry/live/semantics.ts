@@ -25,7 +25,7 @@ export const LIVE_ENGINEER_GAME_IDS = ["acc", "iracing"] as const;
 export function isLiveEngineerGameId(gameId: GameId): gameId is (typeof LIVE_ENGINEER_GAME_IDS)[number] {
   return (LIVE_ENGINEER_GAME_IDS as readonly string[]).includes(gameId);
 }
-export const ENGINEER_SUPPORTED_GAME_IDS = ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing"] as const;
+export const ENGINEER_SUPPORTED_GAME_IDS = ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing", "lmu"] as const;
 export function isEngineerSupportedGameId(gameId: GameId): gameId is (typeof ENGINEER_SUPPORTED_GAME_IDS)[number] {
   return (ENGINEER_SUPPORTED_GAME_IDS as readonly string[]).includes(gameId);
 }

@@ -1,5 +1,6 @@
 import type { OpponentPaceRenderParametersV1, OpponentPaceTextKeyV1, LiveEngineerVoiceModeV1 } from "@raceiq/shared/racing/live/engineer-contracts";
 import fullLineCatalog from "@raceiq/shared/racing/live/full-lines.json";
+import damageCallouts from "@raceiq/shared/racing/live/damage-callouts.json";
 import type { RaceEngineerTriggerEventV1 } from "./race-engineer-triggers/contracts";
 import type { SpotterStateV1 } from "@raceiq/shared/racing/live/spotter-contracts";
 
@@ -135,14 +136,14 @@ export function renderSpotter(state: SpotterStateV1): LiveEngineerRenderedSpeech
 }
 
 export function formatLapTime(ms: number): string { return `${(ms / 1000).toFixed(3)}`; }
-const CREW_CHIEF_EVENT_TEXT: Readonly<Record<string, string>> = {
+const RACE_ENGINEER_EVENT_TEXT: Readonly<Record<string, string>> = {
   "position-changed": "Position changed.", "pre-lights": "Get ready for the start.", "green-flag": "Green flag.", "final-lap": "Final lap.",
   "lap-completed": "Lap completed.", "lap-invalidated": "Lap invalidated.", "opponent-lap-completed": "Opponent lap completed.",
   "multiclass-traffic": "Multiclass traffic ahead.", "penalty-issued": "Penalty issued.", "pit-entry": "Pit entry.", "pit-exit": "Pit exit.",
   "fuel-low": "Fuel is low.", "fuel-critical": "Fuel is critical.", "flag-change": "Flag changed.",
   "tyres-cold": "Tires are cold.", "tyres-hot": "Tires are hot.", "tyres-cooking": "Tires are overheating.",
   "water-temperature-hot": "Water temperature is high.", "water-temperature-clear": "Water temperature is clear.",
-  "damage-reported": "Damage reported.", "rain-changed": "Rain conditions changed.",
+  "rain-changed": "Rain conditions changed.",
   "race-time-15-minutes": "Fifteen minutes remaining.", "race-time-10-minutes": "Ten minutes remaining.",
   "race-time-5-minutes": "Five minutes remaining.", "race-time-2-minutes": "Two minutes remaining.", "race-time-1-minute": "One minute remaining.",
   "session-ended": "Session finished.",
@@ -153,24 +154,34 @@ const CREW_CHIEF_EVENT_TEXT: Readonly<Record<string, string>> = {
   "fuel-to-finish": "You now have enough fuel to finish at this consumption.",
   "push-now": "Closing laps. Fuel looks good. Push now.", "drs-open": "DRS is open.", "drs-closed": "DRS is closed.",
 };
+const damageCalloutsByComponent = new Map(damageCallouts.map((signal) => [signal.component, signal]));
 export function renderRaceEngineerEvent(event: RaceEngineerTriggerEventV1, options: { voiceMode?: LiveEngineerVoiceModeV1 } = {}): LiveEngineerRenderedSpeech | null {
   // Entry notification arrives after driver already committed to pit lane; it adds no actionable information.
   if (event.eventKey === "pit-entry") return null;
+  if (event.eventKey === "damage-reported") {
+    const component = event.payload.component;
+    const level = event.payload.level;
+    const signal = typeof component === "string" ? damageCalloutsByComponent.get(component) : undefined;
+    if (!signal || (level !== 1 && level !== 2)) return null;
+    const text = level === 2 ? signal.heavyText : signal.text;
+    if (!text) return null;
+    return {
+      textKey: `live_engineer_damage_${component}`, text,
+      segmentIds: [`race-engineer.damage-${level === 2 ? "heavy-" : ""}${component}`],
+      voiceMode: options.voiceMode ?? "automatic",
+    };
+  }
   const minutes = event.payload.minutesRemaining;
   const speechKey = event.eventKey === "race-time-remaining"
     ? typeof minutes === "number" && [15, 10, 5, 2, 1].includes(minutes)
       ? `race-time-${minutes}-${minutes === 1 ? "minute" : "minutes"}` : ""
     : event.eventKey;
-  const baseText = CREW_CHIEF_EVENT_TEXT[speechKey];
+  const baseText = RACE_ENGINEER_EVENT_TEXT[speechKey];
   if (!baseText) return null;
   const flag = event.eventKey === "flag-change" ? String(event.payload.current ?? "").toLowerCase() : "";
-  const damageEntries = event.eventKey === "damage-reported" ? (["front", "rear", "left", "right", "centre"] as const).map((location) => [location, Number(event.payload[location])] as const).filter((entry) => Number.isFinite(entry[1])) : [];
-  const damage = damageEntries.find(([location]) => location === event.payload.location) ?? damageEntries.sort((a, b) => b[1] - a[1])[0];
-  const damageLocation = damage?.[0];
-  const damageHeavy = damage !== undefined && damage[1] >= 0.3;
-  const text = flag === "black" ? "Black flag. Black flag." : flag === "blue" ? "Blue flag." : flag === "green" ? "Green flag." : damageLocation ? `${damageHeavy ? "Heavy damage" : "You've got damage"} ${damageLocation === "front" ? "at the front." : damageLocation === "rear" ? "at the rear." : damageLocation === "left" ? "on the left." : damageLocation === "right" ? "on the right." : "in the centre."}` : baseText;
+  const text = flag === "black" ? "Black flag. Black flag." : flag === "blue" ? "Blue flag." : flag === "green" ? "Green flag." : baseText;
   const voiceMode = options.voiceMode ?? "automatic";
-  const segmentId = flag === "black" ? "race-engineer.black-flag" : flag === "blue" ? "race-engineer.blue-flag" : flag === "green" ? "race-engineer.green-flag" : damageLocation ? `race-engineer.damage-${damageHeavy ? "heavy-" : ""}${damageLocation}` : `race-engineer.${speechKey}`;
+  const segmentId = flag === "black" ? "race-engineer.black-flag" : flag === "blue" ? "race-engineer.blue-flag" : flag === "green" ? "race-engineer.green-flag" : `race-engineer.${speechKey}`;
   const lapTimeMs = event.eventKey === "lap-completed" ? typeof event.payload.lapTimeMs === "number" && Number.isFinite(event.payload.lapTimeMs) ? event.payload.lapTimeMs : typeof event.payload.time === "number" && Number.isFinite(event.payload.time) ? Math.round(event.payload.time * 1000) : undefined : undefined;
   if (lapTimeMs !== undefined) {
     const lap = renderLapTime(lapTimeMs);

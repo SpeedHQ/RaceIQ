@@ -59,6 +59,8 @@ interface NormalizedWheel {
   carcassTemperatureC: number;
   wear: number;
   onRumbleStrip: number;
+  flat: number;
+  detached: number;
 }
 
 function finiteDouble(buffer: Buffer, offset: number, fallback = 0): number {
@@ -165,6 +167,8 @@ function wheel(telemetry: Buffer, index: number): NormalizedWheel {
     wear: 1 - clamp(finiteDouble(telemetry, offset + LMU_WHEEL.wear), 0, 1),
     onRumbleStrip:
       telemetry.readUInt8(offset + LMU_WHEEL.surfaceType) === 5 ? 1 : 0,
+    flat: telemetry.readUInt8(offset + LMU_WHEEL.flat),
+    detached: telemetry.readUInt8(offset + LMU_WHEEL.detached),
   };
 }
 
@@ -376,6 +380,8 @@ export function normalizeLMUSourceFrame(
       LMU_SCORING_INFO.trackGripLevel,
     ),
     cloudCoverage,
+    wheelFlat: [wheels.FL.flat, wheels.FR.flat, wheels.RL.flat, wheels.RR.flat],
+    wheelDetached: [wheels.FL.detached, wheels.FR.detached, wheels.RL.detached, wheels.RR.detached],
   };
 
   return {

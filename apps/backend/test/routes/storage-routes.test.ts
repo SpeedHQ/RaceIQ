@@ -48,7 +48,7 @@ describe("session storage stats", () => {
         await mkdir(join(path, ".."), { recursive: true });
         await writeFile(path, Buffer.from("file"));
       }
-      await symlink(externalDir, join(root, gameId, "own", "linked-dir"), "dir");
+      await symlink(externalDir, join(root, gameId, "own", "linked-dir"), process.platform === "win32" ? "junction" : "dir");
       const response = await miscRoutes.request("/api/storage/sessions");
       const body = await response.json() as {
         byGame: Record<string, { binCount: number; gzCount: number; binBytes: number; gzBytes: number }>;

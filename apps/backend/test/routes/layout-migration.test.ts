@@ -310,7 +310,11 @@ describe("recording layout migration", () => {
     const journalPath = join(resolveDataDir(), "recording-layout-migration.json");
     const contents = JSON.stringify({ outside: true });
     await writeFile(target, contents);
-    await symlink(target, journalPath);
+    if (process.platform === "win32") {
+      await symlink(external, journalPath, "junction");
+    } else {
+      await symlink(target, journalPath);
+    }
     const response = await miscRoutes.request("/api/storage/layout-migration");
     expect((await response.json() as { progress: { status: string; error: string | null } }).progress).toMatchObject({ status: "error" });
     expect(await readFile(target, "utf8")).toBe(contents);

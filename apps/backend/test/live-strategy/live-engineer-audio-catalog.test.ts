@@ -4,6 +4,7 @@ import * as renderer from "@raceiq/backend-core/live-strategy/live-engineer-rend
 import { renderLapTime, renderOpponentLapPace, renderOpponentPace, renderSpotter } from "@raceiq/backend-core/live-strategy/live-engineer-renderer";
 import { SPOTTER_STATES } from "@raceiq/shared/racing/live/spotter-contracts";
 import { raceEngineerSource } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/contracts";
+import damageCallouts from "@raceiq/shared/racing/live/damage-callouts.json";
 
 type Manifest = {
   clips: Array<{ segmentId: string; path: string; spokenText: string }>;
@@ -57,7 +58,7 @@ test("every reachable Race Engineer event renders deterministic packaged speech"
     ["fuel-low", { fuelPercent: 12 }], ["fuel-critical", { fuelPercent: 4 }], ["flag-change", { current: "black" }], ["flag-change", { current: "blue" }],
     ["tyres-cold", { tyreTemperatureC: 62 }], ["tyres-hot", { tyreTemperatureC: 103 }], ["tyres-cooking", { tyreTemperatureC: 118 }],
     ["water-temperature-hot", { waterTemperatureC: 108 }], ["water-temperature-clear", { waterTemperatureC: 94 }],
-    ["damage-reported", { front: 0.45, rear: 0.02, left: 0.01, right: 0.03, centre: 0 }],
+    ["damage-reported", { component: "front-left-wing", level: 2, value: 45 }],
   ] as const;
   for (const [eventKey, payload] of events) {
     const rendered = renderRaceEngineerEvent({ eventKey, family: "Fuel", severity: "info", triggerId: `test/${eventKey}`, sessionId: "test-session", timelineEpoch: 1, sourceSequence: 1, sessionTimeMs: 120_000, source: raceEngineerSource("Fuel"), payload }, { voiceMode: "automatic" });
@@ -66,26 +67,26 @@ test("every reachable Race Engineer event renders deterministic packaged speech"
     expect(rendered.text, eventKey).not.toBe("");
     expect(rendered.segmentIds.length, eventKey).toBeGreaterThan(0);
     const expectedFlag = "current" in payload ? String(payload.current) : "";
-    const expectedSegmentId = expectedFlag === "black" ? "race-engineer.black-flag" : expectedFlag === "blue" ? "race-engineer.blue-flag" : eventKey === "flag-change" && expectedFlag === "green" ? "race-engineer.green-flag" : eventKey === "damage-reported" ? "race-engineer.damage-heavy-front" : eventKey === "lap-completed" ? "lap.lead.your-lap-was" : `race-engineer.${eventKey}`;
+    const expectedSegmentId = expectedFlag === "black" ? "race-engineer.black-flag" : expectedFlag === "blue" ? "race-engineer.blue-flag" : eventKey === "flag-change" && expectedFlag === "green" ? "race-engineer.green-flag" : eventKey === "damage-reported" ? "race-engineer.damage-heavy-front-left-wing" : eventKey === "lap-completed" ? "lap.lead.your-lap-was" : `race-engineer.${eventKey}`;
     expect(rendered.segmentIds.some((id) => id === expectedSegmentId), eventKey).toBe(true);
     expect(rendered.voiceMode, eventKey).toBe("automatic");
     expectRenderedClipsReady(eventKey, rendered.segmentIds);
   }
 });
 
-test("damage captions match synthesized speech for every zone and severity", () => {
-  for (const location of ["front", "rear", "left", "right", "centre"] as const) {
-    for (const damage of [0.2, 0.3]) {
+test("component damage captions match every synthesized normal and heavy clip", () => {
+  for (const signal of damageCallouts) {
+    for (const level of signal.heavyText ? [1, 2] : [1]) {
       const rendered = renderer.renderRaceEngineerEvent({
         eventKey: "damage-reported", family: "DamageReporting", severity: "warning",
         triggerId: "test/damage", sessionId: "test-session", timelineEpoch: 1,
         sourceSequence: 1, sessionTimeMs: 120_000,
         source: raceEngineerSource("DamageReporting"),
-        evidenceSemanticIds: [], payload: { location, [location]: damage },
+        evidenceSemanticIds: [], payload: { component: signal.component, level },
       });
       const clip = manifest.clips.find((entry) => entry.segmentId === rendered?.segmentIds[0]);
-      expect(clip, `${location}/${damage}`).toBeDefined();
-      expect(rendered?.text, `${location}/${damage}`).toBe(clip?.spokenText);
+      expect(clip, `${signal.component}/${level}`).toBeDefined();
+      expect(rendered?.text, `${signal.component}/${level}`).toBe(clip?.spokenText);
     }
   }
 });

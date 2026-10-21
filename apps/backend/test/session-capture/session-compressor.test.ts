@@ -217,7 +217,7 @@ describe("session capture cleanup", () => {
     const externalCapture = join(externalDir, "external.bin");
     writeFileSync(externalCapture, Buffer.alloc(32));
     const link = join(root, gameId, "own", "linked-game");
-    fs.symlinkSync(externalDir, link, "dir");
+    fs.symlinkSync(externalDir, link, process.platform === "win32" ? "junction" : "dir");
     try {
       const files = await listSessionCaptureFiles();
       expect(files).toEqual(expect.arrayContaining(paths));

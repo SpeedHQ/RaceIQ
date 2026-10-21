@@ -7,19 +7,19 @@
 - Catalog version: `0.20.0`
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.20.0`
-- Generator source SHA-256: `7579bcb351118644980a37d6f3966a2256c3a1c281707984c24b11790e941eef`
-- Content SHA-256: `4a53a1f2da15fa2b48067c16aead0f422389cde48f4f37e0ca571a00460abe20`
+- Generator source SHA-256: `ffcc0b275e536eb808047f80c84d9e8b5e8313e1c8e1a5fae957fd9cfa26938c`
+- Content SHA-256: `44c98159675275298dcb7fa07695cd612d3e43f459f7d5e6299ec264f8152657`
 
 ## Coverage
 
 | Simulator | Sources | Recorded | Packet | Extension | SDK | YAML | Setup |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | fm-2023 | 96 | 96 | 95 | 1 | 0 | 0 | 0 |
-| f1-2025 | 318 | 318 | 118 | 200 | 0 | 0 | 0 |
+| f1-2025 | 320 | 320 | 118 | 202 | 0 | 0 | 0 |
 | acc | 234 | 201 | 124 | 77 | 0 | 0 | 33 |
 | ac-evo | 287 | 255 | 126 | 129 | 0 | 0 | 32 |
-| iracing | 972 | 722 | 115 | 38 | 324 | 495 | 0 |
-| lmu | 172 | 172 | 126 | 46 | 0 | 0 | 0 |
+| iracing | 975 | 725 | 115 | 41 | 324 | 495 | 0 |
+| lmu | 174 | 174 | 126 | 48 | 0 | 0 | 0 |
 
 ## Semantic variables
 
@@ -176,11 +176,13 @@
 | `engine.current-engine-rpm` | Current Engine RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
 | `engine.current-torque` | Current Torque | number | unit:n·m | N·m | scalar |  |  |  |
 | `engine.cylinder-count` | Engine cylinder count | number | dimensionless | count | scalar |  |  |  |
+| `engine.engine-blown` | Engine Blown | boolean | dimensionless | boolean | scalar |  |  |  |
 | `engine.engine-idle-rpm` | Engine Idle RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
 | `engine.engine-map` | Engine map | number | unit:level | level | scalar |  |  |  |
 | `engine.engine-max-rpm` | Engine Max RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
 | `engine.engine-power-ice` | Engine Power ICE | number | mass × length^2 × time^-3 | W | scalar |  |  |  |
 | `engine.engine-power-mguk` | Engine Power MGUK | number | mass × length^2 × time^-3 | W | scalar |  |  |  |
+| `engine.engine-seized` | Engine Seized | boolean | dimensionless | boolean | scalar |  |  |  |
 | `engine.engine-temperature` | Engine Temperature | number | temperature | °C | scalar |  |  |  |
 | `engine.engine-warnings` | Engine Warnings | number | unit:irsdk_enginewarnings | irsdk_EngineWarnings | scalar |  |  |  |
 | `engine.engine0-rpm` | Engine0 RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
@@ -801,6 +803,8 @@
 | `tires.tyre-blisters-rl` | Tyre Blisters RL | number | dimensionless | count | scalar |  |  |  |
 | `tires.tyre-blisters-rr` | Tyre Blisters RR | number | dimensionless | count | scalar |  |  |  |
 | `tires.tyre-blists-fr` | Tyre Blists FR | number | dimensionless | count | scalar |  |  |  |
+| `tires.wheel-detached` | Detached wheel | number | unit:1 | 1 | fixed:4 | FL, FR, RL, RR |  |  |
+| `tires.wheel-flat` | Flat tyre | number | unit:1 | 1 | fixed:4 | FL, FR, RL, RR |  |  |
 | `tires.wheel-force.lateral` | Lateral wheel force | number | mass × length × time^-2 | N | fixed:4 | FL, FR, RL, RR |  |  |
 | `tires.wheel-force.longitudinal` | Longitudinal wheel force | number | mass × length × time^-2 | N | fixed:4 | FL, FR, RL, RR |  |  |
 | `tires.wheel-force.vertical` | Vertical wheel force | number | mass × length × time^-2 | N | fixed:4 | FL, FR, RL, RR |  |  |

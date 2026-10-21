@@ -1,4 +1,5 @@
 import type { GameId } from "@raceiq/shared/games/ids";
+import damageCallouts from "@raceiq/shared/racing/live/damage-callouts.json";
 import {
   RACE_ENGINEER_AUTOMATIC_EVENTS,
   RACE_ENGINEER_EVENT_GROUPS,
@@ -69,7 +70,7 @@ const descriptor = (
   requiredSemanticIds,
   requiredGroups: RACE_ENGINEER_EVENT_GROUPS[family],
   implementationStatus,
-  ...(requiredSemanticIdsByGame ? { requiredSemanticIdsByGame } : {}),
+  requiredSemanticIdsByGame: { lmu: [], ...requiredSemanticIdsByGame },
   ...(accParity ? { accParity } : {}),
   ...(accReasonCode ? { accReasonCode } : {}),
   createState: createPreviousValueState,
@@ -94,6 +95,11 @@ const EVO_FINISH_REQUIREMENTS = [
   "timing.session-time-left-ms", "timing.last-lap", "timing.total-laps", "timing.lap-number", "fuel.laps-remaining",
 ] as const;
 
+const damageRequirements: Partial<Record<GameId, readonly string[]>> = Object.fromEntries(
+  (["fm-2023", "f1-2025", "acc", "ac-evo", "iracing", "lmu"] as const).map((game) => [
+    game, [...new Set(damageCallouts.filter((signal) => signal.simulators.includes(game)).map((signal) => signal.semanticId))],
+  ]),
+);
 export const RACE_ENGINEER_TRIGGER_CATALOG = [
   descriptor("Position", triggerPosition, ["race.race-position", "identity.player-car-class-id", "race.competitor.car-class-id"], "partial", undefined, "implemented", {
     "f1-2025": ["race.race-position", "identity.player-car-class-id", "race.competitor.car-class-id"],
@@ -132,9 +138,7 @@ export const RACE_ENGINEER_TRIGGER_CATALOG = [
     "fm-2023": ["timing.lap-number", "tire.temperature.surface.representative"],
   }),
   descriptor("EngineMonitor", triggerEngineMonitor, ["engine.coolant-temperature", "race.pit-status"], "partial", undefined, "implemented", { "f1-2025": null }),
-  descriptor("DamageReporting", triggerDamageReporting, ["damage.car-damage-front", "damage.car-damage-rear", "damage.car-damage-left", "damage.car-damage-right", "damage.car-damage-centre"], "partial", undefined, "implemented", {
-    "f1-2025": ["damage.front-left-wing-damage", "damage.front-right-wing-damage", "damage.rear-wing-damage", "damage.floor-damage", "damage.diffuser-damage", "damage.sidepod-damage"],
-  }),
+  descriptor("DamageReporting", triggerDamageReporting, [], "partial", undefined, "implemented", damageRequirements),
   implementedFor("PushNow", triggerPushNow, { acc: ACC_FINISH_REQUIREMENTS, "ac-evo": EVO_FINISH_REQUIREMENTS }),
   descriptor("FlagsMonitor", triggerFlagsMonitor, ["race.flag-status", "race.pit-status", "session.session-state"], "partial", undefined, "implemented", {
     "f1-2025": ["race.flag-status", "race.pit-status"],
@@ -196,20 +200,21 @@ export function evaluateRaceEngineerAvailability(
   const required = gameRequirements(descriptor, gameId);
   if (descriptor.implementationStatus !== "implemented") return { lifecycle: "unavailable", reasonCode: descriptor.implementationStatus, dependencies: [] };
   if (descriptor.accParity === "unavailable") return { lifecycle: "unavailable", reasonCode: "source-unavailable", dependencies: [] };
+  if (!required.length) return { lifecycle: "unavailable", reasonCode: "semantic-not-projected", dependencies: [] };
   const values = new Map(frame.ids.map((id, index) => [id, frame.values[index]]));
   const dependencies = required.map((semanticId) => {
     const value = values.get(semanticId);
     const shape = dependencyShape(value);
     const state: RaceEngineerSystemEvaluation["dependencies"][number]["state"] = value?.state ?? "not-requested";
     const freshness: RaceEngineerSystemEvaluation["dependencies"][number]["freshness"] = value?.freshness ?? "unknown";
-    const aligned = shape === "array" ? (Array.isArray(value?.value) && value.value.length <= 64) : null;
+    const aligned = shape === "array" ? (Array.isArray(value?.value) && (descriptor.family === "DamageReporting" ? value.value.length === 4 : value.value.length <= 64)) : null;
     return { semanticId, state, freshness, mappingStatus: value?.mappingStatus ?? null, limitations: value?.limitations ?? [], shape, aligned };
   });
   const arrayLengths = dependencies.filter((dependency) => dependency.shape === "array").map((dependency) => {
     const value = values.get(dependency.semanticId)?.value;
     return Array.isArray(value) ? value.length : null;
   }).filter((length): length is number => length !== null);
-  const alignedArrays = arrayLengths.length < 2 || new Set(arrayLengths).size === 1;
+  const alignedArrays = descriptor.family === "DamageReporting" || arrayLengths.length < 2 || new Set(arrayLengths).size === 1;
   const normalizedDependencies = alignedArrays ? dependencies : dependencies.map((dependency) => dependency.shape === "array" ? { ...dependency, aligned: false } : dependency);
   const reasons = normalizedDependencies.flatMap((dependency) => {
     if (dependency.state === "not-requested") return ["semantic-not-projected"];
@@ -219,6 +224,10 @@ export function evaluateRaceEngineerAvailability(
     if (dependency.aligned === false) return ["semantic-array-misaligned"];
     return [];
   });
+  if (descriptor.family === "DamageReporting" && normalizedDependencies.some((dependency) =>
+    dependency.state === "ok" && dependency.freshness === "fresh" && dependency.shape !== "invalid" && dependency.shape !== "missing" && dependency.aligned !== false)) {
+    return { lifecycle: "ready", reasonCode: "ready", dependencies: normalizedDependencies };
+  }
   return { lifecycle: reasons.length ? "unavailable" : "ready", reasonCode: reasons.length ? chooseReason(reasons) : "ready", dependencies: normalizedDependencies };
 }
 const capabilityMap = (gameId: GameId, observed?: ReadonlyMap<string, boolean>, _allowUnsupportedGame = false): Record<RaceEngineerEventFamily, RaceEngineerCapability> =>
@@ -231,7 +240,7 @@ const capabilityMap = (gameId: GameId, observed?: ReadonlyMap<string, boolean>, 
       return [item.family, { state: "unavailable", reasonCode: "source-unavailable" }];
     }
     if (!required.length) return [item.family, { state: "unavailable", reasonCode: "semantic-not-projected" }];
-    if (observed && required.some((id) => observed.get(id) !== true)) {
+    if (observed && (item.family === "DamageReporting" ? required.every((id) => observed.get(id) !== true) : required.some((id) => observed.get(id) !== true))) {
       return [item.family, { state: "unavailable", reasonCode: "semantic-not-projected" }];
     }
     return [item.family, { state: "active", reasonCode: observed ? undefined : "semantic-not-projected" }];

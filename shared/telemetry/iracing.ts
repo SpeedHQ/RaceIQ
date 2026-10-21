@@ -41,6 +41,12 @@ export interface IRacingExtendedData {
   sessionFlags?: number;
   sessionState?: number;
   sessionTimeRemain?: number;
+  /** Native iRacing warning bitfield; absent when not captured. */
+  engineWarnings?: number;
+  /** Native mandatory pit repair timer in seconds. */
+  pitRepairLeft?: number;
+  /** Native optional pit repair timer in seconds. */
+  pitOptRepairLeft?: number;
   carIdxPosition?: readonly number[];
   carIdxClassPosition?: readonly number[];
   incidents: number;

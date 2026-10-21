@@ -45,7 +45,7 @@ export function releaseFeatureFlags(env: ReleaseFeatureFlagEnvironment): Release
 
 export type LiveEngineerSubsystem = "race-engineer" | "opponent-pace" | "live-spotter";
 const SUBSYSTEM_GAMES: Readonly<Record<LiveEngineerSubsystem, readonly GameId[]>> = {
-  "race-engineer": ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing"],
+  "race-engineer": ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing", "lmu"],
   "opponent-pace": ["f1-2025", "acc", "iracing"],
   "live-spotter": ["acc", "iracing"],
 };

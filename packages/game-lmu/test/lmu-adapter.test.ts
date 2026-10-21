@@ -15,6 +15,9 @@ import { lmuServerAdapter } from "../src/index";
 import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
 import { TELEMETRY_CATALOG } from "@raceiq/shared/telemetry/catalog/data";
 import { compileTelemetryResolver } from "@raceiq/telemetry-core/telemetry/resolver/compile";
+import { LiveTelemetryProjector } from "@raceiq/telemetry-core/telemetry/live-projector";
+import { RaceEngineerTriggerCatalog } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/catalog";
+import { LiveEngineerVoiceEngine } from "@raceiq/backend-core/live-strategy/live-engineer-voice-engine";
 
 import {
   previewLMUDuckDB,
@@ -118,6 +121,8 @@ function lmuSharedMemoryFixture(): Buffer {
     memory.writeDoubleLE(367.15 + index, wheel + LMU_WHEEL.temperature + 16);
     memory.writeDoubleLE(0.1 + index * 0.01, wheel + LMU_WHEEL.wear);
     memory.writeDoubleLE(360.15 + index, wheel + LMU_WHEEL.tireCarcassTemperature);
+    memory.writeUInt8([1, 0, 1, 0][index]!, wheel + LMU_WHEEL.flat);
+    memory.writeUInt8([0, 1, 0, 1][index]!, wheel + LMU_WHEEL.detached);
   }
 
   memory.writeDoubleLE(13_626, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.lapDistance);
@@ -189,6 +194,7 @@ describe("LMU adapter", () => {
     const rawFrame = encodeLMUSourceFrame(lmuSharedMemoryFixture(), 1_800_000_000_000);
     expect(rawFrame).not.toBeNull();
     expect(rawFrame!.length).toBeGreaterThan(LMU_SHARED_MEMORY_SIZE);
+    expect(decodeLMUSourceFrame(rawFrame!.subarray(0, rawFrame!.length - 1))).toBeNull();
     expect(canHandleLMUSourceFrame(rawFrame!)).toBe(true);
     const decoded = decodeLMUSourceFrame(rawFrame!);
     expect(decoded?.schemaVersion).toBe(2);
@@ -240,6 +246,8 @@ describe("LMU adapter", () => {
     expect(packet!.Speed).toBeCloseTo(70, 5);
     expect(packet!.DistanceTraveled).toBeCloseTo(32_252, 3);
     expect(packet!.lmu).toMatchObject({
+      wheelFlat: [1, 0, 1, 0],
+      wheelDetached: [0, 1, 0, 1],
       carId: "ferrari_499p_2023",
       trackId: "lemans_2023/lemanswec",
       driverName: "Test Driver",
@@ -257,6 +265,61 @@ describe("LMU adapter", () => {
     });
   });
 
+  test("unknown native wheel markers preserve valid neighboring corners through projection", () => {
+    const memory = lmuSharedMemoryFixture();
+    const telemetry = LMU_TELEMETRY_INFO_OFFSET;
+    const frontLeft = telemetry + LMU_TELEMETRY.wheels;
+    memory.writeUInt8(2, frontLeft + LMU_WHEEL.flat);
+    const frame = encodeLMUSourceFrame(memory, 1_800_000_000_000);
+    const packet = frame && lmuServerAdapter.tryParse(frame, null);
+    expect(packet?.lmu?.wheelFlat).toEqual([2, 0, 1, 0]);
+    const projected = new LiveTelemetryProjector().project({ packet: packet!, sessionId: 1, receivedAtMs: 1_800_000_000_000 });
+    const slot = projected.semanticFrame.ids.indexOf("tires.wheel-flat");
+    expect(projected.semanticFrame.values[slot]?.value).toEqual([2, 0, 1, 0]);
+    expect(packet?.lmu?.wheelDetached).toEqual([0, 1, 0, 1]);
+  });
+
+
+  test("native LMU wheel flags reach damage voice clips through live projection", () => {
+    const projector = new LiveTelemetryProjector();
+    const catalog = new RaceEngineerTriggerCatalog();
+    const emitted: unknown[] = [];
+    const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
+    const consume = (seconds: number, flat: readonly number[], detached: readonly number[]) => {
+      const memory = lmuSharedMemoryFixture();
+      for (let index = 0; index < 4; index++) {
+        const wheel = LMU_TELEMETRY_INFO_OFFSET + LMU_TELEMETRY.wheels + index * LMU_WHEEL_SIZE;
+        memory.writeUInt8(flat[index]!, wheel + LMU_WHEEL.flat);
+        memory.writeUInt8(detached[index]!, wheel + LMU_WHEEL.detached);
+      }
+      const frame = encodeLMUSourceFrame(memory, seconds * 1000);
+      const packet = frame && lmuServerAdapter.tryParse(frame, null);
+      expect(packet).not.toBeNull();
+      emitted.length = 0;
+      engine.consume(catalog.consume(projector.project({
+        packet: packet!,
+        sessionId: 1,
+        receivedAtMs: seconds * 1000,
+      }).semanticFrame));
+      return emitted
+        .filter((message): message is { type: string; segmentIds?: readonly string[] } =>
+          typeof message === "object" && message !== null && "type" in message &&
+          message.type === "live-engineer-voice-line")
+        .flatMap((message) => [...(message.segmentIds ?? [])]);
+    };
+    expect(consume(0, [0, 0, 0, 0], [0, 0, 0, 0])).toEqual([]);
+    expect(consume(0.1, [1, 0, 0, 0], [0, 1, 0, 0])).toEqual([]);
+    expect(consume(3.1, [1, 0, 0, 0], [0, 1, 0, 0])).toEqual([
+      "race-engineer.damage-front-right-wheel-detached",
+    ]);
+    expect(consume(3.11, [1, 0, 0, 0], [0, 1, 0, 0])).toEqual([
+      "race-engineer.damage-front-left-tyre-flat",
+    ]);
+    expect(consume(4, [2, 0, 1, 0], [0, 0, 0, 0])).toEqual([]);
+    expect(consume(7, [2, 0, 1, 0], [0, 0, 0, 0])).toEqual([
+      "race-engineer.damage-rear-left-tyre-flat",
+    ]);
+  });
   test("propagates game's lap-invalidated flag into lap validity", () => {
     const memory = lmuSharedMemoryFixture();
     memory.writeUInt8(
@@ -341,6 +404,17 @@ describe("LMU adapter", () => {
     recorder.writeFrame(delivered[0]!);
     await recorder.stop();
     expect(readLMUFrames(path)).toEqual(delivered);
+    expect(recorder.recording).toBe(false);
+  });
+  test("propagates invalid recording directory failure", async () => {
+    const directory = temporaryDirectory();
+    const blocker = join(directory, "not-a-directory");
+    await Bun.write(blocker, "file");
+    const recorder = new LMURecorder();
+    const path = recorder.start(join(blocker, "child"));
+    recorder.writeFrame(lmuSharedMemoryFixture());
+    await expect(recorder.stop()).rejects.toThrow();
+    expect(await Bun.file(path).exists()).toBe(false);
   });
 
   test("queues changed snapshots FIFO and drains before recorder finalization", async () => {

@@ -44,6 +44,7 @@
     "./telemetry/live/contracts": "./telemetry/live/contracts.ts",
     "./telemetry/live/race-engineer-callout-contract": "./telemetry/live/race-engineer-callout-contract.ts",
     "./telemetry/live/race-engineer-coverage": "./telemetry/live/race-engineer-coverage.ts",
+    "./racing/live/damage-callouts.json": "./racing/live/damage-callouts.json",
     "./telemetry/replay/contracts": "./telemetry/replay/contracts.ts",
     "./racing/analysis/telemetry-capabilities": "./racing/analysis/telemetry-capabilities.ts",
     "./racing/cars/kunos-catalog": "./racing/cars/kunos-catalog.ts",
@@ -110,7 +111,7 @@
     "zod": "^4.6.5"
   },
   "scripts": {
-    "lint": "../client/node_modules/.bin/oxlint .",
+    "lint": "bun ../client/node_modules/oxlint/bin/oxlint .",
     "typecheck": "bun check --project tsconfig.json"
   }
 }

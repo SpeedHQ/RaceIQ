@@ -304,17 +304,24 @@ test("second independently recorded ACC session retains raw Broadcast baseline a
     const loaded = await loadSessionSource({ rawFile: rawFile!, source: null, gameId: "acc", carId: "1", trackId: "1", captureFormatVersion: 1 });
     if (loaded.kind !== "capture") throw new Error("Expected canonical ACC capture");
     expect(loaded.frameIndex.records).toHaveLength(1);
-    expect(loaded.buffer.readUInt32LE(8)).toBe(1);
     const moreFrames = Array.from({ length: 10 }, (_, index) => Buffer.concat([
       encodeAccBroadcastCaptureRecord({ frameReceivedAtMs: 1_020 + index, events: [] }),
       encodeFrameLength(rawFrame.length), rawFrame,
     ]));
-    const imported = await importSessionBin(Buffer.concat([loaded.buffer, ...moreFrames]), "acc", { notifyDriverProfile: false });
-    const importedIds = [...new Set(imported.laps.map((lap) => lap.sessionId))];
-    sessionIds.push(...importedIds);
-    expect(importedIds).toHaveLength(1);
-    const importedReplay = await getSessionTelemetryReplaySource(importedIds[0]!, "acc");
-    expect(importedReplay.packets.map((packet) => packet.acc?.broadcastSource?.state)).toEqual(Array(11).fill("available"));
+    await withCapture(Buffer.concat([loaded.buffer, ...moreFrames]), async (extendedSessionId) => {
+      await reprocessSession(extendedSessionId);
+      const recordedLap = await db.select().from(laps).where(eq(laps.sessionId, extendedSessionId)).get();
+      expect(recordedLap?.rawFrameCount).toBe(11);
+      const exported = await buildLapsZip([recordedLap!.id]);
+      const exportedFiles = unzipSync(exported.bytes);
+      const exportedCapture = gunzipSync(exportedFiles[exported.manifest.entries[0]!.file]!);
+      const imported = await importSessionBin(exportedCapture, "acc", { notifyDriverProfile: false });
+      const importedIds = [...new Set(imported.laps.map((lap) => lap.sessionId))];
+      sessionIds.push(...importedIds);
+      expect(importedIds).toHaveLength(1);
+      const importedReplay = await getSessionTelemetryReplaySource(importedIds[0]!, "acc");
+      expect(importedReplay.packets.map((packet) => packet.acc?.broadcastSource?.state)).toEqual(Array(11).fill("available"));
+    });
   } finally {
     await pipeline.finalizeCurrentSession();
     for (const sessionId of sessionIds) await deleteSession(sessionId);

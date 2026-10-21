@@ -6,21 +6,21 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.20.0",
-      "sourceHash": "7579bcb351118644980a37d6f3966a2256c3a1c281707984c24b11790e941eef"
+      "sourceHash": "ffcc0b275e536eb808047f80c84d9e8b5e8313e1c8e1a5fae957fd9cfa26938c"
     },
     "sourceHashes": {
       "packages/game-ac-evo/src/parser.ts": "29cb3985fe32c797554d98f107a0c4d76ddcc5279d97e75423365e1a0887f5de",
       "packages/game-acc/src/parser.ts": "17cad7809453547a5959c5351a7d4363f1f51a91c3ca4ee8e19f082c207d202d",
-      "packages/game-f1-2025/src/f1-state.ts": "0a3f96c799ecffc2831ec34e53720b647b557b993f0ca8d417e63fa61a6857d4",
+      "packages/game-f1-2025/src/f1-state.ts": "296f2c67d15b7fd3c126b1a5b840304df5d30ad2e5ed83134d828493f11d37f3",
       "packages/game-fm-2023/src/parser.ts": "71c348b894f84f6086c9582d0cce473bac75a3c85896010a0e5762854718b835",
       "packages/game-iracing-metadata/src/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
-      "packages/game-iracing/src/normalizer.ts": "e5f164059a8aa1701694a95ff55e4b5831a069c916f5bc66d2cfccf26846f916",
-      "packages/game-lmu/src/normalizer.ts": "1c2d9c9bd1a9b1bdae8f587f009ee6d087dcddf821c7ce56c14a4301bc4789e9",
+      "packages/game-iracing/src/normalizer.ts": "90d34b78f18c12bd6d2a7e0d6f8545e07e33eddb4850214b1f2c2ac90dfb6592",
+      "packages/game-lmu/src/normalizer.ts": "f11e40b381fa213f83a27d0efe8f8bae3d69a41d9746d1ff3c6c8ca12cc11336",
       "packages/tooling-catalog/src/catalog/derived-projections.ts": "b81b4ebdaeb86a88a289d245946b3e9f32cf104970d11532ac517fb219e0eff7",
       "server/session-capture/frame-time.ts": "55c44a6cede5e2c5fb1e1c45568fe44b4a9a8b156f260f69bb5d89f9c24935a2",
       "shared/racing/setups/schema.ts": "987941bb8f38520920686ef540e67ce2259fdc962de03ccb959f6b5ef773b28f"
     },
-    "contentHash": "4a53a1f2da15fa2b48067c16aead0f422389cde48f4f37e0ca571a00460abe20"
+    "contentHash": "44c98159675275298dcb7fa07695cd612d3e43f459f7d5e6299ec264f8152657"
   },
   "generatedFrom": [
     "packages/tooling-catalog/src/root.ts",
@@ -285,11 +285,13 @@
         "engine.current-engine-rpm",
         "engine.current-torque",
         "engine.cylinder-count",
+        "engine.engine-blown",
         "engine.engine-idle-rpm",
         "engine.engine-map",
         "engine.engine-max-rpm",
         "engine.engine-power-ice",
         "engine.engine-power-mguk",
+        "engine.engine-seized",
         "engine.engine-temperature",
         "engine.engine-warnings",
         "engine.engine0-rpm",
@@ -1279,6 +1281,8 @@
         "tires.tyre-blisters-rl",
         "tires.tyre-blisters-rr",
         "tires.tyre-blists-fr",
+        "tires.wheel-detached",
+        "tires.wheel-flat",
         "tires.wheel-force.lateral",
         "tires.wheel-force.longitudinal",
         "tires.wheel-force.vertical",
@@ -11627,6 +11631,63 @@
       "limitations": []
     },
     {
+      "id": "engine.engine-blown",
+      "label": "Engine Blown",
+      "description": "Engine Blown source value reported by f1-2025 in boolean.",
+      "parentId": "engine",
+      "canonicalUnit": "boolean",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "boolean",
+          "sources": [
+            "f1.engineBlown"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-f1-2025/src/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "boolean",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "engine.engine-idle-rpm",
       "label": "Engine Idle RPM",
       "description": "Nominal engine idle speed.",
@@ -12061,6 +12122,63 @@
       "limitations": []
     },
     {
+      "id": "engine.engine-seized",
+      "label": "Engine Seized",
+      "description": "Engine Seized source value reported by f1-2025 in boolean.",
+      "parentId": "engine",
+      "canonicalUnit": "boolean",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "boolean",
+          "sources": [
+            "f1.engineSeized"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-f1-2025/src/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "boolean",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "engine.engine-temperature",
       "label": "Engine Temperature",
       "description": "Engine Temperature source value reported by f1-2025 in °C.",
@@ -12120,7 +12238,7 @@
     {
       "id": "engine.engine-warnings",
       "label": "Engine Warnings",
-      "description": "Bitfield for warning lights",
+      "description": "Native iRacing warning-light bitfield; not a measured component-damage value.",
       "parentId": "engine",
       "canonicalUnit": "irsdk_EngineWarnings",
       "shape": "scalar",
@@ -12128,31 +12246,32 @@
         "fm-2023": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source variable is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "f1-2025": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source variable is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "acc": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source variable is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "ac-evo": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source variable is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "iracing": {
           "kind": "direct",
           "nativeUnit": "irsdk_EngineWarnings",
           "sources": [
+            "iracing.engineWarnings",
             "iRacing.EngineWarnings"
           ],
           "freshness": "continuous",
-          "description": "Native iRacing SDK source; catalogued but not selected in current RaceIQ source frame.",
+          "description": "iracing parser exposes 1 linked field.",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-iracing/src/normalizer.ts"
@@ -12162,7 +12281,7 @@
         "lmu": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source variable is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         }
       },
       "valueType": "number",
@@ -33211,31 +33330,32 @@
         "fm-2023": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "f1-2025": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "acc": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "ac-evo": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "iracing": {
           "kind": "direct",
           "nativeUnit": "s",
           "sources": [
+            "iracing.pitRepairLeft",
             "iRacing.PitRepairLeft"
           ],
           "freshness": "continuous",
-          "description": "Native iRacing SDK variable linked to shared semantic value.",
+          "description": "iracing parser exposes 1 linked field.",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-iracing/src/normalizer.ts"
@@ -33245,7 +33365,7 @@
         "lmu": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         }
       },
       "valueType": "number",
@@ -33268,31 +33388,32 @@
         "fm-2023": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "f1-2025": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "acc": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "ac-evo": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "iracing": {
           "kind": "direct",
           "nativeUnit": "s",
           "sources": [
+            "iracing.pitOptRepairLeft",
             "iRacing.PitOptRepairLeft"
           ],
           "freshness": "continuous",
-          "description": "Native iRacing SDK variable linked to shared semantic value.",
+          "description": "iracing parser exposes 1 linked field.",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-iracing/src/normalizer.ts"
@@ -33302,7 +33423,7 @@
         "lmu": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         }
       },
       "valueType": "number",
@@ -61204,6 +61325,134 @@
       "limitations": []
     },
     {
+      "id": "tires.wheel-detached",
+      "label": "Detached wheel",
+      "description": "Native detached-wheel flags, FL/FR/RL/RR: 0=no, 1=yes; other markers unknown.",
+      "parentId": "tires",
+      "canonicalUnit": "1",
+      "shape": "per-wheel",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "1",
+          "sources": [
+            "lmu.wheelDetached"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "unit:1"
+      ],
+      "cardinality": {
+        "kind": "fixed",
+        "count": 4
+      },
+      "ordering": [
+        "FL",
+        "FR",
+        "RL",
+        "RR"
+      ],
+      "limitations": []
+    },
+    {
+      "id": "tires.wheel-flat",
+      "label": "Flat tyre",
+      "description": "Native flat-tyre flags, FL/FR/RL/RR: 0=no, 1=yes; other markers unknown. Not inferred from pressure or slip.",
+      "parentId": "tires",
+      "canonicalUnit": "1",
+      "shape": "per-wheel",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "1",
+          "sources": [
+            "lmu.wheelFlat"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "unit:1"
+      ],
+      "cardinality": {
+        "kind": "fixed",
+        "count": 4
+      },
+      "ordering": [
+        "FL",
+        "FR",
+        "RL",
+        "RR"
+      ],
+      "limitations": []
+    },
+    {
       "id": "tires.wheel-force.lateral",
       "label": "Lateral wheel force",
       "description": "Per-wheel lateral tire force.",
@@ -67004,6 +67253,18 @@
         "retention": "exact"
       },
       {
+        "path": "f1.engineBlown",
+        "label": "Engine Blown",
+        "unit": "boolean",
+        "dataType": "boolean",
+        "count": 1,
+        "description": "Engine Blown source value reported by f1-2025 in boolean.",
+        "semanticId": "engine.engine-blown",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "f1.engineCEWear",
         "label": "Engine CE Wear",
         "unit": "%",
@@ -67095,6 +67356,18 @@
         "count": 1,
         "description": "Engine Power MGUK source value reported by f1-2025 in W.",
         "semanticId": "engine.engine-power-mguk",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.engineSeized",
+        "label": "Engine Seized",
+        "unit": "boolean",
+        "dataType": "boolean",
+        "count": 1,
+        "description": "Engine Seized source value reported by f1-2025 in boolean.",
+        "semanticId": "engine.engine-seized",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -86678,6 +86951,18 @@
         "retention": "exact"
       },
       {
+        "path": "iracing.engineWarnings",
+        "label": "Engine Warnings",
+        "unit": "irsdk_EngineWarnings",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native iRacing warning-light bitfield; not a measured component-damage value.",
+        "semanticId": "engine.engine-warnings",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "iracing.incidents",
         "label": "Incidents",
         "unit": "flags",
@@ -86721,6 +87006,30 @@
         "count": 1,
         "description": "On Pit Road source value reported by iracing in boolean.",
         "semanticId": "race.on-pit-road",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "iracing.pitOptRepairLeft",
+        "label": "Pit Opt Repair Left",
+        "unit": "s",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native optional pit-repair time remaining.",
+        "semanticId": "race.pit-service.optional-repair-time-remaining",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "iracing.pitRepairLeft",
+        "label": "Pit Repair Left",
+        "unit": "s",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native mandatory pit-repair time remaining.",
+        "semanticId": "race.pit-service.mandatory-repair-time-remaining",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -88969,12 +89278,36 @@
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
+      },
+      {
+        "path": "lmu.wheelDetached",
+        "label": "Wheel Detached",
+        "unit": "1",
+        "dataType": "readonly [number, number, number, number]",
+        "count": 1,
+        "description": "Native detached-wheel bytes in FL/FR/RL/RR order; only 0/1 are known flag states.",
+        "semanticId": "tires.wheel-detached",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.wheelFlat",
+        "label": "Wheel Flat",
+        "unit": "1",
+        "dataType": "readonly [number, number, number, number]",
+        "count": 1,
+        "description": "Native flat-tyre bytes in FL/FR/RL/RR order; only 0/1 are known flag states.",
+        "semanticId": "tires.wheel-flat",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
       }
     ]
   },
   "coverage": {
     "normalizedPacketFields": 150,
-    "semanticVariables": 815,
+    "semanticVariables": 819,
     "sourceCounts": {
       "fm-2023": {
         "total": 96,
@@ -88986,13 +89319,13 @@
         "recorded": 96
       },
       "f1-2025": {
-        "total": 318,
+        "total": 320,
         "packet": 118,
-        "extension": 200,
+        "extension": 202,
         "sdk": 0,
         "yaml": 0,
         "setup": 0,
-        "recorded": 318
+        "recorded": 320
       },
       "acc": {
         "total": 234,
@@ -89013,22 +89346,22 @@
         "recorded": 255
       },
       "iracing": {
-        "total": 972,
+        "total": 975,
         "packet": 115,
-        "extension": 38,
+        "extension": 41,
         "sdk": 324,
         "yaml": 495,
         "setup": 0,
-        "recorded": 722
+        "recorded": 725
       },
       "lmu": {
-        "total": 172,
+        "total": 174,
         "packet": 126,
-        "extension": 46,
+        "extension": 48,
         "sdk": 0,
         "yaml": 0,
         "setup": 0,
-        "recorded": 172
+        "recorded": 174
       }
     }
   }

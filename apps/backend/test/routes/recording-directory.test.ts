@@ -225,7 +225,7 @@ describe("recording-directory relocation", () => {
     await mkdir(destination);
     await mkdir(outside);
     await writeFile(capture, bytes);
-    await symlink(outside, join(destination, "test-game"));
+    await symlink(outside, join(destination, "test-game"), process.platform === "win32" ? "junction" : "dir");
     saveSettings({ ...loadSettings(), recordingDirectory: source });
 
     await startRecordingDirectoryMove(destination);
@@ -324,15 +324,16 @@ describe("recording-directory relocation", () => {
       saveSettings({ ...loadSettings(), recordingDirectory: originalDirectory ?? null });
     }
   });
-  test("does not rebase or copy DB references through file or directory symlinks", async () => {
+  test("does not rebase or copy external file references through native filesystem links", async () => {
     const root = await mkdtemp(join(tmpdir(), "raceiq-recording-symlink-"));
     const source = join(root, "source");
     const destination = join(source, "raceiq");
     const gameDirectory = join(source, "test-game");
     const externalDirectory = join(root, "external");
     const externalFile = join(externalDirectory, "capture.bin");
-    const fileLink = join(gameDirectory, "file-link.bin");
     const directoryLink = join(gameDirectory, "directory-link");
+    // Windows follows a junction to a real file; POSIX additionally covers a leaf file symlink.
+    const fileLink = process.platform === "win32" ? join(directoryLink, "capture.bin") : join(gameDirectory, "file-link.bin");
     const externalCapture = join(externalDirectory, "nested", "capture.bin");
     const bytes = Buffer.from("external symlink target");
     const sessionIds: number[] = [];
@@ -340,8 +341,10 @@ describe("recording-directory relocation", () => {
     await mkdir(join(externalDirectory, "nested"), { recursive: true });
     await writeFile(externalFile, bytes);
     await writeFile(externalCapture, bytes);
-    await symlink(externalFile, fileLink);
-    await symlink(externalDirectory, directoryLink);
+    if (process.platform !== "win32") {
+      await symlink(externalFile, fileLink);
+    }
+    await symlink(externalDirectory, directoryLink, process.platform === "win32" ? "junction" : "dir");
     saveSettings({ ...loadSettings(), recordingDirectory: source });
     try {
       const fileSessionId = await insertSession("symlink-file-car", "track", "fm-2023");
@@ -358,8 +361,11 @@ describe("recording-directory relocation", () => {
       expect(fileSession?.rawFile).toBe(fileLink);
       expect(directorySession?.rawFile).toBe(join(directoryLink, "nested", "capture.bin"));
       expect(await readFile(fileLink)).toEqual(bytes);
+      const movedFileLink = process.platform === "win32"
+        ? join(destination, "test-game", "directory-link", "capture.bin")
+        : join(destination, "test-game", "file-link.bin");
+      await expect(readFile(movedFileLink)).rejects.toMatchObject({ code: "ENOENT" });
       expect(await readFile(join(directoryLink, "nested", "capture.bin"))).toEqual(bytes);
-      await expect(readFile(join(destination, "test-game", "file-link.bin"))).rejects.toMatchObject({ code: "ENOENT" });
       await expect(readFile(join(destination, "test-game", "directory-link", "nested", "capture.bin"))).rejects.toMatchObject({ code: "ENOENT" });
     } finally {
       for (const id of sessionIds) await deleteSession(id);

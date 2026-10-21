@@ -34,6 +34,22 @@ const SEMANTIC_DEFINITIONS_LIVE: Record<string, SemanticDefinition> = {
     shape: "per-wheel",
     ordering: ["FL", "FR", "RL", "RR"],
   },
+  "tires.wheel-flat": {
+    label: "Flat tyre",
+    description: "Native flat-tyre flags, FL/FR/RL/RR: 0=no, 1=yes; other markers unknown. Not inferred from pressure or slip.",
+    parentId: "tires",
+    canonicalUnit: "1",
+    shape: "per-wheel",
+    ordering: ["FL", "FR", "RL", "RR"],
+  },
+  "tires.wheel-detached": {
+    label: "Detached wheel",
+    description: "Native detached-wheel flags, FL/FR/RL/RR: 0=no, 1=yes; other markers unknown.",
+    parentId: "tires",
+    canonicalUnit: "1",
+    shape: "per-wheel",
+    ordering: ["FL", "FR", "RL", "RR"],
+  },
   ...SETUP_CONCEPT_DEFINITIONS,
   "aero.drs-active": {
     label: "DRS active",

@@ -98,6 +98,8 @@ export const RACE_ENGINEER_SEMANTIC_GROUPS = {
     "damage.engine-damage", "damage.brakes-damage", "damage.front-left-wing-damage", "damage.front-right-wing-damage", "damage.rear-wing-damage",
     "damage.floor-damage", "damage.diffuser-damage", "damage.sidepod-damage", "damage.car-damage-front", "damage.car-damage-rear",
     "damage.car-damage-left", "damage.car-damage-right", "damage.car-damage-centre", "damage.tyres-damage", "damage.drs-fault", "damage.ers-fault",
+    "engine.engine-blown", "engine.engine-seized", "inputs.gear-box-damage", "tires.wheel-flat", "tires.wheel-detached",
+    "engine.engine-warnings", "race.pit-service.mandatory-repair-time-remaining", "race.pit-service.optional-repair-time-remaining",
     "engine.current-engine-rpm", "engine.coolant-temperature", "engine.oil-temperature", "engine.oil-pressure", "engine.engine-temperature", "engine.exhaust-temp-c",
   ),
   CONDITIONS: ids("weather.air-temp", "weather.track-temp", "weather.track-wetness", "weather.weather-type", "weather.rain-intensity", "weather.rain-intensity-code", "weather.rain-percent", "weather.wind-speed", "weather.wind-direction", "weather.track-grip-status"),

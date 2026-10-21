@@ -63,3 +63,42 @@ test("owner suites load database preload and isolate writable paths from inherit
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("owner suites launch every selected file from long Windows workspace paths", () => {
+  const root = mkdtempSync(resolve(tmpdir(), "raceiq-owner-runner-long-windows-launch-"));
+  try {
+    const result = resolve(root, "selected.jsonl");
+    mkdirSync(resolve(root, "scripts/test"), { recursive: true });
+    for (const file of ["run-suite.ts", "check-shards.ts", "owners.ts"]) {
+      writeFileSync(resolve(root, "scripts/test", file), readFileSync(resolve(import.meta.dir, "..", file)));
+    }
+    writeFileSync(resolve(root, "package.json"), JSON.stringify({ private: true, workspaces: ["packages/*"] }));
+    mkdirSync(resolve(root, "packages/owner/test"), { recursive: true });
+    writeFileSync(resolve(root, "packages/owner/package.json"), JSON.stringify({ name: "@fixture/owner" }));
+    mkdirSync(resolve(root, "server/test-support"), { recursive: true });
+    writeFileSync(resolve(root, "server/test-support/setup-data-dir.ts"), "");
+    const files = Array.from({ length: 240 }, (_, index) =>
+      `packages/owner/test/recording-contract-${String(index).padStart(4, "0")}.test.ts`);
+    for (const [index, file] of files.entries()) {
+      writeFileSync(resolve(root, file), `
+        import { test } from "bun:test";
+        import { appendFileSync } from "node:fs";
+        test("selected recording contract ${index}", () => {
+          appendFileSync(process.env.RESULT_PATH!, "${index}\\n");
+        });
+      `);
+    }
+    writeFileSync(resolve(root, "packages/owner/test/integration-files.txt"), `${files.join("\n")}\n`);
+    const child = Bun.spawnSync([process.execPath, "scripts/test/run-suite.ts", "integration", "--package", "@fixture/owner"], {
+      cwd: root,
+      env: { ...process.env, RESULT_PATH: result },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    expect(child.exitCode, child.stdout.toString() + child.stderr.toString()).toBe(0);
+    const executed = readFileSync(result, "utf8").trim().split("\n").map(Number).sort((left, right) => left - right);
+    expect(executed).toEqual(Array.from({ length: 240 }, (_, index) => index));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

@@ -132,6 +132,8 @@ export interface F1ExtendedData {
   engineICEWear?: number;
   engineMGUKWear?: number;
   engineTCWear?: number;
+  engineBlown?: boolean;
+  engineSeized?: boolean;
   // Extended CarTelemetry fields
   tyresInnerTempFL?: number;
   tyresInnerTempFR?: number;

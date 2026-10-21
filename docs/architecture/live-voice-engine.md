@@ -5,10 +5,11 @@ See [Session Engineer Replay and Semantic Availability](decisions/session-engine
 
 This document describes **voice-line triggers**, not the full reference parity inventory.
 
-Current production voice output has two families:
+Current production voice output includes:
 
 - **Opponent pace** — evaluates the player's completed lap against valid opponent lap facts.
 - **Spotter** — detects a car alongside the player and announces occupancy transitions.
+- **Race Engineer events** — source-backed session, strategy, car-health, and condition changes, with per-game availability. Damage/fault announcements follow the contract below.
 
 The reference event catalog contains 24 automatic event names plus `Spotter`. That catalog is a source-coverage contract and semantic-input inventory; it is not a claim that all 25 event families currently emit RaceIQ voice lines.
 
@@ -141,6 +142,7 @@ Current production contract:
 - **Spotter**: ACC and iRacing, implemented and production-supported behind the existing release gates.
 - **F1 25 spotter**: detector implemented from projected competitor geometry; not production-enabled.
 - **AC Evo and FM 2023**: opponent pace and spotter unavailable because complete source-backed competitor evidence is absent.
+- **LMU**: damage/fault announcements only. Other Race Engineer families, opponent pace, and spotter remain unavailable.
 
 The release gate requires `RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER=true` plus game inclusion in `RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS`. “Production-supported” does not mean every frame has valid evidence; missing, stale, invalid, or misaligned opponent facts fail closed.
 
@@ -179,11 +181,21 @@ The inventory distinguishes implemented detectors from unavailable families and 
 
 ### Damage announcements
 
-ACC and AC Evo use front, rear, left, right, and centre damage zones. F1 25 maps the worse front-wing value to front, rear wing to rear, and the worst floor/diffuser/sidepod value to centre; its source percentages are divided by 100 before applying announcement thresholds.
+`shared/racing/live/damage-callouts.json` owns component identifiers, source semantics, supported games, and exact transcripts. The detector, renderer, and audio generator consume this vocabulary; regions never imply a more specific mechanical diagnosis.
 
-Each zone reports damage above 0.05 after three seconds in the same severity band. Heavy damage starts at 0.30 and gets a fresh three-second debounce. Newly damaged zones and normal-to-heavy escalation can speak even when another zone remains more damaged. When several zones are ready together, the worst speaks first; remaining zones are eligible on subsequent frames. Unchanged damage never repeats. Repair to 0.05 or below rearms that zone. Missing or stale required telemetry and session changes reset detector state and require fresh debounce.
+| Game | Supported damage/fault announcements | Interpretation |
+| --- | --- | --- |
+| F1 25 | Individual front wings, rear wing, floor, diffuser, sidepod, engine, gearbox, each tyre and brake; DRS/ERS faults; engine blown/seized | Named native damage percentages and explicit fault flags. Wear is excluded. |
+| ACC / AC Evo | Front, rear, left, right bodywork; unspecified bodywork for the centre source region | Raw bodywork readings only. Source scale is undocumented: no percentages, calibrated severity, or inferred engine/suspension faults. |
+| iRacing | Coolant/oil temperature, fuel/oil pressure warnings, engine stalled; mandatory/optional repairs | Captures `EngineWarnings`, `PitRepairLeft`, and `PitOptRepairLeft`. Warning bits are not engine-damage measurements. Limiter and unknown bits are ignored. |
+| LMU | Flat tyre and detached wheel at each corner | Explicit native wheel flags, ordered FL/FR/RL/RR. Unsupported markers remain unknown per corner without suppressing valid neighboring corners. Only damage reporting is enabled. |
+| Forza Motorsport | None | No supported source damage fields; no inferred announcements. |
 
-Warnings reuse the ten packaged normal/heavy zone clips. Damage events use detector-owned debounce/rearming rather than the generic 60-second event cooldown, so a second impact or post-repair impact is not hidden.
+Each component requires three seconds in the same severity band. F1 percentage damage is healthy at `<=5`, normal above `5`, and heavy at `>=30`; values outside `0–100` are invalid. ACC/Evo bodywork uses the existing raw detection floor `>0.05`, without a heavy band. Binary flags accept only booleans or numeric `0/1`; repair timers require finite nonnegative seconds and report only while positive.
+
+New damage and normal-to-heavy escalation can speak independently of other damaged components. One matured component speaks per frame; remaining candidates stay pending. Detached wheels outrank flat tyres, same-wheel flat warnings are suppressed while detached, and explicit engine failures suppress generic engine damage. Unchanged damage does not repeat. Healthy data rearms that component. Missing, stale, or invalid data cancels only its pending debounce; source/session resets require fresh qualification. Older recordings/checkpoints without new optional fields remain readable.
+
+The 56 packaged component/severity clips replace vague zone/heavy-zone and generic damage clips. Events carry `{ component, level, value }`, rendered as `race-engineer.damage-${component}` or `race-engineer.damage-heavy-${component}`. Unknown components and unsupported heavy levels fail closed. Damage uses detector-owned debounce/rearming rather than the generic 60-second cooldown. Consumable wear, pressure/slip-based diagnoses, and speculative game fields are excluded.
 
 Damage audio uses the same pinned `Qwen/Qwen3-TTS-12Hz-1.7B-Base` model, `voices/Aussie-short.flac` clone reference, deterministic seeds, and generation settings as the other qwen-v3 clips. To regenerate damage clips only, run `.venv-qwen/Scripts/python.exe scripts/live-engineer/generate-live-engineer-v3.py --regenerate-prefix race-engineer.damage`, then the same command with `--check` instead of `--regenerate-prefix race-engineer.damage`. CUDA and the cached model are required. Other packaged clips are reused only when transcript and file hash match. Generated audio remains `not-listened` until human review.
 

@@ -44,4 +44,6 @@ export interface LMUExtendedData {
   trackLimitsSteps: number;
   trackGripLevel: number;
   cloudCoverage: number;
+  wheelFlat?: readonly [number, number, number, number];
+  wheelDetached?: readonly [number, number, number, number];
 }

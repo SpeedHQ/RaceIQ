@@ -187,6 +187,9 @@ const EXTENSION_ALIASES: Record<string, string> = {
   "iracing.carIdxLap": "timing.competitor.current-lap-number",
   "iracing.carIdxBestLapTime": "timing.competitor.best-lap-time",
   "iracing.carLeftRight": "identity.car-left-right",
+  "iracing.engineWarnings": "engine.engine-warnings",
+  "iracing.pitRepairLeft": "race.pit-service.mandatory-repair-time-remaining",
+  "iracing.pitOptRepairLeft": "race.pit-service.optional-repair-time-remaining",
   "iracing.competitors[].carIndex": "race.competitor.car-index",
   "iracing.competitors[].userId": "race.competitor.driver-id",
   "iracing.competitors[].displayName": "race.competitor.driver-name",
@@ -208,9 +211,16 @@ const EXTENSION_ALIASES: Record<string, string> = {
   "lmu.inPits": "race.on-pit-road",
   "lmu.tcLevel": "electronics.traction-control-level",
   "lmu.absLevel": "electronics.abs-level",
+  "lmu.wheelFlat": "tires.wheel-flat",
+  "lmu.wheelDetached": "tires.wheel-detached",
 };
 
 const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> = {
+  "iracing.engineWarnings": { unit: "irsdk_EngineWarnings", description: "Native iRacing warning-light bitfield; not a measured component-damage value." },
+  "iracing.pitRepairLeft": { unit: "s", description: "Native mandatory pit-repair time remaining." },
+  "iracing.pitOptRepairLeft": { unit: "s", description: "Native optional pit-repair time remaining." },
+  "lmu.wheelFlat": { unit: "1", description: "Native flat-tyre bytes in FL/FR/RL/RR order; only 0/1 are known flag states." },
+  "lmu.wheelDetached": { unit: "1", description: "Native detached-wheel bytes in FL/FR/RL/RR order; only 0/1 are known flag states." },
   "acc.sessionTimeRemainingSeconds": { unit: "s", description: "ACC session countdown in seconds." },
   "acc.penaltyCode": { unit: "enum", description: "ACC native penalty type, zero means no penalty." },
   "acc.waterTempC": { unit: "°C", description: "ACC engine coolant temperature." },

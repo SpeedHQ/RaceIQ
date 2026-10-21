@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, open, rename, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
+import { syncDirectoryTree } from "@raceiq/capture-formats/session/durable-directory";
 import { Schema } from "effect";
 import { ChunkSchema, ManifestSchema, type Chunk, type Manifest } from "@raceiq/capture-splitting";
 import { encodeFrameLength, encodeMetaFrame, encodeParserBootstrapFrame, encodeSegmentBoundaryFrame, encodeSegmentContextEndFrame, encodeSegmentContextFrame, encodeSparseCaptureFormatFrame, iterateSessionCaptureRecords, META_FRAME_BYTES } from "@raceiq/capture-formats/session/framing";
@@ -434,8 +435,7 @@ export class DirectCaptureRecording {
       const handle = await open(temporary, "r+");
       try { await handle.sync(); } finally { await handle.close(); }
       await rename(temporary, this.manifestPath);
-      const parent = await open(dirname(this.manifestPath), "r");
-      try { await parent.sync(); } finally { await parent.close(); }
+      await syncDirectoryTree(dirname(this.manifestPath));
     } catch (error) {
       await rm(temporary, { force: true }).catch(() => {});
       throw error;

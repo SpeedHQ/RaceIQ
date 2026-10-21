@@ -97,6 +97,8 @@ function validF1StateObject(key: string, value: unknown): boolean {
   };
   const record = value as Record<string, unknown>;
   if (!fields[key] || !hasFiniteFields(value, fields[key], booleans[key] ?? [])) return false;
+  if (key === "carDamage" && ((record.engineBlown !== undefined && typeof record.engineBlown !== "boolean") ||
+    (record.engineSeized !== undefined && typeof record.engineSeized !== "boolean"))) return false;
   if (key === "lapData") return Array.isArray(record.allCars) &&
     record.allCars.every((car) => hasFiniteFields(car, ["currentLapTime", "lastLapTime", "bestLapTime", "position", "pitStatus", "numPitStops", "totalDistance"]));
   if (key === "carStatus") return Array.isArray(record.allCars) &&
@@ -514,6 +516,8 @@ export class F1StateAccumulator {
       engineICEWear: cd?.engineICEWear,
       engineMGUKWear: cd?.engineMGUKWear,
       engineTCWear: cd?.engineTCWear,
+      engineBlown: cd?.engineBlown,
+      engineSeized: cd?.engineSeized,
       // Extended CarTelemetry fields
       tyresInnerTempFL: ct.tyresInnerTempFL,
       tyresInnerTempFR: ct.tyresInnerTempFR,

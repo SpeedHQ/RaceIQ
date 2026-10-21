@@ -26,6 +26,14 @@ let active = false;
 let progress: LayoutMigrationProgress = { status: "idle", done: 0, total: 0, migrated: 0, failed: 0, error: null };
 let migrationGeneration = 0;
 const completionListeners = new Set<() => void>();
+let journalQueue = Promise.resolve();
+async function withJournalLock<T>(operation: () => Promise<T>): Promise<T> {
+  const previous = journalQueue;
+  const gate = Promise.withResolvers<void>();
+  journalQueue = gate.promise;
+  await previous;
+  try { return await operation(); } finally { gate.resolve(); }
+}
 export function subscribeLayoutMigrationComplete(listener: () => void): () => void {
   completionListeners.add(listener);
   return () => completionListeners.delete(listener);
@@ -76,7 +84,7 @@ async function isLegacyCandidateFile(root: string, path: string, requireCaptureN
   return Boolean(directory?.isDirectory() && !directory.isSymbolicLink() && file?.isFile() && !file.isSymbolicLink());
 }
 
-async function readJournal(): Promise<Journal | null> {
+async function readJournalUnlocked(): Promise<Journal | null> {
   const journalInfo = await lstat(journalFile).catch((error) => { if ((error as NodeJS.ErrnoException).code === "ENOENT") return null; throw error; });
   if (!journalInfo) return null;
   if (!journalInfo.isFile() || journalInfo.isSymbolicLink()) throw new Error("Unsafe recording migration journal");
@@ -129,12 +137,18 @@ async function readJournal(): Promise<Journal | null> {
   }
   return journal;
 }
-async function saveJournal(journal: Journal): Promise<void> {
+async function readJournal(): Promise<Journal | null> {
+  return withJournalLock(readJournalUnlocked);
+}
+async function saveJournalUnlocked(journal: Journal): Promise<void> {
   const temp = `${journalFile}.${process.pid}.${randomUUID()}.tmp`;
   const handle = await open(temp, "wx", 0o600);
   try { await handle.writeFile(JSON.stringify(journal)); await handle.sync(); } finally { await handle.close(); }
   await rename(temp, journalFile);
   try { const directory = await open(dirname(journalFile), "r"); try { await directory.sync(); } finally { await directory.close(); } } catch { /* Directory sync unavailable on some platforms. */ }
+}
+async function saveJournal(journal: Journal): Promise<void> {
+  await withJournalLock(() => saveJournalUnlocked(journal));
 }
 async function findLegacyFiles(root: string): Promise<string[]> {
   const knownGames = new Set<string>(getAllGames().map((game) => game.id));
@@ -353,7 +367,7 @@ export async function startLayoutMigration(directory?: string): Promise<void> {
     progress.status = "success";
     progress.phase = null;
     journal.progress = { ...progress };
-    await unlink(journalFile);
+    await withJournalLock(() => unlink(journalFile));
   }).catch(async (error) => {
     progress.status = "error";
     progress.error = error instanceof Error ? error.message : "Layout migration failed";

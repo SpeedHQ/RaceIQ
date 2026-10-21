@@ -1,0 +1,416 @@
+[
+  {
+    "component": "front-left-wing",
+    "simulators": [
+      "f1-2025"
+    ],
+    "semanticId": "damage.front-left-wing-damage",
+    "kind": "percentage",
+    "text": "Damage to the left side of the front wing.",
+    "heavyText": "Heavy damage to the left side of the front wing."
+  },
+  {
+    "component": "front-right-wing",
+    "simulators": [
+      "f1-2025"
+    ],
+    "semanticId": "damage.front-right-wing-damage",
+    "kind": "percentage",
+    "text": "Damage to the right side of the front wing.",
+    "heavyText": "Heavy damage to the right side of the front wing."
+  },
+  {
+    "component": "rear-wing",
+    "simulators": [
+      "f1-2025"
+    ],
+    "semanticId": "damage.rear-wing-damage",
+    "kind": "percentage",
+    "text": "Damage to the rear wing.",
+    "heavyText": "Heavy damage to the rear wing."
+  },
+  {
+    "component": "floor",
+    "simulators": [
+      "f1-2025"
+    ],
+    "semanticId": "damage.floor-damage",
+    "kind": "percentage",
+    "text": "Damage to the floor.",
+    "heavyText": "Heavy damage to the floor."
+  },
+  {
+    "component": "diffuser",
+    "simulators": [
+      "f1-2025"
+    ],
+    "semanticId": "damage.diffuser-damage",
+    "kind": "percentage",
+    "text": "Damage to the diffuser.",
+    "heavyText": "Heavy damage to the diffuser."
+  },
+  {
+    "component": "sidepod",
+    "simulators": [
+      "f1-2025"
+    ],
+    "semanticId": "damage.sidepod-damage",
+    "kind": "percentage",
+    "text": "Sidepod damage detected.",
+    "heavyText": "Heavy sidepod damage."
+  },
+  {
+    "component": "engine",
+    "simulators": [
+      "f1-2025"
+    ],
+    "semanticId": "damage.engine-damage",
+    "kind": "percentage",
+    "text": "Damage to the engine.",
+    "heavyText": "Heavy damage to the engine."
+  },
+  {
+    "component": "gearbox",
+    "simulators": [
+      "f1-2025"
+    ],
+    "semanticId": "inputs.gear-box-damage",
+    "kind": "percentage",
+    "text": "Damage to the gearbox.",
+    "heavyText": "Heavy damage to the gearbox."
+  },
+  {
+    "component": "front-left-tyre",
+    "simulators": [
+      "f1-2025"
+    ],
+    "semanticId": "damage.tyres-damage",
+    "kind": "percentage",
+    "index": 0,
+    "text": "Damage to the front-left tyre.",
+    "heavyText": "Heavy damage to the front-left tyre."
+  },
+  {
+    "component": "front-left-brake",
+    "simulators": [
+      "f1-2025"
+    ],
+    "semanticId": "damage.brakes-damage",
+    "kind": "percentage",
+    "index": 0,
+    "text": "Damage to the front-left brake.",
+    "heavyText": "Heavy damage to the front-left brake."
+  },
+  {
+    "component": "front-right-tyre",
+    "simulators": [
+      "f1-2025"
+    ],
+    "semanticId": "damage.tyres-damage",
+    "kind": "percentage",
+    "index": 1,
+    "text": "Damage to the front-right tyre.",
+    "heavyText": "Heavy damage to the front-right tyre."
+  },
+  {
+    "component": "front-right-brake",
+    "simulators": [
+      "f1-2025"
+    ],
+    "semanticId": "damage.brakes-damage",
+    "kind": "percentage",
+    "index": 1,
+    "text": "Damage to the front-right brake.",
+    "heavyText": "Heavy damage to the front-right brake."
+  },
+  {
+    "component": "rear-left-tyre",
+    "simulators": [
+      "f1-2025"
+    ],
+    "semanticId": "damage.tyres-damage",
+    "kind": "percentage",
+    "index": 2,
+    "text": "Damage to the rear-left tyre.",
+    "heavyText": "Heavy damage to the rear-left tyre."
+  },
+  {
+    "component": "rear-left-brake",
+    "simulators": [
+      "f1-2025"
+    ],
+    "semanticId": "damage.brakes-damage",
+    "kind": "percentage",
+    "index": 2,
+    "text": "Damage to the rear-left brake.",
+    "heavyText": "Heavy damage to the rear-left brake."
+  },
+  {
+    "component": "rear-right-tyre",
+    "simulators": [
+      "f1-2025"
+    ],
+    "semanticId": "damage.tyres-damage",
+    "kind": "percentage",
+    "index": 3,
+    "text": "Damage to the rear-right tyre.",
+    "heavyText": "Heavy damage to the rear-right tyre."
+  },
+  {
+    "component": "rear-right-brake",
+    "simulators": [
+      "f1-2025"
+    ],
+    "semanticId": "damage.brakes-damage",
+    "kind": "percentage",
+    "index": 3,
+    "text": "Damage to the rear-right brake.",
+    "heavyText": "Heavy damage to the rear-right brake."
+  },
+  {
+    "component": "drs-fault",
+    "simulators": [
+      "f1-2025"
+    ],
+    "semanticId": "damage.drs-fault",
+    "kind": "flag",
+    "text": "DRS fault detected.",
+    "critical": false
+  },
+  {
+    "component": "ers-fault",
+    "simulators": [
+      "f1-2025"
+    ],
+    "semanticId": "damage.ers-fault",
+    "kind": "flag",
+    "text": "ERS fault detected.",
+    "critical": false
+  },
+  {
+    "component": "engine-blown",
+    "simulators": [
+      "f1-2025"
+    ],
+    "semanticId": "engine.engine-blown",
+    "kind": "flag",
+    "text": "The engine has blown.",
+    "critical": true
+  },
+  {
+    "component": "engine-seized",
+    "simulators": [
+      "f1-2025"
+    ],
+    "semanticId": "engine.engine-seized",
+    "kind": "flag",
+    "text": "The engine has seized.",
+    "critical": true
+  },
+  {
+    "component": "front-bodywork",
+    "simulators": [
+      "acc",
+      "ac-evo"
+    ],
+    "semanticId": "damage.car-damage-front",
+    "kind": "bodywork",
+    "text": "Front bodywork damage."
+  },
+  {
+    "component": "rear-bodywork",
+    "simulators": [
+      "acc",
+      "ac-evo"
+    ],
+    "semanticId": "damage.car-damage-rear",
+    "kind": "bodywork",
+    "text": "Rear bodywork damage."
+  },
+  {
+    "component": "left-bodywork",
+    "simulators": [
+      "acc",
+      "ac-evo"
+    ],
+    "semanticId": "damage.car-damage-left",
+    "kind": "bodywork",
+    "text": "Left-side bodywork damage."
+  },
+  {
+    "component": "right-bodywork",
+    "simulators": [
+      "acc",
+      "ac-evo"
+    ],
+    "semanticId": "damage.car-damage-right",
+    "kind": "bodywork",
+    "text": "Right-side bodywork damage."
+  },
+  {
+    "component": "bodywork",
+    "simulators": [
+      "acc",
+      "ac-evo"
+    ],
+    "semanticId": "damage.car-damage-centre",
+    "kind": "bodywork",
+    "text": "Bodywork damage detected."
+  },
+  {
+    "component": "coolant-warning",
+    "simulators": [
+      "iracing"
+    ],
+    "semanticId": "engine.engine-warnings",
+    "kind": "bitfield",
+    "mask": 1,
+    "text": "Coolant temperature warning."
+  },
+  {
+    "component": "fuel-pressure-warning",
+    "simulators": [
+      "iracing"
+    ],
+    "semanticId": "engine.engine-warnings",
+    "kind": "bitfield",
+    "mask": 2,
+    "text": "Fuel pressure warning."
+  },
+  {
+    "component": "oil-pressure-warning",
+    "simulators": [
+      "iracing"
+    ],
+    "semanticId": "engine.engine-warnings",
+    "kind": "bitfield",
+    "mask": 4,
+    "text": "Oil pressure warning."
+  },
+  {
+    "component": "engine-stalled",
+    "simulators": [
+      "iracing"
+    ],
+    "semanticId": "engine.engine-warnings",
+    "kind": "bitfield",
+    "mask": 8,
+    "text": "Engine stalled."
+  },
+  {
+    "component": "oil-temperature-warning",
+    "simulators": [
+      "iracing"
+    ],
+    "semanticId": "engine.engine-warnings",
+    "kind": "bitfield",
+    "mask": 64,
+    "text": "Oil temperature warning."
+  },
+  {
+    "component": "required-repairs",
+    "simulators": [
+      "iracing"
+    ],
+    "semanticId": "race.pit-service.mandatory-repair-time-remaining",
+    "kind": "repair",
+    "text": "Required repairs detected."
+  },
+  {
+    "component": "optional-repairs",
+    "simulators": [
+      "iracing"
+    ],
+    "semanticId": "race.pit-service.optional-repair-time-remaining",
+    "kind": "repair",
+    "text": "Optional repairs are available."
+  },
+  {
+    "component": "front-left-tyre-flat",
+    "simulators": [
+      "lmu"
+    ],
+    "semanticId": "tires.wheel-flat",
+    "kind": "flag",
+    "index": 0,
+    "text": "Front-left tyre is flat.",
+    "critical": true
+  },
+  {
+    "component": "front-left-wheel-detached",
+    "simulators": [
+      "lmu"
+    ],
+    "semanticId": "tires.wheel-detached",
+    "kind": "flag",
+    "index": 0,
+    "text": "Front-left wheel detached.",
+    "critical": true
+  },
+  {
+    "component": "front-right-tyre-flat",
+    "simulators": [
+      "lmu"
+    ],
+    "semanticId": "tires.wheel-flat",
+    "kind": "flag",
+    "index": 1,
+    "text": "Front-right tyre is flat.",
+    "critical": true
+  },
+  {
+    "component": "front-right-wheel-detached",
+    "simulators": [
+      "lmu"
+    ],
+    "semanticId": "tires.wheel-detached",
+    "kind": "flag",
+    "index": 1,
+    "text": "Front-right wheel detached.",
+    "critical": true
+  },
+  {
+    "component": "rear-left-tyre-flat",
+    "simulators": [
+      "lmu"
+    ],
+    "semanticId": "tires.wheel-flat",
+    "kind": "flag",
+    "index": 2,
+    "text": "Rear-left tyre is flat.",
+    "critical": true
+  },
+  {
+    "component": "rear-left-wheel-detached",
+    "simulators": [
+      "lmu"
+    ],
+    "semanticId": "tires.wheel-detached",
+    "kind": "flag",
+    "index": 2,
+    "text": "Rear-left wheel detached.",
+    "critical": true
+  },
+  {
+    "component": "rear-right-tyre-flat",
+    "simulators": [
+      "lmu"
+    ],
+    "semanticId": "tires.wheel-flat",
+    "kind": "flag",
+    "index": 3,
+    "text": "Rear-right tyre is flat.",
+    "critical": true
+  },
+  {
+    "component": "rear-right-wheel-detached",
+    "simulators": [
+      "lmu"
+    ],
+    "semanticId": "tires.wheel-detached",
+    "kind": "flag",
+    "index": 3,
+    "text": "Rear-right wheel detached.",
+    "critical": true
+  }
+]

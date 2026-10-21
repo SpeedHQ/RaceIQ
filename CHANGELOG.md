@@ -2,8 +2,8 @@
 
 ### Features
 - Use Race Engineer naming throughout internal subsystem identifiers, paths, and user-facing labels.
-- Announce newly damaged zones and heavy-damage escalation for ACC, AC Evo, and F1 25, with three-second debounce, repair rearming, and no repeated warnings for unchanged damage.
-- Generate 11 damage voice clips with the matching Qwen model and clone reference: ten zonal clips plus one generic damage report.
+- Announce source-backed component damage and faults: named F1 25 components and engine failures, ACC/AC Evo bodywork, iRacing native warnings and repair requirements, and LMU flat tyres/detached wheels. Preserve three-second debounce, independent escalation, and repair rearming; exclude wear and inferred diagnoses.
+- Replace vague damage audio with 56 matching Qwen component/fault clips. LMU enablement remains damage-only; Forza damage stays unavailable.
 - Add source-backed race engineer announcements for ACC and AC Evo, plus position changes for Forza Motorsport. Replay distinguishes unsupported systems from telemetry missing in older recordings.
 - Inspect replayed engineer audio in a moving 10-second DAW timeline with individual, duration-scaled clip waveforms and inserted pauses.
 - Choose a 50–100 Hz recording frequency for ACC, AC Evo, iRacing, or LMU during setup to reduce recording size. Live UDP recording is unchanged.
@@ -15,6 +15,8 @@
 - Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
 
 ### Fixes
+- Keep native recording write/close/replay working on Windows without calling unsupported directory `fsync`; preserve file flushes, POSIX directory syncing, and genuine filesystem errors.
+- Keep recording layout migration progress polling from racing atomic journal replacement on Windows; preserve collision checks and resumable cutover.
 - Keep ACC laps readable and exportable when recordings include opponent data, and hide stale opponent standings until the source recovers.
 - Restore source-backed iRacing opponent pace announcements for sparse grids.
 - Recognize F1 25 race sessions correctly when evaluating opponent pace.

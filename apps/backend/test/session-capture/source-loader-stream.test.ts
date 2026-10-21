@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 import { gzipSync } from "node:zlib";
-import { mkdtempSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
@@ -425,13 +425,23 @@ test("replays standalone manifest chunks once, including null-emission source fr
     for await (const _record of iterateSessionCaptureRecordsFromSource(source)) {}
   }).toThrow(/not record-aligned/);
   const outsidePath = join(tmpdir(), `raceiq-outside-${Date.now()}.bin`);
-  writeFileSync(outsidePath, Buffer.concat([prefix, wire(f1), wire(shared), wire(shared)]));
-  symlinkSync(outsidePath, join(directory, "escape.bin"));
+  let externalDirectory: string | undefined;
+  const linkPath = process.platform === "win32" ? join(directory, "escape") : join(directory, "escape.bin");
+  if (process.platform === "win32") {
+    externalDirectory = join(tmpdir(), `raceiq-outside-${Date.now()}`);
+    mkdirSync(externalDirectory);
+    writeFileSync(join(externalDirectory, "capture.bin"), Buffer.concat([prefix, wire(f1), wire(shared), wire(shared)]));
+    symlinkSync(externalDirectory, linkPath, "junction");
+  } else {
+    writeFileSync(outsidePath, Buffer.concat([prefix, wire(f1), wire(shared), wire(shared)]));
+    symlinkSync(outsidePath, linkPath);
+  }
   changed.chunks[1].sourceRecordByteOffset = contextPrefix.length;
-  changed.chunks[0].path = "escape.bin";
+  changed.chunks[0].path = process.platform === "win32" ? "escape/capture.bin" : "escape.bin";
   writeFileSync(rawFile, JSON.stringify(changed));
   await expect(async () => {
     for await (const _record of iterateSessionCaptureRecordsFromSource(source)) {}
   }).toThrow(/escapes capture directory/);
-  rmSync(outsidePath);
+  rmSync(outsidePath, { force: true });
+  if (externalDirectory !== undefined) rmSync(externalDirectory, { recursive: true, force: true });
 });

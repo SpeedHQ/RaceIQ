@@ -1,6 +1,6 @@
 {
   "catalogVersion": "live-engineer-qwen-v3",
-  "expectedClipCount": 975,
+  "expectedClipCount": 1020,
   "sampleRate": 24000,
   "channels": 1,
   "model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
@@ -301,20 +301,9 @@
       "Water temperature is clear."
     ],
     [
-      "damage-reported",
-      "Damage reported."
-    ],
-    [
       "rain-changed",
       "Rain conditions changed."
     ]
-  ],
-  "damageLocations": [
-    "front",
-    "rear",
-    "left",
-    "right",
-    "centre"
   ],
   "recipes": {
     "automatic": [

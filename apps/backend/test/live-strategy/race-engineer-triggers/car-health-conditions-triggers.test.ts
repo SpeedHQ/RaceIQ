@@ -4,6 +4,7 @@ import { RaceEngineerTriggerCatalog } from "@raceiq/backend-core/live-strategy/r
 import type { ResolvedValue } from "@raceiq/shared/telemetry/resolver/contracts";
 import { LiveEngineerVoiceEngine } from "@raceiq/backend-core/live-strategy/live-engineer-voice-engine";
 import type { LiveEngineerCalloutMessageV3, LiveEngineerVoiceLineMessageV3 } from "@raceiq/shared/racing/live/engineer-contracts";
+import type { GameId } from "@raceiq/shared/games/ids";
 
 const v = (semanticId: string, value: unknown): ResolvedValue<unknown> => ({ semanticId, value, unit: null, mappingStatus: "direct", state: "ok", confidence: 1, freshness: "fresh", confidenceComponents: { semanticFidelity: 1, freshness: 1, inputCompleteness: 1 }, provenance: {} as ResolvedValue<unknown>["provenance"], schemaVersion: "test", limitations: [] });
 const frame = (sequence: number, seconds: number, values: Record<string, unknown>, pit = false): LiveResolvedSemanticFrame => {
@@ -18,6 +19,24 @@ const events = (catalog: RaceEngineerTriggerCatalog, source: LiveResolvedSemanti
 const keys = (catalog: RaceEngineerTriggerCatalog, source: LiveResolvedSemanticFrame, family: string) => events(catalog, source).filter((event) => event.family === family).map((event) => event.eventKey);
 
 const tyres = (temperature: number[], lap: number) => ({ "tire.temperature.core": temperature, "timing.lap-number": lap, "timing.current-lap": lap });
+
+function damageHarness(simulator: GameId) {
+  const catalog = new RaceEngineerTriggerCatalog();
+  const messages: (LiveEngineerCalloutMessageV3 | LiveEngineerVoiceLineMessageV3)[] = [];
+  const engine = new LiveEngineerVoiceEngine({ emit: (message) => messages.push(message) });
+  let sequence = 0;
+  return {
+    catalog,
+    consume(seconds: number, values: Record<string, unknown>, unavailable: Record<string, "stale" | "missing"> = {}, sessionId = 1) {
+      const source = { ...frame(sequence++, seconds, values), simulator, sessionId };
+      source.values = source.values.map((value) => unavailable[value.semanticId] === "stale" ? { ...value, freshness: "stale" } :
+        unavailable[value.semanticId] === "missing" ? { ...value, state: "missing", value: null } : value);
+      messages.length = 0;
+      engine.consume(catalog.consume(source));
+      return messages.filter((message): message is LiveEngineerVoiceLineMessageV3 => message.type === "live-engineer-voice-line").flatMap((message) => [...message.segmentIds]);
+    },
+  };
+}
 
 describe("ACC Race Engineer car-health and conditions triggers", () => {
   test("waits for two laps and sector 3, then emits tyre temperature buckets once per transition", () => {
@@ -48,92 +67,92 @@ describe("ACC Race Engineer car-health and conditions triggers", () => {
     expect(keys(c, frame(4, 180, { "engine.coolant-temperature": 90 }), "EngineMonitor")).toContain("water-temperature-clear");
   });
 
-  test("reports each damaged zone after three seconds without repeating unchanged damage", () => {
-    const c = new RaceEngineerTriggerCatalog();
-    const damage = {
-      "damage.car-damage-front": 0.2,
-      "damage.car-damage-rear": 0.1,
-      "damage.car-damage-left": 0,
-      "damage.car-damage-right": 0,
-      "damage.car-damage-centre": 0,
-    };
-    c.consume(frame(0, 0, damage));
-    expect(keys(c, frame(1, 2.99, damage), "DamageReporting")).toEqual([]);
-    expect(events(c, frame(2, 3, damage))).toContainEqual(expect.objectContaining({ family: "DamageReporting", payload: expect.objectContaining({ location: "front" }) }));
-    expect(events(c, frame(3, 4, damage))).toContainEqual(expect.objectContaining({ family: "DamageReporting", payload: expect.objectContaining({ location: "rear" }) }));
-    expect(keys(c, frame(4, 5, damage), "DamageReporting")).toEqual([]);
+  test("names simultaneous F1 components independently, worst first, without repeating", () => {
+    const h = damageHarness("f1-2025");
+    const damage = { "damage.front-left-wing-damage": 20, "damage.front-right-wing-damage": 40, "damage.diffuser-damage": 80 };
+    expect(h.consume(0, damage)).toEqual([]);
+    expect(h.consume(2.999, damage)).toEqual([]);
+    expect(h.consume(3, damage)).toEqual(["race-engineer.damage-heavy-diffuser"]);
+    expect(h.consume(3.01, damage)).toEqual(["race-engineer.damage-heavy-front-right-wing"]);
+    expect(h.consume(3.02, damage)).toEqual(["race-engineer.damage-front-left-wing"]);
+    expect(h.consume(4, damage)).toEqual([]);
+    expect(h.consume(5, { ...damage, "damage.front-left-wing-damage": 30 })).toEqual([]);
+    expect(h.consume(8, { ...damage, "damage.front-left-wing-damage": 30 })).toEqual(["race-engineer.damage-heavy-front-left-wing"]);
   });
 
-  test("maps F1 aero damage percentages to existing callout zones", () => {
-    const c = new RaceEngineerTriggerCatalog();
-    const f1Damage = {
-      "damage.front-left-wing-damage": 20,
-      "damage.front-right-wing-damage": 10,
-      "damage.rear-wing-damage": 0,
-      "damage.floor-damage": 0,
-      "damage.diffuser-damage": 0,
-      "damage.sidepod-damage": 0,
-    };
-    const f1Frame = (sequence: number, seconds: number): LiveResolvedSemanticFrame => ({
-      ...frame(sequence, seconds, f1Damage),
-      simulator: "f1-2025",
-    });
-
-    c.consume(f1Frame(0, 0));
-    expect(keys(c, f1Frame(1, 2.99), "DamageReporting")).toEqual([]);
-    const reported = events(c, f1Frame(2, 3)).find((event) => event.family === "DamageReporting");
-    expect(reported).toMatchObject({ eventKey: "damage-reported", payload: { front: 0.2, rear: 0, centre: 0 } });
-    expect(keys(c, f1Frame(3, 4), "DamageReporting")).toEqual([]);
+  test("isolates stale and invalid channels, restarts debounce, and respects percentage boundaries", () => {
+    const h = damageHarness("f1-2025");
+    const damage = { "damage.floor-damage": 20, "inputs.gear-box-damage": 5, "damage.tyres-damage": [0, 0, 0, 101] };
+    h.consume(0, damage);
+    expect(h.consume(2, damage, { "damage.floor-damage": "stale" })).toEqual([]);
+    expect(h.consume(3, { ...damage, "inputs.gear-box-damage": 6 })).toEqual([]);
+    expect(h.consume(5.999, { ...damage, "inputs.gear-box-damage": 6 })).toEqual([]);
+    expect(h.consume(6, { ...damage, "inputs.gear-box-damage": 6 })).toEqual(["race-engineer.damage-floor"]);
+    expect(h.consume(6.01, { ...damage, "inputs.gear-box-damage": 6 })).toEqual(["race-engineer.damage-gearbox"]);
+    expect(h.consume(7, { "damage.tyres-damage": [0, 0, 0], "damage.front-left-wing-damage": NaN })).toEqual([]);
+    expect(h.consume(11, { "damage.tyres-damage": [0, 0, 0], "damage.front-left-wing-damage": NaN })).toEqual([]);
   });
 
-  test.each(["acc", "ac-evo", "f1-2025"] as const)("%s damage reaches voice delivery on new zones, escalation, and repair", (simulator) => {
-    const catalog = new RaceEngineerTriggerCatalog();
-    const emitted: (LiveEngineerCalloutMessageV3 | LiveEngineerVoiceLineMessageV3)[] = [];
-    const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
-    let sequence = 0;
-    const consume = (seconds: number, front: number, rear = 0, sessionId = 1, unavailable: "stale" | "missing" | false = false) => {
-      const values = simulator === "f1-2025" ? {
-        "damage.front-left-wing-damage": front * 100, "damage.front-right-wing-damage": 0,
-        "damage.rear-wing-damage": rear * 100, "damage.floor-damage": 0,
-        "damage.diffuser-damage": 0, "damage.sidepod-damage": 0,
-      } : {
-        "damage.car-damage-front": front, "damage.car-damage-rear": rear,
-        "damage.car-damage-left": 0, "damage.car-damage-right": 0, "damage.car-damage-centre": 0,
-      };
-      const source = { ...frame(sequence++, seconds, values), simulator, sessionId };
-      if (unavailable) source.values = source.values.map((value) => value.semanticId.startsWith("damage.") ? unavailable === "stale" ? { ...value, freshness: "stale" } : { ...value, state: "missing", value: null } : value);
-      emitted.length = 0;
-      engine.consume(catalog.consume(source));
-      return emitted.filter((message): message is LiveEngineerVoiceLineMessageV3 => message.type === "live-engineer-voice-line").flatMap((message) => [...message.segmentIds]);
-    };
-    expect(consume(0, .05)).toEqual([]);
-    expect(consume(.1, .2)).toEqual([]);
-    expect(consume(.2, .05)).toEqual([]);
-    expect(consume(1, .2)).toEqual([]);
-    expect(consume(3.99, .2)).toEqual([]);
-    expect(consume(4, .2)).toEqual(["race-engineer.damage-front"]);
-    expect(consume(5, .29)).toEqual([]);
-    expect(consume(6, .3)).toEqual([]);
-    expect(consume(8.99, .3)).toEqual([]);
-    expect(consume(9, .3)).toEqual(["race-engineer.damage-heavy-front"]);
-    expect(consume(10, .3, .1)).toEqual([]);
-    // Previously reported front remains worse, but new rear damage must get its own line.
-    expect(consume(13, .3, .1)).toEqual(["race-engineer.damage-rear"]);
-    expect(consume(14, 0, .1)).toEqual([]);
-    expect(consume(15, .2, .1)).toEqual([]);
-    expect(consume(18, .2, .1)).toEqual(["race-engineer.damage-front"]);
-    expect(consume(19, .2, .1)).toEqual([]);
-    expect(consume(20, .2, .1, 1, "stale")).toEqual([]);
-    expect(consume(21, .2, .1)).toEqual([]);
-    expect(consume(23.99, .2, .1)).toEqual([]);
-    expect(consume(24, .2, .1)).toEqual(["race-engineer.damage-front"]);
-    expect(consume(25, .2, .1, 2)).toEqual([]);
-    expect(consume(27.99, .2, .1, 2)).toEqual([]);
-    expect(consume(28, .2, .1, 2)).toEqual(["race-engineer.damage-front"]);
-    expect(consume(29, .2, .1, 2, "missing")).toEqual([]);
-    expect(consume(30, .2, .1, 2)).toEqual([]);
-    expect(consume(32.99, .2, .1, 2)).toEqual([]);
-    expect(consume(33, .2, .1, 2)).toEqual(["race-engineer.damage-front"]);
+  test.each(["acc", "ac-evo"] as const)("%s bodywork never invents component or calibrated heavy severity", (simulator) => {
+    const h = damageHarness(simulator);
+    expect(h.consume(0, { "damage.car-damage-centre": 50 })).toEqual([]);
+    expect(h.consume(3, { "damage.car-damage-centre": 50 })).toEqual(["race-engineer.damage-bodywork"]);
+    expect(h.consume(4, { "damage.car-damage-centre": 1000 })).toEqual([]);
+    expect(h.consume(7, { "damage.car-damage-centre": 1000, "damage.car-damage-front": .2 })).toEqual([]);
+    expect(h.consume(10, { "damage.car-damage-centre": 1000, "damage.car-damage-front": .2 })).toEqual(["race-engineer.damage-front-bodywork"]);
+    expect(h.consume(11, { "damage.car-damage-front": 0 })).toEqual([]);
+    expect(h.consume(12, { "damage.car-damage-front": .2 })).toEqual([]);
+    expect(h.consume(15, { "damage.car-damage-front": .2 })).toEqual(["race-engineer.damage-front-bodywork"]);
+  });
+
+  test("reports exact F1 brake corner and gives explicit engine failure precedence", () => {
+    const h = damageHarness("f1-2025");
+    const damage = { "damage.brakes-damage": [0, 0, 0, 30], "damage.engine-damage": 100, "engine.engine-blown": true };
+    h.consume(0, damage);
+    expect(h.consume(3, damage)).toEqual(["race-engineer.damage-engine-blown"]);
+    expect(h.consume(3.01, damage)).toEqual(["race-engineer.damage-heavy-rear-right-brake"]);
+    expect(h.consume(7, damage)).toEqual([]);
+    expect(h.consume(8, { "damage.tyres-damage": [0, 6, 0, 0] })).toEqual([]);
+    expect(h.consume(11, { "damage.tyres-damage": [0, 6, 0, 0] })).toEqual(["race-engineer.damage-front-right-tyre"]);
+  });
+
+  test("iRacing interprets warning bits and repair timers without calling limiter bits damage", () => {
+    const h = damageHarness("iracing");
+    expect(h.consume(0, { "engine.engine-warnings": 16 | 32, "race.pit-service.mandatory-repair-time-remaining": -1 })).toEqual([]);
+    expect(h.consume(3, { "engine.engine-warnings": 16 | 32, "race.pit-service.mandatory-repair-time-remaining": -1 })).toEqual([]);
+    expect(h.consume(4, { "engine.engine-warnings": 0x80000004, "race.pit-service.mandatory-repair-time-remaining": 12.5 })).toEqual([]);
+    expect(h.consume(7, { "engine.engine-warnings": 0x80000004, "race.pit-service.mandatory-repair-time-remaining": 9.5 })).toEqual(["race-engineer.damage-oil-pressure-warning"]);
+    expect(h.consume(7.01, { "race.pit-service.mandatory-repair-time-remaining": 9.49 })).toEqual(["race-engineer.damage-required-repairs"]);
+    expect(h.consume(8, { "race.pit-service.mandatory-repair-time-remaining": 0 })).toEqual([]);
+    expect(h.consume(9, { "race.pit-service.optional-repair-time-remaining": 3 })).toEqual([]);
+    expect(h.consume(12, { "race.pit-service.optional-repair-time-remaining": .5 })).toEqual(["race-engineer.damage-optional-repairs"]);
+  });
+
+  test("LMU reports real wheel faults, suppresses redundant flat warning, and enables no unrelated systems", () => {
+    const h = damageHarness("lmu");
+    const damage = { "tires.wheel-flat": [true, true, false, false], "tires.wheel-detached": [true, false, false, false] };
+    h.consume(0, damage);
+    expect(h.consume(3, damage)).toEqual(["race-engineer.damage-front-left-wheel-detached"]);
+    expect(h.consume(3.01, damage)).toEqual(["race-engineer.damage-front-right-tyre-flat"]);
+    expect(h.consume(7, damage)).toEqual([]);
+    const active = Object.entries(h.catalog.capabilities("lmu")).filter(([, capability]) => capability.state !== "unavailable").map(([family]) => family);
+    expect(active).toEqual(["DamageReporting"]);
+  });
+
+  test("source loss and session reset requalify damage while unsupported Forza stays silent", () => {
+    const h = damageHarness("f1-2025");
+    const damage = { "damage.rear-wing-damage": 20 };
+    h.consume(0, damage);
+    expect(h.consume(3, damage)).toEqual(["race-engineer.damage-rear-wing"]);
+    expect(h.consume(4, damage, { "damage.rear-wing-damage": "missing" })).toEqual([]);
+    expect(h.consume(5, damage)).toEqual([]);
+    expect(h.consume(7.999, damage)).toEqual([]);
+    expect(h.consume(8, damage)).toEqual(["race-engineer.damage-rear-wing"]);
+    expect(h.consume(9, damage, {}, 2)).toEqual([]);
+    expect(h.consume(12, damage, {}, 2)).toEqual(["race-engineer.damage-rear-wing"]);
+    const forza = damageHarness("fm-2023");
+    expect(forza.consume(0, damage)).toEqual([]);
+    expect(forza.consume(4, damage)).toEqual([]);
   });
 
   test("samples rain for ten seconds, emits bucket transitions once, and ignores unchanged readings", () => {

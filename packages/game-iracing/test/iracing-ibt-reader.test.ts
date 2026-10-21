@@ -15,10 +15,14 @@ import { previewIbtFile } from "../src/ibt-preview";
 import { normalizeIRacingFrame } from "../src/normalizer";
 import { IRacingTelemetrySource } from "../src/source";
 import {
+  IRacingSourceFrameEncoder,
   createIRacingSourceDecoderState,
   decodeIRacingSourceFrame,
   type IRacingSourceFrameV3,
 } from "@raceiq/capture-formats/iracing/source-frame";
+import { LiveTelemetryProjector } from "@raceiq/telemetry-core/telemetry/live-projector";
+import { RaceEngineerTriggerCatalog } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/catalog";
+import { LiveEngineerVoiceEngine } from "@raceiq/backend-core/live-strategy/live-engineer-voice-engine";
 import {
   IRSDK_VAR_HEADER_SIZE,
 } from "@raceiq/capture-formats/iracing/variable-table";
@@ -137,8 +141,14 @@ describe("IRacingIbtReader", () => {
       expect((frame as IRacingSourceFrameV3 | null)?.sessionInfo).toBe(
         syntheticSessionInfo(DEFAULT_IDENTITY),
       );
+      expect(frame?.values.EngineWarnings).toBe(0xf0000001);
+      expect(frame?.values.PitRepairLeft).toBeCloseTo(12.375);
+      expect(frame?.values.PitOptRepairLeft).toBeCloseTo(3.625);
       expect(frame?.values.LFbrakeLinePress).toBeCloseTo(1200.25);
       const packet = normalizeIRacingFrame(frame!);
+      expect(packet.iracing?.engineWarnings).toBe(0xf0000001);
+      expect(packet.iracing?.pitRepairLeft).toBeCloseTo(12.375);
+      expect(packet.iracing?.pitOptRepairLeft).toBeCloseTo(3.625);
       expect(packet.gameId).toBe("iracing");
       expect(packet.sessionUID).toBe("456:123:2");
       expect(packet.Speed).toBeCloseTo(50.5);
@@ -150,6 +160,8 @@ describe("IRacingIbtReader", () => {
       expect(packet.iracing).not.toHaveProperty("sessionInfoUpdate");
 
       const secondFrame = decodeIRacingSourceFrame(delivered[1], decoder);
+      expect(secondFrame?.values.EngineWarnings).toBe(0xf0000001);
+      expect(secondFrame?.values.PitRepairLeft).toBeCloseTo(12.375);
       expect(secondFrame?.values.Speed).toBeCloseTo(51.5);
       expect(secondFrame?.values.LFbrakeLinePress).toBeCloseTo(1201.5);
       expect(
@@ -158,7 +170,68 @@ describe("IRacingIbtReader", () => {
       expect(
         (secondFrame as IRacingSourceFrameV3 | null)?.sessionInfoUpdate,
       ).toBe(0);
+      const oldValues = { ...frame!.values };
+      delete oldValues.EngineWarnings;
+      delete oldValues.PitRepairLeft;
+      delete oldValues.PitOptRepairLeft;
+      const oldFrame = decodeIRacingSourceFrame(new IRacingSourceFrameEncoder().encode({
+        schemaVersion: 2,
+        session: frame!.session,
+        values: oldValues,
+      }));
+      expect(oldFrame).not.toBeNull();
+      const oldPacket = normalizeIRacingFrame(oldFrame!);
+      expect(oldPacket.iracing).not.toHaveProperty("engineWarnings");
+      expect(oldPacket.iracing).not.toHaveProperty("pitRepairLeft");
+      expect(oldPacket.iracing).not.toHaveProperty("pitOptRepairLeft");
 
+      await source.stop();
+    } finally {
+      recording.cleanup();
+    }
+  });
+  test("routes decoded native iRacing warnings through live voice delivery", async () => {
+    const recording = createRecording("native-damage.ibt", [
+      { sessionTime: 10, sessionTick: 600, speed: 50, lapDistancePct: 0.2, engineWarnings: 0, pitRepairLeft: 0, pitOptRepairLeft: 0 },
+      { sessionTime: 13, sessionTick: 603, speed: 50, lapDistancePct: 0.3, engineWarnings: 0x80000004, pitRepairLeft: 8.5, pitOptRepairLeft: 0 },
+      { sessionTime: 16.01, sessionTick: 606, speed: 50, lapDistancePct: 0.4, engineWarnings: 0x80000004, pitRepairLeft: 5.49, pitOptRepairLeft: 0 },
+      { sessionTime: 16.02, sessionTick: 607, speed: 50, lapDistancePct: 0.41, engineWarnings: 0x80000004, pitRepairLeft: 5.48, pitOptRepairLeft: 0 },
+    ]);
+    try {
+      const reader = new IRacingIbtReader(recording.path);
+      reader.start();
+      const delivered: Buffer[] = [];
+      const source = new IRacingTelemetrySource({
+        reader,
+        dispatchRawFrame: async (raw) => { delivered.push(raw); },
+      });
+      while (await source.pollOnce()) { /* drain native fixture */ }
+
+      const projector = new LiveTelemetryProjector();
+      const catalog = new RaceEngineerTriggerCatalog();
+      const emitted: unknown[] = [];
+      const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
+      const decoder = createIRacingSourceDecoderState();
+      for (const raw of delivered) {
+        const frame = decodeIRacingSourceFrame(raw, decoder);
+        expect(frame).not.toBeNull();
+        const packet = normalizeIRacingFrame(frame!);
+        const semanticFrame = projector.project({
+          packet,
+          sessionId: 1,
+          receivedAtMs: packet.TimestampMS,
+        }).semanticFrame;
+        engine.consume(catalog.consume(semanticFrame));
+      }
+      const segments = emitted
+        .filter((message): message is { type: string; segmentIds: string[] } =>
+          typeof message === "object" && message !== null &&
+          "type" in message && message.type === "live-engineer-voice-line" &&
+          "segmentIds" in message && Array.isArray(message.segmentIds))
+        .flatMap((message) => message.segmentIds);
+      expect(segments).toContain("race-engineer.damage-oil-pressure-warning");
+      expect(segments).toContain("race-engineer.damage-required-repairs");
+      expect(segments).not.toContain("race-engineer.damage-pit-limiter");
       await source.stop();
     } finally {
       recording.cleanup();
