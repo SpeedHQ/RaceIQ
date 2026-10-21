@@ -6,7 +6,7 @@ Current implementation status updated 2026-10-21. The [release contract](raceiq-
 
 **Queue infrastructure, persistent status, dedicated worker and native recording producer integration are implemented.** Upload preparation reuses published artifacts and existing native framing/context infrastructure, not a competing session slicer. Main integration retains released classification migration82, relocates named Online migrations to83–94, and routes Online worker SQL through the shared application authority with separate read connections.
 
-Genuine F1 World and both Bahrain LMU laps pass isolated Rust HTTP publication, archive download and canonical native reparse with original GUIDs and matching-binding Self. Premerge connected Community rows opened exact F1/LMU replays with original GUID/author and borrowed ownership; repeated/mobile and postmerge connected playback remain under verification. ACC fixture coverage is parked, not a reason to force attribution or keep searching; iRacing is excluded from the current investigation.
+Genuine F1 World and both Bahrain LMU laps pass isolated Rust HTTP publication, archive download and canonical native reparse with original GUIDs and matching-binding Self. After main integration, fresh F1/LMU Community imports and repeated desktop and 390 px mobile Open Replay passed with advancing playback, original GUIDs and authors, borrowed ownership, and no duplicate rows. Private and signed-out Community gates suppress Open Replay. ACC fixture coverage remains parked; iRacing is excluded from the current recording investigation.
 
 ## Done
 
@@ -70,6 +70,7 @@ Genuine F1 World and both Bahrain LMU laps pass isolated Rust HTTP publication, 
 - **Earlier UI proof:** real local Hono/RPC/SQLite status, desktop/mobile DOM and mobile accessibility audit. Package extraction changes UI imports, not presentation; no new visual inspection or screenshot is claimed.
 - **Premerge native correction gates:** desktop20 tests, cloud30 native/trend plus10 scoped parser tests, desktop34/34 typecheck, cloud processor typecheck and11 changelog tests passed at recorded inputs. Actual HTTP/archive smoke covers April09 primary, both Bahrain LMU laps and four April22 additional F1 laps.
 - **Post-main integration gates:** migration/dashboard105, native/classification107, runtime/portable-import101, real worker write-coordination E2E13 and changelog11 tests pass. An actual isolated backend retains auth/setup/Online-state200 with an occupied UDP port. Main's worker SQL authority, migration lineage and extracted catalogue boundaries are retained; exact commands, typecheck outcomes and remaining connected/release gaps are linked from the verification report.
+- **Connected replay after main:** importer standalone reads use the read connection and registration uses the shared write authority. Actual SDK PKCE and callback verification used a pinned loopback provider; browser-hosted OAuth is not claimed. Fresh, repeated and mobile F1/LMU playback and private/sign-out gates are recorded in `connected-main-replay.json`; 12 importer/controller tests and the final 37-package typecheck passed. Full E18 race/error coverage and wider release acceptance remain incomplete.
 
 ## Relevant implementation and tests
 
@@ -84,4 +85,4 @@ Genuine F1 World and both Bahrain LMU laps pass isolated Rust HTTP publication, 
 
 ## Next action
 
-Verify the actual connected F1/LMU desktop journey: safe loopback authentication, current consent and confirmed public sharing → real Community rows → exact selected Open Replay → original GUID/author, correct replay data, repeated reuse and mobile. Keep missing ACC/Evo fixture coverage and all unexecuted release scenarios explicitly open; do not require another production sign-in or search for more ACC recordings.
+Preserve the completed local connected replay proof and continue only authorized release-acceptance work against the canonical contract. Hosted OAuth, compatible published releases, Windows execution, the complete E18 race/error matrix and broader E01–E19 scenarios remain unverified. Keep ACC/Evo fixture gaps explicit; do not require another production sign-in, force attribution, or search for more ACC recordings.

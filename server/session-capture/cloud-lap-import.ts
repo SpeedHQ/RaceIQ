@@ -7,7 +7,8 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { api, createRaceIqClient } from "@speedhq/live-client";
 import { unzipBounded, type ZipExtractionLimits } from "../archive/bounded-unzip";
-import { db } from "../db/index";
+import { db, readDb } from "../db/index";
+import { withDatabaseWrite } from "../db/write-coordination";
 import { laps, sessions, lapGuidReconciliation, originalActivitySourceLaps } from "../db/schema";
 import { resolveDataDir } from "../runtime/config/data-dir";
 import { resolveRecordingDirectory, resolveRecordingGameDirectory } from "../runtime/config/recording-directory";
@@ -120,7 +121,7 @@ function confirmImportIdentity(input: CloudLapImportInput, value: { lapGuid: str
 }
 
 async function confirmSavedImportIdentity(input: CloudLapImportInput, lapId: number): Promise<CloudLapImportResult> {
-  const row = await db.select({ id: laps.id, sessionId: sessions.id, lapGuid: laps.lapGuid, canonicalGuid: lapGuidReconciliation.lapGuid, status: lapGuidReconciliation.status,
+  const row = await readDb.select({ id: laps.id, sessionId: sessions.id, lapGuid: laps.lapGuid, canonicalGuid: lapGuidReconciliation.lapGuid, status: lapGuidReconciliation.status,
     gameId: sessions.gameId, carId: sessions.carId, trackId: sessions.trackId }).from(laps)
     .innerJoin(sessions, eq(sessions.id, laps.sessionId)).leftJoin(lapGuidReconciliation, eq(lapGuidReconciliation.lapId, laps.id))
     .where(eq(laps.id, lapId)).get();
@@ -141,7 +142,7 @@ async function importCloudLapWithOptions(input: CloudLapImportInput, origin: str
   await recoverCloudLapImports();
   await input.assertAuthorized();
   const key = `${origin}\0${input.lapId}`;
-  const found = await db.select({ id: laps.id, lapGuid: laps.lapGuid, guidStatus: lapGuidReconciliation.status,
+  const found = await readDb.select({ id: laps.id, lapGuid: laps.lapGuid, guidStatus: lapGuidReconciliation.status,
     canonicalGuid: lapGuidReconciliation.lapGuid, gameId: sessions.gameId, carId: sessions.carId, trackId: sessions.trackId,
     sessionId: sessions.id, rawFile: sessions.rawFile })
     .from(sessions).innerJoin(laps, eq(laps.sessionId, sessions.id))
@@ -226,7 +227,7 @@ async function recoverCloudImportJournals(): Promise<void> {
       await rm(journalPath, { force: true });
       continue;
     }
-    const completed = await db.select({ rawFile: sessions.rawFile })
+    const completed = await readDb.select({ rawFile: sessions.rawFile })
       .from(sessions)
       .where(and(eq(sessions.cloudImportOrigin, journal.origin), eq(sessions.cloudImportLapId, journal.lapId), eq(sessions.rawFile, journal.final))).get();
     if (!completed) {
@@ -309,7 +310,7 @@ async function performImport(input: CloudLapImportInput, origin: string, fetcher
     ? classifyLapAttribution(provenance.driverAttributionStints, provenance.sourceClock.startMs, provenance.sourceClock.endMs, provenance.sourceClock.domain)
     : null;
   const originalGuid = manifest.lap.guid.toLowerCase();
-  const existingOriginal = await db.select({
+  const existingOriginal = await readDb.select({
     id: laps.id, lapGuid: laps.lapGuid, sessionId: sessions.id, gameId: sessions.gameId,
     originalActivityId: sessions.originalActivityId,
     originalSourceRevision: sessions.originalSourceRevision,
@@ -374,7 +375,7 @@ async function performImport(input: CloudLapImportInput, origin: string, fetcher
       if (setupTemp && manifest.setup) await writeFile(setupTemp, files[manifest.setup.path]!, { flag: "wx", mode: 0o600 });
       await input.assertAuthorized();
       let result!: { id: number; gameId: string; sessionId: number };
-      await db.transaction(async (tx) => {
+      await withDatabaseWrite(() => db.transaction(async (tx) => {
         const prior = await tx.select({ id: sessions.id, originalActivityId: sessions.originalActivityId, originalSourceRevision: sessions.originalSourceRevision, ownerUserId: sessions.ownerUserId, sourceAuthorUserId: sessions.sourceAuthorUserId }).from(sessions)
           .where(and(eq(sessions.cloudImportOrigin, origin), eq(sessions.cloudImportLapId, manifest.lap.id))).get();
         if (!input.isAuthorized()) throw new CloudLapImportError("auth_required", true);
@@ -454,7 +455,7 @@ async function performImport(input: CloudLapImportInput, origin: string, fetcher
         if (setupTemp && setupFinal) await rename(setupTemp, setupFinal);
         result = { id: lap.id, gameId, sessionId };
         if (!input.isAuthorized()) throw new CloudLapImportError("auth_required", true);
-      });
+      }));
       return result;
     });
     committed = true;
