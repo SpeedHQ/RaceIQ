@@ -20,7 +20,7 @@ Marketing screenshot captures use `marketing-screenshots.config.ts`; responsive 
 
 The main config uses `tests/` as `testDir`; no E2E specs belong at `tests/` root. Screenshot capture uses dedicated configs. Stateful E2E projects stay ordered on one worker.
 
-The `seeded-webgpu` project requires a hardware adapter (`GPUAdapterInfo.isFallbackAdapter === false`) and fails rather than skips if one is unavailable. CI runs it on macOS GPU runners. CPU-compatible Spectate camera and full-range zoom scenarios remain in the cross-platform `seeded-e2e` project.
+The `seeded-webgpu` project requires a hardware adapter (`GPUAdapterInfo.isFallbackAdapter === false`) and fails rather than skips if one is unavailable. CI runs it on GitHub-hosted macOS runners. Zoom-reversal checks synchronize with rendered mid-snap frames so browser-driver latency cannot move the input beyond the transition. CPU-compatible Spectate camera and full-range zoom scenarios remain in the cross-platform `seeded-e2e` project.
 
 Root `test:e2e` (including `test:e2e:compiled`), its `fresh`/`tunes`/`seeded` variants, and root `screenshots` use `scripts/run-browser-verification.ts`: this cross-platform runner builds the production app with both F1 experiments and iRacing adapter flags, then starts compiled-server verification. `build:browser` exposes the feature-enabled build alone; ordinary `build` and release builds retain default feature settings. `ui:diff` builds both compared revisions with those flags before compiled responsive captures; `ui:diff:storybook` remains Storybook-only. The general `bun run test` sequence also performs a feature-enabled browser build immediately before Playwright E2E.
 

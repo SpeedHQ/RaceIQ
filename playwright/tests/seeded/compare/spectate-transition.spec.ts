@@ -109,9 +109,23 @@ for (const gameId of ["fm-2023", "f1-2025"] as const) {
     await expect(canvas).toHaveAttribute("data-zoom-snapping", "false");
     await page.waitForTimeout(450);
     await expect(canvas).toHaveAttribute("data-zoom-blend", "0");
-    await zoom(120);
-    await page.waitForTimeout(170);
-    await zoom(-360);
+    // Reverse from a rendered mid-snap frame, independent of browser-driver latency.
+    await canvas.evaluate((node) => new Promise<void>((resolve, reject) => {
+      const observer = new MutationObserver(() => {
+        const blend = Number(node.dataset.zoomBlend);
+        if (node.dataset.zoomSnapping !== "true" || blend <= 0.2 || blend >= 0.8) return;
+        observer.disconnect();
+        clearTimeout(timeout);
+        node.dispatchEvent(new WheelEvent("wheel", { deltaY: -360, bubbles: true, cancelable: true }));
+        resolve();
+      });
+      const timeout = setTimeout(() => {
+        observer.disconnect();
+        reject(new Error("No rendered mid-snap frame available for zoom reversal"));
+      }, 10_000);
+      observer.observe(node, { attributes: true, attributeFilter: ["data-render-count"] });
+      node.dispatchEvent(new WheelEvent("wheel", { deltaY: 120, bubbles: true, cancelable: true }));
+    }));
     await expect(canvas).toHaveAttribute("data-zoom-blend", "0");
     await expect(canvas).toHaveAttribute("data-zoom-snapping", "false");
     const frames = await canvas.evaluate(node => Reflect.get(node, "transitionFrames")) as { blend: number; car: boolean; label: boolean }[];

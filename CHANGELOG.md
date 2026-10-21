@@ -76,6 +76,7 @@
 
 ### Internal
 - Run native Spectate camera and transition checks on macOS GPU runners while retaining cross-platform coverage for CPU-compatible rendering paths.
+- Synchronize zoom-reversal checks with rendered transition frames and wait for concurrent SQLite writers during migration fixture setup.
 - Keep sparse-capture fixtures schema-valid and verify failed classification recordings without waiting for dashboard work blocked by startup repair prerequisites.
 - Rename the shared LMU decoded-frame contract to `LMUSourceFrame` and remove an unused legacy version constant without changing recording compatibility.
 - Define startup repair stages in a keyed registry with an explicit order; reject unknown, duplicate, or omitted stages before repairs run.
