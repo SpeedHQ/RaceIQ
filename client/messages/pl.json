@@ -2467,7 +2467,7 @@
   "storage_recording_summary": "{files} plików nagrań · {size}",
   "classification_migration_title": "Klasyfikacja historycznych okrążeń",
   "classification_migration_historical_caveat": "Historyczne wyniki tempa mogą się zmienić podczas ponownego przetwarzania.",
-  "classification_migration_complete": "Sklasyfikowano historyczne nagrania.",
+  "classification_migration_complete": "Klasyfikacja historycznych okrążeń została zakończona.",
   "classification_migration_attention": "Niektóre nagrania wymagają uwagi.",
   "classification_migration_counts": "Sklasyfikowane: {completed} · oczekujące: {pending} · ograniczone: {limited} · nieudane: {failed}",
   "classification_migration_refresh": "Odśwież",

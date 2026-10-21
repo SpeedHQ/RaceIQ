@@ -2467,7 +2467,7 @@
   "storage_recording_summary": "{files} файлов записей · {size}",
   "classification_migration_title": "Классификация исторических кругов",
   "classification_migration_historical_caveat": "Исторические результаты темпа могут измениться при повторной обработке.",
-  "classification_migration_complete": "Исторические записи классифицированы.",
+  "classification_migration_complete": "Классификация исторических кругов завершена.",
   "classification_migration_attention": "Некоторые записи требуют внимания.",
   "classification_migration_counts": "Классифицировано: {completed} · ожидает: {pending} · ограничено: {limited} · ошибок: {failed}",
   "classification_migration_refresh": "Обновить",

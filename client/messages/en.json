@@ -2484,7 +2484,7 @@
   "analyse_motec_unsupported_game": "MoTeC import is not supported for {game} yet. Use a native RaceIQ recording instead.",
   "classification_migration_title": "Historical lap classification",
   "classification_migration_historical_caveat": "Historical pace results may change while recordings are reprocessed.",
-  "classification_migration_complete": "Historical recordings classified.",
+  "classification_migration_complete": "Historical lap classification finished.",
   "classification_migration_attention": "Some recordings need attention; completed classification remains available.",
   "classification_migration_counts": "{completed} classified · {pending} pending · {limited} limited · {failed} failed",
   "classification_migration_refresh": "Refresh",

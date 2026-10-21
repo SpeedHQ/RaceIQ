@@ -2633,7 +2633,7 @@
   "streaming_gap_to_leader": "लीडर से अंतर",
   "classification_migration_title": "ऐतिहासिक लैप वर्गीकरण",
   "classification_migration_historical_caveat": "रिकॉर्डिंग दोबारा संसाधित होने पर पुराने पेस परिणाम बदल सकते हैं।",
-  "classification_migration_complete": "ऐतिहासिक रिकॉर्डिंग वर्गीकृत की गईं।",
+  "classification_migration_complete": "ऐतिहासिक लैप का वर्गीकरण पूरा हुआ।",
   "classification_migration_attention": "कुछ रिकॉर्डिंग पर ध्यान देना आवश्यक है; पूरा हुआ वर्गीकरण उपलब्ध है।",
   "classification_migration_counts": "{completed} वर्गीकृत · {pending} लंबित · {limited} सीमित · {failed} विफल",
   "classification_migration_refresh": "रीफ़्रेश करें",

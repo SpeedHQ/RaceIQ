@@ -2631,7 +2631,7 @@
   "streaming_gap_to_leader": "리더와의 격차",
   "classification_migration_title": "과거 랩 분류",
   "classification_migration_historical_caveat": "녹화 파일을 다시 처리하는 동안 과거 페이스 결과가 변경될 수 있습니다.",
-  "classification_migration_complete": "과거 녹화 파일을 분류했습니다.",
+  "classification_migration_complete": "과거 랩 분류 작업이 완료되었습니다.",
   "classification_migration_attention": "일부 녹화 파일에 확인이 필요하지만 완료된 분류는 계속 사용할 수 있습니다.",
   "classification_migration_counts": "{completed}개 분류됨 · {pending}개 대기 · {limited}개 제한됨 · {failed}개 실패",
   "classification_migration_refresh": "새로고침",

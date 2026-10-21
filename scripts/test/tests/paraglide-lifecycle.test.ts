@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { copyFile, mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { stripVTControlCharacters } from "node:util";
 
 const root = resolve(import.meta.dir, "../../..");
 
@@ -61,7 +62,7 @@ setInterval(() => {}, 1000);
       if (chunk.done) throw new Error(`Parent exited before watcher readiness: ${output}`);
       output += new TextDecoder().decode(chunk.value);
     }
-    orphanPid = Number(output.match(/Watcher PID: (\d+)/)?.[1]);
+    orphanPid = Number(stripVTControlCharacters(output).match(/Watcher PID: (\d+)/)?.[1]);
     expect(orphanPid).toBeGreaterThan(0);
     parent.kill("SIGKILL");
     await parent.exited;
@@ -78,7 +79,7 @@ setInterval(() => {}, 1000);
     children.push(compiling);
     const compilingReader = compiling.stdout.getReader();
     let compilingOutput = "";
-    while (!compilingOutput.includes("[paraglide-js] Compiling")) {
+    while (!stripVTControlCharacters(compilingOutput).includes("[paraglide-js] Compiling")) {
       const chunk = await compilingReader.read();
       if (chunk.done) throw new Error(`Compiler exited before startup: ${compilingOutput}`);
       compilingOutput += new TextDecoder().decode(chunk.value);

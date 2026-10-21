@@ -2467,7 +2467,7 @@
   "storage_recording_summary": "録画ファイル {files} 件 · {size}",
   "classification_migration_title": "過去のラップ分類",
   "classification_migration_historical_caveat": "録画の再処理中に過去のペース結果が変わる場合があります。",
-  "classification_migration_complete": "過去の録画を分類しました。",
+  "classification_migration_complete": "過去のラップの分類処理が完了しました。",
   "classification_migration_attention": "対応が必要な録画があります。",
   "classification_migration_counts": "分類済み {completed} · 待機中 {pending} · 制限あり {limited} · 失敗 {failed}",
   "classification_migration_refresh": "更新",

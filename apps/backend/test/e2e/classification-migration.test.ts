@@ -220,9 +220,10 @@ test("an obsolete terminal failure requeues a newer source revision before repor
     });
     await Bun.write(join(barrierDir, "duringDecodeBatch.release"), "");
     const final = await settled(running.address);
-    expect(final.failed).toBe(1);
+    expect(final.failed).toBe(0);
+    expect(final.limited).toBe(1);
     expect(database.prepare("SELECT state,source_revision,attempt,reason FROM classification_migration_recordings").get()).toMatchObject({
-      state: "failed", source_revision: 2, attempt: 1, reason: "ambiguous_match",
+      state: "limited", source_revision: 2, attempt: 1, reason: "ambiguous_match",
     });
     expect(preservedLaps(database)).toEqual(original);
   } finally {
@@ -287,7 +288,7 @@ test("normal boot classifies historical recordings in place and skips completed 
   }
 }, 240_000);
 
-test("missing source is visible attention without retries or metadata loss; feature Retry durably requeues", async () => {
+test("missing source completes with limitations without retries or metadata loss; feature Retry durably requeues", async () => {
   const directory = await mkdtemp(join(tmpdir(), "raceiq-classification-missing-"));
   const dataDir = join(directory, "data");
   let server: UpgradeServer | undefined;
@@ -306,7 +307,7 @@ test("missing source is visible attention without retries or metadata loss; feat
     const running = await openUpgrade(dataDir);
     server = running.server;
     const first = await settled(running.address);
-    expect(first.status).toBe("attention");
+    expect(first.status).toBe("complete");
     expect(first.limited).toBeGreaterThan(0);
     expect(first.failed).toBe(0);
     expect(database.prepare("SELECT classification,is_valid,invalid_reason FROM laps ORDER BY id LIMIT 1").get()).toMatchObject({ classification: "out_lap", is_valid: 0, invalid_reason: "outlap" });
@@ -411,7 +412,7 @@ for (const barrier of ["beforeTransaction", "insideTransaction", "afterCommitBef
 }
 
 for (const defect of ["ambiguous_match", "corrupt_source"] as const) {
-  test(`${defect} fails the recording atomically without changing saved lap identity`, async () => {
+  test(`${defect} preserves saved laps and distinguishes limitations from execution failures`, async () => {
     const directory = await mkdtemp(join(tmpdir(), "raceiq-classification-failure-"));
     const dataDir = join(directory, "data");
     let server: UpgradeServer | undefined;
@@ -446,16 +447,36 @@ for (const defect of ["ambiguous_match", "corrupt_source"] as const) {
       server = running.server;
       // Corrupt historical input blocks startup and therefore aggregate publication.
       const snapshot = await settled(running.address, defect !== "corrupt_source");
-      expect(snapshot.status).toBe(defect === "corrupt_source" ? "running" : "attention");
-      expect(snapshot.failed).toBeGreaterThan(0);
+      expect(snapshot.status).toBe(defect === "corrupt_source" ? "running" : "complete");
+      expect(snapshot.failed).toBe(defect === "corrupt_source" ? 1 : 0);
+      expect(snapshot.limited).toBe(defect === "ambiguous_match" ? 1 : 0);
       if (defect === "corrupt_source") expect(snapshot.aggregatesPending).toBe(true);
       const response = await fetch(`${running.address}/api/sessions/classification-migration-recordings`);
       expect(response.status).toBe(200);
       const list = await response.json() as { recordings: Array<{ state: string; reason: string }> };
-      expect(list.recordings.some((recording) => recording.state === "failed" && recording.reason === defect)).toBe(true);
+      expect(list.recordings).toContainEqual(expect.objectContaining({
+        state: defect === "ambiguous_match" ? "limited" : "failed", reason: defect,
+      }));
       expect(preservedLaps(database)).toEqual(original);
       expect(database.prepare("SELECT id,is_valid,invalid_reason FROM laps ORDER BY id").all()).toEqual(quality);
       expect(database.prepare("SELECT id FROM laps WHERE classification IS NOT NULL").all()).toEqual([]);
+      if (defect === "ambiguous_match") {
+        const attempts = database.prepare("SELECT recording_id,attempt FROM classification_migration_recordings ORDER BY recording_id").all();
+        const revision = (await status(running.address)).revision;
+        await server.stop();
+        database.exec("UPDATE classification_migration_recordings SET state='failed' WHERE reason='ambiguous_match'");
+        const resumed = await openUpgrade(dataDir);
+        server = resumed.server;
+        const repaired = await settled(resumed.address);
+        expect(repaired.failed).toBe(0);
+        expect(repaired.limited).toBe(1);
+        expect(repaired.status).toBe("complete");
+        expect(repaired.revision).toBeGreaterThan(revision);
+        expect(database.prepare("SELECT recording_id,attempt FROM classification_migration_recordings ORDER BY recording_id").all()).toEqual(attempts);
+        expect(preservedLaps(database)).toEqual(original);
+        expect(database.prepare("SELECT id,is_valid,invalid_reason FROM laps ORDER BY id").all()).toEqual(quality);
+        expect(database.prepare("SELECT id FROM laps WHERE classification IS NOT NULL").all()).toEqual([]);
+      }
     } finally {
       await server?.stop();
       database?.close();
@@ -591,9 +612,9 @@ test("#222 scalar-matching capture preserves ambiguous historical boundaries wit
     const running = await openUpgrade(dataDir);
     server = running.server;
     const snapshot = await settled(running.address);
-    expect(snapshot.status).toBe("attention");
-    expect(snapshot.limited).toBe(1);
-    expect(snapshot.failed).toBe(1);
+    expect(snapshot.status).toBe("complete");
+    expect(snapshot.limited).toBe(2);
+    expect(snapshot.failed).toBe(0);
     expect(database.prepare("SELECT id FROM laps WHERE classification='grid_start'").all()).toEqual([]);
     expect(database.prepare("SELECT COUNT(*) AS count FROM laps WHERE classification IS NULL").get()).toMatchObject({ count: 5 });
     expect(preservedLaps(database)).toEqual(original);
@@ -601,7 +622,7 @@ test("#222 scalar-matching capture preserves ambiguous historical boundaries wit
     const response = await fetch(`${running.address}/api/sessions/classification-migration-recordings`);
     const list = await response.json() as { recordings: Array<{ state: string; reason: string }> };
     // Its first stored range differs from current detection; four later exact matches cannot justify a partial commit.
-    expect(list.recordings).toContainEqual(expect.objectContaining({ state: "failed", reason: "ambiguous_match" }));
+    expect(list.recordings).toContainEqual(expect.objectContaining({ state: "limited", reason: "ambiguous_match" }));
     expect(list.recordings).toContainEqual(expect.objectContaining({ state: "limited", reason: "missing_source" }));
     const firstPageResponse = await fetch(`${running.address}/api/sessions/classification-migration-recordings?limit=1`);
     const firstPage = await firstPageResponse.json() as { recordings: Array<{ recordingId: string }>; nextCursor: string | null };

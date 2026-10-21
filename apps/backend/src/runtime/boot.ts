@@ -155,7 +155,11 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   );
 
   const udpPort = options.udpPort ?? (Number(process.env.RACEIQ_DEV_UDP_PORT) || settings.udpPort || Number(process.env.UDP_PORT) || 5301);
-  await udpListener.start(udpPort);
+  try {
+    await udpListener.start(udpPort);
+  } catch (error) {
+    console.error(`[UDP] Unable to listen on port ${udpPort}; recording processing remains available:`, error);
+  }
 
 
   nativeSources = startNativeSourceSupervisor(recordingGameId);
@@ -175,7 +179,6 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   startMaintenanceJobs();
 
   console.log("[Server] RaceIQ Server is ready!");
-  console.log(`[Server] Listening for UDP on port ${udpPort}`);
 
   return { httpServer, httpPort: boundHttpPort, udpPort };
 }
