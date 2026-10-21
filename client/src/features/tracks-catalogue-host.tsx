@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { TracksCatalogueProvider } from "@raceiq/tracks-catalogue/ui";
-import type { TracksCatalogueHost, TracksCatalogueOperations, CatalogueNavigate, TrackOutline, SectorBounds, SourcedTrackSectors, F125TrackCounts, AccSetupCounts, TrackLap, TrackBoundaries, TrackCurb } from "@raceiq/tracks-catalogue/contracts";
+import type { TracksCatalogueHost, TracksCatalogueOperations, CatalogueNavigate, TrackOutline, SectorBounds, SourcedTrackSectors, F125TrackCounts, AccSetupCounts, TrackLap, TrackBoundaries } from "@raceiq/tracks-catalogue/contracts";
 import type { ResolvedTrackGuide } from "@raceiq/shared/racing/tracks/guide/types";
 import { AppInput } from "@/components/ui/AppInput";
 import { Button } from "@/components/ui/button";
@@ -70,14 +70,8 @@ const operations: TracksCatalogueOperations = {
   boundaries: (id, gameId) => client.api["track-boundaries"][":trackId"]
     .$get({ param: { trackId: encodeURIComponent(id) }, query: { gameId: gameId ?? undefined } })
     .then((r) => r.ok ? (r.json() as unknown as TrackBoundaries) : null),
-  curbs: (id, gameId) => client.api["track-curbs"][":trackId"]
-    .$get({ param: { trackId: encodeURIComponent(id) }, query: { gameId: gameId ?? undefined } })
-    .then((r) => r.ok ? (r.json() as unknown as TrackCurb[]) : null),
   calibrationComparison: (id) => client.api["track-calibration"][":trackId"].comparison
     .$get({ param: { trackId: encodeURIComponent(id) } })
-    .then((r) => r.ok ? r.json() : null),
-  extractCurbs: (id) => client.api["track-curbs"][":trackId"].extract
-    .$post({ param: { trackId: encodeURIComponent(id) } })
     .then((r) => r.ok ? r.json() : null),
 };
 

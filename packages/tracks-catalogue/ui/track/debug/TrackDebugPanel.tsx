@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import { useTracksCatalogueHost } from "../../host";
-import type { Point, TrackBoundaries, TrackCurb, TrackSectors } from "../../../contracts/types";
+import type { Point, TrackBoundaries, TrackSectors } from "../../../contracts/types";
 import { InlineTrackMap } from "../InlineTrackMap";
 import { CalibrationComparisonSection } from "./CalibrationComparisonSection";
 import type { CalibrationComparison } from "../../../contracts/calibration";
-import { CurbDebugSection } from "./CurbDebugSection";
 import { TrackDebugCanvas } from "./TrackDebugCanvas";
 
 /**
@@ -41,7 +40,6 @@ export function TrackDebugPanel({
   const { m, useGameId, operations } = useTracksCatalogueHost();
   const gid = useGameId() ?? undefined;
   const [boundaries, setBoundaries] = useState<TrackBoundaries | null>(null);
-  const [curbs, setCurbs] = useState<TrackCurb[] | null>(null);
   const [calibrationComparison, setCalibrationComparison] = useState<CalibrationComparison | null>(null);
   const [showCalibrationHistory, setShowCalibrationHistory] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -51,11 +49,9 @@ export function TrackDebugPanel({
     setLoading(true);
     Promise.all([
       operations.boundaries(trackId, gid).catch(() => null),
-      operations.curbs(trackId, gid).catch(() => null),
       operations.calibrationComparison(trackId).catch(() => null),
-    ]).then(([b, c, comparison]) => {
+    ]).then(([b, comparison]) => {
       setBoundaries(b);
-      setCurbs(c);
       setCalibrationComparison(comparison);
       setLoading(false);
     });
@@ -75,7 +71,6 @@ export function TrackDebugPanel({
         <TrackDebugCanvas
           outline={outline}
           boundaries={boundaries}
-          curbs={curbs}
           flipX={flipX}
           displaySectors={displaySectors}
           sectorBounds={sectorBounds}
@@ -133,7 +128,6 @@ export function TrackDebugPanel({
         </div>
 
         <CalibrationComparisonSection comparison={calibrationComparison} showHistory={showCalibrationHistory} onShowHistoryChange={setShowCalibrationHistory} />
-        <CurbDebugSection trackId={trackId} curbs={curbs} setCurbs={setCurbs} setBoundaries={setBoundaries} />
       </div>
     </div>
   );

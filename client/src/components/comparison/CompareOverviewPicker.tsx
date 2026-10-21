@@ -1,6 +1,6 @@
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { SearchSelect } from "@/components/ui/SearchSelect";
-import { formatLapTime } from "@/lib/format";
+import { ComparisonLapSelect } from "./ComparisonLapSelect";
 import { m } from "@/paraglide/messages";
 
 export function CompareOverviewPicker({ side, cars, carNames, carId, lapId, laps, onCarChange, onLapChange }: {
@@ -26,10 +26,8 @@ export function CompareOverviewPicker({ side, cars, carNames, carId, lapId, laps
       </div>
       <div className="min-w-0">
         <label htmlFor={`overview-lap-${side}`} className="mb-1 block text-app-caption font-normal text-app-text-muted">{lapLabel}</label>
-        <SearchSelect id={`overview-lap-${side}`} ariaLabel={lapLabel} value={lapId == null ? "" : String(lapId)}
-          onChange={(id) => onLapChange(id ? Number(id) : null)}
-          options={laps.map((lap) => ({ value: String(lap.id), label: `${m.compare_lap_label()} ${lap.lapNumber} — ${formatLapTime(lap.lapTime)} — ${lap.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}` }))}
-          disabled={!carId} placeholder={m.compare_search_laps()} className="h-7 w-full [&_input]:text-app-compact" />
+        <ComparisonLapSelect id={`overview-lap-${side}`} label={lapLabel} lapId={lapId}
+          onChange={onLapChange} laps={laps} disabled={!carId} className="h-7 w-full [&_input]:text-app-compact" />
       </div>
     </div>
   );

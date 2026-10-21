@@ -4,7 +4,7 @@ import type { Tabs as BaseTabs } from "@base-ui/react/tabs";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { ResolvedTrackGuide } from "@raceiq/shared/racing/tracks/guide/types";
 import type { TuneSettings } from "@raceiq/shared/racing/tuning/types";
-import type { Point, TrackInfo, TrackSectors, TrackSegment, TrackBoundaries, TrackCurb } from "./types";
+import type { Point, TrackInfo, TrackSectors, TrackSegment, TrackBoundaries } from "./types";
 import type { TrackLap } from "./laps";
 import type { CalibrationComparison } from "./calibration";
 
@@ -14,7 +14,6 @@ export interface SectorBounds { s1End: number; s2End: number }
 export type SourcedTrackSectors = TrackSectors & { source?: string };
 export interface F125TrackCounts { trackId: string; setupCount: number; guideCount: number; guideUrl: string }
 export type AccSetupCounts = Record<string, number>;
-export interface CurbExtraction { lapsScanned: number; lapsWithCurbs: number; curbSegments: number; calibrated: boolean }
 /** Consumed projection of the community catalogue; settings retain their domain type. */
 export interface CatalogueTune {
   id: string;
@@ -115,7 +114,6 @@ export type TracksCatalogueSimpleMessage =
   | "trackdetail_selected" | "trackdetail_compare" | "trackdetail_delete" | "trackdetail_confirm" | "trackdetail_yes" | "trackdetail_all_divisions" | "trackdetail_search_divisions_placeholder" | "track_detail_all_cars" | "label_cars" | "label_car" | "trackdetail_search_cars_placeholder" | "trackdetail_stats_page" | "track_detail_no_laps_match_filters" | "trackdetail_invalid_lap"
   | "track_detail_class" | "label_type" | "track_detail_lap_num" | "label_time" | "sessions_col_date" | "sessions_col_notes" | "sessions_replay_lap"
   | "trackdebugpanel_loading" | "trackdebugpanel_lmu_geometry" | "trackdebugpanel_outline" | "trackdebugpanel_points" | "trackdebugpanel_boundaries" | "trackdebugpanel_available" | "curbdebug_no" | "trackdebugpanel_left_edge_pts" | "trackdebugpanel_right_edge_pts" | "trackdebugpanel_coord_system" | "trackdebugpanel_pit_lane" | "trackdebugpanel_none" | "trackdebugpanel_legend_center" | "trackdebugpanel_left_edge" | "trackdebugpanel_right_edge"
-  | "curbdebug_curbs" | "curbdebug_segments" | "curbdebug_left" | "curbdebug_right" | "curbdebug_total_pts" | "curbdebug_extracting" | "curbdebug_extract_curbs" | "curbdebug_scan_description" | "curbdebug_laps_scanned" | "curbdebug_laps_with_curbs" | "curbdebug_curb_segments" | "curbdebug_calibrated"
   | "trackcalibration_title" | "trackcalibration_unavailable" | "trackcalibration_current" | "trackcalibration_not_calibrated" | "trackcalibration_show_history";
 export type TracksCatalogueMessages = { [K in TracksCatalogueSimpleMessage]: () => string } & {
   trackdetail_map_alt: (input: { track: string; variant: string }) => string;
@@ -138,9 +136,7 @@ export interface TracksCatalogueOperations {
   saveSegments: (id: string, gameId: GameId | undefined, segments: TrackSegment[]) => Promise<{ ok: boolean }>;
   saveSectorBounds: (id: string, gameId: GameId | undefined, bounds: SectorBounds) => Promise<{ ok: boolean }>;
   boundaries: (id: string, gameId?: GameId) => Promise<TrackBoundaries | null>;
-  curbs: (id: string, gameId?: GameId) => Promise<TrackCurb[] | null>;
   calibrationComparison: (id: string) => Promise<CalibrationComparison | null>;
-  extractCurbs: (id: string) => Promise<CurbExtraction | null>;
 }
 
 export interface TracksCatalogueHost {
