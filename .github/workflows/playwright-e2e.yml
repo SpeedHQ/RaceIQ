@@ -104,6 +104,10 @@ jobs:
             projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
             shard: 7/7
             runs_on: '["mars-macos-arm64-2vcpu-10g", "mars-ubuntu-2vcpu-10g", "mars-retry-3"]'
+          - name: seeded-webgpu
+            server_set: seeded
+            projects: --project=seeded-webgpu
+            runs_on: '["mars-macos-arm64-2vcpu-10g", "mars-retry-3"]'
     uses: ./.github/workflows/playwright.yml
     with:
       server-mode: compiled

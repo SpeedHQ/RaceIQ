@@ -55,7 +55,7 @@ test("Compare ignores a stale URL lap before selecting another F1 lap", async ({
     if (body && typeof body === "object" && "ids" in body && Array.isArray(body.ids)) alignmentRequests.push(body.ids);
   });
 
-  await page.goto(`/${f1.prefix}/compare?track=${encodeURIComponent(f1Lap.trackId)}&carA=${encodeURIComponent(f1Lap.carId)}&carB=${encodeURIComponent(f1Lap.carId)}&lapA=${staleLap.id}&lapB=${f1Lap.id}`);
+  await page.goto(`/${f1.prefix}/compare?track=${encodeURIComponent(f1Lap.trackId)}&carA=${encodeURIComponent(f1Lap.carId)}&carB=${encodeURIComponent(f1Lap.carId)}&lapA=${staleLap.id}&lapB=${f1Lap.id}&view=compare`);
   await expect(page.getByTestId("lap-compare-workspace").getByText("Select two laps above to compare")).toBeVisible();
   await expect(page.getByLabel("Lap A")).toHaveValue("");
   expect(alignmentRequests).toEqual([]);

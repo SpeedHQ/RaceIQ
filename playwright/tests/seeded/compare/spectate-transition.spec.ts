@@ -3,8 +3,6 @@ import sharp from "sharp";
 import { writeFile } from "node:fs/promises";
 import { compareQuery, getDistinctPair } from "./interaction-helpers";
 
-test.use({ launchOptions: { args: ["--enable-unsafe-webgpu", ...(process.platform === "darwin" ? ["--use-angle=metal"] : [])] } });
-
 for (const gameId of ["fm-2023", "f1-2025"] as const) {
   test(`${gameId} snaps smoothly to stable zoom states and keeps badges independent`, async ({ page, request }, testInfo) => {
     test.setTimeout(240_000);
@@ -17,8 +15,13 @@ for (const gameId of ["fm-2023", "f1-2025"] as const) {
     const pair = await getDistinctPair(request, gameId);
     const prefix = gameId === "fm-2023" ? "fm23" : "f125";
     await page.goto(`/${prefix}/compare?${compareQuery(pair)}&view=spectate`, { waitUntil: "domcontentloaded" });
-    const nativeGPU = await page.evaluate(async () => !!(await navigator.gpu?.requestAdapter()));
-    test.skip(!nativeGPU, "Native WebGPU adapter unavailable; fallback rendering has separate coverage");
+    const nativeGPU = await page.evaluate(async () => {
+      const adapter = await navigator.gpu?.requestAdapter();
+      return adapter ? { isFallbackAdapter: adapter.info.isFallbackAdapter, vendor: adapter.info.vendor, description: adapter.info.description } : null;
+    });
+    await testInfo.attach("webgpu-adapter", { body: JSON.stringify(nativeGPU), contentType: "application/json" });
+    expect(nativeGPU, "Native WebGPU project requires a hardware adapter").not.toBeNull();
+    expect(nativeGPU?.isFallbackAdapter, "Software adapters belong to the cross-platform renderer checks").toBe(false);
     const split = page.getByRole("button", { name: "Split recordings", exact: true });
     await page.addLocatorHandler(split, () => split.click());
     await expect(page.locator("[data-spectate-scene]")).toHaveAttribute("data-scene-ready", "true", { timeout: 60_000 });
@@ -35,7 +38,7 @@ for (const gameId of ["fm-2023", "f1-2025"] as const) {
       await page.mouse.move(current.x + current.width * 0.55, current.y + current.height * 0.45);
       const before = await canvas.getAttribute("data-render-count");
       await page.mouse.wheel(0, delta);
-      await expect.poll(() => canvas.getAttribute("data-render-count")).not.toBe(before);
+      await expect.poll(async () => await canvas.getAttribute("data-zoom-blend") === (delta < 0 ? "0" : "1") || await canvas.getAttribute("data-render-count") !== before).toBe(true);
       return Number(await canvas.getAttribute("data-zoom-blend"));
     };
     for (let step = 0; step < 40 && Number(await canvas.getAttribute("data-zoom-blend")) !== 0; step++) await zoom(-360);
