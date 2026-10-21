@@ -3,24 +3,25 @@ import { dirname, join } from "node:path";
 import { and, asc, eq, gt, sql } from "drizzle-orm";
 import { Schema } from "effect";
 import { LiveArchiveMemberSchema } from "@raceiq/capture-splitting";
-import { db, client } from "../db/index";
+import { db, client, readDb } from "../db/index";
 import { laps, sessions, liveCaptures, liveCaptureMembers } from "../db/schema";
+import { withDatabaseWrite } from "../db/write-coordination";
 import type { LiveCaptureIdentity } from "../db/live-capture-queries";
 
 /** Stream final metadata once; never reopen source records or recompress archive members. */
 export async function sealLiveCaptureMetadata(identity: LiveCaptureIdentity): Promise<void> {
   const fence = and(eq(liveCaptures.sessionId, identity.sessionId), eq(liveCaptures.captureEpoch, identity.captureEpoch), eq(liveCaptures.attempt, identity.attempt));
-  const capture = await db.select({ capture: liveCaptures, gameId: sessions.gameId }).from(liveCaptures)
+  const capture = await readDb.select({ capture: liveCaptures, gameId: sessions.gameId }).from(liveCaptures)
     .innerJoin(sessions, eq(sessions.id, liveCaptures.sessionId)).where(fence).get();
   if (!capture || capture.capture.status !== "finalizing") throw new Error("Live capture is not finalizing");
   const progress = capture.capture;
   if (progress.sourceByteLength !== progress.sourceDurableWatermark || progress.sourceByteLength !== progress.metadataDurableWatermark) throw new Error("Live capture has an undurable source or ownership tail");
-  const pending = await db.select({ count: sql<number>`count(*)` }).from(laps).where(and(eq(laps.sessionId, identity.sessionId), sql`${laps.captureChunkId} IS NULL`)).get();
+  const pending = await readDb.select({ count: sql<number>`count(*)` }).from(laps).where(and(eq(laps.sessionId, identity.sessionId), sql`${laps.captureChunkId} IS NULL`)).get();
   if (pending?.count) throw new Error("Live capture still has unpublished lap bindings");
   if (progress.sourceByteLength === 0 && progress.sourceRecordCount === 0 && progress.generation === 0 && progress.committedArchiveLength === 0) {
-    const result = await db.update(liveCaptures).set({ status: "sealed", error: null })
+    const result = await withDatabaseWrite(() => db.update(liveCaptures).set({ status: "sealed", error: null })
       .where(and(fence, eq(liveCaptures.status, "finalizing"), eq(liveCaptures.sourceByteLength, 0),
-        eq(liveCaptures.generation, 0), eq(liveCaptures.committedArchiveLength, 0))).run();
+        eq(liveCaptures.generation, 0), eq(liveCaptures.committedArchiveLength, 0))).run());
     if (result.rowsAffected !== 1) throw new Error("Empty live seal was fenced");
     return;
   }
@@ -49,7 +50,7 @@ export async function sealLiveCaptureMetadata(identity: LiveCaptureIdentity): Pr
       sourceRecordCount: progress.sourceRecordCount, archiveFile: "capture.bin.gz", sealed: true });
     await writeAll(`${header.slice(0, -1)},"members":[`);
     while (generation < progress.generation) {
-      const rows = await db.select({ descriptor: liveCaptureMembers.descriptor }).from(liveCaptureMembers)
+      const rows = await readDb.select({ descriptor: liveCaptureMembers.descriptor }).from(liveCaptureMembers)
         .where(and(eq(liveCaptureMembers.captureEpoch, identity.captureEpoch), gt(liveCaptureMembers.generation, generation)))
         .orderBy(asc(liveCaptureMembers.generation)).limit(128).all();
       if (rows.length === 0) throw new Error("Live archive generation is missing a member");
@@ -78,9 +79,9 @@ export async function sealLiveCaptureMetadata(identity: LiveCaptureIdentity): Pr
       eq(liveCaptures.committedArchiveLength, progress.committedArchiveLength))).toSQL();
   const manifest = db.update(sessions).set({ captureManifestFile: manifestPath })
     .where(and(eq(sessions.id, identity.sessionId), sql`changes()=1`)).toSQL();
-  const result = await client.batch([
+  const result = await withDatabaseWrite(() => client.batch([
     { sql: seal.sql, args: seal.params as (string | number | null)[] },
     { sql: manifest.sql, args: manifest.params as (string | number | null)[] },
-  ], "write");
+  ], "write"));
   if (result[0]!.rowsAffected !== 1 || result[1]!.rowsAffected !== 1) throw new Error("Live seal generation was fenced");
 }
