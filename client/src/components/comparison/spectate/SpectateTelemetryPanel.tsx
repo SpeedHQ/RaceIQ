@@ -31,7 +31,7 @@ export function classify(channel: SpectateChannel): Category {
   if (id.startsWith("motion.") || channel.derived === "g-force" || channel.derived === "balance") return "motion";
   if (groupId.startsWith("engine") || id.startsWith("engine.")) return "engine";
   if (groupId.startsWith("fuel") || id.startsWith("fuel.")) return "fuel";
-  if (groupId.startsWith("tires") || groupId.startsWith("wheels") || id.startsWith("tires.") || id.startsWith("tyres.") || id.startsWith("wheels.") || channel.derived === "grip" || channel.derived === "wear-rate") return "tires";
+  if (groupId.startsWith("tires") || groupId.startsWith("wheels") || id.startsWith("tire.") || id.startsWith("tires.") || id.startsWith("tyres.") || id.startsWith("wheels.") || channel.derived === "grip" || channel.derived === "wear-rate") return "tires";
   if (groupId.startsWith("suspension") || id.startsWith("suspension.") || channel.derived === "compression-bias") return "suspension";
   if (groupId.startsWith("brakes") || id.startsWith("brakes.")) return "brakes";
   return "other";
