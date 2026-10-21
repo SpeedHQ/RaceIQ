@@ -781,8 +781,54 @@
       "cache": false,
       "env": ["RACEIQ_FEATURE_F1_EXPERIMENTS", "RACEIQ_FEATURE_IRACING_ADAPTER"]
     },
+    "build:e2e": {
+      "cache": false,
+      "env": ["RACEIQ_FEATURE_F1_EXPERIMENTS", "RACEIQ_FEATURE_IRACING_ADAPTER"]
+    },
+    "test:e2e": {
+      "dependsOn": ["e2e:impact", "@raceiq/tooling-build#build:e2e"],
+      "env": ["NODE_ENV", "RACEIQ_*", "E2E_SERVER_MODE", "PW_*", "CI"],
+      "cache": false,
+      "outputs": []
+    },
+    "e2e:impact": {
+      "dependsOn": ["transit"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/scripts/test/check-feature-boundaries.ts",
+        "$TURBO_ROOT$/playwright/config/**",
+        "$TURBO_ROOT$/playwright/support/**",
+        "$TURBO_ROOT$/playwright/tests/support/**",
+        "$TURBO_ROOT$/playwright/playwright.config.ts",
+        "$TURBO_ROOT$/packages/tooling-build/**",
+        "$TURBO_ROOT$/test/artifacts/**",
+        "$TURBO_ROOT$/client/src/routes/**",
+        "$TURBO_ROOT$/client/src/components/**",
+        "$TURBO_ROOT$/client/src/hooks/**",
+        "$TURBO_ROOT$/client/src/lib/**",
+        "$TURBO_ROOT$/client/src/stores/**",
+        "$TURBO_ROOT$/client/src/styles/**",
+        "$TURBO_ROOT$/client/src/index.css",
+        "$TURBO_ROOT$/client/src/main.tsx",
+        "$TURBO_ROOT$/client/messages/**",
+        "$TURBO_ROOT$/client/public/**",
+        "$TURBO_ROOT$/client/package.json",
+        "$TURBO_ROOT$/client/vite.config.ts",
+        "$TURBO_ROOT$/apps/backend/src/**",
+        "$TURBO_ROOT$/apps/backend/package.json",
+        "$TURBO_ROOT$/scripts/playwright-ci.ts",
+        "$TURBO_ROOT$/scripts/build-browser.ts",
+        "$TURBO_ROOT$/tsconfig.base.json"
+      ],
+      "cache": false,
+      "outputs": []
+    },
+    "test:boundaries": {
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/scripts/test/check-feature-boundaries.ts"],
+      "outputs": []
+    },
     "client#build": {
-      "dependsOn": ["i18n:compile"],
+      "dependsOn": ["transit", "i18n:compile"],
       "env": ["RACEIQ_FEATURE_F1_EXPERIMENTS", "RACEIQ_FEATURE_IRACING_ADAPTER"]
     },
     "client#typecheck": {
@@ -812,7 +858,8 @@
         "package.json",
         "../bun.lock",
         "$TURBO_ROOT$/scripts/dev/paraglide-build.ts",
-        "$TURBO_ROOT$/scripts/dev/paraglide-cache.ts"
+        "$TURBO_ROOT$/scripts/dev/paraglide-cache.ts",
+        "$TURBO_ROOT$/scripts/dev/paraglide-declarations.ts"
       ],
       "outputs": [
         "src/paraglide/**",

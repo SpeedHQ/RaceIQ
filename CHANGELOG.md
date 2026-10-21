@@ -1,6 +1,7 @@
 ## Unreleased
 
 ### Features
+- Keep Sessions actions in a bottom-center floating bar with a selection count and Deselect all. Keep Compare visible and enable it only for two compatible laps; filter comparison laps by Mine, Others, or All inside the lap-picker dropdown.
 - Show separate LMU player energy, engine, electric motor, steering feedback, weather and race-control readings in live telemetry and recorded-lap analysis when provided by the game.
 - Show read-only LMU setup, forecast and condition snapshots with source age and availability, without waiting for network requests before displaying live telemetry.
 - Compare laps in Spectate with synchronized 3D replay, configurable cameras and overlays, live A/B instruments, sector deltas, and telemetry, car, AI, Focus View, and lap-statistics panels.
@@ -15,6 +16,9 @@
 ### Fixes
 - Keep recording splitting and background processing available when the UDP telemetry port is already in use.
 - Report inconclusive historical lap classification as limited without requesting attention, and correct earlier results.
+- Center Le Mans Ultimate track outlines within catalogue cards.
+- Select and deselect child laps with the Sessions table header checkbox, preserving selections on other pages and ownership tabs.
+- Stop recording curb maps and using detected curbs to recalibrate track boundaries; preserve telemetry-based curb detection.
 - Keep Spectate racing lines visible when zooming out to the full circuit.
 - Distinguish native fractional LMU brake and clutch inputs from normalized control readings in the telemetry catalog.
 - Keep unchanged LMU supplemental snapshots available while successful polling continues, without resetting their original observation ages.
@@ -77,7 +81,12 @@
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
-- Run native Spectate camera and transition checks on macOS GPU runners while retaining cross-platform coverage for CPU-compatible rendering paths.
+- Generate Paraglide declarations with the installed native TypeScript compiler and stop abandoned translation watchers from consuming CPU after development exits.
+- Use Ubuntu instead of macOS for CI runners and cap Mars memory requests at 6 GB.
+- Invalidate cached frontend builds when source changes in dependent workspaces.
+- Extract tracks and cars catalogues into feature-owned UI, server, contract, and E2E workspaces with enforced browser boundaries, inherited Turbo impact inputs, and isolated compiled-app browser tasks.
+- Run native Spectate camera and transition checks in a dedicated browser lane while retaining coverage for CPU-compatible rendering paths.
+- Verify LMU recorded pit-cycle classifications independently of lap validity, preserving telemetry-quality failures and incomplete tails.
 - Synchronize zoom-reversal checks with rendered transition frames and wait for concurrent SQLite writers during migration fixture setup.
 - Keep sparse-capture fixtures schema-valid and verify failed classification recordings without waiting for dashboard work blocked by startup repair prerequisites.
 - Rename the shared LMU decoded-frame contract to `LMUSourceFrame` and remove an unused legacy version constant without changing recording compatibility.

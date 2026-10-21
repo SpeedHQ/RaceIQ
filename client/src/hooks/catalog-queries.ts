@@ -2,7 +2,7 @@ import { tryGetGame } from "@raceiq/shared/games/registry"
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import type { GameId } from "@raceiq/shared/games/ids";
-import type { TrackInfo } from "../components/track/types";
+import type { TrackInfo } from "@raceiq/tracks-catalogue/contracts"
 import { client } from "../lib/rpc";
 import { rpcJson } from "../lib/rpc-json";
 import { useGameId } from "../stores/game";

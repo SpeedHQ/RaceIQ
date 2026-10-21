@@ -4,7 +4,7 @@ import { formatTurnNumbers, turnNumbers } from "@raceiq/shared/racing/tracks/seg
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { getCorners, saveCorners } from "@raceiq/backend-core/db/track-queries";
 import { detectCorners, type Corner } from "@raceiq/backend-core/lap-analysis/corners";
-import { resolveTrackSegments } from "../routes/tracks/support";
+import { resolveTrackSegments } from "@raceiq/tracks-catalogue/server"
 
 function lapDistance(packets: readonly TelemetryPacket[]): number {
   let first: number | undefined;

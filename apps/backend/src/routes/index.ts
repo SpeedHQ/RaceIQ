@@ -11,8 +11,8 @@ import { driverRoutes } from "./driver-routes";
 import { chatsRoutes } from "./chats-routes";
 import { chatRunRoutes } from "./chat-run-routes";
 import { sessionRoutes } from "./session-routes";
-import { trackRoutes } from "./tracks/index";
-import { carRoutes } from "./car-routes";
+import { trackRoutes } from "@raceiq/tracks-catalogue/server";
+import { carRoutes, accCarRoutes, acEvoCarRoutes } from "@raceiq/cars-catalogue/server";
 import { tuneRoutes } from "./tune-routes";
 import { accRoutes } from "./games/acc";
 import { acEvoRoutes } from "./games/ac-evo";
@@ -51,7 +51,9 @@ const app = new Hono()
   .route("/", trackRoutes)
   .route("/", carRoutes)
   .route("/", tuneRoutes)
+  .route("/", accCarRoutes)
   .route("/", accRoutes)
+  .route("/", acEvoCarRoutes)
   .route("/", acEvoRoutes)
   .route("/", f125Routes)
   .route("/", miscRoutes)

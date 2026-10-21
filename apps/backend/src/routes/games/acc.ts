@@ -7,8 +7,6 @@ import { homedir } from "node:os";
 import { SHARED_DIR } from "@raceiq/backend-core/runtime/config/paths";
 import { accRecorder } from "@raceiq/backend-core/games/kunos/recorder";
 import { replayRecording } from "@raceiq/game-acc/replay";
-import { getAllAccCars, getAccCarClass } from "@raceiq/game-acc-metadata/racing/cars/acc"
-import { getAccCarSpecs } from "@raceiq/game-acc-metadata/racing/cars/acc-specs"
 import { getAccReader } from "../../runtime/live-readers";
 import { PHYSICS, GRAPHICS, STATIC } from "@raceiq/capture-formats/acc/structs";
 import { readWString } from "@raceiq/game-acc/utils";
@@ -309,27 +307,7 @@ export const accRoutes = new Hono()
     return c.json({ installed: true, path: destPath });
   })
 
-  // ── Cars ──────────────────────────────────────────────────────────────────
-
-  .get("/api/acc/cars", (c) => {
-    const cars = getAllAccCars().map((car) => ({
-      ...car,
-      specs: getAccCarSpecs(car.id) ?? null,
-    }));
-    cars.sort((a, b) => a.class.localeCompare(b.class) || a.name.localeCompare(b.name));
-    return c.json(cars);
-  })
-
-  // Resolves ACC class for a normalized car identity.
-  .get("/api/acc/cars/:carId/class", (c) => {
-    const carId = c.req.param("carId").trim();
-    const ordinal = Number(carId);
-    if (!carId || !Number.isFinite(ordinal)) return c.json({ class: null });
-    return c.json({ class: getAccCarClass(Number(carId)) ?? null });
-  })
-
   // ── Debug ─────────────────────────────────────────────────────────────────
-
   .get("/api/acc/debug/raw", (c) => {
     const bufs = getAccReader()?.getDebugBuffers?.();
     if (!bufs) {
