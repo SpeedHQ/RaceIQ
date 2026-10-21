@@ -102,11 +102,12 @@ async function openUpgrade(dataDir: string, extraEnv: NodeJS.ProcessEnv = {}) {
   }
 }
 
-async function settled(address: string) {
+async function settled(address: string, waitForAggregates = true) {
   const deadline = Date.now() + 180_000;
   let snapshot = await status(address);
   // The production server runs in another process; fake clocks cannot advance its worker.
-  while (snapshot.total === 0 || snapshot.status === "running") {
+  while (snapshot.total === 0 || snapshot.pending > 0 || snapshot.running > 0 ||
+    (waitForAggregates && snapshot.status === "running")) {
     if (Date.now() >= deadline) throw new Error(`Migration did not settle: ${JSON.stringify(snapshot)}`);
     await Bun.sleep(50);
     snapshot = await status(address);
@@ -443,9 +444,11 @@ for (const defect of ["ambiguous_match", "corrupt_source"] as const) {
       const quality = database.prepare("SELECT id,is_valid,invalid_reason FROM laps ORDER BY id").all();
       const running = await openUpgrade(dataDir);
       server = running.server;
-      const snapshot = await settled(running.address);
-      expect(snapshot.status).toBe("attention");
+      // Corrupt historical input blocks startup and therefore aggregate publication.
+      const snapshot = await settled(running.address, defect !== "corrupt_source");
+      expect(snapshot.status).toBe(defect === "corrupt_source" ? "running" : "attention");
       expect(snapshot.failed).toBeGreaterThan(0);
+      if (defect === "corrupt_source") expect(snapshot.aggregatesPending).toBe(true);
       const response = await fetch(`${running.address}/api/sessions/classification-migration-recordings`);
       expect(response.status).toBe(200);
       const list = await response.json() as { recordings: Array<{ state: string; reason: string }> };
@@ -800,10 +803,14 @@ for (const [malformedBootstrap, completeLap] of [[false, false], [true, false], 
       database = undefined;
       const running = await openUpgrade(dataDir);
       server = running.server;
-      const result = await settled(running.address);
+      const result = await settled(running.address, !malformedBootstrap);
       database = new Database(join(dataDir, "app.db"));
       expect(result.completed).toBe(malformedBootstrap ? 0 : 1);
       expect(result.failed).toBe(malformedBootstrap ? 1 : 0);
+      if (malformedBootstrap) {
+        expect(result.status).toBe("running");
+        expect(result.aggregatesPending).toBe(true);
+      }
       expect(database.prepare("SELECT classification,is_valid,invalid_reason FROM laps WHERE id=?").get(row.id)).toMatchObject({
         classification: malformedBootstrap ? null : "grid_start", is_valid: completeLap ? 1 : 0, invalid_reason: completeLap ? null : "incomplete",
       });

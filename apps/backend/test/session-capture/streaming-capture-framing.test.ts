@@ -25,6 +25,7 @@ async function* splitAtSmallBoundaries(bytes: Buffer): AsyncGenerator<Uint8Array
 function lmuFrame(changedByte: number): Buffer {
   const frame = Buffer.alloc(LMU_SOURCE_FRAME_V2_SIZE);
   LMU_SOURCE_FRAME_MAGIC.copy(frame);
+  frame.writeUInt16LE(2, 8);
   frame[frame.length - 1] = changedByte;
   return frame;
 }

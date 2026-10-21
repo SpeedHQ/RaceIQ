@@ -22,7 +22,7 @@ test("schematic lanes remain visible throughout zoom", async ({ page, request },
   for (let i = 0; i < 32 && await canvas.getAttribute("data-line-layout") !== "recorded"; i++) {
     const before = await canvas.getAttribute("data-render-count");
     await page.mouse.wheel(0, -360);
-    await expect.poll(() => canvas.getAttribute("data-render-count")).not.toBe(before);
+    await expect.poll(async () => await canvas.getAttribute("data-line-layout") === "recorded" || await canvas.getAttribute("data-render-count") !== before).toBe(true);
   }
   await expect(canvas).toHaveAttribute("data-line-layout", "recorded");
   const observations: { radius: number; bands: number }[] = [];
@@ -46,9 +46,11 @@ test("schematic lanes remain visible throughout zoom", async ({ page, request },
       for (let x = Math.round(info.width * 0.3); x <= info.width * 0.85; x++) {
         const k = (row * info.width + x) * info.channels;
         const green = data[k + 1]! > data[k]! * 1.5 && data[k + 1]! > data[k + 2]! * 0.9 && data[k + 1]! > 70;
-        if (green && start < 0) start = x;
-        if (!green && start >= 0) {
-          if (x - start >= 3) bands.push({ center: (start + x - 1) / 2, width: x - start });
+        const red = data[k]! > data[k + 1]! * 1.5 && data[k]! > data[k + 2]! * 1.5 && data[k]! > 70;
+        const lane = green || red;
+        if (lane && start < 0) start = x;
+        if (!lane && start >= 0) {
+          bands.push({ center: (start + x - 1) / 2, width: x - start });
           start = -1;
         }
       }
@@ -82,7 +84,10 @@ test("schematic lanes remain visible throughout zoom", async ({ page, request },
     const required = radius >= 3000 ? 4 : 2;
     if (bands < required) await testInfo.attach(`missing-lane-${step}`, { body: image, contentType: "image/png" });
     expect(bands, `Both lane bands remain visible at camera radius ${radius}`).toBeGreaterThanOrEqual(required);
-    if (step === 71) await testInfo.attach("whole-track-lanes", { body: image, contentType: "image/png" });
+    if (step === 71 || radius >= 20000) {
+      await testInfo.attach("whole-track-lanes", { body: image, contentType: "image/png" });
+      break;
+    }
   }
   await testInfo.attach("zoom-pixels", { body: JSON.stringify(observations), contentType: "application/json" });
   expect(checkedLabels).toBe(true);

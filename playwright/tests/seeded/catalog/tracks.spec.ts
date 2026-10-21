@@ -60,7 +60,7 @@ for (const game of SEEDED_GAME_CASES) {
       await expect(page).toHaveURL(/\/compare\?/);
       // Comparison synchronizes its selectors into history after mounting.
       // Wait for loaded data before exercising Back so that navigation has settled.
-      await expect(page.getByTestId("lap-compare-workspace").getByText("Time Delta")).toBeVisible({ timeout: 30_000 });
+      await expect(page.locator("[data-spectate-scene]")).toHaveAttribute("data-scene-ready", "true", { timeout: 30_000 });
       await page.goBack();
       await expect(page).toHaveURL(/\/laps\/?$/);
     }
