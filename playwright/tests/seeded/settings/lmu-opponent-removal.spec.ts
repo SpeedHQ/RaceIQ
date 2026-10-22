@@ -6,6 +6,7 @@ type ImportedSession = { sessionId: number; lapId: number };
 
 async function importOpponentSession(request: APIRequestContext, identity: string): Promise<ImportedSession> {
   const response = await request.post("/api/laps/import", {
+    timeout: 120_000,
     multipart: {
       file: { name: `${identity}.bin.gz`, mimeType: "application/octet-stream", buffer: makeLmuOpponentCapture({ identity }) },
       ownership: "mine",

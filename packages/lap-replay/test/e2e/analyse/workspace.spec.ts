@@ -293,6 +293,7 @@ for (const viewport of [{ width: 1600, height: 1000 }]) {
       await expect.poll(() => width(page.locator(`#${ids[0]}`))).toBeCloseTo(manualWidth, 0);
       await expect.poll(() => width(chart)).toBeGreaterThan(initialChartWidth);
       await page.reload();
+      await expect(workspace).toBeVisible({ timeout: 60_000 });
       await expect.poll(() => width(rail)).toBeCloseTo(manualWidth, 0);
       await expect.poll(() => width(page.locator(`#${ids[0]}`))).toBeCloseTo(manualWidth, 0);
       await toggle(2, true);
