@@ -25,6 +25,11 @@ export function projectRacePlanStint(stint: RacePlanStintInput, previousEnd: num
   const compatibleFuel = identityMatches && evidence != null && evidence.fuelUnit === plan.fuelUnit && evidence.fuel.unit === expectedFuelUnit && evidence.compatibility.fuelSemanticVersion != null && rate != null && rate >= 0;
   const consumed = compatibleFuel && laps > 0 && Number.isFinite(rate) ? rate! * laps : null;
   const fuelEnd = consumed != null && stint.startFuel != null ? stint.startFuel - consumed : null;
+  const energy = evidence?.virtualEnergy;
+  const compatibleEnergy = identityMatches && plan.gameId === "lmu" && evidence?.compatibility.virtualEnergySemanticVersion != null &&
+    energy?.unit === "energyFraction/lap" && energy.eligibleLaps > 0 && energy.value != null && Number.isFinite(energy.value) && energy.value >= 0 &&
+    stint.compounds.every((compound, index) => compound === evidence?.compounds[index]);
+  const virtualEnergyUsed = compatibleEnergy && laps > 0 ? energy!.value! * laps : null;
   const tires = stint.compounds.map((compound, index) => {
     const tire = evidence?.tires[index];
     const compoundKey = compound?.trim().toLowerCase();
@@ -41,5 +46,5 @@ export function projectRacePlanStint(stint: RacePlanStintInput, previousEnd: num
       zeroWear: wear === 0,
     };
   });
-  return { laps, consumed, fuelEnd, fuelWarning: fuelEnd != null && fuelEnd < 0, tires };
+  return { laps, consumed, fuelEnd, fuelWarning: fuelEnd != null && fuelEnd < 0, virtualEnergyUsed, tires };
 }

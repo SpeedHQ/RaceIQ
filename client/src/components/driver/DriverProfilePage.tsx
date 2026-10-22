@@ -1,3 +1,4 @@
+import { useNavigate } from "@tanstack/react-router";
 import * as m from "@/paraglide/messages";
 import { parseDriverProfileSummary, type DriverProfileSummary } from "@raceiq/shared/integrations/ai/driver-profile-summary";
 import { useDriverProfile, useDriverProfileRuns, useRunDriverProfile } from "../../hooks/driver-profile";
@@ -12,6 +13,7 @@ import { DriverProfileView } from "./DriverProfileView";
 export function DriverProfilePage() {
   const gameId = useRequiredGameId();
   const gameRoute = getGameRoute(gameId);
+  const navigate = useNavigate();
   const profileQuery = useDriverProfile({ gameId });
   const runsQuery = useDriverProfileRuns({ gameId });
   const runMutation = useRunDriverProfile();
@@ -48,7 +50,7 @@ export function DriverProfilePage() {
           <p className="text-app-subtext text-app-text-muted">{m.driver_profile_subtitle()}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" onClick={() => window.location.assign(`${gameRoute}/sessions`)}>
+          <Button type="button" onClick={() => void navigate({ to: `${gameRoute}/sessions` })}>
             {m.driver_all_game_laps({ gameName: profileQuery.data?.gameName ?? "Forza Motorsport" })}
           </Button>
           <Button

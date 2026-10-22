@@ -3,11 +3,18 @@
 ### Features
 - Override tire cliff and dead-health thresholds per game and tire compound.
 - Open an expanded pit-estimate dialog with a projected lap horizon, four-wheel readings, and evidence.
-- Generate suggested race strategies from recorded fuel and four-wheel tire rates, review planned stops and fuel reserves, and manage saved plans on the Strategies page.
+- Generate suggested race strategies from recorded fuel and four-wheel tire rates, open the builder from session analysis without reloading the page, review planned stops and fuel reserves, and manage saved plans on the Strategies page.
+- Clone saved strategies into independent editable copies without changing the original or active plan.
+- Recalculate copied strategies from the latest compatible recorded sessions, updating stops, fuel loads and timed-race lap estimates as driving changes.
+- Limit LMU strategy stints using native virtual energy separately from fuel, with an explicit energy reserve.
 - Plan races by lap count or race duration using your measured lap time, save the chosen basis, and estimate required fuel and refueling at selected pit stops.
 - Replace live pit estimates with the selected matching race strategy, including planned stops, next-stint compounds/fuel, and measured compound-specific tire life with cliff/dead and fuel-shortfall warnings.
 - Keep pit-estimate history across sessions and restarts, with per-driver clearing and evidence from compatible previous stints.
-- Review per-stint fuel use and four-wheel tire wear, then compare two stints with explicit units, sample counts, and unavailable data.
+- Review per-stint fuel use and four-wheel tire wear at the bottom of session Overview, with optional two-stint comparison, explicit units, sample counts and unavailable data.
+- Review average, median, and peak per-lap fuel use and tire wear from all eligible laps in each stint, with metric-specific lap counts.
+- Pin selected race strategies independently to each game, car, and track combination, retaining selections across sessions and restarts.
+- Compare live fuel and four-wheel tire progression against the selected strategy, with evidence-aware adherence and pit windows recalculated from actual resources after early, late, or fuel-only service without modifying the saved plan.
+- Use tire-only F1 2025 pit forecasts and service advice without fuel limits or refueling projections. Keep measured fuel statistics and validate one initial race fuel budget without inventing fuel stops.
 - Keep Sessions actions in a bottom-center floating bar with a selection count and Deselect all. Keep Compare visible and enable it only for two compatible laps; filter comparison laps by Mine, Others, or All inside the lap-picker dropdown.
 - Show separate LMU player energy, engine, electric motor, steering feedback, weather and race-control readings in live telemetry and recorded-lap analysis when provided by the game.
 - Show read-only LMU setup, forecast and condition snapshots with source age and availability, without waiting for network requests before displaying live telemetry.
@@ -21,7 +28,9 @@
 - Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
 
 ### Fixes
-- Replace session-analysis sector tabs with a Stint averages tab that shows the current session without requiring comparison; offer comparison only when two stints are selected.
+- Keep navigation from strategy evidence, the pit-estimate dialog, Driver Profile's all-laps action, and in-app chat links within the app without reloading the page.
+- Restore LMU fractional-lap telemetry from validated native scoring distance and track length, using scoring-clock freshness so live adherence and virtual-energy-aware pit windows resolve without inventing missing position.
+- Simplify Stint averages into a compact metric table with expandable evidence and quality details. Plot only measured rates, and stop labeling unavailable completed-stint measurements as gathering data.
 - Automatically rebuild missing or outdated stint averages from each session's own saved recording at startup without changing lap IDs, lap times, validity, notes, favorites, or session identity. Skip active, unavailable, corrupt, or mismatched sources without blocking valid recordings.
 - Keep the issues list stationary on hover and highlight the exact hovered issue rather than the first issue in the same corner.
 - Manage saved plans and open the race strategy builder on the Strategies page in each game's navigation, separate from session analysis; reach it from Stint averages or the live strategy dialog.

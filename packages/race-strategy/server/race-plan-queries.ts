@@ -7,6 +7,7 @@ import {
   type RacePlan,
   type RacePlanInput,
   type RacePlanStint,
+  type SetActiveRacePlanInput,
 } from "@raceiq/shared/racing/live/race-plan";
 import { StintSummarySchema } from "@raceiq/shared/racing/live/strategy-schemas";
 import type { StintSummary } from "@raceiq/shared/racing/live/strategy";
@@ -111,9 +112,13 @@ export async function updateRacePlan(id: string, value: unknown): Promise<RacePl
   const result = RacePlanInputSchema.safeParse(value);
   if (!result.success) throw new InvalidRacePlanError();
   return racePlanTransaction(async (tx) => {
-    const existing = await tx.execute({ sql: "SELECT created_at FROM race_plans WHERE id = ?", args: [id] });
+    const existing = await tx.execute({ sql: "SELECT created_at, game_id, car_id, track_id FROM race_plans WHERE id = ?", args: [id] });
     if (!existing.rows.length) throw new RacePlanNotFoundError();
-    return persist(tx, id, result.data, String(existing.rows[0].created_at), new Date().toISOString());
+    const row = existing.rows[0];
+    if (row.game_id !== result.data.gameId || row.car_id !== result.data.carId || row.track_id !== result.data.trackId) {
+      await tx.execute({ sql: "DELETE FROM active_race_plans WHERE plan_id = ?", args: [id] });
+    }
+    return persist(tx, id, result.data, String(row.created_at), new Date().toISOString());
   });
 }
 
@@ -122,30 +127,35 @@ export async function deleteRacePlan(id: string): Promise<boolean> {
     const existing = await tx.execute({ sql: "SELECT 1 FROM race_plans WHERE id = ?", args: [id] });
     if (!existing.rows.length) return false;
     await tx.execute({ sql: "DELETE FROM race_plans WHERE id = ?", args: [id] });
-    await tx.execute({ sql: "UPDATE active_race_plan SET plan_id = NULL WHERE id = 1 AND plan_id = ?", args: [id] });
+    await tx.execute({ sql: "DELETE FROM active_race_plans WHERE plan_id = ?", args: [id] });
     return true;
   });
 }
 
-export async function getActiveRacePlan(): Promise<RacePlan | null> {
+export async function getActiveRacePlans(): Promise<RacePlan[]> {
   const result = await client.execute({
-    sql: "SELECT p.payload FROM active_race_plan a LEFT JOIN race_plans p ON p.id = a.plan_id WHERE a.id = 1",
+    sql: "SELECT p.payload FROM active_race_plans a JOIN race_plans p ON p.id = a.plan_id ORDER BY a.game_id, a.car_id, a.track_id",
   });
-  const payload = result.rows[0]?.payload;
-  return payload == null ? null : parsePlan(payload);
+  return result.rows.map((row) => parsePlan(row.payload));
 }
 
-export async function setActiveRacePlan(planId: string | null): Promise<RacePlan | null> {
+export async function setActiveRacePlan(input: SetActiveRacePlanInput): Promise<RacePlan | null> {
   return racePlanTransaction(async (tx) => {
     let plan: RacePlan | null = null;
-    if (planId !== null) {
-      const result = await tx.execute({ sql: "SELECT payload FROM race_plans WHERE id = ?", args: [planId] });
+    if (input.planId !== null) {
+      const result = await tx.execute({ sql: "SELECT payload, game_id, car_id, track_id FROM race_plans WHERE id = ?", args: [input.planId] });
       if (!result.rows.length) throw new RacePlanNotFoundError();
-      plan = parsePlan(result.rows[0].payload);
+      const row = result.rows[0];
+      if (row.game_id !== input.gameId || row.car_id !== input.carId || row.track_id !== input.trackId) throw new InvalidRacePlanError();
+      plan = parsePlan(row.payload);
+    }
+    if (input.planId === null) {
+      await tx.execute({ sql: "DELETE FROM active_race_plans WHERE game_id = ? AND car_id = ? AND track_id = ?", args: [input.gameId, input.carId, input.trackId] });
+      return null;
     }
     await tx.execute({
-      sql: "INSERT INTO active_race_plan(id, plan_id) VALUES(1, ?) ON CONFLICT(id) DO UPDATE SET plan_id=excluded.plan_id",
-      args: [planId],
+      sql: "INSERT INTO active_race_plans(game_id, car_id, track_id, plan_id) VALUES(?, ?, ?, ?) ON CONFLICT(game_id, car_id, track_id) DO UPDATE SET plan_id=excluded.plan_id",
+      args: [input.gameId, input.carId, input.trackId, input.planId],
     });
     return plan;
   });

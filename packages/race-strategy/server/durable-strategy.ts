@@ -12,6 +12,7 @@ import { strategyContext, strategyBoundaryReason, strategyContinuousWear, Strate
 import { getPacketTireCompound, getTireThresholds } from "@raceiq/shared/racing/live/tire-thresholds";
 import { getTireThresholdOverrides } from "@raceiq/backend-core/runtime/config/settings";
 import { subscribeStrategyHistory } from "./history-events";
+import { supportsRaceRefueling } from "../contracts/race-rules";
 
 interface StintState {
   accumulator: StintMetricAccumulator; baseline: HistoricalBaseline | null; live: LiveStrategy;
@@ -307,9 +308,10 @@ export class DurableStrategyTracker {
       gameId: summary.gameId, trackId: summary.trackId, carId: summary.carId, pi: summary.pi, compounds: summary.compounds,
       sourceCoordinate: { epoch: state.sourceEpoch, domain: "session", milliseconds: packet.TimestampMS }, trigger,
       pitInLaps: pit.pitInLaps, limitedBy: pit.limitedBy,
-      estimatedPitTime: { sessionElapsedSeconds: sessionElapsed != null && pit.pitInLaps != null && summary.averageLapSeconds != null ? sessionElapsed + pit.pitInLaps * summary.averageLapSeconds : null },
+      estimatedPitTime: { sessionElapsedSeconds: sessionElapsed != null && pit.pitInLaps != null && summary.averageLapSeconds != null
+        ? sessionElapsed + pit.pitInLaps * summary.averageLapSeconds : null },
       tyreChangeSuggestion: state.live.tires.every((rate) => rate.value == null) ? "unavailable" : pit.limitedBy === "tires" ? "consider-change" : "not-indicated",
-      fuelChangeSuggestion: state.live.fuel.value == null ? "unavailable" : pit.limitedBy === "fuel" ? "consider-refuel" : "not-indicated",
+      fuelChangeSuggestion: !supportsRaceRefueling(summary.gameId) ? "not-indicated" : state.live.fuel.value == null ? "unavailable" : pit.limitedBy === "fuel" ? "consider-refuel" : "not-indicated",
       fuel: structuredClone(state.live.fuel), tires: structuredClone(state.live.tires),
       sourceSnapshot: { fuelRemaining: Number.isFinite(packet.Fuel) && packet.Fuel >= 0 && (summary.fuelUnit === "L" || packet.Fuel <= 1) ? packet.Fuel : null, fuelUnit: summary.fuelUnit,
         wear: [snapshotWear(packet.TireWearFL),snapshotWear(packet.TireWearFR),snapshotWear(packet.TireWearRL),snapshotWear(packet.TireWearRR)], lapId },
@@ -370,6 +372,7 @@ export class DurableStrategyTracker {
   }
   consumeTireReset(): boolean { const reset = this.tireReset; this.tireReset = false; return reset; }
   private project(packet: TelemetryPacket, pit: LivePitData, state: StintState): LivePitData {
+    const live = state.live;
     // Saved estimates start without PitTracker's frame projection.
     if (!pit.tireThresholds) {
       const overrides = getTireThresholdOverrides();
@@ -382,10 +385,10 @@ export class DurableStrategyTracker {
       pit.cliffPct = pit.tireThresholds.reduce((sum, value) => sum + value.cliffPct, 0) / 4;
       pit.deadPct = pit.tireThresholds.reduce((sum, value) => sum + value.deadPct, 0) / 4;
     }
-    const live = state.live;
     const fuelRate = live.fuel.value;
+    const supportsRefueling = supportsRaceRefueling(packet.gameId);
     pit.fuelPerLap = fuelRate ?? 0;
-    pit.fuelLapsRemaining = fuelRate != null && fuelRate > 0 && Number.isFinite(packet.Fuel) && packet.Fuel >= 0 ? packet.Fuel / fuelRate : null;
+    pit.fuelLapsRemaining = supportsRefueling && fuelRate != null && fuelRate > 0 && Number.isFinite(packet.Fuel) && packet.Fuel >= 0 ? packet.Fuel / fuelRate : null;
     const cliff: [number | null, number | null, number | null, number | null] = [null, null, null, null];
     const dead: typeof cliff = [null, null, null, null];
     const rates: [number, number, number, number] = [0, 0, 0, 0];

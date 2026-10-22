@@ -13,8 +13,9 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { PitWindow } from "./PitWindow";
 import { PitEstimateDialog } from "./PitEstimateDialog";
 import { useStrategyFormat } from "./strategy-format";
-import { useActiveRacePlan } from "./race-plans";
+import { useActiveRacePlans } from "./race-plans";
 import { isRacePlanApplicable } from "./race-plan-projection";
+import { StrategyAdherencePanel } from "./StrategyAdherence";
 import { CompactRaceStrategy } from "./LiveRaceStrategy";
 
 interface PitEstimateProps {
@@ -32,11 +33,11 @@ export function PitEstimate({ packet, view, pit }: PitEstimateProps) {
   const { m, useTelemetryState } = useRaceStrategyHost();
   const { strategyRateText } = useStrategyFormat();
   const serverStatus = useTelemetryState((state) => state.serverStatus);
-  const activePlanQuery = useActiveRacePlan();
+  const activePlanQuery = useActiveRacePlans();
   const gameCandidate = view?.simulator ?? packet?.gameId ?? serverStatus?.detectedGame?.id;
   const gameId = GameIdSchema.safeParse(gameCandidate).success ? gameCandidate as GameId : null;
-  const sessionId = pit?.strategy?.sessionId ?? serverStatus?.currentSession?.id ?? null;
-  const receivedStrategy = pit?.strategy ?? null;
+  const sessionId = view?.sessionId ?? serverStatus?.currentSession?.id ?? pit?.strategy?.sessionId ?? null;
+  const receivedStrategy = pit?.strategy?.sessionId === sessionId ? pit.strategy : null;
   const requiredRevision = useStrategyHistoryRevision(gameId, receivedStrategy?.driverKey ?? null);
   const historyDriverKey = receivedStrategy?.driverKey ?? null;
   const baselineQuery = useStrategyBaseline(gameId, receivedStrategy?.sessionId ?? null, receivedStrategy?.stintId ?? null, historyDriverKey);
@@ -63,9 +64,15 @@ export function PitEstimate({ packet, view, pit }: PitEstimateProps) {
   const telemetryModel = adapter.telemetry;
   const analysis = resolveAnalysisTelemetry(adapter);
   const wears = view?.tires.wear ? [view.tires.wear.fl, view.tires.wear.fr, view.tires.wear.rl, view.tires.wear.rr] : [packet?.TireWearFL ?? Number.NaN, packet?.TireWearFR ?? Number.NaN, packet?.TireWearRL ?? Number.NaN, packet?.TireWearRR ?? Number.NaN];
-  const healthAvailable = view ? hasTireHealthDataSemantic(wears, analysis.tireHealth) : packet != null && hasTireHealthData(packet, analysis.tireHealth);
+  const tireWearStatus = view?.statusBySemanticId["tires.tire-wear"];
+  const tireWearFresh = !tireWearStatus || (tireWearStatus.resolution === "ok" && tireWearStatus.freshness === "fresh");
+  const healthAvailable = view
+    ? tireWearFresh && hasTireHealthDataSemantic(wears, analysis.tireHealth)
+    : packet != null && hasTireHealthData(packet, analysis.tireHealth);
   const rawFuel = view ? view.fuel.amount : packet?.Fuel;
-  const fuelAvailable = rawFuel != null && Number.isFinite(rawFuel) && rawFuel >= 0 && (telemetryModel.fuel.packetUnit !== "fraction" || rawFuel <= 1);
+  const fuelStatus = view?.statusBySemanticId["fuel.fuel"];
+  const fuelFresh = !fuelStatus || (fuelStatus.resolution === "ok" && fuelStatus.freshness === "fresh");
+  const fuelAvailable = fuelFresh && rawFuel != null && Number.isFinite(rawFuel) && rawFuel >= 0 && (telemetryModel.fuel.packetUnit !== "fraction" || rawFuel <= 1);
   const fuel = getFuelDisplay({ Fuel: rawFuel ?? Number.NaN, FuelCapacity: view?.fuel.capacity ?? packet?.FuelCapacity }, telemetryModel.fuel);
   const fuelCapacity = view?.fuel.capacity ?? packet?.FuelCapacity;
   const hasFuelCapacity = fuelCapacity != null && Number.isFinite(fuelCapacity) && fuelCapacity > 0;
@@ -112,12 +119,26 @@ export function PitEstimate({ packet, view, pit }: PitEstimateProps) {
   const pitBadge = pitStatus === "in_pit" ? { label: m.pit_in_pit(), color: "var(--status-info)" } : pitStatus === "pit_lane" ? { label: m.pit_pit_lane(), color: "var(--status-warning)" } : null;
 
   const currentLap = view?.timing.lapNumber ?? packet?.LapNumber ?? null;
-  const selectedPlan = activePlanQuery.data?.plan ?? null;
+  const currentCarId = view?.identity.carId ?? packet?.carId ?? null;
+  const currentTrackId = view?.identity.trackId ?? packet?.trackId ?? null;
+  const selectedPlan = activePlanQuery.data?.plans.find((plan) => plan.gameId === gameId && currentCarId != null && plan.carId === currentCarId && currentTrackId != null && plan.trackId === currentTrackId) ?? null;
   const activePlan = !activePlanQuery.isError && isRacePlanApplicable(selectedPlan, {
-    gameId, carId: view?.identity.carId ?? packet?.carId ?? null,
-    trackId: view?.identity.trackId ?? packet?.trackId ?? null,
+    gameId, carId: currentCarId, trackId: currentTrackId,
     pi: view?.identity.performanceIndex ?? packet?.CarPerformanceIndex ?? null,
   }) ? selectedPlan : null;
+  const planFuelCapacity = activePlan?.fuelUnit === "L"
+    ? hasFuelCapacity ? fuelCapacity! : null
+    : hasFuelCapacity ? 1 : null;
+  const planFuelRemaining = activePlan
+    ? activePlan.fuelUnit === "L"
+      ? telemetryModel.fuel.packetUnit === "fraction"
+        ? fuelAvailable && hasFuelCapacity ? rawFuel! * fuelCapacity! : null
+        : fuelAvailable ? rawFuel! : null
+      : telemetryModel.fuel.packetUnit === "fraction"
+        ? fuelAvailable ? rawFuel! : null
+        : fuelAvailable && hasFuelCapacity ? rawFuel! / fuelCapacity! : null
+    : null;
+  const adherenceWear = wears.map((wear) => healthAvailable && Number.isFinite(wear) && wear >= 0 && wear <= 1 ? wear : null) as [number | null, number | null, number | null, number | null];
   const strategyFuelRate = strategy?.fuel;
   const fuelRate = fuelAvailable && strategyFuelRate?.value != null
     ? strategyRateText(strategyFuelRate)
@@ -148,11 +169,27 @@ export function PitEstimate({ packet, view, pit }: PitEstimateProps) {
       </header>
       <div className="space-y-2 p-3">
       {strategy?.persistence === "error" && <p role="alert" data-testid="strategy-persistence-error" className="text-status-danger">{m.strategy_persistence_error()}</p>}
-      {activePlan ? <CompactRaceStrategy plan={activePlan} currentLap={currentLap} /> : <>
+      {activePlan ? <>
+        <StrategyAdherencePanel
+          plan={activePlan}
+          gameId={gameId}
+          currentLap={currentLap}
+          view={view}
+          strategy={strategy}
+          fuelRemaining={planFuelRemaining}
+          fuelUnit={activePlan.fuelUnit}
+          fuelCapacity={planFuelCapacity}
+          tireWear={adherenceWear}
+        />
+        <div className="min-w-0">
+          <p className="mb-1 text-xs font-semibold text-app-text-muted">{m.race_adherence_saved_plan()}</p>
+          <CompactRaceStrategy plan={activePlan} currentLap={currentLap} />
+        </div>
+      </> : <>
       <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-center gap-3">
         <div className="min-w-0">
           <p className="mb-1 text-xs text-app-text-muted">{m.pit_timeline_estimate_current()}</p>
-          <PitWindow pit={dialogPit} />
+          <PitWindow gameId={gameId} pit={dialogPit} />
         </div>
         <div className="min-w-0 text-right">
           <p className="font-mono text-xl font-bold tabular-nums" style={{ color: fuelColor }}>

@@ -29,11 +29,12 @@ export function strategyContext(packet: TelemetryPacket): Pick<StintIdentity, "g
   return { gameId: packet.gameId, carId: packet.carId, trackId: packet.trackId,
     pi: packet.gameId === "fm-2023" && Number.isFinite(packet.CarPerformanceIndex) && packet.CarPerformanceIndex > 0 ? packet.CarPerformanceIndex : null,
     compounds, fuelUnit,
-    compatibility: { fuelSemanticVersion: `${semanticVersion}:fuel-${fuelUnit}-v1`, tireSemanticVersions: [tireVersion, tireVersion, tireVersion, tireVersion], setupKey: null,
+    compatibility: { fuelSemanticVersion: `${semanticVersion}:fuel-${fuelUnit}-v1`, tireSemanticVersions: [tireVersion, tireVersion, tireVersion, tireVersion],
+      virtualEnergySemanticVersion: packet.gameId === "lmu" ? `${semanticVersion}:virtual-energy-remaining-fraction-v1` : null, setupKey: null,
       conditions: { weather: packet.f1 ? String(packet.f1.weather) : null, airTemperatureC: temperature(packet.f1?.airTemperature), trackTemperatureC: temperature(packet.f1?.trackTemperature) } } };
 }
 
-export const StrategyBoundary = { Rewind: 1, Configuration: 2, Tires: 4, Fuel: 8, Pit: 16, Gap: 32 } as const;
+export const StrategyBoundary = { Rewind: 1, Configuration: 2, Tires: 4, Fuel: 8, Pit: 16, Gap: 32, Energy: 64 } as const;
 /** Boundary evidence is shared by live ingestion and offline source-backed rebuilding. */
 export function strategyBoundary(before: TelemetryPacket, after: TelemetryPacket): number {
   let result = 0;
@@ -47,6 +48,7 @@ export function strategyBoundary(before: TelemetryPacket, after: TelemetryPacket
     if (Number.isFinite(after[wheel]) && after[wheel] >= 0 && before[wheel] >= 0 && before[wheel] - after[wheel] >= 0.005) result |= StrategyBoundary.Tires;
   }
   if (Number.isFinite(after.Fuel) && before.Fuel >= 0 && after.Fuel - before.Fuel >= 0.005) result |= StrategyBoundary.Fuel;
+  if (before.gameId === "lmu" && after.gameId === "lmu" && Number.isFinite(before.lmu?.virtualEnergy) && Number.isFinite(after.lmu?.virtualEnergy) && after.lmu!.virtualEnergy! - before.lmu!.virtualEnergy! >= 0.005) result |= StrategyBoundary.Energy;
   const pit = strategyPitState(after);
   const wasPit = strategyPitState(before);
   if (pit != null && wasPit != null && pit !== wasPit ||
@@ -66,6 +68,7 @@ export function strategyBoundaryReason(boundary: number): string {
 export class StrategyBoundaryTracker {
   private inPit = false;
   private refueling = false;
+  private energyRefilling = false;
 
   observe(before: TelemetryPacket, after: TelemetryPacket): number {
     let boundary = strategyBoundary(before, after);
@@ -74,7 +77,7 @@ export class StrategyBoundaryTracker {
     if (wasPit === false && pit === true) this.inPit = true;
     else if (wasPit === true && pit === false) {
       this.inPit = false;
-      this.refueling = false;
+      this.energyRefilling = false;
       boundary &= ~StrategyBoundary.Pit;
     }
 
@@ -82,10 +85,15 @@ export class StrategyBoundaryTracker {
       Number.isFinite(after.DistanceTraveled) && Number.isFinite(before.DistanceTraveled) && after.DistanceTraveled > before.DistanceTraveled ||
       Number.isFinite(after.Fuel) && after.Fuel >= 0 && Number.isFinite(before.Fuel) && before.Fuel >= 0 && after.Fuel < before.Fuel;
     if (!this.inPit && resumedDriving) this.refueling = false;
+    if (after.gameId === "lmu" && before.gameId === "lmu" && Number.isFinite(after.lmu?.virtualEnergy) && Number.isFinite(before.lmu?.virtualEnergy) && after.lmu!.virtualEnergy! < before.lmu!.virtualEnergy!) this.energyRefilling = false;
 
     if (boundary & StrategyBoundary.Fuel) {
       if (this.inPit || this.refueling) boundary &= ~StrategyBoundary.Fuel;
       else this.refueling = true;
+    }
+    if (boundary & StrategyBoundary.Energy) {
+      if (this.inPit || this.energyRefilling) boundary &= ~StrategyBoundary.Energy;
+      else this.energyRefilling = true;
     }
 
     if (boundary & (StrategyBoundary.Rewind | StrategyBoundary.Gap | StrategyBoundary.Configuration)) this.reset();
@@ -95,6 +103,7 @@ export class StrategyBoundaryTracker {
   reset(): void {
     this.inPit = false;
     this.refueling = false;
+    this.energyRefilling = false;
   }
 }
 

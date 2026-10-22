@@ -81,7 +81,6 @@ test("E2 native ACC litre consumption stays distinct from tank-fraction rates in
     expect(measured!.fuel.value).toBeCloseTo(2.4, 4);
     expect(measured!.tires.every((wheel) => wheel.value === null)).toBe(true);
     await page.goto(`${runtime.baseURL}/acc/sessions/${session!.id}/analyse`);
-    await page.getByRole("button", { name: "Stint averages", exact: true }).click();
     await expect(page.getByTestId("stint-summary-table")).toContainText(/2[.,]40?\s*L/);
     await expect(page.getByTestId("stint-summary-chart")).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("litre-stint-averages.png"), fullPage: true });
@@ -203,7 +202,6 @@ test("E4/E9 different native F1 compounds preserve measured values and suppress 
     expect(first.tires[0].value).toBeCloseTo(0.008, 4);
     expect(last.tires[0].value).toBeCloseTo(0.008, 4);
     await page.goto(`${runtime.baseURL}/f125/sessions/${id}/analyse`);
-    await page.getByRole("button", { name: "Stint averages", exact: true }).click();
     const selection = page.getByTestId("stint-summary-table").getByRole("checkbox");
     await selection.nth(stints.indexOf(first)).check();
     await selection.nth(stints.indexOf(last)).check();

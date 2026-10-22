@@ -162,6 +162,17 @@ describe("PitTracker", () => {
     expect(r.pitInLaps).toBeCloseTo(5.0, 0);
   });
 
+  test("F1 low fuel never limits tire stop estimates while preserving measured usage", () => {
+    const tracker = new PitTracker();
+    tracker._seedForTest([0.1], [{ fl: 0.1, fr: 0.1, rl: 0.1, rr: 0.1 }]);
+    const result = tracker.feed(pkt({ gameId: "f1-2025", Fuel: 0.01, LapNumber: 2, TireWearFL: 0.1,
+      TireWearFR: 0.1, TireWearRL: 0.1, TireWearRR: 0.1, CurrentLap: 5 }), 5000);
+    expect(result.fuelPerLap).toBeCloseTo(0.1);
+    expect(result.currentLapFuelUsed).toBe(0);
+    expect(result.fuelLapsRemaining).toBeNull();
+    expect(result.limitedBy).toBe("tires");
+  });
+
   test("ignores tire wear when active game cannot estimate wear", () => {
     const tracker = new PitTracker();
     tracker.setTireWearAvailable(false);

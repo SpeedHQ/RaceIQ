@@ -416,6 +416,7 @@
         "@raceiq/game-acc": "workspace:*",
         "@raceiq/game-f1-2025": "workspace:*",
         "@raceiq/game-fm-2023": "workspace:*",
+        "@raceiq/game-lmu": "workspace:*",
         "@raceiq/tooling-data": "workspace:*",
         "@types/react": "^19.3.0",
       },

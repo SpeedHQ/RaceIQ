@@ -2,10 +2,12 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { classifyPitCycleLap } from "@raceiq/analysis-core/racing/laps/pit-cycle";
 import type { FourWheels } from "@raceiq/shared/racing/live/strategy";
 
-export const STRATEGY_ALGORITHM_VERSION = "stint-metrics-v2";
+export const STRATEGY_ALGORITHM_VERSION = "stint-metrics-v4";
 export interface LapMetricContribution {
   fuelUsed: number | null;
   fuelExcludedReason: string | null;
+  virtualEnergyUsed?: number | null;
+  virtualEnergyExcludedReason?: string | null;
   tireWear: FourWheels<number | null>;
   tireExcludedReasons: FourWheels<string | null>;
   lapTimeSeconds: number | null;
@@ -16,6 +18,7 @@ export interface LapMetricContribution {
 }
 const channels = ["TireWearFL", "TireWearFR", "TireWearRL", "TireWearRR"] as const;
 const wearValid = (value: number) => Number.isFinite(value) && value >= 0 && value <= 1;
+const energyValid = (value: number | undefined): value is number => value !== undefined && Number.isFinite(value) && value >= 0 && value <= 1;
 
 /** A single path for live saved laps and source-backed rebuilds. No historical pseudo-laps. */
 export function aggregateLapMetrics(packets: readonly TelemetryPacket[], options: {
@@ -37,6 +40,10 @@ export function aggregateLapMetrics(packets: readonly TelemetryPacket[], options
   let measured = 0;
   let reliableIntervals = 0;
   let allFuelIntervals = packets.length > 1;
+  let energyMeasured = 0;
+  let energyReliableIntervals = 0;
+  let energyComplete = packets.length > 1;
+  let energyReason: string | null = null;
   if (first) for (let index = 1; index < packets.length; index++) {
     const previous = packets[index - 1];
     const current = packets[index];
@@ -53,6 +60,21 @@ export function aggregateLapMetrics(packets: readonly TelemetryPacket[], options
       // LMU derives this channel from scoring lap distance, which can correct
       // backward without a recording gap. It is not a monotonic odometer.
       && (first.gameId === "lmu" || current.DistanceTraveled + 0.1 >= previous.DistanceTraveled);
+    const energyBefore = previous.gameId === "lmu" ? previous.lmu?.virtualEnergy : undefined;
+    const energyAfter = current.gameId === "lmu" ? current.lmu?.virtualEnergy : undefined;
+    if (!energyValid(energyBefore) || !energyValid(energyAfter)) {
+      energyComplete = false;
+      energyReason = "virtual-energy-unavailable";
+    } else if (energyAfter > energyBefore) {
+      energyComplete = false;
+      energyReason = "virtual-energy-reset-or-refill";
+    } else if (!continuous) {
+      energyComplete = false;
+      energyReason = "discontinuous-interval";
+    } else {
+      energyMeasured += energyBefore - energyAfter;
+      energyReliableIntervals++;
+    }
     if (!continuous) exclusion = "discontinuous-lap";
     const fuelInterval = continuous && fuelValid(previous.Fuel) && fuelValid(current.Fuel) && current.Fuel <= previous.Fuel;
     if (fuelInterval) { measured += previous.Fuel - current.Fuel; reliableIntervals++; }
@@ -74,6 +96,8 @@ export function aggregateLapMetrics(packets: readonly TelemetryPacket[], options
   }
   return {
     fuelUsed: !fuelReason && first && last ? first.Fuel - last.Fuel : null,
+    virtualEnergyUsed: !exclusion && energyReliableIntervals > 0 && energyComplete ? energyMeasured : null,
+    virtualEnergyExcludedReason: first?.gameId === "lmu" ? exclusion ?? (!energyComplete ? energyReason ?? "virtual-energy-unavailable" : null) : null,
     fuelExcludedReason: fuelReason, tireWear: tireDeltas, tireExcludedReasons: tireReasons,
     lapTimeSeconds: !exclusion && Number.isFinite(options.lapTimeSeconds) && options.lapTimeSeconds > 0 ? options.lapTimeSeconds : null,
     exclusionReason: exclusion, measuredFuelUsed: reliableIntervals > 0 ? measured : null,

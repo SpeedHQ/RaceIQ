@@ -3,6 +3,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { createSocket } from "node:dgram";
 import { setTimeout as delay } from "node:timers/promises";
+import { z } from "zod";
 import { encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, encodeSparseCaptureFormatFrame } from "@raceiq/capture-formats/session/framing";
 
 /** Native FM Dash packets exercise the real UDP parser and pipeline, not an API mock. */
@@ -77,6 +78,39 @@ export function* nativeRunFrames(run: NativeRun): Generator<Buffer> {
       fuel -= lap.fuelUsed;
       wear = [wear[0] + lap.wear[0], wear[1] + lap.wear[1], wear[2] + lap.wear[2], wear[3] + lap.wear[3]];
     }
+  }
+}
+
+/** Settle the detector's rate admission using stationary native telemetry, not a measured warm-up lap. */
+export async function primeNativeRun(run: NativeRun, port: number, apiURL: string): Promise<void> {
+  const first = nativeRunFrames(run).next().value!;
+  const statusSchema = z.object({
+    type: z.literal("status"), udpPps: z.number(), isRaceOn: z.boolean(),
+    currentSession: z.object({ carId: z.string(), trackId: z.string() }).nullable(),
+  });
+  const status = new WebSocket(`${apiURL.replace("http:", "ws:")}/ws`);
+  const socket = createSocket("udp4");
+  let stableWindows = 0;
+  let connectionFailed = false;
+  status.addEventListener("error", () => { connectionFailed = true; });
+  status.addEventListener("message", (event) => {
+    if (typeof event.data !== "string") return;
+    const result = statusSchema.safeParse(JSON.parse(event.data));
+    if (!result.success) return;
+    const value = result.data;
+    stableWindows = value.isRaceOn && value.udpPps >= 30 && value.currentSession?.carId === String(run.carId) &&
+      value.currentSession.trackId === String(run.trackId ?? 5) ? stableWindows + 1 : 0;
+  });
+  try {
+    const deadline = Date.now() + 20_000;
+    while (stableWindows < 2) {
+      if (connectionFailed || Date.now() >= deadline) throw new Error("Native telemetry did not reach two admitted rate windows");
+      await new Promise<void>((accept, reject) => socket.send(first, port, "127.0.0.1", (error) => error ? reject(error) : accept()));
+      await delay(6);
+    }
+  } finally {
+    socket.close();
+    status.close();
   }
 }
 

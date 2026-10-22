@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { ActiveRacePlanResponseSchema, RacePlanSchema, RacePlansResponseSchema } from "@raceiq/shared/racing/live/race-plan";
+import { ActiveRacePlansResponseSchema, ActiveRacePlanResponseSchema, RacePlanRecalculationResponseSchema, RacePlanSchema, RacePlansResponseSchema } from "@raceiq/shared/racing/live/race-plan";
 import type { GameId } from "@raceiq/shared/games/ids";
-import type { RacePlanInput } from "@raceiq/shared/racing/live/race-plan";
+import type { RacePlanGeneration, RacePlanInput, SetActiveRacePlanInput } from "@raceiq/shared/racing/live/race-plan";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRaceStrategyHost } from "./host";
 
@@ -19,11 +19,11 @@ export function useRacePlans(gameId: GameId | null) {
   });
 }
 
-export function useActiveRacePlan() {
+export function useActiveRacePlans() {
   const { api } = useRaceStrategyHost();
   return useQuery({
     queryKey: racePlanKeys.active,
-    queryFn: async ({ signal }) => ActiveRacePlanResponseSchema.parse(await api.activePlan(signal)),
+    queryFn: async ({ signal }) => ActiveRacePlansResponseSchema.parse(await api.activePlans(signal)),
     refetchOnWindowFocus: "always",
     refetchOnReconnect: "always",
     refetchInterval: 15_000,
@@ -64,9 +64,17 @@ export function useSetActiveRacePlan() {
   const { api } = useRaceStrategyHost();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (planId: string | null) => ActiveRacePlanResponseSchema.parse(await api.setActivePlan(planId)),
+    mutationFn: async (input: SetActiveRacePlanInput) => ActiveRacePlanResponseSchema.parse(await api.setActivePlan(input)),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: racePlanKeys.active });
     },
+  });
+}
+
+export function useRecalculateRacePlan() {
+  const { api } = useRaceStrategyHost();
+  return useMutation({
+    mutationFn: async ({ id, generation }: { id: string; generation: RacePlanGeneration }) =>
+      RacePlanRecalculationResponseSchema.parse(await api.recalculatePlan(id, generation)),
   });
 }

@@ -19,15 +19,16 @@ export class StrategyRuntime {
   private backend: ChildProcess | null = null;
   private readonly logs: string[] = [];
   private backendLogStart = 0;
-  private constructor(readonly root: string, readonly dataDir: string, readonly backendPort: number, readonly udpPort: number) {}
+  private inputSequence = 0;
+  private constructor(readonly root: string, readonly dataDir: string, readonly backendPort: number, readonly udpPort: number, private readonly binaryPath?: string) {}
   get baseURL(): string { return this.apiURL; }
   get apiURL(): string { return `http://127.0.0.1:${this.backendPort}`; }
 
   private env(): NodeJS.ProcessEnv {
     return { ...process.env, DATA_DIR: this.dataDir, SERVER_PORT: String(this.backendPort), UDP_PORT: String(this.udpPort), NODE_ENV: "test", RACEIQ_E2E: "1", PW_ACCESS_MODE: "disabled", RACEIQ_SETUP_HOME: resolve(this.dataDir, "setup-home") };
   }
-  private launch(args: string[], cwd = this.root, env = this.env(), command = "bun"): ChildProcess {
-    const child = spawn(command, args, { cwd, env, stdio: ["ignore", "pipe", "pipe"] });
+  private launch(args: string[], cwd = this.root, env = this.env(), command = "bun", input = false): ChildProcess {
+    const child = spawn(command, args, { cwd, env, stdio: [input ? "pipe" : "ignore", "pipe", "pipe"] });
     child.stdout?.on("data", (chunk: Buffer) => this.logs.push(chunk.toString()));
     child.stderr?.on("data", (chunk: Buffer) => this.logs.push(chunk.toString()));
     child.on("error", (error) => this.logs.push(String(error)));
@@ -52,9 +53,9 @@ export class StrategyRuntime {
       if (child.signalCode === "SIGKILL") throw new Error(`Runtime failed to drain before shutdown: ${this.logs.slice(-12).join("")}`);
     } finally { clearTimeout(timer); }
   }
-  static async start(dataDir: string): Promise<StrategyRuntime> {
+  static async start(dataDir: string, binaryPath?: string): Promise<StrategyRuntime> {
     const root = fileURLToPath(new URL("../../../../", import.meta.url));
-    const runtime = new StrategyRuntime(root, dataDir, await availablePort(), await availablePort());
+    const runtime = new StrategyRuntime(root, dataDir, await availablePort(), await availablePort(), binaryPath);
     await mkdir(dataDir, { recursive: true });
     await writeFile(resolve(dataDir, "settings.json"), JSON.stringify({ onboardingComplete: true, udpPort: runtime.udpPort }));
     const initialize = runtime.launch(["playwright/support/server/initialize-access.ts"]);
@@ -66,11 +67,30 @@ export class StrategyRuntime {
     } catch (error) { await runtime.stop(); throw error; }
   }
   private async startBackend(): Promise<void> {
-    const binary = process.env.PW_COMPILED_BINARY ?? resolve(this.root, "dist", process.platform === "win32" ? "raceiq.exe" : "raceiq");
+    const binary = this.binaryPath ?? process.env.PW_COMPILED_BINARY ?? resolve(this.root, "dist", process.platform === "win32" ? "raceiq.exe" : "raceiq");
     await access(binary);
     this.backendLogStart = this.logs.length;
-    this.backend = this.launch([], resolve(binary, ".."), { ...this.env(), NODE_ENV: "production", RACEIQ_APP_ROOT: this.root }, binary);
+    this.backend = this.launch([], resolve(binary, ".."), { ...this.env(), NODE_ENV: "production", RACEIQ_APP_ROOT: this.root }, binary, this.binaryPath != null);
     await this.waitReady(`${this.apiURL}/api/status`, this.backend);
+  }
+  /** Drive a runner-owned native-source fixture over stdin, not a production HTTP endpoint. */
+  async nativeInput(input: unknown): Promise<void> {
+    const backend = this.backend;
+    if (!backend?.stdin || !backend.stdout) throw new Error("Native fixture runtime is not running");
+    const sequence = ++this.inputSequence;
+    await new Promise<void>((accept, reject) => {
+      let output = "";
+      const cleanup = () => { clearTimeout(timer); backend.stdout!.off("data", received); backend.off("exit", exited); };
+      const received = (chunk: Buffer) => {
+        output = (output + chunk.toString()).slice(-4096);
+        if (output.includes(`LMU_TEST_ACK:${sequence}\n`)) { cleanup(); accept(); }
+      };
+      const exited = () => { cleanup(); reject(new Error(`Native fixture exited: ${this.logs.slice(-12).join("")}`)); };
+      const timer = setTimeout(() => { cleanup(); reject(new Error(`Native fixture command ${sequence} timed out: ${this.logs.slice(-12).join("")}`)); }, 60_000);
+      backend.stdout!.on("data", received);
+      backend.once("exit", exited);
+      backend.stdin!.write(`${JSON.stringify({ sequence, input })}\n`);
+    });
   }
   async waitForStrategyBackfill(): Promise<void> {
     const deadline = Date.now() + 90_000;

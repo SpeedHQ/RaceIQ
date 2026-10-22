@@ -15,6 +15,7 @@ test("A1-A3 startup backfills missing LMU stints from their recording without ch
   const api = await playwright.request.newContext({ baseURL: runtime.apiURL });
   const context = await browser.newContext();
   try {
+    await runtime.waitForStrategyBackfill();
     const fixture = testInfo.outputPath("lmu-history.bin");
     await promisify(execFile)("bun", [resolve(runtime.root, "packages/race-strategy/test/e2e/convert-lmu-fixture.ts"),
       resolve(runtime.root, "test/artifacts/sessions/lmu-spa-iron-lynx-gte.bin.gz"), fixture]);
@@ -45,7 +46,7 @@ test("A1-A3 startup backfills missing LMU stints from their recording without ch
     const state = await runtime.databaseStatement("SELECT rebuild_generation FROM strategy_session_state WHERE session_id=?", [sessionId]);
     const summaries = await readStints();
     const page = await context.newPage();
-    await page.goto(`${runtime.baseURL}/lmu/sessions/${sessionId}/analyse?view=stints`);
+    await page.goto(`${runtime.baseURL}/lmu/sessions/${sessionId}/analyse`);
     await expect(page.getByTestId("stint-summary-table")).toBeVisible();
     await expect(page.getByTestId("stint-summary-chart")).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("automatically-backfilled-lmu-stints.png") });
@@ -56,10 +57,10 @@ test("A1-A3 startup backfills missing LMU stints from their recording without ch
     expect(await runtime.databaseStatement("SELECT rebuild_generation FROM strategy_session_state WHERE session_id=?", [sessionId])).toEqual(state);
     expect(await runtime.databaseStatement(lapState, [sessionId])).toEqual(before);
     await runtime.crash();
-    await runtime.databaseStatement("UPDATE strategy_stints SET payload=json_set(payload,'$.algorithmVersion','stint-metrics-v1') WHERE session_id=?", [sessionId], true);
+    await runtime.databaseStatement("UPDATE strategy_stints SET payload=json_remove(json_set(payload,'$.algorithmVersion','stint-metrics-v1'),'$.rateStatistics') WHERE session_id=?", [sessionId], true);
     await runtime.restart();
     await runtime.waitForStrategyBackfill();
-    expect((await readStints()).every((stint) => stint.algorithmVersion === "stint-metrics-v2")).toBe(true);
+    expect((await readStints()).every((stint) => stint.rateStatistics != null)).toBe(true);
     expect((await readStints()).some((stint) => stint.fuel.eligibleLaps > 0)).toBe(true);
     expect(await runtime.databaseStatement(lapState, [sessionId])).toEqual(before);
     expect(await runtime.databaseStatement("SELECT rebuild_generation FROM strategy_session_state WHERE session_id=?", [sessionId])).not.toEqual(state);

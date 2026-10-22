@@ -1,4 +1,4 @@
-export { RaceStrategyProvider } from "./host";
+export { RaceStrategyProvider, useRaceStrategyHost } from "./host";
 export { RaceStrategyPlanner } from "./RaceStrategyPlanner";
 export { RaceStrategiesPage } from "./RaceStrategiesPage";
 export { LiveRaceStrategy, CompactRaceStrategy } from "./LiveRaceStrategy";
@@ -7,6 +7,6 @@ export { StrategyStints } from "./StrategyStints";
 export { PitEstimate } from "./PitEstimate";
 export { PitEstimateDialog } from "./PitEstimateDialog";
 export { PitWindow } from "./PitWindow";
-export { racePlanKeys, useRacePlans, useActiveRacePlan, useSaveRacePlan, useDeleteRacePlan, useSetActiveRacePlan } from "./race-plans";
+export { racePlanKeys, useRacePlans, useActiveRacePlans, useSaveRacePlan, useDeleteRacePlan, useSetActiveRacePlan } from "./race-plans";
 export { strategyKeys, useStrategyStints, usePitEstimatePage, useStrategyBaseline, useClearPitEstimateHistory, useStrategyHistoryRevision, noteStrategyHistoryRevision, isStrategyHistoryCurrent } from "./stint-strategy";
 export { isRacePlanApplicable, racePlanProgress, projectRacePlanStint } from "./race-plan-projection";

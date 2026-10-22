@@ -242,6 +242,7 @@ ran v39 before the `car`/`driver` rename.
 
 - Path aliases: `@shared/*` → `./shared/*` (server/test), `@/*` → `./src/*` (client only)
 - Client proxies `/api` and `/ws` requests to `localhost:3117` via Vite dev server config
+- **In-app navigation must use TanStack Router.** Use `Link` for navigational links and `useNavigate`/`router.navigate` for programmatic navigation. Never use native `<a href>` elements or `window.location.href`/`assign`/`replace` for navigation between app routes; they bypass SPA routing and can reload the entire page. Preserve route params, search params, and fragment targets through router APIs. Native anchors remain appropriate for external URLs, downloads, and intentional new-tab previews; full reloads are reserved for explicit application lifecycle operations such as completing an update.
 - **API calls use Hono RPC**: import `client` from `@/lib/rpc.ts` (typed against `AppType` from `server/routes/index.ts`) — do not use raw `fetch` for API routes
 - **gameId travels via `X-Game-Id` header** — not query params or effect-populated stores
 - **Telemetry semantics preserve native channels one-to-one.** Never alias, average, merge, or relabel game output into a different physical concept; use `unavailable` when source lacks a semantic. Consumer projections stay explicit. Follow [telemetry semantic rules](docs/reference/semantics.md).

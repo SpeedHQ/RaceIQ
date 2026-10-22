@@ -2158,6 +2158,22 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
     ],
   },
   {
+    version: 85,
+    name: "pin race plans by combo",
+    sql: [
+      `CREATE TABLE active_race_plans (
+        game_id TEXT NOT NULL, car_id TEXT NOT NULL, track_id TEXT NOT NULL,
+        plan_id TEXT NOT NULL REFERENCES race_plans(id) ON DELETE CASCADE,
+        PRIMARY KEY(game_id, car_id, track_id)
+      )`,
+      `INSERT INTO active_race_plans(game_id, car_id, track_id, plan_id)
+        SELECT p.game_id, p.car_id, p.track_id, p.id
+        FROM active_race_plan a JOIN race_plans p ON p.id = a.plan_id
+        WHERE a.id = 1`,
+      `DROP TABLE active_race_plan`,
+    ],
+  },
+  {
     version: 82,
     name: "classify historical non-pace laps",
     sql: [

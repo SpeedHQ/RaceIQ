@@ -1,16 +1,21 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { insertSession, deleteSession } from "@raceiq/backend-core/db/session-queries";
 import { client } from "@raceiq/backend-core/db/index";
+import { migrations } from "@raceiq/backend-core/db/migrations";
+import { bootstrap, newClient, runMigrations } from "@raceiq/backend-core/test-support/db/migrations";
 import {
   createRacePlan,
   deleteRacePlan,
-  getActiveRacePlan,
+  getActiveRacePlans,
+  InvalidRacePlanError,
   InvalidRacePlanSourceError,
   listRacePlans,
+  racePlanRoutes,
   setActiveRacePlan,
   updateRacePlan,
 } from "@raceiq/race-strategy/server";
 import { estimateRaceLaps, RacePlanInputSchema } from "@raceiq/shared/racing/live/race-plan";
+
 
 const sourceEvidence = {
   id: "",
@@ -93,15 +98,71 @@ describe("saved race plan persistence", () => {
     const sessionId = await sourceSession();
     const created = await createRacePlan(planInput(sessionId));
     plans.push(created.id);
-    await setActiveRacePlan(created.id);
+    await setActiveRacePlan({ gameId: created.gameId, carId: created.carId, trackId: created.trackId, planId: created.id });
     const invalid = { ...planInput(sessionId), stints: [{ ...planInput(sessionId).stints[0]!, compounds: ["soft", null, null, null] as [string | null, string | null, string | null, string | null] }] };
     await expect(updateRacePlan(created.id, invalid)).rejects.toBeInstanceOf(InvalidRacePlanSourceError);
     expect((await listRacePlans("fm-2023")).find(({ id }) => id === created.id)?.stints[0]?.compounds[0]).toBeNull();
 
     expect(await deleteRacePlan(created.id)).toBe(true);
     plans.splice(plans.indexOf(created.id), 1);
-    expect(await getActiveRacePlan()).toBeNull();
+    expect(await getActiveRacePlans()).toEqual([]);
     expect(await deleteRacePlan(created.id)).toBe(false);
+  });
+
+  test("pins remain independent per combo; wrong tuple writes nothing; unload and identity edits clear only prior pin", async () => {
+    const input = {
+      name: "Pinned", gameId: "fm-2023", carId: "642", trackId: "5", pi: null,
+      totalLaps: 2, fuelUnit: "tankFraction", notes: "", stints: [
+        { endLap: 2, startFuel: null, compounds: [null, null, null, null] as [null, null, null, null], sourceSessionId: null, sourceStintId: null },
+      ],
+    };
+    const a = await createRacePlan(input);
+    const replacement = await createRacePlan(input);
+    const b = await createRacePlan({ ...input, carId: "other-car" });
+    plans.push(a.id, replacement.id, b.id);
+    const comboA = { gameId: a.gameId, carId: a.carId, trackId: a.trackId };
+    const comboB = { gameId: b.gameId, carId: b.carId, trackId: b.trackId };
+    await setActiveRacePlan({ ...comboA, planId: a.id });
+    await setActiveRacePlan({ ...comboB, planId: b.id });
+    await setActiveRacePlan({ ...comboA, planId: replacement.id });
+    expect((await getActiveRacePlans()).map(({ id }) => id)).toEqual([replacement.id, b.id]);
+    const mismatch = await racePlanRoutes.request("/api/race-plans/active", {
+      method: "PUT", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...comboB, trackId: "wrong", planId: b.id }),
+    });
+    expect(mismatch.status).toBe(400);
+    const missing = await racePlanRoutes.request("/api/race-plans/active", {
+      method: "PUT", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...comboB, planId: "absent-plan" }),
+    });
+    expect(missing.status).toBe(404);
+    expect((await racePlanRoutes.request("/api/race-plans/active")).status).toBe(200);
+    expect((await getActiveRacePlans()).map(({ id }) => id)).toEqual([replacement.id, b.id]);
+    await setActiveRacePlan({ ...comboA, planId: null });
+    expect((await getActiveRacePlans()).map(({ id }) => id)).toEqual([b.id]);
+    await updateRacePlan(b.id, { ...input, carId: "changed-car" });
+    expect(await getActiveRacePlans()).toEqual([]);
+  });
+
+  test("migration preserves singleton pin identity and drops legacy selection table", async () => {
+    const migrationClient = newClient();
+    try {
+      await bootstrap(migrationClient);
+      await migrationClient.execute("CREATE TABLE race_plans (id TEXT PRIMARY KEY, game_id TEXT NOT NULL, car_id TEXT NOT NULL, track_id TEXT NOT NULL, pi REAL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, payload TEXT NOT NULL)");
+      await migrationClient.execute("CREATE TABLE active_race_plan (id INTEGER PRIMARY KEY CHECK(id=1), plan_id TEXT REFERENCES race_plans(id) ON DELETE SET NULL)");
+      await migrationClient.execute("INSERT INTO race_plans VALUES ('legacy-plan','fm-2023','old-car','old-track',NULL,'x','x','{}')");
+      await migrationClient.execute("INSERT INTO active_race_plan VALUES (1,'legacy-plan')");
+      await migrationClient.execute({ sql: "INSERT INTO schema_migrations(version,name) VALUES(83,?)", args: ["persist saved race plans"] });
+      const version83 = migrations.find(({ version }) => version === 83)!;
+      const version85 = migrations.find(({ version }) => version === 85)!;
+      expect(await runMigrations(migrationClient, 85, [version83, version85])).toBe(1);
+      expect(await migrationClient.execute("SELECT game_id,car_id,track_id,plan_id FROM active_race_plans")).toMatchObject({
+        rows: [{ game_id: "fm-2023", car_id: "old-car", track_id: "old-track", plan_id: "legacy-plan" }],
+      });
+      await expect(migrationClient.execute("SELECT * FROM active_race_plan")).rejects.toThrow();
+    } finally {
+      migrationClient.close();
+    }
   });
 
   test("rejects mismatched or non-owned sources and enforces stint boundaries", async () => {
@@ -133,8 +194,8 @@ describe("saved race plan persistence", () => {
     const created = await createRacePlan(input);
     plans.push(created.id);
     expect(created.raceLength).toEqual(input.raceLength);
-    await setActiveRacePlan(created.id);
-    expect((await getActiveRacePlan())?.raceLength).toEqual(input.raceLength);
+    await setActiveRacePlan({ gameId: created.gameId, carId: created.carId, trackId: created.trackId, planId: created.id });
+    expect((await getActiveRacePlans()).map((plan) => plan.raceLength)).toEqual([input.raceLength]);
     expect((await listRacePlans("fm-2023")).find((plan) => plan.id === created.id)).toEqual(created);
     await expect(updateRacePlan(created.id, { ...input, raceLength: { ...input.raceLength, durationSeconds: 601 } })).rejects.toThrow();
     expect((await listRacePlans("fm-2023")).find((plan) => plan.id === created.id)).toEqual(created);

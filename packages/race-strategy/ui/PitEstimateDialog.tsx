@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { useId } from "react";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { LivePitData } from "@raceiq/shared/racing/live/types";
@@ -8,6 +9,7 @@ import { useStrategyFormat } from "./strategy-format";
 import { StrategyHistory } from "./StrategyHistory";
 import { getGame } from "@raceiq/shared/games/registry";
 import { LiveRaceStrategy } from "./LiveRaceStrategy";
+import { supportsRaceRefueling } from "../contracts/race-rules";
 
 type TireReading = {
   label: "FL" | "FR" | "RL" | "RR";
@@ -61,7 +63,7 @@ export function PitEstimateDialog({ gameId, sessionId, currentLap, carId, trackI
         : m.strategy_rate_points({ value: (liveFuelRate * 100).toFixed(1) })
       : null;
   const validFuelRate = fuelRate != null;
-  const fuelLaps = validFuelRate && pit?.fuelLapsRemaining != null && Number.isFinite(pit.fuelLapsRemaining) && pit.fuelLapsRemaining >= 0 ? pit.fuelLapsRemaining : null;
+  const fuelLaps = supportsRaceRefueling(gameId) && validFuelRate && pit?.fuelLapsRemaining != null && Number.isFinite(pit.fuelLapsRemaining) && pit.fuelLapsRemaining >= 0 ? pit.fuelLapsRemaining : null;
   const firstCliff = tires.reduce<number | null>((first, tire) => tire.toCliff == null || !Number.isFinite(tire.toCliff) || tire.toCliff < 0 ? first : first == null ? tire.toCliff : Math.min(first, tire.toCliff), null);
   const firstDead = tires.reduce<number | null>((first, tire) => tire.toDead == null || !Number.isFinite(tire.toDead) || tire.toDead < 0 ? first : first == null ? tire.toDead : Math.min(first, tire.toDead), null);
   const projectionLaps = [fuelLaps, firstCliff, firstDead].filter((value): value is number => value != null);
@@ -98,7 +100,7 @@ export function PitEstimateDialog({ gameId, sessionId, currentLap, carId, trackI
   const mixedCliff = new Set(thresholdTuple("cliffPct")).size > 1;
   const mixedDead = new Set(thresholdTuple("deadPct")).size > 1;
   const rangeEnd = horizon == null ? null : horizon + graphRange;
-  const limiter = pit?.limitedBy === "fuel" ? m.pit_timeline_fuel_first() : pit?.limitedBy === "tires" ? m.pit_timeline_tires_first() : pit?.limitedBy === null ? m.pit_timeline_no_limiter() : m.strategy_unavailable();
+  const limiter = pit?.limitedBy === "fuel" ? supportsRaceRefueling(gameId) ? m.pit_timeline_fuel_first() : m.pit_timeline_no_limiter() : pit?.limitedBy === "tires" ? m.pit_timeline_tires_first() : pit?.limitedBy === null ? m.pit_timeline_no_limiter() : m.strategy_unavailable();
 
   return <Dialog>
     <DialogTrigger render={<Button variant="outline" size="sm" className="shrink-0">{m.pit_timeline_open()}</Button>} />
@@ -111,10 +113,10 @@ export function PitEstimateDialog({ gameId, sessionId, currentLap, carId, trackI
         <section aria-labelledby={`${titleId}-horizon`} className="rounded-xl border border-app-border bg-app-bg p-4 sm:p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div><h2 id={`${titleId}-horizon`} className="text-sm font-semibold uppercase tracking-wide">{m.pit_timeline_horizon()}</h2><p className="mt-1 text-xs text-app-text-muted">{m.pit_timeline_horizon_note()}</p></div>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-app-text-muted"><span><i className="mr-1 inline-block size-2.5 rounded-full bg-(--severity-caution)" />{m.pit_timeline_fuel_limit()}</span><span><i className="mr-1 inline-block size-2.5 rounded-full bg-app-accent" />{m.pit_cliff()}</span><span><i className="mr-1 inline-block size-2.5 rounded-full bg-app-text-dim" />{m.pit_dead()}</span></div>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-app-text-muted">{supportsRaceRefueling(gameId) && <span><i className="mr-1 inline-block size-2.5 rounded-full bg-(--severity-caution)" />{m.pit_timeline_fuel_limit()}</span>}<span><i className="mr-1 inline-block size-2.5 rounded-full bg-app-accent" />{m.pit_cliff()}</span><span><i className="mr-1 inline-block size-2.5 rounded-full bg-app-text-dim" />{m.pit_dead()}</span></div>
           </div>
           {horizon == null ? <p role="status" className="mt-4 text-sm text-app-text-muted">{m.pit_timeline_lap_unavailable()}</p> : <div className="mt-4 overflow-x-auto rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-accent" role="group" aria-label={m.pit_timeline_horizon_scroll()} tabIndex={0}>
-            <div className="relative mx-auto h-[330px] min-w-[600px] px-3" role="img" aria-label={m.pit_timeline_chart_description({ now: String(horizon), end: String(rangeEnd), fuel: fuelLaps == null ? m.strategy_unavailable() : (horizon + fuelLaps).toFixed(1), cliff: firstCliff == null ? m.strategy_unavailable() : (horizon + firstCliff).toFixed(1), dead: firstDead == null ? m.strategy_unavailable() : (horizon + firstDead).toFixed(1) })}>
+            <div className="relative mx-auto h-[330px] min-w-[600px] px-3" role="img" aria-label={supportsRaceRefueling(gameId) ? m.pit_timeline_chart_description({ now: String(horizon), end: String(rangeEnd), fuel: fuelLaps == null ? m.strategy_unavailable() : (horizon + fuelLaps).toFixed(1), cliff: firstCliff == null ? m.strategy_unavailable() : (horizon + firstCliff).toFixed(1), dead: firstDead == null ? m.strategy_unavailable() : (horizon + firstDead).toFixed(1) }) : `${m.pit_timeline_lap({ lap: horizon })}; ${m.pit_cliff()} ${firstCliff == null ? m.strategy_unavailable() : (horizon + firstCliff).toFixed(1)}; ${m.pit_dead()} ${firstDead == null ? m.strategy_unavailable() : (horizon + firstDead).toFixed(1)}`}>
               <div className="absolute inset-x-3 top-[164px] h-1 rounded-full bg-app-border" />
               {Array.from({ length: 7 }, (_, index) => {
                 const position = index / 6;
@@ -126,11 +128,11 @@ export function PitEstimateDialog({ gameId, sessionId, currentLap, carId, trackI
               <div className="absolute inset-x-3 top-[298px] flex justify-between text-xs text-app-text-muted"><span>{m.pit_timeline_current_lap()}</span><span>{m.pit_timeline_end_label({ lap: String(rangeEnd), laps: String(graphRange) })}</span></div>
             </div>
           </div>}
-          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-app-border pt-3 text-sm text-app-text-muted"><span>{limiter}</span><strong className="font-semibold text-app-text">{pit?.pitInLaps != null && Number.isFinite(pit.pitInLaps) && pit.pitInLaps >= 0 ? m.pit_timeline_pit_in({ laps: pit.pitInLaps.toFixed(1) }) : m.strategy_unavailable()}</strong></div>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-app-border pt-3 text-sm text-app-text-muted"><span>{limiter}</span><strong className="font-semibold text-app-text">{pit?.pitInLaps != null && Number.isFinite(pit.pitInLaps) && pit.pitInLaps >= 0 && (supportsRaceRefueling(gameId) || pit.limitedBy !== "fuel") ? m.pit_timeline_pit_in({ laps: pit.pitInLaps.toFixed(1) }) : m.strategy_unavailable()}</strong></div>
         </section>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <section className="rounded-xl border border-app-border bg-app-surface p-4"><div className="text-xs font-semibold uppercase tracking-wide text-app-text-muted">{m.pit_timeline_fuel_remaining()}</div><strong className="mt-1 block text-2xl font-mono tabular-nums">{fuelAmount == null ? m.strategy_unavailable() : `${fuelAmount.toFixed(fuelUnit === "L" ? 1 : 0)} ${fuelUnit}`}</strong><p className="mt-1 text-sm text-app-text-muted">{validFuelRate ? m.pit_timeline_fuel_rate({ rate: fuelRate }) : m.pit_timeline_rate_unavailable()}</p><span className="mt-2 inline-flex rounded-full bg-app-bg px-2.5 py-1 text-xs font-semibold text-app-text-secondary">{fuelLaps == null ? m.pit_timeline_projection_unavailable() : m.pit_timeline_laps_remaining({ laps: formatLaps(fuelLaps, m) })}</span></section>
+          <section className="rounded-xl border border-app-border bg-app-surface p-4"><div className="text-xs font-semibold uppercase tracking-wide text-app-text-muted">{m.pit_timeline_fuel_remaining()}</div><strong className="mt-1 block text-2xl font-mono tabular-nums">{fuelAmount == null ? m.strategy_unavailable() : `${fuelAmount.toFixed(fuelUnit === "L" ? 1 : 0)} ${fuelUnit}`}</strong><p className="mt-1 text-sm text-app-text-muted">{validFuelRate ? m.pit_timeline_fuel_rate({ rate: fuelRate }) : m.pit_timeline_rate_unavailable()}</p>{supportsRaceRefueling(gameId) && <span className="mt-2 inline-flex rounded-full bg-app-bg px-2.5 py-1 text-xs font-semibold text-app-text-secondary">{fuelLaps == null ? m.pit_timeline_projection_unavailable() : m.pit_timeline_laps_remaining({ laps: formatLaps(fuelLaps, m) })}</span>}</section>
           <section className="rounded-xl border border-app-border bg-app-surface p-4"><div className="text-xs font-semibold uppercase tracking-wide text-app-text-muted">{m.pit_timeline_stint_estimate()}</div><strong className="mt-1 block text-2xl font-mono tabular-nums">{horizon == null ? m.strategy_unavailable() : m.pit_timeline_lap({ lap: horizon })}</strong><p className="mt-1 text-sm text-app-text-muted">{strategy ? m.pit_timeline_eligible_laps({ count: strategy.fuel.eligibleLaps }) : m.pit_timeline_stint_unavailable()}</p><span className="mt-2 inline-flex rounded-full bg-app-bg px-2.5 py-1 text-xs font-semibold text-app-text-secondary">{strategy?.fuel.provisional ? m.race_result_provisional() : strategy?.fuel.source ? m.pit_timeline_estimate_current() : m.strategy_unavailable()}</span></section>
           <section className="rounded-xl border border-app-border bg-app-surface p-4 sm:col-span-2 lg:col-span-1"><div className="text-xs font-semibold uppercase tracking-wide text-app-text-muted">{m.pit_timeline_thresholds()}</div><strong className="mt-1 block text-lg font-mono tabular-nums">{thresholdHeader(m.pit_cliff(), thresholdTuple("cliffPct"), m)}</strong><p className="text-sm text-app-text-muted">{thresholdHeader(m.pit_dead(), thresholdTuple("deadPct"), m)}</p><span className="mt-2 inline-flex rounded-full bg-app-bg px-2.5 py-1 text-xs font-semibold text-app-text-secondary">{firstCliff == null ? m.pit_timeline_cliff_unavailable() : m.pit_timeline_first_tire({ wheel: tires.find((tire) => tire.toCliff === firstCliff)?.label ?? "—" })}</span></section>
         </div>
@@ -147,7 +149,7 @@ export function PitEstimateDialog({ gameId, sessionId, currentLap, carId, trackI
           <summary className="cursor-pointer px-4 py-3 font-semibold focus-visible:outline-2 focus-visible:outline-app-accent">{m.race_plan_title()}</summary>
           <div className="space-y-4 border-t border-app-border p-4">
             <LiveRaceStrategy gameId={gameId} carId={carId} trackId={trackId} pi={pi} currentLap={currentLap} />
-            <a className="inline-block text-sm text-app-accent underline" href={`/${getGame(gameId).routePrefix}/strategy`}>{m.race_plan_title()}</a>
+            <Link className="inline-block text-sm text-app-accent underline" to="/$gameid/strategy" params={{ gameid: getGame(gameId).routePrefix }}>{m.race_plan_title()}</Link>
           </div>
         </details>
       </div>

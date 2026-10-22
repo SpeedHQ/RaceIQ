@@ -77,6 +77,32 @@ describe("LMU Phase 1 player pipeline", () => {
     expect(invalid.values[schema.definitions.findIndex((entry) => entry.semanticId === "fuel.battery-charge-fraction")]).toBe(0);
   });
 
+  test("native lap fraction resolves boundaries and rejects invalid distance without inventing zero", () => {
+    const memory = playerMemory();
+    const projector = new LiveTelemetryProjector();
+    let timestamp = 1000;
+    let slot = -1;
+    const project = (distance: number, length: number) => {
+      memory.writeDoubleLE(distance, LMU_SCORING_VEHICLES_OFFSET + LMU_SCORING_VEHICLE.lapDistance);
+      memory.writeDoubleLE(length, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.lapDistance);
+      const packet = normalizeLMUSourceFrame(decodeLMUSourceFrame(encodeLMUSourceFrame(memory, timestamp++)!)!);
+      const result = projector.project({ packet, receivedAtMs: timestamp });
+      if (result.schema) slot = result.schema.definitions.findIndex((definition) => definition.semanticId === "timing.lap-fraction");
+      return { value: result.frame!.values[slot], state: result.frame!.states?.[slot] ?? "ok" };
+    };
+    expect(project(250, 1000)).toEqual({ value: 0.25, state: "ok" });
+    expect(project(0, 1000)).toEqual({ value: 0, state: "ok" });
+    expect(project(1000, 1000)).toEqual({ value: 1, state: "ok" });
+    for (const [distance, length] of [[NaN, 1000], [-1, 1000], [1001, 1000], [250, 0], [250, NaN]]) {
+      expect(project(distance!, length!).value).toBeNull();
+    }
+    expect(project(500, 1000)).toEqual({ value: 0.5, state: "ok" });
+    memory.writeDoubleLE(20, LMU_TELEMETRY_INFO_OFFSET + LMU_TELEMETRY.elapsedTime);
+    expect(project(500, 1000)).toEqual({ value: null, state: "stale" });
+    memory.writeDoubleLE(20, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.currentElapsedTime);
+    expect(project(500, 1000)).toEqual({ value: 0.5, state: "ok" });
+  });
+
   test("invalidates no-player, duplicate identity, rewind and frozen snapshots without guessing a player", async () => {
     let wallNow = 100_000;
     let monotonicNow = 500;

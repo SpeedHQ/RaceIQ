@@ -16,6 +16,18 @@ export function estimateRaceLaps(durationSeconds: number, averageLapSeconds: num
   return laps >= 1 && laps <= 10000 ? laps : null;
 }
 
+export const RacePlanGenerationSchema = z.object({
+  fuelCapacity: finite.positive(),
+  fuelReserve: finite.nonnegative(),
+  energyReserveFraction: finite.min(0).lt(1),
+}).strict().superRefine((settings, context) => {
+  if (settings.fuelReserve >= settings.fuelCapacity) {
+    context.addIssue({ code: "custom", message: "Reserve must be below capacity", path: ["fuelReserve"] });
+  }
+});
+export type RacePlanGeneration = z.infer<typeof RacePlanGenerationSchema>;
+export const RacePlanRecalculationInputSchema = z.object({ generation: RacePlanGenerationSchema }).strict();
+
 const RacePlanLengthSchema = z.discriminatedUnion("mode", [
   z.object({ mode: z.literal("laps") }).strict(),
   z.object({
@@ -55,6 +67,7 @@ export const RacePlanInputSchema = z.object({
   raceLength: RacePlanLengthSchema.default({ mode: "laps" }),
   fuelUnit: z.enum(["L", "tankFraction"]),
   notes: z.string().max(4_000),
+  generation: RacePlanGenerationSchema.nullable().default(null),
   stints: z.array(RacePlanStintInputSchema).min(1).max(100),
 }).strict().superRefine((plan, context) => {
   if (plan.raceLength.mode === "time" &&
@@ -62,6 +75,9 @@ export const RacePlanInputSchema = z.object({
     context.addIssue({ code: "custom", message: "Timed race laps must match duration and average lap time", path: ["totalLaps"] });
   }
   if (plan.fuelUnit === "tankFraction") {
+    if (plan.generation && plan.generation.fuelCapacity > 1) {
+      context.addIssue({ code: "custom", message: "Tank fraction capacity must be at most 1", path: ["generation", "fuelCapacity"] });
+    }
     plan.stints.forEach((stint, index) => {
       if (stint.startFuel !== null && stint.startFuel > 1) {
         context.addIssue({ code: "custom", message: "Tank fraction must be at most 1", path: ["stints", index, "startFuel"] });
@@ -88,6 +104,7 @@ export type RacePlanInput = {
   raceLength?: RacePlanLength;
   fuelUnit: StrategyFuelUnit;
   notes: string;
+  generation?: RacePlanGeneration | null;
   stints: RacePlanStintInput[];
 };
 
@@ -103,5 +120,20 @@ export const RacePlanSchema = RacePlanInputSchema.safeExtend({
 }).strict();
 export type RacePlan = Omit<RacePlanInput, "stints"> & { id: string; createdAt: string; updatedAt: string; stints: RacePlanStint[] };
 
+export const RacePlanComboSchema = z.object({
+  gameId: GameIdSchema,
+  carId: nonemptyTrimmed(200),
+  trackId: nonemptyTrimmed(200),
+}).strict();
+export type RacePlanCombo = z.infer<typeof RacePlanComboSchema>;
+export const SetActiveRacePlanInputSchema = RacePlanComboSchema.extend({
+  planId: nonemptyTrimmed(200).nullable(),
+}).strict();
+export type SetActiveRacePlanInput = z.infer<typeof SetActiveRacePlanInputSchema>;
+export const ActiveRacePlansResponseSchema = z.object({ plans: z.array(RacePlanSchema) }).strict();
 export const RacePlansResponseSchema = z.object({ plans: z.array(RacePlanSchema) }).strict();
 export const ActiveRacePlanResponseSchema = z.object({ plan: RacePlanSchema.nullable() }).strict();
+export const RacePlanRecalculationResponseSchema = z.object({
+  draft: RacePlanInputSchema,
+  sources: z.array(StintSummarySchema),
+}).strict();

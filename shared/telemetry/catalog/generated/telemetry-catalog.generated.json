@@ -15,12 +15,12 @@
       "packages/game-fm-2023/src/parser.ts": "71c348b894f84f6086c9582d0cce473bac75a3c85896010a0e5762854718b835",
       "packages/game-iracing-metadata/src/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "packages/game-iracing/src/normalizer.ts": "bcc73bc4805a310f968b9743e6c9c88a688e3216cd28eecc3ee9f6c3d36b0afc",
-      "packages/game-lmu/src/normalizer.ts": "bf9b11b3a767535886e530e383ea9f744975ab604fbdc13c2723a4d5a7a3da85",
+      "packages/game-lmu/src/normalizer.ts": "c6f2bffa3f3e99d19945eb2514d9e1ba8d6afcad08cd89ee5b8466e13f17be48",
       "packages/tooling-catalog/src/catalog/derived-projections.ts": "b81b4ebdaeb86a88a289d245946b3e9f32cf104970d11532ac517fb219e0eff7",
       "server/session-capture/frame-time.ts": "55c44a6cede5e2c5fb1e1c45568fe44b4a9a8b156f260f69bb5d89f9c24935a2",
       "shared/racing/setups/schema.ts": "987941bb8f38520920686ef540e67ce2259fdc962de03ccb959f6b5ef773b28f"
     },
-    "contentHash": "57fd86ccffc2e72f50fafb9da6c346df151da0895bccfb003a3f2d70321d0bd1"
+    "contentHash": "e776ea7838000a738211c87a6683d704639b1567e8b4a361189205fc0f8149ed"
   },
   "generatedFrom": [
     "packages/tooling-catalog/src/root.ts",
@@ -47869,12 +47869,13 @@
           "nativeUnit": "m",
           "sources": [
             "LMU.Telemetry.readDoubleLE",
+            "LMU.PlayerScoring.readDoubleLE",
             "LMU.PlayerScoring.readInt16LE",
             "lmu.lapDistanceM"
           ],
           "freshness": "continuous",
           "normalization": "extensionAvailable(\"lapDistanceM\") ? completedLaps * trackLengthM + Math.max(0, lapDistanceM) : NaN",
-          "description": "lmu maps 2 native source channels into this value.",
+          "description": "lmu maps 3 native source channels into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-lmu/src/normalizer.ts"
@@ -47887,11 +47888,12 @@
             "deterministic": true,
             "declaredInputs": [
               "LMU.Telemetry.readDoubleLE",
+              "LMU.PlayerScoring.readDoubleLE",
               "LMU.PlayerScoring.readInt16LE",
               "lmu.lapDistanceM"
             ],
             "missingDataPolicy": "drop-missing",
-            "codeHash": "33636249d0a3d7e958945087da16af50c66887677f886d4ad05ef517cb075ac3"
+            "codeHash": "d678d102bbdea9ed8f46469ea40989ccf1ee8311045650f8356f842a9171da7c"
           }
         }
       },
@@ -49318,9 +49320,18 @@
           }
         },
         "lmu": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "direct",
+          "nativeUnit": "fraction",
+          "sources": [
+            "lmu.lapDistancePct"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
         }
       },
       "valueType": "number",
@@ -86538,6 +86549,18 @@
         "retention": "exact"
       },
       {
+        "path": "lmu.lapDistancePct",
+        "label": "Lap Distance Pct",
+        "unit": "fraction",
+        "dataType": "number",
+        "count": 1,
+        "description": "LMU player lap distance normalized to 0-1.",
+        "semanticId": "timing.lap-fraction",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "lmu.lapInvalidated",
         "label": "Lap Invalidated",
         "unit": "boolean",
@@ -87187,13 +87210,13 @@
         "recorded": 702
       },
       "lmu": {
-        "total": 210,
+        "total": 211,
         "packet": 126,
-        "extension": 84,
+        "extension": 85,
         "sdk": 0,
         "yaml": 0,
         "setup": 0,
-        "recorded": 210
+        "recorded": 211
       }
     }
   }

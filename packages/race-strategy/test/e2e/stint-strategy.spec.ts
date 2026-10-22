@@ -2,7 +2,7 @@ import { expect, test, type APIRequestContext } from "@playwright/test";
 import type { HistoricalBaseline, PitEstimatePage, StintSummary } from "@raceiq/shared/racing/live/strategy";
 import { z } from "zod";
 import { BaselineResponseSchema, PitEstimatePageSchema, StintsResponseSchema } from "@raceiq/shared/racing/live/strategy-schemas";
-import { ingestNativeRun, type NativeLap } from "./native-source";
+import { ingestNativeRun, primeNativeRun, type NativeLap, type NativeRun } from "./native-source";
 import { StrategyRuntime } from "./runtime";
 import { openProjectionSection } from "./ui";
 
@@ -31,7 +31,7 @@ async function sessionFor(api: APIRequestContext, carId: string): Promise<Strate
   return session!;
 }
 
-test("session Stint averages tab shows one stint without requiring comparison", async ({ browser, playwright }, testInfo) => {
+test("session Overview ends with stint averages and preserves optional comparison", async ({ browser, playwright }, testInfo) => {
   const runtime = await StrategyRuntime.start(testInfo.outputPath("test-data-session-stints"));
   const api = await playwright.request.newContext({ baseURL: runtime.apiURL });
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
@@ -43,9 +43,7 @@ test("session Stint averages tab shows one stint without requiring comparison", 
     const url = `${runtime.baseURL}/fm23/sessions/${session.id}/analyse`;
     await page.goto(url);
     await expect(page.getByRole("button", { name: /^Sector \d+$/ })).toHaveCount(0);
-    await expect(page.getByTestId("stint-analysis")).toHaveCount(0);
-    await page.getByRole("button", { name: "Stint averages", exact: true }).click();
-    await expect(page).toHaveURL(/view=stints/);
+    await expect(page.getByRole("button", { name: "Stint averages", exact: true })).toHaveCount(0);
     const analysis = page.getByTestId("stint-analysis");
     const table = page.getByTestId("stint-summary-table");
     await expect(table.locator("tbody tr")).toHaveCount(1);
@@ -53,6 +51,11 @@ test("session Stint averages tab shows one stint without requiring comparison", 
     await expect(page.getByTestId("stint-summary-chart")).toBeVisible();
     await expect(analysis.getByRole("checkbox")).toHaveCount(0);
     await expect(page.getByTestId("stint-comparison")).toHaveCount(0);
+    const tires = await page.getByText("Tires at end of lap", { exact: true }).boundingBox();
+    const statistics = await analysis.boundingBox();
+    expect(tires).not.toBeNull();
+    expect(statistics).not.toBeNull();
+    expect(statistics!.y).toBeGreaterThan(tires!.y + tires!.height);
     await analysis.scrollIntoViewIfNeeded();
     await analysis.screenshot({ path: testInfo.outputPath("single-stint-desktop.png") });
     await page.setViewportSize({ width: 390, height: 844 });
@@ -71,11 +74,15 @@ test("session Stint averages tab shows one stint without requiring comparison", 
     await expect(table).toContainText(/2[.,]00.*%\/lap/);
     await selection.nth(1).check();
     await expect(page.getByTestId("stint-comparison").getByRole("table")).toBeVisible();
+    await page.evaluate(() => { document.documentElement.dataset.navigationProbe = "retained"; });
+    await page.getByTestId("stint-comparison").getByRole("link").click();
+    await expect.poll(() => new URL(page.url()).pathname).toBe(new URL(url).pathname);
+    await expect(page.locator("html")).toHaveAttribute("data-navigation-probe", "retained");
     await selection.nth(1).uncheck();
     await expect(page.getByTestId("stint-comparison")).toHaveCount(0);
-    await page.getByRole("button", { name: "Overview", exact: true }).click();
+    await page.getByRole("button", { name: "Analyse", exact: true }).click();
     await expect(analysis).toHaveCount(0);
-    await page.goBack();
+    await page.getByRole("button", { name: "Overview", exact: true }).click();
     await expect(table.locator("tbody tr")).toHaveCount(2);
 
     await runtime.crash();
@@ -94,8 +101,85 @@ test("session Stint averages tab shows one stint without requiring comparison", 
   }
 });
 
-function measurements({ id, fuel, tires, completedLaps, measuredFuelUsed, fuelCoverage, averageLapSeconds, paceLaps, compounds, compatibility }: StintSummary) {
-  return { id, fuel, tires, completedLaps, measuredFuelUsed, fuelCoverage, averageLapSeconds, paceLaps, compounds, compatibility };
+test("full-stint fuel and wear average, median and peak survive reload with per-metric lap evidence", async ({ browser, playwright }, testInfo) => {
+  const runtime = await StrategyRuntime.start(testInfo.outputPath("test-data-stint-statistics"));
+  const api = await playwright.request.newContext({ baseURL: runtime.apiURL });
+  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  const page = await context.newPage();
+  try {
+    const samples = [0.04, 0, 0.02, 0.01, 0.08, 0.03, 0.09];
+    const run: NativeRun = { carId: 642, laps: samples.map((fuelUsed, index) => ({
+      fuelUsed, wear: [fuelUsed / 10, fuelUsed / 10, 0, fuelUsed / 10] as NativeLap["wear"], ...(index === 0 ? { missingWheel: 1 } : {}),
+    })) };
+    await primeNativeRun(run, runtime.udpPort, runtime.apiURL);
+    await ingestNativeRun(run, runtime.udpPort);
+    const session = await sessionFor(api, "642");
+    await expect.poll(async () => (await stints(api, session.id))[0]?.fuel.eligibleLaps).toBe(7);
+    const measured = (await stints(api, session.id))[0]!;
+    expect(measured.fuel.value).toBeCloseTo(0.27 / 7, 5);
+    expect(measured.rateStatistics?.fuel.median).toBeCloseTo(0.03, 5);
+    expect(measured.rateStatistics?.fuel.peak).toBeCloseTo(0.09, 5);
+    expect(measured.tires.map((rate) => rate.eligibleLaps)).toEqual([7, 6, 7, 7]);
+    expect(measured.rateStatistics?.tires[1].median).toBeCloseTo(0.0025, 5);
+    expect(measured.rateStatistics?.tires[2]).toEqual({ median: 0, peak: 0 });
+    await page.goto(`${runtime.baseURL}/fm23/sessions/${session.id}/analyse`);
+    const analysis = page.getByTestId("stint-analysis");
+    const table = page.getByTestId("stint-summary-table");
+    const fuelCell = table.locator("tbody tr").first().locator("td[title]").first();
+    await expect(fuelCell).toContainText("3.86%/lap");
+    await expect(fuelCell).toContainText("7 laps");
+    await expect(table).toContainText("6 laps");
+    await analysis.getByRole("button", { name: "Median", exact: true }).click();
+    await expect(fuelCell).toContainText("3.00%/lap");
+    await expect(analysis.getByRole("button", { name: "Median", exact: true })).toHaveAttribute("aria-pressed", "true");
+    const chart = page.getByTestId("stint-summary-chart");
+    await expect(chart.getByRole("img").first()).toHaveAttribute("aria-label", "3.00%/lap for stint 1");
+    await analysis.getByRole("button", { name: "Peak", exact: true }).click();
+    await expect(fuelCell).toContainText("9.00%/lap");
+    await expect(chart.getByRole("img").first()).toHaveAttribute("aria-label", "9.00%/lap for stint 1");
+    await expect(analysis).toContainText("Highest observed use");
+    await expect(chart.locator("details")).toHaveCount(0);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await analysis.scrollIntoViewIfNeeded();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await analysis.screenshot({ path: testInfo.outputPath("stint-peak-mobile.png") });
+    await ingestNativeRun({ carId: 642, firstLap: 8, timestampMs: 421_250, initialFuel: 0.9, initialWear: [0.02, 0.02, 0.02, 0.02], laps: [
+      { fuelUsed: 0.01, wear: [0.001, 0.001, 0, 0.001] },
+      { fuelUsed: 0.03, wear: [0.003, 0.003, 0, 0.003] },
+      { fuelUsed: 0.05, wear: [0.005, 0.005, 0, 0.005] },
+    ] }, runtime.udpPort);
+    await expect.poll(async () => (await stints(api, session.id)).filter((stint) => stint.fuel.value != null).length).toBe(2);
+    await page.reload();
+    const selection = table.getByRole("checkbox");
+    await selection.nth(0).check();
+    await selection.nth(1).check();
+    const compared = (await stints(api, session.id)).slice(0, 2);
+    const comparisonFuel = page.getByTestId("stint-comparison").getByRole("row").filter({ has: page.getByRole("rowheader", { name: "Fuel / lap", exact: true }) });
+    for (const [label, key] of [["Average", "average"], ["Median", "median"], ["Peak", "peak"]] as const) {
+      await analysis.getByRole("button", { name: label, exact: true }).click();
+      const values = compared.map((stint) => key === "average" ? stint.fuel.value! : stint.rateStatistics!.fuel[key]!);
+      await expect(comparisonFuel.locator("td").nth(0)).toHaveText(`${(values[0]! * 100).toFixed(2)}%/lap`);
+      await expect(comparisonFuel.locator("td").nth(1)).toHaveText(`${(values[1]! * 100).toFixed(2)}%/lap`);
+      const delta = values[1]! - values[0]!;
+      await expect(comparisonFuel.locator("td").nth(2)).toHaveText(`${delta > 0 ? "+" : ""}${(delta * 100).toFixed(2)}%/lap`);
+    }
+    await runtime.crash();
+    await runtime.restart();
+    const restored = (await stints(api, session.id))[0]!;
+    expect(restored.rateStatistics).toEqual(measured.rateStatistics);
+    await page.reload();
+    await expect(fuelCell).toContainText("3.86%/lap");
+    await analysis.getByRole("button", { name: "Median", exact: true }).click();
+    await expect(fuelCell).toContainText("3.00%/lap");
+  } finally {
+    await context.close();
+    await api.dispose();
+    await runtime.stop();
+  }
+});
+
+function measurements({ id, fuel, tires, rateStatistics, completedLaps, measuredFuelUsed, fuelCoverage, averageLapSeconds, paceLaps, compounds, compatibility }: StintSummary) {
+  return { id, fuel, tires, rateStatistics, completedLaps, measuredFuelUsed, fuelCoverage, averageLapSeconds, paceLaps, compounds, compatibility };
 }
 
 test("E1/E2/E6/E7/E8/E9 native ingestion persists independent stint metrics and ordered history across clear and restart", async ({ browser, playwright }, testInfo) => {
@@ -136,7 +220,6 @@ test("E1/E2/E6/E7/E8/E9 native ingestion persists independent stint metrics and 
     await expect(page.getByTestId("strategy-history").locator("article")).toHaveCount(25);
     await expect(second.getByTestId("strategy-history").locator("article")).toHaveCount(25);
     await page.goto(`${runtime.baseURL}/fm23/sessions/${session.id}/analyse`);
-    await page.getByRole("button", { name: "Stint averages", exact: true }).click();
     await expect(page.getByTestId("stint-summary-table")).toBeVisible();
     const selection = page.getByTestId("stint-summary-table").getByRole("checkbox");
     await selection.nth(0).check();
@@ -194,7 +277,6 @@ test("E1/E2/E6/E7/E8/E9 native ingestion persists independent stint metrics and 
       expect((await estimates(api, session.id)).estimates).toEqual([]);
     }
     await page.goto(`${runtime.baseURL}/fm23/sessions/${session.id}/analyse`);
-    await page.getByRole("button", { name: "Stint averages", exact: true }).click();
     await expect(page.getByTestId("stint-summary-table")).toBeVisible();
   } finally {
     await context.close();
@@ -241,6 +323,18 @@ test("E3/E4/E7 persisted prior-session evidence seeds matching identities and re
     await expect(evidence).toContainText(/· Historical evidence/i);
     await expect(otherEvidence).toContainText(/· Historical evidence/i);
     await page.screenshot({ path: testInfo.outputPath("historical-evidence-desktop.png"), fullPage: true });
+    const historySection = await openProjectionSection(page, "Projection history");
+    const historyEntry = historySection.locator("article").filter({ has: page.locator(`a[href*="/sessions/${source.id}/analyse#stint-"]`) }).first();
+    await historyEntry.locator("summary").click();
+    const historyLink = historyEntry.getByRole("link").first();
+    const historyHref = await historyLink.getAttribute("href");
+    await page.evaluate(() => { document.documentElement.dataset.navigationProbe = "retained"; });
+    await historyLink.click();
+    await expect.poll(() => new URL(page.url()).pathname + new URL(page.url()).hash).toBe(historyHref);
+    await expect(page.locator("html")).toHaveAttribute("data-navigation-probe", "retained");
+    await expect(page.locator(`[id="${decodeURIComponent(new URL(page.url()).hash.slice(1))}"]`)).toBeVisible();
+    await page.goBack();
+    await openProjectionSection(page, "Projection evidence");
     const frozen = (await estimates(api, target.id)).estimates;
     let releaseOldResponse!: () => void;
     const oldResponseGate = new Promise<void>((resolve) => { releaseOldResponse = resolve; });

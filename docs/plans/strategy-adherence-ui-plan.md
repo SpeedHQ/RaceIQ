@@ -1,0 +1,29 @@
+# Strategy adherence UI/data implementation
+
+Authoritative [contract](strategy-adherence-contract.md) and parallel [live producer plan](strategy-adherence-backend-plan.md). This feature consumes existing live strategy, stint summaries, history and lap metadata APIs. The only producer prerequisite is subscription to the existing supported fractional-lap semantic; no endpoint or DB change is needed. Coordinator owns the shared TypeScript interface, translations, native E2E integration and final evidence. UI fixtures can proceed independently; completion requires the real producer/consumer E-A1/E-A3 checks, including B1/B2.
+
+## Parallel ownership and tasks
+
+1. Model owner: `ui/strategy-adherence-model.ts` and new focused unit module. Implement contract checkpoint resolution, rate/compound/unit validation, separate resource traces/reference anchors and independent reset handling; compute conservative current/future resource capacity and adaptive integer pit window. No DOM, hooks, network or stored-plan mutation. Expose the exact functions/types in the shared interface; do not add a second resource contract. Return unit manifest registration requirement to coordinator without running gates.
+2. UI owner: new `ui/StrategyAdherence.tsx`, selected panel wiring in `ui/PitEstimate.tsx`/`LiveRaceStrategy.tsx`, minimal targeted story/frame fixtures. Fetch current history/stint with existing hooks only while selected component is mounted. Memoize checkpoint resolution by history/lap/source inputs rather than re-sorting all history on every telemetry frame. Render separate small fuel/tire charts, dashed reference, actual trace/dots, current/planned/window markers, textual per-metric and global states, and compact window range/deadline/finish label. Preserve original automatic fallback, timeline trigger and persistence/error warnings. Do not use emoji/color alone for state. Retain existing planned tire-life information without confusing it with actual trajectory. Story-only fixture APIs stay inside story scope.
+3. Coordinator: register unit test file in feature manifest, add all messages/translations and host message declarations, extend existing compiled native E2Es for E-A1–E-A3, run E-A4 actual stories, integrate corrections, update release notes and outcomes.
+
+## Acceptance and edges
+
+Own A1–A4 from contract. No green for sparse/missing/stale/incompatible evidence; show known over-budget resource even when another is unknown. Zero and reserve/cliff boundaries follow contract; missing lap fraction is not interpolated. Unknown/wrong combo uses incumbent automatic panel. Fuel-only service must retain tire level/constraint; actual refuel/replacement alters only corresponding baseline, no simulated resource restoration on pit entry. Current physical stint/session/driver changes cannot reuse another trace. Finite SVG coordinates, non-reversed bounds, mobile no document overflow and keyboard-visible controls. Unknown LMU energy keeps window unknown rather than claiming safety. Saved plan must remain byte-for-byte unchanged after live adaptation.
+
+## Verification ownership
+
+Coordinator executes full feature unit modules plus existing full selected-strategy E2E module with deterministic native input and real API/persistence, mapping E-A1/A2/A3 to actual within/over, service timing, missing evidence and identity flows. Targeted actual Storybook E-A4 validates all visual states at desktop/390px, labels and overflow; fixtures do not replace real application checks. Run full affected feature integration, typecheck/lint/boundary, Storybook/client checks and all-locale key coverage. Record commands, scope and pass/fail/blocker outcomes in contract. Worker completion is unverified until these gates settle; workers skip tests/build/lint/formatters and must not stage/commit/delegate.
+
+## F1 correction
+
+Implement F1.1/F1.3 against the shared rule, independently of backend work: remove fuel/capacity/reserve prerequisites from tire-only window calculation, hide the fuel adherence plot and future fuel extrapolation, retain measured fuel in the existing telemetry and stint statistics, hide fuel-to-add and refueling UI, and use tire-only assumption/finish labels. Use `strategy-adherence-model.ts`, `StrategyAdherence.tsx`, `PitEstimateDialog.tsx`, `PitWindow.tsx`, planner/live strategy components and F1 story fixtures as needed. Fuel may remain an initial whole-race budget, never a per-stop replenishment target. Preserve all non-F1 resource behavior.
+
+The coordinator owns translations, shared rules, corrected native E-F1 integration and final gates. F1 stories must not jump fuel at service; tire window states come from controlled wear/thresholds, not fuel. Final integration depends on both UI and backend honoring the same rule; update any invalid old F1 refueling expectations rather than preserving incorrect behavior.
+
+Executed outcomes, acceptance mappings and captures are recorded in the [shared contract outcomes](strategy-adherence-contract.md#outcomes). F1 integration and the subsequent LMU native-source-to-browser scenario passed; targeted desktop/mobile stories remain supplemental to real application integration.
+
+## LMU native-live correction
+
+Own LMU-L1–LMU-L4 against the [shared native-live contract](strategy-adherence-contract.md#lmu-native-live-correction). The existing UI consumes the normalized fraction, litre fuel, wear and virtual-energy semantics; it must not manufacture position or suppress missing-energy guards. No UI protocol change or fixture fallback is required. The coordinator's E-LMU application test validates measured plots, energy-limited bounds, independent resource service, missing-value recovery, immutable plans, identity reset and desktop/mobile geometry. Final completion depends on that real producer/consumer run, not recorded-file import or isolated model checks.

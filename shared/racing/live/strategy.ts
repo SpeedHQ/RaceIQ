@@ -5,13 +5,14 @@ export type StrategyFuelUnit = "L" | "tankFraction";
 export interface CompatibilityContext {
   fuelSemanticVersion: string | null;
   tireSemanticVersions: FourWheels<string | null>;
+  virtualEnergySemanticVersion?: string | null;
   setupKey: string | null;
   conditions: { weather: string | null; airTemperatureC: number | null; trackTemperatureC: number | null };
 }
 export interface SourceOrder { epochOrdinal: number; sequence: number }
 export interface MetricRate {
   value: number | null;
-  unit: "L/lap" | "tankFraction/lap" | "wearFraction/lap";
+  unit: "L/lap" | "tankFraction/lap" | "wearFraction/lap" | "energyFraction/lap";
   eligibleLaps: number;
   source: "history" | "current-stint" | null;
   provisional: boolean;
@@ -37,6 +38,12 @@ export interface StintSummary {
   completedLaps: number;
   fuel: MetricRate;
   tires: FourWheels<MetricRate>;
+  /** Full-stint eligible lap statistics; absent on evidence saved before this version. */
+  rateStatistics?: {
+    fuel: { median: number | null; peak: number | null };
+    tires: FourWheels<{ median: number | null; peak: number | null }>;
+  };
+  virtualEnergy?: MetricRate;
   measuredFuelUsed: number | null;
   fuelUnit: StrategyFuelUnit;
   fuelCoverage: "complete" | "partial" | "unavailable";

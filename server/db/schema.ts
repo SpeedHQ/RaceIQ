@@ -1024,10 +1024,12 @@ export const racePlans = sqliteTable("race_plans", {
 	index("race_plans_identity_idx").on(table.gameId, table.carId, table.trackId, table.pi),
 ]);
 
-export const activeRacePlan = sqliteTable("active_race_plan", {
-	id: integer("id").primaryKey(),
-	planId: text("plan_id").references(() => racePlans.id, { onDelete: "set null" }),
-});
+export const activeRacePlans = sqliteTable("active_race_plans", {
+	gameId: text("game_id").notNull(),
+	carId: text("car_id").notNull(),
+	trackId: text("track_id").notNull(),
+	planId: text("plan_id").notNull().references(() => racePlans.id, { onDelete: "cascade" }),
+}, (table) => [primaryKey({ columns: [table.gameId, table.carId, table.trackId] })]);
 
 export const classificationMigrationRecordings = sqliteTable("classification_migration_recordings", {
 	recordingId: text("recording_id").primaryKey(),

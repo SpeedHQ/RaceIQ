@@ -14,4 +14,5 @@ export { subscribeStrategyHistory, publishStrategyHistory } from "./history-even
 export { getStrategyBaseline } from "./strategy-baseline-queries";
 export { StaleStrategyIdentityError, InvalidStrategyCursorError, strategyHistoryChanges, publishStrategyChanges, persistStrategyLapMetrics, saveStrategyStint, closeStrategyStint, interruptActiveStrategyStints, getStrategyHistoryRevision, strategySessionExists, getStrategyStints, admitStrategyObservation, savePitEstimate, clearPitEstimates, getPitEstimatePage, activateStrategyRebuild } from "./strategy-queries";
 export type { PersistStrategyLapInput } from "./strategy-queries";
-export { RacePlanNotFoundError, RacePlanSourceNotFoundError, InvalidRacePlanSourceError, InvalidRacePlanError, listRacePlans, createRacePlan, updateRacePlan, deleteRacePlan, getActiveRacePlan, setActiveRacePlan } from "./race-plan-queries";
+export { RacePlanNotFoundError, RacePlanSourceNotFoundError, InvalidRacePlanSourceError, InvalidRacePlanError, listRacePlans, createRacePlan, updateRacePlan, deleteRacePlan, getActiveRacePlans, setActiveRacePlan } from "./race-plan-queries";
+export { recalculateRacePlan, RacePlanEvidenceUnavailableError } from "./race-plan-recalculation";

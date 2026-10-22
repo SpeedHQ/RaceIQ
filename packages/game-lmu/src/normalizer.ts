@@ -228,6 +228,7 @@ const syntheticExtensionChannels: Partial<Record<keyof LMUExtendedData, string>>
   lastSector1: "Last Sector 1",
   lastSector2: "Last Sector 2",
   lapDistanceM: "Lap Dist",
+  lapDistancePct: "Lap Dist",
   rearFlapActivated: "RearFlapActivated",
   rearTireCompound: "TyresCompound",
   regenKw: "Regen Rate",
@@ -284,9 +285,10 @@ export function normalizeLMUSourceFrame(
     0,
     finiteDouble(scoringInfo, LMU_SCORING_INFO.lapDistance),
   );
-  const lapDistanceM = scoring
-    ? Math.max(0, finiteDouble(scoring, LMU_SCORING_VEHICLE.lapDistance))
-    : 0;
+  const nativeLapDistanceM = scoring ? scoring.readDoubleLE(LMU_SCORING_VEHICLE.lapDistance) : NaN;
+  const lapDistanceM = Number.isFinite(nativeLapDistanceM) ? Math.max(0, nativeLapDistanceM) : 0;
+  const lapDistancePct = trackLengthM > 0 && Number.isFinite(nativeLapDistanceM) && nativeLapDistanceM >= 0 && nativeLapDistanceM <= trackLengthM
+    ? nativeLapDistanceM / trackLengthM : undefined;
   const completedLaps = scoring
     ? Math.max(0, scoring.readInt16LE(LMU_SCORING_VEHICLE.totalLaps))
     : Math.max(0, telemetry.readInt32LE(LMU_TELEMETRY.lapNumber) - 1);
@@ -367,6 +369,7 @@ export function normalizeLMUSourceFrame(
     trackName: identity.trackName,
     trackLengthM,
     ...(extensionAvailable("lapDistanceM") ? { lapDistanceM } : {}),
+    ...(extensionAvailable("lapDistancePct") && lapDistancePct != null ? { lapDistancePct } : {}),
     ...(extensionAvailable("currentSectorIndex") ? { currentSectorIndex } : {}),
     ...(extensionAvailable("bestSector1") ? { bestSector1: positiveScoringTime(LMU_SCORING_VEHICLE.bestSector1) } : {}),
     ...(extensionAvailable("bestSector2") ? { bestSector2: positiveScoringTime(LMU_SCORING_VEHICLE.bestSector2) } : {}),

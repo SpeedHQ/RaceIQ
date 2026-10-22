@@ -10,13 +10,14 @@ const four = <T extends z.ZodType>(schema: T) => z.tuple([schema, schema, schema
 export const CompatibilityContextSchema: z.ZodType<CompatibilityContext> = z.object({
   fuelSemanticVersion: nullableText,
   tireSemanticVersions: four(nullableText),
+  virtualEnergySemanticVersion: nullableText.optional(),
   setupKey: nullableText,
   conditions: z.object({ weather: nullableText, airTemperatureC: nullableNumber, trackTemperatureC: nullableNumber }),
 });
 export const SourceOrderSchema: z.ZodType<SourceOrder> = z.object({ epochOrdinal: count, sequence: count });
 export const MetricRateSchema: z.ZodType<MetricRate> = z.object({
   value: nullableNumber,
-  unit: z.enum(["L/lap", "tankFraction/lap", "wearFraction/lap"]),
+  unit: z.enum(["L/lap", "tankFraction/lap", "wearFraction/lap", "energyFraction/lap"]),
   eligibleLaps: count,
   source: z.enum(["history", "current-stint"]).nullable(),
   provisional: z.boolean(),
@@ -39,6 +40,11 @@ export const StintSummarySchema: z.ZodType<StintSummary> = z.object({
   firstLapNumber: count.nullable(), lastLapNumber: count.nullable(),
   boundary: z.object({ reason: z.string(), confidence: z.enum(["observed", "inferred", "unknown"]) }),
   completedLaps: count, fuel: MetricRateSchema, tires: four(MetricRateSchema),
+  rateStatistics: z.object({
+    fuel: z.object({ median: nullableNumber, peak: nullableNumber }),
+    tires: four(z.object({ median: nullableNumber, peak: nullableNumber })),
+  }).optional(),
+  virtualEnergy: MetricRateSchema.optional(),
   measuredFuelUsed: nullableNumber, fuelUnit: z.enum(["L", "tankFraction"]),
   fuelCoverage: z.enum(["complete", "partial", "unavailable"]),
   averageLapSeconds: nullableNumber, paceLaps: count,

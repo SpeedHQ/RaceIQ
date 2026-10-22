@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { memo, useEffect, useMemo, useState } from "react";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { MetricRate, StrategyEstimatesClearedMessage } from "@raceiq/shared/racing/live/strategy";
@@ -5,6 +6,7 @@ import { getGame } from "@raceiq/shared/games/registry";
 import { useClearPitEstimateHistory, usePitEstimatePage, useStrategyStints } from "./stint-strategy";
 import { useRaceStrategyHost } from "./host";
 import { useStrategyFormat } from "./strategy-format";
+import { supportsRaceRefueling } from "../contracts/race-rules";
 
 
 export const StrategyHistory = memo(function StrategyHistory({ gameId, currentSessionId, defaultDriverKey }: { gameId: GameId; currentSessionId: number | null; defaultDriverKey: string | null }) {
@@ -47,6 +49,7 @@ const rateText = (rate: MetricRate) => <>{strategyRateText(rate)} · {m.strategy
     return () => window.removeEventListener("raceiq-strategy-estimates-cleared", onCleared);
   }, [gameId, sessionId, driverKey]);
   const estimates = estimatesQuery.data?.estimates ?? [];
+  const supportsRefueling = supportsRaceRefueling(gameId);
   return <section data-testid="strategy-history" className="min-w-0 space-y-3 text-sm">
     <h3 className="font-semibold">{m.strategy_recent_estimates()}</h3>
     {sessionsQuery.isError ? <p role="alert">{m.strategy_history_error()} <button type="button" className="underline" onClick={() => void sessionsQuery.refetch()}>{m.strategy_retry()}</button></p> : sessionsQuery.isLoading ? <p role="status">{m.common_loading()}</p> : sessions.length === 0 && currentSessionId == null ? <p className="text-app-text-muted">{m.strategy_history_empty()}</p> : <>
@@ -58,16 +61,16 @@ const rateText = (rate: MetricRate) => <>{strategyRateText(rate)} · {m.strategy
       <label className="block">{m.strategy_driver({ driver: "" })}<select className="ml-2 max-w-full rounded border border-app-border bg-app-surface p-1" value={driverKey ?? ""} onChange={(event) => { setDriverKey(event.target.value || null); setCursor(null); }}><option value="">{m.browser_all()}</option>{allDrivers.map((driver) => <option key={driver} value={driver}>{driver === "local-player" ? m.strategy_local_player() : m.strategy_driver({ driver })}</option>)}</select></label>
       {stintsQuery.isError && <p role="alert">{m.strategy_history_error()} <button type="button" className="underline" onClick={() => void stintsQuery.refetch()}>{m.strategy_retry()}</button></p>}
       {estimatesQuery.isLoading ? <p role="status">{m.common_loading()}</p> : estimatesQuery.isError ? <p role="alert">{m.strategy_history_error()} <button type="button" className="underline" onClick={() => void estimatesQuery.refetch()}>{m.strategy_retry()}</button></p> : estimates.length === 0 ? <p className="text-app-text-muted">{m.strategy_history_empty()}</p> : estimates.map((item) => <article key={item.id} data-estimate-id={item.id} className="min-w-0 break-words border-l-2 border-app-border pl-2 text-xs"><details className="space-y-1">
-        <summary className="cursor-pointer"><time dateTime={item.observedAt}>{new Date(item.observedAt).toLocaleString()}</time> · {item.pitInLaps == null ? m.strategy_pit_lap_unavailable() : m.strategy_pit_laps({ value: item.pitInLaps.toFixed(1) })}</summary>
+        <summary className="cursor-pointer"><time dateTime={item.observedAt}>{new Date(item.observedAt).toLocaleString()}</time> · {!supportsRefueling && item.limitedBy === "fuel" || item.pitInLaps == null ? m.strategy_pit_lap_unavailable() : m.strategy_pit_laps({ value: item.pitInLaps.toFixed(1) })}</summary>
         <p>{m.analyse_game_label()}: {item.gameId} · {m.analyse_car_label()}: {item.carId} · {m.analyse_track_label()}: {item.trackId} · {m.cars_pi()}: {item.pi ?? "—"}</p>
         <p>{m.label_tires()}: {item.compounds.map((compound, index) => `${["FL", "FR", "RL", "RR"][index]} ${compound ?? "—"}`).join(" · ")} · {m.strategy_evidence_link({ session: item.sessionId, stint: item.stintId })}</p>
-        <p>{item.pitInLaps == null ? m.strategy_pit_lap_unavailable() : m.strategy_pit_laps({ value: item.pitInLaps.toFixed(1) })} · {item.estimatedPitTime.sessionElapsedSeconds == null ? m.strategy_pit_time_unavailable() : m.strategy_pit_time({ value: item.estimatedPitTime.sessionElapsedSeconds.toFixed(0) })}</p>
-        <p>{item.limitedBy === "fuel" ? m.strategy_limited_fuel() : item.limitedBy === "tires" ? m.strategy_limited_tires() : m.strategy_no_limiter()} · {item.tyreChangeSuggestion === "consider-change" ? m.strategy_consider_tires() : item.tyreChangeSuggestion === "not-indicated" ? m.strategy_tires_not_indicated() : m.strategy_tires_unavailable()} · {item.fuelChangeSuggestion === "consider-refuel" ? m.strategy_consider_fuel() : item.fuelChangeSuggestion === "not-indicated" ? m.strategy_fuel_not_indicated() : m.strategy_fuel_unavailable()}</p>
+        <p>{!supportsRefueling && item.limitedBy === "fuel" || item.pitInLaps == null ? m.strategy_pit_lap_unavailable() : m.strategy_pit_laps({ value: item.pitInLaps.toFixed(1) })} · {!supportsRefueling && item.limitedBy === "fuel" || item.estimatedPitTime.sessionElapsedSeconds == null ? m.strategy_pit_time_unavailable() : m.strategy_pit_time({ value: item.estimatedPitTime.sessionElapsedSeconds.toFixed(0) })}</p>
+        <p>{(!supportsRefueling && item.limitedBy === "fuel") ? m.strategy_no_limiter() : item.limitedBy === "fuel" ? m.strategy_limited_fuel() : item.limitedBy === "tires" ? m.strategy_limited_tires() : m.strategy_no_limiter()} · {item.tyreChangeSuggestion === "consider-change" ? m.strategy_consider_tires() : item.tyreChangeSuggestion === "not-indicated" ? m.strategy_tires_not_indicated() : m.strategy_tires_unavailable()}{supportsRefueling && <> · {item.fuelChangeSuggestion === "consider-refuel" ? m.strategy_consider_fuel() : item.fuelChangeSuggestion === "not-indicated" ? m.strategy_fuel_not_indicated() : m.strategy_fuel_unavailable()}</>}</p>
         <p>{m.strategy_historical_evidence()} · {m.strategy_last_observed({ time: item.baseline?.lastObservedAt ? new Date(item.baseline.lastObservedAt).toLocaleString() : m.strategy_unknown() })}</p>
         {(["fuel", "fl", "fr", "rl", "rr"] as const).map((metric, index) => {
           const evidence = item.baseline?.evidence.filter((entry) => entry.metric === metric) ?? [];
           const rate = index === 0 ? item.baseline?.fuel : item.baseline?.tires[index - 1];
-          return <p key={metric}>{metric === "fuel" ? m.label_fuel() : metric.toUpperCase()} · {rate ? strategyRateText(rate) : m.strategy_unavailable()} · {m.strategy_evidence_counts({ sessions: new Set(evidence.map((entry) => entry.sessionId)).size, stints: new Set(evidence.map((entry) => entry.stintId)).size, laps: evidence.reduce((sum, entry) => sum + entry.eligibleLaps, 0) })} {evidence.map((entry) => <a key={`${entry.sessionId}:${entry.stintId}`} className="ml-2 underline" href={`/${getGame(item.gameId).routePrefix}/sessions/${entry.sessionId}/analyse#stint-${encodeURIComponent(entry.stintId)}`}>{m.strategy_evidence_link({ session: entry.sessionId, stint: entry.stintId })}</a>)}</p>;
+          return <p key={metric}>{metric === "fuel" ? m.label_fuel() : metric.toUpperCase()} · {rate ? strategyRateText(rate) : m.strategy_unavailable()} · {m.strategy_evidence_counts({ sessions: new Set(evidence.map((entry) => entry.sessionId)).size, stints: new Set(evidence.map((entry) => entry.stintId)).size, laps: evidence.reduce((sum, entry) => sum + entry.eligibleLaps, 0) })} {evidence.map((entry) => <Link key={`${entry.sessionId}:${entry.stintId}`} className="ml-2 underline" to="/$gameid/sessions/$sessionId/analyse" params={{ gameid: getGame(item.gameId).routePrefix, sessionId: String(entry.sessionId) }} hash={`stint-${encodeURIComponent(entry.stintId)}`}>{m.strategy_evidence_link({ session: entry.sessionId, stint: entry.stintId })}</Link>)}</p>;
         })}
         {item.baseline?.limitations.map((limitation, index) => <p key={index}>{reasonText(limitation)}</p>)}
         <p>{m.strategy_fuel_rate()}: {rateText(item.fuel)}</p>

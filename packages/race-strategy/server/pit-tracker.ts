@@ -7,6 +7,7 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { LivePitData } from "@raceiq/shared/racing/live/types";
 import type { TireThresholds } from "@raceiq/shared/racing/live/tire-thresholds";
 import { appendWithCap, interpolateGrid, lapsUntilThreshold, linearInterpolate, rollingAverage } from "@raceiq/backend-core/live-strategy/tracker-math";
+import { supportsRaceRefueling } from "../contracts/race-rules";
 
 const DEFAULT_TIRE_THRESHOLDS: TireThresholds = { cliffPct: 40, deadPct: 20 };
 const DEFAULT_TIRE_THRESHOLD_SET: [TireThresholds, TireThresholds, TireThresholds, TireThresholds] = [
@@ -214,9 +215,9 @@ export class PitTracker {
     }
     this.lastCurrentLap = packet.CurrentLap;
 
-    // Fuel estimate: rolling average of last 5 valid laps
     const fuelPerLap = rollingAverage(this.fuelHistory, 5);
-    const fuelLapsRemaining = fuelPerLap > 0 ? Math.floor((packet.Fuel / fuelPerLap) * 10) / 10 : null;
+    const supportsRefueling = supportsRaceRefueling(packet.gameId);
+    const fuelLapsRemaining = supportsRefueling && fuelPerLap > 0 ? Math.floor((packet.Fuel / fuelPerLap) * 10) / 10 : null;
     const currentLapFuelUsed = this.fuelAtLapStart >= 0 ? this.fuelAtLapStart - packet.Fuel : 0;
 
     // Tire estimates: curve-based when available, rolling average fallback

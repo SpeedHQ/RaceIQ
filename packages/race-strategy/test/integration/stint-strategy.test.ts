@@ -3,9 +3,10 @@ import { initStrategyTestAdapters } from "../support/init";
 import { parseForzaPacket } from "@raceiq/game-fm-2023/parser";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { PitEstimateRecord, StintSummary } from "@raceiq/shared/racing/live/strategy";
+import { StintSummarySchema } from "@raceiq/shared/racing/live/strategy-schemas";
 import { aggregateLapMetrics, STRATEGY_ALGORITHM_VERSION } from "@raceiq/race-strategy/server";
 import { StintMetricAccumulator } from "@raceiq/race-strategy/server";
-import { strategyContext } from "@raceiq/race-strategy/server";
+import { strategyContext, StrategyBoundary, StrategyBoundaryTracker } from "@raceiq/race-strategy/server";
 import { DurableStrategyTracker } from "@raceiq/race-strategy/server";
 import { PitTracker } from "@raceiq/race-strategy/server";
 import { getStrategyBaseline } from "@raceiq/race-strategy/server";
@@ -13,7 +14,7 @@ import { activateStrategyRebuild, admitStrategyObservation, clearPitEstimates, c
 import { insertSession, deleteSession, deleteEmptySessions, updateSessionCarTrack } from "@raceiq/backend-core/db/session-queries";
 import { client, db } from "@raceiq/backend-core/db/index";
 import { laps } from "@raceiq/backend-core/db/schema";
-import { generateRacePlanStints } from "../../ui/generate-race-plan";
+import { generateRacePlanStints } from "../../contracts/generate-race-plan";
 
 initStrategyTestAdapters();
 const ownedSessions: number[] = [];
@@ -66,6 +67,43 @@ function record(summary: StintSummary, sourceOrder: { epochOrdinal: number; sequ
 }
 
 describe("durable stint strategy contract", () => {
+  test("full-stint statistics retain zero and excluded-wheel evidence beyond rolling windows", async () => {
+    const id = await session();
+    const acc = accumulator(id, 1);
+    expect(acc.snapshot().rateStatistics?.fuel).toEqual({ median: null, peak: null });
+    for (const [index, value] of [0.09, 0, 0.02, 0.01, 0.08, 0.03, 0.04].entries()) {
+      const contribution = { ...metric(), fuelUsed: value, tireWear: [value, index === 0 ? null : value, 0, null] as [number, number | null, number, null] };
+      const summary = acc.add(index + 1, contribution);
+      const lapId = await savedLap(id, index + 1);
+      await persistStrategyLapMetrics({ sessionId: id, driverKey: summary.driverKey, lapId, stintId: summary.id, algorithmVersion: STRATEGY_ALGORITHM_VERSION, contribution }, summary, acc.totals());
+      if (index === 0) expect(summary.rateStatistics?.fuel).toEqual({ median: 0.09, peak: 0.09 });
+    }
+    const stored = (await getStrategyStints(id))[0]!;
+    expect(stored.fuel.value).toBeCloseTo(0.27 / 7);
+    expect(stored.rateStatistics?.fuel).toEqual({ median: 0.03, peak: 0.09 });
+    expect(stored.rateStatistics?.tires).toEqual([
+      { median: 0.03, peak: 0.09 }, { median: 0.025, peak: 0.08 },
+      { median: 0, peak: 0 }, { median: null, peak: null },
+    ]);
+    expect(stored.tires.map((rate) => rate.eligibleLaps)).toEqual([7, 6, 7, 0]);
+    expect(acc.rollingRates().fuel.value).toBeCloseTo(0.18 / 5);
+    expect(acc.rollingRates().tires[0].value).toBeCloseTo(0.15 / 3);
+    const legacy = { ...stored };
+    delete legacy.rateStatistics;
+    expect(StintSummarySchema.parse(legacy).fuel.value).toBe(stored.fuel.value);
+    expect(StintSummarySchema.parse(legacy).rateStatistics).toBeUndefined();
+  });
+  test("staged statistic populations are isolated when a fork is rejected", () => {
+    const acc = accumulator(1, 1);
+    acc.add(1, { ...metric(), fuelUsed: 0, tireWear: [0, 0, 0, 0] });
+    const staged = acc.fork();
+    staged.add(2, { ...metric(), fuelUsed: 0.08, tireWear: [0.08, null, 0.08, null] });
+    expect(staged.snapshot().rateStatistics?.fuel).toEqual({ median: 0.04, peak: 0.08 });
+    expect(acc.snapshot().rateStatistics?.fuel).toEqual({ median: 0, peak: 0 });
+    acc.add(2, { ...metric(), fuelUsed: 0.02, tireWear: [0.02, 0.02, 0.02, 0.02] });
+    expect(acc.snapshot().rateStatistics?.fuel).toEqual({ median: 0.01, peak: 0.02 });
+    expect(staged.snapshot().rateStatistics?.tires[0]).toEqual({ median: 0.04, peak: 0.08 });
+  });
   test("generated strategies respect exact fuel boundaries, tire limits and missing evidence", () => {
     const acc = accumulator(1, 1);
     acc.add(1, metric());
@@ -118,6 +156,75 @@ describe("durable stint strategy contract", () => {
     expect(gap.exclusionReason).toBe("discontinuous-lap");
     expect(gap.fuelUsed).toBeNull();
     expect(gap.tireWear).toEqual([null, null, null, null]);
+  });
+  test("E1 measures native LMU energy independently, excludes missing/reset/gapped intervals", () => {
+    const lmuPacket = (fuel: number, energy: number | undefined, timestamp: number): TelemetryPacket => ({
+      ...packet(fuel, 0.1, timestamp), gameId: "lmu", lmu: energy === undefined ? {} as NonNullable<TelemetryPacket["lmu"]> : { virtualEnergy: energy } as NonNullable<TelemetryPacket["lmu"]>,
+    });
+    const options = { valid: true, lapTimeSeconds: 60, fuelUnit: "tankFraction" as const, allowContinuousWear: true };
+    const measured = aggregateLapMetrics([lmuPacket(0.8, 0.9, 1_000), lmuPacket(0.79, 0.8, 2_000)], options);
+    expect(measured.fuelUsed).toBeCloseTo(0.01, 6);
+    expect(measured.virtualEnergyUsed).toBeCloseTo(0.1, 6);
+    expect(aggregateLapMetrics([lmuPacket(0.8, 0.9, 1_000), lmuPacket(0.79, undefined, 1_500), lmuPacket(0.78, 0.7, 2_000)], options).virtualEnergyUsed).toBeNull();
+    const reset = aggregateLapMetrics([lmuPacket(0.8, 0.8, 1_000), lmuPacket(0.79, 0.9, 1_500)], options);
+    expect(reset.virtualEnergyUsed).toBeNull();
+    expect(reset.virtualEnergyExcludedReason).toBe("virtual-energy-reset-or-refill");
+    const zero = aggregateLapMetrics([lmuPacket(0.8, 0.7, 1_000), lmuPacket(0.79, 0.7, 2_000)], options);
+    expect(zero.virtualEnergyUsed).toBe(0);
+    const gap = aggregateLapMetrics([lmuPacket(0.8, 0.9, 1_000), lmuPacket(0.79, 0.8, 7_000)], options);
+    expect(gap.virtualEnergyUsed).toBeNull();
+    expect(gap.fuelUsed).toBeNull();
+  });
+  test("E1 accumulation and forks preserve independent energy totals and energy refill is not fuel", () => {
+    const lmuPacket = (fuel: number, energy: number, timestamp: number): TelemetryPacket => ({
+      ...packet(fuel, 0.1, timestamp), gameId: "lmu", lmu: { virtualEnergy: energy } as NonNullable<TelemetryPacket["lmu"]>,
+    });
+    const options = { valid: true, lapTimeSeconds: 60, fuelUnit: "tankFraction" as const, allowContinuousWear: true };
+    const contribution = aggregateLapMetrics([lmuPacket(0.8, 0.9, 1_000), lmuPacket(0.78, 0.8, 2_000)], options);
+    const acc = accumulator(2, 1);
+    const first = acc.add(1, contribution);
+    expect(first.virtualEnergy).toMatchObject({ eligibleLaps: 1, unit: "energyFraction/lap" });
+    expect(first.virtualEnergy?.value).toBeCloseTo(0.1, 6);
+    expect(first.fuel.value).toBeCloseTo(0.02, 6);
+    const fork = acc.fork();
+    const next = fork.add(2, aggregateLapMetrics([lmuPacket(0.78, 0.8, 3_000), lmuPacket(0.77, 0.6, 4_000)], options));
+    expect(next.virtualEnergy?.value).toBeCloseTo(0.15, 6);
+    expect(next.fuel.value).toBeCloseTo(0.015, 6);
+    expect(acc.snapshot().virtualEnergy?.value).toBeCloseTo(0.1, 6);
+    expect(strategyContext(lmuPacket(0.8, 0.9, 1_000)).compatibility.virtualEnergySemanticVersion).toContain("virtual-energy-remaining-fraction-v1");
+  });
+  test("LMU energy refills coalesce as energy boundaries without false fuel boundaries", () => {
+    const make = (fuel: number, energy: number, timestamp: number): TelemetryPacket => ({
+      ...packet(fuel, 0.1, timestamp), gameId: "lmu", lmu: { virtualEnergy: energy } as NonNullable<TelemetryPacket["lmu"]>,
+    });
+    const tracker = new StrategyBoundaryTracker();
+    const first = make(0.8, 0.7, 1_000);
+    const refill = make(0.8, 0.8, 1_100);
+    const continued = make(0.8, 0.9, 1_200);
+    expect(tracker.observe(first, refill) & StrategyBoundary.Energy).toBe(StrategyBoundary.Energy);
+    expect(tracker.observe(refill, continued) & StrategyBoundary.Energy).toBe(0);
+    expect(tracker.observe(continued, make(0.79, 0.89, 1_300)) & StrategyBoundary.Energy).toBe(0);
+    expect(strategyContext(first).compatibility.virtualEnergySemanticVersion).not.toBeNull();
+    expect(strategyContext(packet(0.8)).compatibility.virtualEnergySemanticVersion).toBeNull();
+  });
+  test("LMU energy respects lap exclusions while measured fuel intervals remain available", () => {
+    const make = (fuel: number, energy: number, timestamp: number, inPits = false): TelemetryPacket => ({
+      ...packet(fuel, 0.1, timestamp), gameId: "lmu", lmu: { virtualEnergy: energy, inPits } as NonNullable<TelemetryPacket["lmu"]>,
+    });
+    const options = { lapTimeSeconds: 60, fuelUnit: "tankFraction" as const, allowContinuousWear: true };
+    const start = make(0.8, 0.9, 1_000);
+    const end = make(0.78, 0.8, 2_000);
+    const invalid = aggregateLapMetrics([start, end], { ...options, valid: false });
+    expect(invalid.virtualEnergyUsed).toBeNull();
+    expect(invalid.virtualEnergyExcludedReason).toBe("invalid-lap");
+    expect(invalid.measuredFuelUsed).toBeCloseTo(0.02, 6);
+    const service = aggregateLapMetrics([start, end], { ...options, valid: true, serviceBoundary: true });
+    expect(service.virtualEnergyUsed).toBeNull();
+    expect(service.virtualEnergyExcludedReason).toBe("service-boundary");
+    expect(service.measuredFuelUsed).toBeCloseTo(0.02, 6);
+    const pit = aggregateLapMetrics([start, make(0.79, 0.85, 1_500, true), end], { ...options, valid: true });
+    expect(pit.virtualEnergyUsed).toBeNull();
+    expect(pit.virtualEnergyExcludedReason).not.toBeNull();
   });
   test("C6 finish-line context closes the native interval without admitting mixed-lap samples", () => {
     const start = packet(0.8);

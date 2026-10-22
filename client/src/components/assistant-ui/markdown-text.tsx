@@ -3,6 +3,7 @@
 import "@assistant-ui/react-markdown/styles/dot.css";
 
 import { type CodeHeaderProps, MarkdownTextPrimitive, unstable_memoizeMarkdownComponents as memoizeMarkdownComponents, useIsMarkdownCodeBlock } from "@assistant-ui/react-markdown";
+import { defaultParseSearch, Link } from "@tanstack/react-router";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { type FC, memo, useState } from "react";
 import { m } from "@/paraglide/messages";
@@ -64,7 +65,19 @@ const defaultComponents = memoizeMarkdownComponents({
   h5: ({ className, ...props }) => <h5 className={cn("aui-md-h5 mt-3 mb-1 text-sm font-semibold first:mt-0 last:mb-0", className)} {...props} />,
   h6: ({ className, ...props }) => <h6 className={cn("aui-md-h6 mt-3 mb-1 text-sm font-medium first:mt-0 last:mb-0", className)} {...props} />,
   p: ({ className, ...props }) => <p className={cn("aui-md-p my-3 leading-relaxed first:mt-0 last:mb-0", className)} {...props} />,
-  a: ({ className, ...props }) => <a className={cn("aui-md-a text-primary hover:text-primary/80 underline underline-offset-2", className)} {...props} />,
+  a: ({ className, href, ...props }) => {
+    const linkClassName = cn("aui-md-a text-primary hover:text-primary/80 underline underline-offset-2", className);
+    let url: URL | null = null;
+    try {
+      if (href) url = new URL(href, window.location.href);
+    } catch {
+      // Leave malformed or unsupported URLs to the native anchor.
+    }
+    if (url && (url.protocol === "http:" || url.protocol === "https:") && url.origin === window.location.origin && !href?.startsWith("#") && !props.download && (!props.target || props.target === "_self")) {
+      return <Link {...props} className={linkClassName} to={url.pathname} search={defaultParseSearch(url.search)} hash={url.hash.slice(1)} />;
+    }
+    return <a {...props} className={linkClassName} href={href} />;
+  },
   blockquote: ({ className, ...props }) => <blockquote className={cn("aui-md-blockquote border-muted-foreground/30 text-muted-foreground my-3 border-s-2 ps-4", className)} {...props} />,
   ul: ({ className, ...props }) => <ul className={cn("aui-md-ul marker:text-muted-foreground my-3 ms-5 list-disc [&>li]:mt-1", className)} {...props} />,
   ol: ({ className, ...props }) => <ol className={cn("aui-md-ol marker:text-muted-foreground my-3 ms-5 list-decimal [&>li]:mt-1", className)} {...props} />,

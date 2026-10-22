@@ -2,23 +2,12 @@ import { expect, test, type APIRequestContext } from "@playwright/test";
 import { RacePlansResponseSchema } from "@raceiq/shared/racing/live/race-plan";
 import { StintsResponseSchema } from "@raceiq/shared/racing/live/strategy-schemas";
 import { z } from "zod";
-import { ingestF1Laps } from "./f1-source";
 import { ingestNativeRun, type NativeLap } from "./native-source";
 import { StrategyRuntime } from "./runtime";
 
 const fmHeaders = { "X-Game-Id": "fm-2023" };
 const SessionSchema = z.object({ id: z.number().int(), carId: z.string() });
 
-async function f1Session(api: APIRequestContext) {
-  let session: z.infer<typeof SessionSchema> | undefined;
-  await expect.poll(async () => {
-    const response = await api.get("/api/sessions?gameId=f1-2025");
-    expect(response.ok(), await response.text()).toBe(true);
-    session = z.array(SessionSchema).parse(await response.json()).sort((a, b) => b.id - a.id)[0];
-    return session?.id;
-  }).toBeTruthy();
-  return session!;
-}
 async function fmSession(api: APIRequestContext) {
   let session: z.infer<typeof SessionSchema> | undefined;
   await expect.poll(async () => {
@@ -69,13 +58,15 @@ test("R6 retry submits edited current draft after a failed save", async ({ brows
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const page = await context.newPage();
   try {
-    await ingestF1Laps(runtime.udpPort, 3, 710n);
-    const source = await f1Session(api);
+    const lap: NativeLap = { fuelUsed: 0.02, wear: [0.008, 0.01, 0.006, 0.004] };
+    await ingestNativeRun({ carId: 642, pi: 800, laps: [lap, lap, lap] }, runtime.udpPort);
+    const source = await fmSession(api);
     const planner = page.getByTestId("race-strategy-planner");
-    await page.goto(`${runtime.baseURL}/f125/strategy`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${runtime.baseURL}/fm23/strategy`, { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "New plan", exact: true }).click();
     await expect(planner).toBeVisible();
     await planner.getByLabel("History session").selectOption(String(source.id));
+    await planner.getByLabel("PI", { exact: true }).fill("800");
     await planner.getByLabel("Plan name").fill("Before failure");
     await planner.getByLabel("Total laps").fill("20");
     await planner.getByLabel("Fuel unit").selectOption("tankFraction");
@@ -100,10 +91,10 @@ test("R6 retry submits edited current draft after a failed save", async ({ brows
     await planner.getByRole("button", { name: "Retry" }).click();
     await expect(planner.getByRole("status")).toContainText("Plan saved");
 
-    const response = await api.get("/api/race-plans?gameId=f1-2025");
+    const response = await api.get("/api/race-plans?gameId=fm-2023");
     expect(response.ok(), await response.text()).toBe(true);
     const saved = RacePlansResponseSchema.parse(await response.json()).plans[0]!;
-    expect(saved).toMatchObject({ name: "Edited retry draft", stints: [{ endLap: 8, startFuel: 0.72 }, { endLap: 20 }] });
+    expect(saved).toMatchObject({ name: "Edited retry draft", pi: 800, stints: [{ endLap: 8, startFuel: 0.72 }, { endLap: 20 }] });
   } finally {
     await runtime.stop();
     await context.close();
@@ -129,7 +120,6 @@ test("R7 save locks draft edits and navigation until real API request settles", 
     const planner = page.getByTestId("race-strategy-planner");
     await page.getByRole("button", { name: "Locked plan", exact: true }).click();
     await expect(planner).toBeVisible();
-    await planner.getByRole("button", { name: /Locked plan/ }).click();
     await planner.getByRole("button", { name: "Add pit stop" }).click();
     const stints = planner.getByRole("group", { name: /Stint/ });
     await planner.getByLabel("Notes").fill("Update in progress");
@@ -145,9 +135,6 @@ test("R7 save locks draft edits and navigation until real API request settles", 
 
     await expect(planner.getByRole("button", { name: "New plan" })).toBeDisabled();
     await expect(page.getByRole("button", { name: "Strategies", exact: true })).toBeDisabled();
-    await expect(planner.getByRole("button", { name: /Locked plan/ })).toBeDisabled();
-    await expect(planner.getByRole("button", { name: "Load", exact: true })).toBeDisabled();
-    await expect(planner.getByRole("button", { name: "Delete", exact: true })).toBeDisabled();
     await expect(planner.getByLabel("History session")).toBeDisabled();
     await expect(planner.getByLabel("Plan name")).toBeDisabled();
     await expect(planner.getByLabel("Total laps")).toBeDisabled();
@@ -173,7 +160,6 @@ test("R7 save locks draft edits and navigation until real API request settles", 
     await expect(planner.getByLabel("PI", { exact: true })).toBeEnabled();
     await expect(planner.getByRole("button", { name: "Save changes" })).toBeEnabled();
     await expect(planner.getByRole("button", { name: "Add pit stop" })).toBeEnabled();
-    await expect(planner.getByRole("button", { name: /Locked plan/ })).toBeEnabled();
   } finally {
     gate.resolve();
     await runtime.stop();

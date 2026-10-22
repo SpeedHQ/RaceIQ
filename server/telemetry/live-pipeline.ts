@@ -132,6 +132,11 @@ export class LiveTelemetryPipeline {
       this._retiringSessions.size > 0 || this._retiringCaptures.size > 0;
   }
 
+  /** Per-session ownership includes retired captures until their I/O finishes. */
+  isRecordingSession(sessionId: number): boolean {
+    return this._recordingSession?.sessionId === sessionId || this._retiringSessions.has(sessionId);
+  }
+
   /** In-memory session laps — sent to newly connected WS clients. */
   get sessionLaps(): readonly LapMeta[] {
     return this._sessionLaps;
@@ -1108,6 +1113,11 @@ export function stopMaintenanceTasks(): void {
 /** True while a session records or its capture files are still draining. */
 export function isSessionActive(): boolean {
   return _default?.isSessionActive ?? false;
+}
+
+/** Check under the capture-maintenance lock when admitting recorded evidence. */
+export function isRecordingSession(sessionId: number): boolean {
+  return _default?.isRecordingSession(sessionId) ?? false;
 }
 
 /** Flush and close the active session recorder. Call on graceful shutdown. */
