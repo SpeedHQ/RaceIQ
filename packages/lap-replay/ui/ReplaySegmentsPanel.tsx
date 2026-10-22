@@ -8,11 +8,15 @@ export function ReplaySegmentsPanel({ lap, controller, segments }: {
   segments: readonly SpectateSegment[];
 }) {
   const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
-  const telemetry = useMemo(() => lap.hasProgress ? lap.samples.map((sample) => ({
-    values: { "timing.distance-traveled": sample.distance, "timing.current-lap": sample.time },
+  const telemetry = useMemo(() => lap.samples.map((sample) => ({
+    values: {
+      ...sample.values,
+      "timing.distance-traveled": Number.isFinite(sample.distance) ? sample.distance : null,
+      "timing.current-lap": sample.time,
+    },
     states: {},
     freshness: {},
-  })) : [], [lap]);
+  })), [lap]);
   const segmentList = useMemo(() => Array.from(segments), [segments]);
   let low = 0, high = lap.samples.length;
   while (low < high) {

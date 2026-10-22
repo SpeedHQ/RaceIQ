@@ -12,7 +12,7 @@ import { compileTelemetryResolver } from "@raceiq/telemetry-core/telemetry/resol
  * Persisted static-insight contract. Bump whenever detector output changes.
  * Rows written by older versions are recomputed lazily or by the backfill route.
  */
-export const STATIC_LAP_ANALYSIS_VERSION = 10;
+export const STATIC_LAP_ANALYSIS_VERSION = 11;
 export function resolveLapSegments(gameId: GameId, trackId: string | null | undefined): NamedSegment[] {
   if (!trackId) return [];
   const name = tryGetServerGame(gameId)?.getSharedTrackName?.(trackId) ?? trackId;

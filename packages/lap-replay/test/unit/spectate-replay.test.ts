@@ -93,6 +93,27 @@ test("single replay uses native progress and frame seeks without a comparison la
   } finally { controller.dispose(); }
 });
 
+test("seekGeneration changes only for explicit time discontinuities", () => {
+  const controller = createSpectateController(recordedLap(1, time => time * 20), null);
+  try {
+    const initial = controller.getSnapshot().seekGeneration;
+    const generation = controller.getSnapshot().generation;
+    controller.setSpeed(2);
+    controller.setPositionLock(true);
+    expect(controller.getSnapshot().generation).toBeGreaterThan(generation);
+    expect(controller.getSnapshot().seekGeneration).toBe(initial);
+    controller.seekFrame("a", 10);
+    expect(controller.getSnapshot().seekGeneration).toBe(initial + 1);
+    controller.scrub(0.25);
+    expect(controller.getSnapshot().seekGeneration).toBe(initial + 2);
+    controller.seekDistance(20);
+    expect(controller.getSnapshot().seekGeneration).toBe(initial + 3);
+    controller.seekDistance(21);
+    controller.seekFrame("a", -1);
+    expect(controller.getSnapshot().seekGeneration).toBe(initial + 3);
+  } finally { controller.dispose(); }
+});
+
 test("single replay preserves gaps and supports seeking without native distance", () => {
   const replay = recordedLap(1, (time) => time * 20).replay;
   replay.envelopes = replay.envelopes.filter((_, index) => index < 4 || index > 12);

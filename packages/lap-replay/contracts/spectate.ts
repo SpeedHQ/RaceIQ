@@ -40,6 +40,8 @@ export interface SpectateSnapshot {
   canLock: boolean;
   seeking: boolean;
   generation: number;
+  /** Explicit scrub/seek revision; stable during ordinary playback publications. */
+  seekGeneration: number;
   a: SpectateReading | null;
   b: SpectateReading | null;
 }

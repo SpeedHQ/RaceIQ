@@ -103,7 +103,7 @@ export function runInsightScanWithCoverage(sourceTelemetry: TelemetryPacket[], g
   const aidOptions = { wheelRotationAvailable: wheelEnabled, wheelStates: states };
   const electronic = createElectronicScan(telemetry, {
     abs: { ...aidOptions, nativeChannelAvailable: nativeAbs, nativeChannelExplicit: gameId === "ac-evo" },
-    tractionControl: { ...aidOptions, nativeChannelAvailable: nativeTc, nativeChannelExplicit: nativeTcActive,
+    tractionControl: { ...aidOptions, nativeChannelAvailable: nativeTc, nativeChannelExplicit: nativeTcActive || gameId === "ac-evo",
       nativeValues: nativeTcActive ? context?.tractionControlActive : context?.tractionControlIntervention },
     f1Enabled: gameId === 'f1-2025',
   });

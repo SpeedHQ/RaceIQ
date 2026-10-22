@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { WebGPURenderer } from "three/webgpu";
 import { createRibbonPool, updateRibbonPool, disposeRibbonPool, type RibbonPool, type RibbonRun } from "@raceiq/scene-3d/wireframe/LineResources";
-import type { ReplaySession, SpectateController, SpectatePose, SpectateReading, SpectateSample } from "../contracts/spectate";
+import type { ReplaySession, SpectateController, SpectatePose, SpectateReading, SpectateSample, SpectateSnapshot } from "../contracts/spectate";
 import type { TrackMapBoundaries, Point } from "../contracts/host"
 import type { ReplayModelResources } from "../contracts/host";
 import { createCarBody, type CarBodyInstance } from "@raceiq/scene-3d/wireframe/CarBody";
@@ -20,7 +20,7 @@ import { createAnalysisWheels, updateAnalysisWheels, type AnalysisWheelConfig } 
 import { createDrivetrainResource, type DrivetrainResource } from "@raceiq/scene-3d/wireframe/Drivetrain";
 import { createWheelLabelResource, disposeWheelLabelResource, updateWheelLabelResource, updateWheelLabelScale, type WheelLabelConfig, type WheelLabelResource } from "@raceiq/scene-3d/wireframe/WheelLabels";
 import { createTireTrailResource, updateTireTrailResource, disposeTireTrailResource, type TireTrailResource } from "@raceiq/scene-3d/wireframe/TireTrails";
-import { semanticNumber, type SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
+import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import { inputFocusColor, type SpectateFocus } from "./spectate-focus";
 import { FOCUS_ZOOM_NEAR, FOCUS_ZOOM_SNAP_OUT, focusLaneWidth, focusZoomBlend, offsetFocusLane, projectFocusCenterline, sampleFocusLane, smallestAvailableModelLength, zoomIndicatorPosition, type FocusCenterPoint, type TimedFocusPoint } from "./spectate-focus-lanes";
 import { sampleMotion } from "./spectate-replay";
@@ -36,14 +36,24 @@ type WheelInfoState = {
   previousWear: (number | null)[];
   wearRates: number[];
   timestamp: number | null;
-  generation: number;
+  readingTime: number | null;
   lastUpdate: number;
   labelGeneration: number;
+  playing: boolean | null;
+  configurationGeneration: number;
+  invalidationGeneration: number;
+  seekGeneration: number;
 };
 function wheelNumber(values: Readonly<Record<string, unknown>>, id: string, index: number): number | null {
   const entries = values[id];
   const value = Array.isArray(entries) ? entries[index] : undefined;
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+export function wheelHistoryDiscontinuity(previousTime: number | null, nextTime: number, previousSeekGeneration: number, nextSeekGeneration: number): boolean {
+  return previousSeekGeneration !== nextSeekGeneration || (previousTime !== null && (nextTime < previousTime || nextTime - previousTime > 1));
+}
+export function wheelLabelsNeedRefresh(playing: boolean, now: number, lastUpdate: number, generation: number, previousGeneration: number): boolean {
+  return !playing || now - lastUpdate >= 100 || generation !== previousGeneration;
 }
 type Slot = { body: CarBodyInstance | null; generation: number; wheels: WheelResource[]; drivetrain: DrivetrainResource | null; wheelInfo: WheelInfoState | null; config: AnalysisWheelConfig | null };
 type TrailHead = SemanticAnalysisFrame & { values: Record<string, unknown> };
@@ -121,7 +131,9 @@ export class SpectateSceneRuntime {
   ];
   private track = new THREE.Group();
   private raf = 0;
-  private pendingFrames: { resolve: () => void; reject: (error: Error) => void }[] = [];
+  private pendingFrames: { index: number; targetTime: number | null; resolve: () => void; reject: (error: Error) => void }[] = [];
+  private resumePlaybackAfterFrames = false;
+  private frameError: Error | null = null;
   private captureTarget: THREE.RenderTarget | null = null;
   private captureCanvas: OffscreenCanvas | null = null;
   private captureImageData: ImageData | null = null;
@@ -317,33 +329,29 @@ export class SpectateSceneRuntime {
     const drawPoints = (points: readonly Point[], alignment: TrackAlignment, tint: string, runs: RibbonRun[]) => {
       const transformed = transform(points, alignment);
       const tintColor = color(tint);
-      let distance = 0;
-      let run: RibbonRun[number][] | null = null;
-      let count = 0;
-      // World-anchored 6 m dashes / 1 m gaps provide speed cues without animation.
+      let distance = 0, run: RibbonRun[number][] = [], count = 0;
+      const add = (x: number, z: number, alpha: number) => {
+        const localX = x - this.origin.x, localZ = z - this.origin.z, previous = run.at(-1);
+        if (previous?.x === localX && previous.z === localZ && previous.alpha === alpha) return;
+        run.push({ x: localX, y: -this.origin.y, z: localZ, color: tintColor, alpha });
+      };
       for (let i = 1; i < transformed.length; i++) {
         const a = transformed[i - 1]!, b = transformed[i]!;
         const length = Math.hypot(b.x - a.x, b.z - a.z);
         if (!Number.isFinite(length) || length === 0) continue;
-        const point = (offset: number) => ({
-          x: a.x + (b.x - a.x) * offset / length - this.origin.x,
-          y: -this.origin.y,
-          z: a.z + (b.z - a.z) * offset / length - this.origin.z,
-          color: tintColor,
-        });
         let offset = 0;
         while (offset < length) {
           const phase = distance % 7;
           const step = Math.min(length - offset, (phase < 6 ? 6 : 7) - phase);
-          if (phase < 6) {
-            if (!run) { run = [point(offset)]; runs.push(run); }
-            run.push(point(offset + step));
-            count++;
-          } else run = null;
+          const alpha = phase < 6 ? 1 : 0;
+          add(a.x + (b.x - a.x) * offset / length, a.z + (b.z - a.z) * offset / length, alpha);
           offset += step;
           distance += step;
+          add(a.x + (b.x - a.x) * offset / length, a.z + (b.z - a.z) * offset / length, alpha);
+          count++;
         }
       }
+      if (run.length > 1) runs.push(run);
       return count;
     };
     const edgeRuns: RibbonRun[] = [];
@@ -529,12 +537,14 @@ export class SpectateSceneRuntime {
       if (failures[0]) this.canvas.dataset.sideAState = "model-unavailable";
       if (failures[1]) this.canvas.dataset.sideBState = "model-unavailable";
       if (failures.every(Boolean) || (!initial.a?.pose && (!this.pair.b || !initial.b?.pose))) {
+        this.rejectPendingFrames(new Error("Scene initialization failed"));
         this.error(!initial.a?.pose && (!this.pair.b || !initial.b?.pose) ? "scene.pose-unavailable" : "scene.model-unavailable");
         return;
       }
       this.initialized = true;
       this.canvas.dataset.rendererBackend = (this.renderer.backend as typeof this.renderer.backend & { isWebGPUBackend?: boolean }).isWebGPUBackend ? "webgpu" : "webgl2";
       this.fit();
+      this.startNextFrameRequest();
       this.wake();
     } catch {
       this.rejectPendingFrames(new Error("Scene initialization failed"));
@@ -599,7 +609,7 @@ export class SpectateSceneRuntime {
     this.canvas.dataset[i === 0 ? "aModelPath" : "bModelPath"] = selection.model.modelPath;
     this.groups[i].add(body.root);
   }
-  private updateWheels(side: 0 | 1, reading: SpectateReading | null, elapsed: number, speed: number, playing: boolean, now: number, generation: number) {
+  private updateWheels(side: 0 | 1, reading: SpectateReading | null, elapsed: number, speed: number, playing: boolean, now: number, seekGeneration: number) {
     const slot = this.slots[side];
     if (!reading || !slot.config) return;
     const frame: SemanticAnalysisFrame = { values: reading.values, states: {}, freshness: {} };
@@ -611,16 +621,24 @@ export class SpectateSceneRuntime {
     }
     const info = slot.wheelInfo ??= {
       labels: [], previousWear: [null, null, null, null], wearRates: [0, 0, 0, 0],
-      timestamp: null, generation: -1, lastUpdate: -Infinity, labelGeneration: -1,
+      timestamp: null, readingTime: null, lastUpdate: -Infinity, labelGeneration: -1, playing: null,
+      configurationGeneration: this.tireInfoGeneration, invalidationGeneration: 0, seekGeneration,
     };
-    if (info.generation !== generation) {
+    const discontinuity = wheelHistoryDiscontinuity(info.readingTime, reading.time, info.seekGeneration, seekGeneration);
+    const stateChanged = info.playing !== null && playing !== info.playing;
+    if (discontinuity) {
       info.timestamp = null;
       info.previousWear.fill(null);
       info.wearRates.fill(0);
-      info.generation = generation;
     }
-    const timestamp = semanticNumber(frame, "diagnostics.timestamp-ms");
-    if (timestamp !== null && timestamp !== info.timestamp) {
+    if (discontinuity || stateChanged || info.configurationGeneration !== this.tireInfoGeneration) {
+      info.invalidationGeneration++;
+      info.configurationGeneration = this.tireInfoGeneration;
+    }
+    info.seekGeneration = seekGeneration;
+    info.readingTime = reading.time;
+    const timestamp = reading.time * 1000;
+    if (timestamp !== info.timestamp) {
       const dt = info.timestamp === null ? 0 : (timestamp - info.timestamp) / 1000;
       for (let index = 0; index < slot.wheels.length; index++) {
         const wear = wheelNumber(reading.values, "tires.tire-wear", index), previous = info.previousWear[index];
@@ -630,8 +648,8 @@ export class SpectateSceneRuntime {
       }
       info.timestamp = timestamp;
     }
-    const labelGeneration = generation + this.tireInfoGeneration;
-    const refresh = !playing || now - info.lastUpdate >= 100 || labelGeneration !== info.labelGeneration;
+    const labelGeneration = this.tireInfoGeneration + info.invalidationGeneration;
+    const refresh = wheelLabelsNeedRefresh(playing, now, info.lastUpdate, labelGeneration, info.labelGeneration);
     for (let index = 0; index < slot.wheels.length; index++) {
       let label = info.labels[index];
       if (refresh) {
@@ -660,7 +678,7 @@ export class SpectateSceneRuntime {
       }
       if (label) { label.sprite.visible = true; updateWheelLabelScale(label, this.camera); }
     }
-    if (refresh) { info.lastUpdate = now; info.labelGeneration = labelGeneration; }
+    if (refresh) { info.lastUpdate = now; info.labelGeneration = labelGeneration; info.playing = playing; }
   }
   private updateTrail(side: 0 | 1, reading: SpectateReading | null) {
     let trail = this.trails[side];
@@ -768,13 +786,44 @@ export class SpectateSceneRuntime {
   }
   requestFrame(index: number): Promise<void> {
     if (this.disposed) return Promise.reject(new Error("Scene runtime disposed"));
-    if (!this.initialized) return Promise.reject(new Error("Scene runtime unavailable"));
-    if (!this.pair.a.replay.envelopes[index]) return Promise.reject(new Error("Replay frame unavailable"));
+    if (this.frameError) return Promise.reject(this.frameError);
+    if (!Number.isInteger(index) || index < 0 || !this.pair.a.replay.envelopes[index]) return Promise.reject(new Error("Replay frame unavailable"));
+    if (!this.pendingFrames.length && this.controller.getSnapshot().playing) {
+      this.resumePlaybackAfterFrames = true;
+      this.controller.pause();
+    }
     const { promise, resolve, reject } = Promise.withResolvers<void>();
-    this.pendingFrames.push({ resolve, reject });
-    this.controller.seekFrame("a", index);
+    this.pendingFrames.push({ index, targetTime: null, resolve, reject });
+    this.startNextFrameRequest();
     this.wake();
     return promise;
+  }
+  private startNextFrameRequest() {
+    const pending = this.pendingFrames[0];
+    if (!this.initialized || !pending || pending.targetTime !== null || this.disposed) return;
+    this.controller.seekFrame("a", pending.index);
+    pending.targetTime = this.controller.getSnapshot().a?.time ?? null;
+    if (pending.targetTime === null) {
+      this.pendingFrames.shift()!.reject(new Error("Replay frame unavailable"));
+      this.startNextFrameRequest();
+      this.restorePlaybackAfterFrameRequests();
+      return;
+    }
+    this.wake();
+  }
+  private settleRenderedFrame(snapshot: Pick<SpectateSnapshot, "a">) {
+    const pending = this.pendingFrames[0];
+    if (pending && pending.targetTime !== null && snapshot.a?.time === pending.targetTime) {
+      this.pendingFrames.shift()!.resolve();
+      this.startNextFrameRequest();
+    }
+    this.restorePlaybackAfterFrameRequests();
+  }
+  private restorePlaybackAfterFrameRequests() {
+    if (!this.pendingFrames.length && this.resumePlaybackAfterFrames) {
+      this.resumePlaybackAfterFrames = false;
+      if (!this.disposed) this.controller.play();
+    }
   }
   async captureBitmap(): Promise<ImageBitmap> {
     if (this.disposed || !this.initialized) throw new Error("Scene runtime unavailable");
@@ -811,7 +860,9 @@ export class SpectateSceneRuntime {
     return createImageBitmap(this.captureCanvas);
   }
   private rejectPendingFrames(error: Error) {
+    this.frameError = error;
     for (const pending of this.pendingFrames.splice(0)) pending.reject(error);
+    this.restorePlaybackAfterFrameRequests();
   }
   private wake = () => {
     this.dirty = true;
@@ -952,8 +1003,8 @@ export class SpectateSceneRuntime {
           if (slot.drivetrain) slot.drivetrain.root.visible = this.carModelMode !== "solid";
         }
         if (nativeViewVisible) {
-          this.updateWheels(0, snapshot.a, wheelElapsed, snapshot.speed, snapshot.playing && !snapshot.seeking, now, snapshot.generation);
-          this.updateWheels(1, snapshot.b, wheelElapsed, snapshot.speed, snapshot.playing && !snapshot.seeking, now, snapshot.generation);
+          this.updateWheels(0, snapshot.a, wheelElapsed, snapshot.speed, snapshot.playing && !snapshot.seeking, now, snapshot.seekGeneration);
+          this.updateWheels(1, snapshot.b, wheelElapsed, snapshot.speed, snapshot.playing && !snapshot.seeking, now, snapshot.seekGeneration);
         }
         this.edgePool.group.visible = blend < 1;
         this.edgePool.material.opacity = SCENE_PRESENTATION.trackOpacity * (1 - blend);
@@ -1063,11 +1114,9 @@ export class SpectateSceneRuntime {
         this.canvas.dataset.sideAState = stateA;
         if (stateB !== undefined) this.canvas.dataset.sideBState = stateB;
         if (stateChanged && this.canvas.dataset.sceneRendered === "true") this.ready(true);
-        if (this.pendingFrames.length) {
-          for (const pending of this.pendingFrames.splice(0)) pending.resolve();
-        }
+        this.settleRenderedFrame(snapshot);
         this.lastRender = now;
-        this.dirty = false;
+        this.dirty = this.pendingFrames.length > 0;
         if (this.canvas.dataset.sceneRendered !== "true") {
           this.canvas.dataset.sceneRendered = "true";
           this.ready(true);
@@ -1082,7 +1131,7 @@ export class SpectateSceneRuntime {
       }
     }
     this.drawing = false;
-    if (snapshot.playing || this.settleFrames > 0 || this.dirty || this.zoomIdleUntil > 0 || this.zoomSnap) {
+    if (snapshot.playing || this.pendingFrames.length > 0 || this.settleFrames > 0 || this.dirty || this.zoomIdleUntil > 0 || this.zoomSnap) {
       if (this.settleFrames > 0) this.settleFrames--;
       this.raf = requestAnimationFrame(this.draw);
     }

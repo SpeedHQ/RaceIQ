@@ -9,6 +9,7 @@ import { packet } from "@raceiq/telemetry-core/test-support/telemetry/resolver";
 import { replayRoutes, semanticReplayIds } from "../../server";
 import type { LMUExtendedData } from "@raceiq/shared/telemetry/lmu";
 import type { SemanticLapTelemetry } from "../../contracts/replay";
+import type { KunosExtendedData } from "@raceiq/shared/telemetry/kunos";
 
 initGameAdapters();
 test("semantic replay requests F1 Analyse dependencies", () => {
@@ -76,6 +77,32 @@ describe("GET /api/laps/:id/semantic-telemetry", () => {
       const tc = body.insights.find((insight) => insight.id === "driving-traction-control-activation");
       if (active) {
         expect(tc?.evidenceSource).toBe("native");
+        expect(tc?.detail).toContain("0.08s active");
+      } else {
+        expect(tc).toBeUndefined();
+        expect(body.detectorCoverage.find((detector) => detector.id === "driving-traction-control-activation")?.status).toBe("checked");
+      }
+    } finally {
+      cacheDelete(lapId);
+      await deleteSession(sessionId);
+    }
+  });
+  test.each([true, false])("preserves AC Evo native TC intervention=%s evidence", async (active) => {
+    const sessionId = await insertSession("0", "0", "ac-evo");
+    const lapId = await insertLap(sessionId, 1, 80.9, true, null, 0, null, null, null, null, null);
+    cacheSet(lapId, Array.from({ length: 32 }, (_, index) => packet("ac-evo", {
+      TimestampMS: index * 20,
+      CurrentRaceTime: index * 0.02,
+      acc: { tcIntervention: active && index < 4 ? 1 : 0, absIntervention: 0 } as KunosExtendedData,
+    })));
+    try {
+      const response = await replayRoutes.request(`/api/laps/${lapId}/semantic-telemetry`, { headers: { "X-Game-Id": "ac-evo" } });
+      expect(response.status).toBe(200);
+      const body = await response.json() as SemanticLapTelemetry;
+      const tc = body.insights.find((insight) => insight.id === "driving-traction-control-activation");
+      if (active) {
+        expect(tc?.evidenceSource).toBe("native");
+        expect(tc?.label).toBe("Traction Control Activation");
         expect(tc?.detail).toContain("0.08s active");
       } else {
         expect(tc).toBeUndefined();

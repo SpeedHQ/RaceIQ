@@ -98,6 +98,7 @@
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
+- Cover Replay extraction invariants with regressions for bounded track ribbons, seek-aware tire labels, cold frame capture, keyboard frame stepping, position-only segment timings and native AC Evo TC evidence.
 - Ignore terminal color codes when waiting for compiler startup in the Paraglide lifecycle CI test.
 - Generate Paraglide declarations with the installed native TypeScript compiler and stop abandoned translation watchers from consuming CPU after development exits.
 - Use Ubuntu instead of macOS for CI runners and cap Mars memory requests at 6 GB.

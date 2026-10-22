@@ -5,7 +5,7 @@ import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import type { TrackMapBoundaries } from "../../contracts/host"
 import { SpectateSceneRuntime } from "../../ui/SpectateSceneRuntime"
 import type { SpectatePair, SpectateSample } from "../../contracts/spectate"
-import type { RibbonRun } from "@raceiq/scene-3d/wireframe/LineResources";
+import { createRibbonPool, updateRibbonPool, disposeRibbonPool, type RibbonRun } from "@raceiq/scene-3d/wireframe/LineResources";
 
 initGameAdapters({ f1Experiments: true, iracingAdapter: true });
 
@@ -51,12 +51,62 @@ function expectOnPaths(runs: RibbonRun[], paths: Point[][]) {
   }
 }
 
-test("track dashes retain metre spacing across uneven samples, duplicates and corners", () => {
+test("track dashes retain 6/1 metre alpha masking across uneven samples, duplicates and corners", () => {
   const runtime = geometry("lmu", center);
   const edge = [{ x: 0, z: 0 }, { x: 2, z: 0 }, { x: 2, z: 0 }, { x: 4, z: 0 }, { x: 4, z: 16 }];
   runtime.setOutline(null, { leftEdge: edge, rightEdge: [], centerLine: [], pitLane: null, coordSystem: "lmu" });
-  const paths = runtime.edgeRuns.map(run => run.map(p => [p.x + origin.x, p.z + origin.z]));
-  expect(paths).toEqual([[[0, 0], [2, 0], [4, 0], [4, 2]], [[4, 3], [4, 9]], [[4, 10], [4, 16]]]);
+  expect(runtime.edgeRuns).toHaveLength(1);
+  expect(runtime.edgeRuns[0]!.map(p => [p.x + origin.x, p.z + origin.z, p.alpha])).toEqual([
+    [0, 0, 1], [2, 0, 1], [4, 0, 1], [4, 2, 1], [4, 2, 0],
+    [4, 3, 0], [4, 3, 1], [4, 9, 1], [4, 9, 0], [4, 10, 0],
+    [4, 10, 1], [4, 16, 1],
+  ]);
+  const long = geometry("lmu", center);
+  long.setOutline(null, {
+    leftEdge: Array.from({ length: 5001 }, (_, x) => ({ x, z: 0 })),
+    rightEdge: [], centerLine: [], pitLane: null, coordSystem: "lmu",
+  });
+  // Unit rendering has no DOM to resolve the scene's CSS color tokens.
+  for (const run of long.edgeRuns) for (const point of run) point.color = 0xffffff;
+  const pool = createRibbonPool();
+  updateRibbonPool(pool, new THREE.PerspectiveCamera(), long.edgeRuns, 2, 800);
+  expect(long.edgeRuns).toHaveLength(1);
+  expect(pool.slots).toHaveLength(1);
+  disposeRibbonPool(pool);
+});
+test("ribbon alpha breaks share identical corner cross-sections without connector geometry", () => {
+  const pool = createRibbonPool();
+  const color = new THREE.Color("white");
+  const run: RibbonRun = [
+    { x: 0, y: 0, z: -10, color, alpha: 1 },
+    { x: 1, y: 0, z: -10, color, alpha: 1 },
+    { x: 1, y: 0, z: -10, color, alpha: 0 },
+    { x: 2, y: 1, z: -10, color, alpha: 0 },
+  ];
+  updateRibbonPool(pool, new THREE.PerspectiveCamera(), [run], 4, 800);
+  expect(pool.material.vertexColors).toBe(true);
+  expect(pool.material.transparent).toBe(true);
+  const slot = pool.slots[0]!;
+  expect(Array.from(slot.positions.slice(6, 12))).toEqual(Array.from(slot.positions.slice(12, 18)));
+  expect(slot.colors[11]).toBe(1);
+  expect(slot.colors[15]).toBe(1);
+  expect(slot.colors[19]).toBe(0);
+  expect(slot.colors[23]).toBe(0);
+  disposeRibbonPool(pool);
+});
+
+test("near-plane crossings retain CPU clipping and use visible-span meshes", () => {
+  const pool = createRibbonPool();
+  const color = new THREE.Color("white");
+  const run: RibbonRun = [
+    { x: 0, y: 0, z: -1, color },
+    { x: 1, y: 0, z: 1, color },
+    { x: 2, y: 0, z: -1, color },
+  ];
+  updateRibbonPool(pool, new THREE.PerspectiveCamera(), [run], 4, 800);
+  expect(pool.slots).toHaveLength(2);
+  expect(pool.slots.every((slot) => slot.mesh.visible)).toBe(true);
+  disposeRibbonPool(pool);
 });
 
 const cases = [

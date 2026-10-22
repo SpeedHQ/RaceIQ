@@ -243,7 +243,8 @@ export function createSpectateController(a: SpectateLap, b: SpectateLap | null, 
     positionLock = canLock,
     active = false,
     disposed = false,
-    generation = 0;
+    generation = 0,
+    seekGeneration = 0;
   let raf = 0,
     previousFrame: number | null = null;
   let transition: { from: number; to: number; start: number } | null = null;
@@ -273,7 +274,7 @@ export function createSpectateController(a: SpectateLap, b: SpectateLap | null, 
   };
   const publish = () => {
     generation++;
-    snapshot = { time, duration, playing, speed, positionLock, canLock, seeking: transition !== null, generation, ...read(time) };
+    snapshot = { time, duration, playing, speed, positionLock, canLock, seeking: transition !== null, generation, seekGeneration, ...read(time) };
     for (const listener of listeners) listener();
   };
   const cancelFrame = () => {
@@ -343,7 +344,10 @@ export function createSpectateController(a: SpectateLap, b: SpectateLap | null, 
     },
     scrub: (target) => {
       stop();
-      if (Number.isFinite(target)) time = Math.max(0, Math.min(duration, target));
+      if (Number.isFinite(target)) {
+        time = Math.max(0, Math.min(duration, target));
+        seekGeneration++;
+      }
       publish();
       start();
     },
@@ -351,6 +355,7 @@ export function createSpectateController(a: SpectateLap, b: SpectateLap | null, 
       const target = arrivalAt(aProgress, distance);
       if (target === null || disposed) return;
       const reduced = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+      seekGeneration++;
       if (immediate || reduced) {
         stop();
         time = target;
@@ -380,6 +385,7 @@ export function createSpectateController(a: SpectateLap, b: SpectateLap | null, 
       }
       stop();
       time = Math.max(0, Math.min(duration, target));
+      seekGeneration++;
       publish();
       start();
     },

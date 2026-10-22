@@ -56,25 +56,40 @@ export function SingleReplaySession({ gameId, lap, replay, outline, segments, in
 
   useEffect(() => {
     if (!controller) return;
-    const handleSpace = (event: KeyboardEvent) => {
-      if ((event.code !== "Space" && event.key !== " ") || event.altKey || event.ctrlKey || event.metaKey) return;
+    const handleKey = (event: KeyboardEvent) => {
+      const arrow = event.key === "ArrowLeft" || event.key === "ArrowRight";
+      if ((!arrow && event.code !== "Space" && event.key !== " ") || event.altKey || event.ctrlKey || event.metaKey) return;
       const target = event.target;
       if (target instanceof HTMLElement && (target.isContentEditable || target.closest('textarea, select, [role="textbox"], [role="dialog"], [role="alertdialog"]'))) return;
       if (target instanceof HTMLInputElement && !["range", "checkbox", "radio", "button", "submit", "reset"].includes(target.type)) return;
+      if (arrow && target instanceof Element && target.closest('input, [role="separator"], [role="slider"], [role="combobox"], [role="listbox"], [role="tablist"], [role="menu"], [role="tree"], [role="grid"], [role="spinbutton"], [role="radiogroup"], [role="toolbar"]')) return;
       event.preventDefault();
       event.stopPropagation();
+      if (arrow) {
+        if (event.type !== "keydown" || a.samples.length === 0) return;
+        const time = controller.getFrameSnapshot(performance.now()).time;
+        let low = 0, high = a.samples.length;
+        while (low < high) {
+          const middle = (low + high) >>> 1;
+          if (a.samples[middle]!.time < time || (event.key === "ArrowRight" && a.samples[middle]!.time === time)) low = middle + 1;
+          else high = middle;
+        }
+        const index = Math.max(0, Math.min(a.samples.length - 1, event.key === "ArrowLeft" ? low - 1 : low));
+        controller.scrub(a.samples[index]!.time);
+        return;
+      }
       if (event.type === "keydown" && !event.repeat) {
         if (controller.getSnapshot().playing) controller.pause();
         else controller.play();
       }
     };
-    window.addEventListener("keydown", handleSpace, true);
-    window.addEventListener("keyup", handleSpace, true);
+    window.addEventListener("keydown", handleKey, true);
+    window.addEventListener("keyup", handleKey, true);
     return () => {
-      window.removeEventListener("keydown", handleSpace, true);
-      window.removeEventListener("keyup", handleSpace, true);
+      window.removeEventListener("keydown", handleKey, true);
+      window.removeEventListener("keyup", handleKey, true);
     };
-  }, [controller]);
+  }, [a, controller]);
   if (!controller) return null;
   return <SpectateView pair={session} controller={controller} outline={outline} segments={segments}
     ai={ai} aiOpen={aiOpen} onAiOpenChange={onAiOpenChange} telemetryOpen={telemetryOpen}

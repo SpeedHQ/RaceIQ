@@ -417,3 +417,75 @@ test("Replay API preserves real recording, insight and error responses", async (
   expect(missing.status()).toBe(404);
   expect(await missing.json()).toEqual({ error: "Lap not found or has no telemetry" });
 });
+
+test("Replay arrow shortcuts step native frames without stealing control keys", async ({ page, request }) => {
+  const lap = await getSeededLapMeta(request, "fm-2023");
+  const response = await request.get(`/api/laps/${lap.id}/semantic-telemetry`, { headers: { "X-Game-Id": "fm-2023" } });
+  expect(response.ok()).toBe(true);
+  const replay = await response.json() as { envelopes: { values: { semanticId: string; value: unknown }[] }[] };
+  const clocks = replay.envelopes.map(frame => frame.values.find(value => value.semanticId === "timing.current-lap")?.value)
+    .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+  const times = [...new Set(clocks.map(time => time - clocks[0]!))];
+  expect(times[1]).toBeGreaterThan(0.001);
+  await page.goto(`/fm23/sessions/${lap.sessionId}/replay/${lap.id}`);
+  const clock = page.locator("[data-spectate-playback]");
+  const timeline = page.getByRole("slider", { name: "Replay position", exact: true });
+  const blur = () => page.evaluate(() => (document.activeElement as HTMLElement)?.blur());
+  const time = async () => Number(await clock.getAttribute("data-time"));
+  await timeline.press("Home");
+  await blur();
+  await page.keyboard.press("ArrowRight");
+  await expect.poll(time).toBeCloseTo(times[1]!, 6);
+  await expect(clock).toHaveAttribute("data-playing", "false");
+  await page.keyboard.press("ArrowLeft");
+  await expect.poll(time).toBe(0);
+  await page.keyboard.press("ArrowLeft");
+  await expect.poll(time).toBe(0);
+  await timeline.press("End");
+  await blur();
+  await page.keyboard.press("ArrowRight");
+  await expect.poll(time).toBeCloseTo(times.at(-1)!, 6);
+  await page.keyboard.press("ArrowLeft");
+  await expect.poll(time).toBeCloseTo(times.at(-2)!, 6);
+  await timeline.press("Home");
+  await timeline.press("ArrowRight");
+  await expect.poll(time).toBeCloseTo(0.001, 6);
+  await page.evaluate(() => {
+    const input = document.createElement("input");
+    input.id = "keyboard-editable-fixture";
+    input.value = "editable";
+    document.body.append(input);
+    input.focus();
+  });
+  await page.keyboard.press("ArrowRight");
+  await expect.poll(time).toBeCloseTo(0.001, 6);
+  await page.locator("#keyboard-editable-fixture").evaluate(element => element.remove());
+});
+
+test("Replay segment timings retain position-based fallback without native distance", async ({ page, request }) => {
+  const lap = await getSeededLapMeta(request, "fm-2023");
+  let duration = 0;
+  await page.route(`**/api/laps/${lap.id}/semantic-telemetry`, async route => {
+    const response = await route.fetch();
+    const replay = await response.json() as { envelopes: { values: { semanticId: string; value: unknown }[] }[] };
+    const clocks = replay.envelopes.map(frame => frame.values.find(value => value.semanticId === "timing.current-lap")?.value)
+      .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+    duration = clocks.at(-1)! - clocks[0]!;
+    for (const frame of replay.envelopes) {
+      frame.values = frame.values.filter(value => value.semanticId !== "timing.distance-traveled" && value.semanticId !== "timing.lap-fraction");
+    }
+    await route.fulfill({ response, json: replay });
+  });
+  await page.goto(`/fm23/sessions/${lap.sessionId}/replay/${lap.id}`);
+  const clock = page.locator("[data-spectate-playback]");
+  await expect(clock).toHaveAttribute("data-a-distance", "");
+  const toggle = page.locator('[data-panel-toggle="replay-segments-panel"]');
+  if (await toggle.getAttribute("aria-expanded") !== "true") await toggle.click();
+  const panel = page.locator("#replay-segments-panel");
+  const times = panel.getByText(/^\d+\.\d{3}s$/);
+  await expect.poll(async () => (await times.allTextContents()).reduce((sum, time) => sum + Number.parseFloat(time), 0)).toBeCloseTo(duration, 1);
+  await expect(panel.locator('[aria-current="true"]')).toHaveCount(1);
+  const initial = await times.allTextContents();
+  await page.getByRole("slider", { name: "Replay position", exact: true }).press("End");
+  await expect(times).toHaveText(initial);
+});
