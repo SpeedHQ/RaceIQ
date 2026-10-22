@@ -164,12 +164,14 @@ for (const trimmedPrefixFrames of [0, 1]) test(`production live worker catches u
     sendControl("lap-binding", { candidateId: selectedCandidateId, lapId: "lap-old", ownershipJournalSequence: 1, ownershipSourceByteEnd: oldEnd }),
   ];
   const [oldMember, nextMember] = await Promise.all([ready.get(selectedCandidateId)!.promise, ready.get("next")!.promise]);
-  await Promise.all([...watermarkAcks, ...finalControls]);
   expect(producerRunning).toBe(true);
   expect(producerRecordsWritten).toBeGreaterThan(recordsAtCatchupStart);
+  // Keep ingress concurrent through publication, then stop adding unrelated
+  // source frames before draining every pending control acknowledgement.
   keepProducing = false;
   await producerFinished.promise;
   await producer;
+  await Promise.all([...watermarkAcks, ...finalControls]);
   const readVerifiedMember = async (message: Record<string, unknown>, expectedFrames: Buffer[], expectedTimes: number[]) => {
     const member = Schema.decodeUnknownSync(LiveArchiveMemberSchema)(message.member);
     const snapshot = Schema.decodeUnknownSync(LiveArchiveSnapshotSchema)({

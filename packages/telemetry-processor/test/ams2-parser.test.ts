@@ -15,7 +15,9 @@ describe("portable AMS2 parser routing", () => {
     const complete = result.laps.filter(lap => lap.complete);
     expect(result.sessions).toHaveLength(1);
     expect(complete.map(lap => lap.lapTime.toFixed(3))).toEqual(["50.460", "52.080", "51.300"]);
-    expect(complete.map(lap => lap.invalidReason)).toEqual(["outlap", null, null]);
+    expect(complete.map(lap => lap.invalidReason)).toEqual([null, null, null]);
+    expect(complete.map(lap => lap.valid)).toEqual([true, true, true]);
+    expect(complete.map(lap => lap.classification)).toEqual(["out_lap", "pace", "pace"]);
   });
 
   test("preserves race-start eligibility and actual pit exclusions", async () => {
@@ -25,6 +27,8 @@ describe("portable AMS2 parser routing", () => {
     const complete = result.laps.filter(lap => lap.complete);
     expect(result.sessions).toHaveLength(1);
     expect(complete.map(lap => lap.lapTime.toFixed(3))).toEqual(["84.850", "72.645", "112.819", "70.170", "66.820"]);
-    expect(complete.map(lap => lap.invalidReason)).toEqual([null, null, "inlap", "outlap", null]);
+    expect(complete.map(lap => lap.invalidReason)).toEqual([null, null, null, null, null]);
+    expect(complete.map(lap => lap.valid)).toEqual([true, true, true, true, true]);
+    expect(complete.map(lap => lap.classification)).toEqual(["pace", "pace", "in_lap", "out_lap", "pace"]);
   });
 });

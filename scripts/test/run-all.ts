@@ -62,7 +62,8 @@ const suites = [
   { name: "integration", args: ["run", "test:integration"] },
   { name: "recording E2E", args: ["run", "test:e2e:recordings"] },
   { name: "prepare Playwright E2E database", args: ["playwright/support/server/prepare-seeded-database.ts"], env: { DATA_DIR: seededDataDir } },
-  { name: "Playwright E2E", args: ["scripts/test/run-turbo.ts", "test", "--filter=raceiq-e2e"], env: { E2E_SERVER_MODE: "compiled", PW_SERVER_SET: "all", PW_SEEDED_DATABASE: seededDatabase } },
+  { name: "browser verification build", args: ["run", "build:browser"] },
+  { name: "Playwright E2E", args: ["scripts/test/run-turbo.ts", "test", "--filter=raceiq-e2e"], env: { E2E_SERVER_MODE: "compiled", RACEIQ_FEATURE_F1_EXPERIMENTS: "true", RACEIQ_FEATURE_IRACING_ADAPTER: "true", PW_SERVER_SET: "all", PW_SEEDED_DATABASE: seededDatabase } },
 ];
 const failures: string[] = [];
 

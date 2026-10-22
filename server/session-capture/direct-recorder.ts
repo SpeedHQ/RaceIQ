@@ -13,6 +13,7 @@ import type { DetectorOwnershipTransition } from "@raceiq/telemetry-core/process
 import { materializeParserInitializationPlan, type ParserReplayLocator } from "../games/packet-dispatch";
 import { db } from "../db";
 import { laps, sessions } from "../db/schema";
+import { withDatabaseWrite } from "../db/write-coordination";
 import { and, eq } from "drizzle-orm";
 import { resolveRecordingGameDirectory } from "../runtime/config/recording-directory";
 import type { PersistedLapBinding } from "../telemetry/pipeline-ports";
@@ -94,7 +95,7 @@ export class DirectCaptureRecording {
       const snapshot = this.buildManifestSnapshot();
       await this.persistManifest(snapshot);
       this.persistedManifest = snapshot;
-      const updated = await db.update(sessions).set({ rawFile: this.manifestPath, captureManifestFile: this.manifestPath, captureLayoutVersion: 1, captureArchiveFile: null }).where(eq(sessions.id, sessionId)).run();
+      const updated = await withDatabaseWrite(() => db.update(sessions).set({ rawFile: this.manifestPath, captureManifestFile: this.manifestPath, captureLayoutVersion: 1, captureArchiveFile: null }).where(eq(sessions.id, sessionId)).run());
       if (updated.rowsAffected !== 1) throw new Error(`Session ${sessionId} changed before direct capture publication`);
       await this.publishReady(snapshot);
     }).catch((error) => this.fail(error));
@@ -388,7 +389,7 @@ export class DirectCaptureRecording {
       if (!binding || this.publishedLapIds.has(binding.lapId)) continue;
       if (String(binding.lapId) !== chunk.lapId || chunk.ownedFrameCount !== binding.frameCount ||
           chunk.lapNumber !== binding.lapNumber) throw new Error(`Persisted lap ${binding.lapId} disagrees with direct capture ownership`);
-      await db.transaction(async (tx) => {
+      await withDatabaseWrite(() => db.transaction(async (tx) => {
         const updated = await tx.update(laps).set({
           captureChunkId: chunk.id, sourceFrameStart: part!.owner!.startOrdinal, sourceFrameCount: chunk.ownedFrameCount,
         }).where(and(
@@ -401,7 +402,7 @@ export class DirectCaptureRecording {
           captureLayoutVersion: 1, captureArchiveFile: null,
         }).where(eq(sessions.id, this.sessionId!)).run();
         if (sessionUpdated.rowsAffected !== 1) throw new Error(`Session ${this.sessionId} changed during direct capture publication`);
-      });
+      }));
       this.publishedLapIds.add(binding.lapId);
       this.notify({ type: "lap-capture-ready", sessionId: this.sessionId, lapId: binding.lapId });
     }

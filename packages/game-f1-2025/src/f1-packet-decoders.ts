@@ -82,6 +82,18 @@ export interface F1SessionHistoryData {
   carIndex: number; history: F1DriverHistoryData; lapSectors: Array<{ lapNumber: number; sectors: F1LapSectorData }>;
 }
 
+export interface F1EventData {
+  code: string;
+  numLights?: number;
+}
+
+export function decodeF1Event(data: Buffer): F1EventData | null {
+  if (data.length < 4) return null;
+  const code = data.toString("ascii", 0, 4);
+  return code === "STLG" && data.length >= 5
+    ? { code, numLights: data.readUInt8(4) }
+    : { code };
+}
 export function decodeF1Motion(data: Buffer, playerCarIndex: number): F1MotionData | null {
   const size = 60; const o = playerCarIndex * size;
   if (data.length < o + size) return null;

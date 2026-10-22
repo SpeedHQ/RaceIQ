@@ -11,7 +11,8 @@ import type { GameId, LiveParserPlan } from "@raceiq/capture-splitting";
 import { GameIdSchema } from "@raceiq/shared/games/ids";
 import type { SessionCaptureRecord } from "@raceiq/capture-formats/session/framing";
 import { encodeParserBootstrapFrame, encodeSegmentContextEndFrame, encodeSegmentContextFrame, iterateSessionCaptureRecordsAsync } from "@raceiq/capture-formats/session/framing";
-import { db } from "@raceiq/backend-core/db/index";
+import { db, readDb } from "@raceiq/backend-core/db/index"
+import { withDatabaseWrite } from "@raceiq/backend-core/db/write-coordination";
 import { liveCaptures, liveCaptureJournal, liveCaptureMembers, laps, sessions } from "@raceiq/backend-core/db/schema";
 import { commitLiveCaptureMember, persistLiveCaptureProgress, type LiveCaptureIdentity, type LiveMemberVerification } from "@raceiq/backend-core/db/live-capture-queries";
 import { sealLiveCaptureMetadata } from "@raceiq/backend-core/session-capture/live-seal";
@@ -60,12 +61,12 @@ function toReplayRecord(record: SessionCaptureRecord, sequence: number): ReplayR
 
 /** Replay durable journaled windows and bounded source suffix. Called by backend runtime registration. */
 export async function replayLiveCaptureTail(captureEpoch: string): Promise<void> {
-  const row = await db.select({ capture: liveCaptures, gameId: sessions.gameId }).from(liveCaptures)
+  const row = await readDb.select({ capture: liveCaptures, gameId: sessions.gameId }).from(liveCaptures)
     .innerJoin(sessions, eq(sessions.id, liveCaptures.sessionId)).where(eq(liveCaptures.captureEpoch, captureEpoch)).get();
   if (!row || row.capture.status !== "recovering") throw new Error("Live capture is not eligible for restart replay");
   const capture = row.capture;
   if (!capture.sourcePath.endsWith(".bin")) throw new Error("Restart replay requires an uncompressed canonical live source");
-  const lastMemberRow = capture.generation === 0 ? null : await db.select({
+  const lastMemberRow = capture.generation === 0 ? null : await readDb.select({
     descriptor: liveCaptureMembers.descriptor, generation: liveCaptureMembers.generation,
   }).from(liveCaptureMembers).where(and(eq(liveCaptureMembers.captureEpoch, captureEpoch),
     eq(liveCaptureMembers.generation, capture.generation))).get();
@@ -90,7 +91,7 @@ export async function replayLiveCaptureTail(captureEpoch: string): Promise<void>
     const payloadBytes = sql<number>`length(cast(${liveCaptureJournal.payload} as blob))`;
     let cursorStart = -1, cursorSequence = 0;
     while (true) {
-      const page = await db.select({
+      const page = await readDb.select({
         sequence: liveCaptureJournal.sequence, sourceByteEnd: liveCaptureJournal.sourceByteEnd, effectiveStart, payloadBytes,
         payload: sql<string>`case when ${payloadBytes} <= ${MAX_RECOVERY_JOURNAL_BYTES} then ${liveCaptureJournal.payload} else null end`,
       }).from(liveCaptureJournal).where(and(eq(liveCaptureJournal.captureEpoch, captureEpoch),
@@ -131,12 +132,12 @@ export async function replayLiveCaptureTail(captureEpoch: string): Promise<void>
           candidates.delete(decoded.candidateId); releaseCandidate(decoded.candidateId);
         } else {
           const payload = decoded;
-          const lap = await db.select({ lapNumber: laps.lapNumber, rawByteOffset: laps.rawByteOffset, rawFrameCount: laps.rawFrameCount })
+          const lap = await readDb.select({ lapNumber: laps.lapNumber, rawByteOffset: laps.rawByteOffset, rawFrameCount: laps.rawFrameCount })
             .from(laps).where(and(eq(laps.id, payload.lapId), eq(laps.sessionId, capture.sessionId))).get();
           let candidate: CandidateEntry | undefined;
           for (const value of candidates.values()) if (value.startByteOffset === payload.startByteOffset) { candidate = value; break; }
           if (!candidate && payload.startByteOffset < replayOffset) {
-            const committedRow = await db.select({ descriptor: liveCaptureMembers.descriptor }).from(liveCaptureMembers)
+            const committedRow = await readDb.select({ descriptor: liveCaptureMembers.descriptor }).from(liveCaptureMembers)
               .where(and(eq(liveCaptureMembers.captureEpoch, captureEpoch), eq(liveCaptureMembers.lapId, payload.lapId))).get();
             if (committedRow) {
               const committed = Schema.decodeUnknownSync(LiveArchiveMemberSchema)(JSON.parse(committedRow.descriptor));
@@ -162,15 +163,15 @@ export async function replayLiveCaptureTail(captureEpoch: string): Promise<void>
     }
   }
   const attempt = randomUUID();
-  const rotated = await db.update(liveCaptures).set({ attempt, status: "recording", error: null }).where(and(
+  const rotated = await withDatabaseWrite(() => db.update(liveCaptures).set({ attempt, status: "recording", error: null }).where(and(
     eq(liveCaptures.captureEpoch, captureEpoch), eq(liveCaptures.attempt, capture.attempt), eq(liveCaptures.status, "recovering"),
-  )).run();
+  )).run());
   if (rotated.rowsAffected !== 1) throw new Error("Live restart attempt was fenced");
   const identity: LiveCaptureIdentity = { sessionId: capture.sessionId, captureEpoch, attempt };
   let metadataWatermark = capture.metadataDurableWatermark;
   const advanceAuxiliaryWatermark = async (sourceByteEnd: number) => {
     if (sourceByteEnd <= metadataWatermark) return;
-    const unbound = await db.select({ id: laps.id }).from(laps)
+    const unbound = await readDb.select({ id: laps.id }).from(laps)
       .where(and(eq(laps.sessionId, capture.sessionId), isNull(laps.captureChunkId))).limit(1).get();
     if (unbound) throw new Error("Durable source tail has a persisted lap without authoritative ownership");
     if (!await persistLiveCaptureProgress(identity, {
@@ -266,9 +267,9 @@ export async function replayLiveCaptureTail(captureEpoch: string): Promise<void>
         sourceInfo.size < BigInt(capture.sourceDurableWatermark)) {
       throw new Error("Live restart source identity or durable length changed");
     }
-    const unowned = await db.select({ id: laps.id }).from(laps).where(and(
+    const unowned = await readDb.select({ id: laps.id }).from(laps).where(and(
       eq(laps.sessionId, capture.sessionId), isNull(laps.captureChunkId),
-      notExists(db.select({ sequence: liveCaptureJournal.sequence }).from(liveCaptureJournal).where(and(
+      notExists(readDb.select({ sequence: liveCaptureJournal.sequence }).from(liveCaptureJournal).where(and(
         eq(liveCaptureJournal.captureEpoch, captureEpoch),
         lte(liveCaptureJournal.sequence, capture.durableSequence),
         lte(liveCaptureJournal.sourceByteEnd, capture.metadataDurableWatermark),
@@ -385,7 +386,7 @@ export async function replayLiveCaptureTail(captureEpoch: string): Promise<void>
     }
     await flush();
     if (replayedRecordCount + replayOrdinal !== capture.sourceRecordCount) throw new Error("Replay source record count differs from durable canonical prefix");
-    await db.update(liveCaptures).set({ status: "finalizing", error: null }).where(and(eq(liveCaptures.captureEpoch, captureEpoch), eq(liveCaptures.attempt, attempt))).run();
+    await withDatabaseWrite(() => db.update(liveCaptures).set({ status: "finalizing", error: null }).where(and(eq(liveCaptures.captureEpoch, captureEpoch), eq(liveCaptures.attempt, attempt))).run());
     await sendControl("close-live", { sourceByteOffset: batchEnd });
     await Promise.race([sealed, failed]);
     await Promise.all(memberCommits);
@@ -393,8 +394,8 @@ export async function replayLiveCaptureTail(captureEpoch: string): Promise<void>
     await advanceAuxiliaryWatermark(capture.sourceDurableWatermark);
     await sealLiveCaptureMetadata(identity);
   } catch (error) {
-    await db.update(liveCaptures).set({ status: "failed", error: error instanceof Error ? error.message : String(error) })
-      .where(and(eq(liveCaptures.captureEpoch, captureEpoch), eq(liveCaptures.attempt, attempt))).run();
+    await withDatabaseWrite(() => db.update(liveCaptures).set({ status: "failed", error: error instanceof Error ? error.message : String(error) })
+      .where(and(eq(liveCaptures.captureEpoch, captureEpoch), eq(liveCaptures.attempt, attempt))).run());
     throw error;
   } finally {
     worker.off("message", onMessage);

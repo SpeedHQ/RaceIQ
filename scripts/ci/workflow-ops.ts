@@ -47,9 +47,10 @@ switch (operation) {
     run(["git", "worktree", "add", "--detach", join(env.RUNNER_TEMP!, "raceiq-base"), env.BASE_SHA!]);
     break;
   case "screenshot-current": {
+    run(["bun", "run", "build"], process.cwd(), { RACEIQ_FEATURE_F1_EXPERIMENTS: "true", RACEIQ_FEATURE_IRACING_ADAPTER: "true" });
     const status = Bun.spawnSync(["bun", "run", "../scripts/playwright-ci.ts", "test", "--config=responsive-screenshots.config.ts", `--shard=${env.SHARD}/4`], {
       cwd: "playwright",
-      env: { ...env, E2E_SERVER_MODE: "dev", PW_SCREENSHOT_WORKERS: "1", PW_SERVER_SET: "seeded", PW_SCREENSHOT_ONLY: "1", PW_SEED_SCREENSHOTS: "1", PW_SEED_GAMES: RESPONSIVE_SCREENSHOT_GAMES },
+      env: { ...env, E2E_SERVER_MODE: "compiled", RACEIQ_FEATURE_F1_EXPERIMENTS: "true", RACEIQ_FEATURE_IRACING_ADAPTER: "true", PW_SCREENSHOT_WORKERS: "1", PW_SERVER_SET: "seeded", PW_SCREENSHOT_ONLY: "1", PW_SEED_SCREENSHOTS: "1", PW_SEED_GAMES: RESPONSIVE_SCREENSHOT_GAMES },
       stdout: "inherit",
       stderr: "inherit",
     }).exitCode;
@@ -67,6 +68,7 @@ switch (operation) {
     const base = join(env.RUNNER_TEMP!, "raceiq-base");
     if (!existsSync(base)) throw new Error(`Base comparison worktree is missing: ${base}`);
     run(["bun", "install"], base);
+    run(["bun", "run", "build"], base, { RACEIQ_FEATURE_F1_EXPERIMENTS: "true", RACEIQ_FEATURE_IRACING_ADAPTER: "true" });
     // Compare both revisions with the same screenshot cases and selectors.
     cpSync(join(env.GITHUB_WORKSPACE!, "playwright/tests/responsive/mobile-screenshots.spec.ts"), join(base, "playwright/tests/responsive/mobile-screenshots.spec.ts"));
     const output = join(env.GITHUB_WORKSPACE!, "playwright/screenshots/mobile");
@@ -74,7 +76,7 @@ switch (operation) {
     mkdirSync(output, { recursive: true });
     const status = Bun.spawnSync(["bun", "run", "../scripts/playwright-ci.ts", "test", "--config=responsive-screenshots.config.ts", `--shard=${env.SHARD}/4`], {
       cwd: join(base, "playwright"),
-      env: { ...env, RACEIQ_SCREENSHOT_DIR: output, E2E_SERVER_MODE: "dev", PW_SCREENSHOT_WORKERS: "1", PW_SERVER_SET: "seeded", PW_SCREENSHOT_ONLY: "1", PW_SEED_SCREENSHOTS: "1", PW_SEED_GAMES: RESPONSIVE_SCREENSHOT_GAMES },
+      env: { ...env, RACEIQ_SCREENSHOT_DIR: output, E2E_SERVER_MODE: "compiled", RACEIQ_FEATURE_F1_EXPERIMENTS: "true", RACEIQ_FEATURE_IRACING_ADAPTER: "true", PW_SCREENSHOT_WORKERS: "1", PW_SERVER_SET: "seeded", PW_SCREENSHOT_ONLY: "1", PW_SEED_SCREENSHOTS: "1", PW_SEED_GAMES: RESPONSIVE_SCREENSHOT_GAMES },
       stdout: "inherit",
       stderr: "inherit",
     }).exitCode;

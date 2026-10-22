@@ -1,3 +1,4 @@
+import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
 import { beginRecordingStorageImport } from "./storage-activity";
 import { existsSync, unlinkSync } from "node:fs";
 import type { GameId } from "@raceiq/shared/games/ids";
@@ -28,6 +29,7 @@ export interface ImportedLap {
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
+  classification: LapClassification | null;
   carId: string;
   trackId: string;
 }
@@ -123,10 +125,11 @@ export class ImportCaptureAdapter implements DbAdapter {
     tuneId: number | null,
     invalidReason: string | null,
     sectors: number[] | null,
+    classification: LapClassification | null,
     versionIdentity?: TelemetryVersionIdentity,
   ): Promise<number> {
     const pending = this._inner.insertLap(
-      sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity
+      sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, classification, versionIdentity
     ).then((id) => {
       const meta = this._sessionMeta.get(sessionId);
       this.laps.push({
@@ -135,6 +138,7 @@ export class ImportCaptureAdapter implements DbAdapter {
         lapNumber,
         lapTime,
         isValid,
+        classification,
         carId: meta?.carId ?? "",
         trackId: meta?.trackId ?? "",
       });

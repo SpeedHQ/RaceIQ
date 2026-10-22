@@ -5,8 +5,9 @@ import type { SessionCleanupGameSummary, SessionCleanupPreview, SessionCleanupRe
 import { tryGetGame } from "@raceiq/shared/games/registry";
 import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
 import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
-import { db } from "../db/index";
+import { db, readDb } from "../db/index"
 import { dashboardSummaryState, laps, sessions, sessionCaptureSplitJobs, liveCaptures } from "../db/schema";
+import { withDatabaseWrite } from "../db/write-coordination";
 import { cacheDelete } from "../db/telemetry-replay-storage";
 import { isOwnedSessionRawFile } from "../db/session-queries";
 import { isSessionActive } from "../telemetry/live-pipeline";
@@ -69,19 +70,18 @@ async function loadRows(request: SessionCleanupRequest): Promise<{
   all: SessionRow[];
   favoriteSessions: Set<number>;
 }> {
-  const all = (await db
-    .select({
-      id: sessions.id,
-      createdAt: sessions.createdAt,
-      rawFile: sessions.rawFile,
-      captureLayoutVersion: sessions.captureLayoutVersion,
-      captureManifestFile: sessions.captureManifestFile,
-      captureArchiveFile: sessions.captureArchiveFile,
-      isFavorite: sessions.isFavorite,
-      gameId: sessions.gameId,
-      carId: sessions.carId,
-      trackId: sessions.trackId,
-    })
+  const all = (await readDb.select({
+    id: sessions.id,
+    createdAt: sessions.createdAt,
+    rawFile: sessions.rawFile,
+    captureLayoutVersion: sessions.captureLayoutVersion,
+    captureManifestFile: sessions.captureManifestFile,
+    captureArchiveFile: sessions.captureArchiveFile,
+    isFavorite: sessions.isFavorite,
+    gameId: sessions.gameId,
+    carId: sessions.carId,
+    trackId: sessions.trackId,
+  })
     .from(sessions)
     .all()) as SessionRow[];
 
@@ -89,8 +89,7 @@ async function loadRows(request: SessionCleanupRequest): Promise<{
   const cutoffMs = request.mode === "older-than" ? Date.now() - request.olderThanDays * 24 * 60 * 60 * 1000 : null;
   const requested = all.filter((row) => (ids ? ids.has(row.id) : Date.parse(row.createdAt) < cutoffMs!));
   const favoriteSessions = new Set<number>(all.filter((row) => row.isFavorite).map((row) => row.id));
-  const favoriteLaps = (await db
-    .select({ sessionId: laps.sessionId, isFavorite: laps.isFavorite })
+  const favoriteLaps = (await readDb.select({ sessionId: laps.sessionId, isFavorite: laps.isFavorite })
     .from(laps)
     .where(sql`${laps.isFavorite} = 1`)
     .all()) as LapFavoriteRow[];
@@ -114,7 +113,7 @@ async function fileState(rawFile: string): Promise<{ path: string; missing: bool
 
 async function unsharedBundleFiles(rows: SessionRow[]): Promise<{ files: string[]; bytes: number }> {
   const ids = new Set(rows.map((row) => row.id));
-  const external = (await db.select({ id: sessions.id, manifestFile: sessions.captureManifestFile, archiveFile: sessions.captureArchiveFile }).from(sessions).all())
+  const external = (await readDb.select({ id: sessions.id, manifestFile: sessions.captureManifestFile, archiveFile: sessions.captureArchiveFile }).from(sessions).all())
     .filter((row) => !ids.has(row.id) && (row.manifestFile != null || row.archiveFile != null));
   const candidates = new Set<string>();
   const externallyReferenced = new Set<string>();
@@ -157,14 +156,13 @@ async function buildGameSummaries(groups: CleanupGroup[]): Promise<SessionCleanu
   const candidateLaps =
     candidateIds.length === 0
       ? []
-      : await db
-          .select({
-            id: laps.id,
-            sessionId: laps.sessionId,
-            lapNumber: laps.lapNumber,
-            lapTime: laps.lapTime,
-            isValid: laps.isValid,
-          })
+      : await readDb.select({
+        id: laps.id,
+        sessionId: laps.sessionId,
+        lapNumber: laps.lapNumber,
+        lapTime: laps.lapTime,
+        isValid: laps.isValid,
+      })
           .from(laps)
           .where(inArray(laps.sessionId, candidateIds))
           .orderBy(laps.sessionId, laps.lapNumber)
@@ -203,12 +201,12 @@ async function buildGameSummaries(groups: CleanupGroup[]): Promise<SessionCleanu
 
 async function buildPlan(request: SessionCleanupRequest): Promise<CleanupPlan> {
   const { requested, all, favoriteSessions } = await loadRows(request);
-  const activeJobs = await db.select({ sessionId: sessionCaptureSplitJobs.sessionId })
+  const activeJobs = await readDb.select({ sessionId: sessionCaptureSplitJobs.sessionId })
     .from(sessionCaptureSplitJobs)
     .where(inArray(sessionCaptureSplitJobs.status, ["queued", "splitting", "verifying", "publishing"]))
     .all();
   const activeJobIds = new Set(activeJobs.map(({ sessionId }) => sessionId));
-  const liveJobs = await db.select({ sessionId: liveCaptures.sessionId }).from(liveCaptures)
+  const liveJobs = await readDb.select({ sessionId: liveCaptures.sessionId }).from(liveCaptures)
     .where(sql`${liveCaptures.status} IN ('recording', 'finalizing', 'recovering') OR (${liveCaptures.status} = 'failed' AND ${liveCaptures.committedArchiveLength} > 0)`).all();
   for (const { sessionId } of liveJobs) activeJobIds.add(sessionId);
   const protectedIds = new Set<number>(requested.filter((row) =>
@@ -270,13 +268,13 @@ async function buildPlan(request: SessionCleanupRequest): Promise<CleanupPlan> {
       continue;
     }
     if (!plannedKeys.has(key)) {
-      const lapRefs = await db.select({
+      const lapRefs = await readDb.select({
         id: laps.id,
         captureChunkId: laps.captureChunkId,
         sourceFrameStart: laps.sourceFrameStart,
         sourceFrameCount: laps.sourceFrameCount,
       }).from(laps).where(inArray(laps.sessionId, group.all.map((session) => session.id))).all();
-      const jobRefs = await db.select().from(sessionCaptureSplitJobs)
+      const jobRefs = await readDb.select().from(sessionCaptureSplitJobs)
         .where(inArray(sessionCaptureSplitJobs.sessionId, group.all.map((session) => session.id))).all();
       const bundle = await unsharedBundleFiles(group.all);
       const primaryIsBundleFile = group.all.some((session) =>
@@ -356,7 +354,7 @@ export async function previewSessionCleanup(request: SessionCleanupRequest): Pro
 }
 
 async function setRawFiles(values: SessionRow[], clear: boolean, lapRefs: LapCaptureRef[] = [], jobRefs: SplitJobRef[] = []): Promise<void> {
-  await db.transaction(async (tx) => {
+  await withDatabaseWrite(() => db.transaction(async (tx) => {
     for (const value of values) {
       await tx.update(sessions).set(clear
         ? { rawFile: null, captureLayoutVersion: null, captureManifestFile: null, captureArchiveFile: null }
@@ -370,16 +368,13 @@ async function setRawFiles(values: SessionRow[], clear: boolean, lapRefs: LapCap
       await tx.delete(sessionCaptureSplitJobs).where(inArray(sessionCaptureSplitJobs.sessionId, ids)).run();
     } else {
       for (const lap of lapRefs) {
-        await tx.update(laps).set({
-          captureChunkId: lap.captureChunkId,
-          sourceFrameStart: lap.sourceFrameStart,
-          sourceFrameCount: lap.sourceFrameCount,
-        }).where(eq(laps.id, lap.id)).run();
+        await tx.update(laps).set({ captureChunkId: lap.captureChunkId, sourceFrameStart: lap.sourceFrameStart, sourceFrameCount: lap.sourceFrameCount })
+          .where(eq(laps.id, lap.id)).run();
       }
       for (const job of jobRefs) await tx.insert(sessionCaptureSplitJobs).values(job).run();
     }
     await tx.update(dashboardSummaryState).set({ captureReady: 0 }).where(inArray(dashboardSummaryState.sessionId, ids)).run();
-  });
+  }));
   const ids = values.map(({ id }) => id);
   if (ids.length && !await republishPersistedDashboardCaptureFacts(ids)) {
     for (const sessionId of ids) await releaseDashboardCaptureCheckpoint(sessionId);
@@ -392,7 +387,7 @@ async function restoreGroup(group: CleanupGroup): Promise<void> {
 
 async function evictGroupCaches(group: CleanupGroup): Promise<void> {
   const ids = group.rows.map((row) => row.id);
-  const lapRows = await db.select({ id: laps.id }).from(laps).where(inArray(laps.sessionId, ids)).all();
+  const lapRows = await readDb.select({ id: laps.id }).from(laps).where(inArray(laps.sessionId, ids)).all();
   for (const lap of lapRows) cacheDelete(lap.id);
   const rawFiles = new Set(group.rows.map((row) => row.rawFile).filter((rawFile): rawFile is string => rawFile != null));
   rawFiles.add(group.path);

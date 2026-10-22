@@ -33,14 +33,19 @@ test("confirmed cleanup removes disposable capture while preserving session and 
     const sessionIds = disposable.sessionIds;
     await waitForCleanupEligibility(request, sessionIds);
     const lapIds = disposable.lapIds;
-    // Import now publishes per-lap files and a manifest as well as the retained
-    // source. Wait for that publication before taking an independent disk count.
+    // Imported captures are protected while their real per-lap split is still publishing.
     await expect.poll(async () => {
-      const owned = (await sessionsFor(request, "fm-2023")).filter((session) => sessionIds.includes(session.id));
-      return owned.length === sessionIds.length && owned.every((session) => session.captureSplit?.phase === "ready");
-    }, { timeout: 60_000 }).toBe(true);
-    const captures = captureFiles(capturesDir).filter((path) => !capturesBefore.has(path));
-    expect(captures.length, "import creates disposable capture files").toBeGreaterThan(0);
+      const response = await request.post("/api/storage/session-cleanup/preview", {
+        data: { mode: "selected", sessionIds },
+      });
+      expect(response.ok()).toBe(true);
+      const preview = await response.json() as SessionCleanupPreview;
+      return [...preview.candidateSessionIds].sort((a, b) => a - b);
+    }, { timeout: 60_000 }).toEqual([...sessionIds].sort((a, b) => a - b));
+ const captures = captureFiles(capturesDir).filter(
+  (path) => !capturesBefore.has(path),
+);
+expect(captures.length, "import creates disposable capture files").toBeGreaterThan(0);
     const bytes = captures.reduce((total, path) => total + statSync(path).size, 0);
     expect(bytes).toBeGreaterThan(0);
 

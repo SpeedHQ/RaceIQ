@@ -68,6 +68,11 @@ function IdentityQueries({ trackId, carId }: { trackId: number | string; carId: 
   return null;
 }
 
+function TrackOutlineQuery({ trackId }: { trackId: string }) {
+  useTrackOutline(trackId);
+  return null;
+}
+
 describe("LMU Hono identity requests", () => {
   test("routes slash-containing layouts and exact native car keys as single path parameters", async () => {
     const trackId = "spa_2023/spawec";
@@ -86,6 +91,17 @@ describe("LMU Hono identity requests", () => {
         `/api/track-boundaries/${encodeURIComponent(trackId)}`,
       ].sort());
       expect(urls.every((url) => url.searchParams.get("gameId") === "lmu")).toBe(true);
+    });
+  });
+
+  test("does not request an outline for an ambiguous LMU display name", async () => {
+    const trackId = "Circuit de Spa-Francorchamps";
+    await withIdentityRoutes(trackId, "ferrari_499p_2023", async ({ queries, urls, render }) => {
+      render(createElement(TrackOutlineQuery, { trackId }));
+      const [outlineQuery] = queries.getQueryCache().getAll();
+      expect(outlineQuery).toBeDefined();
+      expect(await outlineQuery!.fetch()).toEqual([]);
+      expect(urls).toEqual([]);
     });
   });
 

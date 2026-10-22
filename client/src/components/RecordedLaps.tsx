@@ -1,9 +1,14 @@
+import { isPaceLap } from "@raceiq/shared/racing/lap-classification";
 import { useNavigate } from "@tanstack/react-router";
 import { m } from "@/paraglide/messages";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
-import { storedLapsSectorCount, validLapBests } from "../lib/lap-sectors";
+import { storedLapsSectorCount } from "../lib/lap-sectors";
 import { useGameRoute } from "../stores/game";
 import { Button } from "./ui/button";
+
+function isEligiblePaceLap(lap: LapMeta): boolean {
+  return lap.isValid && Number.isFinite(lap.lapTime) && lap.lapTime > 0 && isPaceLap(lap.classification) && !lap.experimentExcluded;
+}
 
 function formatLapTime(seconds: number): string {
   if (seconds <= 0) return "-:--.---";
@@ -30,7 +35,13 @@ export function RecordedLaps({ laps, trackId, maxLaps = 15 }: RecordedLapsProps)
   const sectorLabels = Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`);
   const gridTemplateColumns = sectorCount > 0 ? `auto repeat(${sectorCount}, minmax(0,1fr)) minmax(0,1fr) auto auto` : "auto minmax(0,1fr) auto auto";
 
-  const { lapTime: best, sectors: bestSectors } = validLapBests(filteredLaps, sectorCount);
+  const paceLaps = filteredLaps.filter(isEligiblePaceLap);
+  const best = paceLaps.length > 0 ? Math.min(...paceLaps.map((l) => l.lapTime)) : 0;
+
+  const bestSectors = Array.from({ length: sectorCount }, (_, index) => {
+    const times = paceLaps.map((lap) => lap.sectorTimes?.[index] ?? 0).filter((time) => Number.isFinite(time) && time > 0);
+    return times.length > 0 ? Math.min(...times) : 0;
+  });
 
   const sectorColor = (time: number, bestTime: number) => {
     if (time <= 0) return "text-app-text-dim";
@@ -62,9 +73,10 @@ export function RecordedLaps({ laps, trackId, maxLaps = 15 }: RecordedLapsProps)
           </div>
           <div className="divide-y divide-app-border/30">
             {sorted.map((l) => {
-              const delta = l.lapTime - best;
-              const isBest = l.isValid && best > 0 && delta === 0;
-              const timeColor = !l.isValid || best === 0 ? "text-app-text-dim" : isBest ? "text-(--lap-pace-best)" : delta < 0.5 ? "text-(--lap-pace-on-target)" : delta < 1.5 ? "text-app-text" : "text-(--lap-pace-off-target)";
+              const eligible = isEligiblePaceLap(l);
+              const delta = eligible && best > 0 ? l.lapTime - best : null;
+              const isBest = delta === 0;
+              const timeColor = isBest ? "text-(--lap-pace-best)" : delta != null && delta < 0.5 ? "text-(--lap-pace-on-target)" : delta != null && delta < 1.5 ? "text-app-text" : "text-(--lap-pace-off-target)";
               return (
                 <div key={l.id} className="grid gap-x-2 px-3 py-1.5 items-center" style={{ gridTemplateColumns }}>
                   <span
@@ -77,13 +89,13 @@ export function RecordedLaps({ laps, trackId, maxLaps = 15 }: RecordedLapsProps)
                   {sectorLabels.map((label, index) => {
                     const time = l.sectorTimes?.[index] ?? 0;
                     return (
-                      <span key={label} className={`text-sm font-mono tabular-nums text-right ${l.isValid ? sectorColor(time, bestSectors[index]) : "text-app-text-dim"}`}>
+                      <span key={label} className={`text-sm font-mono tabular-nums text-right ${eligible ? sectorColor(time, bestSectors[index]) : "text-app-text-secondary"}`}>
                         {time > 0 ? time.toFixed(3) : "—"}
                       </span>
                     );
                   })}
                   <span className={`text-base font-mono font-bold tabular-nums text-right ${timeColor}`}>{formatLapTime(l.lapTime)}</span>
-                  <span className="text-xs text-app-text-dim font-mono tabular-nums text-right w-14">{!l.isValid || best === 0 ? "—" : isBest ? "PB" : `+${delta.toFixed(3)}`}</span>
+                  <span className="text-xs text-app-text-dim font-mono tabular-nums text-right w-14">{delta == null ? "—" : isBest ? "PB" : `+${delta.toFixed(3)}`}</span>
                   <div className="flex items-center w-16 justify-end">
                     <Button
                       disabled={l.sessionId == null}

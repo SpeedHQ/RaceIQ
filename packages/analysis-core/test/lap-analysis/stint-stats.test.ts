@@ -56,29 +56,25 @@ const lap = (overrides: Partial<LapMeta> = {}): LapMeta => ({
   lapNumber: 1,
   lapTime: 100,
   isValid: true,
+  classification: null,
   createdAt: "2026-01-01T00:00:00.000Z",
   ...overrides,
 });
 
 describe("stintStats", () => {
-  test("preserves valid, excluded, and out-lap curation", () => {
+  test("uses explicit category instead of dropping the lowest lap ordinal", () => {
     const result = stintStats([
       lap({ id: 1, lapNumber: 1, lapTime: 90 }),
       lap({ id: 2, lapNumber: 2, lapTime: 100 }),
       lap({ id: 3, lapNumber: 3, lapTime: 110, isValid: false }),
       lap({ id: 4, lapNumber: 4, lapTime: 120, experimentExcluded: true }),
       lap({ id: 5, lapNumber: 5, lapTime: 105 }),
+      lap({ id: 6, lapNumber: 6, lapTime: 80, classification: "out_lap" }),
     ]);
 
-    expect(result.n).toBe(2);
-    expect(result.bestS).toBe(100);
-    expect(result.meanS).toBe(102.5);
-    expect(result.sdS).toBeCloseTo(2.5);
-    expect(result.consistency).toBeCloseTo(31.70731707);
-    expect(result.degSlopeSPerLap).toBeUndefined();
+    expect(result.n).toBe(3);
+    expect(result.bestS).toBe(90);
+    expect(result.meanS).toBeCloseTo(98.333333);
   });
 
-  test("keeps curated pools intact when out-lap dropping is disabled", () => {
-    expect(stintStats([lap({ lapNumber: 7, lapTime: 100 }), lap({ id: 2, lapNumber: 8, lapTime: 110 })], { dropOutLap: false }).n).toBe(2);
-  });
 });

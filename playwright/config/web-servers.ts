@@ -30,6 +30,7 @@ function serverDefinition(runtime: E2ERuntime, ports: ServerPorts, seeded: boole
     if (runtime.appRoot) env.RACEIQ_APP_ROOT = runtime.appRoot;
   }
   if (seeded) {
+    env.PW_SKIP_STARTUP_SPLIT_MIGRATION = "1";
     env.PW_SEED_SCREENSHOTS = "1";
     env.RACEIQ_FEATURE_IRACING_ADAPTER = "true";
     env.PW_SEED_GAMES = DEFAULT_GAMES.join(",");

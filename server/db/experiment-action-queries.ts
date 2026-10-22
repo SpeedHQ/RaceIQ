@@ -8,7 +8,8 @@
  * full-session depth stays cheap.
  */
 import { and, desc, eq } from "drizzle-orm";
-import { db } from "./index";
+import { db, readDb } from "./index"
+import { withDatabaseWrite } from "./write-coordination";
 import { experimentActions } from "./schema";
 
 /** The mutating op kinds the log records. Matches the Phase 9 design list. */
@@ -44,7 +45,7 @@ export async function recordAction(
   kind: ExperimentActionKind,
   inversePayload: unknown,
 ): Promise<number> {
-  const result = await db
+  const result = await withDatabaseWrite(() => db
     .insert(experimentActions)
     .values({
       experimentId,
@@ -52,7 +53,7 @@ export async function recordAction(
       inversePayload: inversePayload == null ? null : JSON.stringify(inversePayload),
     })
     .returning({ id: experimentActions.id })
-    .get();
+    .get());
   return result.id;
 }
 
@@ -64,8 +65,7 @@ export async function listActions(
   const where = onlyPending
     ? and(eq(experimentActions.experimentId, experimentId), eq(experimentActions.undone, false))
     : eq(experimentActions.experimentId, experimentId);
-  const rows = await db
-    .select()
+  const rows = await readDb.select()
     .from(experimentActions)
     .where(where)
     .orderBy(desc(experimentActions.id))
@@ -82,7 +82,7 @@ export async function listActions(
 
 /** Flip an action's `undone` flag (idempotent — undo marks after reversing). */
 export async function markUndone(actionId: number): Promise<void> {
-  await db.update(experimentActions).set({ undone: true }).where(eq(experimentActions.id, actionId)).run();
+  await withDatabaseWrite(() => db.update(experimentActions).set({ undone: true }).where(eq(experimentActions.id, actionId)).run());
 }
 
 function safeParse(json: string): unknown {

@@ -22,6 +22,7 @@ import { resolve } from "node:path";
 
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
+import { initMotecTargets } from "../../src/games/motec-init";
 import { loadCenterline } from "@raceiq/shared/racing/tracks/curation/generate";
 import { getAcEvoTrackByLegacyName } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
 import { parseLd } from "@raceiq/backend-core/motec/ld";
@@ -39,6 +40,7 @@ import { writeOverlaySvg } from "@raceiq/backend-core/test-support/motec/overlay
 
 initGameAdapters();
 initServerGameAdapters();
+initMotecTargets();
 
 const OUTPUT_DIR = resolve(ROOT_DIR, "test/e2e/output/motec-reconstruction");
 rmSync(OUTPUT_DIR, { recursive: true, force: true });
@@ -75,10 +77,11 @@ function deviations(reference: Point[], reconstructed: Point[]): number[] {
   return reconstructed.map((r) => {
     let best = Infinity;
     for (const ref of reference) {
-      const d = Math.hypot(ref.x - r.x, ref.z - r.z);
+      const dx = ref.x - r.x, dz = ref.z - r.z;
+      const d = dx * dx + dz * dz;
       if (d < best) best = d;
     }
-    return best;
+    return Math.sqrt(best);
   });
 }
 
