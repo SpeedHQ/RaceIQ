@@ -6,11 +6,13 @@ import {
 } from "./layout";
 import type { LmuLiveContext } from "@raceiq/shared/telemetry/lmu";
 import { decodeLmuContext, encodeLmuContext } from "@raceiq/shared/telemetry/lmu-context";
+import { decodeLMUPartitionPrimary, isLMUPartitionPrimary } from "./partition";
 
 export const LMU_SOURCE_FRAME_MAGIC = Buffer.from("RQLMUSF\0", "ascii");
 export const LMU_SOURCE_SCHEMA_VERSION_V2 = 2;
 export const LMU_SOURCE_SCHEMA_VERSION = 3;
 export const LMU_SOURCE_SCHEMA_VERSION_SYNTHETIC = 4;
+export const LMU_SOURCE_SCHEMA_VERSION_PARTITION = 5;
 export const LMU_SOURCE_FRAME_HEADER_SIZE = 28;
 export const LMU_SOURCE_FRAME_SIZE = LMU_SOURCE_FRAME_HEADER_SIZE + LMU_TELEMETRY_INFO_SIZE + LMU_SCORING_INFO_SIZE + LMU_SCORING_VEHICLE_SIZE;
 export const LMU_SOURCE_FRAME_V2_SIZE = LMU_SOURCE_FRAME_HEADER_SIZE + LMU_SHARED_MEMORY_SIZE;
@@ -27,7 +29,7 @@ const SCORING_INFO_PAYLOAD_OFFSET = TELEMETRY_PAYLOAD_OFFSET + LMU_TELEMETRY_INF
 const SCORING_VEHICLE_PAYLOAD_OFFSET = SCORING_INFO_PAYLOAD_OFFSET + LMU_SCORING_INFO_SIZE;
 
 export interface LMUSourceFrame {
-  schemaVersion: 1 | 2 | 3 | 4;
+  schemaVersion: 1 | 2 | 3 | 4 | 5;
   gameVersion: number;
   sessionEvent: number;
   captureTimestampMs: number;
@@ -135,13 +137,27 @@ export function encodeLMUSourceFrame(memory: Buffer, captureTimestampMs: number,
   const player = findPlayerScoringOffset(memory, telemetryId);
   const context = options.context;
   if (context && (context.playerVehicleId !== telemetryId || player === null)) return null;
+  return encodeFullLMUFrame(memory, captureTimestampMs, player !== null, context);
+}
+
+/** Scoring-only capture never impersonates a player telemetry record. */
+export function encodeLMUScoringSourceFrame(memory: Buffer, captureTimestampMs: number, options: { context: LmuLiveContext }): Buffer | null {
+  if (memory.length < LMU_SHARED_MEMORY_SIZE || !Number.isFinite(captureTimestampMs) || captureTimestampMs < 0 ||
+      memory.readUInt8(LMU_TELEMETRY_HEADER_OFFSET + 2) || options.context.playerVehicleId !== null ||
+      options.context.status !== "active" || !options.context.competitors) return null;
+  const count = memory.readInt32LE(LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.numberOfVehicles);
+  if (count < 0 || count > LMU_MAX_VEHICLES || memory.readUInt8(LMU_TELEMETRY_HEADER_OFFSET) > LMU_MAX_VEHICLES) return null;
+  return encodeFullLMUFrame(memory, captureTimestampMs, false, options.context);
+}
+
+function encodeFullLMUFrame(memory: Buffer, captureTimestampMs: number, hasScoring: boolean, context?: LmuLiveContext): Buffer {
   const metadata = context ? Buffer.from(JSON.stringify(encodeLmuContext(context)), "utf8") : undefined;
   const size = LMU_SOURCE_FRAME_V2_SIZE + (metadata ? CONTEXT_LENGTH_SIZE + metadata.length : 0);
   if (size > LMU_MAX_SOURCE_FRAME_SIZE) throw new RangeError("LMU context exceeds capture frame limit");
   const frame = Buffer.allocUnsafe(size);
   LMU_SOURCE_FRAME_MAGIC.copy(frame);
   frame.writeUInt16LE(context ? LMU_SOURCE_SCHEMA_VERSION : LMU_SOURCE_SCHEMA_VERSION_V2, 8);
-  frame.writeUInt16LE(player === null ? 0 : FLAG_HAS_SCORING, 10);
+  frame.writeUInt16LE(hasScoring ? FLAG_HAS_SCORING : 0, 10);
   frame.writeInt32LE(memory.readInt32LE(LMU_GAME_VERSION_OFFSET), 12);
   frame.writeUInt32LE(memory.readUInt32LE(LMU_SESSION_EVENT_OFFSET), 16);
   frame.writeDoubleLE(captureTimestampMs, 20);
@@ -156,6 +172,7 @@ export function encodeLMUSourceFrame(memory: Buffer, captureTimestampMs: number,
 export function canHandleLMUSourceFrame(buffer: Buffer): boolean {
   if (buffer.length < LMU_SOURCE_FRAME_HEADER_SIZE || buffer.length > LMU_MAX_SOURCE_FRAME_SIZE || !buffer.subarray(0, LMU_SOURCE_FRAME_MAGIC.length).equals(LMU_SOURCE_FRAME_MAGIC)) return false;
   const version = buffer.readUInt16LE(8);
+  if (version === 5) return isLMUPartitionPrimary(buffer);
   if (version === 1) return buffer.length === LMU_SOURCE_FRAME_SIZE;
   if (version === 2) return buffer.length === LMU_SOURCE_FRAME_V2_SIZE;
   if (version === 4) {
@@ -167,6 +184,7 @@ export function canHandleLMUSourceFrame(buffer: Buffer): boolean {
 
 export function decodeLMUSourceFrame(buffer: Buffer): LMUSourceFrame | LMUSourceFrameV2 | LMUSourceFrameV3 | LMUSourceFrameV4 | null {
   if (!canHandleLMUSourceFrame(buffer)) return null;
+  if (buffer.readUInt16LE(8) === 5) return decodeLMUPartitionPrimary(buffer);
   const captureTimestampMs = buffer.readDoubleLE(20);
   if (!Number.isFinite(captureTimestampMs) || captureTimestampMs < 0) return null;
   const schemaVersion = buffer.readUInt16LE(8) as 1 | 2 | 3 | 4;
@@ -199,13 +217,18 @@ export function decodeLMUSourceFrame(buffer: Buffer): LMUSourceFrame | LMUSource
   if (rawSharedMemory) {
     const count = rawSharedMemory.readUInt8(LMU_TELEMETRY_HEADER_OFFSET);
     const slot = rawSharedMemory.readUInt8(LMU_TELEMETRY_HEADER_OFFSET + 1);
-    if (count < 1 || count > LMU_MAX_VEHICLES || slot >= count || !rawSharedMemory.readUInt8(LMU_TELEMETRY_HEADER_OFFSET + 2)) return null;
-    telemetryOffset = LMU_TELEMETRY_INFO_OFFSET + slot * LMU_TELEMETRY_INFO_SIZE;
+    if (!rawSharedMemory.readUInt8(LMU_TELEMETRY_HEADER_OFFSET + 2)) {
+      if (count > LMU_MAX_VEHICLES || !lmuContext || lmuContext.playerVehicleId !== null || !lmuContext.competitors) return null;
+      telemetryOffset = -1;
+    } else {
+      if (count < 1 || count > LMU_MAX_VEHICLES || slot >= count) return null;
+      telemetryOffset = LMU_TELEMETRY_INFO_OFFSET + slot * LMU_TELEMETRY_INFO_SIZE;
+    }
   }
   const native = rawSharedMemory ?? buffer;
-  const telemetry = native.subarray(telemetryOffset, telemetryOffset + LMU_TELEMETRY_INFO_SIZE);
-  const playerOffset = rawSharedMemory ? findPlayerScoringOffset(rawSharedMemory, telemetry.readInt32LE(LMU_TELEMETRY.id)) : null;
-  if (lmuContext && (playerOffset === null || lmuContext.playerVehicleId !== telemetry.readInt32LE(LMU_TELEMETRY.id))) return null;
+  const telemetry = telemetryOffset < 0 ? native.subarray(0, 0) : native.subarray(telemetryOffset, telemetryOffset + LMU_TELEMETRY_INFO_SIZE);
+  const playerOffset = rawSharedMemory && telemetry.length ? findPlayerScoringOffset(rawSharedMemory, telemetry.readInt32LE(LMU_TELEMETRY.id)) : null;
+  if (lmuContext && lmuContext.playerVehicleId !== null && (playerOffset === null || !telemetry.length || lmuContext.playerVehicleId !== telemetry.readInt32LE(LMU_TELEMETRY.id))) return null;
   return {
     schemaVersion, gameVersion: buffer.readInt32LE(12), sessionEvent: buffer.readUInt32LE(16), captureTimestampMs, telemetry,
     scoringInfo: rawSharedMemory ? rawSharedMemory.subarray(LMU_SCORING_INFO_OFFSET, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO_SIZE) : buffer.subarray(SCORING_INFO_PAYLOAD_OFFSET, SCORING_VEHICLE_PAYLOAD_OFFSET),

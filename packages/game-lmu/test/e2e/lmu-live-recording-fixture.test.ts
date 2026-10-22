@@ -83,6 +83,7 @@ async function readSamples(combinedPath: string): Promise<Sample[]> {
     const frame = decodeLMUSourceFrame(frameBytes);
     if (!frame) throw new Error(`LMU fixture frame ${index} failed to decode`);
     const packet = normalizeLMUSourceFrame(frame);
+    if (!packet) throw new Error(`LMU fixture frame ${index} has no player telemetry`);
     const nativeWear = [0, 1, 2, 3].map((wheel) =>
       frame.telemetry.readDoubleLE(
         LMU_TELEMETRY.wheels + wheel * LMU_WHEEL_SIZE + LMU_WHEEL.wear,

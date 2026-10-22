@@ -1,5 +1,6 @@
 import { isLmuRestValue, LMU_REST_CHANNELS, type LmuRestSemanticId } from "./lmu-rest-channels";
-import type { LmuLiveContext } from "./lmu";
+import type { LmuCompetitor, LmuLiveContext } from "./lmu";
+import { TELEMETRY_CATALOG } from "./catalog/data";
 import type { LmuSupplementalObservation } from "./lmu-supplemental";
 import type { ResolutionProvenance, ResolvedValue, TelemetryTimestamp } from "./resolver/contracts";
 import type { TelemetryPacket } from "./types";
@@ -13,13 +14,21 @@ export interface LmuObservationWire extends Omit<LmuSupplementalObservation, "ac
   acquiredAt: LmuTimestampWire;
   observation: Omit<ResolvedValue<unknown>, "provenance"> & { provenance: LmuProvenanceWire };
 }
-export interface LmuLiveContextWire extends Omit<LmuLiveContext, "key" | "supplemental"> {
+export interface LmuResolvedValueWire<T = unknown> extends Omit<ResolvedValue<T>, "provenance"> {
+  provenance: LmuProvenanceWire;
+}
+export interface LmuCompetitorWire extends Omit<LmuCompetitor, "channels"> {
+  channels: Readonly<Record<string, LmuResolvedValueWire>>;
+}
+export interface LmuLiveContextWire extends Omit<LmuLiveContext, "key" | "supplemental" | "competitors"> {
   key: { sessionKey: string; captureSequence: string; frameTime: LmuTimestampWire };
   supplemental: readonly LmuObservationWire[];
+  competitors?: readonly LmuCompetitorWire[];
 }
 const decimal = /^(0|[1-9][0-9]{0,39})$/;
 const STATES = ["ok", "missing", "stale", "invalid", "not-applicable", "error"];
 const MAPPINGS = ["direct", "normalized", "derived", "simplified", "unavailable"];
+const TELEMETRY_SEMANTIC_IDS = new Set<string>(TELEMETRY_CATALOG.variables.map((definition) => definition.id));
 function record(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
@@ -50,14 +59,65 @@ function validObservation(value: unknown): value is LmuObservationWire {
   const source = p.sourceObservation;
   return source === undefined || record(source) && timestamp(source.timestamp) && typeof source.updateSequence === "string" && decimal.test(source.updateSequence);
 }
+function jsonSafe(value: unknown, depth = 0): boolean {
+  if (depth > 12) return false;
+  if (value === null || typeof value === "string" || typeof value === "boolean") return true;
+  if (typeof value === "number") return Number.isFinite(value);
+  if (Array.isArray(value)) return value.length <= 256 && value.every((item) => jsonSafe(item, depth + 1));
+  if (!record(value)) return false;
+  const entries = Object.entries(value);
+  return entries.length <= 128 && entries.every(([key, item]) => key.length > 0 && key.length <= 256 && jsonSafe(item, depth + 1));
+}
+function validCompetitorChannel(value: unknown): value is LmuResolvedValueWire {
+  if (!record(value) || typeof value.semanticId !== "string" || value.semanticId.length > 256 || !TELEMETRY_SEMANTIC_IDS.has(value.semanticId) ||
+      (typeof value.unit !== "string" && value.unit !== null) ||
+      typeof value.state !== "string" || !STATES.includes(value.state) ||
+      typeof value.mappingStatus !== "string" || !MAPPINGS.includes(value.mappingStatus) ||
+      !["fresh", "stale", "unknown"].includes(String(value.freshness)) ||
+      typeof value.schemaVersion !== "string" || !Array.isArray(value.limitations) ||
+      value.limitations.length > 32 || !value.limitations.every((item) => typeof item === "string" && item.length <= 4096) ||
+      (value.confidence !== null && !fraction(value.confidence)) || !record(value.confidenceComponents)) return false;
+  const c = value.confidenceComponents;
+  if (!fraction(c.semanticFidelity) || !fraction(c.inputCompleteness) || (c.freshness !== null && !fraction(c.freshness)) ||
+      (c.derivationReliability !== undefined && !fraction(c.derivationReliability))) return false;
+  if (value.state === "ok" ? value.value === null || !jsonSafe(value.value) : value.value !== null) return false;
+  const p = value.provenance;
+  if (!record(p) || p.simulator !== "lmu" || !timestamp(p.observedAt) ||
+      !["parserId", "parserVersion", "resolverVersion", "catalogVersion", "catalogHash"].every((key) => typeof p[key] === "string" && (p[key] as string).length > 0)) return false;
+  if ((p.sourceChannel !== undefined && typeof p.sourceChannel !== "string") || (p.sourceUnit !== undefined && typeof p.sourceUnit !== "string")) return false;
+  if (p.derivation !== undefined && (!record(p.derivation) || !["id", "version", "codeHash"].every((key) => typeof (p.derivation as Record<string, unknown>)[key] === "string"))) return false;
+  const source = p.sourceObservation;
+  return source === undefined || record(source) && timestamp(source.timestamp) && typeof source.updateSequence === "string" && decimal.test(source.updateSequence);
+}
+function validCompetitor(value: unknown): value is LmuCompetitorWire {
+  if (!record(value) || !Number.isSafeInteger(value.vehicleId) || (value.vehicleId as number) < 0 ||
+      !Number.isSafeInteger(value.incarnation) || (value.incarnation as number) < 0 ||
+      typeof value.isPlayer !== "boolean" || !record(value.channels)) return false;
+  const channels = Object.entries(value.channels);
+  return channels.length <= 256 && channels.every(([id, channel]) => record(channel) && id === channel.semanticId && validCompetitorChannel(channel));
+}
 export function isLmuLiveContextWire(value: unknown): value is LmuLiveContextWire {
-  if (!record(value) || value.schemaVersion !== 1 || !record(value.key) || Object.hasOwn(value, "competitors")) return false;
+  if (!record(value) || value.schemaVersion !== 1 || !record(value.key)) return false;
   const key = value.key;
   if (typeof key.sessionKey !== "string" || !key.sessionKey || key.sessionKey.length > 2048 || typeof key.captureSequence !== "string" || !decimal.test(key.captureSequence) || !timestamp(key.frameTime)) return false;
   if (value.status !== "active" && value.status !== "unavailable") return false;
   if (value.playerVehicleId !== null && (typeof value.playerVehicleId !== "number" || !Number.isSafeInteger(value.playerVehicleId) || value.playerVehicleId < 0)) return false;
-  if (value.status === "active" && value.playerVehicleId === null) return false;
+  if (value.status === "active" && value.playerVehicleId === null && value.competitors === undefined) return false;
   if (!Array.isArray(value.supplemental) || value.supplemental.length > Object.keys(LMU_REST_CHANNELS).length) return false;
+  if (value.competitors !== undefined) {
+    if (!Array.isArray(value.competitors) || value.competitors.length > 104) return false;
+    const competitorIds = new Set<number>();
+    let players = 0;
+    for (const competitor of value.competitors) {
+      if (!validCompetitor(competitor) || competitorIds.has(competitor.vehicleId)) return false;
+      competitorIds.add(competitor.vehicleId);
+      if (competitor.isPlayer) {
+        players++;
+        if (competitor.vehicleId !== value.playerVehicleId) return false;
+      }
+    }
+    if (players > 1 || (value.playerVehicleId === null ? players !== 0 : players !== 1)) return false;
+  }
   const ids = new Set<string>();
   return value.supplemental.every((item: unknown) => {
     if (!validObservation(item) || item.sessionKey !== key.sessionKey || (item.applicability === "player-vehicle" && item.vehicleId !== value.playerVehicleId) || ids.has(item.semanticId)) return false;
@@ -71,13 +131,32 @@ function encodeTimestamp(value: TelemetryTimestamp): LmuTimestampWire {
 function decodeTimestamp(value: LmuTimestampWire): TelemetryTimestamp {
   return value.domain === "monotonic" ? { domain: "monotonic", nanoseconds: BigInt(value.nanoseconds) } : value;
 }
+export function encodeLmuResolvedValue<T>(value: ResolvedValue<T>): LmuResolvedValueWire<T> {
+  const provenance = value.provenance;
+  const { sourceObservation, ...rest } = provenance;
+  return { ...value, provenance: { ...rest, observedAt: encodeTimestamp(provenance.observedAt), ...(sourceObservation ? { sourceObservation: { timestamp: encodeTimestamp(sourceObservation.timestamp), updateSequence: sourceObservation.updateSequence.toString() } } : {}) } };
+}
+function encodeCompetitor(value: LmuCompetitor): LmuCompetitorWire {
+  const channels: Record<string, LmuResolvedValueWire> = {};
+  for (const [id, channel] of Object.entries(value.channels)) channels[id] = encodeLmuResolvedValue(channel);
+  return { ...value, channels };
+}
+function decodeCompetitor(value: LmuCompetitorWire): LmuCompetitor {
+  const channels: Record<string, ResolvedValue<unknown>> = {};
+  for (const [id, channel] of Object.entries(value.channels)) {
+    const { sourceObservation, ...rest } = channel.provenance;
+    channels[id] = { ...channel, provenance: { ...rest, observedAt: decodeTimestamp(channel.provenance.observedAt), ...(sourceObservation ? { sourceObservation: { timestamp: decodeTimestamp(sourceObservation.timestamp), updateSequence: BigInt(sourceObservation.updateSequence) } } : {}) } };
+  }
+  return { ...value, channels };
+}
 export function encodeLmuContext(value: LmuLiveContext): LmuLiveContextWire {
   const supplemental = value.supplemental.map((entry): LmuObservationWire => {
     const p = entry.observation.provenance;
     const { sourceObservation, ...provenance } = p;
     return { ...entry, acquiredAt: encodeTimestamp(entry.acquiredAt), observation: { ...entry.observation, provenance: { ...provenance, observedAt: encodeTimestamp(p.observedAt), ...(sourceObservation ? { sourceObservation: { timestamp: encodeTimestamp(sourceObservation.timestamp), updateSequence: sourceObservation.updateSequence.toString() } } : {}) } } };
   });
-  const wire: LmuLiveContextWire = { ...value, key: { ...value.key, frameTime: encodeTimestamp(value.key.frameTime) }, supplemental };
+  const { competitors, ...context } = value;
+  const wire: LmuLiveContextWire = { ...context, key: { ...value.key, frameTime: encodeTimestamp(value.key.frameTime) }, supplemental, ...(competitors ? { competitors: competitors.map(encodeCompetitor) } : {}) };
   if (!isLmuLiveContextWire(wire)) throw new TypeError("Invalid LMU live context");
   return wire;
 }
@@ -88,7 +167,8 @@ export function decodeLmuContext(value: unknown): LmuLiveContext | null {
     const { sourceObservation, ...provenance } = p;
     return { ...entry, acquiredAt: decodeTimestamp(entry.acquiredAt), observation: { ...entry.observation, provenance: { ...provenance, observedAt: decodeTimestamp(p.observedAt), ...(sourceObservation ? { sourceObservation: { timestamp: decodeTimestamp(sourceObservation.timestamp), updateSequence: BigInt(sourceObservation.updateSequence) } } : {}) } } };
   });
-  return { ...value, key: { ...value.key, frameTime: decodeTimestamp(value.key.frameTime) }, supplemental };
+  const { competitors, ...context } = value;
+  return { ...context, key: { ...value.key, frameTime: decodeTimestamp(value.key.frameTime) }, supplemental, ...(competitors ? { competitors: competitors.map(decodeCompetitor) } : {}) };
 }
 
 export type LmuPacketWire = Omit<TelemetryPacket, "lmuContext"> & { lmuContext?: LmuLiveContextWire };

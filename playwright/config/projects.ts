@@ -12,6 +12,9 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
     "seeded/dev-tools/server-import.spec.ts",
     "seeded/sessions/import.spec.ts",
     "seeded/sessions/lifecycle.spec.ts",
+    "seeded/compare/lmu-opponents.spec.ts",
+    "seeded/settings/lmu-opponent-removal.spec.ts",
+    "seeded/settings/storage.spec.ts",
   ];
   const nativeGpuSpecs = [
     "compare/spectate-native-camera.spec.ts",

@@ -404,6 +404,7 @@
       "devDependencies": {
         "@playwright/test": "1.62.1",
         "@raceiq/game-catalogs": "workspace:*",
+        "@raceiq/game-lmu": "workspace:*",
         "@types/react": "^19.3.0",
         "@types/react-dom": "^19.3.0",
         "@types/three": "^0.185.4",
@@ -561,6 +562,7 @@
       "devDependencies": {
         "@playwright/test": "1.62.1",
         "@raceiq/backend-core": "workspace:*",
+        "@raceiq/game-lmu": "workspace:*",
         "@raceiq/shared": "workspace:*",
         "@raceiq/tooling": "workspace:*",
       },

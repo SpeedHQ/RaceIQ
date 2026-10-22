@@ -248,6 +248,7 @@ export type SessionDownsampleRow = {
   gameId: GameId;
   source: string | null;
   rawFile: string | null;
+  captureManifestFile: string | null;
   createdAt: string;
   isFavorite: boolean;
   downsampledFrequencyHz: number | null;
@@ -288,6 +289,7 @@ export async function buildSessionDownsamplePlan(request: SessionDownsampleReque
     gameId: sessions.gameId,
     source: sessions.source,
     rawFile: sessions.rawFile,
+    captureManifestFile: sessions.captureManifestFile,
     createdAt: sessions.createdAt,
     isFavorite: sessions.isFavorite,
     downsampledFrequencyHz: sessions.downsampledFrequencyHz,
@@ -312,7 +314,7 @@ export async function buildSessionDownsamplePlan(request: SessionDownsampleReque
   const skipped: SessionDownsampleSkip[] = [];
   const candidates: SessionDownsampleGroup[] = [];
 
-  const eligibleForAge = (row: SessionDownsampleRow) => cutoff === null || Date.parse(row.createdAt) < cutoff;
+  const eligibleForAge = (row: (typeof rows)[number]) => cutoff === null || Date.parse(row.createdAt) < cutoff;
   for (const row of rows) {
     if (row.rawFile === null && eligibleForAge(row)) skipped.push(skip([row], "missing"));
     if (!row.rawFile) continue;
@@ -345,6 +347,11 @@ export async function buildSessionDownsamplePlan(request: SessionDownsampleReque
     // Manifest-backed captures are published as JSON, but stream as canonical
     // records through the source loader just like their legacy raw-file source.
     if (!(path.endsWith(".bin") || path.endsWith(".bin.gz") || path.endsWith("capture-manifest.json"))) {
+      skipped.push(skip(refs, "unsupported-format"));
+      continue;
+    }
+    if (refs[0]!.gameId === "lmu" &&
+        (refs.some((row) => row.captureManifestFile !== null) || path.endsWith("capture-manifest.json"))) {
       skipped.push(skip(refs, "unsupported-format"));
       continue;
     }

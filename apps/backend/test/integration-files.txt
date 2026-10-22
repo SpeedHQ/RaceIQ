@@ -132,6 +132,9 @@ apps/backend/test/session-capture/historical-reconciliation.test.ts
 apps/backend/test/session-capture/kunos-sparse-recorder.test.ts
 apps/backend/test/session-capture/lap-index-import.test.ts
 apps/backend/test/session-capture/lmu-capture-format.test.ts
+apps/backend/test/session-capture/opponent-removal.test.ts
+apps/backend/test/session-capture/opponent-recording-policy.test.ts
+apps/backend/test/session-capture/opponent-recorder-safety.test.ts
 apps/backend/test/session-capture/lmu-sparse-recorder.test.ts
 apps/backend/test/session-capture/parse-bin-vs-gz.test.ts
 apps/backend/test/session-capture/parse-dump.test.ts

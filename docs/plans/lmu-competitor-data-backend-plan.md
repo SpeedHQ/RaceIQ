@@ -8,6 +8,10 @@ Implement [#478](https://github.com/SpeedHQ/RaceIQ/issues/478) in two independen
 
 The backend integration owner owns shared schema/catalog, source inventory, live validators and generation rules; Phase 2 additionally owns companion format/index. Shared field definitions and source limitations live in the contract. Finalize each phase's shared catalog/wire decisions before its UI/backend implementers consume them; then implement UI/backend in parallel. Do not claim unresolved source availability or units as agreed facts. Coordinate preservation with #477 and retention policy with #471. No new simulator, manual player override, speculative measurements or LMU UDP fallback.
 
+Baseline: `Snazzie/replay` at `7faddf9c4`; follow the implemented [replay package contract](../../advisor-plans/lap-replay-contract.md) and [server ownership](../../advisor-plans/lap-replay-backend-plan.md). Semantic replay/Insights routes and DTOs now belong to `packages/lap-replay/{server,contracts}`, not client hooks or app resource handlers. Capture/DB/storage maintenance remains backend-owned; the app retains route registration and authenticated host composition. Historical Phase 1 verification below is not fresh verification after this branch update.
+
+Implementation authorized with controlled fixtures on 2026-10-22; the user explicitly schedules a fresh Windows LMU recording after implementation for final acceptance. This overrides historical Windows-before-coding prerequisites below, without claiming those scenarios passed. Preserve player regressions while implementing Phase 2.
+
 ## Phase 1 — Player telemetry gaps
 
 ### Scope and owned surfaces
@@ -64,7 +68,7 @@ Phase 1 is integrated against the [shared implementation boundary](lmu-competito
 
 The controlled application harness used the actual `bootServer`, `LMUTelemetrySource`, loopback HTTP endpoints and UDP listener; temporary scaffolding was removed after validation. Fixture ABI version 1202 is synthetic, not an observed running game version. Local logs, scenario JSON and browser captures are retained under `.omp/evidence/lmu-phase1/` and `.omp/evidence/lmu-phase1-live-smoke.json` (not committed).
 
-**Acceptance remains blocked:** `E2E-LMU-REAL-PLAYER` could not run on this macOS workstation. Verify the actual Windows LMU version/mode, native source availability and REST behavior before declaring Phase 1 accepted or starting Phase 2. Unsupported absolute capacity, localized refill selection and pit/repair estimates remain unavailable, not measured values.
+**Real-source acceptance remains pending:** `E2E-LMU-REAL-PLAYER` did not run locally. The user authorized Phase 2 coding first; verify actual Windows version/mode, native/REST behavior and a fresh recording after implementation before final acceptance. Unsupported capacity/refill/estimate semantics remain unavailable.
 
 ### Phase 1 review correction gate
 
@@ -76,7 +80,7 @@ Controlled correction evidence passed: 62 source/resolver regressions; focused s
 
 ### Scope and owned surfaces
 
-After Phase 1 acceptance, extend multi-vehicle native decoding/normalization and coherence checks, competitor catalog/live context, capture-formats and session indexes, companion lifecycle/recovery, replay/history/export/import/cleanup and opponent UI integration. Preserve Phase 1's player behavior. Do not reclassify Phase 1 player enrichment as opponent data.
+Extend native decoding/coherence, opponent context, capture formats/indexes, companion lifecycle/recovery, replay/history/export/import/cleanup and UI integration while preserving Phase 1 behavior. Do not reclassify player enrichment as opponent data. Real-source acceptance follows implementation.
 
 ### Tasks
 
@@ -107,4 +111,88 @@ After Phase 1 acceptance, extend multi-vehicle native decoding/normalization and
 | Interrupted publication/corrupt companion/lap export-import/partial deletion → committed references, explicit unavailability and safe ownership | B-LMU-5, B-LMU-6-P2 | E2E-LMU-COMPANION-FAILURE |
 | Actual multiplayer source/version behavior → verified channel availability, identity and companion parity | All Phase 2 criteria | E2E-LMU-REAL-OPPONENTS |
 
-Phase 2 completion requires its scenarios, applicable package/root gates, actual opponent UI/backend integration and Phase 1 regression checks invalidated by changed inputs. Reuse unchanged successful evidence only while its scope remains valid. Phase 2 remains unimplemented and unverified; Phase 1 implementation and its remaining real-Windows acceptance blocker are recorded above.
+Phase 2 completion requires its scenarios, applicable package/root gates, actual opponent UI/backend integration and Phase 1 regression checks invalidated by changed inputs. Reuse unchanged successful evidence only while its scope remains valid. Implementation and controlled verification are recorded below; fresh Windows player/opponent source acceptance remains unrun.
+
+### Phase 2 amendment — removable opponent storage
+
+Authoritative [removal contract](lmu-competitor-data-contract.md#optional-opponent-retention-and-explicit-removal), LC10/LC11 and shared E2E table. Implementation is authorized with controlled fixtures after shared schema finalization; fresh Windows recording validation remains final acceptance, not a prerequisite to coding.
+
+**Owned scope:** `packages/capture-formats` partition/manifest schemas and codecs; LMU source/recorder/player bootstrap; `server/session-capture/{direct-recorder,source-loader,cleanup,session-cleanup,maintenance-runtime,relocate-recordings,session-downsample}.ts` and affected capture/import/export/rebuild consumers; DB source/index publication and history validators; shared request/status types; `apps/backend/src/routes/system/storage-routes.ts`. Preserve existing package boundaries and maintenance runtime. UI owns no filesystem decisions.
+
+1. Finalize region ownership, independent primary decoding and retained/removed metadata against the shared contract. Audit checkpoint/bootstrap/derived storage so no opponent payload survives in primary for new recordings. Review player-slot/no-player transitions and source conservation before writer work.
+2. Add session-scoped preview/admission/status to existing storage routes and managed lifecycle. Preview measures unique owned companion files and identifies legacy rewrites; it is read-only. Validate/authenticate every selected ID; serialize and revalidate revisions/references under maintenance admission.
+3. Implement durable removed publication, read-lease-safe unlink and restart cleanup. Keep primary bytes and player-only derived analysis unchanged for partitioned data. Invalidate opponent/revision-bound caches, never player semantics. Treat post-commit unlink failures as pending cleanup, not successful reclamation or a rollback.
+4. Add streaming legacy v2/v3 rewrite using the same canonical partition codec, parser checkpoints and staged publication conventions; verify player/session parity before switching source/index references. No in-place edits, invented observations, or hidden embedded backups. Unsupported/invalid inputs skip; insufficient space and pre-commit errors preserve originals.
+5. Propagate retention metadata and absence semantics through actual history/replay, selected-lap export/import, relocation, downsampling/rebuild and reference-aware cleanup. Prevent rebuild/import from resurrecting removed context. Extend ownership enumeration for companion and pending cleanup files; keep unrelated session references protected.
+6. Execute the shared STRIP scenarios through real boot/HTTP, native ingress and archive APIs with isolated storage. Extend existing `apps/backend/test/session-capture/{direct-recording-ingress,source-loader-stream,session-downsample-publication}.test.ts`, `apps/backend/test/routes/storage-routes.test.ts` and `apps/backend/test/lap-analysis/lap-export-import-roundtrip.test.ts` where suitable; add only the minimal production-boot fault-barrier coverage missing from these harnesses. Record outcomes and actual file accounting, then run affected package gates and root `bun run typecheck`. Update recording/capability guidance and release notes only when shipped.
+
+| Acceptance | Required passing E2E evidence |
+|---|---|
+| **B-LMU-10 → LC10**: new primary checksum/player replay unchanged; legacy player parity; opponent-owned storage physically absent with accurate net reclaimed bytes | STRIP, STRIP-LEGACY |
+| **B-LMU-11 → LC10/LC6**: no pre-commit data loss, post-commit resurrection, outside-reference deletion or double accounting; explicit cleanup-pending retries | STRIP-RECOVERY, STRIP-REFERENCES |
+| **B-LMU-12 → LC10/LC11/LC5**: real history/export/import expose durable removed state and never fabricate or restore opponent payload | STRIP-ROUNDTRIP, STRIP-UI |
+
+Use full `E2E-LMU-` prefixes from the contract. Each named scenario defines setup, action, expected edge/failure behavior and shared criteria; do not duplicate or weaken them here. UI/backend implement independently after boundary agreement; backend integration owns final joint scenario execution, with UI browser assertions a completion dependency. All three criteria require passing recorded evidence, including relevant Phase 1/Phase 2 regressions and real Windows opponent acceptance; planned, skipped or blocked checks do not pass.
+
+### Phase 2 amendment — opponent lap catalog and comparison
+
+Authoritative [comparison boundary](lmu-competitor-data-contract.md#opponent-lap-selection-and-comparison) defines LC12/LC13, types, identity, capability, errors and E2E behavior. Backend integration publishes shared schemas before independent consumers. Implement now with controlled fixtures; verify actual multiplayer using a new recording afterward.
+
+**Owned scope:** LMU scoring/incarnation capture and companion index; backend source/replay/rebuild/export/import/cleanup consumers; shared comparison schemas and feature `packages/lap-replay/{contracts,server}` catalog/opponent semantic route integration; existing app comparison calculations and `apps/backend/src/routes/laps/{transfer-routes,support}.ts` export extension. Existing semantic replay routes remain feature-owned, not moved back into `resource-routes.ts`. Keep opponent laps distinct from numeric player lap identity; no required-array zero filling.
+
+1. First implement the [contract feasibility assessment](lmu-competitor-data-contract.md#feasibility-assessment--schema-evidence-not-multiplayer-acceptance) as a source inventory verified against the installed header and actual multiplayer build/mode. Audit scoring velocity/orientation offsets missing from the current layout and observation cadence; baseline timing and potential scoring kinematics do not establish remote inputs. Then index real opponent intervals by generation/vehicle/incarnation/capture keys; preserve independent lap boundaries, partial coverage/unknown validity and original clocks. Last/best scalar reports alone never fabricate recorded laps.
+2. Implement catalog and opponent semantic interval routes in the replay feature and compose through existing typed lap routing; implement comparison calculation at its existing backend/analysis owner. Enforce game/session/layout access, revision fences and contract error codes. Catalog exposes paired capability/reasons and distinct retention states. Never substitute another driver/lap; preserve existing player semantic replay API/loader behavior and errors.
+3. Reuse valid alignment math, not all-required `AlignedLapTrace` arrays. Add capability-aware results and typed opponent semantic replay source to public feature contracts/host integration; preserve original native semantic envelopes/clocks for shared playback preparation. Derive speed explicitly from verified scoring velocity when available, not position differentiation or borrowed telemetry. Cumulative sectors/estimated clocks/repeated observations and gaps follow the feasibility/semantic contract. Continuous delta, line and shared 3D replay remain coverage-gated; full remote driver inputs remain unpromised.
+4. Extend companion export range selection to include an explicitly chosen opponent lap's full interval/bootstrap even across player-lap boundaries, and rebuild imported catalog ownership. Strip/index/cache cleanup, missing/corrupt handling, downsampling and source rewrite must invalidate stale references without damaging player data or silently resurrecting opponents. Comparison reads use the existing pinned-revision/maintenance lease rules.
+5. Extend existing native ingress and backend comparison/export-import suites; put opponent semantic route integration beside `packages/lap-replay/test/integration/replay-routes.test.ts`. Run shared COMPARE scenarios with client selector tests plus feature-owned Replay/Spectate E2Es, including recorded-pose/coarse-source/gap coverage and current replay C1–C5 regressions. Run relevant package gates and root `bun run typecheck`, record source/header/game versions and actual outcomes. Update capability docs/release notes only when implemented.
+
+| Acceptance | Required passing shared E2E scenarios |
+|---|---|
+| **B-LMU-13 → LC12/LC1/LC6**: stable real-lap interval identity, honest completion/validity and no attribution across reuse/generation/late response | COMPARE-SELECT, COMPARE-IDENTITY |
+| **B-LMU-14 → LC12/LC2**: exact source-backed timing semantics and available trace subsets; restricted/missing/gapped fields never fabricated | COMPARE-COVERAGE |
+| **B-LMU-15 → LC12/LC13/LC5/LC10**: full selected interval round-trips; typed semantic playback feeds existing shared workspace; revision/removal invalidation preserves player usability | COMPARE-RETENTION, COMPARE-UI, COMPARE-REPLAY |
+
+Use full `E2E-LMU-` names from the contract; its table specifies each edge solution and production setup/action/assertion. Backend integration owns final joint execution/evidence, with UI picker/browser assertions and real Windows multiplayer availability validation required before acceptance. Existing player comparison, Phase 1 and affected Phase 2 scenarios remain regression gates. Unavailable environments and unrun scenarios are blockers, not passing evidence.
+
+### Phase 2 amendment — default-enabled opponent recording preference
+
+Authoritative [recording preference](lmu-competitor-data-contract.md#recording-preference--enabled-by-default), LC14 and `E2E-LMU-RECORDING-POLICY`. Backend owns `server/runtime/config/settings.ts`, related settings schema/route types and persistence, session admission, partition writer/index and export/import metadata; UI owns the existing Settings control.
+
+1. Add non-null boolean `recordLmuOpponents`, default true for new settings and files missing the key; extend existing GET/partial PUT without resetting unrelated fields. Reuse existing validation/error/persistence semantics. Do not mutate policy before a successful save.
+2. Snapshot saved policy at new LMU capture session admission and carry it through lap parts/retirement. False bypasses every opponent disk sink, including raw full-memory encoding/checkpoints, companion, index and derived disk caches; true retains the normal companion. Keep live acquisition and player/session/REST data independent. A mid-session save changes only the next session.
+3. Persist not-recorded metadata when false; preserve imported/older retained sessions unchanged. Export/import/rebuild cannot invent omitted observations; re-enabling affects only new sessions. Validate byte ownership so disabling opponents cannot remove player identity/bootstrap or leak raw opponent arrays through the primary.
+4. Execute the shared recording-policy E2E through actual Settings HTTP/UI, native ingress and filesystem/history/export/import. Extend existing settings persistence/native recorder suites for default migration, invalid/failed saves, active-session toggles and no opponent storage.
+
+**B-LMU-16 → LC14/LC5/LC7:** default true/backward-compatible settings, effective session policy transitions, zero opponent disk artifacts when opted out, honest history metadata, live/player continuity and unaffected existing imports/other games all require passing recorded production E2E evidence. Preserve Phase 1 and affected Phase 2 gates; use the existing maintenance/runtime lifecycle, not a second settings/recording pipeline.
+
+## Phase 2 implementation and controlled verification — 2026-10-22
+
+Implemented native incarnation-aware scoring (including distinct time/lap gaps
+and caveated pit reports), v5 player-only primary/v1 companion retention,
+default-enabled session-snapshotted recording policy, staged legacy removal,
+cleanup recovery, typed opponent catalog/comparison/replay routes, and full
+selected-opponent export/import. Semantic HTTP responses use the lossless
+resolved-value codec; bigint observation counters never enter raw JSON.
+The native ingress waits for a preopened standby before ownership rotation;
+companion failures remain isolated from player persistence.
+Opponent HTTP reads also revalidate failed reads against the authoritative
+database source path and published revision. A confirmed concurrent source
+change returns `SOURCE_CHANGED` (409); unchanged-source I/O failures are not
+suppressed. Revision checks also cover unavailable-source snapshot returns.
+
+| Scope and criteria | Executed controlled evidence |
+|---|---|
+| B-LMU-1/2-P2/5/6-P2/7-P2/16; affected Phase 1 | 117 tests across 12 native/partition/recorder/source-loader/settings/replay suites passed, 24,136 assertions. Includes identity reuse/no-player/coherence, scoring clocks, separate energy, REST failures, player conservation, next-session policy, companion failure/publication ordering, legacy rewrite and cleanup recovery/reference protection. |
+| B-LMU-5/8/12/15; RETENTION / STRIP-ROUNDTRIP / COMPARE-RETENTION | `bun test apps/backend/test/lap-analysis/lap-export-import-roundtrip.test.ts --test-name-pattern 'retained LMU|LMU changing' --timeout 120000`: 2 passed, 53 assertions. Ordinary and selected-opponent ZIP imports retain full opponent intervals; changing player supplemental state and original nanoseconds survive. Explicit removed/not-recorded player-only archives import without companions; retained missing-pairing and contradictory player-only/companion archives are rejected. |
+| B-LMU-13/14/15; COMPARE boundary | Real native fixture import through HTTP, typed catalog/comparison and semantic playback, selected interval ZIP export/import, stale-reference handling and post-removal player replay are exercised by the linked UI browser evidence. |
+| B-LMU-13/14/15; LC10/13 source transitions | After the baseline suite, `bun test packages/lap-replay/test/integration/opponent-routes.test.ts --timeout 120000` passed 11 tests / 64 assertions with concurrent real removal. An in-flight read either completes its valid snapshot or returns 409, never 500; the stale revision returns `SOURCE_CHANGED`, and player semantic replay remains HTTP 200. |
+| Shared gates | Root `bun run typecheck` and `bun run lint`: 37 tasks passed each. `bun run telemetry:catalog:check`: 850 variables / 2,053 source links, deterministic. Replay UI/server/contracts boundary check passed. |
+
+Full logs: `.omp/evidence/lmu-finish/{native-integration,archive-roundtrip,quality-gates}.log`.
+Fixtures derive controlled scoring geometry from the repository LMU recording;
+they are not fresh multiplayer recordings or evidence of remote input availability.
+The linked UI plan owns browser outcomes. Final acceptance still requires
+`E2E-LMU-REAL-PLAYER` and `E2E-LMU-REAL-OPPONENTS` on Windows, including actual
+game/version/mode, remote field population/cadence and recorded racing-line parity.
+No unexecuted portion of a contract scenario is marked passed by the counts above.
+

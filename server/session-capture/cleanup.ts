@@ -24,7 +24,7 @@ export function withSessionCaptureMaintenanceLock<T>(
   return previous.then(operation).finally(release);
 }
 
-export async function loadReferencedCapturePaths(): Promise<Set<string>> {
+export async function loadReferencedCapturePaths(excludeCleanupPendingForManifest?: string): Promise<Set<string>> {
   const [sessionRows, jobRows, liveRows] = await Promise.all([
     readDb.select({ rawFile: sessions.rawFile, archiveFile: sessions.captureArchiveFile, manifestFile: sessions.captureManifestFile }).from(sessions).all(),
     readDb.select({ sourcePath: sessionCaptureSplitJobs.sourcePath, stagingPath: sessionCaptureSplitJobs.stagingPath })
@@ -47,7 +47,15 @@ export async function loadReferencedCapturePaths(): Promise<Set<string>> {
     try {
       const manifest = await loadCaptureManifest(row.manifestFile);
       if ("archiveFile" in manifest) referenced.add(resolve(dirname(row.manifestFile), manifest.archiveFile));
-      else for (const chunk of manifest.chunks) referenced.add(resolve(dirname(row.manifestFile), chunk.path));
+      else {
+        for (const chunk of manifest.chunks) referenced.add(resolve(dirname(row.manifestFile), chunk.path));
+        if (manifest.opponentCompanion && manifest.opponentRetention !== "removed" && manifest.opponentRetention !== "not-recorded") {
+          referenced.add(resolve(dirname(row.manifestFile), manifest.opponentCompanion.file));
+        }
+        if (resolve(row.manifestFile) !== excludeCleanupPendingForManifest) {
+          for (const path of manifest.cleanupPending ?? []) referenced.add(resolve(dirname(row.manifestFile), path));
+        }
+      }
     } catch {
       // Preserve unknown members of a broken published manifest for recovery.
       referenced.add(resolve(dirname(row.manifestFile)));

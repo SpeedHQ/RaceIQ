@@ -8,6 +8,10 @@
 
 UI owns relevant live/store/historical consumers, reused components and complete localized labels. Backend integration owner owns shared catalog/wire validators and source inventory. Finalize each phase's shared IDs/types/encoding, then implement backend/UI in parallel with contract-conforming fixtures. Final acceptance always uses actual backend integration.
 
+Current baseline is `Snazzie/replay` at `7faddf9c4`. Reuse the implemented [`@raceiq/lap-replay` UI/host contract](../../advisor-plans/lap-replay-contract.md) and [UI ownership](../../advisor-plans/lap-replay-ui-plan.md); client route/selection composition remains outside the feature. Historical Phase 1 evidence below predates this baseline and is not fresh verification. Earlier standalone opponent-picker proposals are superseded: extend existing selection UI, not a parallel replay workspace.
+
+Implementation authorized with controlled fixtures on 2026-10-22. Fresh Windows LMU recording/source validation follows implementation and gates final acceptance, superseding historical requirements to wait before coding. No unrun scenario is marked passed.
+
 ## Phase 1 — Player telemetry gaps
 
 ### Tasks and owned surfaces
@@ -32,7 +36,7 @@ UI owns relevant live/store/historical consumers, reused components and complete
 
 Zero vs missing/stale/invalid → independent state presentation (U-LMU-2/U-LMU-6). Slow/failed/unchanged REST → accurate age and retained native view (U-LMU-3). No player/slot swap/rewind/garage/freeze/reconnect → clear incompatible context, never reuse old driver values (U-LMU-4-P1). Legacy records → explicit omission, not source reconstruction (U-LMU-4-P1). Unsupported channel/unit → unavailable, not optimistic coverage (U-LMU-6).
 
-Run these scenarios through existing production backend and live/historical browser surfaces with controlled inputs; verify affected desktop/mobile states and relevant locales. `E2E-LMU-REAL-PLAYER` is required for actual source-backed player coverage before Phase 2 starts. Record fixtures, commands and visible outcomes; backend source/environment limits remain blockers. Player criteria do not require multiplayer fixtures, grid UI or companion files.
+Run player regressions through production backend/browser with controlled inputs; verify desktop/mobile/locales. Real Windows player acceptance remains required after implementation, not before Phase 2 starts. Record commands and outcomes; player scenarios do not require companion/grid fixtures.
 
 ### Implementation and controlled evidence — 2026-10-20
 
@@ -50,7 +54,7 @@ Additional U-LMU-3/U-LMU-4-P1 clock-edge fixtures changed only timestamp metadat
 
 Headless Playwright exercised the real app/backend after the managed browser failed to recover. Fresh-load and interaction passes had no page errors. Browser captures and selected DOM/age evidence are retained locally under `.omp/evidence/lmu-phase1/` (not committed). Temporary fixture/control scaffolding was removed; no mock production fallback was added.
 
-**Acceptance remains blocked:** actual Windows LMU player/version/mode smoke (`E2E-LMU-REAL-PLAYER`) is unavailable on this macOS workstation. Controlled UI/backend evidence does not replace that gate. Phase 2 remains out of scope.
+**Acceptance remains blocked:** actual Windows LMU player/version/mode smoke (`E2E-LMU-REAL-PLAYER`) is unavailable on this macOS workstation. Controlled UI/backend evidence does not replace that gate. Phase 2 was outside this historical Phase 1 verification scope; its current planned work follows below.
 
 ### Phase 1 review correction gate
 
@@ -60,7 +64,7 @@ The [shared review-correction boundary](lmu-competitor-data-contract.md#phase-1-
 
 ### Tasks and owned surfaces
 
-1. After Phase 1 acceptance, extend typed live/store consumers and appropriate existing surfaces with opponent snapshots. Key by session generation, `mID` and incarnation; honor no-player state, departures and explicit unavailable membership rather than array-index reuse.
+1. Extend typed live/store consumers and existing surfaces with opponent snapshots keyed by generation, native ID and incarnation; honor no-player/departure/unavailable membership without index reuse. Controlled-fixture development proceeds before final real-recording acceptance.
 2. Render supported driver/car/class/overall/class position, distinct timing/pit/gap semantics and only verified per-opponent channels. Preserve remote pit limitations, fuel-or-battery ambiguity and multiplayer restrictions; never borrow player values or fabricate opponent physics/gaps.
 3. Consume companion-backed historical/replay context using coherent capture keys and original observation times. Missing/corrupt companion leaves player view usable with opponent unavailable; no adjacent-frame guesses. Preserve context correctly after ID reuse and lifecycle changes.
 4. Update all relevant locales and multiplayer capability guidance. Use real backend companion/export/import/recovery integration, not fixture-only presentation. Rerun Phase 1 UI scenarios invalidated by shared changes.
@@ -78,4 +82,119 @@ The [shared review-correction boundary](lmu-competitor-data-contract.md#phase-1-
 
 ID reuse/no player/duplicate IDs → incarnation-aware keys and explicit unavailability (U-LMU-1). Restricted placeholders/inaccurate remote pit report → source-limited presentation, no fabricated measurements (U-LMU-1/U-LMU-2-P2). Missing/corrupt companion/legacy data → readable player view and unavailable opponents (U-LMU-4-P2). Player/opponent lifecycle changes → replace incompatible context, never cross-attribute values (U-LMU-4-P2).
 
-Run contract scenarios through actual UI/backend multiplayer and companion integrations, including selected-lap export/reimport and failure states. `E2E-LMU-REAL-OPPONENTS` confirms source/mode coverage; reuse Phase 1 evidence only when unchanged inputs and scope justify it. Record commands, visible outcomes and environment limits. Phase 2 implementation and validation remain unexecuted; Phase 1 evidence and its remaining acceptance blocker are recorded above.
+Run contract scenarios through actual UI/backend multiplayer and companion integrations, including selected-lap export/reimport and failure states. `E2E-LMU-REAL-OPPONENTS` confirms source/mode coverage; reuse Phase 1 evidence only when unchanged inputs and scope justify it. Implementation and controlled outcomes are recorded below; fresh Windows acceptance remains unrun.
+
+### Phase 2 amendment — remove saved opponents
+
+Authoritative [removal contract](lmu-competitor-data-contract.md#optional-opponent-retention-and-explicit-removal), LC10/LC11 and shared E2E scenarios. Implement after boundary finalization using controlled fixtures; backend owns storage and UI consumes typed operations. Fresh Windows recording validation follows implementation.
+
+**Owned scope:** existing `client/src/components/settings/StorageSection.tsx`, reused preview/confirmation controls following `SessionDownsampleDialog.tsx`, typed RPC/query hooks and `query-keys.ts`, affected historical opponent views and all supported `client/messages` locales. No redesign or automatic retention policy; the separate default-enabled capture preference is planned below.
+
+1. Add manual “Remove saved opponent data” entry in Storage with one/multiple eligible LMU sessions selectable. Show full-session/all-laps scope, selected IDs, known companion bytes and separately identified legacy rewrites whose savings are unknown before completion. Preview/cancel is read-only; do not present byte counts as guaranteed savings.
+2. Require accessible irreversible confirmation: player telemetry stays, opponent history is lost across all selected session laps, and earlier exported copies/backups remain unchanged. Show active/busy/shared/unsupported reasons from the backend without overriding eligibility. Only confirmed action invokes start.
+3. Consume shared status via Hono RPC and React Query using existing maintenance polling/mount/focus conventions. Disable duplicate submission while running; support navigation/reload, per-session failures/skips, actual freed bytes and cleanup-pending outcomes. Do not infer completion from missing files or optimistic cache changes.
+4. Refresh affected session/history/storage queries after settlement. Historical opponents distinguish removed, not-recorded and retained-but-missing/corrupt/incomplete states from the shared contract; player replay remains usable. Existing export/import actions use the backend's retained/removed behavior without fabricating companion data or adding mock fallbacks.
+5. Translate all added labels/messages; verify keyboard confirmation/cancel and desktop/mobile layout through actual backend integration. Add focused assertions to existing Storage browser coverage, using the shared production fixtures rather than intercepted API responses. If no suitable Storage browser case exists, add one targeted case to the existing Playwright harness, not a new app/server stack.
+
+| Acceptance | Required passing E2E evidence |
+|---|---|
+| **U-LMU-10 → LC11**: select one/multiple sessions, preview measured/unknown savings, cancel without mutation, confirm correct irreversible scope | E2E-LMU-STRIP, E2E-LMU-STRIP-UI |
+| **U-LMU-11 → LC11/LC10**: reload/navigation restores backend status; busy/skip/error/cleanup-pending and actual savings displayed without false success | E2E-LMU-STRIP-RECOVERY, E2E-LMU-STRIP-REFERENCES, E2E-LMU-STRIP-UI |
+| **U-LMU-12 → LC11/LC5/LC7**: real replay and imported stripped exports show intentional absence, preserve player rendering; accessible translated desktop/mobile controls | E2E-LMU-STRIP-ROUNDTRIP, E2E-LMU-STRIP-UI |
+
+Edge solutions and setup/action/assertions are authoritative in the shared scenario table: notably legacy rewrite failures retain originals, shared/active sources cannot be forced, missing/corrupt does not mean removed, and post-commit unlink failure is pending cleanup. Backend integration owns shared execution/evidence; UI owns browser assertions in that pass. Completion requires passing real integration evidence for every row plus affected existing regressions and root `bun run typecheck`; fixtures, unrun Windows acceptance and isolated component checks are not completion proof.
+
+### Phase 2 amendment — opponent selection in existing comparison UI
+
+Users explicitly choose recorded opponent laps using existing UI. The [comparison boundary](lmu-competitor-data-contract.md#opponent-lap-selection-and-comparison) owns data semantics and the [replay contract](../../advisor-plans/lap-replay-contract.md) owns shared workspace/host boundaries. UI/backend proceed in parallel after schema agreement; implementation is authorized now, with real-recording acceptance afterward.
+
+**Owned scope:** existing client `LapComparison`, `ComparisonSelectors`, `ComparisonLapSelect` and appropriate chart/overview/map consumers; typed RPC hooks, `client/src/lib/game-routes.ts`, compare route and `client/src/features/lap-replay-host.tsx`; `packages/lap-replay/{contracts,ui}` for typed opponent sources and shared Replay/Spectate adaptation; supported locale messages. No new standalone picker layout or copied Spectate tree. Add only minimal opponent-specific labels/availability inside existing selectors.
+
+**UI direction:** retain incumbent theme/type/spacing, lap A/B colors and selector interactions. Extend the existing B/reference controls with “My laps” / “Opponents,” driver/car/class search and recorded-lap choices; reuse existing preview/overview controls for lap/sector times, warnings and available channels. No split roster/table redesign. Reuse `SpectateWorkspace`, `SpectateView`, controller/preparation and panel components through public `@raceiq/lap-replay` exports; preserve panel persistence, scene mode, camera/focus and single/paired behavior.
+
+1. Keep selected player lap A fixed. Add explicit reference source choice “My laps” / “Opponents” and “Choose opponent lap” action; retain current player-to-player flow unchanged. Load candidates only for the selected LMU player's session/track, and clearly label that scope. No auto-selection of fastest/first opponent lap.
+2. Extend existing reference selection controls: search driver/car, filter class, select a driver incarnation, then choose one recorded lap with lap time, coverage/validity and available-channel labels. Reuse current overview/preview for sector and delta detail plus explicit “Compare lap”/Cancel behavior. Duplicate names show car/ID/incarnation context. Warn but allow partial/invalid/unknown laps with comparable evidence; disable no-evidence rows with a reason. Cancel preserves the committed reference.
+3. Use typed opponent sources, not fake `LapMeta`/numeric lap B IDs. Extend `ReplayHost` and feature contracts so `SpectateSession` can fetch the opponent semantic interval and feed existing preparation/controller, while player callers retain their real IDs. Show timing-only comparison in the existing overview; show source-proven scoring kinematics at their original quality/cadence and reuse shared Spectate when position/clock coverage permits. Missing inputs/pose/elapsed time never become zeros, racing line or continuous delta. No generic telemetry-input promise. Opponent AI/Insights that require ordinary saved player laps remain unsupported, never invoked with invented IDs.
+4. Implement contract URL/search validation, history navigation and revision-aware query keys; ignore late incompatible responses. Removal/opt-out/missing/corrupt data clear unavailable opponent content without breaking player replay. Existing ZIP export supplies the optional opponent reference/revision when exporting a selected comparison. Preserve single-lap replay and player-to-player comparison.
+5. Extend client-owned `playwright/tests/seeded/compare/{base-flow,interactions,channels,chart-zoom}.spec.ts` for selectors/charts, and feature-owned `packages/lap-replay/test/e2e/{analyse,compare}` for shared workspace, real recorded A/B poses, unavailable fields and panel/controller regressions. Reuse feature E2E ownership/registration; no duplicate relocated specs. Execute shared COMPARE scenarios with real backend, including full-interval export/import and stripping; verify keyboard, desktop/mobile/locales. Update user guidance/release notes only when shipped.
+
+| Acceptance | Required passing shared E2E scenarios |
+|---|---|
+| **U-LMU-13 → LC13/LC12**: existing driver/class/lap selection extended, exact manual reference, preview/confirm/cancel and persistent player baseline; no parallel UI | COMPARE-SELECT, COMPARE-UI |
+| **U-LMU-14 → LC13/LC12/LC2**: honest timing-only/trace presentation, warnings/disabled reasons and no fabricated channels/line/delta | COMPARE-COVERAGE, COMPARE-UI |
+| **U-LMU-15 → LC13/LC1/LC6/LC10**: exact URL/identity or explicit unavailable state; removal clears stale content, shared Replay/Spectate and player-only playback unchanged | COMPARE-IDENTITY, COMPARE-RETENTION, COMPARE-REPLAY |
+
+Use full `E2E-LMU-` names and setup/action/expected edge outcomes from the shared contract. UI owns browser assertions; backend integration owns final cross-layer execution/evidence. Real multiplayer selection/availability, all mapped scenarios, existing player/other-game comparison regressions and applicable root/package gates are completion dependencies; fixtures alone and unexecuted scenarios are not evidence.
+
+### Phase 2 amendment — default-enabled recording setting
+
+Authoritative [recording preference](lmu-competitor-data-contract.md#recording-preference--enabled-by-default), LC14 and `E2E-LMU-RECORDING-POLICY`. Own the existing Settings recording/storage controls, client settings typing/hooks, all locale labels and existing `playwright/tests/seeded/settings/{storage,persistence}.spec.ts` coverage.
+
+1. Add “Record opponent data (LMU)” using existing settings switch/save behavior. Default checked, including absent older settings; never initialize a missing field to false. Explain: live opponents still work when off; saves apply to the next recording session; old recordings remain until explicitly removed. Show saved preference without falsely claiming the active session changed policy.
+2. Save only the boolean through existing partial settings API, preserve unrelated preferences, display persistence/validation errors and retain the previous confirmed value on failure. Link to existing saved-data removal action for older recordings, not automatic deletion.
+3. Distinguish not-recorded from removed/corrupt/missing in current replay/compare selectors. Existing retained imports remain selectable even when future live recording is opted out; re-enabling cannot restore unrecorded laps.
+
+**U-LMU-16 → LC14/LC13/LC7:** default on, successful persisted off/on, next-session effect, failure feedback, live/player continuity, not-recorded comparison state and keyboard/mobile/locales all pass the shared recording-policy E2E through real Settings, native recorder and history/export/import. Backend integration owns joint execution/evidence; do not replace with intercepted settings responses.
+
+## Phase 2 implementation and controlled verification — 2026-10-22
+
+Implemented the existing LMU live panel, Storage removal controls, default-enabled
+recording preference, explicit driver/class/incarnation/lap reference selection,
+preview/confirmation/cancel, revision-aware URLs, unavailable states, selected
+comparison export, and typed opponent playback through the existing shared
+Replay/Spectate workspace. Player lap A remains a real saved lap; opponent
+identities never become numeric player lap IDs. Scoring speed/position and
+clock coverage govern playback; absent remote inputs remain unavailable.
+
+The browser surface is the actual Vite client and backend on ports 4135/3135
+with isolated `.omp/evidence/lmu-finish/test-data`, native controlled captures
+from `@raceiq/game-lmu/test-support/opponents`, real import/export/storage
+operations, and the real shared scene/controller. Opponent/settings responses
+are not intercepted in the new acceptance flows. The pre-existing Storage
+empty/error/cache-refresh regression cases retain their controlled API responses.
+
+| Acceptance and shared scenario | Executed scope |
+|---|---|
+| U-LMU-10/11/12; LC10/11; STRIP-UI / STRIP-ROUNDTRIP | Actual preview/cancel and multi-session irreversible confirmation; status/reload, actual savings, removed opponent state, readable player replay/export and stripped ZIP reimport. Empty/error rendering and timed cache-refresh regressions also exercised. Backend fault/recovery/reference evidence remains in the backend plan, not claimed as every browser failure state. |
+| U-LMU-13/14/15; LC12/13; COMPARE-SELECT / IDENTITY / RETENTION / UI / REPLAY | Recorded native import while future recording is off, exact manual lap selection, partial/unknown labels, preview/cancel, committed URL/reload/back-forward, stale revision, selected ZIP full-interval roundtrip, real A/B racing lines and advancing shared playback, post-removal unavailability and player replay. Desktop/mobile keyboard flows exercise the production integration; no opponent request is routed through player-only alignment. |
+| U-LMU-16; LC14; RECORDING-POLICY | Existing recording controls default on and persist off/on through the actual settings API on desktop/mobile. Native next-session policy, live/player continuity and no companion artifacts when off use the joint native/ingress evidence in the backend plan. |
+| U-LMU-1/2-P2/4-P2 | Incarnation-aware live rendering and explicit freshness/availability/source limitations are implemented and typechecked. Fresh live multiplayer UI/source population remains part of Windows acceptance, not established by recorded fixture playback. |
+
+Additional checks: client comparison-search/WebSocket suites passed 8 tests
+(24 assertions); root typecheck/lint passed 37 tasks each; shared replay
+UI/server/contracts boundaries passed; 428 ordinary tests are registered
+exactly once. All 16 locale catalogs contain the required 2,933 keys.
+
+Permanent browser specs are registered in the existing serialized import
+project to isolate settings mutations:
+`playwright/tests/seeded/compare/lmu-opponents.spec.ts`,
+`playwright/tests/seeded/settings/lmu-opponent-removal.spec.ts`, and the
+extended `playwright/tests/seeded/settings/storage.spec.ts`.
+The temporary local verification configuration is not a production fallback.
+
+Final browser outcomes and inspected screenshots are recorded in
+`.omp/evidence/lmu-finish/verification.json`. Backend/native logs are listed
+in the linked backend plan. Controlled source geometry is not a fresh
+multiplayer capture. `E2E-LMU-REAL-PLAYER`, `E2E-LMU-REAL-OPPONENTS`, the full
+other-game comparison regression suite, and unexercised browser fault variants
+remain unverified; no count above marks those scenarios passed.
+
+
+### Final browser result
+
+`bunx playwright test --config=playwright/lmu-opponents.local.config.ts --workers=1`
+passed **7/7 cases in 300.25 seconds**, with retries disabled. This final run
+includes English desktop (1440×1000), English mobile and German mobile (390×844),
+real recording-preference persistence, retained and stripped archive reimports,
+and no collected browser errors in either comparison case. German selection uses the authoritative
+persisted Settings language and restores it afterward.
+
+Inspected loaded screenshots in `.omp/evidence/lmu-finish/`:
+`opponent-comparison-desktop.png`, `opponent-comparison-mobile.png`, and
+`opponent-comparison-mobile-de.png`. Captures wait for the actual shared scene
+to report ready; the scenario also asserts both recorded racing lines and
+advancing B playback. No document-width overflow was observed in those cases.
+Full result: `playwright-final.log`. The temporary local configuration has
+been removed and the owned client/backend verification services stopped;
+the permanent specs remain registered in the normal serialized import suite.
+

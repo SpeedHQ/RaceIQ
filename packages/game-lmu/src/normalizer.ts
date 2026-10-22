@@ -242,7 +242,8 @@ const syntheticExtensionChannels: Partial<Record<keyof LMUExtendedData, string>>
 
 export function normalizeLMUSourceFrame(
   frame: LMUSourceFrame,
-): TelemetryPacket {
+): TelemetryPacket | null {
+  if (!frame.playerScoring || frame.telemetry.length < LMU_TELEMETRY.wheels + 4 * LMU_WHEEL_SIZE) return null;
   const telemetry = frame.telemetry;
   const scoringInfo = frame.scoringInfo;
   const scoring = frame.playerScoring;

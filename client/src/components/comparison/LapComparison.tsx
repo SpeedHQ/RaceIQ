@@ -1,8 +1,9 @@
 import type { ComparisonRangeData } from "@raceiq/shared/racing/comparison/types";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
+import type { OpponentLapCatalog, OpponentLapComparison, OpponentLapSummary } from "@raceiq/lap-replay/contracts";
 import { useLapComparison, useLapComparisonRange, useLaps } from "@/hooks/laps";
 import { useNavigate } from "@tanstack/react-router";
-import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTrackOutline, useTrackSectors } from "@/hooks/track-queries";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useUnits } from "@/hooks/useUnits";
@@ -27,6 +28,9 @@ import { CompareOverview } from "./CompareOverview";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CompareOverviewPicker } from "./CompareOverviewPicker";
 
+import { OpponentQueryError, useOpponentLapCatalog, useOpponentLapComparison } from "@/hooks/opponents";
+import { exportLapsZip } from "@/lib/lap-export";
+import { Button } from "@/components/ui/button";
 interface TrackGroup {
   trackId: string;
   trackName: string;
@@ -84,11 +88,35 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
   const [carBId, setCarBId] = useState<string | null>(search.carB ?? null);
   const [lapAId, setLapAId] = useState<number | null>(search.lapA ?? null);
   const [lapBId, setLapBId] = useState<number | null>(search.lapB ?? null);
+  const [requestedReferenceMode, setReferenceMode] = useState<"player" | "opponent">(search.reference ?? "player");
+  const referenceMode = gameId === "lmu" ? requestedReferenceMode : "player";
+  const [opponentLapId, setOpponentLapId] = useState<string | null>(search.opponentLap ?? null);
+  const [opponentRevision, setOpponentRevision] = useState<string | null>(search.opponentRevision ?? null);
   // URL selections can outlive a track/car switch; never query a hidden lap.
   const visibleLapAId = lapAId != null && laps.some((lap) => lap.id === lapAId && lap.trackId === selectedTrack && lap.carId === carAId) ? lapAId : null;
   const visibleLapBId = lapBId != null && laps.some((lap) => lap.id === lapBId && lap.trackId === selectedTrack && lap.carId === carBId) ? lapBId : null;
-  const { data: comparison, isLoading: loading, error: comparisonError } = useLapComparison(visibleLapAId, visibleLapBId);
+  const comparisonLapAId = referenceMode === "player" ? visibleLapAId : null;
+  const comparisonLapBId = referenceMode === "player" ? visibleLapBId : null;
+  const { data: comparison, isLoading: loading, error: comparisonError } = useLapComparison(comparisonLapAId, comparisonLapBId);
   const error = comparisonError ? (comparisonError.message.includes("no telemetry") ? m.compare_telemetry_unavailable() : comparisonError.message || m.compare_load_failed()) : null;
+  const { data: opponentCatalog, isLoading: opponentCatalogLoading, error: opponentCatalogError } = useOpponentLapCatalog(referenceMode === "opponent" ? visibleLapAId : null);
+  const selectedOpponent = opponentCatalog?.laps.find((lap) => lap.opponentLapId === opponentLapId);
+  const selectedOpponentRevision = opponentCatalog?.sourceRevision;
+  const opponentSelectionValid = selectedOpponent != null && opponentRevision === selectedOpponentRevision;
+  const opponentRequest = referenceMode === "opponent" && visibleLapAId != null && opponentSelectionValid && opponentLapId && selectedOpponentRevision
+    ? { opponentLapId, sourceRevision: selectedOpponentRevision, step: 1 as const }
+    : null;
+  const { data: opponentComparison, isLoading: opponentComparisonLoading, error: opponentComparisonError } = useOpponentLapComparison(visibleLapAId, opponentRequest);
+  const selectedPlayerLap = visibleLapAId == null ? null : laps.find((lap) => lap.id === visibleLapAId) ?? null;
+  const opponentReplayComparison = useMemo(() => {
+    if (!selectedPlayerLap || !selectedOpponent || !opponentRevision || !opponentSelectionValid || selectedOpponent.mode !== "telemetry") return null;
+    if (!selectedOpponent.comparableSemanticIds.includes("race.competitor.scoring-time") ||
+        !selectedOpponent.comparableSemanticIds.includes("race.competitor.lap-start-time")) return null;
+    return {
+      kind: "opponent" as const, playerLap: selectedPlayerLap, opponent: selectedOpponent,
+      reference: { kind: "opponent" as const, playerLapId: selectedPlayerLap.id, opponentLapId: selectedOpponent.opponentLapId, sourceRevision: opponentRevision },
+    };
+  }, [selectedPlayerLap, selectedOpponent, opponentRevision, opponentSelectionValid]);
   const [carNames, setCarNames] = useState<Map<string, string>>(new Map());
   const [zoomLevels, setZoomLevels] = useState<Array<ChartRange | null>>([null]);
   const [detailRange, setDetailRange] = useState<{ start: number; end: number; stepMeters: 0.1 } | null>(null);
@@ -98,7 +126,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     data: comparisonRange,
     isPlaceholderData: comparisonRangeIsPlaceholder,
     isFetching: comparisonRangeIsFetching,
-  } = useLapComparisonRange(visibleLapAId, visibleLapBId, detailRange?.stepMeters ?? null, detailRange?.start ?? null, detailRange?.end ?? null);
+  } = useLapComparisonRange(comparisonLapAId, comparisonLapBId, detailRange?.stepMeters ?? null, detailRange?.start ?? null, detailRange?.end ?? null);
   const detailLoading = detailRange != null && comparisonRangeIsFetching;
   const pointerPositionRef = useRef({ x: 0, y: 0 });
   const [pointerPosition, setPointerPosition] = useState<{ x: number; y: number } | null>(null);
@@ -136,11 +164,11 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
   const prevTrackRef = useRef<string | null | undefined>(undefined);
   const prevCarARef = useRef<string | null | undefined>(undefined);
   const prevCarBRef = useRef<string | null | undefined>(undefined);
-  const routeSelection = JSON.stringify([search.track ?? null, search.carA ?? null, search.carB ?? null, search.lapA ?? null, search.lapB ?? null]);
+  const routeSelection = JSON.stringify([search.track ?? null, search.carA ?? null, search.carB ?? null, search.lapA ?? null, search.lapB ?? null, search.reference ?? "player", search.opponentLap ?? null, search.opponentRevision ?? null]);
   const writtenSelectionRef = useRef(routeSelection);
   const seenSelectionRef = useRef(routeSelection);
   const applyingSelectionRef = useRef<string | null>(null);
-  const writtenLapPairRef = useRef(`${lapAId}:${lapBId}`);
+  const writtenLapPairRef = useRef(JSON.stringify([lapAId, lapBId, referenceMode, opponentLapId, opponentRevision]));
   useEffect(() => {
     if (seenSelectionRef.current === routeSelection) return;
     seenSelectionRef.current = routeSelection;
@@ -154,7 +182,10 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     setCarBId(search.carB ?? null);
     setLapAId(search.lapA ?? null);
     setLapBId(search.lapB ?? null);
-  }, [routeSelection, search.track, search.carA, search.carB, search.lapA, search.lapB]);
+    setReferenceMode(search.reference ?? "player");
+    setOpponentLapId(search.opponentLap ?? null);
+    setOpponentRevision(search.opponentRevision ?? null);
+  }, [routeSelection, search.track, search.carA, search.carB, search.lapA, search.lapB, search.reference, search.opponentLap, search.opponentRevision]);
   const hoveredDistanceRef = useRef<number | null>(null);
   const mapRedrawRef = useRef<(() => void) | null>(null);
   const aiPanelRef = useRef<CompareAiPanelHandle | null>(null);
@@ -285,9 +316,9 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
 
   // Sync selections to URL
   useEffect(() => {
-    const selection = JSON.stringify([selectedTrack, carAId, carBId, lapAId, lapBId]);
+    const selection = JSON.stringify([selectedTrack, carAId, carBId, lapAId, lapBId, referenceMode, opponentLapId, opponentRevision]);
     if (applyingSelectionRef.current != null && applyingSelectionRef.current !== selection) return;
-    const lapPair = `${lapAId}:${lapBId}`;
+    const lapPair = JSON.stringify([lapAId, lapBId, referenceMode, opponentLapId, opponentRevision]);
     const localPairChange = applyingSelectionRef.current == null && writtenLapPairRef.current !== lapPair;
     writtenLapPairRef.current = lapPair;
     if (localPairChange) {
@@ -310,13 +341,16 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
           carB: carBId ?? undefined,
           lapA: lapAId ?? undefined,
           lapB: lapBId ?? undefined,
+          reference: referenceMode === "opponent" ? "opponent" : undefined,
+          opponentLap: referenceMode === "opponent" ? opponentLapId ?? undefined : undefined,
+          opponentRevision: referenceMode === "opponent" && opponentLapId ? opponentRevision ?? undefined : undefined,
           cursor: localPairChange ? undefined : prev.cursor,
         } as never;
       },
       replace: true,
       resetScroll: false,
     });
-  }, [selectedTrack, carAId, carBId, lapAId, lapBId, navigate, spectateDistanceRef]);
+  }, [selectedTrack, carAId, carBId, lapAId, lapBId, referenceMode, opponentLapId, opponentRevision, navigate, spectateDistanceRef]);
 
   // Build track groups and fetch names when laps data changes
   useEffect(() => {
@@ -415,7 +449,9 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     setZoomLevels([null]);
     setDetailRange(null);
     setOptimisticRange(null);
-  }, [lapAId, lapBId]);
+    hoveredDistanceRef.current = null;
+    spectateDistanceRef.current = null;
+  }, [lapAId, lapBId, referenceMode, opponentLapId, opponentRevision, spectateDistanceRef]);
 
   // Laps filtered to selected track
   const trackLaps = selectedTrack != null ? (trackGroups.find((group) => group.trackId === selectedTrack)?.laps ?? []) : [];
@@ -495,10 +531,24 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
         carNames={carNames}
         carALaps={carALaps}
         carBLaps={carBLaps}
+        referenceMode={referenceMode}
+        onReferenceModeChange={gameId === "lmu" ? (mode) => {
+          setReferenceMode(mode);
+          if (mode === "player") {
+            setOpponentLapId(null);
+            setOpponentRevision(null);
+          }
+        } : undefined}
+        opponentLaps={opponentCatalog?.laps ?? []}
+        opponentLapId={opponentLapId}
+        onOpponentLapChange={(id) => {
+          setOpponentLapId(id);
+          setOpponentRevision(id ? opponentCatalog?.sourceRevision ?? null : null);
+        }}
       />
         </div>
           <Dialog open={overviewOpen} onOpenChange={setOverviewOpen}>
-            <DialogTrigger disabled={!selectedTrack}
+            <DialogTrigger disabled={!selectedTrack || referenceMode === "opponent"}
               className="shrink-0 rounded-sm border border-app-border px-3 py-2 text-app-label text-app-text-secondary hover:text-app-text focus-visible:outline-2 focus-visible:outline-app-accent disabled:cursor-not-allowed disabled:opacity-50">
               {m.compare_overview_title()}
             </DialogTrigger>
@@ -519,6 +569,22 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
             )}
           </Dialog>
       </div>
+      {referenceMode === "opponent" ? <OpponentComparisonPanel
+        catalog={opponentCatalog}
+        summary={selectedOpponent}
+        comparison={opponentComparison}
+        loading={opponentCatalogLoading || opponentComparisonLoading}
+        error={opponentCatalogError ?? opponentComparisonError}
+        playerLap={selectedPlayerLap}
+        selectionValid={opponentSelectionValid}
+        hasSelection={opponentLapId != null}
+        replay={gameId && opponentReplayComparison ? <div className="mt-4 flex min-h-[38rem] flex-col" data-opponent-replay>
+          <SpectateSession key={`${gameId}:${opponentRevision}:${opponentLapId}`} gameId={gameId} comparison={opponentReplayComparison}
+            active outline={trackOutline} segments={trackSegments ?? []} distanceRef={spectateDistanceRef} onDistanceChange={receiveSpectateDistance}
+            aiOpen={false} telemetryOpen={spectateTelemetryOpen} carPanelOpen={spectateCarPanelOpen} onTelemetryOpenChange={setSpectateTelemetryOpen}
+            onCarPanelOpenChange={setSpectateCarPanelOpen} onAiOpenChange={toggleAiPanel} panelHeaderTarget={null} />
+        </div> : null}
+      /> : <>
       <ComparisonLoadStatus loading={loading} error={error} hasComparison={comparison != null} />
       <div className="-mt-2 -mb-4 flex shrink-0 flex-wrap items-end justify-between gap-x-4 gap-y-2 border-b border-app-border text-app-label">
         <div role="tablist" aria-label={m.spectate_body_views()} className="flex gap-4">
@@ -654,6 +720,94 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
       ) : comparison ? (
         <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">{m.compare_telemetry_unavailable()}</div>
       ) : null}
+      </>}
     </div>
   );
+}
+
+function OpponentComparisonPanel({
+  catalog,
+  summary,
+  comparison,
+  loading,
+  error,
+  playerLap,
+  selectionValid,
+  hasSelection,
+  replay,
+}: {
+  catalog: OpponentLapCatalog | undefined;
+  summary: OpponentLapSummary | undefined;
+  comparison: OpponentLapComparison | undefined;
+  loading: boolean;
+  error: Error | null;
+  playerLap: LapMeta | null;
+  selectionValid: boolean;
+  hasSelection: boolean;
+  replay: ReactNode;
+}) {
+  const [exporting, setExporting] = useState(false);
+  const resolved = (value: { state: string; value: number | null } | undefined) =>
+    value?.state === "ok" && typeof value.value === "number" && Number.isFinite(value.value) ? value.value : null;
+  const delta = resolved(comparison?.lapDeltaSeconds);
+  if (loading) return <div className="flex min-h-48 items-center justify-center text-app-text-secondary">{m.compare_loading()}</div>;
+  if (error instanceof OpponentQueryError && error.code === "OPPONENT_DATA_REMOVED") {
+    return <div role="status" data-opponent-state="removed" className="p-4 text-app-text-secondary">{m.compare_opponent_removed()}</div>;
+  }
+  if (error instanceof OpponentQueryError && ["SOURCE_CHANGED", "OPPONENT_LAP_NOT_FOUND", "OPPONENT_DATA_UNAVAILABLE"].includes(error.code ?? "")) {
+    return <div role="status" data-opponent-state={error.code === "SOURCE_CHANGED" ? "source-changed" : "unavailable"} className="p-4 text-app-text-secondary">{m.analyse_unavailable()}</div>;
+  }
+  if (error) return <div role="alert" className="flex min-h-48 items-center justify-center text-status-danger">{m.compare_load_failed()}</div>;
+  if (catalog?.opponentRetention === "removed") return <div role="status" data-opponent-state="removed" className="p-4 text-app-text-secondary">{m.compare_opponent_removed()}</div>;
+  if (catalog?.opponentRetention === "not-recorded") return <div role="status" data-opponent-state="not-recorded" className="p-4 text-app-text-secondary">{m.compare_opponent_not_recorded()}</div>;
+  if (!catalog) return <div role="status" className="p-4 text-app-text-secondary">{m.compare_select_two_laps()}</div>;
+  if (catalog.opponentAvailability === "missing" || catalog.opponentAvailability === "corrupt") return <div role="status" data-opponent-state={catalog.opponentAvailability} className="p-4 text-app-text-secondary">{catalog.opponentAvailability === "corrupt" ? m.storage_opponents_skip_invalid_source() : m.lmu_state_missing()}</div>;
+  if (hasSelection && !selectionValid) return <div role="status" data-opponent-state="source-changed" className="p-4 text-app-text-secondary">{m.analyse_unavailable()}</div>;
+  if (!summary && catalog.laps.length === 0) return <div role="status" data-opponent-state={catalog.opponentAvailability ?? "missing"} className="p-4 text-app-text-secondary">{m.compare_opponent_no_laps()}</div>;
+  if (!summary) return <div role="status" className="p-4 text-app-text-secondary">{m.compare_opponent_lap()}</div>;
+  const reasons: Record<OpponentLapSummary["reasons"][number], string> = {
+    "partial-lap": m.compare_opponent_coverage_partial(),
+    "invalid-lap": m.sessions_cleanup_invalid(),
+    "unknown-validity": `${m.driver_validity()}: ${m.common_unknown()}`,
+    "restricted-channels": m.compare_opponent_restricted_channels(),
+    "missing-timing": `${m.label_lap_time()}: ${m.analyse_unavailable()}`,
+    "missing-distance": m.compare_telemetry_unavailable(),
+    "missing-position": m.spectate_pose_unavailable(),
+    "no-comparable-data": m.compare_telemetry_unavailable(),
+  };
+  return <section className="min-h-48 p-4" data-testid="opponent-comparison" data-mode={comparison?.mode ?? summary.mode}>
+    <header className="mb-4 flex flex-wrap items-baseline justify-between gap-2 border-b border-app-border pb-3">
+      <h2 className="text-app-subtext font-semibold">{summary.driverName ?? m.compare_reference_opponents()} · {summary.carName ?? m.compare_car_fallback()}</h2>
+      <span className="text-app-caption text-app-text-secondary">{m.compare_lap_label()} {summary.lapNumber ?? "?"} · {summary.coverage === "complete" ? m.compare_opponent_coverage_complete() : m.compare_opponent_coverage_partial()} · {summary.validity === "valid" ? m.sessions_cleanup_valid() : summary.validity === "invalid" ? m.sessions_cleanup_invalid() : m.common_unknown()}</span>
+    </header>
+    <dl className="mt-3 grid grid-cols-1 gap-3 @md/workspace:grid-cols-3">
+      <div><dt className="text-app-caption text-app-text-muted">{m.compare_lap_a()}</dt><dd className="tabular-nums">{playerLap ? formatLapTime(playerLap.lapTime) : "—"}</dd></div>
+      <div><dt className="text-app-caption text-app-text-muted">{m.compare_opponent_lap()}</dt><dd className="tabular-nums">{resolved(summary.lapTime) == null ? "—" : formatLapTime(resolved(summary.lapTime)!)}</dd></div>
+      <div><dt className="text-app-caption text-app-text-muted">{m.compare_time_delta()}</dt><dd className="tabular-nums">{delta == null ? "—" : `${delta > 0 ? "+" : ""}${delta.toFixed(3)} s`}</dd></div>
+    </dl>
+    <Button type="button" variant="app-outline" size="app-sm" className="mt-3"
+      disabled={exporting || !playerLap || !selectionValid}
+      onClick={async () => {
+        if (!playerLap || !selectionValid) return;
+        setExporting(true);
+        try {
+          await exportLapsZip({ lapIds: [playerLap.id], opponent: { opponentLapId: summary.opponentLapId, sourceRevision: catalog.sourceRevision } });
+        } catch (cause) { window.alert(cause instanceof Error ? cause.message : String(cause)); }
+        finally { setExporting(false); }
+      }}>{exporting ? m.analyse_exporting() : m.label_export()}</Button>
+    {comparison?.sectorDeltas.length ? <section className="mt-4" aria-label={m.compare_overview_title()}>
+      <h3 className="mb-2 text-app-caption font-semibold text-app-text-muted">{m.compare_overview_title()}</h3>
+      <ul className="grid grid-cols-1 gap-2 @md/workspace:grid-cols-2">
+        {comparison.sectorDeltas.map((sector) => {
+          const value = resolved(sector.deltaSeconds);
+          const sectorNumber = sector.semanticId.match(/\.s(\d+)$/)?.[1];
+          return <li key={sector.semanticId} data-semantic-id={sector.semanticId} className="flex justify-between gap-3 rounded border border-app-border px-3 py-2">
+            <span>{sectorNumber ? m.tunes_sector_title({ number: sectorNumber }) : sector.semanticId}</span><span className="tabular-nums">{value == null ? "—" : `${value > 0 ? "+" : ""}${value.toFixed(3)} s`}</span>
+          </li>;
+        })}
+      </ul>
+    </section> : null}
+    {replay}
+    {summary.reasons.length > 0 && <p className="mt-3 text-app-caption text-app-text-muted">{[...new Set(summary.reasons.map((reason) => reasons[reason]))].join(" · ")}</p>}
+  </section>;
 }

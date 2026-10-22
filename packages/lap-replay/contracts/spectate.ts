@@ -1,6 +1,7 @@
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { ComparisonData } from "@raceiq/shared/racing/comparison/types";
 import type { SemanticLapTelemetry, SemanticReplayFrame } from "../contracts/replay"
+import type { OpponentLapReference, OpponentSemanticLapTelemetry } from "./opponents";
 
 /** Native recording samples. NaN denotes unavailable progress, never an index approximation. */
 export interface SpectateSample {
@@ -17,7 +18,7 @@ export interface SpectateLap {
   duration: number;
   distance: number;
   hasProgress: boolean;
-  replay: SemanticLapTelemetry;
+  replay: SemanticLapTelemetry | OpponentSemanticLapTelemetry;
 }
 export interface SpectatePose {
   x: number;
@@ -61,11 +62,23 @@ export interface SpectateController {
   dispose(): void;
   sample(time: number, holdPose?: boolean): { a: SpectateReading | null; b: SpectateReading | null };
 }
+export interface ReplayOpponentMetadata {
+  kind: "opponent";
+  id: string;
+  reference: Extract<OpponentLapReference, { kind: "opponent" }>;
+  trackId: string;
+  carId?: string;
+  lapNumber: number | null;
+  lapTime: number | null;
+  sectorTimes?: number[];
+  source?: null;
+}
+
 export interface ReplaySession {
   gameId: GameId;
   a: SpectateLap;
   b: SpectateLap | null;
-  comparison: { lapA: ComparisonData["lapA"]; lapB: ComparisonData["lapB"] | null; traces?: ComparisonData["traces"]; timeDelta?: ComparisonData["timeDelta"] };
+  comparison: { lapA: ComparisonData["lapA"]; lapB: ComparisonData["lapB"] | ReplayOpponentMetadata | null; traces?: ComparisonData["traces"]; timeDelta?: ComparisonData["timeDelta"] };
 }
 /** Compare-only session. */
 export interface SpectatePair extends ReplaySession {

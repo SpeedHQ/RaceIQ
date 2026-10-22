@@ -52,13 +52,13 @@ rather than decoding recordings ad hoc.
 
 ### LMU player observations
 
-LMU source frames remain readable in compact v1 and full-memory v2 form. New
-player captures use source-frame v3 to retain the native memory snapshot plus
-typed player/session REST observations. Sparse records delta-encode native
-blocks and retain each context's original timestamps and states; there is no
-competitor collection or companion BIN in this phase. Selected-lap ZIP export,
-import and historical semantic replay retain that context. Older captures and
-CSV imports cannot reconstruct observations they never recorded.
+LMU source frames remain readable in compact v1 and full-memory v2 form.
+Source-frame v3 introduced typed player/session REST observations alongside
+the native memory snapshot. Current live recordings partition those frames
+into a player-only v5 primary and a separate versioned opponent companion.
+Sparse records retain original timestamps and availability states. Selected-lap
+ZIP export, import and historical semantic replay preserve this context.
+Older captures cannot reconstruct observations they never recorded.
 
 New DuckDB imports use compact synthetic source-frame v4 with an allowlisted,
 duplicate-free channel inventory bounded to 4,096 metadata bytes. A channel is
@@ -127,6 +127,37 @@ second measured by a monotonic clock, independent of system-clock changes;
 a transient rejected read does not create another session. New
 generations reject late REST completions. Live and historical player panels
 show observation state and source age, not an inferred measurement.
+
+### LMU multiplayer opponent recordings
+
+Opponent capture is enabled by default for live LMU sessions. Changing the
+setting affects the next live session only; it does not change a session
+already in progress or add opponent data to existing imports. Player telemetry
+remains in the primary recording; captured opponents are stored separately in
+the removable companion recording.
+
+Open Compare with a player lap, choose **Opponents**, filter by class or
+driver/car, and preview a recorded lap. **Lap compare** commits that exact
+reference; **Cancel** preserves the previous reference. Partial or uncertain
+laps remain labeled; laps without comparable evidence cannot be selected.
+The shared Replay workspace uses recorded scoring kinematics and source
+clocks, not invented remote inputs. Missing clock/pose coverage does not
+produce continuous playback.
+
+**Export** includes the selected opponent's full recorded interval, even when
+it crosses the player's lap boundaries. Storage settings can preview and
+irreversibly remove opponents across every lap in one or more sessions.
+Player recordings remain usable; earlier exported copies are unchanged.
+New partitioned primaries are not rewritten. Legacy native v2/v3 captures
+require a staged player-preserving rewrite before the old source is removed.
+
+History distinguishes **not recorded** (capture disabled or no opponent source),
+**removed** (intentional deletion), **missing** (referenced companion absent),
+**corrupt** (integrity failure), and **incomplete** (only a committed prefix or
+failed opponent capture). Lap coverage is separate from companion integrity.
+Remote-input channels remain restricted or unverified and must not appear as
+observed measurements. Controlled fixtures do not establish real-game
+compatibility: fresh Windows LMU multiplayer source acceptance remains unrun.
 
 Schema and unit references are recorded in the
 [LMU contract](../plans/lmu-competitor-data-contract.md). Controlled native,

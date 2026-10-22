@@ -16,6 +16,7 @@ import { RecordingDirectoryControl } from "./RecordingDirectoryControl";
 import { RecordingLayoutMigration } from "@/components/RecordingLayoutMigration";
 import { SessionDownsampleSkipSummary } from "@/components/SessionDownsampleSkipSummary";
 import { RecordingRetentionControls } from "./RecordingRetentionControls";
+import { OpponentRemovalControls } from "./OpponentRemovalControls";
 import { m } from "@/paraglide/messages";
 import { formatBytes } from "@/lib/format-bytes";
 import { authenticatedFetch, client } from "@/lib/rpc";
@@ -308,6 +309,7 @@ function StorageFilesSection() {
           <Button variant="app-outline" size="app-sm" disabled={operationBlocked || movingDirectory} onClick={() => setCleanupRequest({ mode: "older-than", olderThanDays: 30 })}>{m.sessions_cleanup_free_space()}</Button>
         </div>
         <RecordingRetentionControls disabled={operationBlocked} />
+        <OpponentRemovalControls disabled={operationBlocked || movingDirectory} />
         
       </div>
     </section>

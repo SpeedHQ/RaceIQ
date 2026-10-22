@@ -1,5 +1,6 @@
 import type { ComparisonData } from "@raceiq/shared/racing/comparison/types";
 import type { SemanticLapTelemetry, SemanticReplayFrame } from "../contracts/replay"
+import type { OpponentSemanticLapTelemetry } from "../contracts/opponents";
 import { hasTelemetryGap } from "./telemetry-gap"
 import type { SpectateController, SpectateLap, SpectatePose, SpectateReading, SpectateSample, SpectateSnapshot } from "../contracts/spectate";
 const SEGMENT_SEEK_DURATION_MS = 1200;
@@ -34,7 +35,7 @@ function lowerBound<T>(items: readonly T[], target: number, value: (item: T) => 
 }
 
 /** Register native samples to aligned comparison path when supplied. */
-export function prepareSpectateLap(replay: SemanticLapTelemetry, comparison?: ComparisonData, side: "a" | "b" = "a"): SpectateLap {
+export function prepareSpectateLap(replay: SemanticLapTelemetry | OpponentSemanticLapTelemetry, comparison?: ComparisonData, side: "a" | "b" = "a", options?: { preserveLapDistance: boolean }): SpectateLap {
   const traces = comparison?.traces;
   const elapsed = traces ? (side === "a" ? traces.elapsedTimeA : traces.elapsedTimeB) : [];
   const aligned: Array<{ time: number; distance: number; first: number; last: number }> = [];
@@ -101,7 +102,11 @@ export function prepareSpectateLap(replay: SemanticLapTelemetry, comparison?: Co
     run = 0,
     maxDistance = 0;
   const samples: SpectateSample[] = [];
+  let previousSequence: number | null = null;
   for (const frame of replay.envelopes) {
+    const sourceGap = frame.simulator === "lmu" && previousSequence !== null && frame.sequence > previousSequence + 1;
+    if (sourceGap) run++;
+    previousSequence = frame.sequence;
     const native = readNumber(frame, "timing.current-lap");
     const observed = firstObserved && frame.observedAt.domain === firstObserved.domain ? (frame.observedAt.milliseconds - firstObserved.milliseconds) / 1000 : null;
     const time = native !== null && native >= 0 && nativeOrigin !== null ? native - nativeOrigin : observed;
@@ -123,8 +128,11 @@ export function prepareSpectateLap(replay: SemanticLapTelemetry, comparison?: Co
     if (traces && exact?.time === time) distance = exact.distance;
     else if (traces && before && exact) distance = before.distance + ((exact.distance - before.distance) * (time - before.time)) / (exact.time - before.time);
     else if (aligned.length < 2 && traveled !== null) {
-      if (traveledOrigin === null) traveledOrigin = traveled;
-      distance = traveled - traveledOrigin;
+      if (options?.preserveLapDistance) distance = traveled;
+      else {
+        if (traveledOrigin === null) traveledOrigin = traveled;
+        distance = traveled - traveledOrigin;
+      }
     }
     const x = number(values["motion.position-x"]), z = number(values["motion.position-z"]);
     if (x !== null && z !== null) distance = projectDistance(time, index, x, z) ?? distance;

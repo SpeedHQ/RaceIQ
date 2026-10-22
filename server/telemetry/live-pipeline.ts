@@ -669,6 +669,8 @@ export class LiveTelemetryPipeline {
     const processing = (async () => {
       await previous;
       try {
+        const capture = this._recordingSession?.directCapture;
+        if (capture?.active && !capture.standbyReady) await capture.waitForStandby();
         await this._processPacket(packet, source, frameTimeMs);
       } catch (error) {
         this._recordingSession?.directCapture?.fail(error);
@@ -954,6 +956,12 @@ export class LiveTelemetryPipeline {
       void markDashboardCaptureCheckpoint(sessionId, false).catch((error) => {
         console.error(`[DashboardProcessor] Capture checkpoint failed for session ${sessionId}:`, error);
       });
+    }
+  }
+  async drainSessionRecorderWrites(): Promise<void> {
+    if (this.recorder instanceof DirectSessionRecorderAdapter) {
+      await this.recorder.ready;
+      await this.recorder.drainWrites();
     }
   }
 }

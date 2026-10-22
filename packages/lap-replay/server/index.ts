@@ -15,6 +15,7 @@ import { getLapReplaySource } from "@raceiq/backend-core/db/telemetry-replay-sto
 import { loadSessionCapture, resolveLapCaptureArtifact, resolveLiveLapCaptureArtifact } from "@raceiq/backend-core/session-capture/source-loader";
 import { createRawCaptureIdentity, loadRawCaptureIdentity } from "@raceiq/backend-core/session-capture/identity";
 import { getLiveLapCaptureSnapshot } from "@raceiq/backend-core/db/live-capture-queries";
+import { opponentRoutes } from "./opponent-routes";
 import { resolveTelemetryReplay } from "@raceiq/backend-core/telemetry/replay";
 import type { SemanticLapTelemetry } from "../contracts/replay";
 
@@ -94,4 +95,5 @@ export const replayRoutes = new Hono()
     const meta = await getLapMetaById(id);
     if (!meta || meta.gameId !== gameId.data) return c.json({ error: "Lap not found" }, 404);
     return c.json({ insights: await getOrComputeLapInsights(id) ?? [] });
-  });
+  })
+  .route("/", opponentRoutes);

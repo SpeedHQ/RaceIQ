@@ -9,6 +9,7 @@
     "./source": "./src/source.ts",
     "./test-support/duckdb": "./test/support/duckdb.ts",
     "./test-support/recordings": "./test/support/recordings.ts",
+    "./test-support/opponents": "./test/support/opponents.ts",
     "./game-parser": "./src/game-parser.ts"
   },
   "dependencies": {

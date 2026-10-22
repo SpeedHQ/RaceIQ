@@ -328,6 +328,30 @@ test("accepts released LMU source checkpoint-only captures with version-1 proven
   if (loaded.kind !== "capture") throw new Error("Expected capture source");
   expect(loaded.buffer).toEqual(capture);
 });
+test("accepts native LMU v2-to-v3 sparse checkpoint chains", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "raceiq-lmu-mixed-native-"));
+  directories.push(directory);
+  const v2 = Buffer.alloc(LMU_SOURCE_FRAME_V2_SIZE);
+  LMU_SOURCE_FRAME_MAGIC.copy(v2);
+  v2.writeUInt16LE(2, 8);
+  const v3 = Buffer.concat([Buffer.from(v2), Buffer.alloc(4)]);
+  v3.writeUInt16LE(3, 8);
+  const delta = encodeLmuSparseFrame(v3, v2, encodeFrameLength(v2.length).length + v2.length);
+  const capture = Buffer.concat([
+    encodeMetaFrame(1), encodeSparseCaptureFormatFrame(),
+    encodeFrameLength(v2.length), v2,
+    encodeFrameLength(delta.length), delta,
+  ]);
+  const rawFile = join(directory, "mixed-native.bin");
+  writeFileSync(rawFile, capture);
+  const records = [];
+  for await (const record of iterateSessionCaptureRecordsFromSource({
+    rawFile, source: null, gameId: "lmu", carId: "car", trackId: "track", captureFormatVersion: 1,
+  }, { strict: true })) {
+    if (record.kind === "frame") records.push(record.frame);
+  }
+  expect(records).toEqual([v2, v3]);
+});
 test("loads and indexes gzip sparse captures from decompressed bytes", async () => {
   const directory = mkdtempSync(join(tmpdir(), "raceiq-gzip-load-"));
   directories.push(directory);

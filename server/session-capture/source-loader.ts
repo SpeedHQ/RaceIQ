@@ -35,10 +35,11 @@ import {
   readFramePrefix,
   type SessionCaptureRecord,
 } from "@raceiq/capture-formats/session/framing";
-import { decodeLmuSparseFrame, isLmuSparseFrame } from "@raceiq/capture-formats/session/lmu-sparse";
-import { canHandleLMUSourceFrame, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
+import { decodeLmuSparseFrame, isLmuSparseFrame, isLmuSparseSourceFrame, lmuSparseSourceIdentity } from "@raceiq/capture-formats/session/lmu-sparse";
 import { decodeKunosSparseFrame, isKunosSparseFrame, kunosSourceMagic } from "@raceiq/capture-formats/session/kunos-sparse";
 import { decodeGenericSparseFrame, genericFrameIdentity, isGenericSparseFrame } from "@raceiq/capture-formats/session/generic-sparse";
+import { getLMUPartitionKey, getLMUPartitionSourceLength, isLMUPartitionCompanion, isLMUPartitionPrimary, restoreLMUSourceFrame } from "@raceiq/capture-formats/lmu/partition";
+import { readLmuOpponentRetention } from "./lmu-companion";
 
 export interface SessionCaptureFrameRecord { readonly offset: number; readonly length: number; readonly frameIndex: number; }
 export interface SessionCaptureFrameIndex {
@@ -74,6 +75,10 @@ function assertCaptureRecordLength(length: number): void {
   if (length > MAX_CAPTURE_RECORD_BYTES) {
     throw new Error(`Capture record length ${length} exceeds 16 MiB limit`);
   }
+}
+function compatibleLmuCheckpointIdentity(frame: Buffer): string | null {
+  const identity = lmuSparseSourceIdentity(frame);
+  return identity === "lmu-source-2" || identity === "lmu-source-3" ? "lmu-native" : identity;
 }
 export function indexCaptureFrames(buffer: Buffer): SessionCaptureFrameIndex {
   const records: SessionCaptureFrameRecord[] = [];
@@ -193,7 +198,49 @@ async function* iterateStandaloneManifest(source: SessionCaptureSource): AsyncGe
   const directory = await realpath(dirname(source.rawFile));
   let ordinal = 0;
   let sourceByteOffset = 12;
-  for (const chunk of manifest.chunks) {
+  let companionIterator: AsyncIterator<SessionCaptureRecord> | null = null;
+  let companionPending: SessionCaptureRecord | null = null;
+  let companionFailed = false;
+  const retention = manifest.gameId === "lmu" ? await readLmuOpponentRetention(source.rawFile) : null;
+  if (manifest.gameId === "lmu" && manifest.opponentRetention === "retained" &&
+      manifest.opponentCompanion && retention?.opponentAvailability === "complete") {
+    const companionPath = resolve(directory, manifest.opponentCompanion.file);
+    const resolvedCompanionPath = await realpath(companionPath);
+    const companionRelative = relative(directory, resolvedCompanionPath);
+    if (basename(manifest.opponentCompanion.file) !== manifest.opponentCompanion.file ||
+        companionRelative === ".." || companionRelative.startsWith(`..${sep}`) || isAbsolute(companionRelative)) {
+      throw new Error("Opponent companion path escapes capture directory");
+    }
+    companionIterator = iterateSessionCaptureRecordsFromSource(
+      { ...source, rawFile: resolvedCompanionPath, artifact: undefined },
+      { strict: true, allowLegacyFullFrames: true },
+    );
+  }
+  const joinCompanion = async (primary: Buffer): Promise<Buffer> => {
+    if (!companionIterator || companionFailed || !isLMUPartitionPrimary(primary)) return primary;
+    const primaryKey = getLMUPartitionKey(primary);
+    if (!primaryKey) { companionFailed = true; return primary; }
+    try {
+      while (!companionPending) {
+        const next = await companionIterator.next();
+        if (next.done) { companionFailed = true; return primary; }
+        if (next.value.kind === "frame") companionPending = next.value;
+      }
+      if (companionPending.kind !== "frame" || !isLMUPartitionCompanion(companionPending.frame) ||
+          getLMUPartitionKey(companionPending.frame) !== primaryKey) {
+        companionFailed = true;
+        return primary;
+      }
+      const restored = restoreLMUSourceFrame(primary, companionPending.frame);
+      companionPending = null;
+      return restored;
+    } catch {
+      companionFailed = true;
+      return primary;
+    }
+  };
+  try {
+    for (const chunk of manifest.chunks) {
     if (chunk.firstOrdinal !== ordinal || chunk.sourceStart !== ordinal || chunk.sourceEnd !== ordinal + chunk.recordCount ||
         chunk.sourceByteStart !== sourceByteOffset || chunk.sourceByteEnd < chunk.sourceByteStart) {
       throw new Error(`Manifest chunk ${chunk.id} has discontinuous source coordinates`);
@@ -225,10 +272,16 @@ async function* iterateStandaloneManifest(source: SessionCaptureSource): AsyncGe
         foundStart = true;
       }
       if (emitted >= chunk.recordCount) break;
+      const frame = record.kind === "frame" ? await joinCompanion(record.frame) : null;
+      const sourceFrameLength = record.kind === "frame"
+        ? getLMUPartitionSourceLength(record.frame) ?? record.frame.length
+        : 0;
       const wireLength = record.kind === "frame"
-        ? encodeFrameLength(record.frame.length, record.frameTimeMs).length + record.frame.length
+        ? encodeFrameLength(sourceFrameLength, record.frameTimeMs).length + sourceFrameLength
         : record.endOffset - record.offset;
-      yield { ...record, offset: virtualOffset, endOffset: virtualOffset + wireLength } as SessionCaptureRecord;
+      yield record.kind === "frame"
+        ? { ...record, offset: virtualOffset, endOffset: virtualOffset + wireLength, frame: frame! }
+        : { ...record, offset: virtualOffset, endOffset: virtualOffset + wireLength };
       virtualOffset += wireLength;
       emitted++;
     }
@@ -237,6 +290,9 @@ async function* iterateStandaloneManifest(source: SessionCaptureSource): AsyncGe
     }
     ordinal = chunk.sourceEnd;
     sourceByteOffset = chunk.sourceByteEnd;
+    }
+  } finally {
+    await companionIterator?.return?.();
   }
   if (ordinal !== manifest.sourceRecordCount || sourceByteOffset !== manifest.sourceByteLength) throw new Error("Session source manifest totals do not match chunk coordinates");
 }
@@ -366,7 +422,7 @@ export async function* iterateSessionCaptureRecordsFromSource(
               backDistance !== frameOffset - checkpointOffset) {
             throw new Error(`Invalid sparse checkpoint at ${frameOffset}`);
           }
-          if (lmuDelta && checkpointIdentity !== "lmu-v2") throw new Error(`Invalid LMU sparse checkpoint identity at ${frameOffset}`);
+          if (lmuDelta && (!previous || checkpointIdentity !== compatibleLmuCheckpointIdentity(previous))) throw new Error(`Invalid LMU sparse checkpoint identity at ${frameOffset}`);
           if (kunosDelta && (!checkpointIdentity || !checkpointIdentity.startsWith("kunos-") || Number(checkpointIdentity.slice(6)) !== kunosSourceMagic(previous))) {
             throw new Error(`Invalid Kunos sparse checkpoint identity at ${frameOffset}`);
           }
@@ -375,16 +431,16 @@ export async function* iterateSessionCaptureRecordsFromSource(
           }
           frame = genericDelta ? decodeGenericSparseFrame(payload, previous)
             : lmuDelta ? decodeLmuSparseFrame(payload, previous) : decodeKunosSparseFrame(payload, previous);
-          if (lmuDelta && !canHandleLMUSourceFrame(frame)) {
+          if (lmuDelta && (!isLmuSparseSourceFrame(frame) || compatibleLmuCheckpointIdentity(frame) !== checkpointIdentity)) {
             throw new Error(`Invalid LMU sparse frame at ${frameOffset}`);
           }
           if (kunosDelta && kunosSourceMagic(frame) !== Number(checkpointIdentity!.slice(6))) {
             throw new Error(`Invalid Kunos sparse frame identity at ${frameOffset}`);
           }
         } else {
-          const isLmu = payload.length >= LMU_SOURCE_FRAME_V2_SIZE && canHandleLMUSourceFrame(payload);
+          const isLmu = isLmuSparseSourceFrame(payload);
           const magic = kunosSourceMagic(payload);
-          checkpointIdentity = isLmu ? "lmu-v2" : magic ? `kunos-${magic}` : genericFrameIdentity(payload);
+          checkpointIdentity = isLmu ? compatibleLmuCheckpointIdentity(payload) : magic ? `kunos-${magic}` : genericFrameIdentity(payload);
           checkpointOffset = checkpointIdentity ? frameOffset : -1;
         }
         previous = frame;
@@ -418,15 +474,20 @@ export async function loadSessionSource(source: SessionCaptureSource): Promise<L
   if (hit && (!info || hit.size === info.size && hit.mtimeMs === info.mtimeMs && hit.dev === info.dev && hit.ino === info.ino)) return hit.loaded;
   if (source.rawFile.endsWith("manifest.json")) {
     const records: Buffer[] = [encodeMetaFrame()];
+    const frameRecords: SessionCaptureFrameRecord[] = [];
+    let frameIndex = 0;
     for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: true })) {
-      if (record.kind === "frame") records.push(encodeFrameLength(record.frame.length, record.frameTimeMs), record.frame);
-      else if (record.kind === "parser-bootstrap") records.push(encodeParserBootstrapFrame(record.gameId, record.payload));
+      if (record.kind === "frame") {
+        records.push(encodeFrameLength(record.frame.length, record.frameTimeMs), record.frame);
+        frameRecords.push({ offset: record.offset, length: record.endOffset - record.offset, frameIndex: frameIndex++ });
+      } else if (record.kind === "parser-bootstrap") records.push(encodeParserBootstrapFrame(record.gameId, record.payload));
       else if (record.kind === "segment-boundary") records.push(encodeSegmentBoundaryFrame());
       else if (record.kind === "segment-context") records.push(encodeSegmentContextFrame());
       else if (record.kind === "segment-context-end") records.push(encodeSegmentContextEndFrame());
     }
     const buffer = Buffer.concat(records);
-    return { kind: "capture", buffer, frameIndex: indexCaptureFrames(buffer) };
+    const byOffset = new Map(frameRecords.map((record) => [record.offset, record]));
+    return { kind: "capture", buffer, frameIndex: { records: frameRecords, byOffset } };
   }
   let bytes: Buffer;
   if (source.artifact) {

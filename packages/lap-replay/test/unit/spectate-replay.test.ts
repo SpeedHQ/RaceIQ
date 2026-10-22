@@ -8,6 +8,7 @@ import type { SpectateChannel } from "../../ui/spectate-channels"
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { buildSpectateChannels } from "../../ui/spectate-channels"
 import type { SpectatePair } from "../../contracts/spectate"
+import type { OpponentSemanticLapTelemetry } from "../../contracts/opponents";
 
 initGameAdapters({ f1Experiments: true, iracingAdapter: true });
 
@@ -90,6 +91,38 @@ test("single replay uses native progress and frame seeks without a comparison la
     controller.seekFrame("b", 10);
     expect(controller.getSnapshot().time).toBeCloseTo(0.5);
     expect(controller.sample(0.5).b).toBeNull();
+  } finally { controller.dispose(); }
+});
+
+test("opponent replay keeps native partial-lap distance and never aligns uncovered progress", () => {
+  const player = recordedLap(1, (time) => 500 + time * 20).replay;
+  const opponentFrames = recordedLap(1, (time) => 510 + time * 20).replay.envelopes;
+  for (const [frames, start] of [[player.envelopes, 500], [opponentFrames, 510]] as const) {
+    frames.forEach((frame, index) => {
+      frame.simulator = "lmu";
+      frame.values = frame.values.filter((value) => value.semanticId.startsWith("motion."));
+      frame.values.push(
+        { semanticId: "timing.current-lap", value: 42 + index / 20 },
+        { semanticId: "timing.distance-traveled", value: start + index },
+      );
+    });
+  }
+  const opponent: OpponentSemanticLapTelemetry = {
+    opponentLapId: "opaque-native-lap",
+    sourceRevision: "capture-revision",
+    requestedSemanticIds: ["motion.position-x", "motion.position-z", "motion.yaw", "timing.current-lap", "timing.distance-traveled"],
+    envelopes: opponentFrames,
+  };
+  const a = prepareSpectateLap(player, undefined, "a", { preserveLapDistance: true });
+  const b = prepareSpectateLap(opponent, undefined, "b", { preserveLapDistance: true });
+  const controller = createSpectateController(a, b);
+  try {
+    expect(controller.getSnapshot().positionLock).toBe(true);
+    expect(controller.sample(0).b).toBeNull();
+    expect(controller.sample(0.75).a?.distance).toBe(515);
+    expect(controller.sample(0.75).b?.distance).toBe(515);
+    expect(controller.sample(0.75).b?.pose?.x).toBe(515);
+    expect(controller.sample(0.75).b?.values["inputs.gear"]).toBeUndefined();
   } finally { controller.dispose(); }
 });
 
@@ -271,6 +304,40 @@ test("seek transitions ease symmetrically and retarget from displayed time", () 
     else Reflect.deleteProperty(globalThis, "performance");
   }
 });
+test("LMU source-sequence gaps stay unavailable through prepared pose and aligned trace sampling", () => {
+  const replay: SemanticLapTelemetry = {
+    lapId: 1,
+    requestedSemanticIds: [],
+    envelopes: [0, 0.05].map((time, index) => ({
+      sequence: index === 0 ? 0 : 2,
+      simulator: "lmu",
+      observedAt: { domain: "session", milliseconds: time * 1000 },
+      receivedAt: { domain: "session", milliseconds: time * 1000 },
+      values: Object.entries({
+        "timing.current-lap": time,
+        "timing.distance-traveled": time * 1000,
+        "motion.position-x": time * 1000,
+        "motion.position-z": 0,
+        "motion.yaw": 0,
+        "motion.speed": 100,
+      }).map(([semanticId, value]) => ({ semanticId, value, state: "ok", freshness: "fresh" })),
+    })),
+  };
+  const comparison = { traces: {
+    distance: [0, 50], elapsedTimeA: [0, 0.05], elapsedTimeB: [0, 0.05],
+    positionXA: [0, 50], positionZA: [0, 0], positionXB: [0, 50], positionZB: [5, 5],
+  } } as unknown as ComparisonData;
+  const prepared = prepareSpectateLap(replay, comparison);
+  const controller = createSpectateController(prepared, null);
+  try {
+    expect(controller.sample(0.025).a).toBeNull();
+    expect(controller.sample(0).a?.pose?.x).toBe(0);
+    expect(controller.sample(0.05).a?.pose?.x).toBe(50);
+  } finally {
+    controller.dispose();
+  }
+});
+
 describe("Spectate native sampling", () => {
   test("F1 held motion packets do not freeze then accelerate cars or locked progress", () => {
     const times = [0, 0.02, 0.04, 0.06, 0.08];

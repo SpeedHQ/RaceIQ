@@ -1,8 +1,7 @@
-import { canHandleLMUSourceFrame, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
 import { ACC_PACKED_MAGIC, ACEVO_PACKED_MAGIC } from "../kunos/pack-triplet";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { encodeKunosSparseFrame } from "./kunos-sparse";
-import { encodeLmuSparseFrame } from "./lmu-sparse";
+import { encodeLmuSparseFrame, isLmuSparseSourceFrame, lmuSparseSourceIdentity } from "./lmu-sparse";
 import { encodeGenericSparseFrame, genericFrameIdentity } from "./generic-sparse";
 import { SessionRecorder } from "./recorder";
 import { encodeSparseCaptureFormatFrame } from "./framing";
@@ -34,7 +33,7 @@ export class SparseCaptureEncoder {
     const forceCheckpoint = this.forceCheckpoint;
     this.forceCheckpoint = false;
     // Compact imported v1/v4 frames and unrelated source formats stay legacy raw.
-    const isLmu = this.gameId === "lmu" && frame.length >= LMU_SOURCE_FRAME_V2_SIZE && canHandleLMUSourceFrame(frame);
+    const isLmu = this.gameId === "lmu" && isLmuSparseSourceFrame(frame);
     const kunosMagic = this.gameId === "acc" ? ACC_PACKED_MAGIC : ACEVO_PACKED_MAGIC;
     const isKunos = (this.gameId === "acc" || this.gameId === "ac-evo") &&
       frame.length >= 20 && frame.readUInt32LE(0) === kunosMagic;
@@ -45,7 +44,7 @@ export class SparseCaptureEncoder {
       this.reset();
       return frame;
     }
-    const adjacent = this.previous && (isLmu ? this.previous.length >= LMU_SOURCE_FRAME_V2_SIZE && canHandleLMUSourceFrame(this.previous) : this.previous.length === frame.length) &&
+    const adjacent = this.previous && (isLmu ? lmuSparseSourceIdentity(this.previous) === lmuSparseSourceIdentity(frame) : this.previous.length === frame.length) &&
       (!validGeneric || genericFrameIdentity(this.previous) === generic);
     if (forceCheckpoint || !adjacent || this.framesSinceCheckpoint >= CHECKPOINT_INTERVAL) {
       this.checkpointOffset = recordOffset;

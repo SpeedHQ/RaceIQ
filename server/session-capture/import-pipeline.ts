@@ -12,6 +12,7 @@ import { getServerGame } from "../games/registry";
 import { isIRacingSessionFrame } from "@raceiq/capture-formats/iracing/source-frame";
 import { PARSER_BOOTSTRAP_VERSION, SESSION_SEGMENT_BOUNDARY, SESSION_SEGMENT_CONTEXT, SESSION_SEGMENT_CONTEXT_END } from "@raceiq/capture-formats/session/framing";
 import { applyFrameTime } from "./frame-time";
+import { DirectSessionRecorderAdapter } from "./direct-recorder";
 import { LiveTelemetryPipeline } from "../telemetry/live-pipeline";
 import { NullWsAdapter, RealDbAdapter, SparseSessionRecorderAdapter, type DbAdapter, type SessionRecorderAdapter } from "../telemetry/pipeline-ports";
 import { reconcileSessionResult } from "../race-results/reconcile";
@@ -266,6 +267,8 @@ export interface ImportSessionOptions {
   rollbackFiles?: Iterable<string>;
   /** Source-specific metadata persisted transactionally before reconciliation. */
   onImportedLaps?: (laps: readonly ImportedLap[]) => Promise<void>;
+  /** Import-only LMU retention state; never modifies the saved live-session preference. */
+  opponentRetention?: "retained" | "removed" | "not-recorded";
 }
 
 
@@ -294,7 +297,12 @@ async function importTelemetrySource<T>(
   const pipeline = new LiveTelemetryPipeline(db, new NullWsAdapter(), {
     bypassPacketRateFilter: true,
     enqueueSessionCaptureSplits: false,
-    recorder: options.recorder ?? new SparseSessionRecorderAdapter(options.ownership, {}, "offline"),
+    recorder: options.recorder ?? (options.opponentRetention
+      ? new DirectSessionRecorderAdapter(options.ownership, {
+        opponentRetentionOverride: options.opponentRetention,
+        writerOptions: { maxQueuedBytes: 16 * 1024 * 1024 + 12 },
+      })
+      : new SparseSessionRecorderAdapter(options.ownership, {}, "offline")),
   });
 
   let packetCount = 0;
@@ -302,6 +310,7 @@ async function importTelemetrySource<T>(
   try {
     for await (const item of source) {
       if (await processItem(item, packetCount, pipeline, db)) packetCount++;
+      if (options.opponentRetention) await pipeline.drainSessionRecorderWrites();
     }
     await pipeline.flushIncompleteLap();
     await db.waitForPendingLapWrites();

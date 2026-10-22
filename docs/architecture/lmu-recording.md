@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-09-19
 - **Decision owners:** RaceIQ maintainers
-- **Implementation status:** Source boundary and native fixture tooling implemented; committed fixture replacement awaits a new native LMU capture
+- **Implementation status:** LMU multiplayer opponent capture, companion recordings, comparison, and removal are implemented; fresh Windows multiplayer source acceptance remains unrun
 
 ## Context
 

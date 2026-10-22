@@ -25,6 +25,7 @@
 - Show lap classifications separately from validity in expanded session lap tables.
 - Simplify session timelines into compact circles with single-word event labels, starting positions, and arrows showing the new position.
 - Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
+- Capture LMU opponents by default in a separate removable companion recording; opt out for the next live session, preview and explicitly compare an exact recorded opponent through class/driver/lap filters, export its full interval, or irreversibly remove session-wide opponent data while preserving player telemetry. Keep stale, removed, missing and unrecorded references distinct.
 
 ### Fixes
 - Correct the LMU steering indicator direction in the Replay and Compare → Spectate center dashboard without changing recorded steering values.

@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { ComparisonData } from "@raceiq/shared/racing/comparison/types";
+import type { OpponentLapReference, OpponentLapSummary } from "../contracts/opponents";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
+import { useReplayHost } from "./host";
 import { useLapSemanticTelemetry } from "./host"
 import { useSettings } from "./host"
 import { createSpectateController, prepareSpectateLap } from "./spectate-replay";
@@ -8,8 +11,14 @@ import { useMessages } from "./host"
 import { Button } from "./host"
 import { LoadingIndicator } from "./host"
 import { SpectateView } from "./SpectateView";
-import type { SpectateController, SpectatePair, SpectateSegment } from "../contracts/spectate";
+import type { SpectateController, ReplaySession, SpectateLap, SpectateSegment } from "../contracts/spectate";
 
+type OpponentReplayComparison = {
+  kind: "opponent";
+  playerLap: LapMeta;
+  opponent: OpponentLapSummary;
+  reference: Extract<OpponentLapReference, { kind: "opponent" }>;
+};
 /** Kept above the conditional body: tabs preserve location, but never autoplay. */
 export function SpectateSession({
   gameId,
@@ -29,7 +38,7 @@ export function SpectateSession({
   onAiOpenChange,
 }: {
   gameId: GameId;
-  comparison: ComparisonData;
+  comparison: ComparisonData | OpponentReplayComparison;
   active: boolean;
   outline: readonly { x: number; z: number }[] | null;
   segments: readonly SpectateSegment[];
@@ -50,12 +59,35 @@ const [requested, setRequested] = useState(active);
 useEffect(() => {
   if (active) setRequested(true);
 }, [active]);
-const replayA = useLapSemanticTelemetry(requested ? comparison.lapA.id : null);
-const replayB = useLapSemanticTelemetry(requested ? comparison.lapB.id : null);
-const pair = useMemo<SpectatePair | null>(() => {
-  if (!replayA.data || !replayB.data) return null;
-  return { gameId, comparison, a: prepareSpectateLap(replayA.data, comparison, "a"), b: prepareSpectateLap(replayB.data, comparison, "b") };
-}, [gameId, comparison, replayA.data, replayB.data]);
+const playerComparison = "lapA" in comparison ? comparison : null;
+const opponentComparison = "kind" in comparison ? comparison : null;
+const playerLap = playerComparison ? playerComparison.lapA : opponentComparison!.playerLap;
+const replayA = useLapSemanticTelemetry(requested ? playerLap.id : null);
+const replayB = useLapSemanticTelemetry(requested && playerComparison ? playerComparison.lapB.id : null);
+const replayOpponent = useReplayHost().useOpponentLapSemanticTelemetry(requested && opponentComparison ? opponentComparison.reference : null);
+const pair = useMemo<(ReplaySession & { b: SpectateLap }) | null>(() => {
+  const other = opponentComparison ? replayOpponent.data : replayB.data;
+  if (!replayA.data || !other) return null;
+  if (playerComparison) return {
+    gameId, comparison: playerComparison,
+    a: prepareSpectateLap(replayA.data, playerComparison, "a"),
+    b: prepareSpectateLap(other, playerComparison, "b"),
+  };
+  const selected = opponentComparison!;
+  const sectors = selected.opponent.sectors;
+  return {
+    gameId,
+    comparison: { lapA: selected.playerLap, lapB: {
+      kind: "opponent", id: selected.opponent.opponentLapId, reference: selected.reference,
+      trackId: selected.playerLap.trackId, lapNumber: selected.opponent.lapNumber,
+      lapTime: selected.opponent.lapTime.state === "ok" ? selected.opponent.lapTime.value : null,
+      ...(sectors.length && sectors.every((sector) => sector.duration.state === "ok" && sector.duration.value !== null)
+        ? { sectorTimes: sectors.map((sector) => sector.duration.value!) } : {}),
+    } },
+    a: prepareSpectateLap(replayA.data, undefined, "a", { preserveLapDistance: true }),
+    b: prepareSpectateLap(other, undefined, "b", { preserveLapDistance: true }),
+  };
+}, [gameId, playerComparison, opponentComparison, replayA.data, replayB.data, replayOpponent.data]);
 const [controller, setController] = useState<SpectateController | null>(null);
 const distanceCallback = useRef(onDistanceChange);
 distanceCallback.current = onDistanceChange;
@@ -109,15 +141,15 @@ useEffect(() => {
     appliedCursor.current = undefined;
     return;
   }
-  if (!controller || !active || appliedCursor.current === cursor) return;
-  const distances = comparison.traces.distance;
+  if (!controller || !active || !playerComparison || appliedCursor.current === cursor) return;
+  const distances = playerComparison.traces.distance;
   const distance = distances[Math.max(0, Math.min(distances.length - 1, Math.floor(cursor)))];
   if (distance == null) return;
   controller.seekDistance(distance, true);
   appliedCursor.current = cursor;
-}, [cursor, controller, comparison, active]);
+}, [cursor, controller, playerComparison, active]);
 if (!active) return null;
-const error = replayA.error ?? replayB.error;
+const error = replayA.error ?? (opponentComparison ? replayOpponent.error : replayB.error);
 if (error)
   return (
     <div role="alert" className="flex flex-1 flex-col items-center justify-center gap-3 text-app-detail text-status-danger">
@@ -127,7 +159,8 @@ if (error)
         variant="app-outline"
         onClick={() => {
           void replayA.refetch();
-          void replayB.refetch();
+          if (opponentComparison) void replayOpponent.refetch();
+          else void replayB.refetch();
         }}
       >
         {m.spectate_retry()}

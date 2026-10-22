@@ -1,3 +1,4 @@
+import type { ResolvedValue } from "./resolver/contracts";
 import type { TelemetryTimestamp } from "./resolver/contracts";
 import type { LmuSupplementalObservation } from "./lmu-supplemental";
 export interface LmuFrameKey {
@@ -5,13 +6,20 @@ export interface LmuFrameKey {
   captureSequence: string;
   frameTime: TelemetryTimestamp;
 }
-/** Phase 1 player/session supplement; no competitor collection. */
+export interface LmuCompetitor {
+  vehicleId: number;
+  incarnation: number;
+  isPlayer: boolean;
+  channels: Readonly<Record<string, ResolvedValue<unknown>>>;
+}
+/** Phase 1 player/session supplement; Phase 2 adds optional competitor snapshots. */
 export interface LmuLiveContext {
   schemaVersion: 1;
   key: LmuFrameKey;
   playerVehicleId: number | null;
   status: "active" | "unavailable";
   supplemental: readonly LmuSupplementalObservation[];
+  competitors?: readonly LmuCompetitor[];
 }
 export interface LMUExtendedData {
   carId: string;

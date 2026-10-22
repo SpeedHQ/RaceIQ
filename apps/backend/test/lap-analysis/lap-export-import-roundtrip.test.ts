@@ -33,9 +33,8 @@ import {
   iterateSessionCaptureRecords,
   iterateSessionFrames,
   META_FRAME_BYTES,
-  readFramePrefix,
 } from "@raceiq/capture-formats/session/framing";
-import { encodeLmuSparseFrame, isLmuSparseFrame } from "@raceiq/capture-formats/session/lmu-sparse";
+import { encodeLmuSparseFrame } from "@raceiq/capture-formats/session/lmu-sparse";
 import { queryLapTelemetryBySemanticId } from "@raceiq/backend-core/telemetry/replay";
 import { KNOWN_GAME_IDS, type GameId } from "@raceiq/shared/games/ids";
 import { buildLd, buildLdx, syntheticStint } from "@raceiq/backend-core/test-support/motec/ld";
@@ -46,6 +45,10 @@ import { decodeLMUSourceFrame, encodeLMUSourceFrame, LMU_MAX_SOURCE_FRAME_SIZE }
 import { LMU_SHARED_MEMORY_SIZE, LMU_GAME_VERSION_OFFSET, LMU_SESSION_EVENT_OFFSET, LMU_TELEMETRY_HEADER_OFFSET, LMU_TELEMETRY_INFO_OFFSET, LMU_TELEMETRY, LMU_SCORING_INFO, LMU_SCORING_INFO_OFFSET, LMU_SCORING_VEHICLE, LMU_SCORING_VEHICLES_OFFSET } from "@raceiq/capture-formats/lmu/layout";
 import type { LmuLiveContext } from "@raceiq/shared/telemetry/lmu";
 import { encodeLmuContext } from "@raceiq/shared/telemetry/lmu-context";
+import { importSessionBin } from "@raceiq/backend-core/session-capture/import-capture";
+import { makeLmuOpponentCapture } from "@raceiq/game-lmu/test-support/opponents";
+import { readLmuOpponentCaptureFrames, indexLmuOpponentLaps } from "@raceiq/backend-core/lap-analysis/lmu-opponent-laps";
+import { readLmuOpponentRetention } from "@raceiq/backend-core/session-capture/lmu-companion";
 initGameAdapters();
 initServerGameAdapters();
 initMotecTargets();
@@ -172,6 +175,87 @@ describe("lap export → import round-trip (real capture)", () => {
     const match = result.laps.find((l) => Math.abs(l.lapTime - exported.lapTime) < 0.001);
     expect(match).toBeDefined();
   }, 120000);
+  test("retained LMU ordinary and selected opponent exports preserve exact companion-backed intervals", async () => {
+    const sourceImport = await importSessionBin(makeLmuOpponentCapture(), "lmu", { notifyDriverProfile: false });
+    const sessionIds = [...new Set(sourceImport.laps.map((lap) => lap.sessionId))];
+    createdSessions.push(...sessionIds);
+    const player = sourceImport.laps.find((lap) => lap.lapNumber === 3)!;
+    expect(player).toBeDefined();
+    const session = await db.select().from(sessions).where(eq(sessions.id, player.sessionId)).get();
+    expect(session?.rawFile).toBeTruthy();
+    const source = {
+      rawFile: session!.captureManifestFile ?? session!.rawFile!,
+      source: session!.source, gameId: "lmu" as const, carId: session!.carId ?? "", trackId: session!.trackId ?? "",
+    };
+    const retention = await readLmuOpponentRetention(source.rawFile);
+    const frames = await readLmuOpponentCaptureFrames(source, retention.sourceRevision);
+    const opponent = indexLmuOpponentLaps(frames).find((interval) => interval.lapNumber === 2 && interval.coverage === "complete")!;
+    expect(opponent).toBeDefined();
+    const ordinary = await buildLapsZip([player.lapId]);
+    expect(ordinary.manifest.entries.some((entry) => entry.opponentCompanionFile)).toBe(true);
+    const ordinaryImport = await importLapsZip(ordinary.bytes);
+    const ordinaryRows = await db.select().from(laps).where(eq(laps.sessionId, ordinaryImport.laps[0]!.sessionId)).all();
+    expect(ordinaryRows).toHaveLength(1);
+    expect(ordinaryImport.errors).toEqual([]);
+    expect(ordinaryImport.laps).toHaveLength(1);
+    createdSessions.push(ordinaryImport.laps[0]!.sessionId);
+    const selected = await buildLapsZip([player.lapId], { opponentLap: opponent.opponentLapId, opponentRevision: retention.sourceRevision });
+    const selectedArchive = unzipSync(selected.bytes);
+    const withoutPairing = { ...selectedArchive };
+    const manifest = JSON.parse(new TextDecoder().decode(withoutPairing["manifest.json"]!));
+    delete manifest.entries[0].opponentCompanionFile;
+    delete withoutPairing[selected.manifest.entries[0]!.opponentCompanionFile!];
+    withoutPairing["manifest.json"] = new TextEncoder().encode(JSON.stringify(manifest));
+    const unpaired = await importLapsZip(zipSync(withoutPairing));
+    expect(unpaired.imported).toBe(0);
+    expect(unpaired.skipped).toBe(1);
+    await expect(importLapsZip(zipSync({
+      ...selectedArchive, "unowned.opponents.bin.gz": gzipSync(Buffer.from("not a companion")),
+    }))).rejects.toThrow(/unassociated opponent companion/i);
+    for (const opponentRetention of ["removed", "not-recorded"] as const) {
+      manifest.entries[0].opponentRetention = opponentRetention;
+      withoutPairing["manifest.json"] = new TextEncoder().encode(JSON.stringify(manifest));
+      const playerOnly = await importLapsZip(zipSync(withoutPairing));
+      expect(playerOnly.errors).toEqual([]);
+      expect(playerOnly.laps).toHaveLength(1);
+      const restored = playerOnly.laps[0]!;
+      createdSessions.push(restored.sessionId);
+      expect(restored.lapTime).toBe(player.lapTime);
+      const restoredSession = await db.select().from(sessions).where(eq(sessions.id, restored.sessionId)).get();
+      const restoredRawFile = restoredSession!.captureManifestFile ?? restoredSession!.rawFile!;
+      const restoredRetention = await readLmuOpponentRetention(restoredRawFile);
+      expect(restoredRetention).toMatchObject({ opponentRetention });
+      expect(await readLmuOpponentCaptureFrames({ ...source, rawFile: restoredRawFile }, restoredRetention.sourceRevision)).toEqual([]);
+      const contradictory = JSON.parse(new TextDecoder().decode(selectedArchive["manifest.json"]!));
+      contradictory.entries[0].opponentRetention = opponentRetention;
+      await expect(importLapsZip(zipSync({
+        ...selectedArchive, "manifest.json": new TextEncoder().encode(JSON.stringify(contradictory)),
+      }))).rejects.toThrow(/cannot include an opponent companion/i);
+    }
+    const result = await importLapsZip(selected.bytes);
+    expect(result.laps).toHaveLength(1);
+    expect(result.laps[0]!.lapNumber).toBe(3);
+    const importedSession = await db.select().from(sessions).where(eq(sessions.id, result.laps[0]!.sessionId)).get();
+    expect(importedSession?.rawFile).toBeTruthy();
+    const importedSource = {
+      rawFile: importedSession!.captureManifestFile ?? importedSession!.rawFile!,
+      source: importedSession!.source, gameId: "lmu" as const,
+      carId: importedSession!.carId ?? "", trackId: importedSession!.trackId ?? "",
+    };
+    const importedRetention = await readLmuOpponentRetention(importedSource.rawFile);
+    const importedFrames = await readLmuOpponentCaptureFrames(importedSource, importedRetention.sourceRevision);
+    const importedOpponent = indexLmuOpponentLaps(importedFrames).find((interval) =>
+      interval.lapNumber === 2 && interval.coverage === "complete",
+    );
+    expect(importedOpponent).toBeDefined();
+    const opponentDurationMs = importedOpponent!.frames.at(-1)!.frameTime - importedOpponent!.frames[0]!.frameTime;
+    expect(opponentDurationMs).toBeGreaterThan(17_000);
+    expect(opponentDurationMs).toBeLessThan(19_000);
+    expect(importedOpponent!.endSequence).toBeTruthy();
+    expect(importedOpponent!.frames.length).toBeGreaterThan(1);
+    expect(importedOpponent!.frames[0]!.captureSequence).toBe(importedOpponent!.startSequence);
+    expect(importedOpponent!.frames.at(-1)!.captureSequence).toBe(importedOpponent!.endSequence!);
+  }, 120000);
   test("LMU changing supplemental values and original nanoseconds survive selected-lap export, import and historical replay", async () => {
     let oversizedDeltaExercised = false;
     function* sourceFrames() {
@@ -250,26 +334,24 @@ describe("lap export → import round-trip (real capture)", () => {
     expect(new Set(original.map((packet) => packet.lmuContext?.supplemental[0]?.observation.value)).size).toBe(6);
     const exported = await buildLapsZip([originalRow.id]);
     const archive = unzipSync(exported.bytes);
-    const captureMember = Object.entries(archive).find(([name]) => name.endsWith(".bin.gz"))?.[1];
+    const entry = exported.manifest.entries.find(({ file }) => file.endsWith(".bin.gz"))!;
+    expect(entry.opponentRetention).toBe("retained");
+    expect(entry.opponentCompanionFile).toBeDefined();
+    expect(archive[entry.opponentCompanionFile!]).toBeDefined();
+    const captureMember = archive[entry.file];
     expect(captureMember).toBeDefined();
     const sparseCapture = gunzipSync(captureMember!);
     expect(sparseCapture.length).toBeLessThan(original.length * LMU_SHARED_MEMORY_SIZE * 0.75);
-    let segmentBoundaries = 0;
-    let sparseFrames = 0;
-    for (const record of iterateSessionCaptureRecords(sparseCapture)) {
-      if (record.kind === "segment-boundary") {
-        segmentBoundaries++;
-        continue;
-      }
-      if (record.kind !== "frame") continue;
-      const prefix = readFramePrefix(sparseCapture, record.offset)!;
-      const payload = sparseCapture.subarray(record.offset + prefix.prefixBytes, record.offset + prefix.prefixBytes + prefix.length);
-      if (isLmuSparseFrame(payload)) {
-        sparseFrames++;
-      }
-    }
-    expect(segmentBoundaries).toBeGreaterThan(0);
-    expect(sparseFrames).toBeGreaterThan(0);
+    const withoutCompanion = { ...archive };
+    delete withoutCompanion[entry.opponentCompanionFile!];
+    const missing = await importLapsZip(zipSync(withoutCompanion));
+    expect(missing.imported).toBe(0);
+    expect(missing.skipped).toBe(1);
+    const corruptCompanion = Buffer.from(archive[entry.opponentCompanionFile!]!);
+    corruptCompanion[corruptCompanion.length - 1] ^= 0xff;
+    const corrupt = await importLapsZip(zipSync({ ...archive, [entry.opponentCompanionFile!]: corruptCompanion }));
+    expect(corrupt.imported).toBe(0);
+    expect(corrupt.skipped).toBe(1);
     const imported = await importLapsZip(exported.bytes);
     expect(imported.errors).toEqual([]);
     expect(imported.laps).toHaveLength(1);

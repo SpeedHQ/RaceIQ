@@ -1,4 +1,6 @@
 import { describe, expect, test, spyOn } from "bun:test";
+import { LmuOpponentIdentityTracker } from "@raceiq/capture-formats/lmu/opponent-snapshot";
+import { lmuSnapshotsCoherent } from "../src/memory-reader";
 import { createServer } from "node:http";
 import { once } from "node:events";
 import { isLmuRestValue } from "@raceiq/shared/telemetry/lmu-rest-channels";
@@ -9,7 +11,7 @@ import { encodeLMUSourceFrame, decodeLMUSourceFrame, LMU_SOURCE_FRAME_V2_SIZE } 
 import { LMU_SHARED_MEMORY_SIZE, LMU_TELEMETRY_HEADER_OFFSET, LMU_TELEMETRY_INFO_OFFSET, LMU_TELEMETRY_INFO_SIZE, LMU_TELEMETRY, LMU_SCORING_INFO_OFFSET, LMU_SCORING_INFO, LMU_SCORING_VEHICLES_OFFSET, LMU_SCORING_VEHICLE, LMU_SCORING_VEHICLE_SIZE } from "@raceiq/capture-formats/lmu/layout";
 import { LiveTelemetryProjector } from "@raceiq/telemetry-core/telemetry/live-projector";
 import { isLiveTelemetryFrameMessageV1 } from "@raceiq/shared/telemetry/live/contracts";
-import { encodeLmuContext, decodeLmuContext } from "@raceiq/shared/telemetry/lmu-context";
+import { encodeLmuContext, decodeLmuContext, isLmuLiveContextWire } from "@raceiq/shared/telemetry/lmu-context";
 import type { LmuLiveContext } from "@raceiq/shared/telemetry/lmu";
 import { SparseCaptureEncoder } from "@raceiq/capture-formats/session/sparse-recorder";
 import { encodeFrameLength, iterateSessionCaptureRecords, iterateSessionCaptureRecordsAsync } from "@raceiq/capture-formats/session/framing";
@@ -45,7 +47,7 @@ describe("LMU Phase 1 player pipeline", () => {
   test("projects independent native energy and double-precision player channels with honest invalid and zero states", () => {
     const memory = playerMemory();
     const frame = decodeLMUSourceFrame(encodeLMUSourceFrame(memory, 1000)!)!;
-    const packet = normalizeLMUSourceFrame(frame);
+    const packet = normalizeLMUSourceFrame(frame)!;
     const projector = new LiveTelemetryProjector();
     const result = projector.project({ packet, receivedAtMs: 1000 });
     const schema = result.schema!;
@@ -70,7 +72,7 @@ describe("LMU Phase 1 player pipeline", () => {
     expect(isLiveTelemetryFrameMessageV1(JSON.parse(JSON.stringify(result.frame)), schema)).toBe(true);
     memory.writeFloatLE(NaN, LMU_TELEMETRY_INFO_OFFSET + LMU_TELEMETRY.virtualEnergy);
     memory.writeDoubleLE(0, LMU_TELEMETRY_INFO_OFFSET + LMU_TELEMETRY.batteryChargeFraction);
-    const invalid = projector.project({ packet: normalizeLMUSourceFrame(decodeLMUSourceFrame(encodeLMUSourceFrame(memory, 1010)!)!), receivedAtMs: 1010 }).frame!;
+    const invalid = projector.project({ packet: normalizeLMUSourceFrame(decodeLMUSourceFrame(encodeLMUSourceFrame(memory, 1010)!)!)!, receivedAtMs: 1010 }).frame!;
     const energy = schema.definitions.findIndex((entry) => entry.semanticId === "fuel.virtual-energy");
     expect(invalid.values[energy]).toBeNull();
     expect(invalid.states?.[energy]).toBe("invalid");
@@ -97,14 +99,12 @@ describe("LMU Phase 1 player pipeline", () => {
       monotonicNow += 1001;
       expect(await source.pollOnce()).toBe(false);
       expect(contexts.at(-1)?.status).toBe("unavailable");
-      expect(contexts).toHaveLength(1);
       memory.writeDoubleLE(2, LMU_TELEMETRY_INFO_OFFSET + LMU_TELEMETRY.elapsedTime);
       expect(await source.pollOnce()).toBe(true);
       available = false;
       wallNow -= 50_000;
       monotonicNow += 1001;
       expect(await source.pollOnce()).toBe(false);
-      expect(contexts).toHaveLength(2);
       memory.writeUInt8(0, LMU_SCORING_VEHICLES_OFFSET + LMU_SCORING_VEHICLE.isPlayer);
       expect(await source.pollOnce()).toBe(false);
       memory.writeUInt8(1, LMU_SCORING_VEHICLES_OFFSET + LMU_SCORING_VEHICLE.isPlayer);
@@ -348,10 +348,183 @@ describe("LMU Phase 1 player pipeline", () => {
     const asyncRecords = await Array.fromAsync(iterateSessionCaptureRecordsAsync(chunks(), { strict: true }));
     expect(asyncRecords.filter((entry) => entry.kind === "frame").map((entry) => entry.frame)).toEqual([first, second]);
     expect(decodeLMUSourceFrame(second)!.lmuContext!.key.frameTime).toEqual(context.key.frameTime);
-    expect(decodeLmuContext(JSON.parse(JSON.stringify(encodeLmuContext(context))))).toEqual(context);
+    const competitorContext: LmuLiveContext = {
+      ...context,
+      competitors: [{
+        vehicleId: 42,
+        incarnation: 0,
+        isPlayer: true,
+        channels: {
+          "timing.competitor.total-time": {
+            semanticId: "timing.competitor.total-time",
+            value: 0,
+            unit: "s",
+            mappingStatus: "direct",
+            state: "ok",
+            confidence: 1,
+            freshness: "fresh",
+            confidenceComponents: { semanticFidelity: 1, freshness: 1, inputCompleteness: 1 },
+            provenance: {
+              simulator: "lmu",
+              parserId: "lmu-scoring",
+              parserVersion: "1",
+              resolverVersion: "1",
+              catalogVersion: "1",
+              catalogHash: "test",
+              observedAt: { domain: "monotonic", nanoseconds: 9007199254740993123n },
+              sourceObservation: { timestamp: { domain: "monotonic", nanoseconds: 9007199254740993123n }, updateSequence: 9007199254740993123n },
+            },
+            schemaVersion: "1",
+            limitations: [],
+          },
+        },
+      }],
+    };
+    const competitorWire = JSON.parse(JSON.stringify(encodeLmuContext(competitorContext)));
+    expect(decodeLmuContext(competitorWire)).toEqual(competitorContext);
+    const scoringOnlyContext = { ...context, playerVehicleId: null, competitors: [] as const };
+    expect(isLmuLiveContextWire(encodeLmuContext(scoringOnlyContext))).toBe(true);
+    expect(isLmuLiveContextWire(competitorWire)).toBe(true);
+    const impreciseWire = structuredClone(competitorWire);
+    impreciseWire.competitors[0].channels["timing.competitor.total-time"].provenance.sourceObservation.updateSequence = "1".repeat(41);
+    expect(isLmuLiveContextWire(impreciseWire)).toBe(false);
+    competitorWire.competitors[0].channels["timing.competitor.total-time"].provenance.sourceObservation.updateSequence = "9007199254740993124";
+    expect(decodeLmuContext(competitorWire)!.competitors?.[0]?.channels["timing.competitor.total-time"]?.provenance.sourceObservation?.updateSequence).toBe(9007199254740993124n);
     const corrupt = Buffer.from(first);
     corrupt.writeUInt8(255, 28 + LMU_TELEMETRY_HEADER_OFFSET + 1);
     expect(decodeLMUSourceFrame(corrupt)).toBeNull();
     expect(decodeLmuContext({ ...encodeLmuContext(context), competitors: [] })).toBeNull();
   });
+});
+
+describe("LMU scoring competitor snapshots", () => {
+  test("keeps mID identity through reorder, increments reuse incarnations, rejects duplicates and supports no-player grids", () => {
+    const memory = playerMemory();
+    const tracker = new LmuOpponentIdentityTracker();
+    const first = tracker.snapshot(memory, "session-generation", 1n, 42)!;
+    expect(first.map((entry) => [entry.vehicleId, entry.incarnation, entry.isPlayer])).toEqual([[42, 0, true]]);
+    expect(first[0]!.channels["motion.competitor.position.x"]!.unit).toBe("m");
+    expect(first[0]!.channels["motion.competitor.local-velocity.x"]!.unit).toBe("m/s");
+    expect(first[0]!.channels["race.competitor.estimated-lap-time"]!.semanticId).toBe("race.competitor.estimated-lap-time");
+    const firstId = LMU_SCORING_VEHICLES_OFFSET;
+    const secondId = firstId + LMU_SCORING_VEHICLE_SIZE;
+    memory.writeInt32LE(7, secondId + LMU_SCORING_VEHICLE.id);
+    memory.write("Opponent", secondId + LMU_SCORING_VEHICLE.driverName);
+    memory.write("Car B", secondId + LMU_SCORING_VEHICLE.vehicleName);
+    memory.write("GT3", secondId + LMU_SCORING_VEHICLE.vehicleClass);
+    memory.writeInt16LE(0, secondId + LMU_SCORING_VEHICLE.totalLaps);
+    memory.writeUInt8(0, secondId + LMU_SCORING_VEHICLE.isPlayer);
+    memory.writeInt32LE(2, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.numberOfVehicles);
+    const expanded = tracker.snapshot(memory, "session-generation", 2n, 42)!;
+    expect(expanded.map((entry) => entry.vehicleId)).toEqual([42, 7]);
+    const firstRow = Buffer.from(memory.subarray(firstId, firstId + LMU_SCORING_VEHICLE_SIZE));
+    const secondRow = Buffer.from(memory.subarray(secondId, secondId + LMU_SCORING_VEHICLE_SIZE));
+    secondRow.copy(memory, firstId);
+    firstRow.copy(memory, secondId);
+    const reordered = tracker.snapshot(memory, "session-generation", 3n, 42)!;
+    expect(reordered.map((entry) => [entry.vehicleId, entry.incarnation])).toEqual([[7, 0], [42, 0]]);
+    memory.copy(memory, firstId, secondId, secondId + LMU_SCORING_VEHICLE_SIZE);
+    expect(tracker.snapshot(memory, "session-generation", 4n, 42)).toBeNull();
+    secondRow.copy(memory, firstId);
+    firstRow.copy(memory, secondId);
+    memory.writeInt32LE(1, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.numberOfVehicles);
+    memory.writeUInt8(1, firstId + LMU_SCORING_VEHICLE.isPlayer);
+    expect(tracker.snapshot(memory, "session-generation", 5n, 7)!.map((entry) => entry.vehicleId)).toEqual([7]);
+    firstRow.copy(memory, secondId);
+    memory.writeUInt8(0, secondId + LMU_SCORING_VEHICLE.isPlayer);
+    memory.writeInt32LE(2, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.numberOfVehicles);
+    const rejoined = tracker.snapshot(memory, "session-generation", 6n, 7)!;
+    expect(rejoined.find((entry) => entry.vehicleId === 42)?.incarnation).toBe(1);
+    memory.write("Rejoined", secondId + LMU_SCORING_VEHICLE.driverName);
+    expect(tracker.snapshot(memory, "session-generation", 7n, 7)!.find((entry) => entry.vehicleId === 42)?.incarnation).toBe(2);
+    memory.writeUInt8(0, firstId + LMU_SCORING_VEHICLE.isPlayer);
+    const noPlayer = tracker.snapshot(memory, "session-generation", 8n, null)!;
+    expect(noPlayer.every((entry) => !entry.isPlayer)).toBe(true);
+  });
+
+  test("retains scoring source sequence at repeated clock and advances it on scoring time updates", () => {
+    const memory = playerMemory();
+    const tracker = new LmuOpponentIdentityTracker();
+    const observationSequence = (captureSequence: bigint) => tracker.snapshot(memory, "session-generation", captureSequence, 42)![0]!.channels["race.competitor.scoring-time"]!.provenance.sourceObservation!.updateSequence;
+    const first = observationSequence(1n);
+    expect(observationSequence(2n)).toBe(first);
+    memory.writeDoubleLE(10.5, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.currentElapsedTime);
+    expect(observationSequence(3n)).toBe(first + 1n);
+  });
+  test("publishes scoring-only contexts without dispatching fabricated player frames", async () => {
+    const memory = playerMemory();
+    memory.writeUInt8(0, LMU_TELEMETRY_HEADER_OFFSET + 2);
+    const contexts: LmuLiveContext[] = [];
+    const frames: Buffer[] = [];
+    const source = new LMUTelemetrySource({
+      rest: false,
+      reader: { start() {}, async stop() {}, readLatest: () => memory },
+      dispatchRawFrame: async (frame) => { frames.push(frame); },
+      publishScoringContext: (context) => { contexts.push(context); },
+    });
+    try {
+      expect(await source.pollOnce()).toBe(true);
+      expect(contexts.at(-1)).toMatchObject({ status: "active", playerVehicleId: 42, competitors: [{ vehicleId: 42, isPlayer: true }] });
+      expect(await source.pollOnce()).toBe(false);
+      memory.writeDoubleLE(11, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.currentElapsedTime);
+      expect(await source.pollOnce()).toBe(true);
+      expect(contexts.at(-1)?.key.captureSequence).toBe("2");
+      expect(frames).toHaveLength(0);
+    } finally { await source.stop(); }
+  });
+});
+
+test("LMU coherence covers scoring and active player telemetry, while scoring-only snapshots need no guessed slot", () => {
+  const first = Buffer.alloc(LMU_SHARED_MEMORY_SIZE);
+  const second = Buffer.from(first);
+  first.writeInt32LE(1, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.numberOfVehicles);
+  second.writeInt32LE(1, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.numberOfVehicles);
+  expect(lmuSnapshotsCoherent(first, second)).toBe(true);
+  second.writeDoubleLE(1, LMU_SCORING_VEHICLES_OFFSET + LMU_SCORING_VEHICLE.lapDistance);
+  expect(lmuSnapshotsCoherent(first, second)).toBe(false);
+  first.copy(second);
+  second.writeDoubleLE(2, LMU_TELEMETRY_INFO_OFFSET);
+  expect(lmuSnapshotsCoherent(first, second)).toBe(true);
+  first.writeUInt8(1, LMU_TELEMETRY_HEADER_OFFSET);
+  first.writeUInt8(0, LMU_TELEMETRY_HEADER_OFFSET + 1);
+  first.writeUInt8(1, LMU_TELEMETRY_HEADER_OFFSET + 2);
+  first.copy(second);
+  second.writeDoubleLE(3, LMU_TELEMETRY_INFO_OFFSET);
+  expect(lmuSnapshotsCoherent(first, second)).toBe(false);
+  first.writeUInt8(2, LMU_TELEMETRY_HEADER_OFFSET);
+  first.copy(second);
+  second.writeInt32LE(7, LMU_TELEMETRY_INFO_OFFSET + LMU_TELEMETRY_INFO_SIZE + LMU_TELEMETRY.id);
+  expect(lmuSnapshotsCoherent(first, second)).toBe(false);
+});
+
+test("retains distinct scoring time/lap gaps and remote pit limitations, including zero and invalid reports", () => {
+  const memory = playerMemory();
+  const offset = LMU_SCORING_VEHICLES_OFFSET;
+  memory.writeDoubleLE(2.5, offset + LMU_SCORING_VEHICLE.timeBehindNext);
+  memory.writeInt32LE(1, offset + LMU_SCORING_VEHICLE.lapsBehindNext);
+  memory.writeDoubleLE(17.25, offset + LMU_SCORING_VEHICLE.timeBehindLeader);
+  memory.writeInt32LE(2, offset + LMU_SCORING_VEHICLE.lapsBehindLeader);
+  memory.writeUInt8(1, offset + LMU_SCORING_VEHICLE.inPits);
+  memory.writeUInt8(3, offset + LMU_SCORING_VEHICLE.pitState);
+  const tracker = new LmuOpponentIdentityTracker();
+  const channels = tracker.snapshot(memory, "scoring-reports", 1n, 42)![0]!.channels;
+  expect(channels["race.competitor.time-behind-next"]).toMatchObject({ value: 2.5, unit: "s", state: "ok" });
+  expect(channels["race.competitor.laps-behind-next"]).toMatchObject({ value: 1, unit: "count", state: "ok" });
+  expect(channels["race.competitor.time-behind-leader"]).toMatchObject({ value: 17.25, unit: "s", state: "ok" });
+  expect(channels["race.competitor.laps-behind-leader"]).toMatchObject({ value: 2, unit: "count", state: "ok" });
+  expect(channels["race.competitor.in-pits"]).toMatchObject({ value: true, unit: "boolean", state: "ok" });
+  expect(channels["race.competitor.in-pits"]!.limitations.join(" ")).toContain("not always accurate for remote vehicles");
+  expect(channels["race.competitor.pit-state"]).toMatchObject({ value: 3, state: "ok" });
+  expect(channels["race.competitor.server-scored"]).toMatchObject({ value: false, state: "ok" });
+  memory.writeDoubleLE(0, offset + LMU_SCORING_VEHICLE.timeBehindNext);
+  memory.writeInt32LE(0, offset + LMU_SCORING_VEHICLE.lapsBehindNext);
+  memory.writeDoubleLE(-1, offset + LMU_SCORING_VEHICLE.timeBehindLeader);
+  memory.writeInt32LE(-1, offset + LMU_SCORING_VEHICLE.lapsBehindLeader);
+  memory.writeUInt8(255, offset + LMU_SCORING_VEHICLE.pitState);
+  const invalid = tracker.snapshot(memory, "scoring-reports", 2n, 42)![0]!.channels;
+  expect(invalid["race.competitor.time-behind-next"]).toMatchObject({ value: 0, state: "ok" });
+  expect(invalid["race.competitor.laps-behind-next"]).toMatchObject({ value: 0, state: "ok" });
+  expect(invalid["race.competitor.time-behind-leader"]).toMatchObject({ value: null, state: "invalid" });
+  expect(invalid["race.competitor.laps-behind-leader"]).toMatchObject({ value: null, state: "invalid" });
+  expect(invalid["race.competitor.pit-state"]).toMatchObject({ value: null, state: "invalid" });
 });

@@ -7,9 +7,11 @@ import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "
 import type { LiveTelemetryView } from "../lib/live-telemetry-view";
 import { buildLiveTelemetryView } from "../lib/live-telemetry-view";
 import { DEFAULT_RECORDING_FREQUENCY_HZ, type RecordingFrequencyHz } from "@raceiq/shared/platform/runtime/recording-frequency";
+import type { LmuLiveContextWire } from "@raceiq/shared/telemetry/lmu-context";
 export interface DisplaySettings {
   recordingDirectory: string | null;
   recordingFrequencyHz: RecordingFrequencyHz;
+  recordLmuOpponents: boolean;
   unit: "metric" | "imperial";
   temperatureUnit: "C" | "F";
   aiProvider: "gemini" | "openai" | "openai-compatible";
@@ -61,6 +63,7 @@ export interface DisplaySettings {
 export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   recordingDirectory: null,
   recordingFrequencyHz: DEFAULT_RECORDING_FREQUENCY_HZ,
+  recordLmuOpponents: true,
   unit: "metric",
   temperatureUnit: "C",
   aiProvider: "gemini",
@@ -123,6 +126,7 @@ export interface TelemetryState {
   telemetrySchema: LiveTelemetrySchemaMessageV1 | null;
   telemetryFrame: LiveTelemetryFrameMessageV1 | null;
   telemetryView: LiveTelemetryView | null;
+  lmuLiveContext: LmuLiveContextWire | null;
   packetsPerSec: number;
   /** Full server status pushed via WebSocket */
   serverStatus: ServerStatus | null;
@@ -178,6 +182,7 @@ const initialTelemetryState = {
   telemetrySchema: null,
   telemetryFrame: null,
   telemetryView: null,
+  lmuLiveContext: null,
   sectors: null,
   pit: null,
   packetsPerSec: 0,
@@ -210,6 +215,7 @@ export interface TelemetryActions extends StoreActionMap {
   setConnected: (connected: boolean) => void;
   setTelemetrySchema: (schema: LiveTelemetrySchemaMessageV1) => void;
   setTelemetryFrame: (frame: LiveTelemetryFrameMessageV1) => void;
+  setLmuLiveContext: (context: LmuLiveContextWire) => void;
   setSectors: (sectors: LiveSectorData) => void;
   setPit: (pit: LivePitData) => void;
   setLiveIssues: (issues: TuneIssue[]) => void;
@@ -246,17 +252,29 @@ export const telemetryStore = createStore(initialTelemetryState, (store): Teleme
   setSessionLaps: (sessionLaps) => store.setState((prev) => ({ ...prev, sessionLaps })),
   setLiveIssues: (liveIssues) => store.setState((prev) => ({ ...prev, liveIssues })),
   setTelemetrySchema: (telemetrySchema) =>
-    store.setState((prev) => (prev.telemetrySchema?.schemaId === telemetrySchema.schemaId ? { ...prev, telemetrySchema } : { ...prev, telemetrySchema, telemetryFrame: null, telemetryView: null })),
+    store.setState((prev) => (prev.telemetrySchema?.schemaId === telemetrySchema.schemaId ? { ...prev, telemetrySchema } : { ...prev, telemetrySchema, telemetryFrame: null, telemetryView: null, lmuLiveContext: null })),
   setTelemetryFrame: (telemetryFrame) =>
+    store.setState((prev) => {
+      const changedSession = prev.telemetryFrame?.sessionId !== telemetryFrame.sessionId || prev.telemetryFrame?.streamId !== telemetryFrame.streamId;
+      const lmuLiveContext = telemetryFrame.lmu ?? (changedSession ? null : prev.lmuLiveContext);
+      const telemetryView = prev.telemetrySchema ? (buildLiveTelemetryView(prev.telemetrySchema, telemetryFrame) ?? null) : null;
+      return {
+        ...prev,
+        telemetryFrame,
+        lmuLiveContext,
+        telemetryView: telemetryView ? { ...telemetryView, ...(lmuLiveContext ? { lmu: lmuLiveContext } : {}) } : null,
+        sectors: telemetryFrame.context.sectors ?? null,
+        pit: telemetryFrame.context.pit ?? null,
+        liveIssues: [...(telemetryFrame.context.liveIssues ?? [])],
+      };
+    }),
+  setLmuLiveContext: (context) =>
     store.setState((prev) => ({
       ...prev,
-      telemetryFrame,
-      telemetryView: prev.telemetrySchema ? (buildLiveTelemetryView(prev.telemetrySchema, telemetryFrame) ?? null) : null,
-      sectors: telemetryFrame.context.sectors ?? null,
-      pit: telemetryFrame.context.pit ?? null,
-      liveIssues: [...(telemetryFrame.context.liveIssues ?? [])],
+      lmuLiveContext: context,
+      telemetryView: prev.telemetryView ? { ...prev.telemetryView, lmu: context } : null,
     })),
-  clearTelemetry: () => store.setState((prev) => ({ ...prev, telemetryFrame: null, telemetryView: null, telemetrySchema: null, sectors: null, pit: null, liveIssues: [] })),
+  clearTelemetry: () => store.setState((prev) => ({ ...prev, telemetryFrame: null, telemetryView: null, lmuLiveContext: null, telemetrySchema: null, sectors: null, pit: null, liveIssues: [] })),
   setPacketsPerSec: (packetsPerSec) => store.setState((prev) => ({ ...prev, packetsPerSec })),
   setServerStatus: (status) =>
     store.setState((prev) =>

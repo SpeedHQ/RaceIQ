@@ -1,9 +1,13 @@
 import { isDevTelemetryPacketMessageV1, isDevTelemetrySubscriptionMessageV1, isLiveTelemetryFrameMessageV1, isLiveTelemetrySchemaMessageV1 } from "@raceiq/shared/telemetry/live/contracts";
 import { devTelemetryStore } from "../stores/dev-telemetry";
 import { telemetryStore } from "../stores/telemetry";
-import { decodeLmuPacket } from "@raceiq/shared/telemetry/lmu-context";
+import { decodeLmuPacket, isLmuLiveContextWire } from "@raceiq/shared/telemetry/lmu-context";
 
 export function handleWebSocketMessage(data: unknown): boolean {
+  if (data !== null && typeof data === "object" && "type" in data && data.type === "lmu-context" && "lmu" in data && isLmuLiveContextWire(data.lmu)) {
+    telemetryStore.actions.setLmuLiveContext(data.lmu);
+    return false;
+  }
   if (isLiveTelemetrySchemaMessageV1(data)) {
     telemetryStore.actions.setTelemetrySchema(data);
     return false;

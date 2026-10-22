@@ -17,6 +17,7 @@ import { withDatabaseWrite } from "../db/write-coordination";
 import { isSessionActive } from "../telemetry/live-pipeline";
 import { and, eq, inArray, or, gt } from "drizzle-orm";
 import { dashboardSummaryState, sessions, sessionCaptureSplitJobs, liveCaptures } from "../db/schema";
+import { recoverPendingOpponentRemovalCleanup } from "./opponent-removal";
 import { cleanupOrphanSessionFiles, listSessionCaptureFiles, loadReferencedCapturePaths, withSessionCaptureMaintenanceLock } from "./cleanup";
 import { cleanupExpiredStagedMotec } from "../motec/import-staging";
 import { loadSettings } from "../runtime/config/settings";
@@ -238,6 +239,10 @@ function maintenancePassEffect(): Effect.Effect<void, MaintenanceError> {
     yield* Effect.tryPromise({
       try: () => runCompression(),
       catch: (cause) => maintenanceIOError("compression", cause),
+    }).pipe(Effect.uninterruptible);
+    yield* Effect.tryPromise({
+      try: () => recoverPendingOpponentRemovalCleanup(),
+      catch: (cause) => maintenanceIOError("opponent-removal-recovery", cause),
     }).pipe(Effect.uninterruptible);
     const settings = yield* Effect.sync(() => loadSettings());
     if (!isRecordingRetentionPolicyValid(settings)) {

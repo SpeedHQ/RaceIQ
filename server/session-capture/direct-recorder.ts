@@ -1,11 +1,14 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, open, rename, rm, writeFile } from "node:fs/promises";
+import { createReadStream } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { Schema } from "effect";
 import { ChunkSchema, ManifestSchema, type Chunk, type Manifest } from "@raceiq/capture-splitting";
 import { encodeFrameLength, encodeMetaFrame, encodeParserBootstrapFrame, encodeSegmentBoundaryFrame, encodeSegmentContextEndFrame, encodeSegmentContextFrame, encodeSparseCaptureFormatFrame, iterateSessionCaptureRecords, META_FRAME_BYTES } from "@raceiq/capture-formats/session/framing";
 import { PreopenedFileWriter, type PreopenedFileInfo, type PreopenedFileWriterOptions } from "@raceiq/capture-formats/session/preopened-file-writer";
 import { SparseCaptureEncoder } from "@raceiq/capture-formats/session/sparse-recorder";
+import { decodeLMUSourceFrame } from "@raceiq/capture-formats/lmu/source-frame";
+import { getLMUPartitionSourceLength, partitionLMUSourceFrame } from "@raceiq/capture-formats/lmu/partition";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import type { DetectorOwnershipTransition } from "@raceiq/telemetry-core/processor/ordinal-engine";
@@ -18,8 +21,13 @@ import { resolveRecordingGameDirectory } from "../runtime/config/recording-direc
 import type { PersistedLapBinding } from "../telemetry/pipeline-ports";
 import { SparseSessionRecorderAdapter } from "../telemetry/pipeline-ports";
 import { timestampForFilename } from "./filename";
+import { loadSettings } from "../runtime/config/settings";
 
-export interface DirectCaptureRecordingOptions { writerOptions?: PreopenedFileWriterOptions }
+export interface DirectCaptureRecordingOptions {
+  writerOptions?: PreopenedFileWriterOptions;
+  recordLmuOpponents?: boolean;
+  opponentRetentionOverride?: "retained" | "removed" | "not-recorded";
+}
 type Owner = { binding?: PersistedLapBinding; startOrdinal: number; count: number; trailing: number; finalized: boolean; abandoned: boolean; ownedByteOffset: number };
 type Part = { info: PreopenedFileInfo; encoder: SparseCaptureEncoder | null; localOffset: number; prefixBytes: number; records: number; firstOrdinal: number; sourceStart: number; sourceEnd: number; kind: "lap" | "auxiliary"; owner?: Owner; bootstrapHash?: string; firstTimestamp?: number; lastTimestamp?: number; closed?: boolean; chunkId?: string };
 type FrameRef = { frame: Buffer; timestamp?: number; start: number; end: number; ordinal: number; localOffset: number };
@@ -32,6 +40,14 @@ export class DirectCaptureRecording {
   sourceRecordCount = 0;
   private nativeFrameCount = 0;
   private readonly writer: PreopenedFileWriter;
+  private readonly recordLmuOpponents: boolean;
+  private readonly opponentRetentionOverride: DirectCaptureRecordingOptions["opponentRetentionOverride"];
+  private readonly companionWriter: PreopenedFileWriter | null;
+  private readonly companionEncoder: SparseCaptureEncoder | null;
+  private companionRecordCount = 0;
+  private companionFirstKey: { sessionKey: string; captureSequence: string } | null = null;
+  private companionLastKey: { sessionKey: string; captureSequence: string } | null = null;
+  private companionDescriptor: Manifest["opponentCompanion"];
   private readonly gameId: GameId;
   private readonly directory: string;
   private readonly manifestPath: string;
@@ -53,10 +69,19 @@ export class DirectCaptureRecording {
   private sourceRegistered: Promise<void> = Promise.resolve();
   private notify: (event: Record<string, unknown>) => void = () => {};
   private failure: Error | null = null;
+  private companionFailure: Error | null = null;
   private closing = false;
   private sealed = false;
-  get queuedBytes(): number { return this.writer.queuedBytes; }
+  get queuedBytes(): number { return this.writer.queuedBytes + (this.companionWriter?.queuedBytes ?? 0); }
   get standbyReady(): boolean { return this.writer.standbyReady; }
+  async waitForStandby(): Promise<void> { await this.writer.standbyOpened; }
+  async drainWrites(): Promise<void> {
+    await Promise.all([
+      this.writer.drainQueued(),
+      this.companionFailure ? undefined : this.companionWriter?.drainQueued().catch((error) => this.failCompanion(error)),
+    ]);
+    if (this.failure) throw this.failure;
+  }
   get isSealed(): boolean { return this.sealed; }
   get hasFailed(): boolean { return this.failure !== null; }
   get error(): Error | null { return this.failure; }
@@ -68,18 +93,45 @@ export class DirectCaptureRecording {
 
   constructor(gameId: GameId, directory: string, manifestPath: string, options: DirectCaptureRecordingOptions = {}) {
     this.gameId = gameId; this.directory = directory; this.manifestPath = manifestPath; this.sourcePath = manifestPath;
+    this.opponentRetentionOverride = options.opponentRetentionOverride;
+    this.recordLmuOpponents = gameId === "lmu" && (options.opponentRetentionOverride === "retained" || (
+      options.opponentRetentionOverride === undefined && options.recordLmuOpponents !== false
+    ));
     const onClosed = options.writerOptions?.onClosed;
     const onFailure = options.writerOptions?.onFailure;
     this.writer = new PreopenedFileWriter(directory, { ...options.writerOptions,
       onClosed: async (info) => { try { this.closed(info); } finally { await onClosed?.(info); } },
       onFailure: (error) => { try { onFailure?.(error); } finally { this.fail(error); } },
     });
+    this.companionWriter = this.recordLmuOpponents
+      ? new PreopenedFileWriter(directory, {
+        ...(options.writerOptions?.maxRetiringFiles === undefined ? {} : { maxRetiringFiles: options.writerOptions.maxRetiringFiles }),
+        ...(options.writerOptions?.maxQueuedBytes === undefined ? {} : { maxQueuedBytes: options.writerOptions.maxQueuedBytes }),
+        ...(options.writerOptions?.maxBatchBytes === undefined ? {} : { maxBatchBytes: options.writerOptions.maxBatchBytes }),
+        onFailure: (error) => this.failCompanion(error),
+      })
+      : null;
+    this.companionEncoder = this.companionWriter ? new SparseCaptureEncoder("lmu") : null;
     this.current = this.part(this.writer.active, 0, this.sourceBytes, "auxiliary");
     this.parts.set(this.current.info.id, this.current);
     this.ready = this.writer.ready;
+    if (this.companionWriter) {
+      void this.companionWriter.ready.catch((error) => this.failCompanion(error));
+      const companionHeader = Buffer.concat([encodeMetaFrame(), encodeSparseCaptureFormatFrame()]);
+      try { this.companionWriter.appendOwned(companionHeader); }
+      catch (error) { this.failCompanion(error); }
+      this.companionDescriptor = {
+        file: basename(this.companionWriter.active.path), codecVersion: 1, byteLength: this.companionWriter.active.byteLength,
+        sha256: "", frameKeyStart: null, frameKeyEnd: null,
+        committedPrefix: { byteLength: 0, recordCount: 0 },
+      };
+    }
     this.manifest = Schema.decodeSync(ManifestSchema)({
       version: 3, gameId, sourceRevision: this.manifestRevision, sourceByteLength: META_FRAME_BYTES,
-      sourceRecordCount: 0, sourceCoordinates: "native-wire-v1", chunks: [],
+      sourceRecordCount: 0, sourceCoordinates: "native-wire-v1",
+      ...(gameId === "lmu" ? { opponentRetention: options.opponentRetentionOverride ?? (this.recordLmuOpponents ? "retained" : "not-recorded") } : {}),
+      ...(this.companionDescriptor ? { opponentCompanion: this.companionDescriptor } : {}),
+      chunks: [],
     });
     this.persistedManifest = this.manifest;
     const header = Buffer.concat([encodeMetaFrame(), encodeSparseCaptureFormatFrame()]);
@@ -128,6 +180,18 @@ export class DirectCaptureRecording {
     if (this.failure) return;
     this.failure = value instanceof Error ? value : new Error(String(value));
     this.notify({ type: "recording-failed", sessionId: this.sessionId, error: this.failure.message });
+  }
+  private failCompanion(value: unknown): void {
+    if (this.companionFailure) return;
+    this.companionFailure = value instanceof Error ? value : new Error(String(value));
+    const info = this.companionWriter?.active;
+    if (info) this.companionDescriptor = {
+      file: basename(info.path), codecVersion: 1, byteLength: info.byteLength, sha256: "",
+      frameKeyStart: this.companionFirstKey, frameKeyEnd: this.companionLastKey,
+      committedPrefix: { byteLength: 0, recordCount: 0 },
+    };
+    this.notify({ type: "opponent-recording-failed", sessionId: this.sessionId, error: this.companionFailure.message });
+    this.schedulePublication();
   }
 
   processTransitions(transitions: readonly DetectorOwnershipTransition[], locator: ParserReplayLocator | null): void {
@@ -202,17 +266,32 @@ export class DirectCaptureRecording {
 
   writeMetaFrame(): void {}
   writeRecord(frame: Buffer, timestamp?: number): void {
+    const version = this.gameId === "lmu" && frame.length >= 10 ? frame.readUInt16LE(8) : 0;
+    const partition = this.gameId === "lmu" ? partitionLMUSourceFrame(frame) : null;
+    if (this.gameId === "lmu" && (version === 2 || version === 3) && !partition) {
+      const error = new Error("LMU source frame cannot be safely partitioned");
+      this.fail(error);
+      throw error;
+    }
+    if (this.recordLmuOpponents && version === 5) {
+      const error = new Error("Cannot retain opponents from an already-partitioned LMU source frame");
+      this.fail(error);
+      throw error;
+    }
+    const storedFrame = partition?.primary ?? frame;
+    if (this.recordLmuOpponents && partition?.companion) this.appendCompanionFrame(partition.companion, frame, timestamp);
     const start = this.sourceBytes;
     const localOffset = this.current.localOffset;
-    const encoded = this.current.encoder!.encode(frame, localOffset);
+    const encoded = this.current.encoder!.encode(storedFrame, localOffset);
     this.append(Buffer.concat([encodeFrameLength(encoded.length, timestamp), encoded]));
-    const end = start + encodeFrameLength(frame.length, timestamp).length + frame.length;
+    const sourceLength = getLMUPartitionSourceLength(storedFrame) ?? frame.length;
+    const end = start + encodeFrameLength(sourceLength, timestamp).length + sourceLength;
     const ordinal = this.nativeFrameCount++;
     this.sourceRecordCount++; this.current.records++; this.current.sourceEnd = end;
     if (this.current.records === 1) this.current.sourceStart = start;
     this.current.firstTimestamp ??= timestamp; this.current.lastTimestamp = timestamp;
     if (this.current.owner) this.current.owner.count++;
-    this.lastFrame = { frame, timestamp, start, end, ordinal, localOffset };
+    this.lastFrame = { frame: storedFrame, timestamp, start, end, ordinal, localOffset };
     this.sourceBytes = end;
     if (this.pendingCandidate && ordinal > this.pendingCandidate.frame.ordinal) {
       this.pendingCandidate.suffix.push(this.lastFrame);
@@ -223,29 +302,87 @@ export class DirectCaptureRecording {
       }
     }
   }
+  private appendCompanionFrame(companion: Buffer, sourceFrame: Buffer, timestamp?: number): void {
+    if (this.companionFailure || !this.companionWriter || !this.companionEncoder) return;
+    try {
+      const localOffset = this.companionWriter.active.byteLength;
+      const encoded = this.companionEncoder.encode(companion, localOffset);
+      this.companionWriter.appendOwned(Buffer.concat([encodeFrameLength(encoded.length, timestamp), encoded]));
+      this.companionRecordCount++;
+      const key = decodeLMUSourceFrame(sourceFrame)?.lmuContext?.key;
+      if (key) {
+        const value = { sessionKey: key.sessionKey, captureSequence: key.captureSequence };
+        this.companionFirstKey ??= value;
+        this.companionLastKey = value;
+      }
+      this.companionDescriptor = {
+        file: basename(this.companionWriter.active.path), codecVersion: 1,
+        byteLength: this.companionWriter.active.byteLength, sha256: "",
+        frameKeyStart: this.companionFirstKey, frameKeyEnd: this.companionLastKey,
+        committedPrefix: { byteLength: 0, recordCount: 0 },
+      };
+    } catch (error) { this.failCompanion(error); }
+  }
   writeRawCaptureBytes(bytes: Buffer): void {
     this.current.encoder!.reset();
-    this.append(bytes);
+    if (this.gameId !== "lmu") {
+      this.append(bytes);
+      for (const record of iterateSessionCaptureRecords(bytes, 0, { strict: true })) {
+        if (record.kind === "parser-bootstrap") this.current.bootstrapHash = createHash("sha256").update(record.payload).digest("hex");
+        const start = this.sourceBytes;
+        const timestamp = record.kind === "frame" && "frameTimeMs" in record ? record.frameTimeMs : undefined;
+        const wireLength = record.kind === "frame"
+          ? encodeFrameLength(record.frame.length, timestamp).length + record.frame.length
+          : record.endOffset - record.offset;
+        this.sourceBytes += wireLength; this.sourceRecordCount++; this.current.records++;
+        if (this.current.records === 1) this.current.sourceStart = start;
+        this.current.sourceEnd = this.sourceBytes;
+        if (record.kind === "frame") {
+          this.current.firstTimestamp ??= timestamp;
+          this.current.lastTimestamp = timestamp;
+        }
+      }
+      return;
+    }
     for (const record of iterateSessionCaptureRecords(bytes, 0, { strict: true })) {
-      if (record.kind === "parser-bootstrap") this.current.bootstrapHash = createHash("sha256").update(record.payload).digest("hex");
+      const original = bytes.subarray(record.offset, record.endOffset);
       const start = this.sourceBytes;
-      const timestamp = record.kind === "frame" && "frameTimeMs" in record ? record.frameTimeMs : undefined;
-      const wireLength = record.kind === "frame"
-        ? encodeFrameLength(record.frame.length, timestamp).length + record.frame.length
-        : record.endOffset - record.offset;
+      let wireLength = record.endOffset - record.offset;
+      if (record.kind === "frame") {
+        const version = record.frame.length >= 10 ? record.frame.readUInt16LE(8) : 0;
+        const partition = partitionLMUSourceFrame(record.frame);
+        if ((version === 2 || version === 3) && !partition) throw new Error("LMU raw context frame cannot be safely partitioned");
+        if (this.recordLmuOpponents && partition?.companion) this.appendCompanionFrame(partition.companion, record.frame, record.frameTimeMs);
+        const primary = partition?.primary ?? record.frame;
+        const encoded = this.current.encoder!.encode(primary, this.current.localOffset);
+        this.append(Buffer.concat([encodeFrameLength(encoded.length, record.frameTimeMs), encoded]));
+        const sourceLength = getLMUPartitionSourceLength(primary) ?? record.frame.length;
+        wireLength = encodeFrameLength(sourceLength, record.frameTimeMs).length + sourceLength;
+        this.current.firstTimestamp ??= record.frameTimeMs;
+        this.current.lastTimestamp = record.frameTimeMs;
+      } else {
+        if (record.kind === "parser-bootstrap") this.current.bootstrapHash = createHash("sha256").update(record.payload).digest("hex");
+        if (record.kind === "parser-bootstrap" || record.kind === "segment-boundary" || record.kind === "segment-context-end") this.current.encoder!.reset();
+        this.append(original);
+      }
       this.sourceBytes += wireLength; this.sourceRecordCount++; this.current.records++;
       if (this.current.records === 1) this.current.sourceStart = start;
       this.current.sourceEnd = this.sourceBytes;
-      if (record.kind === "frame") {
-        this.current.firstTimestamp ??= timestamp;
-        this.current.lastTimestamp = timestamp;
-      }
     }
   }
   writeSegmentBoundary(): void { this.writeRawCaptureBytes(encodeSegmentBoundaryFrame()); }
-  requestFullCheckpoint(): void { this.current.encoder!.requestCheckpoint(); }
+  requestFullCheckpoint(): void {
+    this.current.encoder!.requestCheckpoint();
+    this.companionEncoder?.requestCheckpoint();
+  }
   getCurrentByteOffset(): number { return this.sourceBytes; }
-  flush(): void { this.writer.flush(); }
+  flush(): void {
+    this.writer.flush();
+    if (!this.companionFailure) {
+      try { this.companionWriter?.flush(); }
+      catch (error) { this.failCompanion(error); }
+    }
+  }
 
   stop(): Promise<void> {
     if (!this.stopTask) this.stopTask = this.stopImpl();
@@ -257,9 +394,24 @@ export class DirectCaptureRecording {
     await this.startupTask;
     this.writer.flush();
     try { await this.writer.close(); } catch (error) { this.fail(error); }
+    if (this.companionWriter) {
+      try {
+        await this.companionWriter.close();
+        if (!this.companionFailure) {
+          const info = this.companionWriter.active;
+          const digest = createHash("sha256");
+          for await (const chunk of createReadStream(info.path)) digest.update(chunk);
+          this.companionDescriptor = {
+            file: basename(info.path), codecVersion: 1, byteLength: info.byteLength, sha256: digest.digest("hex"),
+            frameKeyStart: this.companionFirstKey, frameKeyEnd: this.companionLastKey,
+            committedPrefix: { byteLength: info.byteLength, recordCount: this.companionRecordCount },
+          };
+        }
+      } catch (error) { this.failCompanion(error); }
+    }
     if (!this.failure) {
-      if (!this.publicationTask) this.schedulePublication();
-      if (this.publicationTask) await this.publicationTask;
+      this.schedulePublication();
+      while (this.publicationTask) await this.publicationTask;
       if ([...this.parts.values()].some((part) => part.owner && !part.owner.abandoned && (!part.owner.finalized || !part.owner.binding))) {
         this.fail(new Error("Direct capture stopped with unresolved ownership or lap binding"));
       }
@@ -270,7 +422,11 @@ export class DirectCaptureRecording {
   }
 
   private rotate(window: NonNullable<DetectorOwnershipTransition["window"]>, locator: ParserReplayLocator | null, ordinal: number): void {
-    const plan = locator ? materializeParserInitializationPlan(locator) : null;
+    // LMU parses each complete native frame independently; an empty reset is
+    // sufficient when bounded replay history has no locator.
+    const plan = locator ? materializeParserInitializationPlan(locator) : this.gameId === "lmu"
+      ? { anchorPayload: new Uint8Array(), precedingRecords: [] }
+      : null;
     if (!plan) throw new Error(`Parser initialization unavailable at source offset ${window.startOffset}`);
     // Manifest ordinals count all source records, including parser priming; ownership ordinal remains native.
     const logicalSourceOrdinal = this.current.firstOrdinal + this.current.records;
@@ -286,7 +442,11 @@ export class DirectCaptureRecording {
       if (plan.precedingRecords.length) {
         const contextStart = encodeSegmentContextFrame(); next.prefixBytes += contextStart.length; this.append(contextStart);
         for (const record of plan.precedingRecords) {
-          const bytes = Buffer.concat([encodeFrameLength(record.frame.length, record.timestampMs), record.frame]);
+          const version = this.gameId === "lmu" && record.frame.length >= 10 ? record.frame.readUInt16LE(8) : 0;
+          const partition = this.gameId === "lmu" ? partitionLMUSourceFrame(record.frame) : null;
+          if (this.gameId === "lmu" && (version === 2 || version === 3) && !partition) throw new Error("LMU parser context cannot be safely partitioned");
+          const contextFrame = partition?.primary ?? record.frame;
+          const bytes = Buffer.concat([encodeFrameLength(contextFrame.length, record.timestampMs), contextFrame]);
           next.prefixBytes += bytes.length; this.append(bytes);
         }
         const end = encodeSegmentContextEndFrame(); next.prefixBytes += end.length; this.append(end);
@@ -355,7 +515,10 @@ export class DirectCaptureRecording {
     this.manifest = Schema.decodeSync(ManifestSchema)({
       version: 3, gameId: this.gameId, sourceRevision: this.manifestRevision,
       sourceByteLength: sourceEnd, sourceRecordCount: recordEnd,
-      sourceCoordinates: "native-wire-v1", chunks,
+      sourceCoordinates: "native-wire-v1",
+      ...(this.gameId === "lmu" ? { opponentRetention: this.opponentRetentionOverride ?? (this.recordLmuOpponents ? "retained" : "not-recorded") } : {}),
+      ...(this.companionDescriptor ? { opponentCompanion: this.companionDescriptor } : {}),
+      chunks,
     });
     return this.manifest;
   }
@@ -442,7 +605,10 @@ export class DirectSessionRecorderAdapter extends SparseSessionRecorderAdapter {
   get ready(): Promise<void> { return this.directCapture?.ready ?? Promise.resolve(); }
   override start(gameId: GameId): void {
     const directory = resolve(resolveRecordingGameDirectory(gameId, this.directOwnership), `${timestampForFilename()}-${randomUUID()}`);
-    this.directCapture = new DirectCaptureRecording(gameId, directory, join(directory, "capture-manifest.json"), this.directOptions);
+    this.directCapture = new DirectCaptureRecording(gameId, directory, join(directory, "capture-manifest.json"), {
+      ...this.directOptions,
+      recordLmuOpponents: this.directOptions.recordLmuOpponents ?? loadSettings().recordLmuOpponents,
+    });
     this.directEpoch++;
   }
   attachSession(sessionId: number, sourceRegistered: Promise<void>, notify: (event: Record<string, unknown>) => void): void { this.directCapture?.attachSession(sessionId, sourceRegistered, notify); }
@@ -456,6 +622,7 @@ export class DirectSessionRecorderAdapter extends SparseSessionRecorderAdapter {
   override writeSegmentBoundary(): void { this.directCapture?.writeSegmentBoundary(); }
   override requestFullCheckpoint(): void { this.directCapture?.requestFullCheckpoint(); }
   override getCurrentByteOffset(): number { return this.directCapture?.getCurrentByteOffset() ?? 0; }
+  async drainWrites(): Promise<void> { await this.directCapture?.drainWrites(); }
   override flush(): void { this.directCapture?.flush(); }
   override stop(): Promise<void> { const capture = this.directCapture; this.directCapture = null; return capture?.stop() ?? Promise.resolve(); }
 }

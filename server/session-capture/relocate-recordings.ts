@@ -359,12 +359,23 @@ async function executeMove(directory: string, operationId: string, hooks: Requir
       if (!isContained(oldDirectory, canonicalSource) || isContained(newDirectory, canonicalSource)) return;
       references.push({ sessionId, table, field, oldPath: value, newPath: resolve(newDirectory, relative(oldDirectory, canonicalSource)) });
       if (table === "sessions" && field === "captureManifestFile") {
-        const manifest = JSON.parse(await readFile(canonicalSource, "utf8")) as { archiveFile?: unknown; chunks?: Array<{ path?: unknown }> };
+        const manifest = JSON.parse(await readFile(canonicalSource, "utf8")) as {
+          archiveFile?: unknown;
+          opponentCompanion?: { file?: unknown };
+          chunks?: Array<{ path?: unknown }>;
+        };
         if (typeof manifest.archiveFile === "string") {
           const archivePath = resolve(dirname(canonicalSource), manifest.archiveFile);
           if (isContained(oldDirectory, archivePath) && !await hasSymlinkDirectory(oldDirectory, archivePath)) {
             try { if ((await lstat(archivePath)).isFile()) files.add(await realpath(archivePath)); }
             catch (archiveError) { if ((archiveError as NodeJS.ErrnoException).code !== "ENOENT") throw archiveError; }
+          }
+        }
+        if (typeof manifest.opponentCompanion?.file === "string" && basename(manifest.opponentCompanion.file) === manifest.opponentCompanion.file) {
+          const companionPath = resolve(dirname(canonicalSource), manifest.opponentCompanion.file);
+          if (isContained(oldDirectory, companionPath) && !await hasSymlinkDirectory(oldDirectory, companionPath)) {
+            try { if ((await lstat(companionPath)).isFile()) files.add(await realpath(companionPath)); }
+            catch (companionError) { if ((companionError as NodeJS.ErrnoException).code !== "ENOENT") throw companionError; }
           }
         }
         for (const chunk of manifest.chunks ?? []) {
