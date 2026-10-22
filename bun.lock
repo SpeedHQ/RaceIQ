@@ -93,6 +93,7 @@
         "@raceiq/game-lmu": "workspace:*",
         "@raceiq/game-lmu-metadata": "workspace:*",
         "@raceiq/lap-replay": "workspace:*",
+        "@raceiq/session-analyse": "workspace:*",
         "@raceiq/sessions-page": "workspace:*",
         "@raceiq/shared": "workspace:*",
         "@raceiq/telemetry-core": "workspace:*",
@@ -131,6 +132,7 @@
         "@raceiq/game-lmu-metadata": "workspace:*",
         "@raceiq/lap-replay": "workspace:*",
         "@raceiq/scene-3d": "workspace:*",
+        "@raceiq/session-analyse": "workspace:*",
         "@raceiq/sessions-page": "workspace:*",
         "@raceiq/telemetry-core": "workspace:*",
         "@raceiq/tooling-data": "workspace:*",
@@ -259,10 +261,12 @@
         "@raceiq/backend": "workspace:*",
         "@raceiq/backend-core": "workspace:*",
         "@raceiq/capture-formats": "workspace:*",
+        "@raceiq/frontend-pure": "workspace:*",
         "@raceiq/game-ac-evo": "workspace:*",
         "@raceiq/game-ac-evo-metadata": "workspace:*",
         "@raceiq/game-catalogs": "workspace:*",
         "@raceiq/scene-3d": "workspace:*",
+        "@raceiq/session-analyse": "workspace:*",
         "@raceiq/sessions-page": "workspace:*",
         "@raceiq/shared": "workspace:*",
         "@raceiq/telemetry-core": "workspace:*",
@@ -430,6 +434,33 @@
       },
       "peerDependencies": {
         "three": "^0.185.1",
+      },
+    },
+    "packages/session-analyse": {
+      "name": "@raceiq/session-analyse",
+      "dependencies": {
+        "@base-ui/react": "^1.8.0",
+        "@hono/zod-validator": "0.9.1",
+        "@raceiq/analysis-core": "workspace:*",
+        "@raceiq/backend-core": "workspace:*",
+        "@raceiq/frontend-pure": "workspace:*",
+        "@raceiq/scene-3d": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+        "@tanstack/react-query": "^5.103.1",
+        "@tanstack/react-router": "^1.170.38",
+        "drizzle-orm": "^0.45.2",
+        "hono": "4.13.8",
+        "lucide-react": "^1.47.0",
+        "react": "^19.3.0",
+        "react-dom": "^19.3.0",
+        "zod": "^4.6.5",
+      },
+      "devDependencies": {
+        "@playwright/test": "1.62.1",
+        "@raceiq/game-catalogs": "workspace:*",
+        "@raceiq/telemetry-core": "workspace:*",
+        "@types/react": "^19.3.0",
+        "@types/react-dom": "^19.3.0",
       },
     },
     "packages/sessions-page": {
@@ -1354,6 +1385,8 @@
     "@raceiq/lap-replay": ["@raceiq/lap-replay@workspace:packages/lap-replay"],
 
     "@raceiq/scene-3d": ["@raceiq/scene-3d@workspace:packages/scene-3d"],
+
+    "@raceiq/session-analyse": ["@raceiq/session-analyse@workspace:packages/session-analyse"],
 
     "@raceiq/sessions-page": ["@raceiq/sessions-page@workspace:packages/sessions-page"],
 

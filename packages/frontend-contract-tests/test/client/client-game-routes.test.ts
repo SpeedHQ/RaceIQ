@@ -2,16 +2,15 @@ import { describe, expect, test } from "bun:test";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import {
   gameIdForRoutePrefix,
-  parseOptionalIdentityKey,
-  parseOptionalNumber,
   routePrefixForGameId,
   setupEngineerGameIdForRoutePrefix,
   supportsGameFeature,
-  validateAnalyseSearch,
   validateCompareSearch,
   validateTuneReviewSearch,
   validateTuneSearch,
 } from "client/src/lib/game-routes";
+import { parseOptionalIdentityKey } from "@raceiq/frontend-pure/route-search";
+import { validateAnalyseSearch } from "@raceiq/session-analyse/contracts";
 import { releaseFeatureFlags } from "@raceiq/shared/platform/runtime/release-feature-flags";
 import { validateSessionsSearch } from "@raceiq/sessions-page/contracts";
 

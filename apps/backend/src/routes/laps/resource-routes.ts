@@ -13,7 +13,7 @@ import { backfillLapInsights, getOrComputeLapInsights } from "@raceiq/backend-co
 import { alignLapSet, prepareLapSetAlignmentIndex, type AlignmentLapInput } from "@raceiq/analysis-core/racing/laps/alignment/build";
 import { encodeAlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/codec";
 import type { EncodedAlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/types";
-import { getLaps, getLapById, getLapsByIds, getLapsRaw, getReviewLaps, getSessionLaps } from "@raceiq/backend-core/db/lap-read-queries";
+import { getLaps, getLapById, getLapsByIds, getLapsRaw, getSessionLaps } from "@raceiq/backend-core/db/lap-read-queries";
 import { alignedTelemetryCacheGet, alignedTelemetryCacheSet, lapSetAlignmentIndexCacheGet, lapSetAlignmentIndexCacheSet } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { loadSessionCapture, loadSessionSource, resolveLapCaptureArtifact } from "@raceiq/backend-core/session-capture/source-loader";
 import { getLiveLapCaptureSnapshot } from "@raceiq/backend-core/db/live-capture-queries";
@@ -28,38 +28,20 @@ import { generateExport } from "@raceiq/backend-core/lap-analysis/report";
 import { resolveTrack } from "@raceiq/backend-core/tracks/info";
 import { computeLineSpreadTrace } from "@raceiq/backend-core/lap-analysis/consistency";
 import { hasWorldPositions } from "@raceiq/shared/racing/tracks/path";
+import { BulkDeleteSchema, LapsQuerySchema, CompareLineSpreadQuerySchema, AlignedTelemetryRequestSchema, LapInsightBackfillSchema } from "./support";
 import { resolveLapCorners } from "../../tracks/corner-resolution";
-import { BulkDeleteSchema, LapsQuerySchema, ReviewLapsQuerySchema, ReviewLineSpreadQuerySchema, CompareLineSpreadQuerySchema, AlignedTelemetryRequestSchema, LapInsightBackfillSchema } from "./support";
+import { createSessionAnalyseRoutes } from "@raceiq/session-analyse/server";
 import { resolveLapF1Setup } from "@raceiq/backend-core/ai/f1-setup-identity";
 
 const gzipAsync = promisify(gzip);
 
 export const resourceRoutes = new Hono()
   .route("/", replayRoutes)
+  .route("/", createSessionAnalyseRoutes(resolveLapCorners))
   .get("/api/laps", zValidator("query", LapsQuerySchema), async (c) => {
     const { gameId, sessionId } = c.req.valid("query");
     const lapList = sessionId != null ? await getSessionLaps(gameId!, sessionId) : await getLaps(gameId);
     return c.json(lapList);
-  })
-  .get("/api/laps/review", zValidator("query", ReviewLapsQuerySchema), async (c) => {
-    const { gameId, sessionId, trackId, carId, limit } = c.req.valid("query");
-    return c.json(await getReviewLaps(gameId, trackId ?? null, carId ?? null, limit, sessionId));
-  })
-  .get("/api/laps/review-line-spread", zValidator("query", ReviewLineSpreadQuerySchema), async (c) => {
-    const { gameId, sessionId, lapIds } = c.req.valid("query");
-    const loaded = await getLapsByIds(lapIds);
-    if (loaded.length !== lapIds.length || loaded.some((lap) => lap.gameId !== gameId || lap.sessionId !== sessionId)) {
-      return c.json({ error: "Selected laps must belong to session." }, 400);
-    }
-    const ordered = lapIds.map((id) => loaded.find((lap) => lap.id === id)!);
-    const usable = ordered.filter((lap) => lap.telemetry.length >= 30);
-    if (usable.length === 0) return c.json({ fracs: [], spreadM: [], perCorner: [], lowTrust: false, consistencyScore: 0, overallSpreadM: 0, lapCount: 0 });
-    const first = usable[0]!;
-    const corners = await resolveLapCorners(first.trackId, gameId, first.telemetry);
-    const trace = computeLineSpreadTrace(usable.map((lap) => lap.telemetry), usable.map((lap) => lap.id), corners);
-    if (!trace) return c.json({ fracs: [], spreadM: [], perCorner: [], lowTrust: false, consistencyScore: 0, overallSpreadM: 0, lapCount: usable.length });
-    const { lapLines: _lapLines, ...compactTrace } = trace;
-    return c.json(compactTrace);
   })
   .get("/api/laps/compare-line-spread", zValidator("query", CompareLineSpreadQuerySchema), async (c) => {
     const { gameId, lapIds } = c.req.valid("query");

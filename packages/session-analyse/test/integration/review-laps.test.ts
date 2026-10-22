@@ -1,7 +1,8 @@
 import { afterEach, expect, test } from "bun:test";
 import { client, db } from "@raceiq/backend-core/db/index";
 import { laps, sessions } from "@raceiq/backend-core/db/schema";
-import { getLapsByIds, getReviewLaps, getSessionLaps } from "@raceiq/backend-core/db/lap-read-queries";
+import { getLapsByIds, getSessionLaps } from "@raceiq/backend-core/db/lap-read-queries";
+import { getReviewLaps } from "@raceiq/session-analyse/server";
 import { deleteSession } from "@raceiq/backend-core/db/session-queries";
 
 const sessionIds: number[] = [];

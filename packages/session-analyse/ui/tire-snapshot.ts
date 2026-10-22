@@ -1,5 +1,5 @@
-import type { SemanticTuneSample, TuneWheelMetric } from "../semantic-tune";
-import { wheelValue } from "../semantic-tune";
+import type { SemanticTuneSample, TuneWheelMetric } from "@raceiq/analysis-core/racing/laps/semantic-tune";
+import { wheelValue } from "@raceiq/analysis-core/racing/laps/semantic-tune";
 
 export interface CornerSnap {
   tempC?: number;

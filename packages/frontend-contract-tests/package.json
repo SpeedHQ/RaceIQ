@@ -15,6 +15,8 @@
     "client": "workspace:*",
     "@raceiq/shared": "workspace:*",
     "@raceiq/sessions-page": "workspace:*",
+    "@raceiq/session-analyse": "workspace:*",
+    "@raceiq/frontend-pure": "workspace:*",
     "@raceiq/capture-formats": "workspace:*",
     "@raceiq/backend": "workspace:*",
     "@raceiq/backend-core": "workspace:*",

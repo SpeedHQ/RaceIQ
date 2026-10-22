@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { carIdentityKey, trackIdentityKey, type SessionMeta } from "@raceiq/shared/racing/sessions/types";
 import { sessionCarName, sessionTrackName } from "@raceiq/sessions-page/ui";
-import { validateAnalyseSearch } from "../src/lib/game-routes";
+import { validateAnalyseSearch } from "@raceiq/session-analyse/contracts";
 import { trackRoutePath } from "../src/lib/track-routes";
 
 const names = { carNames: { "42": "Legacy car", ferrari_499p_2023: "Ferrari 499P 2023" }, trackNames: { "7": "Legacy track", "spa_2023/spawec": "Circuit de Spa-Francorchamps" } };

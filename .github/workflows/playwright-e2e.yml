@@ -71,37 +71,37 @@ jobs:
             runs_on: '["mars-ubuntu-2vcpu-6g", "mars-retry-3"]'
           - name: seeded-shard-1
             server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page --project=session-analyse
             shard: 1/7
             runs_on: '["mars-ubuntu-2vcpu-6g", "mars-retry-3"]'
           - name: seeded-shard-2
             server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page --project=session-analyse
             shard: 2/7
             runs_on: '["mars-ubuntu-2vcpu-6g", "mars-retry-3"]'
           - name: seeded-shard-3
             server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page --project=session-analyse
             shard: 3/7
             runs_on: '["mars-ubuntu-2vcpu-6g", "mars-retry-3"]'
           - name: seeded-shard-4
             server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page --project=session-analyse
             shard: 4/7
             runs_on: '["mars-ubuntu-2vcpu-6g", "mars-retry-3"]'
           - name: seeded-shard-5
             server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page --project=session-analyse
             shard: 5/7
             runs_on: '["mars-ubuntu-2vcpu-6g", "mars-retry-3"]'
           - name: seeded-shard-6
             server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page --project=session-analyse
             shard: 6/7
             runs_on: '["mars-ubuntu-2vcpu-6g", "mars-retry-3"]'
           - name: seeded-shard-7
             server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page --project=session-analyse
             shard: 7/7
             runs_on: '["mars-ubuntu-2vcpu-6g", "mars-retry-3"]'
           - name: lap-replay-webgpu

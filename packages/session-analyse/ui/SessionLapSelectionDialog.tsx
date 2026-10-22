@@ -1,11 +1,7 @@
-import { m } from "@/paraglide/messages";
+import { useSessionAnalyseHost } from "./host";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { formatLapTime } from "@/lib/format";
 import { evaluationReasonLabel, selectEvaluationLaps } from "@raceiq/analysis-core/racing/laps/review-selection";
 
 type Selection = { lapIds: number[]; primaryLapId: number };
@@ -21,6 +17,7 @@ export interface SessionLapSelectionDialogProps {
 }
 
 export function SessionLapSelectionDialog({ open, onOpenChange, laps, selectedLapIds, primaryLapId, onApply }: SessionLapSelectionDialogProps) {
+  const { m, Badge, Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, formatLapTime } = useSessionAnalyseHost();
   const orderedLaps = useMemo(() => [...laps].sort((a, b) => a.lapNumber - b.lapNumber), [laps]);
   const reasons = useMemo(() => selectEvaluationLaps([...laps]).reasonById, [laps]);
   const [draftIds, setDraftIds] = useState<number[]>([]);

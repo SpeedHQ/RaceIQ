@@ -7,29 +7,17 @@ import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { TireGrid } from "@/components/telemetry/TireGrid";
-import { SectorDetailView } from "@/components/tunes/SectorDetailView";
-import { SectorMap } from "@/components/tunes/SectorMap";
-import { bandColor, buildSectorRanges, CORNERS, CornerBars, sectorIndexForTelemetryIndex, type CornerKey, METRICS, metricDisplayValue, type MetricKey, tuneMetricValue, tuneMetricsFor } from "@/components/tunes/SectorRangeBreakdown";
-import { SearchSelect } from "@/components/ui/SearchSelect";
+import { useSessionAnalyseHost } from "./host";
+import type { ReviewExperiment, MetricKey, CornerKey } from "../contracts/ui";
 import { SessionLapSelectionDialog } from "./SessionLapSelectionDialog";
-import { Button } from "@/components/ui/button";
-import { useTirePressureOptimal } from "@/hooks/catalog-queries";
-import { useUnits } from "@/hooks/useUnits";
-import type { ExperimentVersion, LineSpreadTrace } from "@/hooks/experiments";
-import { useSessionLineSpread } from "@/hooks/laps";
-import { useAlignedTelemetry } from "@/hooks/aligned-telemetry";
-import { useLapIssues } from "@/hooks/tunes";
+import type { LineSpreadTrace } from "@raceiq/analysis-core/racing/laps/consistency-types";
+import { useSessionLineSpread } from "./queries";
 import { SECTOR_COLOR_VARS } from "@raceiq/scene-3d/colors";
 import { ArmHeadline, ReviewOverviewSkeleton, ReviewTrackStats } from "./OverviewSkeleton";
-import { IssuePill } from "./ReviewIssues";
 import { tireSnapshotFromAlignedTrace } from "./tire-snapshot";
-import { semanticTuneSamplesFromAlignedTrace, type SemanticTuneSample, wheelValue } from "../semantic-tune";
+import { semanticTuneSamplesFromAlignedTrace, wheelValue, type SemanticTuneSample } from "@raceiq/analysis-core/racing/laps/semantic-tune";
 import { buildOpenLapContext } from "./open-lap-context";
-import { formatLapTime } from "@/lib/format";
-import { m } from "@/paraglide/messages";
-import type { TuneReviewTrackTab } from "@/lib/game-routes";
-import { TrackFocusView } from "../track-focus/TrackFocusView";
+import type { TuneReviewTrackTab } from "../contracts/search";
 interface TuneReviewDashboardProps {
   gameId: GameId;
   trackName?: string;
@@ -42,7 +30,7 @@ interface TuneReviewDashboardProps {
   onDrillIntoLap?: (lap: LapMeta) => void;
   stayOnSessionReview?: boolean;
   autoSelectLap?: boolean;
-  test?: ExperimentVersion;
+  test?: ReviewExperiment;
   experimentId?: number | null;
   lineSpread?: LineSpreadTrace | null;
   onOpenLapContextChange?: (text: string | null) => void;
@@ -72,6 +60,12 @@ export function SessionReviewDashboard({
   lineSpread,
   onOpenLapContextChange,
 }: TuneReviewDashboardProps) {
+  const {
+    m, Button, SearchSelect, TireGrid, SectorDetailView, SectorMap, TrackFocusView, IssuePill,
+    bandColor, buildSectorRanges, CORNERS, CornerBars, sectorIndexForTelemetryIndex, METRICS,
+    metricDisplayValue, tuneMetricValue, tuneMetricsFor, useTirePressureOptimal, useUnits,
+    useAlignedTelemetry, useLapIssues, formatLapTime,
+  } = useSessionAnalyseHost();
   const validLaps = useMemo(() => [...laps].filter((l) => l.isValid && isPaceLap(l.classification) && Number.isFinite(l.lapTime) && l.lapTime > 0 && !l.experimentExcluded).sort((a, b) => b.lapNumber - a.lapNumber), [laps]);
   const evaluationLaps = useMemo(() => selectEvaluationLaps(laps).chosen, [laps]);
   const search = useSearch({ strict: false }) as { lap?: number; laps?: string; primary?: number; view?: ReviewView; tab?: TuneReviewTrackTab };

@@ -1,10 +1,7 @@
-import { m } from "@/paraglide/messages";
+import { useSessionAnalyseHost } from "./host";
 import { headlineMetricForVersionKind, type VersionKind } from "@raceiq/shared/racing/experiments/focus";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { SECTOR_COLOR_VARS } from "@raceiq/scene-3d/colors";
-import { formatLapTime } from "@/lib/format";
 
 /** Overview skeleton shown when the session has no recorded lap yet — mirrors
  *  the real overview (toolbar + sector spine) with placeholder times/maps so the
@@ -19,6 +16,7 @@ import { formatLapTime } from "@/lib/format";
  * changes, so nothing is hidden from a driver who wants the other read.
  */
 export function ArmHeadline({ kind, laps }: { kind: VersionKind; laps: LapMeta[] }) {
+  const { m, Badge, formatLapTime } = useSessionAnalyseHost();
   const times = laps.map((l) => l.lapTime).filter((t) => t > 0);
   const best = times.length ? Math.min(...times) : null;
   // Spread, not standard deviation: with the 3–8 laps a stint actually
@@ -68,6 +66,7 @@ export function ReviewTrackStats({
   };
   issueCount: number;
 }) {
+  const { m, formatLapTime } = useSessionAnalyseHost();
   const cells = [
     { label: m.review_consistency(), value: stats.consistency != null ? stats.consistency.toFixed(0) : "—", unit: stats.consistency != null ? "%" : undefined },
     {
@@ -102,6 +101,7 @@ export function ReviewTrackStats({
 }
 
 export function ReviewOverviewSkeleton({ trackName, onBack }: { trackName?: string; onBack?: () => void }) {
+  const { m, Button } = useSessionAnalyseHost();
   return (
     <div>
       {/* Toolbar — mirrors the real one; controls disabled with no lap loaded. */}

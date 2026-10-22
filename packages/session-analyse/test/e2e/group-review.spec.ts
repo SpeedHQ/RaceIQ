@@ -1,8 +1,8 @@
 import { expect, test, type Page, type Request } from "@playwright/test";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
-import { collectBrowserErrors } from "../../support/browser-errors";
-import { SEEDED_GAME_CASES } from "../../support/seeded/cases";
-import { getSeededLapTarget } from "../../support/seeded/laps";
+import { collectBrowserErrors } from "../../../../playwright/tests/support/browser-errors";
+import { SEEDED_GAME_CASES } from "../../../../playwright/tests/support/seeded/cases";
+import { getSeededLapTarget } from "../../../../playwright/tests/support/seeded/laps";
 
 const REVIEW_GAMES = SEEDED_GAME_CASES.filter((game) => game.gameId === "acc" || game.gameId === "ac-evo");
 
@@ -144,4 +144,68 @@ test("Analyse session route rejects mixed session and lap selections", async ({ 
   await page.goto("/acc/sessions/analyse?session=1&lap=2", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "Invalid Analyse selection" })).toBeVisible();
   await expect(page.getByRole("alert")).toHaveText("Session selection must contain only a positive session ID.");
+});
+
+test("Session Analyse selection cancel, apply and reload preserve primary lap", async ({ page, request }) => {
+  const response = await request.get("/api/laps?gameId=acc");
+  expect(response.ok()).toBe(true);
+  const laps = await response.json() as LapMeta[];
+  let selected: LapMeta[] = [];
+  for (const sessionId of new Set(laps.map((lap) => lap.sessionId))) {
+    const review = await request.get(`/api/laps/review?gameId=acc&sessionId=${sessionId}&limit=5`);
+    expect(review.ok()).toBe(true);
+    const candidates = await review.json() as LapMeta[];
+    if (candidates.length >= 2) {
+      selected = candidates.slice(0, 2);
+      break;
+    }
+  }
+  expect(selected.length, "ACC seed needs a session with two reviewable laps").toBe(2);
+  const [first, second] = selected as [LapMeta, LapMeta];
+  await page.goto(`/acc/sessions/${first.sessionId}/analyse`, { waitUntil: "domcontentloaded" });
+  const selectionButton = page.getByRole("button", { name: /^Laps: \d+ · Primary: Lap / });
+  await expect(selectionButton).toBeVisible();
+  await expect.poll(() => new URL(page.url()).searchParams.has("primary")).toBe(true);
+  const initialUrl = page.url();
+  await selectionButton.click();
+  const dialog = page.getByRole("dialog", { name: "Choose laps to display" });
+  await expect(dialog).toBeVisible();
+  const firstCheckbox = dialog.getByRole("checkbox", { name: `Display Lap ${first.lapNumber}`, exact: true });
+  await firstCheckbox.setChecked(!(await firstCheckbox.isChecked()));
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(dialog).toBeHidden();
+  expect(page.url()).toBe(initialUrl);
+
+  await selectionButton.click();
+  for (const checkbox of await dialog.getByRole("checkbox").all()) await checkbox.uncheck();
+  await expect(dialog.getByRole("button", { name: "Apply", exact: true })).toBeDisabled();
+  await dialog.getByRole("checkbox", { name: `Display Lap ${first.lapNumber}`, exact: true }).check();
+  await dialog.getByRole("checkbox", { name: `Display Lap ${second.lapNumber}`, exact: true }).check();
+  await dialog.getByRole("radio", { name: `Primary Lap ${second.lapNumber}`, exact: true }).check();
+  await dialog.getByRole("button", { name: "Apply", exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect(selectionButton).toHaveText(`Laps: 2 · Primary: Lap ${second.lapNumber}`);
+  const expectedIds = selected.map((lap) => String(lap.id)).sort();
+  expect(new URL(page.url()).searchParams.get("laps")?.split(",").sort()).toEqual(expectedIds);
+  expect(new URL(page.url()).searchParams.get("primary")).toBe(String(second.id));
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(selectionButton).toHaveText(`Laps: 2 · Primary: Lap ${second.lapNumber}`);
+  expect(new URL(page.url()).searchParams.get("laps")?.split(",").sort()).toEqual(expectedIds);
+});
+
+test("Session Analyse rejects malformed selections and reports missing sessions", async ({ page }) => {
+  for (const search of [
+    "session=-1",
+    "session=1&laps=1,1&primary=1",
+    "session=1&laps=1,2,3,4,5,6&primary=1",
+    "session=1&laps=1,2&primary=3",
+    "session=1&laps=bad&primary=1",
+  ]) {
+    await page.goto(`/acc/sessions/analyse?${search}`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "Invalid Analyse selection" })).toBeVisible();
+  }
+  await page.goto("/acc/sessions/999999999/analyse", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("alert")).toHaveText("Session not found.");
+  await page.getByRole("button", { name: "Back to Sessions", exact: true }).click();
+  await expect(page).toHaveURL(/\/acc\/sessions\/?$/);
 });

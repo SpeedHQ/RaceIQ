@@ -2,11 +2,11 @@
 
 ## Status and purpose
 
-Agreed convention for new and extracted product features. `@raceiq/tracks-catalogue`, `@raceiq/cars-catalogue`, `@raceiq/lap-replay`, and `@raceiq/sessions-page` use this layout; unrelated features are not automatically migrated.
+Agreed convention for new and extracted product features. `@raceiq/tracks-catalogue`, `@raceiq/cars-catalogue`, `@raceiq/lap-replay`, `@raceiq/sessions-page`, and `@raceiq/session-analyse` use this layout; unrelated features are not automatically migrated.
 
 A feature owns its UI, server behavior, feature-local contracts and tests in **one workspace**. The application composes features; it does not own their implementations. This boundary supports feature-level Turbo impact selection without splitting every feature into separate UI/server/test packages.
 
-Decision: [Feature-owned E2E boundaries](../adr/0015-e2e-aware-package-extraction.md). Implemented extractions: [catalogue contract and verification](../../advisor-plans/catalogues-contract.md), [lap replay](../../advisor-plans/lap-replay-contract.md), and [Sessions page](../../advisor-plans/sessions-page-contract.md). Dashboard extraction and the broader selective-CI rollout remain deferred.
+Decision: [Feature-owned E2E boundaries](../adr/0015-e2e-aware-package-extraction.md). Implemented extractions: [catalogue contract and verification](../../advisor-plans/catalogues-contract.md), [lap replay](../../advisor-plans/lap-replay-contract.md), [Sessions page](../../advisor-plans/sessions-page-contract.md), and [Session Analyse](../../advisor-plans/session-analyse-contract.md). Dashboard extraction and the broader selective-CI rollout remain deferred.
 
 ## Layout
 

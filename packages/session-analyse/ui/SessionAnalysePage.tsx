@@ -1,18 +1,14 @@
-import { m } from "@/paraglide/messages";
+import { useSessionAnalyseHost } from "./host";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { selectEvaluationLaps } from "@raceiq/analysis-core/racing/laps/review-selection";
-import { parseAnalyseLapIds } from "@/lib/game-routes";
+import { parseAnalyseLapIds } from "@raceiq/session-analyse/contracts";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
-import { useCarName, useResolveNames } from "@/hooks/catalog-queries";
-import { useReviewLaps, useSessionLaps } from "@/hooks/laps";
-import { useSessions } from "@/hooks/session-queries";
-import { Button } from "@/components/ui/button";
-import { useTrackName } from "@/hooks/track-queries";
-import { getGameRoute } from "@/stores/game";
+import { useReviewLaps } from "./queries";
 import { SessionReviewDashboard } from "./SessionReviewDashboard";
 
-export function TrackCarAnalyseReviewPage({ gameId, trackId, carId, sessionId }: { gameId: GameId; trackId?: string; carId?: string; sessionId?: number }) {
+export function SessionAnalysePage({ gameId, trackId, carId, sessionId }: { gameId: GameId; trackId?: string; carId?: string; sessionId?: number }) {
+  const { m, Button, useSessions, useSessionLaps, useTrackName, useResolveNames, useCarName, getGameRoute } = useSessionAnalyseHost();
   const navigate = useNavigate();
   const search = useSearch({ strict: false }) as { laps?: string; view?: string; tab?: string };
   const { data: sessions = [], isLoading: sessionsLoading, isError: sessionsError } = useSessions();

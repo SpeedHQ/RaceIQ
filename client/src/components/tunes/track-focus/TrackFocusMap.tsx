@@ -1,8 +1,8 @@
 import { useMemo, useRef } from "react";
 import { SECTOR_COLOR_VARS, severityColor } from "@raceiq/scene-3d/colors";
 import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
-import type { SemanticTuneSample } from "../semantic-tune";
-import type { LineSpreadTrace } from "../../../hooks/experiments";
+import type { SemanticTuneSample } from "@raceiq/analysis-core/racing/laps/semantic-tune";
+import type { LineSpreadTrace } from "@raceiq/analysis-core/racing/laps/consistency-types";
 import type { TrackCorner } from "../../../hooks/track-queries";
 import { buildGeometry, buildStartMarker, type Pt, type SectorTimesLite, VIEW } from "../track-map-geometry";
 

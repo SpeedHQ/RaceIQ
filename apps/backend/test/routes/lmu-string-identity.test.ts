@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { insertLap } from "@raceiq/backend-core/db/lap-mutation-queries";
-import { getLapStats, getReviewLaps } from "@raceiq/backend-core/db/lap-read-queries";
+import { getLapStats } from "@raceiq/backend-core/db/lap-read-queries";
 import { deleteSession, insertSession, updateSessionRawFile } from "@raceiq/backend-core/db/session-queries";
 import { createSessionRoutes } from "@raceiq/sessions-page/server";
 import { isSessionIdentityInCatalog } from "../../src/games/session-identity";

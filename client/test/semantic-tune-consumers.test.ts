@@ -7,8 +7,6 @@ import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { CurrentLapTireStrip } from "../src/components/tunes/CurrentLapTireStrip";
 import { LiveTestDashboard } from "../src/components/tunes/LiveTestDashboard";
 import { buildSectorRanges, METRICS, tuneMetricsFor } from "../src/components/tunes/SectorRangeBreakdown";
-import { buildOpenLapContext } from "../src/components/tunes/review/open-lap-context";
-import { tireSnapshot } from "../src/components/tunes/review/tire-snapshot";
 import { semanticSamples } from "../src/components/tunes/semantic-tune";
 import { buildGeometry } from "../src/components/tunes/track-map-geometry";
 import type { SemanticReplayFrame } from "@raceiq/lap-replay/contracts"
@@ -92,24 +90,6 @@ describe("canonical tuning telemetry consumers", () => {
     expect(sample.tireWearFraction).toEqual({ fl: 0, fr: 0, rl: 0, rr: 0 });
     expect(semanticSamples("ac-evo", [frame])).toEqual([]);
   });
-  test("keeps non-temperature ranges in their native units", () => {
-    const input = {
-      focusLap: { lapNumber: 1, lapTime: 90, isValid: true } as never,
-      sectorTimes: null,
-      laps: [],
-      corners: null,
-      ranges: { sectors: [{ FL: { n: 1, min: 24, max: 26, avg: 25 } }] },
-      test: undefined,
-      cornerKeys: ["FL"],
-      temperatureUnit: "F" as const,
-    };
-    const pressure = buildOpenLapContext({ ...input, metric: { label: "Pressure", unit: "psi" } });
-    const temperature = buildOpenLapContext({ ...input, metric: { label: "Core temp", unit: "°C", quantity: "temperature" } });
-
-    expect(pressure).toContain("FL 24-26 (avg 25)");
-    expect(pressure).not.toContain("°F");
-    expect(temperature).toContain("FL 75°F-79°F (avg 77°F)");
-  });
 
   test("renders native tire channels and game-correct fuel units", () => {
     const acc = semanticSamples(
@@ -145,7 +125,7 @@ describe("canonical tuning telemetry consumers", () => {
     expect(model.sectors[0].FR.avg).toBeCloseTo(10);
   });
 
-  test("requires canonical position and tire values instead of fabricated zeroes", () => {
+  test("requires canonical position instead of fabricated coordinates", () => {
     const positioned = semanticSamples(
       "acc",
       Array.from({ length: 12 }, (_, index) => replayFrame("acc", index, entries("acc", index, 50))),
@@ -153,11 +133,6 @@ describe("canonical tuning telemetry consumers", () => {
     expect(buildGeometry(positioned, null, null)?.pts).toHaveLength(12);
     const missingPosition = positioned.map((sample) => ({ ...sample, positionM: undefined }));
     expect(buildGeometry(missingPosition, null, null)).toBeNull();
-    expect(tireSnapshot(positioned)?.FL.wear).toBe(0);
-    const partialSnapshot = tireSnapshot(positioned.map((sample) => ({ ...sample, tireSurfaceTemperatureC: undefined, tireCoreTemperatureC: undefined, tireCarcassMiddleTemperatureC: undefined })));
-    expect(partialSnapshot).not.toBeNull();
-    expect(partialSnapshot?.FL.tempC).toBeUndefined();
-    expect(partialSnapshot?.FL.wear).toBe(0);
   });
   test("passes canonical lap number rather than running lap seconds", () => {
     telemetryStore.setState((state) => ({ ...state, telemetryView: null, sectors: null, sessionLaps: [] }));

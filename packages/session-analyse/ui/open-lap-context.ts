@@ -1,6 +1,6 @@
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
-import type { ExperimentVersion } from "@/hooks/experiments";
+type ExperimentVersionContext = { driverComment?: string | null; notes?: string | null };
 
 type CornerSnapshot = { tempC?: number; wear?: number; pressure?: number; brakeTemp?: number };
 type Range = { n: number; min: number; max: number; avg: number };
@@ -25,7 +25,7 @@ export function buildOpenLapContext({
   issues?: TuneIssue[];
   ranges: { sectors: Record<string, Range>[] } | null;
   metric: { label: string; unit: string; quantity?: "temperature" };
-  test?: Pick<ExperimentVersion, "driverComment" | "notes">;
+  test?: ExperimentVersionContext;
   cornerKeys: readonly string[];
   temperatureUnit: "C" | "F";
 }): string | null {

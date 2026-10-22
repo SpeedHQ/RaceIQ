@@ -8,7 +8,8 @@
     "./parse-lap-time": "./src/parse-lap-time.ts",
     "./iracing-car-sort": "./src/iracing-car-sort.ts",
     "./pi-class": "./src/pi-class.ts",
-    "./utc-date": "./src/utc-date.ts"
+    "./utc-date": "./src/utc-date.ts",
+    "./route-search": "./src/route-search.ts"
   },
   "scripts": {
     "lint": "../../client/node_modules/.bin/oxlint .",
