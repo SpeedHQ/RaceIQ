@@ -92,6 +92,7 @@
         "@raceiq/game-iracing-metadata": "workspace:*",
         "@raceiq/game-lmu": "workspace:*",
         "@raceiq/game-lmu-metadata": "workspace:*",
+        "@raceiq/race-strategy": "workspace:*",
         "@raceiq/shared": "workspace:*",
         "@raceiq/telemetry-core": "workspace:*",
         "@raceiq/tooling-catalog": "workspace:*",
@@ -169,6 +170,7 @@
         "@raceiq/game-f1-2025": "workspace:*",
         "@raceiq/game-fm-2023": "workspace:*",
         "@raceiq/game-iracing": "workspace:*",
+        "@raceiq/race-strategy": "workspace:*",
         "@raceiq/shared": "workspace:*",
         "@raceiq/tooling": "workspace:*",
         "@storybook/react": "10.6.0",
@@ -255,6 +257,7 @@
         "@raceiq/backend": "workspace:*",
         "@raceiq/backend-core": "workspace:*",
         "@raceiq/capture-formats": "workspace:*",
+        "@raceiq/frontend-pure": "workspace:*",
         "@raceiq/game-ac-evo": "workspace:*",
         "@raceiq/game-ac-evo-metadata": "workspace:*",
         "@raceiq/game-catalogs": "workspace:*",
@@ -267,6 +270,12 @@
     },
     "packages/frontend-pure": {
       "name": "@raceiq/frontend-pure",
+      "dependencies": {
+        "@raceiq/shared": "workspace:*",
+      },
+      "devDependencies": {
+        "@raceiq/telemetry-core": "workspace:*",
+      },
     },
     "packages/game-ac-evo": {
       "name": "@raceiq/game-ac-evo",
@@ -379,6 +388,36 @@
       "name": "@raceiq/game-lmu-metadata",
       "dependencies": {
         "@raceiq/shared": "workspace:*",
+      },
+    },
+    "packages/race-strategy": {
+      "name": "@raceiq/race-strategy",
+      "dependencies": {
+        "@base-ui/react": "^1.8.0",
+        "@hono/zod-validator": "0.9.1",
+        "@libsql/client": "^0.18.0",
+        "@raceiq/analysis-core": "workspace:*",
+        "@raceiq/backend-core": "workspace:*",
+        "@raceiq/frontend-pure": "workspace:*",
+        "@raceiq/game-catalogs": "workspace:*",
+        "@raceiq/scene-3d": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+        "@raceiq/telemetry-core": "workspace:*",
+        "@tanstack/react-query": "^5.103.1",
+        "@tanstack/react-router": "^1.170.38",
+        "drizzle-orm": "^0.45.2",
+        "hono": "4.13.8",
+        "react": "^19.3.0",
+        "zod": "^4.6.5",
+      },
+      "devDependencies": {
+        "@playwright/test": "1.62.1",
+        "@raceiq/capture-formats": "workspace:*",
+        "@raceiq/game-acc": "workspace:*",
+        "@raceiq/game-f1-2025": "workspace:*",
+        "@raceiq/game-fm-2023": "workspace:*",
+        "@raceiq/tooling-data": "workspace:*",
+        "@types/react": "^19.3.0",
       },
     },
     "packages/scene-3d": {
@@ -533,6 +572,7 @@
       "devDependencies": {
         "@playwright/test": "1.62.1",
         "@raceiq/backend-core": "workspace:*",
+        "@raceiq/capture-formats": "workspace:*",
         "@raceiq/shared": "workspace:*",
         "@raceiq/tooling": "workspace:*",
       },
@@ -1289,6 +1329,8 @@
     "@raceiq/game-lmu": ["@raceiq/game-lmu@workspace:packages/game-lmu"],
 
     "@raceiq/game-lmu-metadata": ["@raceiq/game-lmu-metadata@workspace:packages/game-lmu-metadata"],
+
+    "@raceiq/race-strategy": ["@raceiq/race-strategy@workspace:packages/race-strategy"],
 
     "@raceiq/scene-3d": ["@raceiq/scene-3d@workspace:packages/scene-3d"],
 

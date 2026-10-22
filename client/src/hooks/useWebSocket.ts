@@ -1,3 +1,4 @@
+import { GameIdSchema } from "@raceiq/shared/games/ids";
 import { useEffect, useRef } from "react";
 import { queryClient } from "../lib/queryClient";
 import { client } from "../lib/rpc";
@@ -8,6 +9,8 @@ import { devTelemetryStore } from "../stores/dev-telemetry";
 import { queryKeys } from "./query-keys";
 import { buildWebSocketUrl, type DevWebSocketTarget } from "./websocket-url";
 import { invalidateDashboardQueries as invalidateDashboard } from "./dashboard";
+import { noteStrategyHistoryRevision } from "@raceiq/race-strategy/ui";
+import type { StrategyEstimatesClearedMessage, StrategyHistoryUpdatedMessage } from "@raceiq/shared/racing/live/strategy";
 import { refreshClassificationMigration, acceptClassificationMigrationSnapshot } from "@/lib/classification-migration";
 import type { ClassificationMigrationStatus } from "@raceiq/shared/racing/laps/classification-migration";
 
@@ -158,6 +161,9 @@ export function useWebSocket() {
         captureSnapshots.clear();
         telemetryStore.actions.setConnected(true);
 
+        queryClient.invalidateQueries({ queryKey: ["strategy-stints"] });
+        queryClient.invalidateQueries({ queryKey: ["strategy-estimates"] });
+        queryClient.invalidateQueries({ queryKey: ["strategy-baseline"] });
         startVersionRequest();
         void refreshClassificationMigration();
         queryClient.invalidateQueries({ queryKey: ["track-laps"] });
@@ -190,6 +196,43 @@ export function useWebSocket() {
             queryClient.invalidateQueries({ queryKey: ["settings"] });
           } else if (data.type === "dashboard_updated") {
             invalidateDashboard();
+          } else if (data.type === "strategy-updated" && typeof data.sessionId === "number" && typeof data.driverKey === "string") {
+            queryClient.invalidateQueries({
+              predicate: (query) => query.queryKey[0] === "strategy-stints" && query.queryKey[2] === data.sessionId,
+            });
+            queryClient.invalidateQueries({
+              predicate: (query) => query.queryKey[0] === "strategy-estimates" && query.queryKey[2] === data.sessionId && (query.queryKey[3] === data.driverKey || query.queryKey[3] == null),
+            });
+            queryClient.invalidateQueries({
+              predicate: (query) => query.queryKey[0] === "strategy-baseline" && query.queryKey[2] === data.sessionId && query.queryKey[4] === data.driverKey,
+            });
+          } else if (data.type === "strategy-estimates-cleared" && typeof data.sessionId === "number" && typeof data.driverKey === "string") {
+            const gameId = GameIdSchema.safeParse(data.gameId);
+            if (gameId.success) {
+              const message: StrategyEstimatesClearedMessage = { type: data.type, gameId: gameId.data, sessionId: data.sessionId, driverKey: data.driverKey };
+              window.dispatchEvent(new CustomEvent("raceiq-strategy-estimates-cleared", { detail: message }));
+              queryClient.resetQueries({
+                predicate: (query) => query.queryKey[0] === "strategy-estimates" && query.queryKey[1] === message.gameId && query.queryKey[2] === message.sessionId && (query.queryKey[3] === message.driverKey || query.queryKey[3] == null),
+              });
+            }
+          } else if (data.type === "strategy-history-updated" && typeof data.driverKey === "string" && Number.isSafeInteger(data.historyRevision)) {
+            const gameId = GameIdSchema.safeParse(data.gameId);
+            if (gameId.success) {
+              const message: StrategyHistoryUpdatedMessage = { type: data.type, gameId: gameId.data, driverKey: data.driverKey, historyRevision: data.historyRevision };
+              noteStrategyHistoryRevision(message);
+              void queryClient.invalidateQueries({
+                predicate: (query) => query.queryKey[0] === "strategy-stints" && query.queryKey[1] === message.gameId,
+              });
+              void queryClient.invalidateQueries({
+                predicate: (query) => query.queryKey[0] === "strategy-estimates" && query.queryKey[1] === message.gameId && (query.queryKey[3] === message.driverKey || query.queryKey[3] == null),
+              });
+              void queryClient.invalidateQueries({
+                predicate: (query) => query.queryKey[0] === "sessions",
+              });
+              void queryClient.resetQueries({
+                predicate: (query) => query.queryKey[0] === "strategy-baseline" && query.queryKey[1] === message.gameId && query.queryKey[4] === message.driverKey,
+              });
+            }
           } else if (data.type === "session-laps") {
             telemetryStore.actions.setSessionLaps(data.laps);
           } else if (data.type === "classification-migration-status") {

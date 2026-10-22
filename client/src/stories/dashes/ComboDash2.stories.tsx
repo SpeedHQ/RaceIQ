@@ -6,7 +6,7 @@ import type { GameId } from "@raceiq/shared/games/ids";
 import { ComboDash2 } from "../../components/dashes/ComboDash2";
 import { gameStore } from "../../stores/game";
 import { fakeAccSemanticFixture, fakeAcEvoSemanticFixture, fakeAllDataTelemetryView, fakeF1SemanticFixture, fakeForzaSemanticFixture, generateFakeSessionLaps } from "../fakeData";
-import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
+import type { LiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Infinity } },

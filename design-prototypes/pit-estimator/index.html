@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RaceIQ · Pit estimator concepts</title>
+<style>
+:root{color-scheme:dark;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0d1118;color:#edf1f7}*{box-sizing:border-box}body{margin:0}header{padding:24px 32px 18px;border-bottom:1px solid #2a3341}header>div{max-width:1400px;margin:auto}.top{display:flex;align-items:baseline;justify-content:space-between;gap:16px}h1{font-size:23px;letter-spacing:-.6px;margin:0}p{color:#a6b2c3;font-size:14px;line-height:1.5;margin:8px 0 0}.brand{color:#85b8e9;font-weight:700;margin-right:14px}nav{display:flex;gap:8px;flex-wrap:wrap;margin-top:22px}button,a{font:inherit}button{background:transparent;color:#bcc7d7;border:1px solid #344153;border-radius:7px;padding:10px 15px;cursor:pointer;font-size:14px}button:hover{background:#233045}button[aria-pressed=true]{background:#dce9fb;color:#132239;border-color:#dce9fb}button:focus-visible,a:focus-visible{outline:3px solid #78b8ff;outline-offset:4px}.toolbar{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px 32px;max-width:1464px;margin:auto}.toolbar p{margin:0}.toolbar a{color:#c0d9fc;white-space:nowrap;font-size:14px;text-underline-offset:4px}.stage{padding:0 24px 24px;max-width:1464px;margin:auto}iframe{display:block;width:100%;height:950px;border:1px solid #344153;border-radius:10px;background:#17202e}footer{padding:0 32px 24px;font-size:12px;color:#8d9bb0;max-width:1464px;margin:auto}@media(max-width:600px){header{padding:22px 18px 16px}.top{display:block}h1{font-size:20px}.top p{margin-top:10px}nav{gap:6px}button{padding:9px 11px;font-size:13px}.toolbar{padding:16px 18px;align-items:flex-start}.toolbar p{font-size:12px}.toolbar a{font-size:12px}.stage{padding:0 8px 18px}iframe{height:1500px}footer{padding:0 18px 24px}}
+</style>
+</head>
+<body>
+<header><div><div class="top"><h1><span class="brand">RaceIQ</span>Pit estimator / five directions</h1><p>Interactive HTML concepts · Not connected to live telemetry</p></div>
+<p><a href="compact.html">View five compact dashboard versions</a></p>
+<nav aria-label="Design concepts"><button type="button" data-index="0" aria-pressed="true">1 · Pit wall</button><button type="button" data-index="1" aria-pressed="false">2 · Strategy timeline</button><button type="button" data-index="2" aria-pressed="false">3 · Vehicle schematic</button><button type="button" data-index="3" aria-pressed="false">4 · Engineer worksheet</button><button type="button" data-index="4" aria-pressed="false">5 · Driver display</button></nav></div></header>
+<main><div class="toolbar"><p id="description" aria-live="polite">Compact pit-wall instrument. Projected limit first; detailed telemetry close at hand.</p><a id="standalone" href="01-pit-wall.html" target="_blank" rel="noopener">Open standalone ↗</a></div><div class="stage"><iframe id="preview" src="01-pit-wall.html" title="Pit wall design concept"></iframe></div></main>
+<footer>All five use the same sample: lap 18, 12.6 L fuel, ~4.2 laps to the projected limit. Expand evidence and history inside each design.</footer>
+<script>
+const concepts=[['01-pit-wall.html','Pit wall','Compact pit-wall instrument. Projected limit first; detailed telemetry close at hand.'],['02-strategy-timeline.html','Strategy timeline','A lap horizon makes fuel and tire limits comparable at a glance.'],['03-vehicle-schematic.html','Vehicle schematic','Spatial tire readings around the car. Condition and location stay connected.'],['04-engineer-worksheet.html','Engineer worksheet','Light, precise, comparison-first. A quiet workspace for strategy analysis.'],['05-driver-display.html','Driver display','A cockpit-style countdown. Less visual noise while driving.']];
+const buttons=[...document.querySelectorAll('nav button')];
+function selectConcept(index){const [file,name,description]=concepts[index];buttons.forEach((button,i)=>button.setAttribute('aria-pressed',String(i===index)));document.querySelector('#preview').src=file;document.querySelector('#preview').title=name+' design concept';document.querySelector('#standalone').href=file;document.querySelector('#description').textContent=description;history.replaceState(null,'','#'+(index+1));}
+buttons.forEach(button=>button.addEventListener('click',()=>selectConcept(Number(button.dataset.index))));
+const initial=Number(location.hash.slice(1));if(Number.isInteger(initial)&&initial>=1&&initial<=5)selectConcept(initial-1);
+</script>
+</body>
+</html>

@@ -122,6 +122,7 @@ const FEATURE_LINKS: ReadonlyArray<{
 }> = [
 
   { segment: "sessions", label: m.label_sessions, icon: History },
+  { segment: "strategy", label: m.race_plan_strategies, icon: SlidersHorizontal },
   { segment: "compare", label: m.label_compare, icon: GitCompareArrows },
   { segment: "driver", label: m.label_driver, icon: UserRound, feature: "driver" },
   { segment: "experiments", label: m.nav_experiments, icon: FlaskConical, feature: "experiments" },

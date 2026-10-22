@@ -4,14 +4,14 @@ import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemet
 import { m } from "@/paraglide/messages";
 import { useCarName } from "../hooks/catalog-queries";
 import { useUnits } from "../hooks/useUnits";
-import { primaryTireTemperatureC, primaryTireTemperaturesC, type LiveTelemetryView } from "../lib/live-telemetry-view";
+import { primaryTireTemperatureC, primaryTireTemperaturesC, type LiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
 import { controlInputPercent } from "@raceiq/scene-3d/vehicle-dynamics";
 import { useTelemetryStore } from "../stores/telemetry";
 import { SteeringWheel } from "./SteeringWheel";
 import { ArcGauge, FuelGauge, PowerTorque } from "./telemetry/Gauges";
 import { GForceCircle } from "./telemetry/GForceCircle";
 import { GripHistory } from "./telemetry/GripHistory";
-import { PitEstimate } from "./telemetry/PitEstimate";
+import { PitEstimate } from "@raceiq/race-strategy/ui";
 import { SurfaceConditions } from "./telemetry/SurfaceConditions";
 import { TelemetryCharts } from "./telemetry/TelemetryCharts";
 import { TireDiagram } from "./telemetry/TireDiagram";
@@ -117,6 +117,14 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
     </div>
   );
 
+  const pitSection = (
+    <div className="border-b border-app-border">
+      <div>
+        <PitEstimate view={view} pit={pit} />
+      </div>
+    </div>
+  );
+
   // ── DRIVER MODE ──────────────────────────────────────────────
   if (mode === "driver") {
     return (
@@ -136,14 +144,7 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
             />
           </div>
         )}
-        <div className="border-b border-app-border">
-          <div className="p-2 border-b border-app-border">
-            <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.live_pit_window()}</h2>
-          </div>
-          <div className="p-3">
-            <PitEstimate view={view} pit={pit} />
-          </div>
-        </div>
+        {pitSection}
       </div>
     );
   }
@@ -152,6 +153,7 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
   return (
     <div className="grid gap-0 p-0">
       {heroSection}
+      {pitSection}
 
       {/* Inputs: Throttle/Brake + Power/Boost */}
       <div className="px-3 py-2 border-b border-app-border/50">

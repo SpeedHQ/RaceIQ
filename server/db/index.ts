@@ -118,6 +118,7 @@ async function runMigrations() {
   // named entries, preserving timestamps and the schema changes already applied.
   const recordingHistory = [
     { name: "persist archival recording frequency caps", oldVersions: [76, 77], version: 81 },
+    { name: "persist durable stint strategy evidence and ordering", oldVersions: [82], version: 84 },
     { name: "reconcile all AC Evo recordings to discover Tourist layouts", oldVersions: [76], version: 78 },
   ];
   const tx = await client.transaction("write");

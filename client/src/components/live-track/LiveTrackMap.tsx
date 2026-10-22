@@ -1,6 +1,6 @@
 import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
+import type { LiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
 import { Button } from "@/components/ui/button";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";

@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { ComboDash } from "../../components/dashes/ComboDash";
 import { gameStore } from "../../stores/game";
-import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
+import type { LiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
 import { fakeAcEvoSemanticFixture, fakeAccSemanticFixture, fakeAllDataTelemetryView, fakeF1SemanticFixture, fakeForzaSemanticFixture, fakePit, fakeSectors } from "../fakeData";
 
 const queryClient = new QueryClient({

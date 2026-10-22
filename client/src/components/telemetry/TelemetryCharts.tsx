@@ -3,7 +3,7 @@ import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemet
 import { resolveGripDemand, resolveWheelMetric } from "@raceiq/analysis-core/racing/analysis/metric-values";
 import { useEffect, useRef, useState } from "react";
 import { useUnits } from "@/hooks/useUnits";
-import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
+import type { LiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
 import { controlInputPercent } from "@raceiq/scene-3d/vehicle-dynamics";
 import type { SemanticMetricFrame } from "@raceiq/analysis-core/racing/analysis/metric-values";
 import { m } from "@/paraglide/messages";

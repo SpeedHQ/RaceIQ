@@ -65,8 +65,9 @@ for (const game of REVIEW_GAMES.filter((game) => game.gameId === "acc")) {
     expect(baseRequests.every((entry) => [...entry.ids].sort((a, b) => a - b).join(",") === [...expectedIds].sort((a, b) => a - b).join(","))).toBe(true);
     expect(semanticRequests).toBe(0);
 
-    await page.getByRole("button", { name: "Sector 1", exact: true }).click();
-    await expect(page.getByText("Issues in this sector", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Sector \d+$/ })).toHaveCount(0);
+    await page.getByRole("button", { name: "Stint averages", exact: true }).click();
+    await expect(page.getByTestId("stint-analysis")).toBeVisible();
     await page.getByRole("button", { name: "Analyse", exact: true }).click();
     await expect(page.getByRole("button", { name: "Consistency", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Overview", exact: true }).click();

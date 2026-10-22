@@ -1,5 +1,5 @@
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
-import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
+import type { LiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
 import { LapTimeChart } from "../LapTimeChart";
 import { RecordedLaps } from "../RecordedLaps";
 import { DashShell } from "./dash-shell";

@@ -1,6 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import { PitTracker } from "@raceiq/backend-core/live-strategy/pit-tracker";
+import type { TireThresholds } from "@raceiq/shared/racing/live/tire-thresholds";
+import { PitTracker } from "@raceiq/race-strategy/server";
 import { forzaServerAdapter } from "@raceiq/game-fm-2023";
 import { f1ServerAdapter } from "@raceiq/game-f1-2025";
 import { accServerAdapter } from "@raceiq/game-acc";
@@ -121,17 +122,19 @@ describe("PitTracker", () => {
     expect(r.tireLapsToCritical).toBeCloseTo(7.0, 0);
   });
 
-  test("setTireThresholds changes bad health target", () => {
+  test("per-wheel thresholds drive cliff and dead estimates", () => {
     const tracker = new PitTracker();
-    tracker.setTireThresholds(0.7); // ACC stricter
-
-    tracker.feed(pkt({ LapNumber: 1, Fuel: 1.0, TireWearFL: 0, TireWearFR: 0, TireWearRL: 0, TireWearRR: 0, CurrentLap: 0 }), 5000);
-    completeLap(tracker, 1, { fuel: 0.9, wearFL: 0.1, wearFR: 0.08, wearRL: 0.06, wearRR: 0.06 });
-
-    const r = tracker.feed(pkt({ LapNumber: 2, Fuel: 0.9, TireWearFL: 0.1, TireWearFR: 0.08, TireWearRL: 0.06, TireWearRR: 0.06, CurrentLap: 5 }), 5000);
-    // health = 0.90, bad = 0.70, wear until bad = 0.20, at 0.10/lap → 2.0
+    const thresholds: [TireThresholds, TireThresholds, TireThresholds, TireThresholds] = [
+      { cliffPct: 70, deadPct: 20 },
+      { cliffPct: 70, deadPct: 20 },
+      { cliffPct: 70, deadPct: 20 },
+      { cliffPct: 70, deadPct: 20 },
+    ];
+    tracker._seedForTest([], [{ fl: 0.1, fr: 0.1, rl: 0.1, rr: 0.1 }]);
+    const r = tracker.feed(pkt({
+      LapNumber: 1, Fuel: 0.9, TireWearFL: 0.1, TireWearFR: 0.1, TireWearRL: 0.1, TireWearRR: 0.1, CurrentLap: 5,
+    }), 5000, 0, thresholds);
     expect(r.tireLapsToBad).toBeCloseTo(2.0, 0);
-    // Critical unchanged: 7.0
     expect(r.tireLapsToCritical).toBeCloseTo(7.0, 0);
   });
 

@@ -2057,6 +2057,107 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
     sql: [`ALTER TABLE sessions ADD COLUMN downsampled_frequency_hz INTEGER`],
   },
   {
+    version: 84,
+    name: "persist durable stint strategy evidence and ordering",
+    sql: [
+      `CREATE TABLE strategy_stints (
+        id TEXT PRIMARY KEY, session_id INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+        driver_key TEXT NOT NULL, ordinal INTEGER NOT NULL, status TEXT NOT NULL CHECK(status IN ('active','completed','interrupted')),
+        payload TEXT NOT NULL, totals TEXT NOT NULL DEFAULT '{}', revision INTEGER NOT NULL DEFAULT 1,
+        UNIQUE(session_id, driver_key, ordinal)
+      )`,
+      `CREATE INDEX strategy_stints_history_idx ON strategy_stints(driver_key, status)`,
+      `CREATE TABLE strategy_lap_metrics (
+        session_id INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+        driver_key TEXT NOT NULL, lap_id INTEGER NOT NULL REFERENCES laps(id) ON DELETE CASCADE,
+        algorithm_version TEXT NOT NULL, stint_id TEXT NOT NULL REFERENCES strategy_stints(id) ON DELETE CASCADE,
+        payload TEXT NOT NULL, PRIMARY KEY(session_id, driver_key, lap_id, algorithm_version)
+      )`,
+      `CREATE TABLE pit_estimates (
+        id TEXT PRIMARY KEY, session_id INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+        driver_key TEXT NOT NULL, stint_id TEXT NOT NULL,
+        epoch_ordinal INTEGER NOT NULL, sequence INTEGER NOT NULL, payload TEXT NOT NULL,
+        UNIQUE(session_id, driver_key, epoch_ordinal, sequence)
+      )`,
+      `CREATE INDEX pit_estimates_order_idx ON pit_estimates(session_id, epoch_ordinal DESC, sequence DESC, id DESC)`,
+      `CREATE TABLE strategy_driver_state (
+        session_id INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE, driver_key TEXT NOT NULL,
+        next_epoch_ordinal INTEGER NOT NULL DEFAULT 0, high_water_epoch INTEGER NOT NULL DEFAULT 0,
+        high_water_sequence INTEGER NOT NULL DEFAULT 0, clear_epoch INTEGER NOT NULL DEFAULT 0,
+        clear_sequence INTEGER NOT NULL DEFAULT -1, clear_generation INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY(session_id, driver_key)
+      )`,
+      `CREATE TABLE strategy_history_revisions (
+        game_id TEXT NOT NULL, driver_key TEXT NOT NULL, revision INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY(game_id, driver_key)
+      )`,
+      `CREATE TABLE strategy_source_epochs (
+        session_id INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE, source_epoch TEXT NOT NULL,
+        epoch_ordinal INTEGER NOT NULL, PRIMARY KEY(session_id, source_epoch), UNIQUE(session_id, epoch_ordinal)
+      )`,
+      `CREATE TABLE strategy_session_state (
+        session_id INTEGER PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+        high_water_epoch INTEGER NOT NULL DEFAULT 0, high_water_sequence INTEGER NOT NULL DEFAULT -1,
+        rebuild_generation TEXT
+      )`,
+      `CREATE TABLE strategy_source_admissions (
+        session_id INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE, source_key TEXT NOT NULL,
+        epoch_ordinal INTEGER NOT NULL, sequence INTEGER NOT NULL,
+        PRIMARY KEY(session_id, source_key), UNIQUE(session_id, epoch_ordinal, sequence)
+      )`,
+      `CREATE INDEX strategy_stints_history_latest_idx ON strategy_stints(session_id, driver_key, status, id)`,
+      `CREATE INDEX strategy_stints_history_lookup_idx ON strategy_stints(driver_key, status, session_id)`,
+      `CREATE INDEX strategy_stints_compatibility_idx ON strategy_stints(
+        driver_key, status, json_extract(payload, '$.gameId'), json_extract(payload, '$.trackId'),
+        json_extract(payload, '$.carId'), json_extract(payload, '$.compatibility.setupKey'),
+        json_extract(payload, '$.endedAt') DESC, id DESC)`,
+      `CREATE TRIGGER strategy_history_insert AFTER INSERT ON strategy_stints WHEN NEW.status != 'active' BEGIN
+        INSERT INTO strategy_history_revisions(game_id, driver_key, revision)
+          VALUES(json_extract(NEW.payload, '$.gameId'), NEW.driver_key, 1)
+          ON CONFLICT(game_id, driver_key) DO UPDATE SET revision = revision + 1;
+      END`,
+      `CREATE TRIGGER strategy_history_update AFTER UPDATE OF payload ON strategy_stints
+        WHEN OLD.status != 'active' OR NEW.status != 'active' BEGIN
+        INSERT INTO strategy_history_revisions(game_id, driver_key, revision)
+          VALUES(json_extract(OLD.payload, '$.gameId'), OLD.driver_key, 1)
+          ON CONFLICT(game_id, driver_key) DO UPDATE SET revision = revision + 1;
+        INSERT INTO strategy_history_revisions(game_id, driver_key, revision)
+          SELECT json_extract(NEW.payload, '$.gameId'), NEW.driver_key, 1
+          WHERE json_extract(OLD.payload, '$.gameId') IS NOT json_extract(NEW.payload, '$.gameId') OR OLD.driver_key != NEW.driver_key
+          ON CONFLICT(game_id, driver_key) DO UPDATE SET revision = revision + 1;
+      END`,
+      `CREATE TRIGGER strategy_history_delete AFTER DELETE ON strategy_stints BEGIN
+        INSERT INTO strategy_history_revisions(game_id, driver_key, revision)
+          VALUES(json_extract(OLD.payload, '$.gameId'), OLD.driver_key, 1)
+          ON CONFLICT(game_id, driver_key) DO UPDATE SET revision = revision + 1;
+      END`,
+      `CREATE TRIGGER strategy_identity_change BEFORE UPDATE OF car_id, track_id, game_id, ownership ON sessions
+        WHEN OLD.car_id IS NOT NEW.car_id OR OLD.track_id IS NOT NEW.track_id OR OLD.game_id IS NOT NEW.game_id OR OLD.ownership IS NOT NEW.ownership BEGIN
+        INSERT INTO strategy_history_revisions(game_id, driver_key, revision)
+          SELECT NEW.game_id, driver_key, 1 FROM strategy_stints WHERE session_id = OLD.id GROUP BY driver_key
+          ON CONFLICT(game_id, driver_key) DO UPDATE SET revision = revision + 1;
+        DELETE FROM strategy_stints WHERE session_id = OLD.id;
+      END`,
+    ],
+  },
+  {
+    version: 83,
+    name: "persist saved race plans",
+    sql: [
+      `CREATE TABLE race_plans (
+        id TEXT PRIMARY KEY, game_id TEXT NOT NULL, car_id TEXT NOT NULL, track_id TEXT NOT NULL,
+        pi REAL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, payload TEXT NOT NULL
+      )`,
+      `CREATE INDEX race_plans_game_updated_idx ON race_plans(game_id, updated_at DESC, id)`,
+      `CREATE INDEX race_plans_identity_idx ON race_plans(game_id, car_id, track_id, pi)`,
+      `CREATE TABLE active_race_plan (
+        id INTEGER PRIMARY KEY CHECK(id = 1),
+        plan_id TEXT REFERENCES race_plans(id) ON DELETE SET NULL
+      )`,
+      `INSERT INTO active_race_plan(id, plan_id) VALUES(1, NULL)`,
+    ],
+  },
+  {
     version: 82,
     name: "classify historical non-pace laps",
     sql: [
@@ -2217,4 +2318,5 @@ const dashboardCanonicalTriggers = (() => {
 })();
 
 migrations.find((migration) => migration.version === 74)?.sql.push(...dashboardCanonicalTriggers);
+migrations.sort((a, b) => a.version - b.version);
 

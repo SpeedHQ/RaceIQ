@@ -1,7 +1,7 @@
 import { formatLapTime } from "@/lib/format";
 import { m } from "@/paraglide/messages";
 import type { LiveSectorData } from "@raceiq/shared/racing/live/types";
-import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
+import type { LiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
 
 interface LapTimesProps {
   view: LiveTelemetryView;

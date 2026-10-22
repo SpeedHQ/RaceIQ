@@ -31,12 +31,24 @@ import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
 import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
 import { isSessionIdentityInCatalog } from "../games/session-identity";
 import type { SessionMeta } from "@raceiq/shared/racing/sessions/types";
+import { strategySessionRoutes } from "@raceiq/race-strategy/server";
 const ALL_DETECTOR_IDS = [LAP_DETECTOR_ID, LAP_DETECTOR_ACC_ID, LAP_DETECTOR_AC_EVO_ID, LAP_DETECTOR_IRACING_ID];
 
 
+
 export const sessionRoutes = new Hono()
+  .use("/api/sessions/:id/*", async (c, next) => {
+    await next();
+    if (c.res.status === 400 && /\/(stints|pit-estimates|strategy-baseline)$/.test(c.req.path)) {
+      const response = await c.res.clone().json().catch(() => null);
+      if (!response || typeof response !== "object" || !("code" in response)) {
+        return c.json({ code: "INVALID_STRATEGY_REQUEST", error: "Malformed strategy request" }, 400);
+      }
+    }
+  })
   .get("/api/sessions/classification-migration-status", async (c) =>
     c.json(await getClassificationMigrationStatus()))
+
   .get("/api/sessions/classification-migration-recordings", async (c) => {
     const query = c.req.query();
     const limit = query.limit === undefined ? 50 : Number(query.limit);
@@ -135,6 +147,7 @@ export const sessionRoutes = new Hono()
     trackId: z.string().min(1).optional(),
   })), async (c) => c.json(await getRaceResultAggregate(c.req.valid("query"))))
   .get("/api/race-results/recent", zValidator("query", z.object({ gameId: GameIdSchema, limit: z.coerce.number().int().min(1).max(50).default(10) })), async (c) => c.json(await getRecentRaceResults(c.req.valid("query").gameId, c.req.valid("query").limit)))
+  .route("/", strategySessionRoutes)
   .patch("/api/sessions/:id/identity", zValidator("param", IdParamSchema), zValidator("json", z.object({
     gameId: GameIdSchema,
     carId: z.string().min(1),

@@ -1,5 +1,5 @@
 import type { LivePitData, LiveSectorData } from "@raceiq/shared/racing/live/types";
-import { primaryTireTemperatureC, primaryTireTemperaturesC, type LiveTelemetryView } from "../../lib/live-telemetry-view";
+import { primaryTireTemperatureC, primaryTireTemperaturesC, type LiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
 import { SectorTimes } from "../SectorTimes";
 import { TireGrid } from "../telemetry/TireGrid";
 import { DashShell } from "./dash-shell";

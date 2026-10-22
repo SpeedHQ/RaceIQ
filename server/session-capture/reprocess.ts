@@ -5,18 +5,24 @@
 import { getServerGame } from "../games/registry";
 import { CapturingDbAdapter, currentTelemetryVersionIdentity } from "../telemetry/pipeline-ports";
 import type { GameId } from "@raceiq/shared/games/ids";
-import { loadSessionSource, iterateSessionCaptureRecordsFromSource } from "./source-loader";
+import { loadSessionSource, iterateSessionCaptureRecordsFromSource, loadCaptureManifest, resolveLapCaptureArtifact } from "./source-loader";
 import { packetIndexToLegacyMotecOffset } from "../motec/source-archive";
 import { getLapsForSession, updateLapRawIndex, replaceLapsForSession } from "../db/lap-reprocessing-queries";
 import { liveCaptures, sessions } from "../db/schema";
 import { eq } from "drizzle-orm";
-import { readDb } from "../db/index";
+import { client, readDb } from "../db/index";
 import { enqueueSessionCaptureSplit, updateSessionRawFile } from "../db/session-queries";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { PARSER_BOOTSTRAP_VERSION } from "@raceiq/capture-formats/session/framing";
 import { applyFrameTime } from "./frame-time";
+import { invalidateClassificationMigrationSource } from "./classification-migration";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { isDelayedFinishContext } from "../db/telemetry-replay-storage";
+import { withDatabaseWrite } from "../db/write-coordination";
+import { raceStrategyRuntime } from "../telemetry/race-strategy-ports";
+import type { LapDetectorCallbacks } from "../lap-detection/types";
+import { cacheDelete } from "../db/telemetry-replay-storage";
+import type { StrategyHistoryUpdatedMessage } from "@raceiq/shared/racing/live/strategy";
 export interface ReprocessResult {
   sessionId: number;
   lapsDetected: number;
@@ -52,8 +58,16 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
   return result;
 }
 
-async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessResult> {
-  const sessionRows = await readDb.select({ rawFile: sessions.rawFile, source: sessions.source, gameId: sessions.gameId, carId: sessions.carId, trackId: sessions.trackId, lapDetectorVersion: sessions.lapDetectorVersion, captureFormatVersion: sessions.captureFormatVersion })
+/** Reconstruct missing strategy evidence without updating or redetecting stored laps. */
+export async function backfillSessionStrategy(sessionId: number): Promise<ReprocessResult | null> {
+  return withSessionCaptureMaintenanceLock(async () => {
+    if (!await raceStrategyRuntime().needsBackfill(sessionId)) return null;
+    return reprocessSessionUnlocked(sessionId, true);
+  });
+}
+
+async function reprocessSessionUnlocked(sessionId: number, strategyOnly = false): Promise<ReprocessResult> {
+  const sessionRows = await readDb.select({ rawFile: sessions.rawFile, source: sessions.source, gameId: sessions.gameId, carId: sessions.carId, trackId: sessions.trackId, ownership: sessions.ownership, createdAt: sessions.createdAt, lapDetectorVersion: sessions.lapDetectorVersion, captureFormatVersion: sessions.captureFormatVersion })
     .from(sessions)
     .where(eq(sessions.id, sessionId))
     .all();
@@ -84,13 +98,22 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
   const loaded = session.rawFile.endsWith(".motec.zip") ? await loadSessionSource(source) : null;
   const existingLaps = await getLapsForSession(sessionId);
   const capturingDb = new CapturingDbAdapter();
-  let detector = serverGame.createLapDetector({ db: capturingDb, bypassPacketRateFilter: true });
+  const createdAt = new Date(/[zZ]|[+-]\d\d:\d\d$/.test(session.createdAt) ? session.createdAt : `${session.createdAt}Z`).toISOString();
+  const strategyRebuild = raceStrategyRuntime().createRebuild(sessionId, session.ownership === "mine" ? "local-player" : `unidentified-source:${sessionId}`, createdAt);
+  const callbacks: LapDetectorCallbacks = {
+    onLapComplete: (event) => strategyRebuild.prepare(event),
+    onLapSaved: (event) => strategyRebuild.saved(event, capturingDb.getCapturedLap(event.lapId)),
+  };
+  let detector = serverGame.createLapDetector({ db: capturingDb, bypassPacketRateFilter: true, callbacks });
+  let unownedCompletionTail = false;
   if (loaded?.kind === "packets") {
     for (let index = 0; index < loaded.packets.length; index++) {
       const offset = loaded.offsetEncoding === "packet-index"
         ? index
         : packetIndexToLegacyMotecOffset(gameId, index);
+      strategyRebuild.ensure(loaded.packets[index]);
       await detector.feed(loaded.packets[index], offset);
+      strategyRebuild.observe(loaded.packets[index]);
     }
   } else {
     // Canonical captures, including gzip and sparse records, stream one frame
@@ -104,7 +127,8 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
       if (record.kind === "segment-boundary") {
         // Imports start a fresh detector per segment while retaining the same
         // session. A boundary discards the previous detector's partial lap.
-        detector = serverGame.createLapDetector({ db: capturingDb, bypassPacketRateFilter: true });
+        strategyRebuild.breakSegment();
+        detector = serverGame.createLapDetector({ db: capturingDb, bypassPacketRateFilter: true, callbacks });
         detector.expectCompleteLapStart?.();
         parserState = serverGame.createParserState?.() ?? null;
         segmentHasFrames = false;
@@ -140,17 +164,45 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
         if (lastOwnedPacket && (packet.LapNumber > lastOwnedPacket.LapNumber ||
             isDelayedFinishContext(lastOwnedPacket, packet))) {
           await detector.feed(packet, undefined, ordinal);
+          unownedCompletionTail = true;
         }
       } else {
         segmentHasFrames = true;
+        unownedCompletionTail = false;
         lastOwnedPacket = packet;
+        strategyRebuild.ensure(packet);
         await detector.feed(packet, record.offset, ordinal);
+        strategyRebuild.observe(packet);
+      }
+    }
+    // Native-wire manifests intentionally expose owned frames only. The final lap's
+    // independently replayable artifact retains its real finish-line context.
+    if (source.rawFile.endsWith("manifest.json") && lastOwnedPacket) {
+      const manifest = await loadCaptureManifest(source.rawFile);
+      const tail = manifest.chunks.findLast((chunk) => chunk.kind === "lap");
+      if (tail && (tail.trailingContextFrameCount ?? 0) > 0) {
+        const artifact = await resolveLapCaptureArtifact(source.rawFile, tail.id);
+        let frames = 0;
+        let trailing = 0;
+        for await (const record of iterateSessionCaptureRecordsFromSource({ ...source, rawFile: artifact.path, artifact: artifact.artifact }, { strict: true })) {
+          if (record.kind !== "frame" || record.offset < tail.ownedFrameByteOffset!) continue;
+          if (frames++ < tail.ownedFrameCount!) continue;
+          if (trailing++ >= (tail.trailingContextFrameCount ?? 0)) break;
+          const packet = serverGame.tryParse(record.frame, parserState);
+          if (!packet) continue;
+          applyFrameTime(packet, record.frameTimeMs);
+          if (packet.LapNumber > lastOwnedPacket.LapNumber || isDelayedFinishContext(lastOwnedPacket, packet)) {
+            await detector.feed(packet, undefined, sourceOrdinal++);
+            unownedCompletionTail = true;
+          }
+        }
       }
     }
   }
 
-  await detector.flushIncompleteLap?.();
+  if (!unownedCompletionTail) await detector.flushIncompleteLap?.();
   const detectedLaps = capturingDb.laps;
+  strategyRebuild.finish();
   if (existingLaps.length > 0 && detectedLaps.length === 0) {
     throw new Error(`Session ${sessionId} replay detected no laps; preserving ${existingLaps.length} existing lap(s)`);
   }
@@ -161,7 +213,26 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
   const carId = detectedSession?.carId || session.carId;
   const trackId = detectedSession?.trackId || session.trackId;
 
-  let strategy: "in-place" | "replace";
+  if (strategyOnly) {
+    if (identityChanged) throw new Error(`Session ${sessionId} recording identity differs; preserving stored laps`);
+    const changes = await withDatabaseWrite(async () => {
+      const transaction = await client.transaction("write");
+      try {
+        const bindings = await transaction.execute({ sql: "SELECT id, raw_byte_offset, raw_frame_count, lap_number FROM laps WHERE session_id = ?", args: [sessionId] });
+        const changes = await strategyRebuild.activate(transaction,
+          { gameId, carId: session.carId, trackId: session.trackId, ownership: session.ownership }, bindings.rows);
+        await transaction.commit();
+        return changes;
+      } catch (error) {
+        await transaction.rollback();
+        throw error;
+      }
+    });
+    raceStrategyRuntime().publishHistory(changes);
+    return { sessionId, lapsDetected: detectedLaps.length, lapsUpdated: 0, strategy: "in-place" };
+  }
+
+  let strategy!: "in-place" | "replace";
   let lapsUpdated = 0;
 
   const frameOrdinals = new Map<number, number>();
@@ -199,6 +270,11 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
     return candidates[0]?.lap;
   });
   const uniqueInPlaceMatches = new Set(inPlaceMatches.filter(Boolean).map((lap) => lap!.id)).size === inPlaceMatches.length;
+  const afterCommit: Array<() => void> = [];
+  let historyChanges!: StrategyHistoryUpdatedMessage[];
+  await withDatabaseWrite(async () => {
+    const transaction = await client.transaction("write");
+    try {
   if (detectedLaps.length === existingLaps.length && uniqueInPlaceMatches &&
       inPlaceMatches.every((lap, index) => lap?.lapNumber === detectedLaps[index]!.lapNumber &&
         lap.rawByteOffset === detectedLaps[index]!.rawByteOffset && lap.rawFrameCount === detectedLaps[index]!.rawFrameCount) &&
@@ -218,8 +294,10 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
         sectors,
         detected.classification,
         versionIdentity,
+        transaction,
       );
       lapsUpdated++;
+      afterCommit.push(() => cacheDelete(existing.id));
     }
   } else {
     strategy = "replace";
@@ -250,11 +328,25 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
         versionIdentity,
       };
     });
-    await replaceLapsForSession(sessionId, replacements, identityChanged ? { carId, trackId } : undefined);
+    afterCommit.push(await replaceLapsForSession(sessionId, replacements, identityChanged ? { carId, trackId } : undefined, transaction));
     lapsUpdated = detectedLaps.length;
   }
 
-  await updateSessionRawFile(sessionId, session.rawFile, detector.detectorId, versionIdentity);
+  await updateSessionRawFile(sessionId, session.rawFile!, detector.detectorId, versionIdentity, transaction);
+  const savedLaps = await transaction.execute({
+    sql: "SELECT id, raw_byte_offset, raw_frame_count, lap_number FROM laps WHERE session_id = ?",
+    args: [sessionId],
+  });
+  historyChanges = await strategyRebuild.activate(transaction, { gameId, carId, trackId, ownership: session.ownership }, savedLaps.rows);
+  await transaction.commit();
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
+  });
+  await invalidateClassificationMigrationSource(session.rawFile!);
+  for (const publish of afterCommit) publish();
+  raceStrategyRuntime().publishHistory(historyChanges);
 
   return { sessionId, lapsDetected: detectedLaps.length, lapsUpdated, strategy };
 }

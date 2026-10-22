@@ -1,6 +1,13 @@
 ## Unreleased
 
 ### Features
+- Override tire cliff and dead-health thresholds per game and tire compound.
+- Open an expanded pit-estimate dialog with a projected lap horizon, four-wheel readings, and evidence.
+- Generate suggested race strategies from recorded fuel and four-wheel tire rates, review planned stops and fuel reserves, and manage saved plans on the Strategies page.
+- Plan races by lap count or race duration using your measured lap time, save the chosen basis, and estimate required fuel and refueling at selected pit stops.
+- Replace live pit estimates with the selected matching race strategy, including planned stops, next-stint compounds/fuel, and measured compound-specific tire life with cliff/dead and fuel-shortfall warnings.
+- Keep pit-estimate history across sessions and restarts, with per-driver clearing and evidence from compatible previous stints.
+- Review per-stint fuel use and four-wheel tire wear, then compare two stints with explicit units, sample counts, and unavailable data.
 - Keep Sessions actions in a bottom-center floating bar with a selection count and Deselect all. Keep Compare visible and enable it only for two compatible laps; filter comparison laps by Mine, Others, or All inside the lap-picker dropdown.
 - Show separate LMU player energy, engine, electric motor, steering feedback, weather and race-control readings in live telemetry and recorded-lap analysis when provided by the game.
 - Show read-only LMU setup, forecast and condition snapshots with source age and availability, without waiting for network requests before displaying live telemetry.
@@ -14,6 +21,25 @@
 - Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
 
 ### Fixes
+- Replace session-analysis sector tabs with a Stint averages tab that shows the current session without requiring comparison; offer comparison only when two stints are selected.
+- Automatically rebuild missing or outdated stint averages from each session's own saved recording at startup without changing lap IDs, lap times, validity, notes, favorites, or session identity. Skip active, unavailable, corrupt, or mismatched sources without blocking valid recordings.
+- Keep the issues list stationary on hover and highlight the exact hovered issue rather than the first issue in the same corner.
+- Manage saved plans and open the race strategy builder on the Strategies page in each game's navigation, separate from session analysis; reach it from Stint averages or the live strategy dialog.
+- Compact live pit estimates into an integrated countdown, fuel-consumption summary with %/lap rates and both liters and tank percentage when capacity is available, and a four-row tire register; keep evidence, estimate history, and loaded race plans in the expanded dialog with a fixed header.
+- Restore compatible previous-session evidence in live pit estimates.
+- Keep strategy-history save failures visible in compact pit estimates and the expanded strategy dialog while live telemetry continues.
+- Apply ACC and AC Evo tire-threshold overrides to native dry and wet compounds.
+- Retry failed race-plan saves with the latest draft edits.
+- Prevent draft edits and plan switching while a race-plan save is pending.
+- Save race plans reliably while live telemetry is writing to the database.
+- Preserve Forza performance index when switching compatible history sessions and derive missing values from matching evidence.
+- Let F1 dashboard pit estimates span the full left telemetry column.
+- Reject unknown car or track identities when reusing historical stint averages.
+- Preserve existing laps and strategy history when session reprocessing fails.
+- Keep valid stint measurements after recording segment breaks.
+- Treat continuous refueling as one stint boundary, including repeated unchanged fuel readings.
+- Recover pit-estimate history selection when another client deletes the selected session.
+- Keep local browsers open when restarting the server.
 - Keep recording splitting and background processing available when the UDP telemetry port is already in use.
 - Report inconclusive historical lap classification as limited without requesting attention, and correct earlier results.
 - Center Le Mans Ultimate track outlines within catalogue cards.
@@ -81,6 +107,7 @@
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
+- Invalidate cached translation modules before development previews reload so Storybook and the app pick up newly generated messages.
 - Ignore terminal color codes when waiting for compiler startup in the Paraglide lifecycle CI test.
 - Generate Paraglide declarations with the installed native TypeScript compiler and stop abandoned translation watchers from consuming CPU after development exits.
 - Use Ubuntu instead of macOS for CI runners and cap Mars memory requests at 6 GB.

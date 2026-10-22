@@ -9,6 +9,8 @@ import { db, readDb } from "./index";
 import { laps, sessions, lapMetrics, lapAnalyses, compareAnalyses, lineSpreadCache, dashboardSummaryState, sessionCaptureSplitJobs, liveCaptureMembers } from "./schema";
 import type { RecordingFrequencyHz } from "@raceiq/shared/platform/runtime/recording-frequency";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
+import type { Transaction } from "@libsql/client";
+import { executeTransactionStatement } from "./transaction-statements";
 import { withDatabaseWrite } from "./write-coordination";
 import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
 
@@ -217,9 +219,10 @@ export async function updateLapRawIndex(
   invalidReason: string | null,
   sectors: number[] | null,
   classification: LapClassification | null,
-  versionIdentity?: TelemetryVersionIdentity,
+  versionIdentity: TelemetryVersionIdentity | undefined,
+  transaction: Transaction,
 ): Promise<void> {
-  await withDatabaseWrite(() => db.update(laps).set({
+  await executeTransactionStatement(transaction, db.update(laps).set({
     rawByteOffset,
     rawFrameCount,
     lapTime,
@@ -229,10 +232,9 @@ export async function updateLapRawIndex(
     classification,
     ...versionIdentity,
   }).where(eq(laps.id, lapId)));
-  cacheDelete(lapId);
 }
 
-/** Reconcile lap rows atomically, preserving IDs and user-owned fields for matched laps. */
+/** Reconcile rows within the caller's transaction; return post-commit cache invalidation. */
 export async function replaceLapsForSession(
   sessionId: number,
   replacements: ReadonlyArray<{
@@ -250,90 +252,94 @@ export async function replaceLapsForSession(
     classification: LapClassification | null;
     versionIdentity?: TelemetryVersionIdentity;
   }>,
-  sessionIdentity?: { carId: string; trackId: string },
-): Promise<void> {
-  const invalidatedIds = await withDatabaseWrite(() => db.transaction(async (tx) => {
-    const matchedIds = new Set(replacements.flatMap(({ lapId }) => lapId === null ? [] : [lapId]));
-    const rows = await tx.select({
-      id: laps.id, lapNumber: laps.lapNumber, rawByteOffset: laps.rawByteOffset, rawFrameCount: laps.rawFrameCount,
-    }).from(laps).where(eq(laps.sessionId, sessionId)).all();
-    const ownershipChanged = Boolean(sessionIdentity) || rows.length !== replacements.length || replacements.some((replacement) => {
-      const previous = replacement.lapId === null ? undefined : rows.find(({ id }) => id === replacement.lapId);
-      return !previous || previous.lapNumber !== replacement.lapNumber ||
-        previous.rawByteOffset !== replacement.rawByteOffset || previous.rawFrameCount !== replacement.rawFrameCount;
-    });
-    const deleted = rows.map(({ id }) => id).filter((id) => !matchedIds.has(id));
-    const invalidated = [...matchedIds];
-    if (ownershipChanged) {
-      await tx.delete(liveCaptureMembers).where(inArray(liveCaptureMembers.lapId, rows.map(({ id }) => id)));
-      await tx.update(sessions).set({ captureLayoutVersion: null, captureManifestFile: null, captureArchiveFile: null }).where(eq(sessions.id, sessionId));
-      await tx.update(laps).set({ captureChunkId: null, sourceFrameStart: null, sourceFrameCount: null }).where(eq(laps.sessionId, sessionId));
-      await tx.update(sessionCaptureSplitJobs).set({
-        jobId: randomUUID(), attemptId: sql`${sessionCaptureSplitJobs.attemptId} + 1`,
-        status: "failed", sequence: sql`${sessionCaptureSplitJobs.sequence} + 1`,
-        errorCode: "stale-publication", errorMessage: "Lap ownership changed during reprocessing",
-        stagingPath: null, updatedAt: new Date().toISOString(),
-      }).where(and(eq(sessionCaptureSplitJobs.sessionId, sessionId), or(
-        eq(sessionCaptureSplitJobs.status, "queued"), eq(sessionCaptureSplitJobs.status, "splitting"),
-        eq(sessionCaptureSplitJobs.status, "verifying"), eq(sessionCaptureSplitJobs.status, "publishing"),
-        eq(sessionCaptureSplitJobs.status, "ready"),
-      )));
-    }
-    const invalidate = async (ids: readonly number[]) => {
-      for (const id of ids) {
-        await tx.delete(lapMetrics).where(eq(lapMetrics.lapId, id));
-        await tx.delete(lapAnalyses).where(eq(lapAnalyses.lapId, id));
-      }
-      if (ids.length > 0) {
-        await tx.delete(compareAnalyses).where(
-          or(inArray(compareAnalyses.lapAId, ids), inArray(compareAnalyses.lapBId, ids)),
-        );
-      }
-    };
-    const affectedExperiments = await tx
-      .selectDistinct({ experimentId: laps.experimentId })
-      .from(laps)
-      .where(and(eq(laps.sessionId, sessionId), isNotNull(laps.experimentId)))
-      .all();
-    for (const { experimentId } of affectedExperiments) {
-      if (experimentId === null) continue;
-      await tx.delete(lineSpreadCache).where(eq(lineSpreadCache.experimentId, experimentId));
-    }
-    await invalidate(rows.map(({ id }) => id));
-    for (const id of deleted) await tx.delete(laps).where(eq(laps.id, id));
-    for (const replacement of replacements) {
-      const values = {
-        lapNumber: replacement.lapNumber,
-        lapTime: replacement.lapTime,
-        isValid: replacement.isValid,
-        rawByteOffset: replacement.rawByteOffset,
-        rawFrameCount: replacement.rawFrameCount,
-        invalidReason: replacement.invalidReason,
-        sectorTimes: replacement.sectors,
-        classification: replacement.classification,
-        ...replacement.versionIdentity,
-      };
-      if (replacement.lapId !== null) {
-        await tx.update(laps).set({ ...values, fuelPerLap: null, tyreWear: null }).where(eq(laps.id, replacement.lapId));
-      } else {
-        const inserted = await tx.insert(laps).values({
-          sessionId,
-          ...values,
-          isFavorite: replacement.isFavorite,
-          tuneId: replacement.tuneId,
-          notes: replacement.notes,
-        }).returning({ id: laps.id }).get();
-        invalidated.push(inserted.id);
-      }
-    }
-    if (sessionIdentity) {
-      await tx.update(sessions).set(sessionIdentity).where(eq(sessions.id, sessionId));
-    }
-    return { deleted, invalidated, ownershipChanged };
+  sessionIdentity: { carId: string; trackId: string } | undefined,
+  transaction: Transaction,
+): Promise<() => void> {
+  const matchedIds = new Set(replacements.flatMap(({ lapId }) => lapId === null ? [] : [lapId]));
+  const result = await transaction.execute({
+    sql: "SELECT id, lap_number, raw_byte_offset, raw_frame_count FROM laps WHERE session_id = ?",
+    args: [sessionId],
+  });
+  const rows = result.rows.map((row) => ({
+    id: Number(row.id), lapNumber: Number(row.lap_number),
+    rawByteOffset: row.raw_byte_offset == null ? null : Number(row.raw_byte_offset),
+    rawFrameCount: row.raw_frame_count == null ? null : Number(row.raw_frame_count),
   }));
-  for (const id of invalidatedIds.deleted) cacheDelete(id);
-  for (const id of invalidatedIds.invalidated) cacheDelete(id);
-  if (invalidatedIds.ownershipChanged) clearSessionCaptureCache();
+  const ownershipChanged = Boolean(sessionIdentity) || rows.length !== replacements.length || replacements.some((replacement) => {
+    const previous = replacement.lapId === null ? undefined : rows.find(({ id }) => id === replacement.lapId);
+    return !previous || previous.lapNumber !== replacement.lapNumber ||
+      previous.rawByteOffset !== replacement.rawByteOffset || previous.rawFrameCount !== replacement.rawFrameCount;
+  });
+  const deleted = rows.map(({ id }) => id).filter((id) => !matchedIds.has(id));
+  const invalidated = [...matchedIds];
+  if (ownershipChanged) {
+    await executeTransactionStatement(transaction, db.delete(liveCaptureMembers).where(inArray(liveCaptureMembers.lapId, rows.map(({ id }) => id))));
+    await executeTransactionStatement(transaction, db.update(sessions).set({ captureLayoutVersion: null, captureManifestFile: null, captureArchiveFile: null }).where(eq(sessions.id, sessionId)));
+    await executeTransactionStatement(transaction, db.update(laps).set({ captureChunkId: null, sourceFrameStart: null, sourceFrameCount: null }).where(eq(laps.sessionId, sessionId)));
+    await executeTransactionStatement(transaction, db.update(sessionCaptureSplitJobs).set({
+      jobId: randomUUID(), attemptId: sql`${sessionCaptureSplitJobs.attemptId} + 1`,
+      status: "failed", sequence: sql`${sessionCaptureSplitJobs.sequence} + 1`,
+      errorCode: "stale-publication", errorMessage: "Lap ownership changed during reprocessing",
+      stagingPath: null, updatedAt: new Date().toISOString(),
+    }).where(and(eq(sessionCaptureSplitJobs.sessionId, sessionId), or(
+      eq(sessionCaptureSplitJobs.status, "queued"), eq(sessionCaptureSplitJobs.status, "splitting"),
+      eq(sessionCaptureSplitJobs.status, "verifying"), eq(sessionCaptureSplitJobs.status, "publishing"),
+      eq(sessionCaptureSplitJobs.status, "ready"),
+    ))));
+  }
+  const invalidate = async (ids: readonly number[]) => {
+    for (const id of ids) {
+      await executeTransactionStatement(transaction, db.delete(lapMetrics).where(eq(lapMetrics.lapId, id)));
+      await executeTransactionStatement(transaction, db.delete(lapAnalyses).where(eq(lapAnalyses.lapId, id)));
+    }
+    if (ids.length > 0) {
+      await executeTransactionStatement(transaction, db.delete(compareAnalyses).where(
+        or(inArray(compareAnalyses.lapAId, ids), inArray(compareAnalyses.lapBId, ids)),
+      ));
+    }
+  };
+  const affectedExperiments = await transaction.execute({
+    sql: "SELECT DISTINCT experiment_id FROM laps WHERE session_id = ? AND experiment_id IS NOT NULL",
+    args: [sessionId],
+  });
+  for (const row of affectedExperiments.rows) {
+    await executeTransactionStatement(transaction, db.delete(lineSpreadCache).where(eq(lineSpreadCache.experimentId, Number(row.experiment_id))));
+  }
+  await invalidate(rows.map(({ id }) => id));
+  for (const id of deleted) await executeTransactionStatement(transaction, db.delete(laps).where(eq(laps.id, id)));
+  for (const replacement of replacements) {
+    const values = {
+      lapNumber: replacement.lapNumber,
+      lapTime: replacement.lapTime,
+      isValid: replacement.isValid,
+      rawByteOffset: replacement.rawByteOffset,
+      rawFrameCount: replacement.rawFrameCount,
+      invalidReason: replacement.invalidReason,
+      sectorTimes: replacement.sectors,
+      classification: replacement.classification,
+      ...replacement.versionIdentity,
+    };
+    if (replacement.lapId !== null) {
+      await executeTransactionStatement(transaction, db.update(laps).set({ ...values, fuelPerLap: null, tyreWear: null }).where(eq(laps.id, replacement.lapId)));
+    } else {
+      const inserted = await executeTransactionStatement(transaction, db.insert(laps).values({
+        sessionId,
+        ...values,
+        isFavorite: replacement.isFavorite,
+        tuneId: replacement.tuneId,
+        notes: replacement.notes,
+      }).returning({ id: laps.id }));
+      invalidated.push(Number(inserted.rows[0]!.id));
+    }
+  }
+  if (sessionIdentity) {
+    await executeTransactionStatement(transaction, db.update(sessions).set(sessionIdentity).where(eq(sessions.id, sessionId)));
+  }
+  return () => {
+    for (const id of deleted) cacheDelete(id);
+    for (const id of invalidated) cacheDelete(id);
+    if (ownershipChanged) clearSessionCaptureCache();
+  };
 }
 
 

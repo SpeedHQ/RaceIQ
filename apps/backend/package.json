@@ -44,6 +44,7 @@
     "mitata": "^1.0.34",
     "@raceiq/backend-core": "workspace:*",
     "@raceiq/shared": "workspace:*",
+    "@raceiq/race-strategy": "workspace:*",
     "@raceiq/capture-formats": "workspace:*",
     "@raceiq/capture-splitting": "workspace:*",
     "@raceiq/game-ac-evo": "workspace:*",

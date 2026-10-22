@@ -79,6 +79,8 @@ export interface LapSavedNotification extends LapSavedEvent {
 export const LAP_DETECTOR_ID = "lapdetector_v7";
 
 export interface LapCompleteEvent {
+  /** Authoritative detector lap identity; native packet counters can differ. */
+  lapNumber: number;
   packets: TelemetryPacket[];
   lapDistStart: number;
   lapTime: number;
@@ -422,6 +424,7 @@ export class LapDetector implements ILapDetector, LapOwnershipSource {
       // Notify pipeline so sector tracker can update reference lap for delta
       if (valid) {
         this.onLapComplete_?.({
+          lapNumber: lapNum,
           packets: this.lapBuffer,
           lapDistStart: this.lapBuffer[0].DistanceTraveled,
           lapTime,
