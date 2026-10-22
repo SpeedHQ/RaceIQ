@@ -4,6 +4,7 @@ node_modules/
 **/__pycache__/
 dist/
 /live-engineer-qwen-v3-*.zip
+/live-engineer-qwen-v3-*.json
 .turbo/
 /data/*
 !/data/diagnostics/

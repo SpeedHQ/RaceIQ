@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, test } from "bun:test";
 import { strToU8, zipSync } from "fflate";
-import { installPack } from "../src/voice-pack";
+import { installPack } from "@raceiq/live-engineer/audio-installation";
 import { LIVE_ENGINEER_AUDIO_PACKAGE } from "@raceiq/live-engineer/audio-package";
 
 const temporaryDirectories: string[] = [];
@@ -61,7 +61,7 @@ test("rejects unsupported engine, revision and language without replacing valid 
   const installRoot = join(directory, "userdata", "voice-packs");
   await installPack(createArchive(directory), installRoot);
   const installedClip = join(installRoot, "live-engineer", "qwen-v3", "chunks", "segment.flac");
-  for (const metadata of [{ packageVersion: "2.0.0" }, { packageVersion: undefined }, { engineVersion: 2 }, { language: "fr" }, { catalogVersion: "2.0.0" }]) {
+  for (const metadata of [{ packageVersion: "0.9.0" }, { packageVersion: undefined }, { engineVersion: 2 }, { language: "fr" }, { catalogVersion: "2.0.0" }]) {
     await expect(installPack(createArchive(directory, false, metadata), installRoot)).rejects.toThrow();
     expect([...readFileSync(installedClip)]).toEqual([1, 2, 3]);
   }

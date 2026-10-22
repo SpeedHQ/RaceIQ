@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
 import { Headphones } from "lucide-react";
 import { useSettings } from "../../hooks/settings";
 import { m } from "../../paraglide/messages";
@@ -10,9 +10,20 @@ import { RadioPlaybackController } from "./RadioPlaybackController";
 
 export function RadioDock({ children }: { children?: ReactNode }) {
   const { displaySettings } = useSettings();
+  const dockRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const dock = dockRef.current;
+    if (!dock) return;
+    // Global package notifications clear the complete Radio stack, including callouts.
+    const update = () => document.documentElement.style.setProperty("--radio-dock-clearance", `${dock.getBoundingClientRect().height + 8}px`);
+    const observer = new ResizeObserver(update);
+    observer.observe(dock);
+    update();
+    return () => { observer.disconnect(); document.documentElement.style.removeProperty("--radio-dock-clearance"); };
+  }, []);
   return <>
     <RadioPlaybackController />
-    <div className="fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
+    <div ref={dockRef} className="fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
       {children}
       <LiveEngineerOverlay enabled={displaySettings.radioTextCalloutsEnabled} />
       <Dialog>

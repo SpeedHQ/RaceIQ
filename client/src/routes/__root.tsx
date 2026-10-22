@@ -7,6 +7,7 @@ import { createRootRoute, ErrorComponent, Link, Outlet, redirect, useLocation, u
 import { Menu } from "lucide-react";
 import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
 import { Settings } from "@/components/settings/Settings";
+import type { SectionId } from "@/components/settings/navigation";
 import { DashboardAuthUnavailable, loadDashboardAuth } from "@/lib/dashboard-auth";
 import { useSettings } from "@/hooks/settings";
 import { applyLocale } from "@/lib/locale";
@@ -23,6 +24,9 @@ import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { queryClient } from "../lib/queryClient";
 import { telemetryStore, useTelemetryStore } from "../stores/telemetry";
+import { useLiveEngineerVoicePackStatus } from "@/hooks/live-engineer-voice-pack";
+import { clientReleaseFeatures } from "@/lib/release-features";
+import { useLiveEngineerVoicePackMutation } from "@/hooks/live-engineer-voice-pack";
 import { gameIdForPathname } from "../lib/game-routes";
 import { uiStore, useUiStore } from "../stores/ui";
 import { GameRouteProvider, gameStore, usesStoreGameContext, useGameStore } from "../stores/game";
@@ -64,6 +68,7 @@ function useUpdateCheck() {
 function AppShell() {
   const [layoutMigrationPrecedence, setLayoutMigrationPrecedence] = useState(false);
   const [sparseMigrationVisible, setSparseMigrationVisible] = useState(false);
+  const [classificationMigrationVisible, setClassificationMigrationVisible] = useState(false);
   const { displaySettings, settingsLoaded } = useSettings();
 
   // Bootstrap the Paraglide UI locale from the server-persisted `language`
@@ -83,6 +88,11 @@ function AppShell() {
   const updateState = useUpdateCheck();
   const updateAvailable = useTelemetryStore((s) => s.updateAvailable);
   const updateProgress = useTelemetryStore((s) => s.updateProgress);
+  const packageStatus = useLiveEngineerVoicePackStatus(clientReleaseFeatures.liveSpotterEngineer && Boolean(displaySettings.radioSpotterEnabled || displaySettings.radioRaceEngineerEnabled));
+  const [dismissedPackageRevision, setDismissedPackageRevision] = useLocalStorage<string | null>("raceiq-dismissed-live-engineer-package", null);
+  const offeredRevision = packageStatus.data?.latestVersion ?? null;
+  const showPackageUpdate = clientReleaseFeatures.liveSpotterEngineer && Boolean(displaySettings.radioSpotterEnabled || displaySettings.radioRaceEngineerEnabled) && packageStatus.data?.updateAvailable === true && offeredRevision !== null && dismissedPackageRevision !== offeredRevision;
+  const packageInstall = useLiveEngineerVoicePackMutation("install");
   const showSettings = useUiStore((s) => s.settingsOpen);
   const liveCaptureError = useTelemetryStore((s) => s.liveCaptureError);
   const settingsSection = useUiStore((s) => s.settingsSection);
@@ -190,6 +200,16 @@ function AppShell() {
             </div>
           </div>
         )}
+        {showPackageUpdate && !showSettings && !onboardingOpen && !layoutMigrationPrecedence && !sparseMigrationVisible && !classificationMigrationVisible && (
+          <div role="status" style={{ bottom: "calc(1rem + var(--radio-dock-clearance, 0px))" }} className="fixed right-4 z-40 flex w-96 max-w-[calc(100vw-2rem)] flex-col items-start gap-3 rounded-lg border border-app-border bg-app-surface p-4 shadow-lg">
+            <p className="text-sm text-app-text">{m.live_engineer_package_update_prompt({ version: offeredRevision })}</p>
+            {packageInstall.error && <p role="alert" className="text-sm text-status-danger">{m.live_engineer_package_error()}</p>}
+            <div className="flex gap-2">
+              <Button size="sm" disabled={packageInstall.isPending || packageStatus.data?.installing} onClick={() => packageInstall.mutate()}>{packageInstall.isPending ? m.live_engineer_package_installing() : m.live_engineer_package_update()}</Button>
+              <Button size="sm" variant="outline" disabled={packageInstall.isPending} onClick={() => setDismissedPackageRevision(offeredRevision)}>{m.common_close()}</Button>
+            </div>
+          </div>
+        )}
 
         {showSettings && (
           <div className="fixed inset-0 z-50 flex items-stretch justify-center @3xl/shell:items-start @3xl/shell:py-12">
@@ -202,7 +222,7 @@ function AppShell() {
                 </Button>
               </div>
               <div className="h-[calc(100%-3rem)]">
-                <Settings initialSection={settingsSection as "games" | "ai" | "updates" | "about" | undefined} onClose={closeSettings} />
+                <Settings initialSection={settingsSection as SectionId | undefined} onClose={closeSettings} />
               </div>
             </div>
           </div>
@@ -215,7 +235,7 @@ function AppShell() {
       <StaleLapReprocessing />
       <SparseSplitMigration layoutPrecedence={layoutMigrationPrecedence} onVisibilityChange={setSparseMigrationVisible} />
       <RaceResultStatus compact />
-      <ClassificationMigrationDock suppressed={layoutMigrationPrecedence || sparseMigrationVisible} />
+      <ClassificationMigrationDock suppressed={layoutMigrationPrecedence || sparseMigrationVisible} onVisibilityChange={setClassificationMigrationVisible} />
       {liveCaptureError && <div role="alert" className="fixed bottom-4 left-1/2 z-40 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-start gap-3 border border-status-danger/40 bg-app-surface px-4 py-3 text-sm text-app-danger">
         <p className="min-w-0 whitespace-pre-wrap break-words">{liveCaptureError}</p>
         <Button type="button" variant="app-ghost" size="app-sm" aria-label="Dismiss recording failure" onClick={() => telemetryStore.actions.setLiveCaptureError(null)} className="shrink-0">Dismiss</Button>

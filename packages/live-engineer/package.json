@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./audio-installation": "./src/audio-installation.ts",
     "./audio-package": "./src/audio-package.ts",
     "./live-engineer-renderer": "./src/live-engineer-renderer.ts",
     "./live-engineer-replay": "./src/live-engineer-replay.ts",
@@ -30,7 +31,8 @@
   },
   "dependencies": {
     "@raceiq/shared": "workspace:*",
-    "@raceiq/telemetry-core": "workspace:*"
+    "@raceiq/telemetry-core": "workspace:*",
+    "fflate": "^0.8.3"
   },
   "devDependencies": {
     "@raceiq/capture-formats": "workspace:*"

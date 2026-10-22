@@ -24,7 +24,7 @@ jobs:
       - name: Read pinned pack version
         id: pack
         run: |
-          bun -e 'const p = await Bun.file("packages/live-engineer/audio-package.json").json(); if (!/^\d+\.\d+\.\d+$/.test(p.packageVersion) || !/^[a-z]{2}(?:-[A-Za-z0-9]+)*$/.test(p.language)) throw new Error("Invalid pack version or language"); console.log(`tag=voice-pack-${p.language}-v${p.packageVersion}\nfile=live-engineer-qwen-v3-${p.language}-${p.packageVersion}.zip`);' >> "$GITHUB_OUTPUT"
+          bun -e 'const p = await Bun.file("packages/live-engineer/audio-package.json").json(); if (!/^\d+\.\d+\.\d+$/.test(p.packageVersion) || !/^[a-z]{2}(?:-[A-Za-z0-9]+)*$/.test(p.language)) throw new Error("Invalid pack version or language"); console.log(`tag=voice-pack-${p.language}-v${p.packageVersion}\nfile=live-engineer-qwen-v3-${p.language}-${p.packageVersion}.zip\nmetadata=live-engineer-qwen-v3-${p.language}-${p.packageVersion}.json`);' >> "$GITHUB_OUTPUT"
       - name: Refuse replacing an existing version
         uses: actions/github-script@v8
         env:
@@ -49,4 +49,5 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.pack.outputs.tag }}
           FILE: ${{ steps.pack.outputs.file }}
-        run: gh release create "$TAG" "$FILE" --target "$GITHUB_SHA" --title "Live Engineer ${TAG#voice-pack-}" --notes "External voice pack. Engine compatibility, pack revision and language are declared in manifest.json." --latest=false
+          METADATA: ${{ steps.pack.outputs.metadata }}
+        run: gh release create "$TAG" "$FILE" "$METADATA" --target "$GITHUB_SHA" --title "Live Engineer ${TAG#voice-pack-}" --notes "External voice pack. Engine compatibility, pack revision, language and ZIP SHA-256 are declared in the sidecar metadata." --latest=false

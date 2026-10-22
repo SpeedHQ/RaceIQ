@@ -7,6 +7,7 @@ import { resolve } from "node:path";
 import { PUBLIC_DIR, IS_COMPILED } from "@raceiq/backend-core/runtime/config/paths";
 
 import { GameIdQuerySchema } from "@raceiq/shared/platform/http/route-schemas";
+import { checkAutomaticLiveEngineerVoicePackUpdate } from "./live-engineer-voice-pack-routes";
 import { udpListener } from "../runtime/udp-listener";
 import { wsManager } from "@raceiq/backend-core/runtime/websocket-manager";
 import { lapDetector } from "@raceiq/backend-core/telemetry/live-pipeline";
@@ -290,6 +291,9 @@ export const settingsRoutes = new Hono()
       }
       saveSettings(merged);
       setRecordingFrequencyHz(merged.recordingFrequencyHz);
+      const audioJustEnabled = !(current.radioSpotterEnabled || current.radioRaceEngineerEnabled) &&
+        (merged.radioSpotterEnabled || merged.radioRaceEngineerEnabled);
+      if (audioJustEnabled) void checkAutomaticLiveEngineerVoicePackUpdate().catch(() => {});
       if (provided.onboardingComplete) {
         wsManager.broadcastNotification({ type: "onboarding_complete" });
       }

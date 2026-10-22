@@ -196,6 +196,7 @@ export function useWebSocket() {
           else if (data.type === "status") telemetryStore.actions.setServerStatus(data as unknown as ServerStatus);
           else if (data.type === "update-available") { telemetryStore.actions.setUpdateAvailable(data.version as string); startVersionRequest(); }
           else if (data.type === "update-progress") telemetryStore.actions.setUpdateProgress({ stage: data.stage as "complete" | "downloading" | "installing" | "reconnecting", percent: Number(data.percent ?? 0) });
+          else if (data.type === "live-engineer-package-update") queryClient.invalidateQueries({ queryKey: ["live-engineer-voice-pack"] });
           else if (data.type === "onboarding_complete") queryClient.invalidateQueries({ queryKey: ["settings"] });
           else if (data.type === "dashboard_updated") invalidateDashboard();
           else if (data.type === "session-laps") telemetryStore.actions.setSessionLaps(data.laps as LapMeta[]);

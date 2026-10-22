@@ -10,17 +10,20 @@ export interface ShutdownOptions {
   getStartupWorker(): StartupWorkerHandle | null;
   stopClassificationMigrationWorker?(): void;
   clearDashboardPublicationNotifications(): void;
+  stopLiveEngineerVoicePackChecks?(): void;
 }
 
 export function installShutdown({
   getNativeSources,
   getStartupWorker,
   stopClassificationMigrationWorker,
+  stopLiveEngineerVoicePackChecks,
   clearDashboardPublicationNotifications,
 }: ShutdownOptions): void {
   const gracefulShutdown = async (signal: NodeJS.Signals) => {
     console.log(`[Server] Received ${signal} — flushing session recorder...`);
     stopClassificationMigrationWorker?.();
+    stopLiveEngineerVoicePackChecks?.();
     try {
       try {
         await stopSessionCompressor();

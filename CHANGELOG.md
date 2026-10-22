@@ -4,6 +4,7 @@
 - Download and install the Race Engineer voice pack separately; voice audio is no longer included with the app. Text callouts remain available without the pack.
 
 ### Features
+- Install the optional Live Engineer voice package during setup or manage installed, required, and available versions in Settings → Live Engineer. Check compatible updates automatically when Radio audio is enabled, with an update prompt and retryable installation that preserves existing audio.
 - Show download or update requirements in Radio before enabling voice audio, with independently versioned voice packs and explicit engine/catalog/language compatibility.
 - Use Race Engineer naming throughout internal subsystem identifiers, paths, and user-facing labels.
 - Announce source-backed component damage and faults: named F1 25 components and engine failures, ACC/AC Evo bodywork, iRacing native warnings and repair requirements, and LMU flat tyres/detached wheels. Preserve three-second debounce, independent escalation, and repair rearming; exclude wear and inferred diagnoses.
