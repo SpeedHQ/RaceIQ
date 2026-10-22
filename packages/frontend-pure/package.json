@@ -7,7 +7,8 @@
     "./temperature": "./src/temperature.ts",
     "./parse-lap-time": "./src/parse-lap-time.ts",
     "./iracing-car-sort": "./src/iracing-car-sort.ts",
-    "./pi-class": "./src/pi-class.ts"
+    "./pi-class": "./src/pi-class.ts",
+    "./utc-date": "./src/utc-date.ts"
   },
   "scripts": {
     "lint": "../../client/node_modules/.bin/oxlint .",

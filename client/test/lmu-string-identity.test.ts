@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { carIdentityKey, trackIdentityKey, type SessionMeta } from "@raceiq/shared/racing/sessions/types";
-import { sessionCarName, sessionTrackName } from "../src/components/sessions/helpers";
+import { sessionCarName, sessionTrackName } from "@raceiq/sessions-page/ui";
 import { validateAnalyseSearch } from "../src/lib/game-routes";
 import { trackRoutePath } from "../src/lib/track-routes";
 
-const names = { carNames: { 42: "Legacy car" }, trackNames: { 7: "Legacy track" } };
+const names = { carNames: { "42": "Legacy car", ferrari_499p_2023: "Ferrari 499P 2023" }, trackNames: { "7": "Legacy track", "spa_2023/spawec": "Circuit de Spa-Francorchamps" } };
 
 describe("LMU string identity", () => {
   test("uses one number-or-string identity key", () => {
@@ -26,8 +26,8 @@ describe("LMU string identity", () => {
   test("renders catalog names, raw fallback, and unchanged numeric names", () => {
     const lmu = {
       gameId: "lmu",
-      carOrdinal: -1,
-      trackOrdinal: -1,
+      id: 1,
+      createdAt: "",
       carId: "ferrari_499p_2023",
       trackId: "spa_2023/spawec",
     } as SessionMeta;
@@ -38,7 +38,7 @@ describe("LMU string identity", () => {
     expect(sessionCarName(unresolved, names)).toBe("Ferrari 499P");
     expect(sessionTrackName(unresolved, names)).toBe("Circuit de Spa-Francorchamps");
 
-    const numeric = { gameId: "fm-2023", carId: 42, trackId: 7, carOrdinal: 42, trackOrdinal: 7 } as SessionMeta;
+    const numeric: SessionMeta = { id: 2, createdAt: "", gameId: "fm-2023", carId: "42", trackId: "7" };
     expect(sessionCarName(numeric, names)).toBe("Legacy car");
     expect(sessionTrackName(numeric, names)).toBe("Legacy track");
   });

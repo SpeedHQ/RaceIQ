@@ -1,9 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import { buildRaceResultTimeline, formatService } from "../src/components/race-results/RaceResultLedger";
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import type { SessionMeta } from "@raceiq/shared/racing/sessions/types";
-import { SessionResultMeta } from "../src/components/sessions/SessionResultMeta";
 const result = {
   id: 1,
   sessionId: 7,
@@ -76,15 +72,6 @@ describe("race result timeline", () => {
     expect(timeline[2]).toMatchObject({ finishingPosition: null });
   });
 
-  test("never labels LMU practice or test day as a race result position", () => {
-    for (const sessionType of ["practice-1", "test-day"]) {
-      const session = { gameId: "lmu", sessionType, finishingPosition: 1 } as SessionMeta;
-      const markup = renderToStaticMarkup(createElement(SessionResultMeta, { session }));
-      expect(markup).not.toMatch(/P\d/);
-    }
-    const race = { gameId: "lmu", sessionType: "race", finishingPosition: 1 } as SessionMeta;
-    expect(renderToStaticMarkup(createElement(SessionResultMeta, { session: race }))).toMatch(/P<!-- -->1|P1/);
-  });
 
   test("places qualifying before start, race events, and finish", () => {
     const timeline = buildRaceResultTimeline(result);

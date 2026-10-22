@@ -9,11 +9,11 @@ import {
   supportsGameFeature,
   validateAnalyseSearch,
   validateCompareSearch,
-  validateSessionsSearch,
   validateTuneReviewSearch,
   validateTuneSearch,
 } from "client/src/lib/game-routes";
 import { releaseFeatureFlags } from "@raceiq/shared/platform/runtime/release-feature-flags";
+import { validateSessionsSearch } from "@raceiq/sessions-page/contracts";
 
 const developmentEnv = {
   RACEIQ_FEATURE_F1_EXPERIMENTS: "true",

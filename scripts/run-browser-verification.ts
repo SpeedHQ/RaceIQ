@@ -17,10 +17,10 @@ if (kind === "screenshots") {
   });
 } else {
   const projects: Record<string, string[]> = {
-    e2e: ["--workers=1", "--project=fresh-install", "--project=tunes", "--project=tunes-unseeded", "--project=seeded-e2e", "--project=seeded-routes", "--project=seeded-imports", "--project=lap-replay-webgpu", "--project=tracks-catalogue", "--project=cars-catalogue", "--project=lap-replay"],
+    e2e: ["--workers=1", "--project=fresh-install", "--project=tunes", "--project=tunes-unseeded", "--project=seeded-e2e", "--project=seeded-routes", "--project=seeded-imports", "--project=lap-replay-webgpu", "--project=tracks-catalogue", "--project=cars-catalogue", "--project=lap-replay", "--project=sessions-page"],
     fresh: ["--project=fresh-install", "--max-failures=1"],
     tunes: ["--project=tunes", "--max-failures=1"],
-    seeded: ["--project=seeded-e2e", "--project=lap-replay-webgpu", "--project=cars-catalogue", "--project=lap-replay", "--max-failures=1"],
+    seeded: ["--project=seeded-e2e", "--project=lap-replay-webgpu", "--project=cars-catalogue", "--project=lap-replay", "--project=sessions-page", "--max-failures=1"],
   };
   if (!kind || !projects[kind]) throw new Error(`Unknown browser verification kind: ${kind}`);
   run(["bunx", "turbo", "run", "test", "--filter=raceiq-e2e", "--", ...projects[kind], ...args], {

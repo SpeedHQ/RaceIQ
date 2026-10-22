@@ -44,8 +44,6 @@ export function compareTrackSearch(trackId: string | null): { track?: string; la
   return { track: trackId, layout: undefined };
 }
 
-export type SessionsTab = "mine" | "others";
-export type SessionsSearch = { tab?: SessionsTab };
 export type TuneView = "overview" | `s${number}`;
 export type TuneSearch = {
   session?: number | "live";
@@ -169,10 +167,6 @@ export function validateCompareSearch(search: Record<string, unknown>): CompareS
   };
 }
 
-export function validateSessionsSearch(search: Record<string, unknown>): SessionsSearch {
-  const tab = search.tab === "others" || search.tab === "mine" ? search.tab : search.tab === "recorded" || search.tab === "imported" ? "mine" : undefined;
-  return { tab };
-}
 
 export function validateTuneSearch(search: Record<string, unknown>): TuneSearch {
   const view = search.view === "overview" || (typeof search.view === "string" && /^s[1-9]\d*$/.test(search.view)) ? search.view : undefined;

@@ -67,6 +67,7 @@
     "@raceiq/frontend-pure": "workspace:*",
     "@raceiq/tracks-catalogue": "workspace:*",
     "@raceiq/lap-replay": "workspace:*",
+    "@raceiq/sessions-page": "workspace:*",
     "@raceiq/cars-catalogue": "workspace:*",
     "@raceiq/scene-3d": "workspace:*"
   },
