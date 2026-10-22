@@ -25,6 +25,7 @@
 - Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
 
 ### Fixes
+- Keep Spectate selected when switching comparison views with the keyboard.
 - Keep recording splitting and background processing available when the UDP telemetry port is already in use.
 - Report inconclusive historical lap classification as limited without requesting attention, and correct earlier results.
 - Center Le Mans Ultimate track outlines within catalogue cards.

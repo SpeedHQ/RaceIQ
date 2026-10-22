@@ -59,7 +59,7 @@ test("Spectate panel headers stay aligned and remember opened panels", async ({ 
   expect(await carPanel.evaluate((element) => element.scrollHeight <= element.clientHeight && element.scrollWidth <= element.clientWidth), "both cars fit without adding panel scrolling").toBe(true);
   await expect(carPanel.getByText("Distribution", { exact: true })).toHaveCount(0);
   await carPanel.locator('[data-slot="tooltip-trigger"]').first().hover();
-  await expect(page.getByRole("tooltip")).toContainText(/load\s+distribution/i);
+  await expect(page.getByRole("tooltip")).toContainText("Share of current shock compression; this is not measured tire load.");
   await page.mouse.move(0, 0);
   await page.setViewportSize({ width: 700, height: 950 });
   for (const id of ids) await toggle(id, true);
