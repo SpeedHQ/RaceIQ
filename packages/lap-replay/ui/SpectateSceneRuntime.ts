@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { WebGPURenderer } from "three/webgpu";
 import { createRibbonPool, updateRibbonPool, disposeRibbonPool, type RibbonPool, type RibbonRun } from "@raceiq/scene-3d/wireframe/LineResources";
-import type { SpectateController, SpectatePair, SpectatePose, SpectateReading, SpectateSample } from "../contracts/spectate";
+import type { ReplaySession, SpectateController, SpectatePose, SpectateReading, SpectateSample } from "../contracts/spectate";
 import type { TrackMapBoundaries, Point } from "../contracts/host"
 import type { ReplayModelResources } from "../contracts/host";
 import { createCarBody, type CarBodyInstance } from "@raceiq/scene-3d/wireframe/CarBody";
@@ -17,8 +17,10 @@ import { getGame } from "@raceiq/shared/games/registry";
 import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities";
 import { disposeWheelResource, type WheelResource } from "@raceiq/scene-3d/wireframe/Wheel";
 import { createAnalysisWheels, updateAnalysisWheels, type AnalysisWheelConfig } from "@raceiq/scene-3d/wireframe/AnalysisWheels";
+import { createDrivetrainResource, type DrivetrainResource } from "@raceiq/scene-3d/wireframe/Drivetrain";
+import { createWheelLabelResource, disposeWheelLabelResource, updateWheelLabelResource, updateWheelLabelScale, type WheelLabelConfig, type WheelLabelResource } from "@raceiq/scene-3d/wireframe/WheelLabels";
 import { createTireTrailResource, updateTireTrailResource, disposeTireTrailResource, type TireTrailResource } from "@raceiq/scene-3d/wireframe/TireTrails";
-import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
+import { semanticNumber, type SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import { inputFocusColor, type SpectateFocus } from "./spectate-focus";
 import { FOCUS_ZOOM_NEAR, FOCUS_ZOOM_SNAP_OUT, focusLaneWidth, focusZoomBlend, offsetFocusLane, projectFocusCenterline, sampleFocusLane, smallestAvailableModelLength, zoomIndicatorPosition, type FocusCenterPoint, type TimedFocusPoint } from "./spectate-focus-lanes";
 import { sampleMotion } from "./spectate-replay";
@@ -26,7 +28,24 @@ const color = (name: string) => resolveCssColor(`var(${name})`);
 type TrackPoint = { x: number; z: number };
 type TrackAlignment = NonNullable<ReturnType<typeof computeAlignment>>;
 const WORLD_ALIGNMENT: TrackAlignment = { scale: 1, cos: 1, sin: 0, tx: 0, tz: 0, flipX: false, flipZ: false };
-type Slot = { body: CarBodyInstance | null; generation: number; wheels: WheelResource[]; config: AnalysisWheelConfig | null };
+type TireInfoOptions = Pick<WheelLabelConfig, "fmtTemp" | "temperatureLabels"> & {
+  pressureOptimal: readonly [WheelLabelConfig["pressureOptimal"], WheelLabelConfig["pressureOptimal"]];
+};
+type WheelInfoState = {
+  labels: (WheelLabelResource | undefined)[];
+  previousWear: (number | null)[];
+  wearRates: number[];
+  timestamp: number | null;
+  generation: number;
+  lastUpdate: number;
+  labelGeneration: number;
+};
+function wheelNumber(values: Readonly<Record<string, unknown>>, id: string, index: number): number | null {
+  const entries = values[id];
+  const value = Array.isArray(entries) ? entries[index] : undefined;
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+type Slot = { body: CarBodyInstance | null; generation: number; wheels: WheelResource[]; drivetrain: DrivetrainResource | null; wheelInfo: WheelInfoState | null; config: AnalysisWheelConfig | null };
 type TrailHead = SemanticAnalysisFrame & { values: Record<string, unknown> };
 type FocusRenderPoint = { x: number; y: number; z: number; color: THREE.ColorRepresentation };
 type FocusNativePoint = { x: number; y: number; z: number; distance: number };
@@ -97,11 +116,15 @@ export class SpectateSceneRuntime {
   private modelLengths: [number, number] = [0, 0];
   private modelBoundsScratch = new THREE.Box3();
   private slots: [Slot, Slot] = [
-    { body: null, generation: 0, wheels: [], config: null },
-    { body: null, generation: 0, wheels: [], config: null },
+    { body: null, generation: 0, wheels: [], drivetrain: null, wheelInfo: null, config: null },
+    { body: null, generation: 0, wheels: [], drivetrain: null, wheelInfo: null, config: null },
   ];
   private track = new THREE.Group();
   private raf = 0;
+  private pendingFrames: { resolve: () => void; reject: (error: Error) => void }[] = [];
+  private captureTarget: THREE.RenderTarget | null = null;
+  private captureCanvas: OffscreenCanvas | null = null;
+  private captureImageData: ImageData | null = null;
   private lastWheelUpdate = 0;
   private dirty = true;
   private disposed = false;
@@ -113,17 +136,26 @@ export class SpectateSceneRuntime {
   private unsubscribe: () => void;
   private error: (message: string) => void;
   private ready: (ready: boolean) => void;
-  private pair: SpectatePair;
+  private pair: ReplaySession;
   private controller: SpectateController;
   private genericModels: [boolean, boolean] = [false, false];
   get hasGenericModel() {
-    return this.genericModels.some(Boolean);
+    return this.genericModels[0] || (!!this.pair.b && this.genericModels[1]);
   }
   private origin = new THREE.Vector3();
   private fitRadius = 120;
   private settleFrames = 0;
   private directionLock = false;
   private carModelMode: CarModelMode = "solid";
+  private tireInfo = false;
+  private tireInfoOptions: TireInfoOptions | null = null;
+  private tireInfoGeneration = 0;
+  setTireInfo(enabled: boolean, options: TireInfoOptions) {
+    this.tireInfo = enabled;
+    this.tireInfoOptions = options;
+    this.tireInfoGeneration++;
+    this.wake();
+  }
   setDirectionLock(enabled: boolean) {
     this.directionLock = enabled;
     this.wake();
@@ -139,11 +171,13 @@ export class SpectateSceneRuntime {
       this.wake();
       return;
     }
-    void Promise.allSettled([this.loadCar(0), this.loadCar(1)]).then((results) => {
+    const loads = [this.loadCar(0)];
+    if (this.pair.b) loads.push(this.loadCar(1));
+    void Promise.allSettled(loads).then((results) => {
       if (this.disposed) return;
       const failed = results.map((result, index) => {
         if (result.status !== "rejected") return false;
-        this.groups[index].visible = false;
+        this.groups[index]!.visible = false;
         return true;
       });
       if (failed.some(Boolean)) this.error("scene.model-unavailable");
@@ -171,7 +205,7 @@ export class SpectateSceneRuntime {
   private visibilityChanged = () => {
     if (!document.hidden) this.wake();
   };
-  constructor(container: HTMLElement, pair: SpectatePair, controller: SpectateController, onReady: (ready: boolean) => void, onError: (message: string) => void, zoomIndicator: (position: number, available: boolean) => void, forceWebGL = false, fpsCap = 30, resources: ReplayModelResources) {
+  constructor(container: HTMLElement, pair: ReplaySession, controller: SpectateController, onReady: (ready: boolean) => void, onError: (message: string) => void, zoomIndicator: (position: number, available: boolean) => void, forceWebGL = false, fpsCap = 30, resources: ReplayModelResources) {
     this.resources = resources;
     this.fpsCap = Number.isFinite(fpsCap) && fpsCap > 0 ? fpsCap : 30;
     this.forceWebGL = forceWebGL;
@@ -194,7 +228,7 @@ export class SpectateSceneRuntime {
     this.scene.add(new THREE.HemisphereLight(color("--app-text"), color("--app-surface"), 2));
     const light = new THREE.DirectionalLight(color("--app-text"), 2);
     light.position.set(5, 12, 8);
-    this.markers = [this.createPositionMarker("A", "--comparison-lap-a"), this.createPositionMarker("B", "--comparison-lap-b")];
+    this.markers = [this.createPositionMarker(pair.b ? "A" : "", pair.b ? "--comparison-lap-a" : "--app-accent"), this.createPositionMarker("B", "--comparison-lap-b")];
     // Depth testing is disabled: the backbone must paint before both focus lanes.
     // Camera-dependent transparent sorting otherwise covers either lane while zooming.
     this.centerLinePool.group.renderOrder = -1;
@@ -333,7 +367,7 @@ export class SpectateSceneRuntime {
       const centerLine = transform(displayBoundaries.centerLine, boundaryAlignment);
       const center = centerLine.map((point) => ({ x: point.x - this.origin.x, y: -this.origin.y, z: point.z - this.origin.z, color: color("--app-border") }));
       if (center.length > 1) this.centerLineRuns = [center];
-      const project = (lap: SpectatePair["a"], side: 0 | 1) => {
+      const project = (lap: ReplaySession["a"], side: 0 | 1) => {
         const points = lap.samples.map((sample): FocusNativePoint => {
           const motion = lap.motionSamples ? sampleMotion(lap.motionSamples, sample.time, true) : null;
           const pose = motion?.pose;
@@ -348,7 +382,7 @@ export class SpectateSceneRuntime {
         this.focusNativePoints[side] = points;
         return projectFocusCenterline(points, centerLine);
       };
-      this.focusCenterPoints = [project(this.pair.a, 0), project(this.pair.b, 1)];
+      this.focusCenterPoints = this.pair.b ? [project(this.pair.a, 0), project(this.pair.b, 1)] : [project(this.pair.a, 0), []];
       this.focusLaneAvailable = this.focusCenterPoints.some((points) => points.some(Boolean));
     }
     this.canvas.dataset.focusLaneAvailable = String(this.focusLaneAvailable);
@@ -427,7 +461,7 @@ export class SpectateSceneRuntime {
       this.canvas.dataset[`${side}LineSegments`] = String(nativeCount);
       return { recorded, projected, laneCount };
     };
-    const a = renderLap("a", 0, this.pair.a.samples), b = renderLap("b", 1, this.pair.b.samples);
+    const a = renderLap("a", 0, this.pair.a.samples), b = this.pair.b ? renderLap("b", 1, this.pair.b.samples) : { recorded: [], projected: [], laneCount: 0 };
     this.lineRuns = [a.recorded, b.recorded];
     this.projectedLaneSources = [a.projected, b.projected];
     this.laneHasProgress = [a.projected, b.projected].map((runs) => {
@@ -455,19 +489,21 @@ export class SpectateSceneRuntime {
       if (this.disposed || generation !== this.initGeneration) return;
       await this.resources.loadCarModelConfigs();
       if (this.disposed || generation !== this.initGeneration) return;
-      const results = await Promise.allSettled([this.loadCar(0), this.loadCar(1)]);
+      const loads = [this.loadCar(0)];
+      if (this.pair.b) loads.push(this.loadCar(1));
+      const results = await Promise.allSettled(loads);
       if (this.disposed || generation !== this.initGeneration) return;
       const failures = results.map((result, index) => {
-        if (result.status === "rejected") this.groups[index].visible = false;
+        if (result.status === "rejected") this.groups[index]!.visible = false;
         return result.status === "rejected";
       });
       const initial = this.controller.getSnapshot();
       this.canvas.dataset.sideAState = initial.a?.pose ? "ready" : "pose-unavailable";
-      this.canvas.dataset.sideBState = initial.b?.pose ? "ready" : "pose-unavailable";
+      if (this.pair.b) this.canvas.dataset.sideBState = initial.b?.pose ? "ready" : "pose-unavailable";
       if (failures[0]) this.canvas.dataset.sideAState = "model-unavailable";
       if (failures[1]) this.canvas.dataset.sideBState = "model-unavailable";
-      if (failures.every(Boolean) || (!initial.a?.pose && !initial.b?.pose)) {
-        this.error(!initial.a?.pose && !initial.b?.pose ? "scene.pose-unavailable" : "scene.model-unavailable");
+      if (failures.every(Boolean) || (!initial.a?.pose && (!this.pair.b || !initial.b?.pose))) {
+        this.error(!initial.a?.pose && (!this.pair.b || !initial.b?.pose) ? "scene.pose-unavailable" : "scene.model-unavailable");
         return;
       }
       this.initialized = true;
@@ -475,6 +511,7 @@ export class SpectateSceneRuntime {
       this.fit();
       this.wake();
     } catch {
+      this.rejectPendingFrames(new Error("Scene initialization failed"));
       if (!this.disposed) {
         this.initialized = false;
         this.error("scene.renderer-init");
@@ -489,12 +526,17 @@ export class SpectateSceneRuntime {
       slot.body.dispose();
       slot.body = null;
     }
+    slot.drivetrain?.dispose();
+    slot.drivetrain = null;
+    if (slot.wheelInfo) for (const label of slot.wheelInfo.labels) if (label) disposeWheelLabelResource(label);
+    slot.wheelInfo = null;
     for (const wheel of slot.wheels) disposeWheelResource(wheel);
     slot.wheels = [];
     slot.config = null;
     if (this.trails[i]) disposeTireTrailResource(this.trails[i]);
     this.trails[i] = null;
-    const lap = i ? this.pair.comparison.lapB : this.pair.comparison.lapA;
+    const lap = i ? this.pair.b && this.pair.comparison.lapB : this.pair.comparison.lapA;
+    if (!lap) return;
     const selection = this.resources.resolveCarModelSelection(this.pair.gameId, lap.carId);
     if (!selection.model.hasModel) throw new Error("scene.model-unavailable");
     this.genericModels[i] = selection.label === "generic";
@@ -503,7 +545,7 @@ export class SpectateSceneRuntime {
       body.dispose();
       return;
     }
-    body.root.traverse((o) => {
+    if (this.pair.b) body.root.traverse((o) => {
       if (!(o instanceof THREE.Mesh)) return;
       for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
         const mat = m as THREE.Material & { color?: THREE.Color };
@@ -524,14 +566,75 @@ export class SpectateSceneRuntime {
       temperatureThresholds: adapter.tireTempThresholds,
     };
     slot.wheels = createAnalysisWheels(this.groups[i], selection.model);
+    slot.drivetrain = createDrivetrainResource();
+    slot.drivetrain.update(selection.model);
+    this.groups[i].add(slot.drivetrain.root);
     this.canvas.dataset[i === 0 ? "aWheelCount" : "bWheelCount"] = String(slot.wheels.length);
     this.canvas.dataset[i === 0 ? "aModelPath" : "bModelPath"] = selection.model.modelPath;
     this.groups[i].add(body.root);
   }
-  private updateWheels(side: 0 | 1, reading: SpectateReading | null, elapsed: number, speed: number, playing: boolean) {
+  private updateWheels(side: 0 | 1, reading: SpectateReading | null, elapsed: number, speed: number, playing: boolean, now: number, generation: number) {
     const slot = this.slots[side];
     if (!reading || !slot.config) return;
-    updateAnalysisWheels(slot.wheels, { values: reading.values, states: {}, freshness: {} }, slot.config, elapsed, speed, playing);
+    const frame: SemanticAnalysisFrame = { values: reading.values, states: {}, freshness: {} };
+    const readings = updateAnalysisWheels(slot.wheels, frame, slot.config, elapsed, speed, playing);
+    const options = this.tireInfoOptions;
+    if (!this.tireInfo || !options) {
+      if (slot.wheelInfo) for (const label of slot.wheelInfo.labels) if (label) label.sprite.visible = false;
+      return;
+    }
+    const info = slot.wheelInfo ??= {
+      labels: [], previousWear: [null, null, null, null], wearRates: [0, 0, 0, 0],
+      timestamp: null, generation: -1, lastUpdate: -Infinity, labelGeneration: -1,
+    };
+    if (info.generation !== generation) {
+      info.timestamp = null;
+      info.previousWear.fill(null);
+      info.wearRates.fill(0);
+      info.generation = generation;
+    }
+    const timestamp = semanticNumber(frame, "diagnostics.timestamp-ms");
+    if (timestamp !== null && timestamp !== info.timestamp) {
+      const dt = info.timestamp === null ? 0 : (timestamp - info.timestamp) / 1000;
+      for (let index = 0; index < slot.wheels.length; index++) {
+        const wear = wheelNumber(reading.values, "tires.tire-wear", index), previous = info.previousWear[index];
+        info.wearRates[index] = dt > 0 && dt < 1 && wear !== null && previous != null
+          ? info.wearRates[index]! * 0.9 + (previous - wear) / dt * 0.1 : 0;
+        info.previousWear[index] = wear;
+      }
+      info.timestamp = timestamp;
+    }
+    const labelGeneration = generation + this.tireInfoGeneration;
+    const refresh = !playing || now - info.lastUpdate >= 100 || labelGeneration !== info.labelGeneration;
+    for (let index = 0; index < slot.wheels.length; index++) {
+      let label = info.labels[index];
+      if (refresh) {
+        const brakeTemp = wheelNumber(reading.values, "brakes.brake-temp", index);
+        const config: WheelLabelConfig = {
+          temperatureReadings: readings[index]!,
+          carcassBands: [
+            wheelNumber(reading.values, "tire.temperature.carcass.left", index),
+            wheelNumber(reading.values, "tire.temperature.carcass.middle", index),
+            wheelNumber(reading.values, "tire.temperature.carcass.right", index),
+          ],
+          fmtTemp: options.fmtTemp, temperatureLabels: options.temperatureLabels,
+          temperatureThresholds: slot.config.temperatureThresholds,
+          displayBrakeTemp: brakeTemp === null ? null : options.fmtTemp(brakeTemp),
+          wear: wheelNumber(reading.values, "tires.tire-wear", index), wearRate: info.wearRates[index]!,
+          brakeTemp, pressurePsi: wheelNumber(reading.values, "tires.tire-pressure", index),
+          pressureOptimal: options.pressureOptimal[side],
+          side: index % 2 === 0 ? "left" : "right", isRear: index >= 2,
+        };
+        if (!label) {
+          label = createWheelLabelResource(this.scene, config);
+          label.baseScale *= 0.6;
+          slot.wheels[index]!.root.add(label.sprite);
+          info.labels[index] = label;
+        } else updateWheelLabelResource(label, config, now, labelGeneration, playing);
+      }
+      if (label) { label.sprite.visible = true; updateWheelLabelScale(label, this.camera); }
+    }
+    if (refresh) { info.lastUpdate = now; info.labelGeneration = labelGeneration; }
   }
   private updateTrail(side: 0 | 1, reading: SpectateReading | null) {
     let trail = this.trails[side];
@@ -540,9 +643,10 @@ export class SpectateSceneRuntime {
       if (trail) trail.mesh.visible = false;
       return;
     }
-    if (!trail) this.trails[side] = trail = createTireTrailResource(this.scene, config.carModel);
     const lap = side ? this.pair.b : this.pair.a;
+    if (!lap) return;
     const samples = lap.motionSamples ?? lap.samples;
+    if (!trail) this.trails[side] = trail = createTireTrailResource(this.scene, config.carModel);
     let low = 0, high = samples.length;
     while (low < high) {
       const mid = (low + high) >>> 1;
@@ -609,7 +713,7 @@ export class SpectateSceneRuntime {
   private fit() {
     const box = new THREE.Box3();
     const point = this.positionScratch;
-    for (const samples of [this.pair.a.samples, this.pair.b.samples])
+    for (const samples of [this.pair.a.samples, ...(this.pair.b ? [this.pair.b.samples] : [])])
       for (const sample of samples) {
         const x = sample.values["motion.position-x"],
           z = sample.values["motion.position-z"];
@@ -635,6 +739,53 @@ export class SpectateSceneRuntime {
       group.position.set(pose.x - this.origin.x, pose.y - this.origin.y, pose.z - this.origin.z);
       group.rotation.set(0, pose.yaw - Math.PI / 2, 0);
     }
+  }
+  requestFrame(index: number): Promise<void> {
+    if (this.disposed) return Promise.reject(new Error("Scene runtime disposed"));
+    if (!this.initialized) return Promise.reject(new Error("Scene runtime unavailable"));
+    if (!this.pair.a.replay.envelopes[index]) return Promise.reject(new Error("Replay frame unavailable"));
+    const { promise, resolve, reject } = Promise.withResolvers<void>();
+    this.pendingFrames.push({ resolve, reject });
+    this.controller.seekFrame("a", index);
+    this.wake();
+    return promise;
+  }
+  async captureBitmap(): Promise<ImageBitmap> {
+    if (this.disposed || !this.initialized) throw new Error("Scene runtime unavailable");
+    const width = this.canvas.width, height = this.canvas.height;
+    if (!width || !height) throw new Error("Scene canvas has no dimensions");
+    if (!this.captureTarget || this.captureTarget.width !== width || this.captureTarget.height !== height) {
+      this.captureTarget?.dispose();
+      this.captureTarget = new THREE.RenderTarget(width, height, { format: THREE.RGBAFormat, type: THREE.UnsignedByteType });
+    }
+    if (!this.captureCanvas || this.captureCanvas.width !== width || this.captureCanvas.height !== height) {
+      this.captureCanvas = new OffscreenCanvas(width, height);
+      this.captureImageData = new ImageData(width, height);
+    }
+    const target = this.captureTarget;
+    this.renderer.setRenderTarget(target);
+    try {
+      this.renderer.render(this.scene, this.camera);
+    } finally {
+      this.renderer.setRenderTarget(null);
+    }
+    const pixels = await this.renderer.readRenderTargetPixelsAsync(target, 0, 0, width, height);
+    if (this.disposed) throw new Error("Scene runtime disposed");
+    const context = this.captureCanvas.getContext("2d");
+    if (!context || !this.captureImageData) throw new Error("Unable to create scene capture canvas");
+    const rowBytes = width * 4;
+    const stride = pixels.length === rowBytes * height ? rowBytes : Math.ceil(rowBytes / 256) * 256;
+    const destination = this.captureImageData.data;
+    const topFirst = this.canvas.dataset.rendererBackend === "webgpu";
+    for (let y = 0; y < height; y++) {
+      const destY = topFirst ? y : height - 1 - y;
+      destination.set(pixels.subarray(y * stride, y * stride + rowBytes), destY * rowBytes);
+    }
+    context.putImageData(this.captureImageData, 0, 0);
+    return createImageBitmap(this.captureCanvas);
+  }
+  private rejectPendingFrames(error: Error) {
+    for (const pending of this.pendingFrames.splice(0)) pending.reject(error);
   }
   private wake = () => {
     this.dirty = true;
@@ -768,11 +919,15 @@ export class SpectateSceneRuntime {
         this.canvas.dataset.nativeViewVisible = String(nativeViewVisible);
         this.canvas.dataset.lineLayout = nativeViewVisible ? "recorded" : "schematic";
         this.track.visible = nativeViewVisible;
-        this.groups[0].visible = !showLabels && !!first && this.carModelMode !== "hidden";
-        this.groups[1].visible = !showLabels && !!second && this.carModelMode !== "hidden";
+        this.groups[0].visible = !showLabels && !!first;
+        this.groups[1].visible = !showLabels && !!second;
+        for (const slot of this.slots) {
+          if (slot.body) slot.body.root.visible = this.carModelMode !== "hidden";
+          if (slot.drivetrain) slot.drivetrain.root.visible = this.carModelMode !== "solid";
+        }
         if (nativeViewVisible) {
-          this.updateWheels(0, snapshot.a, wheelElapsed, snapshot.speed, snapshot.playing && !snapshot.seeking);
-          this.updateWheels(1, snapshot.b, wheelElapsed, snapshot.speed, snapshot.playing && !snapshot.seeking);
+          this.updateWheels(0, snapshot.a, wheelElapsed, snapshot.speed, snapshot.playing && !snapshot.seeking, now, snapshot.generation);
+          this.updateWheels(1, snapshot.b, wheelElapsed, snapshot.speed, snapshot.playing && !snapshot.seeking, now, snapshot.generation);
         }
         this.edgePool.group.visible = blend < 1;
         this.edgePool.material.opacity = SCENE_PRESENTATION.trackOpacity * (1 - blend);
@@ -844,9 +999,19 @@ export class SpectateSceneRuntime {
         this.canvas.dataset.bMarkerVisible = String(this.markers[1].visible);
         this.canvas.dataset.aMarkerOpacity = String(this.markers[0].material.opacity);
         this.canvas.dataset.bMarkerOpacity = String(this.markers[1].material.opacity);
-        this.canvas.dataset.aCarVisible = String(this.groups[0].visible);
-        this.canvas.dataset.bCarVisible = String(this.groups[1].visible);
+        this.canvas.dataset.aCarVisible = String(this.groups[0].visible && !!this.slots[0].body?.root.visible);
+        this.canvas.dataset.bCarVisible = String(this.groups[1].visible && !!this.slots[1].body?.root.visible);
         for (let side = 0; side < 2; side++) {
+          let visibleWheels = 0;
+          if (this.groups[side].visible) {
+            for (const wheel of this.slots[side].wheels) if (wheel.root.visible) visibleWheels++;
+          }
+          this.canvas.dataset[side === 0 ? "aWheelVisibleCount" : "bWheelVisibleCount"] = String(visibleWheels);
+          this.canvas.dataset[side === 0 ? "aChassisVisible" : "bChassisVisible"] = String(this.groups[side].visible && !!this.slots[side].drivetrain?.root.visible);
+          let visibleLabels = 0;
+          const info = this.slots[side].wheelInfo;
+          if (this.groups[side].visible && info) for (const label of info.labels) if (label?.sprite.visible) visibleLabels++;
+          this.canvas.dataset[side === 0 ? "aTireInfoVisibleCount" : "bTireInfoVisibleCount"] = String(visibleLabels);
           const marker = this.markers[side];
           this.positionScratch.copy(marker.position).project(this.camera);
           this.canvas.dataset[side === 0 ? "aMarkerScreenX" : "bMarkerScreenX"] = marker.visible ? String(this.positionScratch.x) : "";
@@ -867,11 +1032,14 @@ export class SpectateSceneRuntime {
         this.projectPose("a", first);
         this.projectPose("b", second);
         const stateA = !this.slots[0].body ? "model-unavailable" : first ? "ready" : "pose-unavailable";
-        const stateB = !this.slots[1].body ? "model-unavailable" : second ? "ready" : "pose-unavailable";
-        const stateChanged = this.canvas.dataset.sideAState !== stateA || this.canvas.dataset.sideBState !== stateB;
+        const stateB = this.pair.b ? (!this.slots[1].body ? "model-unavailable" : second ? "ready" : "pose-unavailable") : undefined;
+        const stateChanged = this.canvas.dataset.sideAState !== stateA || (stateB !== undefined && this.canvas.dataset.sideBState !== stateB);
         this.canvas.dataset.sideAState = stateA;
-        this.canvas.dataset.sideBState = stateB;
+        if (stateB !== undefined) this.canvas.dataset.sideBState = stateB;
         if (stateChanged && this.canvas.dataset.sceneRendered === "true") this.ready(true);
+        if (this.pendingFrames.length) {
+          for (const pending of this.pendingFrames.splice(0)) pending.resolve();
+        }
         this.lastRender = now;
         this.dirty = false;
         if (this.canvas.dataset.sceneRendered !== "true") {
@@ -879,6 +1047,7 @@ export class SpectateSceneRuntime {
           this.ready(true);
         }
       } catch {
+        this.rejectPendingFrames(new Error("Scene rendering failed"));
         this.initialized = false;
         this.drawing = false;
         this.ready(false);
@@ -934,6 +1103,7 @@ export class SpectateSceneRuntime {
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
+    this.rejectPendingFrames(new Error("Scene runtime disposed"));
     cancelAnimationFrame(this.raf);
     this.raf = 0;
     this.initGeneration++;
@@ -952,8 +1122,14 @@ export class SpectateSceneRuntime {
       slot.body = null;
       for (const wheel of slot.wheels) disposeWheelResource(wheel);
       slot.wheels = [];
+      slot.drivetrain?.dispose();
+      slot.drivetrain = null;
+      if (slot.wheelInfo) for (const label of slot.wheelInfo.labels) if (label) disposeWheelLabelResource(label);
+      slot.wheelInfo = null;
       slot.config = null;
     }
+    this.captureTarget?.dispose();
+    this.captureTarget = null;
     for (const child of this.track.children)
       if (child instanceof THREE.Mesh) {
         child.geometry.dispose();

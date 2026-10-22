@@ -59,10 +59,15 @@ export interface SpectateController {
   dispose(): void;
   sample(time: number, holdPose?: boolean): { a: SpectateReading | null; b: SpectateReading | null };
 }
-export interface SpectatePair {
+export interface ReplaySession {
   gameId: GameId;
-  comparison: ComparisonData;
   a: SpectateLap;
+  b: SpectateLap | null;
+  comparison: { lapA: ComparisonData["lapA"]; lapB: ComparisonData["lapB"] | null; traces?: ComparisonData["traces"]; timeDelta?: ComparisonData["timeDelta"] };
+}
+/** Compare-only session. */
+export interface SpectatePair extends ReplaySession {
+  comparison: ComparisonData;
   b: SpectateLap;
 }
 export interface SpectateSegment {

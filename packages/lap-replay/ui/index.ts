@@ -9,4 +9,4 @@ export { hasTelemetryGap } from "./telemetry-gap";
 export { buildSpectateChannels, channelValue, type SpectateChannel } from "./spectate-channels";
 export { CATEGORY_LABELS, classify, type Category } from "./SpectateTelemetryPanel";
 export { SpectateInputs } from "./SpectateInputs";
-export { SingleReplayWorkspace } from "./SingleReplayWorkspace";
+export { SingleReplaySession } from "./SingleReplaySession";

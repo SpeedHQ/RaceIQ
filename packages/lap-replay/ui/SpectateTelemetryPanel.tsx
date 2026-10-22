@@ -5,11 +5,11 @@ import { useReplayHost } from "./host"
 import { getTelemetryVariable, isTelemetryVariableId } from "@raceiq/shared/telemetry/catalog/query";
 import { useUnits } from "./host"
 import { getSemanticCanvasContext } from "@raceiq/scene-3d/rendering/css-canvas";
-import { DELTA_COLOR_VARS, deltaColor } from "@raceiq/scene-3d/colors";
+import { DELTA_COLOR_VARS, deltaColor, WHEEL_COLOR_VARS } from "@raceiq/scene-3d/colors";
 
-import { channelValue, buildSpectateChannels, type SpectateChannel } from "./spectate-channels";
-import type { SpectateController, SpectatePair, SpectateReading, SpectateSnapshot } from "../contracts/spectate";
-import { ERS_DEPLOY_MODES, readERSDeployMode } from "./spectate-ers-mode";
+import type { SpectateController, ReplaySession, SpectateReading, SpectateSnapshot } from "../contracts/spectate";
+import { ERS_DEPLOY_MODES, readERSDeployMode, buildERSModeRuns } from "./spectate-ers-mode";
+import { buildSpectateChannels, channelValue, type SpectateChannel } from "./spectate-channels";
 const A_COLOR = "var(--comparison-lap-a)";
 const B_COLOR = "var(--comparison-lap-b)";
 
@@ -35,6 +35,11 @@ export function classify(channel: SpectateChannel): Category {
   if (groupId.startsWith("suspension") || id.startsWith("suspension.") || channel.derived === "compression-bias") return "suspension";
   if (groupId.startsWith("brakes") || id.startsWith("brakes.")) return "brakes";
   return "other";
+}
+const WHEEL_ORDER = ["FL", "FR", "RL", "RR"];
+function isFourWheelChannel(channel: SpectateChannel): boolean {
+  return channel.components.length === WHEEL_ORDER.length
+    && channel.components.every((component, index) => component.label === WHEEL_ORDER[index]);
 }
 // Anchor vertices to recorded time, not the moving viewport. Otherwise sharp
 // B inputs are resampled into different shapes on every playback frame.
@@ -63,16 +68,21 @@ function ChartRow({
   controller,
   snapshot,
   convert,
+  single = false,
+  groupComponents = false,
 }: {
   channel: SpectateChannel;
   windowSeconds: 5 | 10;
   controller: SpectateController;
   snapshot: SpectateSnapshot;
   convert: (id: string, value: number) => number;
+  single?: boolean;
+  groupComponents?: boolean;
 }) { const { syncCanvasSize } = useReplayHost(); const m = useMessages(); const root = useRef<HTMLDivElement>(null);
 const canvas = useRef<HTMLCanvasElement>(null);
 const [visible, setVisible] = useState(false);
 const [width, setWidth] = useState(0);
+const primaryColor = !single ? A_COLOR : channel.id === "inputs.brake" ? "var(--ch-brake)" : channel.id === "inputs.accel" ? "var(--ch-throttle)" : "var(--app-accent)";
 const points = useMemo(() => (visible ? sampleWindow(controller, snapshot, windowSeconds) : []), [visible, controller, windowSeconds, snapshot.time, snapshot.generation, snapshot.positionLock]);
 useEffect(() => {
   const node = root.current;
@@ -100,7 +110,13 @@ useEffect(() => {
   if (!ctx) return;
   ctx.setTransform(node.width / width, 0, 0, node.height / height, 0, 0);
   ctx.clearRect(0, 0, width, height);
-  const vals = points.flatMap(({ a, b }) => (channel.derived === "delta" ? [value(a, channel, "a")] : [value(a, channel, "a"), value(b, channel, "b")])).filter((v): v is number => v !== null);
+  const component = channel.components[0] ?? { key: "", label: "" };
+  const series = groupComponents
+    ? channel.components.map((wheel, index) => ({ side: "a" as const, component: wheel, color: WHEEL_COLOR_VARS[index]! }))
+    : single || channel.derived === "delta"
+      ? [{ side: "a" as const, component, color: primaryColor }]
+      : [{ side: "a" as const, component, color: A_COLOR }, { side: "b" as const, component, color: B_COLOR }];
+  const vals = points.flatMap(({ a, b }) => series.map(({ side, component }) => value(side === "a" ? a : b, channel, side, component.key))).filter((v): v is number => v !== null);
   const min = vals.length ? Math.min(...vals) : -1;
   const max = vals.length ? Math.max(...vals) : 1;
   const span = max - min || 1;
@@ -119,11 +135,7 @@ useEffect(() => {
   ctx.beginPath();
   ctx.rect(left, top, right - left, bottom - top);
   ctx.clip();
-  for (const [side, color] of [
-    ["a", A_COLOR],
-    ["b", B_COLOR],
-  ] as const) {
-    if (channel.derived === "delta" && side === "b") continue;
+  for (const { side, color, component } of series) {
     ctx.strokeStyle = color;
     ctx.lineWidth = 1.4;
     ctx.beginPath();
@@ -135,8 +147,8 @@ useEffect(() => {
       const p = points[i];
       const reading = side === "a" ? p.a : p.b;
       const previous = i ? (side === "a" ? points[i - 1].a : points[i - 1].b) : null;
-      const v = value(reading, channel, side);
-      const pv = value(previous, channel, side);
+      const v = value(reading, channel, side, component.key);
+      const pv = value(previous, channel, side, component.key);
       if (v === null) {
         if (active && deltaFill) {
           deltaFill.lineTo(lastX, zeroY);
@@ -148,7 +160,7 @@ useEffect(() => {
       const x = left + ((p.time - snapshot.time + windowSeconds) / (windowSeconds * 2)) * (right - left);
       if (active) {
         if (channel.id === "inputs.gear" && pv !== null) {
-          ctx.lineTo(x, y(pv!));
+          ctx.lineTo(x, y(pv));
           ctx.lineTo(x, y(v));
         } else ctx.lineTo(x, y(v));
       } else {
@@ -181,15 +193,21 @@ useEffect(() => {
     } else ctx.stroke();
   }
   ctx.restore();
-}, [visible, points, channel, convert, width, windowSeconds, snapshot.time]);
+}, [visible, points, channel, convert, width, windowSeconds, snapshot.time, groupComponents, single, primaryColor]);
 const nowA = value(snapshot.a, channel, "a");
 const nowB = channel.derived === "delta" ? null : value(snapshot.b, channel, "b");
-const label = channel.label + (channel.components[0]?.label ? ` ${channel.components[0].label}` : "");
+const label = channel.label + (!groupComponents && channel.components[0]?.label ? ` ${channel.components[0].label}` : "");
+const nowComponents = groupComponents ? channel.components.map((component, index) => ({
+  component,
+  value: value(snapshot.a, channel, "a", component.key),
+  color: WHEEL_COLOR_VARS[index]!,
+})) : [];
 return (
   <div
     ref={root}
     data-channel-id={channel.id}
-    data-component={channel.components[0]?.key ?? ""}
+    data-component={groupComponents ? "" : channel.components[0]?.key ?? ""}
+    data-component-count={groupComponents ? channel.components.length : 1}
     data-axis-start={-windowSeconds}
     data-axis-end={windowSeconds}
     data-center-time={snapshot.time}
@@ -200,33 +218,38 @@ return (
       <span>{label}</span>
       <span className="text-app-text-dim">{channel.unit}</span>
       <span className="ml-auto flex gap-2 tabular-nums">
-        <span style={{ color: channel.derived === "delta" ? nowA === null || nowA === 0 ? "var(--app-text-secondary)" : deltaColor(nowA) : A_COLOR }}>{format(nowA)}</span>
-        {channel.derived !== "delta" && <span style={{ color: B_COLOR }}>{format(nowB)}</span>}
+        {groupComponents
+          ? nowComponents.map(({ component, value: current, color }) => <span key={component.key} data-wheel={component.label} style={{ color }}>{component.label} {format(current)}</span>)
+          : <><span style={{ color: channel.derived === "delta" ? nowA === null || nowA === 0 ? "var(--app-text-secondary)" : deltaColor(nowA) : primaryColor }}>{format(nowA)}</span>
+            {channel.derived !== "delta" && !single && <span style={{ color: B_COLOR }}>{format(nowB)}</span>}</>}
       </span>
     </div>
     <canvas
       ref={canvas}
       className="block h-[72px] w-full"
       role="img"
-      aria-label={channel.derived === "delta" ? `${label}; A − B ${format(nowA)}` : `${label}; A ${format(nowA)}, B ${format(nowB)}`}
+      aria-label={groupComponents ? `${label}; ${nowComponents.map(({ component, value: current }) => `${component.label} ${format(current)}`).join(", ")}` : channel.derived === "delta" ? `${label}; A − B ${format(nowA)}` : single ? `${label}; ${format(nowA)}` : `${label}; A ${format(nowA)}, B ${format(nowB)}`}
       data-current-a={format(nowA)}
-      data-current-b={channel.derived === "delta" ? undefined : format(nowB)}
-      title={channel.derived === "delta" ? undefined : snapshot.b ? m.spectate_b_sampled_at_time({ time: snapshot.b.time.toFixed(2) }) : m.spectate_b_unavailable()}
+      data-current-b={single || channel.derived === "delta" ? undefined : format(nowB)}
+      title={channel.derived === "delta" || single ? undefined : snapshot.b ? m.spectate_b_sampled_at_time({ time: snapshot.b.time.toFixed(2) }) : m.spectate_b_unavailable()}
     />
   </div>
 );
-function value(reading: SpectateReading | null, source: SpectateChannel, side: "a" | "b"): number | null {
-  const raw = channelValue(reading, source, source.components[0]?.key ?? "", side);
+function value(reading: SpectateReading | null, source: SpectateChannel, side: "a" | "b", component = source.components[0]?.key ?? ""): number | null {
+  const raw = channelValue(reading, source, component, side);
   return raw === null ? null : source.derived ? raw : convert(source.id, raw);
 }
 function format(value: number | null): string {
   return value === null || !Number.isFinite(value) ? "—" : value.toFixed(channel.id === "inputs.gear" ? 0 : 2);
 } }
-function ERSModeChartRow({ windowSeconds, controller, snapshot }: { windowSeconds: 5 | 10; controller: SpectateController; snapshot: SpectateSnapshot }) { const { syncCanvasSize } = useReplayHost(); const m = useMessages(); const root = useRef<HTMLDivElement>(null);
-const canvas = useRef<HTMLCanvasElement>(null);
+function ERSModeChartRow({ windowSeconds, controller, snapshot, single }: { windowSeconds: 5 | 10; controller: SpectateController; snapshot: SpectateSnapshot; single?: boolean }) { const m = useMessages(); const root = useRef<HTMLDivElement>(null);
 const [visible, setVisible] = useState(false);
 const [width, setWidth] = useState(0);
 const points = useMemo(() => (visible ? sampleWindow(controller, snapshot, windowSeconds) : []), [visible, controller, windowSeconds, snapshot.time, snapshot.generation, snapshot.positionLock]);
+const runsA = useMemo(() => buildERSModeRuns(points, "a"), [points]);
+const runsB = useMemo(() => single ? [] : buildERSModeRuns(points, "b"), [points, single]);
+const plotWidth = Math.max(0, width - 22);
+const scale = plotWidth / (windowSeconds * 2);
 useEffect(() => {
   const node = root.current;
   if (!node) return;
@@ -241,42 +264,6 @@ useEffect(() => {
   observer.observe(node);
   return () => observer.disconnect();
 }, []);
-useEffect(() => {
-  if (!visible || !width) return;
-  const node = canvas.current;
-  const host = root.current;
-  if (!node || !host) return;
-  const canvasHeight = 72;
-  syncCanvasSize(node, width, canvasHeight, window.devicePixelRatio || 1, false);
-  const ctx = getSemanticCanvasContext(node);
-  if (!ctx) return;
-  ctx.setTransform(node.width / width, 0, 0, node.height / canvasHeight, 0, 0);
-  ctx.clearRect(0, 0, width, canvasHeight);
-  const left = 16, right = width - 6, laneHeight = 12;
-  for (const [side, y, labelColor] of [["a", 15, A_COLOR], ["b", 43, B_COLOR]] as const) {
-    ctx.fillStyle = labelColor;
-    ctx.textAlign = "left";
-    ctx.textBaseline = "middle";
-    ctx.fillText(side.toUpperCase(), 0, y + laneHeight / 2);
-    for (let i = 0; i < points.length; i++) {
-      const x = left + ((points[i]!.time - snapshot.time + windowSeconds) / (windowSeconds * 2)) * (right - left);
-      const nextX = i + 1 < points.length
-        ? left + ((points[i + 1]!.time - snapshot.time + windowSeconds) / (windowSeconds * 2)) * (right - left)
-        : right;
-      const mode = readERSDeployMode(side === "a" ? points[i]!.a : points[i]!.b);
-      if (mode === null || nextX <= x) continue;
-      ctx.fillStyle = ERS_DEPLOY_MODES[mode].color;
-      ctx.fillRect(x, y, Math.max(1, nextX - x), laneHeight);
-    }
-  }
-  const nowX = left + 0.5 * (right - left);
-  ctx.strokeStyle = "var(--app-border)";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(nowX, 8);
-  ctx.lineTo(nowX, 62);
-  ctx.stroke();
-}, [visible, points, snapshot.time, width, windowSeconds]);
 const modeA = readERSDeployMode(snapshot.a);
 const modeB = readERSDeployMode(snapshot.b);
 return (
@@ -284,11 +271,26 @@ return (
     <div className="flex items-center justify-between gap-2 text-app-compact text-app-text-secondary">
       <span>{m.f1live_ers_label()}</span>
       <span className="flex gap-2">
-        <span style={{ color: A_COLOR }}>A {modeA === null ? m.analyse_unavailable() : m[ERS_DEPLOY_MODES[modeA].label]()}</span>
-        <span style={{ color: B_COLOR }}>B {modeB === null ? m.analyse_unavailable() : m[ERS_DEPLOY_MODES[modeB].label]()}</span>
+        <span style={{ color: single ? "var(--app-accent)" : A_COLOR }}>{single ? "" : "A "}{modeA === null ? m.analyse_unavailable() : m[ERS_DEPLOY_MODES[modeA].label]()}</span>
+        {!single && <span style={{ color: B_COLOR }}>B {modeB === null ? m.analyse_unavailable() : m[ERS_DEPLOY_MODES[modeB].label]()}</span>}
       </span>
     </div>
-    <canvas ref={canvas} className="block h-[72px] w-full" role="img" aria-label={`${m.f1live_ers_label()}; A ${modeA === null ? m.analyse_unavailable() : m[ERS_DEPLOY_MODES[modeA].label]()}, B ${modeB === null ? m.analyse_unavailable() : m[ERS_DEPLOY_MODES[modeB].label]()}`} data-current-a={modeA ?? "unavailable"} data-current-b={modeB ?? "unavailable"} />
+    <svg className="block h-[72px] w-full" viewBox={`0 0 ${Math.max(1, width)} 72`} role="img" aria-label={single ? `${m.f1live_ers_label()}; ${modeA === null ? m.analyse_unavailable() : m[ERS_DEPLOY_MODES[modeA].label]()}` : `${m.f1live_ers_label()}; A ${modeA === null ? m.analyse_unavailable() : m[ERS_DEPLOY_MODES[modeA].label]()}, B ${modeB === null ? m.analyse_unavailable() : m[ERS_DEPLOY_MODES[modeB].label]()}`} data-current-a={modeA ?? "unavailable"} data-current-b={single ? undefined : modeB ?? "unavailable"}>
+      {!single && <>
+        <text x="0" y="21" dominantBaseline="middle" fontSize="10" fill={A_COLOR}>A</text>
+        <text x="0" y="49" dominantBaseline="middle" fontSize="10" fill={B_COLOR}>B</text>
+      </>}
+      <svg x="16" width={plotWidth} height="72" overflow="hidden" aria-hidden="true">
+        <g transform={`translate(${-(snapshot.time - windowSeconds) * scale}, 0)`}>
+          {[runsA, runsB].map((runs, side) => runs.map((run, index) => (
+            <rect key={`${side}:${run.mode}:${index}`} data-ers-side={side === 0 ? "a" : "b"} data-ers-mode={run.mode}
+              x={run.start * scale} y={side === 0 ? 15 : 43} width={(run.end - run.start) * scale} height="12"
+              fill={ERS_DEPLOY_MODES[run.mode]!.color} />
+          )))}
+        </g>
+      </svg>
+      <line x1={16 + plotWidth / 2} x2={16 + plotWidth / 2} y1="8" y2="62" stroke="var(--app-border)" strokeWidth="1" />
+    </svg>
     <div className="flex flex-wrap gap-x-2 gap-y-1 text-app-micro text-app-text-secondary">
       {ERS_DEPLOY_MODES.map((mode) => (
         <span key={mode.value} className="inline-flex items-center gap-1">
@@ -301,47 +303,42 @@ return (
 ); }
 
 
-export function SpectateTelemetryPanel({ pair, controller, headerTarget }: { pair: SpectatePair; controller: SpectateController; headerTarget: HTMLDivElement | null }) { const { getLocale } = useReplayHost(); const m = useMessages(); const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
+export function SpectateTelemetryPanel({ pair, controller, headerTarget }: { pair: ReplaySession; controller: SpectateController; headerTarget: HTMLDivElement | null }) { const { getLocale } = useReplayHost(); const m = useMessages(); const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
 const units = useUnits(pair.gameId);
 const channels = useMemo(
   () =>
     buildSpectateChannels(pair)
-      .filter((channel) =>
-        channel.derived === "delta" ||
-        [pair.a, pair.b].some((lap, sideIndex) =>
+      .filter((channel) => channel.derived === "delta"
+        ? pair.b !== null
+        : [pair.a, ...(pair.b ? [pair.b] : [])].some((lap, sideIndex) =>
           lap.samples.some((sample) =>
-            channel.components.some((component) =>
-              channelValue(
-                { time: sample.time, distance: sample.distance, pose: null, values: sample.values },
-                channel,
-                component.key,
-                sideIndex === 0 ? "a" : "b",
-              ) !== null,
-            ),
+            channel.components.some((component) => channelValue(
+              { time: sample.time, distance: sample.distance, pose: null, values: sample.values },
+              channel,
+              component.key,
+              sideIndex === 0 ? "a" : "b",
+            ) !== null),
           ),
         ),
       )
-      .flatMap((channel) =>
-        channel.components.map((component) => ({
+      .flatMap((channel) => {
+        const groupWheels = !pair.b && isFourWheelChannel(channel);
+        const components = groupWheels ? [null] : channel.components;
+        return components.map((component) => ({
           ...channel,
-        label:
-          channel.derived === "g-force"
-            ? m.spectate_g_force()
-            : channel.derived === "balance"
-              ? m.spectate_balance()
-              : channel.derived === "grip"
-                ? m.spectate_grip_demand()
-                : channel.derived === "compression-bias"
-                  ? m.analyse_suspension_compression_bias()
-                  : channel.derived === "wear-rate"
-                    ? m.analyse_wheels_wear_s()
-                    : channel.derived === "delta"
-                      ? m.spectate_time_delta()
-                      : channel.label,
-        unit: channel.id === "motion.speed" ? units.speedLabel : channel.unit === "°C" || channel.unit === "C" ? units.tempLabel : channel.unit,
-        components: [{ ...component, label: channel.derived === "compression-bias" ? (component.key === "front" ? m.analyse_suspension_front() : m.analyse_suspension_left()) : component.label }],
-      })),
-    )
+          label:
+            channel.derived === "g-force" ? m.spectate_g_force()
+              : channel.derived === "balance" ? m.spectate_balance()
+                : channel.derived === "grip" ? m.spectate_grip_demand()
+                  : channel.derived === "compression-bias" ? m.analyse_suspension_compression_bias()
+                    : channel.derived === "wear-rate" ? m.analyse_wheels_wear_s()
+                      : channel.derived === "delta" ? m.spectate_time_delta() : channel.label,
+          unit: channel.id === "motion.speed" ? units.speedLabel : channel.unit === "°C" || channel.unit === "C" ? units.tempLabel : channel.unit,
+          components: component
+            ? [{ ...component, label: channel.derived === "compression-bias" ? (component.key === "front" ? m.analyse_suspension_front() : m.analyse_suspension_left()) : component.label }]
+            : channel.components,
+        }));
+      })
       .sort((a, b) => Number(b.derived === "delta") - Number(a.derived === "delta")),
   [pair, units.speedLabel, units.tempLabel],
 );
@@ -351,8 +348,7 @@ useEffect(() => {
 }, [windowSeconds]);
 const [category, setCategory] = useState<Category>("inputs");
 const hasERSModeData = useMemo(() =>
-  pair.a.samples.some((sample) => readERSDeployMode(sample) !== null)
-    || pair.b.samples.some((sample) => readERSDeployMode(sample) !== null),
+  [pair.a, ...(pair.b ? [pair.b] : [])].some((lap) => lap.samples.some((sample) => readERSDeployMode(sample) !== null)),
 [pair]);
 const categorized = useMemo(() => channels.filter((channel) => channel.derived !== "delta").map((channel) => ({ channel, category: classify(channel) })), [channels]);
 const presentCategories = useMemo(() => (["inputs", "motion", "engine", "fuel", "tires", "suspension", "brakes", "other"] as const)
@@ -360,7 +356,7 @@ const presentCategories = useMemo(() => (["inputs", "motion", "engine", "fuel", 
 useEffect(() => {
   if (!presentCategories.includes(category)) setCategory("inputs");
 }, [category, presentCategories]);
-useEffect(() => setCategory("inputs"), [pair.gameId, pair.comparison.lapA.id, pair.comparison.lapB.id]);
+useEffect(() => setCategory("inputs"), [pair.gameId, pair.comparison.lapA.id, pair.comparison.lapB?.id]);
 const tabs = presentCategories;
 const onTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
   const index = tabs.indexOf(category as (typeof tabs)[number]);
@@ -415,12 +411,13 @@ return (
     <div ref={scroll} id="spectate-telemetry-channels" role="tabpanel" aria-labelledby={`spectate-category-${category}`} data-spectate-scroll className="min-h-0 flex-1 overflow-y-auto px-4">
       <div className="sticky top-0 z-10 bg-app-bg">
         {channels.filter((channel) => channel.derived === "delta").map((channel) => (
-          <ChartRow key={channel.id} channel={channel} windowSeconds={windowSeconds} controller={controller} snapshot={snapshot} convert={convert} />
+          <ChartRow key={channel.id} channel={channel} windowSeconds={windowSeconds} controller={controller} snapshot={snapshot} convert={convert} single={!pair.b} />
         ))}
       </div>
-      {category === "fuel" && hasERSModeData && <ERSModeChartRow windowSeconds={windowSeconds} controller={controller} snapshot={snapshot} />}
+      {category === "fuel" && hasERSModeData && <ERSModeChartRow windowSeconds={windowSeconds} controller={controller} snapshot={snapshot} single={!pair.b} />}
       {categorized.filter(({ category: item }) => item === category).map(({ channel }) => (
-        <ChartRow key={`${channel.id}:${channel.components[0]?.key}`} channel={channel} windowSeconds={windowSeconds} controller={controller} snapshot={snapshot} convert={convert} />
+        <ChartRow key={`${channel.id}:${channel.components[0]?.key}`} channel={channel} windowSeconds={windowSeconds} controller={controller} snapshot={snapshot} convert={convert}
+          single={!pair.b} groupComponents={!pair.b && isFourWheelChannel(channel)} />
       ))}
     </div>
   </div>

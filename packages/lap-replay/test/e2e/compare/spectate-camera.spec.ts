@@ -275,7 +275,7 @@ test("FM Spectate preserves camera orbit and layout boundaries", async ({ page, 
   await expect.poll(async () => Number(await clock.getAttribute("data-time"))).toBe(0);
   await page.getByRole("button", { name: "Play replay" }).click();
   await expect(clock).toHaveAttribute("data-playing", "true");
-  const separator = page.getByRole("separator", { name: "Resize telemetry panel" });
+  const separator = page.getByRole("separator", { name: "Resize panels", exact: true });
   const priorTime = Number(await clock.getAttribute("data-time"));
   const priorWidth = Number(await view.getAttribute("data-panel-width"));
   const sep = await separator.boundingBox();

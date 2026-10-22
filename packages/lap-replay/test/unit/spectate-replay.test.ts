@@ -46,6 +46,48 @@ function recordedLap(duration: number, distanceAt: (time: number) => number): Sp
   });
   return result;
 }
+test("single replay uses native progress and frame seeks without a comparison lap", () => {
+  const replay = recordedLap(1, (time) => time * 20).replay;
+  replay.envelopes.forEach((frame, index) => {
+    frame.values.push(
+      { semanticId: "timing.current-lap", value: 12 + index / 20 },
+      { semanticId: "timing.distance-traveled", value: 500 + index },
+      { semanticId: "inputs.throttle", value: index === 0 ? 0 : 0.5 },
+    );
+  });
+  const prepared = prepareSpectateLap(replay);
+  expect(prepared.hasProgress).toBe(true);
+  expect(prepared.samples[0]!.distance).toBe(0);
+  expect(prepared.samples[0]!.values["inputs.throttle"]).toBe(0);
+  const controller = createSpectateController(prepared, null);
+  try {
+    expect(controller.getSnapshot().canLock).toBe(false);
+    controller.setPositionLock(true);
+    expect(controller.getSnapshot().positionLock).toBe(false);
+    controller.seekFrame("a", 10);
+    expect(controller.getSnapshot().time).toBeCloseTo(0.5);
+    expect(controller.getSnapshot().a?.distance).toBe(10);
+    expect(controller.getSnapshot().b).toBeNull();
+    controller.seekFrame("b", 10);
+    expect(controller.getSnapshot().time).toBeCloseTo(0.5);
+    expect(controller.sample(0.5).b).toBeNull();
+  } finally { controller.dispose(); }
+});
+
+test("single replay preserves gaps and supports seeking without native distance", () => {
+  const replay = recordedLap(1, (time) => time * 20).replay;
+  replay.envelopes = replay.envelopes.filter((_, index) => index < 4 || index > 12);
+  const prepared = prepareSpectateLap(replay);
+  expect(prepared.hasProgress).toBe(false);
+  const controller = createSpectateController(prepared, null);
+  try {
+    expect(controller.sample(0.4, false).a).toBeNull();
+    controller.seekFrame("a", 5);
+    expect(controller.getSnapshot().a?.pose?.x).toBeCloseTo(14);
+    expect(controller.getSnapshot().a?.distance).toBeNull();
+  } finally { controller.dispose(); }
+});
+
 
 test("native insight indices seek either lap without confusing aligned or sequence indices", () => {
   const a = recordedLap(1, (time) => time * 100);

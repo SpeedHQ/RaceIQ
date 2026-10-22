@@ -1,12 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { hasTelemetryGap } from "@raceiq/lap-replay/ui"
-import { REACT_STATE_INTERVAL_MS } from "../src/hooks/useLapPlayback";
 
-describe("Analyse playback cadence", () => {
-  test("publishes React playback state at 60Hz", () => {
-    expect(REACT_STATE_INTERVAL_MS).toBeCloseTo(1000 / 60, 5);
-  });
-
+describe("Replay telemetry gaps", () => {
   test("does not mark floating-point 10 Hz samples as gaps", () => {
     expect(
       hasTelemetryGap(0.055000000000063665, 0.15499999999997272),

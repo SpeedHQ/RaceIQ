@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type ButtonHTMLAttributes, type ReactNode } from "react";
-import { Navigation, Footprints, CarFront, Route, Map } from "lucide-react";
-import type { SpectateController, SpectatePair } from "../contracts/spectate";
+import { Navigation, Footprints, CarFront, Route, Map, Info } from "lucide-react";
+import type { SpectateController, ReplaySession } from "../contracts/spectate";
 import type { TrackMapBoundaries } from "../contracts/host"
-import { useSettings, useReplayHost } from "./host"
+import { useSettings, useReplayHost, useUnits, useTirePressureOptimal } from "./host"
 import { useTrackBoundaries } from "./host"
 import { useMessages } from "./host"
 import { SpectateSceneRuntime, type CarModelMode } from "./SpectateSceneRuntime"
 import { FOCUS_ZOOM_SNAP_ZONE_END } from "./spectate-focus-lanes";
 import type { SpectateFocus } from "./spectate-focus";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./host"
+import { useSceneMode } from "./useSceneMode";
+
+const CAR_MODEL_MODES: readonly CarModelMode[] = ["solid", "hidden", "wire"];
 
 type ToolbarTooltipProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children"> & {
   tooltip: string;
@@ -24,7 +27,7 @@ function ToolbarTooltip({ tooltip, side = "right", children, ...buttonProps }: T
   );
 }
 export interface SpectateSceneProps {
-  pair: SpectatePair;
+  pair: ReplaySession;
   controller: SpectateController;
   outline: readonly { x: number; z: number }[] | null;
   overview: ReactNode;
@@ -52,8 +55,8 @@ function useToolbarToggle(key: string, defaultValue: boolean) {
   return [value, setValue] as const;
 }
 
-/** Canvas owner for the paired recorded-world scene. */
-export function SpectateScene({ pair, controller, outline, overview, focus }: SpectateSceneProps) { const { models } = useReplayHost(); const m = useMessages(); const { displaySettings } = useSettings();
+/** Canvas owner for one recorded replay, optionally paired for comparison. */
+export function SpectateScene({ pair, controller, outline, overview, focus }: SpectateSceneProps) { const { models, getLocale } = useReplayHost(); const m = useMessages(); const { displaySettings } = useSettings();
 const boundaries = useTrackBoundaries(pair.comparison.lapA.trackId, pair.gameId).data as TrackMapBoundaries | undefined;
 const positionLock = useSyncExternalStore(controller.subscribe, () => controller.getSnapshot().positionLock, () => controller.getSnapshot().positionLock);
 const canLock = useSyncExternalStore(controller.subscribe, () => controller.getSnapshot().canLock, () => controller.getSnapshot().canLock);
@@ -63,15 +66,20 @@ const zoomIndicator = useRef<HTMLDivElement>(null);
 const [ready, setReady] = useState(false);
 const [directionLock, setDirectionLock] = useToolbarToggle("spectate-direction-lock", false);
 const [tireTrails, setTireTrails] = useToolbarToggle("spectate-tire-trails", false);
+const [tireInfo, setTireInfo] = useToolbarToggle("spectate-tire-info", false);
+const units = useUnits(pair.gameId);
+const locale = getLocale();
+const pressureA = useTirePressureOptimal(pair.gameId, pair.comparison.lapA.carId, tireInfo);
+const pressureB = useTirePressureOptimal(pair.gameId, pair.comparison.lapB?.carId, tireInfo && !!pair.b);
 const [racingLine, setRacingLine] = useToolbarToggle("spectate-racing-line", false);
 const [positionLockPreferred, setPositionLockPreferred] = useToolbarToggle("spectate-position-lock", true);
 const [overviewVisible, setOverviewVisible] = useToolbarToggle("spectate-track-overview", true);
-const [carModelMode, setCarModelMode] = useState<CarModelMode>("solid");
+const [carModelMode, setCarModelMode] = useSceneMode<CarModelMode>("spectate-car-model-mode", "solid", CAR_MODEL_MODES);
 const hasRacingLine = Array.isArray(boundaries?.raceLine) && boundaries.raceLine.length > 1;
 const [error, setError] = useState<string | null>(null);
 const [sideAState, setSideAState] = useState("loading");
 const [sideBState, setSideBState] = useState("loading");
-const key = `${pair.gameId}:${pair.comparison.lapA.id}:${pair.comparison.lapB.id}`;
+const key = `${pair.gameId}:${pair.comparison.lapA.id}:${pair.comparison.lapB?.id ?? "single"}`;
 useEffect(() => {
   setReady(false);
   setError(null);
@@ -129,19 +137,62 @@ useEffect(() => {
   runtime.current?.setTireTrails(tireTrails);
 }, [tireTrails, key, controller, displaySettings.renderFpsCap]);
 useEffect(() => {
+  runtime.current?.setTireInfo(tireInfo, {
+    fmtTemp: (value) => `${units.temp(value).toFixed(0)}${units.tempLabel}`,
+    temperatureLabels: {
+      inner: m.label_inner(), middle: m.label_middle(), outer: m.label_outer(),
+      core: m.label_core(), carcass: m.label_carcass(), surface: m.label_surface(),
+    },
+    pressureOptimal: [pressureA, pressureB],
+  });
+}, [tireInfo, units.temp, units.tempLabel, pressureA, pressureB, m, locale, key, controller, displaySettings.renderFpsCap]);
+useEffect(() => {
   runtime.current?.setRacingLine(racingLine && hasRacingLine);
 }, [racingLine, hasRacingLine, key, controller, displaySettings.renderFpsCap]);
 useEffect(() => {
-  controller.setPositionLock(positionLockPreferred);
-}, [controller, canLock, positionLockPreferred]);
+  controller.setPositionLock(pair.b !== null && positionLockPreferred);
+}, [controller, canLock, positionLockPreferred, pair.b]);
+useEffect(() => {
+  const target = window as Window & {
+    __recording?: boolean;
+    __setFrame?: (index: number) => Promise<void>;
+    __totalFrames?: number;
+    __frameTimes?: number[];
+    __captureSceneBitmap?: () => Promise<ImageBitmap>;
+  };
+  if (!target.__recording || pair.b) return;
+  target.__totalFrames = pair.a.replay.envelopes.length;
+  target.__frameTimes = pair.a.replay.envelopes.map((frame) => {
+    const clock = frame.values.find((entry) => entry.semanticId === "timing.current-lap");
+    return clock && typeof clock.value === "number"
+      && (clock.state == null || clock.state === "ok")
+      && (clock.freshness == null || clock.freshness === "fresh")
+      ? clock.value
+      : Number.NaN;
+  });
+  target.__setFrame = (index) => {
+    const current = runtime.current;
+    return current ? current.requestFrame(index) : Promise.reject(new Error("Replay scene unavailable"));
+  };
+  target.__captureSceneBitmap = () => runtime.current
+    ? runtime.current.captureBitmap()
+    : Promise.reject(new Error("Replay scene unavailable"));
+  return () => {
+    delete target.__setFrame;
+    delete target.__totalFrames;
+    delete target.__frameTimes;
+    delete target.__captureSceneBitmap;
+  };
+}, [pair, key]);
 return (
   <div
     className="relative h-full min-h-0 w-full overflow-hidden bg-app-bg"
+    data-replay-scene={pair.b === null ? "" : undefined}
     data-spectate-scene=""
     data-scene-ready={ready ? "true" : "false"}
     data-scene-error={error ?? ""}
     data-side-a-state={sideAState}
-    data-side-b-state={sideBState}
+    data-side-b-state={pair.b ? sideBState : undefined}
   >
     <div ref={host} className="absolute inset-0" />
     <div
@@ -161,9 +212,8 @@ return (
       </div>
     </div>
     {overviewVisible && overview}
-    {ready && !error && (
       <TooltipProvider delay={0}>
-        <div role="toolbar" aria-label={m.spectate_direction_lock()} aria-orientation="vertical" className="absolute left-3 top-1/2 z-30 flex -translate-y-1/2 flex-col rounded-sm border border-app-border bg-app-surface/90 p-0">
+        <div role="toolbar" aria-label={pair.b ? m.spectate_direction_lock() : m.overlay_follow()} aria-orientation="vertical" className="absolute left-3 top-1/2 z-30 flex -translate-y-1/2 flex-col rounded-sm border border-app-border bg-app-surface/90 p-0">
           <ToolbarTooltip
             type="button"
             role="switch"
@@ -180,18 +230,31 @@ return (
             data-spectate-car-model-toggle=""
             data-car-model-mode={carModelMode}
             aria-label={carModelMode === "solid" ? m.carwire_solid() : carModelMode === "wire" ? m.carwire_wire() : m.carwire_hidden()}
+            aria-pressed={carModelMode !== "hidden"}
             tooltip={carModelMode === "solid" ? m.carwire_solid() : carModelMode === "wire" ? m.carwire_wire() : m.carwire_hidden()}
             onClick={() => setCarModelMode((mode) => mode === "wire" ? "solid" : mode === "solid" ? "hidden" : "wire")}
-            className={`flex size-7 items-center justify-center border p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent ${carModelMode !== "wire" ? "border-app-accent bg-app-accent/10 text-app-accent" : "border-transparent text-app-text-secondary hover:text-app-accent"}`}
+            className={`flex size-7 items-center justify-center border p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent ${carModelMode !== "hidden" ? "border-app-accent bg-app-accent/10 text-app-accent" : "border-transparent text-app-text-secondary hover:text-app-accent"}`}
           >
             <CarFront size={16} aria-hidden="true" />
           </ToolbarTooltip>
           <ToolbarTooltip
             type="button"
             role="switch"
+            data-tire-info-toggle=""
+            aria-checked={tireInfo}
+            aria-label={m.carwire_tire_info()}
+            tooltip={m.carwire_tire_info()}
+            onClick={() => setTireInfo((shown) => !shown)}
+            className={`flex size-7 items-center justify-center border p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent ${tireInfo ? "border-app-accent bg-app-accent/10 text-app-accent" : "border-transparent text-app-text-secondary hover:text-app-accent"}`}
+          >
+            <Info size={16} aria-hidden="true" />
+          </ToolbarTooltip>
+          <ToolbarTooltip
+            type="button"
+            role="switch"
             aria-checked={directionLock}
-            aria-label={m.spectate_direction_lock()}
-            tooltip={m.spectate_direction_lock()}
+            aria-label={pair.b ? m.spectate_direction_lock() : m.overlay_follow()}
+            tooltip={pair.b ? m.spectate_direction_lock() : m.overlay_follow()}
             onClick={() => setDirectionLock((locked) => !locked)}
             className={`flex size-7 items-center justify-center border p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent ${directionLock ? "border-app-accent bg-app-accent/10 text-app-accent" : "border-transparent text-app-text-secondary hover:text-app-accent"}`}
           >
@@ -219,7 +282,7 @@ return (
           >
             <Route size={16} className={hasRacingLine ? undefined : "opacity-40"} aria-hidden="true" />
           </ToolbarTooltip>
-          <ToolbarTooltip
+          {pair.b && <ToolbarTooltip
             type="button"
             role="switch"
             aria-checked={positionLock}
@@ -233,10 +296,9 @@ return (
               <CarFront size={10} />
               <CarFront size={10} />
             </span>
-          </ToolbarTooltip>
+          </ToolbarTooltip>}
         </div>
       </TooltipProvider>
-    )}
     {error && (
       <div role="alert" className="absolute inset-x-4 top-4 z-10 flex items-center justify-between gap-3 border border-app-border bg-app-surface p-3 text-app-body text-app-text">
         <span>
@@ -249,12 +311,12 @@ return (
         </button>
       </div>
     )}
-    {!error && ready && [sideAState, sideBState].some((state) => state.endsWith("unavailable")) && (
+    {!error && ready && [sideAState, ...(pair.b ? [sideBState] : [])].some((state) => state.endsWith("unavailable")) && (
       <div role="status" className="absolute right-3 top-3 z-10 max-w-[16rem] rounded-sm border border-app-border bg-app-surface/90 p-2 text-app-label text-status-unavailable">
-        {[sideAState, sideBState].map((state, index) =>
+        {[sideAState, ...(pair.b ? [sideBState] : [])].map((state, index) =>
           state.endsWith("unavailable") ? (
             <p key={index}>
-              {index === 0 ? "A" : "B"}: {state === "model-unavailable" ? m.spectate_model_unavailable() : m.spectate_pose_unavailable()}
+              {pair.b ? `${index === 0 ? "A" : "B"}: ` : ""}{state === "model-unavailable" ? m.spectate_model_unavailable() : m.spectate_pose_unavailable()}
             </p>
           ) : null,
         )}

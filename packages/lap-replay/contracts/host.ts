@@ -58,6 +58,7 @@ export interface ReplayHost {
   CompareAiPanel: ComponentType<ReplayComparisonAiProps>;
   useSettings: () => { displaySettings: { renderFpsCap: number } };
   useUnits: (gameId?: GameId) => ReplayUnits;
+  useTirePressureOptimal: (gameId: GameId, carId: string | undefined, enabled: boolean) => { min: number; max: number } | undefined;
   useLocalStorage: <T>(key: string, fallback: T) => [T, Dispatch<SetStateAction<T>>];
   useLapSemanticTelemetry: (id: number | null) => { data: SemanticLapTelemetry | undefined; error: Error | null; refetch: () => Promise<unknown> };
   useCompareLineSpread: (gameId: GameId, lapIds: readonly number[]) => { data: ReplayLineSpread | null | undefined };

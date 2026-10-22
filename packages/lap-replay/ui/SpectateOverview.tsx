@@ -1,10 +1,10 @@
 import { useMessages } from "./host"
 import { useMemo, useSyncExternalStore } from "react";
-import type { SpectateController, SpectatePair, SpectateSegment } from "../contracts/spectate";
+import type { SpectateController, ReplaySession, SpectateSegment } from "../contracts/spectate";
 import { focusRuns, type SpectateFocus } from "./spectate-focus";
 
 type TrackPoint = { distance: number; run: number; x: number; z: number };
-function trackRuns(pair: SpectatePair): TrackPoint[][] {
+function trackRuns(pair: ReplaySession): TrackPoint[][] {
   const runs: TrackPoint[][] = [];
   let current: TrackPoint[] = [];
   let prior: TrackPoint | null = null;
@@ -76,8 +76,10 @@ function segmentPaths(runs: readonly TrackPoint[][], start: number, end: number,
   );
 }
 /** Interpolate boundary times on the physical-distance grid, never sample indices. */
-function splitLookup(pair: SpectatePair) {
-  const { distance, elapsedTimeA, elapsedTimeB } = pair.comparison.traces;
+function splitLookup(pair: ReplaySession) {
+  const traces = pair.comparison.traces;
+  if (!traces) return () => null;
+  const { distance, elapsedTimeA, elapsedTimeB } = traces;
   const valid = distance.length > 1 && [elapsedTimeA, elapsedTimeB].every((times) =>
     times.length === distance.length && times.every((time, index) =>
       Number.isFinite(time) && Number.isFinite(distance[index]) &&
@@ -114,7 +116,7 @@ function splitText(delta: number | null, unavailable: string) {
   return delta === null ? unavailable : `${delta > 0 ? "+" : ""}${delta.toFixed(3)} s`;
 }
 
-export function SpectateOverview({ pair, controller, segments, focus }: { pair: SpectatePair; controller: SpectateController; segments: readonly SpectateSegment[]; focus: SpectateFocus }) { const m = useMessages(); const coloredRuns = useMemo(() => [focusRuns(pair.a.samples, focus), focusRuns(pair.b.samples, focus)], [pair, focus]);
+export function SpectateOverview({ pair, controller, segments, focus }: { pair: ReplaySession; controller: SpectateController; segments: readonly SpectateSegment[]; focus: SpectateFocus }) { const m = useMessages(); const coloredRuns = useMemo(() => [focusRuns(pair.a.samples, focus), ...(pair.b ? [focusRuns(pair.b.samples, focus)] : [])], [pair, focus]);
 const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
 const splitAt = useMemo(() => splitLookup(pair), [pair]);
 const rows = useMemo(
@@ -125,7 +127,7 @@ const rows = useMemo(
   [segments, splitAt],
 );
 const runs = useMemo(() => trackRuns(pair), [pair]);
-const maximum = pair.comparison.traces.distance.at(-1) ?? pair.a.distance;
+const maximum = pair.comparison.traces?.distance.at(-1) ?? pair.a.distance;
 const geometry = useMemo(() => {
   let minX = Infinity,
     maxX = -Infinity,
@@ -236,9 +238,9 @@ return (
             data-segment-start={segment.startFrac}
             data-segment-end={segment.endFrac}
             data-seek-distance={segment.startFrac * maximum}
-            data-split-delta={delta ?? ""}
+            data-split-delta={pair.b ? delta ?? "" : undefined}
             tabIndex={0}
-            aria-label={`${m.spectate_segment_number({ number })}: ${segment.name}; A − B: ${splitText(delta, m.analyse_unavailable())}`}
+            aria-label={pair.b ? `${m.spectate_segment_number({ number })}: ${segment.name}; A − B: ${splitText(delta, m.analyse_unavailable())}` : `${m.spectate_segment_number({ number })}: ${segment.name}`}
             onClick={() => controller.seekDistance(Math.max(0, Math.min(maximum, segment.startFrac * maximum)))}
             onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
@@ -248,7 +250,7 @@ return (
             }}
             className="cursor-pointer outline-none focus-visible:opacity-70"
           >
-            <title>{`${segment.name || m.spectate_segment_number({ number })} · A − B: ${splitText(delta, m.analyse_unavailable())}`}</title>
+            <title>{pair.b ? `${segment.name || m.spectate_segment_number({ number })} · A − B: ${splitText(delta, m.analyse_unavailable())}` : segment.name || m.spectate_segment_number({ number })}</title>
             {sectionPaths.map((path, index) => (
               <polyline key={index} points={path} fill="none" stroke="transparent" strokeWidth="14" strokeLinecap="round" strokeLinejoin="round" />
             ))}
@@ -256,7 +258,7 @@ return (
               <>
                 {anchor && <line x1={anchor.x} y1={anchor.y} x2={position.x} y2={position.y} stroke="var(--app-text-secondary)" strokeWidth="0.6" opacity="0.5" pointerEvents="none" />}
                 <circle cx={position.x} cy={position.y} r="5.5" fill={splitColor(delta)} stroke="var(--app-bg)" strokeWidth="0.8" />
-                <text x={position.x} y={position.y} textAnchor="middle" dominantBaseline="central" fill={delta !== null && delta > 0 ? "var(--app-text)" : "var(--app-bg)"} fontSize="6" fontWeight="var(--font-weight-bold)">
+                <text x={position.x} y={position.y} textAnchor="middle" dominantBaseline="central" fill={delta === null ? "var(--app-text)" : delta > 0 ? "var(--app-text)" : "var(--app-bg)"} fontSize="6" fontWeight="var(--font-weight-bold)">
                   {number}
                 </text>
               </>
@@ -264,11 +266,11 @@ return (
           </g>
         ))}
         {poseA && Number.isFinite(poseA.x) && Number.isFinite(poseA.y) && (
-          <circle role="img" aria-label="A" cx={poseA.x} cy={poseA.y} r="3.5" fill="var(--comparison-lap-a)" stroke="var(--app-bg)" strokeWidth="1.5">
-            <title>A</title>
+          <circle role="img" aria-label={pair.b ? "A" : `${m.compare_lap_label()} ${pair.comparison.lapA.lapNumber}`} cx={poseA.x} cy={poseA.y} r="3.5" fill={pair.b ? "var(--comparison-lap-a)" : "var(--app-accent)"} stroke="var(--app-bg)" strokeWidth="1.5">
+            <title>{pair.b ? "A" : `${m.compare_lap_label()} ${pair.comparison.lapA.lapNumber}`}</title>
           </circle>
         )}
-        {poseB && Number.isFinite(poseB.x) && Number.isFinite(poseB.y) && (
+        {pair.b && poseB && Number.isFinite(poseB.x) && Number.isFinite(poseB.y) && (
           <circle role="img" aria-label="B" cx={poseB.x} cy={poseB.y} r="3.5" fill="var(--comparison-lap-b)" stroke="var(--app-bg)" strokeWidth="1.5">
             <title>B</title>
           </circle>

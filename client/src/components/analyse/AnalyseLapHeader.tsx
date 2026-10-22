@@ -1,4 +1,4 @@
-import { memo, useMemo, useRef, useState } from "react";
+import { memo, useMemo, useRef, useState, type Ref } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getLocale } from "@/paraglide/runtime";
 import { parseUtcTimestamp } from "../../lib/utc-date";
@@ -31,6 +31,7 @@ interface Props {
   onBack?: () => void;
   sessionFocused?: boolean;
   onAnalyseSession?: () => void;
+  panelHeaderRef: Ref<HTMLDivElement>;
   // Selection state
   selectedTrack: string | null;
   selectedCar: string | null;
@@ -71,6 +72,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
   onBack,
   sessionFocused,
   onAnalyseSession,
+  panelHeaderRef,
   selectedTrack,
   selectedCar,
   selectedLapId,
@@ -127,7 +129,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
   const [pendingImport, setPendingImport] = useState<File | null>(null);
   return (
     <>
-      <div className="flex items-center gap-2 p-3 border-b border-app-border flex-wrap shrink-0">
+      <div data-replay-page-header="" className="flex items-center gap-2 px-3 pt-3 border-b border-app-border flex-wrap shrink-0">
         {onBack && (
           <Button variant="app-outline" size="app-md" onClick={onBack}>
             {m.label_sessions()}
@@ -204,12 +206,15 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
             )}
           </div>
         )}
-        {sessionFocused && (
-          <div className="order-2 flex min-w-0 basis-full flex-wrap items-center gap-x-3 text-sm text-app-text-muted">
-            <span className="truncate">Track: {trackNames[selectedTrack ?? ""] ?? selectedLap?.trackId ?? ""}</span>
-            <span className="truncate">Car: {carNames[selectedCar ?? ""] ?? selectedLap?.carId ?? ""}</span>
-          </div>
-        )}
+        <div className="order-2 flex w-full min-w-0 flex-wrap items-end justify-between gap-x-4 gap-y-2">
+          {sessionFocused && (
+            <div className="flex min-w-0 max-w-full flex-col text-app-caption text-app-text-muted @3xl/workspace:max-w-xs">
+              <span className="truncate">Track: {trackNames[selectedTrack ?? ""] ?? selectedLap?.trackId ?? ""}</span>
+              <span className="truncate">Car: {carNames[selectedCar ?? ""] ?? selectedLap?.carId ?? ""}</span>
+            </div>
+          )}
+          <div ref={panelHeaderRef} data-replay-panel-header="" className="-mr-3 ml-auto flex min-w-0 max-w-full flex-wrap items-end justify-end" />
+        </div>
 
         {noteOpen && (
           <NoteModal

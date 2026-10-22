@@ -1,10 +1,10 @@
 import { FOCUS_MODES, type SpectateFocus, type SpectateFocusMode } from "./spectate-focus";
-import { Gauge, Scale, SlidersHorizontal, Zap } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./host"
+import { Gauge, Scale, SlidersHorizontal, Zap, CircleGauge } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, useMessages } from "./host"
 
 const FOCUS_ICONS = { inputs: SlidersHorizontal, ers: Zap, balance: Scale, speed: Gauge };
 
-export function SpectateFocusToolbar({ focus, onChange }: { focus: SpectateFocus; onChange: (mode: SpectateFocusMode) => void }) {
+export function SpectateFocusToolbar({ focus, onChange, tirePanelOpen, onTirePanelOpenChange, single = false }: { focus: SpectateFocus; onChange: (mode: SpectateFocusMode) => void; tirePanelOpen?: boolean; onTirePanelOpenChange?: (open: boolean) => void; single?: boolean }) { const m = useMessages();
   return (
     <TooltipProvider delay={0}>
       <div role="toolbar" aria-label="Focus mode" aria-orientation="vertical"
@@ -22,6 +22,13 @@ export function SpectateFocusToolbar({ focus, onChange }: { focus: SpectateFocus
           </Tooltip>
         );
       })}
+      {onTirePanelOpenChange && <Tooltip>
+        <TooltipTrigger render={<button type="button" data-tire-panel-toggle="" role="switch" aria-label={m.label_tires()} aria-checked={!!tirePanelOpen} aria-expanded={!!tirePanelOpen} onClick={() => onTirePanelOpenChange(!tirePanelOpen)}
+          className={`flex size-7 items-center justify-center border p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent ${tirePanelOpen ? "border-app-accent bg-app-accent/10 text-app-accent" : "border-transparent text-app-text-secondary hover:text-app-accent"}`} />}>
+          <CircleGauge size={16} aria-hidden="true" />
+        </TooltipTrigger>
+        <TooltipContent role="tooltip" side="right">{m.label_tires()}</TooltipContent>
+      </Tooltip>}
       <div role="group" aria-label="Line color legend"
         className="pointer-events-none absolute right-full top-0 mr-2 flex w-max max-w-[calc(100vw-5rem)] flex-col gap-1 rounded-sm border border-app-border bg-app-surface/95 p-2 text-app-caption text-app-text-secondary opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 motion-reduce:transition-none">
         <strong className="text-app-text">Focus · {FOCUS_MODES.find(({ mode }) => mode === focus.mode)?.label}</strong>
@@ -30,8 +37,8 @@ export function SpectateFocusToolbar({ focus, onChange }: { focus: SpectateFocus
             <i aria-hidden="true" className="h-0.5 w-3" style={{ background: `var(${token})` }} />{label}
           </span>
         ))}
-        <span className="whitespace-nowrap">Track: A left · B right</span>
-        <span className="whitespace-nowrap">Overview: A ━ · B ┄</span>
+        {!single && <><span className="whitespace-nowrap">Track: A left · B right</span>
+        <span className="whitespace-nowrap">Overview: A ━ · B ┄</span></>}
       </div>
     </div>
     </TooltipProvider>

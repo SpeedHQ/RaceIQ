@@ -2,10 +2,10 @@ import { severityRangeColor } from "@raceiq/scene-3d/colors";
 import type { ReplayLineSpread as LineSpreadTrace } from "../contracts/host"
 import { useMessages } from "./host"
 import { useSyncExternalStore } from "react";
-import type { SpectateController, SpectatePair } from "../contracts/spectate";
+import type { SpectateController, ReplaySession } from "../contracts/spectate";
 import { windowLineSpread } from "./spectate-line-spread";
 
-export function SpectateLineScore({ trace, pair, controller }: { trace: LineSpreadTrace | null | undefined; pair: SpectatePair; controller: SpectateController }) { const m = useMessages(); const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
+export function SpectateLineScore({ trace, pair, controller }: { trace: LineSpreadTrace | null | undefined; pair: ReplaySession; controller: SpectateController }) { const m = useMessages(); const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
 const start = controller.sample(Math.max(0, snapshot.time - 1)).a?.distance;
 const end = snapshot.a?.distance;
 const spread = start == null || end == null || !(pair.a.distance > 0) || !pair.a.hasProgress || snapshot.time > pair.a.duration

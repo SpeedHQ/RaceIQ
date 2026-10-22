@@ -335,58 +335,6 @@ test("Compare toolbar controls telemetry and AI across both views", async ({ pag
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
-test("Spectate telemetry resizes from its left edge with AI open or closed", async ({ page, request }, testInfo) => {
-  const pair = await getDistinctPair(request, "fm-2023");
-  await page.setViewportSize({ width: 1600, height: 1000 });
-  await page.goto(`/fm23/compare?${compareQuery(pair)}&view=spectate`);
-  const split = page.getByRole("button", { name: "Split recordings", exact: true });
-  await expect(page.locator("[data-spectate-view]").or(split)).toBeVisible();
-  if (await split.isVisible()) await split.click();
-  await page.getByRole("button", { name: "Car layout", exact: true }).click();
-  const view = page.locator("[data-spectate-view]");
-  const separator = page.getByRole("separator", { name: "Resize telemetry panel" });
-  const ai = page.getByRole("button", { name: "AI Analysis", exact: true });
-  const telemetryPanel = view.locator("aside > section").first();
-  const bounds = async (locator: typeof separator) => {
-    const box = await locator.boundingBox();
-    if (!box) throw new Error("Spectate panel has no layout");
-    return box;
-  };
-  await expect(separator).toBeVisible();
-  for (const aiOpen of [false, true]) {
-    if (aiOpen) await ai.click();
-    await expect(ai).toHaveAttribute("aria-pressed", String(aiOpen));
-    await separator.press("ArrowRight");
-    await expect.poll(async () => (await bounds(telemetryPanel)).width).toBe(290);
-    await view.locator("aside").evaluate(async (element) => {
-      await Promise.all(element.getAnimations().map((animation) => animation.finished));
-    });
-    const before = await bounds(telemetryPanel);
-    const aiBefore = aiOpen ? await bounds(view.locator("aside > section").last()) : null;
-    const handle = await bounds(separator);
-    const x = handle.x + handle.width / 2;
-    const y = handle.y + handle.height / 2;
-    await page.mouse.move(x, y);
-    await page.mouse.down();
-    await page.mouse.move(x - 60, y, { steps: 6 });
-    await expect(separator).toHaveAttribute("aria-valuenow", "350");
-    await expect.poll(async () => Math.round((await bounds(telemetryPanel)).x)).toBe(Math.round(before.x - 60));
-    await page.mouse.up();
-    await expect(separator).toHaveAttribute("aria-valuenow", "350");
-    await expect.poll(async () => Math.round((await bounds(telemetryPanel)).x)).toBe(Math.round(before.x - 60));
-    const after = await bounds(telemetryPanel);
-    expect(Math.abs(after.x + after.width - before.x - before.width)).toBeLessThan(2);
-    if (aiBefore) {
-      const aiAfter = await bounds(view.locator("aside > section").last());
-      expect(Math.abs(aiAfter.width - aiBefore.width)).toBeLessThan(2);
-      expect(Math.abs(aiAfter.x - aiBefore.x)).toBeLessThan(2);
-    }
-    await separator.press("ArrowRight");
-    await separator.press("ArrowRight");
-    await expect(separator).toHaveAttribute("aria-valuenow", "310");
-  }
-  await page.screenshot({ path: testInfo.outputPath("spectate-resize-ai-open.png"), animations: "disabled" });
-});
 
 test("Spectate categories filter channels and browser remembers the selected time window", async ({ page, request }) => {
   test.setTimeout(140_000);
@@ -500,4 +448,100 @@ test("F1 Spectate displays recorded string enum modes and keeps locked B motion 
   await seek.scrollIntoViewIfNeeded();
   await expect(seek).toBeInViewport();
   await page.screenshot({ path: testInfo.outputPath("f1-spectate-narrow.png"), fullPage: true, animations: "disabled" });
+});
+
+test("3D toggle preferences persist across reloads and Replay/Spectate navigation", async ({ page, request }, testInfo) => {
+  test.setTimeout(180_000);
+  const pair = await getDistinctPair(request, "fm-2023");
+  const replayUrl = `/fm23/sessions/${pair.lapA.sessionId}/replay/${pair.lapA.id}`;
+  const compareUrl = `/fm23/compare?${compareQuery(pair)}&view=spectate`;
+  const scene = page.locator("[data-spectate-scene]");
+  const canvas = scene.locator("canvas").first();
+  const model = scene.locator("[data-spectate-car-model-toggle]");
+  const split = page.getByRole("button", { name: "Split recordings", exact: true });
+  await page.addLocatorHandler(split, () => split.click());
+  const ready = async () => {
+    await expect(scene).toHaveAttribute("data-scene-ready", "true");
+    const open = await page.locator('[data-panel-toggle][aria-expanded="true"]').evaluateAll((buttons) =>
+      buttons.map((button) => button.getAttribute("data-panel-toggle")!));
+    for (const id of open) await page.locator(`[data-panel-toggle="${id}"]`).click();
+  };
+  const restored = async (single: boolean, mode: string) => {
+    await ready();
+    await expect(model).toHaveAttribute("data-car-model-mode", mode);
+    await expect(canvas).toHaveAttribute("data-car-model-mode", mode);
+    await expect(scene.getByRole("switch", { name: "Circuit overview", exact: true })).toHaveAttribute("aria-checked", "false");
+    await expect(page.getByRole("region", { name: "Circuit overview", exact: true })).toHaveCount(0);
+    await expect(scene.getByRole("switch", { name: single ? "Follow" : "Follow car A direction", exact: true })).toHaveAttribute("aria-checked", "true");
+    await expect(scene.getByRole("switch", { name: "Tire Info", exact: true })).toHaveAttribute("aria-checked", "true");
+    await expect(scene.getByRole("switch", { name: /tire trails/i })).toHaveAttribute("aria-checked", "true");
+    await expect(scene.getByRole("switch", { name: "Racing line", exact: true })).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByRole("toolbar", { name: "Focus mode", exact: true }).getByRole("button", { name: "Speed", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(canvas).toHaveAttribute("data-focus-mode", "speed");
+  };
+  await page.goto(replayUrl);
+  await ready();
+  await model.click();
+  await model.click();
+  await scene.getByRole("switch", { name: "Circuit overview", exact: true }).click();
+  await scene.getByRole("switch", { name: "Follow", exact: true }).click();
+  await scene.getByRole("switch", { name: "Tire Info", exact: true }).click();
+  await scene.getByRole("switch", { name: /tire trails/i }).click();
+  await scene.getByRole("switch", { name: "Racing line", exact: true }).click();
+  await page.getByRole("toolbar", { name: "Focus mode", exact: true }).getByRole("button", { name: "Speed", exact: true }).click();
+  await expect(canvas).toHaveAttribute("data-focus-mode", "speed");
+  await page.reload();
+  await restored(true, "wire");
+  await page.goto(compareUrl);
+  await restored(false, "wire");
+  const positionLock = scene.getByRole("switch", { name: "Lock cars to same track position", exact: true });
+  await expect(positionLock).toHaveAttribute("aria-checked", "true");
+  await positionLock.click();
+  await expect(positionLock).toHaveAttribute("aria-checked", "false");
+  await model.click();
+  await model.click();
+  await expect(canvas).toHaveAttribute("data-car-model-mode", "hidden");
+  await page.reload();
+  await restored(false, "hidden");
+  await expect(positionLock).toHaveAttribute("aria-checked", "false");
+  await page.goto(replayUrl);
+  await restored(true, "hidden");
+  await page.goto(compareUrl);
+  await restored(false, "hidden");
+  await expect(positionLock).toHaveAttribute("aria-checked", "false");
+  for (let step = 0; step < 32 && await canvas.getAttribute("data-native-view-visible") !== "true"; step++) {
+    const box = (await canvas.boundingBox())!;
+    await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.45);
+    await page.mouse.wheel(0, -360);
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  }
+  for (const side of ["a", "b"]) {
+    await expect(canvas).toHaveAttribute(`data-${side}-car-visible`, "false");
+    await expect(canvas).toHaveAttribute(`data-${side}-chassis-visible`, "true");
+    await expect(canvas).toHaveAttribute(`data-${side}-tire-info-visible-count`, "4");
+  }
+  await page.screenshot({ path: testInfo.outputPath("persisted-3d-toggle-settings.png"), animations: "disabled" });
+});
+
+test("3D toggle preferences recover from invalid stored modes", async ({ page, request }) => {
+  const pair = await getDistinctPair(request, "fm-2023");
+  await page.goto(`/fm23/sessions/${pair.lapA.sessionId}/replay/${pair.lapA.id}`);
+  await expect(page.locator("[data-replay-scene]")).toHaveAttribute("data-scene-ready", "true");
+  await page.evaluate(() => {
+    localStorage.setItem("spectate-car-model-mode", '{"invalid":true}');
+    localStorage.setItem("spectate-focus-mode", "future-mode");
+    localStorage.setItem("spectate-tire-info", "invalid");
+  });
+  await page.reload();
+  const scene = page.locator("[data-replay-scene]");
+  await expect(scene).toHaveAttribute("data-scene-ready", "true");
+  const model = scene.locator("[data-spectate-car-model-toggle]");
+  await expect(model).toHaveAttribute("data-car-model-mode", "solid");
+  await expect(scene.getByRole("switch", { name: "Tire Info", exact: true })).toHaveAttribute("aria-checked", "false");
+  await expect(page.getByRole("toolbar", { name: "Focus mode", exact: true }).getByRole("button", { name: "Inputs", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await model.click();
+  await expect(scene.locator("canvas").first()).toHaveAttribute("data-car-model-mode", "hidden");
+  await page.reload();
+  await expect(model).toHaveAttribute("data-car-model-mode", "hidden");
+  await expect(scene.locator("canvas").first()).toHaveAttribute("data-car-model-mode", "hidden");
 });

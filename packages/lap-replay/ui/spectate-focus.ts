@@ -2,7 +2,7 @@ import { resolveBalance } from "@raceiq/analysis-core/racing/analysis/metric-val
 import { getGame } from "@raceiq/shared/games/registry";
 import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities";
 import { controlInputPercent } from "@raceiq/scene-3d/vehicle-dynamics";
-import type { SpectatePair, SpectateSample } from "../contracts/spectate";
+import type { ReplaySession, SpectateSample } from "../contracts/spectate";
 
 export type SpectateFocusMode = "inputs" | "ers" | "balance" | "speed";
 export interface FocusLegendEntry { label: string; token: string }
@@ -34,7 +34,7 @@ function numeric(sample: SpectateSample, id: string): number | null {
 }
 
 /** One classifier and scale for both lap traces and both renderers. */
-export function buildSpectateFocus(pair: SpectatePair, mode: SpectateFocusMode): SpectateFocus {
+export function buildSpectateFocus(pair: ReplaySession, mode: SpectateFocusMode): SpectateFocus {
   if (mode === "inputs") return { mode, legend: inputLegend, color: inputFocusColor };
   if (mode === "ers") {
     const legend = [
@@ -62,7 +62,7 @@ export function buildSpectateFocus(pair: SpectatePair, mode: SpectateFocusMode):
     } };
   }
   let maximum = 0;
-  for (const lap of [pair.a, pair.b]) for (const sample of lap.samples) {
+  for (const lap of [pair.a, ...(pair.b ? [pair.b] : [])]) for (const sample of lap.samples) {
     const speed = numeric(sample, "motion.speed");
     if (speed !== null) maximum = Math.max(maximum, speed);
   }

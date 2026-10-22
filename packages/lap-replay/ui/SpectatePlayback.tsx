@@ -1,12 +1,12 @@
 import { useMemo, useSyncExternalStore } from "react";
 import { Pause, Play } from "lucide-react";
 import { useMessages } from "./host"
-import type { SpectateController, SpectatePair } from "../contracts/spectate";
+import type { SpectateController, ReplaySession } from "../contracts/spectate";
 function stamp(seconds: number) {
   const minutes = Math.floor(seconds / 60);
   return `${String(minutes).padStart(2, "0")}:${(seconds - minutes * 60).toFixed(3).padStart(6, "0")}`;
 }
-export function SpectatePlayback({ controller, pair }: { controller: SpectateController; pair: SpectatePair }) { const m = useMessages(); const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
+export function SpectatePlayback({ controller, pair }: { controller: SpectateController; pair: ReplaySession }) { const m = useMessages(); const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
 const duration = Number.isFinite(snapshot.duration) ? Math.max(0, snapshot.duration) : 0;
 const time = Math.max(0, Math.min(duration, snapshot.time));
 // The replay clock always follows A's elapsed time, including position-lock mode.
@@ -17,8 +17,8 @@ const sectors = useMemo(() => {
   return times.map((seconds, index) => {
     const start = elapsed;
     elapsed += seconds;
-    const other = pair.comparison.lapB.sectorTimes?.[index];
-    const delta = other != null && Number.isFinite(other) && other > 0 ? Math.round((seconds - other) * 1000) / 1000 : null;
+    const other = pair.comparison.lapB?.sectorTimes?.[index];
+    const delta = pair.b && other != null && Number.isFinite(other) && other > 0 ? Math.round((seconds - other) * 1000) / 1000 : null;
     return { sector: index + 1, start, time: elapsed, seconds, delta };
   });
 }, [pair]);
@@ -62,8 +62,8 @@ return (
           type="button"
           data-sector-split={split.sector}
           data-split-time={split.time}
-          title={`S${split.sector} · ${stamp(split.time)} (A)`}
-          aria-label={`S${split.sector} · ${stamp(split.time)} (A)`}
+          title={`S${split.sector} · ${stamp(split.time)}${pair.b ? " (A)" : ""}`}
+          aria-label={`S${split.sector} · ${stamp(split.time)}${pair.b ? " (A)" : ""}`}
           onClick={() => controller.scrub(split.time)}
           className="absolute top-5 flex h-3 w-4 -translate-x-1/2 items-start justify-center text-app-label tabular-nums text-app-text-secondary hover:text-app-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent"
           style={{ left: `calc(8px + (100% - 16px) * ${split.time / duration})` }}

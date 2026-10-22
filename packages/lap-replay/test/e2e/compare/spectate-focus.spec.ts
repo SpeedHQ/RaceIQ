@@ -22,10 +22,12 @@ for (const gameId of ["fm-2023", "f1-2025"] as const) {
     }
     const canvas = scene.locator("canvas").first();
     const modelToggle = scene.locator("[data-spectate-car-model-toggle]");
+    await expect(modelToggle).toHaveCount(1);
     await expect(modelToggle).toHaveAttribute("data-car-model-mode", "solid");
     for (const mode of ["hidden", "wire", "solid"]) {
       await modelToggle.click();
       await expect(modelToggle).toHaveAttribute("data-car-model-mode", mode);
+      await expect(canvas).toHaveAttribute("data-car-model-mode", mode);
     }
     if (gameId === "f1-2025") {
       const zoomIndicator = scene.locator("[data-spectate-zoom-indicator]");
@@ -38,9 +40,10 @@ for (const gameId of ["fm-2023", "f1-2025"] as const) {
     }
     await canvas.evaluate((node) => {
       const data = (node as HTMLCanvasElement).dataset;
-      const evidence = { transitions: [] as string[], violations: [] as string[] };
+      const evidence = { transitions: [] as string[], violations: [] as string[], checkingModelModes: false };
       let lastFrame: string | undefined;
       const observeFrame = () => {
+        if (evidence.checkingModelModes) return;
         if (!data.renderCount || data.renderCount === lastFrame) return;
         lastFrame = data.renderCount;
         const layout = data.lineLayout;
@@ -138,6 +141,24 @@ for (const gameId of ["fm-2023", "f1-2025"] as const) {
       for (const side of ["a", "b"]) await expect(canvas).toHaveAttribute(`data-${side}-car-visible`, "true");
       await expect(clock).toHaveAttribute("data-time", initialTime!);
       await page.screenshot({ path: testInfo.outputPath("focus-lanes-near.png"), animations: "disabled" });
+      await canvas.evaluate((node) => { Reflect.get(node, "zoomTransitionEvidence").checkingModelModes = true; });
+      for (const mode of ["hidden", "wire", "solid"]) {
+        await modelToggle.click();
+        for (const side of ["a", "b"]) {
+          await expect(canvas).toHaveAttribute(`data-${side}-car-visible`, String(mode !== "hidden"));
+          await expect(canvas).toHaveAttribute(`data-${side}-chassis-visible`, String(mode !== "solid"));
+          await expect(canvas).toHaveAttribute(`data-${side}-wheel-visible-count`, "4");
+        }
+        await page.screenshot({ path: testInfo.outputPath(`compare-native-${mode}-chassis.png`), animations: "disabled" });
+      }
+      const tireInfo = scene.getByRole("switch", { name: "Tire Info", exact: true });
+      await tireInfo.click();
+      await expect(tireInfo).toHaveAttribute("aria-checked", "true");
+      for (const side of ["a", "b"]) await expect(canvas).toHaveAttribute(`data-${side}-tire-info-visible-count`, "4");
+      await page.screenshot({ path: testInfo.outputPath("compare-native-tire-info.png"), animations: "disabled" });
+      await tireInfo.click();
+      for (const side of ["a", "b"]) await expect(canvas).toHaveAttribute(`data-${side}-tire-info-visible-count`, "0");
+      await canvas.evaluate((node) => { Reflect.get(node, "zoomTransitionEvidence").checkingModelModes = false; });
       await zoomUntil(360, "schematic");
       await expect(canvas).toHaveAttribute("data-native-view-visible", "false");
       for (const side of ["a", "b"]) {
@@ -167,6 +188,8 @@ for (const gameId of ["fm-2023", "f1-2025"] as const) {
     await carPanel.focus();
     await page.keyboard.press("Enter");
     await expect(carPanel).toHaveAttribute("aria-pressed", "true");
+    await carPanel.click();
+    await expect(carPanel).toHaveAttribute("aria-pressed", "false");
     await toolbar.getByRole("button", { name: "Speed", exact: true }).click();
     await expect(toolbar.getByRole("button", { name: "Speed", exact: true })).toHaveAttribute("aria-pressed", "true");
     for (const name of ["Inputs", "Balance", "Speed", "ERS mode"]) {
@@ -191,7 +214,7 @@ for (const gameId of ["fm-2023", "f1-2025"] as const) {
 for (const gameId of ["f1-2025", "fm-2023"] as const) {
   const game = SEEDED_GAME_CASES.find((candidate) => candidate.gameId === gameId);
   if (!game) throw new Error(`Fuel telemetry acceptance requires ${gameId}`);
-  test(`${gameId} Fuel tab shows ERS mode chart only when channel exists`, async ({ page, request }) => {
+  test(`${gameId} Fuel tab shows stable ERS mode bands only when channel exists`, async ({ page, request }, testInfo) => {
     const pair = await getDistinctPair(request, gameId);
     await page.goto(`/${game.prefix}/compare?${compareQuery(pair)}&view=spectate`, { waitUntil: "domcontentloaded" });
     const split = page.getByRole("button", { name: "Split recordings", exact: true });
@@ -205,7 +228,36 @@ for (const gameId of ["f1-2025", "fm-2023"] as const) {
       await fuel.click();
       const chart = page.locator('[data-channel-id="fuel.ers-deploy-mode"]');
       await expect(chart).toBeVisible();
-      await expect(chart.locator("canvas")).toHaveAttribute("width", /^[1-9]\d*$/);
+      const checkHotlapPlayback = async (name: string) => {
+        const graphic = chart.getByRole("img");
+        await page.getByRole("slider", { name: "Replay position", exact: true }).fill("30");
+        await expect(graphic).toHaveAttribute("data-current-a", "2");
+        const band = chart.locator('rect[data-ers-side="a"][data-ers-mode="2"]');
+        await expect(band).toHaveCount(1);
+        await expect(band).toBeVisible();
+        await page.getByRole("button", { name: "Play replay", exact: true }).click();
+        const evidence = await band.evaluate(async (node) => {
+          const failures: string[] = [];
+          for (let frame = 0; frame < 60; frame++) {
+            await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+            const band = node.getBoundingClientRect(), plot = (node as SVGRectElement).ownerSVGElement!.getBoundingClientRect();
+            const overlap = Math.min(band.right, plot.right) - Math.max(band.left, plot.left);
+            if (!node.isConnected || plot.width <= 0 || overlap < plot.width * 0.95) failures.push(`frame ${frame}: band missing or clipped`);
+          }
+          return failures;
+        });
+        await page.getByRole("button", { name: "Pause replay", exact: true }).click();
+        expect(evidence).toEqual([]);
+        await expect(graphic).toHaveAttribute("data-current-a", "2");
+        await expect.poll(async () => Number(await page.locator("[data-spectate-playback]").getAttribute("data-time"))).toBeGreaterThan(30.25);
+        await chart.screenshot({ path: testInfo.outputPath(`${name}-ers-hotlap.png`) });
+      };
+      await checkHotlapPlayback("spectate");
+      await page.goto(`/${game.prefix}/sessions/${pair.lapA.sessionId}/replay/${pair.lapA.id}`);
+      await page.locator('[data-panel-toggle="replay-telemetry-panel"]').click();
+      await page.getByRole("tab", { name: "Fuel", exact: true }).click();
+      await checkHotlapPlayback("replay");
+      expect(await chart.getByRole("img").getAttribute("data-current-b")).toBeNull();
     } else if (await fuel.count()) {
       await fuel.click();
       await expect(page.locator('[data-channel-id="fuel.ers-deploy-mode"]')).toHaveCount(0);

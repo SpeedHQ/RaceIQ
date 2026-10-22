@@ -2,7 +2,6 @@ import type { ComparisonData } from "@raceiq/shared/racing/comparison/types";
 import type { SemanticLapTelemetry, SemanticReplayFrame } from "../contracts/replay"
 import { hasTelemetryGap } from "./telemetry-gap"
 import type { SpectateController, SpectateLap, SpectatePose, SpectateReading, SpectateSample, SpectateSnapshot } from "../contracts/spectate";
-
 const SEGMENT_SEEK_DURATION_MS = 1200;
 const number = (value: unknown): number | null => (typeof value === "number" && Number.isFinite(value) ? value : null);
 const validEntry = (value: SemanticReplayFrame["values"][number]) => (value.state == null || value.state === "ok") && (value.freshness == null || value.freshness === "fresh");
@@ -34,22 +33,22 @@ function lowerBound<T>(items: readonly T[], target: number, value: (item: T) => 
   return lo;
 }
 
-/** Register native samples to their own aligned path without moving recorded poses. */
-export function prepareSpectateLap(replay: SemanticLapTelemetry, comparison: ComparisonData, side: "a" | "b"): SpectateLap {
-  const traces = comparison.traces;
-  const elapsed = side === "a" ? traces.elapsedTimeA : traces.elapsedTimeB;
+/** Register native samples to aligned comparison path when supplied. */
+export function prepareSpectateLap(replay: SemanticLapTelemetry, comparison?: ComparisonData, side: "a" | "b" = "a"): SpectateLap {
+  const traces = comparison?.traces;
+  const elapsed = traces ? (side === "a" ? traces.elapsedTimeA : traces.elapsedTimeB) : [];
   const aligned: Array<{ time: number; distance: number; first: number; last: number }> = [];
   for (let index = 0; index < elapsed.length; index++) {
     const time = elapsed[index]!,
-      distance = traces.distance[index]!;
+      distance = traces!.distance[index]!;
     if (!Number.isFinite(time) || !Number.isFinite(distance)) continue;
     const previous = aligned.at(-1);
     if (!previous || time > previous.time) aligned.push({ time, distance, first: index, last: index });
     else if (time === previous.time) previous.last = index;
   }
-  const positionX = side === "a" ? traces.positionXA : traces.positionXB;
-  const positionZ = side === "a" ? traces.positionZA : traces.positionZB;
-  const hasAlignedPath = positionX?.length === traces.distance.length && positionZ?.length === traces.distance.length;
+  const positionX = traces ? (side === "a" ? traces.positionXA : traces.positionXB) : undefined;
+  const positionZ = traces ? (side === "a" ? traces.positionZA : traces.positionZB) : undefined;
+  const hasAlignedPath = !!traces && positionX?.length === traces.distance.length && positionZ?.length === traces.distance.length;
   const projectDistance = (time: number, index: number, x: number, z: number): number | null => {
     if (!hasAlignedPath || aligned.length < 2) return null;
     let first = Math.max(0, Math.min(aligned.length - 2, index - 1));
@@ -120,13 +119,11 @@ export function prepareSpectateLap(replay: SemanticLapTelemetry, comparison: Com
     const traveled = number(values["timing.distance-traveled"]);
     let distance = NaN;
     const index = lowerBound(aligned, time, (point) => point.time);
-    const exact = aligned[index],
-      before = aligned[index - 1];
-    if (exact?.time === time) distance = exact.distance;
-    else if (before && exact) distance = before.distance + ((exact.distance - before.distance) * (time - before.time)) / (exact.time - before.time);
+    const exact = aligned[index], before = aligned[index - 1];
+    if (traces && exact?.time === time) distance = exact.distance;
+    else if (traces && before && exact) distance = before.distance + ((exact.distance - before.distance) * (time - before.time)) / (exact.time - before.time);
     else if (aligned.length < 2 && traveled !== null) {
-      // Retain a native distance readout, but it cannot establish shared track progress.
-      traveledOrigin ??= traveled;
+      if (traveledOrigin === null) traveledOrigin = traveled;
       distance = traveled - traveledOrigin;
     }
     const x = number(values["motion.position-x"]), z = number(values["motion.position-z"]);
@@ -147,14 +144,15 @@ export function prepareSpectateLap(replay: SemanticLapTelemetry, comparison: Com
   }) : undefined;
   let lastDistance = -Infinity,
     progressCount = 0,
-    monotonic = true;
+    monotonic = true,
+    trustworthy = true;
   for (const sample of motionSamples ?? samples) {
-    if (!Number.isFinite(sample.distance)) continue;
+    if (!Number.isFinite(sample.distance)) { trustworthy = false; continue; }
     if (sample.distance < lastDistance - 0.01) monotonic = false;
     if (sample.distance > lastDistance) progressCount++;
     lastDistance = sample.distance;
   }
-  return { samples, motionSamples, duration: samples.at(-1)?.time ?? 0, distance: maxDistance, hasProgress: aligned.length > 1 && monotonic && progressCount > 1, replay };
+  return { samples, motionSamples, duration: samples.at(-1)?.time ?? 0, distance: maxDistance, hasProgress: monotonic && progressCount > 1 && (traces ? aligned.length > 1 : trustworthy), replay };
 }
 
 function poseOf(values: Readonly<Record<string, unknown>>): SpectatePose | null {
@@ -233,14 +231,14 @@ function arrivalAt(index: readonly SpectateSample[], distance: number): number |
 }
 
 /** One demand-driven driver owns clock, transition, play intent, and subscribers. */
-export function createSpectateController(a: SpectateLap, b: SpectateLap, initialDistance?: number, fpsCap: number | (() => number) = 30): SpectateController {
-  const duration = Math.max(a.duration, b.duration),
+export function createSpectateController(a: SpectateLap, b: SpectateLap | null, initialDistance?: number, fpsCap: number | (() => number) = 30): SpectateController {
+  const duration = Math.max(a.duration, b?.duration ?? 0),
     listeners = new Set<() => void>();
   const aProgress = progressIndex(a),
-    bProgress = progressIndex(b);
-  const canLock = a.hasProgress && b.hasProgress;
-  let time = initialDistance == null ? 0 : (arrivalAt(aProgress, initialDistance) ?? 0);
-  let playing = false,
+    bProgress = b ? progressIndex(b) : [];
+  const canLock = !!b && a.hasProgress && b.hasProgress;
+  let time = initialDistance == null ? 0 : (arrivalAt(aProgress, initialDistance) ?? 0),
+    playing = false,
     speed = 1,
     positionLock = canLock,
     active = false,
@@ -253,6 +251,7 @@ export function createSpectateController(a: SpectateLap, b: SpectateLap, initial
   const read = (target: number, holdPose = true) => {
     const ra = sampleLap(a, target, holdPose);
     if (ra && a.motionSamples) Object.assign(ra, sampleMotion(a.motionSamples, target, holdPose));
+    if (!b) return { a: ra, b: null };
     if (!positionLock) {
       const rb = sampleLap(b, target, holdPose);
       if (rb && b.motionSamples) Object.assign(rb, sampleMotion(b.motionSamples, target, holdPose));
@@ -367,9 +366,9 @@ export function createSpectateController(a: SpectateLap, b: SpectateLap, initial
     },
     seekFrame: (side, frameIndex) => {
       const lap = side === "a" ? a : b;
+      if (!lap) return;
       const frame = lap.replay.envelopes[frameIndex];
       if (!frame || lap.samples.length === 0 || disposed) return;
-      // Coalesced ticks retain the later envelope; excluded tail events clamp to the last retained tick.
       const index = lowerBound(lap.samples, frame.sequence, (sample) => sample.frame?.sequence ?? Infinity);
       const sample = lap.samples[Math.min(index, lap.samples.length - 1)]!;
       let target = sample.time;

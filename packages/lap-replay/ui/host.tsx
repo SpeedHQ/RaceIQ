@@ -14,6 +14,7 @@ export function useReplayHost(): ReplayHost {
 export function useMessages() { return useReplayHost().m; }
 export function useSettings() { return useReplayHost().useSettings(); }
 export function useUnits(gameId?: GameId) { return useReplayHost().useUnits(gameId); }
+export function useTirePressureOptimal(gameId: GameId, carId: string | undefined, enabled: boolean) { return useReplayHost().useTirePressureOptimal(gameId, carId, enabled); }
 export function useLocalStorage<T>(key: string, fallback: T) { return useReplayHost().useLocalStorage(key, fallback); }
 export function useLapSemanticTelemetry(id: number | null) { return useReplayHost().useLapSemanticTelemetry(id); }
 export function useCompareLineSpread(gameId: GameId, lapIds: readonly number[]) { return useReplayHost().useCompareLineSpread(gameId, lapIds); }

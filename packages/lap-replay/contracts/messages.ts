@@ -10,11 +10,20 @@ export interface ReplayMessages {
   analyse_suspension_left: () => string;
   analyse_tab_data: () => string;
   analyse_tab_insights: () => string;
+  analyse_no_segment_data: () => string;
+  overlay_segments: () => string;
   analyse_unavailable: () => string;
   analyse_wheels_wear_s: () => string;
   carwire_hidden: () => string;
   carwire_solid: () => string;
   carwire_wire: () => string;
+  carwire_tire_info: () => string;
+  label_inner: () => string;
+  label_middle: () => string;
+  label_outer: () => string;
+  label_core: () => string;
+  label_carcass: () => string;
+  label_surface: () => string;
   chart_suspension: () => string;
   compare_lap_label: () => string;
   compare_loading: () => string;
@@ -39,6 +48,7 @@ export interface ReplayMessages {
   label_fuel: () => string;
   label_tires: () => string;
   overlay_inputs: () => string;
+  overlay_follow: () => string;
   overlay_racing_line: () => string;
   review_range: () => string;
   spectate_b_sampled_at_time: (input: { time: string }) => string;
@@ -73,6 +83,7 @@ export interface ReplayMessages {
   spectate_replay_failed: () => string;
   spectate_replay_unavailable: () => string;
   spectate_resize_panel: () => string;
+  spectate_resize_between: (input: { left: string; right: string }) => string;
   spectate_retry: () => string;
   spectate_scene_error: (input: { detail: string }) => string;
   spectate_scene_loading: () => string;

@@ -163,7 +163,7 @@ for (const gameId of requiredGames) {
     await expect(replayClock).toHaveAttribute("data-playing", "false");
     await page.emulateMedia({ reducedMotion: "no-preference" });
 
-    const separator = page.getByRole("separator", { name: "Resize telemetry panel" });
+    const separator = page.getByRole("separator", { name: "Resize panels", exact: true });
     const widthBefore = Number(await body.getAttribute("data-panel-width"));
     await separator.focus();
     await separator.press("ArrowLeft");

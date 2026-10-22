@@ -13,6 +13,7 @@ import { useUnits } from "@/hooks/useUnits";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useLapSemanticTelemetry, useCompareLineSpread } from "@/hooks/laps";
 import { useTrackBoundaries } from "@/hooks/track-queries";
+import { useTirePressureOptimal } from "@/hooks/catalog-queries";
 import { loadCarModelConfigs } from "@/data/car-models";
 import { resolveCarModelSelection } from "@/components/wireframe/resolve-car-model";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
@@ -28,7 +29,7 @@ const host: ReplayHost = {
   m, Button, Tabs, TabsContent, TabsList, TabsTrigger,
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
   LoadingIndicator, TireDiagram, DataContent: ReplayDataContent, CompareAiPanel,
-  useSettings, useUnits, useLocalStorage, useLapSemanticTelemetry, useCompareLineSpread, useTrackBoundaries,
+  useSettings, useUnits, useLocalStorage, useLapSemanticTelemetry, useCompareLineSpread, useTrackBoundaries, useTirePressureOptimal,
   getLocale, formatLapTime, syncCanvasSize,
   models: { loadCarModelConfigs, resolveCarModelSelection },
 };
