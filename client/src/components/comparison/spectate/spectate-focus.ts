@@ -2,6 +2,7 @@ import { resolveBalance } from "@raceiq/analysis-core/racing/analysis/metric-val
 import { getGame } from "@raceiq/shared/games/registry";
 import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities";
 import { controlInputPercent } from "@raceiq/scene-3d/vehicle-dynamics";
+import { spectateSamplePosition } from "../../../lib/spectate-replay";
 import type { SpectatePair, SpectateSample } from "./types";
 
 export type SpectateFocusMode = "inputs" | "ers" | "balance" | "speed";
@@ -84,16 +85,18 @@ export function focusRuns(samples: readonly SpectateSample[], focus: SpectateFoc
   let previous: SpectateSample | null = null;
   let run: (typeof runs)[number] | null = null;
   for (const sample of samples) {
-    const x = numeric(sample, "motion.position-x"), z = numeric(sample, "motion.position-z");
-    if (x === null || z === null) { previous = null; run = null; continue; }
+    const pose = spectateSamplePosition(sample);
+    if (!pose) { previous = null; run = null; continue; }
     const connected = previous && previous.run === sample.run && sample.time >= previous.time && sample.time - previous.time <= 0.1;
     if (previous && connected) {
       const token = focus.color(sample);
       if (!run || run.token !== token) {
-        run = { token, points: [{ x: previous.values["motion.position-x"] as number, z: previous.values["motion.position-z"] as number }] };
+        const previousPose = spectateSamplePosition(previous);
+        if (!previousPose) { run = null; previous = sample; continue; }
+        run = { token, points: [{ x: previousPose.x, z: previousPose.z }] };
         runs.push(run);
       }
-      run.points.push({ x, z });
+      run.points.push({ x: pose.x, z: pose.z });
     } else run = null;
     previous = sample;
   }

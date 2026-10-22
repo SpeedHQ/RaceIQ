@@ -3,12 +3,13 @@ import type { GameId } from "@raceiq/shared/games/ids";
 import type { ComparisonData } from "@raceiq/shared/racing/comparison/types";
 import { useLapSemanticTelemetry } from "@/hooks/laps";
 import { useSettings } from "@/hooks/settings";
-import { createSpectateController, prepareSpectateLap } from "@/lib/spectate-replay";
+import { createSpectateController, placeIRacingSpectateLaps, prepareSpectateLap } from "@/lib/spectate-replay";
 import { m } from "@/paraglide/messages";
 import { Button } from "@/components/ui/button";
 import { LoadingIndicator } from "@/components/LoadingIndicator";
 import { SpectateView } from "./SpectateView";
 import type { SpectateController, SpectatePair, SpectateSegment } from "./types";
+import { useTrackOutline } from "@/hooks/track-queries";
 
 /** Kept above the conditional body: tabs preserve location, but never autoplay. */
 export function SpectateSession({
@@ -53,10 +54,14 @@ export function SpectateSession({
   }, [active]);
   const replayA = useLapSemanticTelemetry(requested ? comparison.lapA.id : null);
   const replayB = useLapSemanticTelemetry(requested ? comparison.lapB.id : null);
+  const trackGeometry = useTrackOutline(gameId === "iracing" ? comparison.lapA.trackId ?? undefined : undefined, gameId);
+  const projection = trackGeometry.data && !Array.isArray(trackGeometry.data) ? trackGeometry.data.projection ?? null : null;
   const pair = useMemo<SpectatePair | null>(() => {
     if (!replayA.data || !replayB.data) return null;
-    return { gameId, comparison, a: prepareSpectateLap(replayA.data, comparison, "a"), b: prepareSpectateLap(replayB.data, comparison, "b") };
-  }, [gameId, comparison, replayA.data, replayB.data]);
+    const prepared = [prepareSpectateLap(replayA.data, comparison, "a"), prepareSpectateLap(replayB.data, comparison, "b")] as const;
+    const [a, b] = gameId === "iracing" ? placeIRacingSpectateLaps(prepared, projection) : prepared;
+    return { gameId, comparison, a, b };
+  }, [gameId, comparison, replayA.data, replayB.data, projection]);
   const [controller, setController] = useState<SpectateController | null>(null);
   const distanceCallback = useRef(onDistanceChange);
   distanceCallback.current = onDistanceChange;

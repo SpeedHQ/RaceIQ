@@ -73,6 +73,10 @@ export function SpectateScene({ pair, controller, outline, overview, focus }: Sp
   const [sideAState, setSideAState] = useState("loading");
   const [sideBState, setSideBState] = useState("loading");
   const key = `${pair.gameId}:${pair.comparison.lapA.id}:${pair.comparison.lapB.id}`;
+  const placementA = pair.a.samples.find((sample) => sample.scenePose)?.scenePose?.source;
+  const placementB = pair.b.samples.find((sample) => sample.scenePose)?.scenePose?.source;
+  const measuredPlacement = placementA === "measured" || placementB === "measured";
+  const projectedPlacement = placementA === "lap-fraction" || placementB === "lap-fraction";
   useEffect(() => {
     setReady(false);
     setError(null);
@@ -164,6 +168,12 @@ export function SpectateScene({ pair, controller, outline, overview, focus }: Sp
         </div>
       </div>
       {overviewVisible && overview}
+      {(measuredPlacement || projectedPlacement) && (
+        <div role="status" className="pointer-events-none absolute bottom-3 right-3 z-20 max-w-sm rounded-sm border border-app-border bg-app-surface/90 p-2 text-app-label text-app-text-secondary">
+          {measuredPlacement && <p>{m.replay_track_measured()}</p>}
+          {projectedPlacement && <p>{boundaries?.leftEdge?.length ? m.replay_track_projected() : m.replay_track_bounds_unavailable()}</p>}
+        </div>
+      )}
       {ready && !error && (
         <TooltipProvider delay={0}>
           <div role="toolbar" aria-label={m.spectate_direction_lock()} aria-orientation="vertical" className="absolute left-3 top-1/2 z-30 flex -translate-y-1/2 flex-col rounded-sm border border-app-border bg-app-surface/90 p-0">

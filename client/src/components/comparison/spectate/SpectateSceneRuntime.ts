@@ -20,7 +20,7 @@ import { createTireTrailResource, updateTireTrailResource, disposeTireTrailResou
 import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import { inputFocusColor, type SpectateFocus } from "./spectate-focus";
 import { FOCUS_ZOOM_NEAR, FOCUS_ZOOM_SNAP_OUT, focusLaneWidth, focusZoomBlend, offsetFocusLane, projectFocusCenterline, sampleFocusLane, smallestAvailableModelLength, zoomIndicatorPosition, type FocusCenterPoint, type TimedFocusPoint } from "./spectate-focus-lanes";
-import { sampleMotion } from "../../../lib/spectate-replay";
+import { sampleMotion, spectateSamplePosition } from "../../../lib/spectate-replay";
 const color = (name: string) => resolveCssColor(`var(${name})`);
 type TrackPoint = { x: number; z: number };
 type TrackAlignment = NonNullable<ReturnType<typeof computeAlignment>>;
@@ -238,9 +238,8 @@ export class SpectateSceneRuntime {
     const racingLinePositions: number[] = [];
     const native: TrackPoint[] = [];
     for (const sample of this.pair.a.samples) {
-      const x = sample.values["motion.position-x"],
-        z = sample.values["motion.position-z"];
-      if (typeof x === "number" && Number.isFinite(x) && typeof z === "number" && Number.isFinite(z)) native.push({ x, z });
+      const pose = spectateSamplePosition(sample);
+      if (pose) native.push({ x: pose.x, z: pose.z });
     }
     let displayBoundaries = boundaries;
     if (displayBoundaries && needsTrackFlip(this.pair.gameId)) displayBoundaries = flipBoundaries(displayBoundaries);
@@ -332,14 +331,12 @@ export class SpectateSceneRuntime {
       if (center.length > 1) this.centerLineRuns = [center];
       const project = (lap: SpectatePair["a"], side: 0 | 1) => {
         const points = lap.samples.map((sample): FocusNativePoint => {
-          const motion = lap.motionSamples ? sampleMotion(lap.motionSamples, sample.time, true) : null;
-          const pose = motion?.pose;
-          const x = sample.values["motion.position-x"], y = sample.values["motion.position-y"], z = sample.values["motion.position-z"];
+          const pose = lap.motionSamples ? sampleMotion(lap.motionSamples, sample.time, true).pose : spectateSamplePosition(sample);
           return {
-            x: lap.motionSamples ? pose?.x ?? NaN : typeof x === "number" ? x : NaN,
-            y: lap.motionSamples ? pose?.y ?? NaN : typeof y === "number" && Number.isFinite(y) ? y : this.origin.y,
-            z: lap.motionSamples ? pose?.z ?? NaN : typeof z === "number" ? z : NaN,
-            distance: motion?.distance ?? sample.distance,
+            x: pose?.x ?? NaN,
+            y: pose?.y ?? this.origin.y,
+            z: pose?.z ?? NaN,
+            distance: sample.distance,
           };
         });
         this.focusNativePoints[side] = points;
@@ -363,11 +360,11 @@ export class SpectateSceneRuntime {
       return resolved;
     };
     const nativePoint = (sample: SpectateSample): FocusRenderPoint => {
-      const y = sample.values["motion.position-y"];
+      const pose = spectateSamplePosition(sample);
       return {
-        x: (sample.values["motion.position-x"] as number) - this.origin.x,
-        y: (typeof y === "number" && Number.isFinite(y) ? y : this.origin.y) - this.origin.y,
-        z: (sample.values["motion.position-z"] as number) - this.origin.z,
+        x: (pose?.x ?? NaN) - this.origin.x,
+        y: (pose?.y ?? this.origin.y) - this.origin.y,
+        z: (pose?.z ?? NaN) - this.origin.z,
         color: focusColor(sample),
       };
     };
@@ -386,8 +383,8 @@ export class SpectateSceneRuntime {
       const flushLane = () => { if (lane.length > 1) projected.push(lane); lane = []; };
       for (let i = 0; i < samples.length; i++) {
         const sample = samples[i], center = this.focusCenterPoints[index]?.[i] ?? null;
-        const x = sample.values["motion.position-x"], z = sample.values["motion.position-z"];
-        const valid = typeof x === "number" && Number.isFinite(x) && typeof z === "number" && Number.isFinite(z);
+        const pose = spectateSamplePosition(sample);
+        const valid = pose !== null;
         const connected = prior && valid && prior.run === sample.run && sample.time >= prior.time && sample.time - prior.time <= 0.1;
         if (prior && connected) {
           if (!native.length) native.push(nativePoint(prior));
@@ -608,9 +605,8 @@ export class SpectateSceneRuntime {
     const point = this.positionScratch;
     for (const samples of [this.pair.a.samples, this.pair.b.samples])
       for (const sample of samples) {
-        const x = sample.values["motion.position-x"],
-          z = sample.values["motion.position-z"];
-        if (typeof x === "number" && Number.isFinite(x) && typeof z === "number" && Number.isFinite(z)) box.expandByPoint(point.set(x - this.origin.x, -this.origin.y, z - this.origin.z));
+        const pose = spectateSamplePosition(sample);
+        if (pose) box.expandByPoint(point.set(pose.x - this.origin.x, -this.origin.y, pose.z - this.origin.z));
       }
     if (box.isEmpty()) return;
     box.getCenter(this.centerScratch);

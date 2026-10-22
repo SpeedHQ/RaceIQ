@@ -1,4 +1,5 @@
 import { m } from "@/paraglide/messages";
+import { spectateSamplePosition } from "../../../lib/spectate-replay";
 import { useMemo, useSyncExternalStore } from "react";
 import type { SpectateController, SpectatePair, SpectateSegment } from "./types";
 import { focusRuns, type SpectateFocus } from "./spectate-focus";
@@ -9,15 +10,14 @@ function trackRuns(pair: SpectatePair): TrackPoint[][] {
   let current: TrackPoint[] = [];
   let prior: TrackPoint | null = null;
   for (const sample of pair.a.samples) {
-    const x = sample.values["motion.position-x"],
-      z = sample.values["motion.position-z"];
-    if (!Number.isFinite(sample.distance) || !Number.isFinite(x) || !Number.isFinite(z)) {
+    const pose = spectateSamplePosition(sample);
+    if (!Number.isFinite(sample.distance) || !pose) {
       if (current.length) runs.push(current);
       current = [];
       prior = null;
       continue;
     }
-    const point = { distance: sample.distance, run: sample.run, x: x as number, z: z as number };
+    const point = { distance: sample.distance, run: sample.run, x: pose.x, z: pose.z };
     if (prior && (prior.run !== point.run || point.distance < prior.distance)) {
       if (current.length) runs.push(current);
       current = [];
@@ -119,10 +119,19 @@ export function SpectateOverview({ pair, controller, segments, focus }: { pair: 
   const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const splitAt = useMemo(() => splitLookup(pair), [pair]);
   const rows = useMemo(
-    () =>
-      segments
+    () => {
+      let straightNumber = 0;
+      return segments
         .filter((segment) => Number.isFinite(segment.startFrac) && Number.isFinite(segment.endFrac) && segment.startFrac >= 0 && segment.startFrac <= 1 && segment.endFrac >= 0 && segment.endFrac <= 1)
-        .map((segment, index) => ({ segment, number: index + 1, delta: splitAt(segment) })),
+        .map((segment) => {
+          const label = segment.type === "straight"
+            ? `S${++straightNumber}`
+            : segment.number !== undefined
+              ? `T${segment.number}`
+              : segment.name;
+          return { segment, label, delta: splitAt(segment) };
+        });
+    },
     [segments, splitAt],
   );
   const runs = useMemo(() => trackRuns(pair), [pair]);
@@ -169,7 +178,7 @@ export function SpectateOverview({ pair, controller, segments, focus }: { pair: 
       }
       return true;
     };
-    const markers = rows.map(({ segment, number, delta }) => {
+    const markers = rows.map(({ segment, label, delta }) => {
       const endFraction = segment.endFrac < segment.startFrac ? segment.endFrac + 1 : segment.endFrac;
       const fraction = ((segment.startFrac + endFraction) / 2) % 1;
       const position = positionAcrossRuns(runs, fraction * maximum);
@@ -199,7 +208,7 @@ export function SpectateOverview({ pair, controller, segments, focus }: { pair: 
           }
         }
       }
-      return { number, segment, delta, anchor, position: marker, sectionPaths: segmentPaths(runs, segment.startFrac, segment.endFrac, maximum, projectString) };
+      return { label, segment, delta, anchor, position: marker, sectionPaths: segmentPaths(runs, segment.startFrac, segment.endFrac, maximum, projectString) };
     });
     return { project, paths: runs.filter((run) => run.length > 1).map((run) => run.map(projectString).join(" ")), markers };
   }, [maximum, rows, runs]);
@@ -230,16 +239,16 @@ export function SpectateOverview({ pair, controller, segments, focus }: { pair: 
               fill="none" stroke={`var(${run.token})`} strokeWidth={side === 0 ? "4" : "1.8"} strokeDasharray={side === 0 ? undefined : "3 2"}
               strokeLinecap="round" strokeLinejoin="round" pointerEvents="none" />
           )))}
-          {geometry.markers.map(({ number, segment, delta, anchor, position, sectionPaths }) => (
+          {geometry.markers.map(({ label, segment, delta, anchor, position, sectionPaths }) => (
             <g
-              key={`${number}-${segment.startFrac}`}
+              key={`${segment.name}-${segment.startFrac}`}
               role="button"
               data-segment-start={segment.startFrac}
               data-segment-end={segment.endFrac}
               data-seek-distance={segment.startFrac * maximum}
               data-split-delta={delta ?? ""}
               tabIndex={0}
-              aria-label={`${m.spectate_segment_number({ number })}: ${segment.name}; A − B: ${splitText(delta)}`}
+              aria-label={`${label}: ${segment.name}; A − B: ${splitText(delta)}`}
               onClick={() => controller.seekDistance(Math.max(0, Math.min(maximum, segment.startFrac * maximum)))}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
@@ -249,7 +258,7 @@ export function SpectateOverview({ pair, controller, segments, focus }: { pair: 
               }}
               className="cursor-pointer outline-none focus-visible:opacity-70"
             >
-              <title>{`${segment.name || m.spectate_segment_number({ number })} · A − B: ${splitText(delta)}`}</title>
+              <title>{`${segment.name} (${label}) · A − B: ${splitText(delta)}`}</title>
               {sectionPaths.map((path, index) => (
                 <polyline key={index} points={path} fill="none" stroke="transparent" strokeWidth="14" strokeLinecap="round" strokeLinejoin="round" />
               ))}
@@ -258,7 +267,7 @@ export function SpectateOverview({ pair, controller, segments, focus }: { pair: 
                   {anchor && <line x1={anchor.x} y1={anchor.y} x2={position.x} y2={position.y} stroke="var(--app-text-secondary)" strokeWidth="0.6" opacity="0.5" pointerEvents="none" />}
                   <circle cx={position.x} cy={position.y} r="5.5" fill={splitColor(delta)} stroke="var(--app-bg)" strokeWidth="0.8" />
                   <text x={position.x} y={position.y} textAnchor="middle" dominantBaseline="central" fill={delta !== null && delta > 0 ? "var(--app-text)" : "var(--app-bg)"} fontSize="6" fontWeight="var(--font-weight-bold)">
-                    {number}
+                    {label}
                   </text>
                 </>
               )}

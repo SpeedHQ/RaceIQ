@@ -2,6 +2,7 @@ import type { ComparisonData } from "@raceiq/shared/racing/comparison/types";
 import type { SemanticLapTelemetry, SemanticReplayFrame } from "@/hooks/laps";
 import { hasTelemetryGap } from "@/components/analyse/AnalyseTelemetryChart";
 import type { SpectateController, SpectateLap, SpectatePose, SpectateReading, SpectateSample, SpectateSnapshot } from "@/components/comparison/spectate/types";
+import { alignProjectionToMeasured, resolveScenePoses, type TrackProjection } from "@raceiq/scene-3d/wireframe/ScenePlacement";
 
 const SEGMENT_SEEK_DURATION_MS = 1200;
 const number = (value: unknown): number | null => (typeof value === "number" && Number.isFinite(value) ? value : null);
@@ -157,6 +158,43 @@ export function prepareSpectateLap(replay: SemanticLapTelemetry, comparison: Com
   return { samples, motionSamples, duration: samples.at(-1)?.time ?? 0, distance: maxDistance, hasProgress: aligned.length > 1 && monotonic && progressCount > 1, replay };
 }
 
+/** Resolve both iRacing laps together so measured poses share one geographic origin. */
+export function placeIRacingSpectateLaps(laps: readonly [SpectateLap, SpectateLap], projection: TrackProjection | null): [SpectateLap, SpectateLap] {
+  const frames = laps.flatMap((lap) => lap.samples.map((sample) => ({ values: sample.values, states: {}, freshness: {} })));
+  const poses = resolveScenePoses("iracing", frames, projection);
+  const measured = poses.some((pose) => pose?.source === "measured");
+  let offset = 0;
+  const place = (lap: SpectateLap): SpectateLap => {
+    const start = offset;
+    offset += lap.samples.length;
+    let lapPoses = poses.slice(start, offset);
+    // A live-only lap may use the aligned reference; gaps within a measured lap may not.
+    if (measured && !lapPoses.some((pose) => pose?.source === "measured")) {
+      lapPoses = resolveScenePoses("iracing", frames.slice(start, offset), alignProjectionToMeasured(projection, poses));
+    }
+    return {
+      ...lap,
+      samples: lap.samples.map((sample, index) => {
+        const pose = lapPoses[index];
+        // Match Analyse's maxX - x map projection. Heading must reflect with position.
+        return { ...sample, scenePose: pose ? { ...pose, x: 0 - pose.x, y: pose.y ?? 0, yaw: 0 - pose.yaw } : null };
+      }),
+    };
+  };
+  return [place(laps[0]), place(laps[1])];
+}
+
+export function spectateSamplePose(sample: SpectateSample): SpectatePose | null {
+  return sample.scenePose === undefined ? poseOf(sample.values) : sample.scenePose;
+}
+export function spectateSamplePosition(sample: SpectateSample): Pick<SpectatePose, "x" | "y" | "z"> | null {
+  if (sample.scenePose !== undefined) return sample.scenePose;
+  const x = number(sample.values["motion.position-x"]), z = number(sample.values["motion.position-z"]);
+  if (x === null || z === null) return null;
+  const y = number(sample.values["motion.position-y"]);
+  return { x, y: y ?? 0, z };
+}
+
 function poseOf(values: Readonly<Record<string, unknown>>): SpectatePose | null {
   const x = number(values["motion.position-x"]),
     z = number(values["motion.position-z"]),
@@ -164,24 +202,29 @@ function poseOf(values: Readonly<Record<string, unknown>>): SpectatePose | null 
   if (x === null || z === null || yaw === null) return null;
   return { x, y: number(values["motion.position-y"]) ?? 0, z, yaw };
 }
+function interpolatePose(left: SpectateSample, right: SpectateSample, fraction: number): SpectatePose | null {
+  const a = spectateSamplePose(left), b = spectateSamplePose(right);
+  if (!a || !b) return null;
+  return {
+    x: a.x + (b.x - a.x) * fraction,
+    y: a.y + (b.y - a.y) * fraction,
+    z: a.z + (b.z - a.z) * fraction,
+    yaw: a.yaw + Math.atan2(Math.sin(b.yaw - a.yaw), Math.cos(b.yaw - a.yaw)) * fraction,
+  };
+}
 export function sampleMotion(samples: readonly SpectateSample[], time: number, holdPose: boolean): Pick<SpectateReading, "pose" | "distance"> {
   const first = samples[0], last = samples.at(-1);
   if (!first || !last || time < first.time) return { pose: null, distance: null };
-  if (time > last.time) return { pose: holdPose ? poseOf(last.values) : null, distance: holdPose && Number.isFinite(last.distance) ? last.distance : null };
+  if (time > last.time) return { pose: holdPose ? spectateSamplePose(last) : null, distance: holdPose && Number.isFinite(last.distance) ? last.distance : null };
   const index = lowerBound(samples, time, (sample) => sample.time), right = samples[index]!;
-  if (right.time === time) return { pose: poseOf(right.values), distance: Number.isFinite(right.distance) ? right.distance : null };
+  if (right.time === time) return { pose: spectateSamplePose(right), distance: Number.isFinite(right.distance) ? right.distance : null };
   const left = samples[index - 1];
   if (!left || left.run !== right.run || hasTelemetryGap(left.time, right.time)) return { pose: null, distance: null };
-  const a = poseOf(left.values), b = poseOf(right.values);
-  if (!a || !b) return { pose: null, distance: null };
   const fraction = (time - left.time) / (right.time - left.time);
+  const pose = interpolatePose(left, right, fraction);
+  if (!pose) return { pose: null, distance: null };
   return {
-    pose: {
-      x: a.x + (b.x - a.x) * fraction,
-      y: a.y + (b.y - a.y) * fraction,
-      z: a.z + (b.z - a.z) * fraction,
-      yaw: a.yaw + Math.atan2(Math.sin(b.yaw - a.yaw), Math.cos(b.yaw - a.yaw)) * fraction,
-    },
+    pose,
     distance: Number.isFinite(left.distance) && Number.isFinite(right.distance) ? left.distance + (right.distance - left.distance) * fraction : null,
   };
 }
@@ -190,10 +233,10 @@ export function sampleLap(lap: SpectateLap, time: number, holdPose: boolean): Sp
     first = samples[0],
     last = samples.at(-1);
   if (!first || !last || time < first.time) return null;
-  if (time > last.time) return holdPose ? { time: last.time, distance: Number.isFinite(last.distance) ? last.distance : null, pose: poseOf(last.values), values: {} } : null;
+  if (time > last.time) return holdPose ? { time: last.time, distance: Number.isFinite(last.distance) ? last.distance : null, pose: spectateSamplePose(last), values: {} } : null;
   const index = lowerBound(samples, time, (sample) => sample.time);
   const right = samples[index]!;
-  if (right.time === time) return { time, distance: Number.isFinite(right.distance) ? right.distance : null, pose: poseOf(right.values), values: right.values };
+  if (right.time === time) return { time, distance: Number.isFinite(right.distance) ? right.distance : null, pose: spectateSamplePose(right), values: right.values };
   const left = samples[index - 1];
   if (!left || left.run !== right.run || hasTelemetryGap(left.time, right.time)) return null;
   const fraction = (time - left.time) / (right.time - left.time);
@@ -208,7 +251,7 @@ export function sampleLap(lap: SpectateLap, time: number, holdPose: boolean): Sp
     } else values[key] = interpolateShape(a, b, fraction);
   }
   const distance = Number.isFinite(left.distance) && Number.isFinite(right.distance) ? left.distance + (right.distance - left.distance) * fraction : null;
-  return { time, distance, pose: poseOf(values), values };
+  return { time, distance, pose: interpolatePose(left, right, fraction), values };
 }
 
 /** Equal-distance samples retain plateau departure; lowerBound still finds earliest arrival. */

@@ -6,7 +6,7 @@
 - Add an overall clean-driving score to the iRacing Latest Session card, based on valid timed laps and excluding pit laps.
 - Review observed personal incident-point increases, sampled off-track spans, and recorded clean-lap streaks in saved iRacing sessions, with event links and replay timeline markers limited to recorded lap evidence.
 - Keep iRacing replay incident markers alongside the shared replay visualization and telemetry panels.
-- Render iRacing comparison laps from recorded GPS; project live lap progress onto official track geometry when GPS is unavailable.
+- Render iRacing comparison laps in Focus View and Spectate from recorded GPS; project live lap progress onto official track geometry when GPS is unavailable, using replay's map handedness, forward car headings, and official turn labels without treating projected positions as measured racing lines.
 - Keep Sessions actions in a bottom-center floating bar with a selection count and Deselect all. Keep Compare visible and enable it only for two compatible laps; filter comparison laps by Mine, Others, or All inside the lap-picker dropdown.
 - Show separate LMU player energy, engine, electric motor, steering feedback, weather and race-control readings in live telemetry and recorded-lap analysis when provided by the game.
 - Show read-only LMU setup, forecast and condition snapshots with source age and availability, without waiting for network requests before displaying live telemetry.

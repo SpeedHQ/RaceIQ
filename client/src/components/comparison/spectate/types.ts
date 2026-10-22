@@ -8,6 +8,8 @@ export interface SpectateSample {
   distance: number;
   run: number;
   values: Readonly<Record<string, unknown>>;
+  /** Visualization geometry only; never replaces canonical telemetry values. */
+  scenePose?: (SpectatePose & { source: "native" | "measured" | "lap-fraction" }) | null;
 }
 export interface SpectateLap {
   samples: readonly SpectateSample[];
