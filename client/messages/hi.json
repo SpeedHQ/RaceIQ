@@ -2733,5 +2733,14 @@
   "settings_radio_text_callouts_desc": "प्रतिद्वंद्वियों की रफ़्तार की सूचनाएँ स्क्रीन पर दिखाएँ।",
   "settings_radio_volume": "रेडियो की आवाज़",
   "settings_radio_save_failed": "रेडियो सेटिंग सहेजी नहीं जा सकीं।",
+  "radio_voice_pack_checking": "Checking voice pack availability…",
+  "radio_voice_pack_status_failed": "Could not check voice pack status. Audio remains disabled.",
+  "radio_voice_pack_download_required": "Download required",
+  "radio_voice_pack_update_required": "Update required",
+  "radio_voice_pack_required_version": "Required pack version {version} (engine {engineVersion}, language {language}).",
+  "radio_voice_pack_download_link": "Download exact voice pack ZIP",
+  "radio_voice_pack_install_guidance": "Download and install this ZIP using the RaceIQ voice-pack installer, then check again.",
+  "radio_voice_pack_install_docs": "Voice-pack installation instructions",
+  "radio_voice_pack_check_again": "Check again",
   "sparse_split_migration_description": "हमें रिकॉर्डिंग्स को विभाजित करने की आवश्यकता है {sessions} मौजूदा सत्रों को व्यक्तिगत लैप फ़ाइलों में विभाजित किया जाता है। इससे लैप 60 को लोड करने में उतनी ही तेज़ी होती है जितनी लैप 1 को, बिना पिछले 59 लैप्स को स्कैन किए। बैकग्राउंड में रन को विभाजित किया जाता है।"
 }

@@ -7,12 +7,14 @@
   },
   "dependencies": {
     "@raceiq/shared": "workspace:*",
+    "@raceiq/live-engineer": "workspace:*",
     "@gltf-transform/core": "4.5.0",
     "@gltf-transform/extensions": "4.5.0",
     "@gltf-transform/functions": "4.5.0",
     "meshoptimizer": "1.2.0",
     "sharp": "^0.35.4",
-    "@duckdb/node-api": "1.5.2-r.2"
+    "@duckdb/node-api": "1.5.2-r.2",
+    "fflate": "^0.8.3"
   },
   "scripts": {
     "lint": "bun ../../client/node_modules/oxlint/bin/oxlint .",

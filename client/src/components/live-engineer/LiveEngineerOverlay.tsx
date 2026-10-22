@@ -1,6 +1,6 @@
 import { useLiveEngineerStore, type LiveEngineerCallout } from "../../stores/live-engineer";
 import { useSettings } from "../../hooks/settings";
-import { renderOpponentPaceText } from "../../../../server/live-strategy/live-engineer-renderer";
+import { renderOpponentPaceText } from "@raceiq/live-engineer/live-engineer-renderer";
 export function LiveEngineerOverlay({ enabled = true }: { enabled?: boolean }) {
   const { displaySettings } = useSettings();
   const callout = useLiveEngineerStore((s) => s.current);

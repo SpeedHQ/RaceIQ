@@ -42,6 +42,15 @@ ACC, Assetto Corsa Evo, and iRacing use native Windows shared-memory telemetry. 
 
 RaceIQ checks for releases automatically. Force check from **Settings → About → Check for updates**. When update is available, install it from RaceIQ update prompt.
 
+## Optional live-engineer voice pack
+
+Voice audio is distributed separately from RaceIQ. Open **Live → Radio** before starting a simulator. Radio shows **Download required** when no pack is installed and **Update required** when the installed pack has an unsupported engine version, package revision, language, or incomplete files. Use its download link for the exact supported pack, not the latest app release. Voice switches remain unavailable until a compatible pack exists; saved preferences and text callouts are preserved.
+
+If replacing an existing pack manually, extract the new ZIP to a temporary folder first and verify it contains the complete `live-engineer\qwen-v3` directory before moving it into place. Keep a copy of the previous `qwen-v3` directory until the replacement is confirmed.
+
+Voice-pack manifests declare `catalogVersion` (segment/recipe compatibility), `engineVersion` (runtime compatibility), `packageVersion` (recording revision), and `language` (locale). Current dependency is catalog `1.0.0`, engine `1`, English (`en`) pack `1.0.0`. Download `live-engineer-qwen-v3-en-1.0.0.zip` from separate `voice-pack-en-v1.0.0` release. Close RaceIQ, extract into `%APPDATA%\RaceIQ\userdata\voice-packs`, and confirm `live-engineer\qwen-v3\manifest.json` exists. Restart RaceIQ and use **Check again** in Radio. Do not extract into app install directory.
+
+
 ## Data storage
 
 Application data is stored at `%APPDATA%/raceiq`, including database, settings, recordings, and imported state.

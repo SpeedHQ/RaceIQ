@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import * as renderer from "@raceiq/backend-core/live-strategy/live-engineer-renderer";
-import { renderLapTime, renderOpponentLapPace, renderOpponentPace, renderSpotter } from "@raceiq/backend-core/live-strategy/live-engineer-renderer";
+import * as renderer from "@raceiq/live-engineer/live-engineer-renderer";
+import { renderLapTime, renderOpponentLapPace, renderOpponentPace, renderSpotter } from "@raceiq/live-engineer/live-engineer-renderer";
 import { SPOTTER_STATES } from "@raceiq/shared/racing/live/spotter-contracts";
-import { raceEngineerSource } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/contracts";
+import { raceEngineerSource } from "@raceiq/live-engineer/race-engineer-triggers/contracts";
 import damageCallouts from "@raceiq/shared/racing/live/damage-callouts.json";
 
 type Manifest = {
@@ -11,7 +11,7 @@ type Manifest = {
   fullLines: Array<{ lineId: string; path: string; spokenText: string }>;
 };
 
-const manifest = JSON.parse(readFileSync("client/public/audio/live-engineer/qwen-v3/manifest.json", "utf8")) as Manifest;
+const manifest = JSON.parse(readFileSync("assets/live-engineer/qwen-v3/manifest.json", "utf8")) as Manifest;
 const available = new Set(manifest.clips.map((clip) => clip.segmentId));
 const rendererSegmentIds = new Set<string>();
 
@@ -93,11 +93,11 @@ test("component damage captions match every synthesized normal and heavy clip", 
 
 test("every catalog audio entry has a packaged file", () => {
   for (const clip of [...manifest.clips, ...manifest.fullLines]) {
-    expect(Bun.file(`client/public/audio/live-engineer/qwen-v3/${clip.path}`).size, "segmentId" in clip ? clip.segmentId : clip.lineId).toBeGreaterThan(0);
+    expect(Bun.file(`assets/live-engineer/qwen-v3/${clip.path}`).size, "segmentId" in clip ? clip.segmentId : clip.lineId).toBeGreaterThan(0);
   }
   for (const segmentId of rendererSegmentIds) {
     const clip = manifest.clips.find((entry) => entry.segmentId === segmentId);
     expect(clip, segmentId).toBeDefined();
-    if (clip) expect(Bun.file(`client/public/audio/live-engineer/qwen-v3/${clip.path}`).size, segmentId).toBeGreaterThan(0);
+    if (clip) expect(Bun.file(`assets/live-engineer/qwen-v3/${clip.path}`).size, segmentId).toBeGreaterThan(0);
   }
 });

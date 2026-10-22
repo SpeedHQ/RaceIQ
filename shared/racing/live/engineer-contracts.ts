@@ -1,6 +1,7 @@
 import { isSpotterRenderParametersV1, type SpotterRenderParametersV1 } from "./spotter-contracts";
 import { RACE_ENGINEER_AUTOMATIC_EVENTS, RACE_ENGINEER_REFERENCE, type RaceEngineerEventFamily, type RaceEngineerSourceRef } from "../../telemetry/live/race-engineer-callout-contract";
-export const LIVE_ENGINEER_AUDIO_CATALOG_VERSION = "live-engineer-qwen-v3" as const;
+import audioCatalog from "./audio-catalog-version.json";
+export const LIVE_ENGINEER_AUDIO_CATALOG_VERSION = audioCatalog.catalogVersion;
 export const LIVE_ENGINEER_PROTOCOL_VERSION = 3 as const;
 export const LIVE_ENGINEER_RENDERING_VERSION = "opponent-pace-v1" as const;
 export const SPOTTER_RENDERING_VERSION = "spotter-v1" as const;

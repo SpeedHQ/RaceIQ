@@ -1,16 +1,16 @@
 import { expect, test } from "bun:test";
-import type { LiveEngineerVoiceLineMessageV2 } from "../../shared/racing/live/engineer-contracts";
+import { LIVE_ENGINEER_AUDIO_CATALOG_VERSION, type LiveEngineerVoiceLineMessageV3 } from "../../shared/racing/live/engineer-contracts";
 import { CHAINED_LAP_PAUSE_MS, DEFAULT_JOIN_GAP_MS, DEFAULT_RADIO_COMPRESSOR, DEFAULT_RADIO_FILTER, getSegmentPauseMs, LiveEngineerAudioPlayer, speechBoundsMs } from "../src/lib/live-engineer-audio";
 import { LiveEngineerPlaybackSession } from "../src/lib/live-engineer-playback-session";
 
-const line: LiveEngineerVoiceLineMessageV2 = { type: "live-engineer-voice-line", protocolVersion: 2, deliveryId: "delivery-1", decisionId: "decision-1", family: "spotter", mode: "automatic", priority: "high", sourceSequence: 1, catalogVersion: "v1", segmentIds: ["spotter.car-left"] };
+const line: LiveEngineerVoiceLineMessageV3 = { type: "live-engineer-voice-line", protocolVersion: 3, deliveryId: "delivery-1", decisionId: "decision-1", family: "spotter", mode: "automatic", priority: "high", sourceSequence: 1, sessionId: "session-1", timelineEpoch: 1, createdSessionTimeMs: 1000, expiresSessionTimeMs: 10000, catalogVersion: LIVE_ENGINEER_AUDIO_CATALOG_VERSION, segmentIds: ["spotter.car-left"] };
 
 test("expired V3 voice line does not start audio and reports terminal expiry", () => {
   const statuses: string[] = [];
   let plays = 0;
   const audio = { play: async () => { plays += 1; }, stop: () => {}, setVolume: () => {} };
-  const session = new LiveEngineerPlaybackSession(audio, { enqueueControl: (message) => statuses.push(`${message.status}:${message.reason ?? ""}`), finishVoiceLine: () => {}, setPlayback: () => {} });
-  session.start({ ...line, protocolVersion: 3, sessionId: "session-1", timelineEpoch: 4, createdSessionTimeMs: 1200, expiresSessionTimeMs: 2200 } as never, true, 0.8, 2300);
+  const session = new LiveEngineerPlaybackSession(audio, { enqueueControl: (message) => statuses.push(`${message.status}:${message.reason ?? ""}`), finishVoiceLine: () => {}, setPlayback: () => {} }, () => 2300);
+  session.start({ ...line, protocolVersion: 3, sessionId: "session-1", timelineEpoch: 4, createdSessionTimeMs: 1200, expiresSessionTimeMs: 2200 } as never, true, 0.8);
   expect(plays).toBe(0);
   expect(statuses).toContain("failed:expired");
 });
@@ -19,7 +19,7 @@ test("volume changes update gain without restarting unresolved playback", async 
   let resolve!: () => void;
   const statuses: string[] = [];
   const audio = { plays: 0, stops: 0, volumes: [] as number[], play: async () => { audio.plays += 1; await new Promise<void>((done) => { resolve = done; }); }, stop: () => { audio.stops += 1; }, setVolume: (value: number) => { audio.volumes.push(value); } };
-  const session = new LiveEngineerPlaybackSession(audio, { enqueueControl: (message) => statuses.push(message.status), finishVoiceLine: () => statuses.push("finish"), setPlayback: () => {} });
+  const session = new LiveEngineerPlaybackSession(audio, { enqueueControl: (message) => statuses.push(message.status), finishVoiceLine: () => statuses.push("finish"), setPlayback: () => {} }, () => 1000);
   session.start(line, true, 0.8);
   session.setVolume(0.3);
   expect(audio.plays).toBe(1);
@@ -31,6 +31,22 @@ test("volume changes update gain without restarting unresolved playback", async 
   await Promise.resolve();
   expect(statuses).toEqual(["started", "completed", "finish"]);
 });
+
+test("unsupported voice-line catalog fails before audio starts and releases the delivery", () => {
+  const statuses: unknown[] = [];
+  let plays = 0;
+  let finished: string | undefined;
+  const session = new LiveEngineerPlaybackSession(
+    { play: async () => { plays++; }, stop: () => {}, setVolume: () => {} },
+    { enqueueControl: (message) => statuses.push(message), finishVoiceLine: (id) => { finished = id; }, setPlayback: () => {} },
+    () => 1000,
+  );
+  session.start({ ...line, catalogVersion: "2.0.0" }, true, 0.8);
+  expect(plays).toBe(0);
+  expect(statuses).toEqual([{ type: "live-engineer-delivery-status", protocolVersion: 3, deliveryId: line.deliveryId, status: "failed", reason: "catalog-mismatch" }]);
+  expect(finished).toBe(line.deliveryId);
+});
+
 test("Qwen clip playback uses exact zero-gap joins", () => {
   expect(DEFAULT_JOIN_GAP_MS).toBe(0);
 });

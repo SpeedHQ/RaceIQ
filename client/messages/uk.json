@@ -2732,5 +2732,14 @@
   "settings_radio_text_callouts_desc": "Показувати повідомлення про темп суперників на екрані.",
   "settings_radio_volume": "Гучність радіо",
   "settings_radio_save_failed": "Не вдалося зберегти налаштування радіо.",
+  "radio_voice_pack_checking": "Checking voice pack availability…",
+  "radio_voice_pack_status_failed": "Could not check voice pack status. Audio remains disabled.",
+  "radio_voice_pack_download_required": "Download required",
+  "radio_voice_pack_update_required": "Update required",
+  "radio_voice_pack_required_version": "Required pack version {version} (engine {engineVersion}, language {language}).",
+  "radio_voice_pack_download_link": "Download exact voice pack ZIP",
+  "radio_voice_pack_install_guidance": "Download and install this ZIP using the RaceIQ voice-pack installer, then check again.",
+  "radio_voice_pack_install_docs": "Voice-pack installation instructions",
+  "radio_voice_pack_check_again": "Check again",
   "sparse_split_migration_description": "Нам потрібно розділити записи з {sessions} існуючі сесії на окремі файли для кожного кола. Це дозволяє колу 60 завантажуватися так само швидко, як і колу 1, без перегляду попередніх 59 кіл. Розділення виконується у фоновому режимі."
 }

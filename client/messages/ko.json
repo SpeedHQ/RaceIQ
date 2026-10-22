@@ -2733,5 +2733,14 @@
   "settings_radio_text_callouts_desc": "상대의 랩 페이스 알림을 화면에 표시합니다.",
   "settings_radio_volume": "무전 음량",
   "settings_radio_save_failed": "무전 설정을 저장하지 못했습니다.",
+  "radio_voice_pack_checking": "Checking voice pack availability…",
+  "radio_voice_pack_status_failed": "Could not check voice pack status. Audio remains disabled.",
+  "radio_voice_pack_download_required": "Download required",
+  "radio_voice_pack_update_required": "Update required",
+  "radio_voice_pack_required_version": "Required pack version {version} (engine {engineVersion}, language {language}).",
+  "radio_voice_pack_download_link": "Download exact voice pack ZIP",
+  "radio_voice_pack_install_guidance": "Download and install this ZIP using the RaceIQ voice-pack installer, then check again.",
+  "radio_voice_pack_install_docs": "Voice-pack installation instructions",
+  "radio_voice_pack_check_again": "Check again",
   "sparse_split_migration_description": "우리는 녹음을 분할해야 합니다. {sessions} 기존 세션을 개별 랩 파일로 분할합니다. 이렇게 하면 랩 60이 랩 1만큼 빠르게 로드되며, 이전 59개 랩을 스캔할 필요가 없습니다. 분할은 백그라운드에서 실행됩니다."
 }

@@ -2732,5 +2732,14 @@
   "settings_radio_text_callouts_desc": "Meldingen over het tempo van tegenstanders op het scherm tonen.",
   "settings_radio_volume": "Radiovolume",
   "settings_radio_save_failed": "Radio-instellingen konden niet worden opgeslagen.",
+  "radio_voice_pack_checking": "Checking voice pack availability…",
+  "radio_voice_pack_status_failed": "Could not check voice pack status. Audio remains disabled.",
+  "radio_voice_pack_download_required": "Download required",
+  "radio_voice_pack_update_required": "Update required",
+  "radio_voice_pack_required_version": "Required pack version {version} (engine {engineVersion}, language {language}).",
+  "radio_voice_pack_download_link": "Download exact voice pack ZIP",
+  "radio_voice_pack_install_guidance": "Download and install this ZIP using the RaceIQ voice-pack installer, then check again.",
+  "radio_voice_pack_install_docs": "Voice-pack installation instructions",
+  "radio_voice_pack_check_again": "Check again",
   "sparse_split_migration_description": "We moeten opnames splitsen vanaf {sessions} bestaande sessies in afzonderlijke rondebestanden. Zo laadt ronde 60 net zo snel als ronde 1, zonder door de vorige 59 ronden te hoeven scannen. Splitsen gebeurt op de achtergrond."
 }

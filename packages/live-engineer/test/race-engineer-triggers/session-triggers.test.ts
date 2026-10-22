@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { RaceEngineerTriggerCatalog } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/catalog";
+import { RaceEngineerTriggerCatalog } from "@raceiq/live-engineer/race-engineer-triggers/catalog";
 import type { LiveResolvedSemanticFrame } from "@raceiq/telemetry-core/telemetry/live-projector";
-import type { RaceEngineerTriggerBatchV1, RaceEngineerTriggerFunction } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/contracts";
+import type { RaceEngineerTriggerBatchV1, RaceEngineerTriggerFunction } from "@raceiq/live-engineer/race-engineer-triggers/contracts";
 import type { ResolvedValue } from "@raceiq/shared/telemetry/resolver/contracts";
-import { RaceEngineerTriggerFrame } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/frame";
+import { RaceEngineerTriggerFrame } from "../../src/race-engineer-triggers/frame";
 import {
   createPreviousValueState,
   triggerFrozenOrderMonitor,
@@ -12,7 +12,7 @@ import {
   triggerRaceTime,
   triggerSessionEndMessages,
   type SessionTriggerState,
-} from "@raceiq/backend-core/live-strategy/race-engineer-triggers/session-triggers";
+} from "@raceiq/live-engineer/race-engineer-triggers/session-triggers";
 
 const value = (semanticId: string, current: unknown): ResolvedValue<unknown> => ({
   semanticId,

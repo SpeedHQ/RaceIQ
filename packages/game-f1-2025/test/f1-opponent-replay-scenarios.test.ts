@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { readUdpPackets } from "@raceiq/backend-core/test-support/recordings/parse-dump";
 import { f1ServerAdapter } from "@raceiq/game-f1-2025";
-import { runLiveEngineerSessionReplay } from "@raceiq/backend-core/live-strategy/live-engineer-replay";
+import { runLiveEngineerSessionReplay } from "@raceiq/live-engineer/live-engineer-replay";
 
 
 const RECORDING = "test/artifacts/sessions/f1-2025-2026-04-09T21-34-10-190Z.bin.gz";

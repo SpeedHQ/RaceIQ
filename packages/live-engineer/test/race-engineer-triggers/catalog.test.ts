@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { RACE_ENGINEER_AUTOMATIC_EVENTS, RACE_ENGINEER_EVENT_SOURCES } from "@raceiq/shared/telemetry/live/race-engineer-callout-contract";
-import { RaceEngineerTriggerCatalog, RACE_ENGINEER_TRIGGER_CATALOG } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/catalog";
+import { RaceEngineerTriggerCatalog, RACE_ENGINEER_TRIGGER_CATALOG } from "@raceiq/live-engineer/race-engineer-triggers/catalog";
 import type { LiveResolvedSemanticFrame } from "@raceiq/telemetry-core/telemetry/live-projector";
 import type { ResolvedValue } from "@raceiq/shared/telemetry/resolver/contracts";
 

@@ -49,6 +49,8 @@
     "i18n:validate": "bunx @inlang/cli validate --project ./client/project.inlang",
     "voice:generate": ".venv-qwen/Scripts/python.exe scripts/live-engineer/generate-live-engineer-v3.py --device cuda:0 --dtype bfloat16",
     "voice:check": ".venv-qwen/Scripts/python.exe scripts/live-engineer/generate-live-engineer-v3.py --check-spec && .venv-qwen/Scripts/python.exe scripts/live-engineer/generate-live-engineer-v3.py --check",
+    "voice:pack:build": "bun packages/tooling-build/src/voice-pack.ts build",
+    "voice:pack:install": "bun packages/tooling-build/src/voice-pack.ts install",
     "test:ai": "bun test ./apps/backend/test/ai/evals/ai-quality.ai-eval.ts ./apps/backend/test/ai/evals/analyse-chat-tools.ai-eval.ts --timeout 120000",
     "ai:baseline": "bun apps/backend/scripts/quality/ai-baseline.ts",
     "bench": "bun apps/backend/test/benchmarks/pipeline.bench.ts",

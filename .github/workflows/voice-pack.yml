@@ -1,0 +1,52 @@
+name: Release voice pack
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-voice-pack
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+      - name: Install dependencies
+        run: bun install --frozen-lockfile --ignore-scripts
+      - name: Read pinned pack version
+        id: pack
+        run: |
+          bun -e 'const p = await Bun.file("packages/live-engineer/audio-package.json").json(); if (!/^\d+\.\d+\.\d+$/.test(p.packageVersion) || !/^[a-z]{2}(?:-[A-Za-z0-9]+)*$/.test(p.language)) throw new Error("Invalid pack version or language"); console.log(`tag=voice-pack-${p.language}-v${p.packageVersion}\nfile=live-engineer-qwen-v3-${p.language}-${p.packageVersion}.zip`);' >> "$GITHUB_OUTPUT"
+      - name: Refuse replacing an existing version
+        uses: actions/github-script@v8
+        env:
+          VOICE_TAG: ${{ steps.pack.outputs.tag }}
+        with:
+          script: |
+            const tag = process.env.VOICE_TAG;
+            for (const resource of ["release", "tag"]) {
+              try {
+                if (resource === "release") await github.rest.repos.getReleaseByTag({ ...context.repo, tag });
+                else await github.rest.git.getRef({ ...context.repo, ref: `tags/${tag}` });
+              } catch (error) {
+                if (error.status === 404) continue;
+                throw error;
+              }
+              throw new Error(`${tag} already exists; bump packageVersion before publishing changed audio`);
+            }
+      - name: Validate and package voice audio
+        run: bun run voice:pack:build
+      - name: Publish immutable versioned pack
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.pack.outputs.tag }}
+          FILE: ${{ steps.pack.outputs.file }}
+        run: gh release create "$TAG" "$FILE" --target "$GITHUB_SHA" --title "Live Engineer ${TAG#voice-pack-}" --notes "External voice pack. Engine compatibility, pack revision and language are declared in manifest.json." --latest=false

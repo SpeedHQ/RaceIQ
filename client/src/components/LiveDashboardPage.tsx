@@ -23,8 +23,7 @@ export function LiveDashboardPage({ mode }: { mode: DashboardMode }) {
     setGameId(game?.id ?? null);
     return () => setGameId(null);
   }, [game?.id, setGameId]);
-  if (!game || !view || view.simulator !== game.id) return <NoDataView />;
-  const dashboard = (() => {
+  const dashboard = !game || !view || view.simulator !== game.id ? <NoDataView /> : (() => {
     switch (liveDashboardForGame(game.id)) {
       case "forza": return <ForzaLiveDashboard mode={mode} />;
       case "f1": return <F1LiveDashboard />;

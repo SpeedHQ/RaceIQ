@@ -1,0 +1,5 @@
+packages/live-engineer/test/live-engineer-renderer.test.ts
+packages/live-engineer/test/live-engineer-runtime.test.ts
+packages/live-engineer/test/live-engineer-voice-engine.test.ts
+packages/live-engineer/test/opponent-pace-tracker.test.ts
+packages/live-engineer/test/spotter-tracker.test.ts

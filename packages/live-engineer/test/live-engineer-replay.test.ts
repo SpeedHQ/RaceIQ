@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { LiveEngineerReplaySourceProfileV1 } from "@raceiq/shared/racing/live/engineer-replay-contracts";
-import { runLiveEngineerSessionReplay } from "@raceiq/backend-core/live-strategy/live-engineer-replay";
+import { runLiveEngineerSessionReplay } from "@raceiq/live-engineer/live-engineer-replay";
 
 const profile = (gameId: "fm-2023" | "acc", captured = false): LiveEngineerReplaySourceProfileV1 => ({
   gameId, captureKind: "capture", limitations: [], sourceClockCaptured: captured,

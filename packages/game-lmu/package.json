@@ -20,6 +20,9 @@
     "@raceiq/analysis-core": "workspace:*",
     "@raceiq/telemetry-core": "workspace:*"
   },
+  "devDependencies": {
+    "@raceiq/live-engineer": "workspace:*"
+  },
   "scripts": {
     "lint": "bun ../../client/node_modules/oxlint/bin/oxlint .",
     "typecheck": "bun check --project tsconfig.json",

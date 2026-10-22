@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { RaceEngineerTriggerCatalog } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/catalog";
-import { createPreviousValueState, type PreviousValueState } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/common";
-import type { RaceEngineerTriggerFunction } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/contracts";
-import { RaceEngineerTriggerFrame } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/frame";
-import { triggerOvertakingAidsMonitor, triggerPenalties } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/race-control-triggers";
-import { triggerFuel, triggerPushNow, triggerStrategy } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/strategy-triggers";
+import { RaceEngineerTriggerCatalog } from "@raceiq/live-engineer/race-engineer-triggers/catalog";
+import { createPreviousValueState, type PreviousValueState } from "@raceiq/live-engineer/race-engineer-triggers/common";
+import type { RaceEngineerTriggerFunction } from "@raceiq/live-engineer/race-engineer-triggers/contracts";
+import { RaceEngineerTriggerFrame } from "../../src/race-engineer-triggers/frame";
+import { triggerOvertakingAidsMonitor, triggerPenalties } from "@raceiq/live-engineer/race-engineer-triggers/race-control-triggers";
+import { triggerFuel, triggerPushNow, triggerStrategy } from "@raceiq/live-engineer/race-engineer-triggers/strategy-triggers";
 import type { LiveResolvedSemanticFrame } from "@raceiq/telemetry-core/telemetry/live-projector";
 import type { ResolvedValue } from "@raceiq/shared/telemetry/resolver/contracts";
 

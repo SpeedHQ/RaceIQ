@@ -5,14 +5,14 @@ import { resolve } from "node:path";
 import fullLineCatalog from "@raceiq/shared/racing/live/full-lines.json";
 import { createLiveEngineerVoiceLine, isOpponentPaceRenderParametersV1, isLiveEngineerCalloutMessageV3, LIVE_ENGINEER_AUDIO_CATALOG_VERSION, type OpponentPaceTextKeyV1, type SpotterTextKeyV1 } from "@raceiq/shared/racing/live/engineer-contracts";
 import { isSpotterStateV1 } from "@raceiq/shared/racing/live/spotter-contracts";
-import { renderLapTime, renderOpponentLapPace, renderOpponentPace, renderPreviewLine, renderSpotter } from "@raceiq/backend-core/live-strategy/live-engineer-renderer";
+import { renderLapTime, renderOpponentLapPace, renderOpponentPace, renderPreviewLine, renderSpotter } from "@raceiq/live-engineer/live-engineer-renderer";
 import { wsManager } from "@raceiq/backend-core/runtime/websocket-manager";
 
 const root = process.cwd();
-const qwenManifestPath = resolve(root, "client/public/audio/live-engineer/qwen-v3/manifest.json");
+const qwenManifestPath = resolve(root, "assets/live-engineer/qwen-v3/manifest.json");
 interface CatalogFullLine { lineId: string; spokenText: string; path: string; sha256: string; durationMs: number; }
 interface CatalogQwenClip { segmentId: string; spokenText: string; path: string; sha256: string; durationMs: number; }
-const qwenAudioRoot = resolve(root, "client/public/audio/live-engineer/qwen-v3");
+const qwenAudioRoot = resolve(root, "assets/live-engineer/qwen-v3");
 const previewLineIds: Record<string, true> = Object.fromEntries(fullLineCatalog.filter((line) => line.kind === "preview-line").map((line) => [line.lineId, true]));
 export const liveEngineerRoutes = new Hono();
 

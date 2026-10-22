@@ -1,5 +1,6 @@
+import { LIVE_ENGINEER_AUDIO_CATALOG_VERSION } from "@raceiq/shared/racing/live/engineer-contracts";
 const QWEN_CATALOG_URL = "/audio/live-engineer/qwen-v3/manifest.json";
-const QWEN_CATALOG_VERSION = "live-engineer-qwen-v3";
+const QWEN_CATALOG_VERSION = LIVE_ENGINEER_AUDIO_CATALOG_VERSION;
 export const DEFAULT_JOIN_GAP_MS = 0;
 export const DEFAULT_RADIO_FILTER = { lowCutHz: 250, highCutHz: 3000 } as const;
 export const DEFAULT_RADIO_COMPRESSOR = { thresholdDb: -24, ratio: 6 } as const;

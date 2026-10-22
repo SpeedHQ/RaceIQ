@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
-import { renderRaceEngineerEvent, renderLapTime, renderOpponentLapPace, renderOpponentPace, renderOpponentPaceText, renderPreviewLine } from "@raceiq/backend-core/live-strategy/live-engineer-renderer";
-import { raceEngineerSource } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/contracts";
+import { renderRaceEngineerEvent, renderLapTime, renderOpponentLapPace, renderOpponentPace, renderOpponentPaceText, renderPreviewLine } from "@raceiq/live-engineer/live-engineer-renderer";
+import { raceEngineerSource } from "@raceiq/live-engineer/race-engineer-triggers/contracts";
 
 test("renders compound v3 pace and lap recipes", () => {
   const base = { relation: "within-class-pace" as const, scope: "class" as const, playerLapNumber: 1, playerLapTimeMs: 60_400, benchmarkLapTimeMs: 60_000, deltaMs: 400, benchmarkKind: "session-best" as const };

@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { RaceEngineerTriggerCatalog } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/catalog";
+import { RaceEngineerTriggerCatalog } from "@raceiq/live-engineer/race-engineer-triggers/catalog";
 import type { LiveResolvedSemanticFrame } from "@raceiq/telemetry-core/telemetry/live-projector";
 import type { ResolvedValue } from "@raceiq/shared/telemetry/resolver/contracts";
-import { RaceEngineerTriggerFrame } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/frame";
-import { createPreviousValueState, type PreviousValueState } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/common";
-import type { RaceEngineerTriggerFunction } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/contracts";
-import { triggerDriverSwaps, triggerRatings, triggerTimings, triggerWatchedOpponents } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/timing-opponent-triggers";
+import { RaceEngineerTriggerFrame } from "../../src/race-engineer-triggers/frame";
+import { createPreviousValueState, type PreviousValueState } from "@raceiq/live-engineer/race-engineer-triggers/common";
+import type { RaceEngineerTriggerFunction } from "@raceiq/live-engineer/race-engineer-triggers/contracts";
+import { triggerDriverSwaps, triggerRatings, triggerTimings, triggerWatchedOpponents } from "@raceiq/live-engineer/race-engineer-triggers/timing-opponent-triggers";
 import { AccBroadcastState } from "@raceiq/capture-formats/acc/broadcast-state";
 import type { AccBroadcastCar } from "@raceiq/shared/telemetry/acc-broadcast";
 

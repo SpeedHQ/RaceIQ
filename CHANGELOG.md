@@ -1,6 +1,10 @@
 ## Unreleased
 
+### Breaking
+- Download and install the Race Engineer voice pack separately; voice audio is no longer included with the app. Text callouts remain available without the pack.
+
 ### Features
+- Show download or update requirements in Radio before enabling voice audio, with independently versioned voice packs and explicit engine/catalog/language compatibility.
 - Use Race Engineer naming throughout internal subsystem identifiers, paths, and user-facing labels.
 - Announce source-backed component damage and faults: named F1 25 components and engine failures, ACC/AC Evo bodywork, iRacing native warnings and repair requirements, and LMU flat tyres/detached wheels. Preserve three-second debounce, independent escalation, and repair rearming; exclude wear and inferred diagnoses.
 - Replace vague damage audio with 56 matching Qwen component/fault clips. LMU enablement remains damage-only; Forza damage stays unavailable.

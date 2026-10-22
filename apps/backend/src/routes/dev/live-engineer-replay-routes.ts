@@ -5,7 +5,7 @@ import { GameIdSchema } from "@raceiq/shared/games/ids";
 import { getSessions } from "@raceiq/backend-core/db/session-queries";
 import { getSessionLaps } from "@raceiq/backend-core/db/lap-read-queries";
 import { getSessionRawFile, getSessionTelemetryReplaySource } from "@raceiq/backend-core/db/telemetry-replay-storage";
-import { runLiveEngineerSessionReplay, type LiveEngineerReplayScenario } from "@raceiq/backend-core/live-strategy/live-engineer-replay";
+import { runLiveEngineerSessionReplay, type LiveEngineerReplayScenario } from "@raceiq/live-engineer/live-engineer-replay";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 const progressivePacketSample = (packets: readonly TelemetryPacket[], gameId: string): TelemetryPacket[] => {

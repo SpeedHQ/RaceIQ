@@ -21,6 +21,7 @@ import { miscRoutes } from "./system/index";
 import { cacheRoutes } from "./cache-routes";
 import { devRoutes } from "./dev/index";
 import { dashboardRoutes } from "./dashboard-routes";
+import { liveEngineerVoicePackRoutes } from "./live-engineer-voice-pack-routes";
 
 const app = new Hono()
   .use("/*", async (c, next) => {
@@ -42,6 +43,7 @@ const app = new Hono()
   .use("/*", errorLogger())
   .route("/", authRoutes)
   .route("/", settingsRoutes)
+  .route("/", liveEngineerVoicePackRoutes)
   .route("/", lapRoutes)
   .route("/", driverRoutes)
   .route("/", chatsRoutes)

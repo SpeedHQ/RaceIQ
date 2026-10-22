@@ -2732,5 +2732,14 @@
   "settings_radio_text_callouts_desc": "在屏幕上显示对手圈速表现的提示。",
   "settings_radio_volume": "无线电音量",
   "settings_radio_save_failed": "无法保存无线电设置。",
+  "radio_voice_pack_checking": "Checking voice pack availability…",
+  "radio_voice_pack_status_failed": "Could not check voice pack status. Audio remains disabled.",
+  "radio_voice_pack_download_required": "Download required",
+  "radio_voice_pack_update_required": "Update required",
+  "radio_voice_pack_required_version": "Required pack version {version} (engine {engineVersion}, language {language}).",
+  "radio_voice_pack_download_link": "Download exact voice pack ZIP",
+  "radio_voice_pack_install_guidance": "Download and install this ZIP using the RaceIQ voice-pack installer, then check again.",
+  "radio_voice_pack_install_docs": "Voice-pack installation instructions",
+  "radio_voice_pack_check_again": "Check again",
   "sparse_split_migration_description": "我们需要将 {sessions} 个现有会话的录音拆分为单圈文件。这样加载第 60 圈会和加载第 1 圈一样快，无需扫描前 59 圈。拆分将在后台运行。"
 }

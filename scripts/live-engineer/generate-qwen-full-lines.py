@@ -14,7 +14,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_OUT = ROOT / "client/public/audio/live-engineer/qwen-v1"
+DEFAULT_OUT = ROOT / "assets/live-engineer/qwen-v1"
 DEFAULT_REFERENCE = ROOT / "scripts/live-engineer/voices/Aussie-short.flac"
 MODEL_ID = "Qwen/Qwen3-TTS-12Hz-1.7B-Base"
 FULL_LINES = tuple((entry["lineId"], entry["spokenText"]) for entry in json.loads((ROOT / "shared/racing/live/full-lines.json").read_text()))

@@ -2732,5 +2732,14 @@
   "settings_radio_text_callouts_desc": "Wyświetlaj na ekranie komunikaty o tempie rywali.",
   "settings_radio_volume": "Głośność radia",
   "settings_radio_save_failed": "Nie udało się zapisać ustawień radia.",
+  "radio_voice_pack_checking": "Checking voice pack availability…",
+  "radio_voice_pack_status_failed": "Could not check voice pack status. Audio remains disabled.",
+  "radio_voice_pack_download_required": "Download required",
+  "radio_voice_pack_update_required": "Update required",
+  "radio_voice_pack_required_version": "Required pack version {version} (engine {engineVersion}, language {language}).",
+  "radio_voice_pack_download_link": "Download exact voice pack ZIP",
+  "radio_voice_pack_install_guidance": "Download and install this ZIP using the RaceIQ voice-pack installer, then check again.",
+  "radio_voice_pack_install_docs": "Voice-pack installation instructions",
+  "radio_voice_pack_check_again": "Check again",
   "sparse_split_migration_description": "Musimy podzielić nagrania z {sessions} istniejących sesji na pojedyncze pliki okrążeń. Dzięki temu okrążenie 60 wczytuje się tak szybko jak okrążenie 1, bez przeszukiwania poprzednich 59 okrążeń. Dzielenie działa w tle."
 }

@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import type { LiveResolvedSemanticFrame } from "@raceiq/telemetry-core/telemetry/live-projector";
-import { RaceEngineerTriggerCatalog } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/catalog";
+import { RaceEngineerTriggerCatalog } from "@raceiq/live-engineer/race-engineer-triggers/catalog";
 import type { ResolvedValue } from "@raceiq/shared/telemetry/resolver/contracts";
-import { LiveEngineerVoiceEngine } from "@raceiq/backend-core/live-strategy/live-engineer-voice-engine";
+import { LiveEngineerVoiceEngine } from "@raceiq/live-engineer/live-engineer-voice-engine";
 import type { LiveEngineerCalloutMessageV3, LiveEngineerVoiceLineMessageV3 } from "@raceiq/shared/racing/live/engineer-contracts";
 import type { GameId } from "@raceiq/shared/games/ids";
 

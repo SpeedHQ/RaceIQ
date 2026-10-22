@@ -1,0 +1,38 @@
+{
+  "name": "@raceiq/live-engineer",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./audio-package": "./src/audio-package.ts",
+    "./live-engineer-renderer": "./src/live-engineer-renderer.ts",
+    "./live-engineer-replay": "./src/live-engineer-replay.ts",
+    "./live-engineer-runtime": "./src/live-engineer-runtime.ts",
+    "./live-engineer-semantic-input": "./src/live-engineer-semantic-input.ts",
+    "./live-engineer-voice-engine": "./src/live-engineer-voice-engine.ts",
+    "./opponent-pace-tracker": "./src/opponent-pace-tracker.ts",
+    "./spotter-tracker": "./src/spotter-tracker.ts",
+    "./race-engineer-triggers/catalog": "./src/race-engineer-triggers/catalog.ts",
+    "./race-engineer-triggers/common": "./src/race-engineer-triggers/common.ts",
+    "./race-engineer-triggers/contracts": "./src/race-engineer-triggers/contracts.ts",
+    "./race-engineer-triggers/car-health-triggers": "./src/race-engineer-triggers/car-health-triggers.ts",
+    "./race-engineer-triggers/race-control-triggers": "./src/race-engineer-triggers/race-control-triggers.ts",
+    "./race-engineer-triggers/session-triggers": "./src/race-engineer-triggers/session-triggers.ts",
+    "./race-engineer-triggers/spotter-trigger": "./src/race-engineer-triggers/spotter-trigger.ts",
+    "./race-engineer-triggers/strategy-triggers": "./src/race-engineer-triggers/strategy-triggers.ts",
+    "./race-engineer-triggers/timing-opponent-triggers": "./src/race-engineer-triggers/timing-opponent-triggers.ts"
+  },
+  "scripts": {
+    "lint": "bun ../../client/node_modules/oxlint/bin/oxlint .",
+    "typecheck": "bun check --project tsconfig.json",
+    "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/live-engineer",
+    "test:unit": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/live-engineer",
+    "test:integration": "bun ../../scripts/test/run-suite.ts integration --package @raceiq/live-engineer"
+  },
+  "dependencies": {
+    "@raceiq/shared": "workspace:*",
+    "@raceiq/telemetry-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@raceiq/capture-formats": "workspace:*"
+  }
+}

@@ -1,4 +1,5 @@
 import type { LiveEngineerVoiceLineMessageV3, LiveEngineerDeliveryStatusV3, LiveEngineerVoiceRequestV3 } from "../../../shared/racing/live/engineer-contracts";
+import { LIVE_ENGINEER_AUDIO_CATALOG_VERSION } from "@raceiq/shared/racing/live/engineer-contracts";
 type Control = LiveEngineerDeliveryStatusV3 | LiveEngineerVoiceRequestV3;
 export interface LiveEngineerAudioPort { play(segmentIds: readonly string[]): Promise<void>; stop(): void; setVolume(value: number): void; }
 export interface LiveEngineerPlaybackCallbacks { enqueueControl(message: Control): void; finishVoiceLine(deliveryId: string): void; setPlayback(playback: "idle" | "playing" | "failed"): void; }
@@ -19,7 +20,6 @@ export class LiveEngineerPlaybackSession {
     this.cancel();
     const generation = ++this.generation;
     this.activeDeliveryId = line.deliveryId;
-    this.audio.setVolume(volume);
     if (!enabled) {
       this.callbacks.enqueueControl({ type: "live-engineer-delivery-status", protocolVersion: 3, deliveryId: line.deliveryId, status: "muted", reason: "radio-disabled" });
       this.callbacks.finishVoiceLine(line.deliveryId);
@@ -33,6 +33,14 @@ export class LiveEngineerPlaybackSession {
       this.activeDeliveryId = null;
       return;
     }
+    if (line.catalogVersion !== LIVE_ENGINEER_AUDIO_CATALOG_VERSION) {
+      this.callbacks.enqueueControl({ type: "live-engineer-delivery-status", protocolVersion: 3, deliveryId: line.deliveryId, status: "failed", reason: "catalog-mismatch" });
+      this.callbacks.finishVoiceLine(line.deliveryId);
+      this.callbacks.setPlayback("failed");
+      this.activeDeliveryId = null;
+      return;
+    }
+    this.audio.setVolume(volume);
     this.callbacks.setPlayback("playing");
     this.callbacks.enqueueControl({ type: "live-engineer-delivery-status", protocolVersion: 3, deliveryId: line.deliveryId, status: "started" });
     this.audio.play(line.segmentIds).then(() => {

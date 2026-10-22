@@ -28,8 +28,8 @@ import { encodeFrameLength, encodeParserBootstrapFrame, encodeSegmentContextEndF
 import { applyFrameTime } from "../session-capture/frame-time";
 import { wsManager } from "../runtime/websocket-manager";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
-import { LiveEngineerVoiceEngine } from "../live-strategy/live-engineer-voice-engine";
-import { RaceEngineerTriggerCatalog } from "../live-strategy/race-engineer-triggers/catalog";
+import { LiveEngineerVoiceEngine } from "@raceiq/live-engineer/live-engineer-voice-engine";
+import { RaceEngineerTriggerCatalog } from "@raceiq/live-engineer/race-engineer-triggers/catalog";
 import type { LiveEngineerVoiceRequestV3, LiveEngineerDeliveryStatusV3 } from "@raceiq/shared/racing/live/engineer-contracts";
 import { isLiveEngineerEnabled, releaseFeatureFlags } from "@raceiq/shared/platform/runtime/release-feature-flags";
 

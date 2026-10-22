@@ -30,10 +30,5 @@ apps/backend/test/runtime/hud-hostname.test.ts
 apps/backend/test/runtime/http-access.test.ts
 apps/backend/test/ai/chat/chat-vision.test.ts
 apps/backend/test/live-strategy/live-engineer-contracts.test.ts
-apps/backend/test/live-strategy/live-engineer-renderer.test.ts
-apps/backend/test/live-strategy/live-engineer-runtime.test.ts
-apps/backend/test/live-strategy/live-engineer-voice-engine.test.ts
-apps/backend/test/live-strategy/opponent-pace-tracker.test.ts
-apps/backend/test/live-strategy/spotter-tracker.test.ts
 apps/backend/test/telemetry/catalog/race-engineer-callout-coverage.test.ts
 apps/backend/test/runtime/live-engineer-websocket.test.ts

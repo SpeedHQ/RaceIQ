@@ -3,8 +3,8 @@ import { normalizeIRacingFrame, createIRacingParserState } from "@raceiq/game-ir
 import { parseIRacingDrivers, parseIRacingSessionType } from "@raceiq/capture-formats/iracing/session-info";
 import { sampleFrameV3 } from "./support/games/iracing-sdk";
 import { LiveTelemetryProjector } from "@raceiq/telemetry-core/telemetry/live-projector";
-import { extractLiveEngineerSemanticInput } from "@raceiq/backend-core/live-strategy/live-engineer-semantic-input";
-import { LiveEngineerVoiceEngine } from "@raceiq/backend-core/live-strategy/live-engineer-voice-engine";
+import { extractLiveEngineerSemanticInput } from "@raceiq/live-engineer/live-engineer-semantic-input";
+import { LiveEngineerVoiceEngine } from "@raceiq/live-engineer/live-engineer-voice-engine";
 import type { LiveEngineerCalloutMessageV3, LiveEngineerVoiceLineMessageV3 } from "@raceiq/shared/racing/live/engineer-contracts";
 
 test("parses and aligns source-backed iRacing competitor snapshots", () => {

@@ -21,6 +21,7 @@ graph LR
 - `shared/` holds neutral telemetry types, game identities, adapter contracts, and mutable registries, with no concrete metadata dependency.
 - `server/` (`@raceiq/backend-core`) owns neutral telemetry pipelines, authoritative session computation, persistence, and shared runtime services.
 - `packages/capture-formats/` owns persisted capture layouts and codecs without live-reader dependencies.
+- `packages/live-engineer/` owns semantic voice triggers, opponent pace and spotter state, rendering, delivery policy, and diagnostic replay. It depends on shared contracts and telemetry projection, not application transport or persistence. Voice audio is a separately installed download, not a bundled application asset.
 - Six `packages/game-<id>/` workspaces own backend adapters, parsers, native sources, recorders, and game-local replay helpers.
 - Six `packages/game-<id>-metadata/` workspaces own browser-safe adapters, static metadata, and separate Node car/track catalog leaves.
 - `packages/game-catalogs/` owns cross-game adapter registration, name/geometry composition, and assembled setup catalogs.

@@ -21,8 +21,8 @@ import {
   type IRacingSourceFrameV3,
 } from "@raceiq/capture-formats/iracing/source-frame";
 import { LiveTelemetryProjector } from "@raceiq/telemetry-core/telemetry/live-projector";
-import { RaceEngineerTriggerCatalog } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/catalog";
-import { LiveEngineerVoiceEngine } from "@raceiq/backend-core/live-strategy/live-engineer-voice-engine";
+import { RaceEngineerTriggerCatalog } from "@raceiq/live-engineer/race-engineer-triggers/catalog";
+import { LiveEngineerVoiceEngine } from "@raceiq/live-engineer/live-engineer-voice-engine";
 import {
   IRSDK_VAR_HEADER_SIZE,
 } from "@raceiq/capture-formats/iracing/variable-table";

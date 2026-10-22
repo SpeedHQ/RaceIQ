@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { SpotterTracker } from "@raceiq/backend-core/live-strategy/spotter-tracker";
+import { SpotterTracker } from "@raceiq/live-engineer/spotter-tracker";
 import type { SpotterFrameV1 } from "@raceiq/shared/racing/live/spotter-contracts";
 
 const frame = (time: number, opponents: SpotterFrameV1["opponents"], extra: Partial<SpotterFrameV1> = {}): SpotterFrameV1 => ({ sessionId: "s", timelineEpoch: 1, sourceSequence: time, sessionTimeMs: time, player: { x: 0, z: 0, rotationRad: 0, speedMps: 20, widthM: 1.8, lengthM: 4.8 }, opponents, ...extra });

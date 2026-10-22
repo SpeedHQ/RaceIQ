@@ -9,6 +9,11 @@
     "@raceiq/capture-formats": "workspace:*",
     "@raceiq/game-acc-metadata": "workspace:*"
   },
+  "devDependencies": {
+    "@raceiq/game-fm-2023": "workspace:*",
+    "@raceiq/live-engineer": "workspace:*",
+    "@raceiq/telemetry-core": "workspace:*"
+  },
   "scripts": {
     "lint": "bun ../../client/node_modules/oxlint/bin/oxlint .",
     "typecheck": "bun check --project tsconfig.json",

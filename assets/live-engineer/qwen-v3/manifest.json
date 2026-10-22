@@ -1,5 +1,8 @@
 {
-  "catalogVersion": "live-engineer-qwen-v3",
+  "catalogVersion": "1.0.0",
+  "packageVersion": "1.0.0",
+  "engineVersion": 1,
+  "language": "en",
   "model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
   "modelRevision": "fd4b254389122332181a7c3db7f27e918eec64e3",
   "sampleRate": 24000,

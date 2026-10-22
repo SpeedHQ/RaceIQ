@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { LiveEngineerVoiceEngine } from "@raceiq/backend-core/live-strategy/live-engineer-voice-engine";
+import { LiveEngineerVoiceEngine } from "@raceiq/live-engineer/live-engineer-voice-engine";
 
 test("F1 live engineer consumes semantic frames, not native grid facts", () => {
   const emitted: unknown[] = [];

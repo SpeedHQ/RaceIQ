@@ -268,7 +268,7 @@ jobs:
   # --- Triggered when draft is published: commit version bump + tag ---
   finalize:
     timeout-minutes: 30
-    if: github.event_name == 'release'
+    if: github.event_name == 'release' && startsWith(github.event.release.tag_name, 'v') && !startsWith(github.event.release.tag_name, 'voice-pack-')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

@@ -159,6 +159,8 @@ Engineer Replay reconstructs ACC through a replay-local instance of the same sta
 
 ## Browser delivery triggers
 
+Audio is an optional external download, not an application asset. `packages/live-engineer/audio-package.json` pins engine compatibility, pack revision and language; `shared/racing/live/audio-catalog-version.json` independently versions the semantic catalog. Generator, installer, status gate, voice-line producer and browser player consume those authoritative versions. Source clips remain in `assets/live-engineer/qwen-v3` (`qwen-v3` identifies generation/storage only). Independent voice releases publish immutable locale/version ZIPs. Runtime serves installed files at `/audio/live-engineer/qwen-v3/*`; missing assets return 404. Radio exposes download/update requirements before a simulator connects. Unsupported manifest catalogs block voice playback; unsupported wire catalogs fail with catalog-mismatch before audio starts. Text callouts remain usable. See [pack tooling](../../packages/tooling-build/src/build/README.md#live-engineer-voice-pack) and [Windows installation](../installation/windows.md#optional-live-engineer-voice-pack).
+
 A server voice line does not guarantee audible output. The browser applies these gates:
 
 1. `RadioPlaybackController` selects the current voice line.
@@ -214,11 +216,12 @@ Do not add a line by reading raw game packets in the renderer or by making the b
 
 ## Source map
 
-- `server/live-strategy/live-engineer-voice-engine.ts` — orchestration and trigger dispatch
-- `server/live-strategy/opponent-pace-tracker.ts` — completed-lap benchmark and relation classification
-- `server/live-strategy/spotter-tracker.ts` — overlap state machine and hysteresis
-- `server/live-strategy/live-engineer-renderer.ts` — text and segment rendering
-- `server/live-strategy/live-engineer-runtime.ts` — queue, priority, expiry, dedupe, cooldown
+- `packages/live-engineer/src/live-engineer-voice-engine.ts` — orchestration and trigger dispatch
+- `packages/live-engineer/src/opponent-pace-tracker.ts` — completed-lap benchmark and relation classification
+- `packages/live-engineer/src/spotter-tracker.ts` — overlap state machine and hysteresis
+- `packages/live-engineer/src/live-engineer-renderer.ts` — text and segment rendering
+- `packages/live-engineer/src/live-engineer-runtime.ts` — queue, priority, expiry, dedupe, cooldown
+- `packages/live-engineer/src/race-engineer-triggers/` — event trigger catalog and implementations
 - `shared/racing/live/engineer-contracts.ts` — WebSocket message contracts
 - `packages/telemetry-core/src/telemetry/live/semantics.ts` — per-game semantic requirements
 - `packages/tooling-catalog/src/catalog/race-engineer-callout-coverage.ts` — reference event/group coverage matrix

@@ -4,9 +4,9 @@ import { parseDump } from "@raceiq/backend-core/test-support/recordings/parse-du
 import { accRecordingSupport } from "@raceiq/game-acc/test-support/recordings";
 import { fmRecordingSupport } from "@raceiq/game-fm-2023/test-support/recordings";
 import { LiveTelemetryProjector } from "@raceiq/telemetry-core/telemetry/live-projector";
-import { RaceEngineerTriggerCatalog } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/catalog";
+import { RaceEngineerTriggerCatalog } from "@raceiq/live-engineer/race-engineer-triggers/catalog";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import { runLiveEngineerSessionReplay, type LiveEngineerReplayScenario } from "@raceiq/backend-core/live-strategy/live-engineer-replay";
+import { runLiveEngineerSessionReplay, type LiveEngineerReplayScenario } from "@raceiq/live-engineer/live-engineer-replay";
 import type { LiveEngineerSessionReplayV1 } from "@raceiq/shared/racing/live/engineer-replay-contracts";
 
 

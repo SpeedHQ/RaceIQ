@@ -2732,5 +2732,14 @@
   "settings_radio_text_callouts_desc": "Mostrar na tela os avisos sobre o ritmo dos adversários.",
   "settings_radio_volume": "Volume do rádio",
   "settings_radio_save_failed": "Não foi possível salvar as configurações do rádio.",
+  "radio_voice_pack_checking": "Checking voice pack availability…",
+  "radio_voice_pack_status_failed": "Could not check voice pack status. Audio remains disabled.",
+  "radio_voice_pack_download_required": "Download required",
+  "radio_voice_pack_update_required": "Update required",
+  "radio_voice_pack_required_version": "Required pack version {version} (engine {engineVersion}, language {language}).",
+  "radio_voice_pack_download_link": "Download exact voice pack ZIP",
+  "radio_voice_pack_install_guidance": "Download and install this ZIP using the RaceIQ voice-pack installer, then check again.",
+  "radio_voice_pack_install_docs": "Voice-pack installation instructions",
+  "radio_voice_pack_check_again": "Check again",
   "sparse_split_migration_description": "Precisamos dividir gravações de {sessions} sessões existentes em arquivos de volta individuais. Isso permite que a volta 60 carregue tão rápido quanto a volta 1, sem precisar varrer as 59 voltas anteriores. A divisão é executada em segundo plano."
 }

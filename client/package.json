@@ -65,6 +65,7 @@
     "@raceiq/game-catalogs": "workspace:*",
     "@raceiq/analysis-core": "workspace:*",
     "@raceiq/telemetry-core": "workspace:*",
+    "@raceiq/live-engineer": "workspace:*",
     "@raceiq/frontend-pure": "workspace:*"
   },
   "devDependencies": {

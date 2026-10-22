@@ -15,7 +15,9 @@ import soundfile as sf
 ROOT = Path(__file__).resolve().parents[2]
 SPEC_PATH = ROOT / "scripts/live-engineer/live-engineer-v3-spec.json"
 DAMAGE_PATH = ROOT / "shared/racing/live/damage-callouts.json"
-OUT = ROOT / "client/public/audio/live-engineer/qwen-v3"
+AUDIO_PACKAGE_PATH = ROOT / "packages/live-engineer/audio-package.json"
+CATALOG_VERSION_PATH = ROOT / "shared/racing/live/audio-catalog-version.json"
+OUT = ROOT / "assets/live-engineer/qwen-v3"
 WORK_DEFAULT = ROOT / ".cache/live-engineer/qwen-v3"
 MODEL = "Qwen/Qwen3-TTS-12Hz-1.7B-Base"
 REVISION = "fd4b254389122332181a7c3db7f27e918eec64e3"
@@ -127,6 +129,7 @@ def synthesize(spec: dict, device: str, dtype: str, work_dir: Path, regenerate_p
     oracle_by_line = {line["lineId"]: {"oracleId": f"oracle.{line['lineId']}", "text": line["spokenText"], "path": line["path"], "sha256": line["sha256"], "durationMs": line["durationMs"], "recipeSegmentIds": []} for line in full_lines}
     recipes = [{"approvalId": f"full-line.{line['lineId']}", "mode": "automatic", "scopeOrDirection": line["lineId"], "segmentIds": [], "oracleId": f"oracle.{line['lineId']}", "status": "not-listened"} for line in full_lines]
     manifest = {"catalogVersion": spec["catalogVersion"], "model": MODEL, "modelRevision": REVISION, "sampleRate": clips[0]["sampleRate"], "channels": 1, "format": "FLAC PCM_16", "listeningStatus": "not-listened", "approvals": {"fixed": {clip["segmentId"]: "not-listened" for clip in clips if clip["role"] == "fixed"}, "recipes": recipes}, "assembly": {"mode": "exact-buffer", "gapMs": 0, "edgeFadeMs": 3}, "referenceText": REFERENCE_TEXT, "referenceSha256": sha256(REFERENCE), "sampleSpecification": str(SPEC_PATH.relative_to(ROOT)).replace("\\", "/"), "specificationSha256": sha256(SPEC_PATH), "generator": str(Path(__file__).relative_to(ROOT)).replace("\\", "/"), "generatorSha256": sha256(Path(__file__)), "clips": clips, "fullLines": full_lines, "oracles": list(oracle_by_line.values())}
+    manifest.update(read_json(AUDIO_PACKAGE_PATH))
     manifest["damageSpecification"] = str(DAMAGE_PATH.relative_to(ROOT)).replace("\\", "/")
     manifest["damageSpecificationSha256"] = sha256(DAMAGE_PATH)
     write_json(OUT / "manifest.json", manifest); return {"clipCount": len(clips), "fullLineCount": len(full_lines), "generated": True}
@@ -137,6 +140,8 @@ def check_catalog(spec: dict) -> dict:
     missing = expected - actual
     if missing: raise SystemExit(f"manifest missing {len(missing)} clips; first {sorted(missing)[0]}")
     if manifest.get("catalogVersion") != spec["catalogVersion"]: raise SystemExit("catalog version mismatch")
+    dependency = read_json(AUDIO_PACKAGE_PATH)
+    if any(manifest.get(key) != value for key, value in dependency.items()): raise SystemExit("unsupported audio package version, engine version, or language")
     for clip in manifest["clips"]:
         path = OUT / clip["path"]
         if clip.get("spokenText") != expected_text[clip["segmentId"]]: raise SystemExit(f"transcript mismatch: {clip['segmentId']}")
@@ -145,6 +150,7 @@ def check_catalog(spec: dict) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(); parser.add_argument("--check-spec", action="store_true"); parser.add_argument("--check", action="store_true"); parser.add_argument("--work-dir", type=Path, default=WORK_DEFAULT); parser.add_argument("--device", default="cuda:0"); parser.add_argument("--dtype", choices=("bfloat16", "float16"), default="bfloat16"); parser.add_argument("--regenerate-prefix", help="Regenerate matching clip IDs; reuse other verified packaged clips"); args = parser.parse_args(); spec = read_json(SPEC_PATH)
+    spec.update(read_json(CATALOG_VERSION_PATH))
     if args.check_spec: print(json.dumps(check_spec(spec), sort_keys=True)); return
     if args.check: print(json.dumps(check_catalog(spec), sort_keys=True)); return
     if args.regenerate_prefix is not None and not any(item["id"].startswith(args.regenerate_prefix) for item in expand_spec(spec)): raise SystemExit("regenerate prefix matches no clips")

@@ -14,8 +14,8 @@ import { processLap } from "@raceiq/analysis-core/racing/analysis/laps/insights/
 import { classifyLapCategory } from "@raceiq/analysis-core/racing/laps/classification";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { LiveTelemetryProjector } from "@raceiq/telemetry-core/telemetry/live-projector";
-import { RaceEngineerTriggerCatalog } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/catalog";
-import { LiveEngineerVoiceEngine } from "@raceiq/backend-core/live-strategy/live-engineer-voice-engine";
+import { RaceEngineerTriggerCatalog } from "@raceiq/live-engineer/race-engineer-triggers/catalog";
+import { LiveEngineerVoiceEngine } from "@raceiq/live-engineer/live-engineer-voice-engine";
 import {
   F1_HEADER_SIZE,
   F1_PACKET_IDS,

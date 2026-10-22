@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { ResolvedValue } from "@raceiq/shared/telemetry/resolver/contracts";
-import { LiveEngineerVoiceEngine } from "@raceiq/backend-core/live-strategy/live-engineer-voice-engine";
-import { raceEngineerSource, type RaceEngineerTriggerEventV1 } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/contracts";
-import { extractLiveEngineerSemanticInput } from "@raceiq/backend-core/live-strategy/live-engineer-semantic-input";
+import { LiveEngineerVoiceEngine } from "@raceiq/live-engineer/live-engineer-voice-engine";
+import { raceEngineerSource, type RaceEngineerTriggerEventV1 } from "@raceiq/live-engineer/race-engineer-triggers/contracts";
+import { extractLiveEngineerSemanticInput } from "@raceiq/live-engineer/live-engineer-semantic-input";
 import type { LiveResolvedSemanticFrame } from "@raceiq/telemetry-core/telemetry/live-projector";
 
 const ok = (semanticId: string, value: unknown): ResolvedValue<unknown> => ({

@@ -5,7 +5,7 @@ import {
   isLiveEngineerVoiceLineMessageV3,
   isLiveEngineerVoiceRequestV3,
 } from "@raceiq/shared/racing/live/engineer-contracts";
-import { raceEngineerSource } from "@raceiq/backend-core/live-strategy/race-engineer-triggers/contracts";
+import { raceEngineerSource } from "@raceiq/live-engineer/race-engineer-triggers/contracts";
 import { WebSocketManager } from "@raceiq/backend-core/runtime/websocket-manager";
 
 const v3Voice = {

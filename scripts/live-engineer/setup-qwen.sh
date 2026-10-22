@@ -55,4 +55,4 @@ PY
 printf '\nEnvironment ready.\n'
 printf 'Reference: %s\n' "$REFERENCE"
 printf 'Generate clips:\n'
-printf '  %q scripts/live-engineer/generate-qwen-full-lines.py --reference %q --output client/public/audio/live-engineer/qwen-v1 --device mps\n' "$PYTHON" "$REFERENCE"
+printf '  %q scripts/live-engineer/generate-qwen-full-lines.py --reference %q --output assets/live-engineer/qwen-v1 --device mps\n' "$PYTHON" "$REFERENCE"

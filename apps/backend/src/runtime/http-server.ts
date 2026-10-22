@@ -3,6 +3,7 @@ import { resolve, sep } from "node:path";
 import { wsManager, type WSData } from "@raceiq/backend-core/runtime/websocket-manager";
 import { MAX_IBT_BYTES } from "../imports/iracing-ibt";
 import { IS_WINDOWS } from "@raceiq/backend-core/runtime/platform/shell";
+import { USER_VOICE_PACKS_DIR } from "@raceiq/shared/platform/runtime/data-paths";
 import { gameAssetsDir } from "@raceiq/shared/platform/runtime/data-paths";
 import { beginRequestAuthorization, endRequestAuthorization, httpAccess, type HttpAccess } from "./http-access";
 
@@ -85,6 +86,21 @@ export function startHttpServer({ app, port, staticDir, devPublicDir, access = {
 
       if (url.pathname.startsWith("/api") || url.pathname.startsWith("/studio-api")) {
         return app.fetch(req);
+      }
+
+      if (url.pathname === "/audio/live-engineer" || url.pathname.startsWith("/audio/live-engineer/")) {
+        const relative = url.pathname.slice("/audio/live-engineer/".length);
+        if (!relative || relative.split("/").some((part) => !part || part === "." || part === "..")) {
+          return new Response("Not Found", { status: 404 });
+        }
+        const filePath = resolve(USER_VOICE_PACKS_DIR, "live-engineer", ...relative.split("/"));
+        if (!filePath.startsWith(resolve(USER_VOICE_PACKS_DIR, "live-engineer") + sep)) {
+          return new Response("Not Found", { status: 404 });
+        }
+        const file = Bun.file(filePath);
+        return await file.exists()
+          ? new Response(file, { headers: { "Cache-Control": "public, max-age=3600" } })
+          : new Response("Not Found", { status: 404 });
       }
 
       if (staticDir) {

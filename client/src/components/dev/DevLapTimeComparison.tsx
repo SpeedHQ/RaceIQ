@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { renderLapTime } from "../../../../server/live-strategy/live-engineer-renderer";
+import { renderLapTime } from "@raceiq/live-engineer/live-engineer-renderer";
 import { Button } from "../ui/button";
 import type { DevSpeechAudio } from "./DevSpeechAudio";
 
-const v3Catalog = { url: "/audio/live-engineer/qwen-v3/manifest.json", version: "live-engineer-qwen-v3" };
+import { LIVE_ENGINEER_AUDIO_CATALOG_VERSION } from "@raceiq/shared/racing/live/engineer-contracts";
+const v3Catalog = { url: "/audio/live-engineer/qwen-v3/manifest.json", version: LIVE_ENGINEER_AUDIO_CATALOG_VERSION };
 type Sample = {
   id: string;
   label: string;
