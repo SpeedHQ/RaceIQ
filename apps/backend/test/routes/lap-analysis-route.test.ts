@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
-import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
-import { getGame } from "@raceiq/shared/games/registry";
 import { analyseSemanticIds } from "@raceiq/shared/games/metric-contracts";
+import { getGame } from "@raceiq/shared/games/registry";
+import { semanticReplayIds } from "@raceiq/lap-replay/server";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { decodeAlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/codec";
 import type { EncodedAlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/types";
 
@@ -10,7 +11,6 @@ import { deleteSession, insertSession, updateSessionRawFile } from "@raceiq/back
 import { cacheDelete, cacheSet } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { insertLap } from "@raceiq/backend-core/db/lap-mutation-queries";
 import { lapRoutes } from "../../src/routes/laps/index";
-import { semanticReplayIds } from "../../src/routes/laps/resource-routes";
 import { packet } from "@raceiq/telemetry-core/test-support/telemetry/resolver";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 

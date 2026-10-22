@@ -113,7 +113,7 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
         scales: {
           x: { time: false },
         },
-        axes: [axis(), axis()],
+        axes: [axis(), { ...axis(), values: () => [], size: 0, ticks: { show: false } }],
         series,
         hooks: {
           ready: [

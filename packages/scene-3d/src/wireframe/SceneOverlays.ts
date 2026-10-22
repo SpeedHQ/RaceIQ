@@ -1,5 +1,4 @@
 import * as THREE from "three/webgpu";
-import type { Line2 } from "three/addons/lines/webgpu/Line2.js";
 import type { TelemetryVariableId } from "@raceiq/shared/telemetry/catalog/generated/telemetry-catalog.types";
 import { normalizeSuspensionTravel } from "../suspension";
 import { steeringAngleRadians, THREE_COLORS, visualWheelRotationSpeed } from "../wireframe-utils";
@@ -9,7 +8,7 @@ import { buildLoadTrail } from "./CarScene";
 import { createCurbMarkerResource, disposeCurbMarkerResource, updateCurbMarkerResource, type CurbMarkerResource } from "./CurbMarkers";
 import { createDimensionLineResource, disposeDimensionLineResource, updateDimensionLineResource, type DimensionLineResource } from "./DimensionLines";
 import { createInputOverlayResource, disposeInputOverlayResource, updateInputOverlayResource, type InputOverlayResource } from "./InputOverlay";
-import { createOpaqueWideLine, createRetainedGrid, createRibbonPool, disposeOpaqueWideLine, disposeRibbonPool, updateOpaqueWideLine, updateRibbonPool, type RetainedGrid, type RibbonPool } from "./LineResources";
+import { createRetainedGrid, createRibbonPool, disposeRibbonPool, updateRibbonPool, type RetainedGrid, type RibbonPool } from "./LineResources";
 import type { SceneRuntimeConfig, SceneSource } from "./SceneRuntime";
 import { createSuspensionSpringResource, disposeSuspensionSpringResource, updateSuspensionSpringResource, type SuspensionSpringResource } from "./SuspensionSpring";
 import { createTireTrailResource, disposeTireTrailResource, updateTireTrailResource, type TireTrailResource } from "./TireTrails";
@@ -20,6 +19,7 @@ import { resolveWheelStates } from "@raceiq/analysis-core/racing/analysis/metric
 import { getGame } from "@raceiq/shared/games/registry";
 import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities";
 import { createWheelLabelResource, disposeWheelLabelResource, updateWheelLabelResource, updateWheelLabelScale, type WheelLabelResource } from "./WheelLabels";
+import { createDrivetrainResource, type DrivetrainResource } from "./Drivetrain";
 
 const wheelValue = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"], index: number): number => {
   const values = frame.values[id];
@@ -60,8 +60,7 @@ export class SceneOverlays {
   private readonly grid: RetainedGrid;
   private readonly loadTrail: RibbonPool;
   private readonly loadDot: THREE.Mesh;
-  private readonly drivetrain: THREE.Group;
-  private readonly axles: Line2[] = [];
+  private readonly drivetrain: DrivetrainResource;
   private wheelModel: SceneRuntimeConfig["carModel"] | null = null;
   private wheels: WheelResource[] = [];
   private labels: (WheelLabelResource | null)[] = [null, null, null, null];
@@ -83,7 +82,6 @@ export class SceneOverlays {
   private previousSample: SemanticAnalysisFrame | null = null;
   private lastLabelUpdate = -Infinity;
   private lastLabelGeneration = -1;
-  private readonly axlePositions = Array.from({ length: 3 }, () => [new THREE.Vector3(), new THREE.Vector3()]);
 
   constructor(scene: THREE.Scene, camera: THREE.PerspectiveCamera) {
     this.scene = scene;
@@ -94,17 +92,8 @@ export class SceneOverlays {
     scene.add(this.loadTrail.group);
     this.loadDot = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), new THREE.MeshBasicMaterial({ color: THREE_COLORS.loadDistribution }));
     scene.add(this.loadDot);
-    this.drivetrain = new THREE.Group();
-    for (const [color, width] of [[THREE_COLORS.appTextDim, 2], [THREE_COLORS.appTextDim, 2], [THREE_COLORS.wireframeStructure, 1.5]] as const) {
-      const line = createOpaqueWideLine(color, width);
-      this.drivetrain.add(line);
-      this.axles.push(line);
-    }
-    for (let i = 0; i < 2; i++) {
-      const box = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.12, 0.2), new THREE.MeshBasicMaterial({ color: THREE_COLORS.appTextDim, wireframe: true }));
-      this.drivetrain.add(box);
-    }
-    scene.add(this.drivetrain);
+    this.drivetrain = createDrivetrainResource();
+    scene.add(this.drivetrain.root);
   }
 
   private replaceWheels(config: SceneRuntimeConfig): void {
@@ -243,16 +232,8 @@ export class SceneOverlays {
       updateRibbonPool(this.loadTrail, this.camera, [trail.map(([x, z]) => ({ x, y, z, color: THREE_COLORS.loadDistribution, alpha: 0.55 }))], 1.2, viewportHeight);
       this.loadTrail.group.visible = true;
     } else { this.loadDot.visible = false; this.loadTrail.group.visible = false; }
-    this.drivetrain.visible = config.toggles.drivetrain;
-    if (config.toggles.drivetrain) {
-      const positions = this.axlePositions;
-      positions[0][0].set(wb, 0, -ft); positions[0][1].set(wb, 0, ft);
-      positions[1][0].set(-wb, 0, -rt); positions[1][1].set(-wb, 0, rt);
-      positions[2][0].set(wb, 0, 0); positions[2][1].set(-wb, 0, 0);
-      for (let i = 0; i < 3; i++) updateOpaqueWideLine(this.axles[i], positions[i]);
-      (this.drivetrain.children[3] as THREE.Mesh).position.x = wb;
-      (this.drivetrain.children[4] as THREE.Mesh).position.x = -wb;
-    }
+    this.drivetrain.root.visible = config.toggles.drivetrain;
+    if (config.toggles.drivetrain) this.drivetrain.update(config.carModel);
     if (config.toggles.racingLine && config.measuredPath?.length && pose?.source === "measured") {
       if (!this.measuredRacingLine) this.measuredRacingLine = createTrackLineResource(this.scene, THREE_COLORS.trackRacingLine, 2, 0.95, -0.42);
       updateTrackLineResource(this.measuredRacingLine, this.camera, config.measuredPath, pose, viewportHeight, config.autoOrbit ? 80 : undefined);
@@ -304,13 +285,7 @@ export class SceneOverlays {
     this.grid.dispose(); this.grid.group.removeFromParent();
     disposeRibbonPool(this.loadTrail); this.loadTrail.group.removeFromParent();
     this.loadDot.removeFromParent(); this.loadDot.geometry.dispose(); (this.loadDot.material as THREE.Material).dispose();
-    for (const line of this.axles) disposeOpaqueWideLine(line);
-    for (const object of this.drivetrain.children.slice(3)) {
-      const box = object as THREE.Mesh;
-      box.geometry.dispose();
-      (box.material as THREE.Material).dispose();
-    }
-    this.drivetrain.removeFromParent();
+    this.drivetrain.dispose();
     for (const label of this.labels) if (label) disposeWheelLabelResource(label);
     for (const wheel of this.wheels) disposeWheelResource(wheel);
     for (const spring of this.springs) disposeSuspensionSpringResource(spring);

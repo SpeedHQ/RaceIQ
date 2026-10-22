@@ -92,6 +92,7 @@
         "@raceiq/game-iracing-metadata": "workspace:*",
         "@raceiq/game-lmu": "workspace:*",
         "@raceiq/game-lmu-metadata": "workspace:*",
+        "@raceiq/lap-replay": "workspace:*",
         "@raceiq/shared": "workspace:*",
         "@raceiq/telemetry-core": "workspace:*",
         "@raceiq/tooling-catalog": "workspace:*",
@@ -127,6 +128,7 @@
         "@raceiq/frontend-pure": "workspace:*",
         "@raceiq/game-catalogs": "workspace:*",
         "@raceiq/game-lmu-metadata": "workspace:*",
+        "@raceiq/lap-replay": "workspace:*",
         "@raceiq/scene-3d": "workspace:*",
         "@raceiq/telemetry-core": "workspace:*",
         "@raceiq/tooling-data": "workspace:*",
@@ -379,6 +381,32 @@
       "name": "@raceiq/game-lmu-metadata",
       "dependencies": {
         "@raceiq/shared": "workspace:*",
+      },
+    },
+    "packages/lap-replay": {
+      "name": "@raceiq/lap-replay",
+      "dependencies": {
+        "@base-ui/react": "^1.8.0",
+        "@hono/zod-validator": "0.9.1",
+        "@raceiq/analysis-core": "workspace:*",
+        "@raceiq/backend-core": "workspace:*",
+        "@raceiq/scene-3d": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+        "@raceiq/telemetry-core": "workspace:*",
+        "@raceiq/tracks-catalogue": "workspace:*",
+        "hono": "4.13.8",
+        "lucide-react": "^1.47.0",
+        "react": "^19.3.0",
+        "react-dom": "^19.3.0",
+        "three": "^0.185.1",
+        "zod": "^4.6.5",
+      },
+      "devDependencies": {
+        "@playwright/test": "1.62.1",
+        "@raceiq/game-catalogs": "workspace:*",
+        "@types/react": "^19.3.0",
+        "@types/react-dom": "^19.3.0",
+        "@types/three": "^0.185.4",
       },
     },
     "packages/scene-3d": {
@@ -1290,6 +1318,8 @@
     "@raceiq/game-lmu": ["@raceiq/game-lmu@workspace:packages/game-lmu"],
 
     "@raceiq/game-lmu-metadata": ["@raceiq/game-lmu-metadata@workspace:packages/game-lmu-metadata"],
+
+    "@raceiq/lap-replay": ["@raceiq/lap-replay@workspace:packages/lap-replay"],
 
     "@raceiq/scene-3d": ["@raceiq/scene-3d@workspace:packages/scene-3d"],
 

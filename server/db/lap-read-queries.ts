@@ -405,8 +405,8 @@ export async function getLapById(
     return { ...buildLapResult(row, []), parseError: "Incomplete capture bundle references" };
   }
   if (hasPublishedLayout && row.captureLayoutVersion !== 3 && !row.captureChunkId) return buildLapResult(row, []);
-  if (row.captureLayoutVersion == null && !(row.rawFile != null && !row.rawFile.endsWith("manifest.json") && row.rawByteOffset != null && (row.rawFrameCount ?? 0) > 0)) return buildLapResult(row, []);
   if (cached && !hasPublishedLayout) return buildLapResult(row, cached);
+  if (row.captureLayoutVersion == null && !(row.rawFile != null && !row.rawFile.endsWith("manifest.json") && row.rawByteOffset != null && (row.rawFrameCount ?? 0) > 0)) return buildLapResult(row, []);
 
   let telemetry: TelemetryPacket[] = [];
   let parseError: string | undefined;

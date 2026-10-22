@@ -6,7 +6,7 @@ import type { LineSpreadTrace } from "./experiments";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import type { ComparisonData, AlignedTrace } from "@raceiq/shared/racing/comparison/types";
 import type { AlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/types";
-import type { LapDetectorCoverage, LapInsight } from "@raceiq/analysis-core/racing/analysis/laps/insights/types"
+import type { LapInsight } from "@raceiq/analysis-core/racing/analysis/laps/insights/types"
 import { useAlignedTelemetry } from "./aligned-telemetry";
 import { client } from "../lib/rpc";
 import { errorFromResponse } from "../lib/rpc-error";
@@ -14,7 +14,8 @@ import { rpcJson } from "../lib/rpc-json";
 import { useGameId } from "../stores/game";
 import { queryKeys } from "./query-keys";
 import { invalidateDashboardQueries } from "./dashboard";
-import { isLmuLiveContextWire, type LmuLiveContextWire } from "@raceiq/shared/telemetry/lmu-context";
+import { isLmuLiveContextWire } from "@raceiq/shared/telemetry/lmu-context";
+import type { SemanticLapTelemetry } from "@raceiq/lap-replay/contracts";
 
 export function useLaps(options?: { refetchInterval?: number | false; allGames?: boolean }) {
   const gameId = useGameId();
@@ -150,25 +151,6 @@ export function useLapComparisonRange(lapAId: number | null, lapBId: number | nu
   };
 }
 
-export interface SemanticReplayFrame {
-  sequence: number;
-  observedAt: { domain: string; milliseconds: number };
-  receivedAt: { domain: string; milliseconds: number };
-  simulator: string;
-  values: Array<{ semanticId: string; value: unknown; unit?: string | null; state?: string; freshness?: string }>;
-  lmu?: LmuLiveContextWire;
-}
-
-export interface SemanticLapTelemetry {
-  lapId: number;
-  requestedSemanticIds: string[];
-  sectorTimes?: number[] | null;
-  sectorStarts?: number[] | null;
-  insights?: unknown[];
-  detectorCoverage?: LapDetectorCoverage[];
-  parseError?: string | null;
-  envelopes: SemanticReplayFrame[];
-}
 
 interface SemanticTelemetryError extends Error {
   parseError?: string;

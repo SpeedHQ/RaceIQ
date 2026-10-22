@@ -80,7 +80,7 @@ const scratchCur = new THREE.Vector3(), scratchPrev = new THREE.Vector3(), scrat
 const scratchTangent = new THREE.Vector3(), scratchSide = new THREE.Vector3(), scratchIncoming = new THREE.Vector3(), scratchOutgoing = new THREE.Vector3();
 const scratchMiter = new THREE.Vector3(), scratchOffset = new THREE.Vector3(), scratchRadial = new THREE.Vector3();
 const scratchColor = new THREE.Color(), scratchColor2 = new THREE.Color();
-/** Retained camera-facing pixel ribbons. Near-plane crossings split independent visible strips. */
+/** Retained camera-facing pixel ribbons. Near-plane crossings split visible strips. */
 export function updateRibbonPool(pool: RibbonPool, camera: THREE.PerspectiveCamera, runs: readonly RibbonRun[], width: number, viewportHeight: number): void {
   if (pool.disposed) return;
   camera.updateMatrixWorld();
@@ -94,12 +94,18 @@ export function updateRibbonPool(pool: RibbonPool, camera: THREE.PerspectiveCame
     const slot = ensureSlot(pool, active++, count), capN = 8;
     let indexCount = 0;
     for (let i = 0; i < count; i++) {
-      const p = points[i], prev = points[i ? i - 1 : 0], next = points[i + 1 < count ? i + 1 : count - 1];
-      scratchCur.set(p.x, p.y, p.z); scratchPrev.set(prev.x, prev.y, prev.z); scratchNext.set(next.x, next.y, next.z);
+      const p = points[i];
+      let previous = i - 1, next = i + 1;
+      while (previous >= 0 && points[previous]!.x === p.x && points[previous]!.y === p.y && points[previous]!.z === p.z) previous--;
+      while (next < count && points[next]!.x === p.x && points[next]!.y === p.y && points[next]!.z === p.z) next++;
+      if (previous < 0) previous = i;
+      if (next >= count) next = i;
+      const prev = points[previous]!, after = points[next]!;
+      scratchCur.set(p.x, p.y, p.z); scratchPrev.set(prev.x, prev.y, prev.z); scratchNext.set(after.x, after.y, after.z);
       scratchTangent.subVectors(scratchNext, scratchPrev).normalize();
       scratchSide.crossVectors(scratchTangent, view).normalize();
       if (scratchSide.lengthSq() < 1e-8) scratchSide.copy(right);
-      if (i && i < count - 1) {
+      if (previous !== i && next !== i) {
         scratchIncoming.subVectors(scratchCur, scratchPrev).normalize();
         scratchOutgoing.subVectors(scratchNext, scratchCur).normalize();
         scratchMiter.addVectors(scratchIncoming, scratchOutgoing).normalize().cross(view).normalize();

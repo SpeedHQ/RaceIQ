@@ -18,6 +18,7 @@
     "./wireframe/ScenePlacement": "./src/wireframe/ScenePlacement.ts",
     "./wireframe/SceneOverlays": "./src/wireframe/SceneOverlays.ts",
     "./wireframe/AnalysisWheels": "./src/wireframe/AnalysisWheels.ts",
+    "./wireframe/Drivetrain": "./src/wireframe/Drivetrain.ts",
     "./wireframe/CarBody": "./src/wireframe/CarBody.tsx",
     "./wireframe/CarScene": "./src/wireframe/CarScene.ts",
     "./wireframe/classify-mesh": "./src/wireframe/classify-mesh.ts",

@@ -1,7 +1,7 @@
 import type { GameId } from "@raceiq/shared/games/ids";
 import { getGame } from "@raceiq/shared/games/registry"
 import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
-import type { SemanticReplayFrame } from "../../hooks/laps";
+import type { SemanticReplayFrame } from "@raceiq/lap-replay/contracts"
 
 export interface TuneWheelValues {
   fl: number;

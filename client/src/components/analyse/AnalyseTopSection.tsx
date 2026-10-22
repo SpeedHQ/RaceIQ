@@ -8,7 +8,7 @@ import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import type { Point, SectorBoundaries, TrackMapBoundaries, TrackMapHandle, TrackMapLabel, TrackOverlayKey, TrackOverlays, TrackZoomBehavior } from "./track-map/types";
 import type { useUnits } from "../../hooks/useUnits";
 import { m } from "../../paraglide/messages";
-import { AnalyseSegmentList } from "./AnalyseSegmentList";
+import { AnalyseSegmentList } from "@raceiq/lap-replay/ui";
 import { AnalyseTrackPanel } from "./AnalyseTrackPanel";
 import { useEffect, useRef } from "react";
 import { AnalyseVizPanel } from "./AnalyseVizPanel";
