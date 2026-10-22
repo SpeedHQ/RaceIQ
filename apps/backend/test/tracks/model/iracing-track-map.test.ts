@@ -12,7 +12,7 @@ import { getAllIRacingTracks, getIRacingSharedTrackName, getIRacingTrack } from 
 import { gameCatalogDir } from "@raceiq/shared/platform/runtime/data-paths";
 import { loadLabelledSegments } from "@raceiq/shared/racing/tracks/storage/meta";
 import type { NamedSegment } from "@raceiq/shared/racing/tracks/named-segments";
-import { computeOutlineLength, resolveIRacingProjection } from "../../../src/routes/tracks/support";
+import { computeOutlineLength, resolveIRacingProjection } from "@raceiq/tracks-catalogue/server";
 
 const activeSvg = `
   <svg viewBox="0 0 100 100">

@@ -35,4 +35,4 @@ export const trackRoutes = new Hono()
 export { trackOutlineRoutes } from "./outline-routes";
 export { trackGeometryRoutes } from "./geometry-routes";
 export { trackSectorBoundaryRoutes, trackSegmentRoutes } from "./segments-routes";
-export { resolveTrackSegments } from "./support";
+export { computeOutlineLength, resolveIRacingProjection, resolveTrackSegments, type TrackProjectionGeometry } from "./support";
