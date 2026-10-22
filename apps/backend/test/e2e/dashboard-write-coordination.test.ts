@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
-import Database from "libsql";
+import { Database } from "bun:sqlite";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -71,6 +71,13 @@ function startBackend(dataDir: string): Backend {
     import { client } from "./server/db/index";
     import { markDashboardCaptureCheckpoint } from "./server/session-capture/dashboard-processor";
     import { prepareDashboardPublicationCandidate, publishDashboardSession } from "./server/db/dashboard-summary-queries";
+    // Windows terminate signals bypass JS handlers; IPC enters the real shutdown handler.
+    if (process.platform === "win32") process.on("message", (message) => {
+      if (message === "shutdown") {
+        process.disconnect();
+        process.emit("SIGTERM");
+      }
+    });
     const { port1, port2 } = new MessageChannel();
     const events = [], waiters = [];
     let selected = null, selectedSession = null, permitRelease = null, permitTask = null;
@@ -123,7 +130,7 @@ function startBackend(dataDir: string): Backend {
     } });
     const server = await bootServer({ httpPort:0, udpPort:0, recordingGameId:null, testDependencies:{ workerPort:port1 } });
     console.log("[W-E2E] READY " + server.httpServer.port + " " + control.port);
-  `], { cwd: ROOT, env: { ...process.env, DATA_DIR: dataDir, NODE_ENV: "production", SERVER_HOST: "127.0.0.1", SERVER_PASSWORD: "", SERVER_ALLOWED_ORIGINS: "", RACEIQ_FEATURE_IRACING_ADAPTER: "true", RACEIQ_TEST_MODE: "0", DB_IN_MEMORY: "0" }, stdout: "pipe", stderr: "pipe" });
+  `], { cwd: ROOT, env: { ...process.env, DATA_DIR: dataDir, NODE_ENV: "production", SERVER_HOST: "127.0.0.1", SERVER_PASSWORD: "", SERVER_ALLOWED_ORIGINS: "", RACEIQ_FEATURE_IRACING_ADAPTER: "true", RACEIQ_TEST_MODE: "0", DB_IN_MEMORY: "0" }, stdout: "pipe", stderr: "pipe", ...(process.platform === "win32" ? { ipc: () => undefined } : {}) });
   let output = "";
   let ports: { api: number; control: number } | undefined;
   const ready = Promise.withResolvers<void>();
@@ -196,7 +203,10 @@ function startBackend(dataDir: string): Backend {
       stopPromise = (async () => {
         if (child.exitCode === null) {
           if (ports) { await control("/release-permit").catch(() => {}); await control("/resume").catch(() => {}); }
-          child.kill("SIGTERM");
+          if (child.exitCode === null) {
+            if (process.platform === "win32") child.send("shutdown");
+            else child.kill("SIGTERM");
+          }
         }
         await exited;
         await drained;
@@ -247,8 +257,8 @@ async function fixture() {
     const openedDatabase = new Database(join(dataDir,"app.db"));
     database = openedDatabase;
     await drain(openedDatabase);
-    return {directory,dataDir,backend,database:openedDatabase,lap,async close() { await backend.stop(); openedDatabase.close(); await rm(directory,{recursive:true,force:true,maxRetries:10,retryDelay:100}); }};
-  } catch(error) { await backend.stop(); database?.close(); await rm(directory,{recursive:true,force:true,maxRetries:10,retryDelay:100}); throw error; }
+    return {directory,dataDir,backend,database:openedDatabase,lap,async close() { await backend.stop(); openedDatabase.close(true); await rm(directory,{recursive:true,force:true,maxRetries:10,retryDelay:100}); }};
+  } catch(error) { await backend.stop(); database?.close(true); await rm(directory,{recursive:true,force:true,maxRetries:10,retryDelay:100}); throw error; }
 }
 async function dirty(backend: Backend, lap: { lapId: number; sessionId: number }, favorite: boolean) {
   const response = await backend.api(`/api/laps/${lap.lapId}/favorite`,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({favorite})});
@@ -319,20 +329,26 @@ test("W-E1: stale candidate cannot resurrect a deleted session or double-subtrac
 
 test("W-E4: raw-source checkpoint invalidates a prepared candidate before publication", async () => {
   const f = await fixture();
+  console.error("[checkpoint trace] fixture ready");
   try {
     const candidate = await publication(f.backend, f.lap, "candidatePrepared");
+    console.error("[checkpoint trace] stale candidate paused");
     const before = z.object({ source_revision: z.number(), published_revision: z.number() }).parse(f.database.prepare("SELECT source_revision,published_revision FROM dashboard_summary_state WHERE session_id=?").get(f.lap.sessionId));
     await dirty(f.backend, f.lap, false);
     await f.backend.checkpoint(f.lap.sessionId);
+    console.error("[checkpoint trace] source checkpoint advanced");
     const changed = z.object({ source_revision: z.number() }).parse(f.database.prepare("SELECT source_revision FROM dashboard_summary_state WHERE session_id=?").get(f.lap.sessionId));
     expect(changed.source_revision).toBeGreaterThan(before.source_revision);
     await f.backend.pause("beforeCommit", f.lap.sessionId);
     await f.backend.release(candidate);
+    console.error("[checkpoint trace] stale candidate released", f.backend.output());
     const fresh = await f.backend.next("beforeCommit");
+    console.error("[checkpoint trace] fresh candidate paused");
     expect(z.object({ published_revision: z.number() }).parse(f.database.prepare("SELECT published_revision FROM dashboard_summary_state WHERE session_id=?").get(f.lap.sessionId)).published_revision).toBe(before.published_revision);
     await f.backend.resume();
     await f.backend.release(fresh);
     await drain(f.database);
+    console.error("[checkpoint trace] publication drained");
     const settled = z.object({ source_revision: z.number(), published_revision: z.number(), capture_dirty: z.number() }).parse(f.database.prepare("SELECT source_revision,published_revision,capture_dirty FROM dashboard_summary_state WHERE session_id=?").get(f.lap.sessionId));
     expect(settled).toEqual({ source_revision: changed.source_revision, published_revision: changed.source_revision, capture_dirty: 0 });
     assertSourceTotals(f.database);

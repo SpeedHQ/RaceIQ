@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import Database from "libsql";
+import { Database } from "bun:sqlite";
 import { createHash } from "node:crypto";
 import dgram from "node:dgram";
 import { LAP_DETECTOR_AC_EVO_ID } from "@raceiq/game-ac-evo/lap-detector";
@@ -56,6 +56,13 @@ function startBranch(dataDir: string, pauseStage: "historical" | "lmu-identity" 
     import { MessageChannel } from "node:worker_threads";
     import { withSessionCaptureMaintenanceLock } from "./server/session-capture/cleanup";
     import { getRecordingStorageActivity } from "./server/session-capture/storage-activity";
+    // Windows terminate signals bypass JS handlers; IPC enters the real shutdown handler.
+    if (process.platform === "win32") process.on("message", (message) => {
+      if (message === "shutdown") {
+        process.disconnect();
+        process.emit("SIGTERM");
+      }
+    });
     let pausedStage = ${JSON.stringify(pauseStage)};
     let testDependencies;
     if (pausedStage) {
@@ -85,7 +92,7 @@ function startBranch(dataDir: string, pauseStage: "historical" | "lmu-identity" 
     });
     if (authSetup.status !== 200 && authSetup.status !== 409) throw new Error("Fixture auth setup failed: " + authSetup.status);
     console.log("[E2E] Backend HTTP:", backend.httpServer.port);
-  `], { cwd: ROOT, env: environment(dataDir), stdout: "pipe", stderr: "pipe" });
+  `], { cwd: ROOT, env: environment(dataDir), stdout: "pipe", stderr: "pipe", ...(process.platform === "win32" ? { ipc: () => undefined } : {}) });
   let output = "";
   const consume = async (stream: ReadableStream<Uint8Array>) => {
     const decoder = new TextDecoder();
@@ -147,7 +154,8 @@ function startBranch(dataDir: string, pauseStage: "historical" | "lmu-identity" 
       if (stopPromise) return stopPromise;
       stopPromise = (async () => {
         if (!exited) {
-          proc.kill("SIGTERM");
+          if (process.platform === "win32") proc.send("shutdown");
+          else proc.kill("SIGTERM");
           if (pauseStage && output.includes("[E2E] Stage entered:")) {
             await waitFor("[Server] Received SIGTERM");
             await this.releaseStage();
@@ -316,7 +324,7 @@ test("startup preserves ambiguous historical Tourist classification without chan
     expect(database.prepare("SELECT id,session_id,notes,is_favorite,profile_id,car_setup,tune_id,experiment_id,experiment_version_id FROM laps ORDER BY id").all()).toEqual(lapMetadata);
   } finally {
     await backend?.stop();
-    database?.close();
+    database?.close(true);
     await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 }, 600_000);
@@ -370,7 +378,7 @@ test("startup discovers Tourist in already-processed AC Evo recordings and does 
     expect(restarted.map((lap) => lap.lap_time)).toEqual([123.456, 123.456]);
   } finally {
     await backend?.stop();
-    database?.close();
+    database?.close(true);
     await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 }, 240_000);
@@ -434,7 +442,7 @@ test("current ambiguous and nonrace results remain terminal across real backend 
     expect(backend.output()).not.toContain("completed result replayed");
   } finally {
     await backend?.stop();
-    database?.close();
+    database?.close(true);
     await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 }, 120_000);
@@ -579,7 +587,7 @@ test(`${captureFailure} historical capture preserves pending repairs while HTTP 
     expect(database.prepare("SELECT notes,is_favorite FROM sessions").all()).toEqual(pending.map(() => ({ notes: "preserve repair annotation", is_favorite: 1 })));
   } finally {
     await backend?.stop();
-    database?.close();
+    database?.close(true);
     await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 }, 240_000);
@@ -635,7 +643,7 @@ for (const failure of ["lmu", "lmu-numeric", "race"] as const) {
       backend = undefined;
     } finally {
       await backend?.stop();
-      database?.close();
+      database?.close(true);
       await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   }, 60_000);
@@ -687,7 +695,7 @@ for (const history of ["v75", "upstream-v76", "frequency-v76", "frequency-v77", 
           database.exec("INSERT INTO schema_migrations (version, name) VALUES (81, 'unknown migration')");
         }
       }
-      database.close();
+      database.close(true);
       database = undefined;
       const initializeArgs = [process.execPath, "--eval", `
         import { initDb, client } from "./server/db";
@@ -721,7 +729,7 @@ for (const history of ["v75", "upstream-v76", "frequency-v76", "frequency-v77", 
         });
       }
     } finally {
-      database?.close();
+      database?.close(true);
       await rm(dataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   }, 60_000);

@@ -7,12 +7,13 @@ import { generateRecordingVisualizations } from "@raceiq/backend-core/test-suppo
 import { assertSectorTimesMatchLapTime, assertLapTimesProper, assertValidLapHasSectors } from "@raceiq/backend-core/test-support/laps/assertions";
 import type { LapSavedNotification } from "@raceiq/backend-core/lap-detection/types"
 import { assertBrandHatchSectorBounds, lapSummary, RECORDINGS_DIR } from "./shared";
+import { isPaceLap } from "@raceiq/shared/racing/lap-classification";
 
 const recordingFile = "acc-2026-04-10T02-59-28-972Z.bin.gz";
 const recording = join(RECORDINGS_DIR, recordingFile);
 
 describe(recordingFile, () => {
-  test("5 laps: outlap + 3 valid + incomplete tail", async () => {
+  test("5 laps: outlap + 3 clean pace laps + incomplete tail", async () => {
     if (!existsSync(recording)) return;
 
     const { laps, wsNotifications, rawPackets } = await parseDump(accRecordingSupport, recording);
@@ -23,7 +24,7 @@ describe(recordingFile, () => {
     generateRecordingVisualizations(recordingFile, laps, rawPackets);
 
     expect(laps.length).toBe(5);
-    expect(laps.filter((l) => l.isValid).length).toBe(3);
+    expect(laps.filter((lap) => lap.isValid && isPaceLap(lap.classification))).toHaveLength(3);
 
     // All laps belong to the same session
     const sessionIds = new Set(laps.map((l) => l.sessionId));
@@ -32,8 +33,7 @@ describe(recordingFile, () => {
     expect(laps.map((l) => l.lapNumber)).toEqual([1, 2, 3, 4, 5]);
 
     // Lap 1: joining lap (recording started mid-lap, from pit)
-    expect(laps[0].isValid).toBe(false);
-    expect(laps[0].invalidReason).toBe("outlap");
+    expect(laps[0].classification).toBe("out_lap");
     expect(laps[0].packets[0].acc?.pitStatus).not.toBe("out");
 
     // Laps 2-4: valid clean laps
@@ -68,9 +68,9 @@ describe(recordingFile, () => {
     expect(laps[4].isValid).toBe(false);
     expect(laps[4].invalidReason).toBe("incomplete");
 
-    // lap-saved notifications: lap 1 invalid, laps 2-4 valid with best lap tracking
+    // Outlap notification preserves category; clean pace laps update the best time.
     expect(lapSaved[0].lapNumber).toBe(1);
-    expect(lapSaved[0].isValid).toBe(false);
+    expect(lapSaved[0].classification).toBe("out_lap");
     expect(lapSaved[1].lapNumber).toBe(2);
     expect(lapSaved[1].isValid).toBe(true);
     expect(lapSaved[1].estimatedBestLapTime).toBe(lapSaved[1].lapTime);

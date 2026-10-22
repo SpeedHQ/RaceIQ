@@ -151,11 +151,10 @@ describe("AC Evo v0.6 recording", () => {
 			if (packet) await detector.feed(packet as unknown as TelemetryPacket);
 		}
 		await detector.flushIncompleteLap();
-		expect(db.laps.map(({ isValid, invalidReason }) => ({ isValid, invalidReason }))).toEqual([
-			{ isValid: false, invalidReason: "outlap" },
-			{ isValid: false, invalidReason: "track limits" },
-			{ isValid: false, invalidReason: "incomplete" },
-		]);
+		expect(db.laps).toHaveLength(3);
+		expect(db.laps[0]).toMatchObject({ classification: "out_lap", isValid: false });
+		expect(db.laps[1]).toMatchObject({ isValid: false, invalidReason: "track limits" });
+		expect(db.laps[2]).toMatchObject({ isValid: false, invalidReason: "incomplete" });
 	}, 120_000);
 
 	// This recording holds three laps and no clean one: a garage-start outlap, a
@@ -179,8 +178,8 @@ describe("AC Evo v0.6 recording", () => {
 
 		expect(laps.length).toBe(3);
 
-		// Lap 1: outlap — driver exits pit, not a valid timed lap
-		expect(laps[0].invalidReason).toBe("outlap");
+		// Lap classification is independent of the validity reason.
+		expect(laps[0].classification).toBe("out_lap");
 		expect(laps[0].isValid).toBe(false);
 
 		// Lap 2: a real flying lap, invalidated on track rather than by pit contact.

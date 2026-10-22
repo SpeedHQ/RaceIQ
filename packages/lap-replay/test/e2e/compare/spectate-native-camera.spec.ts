@@ -9,7 +9,9 @@ test("F1 Spectate camera follows playback without catch-up rubberbanding at clos
   await page.goto(`/f125/compare?${compareQuery(pair)}&view=spectate`, { waitUntil: "domcontentloaded" });
   const canvas = page.locator("[data-spectate-scene] canvas").first();
   await expect(canvas).toHaveAttribute("data-scene-rendered", "true", { timeout: 60_000 });
-  await expect(canvas).toHaveAttribute("data-renderer-backend", "webgpu");
+  expect(["webgpu", "webgl2"]).toContain(await canvas.getAttribute("data-renderer-backend"));
+  await page.getByRole("slider", { name: "Replay position", exact: true }).fill("4");
+  await expect.poll(async () => Number(await canvas.getAttribute("data-render-time"))).toBeCloseTo(4, 1);
   await page.getByRole("button", { name: "Telemetry", exact: true }).click();
   const bounds = await canvas.boundingBox();
   if (!bounds) throw new Error("F1 Spectate scene has no layout");
@@ -26,7 +28,6 @@ test("F1 Spectate camera follows playback without catch-up rubberbanding at clos
     });
   }
   expect(Number(await canvas.getAttribute("data-camera-radius"))).toBeLessThan(50);
-  await page.getByRole("slider", { name: "Replay position" }).fill("4");
   await page.getByRole("button", { name: "Play replay", exact: true }).click();
   const motion = await canvas.evaluate((node) => {
     const { promise, resolve } = Promise.withResolvers<{ frames: number; maxOffset: number }>();

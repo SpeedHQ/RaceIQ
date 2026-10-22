@@ -23,8 +23,7 @@ describe(recordingFile, () => {
     expect(laps.length).toBe(3);
 
     // Lap 0: outlap (was lap 1 before the pit-only opening segment was discarded)
-    expect(laps[0].isValid).toBe(false);
-    expect(laps[0].invalidReason).toBe("outlap");
+    expect(laps[0].classification).toBe("out_lap");
     expect(laps[0].packets[0].acc?.pitStatus).not.toBe("out");
     assertBrandHatchSectorBounds(laps[0]);
 

@@ -90,7 +90,16 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
       use: {
         baseURL: seededBaseURL,
         viewport: { width: 1440, height: 900 },
-        launchOptions: { args: ["--enable-unsafe-webgpu", ...(process.platform === "darwin" ? ["--use-angle=metal"] : [])] },
+        launchOptions: {
+          args: [
+            "--enable-unsafe-webgpu",
+            "--enable-gpu",
+            "--enable-gpu-rasterization",
+            ...(process.platform === "linux" ? ["--enable-features=Vulkan,UseSkiaRenderer"] : []),
+            "--ignore-gpu-blocklist",
+            "--enable-webgl",
+          ],
+        },
       },
     },
     {
