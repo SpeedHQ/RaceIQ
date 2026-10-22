@@ -8,13 +8,10 @@ import { startSparseSplitMigration } from "../support/sparse-split-migration";
 // Runs against seeded webServer with isolated DATA_DIR. Screenshot workflows
 // load committed demo fixtures and every route case is eligible.
 //
-// Inventory covers representative high-risk screens at phone, tablet boundary,
-// and desktop widths. Structural route reachability and extra breakpoint edges
-// remain in workspaces.spec.ts so screenshot count stays bounded.
-//
-// Output: playwright/screenshots/mobile/<viewport>/<page>.png (gitignored).
+// Desktop-only route and interaction evidence. Device behavior remains covered by dedicated responsive screenshot configuration.
+// Output: playwright/screenshots/app/<viewport>/<page>.png (gitignored).
 
-const SCREENSHOT_DIR = process.env.RACEIQ_SCREENSHOT_DIR ?? "./screenshots/mobile";
+const SCREENSHOT_DIR = process.env.RACEIQ_SCREENSHOT_DIR ?? "./screenshots/app";
 
 async function dismissTransientNotification(page: Page) {
   await page.addStyleTag({
@@ -25,10 +22,7 @@ async function dismissTransientNotification(page: Page) {
   });
 }
 
-async function openSettings(page: Page, viewportWidth: number) {
-  if (viewportWidth < 768) {
-    await page.getByLabel("Open navigation").click();
-  }
+async function openSettings(page: Page) {
   await page.getByRole("button", { name: /Settings|TestDriver/ }).click();
   await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
 }
@@ -65,7 +59,6 @@ for (const viewport of RESPONSIVE_VIEWPORTS) {
 
     for (const screenshotCase of RESPONSIVE_INTERACTION_CASES) {
       if (screenshotCase.viewports && !screenshotCase.viewports.includes(viewport.name)) continue;
-      if (screenshotCase.mobileOnly && viewport.width >= 768) continue;
 
       test(screenshotCase.name, async ({ page: p, request }) => {
         const replayGame = screenshotCase.kind === "analyse-actions" ? "fm-2023" : screenshotCase.kind === "analyse-data-panel-loaded" ? "f1-2025" : null;
@@ -76,11 +69,8 @@ for (const viewport of RESPONSIVE_VIEWPORTS) {
         await startSparseSplitMigration(p);
         await dismissTransientNotification(p);
         if (screenshotCase.kind === "analyse-data-panel-loaded") await expect(p.getByRole("heading", { name: "Metrics at Cursor" })).toBeVisible();
-        if (screenshotCase.kind === "nav-drawer") {
-          await p.getByLabel("Open navigation").click();
-          await expect(p.getByRole("navigation").last()).toBeVisible();
-        } else if (screenshotCase.kind === "settings") {
-          await openSettings(p, viewport.width);
+        if (screenshotCase.kind === "settings") {
+          await openSettings(p);
           const overlay = p.getByRole("button", { name: "Dismiss settings" });
           await expect(overlay).toHaveCSS("position", "absolute");
           await expect(overlay).toHaveCSS("inset", "0px");
@@ -92,11 +82,11 @@ for (const viewport of RESPONSIVE_VIEWPORTS) {
             await expect(overlay).toHaveCSS("background-color", background);
           }
         } else if (screenshotCase.kind === "settings-language") {
-          await openSettings(p, viewport.width);
+          await openSettings(p);
           await p.getByRole("combobox", { name: "Search language...", exact: true }).click();
           await expect(p.getByRole("listbox", { name: "Search language..." })).toBeVisible();
         } else if (screenshotCase.kind === "analyse-actions" || screenshotCase.kind === "analyse-data-panel-loaded") {
-          // Base revision can overlap this trigger at phone width; keyboard still opens the menu for comparison.
+          // Keyboard activation also works when a baseline revision overlaps the trigger.
           await p.getByRole("button", { name: "Overlays", exact: true }).focus();
           await p.keyboard.press("Enter");
           await expect(p.getByRole("menu")).toBeVisible();

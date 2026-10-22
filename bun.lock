@@ -553,6 +553,7 @@
       "dependencies": {
         "@libsql/client": "^0.18.0",
         "@raceiq/analysis-core": "workspace:*",
+        "@raceiq/game-lmu-metadata": "workspace:*",
         "@raceiq/tooling-data": "workspace:*",
         "libsql": "^0.5.29",
         "sharp": "^0.35.4",

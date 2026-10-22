@@ -7,6 +7,8 @@ This suite owns route-level browser tests and screenshot evidence. It is separat
 | Project | Match | Server/data |
 | --- | --- | --- |
 | `fresh-install` | `fresh-install/**/*.spec.ts` | Fresh compiled or dev app |
+| `marketing` | `marketing/**/*.spec.ts` | `MARKETING_BASE_URL` (default `https://raceiq.localhost`) |
+| `tunes-setup` | `setup/sparse-split-migration.spec.ts` | Tunes app |
 | `tunes` | `tunes/**/*.spec.ts` | Tunes app |
 | `seeded-e2e` | `seeded/**/*.spec.ts` | Seeded app |
 | `lap-replay` | `packages/lap-replay/test/e2e/**/*.spec.ts`, excluding native GPU specs | Seeded app |
@@ -34,7 +36,9 @@ bun run typecheck
 bun run build
 bun run test                         # build, then full Playwright run
 bunx playwright test --project=seeded-e2e
-E2E_SERVER_MODE=dev PW_SERVER_SET=fresh bunx playwright test --project=fresh-install # direct dev-mode diagnostic only
+E2E_SERVER_MODE=dev PW_SERVER_SET=seeded PW_SCREENSHOT_ONLY=1 bunx playwright test --project=app-screenshots
+E2E_SERVER_MODE=dev bunx playwright test --project=seeded-e2e
+PW_SERVER_SET=fresh bunx playwright test --project=fresh-install # direct dev-mode diagnostic only
 ```
 
 `E2E_SERVER_MODE` is `compiled` by default and accepts `dev` or `compiled`; canonical verification commands use compiled production binaries. Compiled mode launches `dist/raceiq` (`raceiq.exe` on Windows); build first. Dev mode launches Bun server and Vite client and is for deliberate developer diagnostics, not canonical visual verification. `PW_SERVER_SET` accepts `all`, `fresh`, `tunes`, or `seeded` and limits web-server instances. `PW_SCREENSHOT_ONLY=1` omits tunes server; pair with `PW_SEED_SCREENSHOTS=1` for read-only parallel screenshot capture. Port and data overrides are `PW_FRESH_INSTALL_*`, `PW_TUNES_*`, and `PW_SEEDED_E2E_*` (`PORT`, `CLIENT_PORT`, `UDP_PORT`, `DATA_DIR`). `RACEIQ_APP_ROOT` overrides repository root for dev launcher subprocesses. `CI` controls retry/reporter defaults; `PW_SCREENSHOT_WORKERS` controls screenshot worker count.
@@ -89,13 +93,13 @@ Linux compiled E2E jobs reuse the upstream Linux `raceiq-dist` artifact instead 
 
 Seeded shards download that artifact and set `PW_SEEDED_DATABASE` to its database path, resolved relative to the repository root. Both launchers reset their private database, copy the artifact's database and referenced captures into the shard data directory, rebase capture paths, and skip fixture imports. `bun run test` prepares one local snapshot and reuses it for both seeded server sets; standalone local Playwright runs without this override still seed normally. Import and conversion tests continue exercising real imports. Generated `playwright/test-data-*` directories are ignored by Git.
 
-Playwright output goes to `playwright/test-results/`. Responsive captures go to `playwright/screenshots/` (mobile captures under `screenshots/mobile/`). Both are generated artifacts and must not be committed. Seeded data under `test-results/` is disposable.
+Playwright output goes to `playwright/test-results/`. App captures go to `playwright/screenshots/app/`: desktop screens plus only the mobile live dashboard. No other phone or tablet screenshots. Both output trees are generated artifacts and must not be committed. Seeded data under `test-results/` is disposable.
 
 ## Responsive visual baselines
 
 Pull-request screenshot CI renders every responsive screenshot case twice in the same runner environment: once from the PR and once from its current base revision. Both renders use compiled production apps built with both F1 experiments and iRacing adapter flags enabled. Each shard builds its revision before rendering; the base render uses the PR's screenshot spec so renamed selectors do not break baseline capture. The base render is the visual baseline. Screenshot-only menu cases use keyboard activation so overlapping controls in the base revision do not prevent capturing visual differences. Pixel differences at or below the shared 1% tolerance are treated as rendering noise; added, removed, resized, or materially changed screenshots fail the `screenshots` check.
 
-Dashboard render CI uses four shards (`--shard=1/4` through `--shard=4/4`) for both revisions. Each shard captures 23 of the 92 screenshots; the collector merges all four artifacts before comparison.
+App render CI uses four shards (`--shard=1/4` through `--shard=4/4`) for both revisions; the collector merges all four artifacts before comparison.
 
 Failed comparisons still upload the `pr-screenshot-preview` artifact and publish before/after/diff images in the PR UI-change comment. Review those images before accepting a visual change.
 

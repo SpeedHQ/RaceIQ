@@ -21,6 +21,7 @@
     "libsql": "^0.5.29",
     "zod": "^4.6.5",
     "@raceiq/tooling-data": "workspace:*",
+    "@raceiq/game-lmu-metadata": "workspace:*",
     "@raceiq/analysis-core": "workspace:*"
   }
 }

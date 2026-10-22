@@ -7,6 +7,7 @@ import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { F1SetupModal } from "@/components/analyse/F1SetupModal";
 import { SetupContentModal } from "@/components/tunes/SetupFilePicker";
+import { LmuExperimentSetupModal } from "./LmuExperimentSetupModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -49,7 +50,7 @@ function RowStat({ label, value, width }: { label: string; value: string; width?
  */
 export interface VersionGraphProps {
   sessionId: number;
-  gameId: "acc" | "ac-evo" | "f1-2025" | null;
+  gameId: "acc" | "ac-evo" | "f1-2025" | "lmu" | null;
   tests: ExperimentVersion[];
   headVersionId: number | null;
   lapsByTest: Map<number, LapMeta[]>;
@@ -180,7 +181,35 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
                   {m.experiment_checkout()}
                 </Button>
               )}
-              {gameId && (gameId === "f1-2025" ? t.setupSnapshot != null : t.setupPath != null) && (
+              {gameId === "lmu" && t.setupPath != null && (
+                <Button
+                  variant="app-outline"
+                  size="app-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSetupForId(t.id);
+                  }}
+                  title={m.experiment_view_setup_contents()}
+                  className="normal-case tracking-normal font-sans"
+                >
+                  {m.experiment_setup()}
+                </Button>
+              )}
+              {(gameId === "acc" || gameId === "ac-evo") && t.setupPath != null && (
+                <Button
+                  variant="app-outline"
+                  size="app-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSetupForId(t.id);
+                  }}
+                  title={m.experiment_view_setup_contents()}
+                  className="normal-case tracking-normal font-sans"
+                >
+                  {m.experiment_setup()}
+                </Button>
+              )}
+              {gameId === "f1-2025" && t.setupSnapshot != null && (
                 <Button
                   variant="app-outline"
                   size="app-sm"
@@ -280,6 +309,7 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
       {(gameId === "acc" || gameId === "ac-evo") && setupTest?.setupPath && (
         <SetupContentModal gameId={gameId} path={setupTest.setupPath} fileName={setupTest.setupPath.split(/[\\/]/).pop() ?? setupTest.label} onClose={() => setSetupForId(null)} />
       )}
+      {gameId === "lmu" && setupTest?.setupPath && <LmuExperimentSetupModal path={setupTest.setupPath} onClose={() => setSetupForId(null)} />}
       {gameId === "f1-2025" && setupSnapshot && <F1SetupModal setup={setupSnapshot} onClose={() => setSetupForId(null)} />}
       <div className="mx-2 mb-2 flex justify-end">
         <Button variant="app-outline" size="app-sm" onClick={() => setTrashOpen(true)} className="normal-case tracking-normal font-sans shrink-0 inline-flex items-center gap-1">

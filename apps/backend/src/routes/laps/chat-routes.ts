@@ -182,6 +182,7 @@ export function createChatRoutes(overrides: ChatRouteOverrides = {}) {
     try {
       const requestContext = new RequestContext();
       requestContext.set(CHAT_TURN_CONTEXT_KEY, systemPrompt);
+      requestContext.set("gameId", lap.gameId);
       requestContext.set(CHAT_TURN_MESSAGES_KEY, messages);
       const stream = await agent.stream(
         messages,

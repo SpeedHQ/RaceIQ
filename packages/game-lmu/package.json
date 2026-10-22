@@ -5,6 +5,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./import-duckdb": "./src/import-duckdb.ts",
+    "./setup-directory": "./src/setup-directory.ts",
     "./normalizer": "./src/normalizer.ts",
     "./source": "./src/source.ts",
     "./test-support/duckdb": "./test/support/duckdb.ts",

@@ -5,6 +5,8 @@ import { m } from "@/paraglide/messages";
 import { useImportTuneFile, useInspectCarSetup, useSetupFiles } from "../../hooks/setup-queries";
 import { Button } from "../ui/button";
 import { getCategoriesForGame } from "./SetupTuneForm";
+import { useTracksForGame } from "../../hooks/catalog-queries";
+import { SearchSelect } from "../ui/SearchSelect";
 
 /** Imports game setup files into the tune catalog, from the game folder or an uploaded AC Evo binary. */
 export function ImportSetupFile({ gameId, routePrefix, gameLabel, cars, initialFile, onClose }: { gameId: "acc" | "ac-evo"; routePrefix: string; gameLabel: string; cars: { id: string; name: string }[]; initialFile?: File; onClose?: () => void }) {
@@ -12,12 +14,14 @@ export function ImportSetupFile({ gameId, routePrefix, gameLabel, cars, initialF
   const { data, isLoading } = useSetupFiles(gameId);
   const importMut = useImportTuneFile();
   const { mutateAsync: inspect } = useInspectCarSetup();
-  const [upload, setUpload] = useState<{ contentBase64: string; carName: string | null } | null>(null);
+  const [upload, setUpload] = useState<{ contentBase64: string; carName: string | null; presetId: string | null } | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   const [selectedPath, setSelectedPath] = useState<string | null>(initialFile?.name ?? null);
   const [carId, setCarId] = useState<string>(initialFile ? "" : cars[0]?.id ?? "");
   const [carChosen, setCarChosen] = useState(false);
+  const { data: tracks = [] } = useTracksForGame(gameId);
+  const [trackId, setTrackId] = useState<string | null>(null);
   const [name, setName] = useState(initialFile?.name.replace(/\.carsetup$/i, "") ?? "");
   const [author, setAuthor] = useState("Me");
   const [carFilter, setCarFilter] = useState("");
@@ -34,7 +38,7 @@ export function ImportSetupFile({ gameId, routePrefix, gameLabel, cars, initialF
         for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
         const contentBase64 = btoa(binary);
         const info = await inspect(contentBase64);
-        if (active) setUpload({ contentBase64, carName: info.carName });
+        if (active) setUpload({ ...info, contentBase64 });
       } catch (error) {
         if (active) setUploadError(error instanceof Error ? error.message : String(error));
       }
@@ -79,7 +83,7 @@ export function ImportSetupFile({ gameId, routePrefix, gameLabel, cars, initialF
         ?.replace(/\.(json|carsetup)$/i, "") ||
       m.setup_tune_imported_fallback();
     const source = initialFile ? { fileName: initialFile.name, contentBase64: upload?.contentBase64 } : { filePath: selectedPath };
-    importMut.mutate({ gameId, ...source, name: finalName, author, carId, category }, { onSuccess: () => {
+    importMut.mutate({ gameId, ...source, name: finalName, author, carId, trackId, category }, { onSuccess: () => {
       onClose?.();
       void navigate({ to: `${routePrefix}/setups` });
     } });
@@ -156,6 +160,11 @@ export function ImportSetupFile({ gameId, routePrefix, gameLabel, cars, initialF
                   <span className="text-app-caption font-semibold uppercase text-app-text-muted">{m.import_selected()}</span>
                   <div className="text-app-compact font-mono text-app-text-secondary break-all">{selectedPath}</div>
                 </div>
+                {upload && (
+                  <div className="space-y-2">
+                    <p className="text-app-compact text-app-text-secondary">AC EVO · {upload.carName ?? upload.presetId ?? m.tune_form_select_car_placeholder()}</p>
+                  </div>
+                )}
                 <label className="space-y-1 block">
                   <span className="text-xs font-medium text-app-text-muted">{m.tune_form_name()}</span>
                   <AppInput type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full" />
@@ -180,6 +189,17 @@ export function ImportSetupFile({ gameId, routePrefix, gameLabel, cars, initialF
                   </select>
                 </label>
                 <label className="space-y-1 block">
+                  <span className="text-xs font-medium text-app-text-muted">{m.label_track()}</span>
+                  <SearchSelect
+                    value={trackId ?? ""}
+                    onChange={(value) => setTrackId(value || null)}
+                    options={tracks.map((track) => ({ value: track.id, label: track.name }))}
+                    ariaLabel={m.label_track()}
+                    placeholder={m.analyse_search_tracks()}
+                    className="h-8 w-full min-w-0 text-sm"
+                  />
+                </label>
+                <label className="space-y-1 block">
                   <span className="text-xs font-medium text-app-text-muted">{m.label_category()}</span>
                   <select
                     value={category}
@@ -195,7 +215,7 @@ export function ImportSetupFile({ gameId, routePrefix, gameLabel, cars, initialF
                 </label>
                 {importMut.error && <div className="text-app-caption text-status-danger">{(importMut.error as Error).message}</div>}
                 <div className="flex justify-end pt-2">
-                  <Button variant="app-primary" size="app-sm" onClick={doImport} disabled={!selectedPath || importMut.isPending || !carId || !cars.some((car) => car.id === carId) || (initialFile != null && !upload)}>
+                  <Button variant="app-primary" size="app-sm" onClick={doImport} disabled={!selectedPath || importMut.isPending || !carId || !cars.some((car) => car.id === carId) || (initialFile != null && (!upload || trackId == null))}>
                     {importMut.isPending ? m.label_importing() : m.import_import_setup()}
                   </Button>
                 </div>
