@@ -26,6 +26,8 @@ import { telemetryStore, useTelemetryStore } from "../stores/telemetry";
 import { gameIdForPathname } from "../lib/game-routes";
 import { uiStore, useUiStore } from "../stores/ui";
 import { GameRouteProvider, gameStore, usesStoreGameContext, useGameStore } from "../stores/game";
+import { CarsCatalogueHostProvider } from "../features/cars-catalogue-host";
+import { TracksCatalogueHostProvider } from "../features/tracks-catalogue-host";
 function OverlayShell() {
   useWebSocket();
   const { displaySettings, settingsLoaded } = useSettings();
@@ -246,8 +248,12 @@ function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <GameRouteProvider value={gameId}>
-        {auth.authenticated && <DashboardConnection />}
-        {isOverlayPath(location.pathname) ? <OverlayShell /> : pathname === "/login" || pathname === "/onboarding" ? <Outlet /> : <AppShell />}
+        <TracksCatalogueHostProvider>
+          <CarsCatalogueHostProvider>
+            {auth.authenticated && <DashboardConnection />}
+            {isOverlayPath(location.pathname) ? <OverlayShell /> : pathname === "/login" || pathname === "/onboarding" ? <Outlet /> : <AppShell />}
+          </CarsCatalogueHostProvider>
+        </TracksCatalogueHostProvider>
       </GameRouteProvider>
     </QueryClientProvider>
   );

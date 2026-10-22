@@ -12,12 +12,11 @@ import type { AnalyseSearch } from "../../lib/game-routes";
 import { mergeNameCache } from "../../lib/name-cache";
 import { routePrefixForGameId } from "../../lib/game-routes";
 import { isPitLine } from "@/lib/canvas/draw-track";
+import { semanticValues, type SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import {
   DEFAULT_TRACK_OVERLAYS,
-  semanticValues,
   type Point,
   type SectorBoundaries,
-  type SemanticAnalysisFrame,
   type TrackMapBoundaries,
   type TrackMapLabel,
   type TrackOverlays,
@@ -25,6 +24,7 @@ import {
 interface AnalyseSemanticFrame {
   sequence: number;
   observedAtMs: number;
+  observedAt: { domain: string; milliseconds: number };
   values: SemanticAnalysisFrame["values"];
   states: Readonly<Record<string, string | undefined>>;
   freshness: Readonly<Record<string, string | undefined>>;
@@ -58,10 +58,13 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
       semanticReplay?.envelopes.map((envelope: SemanticReplayFrame) => ({
         sequence: envelope.sequence,
         observedAtMs: envelope.observedAt.milliseconds,
+        observedAt: envelope.observedAt,
         values: semanticValues(envelope.values),
         states: Object.fromEntries(envelope.values.filter((entry) => entry.state).map((entry) => [entry.semanticId, entry.state])),
         freshness: Object.fromEntries(envelope.values.filter((entry) => entry.freshness).map((entry) => [entry.semanticId, entry.freshness])),
         source: selectedLap?.source ?? null,
+        units: Object.fromEntries(envelope.values.map((entry) => [entry.semanticId, entry.unit])),
+        ...(envelope.lmu ? { lmu: envelope.lmu } : {}),
       })) ?? [],
     [semanticReplay, selectedLap?.source],
   );

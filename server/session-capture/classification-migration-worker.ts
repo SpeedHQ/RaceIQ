@@ -83,7 +83,7 @@ async function processClaimedRecording(recordingId: string, sourceKey: string, s
     lte(sessions.id, migrationMeta?.cutoffSessionId ?? 0),
   )).orderBy(sessions.id).all();
   if (!existing.length) return finish(recordingId, sourceRevision, "failed", "source_changed", sourcePath, sourceStat);
-  if (new Set(existing.map((session) => session.gameId)).size !== 1) return finish(recordingId, sourceRevision, "failed", "ambiguous_match", sourcePath, sourceStat);
+  if (new Set(existing.map((session) => session.gameId)).size !== 1) return finish(recordingId, sourceRevision, "limited", "ambiguous_match", sourcePath, sourceStat);
   const gameId = existing[0]!.gameId as GameId;
   let game;
   try { game = getServerGame(gameId); } catch { return finish(recordingId, sourceRevision, "limited", "insufficient_evidence", sourcePath, sourceStat); }
@@ -174,25 +174,25 @@ async function processClaimedRecording(recordingId: string, sourceKey: string, s
   }[] = [];
   for (const detectedLap of detected) {
     const capturedSession = capture.sessions[detectedLap.sessionId - 1];
-    if (!capturedSession) return finish(recordingId, sourceRevision, "failed", "ambiguous_match", sourcePath, sourceStat);
+    if (!capturedSession) return finish(recordingId, sourceRevision, "limited", "ambiguous_match", sourcePath, sourceStat);
     const matches = existingLaps.filter((lap) =>
       !used.has(lap.id) &&
       lap.rawByteOffset != null &&
       lap.rawByteOffset === detectedLap.rawByteOffset &&
       lap.rawFrameCount === detectedLap.rawFrameCount
     );
-    if (matches.length !== 1) return finish(recordingId, sourceRevision, "failed", "ambiguous_match", sourcePath, sourceStat);
+    if (matches.length !== 1) return finish(recordingId, sourceRevision, "limited", "ambiguous_match", sourcePath, sourceStat);
     const matchedLap = matches[0]!;
     const owner = existing.find((session) => session.id === matchedLap.sessionId);
-    if (!owner) return finish(recordingId, sourceRevision, "failed", "ambiguous_match", sourcePath, sourceStat);
+    if (!owner) return finish(recordingId, sourceRevision, "limited", "ambiguous_match", sourcePath, sourceStat);
     const mappedOwner = capturedToStoredSession.get(detectedLap.sessionId);
     if (mappedOwner !== undefined && mappedOwner !== owner.id) {
-      return finish(recordingId, sourceRevision, "failed", "ambiguous_match", sourcePath, sourceStat);
+      return finish(recordingId, sourceRevision, "limited", "ambiguous_match", sourcePath, sourceStat);
     }
     const hasIdentity = (value: string | null) => value !== null && value !== "" && value !== "0" && value !== "unknown";
     if ((hasIdentity(capturedSession.carId) && hasIdentity(owner.carId) && capturedSession.carId !== owner.carId) ||
       (hasIdentity(capturedSession.trackId) && hasIdentity(owner.trackId) && capturedSession.trackId !== owner.trackId)) {
-      return finish(recordingId, sourceRevision, "failed", "ambiguous_match", sourcePath, sourceStat);
+      return finish(recordingId, sourceRevision, "limited", "ambiguous_match", sourcePath, sourceStat);
     }
     capturedToStoredSession.set(detectedLap.sessionId, owner.id);
     used.add(matchedLap.id);
@@ -214,7 +214,7 @@ async function processClaimedRecording(recordingId: string, sourceKey: string, s
       });
     }
   }
-  if (used.size !== existingLaps.length) return finish(recordingId, sourceRevision, "failed", "ambiguous_match", sourcePath, sourceStat);
+  if (used.size !== existingLaps.length) return finish(recordingId, sourceRevision, "limited", "ambiguous_match", sourcePath, sourceStat);
   if (detected.some((lap) => !hasKnownClassificationOutcome(lap))) {
     return finish(recordingId, sourceRevision, "limited", "insufficient_evidence", sourcePath, sourceStat);
   }

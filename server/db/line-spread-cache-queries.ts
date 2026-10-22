@@ -3,7 +3,7 @@ import { db, readDb } from "./index"
 import { withDatabaseWrite } from "./write-coordination";
 import { lineSpreadCache } from "./schema";
 
-const LINE_SPREAD_ALGO_VERSION = 2;
+const LINE_SPREAD_ALGO_VERSION = 3;
 
 
 export function lineSpreadLapSetHash(lapIds: number[]): string {

@@ -93,6 +93,7 @@ function paraglideFullReloadPlugin(): Plugin {
       clearTimeout(reloadTimer);
       reloadTimer = setTimeout(() => {
         reloadTimer = undefined;
+        server.moduleGraph.invalidateAll();
         server.ws.send({ type: "full-reload", path: "*" });
       }, 50);
       return [];

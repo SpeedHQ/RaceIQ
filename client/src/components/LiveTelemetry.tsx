@@ -5,7 +5,7 @@ import { m } from "@/paraglide/messages";
 import { useCarName } from "../hooks/catalog-queries";
 import { useUnits } from "../hooks/useUnits";
 import { primaryTireTemperatureC, primaryTireTemperaturesC, type LiveTelemetryView } from "../lib/live-telemetry-view";
-import { controlInputPercent } from "../lib/vehicle-dynamics";
+import { controlInputPercent } from "@raceiq/scene-3d/vehicle-dynamics";
 import { useTelemetryStore } from "../stores/telemetry";
 import { SteeringWheel } from "./SteeringWheel";
 import { ArcGauge, FuelGauge, PowerTorque } from "./telemetry/Gauges";

@@ -64,6 +64,8 @@
     "@raceiq/game-f1-2025-metadata": "workspace:*",
     "@raceiq/analysis-core": "workspace:*",
     "@raceiq/telemetry-core": "workspace:*",
+    "@raceiq/tracks-catalogue": "workspace:*",
+    "@raceiq/cars-catalogue": "workspace:*",
     "@raceiq/game-ams2": "workspace:*",
     "@raceiq/game-ams2-metadata": "workspace:*"
   }

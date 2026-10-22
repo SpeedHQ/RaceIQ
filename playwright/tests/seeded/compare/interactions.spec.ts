@@ -61,7 +61,7 @@ for (const game of SEEDED_GAME_CASES) {
       await route.continue();
     });
 
-    await page.goto(`/${game.prefix}/compare?${compareQuery(pair)}`, { waitUntil: "domcontentloaded" });
+    await page.goto(`/${game.prefix}/compare?${compareQuery(pair)}&view=compare`, { waitUntil: "domcontentloaded" });
     const originalStorage = await page.evaluate(() => ({
       mapWidth: localStorage.getItem("compare-left-column-width"),
       aiPanel: localStorage.getItem("compare-ai-panel-open"),
@@ -69,7 +69,7 @@ for (const game of SEEDED_GAME_CASES) {
     try {
       const workspace = page.getByTestId("lap-compare-workspace");
       await expect(workspace).toBeVisible();
-      await expect(workspace.getByText(/loading/i)).toBeVisible();
+      await expect(workspace.getByRole("status", { name: "Loading comparison data..." })).toBeVisible();
       const initialResponse = page.waitForResponse((response) => alignedRequestMatches(response, pair.lapA.id, pair.lapB.id, 1));
       releaseLoading();
       expect((await initialResponse).ok(), `${game.name} initial comparison load`).toBe(true);
@@ -94,10 +94,10 @@ for (const game of SEEDED_GAME_CASES) {
         })
         .click();
       await expect(workspace.locator(".uplot").first()).toBeVisible({ timeout: 30_000 });
-      await expect(workspace.getByText("Time Delta", { exact: true })).toBeVisible();
+      await expect(workspace.getByTestId("compare-time-delta")).toBeVisible();
       await expect(workspace.getByText("Gaining", { exact: true })).toBeVisible();
       await expect(workspace.getByText("Losing", { exact: true })).toBeVisible();
-      await expect(workspace.getByText("Overview", { exact: true })).toBeVisible();
+      await expect(workspace.getByRole("tabpanel", { name: "Focus View", exact: true }).getByText("Overview", { exact: true })).toBeVisible();
       await expect(workspace.getByText("Zoomed", { exact: true })).toBeVisible();
       await assertSynchronizedCursors(page);
 

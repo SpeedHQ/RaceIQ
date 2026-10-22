@@ -4,13 +4,14 @@ import { dirname, join, resolve } from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { computeParaglideInputHash, type ParaglideHashInput } from "./paraglide-cache";
+import { emitParaglideDeclarations } from "./paraglide-declarations";
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 
-const BUILD_PROFILE = "paraglide-build-v1|message-modules|localStorage,baseLocale|ts-declarations";
+const BUILD_PROFILE = "paraglide-build-v2|message-modules|localStorage,baseLocale|native-ts-declarations";
 const OUTPUT_DIR = "src/paraglide";
 const MANIFEST = "project.inlang/.cache/raceiq-paraglide-build.json";
 const LOCKFILE = "../bun.lock";
-const BUILD_OPTIONS = ["--output-structure", "message-modules", "--strategy", "localStorage", "baseLocale", "--emit-ts-declarations"] as const;
+const BUILD_OPTIONS = ["--output-structure", "message-modules", "--strategy", "localStorage", "baseLocale", "--no-emit-ts-declarations"] as const;
 const inFlight = new Map<string, Promise<void>>();
 
 /** Windows watchers and scanners can briefly retain directory handles after compilation. */
@@ -109,6 +110,7 @@ async function compile(clientRoot: string, key: string): Promise<void> {
       clearInterval(heartbeat);
     }
     if (status !== 0) throw new Error(`Paraglide compile failed (${status})`);
+    await emitParaglideDeclarations(clientRoot, stageOut);
     console.log("[Paraglide] Validating generated output...");
     const generated = await outputDigest(stageOut);
     if (!Object.keys(generated.files).length) throw new Error("Paraglide compile produced no output");

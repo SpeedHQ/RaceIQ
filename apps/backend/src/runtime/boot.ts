@@ -157,12 +157,11 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   );
 
   const udpPort = options.udpPort ?? (Number(process.env.RACEIQ_DEV_UDP_PORT) || settings.udpPort || Number(process.env.UDP_PORT) || 5301);
- void udpListener.start(udpPort).catch((error: unknown) => {
-  console.error(
-    `[UDP] Could not start listener on port ${udpPort}; live UDP telemetry is unavailable.`,
-    error,
-  );
-});
+  try {
+    await udpListener.start(udpPort);
+  } catch (error) {
+    console.error(`[UDP] Unable to listen on port ${udpPort}; recording processing remains available:`, error);
+  }
 
 
   nativeSources = startNativeSourceSupervisor(recordingGameId);

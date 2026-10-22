@@ -20,7 +20,7 @@ import type { ExperimentVersion, LineSpreadTrace } from "@/hooks/experiments";
 import { useSessionLineSpread } from "@/hooks/laps";
 import { useAlignedTelemetry } from "@/hooks/aligned-telemetry";
 import { useLapIssues } from "@/hooks/tunes";
-import { SECTOR_COLOR_VARS } from "@/lib/colors";
+import { SECTOR_COLOR_VARS } from "@raceiq/scene-3d/colors";
 import { ArmHeadline, ReviewOverviewSkeleton, ReviewTrackStats } from "./OverviewSkeleton";
 import { IssuePill } from "./ReviewIssues";
 import { tireSnapshotFromAlignedTrace } from "./tire-snapshot";

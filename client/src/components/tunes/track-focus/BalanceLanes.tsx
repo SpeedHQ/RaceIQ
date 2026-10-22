@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { AnnotationMarker } from "./Lane";
-import { signedBalanceColor } from "@/lib/colors";
+import { signedBalanceColor } from "@raceiq/scene-3d/colors";
 import type { LapTrace } from "../../../lib/stint-traces";
 import type { TrackCorner } from "../../../hooks/track-queries";
 import { ChartSpread, type TooltipDisplayMode } from "./ChartTooltip";

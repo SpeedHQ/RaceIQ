@@ -1,7 +1,7 @@
 import { analyseSemanticIds } from "@raceiq/shared/games/metric-contracts";
 import { getGame } from "@raceiq/shared/games/registry";
 import { GForceCircle } from "../src/components/telemetry/GForceCircle";
-import {suspensionTravelBias} from "../src/lib/suspension";
+import {suspensionTravelBias} from "@raceiq/scene-3d/suspension";
 import { supportsPositionDependentSceneFeature } from "../src/lib/wireframe-capabilities";
 import { describe, expect, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -21,7 +21,7 @@ import { AnalyseDynamicsPanel } from "../src/components/analyse/AnalyseDynamicsP
 import { MetricsPanel } from "../src/components/analyse/AnalyseMetricsPanel";
 import { AnalyseSuspensionPanel } from "../src/components/analyse/AnalyseSuspensionPanel";
 import { AnalyseTireWheelsPanel } from "../src/components/analyse/AnalyseTireWheelsPanel";
-import type { SemanticAnalysisFrame } from "../src/components/analyse/track-map/types";
+import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import { LiveTelemetry } from "../src/components/LiveTelemetry";
 import { FuelGauge, PowerTorque } from "../src/components/telemetry/Gauges";
 import { LapTimes } from "../src/components/telemetry/LapTimes";

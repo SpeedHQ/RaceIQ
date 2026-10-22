@@ -22,6 +22,7 @@ export async function populateLMUDuckDB(
   connection: DuckDBConnection,
   lapRows = "(0,0),(15,1),(30,2)",
   includeLapDistance = true,
+  includeExtensions = false,
 ): Promise<void> {
   await connection.run("CREATE TABLE metadata(key VARCHAR, value VARCHAR)");
   await connection.run(`INSERT INTO metadata VALUES
@@ -33,10 +34,13 @@ export async function populateLMUDuckDB(
     ('CarClass','Hypercar'),
     ('TrackName','Circuit de la Sarthe')`);
   await connection.run("CREATE TABLE channelsList(channelName VARCHAR, frequency INTEGER, unit VARCHAR)");
+  const existingExtensionRows = includeExtensions
+    ? "('Throttle Pos Unfiltered',50,'%'),('SoC',50,'%'),('Virtual Energy',50,'fraction'),('Regen Rate',50,'kW'),('TC',50,'boolean'),"
+    : "";
   await connection.run(
     `INSERT INTO channelsList VALUES ${
       includeLapDistance ? "('Lap Dist',10,'m')," : ""
-    }('Ground Speed',50,'km/h'),('Susp Pos',50,'mm')`,
+    }${existingExtensionRows}('Ground Speed',50,'km/h'),('Susp Pos',50,'mm')`,
   );
   await connection.run("CREATE TABLE eventsList(eventName VARCHAR, unit VARCHAR)");
   if (includeLapDistance) {
@@ -44,6 +48,13 @@ export async function populateLMUDuckDB(
   }
   await connection.run('CREATE TABLE "Ground Speed" AS SELECT 180::FLOAT AS value FROM range(1501)');
   await connection.run('CREATE TABLE "Susp Pos" AS SELECT 50::FLOAT AS value1, 50::FLOAT AS value2, 50::FLOAT AS value3, 50::FLOAT AS value4 FROM range(1501)');
+  if (includeExtensions) {
+    await connection.run('CREATE TABLE "Throttle Pos Unfiltered" AS SELECT 0::FLOAT AS value FROM range(1501)');
+    await connection.run('CREATE TABLE "SoC" AS SELECT 0::FLOAT AS value FROM range(1501)');
+    await connection.run('CREATE TABLE "Virtual Energy" AS SELECT 0::FLOAT AS value FROM range(1501)');
+    await connection.run('CREATE TABLE "Regen Rate" AS SELECT 12::FLOAT AS value FROM range(1501)');
+    await connection.run('CREATE TABLE "TC" AS SELECT 0::FLOAT AS value FROM range(1501)');
+  }
   await connection.run('CREATE TABLE "Lap"(ts DOUBLE, value USMALLINT)');
   await connection.run(`INSERT INTO "Lap" VALUES ${lapRows}`);
   await connection.run('CREATE TABLE "Lap Time"(ts DOUBLE, value FLOAT)');
@@ -52,17 +63,29 @@ export async function populateLMUDuckDB(
   await connection.run('INSERT INTO "Best LapTime" VALUES (0,0),(15,15)');
   await connection.run('CREATE TABLE "Engine Max RPM"(ts DOUBLE, value FLOAT)');
   await connection.run('INSERT INTO "Engine Max RPM" VALUES (0,11000)');
+  if (includeExtensions) {
+    await connection.run('CREATE TABLE "RearFlapActivated"(ts DOUBLE, value USMALLINT)');
+    await connection.run('INSERT INTO "RearFlapActivated" VALUES (0,0)');
+    await connection.run('CREATE TABLE "Speed Limiter"(ts DOUBLE, value USMALLINT)');
+    await connection.run('INSERT INTO "Speed Limiter" VALUES (0,1)');
+  }
 }
 
 export async function createLMUDuckDB(
   path: string,
   lapRows?: string,
   includeLapDistance = true,
+  includeExtensions = false,
 ): Promise<void> {
   const instance = await DuckDBInstance.create(path);
   const connection = await instance.connect();
   try {
-    await populateLMUDuckDB(connection, lapRows, includeLapDistance);
+    await populateLMUDuckDB(
+      connection,
+      lapRows,
+      includeLapDistance,
+      includeExtensions,
+    );
   } finally {
     connection.closeSync();
     instance.closeSync();

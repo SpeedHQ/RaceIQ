@@ -22,6 +22,7 @@
     "@raceiq/game-ac-evo-metadata": "workspace:*",
     "@raceiq/game-catalogs": "workspace:*",
     "@raceiq/analysis-core": "workspace:*",
-    "@raceiq/telemetry-core": "workspace:*"
+    "@raceiq/telemetry-core": "workspace:*",
+    "@raceiq/scene-3d": "workspace:*"
   }
 }

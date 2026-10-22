@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { CatalogCarCard, filterCatalogCars, type IRacingCatalogCar } from "../src/components/iracing/IRacingCars";
+import { CatalogCarCard, filterCatalogCars, type IRacingCatalogCar } from "../../packages/cars-catalogue/ui/iracing/IRacingCars";
+import { m } from "../src/paraglide/messages";
 import ams2Catalog from "../../packages/game-ams2-metadata/src/cars.json";
 
 const car: IRacingCatalogCar = {
@@ -9,7 +10,7 @@ const car: IRacingCatalogCar = {
   imageUrl: "", hasHeadlights: null, rainEnabled: null, hasMultipleDryTireTypes: null, searchTerms: "Polo",
 };
 function render(overrides: Partial<IRacingCatalogCar> = {}, unit: "metric" | "imperial" = "imperial") {
-  return renderToStaticMarkup(createElement(CatalogCarCard, {car: {...car, ...overrides}, gameId: "ams2", unit}));
+  return renderToStaticMarkup(createElement(CatalogCarCard, {car: {...car, ...overrides}, gameId: "ams2", unit, m}));
 }
 describe("catalog car cards", () => {
   test("search handles the AMS2 API shape without optional iRacing fields", () => {

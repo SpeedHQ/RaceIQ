@@ -6,7 +6,8 @@
     "./speed": "./src/speed.ts",
     "./temperature": "./src/temperature.ts",
     "./parse-lap-time": "./src/parse-lap-time.ts",
-    "./iracing-car-sort": "./src/iracing-car-sort.ts"
+    "./iracing-car-sort": "./src/iracing-car-sort.ts",
+    "./pi-class": "./src/pi-class.ts"
   },
   "scripts": {
     "lint": "node ../../client/node_modules/oxlint/bin/oxlint .",

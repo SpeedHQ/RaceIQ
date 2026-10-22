@@ -35,7 +35,9 @@ All acceptance definitions and setup/action/assertion scenarios are in the [shar
 | BE-04: visible source limitations, bounded scheduling, safe concurrent work | AC-05/07/08 | E2E-04/05 |
 | BE-05: contract-conforming real status/retry and correct pace consumers | AC-03/09 | E2E-06/07 |
 
-Native missing/stale state, rolling starts, unknown sessions, and cross-lap evidence use positive-evidence/reset rules (E2E-02). Ambiguous matches/corruption roll back the recording; missing source/evidence is a visible limitation; other work continues without unchanged-input retry loops (E2E-04). Active captures defer; shared-file grouping and maintenance/revision coordination prevent stale overwrites (E2E-05). Precommit crashes roll back; postcommit crashes leave durable aggregate dirty work, not a completed-but-stale dashboard (E2E-03). Nullable legacy metadata remains compatible, not falsely classified (E2E-01/07).
+Native missing/stale state, rolling starts, unknown sessions, and cross-lap evidence use positive-evidence/reset rules (E2E-02). Ambiguous matches and unknown classifications are visible limitations, not execution failures; preserve the whole recording without partial updates. Corruption and execution/read/parse errors remain failed. Reconcile previously persisted ambiguous failures to limited without replay or metadata changes, advancing the status revision (AC-07, E2E-04). Other work continues without unchanged-input retry loops. Active captures defer; shared-file grouping and maintenance/revision coordination prevent stale overwrites (E2E-05). Precommit crashes roll back; postcommit crashes leave durable aggregate dirty work, not a completed-but-stale dashboard (E2E-03). Nullable legacy metadata remains compatible, not falsely classified (E2E-01/07).
+Aggregate status is `complete` when processing and aggregate refresh have settled with only completed/limited outcomes; reserve `attention` for actual execution failures. Verify both cases through the status API and real UI (AC-09, E2E-04/06).
+
 
 ## Verification and completion dependency
 

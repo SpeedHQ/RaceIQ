@@ -1,16 +1,24 @@
 import { useEffect, useRef } from "react";
-import { severityRangeColor } from "@/lib/colors";
-import {suspensionTravelBias} from "@/lib/suspension";
-import {getGame} from "@raceiq/shared/games/registry";
-import {resolveAnalysisTelemetry} from "@raceiq/shared/racing/analysis/telemetry-capabilities";
+import { severityRangeColor } from "@raceiq/scene-3d/colors";
+import { suspensionTravelBias } from "@raceiq/scene-3d/suspension";
+import { getGame } from "@raceiq/shared/games/registry";
+import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
-import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
+import { getSemanticCanvasContext } from "@raceiq/scene-3d/rendering/css-canvas";
 import { m } from "@/paraglide/messages";
-import type { SemanticAnalysisFrame } from "./analyse/track-map/types";
-/** Suspension-compression centroid, from supported normalized compression or explicitly displayed raw AMS2 travel.
- * This is a compression display, not a measurement of tire forces or weight transfer.
- */
-export function WeightShiftRadar({ frame,gameId }: { frame: SemanticAnalysisFrame; gameId: Parameters<typeof getGame>[0] }) {
+import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+
+/** Suspension-compression display, not measured tire forces or weight transfer. */
+export function WeightShiftRadar({
+  frame,
+  gameId,
+  compact = false,
+}: {
+  frame: SemanticAnalysisFrame;
+  gameId: Parameters<typeof getGame>[0];
+  compact?: boolean;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const size = 85;
 
@@ -125,6 +133,19 @@ export function WeightShiftRadar({ frame,gameId }: { frame: SemanticAnalysisFram
   if (rawTravelBalance ? travelBias === null : !semanticLoads || semanticLoads.length < 4) {
     return null;
   }
+  if (compact) return (
+    <Tooltip>
+      <TooltipTrigger
+        render={<div tabIndex={0} className="rounded outline-none focus-visible:ring-2 focus-visible:ring-app-accent" />}
+        aria-label={m.analyse_suspension_compression_bias()}
+      >
+        <canvas ref={canvasRef} style={{ width: size, height: size }} className="block rounded" />
+      </TooltipTrigger>
+      <TooltipContent role="tooltip">
+        {m.analyse_suspension_compression_tooltip()}
+      </TooltipContent>
+    </Tooltip>
+  );
   return (
     <div className="flex w-[85px] flex-col items-center gap-1" title={m.analyse_suspension_compression_tooltip()}>
       <canvas ref={canvasRef} style={{ width: size, height: size }} className="rounded" />

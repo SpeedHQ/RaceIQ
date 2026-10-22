@@ -157,6 +157,11 @@ export async function reconcileClassificationMigrationInventory(options: { reset
       const reset = await initialization.execute("UPDATE classification_migration_recordings SET state='pending',reason=NULL WHERE state='running'");
       changed ||= Number(reset.rowsAffected) > 0;
     }
+    const limitations = await initialization.execute({
+      sql: "UPDATE classification_migration_recordings SET state='limited' WHERE version=? AND state='failed' AND reason='ambiguous_match'",
+      args: [CLASSIFICATION_MIGRATION_VERSION],
+    });
+    changed ||= Number(limitations.rowsAffected) > 0;
     if (changed) await initialization.execute("UPDATE classification_migration_meta SET revision=revision+1 WHERE id=1");
   });
 
@@ -237,7 +242,7 @@ function migrationStatusFrom(
   const limited = values.get("limited") ?? 0;
   const failed = values.get("failed") ?? 0;
   const total = pending + running + completed + limited + failed;
-  const status = total === 0 ? "idle" : pending || running || aggregatesPending ? "running" : limited || failed ? "attention" : "complete";
+  const status = total === 0 ? "idle" : pending || running || aggregatesPending ? "running" : failed ? "attention" : "complete";
   return { version: CLASSIFICATION_MIGRATION_VERSION, revision, status, total, pending, running, completed, limited, failed, aggregatesPending };
 }
 

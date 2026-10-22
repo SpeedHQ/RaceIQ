@@ -44,6 +44,7 @@ function toolbar(selectedLaps: Set<number>, allLaps: LapMeta[] = [lap], toolbarS
       setPage: () => undefined,
       selectedSessions: new Set(),
       selectedLaps,
+      clearSelection: () => undefined,
       exporting: overrides.exporting ?? false,
       runExport: overrides.runExport ?? (() => undefined),
       setImportOpen: () => undefined,
@@ -104,5 +105,15 @@ describe("Sessions toolbar controls", () => {
 
   test("shows Compare button for two laps on same track", () => {
     expect(toolbar(new Set([lap.id, secondLap.id]), [lap, secondLap])).toContain(m.sessions_compare_two());
+  });
+
+  test.each([{ ids: [] }, { ids: [lap.id] }, { ids: [lap.id, secondLap.id, 103] }])("keeps Compare visible but disabled for selection %j", ({ ids }) => {
+    toolbar(new Set(ids), [lap, secondLap]);
+    expect(capturedButtons.find(({ children }) => children === m.sessions_compare_two())?.disabled).toBe(true);
+  });
+
+  test("enables Compare for exactly two compatible laps", () => {
+    toolbar(new Set([lap.id, secondLap.id]), [lap, secondLap]);
+    expect(capturedButtons.find(({ children }) => children === m.sessions_compare_two())?.disabled).toBe(false);
   });
 });

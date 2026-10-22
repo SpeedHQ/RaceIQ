@@ -1,0 +1,1 @@
+packages/scene-3d/test/steering.test.ts

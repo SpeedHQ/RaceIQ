@@ -23,6 +23,8 @@ import {
   type DevTelemetryPacketMessageV1,
   type DevTelemetrySubscriptionMessageV1,
 } from "@raceiq/shared/telemetry/live/contracts";
+import { encodeLmuContext, encodeLmuPacket } from "@raceiq/shared/telemetry/lmu-context";
+import type { LmuLiveContext } from "@raceiq/shared/telemetry/lmu";
 
 export interface WSData {
   createdAt: number;
@@ -322,6 +324,17 @@ export class WebSocketManager {
     this.broadcastNotification({ type: "telemetry-idle" });
   }
 
+  /** Clear only the LMU generation that lost its player/native source. */
+  invalidateLmuTelemetry(context: LmuLiveContext): void {
+    const frame = this.lastFrame;
+    if (!frame?.lmu || frame.lmu.key.sessionKey !== context.key.sessionKey) return;
+    this.publishTelemetry({ frame: {
+      ...frame, receivedAtMs: Date.now(), values: frame.values.map(() => null),
+      states: Object.fromEntries(frame.values.map((_, index) => [index, "missing" as const])),
+      freshness: undefined, context: {}, lmu: encodeLmuContext(context),
+    } });
+  }
+
   private serializeLatestFrame(): string | null {
     if (!this.lastFrameJson && this.lastFrame) this.lastFrameJson = JSON.stringify(this.lastFrame);
     return this.lastFrameJson;
@@ -348,7 +361,7 @@ export class WebSocketManager {
   }
 
   stageDevTelemetry(packet: TelemetryPacket): void {
-    this.lastDevPacketJson = JSON.stringify({ type: "dev-telemetry", protocolVersion: 1, packet } satisfies DevTelemetryPacketMessageV1);
+    this.lastDevPacketJson = JSON.stringify({ type: "dev-telemetry", protocolVersion: 1, packet: encodeLmuPacket(packet) } satisfies DevTelemetryPacketMessageV1);
   }
 
   flushLatest(): void { this._pushToClients(); }

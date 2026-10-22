@@ -1,6 +1,10 @@
 ## Unreleased
 
 ### Features
+- Keep Sessions actions in a bottom-center floating bar with a selection count and Deselect all. Keep Compare visible and enable it only for two compatible laps; filter comparison laps by Mine, Others, or All inside the lap-picker dropdown.
+- Show separate LMU player energy, engine, electric motor, steering feedback, weather and race-control readings in live telemetry and recorded-lap analysis when provided by the game.
+- Show read-only LMU setup, forecast and condition snapshots with source age and availability, without waiting for network requests before displaying live telemetry.
+- Compare laps in Spectate with synchronized 3D replay, configurable cameras and overlays, live A/B instruments, sector deltas, and telemetry, car, AI, Focus View, and lap-statistics panels.
 - Display the Automobilista 2 logo on its home dashboard card.
 - Bundle 235 original AMS2 road-corridor maps, selected by exact layout names or recording-verified aliases with track-length checks when available; Brands Hatch Indy alignment has been manually checked.
 - Add native Windows AMS2 telemetry capture through Project CARS 2 shared memory, with game-specific car and track identity.
@@ -21,6 +25,25 @@
 - Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
 
 ### Fixes
+- Keep recording splitting and background processing available when the UDP telemetry port is already in use.
+- Report inconclusive historical lap classification as limited without requesting attention, and correct earlier results.
+- Center Le Mans Ultimate track outlines within catalogue cards.
+- Select and deselect child laps with the Sessions table header checkbox, preserving selections on other pages and ownership tabs.
+- Stop recording curb maps and using detected curbs to recalibrate track boundaries; preserve telemetry-based curb detection.
+- Keep Spectate racing lines visible when zooming out to the full circuit.
+- Distinguish native fractional LMU brake and clutch inputs from normalized control readings in the telemetry catalog.
+- Keep unchanged LMU supplemental snapshots available while successful polling continues, without resetting their original observation ages.
+- Render LMU developer telemetry snapshots without crashing on precision-preserved observation sequences.
+- Preserve LMU player snapshots, availability states and original observation times through recording, lap export, import and replay.
+- Keep LMU selected-lap exports compact enough to import again, including supplemental snapshots at the recording frame-size limit.
+- Show unrecorded LMU import channels as unavailable instead of artificial zero or false readings, while preserving recorded zeros.
+- Import completed LMU laps even when the first lap-number event arrives after other telemetry.
+- Keep litre-based fuel percentages unavailable when tank capacity is missing instead of interpreting low fuel volumes as fractions.
+- Use native scoring update ages for LMU weather and race-control readings without changing historical snapshot ages.
+- Clear frozen or disconnected LMU player data even when the system clock moves backward.
+- Keep LMU snapshots responsive when the local telemetry service returns oversized, rejected, or malformed condition responses.
+- Open the dashboard in your default browser when launching RaceIQ from the optional desktop shortcut or Start menu, even when the server was stopped.
+- Preserve incomplete-lap eligibility and LMU first-outlap classification across ordinal detector transitions.
 - Keep recording splitting and the dashboard running when another application already uses the live telemetry UDP port.
 - Keep Windows recording publication working when directory metadata flushing is unsupported, while retaining file-content flushing and reporting other I/O failures.
 - Accept captured AMS2 first race laps from the starting grid when the initial invalid flag clears, while preserving later invalidations, pit exclusions, and recording-quality checks.
@@ -84,6 +107,16 @@
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
+- Ignore terminal color codes when waiting for compiler startup in the Paraglide lifecycle CI test.
+- Generate Paraglide declarations with the installed native TypeScript compiler and stop abandoned translation watchers from consuming CPU after development exits.
+- Use Ubuntu instead of macOS for CI runners and cap Mars memory requests at 6 GB.
+- Invalidate cached frontend builds when source changes in dependent workspaces.
+- Extract tracks and cars catalogues into feature-owned UI, server, contract, and E2E workspaces with enforced browser boundaries, inherited Turbo impact inputs, and isolated compiled-app browser tasks.
+- Run native Spectate camera and transition checks in a dedicated browser lane while retaining coverage for CPU-compatible rendering paths.
+- Verify LMU recorded pit-cycle classifications independently of lap validity, preserving telemetry-quality failures and incomplete tails.
+- Synchronize zoom-reversal checks with rendered transition frames and wait for concurrent SQLite writers during migration fixture setup.
+- Keep sparse-capture fixtures schema-valid and verify failed classification recordings without waiting for dashboard work blocked by startup repair prerequisites.
+- Rename the shared LMU decoded-frame contract to `LMUSourceFrame` and remove an unused legacy version constant without changing recording compatibility.
 - Define startup repair stages in a keyed registry with an explicit order; reject unknown, duplicate, or omitted stages before repairs run.
 - Run browser and responsive verification against production builds with all release-gated features enabled, including the historical classification upgrade fixture.
 - Align recording and browser E2E coverage with independent lap classification, pace-only review, current setup-source labels, and recording-organization consent controls.

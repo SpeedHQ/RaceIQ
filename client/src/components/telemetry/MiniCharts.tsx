@@ -1,5 +1,5 @@
-import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
-import { WHEEL_COLOR_VARS } from "@/lib/colors";
+import { getSemanticCanvasContext } from "@raceiq/scene-3d/rendering/css-canvas";
+import { WHEEL_COLOR_VARS } from "@raceiq/scene-3d/colors";
 import { useEffect, useRef, useState } from "react";
 import { GRIP_MAX_SAMPLES } from "./GripSparkline";
 
