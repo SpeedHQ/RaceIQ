@@ -54,6 +54,8 @@
     "./db/experiment-queries": "./db/experiment-queries.ts",
     "./db/experiment-version-queries": "./db/experiment-version-queries.ts",
     "./db/index": "./db/index.ts",
+    "./db/lap-eligibility": "./db/lap-eligibility.ts",
+    "./db/lap-meta": "./db/lap-meta.ts",
     "./db/lap-mutation-queries": "./db/lap-mutation-queries.ts",
     "./db/lap-read-queries": "./db/lap-read-queries.ts",
     "./db/lap-reprocessing-queries": "./db/lap-reprocessing-queries.ts",

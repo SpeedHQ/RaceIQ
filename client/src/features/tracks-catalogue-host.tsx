@@ -26,7 +26,7 @@ import { useGameId, getGameRoute } from "@/stores/game";
 import { countryName } from "@/lib/country-names";
 import { trackRoutePath, tracksIndexPath } from "@/lib/track-routes";
 import { tuneMatchesTrack, tracksMatch } from "@/lib/track-match";
-import { parseUtcTimestamp } from "@/lib/utc-date";
+import { parseUtcTimestamp } from "@raceiq/frontend-pure/utc-date";
 import { formatLapTime } from "@/lib/format";
 import { storedLapsSectorCount } from "@/lib/lap-sectors";
 import { drawTrack } from "@/lib/canvas/draw-track";

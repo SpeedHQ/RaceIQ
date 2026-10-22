@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { LapAnalyse } from "../../../../../components/analyse/LapAnalyse";
-import { gameIdForRoutePrefix, validateAnalyseSearch } from "../../../../../lib/game-routes";
+import { validateAnalyseSearch } from "@raceiq/session-analyse/contracts";
+import { gameIdForRoutePrefix } from "../../../../../lib/game-routes";
 
 function GameSessionReplayRoute() {
   const { gameid, sessionId, lapId } = Route.useParams();
