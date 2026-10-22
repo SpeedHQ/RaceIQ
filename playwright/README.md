@@ -10,7 +10,7 @@ This suite owns route-level browser tests and screenshot evidence. It is separat
 | `tunes` | `tunes/**/*.spec.ts` | Tunes app |
 | `seeded-e2e` | `seeded/**/*.spec.ts` | Seeded app |
 | `lap-replay` | `packages/lap-replay/test/e2e/**/*.spec.ts`, excluding native GPU specs | Seeded app |
-| `lap-replay-webgpu` | Package-owned Spectate camera and transition specs | Seeded app; WebGPU preferred, WebGL2 fallback |
+| `lap-replay-webgpu` | Package-owned native Spectate camera and transition specs | Seeded app with a hardware WebGPU adapter |
 | `record-demo` | `recording/demo.spec.ts` | Seeded replay with GPU launch flags |
 
 `record-demo` waits for the seeded route/import suites and all feature projects to finish before frame capture because they share seeded server state.
@@ -21,7 +21,7 @@ Marketing screenshot captures use `marketing-screenshots.config.ts`; responsive 
 
 The main config uses `tests/` as `testDir`; no E2E specs belong at `tests/` root. Screenshot capture uses dedicated configs. Stateful E2E projects stay ordered on one worker.
 
-The `lap-replay-webgpu` project enables GPU APIs and records adapter information when available. Camera and transition assertions accept WebGPU or WebGL2 so CI runners without hardware still exercise rendered behavior. Mid-snap reversal runs only on hardware WebGPU because software renderers can miss the 280ms animation window; all renderer paths still assert interpolated frames, stable endpoints, and badge independence.
+The `lap-replay-webgpu` project requires a hardware adapter (`GPUAdapterInfo.isFallbackAdapter === false`) and fails rather than skips if one is unavailable. Zoom-reversal checks synchronize with rendered mid-snap frames so browser-driver latency cannot move the input beyond the transition. CPU-compatible Spectate camera and full-range zoom scenarios remain in the cross-platform `lap-replay` project.
 
 Root `test:e2e` (including `test:e2e:compiled`), its `fresh`/`tunes`/`seeded` variants, and root `screenshots` use `scripts/run-browser-verification.ts`: this cross-platform runner builds the production app with both F1 experiments and iRacing adapter flags, then starts compiled-server verification. `build:browser` exposes the feature-enabled build alone; ordinary `build` and release builds retain default feature settings. `ui:diff` builds both compared revisions with those flags before compiled responsive captures; `ui:diff:storybook` remains Storybook-only. The general `bun run test` sequence also performs a feature-enabled browser build immediately before Playwright E2E.
 

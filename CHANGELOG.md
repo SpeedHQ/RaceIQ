@@ -122,8 +122,6 @@
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
-- Verify ACC and AC Evo outlap categories separately from lap validity, preserving track-limit failures and incomplete tails.
-- Align seeded iRacing browser coverage with supported routes and verify unsupported Driver, Setups, and Experiments navigation stays hidden.
 - Remove the stale tire-pressure capability snapshot assertion; retain parser/resolver coverage that prevents iRacing cold setup pressures from appearing as live readings.
 - Run workspace lint through the installed Oxlint CLI and isolate native database test fixtures in subprocesses to keep Windows pre-commit checks reliable.
 - Run native Spectate camera and transition checks on macOS GPU runners while retaining cross-platform coverage for CPU-compatible rendering paths.

@@ -3,7 +3,7 @@ import { basename, dirname, join } from "node:path";
 import { gzipSync, gunzipSync } from "node:zlib";
 import { encodeMetaFrame, iterateSessionCaptureRecords } from "@raceiq/capture-formats/session/framing";
 import { ROOT, command, upgradeEnvironment } from "./upgrade-server";
-import { Database } from "bun:sqlite";
+import Database from "libsql";
 
 
 export const CLASSIFICATION_BASELINE = "v0.19.2";
@@ -74,6 +74,6 @@ export async function prepareOrganizedReleaseData(dataDir: string): Promise<void
     const settings = await Bun.file(settingsPath).json();
     await Bun.write(settingsPath, JSON.stringify({ ...settings, recordingDirectory }));
   } finally {
-    database.close(true);
+    database.close();
   }
 }

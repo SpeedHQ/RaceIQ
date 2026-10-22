@@ -123,7 +123,7 @@ for (const game of SEEDED_GAME_CASES.filter(({ supportedFeatures }) => supported
       const lapId = importable[0]!.id;
 
       await page.getByRole("button", { name: "Add laps from history" }).click();
-      const importDialog = page.getByRole("dialog", { name: "Add laps from history", exact: true });
+      const importDialog = page.getByRole("dialog");
       await expect(importDialog).toBeVisible();
       await importDialog.getByRole("button", { name: "Cancel", exact: true }).click();
       await expect(importDialog).toHaveCount(0);

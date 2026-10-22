@@ -1,6 +1,6 @@
 import { cp } from "node:fs/promises";
 import { join, sep } from "node:path";
-import { Database } from "bun:sqlite";
+import Database from "libsql";
 
 /** Copy historical data without allowing maintenance in one test to mutate another fixture. */
 export async function cloneReleaseData(source: string, destination: string) {
@@ -10,7 +10,7 @@ export async function cloneReleaseData(source: string, destination: string) {
     database.prepare(`UPDATE sessions SET raw_file=? || substr(raw_file,?)
       WHERE substr(raw_file,1,?)=?`).run(destination, source.length + 1, source.length + 1, `${source}${sep}`);
   } finally {
-    database.close(true);
+    database.close();
   }
   const settingsPath = join(destination, "settings.json");
   if (await Bun.file(settingsPath).exists()) {
