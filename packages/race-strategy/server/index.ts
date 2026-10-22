@@ -1,0 +1,17 @@
+export { registerRaceStrategyFeature } from "./runtime";
+export { racePlanRoutes } from "./race-plan-routes";
+export { strategySessionRoutes } from "./session-strategy-routes";
+export { backfillSessionStrategies } from "./strategy-backfill";
+export { PitTracker } from "./pit-tracker";
+export { DurableStrategyTracker } from "./durable-strategy";
+export { StrategyRebuild } from "./strategy-rebuild";
+export { aggregateLapMetrics, STRATEGY_ALGORITHM_VERSION } from "./lap-metrics";
+export type { LapMetricContribution } from "./lap-metrics";
+export { StintMetricAccumulator, rebuildStintSummary } from "./stint-accumulator";
+export type { StintIdentity, StrategyTotals } from "./stint-accumulator";
+export { StrategyBoundary, StrategyBoundaryTracker, strategyBoundary, strategyBoundaryReason, strategyContext, strategyContinuousWear, strategyPitState } from "./strategy-context";
+export { subscribeStrategyHistory, publishStrategyHistory } from "./history-events";
+export { getStrategyBaseline } from "./strategy-baseline-queries";
+export { StaleStrategyIdentityError, InvalidStrategyCursorError, strategyHistoryChanges, publishStrategyChanges, persistStrategyLapMetrics, saveStrategyStint, closeStrategyStint, interruptActiveStrategyStints, getStrategyHistoryRevision, strategySessionExists, getStrategyStints, admitStrategyObservation, savePitEstimate, clearPitEstimates, getPitEstimatePage, activateStrategyRebuild } from "./strategy-queries";
+export type { PersistStrategyLapInput } from "./strategy-queries";
+export { RacePlanNotFoundError, RacePlanSourceNotFoundError, InvalidRacePlanSourceError, InvalidRacePlanError, listRacePlans, createRacePlan, updateRacePlan, deleteRacePlan, getActiveRacePlan, setActiveRacePlan } from "./race-plan-queries";

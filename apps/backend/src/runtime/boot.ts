@@ -33,8 +33,8 @@ import { registerDriverProfileLapNotifier } from "@raceiq/backend-core/driver-pr
 import { notifyDriverProfileLap } from "../driver-profile/runner";
 import { DashboardAuth, setDashboardAuth } from "./dashboard-auth";
 import { configureHttpAccess, httpAccess } from "./http-access";
-import { interruptActiveStrategyStints } from "@raceiq/backend-core/db/strategy-queries";
-import { subscribeStrategyHistory } from "@raceiq/backend-core/live-strategy/history-events";
+import { interruptActiveStrategyStints } from "@raceiq/race-strategy/server";
+import { subscribeStrategyHistory } from "@raceiq/race-strategy/server";
 
 export interface BootOptions {
   httpPort?: number;

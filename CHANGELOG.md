@@ -3,7 +3,7 @@
 ### Features
 - Override tire cliff and dead-health thresholds per game and tire compound.
 - Open an expanded pit-estimate dialog with a projected lap horizon, four-wheel readings, and evidence.
-- Design and save race strategies from previous stint history, then load planned stops, fuel, and tires into the live dashboard.
+- Generate suggested race strategies from recorded fuel and four-wheel tire rates, review planned stops and fuel reserves, and manage saved plans on the Strategies page.
 - Plan races by lap count or race duration using your measured lap time, save the chosen basis, and estimate required fuel and refueling at selected pit stops.
 - Replace live pit estimates with the selected matching race strategy, including planned stops, next-stint compounds/fuel, and measured compound-specific tire life with cliff/dead and fuel-shortfall warnings.
 - Keep pit-estimate history across sessions and restarts, with per-driver clearing and evidence from compatible previous stints.
@@ -21,8 +21,13 @@
 - Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
 
 ### Fixes
+- Replace session-analysis sector tabs with a Stint averages tab that shows the current session without requiring comparison; offer comparison only when two stints are selected.
+- Automatically rebuild missing or outdated stint averages from each session's own saved recording at startup without changing lap IDs, lap times, validity, notes, favorites, or session identity. Skip active, unavailable, corrupt, or mismatched sources without blocking valid recordings.
+- Keep the issues list stationary on hover and highlight the exact hovered issue rather than the first issue in the same corner.
+- Manage saved plans and open the race strategy builder on the Strategies page in each game's navigation, separate from session analysis; reach it from Stint averages or the live strategy dialog.
 - Compact live pit estimates into an integrated countdown, fuel-consumption summary with %/lap rates and both liters and tank percentage when capacity is available, and a four-row tire register; keep evidence, estimate history, and loaded race plans in the expanded dialog with a fixed header.
 - Restore compatible previous-session evidence in live pit estimates.
+- Keep strategy-history save failures visible in compact pit estimates and the expanded strategy dialog while live telemetry continues.
 - Apply ACC and AC Evo tire-threshold overrides to native dry and wet compounds.
 - Retry failed race-plan saves with the latest draft edits.
 - Prevent draft edits and plan switching while a race-plan save is pending.

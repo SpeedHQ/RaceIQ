@@ -5,6 +5,7 @@ scripts/test/tests/paraglide-cache.test.ts
 scripts/test/tests/paraglide-declarations.test.ts
 scripts/test/tests/paraglide-lifecycle.test.ts
 scripts/test/tests/owner-runner.test.ts
+scripts/test/tests/run-turbo.test.ts
 scripts/test/tests/sqlite-import-ban.test.ts
 scripts/test/tests/test-shards.test.ts
 scripts/test/tests/theme-contract.test.ts

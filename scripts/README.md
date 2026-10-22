@@ -95,9 +95,17 @@ bun scripts/test/run-turbo.ts test:unit test:tooling test:integration --affected
 ```
 
 Affected runs require resolvable `TURBO_SCM_BASE` and `TURBO_SCM_HEAD`; otherwise
-the wrapper runs full selection. CI cache partitions include host and toolchain.
+the wrapper runs full selection. Affected `e2e:impact`/`test:e2e` runs also retain
+full coverage when changed-file classification fails or a committed, staged,
+modified, deleted, or untracked input falls outside declared workspace ownership.
+Known workspace changes retain Turbo's real dependency selection. CI cache
+partitions include host and toolchain.
 Application, tooling, and frontend contract tasks compile client translations
 explicitly; game/core tasks do not depend on client compilation.
+Recording/game suites compose real race-strategy services through the application-owned
+`apps/backend/test/support/setup-strategy.ts` preload. Bare test configurations use
+the same registration; pure-unit runs remain preload-free. Backend-core recording
+helpers never import feature implementations or install fake runtime fallbacks.
 
 The Build & Test CI job limits Turbo to two concurrent test tasks and sets
 `BUN_TEST_WORKERS=1` for both affected and full runs to avoid nested test

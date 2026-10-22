@@ -1,7 +1,7 @@
 import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "@raceiq/shared/telemetry/live/contracts";
 import { convertSpeed, speedLabel } from "@raceiq/frontend-pure/speed";
-import { indexTelemetrySchema, readIndexedValue } from "./live-telemetry-view";
-import type { LiveTelemetryView } from "./live-telemetry-view";
+import { indexTelemetrySchema, readIndexedValue } from "@raceiq/frontend-pure/live-telemetry-view";
+import type { LiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
 import type { OverlayConfig } from "./streaming-config";
 
 export interface OverlayCompetitor {

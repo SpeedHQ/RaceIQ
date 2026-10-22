@@ -1,0 +1,4 @@
+packages/race-strategy/test/integration/pit-cycle.test.ts
+packages/race-strategy/test/integration/pit-tracker.test.ts
+packages/race-strategy/test/integration/stint-strategy.test.ts
+packages/race-strategy/test/integration/race-plan.test.ts

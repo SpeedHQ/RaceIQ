@@ -1,4 +1,10 @@
 {
+  "race_plan_strategies": "Strategieën",
+  "race_plan_generate": "Racestrategie genereren",
+  "race_plan_capacity": "Brandstoftankinhoud",
+  "race_plan_reserve": "Brandstofreserve bij elke stop",
+  "race_plan_generate_help": "Stel stops voor op basis van vastgelegd verbruik en bandenslijtage. Elke stop gaat uit van nieuwe banden en tanken. Voer racelengte, tankinhoud en reserve in; controleer voor het opslaan.",
+  "race_plan_generate_error": "Kies een stint met gemeten verbruik en slijtage van alle vier banden. Controleer lengte, inhoud en reserve: minimaal één ronde per stint, maximaal 100 stints.",
   "race_plan_length_mode": "Racelengte",
   "race_plan_time": "Raceduur",
   "race_plan_duration_minutes": "Raceduur (minuten)",

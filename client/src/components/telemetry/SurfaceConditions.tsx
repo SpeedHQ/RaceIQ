@@ -1,5 +1,5 @@
 import { m } from "@/paraglide/messages";
-import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
+import type { LiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
 
 /**
  * Per-wheel curb and puddle status. Games whose normalized zeroes are source

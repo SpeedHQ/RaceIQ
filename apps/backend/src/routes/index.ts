@@ -22,7 +22,7 @@ import { cacheRoutes } from "./cache-routes";
 import { devRoutes } from "./dev/index";
 import { dashboardRoutes } from "./dashboard-routes";
 
-import { racePlanRoutes } from "./race-plan-routes";
+import { racePlanRoutes } from "@raceiq/race-strategy/server";
 const app = new Hono()
   .use("/*", async (c, next) => {
     const denied = await httpAccess.authorize(c.req.raw);

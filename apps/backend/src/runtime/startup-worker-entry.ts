@@ -10,6 +10,7 @@ import { startDashboardProcessor, type DashboardProcessorHandle } from "@raceiq/
 import { setDashboardPublicationNotifier } from "@raceiq/backend-core/db/dashboard-summary-queries";
 import { initMotecTargets } from "../games/motec-init";
 import { reconcileHistoricalSessions } from "@raceiq/backend-core/session-capture/reconcile";
+import { backfillSessionStrategies } from "@raceiq/race-strategy/server";
 import { ALL_DETECTOR_IDS } from "./startup-jobs";
 import { getAllServerGames } from "@raceiq/backend-core/games/registry";
 import { countStaleSessions, deleteEmptySessions } from "@raceiq/backend-core/db/session-queries";
@@ -202,6 +203,12 @@ async function start(): Promise<void> {
         if (stopping) return;
         console.log("[StartupWorker] Starting dashboard processor");
         processor = startDashboardProcessor({ publicationHooks });
+      }
+      if (!stopping) {
+        const counts = await backfillSessionStrategies((reprocessed) => {
+          if (!stopping) port.postMessage({ type: "lap-reprocessed", reprocessed });
+        }, () => stopping);
+        console.log("[StrategyBackfill] Complete:", counts);
       }
     })()];
     void backgroundTasks[0].then(

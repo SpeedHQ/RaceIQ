@@ -2,11 +2,11 @@
 
 ## Status and purpose
 
-Agreed convention for new and extracted product features. `@raceiq/tracks-catalogue` and `@raceiq/cars-catalogue` implement it; unrelated features are not automatically migrated.
+Agreed convention for new and extracted product features. `@raceiq/tracks-catalogue`, `@raceiq/cars-catalogue`, and `@raceiq/race-strategy` implement it; unrelated features are not automatically migrated.
 
 A feature owns its UI, server behavior, feature-local contracts and tests in **one workspace**. The application composes features; it does not own their implementations. This boundary supports feature-level Turbo impact selection without splitting every feature into separate UI/server/test packages.
 
-Decision: [Feature-owned E2E boundaries](../adr/0015-e2e-aware-package-extraction.md). Implemented extraction: [catalogue contract and verification](../../advisor-plans/catalogues-contract.md). Dashboard extraction and the broader selective-CI rollout remain deferred.
+Decision: [Feature-owned E2E boundaries](../adr/0015-e2e-aware-package-extraction.md). Extractions: [catalogue contract and verification](../../advisor-plans/catalogues-contract.md), [race strategy contract and verification](../../advisor-plans/race-strategy-contract.md). Dashboard extraction and the broader selective-CI rollout remain deferred.
 
 ## Layout
 
@@ -104,7 +104,7 @@ Keep genuinely shared DTOs authoritative in their existing shared location. Put 
 
 Each feature owns its unit, integration and E2E suites. Browser E2Es live inside the feature and exercise the **complete real compiled application**, its real server/API and affected persistence/transport integrations—not a feature-only mock server.
 
-Both catalogue packages register `test:e2e` for execution and `e2e:impact` for boundary validation and impact selection. `test:e2e` depends on its impact task and the shared compiled-app build. The build is an execution prerequisite, not an impact dependency.
+The catalogue and race-strategy packages register `test:e2e` for execution and `e2e:impact` for boundary validation and impact selection. `test:e2e` depends on its impact task and the shared compiled-app build. The build is an execution prerequisite, not an impact dependency.
 
 - Changes to either `ui/` or `server/` intentionally select the feature's E2Es. One workspace means feature-level invalidation; subpath exports do not promise independent Turbo package graphs.
 - Impact inputs include feature code, contracts, specs, suite manifests, fixtures, setup and actual shared dependency closure.
@@ -141,7 +141,7 @@ Default package inputs capture new or changed UI, server, contract and spec file
 
 See Turbo's [default inputs](https://turborepo.dev/docs/crafting-your-repository/configuring-tasks#specifying-inputs), [array inheritance](https://turborepo.dev/docs/reference/package-configurations#extending-arrays-with-turbo_extends) and [affected selection](https://turborepo.dev/docs/reference/run#--affected). This pattern was verified against the installed Turbo 2.11.7.
 
-The package scripts invoke the existing Playwright CLI directly, with distinct seeded data directories, HTTP/client/UDP ports and output directories. There is no additional catalogue E2E runner. Full browser invocations and the existing CI matrix still include both projects; selective task support alone does not mean those CI jobs are skipped.
+Package scripts invoke the existing Playwright CLI directly. Catalogue suites own distinct seeded data directories and HTTP/client/UDP ports; race-strategy scenarios launch the same compiled application with per-scenario isolated data and dynamically allocated ports. There is no additional feature E2E runner. Full browser invocations include all three projects; selective task support alone does not mean those CI jobs are skipped. Use `scripts/test/run-turbo.ts` for affected E2E selection: unavailable SCM history or changed paths outside declared workspace ownership retain full coverage.
 
 
 ## Adoption and review checklist

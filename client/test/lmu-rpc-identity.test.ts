@@ -10,7 +10,7 @@ import { TrackDetail } from "@raceiq/tracks-catalogue/ui"
 import { TracksCatalogueHostProvider } from "../src/features/tracks-catalogue-host";
 import { useCarName } from "../src/hooks/catalog-queries";
 import { useTrackBoundaries, useTrackName, useTrackOutline, useTrackSectorBoundaries, useTrackSectors } from "../src/hooks/track-queries";
-import { buildLiveTelemetryView } from "../src/lib/live-telemetry-view";
+import { buildLiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
 import { fakeAccSemanticFixture } from "../src/stories/fakeData";
 import { GameRouteProvider } from "../src/stores/game";
 import { telemetryStore } from "../src/stores/telemetry";

@@ -1,4 +1,10 @@
 {
+  "race_plan_strategies": "Stratégies",
+  "race_plan_generate": "Générer une stratégie de course",
+  "race_plan_capacity": "Capacité du réservoir",
+  "race_plan_reserve": "Réserve de carburant à chaque arrêt",
+  "race_plan_generate_help": "Proposer des arrêts selon la consommation et l’usure enregistrées. Chaque arrêt suppose des pneus neufs et un ravitaillement. Indiquez la longueur, la capacité et la réserve ; vérifiez avant d’enregistrer.",
+  "race_plan_generate_error": "Choisissez un relais avec consommation et usure mesurées sur les quatre pneus. Vérifiez longueur, capacité et réserve : au moins un tour par relais, avec 100 relais maximum.",
   "race_plan_length_mode": "Longueur de course",
   "race_plan_time": "Durée de course",
   "race_plan_duration_minutes": "Durée de course (minutes)",

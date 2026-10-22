@@ -1,7 +1,7 @@
 import { getGame } from "@raceiq/shared/games/registry"
 import { resolveGripDemand } from "@raceiq/analysis-core/racing/analysis/metric-values";
 import { useEffect, useRef, useState } from "react";
-import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
+import type { LiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
 import { GRIP_MAX_SAMPLES, GripSparkline } from "./GripSparkline";
 
 /**

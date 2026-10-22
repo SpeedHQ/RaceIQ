@@ -1,6 +1,6 @@
 import type { GameId } from "@raceiq/shared/games/ids";
 import { pointAtLapFraction } from "@raceiq/shared/racing/tracks/path";
-import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
+import type { LiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
 
 export interface LiveTrackPoint {
   x: number;

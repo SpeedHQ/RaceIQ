@@ -1,4 +1,10 @@
 {
+  "race_plan_strategies": "전략",
+  "race_plan_generate": "레이스 전략 생성",
+  "race_plan_capacity": "연료 탱크 용량",
+  "race_plan_reserve": "각 피트 스톱의 예비 연료",
+  "race_plan_generate_help": "기록된 연료 소비와 타이어 마모율로 스톱을 제안합니다. 각 스톱은 새 타이어와 급유를 가정합니다. 레이스 길이, 탱크 용량, 예비 연료를 입력하고 저장 전에 검토하세요.",
+  "race_plan_generate_error": "연료 소비와 네 타이어 마모율이 측정된 스틴트를 선택하세요. 길이, 용량, 예비 연료를 확인하세요. 스틴트당 최소 한 랩, 최대 100개 스틴트가 필요합니다.",
   "race_plan_length_mode": "레이스 길이",
   "race_plan_time": "레이스 시간",
   "race_plan_duration_minutes": "레이스 시간(분)",

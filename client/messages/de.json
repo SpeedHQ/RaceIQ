@@ -1,4 +1,10 @@
 {
+  "race_plan_strategies": "Strategien",
+  "race_plan_generate": "Rennstrategie erstellen",
+  "race_plan_capacity": "Kraftstofftankkapazität",
+  "race_plan_reserve": "Kraftstoffreserve bei jedem Stopp",
+  "race_plan_generate_help": "Stopps anhand aufgezeichneter Kraftstoff- und Reifenwerte vorschlagen. Jeder Stopp setzt neue Reifen und Nachtanken voraus. Rennlänge, Tankkapazität und Reserve eingeben; vor dem Speichern prüfen.",
+  "race_plan_generate_error": "Einen aufgezeichneten Stint mit gemessenen Kraftstoff- und vier Reifenwerten wählen. Rennlänge, Kapazität und Reserve prüfen: mindestens eine Runde pro Stint, höchstens 100 Stints.",
   "race_plan_length_mode": "Rennlänge",
   "race_plan_time": "Renndauer",
   "race_plan_duration_minutes": "Renndauer (Minuten)",

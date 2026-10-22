@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { readKunosFrames } from "@raceiq/capture-formats/kunos/dump";
 import { createAcEvoParserCache, parseAcEvoBuffers } from "@raceiq/game-ac-evo/parser";
 import { LiveTelemetryProjector } from "@raceiq/telemetry-core/telemetry/live-projector";
-import { buildLiveTelemetryView } from "client/src/lib/live-telemetry-view";
+import { buildLiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
 
 const RECORDING = "test/artifacts/sessions/ac-evo-2026-04-15T17-12-25-825Z.bin.gz";
 

@@ -2,7 +2,7 @@ import { getGame } from "@raceiq/shared/games/registry"
 import { getFuelAmount, getFuelDisplaySemantic, WATTS_PER_HORSEPOWER } from "@raceiq/shared/games/telemetry"
 import { useEffect, useRef, useState } from "react";
 import { severityColor } from "@raceiq/scene-3d/colors";
-import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
+import type { LiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
 import { m } from "@/paraglide/messages";
 
 /**

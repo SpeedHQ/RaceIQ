@@ -64,6 +64,15 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
       use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
     })),
     {
+      name: "race-strategy",
+      testDir: resolve(__dirname, "../../packages/race-strategy/test/e2e"),
+      fullyParallel: false,
+      workers: 1,
+      timeout: 240_000,
+      expect: { timeout: 15_000 },
+      use: { viewport: { width: 1440, height: 900 } },
+    },
+    {
       name: "seeded-routes",
       dependencies: ["seeded-setup"],
       testMatch: "seeded/routes/**/*.spec.ts",
@@ -100,7 +109,7 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
       use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
     },
     {
-      dependencies: ["seeded-routes", "seeded-e2e", "seeded-imports", "seeded-webgpu", "tracks-catalogue", "cars-catalogue"],
+      dependencies: ["seeded-routes", "seeded-e2e", "seeded-imports", "seeded-webgpu", "tracks-catalogue", "cars-catalogue", "race-strategy"],
       fullyParallel: true,
       name: "record-demo",
       testMatch: "recording/demo.spec.ts",

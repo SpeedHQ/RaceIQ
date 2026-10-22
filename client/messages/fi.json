@@ -1,4 +1,10 @@
 {
+  "race_plan_strategies": "Strategiat",
+  "race_plan_generate": "Luo kilpailustrategia",
+  "race_plan_capacity": "Polttoainesäiliön tilavuus",
+  "race_plan_reserve": "Polttoainereservi jokaisella pysähdyksellä",
+  "race_plan_generate_help": "Ehdota pysähdyksiä tallennetun kulutuksen ja rengaskulumisen perusteella. Jokaisella pysähdyksellä oletetaan uudet renkaat ja tankkaus. Anna kilpailun pituus, säiliön tilavuus ja reservi; tarkista ennen tallennusta.",
+  "race_plan_generate_error": "Valitse ajovuoro, jossa on mitattu kulutus ja kaikkien neljän renkaan kuluminen. Tarkista pituus, tilavuus ja reservi: vähintään yksi kierros ajovuoroa kohti, enintään 100 ajovuoroa.",
   "race_plan_length_mode": "Kilpailun pituus",
   "race_plan_time": "Kilpailuaika",
   "race_plan_duration_minutes": "Kilpailuaika (minuuttia)",

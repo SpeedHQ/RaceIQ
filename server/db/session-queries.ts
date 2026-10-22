@@ -32,7 +32,7 @@ import { clearCaptureManifestCache, loadCaptureManifest } from "../session-captu
 import { recoverLiveCaptureStorage } from "../session-capture/live-recovery";
 import { GameIdSchema } from "@raceiq/shared/games/ids";
 import type { StrategyHistoryUpdatedMessage } from "@raceiq/shared/racing/live/strategy";
-import { publishStrategyChanges } from "./strategy-queries";
+import { raceStrategyRuntime } from "../telemetry/race-strategy-ports";
 
 export interface SessionCaptureSplitWork {
   sessionId: number;
@@ -412,7 +412,7 @@ export async function updateSessionCarTrack(
     }
     return { changed: updated.rowsAffected > 0, changes };
   }));
-  publishStrategyChanges(result.changes);
+  if (result.changes.length) raceStrategyRuntime().publishHistory(result.changes);
   return result.changed;
 }
 
@@ -692,7 +692,7 @@ async function deleteSessionUnlocked(sessionId: number): Promise<number> {
     return { ...session, lapIds: lapRows.map(({ id }) => id), changes };
   }), undefined, "session.delete");
   if (!deleted) return 0;
-  publishStrategyChanges(deleted.changes);
+  if (deleted.changes.length) raceStrategyRuntime().publishHistory(deleted.changes);
   for (const lapId of deleted.lapIds) cacheDelete(lapId);
   await unlinkOwnedSessionRawFile(deleted.rawFile);
   await unlinkUnsharedCaptureBundle(deleted.manifestFile, deleted.archiveFile);

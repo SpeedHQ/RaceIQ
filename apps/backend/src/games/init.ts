@@ -7,6 +7,7 @@ import { acEvoServerAdapter } from "@raceiq/game-ac-evo";
 import { iracingServerAdapter } from "@raceiq/game-iracing";
 import { lmuServerAdapter } from "@raceiq/game-lmu";
 import { releaseFeatureFlags, type ReleaseFeatureFlags } from "@raceiq/shared/platform/runtime/release-feature-flags";
+import { registerRaceStrategyFeature } from "@raceiq/race-strategy/server";
 
 export function nativeTelemetryGameIds(
   flags = releaseFeatureFlags({
@@ -44,6 +45,7 @@ export function initServerGameAdapters(
     RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER,
   }),
 ): void {
+  registerRaceStrategyFeature();
   for (const adapter of serverGameAdaptersForFeatures(flags)) {
     registerServerGame(adapter);
     // Server adapters override shared stub name-resolution methods.

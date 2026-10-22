@@ -12,7 +12,7 @@ import type { DashboardMode } from "./LiveTelemetry";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { GameIdSchema } from "@raceiq/shared/games/ids";
 import { useSessions } from "../hooks/session-queries";
-import { StrategyHistory } from "./telemetry/StrategyHistory";
+import { StrategyHistory } from "@raceiq/race-strategy/ui";
 import { m } from "@/paraglide/messages";
 
 function SavedStrategyHistory({ preferredGameId, currentSessionId }: { preferredGameId: GameId | null; currentSessionId: number | null }) {

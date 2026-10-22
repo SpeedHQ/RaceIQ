@@ -1,4 +1,10 @@
 {
+  "race_plan_strategies": "Strategies",
+  "race_plan_generate": "Generate race strategy",
+  "race_plan_capacity": "Fuel tank capacity",
+  "race_plan_reserve": "Fuel reserve at each stop",
+  "race_plan_generate_help": "Suggest stops from recorded fuel and tire rates. Each stop assumes fresh tires and refueling. Enter race length, tank capacity and reserve; review before saving.",
+  "race_plan_generate_error": "Choose a recorded stint with measured fuel and all four tire rates. Check race length, capacity and reserve: at least one lap must fit each stint, with no more than 100 stints.",
   "race_plan_length_mode": "Race length",
   "race_plan_time": "Race time",
   "race_plan_duration_minutes": "Race time (minutes)",

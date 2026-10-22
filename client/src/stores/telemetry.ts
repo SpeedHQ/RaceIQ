@@ -5,8 +5,8 @@ import type { LivePitData, LiveSectorData } from "@raceiq/shared/racing/live/typ
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "@raceiq/shared/telemetry/live/contracts";
-import type { LiveTelemetryView } from "../lib/live-telemetry-view";
-import { buildLiveTelemetryView } from "../lib/live-telemetry-view";
+import type { LiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
+import { buildLiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
 import { DEFAULT_RECORDING_FREQUENCY_HZ, type RecordingFrequencyHz } from "@raceiq/shared/platform/runtime/recording-frequency";
 export interface DisplaySettings {
   recordingDirectory: string | null;

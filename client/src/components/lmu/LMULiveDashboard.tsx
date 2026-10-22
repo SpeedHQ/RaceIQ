@@ -1,14 +1,14 @@
 import { getGame } from "@raceiq/shared/games/registry"
 import { useCarName } from "../../hooks/catalog-queries";
 import { useTrackName } from "../../hooks/track-queries";
-import { primaryTireTemperatureC } from "../../lib/live-telemetry-view";
+import { primaryTireTemperatureC } from "@raceiq/frontend-pure/live-telemetry-view";
 import { useTelemetryStore } from "../../stores/telemetry";
 import { LapTimeChart } from "../LapTimeChart";
 import { NoDataView } from "../NoDataView";
 import { RaceInfo } from "../RaceInfo";
 import { RecordedLaps } from "../RecordedLaps";
 import { TireGrid } from "../telemetry/TireGrid";
-import { PitEstimate } from "../telemetry/PitEstimate";
+import { PitEstimate } from "@raceiq/race-strategy/ui";
 import { LmuPlayerData } from "./LmuPlayerData";
 
 

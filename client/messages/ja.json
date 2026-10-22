@@ -1,4 +1,10 @@
 {
+  "race_plan_strategies": "戦略一覧",
+  "race_plan_generate": "レース戦略を生成",
+  "race_plan_capacity": "燃料タンク容量",
+  "race_plan_reserve": "各ピットストップ時の予備燃料",
+  "race_plan_generate_help": "記録された燃料消費とタイヤ摩耗率からピットストップを提案します。各停止で新品タイヤと給油を想定します。レース長、タンク容量、予備燃料を入力し、保存前に確認してください。",
+  "race_plan_generate_error": "燃料消費と4輪すべての摩耗率が測定されたスティントを選んでください。レース長、容量、予備燃料を確認してください。各スティントは最低1周、最大100スティントです。",
   "race_plan_length_mode": "レース距離",
   "race_plan_time": "レース時間",
   "race_plan_duration_minutes": "レース時間（分）",

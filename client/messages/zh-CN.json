@@ -1,4 +1,10 @@
 {
+  "race_plan_strategies": "策略列表",
+  "race_plan_generate": "生成比赛策略",
+  "race_plan_capacity": "油箱容量",
+  "race_plan_reserve": "每次进站时的预留燃油",
+  "race_plan_generate_help": "根据记录的油耗和轮胎磨损率建议进站。每次进站均假设更换新胎并加油。输入比赛长度、油箱容量和预留燃油，保存前请检查。",
+  "race_plan_generate_error": "请选择具有油耗和四个轮胎磨损率测量值的赛段。检查比赛长度、容量和预留燃油：每个赛段至少一圈，最多100个赛段。",
   "race_plan_length_mode": "比赛长度",
   "race_plan_time": "比赛时间",
   "race_plan_duration_minutes": "比赛时间（分钟）",

@@ -14,6 +14,7 @@
   "dependencies": {
     "client": "workspace:*",
     "@raceiq/shared": "workspace:*",
+    "@raceiq/frontend-pure": "workspace:*",
     "@raceiq/capture-formats": "workspace:*",
     "@raceiq/backend": "workspace:*",
     "@raceiq/backend-core": "workspace:*",

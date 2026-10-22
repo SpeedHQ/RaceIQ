@@ -4,14 +4,14 @@ import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemet
 import { m } from "@/paraglide/messages";
 import { useCarName } from "../hooks/catalog-queries";
 import { useUnits } from "../hooks/useUnits";
-import { primaryTireTemperatureC, primaryTireTemperaturesC, type LiveTelemetryView } from "../lib/live-telemetry-view";
+import { primaryTireTemperatureC, primaryTireTemperaturesC, type LiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
 import { controlInputPercent } from "@raceiq/scene-3d/vehicle-dynamics";
 import { useTelemetryStore } from "../stores/telemetry";
 import { SteeringWheel } from "./SteeringWheel";
 import { ArcGauge, FuelGauge, PowerTorque } from "./telemetry/Gauges";
 import { GForceCircle } from "./telemetry/GForceCircle";
 import { GripHistory } from "./telemetry/GripHistory";
-import { PitEstimate } from "./telemetry/PitEstimate";
+import { PitEstimate } from "@raceiq/race-strategy/ui";
 import { SurfaceConditions } from "./telemetry/SurfaceConditions";
 import { TelemetryCharts } from "./telemetry/TelemetryCharts";
 import { TireDiagram } from "./telemetry/TireDiagram";

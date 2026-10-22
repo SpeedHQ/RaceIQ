@@ -18,11 +18,8 @@ import { applyFrameTime } from "./frame-time";
 import { invalidateClassificationMigrationSource } from "./classification-migration";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { isDelayedFinishContext } from "../db/telemetry-replay-storage";
-import { randomUUID } from "node:crypto";
 import { withDatabaseWrite } from "../db/write-coordination";
-import { StrategyRebuild } from "../live-strategy/strategy-rebuild";
-import { activateStrategyRebuild, publishStrategyChanges } from "../db/strategy-queries";
-import { STRATEGY_ALGORITHM_VERSION } from "../live-strategy/lap-metrics";
+import { raceStrategyRuntime } from "../telemetry/race-strategy-ports";
 import type { LapDetectorCallbacks } from "../lap-detection/types";
 import { cacheDelete } from "../db/telemetry-replay-storage";
 import type { StrategyHistoryUpdatedMessage } from "@raceiq/shared/racing/live/strategy";
@@ -61,7 +58,15 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
   return result;
 }
 
-async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessResult> {
+/** Reconstruct missing strategy evidence without updating or redetecting stored laps. */
+export async function backfillSessionStrategy(sessionId: number): Promise<ReprocessResult | null> {
+  return withSessionCaptureMaintenanceLock(async () => {
+    if (!await raceStrategyRuntime().needsBackfill(sessionId)) return null;
+    return reprocessSessionUnlocked(sessionId, true);
+  });
+}
+
+async function reprocessSessionUnlocked(sessionId: number, strategyOnly = false): Promise<ReprocessResult> {
   const sessionRows = await readDb.select({ rawFile: sessions.rawFile, source: sessions.source, gameId: sessions.gameId, carId: sessions.carId, trackId: sessions.trackId, ownership: sessions.ownership, createdAt: sessions.createdAt, lapDetectorVersion: sessions.lapDetectorVersion, captureFormatVersion: sessions.captureFormatVersion })
     .from(sessions)
     .where(eq(sessions.id, sessionId))
@@ -94,7 +99,7 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
   const existingLaps = await getLapsForSession(sessionId);
   const capturingDb = new CapturingDbAdapter();
   const createdAt = new Date(/[zZ]|[+-]\d\d:\d\d$/.test(session.createdAt) ? session.createdAt : `${session.createdAt}Z`).toISOString();
-  const strategyRebuild = new StrategyRebuild(sessionId, session.ownership === "mine" ? "local-player" : `unidentified-source:${sessionId}`, createdAt);
+  const strategyRebuild = raceStrategyRuntime().createRebuild(sessionId, session.ownership === "mine" ? "local-player" : `unidentified-source:${sessionId}`, createdAt);
   const callbacks: LapDetectorCallbacks = {
     onLapComplete: (event) => strategyRebuild.prepare(event),
     onLapSaved: (event) => strategyRebuild.saved(event, capturingDb.getCapturedLap(event.lapId)),
@@ -208,6 +213,25 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
   const carId = detectedSession?.carId || session.carId;
   const trackId = detectedSession?.trackId || session.trackId;
 
+  if (strategyOnly) {
+    if (identityChanged) throw new Error(`Session ${sessionId} recording identity differs; preserving stored laps`);
+    const changes = await withDatabaseWrite(async () => {
+      const transaction = await client.transaction("write");
+      try {
+        const bindings = await transaction.execute({ sql: "SELECT id, raw_byte_offset, raw_frame_count, lap_number FROM laps WHERE session_id = ?", args: [sessionId] });
+        const changes = await strategyRebuild.activate(transaction,
+          { gameId, carId: session.carId, trackId: session.trackId, ownership: session.ownership }, bindings.rows);
+        await transaction.commit();
+        return changes;
+      } catch (error) {
+        await transaction.rollback();
+        throw error;
+      }
+    });
+    raceStrategyRuntime().publishHistory(changes);
+    return { sessionId, lapsDetected: detectedLaps.length, lapsUpdated: 0, strategy: "in-place" };
+  }
+
   let strategy!: "in-place" | "replace";
   let lapsUpdated = 0;
 
@@ -313,16 +337,7 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
     sql: "SELECT id, raw_byte_offset, raw_frame_count, lap_number FROM laps WHERE session_id = ?",
     args: [sessionId],
   });
-  const byWindow = new Map(savedLaps.rows.map((lap) => [`${lap.raw_byte_offset}:${lap.raw_frame_count}:${lap.lap_number}`, Number(lap.id)]));
-  const contributions = strategyRebuild.contributions.map((entry) => {
-    const window = entry.window;
-    const lapId = window ? byWindow.get(`${window.rawByteOffset}:${window.rawFrameCount}:${window.lapNumber}`) : undefined;
-    if (lapId == null) throw new Error(`Strategy rebuild could not associate completed lap ${entry.lapNumber}: ${window ? `source window ${window.rawByteOffset}:${window.rawFrameCount}:${window.lapNumber}` : "missing saved-lap callback"}`);
-    const summary = entry.accumulator.snapshot();
-    return { sessionId, driverKey: summary.driverKey, lapId, stintId: summary.id, algorithmVersion: STRATEGY_ALGORITHM_VERSION, contribution: entry.contribution };
-  });
-  historyChanges = await activateStrategyRebuild(sessionId, { gameId, carId, trackId, ownership: session.ownership }, randomUUID(),
-    strategyRebuild.accumulators.map((accumulator) => ({ summary: accumulator.snapshot(), totals: accumulator.totals() })), contributions, transaction);
+  historyChanges = await strategyRebuild.activate(transaction, { gameId, carId, trackId, ownership: session.ownership }, savedLaps.rows);
   await transaction.commit();
   } catch (error) {
     await transaction.rollback();
@@ -331,7 +346,7 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
   });
   await invalidateClassificationMigrationSource(session.rawFile!);
   for (const publish of afterCommit) publish();
-  publishStrategyChanges(historyChanges);
+  raceStrategyRuntime().publishHistory(historyChanges);
 
   return { sessionId, lapsDetected: detectedLaps.length, lapsUpdated, strategy };
 }

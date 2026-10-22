@@ -9,7 +9,7 @@ import type { ILapDetector, LapDetectorCallbacks } from "../lap-detection/types"
 import { isPaceLap } from "@raceiq/shared/racing/lap-classification";
 import type { LapIndexPacket } from "@raceiq/shared/telemetry/lap-index";
 import { SectorTracker } from "../live-strategy/sector-tracker";
-import { PitTracker } from "../live-strategy/pit-tracker";
+import { raceStrategyRuntime, type DurableStrategyPort } from "./race-strategy-ports";
 import { feedCalibrationPosition, resetLiveCalibration } from "../tracks/calibration";
 import { getTrackOutlineById } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import { getTrackBoundariesById } from "@raceiq/game-catalogs/racing/tracks/geometry/extracted";
@@ -26,10 +26,8 @@ import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 import { enqueueSessionCaptureSplit } from "../db/session-queries";
 import { materializeParserInitializationPlan, subscribeParserSource, type ParserSourceInput, type ParserReplayLocator } from "../games/packet-dispatch";
 import { DirectSessionRecorderAdapter, type DirectCaptureRecording } from "../session-capture/direct-recorder";
-import { DurableStrategyTracker } from "../live-strategy/durable-strategy";
 import { getPacketTireCompound, getTireThresholds, type TireThresholdOverrides, type TireThresholds } from "@raceiq/shared/racing/live/tire-thresholds";
 import { getTireThresholdOverrides, loadSettings } from "../runtime/config/settings";
-import { clearPitEstimates } from "../db/strategy-queries";
 
 import { DashboardCaptureObservation } from "../session-capture/dashboard-observation";
 import { markDashboardCaptureCheckpoint, publishObservedDashboardCaptureFacts } from "../session-capture/dashboard-processor";
@@ -45,7 +43,7 @@ const CURRENT_SESSION_LAP_SNAPSHOT_LIMIT = 500;
 
 export class LiveTelemetryPipeline {
   private sectorTracker = new SectorTracker();
-  private pitTracker = new PitTracker();
+  private pitTracker = raceStrategyRuntime().createPitTracker();
   private _lapDetector: ILapDetector | null = null;
   private _lapDetectorGameId: GameId | null = null;
   private _totalProcessed = 0;
@@ -57,7 +55,7 @@ export class LiveTelemetryPipeline {
   private _skipDevState: boolean;
   private projector = new LiveTelemetryProjector();
   private _sessionLaps: LapMeta[] = [];
-  private readonly strategy: DurableStrategyTracker | null;
+  private readonly strategy: DurableStrategyPort | null;
   private strategyInput: TelemetryPacket | null = null;
   /** Live Tuning Dashboard: gates the per-packet transient issue detector.
    *  Off by default — client opts in via `POST /api/live-analysis`. */
@@ -153,7 +151,7 @@ export class LiveTelemetryPipeline {
   ) {
     this.db = db;
     this.ws = ws;
-    this.strategy = db instanceof RealDbAdapter ? new DurableStrategyTracker((message) => ws.broadcastNotification(message)) : null;
+    this.strategy = db instanceof RealDbAdapter ? raceStrategyRuntime().createLiveTracker((message) => ws.broadcastNotification(message)) : null;
     this.recorder = options?.recorder ?? (db instanceof RealDbAdapter
       ? new DirectSessionRecorderAdapter()
       : new SparseSessionRecorderAdapter("mine", {}, "offline"));
@@ -651,7 +649,7 @@ export class LiveTelemetryPipeline {
   async clearStrategyHistory(sessionId: number, driverKey: string): Promise<number> {
     return this._withIngressPaused(async () => {
       await this.strategy?.admitClearBoundary(sessionId, driverKey);
-      return clearPitEstimates(sessionId, driverKey);
+      return raceStrategyRuntime().clearEstimates(sessionId, driverKey);
     });
   }
 
@@ -1039,52 +1037,55 @@ const _defaultWs: WsAdapter = {
   broadcastNotification: (event) => wsManager.broadcastNotification(event),
   broadcastDevState: (state) => wsManager.broadcastDevState(state),
 };
-const _default = new LiveTelemetryPipeline(new RealDbAdapter(), _defaultWs, {
-  onSessionFinalized: async (sessionId, gameId) => {
-    try {
-      await reconcileSessionResult(sessionId, gameId);
-    } catch (error) {
-      console.error(`[Race Results] Failed to reconcile session ${sessionId}:`, error);
-    }
-  },
-});
-subscribeParserSource((input) => _default.captureParserSource(input));
+let _default: LiveTelemetryPipeline | undefined;
+function defaultPipeline(): LiveTelemetryPipeline {
+  return _default ??= new LiveTelemetryPipeline(new RealDbAdapter(), _defaultWs, {
+    onSessionFinalized: async (sessionId, gameId) => {
+      try {
+        await reconcileSessionResult(sessionId, gameId);
+      } catch (error) {
+        console.error(`[Race Results] Failed to reconcile session ${sessionId}:`, error);
+      }
+    },
+  });
+}
+subscribeParserSource((input) => defaultPipeline().captureParserSource(input));
 
 // Wire session laps provider so WS manager can send laps on client connect
-wsManager.setSessionLapsProvider(() => _default.sessionLaps);
-export const processPacket = (packet: TelemetryPacket, source?: PacketSourceReference, frameTimeMs?: number) => _default.processPacket(packet, source, frameTimeMs);
+wsManager.setSessionLapsProvider(() => _default?.sessionLaps ?? []);
+export const processPacket = (packet: TelemetryPacket, source?: PacketSourceReference, frameTimeMs?: number) => defaultPipeline().processPacket(packet, source, frameTimeMs);
 
 /** Returns the current lap detector (may be null before the first packet is processed). */
 export const lapDetector = {
   get session() {
-    return _default.lapDetector?.session ?? null;
+    return _default?.lapDetector?.session ?? null;
   },
   get fuelHistory() {
-    return _default.lapDetector?.fuelHistory ?? [];
+    return _default?.lapDetector?.fuelHistory ?? [];
   },
   get tireWearHistory() {
-    return _default.lapDetector?.tireWearHistory ?? [];
+    return _default?.lapDetector?.tireWearHistory ?? [];
   },
   async snapshotIncompleteLap() {
-    await _default.snapshotIncompleteLap();
+    await _default?.snapshotIncompleteLap();
   },
   async finalizeCurrentSession() {
-    await _default.finalizeCurrentSession();
+    await _default?.finalizeCurrentSession();
   },
 };
 
 /** Reset live ownership when user deletes active session. */
 export function recoverDeletedSessions(sessionIds: readonly number[]): Promise<boolean> {
-  return _default.recoverDeletedSessions(sessionIds);
+  return defaultPipeline().recoverDeletedSessions(sessionIds);
 }
 
 export function clearStrategyHistory(sessionId: number, driverKey: string): Promise<number> {
-  return _default.clearStrategyHistory(sessionId, driverKey);
+  return defaultPipeline().clearStrategyHistory(sessionId, driverKey);
 }
 
 /** Toggle the Live Tuning Dashboard's per-packet transient issue detector. */
 export function setLiveIssuesEnabled(enabled: boolean): void {
-  _default.setLiveIssuesEnabled(enabled);
+  defaultPipeline().setLiveIssuesEnabled(enabled);
 }
 
 // Periodic check: flush stale laps when packets stop (e.g. race ended, game
@@ -1092,6 +1093,7 @@ export function setLiveIssuesEnabled(enabled: boolean): void {
 // done — without it every test that transitively imports this module hangs
 // the runner waiting for a never-arriving interval tick.
 const _maintenanceInterval = setInterval(() => {
+  if (!_default) return;
   void _default.flushStaleSession().catch((error) => {
     console.error("[Live Telemetry] Stale session finalization failed:", error);
   });
@@ -1105,15 +1107,15 @@ export function stopMaintenanceTasks(): void {
 
 /** True while a session records or its capture files are still draining. */
 export function isSessionActive(): boolean {
-  return _default.isSessionActive;
+  return _default?.isSessionActive ?? false;
 }
 
 /** Flush and close the active session recorder. Call on graceful shutdown. */
 export async function flushSessionRecorder(): Promise<void> {
-  await _default.finalizeCurrentSession();
+  await _default?.finalizeCurrentSession();
 }
 
 /** Flush buffered writes to disk. Call periodically so lap offsets stay consistent with file size. */
 export function flushSessionRecorderBuffer(): void {
-  _default.flushSessionRecorderBuffer();
+  _default?.flushSessionRecorderBuffer();
 }

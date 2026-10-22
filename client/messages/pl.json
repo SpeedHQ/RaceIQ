@@ -1,4 +1,10 @@
 {
+  "race_plan_strategies": "Strategie",
+  "race_plan_generate": "Wygeneruj strategię wyścigu",
+  "race_plan_capacity": "Pojemność zbiornika paliwa",
+  "race_plan_reserve": "Rezerwa paliwa przy każdym postoju",
+  "race_plan_generate_help": "Zaproponuj postoje na podstawie zapisanego zużycia paliwa i opon. Każdy postój zakłada nowe opony i tankowanie. Podaj długość wyścigu, pojemność i rezerwę; sprawdź przed zapisaniem.",
+  "race_plan_generate_error": "Wybierz przejazd z pomiarem paliwa i zużycia wszystkich czterech opon. Sprawdź długość, pojemność i rezerwę: minimum jedno okrążenie na przejazd, maksymalnie 100 przejazdów.",
   "race_plan_length_mode": "Długość wyścigu",
   "race_plan_time": "Czas wyścigu",
   "race_plan_duration_minutes": "Czas wyścigu (minuty)",

@@ -22,7 +22,7 @@ import { useAlignedTelemetry } from "@/hooks/aligned-telemetry";
 import { useLapIssues } from "@/hooks/tunes";
 import { SECTOR_COLOR_VARS } from "@raceiq/scene-3d/colors";
 import { ArmHeadline, ReviewOverviewSkeleton, ReviewTrackStats } from "./OverviewSkeleton";
-import { StrategyStints } from "./StrategyStints";
+import { StrategyStints } from "@raceiq/race-strategy/ui";
 import { IssuePill } from "./ReviewIssues";
 import { tireSnapshotFromAlignedTrace } from "./tire-snapshot";
 import { semanticTuneSamplesFromAlignedTrace, type SemanticTuneSample, wheelValue } from "../semantic-tune";
@@ -50,7 +50,7 @@ interface TuneReviewDashboardProps {
 }
 
 type SectorView = `s${number}`;
-type ReviewView = "overview" | "track" | "analyse" | SectorView;
+type ReviewView = "overview" | "track" | "analyse" | "stints" | SectorView;
 
 /**
  * TuneReviewDashboard — post-lap analysis for a finished lap, in the "sector
@@ -92,7 +92,7 @@ export function SessionReviewDashboard({
   const [dialogOpen, setDialogOpen] = useState(false);
   const selectedLapId = stayOnSessionReview ? (primaryLap?.id ?? null) : search.lap;
   const focusLap = displayedLaps.find((l) => l.id === selectedLapId) ?? primaryLap;
-  const view = search.view ?? "overview";
+  const view = stayOnSessionReview && search.view?.startsWith("s") && search.view !== "stints" ? "overview" : search.view ?? "overview";
   const isTrackView = view === "track" || view === "analyse";
   const tab = search.tab ?? "consistency";
   const bestLap = useMemo(() => validLaps.reduce<LapMeta | null>((best, lap) => (best == null || lap.lapTime < best.lapTime ? lap : best), null), [validLaps]);
@@ -231,7 +231,7 @@ export function SessionReviewDashboard({
     return <ReviewOverviewSkeleton trackName={trackName} onBack={onBack} />;
   }
 
-  const isOverview = !isTrackView && sectorIndex == null;
+  const isOverview = view === "overview";
 
   return (
     <div className="flex min-h-full flex-col">
@@ -263,7 +263,7 @@ export function SessionReviewDashboard({
           )}
           {focusLap && <span className={`text-sm ${focusLap.isValid ? "text-status-success" : "text-status-danger"}`} title={focusLap.isValid ? m.review_valid_lap() : m.review_invalid_lap()}>{focusLap.isValid ? "✓" : "!"}</span>}
           <div className="ml-auto flex gap-1">
-            {(["overview", ...Array.from({ length: sectorCount }, (_, index) => `s${index + 1}` as SectorView), stayOnSessionReview ? "analyse" : "track"] as ReviewView[]).map((v) => (
+            {((stayOnSessionReview ? ["overview", "stints", "analyse"] : ["overview", ...Array.from({ length: sectorCount }, (_, index) => `s${index + 1}` as SectorView), "track"]) as ReviewView[]).map((v) => (
               <Button
                 key={v}
                 variant="app-ghost"
@@ -271,7 +271,7 @@ export function SessionReviewDashboard({
                 onClick={() => setView(v)}
                 className={`!border text-xs ${(view === v || (stayOnSessionReview && v === "analyse" && isTrackView)) ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"}`}
               >
-                {v === "overview" ? m.review_overview() : v === "track" || v === "analyse" ? m.label_analyse() : m.review_sector({ sector: v.slice(1) })}
+                {v === "overview" ? m.review_overview() : v === "stints" ? m.strategy_title() : v === "track" || v === "analyse" ? m.label_analyse() : m.review_sector({ sector: v.slice(1) })}
               </Button>
             ))}
           </div>
@@ -282,7 +282,6 @@ export function SessionReviewDashboard({
 
         {test && <ArmHeadline kind={test.kind} laps={validLaps} />}
         {isOverview && <ReviewTrackStats stats={reviewStats} issueCount={issues?.length ?? 0} />}
-        {isOverview && stayOnSessionReview && sessionId != null && <StrategyStints key={`${gameId}:${sessionId}`} gameId={gameId} sessionId={sessionId} />}
 
         {(test?.driverComment || test?.notes) && (
           <div className="border-b border-app-border px-4 py-2.5 space-y-2">
@@ -403,7 +402,9 @@ export function SessionReviewDashboard({
 
       {/* Detail body participates in the page scroll. */}
       <div className="min-h-0 flex-none overflow-visible">
-        {isTrackView ? (
+        {view === "stints" && stayOnSessionReview && sessionId != null ? (
+          <StrategyStints key={`${gameId}:${sessionId}`} gameId={gameId} sessionId={sessionId} />
+        ) : isTrackView ? (
           <TrackFocusView
             gameId={gameId}
             alignedSet={aligned.data}

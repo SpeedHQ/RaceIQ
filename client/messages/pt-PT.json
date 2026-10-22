@@ -1,4 +1,10 @@
 {
+  "race_plan_strategies": "Estratégias",
+  "race_plan_generate": "Gerar estratégia de corrida",
+  "race_plan_capacity": "Capacidade do depósito",
+  "race_plan_reserve": "Reserva de combustível em cada paragem",
+  "race_plan_generate_help": "Sugira paragens com base no consumo e desgaste registados. Cada paragem pressupõe pneus novos e reabastecimento. Indique duração, capacidade e reserva; reveja antes de guardar.",
+  "race_plan_generate_error": "Escolha um stint com consumo e desgaste medidos nos quatro pneus. Verifique duração, capacidade e reserva: pelo menos uma volta por stint, com um máximo de 100 stints.",
   "race_plan_length_mode": "Extensão da corrida",
   "race_plan_time": "Tempo de corrida",
   "race_plan_duration_minutes": "Tempo de corrida (minutos)",

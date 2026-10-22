@@ -1,4 +1,10 @@
 {
+  "race_plan_strategies": "Strategie",
+  "race_plan_generate": "Genera strategia di gara",
+  "race_plan_capacity": "Capacità del serbatoio",
+  "race_plan_reserve": "Riserva di carburante a ogni sosta",
+  "race_plan_generate_help": "Suggerisci soste usando consumo e usura registrati. Ogni sosta prevede gomme nuove e rifornimento. Inserisci lunghezza, capacità e riserva; controlla prima di salvare.",
+  "race_plan_generate_error": "Scegli uno stint con consumo e usura misurati per tutte e quattro le gomme. Controlla lunghezza, capacità e riserva: almeno un giro per stint, con un massimo di 100 stint.",
   "race_plan_length_mode": "Lunghezza gara",
   "race_plan_time": "Durata gara",
   "race_plan_duration_minutes": "Durata gara (minuti)",

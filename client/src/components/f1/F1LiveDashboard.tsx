@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { severityColor } from "@raceiq/scene-3d/colors";
 import { CarDamageDiagram, damageColor } from "./CarDamageDiagram";
 import { m } from "@/paraglide/messages";
-import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
+import type { LiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
 import { useCarName } from "../../hooks/catalog-queries";
 import { useTrackName } from "../../hooks/track-queries";
 import { useTelemetryStore } from "../../stores/telemetry";
@@ -12,7 +12,7 @@ import { LapTimeChart } from "../LapTimeChart";
 import { NoDataView } from "../NoDataView";
 import { RaceInfo } from "../RaceInfo";
 import { RecordedLaps } from "../RecordedLaps";
-import { PitEstimate } from "../telemetry/PitEstimate";
+import { PitEstimate } from "@raceiq/race-strategy/ui";
 import { TireGrid } from "../telemetry/TireGrid";
 import { useUnits } from "../../hooks/useUnits";
 import { Button } from "../ui/button";

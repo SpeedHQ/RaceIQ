@@ -9,7 +9,7 @@ import { devTelemetryStore } from "../stores/dev-telemetry";
 import { queryKeys } from "./query-keys";
 import { buildWebSocketUrl, type DevWebSocketTarget } from "./websocket-url";
 import { invalidateDashboardQueries as invalidateDashboard } from "./dashboard";
-import { noteStrategyHistoryRevision } from "./stint-strategy";
+import { noteStrategyHistoryRevision } from "@raceiq/race-strategy/ui";
 import type { StrategyEstimatesClearedMessage, StrategyHistoryUpdatedMessage } from "@raceiq/shared/racing/live/strategy";
 import { refreshClassificationMigration, acceptClassificationMigrationSnapshot } from "@/lib/classification-migration";
 import type { ClassificationMigrationStatus } from "@raceiq/shared/racing/laps/classification-migration";

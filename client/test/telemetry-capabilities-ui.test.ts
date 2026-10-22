@@ -1,10 +1,10 @@
 import { supportsPositionDependentSceneFeature } from "../src/lib/wireframe-capabilities";
 import { describe, expect, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { createElement } from "react";
+import { createElement, type ReactNode } from "react";
 
 import { celsiusToFahrenheit } from "@raceiq/frontend-pure/temperature";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup as renderMarkup } from "react-dom/server";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { LivePitData, LiveSectorData } from "@raceiq/shared/racing/live/types";
@@ -21,14 +21,20 @@ import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import { LiveTelemetry } from "../src/components/LiveTelemetry";
 import { FuelGauge, PowerTorque } from "../src/components/telemetry/Gauges";
 import { LapTimes } from "../src/components/telemetry/LapTimes";
-import { PitEstimate } from "../src/components/telemetry/PitEstimate";
+import { PitEstimate } from "@raceiq/race-strategy/ui";
 import { SurfaceConditions } from "../src/components/telemetry/SurfaceConditions";
 import { TelemetryCharts } from "../src/components/telemetry/TelemetryCharts";
 import { TireDiagram } from "../src/components/telemetry/TireDiagram";
 import { LiveTrackConditions } from "../src/components/tunes/LiveTestDashboard";
-import type { LiveTelemetryView } from "../src/lib/live-telemetry-view";
+import type { LiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
 import { fakeAccPacket, fakeAccSemanticFixture, fakeF1SemanticFixture, fakeForzaSemanticFixture, fakePit } from "../src/stories/fakeData";
 import { DEFAULT_DISPLAY_SETTINGS } from "../src/stores/telemetry";
+import { RaceStrategyHostProvider } from "../src/features/race-strategy-host";
+
+function renderToStaticMarkup(element: ReactNode): string {
+  return renderMarkup(createElement(QueryClientProvider, { client: new QueryClient() },
+    createElement(RaceStrategyHostProvider, { children: element })));
+}
 
 const semanticFrame = (values: Record<string, unknown>): SemanticAnalysisFrame => ({ values, states: {}, freshness: {} });
 

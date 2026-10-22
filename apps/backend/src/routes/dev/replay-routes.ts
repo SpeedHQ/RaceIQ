@@ -9,7 +9,7 @@ import { encodeLiveFrame, encodeLiveSchema } from "@raceiq/telemetry-core/teleme
 import { readRecordedTelemetry } from "../../session-capture/replay-packets";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { SectorTracker } from "@raceiq/backend-core/live-strategy/sector-tracker";
-import { PitTracker } from "@raceiq/backend-core/live-strategy/pit-tracker";
+import { PitTracker } from "@raceiq/race-strategy/server";
 import { LiveTelemetryProjector } from "@raceiq/telemetry-core/telemetry/live-projector";
 import { normalizeTelemetryPacket } from "@raceiq/telemetry-core/telemetry/normalization";
 import { getPacketTireCompound, getTireThresholds, type TireThresholds } from "@raceiq/shared/racing/live/tire-thresholds";

@@ -29,6 +29,7 @@ import { Route as GameidDriverRouteImport } from './routes/$gameid/driver'
 import { Route as GameidExperimentsRouteImport } from './routes/$gameid/experiments'
 import { Route as GameidRawRouteImport } from './routes/$gameid/raw'
 import { Route as GameidSessionsRouteImport } from './routes/$gameid/sessions'
+import { Route as GameidStrategyRouteImport } from './routes/$gameid/strategy'
 import { Route as GameidTracksRouteImport } from './routes/$gameid/tracks'
 import { Route as AcEvoIndexRouteImport } from './routes/ac-evo/index'
 import { Route as AcEvoSetupsRouteImport } from './routes/ac-evo/setups'
@@ -170,6 +171,11 @@ const GameidRawRoute = GameidRawRouteImport.update({
 const GameidSessionsRoute = GameidSessionsRouteImport.update({
   id: '/sessions',
   path: '/sessions',
+  getParentRoute: () => GameidRoute,
+} as any)
+const GameidStrategyRoute = GameidStrategyRouteImport.update({
+  id: '/strategy',
+  path: '/strategy',
   getParentRoute: () => GameidRoute,
 } as any)
 const GameidTracksRoute = GameidTracksRouteImport.update({
@@ -409,6 +415,7 @@ export interface FileRoutesByFullPath {
   '/$gameid/experiments': typeof GameidExperimentsRouteWithChildren
   '/$gameid/raw': typeof GameidRawRoute
   '/$gameid/sessions': typeof GameidSessionsRouteWithChildren
+  '/$gameid/strategy': typeof GameidStrategyRoute
   '/$gameid/tracks': typeof GameidTracksRouteWithChildren
   '/ac-evo/setups': typeof AcEvoSetupsRouteWithChildren
   '/acc/setups': typeof AccSetupsRouteWithChildren
@@ -464,6 +471,7 @@ export interface FileRoutesByTo {
   '/$gameid/compare': typeof GameidCompareRoute
   '/$gameid/driver': typeof GameidDriverRoute
   '/$gameid/raw': typeof GameidRawRoute
+  '/$gameid/strategy': typeof GameidStrategyRoute
   '/live/pit': typeof LivePitRoute
   '/portable/combo-1': typeof PortableCombo1Route
   '/portable/combo-2': typeof PortableCombo2Route
@@ -523,6 +531,7 @@ export interface FileRoutesById {
   '/$gameid/experiments': typeof GameidExperimentsRouteWithChildren
   '/$gameid/raw': typeof GameidRawRoute
   '/$gameid/sessions': typeof GameidSessionsRouteWithChildren
+  '/$gameid/strategy': typeof GameidStrategyRoute
   '/$gameid/tracks': typeof GameidTracksRouteWithChildren
   '/ac-evo/setups': typeof AcEvoSetupsRouteWithChildren
   '/acc/setups': typeof AccSetupsRouteWithChildren
@@ -589,6 +598,7 @@ export interface FileRouteTypes {
     | '/$gameid/experiments'
     | '/$gameid/raw'
     | '/$gameid/sessions'
+    | '/$gameid/strategy'
     | '/$gameid/tracks'
     | '/ac-evo/setups'
     | '/acc/setups'
@@ -644,6 +654,7 @@ export interface FileRouteTypes {
     | '/$gameid/compare'
     | '/$gameid/driver'
     | '/$gameid/raw'
+    | '/$gameid/strategy'
     | '/live/pit'
     | '/portable/combo-1'
     | '/portable/combo-2'
@@ -702,6 +713,7 @@ export interface FileRouteTypes {
     | '/$gameid/experiments'
     | '/$gameid/raw'
     | '/$gameid/sessions'
+    | '/$gameid/strategy'
     | '/$gameid/tracks'
     | '/ac-evo/setups'
     | '/acc/setups'
@@ -905,6 +917,13 @@ declare module '@tanstack/react-router' {
       path: '/sessions'
       fullPath: '/$gameid/sessions'
       preLoaderRoute: typeof GameidSessionsRouteImport
+      parentRoute: typeof GameidRoute
+    }
+    '/$gameid/strategy': {
+      id: '/$gameid/strategy'
+      path: '/strategy'
+      fullPath: '/$gameid/strategy'
+      preLoaderRoute: typeof GameidStrategyRouteImport
       parentRoute: typeof GameidRoute
     }
     '/$gameid/tracks': {
@@ -1263,6 +1282,7 @@ interface GameidRouteChildren {
   GameidExperimentsRoute: typeof GameidExperimentsRouteWithChildren
   GameidRawRoute: typeof GameidRawRoute
   GameidSessionsRoute: typeof GameidSessionsRouteWithChildren
+  GameidStrategyRoute: typeof GameidStrategyRoute
   GameidTracksRoute: typeof GameidTracksRouteWithChildren
 }
 
@@ -1274,6 +1294,7 @@ const GameidRouteChildren: GameidRouteChildren = {
   GameidExperimentsRoute: GameidExperimentsRouteWithChildren,
   GameidRawRoute: GameidRawRoute,
   GameidSessionsRoute: GameidSessionsRouteWithChildren,
+  GameidStrategyRoute: GameidStrategyRoute,
   GameidTracksRoute: GameidTracksRouteWithChildren,
 }
 

@@ -6,7 +6,7 @@ import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import { tireTemperatureReadings } from "@raceiq/scene-3d/tire-temperature-profile"
 import { steeringAngleRadians } from "@raceiq/scene-3d/wireframe-utils";
 import { useUnits } from "@/hooks/useUnits";
-import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
+import type { LiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
 import { m } from "@/paraglide/messages";
 import { SuspBar } from "./SuspBar";
 import { WheelCard } from "./WheelCard";

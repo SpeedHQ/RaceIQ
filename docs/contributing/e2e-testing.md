@@ -134,7 +134,7 @@ Playwright projects are CI boundaries, not individual test files:
 
 | CI invocation | `PW_SERVER_SET` | Playwright project(s) | Test boundary |
 | --- | --- | --- | --- |
-| Compiled E2E | `all` | All configured projects, including `tracks-catalogue` and `cars-catalogue` | All functional, responsive, and Chromium device projects |
+| Compiled E2E | `all` | All configured projects, including `tracks-catalogue`, `cars-catalogue`, and `race-strategy` | All functional, responsive, and Chromium device projects |
 
 `.github/workflows/playwright-dev.yml` and the release workflow each invoke
 the reusable workflow once. The invocation starts the `all` server set and
@@ -159,34 +159,35 @@ cd playwright && E2E_SERVER_MODE=dev PW_SERVER_SET=seeded bunx playwright test -
 
 Compiled-server lane uses `dist/raceiq.exe` on Windows (`dist/raceiq` elsewhere).
 Build first, leave `E2E_SERVER_MODE` unset or set it to `compiled`, and select
-`PW_SERVER_SET=fresh`, `tunes`, or `seeded` when isolating one server.
-`RACEIQ_E2E=1` is set only for seeded harness server so fixture import/replay
-routes stay unavailable in normal production.
+`PW_SERVER_SET=fresh`, `tunes`, or `seeded` when isolating one shared server.
+Use `PW_SERVER_SET=isolated` for scenarios that own their app processes, such as
+race strategy; it starts no shared servers. Harnesses set `RACEIQ_E2E=1` so
+fixture import/replay routes stay unavailable in normal production.
 
 Seeded runtime data defaults under ignored `playwright/test-results/test-data-seeded`;
 launchers wipe it before each run. Never point seeded E2E at tracked fixtures or
 user data. Tests use committed recordings plus production parser/import paths
 and must restore any note/import/delete mutation in `finally`.
 
-### Feature-owned catalogue E2Es
+### Feature-owned E2Es
 
-Tracks and cars specs live in `packages/{tracks,cars}-catalogue/test/e2e/`, with one corresponding Playwright project each. Central configuration retains their seeded setup dependency and includes both in full browser runs. Tracks retain a single project worker for their stateful import/delete flows.
+Tracks and cars specs live in `packages/{tracks,cars}-catalogue/test/e2e/`, with one corresponding Playwright project each. Central configuration retains their seeded setup dependency and single-worker stateful flows. Race-strategy specs and native-recording helpers live in `packages/race-strategy/test/e2e/`; each scenario owns complete compiled-app processes, disposable data, dynamic ports, restarts, and failure injection. Full browser runs include all three projects.
 
-Run both real compiled-app suites from the repository root:
+Run the complete feature-owned compiled-app suites from the repository root:
 
 ```sh
-bunx turbo run test:e2e --filter=@raceiq/tracks-catalogue --filter=@raceiq/cars-catalogue
+bunx turbo run test:e2e --filter=@raceiq/tracks-catalogue --filter=@raceiq/cars-catalogue --filter=@raceiq/race-strategy
 ```
 
-The shared application build runs once. Package scripts invoke the existing Playwright CLI directly; each owns distinct seeded data, HTTP/client/UDP ports and result output. Do not point another running app at a feature's data directory while its task resets that directory.
+The shared application build runs once. Package scripts invoke the existing Playwright CLI directly and isolate data, ports and result output. Do not point another running app at a feature's data directory while its task resets that directory.
 
 Inspect affected impact and execution tasks without starting servers:
 
 ```sh
-bunx turbo run e2e:impact test:e2e --affected --filter='@raceiq/*-catalogue' --dry=json
+bun scripts/test/run-turbo.ts e2e:impact test:e2e --affected --filter='@raceiq/*-catalogue' --filter=@raceiq/race-strategy --dry=json
 ```
 
-Turbo uses package defaults and inherited root inputs, not manually maintained feature file lists. A feature-only UI/server/spec edit selects its owner; genuine shared dependencies select their consumers. Invalid explicit SCM references fail; valid shallow history without a merge base falls back conservatively. See the [feature package pattern](../architecture/feature-packages.md) and [catalogue verification](../../advisor-plans/catalogues-contract.md#verification-outcomes).
+Turbo uses package defaults and inherited root inputs, not manually maintained feature file lists. A feature-only UI/server/spec edit selects its owner; genuine shared dependencies select their consumers. The wrapper preserves full coverage for unavailable SCM history, failed changed-file classification, and paths outside declared workspace ownership, including untracked inputs and deletions. Build prerequisites do not by themselves select unrelated feature E2Es. See the [feature package pattern](../architecture/feature-packages.md), [catalogue verification](../../advisor-plans/catalogues-contract.md#verification-outcomes), and [race-strategy contract](../../advisor-plans/race-strategy-contract.md).
 
 These commands do not replace the broad existing CI matrix. Local selection evidence does not establish that GitHub provisioned fewer jobs.
 

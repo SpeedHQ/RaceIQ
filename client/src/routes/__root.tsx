@@ -28,6 +28,7 @@ import { uiStore, useUiStore } from "../stores/ui";
 import { GameRouteProvider, gameStore, usesStoreGameContext, useGameStore } from "../stores/game";
 import { CarsCatalogueHostProvider } from "../features/cars-catalogue-host";
 import { TracksCatalogueHostProvider } from "../features/tracks-catalogue-host";
+import { RaceStrategyHostProvider } from "../features/race-strategy-host";
 function OverlayShell() {
   useWebSocket();
   const { displaySettings, settingsLoaded } = useSettings();
@@ -250,8 +251,10 @@ function RootLayout() {
       <GameRouteProvider value={gameId}>
         <TracksCatalogueHostProvider>
           <CarsCatalogueHostProvider>
+          <RaceStrategyHostProvider>
             {auth.authenticated && <DashboardConnection />}
             {isOverlayPath(location.pathname) ? <OverlayShell /> : pathname === "/login" || pathname === "/onboarding" ? <Outlet /> : <AppShell />}
+          </RaceStrategyHostProvider>
           </CarsCatalogueHostProvider>
         </TracksCatalogueHostProvider>
       </GameRouteProvider>

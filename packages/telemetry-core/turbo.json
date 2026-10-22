@@ -40,7 +40,7 @@
         "$TURBO_ROOT$/server/session-capture/frame-time.ts",
         "$TURBO_ROOT$/packages/game-catalogs/src/racing/tracks/recording/outlines.ts",
         "$TURBO_ROOT$/packages/telemetry-core/src/telemetry/normalization.ts",
-        "$TURBO_ROOT$/server/live-strategy/pit-tracker.ts",
+        "$TURBO_ROOT$/packages/race-strategy/server/pit-tracker.ts",
         "$TURBO_ROOT$/packages/game-catalogs/src/racing/tracks/geometry/extracted.ts",
         "$TURBO_ROOT$/server/session-capture/cleanup.ts",
         "$TURBO_ROOT$/server/runtime/websocket-manager.ts",

@@ -1,4 +1,4 @@
-import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
+import type { LiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
 import { severityRangeColor } from "@raceiq/scene-3d/colors";
 
 export function damageColor(value: number | undefined): string {

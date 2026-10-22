@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "@raceiq/shared/telemetry/live/contracts";
-import { buildLiveTelemetryView } from "../src/lib/live-telemetry-view";
+import { buildLiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
 import { projectOverlayData } from "../src/lib/streaming-data";
 import type { OverlayConfig } from "../src/lib/streaming-config";
 

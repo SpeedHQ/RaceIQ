@@ -2,6 +2,7 @@ import { type QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import { type ComponentType, useState } from "react";
 import { ResponsiveWorkspace } from "../components/ResponsiveWorkspace";
+import { RaceStrategyHostProvider } from "../features/race-strategy-host";
 
 interface LiveDashboardStoryFrameProps {
   queryClient: QueryClient;
@@ -17,7 +18,7 @@ interface LiveDashboardStoryFrameProps {
  */
 export function LiveDashboardStoryFrame({ queryClient, story: Story }: LiveDashboardStoryFrameProps) {
   const [router] = useState(() => {
-    const rootRoute = createRootRoute({ component: Story });
+    const rootRoute = createRootRoute({ component: () => <Story /> });
     return createRouter({
       routeTree: rootRoute,
       history: createMemoryHistory({ initialEntries: ["/"] }),
@@ -28,7 +29,7 @@ export function LiveDashboardStoryFrame({ queryClient, story: Story }: LiveDashb
     <QueryClientProvider client={queryClient}>
       <div className="h-screen bg-app-bg text-app-text">
         <ResponsiveWorkspace>
-          <RouterProvider router={router} />
+          <RaceStrategyHostProvider><RouterProvider router={router} /></RaceStrategyHostProvider>
         </ResponsiveWorkspace>
       </div>
     </QueryClientProvider>

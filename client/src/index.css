@@ -9,6 +9,7 @@
 @plugin "@tailwindcss/typography";
 @source "../../packages/tracks-catalogue/ui";
 @source "../../packages/cars-catalogue/ui";
+@source "../../packages/race-strategy/ui";
 
 @keyframes drawLine {
   to {
