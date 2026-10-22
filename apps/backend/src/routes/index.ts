@@ -10,7 +10,8 @@ import { lapRoutes } from "./laps/index";
 import { driverRoutes } from "./driver-routes";
 import { chatsRoutes } from "./chats-routes";
 import { chatRunRoutes } from "./chat-run-routes";
-import { sessionRoutes } from "./session-routes";
+import { createSessionRoutes } from "@raceiq/sessions-page/server";
+import { isSessionIdentityInCatalog } from "../games/session-identity";
 import { trackRoutes } from "@raceiq/tracks-catalogue/server";
 import { carRoutes, accCarRoutes, acEvoCarRoutes } from "@raceiq/cars-catalogue/server";
 import { tuneRoutes } from "./tune-routes";
@@ -47,7 +48,7 @@ const app = new Hono()
   .route("/", chatsRoutes)
   .route("/", chatRunRoutes)
   .route("/", dashboardRoutes)
-  .route("/", sessionRoutes)
+  .route("/", createSessionRoutes(isSessionIdentityInCatalog))
   .route("/", trackRoutes)
   .route("/", carRoutes)
   .route("/", tuneRoutes)

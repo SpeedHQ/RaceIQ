@@ -7,7 +7,7 @@ import { previewOpponentRemoval, useOpponentRemovalStatus, useStartOpponentRemov
 import { formatBytes } from "@/lib/format-bytes";
 import { m } from "@/paraglide/messages";
 import { getLocale } from "@/paraglide/runtime";
-import { parseUtcTimestamp } from "@/lib/utc-date";
+import { parseUtcTimestamp } from "@raceiq/frontend-pure/utc-date";
 
 function skipReason(reason: OpponentRemovalSkip["reason"]): string {
   switch (reason) {

@@ -2,7 +2,7 @@ import { m } from "@/paraglide/messages";
 import type { ExperimentFocus } from "@raceiq/shared/racing/experiments/focus";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { parseUtcTimestamp } from "@/lib/utc-date";
+import { parseUtcTimestamp } from "@raceiq/frontend-pure/utc-date";
 
 function FocusBadge({ focus }: { focus: ExperimentFocus }) {
   return (

@@ -125,7 +125,6 @@ test("opponent replay keeps native partial-lap distance and never aligns uncover
     expect(controller.sample(0.75).b?.values["inputs.gear"]).toBeUndefined();
   } finally { controller.dispose(); }
 });
-
 test("seekGeneration changes only for explicit time discontinuities", () => {
   const controller = createSpectateController(recordedLap(1, time => time * 20), null);
   try {

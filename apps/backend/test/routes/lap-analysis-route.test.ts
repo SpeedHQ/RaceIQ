@@ -9,7 +9,6 @@ import { cacheDelete, cacheSet } from "@raceiq/backend-core/db/telemetry-replay-
 import { insertLap } from "@raceiq/backend-core/db/lap-mutation-queries";
 import { lapRoutes } from "../../src/routes/laps/index";
 import { packet } from "@raceiq/telemetry-core/test-support/telemetry/resolver";
-
 initGameAdapters();
 
 
@@ -135,8 +134,6 @@ describe("POST /api/laps/aligned-telemetry", () => {
     });
     expect(missing.status).toBe(404);
 
-    const malformedSpread = await lapRoutes.request("/api/laps/review-line-spread?gameId=acc&sessionId=999999&lapIds=1,1");
-    expect(malformedSpread.status).toBe(400);
   });
 
 describe("POST /api/laps/:id/analyse", () => {

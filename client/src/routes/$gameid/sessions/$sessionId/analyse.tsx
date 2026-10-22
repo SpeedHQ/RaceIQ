@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AnalyseRoute } from "@/components/tunes/review/AnalyseRoute";
-import { gameIdForRoutePrefix, validateAnalyseSearch } from "../../../../lib/game-routes";
+import { AnalyseRoute } from "@raceiq/session-analyse/ui";
+import { validateAnalyseSearch } from "@raceiq/session-analyse/contracts";
+import { gameIdForRoutePrefix } from "../../../../lib/game-routes";
 
 function GameSessionAnalyseRoute() {
   const { gameid, sessionId } = Route.useParams();

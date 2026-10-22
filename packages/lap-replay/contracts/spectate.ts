@@ -73,7 +73,6 @@ export interface ReplayOpponentMetadata {
   sectorTimes?: number[];
   source?: null;
 }
-
 export interface ReplaySession {
   gameId: GameId;
   a: SpectateLap;

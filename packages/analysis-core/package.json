@@ -27,7 +27,9 @@
     "./racing/laps/alignment/types": "./src/racing/laps/alignment/types.ts",
     "./racing/laps/trace/build": "./src/racing/laps/trace/build.ts",
     "./racing/laps/trace/codec": "./src/racing/laps/trace/codec.ts",
-    "./racing/laps/trace/types": "./src/racing/laps/trace/types.ts"
+    "./racing/laps/trace/types": "./src/racing/laps/trace/types.ts",
+    "./racing/laps/semantic-tune": "./src/racing/laps/semantic-tune.ts",
+    "./racing/laps/consistency-types": "./src/racing/laps/consistency-types.ts"
   },
   "scripts": {
     "lint": "../../client/node_modules/.bin/oxlint .",

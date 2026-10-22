@@ -8,7 +8,7 @@ import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import { IssuePill } from "./review/ReviewIssues";
 import { SectorMap } from "./SectorMap";
 import { bandColor, buildSectorRanges, CORNERS, CornerBars, type CornerKey, metricDisplayValue, type MetricDef, tuneMetricValue, tuneMetricsFor } from "./SectorRangeBreakdown";
-import type { SemanticTuneSample } from "./semantic-tune";
+import type { SemanticTuneSample } from "@raceiq/analysis-core/racing/laps/semantic-tune";
 
 interface SectorTimes {
   times: number[];

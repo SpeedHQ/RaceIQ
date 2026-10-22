@@ -7,8 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { m } from "@/paraglide/messages";
 import { getLocale } from "@/paraglide/runtime";
-import { parseUtcTimestamp } from "@/lib/utc-date";
-import { SessionTypeBadge } from "@/components/sessions/SessionTypeBadge";
+import { parseUtcTimestamp } from "@raceiq/frontend-pure/utc-date";
+import { SessionTypeBadge } from "@/components/SessionTypeBadge";
 
 function formatTimeAgo(date: Date): string {
   const sec = Math.floor((Date.now() - date.getTime()) / 1000);

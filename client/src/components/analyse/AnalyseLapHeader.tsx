@@ -1,7 +1,7 @@
 import { memo, useMemo, useRef, useState, type Ref } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getLocale } from "@/paraglide/runtime";
-import { parseUtcTimestamp } from "../../lib/utc-date";
+import { parseUtcTimestamp } from "@raceiq/frontend-pure/utc-date";
 import { ChevronDown, Download, FileDown, NotebookPen, Sparkles, Trash2 } from "lucide-react";
 import type { LapMeta, SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import type { GameId } from "@raceiq/shared/games/ids";
@@ -23,7 +23,7 @@ import { DropdownMenu } from "../ui/DropdownMenu";
 import { NoteModal } from "../ui/NoteModal";
 import { DataGuideModal } from "./DataGuideModal";
 import { MotecImportModal } from "./MotecImportModal";
-import { MotecBadge } from "../sessions/MotecBadge";
+import { MotecBadge } from "@raceiq/sessions-page/ui";
 import { OwnershipChoice } from "../import/OwnershipChoice";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 interface Props {

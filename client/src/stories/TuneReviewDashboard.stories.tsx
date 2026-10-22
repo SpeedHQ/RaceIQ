@@ -2,7 +2,8 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import { GameStoryScope } from "./GameStoryScope";
-import { SessionReviewDashboard } from "@/components/tunes/review/SessionReviewDashboard";
+import { SessionAnalyseHostProvider } from "@/features/session-analyse-host";
+import { SessionReviewDashboard } from "@raceiq/session-analyse/ui";
 import { fakeSessionLaps } from "./fakeData";
 import { fakeSectorTimes, fakeTuneIssues, generateFakeLapTelemetry } from "./setupEngineerFakeLap";
 
@@ -21,9 +22,11 @@ queryClient.setQueryData(["lap-semantic-telemetry", 10, "acc"], []);
 function StoryDecorator({ children }: { children: React.ReactNode }) {
   return (
     <GameStoryScope gameId="acc">
-      <QueryClientProvider client={queryClient}>
-        <div style={{ height: "100vh", overflow: "auto", background: "var(--app-bg)" }}>{children}</div>
-      </QueryClientProvider>
+      <SessionAnalyseHostProvider>
+        <QueryClientProvider client={queryClient}>
+          <div style={{ height: "100vh", overflow: "auto", background: "var(--app-bg)" }}>{children}</div>
+        </QueryClientProvider>
+      </SessionAnalyseHostProvider>
     </GameStoryScope>
   );
 }

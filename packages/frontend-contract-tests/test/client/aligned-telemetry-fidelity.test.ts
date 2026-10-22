@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import type { AlignedLapSet, AlignedLapTrace, WheelTrace } from "@raceiq/analysis-core/racing/laps/alignment/types";
-import { semanticTuneSamplesFromAlignedTrace } from "client/src/components/tunes/semantic-tune";
+import { semanticTuneSamplesFromAlignedTrace } from "@raceiq/analysis-core/racing/laps/semantic-tune";
 import { cropAlignedLapSet, mergeAlignedLapRange, normalizeFidelityRange, shouldLoadHighFidelity, trackFractionRange } from "client/src/lib/aligned-telemetry-fidelity";
 
 initGameAdapters();
