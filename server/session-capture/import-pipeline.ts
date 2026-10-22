@@ -1,15 +1,19 @@
+import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
+import { beginRecordingStorageImport } from "./storage-activity";
 import { existsSync, unlinkSync } from "node:fs";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { LapIndexPacket } from "@raceiq/shared/telemetry/lap-index";
 import type { LapMeta, SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
-import { deleteSession, updateSessionSource } from "../db/session-queries";
+import { deleteSession, enqueueSessionCaptureSplit, updateSessionSource } from "../db/session-queries";
+import { isDelayedFinishContext } from "../db/telemetry-replay-storage";
 import { getServerGame } from "../games/registry";
 import { isIRacingSessionFrame } from "@raceiq/capture-formats/iracing/source-frame";
-import { SESSION_SEGMENT_BOUNDARY, SESSION_SEGMENT_CONTEXT, SESSION_SEGMENT_CONTEXT_END } from "@raceiq/capture-formats/session/framing";
+import { PARSER_BOOTSTRAP_VERSION, SESSION_SEGMENT_BOUNDARY, SESSION_SEGMENT_CONTEXT, SESSION_SEGMENT_CONTEXT_END } from "@raceiq/capture-formats/session/framing";
 import { applyFrameTime } from "./frame-time";
 import { LiveTelemetryPipeline } from "../telemetry/live-pipeline";
-import { NullWsAdapter, RealDbAdapter, type DbAdapter, type SessionRecorderAdapter } from "../telemetry/pipeline-ports";
+import { NullWsAdapter, RealDbAdapter, SparseSessionRecorderAdapter, type DbAdapter, type SessionRecorderAdapter } from "../telemetry/pipeline-ports";
 import { reconcileSessionResult } from "../race-results/reconcile";
 
 import { countIndexSampleMaterialized, countSourceFrameScanned } from "./test-instrumentation";
@@ -22,6 +26,7 @@ export interface ImportedLap {
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
+  classification: LapClassification | null;
   carId: string;
   trackId: string;
 }
@@ -110,10 +115,11 @@ export class ImportCaptureAdapter implements DbAdapter {
     tuneId: number | null,
     invalidReason: string | null,
     sectors: number[] | null,
+    classification: LapClassification | null,
     versionIdentity?: TelemetryVersionIdentity,
   ): Promise<number> {
     const pending = this._inner.insertLap(
-      sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity
+      sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, classification, versionIdentity
     ).then((id) => {
       const meta = this._sessionMeta.get(sessionId);
       this.laps.push({
@@ -122,6 +128,7 @@ export class ImportCaptureAdapter implements DbAdapter {
         lapNumber,
         lapTime,
         isValid,
+        classification,
         carId: meta?.carId ?? "",
         trackId: meta?.trackId ?? "",
       });
@@ -205,8 +212,14 @@ async function rollbackImport(
 }
 
 type SessionFrame = Buffer | { frame: Buffer; frameTimeMs?: number }
+  | { kind: "parser-bootstrap"; gameId: GameId; formatVersion: number; payload: Buffer }
   | typeof SESSION_SEGMENT_BOUNDARY | typeof SESSION_SEGMENT_CONTEXT | typeof SESSION_SEGMENT_CONTEXT_END;
 type SessionFrameSource = Iterable<SessionFrame> | AsyncIterable<SessionFrame>;
+type ParserBootstrapFrame = Extract<SessionFrame, { kind: "parser-bootstrap" }>;
+function isParserBootstrapFrame(frame: SessionFrame): frame is ParserBootstrapFrame {
+  return typeof frame === "object" && frame !== null && !Buffer.isBuffer(frame) &&
+    "kind" in frame && frame.kind === "parser-bootstrap";
+}
 
 /** Tracks canonical offsets for imports without persisting derived `.bin` bytes. */
 export class ImportSourceRecorder implements SessionRecorderAdapter {
@@ -270,6 +283,8 @@ async function importTelemetrySource<T>(
   options: ImportSessionOptions,
   processItem: ImportItemHandler<T>,
 ): Promise<ImportSessionResult> {
+  const releaseStorageImport = beginRecordingStorageImport();
+  try {
   const db = new ImportCaptureAdapter({
     notifyDriverProfile: options.notifyDriverProfile,
     ownership: options.ownership,
@@ -278,7 +293,8 @@ async function importTelemetrySource<T>(
   });
   const pipeline = new LiveTelemetryPipeline(db, new NullWsAdapter(), {
     bypassPacketRateFilter: true,
-    recorder: options.recorder,
+    enqueueSessionCaptureSplits: false,
+    recorder: options.recorder ?? new SparseSessionRecorderAdapter(options.ownership, {}, "offline"),
   });
 
   let packetCount = 0;
@@ -299,9 +315,9 @@ async function importTelemetrySource<T>(
     }
   }
 
-  if (failure) return rollbackImport(db, failure);
+  if (failure) await rollbackImport(db, failure);
   if (options.requireLaps && db.laps.length === 0) {
-    return rollbackImport(
+    await rollbackImport(
       db,
       new Error("No complete, importable laps were found"),
     );
@@ -314,15 +330,20 @@ async function importTelemetrySource<T>(
     }
     await pipeline.finalizeDashboardCaptureFacts([...db.sessionIds]);
   } catch (error) {
-    return rollbackImport(db, error);
+    await rollbackImport(db, error);
   }
-
+  for (const sessionId of db.sessionIds) {
+    await enqueueSessionCaptureSplit(sessionId);
+  }
 
   return {
     packetCount,
     laps: db.laps,
     sessionIds: [...db.sessionIds],
   };
+  } finally {
+    releaseStorageImport();
+  }
 }
 
 /**
@@ -336,10 +357,12 @@ export function importSessionFrames(
   options: ImportSessionOptions = {},
 ): Promise<ImportSessionResult> {
   const serverGame = getServerGame(gameId);
-  let state = serverGame.createParserState?.() ?? null;
+  let state: unknown = serverGame.createParserState?.() ?? null;
   let expectsSessionContext = gameId === "iracing";
   let completeLapStart = false;
   let inParserContext = false;
+  let lastOwnedPacket: LapIndexPacket | null = null;
+  let sourceSequence = 0;
   return importTelemetrySource(
     frames,
     gameId,
@@ -348,13 +371,16 @@ export function importSessionFrames(
       countSourceFrameScanned();
       if (sourceFrame === SESSION_SEGMENT_BOUNDARY) {
         if (capture.sessionIds.size > 0) {
+          await pipeline.flushIncompleteLap();
           capture.continueSessionOnNextInsert();
           pipeline.beginSessionSegment();
         }
+        pipeline.expectCompleteLapStart();
         state = serverGame.createParserState?.() ?? null;
         expectsSessionContext = gameId === "iracing";
         completeLapStart = true;
         inParserContext = false;
+        lastOwnedPacket = null;
         return false;
       }
       if (sourceFrame === SESSION_SEGMENT_CONTEXT) {
@@ -365,11 +391,33 @@ export function importSessionFrames(
         inParserContext = false;
         return false;
       }
+      if (isParserBootstrapFrame(sourceFrame)) {
+        if (sourceFrame.gameId !== gameId || sourceFrame.formatVersion !== PARSER_BOOTSTRAP_VERSION) {
+          throw new Error("Parser bootstrap does not match imported game");
+        }
+        if (!serverGame.restoreParserCheckpoint) {
+          throw new Error(`Parser checkpoint restore unavailable for ${gameId}`);
+        }
+        state = serverGame.restoreParserCheckpoint(state, sourceFrame.payload);
+        pipeline.recordParserBootstrap(sourceFrame.gameId, sourceFrame.payload, completeLapStart);
+        inParserContext = false;
+        expectsSessionContext = false;
+        completeLapStart = false;
+        return false;
+      }
       const frameTimeMs = Buffer.isBuffer(sourceFrame) ? undefined : sourceFrame.frameTimeMs;
       const frame = Buffer.isBuffer(sourceFrame) ? sourceFrame : sourceFrame.frame;
       if (inParserContext) {
-        serverGame.tryParse(frame, state);
+        const packet = lastOwnedPacket
+          ? serverGame.tryParseLapIndex(frame, state)
+          : (serverGame.tryParse(frame, state), null);
         pipeline.recordSessionContextFrame(frame, false, frameTimeMs);
+        // Trailing context can complete detection, but is persisted outside the owned window.
+        if (lastOwnedPacket && packet &&
+            (packet.LapNumber > lastOwnedPacket.LapNumber || isDelayedFinishContext(lastOwnedPacket, packet))) {
+          applyFrameTime(packet, frameTimeMs);
+          await pipeline.processLapIndexPacket(packet, undefined, frameTimeMs);
+        }
         return false;
       }
       if (completeLapStart && expectsSessionContext && isIRacingSessionFrame(frame)) {
@@ -380,9 +428,15 @@ export function importSessionFrames(
         return false;
       }
       expectsSessionContext = false;
-      completeLapStart = false;
+      pipeline.captureParserSource({ gameId, sequence: sourceSequence++, frame, locator: null,
+        ...(frameTimeMs === undefined ? {} : { timestampMs: frameTimeMs }) });
       const packet = serverGame.tryParseLapIndex(frame, state);
-      if (!packet) return false;
+      if (!packet) {
+        if (completeLapStart) pipeline.recordSessionContextFrame(frame, true, frameTimeMs);
+        return false;
+      }
+      completeLapStart = false;
+      lastOwnedPacket = packet;
       applyFrameTime(packet, frameTimeMs);
       countIndexSampleMaterialized();
       await pipeline.processLapIndexPacket(packet, frame, frameTimeMs);

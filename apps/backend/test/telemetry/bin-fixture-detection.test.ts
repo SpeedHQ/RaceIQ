@@ -7,19 +7,9 @@ import { f1ServerAdapter } from "@raceiq/game-f1-2025";
 import { acEvoServerAdapter } from "@raceiq/game-ac-evo";
 import { forzaServerAdapter } from "@raceiq/game-fm-2023";
 /**
- * Regression coverage: every .bin.gz fixture in test/artifacts/sessions/
- * resolves to a real, non-sentinel game/track/car through its game's
- * production tryParse path (the same path import/reprocessing uses).
- *
- * Two on-disk formats exist and are auto-detected per fixture, not assumed:
- *   - "session capture": [meta frame][uint32 LE len][frame]... — for ACC/AC Evo
- *     the frame is a packed shared-memory triplet (pack-triplet.ts); for
- *     FM/F1 it's a raw UDP packet. This is what real session storage /
- *     import-capture.ts uses, and what the car/track re-derivation fix
- *     (server/games/acc/index.ts tryParse) targets.
- *   - "dump mode": ACCTEST-framed physics/graphics/static frames written by
- *     DumpToBinProcessor, read via readKunosFrames. Dev-only capture format,
- *     never fed through importSessionBin in production.
+ * Historical source fixtures remain useful for parser and replay regressions.
+ * They are full-frame or simulator dump recordings, not supported upload formats.
+ * User imports require sparse RaceIQ session captures.
  */
 import { describe, test, expect, afterAll } from "bun:test";
 import { readFileSync } from "node:fs";
@@ -54,10 +44,10 @@ function hasMetaFrame(buf: Buffer): boolean {
   return buf.length >= 4 && buf.readUInt32LE(0) === META_FRAME_MAGIC;
 }
 
-describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resolves game/track/car", () => {
+describe("legacy session fixtures remain parser-readable but are not upload formats", () => {
   test("acc-2026-04-23T16-42-16-158Z.bin.gz — session-capture, ACC — CORROBORATED (test/acc-parser.test.ts)", () => {
     const file = `${DIR}/acc-2026-04-23T16-42-16-158Z.bin.gz`;
-    expect(detectGameIdFromBuffer(readFileSync(file))).toBe("acc");
+    expect(detectGameIdFromBuffer(readFileSync(file))).toBeNull();
     expect(hasMetaFrame(gunzip(file))).toBe(true);
 
     const packets = readSessionPackets(file, accServerAdapter);
@@ -69,7 +59,7 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
 
   test("f1-2025-2026-04-22T11-42-43-029Z.bin.gz — session-capture, F1 2025 — REGRESSION-BASELINE ONLY", () => {
     const file = `${DIR}/f1-2025-2026-04-22T11-42-43-029Z.bin.gz`;
-    expect(detectGameIdFromBuffer(readFileSync(file))).toBe("f1-2025");
+    expect(detectGameIdFromBuffer(readFileSync(file))).toBeNull();
     expect(hasMetaFrame(gunzip(file))).toBe(true);
 
     const packets = readSessionPackets(file, f1ServerAdapter);
@@ -82,10 +72,8 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
 
   test("session-ac-evo-menu-exit-2026-04-23T18-11-48-959Z.bin.gz — session-capture, AC Evo — REGRESSION-BASELINE ONLY", () => {
     const file = `${DIR}/session-ac-evo-menu-exit-2026-04-23T18-11-48-959Z.bin.gz`;
-    // Detected from frame content, not the filename — this fixture doesn't
-    // follow the "<gameId>-" naming convention ("session-ac-evo-" prefix),
-    // which would previously have made real import reject it outright.
-    expect(detectGameIdFromBuffer(readFileSync(file))).toBe("ac-evo");
+    // The parser still reads this legacy fixture; user imports reject it.
+    expect(detectGameIdFromBuffer(readFileSync(file))).toBeNull();
     expect(hasMetaFrame(gunzip(file))).toBe(true);
 
     const packets = readSessionPackets(file, acEvoServerAdapter);
@@ -97,7 +85,7 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
 
   test("session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz — session-capture, AC Evo — REGRESSION-BASELINE ONLY", () => {
     const file = `${DIR}/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz`;
-    expect(detectGameIdFromBuffer(readFileSync(file))).toBe("ac-evo");
+    expect(detectGameIdFromBuffer(readFileSync(file))).toBeNull();
     expect(hasMetaFrame(gunzip(file))).toBe(true);
 
     const packets = readSessionPackets(file, acEvoServerAdapter);
@@ -107,12 +95,12 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
     expect(getAcEvoCarName(last.carId)).toBe("Porsche 992 GT3 R Rennsport");
   }, { timeout: 30000 });
 
-  // The trailing source frame has no track identity. Pure replay must not
-  // infer a layout from the capture's old cached ordinal or a venue alias.
-  // Stateful import allocates exact source pairs for the preceding frames.
+  // The trailing source frame has no track identity. Parser must not infer a venue alias.
+  // These full-frame fixtures remain parser evidence only, not supported upload formats.
+  // Source identity for preceding frames is allocated from their actual pairs.
   test("ac-evo-unknown-track-session17.bin.gz — missing source identity stays unresolved", () => {
     const file = `${DIR}/ac-evo-unknown-track-session17.bin.gz`;
-    expect(detectGameIdFromBuffer(readFileSync(file))).toBe("ac-evo");
+    expect(detectGameIdFromBuffer(readFileSync(file))).toBeNull();
     expect(hasMetaFrame(gunzip(file))).toBe(true);
 
     const packets = readSessionPackets(file, acEvoServerAdapter);
@@ -131,7 +119,7 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
 
   test("f1-2025-2026-04-09T21-34-10-190Z.bin.gz — raw UDP dump, F1 2025 — REGRESSION-BASELINE ONLY", () => {
     const file = `${DIR}/f1-2025-2026-04-09T21-34-10-190Z.bin.gz`;
-    expect(detectGameIdFromBuffer(readFileSync(file))).toBe("f1-2025");
+    expect(detectGameIdFromBuffer(readFileSync(file))).toBeNull();
     expect(hasMetaFrame(gunzip(file))).toBe(false);
 
     const packets = readUdpPackets(file, f1ServerAdapter).packets;
@@ -144,7 +132,7 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
 
   test("fm-2023-2026-04-09T21-53-00-102Z.bin.gz — raw UDP dump, FM 2023 — REGRESSION-BASELINE ONLY", () => {
     const file = `${DIR}/fm-2023-2026-04-09T21-53-00-102Z.bin.gz`;
-    expect(detectGameIdFromBuffer(readFileSync(file))).toBe("fm-2023");
+    expect(detectGameIdFromBuffer(readFileSync(file))).toBeNull();
     expect(hasMetaFrame(gunzip(file))).toBe(false);
 
     const packets = readUdpPackets(file, forzaServerAdapter).packets;
@@ -157,7 +145,7 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
 
   test("fm-2023-2026-04-09T21-55-03-186Z.bin.gz — raw UDP dump, FM 2023 — REGRESSION-BASELINE ONLY (same car/track as 21-53-00 fixture, cross-consistent)", () => {
     const file = `${DIR}/fm-2023-2026-04-09T21-55-03-186Z.bin.gz`;
-    expect(detectGameIdFromBuffer(readFileSync(file))).toBe("fm-2023");
+    expect(detectGameIdFromBuffer(readFileSync(file))).toBeNull();
     expect(hasMetaFrame(gunzip(file))).toBe(false);
 
     const packets = readUdpPackets(file, forzaServerAdapter).packets;
@@ -170,9 +158,7 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
 
   test("ac-evo-2026-04-15T17-12-25-825Z.bin.gz — dump-mode, AC Evo — REGRESSION-BASELINE ONLY", () => {
     const file = `${DIR}/ac-evo-2026-04-15T17-12-25-825Z.bin.gz`;
-    // Dump-mode frames aren't packed triplets, so frame-content detection
-    // correctly finds no match — this format is dev-only and never goes
-    // through the real "Import .bin" path (importSessionBin/canHandle).
+    // Dump-mode fixtures are parser-only; import detection rejects legacy sources.
     expect(detectGameIdFromBuffer(readFileSync(file))).toBeNull();
     expect(hasMetaFrame(gunzip(file))).toBe(false);
 
@@ -188,11 +174,10 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
     expect(getAcEvoCarName(last.carId)).toBe("Porsche 992 GT3 R Rennsport");
   }, { timeout: 60000 });
 
-  test("iracing-road-america-gt3.bin.gz — iRacing recorder dump import", () => {
+  test("iracing-road-america-gt3.bin.gz — iRacing dump source frame parsing", () => {
     const file = `${DIR}/iracing-road-america-gt3.bin.gz`;
-    // Unlike AC Evo dump-mode captures, IRACING_DUMP_MAGIC is an explicitly
-    // supported importSessionBin format, so content detection must identify it.
-    expect(detectGameIdFromBuffer(readFileSync(file))).toBe("iracing");
+    // The parser decodes this dump, but sparse-only import detection rejects it.
+    expect(detectGameIdFromBuffer(readFileSync(file))).toBeNull();
     expect(hasMetaFrame(gunzip(file))).toBe(false);
 
     const frames = readIRacingFrames(file);

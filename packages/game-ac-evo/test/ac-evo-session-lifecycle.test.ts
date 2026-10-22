@@ -19,12 +19,17 @@ import { gunzipSync } from "node:zlib";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports"
 import { LapDetectorAcEvo } from "../src/lap-detector"
-import { META_FRAME_MAGIC } from "@raceiq/capture-formats/session/framing"
-import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"
-import { parseAcEvoBuffers, createAcEvoParserCache } from "../src/parser";
+import { META_FRAME_MAGIC } from "@raceiq/capture-formats/session/framing";
+import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline";
+import { iterateSessionCaptureRecords } from "@raceiq/capture-formats/session/framing";
+import {
+  captureAcEvoParserCheckpoint, parseAcEvoBuffers, createAcEvoParserCache,
+  restoreAcEvoParserCheckpoint,
+} from "../src/parser";
 import { AcEvoStatusCheckProcessor } from "../src/shared-memory";
 import { ACEVO_STATUS, GRAPHICS_EVO, STATIC_EVO } from "@raceiq/capture-formats/ac-evo/structs";
 import { unpackTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
+import { parseAcEvoLapIndex } from "../src/lap-index";
 import { TripletPipeline } from "@raceiq/backend-core/games/kunos/triplet-pipeline";
 
 registerGame(acEvoServerAdapter);
@@ -93,6 +98,16 @@ describe("AC Evo parser — status gating", () => {
     const packet = parseAcEvoBuffers(t.physics, graphics, t.staticData, createAcEvoParserCache());
     expect(packet).toBeNull();
   });
+});
+test("AC Evo native parser and lap-index projection preserve nested session context", () => {
+  const t = readFirstTriplet();
+  const graphics = setStatus(t.graphics, ACEVO_STATUS.AC_LIVE);
+  const native = parseAcEvoBuffers(t.physics, graphics, t.staticData, createAcEvoParserCache());
+  const indexed = parseAcEvoLapIndex(t.physics, graphics, t.staticData, createAcEvoParserCache());
+  expect(native).not.toBeNull();
+  expect(indexed).not.toBeNull();
+  expect(indexed?.acc?.acEvo?.sessionType).toBe(native?.acc?.acEvo?.sessionType);
+  expect(indexed).not.toHaveProperty("acEvo");
 });
 
 describe("AC Evo live pipeline — status gating", () => {
@@ -306,5 +321,36 @@ describe("AC Evo menu-exit recording — e2e", () => {
     }
     expect(detector.session).toBeNull();
     expect(db.sessions.length).toBeGreaterThanOrEqual(1);
+  }, { timeout: 60_000 });
+
+  test("fixture suffix matches continuous parsing after restoring parser cache", () => {
+    const raw = Buffer.from(gunzipSync(readFileSync(FIXTURE)));
+    const frames: Buffer[] = [];
+    for (const record of iterateSessionCaptureRecords(raw)) {
+      if (record.kind !== "frame") continue;
+      frames.push(record.frame);
+      if (frames.length === 24) break;
+    }
+    expect(frames.length).toBeGreaterThan(12);
+    const continuous = createAcEvoParserCache();
+    const prefix = frames.slice(0, 12);
+    const suffix = frames.slice(12);
+    for (const frame of prefix) {
+      const triplet = unpackTriplet(frame);
+      if (!triplet) throw new Error("failed to unpack AC Evo fixture triplet");
+      parseAcEvoBuffers(triplet.physics, triplet.graphics, triplet.staticData, continuous, 1234);
+    }
+    const restored = restoreAcEvoParserCheckpoint(captureAcEvoParserCheckpoint(continuous));
+    const continuousPackets = suffix.map((frame) => {
+      const triplet = unpackTriplet(frame);
+      if (!triplet) throw new Error("failed to unpack AC Evo fixture triplet");
+      return parseAcEvoBuffers(triplet.physics, triplet.graphics, triplet.staticData, continuous, 1234);
+    });
+    const restoredPackets = suffix.map((frame) => {
+      const triplet = unpackTriplet(frame);
+      if (!triplet) throw new Error("failed to unpack AC Evo fixture triplet");
+      return parseAcEvoBuffers(triplet.physics, triplet.graphics, triplet.staticData, restored, 1234);
+    });
+    expect(restoredPackets).toEqual(continuousPackets);
   }, { timeout: 60_000 });
 });

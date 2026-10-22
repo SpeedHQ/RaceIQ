@@ -1,5 +1,4 @@
-import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
-import sharp from "sharp";
+import { expect, test } from "@playwright/test";
 
 import { collectBrowserErrors } from "../../support/browser-errors";
 import { SEEDED_GAME_CASES } from "../../support/seeded/cases";
@@ -7,116 +6,6 @@ import { getSeededLapMeta, getSeededLapTarget } from "../../support/seeded/laps"
 import { exerciseCrossGameControls } from "./controls";
 import { openAnalyseLap } from "./fixtures";
 
-async function openOverlayMenu(page: Page, hasRacingLine: boolean): Promise<void> {
-  await page.getByRole("button", { name: "Overlays", exact: true }).click();
-  for (const label of ["Inputs", "Segments", "Sectors"]) {
-    await expect(page.getByRole("menuitemcheckbox", { name: label, exact: true })).toBeVisible();
-  }
-  const racingLine = page.getByRole("menuitemcheckbox", { name: "Racing line", exact: true });
-  if (hasRacingLine) await expect(racingLine).toBeVisible();
-  else await expect(racingLine).toHaveCount(0);
-}
-
-async function openWireframeViewMenu(page: Page, hasRacingLine: boolean): Promise<void> {
-  await page.getByRole("tabpanel", { name: "3D", exact: true }).getByRole("button", { name: "View", exact: true }).click();
-  for (const label of ["Trails", "Inputs", "Track", "Grid", "Tire Info"]) {
-    await expect(page.getByRole("menuitemcheckbox", { name: label, exact: true })).toBeVisible();
-  }
-  const racingLine = page.getByRole("menuitemcheckbox", { name: "Racing line", exact: true });
-  if (hasRacingLine) await expect(racingLine).toBeVisible();
-  else await expect(racingLine).toBeDisabled();
-}
-
-async function seekToClosestRacingLine(page: Page, request: APIRequestContext, lapId: number, gameId: "acc" | "ac-evo", raceLine: Array<{ x: number; z: number }>): Promise<void> {
-  const replayResponse = await request.get(`/api/laps/${lapId}/semantic-telemetry`, { headers: { "X-Game-Id": gameId } });
-  expect(replayResponse.ok(), `${gameId} semantic replay response`).toBe(true);
-  const replay = (await replayResponse.json()) as {
-    envelopes: Array<{
-      values: Array<{ semanticId: string; value: unknown }>;
-    }>;
-  };
-  let bestFrameIndex = 0;
-  let bestDistanceSquared = Infinity;
-  const frameDistances = new Array<number>(replay.envelopes.length).fill(Infinity);
-  const frameTimes = replay.envelopes.map((envelope) => {
-    const value = envelope.values.find((entry) => entry.semanticId === "timing.current-lap")?.value;
-    return typeof value === "number" ? value : 0;
-  });
-  for (let frameIndex = 0; frameIndex < replay.envelopes.length; frameIndex++) {
-    const values = replay.envelopes[frameIndex].values;
-    const positionX = values.find((entry) => entry.semanticId === "motion.position-x")?.value;
-    const positionZ = values.find((entry) => entry.semanticId === "motion.position-z")?.value;
-    if (typeof positionX !== "number" || typeof positionZ !== "number") continue;
-    let frameDistanceSquared = Infinity;
-    for (const point of raceLine) {
-      frameDistanceSquared = Math.min(frameDistanceSquared, (positionX + point.x) ** 2 + (positionZ - point.z) ** 2);
-    }
-    frameDistances[frameIndex] = Math.sqrt(frameDistanceSquared);
-    if (frameDistanceSquared < bestDistanceSquared) {
-      bestDistanceSquared = frameDistanceSquared;
-      bestFrameIndex = frameIndex;
-    }
-  }
-  expect(Math.sqrt(bestDistanceSquared), `${gameId} replay should cross its reference line`).toBeLessThan(1);
-
-  const firstTime = frameTimes[0];
-  const lastTime = frameTimes.reduce((maximum, time) => Math.max(maximum, time), firstTime);
-  const bestTime = frameTimes[bestFrameIndex];
-  const timeFraction = (bestTime - firstTime) / (lastTime - firstTime);
-  const slider = page.getByRole("slider", { name: "Lap timeline" });
-  const box = await slider.boundingBox();
-  expect(box, "lap timeline bounds").not.toBeNull();
-  await slider.click({ position: { x: Math.max(1, Math.min(box!.width - 1, box!.width * timeFraction)), y: box!.height / 2 } });
-  await expect.poll(async () => Number(await slider.getAttribute("aria-valuenow"))).toBeGreaterThan(0);
-  const selectedFrameIndex = Number(await slider.getAttribute("aria-valuenow"));
-  expect(frameDistances[selectedFrameIndex], `${gameId} selected frame should place car over reference line`).toBeLessThan(2.5);
-}
-
-async function expectVisible3dRacingLine(page: Page): Promise<void> {
-  for (const label of ["Trails", "Inputs", "Track", "Grid", "Tire Info"]) {
-    await setOverlayChecked(page, label, false);
-  }
-  await setOverlayChecked(page, "Racing line", true);
-  await page.keyboard.press("Escape");
-
-  const carRenderMode = page.getByRole("button", { name: /^(Wire|Solid|Hidden)$/ });
-  for (let attempt = 0; attempt < 2 && (await carRenderMode.textContent())?.trim() !== "Hidden"; attempt++) await carRenderMode.click();
-  await expect(carRenderMode).toHaveText("Hidden");
-  await page.getByRole("button", { name: /^Top$/i }).click();
-
-  const canvas = page.getByRole("tabpanel", { name: "3D", exact: true }).locator("canvas").first();
-  await expect(canvas).toBeVisible();
-  await expect
-    .poll(
-      async () => {
-        const screenshot = await canvas.screenshot();
-        const { data, info } = await sharp(screenshot).removeAlpha().raw().toBuffer({ resolveWithObject: true });
-        let racingLinePixels = 0;
-        for (let index = 0; index < info.width * info.height * info.channels; index += info.channels) {
-          const red = data[index];
-          const green = data[index + 1];
-          const blue = data[index + 2];
-          if (red > 120 && blue > 150 && red > green * 1.15 && blue > green * 1.25) racingLinePixels++;
-        }
-        return racingLinePixels;
-      },
-      { message: "3D canvas should contain rendered purple racing-line pixels" },
-    )
-    .toBeGreaterThan(5);
-}
-
-async function setOverlayChecked(page: Page, label: string, checked: boolean): Promise<void> {
-  const item = page.getByRole("menuitemcheckbox", { name: label, exact: true });
-  if ((await item.getAttribute("aria-checked")) !== String(checked)) await item.click();
-  await expect(item).toHaveAttribute("aria-checked", String(checked));
-}
-
-async function expectTrackMapCanvases(page: Page): Promise<void> {
-  const trackPanel = page.getByTestId("analyse-track-map-panel");
-  const canvases = trackPanel.locator("canvas");
-  await expect(canvases).toHaveCount(3);
-  for (let index = 0; index < 3; index++) await expect(canvases.nth(index)).toBeVisible();
-}
 test("Analyse shared controls work across seeded game recordings", async ({ page, request }) => {
   test.setTimeout(260_000);
   const browserErrors = collectBrowserErrors(page);
@@ -147,64 +36,96 @@ test("Session MoTeC import locks current game selection", async ({ page }) => {
   await motecDialog.getByPlaceholder("Search cars...").click();
   await page.getByRole("option", { name: "Ferrari 296 GT3 2023", exact: true }).click();
   await expect(motecDialog.getByPlaceholder("Search cars...")).toHaveValue("Ferrari 296 GT3 2023");
+  await expect(motecDialog.getByPlaceholder("Search setups...")).toBeVisible();
   await motecDialog.getByPlaceholder("Search tracks...").click();
   await expect(page.getByRole("option", { name: "Brands Hatch (GP)" })).toBeVisible();
 });
 
-test("Analyse racing-line overlay follows seeded track availability", async ({ page, request }) => {
+test("F1 MoTeC import searches team cars and tracks without a setup picker", async ({ page }) => {
+  await page.route("**/api/laps/detect-import", async (route) => {
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify({ format: "motec", supported: true, gameIds: [], captureCount: 1, message: null }) });
+  });
+  await page.goto("/f125/sessions");
+  await page.getByRole("button", { name: /import/i }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.locator('input[type="file"]').setInputFiles({ name: "sample.ld", mimeType: "application/octet-stream", buffer: Buffer.from("synthetic") });
+  await expect(dialog).toContainText("Import MoTeC log");
+  const cars = dialog.getByPlaceholder("Search cars...");
+  await cars.click();
+  await expect(page.getByRole("option", { name: "Ferrari", exact: true })).toBeVisible();
+  await expect(page.getByRole("option", { name: "Mercedes", exact: true })).toBeVisible();
+  await cars.fill("F1 World");
+  await page.getByRole("option", { name: "F1 World", exact: true }).click();
+  await expect(cars).toHaveValue("F1 World");
+  const tracks = dialog.getByPlaceholder("Search tracks...");
+  await tracks.fill("Silverstone");
+  await page.getByRole("option", { name: "Silverstone Circuit (Grand Prix)", exact: true }).click();
+  await expect(tracks).toHaveValue("Silverstone Circuit (Grand Prix)");
+  await expect(dialog.getByPlaceholder("Search setups...")).toHaveCount(0);
+  await expect(dialog.getByPlaceholder("Pick a car first")).toHaveCount(0);
+  await expect(dialog.getByText("Setup (optional)", { exact: true })).toHaveCount(0);
+  await expect(dialog).toContainText("MoTeC import is not supported for F1 2025 yet.");
+  await dialog.locator('input[accept=".ldx"]').setInputFiles({ name: "sample.ldx", mimeType: "application/octet-stream", buffer: Buffer.from("<LDX />") });
+  await expect(dialog.getByRole("button", { name: "Import", exact: true })).toBeDisabled();
+});
+
+test("Replay model modes preserve wheels and racing-line overlays follow seeded availability", async ({ page, request }, testInfo) => {
   test.setTimeout(260_000);
   const browserErrors = collectBrowserErrors(page);
-  await page.addInitScript(() => {
-    (window as unknown as Record<string, unknown>).__recording = true;
-  });
-
-  const accTarget = await getSeededLapTarget(request, "acc");
-  const accBoundariesResponse = await request.get(`/api/track-boundaries/${encodeURIComponent(accTarget.trackId)}?gameId=acc`);
-  expect(accBoundariesResponse.ok(), "ACC track boundaries response").toBe(true);
-  const accBoundaries = (await accBoundariesResponse.json()) as { raceLine?: Array<{ x: number; z: number }> } | null;
-  expect(accBoundaries, "ACC bundled track boundaries").not.toBeNull();
-  expect(Array.isArray(accBoundaries?.raceLine), "ACC racing-line payload").toBe(true);
-  expect(accBoundaries!.raceLine!.length).toBeGreaterThan(1);
-  await openAnalyseLap(page, accTarget, "acc");
-  await expectTrackMapCanvases(page);
-  await openOverlayMenu(page, true);
-  await setOverlayChecked(page, "Inputs", true);
-  await setOverlayChecked(page, "Segments", true);
-  await setOverlayChecked(page, "Racing line", true);
-  for (const label of ["Inputs", "Segments", "Racing line"]) {
-    await expect(page.getByRole("menuitemcheckbox", { name: label, exact: true })).toHaveAttribute("aria-checked", "true");
+  for (const [gameId, prefix] of [["acc", "acc"], ["ac-evo", "ac-evo"], ["fm-2023", "fm23"]] as const) {
+    const target = await getSeededLapTarget(request, gameId);
+    const response = await request.get(`/api/track-boundaries/${encodeURIComponent(target.trackId)}?gameId=${gameId}`);
+    expect(response.ok()).toBe(true);
+    const boundaries = await response.json() as { raceLine?: unknown[] } | null;
+    const hasRacingLine = Array.isArray(boundaries?.raceLine) && boundaries.raceLine.length > 1;
+    await openAnalyseLap(page, target, prefix);
+    const scene = page.locator("[data-replay-scene]");
+    await expect(scene).toHaveAttribute("data-scene-ready", "true");
+    await expect(page.getByRole("region", { name: "Circuit overview", exact: true })).toBeVisible();
+    const toggle = page.getByRole("switch", { name: "Racing line", exact: true });
+    const canvas = scene.locator("canvas[data-renderer-backend]");
+    for (let step = 0; step < 32 && await canvas.getAttribute("data-native-view-visible") !== "true"; step++) {
+      const box = (await canvas.boundingBox())!;
+      await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.48);
+      await page.mouse.wheel(0, -360);
+      await page.evaluate(() => {
+        const { promise, resolve } = Promise.withResolvers<void>();
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+        return promise;
+      });
+    }
+    await expect(canvas).toHaveAttribute("data-native-view-visible", "true");
+    const modelToggle = scene.locator("[data-spectate-car-model-toggle]");
+    await expect(modelToggle).toHaveCount(1);
+    for (const mode of ["hidden", "wire", "solid"]) {
+      await modelToggle.click();
+      await expect(canvas).toHaveAttribute("data-car-model-mode", mode);
+      await expect(canvas).toHaveAttribute("data-a-car-visible", String(mode !== "hidden"));
+      await expect(canvas).toHaveAttribute("data-a-wheel-visible-count", "4");
+      await expect(canvas).toHaveAttribute("data-a-chassis-visible", String(mode !== "solid"));
+      if (gameId === "fm-2023") await page.screenshot({ path: testInfo.outputPath(`replay-native-${mode}-chassis.png`), animations: "disabled" });
+    }
+    if (gameId === "fm-2023") await page.screenshot({ path: testInfo.outputPath("replay-native-car-and-wheels.png"), animations: "disabled" });
+    const tireInfo = scene.getByRole("switch", { name: "Tire Info", exact: true });
+    await tireInfo.hover();
+    await expect(page.getByRole("tooltip", { name: "Tire Info", exact: true })).toBeVisible();
+    await tireInfo.click();
+    await expect(tireInfo).toHaveAttribute("aria-checked", "true");
+    await expect(canvas).toHaveAttribute("data-a-tire-info-visible-count", "4");
+    if (gameId === "fm-2023") await page.screenshot({ path: testInfo.outputPath("replay-native-tire-info.png"), animations: "disabled" });
+    await tireInfo.press("Enter");
+    await expect(tireInfo).toHaveAttribute("aria-checked", "false");
+    await expect(canvas).toHaveAttribute("data-a-tire-info-visible-count", "0");
+    if (hasRacingLine) {
+      if (await toggle.getAttribute("aria-checked") !== "true") await toggle.click();
+      await expect.poll(async () => Number(await canvas.getAttribute("data-track-racing-line-dots"))).toBeGreaterThan(0);
+      await expect(canvas).toHaveAttribute("data-track-racing-line-visible", "true");
+      await toggle.click();
+      await expect(canvas).toHaveAttribute("data-track-racing-line-visible", "false");
+      await toggle.click();
+    } else {
+      await expect(canvas).toHaveAttribute("data-track-racing-line-visible", "false");
+    }
   }
-  await page.keyboard.press("Escape");
-  await seekToClosestRacingLine(page, request, accTarget.id, "acc", accBoundaries!.raceLine!);
-  await page.getByRole("tab", { name: "3D", exact: true }).click();
-  await openWireframeViewMenu(page, true);
-  await expect(page.getByRole("menuitemcheckbox", { name: "Racing line", exact: true })).toHaveAttribute("aria-checked", "false");
-  await expectVisible3dRacingLine(page);
-
-  const acEvoTarget = await getSeededLapTarget(request, "ac-evo");
-  const acEvoBoundariesResponse = await request.get(`/api/track-boundaries/${encodeURIComponent(acEvoTarget.trackId)}?gameId=ac-evo`);
-  expect(acEvoBoundariesResponse.ok(), "AC Evo track boundaries response").toBe(true);
-  const acEvoBoundaries = (await acEvoBoundariesResponse.json()) as { raceLine?: unknown };
-  expect(Array.isArray(acEvoBoundaries.raceLine), "AC Evo racing-line payload").toBe(true);
-  expect((acEvoBoundaries.raceLine as unknown[]).length).toBeGreaterThan(1);
-  await openAnalyseLap(page, acEvoTarget, "ac-evo");
-  await expectTrackMapCanvases(page);
-  await openOverlayMenu(page, true);
-  for (const label of ["Inputs", "Segments", "Racing line"]) {
-    await expect(page.getByRole("menuitemcheckbox", { name: label, exact: true })).toHaveAttribute("aria-checked", "true");
-  }
-  await page.keyboard.press("Escape");
-  await openWireframeViewMenu(page, true);
-  await expect(page.getByRole("menuitemcheckbox", { name: "Racing line", exact: true })).toHaveAttribute("aria-checked", "true");
-  await page.keyboard.press("Escape");
-
-  const fmTarget = await getSeededLapTarget(request, "fm-2023");
-  await openAnalyseLap(page, fmTarget, "fm23");
-  await expectTrackMapCanvases(page);
-  await openOverlayMenu(page, false);
-  await page.keyboard.press("Escape");
-  await page.getByRole("tab", { name: "3D", exact: true }).click();
-  await openWireframeViewMenu(page, false);
-
-  expect(browserErrors.errors, "unexpected browser errors while toggling racing-line overlays").toEqual([]);
+  expect(browserErrors.errors).toEqual([]);
 });

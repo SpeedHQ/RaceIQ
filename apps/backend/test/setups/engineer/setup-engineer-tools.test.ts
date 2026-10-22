@@ -16,7 +16,7 @@
 import { describe, expect, test } from "bun:test";
 import { applyIntents, describeKnobs } from "@raceiq/backend-core/setups/rules/engine";
 import { knownComponents } from "@raceiq/backend-core/setups/rules/catalog";
-import { readSetupEngineerContext } from "../../../src/mastra/tools/setup-engineer-request-context";
+import { EXPERIMENT_CHAT_BRANCH_CONTEXT_KEY, readSetupEngineerContext } from "../../../src/mastra/tools/setup-engineer-request-context";
 
 function baseAccSetup() {
   return {
@@ -124,26 +124,17 @@ describe("component grounding — the engine is the guard, not the schema", () =
   });
 });
 
-describe("readSetupEngineerContext — per-request gameId/sessionId guard", () => {
+describe("readSetupEngineerContext — server-bound experiment branch guard", () => {
   const ctx = (entries: Record<string, unknown>) => ({ get: (k: string) => entries[k] });
+  const branch = { sessionId: 61, headVersionId: null, versions: [], laps: [], lapIds: [] };
 
-  test("returns { gameId, sessionId } from a Map-like request context", () => {
-    expect(readSetupEngineerContext(ctx({ gameId: "acc", sessionId: 61 }))).toEqual({
-      gameId: "acc",
-      sessionId: 61,
-    });
-  });
 
-  test("throws when the context is missing", () => {
-    expect(() => readSetupEngineerContext(undefined)).toThrow(/requestContext/);
-  });
-
-  test("throws when sessionId is absent or not a number", () => {
-    expect(() => readSetupEngineerContext(ctx({ gameId: "acc" }))).toThrow();
-    expect(() => readSetupEngineerContext(ctx({ gameId: "acc", sessionId: "61" }))).toThrow();
-  });
-
-  test("throws when gameId is absent", () => {
-    expect(() => readSetupEngineerContext(ctx({ sessionId: 61 }))).toThrow();
+  test("throws when context or branch binding is missing/mismatched", () => {
+    expect(() => readSetupEngineerContext(undefined)).toThrow();
+    expect(() => readSetupEngineerContext(ctx({ gameId: "acc", sessionId: 61 }))).toThrow();
+    expect(() => readSetupEngineerContext(ctx({
+      gameId: "acc", sessionId: 61,
+      [EXPERIMENT_CHAT_BRANCH_CONTEXT_KEY]: { ...branch, sessionId: 62 },
+    }))).toThrow();
   });
 });

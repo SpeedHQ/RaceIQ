@@ -1,3 +1,4 @@
+import { classifyLapCategory } from "@raceiq/analysis-core/racing/laps/classification";
 /**
  * Shared ordinal-based lap detection state machine.
  *
@@ -11,11 +12,12 @@
  * Each completed lap's full packet buffer is persisted to SQLite.
  * Fuel and tire wear deltas are tracked per-lap for strategy overlays.
  */
+import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
+import { isPaceLap } from "@raceiq/shared/racing/lap-classification";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { GameId } from "@raceiq/shared/games/ids";
-import type { ILapDetector, LapDetectorOptions } from "./types";
+import type { ILapDetector, LapDetectorOptions, LapOwnershipSource, LapOwnershipTransition, DetectorOwnershipState } from "./types";
 import { DEFAULT_LAP_DETECTOR_POLICY, assessLapRecording, mergePitCycleReason, type LapDetectorPolicy } from "@raceiq/telemetry-core/processor/lap-policy";
-import { extractCurbSegments, recordCurbData } from "@raceiq/shared/racing/tracks/recording/curbs";
 import { recordLapTrace } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import { getIRacingSharedTrackName } from "@raceiq/game-iracing-metadata/racing/tracks/catalogs/iracing"
 import { lapPath } from "@raceiq/shared/racing/tracks/path";
@@ -60,10 +62,12 @@ export interface LapTireWearData {
 }
 
 export interface LapSavedEvent {
+  sessionId: number;
   lapId: number;
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
+  classification: LapClassification | null;
   sectors: number[] | null;
   estimatedBestLapTime: number; // best lap time in session (0 if none yet)
 }
@@ -79,10 +83,11 @@ export interface LapCompleteEvent {
   lapDistStart: number;
   lapTime: number;
   isValid: boolean;
+  classification: LapClassification | null;
   sectors: number[] | null;
 }
 
-export class LapDetector implements ILapDetector {
+export class LapDetector implements ILapDetector, LapOwnershipSource {
   readonly detectorId = LAP_DETECTOR_ID;
   private readonly db: LapDetectorOptions["db"];
   private readonly bypassPacketRateFilter: boolean;
@@ -189,6 +194,7 @@ export class LapDetector implements ILapDetector {
         const lapNum = state.lapNumber;
         const packetCount = state.lapBuffer.length;
         const lapPackets = state.lapBuffer;
+        const classification = classifyLapCategory(lapPackets, this.currentPitCycleReason, undefined, isComplete && state.lapIsValid);
         this.db.insertLap(
           session.sessionId,
           lapNum,
@@ -200,6 +206,7 @@ export class LapDetector implements ILapDetector {
           tuneAssignment?.tuneId ?? null,
           isComplete ? state.invalidReason : "incomplete",
           null,
+          classification,
         ).then(async (lapId) => {
           await this.persistLapFollowups(lapId, lapPackets);
           console.log(
@@ -212,13 +219,19 @@ export class LapDetector implements ILapDetector {
       finalizeSession: async () => { this.currentSession = null; },
     }, { bypassPacketRateFilter: this.bypassPacketRateFilter });
   }
+  clampCurrentLapOwnership(endOrdinal: number): void { this.engine.clampCurrentLapOwnership(endOrdinal); }
 
   get session(): SessionState | null { return this.currentSession; }
   get fuelHistory(): LapFuelData[] { return this._fuelHistory; }
   get tireWearHistory(): LapTireWearData[] { return this._tireWearHistory; }
-  setCurrentLapByteOffset(offset: number): void { this.engine.setCurrentLapByteOffset(offset); }
+  shouldCheckpointBeforeWrite(packet: TelemetryPacket): boolean { return this.engine.shouldCheckpoint(packet); }
+  getOwnershipState(): DetectorOwnershipState { return this.engine.getOwnershipState(); }
+  subscribeOwnership(listener: (transition: LapOwnershipTransition) => void): () => void { return this.engine.subscribeOwnership(listener); }
+  observeSourceRecord(offset: number, endOffset: number, ordinal: number): void { this.engine.observeSourceRecord(offset, endOffset, ordinal); }
+  setCurrentLapByteOffset(offset: number, rawOrdinal?: number): void { this.engine.setCurrentLapByteOffset(offset, rawOrdinal); }
+  drainOwnershipTransitions(): LapOwnershipTransition[] { return this.engine.drainOwnershipTransitions(); }
   async snapshotIncompleteLap(): Promise<void> {
-    if (this.currentSession?.gameId === "fm-2023") this.engine.markProvisionalSnapshot();
+    this.engine.markProvisionalSnapshot();
     if (this.pendingIncompleteLapId !== null) return;
     if (this.pendingIncompleteLapWrite) return this.pendingIncompleteLapWrite;
     if (!this.currentSession || this.currentLapNumber < 0 || !this.lapBuffer.length) return;
@@ -227,7 +240,8 @@ export class LapDetector implements ILapDetector {
     if (lapTime < 10) return;
     this.pendingIncompleteLapWrite = (async () => {
       const tune = await this.db.getTuneAssignment(session.gameId, session.carId, session.trackId);
-      this.pendingIncompleteLapId = await this.db.insertLap(session.sessionId, lapNumber, lapTime, false, this._lapByteOffset, this._lapFrameCount, null, tune?.tuneId ?? null, this.currentPitCycleReason ?? "incomplete", null);
+      const classification = classifyLapCategory(this.lapBuffer, this.currentPitCycleReason, undefined, false);
+      this.pendingIncompleteLapId = await this.db.insertLap(session.sessionId, lapNumber, lapTime, false, this._lapByteOffset, this._lapFrameCount, null, tune?.tuneId ?? null, this.currentPitCycleReason ?? "incomplete", null, classification);
       console.log(`[Lap] Saved provisional incomplete lap ${lapNumber}`);
     })();
     try { await this.pendingIncompleteLapWrite; } finally { this.pendingIncompleteLapWrite = null; }
@@ -243,15 +257,18 @@ export class LapDetector implements ILapDetector {
   async flushIncompleteLap(): Promise<void> {
     await this.pendingIncompleteLapWrite;
     if (this.pendingIncompleteLapId === null) await this.engine.flushIncompleteLap();
-    else this.engine.discardIncompleteLap();
+    else {
+      this.engine.finalizeRetainedIncompleteOwnership();
+      this.engine.discardIncompleteLap();
+    }
     this.pendingIncompleteLapId = null;
   }
-  async feed(packet: TelemetryPacket, rawByteOffset?: number): Promise<void> {
+  async feed(packet: TelemetryPacket, rawByteOffset?: number, rawOrdinal?: number): Promise<void> {
     if (!this._loggedFeedOnce) {
       console.log("[Lap Detector] Started receiving packets from pipeline");
       this._loggedFeedOnce = true;
     }
-    await this.engine.feed(packet, rawByteOffset);
+    await this.engine.feed(packet, rawByteOffset, rawOrdinal);
   }
 
 
@@ -339,24 +356,20 @@ export class LapDetector implements ILapDetector {
       const lapNum = this.currentLapNumber;
       const packetCount = this.lapBuffer.length;
 
-      // Catalog-native pit state and FM's gap/service evidence both become
-      // lap-level exclusions only after the complete lap window is available.
+      // Native pit evidence tags completed lap windows independently of quality.
       const pitReason = mergePitCycleReason(
         this.currentPitCycleReason,
         this.lapPolicy.classifyPitCycle(this.lapBuffer, this.completedLapCount),
       );
-      const policyReason = this.lapPolicy.invalidReason?.(this.lapBuffer) ?? null;
-      const quality = assessLapRecording(this.lapBuffer, lapTime);
-      const valid =
-        this.lapIsValid &&
-        policyReason === null &&
-        pitReason === null &&
-        quality.valid;
+      const policyReason = this.lapPolicy.invalidReason?.(this.lapBuffer, this.completedLapCount) ?? null;
+      const detectedCategory = classifyLapCategory(this.lapBuffer, pitReason, undefined, true);
+      const quality = assessLapRecording(this.lapBuffer, lapTime, { closed: !pitReason && detectedCategory !== "grid_start" });
       const invalidReason =
         this.invalidReason ??
         policyReason ??
-        pitReason ??
         (!quality.valid ? quality.reason : null);
+      const classification = policyReason === "incomplete" || (detectedCategory === "pace" && !quality.valid) ? null : detectedCategory;
+      const valid = this.lapIsValid && policyReason === null && quality.valid;
       traceCapture(this.currentSession.gameId, "lap-boundary-stage", {
         sessionId: this.currentSession.sessionId,
         lapNumber: this.currentLapNumber,
@@ -402,7 +415,7 @@ export class LapDetector implements ILapDetector {
       }
 
       // Update session best lap time
-      if (valid && (this.currentSession!.bestLapTime === 0 || lapTime < this.currentSession!.bestLapTime)) {
+      if (valid && isPaceLap(classification) && (this.currentSession!.bestLapTime === 0 || lapTime < this.currentSession!.bestLapTime)) {
         this.currentSession!.bestLapTime = lapTime;
       }
 
@@ -413,6 +426,7 @@ export class LapDetector implements ILapDetector {
           lapDistStart: this.lapBuffer[0].DistanceTraveled,
           lapTime,
           isValid: valid,
+          classification,
           sectors,
         });
       }
@@ -425,12 +439,12 @@ export class LapDetector implements ILapDetector {
       });
       traceStageAt = performance.now();
 
-      // Capture the frame buffer before the engine resets its state; the insert below
-      // is fire-and-forget, so persistLapMetrics runs after reset.
+      const savedSessionId = this.currentSession.sessionId;
+      const savedBestLapTime = this.currentSession.bestLapTime;
       const lapPackets = this.lapBuffer;
       const insertStartedAt = performance.now();
       this.db.insertLap(
-        this.currentSession.sessionId,
+        savedSessionId,
         lapNum,
         lapTime,
         valid,
@@ -439,7 +453,8 @@ export class LapDetector implements ILapDetector {
         null,
         tuneId,
         invalidReason,
-        sectors
+        sectors,
+        classification
       ).then(async (lapId) => {
         traceCapture(lapPackets[0]?.gameId ?? "unknown", "lap-insert", {
           lapId,
@@ -453,12 +468,14 @@ export class LapDetector implements ILapDetector {
           `[Lap] Saved lap ${lapNum} | Time: ${formatLapTime(lapTime)} | Valid: ${valid}${invalidReason ? ` (${invalidReason})` : ""} | Packets: ${packetCount} | DB ID: ${lapId}`
         );
         this.onLapSaved?.({
+          sessionId: savedSessionId,
           lapId,
           lapNumber: lapNum,
           lapTime,
           isValid: valid,
+          classification,
           sectors,
-          estimatedBestLapTime: this.currentSession!.bestLapTime,
+          estimatedBestLapTime: savedBestLapTime,
         });
       }).catch((err) => {
         console.error(`[Lap] Failed to save lap ${lapNum}:`, err);
@@ -466,20 +483,6 @@ export class LapDetector implements ILapDetector {
 
     }
 
-
-    // Extract and record curb data from any valid lap
-    if (this.lapIsValid && this.currentSession.trackId && this.lapBuffer.length > 50) {
-      const curbSegments = extractCurbSegments(this.lapBuffer);
-      if (curbSegments.length > 0) {
-        recordCurbData(this.currentSession.trackId, curbSegments, this.currentSession.gameId);
-      }
-    }
-    traceCapture(this.currentSession.gameId, "lap-boundary-stage", {
-      sessionId: this.currentSession.sessionId,
-      lapNumber: this.currentLapNumber,
-      stage: "curb-recording",
-      durationMs: performance.now() - traceStageAt,
-    });
     traceCapture(this.currentSession.gameId, "lap-boundary-end", {
       sessionId: this.currentSession.sessionId,
       lapNumber: this.currentLapNumber,
@@ -499,6 +502,7 @@ export class LapDetector implements ILapDetector {
       this.currentSession.trackId
     );
     const lapPackets = this.lapBuffer;
+    const classification = classifyLapCategory(lapPackets, this.currentPitCycleReason, undefined, false);
     this.db.insertLap(
       this.currentSession.sessionId,
       this.currentLapNumber,
@@ -509,7 +513,8 @@ export class LapDetector implements ILapDetector {
       null,
       tuneAssignment?.tuneId ?? null,
       this.currentPitCycleReason ?? "incomplete",
-      null
+      null,
+      classification
     ).then(async (lapId) => {
       await this.persistLapFollowups(lapId, lapPackets);
       console.log(`[Lap] Saved incomplete lap (session ended)`);

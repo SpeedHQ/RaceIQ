@@ -1,12 +1,13 @@
 "use client";
 
 import { AttachmentPrimitive, ComposerPrimitive, MessagePrimitive, useAui, useAuiState } from "@assistant-ui/react";
-import { AlertCircleIcon, FileText, Loader2Icon, PlusIcon, XIcon } from "lucide-react";
-import { type FC, isValidElement, type PropsWithChildren, useEffect, useState } from "react";
+import { AlertCircleIcon, FileText, Loader2Icon, PlusIcon, Trash2Icon, XIcon } from "lucide-react";
+import { type FC, isValidElement, type PropsWithChildren, useContext, useEffect, useState } from "react";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { RemoveFailedTurnContext } from "./thread-context";
 import { cn } from "@/lib/utils";
 
 import { m } from "@/paraglide/messages";
@@ -148,6 +149,7 @@ const AttachmentUI: FC = () => {
             </TooltipTrigger>
           </AttachmentPreviewDialog>
           {isComposer && <AttachmentRemove />}
+          {!isComposer && isImage && <FailedImageTurnRemove />}
         </AttachmentPrimitive.Root>
         <TooltipContent side="top">
           <AttachmentPrimitive.Name />
@@ -173,6 +175,31 @@ const AttachmentRemove: FC = () => {
     </AttachmentPrimitive.Remove>
   );
 };
+const FailedImageTurnRemove: FC = () => {
+  const onRemoveFailedTurn = useContext(RemoveFailedTurnContext);
+  const messageId = useAuiState((s) => s.message.id);
+  const [removing, setRemoving] = useState(false);
+  const [removeError, setRemoveError] = useState(false);
+  if (!onRemoveFailedTurn) return null;
+  return (
+    <div className="absolute end-1.5 bottom-1.5 flex items-center gap-1">
+      <TooltipIconButton
+        tooltip={m.ai_chat_remove_failed_turn()}
+        aria-label={m.ai_chat_remove_failed_turn()}
+        disabled={removing}
+        onClick={() => {
+          setRemoving(true);
+          setRemoveError(false);
+          void onRemoveFailedTurn(messageId).catch(() => setRemoveError(true)).finally(() => setRemoving(false));
+        }}
+      >
+        <Trash2Icon />
+      </TooltipIconButton>
+      {removeError && <span role="alert" className="max-w-48 text-app-caption text-status-danger">{m.ai_chat_remove_failed_turn_error()}</span>}
+    </div>
+  );
+};
+
 
 export const UserMessageAttachments: FC = () => {
   return (

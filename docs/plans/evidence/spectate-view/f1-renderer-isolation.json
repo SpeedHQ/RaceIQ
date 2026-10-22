@@ -1,0 +1,21 @@
+{
+  "inventory": {
+    "backend": "webgl2",
+    "edges": "2150",
+    "a": "4417",
+    "b": "4241",
+    "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)"
+  },
+  "results": [
+    {
+      "collapsed": false,
+      "pauseMs": 3730,
+      "frames": 17
+    },
+    {
+      "collapsed": true,
+      "pauseMs": 6319,
+      "frames": 18
+    }
+  ]
+}

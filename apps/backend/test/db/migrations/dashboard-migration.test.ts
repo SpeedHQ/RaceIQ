@@ -159,7 +159,7 @@ describe("dashboard embedded migrations", () => {
       ] as const) {
         expect(Math.abs(Number(month.rows[0]?.[field]) - expected)).toBeLessThan(1e-6);
       }
-      expect((await client.execute("SELECT * FROM dashboard_day_entities ORDER BY utc_day")).rows).toEqual(sourceBefore.rows);
+      expect((await client.execute(`SELECT ${sourceBefore.columns.join(",")} FROM dashboard_day_entities ORDER BY utc_day`)).rows).toEqual(sourceBefore.rows);
       expect(await runMigrations(client)).toBe(0);
       expect((await client.execute(`SELECT * FROM dashboard_month_entities
         WHERE utc_month='2024-02' AND game_id='acc' AND car_key='["acc","n:7"]' AND track_key='["acc","n:8"]'`)).rows).toEqual(month.rows);
@@ -201,8 +201,12 @@ describe("dashboard embedded migrations", () => {
         VALUES (705,1785587400000,'iracing',1,1,91.25)`);
       await client.execute("DROP TABLE dashboard_day_entities");
       await client.execute("DROP TABLE dashboard_time_buckets");
-      const sourceBefore = await client.execute("SELECT * FROM sessions WHERE id=705");
-      const lapsBefore = await client.execute("SELECT * FROM laps WHERE session_id=705");
+      const sessionColumns = await client.execute("PRAGMA table_info(sessions)");
+      const sessionProjection = sessionColumns.rows.map((row) => `"${String(row.name).replaceAll('"', '""')}"`).join(",");
+      const lapColumns = await client.execute("PRAGMA table_info(laps)");
+      const lapProjection = lapColumns.rows.map((row) => `"${String(row.name).replaceAll('"', '""')}"`).join(",");
+      const sourceBefore = await client.execute(`SELECT ${sessionProjection} FROM sessions WHERE id=705`);
+      const lapsBefore = await client.execute(`SELECT ${lapProjection} FROM laps WHERE session_id=705`);
       const resultsBefore = await client.execute("SELECT * FROM session_results WHERE session_id=705");
       const pitEventsBefore = await client.execute("SELECT * FROM pit_events WHERE result_id=1705");
       const stateBefore = (await client.execute(
@@ -223,8 +227,8 @@ describe("dashboard embedded migrations", () => {
       for (const name of ["retry_count", "next_retry_at", "last_success_at"]) {
         expect(stateColumns.rows.map((row) => String(row.name))).toContain(name);
       }
-      expect((await client.execute("SELECT * FROM sessions WHERE id=705")).rows).toEqual(sourceBefore.rows);
-      expect((await client.execute("SELECT * FROM laps WHERE session_id=705")).rows).toEqual(lapsBefore.rows);
+      expect((await client.execute(`SELECT ${sessionProjection} FROM sessions WHERE id=705`)).rows).toEqual(sourceBefore.rows);
+      expect((await client.execute(`SELECT ${lapProjection} FROM laps WHERE session_id=705`)).rows).toEqual(lapsBefore.rows);
       expect((await client.execute("SELECT * FROM session_results WHERE session_id=705")).rows).toEqual(resultsBefore.rows);
       expect((await client.execute("SELECT * FROM pit_events WHERE result_id=1705")).rows).toEqual(pitEventsBefore.rows);
       const state = (await client.execute("SELECT * FROM dashboard_summary_state WHERE session_id=705")).rows[0];
@@ -240,8 +244,8 @@ describe("dashboard embedded migrations", () => {
       expect((await client.execute("SELECT * FROM dashboard_session_days WHERE session_id=705")).rows).toHaveLength(0);
       expect((await client.execute("SELECT * FROM dashboard_session_time_buckets WHERE session_id=705")).rows).toHaveLength(0);
       expect(await runMigrations(client)).toBe(0);
-      expect((await client.execute("SELECT * FROM sessions WHERE id=705")).rows).toEqual(sourceBefore.rows);
-      expect((await client.execute("SELECT * FROM laps WHERE session_id=705")).rows).toEqual(lapsBefore.rows);
+      expect((await client.execute(`SELECT ${sessionProjection} FROM sessions WHERE id=705`)).rows).toEqual(sourceBefore.rows);
+      expect((await client.execute(`SELECT ${lapProjection} FROM laps WHERE session_id=705`)).rows).toEqual(lapsBefore.rows);
       expect((await client.execute("SELECT * FROM dashboard_summary_state WHERE session_id=705")).rows[0]).toMatchObject(state);
     });
   });

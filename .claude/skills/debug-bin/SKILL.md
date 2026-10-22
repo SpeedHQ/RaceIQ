@@ -28,7 +28,7 @@ Stage-only header check (fast, no import): add `--no-import`.
 
 ## Key facts
 
-- `importSessionBin(bytes, gameId)` accepts gzip'd input (auto-detected by magic bytes) regardless of extension.
+- `importSessionBin(bytes, gameId)` accepts only sparse RaceIQ `.bin` / `.bin.gz` captures. Legacy full-frame imports are rejected; seed scripts convert checked-in source fixtures before calling the importer.
 - MUST call `initServerGameAdapters()` (from `server/games/init`) before `getServerGame`/`importSessionBin` in any standalone script — otherwise `Unknown server game adapter` error.
 - Import path uses `ImportCaptureAdapter` + `NullWsAdapter` + `bypassPacketRateFilter: true` — no live server needed.
 - AC Evo player slot locks after ~60 frames (`Player slot locked` log line). Early frames may resolve to wrong car.
@@ -38,5 +38,5 @@ Stage-only header check (fast, no import): add `--no-import`.
 
 - Raw hex around a specific offset: `bun scripts/telemetry/recordings/inspect-bin.ts <file> --no-import`, then targeted reads.
 - Game-specific diagnostics: `scripts/telemetry/ac-evo/diag-physics.ts`, `scripts/telemetry/ac-evo/diag-status.ts`, `scripts/telemetry/acc/check-acc-dump.ts`, `scripts/telemetry/recordings/debug-fm-lap.ts`.
-- Adding a missing track/car: edit the CSV in `shared/games/<game>/`, then re-run inspect-bin to verify resolution end-to-end (parser → ordinal → DB).
+- For parser resolution from a historical full-frame fixture, use `inspect-bin.ts <file> --no-import`; upload detection intentionally rejects it.
 - Follow systematic-debugging: reproduce first (inspect-bin IS the repro), find root cause before patching CSVs blindly.

@@ -84,6 +84,7 @@ export async function fetchAlignedSet(
     data: detail
       ? { ids: [pair.lapA.id, pair.lapB.id], step: 0.1, start: detail.start, end: detail.end }
       : { ids: [pair.lapA.id, pair.lapB.id], step: 1 },
+    timeout: 60_000,
   });
   if (!response.ok()) return { response, set: null };
   const set = decodeAlignedLapSet((await response.json()) as EncodedAlignedLapSet);

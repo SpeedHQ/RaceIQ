@@ -4,7 +4,7 @@ import { wsManager, type WSData } from "@raceiq/backend-core/runtime/websocket-m
 import { MAX_IBT_BYTES } from "../imports/iracing-ibt";
 import { IS_WINDOWS } from "@raceiq/backend-core/runtime/platform/shell";
 import { gameAssetsDir } from "@raceiq/shared/platform/runtime/data-paths";
-import { httpAccess, type HttpAccess } from "./http-access";
+import { beginRequestAuthorization, endRequestAuthorization, httpAccess, type HttpAccess } from "./http-access";
 
 type HttpApp = {
   fetch: (request: Request) => Response | Promise<Response>;
@@ -19,7 +19,6 @@ export function staticAssetHeaders(filePath: string): HeadersInit | undefined {
   };
 }
 
-
 export interface HttpServerOptions {
   app: HttpApp;
   port: number;
@@ -31,26 +30,41 @@ export interface HttpServerOptions {
 export function clearHttpPort(port: number): void {
   try {
     if (IS_WINDOWS) {
-      execSync(
-        `powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort ${port} -State Listen -EA 0 | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -EA 0 }"`,
-        { stdio: "ignore", windowsHide: true },
-      );
+      execSync(`powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort ${port} -State Listen -EA 0 | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -EA 0 }"`, {
+        stdio: "ignore",
+        windowsHide: true,
+      });
     } else {
-      execSync(`lsof -ti:${port} | xargs kill -9`, { stdio: "ignore" });
+      execSync(`lsof -tiTCP:${port} -sTCP:LISTEN | xargs kill -9`, { stdio: "ignore" });
     }
   } catch {
     // Nothing was listening — that's fine.
   }
 }
 
-export function startHttpServer({
-  app,
-  port,
-  staticDir,
-  devPublicDir,
-  access = httpAccess,
-}: HttpServerOptions): Bun.Server<WSData> {
-  return Bun.serve<WSData>({
+export function startHttpServer({ app, port, staticDir, devPublicDir, access = {
+  ...httpAccess,
+  authorize: (request) => httpAccess.authorize(request),
+  allowsOrigin: (origin, request) => httpAccess.allowsOrigin(origin, request),
+} }: HttpServerOptions): Bun.Server<WSData> {
+  // Also disconnect already-open sockets after logout/password replacement,
+  // including resets performed by another process against the shared DB.
+  const sockets = new Map<Bun.ServerWebSocket<WSData>, Request>();
+  const sessionCheck = setInterval(() => {
+    if (!access.usesSessions) return;
+    for (const [socket, request] of sockets) {
+      endRequestAuthorization(request);
+      void access
+        .authorize(request)
+        .then((denied) => {
+          if (denied) socket.close(1008, "Authentication required");
+        })
+        .catch(() => socket.close(1008, "Authentication unavailable"));
+    }
+  }, 1000);
+  sessionCheck.unref();
+  const requests = new WeakMap<WSData, Request>();
+  const server = Bun.serve<WSData>({
     port,
     hostname: access.hostname,
     idleTimeout: 255,
@@ -58,14 +72,14 @@ export function startHttpServer({
     // can stream them to disk or return the route's structured size error.
     maxRequestBodySize: MAX_IBT_BYTES,
     async fetch(req, server) {
-      // Protect static content, APIs, Studio, and the WebSocket handshake alike.
-      const denied = access.authorize(req);
+      beginRequestAuthorization(req);
+      const denied = await access.authorize(req);
       if (denied) return denied;
       const url = new URL(req.url);
       if (url.pathname === "/ws") {
-        const upgraded = server.upgrade(req, {
-          data: { createdAt: Date.now(), devTelemetrySubscribed: false },
-        });
+        const data = { createdAt: Date.now(), devTelemetrySubscribed: false };
+        requests.set(data, req);
+        const upgraded = server.upgrade(req, { data });
         if (upgraded) return undefined as unknown as Response;
       }
 
@@ -79,21 +93,23 @@ export function startHttpServer({
         if (filePath.startsWith(staticDir)) {
           const file = Bun.file(filePath);
           if (await file.exists()) {
-            return new Response(file, { headers: staticAssetHeaders(filePath) });
+            return new Response(file, { headers: { ...staticAssetHeaders(filePath), "X-RaceIQ": "1" } });
           }
         }
-        return new Response(Bun.file(resolve(staticDir, "index.html")));
+        return new Response(Bun.file(resolve(staticDir, "index.html")), { headers: { "X-RaceIQ": "1" } });
       }
 
       if (process.env.NODE_ENV !== "production" && url.pathname === "/") {
         const origin = req.headers.get("origin");
         return new Response("ok", {
           status: 200,
-          headers: origin ? {
-            "access-control-allow-origin": origin,
-            "access-control-allow-credentials": "true",
-            "vary": "Origin",
-          } : undefined,
+          headers: origin
+            ? {
+                "access-control-allow-origin": origin,
+                "access-control-allow-credentials": "true",
+                vary: "Origin",
+              }
+            : undefined,
         });
       }
 
@@ -130,9 +146,12 @@ export function startHttpServer({
     },
     websocket: {
       open(ws) {
+        const request = requests.get(ws.data);
+        if (request) sockets.set(ws, request);
         wsManager.addClient(ws);
       },
       close(ws) {
+        sockets.delete(ws);
         wsManager.removeClient(ws);
       },
       message(ws, msg) {
@@ -140,4 +159,10 @@ export function startHttpServer({
       },
     },
   });
+  const stop = server.stop.bind(server);
+  server.stop = (closeActiveConnections) => {
+    clearInterval(sessionCheck);
+    return stop(closeActiveConnections);
+  };
+  return server;
 }

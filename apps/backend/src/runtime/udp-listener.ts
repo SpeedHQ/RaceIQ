@@ -16,7 +16,7 @@ import { isForzaRaceOffPacket } from "@raceiq/game-fm-2023/parser";
 import { wsManager } from "@raceiq/backend-core/runtime/websocket-manager";
 import { processPacket, flushSessionRecorderBuffer, lapDetector } from "@raceiq/backend-core/telemetry/live-pipeline";
 import { getRunningGame } from "@raceiq/backend-core/games/registry";
-import { SessionRecorder } from "@raceiq/capture-formats/session/recorder";
+import { WorkerSessionRecorder } from "@raceiq/capture-formats/session/worker-recorder";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { timestampForFilename } from "@raceiq/backend-core/session-capture/filename";
 
@@ -33,7 +33,7 @@ class UdpListener {
   private _socket: { stop(): void } | null = null;
   private _port = 5301;
   private _hostname = "0.0.0.0";
-  private _recorder: SessionRecorder | null = null;
+  private _recorder: WorkerSessionRecorder | null = null;
   private _recordingGameId: GameId | null = null;
   private _lastDetectedGame: ReturnType<typeof getRunningGame> = null;
   private _lastRaceOn = false;
@@ -78,7 +78,7 @@ class UdpListener {
       const dir = resolve(process.cwd(), "test", "artifacts", "sessions");
       const timestamp = timestampForFilename();
       const filePath = resolve(dir, `${this._recordingGameId}-${timestamp}.bin`);
-      this._recorder = new SessionRecorder();
+      this._recorder = new WorkerSessionRecorder(this._recordingGameId);
       this._recorder.start(filePath);
     }
 
@@ -210,7 +210,7 @@ class UdpListener {
     }
 
     // Returns null when another game is paused/in menus.
-    const packet = parsePacket(sourceFrame);
+    const packet = parsePacket(sourceFrame, frameTimeMs);
     if (!packet) return;
 
     this._receiving = true;

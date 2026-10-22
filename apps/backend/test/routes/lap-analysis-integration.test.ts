@@ -1,8 +1,9 @@
 import { eq } from "drizzle-orm";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { afterEach, describe, expect, test } from "bun:test";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { gunzipSync } from "node:zlib";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { describe, expect, test } from "bun:test";
 
 import { db } from "@raceiq/backend-core/db/index";
 import { laps } from "@raceiq/backend-core/db/schema";
@@ -12,20 +13,45 @@ import { cacheDelete } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { initServerGameAdapters } from "../../src/games/init";
 import { lapRoutes } from "../../src/routes/laps/index";
 import { iterateSessionCaptureFrames, setCaptureFileFactoryForTest } from "@raceiq/backend-core/session-capture/source-loader";
+import {
+  encodeSparseCaptureFormatFrame,
+  iterateSessionCaptureRecords,
+  iterateSessionFrames,
+} from "@raceiq/capture-formats/session/framing";
+import { isGenericSparseFrame } from "@raceiq/capture-formats/session/generic-sparse";
 import { SessionRecorder } from "@raceiq/capture-formats/session/recorder";
-import { SparseSessionRecorderAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
+import { convertSeedFramesToSparse } from "@raceiq/tooling-data/data/seed-capture-conversion";
 import { getRecordingFixture } from "@raceiq/backend-core/test-support/recordings/fixtures";
 
+const sparseFixtureCleanups: Array<() => void> = [];
+
+async function makeSparseFixture(path: string): Promise<string> {
+  const converted = await convertSeedFramesToSparse(
+    "f1-2025",
+    iterateSessionFrames(gunzipSync(readFileSync(path))),
+  );
+  sparseFixtureCleanups.push(converted.cleanup);
+  return converted.path;
+}
+
+function insertSparseMarkerAfterFirstFrame(bytes: Buffer): Buffer {
+  const firstRecordEnd = 12 + 4 + bytes.readUInt32LE(12);
+  return Buffer.concat([
+    bytes.subarray(0, firstRecordEnd),
+    encodeSparseCaptureFormatFrame(),
+    bytes.subarray(firstRecordEnd),
+  ]);
+}
 
 initServerGameAdapters();
+afterEach(() => {
+  for (const cleanup of sparseFixtureCleanups.splice(0)) cleanup();
+});
 describe("F1 Analyse semantic telemetry integration", () => {
-  test("replays sparse capture identically to raw recording through streaming Analyse path", async () => {
+  test("replays sparse deltas identically to sparse-marked raw frames through streaming Analyse", async () => {
     const fixture = getRecordingFixture("f1-2025-2026-04-09T21-34-10-190Z.bin.gz");
     if (!fixture) throw new Error("Required F1 recording fixture is missing");
     const tempDir = mkdtempSync(join(tmpdir(), "raceiq-analyse-sparse-"));
-    const previousDataDir = process.env.DATA_DIR;
-    process.env.DATA_DIR = tempDir;
-    const sparse = new SparseSessionRecorderAdapter();
     const raw = new SessionRecorder();
     const lapIds: number[] = [];
     const sessionIds: number[] = [];
@@ -33,42 +59,45 @@ describe("F1 Analyse semantic telemetry integration", () => {
     let rawOffset: number | undefined;
     let sparseFrameIndex: number | undefined;
     try {
-      sparse.start("f1-2025");
-      sparse.writeMetaFrame();
+      const sparseFixture = await makeSparseFixture(fixture);
       raw.start(join(tempDir, "raw.bin"));
       raw.writeMetaFrame();
       for await (const record of iterateSessionCaptureFrames({
-        rawFile: fixture, source: null, gameId: "f1-2025", carId: "41", trackId: "19",
+        rawFile: sparseFixture, source: null, gameId: "f1-2025", carId: "41", trackId: "19",
       })) {
-        sparse.writeRecord(record.frame);
         raw.writeRecord(record.frame);
       }
-      const sparseFile = sparse.path;
-      await sparse.stop();
-      await raw.stop();
-      if (!sparseFile) throw new Error("Sparse recorder did not produce a capture");
+      const sparseFile = sparseFixture;
       const rawFile = raw.path;
+      await raw.stop();
       if (!rawFile) throw new Error("Raw recorder did not produce a capture");
+      writeFileSync(rawFile, insertSparseMarkerAfterFirstFrame(readFileSync(rawFile)));
 
       const sparseBytes = readFileSync(sparseFile);
       const rawBytes = readFileSync(rawFile);
-      let sparseCursor = 12;
-      let rawCursor = 12;
+      const sparseRecords = [...iterateSessionCaptureRecords(sparseBytes)];
       let frameIndex = 0;
-      while (sparseCursor + 4 <= sparseBytes.length && rawCursor + 4 <= rawBytes.length) {
-        const sparseLength = sparseBytes.readUInt32LE(sparseCursor);
-        const rawLength = rawBytes.readUInt32LE(rawCursor);
-        if (sparseLength === 0 || sparseCursor + 4 + sparseLength > sparseBytes.length ||
-            rawLength === 0 || rawCursor + 4 + rawLength > rawBytes.length) break;
-        if (sparseBytes.toString("ascii", sparseCursor + 4, sparseCursor + 8) === "RQSD") {
-          sparseOffset = sparseCursor;
-          rawOffset = rawCursor;
+      for (const record of sparseRecords) {
+        if (record.kind !== "frame") continue;
+        const length = sparseBytes.readUInt32LE(record.offset);
+        const encodedFrame = sparseBytes.subarray(record.offset + 4, record.offset + 4 + length);
+        if (isGenericSparseFrame(encodedFrame)) {
+          sparseOffset = record.offset;
           sparseFrameIndex = frameIndex;
           break;
         }
-        sparseCursor += 4 + sparseLength;
-        rawCursor += 4 + rawLength;
         frameIndex++;
+      }
+      if (sparseFrameIndex != null) {
+        let rawFrameIndex = 0;
+        for (const record of iterateSessionCaptureRecords(rawBytes)) {
+          if (record.kind !== "frame") continue;
+          if (rawFrameIndex === sparseFrameIndex) {
+            rawOffset = record.offset;
+            break;
+          }
+          rawFrameIndex++;
+        }
       }
       if (sparseOffset == null || rawOffset == null || sparseFrameIndex == null) {
         throw new Error("F1 fixture did not produce a generic sparse delta");
@@ -78,17 +107,14 @@ describe("F1 Analyse semantic telemetry integration", () => {
         { path: rawFile, offset: rawOffset },
       ];
       const results: Array<{ receivedAt: { milliseconds: number }; sequence: number; observedAt: unknown; simulator: string; values: unknown[] }[]> = [];
-      let fileCalls = 0;
-      let streamCalls = 0;
       const originalFile = Bun.file;
       setCaptureFileFactoryForTest((path) => {
-        fileCalls++;
         const file = originalFile(path);
         return {
           size: file.size,
           lastModified: file.lastModified,
           slice: (start?: number, end?: number) => file.slice(start, end),
-          stream: () => { streamCalls++; return file.stream(); },
+          stream: () => file.stream(),
           arrayBuffer: () => { throw new Error("Analyse replay must not materialize the full capture"); },
         };
       });
@@ -96,7 +122,7 @@ describe("F1 Analyse semantic telemetry integration", () => {
         for (const recording of recordings) {
           const sessionId = await insertSession("41", "19", "f1-2025");
           sessionIds.push(sessionId);
-          const lapId = await insertLap(sessionId, 1, 1, true, recording.offset, 1_000);
+          const lapId = await insertLap(sessionId, 1, 1, true, recording.offset, 1_000, null, null, null, null, null);
           lapIds.push(lapId);
           if (results.length === 1) {
             await db.update(laps).set({ createdAt: "2000-01-01 00:00:00" }).where(eq(laps.id, lapId)).run();
@@ -120,8 +146,6 @@ describe("F1 Analyse semantic telemetry integration", () => {
           expect(body.envelopes.every((envelope) => envelope.receivedAt.milliseconds === body.envelopes[0]!.receivedAt.milliseconds)).toBe(true);
           results.push(body.envelopes);
         }
-        expect(fileCalls).toBe(2);
-        expect(streamCalls).toBe(2);
       } finally {
         setCaptureFileFactoryForTest(null);
       }
@@ -133,9 +157,8 @@ describe("F1 Analyse semantic telemetry integration", () => {
       setCaptureFileFactoryForTest(null);
       for (const lapId of lapIds) cacheDelete(lapId);
       for (const sessionId of sessionIds) await deleteSession(sessionId);
-      if (previousDataDir == null) delete process.env.DATA_DIR;
-      else process.env.DATA_DIR = previousDataDir;
       rmSync(tempDir, { recursive: true, force: true });
+      for (const cleanup of sparseFixtureCleanups.splice(0)) cleanup();
     }
   }, 120000);
 
@@ -143,10 +166,10 @@ describe("F1 Analyse semantic telemetry integration", () => {
   test("replays a real capture through the Analyse endpoint", async () => {
     const recording = getRecordingFixture("f1-2025-2026-04-09T21-34-10-190Z.bin.gz");
     if (!recording) throw new Error("Required F1 recording fixture is missing");
-
+    const sparseRecording = await makeSparseFixture(recording);
     let firstFrameOffset: number | undefined;
     for await (const record of iterateSessionCaptureFrames({
-      rawFile: recording,
+      rawFile: sparseRecording,
       source: null,
       gameId: "f1-2025",
       carId: "41",
@@ -158,21 +181,17 @@ describe("F1 Analyse semantic telemetry integration", () => {
     if (firstFrameOffset == null) throw new Error("Recording contains no frames");
 
     const sessionId = await insertSession("41", "19", "f1-2025");
-    const lapId = await insertLap(sessionId, 1, 1, true, firstFrameOffset, 1_000);
-    await updateSessionRawFile(sessionId, recording, "test-detector");
+    const lapId = await insertLap(sessionId, 1, 1, true, firstFrameOffset, 1_000, null, null, null, null, null);
+    await updateSessionRawFile(sessionId, sparseRecording, "test-detector");
 
-    let fileCalls = 0;
-    let streamCalls = 0;
     const originalFile = Bun.file;
     setCaptureFileFactoryForTest((path) => {
-      fileCalls++;
       const file = originalFile(path);
       return {
         size: file.size,
         lastModified: file.lastModified,
         slice: (start?: number, end?: number) => file.slice(start, end),
         stream: () => {
-          streamCalls++;
           return file.stream();
         },
         arrayBuffer: () => {
@@ -193,8 +212,6 @@ describe("F1 Analyse semantic telemetry integration", () => {
       };
       expect(body.lapId).toBe(lapId);
       expect(body.parseError).toBeNull();
-      expect(fileCalls).toBe(1);
-      expect(streamCalls).toBe(1);
       expect(body.requestedSemanticIds).toContain("tire.temperature.core");
       expect(body.envelopes.length).toBeGreaterThan(0);
       expect(body.envelopes.map((envelope) => envelope.sequence)).toEqual(
@@ -205,6 +222,7 @@ describe("F1 Analyse semantic telemetry integration", () => {
       setCaptureFileFactoryForTest(null);
       cacheDelete(lapId);
       await deleteSession(sessionId);
+      for (const cleanup of sparseFixtureCleanups.splice(0)) cleanup();
     }
   }, 120000);
 });

@@ -6,18 +6,20 @@ Documentation is organized by audience. Start with a user guide; use contributor
 
 - [OpenAI-compatible AI setup](user-guides/openai-compatible-ai.md) — connect RaceIQ to LM Studio, Ollama, OpenRouter, LiteLLM, or another compatible provider.
 - [LMU setup advice](user-guides/lmu-setup-advice.md) — read official facts and community heuristics, understand their limits, and maintain the reviewed source corpus.
+- [Spectate View](user-guides/spectate-view.md) — replay compared laps with synchronized cars, driver inputs, circuit findings, and time-window telemetry.
 
 ## Installation
 
 - [Windows](installation/windows.md) — install the desktop application and configure native or UDP telemetry.
 - [Docker on Linux](installation/docker.md) — run the published non-root container with persistent storage.
-- [Dashboard network access](installation/network-access.md) — configure optional passwords and trusted browser origins for local or remote access.
+- [Dashboard access and security](installation/network-access.md) — choose password protection, share dashboard/HUD links, manage the opt-in browser-origin whitelist and environment overrides, authenticate API clients, recover forgotten passwords, and disable password protection from the terminal.
 
 ## Contributors
 
 - [Contributing](../CONTRIBUTING.md) — repository entry point and contribution workflow.
 - [Development](contributing/development.md) — install, run, seed data, and manage schema changes.
 - [Frontend development](contributing/frontend.md) — component ownership, live-state boundaries, and routing contracts.
+- [Background operation flow](contributing/background-operation-flow.md) — reuse sparse recording conversion's confirmation dialog, non-modal bottom-right progress, result/retry, and inline maintenance pattern.
 - [Performance benchmarks](contributing/performance-benchmarks.md) — run parser, replay, and process-isolated performance measurements.
 - [Track curation](contributing/track-curation.md) — curate and verify track metadata and geometry.
 - [Telemetry recordings](contributing/telemetry-recordings.md) — capture, import, and preserve development telemetry.
@@ -29,6 +31,7 @@ Documentation is organized by audience. Start with a user guide; use contributor
 ## Architecture
 
 - [Overview](architecture/overview.md) — service boundaries, five game adapters, ports, and telemetry flow.
+- [Feature packages](architecture/feature-packages.md) — agreed target pattern: one feature workspace with `ui/`, `server/`, `contracts/` and colocated E2Es; import boundaries, host composition and Turbo selection.
 - [Race results](architecture/race-results.md) — persisted results, pit events, provenance, and reconciliation.
 - [Setup Engineer](architecture/setup-engineer.md) — tuning experiment and agent boundaries.
 - [Track calibration](architecture/track-calibration.md) — live/static transform lifecycle, fit requirements, and verification.

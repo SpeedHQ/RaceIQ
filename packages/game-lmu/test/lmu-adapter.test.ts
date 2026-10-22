@@ -1,5 +1,5 @@
 import { temporaryDirectory, createLMUDuckDB } from "./support/duckdb";
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 
 
 import { join } from "node:path";
@@ -42,7 +42,9 @@ import {
   canHandleLMUSourceFrame,
   decodeLMUSourceFrame,
   encodeLMUSourceFrame,
+  LMU_SOURCE_FRAME_SIZE,
 } from "@raceiq/capture-formats/lmu/source-frame";
+import { setRecordingFrequencyHz } from "@raceiq/backend-core/runtime/config/recording-frequency";
 
 
 
@@ -99,6 +101,8 @@ function lmuSharedMemoryFixture(): Buffer {
   memory.writeUInt8(1, telemetry + LMU_TELEMETRY.tcActive);
   memory.writeUInt8(5, telemetry + LMU_TELEMETRY.tc);
   memory.writeUInt8(2, telemetry + LMU_TELEMETRY.abs);
+  memory.writeUInt8(1, telemetry + LMU_TELEMETRY.absActive);
+  memory.writeUInt8(6, telemetry + LMU_TELEMETRY.tcCut);
   memory.writeFloatLE(72, telemetry + LMU_TELEMETRY.stateOfCharge);
   memory.writeFloatLE(63, telemetry + LMU_TELEMETRY.virtualEnergy);
   memory.writeFloatLE(-80, telemetry + LMU_TELEMETRY.regenKw);
@@ -221,6 +225,13 @@ describe("LMU adapter", () => {
       TireCarcassAverageTempFL: 87,
     });
     expect(packet!.TireCarcassTempLeftFL).toBeUndefined();
+    expect(packet!.lmu).toMatchObject({
+      engineWaterTemp: 0,
+      engineOilTemp: 0,
+      steeringShaftTorque: 0,
+      rainIntensity: 0,
+      overheating: false,
+    });
     expect(packet!.TireCarcassTempFL).toBeUndefined();
     const semanticIds = ["tire.temperature.surface.inner", "tire.temperature.surface.middle", "tire.temperature.surface.outer", "tire.temperature.carcass.representative", "tire.temperature.core"];
     const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, { simulator: "lmu", requested: semanticIds.map((semanticId) => ({ semanticId })) });
@@ -238,6 +249,9 @@ describe("LMU adapter", () => {
     );
     expect(packet!.Speed).toBeCloseTo(70, 5);
     expect(packet!.DistanceTraveled).toBeCloseTo(32_252, 3);
+    expect(packet!.BrakeTempFrontLeft).toBe(500);
+    expect(packet!.TirePressureFrontLeft).toBeCloseTo(180 / 6.8947572932, 6);
+    expect(packet!.DrsActive).toBe(1);
     expect(packet!.lmu).toMatchObject({
       carId: "ferrari_499p_2023",
       trackId: "lemans_2023/lemanswec",
@@ -252,9 +266,12 @@ describe("LMU adapter", () => {
       tcActive: true,
       tcLevel: 5,
       absLevel: 2,
+      absActive: true,
+      tcCutLevel: 6,
       rearFlapActivated: true,
     });
   });
+
 
   test("propagates game's lap-invalidated flag into lap validity", () => {
     const memory = lmuSharedMemoryFixture();
@@ -399,6 +416,74 @@ describe("LMU adapter", () => {
     expect(recorderStopped).toBe(true);
   });
 
+  test("rate-limits running-loop reads and reacts to frequency changes", async () => {
+    const originalFrequency = 100 as const;
+    let nowMs = 0;
+    let tick: (() => void) | undefined;
+    let stopped = false;
+    let reads = 0;
+    const delivered: number[] = [];
+    const snapshot = lmuSharedMemoryFixture();
+    const intervalSpy = spyOn(globalThis, "setInterval").mockImplementation(((callback: TimerHandler, ..._args: unknown[]) => {
+      tick = callback as () => void;
+      return 1 as never;
+    }) as typeof setInterval);
+    const clearSpy = spyOn(globalThis, "clearInterval").mockImplementation(() => {});
+    const clockSpy = spyOn(performance, "now").mockImplementation(() => nowMs);
+    const source = new LMUTelemetrySource({
+      pollIntervalMs: 10,
+      rest: false,
+      reader: {
+        start() {},
+        async stop() {},
+        readLatest() {
+          reads++;
+          const memory = Buffer.from(snapshot);
+          memory.writeDoubleLE(321.5 + reads, LMU_TELEMETRY_INFO_OFFSET + LMU_TELEMETRY.elapsedTime);
+          return memory;
+        },
+      },
+      dispatchRawFrame: async (frame) => {
+        delivered.push(decodeLMUSourceFrame(frame)!.telemetry.readDoubleLE(LMU_TELEMETRY.elapsedTime));
+      },
+    });
+    try {
+      source.start();
+      for (let t = 0; t < 1_000; t += 10) {
+        nowMs = t;
+        tick!();
+      }
+      expect(reads).toBe(100);
+
+      setRecordingFrequencyHz(50);
+      for (let t = 1_000; t < 2_000; t += 10) {
+        nowMs = t;
+        tick!();
+      }
+      expect(reads).toBe(150);
+
+      setRecordingFrequencyHz(100);
+      nowMs = 2_000;
+      tick!();
+      expect(reads).toBe(151);
+      await source.stop();
+      stopped = true;
+      expect(delivered).toHaveLength(151);
+      expect(clearSpy).toHaveBeenCalledTimes(1);
+
+      const beforeExplicitPoll = reads;
+      expect(await source.pollOnce()).toBe(true);
+      expect(reads).toBe(beforeExplicitPoll + 1);
+      expect(delivered).toHaveLength(152);
+    } finally {
+      if (!stopped) await source.stop();
+      setRecordingFrequencyHz(originalFrequency);
+      intervalSpy.mockRestore();
+      clearSpy.mockRestore();
+      clockSpy.mockRestore();
+    }
+  });
+
   test("reads LMU DuckDB uploads into canonical source frames", async () => {
     const path = join(temporaryDirectory(), "session.duckdb");
     await createLMUDuckDB(path);
@@ -450,11 +535,132 @@ describe("LMU adapter", () => {
       LapNumber: 3,
       LastLap: 15,
     });
+    expect(firstPacket?.lmu?.engineWaterTemp).toBeUndefined();
+    expect(firstPacket?.lmu?.engineOilTemp).toBeUndefined();
+    expect(firstPacket?.lmu?.steeringShaftTorque).toBeUndefined();
+    expect(firstPacket?.lmu?.rainIntensity).toBeUndefined();
+    expect(firstPacket?.lmu?.cloudCoverage).toBeUndefined();
+    expect(firstPacket?.lmu?.ignitionStarter).toBeUndefined();
+    expect(firstPacket?.lmu?.scheduledStops).toBeUndefined();
+    expect(firstPacket?.lmu?.primaryFlag).toBeUndefined();
+    expect(firstPacket?.lmu?.control).toBeUndefined();
+    for (const field of [
+      "batteryChargeFraction",
+      "stateOfCharge",
+      "virtualEnergy",
+      "regenKw",
+      "throttle",
+      "brake",
+      "steering",
+      "clutch",
+      "timeGapCarAhead",
+      "timeGapCarBehind",
+      "timeGapPlaceAhead",
+      "timeGapPlaceBehind",
+      "motorMap",
+      "migration",
+      "frontAntiSway",
+      "rearAntiSway",
+      "engineTorque",
+      "tcActive",
+      "tcLevel",
+      "absActive",
+      "tcCutLevel",
+    ] as const) {
+      expect(firstPacket?.lmu?.[field]).toBeUndefined();
+    }
+    expect(Number.isNaN(firstPacket?.Torque)).toBe(true);
+    expect(Number.isNaN(firstPacket?.Power)).toBe(true);
+    const extensionResolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "lmu",
+      requested: [
+        "engine.water-temperature",
+        "engine.oil-temperature",
+        "steering.shaft-torque",
+        "weather.rain-intensity",
+        "weather.cloud-coverage",
+        "race.control",
+        "fuel.virtual-energy",
+      ].map((semanticId) => ({ semanticId })),
+    });
+    const extensionFrame = extensionResolver.createFrameView(firstPacket!, {
+      timestamp: { domain: "session", milliseconds: 1_000 },
+      updateSequence: 1n,
+    });
+    for (const semanticId of [
+      "engine.water-temperature",
+      "engine.oil-temperature",
+      "steering.shaft-torque",
+      "weather.rain-intensity",
+      "weather.cloud-coverage",
+      "race.control",
+      "fuel.virtual-energy",
+    ]) {
+      expect(extensionFrame.resolveValue(extensionResolver.slot(semanticId)).state)
+        .toBe("missing");
+    }
+    const suppliedPath = join(
+      temporaryDirectory(),
+      "with-extensions.duckdb",
+    );
+    await createLMUDuckDB(suppliedPath, undefined, true, true);
+    const suppliedFrame = await readLMUDuckDBFrames(suppliedPath).next();
+    const decodedSuppliedFrame = decodeLMUSourceFrame(suppliedFrame.value!);
+    expect(decodedSuppliedFrame?.schemaVersion).toBe(4);
+    expect(decodedSuppliedFrame?.syntheticChannels).toContain(
+      "Throttle Pos Unfiltered",
+    );
+    const duplicateMetadata = Buffer.from(JSON.stringify([
+      "Throttle Pos Unfiltered",
+      "Throttle Pos Unfiltered",
+    ]));
+    const duplicateFrame = Buffer.alloc(
+      LMU_SOURCE_FRAME_SIZE + duplicateMetadata.length,
+    );
+    suppliedFrame.value!.copy(duplicateFrame, 0, 0, LMU_SOURCE_FRAME_SIZE);
+    duplicateMetadata.copy(duplicateFrame, LMU_SOURCE_FRAME_SIZE);
+    expect(canHandleLMUSourceFrame(duplicateFrame)).toBe(true);
+    expect(decodeLMUSourceFrame(duplicateFrame)).toBeNull();
+
+    const oversizedMetadata = Buffer.from(
+      JSON.stringify(["Throttle Pos Unfiltered"]).padEnd(4_097, " "),
+    );
+    const oversizedFrame = Buffer.alloc(
+      LMU_SOURCE_FRAME_SIZE + oversizedMetadata.length,
+    );
+    suppliedFrame.value!.copy(oversizedFrame, 0, 0, LMU_SOURCE_FRAME_SIZE);
+    oversizedMetadata.copy(oversizedFrame, LMU_SOURCE_FRAME_SIZE);
+    expect(canHandleLMUSourceFrame(oversizedFrame)).toBe(false);
+    expect(decodeLMUSourceFrame(oversizedFrame)).toBeNull();
+    const suppliedPacket = lmuServerAdapter.tryParse(suppliedFrame.value!, null);
+    expect(suppliedPacket?.lmu).toMatchObject({
+      throttle: 0,
+      stateOfCharge: 0,
+      virtualEnergy: 0,
+      regenKw: 12,
+      tcActive: false,
+      rearFlapActivated: false,
+      speedLimiterActive: true,
+    });
+    const suppliedSemanticFrame = extensionResolver.createFrameView(
+      suppliedPacket!,
+      {
+        timestamp: { domain: "session", milliseconds: 2_000 },
+        updateSequence: 2n,
+      },
+    );
+    expect(suppliedSemanticFrame.resolveValue<number>(
+      extensionResolver.slot("fuel.virtual-energy"),
+    )).toMatchObject({ value: 0, state: "ok" });
   }, 60_000);
 
   
 
   
 
+  test("LMU remains without a parser checkpoint codec", () => {
+    expect("captureParserCheckpoint" in lmuServerAdapter).toBe(false);
+    expect("restoreParserCheckpoint" in lmuServerAdapter).toBe(false);
+  });
   
 });

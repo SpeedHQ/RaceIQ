@@ -6,6 +6,35 @@ import {
 } from "@raceiq/backend-core/test-support/db/migrations";
 
 describe("migration regressions", () => {
+  test("AC Evo layout backfill queues every stored layout once without invalidating other games", async () => {
+    const client = newClient();
+    try {
+      await bootstrap(client);
+      await runMigrations(client, 75);
+      await client.execute(`
+        INSERT INTO sessions (game_id, track_id, lap_detector_version, capture_format_version)
+        VALUES
+          ('ac-evo', 'obsolete layout', 'ac_evo_lapdetector_v5', 1),
+          ('ac-evo', '["Nurburgring","Grand Prix"]', 'ac_evo_lapdetector_v4', 1),
+          ('ac-evo', '["Nurburgring","Touristenfahrten"]', 'ac_evo_lapdetector_v5', 1),
+          ('iracing', '123', 'preserve detector', 1)
+      `);
+
+      await runMigrations(client);
+      expect((await client.execute("SELECT lap_detector_version FROM sessions WHERE game_id='ac-evo'")).rows
+        .map((row) => row.lap_detector_version)).toEqual([null, null, null]);
+      expect((await client.execute("SELECT lap_detector_version FROM sessions WHERE game_id='iracing'")).rows
+        .map((row) => row.lap_detector_version)).toEqual(["preserve detector"]);
+
+      await client.execute("UPDATE sessions SET lap_detector_version='ac_evo_lapdetector_v5' WHERE game_id='ac-evo'");
+      expect(await runMigrations(client)).toBe(0);
+      expect((await client.execute("SELECT DISTINCT lap_detector_version FROM sessions WHERE game_id='ac-evo'")).rows
+        .map((row) => row.lap_detector_version)).toEqual(["ac_evo_lapdetector_v5"]);
+    } finally {
+      client.close();
+    }
+  });
+
   test("rejects branch migration collisions before changing stored data", async () => {
     const client = newClient();
     try {
@@ -185,6 +214,33 @@ describe("migration regressions", () => {
       { lapNumber: 9, isValid: 1, invalidReason: null },
     ]);
     client.close();
+  });
+
+  test("classification backfill maps main's legacy pit reasons without restoring quality validity", async () => {
+    const client = newClient();
+    try {
+      await bootstrap(client);
+      await runMigrations(client, 80);
+      await client.execute("INSERT INTO sessions (id, car_id, track_id, game_id) VALUES (1, '10', '20', 'iracing')");
+      await client.execute(`INSERT INTO laps (session_id, lap_number, lap_time, is_valid, invalid_reason)
+        VALUES (1, 7, 110, 0, 'inlap'), (1, 8, 150, 0, 'outlap'),
+          (1, 9, 100, 0, 'track limits'), (1, 10, 160, 0, 'pit lap'), (1, 11, 99, 1, NULL)`);
+
+      await runMigrations(client);
+      const rows = await client.execute("SELECT lap_number, is_valid, invalid_reason, classification FROM laps ORDER BY lap_number");
+      expect(rows.rows.map((row) => ({
+        lapNumber: Number(row.lap_number), isValid: Number(row.is_valid),
+        invalidReason: row.invalid_reason, classification: row.classification,
+      }))).toEqual([
+        { lapNumber: 7, isValid: 0, invalidReason: "inlap", classification: "in_lap" },
+        { lapNumber: 8, isValid: 0, invalidReason: "outlap", classification: "out_lap" },
+        { lapNumber: 9, isValid: 0, invalidReason: "track limits", classification: null },
+        { lapNumber: 10, isValid: 0, invalidReason: "pit lap", classification: "pit_lap" },
+        { lapNumber: 11, isValid: 1, invalidReason: null, classification: null },
+      ]);
+    } finally {
+      client.close();
+    }
   });
 
   test("v58 normalizes pre-existing null and invalid ownership values", async () => {

@@ -15,8 +15,8 @@ const DEFAULT_TIRE_TEMP = { cold: 75, warm: 115, hot: 150 };
  * Provides display labels and converters at presentation boundaries.
  * `temp` accepts canonical Celsius semantic values.
  */
-export function useUnits(gameIdOverride?: GameId) {
-  const { displaySettings } = useSettings();
+export function useUnits(gameIdOverride?: GameId, { enabled = true }: { enabled?: boolean } = {}) {
+  const { displaySettings } = useSettings({ enabled });
   const setDisplayUnits = telemetryStore.actions.setDisplayUnits;
   const storeGameId = useGameId();
   const gameId = gameIdOverride ?? storeGameId;

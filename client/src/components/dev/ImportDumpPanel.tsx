@@ -7,6 +7,7 @@ import { formatLapTime } from "@/lib/format";
 import { m } from "@/paraglide/messages";
 import { Button } from "../ui/button";
 import { queryKeys } from "@/hooks/query-keys";
+import { authenticatedFetch } from "@/lib/rpc";
 interface ImportedLap {
   lapId: number;
   sessionId: number;
@@ -62,7 +63,7 @@ export function ImportDumpPanel() {
       const form = new FormData();
       form.append("file", file);
       form.append("ownership", ownership);
-      const res = await fetch("/api/dev/import-dump", {
+      const res = await authenticatedFetch("/api/dev/import-dump", {
         method: "POST",
         body: form,
       });

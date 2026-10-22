@@ -2,6 +2,7 @@ import type { GameId } from "@raceiq/shared/games/ids";
 import {
   decompressIfGzipSync,
   iterateSessionCaptureRecords,
+  PARSER_BOOTSTRAP_VERSION,
 } from "@raceiq/capture-formats/session/framing";
 import { applyFrameTime } from "@raceiq/backend-core/session-capture/frame-time";
 import { IRACING_DUMP_MAGIC, readIRacingFramesFromBuffer } from "@raceiq/capture-formats/iracing/dump-decoder";
@@ -52,7 +53,7 @@ export async function runMemoryImport(bytes: Buffer, gameId: GameId): Promise<Me
     skipDevState: true,
     recorder: new NullSessionRecorderAdapter(),
   });
-  let state = game.createParserState?.() ?? null;
+  let state: unknown = game.createParserState?.() ?? null;
   let inContext = false;
   let completeLapStart = false;
   let expectsSessionContext = gameId === "iracing";
@@ -91,6 +92,16 @@ export async function runMemoryImport(bytes: Buffer, gameId: GameId): Promise<Me
       inContext = false;
       continue;
     }
+    if (record.kind === "parser-bootstrap") {
+      if (record.gameId !== gameId || record.formatVersion !== PARSER_BOOTSTRAP_VERSION) {
+        throw new Error("Parser bootstrap does not match benchmark game");
+      }
+      if (!game.restoreParserCheckpoint) throw new Error(`Parser checkpoint restore unavailable for ${gameId}`);
+      state = game.restoreParserCheckpoint(state, record.payload);
+      inContext = false;
+      continue;
+    }
+    if (record.kind !== "frame") continue;
     const { frame, frameTimeMs } = record;
     if (inContext || (completeLapStart && expectsSessionContext && isIRacingSessionFrame(frame))) {
       game.tryParse(frame, state);

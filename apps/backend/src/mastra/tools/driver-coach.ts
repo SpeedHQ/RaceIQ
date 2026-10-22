@@ -2,9 +2,8 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
 import { computeChildLabel, nextFreeLabel } from "@raceiq/backend-core/ai/version-label";
-import { recordAction } from "@raceiq/backend-core/db/experiment-action-queries";
-import { getExperiment, setSessionHead } from "@raceiq/backend-core/db/experiment-queries";
-import { createExperimentVersion, listExperimentVersions, nextVersion } from "@raceiq/backend-core/db/experiment-version-queries";
+import { getExperiment } from "@raceiq/backend-core/db/experiment-queries";
+import { createExperimentVersionAndSetHead, nextVersion } from "@raceiq/backend-core/db/experiment-version-queries";
 import { wsManager } from "@raceiq/backend-core/runtime/websocket-manager";
 import type { DrillChange } from "@raceiq/shared/racing/experiments/types";
 import { readSetupEngineerContext } from "./setup-engineer-request-context";
@@ -64,8 +63,7 @@ const recordDrillTool = createTool({
   inputSchema: recordDrillInputSchema,
   outputSchema: recordDrillOutputSchema,
   execute: async (inputData, execCtx) => {
-    const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
-
+    const { sessionId, branch, mutations } = readSetupEngineerContext(execCtx?.requestContext);
     // Same hard gate as apply-changes: the model must attest the driver
     // approved. Weak models skip propose→confirm and jump to recording.
     if (!inputData.driverConfirmed) {
@@ -75,11 +73,8 @@ const recordDrillTool = createTool({
       };
     }
 
-    const session = await getExperiment(sessionId);
-    if (!session) return { ok: false, error: "Experiment not found." };
-
-    const versions = await listExperimentVersions(sessionId);
-    let parent = versions.find((t) => t.id === session.headVersionId) ?? versions[versions.length - 1];
+    const versions = branch.versions;
+    let parent = branch.activeVersion ?? undefined;
 
     if (inputData.target) {
       const raw = inputData.target.trim();
@@ -92,6 +87,10 @@ const recordDrillTool = createTool({
       if (!match) return { ok: false, error: `No version matching "${inputData.target}" in this session.` };
       parent = match;
     }
+    const currentSession = await getExperiment(sessionId);
+    if (!currentSession || currentSession.headVersionId !== mutations.expectedHeadVersionId) {
+      return { ok: false, error: "Experiment version changed during this turn. Refresh before recording a drill." };
+    }
 
     // `nextVersion` counts deleted rows too; `versions` here does not
     // (`listExperimentVersions` filters `status='deleted'`). Deriving the number
@@ -100,8 +99,7 @@ const recordDrillTool = createTool({
     const nextVer = await nextVersion(sessionId);
     const parentLabel = parent?.label ?? "v1";
     const childCount = parent ? versions.filter((t) => t.parentVersionId === parent!.id).length : 0;
-    const label = nextFreeLabel(computeChildLabel(parentLabel, childCount), new Set(versions.map((t) => t.label)));
-
+    const label = nextFreeLabel(computeChildLabel(parentLabel, childCount), new Set([...versions.map((t) => t.label), ...mutations.createdLabels]));
     const change: DrillChange = {
       kind: "drill",
       title: inputData.title.trim(),
@@ -110,14 +108,11 @@ const recordDrillTool = createTool({
       reason: inputData.reason.trim(),
     };
 
-    const versionId = await createExperimentVersion({
+    const prevHeadTestId = mutations.expectedHeadVersionId;
+    const versionId = await createExperimentVersionAndSetHead({
       experimentId: sessionId,
       version: nextVer,
       label,
-      // The point of a drill: no file, no snapshot. Passing kind explicitly
-      // rather than leaning on the experiment's focus, because this tool
-      // records a drill by definition — even if the driver flipped focus back
-      // to the car between proposing and confirming.
       kind: "drill",
       setupPath: null,
       setupSnapshot: null,
@@ -125,42 +120,15 @@ const recordDrillTool = createTool({
       appliedChanges: JSON.stringify([change]),
       notes: change.title,
       engine: "llm",
+    }, mutations.expectedHeadVersionId, {
+      kind: "apply-changes", inversePayload: { versionId: "INSERTED_ID", prevHeadTestId },
     });
-
-    // The head being overwritten, not the branch parent — with `target` set
-    // those differ, and undo must put the driver back where they were. Same as
-    // apply-changes and the route handlers.
-    const prevHeadTestId = session.headVersionId ?? parent?.id ?? null;
-    // NOT best-effort. If the head does not advance, the arm exists but the
-    // session still points at its parent: the next drill branches off a stale
-    // node and the driver was told otherwise. Report it instead of returning ok.
-    try {
-      await setSessionHead(sessionId, versionId);
-    } catch (err: any) {
-      console.error("[DriverCoach] Failed to advance head:", err?.message);
-      wsManager.broadcastNotification({ type: "experiment-updated", sessionId });
-      return {
-        ok: false,
-        version: nextVer,
-        label,
-        error:
-          `Recorded ${label}, but the session head could not be advanced to it, so it is not the ` +
-          `current arm. Tell the driver to select ${label} manually before running laps; do not ` +
-          `call record_drill again for this drill.`,
-      };
+    if (versionId == null) {
+      return { ok: false, error: "Experiment version changed during this drill update. Refresh before recording a drill." };
     }
-
     wsManager.broadcastNotification({ type: "experiment-updated", sessionId });
-
-    // Best-effort, same as apply-changes: the arm is already committed, and an
-    // action-log failure must not fail the call. Logged as "apply-changes" so
-    // the existing undo path handles a drill arm identically to a setup one.
-    try {
-      await recordAction(sessionId, "apply-changes", { versionId, prevHeadTestId });
-    } catch (err: any) {
-      console.error("[DriverCoach] Failed to log record-drill action:", err?.message);
-    }
-
+    mutations.expectedHeadVersionId = versionId;
+    mutations.createdLabels.add(label);
     return { ok: true, version: nextVer, label };
   },
 });

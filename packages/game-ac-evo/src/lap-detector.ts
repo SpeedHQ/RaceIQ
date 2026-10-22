@@ -7,8 +7,8 @@ import { KunosLapDetector } from "@raceiq/backend-core/games/kunos/lap-detector"
 import { classifyKunosTrackLimits } from "@raceiq/telemetry-core/processor/kunos-policy";
 
 import { isAcEvoTouristLayout } from "./layout-policy";
-// v5: tourist timed attempts use source finish counts and open-route geometry.
-export const LAP_DETECTOR_AC_EVO_ID = "ac_evo_lapdetector_v5";
+// v6: circuit lap boundaries use timing evidence, not distance-counter resets.
+export const LAP_DETECTOR_AC_EVO_ID = "ac_evo_lapdetector_v6";
 
 /** AC Evo policy hooks for the shared Kunos lap lifecycle. */
 export class LapDetectorAcEvo extends KunosLapDetector {

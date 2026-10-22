@@ -29,6 +29,7 @@
       },
       "devDependencies": {
         "@babel/parser": "^8.0.5",
+        "@effect/tsgo": "0.53.0",
         "@gltf-transform/core": "4.5.0",
         "@gltf-transform/extensions": "4.5.0",
         "@gltf-transform/functions": "4.5.0",
@@ -76,6 +77,8 @@
         "@raceiq/analysis-core": "workspace:*",
         "@raceiq/backend-core": "workspace:*",
         "@raceiq/capture-formats": "workspace:*",
+        "@raceiq/capture-splitting": "workspace:*",
+        "@raceiq/cars-catalogue": "workspace:*",
         "@raceiq/game-ac-evo": "workspace:*",
         "@raceiq/game-ac-evo-metadata": "workspace:*",
         "@raceiq/game-acc": "workspace:*",
@@ -89,15 +92,19 @@
         "@raceiq/game-iracing-metadata": "workspace:*",
         "@raceiq/game-lmu": "workspace:*",
         "@raceiq/game-lmu-metadata": "workspace:*",
+        "@raceiq/lap-replay": "workspace:*",
         "@raceiq/shared": "workspace:*",
         "@raceiq/telemetry-core": "workspace:*",
         "@raceiq/tooling-catalog": "workspace:*",
         "@raceiq/tooling-data": "workspace:*",
         "@raceiq/tooling-release": "workspace:*",
+        "@raceiq/tracks-catalogue": "workspace:*",
         "ai": "7.0.105",
         "drizzle-orm": "^0.45.2",
+        "effect": "4.0.4",
         "fflate": "^0.8.3",
         "hono": "4.13.8",
+        "libsql": "^0.5.29",
         "meshoptimizer": "1.2.0",
         "mitata": "^1.0.34",
         "zod": "^4.6.5",
@@ -117,12 +124,16 @@
         "@fontsource-variable/geist": "^5.3.0",
         "@inlang/paraglide-js": "^2.25.4",
         "@raceiq/analysis-core": "workspace:*",
+        "@raceiq/cars-catalogue": "workspace:*",
         "@raceiq/frontend-pure": "workspace:*",
         "@raceiq/game-catalogs": "workspace:*",
         "@raceiq/game-lmu-metadata": "workspace:*",
+        "@raceiq/lap-replay": "workspace:*",
+        "@raceiq/scene-3d": "workspace:*",
         "@raceiq/telemetry-core": "workspace:*",
         "@raceiq/tooling-data": "workspace:*",
         "@raceiq/tooling-ui": "workspace:*",
+        "@raceiq/tracks-catalogue": "workspace:*",
         "@tailwindcss/typography": "^0.5.20",
         "@tailwindcss/vite": "^4.3.3",
         "@tanstack/react-query": "^5.103.1",
@@ -136,7 +147,6 @@
         "hono": "4.13.8",
         "html-to-image": "^1.11.13",
         "lucide-react": "^1.47.0",
-        "meshoptimizer": "1.2.0",
         "qrcode.react": "^4.2.0",
         "react": "^19.3.0",
         "react-dom": "^19.3.0",
@@ -178,7 +188,7 @@
         "oxfmt": "0.68.0",
         "oxlint": "1.83.0",
         "storybook": "10.6.0",
-        "typescript": "7.0.2",
+        "typescript": "6.0.3",
         "vite": "8.3.0",
       },
     },
@@ -193,11 +203,51 @@
         "@raceiq/game-fm-2023-metadata": "workspace:*",
       },
     },
+    "packages/capture-downsampling": {
+      "name": "@raceiq/capture-downsampling",
+      "dependencies": {
+        "@raceiq/capture-formats": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+      },
+    },
     "packages/capture-formats": {
       "name": "@raceiq/capture-formats",
       "dependencies": {
         "@raceiq/game-iracing-metadata": "workspace:*",
         "@raceiq/shared": "workspace:*",
+      },
+    },
+    "packages/capture-splitting": {
+      "name": "@raceiq/capture-splitting",
+      "dependencies": {
+        "@raceiq/capture-formats": "workspace:*",
+        "effect": "4.0.4",
+      },
+    },
+    "packages/cars-catalogue": {
+      "name": "@raceiq/cars-catalogue",
+      "dependencies": {
+        "@base-ui/react": "^1.8.0",
+        "@hono/zod-validator": "0.9.1",
+        "@raceiq/backend-core": "workspace:*",
+        "@raceiq/frontend-pure": "workspace:*",
+        "@raceiq/game-ac-evo-metadata": "workspace:*",
+        "@raceiq/game-acc-metadata": "workspace:*",
+        "@raceiq/game-catalogs": "workspace:*",
+        "@raceiq/game-f1-2025-metadata": "workspace:*",
+        "@raceiq/game-fm-2023-metadata": "workspace:*",
+        "@raceiq/game-iracing-metadata": "workspace:*",
+        "@raceiq/game-lmu-metadata": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+        "@tanstack/react-query": "^5.103.1",
+        "@tanstack/react-router": "^1.170.38",
+        "hono": "4.13.8",
+        "react": "^19.3.0",
+        "zod": "^4.6.5",
+      },
+      "devDependencies": {
+        "@playwright/test": "1.62.1",
+        "@types/react": "^19.3.0",
       },
     },
     "packages/frontend-contract-tests": {
@@ -210,6 +260,7 @@
         "@raceiq/game-ac-evo": "workspace:*",
         "@raceiq/game-ac-evo-metadata": "workspace:*",
         "@raceiq/game-catalogs": "workspace:*",
+        "@raceiq/scene-3d": "workspace:*",
         "@raceiq/shared": "workspace:*",
         "@raceiq/telemetry-core": "workspace:*",
         "@raceiq/tooling-ui": "workspace:*",
@@ -268,6 +319,7 @@
       "dependencies": {
         "@raceiq/analysis-core": "workspace:*",
         "@raceiq/backend-core": "workspace:*",
+        "@raceiq/capture-downsampling": "workspace:*",
         "@raceiq/capture-formats": "workspace:*",
         "@raceiq/game-f1-2025-metadata": "workspace:*",
         "@raceiq/shared": "workspace:*",
@@ -329,6 +381,52 @@
       "name": "@raceiq/game-lmu-metadata",
       "dependencies": {
         "@raceiq/shared": "workspace:*",
+      },
+    },
+    "packages/lap-replay": {
+      "name": "@raceiq/lap-replay",
+      "dependencies": {
+        "@base-ui/react": "^1.8.0",
+        "@hono/zod-validator": "0.9.1",
+        "@raceiq/analysis-core": "workspace:*",
+        "@raceiq/backend-core": "workspace:*",
+        "@raceiq/scene-3d": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+        "@raceiq/telemetry-core": "workspace:*",
+        "@raceiq/tracks-catalogue": "workspace:*",
+        "hono": "4.13.8",
+        "lucide-react": "^1.47.0",
+        "react": "^19.3.0",
+        "react-dom": "^19.3.0",
+        "three": "^0.185.1",
+        "zod": "^4.6.5",
+      },
+      "devDependencies": {
+        "@playwright/test": "1.62.1",
+        "@raceiq/game-catalogs": "workspace:*",
+        "@types/react": "^19.3.0",
+        "@types/react-dom": "^19.3.0",
+        "@types/three": "^0.185.4",
+      },
+    },
+    "packages/scene-3d": {
+      "name": "@raceiq/scene-3d",
+      "dependencies": {
+        "@raceiq/analysis-core": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+        "meshoptimizer": "1.2.0",
+      },
+      "devDependencies": {
+        "@raceiq/game-ac-evo-metadata": "workspace:*",
+        "@raceiq/game-acc-metadata": "workspace:*",
+        "@raceiq/game-f1-2025-metadata": "workspace:*",
+        "@raceiq/game-fm-2023-metadata": "workspace:*",
+        "@raceiq/game-iracing-metadata": "workspace:*",
+        "@raceiq/game-lmu-metadata": "workspace:*",
+        "@types/three": "^0.185.4",
+      },
+      "peerDependencies": {
+        "three": "^0.185.1",
       },
     },
     "packages/telemetry-core": {
@@ -423,12 +521,41 @@
         "sharp": "^0.35.4",
       },
     },
+    "packages/tracks-catalogue": {
+      "name": "@raceiq/tracks-catalogue",
+      "dependencies": {
+        "@base-ui/react": "^1.8.0",
+        "@hono/zod-validator": "0.9.1",
+        "@raceiq/backend-core": "workspace:*",
+        "@raceiq/game-ac-evo-metadata": "workspace:*",
+        "@raceiq/game-acc-metadata": "workspace:*",
+        "@raceiq/game-catalogs": "workspace:*",
+        "@raceiq/game-f1-2025-metadata": "workspace:*",
+        "@raceiq/game-fm-2023-metadata": "workspace:*",
+        "@raceiq/game-iracing": "workspace:*",
+        "@raceiq/game-iracing-metadata": "workspace:*",
+        "@raceiq/game-lmu-metadata": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+        "@raceiq/telemetry-core": "workspace:*",
+        "@tanstack/react-query": "^5.103.1",
+        "@tanstack/react-router": "^1.170.38",
+        "hono": "4.13.8",
+        "react": "^19.3.0",
+        "zod": "^4.6.5",
+      },
+      "devDependencies": {
+        "@playwright/test": "1.62.1",
+        "@types/react": "^19.3.0",
+      },
+    },
     "playwright": {
       "name": "raceiq-e2e",
       "dependencies": {
+        "@libsql/client": "^0.18.0",
         "@raceiq/analysis-core": "workspace:*",
         "@raceiq/game-lmu-metadata": "workspace:*",
         "@raceiq/tooling-data": "workspace:*",
+        "libsql": "^0.5.29",
         "sharp": "^0.35.4",
         "zod": "^4.6.5",
       },
@@ -442,9 +569,11 @@
     "scripts": {
       "name": "@raceiq/tooling",
       "dependencies": {
+        "@babel/parser": "^8.0.5",
         "@raceiq/backend-core": "workspace:*",
         "@raceiq/tooling-build": "workspace:*",
         "@raceiq/tooling-release": "workspace:*",
+        "libsql": "^0.5.29",
       },
     },
     "server": {
@@ -457,7 +586,9 @@
         "@mastra/libsql": "^1.23.0",
         "@mastra/memory": "^1.30.0",
         "@raceiq/analysis-core": "workspace:*",
+        "@raceiq/capture-downsampling": "workspace:*",
         "@raceiq/capture-formats": "workspace:*",
+        "@raceiq/capture-splitting": "workspace:*",
         "@raceiq/game-ac-evo-metadata": "workspace:*",
         "@raceiq/game-catalogs": "workspace:*",
         "@raceiq/game-fm-2023-metadata": "workspace:*",
@@ -467,6 +598,7 @@
         "@raceiq/telemetry-core": "workspace:*",
         "ai": "7.0.105",
         "drizzle-orm": "^0.45.2",
+        "effect": "4.0.4",
         "fflate": "^0.8.3",
         "hono": "4.13.8",
         "pino": "^10.3.1",
@@ -646,6 +778,22 @@
     "@duckdb/node-bindings-win32-arm64": ["@duckdb/node-bindings-win32-arm64@1.5.2-r.2", "", { "os": "win32", "cpu": "arm64" }, "sha512-g5ZWK07c0Qh7UFhJC37iC5y8oW8ZqxEgpNM2vTFD3ShM9Rn1NDXkxA7zjcheHRI+My5T1JpE9kNpCvhzItJrgw=="],
 
     "@duckdb/node-bindings-win32-x64": ["@duckdb/node-bindings-win32-x64@1.5.2-r.2", "", { "os": "win32", "cpu": "x64" }, "sha512-VUMbdeXQHWKHEXVWtfVaOSu7Mb4jR9gT56Yzu9FHyLyP9ogY/D6wpeohY5gAHZS9PHQGGq24qRtCn5g6vUolqA=="],
+
+    "@effect/tsgo": ["@effect/tsgo@0.53.0", "", { "optionalDependencies": { "@effect/tsgo-darwin-arm64": "0.53.0", "@effect/tsgo-darwin-x64": "0.53.0", "@effect/tsgo-linux-arm": "0.53.0", "@effect/tsgo-linux-arm64": "0.53.0", "@effect/tsgo-linux-x64": "0.53.0", "@effect/tsgo-win32-arm64": "0.53.0", "@effect/tsgo-win32-x64": "0.53.0" }, "bin": { "effect-tsgo": "dist/effect-tsgo.cjs" } }, "sha512-a8Ss/rI9QoOvJTQPet0YUpLqXp+/Qaydil+WpIHOhhsqvCu3l6aqN5xB+C/Mff/QW51r54n3Frk7a/joFszHgw=="],
+
+    "@effect/tsgo-darwin-arm64": ["@effect/tsgo-darwin-arm64@0.53.0", "", { "os": "darwin", "cpu": "arm64" }, "sha512-YDwx3cFpohEMtjbd+65iH/tVxIZs39pkR8KW2Vy7c5GB1LjOzkB+jo2rcku6DOueV/bfpS1wiSmsD1jsTVNIRg=="],
+
+    "@effect/tsgo-darwin-x64": ["@effect/tsgo-darwin-x64@0.53.0", "", { "os": "darwin", "cpu": "x64" }, "sha512-6XvsEyNo5HAxSOum/zdvHHANu4sp5u6GqOyqZ00Pq+jPP1gFAvavS4kp3PZVR6mBaGv4sLRu6QMjwc3SbQz4uA=="],
+
+    "@effect/tsgo-linux-arm": ["@effect/tsgo-linux-arm@0.53.0", "", { "os": "linux", "cpu": "arm" }, "sha512-JXPq2BJdMu1TEc71bb6kCHnDgBImKqdxbk1etI4uoEot6PeUYogvjSCTjw7y+Lo2Uk/i1hVYx9sxR+824Dm5Mg=="],
+
+    "@effect/tsgo-linux-arm64": ["@effect/tsgo-linux-arm64@0.53.0", "", { "os": "linux", "cpu": "arm64" }, "sha512-Io1RblTJ6hvff99rqsZSjEz18Yyprq8R7eZS7g/fzqMQ3aYqzbouUjpZaiCGRnZZfXS4Ft6I/1b4Nu3lBrEMhQ=="],
+
+    "@effect/tsgo-linux-x64": ["@effect/tsgo-linux-x64@0.53.0", "", { "os": "linux", "cpu": "x64" }, "sha512-4A0osORqB2HG9egjPe7JPz1X2KwZM8H0hkl81pYsJ4qEYOVHoFVdNDvZ0Y6qxLS2eZBmsxdS+/jXuZJ39nzuvw=="],
+
+    "@effect/tsgo-win32-arm64": ["@effect/tsgo-win32-arm64@0.53.0", "", { "os": "win32", "cpu": "arm64" }, "sha512-qM7Aqw1uGmMDs8x/Iy2/kxKzzXx0WzH3/u66bjlEExSTv6DzHuAMXZmmb/1iUsth+TfqrwHwhHErFkwyyaLATg=="],
+
+    "@effect/tsgo-win32-x64": ["@effect/tsgo-win32-x64@0.53.0", "", { "os": "win32", "cpu": "x64" }, "sha512-87/Ep6F7yU06vev9LZMU0MxpUkuD9joOMwXrx9OH3aXDL1SlImHlux/uHqXWGrFcKND7oMe/SX15XWAjWdy4Ag=="],
 
     "@emnapi/core": ["@emnapi/core@1.9.2", "", { "dependencies": { "@emnapi/wasi-threads": "1.2.1", "tslib": "^2.4.0" } }, "sha512-UC+ZhH3XtczQYfOlu3lNEkdW/p4dsJ1r/bP7H8+rhao3TTTMO1ATq/4DdIi23XuGoFY+Cz0JmCbdVl0hz9jZcA=="],
 
@@ -1133,7 +1281,13 @@
 
     "@raceiq/backend-core": ["@raceiq/backend-core@workspace:server"],
 
+    "@raceiq/capture-downsampling": ["@raceiq/capture-downsampling@workspace:packages/capture-downsampling"],
+
     "@raceiq/capture-formats": ["@raceiq/capture-formats@workspace:packages/capture-formats"],
+
+    "@raceiq/capture-splitting": ["@raceiq/capture-splitting@workspace:packages/capture-splitting"],
+
+    "@raceiq/cars-catalogue": ["@raceiq/cars-catalogue@workspace:packages/cars-catalogue"],
 
     "@raceiq/frontend-contract-tests": ["@raceiq/frontend-contract-tests@workspace:packages/frontend-contract-tests"],
 
@@ -1165,6 +1319,10 @@
 
     "@raceiq/game-lmu-metadata": ["@raceiq/game-lmu-metadata@workspace:packages/game-lmu-metadata"],
 
+    "@raceiq/lap-replay": ["@raceiq/lap-replay@workspace:packages/lap-replay"],
+
+    "@raceiq/scene-3d": ["@raceiq/scene-3d@workspace:packages/scene-3d"],
+
     "@raceiq/shared": ["@raceiq/shared@workspace:shared"],
 
     "@raceiq/telemetry-core": ["@raceiq/telemetry-core@workspace:packages/telemetry-core"],
@@ -1184,6 +1342,8 @@
     "@raceiq/tooling-release": ["@raceiq/tooling-release@workspace:packages/tooling-release"],
 
     "@raceiq/tooling-ui": ["@raceiq/tooling-ui@workspace:packages/tooling-ui"],
+
+    "@raceiq/tracks-catalogue": ["@raceiq/tracks-catalogue@workspace:packages/tracks-catalogue"],
 
     "@radix-ui/number": ["@radix-ui/number@1.1.3", "", {}, "sha512-Road2bidD0uu/1BGDOWNdPI06g0lIRy6IF9GZcIrDK2KGItfor8IQwQa+yM2ERgHM1MmHxaxpTzk0/Jp42lNfA=="],
 
@@ -1872,6 +2032,8 @@
     "dunder-proto": ["dunder-proto@1.0.1", "", { "dependencies": { "call-bind-apply-helpers": "^1.0.1", "es-errors": "^1.3.0", "gopd": "^1.2.0" } }, "sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A=="],
 
     "ee-first": ["ee-first@1.1.1", "", {}, "sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow=="],
+
+    "effect": ["effect@4.0.4", "", {}, "sha512-Sr50OeVSC3M5UkoUYUhFf3EULryhGaZZUf6OzDHTvaznOw7HRlxOKdF3/4nvQXHL22StOyMG3Cvo8Bt7xUp+Ng=="],
 
     "efrt": ["efrt@2.7.0", "", {}, "sha512-/RInbCy1d4P6Zdfa+TMVsf/ufZVotat5hCw3QXmWtjU+3pFEOvOQ7ibo3aIxyCJw2leIeAMjmPj+1SLJiCpdrQ=="],
 
@@ -2971,6 +3133,8 @@
 
     "@raceiq/backend/@mastra/observability": ["@mastra/observability@1.18.3", "", { "peerDependencies": { "@mastra/core": ">=1.16.0-0 <2.0.0-0", "zod": "^3.25.0 || ^4.0.0" } }, "sha512-WYw3gouK3c1U3dvpi6M56duRUyVlx94vE1Qs1OfETOgGXiFdW9AyO64YIchQmD+mqKpVxIq1ASvEssRHMag45Q=="],
 
+    "@raceiq/tooling/@babel/parser": ["@babel/parser@8.0.6", "", { "dependencies": { "@babel/types": "^8.0.6" }, "bin": "./bin/babel-parser.js" }, "sha512-LpGDIYJAzc3Y3PT9x+FxBrGYu2PlWxLmyN7SwPTzaX0LSwEmFJBsRnPBqmaXF2r1v+Zhz6lNiEJ+7yKtM5+Ugg=="],
+
     "@raceiq/tooling-catalog/@babel/parser": ["@babel/parser@8.0.6", "", { "dependencies": { "@babel/types": "^8.0.6" }, "bin": "./bin/babel-parser.js" }, "sha512-LpGDIYJAzc3Y3PT9x+FxBrGYu2PlWxLmyN7SwPTzaX0LSwEmFJBsRnPBqmaXF2r1v+Zhz6lNiEJ+7yKtM5+Ugg=="],
 
     "@rollup/pluginutils/picomatch": ["picomatch@4.0.5", "", {}, "sha512-RvwwcruNjI1ncT5xRakeyS9Lf8lcItv34KD+aif+VH9kduAyfYBipGh12274xtenIPZ119/R9BdTBa8gAwSh0A=="],
@@ -3024,6 +3188,8 @@
     "chat/@workflow/serde": ["@workflow/serde@4.1.0-beta.2", "", {}, "sha512-8kkeoQKLDaKXefjV5dbhBj2aErfKp1Mc4pb6tj8144cF+Em5SPbyMbyLCHp+BVrFfFVCBluCtMx+jjvaFVZGww=="],
 
     "chromium-bidi/zod": ["zod@3.25.76", "", {}, "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="],
+
+    "client/typescript": ["typescript@6.0.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw=="],
 
     "cliui/strip-ansi": ["strip-ansi@7.2.0", "", { "dependencies": { "ansi-regex": "^6.2.2" } }, "sha512-yDPMNjp4WyfYBkHnjIRLfca1i6KMyGCtsVgoKe/z1+6vukgaENdgGBZt+ZmKPc4gavvEZ5OgHfHdrazhgNyG7w=="],
 
@@ -3204,6 +3370,8 @@
     "@raceiq/backend/@mastra/hono/ws": ["ws@8.21.3", "", { "peerDependencies": { "bufferutil": "^4.0.1", "utf-8-validate": ">=5.0.2" }, "optionalPeers": ["bufferutil", "utf-8-validate"] }, "sha512-201TZ/kPWxoPr/OKWjquZR1SWKXcvxdH+e1xrx89b3YbmzLMFCLfnaG1HFIgWzJOEWZ7MvpK++odZufgYR50Rw=="],
 
     "@raceiq/tooling-catalog/@babel/parser/@babel/types": ["@babel/types@8.0.6", "", { "dependencies": { "@babel/helper-string-parser": "^8.0.6", "@babel/helper-validator-identifier": "^8.0.6" } }, "sha512-c+xgSWboV2pdwXP67BUWDVRHi2BO5Q3KwxyFVs7taVTY+fsK47/L51ZXQoV9rozHJDNHvJ4v4WEsI/IlxV2l2A=="],
+
+    "@raceiq/tooling/@babel/parser/@babel/types": ["@babel/types@8.0.6", "", { "dependencies": { "@babel/helper-string-parser": "^8.0.6", "@babel/helper-validator-identifier": "^8.0.6" } }, "sha512-c+xgSWboV2pdwXP67BUWDVRHi2BO5Q3KwxyFVs7taVTY+fsK47/L51ZXQoV9rozHJDNHvJ4v4WEsI/IlxV2l2A=="],
 
     "@tailwindcss/node/lightningcss/detect-libc": ["detect-libc@2.1.2", "", {}, "sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ=="],
 
@@ -3456,6 +3624,10 @@
     "@raceiq/tooling-catalog/@babel/parser/@babel/types/@babel/helper-string-parser": ["@babel/helper-string-parser@8.0.6", "", {}, "sha512-+6HYEBnsDRZHJtUTAEfMQd0zMDqdFHS7C+5vAsEZqBUr3vEMWOWlHJ0Jz1gS8jJIlCvLsuA6ivmeoqzH936YcA=="],
 
     "@raceiq/tooling-catalog/@babel/parser/@babel/types/@babel/helper-validator-identifier": ["@babel/helper-validator-identifier@8.0.6", "", {}, "sha512-HYx0YmuchRxRSpnjvcNffnPS8DCauKNmnumIuHG3jnQAVewRA7kfJGwF13ayEpSZs7s4R/oBH4eppuXcAQd5JQ=="],
+
+    "@raceiq/tooling/@babel/parser/@babel/types/@babel/helper-string-parser": ["@babel/helper-string-parser@8.0.6", "", {}, "sha512-+6HYEBnsDRZHJtUTAEfMQd0zMDqdFHS7C+5vAsEZqBUr3vEMWOWlHJ0Jz1gS8jJIlCvLsuA6ivmeoqzH936YcA=="],
+
+    "@raceiq/tooling/@babel/parser/@babel/types/@babel/helper-validator-identifier": ["@babel/helper-validator-identifier@8.0.6", "", {}, "sha512-HYx0YmuchRxRSpnjvcNffnPS8DCauKNmnumIuHG3jnQAVewRA7kfJGwF13ayEpSZs7s4R/oBH4eppuXcAQd5JQ=="],
 
     "lighthouse/yargs/cliui/wrap-ansi": ["wrap-ansi@7.0.0", "", { "dependencies": { "ansi-styles": "^4.0.0", "string-width": "^4.1.0", "strip-ansi": "^6.0.0" } }, "sha512-YVGIj2kamLSTxw6NsZjoBxfSwsn0ycdesmc4p+Q21c5zPuZ1pl+NfxVdxPtdHvmNVOQ6XSYG4AUtyt/Fi7D16Q=="],
 

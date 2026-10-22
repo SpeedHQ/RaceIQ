@@ -12,6 +12,9 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 registerGame(forzaAdapter);
 const inferred = { nativeChannelAvailable: false, nativeChannelExplicit: false, wheelRotationAvailable: true };
 const native = { nativeChannelAvailable: true, nativeChannelExplicit: true, wheelRotationAvailable: false };
+const nativeTcOptions = (telemetry: readonly TelemetryPacket[]) => ({
+  ...native, nativeValues: telemetry.map((packet) => packet.acc?.tcIntervention),
+});
 
 function frame(index: number, overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {
   return {
@@ -88,7 +91,7 @@ describe("static driver-aid activation detection", () => {
     const telemetry = Array.from({ length: 64 }, (_, index) => frame(index, {
       acc: { abs: 0, tc: 0, absIntervention: index % 10 < 2 ? 1 : 0, tcIntervention: index % 10 < 2 ? 1 : 0 } as KunosExtendedData,
     }));
-    for (const insight of [detectAbsActivation(telemetry, native), detectTractionControlActivation(telemetry, native)]) {
+    for (const insight of [detectAbsActivation(telemetry, native), detectTractionControlActivation(telemetry, nativeTcOptions(telemetry))]) {
       expect(insight?.evidenceSource).toBe("native");
       expect(insight?.frameIndices).toHaveLength(7);
     }
@@ -99,7 +102,7 @@ describe("static driver-aid activation detection", () => {
       TimestampMS: Math.floor(index / 2) * 16,
       acc: { absIntervention: index % 20 < 4 ? 1 : 0, tcIntervention: index % 20 < 4 ? 1 : 0 } as KunosExtendedData,
     }));
-    for (const insight of [detectAbsActivation(telemetry, native), detectTractionControlActivation(telemetry, native)]) {
+    for (const insight of [detectAbsActivation(telemetry, native), detectTractionControlActivation(telemetry, nativeTcOptions(telemetry))]) {
       expect(insight?.frameIndices).toHaveLength(7);
     }
   });
@@ -109,7 +112,7 @@ describe("static driver-aid activation detection", () => {
       const active = index < 3 || (index >= 12 && index < 15) || (index >= 65 && index < 68) || (index >= 76 && index < 79) ? 1 : 0;
       return frame(index, { acc: { absIntervention: active, tcIntervention: active } as KunosExtendedData });
     });
-    for (const insight of [detectAbsActivation(telemetry, native), detectTractionControlActivation(telemetry, native)]) {
+    for (const insight of [detectAbsActivation(telemetry, native), detectTractionControlActivation(telemetry, nativeTcOptions(telemetry))]) {
       expect(insight?.frameIndices).toHaveLength(4);
     }
   });
@@ -120,14 +123,14 @@ describe("static driver-aid activation detection", () => {
     }));
     for (const insight of [
       detectAbsActivation(telemetry, { ...native, nativeChannelExplicit: false }),
-      detectTractionControlActivation(telemetry, { ...native, nativeChannelExplicit: false }),
+      detectTractionControlActivation(telemetry, { ...nativeTcOptions(telemetry), nativeChannelExplicit: false }),
     ]) {
       expect(insight?.evidenceSource).toBe("inferred");
       expect(insight?.label).toMatch(/^Possible /);
       expect(insight?.detail).toContain("inferred from physics aid signal");
       expect(insight?.detail).not.toContain("reported by game");
     }
-    const confirmed = detectTractionControlActivation(telemetry, native);
+    const confirmed = detectTractionControlActivation(telemetry, nativeTcOptions(telemetry));
     expect(confirmed?.evidenceSource).toBe("native");
     expect(confirmed?.detail).toContain("explicit aid-active flag");
   });
@@ -190,5 +193,33 @@ describe("static driver-aid activation detection", () => {
     const check = runInsightScanWithCoverage(tractionRun(), "fm-2023").detectorCoverage
       .find((item) => item.id === "driving-traction-control-activation");
     expect(check?.status).toBe("finding");
+  });
+
+  test("canonical TC-active channel reports bursts without wheel or RPM inference", () => {
+    const telemetry = Array.from({ length: 16 }, (_, index) => frame(index, {
+      Accel: 220,
+      WheelRotationSpeedFL: NaN, WheelRotationSpeedFR: NaN, WheelRotationSpeedRL: NaN, WheelRotationSpeedRR: NaN,
+    }));
+    const tractionControlActive = telemetry.map((_, index) => index < 2 || (index >= 4 && index < 6));
+    const result = runInsightScanWithCoverage(telemetry, "fm-2023", { tractionControlActive });
+    const tc = result.insights.find((insight) => insight.id === "driving-traction-control-activation");
+    expect(tc?.evidenceSource).toBe("native");
+    expect(tc?.label).toBe("Traction Control Activation");
+    expect(tc?.frameIndices).toHaveLength(2);
+    expect(tc?.detail).toContain("0.06s active");
+    expect(result.detectorCoverage.find((item) => item.id === tc?.id)?.status).toBe("finding");
+  });
+
+  test("native false suppresses TC inference while an absent channel permits it", () => {
+    const traction = tractionRun();
+    for (const available of [true, false]) {
+      const result = runInsightScanWithCoverage(traction, "fm-2023", {
+        tractionControlActive: available ? traction.map(() => false) : undefined,
+      });
+      const tc = result.insights.find((insight) => insight.id === "driving-traction-control-activation");
+      expect(tc?.evidenceSource).toBe(available ? undefined : "inferred");
+      const coverage = result.detectorCoverage.find((item) => item.id === "driving-traction-control-activation");
+      expect(coverage?.status).toBe(available ? "checked" : "finding");
+    }
   });
 });

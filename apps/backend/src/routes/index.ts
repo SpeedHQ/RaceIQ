@@ -6,13 +6,14 @@ import { IS_DEV, IS_E2E } from "@raceiq/backend-core/runtime/config/env";
 import { httpAccess } from "../runtime/http-access";
 
 import { settingsRoutes } from "./settings-routes";
+import { authRoutes } from "./auth-routes";
 import { lapRoutes } from "./laps/index";
 import { driverRoutes } from "./driver-routes";
 import { chatsRoutes } from "./chats-routes";
 import { chatRunRoutes } from "./chat-run-routes";
 import { sessionRoutes } from "./session-routes";
-import { trackRoutes } from "./tracks/index";
-import { carRoutes } from "./car-routes";
+import { trackRoutes } from "@raceiq/tracks-catalogue/server";
+import { carRoutes, accCarRoutes, acEvoCarRoutes } from "@raceiq/cars-catalogue/server";
 import { tuneRoutes } from "./tune-routes";
 import { accRoutes } from "./games/acc";
 import { acEvoRoutes } from "./games/ac-evo";
@@ -45,37 +46,41 @@ type AppSchema =
 
 const app = new Hono<BlankEnv, AppSchema>()
   .use("/*", async (c, next) => {
-    const denied = httpAccess.authorize(c.req.raw);
+    const denied = await httpAccess.authorize(c.req.raw);
     if (denied) return denied;
+    if (httpAccess.usesSessions) c.header("Cache-Control", "no-store");
     await next();
   })
   .use(
     "/*",
     cors({
-      origin: (origin, c) => httpAccess.allowsOrigin(origin, c.req.raw) ? origin : "",
+      origin: (origin, c) => (httpAccess.allowsOrigin(origin, c.req.raw) ? origin : ""),
       credentials: true,
+      exposeHeaders: ["X-RaceIQ-CSRF"],
       // Studio needs its own headers; reflect them only for trusted origins.
       allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     }),
   )
-  .use("/*", errorLogger());
-
-app.route("/", lmuSetupRoutes);
-app.route("/", settingsRoutes);
-app.route("/", lapRoutes);
-app.route("/", driverRoutes);
-app.route("/", chatsRoutes);
-app.route("/", chatRunRoutes);
-app.route("/", dashboardRoutes);
-app.route("/", sessionRoutes);
-app.route("/", trackRoutes);
-app.route("/", carRoutes);
-app.route("/", tuneRoutes);
-app.route("/", accRoutes);
-app.route("/", acEvoRoutes);
-app.route("/", f125Routes);
-app.route("/", miscRoutes);
-app.route("/", cacheRoutes);
+  .use("/*", errorLogger())
+  .route("/", authRoutes)
+  .route("/", lmuSetupRoutes)
+  .route("/", settingsRoutes)
+  .route("/", lapRoutes)
+  .route("/", driverRoutes)
+  .route("/", chatsRoutes)
+  .route("/", chatRunRoutes)
+  .route("/", dashboardRoutes)
+  .route("/", sessionRoutes)
+  .route("/", trackRoutes)
+  .route("/", carRoutes)
+  .route("/", tuneRoutes)
+  .route("/", accCarRoutes)
+  .route("/", accRoutes)
+  .route("/", acEvoCarRoutes)
+  .route("/", acEvoRoutes)
+  .route("/", f125Routes)
+  .route("/", miscRoutes)
+  .route("/", cacheRoutes);
 
 // Fixture import/replay routes stay unavailable in normal production. Compiled
 // Playwright runs opt in explicitly so they exercise the packaged server too.

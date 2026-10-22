@@ -1,3 +1,4 @@
+import { isPaceLap } from "@raceiq/shared/racing/lap-classification";
 import { Fragment } from "react";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { LapMeta, SessionMeta } from "@raceiq/shared/racing/sessions/types";
@@ -13,6 +14,7 @@ import { NoteCell } from "./NoteCell";
 import { MotecBadge } from "./MotecBadge";
 import { SessionLapTable } from "./SessionLapTable";
 import { SessionResultMeta } from "./SessionResultMeta";
+import { SessionCaptureSplitStatus } from "./SessionCaptureSplitStatus";
 import type { LapSortKey, SessionSelectionEvent, SortDir, SortKey } from "./types";
 import { getLocale } from "@/paraglide/runtime";
 import { m } from "@/paraglide/messages";
@@ -39,6 +41,7 @@ export type SessionDesktopTableProps = {
   toggleSessionSelection: (id: number, event: SessionSelectionEvent) => void;
   selectedLaps: Set<number>;
   toggleLapSelection: (id: number) => void;
+  setSelectedLaps: React.Dispatch<React.SetStateAction<Set<number>>>;
   sectorCount: number;
   lapSortKey: LapSortKey;
   lapSortDir: SortDir;
@@ -68,6 +71,7 @@ export function SessionDesktopTable({
   toggleSessionSelection,
   selectedLaps,
   toggleLapSelection,
+  setSelectedLaps,
   sectorCount,
   lapSortKey,
   lapSortDir,
@@ -75,6 +79,9 @@ export function SessionDesktopTable({
   saveSessionNotes,
   analyseSession,
 }: SessionDesktopTableProps) {
+  const pageLapIds = pageItems.flatMap((session) => (lapsBySession.get(session.id) ?? []).map((lap) => lap.id));
+  const allSelected = pageItems.length > 0 && pageItems.every((session) => selectedSessions.has(session.id)) && pageLapIds.every((id) => selectedLaps.has(id));
+  const someSelected = pageItems.some((session) => selectedSessions.has(session.id)) || pageLapIds.some((id) => selectedLaps.has(id));
   return (
     <div className="hidden flex-1 overflow-auto @3xl/workspace:block">
       <Table>
@@ -83,14 +90,24 @@ export function SessionDesktopTable({
             <TableHead>
               <input
                 type="checkbox"
-                checked={pageItems.length > 0 && pageItems.every((session) => selectedSessions.has(session.id))}
-                onChange={() => {
-                  const allSelected = pageItems.every((session) => selectedSessions.has(session.id));
+                aria-label={m.tunes_select_all()}
+                checked={allSelected}
+                ref={(input) => { if (input) input.indeterminate = someSelected && !allSelected; }}
+                onChange={(event) => {
+                  const select = event.target.checked;
                   setSelectedSessions((previous) => {
                     const next = new Set(previous);
                     for (const session of pageItems) {
-                      if (allSelected) next.delete(session.id);
-                      else next.add(session.id);
+                      if (select) next.add(session.id);
+                      else next.delete(session.id);
+                    }
+                    return next;
+                  });
+                  setSelectedLaps((previous) => {
+                    const next = new Set(previous);
+                    for (const id of pageLapIds) {
+                      if (select) next.add(id);
+                      else next.delete(id);
                     }
                     return next;
                   });
@@ -133,7 +150,8 @@ export function SessionDesktopTable({
             pageItems.map((session) => {
               const isExpanded = expandedSessions.has(session.id);
               const sessionLaps = lapsBySession.get(session.id) ?? [];
-              const bestTime = session.bestLapTime || (sessionLaps.length > 0 ? Math.min(...sessionLaps.map((lap) => lap.lapTime)) : 0);
+              const paceLaps = sessionLaps.filter((lap) => lap.isValid && isPaceLap(lap.classification));
+              const bestTime = session.bestLapTime || (paceLaps.length > 0 ? Math.min(...paceLaps.map((lap) => lap.lapTime)) : 0);
               return (
                 <Fragment key={session.id}>
                   <TableRow onClick={() => toggleExpand(session.id)} data-state={isExpanded ? "selected" : undefined} className={isExpanded && sessionLaps.length > 0 ? "border-b-0" : undefined}>
@@ -168,6 +186,7 @@ export function SessionDesktopTable({
                     <TableCell className="text-app-label">{sessionCarName(session, { trackNames, carNames })}</TableCell>
                     <TableCell className="text-app-label">
                       <SessionResultMeta session={session} />
+                      <SessionCaptureSplitStatus status={session.captureSplit} sessionId={session.id} />
                     </TableCell>
                     {showSessionType && <TableCell className="text-app-label"><SessionTypeBadge type={session.sessionType} /></TableCell>}
                     <TableCell>
@@ -177,7 +196,7 @@ export function SessionDesktopTable({
                   {isExpanded && gameId && (
                     <TableRow className={sessionLaps.length > 0 ? "border-b-0 hover:bg-transparent" : "hover:bg-transparent"}>
                       <TableCell colSpan={colCount} className={sessionLaps.length > 0 ? "[&>section]:border-b-0 [&>div]:border-b-0" : undefined}>
-                        <RaceResultLedger sessionId={session.id} gameId={gameId} enabled={isExpanded} />
+                        <RaceResultLedger sessionId={session.id} gameId={gameId} enabled={isExpanded} laps={sessionLaps} />
                       </TableCell>
                     </TableRow>
                   )}

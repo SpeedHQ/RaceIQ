@@ -53,6 +53,82 @@ export function createAcEvoParserCache(): AcEvoParserCache {
     distanceState: createAcEvoDistanceState(),
   };
 }
+export type AcEvoParserCheckpointBytes = Uint8Array;
+
+interface AcEvoParserCheckpointV1 {
+  format: "raceiq:ac-evo-parser";
+  version: 1;
+  cache: {
+    carId: string;
+    trackId: string;
+    lastCarModel: string;
+    lastTrack: string;
+    lastTrackConfiguration: string;
+    playerSlotState: { slot: number; scores: number[]; scoredFrames: number; previousCoordinates: number[] };
+    distanceState: AcEvoDistanceState;
+  };
+}
+
+export function captureAcEvoParserCheckpoint(cache: AcEvoParserCache): Uint8Array {
+  const checkpoint: AcEvoParserCheckpointV1 = {
+    format: "raceiq:ac-evo-parser",
+    version: 1,
+    cache: {
+      carId: cache.carId,
+      trackId: cache.trackId,
+      lastCarModel: cache.lastCarModel,
+      lastTrack: cache.lastTrack,
+      lastTrackConfiguration: cache.lastTrackConfiguration,
+      playerSlotState: {
+        slot: cache.playerSlotState.slot,
+        scores: Array.from(cache.playerSlotState.scores),
+        scoredFrames: cache.playerSlotState.scoredFrames,
+        previousCoordinates: Array.from(cache.playerSlotState.previousCoordinates),
+      },
+      distanceState: { ...cache.distanceState },
+    },
+  };
+  return Buffer.from(JSON.stringify(checkpoint), "utf8");
+}
+
+export function restoreAcEvoParserCheckpoint(bytes: Uint8Array): AcEvoParserCache {
+  let checkpoint: AcEvoParserCheckpointV1;
+  try {
+    checkpoint = JSON.parse(new TextDecoder().decode(bytes)) as AcEvoParserCheckpointV1;
+  } catch {
+    throw new Error("Invalid or unsupported AC Evo parser checkpoint");
+  }
+  const cache = checkpoint?.cache;
+  const player = cache?.playerSlotState;
+  const distance = cache?.distanceState;
+  const distanceFields: (keyof AcEvoDistanceState)[] = [
+    "previousPacketId", "previousSpeedMps", "previousCurrentKm", "anchorM", "integralUnit",
+    "calibrationIntegralUnit", "calibrationTrueM", "secondsPerPhysicsStep", "outputM",
+  ];
+  if (checkpoint?.format !== "raceiq:ac-evo-parser" || checkpoint.version !== 1 ||
+      !cache || !["carId", "trackId", "lastCarModel", "lastTrack", "lastTrackConfiguration"].every(
+        (key) => typeof cache[key as keyof typeof cache] === "string") ||
+      !player || !Number.isInteger(player.slot) || player.slot < -1 || player.slot >= 60 ||
+      !Number.isInteger(player.scoredFrames) || player.scoredFrames < 0 ||
+      !Array.isArray(player.scores) || player.scores.length !== 60 ||
+      !Array.isArray(player.previousCoordinates) || player.previousCoordinates.length !== 180 ||
+      !player.scores.every((value) => Number.isFinite(value) && Math.abs(value) <= 3.402823466e38) ||
+      !player.previousCoordinates.every((value) => Number.isFinite(value) && Math.abs(value) <= 3.402823466e38) ||
+      !distance || typeof distance !== "object" || Array.isArray(distance) ||
+      !distanceFields.every((key) => Number.isFinite(distance[key]))) {
+    throw new Error("Invalid or unsupported AC Evo parser checkpoint");
+  }
+  return {
+    ...cache,
+    playerSlotState: {
+      slot: player.slot,
+      scores: Float32Array.from(player.scores),
+      scoredFrames: player.scoredFrames,
+      previousCoordinates: Float32Array.from(player.previousCoordinates),
+    },
+    distanceState: { ...distance },
+  };
+}
 export function parseAcEvoBuffers(
   physicsBuf: Buffer,
   graphicsBuf: Buffer,

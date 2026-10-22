@@ -1,5 +1,6 @@
-import { and, desc, eq, sql } from "drizzle-orm";
-import { db } from "./index";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { db, readDb } from "./index"
+import { withDatabaseWrite } from "./write-coordination";
 import { experimentFocusEvents, experiments } from "./schema";
 import { tryGetServerGame } from "../games/registry";
 import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "@raceiq/shared/racing/experiments/focus";
@@ -19,8 +20,7 @@ interface CreateExperimentData {
 
 export async function createExperiment(data: CreateExperimentData): Promise<number> {
   // Per-game display number, counted from 1 (independent of the churned id).
-  const seqRow = await db
-    .select({ maxSeq: sql<number | null>`MAX(${experiments.seq})` })
+  const seqRow = await readDb.select({ maxSeq: sql<number | null>`MAX(${experiments.seq})` })
     .from(experiments)
     .where(eq(experiments.gameId, data.gameId))
     .get();
@@ -31,7 +31,7 @@ export async function createExperiment(data: CreateExperimentData): Promise<numb
 
   const focus = data.focus ?? DEFAULT_EXPERIMENT_FOCUS;
 
-  const result = await db
+  const result = await withDatabaseWrite(() => db
     .insert(experiments)
     .values({
       seq,
@@ -46,11 +46,11 @@ export async function createExperiment(data: CreateExperimentData): Promise<numb
       focus,
     })
     .returning({ id: experiments.id })
-    .get();
+    .get());
 
   // Open the ledger with the focus the experiment started on, so the history is
   // a complete timeline rather than one that only begins at the first switch.
-  await db.insert(experimentFocusEvents).values({ experimentId: result.id, focus }).run();
+  await withDatabaseWrite(() => db.insert(experimentFocusEvents).values({ experimentId: result.id, focus }).run());
   return result.id;
 }
 
@@ -61,8 +61,7 @@ export async function listExperiments(
 ) {
   const conds = [eq(experiments.gameId, gameId)];
   if (!opts.includeArchived) conds.push(eq(experiments.status, "active"));
-  return await db
-    .select()
+  return await readDb.select()
     .from(experiments)
     .where(and(...conds))
     .orderBy(desc(experiments.updatedAt))
@@ -70,7 +69,7 @@ export async function listExperiments(
 }
 
 export async function getExperiment(id: number) {
-  return (await db.select().from(experiments).where(eq(experiments.id, id)).get()) ?? null;
+  return (await readDb.select().from(experiments).where(eq(experiments.id, id)).get()) ?? null;
 }
 
 export async function updateExperiment(
@@ -82,7 +81,7 @@ export async function updateExperiment(
   if (data.notes !== undefined) sets.notes = data.notes;
   if (data.baseSetupPath !== undefined) sets.baseSetupPath = data.baseSetupPath;
   if (data.status !== undefined) sets.status = data.status;
-  const result = await db.update(experiments).set(sets).where(eq(experiments.id, id)).run();
+  const result = await withDatabaseWrite(() => db.update(experiments).set(sets).where(eq(experiments.id, id)).run());
   return result.rowsAffected > 0;
 }
 
@@ -99,34 +98,32 @@ export async function setExperimentFocus(
   focus: ExperimentFocus,
   opts: { note?: string | null } = {},
 ): Promise<{ id: number; focus: ExperimentFocus; fromVersionId: number | null; createdAt: string } | null> {
-  const current = await db
-    .select({ focus: experiments.focus, headVersionId: experiments.headVersionId })
+  const current = await readDb.select({ focus: experiments.focus, headVersionId: experiments.headVersionId })
     .from(experiments)
     .where(eq(experiments.id, experimentId))
     .get();
   if (!current) return null;
   if (current.focus === focus) return null;
 
-  await db
+  await withDatabaseWrite(() => db
     .update(experiments)
     .set({ focus, updatedAt: sql`(datetime('now'))` })
     .where(eq(experiments.id, experimentId))
-    .run();
+    .run());
 
   // The head at the moment of the switch — where this focus era begins in the
   // version tree.
-  const row = await db
+  const row = await withDatabaseWrite(() => db
     .insert(experimentFocusEvents)
     .values({ experimentId, focus, fromVersionId: current.headVersionId ?? null, note: opts.note ?? null })
     .returning({ id: experimentFocusEvents.id, focus: experimentFocusEvents.focus, fromVersionId: experimentFocusEvents.fromVersionId, createdAt: experimentFocusEvents.createdAt })
-    .get();
+    .get());
   return { id: row.id, focus: row.focus as ExperimentFocus, fromVersionId: row.fromVersionId, createdAt: row.createdAt };
 }
 
 /** The focus ledger for one experiment, oldest first — it reads as a timeline. */
 export async function listExperimentFocusEvents(experimentId: number) {
-  return await db
-    .select()
+  return await readDb.select()
     .from(experimentFocusEvents)
     .where(eq(experimentFocusEvents.experimentId, experimentId))
     .orderBy(experimentFocusEvents.id)
@@ -134,11 +131,23 @@ export async function listExperimentFocusEvents(experimentId: number) {
 }
 
 /** Set (or clear, with null) the checked-out head test for a session. */
-export async function setSessionHead(sessionId: number, headVersionId: number | null): Promise<boolean> {
-  const result = await db
+export async function setSessionHead(
+  sessionId: number,
+  headVersionId: number | null,
+  expectedHeadVersionId?: number | null,
+): Promise<boolean> {
+  const conditions = [eq(experiments.id, sessionId)];
+  if (expectedHeadVersionId !== undefined) {
+    conditions.push(
+      expectedHeadVersionId == null
+        ? isNull(experiments.headVersionId)
+        : eq(experiments.headVersionId, expectedHeadVersionId),
+    );
+  }
+  const result = await withDatabaseWrite(() => db
     .update(experiments)
     .set({ headVersionId, updatedAt: sql`(datetime('now'))` })
-    .where(eq(experiments.id, sessionId))
-    .run();
+    .where(and(...conditions))
+    .run());
   return result.rowsAffected > 0;
 }

@@ -7,6 +7,8 @@
 A route may define its public path, params, search validation, route-level guards, and the component or outlet that composes a feature page. Keep route search keys and accepted values stable. Resolve game prefixes through registered adapter metadata; reject unknown prefixes instead of selecting a fallback game. Put rendered behavior, API orchestration, and reusable UI in feature modules under `src/components/`.
 
 Shared game routes use dynamic route families when behavior is genuinely shared. Keep explicit game routes where capability or implementation differs materially. Thin game-specific route files may select the appropriate feature module, but must not duplicate shared page behavior.
+Dashboard access is checked by the root route's `beforeLoad` before feature routes render. Pending installs redirect to `/onboarding`, where the original welcome step precedes access configuration. Configured protected dashboards redirect signed-out visitors to `/login`, preserving an in-app return destination. Authentication changes invalidate the router; the backend remains responsible for session, CSRF, API, and WebSocket authorization.
+
 
 Use direct imports to feature destinations (`@/components/...`) and direct domain hook imports. Relative imports are for route-local modules only. Do not add route barrels, compatibility paths, or duplicate validators to preserve an old import.
 

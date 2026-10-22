@@ -24,7 +24,7 @@ function completeLap(gameId: TelemetryPacket["gameId"] = "f1-2025"): TelemetryPa
 }
 
 describe("portable lap policies", () => {
-  test("preserves lap-quality validity thresholds and game exceptions", () => {
+  test("preserves quality thresholds without rejecting ordinal starting laps", () => {
     const clean = completeLap();
     expect(assessLapRecording(clean, 58)).toEqual({ valid: true, reason: null });
     expect(assessLapRecording(clean.slice(0, 29), 58)).toEqual({ valid: false, reason: "too few telemetry packets" });
@@ -39,19 +39,37 @@ describe("portable lap policies", () => {
     const exactClosure = clean.map((item, index) => ({ ...item, PositionX: index === 29 ? 20 : 0 }));
     expect(assessLapRecording(exactClosure, 58)).toEqual({ valid: true, reason: null });
 
+    expect(assessLapRecording(far, 58, { closed: false })).toEqual({ valid: true, reason: null });
+    expect(assessLapRecording(far.map((item) => ({ ...item, DistanceTraveled: 0 })), 58, { closed: false }))
+      .toEqual({ valid: false, reason: "telemetry distance too short" });
+
     const laterLap = clean.map((item) => ({ ...item, DistanceTraveled: item.DistanceTraveled + 15_000 }));
     expect(assessLapRecording(laterLap, 58)).toEqual({ valid: true, reason: null });
 
     const startingLap = completeLap("acc").map((item, index) => ({ ...item, LapNumber: 0, CurrentLap: index }));
-    expect(assessLapRecording(startingLap, 29)).toEqual({ valid: false, reason: "starting lap" });
+    expect(assessLapRecording(startingLap, 29)).toEqual({ valid: true, reason: null });
   });
 
-  test("keeps default and LMU timing and first-outlap rules", () => {
+  test("does not infer LMU out-laps without pit-state evidence", () => {
     expect(DEFAULT_LAP_DETECTOR_POLICY.resolveLapTime([], packet({ LastLap: 92 }))).toBe(92);
     const longLmuLap = [...completeLap("lmu"), packet({ gameId: "lmu", CurrentLap: 58, DistanceTraveled: 120 })];
     expect(LMU_LAP_DETECTOR_POLICY.resolveLapTime(longLmuLap, packet({ gameId: "lmu", CurrentLap: 0 }))).toBe(58);
     expect(LMU_LAP_DETECTOR_POLICY.resolveLapTime(longLmuLap.slice(0, 30), packet({ gameId: "lmu", CurrentLap: 0 }))).toBe(0);
-    expect(LMU_LAP_DETECTOR_POLICY.classifyPitCycle(completeLap("lmu"), 0)).toBe("outlap");
+    expect(LMU_LAP_DETECTOR_POLICY.classifyPitCycle(completeLap("lmu"), 0)).toBeNull();
     expect(LMU_LAP_DETECTOR_POLICY.classifyPitCycle(completeLap("lmu"), 1)).toBeNull();
+  });
+  test("treats a pit-started opening LMU segment as incomplete rather than in-lap", () => {
+    const packets = completeLap("lmu").map((item, index) => ({
+      ...item,
+      lmu: { inPits: index < 4 || index > 26 },
+    } as TelemetryPacket));
+    expect(LMU_LAP_DETECTOR_POLICY.classifyPitCycle(packets, 0)).toBeNull();
+    expect(LMU_LAP_DETECTOR_POLICY.invalidReason?.(packets, 0)).toBe("incomplete");
+    const laterLap = completeLap("lmu").map((item, index) => ({
+      ...item,
+      lmu: { inPits: index > 26 },
+    } as TelemetryPacket));
+    expect(LMU_LAP_DETECTOR_POLICY.classifyPitCycle(laterLap, 1)).toBe("inlap");
+    expect(LMU_LAP_DETECTOR_POLICY.invalidReason?.(laterLap, 1)).toBeNull();
   });
 });

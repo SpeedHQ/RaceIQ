@@ -968,14 +968,9 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
     version: 46,
     name: "dynamic source-defined sector times",
     sql: [
-      // Both histories can reach this migration: upstream still has S1-S3,
-      // while databases that ran the iRacing branch already have sector_times.
-      // Add whichever source columns are absent, populate only missing arrays,
-      // then rebuild to the single authoritative ordered-array representation.
+      // Version 15 introduced these source columns on every supported history.
+      // Keep them while converting to the authoritative ordered-array representation.
       `ALTER TABLE laps ADD COLUMN sector_times TEXT`,
-      `ALTER TABLE laps ADD COLUMN s1_time REAL`,
-      `ALTER TABLE laps ADD COLUMN s2_time REAL`,
-      `ALTER TABLE laps ADD COLUMN s3_time REAL`,
       `UPDATE laps
        SET sector_times = CASE
          WHEN s1_time IS NULL OR s1_time <= 0
@@ -1939,16 +1934,287 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       ...dashboardMonthlyRollupSql,
     ],
   },
+  {
+    version: 75,
+    name: "persist dashboard access and login sessions",
+    sql: [
+      `CREATE TABLE IF NOT EXISTS dashboard_access (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        mode TEXT NOT NULL CHECK (mode IN ('pending', 'enabled', 'disabled')),
+        password_hash TEXT,
+        revision INTEGER NOT NULL DEFAULT 0,
+        network_json TEXT,
+        upgrade INTEGER
+      )`,
+      `INSERT INTO dashboard_access (id, mode)
+       SELECT 1, 'pending'
+       WHERE NOT EXISTS (SELECT 1 FROM dashboard_access WHERE id = 1)
+         AND NOT EXISTS (
+           SELECT 1 FROM schema_migrations
+           WHERE version IN (63, 64, 68, 75) AND name = 'persist dashboard access and login sessions'
+         )`,
+      `CREATE TABLE IF NOT EXISTS dashboard_sessions (
+        token_hash TEXT PRIMARY KEY,
+        csrf TEXT NOT NULL,
+        generation TEXT NOT NULL,
+        expires_at INTEGER NOT NULL
+      )`,
+    ],
+  },
+  {
+    version: 76,
+    name: "add lossless lap capture bundle references",
+    sql: [
+      `ALTER TABLE sessions ADD COLUMN capture_layout_version INTEGER`,
+      `ALTER TABLE sessions ADD COLUMN capture_manifest_file TEXT`,
+      `ALTER TABLE laps ADD COLUMN capture_chunk_id TEXT`,
+      `ALTER TABLE laps ADD COLUMN source_frame_start INTEGER`,
+      `ALTER TABLE laps ADD COLUMN source_frame_count INTEGER`,
+      `CREATE TABLE IF NOT EXISTS session_capture_split_jobs (
+        session_id INTEGER PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+        job_id TEXT NOT NULL UNIQUE,
+        attempt_id INTEGER NOT NULL DEFAULT 1,
+        pending_source_revision TEXT NOT NULL,
+        source_path TEXT NOT NULL,
+        staging_path TEXT,
+        status TEXT NOT NULL CHECK (status IN ('queued', 'splitting', 'verifying', 'publishing', 'ready', 'failed')),
+        error_code TEXT,
+        error_message TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+    ],
+  },
+  {
+    version: 77,
+    name: "persist capture split progress counters",
+    sql: [
+      `ALTER TABLE session_capture_split_jobs ADD COLUMN sequence INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE session_capture_split_jobs ADD COLUMN processed_source_frames INTEGER`,
+      `ALTER TABLE session_capture_split_jobs ADD COLUMN total_source_frames INTEGER`,
+      `ALTER TABLE session_capture_split_jobs ADD COLUMN completed_lap_artifacts INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE session_capture_split_jobs ADD COLUMN total_lap_artifacts INTEGER NOT NULL DEFAULT 0`,
+    ],
+  },
+  {
+    version: 78,
+    name: "reconcile all AC Evo recordings to discover Tourist layouts",
+    sql: [
+      // Stored track IDs can predate native layout identity; discover layouts from captures.
+      `UPDATE sessions SET lap_detector_version = NULL WHERE game_id = 'ac-evo'`,
+    ],
+  },
+  {
+    version: 79,
+    name: "add indexed gzip capture archive reference",
+    sql: [
+      `ALTER TABLE sessions ADD COLUMN capture_archive_file TEXT`,
+    ],
+  },
+  {
+    version: 80,
+    name: "persist incremental live capture publication and recovery journal",
+    sql: [
+      `CREATE TABLE live_captures (
+        session_id INTEGER PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+        capture_epoch TEXT NOT NULL UNIQUE, attempt TEXT NOT NULL,
+        source_path TEXT NOT NULL, archive_path TEXT NOT NULL,
+        source_device TEXT, source_inode TEXT,
+        generation INTEGER NOT NULL DEFAULT 0,
+        committed_archive_length INTEGER NOT NULL DEFAULT 0,
+        source_byte_length INTEGER NOT NULL DEFAULT 0,
+        source_record_count INTEGER NOT NULL DEFAULT 0,
+        source_durable_watermark INTEGER NOT NULL DEFAULT 0,
+        metadata_durable_watermark INTEGER NOT NULL DEFAULT 0,
+        durable_sequence INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL CHECK (status IN ('recording','finalizing','sealed','failed','recovering')),
+        error TEXT
+      )`,
+      `CREATE TABLE live_capture_members (
+        capture_epoch TEXT NOT NULL REFERENCES live_captures(capture_epoch) ON DELETE CASCADE,
+        generation INTEGER NOT NULL,
+        lap_id INTEGER REFERENCES laps(id) ON DELETE SET NULL,
+        ownership_revision INTEGER NOT NULL, descriptor TEXT NOT NULL, verification TEXT NOT NULL,
+        PRIMARY KEY(capture_epoch,generation)
+      )`,
+      `CREATE UNIQUE INDEX live_capture_member_lap_idx ON live_capture_members(lap_id)`,
+      `CREATE TABLE live_capture_journal (
+        capture_epoch TEXT NOT NULL REFERENCES live_captures(capture_epoch) ON DELETE CASCADE,
+        sequence INTEGER NOT NULL, source_byte_end INTEGER NOT NULL, payload TEXT NOT NULL,
+        PRIMARY KEY(capture_epoch,sequence)
+      )`,
+      `CREATE INDEX live_capture_journal_effective_idx ON live_capture_journal(
+        capture_epoch, coalesce(cast(json_extract(payload, '$.startByteOffset') as integer), source_byte_end), sequence
+      )`,
+      `CREATE INDEX live_capture_journal_lap_idx ON live_capture_journal(
+        capture_epoch, cast(json_extract(payload, '$.lapId') as integer), sequence
+      )`,
+    ],
+  },
+  {
+    version: 81,
+    name: "persist archival recording frequency caps",
+    sql: [`ALTER TABLE sessions ADD COLUMN downsampled_frequency_hz INTEGER`],
+  },
+  {
+    version: 82,
+    name: "classify historical non-pace laps",
+    sql: [
+      `ALTER TABLE laps ADD COLUMN classification TEXT`,
+      `ALTER TABLE dashboard_lap_index ADD COLUMN classification TEXT`,
+      `UPDATE laps SET classification = CASE invalid_reason
+        WHEN 'inlap' THEN 'in_lap'
+        WHEN 'outlap' THEN 'out_lap'
+        WHEN 'pit lap' THEN 'pit_lap'
+        ELSE classification END
+       WHERE invalid_reason IN ('inlap','outlap','pit lap')
+         AND session_id IN (SELECT id FROM sessions WHERE coalesce(source,'')!='motec')`,
+      `UPDATE dashboard_lap_index SET classification=(SELECT classification FROM laps WHERE laps.id=dashboard_lap_index.lap_id)`,
+      `ALTER TABLE dashboard_session_summaries ADD COLUMN pace_laps INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE dashboard_session_summaries ADD COLUMN pace_seconds REAL NOT NULL DEFAULT 0`,
+      `ALTER TABLE dashboard_session_days ADD COLUMN pace_laps INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE dashboard_session_days ADD COLUMN pace_seconds REAL NOT NULL DEFAULT 0`,
+      `ALTER TABLE dashboard_day_entities ADD COLUMN pace_laps INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE dashboard_day_entities ADD COLUMN pace_seconds REAL NOT NULL DEFAULT 0`,
+      `ALTER TABLE dashboard_month_entities ADD COLUMN pace_laps INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE dashboard_month_entities ADD COLUMN pace_seconds REAL NOT NULL DEFAULT 0`,
+      `ALTER TABLE dashboard_session_time_buckets ADD COLUMN pace_laps INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE dashboard_session_time_buckets ADD COLUMN pace_seconds REAL NOT NULL DEFAULT 0`,
+      `ALTER TABLE dashboard_time_buckets ADD COLUMN pace_laps INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE dashboard_time_buckets ADD COLUMN pace_seconds REAL NOT NULL DEFAULT 0`,
+      `CREATE TABLE classification_migration_recordings (
+        recording_id TEXT PRIMARY KEY,
+        source_key TEXT NOT NULL,
+        version INTEGER NOT NULL,
+        source_revision INTEGER NOT NULL DEFAULT 1,
+        result_revision INTEGER NOT NULL DEFAULT 0,
+        attempt INTEGER NOT NULL DEFAULT 0,
+        state TEXT NOT NULL CHECK(state IN ('pending','running','completed','limited','failed')),
+        source_signature TEXT,
+        reason TEXT,
+        UNIQUE(source_key)
+      )`,
+      `CREATE TABLE classification_migration_meta (
+        id INTEGER PRIMARY KEY CHECK(id=1),
+        version INTEGER NOT NULL,
+        revision INTEGER NOT NULL DEFAULT 0,
+        cutoff_session_id INTEGER NOT NULL DEFAULT 0
+      )`,
+      `INSERT INTO classification_migration_meta(id,version,revision,cutoff_session_id)
+       SELECT 1,1,0,COALESCE(MAX(id),0) FROM sessions`,
+      `DROP TRIGGER dashboard_laps_update`,
+      `CREATE TRIGGER dashboard_laps_update AFTER UPDATE OF session_id,lap_time,is_valid,invalid_reason,created_at,sector_times,classification ON laps
+       WHEN OLD.session_id IS NOT NEW.session_id OR OLD.lap_time IS NOT NEW.lap_time
+         OR OLD.is_valid IS NOT NEW.is_valid OR OLD.invalid_reason IS NOT NEW.invalid_reason
+         OR OLD.created_at IS NOT NEW.created_at OR OLD.sector_times IS NOT NEW.sector_times
+         OR OLD.classification IS NOT NEW.classification
+       BEGIN
+         DELETE FROM dashboard_lap_index WHERE lap_id=OLD.id;
+         INSERT INTO dashboard_lap_index(lap_id,session_id,created_at_ms,lap_time,is_valid,invalid_reason,classification,sector_times)
+         VALUES(NEW.id,NEW.session_id,CAST(strftime('%s',NEW.created_at) AS INTEGER)*1000+CAST(substr(strftime('%f',NEW.created_at),4,3) AS INTEGER),
+           NEW.lap_time,NEW.is_valid,NEW.invalid_reason,NEW.classification,NEW.sector_times);
+         INSERT INTO dashboard_summary_state(session_id,source_revision,metadata_dirty)
+         SELECT OLD.session_id,1,1 WHERE EXISTS(SELECT 1 FROM sessions WHERE id=OLD.session_id AND ownership='mine')
+           OR EXISTS(SELECT 1 FROM dashboard_summary_state WHERE session_id=OLD.session_id)
+           OR EXISTS(SELECT 1 FROM dashboard_session_summaries WHERE session_id=OLD.session_id)
+         ON CONFLICT(session_id) DO UPDATE SET source_revision=source_revision+1,metadata_dirty=1,updated_at=datetime('now');
+         INSERT INTO dashboard_summary_state(session_id,source_revision,metadata_dirty)
+         SELECT NEW.session_id,1,1 WHERE NEW.session_id!=OLD.session_id AND (
+           EXISTS(SELECT 1 FROM sessions WHERE id=NEW.session_id AND ownership='mine')
+           OR EXISTS(SELECT 1 FROM dashboard_summary_state WHERE session_id=NEW.session_id)
+           OR EXISTS(SELECT 1 FROM dashboard_session_summaries WHERE session_id=NEW.session_id))
+         ON CONFLICT(session_id) DO UPDATE SET source_revision=source_revision+1,metadata_dirty=1,updated_at=datetime('now');
+       END`,
+      `DROP TRIGGER dashboard_laps_insert`,
+      `CREATE TRIGGER dashboard_laps_insert AFTER INSERT ON laps BEGIN
+        INSERT INTO dashboard_lap_index(lap_id, session_id, created_at_ms, lap_time, is_valid, invalid_reason, classification, sector_times)
+        VALUES (NEW.id, NEW.session_id, CAST(strftime('%s', NEW.created_at) AS INTEGER) * 1000 + CAST(substr(strftime('%f', NEW.created_at), 4, 3) AS INTEGER),
+          NEW.lap_time, NEW.is_valid, NEW.invalid_reason, NEW.classification, NEW.sector_times);
+        INSERT INTO dashboard_summary_state(session_id, source_revision, metadata_dirty, capture_dirty)
+        SELECT NEW.session_id, 1, 1, 1 WHERE EXISTS (SELECT 1 FROM sessions WHERE id=NEW.session_id AND ownership='mine')
+          OR EXISTS (SELECT 1 FROM dashboard_summary_state WHERE session_id=NEW.session_id)
+          OR EXISTS (SELECT 1 FROM dashboard_session_summaries WHERE session_id=NEW.session_id)
+        ON CONFLICT(session_id) DO UPDATE SET source_revision=source_revision+1,
+          metadata_dirty=1, capture_dirty=1, updated_at=datetime('now');
+      END`,
+      `CREATE TRIGGER classification_sessions_source_update AFTER UPDATE OF raw_file ON sessions
+       WHEN OLD.raw_file IS NOT NEW.raw_file
+         AND OLD.id<=(SELECT cutoff_session_id FROM classification_migration_meta WHERE id=1)
+       BEGIN
+         UPDATE classification_migration_recordings
+         SET source_revision=source_revision+1,source_signature=NULL,
+             state=CASE WHEN state='running' THEN 'running' ELSE 'pending' END,
+             reason='source_changed'
+         WHERE source_key IN ('file:' || OLD.raw_file,'file:' || NEW.raw_file);
+         UPDATE classification_migration_meta SET revision=revision+1 WHERE id=1
+           AND EXISTS(SELECT 1 FROM classification_migration_recordings WHERE source_key IN ('file:' || OLD.raw_file,'file:' || NEW.raw_file));
+       END`,
+      `CREATE TRIGGER classification_laps_insert AFTER INSERT ON laps
+       WHEN NEW.session_id<=(SELECT cutoff_session_id FROM classification_migration_meta WHERE id=1)
+       BEGIN
+         UPDATE classification_migration_recordings
+         SET source_revision=source_revision+1,source_signature=NULL,
+             state=CASE WHEN state='running' THEN 'running' ELSE 'pending' END,
+             reason='source_changed'
+         WHERE source_key=(SELECT 'file:' || raw_file FROM sessions WHERE id=NEW.session_id);
+         UPDATE classification_migration_meta SET revision=revision+1 WHERE id=1
+           AND EXISTS(SELECT 1 FROM classification_migration_recordings
+             WHERE source_key=(SELECT 'file:' || raw_file FROM sessions WHERE id=NEW.session_id));
+       END`,
+      `CREATE TRIGGER classification_laps_delete AFTER DELETE ON laps
+       WHEN OLD.session_id<=(SELECT cutoff_session_id FROM classification_migration_meta WHERE id=1)
+       BEGIN
+         UPDATE classification_migration_recordings
+         SET source_revision=source_revision+1,source_signature=NULL,
+             state=CASE WHEN state='running' THEN 'running' ELSE 'pending' END,
+             reason='source_changed'
+         WHERE source_key=(SELECT 'file:' || raw_file FROM sessions WHERE id=OLD.session_id);
+         UPDATE classification_migration_meta SET revision=revision+1 WHERE id=1
+           AND EXISTS(SELECT 1 FROM classification_migration_recordings
+             WHERE source_key=(SELECT 'file:' || raw_file FROM sessions WHERE id=OLD.session_id));
+       END`,
+      `CREATE TRIGGER classification_laps_source_update AFTER UPDATE OF session_id,raw_byte_offset,raw_frame_count ON laps
+       WHEN (OLD.session_id IS NOT NEW.session_id OR OLD.raw_byte_offset IS NOT NEW.raw_byte_offset OR OLD.raw_frame_count IS NOT NEW.raw_frame_count)
+         AND (OLD.session_id<=(SELECT cutoff_session_id FROM classification_migration_meta WHERE id=1)
+           OR NEW.session_id<=(SELECT cutoff_session_id FROM classification_migration_meta WHERE id=1))
+       BEGIN
+         UPDATE classification_migration_recordings
+         SET source_revision=source_revision+1,source_signature=NULL,
+             state=CASE WHEN state='running' THEN 'running' ELSE 'pending' END,
+             reason='source_changed'
+         WHERE source_key IN (
+           SELECT 'file:' || raw_file FROM sessions WHERE id IN (OLD.session_id,NEW.session_id)
+         );
+         UPDATE classification_migration_meta SET revision=revision+1 WHERE id=1
+           AND EXISTS(SELECT 1 FROM classification_migration_recordings WHERE source_key IN (
+             SELECT 'file:' || raw_file FROM sessions WHERE id IN (OLD.session_id,NEW.session_id)
+           ));
+       END`,
+      `CREATE TRIGGER classification_dashboard_dirty_insert AFTER INSERT ON dashboard_summary_state
+       WHEN NEW.metadata_dirty=1 OR NEW.capture_dirty=1
+       BEGIN
+         UPDATE classification_migration_meta SET revision=revision+1 WHERE id=1;
+       END`,
+      `CREATE TRIGGER classification_dashboard_dirty_update AFTER UPDATE OF metadata_dirty,capture_dirty ON dashboard_summary_state
+       WHEN OLD.metadata_dirty IS NOT NEW.metadata_dirty OR OLD.capture_dirty IS NOT NEW.capture_dirty
+       BEGIN
+         UPDATE classification_migration_meta SET revision=revision+1 WHERE id=1;
+       END`,
+      `UPDATE dashboard_summary_state
+       SET processor_version=0,metadata_dirty=1
+       WHERE session_id IN (SELECT id FROM sessions WHERE ownership='mine')`,
+    ],
+  },
 ];
-const dashboardV63CanonicalTriggers = (() => {
-  const v63 = migrations.find((migration) => migration.version === 68);
+const dashboardCanonicalTriggers = (() => {
+  const readModel = migrations.find((migration) => migration.version === 68);
   const latestByName = new Map<string, string>();
-  for (const sql of v63?.sql ?? []) {
+  for (const sql of readModel?.sql ?? []) {
     const match = sql.match(/^\s*CREATE TRIGGER\s+([A-Za-z0-9_]+)/i);
     if (match?.[1].startsWith("dashboard_")) latestByName.set(match[1], sql);
   }
   return [...latestByName].flatMap(([name, sql]) => [`DROP TRIGGER IF EXISTS ${name}`, sql]);
 })();
 
-migrations.find((migration) => migration.version === 74)?.sql.push(...dashboardV63CanonicalTriggers);
+migrations.find((migration) => migration.version === 74)?.sql.push(...dashboardCanonicalTriggers);
 

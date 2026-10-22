@@ -134,7 +134,7 @@ Playwright projects are CI boundaries, not individual test files:
 
 | CI invocation | `PW_SERVER_SET` | Playwright project(s) | Test boundary |
 | --- | --- | --- | --- |
-| Compiled E2E | `all` | `fresh-install`, `tunes`, `seeded-e2e`, `mobile-device`, `tablet-device` | All functional, responsive, and Chromium device projects |
+| Compiled E2E | `all` | All configured projects, including `tracks-catalogue` and `cars-catalogue` | All functional, responsive, and Chromium device projects |
 
 `.github/workflows/playwright-dev.yml` and the release workflow each invoke
 the reusable workflow once. The invocation starts the `all` server set and
@@ -167,6 +167,29 @@ Seeded runtime data defaults under ignored `playwright/test-results/test-data-se
 launchers wipe it before each run. Never point seeded E2E at tracked fixtures or
 user data. Tests use committed recordings plus production parser/import paths
 and must restore any note/import/delete mutation in `finally`.
+
+### Feature-owned catalogue E2Es
+
+Tracks and cars specs live in `packages/{tracks,cars}-catalogue/test/e2e/`, with one corresponding Playwright project each. Central configuration retains their seeded setup dependency and includes both in full browser runs. Tracks retain a single project worker for their stateful import/delete flows.
+
+Run both real compiled-app suites from the repository root:
+
+```sh
+bunx turbo run test:e2e --filter=@raceiq/tracks-catalogue --filter=@raceiq/cars-catalogue
+```
+
+The shared application build runs once. Package scripts invoke the existing Playwright CLI directly; each owns distinct seeded data, HTTP/client/UDP ports and result output. Do not point another running app at a feature's data directory while its task resets that directory.
+
+Inspect affected impact and execution tasks without starting servers:
+
+```sh
+bunx turbo run e2e:impact test:e2e --affected --filter='@raceiq/*-catalogue' --dry=json
+```
+
+Turbo uses package defaults and inherited root inputs, not manually maintained feature file lists. A feature-only UI/server/spec edit selects its owner; genuine shared dependencies select their consumers. Invalid explicit SCM references fail; valid shallow history without a merge base falls back conservatively. See the [feature package pattern](../architecture/feature-packages.md) and [catalogue verification](../../advisor-plans/catalogues-contract.md#verification-outcomes).
+
+These commands do not replace the broad existing CI matrix. Local selection evidence does not establish that GitHub provisioned fewer jobs.
+
 
 CI reality: non-draft pull requests and release/manual workflows each invoke
 one compiled Playwright job with `raceiq-dist-windows`. Local workflow

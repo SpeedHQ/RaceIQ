@@ -1,11 +1,14 @@
-import { createClient, type Client } from "@libsql/client/sqlite3";
+import { createClient as createSqliteClient, type Client } from "@libsql/client/sqlite3";
 import { drizzle } from "drizzle-orm/libsql";
 import * as schema from "./schema";
 import { migrations } from "./migrations";
 import { pendingMigrations } from "./migration-plan";
 import { existsSync, mkdirSync, renameSync } from "node:fs";
 import { join } from "node:path";
+import { isMainThread } from "node:worker_threads";
 import { resolveDataDir } from "../runtime/config/data-dir";
+import { assertDashboardDatabasePresent } from "../runtime/config/dashboard-access-state";
+import { createDatabaseWorkerClient, installDatabaseWriteAuthority, withDatabaseWrite } from "./write-coordination";
 
 // Always resolve the data dir, even when the DB itself lives in memory: the
 // call doubles as the safety net that throws if a test run somehow reaches
@@ -38,6 +41,9 @@ export const DB_PATH = join(
   process.env.RACEIQ_TEST_MODE === "1" ? "test.db" : "app.db",
 );
 
+// Check before libSQL can create a replacement or migrate an older database.
+assertDashboardDatabasePresent(DB_PATH);
+
 function migrateLegacyDatabase(): void {
   const legacyPath = join(DB_DIR, "forza-telemetry.db");
   const currentPath = DB_PATH;
@@ -50,13 +56,27 @@ if (!IN_MEMORY && process.env.RACEIQ_TEST_MODE !== "1") {
   migrateLegacyDatabase();
 }
 
-const client: Client = createClient({ url: IN_MEMORY ? ":memory:" : `file:${DB_PATH}` });
+// Worker contexts must receive the backend authority through the lease bridge.
+// Only the backend/main entry point can install the local permit owner.
+if (isMainThread) installDatabaseWriteAuthority();
+
+const client: Client = isMainThread ? createSqliteClient({ url: IN_MEMORY ? ":memory:" : `file:${DB_PATH}` }) : createDatabaseWorkerClient();
 
 // Bindings are created synchronously so importing this module can never block
 // and `db` can never be observed in its temporal dead zone. All async setup
 // (PRAGMAs, migrations, backfills) moved into initDb() below.
 export const db = drizzle(client, { schema });
 export { client };
+
+// Application reads use a separate connection so they never enter another
+// operation's write transaction or wait for the application write permit.
+export const readClient: Client = IN_MEMORY ? client : createSqliteClient({ url: `file:${DB_PATH}` });
+export const readDb = drizzle(readClient, { schema });
+
+export function closeDb(): void {
+  if (readClient !== client) readClient.close();
+  client.close();
+}
 
 let initPromise: Promise<void> | null = null;
 
@@ -72,13 +92,17 @@ let initPromise: Promise<void> | null = null;
  * "Cannot access 'db' before initialization".
  */
 export function initDb(): Promise<void> {
-  if (!initPromise) initPromise = (async () => {
+  if (!initPromise) initPromise = withDatabaseWrite(async () => {
 
 // Enable WAL mode for better concurrent read/write performance
 await client.execute("PRAGMA journal_mode = WAL");
 await client.execute("PRAGMA foreign_keys = ON");
 // Wait up to 5s when another process holds the write lock (e.g. during hot-reload)
 await client.execute("PRAGMA busy_timeout = 5000");
+if (readClient !== client) {
+  await readClient.execute("PRAGMA foreign_keys = ON");
+  await readClient.execute("PRAGMA query_only = ON");
+}
 
 // ── Migration system ────────────────────────────────────────────────
 await client.execute(`
@@ -90,6 +114,68 @@ await client.execute(`
 `);
 
 async function runMigrations() {
+  // Earlier feature builds used IDs now owned by main. Relocate only known
+  // named entries, preserving timestamps and the schema changes already applied.
+  const recordingHistory = [
+    { name: "persist archival recording frequency caps", oldVersions: [76, 77], version: 81 },
+    { name: "reconcile all AC Evo recordings to discover Tourist layouts", oldVersions: [76], version: 78 },
+  ];
+  const tx = await client.transaction("write");
+  try {
+    for (const migration of recordingHistory) {
+      const oldVersions = migration.oldVersions.join(",");
+      const previous = await tx.execute({
+        sql: `SELECT version FROM schema_migrations WHERE version IN (${oldVersions}) AND name = ?`,
+        args: [migration.name],
+      });
+      if (!previous.rows.length) continue;
+      const existing = await tx.execute({ sql: "SELECT name FROM schema_migrations WHERE version = ?", args: [migration.version] });
+      if (existing.rows.length && existing.rows[0]!.name !== migration.name) {
+        throw new Error("Recording frequency migration conflicts with the recorded database history");
+      }
+      await tx.execute({
+        sql: `INSERT OR IGNORE INTO schema_migrations (version, name, applied_at)
+          SELECT ?, name, applied_at FROM schema_migrations
+          WHERE version IN (${oldVersions}) AND name = ? ORDER BY version DESC LIMIT 1`,
+        args: [migration.version, migration.name],
+      });
+      await tx.execute({
+        sql: `DELETE FROM schema_migrations WHERE version IN (${oldVersions}) AND name = ?`,
+        args: [migration.name],
+      });
+    }
+    await tx.commit();
+  } catch (error) {
+    await tx.rollback();
+    throw error;
+  }
+  // Unreleased feature builds used IDs now owned by main. Move only their
+  // named ledger entries; preserve their tables, credentials, and sessions.
+  const legacy = await client.execute(`SELECT version, name FROM schema_migrations
+    WHERE version IN (63, 64, 68) AND name = 'persist dashboard access and login sessions'
+       OR version = 63 AND name = 'persist live session bookmarks'`);
+  if (legacy.rows.length) {
+    const tx = await client.transaction("write");
+    try {
+      const authRows = legacy.rows.filter((row) => row.name === "persist dashboard access and login sessions");
+      if (authRows.length) {
+        const existing = await tx.execute("SELECT name FROM schema_migrations WHERE version = 75");
+        if (existing.rows.length && existing.rows[0]!.name !== "persist dashboard access and login sessions") {
+          throw new Error("Dashboard access migration conflicts with the recorded database history");
+        }
+        await tx.execute(`INSERT OR IGNORE INTO schema_migrations (version, name, applied_at)
+          SELECT 75, name, applied_at FROM schema_migrations
+          WHERE version IN (63, 64, 68) AND name = 'persist dashboard access and login sessions'
+          ORDER BY version DESC LIMIT 1`);
+        await tx.execute("DELETE FROM schema_migrations WHERE version IN (63, 64, 68) AND name = 'persist dashboard access and login sessions'");
+      }
+      await tx.execute("DELETE FROM schema_migrations WHERE version = 63 AND name = 'persist live session bookmarks'");
+      await tx.commit();
+    } catch (error) {
+      await tx.rollback();
+      throw error;
+    }
+  }
   const appliedRows = await client.execute("SELECT version, name FROM schema_migrations");
   const pending = pendingMigrations(migrations, appliedRows.rows.map((row) => ({
     version: Number(row.version), name: String(row.name),
@@ -163,6 +249,6 @@ const orphanCleared = Number(orphanSession.rowsAffected ?? 0) + Number(orphanTes
 if (orphanCleared > 0) {
   console.log(`[DB] Cleared ${orphanCleared} orphaned tuning stamp(s) on laps (parent session/test gone)`);
 }
-  })();
+  });
   return initPromise;
 }

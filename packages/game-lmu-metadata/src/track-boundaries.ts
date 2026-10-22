@@ -44,7 +44,7 @@ function parsePath(svg: string, id: string): Point[] | null {
   return points.length > 10 ? points : null;
 }
 
-/** Load LMU's shipped track-limit geometry from its catalog SVG asset. */
+/** Load LMU's shipped track limits in native game-world X/Z meters, without trajectory fitting. */
 export function getLMUTrackBoundaries(trackId: string): (TrackBoundary & { raceLine: Point[] | null }) | null {
   if (cache.has(trackId)) return cache.get(trackId)!;
   const track = tracksById.get(trackId);

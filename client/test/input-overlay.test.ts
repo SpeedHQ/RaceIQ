@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
-import { buildInputOverlayRuns } from "../src/components/wireframe/InputOverlay";
-import { buildTrackIndex } from "../src/lib/wireframe-utils";
-import type { SemanticAnalysisFrame } from "../src/components/analyse/track-map/types";
+import { buildInputOverlayRuns } from "@raceiq/scene-3d/wireframe/InputOverlay"
+import { buildTrackIndex } from "@raceiq/scene-3d/wireframe-utils"
+import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 
 function frame(x: number, z: number, throttle = 0, brake = 0): SemanticAnalysisFrame {
   return { values: { "motion.position-x": x, "motion.position-z": z, "inputs.accel": throttle, "inputs.brake": brake } } as SemanticAnalysisFrame;

@@ -1,10 +1,11 @@
-import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
+import { canHandleLMUSourceFrame, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
 import { ACC_PACKED_MAGIC, ACEVO_PACKED_MAGIC } from "../kunos/pack-triplet";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { encodeKunosSparseFrame } from "./kunos-sparse";
 import { encodeLmuSparseFrame } from "./lmu-sparse";
 import { encodeGenericSparseFrame, genericFrameIdentity } from "./generic-sparse";
 import { SessionRecorder } from "./recorder";
+import { encodeSparseCaptureFormatFrame } from "./framing";
 
 const CHECKPOINT_INTERVAL = 128;
 
@@ -14,6 +15,7 @@ export class SparseCaptureEncoder {
   private previous: Buffer | null = null;
   private checkpointOffset = 0;
   private framesSinceCheckpoint = 0;
+  private forceCheckpoint = false;
 
   constructor(gameId: GameId) {
     this.gameId = gameId;
@@ -22,25 +24,30 @@ export class SparseCaptureEncoder {
   reset(): void {
     this.previous = null;
     this.framesSinceCheckpoint = 0;
+    this.forceCheckpoint = false;
+  }
+  requestCheckpoint(): void {
+    this.forceCheckpoint = true;
   }
 
   encode(frame: Buffer, recordOffset: number): Buffer {
-    // Imported compact v1 frames and unrelated source formats stay legacy raw.
-    const isLmuV2 = this.gameId === "lmu" && frame.length === LMU_SOURCE_FRAME_V2_SIZE &&
-      frame.subarray(0, LMU_SOURCE_FRAME_MAGIC.length).equals(LMU_SOURCE_FRAME_MAGIC);
+    const forceCheckpoint = this.forceCheckpoint;
+    this.forceCheckpoint = false;
+    // Compact imported v1/v4 frames and unrelated source formats stay legacy raw.
+    const isLmu = this.gameId === "lmu" && frame.length >= LMU_SOURCE_FRAME_V2_SIZE && canHandleLMUSourceFrame(frame);
     const kunosMagic = this.gameId === "acc" ? ACC_PACKED_MAGIC : ACEVO_PACKED_MAGIC;
     const isKunos = (this.gameId === "acc" || this.gameId === "ac-evo") &&
       frame.length >= 20 && frame.readUInt32LE(0) === kunosMagic;
     const generic = this.gameId === "fm-2023" || this.gameId === "f1-2025" || this.gameId === "iracing"
       ? genericFrameIdentity(frame) : null;
     const validGeneric = generic !== null && generic.startsWith(`${this.gameId === "fm-2023" ? "fm" : this.gameId === "f1-2025" ? "f1" : "iracing"}:`);
-    if (!isLmuV2 && !isKunos && !validGeneric) {
+    if (!isLmu && !isKunos && !validGeneric) {
       this.reset();
       return frame;
     }
-    const adjacent = this.previous && this.previous.length === frame.length &&
+    const adjacent = this.previous && (isLmu ? this.previous.length >= LMU_SOURCE_FRAME_V2_SIZE && canHandleLMUSourceFrame(this.previous) : this.previous.length === frame.length) &&
       (!validGeneric || genericFrameIdentity(this.previous) === generic);
-    if (!adjacent || this.framesSinceCheckpoint >= CHECKPOINT_INTERVAL) {
+    if (forceCheckpoint || !adjacent || this.framesSinceCheckpoint >= CHECKPOINT_INTERVAL) {
       this.checkpointOffset = recordOffset;
       this.framesSinceCheckpoint = 0;
       this.previous = frame;
@@ -48,7 +55,7 @@ export class SparseCaptureEncoder {
       return frame;
     }
     const distance = recordOffset - this.checkpointOffset;
-    const delta = isLmuV2
+    const delta = isLmu
       ? encodeLmuSparseFrame(frame, this.previous!, distance)
       : isKunos ? encodeKunosSparseFrame(frame, this.previous!, distance)
         : encodeGenericSparseFrame(frame, this.previous!, distance);
@@ -73,15 +80,24 @@ export class SparseSessionRecorder extends SessionRecorder {
     super();
     this.encoder = new SparseCaptureEncoder(gameId);
   }
+  private sparseFormatMarkerWritten = false;
 
   override start(path: string): string {
     this.encoder.reset();
+    this.sparseFormatMarkerWritten = false;
     return super.start(path);
+  }
+  override requestFullCheckpoint(): void {
+    this.encoder.requestCheckpoint();
   }
 
   override writeRecord(frame: Buffer, frameTimeMs?: number): void {
     if (!this.recording) return;
     super.writeRecord(this.encoder.encode(frame, this.getCurrentByteOffset()), frameTimeMs);
+    if (!this.sparseFormatMarkerWritten) {
+      super.writeRawCaptureBytes(encodeSparseCaptureFormatFrame());
+      this.sparseFormatMarkerWritten = true;
+    }
   }
 
   override writeRawCaptureBytes(bytes: Buffer): void {

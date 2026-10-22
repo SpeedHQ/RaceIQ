@@ -20,10 +20,10 @@ export type LapIndexPacket = Pick<
   | "LapNumber"
   | "CurrentLap"
   | "LastLap"
-  | "BestLap"
-  | "DistanceTraveled"
   | "PositionX"
   | "PositionZ"
+  | "BestLap"
+  | "DistanceTraveled"
   | "Yaw"
   | "Fuel"
   | "TireWearFL"
@@ -38,4 +38,4 @@ export type LapIndexPacket = Pick<
   | "f1"
   | "acc"
   | "iracing"
->;
+> & Partial<Pick<TelemetryPacket, "PositionY" | "Speed">>;

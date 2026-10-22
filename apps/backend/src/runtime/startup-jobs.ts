@@ -1,4 +1,4 @@
-import { getCaptureMigrationCandidates } from "@raceiq/backend-core/db/session-queries";
+import { recoverSessionCaptureSplitJobs } from "@raceiq/backend-core/db/session-queries";
 import { startCommunityTunesSync } from "@raceiq/backend-core/tunes/community-sync";
 import { countStaleSessions } from "@raceiq/backend-core/db/session-queries";
 import { countStaleRaceResults } from "@raceiq/backend-core/db/session-result-queries";
@@ -11,6 +11,8 @@ import { getAllServerGames } from "@raceiq/backend-core/games/registry";
 import { wsManager } from "@raceiq/backend-core/runtime/websocket-manager";
 import { startSessionCompressor } from "@raceiq/backend-core/session-capture/compressor";
 import { startUpdateCheckSchedule } from "@raceiq/backend-core/runtime/update/check";
+import { initializeStartupSplitMigration } from "../session-capture/split-migration";
+import { startSessionCaptureSplitManager } from "../session-capture/split-manager";
 
 export const ALL_DETECTOR_IDS = [
   LAP_DETECTOR_ID,
@@ -25,11 +27,23 @@ export interface StartupJobDependencies {
   startUpdateCheckSchedule?: () => void;
   countStaleSessions?: typeof countStaleSessions;
   countStaleRaceResults?: typeof countStaleRaceResults;
+  recoverSessionCaptureSplitJobs?: typeof recoverSessionCaptureSplitJobs;
+  initializeStartupSplitMigration?: typeof initializeStartupSplitMigration;
+  startSessionCaptureSplitManager?: () => void;
 }
 
-export function startSyncAndStaleSessionJobs(dependencies: StartupJobDependencies = {}): void {
-  wsManager.setCaptureMigrationCountProvider(getCaptureMigrationCandidates);
+export async function startSyncAndStaleSessionJobs(dependencies: StartupJobDependencies = {}): Promise<void> {
   (dependencies.startCommunityTunesSync ?? startCommunityTunesSync)();
+  try {
+    // General Playwright fixtures retain raw captures; dedicated migration coverage omits this flag.
+    if (process.env.PW_SKIP_STARTUP_SPLIT_MIGRATION !== "1") {
+      await (dependencies.recoverSessionCaptureSplitJobs ?? recoverSessionCaptureSplitJobs)();
+      await (dependencies.initializeStartupSplitMigration ?? initializeStartupSplitMigration)();
+    }
+    (dependencies.startSessionCaptureSplitManager ?? startSessionCaptureSplitManager)();
+  } catch (error) {
+    console.error("[CaptureSplit] Startup recovery failed:", error);
+  }
 
   (dependencies.countStaleSessions ?? countStaleSessions)(
     ALL_DETECTOR_IDS,
@@ -45,14 +59,6 @@ export function startSyncAndStaleSessionJobs(dependencies: StartupJobDependencie
     }
   }).catch((err) => {
     console.error("[Server] Failed to check stale sessions:", err);
-  });
-  getCaptureMigrationCandidates().then(({ sessionCount, captureCount }) => {
-    if (captureCount > 0) {
-      console.log(`[Server] ${captureCount} historical capture(s) can be converted to sparse storage`);
-      wsManager.setCaptureMigrationNotification(sessionCount, captureCount);
-    }
-  }).catch((err) => {
-    console.error("[Server] Failed to check historical captures:", err);
   });
 
   (dependencies.countStaleRaceResults ?? countStaleRaceResults)(RACE_RESULT_PROCESSOR_ID).then((count) => {

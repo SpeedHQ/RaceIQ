@@ -12,7 +12,7 @@ on:
           - minor
           - major
       skip_tests:
-        description: "Skip release Playwright tests after local verification"
+        description: "Skip broad Playwright suite; release-to-main upgrade smoke still runs"
         required: false
         type: boolean
         default: false
@@ -31,10 +31,7 @@ jobs:
   compute-version:
     timeout-minutes: 30
     if: github.event_name == 'workflow_dispatch'
-    runs-on:
-      - mars-windows-x64-4vcpu-15g
-      - mars-macos-arm64-2vcpu-10g
-      - mars-ubuntu-2vcpu-10g
+    runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.bump.outputs.version }}
     steps:
@@ -56,11 +53,11 @@ jobs:
           REPO: ${{ github.repository }}
         run: bun scripts/ci/compute-release-version.ts
 
-  build:
+  build-windows:
     timeout-minutes: 30
     if: github.event_name == 'workflow_dispatch'
     needs: compute-version
-    runs-on: mars-windows-x64-4vcpu-15g
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
 
@@ -138,18 +135,106 @@ jobs:
           SKIP_TESTS: ${{ inputs.skip_tests }}
         run: bun scripts/ci/workflow-ops.ts release-summary
 
+  build-linux:
+    if: github.event_name == 'workflow_dispatch'
+    needs: compute-version
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+      - name: Set package version
+        run: bun scripts/ci/update-release-version.ts "${{ needs.compute-version.outputs.version }}"
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Install zsyncmake
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y zsync
+      - name: Build Linux server and client
+        run: bun run build
+      - name: Optimize packaged images
+        run: bun packages/tooling-build/src/build/optimize-client-images.ts
+      - name: Build AppImage
+        run: bun packages/tooling-build/src/build/build-appimage.ts "${{ needs.compute-version.outputs.version }}"
+      - name: Smoke AppImage runtime
+        run: bun scripts/ci/smoke-appimage.ts "$PWD/RaceIQ-v${{ needs.compute-version.outputs.version }}-linux-x86_64.AppImage" 2>&1 | tee "$RUNNER_TEMP/appimage-smoke.log"
+      - name: Extract AppImage
+        run: |
+          mkdir -p "$RUNNER_TEMP/appimage"
+          cd "$RUNNER_TEMP/appimage"
+          "$GITHUB_WORKSPACE/RaceIQ-v${{ needs.compute-version.outputs.version }}-linux-x86_64.AppImage" --appimage-extract
+      - name: Install Chromium
+        working-directory: playwright
+        run: bunx playwright install --with-deps chromium
+      - name: Run packaged fresh-install browser flow
+        working-directory: playwright
+        env:
+          E2E_SERVER_MODE: compiled
+          PW_SERVER_SET: fresh
+          PW_COMPILED_BINARY: ${{ runner.temp }}/appimage/squashfs-root/AppRun
+        run: bunx playwright test --project=fresh-install tests/fresh-install/fresh-install.spec.ts --grep 'user steps through wizard and lands on home page' --workers=1
+      - name: Upload AppImage smoke log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: raceiq-appimage-smoke-log
+          path: ${{ runner.temp }}/appimage-smoke.log
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Upload AppImage verification evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: raceiq-appimage-verification
+          path: playwright/test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Upload AppImage
+        uses: actions/upload-artifact@v7
+        with:
+          name: raceiq-v${{ needs.compute-version.outputs.version }}-appimage
+          path: |
+            RaceIQ-v${{ needs.compute-version.outputs.version }}-linux-x86_64.AppImage
+            RaceIQ-v${{ needs.compute-version.outputs.version }}-linux-x86_64.AppImage.zsync
+          if-no-files-found: error
+          retention-days: 14
+
+
+  upgrade-smoke:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+      - name: Verify release-to-main upgrade in Ubuntu Docker
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: bun run test:upgrade
+      - name: Upload source upgrade smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: source-upgrade-smoke
+          path: playwright/test-results/source-upgrade/
+          if-no-files-found: ignore
+          retention-days: 14
+
   playwright-test:
     if: github.event_name == 'workflow_dispatch' && !inputs.skip_tests
-    needs: build
+    needs: build-windows
     uses: ./.github/workflows/playwright-e2e.yml
   draft-release:
     timeout-minutes: 30
-    if: ${{ always() && github.event_name == 'workflow_dispatch' && needs.compute-version.result == 'success' && needs.build.result == 'success' && (needs.playwright-test.result == 'success' || needs.playwright-test.result == 'skipped') }}
-    needs: [compute-version, build, playwright-test]
-    runs-on:
-      - mars-windows-x64-4vcpu-15g
-      - mars-macos-arm64-2vcpu-10g
-      - mars-ubuntu-2vcpu-10g
+    if: ${{ always() && github.event_name == 'workflow_dispatch' && needs.compute-version.result == 'success' && needs.build-windows.result == 'success' && needs.build-linux.result == 'success' && needs.upgrade-smoke.result == 'success' && (needs.playwright-test.result == 'success' || needs.playwright-test.result == 'skipped') }}
+    needs: [compute-version, build-windows, build-linux, upgrade-smoke, playwright-test]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
@@ -172,7 +257,11 @@ jobs:
         with:
           tag_name: v${{ needs.compute-version.outputs.version }}
           name: RaceIQ v${{ needs.compute-version.outputs.version }}
-          files: artifacts/raceiq-v${{ needs.compute-version.outputs.version }}-setup/RaceIQ-Setup-v${{ needs.compute-version.outputs.version }}.exe
+          files: |
+            artifacts/raceiq-v${{ needs.compute-version.outputs.version }}-setup/RaceIQ-Setup-v${{ needs.compute-version.outputs.version }}.exe
+            artifacts/raceiq-v${{ needs.compute-version.outputs.version }}-appimage/RaceIQ-v${{ needs.compute-version.outputs.version }}-linux-x86_64.AppImage
+            artifacts/raceiq-v${{ needs.compute-version.outputs.version }}-appimage/RaceIQ-v${{ needs.compute-version.outputs.version }}-linux-x86_64.AppImage.zsync
+          fail_on_unmatched_files: true
           body_path: artifacts/raceiq-v${{ needs.compute-version.outputs.version }}-release-note/releasenote.md
           draft: true
 
@@ -180,10 +269,7 @@ jobs:
   finalize:
     timeout-minutes: 30
     if: github.event_name == 'release'
-    runs-on:
-      - mars-windows-x64-4vcpu-15g
-      - mars-macos-arm64-2vcpu-10g
-      - mars-ubuntu-2vcpu-10g
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:

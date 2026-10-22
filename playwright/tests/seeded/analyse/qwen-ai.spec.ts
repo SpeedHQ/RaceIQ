@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
-import { AnalystOutputSchema } from "@raceiq/backend-core/ai/schemas";
+import { AnalystOutputSchema } from "@raceiq/backend-core/ai/output-schema";
 
 import { getSeededLapTarget } from "../../support/seeded/laps";
 import { getAlternateSeededLap, openAnalyseLap } from "./fixtures";

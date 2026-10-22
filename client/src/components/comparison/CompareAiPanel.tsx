@@ -1,6 +1,8 @@
-import { Trash2 } from "lucide-react";
+import { ChevronDown, Trash2 } from "lucide-react";
 import { forwardRef, useCallback, useImperativeHandle, useState } from "react";
+import { createPortal } from "react-dom";
 import { m } from "../../paraglide/messages";
+import { authenticatedFetch } from "@/lib/rpc";
 import { uiStore } from "../../stores/ui";
 import { ChatPanel } from "../ai-chat/ChatPanel";
 import { Button } from "../ui/button";
@@ -12,7 +14,7 @@ import { type AnalysisSummary, type CompareAiPanelHandle, type CompareAiPanelPro
 
 export type { CompareAiPanelHandle } from "./compare-ai-types";
 
-export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelProps>(function CompareAiPanel({ lapA, lapB, panelOpen = false, segments: trackSegments, onJumpToFrac }, ref) {
+export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelProps>(function CompareAiPanel({ lapA, lapB, panelOpen = false, headerTarget, segments: trackSegments, onJumpToFrac }, ref) {
   const { aiConfigured } = useComparisonAiSettings();
   const openSettings = uiStore.actions.openSettings;
   const [hasA, setHasA] = useState(false);
@@ -21,7 +23,7 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
   const [chatRemountKey, setChatRemountKey] = useState(0);
   const [analysisCollapsed, setAnalysisCollapsed] = useState(false);
   const clearChat = useCallback(() => {
-    fetch(`/api/laps/${lapA.id}/compare/${lapB.id}/chat`, { method: "DELETE" })
+    authenticatedFetch(`/api/laps/${lapA.id}/compare/${lapB.id}/chat`, { method: "DELETE" })
       .catch(() => {})
       .finally(() => setChatRemountKey((k) => k + 1));
   }, [lapA.id, lapB.id]);
@@ -30,8 +32,19 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
   const bothReady = hasA && hasB;
   return (
     <div className="flex flex-col flex-1 min-h-0">
+      {headerTarget && createPortal(
+        <div className="flex items-center gap-1">
+          <Button type="button" variant="plain" size="icon-xs" onClick={() => setAnalysisCollapsed((collapsed) => !collapsed)} aria-label={`${analysisCollapsed ? "Expand" : "Collapse"} ${m.label_ai_analysis()}`} aria-expanded={!analysisCollapsed} title={m.label_ai_analysis()}>
+            <ChevronDown aria-hidden="true" className={analysisCollapsed ? "-rotate-90" : ""} />
+          </Button>
+          <Button type="button" variant="destructive-outline" size="icon-xs" onClick={clearChat} aria-label={m.compare_clear_chat()} title={m.compare_clear_chat()}>
+            <Trash2 aria-hidden="true" />
+          </Button>
+        </div>,
+        headerTarget,
+      )}
       <div className="flex max-h-[50%] min-h-0 shrink-0 flex-col gap-3 overflow-y-auto px-3 py-3">
-        <PanelSectionHeader title={m.label_ai_analysis()} collapsed={analysisCollapsed} onToggle={() => setAnalysisCollapsed((collapsed) => !collapsed)} />
+        {headerTarget === undefined && <PanelSectionHeader title={m.label_ai_analysis()} collapsed={analysisCollapsed} onToggle={() => setAnalysisCollapsed((collapsed) => !collapsed)} />}
         {!analysisCollapsed && (
           <>
             <LapSection
@@ -66,11 +79,11 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
       </div>
       {bothReady && (
         <div className="flex-1 min-h-0 flex flex-col border-t border-app-border">
-          <div className="flex justify-end px-2 pt-1">
+          {headerTarget === undefined && <div className="flex justify-end px-2 pt-1">
             <Button type="button" variant="destructive-outline" size="icon-xs" onClick={clearChat} aria-label={m.compare_clear_chat()} title={m.compare_clear_chat()}>
               <Trash2 aria-hidden="true" />
             </Button>
-          </div>
+          </div>}
           <ChatPanel
             key={chatRemountKey}
             api={`/api/laps/${lapA.id}/compare/${lapB.id}/chat`}

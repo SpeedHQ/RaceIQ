@@ -3,7 +3,6 @@ import { serverReleaseFeatures } from "@raceiq/backend-core/runtime/config/relea
 import { createRuntimeFeaturesRoutes } from "./runtime-features";
 
 import { updateRoutes } from "./update-routes";
-import { networkRoutes } from "./network-routes";
 import { telemetryHistoryRoutes } from "./telemetry-history-routes";
 import { diagnosticsRoutes } from "./diagnostics-routes";
 import { storageRoutes } from "./storage-routes";
@@ -11,7 +10,6 @@ import { storageRoutes } from "./storage-routes";
 export const miscRoutes = new Hono()
   .route("/", createRuntimeFeaturesRoutes(serverReleaseFeatures))
   .route("/", updateRoutes)
-  .route("/", networkRoutes)
   .route("/", telemetryHistoryRoutes)
   .route("/", diagnosticsRoutes)
   .route("/", storageRoutes);

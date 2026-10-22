@@ -41,6 +41,7 @@ const laps: LapMeta[] = LAP_TIMES.map((t, i) => ({
   lapNumber: i + 1,
   lapTime: t,
   isValid: i !== 3,
+  classification: null,
   createdAt: new Date().toISOString(),
   carId: "42",
   trackId: "7",

@@ -1,0 +1,55 @@
+{
+  "name": "@raceiq/scene-3d",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./wireframe-utils": "./src/wireframe-utils.ts",
+    "./wireframe-data": "./src/wireframe-data.ts",
+    "./suspension": "./src/suspension.ts",
+    "./wheel-label-refresh": "./src/wheel-label-refresh.ts",
+    "./colors": "./src/colors.ts",
+    "./vehicle-dynamics": "./src/vehicle-dynamics.ts",
+    "./tire-temperature-profile": "./src/tire-temperature-profile.ts",
+    "./semantic-frame": "./src/semantic-frame.ts",
+    "./model-types": "./src/model-types.ts",
+    "./rendering/css-values": "./src/rendering/css-values.ts",
+    "./rendering/css-canvas": "./src/rendering/css-canvas.ts",
+    "./wireframe/SceneRuntime": "./src/wireframe/SceneRuntime.ts",
+    "./wireframe/SceneOverlays": "./src/wireframe/SceneOverlays.ts",
+    "./wireframe/AnalysisWheels": "./src/wireframe/AnalysisWheels.ts",
+    "./wireframe/Drivetrain": "./src/wireframe/Drivetrain.ts",
+    "./wireframe/CarBody": "./src/wireframe/CarBody.tsx",
+    "./wireframe/CarScene": "./src/wireframe/CarScene.ts",
+    "./wireframe/classify-mesh": "./src/wireframe/classify-mesh.ts",
+    "./wireframe/Wheel": "./src/wireframe/Wheel.tsx",
+    "./wireframe/WheelLabels": "./src/wireframe/WheelLabels.tsx",
+    "./wireframe/LineResources": "./src/wireframe/LineResources.ts",
+    "./wireframe/TrackElements": "./src/wireframe/TrackElements.tsx",
+    "./wireframe/InputOverlay": "./src/wireframe/InputOverlay.tsx",
+    "./wireframe/TireTrails": "./src/wireframe/TireTrails.tsx",
+    "./wireframe/CurbMarkers": "./src/wireframe/CurbMarkers.tsx",
+    "./wireframe/DimensionLines": "./src/wireframe/DimensionLines.tsx",
+    "./wireframe/SuspensionSpring": "./src/wireframe/SuspensionSpring.tsx"
+  },
+  "scripts": {
+    "lint": "../../client/node_modules/.bin/oxlint .",
+    "typecheck": "bun check --project tsconfig.json",
+    "test": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/scene-3d",
+    "test:unit": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/scene-3d"
+  },
+  "dependencies": {
+    "@raceiq/analysis-core": "workspace:*",
+    "@raceiq/shared": "workspace:*",
+    "meshoptimizer": "1.2.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.185.4",
+    "@raceiq/game-acc-metadata": "workspace:*",
+    "@raceiq/game-ac-evo-metadata": "workspace:*",
+    "@raceiq/game-fm-2023-metadata": "workspace:*",
+    "@raceiq/game-f1-2025-metadata": "workspace:*",
+    "@raceiq/game-iracing-metadata": "workspace:*",
+    "@raceiq/game-lmu-metadata": "workspace:*"
+  },
+  "peerDependencies": { "three": "^0.185.1" }
+}

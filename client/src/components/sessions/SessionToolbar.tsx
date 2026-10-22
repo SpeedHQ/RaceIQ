@@ -1,4 +1,5 @@
 import type { LapMeta, SessionMeta } from "@raceiq/shared/racing/sessions/types";
+import { useId } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { AppInput } from "@/components/ui/AppInput";
@@ -24,6 +25,7 @@ export type SessionToolbarProps = {
   setPage: (page: number) => void;
   selectedSessions: Set<number>;
   selectedLaps: Set<number>;
+  clearSelection: () => void;
   exporting: boolean;
   runExport: RunExport;
   setImportOpen: (open: boolean) => void;
@@ -50,6 +52,7 @@ export function SessionToolbar({
   setPage,
   selectedSessions,
   selectedLaps,
+  clearSelection,
   exporting,
   runExport,
   setImportOpen,
@@ -62,7 +65,9 @@ export function SessionToolbar({
 }: SessionToolbarProps) {
   const gameRoute = useGameRoute();
   const navigate = useNavigate();
+  const captureReadinessExplanationId = useId();
   const selectedTelemetryLaps = allLaps.filter((lap) => selectedLaps.has(lap.id) && lap.telemetryAvailable !== false);
+  const exportBlockedByCapture = selectedTelemetryLaps.some((lap) => lap.source !== "motec" && lap.standaloneCaptureReady === false);
 
   return (
     <div className="flex items-center flex-wrap gap-3">
@@ -110,31 +115,44 @@ export function SessionToolbar({
         placeholder={m.sessions_search_placeholder()}
         className="h-8 min-w-[200px] flex-1 px-2.5 py-1 focus-visible:border-app-accent focus-visible:ring-app-accent @3xl/workspace:w-64 @3xl/workspace:flex-none"
       />
-      <div className="flex items-center flex-wrap gap-2">
+      <div className="fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 mx-auto flex w-fit max-w-[calc(100%-2rem)] flex-wrap items-center justify-center gap-2 rounded-xl border border-app-border bg-app-bg p-3 shadow-xl">
+        <span className="text-app-caption text-app-text-muted" role="status">{selectedLaps.size || selectedSessions.size} {m.trackdetail_selected()}</span>
+        <Button variant="app-outline" size="app-md" onClick={clearSelection} disabled={isDeleting || (selectedLaps.size === 0 && selectedSessions.size === 0)}>
+          {m.tunes_deselect_all()}
+        </Button>
         {selectedTelemetryLaps.length > 0 && (
-          <Button variant="app-primary" size="app-md" disabled={exporting} onClick={() => runExport({ lapIds: selectedTelemetryLaps.map((lap) => lap.id) })}>
-            {exporting ? m.common_loading() : m.label_export()}
-          </Button>
+          <div className="flex flex-col gap-1">
+            <Button
+              variant="app-primary"
+              size="app-md"
+              disabled={exporting || exportBlockedByCapture}
+              aria-describedby={exportBlockedByCapture ? captureReadinessExplanationId : undefined}
+              onClick={() => runExport({ lapIds: selectedTelemetryLaps.map((lap) => lap.id) })}
+            >
+              {exporting ? m.common_loading() : m.label_export()}
+            </Button>
+            {exportBlockedByCapture && <span id={captureReadinessExplanationId} className="max-w-64 text-app-label text-app-text/90" role="status">{m.sessions_export_capture_not_ready()}</span>}
+          </div>
         )}
-        {selectedLaps.size === 2 &&
-          (() => {
+        {(() => {
             const ids = [...selectedLaps];
             const lapA = allLaps.find((lap) => lap.id === ids[0]);
             const lapB = allLaps.find((lap) => lap.id === ids[1]);
-            if (!lapA || !lapB) return null;
-            const sessionA = sessions.find((session) => session.id === lapA.sessionId);
-            const sessionB = sessions.find((session) => session.id === lapB.sessionId);
-            if (!sessionA || !sessionB || sessionA.trackId !== sessionB.trackId || lapA.telemetryAvailable === false || lapB.telemetryAvailable === false) return null;
+            const sessionA = sessions.find((session) => session.id === lapA?.sessionId);
+            const sessionB = sessions.find((session) => session.id === lapB?.sessionId);
+            const canCompare = selectedLaps.size === 2 && lapA && lapB && sessionA && sessionB && sessionA.trackId === sessionB.trackId && lapA.telemetryAvailable !== false && lapB.telemetryAvailable !== false;
             return (
               <Button
                 variant="app-primary"
                 size="app-md"
-                onClick={() =>
+                disabled={!canCompare}
+                onClick={() => {
+                  if (!canCompare) return;
                   navigate({
                     to: `${gameRoute}/compare` as never,
                     search: { track: sessionA.trackId, carA: sessionA.carId, carB: sessionB.carId, lapA: lapA.id, lapB: lapB.id } as never,
-                  })
-                }
+                  });
+                }}
               >
                 {m.sessions_compare_two()}
               </Button>
@@ -153,7 +171,7 @@ export function SessionToolbar({
               {selectedLaps.size > 0 ? `${selectedLaps.size} ${m.sessions_count_laps()}` : ""}
             </Button>
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-center gap-2">
               <span className="text-app-caption font-medium text-status-danger">{m.trackdetail_confirm()}</span>
               <Button variant="app-danger" size="app-sm" onClick={deleteSelected} disabled={isDeleting}>
                 {isDeleting ? m.common_loading() : m.trackdetail_yes()}

@@ -3,9 +3,14 @@ import { describe, test, expect, afterAll } from "bun:test";
 import { parseDump } from "@raceiq/backend-core/test-support/recordings/parse-dump";
 import { LapDetectorAcc } from "@raceiq/game-acc/lap-detector"
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"
+import { accParser } from "@raceiq/game-acc/game-parser";
+import { PHYSICS, GRAPHICS, STATIC } from "@raceiq/capture-formats/acc/structs";
+import { ACC_PACKED_MAGIC, packTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
+import { normalizeTelemetryPacket } from "@raceiq/telemetry-core/telemetry/normalization";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
 
 afterAll(() => stopMaintenanceTasks());
 
@@ -18,6 +23,7 @@ function makeFakeDb() {
     lapTime: number;
     valid: boolean;
     invalidReason: string | null;
+    classification: LapClassification | null;
     rawByteOffset: number | null;
     rawFrameCount: number;
   }> = [];
@@ -34,13 +40,15 @@ function makeFakeDb() {
       _profileId: unknown,
       _tuneId: unknown,
       invalidReason: string | null,
-      _sectors: unknown
+      _sectors: unknown,
+      classification: LapClassification | null,
     ) => {
       inserted.push({
         lapNumber,
         lapTime,
         valid,
         invalidReason,
+        classification,
         rawByteOffset,
         rawFrameCount,
       });
@@ -76,6 +84,86 @@ function packet(fields: Partial<TelemetryPacket>): TelemetryPacket {
     ...fields,
   } as TelemetryPacket;
 }
+
+test.each([["full", true], ["indexed", true], ["full", false], ["indexed", false]] as const)("native ACC %s import isolates reset and next-lap yellow evidence (reset=%s)", async (mode, reset) => {
+  const db = { ...makeFakeDb(), setLapMetrics: async () => {} };
+  const detector = new LapDetectorAcc({ db, bypassPacketRateFilter: true });
+  const physics = Buffer.alloc(PHYSICS.SIZE);
+  const stat = Buffer.alloc(STATIC.SIZE);
+  stat.write("bmw_m4_gt3", STATIC.carModel.offset, "utf16le");
+  stat.write("monza", STATIC.track.offset, "utf16le");
+  for (let second = 0; second <= (reset ? 41 : 82); second++) {
+    const graphics = Buffer.alloc(GRAPHICS.SIZE);
+    graphics.writeInt32LE(2, GRAPHICS.status.offset);
+    graphics.writeInt32LE(1 + Math.floor(second / 41), GRAPHICS.completedLaps.offset);
+    graphics.writeInt32LE((second % 41) * 1000, GRAPHICS.iCurrentTime.offset);
+    graphics.writeInt32LE(second >= 41 ? 40_000 : 0, GRAPHICS.iLastTime.offset);
+    graphics.writeInt32LE(!reset && second === 41 ? 2 : 0, GRAPHICS.flag.offset);
+    graphics.writeFloatLE(second * 100, GRAPHICS.distanceTraveled.offset);
+    graphics.writeFloatLE(reset && second >= 39 ? 500 : 100, GRAPHICS.carCoordinatesBase.offset);
+    graphics.writeFloatLE(5, GRAPHICS.carCoordinatesBase.offset + 4);
+    graphics.writeFloatLE(200, GRAPHICS.carCoordinatesBase.offset + 8);
+    graphics.writeInt32LE(reset && second >= 39 ? 1 : 0, GRAPHICS.isInPitLane.offset);
+    graphics.writeInt32LE(1, GRAPHICS.isValidLap.offset);
+    const frame = packTriplet(ACC_PACKED_MAGIC, 0, 0, physics, graphics, stat);
+    const parsed = mode === "full"
+      ? accParser.tryParse(frame, null, second * 1000)
+      : accParser.tryParseLapIndex(frame, null, second * 1000);
+    if (!parsed) throw new Error("Invalid ACC fixture");
+    const telemetry = parsed as TelemetryPacket;
+    normalizeTelemetryPacket(telemetry, true);
+    await detector.feed(telemetry, second * 100);
+  }
+  expect(db.inserted).toHaveLength(reset ? 1 : 2);
+  expect(db.inserted[0]).toMatchObject({ valid: true, classification: reset ? "reset" : "pace", invalidReason: null });
+  if (!reset) expect(db.inserted[1]).toMatchObject({ valid: true, classification: "caution", invalidReason: null });
+});
+
+describe("ACC live ownership and persisted rows", () => {
+  test("abandons a short initial partial, binds completed lap, persists final incomplete", async () => {
+    const db = makeFakeDb();
+    const detector = new LapDetectorAcc({ db });
+    const transitions: Array<{ kind: string; window: { startOffset: number | null; frameCount: number } | null }> = [];
+    detector.subscribeOwnership((transition) => transitions.push({ kind: transition.kind, window: transition.window }));
+    let ordinal = 0;
+    const feed = async (fields: Partial<TelemetryPacket>) => {
+      ordinal++;
+      await detector.feed(packet(fields), ordinal * 100, ordinal);
+      detector.drainOwnershipTransitions();
+    };
+
+    for (let second = 40; second <= 43; second++) {
+      await feed({ LapNumber: 1, CurrentLap: second, DistanceTraveled: second, TimestampMS: second * 1_000 });
+    }
+    await feed({ LapNumber: 2, CurrentLap: 0.2, LastLap: 0, DistanceTraveled: 44, TimestampMS: 44_000 });
+    expect(db.inserted).toHaveLength(0);
+    expect(transitions.map(({ kind }) => kind)).toContain("window-abandoned");
+
+    for (let second = 1; second <= 40; second++) {
+      await feed({ LapNumber: 2, CurrentLap: second, DistanceTraveled: 44 + second * 100, TimestampMS: (44 + second) * 1_000 });
+    }
+    await feed({ LapNumber: 3, CurrentLap: 0.2, LastLap: 40, DistanceTraveled: 4_144, TimestampMS: 85_000 });
+    expect(db.inserted).toHaveLength(1);
+    expect(transitions.map(({ kind }) => kind)).toContain("window-finalized");
+
+    for (let second = 1; second <= 10; second++) {
+      await feed({ LapNumber: 3, CurrentLap: second, DistanceTraveled: 4_144 + second * 20, TimestampMS: (85 + second) * 1_000 });
+    }
+    await detector.finalizeCurrentSession();
+    detector.drainOwnershipTransitions();
+    expect(db.inserted).toHaveLength(2);
+    expect(db.inserted[1]).toMatchObject({ valid: false, invalidReason: "incomplete" });
+    expect(transitions.map(({ kind }) => kind)).toContain("final-incomplete");
+    const persistedWindows = transitions.filter(({ kind }) => kind === "window-finalized" || kind === "final-incomplete");
+    expect(persistedWindows).toHaveLength(db.inserted.length);
+    for (const [index, { window }] of persistedWindows.entries()) {
+      expect(window).toMatchObject({
+        startOffset: db.inserted[index]!.rawByteOffset,
+        frameCount: db.inserted[index]!.rawFrameCount,
+      });
+    }
+  });
+});
 
 describe("LapDetectorAc — reset detection", () => {
   test("emits a lap when CurrentLap resets from >30 to <2", async () => {
@@ -162,7 +250,9 @@ describe("LapDetectorAc — reset detection", () => {
     expect(db.inserted[0]).toMatchObject({
       lapNumber: 1,
       lapTime: 90,
-      invalidReason: "outlap",
+      valid: true,
+      invalidReason: null,
+      classification: "out_lap",
       rawByteOffset: timedLapOffset,
       rawFrameCount: 92,
     });
@@ -223,7 +313,7 @@ describe("LapDetectorAc — reset detection", () => {
     expect(completeCount).toBe(0);
   });
 
-  test("saves partial initial lap as invalid outlap when recording starts in pit mid-lap", async () => {
+  test("classifies the initial pit-exit window without category-only invalidation", async () => {
     const db = makeFakeDb();
     const d = new LapDetectorAcc({ db });
 
@@ -279,17 +369,47 @@ describe("LapDetectorAc — reset detection", () => {
       })
     );
 
-    // Two laps: the partial initial lap (invalid outlap, first packet was in pit) and the full clean lap (valid)
+    // Pit classification is independent of recording quality; neither lap has a quality failure.
     expect(db.inserted.length).toBe(2);
     expect(db.inserted[0].lapNumber).toBe(1);
-    expect(db.inserted[0].valid).toBe(false);
-    expect(db.inserted[0].invalidReason).toBe("outlap");
+    expect(db.inserted[0]).toMatchObject({ valid: true, invalidReason: null, classification: "out_lap" });
     expect(db.inserted[1].lapNumber).toBe(2);
     expect(db.inserted[1].valid).toBe(true);
     expect(db.inserted[1].lapTime).toBeCloseTo(85, 0);
   });
 
-  test("session restart (distance reset) discards in-progress lap and keeps new packet", async () => {
+  test("teleport to pits with continuing timer preserves lap ownership and persists reset classification", async () => {
+    const db = makeFakeDb();
+    const d = new LapDetectorAcc({ db });
+    for (let t = 0; t <= 10; t++) {
+      await d.feed(packet({
+        LapNumber: 4, CurrentLap: t, DistanceTraveled: 11_758 + t * 25,
+        TimestampMS: t * 1_000, PositionX: 100, PositionY: 5, PositionZ: 200,
+        acc: { pitStatus: "out" } as never,
+      }), 100 + t * 10, t);
+    }
+    d.drainOwnershipTransitions();
+    const reset = packet({
+      LapNumber: 4, CurrentLap: 11.112, DistanceTraveled: 0, TimestampMS: 10_190,
+      PositionX: 343.5, PositionY: 5, PositionZ: 200, acc: { pitStatus: "pit_lane" } as never,
+    });
+    expect(d.shouldCheckpointBeforeWrite(reset)).toBe(false);
+    await d.feed(reset, 210, 11);
+    expect(d.drainOwnershipTransitions().some(({ kind }) => kind === "window-abandoned")).toBe(false);
+    for (let t = 12; t <= 15; t++) {
+      await d.feed(packet({
+        LapNumber: 4, CurrentLap: t, DistanceTraveled: 0.1, TimestampMS: t * 1_000,
+        PositionX: 343.5, PositionY: 5, PositionZ: 200, acc: { pitStatus: "pit_lane" } as never,
+      }), 100 + t * 10, t);
+    }
+    await d.flushIncompleteLap();
+    expect(db.inserted).toHaveLength(1);
+    expect(db.inserted[0]).toMatchObject({
+      lapNumber: 4, rawByteOffset: 100, rawFrameCount: 16, lapTime: 15, classification: "reset",
+    });
+  });
+
+  test("timer restart discards in-progress prefix and keeps new packet", async () => {
     const db = makeFakeDb();
     const saved: Array<{ lapNumber: number; lapTime: number }> = [];
     const d = new LapDetectorAcc({
@@ -342,7 +462,7 @@ describe("LapDetectorAc — reset detection", () => {
     expect(saved[0].isValid).toBe(false);
   });
 
-  test("marks ACC lap invalid with reason 'outlap' when it starts in the pit lane", async () => {
+  test("classifies a quality-valid lap as out_lap when it starts in the pit lane", async () => {
     const db = makeFakeDb();
     const d = new LapDetectorAcc({ db });
 
@@ -389,11 +509,10 @@ describe("LapDetectorAc — reset detection", () => {
     );
 
     expect(db.inserted.length).toBe(1);
-    expect(db.inserted[0].valid).toBe(false);
-    expect(db.inserted[0].invalidReason).toBe("outlap");
+    expect(db.inserted[0]).toMatchObject({ valid: true, invalidReason: null, classification: "out_lap" });
   });
 
-  test("marks ACC lap invalid with reason 'inlap' when it ends in the pit lane", async () => {
+  test("classifies a quality-valid lap as in_lap when it ends in the pit lane", async () => {
     const db = makeFakeDb();
     const d = new LapDetectorAcc({ db });
 
@@ -430,8 +549,7 @@ describe("LapDetectorAc — reset detection", () => {
     );
 
     expect(db.inserted.length).toBe(1);
-    expect(db.inserted[0].valid).toBe(false);
-    expect(db.inserted[0].invalidReason).toBe("inlap");
+    expect(db.inserted[0]).toMatchObject({ valid: true, invalidReason: null, classification: "in_lap" });
   });
 });
 
@@ -460,9 +578,9 @@ describe("ACC recorded validity precedence", () => {
     return db.inserted[0];
   }
 
-  test("true overrides pit and quality rules on completed laps", async () => {
-    expect(await completeLap(true, { pit: true })).toMatchObject({ valid: true, invalidReason: null });
-    expect(await completeLap(true, { short: true })).toMatchObject({ valid: true, invalidReason: null });
+  test("native validity retains pit classification without overriding recording-quality failures", async () => {
+    expect(await completeLap(true, { pit: true })).toMatchObject({ valid: true, invalidReason: null, classification: "out_lap" });
+    expect(await completeLap(true, { short: true })).toMatchObject({ valid: false, invalidReason: "telemetry distance too short" });
   });
 
   test("false invalidates a clean lap even when reset signal turns true", async () => {
@@ -471,9 +589,9 @@ describe("ACC recorded validity precedence", () => {
     });
   });
 
-  test("unknown last-lap signal retains custom rules", async () => {
+  test("unknown last-lap validity retains positive pit classification", async () => {
     expect(await completeLap(null, { pit: true, resetValidity: true })).toMatchObject({
-      valid: false, invalidReason: "outlap",
+      valid: true, invalidReason: null, classification: "out_lap",
     });
   });
 

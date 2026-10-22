@@ -4,14 +4,16 @@
   "type": "module",
   "exports": {},
   "scripts": {
-    "typecheck": "bunx tsc --project tsconfig.json --noEmit",
-    "lint": "bun run --cwd ../client lint:root",
+    "typecheck": "bun check --project tsconfig.json",
+    "lint": "../client/node_modules/.bin/oxlint .",
     "test": "bun test/run-suite.ts all --package @raceiq/tooling",
     "test:tooling": "bun test/run-suite.ts tooling --package @raceiq/tooling"
   },
   "dependencies": {
     "@raceiq/backend-core": "workspace:*",
+    "@babel/parser": "^8.0.5",
     "@raceiq/tooling-release": "workspace:*",
-    "@raceiq/tooling-build": "workspace:*"
+    "@raceiq/tooling-build": "workspace:*",
+    "libsql": "^0.5.29"
   }
 }

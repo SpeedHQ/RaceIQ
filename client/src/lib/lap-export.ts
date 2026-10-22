@@ -5,7 +5,7 @@
  */
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { formatLapTime } from "./format";
-import { client } from "./rpc";
+import { authenticatedFetch, client } from "./rpc";
 
 /** Build a CSV string from lap telemetry and hand it to the browser as a download. */
 export function buildExportCsv(
@@ -81,7 +81,7 @@ export async function importLapsZip(file: File, ownership: "mine" | "others" = "
   body.append("file", file);
   body.append("ownership", ownership);
   if (identityOverrides) body.append("identityOverrides", JSON.stringify(identityOverrides));
-  const res = await fetch("/api/laps/import-zip", { method: "POST", body });
+  const res = await authenticatedFetch("/api/laps/import-zip", { method: "POST", body });
   const data = (await res.json().catch(() => null)) as { imported?: number; skipped?: number; error?: string } | null;
   if (!res.ok) throw new Error(data?.error ?? `Import failed (${res.status})`);
   return { imported: data?.imported ?? 0, skipped: data?.skipped ?? 0 };

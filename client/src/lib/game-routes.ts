@@ -18,13 +18,31 @@ export type AnalyseSearch = {
 };
 export type CompareSearch = {
   track?: string;
+  layout?: string;
   carA?: string;
   carB?: string;
   lapA?: number;
   lapB?: number;
   cursor?: number;
   ai?: number;
+  view?: "compare" | "spectate";
 };
+export function compareTrackFromSearch(track: unknown, layoutValue: unknown): string | undefined {
+  const layout = parseOptionalIdentityKey(layoutValue);
+  if (layout == null) return parseOptionalIdentityKey(track);
+  const name = typeof track === "string" ? track : undefined;
+  return name == null ? undefined : JSON.stringify([name, layout]);
+}
+export function compareTrackSearch(trackId: string | null): { track?: string; layout?: string } {
+  if (trackId == null) return { track: undefined, layout: undefined };
+  try {
+    const parts: unknown = JSON.parse(trackId);
+    if (Array.isArray(parts) && parts.length === 2 && parts.every((part) => typeof part === "string" && part.length > 0)) {
+      return { track: parts[0], layout: parts[1] };
+    }
+  } catch {}
+  return { track: trackId, layout: undefined };
+}
 
 export type SessionsTab = "mine" | "others";
 export type SessionsSearch = { tab?: SessionsTab };
@@ -140,13 +158,14 @@ export function validateAnalyseSearch(search: Record<string, unknown>): AnalyseS
 
 export function validateCompareSearch(search: Record<string, unknown>): CompareSearch {
   return {
-    track: parseOptionalIdentityKey(search.track),
+    ...compareTrackSearch(compareTrackFromSearch(search.track, search.layout ?? search.trackLayout) ?? null),
     carA: parseOptionalIdentityKey(search.carA),
     carB: parseOptionalIdentityKey(search.carB),
     lapA: parseOptionalNumber(search.lapA),
     lapB: parseOptionalNumber(search.lapB),
     cursor: parseOptionalNumber(search.cursor),
     ai: parseOptionalNumber(search.ai),
+    view: search.view === "spectate" ? "spectate" : search.view === "compare" ? "compare" : undefined,
   };
 }
 

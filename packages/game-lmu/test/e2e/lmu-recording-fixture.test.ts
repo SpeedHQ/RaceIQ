@@ -67,6 +67,7 @@ describe("committed LMU seed fixture", () => {
         rawFile: null,
         rawByteOffset: null,
         rawFrameCount: null,
+        captureFormatVersion: null,
       },
       validLap.packets,
       ANALYSE_SEMANTIC_IDS,

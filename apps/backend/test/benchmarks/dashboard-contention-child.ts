@@ -1,6 +1,6 @@
 import { createHash, type Hash } from "node:crypto";
 import { resolve } from "node:path";
-import { Database } from "bun:sqlite";
+import Database from "libsql";
 import { readdir, readFile } from "node:fs/promises";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { serverReleaseFeatures } from "@raceiq/backend-core/runtime/config/release-features";
@@ -166,14 +166,14 @@ registerDriverProfileLapNotifier(notifyDriverProfileLap);
 const fixtureResult = mode === "finalization"
   ? await createDashboardFinalizationFixture()
   : await createDashboardFixture(fixtureOptions);
-using db = new Database(sqlitePath, { readonly: true });
-beforeSessionId = Number(db.query<{ id: number }, []>("SELECT COALESCE(MAX(id),0) AS id FROM sessions").get()?.id ?? 0);
+const db = new Database(sqlitePath, { readonly: true });
+beforeSessionId = Number((db.prepare("SELECT COALESCE(MAX(id),0) AS id FROM sessions").get() as { id: number } | undefined)?.id ?? 0);
 let metadataOnlyPublished = 0, lastMetadataSessionId = 0;
 if (mode !== "finalization") {
   for (;;) {
-    const pending = db.query<{ session_id: number }, [number]>(
+    const pending = db.prepare(
       "SELECT session_id FROM dashboard_summary_state WHERE session_id>? AND metadata_dirty=1 ORDER BY session_id LIMIT 100",
-    ).all(lastMetadataSessionId);
+    ).all(lastMetadataSessionId) as Array<{ session_id: number }>;
     if (!pending.length) break;
     for (const row of pending) {
       lastMetadataSessionId = row.session_id;
@@ -184,16 +184,16 @@ if (mode !== "finalization") {
       metadataOnlyPublished++;
     }
   }
-  const ownedSeedSessions = Number(db.query<{ count: number }, [number]>(
+  const ownedSeedSessions = Number((db.prepare(
     "SELECT COUNT(*) AS count FROM sessions WHERE id<=? AND ownership='mine'",
-  ).get(beforeSessionId)?.count ?? 0);
+  ).get(beforeSessionId) as { count: number } | undefined)?.count ?? 0);
   if (metadataOnlyPublished !== ownedSeedSessions) {
     throw new Error(`Metadata-only seed publication covered ${metadataOnlyPublished}/${ownedSeedSessions} owned sessions`);
   }
 }
-const seedCaptureDirtyRowsBeforeWorkload = Number(db.query<{ count: number }, [number]>(
+const seedCaptureDirtyRowsBeforeWorkload = Number((db.prepare(
   "SELECT COUNT(*) AS count FROM dashboard_summary_state WHERE session_id<=? AND capture_dirty=1",
-).get(beforeSessionId)?.count ?? 0);
+).get(beforeSessionId) as { count: number } | undefined)?.count ?? 0);
 setDashboardPublicationNotifier(() => {
   publicationCommits++;
   maxCaptureStreamsAtPublication = Math.max(maxCaptureStreamsAtPublication, liveCaptureStreams.active);
@@ -298,9 +298,9 @@ while (!replayFinished) {
 const sentDatagrams = await replayPromise;
 const actualReplayDurationMs = firstSentAtNs !== null && lastSentAtNs !== null ? Number(lastSentAtNs - firstSentAtNs) / 1_000_000 : 0;
 const replayTiming = { actualDurationMs: actualReplayDurationMs, actualPacketHz: sentDatagrams > 1 && actualReplayDurationMs > 0 ? (sentDatagrams - 1) / (actualReplayDurationMs / 1_000) : null };
-const seedCaptureDirtyRowsAtReplayEnd = Number(db.query<{ count: number }, [number]>(
+const seedCaptureDirtyRowsAtReplayEnd = Number((db.prepare(
   "SELECT COUNT(*) AS count FROM dashboard_summary_state WHERE session_id<=? AND capture_dirty=1",
-).get(beforeSessionId)?.count ?? 0);
+).get(beforeSessionId) as { count: number } | undefined)?.count ?? 0);
 await Bun.sleep(500);
 await udpListener.stop();
 const recordingDir = resolve(dataDir, "test", "artifacts", "sessions");
@@ -317,9 +317,9 @@ for (const packet of recordedPackets) {
 const recordedWire = { count: recordedCount, bytes: recordedBytes, digest: recordedHash.digest("hex") };
 const finalizationStartedAt = performance.now();
 await lapDetector.finalizeCurrentSession();
-const seedCaptureDirtyRowsAfterRecording = Number(db.query<{ count: number }, [number]>(
+const seedCaptureDirtyRowsAfterRecording = Number((db.prepare(
   "SELECT COUNT(*) AS count FROM dashboard_summary_state WHERE session_id<=? AND capture_dirty=1",
-).get(beforeSessionId)?.count ?? 0);
+).get(beforeSessionId) as { count: number } | undefined)?.count ?? 0);
 if (liveLapWriteOverflow > 0) throw new Error(`Live-lap visibility tracker overflowed by ${liveLapWriteOverflow} writes`);
 while (liveLapVisibleCount < liveLapPersistedAtMs.length) {
   const firstPendingAt = liveLapPersistedAtMs[liveLapVisibleCount]!;
@@ -327,9 +327,9 @@ while (liveLapVisibleCount < liveLapPersistedAtMs.length) {
   observeLiveLapVisibility(await dashboardRequest(liveVisibilityRequest()));
   if (liveLapVisibleCount < liveLapPersistedAtMs.length) await Bun.sleep(100);
 }
-const liveSessionId = db.query<{ id: number }, [number, string]>(
+const liveSessionId = (db.prepare(
   "SELECT id FROM sessions WHERE id>? AND game_id=? AND ownership='mine' ORDER BY id DESC LIMIT 1",
-).get(beforeSessionId, gameId)?.id ?? null;
+).get(beforeSessionId, gameId) as { id: number } | undefined)?.id ?? null;
 let finalFields: { status: string; sessionId: number | null; elapsedMs?: number; reason?: string; revision?: number; durationStatus?: string; durationElapsedSeconds?: number | null; weatherStatus?: string; sectorStatus?: string; recapFieldsMatched?: boolean };
 if (mode === "baseline") {
   finalFields = { status: "processor-disabled-baseline", sessionId: liveSessionId, reason: "Baseline intentionally runs without the background dashboard processor." };
@@ -339,29 +339,30 @@ if (mode === "baseline") {
 } else {
   if (liveSessionId === null) throw new Error("Recording produced no live session for final-field verification");
   const deadline = finalizationStartedAt + 5_000;
-  const evidenceQuery = db.query<{
+  type EvidenceRow = {
     source_revision: number; published_revision: number; metadata_dirty: number; capture_dirty: number; deleted: number;
     processor_version: number; summary_revision: number; summary_processor_version: number; evidence_version: number;
     capture_revision: string | null; valid_seconds: number | null; valid_laps: number; distance_meters: number | null;
     duration_status: string; elapsed_seconds: number | null; weather_status: string; weather_conditions_json: string | null;
     sector_status: string; source_sector_starts_json: string | null;
-  }, [number]>(`SELECT st.source_revision,st.published_revision,st.metadata_dirty,st.capture_dirty,st.deleted,st.processor_version,
+  };
+  const evidenceQuery = db.prepare(`SELECT st.source_revision,st.published_revision,st.metadata_dirty,st.capture_dirty,st.deleted,st.processor_version,
       d.source_revision AS summary_revision,d.processor_version AS summary_processor_version,d.evidence_version,d.capture_revision,
       d.valid_seconds,d.valid_laps,d.distance_meters,d.duration_status,d.elapsed_seconds,d.weather_status,d.weather_conditions_json,
       d.sector_status,d.source_sector_starts_json
     FROM dashboard_summary_state st JOIN dashboard_session_summaries d ON d.session_id=st.session_id WHERE st.session_id=?`);
   const near = (actual: number | null | undefined, expected: number | null): boolean =>
     actual == null || expected == null ? actual == null && expected == null : Math.abs(actual - expected) <= 1e-6;
-  let visibleEvidence: ReturnType<typeof evidenceQuery.get> | null = null;
+  let visibleEvidence: EvidenceRow | null = null;
   let visibleRevision: number | null = null;
   while (performance.now() < deadline) {
-    const before = evidenceQuery.get(liveSessionId);
+    const before = evidenceQuery.get(liveSessionId) as EvidenceRow | undefined;
     if (before && before.metadata_dirty === 0 && before.capture_dirty === 0 && before.deleted === 0
       && before.source_revision === before.published_revision && before.summary_revision === before.source_revision
       && before.processor_version === DASHBOARD_PROCESSOR_VERSION && before.summary_processor_version === DASHBOARD_PROCESSOR_VERSION
       && before.evidence_version === DASHBOARD_PROCESSOR_VERSION && before.capture_revision) {
       const recap = await dashboardRecap(liveSessionId);
-      const after = evidenceQuery.get(liveSessionId);
+      const after = evidenceQuery.get(liveSessionId) as EvidenceRow | undefined;
       if (recap && after && after.source_revision === before.source_revision && after.published_revision === before.published_revision
         && after.metadata_dirty === 0 && after.capture_dirty === 0 && after.summary_revision === after.source_revision) {
         const expectedWeather = before.weather_status === "available" && before.weather_conditions_json
@@ -405,16 +406,16 @@ let dirtyRows = 0;
 if (processor) {
   const deadline = Date.now() + 30 * 60_000;
   while (Date.now() < deadline) {
-    dirtyRows = Number(db.query<{ count: number }, []>(`SELECT COUNT(*) AS count FROM dashboard_summary_state
-      WHERE metadata_dirty=1 OR capture_dirty=1 OR published_revision!=source_revision`).get()?.count ?? 0);
+    dirtyRows = Number((db.prepare(`SELECT COUNT(*) AS count FROM dashboard_summary_state
+      WHERE metadata_dirty=1 OR capture_dirty=1 OR published_revision!=source_revision`).get() as { count: number } | undefined)?.count ?? 0);
     if (dirtyRows === 0) break;
     await Bun.sleep(250);
   }
   await processor.stop();
 }
-const seedCaptureDirtyRowsAfterDrain = Number(db.query<{ count: number }, [number]>(
+const seedCaptureDirtyRowsAfterDrain = Number((db.prepare(
   "SELECT COUNT(*) AS count FROM dashboard_summary_state WHERE session_id<=? AND capture_dirty=1",
-).get(beforeSessionId)?.count ?? 0);
+).get(beforeSessionId) as { count: number } | undefined)?.count ?? 0);
 clearInterval(workloadTimer);
 clearInterval(workloadSampleTimer);
 sampleWorkloadRss();
@@ -437,20 +438,21 @@ const rssTrajectory = {
   sampleCount: workloadRssSamples.length, samplingIntervalMs: 1_000, overflow: rssSamplingOverflow,
   phases: rssPhases, midToTailGrowthBytes: Math.max(0, rssTailPeakBytes - rssMidpointBytes),
 };
-const liveRows = db.query<{ id: number; game_id: string; raw_file: string | null; source: string | null }, [number, string]>(
+const liveRows = db.prepare(
   "SELECT id,game_id,raw_file,source FROM sessions WHERE id>? AND game_id=? AND ownership='mine' ORDER BY id",
-).all(beforeSessionId, gameId);
+).all(beforeSessionId, gameId) as Array<{ id: number; game_id: string; raw_file: string | null; source: string | null }>;
 const liveSessionIds = liveRows.map((row) => row.id);
 
-const lapCount = Number(db.query<{ count: number }, [number, string]>("SELECT COUNT(*) AS count FROM laps WHERE session_id>? AND session_id IN (SELECT id FROM sessions WHERE game_id=? AND ownership='mine')").get(beforeSessionId, gameId)?.count ?? 0);
-const duplicateLaps = Number(db.query<{ count: number }, [number, string]>(`SELECT COUNT(*) AS count FROM (
+const lapCount = Number((db.prepare("SELECT COUNT(*) AS count FROM laps WHERE session_id>? AND session_id IN (SELECT id FROM sessions WHERE game_id=? AND ownership='mine')").get(beforeSessionId, gameId) as { count: number } | undefined)?.count ?? 0);
+const duplicateLaps = Number((db.prepare(`SELECT COUNT(*) AS count FROM (
   SELECT l.session_id,l.lap_number FROM laps l JOIN sessions s ON s.id=l.session_id
   WHERE l.session_id>? AND s.game_id=? AND s.ownership='mine' GROUP BY l.session_id,l.lap_number HAVING COUNT(*)>1
-  )`).get(beforeSessionId, gameId)?.count ?? 0);
+  )`).get(beforeSessionId, gameId) as { count: number } | undefined)?.count ?? 0);
 const lapHash = createHash("sha256");
-for (const lap of db.query<{ session_id: number; lap_number: number; lap_time: number; is_valid: number }, [number, string]>(
+for (const lap of db.prepare(
   "SELECT l.session_id,l.lap_number,l.lap_time,l.is_valid FROM laps l JOIN sessions s ON s.id=l.session_id WHERE l.session_id>? AND s.game_id=? AND s.ownership='mine' ORDER BY l.session_id,l.lap_number",
-).iterate(beforeSessionId, gameId)) lapHash.update(`${lap.session_id}:${lap.lap_number}:${lap.lap_time}:${lap.is_valid}\n`);
+).iterate(beforeSessionId, gameId) as Iterable<{ session_id: number; lap_number: number; lap_time: number; is_valid: number }>) lapHash.update(`${lap.session_id}:${lap.lap_number}:${lap.lap_time}:${lap.is_valid}\n`);
+db.close();
 
 setCaptureFileFactoryForTest(null);
 server.stop(true);

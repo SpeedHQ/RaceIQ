@@ -18,12 +18,19 @@
  */
 import { zipSync } from "fflate";
 import { readFile } from "node:fs/promises";
+import { eq } from "drizzle-orm";
+import { db } from "@raceiq/backend-core/db/index";
+import { withDatabaseWrite } from "@raceiq/backend-core/db/write-coordination";
+import { laps as storedLaps } from "@raceiq/backend-core/db/schema";
 import { LAPS_ZIP_LIMITS, unzipBounded } from "@raceiq/backend-core/archive/bounded-unzip";
 import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import { getLapsRaw } from "@raceiq/backend-core/db/lap-read-queries";
+import { resolveLapCaptureArtifact } from "@raceiq/backend-core/session-capture/source-loader";
 import { loadSessionCapture } from "@raceiq/backend-core/session-capture/source-loader";
+import { getLiveLapCaptureSnapshot } from "@raceiq/backend-core/db/live-capture-queries";
+import { resolveLiveLapCaptureArtifact } from "@raceiq/backend-core/session-capture/source-loader";
 import { encodeLmuSparseFrame } from "@raceiq/capture-formats/session/lmu-sparse";
-import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
+import { canHandleLMUSourceFrame, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
 import { ACC_PACKED_MAGIC, ACEVO_PACKED_MAGIC } from "@raceiq/capture-formats/kunos/pack-triplet";
 import { encodeKunosSparseFrame } from "@raceiq/capture-formats/session/kunos-sparse";
 import { encodeGenericSparseFrame, genericFrameIdentity } from "@raceiq/capture-formats/session/generic-sparse";
@@ -40,16 +47,25 @@ import {
 } from "@raceiq/backend-core/session-capture/import-capture";
 import type { ImportedLap } from "@raceiq/backend-core/session-capture/import-pipeline";
 import {
-  advanceSessionFrames,
+  META_FRAME_MAGIC,
+  PARSER_BOOTSTRAP_MAGIC,
+  SEGMENT_BOUNDARY_MAGIC,
+  SEGMENT_CONTEXT_END_MAGIC,
+  SEGMENT_CONTEXT_MAGIC,
+  SEGMENT_BOUNDARY_VERSION,
+  SPARSE_CAPTURE_FORMAT_VERSION,
+  SPARSE_CAPTURE_FORMAT_MAGIC,
+  readFramePrefix,
   encodeFrameLength,
   encodeMetaFrame,
+  encodeParserBootstrapFrame,
+  encodeSparseCaptureFormatFrame,
   encodeSegmentBoundaryFrame,
   encodeSegmentContextEndFrame,
   encodeSegmentContextFrame,
   gzipBufferSync,
   iterateSessionCaptureRecords,
   iterateSessionFrameRecords,
-  readFramePrefix,
   type SessionCaptureRecord,
   sessionFrameAt,
 } from "@raceiq/capture-formats/session/framing";
@@ -57,10 +73,12 @@ import {
   createIRacingSourceDecoderState,
   decodeIRacingSourceFrame,
   IRacingSourceFrameEncoder,
+  type IRacingSourceDecoderState,
   type IRacingSourceFrame,
 } from "@raceiq/capture-formats/iracing/source-frame";
 import { parseF1Header } from "@raceiq/capture-formats/f1-2025/f1-wire";
 import type { GameId } from "@raceiq/shared/games/ids";
+import { getServerGame } from "@raceiq/backend-core/games/registry";
 export const LAPS_ZIP_VERSION = 4;
 
 export interface ManifestLap {
@@ -199,7 +217,8 @@ function selectedLapsBySession(
 
 function usableRawLaps(rows: RawLapRow[]): RawLapRow[] {
   return rows.filter(
-    (row) => row.rawFile && row.rawByteOffset != null && (row.rawFrameCount ?? 0) > 0,
+    (row) => row.captureLayoutVersion != null ||
+      (row.rawFile && row.rawByteOffset != null && (row.rawFrameCount ?? 0) > 0),
   );
 }
 
@@ -207,37 +226,75 @@ function usableRawLaps(rows: RawLapRow[]): RawLapRow[] {
  * Re-encode decoder state immediately before a selected iRacing lap as a full
  * session frame. Delta frames then parse identically without earlier laps.
  */
+function restoreIRacingSourceState(payload: Buffer): IRacingSourceDecoderState {
+  const game = getServerGame("iracing");
+  if (!game.restoreParserCheckpoint) throw new Error("iRacing parser checkpoint restore unavailable");
+  const restored = game.restoreParserCheckpoint(game.createParserState(), payload);
+  if (typeof restored !== "object" || restored === null || !("source" in restored)) {
+    throw new Error("iRacing parser checkpoint did not restore source decoder state");
+  }
+  const source = restored.source;
+  if (typeof source !== "object" || source === null || !("session" in source) ||
+      !("variables" in source) || !("values" in source)) {
+    throw new Error("iRacing parser checkpoint did not restore source decoder state");
+  }
+  return source as IRacingSourceDecoderState;
+}
+
 function buildIRacingContextRecord(
   buf: Buffer,
   beforeOffset: number,
 ): Buffer | null {
-  const state = createIRacingSourceDecoderState();
+  let state = createIRacingSourceDecoderState();
+  const game = getServerGame("iracing");
+  if (!game.restoreParserCheckpoint) throw new Error("iRacing parser checkpoint restore unavailable");
   let latest: IRacingSourceFrame | null = null;
   let latestFrameTimeMs: number | undefined;
   for (const record of iterateSessionCaptureRecords(buf)) {
+    if (record.offset >= beforeOffset) break;
+    if (record.kind === "parser-bootstrap") {
+      if (record.gameId !== "iracing") throw new Error("Incompatible iRacing parser bootstrap");
+      state = restoreIRacingSourceState(record.payload);
+      latest = null;
+      continue;
+    }
     if (record.kind !== "frame") continue;
-    if (record.offset >= beforeOffset && latest) break;
     const decoded = decodeIRacingSourceFrame(record.frame, state);
     if (decoded) {
       latest = decoded;
       latestFrameTimeMs = record.frameTimeMs;
     }
-    if (record.offset >= beforeOffset) break;
   }
   if (!latest) return null;
   const context = new IRacingSourceFrameEncoder().encode(latest);
   return Buffer.concat([encodeFrameLength(context.length, latestFrameTimeMs), context]);
 }
-function buildF1ContextRecords(buf: Buffer, beforeOffset: number): Buffer[] {
-  const selected = [...iterateSessionCaptureRecords(buf, beforeOffset)]
-    .find((record): record is Extract<SessionCaptureRecord, { kind: "frame" }> =>
-      record.kind === "frame",
-    );
-  if (!selected) return [];
-  const sessionUID = parseF1Header(selected.frame).sessionUID;
-  const records: Buffer[] = [];
-  for (const record of iterateSessionCaptureRecords(buf)) {
-    if (record.offset >= beforeOffset) break;
+function buildF1ContextRecords(
+  buf: Buffer,
+  beforeOffset: number,
+): { bootstrap: Buffer | null; records: Buffer[] } {
+  const priorRecords = [...iterateSessionCaptureRecords(buf)].filter((record) => record.offset < beforeOffset);
+  const selected = priorRecords.findLast((record): record is Extract<SessionCaptureRecord, { kind: "frame" }> =>
+    record.kind === "frame",
+  ) ?? [...iterateSessionCaptureRecords(buf, beforeOffset)].find((record): record is Extract<SessionCaptureRecord, { kind: "frame" }> =>
+    record.kind === "frame",
+  );
+  const sessionUID = selected ? parseF1Header(selected.frame).sessionUID : null;
+  if (!sessionUID) return { bootstrap: null, records: [] };
+  let bootstrap: Buffer | null = null;
+  let records: Buffer[] = [];
+  for (const record of priorRecords) {
+    if (record.kind === "segment-boundary") {
+      bootstrap = null;
+      records = [];
+      continue;
+    }
+    if (record.kind === "parser-bootstrap") {
+      if (record.gameId !== "f1-2025") throw new Error("Incompatible F1 parser bootstrap");
+      bootstrap = encodeParserBootstrapFrame(record.gameId, record.payload);
+      records = [];
+      continue;
+    }
     if (record.kind !== "frame") continue;
     if (parseF1Header(record.frame).sessionUID !== sessionUID) continue;
     records.push(Buffer.concat([
@@ -245,15 +302,21 @@ function buildF1ContextRecords(buf: Buffer, beforeOffset: number): Buffer[] {
       record.frame,
     ]));
   }
-  return records;
+  return { bootstrap, records };
 }
 function iracingSegmentEnd(
   buf: Buffer,
   start: number,
   frameCount: number,
   sessionPrefix: Buffer | null,
+  parserBootstrap: Buffer | null,
 ): number {
-  const state = createIRacingSourceDecoderState();
+  let state = createIRacingSourceDecoderState();
+  if (parserBootstrap) {
+    for (const record of iterateSessionCaptureRecords(parserBootstrap)) {
+      if (record.kind === "parser-bootstrap") state = restoreIRacingSourceState(record.payload);
+    }
+  }
   const prefixFrame = sessionPrefix ? sessionFrameAt(sessionPrefix, 0) : null;
   if (prefixFrame) decodeIRacingSourceFrame(prefixFrame, state);
   let end = start;
@@ -262,11 +325,9 @@ function iracingSegmentEnd(
   for (const record of iterateSessionCaptureRecords(buf, start)) {
     if (record.kind === "segment-boundary") return end;
     if (record.kind !== "frame") continue;
-    const prefix = readFramePrefix(buf, record.offset);
-    if (!prefix) throw new Error(`Invalid frame prefix at ${record.offset}`);
     const decoded = decodeIRacingSourceFrame(record.frame, state);
     seen++;
-    end = record.offset + prefix.prefixBytes + prefix.length;
+    end = record.endOffset;
     const lastLap = decoded?.values.LapLastLapTime;
     if (seen <= frameCount && typeof lastLap === "number") staleLastLap = lastLap;
     if (seen > frameCount && typeof lastLap === "number" && lastLap > 0 && staleLastLap !== undefined && Math.abs(lastLap - staleLastLap) > 0.000_1) return end;
@@ -274,48 +335,89 @@ function iracingSegmentEnd(
   return end;
 }
 function buildParserContextRecords(buf: Buffer, beforeOffset: number): Buffer[] {
-  return [...iterateSessionCaptureRecords(buf)]
-    .filter((record): record is Extract<SessionCaptureRecord, { kind: "frame" }> =>
-      record.kind === "frame" && record.offset < beforeOffset,
-    )
-    .map((record) => Buffer.concat([
-      encodeFrameLength(record.frame.length, record.frameTimeMs),
-      record.frame,
-    ]));
+  const context: Buffer[] = [];
+  for (const record of iterateSessionCaptureRecords(buf)) {
+    if (record.offset >= beforeOffset) break;
+    if (record.kind === "segment-boundary" || record.kind === "parser-bootstrap") {
+      context.length = 0;
+    } else if (record.kind === "frame") {
+      context.push(Buffer.concat([encodeFrameLength(record.frame.length, record.frameTimeMs), record.frame]));
+    }
+  }
+  return context;
 }
 
+
+
+function firstFrameOffsetAcrossContext(buf: Buffer, offset: number): number | null {
+  let at = offset;
+  while (at + 4 <= buf.length) {
+    if (buf.readUInt32LE(at) === META_FRAME_MAGIC) {
+      if (at + 8 > buf.length) return null;
+      const size = buf.readUInt32LE(at + 4);
+      const payloadEnd = at + 8 + size;
+      if (size > 16 * 1024 * 1024 || payloadEnd > buf.length) return null;
+      if (size === 8) {
+        const magic = buf.readUInt32LE(at + 8);
+        const version = buf.readUInt32LE(at + 12);
+        if (magic === SEGMENT_BOUNDARY_MAGIC && version === SEGMENT_BOUNDARY_VERSION) return null;
+        if (magic !== SEGMENT_CONTEXT_MAGIC && magic !== SEGMENT_CONTEXT_END_MAGIC &&
+            !(magic === SPARSE_CAPTURE_FORMAT_MAGIC && version === SPARSE_CAPTURE_FORMAT_VERSION)) return null;
+      } else if (size === 4 && at === 0) {
+        at = payloadEnd;
+        continue;
+      } else if (size >= 4 && buf.readUInt32LE(at + 8) === PARSER_BOOTSTRAP_MAGIC) return null;
+      else return null;
+      at = payloadEnd;
+      continue;
+    }
+    const prefix = readFramePrefix(buf, at);
+    if (!prefix || prefix.length === 0 || at + prefix.prefixBytes + prefix.length > buf.length) return null;
+    return at;
+  }
+  return null;
+}
 /** Re-encode lap frames with segment-local checkpoints and source identities. */
-function sparseLapRecords(buf: Buffer, start: number, end: number, gameId: GameId): Buffer[] {
+function sparseLapRecords(
+  buf: Buffer,
+  start: number,
+  end: number,
+  gameId: GameId,
+  includeFormatMarker: boolean,
+): Buffer[] {
   const parts: Buffer[] = [];
   let previous: Buffer | null = null;
   let checkpoint = 0;
   let outputOffset = 0;
   let emitted = 0;
-  for (const record of iterateSessionFrameRecords(buf, start)) {
+  const firstFrameOffset = firstFrameOffsetAcrossContext(buf, start);
+  if (firstFrameOffset === null) return parts;
+  for (const record of iterateSessionFrameRecords(buf, firstFrameOffset)) {
     if (record.offset >= end) break;
-    const isLmuV2 = gameId === "lmu" && record.frame.length === LMU_SOURCE_FRAME_V2_SIZE &&
-      record.frame.subarray(0, LMU_SOURCE_FRAME_MAGIC.length).equals(LMU_SOURCE_FRAME_MAGIC);
+    const isLmu = gameId === "lmu" && record.frame.length >= LMU_SOURCE_FRAME_V2_SIZE &&
+      canHandleLMUSourceFrame(record.frame);
     const magic = record.frame.length >= 4 ? record.frame.readUInt32LE(0) : 0;
     const isKunos = (gameId === "acc" && magic === ACC_PACKED_MAGIC) ||
       (gameId === "ac-evo" && magic === ACEVO_PACKED_MAGIC);
     const supportsGeneric = gameId === "fm-2023" || gameId === "f1-2025" || gameId === "iracing";
     const identity = supportsGeneric ? genericFrameIdentity(record.frame) : null;
-    const canDelta = isLmuV2 || isKunos || identity !== null;
+    const canDelta = isLmu || isKunos || identity !== null;
+    const previousLength = previous?.length;
     const sameIdentity = previous !== null && (
-      (isLmuV2 && previous.length === record.frame.length) ||
-      (isKunos && previous.length === record.frame.length) ||
+      (isLmu && previousLength !== undefined && previousLength >= LMU_SOURCE_FRAME_V2_SIZE && canHandleLMUSourceFrame(previous)) ||
+      (isKunos && previousLength === record.frame.length) ||
       (identity !== null && genericFrameIdentity(previous) === identity)
     );
     let frame = record.frame;
     let full = !canDelta || !sameIdentity || emitted % 128 === 0;
     if (!full) {
-      if (isLmuV2) frame = encodeLmuSparseFrame(record.frame, previous!, outputOffset - checkpoint);
-      else if (isKunos) frame = encodeKunosSparseFrame(record.frame, previous!, outputOffset - checkpoint);
-      else {
-        const sparse = encodeGenericSparseFrame(record.frame, previous!, outputOffset - checkpoint);
-        if (sparse.length < record.frame.length) frame = sparse;
-        else full = true;
-      }
+      const sparse = isLmu
+        ? encodeLmuSparseFrame(record.frame, previous!, outputOffset - checkpoint)
+        : isKunos
+          ? encodeKunosSparseFrame(record.frame, previous!, outputOffset - checkpoint)
+          : encodeGenericSparseFrame(record.frame, previous!, outputOffset - checkpoint);
+      if (sparse.length < record.frame.length) frame = sparse;
+      else full = true;
     }
     if (full) {
       frame = record.frame;
@@ -324,10 +426,28 @@ function sparseLapRecords(buf: Buffer, start: number, end: number, gameId: GameI
     const prefix = encodeFrameLength(frame.length, record.frameTimeMs);
     parts.push(prefix, frame);
     outputOffset += prefix.length + frame.length;
+    if (includeFormatMarker && emitted === 0) {
+      const marker = encodeSparseCaptureFormatFrame();
+      parts.push(marker);
+      outputOffset += marker.length;
+    }
     previous = canDelta ? record.frame : null;
     emitted++;
   }
   return parts;
+}
+function advanceLapFramesAcrossContext(buf: Buffer, offset: number, count: number): number {
+  const firstFrameOffset = firstFrameOffsetAcrossContext(buf, offset);
+  if (firstFrameOffset === null) return offset;
+  let advanced = 0;
+  let end = offset;
+  for (const record of iterateSessionCaptureRecords(buf, firstFrameOffset)) {
+    if (record.kind === "segment-boundary" || record.kind === "parser-bootstrap") break;
+    if (record.kind !== "frame") continue;
+    end = record.endOffset;
+    if (++advanced === count) break;
+  }
+  return end;
 }
 function slugify(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
@@ -349,8 +469,19 @@ export async function buildLapsZip(
   const files: Record<string, Uint8Array> = {};
   const entries: ManifestEntry[] = [];
   for (const [sessionId, rows] of sessions) {
+    for (const row of rows) {
+      if (row.captureLayoutVersion != null && row.captureLayoutVersion !== 1 && row.captureLayoutVersion !== 2 && row.captureLayoutVersion !== 3) {
+        throw new Error(`Unsupported capture layout version ${row.captureLayoutVersion} for lap ${row.id}`);
+      }
+      if ((row.captureLayoutVersion === 1 || row.captureLayoutVersion === 2) && (!row.captureManifestFile || !row.captureChunkId || (row.captureLayoutVersion === 2 && !row.captureArchiveFile))) {
+        throw new Error(`Published capture layout for lap ${row.id} has incomplete capture references`);
+      }
+    }
     const firstSelected = rows[0]!;
     const isMotec = rows.some((row) => row.source === "motec" || row.rawFile?.endsWith(".motec.zip"));
+    if (isMotec && rows.some((row) => row.captureLayoutVersion != null)) {
+      throw new Error("Published MoTeC capture layouts cannot be exported as source archives");
+    }
     if (isMotec) {
       const first = allRows.find((row) => row.sessionId === sessionId) ?? firstSelected;
       const rawFile = first.rawFile;
@@ -379,40 +510,85 @@ export async function buildLapsZip(
       });
       continue;
     }
-    const usable = usableRawLaps(rows).sort(
-      (a, b) => (a.rawByteOffset as number) - (b.rawByteOffset as number),
-    );
+    const usable = usableRawLaps(rows).sort((a, b) => (a.rawByteOffset ?? 0) - (b.rawByteOffset ?? 0));
     if (usable.length === 0) continue;
     const first = usable[0]!;
-    const buf = await readCapture(first);
-    if (!buf) continue;
     const segments: Buffer[] = [];
+    let sparseFormatMarkerWritten = false;
     for (const row of usable) {
-      const start = row.rawByteOffset as number;
-      const frameCount = row.rawFrameCount as number;
-      if (start >= buf.length) continue;
+      let buf: Buffer | null;
+      let start: number;
+      let frameCount: number;
+      let parserBootstrap: Buffer | null = null;
+      let trailingContextFrameCount = 0;
+      if (row.captureLayoutVersion === 3) {
+        const live = await getLiveLapCaptureSnapshot(row.sessionId, row.id);
+        if (!live) throw new Error(`Live lap capture member for lap ${row.id} is not committed`);
+        const artifact = resolveLiveLapCaptureArtifact(live.archivePath, live.snapshot);
+        buf = await loadSessionCapture({ rawFile: artifact.path, artifact: artifact.artifact, source: null, gameId: first.gameId as GameId, carId: first.carId, trackId: first.trackId });
+        start = artifact.chunk.ownedFrameByteOffset!;
+        frameCount = artifact.chunk.ownedFrameCount!;
+        trailingContextFrameCount = artifact.chunk.trailingContextFrameCount ?? 0;
+      } else if (row.captureLayoutVersion === 1 || row.captureLayoutVersion === 2) {
+        const artifact = await resolveLapCaptureArtifact(row.captureManifestFile!, row.captureChunkId!, row.id, row);
+        buf = await loadSessionCapture({ rawFile: artifact.path, artifact: artifact.artifact, source: null, gameId: first.gameId as GameId, carId: first.carId, trackId: first.trackId });
+        start = artifact.chunk.ownedFrameByteOffset!;
+        frameCount = artifact.chunk.ownedFrameCount!;
+        trailingContextFrameCount = artifact.chunk.trailingContextFrameCount ?? 0;
+        // Bootstrap and context are extracted uniformly from the selected source below.
+      } else {
+        buf = await readCapture(row);
+        start = row.rawByteOffset!;
+        frameCount = row.rawFrameCount!;
+      }
+      if (!buf || start >= buf.length) continue;
+      for (const record of iterateSessionCaptureRecords(buf)) {
+        if (record.offset >= start) break;
+        if (record.kind === "segment-boundary") parserBootstrap = null;
+        if (record.kind === "parser-bootstrap") {
+          if (record.gameId !== first.gameId) throw new Error("Parser bootstrap does not match archive game");
+          parserBootstrap = encodeParserBootstrapFrame(record.gameId, record.payload);
+        }
+      }
       const prefix =
-        first.gameId === "iracing"
+        first.gameId === "iracing" && !parserBootstrap
           ? buildIRacingContextRecord(buf, start)
           : null;
-      const context = first.gameId === "f1-2025"
-        ? buildF1ContextRecords(buf, start)
-        : first.gameId === "ac-evo"
-          ? buildParserContextRecords(buf, start)
-          : [];
+      const f1Context = first.gameId === "f1-2025" ? buildF1ContextRecords(buf, start) : null;
+      if (f1Context) parserBootstrap = f1Context.bootstrap;
+      const context = f1Context?.records ?? (first.gameId === "ac-evo"
+        ? buildParserContextRecords(buf, start)
+        : []);
+      const ownedEnd = advanceLapFramesAcrossContext(buf, start, frameCount);
+      if (row.captureLayoutVersion == null) {
+        const adjacentWindow = allRows.some((candidate) => candidate.sessionId === row.sessionId && candidate.rawByteOffset === ownedEnd);
+        trailingContextFrameCount =
+          adjacentWindow ||
+          getServerGame(first.gameId as GameId).appendsDelayedFinishFrame ||
+          advanceLapFramesAcrossContext(buf, ownedEnd, 1) > ownedEnd
+            ? 1
+            : 0;
+      }
       const end = first.gameId === "iracing"
-        ? iracingSegmentEnd(buf, start, frameCount, prefix)
-        : advanceSessionFrames(buf, start, frameCount + 1);
+        ? iracingSegmentEnd(buf, start, frameCount, prefix, parserBootstrap)
+        : advanceLapFramesAcrossContext(buf, start, frameCount + trailingContextFrameCount);
+      const trailingContext = end > ownedEnd ? sparseLapRecords(buf, ownedEnd, end, first.gameId as GameId, false) : [];
+      const sparseRecords = first.gameId === "lmu" || first.gameId === "acc" || first.gameId === "ac-evo" ||
+        first.gameId === "fm-2023" || first.gameId === "f1-2025" || first.gameId === "iracing"
+        ? sparseLapRecords(buf, start, ownedEnd, first.gameId as GameId, !sparseFormatMarkerWritten)
+        : [buf.subarray(start, ownedEnd)];
+      if (sparseRecords.length > 0) sparseFormatMarkerWritten = true;
       segments.push(Buffer.concat([
         encodeSegmentBoundaryFrame(),
+        ...(parserBootstrap ? [parserBootstrap] : []),
         ...(context.length > 0
           ? [encodeSegmentContextFrame(), ...context, encodeSegmentContextEndFrame()]
           : []),
         ...(prefix ? [prefix] : []),
-        ...(first.gameId === "lmu" || first.gameId === "acc" || first.gameId === "ac-evo" ||
-          first.gameId === "fm-2023" || first.gameId === "f1-2025" || first.gameId === "iracing"
-          ? sparseLapRecords(buf, start, end, first.gameId)
-          : [buf.subarray(start, end)]),
+        ...sparseRecords,
+        ...(trailingContext.length > 0
+          ? [encodeSegmentContextFrame(), ...trailingContext, encodeSegmentContextEndFrame()]
+          : []),
       ]));
     }
     if (segments.length === 0) continue;
@@ -516,16 +692,36 @@ export async function importLapsZip(zipData: Uint8Array, options: { ownership?: 
       }
       continue;
     }
-    const gameId = parseCaptureGameId(name, bytes, new Map(
-      entry ? [[name, entry.gameId]] : [],
-    ));
-    if (!gameId) {
-      skipped++;
-      errors.push(`${name}: could not determine which game this capture came from`);
-      continue;
-    }
     try {
-      const result = await importSessionBin(bytes, gameId, { ownership: options.ownership });
+      const gameId = parseCaptureGameId(name, bytes, new Map(
+        entry ? [[name, entry.gameId]] : [],
+      ));
+      if (!gameId) {
+        skipped++;
+        errors.push(`${name}: could not determine which game this capture came from`);
+        continue;
+      }
+      const result = await importSessionBin(bytes, gameId, {
+        ownership: options.ownership,
+        onImportedLaps: entry && Array.isArray(entry.laps) ? async (imported) => {
+          await withDatabaseWrite(() => db.transaction(async (tx) => {
+            for (const lap of imported) {
+              const matches = entry.laps.filter((metadata) => metadata.lapNumber === lap.lapNumber);
+              if (matches.length !== 1) continue;
+              const metadata = matches[0]!;
+              if (!Number.isFinite(metadata.lapTime) || metadata.lapTime < 0 || typeof metadata.isValid !== "boolean") {
+                throw new Error("Invalid exported lap timing or validity");
+              }
+              // Detector owns frame windows; archive metadata preserves saved timing/validity,
+              // including delayed SDK finish timing absent from the selected native artifact.
+              await tx.update(storedLaps).set({ lapTime: metadata.lapTime, isValid: metadata.isValid, ...(metadata.isValid ? { invalidReason: null } : {}) })
+                .where(eq(storedLaps.id, lap.lapId)).run();
+              lap.lapTime = metadata.lapTime;
+              lap.isValid = metadata.isValid;
+            }
+          }));
+        } : undefined,
+      });
       laps.push(...result.laps);
     } catch (err) {
       skipped++;

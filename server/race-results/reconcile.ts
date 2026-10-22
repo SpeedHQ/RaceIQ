@@ -3,8 +3,9 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { getLapById } from "../db/lap-read-queries";
 import { getLapsForSession } from "../db/lap-reprocessing-queries";
 import { and, eq, gt } from "drizzle-orm";
-import { db } from "../db/index";
+import { readDb as db } from "../db/index";
 import { sessions } from "../db/schema";
+import { updateSession } from "../db/session-queries";
 import { getSessionResult, getStaleRaceResultSessionIds, upsertSessionResult } from "../db/session-result-queries";
 import { getSessionRawFile, iterateSessionTelemetry } from "../db/telemetry-replay-storage";
 import { deriveRaceResult, normalizeSessionType } from "./derive";
@@ -14,7 +15,7 @@ import type { RaceResultRawInputIdentity } from "@raceiq/shared/racing/results/t
 import { hashRawCapture, rawCaptureObjectId } from "../session-capture/identity";
 import { getAllServerGames } from "../games/registry";
 
-export const RACE_RESULT_PROCESSOR_ID = "race-result-v4";
+export const RACE_RESULT_PROCESSOR_ID = "race-result-v5";
 
 async function rawInputIdentity(sessionId: number, rawFile: string | null | undefined): Promise<RaceResultRawInputIdentity | null> {
   if (!rawFile) return null;
@@ -98,7 +99,12 @@ export async function reconcileSessionResult(sessionId: number, gameId: GameId):
   }
 
   const source = accumulator.finish();
-  if (session.sessionType) {
+  const sessionTypeConflict = source.evidence.conflicts.some((conflict) => conflict.startsWith("session-type:"));
+  const hasDirectTypeEvidence = source.evidence.fieldStatus.sessionType === "direct" && !!source.sessionType;
+  const canRepairF1Type = gameId === "f1-2025" && hasDirectTypeEvidence && !sessionTypeConflict;
+  if (canRepairF1Type) {
+    if (source.sessionType !== session.sessionType) await updateSession(sessionId, { sessionType: source.sessionType! });
+  } else if (session.sessionType) {
     if (!source.sessionType) {
       source.sessionType = session.sessionType;
       source.evidence.fieldStatus.sessionType = "direct";
@@ -225,28 +231,49 @@ export async function backfillStaleRaceResults(options: {
   );
   return backfillRaceResults({ ...options, eligibleSessionIds });
 }
-export async function backfillAllRaceResults(): Promise<void> {
+export interface BackfillAllRaceResultsResult {
+  processed: number;
+  enriched: number;
+  unchanged: number;
+  skipped: number;
+  ambiguous: number;
+  errors: number;
+  failedGames: { gameId: GameId; error: string }[];
+}
+
+export async function backfillAllRaceResults(): Promise<BackfillAllRaceResultsResult> {
+  const totals: BackfillAllRaceResultsResult = {
+    processed: 0,
+    enriched: 0,
+    unchanged: 0,
+    skipped: 0,
+    ambiguous: 0,
+    errors: 0,
+    failedGames: [],
+  };
   for (const game of getAllServerGames()) {
     let afterSessionId: number | undefined;
-    let totals = { processed: 0, enriched: 0, unchanged: 0, ambiguous: 0, errors: 0 };
+    const gameTotals = { processed: 0, enriched: 0, unchanged: 0, skipped: 0, ambiguous: 0, errors: 0 };
     try {
       while (true) {
         const report = await backfillStaleRaceResults({ gameId: game.id, limit: 100, afterSessionId });
-        totals = {
-          processed: totals.processed + report.processed,
-          enriched: totals.enriched + report.enriched,
-          unchanged: totals.unchanged + report.unchanged,
-          ambiguous: totals.ambiguous + report.ambiguous,
-          errors: totals.errors + report.errors,
-        };
+        for (const key of Object.keys(gameTotals) as (keyof typeof gameTotals)[]) {
+          gameTotals[key] += report[key];
+        }
         const lastSessionId = report.results.at(-1)?.sessionId;
         if (lastSessionId != null) afterSessionId = lastSessionId;
         if (report.processed < 100 || lastSessionId == null) break;
         await Bun.sleep(0);
       }
-      console.log(`[RaceResults] Backfill ${game.id}: ${JSON.stringify(totals)}`);
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      totals.failedGames.push({ gameId: game.id, error: message });
       console.error(`[RaceResults] Backfill failed for ${game.id}:`, error);
     }
+    for (const key of Object.keys(gameTotals) as (keyof typeof gameTotals)[]) {
+      totals[key] += gameTotals[key];
+    }
+    console.log(`[RaceResults] Backfill ${game.id}: ${JSON.stringify(gameTotals)}`);
   }
+  return totals;
 }

@@ -247,6 +247,7 @@ function lapMeta(overrides: Partial<LapMeta>): LapMeta {
     lapNumber: 1,
     lapTime: 90,
     isValid: true,
+    classification: null,
     carId: "",
     trackId: "",
     createdAt: new Date().toISOString(),
@@ -262,9 +263,9 @@ describe("stintStats", () => {
     expect(stats.degSlopeSPerLap).toBeUndefined();
   });
 
-  test("excludes the first (out) lap and invalid/excluded laps", () => {
+  test("excludes classified out-laps and invalid/excluded laps", () => {
     const laps = [
-      lapMeta({ id: 1, lapNumber: 1, lapTime: 100 }), // out-lap, excluded from scoring
+      lapMeta({ id: 1, lapNumber: 1, lapTime: 100, classification: "out_lap" }), // non-pace out-lap
       lapMeta({ id: 2, lapNumber: 2, lapTime: 90 }),
       lapMeta({ id: 3, lapNumber: 3, lapTime: 91 }),
       lapMeta({ id: 4, lapNumber: 4, lapTime: 200, isValid: false }), // invalid
@@ -275,22 +276,21 @@ describe("stintStats", () => {
     expect(stats.bestS).toBe(90);
   });
 
-  test("consistency and sd require n>=2, slope requires n>=3", () => {
-    const twoLaps = [lapMeta({ id: 1, lapNumber: 1, lapTime: 100 }), lapMeta({ id: 2, lapNumber: 2, lapTime: 90 })];
-    // n=1 scored (lap 1 excluded as out-lap)
+  test("repeatability thresholds use classified pace laps, not lap ordinals", () => {
+    const twoLaps = [lapMeta({ id: 1, lapNumber: 1, lapTime: 100, classification: "out_lap" }), lapMeta({ id: 2, lapNumber: 2, lapTime: 90 })];
     const s1 = stintStats(twoLaps);
     expect(s1.n).toBe(1);
     expect(s1.consistency).toBeUndefined();
     expect(s1.sdS).toBeUndefined();
 
-    const threeLaps = [lapMeta({ id: 1, lapNumber: 1, lapTime: 100 }), lapMeta({ id: 2, lapNumber: 2, lapTime: 90 }), lapMeta({ id: 3, lapNumber: 3, lapTime: 92 })];
+    const threeLaps = [lapMeta({ id: 1, lapNumber: 1, lapTime: 100, classification: "out_lap" }), lapMeta({ id: 2, lapNumber: 2, lapTime: 90 }), lapMeta({ id: 3, lapNumber: 3, lapTime: 92 })];
     const s2 = stintStats(threeLaps);
     expect(s2.n).toBe(2);
     expect(s2.consistency).toBeDefined();
     expect(s2.degSlopeSPerLap).toBeUndefined(); // still n<3 scored
 
     const fourLaps = [
-      lapMeta({ id: 1, lapNumber: 1, lapTime: 100 }),
+      lapMeta({ id: 1, lapNumber: 1, lapTime: 100, classification: "out_lap" }),
       lapMeta({ id: 2, lapNumber: 2, lapTime: 90 }),
       lapMeta({ id: 3, lapNumber: 3, lapTime: 91 }),
       lapMeta({ id: 4, lapNumber: 4, lapTime: 92 }),
@@ -302,7 +302,7 @@ describe("stintStats", () => {
   });
 
   test("consistency formula matches clamp(100 - (sd/mean)*100*28, 0, 100)", () => {
-    const laps = [lapMeta({ id: 1, lapNumber: 1, lapTime: 100 }), lapMeta({ id: 2, lapNumber: 2, lapTime: 90 }), lapMeta({ id: 3, lapNumber: 3, lapTime: 92 })];
+    const laps = [lapMeta({ id: 1, lapNumber: 1, lapTime: 100, classification: "out_lap" }), lapMeta({ id: 2, lapNumber: 2, lapTime: 90 }), lapMeta({ id: 3, lapNumber: 3, lapTime: 92 })];
     const stats = stintStats(laps);
     const times = [90, 92];
     const mean = times.reduce((a, b) => a + b, 0) / 2;

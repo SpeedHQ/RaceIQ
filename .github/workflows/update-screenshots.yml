@@ -16,9 +16,7 @@ jobs:
   update-readme:
     timeout-minutes: 30
     runs-on:
-      - mars-windows-x64-4vcpu-15g
-      - mars-macos-arm64-2vcpu-10g
-      - mars-ubuntu-2vcpu-10g
+      - mars-ubuntu-2vcpu-6g
     permissions:
       contents: write
 

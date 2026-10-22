@@ -1,24 +1,21 @@
-import { readFileSync } from "node:fs";
+import { readRecordedTelemetry } from "../../src/session-capture/replay-packets";
+import { getAcEvoTrackName } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
 import { initServerGameAdapters } from "../../src/games/init";
 import { developmentReleaseFeatures } from "@raceiq/tooling-release/release/development-release-features";
-import { importSessionBin } from "@raceiq/backend-core/session-capture/import-capture";
 
 initServerGameAdapters(developmentReleaseFeatures);
-import { getAcEvoTrackName } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
-import { getSessions } from "@raceiq/backend-core/db/session-queries";
 
-const bytes = readFileSync("C:/Users/acoop/Downloads/ac-evo-unknown-track-session17.bin.gz");
-const result = await importSessionBin(Buffer.from(bytes), "ac-evo");
-console.log("packets:", result.packetCount, "laps:", result.laps.length);
-for (const lap of result.laps) {
-  const trackName = typeof lap.trackId === "number" ? getAcEvoTrackName(lap.trackId) : lap.trackId;
-  console.log(
-    `lap ${lap.lapNumber} time=${lap.lapTime} car=${lap.carId} track=${lap.trackId} trackName="${trackName}"`
-  );
-}
-const sessionId = result.laps[0]?.sessionId;
-if (sessionId) {
-  const sessions = await getSessions("ac-evo");
-  const s = sessions.find((x) => x.id === sessionId);
-  console.log("db session:", JSON.stringify(s));
+const recordingPath = "C:/Users/acoop/Downloads/ac-evo-unknown-track-session17.bin.gz";
+const { packets } = readRecordedTelemetry("ac-evo", recordingPath);
+console.log("packets:", packets.length);
+const last = packets.at(-1);
+if (last) {
+  const trackName = typeof last.trackId === "number" ? getAcEvoTrackName(last.trackId) : last.trackId;
+  console.log("last packet:", JSON.stringify({
+    carId: last.carId,
+    trackId: last.trackId,
+    trackName,
+    trackNameFromSource: last.acEvoIdentity?.trackName,
+    trackConfiguration: last.acEvoIdentity?.trackConfiguration,
+  }));
 }

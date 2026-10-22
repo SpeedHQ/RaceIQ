@@ -1,27 +1,50 @@
 import { eq, desc, and, inArray, isNull } from "drizzle-orm";
-import { db } from "./index";
+import { db, readDb } from "./index"
+import { withDatabaseWrite } from "./write-coordination";
 import { toLapMeta } from "./lap-meta";
-import { sessions, laps, tunes } from "./schema";
+import { sessions, laps, tunes, experiments, experimentActions } from "./schema";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import type { GameId } from "@raceiq/shared/games/ids";
 
 export async function setLapExperimentExcluded(
   lapId: number,
   excluded: boolean,
+  guard?: { sessionId: number; expectedHeadVersionId: number | null; allowedLapIds: readonly number[] },
+  action?: { kind: string; inversePayload: unknown },
 ): Promise<{ ok: boolean; prev: boolean; experimentId: number | null }> {
-  const row = await db
-    .select({ experimentExcluded: laps.experimentExcluded, experimentId: laps.experimentId })
-    .from(laps)
-    .where(eq(laps.id, lapId))
-    .get();
-  if (!row) return { ok: false, prev: false, experimentId: null };
-  const prev = Boolean(row.experimentExcluded);
-  await db
-    .update(laps)
-    .set({ experimentExcluded: excluded ? 1 : null, experimentExcludedSource: "manual" })
-    .where(eq(laps.id, lapId))
-    .run();
-  return { ok: true, prev, experimentId: row.experimentId };
+  if (!guard) {
+    const row = await readDb.select({ experimentExcluded: laps.experimentExcluded, experimentId: laps.experimentId })
+      .from(laps).where(eq(laps.id, lapId)).get();
+    if (!row) return { ok: false, prev: false, experimentId: null };
+    const result = await withDatabaseWrite(() => db.update(laps)
+      .set({ experimentExcluded: excluded ? 1 : null, experimentExcludedSource: "manual" })
+      .where(eq(laps.id, lapId)).run());
+    return { ok: result.rowsAffected > 0, prev: Boolean(row.experimentExcluded), experimentId: row.experimentId };
+  }
+  return withDatabaseWrite(() => db.transaction(async (tx) => {
+    const row = await tx.select({
+      experimentExcluded: laps.experimentExcluded, experimentExcludedSource: laps.experimentExcludedSource,
+      experimentId: laps.experimentId, experimentVersionId: laps.experimentVersionId,
+    }).from(laps).where(eq(laps.id, lapId)).get();
+    if (!row) return { ok: false, prev: false, experimentId: null };
+    const prev = Boolean(row.experimentExcluded);
+    if (!guard.allowedLapIds.includes(lapId)) return { ok: false, prev, experimentId: row.experimentId };
+    const current = await tx.select({ headVersionId: experiments.headVersionId })
+      .from(experiments).where(eq(experiments.id, guard.sessionId)).get();
+    if (!current || current.headVersionId !== guard.expectedHeadVersionId) return { ok: false, prev, experimentId: row.experimentId };
+    const belongsToBranch = row.experimentId === guard.sessionId &&
+      (guard.expectedHeadVersionId == null ? row.experimentVersionId == null : row.experimentVersionId === guard.expectedHeadVersionId);
+    if (!belongsToBranch) return { ok: false, prev, experimentId: row.experimentId };
+    await tx.update(laps).set({ experimentExcluded: excluded ? 1 : null, experimentExcludedSource: "manual" })
+      .where(and(eq(laps.id, lapId),
+        eq(laps.experimentId, guard.sessionId),
+        guard.expectedHeadVersionId == null ? isNull(laps.experimentVersionId) : eq(laps.experimentVersionId, guard.expectedHeadVersionId))).run();
+    if (action) await tx.insert(experimentActions).values({
+      experimentId: guard.sessionId, kind: action.kind,
+      inversePayload: JSON.stringify({ ...action.inversePayload as object, prevExcluded: prev, prevExcludedSource: row.experimentExcludedSource ?? null }),
+    }).run();
+    return { ok: true, prev, experimentId: row.experimentId };
+  }));
 }
 
 /**
@@ -34,13 +57,14 @@ export async function getLapsForExclusionScope(
   experimentId: number,
   tuneId: number,
 ): Promise<
-  { id: number; lapTime: number; isValid: boolean; invalidReason: string | null; experimentExcluded: boolean; experimentExcludedSource: "auto" | "manual" | null }[]
+  { id: number; lapTime: number; isValid: boolean; invalidReason: string | null; classification: LapMeta["classification"]; experimentExcluded: boolean; experimentExcludedSource: "auto" | "manual" | null }[]
 > {
-  const rows = await db
+  const rows = await readDb
     .select({
       id: laps.id,
       lapTime: laps.lapTime,
       isValid: laps.isValid,
+      classification: laps.classification,
       invalidReason: laps.invalidReason,
       experimentExcluded: laps.experimentExcluded,
       experimentExcludedSource: laps.experimentExcludedSource,
@@ -54,6 +78,7 @@ export async function getLapsForExclusionScope(
     isValid: Boolean(r.isValid),
     invalidReason: r.invalidReason,
     experimentExcluded: Boolean(r.experimentExcluded),
+    classification: r.classification,
     experimentExcludedSource: (r.experimentExcludedSource as "auto" | "manual" | null) ?? null,
   }));
 }
@@ -65,11 +90,11 @@ export async function getLapsForExclusionScope(
  */
 
 export async function setLapAutoExclusion(lapId: number, excluded: boolean): Promise<void> {
-  await db
+  await withDatabaseWrite(() => db
     .update(laps)
     .set({ experimentExcluded: excluded ? 1 : null, experimentExcludedSource: "auto" })
     .where(eq(laps.id, lapId))
-    .run();
+    .run());
 }
 
 /**
@@ -82,8 +107,7 @@ export async function setLapAutoExclusion(lapId: number, excluded: boolean): Pro
 export async function getLapExperimentScope(
   lapId: number,
 ): Promise<{ experimentId: number | null; tuneId: number | null }> {
-  const row = await db
-    .select({ experimentId: laps.experimentId, tuneId: laps.tuneId })
+  const row = await readDb.select({ experimentId: laps.experimentId, tuneId: laps.tuneId })
     .from(laps)
     .where(eq(laps.id, lapId))
     .get();
@@ -95,6 +119,7 @@ const experimentLapSelection = {
   sessionId: laps.sessionId,
   lapNumber: laps.lapNumber,
   lapTime: laps.lapTime,
+  classification: laps.classification,
   isValid: laps.isValid,
   invalidReason: laps.invalidReason,
   notes: laps.notes,
@@ -122,8 +147,7 @@ const experimentLapSelection = {
  */
 
 export async function getLapsForExperiment(experimentId: number): Promise<LapMeta[]> {
-  const rows = await db
-    .select(experimentLapSelection)
+  const rows = await readDb.select(experimentLapSelection)
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .leftJoin(tunes, eq(laps.tuneId, tunes.id))
@@ -142,8 +166,7 @@ export async function getLapsForExperiment(experimentId: number): Promise<LapMet
  */
 
 export async function getLapMetaForExperimentVersion(experimentVersionId: number): Promise<LapMeta[]> {
-  const rows = await db
-    .select({ ...experimentLapSelection, rawFrameCount: laps.rawFrameCount })
+  const rows = await readDb.select({ ...experimentLapSelection, rawFrameCount: laps.rawFrameCount })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .leftJoin(tunes, eq(laps.tuneId, tunes.id))
@@ -169,8 +192,7 @@ export async function getImportableLapsForExperiment(
   if (carId != null) conds.push(eq(sessions.carId, carId));
   if (trackId != null) conds.push(eq(sessions.trackId, trackId));
 
-  const rows = await db
-    .select(experimentLapSelection)
+  const rows = await readDb.select(experimentLapSelection)
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .leftJoin(tunes, eq(laps.tuneId, tunes.id))
@@ -195,12 +217,12 @@ export async function importLapsToExperiment(
   experimentVersionId: number | null,
 ): Promise<number[]> {
   if (lapIds.length === 0) return [];
-  const result = await db
+  const result = await withDatabaseWrite(() => db
     .update(laps)
     .set({ experimentId, experimentVersionId })
     .where(and(inArray(laps.id, lapIds), isNull(laps.experimentId)))
     .returning({ id: laps.id })
-    .all();
+    .all());
   return result.map((r) => r.id);
 }
 
@@ -210,9 +232,9 @@ export async function importLapsToExperiment(
  */
 export async function unstampLapsFromExperiment(experimentId: number, lapIds: number[]): Promise<void> {
   if (lapIds.length === 0) return;
-  await db
+  await withDatabaseWrite(() => db
     .update(laps)
     .set({ experimentId: null, experimentVersionId: null })
     .where(and(inArray(laps.id, lapIds), eq(laps.experimentId, experimentId)))
-    .run();
+    .run());
 }

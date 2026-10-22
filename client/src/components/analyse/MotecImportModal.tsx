@@ -2,12 +2,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { analyseSemanticIds } from "@raceiq/shared/games/metric-contracts";
 import { getGame } from "@raceiq/shared/games/registry";
 import { TELEMETRY_CATALOG } from "@raceiq/shared/telemetry/catalog/data";
-import type { SemanticAnalysisFrame } from "./track-map/types";
+import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { OwnershipChoice } from "../import/OwnershipChoice";
-import { useMotecTargets, useCarsFromEndpoint, useTracksForGame } from "../../hooks/catalog-queries";
+import { useMotecTargets, useCarsFromEndpoint, useCarsForGame, useTracksForGame } from "../../hooks/catalog-queries";
 import type { MotecTargetInfo } from "../../hooks/catalog-queries";
+import { authenticatedFetch } from "@/lib/rpc";
 import { useUserTunes } from "../../hooks/tunes";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
@@ -206,6 +207,7 @@ export function MotecImportModal({
   const { data: targets = [] } = useMotecTargets();
   const [selectedGameId, setSelectedGameId] = useState<GameId | "">(fixedTarget?.gameId ?? initialGameId ?? "");
   const target = fixedTarget ?? targets.find((item) => item.gameId === selectedGameId);
+  const catalogGameId = fixedTarget?.gameId ?? (selectedGameId || null);
   const [ld, setLd] = useState<File | null>(initialLd ?? null);
   const [ldx, setLdx] = useState<File | null>(null);
   const [archiveToken, setArchiveToken] = useState(stagedToken ?? "");
@@ -223,15 +225,17 @@ export function MotecImportModal({
   const stagedTokenRef = useRef(archiveToken);
   const archiveRequestRef = useRef(0);
   const initialArchiveStartedRef = useRef(false);
-  const { data: cars = [] } = useCarsFromEndpoint(target?.carsEndpoint ?? null);
-  const { data: tracks = [] } = useTracksForGame(target?.gameId ?? null);
+  const { data: targetCars = [] } = useCarsFromEndpoint(target?.carsEndpoint ?? null);
+  const { data: catalogCars = [] } = useCarsForGame(target ? null : catalogGameId);
+  const cars: { id: string | number; name: string; class?: string }[] = target ? targetCars : catalogCars;
+  const { data: tracks = [] } = useTracksForGame(catalogGameId);
   const { data: tunes = [] } = useUserTunes(target?.gameId);
   const ldRef = useRef<HTMLInputElement>(null);
   const ldxRef = useRef<HTMLInputElement>(null);
 
   async function cancelStagedToken(token: string) {
     if (!token) return;
-    await fetch("/api/laps/cancel-motec", {
+    await authenticatedFetch("/api/laps/cancel-motec", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token }),
@@ -250,7 +254,7 @@ export function MotecImportModal({
     try {
       const body = new FormData();
       body.append("file", file);
-      const response = await fetch("/api/laps/stage-motec", { method: "POST", body });
+      const response = await authenticatedFetch("/api/laps/stage-motec", { method: "POST", body });
       const data = (await response.json().catch(() => null)) as { token?: string; ldName?: string; ldxName?: string; error?: string } | null;
       if (!response.ok || !data?.token || !data.ldName || !data.ldxName) {
         throw new Error(data?.error ?? `Archive extraction failed (${response.status})`);
@@ -340,11 +344,11 @@ export function MotecImportModal({
       body.append("gameId", target.gameId);
       body.append("carId", carId);
       body.append("trackId", trackId);
-      if (tuneId) body.append("tuneId", tuneId);
+      if (tuneId && catalogGameId !== "f1-2025") body.append("tuneId", tuneId);
       body.append("ownership", ownership);
       // Multipart upload — no RPC binding for form bodies, same as
       // /api/laps/import and /api/laps/import-zip.
-      const res = await fetch("/api/laps/import-motec", { method: "POST", body });
+      const res = await authenticatedFetch("/api/laps/import-motec", { method: "POST", body });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         setError(data?.error ? `${data.error}${data.details ? `: ${data.details}` : ""}` : `Import failed (${res.status})`);
@@ -388,6 +392,8 @@ export function MotecImportModal({
                 <>
                   {m.analyse_import_filed_as({ game: target.displayName })}
                 </>
+              ) : catalogGameId && targets.length > 0 ? (
+                m.analyse_motec_unsupported_game({ game: getGame(catalogGameId).displayName })
               ) : (
                 m.analyse_import_choose_game()
               )}
@@ -431,10 +437,12 @@ export function MotecImportModal({
                 {m.analyse_track_label()}
                 <SearchSelect value={trackId} onChange={setTrackId} options={trackOptions} placeholder={m.analyse_search_tracks()} className="mt-1" />
               </div>
-              <div className="block text-app-text-dim">
-                {m.analyse_setup_optional()}
-                <SearchSelect value={tuneId} onChange={setTuneId} options={tuneOptions} placeholder={carId ? m.analyse_search_setups() : m.analyse_pick_car()} disabled={!carId} className="mt-1" />
-              </div>
+              {catalogGameId !== "f1-2025" && (
+                <div className="block text-app-text-dim">
+                  {m.analyse_setup_optional()}
+                  <SearchSelect value={tuneId} onChange={setTuneId} options={tuneOptions} placeholder={carId ? m.analyse_search_setups() : m.analyse_pick_car()} disabled={!carId} className="mt-1" />
+                </div>
+              )}
               <p className="text-app-text-muted">
                 {m.analyse_import_catalog_explanation()}
               </p>

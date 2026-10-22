@@ -1,6 +1,7 @@
 import { stat } from "node:fs/promises";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { tryGetServerGame } from "../games/registry";
+import { PARSER_BOOTSTRAP_VERSION } from "@raceiq/capture-formats/session/framing";
 import { loadSessionSource, iterateSessionCaptureRecordsFromSource, type SessionCaptureSource } from "./source-loader";
 
 type CachedDuration = { size: number; mtimeMs: number; elapsedSeconds: number | null };
@@ -63,7 +64,7 @@ export async function getRecordedElapsedSeconds(source: SessionCaptureSource): P
       } else {
         const game = tryGetServerGame(source.gameId);
         const useSimulatorClock = USES_SESSION_CLOCK[source.gameId] === true;
-        let parserState = useSimulatorClock ? game?.createParserState?.() ?? null : null;
+        let parserState: unknown = useSimulatorClock ? game?.createParserState?.() ?? null : null;
         for await (const record of iterateSessionCaptureRecordsFromSource(source)) {
           if (record.kind === "segment-boundary") {
             finishSegment();
@@ -72,6 +73,14 @@ export async function getRecordedElapsedSeconds(source: SessionCaptureSource): P
           }
           if (record.kind === "segment-context") { inContext = true; continue; }
           if (record.kind === "segment-context-end") { inContext = false; continue; }
+          if (record.kind === "parser-bootstrap") {
+            if (record.gameId !== source.gameId || record.formatVersion !== PARSER_BOOTSTRAP_VERSION ||
+                !useSimulatorClock || !game?.restoreParserCheckpoint) {
+              throw new Error("Parser bootstrap cannot restore elapsed-duration state");
+            }
+            parserState = game.restoreParserCheckpoint(parserState, record.payload);
+            continue;
+          }
           if (record.kind !== "frame") continue;
           if (inContext) {
             if (useSimulatorClock && game) game.tryParse(record.frame, parserState);

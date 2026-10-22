@@ -2,7 +2,7 @@ import { tryGetGame } from "@raceiq/shared/games/registry"
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import type { GameId } from "@raceiq/shared/games/ids";
-import type { TrackInfo } from "../components/track/types";
+import type { TrackInfo } from "@raceiq/tracks-catalogue/contracts"
 import { client } from "../lib/rpc";
 import { rpcJson } from "../lib/rpc-json";
 import { useGameId } from "../stores/game";
@@ -150,8 +150,9 @@ const ACC_PRESSURE_BY_CLASS: Record<string, { min: number; max: number }> = {
   TCX: { min: 30.0, max: 32.0 },
 };
 
-export function useTirePressureOptimal(gameId: GameId, carId: string | undefined): { min: number; max: number } | undefined {
-  const { data: accClass } = useAccCarClass(gameId === "acc" ? carId : undefined);
+export function useTirePressureOptimal(gameId: GameId, carId: string | undefined, enabled = true): { min: number; max: number } | undefined {
+  const { data: accClass } = useAccCarClass(enabled && gameId === "acc" ? carId : undefined);
+  if (!enabled) return tryGetGame(gameId)?.tirePressureOptimal;
   if (gameId === "acc") return accClass ? ACC_PRESSURE_BY_CLASS[accClass] : undefined;
   return tryGetGame(gameId)?.tirePressureOptimal;
 }

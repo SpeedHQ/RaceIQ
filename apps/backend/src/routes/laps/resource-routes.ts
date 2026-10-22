@@ -3,23 +3,21 @@ import { Hono } from "hono";
 import { gzip } from "node:zlib";
 import { promisify } from "node:util";
 import { z } from "zod";
+import { replayRoutes } from "@raceiq/lap-replay/server";
 
 import { IdParamSchema } from "@raceiq/shared/platform/http/route-schemas";
 import { GameIdSchema, type GameId } from "@raceiq/shared/games/ids";
 import { getGame, tryGetGame } from "@raceiq/shared/games/registry";
-import { analyseSemanticIds } from "@raceiq/shared/games/metric-contracts";
-import { runInsightScanWithCoverage } from "@raceiq/analysis-core/racing/analysis/laps/insights/scan";
-import { processLap, restoreFrameIndices } from "@raceiq/analysis-core/racing/analysis/laps/insights/process";
-import { INSIGHT_DETECTORS } from "@raceiq/analysis-core/racing/analysis/laps/insights/types";
-import { resolveRacingLineReference } from "@raceiq/backend-core/lap-analysis/insights";
-import { backfillLapInsights, getOrComputeLapInsights, recomputeLapInsights } from "@raceiq/backend-core/lap-analysis/metrics-store";
+import { encodeLmuPacket } from "@raceiq/shared/telemetry/lmu-context";
+import { backfillLapInsights, getOrComputeLapInsights } from "@raceiq/backend-core/lap-analysis/metrics-store";
 import { alignLapSet, prepareLapSetAlignmentIndex, type AlignmentLapInput } from "@raceiq/analysis-core/racing/laps/alignment/build";
 import { encodeAlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/codec";
 import type { EncodedAlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/types";
-import { getLaps, getLapMetaById, getLapById, getLapsByIds, getLapsRaw, getReviewLaps, getSessionLaps } from "@raceiq/backend-core/db/lap-read-queries";
+import { getLaps, getLapById, getLapsByIds, getLapsRaw, getReviewLaps, getSessionLaps } from "@raceiq/backend-core/db/lap-read-queries";
 import { alignedTelemetryCacheGet, alignedTelemetryCacheSet, lapSetAlignmentIndexCacheGet, lapSetAlignmentIndexCacheSet } from "@raceiq/backend-core/db/telemetry-replay-storage";
-import { loadSessionSource } from "@raceiq/backend-core/session-capture/source-loader";
-import { loadRawCaptureIdentity } from "@raceiq/backend-core/session-capture/identity";
+import { loadSessionCapture, loadSessionSource, resolveLapCaptureArtifact } from "@raceiq/backend-core/session-capture/source-loader";
+import { getLiveLapCaptureSnapshot } from "@raceiq/backend-core/db/live-capture-queries";
+import { resolveLiveLapCaptureArtifact } from "@raceiq/backend-core/session-capture/source-loader";
 import { deleteLap, updateLapNotes, updateLapValidity } from "@raceiq/backend-core/db/lap-mutation-queries";
 import { setLapFavorite } from "@raceiq/backend-core/db/session-queries";
 import { setLapExperimentExcluded } from "@raceiq/backend-core/db/experiment-lap-queries";
@@ -29,19 +27,15 @@ import { computeNativeSectorTimeline, computeLapSectors } from "@raceiq/telemetr
 import { generateExport } from "@raceiq/backend-core/lap-analysis/report";
 import { resolveTrack } from "@raceiq/backend-core/tracks/info";
 import { computeLineSpreadTrace } from "@raceiq/backend-core/lap-analysis/consistency";
+import { hasWorldPositions } from "@raceiq/shared/racing/tracks/path";
 import { resolveLapCorners } from "../../tracks/corner-resolution";
-import { BulkDeleteSchema, LapsQuerySchema, ReviewLapsQuerySchema, ReviewLineSpreadQuerySchema, AlignedTelemetryRequestSchema, LapInsightBackfillSchema } from "./support";
-import { resolveTelemetryReplay } from "@raceiq/backend-core/telemetry/replay";
+import { BulkDeleteSchema, LapsQuerySchema, ReviewLapsQuerySchema, ReviewLineSpreadQuerySchema, CompareLineSpreadQuerySchema, AlignedTelemetryRequestSchema, LapInsightBackfillSchema } from "./support";
 import { resolveLapF1Setup } from "@raceiq/backend-core/ai/f1-setup-identity";
 
-export function semanticReplayIds(gameId: GameId): readonly string[] {
-  return analyseSemanticIds(getGame(gameId));
-}
-const timestampMilliseconds = (timestamp: { domain: string; milliseconds?: number; nanoseconds?: bigint }) =>
-  timestamp.domain === "monotonic" ? Number(timestamp.nanoseconds ?? 0n) / 1_000_000 : timestamp.milliseconds ?? 0;
 const gzipAsync = promisify(gzip);
 
 export const resourceRoutes = new Hono()
+  .route("/", replayRoutes)
   .get("/api/laps", zValidator("query", LapsQuerySchema), async (c) => {
     const { gameId, sessionId } = c.req.valid("query");
     const lapList = sessionId != null ? await getSessionLaps(gameId!, sessionId) : await getLaps(gameId);
@@ -67,59 +61,28 @@ export const resourceRoutes = new Hono()
     const { lapLines: _lapLines, ...compactTrace } = trace;
     return c.json(compactTrace);
   })
-
-  .get("/api/laps/:id/semantic-telemetry", zValidator("param", IdParamSchema), async (c) => {
-    const { id } = c.req.valid("param");
-    const gameIdResult = GameIdSchema.safeParse(c.req.header("X-Game-Id"));
-    if (!gameIdResult.success) return c.json({ error: "Missing or invalid X-Game-Id header" }, 400);
-    try {
-      const meta = await getLapMetaById(id);
-      if (!meta || meta.gameId !== gameIdResult.data) return c.json({ error: "Lap not found" }, 404);
-      const lap = await getLapById(id);
-      if (!lap) return c.json({ error: "Lap not found" }, 404);
-      if (lap.parseError) {
-        return c.json({
-          lapId: id, requestedSemanticIds: [], sectorTimes: meta.sectorTimes ?? null,
-          sectorStarts: null, insights: [], detectorCoverage: INSIGHT_DETECTORS.map((detector) => ({ ...detector, status: "unavailable" as const, reason: "Lap telemetry could not be parsed" })), parseError: lap.parseError, envelopes: [],
-        });
-      }
-      const source = {
-        id: meta.id, sessionId: meta.sessionId, createdAt: meta.createdAt, gameId: meta.gameId,
-        rawFile: meta.rawFile, rawByteOffset: meta.rawByteOffset, rawFrameCount: meta.rawFrameCount,
-        versionIdentity: meta.catalogVersion && meta.catalogHash && meta.catalogSchemaVersion && meta.parserVersion && meta.resolverVersion && meta.derivationVersion
-          ? { catalogVersion: meta.catalogVersion, catalogHash: meta.catalogHash, catalogSchemaVersion: meta.catalogSchemaVersion, parserVersion: meta.parserVersion, resolverVersion: meta.resolverVersion, derivationVersion: meta.derivationVersion }
-          : undefined,
-      };
-      const rawCapture = source.gameId === "iracing" && source.rawFile ? await loadRawCaptureIdentity(source.rawFile) : undefined;
-      const replay = resolveTelemetryReplay(id, source, lap.telemetry, semanticReplayIds(meta.gameId), rawCapture);
-      const nativeLayout = getGame(meta.gameId).getNativeSectorLayout?.(lap.telemetry[0]);
-      const processed = processLap(lap.telemetry, meta.gameId);
-      const analysis = runInsightScanWithCoverage(processed.packets, meta.gameId, { racingLine: resolveRacingLineReference(meta.gameId, meta.trackId) });
-      restoreFrameIndices(analysis.insights, processed.sourceIndices);
-      return c.json({
-        lapId: replay.lapId, requestedSemanticIds: replay.requestedSemanticIds,
-        sectorTimes: meta.sectorTimes ?? null, sectorStarts: nativeLayout?.starts ?? null,
-        insights: analysis.insights, detectorCoverage: analysis.detectorCoverage, parseError: lap.parseError ?? null,
-        envelopes: replay.envelopes.map((envelope) => ({
-          sequence: Number(envelope.sequence),
-          observedAt: { domain: "wall-clock", milliseconds: timestampMilliseconds(envelope.observedAt) },
-          receivedAt: { domain: "wall-clock", milliseconds: timestampMilliseconds(envelope.receivedAt) },
-          simulator: envelope.simulator,
-          values: envelope.values.map(({ semanticId, value, state, freshness }) => ({ semanticId, value, state, freshness })),
-        })),
-      });
-    } catch (error) {
-      return c.json({ error: error instanceof Error ? error.message : "Unable to replay telemetry" }, 422);
+  .get("/api/laps/compare-line-spread", zValidator("query", CompareLineSpreadQuerySchema), async (c) => {
+    const { gameId, lapIds } = c.req.valid("query");
+    const loaded = await getLapsByIds(lapIds);
+    if (loaded.length !== lapIds.length) return c.json({ error: "Selected laps not found." }, 400);
+    const ordered = lapIds.map((id) => loaded.find((lap) => lap.id === id)!);
+    const [first, second] = ordered;
+    if (first!.gameId !== gameId || second!.gameId !== gameId || first!.trackId !== second!.trackId) {
+      return c.json({ error: "Selected laps must share game and track." }, 400);
     }
+    if (ordered.some((lap) => lap.parseError || lap.telemetry.length < 30 || !hasWorldPositions(lap.telemetry))) return c.json(null);
+    const corners = await resolveLapCorners(first!.trackId, gameId, first!.telemetry);
+    const trace = computeLineSpreadTrace(ordered.map((lap) => lap.telemetry), lapIds, corners);
+    if (!trace || !Number.isFinite(trace.consistencyScore) || !Number.isFinite(trace.overallSpreadM)) return c.json(null);
+    const { lapLines: _lapLines, ...compactTrace } = trace;
+    return c.json(compactTrace);
   })
+
+
 
   .post("/api/lap-insights/backfill", zValidator("json", LapInsightBackfillSchema), async (c) =>
     c.json(await backfillLapInsights(c.req.valid("json"))),
   )
-  .post("/api/laps/:id/insights/rerun", zValidator("param", IdParamSchema), async (c) => {
-    const insights = await recomputeLapInsights(c.req.valid("param").id);
-    return insights ? c.json({ insights }) : c.json({ error: "Lap not found or has no telemetry" }, 404);
-  })
 
   .post("/api/laps/bulk-delete", zValidator("json", BulkDeleteSchema), async (c) => {
     const { ids } = c.req.valid("json");
@@ -168,14 +131,6 @@ export const resourceRoutes = new Hono()
     return c.json({ setup: gameIdResult.data === "f1-2025" ? resolveLapF1Setup({ carSetup: lap.carSetup, telemetry: lap.telemetry }) : null });
   })
 
-  .get("/api/laps/:id/insights", zValidator("param", IdParamSchema), async (c) => {
-    const gameId = GameIdSchema.safeParse(c.req.header("X-Game-Id"));
-    if (!gameId.success) return c.json({ error: "Missing or invalid X-Game-Id header" }, 400);
-    const { id } = c.req.valid("param");
-    const meta = await getLapMetaById(id);
-    if (!meta || meta.gameId !== gameId.data) return c.json({ error: "Lap not found" }, 404);
-    return c.json({ insights: await getOrComputeLapInsights(id) ?? [] });
-  })
 
   .get("/api/laps/:id", zValidator("param", IdParamSchema), async (c) => {
     const gameIdResult = GameIdSchema.safeParse(c.req.header("X-Game-Id"));
@@ -261,7 +216,7 @@ export const resourceRoutes = new Hono()
     // initial fetch instead of re-deriving on every render
     const insights = await getOrComputeLapInsights(id) ?? [];
 
-    return c.json({ ...lap, sectorTimes, insights });
+    return c.json({ ...lap, telemetry: gameId === "lmu" ? lap.telemetry.map(encodeLmuPacket) : lap.telemetry, sectorTimes, insights });
   })
 
   .get("/api/laps/:id/export", zValidator("param", IdParamSchema), async (c) => {
@@ -278,19 +233,48 @@ export const resourceRoutes = new Hono()
     const { id } = c.req.valid("param");
     const [row] = await getLapsRaw([id]);
     if (!row) return c.json({ error: "Lap not found" }, 404);
-    if (!row.rawFile) return c.json({ error: "No raw capture available for this lap" }, 409);
+    if (row.captureLayoutVersion != null && row.captureLayoutVersion !== 1 && row.captureLayoutVersion !== 2 && row.captureLayoutVersion !== 3) {
+      return c.json({ error: `Unsupported capture layout version ${row.captureLayoutVersion}` }, 422);
+    }
+    const published = row.captureLayoutVersion != null;
+    const bundled = published && (row.captureLayoutVersion === 1 || row.captureLayoutVersion === 2 || row.captureLayoutVersion === 3);
+    if (published && row.captureLayoutVersion !== 3 && (!row.captureManifestFile || !row.captureChunkId || (row.captureLayoutVersion === 2 && !row.captureArchiveFile))) {
+      return c.json({ error: "Published capture layout has incomplete capture references" }, 422);
+    }
+    if (!published && !row.rawFile) return c.json({ error: "No raw capture available for this lap" }, 409);
+    if (row.captureLayoutVersion === 3) {
+      const live = await getLiveLapCaptureSnapshot(row.sessionId, row.id);
+      if (!live) return c.json({ error: "Live lap capture member is not committed" }, 409);
+    }
 
     let bytes: Uint8Array;
     try {
-      const loaded = await loadSessionSource({
-        rawFile: row.rawFile, source: row.source ?? null, gameId: row.gameId as GameId,
-        carId: row.carId, trackId: row.trackId,
-      });
-      if (loaded.kind === "packets") {
-        return c.json({ error: "MoTeC sessions use canonical packets and have no BIN capture" }, 409);
+      if (row.captureLayoutVersion === 3) {
+        const live = await getLiveLapCaptureSnapshot(row.sessionId, row.id);
+        if (!live) return c.json({ error: "Live lap capture member is not committed" }, 409);
+        const artifact = resolveLiveLapCaptureArtifact(live.archivePath, live.snapshot);
+        bytes = await loadSessionCapture({
+          rawFile: artifact.path, artifact: artifact.artifact, source: null, gameId: row.gameId as GameId,
+          carId: row.carId, trackId: row.trackId,
+        });
+      } else if (bundled) {
+        const artifact = await resolveLapCaptureArtifact(row.captureManifestFile!, row.captureChunkId!, row.id, row);
+        bytes = await loadSessionCapture({
+          rawFile: artifact.path, artifact: artifact.artifact, source: null, gameId: row.gameId as GameId,
+          carId: row.carId, trackId: row.trackId,
+        });
+      } else {
+        const loaded = await loadSessionSource({
+          rawFile: row.rawFile!, source: row.source ?? null, gameId: row.gameId as GameId,
+          carId: row.carId, trackId: row.trackId, captureFormatVersion: row.captureFormatVersion,
+        });
+        if (loaded.kind === "packets") {
+          return c.json({ error: "MoTeC sessions use canonical packets and have no BIN capture" }, 409);
+        }
+        bytes = loaded.buffer;
       }
-      bytes = loaded.buffer;
-    } catch {
+    } catch (error) {
+      if (bundled) return c.json({ error: error instanceof Error ? error.message : "Invalid lap capture bundle" }, 422);
       return c.json({ error: "Raw capture file is missing on disk" }, 410);
     }
     bytes = new Uint8Array(await gzipAsync(Buffer.from(bytes)));
@@ -301,7 +285,7 @@ export const resourceRoutes = new Hono()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "");
     // Filename MUST start with `<gameId>-` so re-import can detect the game.
-    const filename = `${row.gameId}-${slug}-session${row.sessionId}.bin.gz`;
+    const filename = `${row.gameId}-${slug}-session${row.sessionId}${bundled ? `-lap${row.lapNumber}` : ""}.bin.gz`;
 
     c.header("Content-Type", "application/octet-stream");
     c.header("Content-Disposition", `attachment; filename="${filename}"`);

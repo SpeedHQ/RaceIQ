@@ -3,21 +3,19 @@ import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { useCarName, useResolveNames } from "../../hooks/catalog-queries";
-import type { SemanticReplayFrame } from "../../hooks/laps";
+import type { SemanticReplayFrame } from "@raceiq/lap-replay/contracts"
 import { useLapSemanticTelemetry, useLaps as useLapsQuery } from "../../hooks/laps";
 import { useTrackBoundaries, useTrackName, useTrackOutline, useTrackSectorBoundaries, useTrackSectors } from "../../hooks/track-queries";
-import { useCookieState } from "../../hooks/useCookieState";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 import type { AnalyseSearch } from "../../lib/game-routes";
 import { mergeNameCache } from "../../lib/name-cache";
 import { routePrefixForGameId } from "../../lib/game-routes";
 import { isPitLine } from "@/lib/canvas/draw-track";
+import { semanticValues, type SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import {
   DEFAULT_TRACK_OVERLAYS,
-  semanticValues,
   type Point,
   type SectorBoundaries,
-  type SemanticAnalysisFrame,
   type TrackMapBoundaries,
   type TrackMapLabel,
   type TrackOverlays,
@@ -25,6 +23,7 @@ import {
 interface AnalyseSemanticFrame {
   sequence: number;
   observedAtMs: number;
+  observedAt: { domain: string; milliseconds: number };
   values: SemanticAnalysisFrame["values"];
   states: Readonly<Record<string, string | undefined>>;
   freshness: Readonly<Record<string, string | undefined>>;
@@ -58,10 +57,13 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
       semanticReplay?.envelopes.map((envelope: SemanticReplayFrame) => ({
         sequence: envelope.sequence,
         observedAtMs: envelope.observedAt.milliseconds,
+        observedAt: envelope.observedAt,
         values: semanticValues(envelope.values),
         states: Object.fromEntries(envelope.values.filter((entry) => entry.state).map((entry) => [entry.semanticId, entry.state])),
         freshness: Object.fromEntries(envelope.values.filter((entry) => entry.freshness).map((entry) => [entry.semanticId, entry.freshness])),
         source: selectedLap?.source ?? null,
+        units: Object.fromEntries(envelope.values.map((entry) => [entry.semanticId, entry.unit])),
+        ...(envelope.lmu ? { lmu: envelope.lmu } : {}),
       })) ?? [],
     [semanticReplay, selectedLap?.source],
   );
@@ -125,17 +127,6 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
   const [mapZoom, setMapZoom] = useLocalStorage("analyse-mapZoom", 1);
   const [rotateWithCar, setRotateWithCar] = useLocalStorage("analyse-rotateWithCar", false);
   const [trackOverlays, setTrackOverlays] = useLocalStorage<TrackOverlays>("analyse-trackOverlays", DEFAULT_TRACK_OVERLAYS);
-  const [vizMode, setWheelTab] = useCookieState<"2d" | "3d">("analyse-vizMode", "2d");
-  const appliedVizParam = useRef(false);
-  useEffect(() => {
-    if (!appliedVizParam.current && (search.viz === "3d" || search.viz === "2d")) {
-      setWheelTab(search.viz);
-      appliedVizParam.current = true;
-    }
-  }, [search.viz]);
-  const [leftColWidth, setLeftColWidth] = useCookieState("analyse-leftCol", 150);
-  const [rightColWidth, setRightColWidth] = useCookieState("analyse-rightCol", 650);
-  const [topHeight, setTopHeight] = useCookieState("analyse-topHeight", 500);
   useEffect(() => {
     setLaps(allLaps.filter((l) => l.lapTime > 0 && (sessionId == null || l.sessionId === sessionId)));
   }, [allLaps, sessionId]);
@@ -250,14 +241,6 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     setRotateWithCar,
     trackOverlays,
     setTrackOverlays,
-    vizMode,
-    setWheelTab,
-    leftColWidth,
-    setLeftColWidth,
-    rightColWidth,
-    setRightColWidth,
-    topHeight,
-    setTopHeight,
     trackNames,
     carNames,
     tracks,

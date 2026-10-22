@@ -5,10 +5,7 @@ import { m } from "@/paraglide/messages";
 import { getLocale } from "@/paraglide/runtime";
 import type { DashboardCalendarBucket } from "@raceiq/shared/racing/sessions/dashboard";
 
-const CELL = 14;
-const GAP = 5;
 const DAYS = 7;
-const LABEL_WIDTH = 44;
 
 function dayKey(d: Date): string {
   const y = d.getFullYear();
@@ -77,47 +74,134 @@ export function ActivityHeatmap({ buckets, periodStart, showTitle = true, loadin
     return { cells: { days: grid, weeks }, max: maxSeconds };
   }, [buckets, year, month, todayKey, periodStart]);
 
-  const monthFormatter = new Intl.DateTimeFormat(locale, { month: "short" });
   const rangeFormatter = new Intl.DateTimeFormat(locale, { month: "long", day: "numeric", year: "numeric" });
   const monthDescription = `${rangeFormatter.format(cells.days[0].date)} – ${rangeFormatter.format(now)}`;
-  const columnStep = CELL + GAP;
-  const width = LABEL_WIDTH + cells.weeks * columnStep - GAP;
-  const height = DAYS * (CELL + GAP) - GAP;
+  const columnStep = 52;
+  const width = DAYS * columnStep;
+  const height = 24 + cells.weeks * 38;
+  const shortRange = cells.days.length <= 8;
+  const singleDay = cells.days.length === 1;
+  const months = useMemo(() => {
+    const byMonth = new Map<string, { date: Date; key: string; seconds: number }>();
+    for (const day of cells.days) {
+      const key = day.key.slice(0, 7);
+      const entry = byMonth.get(key);
+      if (entry) entry.seconds += day.seconds;
+      else byMonth.set(key, { date: day.date, key, seconds: day.seconds });
+    }
+    return [...byMonth.values()];
+  }, [cells.days]);
+
+  if (shortRange) {
+    return (
+      <section className="w-full min-w-0 rounded-lg border border-app-border p-4" aria-label={`${m.heatmap_title()} — ${monthDescription}`} aria-busy={loading}>
+        {showTitle && <h2 className="mb-4 text-app-heading font-semibold text-app-text">{m.heatmap_title()}</h2>}
+        {error ? (
+          <p className="text-app-detail text-status-danger" role="alert">{m.home_insights_analytics_error()}</p>
+        ) : (
+          <Skeleton loading={loading} shape="chart" className="w-full">
+            {singleDay ? (
+              <div className="flex min-h-16 items-center justify-between gap-4">
+                <time dateTime={todayKey} className="text-app-detail text-app-text-secondary">
+                  {now.toLocaleDateString(locale, { weekday: "long", month: "short", day: "numeric" })}
+                </time>
+                <span className="font-mono text-app-heading tabular-nums text-app-text">
+                  {max > 0 ? fmtDuration(max) : m.heatmap_no_activity()}
+                </span>
+              </div>
+            ) : (
+              <>
+                <ul className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${cells.days.length}, minmax(0, 1fr))` }}>
+                  {cells.days.map(({ date, key, seconds }) => (
+                    <li key={key} data-date={key} className="min-w-0 text-center" aria-label={`${rangeFormatter.format(date)}: ${seconds > 0 ? fmtDuration(seconds) : m.heatmap_no_activity()}`}>
+                      <div className="flex h-28 flex-col justify-end gap-1">
+                        <span className="font-mono text-app-caption tabular-nums text-app-text-secondary" aria-hidden="true">{fmtDuration(seconds)}</span>
+                        <div
+                          className="mx-auto w-full max-w-6 rounded-t-sm bg-app-accent"
+                          style={{ height: seconds > 0 ? `${Math.max(2, (seconds / max) * 80)}px` : 0 }}
+                        />
+                      </div>
+                      <div className={`border-t pt-2 text-app-compact ${key === todayKey ? "border-app-accent text-app-text" : "border-app-border text-app-text-secondary"}`} aria-hidden="true">
+                        <div>{dayLabels[(date.getDay() + 6) % DAYS]}</div>
+                        <div className="tabular-nums text-app-text-secondary">{date.getDate()}</div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                {max <= 0 && <p className="mt-3 text-app-compact text-app-text-secondary">{m.heatmap_no_activity()}</p>}
+              </>
+            )}
+          </Skeleton>
+        )}
+      </section>
+    );
+  }
+
+  if (cells.days.length > 31) {
+    const maxMonth = Math.max(...months.map(({ seconds }) => seconds));
+    return (
+      <section className="w-full min-w-0 rounded-lg border border-app-border p-4" aria-label={`${m.heatmap_title()} — ${monthDescription}`} aria-busy={loading}>
+        {showTitle && <h2 className="mb-4 text-app-heading font-semibold text-app-text">{m.heatmap_title()}</h2>}
+        <p className="mb-3 text-app-compact text-app-text-secondary">{monthDescription}</p>
+        {error ? (
+          <p className="text-app-detail text-status-danger" role="alert">{m.home_insights_analytics_error()}</p>
+        ) : (
+          <Skeleton loading={loading} shape="chart" className="w-full">
+            <ul className="grid grid-cols-3 gap-2">
+              {months.map(({ date, key, seconds }) => {
+                const level = intensity(seconds, maxMonth);
+                const label = date.toLocaleDateString(locale, { month: "long", year: "numeric" });
+                return (
+                  <li
+                    key={key}
+                    data-month={key}
+                    aria-label={`${label}: ${seconds > 0 ? fmtDuration(seconds) : m.heatmap_no_activity()}`}
+                    className={`relative min-w-0 overflow-hidden rounded border p-2 ${key === todayKey.slice(0, 7) ? "border-app-accent" : "border-app-border"}`}
+                  >
+                    <span aria-hidden="true" className="absolute inset-0" style={{ background: level === 0 ? "var(--app-surface-alt)" : "var(--app-accent)", opacity: level === 0 ? 1 : level / 4 }} />
+                    <div className={`relative ${level >= 3 ? "text-app-on-filled" : "text-app-text"}`}>
+                      <div className="text-app-compact">{date.toLocaleDateString(locale, { month: "short", year: "2-digit" })}</div>
+                      <div className="mt-1 font-mono text-app-detail tabular-nums">{fmtDuration(seconds)}</div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+            {maxMonth <= 0 && <p className="mt-3 text-app-compact text-app-text-secondary">{m.heatmap_no_activity()}</p>}
+          </Skeleton>
+        )}
+      </section>
+    );
+  }
 
   return (
-    <section className="w-full max-w-[406px] rounded-lg border border-app-border p-4" aria-label={`${m.heatmap_title()} — ${monthDescription}`} aria-busy={loading}>
+    <section className="w-full min-w-0 rounded-lg border border-app-border p-4" aria-label={`${m.heatmap_title()} — ${monthDescription}`} aria-busy={loading}>
       {showTitle && <h2 className="mb-4 text-app-heading font-semibold text-app-text">{m.heatmap_title()}</h2>}
       <div className="relative">
       <div className="overflow-x-auto">
-      <div style={{ width }}>
-        <div className="relative mb-2 h-4 text-app-compact text-app-text-secondary">
-          {cells.days
-            .filter(({ date }, index) => index === 0 || date.getDate() === 1)
-            .map(({ date, key, week }) => (
-              <span key={key} className="absolute" style={{ left: LABEL_WIDTH + week * columnStep }}>
-                {monthFormatter.format(date)}
-              </span>
-            ))}
+      <div className="w-full">
+        <div className="mb-2 text-app-compact text-app-text-secondary">
+          {cells.days[0].date.toLocaleDateString(locale, { month: "short", day: "numeric" })} – {now.toLocaleDateString(locale, { month: "short", day: "numeric" })}
         </div>
         <div className="relative">
-        <Skeleton loading={loading} shape="chart" className="h-[128px] w-full">
-        <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height} className="block max-w-none" role="img" aria-label={`${m.heatmap_title()} — ${monthDescription}`}>
+        <Skeleton loading={loading} shape="chart" className="w-full">
+        <svg viewBox={`0 0 ${width} ${height}`} width="100%" className="block w-full" role="img" aria-label={`${m.heatmap_title()} — ${monthDescription}`}>
           {dayLabels.map((label, weekday) => (
-            <text key={label} x={0} y={weekday * (CELL + GAP) + CELL / 2} dominantBaseline="middle" className="fill-app-text-secondary text-app-caption">
+            <text key={label} x={weekday * columnStep + columnStep / 2} y={7} textAnchor="middle" dominantBaseline="middle" className="fill-app-text-secondary text-app-caption">
               {label}
             </text>
           ))}
           {cells.days.map(({ date, key, seconds, week, weekday }) => {
             const level = intensity(seconds, max);
             return (
-              // oxlint-disable-next-line a11y/noStaticElementInteractions: hover supplements the native SVG date tooltip
+              <g key={key}>
+              {/* oxlint-disable-next-line a11y/noStaticElementInteractions: hover supplements the native SVG date tooltip */}
               <rect
-                key={key}
                 data-date={key}
-                x={LABEL_WIDTH + week * columnStep}
-                y={weekday * (CELL + GAP)}
-                width={CELL}
-                height={CELL}
+                x={weekday * columnStep + 4}
+                y={24 + week * 38}
+                width={44}
+                height={32}
                 rx={2}
                 fill={level === 0 ? "var(--app-surface-alt)" : "var(--app-accent)"}
                 fillOpacity={level === 0 ? 1 : level / 4}
@@ -138,6 +222,17 @@ export function ActivityHeatmap({ buckets, periodStart, showTitle = true, loadin
                   {date.toLocaleDateString(locale, { weekday: "long", month: "short", day: "numeric", year: "numeric" })}: {seconds > 0 ? fmtDuration(seconds) : m.heatmap_no_activity()}
                 </title>
               </rect>
+                <text
+                  x={weekday * columnStep + columnStep / 2}
+                  y={40 + week * 38}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  className={`pointer-events-none text-app-compact tabular-nums ${level >= 3 ? "fill-app-on-filled" : "fill-app-text"}`}
+                  aria-hidden="true"
+                >
+                  {date.getDate()}
+                </text>
+              </g>
             );
           })}
         </svg>

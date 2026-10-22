@@ -2,6 +2,7 @@ import { watch, type FSWatcher } from "node:fs";
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { computeParaglideInputHash, type ParaglideHashInput } from "./paraglide-cache";
+import { emitParaglideDeclarations } from "./paraglide-declarations";
 
 const ROOT = resolve(import.meta.dir, "../..");
 const CLIENT = resolve(ROOT, "client");
@@ -11,11 +12,13 @@ const CACHE_DIR = resolve(CLIENT, "project.inlang/.cache");
 const CACHE_PATH = resolve(CACHE_DIR, "raceiq-paraglide-dev.json");
 const OUTDIR = resolve(CLIENT, "src/paraglide");
 const OUTPUT_MARKERS = ["messages.js", "runtime.js", "server.js", "messages/en.js", "messages/de.js", "messages.d.ts", "runtime.d.ts", "server.d.ts", "messages/en.d.ts", "messages/de.d.ts"];
-const COMPILER_FINGERPRINT = "paraglide-dev-v2|locale-modules|localStorage,baseLocale|ts-declarations";
+const COMPILER_FINGERPRINT = "paraglide-dev-v3|locale-modules|localStorage,baseLocale|native-ts-declarations";
 
 let compilePromise: Promise<void> | null = null;
 let debounceTimer: Timer | null = null;
 let shuttingDown = false;
+let compiler: Bun.Subprocess | undefined;
+const shutdownController = new AbortController();
 
 async function readInputs(): Promise<ParaglideHashInput[]> {
   const entries = await Array.fromAsync(new Bun.Glob("*.json").scan({ cwd: MESSAGES_DIR, absolute: false }));
@@ -72,7 +75,8 @@ async function compile(hash: string): Promise<void> {
   await mkdir(CACHE_DIR, { recursive: true });
   const stagedOutdir = await mkdtemp(resolve(CACHE_DIR, "paraglide-output-"));
   try {
-    const child = Bun.spawn([
+    if (shuttingDown) return;
+    const child = compiler = Bun.spawn([
       "bunx",
       "paraglide-js",
       "compile",
@@ -85,7 +89,7 @@ async function compile(hash: string): Promise<void> {
       "--strategy",
       "localStorage",
       "baseLocale",
-      "--emit-ts-declarations",
+      "--no-emit-ts-declarations",
     ], { cwd: CLIENT, stdin: "ignore", stdout: "inherit", stderr: "inherit" });
     const heartbeat = setInterval(() => {
       console.log(`[Paraglide] Still compiling — ${elapsed()} elapsed`);
@@ -95,8 +99,11 @@ async function compile(hash: string): Promise<void> {
       exitCode = await child.exited;
     } finally {
       clearInterval(heartbeat);
+      compiler = undefined;
     }
     if (exitCode !== 0) throw new Error(`Paraglide compile failed (${exitCode})`);
+    await emitParaglideDeclarations(CLIENT, stagedOutdir, shutdownController.signal);
+    if (shuttingDown) return;
     console.log("[Paraglide] Installing generated output...");
     await syncGeneratedFiles(stagedOutdir, OUTDIR);
     await writeFile(CACHE_PATH, JSON.stringify({ hash }, null, 2) + "\n");
@@ -127,20 +134,37 @@ function queueCompile(): void {
 }
 
 async function main(): Promise<void> {
-  await ensureCompiled();
-  if (process.argv.includes("--once")) return;
-  const watchers: FSWatcher[] = [
-    watch(MESSAGES_DIR, { recursive: true }, queueCompile),
-    watch(SETTINGS_PATH, queueCompile),
-  ];
+  const watchers: FSWatcher[] = [];
+  const { promise: stopped, resolve: stop } = Promise.withResolvers<void>();
   const shutdown = () => {
     shuttingDown = true;
-    if (debounceTimer) clearTimeout(debounceTimer);
+    shutdownController.abort();
+    clearTimeout(debounceTimer ?? undefined);
     for (const watcher of watchers) watcher.close();
+    compiler?.kill();
+    stop();
   };
   process.once("SIGINT", shutdown);
   process.once("SIGTERM", shutdown);
-  await new Promise<void>(() => {});
+  // A killed terminal cannot forward signals to its surviving children.
+  const parentCheck = setInterval(() => { if (process.ppid === 1) shutdown(); }, 1_000);
+  try {
+    await ensureCompiled();
+    if (shuttingDown || process.argv.includes("--once")) return;
+    watchers.push(
+      watch(MESSAGES_DIR, { recursive: true }, queueCompile),
+      watch(SETTINGS_PATH, queueCompile),
+    );
+    console.log("[Paraglide] Watching translation messages");
+    await stopped;
+    await compilePromise?.catch(() => {});
+  } catch (error) {
+    if (!shuttingDown) throw error;
+  } finally {
+    clearInterval(parentCheck);
+    process.removeListener("SIGINT", shutdown);
+    process.removeListener("SIGTERM", shutdown);
+  }
 }
 
 if (import.meta.main) await main();

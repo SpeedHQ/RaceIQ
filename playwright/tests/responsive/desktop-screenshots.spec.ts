@@ -2,12 +2,13 @@ import { expect, type Page, test } from "@playwright/test";
 import { mockLiveScreenshotTelemetry } from "../support/responsive/live-screenshot";
 import { RESPONSIVE_INTERACTION_CASES, RESPONSIVE_PAGES, RESPONSIVE_VIEWPORTS } from "../support/responsive/cases";
 import { getSeededLapTarget } from "../support/seeded/laps";
+import { startSparseSplitMigration } from "../support/sparse-split-migration";
 // Responsive screenshot tests.
 //
 // Runs against seeded webServer with isolated DATA_DIR. Screenshot workflows
 // load committed demo fixtures and every route case is eligible.
 //
-// Desktop-only route and interaction evidence. Device semantics remain in device.spec.ts.
+// Desktop-only route and interaction evidence. Device behavior remains covered by dedicated responsive screenshot configuration.
 // Output: playwright/screenshots/app/<viewport>/<page>.png (gitignored).
 
 const SCREENSHOT_DIR = process.env.RACEIQ_SCREENSHOT_DIR ?? "./screenshots/app";
@@ -36,6 +37,7 @@ for (const viewport of RESPONSIVE_VIEWPORTS) {
       test(page.name, async ({ page: p, request }) => {
         if (page.liveGameId) await mockLiveScreenshotTelemetry(p, request, page.liveGameId);
         await p.goto(page.path, { waitUntil: "networkidle" });
+        await startSparseSplitMigration(p);
         await expect(p.locator("[data-responsive-workspace]")).toBeVisible();
         if (page.liveGameId) {
           await expect(p.locator("[data-live-dashboard-layout]")).toBeVisible();
@@ -64,6 +66,7 @@ for (const viewport of RESPONSIVE_VIEWPORTS) {
         const target = replayGame ? await getSeededLapTarget(request, replayGame) : null;
         const path = target ? `/${replayPrefix}/sessions/${target.sessionId}/replay/${target.id}` : screenshotCase.path;
         await p.goto(path, { waitUntil: "networkidle" });
+        await startSparseSplitMigration(p);
         await dismissTransientNotification(p);
         if (screenshotCase.kind === "analyse-data-panel-loaded") await expect(p.getByRole("heading", { name: "Metrics at Cursor" })).toBeVisible();
         if (screenshotCase.kind === "settings") {

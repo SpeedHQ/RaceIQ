@@ -2,8 +2,9 @@ import { getGame } from "@raceiq/shared/games/registry"
 import { resolveWheelStates } from "@raceiq/analysis-core/racing/analysis/metric-values";
 import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities"
 import { WeightShiftRadar } from "@/components/WeightShiftRadar";
-import type { SemanticAnalysisFrame } from "@/components/analyse/track-map/types";
-import { hasSurfaceTemperatureProfile, tireTemperatureReadings } from "@/components/analyse/tire-temperature-profile";
+import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
+import { tireTemperatureReadings } from "@raceiq/scene-3d/tire-temperature-profile"
+import { steeringAngleRadians } from "@raceiq/scene-3d/wireframe-utils";
 import { useUnits } from "@/hooks/useUnits";
 import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
 import { m } from "@/paraglide/messages";
@@ -20,7 +21,7 @@ const numeric = (frame: SemanticAnalysisFrame, id: string): number | null => {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 };
 
-function SemanticTireDiagram({ frame, gameId }: { frame: SemanticAnalysisFrame; gameId: Parameters<typeof getGame>[0] }) {
+function SemanticTireDiagram({ frame, gameId, readable = false }: { frame: SemanticAnalysisFrame; gameId: Parameters<typeof getGame>[0]; readable?: boolean }) {
   const units = useUnits();
   const adapter = getGame(gameId);
   const analysis = resolveAnalysisTelemetry(adapter);
@@ -42,13 +43,15 @@ function SemanticTireDiagram({ frame, gameId }: { frame: SemanticAnalysisFrame; 
   const healthAvailable = wear.some((value) => value != null);
   const showMillimeters = analysis.suspensionTravel.source !== "unavailable" && analysis.suspensionTravel.display === "millimeters";
   const showWheelState = states.some((state) => state != null);
-  const steerAngle = steering == null ? 0 : (steering / 127) * 20;
+  // Scene wheels turn about Y; the top-down SVG uses clockwise screen rotation.
+  const steerAngle = -(steeringAngleRadians(steering ?? adapter.steeringCenter, adapter) * 180) / Math.PI;
   const wheel = (index: number, outerSide: "left" | "right") => {
     const resolvedState = states[index];
     const state = resolvedState ? { state: resolvedState.state, slipRatio: resolvedState.slipRatio } : { state: "idle" as const, slipRatio: 0 };
     return (
       <WheelCard
         label={WHEELS[index]}
+        readable={readable}
         temperatureReadings={tireTemperatureReadings(frame, index, outerSide, primarySemanticId, primaryKind)}
         carcassBands={[carcassLeft[index], carcassMiddle[index], carcassRight[index]]}
         wear={wear[index] ?? 0}
@@ -74,39 +77,45 @@ function SemanticTireDiagram({ frame, gameId }: { frame: SemanticAnalysisFrame; 
     const meters = suspensionM[index];
     if (normalized === null && meters === null) return null;
     return (
-      <SuspBar
-        norm={normalized ?? 0}
-        thresholds={adapter.suspensionThresholds.values}
-        mmTravel={showMillimeters && meters !== null ? meters * 1000 : undefined}
-        mmMode={adapter.suspensionThresholds.millimeterMode ?? "absolute"}
-      />
+      <div className="shrink-0 pt-6">
+        <SuspBar
+          norm={normalized ?? 0}
+          thresholds={adapter.suspensionThresholds.values}
+          mmTravel={showMillimeters && meters !== null ? meters * 1000 : undefined}
+          mmMode={adapter.suspensionThresholds.millimeterMode ?? "absolute"}
+        />
+      </div>
     );
   };
   return (
-    <div className={`relative flex w-full ${hasSurfaceTemperatureProfile(frame) ? "max-w-88" : "max-w-xs"} flex-col gap-3 mx-auto`}>
-      <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
-        <WeightShiftRadar frame={frame} />
-      </div>
-      <div className="flex items-center justify-between w-full">
-        <div className="flex items-center gap-1">
+    <div className={readable ? "relative mx-auto grid w-full min-w-0 grid-rows-2" : "mx-auto flex w-full min-w-max max-w-sm shrink-0 flex-col gap-2"}>
+      <div className={`flex w-full items-start justify-between ${readable ? "" : "gap-4"}`}>
+        <div className="flex shrink-0 items-start gap-1">
           {wheel(0, "left")}
           {suspensionBar(0)}
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-start gap-1">
           {suspensionBar(1)}
           {wheel(1, "right")}
         </div>
       </div>
-      <div className="flex items-center justify-between w-full">
-        <div className="flex items-center gap-1">
+      {!readable && <div className="pointer-events-none flex justify-center">
+        <WeightShiftRadar frame={frame} />
+      </div>}
+      <div className={`flex w-full items-start justify-between ${readable ? "" : "gap-4"}`}>
+        <div className="flex shrink-0 items-start gap-1">
           {wheel(2, "left")}
           {suspensionBar(2)}
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-start gap-1">
           {suspensionBar(3)}
           {wheel(3, "right")}
         </div>
       </div>
+      {/* Wheel centers sit at SVG y=55; exclude the readouts below each axle. */}
+      {readable && <div className="absolute top-[calc(25%+55px)] left-1/2 flex -translate-x-1/2 -translate-y-1/2 justify-center">
+        <WeightShiftRadar frame={frame} compact />
+      </div>}
     </div>
   );
 }
@@ -114,7 +123,7 @@ function SemanticTireDiagram({ frame, gameId }: { frame: SemanticAnalysisFrame; 
 /**
  * TireDiagram — Arranges canonical telemetry in a front/rear axle layout.
  */
-export function TireDiagram(props: { view: LiveTelemetryView; frame?: never; gameId?: never } | { frame: SemanticAnalysisFrame; gameId: Parameters<typeof getGame>[0]; view?: never }) {
+export function TireDiagram(props: ({ view: LiveTelemetryView; frame?: never; gameId?: never } | { frame: SemanticAnalysisFrame; gameId: Parameters<typeof getGame>[0]; view?: never }) & { readable?: boolean }) {
   if (props.view) {
     const { view } = props;
     const values: SemanticAnalysisFrame["values"] = {
@@ -137,7 +146,7 @@ export function TireDiagram(props: { view: LiveTelemetryView; frame?: never; gam
       "suspension.suspension-travel-m": view.tires.suspensionTravelM && Object.values(view.tires.suspensionTravelM),
       "brakes.brake-temp": view.tires.brakeTemperatureC && Object.values(view.tires.brakeTemperatureC),
     };
-    return <SemanticTireDiagram frame={{ values, states: {}, freshness: {} }} gameId={view.simulator} />;
+    return <SemanticTireDiagram frame={{ values, states: {}, freshness: {} }} gameId={view.simulator} readable={props.readable} />;
   }
-  return <SemanticTireDiagram frame={props.frame} gameId={props.gameId} />;
+  return <SemanticTireDiagram frame={props.frame} gameId={props.gameId} readable={props.readable} />;
 }

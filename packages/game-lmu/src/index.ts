@@ -20,6 +20,7 @@ temperatures, pressures, fuel, energy, and lap-time values when data contains th
 Do not invent setup values or track landmarks absent from input.`;
 
 export const lmuServerAdapter: ServerGameAdapter = {
+  parserStateIsFrameLocal: true,
   ...lmuAdapter,
   runtime: {
     pit: {
@@ -62,8 +63,8 @@ export const lmuServerAdapter: ServerGameAdapter = {
       `LMU car: ${first.carModel || first.carName}`,
       `Class: ${first.vehicleClass}`,
       `Track: ${first.trackName} (${first.trackLengthM.toFixed(0)} m)`,
-      `Track limits steps at lap end: ${last.trackLimitsSteps}`,
-      `Virtual energy at lap end: ${last.virtualEnergy.toFixed(3)}`,
+      `Track limits steps at lap end: ${last.trackLimitsSteps ?? "unavailable"}`,
+      `Virtual energy at lap end: ${typeof last.virtualEnergy === "number" && Number.isFinite(last.virtualEnergy) ? last.virtualEnergy.toFixed(3) : "unavailable"}`,
     ].join("\n");
   },
 };

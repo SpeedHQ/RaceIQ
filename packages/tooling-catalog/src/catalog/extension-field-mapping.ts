@@ -123,6 +123,8 @@ function addExtensionVariable(
   gameId: GameId,
   field: ExtensionFieldSet,
 ): void {
+  // Native snapshot clocks are resolver provenance, not additional measurements.
+  if (field.paths.every((path) => path === "lmu.telemetryElapsedTime" || path === "lmu.scoringElapsedTime")) return;
   const metadata = extensionMetadata(field.paths[0]);
   const alias = metadata?.semanticId;
   const category = categoryFor(field.semanticKey);

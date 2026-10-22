@@ -15,6 +15,11 @@ import {
   normalizeIRacingFrame,
 } from "../src/normalizer";
 import {
+  captureIRacingParserCheckpoint,
+  createIRacingParserState,
+  restoreIRacingParserCheckpoint,
+} from "../src/normalizer";
+import {
   canHandleIRacingSourceFrame,
   createIRacingSourceDecoderState,
   decodeIRacingSourceFrame,
@@ -35,6 +40,26 @@ registerGame(iracingServerAdapter);
 registerServerGame(iracingServerAdapter);
 import { sampleFrame, sampleFrameV3 } from "./support/games/iracing-sdk";
 
+test("iRacing parser checkpoint encodes and restores parser state", () => {
+  const state = createIRacingParserState();
+  const frame = sampleFrame();
+  normalizeIRacingFrame(frame, state);
+  const restored = restoreIRacingParserCheckpoint(captureIRacingParserCheckpoint(state));
+  expect(restored).toEqual(state);
+  expect(normalizeIRacingFrame(frame, restored)).toEqual(normalizeIRacingFrame(frame, state));
+  expect(() => restoreIRacingParserCheckpoint(Buffer.from('{"format":"raceiq:iracing-parser","version":9}')))
+    .toThrow("Invalid or unsupported iRacing parser checkpoint");
+});
+
+test("iRacing checkpoint rejects malformed nested source state", () => {
+  const state = createIRacingParserState();
+  state.source.session = sampleFrame().session;
+  state.source.variables = [{ name: "Speed", type: 2 }];
+  const checkpoint = JSON.parse(new TextDecoder().decode(captureIRacingParserCheckpoint(state)));
+  checkpoint.state.source.session.sectorStarts = {};
+  expect(() => restoreIRacingParserCheckpoint(Buffer.from(JSON.stringify(checkpoint))))
+    .toThrow("Invalid or unsupported iRacing parser checkpoint");
+});
 describe("iRacing raw source frame parser integration", () => {
   test("persists live source identity once per ID for restart hydration", async () => {
     const carOrdinal = 900_042;

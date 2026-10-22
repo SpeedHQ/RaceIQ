@@ -10,13 +10,31 @@ import {
 	primaryKey,
 } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
-import type { RaceResultEvidence, RaceResultOutcomeStatus, RaceResultProvenance } from "@raceiq/shared/racing/results/types";
+import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
 import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
+import type { RaceResultEvidence, RaceResultOutcomeStatus, RaceResultProvenance } from "@raceiq/shared/racing/results/types";
 
 export const profiles = sqliteTable("profiles", {
 	id: integer("id").primaryKey({ autoIncrement: true }),
 	name: text("name").notNull(),
 	createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+});
+
+// Server-only credentials. Never include these tables in dashboard exports.
+export const dashboardAccess = sqliteTable("dashboard_access", {
+  id: integer("id").primaryKey(),
+  mode: text("mode", { enum: ["pending", "enabled", "disabled"] }).notNull(),
+  passwordHash: text("password_hash"),
+  revision: integer("revision").notNull().default(0),
+  networkJson: text("network_json"),
+  upgrade: integer("upgrade", { mode: "boolean" }),
+});
+
+export const dashboardSessions = sqliteTable("dashboard_sessions", {
+  tokenHash: text("token_hash").primaryKey(),
+  csrf: text("csrf").notNull(),
+  generation: text("generation").notNull(),
+  expiresAt: integer("expires_at").notNull(),
 });
 
 export const tunes = sqliteTable(
@@ -87,6 +105,7 @@ export const sessions = sqliteTable(
 		sessionType: text("session_type"),
 		notes: text("notes"),
 		rawFile: text("raw_file"),
+		downsampledFrequencyHz: integer("downsampled_frequency_hz"),
 		isFavorite: integer("is_favorite", { mode: "boolean" }).notNull().default(false),
 		lapDetectorVersion: text("lap_detector_version"),
 		// Runtime telemetry identity snapshot attached at first persisted capture (migration v54).
@@ -98,6 +117,11 @@ export const sessions = sqliteTable(
 		resolverVersion: text("resolver_version"),
 		derivationVersion: text("derivation_version"),
 		captureFormatVersion: integer("capture_format_version"),
+		// Container layout is independent of sparse codec eligibility/version.
+		captureLayoutVersion: integer("capture_layout_version"),
+		captureManifestFile: text("capture_manifest_file"),
+		// Layout 2 stores independent gzip members; the manifest remains a JSON path.
+		captureArchiveFile: text("capture_archive_file"),
 		// How this session's telemetry was obtained (migration v43). NULL = recorded
 		// live from the game. 'motec' = transcoded from a MoTeC .ld export, where the
 		// racing line is dead-reckoned rather than logged — see server/motec/.
@@ -181,6 +205,7 @@ export const laps = sqliteTable(
 		lapTime: real("lap_time").notNull(),
 		isValid: integer("is_valid", { mode: "boolean" }).notNull().default(true),
 		isFavorite: integer("is_favorite", { mode: "boolean" }).notNull().default(false),
+		classification: text("classification").$type<LapClassification | null>(),
 		invalidReason: text("invalid_reason"),
 		notes: text("notes"),
 		profileId: integer("profile_id").references(() => profiles.id),
@@ -194,6 +219,9 @@ export const laps = sqliteTable(
 		sectorTimes: text("sector_times", { mode: "json" }).$type<number[]>(),
 		rawByteOffset: integer("raw_byte_offset"),
 		rawFrameCount: integer("raw_frame_count"),
+		captureChunkId: text("capture_chunk_id"),
+		sourceFrameStart: integer("source_frame_start"),
+		sourceFrameCount: integer("source_frame_count"),
 		catalogVersion: text("catalog_version"),
 		catalogHash: text("catalog_hash"),
 		catalogSchemaVersion: text("catalog_schema_version"),
@@ -232,6 +260,66 @@ export const laps = sqliteTable(
 		experimentIdx: index("idx_laps_experiment").on(table.experimentId),
 	}),
 );
+export const sessionCaptureSplitJobs = sqliteTable("session_capture_split_jobs", {
+	sessionId: integer("session_id").primaryKey().references(() => sessions.id, { onDelete: "cascade" }),
+	jobId: text("job_id").notNull().unique(),
+	attemptId: integer("attempt_id").notNull().default(1),
+		sequence: integer("sequence").notNull().default(0),
+	pendingSourceRevision: text("pending_source_revision").notNull(),
+	sourcePath: text("source_path").notNull(),
+	stagingPath: text("staging_path"),
+	status: text("status", { enum: ["queued", "splitting", "verifying", "publishing", "ready", "failed"] }).notNull(),
+	errorCode: text("error_code"),
+	errorMessage: text("error_message"),
+		processedSourceFrames: integer("processed_source_frames"),
+		totalSourceFrames: integer("total_source_frames"),
+		completedLapArtifacts: integer("completed_lap_artifacts").notNull().default(0),
+		totalLapArtifacts: integer("total_lap_artifacts").notNull().default(0),
+	createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+	updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
+});
+
+/** Mutable capture progress; archive members below are immutable after commit. */
+export const liveCaptures = sqliteTable("live_captures", {
+	sessionId: integer("session_id").primaryKey().references(() => sessions.id, { onDelete: "cascade" }),
+	captureEpoch: text("capture_epoch").notNull().unique(),
+	attempt: text("attempt").notNull(),
+	sourcePath: text("source_path").notNull(),
+	sourceDevice: text("source_device"),
+	sourceInode: text("source_inode"),
+	archivePath: text("archive_path").notNull(),
+	generation: integer("generation").notNull().default(0),
+	committedArchiveLength: integer("committed_archive_length").notNull().default(0),
+	sourceByteLength: integer("source_byte_length").notNull().default(0),
+	sourceRecordCount: integer("source_record_count").notNull().default(0),
+	sourceDurableWatermark: integer("source_durable_watermark").notNull().default(0),
+	metadataDurableWatermark: integer("metadata_durable_watermark").notNull().default(0),
+	durableSequence: integer("durable_sequence").notNull().default(0),
+	status: text("status", { enum: ["recording", "finalizing", "sealed", "failed", "recovering"] }).notNull(),
+	error: text("error"),
+});
+
+export const liveCaptureMembers = sqliteTable("live_capture_members", {
+	captureEpoch: text("capture_epoch").notNull().references(() => liveCaptures.captureEpoch, { onDelete: "cascade" }),
+	generation: integer("generation").notNull(),
+	lapId: integer("lap_id").references(() => laps.id, { onDelete: "set null" }),
+	ownershipRevision: integer("ownership_revision").notNull(),
+	descriptor: text("descriptor").notNull(),
+	verification: text("verification").notNull(),
+}, (table) => ({
+	identity: primaryKey({ columns: [table.captureEpoch, table.generation] }),
+	lapIdentity: uniqueIndex("live_capture_member_lap_idx").on(table.lapId),
+}));
+
+/** Recovery journal is persisted before its watermark can enter a publication. */
+export const liveCaptureJournal = sqliteTable("live_capture_journal", {
+	captureEpoch: text("capture_epoch").notNull().references(() => liveCaptures.captureEpoch, { onDelete: "cascade" }),
+	sequence: integer("sequence").notNull(),
+	sourceByteEnd: integer("source_byte_end").notNull(),
+	payload: text("payload").notNull(),
+}, (table) => ({
+	identity: primaryKey({ columns: [table.captureEpoch, table.sequence] }),
+}));
 
 export const tuneAssignments = sqliteTable(
 	"tune_assignments",
@@ -368,9 +456,9 @@ export const experiments = sqliteTable(
 		carName: text("car_name"),
 		trackName: text("track_name"),
 		baseSetupPath: text("base_setup_path"),
-		// The checked-out tuning-test the Setup Engineer chat works from.
-		// null → fall back to the mainline tip. Not a hard FK so a test can be
-		// archived independently (mirrors experiment_versions.parentVersionId).
+		// The checked-out version. Chat uses only its attached laps; null means
+		// the base/unversioned scope, never an implicit latest-version selection.
+		// Not a hard FK so versions can be archived independently.
 		headVersionId: integer("head_version_id"),
 		status: text("status").notNull().default("active"), // 'active' | 'archived'
 		// What the experiment is varying RIGHT NOW (migration v39): 'car' or
@@ -661,8 +749,10 @@ export const dashboardSessionSummaries = sqliteTable("dashboard_session_summarie
 	lapCount: integer("lap_count").notNull(),
 	positiveLaps: integer("positive_laps").notNull(),
 	validLaps: integer("valid_laps").notNull(),
+	paceLaps: integer("pace_laps").notNull().default(0),
 	drivenSeconds: real("driven_seconds").notNull(),
 	validSeconds: real("valid_seconds").notNull(),
+	paceSeconds: real("pace_seconds").notNull().default(0),
 	validMeanSeconds: real("valid_mean_seconds"),
 	validM2Seconds: real("valid_m2_seconds"),
 	bestLapSeconds: real("best_lap_seconds"),
@@ -713,8 +803,10 @@ export const dashboardSessionDays = sqliteTable("dashboard_session_days", {
 	lapCount: integer("lap_count").notNull(),
 	positiveLaps: integer("positive_laps").notNull(),
 	validLaps: integer("valid_laps").notNull(),
+	paceLaps: integer("pace_laps").notNull().default(0),
 	drivenSeconds: real("driven_seconds").notNull(),
 	validSeconds: real("valid_seconds").notNull(),
+	paceSeconds: real("pace_seconds").notNull().default(0),
 	bestLapSeconds: real("best_lap_seconds"),
 	meanLapSeconds: real("mean_lap_seconds"),
 	m2LapSeconds: real("m2_lap_seconds"),
@@ -745,9 +837,11 @@ export const dashboardSessionTimeBuckets = sqliteTable("dashboard_session_time_b
 	gameId: text("game_id").notNull(),
 	validLaps: integer("valid_laps").notNull(),
 	positiveLaps: integer("positive_laps").notNull(),
+	paceLaps: integer("pace_laps").notNull().default(0),
 	drivenSeconds: real("driven_seconds").notNull(),
 	validSeconds: real("valid_seconds").notNull().default(0),
 	podiumFirst: integer("podium_first").notNull().default(0),
+	paceSeconds: real("pace_seconds").notNull().default(0),
 	podiumSecond: integer("podium_second").notNull().default(0),
 	podiumThird: integer("podium_third").notNull().default(0),
 }, (table) => [primaryKey({ columns: [table.sessionId, table.bucketStartMs, table.gameId] })]);
@@ -760,9 +854,11 @@ export const dashboardDayEntities = sqliteTable("dashboard_day_entities", {
 	positiveLaps: integer("positive_laps").notNull(),
 	validLaps: integer("valid_laps").notNull(),
 	drivenSeconds: real("driven_seconds").notNull(),
+	paceLaps: integer("pace_laps").notNull().default(0),
 	validSeconds: real("valid_seconds").notNull(),
 	validMeanSeconds: real("valid_mean_seconds"),
 	validM2Seconds: real("valid_m2_seconds"),
+	paceSeconds: real("pace_seconds").notNull().default(0),
 	favouriteLaps: integer("favourite_laps").notNull(),
 	favouriteSeconds: real("favourite_seconds").notNull(),
 	distanceLaps: integer("distance_laps").notNull(),
@@ -785,9 +881,11 @@ export const dashboardMonthEntities = sqliteTable("dashboard_month_entities", {
 	positiveLaps: integer("positive_laps").notNull(),
 	validLaps: integer("valid_laps").notNull(),
 	drivenSeconds: real("driven_seconds").notNull(),
+	paceLaps: integer("pace_laps").notNull().default(0),
 	validSeconds: real("valid_seconds").notNull(),
 	validMeanSeconds: real("valid_mean_seconds"),
 	validM2Seconds: real("valid_m2_seconds"),
+	paceSeconds: real("pace_seconds").notNull().default(0),
 	favouriteLaps: integer("favourite_laps").notNull(),
 	favouriteSeconds: real("favourite_seconds").notNull(),
 	distanceLaps: integer("distance_laps").notNull(),
@@ -808,9 +906,11 @@ export const dashboardTimeBuckets = sqliteTable("dashboard_time_buckets", {
 	validLaps: integer("valid_laps").notNull(),
 	positiveLaps: integer("positive_laps").notNull(),
 	drivenSeconds: real("driven_seconds").notNull(),
+	paceLaps: integer("pace_laps").notNull().default(0),
 	validSeconds: real("valid_seconds").notNull(),
 	podiumFirst: integer("podium_first").notNull(),
 	podiumSecond: integer("podium_second").notNull(),
+	paceSeconds: real("pace_seconds").notNull().default(0),
 	podiumThird: integer("podium_third").notNull(),
 }, (table) => [
 	primaryKey({ columns: [table.bucketStartMs, table.gameId] }),
@@ -830,9 +930,30 @@ export const dashboardLapIndex = sqliteTable("dashboard_lap_index", {
 	lapTime: real("lap_time").notNull(),
 	isValid: integer("is_valid").notNull(),
 	invalidReason: text("invalid_reason"),
+	classification: text("classification"),
 	sectorTimes: text("sector_times"),
 }, (table) => [
 	index("dashboard_lap_session_time_idx").on(table.sessionId, table.lapTime, table.lapId),
 	index("dashboard_lap_session_created_idx").on(table.sessionId, table.createdAtMs, table.lapId),
 	index("dashboard_lap_created_idx").on(table.createdAtMs, table.sessionId, table.lapId),
 ]);
+export const classificationMigrationRecordings = sqliteTable("classification_migration_recordings", {
+	recordingId: text("recording_id").primaryKey(),
+	sourceKey: text("source_key").notNull(),
+	version: integer("version").notNull(),
+	sourceRevision: integer("source_revision").notNull().default(1),
+	resultRevision: integer("result_revision").notNull().default(0),
+	attempt: integer("attempt").notNull().default(0),
+	state: text("state").notNull(),
+	sourceSignature: text("source_signature"),
+	reason: text("reason"),
+}, (table) => [
+	unique().on(table.sourceKey),
+]);
+
+export const classificationMigrationMeta = sqliteTable("classification_migration_meta", {
+	id: integer("id").primaryKey(),
+	version: integer("version").notNull(),
+	revision: integer("revision").notNull().default(0),
+	cutoffSessionId: integer("cutoff_session_id").notNull().default(0),
+});

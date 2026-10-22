@@ -62,7 +62,10 @@ export type RacingLineReference =
     };
 
 export interface LapAnalysisContext {
-  racingLine: RacingLineReference;
+  racingLine?: RacingLineReference;
+  /** Canonical electronics channels, aligned with the prepared analysis packets. */
+  tractionControlActive?: readonly (boolean | undefined)[];
+  tractionControlIntervention?: readonly (number | undefined)[];
 }
 
 export type InsightSeverity = "info" | "warning" | "critical";

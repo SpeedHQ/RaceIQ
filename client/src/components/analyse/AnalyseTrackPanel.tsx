@@ -9,11 +9,11 @@ import { Button } from "../ui/button";
 import { Switch } from "../ui/switch";
 import { DropdownMenu } from "../ui/DropdownMenu";
 import { AnalyseTrackMap } from "./AnalyseTrackMap";
+import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import {
   DEFAULT_TRACK_OVERLAYS,
   type Point,
   type SectorBoundaries,
-  type SemanticAnalysisFrame,
   type TrackMapBoundaries,
   type TrackMapHandle,
   type TrackMapLabel,
@@ -59,10 +59,7 @@ interface AnalyseTrackPanelProps {
 }
 
 /**
- * AnalyseTrackPanel — the track map + overlays block (map, weather widget,
- * rotate/overlay toggles, zoom, compass, steering/pedal overlay). Extracted
- * from AnalyseTopSection's middle column so Analyse and the Setup Engineer
- * live dashboard render the identical panel instead of each re-assembling it.
+ * Shared track map, overlays, and controls for recorded replay and live telemetry.
  * Always renders — no live packet just means the compass/steering overlay
  * and weather widget stay hidden, not the whole panel.
  */

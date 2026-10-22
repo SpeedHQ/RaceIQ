@@ -98,4 +98,54 @@ describe("LMU sparse session recorder", () => {
     bytes.writeUInt32LE(1, deltaOffset + 8);
     expect(() => sessionFrameAt(bytes, deltaOffset)).toThrow(/checkpoint distance/);
   });
+  test("writes a full frame after a detector checkpoint request", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "raceiq-sparse-requested-checkpoint-"));
+    directories.push(dir);
+    const recorder = new SparseSessionRecorder();
+    const file = join(dir, "capture.bin");
+    recorder.start(file);
+    recorder.writeMetaFrame();
+    const frame = Buffer.alloc(LMU_SOURCE_FRAME_V2_SIZE);
+    LMU_SOURCE_FRAME_MAGIC.copy(frame);
+    frame.writeUInt16LE(2, 8);
+    recorder.writeRecord(Buffer.from(frame));
+    frame[1_000] = 1;
+    recorder.writeRecord(Buffer.from(frame));
+    frame[2_000] = 2;
+    const boundaryOffset = recorder.getCurrentByteOffset();
+    recorder.requestFullCheckpoint();
+    recorder.writeRecord(Buffer.from(frame));
+    await recorder.stop();
+
+    const bytes = readFileSync(file);
+    expect(bytes.readUInt32LE(boundaryOffset)).toBe(LMU_SOURCE_FRAME_V2_SIZE);
+    expect(sessionFrameAt(bytes, boundaryOffset)).toEqual(frame);
+  });
+  test("finalizes previous capture asynchronously while a replacement capture records", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "raceiq-sparse-overlap-"));
+    directories.push(dir);
+    const recorder = new SparseSessionRecorder();
+    const firstPath = join(dir, "first.bin");
+    recorder.start(firstPath);
+    recorder.writeMetaFrame();
+    const firstFrame = Buffer.alloc(LMU_SOURCE_FRAME_V2_SIZE);
+    LMU_SOURCE_FRAME_MAGIC.copy(firstFrame);
+    firstFrame.writeUInt16LE(2, 8);
+    recorder.writeRecord(firstFrame);
+
+    const firstStop = recorder.stop();
+    const secondPath = join(dir, "second.bin");
+    recorder.start(secondPath);
+    recorder.writeMetaFrame();
+    const secondFrame = Buffer.from(firstFrame);
+    secondFrame[1000] = 1;
+    recorder.writeRecord(secondFrame);
+    const secondStop = recorder.stop();
+
+    await Promise.all([firstStop, secondStop]);
+    expect(readFileSync(firstPath).readUInt32LE(8)).toBe(1);
+    expect(readFileSync(secondPath).readUInt32LE(8)).toBe(1);
+    expect(sessionFrameAt(readFileSync(firstPath), 12)).toEqual(firstFrame);
+    expect(sessionFrameAt(readFileSync(secondPath), 12)).toEqual(secondFrame);
+  });
 });

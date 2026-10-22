@@ -2,7 +2,7 @@ import { registerGame } from "@raceiq/shared/games/registry";
 import { iracingServerAdapter } from "../../src/index";
 import { registerServerGame } from "@raceiq/backend-core/games/registry";
 import { iracingRecordingSupport } from "../support/recordings";
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -15,6 +15,7 @@ import {
   IRacingTelemetrySource,
 } from "../../src/source";
 import { parseDump } from "@raceiq/backend-core/test-support/recordings/parse-dump";
+import { getRecordingFrequencyHz, setRecordingFrequencyHz } from "@raceiq/backend-core/runtime/config/recording-frequency";
 
 registerGame(iracingServerAdapter);
 registerServerGame(iracingServerAdapter);
@@ -68,6 +69,10 @@ DriverInfo:
 
 describe("iRacing dump-mode recording", () => {
   test("records an iRacing-specific container and replays it through the production parser", async () => {
+    const previousFrequency = getRecordingFrequencyHz();
+    let nowMs = 0;
+    const clockSpy = spyOn(performance, "now").mockImplementation(() => nowMs);
+    setRecordingFrequencyHz(100);
     const dir = mkdtempSync(join(tmpdir(), "iracing-recording-"));
     const snapshots = [snapshot(7530), snapshot(7531)];
     const reader: IRacingFrameReader = {
@@ -89,7 +94,9 @@ describe("iRacing dump-mode recording", () => {
 
     try {
       source.start();
+      nowMs = 0;
       expect(await source.pollOnce()).toBe(true);
+      nowMs = 10;
       expect(await source.pollOnce()).toBe(true);
       await Promise.all([source.stop(), recorder.stop()]);
 
@@ -123,6 +130,8 @@ describe("iRacing dump-mode recording", () => {
       expect(replay.trackName).toBe("Road America");
     } finally {
       await source.stop();
+      setRecordingFrequencyHz(previousFrequency);
+      clockSpy.mockRestore();
       rmSync(dir, { recursive: true, force: true });
     }
   });

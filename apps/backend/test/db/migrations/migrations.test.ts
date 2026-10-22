@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { Database } from "bun:sqlite";
+import Database from "libsql";
 import { migrations } from "@raceiq/backend-core/db/migrations";
 import * as schema from "@raceiq/backend-core/db/schema";
 
@@ -10,7 +10,10 @@ import * as schema from "@raceiq/backend-core/db/schema";
 
 type ColInfo = { name: string; type: string; notnull: number; dflt_value: string | null };
 
-function applyMigrations(db: Database) {
+function applyMigrations(db: InstanceType<typeof Database>) {
+  // The production runner creates and maintains this ledger before migration
+  // SQL executes; upgrade migrations can inspect the recorded history.
+  db.exec("CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL)");
   for (const m of migrations) {
     for (const sql of m.sql) {
       try {
@@ -22,16 +25,17 @@ function applyMigrations(db: Database) {
         if (!message.includes("duplicate column name")) throw error;
       }
     }
+    db.prepare("INSERT INTO schema_migrations (version, name) VALUES (?, ?)").run(m.version, m.name);
   }
 }
 
-function getTableColumns(db: Database, table: string): Map<string, ColInfo> {
-  const cols = db.query(`PRAGMA table_info(${table})`).all() as ColInfo[];
+function getTableColumns(db: InstanceType<typeof Database>, table: string): Map<string, ColInfo> {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as ColInfo[];
   return new Map(cols.map((c) => [c.name, c]));
 }
 
-function getTableNames(db: Database): string[] {
-  const rows = db.query("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all() as { name: string }[];
+function getTableNames(db: InstanceType<typeof Database>): string[] {
+  const rows = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all() as { name: string }[];
   return rows.map((r) => r.name).sort();
 }
 
@@ -84,10 +88,4 @@ describe("migrations match schema", () => {
     db.close();
   });
 
-  test("migrations apply cleanly in order", () => {
-    const db = new Database(":memory:");
-    // Should not throw
-    expect(() => applyMigrations(db)).not.toThrow();
-    db.close();
-  });
 });
