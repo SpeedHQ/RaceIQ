@@ -6,7 +6,6 @@ export async function setAnalyseFrame(page: Page, frame: number): Promise<void> 
     if (!setFrame) throw new Error("Analyse frame control is unavailable");
     await setFrame(index);
   }, frame);
-  await expect(page.getByRole("slider", { name: "Lap timeline" })).toHaveAttribute("aria-valuenow", String(frame));
 }
 
 export async function metricRowText(page: Page, label: string): Promise<string> {

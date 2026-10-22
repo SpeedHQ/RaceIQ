@@ -3,10 +3,9 @@ import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { useCarName, useResolveNames } from "../../hooks/catalog-queries";
-import type { SemanticReplayFrame } from "../../hooks/laps";
+import type { SemanticReplayFrame } from "@raceiq/lap-replay/contracts"
 import { useLapSemanticTelemetry, useLaps as useLapsQuery } from "../../hooks/laps";
 import { useTrackBoundaries, useTrackName, useTrackOutline, useTrackSectorBoundaries, useTrackSectors } from "../../hooks/track-queries";
-import { useCookieState } from "../../hooks/useCookieState";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 import type { AnalyseSearch } from "../../lib/game-routes";
 import { mergeNameCache } from "../../lib/name-cache";
@@ -128,17 +127,6 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
   const [mapZoom, setMapZoom] = useLocalStorage("analyse-mapZoom", 1);
   const [rotateWithCar, setRotateWithCar] = useLocalStorage("analyse-rotateWithCar", false);
   const [trackOverlays, setTrackOverlays] = useLocalStorage<TrackOverlays>("analyse-trackOverlays", DEFAULT_TRACK_OVERLAYS);
-  const [vizMode, setWheelTab] = useCookieState<"2d" | "3d">("analyse-vizMode", "2d");
-  const appliedVizParam = useRef(false);
-  useEffect(() => {
-    if (!appliedVizParam.current && (search.viz === "3d" || search.viz === "2d")) {
-      setWheelTab(search.viz);
-      appliedVizParam.current = true;
-    }
-  }, [search.viz]);
-  const [leftColWidth, setLeftColWidth] = useCookieState("analyse-leftCol", 150);
-  const [rightColWidth, setRightColWidth] = useCookieState("analyse-rightCol", 650);
-  const [topHeight, setTopHeight] = useCookieState("analyse-topHeight", 500);
   useEffect(() => {
     setLaps(allLaps.filter((l) => l.lapTime > 0 && (sessionId == null || l.sessionId === sessionId)));
   }, [allLaps, sessionId]);
@@ -253,14 +241,6 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     setRotateWithCar,
     trackOverlays,
     setTrackOverlays,
-    vizMode,
-    setWheelTab,
-    leftColWidth,
-    setLeftColWidth,
-    rightColWidth,
-    setRightColWidth,
-    topHeight,
-    setTopHeight,
     trackNames,
     carNames,
     tracks,

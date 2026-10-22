@@ -1,0 +1,92 @@
+import { useCompareLineSpread } from "./host"
+import { SpectateLineScore } from "./SpectateLineScore";
+import { useMemo, useState, type ReactNode } from "react";
+import { useMessages } from "./host"
+import { CompareAiPanel } from "./host"
+import { useReplayHost } from "./host"
+import { SpectateScene } from "./SpectateScene";
+import { SpectateTelemetryPanel } from "./SpectateTelemetryPanel";
+import { SpectateCarPanel } from "./SpectateCarPanel";
+import { SpectateOverview } from "./SpectateOverview";
+import { SpectateInputs } from "./SpectateInputs";
+import { SpectatePlayback } from "./SpectatePlayback";
+import type { SpectateController, ReplaySession, SpectateSegment } from "../contracts/spectate";
+import { buildSpectateFocus, type SpectateFocusMode } from "./spectate-focus";
+import { SpectateFocusToolbar } from "./SpectateFocusToolbar";
+import { SpectateDataPanel } from "./SpectateDataPanel";
+import { ReplaySegmentsPanel } from "./ReplaySegmentsPanel";
+import { SpectateInsightsPanel } from "./SpectateInsightsPanel";
+import { useLocalStorage } from "./host"
+import { SpectateWorkspace } from "./SpectateWorkspace"
+import { useSceneMode } from "./useSceneMode";
+
+const FOCUS_MODES: readonly SpectateFocusMode[] = ["inputs", "speed", "balance", "ers"];
+export function SpectateView({
+  pair,
+  controller,
+  outline,
+  segments,
+  aiOpen,
+  telemetryOpen,
+  carPanelOpen,
+  onTelemetryOpenChange,
+  onCarPanelOpenChange,
+  panelHeaderTarget,
+  onAiOpenChange,
+  ai,
+}: {
+  pair: ReplaySession;
+  controller: SpectateController;
+  outline: readonly { x: number; z: number }[] | null;
+  segments: readonly SpectateSegment[];
+  aiOpen: boolean;
+  telemetryOpen: boolean;
+  carPanelOpen: boolean;
+  onTelemetryOpenChange: (open: boolean) => void;
+  onCarPanelOpenChange: (open: boolean) => void;
+  panelHeaderTarget: HTMLDivElement | null;
+  onAiOpenChange: (open: boolean) => void;
+  ai?: (headerTarget: HTMLDivElement | null) => ReactNode;
+}) {
+const { formatLapTime } = useReplayHost(); const m = useMessages(); const single = pair.b === null;
+const [focusMode, setFocusMode] = useSceneMode<SpectateFocusMode>("spectate-focus-mode", "inputs", FOCUS_MODES);
+const focus = useMemo(() => buildSpectateFocus(pair, focusMode), [pair, focusMode]);
+const [telemetryHeaderControls, setTelemetryHeaderControls] = useState<HTMLDivElement | null>(null);
+const [aiHeaderControls, setAiHeaderControls] = useState<HTMLDivElement | null>(null);
+const [dataOpen, setDataOpen] = useLocalStorage(single ? "replay-data-open" : "spectate-data-open", single);
+const [insightsOpen, setInsightsOpen] = useLocalStorage(single ? "replay-insights-open" : "spectate-insights-open", false);
+const [segmentsOpen, setSegmentsOpen] = useLocalStorage("replay-segments-open", false);
+return (
+  <SpectateWorkspace storageKey={single ? "replay-panel-width" : "spectate-panel-width"} panelHeaderTarget={panelHeaderTarget} panels={[
+    { id: single ? "replay-telemetry-panel" : "spectate-telemetry-panel", label: m.spectate_telemetry(), open: telemetryOpen, closedWidth: 100, toggle: onTelemetryOpenChange, collapseOnNarrow: true,
+      headerControls: <div ref={setTelemetryHeaderControls} className="shrink-0 pr-3" />,
+      content: <SpectateTelemetryPanel pair={pair} controller={controller} headerTarget={telemetryHeaderControls} /> },
+    { id: single ? "replay-car-panel" : "spectate-2d-panel", label: "Car layout", open: carPanelOpen, width: 384, closedWidth: 88, toggle: onCarPanelOpenChange,
+      content: <SpectateCarPanel pair={pair} controller={controller} /> },
+    { id: single ? "replay-data-panel" : "spectate-data-panel", label: m.analyse_tab_data(), open: dataOpen, width: 384, closedWidth: 72, toggle: setDataOpen,
+      content: <div className="h-full overflow-y-auto"><SpectateDataPanel pair={pair} controller={controller} /></div> },
+    ...(single ? [{ id: "replay-segments-panel", label: m.overlay_segments(), open: segmentsOpen, width: 288, closedWidth: 88, toggle: setSegmentsOpen,
+      content: <ReplaySegmentsPanel lap={pair.a} controller={controller} segments={segments} /> }] : []),
+    { id: single ? "replay-insights-panel" : "spectate-insights-panel", label: m.analyse_tab_insights(), open: insightsOpen, width: 384, closedWidth: 88, toggle: setInsightsOpen,
+      content: <SpectateInsightsPanel pair={pair} controller={controller} /> },
+    { id: single ? "replay-ai-panel" : "spectate-ai-panel", label: m.label_ai_analysis(), open: aiOpen, closedWidth: 112, toggle: onAiOpenChange,
+      headerControls: <div ref={setAiHeaderControls} className="shrink-0 pr-3" />,
+      content: <div className="h-full overflow-y-auto">{pair.comparison.lapB && pair.b ? <CompareAiPanel panelOpen headerTarget={aiHeaderControls}
+        lapA={{ id: pair.comparison.lapA.id, label: `${m.compare_lap_label()} ${pair.comparison.lapA.lapNumber} (${formatLapTime(pair.comparison.lapA.lapTime)})`, lapTime: pair.comparison.lapA.lapTime }}
+        lapB={{ id: pair.comparison.lapB.id, label: `${m.compare_lap_label()} ${pair.comparison.lapB.lapNumber} (${formatLapTime(pair.comparison.lapB.lapTime)})`, lapTime: pair.comparison.lapB.lapTime }}
+        segments={segments.map(({ name, startFrac, endFrac }) => ({ name, startFrac, endFrac }))} /> : ai?.(aiHeaderControls)}</div> },
+  ]}>
+    <div className="relative min-h-0 flex-1 overflow-hidden">
+      <SpectateScene pair={pair} controller={controller} outline={outline} focus={focus}
+        overview={<SpectateOverview pair={pair} controller={controller} segments={segments} focus={focus} />} />
+      <SpectateFocusToolbar focus={focus} onChange={setFocusMode} single={single} tirePanelOpen={carPanelOpen} onTirePanelOpenChange={onCarPanelOpenChange} />
+      {pair.b && pair.comparison.lapB && <ComparisonLineScore pair={pair} controller={controller} />}
+      <SpectateInputs pair={pair} controller={controller} />
+    </div>
+    <SpectatePlayback controller={controller} pair={pair} />
+  </SpectateWorkspace>
+); }
+function ComparisonLineScore({ pair, controller }: { pair: ReplaySession; controller: SpectateController }) {
+  const { data } = useCompareLineSpread(pair.gameId, [pair.comparison.lapA.id, pair.comparison.lapB!.id]);
+  return <SpectateLineScore trace={data} pair={pair} controller={controller} />;
+}

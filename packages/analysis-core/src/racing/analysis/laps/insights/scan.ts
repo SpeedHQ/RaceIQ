@@ -61,7 +61,8 @@ export function runInsightScanWithCoverage(sourceTelemetry: TelemetryPacket[], g
   const physicalSuspensionStroke = suspension?.source === 'direct' && suspension.freshness === 'continuous' && suspension.binding?.kind === 'value' && suspension.binding.semanticId === 'suspension.norm-suspension-travel';
   const nativeAid = gameId === 'acc' || gameId === 'ac-evo';
   const nativeAbs = nativeAid && telemetry.some((packet) => Number.isFinite(packet.acc?.absIntervention));
-  const nativeTc = nativeAid && telemetry.some((packet) => Number.isFinite(packet.acc?.tcIntervention));
+  const nativeTcActive = context?.tractionControlActive?.some((value) => typeof value === "boolean") ?? false;
+  const nativeTc = nativeTcActive || (context?.tractionControlIntervention?.some((value) => Number.isFinite(value)) ?? false);
   const unavailableReason: Record<number, string> = {};
   if (!physicalSuspensionStroke) unavailableReason[0] = "Continuous direct suspension-travel channel unavailable";
   if (!telemetry.some((packet) => Number.isFinite(packet.SuspensionTravelMFL) &&
@@ -102,7 +103,8 @@ export function runInsightScanWithCoverage(sourceTelemetry: TelemetryPacket[], g
   const aidOptions = { wheelRotationAvailable: wheelEnabled, wheelStates: states };
   const electronic = createElectronicScan(telemetry, {
     abs: { ...aidOptions, nativeChannelAvailable: nativeAbs, nativeChannelExplicit: gameId === "ac-evo" },
-    tractionControl: { ...aidOptions, nativeChannelAvailable: nativeTc, nativeChannelExplicit: gameId === "ac-evo" },
+    tractionControl: { ...aidOptions, nativeChannelAvailable: nativeTc, nativeChannelExplicit: nativeTcActive || gameId === "ac-evo",
+      nativeValues: nativeTcActive ? context?.tractionControlActive : context?.tractionControlIntervention },
     f1Enabled: gameId === 'f1-2025',
   });
   const core = createCoreDrivingScan(telemetry, ctx, states);

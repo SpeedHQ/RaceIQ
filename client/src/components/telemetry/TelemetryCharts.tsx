@@ -126,10 +126,10 @@ export function TelemetryCharts({ view }: { view: LiveTelemetryView }) {
   return (
     <div className="grid gap-2">
       {showGrip && <FourLineChart data={chartData.grip} label={m.chart_traction()} maxY={3} />}
-      {showSurfaceTemperature && <FourLineChart data={chartData.temp} label={showCoreTemperature ? m.chart_surface_tire_temp() : m.chart_tire_temp()} unit={`°${units.tempUnit}`} />}
-      {showCoreTemperature && <FourLineChart data={chartData.coreTemp} label={showSurfaceTemperature ? m.chart_core_tire_temp() : m.chart_tire_temp()} unit={`°${units.tempUnit}`} />}
+      {showSurfaceTemperature && <FourLineChart data={chartData.temp} label={`${showCoreTemperature ? m.chart_surface_tire_temp() : m.chart_tire_temp()} (°${units.tempUnit})`} />}
+      {showCoreTemperature && <FourLineChart data={chartData.coreTemp} label={`${showSurfaceTemperature ? m.chart_core_tire_temp() : m.chart_tire_temp()} (°${units.tempUnit})`} />}
       {showWear && <FourLineChart data={chartData.wear} label={m.chart_tire_wear()} maxY={1} />}
-      {showSlipAngle && <FourLineChart data={chartData.slipAngle} label={m.chart_slip_angle()} unit="°" />}
+      {showSlipAngle && <FourLineChart data={chartData.slipAngle} label={`${m.chart_slip_angle()} (°)`} />}
       {showSlipRatio && <FourLineChart data={chartData.slipRatio} label={m.chart_slip_ratio()} />}
       {showNormalizedSuspension && <FourLineChart data={chartData.suspension} label={m.chart_suspension()} maxY={1} />}
       <SingleLineChart data={chartData.speed} label={m.chart_speed({ unit: units.speedLabel })} color="var(--app-accent)" />

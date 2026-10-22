@@ -6,7 +6,7 @@ import { ExperimentWorkspace } from "@/components/tunes/ExperimentWorkspace";
 import { ExperimentList } from "@/components/tunes/experiment/ExperimentList";
 import { TestReviewPage } from "@/components/tunes/review/TestReviewPage";
 import type { Experiment, ExperimentLapMetric, ExperimentVersion } from "@/hooks/experiments";
-import type { SemanticLapTelemetry } from "@/hooks/laps";
+import type { SemanticLapTelemetry } from "@raceiq/lap-replay/contracts"
 import { DEFAULT_DISPLAY_SETTINGS } from "../stores/telemetry";
 import { GameStoryScope } from "./GameStoryScope";
 import { validateTuneReviewSearch } from "@/lib/game-routes";

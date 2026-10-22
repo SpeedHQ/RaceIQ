@@ -11,7 +11,7 @@ import { buildOpenLapContext } from "../src/components/tunes/review/open-lap-con
 import { tireSnapshot } from "../src/components/tunes/review/tire-snapshot";
 import { semanticSamples } from "../src/components/tunes/semantic-tune";
 import { buildGeometry } from "../src/components/tunes/track-map-geometry";
-import type { SemanticReplayFrame } from "../src/hooks/laps";
+import type { SemanticReplayFrame } from "@raceiq/lap-replay/contracts"
 import { fakeAccSemanticFixture, fakeF1SemanticFixture } from "../src/stories/fakeData";
 import { telemetryStore } from "../src/stores/telemetry";
 
