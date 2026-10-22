@@ -1,0 +1,299 @@
+import { useRef, useState } from "react";
+import { useSessionsPageHost } from "./host";
+import type { SessionsPageHost } from "../contracts";
+import type { GameId } from "@raceiq/shared/games/ids";
+
+type DetectedFormat = "zip" | "bin" | "duckdb" | "ibt" | "motec" | "unknown";
+type DetectionResult = {
+  format: DetectedFormat;
+  supported: boolean;
+  gameIds: string[];
+  captureCount: number;
+  message: string | null;
+  missingMotecIdentities?: { file: string; gameId: GameId | null; carId: string | null; trackId: string | null; unsupported: boolean }[];
+  preview?: {
+    driverName: string;
+    carName: string;
+    trackName: string;
+    completedLapCount: number;
+  };
+};
+
+type ImportResult = {
+  imported: number;
+  skipped?: number;
+  gameId?: string;
+  packetCount?: number;
+};
+
+function formatLabel(format: DetectedFormat, m: SessionsPageHost["m"]): string {
+  switch (format) {
+    case "zip": return m.session_format_zip();
+    case "bin": return m.session_format_bin();
+    case "duckdb": return m.session_format_duckdb();
+    case "ibt": return m.session_format_ibt();
+    case "motec": return m.session_format_motec();
+    default: return m.session_format_unknown();
+  }
+}
+
+function AcEvoSetupImport({ file, onClose }: { file: File; onClose: () => void }) {
+  const { m, useAcEvoCars, Dialog, DialogContent, DialogHeader, DialogTitle, ImportSetupFile } = useSessionsPageHost();
+  const { data: cars = [] } = useAcEvoCars();
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent size="lg" layout="scrollable" showCloseButton={false}>
+        <DialogHeader><DialogTitle variant="import">{m.import_import_setup()}</DialogTitle></DialogHeader>
+        <ImportSetupFile gameId="ac-evo" routePrefix="/ac-evo" gameLabel="AC EVO" cars={cars} initialFile={file} onClose={onClose} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function SessionImportModal({ gameId, onClose, onImported }: { gameId?: GameId | null; onClose: () => void; onImported?: (result: ImportResult) => void }) {
+  const { m, Button, authenticatedFetch, importLapsZip, Dialog, DialogContent, DialogHeader, DialogTitle, SessionIdentityDialog, MotecImportModal, OwnershipChoice, IbtImportPreviewModal, useIbtImport } = useSessionsPageHost();
+  const ibtImport = useIbtImport();
+  const { ownership, setOwnership } = ibtImport;
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dragDepth = useRef(0);
+  const [dragging, setDragging] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [walFile, setWalFile] = useState<File | null>(null);
+  const [detected, setDetected] = useState<DetectionResult | null>(null);
+  const [detecting, setDetecting] = useState(false);
+  const [importing, setBusy] = useState(false);
+  const busy = importing || ibtImport.importingBin;
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<ImportResult | null>(null);
+  const [identityIndex, setIdentityIndex] = useState<number | null>(null);
+  const [identityOverrides, setIdentityOverrides] = useState<Record<string, { carId: string; trackId: string }>>({});
+
+  async function chooseFile(nextFile: File | null, nextWalFile: File | null) {
+    setIdentityIndex(null);
+    setIdentityOverrides({});
+    setFile(nextFile);
+    setWalFile(nextWalFile);
+    setDetected(null);
+    setError(null);
+    setResult(null);
+    if (!nextFile) return;
+    if (gameId === "ac-evo" && nextFile.name.toLowerCase().endsWith(".carsetup")) return;
+    setDetecting(true);
+    try {
+      const body = new FormData();
+      body.append("file", nextFile);
+      if (nextWalFile) body.append("wal", nextWalFile);
+      const response = await authenticatedFetch("/api/laps/detect-import", { method: "POST", body });
+      const data = (await response.json().catch(() => null)) as DetectionResult | { error?: string } | null;
+      if (!response.ok) {
+        const message = data && "error" in data ? data.error : null;
+        throw new Error(message ?? `Detection failed (${response.status})`);
+      }
+      if (!data || !("format" in data)) throw new Error("Detection response was invalid");
+      setDetected(data);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setDetecting(false);
+    }
+  }
+
+  function selectFiles(files: File[]) {
+    if (busy || detecting || files.length === 0) return;
+    const primary = files.find((candidate) => !candidate.name.toLowerCase().endsWith(".wal"));
+    if (!primary) return;
+    const wal = files.find((candidate) => candidate.name.toLowerCase() === `${primary.name}.wal`.toLowerCase()) ?? null;
+    void chooseFile(primary, wal);
+  }
+
+  async function importFile(overrides = identityOverrides) {
+    if (file && detected?.format === "ibt") {
+      await ibtImport.handleImportBin(file);
+      return;
+    }
+    if (!file || !detected?.supported || !["zip", "bin", "duckdb"].includes(detected.format)) return;
+    if (detected.format === "zip") {
+      const missing = (detected.missingMotecIdentities ?? []).find((item) => !overrides[item.file]);
+      if (missing) {
+        if (missing.unsupported || !missing.gameId) {
+          setError(`${missing.file}: missing or unsupported game metadata`);
+          return;
+        }
+        setIdentityIndex(detected.missingMotecIdentities!.indexOf(missing));
+        return;
+      }
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      let imported: ImportResult;
+      if (detected.format === "zip") {
+        const response = await importLapsZip(file, ownership, overrides);
+        imported = { imported: response.imported, skipped: response.skipped };
+      } else {
+        const body = new FormData();
+        body.append("file", file);
+        body.append("ownership", ownership);
+        if (walFile) body.append("wal", walFile);
+        const response = await authenticatedFetch("/api/laps/import", { method: "POST", body });
+        const data = (await response.json().catch(() => null)) as ImportResult & { error?: string };
+        if (!response.ok) throw new Error(data?.error ?? `Import failed (${response.status})`);
+        imported = data;
+      }
+      setIdentityIndex(null);
+      setResult(imported);
+      onImported?.(imported);
+    } catch (cause) {
+      setIdentityIndex(null);
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const canImport = !!file && !!detected && (detected.format === "ibt" || detected.supported && ["zip", "bin", "duckdb"].includes(detected.format)) && !busy && !detecting;
+  const identityPrompt = identityIndex == null ? null : detected?.missingMotecIdentities?.[identityIndex] ?? null;
+  if (ibtImport.ibtPreview) {
+    return (
+      <IbtImportPreviewModal
+        token={ibtImport.ibtPreview.token}
+        preview={ibtImport.ibtPreview.preview}
+        importing={busy}
+        ownership={ownership}
+        onOwnershipChange={setOwnership}
+        onClose={ibtImport.handleCancelIbt}
+        onImport={async () => {
+          const imported = await ibtImport.handleCommitIbt();
+          if (!imported) return;
+          const result = { imported: imported.laps.length, packetCount: imported.packetCount, gameId: imported.gameId };
+          setResult(result);
+          onImported?.(result);
+        }}
+      />
+    );
+  }
+  if (identityPrompt?.gameId && !identityPrompt.unsupported) {
+    return (
+      <SessionIdentityDialog
+        key={identityPrompt.file}
+        gameId={identityPrompt.gameId}
+        initialCarId={identityPrompt.carId}
+        initialTrackId={identityPrompt.trackId}
+        onClose={() => setIdentityIndex(null)}
+        onSave={async (identity) => {
+          const nextOverrides = { ...identityOverrides, [identityPrompt.file]: identity };
+          setIdentityOverrides(nextOverrides);
+          const remaining = (detected?.missingMotecIdentities ?? []).find((item) => !nextOverrides[item.file]);
+          if (remaining) setIdentityIndex(detected!.missingMotecIdentities!.indexOf(remaining));
+          else {
+            await importFile(nextOverrides);
+          }
+        }}
+      />
+    );
+  }
+  if (gameId === "ac-evo" && file?.name.toLowerCase().endsWith(".carsetup")) {
+    return <AcEvoSetupImport file={file} onClose={onClose} />;
+  }
+  if (detected?.format === "motec" && file) {
+    return (
+      <MotecImportModal
+        initialGameId={gameId}
+        initialLd={file}
+        ownership={ownership}
+        onOwnershipChange={setOwnership}
+        onClose={onClose}
+        onImported={(motecResult: { imported: number; gameId: string }) => onImported?.({ imported: motecResult.imported, gameId: motecResult.gameId })}
+      />
+    );
+  }
+
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent size="lg" showCloseButton={false} overlayClassName="bg-app-bg/60" layout="scrollable" className="max-w-xl">
+        <DialogHeader><DialogTitle variant="import">{m.session_import_title()}</DialogTitle></DialogHeader>
+        <div className="mt-4 space-y-4 text-xs">
+          {result ? (
+            <>
+              <p className="text-app-text">{m.session_imported({ count: result.imported, skipped: result.skipped ? m.session_skipped({ count: result.skipped }) : "" })}</p>
+              <div className="flex justify-end"><Button variant="app-outline" size="app-md" onClick={onClose}>{m.analyse_done()}</Button></div>
+            </>
+          ) : (
+            <>
+              <OwnershipChoice value={ownership} onChange={setOwnership} disabled={busy} />
+              <input
+                ref={inputRef}
+                type="file"
+                accept={gameId === "ac-evo" ? ".zip,.bin,.bin.gz,.duckdb,.wal,.ibt,.ld,.carsetup" : ".zip,.bin,.bin.gz,.duckdb,.wal,.ibt,.ld"}
+                multiple
+                className="hidden"
+                disabled={busy || detecting}
+                onChange={(event) => selectFiles(Array.from(event.target.files ?? []))}
+              />
+              <div
+                role="group"
+                aria-label={m.session_import_title()}
+                aria-disabled={busy || detecting}
+                aria-busy={busy || detecting}
+                className={`rounded border border-dashed p-4 transition-colors ${dragging && !busy && !detecting ? "border-app-accent bg-app-accent/10" : "border-app-border bg-app-surface-alt/40"}`}
+                onDragEnter={(event) => {
+                  if (!event.dataTransfer.types.includes("Files")) return;
+                  event.preventDefault();
+                  dragDepth.current++;
+                  if (!busy && !detecting) setDragging(true);
+                }}
+                onDragOver={(event) => {
+                  if (!event.dataTransfer.types.includes("Files")) return;
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = busy || detecting ? "none" : "copy";
+                }}
+                onDragLeave={() => {
+                  dragDepth.current = Math.max(0, dragDepth.current - 1);
+                  if (dragDepth.current === 0) setDragging(false);
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  dragDepth.current = 0;
+                  setDragging(false);
+                  selectFiles(Array.from(event.dataTransfer.files));
+                }}
+              >
+                <p className="mb-3 text-app-text-dim">{m.session_choose_file_hint()}</p>
+                <div className="flex min-w-0 items-center gap-2">
+                  <Button variant="app-outline" size="app-md" className="shrink-0" onClick={() => inputRef.current?.click()} disabled={busy || detecting}>{m.session_choose_file()}</Button>
+                  <span className="min-w-0 flex-1 truncate text-app-text-dim" title={file ? `${file.name}${walFile ? ` + ${walFile.name}` : ""}` : undefined}>
+                    {file ? `${file.name}${walFile ? ` + ${walFile.name}` : ""}` : m.session_no_file()}
+                  </span>
+                </div>
+              </div>
+              {file && (
+                <div className="rounded border border-app-border bg-app-surface-alt/40 p-3 text-app-text-dim">
+                  {detecting ? <span>{m.session_reading()}</span> : detected ? (
+                    <>
+                      <div>{m.session_detected({ format: formatLabel(detected.format, m) })}{detected.gameIds.length > 0 && <span className="text-app-text"> ({detected.gameIds.join(", ")})</span>}</div>
+                      {!detected.supported && detected.format !== "ibt" && <p className="mt-1 text-status-warning">{detected.message ?? m.session_unsupported()}</p>}
+                      {detected.supported && detected.format === "bin" && <p className="mt-1">{m.session_game_detected()}</p>}
+                      {detected.supported && detected.format === "duckdb" && <p className="mt-1">{m.session_duckdb_conversion_hint()}</p>}
+                      {detected.format === "duckdb" && detected.preview && <p className="mt-1">{m.session_duckdb_preview({ car: detected.preview.carName, track: detected.preview.trackName, count: detected.preview.completedLapCount, plural: detected.preview.completedLapCount === 1 ? "" : "s" })}</p>}
+                      {detected.format === "duckdb" && !walFile && <p className="mt-1">{m.session_duckdb_wal_hint()}</p>}
+                      {detected.supported && detected.format === "zip" && <p className="mt-1">{m.session_captures_found({ count: detected.captureCount })}</p>}
+                      {detected.format === "ibt" && <p className="mt-1">{m.session_ibt_hint()}</p>}
+                      {detected.format === "motec" && <p className="mt-1">{m.session_motec_hint()}</p>}
+                    </>
+                  ) : null}
+                </div>
+              )}
+              {error && <div role="alert" className="rounded border border-status-danger/30 bg-status-danger/5 p-2 text-status-danger">{error}</div>}
+              <div className="flex justify-end gap-2">
+                <Button variant="app-outline" size="app-md" onClick={onClose} disabled={busy}>{m.common_cancel()}</Button>
+                <Button variant="app-outline" size="app-md" onClick={() => void importFile()} disabled={!canImport}>{busy ? m.common_loading() : m.setup_import_button()}</Button>
+              </div>
+            </>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

@@ -4,7 +4,7 @@ import { invalidateDashboardQueries } from "../../hooks/dashboard";
 import { useCallback, useState } from "react";
 import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import { authenticatedFetch, client } from "../../lib/rpc";
-import type { IbtImportPreview } from "./IbtImportPreviewModal";
+import type { IbtImportPreview } from "@raceiq/sessions-page/contracts";
 
 export interface ImportedLap {
   lapId: number;

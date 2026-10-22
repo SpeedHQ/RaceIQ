@@ -817,6 +817,7 @@
         "$TURBO_ROOT$/apps/backend/src/**",
         "$TURBO_ROOT$/apps/backend/package.json",
         "$TURBO_ROOT$/scripts/playwright-ci.ts",
+        "$TURBO_ROOT$/scripts/run-browser-verification.ts",
         "$TURBO_ROOT$/scripts/build-browser.ts",
         "$TURBO_ROOT$/tsconfig.base.json"
       ],

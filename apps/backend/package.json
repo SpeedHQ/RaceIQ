@@ -44,6 +44,8 @@
     "mitata": "^1.0.34",
     "@raceiq/backend-core": "workspace:*",
     "@raceiq/lap-replay": "workspace:*",
+    "@raceiq/sessions-page": "workspace:*",
+    "@raceiq/session-analyse": "workspace:*",
     "@raceiq/shared": "workspace:*",
     "@raceiq/capture-formats": "workspace:*",
     "@raceiq/capture-splitting": "workspace:*",

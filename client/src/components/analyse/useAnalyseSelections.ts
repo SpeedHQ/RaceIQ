@@ -8,7 +8,7 @@ import type { SemanticReplayFrame } from "@raceiq/lap-replay/contracts"
 import { useLapSemanticTelemetry, useLaps as useLapsQuery } from "../../hooks/laps";
 import { useTrackBoundaries, useTrackName, useTrackOutline, useTrackSectorBoundaries, useTrackSectors } from "../../hooks/track-queries";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
-import type { AnalyseSearch } from "../../lib/game-routes";
+import type { AnalyseSearch } from "@raceiq/session-analyse/contracts";
 import { mergeNameCache } from "../../lib/name-cache";
 import { routePrefixForGameId } from "../../lib/game-routes";
 import { isPitLine } from "@/lib/canvas/draw-track";

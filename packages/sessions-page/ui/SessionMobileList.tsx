@@ -1,0 +1,170 @@
+import { isPaceLap } from "@raceiq/shared/racing/lap-classification";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { LapMeta, SessionMeta } from "@raceiq/shared/racing/sessions/types";
+import { sessionCarName, sessionTrackName } from "./helpers";
+import { MotecBadge } from "./MotecBadge";
+import { SessionLapTable } from "./SessionLapTable";
+import { SessionResultMeta } from "./SessionResultMeta";
+import { SessionCaptureSplitStatus } from "./SessionCaptureSplitStatus";
+import { NoteCell } from "./NoteCell";
+import type { LapSortKey, SessionSelectionEvent, SortDir } from "./types";
+import { useSessionsPageHost } from "./host";
+import { parseUtcTimestamp } from "@raceiq/frontend-pure/utc-date";
+
+
+export type SessionMobileListProps = {
+  sessions: SessionMeta[];
+  lapsBySession: Map<number, LapMeta[]>;
+  trackNames: Record<string, string>;
+  carNames: Record<string, string>;
+  isLoading: boolean;
+  sessionsError: boolean;
+  showSessionType: boolean;
+  gameId: GameId | null;
+  emptyMessage: string;
+  expandedSessions: Set<number>;
+  toggleExpand: (id: number) => void;
+  selectedSessions: Set<number>;
+  toggleSessionSelection: (id: number, event: SessionSelectionEvent) => void;
+  selectedLaps: Set<number>;
+  toggleLapSelection: (id: number) => void;
+  sectorCount: number;
+  lapSortKey: LapSortKey;
+  lapSortDir: SortDir;
+  toggleLapSort: (key: LapSortKey) => void;
+  saveSessionNotes: (id: number, notes: string) => void;
+  analyseSession: (session: SessionMeta) => void;
+};
+
+export function SessionMobileList({
+  sessions,
+  lapsBySession,
+  trackNames,
+  carNames,
+  isLoading,
+  sessionsError,
+  showSessionType,
+  gameId,
+  emptyMessage,
+  expandedSessions,
+  toggleExpand,
+  selectedSessions,
+  toggleSessionSelection,
+  selectedLaps,
+  toggleLapSelection,
+  sectorCount,
+  lapSortKey,
+  lapSortDir,
+  toggleLapSort,
+  saveSessionNotes,
+  analyseSession,
+}: SessionMobileListProps) {
+  const { m, formatLapTime, RaceResultLedger, FavoriteToggleButton, Button, SessionTypeBadge, getLocale } = useSessionsPageHost();
+  return (
+    <div className="flex flex-1 flex-col gap-2 overflow-auto @3xl/workspace:hidden">
+      {isLoading ? (
+        <div className="px-3 py-8 text-center text-app-text/90">{m.common_loading()}</div>
+      ) : sessionsError ? null : sessions.length === 0 ? (
+        <div className="px-3 py-8 text-center text-app-text/90">{emptyMessage}</div>
+      ) : (
+        sessions.map((session) => {
+          const isExpanded = expandedSessions.has(session.id);
+          const sessionLaps = lapsBySession.get(session.id) ?? [];
+          const paceLaps = sessionLaps.filter((lap) => lap.isValid && isPaceLap(lap.classification));
+          const bestTime = session.bestLapTime || (paceLaps.length > 0 ? Math.min(...paceLaps.map((lap) => lap.lapTime)) : 0);
+          return (
+            <div key={session.id} className={`min-w-0 overflow-hidden rounded-lg border border-app-border bg-app-surface ${isExpanded ? "bg-app-surface-alt/40" : ""}`}>
+              {/* oxlint-disable-next-line a11y/useSemanticElements: wraps checkbox and buttons */}
+              <div
+                role="button"
+                tabIndex={0}
+                aria-expanded={isExpanded}
+                className="flex items-start gap-3 p-3 cursor-pointer"
+                onClick={() => toggleExpand(session.id)}
+                onKeyDown={(event) => {
+                  if (event.target !== event.currentTarget) return;
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    toggleExpand(session.id);
+                  }
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedSessions.has(session.id)}
+                  onChange={(event) => toggleSessionSelection(session.id, event)}
+                  onClick={(event) => event.stopPropagation()}
+                  className="accent-app-accent w-5 h-5 mt-0.5 shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <div className="text-sm font-semibold text-app-text truncate">{sessionTrackName(session, { trackNames, carNames })}</div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="text-app-compact text-app-text/90">
+                        {parseUtcTimestamp(session.createdAt).toLocaleDateString(getLocale())} {parseUtcTimestamp(session.createdAt).toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" })}
+                        {session.source === "motec" && <MotecBadge />}
+                      </div>
+                      <FavoriteToggleButton target="session" id={session.id} isFavorite={Boolean(session.isFavorite)} />
+                      <Button
+                        variant="app-primary"
+                        size="app-sm"
+                        disabled={session.telemetryAvailable === false}
+                        title={session.telemetryAvailable === false ? m.sessions_raw_telemetry_removed() : undefined}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          analyseSession(session);
+                        }}
+                      >
+                        {m.sessions_analyse_session()}
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="text-xs text-app-text/90 truncate mt-0.5">
+                    {sessionCarName(session, { trackNames, carNames })}
+                    {showSessionType && session.sessionType && session.sessionType !== "unknown" && <span className="ml-2 inline-flex align-middle"><SessionTypeBadge type={session.sessionType} /></span>}
+                  </div>
+                  <div className="mt-2">
+                    <SessionResultMeta session={session} />
+                    <SessionCaptureSplitStatus status={session.captureSplit} sessionId={session.id} />
+                  </div>
+                  <div className="flex items-center gap-4 mt-2 text-xs">
+                    <span className="text-app-text/90">
+                      {m.label_laps()} <span className="text-app-text font-mono tabular-nums">{session.lapCount ?? 0}</span>
+                    </span>
+                    <span className="text-app-text/90">
+                      {m.label_best()} <span className="text-app-text font-mono tabular-nums">{bestTime ? formatLapTime(bestTime) : "—"}</span>
+                    </span>
+                    <span className="ml-auto text-app-text/90">{isExpanded ? "▾" : "▸"}</span>
+                  </div>
+                  {/* oxlint-disable-next-line a11y/noStaticElementInteractions: containment prevents card toggle */}
+                  <div role="presentation" className="mt-2" onClick={(event) => event.stopPropagation()}>
+                    <NoteCell value={session.notes ?? undefined} onSave={(notes) => saveSessionNotes(session.id, notes)} />
+                  </div>
+                </div>
+              </div>
+              {isExpanded && gameId && (
+                <div className={sessionLaps.length > 0 ? "[&>section]:border-b-0 [&>div]:border-b-0" : undefined}>
+                  <RaceResultLedger sessionId={session.id} gameId={gameId} enabled={isExpanded} laps={sessionLaps} />
+                </div>
+              )}
+              {isExpanded && sessionLaps.length > 0 && (
+                <div className="min-w-0 bg-transparent [&>[data-slot=table-container]]:max-w-full [&>[data-slot=table-container]]:rounded-none [&>[data-slot=table-container]]:border-0 [&_[data-slot=table-head]]:bg-transparent">
+                  <SessionLapTable
+                    session={session}
+                    laps={sessionLaps}
+                    sectorCount={sectorCount}
+                    lapSortKey={lapSortKey}
+                    lapSortDir={lapSortDir}
+                    toggleLapSort={toggleLapSort}
+                    selectedLaps={selectedLaps}
+                    toggleLapSelection={toggleLapSelection}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+}

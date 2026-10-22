@@ -1,4 +1,3 @@
-import { paceLapCondition } from "./lap-eligibility";
 import { cacheGet, cacheSet, LapParseError, parseRawLapFrames, parseSessionLapsBatched } from "./telemetry-replay-storage";
 import { resolveLapCaptureArtifact } from "../session-capture/source-loader";
 import { toLapMeta } from "./lap-meta";
@@ -130,73 +129,6 @@ export async function getLaps(gameId?: GameId, limit: number = 200, sessionId?: 
 export async function getSessionLaps(gameId: GameId, sessionId: number): Promise<LapMeta[]> {
   return getLaps(gameId, 1_000_000, sessionId);
 }
-/**
- * Top valid laps for Analyse session review. SQL ranks and limits before
- * serializing rows, so the browser never receives an entire track/car history.
- */
-export async function getReviewLaps(
-  gameId: GameId,
-  trackId: string | null,
-  carId: string | null,
-  limit = 5,
-  sessionId?: number,
-): Promise<LapMeta[]> {
-  const filters = [eq(sessions.gameId, gameId), eq(laps.isValid, true), paceLapCondition(), sql`${laps.lapTime} > 0`, sql`${sessions.rawFile} IS NOT NULL`];
-  if (sessionId != null) filters.push(eq(laps.sessionId, sessionId));
-  else {
-    if (trackId != null) filters.push(eq(sessions.trackId, trackId));
-    if (carId != null) filters.push(eq(sessions.carId, carId));
-  }
-  const rows = await db
-    .select({
-      id: laps.id,
-      sessionId: laps.sessionId,
-      lapNumber: laps.lapNumber,
-      lapTime: laps.lapTime,
-      isValid: laps.isValid,
-      classification: laps.classification,
-      invalidReason: laps.invalidReason,
-      notes: laps.notes,
-      createdAt: laps.createdAt,
-      pi: laps.pi,
-      carSetup: laps.carSetup,
-      tuneId: laps.tuneId,
-      tuneName: tunes.name,
-      carId: sessions.carId,
-      trackId: sessions.trackId,
-      gameId: sessions.gameId,
-      sectorTimes: laps.sectorTimes,
-      isFavorite: laps.isFavorite,
-      rawByteOffset: laps.rawByteOffset,
-      rawFrameCount: laps.rawFrameCount,
-      rawFile: sessions.rawFile,
-      ownership: sessions.ownership,
-      source: sessions.source,
-      experimentId: laps.experimentId,
-      experimentVersionId: laps.experimentVersionId,
-      experimentExcluded: laps.experimentExcluded,
-      experimentExcludedSource: laps.experimentExcludedSource,
-      fuelPerLap: laps.fuelPerLap,
-      tyreWear: laps.tyreWear,
-      catalogVersion: laps.catalogVersion,
-      catalogHash: laps.catalogHash,
-      catalogSchemaVersion: laps.catalogSchemaVersion,
-      parserVersion: laps.parserVersion,
-      resolverVersion: laps.resolverVersion,
-      derivationVersion: laps.derivationVersion,
-      standaloneCaptureReady: sql<boolean>`(${sessions.captureLayoutVersion} IS NULL AND ${sessions.rawFile} IS NOT NULL AND substr(${sessions.rawFile}, -13) <> 'manifest.json' AND ${laps.rawByteOffset} IS NOT NULL AND ${laps.rawFrameCount} > 0) OR (${sessions.captureLayoutVersion} = 1 AND ${sessions.captureManifestFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 2 AND ${sessions.captureManifestFile} IS NOT NULL AND ${sessions.captureArchiveFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 3 AND ${laps.captureChunkId} IS NOT NULL AND EXISTS (SELECT 1 FROM live_capture_members m JOIN live_captures c ON c.capture_epoch = m.capture_epoch WHERE m.lap_id = ${laps.id} AND c.session_id = ${sessions.id} AND json_extract(m.descriptor, '$.id') = ${laps.captureChunkId}))`,
-    })
-    .from(laps)
-    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
-    .leftJoin(tunes, eq(laps.tuneId, tunes.id))
-    .where(and(...filters))
-    .orderBy(laps.lapTime, desc(laps.id))
-    .limit(Math.max(1, Math.min(limit, 20)))
-    .all();
-  return rows.map((row) => ({ ...toLapMeta(row), telemetryAvailable: Boolean(row.standaloneCaptureReady) }));
-}
-
-
 /**
  * Every lap in a driver-profile scope, newest first — deliberately unlimited.
  *

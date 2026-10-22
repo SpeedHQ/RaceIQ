@@ -1,21 +1,10 @@
+import { parseOptionalIdentityKey, parseOptionalNumber } from "@raceiq/frontend-pure/route-search";
+import type { TuneReviewTrackTab } from "@raceiq/session-analyse/contracts";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { getAllGames, tryGetGame } from "@raceiq/shared/games/registry"
 import type { ReleaseFeatureFlags } from "@raceiq/shared/platform/runtime/release-feature-flags";
 import { clientReleaseFeatures } from "./release-features";
 
-export type AnalyseSearch = {
-  session?: number;
-  track?: string;
-  car?: string;
-  lap?: number;
-  laps?: string;
-  primary?: number;
-  cursor?: number;
-  viz?: string;
-  ai?: number;
-  view?: string;
-  tab?: TuneReviewTrackTab;
-};
 export type CompareSearch = {
   track?: string;
   layout?: string;
@@ -44,8 +33,6 @@ export function compareTrackSearch(trackId: string | null): { track?: string; la
   return { track: trackId, layout: undefined };
 }
 
-export type SessionsTab = "mine" | "others";
-export type SessionsSearch = { tab?: SessionsTab };
 export type TuneView = "overview" | `s${number}`;
 export type TuneSearch = {
   session?: number | "live";
@@ -54,7 +41,6 @@ export type TuneSearch = {
 };
 
 export type TuneReviewView = "overview" | "track" | `s${number}`;
-export type TuneReviewTrackTab = "consistency" | "braking" | "throttle" | "dynamics" | "fuel" | "suspension";
 export type TuneReviewSearch = {
   laps?: string;
   lap?: number;
@@ -105,56 +91,6 @@ export function routePrefixForGameId(gameId: string): string | undefined {
   return tryGetGame(gameId)?.routePrefix;
 }
 
-export function parseOptionalNumber(value: unknown): number | undefined {
-  if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
-  if (typeof value !== "string" || value.trim() === "") return undefined;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
-
-/** Normalize URL-parser numbers while preserving canonical string identity keys verbatim. */
-export function parseOptionalIdentityKey(value: unknown): string | undefined {
-  if (typeof value === "number") return Number.isFinite(value) ? String(value) : undefined;
-  // TanStack's default search parser decodes native venue/layout keys as JSON.
-  if (Array.isArray(value) && value.length === 2 && value.every((part) => typeof part === "string" && part.length > 0)) return JSON.stringify(value);
-  return typeof value === "string" && value !== "" ? value : undefined;
-}
-
-/** Parse the canonical comparison lap list without silently accepting malformed IDs. */
-export function parseAnalyseLapIds(value: string | undefined): number[] | null | undefined {
-  if (value == null) return undefined;
-  const parts = value.split(",");
-  if (parts.length === 0 || parts.some((part) => part.trim() === "")) return null;
-  const ids = parts.map((part) => Number(part));
-  if (ids.some((id) => !Number.isInteger(id) || id <= 0) || new Set(ids).size !== ids.length) return null;
-  return ids;
-}
-
-export function validateAnalyseSearch(search: Record<string, unknown>): AnalyseSearch {
-  const requestedTab = search.tab ?? search.trackTab;
-  const tab =
-    requestedTab === "consistency" ||
-    requestedTab === "braking" ||
-    requestedTab === "throttle" ||
-    requestedTab === "dynamics" ||
-    requestedTab === "fuel" ||
-    requestedTab === "suspension"
-      ? requestedTab
-      : undefined;
-  return {
-    session: parseOptionalNumber(search.session),
-    track: parseOptionalIdentityKey(search.track),
-    car: parseOptionalIdentityKey(search.car),
-    lap: parseOptionalNumber(search.lap),
-    laps: typeof search.laps === "string" ? search.laps : undefined,
-    primary: parseOptionalNumber(search.primary),
-    cursor: parseOptionalNumber(search.cursor),
-    viz: typeof search.viz === "string" ? search.viz : undefined,
-    ai: parseOptionalNumber(search.ai),
-    view: typeof search.view === "string" ? search.view : undefined,
-    tab,
-  };
-}
 
 export function validateCompareSearch(search: Record<string, unknown>): CompareSearch {
   return {
@@ -169,10 +105,6 @@ export function validateCompareSearch(search: Record<string, unknown>): CompareS
   };
 }
 
-export function validateSessionsSearch(search: Record<string, unknown>): SessionsSearch {
-  const tab = search.tab === "others" || search.tab === "mine" ? search.tab : search.tab === "recorded" || search.tab === "imported" ? "mine" : undefined;
-  return { tab };
-}
 
 export function validateTuneSearch(search: Record<string, unknown>): TuneSearch {
   const view = search.view === "overview" || (typeof search.view === "string" && /^s[1-9]\d*$/.test(search.view)) ? search.view : undefined;

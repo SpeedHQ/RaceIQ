@@ -43,6 +43,7 @@
 - Restore iRacing replay's shared 2D/3D visualization and data panels; remove the game-specific replay data panel.
 - Detect replay timeline and chart gaps relative to the recording cadence, so regular sparse samples are not painted as missing telemetry.
 - Replace the iRacing session review's end-of-lap tire section with the incident report below detected telemetry issues.
+- Preserve session lap-selection drafts while choosing the primary lap.
 - Prevent live recording startup from failing on Windows, leaving empty capture manifests and recorded laps without replay telemetry.
 - Restore recording-layout migration and interrupted-recording recovery on Windows by avoiding unsupported directory synchronization and serializing migration journal reads and replacement.
 - Persist the iRacing automatic IBT capture opt-in and restore capture after backend restart.
@@ -125,6 +126,9 @@
 - Remove the stale tire-pressure capability snapshot assertion; retain parser/resolver coverage that prevents iRacing cold setup pressures from appearing as live readings.
 - Run workspace lint through the installed Oxlint CLI and isolate native database test fixtures in subprocesses to keep Windows pre-commit checks reliable.
 - Run native Spectate camera and transition checks on macOS GPU runners while retaining cross-platform coverage for CPU-compatible rendering paths.
+- Extract Sessions and Session Analyse into feature-owned UI, server, contract, and test workspaces while preserving existing navigation and analysis behavior.
+- Move Sessions and Session Review into their own package.
+- Update the dependency lockfile for Bun 1.4.4 so the Bench compare workflow can use frozen installs.
 - Cover Replay extraction invariants with regressions for bounded track ribbons, seek-aware tire labels, cold frame capture, keyboard frame stepping, position-only segment timings and native AC Evo TC evidence.
 - Ignore terminal color codes when waiting for compiler startup in the Paraglide lifecycle CI test.
 - Generate Paraglide declarations with the installed native TypeScript compiler and stop abandoned translation watchers from consuming CPU after development exits.

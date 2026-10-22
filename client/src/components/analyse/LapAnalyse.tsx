@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { F1CarSetup } from "@raceiq/shared/telemetry/f1-2025";
 import type { AiPanelHandle } from "@/components/ai/AiPanel";
 import { useCookieState } from "../../hooks/useCookieState";
-import type { AnalyseSearch } from "../../lib/game-routes";
+import type { AnalyseSearch } from "@raceiq/session-analyse/contracts";
 import { client } from "../../lib/rpc";
 import { useRequiredGameId } from "../../stores/game";
 import { queryKeys } from "../../hooks/query-keys";

@@ -9,9 +9,9 @@ import { classificationMigrationActions, useClassificationMigration } from "@/st
 import { client } from "@/lib/rpc";
 import { rpcJson } from "@/lib/rpc-json";
 import { useSessions } from "@/hooks/session-queries";
-import { sessionCarName, sessionTrackName } from "@/components/sessions/helpers";
+import { sessionCarName, sessionTrackName } from "@raceiq/sessions-page/ui";
 import type { SessionMeta } from "@raceiq/shared/racing/sessions/types";
-import type { SessionNames } from "@/components/sessions/types";
+import type { SessionNames } from "@raceiq/sessions-page/contracts";
 import type { ClassificationMigrationRecording } from "@raceiq/shared/racing/laps/classification-migration";
 
 function reasonLabel(reason: string | null) {
