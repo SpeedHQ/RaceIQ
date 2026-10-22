@@ -80,6 +80,13 @@ test("FM Spectate segment seeking retargets and pauses", async ({ page, request 
   const map = page.getByRole("group", { name: "Circuit segment map" });
   const segments = map.getByRole("button");
   expect(await segments.count()).toBeGreaterThan(1);
+  const overview = page.getByRole("region", { name: "Circuit overview", exact: true });
+  await page.mouse.move(0, 0);
+  await expect(segments.first()).toHaveCSS("opacity", "0");
+  await expect(segments.first()).toHaveCSS("pointer-events", "none");
+  await overview.hover();
+  await expect(segments.first()).toHaveCSS("opacity", "1");
+  await expect(segments.first()).toHaveCSS("pointer-events", "auto");
   const last = segments.last();
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.getByRole("button", { name: "Play replay" }).click();
@@ -107,6 +114,7 @@ test("FM Spectate segment seeking retargets and pauses", async ({ page, request 
   await expect.poll(async () => Number(await clock.getAttribute("data-time"))).toBeCloseTo(settled, 2);
   await page.emulateMedia({ reducedMotion: "reduce" });
   const final = segments.last();
+  await overview.hover();
   await final.click();
   const distance = Number(await clock.getAttribute("data-a-distance"));
   const expected = Number(await final.getAttribute("data-seek-distance"));
