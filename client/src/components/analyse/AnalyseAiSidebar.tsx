@@ -1,11 +1,11 @@
-import { Sparkles } from "lucide-react";
 import type { RefObject } from "react";
+import { createPortal } from "react-dom";
 import { AiPanel, type AiPanelHandle } from "@/components/ai/AiPanel";
-import { m } from "../../paraglide/messages";
 import { AiPanelMenu } from "./AiPanelMenu";
 
 interface AnalyseAiSidebarProps {
   lapId: number;
+  headerTarget: HTMLDivElement | null;
   carName: string;
   trackName: string;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
@@ -13,16 +13,13 @@ interface AnalyseAiSidebarProps {
   onJumpToFrac: (frac: number) => void;
 }
 
-export function AnalyseAiSidebar({ lapId, carName, trackName, segments, aiPanelRef, onJumpToFrac }: AnalyseAiSidebarProps) {
+export function AnalyseAiSidebar({ lapId, headerTarget, carName, trackName, segments, aiPanelRef, onJumpToFrac }: AnalyseAiSidebarProps) {
   return (
     <div className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-app-bg">
-      <div className="flex items-center justify-between px-3 py-2 border-b border-app-border shrink-0">
-        <div className="flex items-center gap-1.5">
-          <Sparkles className="size-3 text-ai-accent" />
-          <span className="text-app-caption uppercase tracking-wider font-semibold text-app-text">{m.analyse_ai_analysis()}</span>
-        </div>
-        <AiPanelMenu onClearChat={() => aiPanelRef.current?.clearChat()} onClearAnalysis={() => aiPanelRef.current?.clearAnalysis()} onClearAll={() => aiPanelRef.current?.clearAll()} />
-      </div>
+      {headerTarget && createPortal(
+        <AiPanelMenu onClearChat={() => aiPanelRef.current?.clearChat()} onClearAnalysis={() => aiPanelRef.current?.clearAnalysis()} onClearAll={() => aiPanelRef.current?.clearAll()} />,
+        headerTarget,
+      )}
       <AiPanel ref={aiPanelRef} lapId={lapId} carName={carName} trackName={trackName} segments={segments} panelOpen={true} onJumpToFrac={onJumpToFrac} />
     </div>
   );

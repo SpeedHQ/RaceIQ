@@ -46,6 +46,25 @@ function recordedLap(duration: number, distanceAt: (time: number) => number): Sp
   });
   return result;
 }
+test("replay holds native aid activation until its next sample and rejects stale activity", () => {
+  const replay = recordedLap(0.15, time => time * 20).replay;
+  replay.envelopes.forEach((frame, index) => {
+    frame.values.push(
+      { semanticId: "electronics.tc-active", value: index === 0 },
+      { semanticId: "electronics.abs-active", value: index === 1, freshness: index === 2 ? "stale" : "fresh" },
+    );
+  });
+  const controller = createSpectateController(prepareSpectateLap(replay), null);
+  try {
+    expect(controller.sample(0.025).a?.values["electronics.tc-active"]).toBe(true);
+    expect(controller.sample(0.025).a?.values["electronics.abs-active"]).toBe(false);
+    expect(controller.sample(0.05).a?.values["electronics.tc-active"]).toBe(false);
+    expect(controller.sample(0.075).a?.values["electronics.abs-active"]).toBe(true);
+    expect(controller.sample(0.1).a?.values["electronics.abs-active"]).toBeNull();
+    expect(controller.sample(0.125).a?.values["electronics.abs-active"]).toBeNull();
+    expect(controller.sample(0.2).a?.values["electronics.tc-active"]).toBeUndefined();
+  } finally { controller.dispose(); }
+});
 test("single replay uses native progress and frame seeks without a comparison lap", () => {
   const replay = recordedLap(1, (time) => time * 20).replay;
   replay.envelopes.forEach((frame, index) => {

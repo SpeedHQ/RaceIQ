@@ -24,7 +24,7 @@ const sectors = useMemo(() => {
 }, [pair]);
 return (
   <section
-    className="relative z-10 flex shrink-0 flex-col gap-2 border-t border-app-border bg-app-bg px-3 py-2"
+    className="relative z-10 flex shrink-0 flex-col gap-2 border-t border-app-border bg-app-bg px-3 pb-3 pt-2"
     aria-label={m.spectate_playback()}
     data-spectate-playback=""
     data-time={time}
@@ -37,7 +37,7 @@ return (
     data-a-time={snapshot.a?.time ?? ""}
     data-b-time={snapshot.b?.time ?? ""}
   >
-    <div className="relative pt-5">
+    <div className="relative flex h-8 items-center">
       {sectors.map((sector) => sector.start < duration && duration > 0 && (
         <span
           key={sector.sector}
@@ -53,7 +53,7 @@ return (
           {sector.delta !== null && <span style={{ color: sector.delta === 0 ? undefined : sector.delta < 0 ? "var(--status-success)" : "var(--status-danger)" }}>
             {` (${sector.delta > 0 ? "+" : ""}${sector.delta.toFixed(3)} s)`}
           </span>}
-          {" "}S{sector.sector}
+          {" "}<span style={{ color: `var(--sector-${sector.sector}, var(--app-text-muted))` }}>S{sector.sector}</span>
         </span>
       ))}
       {sectors.map((split, index) => index < sectors.length - 1 && split.time > 0 && split.time < duration && (
@@ -65,7 +65,7 @@ return (
           title={`S${split.sector} · ${stamp(split.time)}${pair.b ? " (A)" : ""}`}
           aria-label={`S${split.sector} · ${stamp(split.time)}${pair.b ? " (A)" : ""}`}
           onClick={() => controller.scrub(split.time)}
-          className="absolute top-5 flex h-3 w-4 -translate-x-1/2 items-start justify-center text-app-label tabular-nums text-app-text-secondary hover:text-app-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent"
+          className="absolute top-1/2 z-10 flex size-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center text-app-label tabular-nums text-app-text-secondary hover:text-app-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent sm:h-3 sm:w-4"
           style={{ left: `calc(8px + (100% - 16px) * ${split.time / duration})` }}
         >
           <span className="h-2 w-px bg-current" aria-hidden="true" />
@@ -73,7 +73,7 @@ return (
       ))}
     <input
       aria-label={m.spectate_seek()}
-      className="h-1.5 w-full cursor-pointer accent-app-accent"
+      className="h-11 w-full cursor-pointer accent-app-accent sm:h-1.5"
       type="range"
       min={0}
       max={duration}
@@ -82,10 +82,10 @@ return (
       onChange={(event) => controller.scrub(Number(event.currentTarget.value))}
     />
     </div>
-    <div className="flex items-center gap-3 text-app-label">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-app-label">
       <button
         type="button"
-        className="flex h-8 w-8 items-center justify-center rounded-sm border border-app-border-input text-app-text hover:text-app-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm border border-app-border-input text-app-text hover:text-app-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent sm:h-8 sm:w-8"
         aria-label={snapshot.playing ? m.spectate_pause() : m.spectate_play()}
         onClick={() => (snapshot.playing ? controller.pause() : controller.play())}
       >
@@ -98,7 +98,7 @@ return (
       <label className="ml-auto flex items-center gap-2 text-app-text-secondary">
         {m.spectate_playback_speed()}
         <select
-          className="rounded-sm border border-app-border-input bg-app-surface px-1.5 py-1 text-app-text"
+          className="min-h-11 rounded-sm border border-app-border-input bg-app-surface px-1.5 py-1 text-base text-app-text sm:min-h-0 sm:text-app-label"
           aria-label={m.spectate_playback_speed()}
           value={snapshot.speed}
           onChange={(event) => controller.setSpeed(Number(event.currentTarget.value))}

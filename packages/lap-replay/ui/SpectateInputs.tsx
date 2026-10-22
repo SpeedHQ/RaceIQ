@@ -7,8 +7,9 @@ import type { SpectateController, ReplaySession, SpectateReading } from "../cont
 import { channelValue, type SpectateChannel } from "./spectate-channels";
 import { getGame } from "@raceiq/shared/games/registry";
 import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities";
-import { resolveBalance } from "@raceiq/analysis-core/racing/analysis/metric-values";
-import { balanceColor } from "@raceiq/scene-3d/vehicle-dynamics";
+import type { AnalysisTelemetryMetric } from "@raceiq/shared/games/types";
+import { resolveBalance, resolveWheelStates } from "@raceiq/analysis-core/racing/analysis/metric-values";
+import { balanceColor, tireState, tireStateFromUtilization } from "@raceiq/scene-3d/vehicle-dynamics";
 import { ERS_DEPLOY_MODES, readERSDeployMode } from "./spectate-ers-mode";
 
 function number(reading: SpectateReading | null, key: string): number | null {
@@ -22,8 +23,8 @@ function Pedal({ label, keyName, a, b, single }: { label: string; keyName: strin
   bv = number(b, keyName);
 const percent = (value: number | null) => (value === null ? null : controlInputPercent(value));
 return (
-  <div className="flex min-w-[54px] flex-col self-stretch text-center text-app-caption text-app-text-secondary">
-    <div className="order-last mt-1 text-app-label">{label}</div>
+  <div className="flex min-w-9 flex-col self-stretch text-center text-app-caption text-app-text-secondary sm:min-w-[54px]">
+    <div className="order-last mt-0.5 text-app-caption sm:mt-1 sm:text-app-label">{label}</div>
     <div className="flex flex-1 justify-center gap-1.5">
       {[
         { side: "A", value: percent(av), color: single ? keyName === "inputs.brake" ? "var(--ch-brake)" : "var(--ch-throttle)" : "var(--comparison-lap-a)" },
@@ -57,13 +58,47 @@ return (
   </div>
 ); }
 
+function TractionRail({ reading, metric, side, compare }: { reading: SpectateReading | null; metric: AnalysisTelemetryMetric; side: "a" | "b"; compare: boolean }) {
+  const m = useMessages();
+  const states = reading ? resolveWheelStates(reading, metric) : [null, null, null, null];
+  const angles = reading?.values["tires.tire-slip-angle"];
+  const lateral = reading?.values["tires.normalized-tire-slip-angle"];
+  return <div className="flex items-center gap-1.5">
+    {compare && <strong style={{ color: `var(--comparison-lap-${side})` }}>{side.toUpperCase()}</strong>}
+    <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+      {["FL", "FR", "RL", "RR"].map((wheel, index) => {
+        const state = states[index];
+        const angle = Array.isArray(angles) ? angles[index] : null;
+        const utilization = Array.isArray(lateral) ? lateral[index] : null;
+        const status = !state ? null
+          : typeof angle === "number" && Number.isFinite(angle) ? tireState(state.state, state.slipRatio, angle)
+          : typeof utilization === "number" && Number.isFinite(utilization) ? tireStateFromUtilization(state.state, state.slipRatio, utilization)
+          : state.state === "idle" || state.state === "lockup" ? tireStateFromUtilization(state.state, state.slipRatio, 0) : null;
+        return <output key={wheel} aria-label={`${compare ? `${side.toUpperCase()} ` : ""}${m.analyse_dynamics_traction()} ${wheel}`} aria-live="off" data-traction-side={side} data-traction-wheel={wheel} data-traction-state={status?.label ?? "unavailable"} className="whitespace-nowrap font-mono tabular-nums" style={{ color: status?.color ?? "var(--app-text-secondary)" }}>
+          <span className="text-app-text-secondary">{wheel} </span>{status?.label ?? "—"}
+        </output>;
+      })}
+    </div>
+  </div>;
+}
+
 export function SpectateInputs({ pair, controller }: { pair: ReplaySession; controller: SpectateController }) { const m = useMessages(); const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
 const isF1 = pair.gameId === "f1-2025";
 const units = useUnits(pair.gameId);
 const primaryColor = pair.b ? "var(--comparison-lap-a)" : "var(--app-accent)";
 const a = snapshot.a,
   b = snapshot.b;
-const balanceMetric = useMemo(() => resolveAnalysisTelemetry(getGame(pair.gameId)).balance, [pair.gameId]);
+const analysis = useMemo(() => resolveAnalysisTelemetry(getGame(pair.gameId)), [pair.gameId]);
+const nativeAids = useMemo(() => {
+  const channels = [
+    { label: "TC", id: "electronics.tc-active" },
+    { label: "ABS", id: pair.gameId === "iracing" ? "brakes.brake-ab-sactive" : "electronics.abs-active" },
+  ];
+  return [{ side: "a", lap: pair.a }, ...(pair.b ? [{ side: "b", lap: pair.b }] : [])]
+    .map(({ side, lap }) => ({ side, aids: channels.filter(({ id }) => lap.samples.some(sample => typeof sample.values[id] === "boolean")) }))
+    .filter(({ aids }) => aids.length > 0);
+}, [pair]);
+const balanceMetric = analysis.balance;
 const balanceA = snapshot.a ? resolveBalance(snapshot.a, balanceMetric) : null;
 const balanceB = snapshot.b ? resolveBalance(snapshot.b, balanceMetric) : null;
 const deltaChannel = useMemo<SpectateChannel | null>(() => pair.b && pair.comparison.traces && pair.comparison.timeDelta
@@ -124,13 +159,13 @@ const needle = (value: number | null, radius: number) => {
   const angle = Math.PI - Math.PI * Math.min(1, Math.max(0, value / speedScale));
   return <line x1="60" y1="52" x2={60 + Math.cos(angle) * radius} y2={52 - Math.sin(angle) * radius} stroke="currentColor" strokeWidth="2.5" />;
 };
-const markerX = (value: number) => 16 + (Math.max(-1, Math.min(1, value / steeringScale)) + 1) * 64;
+const markerX = (value: number) => 16 + (Math.max(-1, Math.min(1, value / steeringScale * (pair.gameId === "lmu" ? -1 : 1))) + 1) * 64;
 return (
   <section
-    className="absolute bottom-3 left-1/2 z-20 grid w-max max-w-[calc(100%-1.5rem)] -translate-x-1/2 grid-cols-[minmax(132px,1fr)_minmax(132px,1fr)_max-content_max-content_max-content] items-end gap-3 overflow-x-auto rounded-md border border-app-border bg-app-bg/80 px-3 py-2 text-app-label backdrop-blur-md"
+    className="absolute bottom-3 left-1/2 z-20 grid w-[calc(100%-1.5rem)] max-w-[calc(100%-1.5rem)] -translate-x-1/2 grid-cols-[minmax(0,1fr)_minmax(0,1fr)_max-content_max-content_max-content] items-end gap-1 overflow-x-auto rounded-md border border-app-border bg-app-bg/80 px-2 py-1.5 text-app-caption backdrop-blur-md sm:w-max sm:grid-cols-[minmax(132px,1fr)_minmax(132px,1fr)_max-content_max-content_max-content] sm:gap-3 sm:px-3 sm:py-2 sm:text-app-label"
     aria-label={pair.b ? m.spectate_inputs() : m.overlay_inputs()}
   >
-    {pair.b && <div className="col-span-5 flex items-baseline justify-center gap-2 border-b border-app-border pb-1">
+    {pair.b && <div className="col-span-5 flex flex-wrap items-baseline justify-center gap-2 border-b border-app-border pb-1">
       <span className="text-app-caption text-app-text-secondary">{m.spectate_time_delta()} · A − B</span>
       <output aria-label={`${m.spectate_time_delta()} · A − B`} className="w-[10ch] whitespace-nowrap text-right font-semibold tabular-nums" style={{ color: delta === null || delta === 0 ? "var(--app-text-secondary)" : delta < 0 ? "var(--status-success)" : "var(--status-danger)" }}>
         {delta === null ? "—" : `${delta > 0 ? "+" : ""}${delta.toFixed(3)} s`}
@@ -145,11 +180,11 @@ return (
         <span className="text-app-caption text-app-text-secondary">{m.spectate_delta_trend_window()}</span>
       </div>
     </div>}
-    <div className="flex min-w-[132px] flex-col self-stretch text-center">
-      <div className="order-last mt-1 whitespace-nowrap text-app-text-secondary">
+    <div className="flex min-w-0 flex-col self-stretch text-center sm:min-w-[132px]">
+      <div className="order-last mt-1 text-app-text-secondary sm:whitespace-nowrap">
         {m.spectate_speed()} · {unitLabel}
       </div>
-      <svg viewBox="0 0 120 65" className="mx-auto my-auto h-14 w-28 shrink-0" role="img" aria-label={pair.b ? m.spectate_speed_readout({ a: display(valueA), b: display(valueB), unit: unitLabel }) : m.spectate_speed()}>
+      <svg viewBox="0 0 120 65" className="mx-auto my-auto h-9 w-full max-w-20 shrink-0 sm:h-14 sm:w-28 sm:max-w-none" role="img" aria-label={pair.b ? m.spectate_speed_readout({ a: display(valueA), b: display(valueB), unit: unitLabel }) : m.spectate_speed()}>
         <path d="M17 52A43 43 0 0 1 103 52" fill="none" stroke="var(--app-border-input)" strokeWidth="1.5" />
         <g style={{ color: primaryColor }}>{needle(valueA, 39)}</g>
         {pair.b && <g style={{ color: "var(--comparison-lap-b)" }}>{needle(valueB, 31)}</g>}
@@ -160,12 +195,11 @@ return (
         {pair.b && <span style={{ color: "var(--comparison-lap-b)" }}>B {display(valueB)}</span>}
       </div>
     </div>
-    <div className="flex min-w-[132px] flex-col self-stretch text-center">
-      <div className="order-last mt-1 whitespace-nowrap text-app-text-secondary">
+    <div className="flex min-w-0 flex-col self-stretch text-center sm:min-w-[132px]">
+      <div className="order-last mt-1 text-app-text-secondary sm:whitespace-nowrap">
         {m.spectate_steering()}
-        {steeringUnit && ` · ${steeringUnit}`}
       </div>
-      <svg viewBox="0 0 160 60" className="mx-auto my-auto h-12 w-32 shrink-0" role="img" aria-label={pair.b ? m.spectate_steering_readout({ a: display(steerA, 2), b: display(steerB, 2), unit: steeringUnit }) : m.spectate_steering()}>
+      <svg viewBox="0 0 160 60" className="mx-auto my-auto h-8 w-full max-w-24 shrink-0 sm:h-12 sm:w-32 sm:max-w-none" role="img" aria-label={pair.b ? m.spectate_steering_readout({ a: display(steerA, 2), b: display(steerB, 2), unit: steeringUnit }) : m.spectate_steering()}>
         <path d="M12 30H148M12 26v8m34-6v4m34-11v18m34-11v4m34-6v8" stroke="var(--app-border-input)" />
         {steerA !== null && <line x1={markerX(steerA)} x2={markerX(steerA)} y1="8" y2="29" stroke={primaryColor} strokeWidth="3" />}
         {pair.b && steerB !== null && <line x1={markerX(steerB)} x2={markerX(steerB)} y1="31" y2="52" stroke="var(--comparison-lap-b)" strokeWidth="3" />}
@@ -175,7 +209,7 @@ return (
         {pair.b && <span style={{ color: "var(--comparison-lap-b)" }}>B {display(steerB, 2)}</span>}
       </div>
     </div>
-    <div className="flex min-w-[42px] flex-col self-stretch text-center text-app-text-secondary">
+    <div className="flex min-w-6 flex-col self-stretch text-center text-app-text-secondary sm:min-w-[42px]">
       <div className="order-last mt-1 whitespace-nowrap">{m.spectate_gear()}</div>
       <div className="flex flex-1 flex-col items-center justify-center gap-0.5 whitespace-nowrap font-semibold tabular-nums">
         <span style={{ color: primaryColor }}>{pair.b ? "A " : ""}{display(number(a, "inputs.gear"))}</span>
@@ -184,8 +218,21 @@ return (
     </div>
     <Pedal label={m.spectate_brake()} keyName="inputs.brake" a={a} b={b} single={!pair.b} />
     <Pedal label={m.spectate_throttle()} keyName="inputs.accel" a={a} b={b} single={!pair.b} />
-    <div className="col-span-5 flex min-w-max items-center justify-center gap-4 border-t border-app-border pt-1">
+    <div className="col-span-5 flex min-w-0 flex-wrap items-center justify-center gap-x-4 gap-y-1 border-t border-app-border pt-1 sm:min-w-max">
       {isF1 && <BatteryModeRail a={a} b={b} single={!pair.b} />}
+      {nativeAids.map(({ side, aids }) => {
+        const reading = side === "a" ? a : b;
+        return (
+        <div key={side} className="flex items-center gap-2 font-semibold">
+          {pair.b && <strong style={{ color: `var(--comparison-lap-${side})` }}>{side.toUpperCase()}</strong>}
+          {aids.map(({ label, id }) => {
+            const available = reading?.values[id] === true || reading?.values[id] === false;
+            const active = available && reading?.values[id] === true;
+            return <output key={label} aria-label={pair.b ? `${side.toUpperCase()} ${label}` : label} aria-live="off" data-aid={label.toLowerCase()} data-aid-side={side} data-aid-state={available ? active ? "active" : "inactive" : "unavailable"} style={{ color: active ? "var(--status-success)" : "var(--app-text-secondary)" }}>{label}</output>;
+          })}
+        </div>
+        );
+      })}
       <div role="group" aria-label={m.spectate_balance()} className="flex items-center justify-center gap-2 text-app-caption" title={m.dataguide_desc_balance()}>
         <span className="text-app-text-secondary">{m.spectate_balance()}</span>
         <div className="flex items-center gap-2">
@@ -211,6 +258,11 @@ return (
             </div>
           ))}
         </div>
+      </div>
+      <div role="group" aria-label={m.analyse_dynamics_traction()} className="flex items-center justify-center gap-2 text-app-caption">
+        <span className="text-app-text-secondary">{m.analyse_dynamics_traction()}</span>
+        <TractionRail reading={a} metric={analysis.traction} side="a" compare={!!pair.b} />
+        {pair.b && <TractionRail reading={b} metric={analysis.traction} side="b" compare />}
       </div>
     </div>
   </section>

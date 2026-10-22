@@ -8,7 +8,7 @@ import { liveSemanticIds } from "@raceiq/telemetry-core/telemetry/live/semantics
 import { runInsightScanWithCoverage } from "@raceiq/analysis-core/racing/analysis/laps/insights/scan";
 import { processLap, restoreFrameIndices } from "@raceiq/analysis-core/racing/analysis/laps/insights/process";
 import { INSIGHT_DETECTORS } from "@raceiq/analysis-core/racing/analysis/laps/insights/types";
-import { resolveRacingLineReference } from "@raceiq/backend-core/lap-analysis/insights";
+import { resolveLapAnalysisContext } from "@raceiq/backend-core/lap-analysis/insights";
 import { getOrComputeLapInsights, recomputeLapInsights } from "@raceiq/backend-core/lap-analysis/metrics-store";
 import { getLapMetaById, getLapById } from "@raceiq/backend-core/db/lap-read-queries";
 import { getLapReplaySource } from "@raceiq/backend-core/db/telemetry-replay-storage";
@@ -64,7 +64,7 @@ export const replayRoutes = new Hono()
       const replay = resolveTelemetryReplay(id, replaySource, lap.telemetry, semanticIds, rawCapture);
       const nativeLayout = getGame(meta.gameId).getNativeSectorLayout?.(lap.telemetry[0]);
       const processed = processLap(lap.telemetry, meta.gameId);
-      const analysis = runInsightScanWithCoverage(processed.packets, meta.gameId, { racingLine: resolveRacingLineReference(meta.gameId, meta.trackId) });
+      const analysis = runInsightScanWithCoverage(processed.packets, meta.gameId, resolveLapAnalysisContext(meta.gameId, meta.trackId, processed.packets));
       restoreFrameIndices(analysis.insights, processed.sourceIndices);
       return c.json({
         lapId: replay.lapId, requestedSemanticIds: replay.requestedSemanticIds,

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type ButtonHTMLAttributes, type ReactNode } from "react";
-import { Navigation, Footprints, CarFront, Route, Map, Info } from "lucide-react";
+import { Navigation, Footprints, CarFront, Route, Map, Info, X } from "lucide-react";
 import type { SpectateController, ReplaySession } from "../contracts/spectate";
 import type { TrackMapBoundaries } from "../contracts/host"
 import { useSettings, useReplayHost, useUnits, useTirePressureOptimal } from "./host"
@@ -211,9 +211,14 @@ return (
         <div className="absolute left-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-app-bg bg-app-text" style={{ top: "var(--zoom-position)" }} />
       </div>
     </div>
-    {overviewVisible && overview}
+    {overviewVisible && <>{overview}
+      <button type="button" aria-label={`${m.common_close()} ${m.spectate_overview()}`} onClick={() => setOverviewVisible(false)}
+        className="absolute right-5 top-5 z-[60] flex size-11 items-center justify-center rounded-sm text-app-text focus-visible:outline-2 focus-visible:outline-app-accent sm:hidden">
+        <X size={18} aria-hidden="true" />
+      </button>
+    </>}
       <TooltipProvider delay={0}>
-        <div role="toolbar" aria-label={pair.b ? m.spectate_direction_lock() : m.overlay_follow()} aria-orientation="vertical" className="absolute left-3 top-1/2 z-30 flex -translate-y-1/2 flex-col rounded-sm border border-app-border bg-app-surface/90 p-0">
+        <div role="toolbar" aria-label={pair.b ? m.spectate_direction_lock() : m.overlay_follow()} aria-orientation="vertical" className="absolute left-3 top-3 z-30 flex flex-col rounded-sm border border-app-border bg-app-surface/90 p-0 sm:top-1/2 sm:-translate-y-1/2">
           <ToolbarTooltip
             type="button"
             role="switch"
@@ -221,7 +226,7 @@ return (
             aria-label={m.spectate_overview()}
             tooltip={m.spectate_overview()}
             onClick={() => setOverviewVisible((shown) => !shown)}
-            className={`flex size-7 items-center justify-center border p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent ${overviewVisible ? "border-app-accent bg-app-accent/10 text-app-accent" : "border-transparent text-app-text-secondary hover:text-app-accent"}`}
+            className={`flex size-11 items-center justify-center border p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent sm:size-7 ${overviewVisible ? "border-app-accent bg-app-accent/10 text-app-accent" : "border-transparent text-app-text-secondary hover:text-app-accent"}`}
           >
             <Map size={16} aria-hidden="true" />
           </ToolbarTooltip>
@@ -233,7 +238,7 @@ return (
             aria-pressed={carModelMode !== "hidden"}
             tooltip={carModelMode === "solid" ? m.carwire_solid() : carModelMode === "wire" ? m.carwire_wire() : m.carwire_hidden()}
             onClick={() => setCarModelMode((mode) => mode === "wire" ? "solid" : mode === "solid" ? "hidden" : "wire")}
-            className={`flex size-7 items-center justify-center border p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent ${carModelMode !== "hidden" ? "border-app-accent bg-app-accent/10 text-app-accent" : "border-transparent text-app-text-secondary hover:text-app-accent"}`}
+            className={`flex size-11 items-center justify-center border p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent sm:size-7 ${carModelMode !== "hidden" ? "border-app-accent bg-app-accent/10 text-app-accent" : "border-transparent text-app-text-secondary hover:text-app-accent"}`}
           >
             <CarFront size={16} aria-hidden="true" />
           </ToolbarTooltip>
@@ -245,7 +250,7 @@ return (
             aria-label={m.carwire_tire_info()}
             tooltip={m.carwire_tire_info()}
             onClick={() => setTireInfo((shown) => !shown)}
-            className={`flex size-7 items-center justify-center border p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent ${tireInfo ? "border-app-accent bg-app-accent/10 text-app-accent" : "border-transparent text-app-text-secondary hover:text-app-accent"}`}
+            className={`flex size-11 items-center justify-center border p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent sm:size-7 ${tireInfo ? "border-app-accent bg-app-accent/10 text-app-accent" : "border-transparent text-app-text-secondary hover:text-app-accent"}`}
           >
             <Info size={16} aria-hidden="true" />
           </ToolbarTooltip>
@@ -256,7 +261,7 @@ return (
             aria-label={pair.b ? m.spectate_direction_lock() : m.overlay_follow()}
             tooltip={pair.b ? m.spectate_direction_lock() : m.overlay_follow()}
             onClick={() => setDirectionLock((locked) => !locked)}
-            className={`flex size-7 items-center justify-center border p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent ${directionLock ? "border-app-accent bg-app-accent/10 text-app-accent" : "border-transparent text-app-text-secondary hover:text-app-accent"}`}
+            className={`flex size-11 items-center justify-center border p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent sm:size-7 ${directionLock ? "border-app-accent bg-app-accent/10 text-app-accent" : "border-transparent text-app-text-secondary hover:text-app-accent"}`}
           >
             <Navigation size={16} className="-rotate-45" aria-hidden="true" />
           </ToolbarTooltip>
@@ -267,7 +272,7 @@ return (
             aria-label={m.spectate_tire_trails()}
             tooltip={m.spectate_tire_trails()}
             onClick={() => setTireTrails((shown) => !shown)}
-            className={`flex size-7 items-center justify-center border p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent ${tireTrails ? "border-app-accent bg-app-accent/10 text-app-accent" : "border-transparent text-app-text-secondary hover:text-app-accent"}`}
+            className={`flex size-11 items-center justify-center border p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent sm:size-7 ${tireTrails ? "border-app-accent bg-app-accent/10 text-app-accent" : "border-transparent text-app-text-secondary hover:text-app-accent"}`}
           >
             <Footprints size={16} aria-hidden="true" />
           </ToolbarTooltip>
@@ -278,7 +283,7 @@ return (
             aria-label={m.overlay_racing_line()}
             tooltip={m.overlay_racing_line()}
             onClick={() => setRacingLine((shown) => !shown)}
-            className={`flex size-7 items-center justify-center border p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent ${racingLine ? "border-app-accent bg-app-accent/10 text-app-accent" : "border-transparent text-app-text-secondary hover:text-app-accent"}`}
+            className={`flex size-11 items-center justify-center border p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent sm:size-7 ${racingLine ? "border-app-accent bg-app-accent/10 text-app-accent" : "border-transparent text-app-text-secondary hover:text-app-accent"}`}
           >
             <Route size={16} className={hasRacingLine ? undefined : "opacity-40"} aria-hidden="true" />
           </ToolbarTooltip>
@@ -290,7 +295,7 @@ return (
             aria-label={m.spectate_position_lock()}
             tooltip={canLock ? m.spectate_position_lock() : m.spectate_position_lock_unavailable()}
             onClick={() => setPositionLockPreferred((locked) => !locked)}
-            className={`flex size-7 items-center justify-center border p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent disabled:cursor-not-allowed disabled:opacity-50 ${positionLock ? "border-app-accent bg-app-accent/10 text-app-accent" : "border-transparent text-app-text-secondary hover:text-app-accent"}`}
+            className={`flex size-11 items-center justify-center border p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent disabled:cursor-not-allowed disabled:opacity-50 sm:size-7 ${positionLock ? "border-app-accent bg-app-accent/10 text-app-accent" : "border-transparent text-app-text-secondary hover:text-app-accent"}`}
           >
             <span className="flex items-center gap-0.5" aria-hidden="true">
               <CarFront size={10} />

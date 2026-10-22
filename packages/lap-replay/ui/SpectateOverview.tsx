@@ -212,16 +212,16 @@ const poseA = geometry?.project(snapshot.a?.pose ?? { x: Number.NaN, z: Number.N
 const poseB = geometry?.project(snapshot.b?.pose ?? { x: Number.NaN, z: Number.NaN });
 return (
   <section
-    className="absolute left-3 top-3 z-20 w-[min(360px,calc(100%-1.5rem))] rounded-md border border-app-border bg-app-bg/75 p-2.5 text-app-label text-app-text opacity-50 transition-opacity hover:opacity-100 focus-within:opacity-100 motion-reduce:transition-none max-[600px]:w-60"
+    className="group/overview absolute left-3 top-3 z-20 w-[min(360px,calc(100%-1.5rem))] rounded-md border border-app-border bg-app-bg/75 p-2.5 text-app-label text-app-text opacity-50 transition-opacity hover:opacity-100 focus-within:opacity-100 motion-reduce:transition-none [@media(hover:none)]:opacity-100 max-sm:z-50 max-sm:w-[calc(100%-1.5rem)] max-sm:bg-app-bg max-sm:opacity-100"
     aria-label={m.spectate_overview()}
     data-focus-mode={focus.mode}
   >
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between max-sm:min-h-11 max-sm:pr-11">
       <strong>{m.spectate_overview()}</strong>
       <span className="text-app-text-secondary max-[600px]:hidden">{m.spectate_select_segment()}</span>
     </div>
     {geometry ? (
-      <svg viewBox="0 0 200 108" className="mt-2 block h-48 w-full max-[600px]:h-32" role="group" aria-label={m.spectate_segment_map()}>
+      <svg viewBox="0 0 200 108" className="mt-2 block h-48 w-full max-sm:aspect-[200/140] max-sm:h-auto" role="group" aria-label={m.spectate_segment_map()}>
         {geometry.paths.map((path, index) => (
           <polyline key={index} points={path} fill="none" stroke="var(--app-border)" strokeWidth="9" strokeLinecap="round" strokeLinejoin="round" />
         ))}
@@ -248,7 +248,7 @@ return (
                 controller.seekDistance(Math.max(0, Math.min(maximum, segment.startFrac * maximum)));
               }
             }}
-            className="cursor-pointer outline-none focus-visible:opacity-70"
+            className="cursor-pointer outline-none focus-visible:opacity-70 sm:pointer-events-none sm:opacity-0 sm:group-hover/overview:pointer-events-auto sm:group-hover/overview:opacity-100 sm:group-focus-within/overview:pointer-events-auto sm:group-focus-within/overview:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100"
           >
             <title>{pair.b ? `${segment.name || m.spectate_segment_number({ number })} · A − B: ${splitText(delta, m.analyse_unavailable())}` : segment.name || m.spectate_segment_number({ number })}</title>
             {sectionPaths.map((path, index) => (
@@ -257,8 +257,8 @@ return (
             {position && (
               <>
                 {anchor && <line x1={anchor.x} y1={anchor.y} x2={position.x} y2={position.y} stroke="var(--app-text-secondary)" strokeWidth="0.6" opacity="0.5" pointerEvents="none" />}
-                <circle cx={position.x} cy={position.y} r="5.5" fill={splitColor(delta)} stroke="var(--app-bg)" strokeWidth="0.8" />
-                <text x={position.x} y={position.y} textAnchor="middle" dominantBaseline="central" fill={delta === null ? "var(--app-text)" : delta > 0 ? "var(--app-text)" : "var(--app-bg)"} fontSize="6" fontWeight="var(--font-weight-bold)">
+                <circle className="max-sm:[r:7]" cx={position.x} cy={position.y} r="5.5" fill={splitColor(delta)} stroke="var(--app-bg)" strokeWidth="0.8" />
+                <text className="max-sm:text-[8px]" x={position.x} y={position.y} textAnchor="middle" dominantBaseline="central" fill={delta === null ? "var(--app-text)" : delta > 0 ? "var(--app-text)" : "var(--app-bg)"} fontSize="6" fontWeight="var(--font-weight-bold)">
                   {number}
                 </text>
               </>

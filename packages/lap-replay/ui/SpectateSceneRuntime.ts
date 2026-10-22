@@ -316,9 +316,35 @@ export class SpectateSceneRuntime {
     const transform = (points: readonly Point[], alignment: TrackAlignment) => points.map((point) => applyAlignment(point, alignment));
     const drawPoints = (points: readonly Point[], alignment: TrackAlignment, tint: string, runs: RibbonRun[]) => {
       const transformed = transform(points, alignment);
-      if (transformed.length > 1)
-        runs.push(transformed.map((point) => ({ x: point.x - this.origin.x, y: -this.origin.y, z: point.z - this.origin.z, color: color(tint) })));
-      return Math.max(0, transformed.length - 1);
+      const tintColor = color(tint);
+      let distance = 0;
+      let run: RibbonRun[number][] | null = null;
+      let count = 0;
+      // World-anchored 6 m dashes / 1 m gaps provide speed cues without animation.
+      for (let i = 1; i < transformed.length; i++) {
+        const a = transformed[i - 1]!, b = transformed[i]!;
+        const length = Math.hypot(b.x - a.x, b.z - a.z);
+        if (!Number.isFinite(length) || length === 0) continue;
+        const point = (offset: number) => ({
+          x: a.x + (b.x - a.x) * offset / length - this.origin.x,
+          y: -this.origin.y,
+          z: a.z + (b.z - a.z) * offset / length - this.origin.z,
+          color: tintColor,
+        });
+        let offset = 0;
+        while (offset < length) {
+          const phase = distance % 7;
+          const step = Math.min(length - offset, (phase < 6 ? 6 : 7) - phase);
+          if (phase < 6) {
+            if (!run) { run = [point(offset)]; runs.push(run); }
+            run.push(point(offset + step));
+            count++;
+          } else run = null;
+          offset += step;
+          distance += step;
+        }
+      }
+      return count;
     };
     const edgeRuns: RibbonRun[] = [];
     let edgeCount = 0;

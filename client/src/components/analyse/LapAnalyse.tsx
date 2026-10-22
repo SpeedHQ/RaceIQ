@@ -266,8 +266,9 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
           panelHeaderTarget={panelHeaderTarget}
           aiOpen={aiPanelOpen}
           onAiOpenChange={setAiPanelOpen}
-          ai={aiPanelOpen && selectedLapId ? (
+          ai={(headerTarget) => aiPanelOpen && selectedLapId ? (
             <AnalyseAiSidebar
+              headerTarget={headerTarget}
               lapId={selectedLapId}
               trackName={trackName}
               carName={carName}

@@ -29,6 +29,7 @@ import { LiveTrackConditions } from "../src/components/tunes/LiveTestDashboard";
 import type { LiveTelemetryView } from "../src/lib/live-telemetry-view";
 import { fakeAccPacket, fakeAccSemanticFixture, fakeF1SemanticFixture, fakeForzaSemanticFixture, fakePit } from "../src/stories/fakeData";
 import { DEFAULT_DISPLAY_SETTINGS } from "../src/stores/telemetry";
+import { m } from "../src/paraglide/messages";
 
 const semanticFrame = (values: Record<string, unknown>): SemanticAnalysisFrame => ({ values, states: {}, freshness: {} });
 
@@ -748,6 +749,49 @@ describe("telemetry capability UI", () => {
     expect(markup).not.toContain("Grip Ask");
     expect(markup).not.toContain("Suspension");
   });
+  test("shows LMU electronics settings and activation without treating zero or false as missing", () => {
+    const markup = renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() },
+      createElement(MetricsPanel, {
+        gameId: "lmu",
+        frame: semanticFrame({
+          "electronics.traction-control-level": 4,
+          "electronics.abs-level": 3,
+          "electronics.tc-active": true,
+          "electronics.abs-active": false,
+          "electronics.tc-cut-level": 0,
+          "electronics.motor-map": 2,
+        }),
+      })));
+    const text = markup.replace(/<[^>]*>/g, "");
+    expect(text).toContain(`${m.lmu_channel_electronics_traction_control_level()}4`);
+    expect(text).toContain("ABS level3");
+    expect(text).toContain(`${m.lmu_channel_electronics_tc_active()}${m.lmu_state_active()}`);
+    expect(text).toContain(`${m.lmu_channel_electronics_abs_active()}${m.lmu_state_inactive()}`);
+    expect(text).toContain(`${m.lmu_channel_electronics_tc_cut_level()}0`);
+    expect(text).toContain("Motor map2");
+    expect(markup).not.toContain("data-lmu-native-state");
+  });
+  test("does not display missing, invalid or stale LMU electronics as current measurements", () => {
+    const markup = renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() },
+      createElement(MetricsPanel, {
+        gameId: "lmu",
+        frame: {
+          values: {
+            "electronics.traction-control-level": 4,
+            "electronics.abs-level": NaN,
+            "electronics.tc-active": true,
+            "electronics.abs-active": false,
+            "electronics.tc-cut-level": 2,
+          },
+          states: { "electronics.traction-control-level": "missing", "electronics.tc-active": "invalid" },
+          freshness: { "electronics.abs-active": "stale", "electronics.tc-cut-level": "stale" },
+        },
+      })));
+    const text = markup.replace(/<[^>]*>/g, "");
+    for (const label of [m.lmu_channel_electronics_traction_control_level(), m.lmu_channel_electronics_abs_level(), m.lmu_channel_electronics_tc_active(), m.lmu_channel_electronics_abs_active(), m.lmu_channel_electronics_tc_cut_level(), m.lmu_channel_electronics_motor_map()]) {
+      expect(text).toContain(`${label}—`);
+    }
+  });
   test("shows best lap and only same-distance live delta", () => {
     const view = liveView("f1-2025", { timing: { currentLapS: 30.793, lastLapS: 97.729, bestLapS: 94.023 } });
     const unavailable = renderToStaticMarkup(createElement(LapTimes, { view }));
@@ -769,6 +813,44 @@ describe("position-dependent 3D features", () => {
     for (const feature of ["track", "racingLine", "trails", "inputs"] as const) {
       expect(supportsPositionDependentSceneFeature("iracing", feature)).toBe(false);
       expect(supportsPositionDependentSceneFeature("ac-evo", feature)).toBe(true);
+    }
+  });
+});
+
+describe("LMU replay energy and brake migration", () => {
+  const ids = ["fuel.state-of-charge", "fuel.virtual-energy", "diagnostics.regen-kw", "diagnostics.migration"] as const;
+  const labels = [m.lmu_channel_fuel_state_of_charge, m.lmu_channel_fuel_virtual_energy, m.lmu_channel_diagnostics_regen_kw, m.lmu_channel_diagnostics_migration];
+  const render = (frame: SemanticAnalysisFrame) => renderToStaticMarkup(
+    createElement(QueryClientProvider, { client: new QueryClient() },
+      createElement(AnalyseDataContent, {
+        currentFrame: frame, packetNumber: 1, startFuel: undefined,
+        gameId: "lmu", units: parityUnits, wearRate: null,
+      })),
+  ).replace(/<[^>]*>/g, "");
+
+  test.each([
+    { charge: 72, energy: 0.63, regen: -80, migration: 3, shown: ["72.0%", "63.0%", "-80.0 kW", "3"] },
+    { charge: 0, energy: 0, regen: 0, migration: 0, shown: ["0.0%", "0.0%", "0.0 kW", "0"] },
+    { charge: 100, energy: 1, regen: 45.5, migration: 10, shown: ["100.0%", "100.0%", "45.5 kW", "10"] },
+  ])("keeps charge, virtual energy, signed regen and migration distinct: %j", ({ charge, energy, regen, migration, shown }) => {
+    const text = render(semanticFrame(Object.fromEntries(ids.map((id, i) => [id, [charge, energy, regen, migration][i]]))));
+    for (const [i, label] of labels.entries()) {
+      expect(text).toContain(`${label()}${shown[i]}`);
+    }
+  });
+
+  test.each([
+    { state: "missing" }, { state: "invalid" }, { state: "not-applicable" },
+    { freshness: "stale" }, { value: null }, { value: undefined }, { value: NaN }, { value: Infinity },
+    { value: false }, { value: "72" },
+  ])("does not present unavailable readings as measurements: %j", (availability) => {
+    const text = render({
+      values: Object.fromEntries(ids.map((id) => [id, "value" in availability ? availability.value : 1])),
+      states: Object.fromEntries(ids.map((id) => [id, "state" in availability ? availability.state : undefined])),
+      freshness: Object.fromEntries(ids.map((id) => [id, "freshness" in availability ? availability.freshness : undefined])),
+    });
+    for (const label of labels) {
+      expect(text).toContain(`${label()}—`);
     }
   });
 });

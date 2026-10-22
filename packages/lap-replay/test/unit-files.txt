@@ -1,3 +1,4 @@
+packages/lap-replay/test/unit/segment-data.test.ts
 packages/lap-replay/test/unit/spectate-ers-mode.test.ts
 packages/lap-replay/test/unit/spectate-focus-lanes.test.ts
 packages/lap-replay/test/unit/spectate-focus.test.ts

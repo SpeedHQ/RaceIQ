@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildSegmentData } from "client/src/components/analyse/AnalyseSegmentList";
+import { buildSegmentData } from "../../ui/AnalyseSegmentList";
 import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 
 const frame = (values: Record<string, unknown>): SemanticAnalysisFrame => ({ values, states: {}, freshness: {} });

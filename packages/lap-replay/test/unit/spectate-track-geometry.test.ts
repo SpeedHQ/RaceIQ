@@ -39,6 +39,25 @@ function geometry(gameId: string, points: Point[]): GeometryProbe {
     focusLaneAvailable: false, schematicLinesActive: false,
   });
 }
+function expectOnPaths(runs: RibbonRun[], paths: Point[][]) {
+  for (const path of paths) expect(runs.some(run => Math.hypot(run[0]!.x - path[0]!.x, run[0]!.z - path[0]!.z) < 1e-6)).toBe(true);
+  for (const run of runs) for (const point of run) {
+    const onPath = paths.some(path => path.slice(1).some((b, i) => {
+      const a = path[i]!, dx = b.x - a.x, dz = b.z - a.z;
+      const fraction = Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.z - a.z) * dz) / (dx * dx + dz * dz)));
+      return Math.hypot(point.x - a.x - dx * fraction, point.z - a.z - dz * fraction) < 1e-6;
+    }));
+    expect(onPath).toBe(true);
+  }
+}
+
+test("track dashes retain metre spacing across uneven samples, duplicates and corners", () => {
+  const runtime = geometry("lmu", center);
+  const edge = [{ x: 0, z: 0 }, { x: 2, z: 0 }, { x: 2, z: 0 }, { x: 4, z: 0 }, { x: 4, z: 16 }];
+  runtime.setOutline(null, { leftEdge: edge, rightEdge: [], centerLine: [], pitLane: null, coordSystem: "lmu" });
+  const paths = runtime.edgeRuns.map(run => run.map(p => [p.x + origin.x, p.z + origin.z]));
+  expect(paths).toEqual([[[0, 0], [2, 0], [4, 0], [4, 2]], [[4, 3], [4, 9]], [[4, 10], [4, 16]]]);
+});
 
 const cases = [
   ["fm-2023", "forza", false],
@@ -61,7 +80,7 @@ for (const [gameId, coordSystem, flip] of cases) {
       };
       runtime.setOutline(null, boundaries);
       const expected = (points: Point[]) => points.map(p => ({ x: (flip ? -p.x : p.x) - origin.x, z: p.z - origin.z }));
-      expect(runtime.edgeRuns.map(run => run.map(({ x, z }) => ({ x, z })))).toEqual([
+      expectOnPaths(runtime.edgeRuns, [
         expected(leftEdge), expected(rightEdge), expected(leftEdge.slice(0, 3)), expected(rightEdge.slice(0, 3)),
       ]);
       expect(runtime.lineRuns[0][0][0]).toMatchObject({ x: driven[0].x - origin.x, z: driven[0].z - origin.z });
@@ -72,7 +91,7 @@ for (const [gameId, coordSystem, flip] of cases) {
 test("LMU preserves native outline coordinates when boundaries are absent", () => {
   const runtime = geometry("lmu", center.slice(0, 2).map(p => ({ x: p.x + 3, z: p.z })));
   runtime.setOutline(center, null);
-  expect(runtime.edgeRuns[0].map(({ x, z }) => ({ x, z }))).toEqual(center.map(p => ({ x: p.x - origin.x, z: p.z - origin.z })));
+  expectOnPaths(runtime.edgeRuns, [center.map(p => ({ x: p.x - origin.x, z: p.z - origin.z }))]);
 });
 
 test("unregistered geometry retains validated coordinate fitting", () => {

@@ -1,13 +1,23 @@
 ## Unreleased
 
 ### Features
+- Show clickable circuit-overview sector markers on desktop only while hovering or using keyboard focus; keep them visible on touch screens.
+- Group LMU state of charge, virtual energy and regenerative power in a separate table below the main Replay and Compare → Spectate metrics.
+- Use dashed track edges in Replay and Compare → Spectate to provide fixed-distance speed cues.
+- Show plain TC and ABS indicators in the Replay and Compare → Spectate center dashboard only when native activation telemetry was recorded, lighting them green during activation and keeping inactive or temporarily unavailable readings neutral.
+- Show color-coded per-wheel traction status in the center dashboard for single-lap Replay and Compare → Spectate, with separate A/B readings and unavailable telemetry marked clearly.
 - Keep Sessions actions in a bottom-center floating bar with a selection count and Deselect all. Keep Compare visible and enable it only for two compatible laps; filter comparison laps by Mine, Others, or All inside the lap-picker dropdown.
-- Show separate LMU player energy, engine, electric motor, steering feedback, weather and race-control readings in live telemetry and recorded-lap analysis when provided by the game.
+- Show separate LMU player energy, engine, electric motor, steering feedback, weather and race-control readings in live telemetry when provided by the game.
 - Show read-only LMU setup, forecast and condition snapshots with source age and availability, without waiting for network requests before displaying live telemetry.
 - Compare laps in Spectate with synchronized 3D replay, configurable cameras and overlays, live A/B instruments, sector deltas, and telemetry, car, AI, Focus View, and lap-statistics panels.
 - Inspect recorded telemetry in Compare → Spectate with a Data panel and switch between lap A and B without showing both panels at once.
 - Bring Compare → Spectate's scene, playback, telemetry and Insights to single-lap Replay, with saved 3D settings, grouped wheel graphs, stable ERS bands, chassis/tire-info rendering and independently resizable, horizontally scrollable panels.
+- Show LMU traction-control and ABS settings and activation, traction-control cut level, motor map, battery state of charge, virtual energy and signed regen power in Replay's existing Data panel instead of a separate Player telemetry section; show brake migration beside brake bias in Dynamics.
 - Restore the single-lap Replay segment-time list in a collapsible Segments panel, with active-segment highlighting and a saved open state.
+- Use Replay on phones with a compact horizontal dashboard, larger touch controls, an opaque circuit overview you can close, and one panel at a time beneath the playback tabs. Read colored sector labels closer to the timeline on phones and desktops, and scroll track and lap pickers out of view while keeping navigation visible.
+- Manage Replay AI analysis from its tab without a duplicate panel header.
+- Open desktop Replay and Spectate panels within half the workspace, then drag them wider—including a single panel—to give charts more room. Resize each panel without shrinking its neighbors.
+- Drag Replay and Spectate tabs to reorder them, or use Alt+Left/Right; keep the saved tab order when reopening the page.
 - Choose a 50–100 Hz recording frequency for ACC, AC Evo, iRacing, or LMU during setup to reduce recording size. Live UDP recording is unchanged.
 - Downsample saved recordings manually or with an opt-in age policy in Storage settings; measure the first 1,000 frame timestamps per stream and skip recordings already at or below the target. Track progress and retry failed files. Favorites and MoTeC imports stay unchanged.
 - Split recordings into individual, lossless per-lap `.bin` files so lap 60 loads as fast as lap 1.
@@ -17,6 +27,10 @@
 - Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
 
 ### Fixes
+- Correct the LMU steering indicator direction in the Replay and Compare → Spectate center dashboard without changing recorded steering values.
+- Show active TC and ABS readings in green in Replay's Data panel, while keeping inactive and unavailable readings neutral.
+- Use reported traction-control activity in Replay and lap insights when the game's telemetry provides it; infer activation only when that channel is unavailable.
+- Hide Y-axis labels on telemetry charts while keeping chart legends and data visible.
 - Keep recording splitting and background processing available when the UDP telemetry port is already in use.
 - Report inconclusive historical lap classification as limited without requesting attention, and correct earlier results.
 - Center Le Mans Ultimate track outlines within catalogue cards.

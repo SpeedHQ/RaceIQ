@@ -6,7 +6,7 @@ import { db, readDb } from "../db/index"
 import { withDatabaseWrite } from "../db/write-coordination";
 import { lapMetrics, laps } from "../db/schema";
 import { getLapById, getLapsByIds } from "../db/lap-read-queries";
-import { resolveLapSegments, resolveRacingLineReference, STATIC_LAP_ANALYSIS_VERSION } from "./insights";
+import { resolveLapSegments, resolveLapAnalysisContext, STATIC_LAP_ANALYSIS_VERSION } from "./insights";
 import { analyzeLap } from "@raceiq/analysis-core/racing/analysis/laps/insights/analyze";
 import { processLap, restoreFrameIndices } from "@raceiq/analysis-core/racing/analysis/laps/insights/process";
 import {
@@ -163,9 +163,7 @@ async function rerunLapInsights(lapId: number, existing?: MetricsRow): Promise<L
   if (!lap || lap.telemetry.length === 0 || !lap.gameId) return null;
   const gameId = lap.gameId as GameId;
   const processed = processLap(lap.telemetry, gameId);
-  const insights = analyzeLap(processed.packets, gameId, {
-    racingLine: resolveRacingLineReference(gameId, lap.trackId),
-  });
+  const insights = analyzeLap(processed.packets, gameId, resolveLapAnalysisContext(gameId, lap.trackId, processed.packets));
   restoreFrameIndices(insights, processed.sourceIndices);
   if (row) {
     await persistInsights(lapId, insights);
@@ -248,9 +246,7 @@ export async function getOrComputeLapInsightsBatch(lapIds: number[]): Promise<Ma
       if (hit) return hit;
       const gameId = lap.gameId as GameId;
       const processed = processLap(lap.telemetry, gameId);
-      const computed = analyzeLap(processed.packets, gameId, {
-        racingLine: resolveRacingLineReference(gameId, lap.trackId),
-      });
+      const computed = analyzeLap(processed.packets, gameId, resolveLapAnalysisContext(gameId, lap.trackId, processed.packets));
       restoreFrameIndices(computed, processed.sourceIndices);
       if (current) await persistInsights(lap.id, computed);
       else await persist(computeForLap(lap, computed));

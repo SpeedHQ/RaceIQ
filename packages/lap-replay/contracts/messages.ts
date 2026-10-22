@@ -1,4 +1,6 @@
 export interface ReplayMessages {
+  common_close: () => string;
+  analyse_dynamics_traction: () => string;
   dataguide_desc_balance: () => string;
   dynamics_state_neutral: () => string;
   dynamics_state_understeer: () => string;

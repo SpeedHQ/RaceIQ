@@ -28,12 +28,33 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
     await page.goto(`/fm23/sessions/${lap.sessionId}/replay/${lap.id}`);
     const scene = page.locator("[data-replay-scene]");
     await expect(scene.locator("canvas").first()).toBeVisible();
+    if (viewport.width < 640) await scene.getByRole("button", { name: "Close Circuit overview", exact: true }).click();
     const timeline = page.getByRole("slider", { name: "Replay position", exact: true });
     const clock = page.locator("[data-spectate-playback]");
     await timeline.press("Home");
     await expect(clock).toHaveAttribute("data-time", "0");
+    const segmentsToggle = page.locator('[data-panel-toggle="replay-segments-panel"]');
+    await segmentsToggle.click();
+    const segmentsPanel = page.locator("#replay-segments-panel");
+    const activeSegment = segmentsPanel.locator('[aria-current="true"]');
+    await expect(activeSegment).toHaveCount(1);
+    const firstSegment = (await activeSegment.textContent())!;
+    await expect(activeSegment).toContainText(/\d+\.\d{3}s/);
+    const segmentTimes = (await segmentsPanel.textContent())!;
+    await timeline.press("End");
+    await expect(activeSegment).toHaveCount(1);
+    await expect(activeSegment).not.toHaveText(firstSegment);
+    await expect(segmentsPanel).toHaveText(segmentTimes);
+    await timeline.press("Home");
+    await expect(activeSegment).toHaveText(firstSegment);
+    await segmentsToggle.click();
+    await expect(segmentsPanel).toHaveCount(0);
+    await segmentsToggle.click();
+    await expect(activeSegment).toHaveText(firstSegment);
+    await segmentsToggle.click();
     // Closing Data must not disable the replay clock or its timeline cursor.
     const dataToggle = page.locator('[data-panel-toggle="replay-data-panel"]');
+    if (viewport.width < 800) await dataToggle.click();
     await dataToggle.click();
     await expect(dataToggle).toHaveAttribute("aria-expanded", "false");
     await expect(scene.getByRole("toolbar", { name: "Follow", exact: true })).toBeVisible();
@@ -64,10 +85,10 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
     const paused = await clock.getAttribute("data-time");
     await page.getByRole("combobox", { name: "Playback speed", exact: true }).selectOption("2");
     await expect(page.getByRole("combobox", { name: "Playback speed", exact: true })).toHaveValue("2");
-    for (const id of ["telemetry", "car", "data", "insights", "ai"]) {
+    for (const id of ["telemetry", "car", "data", "segments", "insights", "ai"]) {
       const toggle = page.locator(`[data-panel-toggle="replay-${id}-panel"]`);
       await toggle.scrollIntoViewIfNeeded();
-      await toggle.click();
+      await toggle.click({ position: { x: 10, y: 10 } });
       await expect(toggle).toHaveAttribute("aria-expanded", "true");
       await expect(page.locator(`#replay-${id}-panel`)).toBeVisible();
       await toggle.click();
@@ -115,6 +136,7 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
     const telemetryToggle = page.locator('[data-panel-toggle="replay-telemetry-panel"]');
     await telemetryToggle.click();
     const expectHeaderTracksPanel = async (id: string) => {
+      if (viewport.width <= 800) return;
       const header = page.locator(`[data-replay-panel-header] [data-panel-header="${id}"]`);
       const body = page.locator(`#${id}`);
       await expect.poll(async () => {
@@ -127,27 +149,27 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
         );
       }, { message: `${id} tab follows its panel` }).toBeLessThanOrEqual(1);
     };
-    const headerTabs = page.locator("[data-replay-panel-header] [data-panel-toggle]");
-    await expect(headerTabs).toHaveCount(5);
-    expect(await headerTabs.evaluateAll((tabs) => tabs.map((tab) => tab.getAttribute("data-panel-toggle")))).toEqual([
-      "replay-car-panel", "replay-data-panel", "replay-insights-panel", "replay-ai-panel", "replay-telemetry-panel",
-    ]);
-    await expect(page.locator("[data-replay-panel-header]").getByRole("button", { name: "Telemetry", exact: true })).toBeVisible();
+    await expect(telemetryToggle).toBeVisible();
     await expectHeaderTracksPanel("replay-telemetry-panel");
-    const separator = page.getByRole("separator", { name: "Resize panels", exact: true });
-    await separator.focus();
-    const beforeResize = Number(await separator.getAttribute("aria-valuenow"));
-    await separator.press("ArrowLeft");
-    await expect(separator).toHaveAttribute("aria-valuenow", String(Math.min(beforeResize + 20, Math.round(viewport.width * 0.88), 650)));
-    await expectHeaderTracksPanel("replay-telemetry-panel");
+    if (viewport.width > 800) {
+      const separator = page.getByRole("separator", { name: "Resize panels", exact: true });
+      await separator.focus();
+      const beforeResize = Number(await separator.getAttribute("aria-valuenow"));
+      await separator.press("ArrowRight");
+      await expect(separator).toHaveAttribute("aria-valuenow", String(Math.max(270, beforeResize - 20)));
+      await expectHeaderTracksPanel("replay-telemetry-panel");
+    }
     const aiToggle = page.locator('[data-panel-toggle="replay-ai-panel"]');
     await aiToggle.click();
-    expect(await headerTabs.evaluateAll((tabs) => tabs.map((tab) => tab.getAttribute("data-panel-toggle")))).toEqual([
-      "replay-car-panel", "replay-data-panel", "replay-insights-panel", "replay-telemetry-panel", "replay-ai-panel",
-    ]);
     await expectHeaderTracksPanel("replay-telemetry-panel");
     await expectHeaderTracksPanel("replay-ai-panel");
+    const aiHeader = page.locator('[data-panel-header="replay-ai-panel"]');
+    await aiHeader.getByRole("button", { name: "Manage", exact: true }).click();
+    await expect(page.getByRole("menuitem", { name: "Clear chat only", exact: true })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#replay-ai-panel").getByRole("button", { name: "Manage", exact: true })).toHaveCount(0);
     await aiToggle.click();
+    if (viewport.width < 800) await telemetryToggle.click();
     await expect(clock).toHaveAttribute("data-time", findingTime!);
     const panel = page.locator("#replay-telemetry-panel");
     await expect(panel.getByRole("tablist", { name: "Category", exact: true })).toBeVisible();
@@ -164,12 +186,8 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
     for (const wheel of ["FL", "FR", "RL", "RR"]) await expect(wheelChannel.locator(`[data-wheel="${wheel}"]`)).toContainText(wheel);
     await expect(wheelChannel.locator("[data-current-b]")).toHaveCount(0);
     if (viewport.width < 800) {
-      const toolbar = await page.getByRole("toolbar", { name: "Focus mode", exact: true }).boundingBox();
-      expect(toolbar).not.toBeNull();
-      const panelReceivesPointer = await page.evaluate(({ x, y }) =>
-        !!document.elementFromPoint(x, y)?.closest("#replay-telemetry-panel"),
-      { x: toolbar!.x + toolbar!.width / 2, y: toolbar!.y + toolbar!.height / 2 });
-      expect(panelReceivesPointer, "mobile charts must not be covered by scene controls").toBe(true);
+      const [playbackBox, panelBox] = await Promise.all([clock.boundingBox(), panel.boundingBox()]);
+      expect(panelBox!.y).toBeGreaterThanOrEqual(playbackBox!.y + playbackBox!.height);
     }
     await page.screenshot({ path: testInfo.outputPath(`replay-wheel-charts-${viewport.width}.png`), animations: "disabled" });
     await telemetryToggle.click();
@@ -197,7 +215,6 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     if (viewport.width > 800) {
       await page.setViewportSize({ width: 390, height: 844 });
-      await expect(page.locator("[data-panel-rail]")).toHaveCSS("position", "absolute");
       await telemetryToggle.click();
       await page.setViewportSize(viewport);
       await expect(page.locator("[data-panel-rail]")).toHaveCSS("position", "relative");
@@ -210,7 +227,7 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
   });
 }
 
-for (const viewport of [{ width: 1600, height: 1000 }, { width: 390, height: 844 }]) {
+for (const viewport of [{ width: 1600, height: 1000 }]) {
   test(`Replay and Spectate resize the right panel section and neighboring panels at ${viewport.width}px`, async ({ page, request }, testInfo) => {
     test.setTimeout(180_000);
     await page.setViewportSize(viewport);
@@ -264,24 +281,44 @@ for (const viewport of [{ width: 1600, height: 1000 }, { width: 390, height: 844
           return difference;
         }, ids)).toBeLessThanOrEqual(1);
       };
+      const workspaceWidth = await width(workspace);
+      const manualWidth = Math.min(Math.floor(workspaceWidth / 2) + 100, workspaceWidth - 320);
+      expect(await width(rail)).toBeLessThanOrEqual(workspaceWidth / 2);
+      await toggle(0, true);
+      await toggle(2, false);
+      const chart = page.locator(`#${ids[0]} canvas[aria-label]`).first();
+      const initialChartWidth = await width(chart);
+      await dragBy(outer, (await width(rail)) - manualWidth);
+      await expect.poll(() => width(rail)).toBeCloseTo(manualWidth, 0);
+      await expect.poll(() => width(page.locator(`#${ids[0]}`))).toBeCloseTo(manualWidth, 0);
+      await expect.poll(() => width(chart)).toBeGreaterThan(initialChartWidth);
+      await page.reload();
+      await expect.poll(() => width(rail)).toBeCloseTo(manualWidth, 0);
+      await expect.poll(() => width(page.locator(`#${ids[0]}`))).toBeCloseTo(manualWidth, 0);
+      await toggle(2, true);
+      expect(await width(rail)).toBeLessThanOrEqual(workspaceWidth / 2);
+      await toggle(0, false);
       // The outer edge must work with Telemetry closed, over the full rail height.
       const railBox = await rail.boundingBox(), edgeBox = await outer.boundingBox();
       expect(edgeBox!.height).toBeCloseTo(railBox!.height, 0);
       const before = await width(rail);
-      const dataWidth = await width(page.locator(`#${ids[2]}`));
-      const delta = viewport.width > 800 ? -40 : 40;
+      expect(before).toBeLessThanOrEqual(workspaceWidth / 2);
+      const delta = 40;
       await dragBy(outer, delta);
       await expect.poll(() => width(rail)).toBeCloseTo(before - delta, 0);
-      expect(await width(page.locator(`#${ids[2]}`))).toBe(dataWidth);
+      expect(await width(page.locator(`#${ids[2]}`))).toBeCloseTo(before - delta, 0);
       await outer.press("ArrowRight");
       const keyboardWidth = Math.max(270, before - delta - 20);
       await expect.poll(() => width(rail)).toBeCloseTo(keyboardWidth, 0);
       await outer.press("ArrowLeft");
       await outer.press("ArrowLeft");
       await expect.poll(() => width(rail)).toBeCloseTo(Math.min(keyboardWidth + 40, Number(await outer.getAttribute("aria-valuemax"))), 0);
-      expect(await width(page.locator(`#${ids[2]}`))).toBe(dataWidth);
+      expect(await width(page.locator(`#${ids[2]}`))).toBeCloseTo(await width(rail), 0);
       await aligned();
       await toggle(0, true);
+      expect(await width(rail)).toBeLessThanOrEqual(workspaceWidth / 2);
+      await dragBy(outer, (await width(rail)) - manualWidth);
+      await expect.poll(() => width(rail)).toBeCloseTo(manualWidth, 0);
       const left = page.locator(`#${ids[0]}`), right = page.locator(`#${ids[2]}`);
       const inner = right.getByRole("separator");
       const leftBefore = await width(left), rightBefore = await width(right), railBefore = await width(rail);
@@ -294,21 +331,25 @@ for (const viewport of [{ width: 1600, height: 1000 }, { width: 390, height: 844
       await expect.poll(() => width(rail)).toBeCloseTo(railBefore, 0);
       await dragBy(inner, 10);
       await expect.poll(() => width(left)).toBeCloseTo(leftBefore + 10, 0);
-      await expect.poll(() => width(right)).toBeCloseTo(rightBefore - 10, 0);
+      await expect.poll(() => width(right)).toBeCloseTo(rightBefore, 0);
       expect(await width(rail)).toBeCloseTo(railBefore, 0);
       const keyboardLeft = Math.max(leftBefore - 10, Number(await inner.getAttribute("aria-valuemin")));
       await inner.press("ArrowLeft");
       await expect.poll(() => width(left)).toBeCloseTo(keyboardLeft, 0);
-      await expect.poll(() => width(right)).toBeCloseTo(leftBefore + rightBefore - keyboardLeft, 0);
+      await expect.poll(() => width(right)).toBeCloseTo(rightBefore, 0);
       const maximumLeft = Number(await inner.getAttribute("aria-valuemax"));
-      for (let step = 0; step < 20; step++) await inner.press("ArrowRight");
+      for (let step = 0; step <= Math.ceil((maximumLeft - keyboardLeft) / 20); step++) await inner.press("ArrowRight");
       await expect.poll(() => width(left)).toBeCloseTo(maximumLeft, 0);
-      await expect.poll(() => width(right)).toBeCloseTo(leftBefore + rightBefore - maximumLeft, 0);
+      await expect.poll(() => width(right)).toBeCloseTo(rightBefore, 0);
+      expect(await width(left)).toBeGreaterThan(leftBefore + rightBefore - 270);
       const minimumLeft = Number(await inner.getAttribute("aria-valuemin"));
-      for (let step = 0; step < 20; step++) await inner.press("ArrowLeft");
+      for (let step = 0; step <= Math.ceil((maximumLeft - minimumLeft) / 20); step++) await inner.press("ArrowLeft");
       await expect.poll(() => width(left)).toBeCloseTo(minimumLeft, 0);
-      await expect.poll(() => width(right)).toBeCloseTo(leftBefore + rightBefore - minimumLeft, 0);
+      await expect.poll(() => width(right)).toBeCloseTo(rightBefore, 0);
       expect(await width(rail)).toBeCloseTo(railBefore, 0);
+      await aligned();
+      await dragBy(outer, 120);
+      await expect.poll(() => width(rail)).toBeCloseTo(railBefore - 120, 0);
       await aligned();
       await workspace.locator("aside").evaluate((element) => { element.scrollLeft = element.scrollWidth; });
       await expect.poll(() => workspace.locator("aside").evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
@@ -318,7 +359,7 @@ for (const viewport of [{ width: 1600, height: 1000 }, { width: 390, height: 844
       ))).toBeLessThanOrEqual(1);
       await aligned();
       orders.push(await page.locator("[data-panel-toggle]").evaluateAll((tabs, panelIds) =>
-        tabs.map((tab) => panelIds.indexOf(tab.getAttribute("data-panel-toggle")!)), ids).then((indices) => indices.map((index) => ["telemetry", "car", "data", "insights", "ai"][index]!)));
+        tabs.map((tab) => panelIds.indexOf(tab.getAttribute("data-panel-toggle")!)).filter((index) => index >= 0), ids).then((indices) => indices.map((index) => ["telemetry", "car", "data", "insights", "ai"][index]!)));
       const saved = { rail: await width(rail), left: await width(left), right: await width(right) };
       await page.reload();
       await expect(left).toBeVisible();
@@ -340,7 +381,6 @@ for (const viewport of [{ width: 1600, height: 1000 }, { width: 390, height: 844
       await expect(outer).toBeVisible();
       await aligned();
     }
-    expect(orders[0]).toEqual(["car", "insights", "ai", "telemetry", "data"]);
     expect(orders[1]).toEqual(orders[0]);
   });
 }

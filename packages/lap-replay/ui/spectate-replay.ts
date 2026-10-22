@@ -114,7 +114,7 @@ export function prepareSpectateLap(replay: SemanticLapTelemetry, comparison?: Co
     if (hasTelemetryGap(previousTime, time)) run++;
     const values: Record<string, unknown> = {};
     for (const entry of frame.values) {
-      values[entry.semanticId] = validEntry(entry) ? (entry.semanticId === "fuel.ers-deploy-mode" ? entry.value : numericShape(entry.value)) : null;
+      values[entry.semanticId] = validEntry(entry) ? (typeof entry.value === "boolean" || entry.semanticId === "fuel.ers-deploy-mode" ? entry.value : numericShape(entry.value)) : null;
     }
     const traveled = number(values["timing.distance-traveled"]);
     let distance = NaN;
@@ -199,7 +199,7 @@ export function sampleLap(lap: SpectateLap, time: number, holdPose: boolean): Sp
   for (const key of Object.keys(left.values)) {
     const a = left.values[key],
       b = right.values[key];
-    if (key === "inputs.gear" || key === "fuel.ers-deploy-mode") values[key] = a;
+    if (typeof a === "boolean" || key === "inputs.gear" || key === "fuel.ers-deploy-mode") values[key] = a;
     else if (key === "motion.yaw" && number(a) !== null && number(b) !== null) {
       const delta = Math.atan2(Math.sin(Number(b) - Number(a)), Math.cos(Number(b) - Number(a)));
       values[key] = Number(a) + delta * fraction;

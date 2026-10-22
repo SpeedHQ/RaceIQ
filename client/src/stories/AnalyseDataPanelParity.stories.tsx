@@ -103,3 +103,68 @@ export const LMUTireTemperatures: Story = {
     },
   },
 };
+
+export const LMUElectronics: Story = {
+  ...LMUTireTemperatures,
+  args: {
+    ...LMUTireTemperatures.args,
+    currentFrame: {
+      ...LMUTireTemperatures.args!.currentFrame!,
+      values: {
+        ...LMUTireTemperatures.args!.currentFrame!.values,
+        "electronics.traction-control-level": 4,
+        "electronics.abs-level": 3,
+        "electronics.tc-active": true,
+        "electronics.abs-active": false,
+        "electronics.tc-cut-level": 0,
+        "electronics.motor-map": 2,
+        "brakes.brake-bias": 0.56,
+        "diagnostics.migration": 3,
+        "fuel.state-of-charge": 72,
+        "fuel.virtual-energy": 0.63,
+        "diagnostics.regen-kw": -80,
+      },
+    },
+  },
+};
+
+export const LMUElectronicsUnavailable: Story = {
+  ...LMUElectronics,
+  args: {
+    ...LMUElectronics.args,
+    currentFrame: {
+      ...LMUElectronics.args!.currentFrame!,
+      states: {
+        "electronics.traction-control-level": "missing",
+        "electronics.abs-level": "invalid",
+        "electronics.tc-active": "not-applicable",
+        "diagnostics.migration": "missing",
+        "fuel.state-of-charge": "invalid",
+      },
+      freshness: {
+        "electronics.abs-active": "stale",
+        "electronics.tc-cut-level": "stale",
+        "electronics.motor-map": "stale",
+        "fuel.virtual-energy": "stale",
+        "diagnostics.regen-kw": "stale",
+      },
+    },
+  },
+};
+
+export const LMUEnergyZero: Story = {
+  ...LMUElectronics,
+  args: {
+    ...LMUElectronics.args,
+    currentFrame: {
+      ...LMUElectronics.args!.currentFrame!,
+      values: {
+        ...LMUElectronics.args!.currentFrame!.values,
+        "diagnostics.migration": 0,
+        "fuel.state-of-charge": 0,
+        "fuel.virtual-energy": 0,
+        "diagnostics.regen-kw": 0,
+      },
+    },
+  },
+};

@@ -8,14 +8,14 @@ export function SpectateFocusToolbar({ focus, onChange, tirePanelOpen, onTirePan
   return (
     <TooltipProvider delay={0}>
       <div role="toolbar" aria-label="Focus mode" aria-orientation="vertical"
-        className="group absolute right-3 top-1/2 z-40 flex -translate-y-1/2 flex-col rounded-sm border border-app-border bg-app-surface/90 p-0"
+        className="group absolute right-3 top-3 z-40 flex flex-col rounded-sm border border-app-border bg-app-surface/90 p-0 sm:top-1/2 sm:-translate-y-1/2"
       data-focus-mode={focus.mode}>
       {FOCUS_MODES.map(({ mode, label }) => {
         const Icon = FOCUS_ICONS[mode];
         return (
           <Tooltip key={mode}>
             <TooltipTrigger render={<button type="button" aria-label={label} aria-pressed={focus.mode === mode} onClick={() => onChange(mode)}
-              className={`flex size-7 items-center justify-center border p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent ${focus.mode === mode ? "border-app-accent bg-app-accent/10 text-app-accent" : "border-transparent text-app-text-secondary hover:text-app-accent"}`} />}>
+              className={`flex size-11 items-center justify-center border p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent sm:size-7 ${focus.mode === mode ? "border-app-accent bg-app-accent/10 text-app-accent" : "border-transparent text-app-text-secondary hover:text-app-accent"}`} />}>
               <Icon size={16} aria-hidden="true" />
             </TooltipTrigger>
             <TooltipContent role="tooltip" side="right">{label}</TooltipContent>
@@ -24,7 +24,7 @@ export function SpectateFocusToolbar({ focus, onChange, tirePanelOpen, onTirePan
       })}
       {onTirePanelOpenChange && <Tooltip>
         <TooltipTrigger render={<button type="button" data-tire-panel-toggle="" role="switch" aria-label={m.label_tires()} aria-checked={!!tirePanelOpen} aria-expanded={!!tirePanelOpen} onClick={() => onTirePanelOpenChange(!tirePanelOpen)}
-          className={`flex size-7 items-center justify-center border p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent ${tirePanelOpen ? "border-app-accent bg-app-accent/10 text-app-accent" : "border-transparent text-app-text-secondary hover:text-app-accent"}`} />}>
+          className={`flex size-11 items-center justify-center border p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent sm:size-7 ${tirePanelOpen ? "border-app-accent bg-app-accent/10 text-app-accent" : "border-transparent text-app-text-secondary hover:text-app-accent"}`} />}>
           <CircleGauge size={16} aria-hidden="true" />
         </TooltipTrigger>
         <TooltipContent role="tooltip" side="right">{m.label_tires()}</TooltipContent>

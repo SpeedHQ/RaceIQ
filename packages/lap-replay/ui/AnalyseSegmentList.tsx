@@ -1,6 +1,6 @@
 import { lapWrappedSegmentGroup, segmentDisplayNames } from "@raceiq/shared/racing/tracks/segment-label";
 import { memo, useMemo } from "react";
-import { m } from "@/paraglide/messages";
+import { useMessages } from "./host";
 import { semanticNumber, type SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 
 
@@ -115,6 +115,7 @@ function areSegmentListPropsEqual(previous: SegmentListProps, next: SegmentListP
 }
 
 export const AnalyseSegmentList = memo(function AnalyseSegmentList({ telemetry, segments, cursorIdx }: SegmentListProps) {
+  const m = useMessages();
   const segmentData = useMemo(() => (segments ? buildSegmentData(telemetry, segments) : null), [segments, telemetry]);
 
   // Derive cursor-dependent active/completed state cheaply
@@ -138,7 +139,7 @@ export const AnalyseSegmentList = memo(function AnalyseSegmentList({ telemetry, 
   return (
     <div className="space-y-0.5">
       {segmentTimes.map((seg) => (
-        <div key={seg.key} className={`flex items-center justify-between px-1.5 py-1 rounded text-app-compact font-mono ${seg.active ? "bg-app-surface-alt ring-1 ring-inset ring-app-text-dim" : ""}`}>
+        <div key={seg.key} aria-current={seg.active ? "true" : undefined} className={`flex items-center justify-between px-1.5 py-1 rounded text-app-compact font-mono ${seg.active ? "bg-app-surface-alt ring-1 ring-inset ring-app-text-dim" : ""}`}>
           <div className="flex items-center gap-1.5">
             <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: seg.type === "corner" ? "var(--track-corner-marker)" : "var(--track-straight-marker)" }} />
             <span className={seg.active ? "text-app-text" : "text-app-text-secondary"}>{seg.name}</span>

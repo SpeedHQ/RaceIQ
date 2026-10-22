@@ -6,7 +6,6 @@ import { useUnits } from "../../hooks/useUnits";
 import { getSteeringLock } from "@/lib/settings-storage";
 import { operatingRangeColor, severityRangeColor } from "@raceiq/scene-3d/colors";
 import { m } from "../../paraglide/messages";
-import { LmuPlayerData } from "../lmu/LmuPlayerData";
 
 
 export function MetricsPanel({ frame, startFuel, gameId }: { frame: SemanticAnalysisFrame; startFuel?: number; gameId: GameId }) {
@@ -28,7 +27,6 @@ export function MetricsPanel({ frame, startFuel, gameId }: { frame: SemanticAnal
   const fuelUsed = startFuel != null && fuel != null ? getFuelDisplaySemantic(startFuel - fuel, capacity, telemetry.fuel) : null;
   const value = (n: number | null) => (n == null ? "—" : `${n.toFixed(0)}`);
   return (
-    <>
     <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs font-mono">
       <MetricRow label={m.dataguide_speed()} value={speed == null ? "—" : `${speed.toFixed(0)} ${units.speedLabel}`} />
       <MetricRow label={m.dataguide_rpm()} value={value(rpm)} />
@@ -39,6 +37,22 @@ export function MetricsPanel({ frame, startFuel, gameId }: { frame: SemanticAnal
       {telemetry.boost && <MetricRow label={m.dataguide_boost()} value={boost == null ? "—" : `${boost.toFixed(1)} psi`} />}
       {telemetry.power && <MetricRow label={m.dataguide_power()} value={power == null ? "—" : `${(power / WATTS_PER_HORSEPOWER).toFixed(0)} hp`} />}
       {telemetry.torque && <MetricRow label={m.dataguide_torque()} value={torque == null ? "—" : `${torque.toFixed(0)} Nm`} />}
+      {gameId === "lmu" && ([
+        ["electronics.traction-control-level", m.lmu_channel_electronics_traction_control_level()],
+        ["electronics.abs-level", m.lmu_channel_electronics_abs_level()],
+        ["electronics.tc-active", m.lmu_channel_electronics_tc_active()],
+        ["electronics.abs-active", m.lmu_channel_electronics_abs_active()],
+        ["electronics.tc-cut-level", m.lmu_channel_electronics_tc_cut_level()],
+        ["electronics.motor-map", m.lmu_channel_electronics_motor_map()],
+      ] as const).map(([id, label]) => {
+        const raw = frame.values[id];
+        const available = (frame.states[id] === undefined || frame.states[id] === "ok")
+          && (frame.freshness[id] === undefined || frame.freshness[id] === "fresh");
+        const shown = !available ? "—" : typeof raw === "boolean" && (id === "electronics.tc-active" || id === "electronics.abs-active")
+          ? raw ? m.lmu_state_active() : m.lmu_state_inactive()
+          : typeof raw === "number" && Number.isFinite(raw) ? raw.toFixed(0) : "—";
+        return <MetricRow key={id} label={label} value={shown} color={available && raw === true ? "var(--status-success)" : undefined} />;
+      })}
       <div className="col-span-2 flex justify-between">
         <span className="text-app-text-muted">{m.dataguide_fuel()}</span>
         <span className="tabular-nums">
@@ -48,22 +62,32 @@ export function MetricsPanel({ frame, startFuel, gameId }: { frame: SemanticAnal
           })}
         </span>
       </div>
+      {gameId === "lmu" && (
+        <table className="col-span-2 mt-1 w-full border-t border-app-border text-left">
+          <tbody>
+            {([
+              ["fuel.state-of-charge", m.lmu_channel_fuel_state_of_charge(), 1, "%"],
+              ["fuel.virtual-energy", m.lmu_channel_fuel_virtual_energy(), 100, "%"],
+              ["diagnostics.regen-kw", m.lmu_channel_diagnostics_regen_kw(), 1, " kW"],
+            ] as const).map(([id, label, scale, suffix]) => {
+              const available = (frame.states[id] === undefined || frame.states[id] === "ok")
+                && (frame.freshness[id] === undefined || frame.freshness[id] === "fresh");
+              const raw = available ? semanticNumber(frame, id) : null;
+              return <tr key={id}>
+                <th scope="row" className="pt-2 font-normal text-app-text-muted">{label}</th>
+                <td className="pt-2 text-right tabular-nums text-app-text">{raw == null ? "—" : `${(raw * scale).toFixed(1)}${suffix}`}</td>
+              </tr>;
+            })}
+          </tbody>
+        </table>
+      )}
     </div>
-    {gameId === "lmu" && <LmuPlayerData
-      values={frame.values}
-      units={frame.units ?? {}}
-      states={frame.states}
-      freshness={frame.freshness}
-      context={frame.lmu}
-      referenceTime={frame.observedAt}
-    />}
-    </>
   );
 }
 
 export function MetricRow({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
-    <div className="flex justify-between">
+    <div className="flex justify-between gap-2">
       <span className="text-app-text-muted">{label}</span>
       <span className={color ? "" : "text-app-text"} style={color ? { color } : undefined}>
         {value}

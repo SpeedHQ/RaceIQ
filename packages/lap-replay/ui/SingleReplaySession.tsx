@@ -13,7 +13,7 @@ export interface SingleReplaySessionProps {
   outline: readonly { x: number; z: number }[] | null;
   segments: readonly SpectateSegment[];
   initialFrame?: number;
-  ai: ReactNode;
+  ai: (headerTarget: HTMLDivElement | null) => ReactNode;
   aiOpen: boolean;
   onAiOpenChange: (open: boolean) => void;
   onController?: (controller: SpectateController | null) => void;
