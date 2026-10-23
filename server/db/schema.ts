@@ -957,3 +957,17 @@ export const classificationMigrationMeta = sqliteTable("classification_migration
 	revision: integer("revision").notNull().default(0),
 	cutoffSessionId: integer("cutoff_session_id").notNull().default(0),
 });
+export const iracingRatingEvents = sqliteTable("iracing_rating_events", {
+	eventId: text("event_id").primaryKey(),
+	customerId: integer("customer_id").notNull(),
+	categoryId: integer("category_id").notNull(),
+	categoryName: text("category_name").notNull(),
+	observedAt: text("observed_at").notNull(),
+	iRating: integer("irating").notNull(),
+	ratingChange: integer("rating_change").notNull(),
+}, (table) => [index("iracing_rating_events_order_idx").on(table.customerId, table.observedAt, table.categoryId)]);
+
+export const iracingRatingSyncState = sqliteTable("iracing_rating_sync_state", {
+	customerId: integer("customer_id").primaryKey(),
+	lastSyncedAt: text("last_synced_at"),
+});

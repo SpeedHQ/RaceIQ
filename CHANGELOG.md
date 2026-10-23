@@ -1,6 +1,7 @@
 ## Unreleased
 
 ### Features
+- Track iRacing iRating history by category with per-race gains and losses, OAuth connection management, and manual sync. Configure an existing registered iRacing OAuth client; iRacing currently pauses new client registration.
 - Show clickable circuit-overview sector markers on desktop only while hovering or using keyboard focus; keep them visible on touch screens.
 - Group LMU state of charge, virtual energy and regenerative power in a separate table below the main Replay and Compare → Spectate metrics.
 - Use dashed track edges in Replay and Compare → Spectate to provide fixed-distance speed cues.

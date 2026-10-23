@@ -99,6 +99,8 @@ export async function createHttpAccess(env: NodeJS.ProcessEnv = process.env, aut
   async function authorizeUncached(request: Request): Promise<Response | undefined> {
     const url = new URL(request.url);
     const host = request.headers.get("host");
+    // OAuth returns by cross-site GET; one-use state and PKCE guard this exact callback.
+    const oauthCallback = request.method === "GET" && url.pathname === "/api/iracing-rating/callback";
     // Forwarded headers never bypass authentication or Host consistency.
     // Custom deployment hostnames remain usable without new configuration.
     // Host/Origin checks are browser protections, not remote authentication.
@@ -107,10 +109,10 @@ export async function createHttpAccess(env: NodeJS.ProcessEnv = process.env, aut
     }
     if (auth && origins.size > 0 && ![...origins].some((value) => new URL(value).host === url.host) && !(development && localHost(url.hostname))) return new Response("Forbidden", { status: 403 });
     const origin = request.headers.get("origin");
-    if (origin !== null && !allowsOrigin(origin, request)) return new Response("Forbidden", { status: 403 });
+    if (origin !== null && !allowsOrigin(origin, request) && !oauthCallback) return new Response("Forbidden", { status: 403 });
     if (!origin && request.headers.get("sec-fetch-site") === "cross-site") {
       const navigation = request.method === "GET" && request.headers.get("sec-fetch-mode") === "navigate" && !/^\/(?:api|studio-api|ws)(?:\/|$)/.test(url.pathname);
-      if (!navigation) return new Response("Forbidden", { status: 403 });
+      if (!navigation && !oauthCallback) return new Response("Forbidden", { status: 403 });
     }
     // Browser preflight carries no credentials. Only trusted origins get past
     // the checks above; the subsequent actual request still needs authentication.
@@ -129,7 +131,7 @@ export async function createHttpAccess(env: NodeJS.ProcessEnv = process.env, aut
       });
     }
     if (auth) {
-      const bootstrap = ["/api/auth/status", "/api/auth/setup", "/api/auth/login"].includes(url.pathname);
+      const bootstrap = oauthCallback || ["/api/auth/status", "/api/auth/setup", "/api/auth/login"].includes(url.pathname);
       // The public bundle contains only the login/setup shell. All application
       // data, Studio, and telemetry stay behind the gate below.
       const shell = !/^\/(?:api|studio-api|ws)(?:\/|$)/.test(url.pathname) && ["GET", "HEAD"].includes(request.method);

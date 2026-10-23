@@ -12,6 +12,23 @@ type WebServerDefinition = {
   stderr: "pipe";
 };
 
+function iracingFixturePort(ports: ServerPorts): number {
+  return Number(ports.port) + 20_000;
+}
+
+function iracingFixtureDefinition(ports: ServerPorts): WebServerDefinition {
+  const port = iracingFixturePort(ports);
+  return {
+    command: "bun support/iracing-upstream.ts",
+    env: { IRACING_FIXTURE_PORT: String(port) },
+    url: `http://127.0.0.1:${port}/health`,
+    timeout: 30_000,
+    reuseExistingServer: false,
+    stdout: "pipe",
+    stderr: "pipe",
+  };
+}
+
 function serverDefinition(runtime: E2ERuntime, ports: ServerPorts, seeded: boolean, seedSetups = false): WebServerDefinition {
   const command = runtime.devServer ? "bun support/server/start-dev-server.ts" : "bun support/server/start-server.ts";
   const env: Record<string, string> = {
@@ -24,6 +41,10 @@ function serverDefinition(runtime: E2ERuntime, ports: ServerPorts, seeded: boole
     RACEIQ_SETUP_HOME: resolve(ports.dataDir, "setup-home"),
     RACEIQ_FEATURE_F1_EXPERIMENTS: "true",
   };
+  if (seeded && (ports === runtime.seeded || ports === runtime.irating)) {
+    env.RACEIQ_E2E_IRACING_UPSTREAM = `http://127.0.0.1:${iracingFixturePort(ports)}`;
+  }
+
   if (runtime.devServer) {
     env.CLIENT_PORT = ports.clientPort;
     if (runtime.appRoot) env.RACEIQ_APP_ROOT = runtime.appRoot;
@@ -58,6 +79,13 @@ export function createWebServers(runtime: E2ERuntime): WebServerDefinition[] {
   if (!runtime.screenshotOnly && runtime.needsTunesUnseededServer) {
     servers.push(serverDefinition(runtime, runtime.tunesUnseeded, false));
   }
-  if (runtime.needsSeededServer) servers.push(serverDefinition(runtime, runtime.seeded, true));
+  if (runtime.needsSeededServer) {
+    servers.push(iracingFixtureDefinition(runtime.seeded));
+    servers.push(serverDefinition(runtime, runtime.seeded, true));
+  }
+  if (runtime.needsIratingServer) {
+    servers.push(iracingFixtureDefinition(runtime.irating));
+    servers.push(serverDefinition(runtime, runtime.irating, true));
+  }
   return servers;
 }

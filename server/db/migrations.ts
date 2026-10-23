@@ -2205,6 +2205,26 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
        WHERE session_id IN (SELECT id FROM sessions WHERE ownership='mine')`,
     ],
   },
+  {
+    version: 87,
+    name: "persist iRacing category rating history",
+    sql: [
+      `CREATE TABLE iracing_rating_events (
+        event_id TEXT PRIMARY KEY,
+        customer_id INTEGER NOT NULL,
+        category_id INTEGER NOT NULL,
+        category_name TEXT NOT NULL,
+        observed_at TEXT NOT NULL,
+        irating INTEGER NOT NULL,
+        rating_change INTEGER NOT NULL
+      )`,
+      `CREATE INDEX iracing_rating_events_order_idx ON iracing_rating_events(customer_id,observed_at,category_id)`,
+      `CREATE TABLE iracing_rating_sync_state (
+        customer_id INTEGER PRIMARY KEY,
+        last_synced_at TEXT
+      )`,
+    ],
+  },
 ];
 const dashboardCanonicalTriggers = (() => {
   const readModel = migrations.find((migration) => migration.version === 68);

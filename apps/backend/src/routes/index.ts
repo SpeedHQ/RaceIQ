@@ -22,6 +22,7 @@ import { miscRoutes } from "./system/index";
 import { cacheRoutes } from "./cache-routes";
 import { devRoutes } from "./dev/index";
 import { dashboardRoutes } from "./dashboard-routes";
+import { iracingRatingRoutes } from "./iracing-rating-routes";
 
 const app = new Hono()
   .use("/*", async (c, next) => {
@@ -42,6 +43,7 @@ const app = new Hono()
   )
   .use("/*", errorLogger())
   .route("/", authRoutes)
+  .route("/", iracingRatingRoutes)
   .route("/", settingsRoutes)
   .route("/", lapRoutes)
   .route("/", driverRoutes)

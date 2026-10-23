@@ -1,0 +1,13 @@
+# iRacing rating backend
+
+`iracing-rating-routes.ts` exports `iracingRatingRoutes`; app composition mounts it at root. The handler contract is in [the shared tracker contract](../../../../advisor-plans/irating-tracker-contract.md).
+
+OAuth uses iRacing's `https://oauth.iracing.com/oauth2` authorization-code flow, server-generated `state`, PKCE S256, scope `iracing.auth`, `/token`, and `/iracing/profile`. The exact callback URL is derived from the RaceIQ request origin and must match registered client configuration. The exact GET callback is reachable cross-site and without a RaceIQ session because callback state plus PKCE authenticate the response; invalid or replayed state cannot establish a connection. Client ID, unmodified secret, and token document are stored via `server/runtime/platform/keystore.ts`; client secrets are masked with iRacing's Base64(SHA-256(secret + lower-case client ID)) token-request rule. OAuth state is in-memory, expires after ten minutes, and is consumed once. Expired/missing refresh credentials require reauthorization.
+Token refresh is single-flight within the backend process and persists the rotated token before protected requests continue. Config changes, disconnect, and client deletion invalidate pending authorization state and fence in-flight refresh writes; history remains intact.
+
+Sync calls authenticated Data API operation `GET /data/stats/member_recent_races?cust_id=<customerId>` and accepts direct race arrays or a `{ link }` response followed by a race array/`{ races }` document. Production signed links must use HTTPS on `members-ng.iracing.com` or `ir-dl.s3.amazonaws.com`; E2E links must match configured fixture origin, preventing arbitrary-host fetches.
+The parser allowlists `subsession_id`, `category_id`, `session_start_time`, `oldi_rating`, and `newi_rating`; invalid records are excluded. Categories use official IDs 1 Oval, 2 Road, 3 Dirt Oval, 4 Dirt Road. Event identity is `subsession_id:category_id`; SQLite primary-key upsert makes repeated sync idempotent. Rows retain upstream new rating and per-event `newi_rating - oldi_rating` change. Migration 87 creates durable history and sync-state tables.
+
+E2E-only upstream injection uses `RACEIQ_E2E_IRACING_UPSTREAM`, a root HTTP origin. In E2E mode the OAuth paths are `/oauth2/token` and `/oauth2/iracing/profile`; the Data API path is `/data/stats/member_recent_races`. Outside E2E, this variable is ignored and official iRacing hosts are used.
+
+Focused parser test: `apps/backend/test/routes/iracing-rating-routes.test.ts`. Parent-owned compiled-app E1–E5 validation remains required; live iRacing OAuth/API proof requires an already registered client because new registrations are paused.

@@ -57,6 +57,19 @@ describe("HTTP access policy", () => {
     expect((await local.authorize(request("/api/ai-models", { "sec-fetch-site": "cross-site", "sec-fetch-mode": "navigate" })))?.status).toBe(403);
     expect(await local.authorize(request("/", { "sec-fetch-site": "cross-site", "sec-fetch-mode": "navigate" }))).toBeUndefined();
   });
+  test("allows only the state-protected iRacing OAuth callback through cross-site and session gates", async () => {
+    const auth = {
+      getNetwork: async () => ({ hosts: ["127.0.0.1"], origins: [], originsEnabled: false }),
+      status: async () => ({ pending: false, protected: true, authenticated: false, csrf: null, upgrade: false, overrides: [] }),
+    } as unknown as DashboardAuth;
+    const policy = await createHttpAccess({ NODE_ENV: "production", SERVER_HOST: "127.0.0.1", SERVER_PORT: "3117" }, auth);
+    const callback = new Request("http://localhost:3117/api/iracing-rating/callback?code=fixture&state=one-use", {
+      headers: { "sec-fetch-site": "cross-site", "sec-fetch-mode": "navigate" },
+    });
+    expect(await policy.authorize(callback)).toBeUndefined();
+    expect((await policy.authorize(request("/api/settings", { "sec-fetch-site": "cross-site", "sec-fetch-mode": "navigate" })))?.status).toBe(403);
+    expect((await policy.authorize(new Request(callback.url, { method: "POST", headers: { "sec-fetch-site": "cross-site" } })))?.status).toBe(403);
+  });
 
   test("accepts the LAN dashboard authority forwarded by Vite without trusting a different browser origin", async () => {
     for (const path of ["/api/status", "/ws"]) {

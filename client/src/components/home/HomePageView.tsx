@@ -110,7 +110,10 @@ export function HomePageView({
   return (
     <div className="min-h-full bg-app-bg text-app-detail">
       <div className="mx-auto max-w-[1400px] space-y-4 px-3 pt-2 pb-3 @3xl/workspace:px-6 @3xl/workspace:pb-6">
-        <PeriodSelector periodTab={periodTab} onPeriodTabChange={onPeriodTabChange} />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <PeriodSelector periodTab={periodTab} onPeriodTabChange={onPeriodTabChange} />
+          {gameId === "iracing" && <Link className="rounded border border-app-border px-3 py-2 text-sm font-medium text-app-accent hover:bg-app-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-accent" to="/iracing/rating">{m.irating_title()}</Link>}
+        </div>
         <GameBrandCards gameStats={gameStats} hiddenGames={hiddenGames} loading={lapsLoading || sessionsLoading} error={lapsError || sessionsError} selectedGameId={gameId} />
 
 

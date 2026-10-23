@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 
 export type E2EServerMode = "dev" | "compiled";
-export type E2EServerSet = "all" | "fresh" | "tunes" | "tunes-unseeded" | "seeded";
+export type E2EServerSet = "all" | "fresh" | "tunes" | "tunes-unseeded" | "seeded" | "irating";
 
 export interface E2ERuntime {
   serverMode: E2EServerMode;
@@ -17,10 +17,12 @@ export interface E2ERuntime {
   needsTunesServer: boolean;
   needsTunesUnseededServer: boolean;
   needsSeededServer: boolean;
+  needsIratingServer: boolean;
   freshInstall: ServerPorts;
   tunes: ServerPorts;
   tunesUnseeded: ServerPorts;
   seeded: ServerPorts;
+  irating: ServerPorts;
 }
 
 export interface ServerPorts {
@@ -40,8 +42,8 @@ function readServerMode(): E2EServerMode {
 
 function readServerSet(): E2EServerSet {
   const value = process.env.PW_SERVER_SET ?? "all";
-  if (value !== "all" && value !== "fresh" && value !== "tunes" && value !== "tunes-unseeded" && value !== "seeded") {
-    throw new Error(`Unsupported PW_SERVER_SET "${value}" (expected all, fresh, tunes, tunes-unseeded, or seeded)`);
+  if (value !== "all" && value !== "fresh" && value !== "tunes" && value !== "tunes-unseeded" && value !== "seeded" && value !== "irating") {
+    throw new Error(`Unsupported PW_SERVER_SET "${value}" (expected all, fresh, tunes, tunes-unseeded, seeded, or irating)`);
   }
   return value;
 }
@@ -80,6 +82,7 @@ export const runtime: E2ERuntime = {
   needsTunesServer: serverSet === "all" || serverSet === "tunes",
   needsTunesUnseededServer: serverSet === "all" || serverSet === "tunes-unseeded",
   needsSeededServer: serverSet === "all" || serverSet === "seeded",
+  needsIratingServer: serverSet === "all" || serverSet === "seeded" || serverSet === "irating",
   freshInstall: {
     port: process.env.PW_FRESH_INSTALL_PORT ?? "3118",
     clientPort: process.env.PW_FRESH_INSTALL_CLIENT_PORT ?? "4118",
@@ -103,5 +106,11 @@ export const runtime: E2ERuntime = {
     clientPort: process.env.PW_SEEDED_E2E_CLIENT_PORT ?? "4120",
     udpPort: process.env.PW_SEEDED_E2E_UDP_PORT ?? "15320",
     dataDir: dataDir(process.env.PW_SEEDED_E2E_DATA_DIR, resolve(__dirname, "..", "test-results", "test-data-seeded")),
+  },
+  irating: {
+    port: process.env.PW_IRATING_E2E_PORT ?? "3122",
+    clientPort: process.env.PW_IRATING_E2E_CLIENT_PORT ?? "4122",
+    udpPort: process.env.PW_IRATING_E2E_UDP_PORT ?? "15322",
+    dataDir: dataDir(process.env.PW_IRATING_E2E_DATA_DIR, resolve(__dirname, "..", "test-results", `test-data-irating-${process.pid}`)),
   },
 };

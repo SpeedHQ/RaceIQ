@@ -88,6 +88,11 @@ Grab the latest installer from the [releases page](https://github.com/SpeedHQ/Ra
 
 For Forza and F1, configure the game's telemetry settings to send UDP data to `127.0.0.1:5301`. ACC, AC Evo, iRacing, and LMU are detected automatically from native Windows telemetry. For LMU, enable **Gameplay > Enable Plugins**. Start driving and telemetry will appear automatically. LMU `.duckdb` files from `UserData/Telemetry` can also be uploaded from Sessions.
 
+
+### iRating history
+
+Open **iRacing → iRating tracker** to connect an existing registered iRacing OAuth client and sync per-race rating changes by category. New iRacing OAuth client registration is currently paused. Register the exact callback URI shown in RaceIQ's OAuth settings; iRacing only exposes its latest 10 official races, so sync regularly. Credentials stay in the OS credential store (Windows/macOS).
+
 > **Already forwarding telemetry to a wheel base or other app?** Use [UDP Forwarder](https://github.com/SpeedHQ/udp-forwarder) to send telemetry to multiple destinations at once.
 
 ### Dashboard access and security

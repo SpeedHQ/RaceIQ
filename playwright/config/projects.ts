@@ -7,6 +7,7 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
   const seededBaseURL = `http://localhost:${runtime.devServer ? runtime.seeded.clientPort : runtime.seeded.port}`;
   const tunesBaseURL = `http://localhost:${runtime.devServer ? runtime.tunes.clientPort : runtime.tunes.port}`;
   const tunesUnseededBaseURL = `http://localhost:${runtime.devServer ? runtime.tunesUnseeded.clientPort : runtime.tunesUnseeded.port}`;
+  const iratingBaseURL = `http://localhost:${runtime.devServer ? runtime.irating.clientPort : runtime.irating.port}`;
   const sequentialImportSpecs = [
     "seeded/analyse/core-flow.spec.ts",
     "seeded/dev-tools/server-import.spec.ts",
@@ -71,10 +72,17 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
       use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
     },
     {
+      name: "irating-tracker",
+      testMatch: "seeded/irating-tracker.spec.ts",
+      workers: 1,
+      timeout: 140_000,
+      use: { baseURL: iratingBaseURL, viewport: { width: 1440, height: 900 } },
+    },
+    {
       name: "seeded-e2e",
       dependencies: ["seeded-setup"],
       testMatch: "seeded/**/*.spec.ts",
-      testIgnore: [...sequentialImportSpecs, "seeded/routes/**/*.spec.ts"],
+      testIgnore: [...sequentialImportSpecs, "seeded/routes/**/*.spec.ts", "seeded/irating-tracker.spec.ts"],
       fullyParallel: true,
       timeout: 140_000,
       use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
