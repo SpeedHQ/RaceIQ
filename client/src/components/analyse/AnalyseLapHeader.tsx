@@ -1,7 +1,7 @@
-import { memo, useMemo, useRef, useState } from "react";
+import { memo, useMemo, useRef, useState, type Ref } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getLocale } from "@/paraglide/runtime";
-import { parseUtcTimestamp } from "../../lib/utc-date";
+import { parseUtcTimestamp } from "@raceiq/frontend-pure/utc-date";
 import { ChevronDown, Download, FileDown, NotebookPen, Sparkles, Trash2 } from "lucide-react";
 import type { LapMeta, SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import type { GameId } from "@raceiq/shared/games/ids";
@@ -23,7 +23,7 @@ import { DropdownMenu } from "../ui/DropdownMenu";
 import { NoteModal } from "../ui/NoteModal";
 import { DataGuideModal } from "./DataGuideModal";
 import { MotecImportModal } from "./MotecImportModal";
-import { MotecBadge } from "../sessions/MotecBadge";
+import { MotecBadge } from "@raceiq/sessions-page/ui";
 import { OwnershipChoice } from "../import/OwnershipChoice";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 interface Props {
@@ -31,6 +31,7 @@ interface Props {
   onBack?: () => void;
   sessionFocused?: boolean;
   onAnalyseSession?: () => void;
+  panelHeaderRef: Ref<HTMLDivElement>;
   // Selection state
   selectedTrack: string | null;
   selectedCar: string | null;
@@ -48,7 +49,6 @@ interface Props {
   tunePending: boolean;
   // UI state
   loading: boolean;
-  aiPanelOpen: boolean;
   // Callbacks
   onTrackChange: (v: string | null) => void;
   onCarChange: (v: string | null) => void;
@@ -63,7 +63,6 @@ interface Props {
   importingBin: boolean;
   ownership: SessionOwnership;
   onOwnershipChange: (value: SessionOwnership) => void;
-  onToggleAi: () => void;
   onDeleteLap: () => void;
   onNotesChange: (notes: string) => void;
 }
@@ -73,6 +72,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
   onBack,
   sessionFocused,
   onAnalyseSession,
+  panelHeaderRef,
   selectedTrack,
   selectedCar,
   selectedLapId,
@@ -87,7 +87,6 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
   availableTunes,
   tunePending,
   loading,
-  aiPanelOpen,
   onTrackChange,
   onCarChange,
   onLapChange,
@@ -101,7 +100,6 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
   importingBin,
   ownership,
   onOwnershipChange,
-  onToggleAi,
   onDeleteLap,
   onNotesChange,
 }: Props) {
@@ -131,7 +129,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
   const [pendingImport, setPendingImport] = useState<File | null>(null);
   return (
     <>
-      <div className="flex items-center gap-2 p-3 border-b border-app-border flex-wrap shrink-0">
+      <div data-replay-page-header="" className="flex items-center gap-2 px-3 pt-3 border-b border-app-border flex-wrap shrink-0">
         {onBack && (
           <Button variant="app-outline" size="app-md" onClick={onBack}>
             {m.label_sessions()}
@@ -208,12 +206,15 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
             )}
           </div>
         )}
-        {sessionFocused && (
-          <div className="order-2 flex min-w-0 basis-full flex-wrap items-center gap-x-3 text-sm text-app-text-muted">
-            <span className="truncate">Track: {trackNames[selectedTrack ?? ""] ?? selectedLap?.trackId ?? ""}</span>
-            <span className="truncate">Car: {carNames[selectedCar ?? ""] ?? selectedLap?.carId ?? ""}</span>
-          </div>
-        )}
+        <div className="order-2 flex w-full min-w-0 flex-wrap items-end justify-between gap-x-4 gap-y-2">
+          {sessionFocused && (
+            <div className="flex min-w-0 max-w-full flex-col text-app-caption text-app-text-muted @3xl/workspace:max-w-xs">
+              <span className="truncate">Track: {trackNames[selectedTrack ?? ""] ?? selectedLap?.trackId ?? ""}</span>
+              <span className="truncate">Car: {carNames[selectedCar ?? ""] ?? selectedLap?.carId ?? ""}</span>
+            </div>
+          )}
+          <div ref={panelHeaderRef} data-replay-panel-header="" className="-mr-3 ml-auto flex min-w-0 max-w-full flex-wrap items-end justify-end" />
+        </div>
 
         {noteOpen && (
           <NoteModal
@@ -310,12 +311,6 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
                 : []),
             ]}
           />
-          {hasTelemetry && (
-            <Button variant={aiPanelOpen ? "selected-toggle" : "app-outline"} size="app-md" onClick={onToggleAi}>
-              <Sparkles className="size-3.5" />
-              {m.label_ai_analysis()}
-            </Button>
-          )}
           {loading && <span className="text-xs text-app-text-muted animate-pulse">{m.common_loading()}</span>}
         </div>
       </div>

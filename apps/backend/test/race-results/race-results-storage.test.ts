@@ -7,9 +7,11 @@ import { countStaleRaceResults, getSessionResult, getStaleRaceResultSessionIds, 
 import { getRecentRaceResults } from "@raceiq/backend-core/race-results/aggregates";
 import { initServerGameAdapters } from "../../src/games/init";
 import { RACE_RESULT_PROCESSOR_ID, backfillRaceResults, backfillStaleRaceResults, reconcileSessionResult } from "@raceiq/backend-core/race-results/reconcile";
-import { sessionRoutes } from "../../src/routes/session-routes";
+import { createSessionRoutes } from "@raceiq/sessions-page/server";
+import { isSessionIdentityInCatalog } from "../../src/games/session-identity";
 import type { RaceResultEvidence, RaceResultProvenance } from "@raceiq/shared/racing/results/types";
 import * as elapsedDuration from "@raceiq/backend-core/session-capture/elapsed-duration";
+const sessionRoutes = createSessionRoutes(isSessionIdentityInCatalog);
 
 const evidence: RaceResultEvidence = {
   fieldStatus: {

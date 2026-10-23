@@ -22,7 +22,7 @@ import { CompareAiSidebar } from "./CompareAiSidebar";
 import { CompareTrackMap, type SegmentTiming } from "./CompareTrackMap";
 import { ComparisonCharts } from "./ComparisonCharts";
 import { ComparisonSelectors } from "./ComparisonSelectors";
-import { SpectateSession } from "./spectate/SpectateSession";
+import { SpectateSession } from "@raceiq/lap-replay/ui"
 import { CompareOverview } from "./CompareOverview";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CompareOverviewPicker } from "./CompareOverviewPicker";

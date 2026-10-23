@@ -28,6 +28,9 @@ import { uiStore, useUiStore } from "../stores/ui";
 import { GameRouteProvider, gameStore, usesStoreGameContext, useGameStore } from "../stores/game";
 import { CarsCatalogueHostProvider } from "../features/cars-catalogue-host";
 import { TracksCatalogueHostProvider } from "../features/tracks-catalogue-host";
+import { LapReplayHostProvider } from "../features/lap-replay-host";
+import { SessionsPageHostProvider } from "../features/sessions-page-host";
+import { SessionAnalyseHostProvider } from "../features/session-analyse-host";
 function OverlayShell() {
   useWebSocket();
   const { displaySettings, settingsLoaded } = useSettings();
@@ -250,8 +253,14 @@ function RootLayout() {
       <GameRouteProvider value={gameId}>
         <TracksCatalogueHostProvider>
           <CarsCatalogueHostProvider>
+            <LapReplayHostProvider>
+            <SessionsPageHostProvider>
+            <SessionAnalyseHostProvider>
             {auth.authenticated && <DashboardConnection />}
             {isOverlayPath(location.pathname) ? <OverlayShell /> : pathname === "/login" || pathname === "/onboarding" ? <Outlet /> : <AppShell />}
+            </SessionAnalyseHostProvider>
+            </SessionsPageHostProvider>
+            </LapReplayHostProvider>
           </CarsCatalogueHostProvider>
         </TracksCatalogueHostProvider>
       </GameRouteProvider>

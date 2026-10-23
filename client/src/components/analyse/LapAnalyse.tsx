@@ -1,28 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { routePrefixForGameId } from "../../lib/game-routes";
-import { resolveLMUCar } from "@raceiq/game-lmu-metadata/catalog";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { F1CarSetup } from "@raceiq/shared/telemetry/f1-2025";
 import type { AiPanelHandle } from "@/components/ai/AiPanel";
-import type { AnalysisHighlight } from "@/components/ai/analysis-types";
-import type { LapDetectorCoverage, LapInsight } from "@raceiq/analysis-core/racing/analysis/laps/insights/types";
 import { useCookieState } from "../../hooks/useCookieState";
-import { useLapPlayback } from "../../hooks/useLapPlayback";
-import { useUnits } from "../../hooks/useUnits";
-import type { AnalyseSearch } from "../../lib/game-routes";
+import type { AnalyseSearch } from "@raceiq/session-analyse/contracts";
 import { client } from "../../lib/rpc";
 import { useRequiredGameId } from "../../stores/game";
 import { queryKeys } from "../../hooks/query-keys";
-import type { ChartsPanelHandle } from "./AnalyseChartsPanel";
 import { AnalyseLapHeader } from "./AnalyseLapHeader";
 import { AnalyseWorkspaceModals } from "./AnalyseWorkspaceModals";
-import { AnalyseWorkspacePanels } from "./AnalyseWorkspacePanels";
+import { SingleReplaySession } from "@raceiq/lap-replay/ui";
+import type { SpectateController } from "@raceiq/lap-replay/contracts";
+import { AnalyseAiSidebar } from "./AnalyseAiSidebar";
 import { AnalyseWorkspaceStatus } from "./AnalyseWorkspaceStatus";
-import { flushSync } from "react-dom";
-import { semanticNumber } from "@raceiq/scene-3d/semantic-frame";
-import type { Point, TrackMapHandle, TrackOverlayKey, TrackZoomBehavior } from "./track-map/types";
-import type { SceneRuntime, SceneSource } from "@raceiq/scene-3d/wireframe/SceneRuntime"
 import { useAnalyseImports } from "./useAnalyseImports";
 import { useAnalyseSelections } from "./useAnalyseSelections";
 import { SessionIdentityDialog } from "../import/SessionIdentityDialog";
@@ -37,7 +29,6 @@ export function LapAnalyse({ sessionId, initialLapId }: { sessionId?: number; in
 
 function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; initialLapId?: number }) {
   const search = useSearch({ strict: false }) as AnalyseSearch;
-  const units = useUnits();
   const gameId = useRequiredGameId();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -54,28 +45,8 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
     selectedLapId,
     setSelectedLapId,
     outline,
-    closed,
-    mapLabels,
-    pitLines,
-    boundaries,
-    sectorData,
-    sectors,
     segments,
     initialCursor,
-    mapZoom,
-    setMapZoom,
-    rotateWithCar,
-    setRotateWithCar,
-    trackOverlays,
-    setTrackOverlays,
-    vizMode,
-    setWheelTab,
-    leftColWidth,
-    setLeftColWidth,
-    rightColWidth,
-    setRightColWidth,
-    topHeight,
-    setTopHeight,
     trackNames,
     carNames,
     tracks,
@@ -85,7 +56,6 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
     trackName,
     handleTrackChange,
     handleCarChange,
-    cursorRef,
   } = useAnalyseSelections(initialLapId == null ? search : { ...search, lap: initialLapId }, gameId, sessionId);
   const identitySessionId = sessionId ?? selectedLap?.sessionId;
   const { data: sessions = [] } = useQuery({
@@ -131,230 +101,19 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
       queryClient.invalidateQueries({ queryKey: queryKeys.raceResultRecents }),
     ]);
   }
-  const lmuCarClass = gameId === "lmu" && selectedLap?.carId != null
-    ? resolveLMUCar(String(selectedLap.carId))?.class
-    : undefined;
-  const hasRacingLine = Array.isArray(boundaries?.raceLine) && boundaries.raceLine.length > 1;
-  const effectiveTrackOverlays = hasRacingLine ? trackOverlays : { ...trackOverlays, racingLine: false };
   const loading = lapLoading;
-  const [cursorIdx, setCursorIdx] = useState(0);
-  const [visualTimeFrac, setVisualTimeFrac] = useState<number | null>(null);
-  const [sidebarTab, setSidebarTab] = useState<"live" | "insights">("live");
-  const [playing, setPlaying] = useState(false);
-  const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [aiPanelOpen, setAiPanelOpen] = useCookieState("analyse-aiPanel", false);
-  const [zoomBehavior, setZoomBehavior] = useState<TrackZoomBehavior>("default");
   useEffect(() => {
     if (search.ai === 1) setAiPanelOpen(true);
   }, [search.ai, setAiPanelOpen]);
-  const handleZoomBehaviorChange = useCallback(() => {
-    setZoomBehavior((behavior) => (behavior === "default" ? "zoomed" : behavior === "zoomed" ? "disabled" : "default"));
-  }, []);
-  const [aiHighlights, setAiHighlights] = useState<AnalysisHighlight[] | null>(null);
   const [setup, setSetup] = useState<F1CarSetup | null>(null);
   const aiPanelRef = useRef<AiPanelHandle>(null);
   const [viewingTuneId, setViewingTuneId] = useState<number | null>(null);
-  const lapLine = useMemo(() => {
-    if (semanticFrames.length < 2) return null;
-    const pts: Point[] = [];
-    for (const p of semanticFrames) {
-      const x = semanticNumber(p, "motion.position-x");
-      const z = semanticNumber(p, "motion.position-z");
-      if (x != null || z != null) pts.push({ x: x ?? 0, z: z ?? 0 });
-    }
-    return pts.length > 2 ? pts : null;
-  }, [semanticFrames]);
-  const playRef = useRef(false);
-  const speedRef = useRef(1);
-  const displayTelemetryRef = useRef(semanticFrames);
-  const seekRef = useRef(0);
-  const [seekGeneration, setSeekGeneration] = useState(0);
-  const seekGenerationRef = useRef(0);
-  const runtimeRef = useRef<SceneRuntime | null>(null);
-  const recording = typeof window !== "undefined" && Boolean((window as unknown as Record<string, unknown>).__recording);
-  const handleRuntime = useCallback((runtime: SceneRuntime | null) => {
-    runtimeRef.current = runtime;
-    const w = window as unknown as Record<string, unknown>;
-    w.__captureSceneBitmap = recording && runtime ? () => runtime.captureBitmap() : undefined;
-  }, [recording]);
-  const sceneSource = useMemo<SceneSource>(() => ({
-    framesRef: displayTelemetryRef,
-    cursorRef,
-    playing,
-    playbackSpeed,
-    seekGeneration,
-    recording,
-  }), [playing, playbackSpeed, seekGeneration, recording]);
-  const publishSeek = useCallback(() => {
-    const generation = ++seekGenerationRef.current;
-    setSeekGeneration(generation);
-    return generation;
+  const replayController = useRef<SpectateController | null>(null);
+  const [panelHeaderTarget, setPanelHeaderTarget] = useState<HTMLDivElement | null>(null);
+  const handleController = useCallback((controller: SpectateController | null) => {
+    replayController.current = controller;
   }, []);
-  useEffect(() => {
-    displayTelemetryRef.current = semanticFrames;
-    publishSeek();
-  }, [semanticFrames, publishSeek]);
-  const trackMapRef = useRef<TrackMapHandle>(null);
-  const lastStateUpdateRef = useRef(0);
-  const cursorStateRafRef = useRef<number | null>(null);
-  const pendingCursorStateRef = useRef<number | null>(null);
-  const interpolatedTimeRef = useRef(0);
-  const thumbRef = useRef<HTMLDivElement>(null);
-  const progressRef = useRef<HTMLDivElement>(null);
-  const chartsPanelRef = useRef<ChartsPanelHandle>(null);
-  const lapChangeCount = useRef(0);
-  useEffect(() => {
-    if (selectedLapId == null) return;
-    lapChangeCount.current++;
-    const initial = lapChangeCount.current === 1;
-    setPlaying(false);
-    playRef.current = false;
-    if (!initial || !initialCursor) {
-      setCursorIdx(0);
-      cursorRef.current = 0;
-    }
-  }, [selectedLapId]);
-  const appliedInitialCursor = useRef(false);
-  useEffect(() => {
-    if (appliedInitialCursor.current || initialCursor == null || semanticFrames.length <= 1) return;
-    const idx = Math.min(initialCursor, semanticFrames.length - 1);
-    setCursorIdx(idx);
-    cursorRef.current = idx;
-    appliedInitialCursor.current = true;
-    publishSeek();
-  }, [initialCursor, semanticFrames.length, publishSeek]);
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "ArrowLeft" || event.key === "ArrowRight") publishSeek();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [publishSeek]);
-
-  // Keep speedRef in sync and signal the animation to re-anchor timing
-  const speedChangeRef = useRef(0);
-  useEffect(() => {
-    speedRef.current = playbackSpeed;
-    speedChangeRef.current++;
-  }, [playbackSpeed]);
-
-  // Draw initial cursor overlays after URL cursor is applied.
-  useEffect(() => {
-    if (!appliedInitialCursor.current) return;
-    if (cursorIdx > 0 && semanticFrames.length > 1) {
-      trackMapRef.current?.updateCursor(cursorIdx);
-      chartsPanelRef.current?.updateCursor(cursorIdx);
-    }
-  }, [cursorIdx, semanticFrames.length]);
-
-  // Expose deterministic frame control for Playwright recording.
-  // Mirrors Onboarding's hook so the full analyse cockpit (track dot, gauges,
-  // traces) can be stepped frame-by-frame — same index -> identical pixels.
-  useEffect(() => {
-    if (!(window as unknown as Record<string, unknown>).__recording) return;
-    const w = window as unknown as Record<string, unknown>;
-    w.__setFrame = (n: number) => {
-      const idx = Math.max(0, Math.min(semanticFrames.length - 1, n));
-      cursorRef.current = idx;
-      trackMapRef.current?.updateCursor(idx);
-      chartsPanelRef.current?.updateCursor(idx);
-      return new Promise<void>((resolve, reject) => {
-        const generation = publishSeek();
-        flushSync(() => setCursorIdx(idx));
-        const runtime = runtimeRef.current;
-        if (runtime && vizMode === "3d") runtime.requestFrame(generation).then(resolve, reject);
-        else resolve();
-      });
-    };
-    w.__totalFrames = semanticFrames.length;
-    w.__frameTimes = semanticFrames.map((p) => semanticNumber(p, "timing.current-lap") ?? 0);
-    return () => {
-      w.__setFrame = undefined;
-      w.__pauseAnimation = undefined;
-      w.__totalFrames = undefined;
-      w.__frameTimes = undefined;
-    };
-  }, [semanticFrames.length, publishSeek, vizMode]);
-
-  // Playback animation + keyboard controls
-  const { updateOverlays } = useLapPlayback({
-    playing,
-    telemetry: semanticFrames,
-    playRef,
-    speedRef,
-    cursorRef,
-    seekRef,
-    speedChangeRef,
-    lastStateUpdateRef,
-    interpolatedTimeRef,
-    trackMapRef,
-    chartsPanelRef,
-    thumbRef,
-    progressRef,
-    setCursorIdx,
-    setPlaying,
-  });
-
-  const sectorTimes = useMemo(() => {
-    if (!sectorData || !sectors) return null;
-    const cursorDistance = semanticNumber(semanticFrames[cursorIdx], "timing.distance-traveled") ?? 0;
-    const cursorFrac = semanticFrames.length > 1 ? (cursorDistance - sectorData.firstDist) / sectorData.lapDist : 0;
-    let cursorSector = 0;
-    for (let index = 1; index < sectors.sectorStarts.length; index++) {
-      if (cursorFrac < sectors.sectorStarts[index]) break;
-      cursorSector = index;
-    }
-    return { ...sectorData, times: sectorData.times, cursorSector };
-  }, [sectorData, sectors, semanticFrames, cursorIdx]);
-
-  const handleChartClick = useCallback(
-    (idx: number) => {
-      // Keep imperative overlays on input event; defer heavy React consumers to
-      // one render per frame so chart dragging cannot queue stale renders.
-      cursorRef.current = idx;
-      publishSeek();
-      updateOverlays(idx);
-      pendingCursorStateRef.current = idx;
-      if (cursorStateRafRef.current == null) {
-        cursorStateRafRef.current = requestAnimationFrame(() => {
-          cursorStateRafRef.current = null;
-          const pending = pendingCursorStateRef.current;
-          if (pending != null) setCursorIdx(pending);
-        });
-      }
-    },
-    [updateOverlays, publishSeek],
-  );
-
-  const handleScrubStart = useCallback(() => {
-    setPlaying(false);
-    playRef.current = false;
-  }, []);
-  const handleTogglePlay = useCallback(() => {
-    setPlaying((p) => !p);
-  }, []);
-
-  const currentFrame = semanticFrames[cursorIdx] ?? null;
-  const wearRate = useMemo(() => {
-    if (!currentFrame || semanticFrames.length < 2) return null;
-    const previous = semanticFrames[Math.max(0, cursorIdx - 60)];
-    const currentTime = semanticNumber(currentFrame, "timing.current-lap");
-    const previousTime = semanticNumber(previous, "timing.current-lap");
-    const dt = (currentTime ?? 0) - (previousTime ?? 0);
-    const currentWear = currentFrame.values["tires.tire-wear"];
-    const previousWear = previous.values["tires.tire-wear"];
-    if (dt <= 0.1 || !Array.isArray(currentWear) || !Array.isArray(previousWear)) return null;
-    const values = [0, 1, 2, 3].map((index) => {
-      const current = currentWear[index];
-      const prior = previousWear[index];
-      return typeof current === "number" && typeof prior === "number" ? (current - prior) / dt : null;
-    });
-    return values.every((value): value is number => value != null) ? { FL: values[0], FR: values[1], RL: values[2], RR: values[3] } : null;
-  }, [currentFrame, cursorIdx, semanticFrames]);
-  const lapInsights = useMemo<LapInsight[]>(() => (semanticReplay?.insights ?? []) as LapInsight[], [semanticReplay]);
-  const detectorCoverage = useMemo<LapDetectorCoverage[]>(() => semanticReplay?.detectorCoverage ?? [], [semanticReplay]);
-  const currentTime = playing ? interpolatedTimeRef.current : (semanticNumber(currentFrame, "timing.current-lap") ?? 0);
-  const totalTime = selectedLap?.lapTime ?? 0;
 
   // Tune selector
   const { data: availableTunes } = useQuery({
@@ -417,15 +176,6 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
   }, [selectedLapId, filteredLaps, deleteLapMutation.mutate]);
   const handleTuneChange = useCallback((tuneId: number | null) => updateLapTune.mutate(tuneId), [updateLapTune.mutate]);
   const handleNotesChange = useCallback((notes: string) => updateLapNotesMutation.mutate(notes), [updateLapNotesMutation.mutate]);
-  const handleToggleAi = useCallback(() => setAiPanelOpen((open) => !open), [setAiPanelOpen]);
-  const handleRotateWithCarToggle = useCallback(() => setRotateWithCar((rotate) => !rotate), [setRotateWithCar]);
-  const handleTrackOverlayChange = useCallback(
-    (overlay: TrackOverlayKey, checked: boolean) => {
-      if (overlay === "racingLine" && !hasRacingLine) return;
-      setTrackOverlays((current) => ({ ...current, [overlay]: checked }));
-    },
-    [hasRacingLine, setTrackOverlays],
-  );
   const f1Setup = useMemo<F1CarSetup | null>(() => {
     if (gameId !== "f1-2025") return null;
     if (persistedF1Setup?.setup) return persistedF1Setup.setup;
@@ -461,6 +211,7 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
         onBack={handleBackToSessions}
         sessionFocused={sessionId != null}
         onAnalyseSession={analyseSessionId != null ? handleAnalyseSession : undefined}
+        panelHeaderRef={setPanelHeaderTarget}
         onExport={() =>
           buildExportCsv(
             semanticFrames.map((frame) => frame.values),
@@ -485,7 +236,6 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
         availableTunes={availableTunes}
         tunePending={updateLapTune.isPending}
         loading={loading}
-        aiPanelOpen={aiPanelOpen}
         onTrackChange={handleTrackChange}
         onCarChange={handleCarChange}
         onLapChange={setSelectedLapId}
@@ -497,110 +247,38 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
         importingBin={importingBin}
         ownership={ownership}
         onOwnershipChange={setOwnership}
-        onToggleAi={handleToggleAi}
         onDeleteLap={handleDeleteLap}
         onNotesChange={handleNotesChange}
       />
 
       {semanticFrames.length === 0 && <AnalyseWorkspaceStatus loading={loading} lapError={lapError} parseError={parseError} selectedLapId={selectedLapId} />}
 
-      {semanticFrames.length > 0 && (
-        <AnalyseWorkspacePanels
-          topSectionProps={{
-            semanticFrames,
-            gameId,
-            lmuCarClass,
-            topHeight,
-            leftColWidth,
-            rightColWidth,
-            onLeftResize: setLeftColWidth,
-            onRightResize: setRightColWidth,
-            cursorIdx,
-            outline,
-            closed,
-            mapLabels,
-            pitLines,
-            sceneSource,
-            onRuntime: handleRuntime,
-            boundaries,
-            sectors,
-            segments,
-            lapLine,
-            units,
-            aiPanelOpen,
-            aiHighlights,
-            rotateWithCar,
-            trackOverlays: effectiveTrackOverlays,
-            zoomBehavior,
-            onZoomBehaviorChange: handleZoomBehaviorChange,
-            mapZoom,
-            onRotateWithCarToggle: handleRotateWithCarToggle,
-            onTrackOverlayChange: handleTrackOverlayChange,
-            onMapZoomChange: setMapZoom,
-            vizMode,
-            onVizModeChange: setWheelTab,
-            trackMapRef,
-            cursorRef,
-            displayTelemetryRef,
-          }}
-          resizeHandleProps={{ topHeight, onHeightChange: setTopHeight }}
-          timelineScrubberProps={{
-            displayTelemetry: semanticFrames,
-            cursorIdx,
-            totalPackets: semanticFrames.length,
-            currentTime,
-            totalTime,
-            lapNumber: selectedLap?.lapNumber ?? "?",
-            sectorTimes,
-            playing,
-            playbackSpeed,
-            visualTimeFrac,
-            progressRef,
-            thumbRef,
-            onTogglePlay: handleTogglePlay,
-            onSpeedChange: setPlaybackSpeed,
-            onSeek: handleChartClick,
-            onVisualFracChange: setVisualTimeFrac,
-          }}
-          chartsPanelProps={{
-            semanticFrames,
-            totalPackets: semanticFrames.length,
-            visualTimeFrac,
-            onVisualFracChange: setVisualTimeFrac,
-            onClickIndex: handleChartClick,
-            onScrubStart: handleScrubStart,
-            speedLabel: units.speedLabel,
-            gameId,
-          }}
-          chartsPanelRef={chartsPanelRef}
-          dataPanelProps={{
-            sidebarTab,
-            packetNumber: cursorIdx + 1,
-            onSidebarTabChange: setSidebarTab,
-            currentFrame,
-            startFuel: semanticNumber(semanticFrames[0], "fuel.fuel") ?? undefined,
-            gameId,
-            units,
-            wearRate,
-            lapInsights,
-            detectorCoverage,
-            onJumpToFrame: handleChartClick,
-          }}
-          aiSidebarProps={
-            aiPanelOpen && selectedLapId
-              ? {
-                  lapId: selectedLapId,
-                  trackName,
-                  carName,
-                  segments,
-                  aiPanelRef,
-                  onJumpToFrac: (frac) => {
-                    handleChartClick(Math.round(frac * (semanticFrames.length - 1)));
-                  },
-                  onHighlightsChange: setAiHighlights,
-                }
-              : null
-          }
+      {semanticReplay && selectedLap && semanticFrames.length > 0 && (
+        <SingleReplaySession
+          key={selectedLap.id}
+          gameId={gameId}
+          lap={selectedLap}
+          replay={semanticReplay}
+          outline={outline}
+          segments={segments ?? []}
+          initialFrame={initialCursor}
+          onController={handleController}
+          panelHeaderTarget={panelHeaderTarget}
+          aiOpen={aiPanelOpen}
+          onAiOpenChange={setAiPanelOpen}
+          ai={(headerTarget) => aiPanelOpen && selectedLapId ? (
+            <AnalyseAiSidebar
+              headerTarget={headerTarget}
+              lapId={selectedLapId}
+              trackName={trackName}
+              carName={carName}
+              segments={segments}
+              aiPanelRef={aiPanelRef}
+              onJumpToFrac={(frac) => {
+                replayController.current?.seekFrame("a", Math.round(frac * (semanticReplay.envelopes.length - 1)));
+              }}
+            />
+          ) : null}
         />
       )}
       <AnalyseWorkspaceModals

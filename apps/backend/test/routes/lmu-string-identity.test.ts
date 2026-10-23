@@ -1,14 +1,17 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { insertLap } from "@raceiq/backend-core/db/lap-mutation-queries";
-import { getLapStats, getReviewLaps } from "@raceiq/backend-core/db/lap-read-queries";
+import { getLapStats } from "@raceiq/backend-core/db/lap-read-queries";
 import { deleteSession, insertSession, updateSessionRawFile } from "@raceiq/backend-core/db/session-queries";
-import { sessionRoutes } from "../../src/routes/session-routes";
+import { createSessionRoutes } from "@raceiq/sessions-page/server";
+import { isSessionIdentityInCatalog } from "../../src/games/session-identity";
 import { trackRoutes } from "@raceiq/tracks-catalogue/server"
 import { settingsRoutes } from "../../src/routes/settings-routes";
 import tracksJson from "@raceiq/game-lmu-metadata/tracks.json";
 import { loadLabelledSegments } from "@raceiq/shared/racing/tracks/storage/meta";
 
+const sessionRoutes = createSessionRoutes(isSessionIdentityInCatalog);
 const sessionIds: number[] = [];
+
 
 afterEach(async () => {
   for (const id of sessionIds.splice(0)) await deleteSession(id);

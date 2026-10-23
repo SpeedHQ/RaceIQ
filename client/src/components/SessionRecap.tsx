@@ -11,8 +11,8 @@ import { formatLapTime } from "../lib/format";
 import { getGameRoute, useGameId } from "../stores/game";
 import { Button } from "./ui/button";
 import { getLocale } from "@/paraglide/runtime";
-import { parseUtcTimestamp } from "../lib/utc-date";
-import { buildRecapText } from "./sessions/helpers";
+import { parseUtcTimestamp } from "@raceiq/frontend-pure/utc-date";
+import { buildRecapText } from "../lib/session-recap-text";
 
 export type TrackOutlineData =
   | {

@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatBytes } from "@/lib/format-bytes";
 import { m } from "@/paraglide/messages";
 import { getLocale } from "@/paraglide/runtime";
-import { parseUtcTimestamp } from "@/lib/utc-date";
+import { parseUtcTimestamp } from "@raceiq/frontend-pure/utc-date";
 import { authenticatedFetch } from "@/lib/rpc";
 type Props = {
   request: SessionCleanupRequest | null;

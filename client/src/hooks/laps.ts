@@ -2,11 +2,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import type { GameId } from "@raceiq/shared/games/ids";
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { LineSpreadTrace } from "./experiments";
+import type { LineSpreadTrace } from "@raceiq/analysis-core/racing/laps/consistency-types";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import type { ComparisonData, AlignedTrace } from "@raceiq/shared/racing/comparison/types";
 import type { AlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/types";
-import type { LapDetectorCoverage, LapInsight } from "@raceiq/analysis-core/racing/analysis/laps/insights/types"
+import type { LapInsight } from "@raceiq/analysis-core/racing/analysis/laps/insights/types"
 import { useAlignedTelemetry } from "./aligned-telemetry";
 import { client } from "../lib/rpc";
 import { errorFromResponse } from "../lib/rpc-error";
@@ -14,7 +14,8 @@ import { rpcJson } from "../lib/rpc-json";
 import { useGameId } from "../stores/game";
 import { queryKeys } from "./query-keys";
 import { invalidateDashboardQueries } from "./dashboard";
-import { isLmuLiveContextWire, type LmuLiveContextWire } from "@raceiq/shared/telemetry/lmu-context";
+import { isLmuLiveContextWire } from "@raceiq/shared/telemetry/lmu-context";
+import type { SemanticLapTelemetry } from "@raceiq/lap-replay/contracts";
 
 export function useLaps(options?: { refetchInterval?: number | false; allGames?: boolean }) {
   const gameId = useGameId();
@@ -30,20 +31,6 @@ export function useLaps(options?: { refetchInterval?: number | false; allGames?:
   });
 }
 
-export function useReviewLaps(trackId: string | null, carId: string | null, limit = 5) {
-  const gameId = useGameId();
-  return useQuery({
-    queryKey: ["review-laps", gameId ?? null, trackId, carId, limit],
-    queryFn: async () => {
-      if (!gameId || trackId == null || carId == null) return [];
-      const res = await client.api.laps.review.$get({
-        query: { gameId, trackId, carId, limit: String(limit) },
-      });
-      return rpcJson<LapMeta[]>(res);
-    },
-    enabled: !!gameId && trackId != null && carId != null,
-  });
-}
 
 export function useSessionLaps(sessionId: number | null) {
   const gameId = useGameId();
@@ -58,19 +45,6 @@ export function useSessionLaps(sessionId: number | null) {
   });
 }
 
-export function useSessionLineSpread(sessionId: number | null, lapIds: readonly number[], enabled = true) {
-  const gameId = useGameId();
-  const orderedIds = useMemo(() => [...lapIds], [lapIds]);
-  return useQuery({
-    queryKey: ["session-review-line-spread", gameId ?? null, sessionId, orderedIds],
-    queryFn: async () => {
-      if (!gameId || sessionId == null || orderedIds.length === 0) return null;
-      const res = await client.api.laps["review-line-spread"].$get({ query: { gameId, sessionId: String(sessionId), lapIds: orderedIds.join(",") } });
-      return rpcJson<LineSpreadTrace>(res);
-    },
-    enabled: enabled && !!gameId && sessionId != null && orderedIds.length > 0,
-  });
-}
 
 export function useCompareLineSpread(gameId: GameId, lapIds: readonly number[], enabled = true) {
   const orderedIds = useMemo(() => [...lapIds], [lapIds]);
@@ -150,25 +124,6 @@ export function useLapComparisonRange(lapAId: number | null, lapBId: number | nu
   };
 }
 
-export interface SemanticReplayFrame {
-  sequence: number;
-  observedAt: { domain: string; milliseconds: number };
-  receivedAt: { domain: string; milliseconds: number };
-  simulator: string;
-  values: Array<{ semanticId: string; value: unknown; unit?: string | null; state?: string; freshness?: string }>;
-  lmu?: LmuLiveContextWire;
-}
-
-export interface SemanticLapTelemetry {
-  lapId: number;
-  requestedSemanticIds: string[];
-  sectorTimes?: number[] | null;
-  sectorStarts?: number[] | null;
-  insights?: unknown[];
-  detectorCoverage?: LapDetectorCoverage[];
-  parseError?: string | null;
-  envelopes: SemanticReplayFrame[];
-}
 
 interface SemanticTelemetryError extends Error {
   parseError?: string;

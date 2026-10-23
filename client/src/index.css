@@ -9,6 +9,9 @@
 @plugin "@tailwindcss/typography";
 @source "../../packages/tracks-catalogue/ui";
 @source "../../packages/cars-catalogue/ui";
+@source "../../packages/lap-replay/ui";
+@source "../../packages/sessions-page/ui";
+@source "../../packages/session-analyse/ui";
 
 @keyframes drawLine {
   to {

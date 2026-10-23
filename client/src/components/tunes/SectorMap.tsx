@@ -3,7 +3,7 @@ import { useMemo, useRef, useState } from "react";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { flipPoints, needsTrackFlip } from "@raceiq/shared/racing/tracks/coords"
 import { SECTOR_COLOR_VARS } from "@raceiq/scene-3d/colors";
-import type { SemanticTuneSample } from "./semantic-tune";
+import type { SemanticTuneSample } from "@raceiq/analysis-core/racing/laps/semantic-tune";
 import { useTrackBoundaries } from "../../hooks/track-queries";
 import { buildGeometry, extractEdges, type ProjPt, VIEW } from "./track-map-geometry";
 

@@ -3,8 +3,9 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import type { LapMeta, SessionMeta } from "@raceiq/shared/racing/sessions/types";
-import { SessionsPage } from "../components/sessions/SessionsPage";
+import { SessionsPage } from "@raceiq/sessions-page/ui";
 import { GameStoryScope } from "./GameStoryScope";
+import { SessionsPageHostProvider } from "../features/sessions-page-host";
 
 const gameId = "ac-evo";
 
@@ -114,9 +115,11 @@ const meta: Meta<typeof SessionsPage> = {
     (Story) => (
       <GameStoryScope gameId={gameId}>
         <QueryClientProvider client={queryClient}>
+          <SessionsPageHostProvider>
           <div style={{ height: "100vh", overflow: "auto", background: "var(--app-bg)" }}>
             <Story />
           </div>
+          </SessionsPageHostProvider>
         </QueryClientProvider>
       </GameStoryScope>
     ),

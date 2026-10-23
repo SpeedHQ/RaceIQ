@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Button } from "./ui/button";
 import { useLaps } from "@/hooks/laps";
 
-import { parseUtcTimestamp } from "@/lib/utc-date";
+import { parseUtcTimestamp } from "@raceiq/frontend-pure/utc-date";
 import { authenticatedFetch } from "@/lib/rpc";
 interface LapSummary {
   id: number;

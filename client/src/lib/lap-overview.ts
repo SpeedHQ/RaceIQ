@@ -1,4 +1,4 @@
-import type { SemanticLapTelemetry } from "../hooks/laps";
+import type { SemanticLapTelemetry } from "@raceiq/lap-replay/contracts"
 
 export interface LapOverviewStats {
   wear: readonly (number | null)[];

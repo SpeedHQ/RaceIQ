@@ -1,0 +1,20 @@
+{
+  "name": "@raceiq/lap-replay",
+  "private": true,
+  "type": "module",
+  "exports": { "./ui": "./ui/index.ts", "./server": "./server/index.ts", "./contracts": "./contracts/index.ts" },
+  "scripts": {
+    "lint": "node ../../client/node_modules/oxlint/bin/oxlint .",
+    "typecheck": "bun check --project tsconfig.ui.json && bun check --project tsconfig.server.json",
+    "test:boundaries": "bun ../../scripts/test/check-feature-boundaries.ts lap-replay",
+    "e2e:impact": "bun ../../scripts/test/check-feature-boundaries.ts lap-replay",
+    "test:unit": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/lap-replay",
+    "test:integration": "bun ../../scripts/test/run-suite.ts integration --package @raceiq/lap-replay",
+    "test:e2e": "cd ../../playwright && E2E_SERVER_MODE=compiled PW_SERVER_SET=seeded PW_SEEDED_E2E_PORT=3164 PW_SEEDED_E2E_CLIENT_PORT=4164 PW_SEEDED_E2E_UDP_PORT=15364 PW_SEEDED_E2E_DATA_DIR=./test-results/test-data-lap-replay RACEIQ_FEATURE_F1_EXPERIMENTS=true RACEIQ_FEATURE_IRACING_ADAPTER=true bun ../scripts/playwright-ci.ts test --config=playwright.config.ts --project=lap-replay --project=lap-replay-webgpu --output=test-results/lap-replay"
+  },
+  "dependencies": {
+    "react": "^19.3.0", "react-dom": "^19.3.0", "three": "^0.185.1", "lucide-react": "^1.47.0", "@base-ui/react": "^1.8.0", "hono": "4.13.8", "@hono/zod-validator": "0.9.1", "zod": "^4.6.5",
+    "@raceiq/shared": "workspace:*", "@raceiq/analysis-core": "workspace:*", "@raceiq/telemetry-core": "workspace:*", "@raceiq/scene-3d": "workspace:*", "@raceiq/backend-core": "workspace:*", "@raceiq/tracks-catalogue": "workspace:*"
+  },
+  "devDependencies": { "@types/react": "^19.3.0", "@types/react-dom": "^19.3.0", "@types/three": "^0.185.4", "@playwright/test": "1.62.1", "@raceiq/game-catalogs": "workspace:*" }
+}

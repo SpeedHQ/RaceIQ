@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { completeOnboarding } from "../../support/tunes";
-import { cleanDisposable, importDisposableLap, lapsFor, sessionsFor, type DisposableImport } from "../sessions/helpers";
+import { cleanDisposable, importDisposableLap, lapsFor, sessionsFor, type DisposableImport } from "../../support/session-fixtures";
 
 const games = [
   { gameId: "fm-2023", prefix: "fm23" },
