@@ -2,7 +2,7 @@ import { useCarsCatalogueHost } from "../host";
 import type { LMUCatalogueCar } from "../../contracts/host";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { CarTireDialog, TireCompoundDots } from "../cars/TireCompounds";
+import { CarTireDialog, CompoundCircle, LMU_DRY_COMPOUNDS } from "../cars/TireCompounds";
 
 function categoryLabel(category: string): string {
   return category
@@ -86,7 +86,12 @@ export function LMUCars() {
               <div className="p-3">
                 <h2 className="text-sm font-semibold leading-tight text-app-text">{car.name}</h2>
                 {car.series && car.series.length > 0 && <p className="mt-1 text-xs text-app-text-muted">{car.series.join(" · ")}</p>}
-                <TireCompoundDots gameId="lmu" className="mt-2" />
+                {LMU_DRY_COMPOUNDS[car.class ?? ""] ? (
+                  <div className="mt-2 flex items-center gap-1" aria-label={`${car.class} dry compounds`}>
+                    {LMU_DRY_COMPOUNDS[car.class ?? ""].map((compound) => <CompoundCircle key={compound} compound={compound} />)}
+                  </div>
+                ) : <p className="mt-2 text-xs text-app-text-muted">Class-level dry compounds unknown</p>}
+                <p className="mt-2 text-xs text-app-text-muted">Track options vary.</p>
               </div>
             </button>
           ))}
@@ -97,6 +102,7 @@ export function LMUCars() {
         <CarTireDialog
           gameId="lmu"
           carName={tireCar.name}
+          carClass={tireCar.class ?? "Unknown class"}
           open
           onOpenChange={(open) => { if (!open) setTireCar(null); }}
         />

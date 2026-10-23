@@ -19,7 +19,7 @@ const COMPOUND_TOKENS: Record<string, string> = { dry_compound: "soft", wet_comp
 
 const CHANNEL_LABEL_KEY = { carcass: "tire_guide_optimal", surface: "tire_guide_optimal_surface" } as const;
 
-function CompoundCircle({ compound, className = "" }: { compound: string; className?: string }) {
+export function CompoundCircle({ compound, className = "" }: { compound: string; className?: string }) {
   return (
     <span
       data-tire-compound={COMPOUND_TOKENS[compound] ?? compound}
@@ -30,6 +30,13 @@ function CompoundCircle({ compound, className = "" }: { compound: string; classN
     </span>
   );
 }
+
+export const LMU_DRY_COMPOUNDS: Record<string, readonly string[]> = {
+  HYPERCAR: ["soft", "medium", "hard"],
+  LMP2: ["soft", "medium"],
+  GT3: ["medium"],
+};
+
 
 /** Coloured compound circles for a car card; nothing when the game publishes no window. */
 export function TireCompoundDots({ gameId, className = "" }: { gameId: GameId; className?: string }) {
@@ -47,11 +54,13 @@ export function TireCompoundDots({ gameId, className = "" }: { gameId: GameId; c
 export function CarTireDialog({
   gameId,
   carName,
+  carClass,
   open,
   onOpenChange,
 }: {
   gameId: GameId;
   carName: string;
+  carClass?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -59,6 +68,10 @@ export function CarTireDialog({
   const units = useUnits();
   const guide = getTireTempGuide(gameId);
   if (!guide) return null;
+  const compounds = gameId === "lmu" ? LMU_DRY_COMPOUNDS[carClass ?? ""] : undefined;
+  const rows = gameId === "lmu"
+    ? guide.rows.filter((row) => compounds?.includes(row.compound))
+    : guide.rows;
   const optimalHeader = m[CHANNEL_LABEL_KEY[guide.channel]]();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -67,6 +80,16 @@ export function CarTireDialog({
           <DialogTitle>{carName}</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-app-text-muted">{m[`tire_guide_description${guide.channel === "surface" ? "_surface" : ""}`]()}</p>
+        {gameId === "lmu" && (
+          <>
+            <p className="text-sm text-app-text-muted">
+              {compounds
+                ? `Dry compounds for ${carClass}: ${compounds.join(", ")}. Track availability may vary.`
+                : `Class-level dry compounds unknown for ${carClass || "Unknown class"}. Track options vary.`}
+            </p>
+            <p className="text-xs text-app-text-muted">Temperature rows below use the LMU tire temperature guide.</p>
+          </>
+        )}
         <table className="w-full text-left text-sm tabular-nums">
           <thead>
             <tr className="border-b border-app-border text-app-text-muted">
@@ -75,7 +98,7 @@ export function CarTireDialog({
             </tr>
           </thead>
           <tbody>
-            {guide.rows.map((row) => (
+            {rows.map((row) => (
               <tr key={row.compound} className="border-b border-app-border/60 last:border-0">
                 <th scope="row" className="py-2 pr-3 font-medium text-app-text">
                   <span className="flex items-center gap-2">
