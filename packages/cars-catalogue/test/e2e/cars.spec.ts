@@ -108,29 +108,32 @@ test("Le Mans Ultimate cars preserve search and class filtering through the real
     const car = cars.find((candidate) => candidate.class === name);
     expect(car, `seeded catalog contains ${name}`).toBeDefined();
     const card = cards.filter({ has: page.locator(`h2:text-is("${car!.name}")`) });
-    await expect(card.locator("[data-tire-compound]")).toHaveCount(compounds.length);
+    await expect(card.locator("[data-tire-compound]")).toHaveCount(compounds.length + 1);
     for (const compound of compounds) {
       await expect(card.locator(`[data-tire-compound="${compound}"]`)).toHaveCount(1);
     }
+    await expect(card.locator('[data-tire-compound="wet"]')).toHaveCount(1);
     await card.click();
     const dialog = page.getByRole("dialog");
-    await expect(dialog).toContainText(`Dry compounds for ${name}: ${compounds.join(", ")}. Track availability may vary.`);
+    await expect(dialog).toContainText(`Dry compounds for ${name}: ${compounds.join(", ")}. Wet tires available separately. Track availability may vary.`);
     await expect(dialog.locator("tbody tr")).toHaveCount(compounds.length);
     for (const compound of compounds) {
       await expect(dialog.locator(`tbody [data-tire-compound="${compound}"]`)).toHaveCount(1);
     }
+    await expect(dialog.locator('tbody [data-tire-compound="wet"]')).toHaveCount(0);
     await expect(dialog).toContainText("Temperature rows below use the LMU tire temperature guide.");
     await page.keyboard.press("Escape");
     await expect(dialog).toBeHidden();
   }
-  const unknownCar = cars.find((car) => car.class && !["HYPERCAR", "LMP2", "GT3"].includes(car.class));
-  expect(unknownCar, "seeded catalog contains an unmapped class").toBeDefined();
+  const unknownCar = cars.find((car) => car.class === "LMP3");
+  expect(unknownCar, "seeded catalog contains an unmapped LMP3 class").toBeDefined();
   const unknownCard = cards.filter({ has: page.locator(`h2:text-is("${unknownCar!.name}")`) });
   await expect(unknownCard).toContainText("Class-level dry compounds unknown");
-  await expect(unknownCard.locator("[data-tire-compound]")).toHaveCount(0);
+  await expect(unknownCard.locator("[data-tire-compound]")).toHaveCount(1);
+  await expect(unknownCard.locator('[data-tire-compound="wet"]')).toHaveCount(1);
   await unknownCard.click();
   const unknownDialog = page.getByRole("dialog");
-  await expect(unknownDialog).toContainText(`Class-level dry compounds unknown for ${unknownCar!.class}. Track options vary.`);
+  await expect(unknownDialog).toContainText(`Class-level dry compounds unknown for ${unknownCar!.class}. Wet tires available separately. Track availability may vary.`);
   await expect(unknownDialog.locator("tbody tr")).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(unknownDialog).toBeHidden();

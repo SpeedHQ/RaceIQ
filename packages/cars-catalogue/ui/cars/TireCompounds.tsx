@@ -38,6 +38,8 @@ export const LMU_DRY_COMPOUNDS: Record<string, readonly string[]> = {
 };
 
 
+
+
 /** Coloured compound circles for a car card; nothing when the game publishes no window. */
 export function TireCompoundDots({ gameId, className = "" }: { gameId: GameId; className?: string }) {
   const { m } = useCarsCatalogueHost();
@@ -84,8 +86,8 @@ export function CarTireDialog({
           <>
             <p className="text-sm text-app-text-muted">
               {compounds
-                ? `Dry compounds for ${carClass}: ${compounds.join(", ")}. Track availability may vary.`
-                : `Class-level dry compounds unknown for ${carClass || "Unknown class"}. Track options vary.`}
+                ? `Dry compounds for ${carClass}: ${compounds.join(", ")}. Wet tires available separately. Track availability may vary.`
+                : `Class-level dry compounds unknown for ${carClass || "Unknown class"}. Wet tires available separately. Track availability may vary.`}
             </p>
             <p className="text-xs text-app-text-muted">Temperature rows below use the LMU tire temperature guide.</p>
           </>

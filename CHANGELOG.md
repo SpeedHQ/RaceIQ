@@ -3,7 +3,7 @@
 ### Features
 - Show stint trends as p50 and p95 fuel and tire-wear percentiles for hot tires, with separate cold-tire figures measured from the core temperature channel.
 - Give ACC, AC Evo, and F1 2025 per-compound optimal core-temperature ranges used for cold-tire stint figures and tire-temperature diagnosis.
-- Show class-specific dry tire options on LMU Cars cards and dialogs, with track-dependent availability noted.
+- Show class-specific dry compounds and wet tires across LMU Cars cards and dialogs, with track-dependent availability noted.
 - Override tire cliff and dead-health thresholds per game and tire compound.
 - Open an expanded pit-estimate dialog with a projected lap horizon, four-wheel readings, and evidence.
 - Generate suggested race strategies from recorded fuel and four-wheel tire rates, open the builder from session analysis without reloading the page, review planned stops and fuel reserves, and manage saved plans on the Strategies page.
