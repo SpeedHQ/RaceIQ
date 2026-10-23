@@ -31,10 +31,11 @@ test("review route returns top valid metadata laps and excludes captures without
 test("review line-spread fallback handles empty, insufficient, and non-resampleable telemetry", async () => {
   const sessionId = await insertSession("10", "20", "acc");
   sessions.push(sessionId);
+  await updateSessionRawFile(sessionId, "/virtual/review-line-spread.bin", "test");
   const empty = await insertLap(sessionId, 1, 61, true, null, 0, null, null, null, null, null);
-  const short = await insertLap(sessionId, 2, 62, true, null, 0, null, null, null, null, null);
-  const noDistance = await insertLap(sessionId, 3, 63, true, null, 0, null, null, null, null, null);
-  const moving = await insertLap(sessionId, 4, 64, true, null, 0, null, null, null, null, null);
+  const short = await insertLap(sessionId, 2, 62, true, 12, 29, null, null, null, null, null);
+  const noDistance = await insertLap(sessionId, 3, 63, true, 41, 30, null, null, null, null, null);
+  const moving = await insertLap(sessionId, 4, 64, true, 71, 30, null, null, null, null, null);
   cachedLaps.push(short, noDistance, moving);
   const makePackets = (count: number, movingDistance: boolean) => Array.from({ length: count }, (_, index) => packet("acc", {
     DistanceTraveled: movingDistance ? index : 0,
