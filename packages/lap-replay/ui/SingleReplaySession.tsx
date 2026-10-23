@@ -3,7 +3,7 @@ import type { GameId } from "@raceiq/shared/games/ids";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import type { SemanticLapTelemetry } from "../contracts/replay";
 import type { ReplaySession as ReplaySessionData, SpectateController, SpectateSegment } from "../contracts/spectate";
-import { createSpectateController, prepareSpectateLap } from "./spectate-replay";
+import { createSpectateController, placeIRacingSpectateLaps, prepareSpectateLap } from "./spectate-replay";
 import { SpectateView } from "./SpectateView";
 import { useLocalStorage, useSettings } from "./host";
 export interface SingleReplaySessionProps {
@@ -22,7 +22,10 @@ export interface SingleReplaySessionProps {
 
 /** One native replay clock rendered through the same scene and panels as comparison. */
 export function SingleReplaySession({ gameId, lap, replay, outline, segments, initialFrame, ai, aiOpen, onAiOpenChange, onController, panelHeaderTarget }: SingleReplaySessionProps) {
-  const a = useMemo(() => prepareSpectateLap(replay), [replay]);
+  const a = useMemo(() => {
+    const lap = prepareSpectateLap(replay);
+    return gameId === "iracing" ? placeIRacingSpectateLaps([lap, lap], null)[0] : lap;
+  }, [gameId, replay]);
   const session = useMemo<ReplaySessionData>(() => ({
     gameId,
     a,

@@ -1,9 +1,12 @@
+import { fileURLToPath } from "node:url";
 import { Schema } from "effect";
 import { SplitRequestSchema, WorkerMessageSchema, type SplitRequest, type WorkerMessage } from "./protocol";
 import { SplitFailure } from "./index";
 import type { PublishedManifest } from "./contract";
 
-const isCompiled = import.meta.url.includes("/$bunfs/") || import.meta.url.includes("~BUN");
+const modulePath = fileURLToPath(import.meta.url);
+const isCompiled = modulePath.startsWith("/$bunfs/") || modulePath.includes("~BUN");
+
 export function runSplitWorker(request: SplitRequest, onProgress?: (message: Extract<WorkerMessage, { type: "progress" }>) => void, signal?: AbortSignal): Promise<PublishedManifest> {
   const validated = Schema.decodeSync(SplitRequestSchema)(request);
   return new Promise((resolve, reject) => {

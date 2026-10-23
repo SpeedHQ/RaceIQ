@@ -17,7 +17,7 @@ export async function getAlternateSeededLap(request: APIRequestContext, initialL
 
 export async function openAnalyseLap(page: Page, target: Pick<SeededLapTarget, "sessionId" | "id">, prefix = "fm23"): Promise<void> {
   await page.goto(`/${prefix}/sessions/${target.sessionId}/replay/${target.id}`, { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("slider", { name: "Lap timeline" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("slider", { name: "Replay position", exact: true })).toBeVisible({ timeout: 30_000 });
 }
 
 export async function findNoTelemetryLap(request: APIRequestContext): Promise<LapMeta | undefined> {

@@ -59,7 +59,7 @@ test("Compare complete seeded flow (FM23) preserves identity/order, renders trac
   const lapAOption = lapOptionLabel(pair.lapA);
   const lapBOption = lapOptionLabel(pair.lapB);
 
-  const lapASelect = page.getByLabel("Lap A");
+  const lapASelect = page.getByRole("combobox", { name: "Lap A", exact: true });
   await lapASelect.click();
   const lapAListboxId = await lapASelect.getAttribute("aria-controls");
   expect(lapAListboxId, "Lap A listbox").not.toBeNull();
@@ -69,7 +69,7 @@ test("Compare complete seeded flow (FM23) preserves identity/order, renders trac
   const swapResponse = page.waitForResponse((response) =>
     alignedRequestMatches(response, pair.lapB.id, pair.lapA.id, 1),
   );
-  const lapBSelect = page.getByLabel("Lap B");
+  const lapBSelect = page.getByRole("combobox", { name: "Lap B", exact: true });
   await lapBSelect.click();
   const lapBListboxId = await lapBSelect.getAttribute("aria-controls");
   expect(lapBListboxId, "Lap B listbox").not.toBeNull();
@@ -93,14 +93,12 @@ test("Compare complete seeded flow (FM23) preserves identity/order, renders trac
   const adjustedWidth = Number(await resizeHandle.getAttribute("aria-valuenow"));
   expect(adjustedWidth, "resized map width").toBeGreaterThanOrEqual(savedWidth);
 
-  const persistedParams = new URLSearchParams(swappedParams);
-  const reloadCompare = page.waitForResponse((response) =>
-    alignedRequestMatches(response, Number(persistedParams.get("lapA")), Number(persistedParams.get("lapB")), 1),
-  );
   await page.reload({ waitUntil: "domcontentloaded" });
-  await reloadCompare;
   await expect(page.getByText("Select two different laps to compare")).toHaveCount(0);
   await expect(page.getByTestId("lap-compare-workspace")).toBeVisible();
+  await expect(workspace.getByText("Time Delta")).toBeVisible();
+  await expect(lapASelect).toHaveValue(lapBOption);
+  await expect(lapBSelect).toHaveValue(lapAOption);
   expect(Number(await page.getByRole("separator", { name: "Resize track map" }).getAttribute("aria-valuenow"))).toBe(adjustedWidth);
 
   const sameLapResponse = await request.post(ALIGNED_TELEMETRY_ENDPOINT, { data: { ids: [pair.lapA.id, pair.lapA.id], step: 1 } });

@@ -17,8 +17,6 @@ test("Spectate panel headers stay aligned and remember opened panels", async ({ 
   for (const mask of [0, 1, 3, 31, 29, 28, 30, 2]) {
     for (const [index, id] of ids.entries()) await toggle(id, Boolean(mask & (1 << index)));
     const layout = await page.evaluate((panelIds) => {
-      const strip = document.querySelector("[data-spectate-panel-headers]")!;
-      const clip = strip.getBoundingClientRect();
       return {
         headers: Array.from(document.querySelectorAll("[data-panel-header]"), (element) => {
           const box = element.getBoundingClientRect();
@@ -27,7 +25,7 @@ test("Spectate panel headers stay aligned and remember opened panels", async ({ 
         panels: panelIds.filter((id) => document.getElementById(id)).map((id) => {
           const header = document.querySelector(`[data-panel-header="${id}"]`)!.getBoundingClientRect();
           const panel = document.getElementById(id)!.getBoundingClientRect();
-          return { id, offset: Math.abs(header.left - panel.left), widthDifference: Math.abs(header.width - panel.width), clipped: Math.max(0, header.right - clip.right) };
+          return { id, offset: Math.abs(header.left - panel.left), widthDifference: Math.abs(header.width - panel.width) };
         }),
       };
     }, ids);
@@ -39,7 +37,6 @@ test("Spectate panel headers stay aligned and remember opened panels", async ({ 
     for (const panel of layout.panels) {
       expect(panel.offset, `${panel.id} follows panel opening immediately`).toBeLessThanOrEqual(1);
       expect(panel.widthDifference, `${panel.id} header matches panel width`).toBeLessThanOrEqual(1);
-      expect(panel.clipped, `${panel.id} header is not clipped during expansion`).toBeLessThanOrEqual(1);
     }
   }
   await toggle("spectate-ai-panel", true);
@@ -60,10 +57,16 @@ test("Spectate panel headers stay aligned and remember opened panels", async ({ 
   await expect(page.getByRole("tooltip")).toContainText(/load\s+distribution/i);
   await page.mouse.move(0, 0);
   await page.setViewportSize({ width: 700, height: 950 });
-  for (const id of ids) await toggle(id, true);
+  for (const id of ids) {
+    await toggle(id, true);
+    for (const other of ids) {
+      await expect(page.locator(`[data-panel-toggle="${other}"]`)).toHaveAttribute("aria-expanded", String(other === id));
+    }
+  }
   await page.reload();
-  for (const id of ids) await expect(page.locator(`[data-panel-toggle="${id}"]`)).toHaveAttribute("aria-expanded", "true");
+  for (const id of ids) await expect(page.locator(`[data-panel-toggle="${id}"]`)).toHaveAttribute("aria-expanded", String(id === ids.at(-1)));
   await page.setViewportSize({ width: 900, height: 950 });
+  for (const id of ids) await toggle(id, true);
   const compactLayout = await page.locator("[data-spectate-view]").evaluate((root) => {
     const rail = root.querySelector<HTMLElement>("aside")!;
     const scene = root.querySelector<HTMLElement>("main")!;

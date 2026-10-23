@@ -1,6 +1,6 @@
 import { useCompareLineSpread } from "./host"
 import { SpectateLineScore } from "./SpectateLineScore";
-import { useMemo, useState, type ReactNode } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useMessages } from "./host"
 import { CompareAiPanel } from "./host"
 import { useReplayHost } from "./host"
@@ -56,6 +56,23 @@ const [aiHeaderControls, setAiHeaderControls] = useState<HTMLDivElement | null>(
 const [dataOpen, setDataOpen] = useLocalStorage(single ? "replay-data-open" : "spectate-data-open", single);
 const [insightsOpen, setInsightsOpen] = useLocalStorage(single ? "replay-insights-open" : "spectate-insights-open", false);
 const [segmentsOpen, setSegmentsOpen] = useLocalStorage("replay-segments-open", false);
+const view = useRef<HTMLDivElement>(null);
+useLayoutEffect(() => {
+  const root = view.current;
+  const inputs = root?.querySelector<HTMLElement>("[data-spectate-inputs]");
+  if (!root || !inputs) return;
+  let height = -1;
+  const measure = () => {
+    const nextHeight = inputs.offsetHeight;
+    if (nextHeight === height) return;
+    height = nextHeight;
+    root.style.setProperty("--spectate-inputs-height", `${height}px`);
+  };
+  const observer = new ResizeObserver(measure);
+  observer.observe(inputs);
+  measure();
+  return () => observer.disconnect();
+}, []);
 return (
   <SpectateWorkspace storageKey={single ? "replay-panel-width" : "spectate-panel-width"} panelHeaderTarget={panelHeaderTarget} panels={[
     { id: single ? "replay-telemetry-panel" : "spectate-telemetry-panel", label: m.spectate_telemetry(), open: telemetryOpen, closedWidth: 100, toggle: onTelemetryOpenChange, collapseOnNarrow: true,
@@ -76,7 +93,7 @@ return (
         lapB={{ id: pair.comparison.lapB.id, label: `${m.compare_lap_label()} ${pair.comparison.lapB.lapNumber} (${formatLapTime(pair.comparison.lapB.lapTime)})`, lapTime: pair.comparison.lapB.lapTime }}
         segments={segments.map(({ name, startFrac, endFrac }) => ({ name, startFrac, endFrac }))} /> : ai?.(aiHeaderControls)}</div> },
   ]}>
-    <div className="relative min-h-0 flex-1 overflow-hidden">
+    <div ref={view} className="relative min-h-0 flex-1 overflow-hidden max-sm:has-[[data-spectate-overview]]:min-h-[calc(var(--spectate-inputs-height,8rem)+40rem)]">
       <SpectateScene pair={pair} controller={controller} outline={outline} focus={focus}
         overview={<SpectateOverview pair={pair} controller={controller} segments={segments} focus={focus} />} />
       <SpectateFocusToolbar focus={focus} onChange={setFocusMode} single={single} tirePanelOpen={carPanelOpen} onTirePanelOpenChange={onCarPanelOpenChange} />

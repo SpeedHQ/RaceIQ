@@ -27,7 +27,7 @@ export interface NativeSourceSupervisor {
 export function startNativeSourceSupervisor(
   recordingGameId: string | null,
 ): NativeSourceSupervisor {
-  if (!IS_WINDOWS) {
+  if (!IS_WINDOWS || process.env.RACEIQ_E2E === "1") {
     return { stop: async () => {} };
   }
 

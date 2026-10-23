@@ -6,7 +6,7 @@
 - Add an overall clean-driving score to the iRacing Latest Session card, based on valid timed laps and excluding pit laps.
 - Review observed personal incident-point increases, sampled off-track spans, and recorded clean-lap streaks in saved iRacing sessions, with event links and replay timeline markers limited to recorded lap evidence.
 - Keep iRacing replay incident markers alongside the shared replay visualization and telemetry panels.
-- Render iRacing comparison laps in Focus View and Spectate from recorded GPS; project live lap progress onto official track geometry when GPS is unavailable, using replay's map handedness, forward car headings, and official turn labels without treating projected positions as measured racing lines.
+- Render iRacing comparison laps in Focus View, Spectate and circuit overviews from recorded GPS; project live lap progress onto official track geometry when GPS is unavailable, using replay's map handedness, forward car headings, and official turn labels without treating projected positions as measured racing lines.
 - Show clickable circuit-overview sector markers on desktop only while hovering or using keyboard focus; keep them visible on touch screens.
 - Group LMU state of charge, virtual energy and regenerative power in a separate table below the main Replay and Compare → Spectate metrics.
 - Use dashed track edges in Replay and Compare → Spectate to provide fixed-distance speed cues.
@@ -34,6 +34,9 @@
 - Smooth iRacing lap replay by interpolating the track marker and timeline cursor between recorded telemetry frames.
 
 ### Fixes
+- Keep Replay and Compare → Spectate circuit overviews clear of mobile input dashboards and camera/focus controls.
+- Restore resized Replay and Spectate panel widths when reopening the same panels, while preserving compact defaults for different panel combinations.
+- Keep dashboard summaries available when historical recordings cannot be decoded.
 - Hide iRacing tire temperatures and pressure in live and replay telemetry views instead of presenting pit-only snapshots or cold setup pressure as live readings.
 - Keep tire silhouettes visible in 2D layouts when temperature telemetry is unavailable, without inventing temperature readings.
 - Restore iRacing track edges and 3D track placement for official maps that use symbol-based start/finish markers.
@@ -118,14 +121,14 @@
 - Orient the iRacing replay map marker along the plotted lap path instead of simulator-frame yaw.
 - Hide iRacing 3D track, racing-line, tire-trail, and input overlays because live telemetry does not provide world-position samples.
 - Correct iRacing clutch pedal direction so released reads 0% and fully pressed reads 100% in live telemetry and replay.
-- Complete first-run sparse recording migration in compiled builds instead of failing.
+- Complete first-run sparse recording migration in packaged builds, including Windows.
 
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
+- Align seeded E2E capability and dialog checks with production behavior, isolate native game discovery, and use release-pinned Bun for historical upgrade fixtures.
 - Remove the stale tire-pressure capability snapshot assertion; retain parser/resolver coverage that prevents iRacing cold setup pressures from appearing as live readings.
 - Run workspace lint through the installed Oxlint CLI and isolate native database test fixtures in subprocesses to keep Windows pre-commit checks reliable.
-- Run native Spectate camera and transition checks on macOS GPU runners while retaining cross-platform coverage for CPU-compatible rendering paths.
 - Extract Sessions and Session Analyse into feature-owned UI, server, contract, and test workspaces while preserving existing navigation and analysis behavior.
 - Move Sessions and Session Review into their own package.
 - Update the dependency lockfile for Bun 1.4.4 so the Bench compare workflow can use frozen installs.
@@ -135,7 +138,7 @@
 - Use Ubuntu instead of macOS for CI runners and cap Mars memory requests at 6 GB.
 - Invalidate cached frontend builds when source changes in dependent workspaces.
 - Extract tracks and cars catalogues into feature-owned UI, server, contract, and E2E workspaces with enforced browser boundaries, inherited Turbo impact inputs, and isolated compiled-app browser tasks.
-- Run native Spectate camera and transition checks in a dedicated browser lane while retaining coverage for CPU-compatible rendering paths.
+- Run native Spectate camera and transition checks with full Chromium and a required hardware WebGPU adapter in a dedicated lane, retaining CPU-compatible coverage separately.
 - Verify LMU recorded pit-cycle classifications independently of lap validity, preserving telemetry-quality failures and incomplete tails.
 - Synchronize zoom-reversal checks with rendered transition frames and wait for concurrent SQLite writers during migration fixture setup.
 - Keep sparse-capture fixtures schema-valid and verify failed classification recordings without waiting for dashboard work blocked by startup repair prerequisites.

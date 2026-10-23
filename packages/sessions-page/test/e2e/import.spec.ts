@@ -93,6 +93,7 @@ test("session importer handles dropped files, sidecars and busy states through p
     expect(sidecar.name).toBe("sample.duckdb.WAL");
     await sidecarDetection;
     await expect(dropZone).toContainText("sample.duckdb + sample.duckdb.WAL");
+    await expect(dropZone).toHaveAttribute("aria-busy", "false");
     await expect(importButton).toBeDisabled();
 
     const droppedDetection = page.waitForResponse("**/api/laps/detect-import");
