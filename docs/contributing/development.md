@@ -42,6 +42,34 @@ bun run db:seed --force
 
 Seed is idempotent. Seeded sessions retain live `source` metadata (`NULL`); seed ownership is tracked in notes for `--reset`. Stop the server before running `--clean`: it deletes the database, SQLite sidecars, and dashboard access marker, then recreates the schema and reseeds. This resets dashboard passwords, network settings, and login sessions; configure dashboard access again on startup. Other files in `DATA_DIR` remain intact. Use a disposable `DATA_DIR` because this is destructive. `--reset` replaces seeded rows only. Without `--force`, seed refuses to mix demo data into a database containing captured user data.
 
+LMU tests and recordings are owned by `packages/game-lmu/test/`; fixtures live in
+`fixtures/sessions/` and `fixtures/laps/`. Default LMU seeds include the complete
+22 October multiplayer recording: 30,957 native frames packaged as 11 gzip
+parts, each strictly below 100,000,000 bytes. Together the parts are
+1,076,532,236 bytes and decode to 16,629,389,274 bytes, so allow disk space for
+reassembly and saved captures. The seed streams native input rather than
+buffering the complete recording. Native v2/v3 seeds use the production direct
+recorder's player/opponent partition; compact v1 fixtures and explicit
+`--legacy-recordings` retain offline sparse storage. Screenshot seeds exclude
+the large multipart captures and use bounded fixtures instead. Existing seeded
+databases remain no-ops; use `--reset` in a disposable database to include new
+fixtures.
+
+`packages/game-lmu/test` is nested workspace `@raceiq/game-lmu-tests`: actual
+unit cases use `unit/`, backend integrations use `e2e/backend/`, recording
+E2Es use `e2e/recordings/`, and browser specs use `e2e/browser/`. The runtime
+SDK retains strict game boundaries; the child declares cross-layer test
+dependencies. Existing commands remain:
+
+```sh
+bun run --cwd packages/game-lmu test:unit
+bun run --cwd packages/game-lmu test:integration
+bun run --cwd packages/game-lmu test:e2e:recordings
+```
+
+Direct owner-runner selection uses `--package @raceiq/game-lmu-tests`.
+
+
 ## Database changes
 
 `server/db/schema.ts` is the typed schema reference. Runtime migrations come from the embedded SQL list in `server/db/migrations.ts`.

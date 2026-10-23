@@ -8,7 +8,6 @@ import { readKunosFrames } from "@raceiq/capture-formats/kunos/dump";
 import { ACEVO_PACKED_MAGIC, ACC_PACKED_MAGIC, packTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
 import { iterateSessionCaptureRecords } from "@raceiq/capture-formats/session/framing";
 import { readIRacingFrames } from "@raceiq/capture-formats/iracing/dump";
-import { readLMUFrames } from "@raceiq/capture-formats/lmu/dump";
 import { F1_HEADER_SIZE, F1_PACKET_IDS } from "@raceiq/capture-formats/f1-2025/f1-wire";
 
 function standingStartFrames(options: { startEvidence?: boolean; distanceScale?: number; duration?: number } = {}): TelemetryBatchInput[] {
@@ -250,17 +249,6 @@ describe("processTelemetryBatch", () => {
       { sessionKey: 2, lapNumber: 1, lapTime: 81.535, valid: false, invalidReason: "start/end positions too far apart", frameCount: 27_312, complete: true, byteOffset: 1_833_094, sectors: [32.099, 29.003, 20.433] },
       { sessionKey: 2, lapNumber: 2, lapTime: 79.328, valid: true, invalidReason: null, frameCount: 26_508, complete: true, byteOffset: 32_468_053, sectors: [29.751, 29.382, 20.194999999999997] },
     ]);
-  });
-  test("retains LMU parser-provided identity in session metadata", async () => {
-    const path = resolve(import.meta.dir, "../../../test/artifacts/sessions/lmu-spa-iron-lynx-gte.bin.gz");
-    const frames = readLMUFrames(path).map((data, index) => ({ data, rawByteOffset: index }));
-    expect(frames.length).toBeGreaterThan(0);
-    const result = await processTelemetryBatch("lmu", frames);
-    expect(result.sessions).toHaveLength(1);
-    expect(result.sessions[0]).toMatchObject({
-      gameId: "lmu", sessionUID: expect.stringContaining("porsche_911rsr-19_2023"),
-      carId: "porsche_911rsr-19_2023", trackId: "Circuit de Spa-Francorchamps",
-    });
   });
   test("context primes parser without emitting telemetry; segment boundary resets lifecycle", async () => {
     const frames = lapFrames();

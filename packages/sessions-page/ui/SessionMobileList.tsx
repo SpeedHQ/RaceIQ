@@ -9,6 +9,7 @@ import { SessionCaptureSplitStatus } from "./SessionCaptureSplitStatus";
 import { NoteCell } from "./NoteCell";
 import type { LapSortKey, SessionSelectionEvent, SortDir } from "./types";
 import { useSessionsPageHost } from "./host";
+import { SessionOpponentRecords } from "./SessionOpponentRecords";
 import { parseUtcTimestamp } from "@raceiq/frontend-pure/utc-date";
 
 
@@ -161,6 +162,7 @@ export function SessionMobileList({
                   />
                 </div>
               )}
+              {isExpanded && gameId === "lmu" && <SessionOpponentRecords session={session} laps={sessionLaps} enabled={isExpanded} />}
             </div>
           );
         })

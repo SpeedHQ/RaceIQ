@@ -1,8 +1,9 @@
 import { createHash, randomUUID } from "node:crypto";
-import { lstat, open, readFile, realpath, rename, rm, stat, unlink, writeFile } from "node:fs/promises";
+import { lstat, open, readFile, realpath, rename, rm, stat, unlink } from "node:fs/promises";
 import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import type { Manifest } from "@raceiq/capture-splitting";
 import { ManifestSchema } from "@raceiq/capture-splitting";
+import { persistCaptureManifest } from "./manifest-persistence";
 import type { OpponentRemovalPreview, OpponentRemovalRequest, OpponentRemovalSkip, OpponentRemovalStatus } from "@raceiq/shared/racing/sessions/opponent-removal";
 import { encodeFrameLength, encodeMetaFrame, encodeParserBootstrapFrame, encodeSegmentBoundaryFrame, encodeSegmentContextEndFrame, encodeSegmentContextFrame, encodeSparseCaptureFormatFrame } from "@raceiq/capture-formats/session/framing";
 import { SparseCaptureEncoder } from "@raceiq/capture-formats/session/sparse-recorder";
@@ -134,20 +135,6 @@ export async function previewSessionOpponentRemoval(request: OpponentRemovalRequ
   return (await buildPlan(request)).preview;
 }
 
-async function persistManifest(path: string, manifest: Manifest): Promise<void> {
-  const temp = `${path}.tmp-${randomUUID()}`;
-  try {
-    await writeFile(temp, JSON.stringify(manifest), { flag: "wx" });
-    const file = await open(temp, "r+");
-    try { await file.sync(); } finally { await file.close(); }
-    await rename(temp, path);
-    const parent = await open(dirname(path), "r");
-    try { await parent.sync(); } finally { await parent.close(); }
-  } catch (error) {
-    await rm(temp, { force: true }).catch(() => {});
-    throw error;
-  }
-}
 
 type LegacyLap = { id: number; sessionId: number; lapNumber: number; rawByteOffset: number | null; rawFrameCount: number | null };
 type LegacyChunk = {
@@ -344,7 +331,7 @@ async function rewriteLegacyCandidate(candidate: Candidate): Promise<{ freedByte
       opponentRetention: "removed", cleanupPending: [basename(candidate.path)], chunks: publishedChunks,
     });
     for (const chunk of chunks) cleanupPaths.push(chunk.path);
-    await persistManifest(manifestPath, manifest);
+    await persistCaptureManifest(manifestPath, manifest);
     cleanupPaths.push(manifestPath);
     const currentSource = await stat(candidate.path);
     const currentRevision = `${currentSource.dev}:${currentSource.ino}:${currentSource.size}:${currentSource.mtimeMs}`;
@@ -427,7 +414,7 @@ async function executeCandidate(candidate: Candidate): Promise<{ freedBytes: num
       opponentRetention: "removed",
       cleanupPending: pending,
     });
-    await persistManifest(candidate.path, removed);
+    await persistCaptureManifest(candidate.path, removed);
     clearCaptureManifestCache(candidate.path);
     clearSessionCaptureCache(candidate.path);
     const affectedLaps = await readDb.select({ id: laps.id }).from(laps).where(inArray(laps.sessionId, candidate.sessionIds)).all();
@@ -543,7 +530,7 @@ async function recoverPendingOpponentRemovalCleanupDetailed(onlyManifestPath?: s
         }
       }
       if (remaining.length !== manifest.cleanupPending.length) {
-        await persistManifest(manifestPath, Schema.decodeSync(ManifestSchema)({ ...manifest, cleanupPending: remaining }));
+        await persistCaptureManifest(manifestPath, Schema.decodeSync(ManifestSchema)({ ...manifest, cleanupPending: remaining }));
         clearCaptureManifestCache(manifestPath);
         clearSessionCaptureCache(manifestPath);
       }

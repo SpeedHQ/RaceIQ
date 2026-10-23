@@ -453,3 +453,150 @@ Repeat Phase 1 scenarios in Phase 2 when relevant inputs change; reuse unchanged
 ## Ownership
 
 Backend integration owner owns shared schema/catalog, validators, source inventory, companion format/index and generation rules. UI consumes typed data without inventing measurements. Contract changes update both linked plans before dependent implementation proceeds. Coordinate shared preservation strategy with #477; its ACC shared-memory/UDP transport design is not LMU's native/REST design.
+
+## Recording-backed individual opponent sessions — 2026-10-22
+
+User authorizes individual opponent session records and comparison using the supplied Windows multiplayer recording. This extends the earlier single-opponent selection scope without manufacturing numeric player sessions or duplicating captures. Reuse [UI plan](lmu-competitor-data-ui-plan.md) and [backend plan](lmu-competitor-data-backend-plan.md).
+
+### Agreed boundary
+
+Extend authenticated `GET /api/laps/:id/opponent-laps` with required `sessions: readonly OpponentSessionSummary[]`; preserve `laps`, retention, revision, validation and errors above. Each virtual record has `{ opponentSessionId: string, sessionKey: string, vehicleId: number, incarnation: number, driverName: string | null, carName: string | null, className: string | null, lapIds: readonly string[] }`. IDs are opaque deterministic hashes of source session generation, native vehicle ID and incarnation. `lapIds` reference exactly that record's entries in `laps`, in lap-number/opaque-ID order. Sessions sort by driver name, vehicle ID, incarnation, session key and ID. Duplicate names never merge; player is excluded. Empty/removed/not-recorded/unavailable catalogs return empty sessions. No new database rows, file copies, schema migration or mutation endpoints.
+
+On desktop/mobile Sessions, expanding an LMU player session exposes individually labeled recorded opponent session records and each record's laps. Select an existing player lap from that session, then compare any eligible opponent lap through existing `/lmu/compare` search (`lapA`, `track`, `carA`, `reference=opponent`, `opponentLap`, `opponentRevision`). Keep partial/unknown/invalid warnings and disabled reasons; never choose a hidden best lap or use a rolling timing scalar as an invented lap. Non-LMU sessions do not fetch opponent catalogs. Access uses typed existing Hono RPC supplied through the sessions feature host.
+
+Recorded evidence: source `packages/game-lmu/test/fixtures/laps/lmu-2026-10-22T21-59-41-929Z-f9c5a07c-aa24-42bb-a574-50784313fe93.bin` (local ignored original), 30,957 v3 native frames, 15 opponent identities, with native controls and scoring/motion populated. Derive a bounded committed sparse/gzip fixture from exact source frames; preserve source clocks, sequence gaps, identity and invalid states, record source/frame provenance. Never commit multi-GB originals, rewrite sequence continuity or enable unverified fuel/energy semantics. Existing supported comparison semantics remain unchanged.
+
+### Acceptance and shared E2E scenarios
+
+| ID | Observable acceptance | Real-system scenario |
+| --- | --- | --- |
+| OS1 | Compact fixture retains actual opponents, identity, changing source-backed motion/timing and original timestamps; decoded frame conservation verified. | OS-E1: derive from native dump, verify decoded hashes/provenance, import bounded fixture through real HTTP into isolated application data. |
+| OS2 | Catalog outputs distinct stable records per generation/vehicle/incarnation, exact lap membership and no player or duplicate-name merge. | OS-E2: production HTTP import/catalog of real fixture; assert named opponents and lap membership, repeat IDs; existing controlled identity/departure fixtures cover generation/reuse/duplicate names. |
+| OS3 | Desktop/mobile Sessions exposes individual opponent records, player-lap selection and eligible opponent-lap comparison with correct identity and revision. | OS-E3: existing seeded Playwright harness imports real fixture, expands session, chooses driver/lap, opens existing Compare, verifies matching selected identity, source-backed comparison/replay and reload. |
+| OS4 | Partial/unknown/unavailable and removed/not-recorded data remain honest; no cross-driver/player attribution; ordinary player/non-LMU flows preserved. | OS-E4: real sampled fixture remains partial where sequences have gaps; controlled existing retention/stale-source/no-comparable tests and browser removal scenario preserve errors and player replay. |
+
+Boundary handling: sampled gaps stay partial (OS1/OS4); mid-lap/end/disappearance never become complete (OS2/OS4); duplicate names/reused IDs/generation changes stay separate records (OS2); missing/corrupt/removed sources preserve player data and existing explicit reasons (OS4); no saved player lap means no comparison and no fabricated anchor (OS3/OS4); stale revisions retain existing conflict/reload behavior (OS3/OS4). Integration owner executes shared OS-E1–E4 after parallel implementation and records actual outcomes, not planned passes.
+
+Real-fixture refinement (OS3/OS4, OS-E3/OS-E4): recorded scoring update counters can restart while the same identity's session clock and capture sequence advance. A counter is not a global replay ordinal. Preserve its provenance; publish a separate replay ordinal with a discontinuity at counter resets and missing capture ranges. Identical source observation keys deduplicate; repeated counter numbers with later original observation times are distinct observations. Backward/incomparable observation time at a counter reset remains invalid rather than joining unrelated data. E2E must request actual opponent semantic telemetry and verify shared replay loads without a source-sequence error, not only timing comparison.
+
+### Executed individual-record verification
+
+| Criteria / scenario | Executed proof | Outcome |
+| --- | --- | --- |
+| OS1 / OS-E1 | `bun packages/game-lmu/test/support/derive-opponents-fixture.ts`, followed by production HTTP imports in the existing seeded browser suite | Source SHA-256 matched; 330-frame stable tail and 51-frame full grid decoded identically after sparse encoding. Fixtures are 3,648,326 and 1,922,505 bytes; original dump unchanged. |
+| OS2 / OS-E2 | `OS-E2 preserves all 15 recorded opponents as individual session records` | Real HTTP catalog and desktop Sessions rendered vehicle IDs 16, 17, 18, 20, 22, 24, 30, 32, 34, 35, 37, 47, 50, 51, 53 separately, with exact lap membership; player 54 excluded. |
+| OS3/OS4 / OS-E3 | Desktop/mobile `OS-E3` real-recording cases | Imported player lap 3 and recorded opponent lap 9 compared through actual UI/API; exact source position/speed/capture timestamp, revision/URL reload and ready shared replay scene verified. Partial/unknown warnings remained visible; counter resets no longer rejected replay. |
+| OS4 / OS-E4 | Existing controlled desktop/mobile browser cases plus `bun test packages/game-lmu/test/e2e/backend/integration/opponent-routes.test.ts --timeout 120000` | Original full keyboard/replay/export/reimport/stale-reference/removal workflows preserved. Final focused backend run: 16 passed, including duplicate-name generation/incarnation isolation, counter resets, repeated scoring observations, missing native captures, removed empty catalogs and preserved player replay. |
+
+Full opponent browser file completed with **6 passed** (setup plus five scenarios), zero retries. After the final pending-capture-gap correction, reran the three recording-backed scenarios and setup with **4 passed**. Current equivalent command from `playwright/`: `E2E_SERVER_MODE=dev PW_SERVER_SET=seeded bunx playwright test ../packages/game-lmu/test/e2e/browser/compare/lmu-opponents.spec.ts --project=seeded-imports --grep OS-E --workers=1 --retries=0`, using isolated ports/data directories. These historical executions predate the ownership move; paths above reflect current locations. The original ordinary test ownership guard passed all 436 files exactly once.
+
+Scoped Sessions UI/server, replay server, backend application and Playwright TypeScript checks passed. Sessions unit suite: 15 passed; changelog: 11 passed. Direct installed oxlint invocation, both feature boundary checks and all 16 locale key inventories passed. Native source samples remain evidence for this recording, not blanket multiplayer fuel/energy or continuous-coverage acceptance.
+
+Limits: browser verification used the real development app, not a compiled release or repository-wide suite. Full client typecheck's last observed result is unrelated `TS6133` for unused `directory` in `server/session-capture/direct-recorder.ts:52`; that file was intentionally unchanged. Standard workspace lint launchers hit Bun `.bin` metadata errors, so the installed oxlint JavaScript entry was executed directly. No checks were weakened or errors filtered to obtain browser passes.
+
+## Package-owned LMU tests, complete seed and live-ingress proof
+
+The user requested all LMU-specific tests and fixtures in `packages/game-lmu`.
+This is an ownership change, not a new UI/backend API boundary. Existing
+comparison and retention contracts above remain authoritative.
+
+The user approved a nested test workspace, `@raceiq/game-lmu-tests`, at
+`packages/game-lmu/test`, with `unit/` and `e2e/` trees. Runtime SDK remains
+`@raceiq/game-lmu`, with unchanged strict `game` boundary rules and no dependency
+on its test workspace. Tests declare their app/client/feature dependencies.
+Canonical test-support operations/types point directly to authoritative modules
+in each package's `exports`; no UI/backend endpoint or payload changes.
+SDK-owned public providers live in `src/test-support`; child fixtures remain
+under `test/fixtures`. This is a clean ownership cutover, not a runtime shim.
+
+| ID | Observable acceptance and edge handling | End-to-end verification |
+| --- | --- | --- |
+| PKG1 | LMU-only suites and standalone cases live under `packages/game-lmu/test/{unit,e2e}/`; generic multi-game suites and shared test support retain their original owners. No old-path shims or duplicate test copies. | Discover the relocated unit/integration/recording/browser suites through their real launchers; exercise both relocated cases and the remaining generic cases. |
+| PKG2 | LMU recording fixtures and derivation support are package-owned. Moves preserve bytes, clocks, sequences and unknown/partial states. Raw originals stay ignored; each committed recording part is strictly below 100,000,000 bytes. | Same-volume rename preserves inode/device/size; reassembly plus streamed gzip verification matches the full original hash, byte count and 30,957-frame header. |
+| PKG3 | Every ordinary test is assigned once; caches include relocated fixtures and external support. Moved backend integrations keep application initialization; browser suites retain CommonJS fixture loading and the single-worker `seeded-imports` project. | Ownership guard, package launchers, scoped TypeScript checks and actual isolated browser execution; no mock production fallback. |
+| PKG4 | Default LMU seed imports all 11 parts once, streams native frames, retains player/opponent partitioning for native v2/v3 and preserves compact v1/explicit legacy storage. Repeated seed remains a no-op. Partial data never becomes a valid or fabricated lap; auxiliary-only captures need not already have per-lap publication metadata. | Real seed CLI in disposable directories; full recording import and repeat-run row equality; physical primary/companion inspection; real HTTP opponent catalog. Explicit legacy and compact fixtures exercise the alternate storage paths. |
+| PKG5 | Unchanged real native input enters the live parser and `processPacket`, not merely import indexing. Physical primary excludes opponents, companion restores every native byte/timestamp and all 15 non-player identities. Hardware acquisition is not inferred from file replay. | `e2e/backend/session-capture/opponent-recording-policy.test.ts` replays 51 exact recorded grid frames through production parser, live pipeline, recorder and joined source loader. |
+| PKG6 | Nested workspace owns cross-layer dependencies; strict SDK and test-workspace boundary checks pass without ignores. Existing SDK test commands select child owner once. Default test roots stay `<workspace>/test`; explicit `raceiq.testRoot: "."` selects child root, while parent `raceiq.testOwner: false` prevents duplicate ownership. Roots and manifest entries cannot escape their workspace/test tree. | PKG-E6: run actual SDK unit/integration/recording commands and ownership guard; run both boundary filters and Turbo dry-run. Existing owner-runner E2E covers flat/nested CLI dispatch, real SQLite preload, separate temporary data and preserved inherited-data sentinel. Shard regressions reject root/manifest traversal. |
+| PKG7 | Actual unit cases use `unit/`; existing integration cases use `e2e/backend/`, recording E2Es use `e2e/recordings/`, browser specs use `e2e/browser/`. Existing suite classifications, application preload and browser CommonJS scope remain unchanged. Fixtures and source hashes remain unchanged. | PKG-E7: actual Bun launchers plus existing serialized browser project discover relocated cases, read fixtures from child `fixtures/`, and exercise production parser/storage/API/UI. Source/test/browser type checks supplement these runs. |
+
+Executed before nested-workspace restructuring (fixture bytes and seed paths unchanged):
+
+- Ownership guard: all 454 ordinary files assigned exactly once.
+- Unit package launcher: 9 passed across 6 files.
+- Integration package launcher: 113 passed; one test cannot create its required
+  Windows file symlink (`EPERM`). The symlink safety assertion remains intact;
+  no skip or weaker replacement was added.
+- Native recording E2E: 12 scenarios passed under repository Bun 1.4.3, then the
+  targeted historical-migration scenario passed all five assertions and cleanup
+  after finalizing GC-owned native handles. Bun 1.4.4 failed the pinned
+  historical release's frozen-lockfile install, so that upgrade proof uses the
+  repository-declared 1.4.3 runtime.
+- Actual isolated development UI: 10 passed, zero retries (startup setup plus
+  nine relocated LMU scenarios), including recorded desktop/mobile comparison,
+  all 15 opponent records, recording preference persistence, opponent removal,
+  car filtering and track-outline placement.
+- Game source/test, Playwright, backend and tooling-data TypeScript scopes passed.
+- Full seed: 30,957 packets, 15 source generations, 17 invalid/incomplete laps;
+  repeat invocation left session/lap rows unchanged. Normal startup removed
+  one empty generation, leaving 14 capture-backed sessions. Real
+  `GET /api/laps/1/opponent-laps` returned HTTP 200 and all 15 opponent IDs,
+  excluding player 54.
+- CLI storage branches: native direct and explicit legacy modes each restored
+  all 51 original grid frames with matching decoded hashes; physical direct
+  primary frames were schema v5 with no opponents and a complete separate
+  companion. Compact v1 seed restored 4,309 packets and three laps, one valid.
+
+An obsolete private-method interception test and a duplicated backfill case
+were removed instead of re-pinning implementation details. Live recording,
+retention failure, source conservation and backfill behavior retain direct
+consumer-visible assertions.
+
+### Nested workspace execution
+
+PKG-E6/PKG-E7 now exercise the approved child workspace and final paths.
+The workspace-root edge includes a real dependency `node_modules/**/test/*.test.ts`:
+ownership discovery failed before excluding dependency tests, then passed with
+only the child-owned case assigned. Flat/nested CLI fixtures also write real
+SQLite data, preserve inherited-data sentinels and remove their temporary data.
+Configured-root and manifest traversal remain rejected.
+
+| Verification | Observed result |
+| --- | --- |
+| Ordinary ownership | 454 files assigned exactly once; suite classifications preserved. |
+| Existing SDK unit launcher | 9 passed across 6 files. |
+| Existing SDK integration launcher | 113 passed across 28 files, including real 51-frame live-ingress primary/companion conservation. One preserved file-symlink safety case fails at Windows `symlinkSync` with `EPERM`, before its safety assertions. |
+| Child recording E2E launcher, repository Bun 1.4.3 | 13 passed across all 5 files, including historical release migration and managed shutdown cleanup. |
+| Serialized production UI/backend browser project | 10 passed, zero retries, 3.7 minutes. Recorded desktop/mobile comparison, all 15 opponents, controlled keyboard/German-language workflows, removal, preference, cars and tracks all exercised. Current controlled and real-recording screenshots inspected. |
+| Owner discovery/CLI regressions | 15 passed across 2 files, including flat/nested isolation, dependency exclusion and traversal rejection. |
+| Retained generic archive owner | 20 passed; mixed-game import/export behavior remains with its original owner. |
+| Strict SDK and child Turbo boundaries | 55 files in 2 packages; no findings or boundary ignores. |
+| Scoped types and lint | SDK source 249 files; child tests 718; browser 232; backend 1,015; tooling-data 343; control plane 55. All checked scopes passed; changed-source oxlint passed. |
+| Frozen workspace installation | Repository Bun 1.4.3 checked 1,128 installs across 1,436 packages with no changes. |
+| Turbo routing dry-runs | Default selection schedules the child unit task once; explicit SDK selection schedules its forwarding unit task once. Non-test options-first dispatch retains SDK typechecking; no dependency cycle. |
+
+The Windows symlink assertion was not skipped or weakened. Full green
+integration evidence for that case requires file-symlink permission unavailable
+in this environment. No OS permission or policy setting was changed.
+PKG2/PKG4 full-source integrity, streaming seed, idempotency and storage-branch
+evidence above remains applicable: nested workspace setup did not change fixture
+bytes, fixture locations, seed registration or seed implementation.
+
+### Windows opponent-removal fixture follow-up
+
+At user request, removed the file-symlink fixture and its assertions from
+`opponent-removal.test.ts`; the earlier symlink limitation above is historical.
+The case still verifies shared player bytes survive while referenced, cleanup
+remains pending, and removing the final reference permits deletion and idempotent
+recovery with an empty pending list. Production symlink guards are unchanged;
+this case no longer covers companion symlinks.
+
+Unelevated Windows verification with Bun 1.4.4:
+`bun scripts/test/run-suite.ts integration --package @raceiq/game-lmu-tests`
+passed all 114 tests across 28 files, with 2,676 assertions and zero failures.
+
+Commit-gate follow-up restored the required iRacing diagnostic inputs and removed
+an unused direct-recorder field. Native SQLite test teardown now explicitly
+retries Windows `EBUSY` with a bounded delay because Bun 1.4.4 did not honor the
+`fs.rm` retry options on this path. Errors still propagate after the retry limit;
+all 374 backend unit tests passed with 1,236 assertions.
+

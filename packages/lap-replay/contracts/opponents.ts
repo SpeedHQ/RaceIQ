@@ -27,11 +27,24 @@ export interface OpponentLapSummary {
   reasons: readonly OpponentLapReason[];
 }
 
+export interface OpponentSessionSummary {
+  opponentSessionId: string;
+  sessionKey: string;
+  vehicleId: number;
+  incarnation: number;
+  driverName: string | null;
+  carName: string | null;
+  className: string | null;
+  lapIds: readonly string[];
+}
+
+
 export interface OpponentLapCatalog {
   playerLapId: number;
   sourceRevision: string;
   opponentRetention: "retained" | "removed" | "not-recorded";
   opponentAvailability: "complete" | "incomplete" | "missing" | "corrupt" | null;
+  sessions: readonly OpponentSessionSummary[];
   laps: readonly OpponentLapSummary[];
 }
 

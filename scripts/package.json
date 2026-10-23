@@ -2,7 +2,9 @@
   "name": "@raceiq/tooling",
   "private": true,
   "type": "module",
-  "exports": {},
+  "exports": {
+    "./test-support/dump": "./dev/dump.ts"
+  },
   "scripts": {
     "typecheck": "bun check --project tsconfig.json",
     "lint": "../client/node_modules/.bin/oxlint .",

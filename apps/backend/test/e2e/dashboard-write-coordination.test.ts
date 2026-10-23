@@ -24,7 +24,7 @@ let motecBytes: Uint8Array<ArrayBuffer>;
 let fixtureDirectory: string;
 beforeAll(async () => {
   fixtureDirectory = mkdtempSync(join(tmpdir(), "raceiq-write-fixtures-"));
-  const raw = decompressIfGzipSync(readFileSync(join(ROOT, "test/artifacts/sessions/lmu-spa-iron-lynx-gte.bin.gz")));
+  const raw = decompressIfGzipSync(readFileSync(join(ROOT, "packages/game-lmu/test/fixtures/sessions/lmu-spa-iron-lynx-gte.bin.gz")));
   if (containsSparseCaptureFrames(raw)) binBytes = Uint8Array.from(raw);
   else {
     const converted = await convertSeedFramesToSparse("lmu", readLMUFramesFromBuffer(raw));

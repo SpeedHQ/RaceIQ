@@ -19,6 +19,7 @@ import { and, eq, inArray, or, gt } from "drizzle-orm";
 import { dashboardSummaryState, sessions, sessionCaptureSplitJobs, liveCaptures } from "../db/schema";
 import { recoverPendingOpponentRemovalCleanup } from "./opponent-removal";
 import { cleanupOrphanSessionFiles, listSessionCaptureFiles, loadReferencedCapturePaths, withSessionCaptureMaintenanceLock } from "./cleanup";
+import { repairDirectCaptureManifests } from "./direct-capture-repair";
 import { cleanupExpiredStagedMotec } from "../motec/import-staging";
 import { loadSettings } from "../runtime/config/settings";
 import { executeSessionCleanup, SessionCleanupBusyError } from "./session-cleanup";
@@ -237,6 +238,13 @@ let maintenanceFiber: Fiber.Fiber<unknown, unknown> | null = null;
 function maintenancePassEffect(): Effect.Effect<void, MaintenanceError> {
   return Effect.gen(function* () {
     yield* Effect.tryPromise({
+      try: async () => {
+        const result = await repairDirectCaptureManifests();
+        if (result.failed > 0) throw new Error(`Failed to repair ${result.failed} direct capture manifest(s)`);
+      },
+      catch: (cause) => maintenanceIOError("direct-capture-repair", cause),
+    }).pipe(Effect.uninterruptible);
+    yield* Effect.tryPromise({
       try: () => runCompression(),
       catch: (cause) => maintenanceIOError("compression", cause),
     }).pipe(Effect.uninterruptible);
@@ -286,10 +294,12 @@ function maintenancePassEffect(): Effect.Effect<void, MaintenanceError> {
       try: () => cleanupExpiredStagedMotec(),
       catch: (cause) => maintenanceIOError("staged-import-cleanup", cause),
     }).pipe(Effect.uninterruptible);
-    const downsampleTempCount = yield* Effect.tryPromise({
-      try: () => cleanupInterruptedSessionDownsampleFiles(),
-      catch: (cause) => maintenanceIOError("downsample-temp-cleanup", cause),
-    }).pipe(Effect.uninterruptible);
+    const downsampleTempCount = !isSessionActive()
+      ? yield* Effect.tryPromise({
+        try: () => cleanupInterruptedSessionDownsampleFiles(),
+        catch: (cause) => maintenanceIOError("downsample-temp-cleanup", cause),
+      }).pipe(Effect.uninterruptible)
+      : 0;
     console.debug(orphanCount > 0 ? `[Cleanup] Removed ${orphanCount} orphan session file(s)` : "[Cleanup] No orphan session files found");
     if (stagedMotecCount > 0) console.debug(`[Cleanup] Removed ${stagedMotecCount} expired MoTeC staging director${stagedMotecCount === 1 ? "y" : "ies"}`);
     if (downsampleTempCount > 0) console.debug(`[Downsample] Removed ${downsampleTempCount} interrupted temporary file(s)`);

@@ -7,6 +7,12 @@ export type Suite = (typeof SUITES)[number];
 export interface TestOwner {
   name: string;
   root: string;
+  testRoot?: string;
+  disabled?: boolean;
+}
+
+export function ownerTestRoot(owner: TestOwner): string {
+  return owner.testRoot ?? `${owner.root}/test`;
 }
 
 function workspacePatterns(root: string): string[] {
@@ -17,16 +23,24 @@ function workspacePatterns(root: string): string[] {
   return Array.isArray(workspaces) ? workspaces : workspaces?.packages ?? [];
 }
 
-export function discoverTestOwners(root: string): TestOwner[] {
+export function discoverTestOwners(root: string, options: { includeDisabled?: boolean } = {}): TestOwner[] {
   const owners: TestOwner[] = [];
   for (const pattern of workspacePatterns(root)) {
     for (const manifestPath of new Bun.Glob(`${pattern.replace(/\\/g, "/")}/package.json`).scanSync({ cwd: root, onlyFiles: true })) {
       const ownerRoot = manifestPath.slice(0, -"/package.json".length);
-      const manifest = JSON.parse(readFileSync(resolve(root, manifestPath), "utf8")) as { name?: string };
-      if (!manifest.name || manifest.name === "client") continue;
+      const manifest = JSON.parse(readFileSync(resolve(root, manifestPath), "utf8")) as {
+        name?: string;
+        raceiq?: { testOwner?: boolean; testRoot?: string };
+      };
+      const disabled = manifest.raceiq?.testOwner === false;
+      if (!manifest.name || manifest.name === "client" || (disabled && !options.includeDisabled)) continue;
       const normalizedRoot = ownerRoot.replaceAll("\\", "/");
       if (normalizedRoot === ".." || normalizedRoot.startsWith("../") || resolve(root, normalizedRoot) !== resolve(root, manifestPath, "../")) continue;
-      owners.push({ name: manifest.name, root: normalizedRoot });
+      const testRoot = relative(root, resolve(root, normalizedRoot, manifest.raceiq?.testRoot ?? "test")).replaceAll(sep, "/");
+      if (testRoot !== normalizedRoot && !testRoot.startsWith(`${normalizedRoot}/`)) {
+        throw new Error(`${manifestPath}: raceiq.testRoot must stay inside ${normalizedRoot}`);
+      }
+      owners.push({ name: manifest.name, root: normalizedRoot, testRoot, ...(disabled ? { disabled: true } : {}) });
     }
   }
   const unique = new Map<string, TestOwner>();
@@ -35,8 +49,8 @@ export function discoverTestOwners(root: string): TestOwner[] {
 }
 
 export function readSuiteFiles(root: string, owner: TestOwner, suite: Suite): string[] {
-  const ownerRoot = owner.root.replaceAll("\\", "/");
-  const manifestRelative = `${ownerRoot}/test/${suite}-files.txt`;
+  const testRoot = ownerTestRoot(owner).replaceAll("\\", "/");
+  const manifestRelative = `${testRoot}/${suite}-files.txt`;
   const manifest = resolve(root, manifestRelative);
   if (!existsSync(manifest)) return [];
   const files: string[] = [];
@@ -48,7 +62,7 @@ export function readSuiteFiles(root: string, owner: TestOwner, suite: Suite): st
     const normalized = line.replaceAll("\\", "/");
     const absolute = resolve(root, normalized);
     const repoPath = relative(root, absolute).replaceAll(sep, "/");
-    const prefix = `${ownerRoot}/test/`;
+    const prefix = `${testRoot}/`;
     const location = `${manifestRelative}:${index + 1}`;
     if (repoPath !== normalized || !repoPath.startsWith(prefix) || repoPath === prefix.slice(0, -1)) {
       throw new Error(`${location}: path must stay inside ${prefix}: ${line}`);

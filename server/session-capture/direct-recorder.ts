@@ -1,11 +1,11 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, open, rename, rm, writeFile } from "node:fs/promises";
 import { createReadStream } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { Schema } from "effect";
 import { ChunkSchema, ManifestSchema, type Chunk, type Manifest } from "@raceiq/capture-splitting";
 import { encodeFrameLength, encodeMetaFrame, encodeParserBootstrapFrame, encodeSegmentBoundaryFrame, encodeSegmentContextEndFrame, encodeSegmentContextFrame, encodeSparseCaptureFormatFrame, iterateSessionCaptureRecords, META_FRAME_BYTES } from "@raceiq/capture-formats/session/framing";
 import { PreopenedFileWriter, type PreopenedFileInfo, type PreopenedFileWriterOptions } from "@raceiq/capture-formats/session/preopened-file-writer";
+import { persistCaptureManifest } from "./manifest-persistence";
 import { SparseCaptureEncoder } from "@raceiq/capture-formats/session/sparse-recorder";
 import { decodeLMUSourceFrame } from "@raceiq/capture-formats/lmu/source-frame";
 import { getLMUPartitionSourceLength, partitionLMUSourceFrame } from "@raceiq/capture-formats/lmu/partition";
@@ -49,7 +49,6 @@ export class DirectCaptureRecording {
   private companionLastKey: { sessionKey: string; captureSequence: string } | null = null;
   private companionDescriptor: Manifest["opponentCompanion"];
   private readonly gameId: GameId;
-  private readonly directory: string;
   private readonly manifestPath: string;
   private readonly parts = new Map<string, Part>();
   private current: Part;
@@ -92,7 +91,7 @@ export class DirectCaptureRecording {
   isLapReady(lapId: number): boolean { return this.publishedLapIds.has(lapId); }
 
   constructor(gameId: GameId, directory: string, manifestPath: string, options: DirectCaptureRecordingOptions = {}) {
-    this.gameId = gameId; this.directory = directory; this.manifestPath = manifestPath; this.sourcePath = manifestPath;
+    this.gameId = gameId; this.manifestPath = manifestPath; this.sourcePath = manifestPath;
     this.opponentRetentionOverride = options.opponentRetentionOverride;
     this.recordLmuOpponents = gameId === "lmu" && (options.opponentRetentionOverride === "retained" || (
       options.opponentRetentionOverride === undefined && options.recordLmuOpponents !== false
@@ -144,7 +143,7 @@ export class DirectCaptureRecording {
     this.sessionId = sessionId; this.sourceRegistered = sourceRegistered; this.notify = notify;
     this.startupTask = this.ready.then(() => sourceRegistered).then(async () => {
       const snapshot = this.buildManifestSnapshot();
-      await this.persistManifest(snapshot);
+      await persistCaptureManifest(this.manifestPath, snapshot);
       this.persistedManifest = snapshot;
       const updated = await withDatabaseWrite(() => db.update(sessions).set({ rawFile: this.manifestPath, captureManifestFile: this.manifestPath, captureLayoutVersion: 1, captureArchiveFile: null }).where(eq(sessions.id, sessionId)).run());
       if (updated.rowsAffected !== 1) throw new Error(`Session ${sessionId} changed before direct capture publication`);
@@ -532,7 +531,7 @@ export class DirectCaptureRecording {
       while (this.publicationRequested && !this.failure) {
         this.publicationRequested = false;
         const snapshot = this.buildManifestSnapshot();
-        await this.persistManifest(snapshot);
+        await persistCaptureManifest(this.manifestPath, snapshot);
         this.persistedManifest = snapshot;
         await this.publishReady(snapshot);
       }
@@ -567,21 +566,6 @@ export class DirectCaptureRecording {
       }));
       this.publishedLapIds.add(binding.lapId);
       this.notify({ type: "lap-capture-ready", sessionId: this.sessionId, lapId: binding.lapId });
-    }
-  }
-  private async persistManifest(snapshot: Manifest): Promise<void> {
-    await mkdir(this.directory, { recursive: true });
-    const temporary = `${this.manifestPath}.tmp-${randomUUID()}`;
-    try {
-      await writeFile(temporary, JSON.stringify(snapshot), { flag: "wx" });
-      const handle = await open(temporary, "r+");
-      try { await handle.sync(); } finally { await handle.close(); }
-      await rename(temporary, this.manifestPath);
-      const parent = await open(dirname(this.manifestPath), "r");
-      try { await parent.sync(); } finally { await parent.close(); }
-    } catch (error) {
-      await rm(temporary, { force: true }).catch(() => {});
-      throw error;
     }
   }
 }

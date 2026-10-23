@@ -390,6 +390,40 @@
         "@raceiq/shared": "workspace:*",
       },
     },
+    "packages/game-lmu/test": {
+      "name": "@raceiq/game-lmu-tests",
+      "devDependencies": {
+        "@duckdb/node-api": "1.5.2-r.2",
+        "@playwright/test": "1.62.1",
+        "@raceiq/analysis-core": "workspace:*",
+        "@raceiq/backend": "workspace:*",
+        "@raceiq/backend-core": "workspace:*",
+        "@raceiq/capture-formats": "workspace:*",
+        "@raceiq/capture-splitting": "workspace:*",
+        "@raceiq/cars-catalogue": "workspace:*",
+        "@raceiq/game-catalogs": "workspace:*",
+        "@raceiq/game-lmu": "workspace:*",
+        "@raceiq/game-lmu-metadata": "workspace:*",
+        "@raceiq/lap-replay": "workspace:*",
+        "@raceiq/sessions-page": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+        "@raceiq/telemetry-core": "workspace:*",
+        "@raceiq/telemetry-processor": "workspace:*",
+        "@raceiq/tooling": "workspace:*",
+        "@raceiq/tooling-release": "workspace:*",
+        "@raceiq/tracks-catalogue": "workspace:*",
+        "@types/react": "^19.3.0",
+        "@types/react-dom": "^19.3.0",
+        "client": "workspace:*",
+        "drizzle-orm": "^0.45.2",
+        "fflate": "^0.8.3",
+        "hono": "4.13.8",
+        "libsql": "^0.5.29",
+        "raceiq-e2e": "workspace:*",
+        "react": "^19.3.0",
+        "react-dom": "^19.3.0",
+      },
+    },
     "packages/lap-replay": {
       "name": "@raceiq/lap-replay",
       "dependencies": {
@@ -411,7 +445,6 @@
       "devDependencies": {
         "@playwright/test": "1.62.1",
         "@raceiq/game-catalogs": "workspace:*",
-        "@raceiq/game-lmu": "workspace:*",
         "@types/react": "^19.3.0",
         "@types/react-dom": "^19.3.0",
         "@types/three": "^0.185.4",
@@ -476,6 +509,7 @@
         "@raceiq/game-acc": "workspace:*",
         "@raceiq/game-catalogs": "workspace:*",
         "@raceiq/game-iracing": "workspace:*",
+        "@raceiq/lap-replay": "workspace:*",
         "@raceiq/shared": "workspace:*",
         "@tanstack/react-query": "^5.103.1",
         "@tanstack/react-router": "^1.170.38",
@@ -627,6 +661,7 @@
         "@playwright/test": "1.62.1",
         "@raceiq/backend-core": "workspace:*",
         "@raceiq/game-lmu": "workspace:*",
+        "@raceiq/lap-replay": "workspace:*",
         "@raceiq/shared": "workspace:*",
         "@raceiq/tooling": "workspace:*",
       },
@@ -1383,6 +1418,8 @@
     "@raceiq/game-lmu": ["@raceiq/game-lmu@workspace:packages/game-lmu"],
 
     "@raceiq/game-lmu-metadata": ["@raceiq/game-lmu-metadata@workspace:packages/game-lmu-metadata"],
+
+    "@raceiq/game-lmu-tests": ["@raceiq/game-lmu-tests@workspace:packages/game-lmu/test"],
 
     "@raceiq/lap-replay": ["@raceiq/lap-replay@workspace:packages/lap-replay"],
 

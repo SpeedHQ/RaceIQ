@@ -37,28 +37,31 @@ export async function loadReferencedCapturePaths(excludeCleanupPendingForManifes
     if (row.rawFile) referenced.add(resolve(row.rawFile));
     if (row.archiveFile) referenced.add(resolve(row.archiveFile));
     if (row.manifestFile) referenced.add(resolve(row.manifestFile));
+    if (row.manifestFile) referenced.add(resolve(`${row.manifestFile}.recovery`));
+    if (row.rawFile?.endsWith("capture-manifest.json")) referenced.add(resolve(`${row.rawFile}.recovery`));
   }
   for (const row of jobRows) {
     referenced.add(resolve(row.sourcePath));
     if (row.stagingPath) referenced.add(resolve(row.stagingPath));
   }
-  for (const row of sessionRows) {
-    if (!row.manifestFile) continue;
+  const rawManifestPaths = sessionRows.flatMap((row) => row.rawFile?.endsWith("capture-manifest.json") ? [row.rawFile] : []);
+  const manifestPaths = [...new Set(sessionRows.flatMap((row) => row.manifestFile ? [row.manifestFile] : []).concat(rawManifestPaths))];
+  for (const manifestPath of manifestPaths) {
     try {
-      const manifest = await loadCaptureManifest(row.manifestFile);
-      if ("archiveFile" in manifest) referenced.add(resolve(dirname(row.manifestFile), manifest.archiveFile));
+      const manifest = await loadCaptureManifest(manifestPath);
+      if ("archiveFile" in manifest) referenced.add(resolve(dirname(manifestPath), manifest.archiveFile));
       else {
-        for (const chunk of manifest.chunks) referenced.add(resolve(dirname(row.manifestFile), chunk.path));
+        for (const chunk of manifest.chunks) referenced.add(resolve(dirname(manifestPath), chunk.path));
         if (manifest.opponentCompanion && manifest.opponentRetention !== "removed" && manifest.opponentRetention !== "not-recorded") {
-          referenced.add(resolve(dirname(row.manifestFile), manifest.opponentCompanion.file));
+          referenced.add(resolve(dirname(manifestPath), manifest.opponentCompanion.file));
         }
-        if (resolve(row.manifestFile) !== excludeCleanupPendingForManifest) {
-          for (const path of manifest.cleanupPending ?? []) referenced.add(resolve(dirname(row.manifestFile), path));
+        if (resolve(manifestPath) !== excludeCleanupPendingForManifest) {
+          for (const path of manifest.cleanupPending ?? []) referenced.add(resolve(dirname(manifestPath), path));
         }
       }
     } catch {
       // Preserve unknown members of a broken published manifest for recovery.
-      referenced.add(resolve(dirname(row.manifestFile)));
+      referenced.add(resolve(dirname(manifestPath)));
     }
   }
   for (const row of liveRows) {
@@ -97,7 +100,7 @@ export async function listSessionCaptureFiles(): Promise<string[]> {
       continue;
     }
     for (const entry of entries) {
-      if (entry.isFile() && (entry.name.endsWith(".bin") || entry.name.endsWith(".bin.gz") || entry.name.endsWith(".motec.zip"))) {
+      if (entry.isFile() && (entry.name.endsWith(".bin") || entry.name.endsWith(".bin.gz") || entry.name.endsWith(".motec.zip") || entry.name === "capture-manifest.json.recovery")) {
         captureFiles.push(join(gamePath, entry.name));
       } else if (entry.isDirectory() && (entry.name === "own" || entry.name === "others")) {
         const ownershipPath = join(gamePath, entry.name);
@@ -108,7 +111,7 @@ export async function listSessionCaptureFiles(): Promise<string[]> {
           continue;
         }
         for (const file of captures) {
-          if (file.isFile() && (file.name.endsWith(".bin") || file.name.endsWith(".bin.gz") || file.name.endsWith(".motec.zip"))) {
+          if (file.isFile() && (file.name.endsWith(".bin") || file.name.endsWith(".bin.gz") || file.name.endsWith(".motec.zip") || file.name === "capture-manifest.json.recovery")) {
             captureFiles.push(join(ownershipPath, file.name));
           }
         }
@@ -139,7 +142,7 @@ async function listBundleFiles(): Promise<string[]> {
         if (session.isDirectory() && directDirectory.test(session.name)) {
           const directory = join(location, session.name);
           for (const file of await readdir(directory, { withFileTypes: true }).catch(() => [])) {
-            if (file.isFile() && (file.name === "capture-manifest.json" || directPart.test(file.name))) {
+            if (file.isFile() && (file.name === "capture-manifest.json" || file.name === "capture-manifest.json.recovery" || directPart.test(file.name))) {
               files.push(join(directory, file.name));
             }
           }

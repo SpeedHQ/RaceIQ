@@ -1,0 +1,54 @@
+import { describe, expect, test } from "bun:test";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { OrdinalDetectorEngine, runningStartPacketIndex } from "@raceiq/telemetry-core/processor/ordinal-engine";
+
+function packet(overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {
+  return {
+    gameId: "lmu", sessionUID: "session-1", LapNumber: 1, LastLap: 0, CurrentLap: 12,
+    TimestampMS: 1, DistanceTraveled: 100, Fuel: -1, TireWearFL: -1, TireWearFR: -1,
+    TireWearRL: -1, TireWearRR: -1, carId: "1", trackId: "1", ...overrides,
+  } as TelemetryPacket;
+}
+
+function makeEngine(finalized: (packet: TelemetryPacket) => boolean, incomplete: number[][] = []) {
+  return new OrdinalDetectorEngine({
+    now: () => 1,
+    createSession: async (p) => ({ carId: "1", trackId: "1", gameId: p.gameId, sessionUID: p.sessionUID }),
+    finalizeLap: async (p) => finalized(p),
+    finalizeIncompleteLap: async (state) => { incomplete.push(state.lapBuffer.map((item) => item.CurrentLap)); },
+    finalizeStaleLap: async () => {}, finalizeSession: async () => {},
+  });
+}
+
+describe("LMU ordinal detector regressions", () => {
+  test("short skipped fragments do not consume first-outlap classification", async () => {
+    let completion = 0;
+    const engine = makeEngine(() => ++completion > 1);
+    await engine.feed(packet({ LapNumber: 1 }));
+    await engine.feed(packet({ LapNumber: 2, CurrentLap: 1 }));
+    expect(engine.state.completedLapCount).toBe(0);
+    await engine.feed(packet({ LapNumber: 3, CurrentLap: 1 }));
+    expect(engine.state.completedLapCount).toBe(1);
+  });
+
+  test("session rollover trims running-start fragments before incomplete-lap eligibility", async () => {
+    const persisted: number[][] = [];
+    const engine = makeEngine(() => true, persisted);
+    await engine.feed(packet({ CurrentLap: 6 }));
+    await engine.feed(packet({ CurrentLap: 0, TimestampMS: 2 }));
+    await engine.feed(packet({ CurrentLap: 12, TimestampMS: 3 }));
+    await engine.feed(packet({ sessionUID: "session-2", TimestampMS: 4 }));
+    expect(persisted).toEqual([[0, 12]]);
+  });
+
+  test("running-start packet index uses first-half CurrentLap reset only", () => {
+    const packets = [
+      packet({ CurrentLap: 12, DistanceTraveled: -3520 }), packet({ CurrentLap: 10, DistanceTraveled: -3519 }),
+      packet({ CurrentLap: 0.007, DistanceTraveled: 0.608 }), packet({ CurrentLap: 1, DistanceTraveled: 1 }),
+      packet({ CurrentLap: 2, DistanceTraveled: 2 }),
+    ];
+    expect(runningStartPacketIndex(packets)).toBe(2);
+    expect(runningStartPacketIndex(packets.slice(2))).toBe(0);
+    expect(runningStartPacketIndex([...packets.slice(2), packet({ CurrentLap: 12 }), packet({ CurrentLap: 0.007 })])).toBe(0);
+  });
+});

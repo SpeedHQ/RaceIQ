@@ -2,7 +2,14 @@
   "name": "@raceiq/lap-replay",
   "private": true,
   "type": "module",
-  "exports": { "./ui": "./ui/index.ts", "./server": "./server/index.ts", "./contracts": "./contracts/index.ts" },
+  "exports": {
+    "./ui": "./ui/index.ts",
+    "./server": "./server/index.ts",
+    "./contracts": "./contracts/index.ts",
+    "./test-support/opponents": "./server/opponent-routes.ts",
+    "./test-support/spectate-replay": "./ui/spectate-replay.ts",
+    "./test-support/spectate-track-geometry": "./test/support/spectate-track-geometry.ts"
+  },
   "scripts": {
     "lint": "../../client/node_modules/.bin/oxlint .",
     "typecheck": "bun check --project tsconfig.ui.json && bun check --project tsconfig.server.json",
@@ -16,5 +23,5 @@
     "react": "^19.3.0", "react-dom": "^19.3.0", "three": "^0.185.1", "lucide-react": "^1.47.0", "@base-ui/react": "^1.8.0", "hono": "4.13.8", "@hono/zod-validator": "0.9.1", "zod": "^4.6.5",
     "@raceiq/shared": "workspace:*", "@raceiq/analysis-core": "workspace:*", "@raceiq/telemetry-core": "workspace:*", "@raceiq/scene-3d": "workspace:*", "@raceiq/backend-core": "workspace:*", "@raceiq/tracks-catalogue": "workspace:*"
   },
-  "devDependencies": { "@types/react": "^19.3.0", "@types/react-dom": "^19.3.0", "@types/three": "^0.185.4", "@playwright/test": "1.62.1", "@raceiq/game-catalogs": "workspace:*", "@raceiq/game-lmu": "workspace:*" }
+  "devDependencies": { "@types/react": "^19.3.0", "@types/react-dom": "^19.3.0", "@types/three": "^0.185.4", "@playwright/test": "1.62.1", "@raceiq/game-catalogs": "workspace:*" }
 }

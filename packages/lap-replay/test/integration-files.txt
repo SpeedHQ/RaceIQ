@@ -1,2 +1,1 @@
 packages/lap-replay/test/integration/replay-routes.test.ts
-packages/lap-replay/test/integration/opponent-routes.test.ts

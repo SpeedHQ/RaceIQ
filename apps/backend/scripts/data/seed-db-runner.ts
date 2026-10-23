@@ -5,6 +5,7 @@ import { basename, join, relative, resolve, sep } from "node:path";
 import { createGunzip } from "node:zlib";
 import { db, closeDb, initDb } from "@raceiq/backend-core/db/index";
 import { importSessionBin } from "@raceiq/backend-core/session-capture/import-capture";
+import { importSessionFrames } from "@raceiq/backend-core/session-capture/import-pipeline";
 import {
   decompressIfGzipSync,
   iterateSessionCaptureRecords,
@@ -15,7 +16,7 @@ import {
 import { SparseSessionRecorderAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
 import { convertSeedFramesToSparse } from "@raceiq/tooling-data/data/seed-capture-conversion";
 import { LMU_DUMP_MAGIC, LMU_DUMP_VERSION } from "@raceiq/capture-formats/lmu/dump-decoder";
-import { LMU_MAX_SOURCE_FRAME_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
+import { decodeLMUSourceFrame, LMU_MAX_SOURCE_FRAME_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
 import { developmentReleaseFeatures } from "@raceiq/tooling-release/release/development-release-features";
@@ -102,6 +103,28 @@ async function* streamLMUSeedFrames(path: string): AsyncGenerator<Buffer> {
   }
 }
 
+async function importLMUSeedCapture(path: string, legacyRecordings: boolean) {
+  const frames = streamLMUSeedFrames(path);
+  try {
+    const first = await frames.next();
+    if (first.done) throw new Error(`No LMU source frames in ${path}`);
+    const native = decodeLMUSourceFrame(first.value);
+    if (!native) throw new Error(`Invalid LMU source frame in ${path}`);
+    const partitioned = !legacyRecordings && (native.schemaVersion === 2 || native.schemaVersion === 3);
+    async function* source() {
+      yield first.value;
+      yield* frames;
+    }
+    return await importSessionFrames(source(), "lmu", {
+      notifyDriverProfile: false,
+      opponentRetention: partitioned ? "retained" : undefined,
+      recorder: partitioned ? undefined : new SparseSessionRecorderAdapter("mine", {}, "offline"),
+    });
+  } finally {
+    await frames.return(undefined);
+  }
+}
+
 function* seedCaptureFrames(path: string) {
   const bytes = decompressIfGzipSync(readFileSync(path));
   for (const record of iterateSessionCaptureRecords(bytes)) {
@@ -162,16 +185,16 @@ async function main(): Promise<void> {
         const existingSessionIds = new Set(
           (await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.gameId, game)).all()).map((row) => row.id),
         );
-        console.log(`[DB Seed] ${game}: converting ${fixture} to sparse format...`);
-        const converted = await convertSeedFramesToSparse(
-          game,
-          game === "lmu" ? streamLMUSeedFrames(fixturePath) : seedCaptureFrames(fixturePath),
-        );
+        console.log(`[DB Seed] ${game}: ${game === "lmu" ? "streaming" : "converting"} ${fixture} to sparse storage...`);
+        const converted = game === "lmu" ? null : await convertSeedFramesToSparse(game, seedCaptureFrames(fixturePath));
         try {
-          const result = await importSessionBin(readFileSync(converted.path), game, {
+          const importOptions = {
             notifyDriverProfile: false,
             recorder: new SparseSessionRecorderAdapter("mine", {}, "offline"),
-          });
+          };
+          const result = converted
+            ? await importSessionBin(readFileSync(converted.path), game, importOptions)
+            : await importLMUSeedCapture(fixturePath, options.legacyRecordings);
           const seededSessionIds = (await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.gameId, game)).all())
             .map((row) => row.id)
             .filter((id) => !existingSessionIds.has(id));
@@ -180,9 +203,9 @@ async function main(): Promise<void> {
           }
           await db.update(sessions).set({ notes: SEED_MARKER }).where(inArray(sessions.id, seededSessionIds)).run();
           importedLapIds.push(...result.laps.filter((lap) => lap.isValid).map((lap) => lap.lapId));
-          console.log(`[DB Seed] ${game}: ${result.laps.length} laps from ${fixture}`);
+          console.log(`[DB Seed] ${game}: ${result.packetCount} packets, ${result.laps.length} laps from ${fixture}`);
         } finally {
-          converted.cleanup();
+          converted?.cleanup();
         }
       } finally {
         combined?.cleanup();

@@ -128,6 +128,6 @@ Rejected because interpolation improves appearance without restoring source meas
 - `packages/game-lmu/src/import-duckdb.ts` — manual DuckDB preview and conversion
 - `apps/backend/src/routes/laps/transfer-routes.ts` — manual import detection and execution
 - `client/src/components/sessions/SessionImportModal.tsx` — DuckDB and WAL selection
-- `packages/game-lmu/test/lmu-adapter.test.ts` — source and importer contracts
-- `packages/game-lmu/test/e2e/lmu-recording-fixture.test.ts` — native fixture replay contract
+- `packages/game-lmu/test/e2e/backend/lmu-adapter.test.ts` — source and importer contracts
+- `packages/game-lmu/test/e2e/recordings/lmu-recording-fixture.test.ts` — native fixture replay contract
 - `SpeedHQ/extractions/src/games/lmu/generate-seed-fixture.ts` — native fixture trimming and anonymization

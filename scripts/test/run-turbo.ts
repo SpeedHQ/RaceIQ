@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import { discoverTestOwners } from "./owners";
 
 const root = resolve(import.meta.dir, "../..");
 let args = process.argv.slice(2).filter((arg) => arg !== "--");
@@ -24,6 +25,15 @@ if (args.includes("--affected")) {
     args = args.filter((arg) => arg !== "--affected");
     delete env.TURBO_SCM_BASE;
     delete env.TURBO_SCM_HEAD;
+  }
+}
+
+const firstOption = args.findIndex((arg) => arg.startsWith("-"));
+const tasks = args.slice(0, firstOption < 0 ? args.length : firstOption);
+if (tasks.length > 0 && tasks.every((task) => task === "test" || task.startsWith("test:")) &&
+    !args.some((arg) => arg === "--filter" || arg.startsWith("--filter="))) {
+  for (const owner of discoverTestOwners(root, { includeDisabled: true })) {
+    if (owner.disabled) args.push(`--filter=!${owner.name}`);
   }
 }
 

@@ -7,9 +7,12 @@
     "./import-duckdb": "./src/import-duckdb.ts",
     "./normalizer": "./src/normalizer.ts",
     "./source": "./src/source.ts",
-    "./test-support/duckdb": "./test/support/duckdb.ts",
-    "./test-support/recordings": "./test/support/recordings.ts",
-    "./test-support/opponents": "./test/support/opponents.ts",
+    "./test-support/duckdb": "./src/test-support/duckdb.ts",
+    "./test-support/recordings": "./src/test-support/recordings.ts",
+    "./test-support/opponents": "./src/test-support/opponents.ts",
+    "./test-support/memory-reader": "./src/memory-reader.ts",
+    "./test-support/supplemental-rest": "./src/supplemental-rest.ts",
+    "./test-support/recorder": "./src/recorder.ts",
     "./game-parser": "./src/game-parser.ts"
   },
   "dependencies": {
@@ -24,8 +27,12 @@
   "scripts": {
     "lint": "../../client/node_modules/.bin/oxlint .",
     "typecheck": "bun check --project tsconfig.json",
-    "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/game-lmu",
-    "test:e2e:recordings": "bun ../../scripts/test/run-suite.ts e2e --package @raceiq/game-lmu",
-    "test:integration": "bun ../../scripts/test/run-suite.ts integration --package @raceiq/game-lmu"
+    "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/game-lmu-tests",
+    "test:e2e:recordings": "bun ../../scripts/test/run-suite.ts e2e --package @raceiq/game-lmu-tests",
+    "test:unit": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/game-lmu-tests",
+    "test:integration": "bun ../../scripts/test/run-suite.ts integration --package @raceiq/game-lmu-tests"
+  },
+  "raceiq": {
+    "testOwner": false
   }
 }

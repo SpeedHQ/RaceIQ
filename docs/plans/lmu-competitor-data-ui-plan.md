@@ -167,9 +167,9 @@ exactly once. All 16 locale catalogs contain the required 2,933 keys.
 
 Permanent browser specs are registered in the existing serialized import
 project to isolate settings mutations:
-`playwright/tests/seeded/compare/lmu-opponents.spec.ts`,
-`playwright/tests/seeded/settings/lmu-opponent-removal.spec.ts`, and the
-extended `playwright/tests/seeded/settings/storage.spec.ts`.
+`packages/game-lmu/test/e2e/browser/compare/lmu-opponents.spec.ts`,
+`packages/game-lmu/test/e2e/browser/settings/lmu-opponent-removal.spec.ts`, and
+`packages/game-lmu/test/e2e/browser/settings/lmu-recording-policy.spec.ts`.
 The temporary local verification configuration is not a production fallback.
 
 Final browser outcomes and inspected screenshots are recorded in
@@ -197,4 +197,34 @@ advancing B playback. No document-width overflow was observed in those cases.
 Full result: `playwright-final.log`. The temporary local configuration has
 been removed and the owned client/backend verification services stopped;
 the permanent specs remain registered in the normal serialized import suite.
+
+
+## Individual opponent sessions amendment — 2026-10-22
+
+Authoritative [shared boundary, OS1–OS4 and OS-E1–E4](lmu-competitor-data-contract.md#recording-backed-individual-opponent-sessions--2026-10-22). Backend proceeds independently after this boundary; UI may use conforming fixtures, never production fallbacks.
+
+Owned files: `packages/sessions-page/{contracts,ui}`, `client/src/features/sessions-page-host.tsx`, existing typed opponent query hooks, supported locale messages and affected feature manifests/host fixtures. Add lazy opponent records inside expanded LMU sessions on desktop/mobile; each identity owns its lap list. Provide explicit player-lap selection and existing Compare navigation with exact opponent ID/revision. Reuse shared controls, formatting and warning translations; preserve selection, export/delete semantics for real player records.
+
+Acceptance: U-OS1 maps OS2/OS3 to individually labeled identity/lap records and correct comparison selection (OS-E2/OS-E3); U-OS2 maps OS4 to honest partial/unknown/disabled/removed/loading/error/no-anchor states, no non-LMU queries and preserved existing player UI (OS-E3/OS-E4). Duplicate names show vehicle/incarnation identity; no source or no anchor disables comparison, never substitutes another driver. Source revision conflicts keep existing reload behavior.
+
+Reuse seeded `packages/game-lmu/test/e2e/browser/compare/lmu-opponents.spec.ts` and production backend fixture import for OS-E3/OS-E4; add real-recording scenario rather than replacing controlled edge cases. Integration owner runs desktop/mobile browser scenarios and actual comparison/replay, plus focused affected checks, after backend/UI merge. Record outcomes here; unexecuted scenarios are not completion evidence.
+
+OS-E3/OS-E4 refinement: actual recorded counter resets must not leave Compare's shared replay in an error panel. Verify source-backed semantic endpoint, visible shared opponent replay, and absence of source-read error; retain partial-gap warnings and do not imply continuous playback across sampled gaps. Boundary handling follows the shared contract's real-fixture refinement.
+
+### Individual-record UI verification
+
+U-OS1/U-OS2 completed against the [shared executed OS-E1–OS-E4 evidence](lmu-competitor-data-contract.md#executed-individual-record-verification). Full-grid browser case renders all 15 real identities separately. Real-recording desktop/mobile cases exercise explicit player selection, exact opponent comparison, source-backed semantic replay, ready shared scene and reload. Original controlled desktop/mobile keyboard/export/removal cases remain present and passed. Manual browser upload/expanded-record/timing-comparison inspection and generated desktop/mobile screenshots supplement those application E2Es. Both Sessions TypeScript projects, 15 owned unit tests, feature boundaries and all locale keys passed; broader verification limits are recorded once in the shared evidence.
+
+### Package ownership amendment
+
+No UI behavior or API shape changes. LMU browser suites belong to nested
+`@raceiq/game-lmu-tests` workspace at `packages/game-lmu/test/e2e/browser/`;
+generic catalogue/storage cases stay with their feature owners. UI scope:
+relocate specs/CommonJS metadata, use canonical declared browser/SDK helpers,
+and update project discovery and TypeScript inputs. Existing single-worker
+`seeded-imports` project discovers both locations without fake production data.
+UI/backend work proceeds independently against the unchanged shared boundary.
+PKG1/PKG3/PKG5–PKG7 and shared PKG-E6/PKG-E7 integration scenarios, edge handling
+and executed browser evidence remain in the
+[contract ownership section](./lmu-competitor-data-contract.md#package-owned-lmu-tests-complete-seed-and-live-ingress-proof).
 

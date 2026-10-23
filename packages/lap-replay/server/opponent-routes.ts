@@ -11,7 +11,7 @@ import { indexLmuOpponentLaps, LmuOpponentSourceError, projectLmuOpponentTelemet
 import { encodeLmuContext, encodeLmuResolvedValue } from "@raceiq/shared/telemetry/lmu-context";
 import type { LmuCompetitor } from "@raceiq/shared/telemetry/lmu";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import type { OpponentLapCatalog, OpponentLapSummary, OpponentSemanticLapTelemetry } from "../contracts/opponents";
+import type { OpponentLapCatalog, OpponentLapSummary, OpponentSemanticLapTelemetry, OpponentSessionSummary } from "../contracts/opponents";
 
 const linearInterpolate = (lower: number, upper: number, fraction: number) => lower + (upper - lower) * fraction;
 const DISTANCE_ALIGNMENT_HASH = createHash("sha256").update(linearInterpolate.toString()).digest("hex");
@@ -19,6 +19,7 @@ const DISTANCE_ALIGNMENT_HASH = createHash("sha256").update(linearInterpolate.to
 interface LmuPositionPoint {
   distance: number | null;
   sequence: bigint | null;
+  continuousFromPrevious: boolean;
   channels: Readonly<Record<string, ResolvedValue<unknown>>>;
 }
 
@@ -35,7 +36,13 @@ function positionPoints(
 ): LmuPositionPoint[] {
   const points: LmuPositionPoint[] = [];
   let previousDistance: number | null = null;
+  let previousObservationKey: string | null = null;
+  let previousCaptureSequence: bigint | null = null;
+  let continuousFromPrevious = true;
   for (const row of rows) {
+    const captureSequence = BigInt(row.captureSequence);
+    if (previousCaptureSequence !== null && captureSequence !== previousCaptureSequence + 1n) continuousFromPrevious = false;
+    previousCaptureSequence = captureSequence;
     const distanceValue = numeric(row.competitor.channels["race.competitor.lap-distance"]);
     const distance = distanceValue?.value ?? null;
     if (distance !== null && previousDistance !== null && distance < previousDistance) break;
@@ -45,9 +52,14 @@ function positionPoints(
     const sequence = x?.provenance.sourceObservation?.updateSequence ??
       z?.provenance.sourceObservation?.updateSequence ??
       distanceValue?.provenance.sourceObservation?.updateSequence ?? null;
-    const prior = points.at(-1);
-    if (sequence !== null && prior?.sequence === sequence) continue;
-    points.push({ distance, sequence, channels: row.competitor.channels });
+    const timestamp = x?.provenance.observedAt ?? z?.provenance.observedAt ?? distanceValue?.provenance.observedAt;
+    const observationKey = sequence !== null && timestamp
+      ? `${timestamp.domain}:${timestamp.domain === "monotonic" ? timestamp.nanoseconds : timestamp.milliseconds}:${sequence}`
+      : null;
+    if (observationKey !== null && observationKey === previousObservationKey) continue;
+    previousObservationKey = observationKey;
+    points.push({ distance, sequence, continuousFromPrevious, channels: row.competitor.channels });
+    continuousFromPrevious = true;
   }
   return points;
 }
@@ -89,7 +101,7 @@ function interpolatedValue(
   if (low === 0) return null;
   const lowerPoint = points[low - 1]!;
   const lowerValue = sourceValue(lowerPoint, sourceId, semanticId);
-  if (!lowerValue || !upperValue || lowerPoint.distance === null || upperPoint.distance === null ||
+  if (!lowerValue || !upperValue || !upperPoint.continuousFromPrevious || lowerPoint.distance === null || upperPoint.distance === null ||
       lowerPoint.sequence === null || upperPoint.sequence === null || upperPoint.sequence !== lowerPoint.sequence + 1n) {
     const template = lowerValue ?? upperValue;
     return template ? missingValue(template, semanticId) : null;
@@ -365,10 +377,20 @@ function semanticFrameTime(timestamp: TelemetryTimestamp) {
     : { domain: timestamp.domain, milliseconds: timestamp.milliseconds };
 }
 
+function observationAdvances(previous: TelemetryTimestamp | null, current: TelemetryTimestamp): boolean {
+  if (!previous || previous.domain !== current.domain) return false;
+  return current.domain === "monotonic"
+    ? previous.domain === "monotonic" && current.nanoseconds > previous.nanoseconds
+    : previous.domain !== "monotonic" && current.milliseconds > previous.milliseconds;
+}
+
 export function buildLmuOpponentSemanticFrames(interval: LmuOpponentLapInterval) {
   const envelopes = [];
   let previousKey: string | null = null;
   let previousSequence: bigint | null = null;
+  let previousObservedAt: TelemetryTimestamp | null = null;
+  let previousCaptureSequence: bigint | null = null;
+  let pendingCaptureGap = false;
   let replaySequence = 0;
   for (const frame of interval.frames) {
     if (frame.captureSequence === interval.endSequence) continue;
@@ -382,20 +404,29 @@ export function buildLmuOpponentSemanticFrames(interval: LmuOpponentLapInterval)
       ? observedAt.nanoseconds.toString()
       : observedAt.milliseconds.toString();
     const key = `${observedAt.domain}:${sourceSequence}:${timestampKey}`;
+    const captureSequence = BigInt(frame.captureSequence);
+    const captureGap = previousCaptureSequence !== null && captureSequence > previousCaptureSequence + 1n;
+    pendingCaptureGap ||= captureGap;
+    const captureAdvanced = previousCaptureSequence === null || captureSequence > previousCaptureSequence;
+    previousCaptureSequence = captureSequence;
     if (key === previousKey) continue;
-    if (previousSequence !== null && sourceSequence <= previousSequence) {
+    const counterReset = previousSequence !== null && sourceSequence <= previousSequence;
+    if (counterReset && (!captureAdvanced || !observationAdvances(previousObservedAt, observedAt))) {
       throw new LmuOpponentSourceError("Opponent scoring source sequence is not strictly increasing");
     }
     const gap = previousSequence !== null && sourceSequence > previousSequence + 1n
       ? sourceSequence - previousSequence - 1n
       : 0n;
     // Replay sequence is an ordinal, not a source counter; reserve a hole to stop playback bridging missing observations.
-    replaySequence += gap > 0n ? 2 : 1;
+    replaySequence += counterReset || pendingCaptureGap || gap > 0n ? 2 : 1;
     const projected = projectLmuOpponentTelemetry(competitor);
-    const values = gap > 0n
+    const discontinuity = counterReset ? "Scoring observation counter restarted before this frame." :
+      pendingCaptureGap ? "Source capture range unavailable before this frame." :
+      gap > 0n ? `${gap} source scoring update(s) unavailable before this frame.` : null;
+    const values = discontinuity
       ? projected.map((value) => ({
           ...value,
-          limitations: [...value.limitations, `${gap} source scoring update(s) unavailable before this frame.`],
+          limitations: [...value.limitations, discontinuity],
         }))
       : projected;
     envelopes.push({
@@ -415,8 +446,40 @@ export function buildLmuOpponentSemanticFrames(interval: LmuOpponentLapInterval)
     });
     previousKey = key;
     previousSequence = sourceSequence;
+    previousObservedAt = observedAt;
+    pendingCaptureGap = false;
   }
   return envelopes;
+}
+
+export function groupOpponentSessions(laps: readonly OpponentLapSummary[]): OpponentSessionSummary[] {
+  const sessionsByIdentity = new Map<string, {
+    summary: Omit<OpponentSessionSummary, "lapIds">;
+    laps: OpponentLapSummary[];
+  }>();
+  for (const lap of laps) {
+    const identity = JSON.stringify([lap.sessionKey, lap.vehicleId, lap.incarnation]);
+    let session = sessionsByIdentity.get(identity);
+    if (!session) {
+      session = {
+        summary: {
+          opponentSessionId: createHash("sha256").update(identity).digest("hex"),
+          sessionKey: lap.sessionKey, vehicleId: lap.vehicleId, incarnation: lap.incarnation,
+          driverName: lap.driverName, carName: lap.carName, className: lap.className,
+        },
+        laps: [],
+      };
+      sessionsByIdentity.set(identity, session);
+    }
+    session.laps.push(lap);
+  }
+  return [...sessionsByIdentity.values()].map(({ summary, laps: sessionLaps }) => ({
+    ...summary,
+    lapIds: sessionLaps.sort((a, b) => (a.lapNumber ?? 0) - (b.lapNumber ?? 0) ||
+      a.opponentLapId.localeCompare(b.opponentLapId)).map((lap) => lap.opponentLapId),
+  })).sort((a, b) => (a.driverName ?? "").localeCompare(b.driverName ?? "") ||
+    a.vehicleId - b.vehicleId || a.incarnation - b.incarnation || a.sessionKey.localeCompare(b.sessionKey) ||
+    a.opponentSessionId.localeCompare(b.opponentSessionId));
 }
 
 export const opponentRoutes = new Hono()
@@ -429,13 +492,16 @@ export const opponentRoutes = new Hono()
       if ("error" in result) return result.error;
       if (result.meta.gameId !== gameId.data) return c.json({ error: "Lap not found" }, 404);
       const pairedPlayerChannels = playerChannels(result.playerPackets);
+      const laps = result.intervals.map((interval) => encodeSummary(summary(interval, pairedPlayerChannels)))
+        .sort((a, b) => (a.driverName ?? "").localeCompare(b.driverName ?? "") ||
+          a.vehicleId - b.vehicleId || a.incarnation - b.incarnation || (a.lapNumber ?? 0) - (b.lapNumber ?? 0) ||
+          a.opponentLapId.localeCompare(b.opponentLapId));
+      const sessions = groupOpponentSessions(laps);
       const catalog: OpponentLapCatalog = {
         playerLapId: id, sourceRevision: result.retention.sourceRevision,
         opponentRetention: result.retention.opponentRetention,
         opponentAvailability: result.retention.opponentAvailability,
-        laps: result.intervals.map((interval) => encodeSummary(summary(interval, pairedPlayerChannels))).sort((a, b) => (a.driverName ?? "").localeCompare(b.driverName ?? "") ||
-          a.vehicleId - b.vehicleId || a.incarnation - b.incarnation || (a.lapNumber ?? 0) - (b.lapNumber ?? 0) ||
-          a.opponentLapId.localeCompare(b.opponentLapId)),
+        sessions, laps,
       };
       return c.json(catalog);
     } catch (cause) {

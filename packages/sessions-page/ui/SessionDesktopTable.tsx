@@ -10,6 +10,7 @@ import { SessionResultMeta } from "./SessionResultMeta";
 import { SessionCaptureSplitStatus } from "./SessionCaptureSplitStatus";
 import type { LapSortKey, SessionSelectionEvent, SortDir, SortKey } from "./types";
 import { useSessionsPageHost } from "./host";
+import { SessionOpponentRecords } from "./SessionOpponentRecords";
 import { parseUtcTimestamp } from "@raceiq/frontend-pure/utc-date";
 
 export type SessionDesktopTableProps = {
@@ -211,6 +212,7 @@ export function SessionDesktopTable({
                       </TableCell>
                     </TableRow>
                   )}
+                  {isExpanded && gameId === "lmu" && <TableRow className="hover:bg-transparent"><TableCell colSpan={colCount} className="p-0"><SessionOpponentRecords session={session} laps={sessionLaps} enabled={isExpanded} /></TableCell></TableRow>}
                 </Fragment>
               );
             })

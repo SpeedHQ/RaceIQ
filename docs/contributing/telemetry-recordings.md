@@ -16,8 +16,16 @@ Use the game-specific development command:
 | iRacing | `bun run dev:dump:iracing` | `test/artifacts/sessions/` |
 | Le Mans Ultimate (LMU) | `bun run dev:dump:lmu` | `test/artifacts/laps/` |
 
-Drive the relevant session, then press `Ctrl+C`. The shutdown handler flushes the
-recorder so the file ends on a complete frame.
+Drive the relevant session, then press `Ctrl+C` and wait for shutdown to finish.
+LMU prints its final frame count and absolute saved BIN path only after header publication, file sync and close succeed.
+
+All `dev:dump:*` commands enable the same global `--dump-only` mode. The game argument selects the native source and BIN format, not whether telemetry is persisted. The selected recorder keeps one BIN for the dump run; lap boundaries, session changes, and source-context resets do not create per-lap/session files. Native-source reconnects reuse the selected reader until shutdown.
+
+Dump launchers deliberately run without `--watch`: automatic restarts or process-tree termination can interrupt recorder finalization. The launcher requests cooperative backend shutdown and awaits completion before exiting. Restart the dump command manually after changing backend code.
+
+Dump frames are parsed only to publish the existing live WebSocket schema/frame and developer telemetry display. They bypass session/lap detection, telemetry-driven database access, calibration, and normal per-lap capture. Historical startup and scheduled maintenance do not run in dump mode. Application startup, dashboard authentication, and initial identity-catalog loading still use the database; this is not a database-free server process.
+
+LMU diagnostic capture waits for bounded worker write acknowledgements when disk is temporarily behind, rather than failing a full queue. Scheduled acquisition pauses while that dump poll is pending, so it cannot accumulate an unbounded snapshot queue; capture cadence can fall below the selected rate during disk stalls. Accepted records remain ordered in the same BIN. Genuine writer failures still surface as errors, including subsequent write attempts. Dump runs do not create Sessions entries.
 
 Examples:
 
@@ -27,10 +35,10 @@ test/artifacts/sessions/f1-2025-<timestamp>.bin
 test/artifacts/sessions/acc-<timestamp>.bin
 test/artifacts/sessions/ac-evo-<timestamp>.bin
 test/artifacts/sessions/iracing-<timestamp>.bin
-test/artifacts/laps/lmu-<timestamp>.bin
+packages/game-lmu/test/fixtures/laps/lmu-<timestamp>.bin
 ```
 
-When seeding checked-in source fixtures, convert each with its declared game ID to a sparse RaceIQ capture before passing it to the importer. Do not upload historical full-frame recordings; `/api/laps/import` accepts sparse RaceIQ captures only.
+When seeding checked-in source fixtures, convert non-LMU inputs with their declared game ID to sparse RaceIQ captures. The LMU seed streams native dump frames directly; native v2/v3 input uses the production player/opponent-partitioning recorder. Do not upload historical full-frame recordings; `/api/laps/import` accepts sparse RaceIQ captures only.
 
 ## Replay a dump
 
@@ -42,7 +50,7 @@ before passing the file to the reader.
 
 Recorders use different binary formats:
 
-- FM and F1: `SessionRecorder` length-prefixed UDP datagrams.
+- FM and F1: length-prefixed raw UDP datagrams with original receipt timestamps. Diagnostic dumps bypass sparse encoding; normal saved-session recording keeps its existing encoding.
 - ACC and AC Evo: `AcRecorder` typed shared-memory frames.
 - iRacing: `IRacingRecorder` SDK source frames.
 - LMU: `LMURecorder` LMUQDMP format.
@@ -136,6 +144,13 @@ already in progress or add opponent data to existing imports. Player telemetry
 remains in the primary recording; captured opponents are stored separately in
 the removable companion recording.
 
+On **Sessions**, expand a saved LMU session and use **Recorded opponent sessions**.
+Choose your player lap, then select **Compare** beside an individual's recorded
+lap. Driver, car, class and native vehicle/incarnation identity distinguish
+records, including duplicate names. These source-backed records do not create
+duplicate player sessions or recording files. Partial coverage and unknown lap
+validity remain visible and do not prevent comparison when evidence is available.
+
 Open Compare with a player lap, choose **Opponents**, filter by class or
 driver/car, and preview a recorded lap. **Lap compare** commits that exact
 reference; **Cancel** preserves the previous reference. Partial or uncertain
@@ -158,6 +173,34 @@ failed opponent capture). Lap coverage is separate from companion integrity.
 Remote-input channels remain restricted or unverified and must not appear as
 observed measurements. Controlled fixtures do not establish real-game
 compatibility: fresh Windows LMU multiplayer source acceptance remains unrun.
+
+The recording-backed regression fixture
+`packages/game-lmu/test/fixtures/sessions/lmu-real-opponents-2026-10-22.bin.gz` contains 330 exact
+native v3 frames sampled from the supplied Windows multiplayer capture.
+Its adjacent provenance file records source/frame hashes, original clocks,
+identity and sampling gaps. Reproduce with
+`bun packages/game-lmu/test/support/derive-opponents-fixture.ts` while the original dump is
+available. Sampled sequence gaps remain partial; the fixture is not evidence
+of continuous physics or verified opponent fuel/energy.
+
+The paired `lmu-real-opponents-grid-2026-10-22.bin.gz` fixture retains 51
+original early-grid frames with all 15 opponent identities. The browser suite
+checks their separate records and excludes the player; the stable-tail fixture
+checks actual lap comparison and replay across native scoring-counter resets.
+
+LMU-specific integration, unit, recording E2E and browser tests live in
+`packages/game-lmu/test/`; generic multi-game cases remain with their framework
+owners. The live-ingress regression in `session-capture/opponent-recording-policy.test.ts`
+feeds unchanged grid frames through the production parser and
+`LiveTelemetryPipeline.processPacket`, inspects physical primary/companion
+files, and checks exact native bytes, timestamps and all 15 opponent identities.
+This file replay does not exercise Windows shared-memory acquisition.
+
+The complete recording is also registered as one multipart default seed.
+Its adjacent package-owned fixture provenance records compressed/source hashes,
+part sizes and the 30,957-frame source. Byte-part packaging is independent of
+the recorder's player/opponent separation.
+
 
 Schema and unit references are recorded in the
 [LMU contract](../plans/lmu-competitor-data-contract.md). Controlled native,
@@ -231,9 +274,9 @@ part, MUST be strictly smaller than 100,000,000 bytes. Do not use Git LFS.
 Never stage raw `.bin` files or oversized gzip files.
 
 ```sh
-bun run gzip:recording test/artifacts/laps/lmu-example.bin
-gzip -t test/artifacts/laps/lmu-example.bin.gz
-wc -c < test/artifacts/laps/lmu-example.bin.gz
+bun run gzip:recording packages/game-lmu/test/fixtures/laps/lmu-example.bin
+gzip -t packages/game-lmu/test/fixtures/laps/lmu-example.bin.gz
+wc -c < packages/game-lmu/test/fixtures/laps/lmu-example.bin.gz
 ```
 
 If gzip is 100,000,000 bytes or larger, run the existing recording-splitting
@@ -250,7 +293,7 @@ and assembled files local and unstaged.
 For an unsplit gzip below the limit, stage the `.bin.gz` file instead:
 
 ```sh
-git add test/artifacts/laps/lmu-example.bin.gz
+git add packages/game-lmu/test/fixtures/laps/lmu-example.bin.gz
 ```
 
 Reassemble a committed split fixture locally before replay; individual part
@@ -261,11 +304,11 @@ assembled filename:
 
 ```ts
 import { parseDump } from "@raceiq/backend-core/test-support/recordings/parse-dump";
-import { lmuRecordingSupport } from "../support/recordings";
+import { lmuRecordingSupport } from "@raceiq/game-lmu/test-support/recordings";
 
 const result = await parseDump(
   lmuRecordingSupport,
-  "test/artifacts/laps/lmu-<timestamp>-assembled.bin.gz",
+  "packages/game-lmu/test/fixtures/laps/lmu-<timestamp>-assembled.bin.gz",
 );
 ```
 

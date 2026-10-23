@@ -48,6 +48,7 @@ export class LMUTelemetrySource {
   private readonly rest: LmuSupplementalRest | null;
   private timer: ReturnType<typeof setInterval> | null = null;
   private running = false;
+  private pollInProgress = false;
   private frameQueue: QueuedLMUFrame[] = [];
   private drainPromise: Promise<void> | null = null;
   private holdsTimerResolution = false;
@@ -96,8 +97,13 @@ export class LMUTelemetrySource {
     if (this.recordingEnabled && !this.recorder.recording) this.recorder.start(this.recordingDir);
     this.reader.start();
     this.running = true;
-    this.timer = setInterval(() => {
-      if (this.captureRateLimiter.shouldCapture(performance.now(), getRecordingFrequencyHz())) void this.pollOnce();
+    this.timer = setInterval(async () => {
+      // Diagnostic acquisition must not queue snapshots faster than disk can accept them.
+      if (this.recordingEnabled && this.pollInProgress) return;
+      if (!this.captureRateLimiter.shouldCapture(performance.now(), getRecordingFrequencyHz())) return;
+      this.pollInProgress = true;
+      try { await this.pollOnce(); }
+      finally { this.pollInProgress = false; }
     }, this.pollIntervalMs);
     console.log("[LMU] Telemetry source started; enable Gameplay > Enable Plugins in LMU");
   }
@@ -274,7 +280,7 @@ export class LMUTelemetrySource {
       const entry = this.frameQueue.shift()!;
       try {
         this.identity = entry.identity;
-        if (this.recordingEnabled) this.recorder.writeFrame(entry.rawFrame);
+        if (this.recordingEnabled) await this.recorder.writeFrame(entry.rawFrame);
         await this.dispatchRawFrame(entry.rawFrame, entry.frameTimeMs);
         if (entry.scoringContext) this.publishScoringContext(entry.scoringContext);
         entry.resolve(true);

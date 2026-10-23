@@ -95,7 +95,23 @@ export type SessionsMessageKey =
   | "trackdetail_selected"
   | "trackdetail_yes"
   | "tunes_deselect_all"
-  | "tunes_select_all";
+  | "tunes_select_all"
+  | "compare_opponent_coverage_complete"
+  | "compare_opponent_coverage_partial"
+  | "compare_opponent_restricted_channels"
+  | "compare_opponent_removed"
+  | "compare_opponent_not_recorded"
+  | "sessions_opponents"
+  | "sessions_opponents_loading"
+  | "sessions_opponents_unavailable"
+  | "sessions_opponents_none"
+  | "sessions_opponents_choose_player_lap"
+  | "sessions_opponents_compare"
+  | "sessions_opponents_identity"
+  | "sessions_opponents_partial"
+  | "sessions_opponents_invalid"
+  | "sessions_opponents_unknown"
+  | "sessions_opponents_no_comparable";
 
 export type SessionsMessages = Record<SessionsMessageKey, () => string> & {
   session_imported: (inputs: { count: number; skipped: string }) => string;

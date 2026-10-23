@@ -59,10 +59,10 @@ Phase 1 is integrated against the [shared implementation boundary](lmu-competito
 
 | Criteria / scenario | Executed evidence |
 |---|---|
-| B-LMU-2, B-LMU-4, B-LMU-6-P1; ENERGY / PLAYER-CHANNELS / PLAYER-LIFECYCLE | `bun test packages/game-lmu/test/phase1.test.ts packages/game-lmu/test/lmu-adapter.test.ts --timeout 60000`: 17 passed, 143 assertions. Covers distinct units, valid zero, invalid energy, ambiguous IDs, slot/vehicle changes, garage/pause/freeze/rewind and queued identity invalidation. |
+| B-LMU-2, B-LMU-4, B-LMU-6-P1; ENERGY / PLAYER-CHANNELS / PLAYER-LIFECYCLE | `bun test packages/game-lmu/test/e2e/backend/phase1.test.ts packages/game-lmu/test/e2e/backend/lmu-adapter.test.ts --timeout 60000`: 17 passed, 143 assertions. Covers distinct units, valid zero, invalid energy, ambiguous IDs, slot/vehicle changes, garage/pause/freeze/rewind and queued identity invalidation. |
 | B-LMU-3; REST | Controlled real HTTP → native source → production WebSocket smoke passed unchanged, malformed, failed, delayed/expired and recovered responses without blocking native frames. Unchanged recovery remains stale rather than inventing a source update. |
-| B-LMU-6-P1, B-LMU-8; PLAYER-LIFECYCLE / PLAYER-RETENTION | `bun test apps/backend/test/session-capture/direct-recording-ingress.test.ts --timeout 120000`: 6 passed, 21,721 assertions, including four real V3 LMU context generations with two held finalizations. Session admission backpressures outside the maintenance lock instead of exceeding the two-retirement budget. |
-| B-LMU-8; PLAYER-RETENTION | `bun test apps/backend/test/lap-analysis/lap-export-import-roundtrip.test.ts --test-name-pattern 'LMU changing supplemental' --timeout 120000`: passed selected-lap export, real import and historical replay with changing observations and original nanosecond/update-sequence precision. |
+| B-LMU-6-P1, B-LMU-8; PLAYER-LIFECYCLE / PLAYER-RETENTION | Current equivalent: `bun test apps/backend/test/session-capture/direct-recording-ingress.test.ts packages/game-lmu/test/e2e/backend/session-capture/direct-recording-ingress.test.ts --timeout 120000`. Historical pre-move execution: 6 passed, 21,721 assertions, including four real V3 LMU context generations with two held finalizations. Session admission backpressures outside the maintenance lock instead of exceeding the two-retirement budget. |
+| B-LMU-8; PLAYER-RETENTION | `bun test packages/game-lmu/test/e2e/backend/lap-analysis/lmu-export-import-roundtrip.test.ts --test-name-pattern 'LMU changing supplemental' --timeout 120000`: historical pre-move proof passed selected-lap export, real import and historical replay with changing observations and original nanosecond/update-sequence precision. |
 | B-LMU-7-P1; UDP-COEXIST | Recording-enabled production HTTP/WebSocket smoke passed all ten scenarios with 218 valid frames, including a real Forza UDP datagram and subsequent native LMU continuation without cross-game context. Existing direct-capture FM, ACC and iRacing integration cases also passed. |
 | Shared gates | Root `bun run typecheck`: 31 tasks passed. Root `bun run lint`: 33 tasks passed without warnings/errors. `bun run telemetry:catalog:check`: deterministic, 809 variables / 2,010 source links. `bun scripts/test/check-shards.ts`: all 400 test files assigned exactly once. Release-note suite: 14 passed. |
 
@@ -183,9 +183,9 @@ suppressed. Revision checks also cover unavailable-source snapshot returns.
 | Scope and criteria | Executed controlled evidence |
 |---|---|
 | B-LMU-1/2-P2/5/6-P2/7-P2/16; affected Phase 1 | 117 tests across 12 native/partition/recorder/source-loader/settings/replay suites passed, 24,136 assertions. Includes identity reuse/no-player/coherence, scoring clocks, separate energy, REST failures, player conservation, next-session policy, companion failure/publication ordering, legacy rewrite and cleanup recovery/reference protection. |
-| B-LMU-5/8/12/15; RETENTION / STRIP-ROUNDTRIP / COMPARE-RETENTION | `bun test apps/backend/test/lap-analysis/lap-export-import-roundtrip.test.ts --test-name-pattern 'retained LMU|LMU changing' --timeout 120000`: 2 passed, 53 assertions. Ordinary and selected-opponent ZIP imports retain full opponent intervals; changing player supplemental state and original nanoseconds survive. Explicit removed/not-recorded player-only archives import without companions; retained missing-pairing and contradictory player-only/companion archives are rejected. |
+| B-LMU-5/8/12/15; RETENTION / STRIP-ROUNDTRIP / COMPARE-RETENTION | `bun test packages/game-lmu/test/e2e/backend/lap-analysis/lmu-export-import-roundtrip.test.ts --test-name-pattern 'retained LMU|LMU changing' --timeout 120000`: historical pre-move execution passed 2 tests, 53 assertions. Ordinary and selected-opponent ZIP imports retain full opponent intervals; changing player supplemental state and original nanoseconds survive. Explicit removed/not-recorded player-only archives import without companions; retained missing-pairing and contradictory player-only/companion archives are rejected. |
 | B-LMU-13/14/15; COMPARE boundary | Real native fixture import through HTTP, typed catalog/comparison and semantic playback, selected interval ZIP export/import, stale-reference handling and post-removal player replay are exercised by the linked UI browser evidence. |
-| B-LMU-13/14/15; LC10/13 source transitions | After the baseline suite, `bun test packages/lap-replay/test/integration/opponent-routes.test.ts --timeout 120000` passed 11 tests / 64 assertions with concurrent real removal. An in-flight read either completes its valid snapshot or returns 409, never 500; the stale revision returns `SOURCE_CHANGED`, and player semantic replay remains HTTP 200. |
+| B-LMU-13/14/15; LC10/13 source transitions | After the baseline suite, current equivalent `bun test packages/game-lmu/test/e2e/backend/integration/opponent-routes.test.ts --timeout 120000` passed 11 tests / 64 assertions before the ownership move, with concurrent real removal. An in-flight read either completes its valid snapshot or returns 409, never 500; the stale revision returns `SOURCE_CHANGED`, and player semantic replay remains HTTP 200. |
 | Shared gates | Root `bun run typecheck` and `bun run lint`: 37 tasks passed each. `bun run telemetry:catalog:check`: 850 variables / 2,053 source links, deterministic. Replay UI/server/contracts boundary check passed. |
 
 Full logs: `.omp/evidence/lmu-finish/{native-integration,archive-roundtrip,quality-gates}.log`.
@@ -195,4 +195,39 @@ The linked UI plan owns browser outcomes. Final acceptance still requires
 `E2E-LMU-REAL-PLAYER` and `E2E-LMU-REAL-OPPONENTS` on Windows, including actual
 game/version/mode, remote field population/cadence and recorded racing-line parity.
 No unexecuted portion of a contract scenario is marked passed by the counts above.
+
+
+## Individual opponent sessions amendment — 2026-10-22
+
+Authoritative [shared boundary, OS1–OS4 and OS-E1–E4](lmu-competitor-data-contract.md#recording-backed-individual-opponent-sessions--2026-10-22). No schema migration: virtual records reference existing opponent intervals and retained source, not copied player sessions. UI proceeds independently against agreed catalog shape.
+
+Owned files: `packages/lap-replay/contracts/opponents.ts`, `packages/lap-replay/server/opponent-routes.ts`, source indexing only as needed, existing opponent integration regressions, bounded `test/artifacts/sessions/*.bin.gz` capture/provenance following the existing tracked recording-fixture convention, and existing LMU test support/browser scenario. Add deterministic session identity grouping and required catalog sessions; preserve existing errors, auth, retention, revision and comparison semantics. Derive bounded exact native frames, retaining real source clocks/gaps and documenting extraction provenance; verify decoded conservation before application import.
+
+Acceptance: B-OS1 maps OS1 to reproducible bounded recorded fixture and verified native source data (OS-E1); B-OS2 maps OS2 to distinct stable session records/exact lap membership (OS-E2); B-OS3 maps OS3/OS4 to existing production compare/replay integration and explicit source/coverage failures (OS-E3/OS-E4). Generation/incarnation/duplicate-name boundaries never merge; partial starts/ends/sampled gaps remain partial; removal returns no virtual records and player replay survives. Source player-session splits do not establish opponent identity.
+
+Extend existing route/identity tests; reuse real HTTP import plus seeded browser suite for OS-E1–OS-E4. Integration owner executes real application scenarios and focused checks after parallel changes, recording passing/failed/blocked outcomes. Fixture unit assertions supplement, not replace, browser/API integration. No new opponent fuel/energy capability or fabricated complete coverage.
+
+OS-E3/OS-E4 refinement: fix production semantic replay projection's global-counter assumption found in real capture. Preserve native counters/timestamps, use discontinuous safe replay ordinals at forward-clock counter resets and capture gaps, deduplicate full observation identity, and retain rejection for incompatible/backward reset clocks. Extend existing projection regression and real HTTP/browser semantic replay assertions; no fixture rewriting or optimistic continuity.
+
+### Individual-record backend verification
+
+B-OS1/B-OS2/B-OS3 completed against the [shared executed OS-E1–OS-E4 evidence](lmu-competitor-data-contract.md#executed-individual-record-verification). Both bounded fixtures reproduce from the original source hash and pass exact sparse decoded-frame conservation. Production HTTP returns all 15 independent grid records and exact identity/lap membership. Final opponent integration suite: 16 passed, including preserved native provenance across counter resets and discontinuities retained through duplicate scoring snapshots in both replay and distance alignment. Replay server, Sessions server and backend application TypeScript projects passed. Source error, removal and player-preservation behavior remains covered by the retained real application/browser scenarios; broader verification limits are recorded once in the shared evidence.
+
+### Package ownership amendment
+
+LMU-specific backend cases belong to nested workspace `@raceiq/game-lmu-tests`,
+under `packages/game-lmu/test/e2e/backend/`; recording E2Es use
+`test/e2e/recordings/`, pure unit cases use `test/unit/`, and fixtures remain
+`test/fixtures/`. SDK keeps strict runtime boundaries; app integrations consume
+declared public test-support APIs without source-relative package escapes.
+Shared application helpers and generic multi-game tests retain their owners.
+Backend scope: child dependencies/configuration, preserved application preload,
+native fixture/import/retention cases and canonical support export maps. No
+production endpoint or payload changes. Storage transitions and edge handling
+map to PKG1–PKG7 and shared PKG-E6/PKG-E7 scenarios in the
+[contract ownership section](./lmu-competitor-data-contract.md#package-owned-lmu-tests-complete-seed-and-live-ingress-proof).
+UI browser relocation can proceed independently after this agreed boundary;
+integration owner runs both actual launchers and real UI/backend scenarios.
+That section records actual outcomes and the Windows-only verification limits;
+neither file replay nor planned checks establish hardware acquisition coverage.
 
