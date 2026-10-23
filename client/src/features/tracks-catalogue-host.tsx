@@ -17,7 +17,7 @@ import { AccTrackGuide, AccTrackSetups } from "@/components/acc/AccTrackSetups";
 import { F125TrackGuide } from "@/components/f1/f125/TrackGuide";
 import { F125SetupsWithGuide } from "@/components/f1/f125/TrackSetups";
 import { F125Leaderboard } from "@/components/f1/F125Leaderboard";
-import { OnlineCommunityLaps } from "@/components/online/OnlineCommunityLaps";
+import { OnlineCommunityLaps } from "@raceiq/online/ui"
 import { useTracks, useResolveNames } from "@/hooks/catalog-queries";
 import { useCatalogTunes, useUserTunes, useLaptimes } from "@/hooks/tunes";
 import { useBulkDeleteLaps } from "@/hooks/laps";

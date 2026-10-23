@@ -11,6 +11,7 @@ import { DirectSessionRecorderAdapter } from "@raceiq/backend-core/session-captu
 import { LiveTelemetryPipeline } from "@raceiq/backend-core/telemetry/live-pipeline";
 import { iterateSessionCaptureRecordsFromSource } from "@raceiq/backend-core/session-capture/source-loader";
 import { getLapsByIds } from "@raceiq/backend-core/db/lap-read-queries";
+import { readOriginalActivitySourceProof } from "@raceiq/backend-core/db/original-activity-queries";
 import { parsePacket, resetParserState, subscribeParserSource } from "@raceiq/backend-core/games/packet-dispatch";
 import { iterateSessionCaptureRecords, META_FRAME_BYTES } from "@raceiq/capture-formats/session/framing";
 import { createIRacingSourceDecoderState, decodeIRacingSourceFrame, IRacingSourceFrameEncoder, type IRacingValue } from "@raceiq/capture-formats/iracing/source-frame";
@@ -68,11 +69,11 @@ test("direct recording retains queued native input across a delayed lap binding 
   initServerGameAdapters(); resetParserState("fm-2023");
   const before = new Set((await db.select({ id: sessions.id }).from(sessions).all()).map(row => row.id));
   const frames = fixtureFrames(await readFile(resolve(import.meta.dir, "../../../../test/artifacts/sessions/fm-2023-with-pitting.bin.gz")), "fm-2023");
-  const adapter = new HeldTuneDb({ notifyDriverProfile: false });
+  const adapter = new HeldTuneDb({ notifyDriverProfile: false, sourceOrigin: { kind: "native_capture" } });
   const finalSyncStarted = Promise.withResolvers<void>();
   const releaseFinalSync = Promise.withResolvers<void>();
   let holdFinalSync = false;
-  const recorder = new ObservedDirectRecorder("others", { writerOptions: {
+  const recorder = new ObservedDirectRecorder("mine", { writerOptions: {
     onDurable: async () => {
       if (holdFinalSync) { finalSyncStarted.resolve(); await releaseFinalSync.promise; }
     },
@@ -127,9 +128,90 @@ test("direct recording retains queued native input across a delayed lap binding 
     const imported = await importLapsZip(exported.bytes, { ownership: "others" });
     expect(imported.errors).toEqual([]);
     expect(imported.laps.map(lap => lap.lapTime)).toEqual(selected.map(lap => lap.lapTime));
+    const retainedSessions = await db.select().from(sessions).where(inArray(sessions.id, rows.map(row => row.id))).all();
+    expect(new Map(retainedSessions.map(row => [row.id, [row.ownership, row.ownerUserId]]))).toEqual(new Map(rows.map(row => [row.id, [row.ownership, row.ownerUserId]])));
+    const retainedLaps = await db.select().from(laps).where(inArray(laps.id, selected.map(lap => lap.id))).all();
+    expect(new Map(retainedLaps.map(lap => [lap.id, lap.lapGuid]))).toEqual(new Map(selected.map(lap => [lap.id, lap.lapGuid])));
   } finally {
     adapter.release.resolve(); unsubscribe();
     releaseFinalSync.resolve();
+    await pipeline.finalizeCurrentSession().catch(() => {});
+    const created = (await db.select().from(sessions).all()).filter(row => !before.has(row.id));
+    if (created.length) await db.delete(sessions).where(inArray(sessions.id, created.map(row => row.id))).run();
+    for (const row of created) if (row.rawFile) await rm(row.rawFile.endsWith("manifest.json") ? dirname(row.rawFile) : row.rawFile, { recursive: row.rawFile.endsWith("manifest.json"), force: true });
+  }
+}, 60_000);
+
+test.each(["uninterrupted", "overloaded"] as const)("native original completion during final recorder durability stays truthful when %s", async (mode) => {
+  initServerGameAdapters(); resetParserState("lmu");
+  const before = new Set((await db.select({ id: sessions.id }).from(sessions).all()).map(row => row.id));
+  const frames = fixtureFrames(await readFile(resolve(import.meta.dir, "../../../../test/artifacts/sessions/lmu-spa-iron-lynx-gte.bin.gz")), "lmu");
+  const durableEntered = Promise.withResolvers<void>(), releaseDurable = Promise.withResolvers<void>();
+  let attributionClosed = false, held = false;
+  const adapter = new class extends RealDbAdapter {
+    override setOriginalActivitySourceRevision(...args: Parameters<RealDbAdapter["setOriginalActivitySourceRevision"]>) {
+      super.setOriginalActivitySourceRevision(...args);
+      attributionClosed = true;
+    }
+  }({ notifyDriverProfile: false, sourceOrigin: { kind: "native_capture" } });
+  const recorder = new ObservedDirectRecorder("mine", { writerOptions: {
+    onDurable: async () => {
+      if (attributionClosed && !held) { held = true; durableEntered.resolve(); await releaseDurable.promise; }
+    },
+  } });
+  const failures: unknown[] = [];
+  const ws = new class extends NullWsAdapter { override broadcastNotification(event: Record<string, unknown>) { if (event.type === "recording-failed") failures.push(event.error); } }();
+  const pipeline = new LiveTelemetryPipeline(adapter, ws, { recorder, bypassPacketRateFilter: true, skipHistorySeeding: true, skipDevState: true });
+  const unsubscribe = subscribeParserSource(input => pipeline.captureParserSource(input));
+  let finalization: Promise<PromiseSettledResult<void>[]> | null = null;
+  const replay = async () => {
+    let last: TelemetryPacket | null = null;
+    for (const input of frames) {
+      const bytes = Buffer.from(input.bytes), packet = parsePacket(bytes, input.timestampMs);
+      if (packet) { last = packet; await pipeline.processPacket(packet, bytes, input.timestampMs); }
+      while ((recorder.capture?.queuedBytes ?? 0) > 512 * 1024) {
+        if (recorder.capture?.hasFailed) throw recorder.capture.error;
+        await nextTurn();
+      }
+      if (recorder.capture?.hasFailed) throw recorder.capture.error;
+    }
+    if (!last) throw new Error("Genuine LMU fixture must produce native telemetry");
+    return last;
+  };
+  try {
+    const lastPacket = await replay();
+    finalization = Promise.allSettled([pipeline.finalizeCurrentSession()]);
+    await durableEntered.promise;
+    const affected = (await db.select().from(sessions).all()).filter(row => !before.has(row.id));
+    expect(affected).toHaveLength(1);
+    const session = affected[0]!;
+    const committed = await db.select({ id: laps.id, guid: laps.lapGuid, time: laps.lapTime }).from(laps).where(eq(laps.sessionId, session.id)).all();
+    expect(await readOriginalActivitySourceProof(session.id)).toBeNull();
+    const waiting = mode === "overloaded"
+      ? Promise.allSettled(Array.from({ length: 640 }, () => pipeline.processPacket(lastPacket)))
+      : Promise.resolve([]);
+    releaseDurable.resolve();
+    await finalization;
+    const admitted = await waiting;
+    expect(admitted.every(result => result.status === "fulfilled")).toBe(true);
+    expect(pipeline.isSessionActive).toBe(false);
+    expect(await db.select({ id: laps.id, guid: laps.lapGuid, time: laps.lapTime }).from(laps).where(eq(laps.sessionId, session.id)).all()).toEqual(committed);
+    const retained = (await db.select().from(sessions).where(eq(sessions.id, session.id)).all())[0]!;
+    expect([retained.ownerUserId, retained.ownership]).toEqual([session.ownerUserId, session.ownership]);
+    const proof = await readOriginalActivitySourceProof(session.id);
+    const manifest = JSON.parse(await readFile(session.rawFile!, "utf8")) as { sourceClosed: boolean };
+    if (mode === "uninterrupted") {
+      expect(proof).not.toBeNull(); expect(manifest.sourceClosed).toBe(true); expect(failures).toEqual([]);
+    } else {
+      expect(proof).toBeNull(); expect(manifest.sourceClosed).toBe(false);
+      expect(failures).toEqual(["Recording detector queue capacity exhausted"]);
+      await replay(); await pipeline.finalizeCurrentSession();
+      const recovered = (await db.select().from(sessions).all()).filter(row => !before.has(row.id) && row.id !== session.id);
+      expect(recovered).toHaveLength(1);
+      expect(await readOriginalActivitySourceProof(recovered[0]!.id)).not.toBeNull();
+    }
+  } finally {
+    releaseDurable.resolve(); await finalization; unsubscribe();
     await pipeline.finalizeCurrentSession().catch(() => {});
     const created = (await db.select().from(sessions).all()).filter(row => !before.has(row.id));
     if (created.length) await db.delete(sessions).where(inArray(sessions.id, created.map(row => row.id))).run();
@@ -145,7 +227,7 @@ test("direct LMU capture backpressures rapid context generations and replays eve
   const entered = [Promise.withResolvers<void>(), Promise.withResolvers<void>()];
   const release = [Promise.withResolvers<void>(), Promise.withResolvers<void>()];
   let durableCalls = 0;
-  const recorder = new ObservedDirectRecorder("others", { writerOptions: {
+  const recorder = new ObservedDirectRecorder("mine", { writerOptions: {
     onDurable: async () => {
       const index = durableCalls++;
       if (index < 2) { entered[index]!.resolve(); await release[index]!.promise; }
@@ -157,7 +239,7 @@ test("direct LMU capture backpressures rapid context generations and replays eve
       if (event.type === "recording-failed") failures.push(event.error);
     }
   }();
-  const pipeline = new LiveTelemetryPipeline(new RealDbAdapter({ notifyDriverProfile: false }), ws, {
+  const pipeline = new LiveTelemetryPipeline(new RealDbAdapter({ notifyDriverProfile: false, sourceOrigin: { kind: "native_capture" } }), ws, {
     recorder, bypassPacketRateFilter: true, skipHistorySeeding: true, skipDevState: true,
   });
   const unsubscribe = subscribeParserSource(input => pipeline.captureParserSource(input));
@@ -242,14 +324,14 @@ test("direct iRacing pipeline promotes only confirmed lap changes and conserves 
   initServerGameAdapters(); resetParserState("iracing");
   const before = new Set((await db.select({ id: sessions.id }).from(sessions).all()).map(row => row.id));
   const frames = fixtureFrames(await readFile(resolve(import.meta.dir, "../../../../test/artifacts/sessions/iracing-road-america-gt3.bin.gz")), "iracing");
-  const recorder = new ObservedDirectRecorder("others");
+  const recorder = new ObservedDirectRecorder("mine");
   const failures: unknown[] = [];
   const ws = new class extends NullWsAdapter {
     override broadcastNotification(event: Record<string, unknown>) {
       if (event.type === "recording-failed") failures.push(event.error);
     }
   }();
-  const pipeline = new LiveTelemetryPipeline(new RealDbAdapter({ notifyDriverProfile: false }), ws, {
+  const pipeline = new LiveTelemetryPipeline(new RealDbAdapter({ notifyDriverProfile: false, sourceOrigin: { kind: "native_capture" } }), ws, {
     recorder, bypassPacketRateFilter: true, skipHistorySeeding: true, skipDevState: true,
   });
   const unsubscribe = subscribeParserSource(input => pipeline.captureParserSource(input));
@@ -326,14 +408,14 @@ test("direct iRacing pipeline rejects transient lap candidate without a false la
   initServerGameAdapters(); resetParserState("iracing");
   const before = new Set((await db.select({ id: sessions.id }).from(sessions).all()).map(row => row.id));
   const frames = fixtureFrames(await readFile(resolve(import.meta.dir, "../../../../test/artifacts/sessions/iracing-road-america-gt3.bin.gz")), "iracing");
-  const recorder = new ObservedDirectRecorder("others");
+  const recorder = new ObservedDirectRecorder("mine");
   const failures: unknown[] = [];
   const ws = new class extends NullWsAdapter {
     override broadcastNotification(event: Record<string, unknown>) {
       if (event.type === "recording-failed") failures.push(event.error);
     }
   }();
-  const pipeline = new LiveTelemetryPipeline(new RealDbAdapter({ notifyDriverProfile: false }), ws, {
+  const pipeline = new LiveTelemetryPipeline(new RealDbAdapter({ notifyDriverProfile: false, sourceOrigin: { kind: "native_capture" } }), ws, {
     recorder, bypassPacketRateFilter: true, skipHistorySeeding: true, skipDevState: true,
   });
   const unsubscribe = subscribeParserSource(input => pipeline.captureParserSource(input));
@@ -384,14 +466,14 @@ test("direct iRacing session stop keeps unresolved deferred frames auxiliary to 
   initServerGameAdapters(); resetParserState("iracing");
   const before = new Set((await db.select({ id: sessions.id }).from(sessions).all()).map(row => row.id));
   const frames = fixtureFrames(await readFile(resolve(import.meta.dir, "../../../../test/artifacts/sessions/iracing-road-america-gt3.bin.gz")), "iracing");
-  const recorder = new ObservedDirectRecorder("others");
+  const recorder = new ObservedDirectRecorder("mine");
   const failures: unknown[] = [];
   const ws = new class extends NullWsAdapter {
     override broadcastNotification(event: Record<string, unknown>) {
       if (event.type === "recording-failed") failures.push(event.error);
     }
   }();
-  const pipeline = new LiveTelemetryPipeline(new RealDbAdapter({ notifyDriverProfile: false }), ws, {
+  const pipeline = new LiveTelemetryPipeline(new RealDbAdapter({ notifyDriverProfile: false, sourceOrigin: { kind: "native_capture" } }), ws, {
     recorder, bypassPacketRateFilter: true, skipHistorySeeding: true, skipDevState: true,
   });
   const unsubscribe = subscribeParserSource(input => pipeline.captureParserSource(input));
@@ -483,14 +565,14 @@ test("direct ACC pipeline retains replacement start and exports completed lap ar
   initServerGameAdapters(); resetParserState("acc");
   const before = new Set((await db.select({ id: sessions.id }).from(sessions).all()).map(row => row.id));
   const frames = fixtureFrames(await readFile(resolve(import.meta.dir, "../../../../test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz")), "acc");
-  const recorder = new ObservedDirectRecorder("others");
+  const recorder = new ObservedDirectRecorder("mine");
   const failures: unknown[] = [];
   const ws = new class extends NullWsAdapter {
     override broadcastNotification(event: Record<string, unknown>) {
       if (event.type === "recording-failed") failures.push(event.error);
     }
   }();
-  const pipeline = new LiveTelemetryPipeline(new RealDbAdapter({ notifyDriverProfile: false }), ws, {
+  const pipeline = new LiveTelemetryPipeline(new RealDbAdapter({ notifyDriverProfile: false, sourceOrigin: { kind: "native_capture" } }), ws, {
     recorder, bypassPacketRateFilter: true, skipHistorySeeding: true, skipDevState: true,
   });
   const unsubscribe = subscribeParserSource(input => pipeline.captureParserSource(input));

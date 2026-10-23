@@ -13,7 +13,7 @@ import {
   encodeFrameLength, encodeMetaFrame, readFramePrefix,
   type SessionCaptureRecord, type ParserBootstrapPayload,
 } from "@raceiq/capture-formats/session/framing";
-import type { UploadGame, VerifiedRecordingCodec } from "@raceiq/online/payload";
+import type { UploadGame, VerifiedRecordingCodec } from "@raceiq/online/server/payload";
 import type { GameIdentityBinding } from "@raceiq/online/contracts";
 import { isWholeLapSelf } from "@raceiq/shared/driver-attribution";
 import { NativeAttributionTracker, getNativeSourceClock, nativeDriverBindings } from "../lap-detection/native-attribution";

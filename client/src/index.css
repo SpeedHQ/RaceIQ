@@ -8,6 +8,7 @@
 @import "./components/SessionRecap.css";
 @plugin "@tailwindcss/typography";
 @source "../../packages/tracks-catalogue/ui";
+@source "../../packages/online/ui";
 @source "../../packages/cars-catalogue/ui";
 
 @keyframes drawLine {

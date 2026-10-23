@@ -21,7 +21,7 @@ import { containsSparseCaptureFrames, decompressIfGzipSync, encodeFrameLength, e
   type PortableCaptureIdentity, type PortableLapIdentity, type SessionCaptureRecord } from "@raceiq/capture-formats/session/framing";
 import { iterateOriginalCapturePartRecords, loadCaptureManifest, resolveLiveLapCaptureArtifact, type SessionCapturePart } from "./source-loader";
 import type { ImportedLap } from "./import-pipeline";
-import { notifyOnlineSync } from "@raceiq/online/sync-events";
+import { notifyOnlineSync } from "@raceiq/online/server/sync-events";
 import { markDashboardCaptureCheckpoint, processDashboardSession } from "./dashboard-processor";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { Schema } from "effect";

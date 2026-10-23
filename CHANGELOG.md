@@ -24,6 +24,8 @@
 - Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
 
 ### Fixes
+- Keep the app running after live telemetry overload, report the affected recording as incomplete, and allow subsequent recordings.
+- Make Settings a labelled modal with keyboard focus containment and Escape dismissal.
 - Keep recording splitting and background processing available when the UDP telemetry port is already in use.
 - Report inconclusive historical lap classification as limited without requesting attention, and correct earlier results.
 - Center Le Mans Ultimate track outlines within catalogue cards.
@@ -91,11 +93,23 @@
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
+- Colocate Online UI, server routes, contracts and feature tests in the Online workspace, with typed application host bindings and dedicated feature E2E selection.
+- Add a focused Online acceptance command with one happy-path and one failure-path check per desktop workflow, using isolated account, SQLite, profile/history and replay-controller fixtures instead of full release matrices.
 - Run Online delivery and preparation in a dedicated worker, with loopback-only E2E transports, including replay downloads, and an empty test credential store.
+- Add isolated real-HTTP recovery coverage for dropped acceptance responses, crashes, second-instance deduplication, wrong-account rejection, reservation Retry-After/503/disconnect faults, and bounded UDP overload followed by healthy capture.
 - Reuse published native lap artifacts, immutable source manifests and exact framing/context encoders for Online upload preparation.
+- Retain native source revisions in per-lap recording manifests before original closure so upload preparation does not lose their established source identity.
+- Recheck profile and recording sources after credential lookup before starting transport so stale statistics and deleted lap recordings cannot be sent.
+- Retire obsolete profile intents when authenticated owner readback matches the current prepared source, without resending stale statistics or assigning them another payload's acceptance receipt.
+- Verify private F1/LMU lifetime contributions through two real app data directories, the published SDK and actual cloud API, including coherent owner/public revisions and obsolete-intent recovery.
+- Allow upgrade smoke to use a read-only local workspace snapshot, resolve worktree metadata on the host, and complete access setup through public readiness endpoints before checking protected data.
+- Exercise source upgrade, stopped-data backup/restore and matching released-source rollback through the actual app, preserving all six games' session IDs.
+- Declare the backend's direct analysis-core workspace dependency so clean installations do not rely on incidental dependency hoisting.
+- Verify storage-denied startup, sustained API-outage recovery, exact accepted-state restoration and signed-out offline capture without reminting identity or resending accepted recordings.
+- Add actual-app checks for fastest-source backfill, durable receipt readback, identity-preserving reprocessing, and sharing/sign-out/source-deletion barriers before binary upload.
 - Use pinned Effect PersistedQueue and SQLite for Online delivery, retaining account-owned request identity and sync history.
 - Extract Online contracts, account service, adapter, upload delivery and storage into a dedicated workspace.
-- Upgrade Online to `@speedhq/live-client@0.2.0`, including original-activity contribution hashing, owner readback and manifest-v3 lap imports.
+- Upgrade Online to `@speedhq/live-client@0.2.1`, including original-activity contribution hashing, owner readback and manifest-v3 lap imports.
 - Ignore terminal color codes when waiting for compiler startup in the Paraglide lifecycle CI test.
 - Generate Paraglide declarations with the installed native TypeScript compiler and stop abandoned translation watchers from consuming CPU after development exits.
 - Use Ubuntu instead of macOS for CI runners and cap Mars memory requests at 6 GB.

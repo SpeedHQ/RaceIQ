@@ -16,7 +16,7 @@ import { SoundSection } from "./sound/SoundSection";
 import { SpeedSection } from "./speed/SpeedSection";
 import { UpdatesSection } from "./UpdatesSection";
 import { WheelSection } from "./wheel/WheelSection";
-import { UploadSection } from "./UploadSection";
+import { UploadSection } from "@raceiq/online/ui"
 
 
 export function Settings({ initialSection, onClose }: { initialSection?: SectionId; onClose?: () => void } = {}) {

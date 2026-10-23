@@ -2,13 +2,13 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "bun:test";
-import { processOutboxDelivery } from "../src/outbox";
+import { processOutboxDelivery } from "../server/outbox";
 import {
   beginOutboxAttempt, enqueueOutboxJob, getAccountOutboxStatus, getOutboxJob,
   listDeliverableOutboxJobs, listRetiredOutboxPayloads, persistOutboxPayload,
   recordOutboxAcceptance, saveOutboxReservation, settleOutboxDelivery,withdrawAccountOutboxJobs,
   type EnqueueOutboxJob, type OutboxJob,
-} from "../src/outbox-storage";
+} from "../server/outbox-storage";
 import { lapIdentity } from "./lap-identity.fixture";
 
 async function getQueuedJob(input: EnqueueOutboxJob): Promise<OutboxJob> {

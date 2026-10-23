@@ -2,7 +2,7 @@ import { Hono,type Context } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { IDLE_CLOUD_LAP_IMPORT,type CloudLapImportState } from "@raceiq/shared/integrations/cloud-lap-import";
 import { getOnlineService } from "../integrations/online";
-import { cloudImportStart,cloudImportQuery,cloudImportActivation } from "../integrations/online-import-contract";
+import { cloudImportStart,cloudImportQuery,cloudImportActivation } from "@raceiq/online/server/import-contract";
 
 async function proxy(c:Context,path:string,method:"GET"|"POST",body:string|null,query:string|null=null){
   try{

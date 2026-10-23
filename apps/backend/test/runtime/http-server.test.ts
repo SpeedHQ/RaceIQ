@@ -5,9 +5,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { startHttpServer, staticAssetHeaders } from "../../src/runtime/http-server";
 import { createHttpAccess } from "../../src/runtime/http-access";
-import { createRaceIqOnlineService } from "@raceiq/online/service";
-import { OnlineStateStorage } from "@raceiq/online/state-storage";
-import { createOnlineRoutes, type OnlineRoutes } from "../../src/routes/online-routes";
+import { createRaceIqOnlineService } from "@raceiq/online/server/service";
+import { OnlineStateStorage } from "@raceiq/online/server/state-storage";
+import { createOnlineRoutes } from "@raceiq/online/server/routes";
+let routes: { fetch(request: Request): Response | Promise<Response> } | undefined;
 
 describe("static asset headers", () => {
   test("marks gzip JSON assets for transparent browser decompression", () => {
@@ -81,7 +82,6 @@ describe("HTTP listener access controls", () => {
     const directory = mkdtempSync(join(tmpdir(), "raceiq-callback-"));
     const previousPort = process.env.SERVER_PORT;
     let secret = "";
-    let routes: OnlineRoutes | undefined;
     let access = await createHttpAccess({ NODE_ENV: "production", SERVER_PASSWORD: "abcdefgh" });
     const server = startHttpServer({
       port: 0, staticDir: null, devPublicDir: null,

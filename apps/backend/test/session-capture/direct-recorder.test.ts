@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -9,6 +9,7 @@ import { ROOT_DIR } from "@raceiq/backend-core/runtime/config/paths";
 import { encodeFrameLength, encodeParserBootstrapFrame, iterateSessionCaptureRecords, iterateSessionFrames, META_FRAME_BYTES } from "@raceiq/capture-formats/session/framing";
 import { db } from "@raceiq/backend-core/db/index";
 import { laps, sessions } from "@raceiq/backend-core/db/schema";
+import { closeNativeOriginalActivitySource } from "@raceiq/backend-core/db/original-activity-queries";
 import { parsePacket, subscribeParserSource, type ParserReplayLocator } from "@raceiq/backend-core/games/packet-dispatch";
 import type { DetectorOwnershipTransition, DetectorOwnershipWindow } from "@raceiq/telemetry-core/processor/ordinal-engine";
 import { DirectCaptureRecording } from "@raceiq/backend-core/session-capture/direct-recorder";
@@ -72,7 +73,7 @@ describe("DirectCaptureRecording", () => {
     expect(capture.isSealed).toBe(true);
   });
 
-  it("publishes delayed binding after close and reconstructs shared lap boundary once", async () => {
+  it.each([true, false])("publishes delayed binding with stable source identity (native=%s) and reconstructs shared lap boundary once", async (nativeCaptureOrigin) => {
     initServerGameAdapters();
     const directory = await mkdtemp(join(tmpdir(), "raceiq-direct-boundary-"));
     directories.push(directory);
@@ -85,13 +86,13 @@ describe("DirectCaptureRecording", () => {
     unsubscribe();
     expect(locator).not.toBeNull();
 
-    const session = await db.insert(sessions).values({ gameId: "fm-2023", carId: "test-car", trackId: "test-track", rawFile: null }).returning({ id: sessions.id }).get();
+    const session = await db.insert(sessions).values({ gameId: "fm-2023", carId: "test-car", trackId: "test-track", rawFile: null, nativeCaptureOrigin, ownership: "mine", originalActivityId: randomUUID() }).returning({ id: sessions.id }).get();
     if (!session) throw new Error("Failed creating direct-recorder session fixture");
     sessionIds.push(session.id);
     const offsetA = META_FRAME_BYTES;
     const offsetB = offsetA + encodeFrameLength(lapAFrame!.length, 100).length + lapAFrame!.length;
-    const rowA = await db.insert(laps).values({ sessionId: session.id, lapNumber: 1, lapTime: 60, isValid: true, rawByteOffset: offsetA, rawFrameCount: 1 }).returning({ id: laps.id }).get();
-    const rowB = await db.insert(laps).values({ sessionId: session.id, lapNumber: 2, lapTime: 61, isValid: true, rawByteOffset: offsetB, rawFrameCount: 1 }).returning({ id: laps.id }).get();
+    const rowA = await db.insert(laps).values({ sessionId: session.id, lapNumber: 1, lapTime: 60, isValid: true, rawByteOffset: offsetA, rawFrameCount: 1, lapGuid: randomUUID() }).returning({ id: laps.id }).get();
+    const rowB = await db.insert(laps).values({ sessionId: session.id, lapNumber: 2, lapTime: 61, isValid: true, rawByteOffset: offsetB, rawFrameCount: 1, lapGuid: randomUUID() }).returning({ id: laps.id }).get();
     if (!rowA || !rowB) throw new Error("Failed creating direct-recorder lap fixtures");
 
     let closedA!: () => void;
@@ -123,6 +124,16 @@ describe("DirectCaptureRecording", () => {
     expect(chunkA).toMatchObject({ lapId: String(rowA.id), recordCount: 1, ownedFrameCount: 1, trailingContextFrameCount: 1 });
     expect(chunkB).toMatchObject({ lapId: String(rowB.id), recordCount: 1, ownedFrameCount: 1 });
     expect(chunkB.sourceRecordByteOffset).toBe(chunkB.ownedFrameByteOffset);
+    const unpublishedRevision = await db.select({ revision: sessions.originalSourceRevision }).from(sessions).where(eq(sessions.id, session.id)).get();
+    expect(unpublishedRevision?.revision).toBeNull();
+    if (nativeCaptureOrigin) {
+      expect(lapChunks.map((chunk: { originalSourceRevision?: string }) => chunk.originalSourceRevision)).toEqual([capture.sourceRevision, capture.sourceRevision]);
+      await closeNativeOriginalActivitySource(session.id, { sourceRevision: capture.sourceRevision, lapCount: 2, gapCount: 0 });
+      const finalized = await db.select({ revision: sessions.originalSourceRevision }).from(sessions).where(eq(sessions.id, session.id)).get();
+      expect(lapChunks.every((chunk: { originalSourceRevision?: string }) => chunk.originalSourceRevision === finalized?.revision)).toBe(true);
+    } else {
+      expect(lapChunks.every((chunk: { originalSourceRevision?: string }) => chunk.originalSourceRevision === undefined)).toBe(true);
+    }
     const bytesA = await readFile(join(directory, chunkA.path));
     const bytesB = await readFile(join(directory, chunkB.path));
     const recordsA = [...iterateSessionCaptureRecords(bytesA)].filter((record) => record.kind === "frame");

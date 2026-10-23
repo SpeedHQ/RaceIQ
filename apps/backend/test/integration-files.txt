@@ -94,7 +94,6 @@ apps/backend/test/race-results/race-results-source.test.ts
 apps/backend/test/race-results/race-results-storage.test.ts
 apps/backend/test/race-results/raw-capture-identity.test.ts
 apps/backend/test/routes/car-routes-game-id.test.ts
-apps/backend/test/routes/cloud-lap-import-controller.test.ts
 apps/backend/test/routes/diagnostics-routes.test.ts
 apps/backend/test/routes/import-ownership.test.ts
 apps/backend/test/routes/lap-analysis-integration.test.ts
@@ -102,9 +101,6 @@ apps/backend/test/routes/lap-analysis-route.test.ts
 apps/backend/test/routes/laps-issues-route.test.ts
 apps/backend/test/routes/layout-migration.test.ts
 apps/backend/test/routes/lmu-string-identity.test.ts
-apps/backend/test/routes/online-routes.test.ts
-apps/backend/test/routes/online-auth.test.ts
-apps/backend/test/routes/online-queue-status.test.ts
 apps/backend/test/routes/place-setup-sanitise.test.ts
 apps/backend/test/routes/recording-support.test.ts
 apps/backend/test/routes/runtime-features.test.ts

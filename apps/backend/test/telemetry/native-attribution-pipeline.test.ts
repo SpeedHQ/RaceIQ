@@ -109,6 +109,70 @@ describe("native source -> live pipeline -> detector -> attribution persistence"
     expect(stints.map((stint) => stint.attribution)).toEqual(["Self"]);
     expect(stints[0]!.endMs! - stints[0]!.startMs).toBe(20_000);
   });
+  test.each(["running", "snapshot", "finalize"] as const)("detector overload contains a native gap and recovers during %s", async (barrier) => {
+    const entered = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const db = new class extends CapturingDbAdapter {
+      private hold = true;
+      override async getDriverBindings() {
+        if (this.hold) {
+          this.hold = false;
+          entered.resolve();
+          await release.promise;
+        }
+        return super.getDriverBindings();
+      }
+    }();
+    db.driverBindings = { revision: 1, bindings: [binding()] };
+    const failures: unknown[] = [];
+    const ws = new class extends NullWsAdapter {
+      override broadcastNotification(event: Record<string, unknown>) {
+        if (event.type === "recording-failed") failures.push(event.error);
+      }
+    }();
+    const pipeline = new LiveTelemetryPipeline(db, ws, {
+      bypassPacketRateFilter: true, skipHistorySeeding: true, skipDevState: true,
+      enqueueSessionCaptureSplits: false, recorder: new NullSessionRecorderAdapter(),
+    });
+    const next = nativePackets();
+    const pending = [pipeline.processPacket(next(100.00025, 0, 1))];
+    await entered.promise;
+    const snapshot = barrier === "snapshot" ? pipeline.snapshotIncompleteLap()
+      : barrier === "finalize" ? pipeline.finalizeCurrentSession() : Promise.resolve();
+    let settled = 0;
+    for (let index = 1; index <= 640; index++) {
+      pending.push(pipeline.processPacket(next(100.00025 + index * 0.03, index * 0.03, 1))
+        .finally(() => { settled++; }));
+    }
+    const outcomes = Promise.allSettled(pending);
+    try {
+      // Ingress behind a lifecycle barrier must have the same finite budget.
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      if (barrier !== "running") expect(settled).toBeGreaterThanOrEqual(128);
+      release.resolve();
+      expect((await outcomes).every((outcome) => outcome.status === "fulfilled")).toBe(true);
+      await snapshot;
+      expect(failures).toEqual(["Recording detector queue capacity exhausted"]);
+      expect(db.finalizedOriginalActivities).toEqual([]);
+      expect(db.laps.map((lap) => [lap.sessionId, lap.isValid, lap.invalidReason]))
+        .toEqual(barrier === "running" ? [[1, false, "incomplete"]] : []);
+      expect(pipeline.lapDetector?.session ?? null).toBeNull();
+
+      // A subsequent genuine complete native lap is not poisoned by recovery.
+      for (let index = 0; index <= 40; index++) {
+        await pipeline.processPacket(next(200.00025 + index * 0.5,
+          index === 40 ? 0 : index * 0.5, index === 40 ? 2 : 1));
+      }
+      await pipeline.finalizeCurrentSession();
+      expect(db.finalizedOriginalActivities).toEqual([2]);
+      expect(db.laps.find((lap) => lap.sessionId === 2 && lap.lapNumber === 1)?.driverAttribution?.attribution).toBe("Self");
+    } finally {
+      release.resolve();
+      await outcomes;
+      await snapshot;
+      await pipeline.finalizeCurrentSession();
+    }
+  });
   test("official five-second native participant cadence retains whole-lap Self coverage", async () => {
     const db = await capture({ participantCadence: 5 });
     expect(db.laps.find((lap) => lap.lapNumber === 1)?.driverAttribution?.attribution).toBe("Self");

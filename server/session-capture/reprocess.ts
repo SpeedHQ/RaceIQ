@@ -16,7 +16,7 @@ import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { PARSER_BOOTSTRAP_VERSION } from "@raceiq/capture-formats/session/framing";
 import { isIRacingSessionFrame } from "@raceiq/capture-formats/iracing/source-frame";
 import { applyFrameTime } from "./frame-time";
-import { notifyOnlineSync } from "@raceiq/online/sync-events";
+import { notifyOnlineSync } from "@raceiq/online/server/sync-events";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { isDelayedFinishContext } from "../db/telemetry-replay-storage";
 export interface ReprocessResult {

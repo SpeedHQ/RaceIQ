@@ -6,10 +6,11 @@
     "transit": {
       "inputs": [
         "$TURBO_DEFAULT$",
-        "!**/*.test.ts",
-        "!**/*.test.tsx",
-        "!test/*-files.txt"
+        "!test/**"
       ]
+    },
+    "e2e:impact": {
+      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/client/src/features/online-host.tsx"]
     },
     "test": {
       "dependsOn": ["transit"],

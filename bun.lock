@@ -17,7 +17,7 @@
         "@mastra/evals": "^1.10.2",
         "@mastra/libsql": "^1.23.0",
         "@mastra/memory": "^1.30.0",
-        "@speedhq/live-client": "0.2.0",
+        "@speedhq/live-client": "0.2.1",
         "ai": "7.0.105",
         "drizzle-orm": "^0.45.2",
         "fflate": "^0.8.3",
@@ -387,16 +387,29 @@
     "packages/online": {
       "name": "@raceiq/online",
       "dependencies": {
+        "@base-ui/react": "^1.8.0",
         "@effect/sql-sqlite-bun": "4.0.4",
+        "@hono/zod-validator": "0.9.1",
         "@libsql/client": "^0.18.0",
         "@raceiq/game-ac-evo-metadata": "workspace:*",
         "@raceiq/game-acc-metadata": "workspace:*",
         "@raceiq/game-f1-2025-metadata": "workspace:*",
         "@raceiq/game-iracing-metadata": "workspace:*",
         "@raceiq/game-lmu-metadata": "workspace:*",
-        "@speedhq/live-client": "0.2.0",
+        "@raceiq/shared": "workspace:*",
+        "@speedhq/live-client": "0.2.1",
+        "@tanstack/react-query": "^5.103.1",
+        "@tanstack/react-router": "^1.170.38",
         "effect": "4.0.4",
+        "hono": "4.13.8",
+        "lucide-react": "^1.47.0",
+        "react": "^19.3.0",
+        "react-icons": "^5.7.0",
         "zod": "^4.6.5",
+      },
+      "devDependencies": {
+        "@playwright/test": "1.62.1",
+        "@types/react": "^19.3.0",
       },
     },
     "packages/scene-3d": {
@@ -525,6 +538,7 @@
         "@raceiq/game-iracing": "workspace:*",
         "@raceiq/game-iracing-metadata": "workspace:*",
         "@raceiq/game-lmu-metadata": "workspace:*",
+        "@raceiq/online": "workspace:*",
         "@raceiq/shared": "workspace:*",
         "@raceiq/telemetry-core": "workspace:*",
         "@tanstack/react-query": "^5.103.1",
@@ -574,6 +588,7 @@
         "@mastra/core": "^1.67.0",
         "@mastra/libsql": "^1.23.0",
         "@mastra/memory": "^1.30.0",
+        "@raceiq/analysis-core": "workspace:*",
         "@raceiq/capture-downsampling": "workspace:*",
         "@raceiq/capture-formats": "workspace:*",
         "@raceiq/capture-splitting": "workspace:*",
@@ -587,7 +602,7 @@
         "@raceiq/online": "workspace:*",
         "@raceiq/shared": "workspace:*",
         "@raceiq/telemetry-core": "workspace:*",
-        "@speedhq/live-client": "0.2.0",
+        "@speedhq/live-client": "0.2.1",
         "ai": "7.0.105",
         "drizzle-orm": "^0.45.2",
         "effect": "4.0.4",
@@ -1541,7 +1556,7 @@
 
     "@solid-primitives/utils": ["@solid-primitives/utils@6.4.1", "", { "peerDependencies": { "solid-js": "^1.6.12" } }, "sha512-ISSB5QX1qP2ynrheIpYwc4oKR5Ny4siNuUyf1qZniy+Il+p/PtDB0QK1Dnle8noiHpwRD3gpPdubOC3qI/Zamg=="],
 
-    "@speedhq/live-client": ["@speedhq/live-client@0.2.0", "", {}, "sha512-WQ+99GPnEI84xOv7bW3jVm48OMfUUUwkjeKn9s0db+Su+Y02jFU0J3748b1j+oAUYW+d4dYT3lENUv8Vp+MHnw=="],
+    "@speedhq/live-client": ["@speedhq/live-client@0.2.1", "", {}, "sha512-gr0a6tqLee7kvo+vLGS/wTS+3rvn8K0mhGDvKQb47/OCbpMaNaD/xVsgi0op1XcjL3dfFib4dsuWtogQUL7G5A=="],
 
     "@standard-community/standard-json": ["@standard-community/standard-json@0.3.6", "", { "dependencies": { "quansync": "^0.2.11" }, "peerDependencies": { "@standard-schema/spec": "^1.0.0", "@types/json-schema": "^7.0.15", "@valibot/to-json-schema": "^1.3.0", "arktype": "^2.1.20", "effect": "^3.20.0", "sury": "^10.0.0", "typebox": "^1.0.17", "valibot": "^1.4.2", "zod": "^3.25.0 || ^4.0.0", "zod-to-json-schema": "^3.24.5" }, "optionalPeers": ["@valibot/to-json-schema", "arktype", "effect", "sury", "typebox", "valibot", "zod", "zod-to-json-schema"] }, "sha512-tuXKz1Ps4al0W4xhfwii7v4lskKtOv3QE7mcouRVThrBdOR6JzY4Vea3nsxcEnte84bOJvMvXGmOMWE3IBbHyA=="],
 

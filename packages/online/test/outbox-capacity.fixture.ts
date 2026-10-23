@@ -5,7 +5,7 @@ import {
   beginOutboxAttempt, enqueueOutboxJob, ensureOutboxStorage, getAccountOutboxStatus,
   getOutboxJob, listDeliverableOutboxJobs, listRetiredOutboxPayloads, persistOutboxPayload,
   settleOutboxDelivery, withdrawAccountOutboxJobs,
-} from "../src/outbox-storage";
+} from "../server/outbox-storage";
 import { lapIdentity } from "./lap-identity.fixture";
 
 const directory = process.env.DATA_DIR;

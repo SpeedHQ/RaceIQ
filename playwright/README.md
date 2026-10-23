@@ -24,6 +24,8 @@ The `seeded-webgpu` project requires a hardware adapter (`GPUAdapterInfo.isFallb
 
 Root `test:e2e` (including `test:e2e:compiled`), its `fresh`/`tunes`/`seeded` variants, and root `screenshots` use `scripts/run-browser-verification.ts`: this cross-platform runner builds the production app with both F1 experiments and iRacing adapter flags, then starts compiled-server verification. `build:browser` exposes the feature-enabled build alone; ordinary `build` and release builds retain default feature settings. `ui:diff` builds both compared revisions with those flags before compiled responsive captures; `ui:diff:storybook` remains Storybook-only. The general `bun run test` sequence also performs a feature-enabled browser build immediately before Playwright E2E.
 
+Online owns its browser cases in `packages/online/test/e2e/`. Run `bunx turbo run test:e2e --filter=@raceiq/online` from the repository root to build the complete application and exercise the feature with isolated seeded data and ports. The `online` Playwright project is also included in full/seeded local execution and the existing seeded CI shards. `bun run test:online:journeys` remains the focused account, queue, profile and replay-controller integration command; it is not rendered-browser or hosted-provider certification.
+
 ## Commands and server modes
 
 ```sh

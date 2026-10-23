@@ -3,9 +3,9 @@ import { join } from "node:path";
 import { Effect, Layer, Schedule, Schema } from "effect";
 import * as PersistedQueue from "effect/persistence/PersistedQueue";
 import * as SqliteClient from "@effect/sql-sqlite-bun/SqliteClient";
-import { beginOutboxAttempt, enqueueOutboxJob, getOutboxJob, listDeliverableOutboxJobs, persistOutboxPayload, settleOutboxDelivery } from "../src/outbox-storage";
-import { startOnlineUploadCoordinator, type OnlineUploadCoordinatorService } from "../src/coordinator";
-import { notifyOnlineSync } from "../src/sync-events";
+import { beginOutboxAttempt, enqueueOutboxJob, getOutboxJob, listDeliverableOutboxJobs, persistOutboxPayload, settleOutboxDelivery } from "../server/outbox-storage";
+import { startOnlineUploadCoordinator, type OnlineUploadCoordinatorService } from "../server/coordinator";
+import { notifyOnlineSync } from "../server/sync-events";
 import { lapIdentity } from "./lap-identity.fixture";
 
 const dataDir = process.env.DATA_DIR;

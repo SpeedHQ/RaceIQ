@@ -6,6 +6,7 @@ import type {
   DriverSummaryResponse,
   FavoriteEntity,
   MetricTotals,
+  ProfileActivityContribution,
   ProfileCoverage,
 } from "@raceiq/online/contracts";
 import { compareDashboardRanking } from "./dashboard-queries";
@@ -27,19 +28,8 @@ import { readOriginalActivitySourceProof, type OriginalActivitySourceProof } fro
 import { readClient } from "./index";
 import { dashboardLapAttribution, dashboardHasSelfStint, dashboardStints, dashboardDurationAttribution, type DashboardDurationAttribution } from "../driver-summary/dashboard-input";
 import { readDirtyDriverSummaryPreparations, settleDriverSummaryPreparation, type DriverSummaryPreparationSnapshot } from "../driver-summary/preparation";
-type ActivityContribution = {
-  schemaVersion: 2;
-  activityId: string;
-  lapGuids: string[];
-  expectedRevision: number | null;
-  contentHash: string;
-  gameId: string;
-  metrics: MetricTotals;
-  cars: EntityContribution[];
-  tracks: EntityContribution[];
-  coverage: ProfileCoverage;
-};
-type EntityContribution = { gameId: string; nativeId: string; seconds: number; laps: number };
+type ActivityContribution = ProfileActivityContribution;
+type EntityContribution = ActivityContribution["cars"][number];
 export type ActivityContributionHashPayload = Omit<ActivityContribution, "expectedRevision" | "contentHash">;
 export type DriverSummaryActivityContribution = ActivityContribution;
 export type ActivityContributionHash = (payload: ActivityContributionHashPayload) => string | Promise<string>;

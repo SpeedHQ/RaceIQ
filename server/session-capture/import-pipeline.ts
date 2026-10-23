@@ -19,7 +19,7 @@ import { NullWsAdapter, RealDbAdapter, SparseSessionRecorderAdapter, type Captur
 import { reconcileSessionResult } from "../race-results/reconcile";
 
 import { countIndexSampleMaterialized, countSourceFrameScanned } from "./test-instrumentation";
-import { notifyOnlineSync } from "@raceiq/online/sync-events";
+import { notifyOnlineSync } from "@raceiq/online/server/sync-events";
 
 
 

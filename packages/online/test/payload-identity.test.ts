@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { uploadPayloadFingerprint } from "../src/payload";
+import { uploadPayloadFingerprint } from "../server/payload";
 
 test("payload identity distinguishes recording/setup boundaries and absent attachments",async()=>{
   const recording = new Uint8Array([1, 2, 3]);

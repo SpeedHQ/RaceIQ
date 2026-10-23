@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { resetTestDatabase } from "./reset-test-database";
 import { seedE2ESetupData, seedScreenshotData } from "./seed-screenshot-data";
+import { startOnlineE2EPlatform } from "../../../packages/online/test/support/online-e2e-platform";
 
 // Cross-platform launcher for Playwright projects that target the compiled
 // raceiq binary.
@@ -40,6 +41,9 @@ seedScreenshotData(repoDir, dir);
 const access = spawnSync("bun", [resolve(repoDir, "playwright/support/server/initialize-access.ts")], { cwd: repoDir, env: { ...process.env, DATA_DIR: dir }, stdio: "inherit" });
 if (access.status !== 0) throw new Error("Failed to initialize dashboard access fixture");
 
+const onlinePlatform = process.env.RACEIQ_E2E === "1" ? await startOnlineE2EPlatform() : null;
+const launchEnv = { ...process.env, ...onlinePlatform?.env, NODE_ENV: process.env.RACEIQ_E2E === "1" ? "test" : process.env.NODE_ENV, RACEIQ_APP_ROOT: repoDir };
+
 // cwd = dist/ so the binary resolves its native libsql addon from
 // dist/node_modules/@libsql/<target> — native .node modules can't be embedded
 // in a Bun single-file executable (oven-sh/bun#18909). This matches the
@@ -47,17 +51,19 @@ if (access.status !== 0) throw new Error("Failed to initialize dashboard access 
 const child = spawn(binary, {
   stdio: "inherit",
   cwd: process.env.PW_COMPILED_BINARY ? resolve(binary, "..") : distDir,
-  env: { ...process.env, RACEIQ_APP_ROOT: repoDir },
+  env: launchEnv,
 });
 
 child.on("error", (error) => {
   console.error(`[E2E] Failed to start compiled server: ${error.message}`);
-  process.exit(1);
+  void onlinePlatform?.close().finally(() => process.exit(1));
 });
 
 child.on("exit", (code, signal) => {
-  if (signal) process.kill(process.pid, signal);
-  else process.exit(code ?? 0);
+  void onlinePlatform?.close().finally(() => {
+    if (signal) process.kill(process.pid, signal);
+    else process.exit(code ?? 0);
+  });
 });
 
 let shuttingDown = false;

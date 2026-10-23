@@ -30,7 +30,7 @@ import { WorkerSessionRecorder, type WorkerRecorderOptions } from "@raceiq/captu
 import { SparseSessionRecorder } from "@raceiq/capture-formats/session/sparse-recorder";
 import { resolveRecordingGameDirectory } from "../runtime/config/recording-directory";
 import { timestampForFilename } from "../session-capture/filename";
-import { notifyOnlineSync } from "@raceiq/online/sync-events";
+import { notifyOnlineSync } from "@raceiq/online/server/sync-events";
 import type { GameIdentityBinding } from "@raceiq/online/contracts";
 import type { DriverAttributionStint, LapDriverAttribution, NativeDriverActor } from "@raceiq/shared/driver-attribution";
 import { getLocalGameBindingSnapshot, upsertLocalGameBinding } from "../db/local-account-queries";

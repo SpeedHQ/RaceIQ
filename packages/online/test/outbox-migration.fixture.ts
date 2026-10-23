@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { createClient } from "@libsql/client/sqlite3";
-import { listDeliverableOutboxJobs,ensureOutboxStorage } from "../src/outbox-storage";
+import { listDeliverableOutboxJobs,ensureOutboxStorage } from "../server/outbox-storage";
 
 const directory = process.env.DATA_DIR;
 if (!directory) throw new Error("DATA_DIR required");

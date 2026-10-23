@@ -1,7 +1,7 @@
 import { expect,test } from "bun:test";
-import { getRegisteredOnlineBinding,retainRegisteredOnlineBinding,hasLocalBindingConfirmation,recordLocalBindingConfirmation } from "../src/binding-storage";
-import { admitProfileDelivery,listProfileDeliveries,getProfileDelivery,beginProfileDelivery,settleProfileDelivery,readProfileUploadItems,getProfileDeliveryCounts } from "../src/profile-storage";
-import type { GameIdentityBinding } from "../src/contracts";
+import { getRegisteredOnlineBinding,retainRegisteredOnlineBinding,hasLocalBindingConfirmation,recordLocalBindingConfirmation } from "../server/binding-storage";
+import { admitProfileDelivery,listProfileDeliveries,getProfileDelivery,beginProfileDelivery,settleProfileDelivery,readProfileUploadItems,getProfileDeliveryCounts } from "../server/profile-storage";
+import type { GameIdentityBinding } from "../contracts/index";
 
 function capturedBinding():GameIdentityBinding {
   return {id:crypto.randomUUID(),gameId:"f1-2025",sourceKind:"f1-2025-udp-local-controller",nativeIdentity:JSON.stringify({schemaVersion:1,actorId:"original-session:local-player",bindingScope:"session",sessionId:"original-session"}),confirmation:"native_verified",revision:4};

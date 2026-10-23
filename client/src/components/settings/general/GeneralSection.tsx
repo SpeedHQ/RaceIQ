@@ -6,7 +6,7 @@ import { SearchSelect } from "@/components/ui/SearchSelect";
 import { useSaveSettings, useSettings } from "@/hooks/settings";
 import { applyLocale } from "@/lib/locale";
 import { m } from "@/paraglide/messages";
-import { OnlineSection } from "../OnlineSection";
+import { OnlineSection } from "@raceiq/online/ui"
 export function GeneralSection() {
   const { displaySettings } = useSettings();
   const saveSettings = useSaveSettings();

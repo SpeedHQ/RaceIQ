@@ -1,10 +1,11 @@
 import { parentPort,workerData } from "node:worker_threads";
+import { createCloudLapImporter,CloudLapImportError,validateCloudLapImportUrl } from "@raceiq/backend-core/session-capture/cloud-lap-import";
 import { initDbWorkerConnection,closeDb } from "@raceiq/backend-core/db/index";
 import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
-import { claimLocalAccountOwner,getLocalAccountOwner } from "@raceiq/backend-core/db/local-account-queries";
+import { claimLocalAccountOwner,getLocalAccountOwner,getLocalGameBindingSnapshot,upsertLocalGameBinding } from "@raceiq/backend-core/db/local-account-queries";
 import { getOnlineUploadCandidatePage,type OnlineUploadCandidateCursor } from "@raceiq/backend-core/db/online-upload-queries";
 import { createOnlineRecordingProducer } from "@raceiq/backend-core/session-capture/online-recording-producer";
-import { buildLocalDriverSummary } from "@raceiq/backend-core/driver-summary/index";
+import { buildLocalDriverSummary,getLocalDriverSummaryHolds,prepareDriverSummaryContributions,listReadyDriverSummaryContributionPage,recordDriverSummaryReceipt,recordDriverSummaryHold,hasPendingDriverSummaryPreparations,isDriverSummaryContributionCurrent } from "@raceiq/backend-core/driver-summary/index";
 import { validateNativeDriverBinding } from "@raceiq/backend-core/lap-detection/native-attribution";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { serverReleaseFeatures } from "@raceiq/backend-core/runtime/config/release-features";
@@ -12,24 +13,25 @@ import { hydrateDiscoveredAcEvoCars,listDiscoveredCars } from "@raceiq/backend-c
 import { hydrateDiscoveredAcEvoTracks,listDiscoveredTracks } from "@raceiq/backend-core/db/discovered-tracks";
 import { injectDiscoveredIRacingIdentity } from "@raceiq/game-iracing-metadata/index";
 import { injectDiscoveredLMUIdentity } from "@raceiq/game-lmu-metadata/index";
-import { configureOnlineRuntime } from "@raceiq/online/runtime";
-import { createRaceIqOnlineService,type RaceIqOnlineService } from "@raceiq/online/service";
-import { startOnlineUploadCoordinator } from "@raceiq/online/coordinator";
-import { startOnlineProfileCoordinator } from "@raceiq/online/profile-coordinator";
-import { enqueueOutboxJob,listAcceptedOutboxJobs,recordOutboxRemoteStatus,closeOutboxStorage,ensureOutboxStorage } from "@raceiq/online/outbox-storage";
-import { closeProfileStorage,ensureProfileStorage } from "@raceiq/online/profile-storage";
-import { getRegisteredOnlineBinding,retainRegisteredOnlineBinding,hasLocalBindingConfirmation,closeBindingStorage,ensureBindingStorage } from "@raceiq/online/binding-storage";
-import { notifyOnlineSync } from "@raceiq/online/sync-events";
+import { configureOnlineRuntime } from "@raceiq/online/server/runtime";
+import { createRaceIqOnlineService,type RaceIqOnlineService } from "@raceiq/online/server/service";
+import { startOnlineUploadCoordinator } from "@raceiq/online/server/coordinator";
+import { startOnlineProfileCoordinator } from "@raceiq/online/server/profile-coordinator";
+import { enqueueOutboxJob,listAcceptedOutboxJobs,recordOutboxRemoteStatus,closeOutboxStorage,ensureOutboxStorage } from "@raceiq/online/server/outbox-storage";
+import { closeProfileStorage,ensureProfileStorage } from "@raceiq/online/server/profile-storage";
+import { getRegisteredOnlineBinding,retainRegisteredOnlineBinding,hasLocalBindingConfirmation,closeBindingStorage,ensureBindingStorage } from "@raceiq/online/server/binding-storage";
+import { notifyOnlineSync } from "@raceiq/online/server/sync-events";
 import type { OnlineKeystore,OnlineError } from "@raceiq/online/contracts";
-import { getOnlineRecordingError,type PreparedOnlineLapUpload } from "@raceiq/online/payload";
-import type { OnlineUploadContext } from "@raceiq/online/upload-dispatch";
+import { getOnlineRecordingError,type PreparedOnlineLapUpload } from "@raceiq/online/server/payload";
+import type { OnlineUploadContext } from "@raceiq/online/server/upload-dispatch";
 import type { CloudLapImportState } from "@raceiq/shared/integrations/cloud-lap-import";
 import { initServerGameAdapters } from "../games/init";
-import { createOnlineLocalPort } from "../integrations/online-local";
-import { createOnlineProfileSync } from "../integrations/online-profile-sync";
-import { createCloudLapImportController } from "../integrations/cloud-lap-import-controller";
+import { createOnlineLocalPort } from "@raceiq/online/server/local";
+import { createOnlineProfileSync } from "@raceiq/online/server/profile-sync";
+import { createCloudLapImportController } from "@raceiq/online/server/cloud-lap-import-controller";
+import { createNativeBoardIdentifierResolver } from "@raceiq/online/server/identifiers";
 import { readOnlineTestPlatform,createOnlineTestFetch } from "../integrations/online-test-platform";
-import type { WorkerRequest,WorkerResponse,HostResponse,HostRequest,OnlineHostPort,HostMethod,NativeBindingsChanged } from "../integrations/online-worker-protocol";
+import type { WorkerRequest,WorkerResponse,HostResponse,HostRequest,OnlineHostPort,HostMethod,NativeBindingsChanged } from "@raceiq/online/server/worker-protocol";
 import { configureDatabaseWriteWorkerTransport, type WriteLeaseRequest, type WriteLeaseResponse } from "@raceiq/backend-core/db/write-coordination";
 
 const host=parentPort;
@@ -109,8 +111,15 @@ const local=createOnlineLocalPort(service,{
   },
   isCurrent:proof=>proof.sourceRevision===Atomics.load(nativeRevisions,0)&&Number.isFinite(Date.parse(proof.expiresAt))&&Date.parse(proof.expiresAt)>Date.now(),
   consumeCandidate:proof=>hostRequest("consumeDriverBindingCandidate",proof.candidateId,proof.sourceRevision),
-},()=>profilePreparation);
+},()=>profilePreparation,{
+  getLocalAccountOwner,
+  getLocalGameBindingSnapshot,
+  upsertLocalGameBinding,
+  validateNativeDriverBinding,
+  getLocalDriverSummaryHolds,
+});
 let importContext:OnlineUploadContext|null=null;
+const importFetch=testPlatform?createOnlineTestFetch(testPlatform):globalThis.fetch;
 const imports=createCloudLapImportController({
   getAccessToken:()=>service.getImportAccessToken(),
   async getCommunityEntitlement(){
@@ -121,6 +130,20 @@ const imports=createCloudLapImportController({
   isCommunityEntitlementCurrent:entitlement=>service.isCommunityEntitlementCurrent(entitlement),
   isCommunityEntitlementCurrentSync:entitlement=>importContext!==null&&importContext.accountEpoch===entitlement.accountEpoch
     &&importContext.revision===entitlement.onlineRevision&&service.isUploadContextCurrent(importContext),
+  identifiers:createNativeBoardIdentifierResolver(),
+  validateUrl:validateCloudLapImportUrl,
+  createError(code,retryable){
+    switch(code){
+      case "auth_required":case "lap_identity_conflict":case "invalid_manifest":case "import_busy":case "invalid_url":
+        return new CloudLapImportError(code,retryable);
+      default: return new CloudLapImportError("download_failed",true);
+    }
+  },
+  readFailure(cause){return cause instanceof CloudLapImportError?{code:cause.code,retryable:cause.retryable}:null;},
+  createImporter(fetch){
+    return createCloudLapImporter({...(testPlatform?{origin:testPlatform.baseUrl}:{}),fetch:Object.assign((input:RequestInfo|URL,init?:RequestInit)=>fetch(input,init),{preconnect:importFetch.preconnect})});
+  },
+  fetch:importFetch,
 });
 let stopping=false;
 let candidatePreparation:{context:OnlineUploadContext;error:OnlineError}|null=null;
@@ -160,7 +183,15 @@ const uploads=startOnlineUploadCoordinator({...service,
   },
   async afterDelivery(){await readbackUploads();},
 });
-const profilePort=createOnlineProfileSync(service);
+const profilePort=createOnlineProfileSync(service,{
+  getLocalAccountOwner,
+  prepareDriverSummaryContributions,
+  listReadyDriverSummaryContributionPage,
+  recordDriverSummaryReceipt,
+  recordDriverSummaryHold,
+  hasPendingDriverSummaryPreparations,
+  isDriverSummaryContributionCurrent,
+});
 const profiles=startOnlineProfileCoordinator({...profilePort,async prepare(context,hash){
   profilePreparation="preparing";
   try{await readbackUploads();}catch{console.error("[OnlineUpload] Remote status storage unavailable");}

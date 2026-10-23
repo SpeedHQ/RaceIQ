@@ -342,7 +342,10 @@ export class DirectCaptureRecording {
     const session = this.sessionId === null ? null : await db.select({
       originalActivityId: sessions.originalActivityId, ownerUserId: sessions.ownerUserId,
       originalSourceRevision: sessions.originalSourceRevision,
+      nativeCaptureOrigin: sessions.nativeCaptureOrigin,
     }).from(sessions).where(eq(sessions.id, this.sessionId)).get();
+    // Native closure binds this recorder revision after the final manifest is published.
+    const originalSourceRevision = session?.originalSourceRevision ?? (session?.nativeCaptureOrigin ? this.manifestRevision : null);
     for (const part of this.parts.values()) {
       if (!part.closed) break;
       if (part.owner && !part.owner.abandoned && (!part.owner.finalized || !part.owner.binding)) break;
@@ -364,7 +367,7 @@ export class DirectCaptureRecording {
         ...(binding ? {
           lapId: String(binding.lapId), lapNumber: binding.lapNumber, lapGuid: lap!.lapGuid!,
           ...(session?.originalActivityId ? { originalActivityId: session.originalActivityId } : {}),
-          ...(session?.originalSourceRevision == null ? {} : { originalSourceRevision: session.originalSourceRevision }),
+          ...(originalSourceRevision == null ? {} : { originalSourceRevision }),
           ...(lap!.sourceClockDomain == null ? {} : { sourceClockDomain: lap!.sourceClockDomain }),
           ...(lap!.sourceLapStartMs == null ? {} : { sourceLapStartMs: lap!.sourceLapStartMs }),
           ...(lap!.sourceLapEndMs == null ? {} : { sourceLapEndMs: lap!.sourceLapEndMs }),

@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import { LapManagement } from "../components/track/detail/LapManagement";
 import type { TrackLapSortKey } from "../components/track/detail/types";
-import { RaceIqOnlineProvider } from "../hooks/raceiq-online";
+import { OnlineHostProvider as RaceIqOnlineProvider } from "../features/online-host"
 import { createOnlineFixturePort, privateFixture } from "./raceiq-online-fixtures";
 
 function TrackLapScene() {

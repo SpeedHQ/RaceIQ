@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { clearRetiredOutboxPayloads, enqueueOutboxJob, getOutboxJob, listDeliverableOutboxJobs, listRetiredOutboxPayloads, persistOutboxPayload, withdrawAccountOutboxJobs } from "../src/outbox-storage";
-import { cleanupRetiredOnlinePayloads } from "../src/upload-dispatch";
+import { clearRetiredOutboxPayloads, enqueueOutboxJob, getOutboxJob, listDeliverableOutboxJobs, listRetiredOutboxPayloads, persistOutboxPayload, withdrawAccountOutboxJobs } from "../server/outbox-storage";
+import { cleanupRetiredOnlinePayloads } from "../server/upload-dispatch";
 import { lapIdentity } from "./lap-identity.fixture";
 
 const root = join(process.env.DATA_DIR!, "online-upload-payloads");

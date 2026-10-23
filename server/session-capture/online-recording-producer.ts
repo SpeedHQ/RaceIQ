@@ -3,9 +3,9 @@ import {
   UPLOAD_GAME_IDS, uploadPayloadFingerprint,
   type OnlineRecordingProducerOptions, type PreparedOnlineLapUpload,
   type UploadGame,
-} from "@raceiq/online/payload";
+} from "@raceiq/online/server/payload";
 import type { GameIdentityBinding } from "@raceiq/online/contracts";
-import { OnlineAdapterError } from "@raceiq/online/adapter";
+import { OnlineAdapterError } from "@raceiq/online/server/adapter";
 import { isWholeLapSelf } from "@raceiq/shared/driver-attribution";
 import {
   iterateSessionCaptureRecords, type SessionCaptureRecord,
@@ -273,6 +273,10 @@ export function createOnlineRecordingProducer(options: OnlineRecordingProducerOp
         lapGuid: source.lapGuid, originalActivityId: source.originalActivityId,
         sourceRevision: source.sourceRevision, sourceKind: source.sourceKind,
         ownerUserId: source.ownerUserId, driverBindingId: registered.id, driverBindingRevision: registered.revision,
+        async isSourceCurrent() {
+          const latest = await readOnlineLapSource(lapId);
+          return latest.kind === "ready" && sameSource(source, latest.source);
+        },
       };
     } catch (cause) {
       if (cause instanceof OnlineRecordingError || cause instanceof OnlineAdapterError) throw cause;

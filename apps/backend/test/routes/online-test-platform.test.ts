@@ -1,13 +1,13 @@
-import { createRaceIqOnlineAdapter } from "@raceiq/online/adapter";
-import { createNativeBoardIdentifierResolver } from "@raceiq/online/identifiers";
+import { createRaceIqOnlineAdapter } from "@raceiq/online/server/adapter";
+import { createNativeBoardIdentifierResolver } from "@raceiq/online/server/identifiers";
 import { expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createRaceIqOnlineService } from "@raceiq/online/service";
-import { OnlineStateStorage } from "@raceiq/online/state-storage";
+import { createRaceIqOnlineService } from "@raceiq/online/server/service";
+import { OnlineStateStorage } from "@raceiq/online/server/state-storage";
 import type { OnlineState } from "@raceiq/online/contracts";
-import { createOnlineRoutes } from "../../src/routes/online-routes";
+import { createOnlineRoutes } from "@raceiq/online/server/routes";
 import { readOnlineTestPlatform, createOnlineTestFetch, createOnlineTestKeystore } from "../../src/integrations/online-test-platform";
 
 const environment = {

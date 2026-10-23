@@ -20,9 +20,13 @@ import { f125Routes } from "./games/f1-2025";
 import { miscRoutes } from "./system/index";
 import { cacheRoutes } from "./cache-routes";
 import { devRoutes } from "./dev/index";
-import { onlineRoutes } from "./online-routes";
+import { createOnlineApplicationRoutes } from "@raceiq/online/server/routes";
+import { getOnlineService } from "../integrations/online";
 import { dashboardRoutes } from "./dashboard-routes";
 import { cloudLapImportRoutes } from "./cloud-lap-import-routes";
+
+const onlineService = getOnlineService();
+const onlineRoutes = createOnlineApplicationRoutes(onlineService, onlineService, { isDev: IS_DEV, serverPort: Number(process.env.SERVER_PORT) || 3117 });
 
 const app = new Hono()
   .use("/*", async (c, next) => {

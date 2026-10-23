@@ -60,6 +60,8 @@ export class LiveTelemetryPipeline {
    *  Off by default — client opts in via `POST /api/live-analysis`. */
   private _liveIssuesEnabled = false;
   private _recordingSession: RecordingSession | null = null;
+  /** Retain the paused operation's source after its recorder detaches for durability. */
+  private _pausedRecordingSession: RecordingSession | null = null;
   private _dashboardCaptureObservations = new Map<number, CaptureObservationEntry>();
   private _continuingSegment = false;
   private _pendingSessionContextFrames: Buffer[] = [];
@@ -73,6 +75,7 @@ export class LiveTelemetryPipeline {
   private _activePacketProcessing = new Set<Promise<void>>();
   private _packetQueue = Promise.resolve();
   private _queuedPacketBytes = 0;
+  private _overloadRecovery: Promise<void> | null = null;
   private readonly _parserSourceFrames = new WeakMap<Buffer, CapturedParserSource>();
   private _latestSource: CapturedParserSource | null = null;
   private _pendingDirectSources: Array<PendingDirectSource | undefined> = [];
@@ -231,6 +234,7 @@ export class LiveTelemetryPipeline {
 
   /** Capture recognized native input before parsing, including parser-null records. */
   captureParserSource(input: ParserSourceInput): void {
+    if (this._overloadRecovery) return;
     this._nativeBindingCandidates?.observeRawSource(input.gameId, input.frame, input.timestampMs);
     const reference: CapturedParserSource = { parserSequence: input.sequence, epoch: this.recorder.epoch, locator: input.locator, timestampMs: input.timestampMs };
     this._parserSourceFrames.set(input.frame, reference);
@@ -327,8 +331,10 @@ export class LiveTelemetryPipeline {
     this._ingressBarrier = ingressBarrier;
     try {
       await Promise.allSettled([...this._activePacketProcessing]);
+      this._pausedRecordingSession = this._recordingSession;
       return await operation();
     } finally {
+      this._pausedRecordingSession = null;
       if (this._ingressBarrier === ingressBarrier) this._ingressBarrier = null;
       releaseIngress();
     }
@@ -752,6 +758,71 @@ export class LiveTelemetryPipeline {
     this.ws.broadcastNotification({ type: "session-laps", laps: this._sessionLaps });
   }
 
+  private _recoverDetectorOverload(): Promise<void> {
+    if (this._overloadRecovery) return this._overloadRecovery;
+    const error = new Error("Recording detector queue capacity exhausted");
+    const interruptedSession = this._ingressBarrier && !this._pausedRecordingSession?.directCapture?.isSealed
+      ? this._pausedRecordingSession : null;
+    // An already-running close must not attest input stranded behind its barrier.
+    if (this._ingressBarrier) {
+      this._originalSourceIntegrityComplete = false;
+      this._attributionTracker.invalidate();
+      if (interruptedSession) {
+        this._completeNativeSources.delete(interruptedSession.sessionId);
+        interruptedSession.directCapture?.fail(error);
+      }
+    }
+    this._overloadRecovery = this._withIngressPaused(async () => {
+      // Drain the admitted prefix first: it may have crossed session boundaries.
+      // The gap belongs to the session at that prefix's tail, not its head.
+      const session = this._recordingSession ?? interruptedSession;
+      this._originalSourceIntegrityComplete = false;
+      this._attributionTracker.invalidate();
+      if (this._lapDetectorGameId) this.invalidateNativeDriverEvidence(this._lapDetectorGameId);
+      if (session?.directCapture && !session.directCapture.hasFailed) session.directCapture.fail(error);
+      else if (session?.directCapture?.error !== error) {
+        this.ws.broadcastNotification({ type: "recording-failed", sessionId: session?.sessionId, error: error.message });
+      }
+      try {
+        await this._finalizeCurrentSession();
+      } catch (failure) {
+        if (failure !== error) console.error("[Live Telemetry] Overloaded capture finalization failed:", failure);
+      } finally {
+        // A failed recorder still has to close its handles before fresh capture.
+        if (this._recordingSession) {
+          try { await this._finishRecordedSession(); }
+          catch (failure) {
+            if (failure !== error) console.error("[Live Telemetry] Overloaded capture closure failed:", failure);
+          }
+        }
+        if (session) {
+          this._completeNativeSources.delete(session.sessionId);
+          if (this.db instanceof RealDbAdapter) this.db.releaseSessionSourceTracking(session.sessionId);
+          try { await this.finalizeDashboardCaptureFacts([session.sessionId]); }
+          catch (failure) { console.error("[Live Telemetry] Overloaded capture checkpoint failed:", failure); }
+        }
+        this._lapDetector = null;
+        this._lapDetectorGameId = null;
+        this._attributionSessionId = null;
+        this._attributionTracker = new NativeAttributionTracker();
+        this._lastAttributionLap = null;
+        this._attributionEvidenceEpoch = -1;
+        this._originalSourceIntegrityComplete = true;
+        this._latestSource = null;
+        this._pendingSessionContextFrames = [];
+        this._expectCompleteLapStart = false;
+        while (this._pendingDirectHead < this._pendingDirectSources.length) {
+          this._consumeDirectSource().reference.pendingDirect = false;
+        }
+      }
+    }).catch((failure) => {
+      console.error("[Live Telemetry] Detector overload recovery failed:", failure);
+    }).finally(() => {
+      this._overloadRecovery = null;
+    });
+    return this._overloadRecovery;
+  }
+
   /**
    * Shared telemetry processing pipeline used by every telemetry source.
    *
@@ -759,6 +830,7 @@ export class LiveTelemetryPipeline {
    * Stages: record sourceFrame → optional native dev copy → normalize → detector/sector/pit/BestLap → project → publish.
    */
   async processPacket(packet: TelemetryPacket, source?: PacketSourceReference, frameTimeMs?: number): Promise<void> {
+    if (this._overloadRecovery) return;
     frameTimeMs ??= Buffer.isBuffer(source) ? this._parserSourceFrames.get(source)?.timestampMs : undefined;
     this._nativeBindingCandidates?.observeSource(packet, getNativeSourceClock(packet, frameTimeMs), frameTimeMs);
     const evidenceEpoch = this._driverEvidenceEpochs.get(packet.gameId) ?? 0;
@@ -766,44 +838,45 @@ export class LiveTelemetryPipeline {
     const bindingsAtIngress = this._driverBindingRevision >= 0 && (this._ingressBarrier ||
       this._queuedPacketBytes > 0 || (this._lapDetectorGameId && this._lapDetectorGameId !== packet.gameId))
       ? this._driverBindings : undefined;
-    while (this._ingressBarrier) await this._ingressBarrier;
     const reservedBytes = 16 * 1024 + (Buffer.isBuffer(source) ? source.length + (this._parserSourceFrames.get(source)?.locator?.byteCost ?? 0) : 0);
     if (this._queuedPacketBytes + reservedBytes > 8 * 1024 * 1024) {
-      const error = new Error("Recording detector queue capacity exhausted");
-      this._originalSourceIntegrityComplete = false;
-      this._attributionTracker.invalidate();
-      this.ws.broadcastNotification({ type: "recording-failed", sessionId: this._recordingSession?.sessionId, error: error.message });
-      this._recordingSession?.directCapture?.fail(error);
-      throw error;
+      await this._recoverDetectorOverload();
+      return;
     }
+    // Waiting for lifecycle operations consumes the same budget as detector work.
     this._queuedPacketBytes += reservedBytes;
-    const previous = this._packetQueue;
-    let release!: () => void;
-    this._packetQueue = new Promise<void>((resolve) => { release = resolve; });
-    const processing = (async () => {
-      await previous;
-      try {
-        await this._processPacket(packet, source, frameTimeMs, evidenceEpoch, bindingsAtIngress);
-      } catch (error) {
-        this._recordingSession?.directCapture?.fail(error);
-        this._originalSourceIntegrityComplete = false;
-        this._attributionTracker.invalidate();
-        throw error;
-      } finally {
-        this._processingNativeFrame = null;
-        this._processingSource = null;
-        this._processingTimestamp = undefined;
-        this._processingPacket = null;
-        this._queuedPacketBytes -= reservedBytes;
-        release();
-      }
-    })();
-    this._activePacketProcessing.add(processing);
     try {
-      await processing;
+      while (this._ingressBarrier) await this._ingressBarrier;
+      if (this._overloadRecovery) return;
+      const previous = this._packetQueue;
+      let release!: () => void;
+      this._packetQueue = new Promise<void>((resolve) => { release = resolve; });
+      const processing = (async () => {
+        await previous;
+        try {
+          await this._processPacket(packet, source, frameTimeMs, evidenceEpoch, bindingsAtIngress);
+        } catch (error) {
+          this._recordingSession?.directCapture?.fail(error);
+          this._originalSourceIntegrityComplete = false;
+          this._attributionTracker.invalidate();
+          throw error;
+        } finally {
+          this._processingNativeFrame = null;
+          this._processingSource = null;
+          this._processingTimestamp = undefined;
+          this._processingPacket = null;
+          release();
+        }
+      })();
+      this._activePacketProcessing.add(processing);
+      try {
+        await processing;
+      } finally {
+        this._activePacketProcessing.delete(processing);
+        if (this._activePacketProcessing.size === 0 && !this._ingressBarrier) this._flushDirectSourcesThrough();
+      }
     } finally {
-      this._activePacketProcessing.delete(processing);
-      if (this._activePacketProcessing.size === 0 && !this._ingressBarrier) this._flushDirectSourcesThrough();
+      this._queuedPacketBytes -= reservedBytes;
     }
   }
 

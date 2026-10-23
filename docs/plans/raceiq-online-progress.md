@@ -1,6 +1,6 @@
 # RaceIQ Online upload recovery progress
 
-Current implementation status updated 2026-10-21. The [release contract](raceiq-online-contract.md), [desktop backend plan](raceiq-live-service.md) and [UI plan](raceiq-online-ui.md) retain all acceptance requirements. Checked implementation items below do not imply full application or release acceptance. Current evidence and E01–E19 gaps are recorded in [verification](../../.omp/evidence/raceiq-online-implementation/verification.md).
+Current remaining-work scope is the [2026-10-22 acceptance plan](raceiq-online-remaining-plan.md), with separate backend/UI execution amendments and R01–R22/V01–V22 coverage. Latest upload/security evidence is [recorded separately](../../.omp/evidence/upload-adversarial/verification.json); SDK0.2.1 publication and selected second-instance/crash-recovery scenarios supersede older missing-publication/recovery claims. The historical implementation checklist below is not a current backlog or full release signoff. The [release contract](raceiq-online-contract.md) retains all acceptance requirements.
 
 ## Current status
 
@@ -74,14 +74,38 @@ Genuine F1 World and both Bahrain LMU laps pass isolated Rust HTTP publication, 
 
 ## Relevant implementation and tests
 
-- UI: `client/src/components/settings/OnlineSection.tsx`.
-- Package/contracts: `packages/online/src/contracts.ts`, exported as `@raceiq/online/contracts`.
-- Ledger: `packages/online/src/outbox-storage.ts`.
-- Delivery: `packages/online/src/{coordinator,outbox,adapter,upload-dispatch,service,payload}.ts`.
+- UI: `packages/online/ui/settings/OnlineSection.tsx`.
+- Package/contracts: `packages/online/contracts/index.ts`, exported as `@raceiq/online/contracts`.
+- Ledger: `packages/online/server/outbox-storage.ts`.
+- Delivery: `packages/online/server/{coordinator,outbox,adapter,upload-dispatch,service,payload}.ts`.
 - Host composition: `apps/backend/src/integrations/online.ts`; app lap selection query: `server/db/online-upload-queries.ts`.
 - Regression coverage: `packages/online/test/{outbox,persisted-queue,payload-identity,adapter}.test.ts` and their isolated fixtures.
-- Backend status/auth: `apps/backend/test/routes/{online-queue-status,online-auth}.test.ts`.
+- Backend status/auth: `packages/online/test/server/{queue-status,auth}.test.ts`.
 - Context: [Backend plan](raceiq-live-service.md), [UI plan](raceiq-online-ui.md), [contract](raceiq-online-contract.md).
+
+## Focused desktop journey smoke
+
+Run `bun run test:online:journeys` from the repository root: **10 workflows, exactly one happy and one failure check each**. Related actions stay in one sequential workflow, not per-game/device/race permutations. The runner is [`scripts/test/online-journeys.ts`](../../scripts/test/online-journeys.ts); D01–D09 execute [`online-user-journeys-smoke.ts`](../../apps/backend/test/fixtures/online-user-journeys-smoke.ts) against real loopback Hono handlers, the account service and isolated SQLite/ledgers. Only external auth/cloud responses and native candidate observations are controlled fixtures.
+
+| ID / desktop workflow | Happy-path acceptance | Failure-path acceptance |
+| --- | --- | --- |
+| D01 Sign in / cancel sign-in | Callback connects the expected account; sharing remains blocked before choices. | Cancelled attempt remains signed out. |
+| D02 Accept current policies | Explicit acceptance reads back as accepted. | Old policy version returns conflict. |
+| D03 Choose recording/setup sharing | Confirmed public sharing enables eligible transfers. | Previous account epoch cannot alter current preferences. |
+| D04 Edit Online display name | Saved name appears in connected account readback. | Blank name is rejected; prior name remains. |
+| D05 Confirm in-game driver binding | Trusted observed candidate persists the exact native identity. | Consumed/unavailable candidate cannot be confirmed again. |
+| D06 Automatic upload queue / history | Real pending ledger entry moves to accepted history with its confirmed timestamp. | Rejection is reported without advancing success time; stale account cannot read history. |
+| D07 Read Online lifetime profile | Profile route returns exact remote revision and known metrics. | Remote outage returns unavailable/503, not fabricated totals. |
+| D08 Browse Community laps | Public entitlement returns selected board data. | Private sharing clears rows and returns `sharing_required`. |
+| D09 Sign out / continue locally | Sign-out clears credentials and remote profile projection. | Wrong account epoch cannot sign out current account. |
+| D10 Open Replay | Existing import controller preserves exact selection and acknowledges activation before advancing queued work. | Denied sharing blocks import/retry/URL activation. |
+
+D10 selects only `GET preserves completion until matching ack; ack advances queued work` and `one denied entitlement blocks start, retry, reads and URL activation` from `packages/online/test/server/cloud-lap-import-controller.test.ts`. It checks the real controller, with the external import operation controlled; native download/register/replay rendering remain deeper integration qualification. The [SpeedHQ service matrix](../../../../../projects/raceiq%20cloud/docs/plans/online-user-journeys.md) owns real HTTP upload admission, stored archive download, standings, friends, lifetime merge, export and deletion behavior.
+
+Prerequisites: Bun and installed workspace dependencies. Each run uses temporary storage, no shared services, hosted sign-in, game recordings, TLS setup or browser build. Default change acceptance uses these pairs; existing broad regressions and R/E native, hosted, Windows, stress, retention, browser/accessibility and legal release qualification remain separate and opt-in for relevant changes. HTTP/controller proof is not rendered browser or full native-capture certification.
+
+Recorded verification, 2026-10-23: `bun run test:online:journeys` passed all 20 checks in approximately 3 seconds; `bun run typecheck` passed all 37 workspace tasks. The service's 24-check smoke also passed; its focused script typecheck passed. These results do not close the separate release registry.
+
 
 ## Next action
 

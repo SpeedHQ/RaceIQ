@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { resetTestDatabase } from "./reset-test-database";
 import { seedE2ESetupData, seedScreenshotData } from "./seed-screenshot-data";
+import { startOnlineE2EPlatform } from "../../../packages/online/test/support/online-e2e-platform";
 
 const repoDir = process.env.RACEIQ_APP_ROOT ? resolve(process.env.RACEIQ_APP_ROOT) : resolve(__dirname, "..", "..", "..");
 const dir = process.env.DATA_DIR ? resolve(process.env.DATA_DIR) : resolve(repoDir, "playwright", "test-data");
@@ -18,23 +19,26 @@ const access = spawnSync("bun", [resolve(repoDir, "playwright/support/server/ini
 if (access.status !== 0) throw new Error("Failed to initialize dashboard access fixture");
 if (process.env.PW_SEED_SETUP_DATA === "1") seedE2ESetupData(repoDir, dir);
 
+
 const paraglide = spawnSync("bun", ["scripts/dev/paraglide-dev.ts", "--once"], {
   cwd: repoDir,
   stdio: "inherit",
   env: process.env,
 });
 if (paraglide.status !== 0) process.exit(paraglide.status ?? 1);
+const onlinePlatform = process.env.RACEIQ_E2E === "1" ? await startOnlineE2EPlatform() : null;
+const serverEnv = { ...process.env, ...onlinePlatform?.env };
 
 const server = spawn("bun", ["run", "apps/backend/src/index.ts"], {
   cwd: repoDir,
   stdio: "inherit",
-  env: { ...process.env, DATA_DIR: dir, SERVER_PORT: serverPort, UDP_PORT: udpPort },
+  env: { ...serverEnv, DATA_DIR: dir, SERVER_PORT: serverPort, UDP_PORT: udpPort },
 });
 const client = spawn("bun", ["run", "dev", "--", "--host", "127.0.0.1", "--port", clientPort], {
   cwd: resolve(repoDir, "client"),
   stdio: "inherit",
   env: {
-    ...process.env,
+    ...serverEnv,
     SERVER_PORT: serverPort,
     PROXY_TARGET: `http://127.0.0.1:${serverPort}`,
   },
@@ -47,6 +51,7 @@ function stop(signal: NodeJS.Signals, exitCode?: number) {
   if (shuttingDown) return;
   shuttingDown = true;
   for (const child of children) child.kill(signal);
+  void onlinePlatform?.close().catch((error) => console.error(`[E2E] Failed to stop Online provider fixture: ${String(error)}`));
   if (exitCode !== undefined) process.exitCode = exitCode;
 }
 

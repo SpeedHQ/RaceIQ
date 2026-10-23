@@ -1,8 +1,8 @@
 import { Worker } from "node:worker_threads";
 import { IS_COMPILED } from "@raceiq/backend-core/runtime/config/paths";
 import { getSecret, setSecret } from "@raceiq/backend-core/runtime/platform/keystore";
-import { subscribeOnlineSync } from "@raceiq/online/sync-events";
-import { OnlineWorkerUnavailable,type HostRequest,type WorkerRequest,type WorkerResponse,type OnlineWorkerPort,type WorkerMethod,type NativeBindingHostControl,type OnlineWorkerData } from "./online-worker-protocol";
+import { subscribeOnlineSync } from "@raceiq/online/server/sync-events";
+import { OnlineWorkerUnavailable,type HostRequest,type WorkerRequest,type WorkerResponse,type OnlineWorkerPort,type WorkerMethod,type NativeBindingHostControl,type OnlineWorkerData } from "@raceiq/online/server/worker-protocol";
 import { readOnlineTestPlatform,createOnlineTestKeystore } from "./online-test-platform";
 import { client } from "@raceiq/backend-core/db/index";
 import { createDatabaseWriteLeaseAuthority, type WriteLeaseRequest } from "@raceiq/backend-core/db/write-coordination";

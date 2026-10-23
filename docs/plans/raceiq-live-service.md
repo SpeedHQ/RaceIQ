@@ -1,11 +1,13 @@
 # RaceIQ Online desktop backend implementation plan
 
-Status: design confirmed 2026-10-21; documentation only. No implementation, worker launch, commit or deployment is authorized by this plan. This revision replaces the earlier per-track-only upload selector, single-source snapshot takeover, profile opt-in and dated cloud-history proposals.
+Status: local implementation in progress, 2026-10-22, following user authorization. The original design remains authoritative where consistent with the shared contract. Current evidence and open work are recorded in the remaining acceptance registry; no commit, deployment or complete release signoff is authorized by implementation alone.
 
 Contract: [shared release boundary and E2E scenarios](raceiq-online-contract.md).
 UI: [separate implementation plan](raceiq-online-ui.md).
 Cloud: [parallel backend implementation plan](../../../../../projects/raceiq%20cloud/docs/plans/raceiq-online-deployment-backend.md).
 ADR: [accepted decision](../adr/0011-raceiq-live-service.md).
+Remaining acceptance: [R01–R22, V01–V22 and phase dependencies](raceiq-online-remaining-plan.md).
+Completion ADR: [accepted evidence-gated release closure decision](../adr/0016-raceiq-online-release-acceptance.md).
 Language: [domain glossary](../../CONTEXT.md).
 
 ## Scope and authoritative definitions
@@ -18,15 +20,44 @@ Sources defining current dashboard semantics: `shared/racing/sessions/dashboard.
 
 ## Evidence baseline, not new acceptance
 
-On 2026-10-21, desktop root typecheck passed with Turbo cache hits, an isolated runtime probe confirmed no recording producer means null upload context, and isolated real cloud HTTP/processor smoke passed using provider fixtures. Cloud release command failed version equality. These do not prove newly planned single-user ownership, driver-swap or lifetime behavior.
+Historical baseline, 2026-10-21: the initial probe found missing producer/main-thread coordinator composition and incompatible release versions. These are historical findings, not a current implementation backlog. Source integration, SDK0.2.1 publication, genuine connected F1/LMU and selected recovery/security proofs now exist. [Current remaining plan](raceiq-online-remaining-plan.md#baseline-and-boundaries) and its linked evidence supersede stale implementation/publication claims; full E01–E19 acceptance remains incomplete.
 
-Current gaps: `apps/backend/src/integrations/online.ts` provides no recordingProducer; `apps/backend/src/runtime/boot.ts` starts the Effect coordinator in main. `packages/online` already contains durable Effect/SQLite/ledger/identity/privacy infrastructure worth preserving. Session schema has local integer IDs and capture/cloud provenance, but that is not a universal cross-device original-activity identity or native-driver ownership proof. LMU exposes driverName; other adapters need a source-specific evidence audit. Never equate a car slot, display name or legacy ownership='mine' with a verified personal stint.
+Current B1/B3/B4 evidence includes the late-recorder-durability overload fence, actual UDP recovery combined with multipart 503/disconnect faults, and private F1/LMU profile merging through two real app data directories and the published SDK. Fractional contribution hashes survive JSON decoding; partial driver coverage retains eligible known personal statistics; authenticated current-source receipts retire obsolete intents without resending them. The [acceptance registry evidence](raceiq-online-remaining-plan.md#current-implementation-evidence) links exact runs and retains all unverified correction, policy, resource, game and release scenarios.
+
+The current cloud Rust gate has composite passing coverage for 115 library tests and 113 integration tests across all targets; [execution accounting](../../.omp/evidence/online-remaining/cloud-gate-current.json) preserves the original failed invocation and the corrected process-fixture run. The failure was a fixed metrics-port collision with a preserved seeded service, not a product timeout; fixture children now use ephemeral metrics listeners.
+
+To exercise a dirty local candidate rather than remote main, run from the desktop root:
+
+```sh
+RACEIQ_UPGRADE_CANDIDATE_DIR="$PWD" bun run test:upgrade
+```
+
+The launcher mounts source read-only and resolves its base HEAD on the host, including linked worktrees. The isolated copy has its own Git metadata for installation hooks; its recorded HEAD is not a hash of dirty contents. Released versions with access setup use public auth readiness before completing setup through the UI; pre-auth versions retain legacy readiness. Passing this source transition alone does not qualify representative receipt preservation, backup/restore, compatible rollback or Windows artifacts under R19.
+
+R03 local lifecycle smoke runs with `bun --no-env-file apps/backend/test/fixtures/online-upload-lifecycle-smoke.ts`. Set `RACEIQ_CLOUD_ROOT`, `RACEIQ_UPLOAD_SOURCE_DATA_DIR`, `RACEIQ_UPLOAD_TEST_CERT` and `RACEIQ_UPLOAD_TEST_KEY` to the cloud checkout, retained genuine F1/LMU temporary source and disposable loopback TLS files; `RACEIQ_UPLOAD_UDP_OVERLOAD_FIXTURE` selects genuine F1 capture input. The matching cloud debug server must already be built. The fixture isolates app/API/processor storage and preserves original source identities. [Reviewed scope](../../.omp/evidence/online-remaining/r03-lifecycle/sol-review.json) includes backfill/reprocess, native capture/save, real Online reauthentication, equal-best suppression and settled owned ZIP roundtrip; it is not full R03 acceptance.
+
+For selected R04 actual-app transport cases, add `RACEIQ_UPLOAD_SHARING_RESERVATION_BARRIER=1` and set `RACEIQ_UPLOAD_RESERVATION_RESTRICTION=private`, `sign_out`, `delete_source` or `private_restore`. The fixture holds a real API reservation response, applies restrictions through the app, then checks settled worker/ledger state. Private/sign-out prevent every binary transfer; deleting the selected source prevents its body/publication/receipt while another eligible lap transfers. Deletion reproduced stale-source publication before the final source-current check and now passes. In `private_restore`, public sharing is revoked and restored while the old response remains held; the only target body follows fresh reservations and publishes once without changing identity. See [red-to-green/revoke-restore proof and remaining limits](../../.omp/evidence/online-remaining/r04-transport/verification.json). These cases return before R03 live/import/Forza. Run Bun 1.4.3 with `/Users/acoop/.bun/bin` first in PATH for children; preserve host TMPDIR because genuine-source guards require it and the fixture creates unique isolated children.
+
+`RACEIQ_UPLOAD_RESERVATION_RESTRICTION=refresh_required` additionally exercises real-time credential renewal: the external OAuth fixture issues a token just outside the app's existing renewal margin, holds reservation admission until that margin elapses, then rejects actual refresh HTTP requests. The app settles as `account_unavailable` without a body/setup/publication/receipt or native identity change. This case and all four controls passed; [latest manifest](../../.omp/evidence/online-remaining/r04-transport/credential-fence-ctx_0fa55ed9826b/manifest.json). It does not prove physical JWT expiry: the normal reservation timeout is shorter than the token lifetime admitted by the existing freshness guard.
+
+Local R19 qualification: S1–S3 pass through the existing source-upgrade harness/spec for both dirty-candidate and default remote-main selection.
+
+- **R19-S1:** The pinned released app completes setup and exposes its existing six-game sessions; the selected clean-installed candidate boots and retains those IDs. This journey has passed.
+- **R19-S2:** After stopping all owned writers, back up the released data directory and retain the matching released source/dependencies. Hash files with bounded streaming reads. After the candidate runs, restore the backup at the original path and require exact pre-boot file digests; do not attempt an in-place schema downgrade.
+- **R19-S3:** Restart the retained released artifact against its matching restored backup, open the actual UI and read all six games' sessions through HTTP. IDs must match the pre-upgrade baseline. Retain upgraded data separately for diagnostics; never overwrite user or seeded service data.
+- **R19-S4:** Use the genuine current native-capture fixture and actual desktop/SDK/API path. Preserve known GUID/owner/activity/timing values across boot, storage-denied restart and exact full-data backup/restore; preserve the actual accepted receipt without another body. Then sign out, deny cloud access and replay genuine UDP through the restored app: a later complete local Self lap remains usable, failed input stays incomplete, and no recording body starts. Unknown values may gain genuine source-backed proof; do not rewrite existing known identity or invent Self.
+
+Execute S1–S3 in the existing deterministic isolated Docker E2E, in that order. Live writers or absent backup/artifact must reject restoration before modifying data. Capture command/result evidence after execution. These source-fixture cases do not invent native identity/receipts absent from the released fixture and cannot close representative accepted-receipt or compiled-Windows qualification by themselves.
+
+S4 extends `online-upload-http-recovery-smoke.ts` with `RACEIQ_UPLOAD_DURABLE_RECOVERY=1` and the existing genuine F1 overload fixture. It also executes V05's real reservation faults, three-minute authenticated connection outage and actual filesystem-denied startup. Observe local health during outage rather than repeatedly invoking remote-refreshing Online state reads. Reuse the protocol's reservation-lease budget and execute after implementation; planned cases are not passing evidence.
+
+S4 has passed through the actual desktop, published SDK, Rust API and native pipeline: known identity/timing and 43 restored data files remain intact; accepted receipt identity/timestamps survive without another body; a complete Self lap is captured after sign-out with cloud access denied. See [combined execution evidence](../../.omp/evidence/online-remaining/durable-restored-offline-capture.stdout.log). Autonomous outage traffic is bounded by the reservation lease; the earlier high request count was caused by fixture Online-state polling, not an autonomous retry loop. Historical cloud-database/artifact and compiled-Windows qualification remain unproven.
 
 ## D0 — freeze technical seams and migration ownership
 
 Desktop integration owner owns browser-safe DTOs, worker protocol, AppType and app/Online migration ordering; cloud owner owns OpenAPI/generated SDK. Implementers validate exact source coverage/identity and native driver evidence per game before format activation. No invented eligibility-proof endpoint or silent assumption that legacy copies are unique.
 
-Preserve existing single-account command context, native binding descriptors, portable activity identity/coverage and same-ID correction receipts against the shared contract. Do not add local profile IDs, driver-selection generations or a profile picker. SDK baseline 0.1.13 remains pinned until compatible release is available. UI can use contract-conforming fixtures while real handlers are developed; never publish stub success handlers to unblock compilation.
+Preserve existing single-account command context, native binding descriptors, portable activity identity/coverage and same-ID correction receipts against the shared contract. Do not add local profile IDs, driver-selection generations or a profile picker. Published SDK0.2.1 is the current consumer baseline. UI can use contract-conforming fixtures while handlers are changed; never publish stub success handlers to unblock compilation.
 
 ## D1 — single-user installation and immutable account ownership
 
@@ -71,7 +102,7 @@ Acceptance: LP-01/02, DR-01/04, PF-03, UP-04; E10/E16/E17/E18. Cloud owns canoni
 
 ## D3 — supervised Bun Online worker
 
-Owned scope: `apps/backend/src/runtime/{boot,shutdown,startup-worker}*` integration/reference patterns, new Online entry/supervisor, `apps/backend/src/integrations/online.ts`, existing Online routes, `packages/online/src/{runtime,service,coordinator,sync-events}*` and compiled worker-entry configuration.
+Owned scope: `apps/backend/src/runtime/{boot,shutdown,startup-worker}*` integration/reference patterns, new Online entry/supervisor, `apps/backend/src/integrations/online.ts`, existing Online routes, `packages/online/server/{runtime,service,coordinator,sync-events}*` and compiled worker-entry configuration.
 
 1. Move service/coordinators/profile preparation into one real worker, with typed RPC from main. Effect fibers on main are not worker execution. No duplicate service/consumer in host.
 2. Main owns only HTTP callback ingress and platform-required OS browser/keystore operations; use private ephemeral messages. Recording/setup buffers never cross main; upload work reads source by IDs in worker.
@@ -84,7 +115,7 @@ Acceptance: UP-03/04/06, DR-01/02; E03/E04/E05/E09/E13/E14. Cloud/profile operat
 
 ## D4 — complete valid personal recording uploads
 
-Owned scope: `server/db/online-upload-queries.ts`, `server/session-capture/source-loader.ts` consumer seam; `packages/online/src/{selection,identifiers,payload,upload-dispatch,adapter,coordinator,outbox-storage}*`; worker composition. Producer ownership stays with capture subsystem; no second session slicer.
+Owned scope: `server/db/online-upload-queries.ts`, `server/session-capture/source-loader.ts` consumer seam; `packages/online/server/{selection,identifiers,payload,upload-dispatch,adapter,coordinator,outbox-storage}*`; worker composition. Producer ownership stays with capture subsystem; no second session slicer.
 
 Preserve existing F1 World car `41` recording/competition eligibility, as explicitly confirmed by the user; other F1 cars remain local/aggregate activity, not new public competition entries. E01/E02 cover accepted World recordings, non-World recording rejection and unaffected F1 aggregate sync.
 
@@ -119,7 +150,7 @@ Acceptance: PF-01–05, UP-03/04/06, DR-01/03/04; E07/E08/E09/E10/E13/E15/E16. S
 
 ## D6 — durable Upload read models and UI integration
 
-Owned scope: `packages/online/src/{contracts,outbox-storage,service,adapter}*`, worker read models and local Hono/AppType routes. UI owns React/locale changes.
+Owned scope: `packages/online/contracts/index.ts`, `packages/online/server/{outbox-storage,service,adapter}*`, worker read models and local Hono/AppType routes. UI owns React/locale changes.
 
 Implement paginated active queue and delivery history from actual queue/ledger outcomes; Effect cleanup must not erase business history. Show real retry/block/rejection/ambiguous states and remote receipt/validation/publication separately. Profile confirmation is not lap Last synced. Signed-out local history remains readable; remote data is cached/stale or unavailable, never fabricated zeros. Reject late account/revision responses after sign-out or restrictive changes.
 
@@ -129,7 +160,7 @@ Acceptance: UP-05, PF-05, DR-01/02; E04/E06/E07/E09/E10/E11/E13.
 
 ## D7 — Track Details Community entitlement and exact replay
 
-Owned paths: Online service/adapter and typed leaderboard API; `apps/backend/src/routes/cloud-lap-import-routes.ts`; `server/session-capture/cloud-lap-import*`; `client/src/hooks/cloud-lap-import.tsx` interface with UI owner; original GUID/borrowed registration queries.
+Owned paths: Online service/adapter and typed leaderboard API; `apps/backend/src/routes/cloud-lap-import-routes.ts`; `server/session-capture/cloud-lap-import*`; `packages/online/ui/hooks/cloud-lap-import.tsx` interface with UI owner; original GUID/borrowed registration queries.
 
 Current inspected wiring: LapManagement renders OnlineCommunityLaps; startCloudLapImport reaches the real controller and root activation opens game/session/lap replay. Leaderboard service checks sharing/consent; getImportAccessToken currently checks authentication only. No new runtime proof is inferred.
 
@@ -164,3 +195,32 @@ Run root `bun run typecheck`, applicable game/capture/dashboard/Online/profile r
 Record build identities, commands, observed values, evidence paths and blockers. Planned/skipped/not-run is not passing. This revision changes documentation only; no new implementation or runtime test evidence is claimed. Update customer docs/changelog once implemented/proven; remove temporary verification scaffolding then.
 
 Legal release dependency: source Terms/Privacy now contain best-effort accuracy/authenticity/tampering and moderation/removal limitations. Candidate versions/effective dates need operator review and aligned API/processor/client notices, including removal of continued-use-only wording. Preserve explicit re-acceptance before recording/profile sync and offline access; no GUID/validation/replay UI may imply certification. Acceptance LG-01 through E19 is a release dependency, not proof supplied by source edits.
+
+## Remaining work execution amendment, 2026-10-22
+
+This is the backend implementation plan for the [remaining acceptance registry](raceiq-online-remaining-plan.md#acceptance-registry). The [same shared contract](raceiq-online-contract.md) governs backend and [parallel UI work](raceiq-online-ui.md#remaining-work-execution-amendment-2026-10-22). R/V definitions live in the registry; do not duplicate or weaken them here. Existing implementation is retained; implement only demonstrated gaps and missing meaningful regression seams.
+
+### Owned work packages
+
+| Package | Owned scope and implementation steps | Acceptance / actual E2E |
+| --- | --- | --- |
+| B1 — capture/runtime containment | Desktop owner: `server/telemetry/live-pipeline.ts`, capture lifecycle/source publication, `apps/backend/src/runtime/online-worker-*`, boot/shutdown and existing runtime fixtures. Retain verified bounded admission and serialized incomplete-capture recovery, including snapshots/finalization and normal later capture. Preserve committed originals. Continue fixed-workload main heartbeat/worker recovery measurement in dev and Windows and account transitions during capture; do not equate UDP recovery with complete runtime qualification. | R01 locally verified through V01; R13/R14 and V13/V14 remain open; E03/E13/E14. Existing lifecycle/notification DTOs retained. |
+| B2 — native eligibility, transformations and uncertainty | Desktop source owner: existing game packages, `server/session-capture/`, original-activity/GUID/binding queries, `packages/online/server/selection.ts`, `payload.ts`, `upload-dispatch.ts`, and worker recording producer; cloud parser owner controls native validation. Inventory genuine per-game evidence first. Extend existing fixtures for lifecycle, swaps/candidate expiry, exact transformations and held historical sources; repair only observed contract violations. Preserve codec/context, native binding snapshots and original revisions; use the existing capture producer rather than another slicer. | R02/R03/R04/R06/R11/R12; V02/V03/V04/V06/V11/V12; E01/E02/E05/E08/E15/E16/E17. Positive fixture gaps block only their affected acceptance, not B1/B3/UI work. |
+| B3 — contribution merge and reducer integration | Desktop owner: existing driver-summary/original-activity reducers and `packages/online` profile delivery/receipt storage. Cloud owner: existing stats endpoints/revisions, ownership quarantine and aggregate projection. Extend two-instance app E2E from upload dedup to overlapping/distinct histories, correction/decrease/conflict, loss of receipt, deletion/reimport and later owner validation. Prove one correction touches affected aggregates rather than reparsing full history. Verify automatic private-recording aggregate sync and legacy/period/favourite semantics using authoritative reducers. | R08/R09/R10; V08/V09/V10; E07/E08/E09/E10. No new hash protocol, dated API, opt-in or device-snapshot merger. |
+| B4 — admission/retry/resource fences | Desktop delivery owner: dispatcher/coordinator/outbox using pinned Effect4.0.4. Cloud owner: `apps/raceiq/src/uploads.rs`, API admission/policy handlers, native processor and `scripts/smoke-lap-processor.ts`. Reuse passed adversarial cases; extend actual HTTP fault barriers for 429/5xx/offline/storage, client revocation/source/setup races and bounded concurrency/timeout/size cleanup. Retain immutable business identity separately from Effect delivery state; never mutate package queue tables to recover a test. | R04/R05/R06/R07; V04/V05/V06/V07; E04/E05/E10/E12 and U01–U10. Concurrency assertions target canonical state/credit and allow documented locked/accepted/expired race outcomes. |
+| B5 — read models and replay boundaries | Desktop integration owner: `packages/online/contracts/index.ts`, service/read models, existing typed Hono routes and `server/session-capture/cloud-lap-import*`; UI owner controls components/hooks. Expose real durable pages/receipts/outcomes and reuse one entitlement for board/read/download/register/cached activation/deep links. Add deterministic barriers for stale selection/revision/epoch and later validation rejection. Preserve existing DTOs; necessary shape/error changes update the shared contract and both plans before dependent edits. | Backend portion of R15/R17 plus R08–R12/R14 presentation inputs; V15/V17 with V08–V14; E04/E06/E09/E13/E17/E18. |
+| B6 — release/data lifecycle | Integration, cloud and release owners: compiled artifact/worker configuration, existing migration/upgrade/backup scripts, native/retention smoke and legal policy configuration. Execute authorized Windows/staging entry points, representative restore/compatible rollback, twelve-original retention and reviewed-policy activation. Review/stage/commit intended verified milestones only after separate authorization; preserve unrelated changes. | R18/R19/R20/R21/R22; V18/V19/V20/V21/V22; E12/E19 and affected E17/E18. SDK publication is already complete; do not repeat it without a real compatibility change and authorization. |
+
+### Parallelism and integration
+
+P0 freezes existing source contracts, evidence scope, overload policy proposal and performance/environment budgets. B1, independent B2 game/fixture slices, B3, cloud B4 and all UI packages can then proceed in independently owned files. Desktop B2/B3/B4 shared coordinator/schema/metadata changes are integrated by one owner, not edited concurrently. B5 can develop against the agreed DTOs while UI uses typed fixtures; neither waits for every game or hosted environment. The cloud owner remains responsible for the linked cloud plan and generated API artifacts; do not silently diverge from it.
+
+Real backend/UI/processor integration is a dependency of each acceptance closeout. B6 fixture/access/legal preparation starts early; actual release qualification waits for its code dependencies. Missing ACC/Evo/iRacing/retention/Windows/staging/legal prerequisites stay named blockers, not new production fallbacks.
+
+### Edge cases, verification and completion
+
+For each package execute its mapped [V setup/action/expected-result scenarios](raceiq-online-remaining-plan.md#shared-e2e-execution-matrix), including all negative variants in the acceptance row. The registry defines expected handling for saturation, mixed/Unknown data, stale generations, revoked authority, ambiguous commits, conflicting corrections, foreign copies, missing sources, exact boundaries, cleanup and rollback. Backend owns observable DB/HTTP/worker/recording proof; UI owns actual visible outcomes; integration owner records one cross-layer result.
+
+Reuse existing app child-process, Rust API/Bun processor and deterministic HTTP/browser fixtures; mocks may control external auth/faults, never replace the app integration. Run real changed-path smoke plus desktop root typecheck, affected native/capture/Online/dashboard/import regressions and relevant cloud API/processor/retention gates after edits settle. Windows/hosted/restore/legal scenarios must execute in their required environment, not be relabelled passing from loopback evidence. Reuse unchanged valid successful gates; rerun affected gates after source/config/dependency/fixture/environment changes.
+
+Record each R/V as passed, failed, blocked or not run with build identity, exact command, expected/observed result and durable evidence path. A backend slice is complete only when its own criteria and mapped real UI/backend integration pass. Planning does not supply new runtime proof.

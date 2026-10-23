@@ -10,6 +10,9 @@
   ],
   "exclude": [
     "**/node_modules/**",
-    "**/dist/**"
+    "**/dist/**",
+    "test/fixtures/online-profile-http-merge-smoke.ts",
+    "test/fixtures/online-upload-http-recovery-smoke.ts",
+    "test/fixtures/online-upload-lifecycle-smoke.ts"
   ]
 }

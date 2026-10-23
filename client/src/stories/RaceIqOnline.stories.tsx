@@ -3,10 +3,10 @@ import { expect, userEvent, waitFor, within } from "storybook/test";
 import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { OnlineErrorCode, OnlineLeaderboard, OnlineState } from "@raceiq/online/contracts";
-import { RaceIqOnlineProvider } from "../hooks/raceiq-online";
-import { OnlineSection } from "../components/settings/OnlineSection";
+import { OnlineHostProvider as RaceIqOnlineProvider } from "../features/online-host"
+import { OnlineSection } from "@raceiq/online/ui"
 import { Settings } from "../components/settings/Settings";
-import { OnlineCommunityLaps } from "../components/online/OnlineCommunityLaps";
+import { OnlineCommunityLaps } from "@raceiq/online/ui"
 import { setLocale, locales, type Locale } from "../paraglide/runtime";
 import { m } from "../paraglide/messages";
 import { connectedConsentRequiredUnavailableFixture, connectedServiceUnavailableFixture, consentRequiredFixture, createOnlineFixturePort, fixtureBoard, preferencesFailedFixture, preferencesWithoutProfileFixture, privateFixture, publicFixture, signedOutFixture, unavailableFixture } from "./raceiq-online-fixtures";

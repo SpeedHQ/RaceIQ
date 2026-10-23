@@ -1,10 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { createRaceIqOnlineAdapter } from "../src/adapter";
-import { createBoardIdentifierResolver, createNativeBoardIdentifierResolver } from "../src/identifiers";
+import { createRaceIqOnlineAdapter } from "../server/adapter";
+import { createBoardIdentifierResolver, createNativeBoardIdentifierResolver } from "../server/identifiers";
 import { getAllAccCars } from "@raceiq/game-acc-metadata/racing/cars/acc";
 import { getAccTracks } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc";
 import { lapIdentity } from "./lap-identity.fixture";
-import { uploadPayloadFingerprint } from "../src/payload";
+import { uploadPayloadFingerprint } from "../server/payload";
+import type { api } from "@speedhq/live-client";
 const payloadFingerprint=await uploadPayloadFingerprint(new Uint8Array([1,2,3,4]),null);
 
 describe("native leaderboard identifier resolution", () => {
@@ -38,7 +39,7 @@ describe("Online adapter transfer boundary", () => {
       fetch: Object.assign(async () => { requests++; throw new Error("unexpected transfer"); }, { preconnect: globalThis.fetch.preconnect }),
     });
     const recording = new Uint8Array([1, 2, 3, 4]);
-    const input = { gameId: "f1-2025" as const,carId:"41", filename: "recording.bin", recording, setup: new Uint8Array([5, 6]), idempotencyKey: "018f0f4e-7b00-7000-8000-000000000001", reservationToken: "persisted-reservation", consentAccepted: true, setupUploads: true, codec: null, isAuthorized: () => true };
+    const input = { gameId: "f1-2025" as const,carId:"41", filename: "recording.bin", recording, setup: new Uint8Array([5, 6]), idempotencyKey: "018f0f4e-7b00-7000-8000-000000000001", reservationToken: "persisted-reservation", consentAccepted: true, setupUploads: true, codec: null, isAuthorized: () => true, isSourceCurrent: async () => true };
     await expect(adapter.uploadLap({payloadFingerprint,...lapIdentity("test-owner"),...input,visibility:"private"})).rejects.toMatchObject({code:"not_connected"});
     await expect(adapter.uploadLap({payloadFingerprint,...lapIdentity("test-owner"),...input,visibility:"public"})).rejects.toMatchObject({code:"f1_sanitization_failed"});
     expect(requests).toBe(0);
@@ -139,11 +140,82 @@ describe("Online adapter transfer boundary", () => {
     idempotencyKey: "018f0f4e-7b00-7000-8000-000000000001", reservationToken: "reservation",
     consentAccepted: true, visibility: "public", setupUploads: false,
     codec: { recordingFormatId: "verified-fixture", supportsSetupAttachment: () => false, isServiceCompatible: () => true, stripF1SetupTelemetry: () => null, hasF1SetupTelemetry: () => false },
-    isAuthorized: () => authorized, });
+    isAuthorized: () => authorized, isSourceCurrent: async () => true, });
     authorized = false;
     credentialsGate.resolve({ accessToken: "test-token", consentAccepted: true });
     await expect(upload).rejects.toMatchObject({ code: "not_connected", retryable: false });
     expect(requests).toBe(0);
+  });
+  test("a recording source changed during final credential lookup cannot start binary transport", async () => {
+    const entered = Promise.withResolvers<void>();
+    const credentialsGate = Promise.withResolvers<{ accessToken: string; consentAccepted: boolean }>();
+    const credentials = { accessToken: "test-token", consentAccepted: true };
+    let lookups = 0, sourceCurrent = true, requests = 0;
+    const adapter = createRaceIqOnlineAdapter({
+      baseUrl: "https://raceiq.example",
+      credentials: async () => {
+        if (++lookups === 1) return credentials;
+        entered.resolve();
+        return credentialsGate.promise;
+      },
+      identifiers: createBoardIdentifierResolver([]),
+      fetch: Object.assign(async () => { requests++; throw new Error("unexpected binary transport"); }, { preconnect: globalThis.fetch.preconnect }),
+    });
+    const upload = adapter.uploadLap({
+      ...lapIdentity("test-owner"), gameId: "acc", carId: "1", filename: "recording.bin",
+      recording: new Uint8Array([1, 2, 3, 4]), payloadFingerprint,
+      idempotencyKey: "018f0f4e-7b00-7000-8000-000000000001", reservationToken: "reservation",
+      consentAccepted: true, visibility: "public", setupUploads: false, isAuthorized: () => true,
+      isSourceCurrent: async () => sourceCurrent,
+      codec: { recordingFormatId: "verified-fixture", supportsSetupAttachment: () => false, isServiceCompatible: () => true, stripF1SetupTelemetry: () => null, hasF1SetupTelemetry: () => false },
+    });
+    await entered.promise;
+    sourceCurrent = false;
+    credentialsGate.resolve(credentials);
+    await expect(upload).rejects.toMatchObject({ code: "activity_revision_conflict", retryable: false });
+    expect(requests).toBe(0);
+  });
+  test("a profile source changed during credential lookup cannot reach transport", async () => {
+    const contribution: api.ActivityContribution = {
+      schemaVersion: 2, activityId: crypto.randomUUID(), lapGuids: [crypto.randomUUID()],
+      expectedRevision: null, contentHash: "a".repeat(64), gameId: "acc",
+      metrics: { laps: 1, positiveLaps: 1, validLaps: 1, drivenSeconds: 90, validSeconds: 90,
+        distanceMeters: null, sessionTypeSeconds: { practice: 0, qualifying: 0, race: 0, unknown: 0 },
+        sessionsWithDuration: 0, sessionsWithoutDuration: 1 },
+      cars: [{ gameId: "acc", nativeId: "1", seconds: 90, laps: 1 }],
+      tracks: [{ gameId: "acc", nativeId: "1", seconds: 90, laps: 1 }],
+      coverage: { identity: "complete", driverAttribution: "complete", sessionDuration: "unavailable", distance: "unavailable" },
+    };
+    const credentials = { accessToken: "test-token", consentAccepted: true };
+    const entered = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<typeof credentials>();
+    let credentialReads = 0, requests = 0, sourceCurrent = true;
+    const adapter = createRaceIqOnlineAdapter({
+      baseUrl: "https://raceiq.example",
+      credentials: async () => {
+        if (++credentialReads === 2) { entered.resolve(); return release.promise; }
+        return credentials;
+      },
+      identifiers: createBoardIdentifierResolver([]),
+      fetch: Object.assign(async () => {
+        requests++;
+        return Response.json({ activityId: contribution.activityId, revision: 1, contentHash: contribution.contentHash, onlineRevision: 1 });
+      }, { preconnect: globalThis.fetch.preconnect }),
+    });
+    const pending = adapter.writeActivityContribution(contribution, () => true, async () => sourceCurrent);
+    try {
+      await entered.promise;
+      sourceCurrent = false;
+      release.resolve(credentials);
+      await expect(pending).rejects.toMatchObject({ code: "activity_revision_conflict", retryable: false });
+      expect(requests).toBe(0);
+      sourceCurrent = true;
+      await adapter.writeActivityContribution(contribution, () => true, async () => sourceCurrent);
+      expect(requests).toBe(1);
+    } finally {
+      release.resolve(credentials);
+      await pending.catch(() => {});
+    }
   });
   test("maps reservation lock and expiry responses as recoverable without acceptance", async () => {
     const createAdapter = (response: (request: Request) => Response) => createRaceIqOnlineAdapter({
@@ -160,7 +232,7 @@ describe("Online adapter transfer boundary", () => {
     idempotencyKey: "018f0f4e-7b00-7000-8000-000000000001", reservationToken: "expired-reservation",
     consentAccepted: true, visibility: "public", setupUploads: false,
     codec: { recordingFormatId: "verified-fixture", supportsSetupAttachment: () => false, isServiceCompatible: () => true, stripF1SetupTelemetry: () => null, hasF1SetupTelemetry: () => false },
-    isAuthorized: () => true, })).rejects.toMatchObject({ code: "service_unavailable", retryable: true, responseStatus: 409 });
+    isAuthorized: () => true, isSourceCurrent: async () => true, })).rejects.toMatchObject({ code: "service_unavailable", retryable: true, responseStatus: 409 });
   });
   test("authenticated writes use API Origin and uploads preserve game selector", async () => {
     const seen: Array<{ url: URL; method: string; origin: string | null; idempotencyKey: string | null; reservationToken: string | null }> = [];
@@ -195,7 +267,7 @@ describe("Online adapter transfer boundary", () => {
       stripF1SetupTelemetry: () => null,
       hasF1SetupTelemetry: () => false,
     },
-    isAuthorized: () => true, });
+    isAuthorized: () => true, isSourceCurrent: async () => true, });
     expect(seen).toHaveLength(3);
     expect(seen.every((request) => request.origin === "https://raceiq.example")).toBe(true);
     expect(seen[1]?.idempotencyKey).toBe(uploadKey);
@@ -215,7 +287,7 @@ describe("Online adapter transfer boundary", () => {
     const recording=new Uint8Array([1,2,3,4]);
     const input={...lapIdentity("test-owner"),payloadFingerprint,gameId:"acc" as const,carId:"1",filename:"recording.bin",recording,
       idempotencyKey:"018f0f4e-7b00-7000-8000-000000000001",reservationToken:"persisted-reservation",
-      consentAccepted:true,visibility:"public" as const,setupUploads:false,isAuthorized:()=>true,codec:{
+      consentAccepted:true,visibility:"public" as const,setupUploads:false,isAuthorized:()=>true,isSourceCurrent:async()=>true,codec:{
         recordingFormatId:"verified-fixture",supportsSetupAttachment:()=>false,
         async isServiceCompatible(){return compatible;},
         stripF1SetupTelemetry:()=>null,hasF1SetupTelemetry:()=>false,
@@ -239,7 +311,7 @@ describe("Online adapter transfer boundary", () => {
     await expect(adapter.getLeaderboard(other,()=>true)).rejects.toMatchObject({code:"unsupported_game"});
     await expect(adapter.uploadLap({...lapIdentity("test-owner"),gameId:"f1-2025",carId:"44",filename:"recording.bin",
       recording:new Uint8Array([1,2,3,4]),payloadFingerprint,idempotencyKey:"018f0f4e-7b00-7000-8000-000000000001",
-      reservationToken:"persisted-reservation",consentAccepted:true,visibility:"public",setupUploads:false,isAuthorized:()=>true,
+      reservationToken:"persisted-reservation",consentAccepted:true,visibility:"public",setupUploads:false,isAuthorized:()=>true,isSourceCurrent:async()=>true,
       codec:{recordingFormatId:"verified-fixture",supportsSetupAttachment:()=>false,isServiceCompatible:()=>true,stripF1SetupTelemetry:()=>null,hasF1SetupTelemetry:()=>false},
     })).rejects.toMatchObject({code:"unsupported_game"});
     expect(requests).toBe(1);

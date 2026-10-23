@@ -1,3 +1,4 @@
+import { isAbsolute } from "node:path";
 import { existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -28,6 +29,17 @@ if (repositoryURL.protocol !== "https:" || repositoryURL.username || repositoryU
   throw new Error("Docker upgrade smoke requires an HTTPS repository URL without embedded credentials; use GH_TOKEN for authentication");
 }
 const containerEnv: NodeJS.ProcessEnv = { ...process.env, RACEIQ_UPGRADE_REPOSITORY: repository };
+const candidateDir = process.env.RACEIQ_UPGRADE_CANDIDATE_DIR;
+if (candidateDir) {
+  if (!isAbsolute(candidateDir) || !existsSync(candidateDir) || !statSync(candidateDir).isDirectory()) {
+    throw new Error("RACEIQ_UPGRADE_CANDIDATE_DIR must be an absolute path to an existing desktop project directory");
+  }
+  containerEnv.RACEIQ_UPGRADE_CANDIDATE_DIR = "/candidate";
+  const head = Bun.spawnSync(["git", "-C", candidateDir, "rev-parse", "--verify", "HEAD"], { stdout: "pipe", stderr: "pipe" });
+  const candidateHead = head.stdout.toString().trim();
+  if (head.exitCode !== 0 || !/^[a-f0-9]{40}$/i.test(candidateHead)) throw new Error("Cannot resolve candidate workspace HEAD");
+  containerEnv.RACEIQ_UPGRADE_CANDIDATE_HEAD = candidateHead;
+}
 if (replay) containerEnv.RACEIQ_UPGRADE_REPLAY = "1";
 if (!containerEnv.GH_TOKEN && !containerEnv.GITHUB_TOKEN) {
   const auth = Bun.spawnSync(["gh", "auth", "token", "--hostname", "github.com"], { stdout: "pipe", stderr: "pipe" });
@@ -68,13 +80,14 @@ await docker([
 ], "docker-build.log");
 const image = readFileSync(imageIDPath, "utf8").trim();
 if (!/^sha256:[a-f0-9]{64}$/.test(image)) throw new Error("Docker build did not produce a valid immutable image ID");
-const forwarded = ["GH_TOKEN", "GITHUB_TOKEN", "GH_REPO", "RACEIQ_UPGRADE_PREVIOUS_TAG", "RACEIQ_UPGRADE_REPOSITORY", "RACEIQ_UPGRADE_REPLAY"];
+const forwarded = ["GH_TOKEN", "GITHUB_TOKEN", "GH_REPO", "RACEIQ_UPGRADE_PREVIOUS_TAG", "RACEIQ_UPGRADE_REPOSITORY", "RACEIQ_UPGRADE_REPLAY", ...(candidateDir ? ["RACEIQ_UPGRADE_CANDIDATE_DIR", "RACEIQ_UPGRADE_CANDIDATE_HEAD"] : [])];
 const containerName = `raceiq-upgrade-smoke-${process.pid}`;
 console.log(`Upgrade smoke container: ${containerName} (live progress in OrbStack Logs)`);
 const runStartedAt = Date.now();
 const testExitCode = await docker([
   "run", "--rm", "--init", "--name", containerName, "--shm-size=1g",
   "--mount", `type=bind,source=${artifacts},target=/artifacts`,
+  ...(candidateDir ? ["--mount", `type=bind,source=${candidateDir},target=/candidate,readonly`] : []),
   ...forwarded.filter((name) => containerEnv[name]).flatMap((name) => ["--env", name]),
   image, ...playwrightArgs,
 ], "docker-run.log", containerEnv, true);

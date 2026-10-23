@@ -7,7 +7,7 @@ import { RecordingLayoutMigration } from "@/components/RecordingLayoutMigration"
 import { useRecordingDirectoryStatus, useRecordingLayoutMigration } from "@/hooks/recording-storage";
 import { Button } from "@/components/ui/button";
 import { useSaveSettings } from "@/hooks/settings";
-import { useRaceIqOnline } from "@/hooks/raceiq-online";
+import { useRaceIqOnline } from "@raceiq/online/ui"
 import { m } from "@/paraglide/messages";
 import { useTelemetryStore } from "@/stores/telemetry";
 import { CommunityStep } from "./steps/CommunityStep";
@@ -15,13 +15,12 @@ import { SoundStep } from "./steps/SoundStep";
 import { StartupStep } from "./steps/StartupStep";
 import { StorageStep } from "./steps/StorageStep";
 import { WelcomeStep } from "./steps/WelcomeStep";
-import { OnlineStep } from "./steps/OnlineStep";
+import { OnlineChoiceStep, OnlineStep } from "@raceiq/online/ui";
 import { WheelStep } from "./steps/WheelStep";
 import { AccessSetupForm } from "@/components/security/AccessSetupForm";
 import { useDashboardAuth } from "@/lib/dashboard-auth";
 import { getLocale } from "@/paraglide/runtime";
 
-import { OnlineChoiceStep } from "./steps/OnlineChoiceStep";
 import { ProfileStep, type ProfileStepHandle } from "./steps/ProfileStep";
 function AccessStep() {
   return (

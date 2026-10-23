@@ -1,5 +1,6 @@
+import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { SparseSplitMigration } from "../components/SparseSplitMigration";
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { RecordingLayoutMigration } from "../components/RecordingLayoutMigration";
 import { getAllGames } from "@raceiq/shared/games/registry"
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -26,7 +27,8 @@ import { telemetryStore, useTelemetryStore } from "../stores/telemetry";
 import { gameIdForPathname } from "../lib/game-routes";
 import { uiStore, useUiStore } from "../stores/ui";
 import { GameRouteProvider, gameStore, usesStoreGameContext, useGameStore } from "../stores/game";
-import { CloudLapImportActivation } from "@/hooks/cloud-lap-import";
+import { RaceIqOnlineProvider, CloudLapImportActivation } from "@raceiq/online/ui";
+import { onlineUiHost } from "@/features/online-host";
 import { CarsCatalogueHostProvider } from "../features/cars-catalogue-host";
 import { TracksCatalogueHostProvider } from "../features/tracks-catalogue-host";
 function OverlayShell() {
@@ -64,6 +66,7 @@ function useUpdateCheck() {
 }
 
 function AppShell() {
+  const shellRef = useRef<HTMLDivElement>(null);
   const [layoutMigrationPrecedence, setLayoutMigrationPrecedence] = useState(false);
   const [sparseMigrationVisible, setSparseMigrationVisible] = useState(false);
   const { displaySettings, settingsLoaded } = useSettings();
@@ -137,7 +140,7 @@ function AppShell() {
 
   return (
     <>
-      <div className="@container/shell flex h-screen min-h-0 bg-app-bg text-app-text">
+      <div ref={shellRef} className="@container/shell flex h-screen min-h-0 bg-app-bg text-app-text">
         <aside className="hidden h-full shrink-0 @3xl/shell:block">
           <AppSidebar
             collapsed={sidebarCollapsed}
@@ -191,22 +194,26 @@ function AppShell() {
           </div>
         )}
 
-        {showSettings && (
-          <div className="fixed inset-0 z-50 flex items-stretch justify-center @3xl/shell:items-start @3xl/shell:py-12">
-          <Button type="button" variant="app-ghost" size="content" aria-label={m.nav_dismiss_settings()} onClick={closeSettings} className="absolute inset-0 bg-app-bg/60" />
-            <div className="relative h-full w-full overflow-hidden bg-app-bg @3xl/shell:max-w-4xl @3xl/shell:rounded-lg @3xl/shell:border @3xl/shell:border-app-border">
-              <div className="flex items-center justify-between border-b border-app-border bg-app-surface px-4 py-3">
-                <h1 className="text-app-heading font-semibold text-app-text">{m.nav_settings()}</h1>
-                <Button type="button" aria-label={m.nav_close_settings()} onClick={closeSettings} className="text-app-heading leading-none text-app-text-muted hover:text-app-text">
-                  &times;
-                </Button>
+        <DialogPrimitive.Root open={showSettings} onOpenChange={(open) => { if (!open) closeSettings(); }}>
+          <DialogPrimitive.Portal container={shellRef.current ?? undefined}>
+            {showSettings && (
+              <div className="fixed inset-0 z-50 flex items-stretch justify-center @3xl/shell:items-start @3xl/shell:py-12">
+              <DialogPrimitive.Backdrop className="absolute inset-0 bg-app-bg/60" />
+              <DialogPrimitive.Popup aria-modal="true" className="relative h-full w-full overflow-hidden bg-app-bg outline-none @3xl/shell:max-w-4xl @3xl/shell:rounded-lg @3xl/shell:border @3xl/shell:border-app-border">
+                <div className="flex items-center justify-between border-b border-app-border bg-app-surface px-4 py-3">
+                  <DialogPrimitive.Title className="text-app-heading font-semibold text-app-text">{m.nav_settings()}</DialogPrimitive.Title>
+                  <DialogPrimitive.Close render={<Button type="button" aria-label={m.nav_close_settings()} className="text-app-heading leading-none text-app-text-muted hover:text-app-text" />}>
+                    &times;
+                  </DialogPrimitive.Close>
+                </div>
+                <div className="h-[calc(100%-3rem)]">
+                  <Settings initialSection={settingsSection as "games" | "ai" | "updates" | "about" | undefined} onClose={closeSettings} />
+                </div>
+              </DialogPrimitive.Popup>
               </div>
-              <div className="h-[calc(100%-3rem)]">
-                <Settings initialSection={settingsSection as "games" | "ai" | "updates" | "about" | undefined} onClose={closeSettings} />
-              </div>
-            </div>
-          </div>
-        )}
+            )}
+          </DialogPrimitive.Portal>
+        </DialogPrimitive.Root>
 
         {(showUpdateModal || updateProgress) && <UpdateModal version={updateState?.latest ?? updateAvailable ?? "?"} currentVersion={updateState?.current ?? "?"} newReleases={updateState?.newReleases ?? []} fullReleaseNotes={updateState?.fullReleaseNotes ?? null} currentReleaseNotes={updateState?.currentReleaseNotes ?? null} currentReleaseDate={updateState?.currentReleaseDate ?? null} updatesDisabled={updateState?.updatesDisabled} onClose={() => setShowUpdateModal(false)} />}
         {onboardingOpen && <OnboardingModal onClose={closeOnboarding} />}
@@ -247,15 +254,17 @@ function RootLayout() {
   }, [router]);
   return (
     <QueryClientProvider client={queryClient}>
-      <GameRouteProvider value={gameId}>
-        <TracksCatalogueHostProvider>
-          <CarsCatalogueHostProvider>
-            {auth.authenticated && <DashboardConnection />}
-            {auth.authenticated && auth.onboardingComplete && !isOverlayPath(pathname) && <CloudLapImportActivation />}
-            {isOverlayPath(pathname) ? <OverlayShell /> : pathname === "/login" || pathname === "/onboarding" ? <Outlet /> : <AppShell />}
-          </CarsCatalogueHostProvider>
-        </TracksCatalogueHostProvider>
-      </GameRouteProvider>
+      <RaceIqOnlineProvider host={onlineUiHost}>
+        <GameRouteProvider value={gameId}>
+          <TracksCatalogueHostProvider>
+            <CarsCatalogueHostProvider>
+              {auth.authenticated && <DashboardConnection />}
+              {auth.authenticated && auth.onboardingComplete && !isOverlayPath(pathname) && <CloudLapImportActivation />}
+              {isOverlayPath(pathname) ? <OverlayShell /> : pathname === "/login" || pathname === "/onboarding" ? <Outlet /> : <AppShell />}
+            </CarsCatalogueHostProvider>
+          </TracksCatalogueHostProvider>
+        </GameRouteProvider>
+      </RaceIqOnlineProvider>
     </QueryClientProvider>
   );
 }

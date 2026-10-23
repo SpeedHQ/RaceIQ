@@ -54,12 +54,12 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
       workers: 1,
       use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
     },
-    ...(["tracks-catalogue", "cars-catalogue"] as const).map((name) => ({
+    ...(["tracks-catalogue", "cars-catalogue", "online"] as const).map((name) => ({
       name,
       testDir: resolve(__dirname, "../../packages", name, "test/e2e"),
       dependencies: ["seeded-setup"],
-      fullyParallel: true,
-      workers: name === "tracks-catalogue" ? 1 : undefined,
+      fullyParallel: name !== "online",
+      workers: name === "tracks-catalogue" || name === "online" ? 1 : undefined,
       timeout: 140_000,
       use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
     })),
@@ -100,7 +100,7 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
       use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
     },
     {
-      dependencies: ["seeded-routes", "seeded-e2e", "seeded-imports", "seeded-webgpu", "tracks-catalogue", "cars-catalogue"],
+      dependencies: ["seeded-routes", "seeded-e2e", "seeded-imports", "seeded-webgpu", "tracks-catalogue", "cars-catalogue", "online"],
       fullyParallel: true,
       name: "record-demo",
       testMatch: "recording/demo.spec.ts",
