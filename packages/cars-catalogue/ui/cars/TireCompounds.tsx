@@ -71,6 +71,7 @@ export function CarTireDialog({
   const guide = getTireTempGuide(gameId);
   if (!guide) return null;
   const compounds = gameId === "lmu" ? LMU_DRY_COMPOUNDS[carClass ?? ""] : undefined;
+  const wetAvailable = gameId !== "lmu" || carClass !== "PACECAR";
   const rows = gameId === "lmu"
     ? guide.rows.filter((row) => compounds?.includes(row.compound))
     : guide.rows;
@@ -86,8 +87,9 @@ export function CarTireDialog({
           <>
             <p className="text-sm text-app-text-muted">
               {compounds
-                ? `Dry compounds for ${carClass}: ${compounds.join(", ")}. Wet tires available separately. Track availability may vary.`
-                : `Class-level dry compounds unknown for ${carClass || "Unknown class"}. Wet tires available separately. Track availability may vary.`}
+                ? `Dry compounds for ${carClass}: ${compounds.join(", ")}. `
+                : `Class-level dry compounds unknown for ${carClass || "Unknown class"}. `}
+              {wetAvailable ? "Wet tires available separately. Track availability may vary." : "Wet tires unavailable."}
             </p>
             <p className="text-xs text-app-text-muted">Temperature rows below use the LMU tire temperature guide.</p>
           </>
@@ -115,6 +117,17 @@ export function CarTireDialog({
                 </td>
               </tr>
             ))}
+            {gameId === "lmu" && wetAvailable && (
+              <tr className="border-b border-app-border/60 last:border-0">
+                <th scope="row" className="py-2 pr-3 font-medium text-app-text">
+                  <span className="flex items-center gap-2">
+                    <CompoundCircle compound="wet" />
+                    wet
+                  </span>
+                </th>
+                <td className="py-2 font-mono">-</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </DialogContent>

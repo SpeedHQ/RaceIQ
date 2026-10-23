@@ -86,7 +86,9 @@ export function LMUCars() {
               <div className="p-3">
                 <h2 className="text-sm font-semibold leading-tight text-app-text">{car.name}</h2>
                 {car.series && car.series.length > 0 && <p className="mt-1 text-xs text-app-text-muted">{car.series.join(" · ")}</p>}
-                {LMU_DRY_COMPOUNDS[car.class ?? ""] ? (
+                {car.class === "PACECAR" ? (
+                  <p className="mt-2 text-xs text-app-text-muted" aria-label="Wet tires unavailable">Wet tires unavailable</p>
+                ) : LMU_DRY_COMPOUNDS[car.class ?? ""] ? (
                   <div className="mt-2 flex items-center gap-1" aria-label={`${car.class} dry compounds and wet tires available`}>
                     {LMU_DRY_COMPOUNDS[car.class ?? ""].map((compound) => <CompoundCircle key={compound} compound={compound} />)}
                     <CompoundCircle compound="wet" />

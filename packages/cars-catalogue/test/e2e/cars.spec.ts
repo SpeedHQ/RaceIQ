@@ -116,11 +116,13 @@ test("Le Mans Ultimate cars preserve search and class filtering through the real
     await card.click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toContainText(`Dry compounds for ${name}: ${compounds.join(", ")}. Wet tires available separately. Track availability may vary.`);
-    await expect(dialog.locator("tbody tr")).toHaveCount(compounds.length);
+    await expect(dialog.locator("tbody tr")).toHaveCount(compounds.length + 1);
+    await expect(dialog.locator("tbody tr").last().locator("th")).toContainText("wet");
+    await expect(dialog.locator('tbody tr').last().locator('th [data-tire-compound="wet"]')).toHaveCount(1);
+    await expect(dialog.locator("tbody tr").last().locator("td")).toHaveText("-");
     for (const compound of compounds) {
       await expect(dialog.locator(`tbody [data-tire-compound="${compound}"]`)).toHaveCount(1);
     }
-    await expect(dialog.locator('tbody [data-tire-compound="wet"]')).toHaveCount(0);
     await expect(dialog).toContainText("Temperature rows below use the LMU tire temperature guide.");
     await page.keyboard.press("Escape");
     await expect(dialog).toBeHidden();
@@ -134,8 +136,31 @@ test("Le Mans Ultimate cars preserve search and class filtering through the real
   await unknownCard.click();
   const unknownDialog = page.getByRole("dialog");
   await expect(unknownDialog).toContainText(`Class-level dry compounds unknown for ${unknownCar!.class}. Wet tires available separately. Track availability may vary.`);
-  await expect(unknownDialog.locator("tbody tr")).toHaveCount(0);
+  await expect(unknownDialog.locator("tbody tr")).toHaveCount(1);
+  await expect(unknownDialog.locator("tbody tr th")).toContainText("wet");
+  await expect(unknownDialog.locator('tbody tr th [data-tire-compound="wet"]')).toHaveCount(1);
+  await expect(unknownDialog.locator("tbody tr td")).toHaveText("-");
   await page.keyboard.press("Escape");
   await expect(unknownDialog).toBeHidden();
+
+  const paceCar = cars.find((car) => car.class === "PACECAR");
+  expect(paceCar, "seeded catalog contains a PACECAR class").toBeDefined();
+  const paceCard = cards.filter({ has: page.locator(`h2:text-is("${paceCar!.name}")`) });
+  await expect(paceCard.locator('[data-tire-compound="wet"]')).toHaveCount(0);
+  await expect(paceCard).toContainText("Wet tires unavailable");
+  await paceCard.click();
+  const paceDialog = page.getByRole("dialog");
+  await expect(paceDialog).toContainText("Wet tires unavailable.");
+  await expect(paceDialog).not.toContainText("Wet tires available");
+  await expect(paceDialog.locator("tbody tr")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(paceDialog).toBeHidden();
+  const lmp3Card = cards.filter({ has: page.locator(`h2:text-is("${unknownCar!.name}")`) });
+  await expect(lmp3Card.locator('[data-tire-compound="wet"]')).toHaveCount(1);
+  await lmp3Card.click();
+  const lmp3Dialog = page.getByRole("dialog");
+  await expect(lmp3Dialog).toContainText("Wet tires available separately.");
+  await page.keyboard.press("Escape");
+  await expect(lmp3Dialog).toBeHidden();
   expect(browserErrors.errors).toEqual([]);
 });
