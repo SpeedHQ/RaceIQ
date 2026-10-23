@@ -48,6 +48,15 @@ for (const game of SEEDED_GAME_CASES) {
   test(`${game.name} dashboard recap navigates to session laps`, async ({ page, request }) => {
     const browserErrors = collectBrowserErrors(page);
     await page.goto(`/${game.prefix}`, { waitUntil: "domcontentloaded" });
+    const guideHeading = page.getByRole("heading", { name: "Tire temperature guide", exact: true });
+    if (["acc", "ac-evo", "f1-2025"].includes(game.gameId)) {
+      await expect(guideHeading).toBeVisible();
+      const guideRows = page.getByRole("region", { name: "Tire temperature guide" }).locator("tbody tr");
+      await expect(guideRows).toHaveCount(game.gameId === "f1-2025" ? 5 : 2);
+      await expect(guideRows.first()).toContainText(/°[CF]/);
+    } else {
+      await expect(guideHeading).toHaveCount(0);
+    }
     const yearResponsePromise = page.waitForResponse((response) => response.url().includes("/api/dashboard?") && response.request().headers()["x-game-id"] === game.gameId);
     await page.getByRole("button", { name: "This Year", exact: true }).click();
     const dashboardResponse = await yearResponsePromise;

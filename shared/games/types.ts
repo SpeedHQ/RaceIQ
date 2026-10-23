@@ -1,5 +1,6 @@
 import type { GameId } from "./ids";
 import type { TelemetryPacket } from "../telemetry/types";
+import type { TireTemperatureRange } from "../racing/live/tire-thresholds";
 
 import type { SemanticMetricBinding } from "./metric-contracts";
 
@@ -154,6 +155,11 @@ export interface GameAdapter {
 
   /** Tire temp thresholds in °C — blue < cold < green < warm < amber < hot < red */
   tireTempThresholds: { cold: number; warm: number; hot: number };
+
+  /** Optimal measured core/carcass temperature per tire compound (°C).
+   *  `default` covers unlisted compounds; games without it fall back to
+   *  `tireTempThresholds.cold`/`warm`. */
+  tireCoreTempOptimal?: { default: TireTemperatureRange; compounds?: Record<string, TireTemperatureRange> };
 
   /** Suspension travel color thresholds and millimeter rendering behavior. */
   suspensionThresholds: {

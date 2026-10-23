@@ -238,12 +238,12 @@ export interface RaceStrategyMessages {
   strategy_tires_not_indicated: () => string;
   strategy_tires_unavailable: () => string;
   strategy_title: () => string;
-  strategy_statistic_average: () => string;
-  strategy_statistic_median: () => string;
-  strategy_statistic_peak: () => string;
-  strategy_statistic_label: () => string;
   strategy_sample_laps: (inputs: { count: string | number }) => string;
-  strategy_peak_help: () => string;
+  strategy_percentile_p50: () => string;
+  strategy_percentile_p95: () => string;
+  strategy_cold_fuel: () => string;
+  strategy_cold_wear: () => string;
+  strategy_cold_help: () => string;
   race_adherence_title: () => string;
   race_adherence_within: () => string;
   race_adherence_over: () => string;

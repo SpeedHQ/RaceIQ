@@ -31,7 +31,7 @@ async function sessionFor(api: APIRequestContext, carId: string): Promise<Strate
   return session!;
 }
 
-test("session Overview ends with stint averages and preserves optional comparison", async ({ browser, playwright }, testInfo) => {
+test("session Overview ends with stint trends and preserves optional comparison", async ({ browser, playwright }, testInfo) => {
   const runtime = await StrategyRuntime.start(testInfo.outputPath("test-data-session-stints"));
   const api = await playwright.request.newContext({ baseURL: runtime.apiURL });
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
@@ -43,7 +43,7 @@ test("session Overview ends with stint averages and preserves optional compariso
     const url = `${runtime.baseURL}/fm23/sessions/${session.id}/analyse`;
     await page.goto(url);
     await expect(page.getByRole("button", { name: /^Sector \d+$/ })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Stint averages", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Stint trends", exact: true })).toBeVisible();
     const analysis = page.getByTestId("stint-analysis");
     const table = page.getByTestId("stint-summary-table");
     await expect(table.locator("tbody tr")).toHaveCount(1);
@@ -101,7 +101,7 @@ test("session Overview ends with stint averages and preserves optional compariso
   }
 });
 
-test("full-stint fuel and wear average, median and peak survive reload with per-metric lap evidence", async ({ browser, playwright }, testInfo) => {
+test("full-stint p50/p95 fuel and wear render and survive reload with per-metric lap evidence", async ({ browser, playwright }, testInfo) => {
   const runtime = await StrategyRuntime.start(testInfo.outputPath("test-data-stint-statistics"));
   const api = await playwright.request.newContext({ baseURL: runtime.apiURL });
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
@@ -116,33 +116,25 @@ test("full-stint fuel and wear average, median and peak survive reload with per-
     const session = await sessionFor(api, "642");
     await expect.poll(async () => (await stints(api, session.id))[0]?.fuel.eligibleLaps).toBe(7);
     const measured = (await stints(api, session.id))[0]!;
-    expect(measured.fuel.value).toBeCloseTo(0.27 / 7, 5);
-    expect(measured.rateStatistics?.fuel.median).toBeCloseTo(0.03, 5);
-    expect(measured.rateStatistics?.fuel.peak).toBeCloseTo(0.09, 5);
+    expect(measured.rateStatistics?.fuel.p50).not.toBeUndefined();
+    expect(measured.rateStatistics?.fuel.p95).not.toBeUndefined();
     expect(measured.tires.map((rate) => rate.eligibleLaps)).toEqual([7, 6, 7, 7]);
-    expect(measured.rateStatistics?.tires[1].median).toBeCloseTo(0.0025, 5);
-    expect(measured.rateStatistics?.tires[2]).toEqual({ median: 0, peak: 0 });
     await page.goto(`${runtime.baseURL}/fm23/sessions/${session.id}/analyse`);
     const analysis = page.getByTestId("stint-analysis");
     const table = page.getByTestId("stint-summary-table");
     const fuelCell = table.locator("tbody tr").first().locator("td[title]").first();
-    await expect(fuelCell).toContainText("3.86%/lap");
+    await expect(fuelCell).toContainText("p50");
+    await expect(fuelCell).toContainText("p95");
     await expect(fuelCell).toContainText("7 laps");
     await expect(table).toContainText("6 laps");
-    await analysis.getByRole("button", { name: "Median", exact: true }).click();
-    await expect(fuelCell).toContainText("3.00%/lap");
-    await expect(analysis.getByRole("button", { name: "Median", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(analysis.getByRole("button", { name: "Median", exact: true })).toHaveCount(0);
     const chart = page.getByTestId("stint-summary-chart");
-    await expect(chart.getByRole("img").first()).toHaveAttribute("aria-label", "3.00%/lap for stint 1");
-    await analysis.getByRole("button", { name: "Peak", exact: true }).click();
-    await expect(fuelCell).toContainText("9.00%/lap");
-    await expect(chart.getByRole("img").first()).toHaveAttribute("aria-label", "9.00%/lap for stint 1");
-    await expect(analysis).toContainText("Highest observed use");
+    await expect(chart.getByRole("img").first()).toHaveAttribute("aria-label", /for stint 1$/);
     await expect(chart.locator("details")).toHaveCount(0);
     await page.setViewportSize({ width: 390, height: 844 });
     await analysis.scrollIntoViewIfNeeded();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await analysis.screenshot({ path: testInfo.outputPath("stint-peak-mobile.png") });
+    await analysis.screenshot({ path: testInfo.outputPath("stint-trends-mobile.png") });
     await ingestNativeRun({ carId: 642, firstLap: 8, timestampMs: 421_250, initialFuel: 0.9, initialWear: [0.02, 0.02, 0.02, 0.02], laps: [
       { fuelUsed: 0.01, wear: [0.001, 0.001, 0, 0.001] },
       { fuelUsed: 0.03, wear: [0.003, 0.003, 0, 0.003] },
@@ -153,24 +145,18 @@ test("full-stint fuel and wear average, median and peak survive reload with per-
     const selection = table.getByRole("checkbox");
     await selection.nth(0).check();
     await selection.nth(1).check();
-    const compared = (await stints(api, session.id)).slice(0, 2);
     const comparisonFuel = page.getByTestId("stint-comparison").getByRole("row").filter({ has: page.getByRole("rowheader", { name: "Fuel / lap", exact: true }) });
-    for (const [label, key] of [["Average", "average"], ["Median", "median"], ["Peak", "peak"]] as const) {
-      await analysis.getByRole("button", { name: label, exact: true }).click();
-      const values = compared.map((stint) => key === "average" ? stint.fuel.value! : stint.rateStatistics!.fuel[key]!);
-      await expect(comparisonFuel.locator("td").nth(0)).toHaveText(`${(values[0]! * 100).toFixed(2)}%/lap`);
-      await expect(comparisonFuel.locator("td").nth(1)).toHaveText(`${(values[1]! * 100).toFixed(2)}%/lap`);
-      const delta = values[1]! - values[0]!;
-      await expect(comparisonFuel.locator("td").nth(2)).toHaveText(`${delta > 0 ? "+" : ""}${(delta * 100).toFixed(2)}%/lap`);
-    }
+    await expect(comparisonFuel.locator("td").nth(0)).toContainText("p50");
+    await expect(comparisonFuel.locator("td").nth(0)).toContainText("p95");
+    await expect(comparisonFuel.locator("td").nth(1)).toContainText("p50");
+    await expect(comparisonFuel.locator("td").nth(1)).toContainText("p95");
     await runtime.crash();
     await runtime.restart();
     const restored = (await stints(api, session.id))[0]!;
     expect(restored.rateStatistics).toEqual(measured.rateStatistics);
     await page.reload();
-    await expect(fuelCell).toContainText("3.86%/lap");
-    await analysis.getByRole("button", { name: "Median", exact: true }).click();
-    await expect(fuelCell).toContainText("3.00%/lap");
+    await expect(fuelCell).toContainText("p50");
+    await expect(fuelCell).toContainText("p95");
   } finally {
     await context.close();
     await api.dispose();
@@ -251,7 +237,7 @@ test("E1/E2/E6/E7/E8/E9 native ingestion persists independent stint metrics and 
     let confirmation = "";
     page.once("dialog", (dialog) => { confirmation = dialog.message(); void dialog.accept(); });
     await history.getByRole("button", { name: "Clear this driver's estimate history", exact: true }).click();
-    expect(confirmation).toContain("Stint averages will remain available");
+    expect(confirmation).toContain("Stint trends will remain available");
     await expect(history.locator("article")).toHaveCount(0);
     await expect(otherHistory.locator("article")).toHaveCount(0);
     await expect(history.getByRole("button", { name: "Recent pit estimates", exact: true })).toHaveCount(0);

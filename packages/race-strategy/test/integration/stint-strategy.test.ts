@@ -70,20 +70,20 @@ describe("durable stint strategy contract", () => {
   test("full-stint statistics retain zero and excluded-wheel evidence beyond rolling windows", async () => {
     const id = await session();
     const acc = accumulator(id, 1);
-    expect(acc.snapshot().rateStatistics?.fuel).toEqual({ median: null, peak: null });
+    expect(acc.snapshot().rateStatistics?.fuel).toEqual({ p50: null, p95: null });
     for (const [index, value] of [0.09, 0, 0.02, 0.01, 0.08, 0.03, 0.04].entries()) {
       const contribution = { ...metric(), fuelUsed: value, tireWear: [value, index === 0 ? null : value, 0, null] as [number, number | null, number, null] };
       const summary = acc.add(index + 1, contribution);
       const lapId = await savedLap(id, index + 1);
       await persistStrategyLapMetrics({ sessionId: id, driverKey: summary.driverKey, lapId, stintId: summary.id, algorithmVersion: STRATEGY_ALGORITHM_VERSION, contribution }, summary, acc.totals());
-      if (index === 0) expect(summary.rateStatistics?.fuel).toEqual({ median: 0.09, peak: 0.09 });
+      if (index === 0) expect(summary.rateStatistics?.fuel).toEqual({ p50: 0.09, p95: 0.09 });
     }
     const stored = (await getStrategyStints(id))[0]!;
     expect(stored.fuel.value).toBeCloseTo(0.27 / 7);
-    expect(stored.rateStatistics?.fuel).toEqual({ median: 0.03, peak: 0.09 });
+    expect(stored.rateStatistics?.fuel).toEqual({ p50: 0.03, p95: 0.08 });
     expect(stored.rateStatistics?.tires).toEqual([
-      { median: 0.03, peak: 0.09 }, { median: 0.025, peak: 0.08 },
-      { median: 0, peak: 0 }, { median: null, peak: null },
+      { p50: 0.03, p95: 0.08 }, { p50: 0.02, p95: 0.04 },
+      { p50: 0, p95: 0 }, { p50: null, p95: null },
     ]);
     expect(stored.tires.map((rate) => rate.eligibleLaps)).toEqual([7, 6, 7, 0]);
     expect(acc.rollingRates().fuel.value).toBeCloseTo(0.18 / 5);
@@ -98,11 +98,43 @@ describe("durable stint strategy contract", () => {
     acc.add(1, { ...metric(), fuelUsed: 0, tireWear: [0, 0, 0, 0] });
     const staged = acc.fork();
     staged.add(2, { ...metric(), fuelUsed: 0.08, tireWear: [0.08, null, 0.08, null] });
-    expect(staged.snapshot().rateStatistics?.fuel).toEqual({ median: 0.04, peak: 0.08 });
-    expect(acc.snapshot().rateStatistics?.fuel).toEqual({ median: 0, peak: 0 });
+    expect(staged.snapshot().rateStatistics?.fuel).toEqual({ p50: 0, p95: 0 });
+    expect(acc.snapshot().rateStatistics?.fuel).toEqual({ p50: 0, p95: 0 });
     acc.add(2, { ...metric(), fuelUsed: 0.02, tireWear: [0.02, 0.02, 0.02, 0.02] });
-    expect(acc.snapshot().rateStatistics?.fuel).toEqual({ median: 0.01, peak: 0.02 });
-    expect(staged.snapshot().rateStatistics?.tires[0]).toEqual({ median: 0.04, peak: 0.08 });
+    expect(acc.snapshot().rateStatistics?.fuel).toEqual({ p50: 0, p95: 0 });
+    expect(staged.snapshot().rateStatistics?.tires[0]).toEqual({ p50: 0, p95: 0 });
+  });
+  test("cold laps keep their own statistics and stay out of hot averages", () => {
+    const acc = accumulator(1, 1);
+    for (let lap = 1; lap <= 3; lap++) acc.add(lap, { ...metric(), fuelUsed: 0.02, tireWear: [0.02, 0.02, 0.02, 0.02] });
+    const summary = acc.add(4, { ...metric(0.06, 0.06), fuelUsed: 0.06, tireWear: [0.06, 0.06, 0.06, 0.06], thermalState: "cold" });
+    expect(summary.rateStatistics?.fuel).toEqual({ p50: 0.02, p95: 0.02 });
+    expect(summary.coldRateStatistics).toEqual({ p50: 0.06, p95: 0.06 });
+    expect(summary.coldTireRateStatistics?.[0]).toEqual({ p50: 0.06, p95: 0.06 });
+    expect(summary.coldLaps).toBe(1);
+    expect(summary.fuel.value).toBeCloseTo(0.02);
+    expect(summary.fuel.eligibleLaps).toBe(3);
+    expect(summary.tires[0].value).toBeCloseTo(0.02);
+    expect(summary.tires[0].eligibleLaps).toBe(3);
+  });
+  test("thermal state uses the game's per-compound optimal range and a measured core channel", () => {
+    const options = { valid: true, lapTimeSeconds: 60, fuelUnit: "tankFraction" as const, allowContinuousWear: true };
+    const frame = (gameId: TelemetryPacket["gameId"], core: { acc?: number; carcass?: number; compound?: string }, index: number) => ({
+      ...packet(0.8, 0.1, 1_000 + index * 100), gameId, Speed: 20,
+      ...(core.compound != null ? { f1: { tyreCompound: core.compound } } : {}),
+      ...(core.acc != null ? { acc: { tireCoreTemp: [core.acc, core.acc, core.acc, core.acc] } } : {}),
+      ...(core.carcass != null ? { TireCarcassTempFL: core.carcass, TireCarcassTempFR: core.carcass, TireCarcassTempRL: core.carcass, TireCarcassTempRR: core.carcass } : {}),
+    }) as unknown as TelemetryPacket;
+    const frames = (core: { acc?: number; carcass?: number; compound?: string }, gameId: TelemetryPacket["gameId"] = "fm-2023", count = 30) =>
+      Array.from({ length: count }, (_, index) => frame(gameId, core, index));
+    expect(aggregateLapMetrics(frames({ acc: 74 }), options).thermalState).toBe("cold");
+    expect(aggregateLapMetrics(frames({ acc: 76 }), options).thermalState).toBe("warm");
+    expect(aggregateLapMetrics(frames({ carcass: 74, compound: "soft" }, "f1-2025"), options).thermalState).toBe("cold");
+    expect(aggregateLapMetrics(frames({ carcass: 72, compound: "wet" }, "f1-2025"), options).thermalState).toBe("warm");
+    expect(aggregateLapMetrics(frames({ acc: 90 }, "fm-2023", 29), options).thermalState).toBe("unavailable");
+    // LMU and Forza expose surface temperature only; that must never count as core.
+    expect(aggregateLapMetrics(frames({}, "lmu"), options).thermalState).toBe("unavailable");
+    expect(metric().thermalState).toBe("unavailable");
   });
   test("generated strategies respect exact fuel boundaries, tire limits and missing evidence", () => {
     const acc = accumulator(1, 1);

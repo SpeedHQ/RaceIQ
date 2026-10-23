@@ -40,9 +40,13 @@ export interface StintSummary {
   tires: FourWheels<MetricRate>;
   /** Full-stint eligible lap statistics; absent on evidence saved before this version. */
   rateStatistics?: {
-    fuel: { median: number | null; peak: number | null };
-    tires: FourWheels<{ median: number | null; peak: number | null }>;
+    fuel: { p50: number | null; p95: number | null };
+    tires: FourWheels<{ p50: number | null; p95: number | null }>;
   };
+  /** Same percentiles for laps measured on cold tires only. */
+  coldRateStatistics?: { p50: number | null; p95: number | null };
+  coldTireRateStatistics?: FourWheels<{ p50: number | null; p95: number | null }>;
+  coldLaps?: number;
   virtualEnergy?: MetricRate;
   measuredFuelUsed: number | null;
   fuelUnit: StrategyFuelUnit;

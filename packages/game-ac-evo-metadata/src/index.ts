@@ -62,6 +62,13 @@ export const acEvoAdapter: GameAdapter = {
   steeringRange: 127,
   tireHealthThresholds: { green: 0.85, yellow: 0.7 },
   tireTempThresholds: { cold: 70, warm: 100, hot: 120 },
+  // AC Evo tyre type (road/semi-slick/slick) is not exposed per packet, so the
+  // default assumes the slick/GT window from the game's thermal reference
+  // (slick 75-100, semi 60-85, road 40-70 °C core).
+  tireCoreTempOptimal: {
+    default: { min: 75, max: 100 },
+    compounds: { dry_compound: { min: 75, max: 100 }, wet_compound: { min: 50, max: 70 } },
+  },
   suspensionThresholds: { values: [25, 65, 85], millimeterMode: "centered" },
   brakeTempThresholds: {
     front: { warm: 650, hot: 700 },

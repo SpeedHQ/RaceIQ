@@ -45,6 +45,19 @@ export const f1Adapter: GameAdapter = {
   steeringRange: 127,
   tireHealthThresholds: { green: 0.70, yellow: 0.50 },
   tireTempThresholds: { cold: 80, warm: 110, hot: 135 },
+  // F1 25 exposes soft/medium/hard labels, not the underlying C1-C6 compound, so
+  // dry windows use the published C-compound bands that each label typically maps
+  // to (soft C4-C5, medium C3, hard C1-C2); inter/wet from the same table.
+  tireCoreTempOptimal: {
+    default: { min: 75, max: 95 },
+    compounds: {
+      soft: { min: 75, max: 95 },
+      medium: { min: 80, max: 105 },
+      hard: { min: 85, max: 115 },
+      inter: { min: 60, max: 80 },
+      wet: { min: 50, max: 70 },
+    },
+  },
   suspensionThresholds: { values: [25, 65, 85] },
 
   // Stubs — server adapter overrides with real lookups

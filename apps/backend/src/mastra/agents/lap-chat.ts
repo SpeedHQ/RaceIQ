@@ -10,6 +10,7 @@ import { getChatTurnContext, getLatestChatTurnText } from "@raceiq/backend-core/
 import { getChatMemory } from "@raceiq/backend-core/ai/chat-agent";
 import { getModel } from "../../ai/model-provider";
 import { getTrackGuideTool, listTrackGuidesTool } from "../tools/track-guide";
+import { getTireTempGuideTool } from "../tools/tire-temp-guide";
 import { compareF1SetupToCatalogTool } from "../tools/f1-setup-compare";
 import { getCornerMetricsTool } from "../tools/corner-metrics";
 import { getLapInsightsTool } from "../tools/lap-insights";
@@ -100,6 +101,7 @@ export const lapChatAgent = new Agent({
   tools: {
     get_track_guide: getTrackGuideTool,
     list_track_guides: listTrackGuidesTool,
+    get_tire_temperature_guide: getTireTempGuideTool,
     compare_f1_setup_to_catalog: compareF1SetupToCatalogTool,
     get_corner_metrics: getCornerMetricsTool,
     get_lap_insights: getLapInsightsTool,

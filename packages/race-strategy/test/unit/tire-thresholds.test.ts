@@ -1,8 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import { getPacketTireCompound, getTireCompoundOptions, getTireThresholds } from "@raceiq/shared/racing/live/tire-thresholds";
+import { getPacketTireCompound, getTireCompoundOptions, getTireCoreTempRange, getTireThresholds } from "@raceiq/shared/racing/live/tire-thresholds";
 import type { TireThresholds } from "@raceiq/shared/racing/live/tire-thresholds";
 import { PitTracker } from "@raceiq/race-strategy/server";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
+
+initGameAdapters();
 
 const packet = (frontTireCompound: string, rearTireCompound: string): TelemetryPacket => ({
   gameId: "lmu",
@@ -111,5 +114,22 @@ describe("per-wheel tire thresholds", () => {
       { cliffPct: 65, deadPct: 25 },
       { cliffPct: 65, deadPct: 25 },
     ]);
+  });
+});
+
+describe("per-compound optimal core range", () => {
+  test("resolves dry and wet windows from game metadata", () => {
+    expect(getTireCoreTempRange("acc", "dry_compound")).toEqual({ min: 70, max: 100 });
+    expect(getTireCoreTempRange("acc", "wet_compound")).toEqual({ min: 50, max: 70 });
+    expect(getTireCoreTempRange("acc", "DEFAULT")).toEqual({ min: 70, max: 100 });
+    expect(getTireCoreTempRange("f1-2025", "soft")).toEqual({ min: 75, max: 95 });
+    expect(getTireCoreTempRange("f1-2025", "inter")).toEqual({ min: 60, max: 80 });
+    expect(getTireCoreTempRange("f1-2025", "wet")).toEqual({ min: 50, max: 70 });
+    expect(getTireCoreTempRange("ac-evo", "dry_compound")).toEqual({ min: 75, max: 100 });
+  });
+
+  test("falls back to the game's primary temperature bands without metadata", () => {
+    expect(getTireCoreTempRange("lmu", "default")).toEqual({ min: 70, max: 105 });
+    expect(getTireCoreTempRange("fm-2023", "default")).toEqual({ min: 75, max: 115 });
   });
 });

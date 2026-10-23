@@ -11,6 +11,7 @@ import { getModel } from "../../ai/model-provider";
 import { compareF1SetupToCatalogTool } from "../tools/f1-setup-compare";
 import { getCornerMetricsTool } from "../tools/corner-metrics";
 import { getTrackGuideTool, listTrackGuidesTool } from "../tools/track-guide";
+import { getTireTempGuideTool } from "../tools/tire-temp-guide";
 import { liveAnalystScorers } from "../evals/index";
 import { TRACK_GUIDE_PROMPT } from "@raceiq/shared/integrations/ai/prompt-snippets";
 const LAP_ANALYST_INSTRUCTIONS = `You are a senior race engineer reviewing a single driver's lap from telemetry data. Your job is to issue a structured verdict on the lap covering pace, handling, problem corners, braking, throttle application, coaching, and setup recommendations.
@@ -39,6 +40,7 @@ export const lapAnalystAgent = new Agent({
     get_corner_metrics: getCornerMetricsTool,
     get_track_guide: getTrackGuideTool,
     list_track_guides: listTrackGuidesTool,
+    get_tire_temperature_guide: getTireTempGuideTool,
   },
   // Live scoring in Studio: deterministic suite always, LLM-judge when
   // EVAL_LOCAL_JUDGE=1 (LM Studio running). See mastra/evals/index.ts.

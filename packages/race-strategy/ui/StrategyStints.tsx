@@ -3,14 +3,14 @@ import { getGame } from "@raceiq/shared/games/registry";
 import type { ReactNode } from "react";
 import { useRaceStrategyHost } from "./host";
 import type { RaceStrategyMessages } from "../contracts";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { MetricRate, StintSummary } from "@raceiq/shared/racing/live/strategy";
 import { useStrategyStints } from "./stint-strategy";
 import { useStrategyFormat } from "./strategy-format";
 
 const wheels = ["FL", "FR", "RL", "RR"] as const;
-type Statistic = "average" | "median" | "peak";
+type Statistics = { p50: number | null; p95: number | null };
 function compatibleMetric(a: StintSummary, b: StintSummary, metric: "fuel" | number, piRequired: boolean) {
   if (a.gameId !== b.gameId || a.driverKey !== b.driverKey || a.carId !== b.carId || a.trackId !== b.trackId ||
     a.compatibility.setupKey !== b.compatibility.setupKey || piRequired && (a.pi == null || b.pi == null || a.pi !== b.pi)) return false;
@@ -58,20 +58,12 @@ export function StrategyStints({ gameId, sessionId }: { gameId: GameId; sessionI
   const query = useStrategyStints(gameId, sessionId);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   useEffect(() => setSelectedIds([]), [gameId, sessionId]);
-  const [statistic, setStatistic] = useState<Statistic>("average");
-  const stints = useMemo(() => {
-    const sources = query.data?.stints ?? [];
-    if (statistic === "average") return sources;
-    return sources.map((stint) => {
-      const selectRate = (rate: MetricRate, stats: { median: number | null; peak: number | null } | undefined): MetricRate => ({
-        ...rate,
-        value: stats?.[statistic] ?? null,
-        unavailableReason: stats == null ? "missing" : rate.unavailableReason,
-      });
-      return { ...stint, fuel: selectRate(stint.fuel, stint.rateStatistics?.fuel), tires: stint.tires.map((rate, index) => selectRate(rate, stint.rateStatistics?.tires[index])) as StintSummary["tires"] };
-    });
-  }, [query.data?.stints, statistic]);
-  const summaryRate = (rate: MetricRate) => rate.value == null ? "—" : rateValue(rate);
+  const stints = query.data?.stints ?? [];
+  const coldData = (stint: StintSummary) => stint.coldRateStatistics?.p50 != null || stint.coldTireRateStatistics?.some((stats) => stats.p50 != null) === true;
+  const hasCold = stints.some(coldData);
+  const statsText = (rate: MetricRate, stats: Statistics | undefined) => stats == null ? "—" :
+    `${m.strategy_percentile_p50()} ${stats.p50 == null ? "—" : rateValue({ ...rate, value: stats.p50 })} · ${m.strategy_percentile_p95()} ${stats.p95 == null ? "—" : rateValue({ ...rate, value: stats.p95 })}`;
+  const statsRate = (rate: MetricRate, stats: Statistics | undefined): MetricRate => ({ ...rate, value: stats?.p50 ?? null });
   const rateReason = (rate: MetricRate, stint: StintSummary) =>
     rate.value == null && stint.status !== "active" && rate.unavailableReason === "no-current-samples"
       ? m.strategy_reason_missing()
@@ -82,12 +74,16 @@ export function StrategyStints({ gameId, sessionId }: { gameId: GameId; sessionI
   const metrics: Array<{ label: string; first: ReactNode; second: ReactNode; diff: string }> = selected.length === 2 ? (() => {
     const [a, b] = selected as [StintSummary, StintSummary];
     const rows: Array<{ label: string; first: ReactNode; second: ReactNode; diff: string }> = [];
-    const addRate = (label: string, left: MetricRate, right: MetricRate, metric: "fuel" | number) => {
+    const addRate = (label: string, left: MetricRate, right: MetricRate, leftStats: Statistics | undefined, rightStats: Statistics | undefined, metric: "fuel" | number) => {
       const compatible = compatibleMetric(a, b, metric, piRequired);
-      rows.push({ label, first: rateReason(left, a), second: rateReason(right, b), diff: difference(left, right, compatible, m) });
+      rows.push({ label, first: statsText(left, leftStats), second: statsText(right, rightStats), diff: difference(statsRate(left, leftStats), statsRate(right, rightStats), compatible, m) });
     };
-    addRate(m.strategy_fuel_rate(), a.fuel, b.fuel, "fuel");
-    a.tires.forEach((rate, i) => addRate(wheels[i]!, rate, b.tires[i]!, i));
+    addRate(m.strategy_fuel_rate(), a.fuel, b.fuel, a.rateStatistics?.fuel, b.rateStatistics?.fuel, "fuel");
+    a.tires.forEach((rate, i) => addRate(wheels[i]!, rate, b.tires[i]!, a.rateStatistics?.tires[i], b.rateStatistics?.tires[i], i));
+    if (coldData(a) && coldData(b)) {
+      addRate(m.strategy_cold_fuel(), a.fuel, b.fuel, a.coldRateStatistics, b.coldRateStatistics, "fuel");
+      a.tires.forEach((rate, i) => addRate(`${wheels[i]} · ${m.strategy_cold_wear()}`, rate, b.tires[i]!, a.coldTireRateStatistics?.[i], b.coldTireRateStatistics?.[i], i));
+    }
     rows.push({ label: m.strategy_completed_laps({ count: "" }), first: String(a.completedLaps), second: String(b.completedLaps), diff: "—" });
     const measured = (stint: StintSummary) => `${strategyFuelUsedText(stint.measuredFuelUsed, stint.fuelUnit)} · ${stint.fuelCoverage === "complete" ? m.strategy_coverage_complete() : stint.fuelCoverage === "partial" ? m.strategy_coverage_partial() : m.strategy_coverage_unavailable()}`;
     rows.push({ label: m.strategy_fuel_coverage(), first: measured(a), second: measured(b), diff: "—" });
@@ -108,21 +104,20 @@ export function StrategyStints({ gameId, sessionId }: { gameId: GameId; sessionI
       <h2 id="stint-analysis-title" className="text-sm font-semibold text-app-text">{m.strategy_title()}</h2>
       <Link className="rounded bg-app-accent px-3 py-2 text-sm text-app-on-filled focus-visible:outline-2 focus-visible:outline-app-accent" to="/$gameid/strategy" params={{ gameid: getGame(gameId).routePrefix }} search={{ sessionId }}>{m.race_plan_generate()}</Link>
     </div>
-    <div role="group" aria-label={m.strategy_statistic_label()} className="flex w-fit items-center gap-1 rounded border border-app-border bg-app-surface-alt p-1">
-      {(["average", "median", "peak"] as const).map((value) => <button key={value} type="button" aria-pressed={statistic === value} onClick={() => setStatistic(value)} className={`rounded px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-app-accent ${statistic === value ? "bg-app-accent text-app-on-filled" : "text-app-text-muted hover:text-app-text"}`}>{value === "average" ? m.strategy_statistic_average() : value === "median" ? m.strategy_statistic_median() : m.strategy_statistic_peak()}</button>)}
-    </div>
-    {statistic === "peak" && <p className="max-w-prose text-xs text-app-text-muted">{m.strategy_peak_help()}</p>}
+    {hasCold && <p className="max-w-prose text-xs text-app-text-muted">{m.strategy_cold_help()}</p>}
     {query.isLoading && <p role="status">{m.common_loading()}</p>}
     {query.isError && <div role="alert" className="text-status-danger">{m.common_error()}: {m.strategy_stints_error()} <button type="button" className="underline" onClick={() => void query.refetch()}>{m.strategy_retry()}</button></div>}
     {!query.isLoading && !query.isError && stints.length === 0 && <p role="status" className="text-sm text-app-text-muted">{m.strategy_stints_empty()}</p>}
     {stints.length > 0 && <div role="region" aria-label={m.strategy_table_caption()} tabIndex={0} className="overflow-x-auto rounded border border-app-border"><table data-testid="stint-summary-table" className="min-w-[48rem] w-full border-collapse text-left text-xs tabular-nums">
       <caption className="sr-only">{m.strategy_table_caption()}</caption>
-      <thead><tr className="border-b border-app-border bg-app-surface-alt text-app-text-muted">{stints.length > 1 && <th scope="col" className="px-3 py-3">{m.strategy_compare()}</th>}<th scope="col" className="px-3 py-3">{m.strategy_stint_laps()}</th><th scope="col" className="px-3 py-3">{m.strategy_fuel_rate()}</th><th scope="col" className="px-3 py-3">{m.strategy_wheel_rates()}</th><th scope="col" className="px-3 py-3">{m.strategy_fuel_coverage()}</th><th scope="col" className="px-3 py-3">{m.strategy_average_lap()}</th><th scope="col" className="px-3 py-3">{m.strategy_status_boundary()}</th></tr></thead>
+      <thead><tr className="border-b border-app-border bg-app-surface-alt text-app-text-muted">{stints.length > 1 && <th scope="col" className="px-3 py-3">{m.strategy_compare()}</th>}<th scope="col" className="px-3 py-3">{m.strategy_stint_laps()}</th><th scope="col" className="px-3 py-3">{m.strategy_fuel_rate()}</th><th scope="col" className="px-3 py-3">{m.strategy_wheel_rates()}</th>{hasCold && <th scope="col" className="px-3 py-3">{m.strategy_cold_fuel()}</th>}{hasCold && <th scope="col" className="px-3 py-3">{m.strategy_cold_wear()}</th>}<th scope="col" className="px-3 py-3">{m.strategy_fuel_coverage()}</th><th scope="col" className="px-3 py-3">{m.strategy_average_lap()}</th><th scope="col" className="px-3 py-3">{m.strategy_status_boundary()}</th></tr></thead>
       <tbody>{stints.map((stint) => <tr id={`stint-${stint.id}`} key={stint.id} className="border-b border-app-border/60 last:border-0 align-top hover:bg-app-surface-alt/50">
         {stints.length > 1 && <td className="px-3 py-4"><input className="accent-app-accent focus-visible:outline-2 focus-visible:outline-app-accent" aria-label={m.strategy_compare_stint({ ordinal: stint.ordinal })} type="checkbox" checked={selectedIds.includes(stint.id)} disabled={!selectedIds.includes(stint.id) && selected.length === 2} aria-describedby={!selectedIds.includes(stint.id) && selected.length === 2 ? "stint-selection-limit" : undefined} onChange={(event) => setSelected(stint.id, event.target.checked)} /></td>}
         <th scope="row" className="px-3 py-4 font-medium whitespace-nowrap">{m.strategy_stint({ ordinal: stint.ordinal })}<span className="block pt-1 font-mono text-app-text-muted">{stint.firstLapNumber == null ? "—" : `${stint.firstLapNumber}–${stint.lastLapNumber ?? "?"}`}</span></th>
-        <td className="px-3 py-4 whitespace-nowrap" title={rateReason(stint.fuel, stint)}><span className="font-mono">{summaryRate(stint.fuel)}</span><small className="block pt-1 text-app-text-muted">{m.strategy_sample_laps({ count: stint.fuel.eligibleLaps })}</small></td>
-        <td className="min-w-64 px-3 py-4"><div className="grid grid-cols-2 gap-x-4 gap-y-2">{stint.tires.map((rate, index) => <span key={wheels[index]} className="flex items-baseline justify-between gap-2 whitespace-nowrap" title={rateReason(rate, stint)}><span className="text-app-text-muted">{wheels[index]}</span><span className="text-right"><span className="font-mono">{summaryRate(rate)}</span><small className="block text-app-text-muted">{m.strategy_sample_laps({ count: rate.eligibleLaps })}</small></span></span>)}</div></td>
+        <td className="px-3 py-4 whitespace-nowrap" title={rateReason(stint.fuel, stint)}><span className="font-mono">{statsText(stint.fuel, stint.rateStatistics?.fuel)}</span><small className="block pt-1 text-app-text-muted">{m.strategy_sample_laps({ count: stint.fuel.eligibleLaps })}</small></td>
+        <td className="min-w-64 px-3 py-4"><div className="grid grid-cols-2 gap-x-4 gap-y-2">{stint.tires.map((rate, index) => <span key={wheels[index]} className="flex items-baseline justify-between gap-2 whitespace-nowrap" title={rateReason(rate, stint)}><span className="text-app-text-muted">{wheels[index]}</span><span className="text-right"><span className="font-mono">{statsText(rate, stint.rateStatistics?.tires[index])}</span><small className="block text-app-text-muted">{m.strategy_sample_laps({ count: rate.eligibleLaps })}</small></span></span>)}</div></td>
+        {hasCold && <td className="px-3 py-4 whitespace-nowrap"><span className="font-mono">{statsText(stint.fuel, stint.coldRateStatistics)}</span><small className="block pt-1 text-app-text-muted">{m.strategy_sample_laps({ count: stint.coldLaps ?? 0 })}</small></td>}
+        {hasCold && <td className="min-w-64 px-3 py-4"><div className="grid grid-cols-2 gap-x-4 gap-y-2">{stint.tires.map((rate, index) => <span key={wheels[index]} className="flex items-baseline justify-between gap-2 whitespace-nowrap"><span className="text-app-text-muted">{wheels[index]}</span><span className="text-right font-mono">{statsText(rate, stint.coldTireRateStatistics?.[index])}</span></span>)}</div></td>}
         <td className="px-3 py-4 whitespace-nowrap"><span className="font-mono">{stint.measuredFuelUsed == null ? "—" : strategyFuelUsedText(stint.measuredFuelUsed, stint.fuelUnit)}</span>{stint.fuelCoverage === "partial" && <span className="block pt-1 text-app-text-muted">{m.strategy_coverage_partial()}</span>}</td>
         <td className="px-3 py-4 font-mono whitespace-nowrap">{stint.averageLapSeconds == null ? "—" : `${stint.averageLapSeconds.toFixed(2)}s`}</td>
         <td className="px-3 py-4"><details className="min-w-28 text-app-text-muted">

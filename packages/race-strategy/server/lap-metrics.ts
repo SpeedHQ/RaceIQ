@@ -1,8 +1,9 @@
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { classifyPitCycleLap } from "@raceiq/analysis-core/racing/laps/pit-cycle";
+import { getPacketTireCompound, getTireCoreTempRange } from "@raceiq/shared/racing/live/tire-thresholds";
 import type { FourWheels } from "@raceiq/shared/racing/live/strategy";
 
-export const STRATEGY_ALGORITHM_VERSION = "stint-metrics-v4";
+export const STRATEGY_ALGORITHM_VERSION = "stint-metrics-v5";
 export interface LapMetricContribution {
   fuelUsed: number | null;
   fuelExcludedReason: string | null;
@@ -14,11 +15,32 @@ export interface LapMetricContribution {
   exclusionReason: string | null;
   measuredFuelUsed: number | null;
   fuelCoverage: "complete" | "partial" | "unavailable";
+  thermalState: "cold" | "warm" | "unavailable";
   evidence: { firstTimestampMs: number | null; lastTimestampMs: number | null; samples: number };
 }
 const channels = ["TireWearFL", "TireWearFR", "TireWearRL", "TireWearRR"] as const;
 const wearValid = (value: number) => Number.isFinite(value) && value >= 0 && value <= 1;
 const energyValid = (value: number | undefined): value is number => value !== undefined && Number.isFinite(value) && value >= 0 && value <= 1;
+const MIN_THERMAL_FRAMES = 30;
+/** Measured core per wheel: Kunos extended core, else a game-provided single carcass value. Never surface temps. */
+function coreTemps(packet: TelemetryPacket): FourWheels<number> | null {
+  if (packet.acc?.tireCoreTemp?.every(Number.isFinite)) return packet.acc.tireCoreTemp;
+  const values = [packet.TireCarcassTempFL, packet.TireCarcassTempFR, packet.TireCarcassTempRL, packet.TireCarcassTempRR];
+  return values.every((value): value is number => value != null && Number.isFinite(value)) ? values as FourWheels<number> : null;
+}
+function thermalState(packets: readonly TelemetryPacket[]): LapMetricContribution["thermalState"] {
+  const first = packets[0];
+  if (!first) return "unavailable";
+  const loaded = packets.flatMap((packet) => {
+    const core = coreTemps(packet);
+    return core && (packet.Speed ?? 0) > 5 ? [{ packet, core }] : [];
+  });
+  if (loaded.length < MIN_THERMAL_FRAMES) return "unavailable";
+  const meanCore = loaded.reduce((sum, { core }) => sum + core.reduce((a, b) => a + b, 0) / 4, 0) / loaded.length;
+  const coldCutoffC = [0, 1, 2, 3].reduce((sum, wheel) =>
+    sum + getTireCoreTempRange(first.gameId, getPacketTireCompound(first, wheel)).min, 0) / 4;
+  return meanCore < coldCutoffC ? "cold" : "warm";
+}
 
 /** A single path for live saved laps and source-backed rebuilds. No historical pseudo-laps. */
 export function aggregateLapMetrics(packets: readonly TelemetryPacket[], options: {
@@ -102,6 +124,7 @@ export function aggregateLapMetrics(packets: readonly TelemetryPacket[], options
     lapTimeSeconds: !exclusion && Number.isFinite(options.lapTimeSeconds) && options.lapTimeSeconds > 0 ? options.lapTimeSeconds : null,
     exclusionReason: exclusion, measuredFuelUsed: reliableIntervals > 0 ? measured : null,
     fuelCoverage: reliableIntervals === 0 ? "unavailable" : allFuelIntervals ? "complete" : "partial",
+    thermalState: thermalState(packets),
     evidence: { firstTimestampMs: first && Number.isFinite(first.TimestampMS) ? first.TimestampMS : null, lastTimestampMs: last && Number.isFinite(last.TimestampMS) ? last.TimestampMS : null, samples: packets.length },
   };
 }

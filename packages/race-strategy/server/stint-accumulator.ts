@@ -12,7 +12,7 @@ export interface StrategyTotals {
   tireCounts: FourWheels<number>; measuredFuel: number; measuredLaps: number; completeFuelLaps: number; pace: number; paceCount: number;
   virtualEnergy: number; virtualEnergyCount: number;
 }
-type RateStatistics = { median: number | null; peak: number | null };
+type RateStatistics = { p50: number | null; p95: number | null };
 function insertSample(samples: number[], value: number): void {
   let low = 0, high = samples.length;
   while (low < high) {
@@ -22,12 +22,11 @@ function insertSample(samples: number[], value: number): void {
   }
   samples.splice(low, 0, value);
 }
+/** Nearest-rank percentile over the already-sorted population. */
 function statistics(samples: number[]): RateStatistics {
-  const middle = samples.length >>> 1;
-  return {
-    median: samples.length === 0 ? null : samples.length % 2 === 1 ? samples[middle]! : (samples[middle - 1]! + samples[middle]!) / 2,
-    peak: samples.at(-1) ?? null,
-  };
+  const percentile = (fraction: number) =>
+    samples.length === 0 ? null : samples[Math.min(samples.length - 1, Math.floor(fraction * (samples.length - 1)))]!;
+  return { p50: percentile(0.5), p95: percentile(0.95) };
 }
 export class StintMetricAccumulator {
   private summary: StintSummary;
@@ -37,6 +36,9 @@ export class StintMetricAccumulator {
   private tireSamples: FourWheels<number[]> = [[], [], [], []];
   private fuelPopulation: number[] = [];
   private tirePopulations: FourWheels<number[]> = [[], [], [], []];
+  private coldFuelPopulation: number[] = [];
+  private coldTirePopulations: FourWheels<number[]> = [[], [], [], []];
+  private coldLaps = 0;
   private exclusions = new Map<string, number>();
   constructor(identity: StintIdentity) {
     const unavailable = (unit: MetricRate["unit"]): MetricRate => ({ value: null, unit, eligibleLaps: 0, source: null, provisional: false, unavailableReason: "no-current-samples" });
@@ -47,6 +49,7 @@ export class StintMetricAccumulator {
       virtualEnergy: unavailable("energyFraction/lap"),
       measuredFuelUsed: null, fuelCoverage: "unavailable", averageLapSeconds: null, paceLaps: 0,
       rateStatistics: { fuel: statistics(this.fuelPopulation), tires: this.tirePopulations.map(statistics) as FourWheels<RateStatistics> },
+      coldRateStatistics: statistics(this.coldFuelPopulation), coldTireRateStatistics: this.coldTirePopulations.map(statistics) as FourWheels<RateStatistics>, coldLaps: 0,
       exclusions: [], algorithmVersion: STRATEGY_ALGORITHM_VERSION, revision: 0 };
   }
   snapshot(): StintSummary { return structuredClone(this.summary); }
@@ -58,6 +61,9 @@ export class StintMetricAccumulator {
     copy.tireSamples = this.tireSamples.map((samples) => [...samples]) as FourWheels<number[]>;
     copy.fuelPopulation = [...this.fuelPopulation];
     copy.tirePopulations = this.tirePopulations.map((samples) => [...samples]) as FourWheels<number[]>;
+    copy.coldFuelPopulation = [...this.coldFuelPopulation];
+    copy.coldTirePopulations = this.coldTirePopulations.map((samples) => [...samples]) as FourWheels<number[]>;
+    copy.coldLaps = this.coldLaps;
     copy.exclusions = new Map(this.exclusions);
     copy.energySamples = [...this.energySamples];
     return copy;
@@ -79,10 +85,15 @@ export class StintMetricAccumulator {
     this.summary.firstLapNumber ??= lapNumber;
     this.summary.lastLapNumber = lapNumber;
     const note = (reason: string | null) => { if (reason) this.exclusions.set(reason, (this.exclusions.get(reason) ?? 0) + 1); };
+    const cold = metrics.thermalState === "cold";
+    if (cold) this.coldLaps++;
     if (metrics.fuelUsed != null) {
-      this.sums.fuel += metrics.fuelUsed; this.sums.fuelCount++;
-      this.fuelSamples.push(metrics.fuelUsed); if (this.fuelSamples.length > 5) this.fuelSamples.shift();
-      insertSample(this.fuelPopulation, metrics.fuelUsed);
+      if (cold) insertSample(this.coldFuelPopulation, metrics.fuelUsed);
+      else {
+        this.sums.fuel += metrics.fuelUsed; this.sums.fuelCount++;
+        this.fuelSamples.push(metrics.fuelUsed); if (this.fuelSamples.length > 5) this.fuelSamples.shift();
+        insertSample(this.fuelPopulation, metrics.fuelUsed);
+      }
     }
     if (metrics.virtualEnergyUsed != null) {
       this.sums.virtualEnergy += metrics.virtualEnergyUsed; this.sums.virtualEnergyCount++;
@@ -94,9 +105,12 @@ export class StintMetricAccumulator {
     for (let wheel = 0; wheel < 4; wheel++) {
       const value = metrics.tireWear[wheel];
       if (value != null) {
-        this.sums[keys[wheel]] += value; this.sums.tireCounts[wheel]++;
-        this.tireSamples[wheel].push(value); if (this.tireSamples[wheel].length > 3) this.tireSamples[wheel].shift();
-        insertSample(this.tirePopulations[wheel], value);
+        if (cold) insertSample(this.coldTirePopulations[wheel], value);
+        else {
+          this.sums[keys[wheel]] += value; this.sums.tireCounts[wheel]++;
+          this.tireSamples[wheel].push(value); if (this.tireSamples[wheel].length > 3) this.tireSamples[wheel].shift();
+          insertSample(this.tirePopulations[wheel], value);
+        }
       }
       note(metrics.tireExcludedReasons[wheel]);
       const count = this.sums.tireCounts[wheel];
@@ -114,6 +128,9 @@ export class StintMetricAccumulator {
     this.summary.exclusions = [...this.exclusions].map(([reason, count]) => ({ reason, count }));
     this.summary.revision++;
     this.summary.rateStatistics = { fuel: statistics(this.fuelPopulation), tires: this.tirePopulations.map(statistics) as FourWheels<RateStatistics> };
+    this.summary.coldRateStatistics = statistics(this.coldFuelPopulation);
+    this.summary.coldTireRateStatistics = this.coldTirePopulations.map(statistics) as FourWheels<RateStatistics>;
+    this.summary.coldLaps = this.coldLaps;
     return this.snapshot();
   }
 }

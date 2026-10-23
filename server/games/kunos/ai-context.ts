@@ -1,4 +1,5 @@
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { formatTireTempGuide } from "../../ai/tire-temp-guide";
 
 /**
  * Builds the AI context text shared by Kunos adapters.
@@ -18,6 +19,8 @@ export function buildKunosAiContext(
 
   if (accFirst) {
     lines.push(`Tire compound: ${accFirst.tireCompound}`);
+    const tireGuide = formatTireTempGuide(first.gameId);
+    if (tireGuide) lines.push(tireGuide);
     lines.push(`Electronics — TC: ${accFirst.tc}, TC Cut: ${accFirst.tcCut}, ABS: ${accFirst.abs}, Engine Map: ${accFirst.engineMap}`);
     lines.push(`Brake bias: ${(accFirst.brakeBias * 100).toFixed(1)}% front`);
     if (includeWeather) {

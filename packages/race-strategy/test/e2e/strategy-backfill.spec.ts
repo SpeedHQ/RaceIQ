@@ -57,7 +57,7 @@ test("A1-A3 startup backfills missing LMU stints from their recording without ch
     expect(await runtime.databaseStatement("SELECT rebuild_generation FROM strategy_session_state WHERE session_id=?", [sessionId])).toEqual(state);
     expect(await runtime.databaseStatement(lapState, [sessionId])).toEqual(before);
     await runtime.crash();
-    await runtime.databaseStatement("UPDATE strategy_stints SET payload=json_remove(json_set(payload,'$.algorithmVersion','stint-metrics-v1'),'$.rateStatistics') WHERE session_id=?", [sessionId], true);
+    await runtime.databaseStatement("UPDATE strategy_stints SET payload=json_remove(json_set(payload,'$.algorithmVersion','stint-metrics-v4'),'$.rateStatistics') WHERE session_id=?", [sessionId], true);
     await runtime.restart();
     await runtime.waitForStrategyBackfill();
     expect((await readStints()).every((stint) => stint.rateStatistics != null)).toBe(true);

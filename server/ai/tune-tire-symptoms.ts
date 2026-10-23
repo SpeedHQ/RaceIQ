@@ -6,6 +6,7 @@
  * restricted to the measured core channel.
  */
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { getPacketTireCompound, getTireCoreTempRange } from "@raceiq/shared/racing/live/tire-thresholds";
 
 export type TireCorner = "FL" | "FR" | "RL" | "RR";
 type ThermalState = "cold" | "optimal" | "hot";
@@ -28,12 +29,6 @@ interface TireTempSymptoms {
   hottestCorner: TireCorner;
 }
 
-// Optimal core-temp window (°C). Coarse, compound-agnostic slick heuristic —
-// GT3/GTE dry slicks live roughly here; used only for a cold/hot flag, never a
-// numeric target. Tighten per-compound later if a lookup lands.
-const CORE_TEMP_COLD_C = 65;
-const CORE_TEMP_HOT_C = 100;
-
 // Minimum loaded frames before a corner's temps are trusted.
 const MIN_FRAMES = 30;
 
@@ -44,10 +39,11 @@ function mean(xs: number[]): number {
   return s / xs.length;
 }
 
-
-function thermalState(coreTempC: number): ThermalState {
-  if (coreTempC < CORE_TEMP_COLD_C) return "cold";
-  if (coreTempC > CORE_TEMP_HOT_C) return "hot";
+/** Optimal core window comes from game metadata for the fitted compound. */
+function thermalState(coreTempC: number, gameId: TelemetryPacket["gameId"], compound: string): ThermalState {
+  const range = getTireCoreTempRange(gameId, compound);
+  if (coreTempC < range.min) return "cold";
+  if (coreTempC > range.max) return "hot";
   return "optimal";
 }
 
@@ -69,7 +65,7 @@ export function tireTempSymptoms(packets: TelemetryPacket[]): TireTempSymptoms |
     return {
       corner,
       coreTempC: core,
-      thermal: thermalState(core),
+      thermal: thermalState(core, loaded[0]!.gameId, getPacketTireCompound(loaded[0]!, index)),
     };
   });
 

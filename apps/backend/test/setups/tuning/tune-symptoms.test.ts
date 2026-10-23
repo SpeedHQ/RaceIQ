@@ -3,6 +3,12 @@ import type { Corner } from "@raceiq/backend-core/lap-analysis/corners"
 import { formatTireTempSymptoms, tireTempSymptoms } from "@raceiq/backend-core/ai/tune-tire-symptoms";
 import { telemetryToSymptoms } from "@raceiq/backend-core/ai/tune-symptoms";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
+import { formatTireTempGuide } from "@raceiq/backend-core/ai/tire-temp-guide";
+import { getTireCoreTempGuide } from "@raceiq/shared/racing/live/tire-thresholds";
+import { buildKunosAiContext } from "@raceiq/backend-core/games/kunos/ai-context";
+
+initGameAdapters();
 
 /** Minimal packet with a distance and optional per-corner slip overrides. */
 function packet(distance: number, o: Partial<TelemetryPacket> = {}): TelemetryPacket {
@@ -85,5 +91,45 @@ describe("tireTempSymptoms", () => {
     expect(output).toContain("FL — core 80°C");
     expect(output).not.toContain("camber");
     expect(output).not.toContain("pressure");
+  });
+
+  test("classifies against the fitted compound's optimal window", () => {
+    const packetsFor = (compound: string, core: number) => Array.from({ length: 30 }, (_, index) =>
+      packet(index, {
+        gameId: "acc",
+        acc: { tireCompound: compound, tireCoreTemp: [core, core, core, core] } as TelemetryPacket["acc"],
+      })
+    );
+    expect(tireTempSymptoms(packetsFor("dry_compound", 60))!.corners[0]!.thermal).toBe("cold");
+    expect(tireTempSymptoms(packetsFor("wet_compound", 60))!.corners[0]!.thermal).toBe("optimal");
+    expect(tireTempSymptoms(packetsFor("wet_compound", 80))!.corners[0]!.thermal).toBe("hot");
+  });
+});
+
+describe("tire temperature guide facts", () => {
+  test("publishes per-compound windows and formats them for prompts", () => {
+    expect(getTireCoreTempGuide("acc")).toEqual([
+      { compound: "dry_compound", min: 70, max: 100 },
+      { compound: "wet_compound", min: 50, max: 70 },
+    ]);
+    expect(getTireCoreTempGuide("f1-2025").map((entry) => entry.compound)).toEqual(["soft", "medium", "hard", "inter", "wet"]);
+    expect(getTireCoreTempGuide("lmu")).toEqual([]);
+    const guide = formatTireTempGuide("acc");
+    expect(guide).toContain("dry_compound: 70-100 °C");
+    expect(guide).toContain("wet_compound: 50-70 °C");
+    expect(formatTireTempGuide("lmu")).toBe("");
+  });
+
+  test("Kunos AI context includes the compound guide", () => {
+    const context = buildKunosAiContext(Array.from({ length: 30 }, (_, index) => ({
+      ...packet(index, { gameId: "acc" }),
+      acc: {
+        tireCompound: "dry_compound", tireCoreTemp: [80, 80, 80, 80], fuelPerLap: 2.5,
+        tc: 1, tcCut: 1, abs: 1, engineMap: 1, brakeBias: 0.56, rainIntensity: 0, trackGripStatus: "optimal",
+        brakePadWear: [0, 0, 0, 0], carDamage: { front: 0, rear: 0, left: 0, right: 0 },
+      } as TelemetryPacket["acc"],
+    })) as TelemetryPacket[], false);
+    expect(context).toContain("optimal tire core temperature");
+    expect(context).toContain("dry_compound: 70-100 °C");
   });
 });

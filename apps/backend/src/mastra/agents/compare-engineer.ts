@@ -10,6 +10,7 @@ import { compareEngineerPersona } from "@raceiq/backend-core/ai/compare-engineer
 import { getModel } from "../../ai/model-provider";
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { getTrackGuideTool, listTrackGuidesTool } from "../tools/track-guide";
+import { getTireTempGuideTool } from "../tools/tire-temp-guide";
 import { compareF1SetupToCatalogTool } from "../tools/f1-setup-compare";
 import { getCornerMetricsTool } from "../tools/corner-metrics";
 import { getLapAnalysisTool, generateLapAnalysisTool } from "../tools/lap-analysis";
@@ -29,6 +30,7 @@ export const compareEngineerAgent = new Agent({
   tools: {
     get_track_guide: getTrackGuideTool,
     list_track_guides: listTrackGuidesTool,
+    get_tire_temperature_guide: getTireTempGuideTool,
     compare_f1_setup_to_catalog: compareF1SetupToCatalogTool,
     get_corner_metrics: getCornerMetricsTool,
     get_lap_analysis: getLapAnalysisTool,

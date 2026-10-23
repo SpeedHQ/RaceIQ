@@ -42,6 +42,12 @@ export const accAdapter: GameAdapter = {
   steeringRange: 127,
   tireHealthThresholds: { green: 0.85, yellow: 0.70 },
   tireTempThresholds: { cold: 70, warm: 100, hot: 120 },
+  // Official ACC v1.9 physics notes: 70-100 °C core. Wet range from Coach Dave
+  // wet-tyre telemetry (~50-70 °C core at normal pressures).
+  tireCoreTempOptimal: {
+    default: { min: 70, max: 100 },
+    compounds: { dry_compound: { min: 70, max: 100 }, wet_compound: { min: 50, max: 70 } },
+  },
   suspensionThresholds: { values: [25, 65, 85] },
   // Pressure optimal is class-aware — resolved server-side via the
   // /api/acc/cars/:ordinal/pressure-optimal endpoint.
