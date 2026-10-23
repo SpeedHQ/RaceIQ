@@ -156,10 +156,16 @@ export interface GameAdapter {
   /** Tire temp thresholds in °C — blue < cold < green < warm < amber < hot < red */
   tireTempThresholds: { cold: number; warm: number; hot: number };
 
-  /** Optimal measured core/carcass temperature per tire compound (°C).
-   *  `default` covers unlisted compounds; games without it fall back to
+  /** Optimal working temperature per tire compound (°C) for the channel the
+   *  game actually measures. `channel` names that channel (`carcass` default, or
+   *  `surface` for games that only publish tread temps). `default` covers
+   *  unlisted compounds; games without it fall back to
    *  `tireTempThresholds.cold`/`warm`. */
-  tireCoreTempOptimal?: { default: TireTemperatureRange; compounds?: Record<string, TireTemperatureRange> };
+  tireTempOptimal?: {
+    channel?: "carcass" | "surface";
+    default: TireTemperatureRange;
+    compounds?: Record<string, TireTemperatureRange>;
+  };
 
   /** Suspension travel color thresholds and millimeter rendering behavior. */
   suspensionThresholds: {

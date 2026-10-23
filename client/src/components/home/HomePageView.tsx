@@ -10,7 +10,6 @@ import { GameBrandCards } from "./Brand";
 import { DashboardInsights } from "./DashboardInsights";
 import { RecentSessionsTable } from "./RecentSessions";
 import { PeriodSelector } from "./Stats";
-import { TireTempGuide } from "@/components/tires/TireTempGuide";
 import type { HomePageViewProps } from "./types";
 import { Link } from "@tanstack/react-router";
 import { getGameRoute } from "@/stores/game";
@@ -126,7 +125,6 @@ export function HomePageView({
             </section>
             <ActivityHeatmap buckets={response?.calendar ?? []} periodStart={periodStart} loading={lapsLoading || sessionsLoading} error={lapsError || sessionsError} />
           </div>
-          {gameId && <TireTempGuide gameId={gameId} />}
         </div>
       </div>
     </div>

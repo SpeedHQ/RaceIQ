@@ -15,9 +15,11 @@ type RequestContextLike = { get?: (key: string) => unknown } | undefined;
 export const getTireTempGuideTool = createTool({
   id: "get-tire-temperature-guide",
   description:
-    "Fetch this game's optimal tire core-temperature windows per compound (min/max °C). " +
-    "Use when discussing tire temperatures, warm-up, cold tires, overheating, or compound choice. " +
-    "Pass the current game id; omitting it uses the turn's game context.",
+    "Fetch this game's optimal tire temperature windows per compound (min/max °C) " +
+    "for the channel the game measures (carcass, or tread surface when the game " +
+    "publishes no carcass channel). Use when discussing tire temperatures, warm-up, cold " +
+    "tires, overheating, or compound choice. Pass the current game id; omitting it uses " +
+    "the turn's game context.",
   inputSchema: z.object({
     gameId: z.string().optional().describe("Game id, e.g. 'acc', 'ac-evo', 'f1-2025', 'lmu', 'fm-2023'"),
   }),

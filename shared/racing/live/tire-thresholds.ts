@@ -39,19 +39,29 @@ export function getTireCompoundOptions(gameId: GameId): readonly string[] {
   return DEFAULT_COMPOUND_OPTIONS;
 }
 
-/** Optimal core/carcass window for the fitted compound, falling back to the game's primary temp bands. */
+/** Optimal carcass/core window for the fitted compound, falling back to the game's primary temp bands.
+ *  Surface-only windows never apply here: a measured carcass cannot be compared with one. */
 export function getTireCoreTempRange(gameId: GameId, compound: string): TireTemperatureRange {
   const game = getGame(gameId);
-  const normalized = compound.trim().toLowerCase() || "default";
-  return game.tireCoreTempOptimal?.compounds?.[normalized] ?? game.tireCoreTempOptimal?.default ??
-    { min: game.tireTempThresholds.cold, max: game.tireTempThresholds.warm };
+  const optimal = game.tireTempOptimal;
+  if (optimal && (optimal.channel ?? "carcass") === "carcass") {
+    const normalized = compound.trim().toLowerCase() || "default";
+    return optimal.compounds?.[normalized] ?? optimal.default;
+  }
+  return { min: game.tireTempThresholds.cold, max: game.tireTempThresholds.warm };
 }
 
-/** Per-compound optimal windows published by game metadata; empty when the game has none. */
-export function getTireCoreTempGuide(gameId: GameId): { compound: string; min: number; max: number }[] {
-  const optimal = tryGetGame(gameId)?.tireCoreTempOptimal;
-  if (!optimal) return [];
+/** Per-compound optimal windows published by game metadata, tagged with the
+ *  temperature channel they describe; `null` when the game has none. */
+export function getTireTempGuide(
+  gameId: GameId,
+): { channel: "carcass" | "surface"; rows: { compound: string; min: number; max: number }[] } | null {
+  const optimal = tryGetGame(gameId)?.tireTempOptimal;
+  if (!optimal) return null;
   const compounds = Object.entries(optimal.compounds ?? {});
-  return (compounds.length ? compounds : [["default", optimal.default] as const])
-    .map(([compound, range]) => ({ compound, min: range.min, max: range.max }));
+  return {
+    channel: optimal.channel ?? "carcass",
+    rows: (compounds.length ? compounds : [["default", optimal.default] as const])
+      .map(([compound, range]) => ({ compound, min: range.min, max: range.max })),
+  };
 }

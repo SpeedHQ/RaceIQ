@@ -48,7 +48,7 @@ export const f1Adapter: GameAdapter = {
   // F1 25 exposes soft/medium/hard labels, not the underlying C1-C6 compound, so
   // dry windows use the published C-compound bands that each label typically maps
   // to (soft C4-C5, medium C3, hard C1-C2); inter/wet from the same table.
-  tireCoreTempOptimal: {
+  tireTempOptimal: {
     default: { min: 75, max: 95 },
     compounds: {
       soft: { min: 75, max: 95 },

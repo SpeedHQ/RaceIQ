@@ -5,7 +5,7 @@ import { telemetryToSymptoms } from "@raceiq/backend-core/ai/tune-symptoms";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { formatTireTempGuide } from "@raceiq/backend-core/ai/tire-temp-guide";
-import { getTireCoreTempGuide } from "@raceiq/shared/racing/live/tire-thresholds";
+import { getTireTempGuide } from "@raceiq/shared/racing/live/tire-thresholds";
 import { buildKunosAiContext } from "@raceiq/backend-core/games/kunos/ai-context";
 
 initGameAdapters();
@@ -108,16 +108,31 @@ describe("tireTempSymptoms", () => {
 
 describe("tire temperature guide facts", () => {
   test("publishes per-compound windows and formats them for prompts", () => {
-    expect(getTireCoreTempGuide("acc")).toEqual([
-      { compound: "dry_compound", min: 70, max: 100 },
-      { compound: "wet_compound", min: 50, max: 70 },
-    ]);
-    expect(getTireCoreTempGuide("f1-2025").map((entry) => entry.compound)).toEqual(["soft", "medium", "hard", "inter", "wet"]);
-    expect(getTireCoreTempGuide("lmu")).toEqual([]);
+    expect(getTireTempGuide("acc")).toEqual({
+      channel: "carcass",
+      rows: [
+        { compound: "dry_compound", min: 70, max: 100 },
+        { compound: "wet_compound", min: 50, max: 70 },
+      ],
+    });
+    expect(getTireTempGuide("f1-2025")!.rows.map((entry) => entry.compound)).toEqual(["soft", "medium", "hard", "inter", "wet"]);
+    expect(getTireTempGuide("lmu")).toEqual({
+      channel: "surface",
+      rows: [
+        { compound: "soft", min: 70, max: 105 },
+        { compound: "medium", min: 70, max: 105 },
+        { compound: "hard", min: 70, max: 105 },
+      ],
+    });
+    expect(getTireTempGuide("fm-2023")).toBeNull();
     const guide = formatTireTempGuide("acc");
     expect(guide).toContain("dry_compound: 70-100 °C");
     expect(guide).toContain("wet_compound: 50-70 °C");
-    expect(formatTireTempGuide("lmu")).toBe("");
+    expect(guide).toContain("count as cold tires");
+    // LMU publishes surface temps only, so the cold-lap claim must not appear.
+    expect(formatTireTempGuide("lmu")).toContain("optimal tire surface temperature");
+    expect(formatTireTempGuide("lmu")).not.toContain("cold tires");
+    expect(formatTireTempGuide("fm-2023")).toBe("");
   });
 
   test("Kunos AI context includes the compound guide", () => {
@@ -129,7 +144,7 @@ describe("tire temperature guide facts", () => {
         brakePadWear: [0, 0, 0, 0], carDamage: { front: 0, rear: 0, left: 0, right: 0 },
       } as TelemetryPacket["acc"],
     })) as TelemetryPacket[], false);
-    expect(context).toContain("optimal tire core temperature");
+    expect(context).toContain("optimal tire carcass temperature");
     expect(context).toContain("dry_compound: 70-100 °C");
   });
 });

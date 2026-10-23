@@ -2,6 +2,7 @@ import { useCarsCatalogueHost } from "../host";
 import type { AcEvoCatalogueCar } from "../../contracts/host";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { CarTireDialog, TireCompoundDots } from "../cars/TireCompounds";
 
 function getManufacturer(name: string): string {
   if (name.startsWith("Alfa Romeo")) return "Alfa Romeo";
@@ -17,6 +18,7 @@ export function AcEvoCars() {
   });
 
   const [filterClass, setFilterClass] = useState<string | null>(null);
+  const [tireCar, setTireCar] = useState<AcEvoCatalogueCar | null>(null);
 
   const classes = useMemo(() => {
     const set = new Set(cars.map((c) => c.class));
@@ -83,10 +85,12 @@ export function AcEvoCars() {
               {classCars.map((car) => {
                 const brand = getManufacturer(car.name);
                 return (
-                  <div
+                  <button
                     key={car.id}
+                    type="button"
                     data-car-brand={brand}
-                    className="group relative bg-app-surface-alt/20 rounded-lg border border-app-border/10 overflow-hidden hover:border-app-border-hover/30 transition-all"
+                    onClick={() => setTireCar(car)}
+                    className="group relative w-full overflow-hidden rounded-lg border border-app-border/10 bg-app-surface-alt/20 text-left transition-all hover:border-app-border-hover/30"
                   >
                     <div className="brand-color-strip h-0.5" />
                     <div className="p-3">
@@ -99,14 +103,24 @@ export function AcEvoCars() {
                           {cls}
                         </Badge>
                       </div>
+                      <TireCompoundDots gameId="ac-evo" className="mt-2" />
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
           </div>
         );
       })}
+
+      {tireCar && (
+        <CarTireDialog
+          gameId="ac-evo"
+          carName={tireCar.name}
+          open
+          onOpenChange={(open) => { if (!open) setTireCar(null); }}
+        />
+      )}
     </div>
   );
 }

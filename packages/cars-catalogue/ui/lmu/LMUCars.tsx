@@ -2,6 +2,7 @@ import { useCarsCatalogueHost } from "../host";
 import type { LMUCatalogueCar } from "../../contracts/host";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { CarTireDialog, TireCompoundDots } from "../cars/TireCompounds";
 
 function categoryLabel(category: string): string {
   return category
@@ -14,6 +15,7 @@ export function LMUCars() {
   const { m, AppInput, Button, loadLMUCars } = useCarsCatalogueHost();
   const [search, setSearch] = useState("");
   const [filterClass, setFilterClass] = useState<string | null>(null);
+  const [tireCar, setTireCar] = useState<LMUCatalogueCar | null>(null);
   const { data: cars = [], isLoading } = useQuery<LMUCatalogueCar[]>({
     queryKey: ["cars", "lmu"],
     queryFn: loadLMUCars,
@@ -70,7 +72,12 @@ export function LMUCars() {
       ) : (
         <div className="grid grid-cols-1 gap-3 @3xl/workspace:grid-cols-2 @5xl/workspace:grid-cols-3 @7xl/workspace:grid-cols-4">
           {filtered.map((car) => (
-            <article key={car.id} className="group overflow-hidden rounded-lg border border-app-border/10 bg-app-surface-alt/20 transition-colors hover:border-app-border-hover/30">
+            <button
+              key={car.id}
+              type="button"
+              onClick={() => setTireCar(car)}
+              className="group w-full overflow-hidden rounded-lg border border-app-border/10 bg-app-surface-alt/20 text-left transition-colors hover:border-app-border-hover/30"
+            >
               <div className="relative h-40 overflow-hidden bg-gradient-to-br from-app-text/10 via-app-surface-alt/20 to-app-bg/20">
                 <div className="absolute inset-0 flex items-center justify-center text-3xl font-black italic text-app-text/10">LMU</div>
                 {car.imageUrl && <img src={car.imageUrl} alt={car.name} loading="lazy" className="relative h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-[1.02]" onError={(event) => { event.currentTarget.style.display = "none"; }} />}
@@ -79,10 +86,20 @@ export function LMUCars() {
               <div className="p-3">
                 <h2 className="text-sm font-semibold leading-tight text-app-text">{car.name}</h2>
                 {car.series && car.series.length > 0 && <p className="mt-1 text-xs text-app-text-muted">{car.series.join(" · ")}</p>}
+                <TireCompoundDots gameId="lmu" className="mt-2" />
               </div>
-            </article>
+            </button>
           ))}
         </div>
+      )}
+
+      {tireCar && (
+        <CarTireDialog
+          gameId="lmu"
+          carName={tireCar.name}
+          open
+          onOpenChange={(open) => { if (!open) setTireCar(null); }}
+        />
       )}
     </div>
   );

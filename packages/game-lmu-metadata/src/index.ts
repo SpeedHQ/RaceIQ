@@ -202,6 +202,15 @@ export const lmuAdapter: GameAdapter = {
   steeringRange: 127,
   tireHealthThresholds: { green: 0.85, yellow: 0.7 },
   tireTempThresholds: { cold: 70, warm: 105, hot: 125 },
+  // LMU publishes tread-surface temps only (inner/middle/outer bands), so this
+  // window is surface, not core. Every compound mirrors the green band of the
+  // thresholds above: LMU exposes no per-compound surface target, and wet tires
+  // are left out because its wet window is not published anywhere in our data.
+  tireTempOptimal: {
+    channel: "surface",
+    default: { min: 70, max: 105 },
+    compounds: { soft: { min: 70, max: 105 }, medium: { min: 70, max: 105 }, hard: { min: 70, max: 105 } },
+  },
   suspensionThresholds: { values: [25, 65, 85] },
   tirePressureOptimal: { min: 24, max: 32 },
   brakeTempThresholds: {
