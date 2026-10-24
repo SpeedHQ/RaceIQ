@@ -15,6 +15,36 @@ export type LmuOpponentRetention = {
 const revisionFor = (info: Stats): string =>
   `${info.dev}:${info.ino}:${info.size}:${info.mtimeMs}`;
 
+const companionChecks = new Map<string, { key: string; checked: Promise<void> }>();
+const MAX_COMPANION_CHECKS = 64;
+const companionIdentity = (info: Stats): string => `${revisionFor(info)}:${info.ctimeMs}`;
+
+async function verifyCompanion(path: string, info: Stats, expectedDigest: string): Promise<void> {
+  const identity = companionIdentity(info);
+  const key = `${identity}:${expectedDigest}`;
+  const cached = companionChecks.get(path);
+  if (cached?.key === key) return cached.checked;
+  const checked = (async () => {
+    const digest = createHash("sha256");
+    for await (const chunk of createReadStream(path)) digest.update(chunk);
+    if (digest.digest("hex") !== expectedDigest ||
+        companionIdentity(await stat(path)) !== identity) {
+      throw new Error("Companion integrity mismatch");
+    }
+  })();
+  const entry = { key, checked };
+  companionChecks.set(path, entry);
+  while (companionChecks.size > MAX_COMPANION_CHECKS) {
+    companionChecks.delete(companionChecks.keys().next().value!);
+  }
+  try {
+    await checked;
+  } catch (error) {
+    if (companionChecks.get(path) === entry) companionChecks.delete(path);
+    throw error;
+  }
+}
+
 /** Reads retention from an owned standalone manifest; legacy source metadata stays unknown/retained. */
 export async function readLmuOpponentRetention(sourcePath: string): Promise<LmuOpponentRetention> {
   const sourceInfo = await stat(sourcePath);
@@ -59,9 +89,7 @@ export async function readLmuOpponentRetention(sourcePath: string): Promise<LmuO
     if (inside === ".." || inside.startsWith(`..${sep}`) || isAbsolute(inside)) throw new Error("Companion path escapes manifest directory");
     const info = await stat(resolved);
     if (info.size !== companion.byteLength) throw new Error("Companion length mismatch");
-    const digest = createHash("sha256");
-    for await (const chunk of createReadStream(resolved)) digest.update(chunk);
-    if (digest.digest("hex") !== companion.sha256) throw new Error("Companion integrity mismatch");
+    await verifyCompanion(resolved, info, companion.sha256);
     return { opponentRetention: "retained", opponentAvailability: "complete", sourceRevision: manifest.sourceRevision };
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;

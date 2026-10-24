@@ -7,7 +7,8 @@ import type { ResolvedValue, TelemetryTimestamp } from "@raceiq/shared/telemetry
 import { getLapById, getLapMetaById } from "@raceiq/backend-core/db/lap-read-queries";
 import { getLapReplaySource } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { readLmuOpponentRetention } from "@raceiq/backend-core/session-capture/lmu-companion";
-import { indexLmuOpponentLaps, LmuOpponentSourceError, projectLmuOpponentTelemetry, readLmuOpponentCaptureFrames, type LmuOpponentLapInterval } from "@raceiq/backend-core/lap-analysis/lmu-opponent-laps";
+import type { SessionCaptureSource } from "@raceiq/backend-core/session-capture/source-loader";
+import { indexLmuOpponentLaps, LmuOpponentSourceError, projectLmuOpponentTelemetry, readLmuOpponentCaptureFrames, type LmuOpponentFrame, type LmuOpponentLapInterval } from "@raceiq/backend-core/lap-analysis/lmu-opponent-laps";
 import { encodeLmuContext, encodeLmuResolvedValue } from "@raceiq/shared/telemetry/lmu-context";
 import type { LmuCompetitor } from "@raceiq/shared/telemetry/lmu";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
@@ -334,6 +335,47 @@ async function sourceForLap(id: number) {
   return meta && source ? { meta, source } : null;
 }
 
+// Share one bounded session snapshot across catalog, comparison and replay requests.
+const OPPONENT_INDEX_MAX_BYTES = 512 * 1024 * 1024;
+const OPPONENT_INDEX_TTL_MS = 30_000;
+let opponentIndexCache: { key: string; index: Promise<LmuOpponentLapInterval[]> } | undefined;
+
+async function sessionOpponentIndex(
+  source: SessionCaptureSource,
+  sourceRevision: string,
+  availability: string | null,
+): Promise<LmuOpponentLapInterval[]> {
+  const key = JSON.stringify([source.rawFile, sourceRevision, availability]);
+  if (opponentIndexCache?.key === key) return opponentIndexCache.index;
+  const index = readLmuOpponentCaptureFrames(source, sourceRevision, { retainSourceFrames: false })
+    .then((frames) => {
+      const intervals = indexLmuOpponentLaps(frames);
+      const seen = new WeakSet<LmuOpponentFrame["competitors"][number]>();
+      let bytes = frames.length * 256;
+      for (const frame of frames) {
+        for (const competitor of frame.competitors) {
+          if (seen.has(competitor)) continue;
+          seen.add(competitor);
+          bytes += Object.keys(competitor.channels).length * 1024;
+        }
+      }
+      if (opponentIndexCache?.index === index) {
+        if (bytes > OPPONENT_INDEX_MAX_BYTES) opponentIndexCache = undefined;
+        else {
+          setTimeout(() => {
+            if (opponentIndexCache?.index === index) opponentIndexCache = undefined;
+          }, OPPONENT_INDEX_TTL_MS).unref();
+        }
+      }
+      return intervals;
+    }).catch((cause) => {
+      if (opponentIndexCache?.index === index) opponentIndexCache = undefined;
+      throw cause;
+    });
+  opponentIndexCache = { key, index };
+  return index;
+}
+
 async function opponentIndex(id: number, requestedGameId: string) {
   const resolved = await sourceForLap(id);
   if (!resolved || resolved.meta.gameId !== requestedGameId || resolved.source.gameId !== requestedGameId) {
@@ -349,17 +391,17 @@ async function opponentIndex(id: number, requestedGameId: string) {
     sourceRevision = retention.sourceRevision;
     const playerLap = await getLapById(id);
     const playerPackets = playerLap?.telemetry ?? [];
-    const frames = retention.opponentRetention !== "retained" ||
+    const intervals = retention.opponentRetention !== "retained" ||
       retention.opponentAvailability === "missing" || retention.opponentAvailability === "corrupt"
       ? []
-      : await readLmuOpponentCaptureFrames({
+      : await sessionOpponentIndex({
       rawFile: source.captureManifestFile ?? source.rawFile!, source: source.source,
       gameId: source.gameId, carId: source.carId, trackId: source.trackId,
       captureFormatVersion: source.captureFormatVersion,
-    }, retention.sourceRevision);
+    }, retention.sourceRevision, retention.opponentAvailability);
     const latest = await readLmuOpponentRetention(sourcePath);
     if (latest.sourceRevision !== retention.sourceRevision) return { error: error("SOURCE_CHANGED", "Opponent source revision changed", 409) } as const;
-    return { meta, source, sourcePath, retention, playerPackets, frames, intervals: frames.length ? indexLmuOpponentLaps(frames) : [] };
+    return { meta, source, sourcePath, retention, playerPackets, intervals };
   } catch (cause) {
     const current = await getLapReplaySource(id);
     const currentPath = current?.captureManifestFile ?? current?.rawFile;

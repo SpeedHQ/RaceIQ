@@ -55,6 +55,7 @@ export class DirectCaptureRecording {
   private lastFrame: FrameRef | null = null;
   private pendingCandidate: { frame: FrameRef; window: NonNullable<DetectorOwnershipTransition["window"]>; locator: ParserReplayLocator | null; suffix: FrameRef[] } | null = null;
   private readonly windows = new Map<number, { ordinal: number; window: NonNullable<DetectorOwnershipTransition["window"]> }>();
+  private readonly ignoredUncapturedWindows = new Set<string>();
   private readonly bindings = new Map<number, PersistedLapBinding>();
   private readonly publishedLapIds = new Set<number>();
   private readonly manifestRevision = randomUUID();
@@ -214,6 +215,13 @@ export class DirectCaptureRecording {
           const candidate = this.pendingCandidate?.frame.start === window.startOffset ? this.pendingCandidate : null;
           const ordinal = candidate?.frame.ordinal ?? this.ordinalAt(window.startOffset);
           if (ordinal === null) throw new Error(`Ownership start offset ${window.startOffset} is not a captured native frame`);
+          if (window.startOrdinal !== null && window.startOrdinal !== ordinal) {
+            if (window.startOrdinal === this.nativeFrameCount && this.lastFrame?.start === window.startOffset && ordinal === this.lastFrame.ordinal) {
+              this.ignoredUncapturedWindows.add(`${window.startOffset}:${window.startOrdinal}`);
+              continue;
+            }
+            throw new Error("Ownership start ordinal does not match captured native frame");
+          }
           if (candidate) {
             const suffix = candidate.suffix;
             this.current.records -= suffix.length;
@@ -238,6 +246,8 @@ export class DirectCaptureRecording {
           this.bindings.delete(window.startOffset);
           this.windows.set(window.startOffset, { ordinal, window });
         } else if (transition.kind === "window-finalized" || transition.kind === "final-incomplete") {
+          const ignoredKey = `${window.startOffset}:${window.startOrdinal}`;
+          if (this.ignoredUncapturedWindows.delete(ignoredKey)) continue;
           const owned = this.windows.get(window.startOffset);
           if (!owned) throw new Error(`Authoritative ownership lacks recorded start ${window.startOffset}`);
           const part = [...this.parts.values()].find((item) => item.owner?.startOrdinal === owned.ordinal);
@@ -245,6 +255,8 @@ export class DirectCaptureRecording {
           part.owner.count = window.frameCount; part.owner.trailing = Math.max(part.owner.trailing, window.trailingContextFrameCount); part.owner.finalized = true;
           publishClosedPrefix ||= !!part.closed;
         } else if (transition.kind === "window-abandoned") {
+          const ignoredKey = `${window.startOffset}:${window.startOrdinal}`;
+          if (this.ignoredUncapturedWindows.delete(ignoredKey)) continue;
           if (this.pendingCandidate?.frame.start === window.startOffset) {
             this.pendingCandidate = null;
             continue;
@@ -289,7 +301,7 @@ export class DirectCaptureRecording {
     this.sourceRecordCount++; this.current.records++; this.current.sourceEnd = end;
     if (this.current.records === 1) this.current.sourceStart = start;
     this.current.firstTimestamp ??= timestamp; this.current.lastTimestamp = timestamp;
-    if (this.current.owner) this.current.owner.count++;
+    if (this.current.owner && !this.current.owner.finalized) this.current.owner.count++;
     this.lastFrame = { frame: storedFrame, timestamp, start, end, ordinal, localOffset };
     this.sourceBytes = end;
     if (this.pendingCandidate && ordinal > this.pendingCandidate.frame.ordinal) {

@@ -5,9 +5,8 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import Database from "libsql";
-import { decompressIfGzipSync, iterateSessionFrames } from "@raceiq/capture-formats/session/framing";
+import { containsSparseCaptureFrames, decompressIfGzipSync, iterateSessionCaptureRecords, iterateSessionFrames } from "@raceiq/capture-formats/session/framing";
 import { IRACING_DUMP_MAGIC, readIRacingFramesFromBuffer } from "@raceiq/capture-formats/iracing/dump-decoder";
-import { hasLMUDumpMagic, readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump-decoder";
 import { convertSeedFramesToSparse } from "@raceiq/tooling-data/data/seed-capture-conversion";
 import { replayWithClock } from "./recorder-bench-replay";
 import { ProcessTreeSampler } from "./recorder-bench-process";
@@ -71,7 +70,7 @@ function outcomeSignature(result: MemoryImportResult): {
 
 async function runMemoryImport(testCase: typeof GAMES[number]): Promise<ImportResult> {
   const { fixture, gameId } = testCase;
-  const bytes = await loadFixtureBytes(`test/artifacts/sessions/${fixture}`);
+  const bytes = await loadFixtureBytes(resolve(ROOT, fixturePath(testCase.fixture, testCase.gameId)));
   let sourceRecordCount = sourceFrameCounts.get(fixture);
   if (sourceRecordCount === undefined) {
     sourceRecordCount = sourceFrameCount(bytes);
@@ -115,7 +114,7 @@ async function loadFixtureBytes(fixture: string): Promise<Buffer> {
 type MemorySample = { peakRssBytes: number; idleRssBytes: number; elapsedSeconds: number; method?: string; status?: string };
 
 async function measureIsolatedMemory(testCase: typeof GAMES[number]): Promise<MemorySample> {
-  const child = spawn(process.execPath, ["run", resolve(import.meta.dir, "recorder-bench-memory-child.ts"), testCase.gameId, resolve(ROOT, `test/artifacts/sessions/${testCase.fixture}`)], { stdio: ["pipe", "pipe", "pipe"] });
+  const child = spawn(process.execPath, ["run", resolve(import.meta.dir, "recorder-bench-memory-child.ts"), testCase.gameId, resolve(ROOT, fixturePath(testCase.fixture, testCase.gameId))], { stdio: ["pipe", "pipe", "pipe"] });
   child.stderr?.resume();
   const exited = Promise.withResolvers<number>();
   child.once("error", (error) => exited.reject(error));
@@ -148,7 +147,9 @@ async function measureIsolatedMemory(testCase: typeof GAMES[number]): Promise<Me
 }
 
 const ROOT = resolve(import.meta.dir, "../../../../");
-const FIXTURE_ROOT = join(ROOT, "test/artifacts/sessions");
+function fixturePath(fixture: string, gameId: string) {
+  return gameId === "lmu" ? `packages/game-lmu/test/fixtures/sessions/${fixture}` : `test/artifacts/sessions/${fixture}`;
+}
 const memoryDataDir = await mkdtemp(join(tmpdir(), "raceiq-memory-bench-"));
 process.env.DATA_DIR = memoryDataDir;
 // Capture DB/maintenance handles before helper imports so failed initialization also cleans up.
@@ -160,7 +161,7 @@ const GAMES = [
   { gameId: "acc", fixture: "acc-2026-04-23T16-42-16-158Z.bin.gz", port: 15331 },
   { gameId: "ac-evo", fixture: "session-ac-evo-menu-exit-2026-04-23T18-11-48-959Z.bin.gz", port: 15332 },
   { gameId: "iracing", fixture: "iracing-daytona-am-vantage-gt3-pit.bin.gz", port: 15333 },
-  { gameId: "lmu", fixture: "lmu-spa-iron-lynx-gte.bin.gz", port: 15334 },
+  { gameId: "lmu", fixture: "lmu-real-opponents-grid-2026-10-22.bin.gz", port: 15334 },
 ] as const;
 type Args = {
   mode: "imports" | "disk-imports" | "live" | "both" | "recording";
@@ -308,25 +309,25 @@ async function resources(sampler: ProcessTreeSampler) {
 function sourceFrameCount(bytes: Buffer): number {
   const capture = decompressIfGzipSync(bytes);
   if (capture.subarray(0, IRACING_DUMP_MAGIC.length).equals(IRACING_DUMP_MAGIC)) return readIRacingFramesFromBuffer(capture).length;
-  if (hasLMUDumpMagic(capture)) return readLMUFramesFromBuffer(capture).length;
+  if (containsSparseCaptureFrames(capture)) return [...iterateSessionCaptureRecords(capture)].filter((record) => record.kind === "frame").length;
   return [...iterateSessionFrames(capture)].length;
 }
 
 async function prepareSparseUpload(testCase: typeof GAMES[number]) {
-  const bytes = await loadFixtureBytes(`test/artifacts/sessions/${testCase.fixture}`);
+  const bytes = await loadFixtureBytes(resolve(ROOT, fixturePath(testCase.fixture, testCase.gameId)));
   const capture = decompressIfGzipSync(bytes);
   const frames = capture.subarray(0, IRACING_DUMP_MAGIC.length).equals(IRACING_DUMP_MAGIC)
     ? readIRacingFramesFromBuffer(capture)
-    : hasLMUDumpMagic(capture)
-      ? readLMUFramesFromBuffer(capture)
+    : containsSparseCaptureFrames(capture)
+      ? [...iterateSessionCaptureRecords(capture)].filter((record): record is Extract<typeof record, { kind: "frame" }> => record.kind === "frame").map(({ frame }) => frame)
       : iterateSessionFrames(capture);
   return convertSeedFramesToSparse(testCase.gameId, frames);
 }
 
 async function runLive(testCase: typeof GAMES[number], speed: number, trial: number) {
   if (testCase.gameId !== "fm-2023" && testCase.gameId !== "f1-2025") throw Error(`Live UDP replay unsupported for ${testCase.gameId}`);
-  const originalPath = join(FIXTURE_ROOT, testCase.fixture);
-  const originalBytes = await loadFixtureBytes(`test/artifacts/sessions/${testCase.fixture}`);
+  const originalPath = resolve(ROOT, fixturePath(testCase.fixture, testCase.gameId));
+  const originalBytes = await loadFixtureBytes(originalPath);
   const converted = await prepareSparseUpload(testCase);
   const uploadBytes = await readFile(converted.path);
   const dataDir = await mkdtemp(join(tmpdir(), "raceiq-live-bench-"));
@@ -402,7 +403,7 @@ async function runLive(testCase: typeof GAMES[number], speed: number, trial: num
 }
 async function runRecording(testCase: typeof GAMES[number], config: Args) {
   if (testCase.gameId !== "fm-2023" && testCase.gameId !== "f1-2025") throw Error(`Recording UDP replay unsupported for ${testCase.gameId}`);
-  const path = join(FIXTURE_ROOT, testCase.fixture);
+  const path = resolve(ROOT, fixturePath(testCase.fixture, testCase.gameId));
   const bytes = await loadFixtureBytes(path);
   await mkdir(config.storageRoot, { recursive: true });
   const dataDir = await mkdtemp(join(config.storageRoot, "raceiq-recording-bench-"));
@@ -633,7 +634,7 @@ async function main() {
   };
   if (config.mode === "imports" || config.mode === "both") {
     for (const testCase of GAMES.filter(({ gameId }) => !config.game || gameId === config.game)) {
-      const relativePath = `test/artifacts/sessions/${testCase.fixture}`;
+      const relativePath = fixturePath(testCase.fixture, testCase.gameId);
       if (!(await Bun.file(resolve(ROOT, relativePath)).exists())) {
         await recordBlocker(`import:${testCase.gameId}`, `Missing original capture fixture: ${relativePath}`);
         continue;
@@ -652,7 +653,7 @@ async function main() {
   }
   if (config.mode === "live" || config.mode === "both") {
     for (const testCase of GAMES.slice(0, 2).filter(({ gameId }) => !config.game || gameId === config.game)) {
-      const path = join(FIXTURE_ROOT, testCase.fixture);
+      const path = resolve(ROOT, fixturePath(testCase.fixture, testCase.gameId));
       if (!(await Bun.file(path).exists())) {
         await recordBlocker(`live:${testCase.gameId}`, `Missing original UDP capture fixture: ${testCase.fixture}`);
         continue;
@@ -663,7 +664,7 @@ async function main() {
   if (config.mode === "recording") {
     for (const testCase of GAMES.slice(0, 2)) {
       if (config.recordingGame && testCase.gameId !== config.recordingGame) continue;
-      if (!(await Bun.file(join(FIXTURE_ROOT, testCase.fixture)).exists())) {
+      if (!(await Bun.file(resolve(ROOT, fixturePath(testCase.fixture, testCase.gameId))).exists())) {
         await recordBlocker(`recording:${testCase.gameId}`, `Missing original UDP capture fixture: ${testCase.fixture}`);
         continue;
       }
@@ -673,7 +674,7 @@ async function main() {
   if (config.mode === "disk-imports") {
     for (const testCase of GAMES) {
       if (config.fileImportGame && testCase.gameId !== config.fileImportGame) continue;
-      if (!(await Bun.file(join(FIXTURE_ROOT, testCase.fixture)).exists())) {
+      if (!(await Bun.file(resolve(ROOT, fixturePath(testCase.fixture, testCase.gameId))).exists())) {
         await recordBlocker(`disk-import:${testCase.gameId}:${testCase.fixture}`, `Missing original capture fixture: ${testCase.fixture}`);
         continue;
       }

@@ -14,7 +14,7 @@ import { PARSER_BOOTSTRAP_VERSION, SESSION_SEGMENT_BOUNDARY, SESSION_SEGMENT_CON
 import { applyFrameTime } from "./frame-time";
 import { DirectSessionRecorderAdapter } from "./direct-recorder";
 import { LiveTelemetryPipeline } from "../telemetry/live-pipeline";
-import { NullWsAdapter, RealDbAdapter, SparseSessionRecorderAdapter, type DbAdapter, type SessionRecorderAdapter } from "../telemetry/pipeline-ports";
+import { NullWsAdapter, RealDbAdapter, SparseSessionRecorderAdapter, type SessionRecorderAdapter } from "../telemetry/pipeline-ports";
 import { reconcileSessionResult } from "../race-results/reconcile";
 
 import { countIndexSampleMaterialized, countSourceFrameScanned } from "./test-instrumentation";
@@ -38,12 +38,9 @@ export interface ImportSessionResult {
 }
 
 /**
- * Delegates to RealDbAdapter but captures the returned lap IDs + session
- * metadata so an import caller can tell the UI what got inserted and build
- * deep links into the analyse page.
+ * Captures import metadata while inheriting real DB lap-binding publication.
  */
-export class ImportCaptureAdapter implements DbAdapter {
-  private readonly _inner: RealDbAdapter;
+export class ImportCaptureAdapter extends RealDbAdapter {
   readonly laps: ImportedLap[] = [];
   readonly sessionIds = new Set<number>();
   readonly rawFiles = new Set<string>();
@@ -53,17 +50,17 @@ export class ImportCaptureAdapter implements DbAdapter {
   private _continueSession = false;
   private readonly _sessionSource?: string;
 
-
   constructor(options: {
     notifyDriverProfile?: boolean;
     ownership?: SessionOwnership;
     sessionSource?: string;
     rollbackFiles?: Iterable<string>;
   } = {}) {
-    this._inner = new RealDbAdapter(options);
+    super(options);
     this._sessionSource = options.sessionSource;
     for (const path of options.rollbackFiles ?? []) this.rawFiles.add(path);
   }
+
 
 
   async insertSession(
@@ -85,17 +82,16 @@ export class ImportCaptureAdapter implements DbAdapter {
         throw new Error("Import segment game does not match its source session");
       }
       if (meta && (meta.carId !== carId || meta.trackId !== trackId)) {
-        await this._inner.updateSessionCarTrack(sessionId, carId, trackId);
+        await super.updateSessionCarTrack(sessionId, carId, trackId);
       }
       this._sessionMeta.set(sessionId, { carId, trackId, gameId });
       return sessionId;
     }
-    const id = await this._inner.insertSession(carId, trackId, gameId, sessionType, versionIdentity, ownership);
+    const id = await super.insertSession(carId, trackId, gameId, sessionType, versionIdentity, ownership);
     this.sessionIds.add(id);
     this._sessionMeta.set(id, { carId, trackId, gameId });
     if (this._sessionSource) await updateSessionSource(id, this._sessionSource);
     return id;
-
   }
 
   continueSessionOnNextInsert(): void {
@@ -119,7 +115,7 @@ export class ImportCaptureAdapter implements DbAdapter {
     classification: LapClassification | null,
     versionIdentity?: TelemetryVersionIdentity,
   ): Promise<number> {
-    const pending = this._inner.insertLap(
+    const pending = super.insertLap(
       sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, classification, versionIdentity
     ).then((id) => {
       const meta = this._sessionMeta.get(sessionId);
@@ -146,40 +142,19 @@ export class ImportCaptureAdapter implements DbAdapter {
     return pending;
   }
   async deleteLap(lapId: number): Promise<void> {
-    await this._inner.deleteLap(lapId);
+    await super.deleteLap(lapId);
     const index = this.laps.findIndex((lap) => lap.lapId === lapId);
     if (index >= 0) this.laps.splice(index, 1);
   }
 
-  setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void> {
-    return this._inner.setLapMetrics(lapId, fuelPerLap, tyreWear);
-  }
-  updateLapCarSetup(lapId: number, carSetup: object | null): Promise<void> {
-    return this._inner.updateLapCarSetup(lapId, carSetup);
-  }
-  getLaps(gameId: GameId, limit: number): Promise<LapMeta[]> {
-    return this._inner.getLaps(gameId, limit);
-  }
-  getTuneAssignment(gameId: GameId, carId: string, trackId: string) {
-    return this._inner.getTuneAssignment(gameId, carId, trackId);
-  }
   updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string, sparseCapture = false): Promise<void> {
     this.rawFiles.add(rawFile);
-    return this._inner.updateSessionRawFile(sessionId, rawFile, lapDetectorVersion, sparseCapture);
+    return super.updateSessionRawFile(sessionId, rawFile, lapDetectorVersion, sparseCapture);
   }
   updateSessionCarTrack(sessionId: number, carId: string, trackId: string): Promise<void> {
     const existing = this._sessionMeta.get(sessionId);
     if (existing) this._sessionMeta.set(sessionId, { ...existing, carId, trackId });
-    return this._inner.updateSessionCarTrack(sessionId, carId, trackId);
-  }
-  getLapsForExclusionScope(experimentId: number, tuneId: number) {
-    return this._inner.getLapsForExclusionScope(experimentId, tuneId);
-  }
-  setLapAutoExclusion(lapId: number, excluded: boolean): Promise<void> {
-    return this._inner.setLapAutoExclusion(lapId, excluded);
-  }
-  getLapExperimentScope(lapId: number) {
-    return this._inner.getLapExperimentScope(lapId);
+    return super.updateSessionCarTrack(sessionId, carId, trackId);
   }
 
   async waitForPendingLapWrites(): Promise<void> {

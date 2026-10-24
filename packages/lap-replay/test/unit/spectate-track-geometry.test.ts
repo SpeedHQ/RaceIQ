@@ -97,6 +97,21 @@ for (const [gameId, coordSystem, flip] of cases) {
 }
 
 
+
+test("fallback outline stays solid while recorded car lines retain true run gaps", () => {
+  const runtime = geometry("lmu", center);
+  const pair = Reflect.get(runtime, "pair") as SpectatePair;
+  const samples = pair.a.samples.map((sample, i) => ({
+    ...sample,
+    time: i === 2 ? 1 : i * 0.05,
+    run: i < 2 ? 0 : 1,
+  }));
+  Object.assign(pair.a, { samples });
+  runtime.setOutline(center, null);
+  expect(runtime.edgeRuns).toHaveLength(1);
+  expect(runtime.edgeRuns[0]!.every(point => point.alpha === 1)).toBe(true);
+  expect(runtime.lineRuns[0]).toHaveLength(2);
+});
 test("unregistered geometry retains validated coordinate fitting", () => {
   const runtime = geometry("fm-2023", center.map(p => ({ x: p.x + 3, z: p.z })));
   const raw = (points: Point[]) => points.map(p => ({ x: p.x * 10, z: p.z * 10 }));

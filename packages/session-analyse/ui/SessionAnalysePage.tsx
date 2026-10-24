@@ -46,8 +46,8 @@ export function SessionAnalysePage({ gameId, trackId, carId, sessionId }: { game
   const backToSession = () => void navigate({ to: sessionId != null ? "../.." : ".." } as never);
   if (sessionsLoading || lapsLoading || trackLoading || carLoading || namesLoading)
     return (
-      <div role="status" aria-live="polite" className="flex h-full items-center p-8 text-sm text-app-text-muted">
-        {m.review_loading_analyse()}
+      <div role="status" aria-live="polite" aria-label={m.review_loading_analyse()} className="flex h-full items-center justify-center p-8">
+        <span aria-hidden="true" className="size-5 rounded-full border-2 border-app-border-input border-t-app-accent motion-safe:animate-spin" />
       </div>
     );
   if (sessionsError || sessionQuery.isError || (sessionId != null && !selectedSession)) {

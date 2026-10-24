@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { gzipSync, gunzipSync } from "node:zlib";
-import { readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump";
+import { iterateSessionCaptureRecords } from "@raceiq/capture-formats/session/framing";
 import { decodeLMUSourceFrame, encodeLMUSourceFrame } from "@raceiq/capture-formats/lmu/source-frame";
 import { LmuOpponentIdentityTracker } from "@raceiq/capture-formats/lmu/opponent-snapshot";
 import { SparseCaptureEncoder } from "@raceiq/capture-formats/session/sparse-recorder";
@@ -15,10 +15,12 @@ import {
 } from "@raceiq/capture-formats/lmu/layout";
 
 /** Controlled scoring geometry, not evidence of online LMU channel population. */
-export function makeLmuOpponentCapture(options: { identity?: string } = {}): Buffer {
+export function makeLmuOpponentCapture(options: { identity?: string; frequencyHz?: 20 | 100 } = {}): Buffer {
   const identity = options.identity ?? "default";
-  const originalBytes = readLMUFramesFromBuffer(gunzipSync(readFileSync(resolve(__dirname, "../../test/fixtures/sessions/lmu-spa-iron-lynx-gte.bin.gz"))))[0]!;
-  const original = decodeLMUSourceFrame(originalBytes)!;
+  const fixture = gunzipSync(readFileSync(resolve(__dirname, "../../test/fixtures/sessions/lmu-real-opponents-grid-2026-10-22.bin.gz")));
+  const firstFrame = [...iterateSessionCaptureRecords(fixture, 0, { strict: true })].find((record) => record.kind === "frame");
+  assert(firstFrame?.kind === "frame");
+  const original = decodeLMUSourceFrame(firstFrame.frame)!;
   assert(original.playerScoring);
   const memory = Buffer.alloc(LMU_SHARED_MEMORY_SIZE);
   memory.writeInt32LE(original.gameVersion, LMU_GAME_VERSION_OFFSET);
@@ -55,7 +57,7 @@ export function makeLmuOpponentCapture(options: { identity?: string } = {}): Buf
   const tracker = new LmuOpponentIdentityTracker();
   const parts = [encodeMetaFrame(), encodeSparseCaptureFormatFrame()];
   let offset = parts.reduce((total, part) => total + part.length, 0);
-  const rate = 20;
+  const rate = options.frequencyHz ?? 20;
   const updateVehicle = (vehicleOffset: number, index: number, seconds: number, radialOffset: number) => {
     const samples = seconds * rate;
     const completed = Math.floor(index / samples);
@@ -81,7 +83,7 @@ export function makeLmuOpponentCapture(options: { identity?: string } = {}): Buf
   };
   for (let index = 0; index <= 39 * rate; index++) {
     const elapsed = 100 + index / rate;
-    const timestamp = 1_790_000_000_000 + index * 50;
+    const timestamp = 1_790_000_000_000 + index * (1000 / rate);
     const player = updateVehicle(playerOffset, index, 12, 0);
     updateVehicle(opponentOffset, index, 18, 3);
     memory.writeDoubleLE(elapsed, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.currentElapsedTime);

@@ -231,3 +231,15 @@ integration owner runs both actual launchers and real UI/backend scenarios.
 That section records actual outcomes and the Windows-only verification limits;
 neither file replay nor planned checks establish hardware acquisition coverage.
 
+
+### Capture repair verification — 2026-10-23
+
+Backend follow-up maps to CR1–CR4 in the
+[shared repair boundary and executed evidence](./lmu-competitor-data-contract.md#capture-publication-and-native-session-repair--2026-10-23).
+Owned changes: native player-session grouping, real DB adapter participation
+during import, and immutable finalized direct-capture ownership. Retained source
+keys still fence opponent identity; true native event changes still split player
+sessions. Existing importer, repair and archive E2Es exercise these transitions.
+Full seed and actual restored session replay supply integration evidence; no
+repair ownership guard or layout-ambiguity check was relaxed.
+

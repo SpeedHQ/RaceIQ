@@ -110,11 +110,12 @@ export function ComparisonSelectors({
   );
 }
 
-function OpponentLapSelector({ laps, value, onChange }: {
+function OpponentLapSelector({ laps: recordedLaps, value, onChange }: {
   laps: readonly OpponentLapSummary[];
   value: string | null;
   onChange?: (id: string | null) => void;
 }) {
+  const laps = recordedLaps.filter((lap) => lap.mode !== "unavailable");
   const identity = (lap: OpponentLapSummary) => JSON.stringify([lap.sessionKey, lap.vehicleId, lap.incarnation]);
   const committed = laps.find((lap) => lap.opponentLapId === value);
   const [className, setClassName] = useState("");

@@ -16,7 +16,10 @@ import { loadSessionCapture, resolveLapCaptureArtifact, resolveLiveLapCaptureArt
 import { createRawCaptureIdentity, loadRawCaptureIdentity } from "@raceiq/backend-core/session-capture/identity";
 import { getLiveLapCaptureSnapshot } from "@raceiq/backend-core/db/live-capture-queries";
 import { opponentRoutes } from "./opponent-routes";
-import { resolveTelemetryReplay } from "@raceiq/backend-core/telemetry/replay";
+import { resolveTelemetryReplay, visitTelemetryReplayFrames } from "@raceiq/backend-core/telemetry/replay";
+import { canonicalizeTelemetryScalar } from "@raceiq/telemetry-core/telemetry/replay/canonicalize";
+import { createLmuContextEncoder } from "@raceiq/shared/telemetry/lmu-context";
+import { createSemanticReplayEncoder, SEMANTIC_REPLAY_MEDIA_TYPE } from "../contracts/replay-wire";
 import type { SemanticLapTelemetry } from "../contracts/replay";
 
 export function semanticReplayIds(gameId: GameId): readonly string[] {
@@ -30,6 +33,7 @@ export const replayRoutes = new Hono()
     const { id } = c.req.valid("param");
     const gameIdResult = GameIdSchema.safeParse(c.req.header("X-Game-Id"));
     if (!gameIdResult.success) return c.json({ error: "Missing or invalid X-Game-Id header" }, 400);
+    c.header("Vary", "Accept");
     try {
       const meta = await getLapMetaById(id);
       if (!meta || meta.gameId !== gameIdResult.data) return c.json({ error: "Lap not found" }, 404);
@@ -62,16 +66,41 @@ export const replayRoutes = new Hono()
           : source.rawFile ? await loadRawCaptureIdentity(source.rawFile) : undefined
         : undefined;
       const semanticIds = meta.gameId === "lmu" ? [...new Set([...semanticReplayIds(meta.gameId), ...liveSemanticIds("lmu")])] : semanticReplayIds(meta.gameId);
-      const replay = resolveTelemetryReplay(id, replaySource, lap.telemetry, semanticIds, rawCapture);
+      const compact = c.req.header("Accept")?.split(",").some((value) => value.trim() === SEMANTIC_REPLAY_MEDIA_TYPE) ?? false;
+      const encoder = compact ? createSemanticReplayEncoder() : undefined;
+      const encodeContext = createLmuContextEncoder();
+      const requestedSemanticIds = encoder
+        ? visitTelemetryReplayFrames(id, replaySource, lap.telemetry, semanticIds, (frame, _resolver, slots) => {
+            encoder.addFrame({
+              sequence: frame.sequence,
+              observedAt: { domain: "wall-clock", milliseconds: timestampMilliseconds(frame.observedAt) },
+              receivedAt: { domain: "wall-clock", milliseconds: timestampMilliseconds(frame.receivedAt) },
+              simulator: source.gameId,
+              values: slots.map((slot) => {
+                const sample = frame.view.resolveSample(slot);
+                sample.value = canonicalizeTelemetryScalar(sample.value, sample.semanticId);
+                return sample;
+              }),
+              ...(meta.gameId === "lmu" && frame.packet.lmuContext ? { lmu: encodeContext(frame.packet.lmuContext) } : {}),
+            });
+          }, rawCapture)
+        : undefined;
+      const replay = encoder ? undefined : resolveTelemetryReplay(id, replaySource, lap.telemetry, semanticIds, rawCapture);
       const nativeLayout = getGame(meta.gameId).getNativeSectorLayout?.(lap.telemetry[0]);
       const processed = processLap(lap.telemetry, meta.gameId);
       const analysis = runInsightScanWithCoverage(processed.packets, meta.gameId, resolveLapAnalysisContext(meta.gameId, meta.trackId, processed.packets));
       restoreFrameIndices(analysis.insights, processed.sourceIndices);
-      return c.json({
-        lapId: replay.lapId, requestedSemanticIds: replay.requestedSemanticIds,
+      const metadata = {
+        lapId: id, requestedSemanticIds: requestedSemanticIds ?? replay!.requestedSemanticIds,
         sectorTimes: meta.sectorTimes ?? null, sectorStarts: nativeLayout?.starts ?? null,
         insights: analysis.insights, detectorCoverage: analysis.detectorCoverage, parseError: lap.parseError ?? null,
-        envelopes: replay.envelopes.map((envelope) => ({
+      };
+      if (encoder) {
+        return c.body(JSON.stringify(encoder.finish(metadata)), 200, { "Content-Type": SEMANTIC_REPLAY_MEDIA_TYPE });
+      }
+      return c.json({
+        ...metadata,
+        envelopes: replay!.envelopes.map((envelope) => ({
           sequence: Number(envelope.sequence),
           observedAt: { domain: "wall-clock", milliseconds: timestampMilliseconds(envelope.observedAt) },
           receivedAt: { domain: "wall-clock", milliseconds: timestampMilliseconds(envelope.receivedAt) },

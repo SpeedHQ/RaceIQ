@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { insertLap } from "@raceiq/backend-core/db/lap-mutation-queries";
 import { getLapStats } from "@raceiq/backend-core/db/lap-read-queries";
 import { deleteSession, insertSession, updateSessionRawFile } from "@raceiq/backend-core/db/session-queries";
+import { prepareDashboardPublicationCandidate, publishDashboardSession } from "@raceiq/backend-core/db/dashboard-summary-queries";
 import { createSessionRoutes } from "@raceiq/sessions-page/server";
 import { isSessionIdentityInCatalog } from "@raceiq/backend/test-support/session-identity";
 import { trackRoutes } from "@raceiq/tracks-catalogue/server"
@@ -125,6 +126,28 @@ describe("LMU string identity routes", () => {
     const guide = await guideResponse.json() as { corners: Array<{ numbers?: number[]; priority: boolean }> };
     expect(guide.corners.every((corner) => corner.numbers?.every((number) => number >= 1 && number <= 14))).toBe(true);
     expect(guide.corners.find((corner) => corner.numbers?.includes(14))?.priority).toBe(true);
+  });
+
+  test("returns published capture duration from session summary", async () => {
+    const sessionId = await insertSession("ferrari_499p_2023", "spa_2023/spawec", "lmu", "race");
+    sessionIds.push(sessionId);
+    const candidate = await prepareDashboardPublicationCandidate(sessionId);
+    expect(candidate).not.toBeNull();
+    const published = await publishDashboardSession(candidate!, {
+      sourceRevision: candidate!.sourceRevision,
+      captureRevision: "seeded-duration-test",
+      duration: { status: "available", elapsedSeconds: 321.5 },
+      sectorLayout: null,
+      weather: { status: "unavailable", revision: null, conditions: null },
+      trackLengthMeters: null,
+      sourceSectorStarts: null,
+    });
+    expect(published).toBe(true);
+
+    const response = await sessionRoutes.request("/api/sessions?gameId=lmu");
+    expect(response.status).toBe(200);
+    const rows = await response.json() as Array<{ id: number; elapsedSeconds: number | null }>;
+    expect(rows.find((row) => row.id === sessionId)?.elapsedSeconds).toBe(321.5);
   });
 
   test("counts and filters LMU laps by canonical string identity", async () => {

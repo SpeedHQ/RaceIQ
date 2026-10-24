@@ -96,10 +96,17 @@ function validCompetitor(value: unknown): value is LmuCompetitorWire {
   const channels = Object.entries(value.channels);
   return channels.length <= 256 && channels.every(([id, channel]) => record(channel) && id === channel.semanticId && validCompetitorChannel(channel));
 }
+function validContextKey(value: unknown): value is LmuLiveContextWire["key"] {
+  return record(value) && typeof value.sessionKey === "string" && value.sessionKey.length > 0 &&
+    value.sessionKey.length <= 2048 && typeof value.captureSequence === "string" &&
+    decimal.test(value.captureSequence) && timestamp(value.frameTime);
+}
+export function decodeLmuContextKey(value: unknown): LmuLiveContext["key"] | null {
+  return validContextKey(value) ? freezeOwned({ ...value, frameTime: decodeTimestamp(value.frameTime) }) : null;
+}
 export function isLmuLiveContextWire(value: unknown): value is LmuLiveContextWire {
-  if (!record(value) || value.schemaVersion !== 1 || !record(value.key)) return false;
+  if (!record(value) || value.schemaVersion !== 1 || !validContextKey(value.key)) return false;
   const key = value.key;
-  if (typeof key.sessionKey !== "string" || !key.sessionKey || key.sessionKey.length > 2048 || typeof key.captureSequence !== "string" || !decimal.test(key.captureSequence) || !timestamp(key.frameTime)) return false;
   if (value.status !== "active" && value.status !== "unavailable") return false;
   if (value.playerVehicleId !== null && (typeof value.playerVehicleId !== "number" || !Number.isSafeInteger(value.playerVehicleId) || value.playerVehicleId < 0)) return false;
   if (value.status === "active" && value.playerVehicleId === null && value.competitors === undefined) return false;
@@ -149,18 +156,29 @@ function decodeCompetitor(value: LmuCompetitorWire): LmuCompetitor {
   }
   return { ...value, channels };
 }
+const immutableSupplemental = new WeakSet<readonly LmuSupplementalObservation[]>();
+function freezeOwned<T>(value: T, seen = new WeakSet<object>()): T {
+  if (value !== null && typeof value === "object" && !seen.has(value)) {
+    seen.add(value);
+    for (const item of Object.values(value)) freezeOwned(item, seen);
+    Object.freeze(value);
+  }
+  return value;
+}
+function encodeObservation(entry: LmuSupplementalObservation): LmuObservationWire {
+  const p = entry.observation.provenance;
+  const { sourceObservation, ...provenance } = p;
+  return { ...entry, acquiredAt: encodeTimestamp(entry.acquiredAt), observation: { ...entry.observation, provenance: { ...provenance, observedAt: encodeTimestamp(p.observedAt), ...(sourceObservation ? { sourceObservation: { timestamp: encodeTimestamp(sourceObservation.timestamp), updateSequence: sourceObservation.updateSequence.toString() } } : {}) } } };
+}
 export function encodeLmuContext(value: LmuLiveContext): LmuLiveContextWire {
-  const supplemental = value.supplemental.map((entry): LmuObservationWire => {
-    const p = entry.observation.provenance;
-    const { sourceObservation, ...provenance } = p;
-    return { ...entry, acquiredAt: encodeTimestamp(entry.acquiredAt), observation: { ...entry.observation, provenance: { ...provenance, observedAt: encodeTimestamp(p.observedAt), ...(sourceObservation ? { sourceObservation: { timestamp: encodeTimestamp(sourceObservation.timestamp), updateSequence: sourceObservation.updateSequence.toString() } } : {}) } } };
-  });
+  const supplemental = value.supplemental.map(encodeObservation);
   const { competitors, ...context } = value;
   const wire: LmuLiveContextWire = { ...context, key: { ...value.key, frameTime: encodeTimestamp(value.key.frameTime) }, supplemental, ...(competitors ? { competitors: competitors.map(encodeCompetitor) } : {}) };
   if (!isLmuLiveContextWire(wire)) throw new TypeError("Invalid LMU live context");
   return wire;
 }
-export function decodeLmuContext(value: unknown): LmuLiveContext | null {
+/** Immutable mode consumes an owned decoded JSON tree; nested values are frozen, not copied. */
+export function decodeLmuContext(value: unknown, options: { immutable?: boolean } = {}): LmuLiveContext | null {
   if (!isLmuLiveContextWire(value)) return null;
   const supplemental = value.supplemental.map((entry): LmuSupplementalObservation => {
     const p = entry.observation.provenance;
@@ -168,7 +186,34 @@ export function decodeLmuContext(value: unknown): LmuLiveContext | null {
     return { ...entry, acquiredAt: decodeTimestamp(entry.acquiredAt), observation: { ...entry.observation, provenance: { ...provenance, observedAt: decodeTimestamp(p.observedAt), ...(sourceObservation ? { sourceObservation: { timestamp: decodeTimestamp(sourceObservation.timestamp), updateSequence: BigInt(sourceObservation.updateSequence) } } : {}) } } };
   });
   const { competitors, ...context } = value;
-  return { ...context, key: { ...value.key, frameTime: decodeTimestamp(value.key.frameTime) }, supplemental, ...(competitors ? { competitors: competitors.map(decodeCompetitor) } : {}) };
+  const decoded: LmuLiveContext = { ...context, key: { ...value.key, frameTime: decodeTimestamp(value.key.frameTime) }, supplemental, ...(competitors ? { competitors: competitors.map(decodeCompetitor) } : {}) };
+  if (options.immutable) {
+    freezeOwned(decoded);
+    immutableSupplemental.add(decoded.supplemental);
+  }
+  return decoded;
+}
+
+/** Cache only validated, deeply frozen supplemental arrays created by this module. */
+export function createLmuContextEncoder(): (context: LmuLiveContext) => LmuLiveContextWire {
+  const supplementalCache = new WeakMap<readonly LmuSupplementalObservation[], readonly LmuObservationWire[]>();
+  return (value) => {
+    if (!immutableSupplemental.has(value.supplemental)) return encodeLmuContext(value);
+    let supplemental = supplementalCache.get(value.supplemental);
+    if (!supplemental) {
+      supplemental = freezeOwned(value.supplemental.map(encodeObservation));
+      supplementalCache.set(value.supplemental, supplemental);
+    }
+    const { competitors, ...context } = value;
+    const wire: LmuLiveContextWire = { ...context, key: { ...value.key, frameTime: encodeTimestamp(value.key.frameTime) }, supplemental, ...(competitors ? { competitors: competitors.map(encodeCompetitor) } : {}) };
+    // Array contents are immutable and already validated; validate every changing boundary field.
+    if (!isLmuLiveContextWire({ ...wire, supplemental: [] }) ||
+        (supplemental.length > 0 && (supplemental[0]!.sessionKey !== wire.key.sessionKey ||
+          supplemental.some((entry) => entry.applicability === "player-vehicle" && entry.vehicleId !== wire.playerVehicleId)))) {
+      throw new TypeError("Invalid LMU live context");
+    }
+    return wire;
+  };
 }
 
 export type LmuPacketWire = Omit<TelemetryPacket, "lmuContext"> & { lmuContext?: LmuLiveContextWire };

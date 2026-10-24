@@ -2,7 +2,6 @@ import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { gunzipSync } from "node:zlib";
 import { eq } from "drizzle-orm";
 import { db } from "@raceiq/backend-core/db/index";
 import { laps, sessions } from "@raceiq/backend-core/db/schema";
@@ -12,7 +11,6 @@ import { iterateSessionCaptureRecordsFromSource } from "@raceiq/backend-core/ses
 import { resolveRecordingDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
 import { loadSettings, saveSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { timestampForFilename } from "@raceiq/backend-core/session-capture/filename";
-import { readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump";
 import { partitionLMUSourceFrame } from "@raceiq/capture-formats/lmu/partition";
 import { META_FRAME_BYTES } from "@raceiq/capture-formats/session/framing";
 import type { DetectorOwnershipTransition, DetectorOwnershipWindow } from "@raceiq/telemetry-core/processor/ordinal-engine";
@@ -22,6 +20,8 @@ import { startSessionOpponentRemoval, getSessionOpponentRemovalStatus } from "@r
 import { getRecordingMaintenanceController } from "@raceiq/backend-core/session-capture/maintenance-runtime";
 import { readLmuOpponentRetention } from "@raceiq/backend-core/session-capture/lmu-companion";
 import { installDatabaseWriteTestHooks, withDatabaseWrite } from "@raceiq/backend-core/db/write-coordination";
+import { fixtureFrames } from "@raceiq/backend/test-support/fixture-frames";
+import { fixturePath } from "../../../support/fixtures";
 
 interface RepairRecording {
   session: typeof sessions.$inferSelect;
@@ -57,7 +57,7 @@ async function recording(recordLmuOpponents = false): Promise<RepairRecording> {
   const session = await db.insert(sessions).values({ gameId: "lmu", carId: "repair-car", trackId: "repair-track", rawFile: path, captureFormatVersion: 1 }).returning().get();
   sessionIds.push(session.id);
   const lap = await db.insert(laps).values({ sessionId: session.id, lapNumber: 1, lapTime: 90, isValid: true, isFavorite: true, notes: "preserve my lap", rawByteOffset: META_FRAME_BYTES, rawFrameCount: 2 }).returning().get();
-  const native = readLMUFramesFromBuffer(gunzipSync(readFileSync("packages/game-lmu/test/fixtures/sessions/lmu-spa-iron-lynx-gte.bin.gz"))).slice(0, 2);
+  const native = fixtureFrames(readFileSync(fixturePath("sessions/lmu-real-opponents-grid-2026-10-22.bin.gz")), "lmu").slice(0, 2).map((frame) => frame.bytes);
   const capture = new DirectCaptureRecording("lmu", directory, path, { recordLmuOpponents });
   try {
     await capture.ready;

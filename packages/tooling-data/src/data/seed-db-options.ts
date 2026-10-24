@@ -26,7 +26,6 @@ export const FIXTURES: Record<GameId, string[]> = {
   "ac-evo": ["test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz"],
   iracing: ["test/artifacts/sessions/iracing-road-america-gt3.bin.gz"],
   lmu: [
-    "packages/game-lmu/test/fixtures/sessions/lmu-spa-iron-lynx-gte.bin.gz",
     "packages/game-lmu/test/fixtures/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part1",
     "packages/game-lmu/test/fixtures/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part2",
     ...LMU_MULTIPLAYER_FIXTURE_PARTS,

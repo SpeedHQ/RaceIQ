@@ -2,7 +2,7 @@ import { MOTEC_SESSION_SOURCE } from "@raceiq/shared/integrations/motec";
 import { isPaceLap } from "@raceiq/shared/racing/lap-classification";
 import { paceLapCondition } from "./lap-eligibility";
 import { resolveRecordingDirectory } from "../runtime/config/recording-directory";
-import { getRecordedElapsedSeconds } from "../session-capture/elapsed-duration";
+import { DASHBOARD_PROCESSOR_VERSION } from "./dashboard-summary-queries";
 import { createHash, randomUUID } from "node:crypto";
 import { rm, stat } from "node:fs/promises";
 import type { Stats } from "node:fs";
@@ -11,7 +11,7 @@ import { cacheDelete } from "./telemetry-replay-storage";
 import { eq, desc, and, or, sql, inArray, notInArray, isNull, lt, asc, gt, notExists } from "drizzle-orm";
 import { withDatabaseWrite } from "./write-coordination";
 import { db, readDb } from "./index";
-import { sessions, laps, sessionResults, pitEvents, sessionCaptureSplitJobs, liveCaptures, classificationMigrationMeta, classificationMigrationRecordings } from "./schema";
+import { sessions, laps, sessionResults, pitEvents, sessionCaptureSplitJobs, liveCaptures, classificationMigrationMeta, classificationMigrationRecordings, dashboardSessionSummaries, dashboardSummaryState } from "./schema";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 import type { SessionMeta, SessionOwnership, SessionCaptureSplitPhase, SessionCaptureSplitErrorCode } from "@raceiq/shared/racing/sessions/types";
 import type { GameId } from "@raceiq/shared/games/ids";
@@ -720,7 +720,6 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
     ownership: sessions.ownership,
     isFavorite: sessions.isFavorite,
     telemetryAvailable: sql<number>`${sessions.rawFile} IS NOT NULL OR ${sessions.captureManifestFile} IS NOT NULL`,
-    capturePath: sessions.rawFile,
     notes: sessions.notes,
     source: sessions.source,
     sessionType: sessions.sessionType,
@@ -753,28 +752,27 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
     : [];
   const splitJobs = new Map(splitJobRows.map((job) => [job.sessionId, job]));
 
-  // Shared paths lack per-session interval metadata; never count one full file twice.
-  const capturePaths = [...new Set(rows.flatMap((session) => session.capturePath ? [session.capturePath] : []))];
-  const sharedCaptureRows = capturePaths.length
-    ? await readDb.select({ rawFile: sessions.rawFile }).from(sessions).where(inArray(sessions.rawFile, capturePaths)).all()
+  const elapsedRows = rows.length
+    ? await readDb.select({
+      sessionId: dashboardSessionSummaries.sessionId,
+      elapsedSeconds: dashboardSessionSummaries.elapsedSeconds,
+    })
+      .from(dashboardSessionSummaries)
+      .innerJoin(dashboardSummaryState, eq(dashboardSummaryState.sessionId, dashboardSessionSummaries.sessionId))
+      .where(and(
+        inArray(dashboardSessionSummaries.sessionId, rows.map(({ id }) => id)),
+        eq(dashboardSummaryState.metadataDirty, 0),
+        eq(dashboardSummaryState.captureDirty, 0),
+        eq(dashboardSummaryState.deleted, 0),
+        eq(dashboardSummaryState.processorVersion, DASHBOARD_PROCESSOR_VERSION),
+        eq(dashboardSessionSummaries.processorVersion, DASHBOARD_PROCESSOR_VERSION),
+        eq(dashboardSummaryState.publishedRevision, dashboardSummaryState.sourceRevision),
+        eq(dashboardSessionSummaries.sourceRevision, dashboardSummaryState.sourceRevision),
+        eq(dashboardSessionSummaries.durationStatus, "available"),
+      ))
+      .all()
     : [];
-  const sessionsByFile = new Map<string, number>();
-  for (const session of sharedCaptureRows) {
-    if (session.rawFile) sessionsByFile.set(session.rawFile, (sessionsByFile.get(session.rawFile) ?? 0) + 1);
-  }
-  const elapsedBySession = new Map<number, number | null>();
-  for (const session of rows) {
-    const elapsedSeconds = session.capturePath && sessionsByFile.get(session.capturePath) === 1
-      ? await getRecordedElapsedSeconds({
-        rawFile: session.capturePath,
-        source: session.source ?? null,
-        gameId: session.gameId as GameId,
-        carId: session.carId,
-        trackId: session.trackId,
-      })
-      : null;
-    elapsedBySession.set(session.id, elapsedSeconds);
-  }
+  const elapsedBySession = new Map(elapsedRows.map(({ sessionId, elapsedSeconds }) => [sessionId, elapsedSeconds]));
   // Get lap counts and best lap per session
   const result: SessionMeta[] = [];
   for (const session of rows) {
@@ -786,7 +784,7 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
     const validLapTimes = lapRows.filter((lap) => Boolean(lap.isValid) && isPaceLap(lap.classification)).map((lap) => lap.lapTime);
     const bestLapTime = validLapTimes.length > 0 ? Math.min(...validLapTimes) : 0;
 
-    const { capturePath: _capturePath, ...sessionMetadata } = session;
+    const sessionMetadata = session;
     const splitJob = splitJobs.get(session.id);
     const normalizedSession = {
       ...sessionMetadata,

@@ -15,7 +15,6 @@ import { SparseCaptureEncoder } from "@raceiq/capture-formats/session/sparse-rec
 import { isLmuSparseFrame } from "@raceiq/capture-formats/session/lmu-sparse";
 import { decodeLMUSourceFrame, encodeLMUSourceFrame } from "@raceiq/capture-formats/lmu/source-frame";
 import { LMU_GAME_VERSION_OFFSET, LMU_SCORING_INFO, LMU_SCORING_INFO_OFFSET, LMU_SCORING_VEHICLE, LMU_SCORING_VEHICLE_SIZE, LMU_SCORING_VEHICLES_OFFSET, LMU_SESSION_EVENT_OFFSET, LMU_SHARED_MEMORY_SIZE, LMU_TELEMETRY, LMU_TELEMETRY_HEADER_OFFSET, LMU_TELEMETRY_INFO_OFFSET } from "@raceiq/capture-formats/lmu/layout";
-import { readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump";
 import { eq } from "drizzle-orm";
 import { readFile } from "node:fs/promises";
 
@@ -37,7 +36,7 @@ afterEach(async () => {
 
 describe("LMU opponent removal lifecycle", () => {
   test("rewrites sparse legacy v2/v3 gzip input with lap identity and physical offsets intact", async () => {
-    const sourceFrames = readLMUFramesFromBuffer(gunzipSync(readFileSync("packages/game-lmu/test/fixtures/sessions/lmu-spa-iron-lynx-gte.bin.gz"))).slice(0, 2);
+    const sourceFrames = [...iterateSessionCaptureRecords(gunzipSync(readFileSync("packages/game-lmu/test/fixtures/sessions/lmu-real-opponents-grid-2026-10-22.bin.gz")), 0, { strict: true })].filter((record) => record.kind === "frame").slice(0, 2).map((record) => record.frame);
     const frames = [0, 0, 1].map((sourceIndex, index) => {
       const original = decodeLMUSourceFrame(sourceFrames[sourceIndex]!)!;
       const memory = Buffer.alloc(LMU_SHARED_MEMORY_SIZE);

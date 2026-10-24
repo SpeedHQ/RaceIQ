@@ -1,4 +1,7 @@
 import { deleteSession } from "@raceiq/backend-core/db/session-queries";
+import { getLapReplaySource } from "@raceiq/backend-core/db/telemetry-replay-storage";
+import { readFile, rm, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { importSessionBin } from "@raceiq/backend-core/session-capture/import-capture";
 import { startSessionOpponentRemoval } from "@raceiq/backend-core/session-capture/opponent-removal";
 import { getRecordingMaintenanceController } from "@raceiq/backend-core/session-capture/maintenance-runtime";
@@ -424,6 +427,37 @@ describe("opponent route serialization", () => {
       expect(await removedCatalog.json()).toMatchObject({ opponentRetention: "removed", sessions: [], laps: [] });
       const player = await replayRoutes.request(`/api/laps/${lapId}/semantic-telemetry`, { headers: { "X-Game-Id": "lmu" } });
       expect(player.status).toBe(200);
+    } finally {
+      await Promise.all(sessionIds.map(deleteSession));
+    }
+  });
+
+  test("warm native catalog rejects corrupted or missing companions and recovers after repair", async () => {
+    initGameAdapters();
+    registerServerGame(lmuServerAdapter);
+    const imported = await importSessionBin(makeLmuOpponentCapture(), "lmu", { notifyDriverProfile: false });
+    const sessionIds = [...new Set(imported.laps.map((lap) => lap.sessionId))];
+    try {
+      const lapId = imported.laps[0]!.lapId;
+      const response = await replayRoutes.request(`/api/laps/${lapId}/opponent-laps`, { headers: { "X-Game-Id": "lmu" } });
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      const source = await getLapReplaySource(lapId);
+      const manifestPath = source!.captureManifestFile!;
+      const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+      const companionPath = join(dirname(manifestPath), manifest.opponentCompanion.file);
+      const companion = await readFile(companionPath);
+      const damaged = Buffer.from(companion);
+      damaged[damaged.length - 1] = damaged[damaged.length - 1]! ^ 1;
+      await writeFile(companionPath, damaged);
+      const corrupt = await replayRoutes.request(`/api/laps/${lapId}/opponent-laps`, { headers: { "X-Game-Id": "lmu" } });
+      expect(await corrupt.json()).toMatchObject({ opponentAvailability: "corrupt", sessions: [], laps: [] });
+      await rm(companionPath);
+      const missing = await replayRoutes.request(`/api/laps/${lapId}/opponent-laps`, { headers: { "X-Game-Id": "lmu" } });
+      expect(await missing.json()).toMatchObject({ opponentAvailability: "missing", sessions: [], laps: [] });
+      await writeFile(companionPath, companion);
+      const repaired = await replayRoutes.request(`/api/laps/${lapId}/opponent-laps`, { headers: { "X-Game-Id": "lmu" } });
+      expect(await repaired.json()).toEqual(body);
     } finally {
       await Promise.all(sessionIds.map(deleteSession));
     }

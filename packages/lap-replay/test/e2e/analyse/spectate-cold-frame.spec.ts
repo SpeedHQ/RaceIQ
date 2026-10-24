@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { getSeededLapMeta } from "../../../../../playwright/tests/support/seeded/laps";
+import { decodeSemanticLapTelemetry, packSemanticLapTelemetry, SEMANTIC_REPLAY_MEDIA_TYPE } from "../../../contracts";
 type Envelope = { values: { semanticId: string; value: unknown }[] };
 declare global {
   interface Window {
@@ -115,14 +116,15 @@ test("tire labels retain playback wear history, cap refreshes and reset on a sma
   });
   const lap = await getSeededLapMeta(request, "fm-2023");
   await page.route(`**/api/laps/${lap.id}/semantic-telemetry`, async route => {
+    expect(route.request().headers().accept).toContain(SEMANTIC_REPLAY_MEDIA_TYPE);
     const response = await route.fetch();
-    const replay = await response.json() as { envelopes: Envelope[] };
+    const replay = decodeSemanticLapTelemetry(await response.json());
     for (const frame of replay.envelopes) {
       const time = frame.values.find(value => value.semanticId === "timing.current-lap")?.value;
       const wear = frame.values.find(value => value.semanticId === "tires.tire-wear");
       if (wear && typeof time === "number") wear.value = [0, 0, 0, 0].map(() => 1 - time * 0.005);
     }
-    await route.fulfill({ response, json: replay });
+    await route.fulfill({ response, contentType: SEMANTIC_REPLAY_MEDIA_TYPE, json: packSemanticLapTelemetry(replay) });
   });
   await page.goto(`/fm23/sessions/${lap.sessionId}/replay/${lap.id}`);
   const scene = page.locator("[data-replay-scene]");

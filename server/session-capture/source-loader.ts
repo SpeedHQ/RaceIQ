@@ -35,7 +35,7 @@ import {
   readFramePrefix,
   type SessionCaptureRecord,
 } from "@raceiq/capture-formats/session/framing";
-import { decodeLmuSparseFrame, isLmuSparseFrame, isLmuSparseSourceFrame, lmuSparseSourceIdentity } from "@raceiq/capture-formats/session/lmu-sparse";
+import { decodeLmuSparseFrame, isLmuSparseFrame, lmuSparseSourceIdentity } from "@raceiq/capture-formats/session/lmu-sparse";
 import { decodeKunosSparseFrame, isKunosSparseFrame, kunosSourceMagic } from "@raceiq/capture-formats/session/kunos-sparse";
 import { decodeGenericSparseFrame, genericFrameIdentity, isGenericSparseFrame } from "@raceiq/capture-formats/session/generic-sparse";
 import { getLMUPartitionKey, getLMUPartitionSourceLength, isLMUPartitionCompanion, isLMUPartitionPrimary, restoreLMUSourceFrame } from "@raceiq/capture-formats/lmu/partition";
@@ -431,16 +431,17 @@ export async function* iterateSessionCaptureRecordsFromSource(
           }
           frame = genericDelta ? decodeGenericSparseFrame(payload, previous)
             : lmuDelta ? decodeLmuSparseFrame(payload, previous) : decodeKunosSparseFrame(payload, previous);
-          if (lmuDelta && (!isLmuSparseSourceFrame(frame) || compatibleLmuCheckpointIdentity(frame) !== checkpointIdentity)) {
+          const lmuIdentity = lmuDelta ? compatibleLmuCheckpointIdentity(frame) : null;
+          if (lmuDelta && (lmuIdentity === null || lmuIdentity !== checkpointIdentity)) {
             throw new Error(`Invalid LMU sparse frame at ${frameOffset}`);
           }
           if (kunosDelta && kunosSourceMagic(frame) !== Number(checkpointIdentity!.slice(6))) {
             throw new Error(`Invalid Kunos sparse frame identity at ${frameOffset}`);
           }
         } else {
-          const isLmu = isLmuSparseSourceFrame(payload);
+          const lmuIdentity = compatibleLmuCheckpointIdentity(payload);
           const magic = kunosSourceMagic(payload);
-          checkpointIdentity = isLmu ? compatibleLmuCheckpointIdentity(payload) : magic ? `kunos-${magic}` : genericFrameIdentity(payload);
+          checkpointIdentity = lmuIdentity ?? (magic ? `kunos-${magic}` : genericFrameIdentity(payload));
           checkpointOffset = checkpointIdentity ? frameOffset : -1;
         }
         previous = frame;

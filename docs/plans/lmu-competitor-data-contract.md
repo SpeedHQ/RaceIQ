@@ -514,7 +514,7 @@ under `test/fixtures`. This is a clean ownership cutover, not a runtime shim.
 | PKG1 | LMU-only suites and standalone cases live under `packages/game-lmu/test/{unit,e2e}/`; generic multi-game suites and shared test support retain their original owners. No old-path shims or duplicate test copies. | Discover the relocated unit/integration/recording/browser suites through their real launchers; exercise both relocated cases and the remaining generic cases. |
 | PKG2 | LMU recording fixtures and derivation support are package-owned. Moves preserve bytes, clocks, sequences and unknown/partial states. Raw originals stay ignored; each committed recording part is strictly below 100,000,000 bytes. | Same-volume rename preserves inode/device/size; reassembly plus streamed gzip verification matches the full original hash, byte count and 30,957-frame header. |
 | PKG3 | Every ordinary test is assigned once; caches include relocated fixtures and external support. Moved backend integrations keep application initialization; browser suites retain CommonJS fixture loading and the single-worker `seeded-imports` project. | Ownership guard, package launchers, scoped TypeScript checks and actual isolated browser execution; no mock production fallback. |
-| PKG4 | Default LMU seed imports all 11 parts once, streams native frames, retains player/opponent partitioning for native v2/v3 and preserves compact v1/explicit legacy storage. Repeated seed remains a no-op. Partial data never becomes a valid or fabricated lap; auxiliary-only captures need not already have per-lap publication metadata. | Real seed CLI in disposable directories; full recording import and repeat-run row equality; physical primary/companion inspection; real HTTP opponent catalog. Explicit legacy and compact fixtures exercise the alternate storage paths. |
+| PKG4 | Default LMU seed imports all 11 parts once, streams native frames, retains player/opponent partitioning for native v2/v3 and preserves compact v1/explicit legacy storage. Repeated seed remains a no-op. Every saved player lap has matching physical lap chunks and database bundle references; source outside saved laps remains auxiliary. Recorder acquisition rekeys alone do not create additional player sessions. Partial data never becomes a valid or fabricated lap. | Real seed CLI in disposable directories; full recording import and repeat-run row equality; physical primary/companion and lap-reference inspection; real HTTP opponent catalog. Explicit legacy and compact fixtures exercise alternate storage paths. |
 | PKG5 | Unchanged real native input enters the live parser and `processPacket`, not merely import indexing. Physical primary excludes opponents, companion restores every native byte/timestamp and all 15 non-player identities. Hardware acquisition is not inferred from file replay. | `e2e/backend/session-capture/opponent-recording-policy.test.ts` replays 51 exact recorded grid frames through production parser, live pipeline, recorder and joined source loader. |
 | PKG6 | Nested workspace owns cross-layer dependencies; strict SDK and test-workspace boundary checks pass without ignores. Existing SDK test commands select child owner once. Default test roots stay `<workspace>/test`; explicit `raceiq.testRoot: "."` selects child root, while parent `raceiq.testOwner: false` prevents duplicate ownership. Roots and manifest entries cannot escape their workspace/test tree. | PKG-E6: run actual SDK unit/integration/recording commands and ownership guard; run both boundary filters and Turbo dry-run. Existing owner-runner E2E covers flat/nested CLI dispatch, real SQLite preload, separate temporary data and preserved inherited-data sentinel. Shard regressions reject root/manifest traversal. |
 | PKG7 | Actual unit cases use `unit/`; existing integration cases use `e2e/backend/`, recording E2Es use `e2e/recordings/`, browser specs use `e2e/browser/`. Existing suite classifications, application preload and browser CommonJS scope remain unchanged. Fixtures and source hashes remain unchanged. | PKG-E7: actual Bun launchers plus existing serialized browser project discover relocated cases, read fixtures from child `fixtures/`, and exercise production parser/storage/API/UI. Source/test/browser type checks supplement these runs. |
@@ -599,4 +599,56 @@ an unused direct-recorder field. Native SQLite test teardown now explicitly
 retries Windows `EBUSY` with a bounded delay because Bun 1.4.4 did not honor the
 `fs.rm` retry options on this path. Errors still propagate after the retry limit;
 all 374 backend unit tests passed with 1,236 assertions.
+
+
+### Capture publication and native-session repair — 2026-10-23
+
+Acquisition generations still scope opponent identity and source continuity.
+They are not simulator session IDs. Player grouping uses the native identity in
+[`normalizer.ts`](../../packages/game-lmu/src/normalizer.ts), while original
+context keys, observation times, missing ranges and validity remain recorded.
+No endpoint or wire shape changed; both implementation plans use this boundary.
+
+| ID | Observable behavior and edge handling | Executed production-path evidence |
+| --- | --- | --- |
+| CR1 | Acquisition rekeys retain one native player session; a real simulator event change still splits it. All native bytes and context keys survive; transition frames may also serve as the preceding session's unowned context. | `lmu-capture-format.test.ts`: real import and joined source loader preserve exact native-frame hashes across both scenarios. Complete multiplayer seed: one session, 30,957 frames, 15 acquisition keys; original source/parts retained. |
+| CR2 | Imported player laps publish matching chunks and DB references. Finalized ownership counts cannot grow when later context arrives. Source-less completion context cannot claim an uncaptured native frame; other ownership mismatches still fail. | LMU integration: 117 passed, including direct repair, retained import, publication failures and ordinary/selected opponent archives. Shared selected player-lap export/import also passed with strict publication checks unchanged. |
+| CR3 | Full default seed publishes every saved lap and repeats without new rows. Broken Spa is excluded, not replaced with a guessed layout. | Real isolated seed CLI: two sessions, 12 matching lap chunks/references and 78,357 native companion records; repeat CLI is a no-op with unchanged IDs. Metadata records are not counted as native frames. |
+| CR4 | Existing session 10/laps 26–32 retain IDs and metadata; legitimate multiplayer is restored separately, without deleting opponents or modifying source clocks. | Session 10 lap 31: HTTP 200, no parse error, 7,337 semantic samples and advancing browser playback. Restored session 27: five laps, 30,957 input/output frames, identical native/timestamp SHA-256 `58fa6ff28e622b00ef53c689e27cb8fa1d30d5dfb873b1177e3a579c99e09c4d`; lap 58 replays 6,693 samples. |
+| CR5 | Car trajectories and fallback outlines are solid; physical edges remain dashed. Native Bahrain variants match their actual geometry; ambiguous layouts are never guessed. Genuine telemetry gaps remain disconnected. | Replay unit suite: 79 passed. Actual Bahrain Outer browser scene: calibrated boundaries, 3,424 edge segments, recorded native view, visible solid trajectory/dashed edges and advancing car position. Bahrain Paddock session 10 also resolves calibrated boundaries. |
+
+Actual Sessions showed two numeric player rows and all 15 recorded opponent
+vehicle IDs, excluding player 54. Its 133 generation-scoped opponent records
+retain partial/unknown warnings and disabled comparisons where evidence is
+insufficient; they are not numeric player-session duplicates.
+
+Cold Sessions and full opponent-catalog reads each took about 54 seconds for
+these complete recordings. No unbounded parallel scan or fabricated continuity
+was introduced. Hardware multiplayer acquisition and a compiled release are not
+established by this recorded-data repair.
+
+Final supplementary gates: nine LMU unit tests; 11 recording E2Es, including the
+real pinned-release classification migration; 35 shared recorder/archive tests;
+13 real HTTP/worker dashboard-write E2Es. Scoped TypeScript checks passed, all
+453 ordinary test files were assigned exactly once, and all 40 lint tasks passed.
+Recording E2Es used the declared Bun 1.4.3; Bun 1.4.4 rejected the historical
+release's frozen lockfile. No historical lock or frozen-install check was changed.
+
+The removed Spa-only recording suite's populated Analyse coverage now reuses
+the existing real Adess/Bahrain multi-lap parse: all 12 requested semantics,
+8,701 pace-lap samples, real control/motion variation and original native
+lap/sector assertions. The obsolete test file and its suite-manifest entry were
+removed together. Shared recorder tests await real durability acknowledgements,
+not dummy records. Windows dashboard teardown releases unreachable native
+handles after closing its database, with bounded `EBUSY` retries and propagated
+failure if cleanup still cannot complete.
+
+Temporary repair/diagnostic scripts and owned browser tabs were removed.
+Before-repair metadata and the pre-multiplayer-restoration database backup remain
+outside the worktree; source recordings and all multipart fixtures remain intact.
+
+Final actual Compare check used preserved laps 30/31: both WebGPU sides ready,
+7,488/7,336 trajectory segments, 3,702 calibrated Bahrain Paddock edge segments,
+and every rendered overview polyline had computed `stroke-dasharray: none`.
+The native close-up and A/B schematic overview were visually inspected.
 

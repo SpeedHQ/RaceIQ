@@ -50,7 +50,7 @@ class ObservedDirectRecorder extends DirectSessionRecorderAdapter {
 test("direct LMU capture backpressures rapid context generations and replays every retired context", async () => {
   initServerGameAdapters(); resetParserState("lmu");
   const before = new Set((await db.select({ id: sessions.id }).from(sessions).all()).map(row => row.id));
-  const frames = fixtureFrames(await readFile(fixturePath("sessions/lmu-spa-iron-lynx-gte.bin.gz")), "lmu");
+  const frames = fixtureFrames(await readFile(fixturePath("sessions/lmu-real-opponents-grid-2026-10-22.bin.gz")), "lmu");
   if (frames.length < 12) throw new Error(`LMU fixture yielded ${frames.length} frames; expected at least 12`);
   const entered = [Promise.withResolvers<void>(), Promise.withResolvers<void>()];
   const release = [Promise.withResolvers<void>(), Promise.withResolvers<void>()];
@@ -87,6 +87,7 @@ test("direct LMU capture backpressures rapid context generations and replays eve
         original.scoringInfo.copy(memory, LMU_SCORING_INFO_OFFSET);
         original.playerScoring?.copy(memory, LMU_SCORING_VEHICLES_OFFSET);
       }
+      memory.writeUInt32LE(original.sessionEvent + generation, LMU_SESSION_EVENT_OFFSET);
       const rawFrame = encodeLMUSourceFrame(memory, original.captureTimestampMs, {
         context: {
           schemaVersion: 1,

@@ -334,6 +334,41 @@ test("OS-E3 mobile imports real recording and compares an individual opponent la
   await exerciseRealOpponentSessions(page, request);
 });
 
+test("OS-E4 lists only comparable opponent laps and retains timing-only drivers", async ({ page, request }) => {
+  test.setTimeout(120_000);
+  const fixture = await importFixture(request, `pw-filter-${crypto.randomUUID()}`);
+  try {
+    const response = await request.get(`/api/laps/${fixture.lap.id}/opponent-laps`, { headers: { "X-Game-Id": "lmu" }, timeout: 60_000 });
+    expect(response.ok()).toBe(true);
+    const catalog = await response.json() as OpponentLapCatalog;
+    const available = catalog.laps.filter((lap) => lap.mode !== "unavailable");
+    expect(catalog.laps.some((lap) => lap.mode === "unavailable")).toBe(true);
+    expect(available.some((lap) => lap.coverage === "partial")).toBe(true);
+    expect(available.some((lap) => lap.lapTime.value === 18)).toBe(true);
+    const params = new URLSearchParams({ track: fixture.lap.trackId!, carA: fixture.lap.carId!, lapA: String(fixture.lap.id) });
+    await page.goto(`/lmu/compare?${params}`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "Opponents", exact: true }).click();
+    const driverSelect = page.locator("#compare-opponent-driver");
+    await expect(driverSelect).toBeEnabled();
+    await driverSelect.click();
+    await expect(page.getByRole("option")).toHaveCount(1);
+    await expect(page.getByRole("option")).toContainText("Controlled opponent");
+    await page.getByRole("option").click();
+    const lapSelect = page.locator("#compare-opponent-lap");
+    await lapSelect.click();
+    await expect(page.getByRole("option")).toHaveCount(available.length);
+    await expect(page.getByRole("option", { disabled: true })).toHaveCount(0);
+    await expect(page.getByRole("option").filter({ hasText: "Partial" })).toBeVisible();
+    await page.getByRole("option").first().click();
+    await page.getByRole("button", { name: "Lap compare", exact: true }).click();
+    await expect(page.getByTestId("opponent-comparison")).toContainText("Controlled opponent");
+    expect(available.map((lap) => lap.opponentLapId)).toContain(new URL(page.url()).searchParams.get("opponentLap"));
+    await page.screenshot({ path: test.info().outputPath("comparable-opponent-laps.png"), fullPage: true });
+  } finally {
+    await removeFixture(request, fixture.sessionId);
+  }
+});
+
 test("OS-E2 preserves all 15 recorded opponents as individual session records", async ({ page, request }) => {
   test.setTimeout(120_000);
   const capture = readFileSync(fixturePath("sessions/lmu-real-opponents-grid-2026-10-22.bin.gz"));
@@ -357,6 +392,17 @@ test("OS-E2 preserves all 15 recorded opponents as individual session records", 
     await expect(page.locator('[data-testid="opponent-session"]:visible').filter({ hasText: "cleverson santos" })).toContainText("#17/0");
     await expect(page.locator('[data-testid="opponent-session"]:visible').filter({ hasText: "A Cooper#3593" })).toHaveCount(0);
     await page.screenshot({ path: test.info().outputPath("recorded-opponent-grid.png"), fullPage: true });
+    expect(catalog.laps.every((entry) => entry.mode === "unavailable"), "grid snapshot has no comparable laps").toBe(true);
+    const params = new URLSearchParams({ track: fixture.lap.trackId!, carA: fixture.lap.carId!, lapA: String(fixture.lap.id) });
+    await page.goto(`/lmu/compare?${params}`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "Opponents", exact: true }).click();
+    await expect(page.locator("#compare-opponent-driver")).toBeDisabled();
+    await expect(page.locator("#compare-opponent-lap")).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Lap compare", exact: true })).toBeDisabled();
+    await page.locator("#compare-opponent-class").click();
+    await expect(page.getByRole("option")).toHaveCount(1);
+    await page.locator("#compare-opponent-class").press("Escape");
+    await page.screenshot({ path: test.info().outputPath("no-comparable-opponents.png"), fullPage: true });
   } finally {
     await removeFixture(request, fixture.sessionId);
   }

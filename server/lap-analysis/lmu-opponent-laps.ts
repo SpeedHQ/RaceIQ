@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
-import { decodeLMUSourceFrame } from "@raceiq/capture-formats/lmu/source-frame";
+import { createLMUSourceFrameDecoder } from "@raceiq/capture-formats/lmu/source-frame";
 import { LmuOpponentIdentityTracker, lmuYawFromOrientationMatrix } from "@raceiq/capture-formats/lmu/opponent-snapshot";
 import { iterateSessionCaptureRecordsFromSource, type SessionCaptureSource } from "../session-capture/source-loader";
 import type { LmuCompetitor, LmuLiveContext } from "@raceiq/shared/telemetry/lmu";
 import type { ResolvedValue } from "@raceiq/shared/telemetry/resolver/contracts";
 import type { TelemetryTimestamp } from "@raceiq/shared/telemetry/resolver/contracts";
-import { getLapReplaySource } from "../db/telemetry-replay-storage";
+import { getLapReplaySource, type LapReplaySource } from "../db/telemetry-replay-storage";
 import { readLmuOpponentRetention } from "../session-capture/lmu-companion";
 
 export class LmuOpponentSourceError extends Error {
@@ -14,10 +14,17 @@ export class LmuOpponentSourceError extends Error {
     this.name = "LmuOpponentSourceError";
   }
 }
-export async function readLmuOpponentCaptureFrames(source: SessionCaptureSource, _sourceRevision: string): Promise<LmuOpponentCaptureFrame[]> {
+export function readLmuOpponentCaptureFrames(source: SessionCaptureSource, sourceRevision: string, options: { retainSourceFrames: false }): Promise<LmuOpponentFrame[]>;
+export function readLmuOpponentCaptureFrames(source: SessionCaptureSource, sourceRevision: string): Promise<LmuOpponentCaptureFrame[]>;
+export async function readLmuOpponentCaptureFrames(
+  source: SessionCaptureSource,
+  _sourceRevision: string,
+  options: { retainSourceFrames: boolean } = { retainSourceFrames: true },
+): Promise<LmuOpponentFrame[]> {
   if (source.gameId !== "lmu") return [];
   const tracker = new LmuOpponentIdentityTracker();
-  const frames: LmuOpponentCaptureFrame[] = [];
+  const decoder = createLMUSourceFrameDecoder();
+  const frames: LmuOpponentFrame[] = [];
   let fallbackSessionKey = `legacy:${source.rawFile}`;
   let parserBootstrap: Buffer | null = null;
   for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: true })) {
@@ -26,7 +33,7 @@ export async function readLmuOpponentCaptureFrames(source: SessionCaptureSource,
       continue;
     }
     if (record.kind !== "frame") continue;
-    const decoded = decodeLMUSourceFrame(record.frame);
+    const decoded = decoder.decode(record.frame);
     if (!decoded) throw new LmuOpponentSourceError("Session contains an unreadable LMU source frame");
     const context = decoded.lmuContext;
     const captureSequence = context?.key.captureSequence ?? String(record.offset);
@@ -39,24 +46,27 @@ export async function readLmuOpponentCaptureFrames(source: SessionCaptureSource,
         : [];
     if (competitors.length) frames.push({
       sessionKey, captureSequence, frameTime: decoded.captureTimestampMs, competitors,
-      sourceFrame: record.frame, parserBootstrap,
+      ...(options.retainSourceFrames ? { sourceFrame: record.frame, parserBootstrap } : {}),
       ...(context ? { lmuContext: context } : {}),
     });
   }
   return frames;
 }
 
-export interface LmuOpponentCaptureFrame {
+export interface LmuOpponentFrame {
   sessionKey: string;
   captureSequence: string;
   frameTime: number;
   competitors: readonly LmuCompetitor[];
-  sourceFrame: Buffer;
-  parserBootstrap: Buffer | null;
   lmuContext?: LmuLiveContext;
 }
 
-export interface LmuOpponentLapInterval {
+export interface LmuOpponentCaptureFrame extends LmuOpponentFrame {
+  sourceFrame: Buffer;
+  parserBootstrap: Buffer | null;
+}
+
+export interface LmuOpponentLapInterval<Frame extends LmuOpponentFrame = LmuOpponentFrame> {
   opponentLapId: string;
   sessionKey: string;
   vehicleId: number;
@@ -66,7 +76,7 @@ export interface LmuOpponentLapInterval {
   endSequence: string | null;
   coverage: "complete" | "partial";
   validity: "valid" | "invalid" | "unknown";
-  frames: readonly LmuOpponentCaptureFrame[];
+  frames: readonly Frame[];
 }
 
 const channel = (competitor: LmuCompetitor, id: string) => competitor.channels[id];
@@ -79,12 +89,12 @@ function lapId(sessionKey: string, vehicleId: number, incarnation: number, start
   return createHash("sha256").update(`${sessionKey}\0${vehicleId}\0${incarnation}\0${start}`).digest("hex");
 }
 /** Indexes only observed lap-distance wraps; scalar best/last reports never create intervals. */
-export function indexLmuOpponentLaps(frames: readonly LmuOpponentCaptureFrame[]): LmuOpponentLapInterval[] {
-  const intervals: LmuOpponentLapInterval[] = [];
+export function indexLmuOpponentLaps<Frame extends LmuOpponentFrame>(frames: readonly Frame[]): LmuOpponentLapInterval<Frame>[] {
+  const intervals: LmuOpponentLapInterval<Frame>[] = [];
   type ActiveInterval = {
     lapNumber: number | null;
     startSequence: string;
-    frames: LmuOpponentCaptureFrame[];
+    frames: Frame[];
     previousDistance: number | null;
     previousLap: number | null;
     boundaryObserved: boolean;
@@ -184,7 +194,7 @@ export async function getLmuOpponentLapForExport(
   playerLapId: number,
   opponentLapId: string,
   sourceRevision: string,
-): Promise<{ source: NonNullable<Awaited<ReturnType<typeof getLapReplaySource>>>; interval: LmuOpponentLapInterval }> {
+): Promise<{ source: LapReplaySource; interval: LmuOpponentLapInterval<LmuOpponentCaptureFrame> }> {
   const source = await getLapReplaySource(playerLapId);
   if (!source) throw new LmuOpponentLapReadError("LAP_NOT_FOUND", "Lap not found");
   if (source.gameId !== "lmu") {

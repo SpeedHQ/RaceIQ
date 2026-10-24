@@ -509,13 +509,14 @@ export function normalizeLMUSourceFrame(
     gameId: "lmu",
     lmu,
     ...(frame.lmuContext ? { lmuContext: frame.lmuContext } : {}),
+    // Acquisition generations can rotate without a new simulator session.
     sessionUID: JSON.stringify([
       frame.gameVersion,
       frame.sessionEvent,
       scoringInfo.readInt32LE(LMU_SCORING_INFO.session),
       identity.carId,
       identity.trackId,
-      ...(frame.lmuContext ? [frame.lmuContext.key.sessionKey] : []),
+      frame.telemetry.readInt32LE(LMU_TELEMETRY.id),
     ]),
     IsRaceOn:
       scoring !== null && scoringInfo.readUInt8(LMU_SCORING_INFO.inRealtime) !== 0 ? 1 : 0,

@@ -1,18 +1,18 @@
 import { describe, expect, test } from "bun:test";
 import { fixturePath } from "../../support/fixtures";
 import { processTelemetryBatch } from "@raceiq/telemetry-processor/batch";
-import { readLMUFrames } from "@raceiq/capture-formats/lmu/dump";
+import { readFileSync } from "node:fs";
+import { fixtureFrames as readFixtureFrames } from "@raceiq/backend/test-support/fixture-frames";
 
 describe("LMU telemetry batch metadata", () => {
-  test("retains parser-provided identity in session metadata", async () => {
-    const path = fixturePath("sessions/lmu-spa-iron-lynx-gte.bin.gz");
-    const frames = readLMUFrames(path).map((data, index) => ({ data, rawByteOffset: index }));
-    expect(frames.length).toBeGreaterThan(0);
+  test("resolves recorded Bahrain layout and player car for one batch session", async () => {
+    const path = fixturePath("sessions/lmu-real-opponents-2026-10-22.bin.gz");
+    const frames = readFixtureFrames(readFileSync(path), "lmu").map(({ bytes }, index) => ({ data: bytes, rawByteOffset: index }));
     const result = await processTelemetryBatch("lmu", frames);
     expect(result.sessions).toHaveLength(1);
     expect(result.sessions[0]).toMatchObject({
-      gameId: "lmu", sessionUID: expect.stringContaining("porsche_911rsr-19_2023"),
-      carId: "porsche_911rsr-19_2023", trackId: "Circuit de Spa-Francorchamps",
+      gameId: "lmu",
+      carId: "McLaren 720S LMGT3 Evo", trackId: "bahrainwec_2023/bahrainwec_outer",
     });
   });
 });

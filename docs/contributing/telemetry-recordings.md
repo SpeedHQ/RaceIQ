@@ -38,7 +38,7 @@ test/artifacts/sessions/iracing-<timestamp>.bin
 packages/game-lmu/test/fixtures/laps/lmu-<timestamp>.bin
 ```
 
-When seeding checked-in source fixtures, convert non-LMU inputs with their declared game ID to sparse RaceIQ captures. The LMU seed streams native dump frames directly; native v2/v3 input uses the production player/opponent-partitioning recorder. Do not upload historical full-frame recordings; `/api/laps/import` accepts sparse RaceIQ captures only.
+Default LMU seed omits the broken Spa fixture and retains Sep 22 input plus the complete Oct 22 multiplayer source as 11 gzip parts. The LMU seed streams native dump frames directly; native v2/v3 input uses the production player/opponent-partitioning recorder. Do not upload historical full-frame recordings; `/api/laps/import` accepts sparse RaceIQ captures only.
 
 ## Replay a dump
 
@@ -135,6 +135,12 @@ second measured by a monotonic clock, independent of system-clock changes;
 a transient rejected read does not create another session. New
 generations reject late REST completions. Live and historical player panels
 show observation state and source age, not an inferred measurement.
+
+Recorder acquisition generations scope opponent identity and REST freshness;
+they are not separate player sessions. Player session identity uses native
+simulator event/session, car, track and player vehicle ID. Imports retain the
+original acquisition keys, observation times and coverage gaps while publishing
+each saved player lap with its matching physical chunk and database reference.
 
 ### LMU multiplayer opponent recordings
 

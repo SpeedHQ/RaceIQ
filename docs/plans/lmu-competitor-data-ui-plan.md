@@ -228,3 +228,15 @@ PKG1/PKG3/PKG5–PKG7 and shared PKG-E6/PKG-E7 integration scenarios, edge handl
 and executed browser evidence remain in the
 [contract ownership section](./lmu-competitor-data-contract.md#package-owned-lmu-tests-complete-seed-and-live-ingress-proof).
 
+
+### Replay repair verification — 2026-10-23
+
+UI follow-up maps to CR4–CR5 in the
+[shared repair boundary and executed evidence](./lmu-competitor-data-contract.md#capture-publication-and-native-session-repair--2026-10-23).
+Owned changes: solid A/B overview trajectories and solid fallback circuit
+outlines; physical track-edge dashes and disconnected telemetry runs remain.
+Actual Sessions and native WebGPU replay use production data and APIs. Restored
+Bahrain Outer and preserved Bahrain Paddock resolve calibrated boundaries.
+The shared section records source-conservation proof, screenshots/scene
+observations and cold-scan latency limits; no new UI/backend wire contract.
+

@@ -85,6 +85,22 @@ DuckDB recordings must not be converted into native LMU fixtures, seed replay da
 - Both paths converge on the registered LMU adapter and telemetry pipeline after source-specific acquisition.
 - Tests identify fixture provenance and do not use an imported fixture to claim native fidelity.
 
+## Full-cadence replay transport
+
+Replay preserves the recorded cadence, including 100 Hz captures. Loading a lap does not downsample or rewrite its source recording, and insight analysis still receives every decoded packet.
+
+The replay UI requests `application/vnd.raceiq.semantic-replay+json` from the existing semantic-telemetry endpoint. This lossless representation stores repeated semantic metadata and complete supplemental observations in dictionaries rather than copying them into every frame. The client validates the dictionaries and frame references, then restores the existing expanded replay model. Explicit JSON API clients retain the expanded representation.
+
+LMU source decoding reuses only byte-identical, fully validated context outside the changing frame key. Cached data is deeply immutable; changed observations take the normal validation path. Frame-local parsing and checkpoint behavior remain unchanged.
+
+## Opponent comparison loading
+
+Opponent catalog, comparison, and semantic replay requests share one session index keyed by source path, revision, and availability. Concurrent requests share the same load. The index expires after 30 seconds; snapshots above an estimated 512 MiB are returned normally but not retained. Every request still checks retention and source revision before and after accessing the index.
+
+Comparison keeps every decoded opponent observation but does not retain export-only raw frame buffers. Export continues to request the original source bytes and parser bootstrap. Both paths use the same stream-local, immutable context decoder without removing recorded samples.
+
+Companion integrity checks share a bounded cache keyed by resolved file path, expected SHA-256, device/inode, size, modification time, and change time. A changed file requires a new hash; failed checks are not cached. Missing, corrupt, removed, and stale references retain their existing responses. The first index load still scans and validates the session; this cache does not make cold loading instantaneous.
+
 ## Consequences
 
 ### Benefits
@@ -129,5 +145,5 @@ Rejected because interpolation improves appearance without restoring source meas
 - `apps/backend/src/routes/laps/transfer-routes.ts` — manual import detection and execution
 - `client/src/components/sessions/SessionImportModal.tsx` — DuckDB and WAL selection
 - `packages/game-lmu/test/e2e/backend/lmu-adapter.test.ts` — source and importer contracts
-- `packages/game-lmu/test/e2e/recordings/lmu-recording-fixture.test.ts` — native fixture replay contract
+- `packages/game-lmu/test/e2e/recordings/lmu-multi-lap-dump.test.ts` — native lap/sector timing and populated Analyse replay contract
 - `SpeedHQ/extractions/src/games/lmu/generate-seed-fixture.ts` — native fixture trimming and anonymization

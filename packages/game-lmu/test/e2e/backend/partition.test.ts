@@ -4,11 +4,42 @@ import {
   LMU_TELEMETRY_INFO_SIZE, LMU_TELEMETRY, LMU_SCORING_INFO_OFFSET, LMU_SCORING_INFO,
   LMU_SCORING_VEHICLES_OFFSET, LMU_SCORING_VEHICLE_SIZE, LMU_SCORING_VEHICLE,
 } from "@raceiq/capture-formats/lmu/layout";
-import { decodeLMUSourceFrame, encodeLMUSourceFrame, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
+import { createLMUSourceFrameDecoder, decodeLMUSourceFrame, encodeLMUSourceFrame, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
 import { partitionLMUSourceFrame, restoreLMUSourceFrame, getLMUPartitionSourceLength, getLMUPartitionKey } from "@raceiq/capture-formats/lmu/partition";
 import { SparseCaptureEncoder } from "@raceiq/capture-formats/session/sparse-recorder";
 import { encodeFrameLength, encodeMetaFrame, encodeSparseCaptureFormatFrame, iterateSessionCaptureRecords } from "@raceiq/capture-formats/session/framing";
 import type { LmuLiveContext } from "@raceiq/shared/telemetry/lmu";
+import { createLmuContextEncoder, decodeLmuContext, encodeLmuContext } from "@raceiq/shared/telemetry/lmu-context";
+import { lmuParser } from "@raceiq/game-lmu/game-parser";
+
+function withContextJson(source: Buffer, json: string): Buffer {
+  const bytes = Buffer.from(json);
+  const frame = Buffer.concat([source.subarray(0, LMU_SOURCE_FRAME_V2_SIZE), Buffer.alloc(4), bytes]);
+  frame.writeUInt32LE(bytes.length, LMU_SOURCE_FRAME_V2_SIZE);
+  return frame;
+}
+
+function cachedContext(sequence: string, value = 1): LmuLiveContext {
+  return {
+    schemaVersion: 1, status: "active", playerVehicleId: 42,
+    key: { sessionKey: "cache-test", captureSequence: sequence, frameTime: { domain: "monotonic", nanoseconds: 9007199254740993123n + BigInt(sequence) } },
+    supplemental: [{
+      semanticId: "lmu.rest.session.time-scale", endpoint: "/rest/sessions", method: "GET",
+      sessionKey: "cache-test", vehicleId: null, applicability: "session",
+      acquiredAt: { domain: "monotonic", nanoseconds: 9007199254740993123n }, responseVersion: null,
+      observation: {
+        semanticId: "lmu.rest.session.time-scale", value, unit: "ratio", mappingStatus: "direct", state: "ok",
+        confidence: null, freshness: "fresh", confidenceComponents: { semanticFidelity: 1, freshness: 1, inputCompleteness: 1 },
+        provenance: {
+          simulator: "lmu", parserId: "cache-test", parserVersion: "1", resolverVersion: "1", catalogVersion: "1", catalogHash: "hash",
+          observedAt: { domain: "monotonic", nanoseconds: 9007199254740993123n },
+          sourceObservation: { timestamp: { domain: "monotonic", nanoseconds: 9007199254740993123n }, updateSequence: 9007199254740993124n },
+        },
+        schemaVersion: "1", limitations: ["Escaped quote: \" and braces: } ]"],
+      },
+    }],
+  };
+}
 
 function original(sequence = 1, slot = 0): Buffer {
   const memory = Buffer.alloc(LMU_SHARED_MEMORY_SIZE);
@@ -121,5 +152,105 @@ describe("LMU player/opponent source partition", () => {
     expect(primaries).toEqual(pairs.map((item) => item.primary));
     expect(companions).toEqual(pairs.map((item) => item.companion));
     for (let index = 0; index < sources.length; index++) expect(restoreLMUSourceFrame(primaries[index]!, companions[index]!)).toEqual(sources[index]);
+  });
+
+  test("cached native and projected decoders preserve every key and changed observation byte", () => {
+    const source = original();
+    for (const projected of [false, true]) {
+      const decoder = createLMUSourceFrameDecoder();
+      const frame = (sequence: string, value = 1) => {
+        const native = withContextJson(source, JSON.stringify(encodeLmuContext(cachedContext(sequence, value))));
+        return projected ? pair(native).primary : native;
+      };
+      const firstFrame = frame("9");
+      const first = decoder.decode(firstFrame)!.lmuContext!;
+      firstFrame.fill(0); // The cache must own its comparison bytes, not retain caller storage.
+      const second = decoder.decode(frame("100"))!.lmuContext!;
+      expect(second).toEqual(cachedContext("100"));
+      expect(second.supplemental).toBe(first.supplemental);
+      expect(second.key).not.toBe(first.key);
+      expect(Reflect.set(first.supplemental[0]!.observation, "value", 99)).toBe(false);
+      expect(Reflect.set(first.supplemental[0]!.observation.provenance.sourceObservation!, "updateSequence", 0n)).toBe(false);
+      const changed = decoder.decode(frame("101", 2))!.lmuContext!;
+      expect(changed.supplemental[0]!.acquiredAt).toEqual(first.supplemental[0]!.acquiredAt);
+      expect(changed.supplemental[0]!.observation.value).toBe(2);
+      expect(changed.supplemental).not.toBe(first.supplemental);
+      decoder.reset();
+      expect(decoder.decode(frame("101", 2))!.lmuContext).toEqual(changed);
+    }
+  });
+
+  test("cached keys preserve arbitrary order, escapes, session transitions and JSON.parse duplicate semantics", () => {
+    const source = original();
+    const decoder = createLMUSourceFrameDecoder();
+    const json = (sequence: string) => {
+      const { key, ...rest } = encodeLmuContext(cachedContext(sequence));
+      return JSON.stringify({ ...rest, key }).replace('"key":', '"\\u006bey":');
+    };
+    const first = decoder.decode(withContextJson(source, json("9")))!.lmuContext!;
+    const second = decoder.decode(withContextJson(source, json("100")))!.lmuContext!;
+    expect(second.supplemental).toBe(first.supplemental);
+    expect(second).toEqual(cachedContext("100"));
+    const duplicate = json("101").replace("{", '{"key":null,');
+    const duplicateFirst = decoder.decode(withContextJson(source, duplicate))!.lmuContext!;
+    const duplicateNext = decoder.decode(withContextJson(source, duplicate))!.lmuContext!;
+    expect(duplicateNext).toEqual(duplicateFirst);
+    expect(duplicateNext.supplemental).not.toBe(duplicateFirst.supplemental);
+    decoder.decode(withContextJson(source, json("100")));
+    const badSession = json("101").replace('"sessionKey":"cache-test","captureSequence"', '"sessionKey":"other","captureSequence"');
+    expect(decoder.decode(withContextJson(source, badSession))).toBeNull();
+    const nextSession = json("102").replaceAll("cache-test", "next-session");
+    expect(decoder.decode(withContextJson(source, nextSession))!.lmuContext!.key.sessionKey).toBe("next-session");
+    const empty = JSON.stringify(encodeLmuContext({ ...cachedContext("1"), supplemental: [] }));
+    const emptyFirst = decoder.decode(withContextJson(source, empty))!.lmuContext!;
+    const emptyNext = decoder.decode(withContextJson(source, empty.replace("cache-test", "empty-next-session")))!.lmuContext!;
+    expect(emptyNext.key.sessionKey).toBe("empty-next-session");
+    expect(emptyNext.supplemental).toBe(emptyFirst.supplemental);
+  });
+
+  test("malformed keys and changed context bytes reject without stale cached fallback", () => {
+    const source = original();
+    const decoder = createLMUSourceFrameDecoder();
+    const valid = JSON.stringify(encodeLmuContext(cachedContext("1")));
+    for (const malformed of [
+      valid.replace('"captureSequence":"1"', '"captureSequence":"-1"'),
+      valid.replace('"captureSequence":"1"', '"captureSequence":"1",'),
+      valid.replace('"nanoseconds":"9007199254740993124"', '"nanoseconds":"1.5"'),
+      valid.replace('"value":1', '"value":"wrong"'),
+      valid.slice(0, -1),
+    ]) {
+      expect(decoder.decode(withContextJson(source, valid))).not.toBeNull();
+      expect(decoder.decode(withContextJson(source, malformed))).toBeNull();
+      expect(decoder.decode(withContextJson(source, valid))!.lmuContext).toEqual(cachedContext("1"));
+    }
+  });
+
+  test("scoped context encoder shares only validated immutable observations and keeps boundary checks", () => {
+    const decoder = createLMUSourceFrameDecoder();
+    const source = original();
+    const first = decoder.decode(withContextJson(source, JSON.stringify(encodeLmuContext(cachedContext("1")))))!.lmuContext!;
+    const second = decoder.decode(withContextJson(source, JSON.stringify(encodeLmuContext(cachedContext("2")))))!.lmuContext!;
+    const encode = createLmuContextEncoder();
+    const firstWire = encode(first);
+    const secondWire = encode(second);
+    expect(secondWire).toEqual(encodeLmuContext(second));
+    expect(secondWire.supplemental).toBe(firstWire.supplemental);
+    expect(Reflect.set(firstWire.supplemental[0]!.observation, "value", 99)).toBe(false);
+    expect(decodeLmuContext(secondWire)).toEqual(second);
+    expect(() => encode({ ...second, key: { ...second.key, sessionKey: "other" } })).toThrow("Invalid LMU live context");
+    expect(() => encode({ ...second, key: { ...second.key, captureSequence: "-1" } })).toThrow("Invalid LMU live context");
+    const mutable = cachedContext("3");
+    encode(mutable);
+    mutable.supplemental[0]!.observation.value = 2;
+    expect(encode(mutable).supplemental[0]!.observation.value).toBe(2);
+    mutable.supplemental[0]!.observation.value = "wrong";
+    expect(() => encode(mutable)).toThrow("Invalid LMU live context");
+    expect(lmuParser.createParserState()).toBeNull();
+    const raw = withContextJson(source, JSON.stringify(encodeLmuContext(cachedContext("4"))));
+    const beforeReset = lmuParser.tryParse(raw, null)!;
+    expect(lmuParser.createParserState()).toBeNull();
+    const afterReset = lmuParser.tryParse(raw, null)!;
+    expect(afterReset).toEqual(beforeReset);
+    expect(afterReset.lmuContext!.supplemental).not.toBe(beforeReset.lmuContext!.supplemental);
   });
 });

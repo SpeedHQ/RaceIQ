@@ -14,8 +14,7 @@ import { rpcJson } from "../lib/rpc-json";
 import { useGameId } from "../stores/game";
 import { queryKeys } from "./query-keys";
 import { invalidateDashboardQueries } from "./dashboard";
-import { isLmuLiveContextWire } from "@raceiq/shared/telemetry/lmu-context";
-import type { SemanticLapTelemetry } from "@raceiq/lap-replay/contracts";
+import { decodeSemanticLapTelemetry, SEMANTIC_REPLAY_MEDIA_TYPE } from "@raceiq/lap-replay/contracts";
 
 export function useLaps(options?: { refetchInterval?: number | false; allGames?: boolean }) {
   const gameId = useGameId();
@@ -138,8 +137,8 @@ export function useLapSemanticTelemetry(lapId: number | null) {
     queryFn: async () => {
       if (lapId == null) throw new Error("Missing lap ID");
       if (!gameId) throw new Error("Missing game context");
-      const res: Pick<Response, "ok" | "statusText" | "json"> = await client.api.laps[":id"]["semantic-telemetry"].$get({ param: { id: String(lapId) } }, { headers: { "X-Game-Id": gameId } });
-      const body = (await res.json().catch(() => null)) as (SemanticLapTelemetry & { error?: string; parseError?: string }) | null;
+      const res: Pick<Response, "ok" | "statusText" | "json"> = await client.api.laps[":id"]["semantic-telemetry"].$get({ param: { id: String(lapId) } }, { headers: { "X-Game-Id": gameId, Accept: SEMANTIC_REPLAY_MEDIA_TYPE } });
+      const body = (await res.json().catch(() => null)) as { error?: string; parseError?: string } | null;
       if (!res.ok || body?.parseError) {
         const message = body?.parseError ?? body?.error ?? res.statusText;
         const error = new Error(message) as SemanticTelemetryError;
@@ -147,8 +146,7 @@ export function useLapSemanticTelemetry(lapId: number | null) {
         throw error;
       }
       if (!body) throw new Error("Unable to replay telemetry");
-      if (body.envelopes.some((frame) => frame.lmu !== undefined && !isLmuLiveContextWire(frame.lmu))) throw new Error("Invalid LMU historical context");
-      return body;
+      return decodeSemanticLapTelemetry(body);
     },
     enabled: lapId != null && gameId != null,
     gcTime: 5 * 60 * 1000,

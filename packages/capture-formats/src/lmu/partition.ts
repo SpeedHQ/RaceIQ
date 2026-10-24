@@ -33,8 +33,8 @@ interface Primary {
 function fail(): never { throw new Error("Invalid LMU source partition"); }
 function space(byte: number): boolean { return byte === 32 || byte === 9 || byte === 10 || byte === 13; }
 
-/** Return the raw property and separator span; preserve all other original JSON bytes. */
-function competitorProperty(json: Buffer): Range | null {
+/** Scan a fully parsed JSON root, rejecting duplicate names before selecting raw spans. */
+export function lmuContextProperty(json: Buffer, property: string): { property: Range; value: Range } | null {
   let cursor = 0;
   const whitespace = () => { while (cursor < json.length && space(json[cursor]!)) cursor++; };
   const stringEnd = () => {
@@ -69,7 +69,7 @@ function competitorProperty(json: Buffer): Range | null {
   whitespace();
   if (json[cursor++] !== 123) fail();
   let precedingComma = -1;
-  let result: Range | null = null;
+  let result: { property: Range; value: Range } | null = null;
   const names = new Set<string>();
   while (true) {
     whitespace();
@@ -81,13 +81,16 @@ function competitorProperty(json: Buffer): Range | null {
     names.add(name);
     whitespace();
     if (json[cursor++] !== 58) fail();
-    whitespace(); valueEnd();
+    whitespace();
+    const valueStart = cursor;
+    valueEnd();
     const end = cursor;
     whitespace();
     const comma = json[cursor] === 44 ? cursor : -1;
-    if (name === "competitors") result = comma >= 0
-      ? { start, end: comma + 1 }
-      : { start: precedingComma >= 0 ? precedingComma : start, end };
+    if (name === property) result = {
+      property: comma >= 0 ? { start, end: comma + 1 } : { start: precedingComma >= 0 ? precedingComma : start, end },
+      value: { start: valueStart, end },
+    };
     if (comma < 0) { if (json[cursor++] !== 125) fail(); break; }
     precedingComma = comma;
     cursor++;
@@ -204,7 +207,9 @@ export function getLMUPartitionKey(frame: Buffer): string | null {
   return isLMUPartitionPrimary(frame) ? createHash("sha256").update(frame).digest("hex") : null;
 }
 
-export function decodeLMUPartitionPrimary(frame: Buffer): LMUSourceFrame | null {
+export type LMUContextDecoder = (bytes: Buffer, projected?: boolean, unavailable?: boolean) => LMUSourceFrame["lmuContext"] | null;
+
+export function decodeLMUPartitionPrimary(frame: Buffer, decodeContext?: LMUContextDecoder): LMUSourceFrame | null {
   try {
     const primary = readPrimary(frame);
     let lmuContext: LMUSourceFrame["lmuContext"];
@@ -213,11 +218,14 @@ export function decodeLMUPartitionPrimary(frame: Buffer): LMUSourceFrame | null 
         const start = Math.max(range.start, primary.contextOffset);
         return range.end > start ? [range.bytes.subarray(start - range.start)] : [];
       });
-      const bytes = Buffer.concat(parts);
+      const bytes = parts.length === 1 ? parts[0]! : Buffer.concat(parts);
       if (bytes.length !== primary.projectedLength) return null;
-      const parsed = JSON.parse(bytes.toString("utf8"));
-      if (Object.prototype.hasOwnProperty.call(parsed, "competitors")) return null;
-      lmuContext = decodeLmuContext(primary.telemetryOffset === ABSENT ? { ...parsed, status: "unavailable" } : parsed) ?? undefined;
+      if (decodeContext) lmuContext = decodeContext(bytes, true, primary.telemetryOffset === ABSENT) ?? undefined;
+      else {
+        const parsed = JSON.parse(bytes.toString("utf8"));
+        if (Object.prototype.hasOwnProperty.call(parsed, "competitors")) return null;
+        lmuContext = decodeLmuContext(primary.telemetryOffset === ABSENT ? { ...parsed, status: "unavailable" } : parsed) ?? undefined;
+      }
       if (!lmuContext) return null;
     }
     const telemetry = primary.telemetryOffset === ABSENT ? Buffer.alloc(0) : sourceSlice(primary.ranges, primary.telemetryOffset, LMU_TELEMETRY_INFO_SIZE);
@@ -270,7 +278,7 @@ export function partitionLMUSourceFrame(frame: Buffer): { primary: Buffer; compa
       if (contextLength !== frame.length - contextOffset) fail();
       const json = frame.subarray(contextOffset);
       if (!decodeLmuContext(JSON.parse(json.toString("utf8")))) fail();
-      removed = competitorProperty(json);
+      removed = lmuContextProperty(json, "competitors")?.property ?? null;
       projectedLength = contextLength - (removed ? removed.end - removed.start : 0);
     } else if (frame.length !== NATIVE_END) fail();
     const ranges: Range[] = [

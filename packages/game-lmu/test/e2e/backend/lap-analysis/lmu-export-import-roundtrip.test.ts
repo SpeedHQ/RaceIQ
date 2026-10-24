@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { db } from "@raceiq/backend-core/db/index";
-import { fixturePath } from "../../../support/fixtures";
 import { gzipSync, gunzipSync } from "node:zlib";
 import { rmSync } from "node:fs";
 import { eq, inArray } from "drizzle-orm";
@@ -8,13 +7,13 @@ import { unzipSync, zipSync } from "fflate";
 import { sessions, laps } from "@raceiq/backend-core/db/schema";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "@raceiq/backend/test-support/games";
+import { fixtureFrames } from "@raceiq/backend/test-support/fixture-frames";
 import { importSessionFrames } from "@raceiq/backend-core/session-capture/import-pipeline";
 import { parseRawLapFrames } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { queryLapTelemetryBySemanticId } from "@raceiq/backend-core/telemetry/replay";
 import { buildLapsZip, importLapsZip } from "@raceiq/backend/test-support/lap-archive";
-import { readLMUFrames } from "@raceiq/capture-formats/lmu/dump";
-import { encodeLmuSparseFrame } from "@raceiq/capture-formats/session/lmu-sparse";
 import { decodeLMUSourceFrame, encodeLMUSourceFrame, LMU_MAX_SOURCE_FRAME_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
+import { encodeLmuSparseFrame } from "@raceiq/capture-formats/session/lmu-sparse";
 import { LMU_SHARED_MEMORY_SIZE, LMU_GAME_VERSION_OFFSET, LMU_SESSION_EVENT_OFFSET, LMU_TELEMETRY_HEADER_OFFSET, LMU_TELEMETRY_INFO_OFFSET, LMU_TELEMETRY, LMU_SCORING_INFO, LMU_SCORING_INFO_OFFSET, LMU_SCORING_VEHICLE, LMU_SCORING_VEHICLES_OFFSET } from "@raceiq/capture-formats/lmu/layout";
 import type { LmuLiveContext } from "@raceiq/shared/telemetry/lmu";
 import { encodeLmuContext } from "@raceiq/shared/telemetry/lmu-context";
@@ -23,11 +22,14 @@ import { makeLmuOpponentCapture } from "@raceiq/game-lmu/test-support/opponents"
 import { readLmuOpponentCaptureFrames, indexLmuOpponentLaps } from "@raceiq/backend-core/lap-analysis/lmu-opponent-laps";
 import { readLmuOpponentRetention } from "@raceiq/backend-core/session-capture/lmu-companion";
 import { registerDriverProfileLapNotifier } from "@raceiq/backend-core/driver-profile/lap-notifier";
+import { replayRoutes } from "@raceiq/lap-replay/server";
+import { decodeSemanticLapTelemetry, SEMANTIC_REPLAY_MEDIA_TYPE } from "@raceiq/lap-replay/contracts";
+import { resolveLapCaptureArtifact } from "@raceiq/backend-core/session-capture/source-loader";
+import { createHash } from "node:crypto";
 
 initGameAdapters();
 initServerGameAdapters();
 registerDriverProfileLapNotifier(() => {});
-const capturePath = fixturePath("sessions/lmu-spa-iron-lynx-gte.bin.gz");
 
 describe("LMU lap export/import round-trip", () => {
   const createdSessions: number[] = [];
@@ -41,6 +43,31 @@ describe("LMU lap export/import round-trip", () => {
     for (const file of tmpFiles) rmSync(file, { force: true });
     tmpFiles.length = 0;
   });
+
+  test("compact replay preserves every 100 Hz native sample and leaves split capture bytes unchanged", async () => {
+    const imported = await importSessionBin(makeLmuOpponentCapture({ frequencyHz: 100 }), "lmu", { notifyDriverProfile: false });
+    createdSessions.push(...new Set(imported.laps.map((lap) => lap.sessionId)));
+    const player = imported.laps.find((lap) => lap.lapNumber === 3)!;
+    const session = (await db.select().from(sessions).where(eq(sessions.id, player.sessionId)).get())!;
+    const row = (await db.select().from(laps).where(eq(laps.id, player.lapId)).get())!;
+    const artifact = await resolveLapCaptureArtifact(session.captureManifestFile!, row.captureChunkId!, row.id);
+    const before = createHash("sha256").update(await Bun.file(artifact.path).bytes()).digest("hex");
+    const expandedResponse = await replayRoutes.request(`/api/laps/${row.id}/semantic-telemetry`, { headers: { "X-Game-Id": "lmu" } });
+    expect(expandedResponse.status).toBe(200);
+    const expanded = decodeSemanticLapTelemetry(await expandedResponse.json());
+    const compactResponse = await replayRoutes.request(`/api/laps/${row.id}/semantic-telemetry`, {
+      headers: { "X-Game-Id": "lmu", Accept: SEMANTIC_REPLAY_MEDIA_TYPE },
+    });
+    expect(compactResponse.status).toBe(200);
+    expect(compactResponse.headers.get("Content-Type")).toContain(SEMANTIC_REPLAY_MEDIA_TYPE);
+    const decoded = decodeSemanticLapTelemetry(await compactResponse.json());
+    expect(decoded).toEqual(expanded);
+    expect(decoded.envelopes.length).toBe(row.rawFrameCount!);
+    for (let index = 1; index < decoded.envelopes.length; index++) {
+      expect(decoded.envelopes[index]!.observedAt.milliseconds - decoded.envelopes[index - 1]!.observedAt.milliseconds).toBe(10);
+    }
+    expect(createHash("sha256").update(await Bun.file(artifact.path).bytes()).digest("hex")).toBe(before);
+  }, 120_000);
 
   test("retained LMU ordinary and selected opponent exports preserve exact companion-backed intervals", async () => {
     const sourceImport = await importSessionBin(makeLmuOpponentCapture(), "lmu", { notifyDriverProfile: false });
@@ -112,11 +139,13 @@ describe("LMU lap export/import round-trip", () => {
   }, 120_000);
 
   test("LMU changing supplemental values and original nanoseconds survive selected-lap export, import and historical replay", async () => {
+    const frames = fixtureFrames(makeLmuOpponentCapture(), "lmu");
+    const oversizedFrameIndex = frames.length - 2;
     let oversizedDeltaExercised = false;
     function* sourceFrames() {
       let index = 0;
       let previous: Buffer | null = null;
-      for (const bytes of readLMUFrames(capturePath)) {
+      for (const { bytes } of frames) {
         const native = decodeLMUSourceFrame(bytes)!;
         const memory = Buffer.alloc(LMU_SHARED_MEMORY_SIZE);
         if (native.rawSharedMemory) native.rawSharedMemory.copy(memory);
@@ -143,7 +172,7 @@ describe("LMU lap export/import round-trip", () => {
                 sourceObservation: { timestamp, updateSequence: 9_007_199_254_740_993n + BigInt(index) } }, schemaVersion: "1", limitations: ["Controlled storage integration fixture"] } }],
         };
         let frame: Buffer;
-        if (index === 3_000) {
+        if (index === oversizedFrameIndex) {
           for (let offset = 63; offset < memory.length; offset += 64) memory[offset] ^= 1;
           for (const offset of [LMU_TELEMETRY.elapsedTime, LMU_TELEMETRY.lapStartElapsedTime]) native.telemetry.copy(memory, LMU_TELEMETRY_INFO_OFFSET + offset, offset, offset + 8);
           for (const [offset, size] of [[LMU_TELEMETRY.vehicleName, 64], [LMU_TELEMETRY.trackName, 64], [LMU_TELEMETRY.vehicleModel, 30]]) native.telemetry.copy(memory, LMU_TELEMETRY_INFO_OFFSET + offset, offset, offset + size);

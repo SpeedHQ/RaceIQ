@@ -228,7 +228,7 @@ return (
         {projectedFocusRuns.flatMap((runs, side) => runs.map((run, index) => (
           <polyline key={`${side}-${index}`} data-focus-lap={side === 0 ? "a" : "b"} data-focus-color={run.token}
             points={run.points}
-            fill="none" stroke={`var(${run.token})`} strokeWidth={side === 0 ? "4" : "1.8"} strokeDasharray={side === 0 ? undefined : "3 2"}
+            fill="none" stroke={`var(${run.token})`} strokeWidth={side === 0 ? "4" : "1.8"}
             strokeLinecap="round" strokeLinejoin="round" pointerEvents="none" />
         )))}
         {geometry.markers.map(({ number, segment, delta, anchor, position, sectionPaths }) => (

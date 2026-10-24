@@ -5,8 +5,8 @@ import {
   LMU_TELEMETRY_INFO_OFFSET, LMU_TELEMETRY_INFO_SIZE,
 } from "./layout";
 import type { LmuLiveContext } from "@raceiq/shared/telemetry/lmu";
-import { decodeLmuContext, encodeLmuContext } from "@raceiq/shared/telemetry/lmu-context";
-import { decodeLMUPartitionPrimary, isLMUPartitionPrimary } from "./partition";
+import { decodeLmuContext, decodeLmuContextKey, encodeLmuContext } from "@raceiq/shared/telemetry/lmu-context";
+import { decodeLMUPartitionPrimary, isLMUPartitionPrimary, lmuContextProperty, type LMUContextDecoder } from "./partition";
 
 export const LMU_SOURCE_FRAME_MAGIC = Buffer.from("RQLMUSF\0", "ascii");
 export const LMU_SOURCE_SCHEMA_VERSION_V2 = 2;
@@ -182,9 +182,50 @@ export function canHandleLMUSourceFrame(buffer: Buffer): boolean {
   return version === 3 && buffer.length >= LMU_SOURCE_FRAME_V2_SIZE + CONTEXT_LENGTH_SIZE && buffer.readUInt32LE(LMU_SOURCE_FRAME_V2_SIZE) === buffer.length - LMU_SOURCE_FRAME_V2_SIZE - CONTEXT_LENGTH_SIZE;
 }
 
-export function decodeLMUSourceFrame(buffer: Buffer): LMUSourceFrame | LMUSourceFrameV2 | LMUSourceFrameV3 | LMUSourceFrameV4 | null {
+/** Acceleration state only: every frame remains independently decodable after a reset. */
+export function createLMUSourceFrameDecoder(): { decode: typeof decodeLMUSourceFrame; reset(): void } {
+  let previous: { bytes: Buffer; start: number; end: number; context: LmuLiveContext; projected: boolean; unavailable: boolean } | undefined;
+  const decodeContext: LMUContextDecoder = (bytes, projected = false, unavailable = false) => {
+    try {
+      if (previous && previous.projected === projected && previous.unavailable === unavailable) {
+        const { start, end, context } = previous;
+        const suffixLength = previous.bytes.length - end;
+        const nextEnd = bytes.length - suffixLength;
+        if (nextEnd > start && bytes.subarray(0, start).equals(previous.bytes.subarray(0, start)) &&
+            bytes.subarray(nextEnd).equals(previous.bytes.subarray(end))) {
+          const key = decodeLmuContextKey(JSON.parse(bytes.subarray(start, nextEnd).toString("utf8")));
+          if (!key || (context.supplemental.length > 0 && key.sessionKey !== context.key.sessionKey)) {
+            previous = undefined;
+            return null;
+          }
+          return Object.freeze({ ...context, key });
+        }
+      }
+      previous = undefined;
+      const parsed = JSON.parse(bytes.toString("utf8"));
+      if (projected && Object.prototype.hasOwnProperty.call(parsed, "competitors")) return null;
+      const context = decodeLmuContext(unavailable ? { ...parsed, status: "unavailable" } : parsed, { immutable: true });
+      if (!context) return null;
+      // Duplicate root names retain JSON.parse semantics but never qualify for reuse.
+      try {
+        const range = lmuContextProperty(bytes, "key")?.value;
+        if (range) previous = { bytes: Buffer.from(bytes), ...range, context, projected, unavailable };
+      } catch {}
+      return context;
+    } catch {
+      previous = undefined;
+      return null;
+    }
+  };
+  return {
+    decode(buffer) { return decodeLMUSourceFrame(buffer, decodeContext); },
+    reset() { previous = undefined; },
+  };
+}
+
+export function decodeLMUSourceFrame(buffer: Buffer, decodeContext?: LMUContextDecoder): LMUSourceFrame | LMUSourceFrameV2 | LMUSourceFrameV3 | LMUSourceFrameV4 | null {
+  if (buffer.length >= 10 && buffer.readUInt16LE(8) === 5) return decodeLMUPartitionPrimary(buffer, decodeContext);
   if (!canHandleLMUSourceFrame(buffer)) return null;
-  if (buffer.readUInt16LE(8) === 5) return decodeLMUPartitionPrimary(buffer);
   const captureTimestampMs = buffer.readDoubleLE(20);
   if (!Number.isFinite(captureTimestampMs) || captureTimestampMs < 0) return null;
   const schemaVersion = buffer.readUInt16LE(8) as 1 | 2 | 3 | 4;
@@ -192,7 +233,10 @@ export function decodeLMUSourceFrame(buffer: Buffer): LMUSourceFrame | LMUSource
   let lmuContext: LmuLiveContext | null = null;
   let syntheticChannels: readonly string[] | undefined;
   if (schemaVersion === 3) {
-    try { lmuContext = decodeLmuContext(JSON.parse(buffer.subarray(LMU_SOURCE_FRAME_V2_SIZE + CONTEXT_LENGTH_SIZE).toString("utf8"))); }
+    try {
+      const bytes = buffer.subarray(LMU_SOURCE_FRAME_V2_SIZE + CONTEXT_LENGTH_SIZE);
+      lmuContext = decodeContext ? decodeContext(bytes) ?? null : decodeLmuContext(JSON.parse(bytes.toString("utf8")));
+    }
     catch { return null; }
     if (!lmuContext) return null;
   } else if (schemaVersion === 4) {

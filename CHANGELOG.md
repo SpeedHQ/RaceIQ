@@ -21,15 +21,21 @@
 - Choose a 50–100 Hz recording frequency for ACC, AC Evo, iRacing, or LMU during setup to reduce recording size. Live UDP recording is unchanged.
 - Downsample saved recordings manually or with an opt-in age policy in Storage settings; measure the first 1,000 frame timestamps per stream and skip recordings already at or below the target. Track progress and retry failed files. Favorites and MoTeC imports stay unchanged.
 - Split recordings into individual, lossless per-lap `.bin` files so lap 60 loads as fast as lap 1, and recover interrupted publication when validated recording metadata is available.
+- Load LMU laps faster in Replay and Compare → Spectate while preserving every recorded sample, setup snapshot, and condition observation.
 - Automatically check existing recordings for non-pace laps after upgrades, with progress, source limitations, and retry controls in Settings → Updates.
 - Show lap classifications separately from validity in expanded session lap tables.
 - Simplify session timelines into compact circles with single-word event labels, starting positions, and arrows showing the new position.
 - Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
-- Capture LMU opponents by default in a separate removable companion recording; opt out for the next live session, preview and explicitly compare an exact recorded opponent through class/driver/lap filters, export its full interval, or irreversibly remove session-wide opponent data while preserving player telemetry. Keep stale, removed, missing and unrecorded references distinct.
+- Capture LMU opponents by default in a separate removable companion recording; opt out for the next live session, preview and explicitly compare an exact recorded opponent through class/driver/lap filters that show only drivers with comparable laps, export its full interval, or irreversibly remove session-wide opponent data while preserving player telemetry. Keep stale, removed, missing and unrecorded references distinct.
 - Expand an LMU session on the Sessions page to browse individual recorded opponents and their laps, choose your player lap, and open an exact opponent comparison without duplicating recordings.
 - Include the complete LMU multiplayer recording in demo seeds as sub-100 MB gzip parts, stream native input without buffering the whole capture, and retain separate player and opponent recordings.
 
 ### Fixes
+- Reduce LMU opponent comparison loading and memory use by sharing a bounded, short-lived session index, reusing validated source contexts, and avoiding export-only raw frame retention.
+- Reuse published session-duration summaries in Sessions listings instead of rescanning recordings.
+- Publish player lap chunks and replay references when importing LMU recordings with retained opponents.
+- Keep LMU recorder acquisition generations within their actual simulator session instead of creating duplicate practice sessions.
+- Keep car trajectories and fallback circuit outlines solid in Replay and Compare; reserve dashed styling for track edges.
 - Keep LMU diagnostic recording running through temporary disk backpressure instead of silently stopping when its writer queue fills.
 - Finalize diagnostic dumps before exiting on Ctrl+C, and report the absolute saved LMU recording path and frame count.
 - Keep game detection and live connection status updating when another application owns the UDP telemetry port.
