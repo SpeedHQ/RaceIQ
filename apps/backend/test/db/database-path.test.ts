@@ -3,11 +3,10 @@ import Database from "libsql";
 import { createClient } from "@libsql/client/sqlite3";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { migrations } from "@raceiq/backend-core/db/migrations";
 import { DashboardAuth } from "../../src/runtime/dashboard-auth";
-
 const DATABASE_SUFFIXES = ["", "-wal", "-shm"] as const;
 const REPO_ROOT = process.cwd();
 const DATABASE_MODULE_URL = pathToFileURL(join(REPO_ROOT, "server/db/index.ts")).href;
@@ -183,6 +182,8 @@ function expectImportedRecording(databasePath: string, existingIds: number[] = [
   }
 }
 
+
+
 afterEach(async () => {
   for (const dataDir of tempDirs.splice(0)) {
     for (let attempt = 0; attempt < 10; attempt++) {
@@ -236,6 +237,7 @@ describe("production database path", () => {
     const restarted = await runDbStartup(dataDir);
     expect(restarted.code, restarted.output).toBe(0);
   }, 60_000);
+
 
   test("main's identity migrations preserve credentials and sessions from colliding auth drafts", async () => {
     for (const version of [63, 64, 68]) {

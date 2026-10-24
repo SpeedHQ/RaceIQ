@@ -5,61 +5,51 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
-  unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { ReplayedUdpDataSource } from "@raceiq/backend-core/test-support/recordings/replayed-udp-data-source";
+import Database from "libsql";
+import { isLiveTelemetrySchemaMessageV1, isLiveTelemetryFrameMessageV1, type LiveTelemetrySchemaMessageV1 } from "@raceiq/shared/telemetry/live/contracts";
 
 import {
   decompressIfGzipSync,
   iterateSessionFrames,
+  containsSparseCaptureFrames,
 } from "@raceiq/capture-formats/session/framing";
-const RECORDINGS_DIR = resolve(process.cwd(), "test", "artifacts", "sessions");
+import { killAndWait, removeProcessDirectory } from "./support/process";
+const BACKEND_ENTRY = resolve(process.cwd(), "apps/backend/src/index.ts");
 const RECORDING_CASES: readonly {
   gameId: GameId;
   fixture: string;
+  startPacket: number;
+  packetCount: number;
   serverPort: number;
   udpPort: number;
 }[] = [
   {
     gameId: "fm-2023",
     fixture: "test/artifacts/sessions/fm-2023-2026-04-09T21-53-00-102Z.bin.gz",
+    startPacket: 5218, // First driving sample; preceding frames are race-off menus.
+    packetCount: 80,
     serverPort: 3219,
     udpPort: 15329,
   },
   {
     gameId: "f1-2025",
     fixture: "test/artifacts/sessions/f1-2025-2026-04-09T21-34-10-190Z.bin.gz",
+    startPacket: 0, // Keep the session/lap/telemetry prelude required before motion can publish.
+    packetCount: 476,
     serverPort: 3220,
     udpPort: 15330,
   },
 ];
 
-async function killAndWait(
-  proc: ChildProcess,
-  signal: NodeJS.Signals,
-  timeoutMs = 10_000,
-): Promise<void> {
-  if (proc.exitCode !== null || proc.signalCode !== null) return;
-  const { promise, resolve: resolveExit, reject } = Promise.withResolvers<void>();
-  const timer = setTimeout(
-    () => reject(new Error(`process did not exit within ${timeoutMs}ms`)),
-    timeoutMs,
-  );
-  proc.on("exit", () => {
-    clearTimeout(timer);
-    resolveExit();
-  });
-  proc.kill(signal);
-  return promise;
-}
 
 describe("UDP recording integration", () => {
   let dataDir: string | null = null;
-  let createdBin: string | null = null;
   let server: ChildProcess | null = null;
 
   afterEach(async () => {
@@ -67,55 +57,36 @@ describe("UDP recording integration", () => {
       await killAndWait(server, "SIGINT");
       server = null;
     }
-    if (createdBin) {
-      try {
-        unlinkSync(createdBin);
-      } catch {}
-      createdBin = null;
-    }
     if (dataDir) {
-      // Windows sometimes holds file handles briefly after spawned server exits.
-      for (let attempt = 0; attempt < 10; attempt++) {
-        try {
-          rmSync(dataDir, { recursive: true, force: true });
-          break;
-        } catch (error) {
-          if (attempt === 9) throw error;
-          const retry = Promise.withResolvers<void>();
-          setTimeout(retry.resolve, 200);
-          await retry.promise;
-        }
-      }
+      await removeProcessDirectory(dataDir);
       dataDir = null;
     }
   });
 
   for (const recordingCase of RECORDING_CASES) {
-    test(`${recordingCase.gameId} replays a healthy capture through the live recorder`, async () => {
+    test(`${recordingCase.gameId} dump preserves raw datagrams in one BIN and streams live without saving sessions`, async () => {
       dataDir = mkdtempSync(join(tmpdir(), `raceiq-${recordingCase.gameId}-recording-`));
       writeFileSync(
         join(dataDir, "settings.json"),
         JSON.stringify({ udpPort: recordingCase.udpPort }),
       );
 
-      const existingBefore = new Set(
-        readdirSync(RECORDINGS_DIR).filter(
-          (file) =>
-            file.startsWith(`${recordingCase.gameId}-`) && file.endsWith(".bin"),
-        ),
-      );
+      const recordingsDir = join(dataDir, "test", "artifacts", "sessions");
       server = spawn(
         "bun",
-        ["run", "apps/backend/src/index.ts", `--record=${recordingCase.gameId}`],
+        ["run", BACKEND_ENTRY, `--record=${recordingCase.gameId}`, "--dump-only"],
         {
+          cwd: dataDir,
           env: {
             ...process.env,
             DATA_DIR: dataDir,
             SERVER_PORT: String(recordingCase.serverPort),
             UDP_PORT: String(recordingCase.udpPort),
             NODE_ENV: "development",
+            RACEIQ_TEST_MODE: "0",
+            RACEIQ_E2E: "1",
           },
-          stdio: ["ignore", "pipe", "pipe"],
+          stdio: ["ignore", "pipe", "pipe", "ipc"],
         },
       );
 
@@ -141,10 +112,33 @@ describe("UDP recording integration", () => {
         );
       });
       await ready.promise;
+      const authSetup = await fetch(`http://127.0.0.1:${recordingCase.serverPort}/api/auth/setup`, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ password: null, exposureConfirmed: true }),
+      });
+      expect(authSetup.status).toBe(200);
+      const socket = new WebSocket(`ws://127.0.0.1:${recordingCase.serverPort}/ws`);
+      const connected = Promise.withResolvers<void>();
+      const live = Promise.withResolvers<void>();
+      let schema: LiveTelemetrySchemaMessageV1 | undefined;
+      socket.onopen = () => connected.resolve();
+      socket.onerror = () => connected.reject(new Error("Dump WebSocket failed"));
+      socket.onmessage = ({ data }) => {
+        const message: unknown = JSON.parse(String(data));
+        if (isLiveTelemetrySchemaMessageV1(message)) schema = message;
+        if (schema?.simulator === recordingCase.gameId && isLiveTelemetryFrameMessageV1(message, schema)) {
+          expect(message.sessionId).toBeNull();
+          live.resolve();
+        }
+      };
+      await connected.promise;
 
-      const source = new ReplayedUdpDataSource(recordingCase.fixture, 80);
-      expect(source.packets.length).toBeGreaterThan(0);
+      const source = new ReplayedUdpDataSource(recordingCase.fixture, recordingCase.packetCount, recordingCase.startPacket);
       await source.replay(recordingCase.udpPort);
+      // Bound external-process WebSocket failure; its clock cannot use this runner's fake timers.
+      const liveTimeout = setTimeout(() => live.reject(new Error(`No ${recordingCase.gameId} live frame received`)), 5_000);
+      try { await live.promise; } finally { clearTimeout(liveTimeout); }
+      socket.close();
       // UDP has no delivery acknowledgement; allow OS receive queue to drain.
       const drain = Promise.withResolvers<void>();
       setTimeout(drain.resolve, 300);
@@ -152,23 +146,26 @@ describe("UDP recording integration", () => {
       await killAndWait(server, "SIGINT");
       server = null;
 
-      const createdFile = readdirSync(RECORDINGS_DIR).find(
+      const createdFiles = readdirSync(recordingsDir).filter(
         (file) =>
-          file.startsWith(`${recordingCase.gameId}-`) &&
-          file.endsWith(".bin") &&
-          !existingBefore.has(file),
+          file.startsWith(`${recordingCase.gameId}-`) && file.endsWith(".bin"),
       );
-      expect(
-        createdFile,
-        `expected a new ${recordingCase.gameId}-*.bin in ${RECORDINGS_DIR}`,
-      ).toBeTruthy();
-      createdBin = join(RECORDINGS_DIR, createdFile!);
+      expect(createdFiles).toHaveLength(1);
+      const createdBin = join(recordingsDir, createdFiles[0]!);
+      const recordedBytes = decompressIfGzipSync(readFileSync(createdBin));
+      expect(recordedBytes.readUInt32LE(8)).toBe(source.packets.length);
+      expect(containsSparseCaptureFrames(recordedBytes)).toBe(false);
       const recordedFrames = [
         ...iterateSessionFrames(
-          decompressIfGzipSync(readFileSync(createdBin)),
+          recordedBytes,
         ),
       ];
       expect(recordedFrames).toEqual([...source.packets]);
+      const database = new Database(join(dataDir, "app.db"), { readonly: true });
+      try {
+        expect(database.prepare("SELECT count(*) AS count FROM sessions").get()).toEqual({ count: 0 });
+        expect(database.prepare("SELECT count(*) AS count FROM laps").get()).toEqual({ count: 0 });
+      } finally { database.close(); }
     }, 60_000);
   }
 });

@@ -67,20 +67,18 @@ export const IbtImportTokenSchema = z.object({
 export const OwnershipSchema = z.enum(["mine", "others"]);
 export const IbtCommitSchema = IbtImportTokenSchema.extend({ ownership: OwnershipSchema });
 /** Comma-separated id list in a query string → number[] (ignores junk/empties). */
-const IdListSchema = z
-  .string()
-  .optional()
-  .transform((v) =>
-    (v ?? "")
-      .split(",")
-      .map((s) => Number(s.trim()))
-      .filter((n) => Number.isInteger(n) && n > 0)
-  );
+const IdListSchema = z.string().optional().transform((value) => value === undefined ? undefined :
+  value.split(",").map((item) => Number(item.trim())).filter((id) => Number.isInteger(id) && id > 0));
 
 export const ExportZipQuerySchema = z.object({
   ids: IdListSchema,
   sessionIds: IdListSchema,
-});
+  opponentLap: z.string().min(1).max(512).refine((value) => new TextEncoder().encode(value).length <= 512).optional(),
+  opponentRevision: z.string().min(1).max(512).refine((value) => new TextEncoder().encode(value).length <= 512).optional(),
+}).refine((value) =>
+  (value.opponentLap === undefined && value.opponentRevision === undefined) ||
+  (value.opponentLap !== undefined && value.opponentRevision !== undefined && value.ids?.length === 1 && value.sessionIds === undefined),
+{ message: "Opponent export requires both opponent reference fields, one player lap ID, and no sessionIds." });
 
 export const ChatBodySchema = z.object({
   messages: z.array(z.any()),

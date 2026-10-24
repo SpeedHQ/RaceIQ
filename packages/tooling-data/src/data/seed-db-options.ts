@@ -3,6 +3,23 @@ import type { GameId } from "@raceiq/shared/games/ids";
 export const SEED_MARKER = "raceiq-demo-seed-v1";
 export const PROFILE_NAME = "RaceIQ Demo Driver";
 export const DEFAULT_GAMES: GameId[] = ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing", "lmu"];
+export const LMU_MULTIPLAYER_FIXTURE_PARTS = [
+  "packages/game-lmu/test/fixtures/laps/lmu-2026-10-22T21-59-41-929Z-f9c5a07c-aa24-42bb-a574-50784313fe93.bin.gz.part01",
+  "packages/game-lmu/test/fixtures/laps/lmu-2026-10-22T21-59-41-929Z-f9c5a07c-aa24-42bb-a574-50784313fe93.bin.gz.part02",
+  "packages/game-lmu/test/fixtures/laps/lmu-2026-10-22T21-59-41-929Z-f9c5a07c-aa24-42bb-a574-50784313fe93.bin.gz.part03",
+  "packages/game-lmu/test/fixtures/laps/lmu-2026-10-22T21-59-41-929Z-f9c5a07c-aa24-42bb-a574-50784313fe93.bin.gz.part04",
+  "packages/game-lmu/test/fixtures/laps/lmu-2026-10-22T21-59-41-929Z-f9c5a07c-aa24-42bb-a574-50784313fe93.bin.gz.part05",
+  "packages/game-lmu/test/fixtures/laps/lmu-2026-10-22T21-59-41-929Z-f9c5a07c-aa24-42bb-a574-50784313fe93.bin.gz.part06",
+  "packages/game-lmu/test/fixtures/laps/lmu-2026-10-22T21-59-41-929Z-f9c5a07c-aa24-42bb-a574-50784313fe93.bin.gz.part07",
+  "packages/game-lmu/test/fixtures/laps/lmu-2026-10-22T21-59-41-929Z-f9c5a07c-aa24-42bb-a574-50784313fe93.bin.gz.part08",
+  "packages/game-lmu/test/fixtures/laps/lmu-2026-10-22T21-59-41-929Z-f9c5a07c-aa24-42bb-a574-50784313fe93.bin.gz.part09",
+  "packages/game-lmu/test/fixtures/laps/lmu-2026-10-22T21-59-41-929Z-f9c5a07c-aa24-42bb-a574-50784313fe93.bin.gz.part10",
+  "packages/game-lmu/test/fixtures/laps/lmu-2026-10-22T21-59-41-929Z-f9c5a07c-aa24-42bb-a574-50784313fe93.bin.gz.part11",
+] as const;
+export const LMU_OPPONENT_COLD_LOAD_FIXTURE_PARTS = [
+  "packages/game-lmu/test/fixtures/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part1",
+  "packages/game-lmu/test/fixtures/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part2",
+] as const;
 export const FIXTURES: Record<GameId, string[]> = {
   "fm-2023": [
     "test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz",
@@ -12,11 +29,7 @@ export const FIXTURES: Record<GameId, string[]> = {
   acc: ["test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz"],
   "ac-evo": ["test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz"],
   iracing: ["test/artifacts/sessions/iracing-road-america-gt3.bin.gz"],
-  lmu: [
-    "test/artifacts/sessions/lmu-spa-iron-lynx-gte.bin.gz",
-    "test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part1",
-    "test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part2",
-  ],
+  lmu: [...LMU_MULTIPLAYER_FIXTURE_PARTS],
 };
 
 export type SeedOptions = { clean: boolean; reset: boolean; force: boolean; legacyRecordings: boolean; games: GameId[]; fixtures?: string[]; excludedFixtures: string[] };

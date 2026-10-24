@@ -5,10 +5,23 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { MessageChannel } from "node:worker_threads";
+async function removeDatabaseDirectory(directory: string) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await rm(directory, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      const isBusyOnWindows = process.platform === "win32" && error instanceof Error && "code" in error && error.code === "EBUSY";
+      if (!isBusyOnWindows || attempt === 9) throw error;
+      await new Promise<void>((resolve) => setTimeout(resolve, 200));
+    }
+  }
+}
+
 async function withDatabase(run: (path: string) => Promise<void>) {
   const directory = await mkdtemp(join(tmpdir(), "raceiq-worker-sql-"));
   try { await run(join(directory, "database.sqlite")); }
-  finally { await rm(directory, { recursive: true, force: true }); }
+  finally { await removeDatabaseDirectory(directory); }
 }
 
 function channelFor(client: Client, leaseId: string) {

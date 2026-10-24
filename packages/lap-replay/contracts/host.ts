@@ -1,3 +1,4 @@
+import type { OpponentLapReference, OpponentSemanticLapTelemetry } from "./opponents";
 import type { ComponentType, Dispatch, SetStateAction } from "react";
 import type { Button as BaseButton } from "@base-ui/react/button";
 import type { Tabs as BaseTabs } from "@base-ui/react/tabs";
@@ -8,6 +9,7 @@ import type { CarModelEnrichment } from "@raceiq/scene-3d/model-types";
 import type { TrackBoundaries, Point } from "@raceiq/tracks-catalogue/contracts";
 import type { SemanticLapTelemetry } from "./replay";
 import type { ReplayMessages } from "./messages";
+type OpponentReference = Extract<OpponentLapReference, { kind: "opponent" }>;
 
 export type TrackMapBoundaries = TrackBoundaries & { centerLine: Point[]; raceLine?: Point[] | null; additionalSections?: { leftEdge: Point[]; rightEdge: Point[] }[] };
 export type { Point } from "@raceiq/tracks-catalogue/contracts";
@@ -61,6 +63,7 @@ export interface ReplayHost {
   useTirePressureOptimal: (gameId: GameId, carId: string | undefined, enabled: boolean) => { min: number; max: number } | undefined;
   useLocalStorage: <T>(key: string, fallback: T) => [T, Dispatch<SetStateAction<T>>];
   useLapSemanticTelemetry: (id: number | null) => { data: SemanticLapTelemetry | undefined; error: Error | null; refetch: () => Promise<unknown> };
+  useOpponentLapSemanticTelemetry: (reference: OpponentReference | null) => { data: OpponentSemanticLapTelemetry | undefined; error: Error | null; refetch: () => Promise<unknown> };
   useCompareLineSpread: (gameId: GameId, lapIds: readonly number[]) => { data: ReplayLineSpread | null | undefined };
   useTrackBoundaries: (id: string | undefined, gameId?: GameId) => { data: unknown };
   getLocale: () => string;

@@ -3,6 +3,7 @@ import type { LapInsight } from "@raceiq/analysis-core/racing/analysis/laps/insi
 import { getSeededLapMeta } from "../../../../../playwright/tests/support/seeded/laps"
 import { collectBrowserErrors } from "../../../../../playwright/tests/support/browser-errors"
 import { compareQuery, getDistinctPair } from "../../../../../playwright/tests/seeded/compare/interaction-helpers";
+import { decodeSemanticLapTelemetry, packSemanticLapTelemetry, SEMANTIC_REPLAY_MEDIA_TYPE } from "../../../contracts";
 
 for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
   test(`Replay workspace panels preserve playback and insight seeks at ${viewport.width}px`, async ({ page, request }, testInfo) => {
@@ -293,6 +294,7 @@ for (const viewport of [{ width: 1600, height: 1000 }]) {
       await expect.poll(() => width(page.locator(`#${ids[0]}`))).toBeCloseTo(manualWidth, 0);
       await expect.poll(() => width(chart)).toBeGreaterThan(initialChartWidth);
       await page.reload();
+      await expect(workspace).toBeVisible({ timeout: 60_000 });
       await expect.poll(() => width(rail)).toBeCloseTo(manualWidth, 0);
       await expect.poll(() => width(page.locator(`#${ids[0]}`))).toBeCloseTo(manualWidth, 0);
       await toggle(2, true);
@@ -466,15 +468,16 @@ test("Replay segment timings retain position-based fallback without native dista
   const lap = await getSeededLapMeta(request, "fm-2023");
   let duration = 0;
   await page.route(`**/api/laps/${lap.id}/semantic-telemetry`, async route => {
+    expect(route.request().headers().accept).toContain(SEMANTIC_REPLAY_MEDIA_TYPE);
     const response = await route.fetch();
-    const replay = await response.json() as { envelopes: { values: { semanticId: string; value: unknown }[] }[] };
+    const replay = decodeSemanticLapTelemetry(await response.json());
     const clocks = replay.envelopes.map(frame => frame.values.find(value => value.semanticId === "timing.current-lap")?.value)
       .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
     duration = clocks.at(-1)! - clocks[0]!;
     for (const frame of replay.envelopes) {
       frame.values = frame.values.filter(value => value.semanticId !== "timing.distance-traveled" && value.semanticId !== "timing.lap-fraction");
     }
-    await route.fulfill({ response, json: replay });
+    await route.fulfill({ response, contentType: SEMANTIC_REPLAY_MEDIA_TYPE, json: packSemanticLapTelemetry(replay) });
   });
   await page.goto(`/fm23/sessions/${lap.sessionId}/replay/${lap.id}`);
   const clock = page.locator("[data-spectate-playback]");

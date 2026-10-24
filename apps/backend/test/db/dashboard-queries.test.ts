@@ -68,7 +68,7 @@ function asLap(row: {
   trackId: string; classification?: LapMeta["classification"];
 }): LapMeta {
   if (row.ownership !== "mine" && row.ownership !== "others") throw new Error(`Unexpected session ownership: ${row.ownership}`);
-  return { ...row, classification: row.classification ?? null, gameId: parseGameId(row.gameId), ownership: row.ownership, invalidReason: undefined };
+  return { ...row, processing: { state: "ready", stage: null, error: null }, classification: row.classification ?? null, gameId: parseGameId(row.gameId), ownership: row.ownership, invalidReason: undefined };
 }
 
 const baseLap = (overrides: Partial<LapMeta> = {}): LapMeta => ({
@@ -76,11 +76,13 @@ const baseLap = (overrides: Partial<LapMeta> = {}): LapMeta => ({
   classification: null,
   createdAt: "2026-06-01T12:00:00.000Z", gameId: "acc" as GameId,
   ownership: "mine", carId: "7", trackId: "8",
+  processing: { state: "ready", stage: null, error: null },
   ...overrides,
 });
 const baseSession = (overrides: Partial<SessionMeta> = {}): SessionMeta => ({
   id: 1, gameId: "acc" as GameId, carId: "7", trackId: "8",
   ownership: "mine", createdAt: "2026-06-01T12:00:00.000Z", sessionType: "race",
+  processing: { state: "ready", stage: null, error: null },
   ...overrides,
 });
 

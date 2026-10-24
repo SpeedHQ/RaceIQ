@@ -8,6 +8,7 @@ import type { SpectateChannel } from "../../ui/spectate-channels"
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { buildSpectateChannels } from "../../ui/spectate-channels"
 import type { SpectatePair } from "../../contracts/spectate"
+import type { OpponentSemanticLapTelemetry } from "../../contracts/opponents";
 
 initGameAdapters({ f1Experiments: true, iracingAdapter: true });
 
@@ -93,6 +94,37 @@ test("single replay uses native progress and frame seeks without a comparison la
   } finally { controller.dispose(); }
 });
 
+test("opponent replay keeps native partial-lap distance and never aligns uncovered progress", () => {
+  const player = recordedLap(1, (time) => 500 + time * 20).replay;
+  const opponentFrames = recordedLap(1, (time) => 510 + time * 20).replay.envelopes;
+  for (const [frames, start] of [[player.envelopes, 500], [opponentFrames, 510]] as const) {
+    frames.forEach((frame, index) => {
+      frame.simulator = "lmu";
+      frame.values = frame.values.filter((value) => value.semanticId.startsWith("motion."));
+      frame.values.push(
+        { semanticId: "timing.current-lap", value: 42 + index / 20 },
+        { semanticId: "timing.distance-traveled", value: start + index },
+      );
+    });
+  }
+  const opponent: OpponentSemanticLapTelemetry = {
+    opponentLapId: "opaque-native-lap",
+    sourceRevision: "capture-revision",
+    requestedSemanticIds: ["motion.position-x", "motion.position-z", "motion.yaw", "timing.current-lap", "timing.distance-traveled"],
+    envelopes: opponentFrames,
+  };
+  const a = prepareSpectateLap(player, undefined, "a", { preserveLapDistance: true });
+  const b = prepareSpectateLap(opponent, undefined, "b", { preserveLapDistance: true });
+  const controller = createSpectateController(a, b);
+  try {
+    expect(controller.getSnapshot().positionLock).toBe(true);
+    expect(controller.sample(0).b).toBeNull();
+    expect(controller.sample(0.75).a?.distance).toBe(515);
+    expect(controller.sample(0.75).b?.distance).toBe(515);
+    expect(controller.sample(0.75).b?.pose?.x).toBe(515);
+    expect(controller.sample(0.75).b?.values["inputs.gear"]).toBeUndefined();
+  } finally { controller.dispose(); }
+});
 test("seekGeneration changes only for explicit time discontinuities", () => {
   const controller = createSpectateController(recordedLap(1, time => time * 20), null);
   try {
@@ -271,6 +303,7 @@ test("seek transitions ease symmetrically and retarget from displayed time", () 
     else Reflect.deleteProperty(globalThis, "performance");
   }
 });
+
 describe("Spectate native sampling", () => {
   test("F1 held motion packets do not freeze then accelerate cars or locked progress", () => {
     const times = [0, 0.02, 0.04, 0.06, 0.08];

@@ -5,7 +5,7 @@
  * infrastructure (same shared memory format). Key differences:
  *   - Uses acEvoProcessChecker (watches AssettoCorsaEVO.exe)
  *   - Uses native car/track identities from shared-memory names
- *   - Live capture accepts AC_LIVE/AC_PAUSE; recording writes raw buffers only
+ *   - Live capture accepts AC_LIVE/AC_PAUSE; dumps retain raw buffers with optional live display
  */
 
 import { parsePacket, resetParserState } from "@raceiq/backend-core/games/packet-dispatch";
@@ -185,7 +185,7 @@ export class AcEvoSharedMemoryReader {
     });
     console.log(
       this._recordingEnabled
-        ? "[AC Evo] Triplet pipeline: AcEvoStatusCheckProcessor → DumpToBinProcessor"
+        ? "[AC Evo] Triplet pipeline: AcEvoStatusCheckProcessor → DumpToBinProcessor → AcEvoParsingProcessor"
         : "[AC Evo] Triplet pipeline: AcEvoStatusCheckProcessor → AcEvoParsingProcessor",
     );
 

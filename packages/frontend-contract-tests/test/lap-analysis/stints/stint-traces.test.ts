@@ -250,6 +250,7 @@ function lapMeta(overrides: Partial<LapMeta>): LapMeta {
     classification: null,
     carId: "",
     trackId: "",
+    processing: { state: "ready", stage: null, error: null },
     createdAt: new Date().toISOString(),
     ...overrides,
   };

@@ -1,11 +1,55 @@
-import type { SessionCaptureSplitStatus as CaptureSplitStatus } from "@raceiq/shared/racing/sessions/types";
+import type { ProcessingMetadata, SessionCaptureSplitStatus as CaptureSplitStatus } from "@raceiq/shared/racing/sessions/types";
 import { useSessionsPageHost } from "./host";
 
-type Props = { status?: CaptureSplitStatus; sessionId?: number };
+type Props = {
+  status?: CaptureSplitStatus;
+  sessionId?: number;
+  processing?: ProcessingMetadata;
+  onRefreshProcessing?: () => void;
+};
 
-export function SessionCaptureSplitStatus({ status, sessionId }: Props) {
+export function SessionProcessingStatus({ processing, onRefresh }: { processing: ProcessingMetadata; onRefresh: () => void }) {
+  const { m, Button } = useSessionsPageHost();
+  if (processing.state === "ready") return null;
+  const pending = processing.state === "queued" || processing.state === "processing";
+  return (
+    <div className="mt-1 space-y-1 text-xs text-app-text/90" aria-busy={pending || undefined} data-processing-state={processing.state}>
+      <div className="flex flex-wrap items-center gap-2">
+        {pending && <span aria-hidden="true" className="size-3 shrink-0 rounded-full border border-app-border-input border-t-app-accent motion-safe:animate-spin" />}
+        <span role={pending ? "status" : "alert"} aria-live={pending ? "polite" : "assertive"} aria-atomic="true">
+          {processing.state === "queued"
+            ? m.recording_processing_queued()
+            : processing.state === "processing"
+              ? m.recording_processing_running()
+              : processing.error
+                ? m.recording_processing_failed({ error: processing.error })
+                : null}
+        </span>
+        {!pending && (
+          <Button
+            type="button"
+            variant="app-outline"
+            size="app-sm"
+            onClick={(event) => {
+              event.stopPropagation();
+              onRefresh();
+            }}
+          >
+            {m.recording_processing_refresh()}
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function SessionCaptureSplitStatus({ status, sessionId, processing, onRefreshProcessing }: Props) {
   const { m, useLiveCaptureLifecycle } = useSessionsPageHost();
   const live = useLiveCaptureLifecycle(sessionId);
+  const processingPending = processing?.state === "queued" || processing?.state === "processing";
+  const processingStatus = processing && onRefreshProcessing && !(processingPending && status && status.phase !== "ready")
+    ? <SessionProcessingStatus processing={processing} onRefresh={onRefreshProcessing} />
+    : null;
   const phaseLabels = {
     queued: () => m.sessions_capture_split_queued(),
     splitting: () => m.sessions_capture_split_splitting(),
@@ -23,14 +67,17 @@ export function SessionCaptureSplitStatus({ status, sessionId }: Props) {
     "publication-failed": () => m.sessions_capture_split_error_publication_failed(),
   };
   if (!status) {
-    if (!live) return null;
+    if (!live) return processingStatus;
     const label = live.phase === "recording" ? "Recording" : live.phase === "finalizing" ? "Finalizing recording" : live.phase === "sealed" ? "Recording saved" : "Recording failed";
     return (
-      <div className="mt-1 text-xs text-app-text/90" data-phase={live.phase}>
-        <span className="sr-only" role={live.phase === "failed" ? "alert" : "status"} aria-live={live.phase === "failed" ? "assertive" : "polite"}>{label}{live.error ? `: ${live.error}` : ""}</span>
-        <span aria-hidden="true">{label}</span>
-        {live.phase === "failed" && live.error && <p className="text-app-danger">{live.error}</p>}
-      </div>
+      <>
+        {processingStatus}
+        <div className="mt-1 text-xs text-app-text/90" data-phase={live.phase}>
+          <span className="sr-only" role={live.phase === "failed" ? "alert" : "status"} aria-live={live.phase === "failed" ? "assertive" : "polite"}>{label}{live.error ? `: ${live.error}` : ""}</span>
+          <span aria-hidden="true">{label}</span>
+          {live.phase === "failed" && live.error && <p className="text-app-danger">{live.error}</p>}
+        </div>
+      </>
     );
   }
   const { phase } = status;
@@ -49,6 +96,7 @@ export function SessionCaptureSplitStatus({ status, sessionId }: Props) {
     : undefined;
   return (
     <>
+      {processingStatus}
       {phase !== "ready" && <div className="mt-1 space-y-1 text-xs text-app-text/90" data-phase={phase}>
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span>{phaseLabels[phase]()}</span>

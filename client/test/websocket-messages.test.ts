@@ -37,6 +37,20 @@ describe("websocket message router", () => {
     expect(telemetryStore.get().sectors).toBeNull();
     expect(telemetryStore.get().telemetryFrame?.sequence).toBe(2);
   });
+  it("routes scoring-only LMU context without synthesizing a telemetry frame", () => {
+    telemetryStore.actions.clearTelemetry();
+    const context = {
+      schemaVersion: 1,
+      key: { sessionKey: "scoring-only", captureSequence: "2", frameTime: { domain: "session", milliseconds: 2000 } },
+      playerVehicleId: null,
+      status: "active",
+      supplemental: [],
+      competitors: [{ vehicleId: 42, incarnation: 0, isPlayer: false, channels: {} }],
+    } as const;
+    expect(handleWebSocketMessage({ type: "lmu-context", lmu: context })).toBe(false);
+    expect(telemetryStore.get().lmuLiveContext?.competitors?.[0]?.vehicleId).toBe(42);
+    expect(telemetryStore.get().telemetryFrame).toBeNull();
+  });
   it("keeps current live view when server repeats its schema", () => {
     telemetryStore.actions.clearTelemetry();
     handleWebSocketMessage(schema);

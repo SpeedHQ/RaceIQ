@@ -18,6 +18,12 @@ export function SessionsPage() {
   const { data: sessions = [], isLoading, isError: sessionsError } = useSessions();
   const { data: allLaps = [] } = useLaps();
   const queryClient = useQueryClient();
+  const refreshProcessingStatus = useCallback(() => {
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.sessions }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.laps }),
+    ]);
+  }, [queryClient, queryKeys]);
   useDeleteLap();
   const sectorCount = Math.max(3, storedLapsSectorCount(allLaps));
   const [page, setPage] = useState(0);
@@ -32,6 +38,16 @@ export function SessionsPage() {
   const lapsBySession = useMemo(() => groupLapsBySession(allLaps), [allLaps]);
   const carNames = resolvedNames?.carNames ?? {};
   const [expandedSessions, setExpandedSessions] = useState<Set<number>>(new Set());
+  useEffect(() => {
+    const blockedSessionIds = new Set(sessions.filter((session) => session.processing.state !== "ready").map((session) => session.id));
+    if (blockedSessionIds.size === 0) return;
+    setExpandedSessions((previous) => {
+      if (![...previous].some((id) => blockedSessionIds.has(id))) return previous;
+      const next = new Set(previous);
+      for (const id of blockedSessionIds) next.delete(id);
+      return next;
+    });
+  }, [sessions]);
   const [selectedLaps, setSelectedLaps] = useState<Set<number>>(new Set());
   const [selectedSessions, setSelectedSessions] = useState<Set<number>>(new Set());
   const [search, setSearch] = useState("");
@@ -71,7 +87,7 @@ export function SessionsPage() {
   );
   const analyseSession = useCallback(
     (session: SessionMeta) => {
-      if (!gameId) return;
+      if (session.processing.state !== "ready" || !gameId) return;
       const routePrefix = routePrefixForGameId(gameId);
       if (!routePrefix) return;
       void navigate({ to: `/${routePrefix}/sessions/${session.id}/analyse` as never });
@@ -130,14 +146,16 @@ export function SessionsPage() {
     [lapsBySession],
   );
   const toggleExpand = useCallback(
-    (sessionId: number) =>
+    (sessionId: number) => {
+      if (sessions.find((session) => session.id === sessionId)?.processing.state !== "ready") return;
       setExpandedSessions((previous) => {
         const next = new Set(previous);
         if (next.has(sessionId)) next.delete(sessionId);
         else next.add(sessionId);
         return next;
-      }),
-    [],
+      });
+    },
+    [sessions],
   );
   const toggleLapSelection = useCallback(
     (lapId: number) =>
@@ -265,9 +283,10 @@ export function SessionsPage() {
         showSessionType={showSessionType}
         gameId={gameId}
         emptyMessage={emptyMessage}
+        selectedSessions={selectedSessions}
         expandedSessions={expandedSessions}
         toggleExpand={toggleExpand}
-        selectedSessions={selectedSessions}
+        refreshProcessingStatus={refreshProcessingStatus}
         analyseSession={analyseSession}
         toggleSessionSelection={toggleSessionSelection}
         selectedLaps={selectedLaps}
@@ -295,6 +314,7 @@ export function SessionsPage() {
         expandedSessions={expandedSessions}
         toggleExpand={toggleExpand}
         selectedSessions={selectedSessions}
+        refreshProcessingStatus={refreshProcessingStatus}
         setSelectedSessions={setSelectedSessions}
         toggleSessionSelection={toggleSessionSelection}
         analyseSession={analyseSession}

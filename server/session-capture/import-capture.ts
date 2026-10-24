@@ -9,6 +9,7 @@ import {
   SESSION_SEGMENT_CONTEXT,
   SESSION_SEGMENT_CONTEXT_END,
 } from "@raceiq/capture-formats/session/framing";
+import { canHandleLMUSourceFrame } from "@raceiq/capture-formats/lmu/source-frame";
 import { hasKunosDumpMagic } from "@raceiq/capture-formats/kunos/dump";
 import { importSessionFrames, type ImportedLap, type ImportSessionOptions } from "./import-pipeline";
 
@@ -51,6 +52,18 @@ function* canonicalImportFrames(bytes: Buffer) {
   }
 }
 
+function inferLMUOpponentRetention(bytes: Buffer): ImportSessionOptions["opponentRetention"] {
+  let sawLMUFrame = false;
+  let sawNativeOpponentSource = false;
+  for (const record of iterateSessionCaptureRecords(bytes, undefined, { strict: true })) {
+    if (record.kind !== "frame" || !canHandleLMUSourceFrame(record.frame)) continue;
+    sawLMUFrame = true;
+    const version = record.frame.readUInt16LE(8);
+    if (version === 2 || version === 3) sawNativeOpponentSource = true;
+  }
+  if (sawNativeOpponentSource) return "retained";
+  return sawLMUFrame ? "not-recorded" : undefined;
+}
 
 /** Replay a canonical session capture through parser, detector, and persistence pipeline. */
 export async function importSessionBin(
@@ -62,11 +75,19 @@ export async function importSessionBin(
   if (!containsSparseCaptureFrames(buf)) {
     throw new Error("Legacy recording imports are no longer supported; provide a sparse RaceIQ capture.");
   }
+  const inferredRetention = gameId === "lmu" && options.opponentRetention === undefined
+    ? inferLMUOpponentRetention(buf)
+    : undefined;
+  const importOptions = inferredRetention
+    ? { ...options, opponentRetention: inferredRetention }
+    : options;
   const frames = canonicalImportFrames(buf);
   const { packetCount, laps } = await importSessionFrames(
     frames,
     gameId,
-    options,
+    importOptions,
   );
   return { packetCount, laps };
 }
+
+

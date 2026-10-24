@@ -1,5 +1,5 @@
 import type { DerivationContext, DerivationResult } from "@raceiq/shared/telemetry/derivations/contracts";
-import type { FreshnessState, ResolutionState, ResolvedValue, SemanticSlot, SourceObservation, SourceTimestampReader, TelemetryFrameView, TelemetryTimestamp } from "@raceiq/shared/telemetry/resolver/contracts";
+import type { FreshnessState, ResolutionState, ResolvedTelemetrySample, ResolvedValue, SemanticSlot, SourceObservation, SourceTimestampReader, TelemetryFrameView, TelemetryTimestamp } from "@raceiq/shared/telemetry/resolver/contracts";
 import type { NativeObject, ReaderContext, RuntimeResolver, SourceFreshness } from "./plan";
 import { canonicalValue, INVALID_VALUE, sources } from "./value";
 import { TELEMETRY_RESOLVER_VERSION } from "@raceiq/shared/telemetry/resolver/versions";
@@ -251,6 +251,10 @@ export class FrameView<NativeFrame> implements TelemetryFrameView<NativeFrame> {
     return this.resolve(slot, "boolean") as ResolvedValue<boolean>;
   }
 
+  resolveSample(slot: SemanticSlot): ResolvedTelemetrySample {
+    return this.resolve(slot, undefined, true);
+  }
+
   resolveMany(slots: readonly SemanticSlot[], target: ResolvedValue<unknown>[] = []): readonly ResolvedValue<unknown>[] {
     target.length = slots.length;
     for (let index = 0; index < slots.length; index += 1) {
@@ -351,7 +355,9 @@ export class FrameView<NativeFrame> implements TelemetryFrameView<NativeFrame> {
     return age <= threshold ? "fresh" : "stale";
   }
 
-  private resolve(slot: SemanticSlot, expected?: "number" | "boolean"): ResolvedValue<unknown> {
+  private resolve(slot: SemanticSlot, expected?: "number" | "boolean"): ResolvedValue<unknown>;
+  private resolve(slot: SemanticSlot, expected: undefined, sampleOnly: true): ResolvedTelemetrySample;
+  private resolve(slot: SemanticSlot, expected?: "number" | "boolean", sampleOnly = false): ResolvedValue<unknown> | ResolvedTelemetrySample {
     this.evaluate(slot);
     const plan = this.resolver.plans[slot];
     let value: unknown = this.states[slot] === 1 ? this.values[slot] : null;
@@ -383,6 +389,9 @@ export class FrameView<NativeFrame> implements TelemetryFrameView<NativeFrame> {
     const fidelity = mappingStatus === "direct" ? 1 : mappingStatus === "normalized" ? 0.99 : mappingStatus === "derived" ? 0.95 : mappingStatus === "simplified" ? 0.7 : 0;
     const freshness = this.freshnessState(slot);
     if (state === "ok" && freshness === "stale") state = "stale";
+    if (sampleOnly) {
+      return { semanticId: plan.semanticId, value, unit: plan.mapping.kind === "unavailable" ? null : plan.variable.canonicalUnit, state, freshness };
+    }
     const freshnessConfidence = freshness === "fresh" ? 1 : freshness === "stale" ? 0 : null;
     const completeness = state === "ok" || (state === "stale" && value !== null) ? 1 : 0;
     const confidence = completeness === 0 ? 0 : freshnessConfidence === null ? null : fidelity * freshnessConfidence * completeness;

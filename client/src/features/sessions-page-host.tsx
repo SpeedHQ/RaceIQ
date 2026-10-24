@@ -32,6 +32,7 @@ import { routePrefixForGameId } from "@/lib/game-routes";
 import { m } from "@/paraglide/messages";
 import { getLocale } from "@/paraglide/runtime";
 import { useGameId, useGameRoute } from "@/stores/game";
+import { useOpponentLapCatalog } from "@/hooks/opponents";
 import { useTelemetryStore } from "@/stores/telemetry";
 
 export const sessionsPageHost: SessionsPageHost = {
@@ -40,6 +41,7 @@ export const sessionsPageHost: SessionsPageHost = {
   NoteModal, FavoriteToggleButton, SessionTypeBadge, SessionCleanupDialog, RaceResultLedger,
   SessionIdentityDialog, MotecImportModal, OwnershipChoice, ImportSetupFile, useAcEvoCars,
   useGameId, useGameRoute, useSessions, useLaps, useDeleteLap, useResolveNames,
+  useOpponentLapCatalog,
   useLiveCaptureLifecycle: (sessionId) => useTelemetryStore((state) => state.liveCaptureLifecycles[sessionId ?? -1] ?? null),
   authenticatedFetch, importLapsZip, exportLapsZip, queryKeys, invalidateDashboardQueries,
   storedLapsSectorCount, bestSectorLapIds, formatLapTime, getLocale, routePrefixForGameId,

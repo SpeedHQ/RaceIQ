@@ -7,6 +7,7 @@ import { checkTestShards } from "../check-shards";
 interface OwnerFixture {
   root: string;
   name?: string;
+  raceiq?: { testOwner?: boolean; testRoot?: string };
   tests?: string[];
   manifests?: Partial<Record<"unit" | "tooling" | "integration" | "e2e", string[]>>;
 }
@@ -18,14 +19,14 @@ function withWorkspace(owners: OwnerFixture[], run: (root: string) => void, root
     for (const owner of owners) {
       const dir = resolve(root, owner.root);
       mkdirSync(dir, { recursive: true });
-      writeFileSync(resolve(dir, "package.json"), JSON.stringify({ name: owner.name ?? `@test/${owner.root.replaceAll("/", "-")}` }));
+      writeFileSync(resolve(dir, "package.json"), JSON.stringify({ name: owner.name ?? `@test/${owner.root.replaceAll("/", "-")}`, raceiq: owner.raceiq }));
       for (const file of owner.tests ?? []) {
         const path = resolve(dir, file);
         mkdirSync(resolve(path, ".."), { recursive: true });
         writeFileSync(path, "");
       }
       for (const [suite, files] of Object.entries(owner.manifests ?? {})) {
-        const path = resolve(dir, `test/${suite}-files.txt`);
+        const path = resolve(dir, owner.raceiq?.testRoot ?? "test", `${suite}-files.txt`);
         mkdirSync(resolve(path, ".."), { recursive: true });
         writeFileSync(path, files.join("\n"));
       }
@@ -63,6 +64,35 @@ describe("test shard coverage", () => {
       [standard("packages/new-game", { unit: ["test/new.test.ts"] })],
       (root) => expect(checkTestShards(root).testCount).toBe(1),
     );
+  });
+
+  test("assigns a nested test workspace once without making its SDK a test owner", () => {
+    withWorkspace([
+      { root: "packages/game", raceiq: { testOwner: false } },
+      {
+        root: "packages/game/test",
+        raceiq: { testRoot: "." },
+        tests: ["unit/native.test.ts", "node_modules/dependency/test/private.test.ts"],
+        manifests: { unit: ["packages/game/test/unit/native.test.ts"] },
+      },
+    ], (root) => {
+      writeFileSync(resolve(root, "package.json"), JSON.stringify({ workspaces: ["packages/*", "packages/game/test"] }));
+      expect(checkTestShards(root)).toEqual({ testCount: 1, suiteCounts: { unit: 1, tooling: 0, integration: 0, e2e: 0 } });
+    });
+  });
+
+  test("rejects a configured test root outside its workspace", () => {
+    withWorkspace([{ root: "packages/game", raceiq: { testRoot: "../outside" } }],
+      (root) => expect(() => checkTestShards(root)).toThrow("raceiq.testRoot must stay inside packages/game"));
+  });
+
+  test("rejects parent-source assignment from a workspace-root test tree", () => {
+    withWorkspace([{
+      root: "packages/game",
+      raceiq: { testRoot: "." },
+      tests: ["unit/native.test.ts"],
+      manifests: { unit: ["packages/other/native.test.ts"] },
+    }], (root) => expect(() => checkTestShards(root)).toThrow("path must stay inside packages/game/"));
   });
 
   test("rejects an unassigned colocated test", () => {

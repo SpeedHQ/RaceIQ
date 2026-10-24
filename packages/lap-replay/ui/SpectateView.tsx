@@ -49,6 +49,8 @@ export function SpectateView({
   ai?: (headerTarget: HTMLDivElement | null) => ReactNode;
 }) {
 const { formatLapTime } = useReplayHost(); const m = useMessages(); const single = pair.b === null;
+const playerLapB = pair.comparison.lapB && !("kind" in pair.comparison.lapB) ? pair.comparison.lapB : null;
+const opponentPair = pair.comparison.lapB !== null && "kind" in pair.comparison.lapB;
 const [focusMode, setFocusMode] = useSceneMode<SpectateFocusMode>("spectate-focus-mode", "inputs", FOCUS_MODES);
 const focus = useMemo(() => buildSpectateFocus(pair, focusMode), [pair, focusMode]);
 const [telemetryHeaderControls, setTelemetryHeaderControls] = useState<HTMLDivElement | null>(null);
@@ -67,26 +69,26 @@ return (
       content: <div className="h-full overflow-y-auto"><SpectateDataPanel pair={pair} controller={controller} /></div> },
     ...(single ? [{ id: "replay-segments-panel", label: m.overlay_segments(), open: segmentsOpen, width: 288, closedWidth: 88, toggle: setSegmentsOpen,
       content: <ReplaySegmentsPanel lap={pair.a} controller={controller} segments={segments} /> }] : []),
-    { id: single ? "replay-insights-panel" : "spectate-insights-panel", label: m.analyse_tab_insights(), open: insightsOpen, width: 384, closedWidth: 88, toggle: setInsightsOpen,
+    ...(!opponentPair ? [{ id: single ? "replay-insights-panel" : "spectate-insights-panel", label: m.analyse_tab_insights(), open: insightsOpen, width: 384, closedWidth: 88, toggle: setInsightsOpen,
       content: <SpectateInsightsPanel pair={pair} controller={controller} /> },
     { id: single ? "replay-ai-panel" : "spectate-ai-panel", label: m.label_ai_analysis(), open: aiOpen, closedWidth: 112, toggle: onAiOpenChange,
       headerControls: <div ref={setAiHeaderControls} className="shrink-0 pr-3" />,
-      content: <div className="h-full overflow-y-auto">{pair.comparison.lapB && pair.b ? <CompareAiPanel panelOpen headerTarget={aiHeaderControls}
+      content: <div className="h-full overflow-y-auto">{playerLapB && pair.b ? <CompareAiPanel panelOpen headerTarget={aiHeaderControls}
         lapA={{ id: pair.comparison.lapA.id, label: `${m.compare_lap_label()} ${pair.comparison.lapA.lapNumber} (${formatLapTime(pair.comparison.lapA.lapTime)})`, lapTime: pair.comparison.lapA.lapTime }}
-        lapB={{ id: pair.comparison.lapB.id, label: `${m.compare_lap_label()} ${pair.comparison.lapB.lapNumber} (${formatLapTime(pair.comparison.lapB.lapTime)})`, lapTime: pair.comparison.lapB.lapTime }}
-        segments={segments.map(({ name, startFrac, endFrac }) => ({ name, startFrac, endFrac }))} /> : ai?.(aiHeaderControls)}</div> },
+        lapB={{ id: playerLapB.id, label: `${m.compare_lap_label()} ${playerLapB.lapNumber} (${formatLapTime(playerLapB.lapTime)})`, lapTime: playerLapB.lapTime }}
+        segments={segments.map(({ name, startFrac, endFrac }) => ({ name, startFrac, endFrac }))} /> : ai?.(aiHeaderControls)}</div> }] : []),
   ]}>
     <div className="relative min-h-0 flex-1 overflow-hidden">
       <SpectateScene pair={pair} controller={controller} outline={outline} focus={focus}
         overview={<SpectateOverview pair={pair} controller={controller} segments={segments} focus={focus} />} />
       <SpectateFocusToolbar focus={focus} onChange={setFocusMode} single={single} tirePanelOpen={carPanelOpen} onTirePanelOpenChange={onCarPanelOpenChange} />
-      {pair.b && pair.comparison.lapB && <ComparisonLineScore pair={pair} controller={controller} />}
+      {pair.b && playerLapB && <ComparisonLineScore pair={pair} controller={controller} lapBId={playerLapB.id} />}
       <SpectateInputs pair={pair} controller={controller} />
     </div>
     <SpectatePlayback controller={controller} pair={pair} />
   </SpectateWorkspace>
 ); }
-function ComparisonLineScore({ pair, controller }: { pair: ReplaySession; controller: SpectateController }) {
-  const { data } = useCompareLineSpread(pair.gameId, [pair.comparison.lapA.id, pair.comparison.lapB!.id]);
+function ComparisonLineScore({ pair, controller, lapBId }: { pair: ReplaySession; controller: SpectateController; lapBId: number }) {
+  const { data } = useCompareLineSpread(pair.gameId, [pair.comparison.lapA.id, lapBId]);
   return <SpectateLineScore trace={data} pair={pair} controller={controller} />;
 }

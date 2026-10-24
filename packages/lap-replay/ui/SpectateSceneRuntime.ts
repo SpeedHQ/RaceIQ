@@ -326,7 +326,7 @@ export class SpectateSceneRuntime {
     const outlineAlignment = this.pair.gameId === "lmu" ? WORLD_ALIGNMENT : computeAlignment([...(outline ?? [])], native);
     const validOutlineAlignment = this.pair.gameId === "lmu" || validAlignment(outline ?? [], outlineAlignment) ? outlineAlignment : null;
     const transform = (points: readonly Point[], alignment: TrackAlignment) => points.map((point) => applyAlignment(point, alignment));
-    const drawPoints = (points: readonly Point[], alignment: TrackAlignment, tint: string, runs: RibbonRun[]) => {
+    const drawPoints = (points: readonly Point[], alignment: TrackAlignment, tint: string, runs: RibbonRun[], dashed = true) => {
       const transformed = transform(points, alignment);
       const tintColor = color(tint);
       let distance = 0, run: RibbonRun[number][] = [], count = 0;
@@ -341,9 +341,9 @@ export class SpectateSceneRuntime {
         if (!Number.isFinite(length) || length === 0) continue;
         let offset = 0;
         while (offset < length) {
-          const phase = distance % 7;
-          const step = Math.min(length - offset, (phase < 6 ? 6 : 7) - phase);
-          const alpha = phase < 6 ? 1 : 0;
+          const phase = dashed ? distance % 7 : 0;
+          const step = dashed ? Math.min(length - offset, (phase < 6 ? 6 : 7) - phase) : length - offset;
+          const alpha = !dashed || phase < 6 ? 1 : 0;
           add(a.x + (b.x - a.x) * offset / length, a.z + (b.z - a.z) * offset / length, alpha);
           offset += step;
           distance += step;
@@ -390,7 +390,7 @@ export class SpectateSceneRuntime {
     let geometrySource = native.length > 1 ? "recorded-trace" : "unavailable";
     if (edgeCount) geometrySource = "calibrated-boundaries";
     else if (outline && outline.length > 1 && validOutlineAlignment) {
-      drawPoints(outline, validOutlineAlignment, "--app-text", edgeRuns);
+      drawPoints(outline, validOutlineAlignment, "--app-text", edgeRuns, false);
       geometrySource = "calibrated-outline";
     }
     this.focusLaneAvailable = false;

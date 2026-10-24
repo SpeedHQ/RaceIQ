@@ -5,8 +5,8 @@ import { readUdpDump } from "./udp";
 export class ReplayedUdpDataSource {
   readonly packets: readonly Buffer[];
 
-  constructor(path: string, limit?: number) {
-    this.packets = readUdpDump(path, limit);
+  constructor(path: string, limit?: number, startPacket = 0) {
+    this.packets = readUdpDump(path, limit === undefined ? undefined : startPacket + limit).slice(startPacket);
   }
 
   async replay(port: number, hostname = "127.0.0.1"): Promise<void> {

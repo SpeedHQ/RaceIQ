@@ -10,6 +10,10 @@ import { queryClient } from "./lib/queryClient";
 import { routeTree } from "./routeTree.gen";
 import "./index.css";
 
+import { markClientLoadStage, startClientLoadTrace } from "./lib/load-tracing";
+
+startClientLoadTrace();
+
 // Surface any crash breadcrumbs from the previous session + monitor heap.
 installCrashDiagnostics();
 
@@ -29,16 +33,24 @@ function ClientBootstrap() {
     setLoading(true);
     setFailed(false);
     try {
+      markClientLoadStage("loading runtime feature flags");
       await loadClientReleaseFeatures();
+      markClientLoadStage("initializing game adapters");
       initGameAdapters(clientReleaseFeatures);
+      markClientLoadStage("creating router");
       setRouter(createAppRouter());
     } catch {
+      markClientLoadStage("bootstrap failed", true);
       setFailed(true);
     } finally {
       requestInFlight.current = false;
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (router) markClientLoadStage("router mounted", true);
+  }, [router]);
 
   useEffect(() => {
     void initialize();

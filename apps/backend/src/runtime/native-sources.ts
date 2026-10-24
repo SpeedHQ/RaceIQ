@@ -25,6 +25,7 @@ export interface NativeSourceSupervisor {
 
 export function startNativeSourceSupervisor(
   recordingGameId: string | null,
+  dumpMode = false,
 ): NativeSourceSupervisor {
   if (!IS_WINDOWS) {
     return { stop: async () => {} };
@@ -43,25 +44,25 @@ export function startNativeSourceSupervisor(
   console.log("[Supervisor] Watching for native telemetry games (acc, ac-evo, iracing, lmu) — 2s poll");
   const pollTimer = setInterval(() => {
     trackStop(superviseSource(
-      isGameRunning("acc"),
+      isGameRunning("acc") || (dumpMode && recordingGameId === "acc"),
       "ACC",
       () => new AccSharedMemoryReader(recordingGameId === "acc"),
       getAccReader,
       setAccReader,
     ));
     trackStop(superviseSource(
-      isGameRunning("ac-evo"),
+      isGameRunning("ac-evo") || (dumpMode && recordingGameId === "ac-evo"),
       "AC Evo",
       () => new AcEvoSharedMemoryReader(recordingGameId === "ac-evo"),
       getAcEvoReader,
       setAcEvoReader,
     ));
     trackStop(superviseSource(
-      isGameRunning("iracing"),
+      isGameRunning("iracing") || (dumpMode && recordingGameId === "iracing"),
       "iRacing",
       () => new IRacingTelemetrySource({
         recordingEnabled: recordingGameId === "iracing",
-        registerIdentity: registerLiveIRacingIdentity,
+        registerIdentity: dumpMode ? undefined : registerLiveIRacingIdentity,
       }),
       getIracingSource,
       setIracingSource,
@@ -90,10 +91,12 @@ export function startNativeSourceSupervisor(
       setAcEvoReader(null);
       setIracingSource(null);
       setLmuSource(null);
-      for (const reader of readers) {
-        if (reader) trackStop(reader.stop());
-      }
-      await Promise.allSettled(pendingStops);
+      const stopped = await Promise.allSettled([
+        ...pendingStops,
+        ...readers.filter(reader => reader !== null).map(async reader => { await reader.stop(); }),
+      ]);
+      const failures = stopped.filter(result => result.status === "rejected").map(result => result.reason);
+      if (failures.length) throw new AggregateError(failures, "Native source finalization failed");
     },
   };
 }

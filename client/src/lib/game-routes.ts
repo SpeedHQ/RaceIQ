@@ -12,6 +12,9 @@ export type CompareSearch = {
   carB?: string;
   lapA?: number;
   lapB?: number;
+  opponentLap?: string;
+  opponentRevision?: string;
+  reference?: "player" | "opponent";
   cursor?: number;
   ai?: number;
   view?: "compare" | "spectate";
@@ -99,6 +102,9 @@ export function validateCompareSearch(search: Record<string, unknown>): CompareS
     carB: parseOptionalIdentityKey(search.carB),
     lapA: parseOptionalNumber(search.lapA),
     lapB: parseOptionalNumber(search.lapB),
+    opponentLap: typeof search.opponentLap === "string" && search.opponentLap.length > 0 ? search.opponentLap : undefined,
+    opponentRevision: typeof search.opponentRevision === "string" && search.opponentRevision.length > 0 ? search.opponentRevision : undefined,
+    reference: search.reference === "opponent" ? "opponent" : search.reference === "player" ? "player" : undefined,
     cursor: parseOptionalNumber(search.cursor),
     ai: parseOptionalNumber(search.ai),
     view: search.view === "spectate" ? "spectate" : search.view === "compare" ? "compare" : undefined,
