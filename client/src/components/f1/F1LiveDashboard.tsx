@@ -12,7 +12,6 @@ import { LapTimeChart } from "../LapTimeChart";
 import { NoDataView } from "../NoDataView";
 import { RaceInfo } from "../RaceInfo";
 import { RecordedLaps } from "../RecordedLaps";
-import { PitEstimate } from "@raceiq/race-strategy/ui";
 import { TireGrid } from "../telemetry/TireGrid";
 import { useUnits } from "../../hooks/useUnits";
 import { Button } from "../ui/button";
@@ -47,7 +46,6 @@ function formatGap(gap: number): string {
 export function F1LiveDashboard() {
   const view = useTelemetryStore((s) => s.telemetryView);
   const sectors = useTelemetryStore((s) => s.sectors);
-  const pit = useTelemetryStore((s) => s.pit);
   const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
   const { data: trackName } = useTrackName(view?.identity.trackId);
   const { data: carName } = useCarName(view?.identity.carId);
@@ -100,9 +98,6 @@ export function F1LiveDashboard() {
               temperatureAvailable={view.tires.surfaceTemperatureC !== undefined}
               healthAvailable={view.tires.wear !== undefined}
             />
-          </div>
-          <div className="col-span-2 min-w-0 border-t border-app-border">
-            <PitEstimate view={view} pit={pit} />
           </div>
         </div>
         <GridSection competitors={view.competitors} playerPosition={view.timing.racePosition} />

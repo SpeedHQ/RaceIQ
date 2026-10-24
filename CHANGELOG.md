@@ -19,6 +19,7 @@
 - Pin selected race strategies independently to each game, car, and track combination, retaining selections across sessions and restarts.
 - Compare live fuel and four-wheel tire progression against the selected strategy, with evidence-aware adherence and pit windows recalculated from actual resources after early, late, or fuel-only service without modifying the saved plan.
 - Use tire-only F1 2025 pit forecasts and service advice without fuel limits or refueling projections. Keep measured fuel statistics and validate one initial race fuel budget without inventing fuel stops.
+- Hide RaceIQ race-strategy planning and pit estimates for F1 2025, which has built-in strategy.
 - Keep Sessions actions in a bottom-center floating bar with a selection count and Deselect all. Keep Compare visible and enable it only for two compatible laps; filter comparison laps by Mine, Others, or All inside the lap-picker dropdown.
 - Show separate LMU player energy, engine, electric motor, steering feedback, weather and race-control readings in live telemetry and recorded-lap analysis when provided by the game.
 - Show read-only LMU setup, forecast and condition snapshots with source age and availability, without waiting for network requests before displaying live telemetry.

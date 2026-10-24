@@ -64,7 +64,7 @@ export type TuneReviewSearch = {
   versionId?: number;
 };
 
-export type GameRouteFeature = "driver" | "experiments" | "raw" | "setups";
+export type GameRouteFeature = "driver" | "experiments" | "raw" | "setups" | "strategy";
 
 export type LiveDashboard = "forza" | "f1" | "acc" | "lmu";
 const ROUTE_FEATURES: Record<GameRouteFeature, readonly string[]> = {
@@ -72,6 +72,7 @@ const ROUTE_FEATURES: Record<GameRouteFeature, readonly string[]> = {
   experiments: ["f125", "acc", "ac-evo"],
   raw: ["fm23", "f125", "acc", "ac-evo", "iracing", "lmu"],
   setups: ["fm23", "f125", "acc", "ac-evo"],
+  strategy: ["fm23", "acc", "ac-evo", "iracing", "lmu"],
 };
 
 export function gameIdForRoutePrefix(prefix: string): GameId | undefined {
