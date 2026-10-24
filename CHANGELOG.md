@@ -38,6 +38,7 @@
 - Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
 
 ### Fixes
+- Preserve Replay and Spectate panel widths when panels are toggled, and keep the mobile circuit overview clear of driver inputs and focus controls.
 - Keep Spectate selected when switching comparison views with the keyboard.
 - Correct the LMU steering indicator direction in the Replay and Compare → Spectate center dashboard without changing recorded steering values.
 - Show active TC and ABS readings in green in Replay's Data panel, while keeping inactive and unavailable readings neutral.

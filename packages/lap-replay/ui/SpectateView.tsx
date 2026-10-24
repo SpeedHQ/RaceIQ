@@ -76,11 +76,13 @@ return (
         lapB={{ id: pair.comparison.lapB.id, label: `${m.compare_lap_label()} ${pair.comparison.lapB.lapNumber} (${formatLapTime(pair.comparison.lapB.lapTime)})`, lapTime: pair.comparison.lapB.lapTime }}
         segments={segments.map(({ name, startFrac, endFrac }) => ({ name, startFrac, endFrac }))} /> : ai?.(aiHeaderControls)}</div> },
   ]}>
-    <div className="relative min-h-0 flex-1 overflow-hidden">
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="relative min-h-0 flex-1 overflow-hidden">
       <SpectateScene pair={pair} controller={controller} outline={outline} focus={focus}
         overview={<SpectateOverview pair={pair} controller={controller} segments={segments} focus={focus} />} />
       <SpectateFocusToolbar focus={focus} onChange={setFocusMode} single={single} tirePanelOpen={carPanelOpen} onTirePanelOpenChange={onCarPanelOpenChange} />
       {pair.b && pair.comparison.lapB && <ComparisonLineScore pair={pair} controller={controller} />}
+      </div>
       <SpectateInputs pair={pair} controller={controller} />
     </div>
     <SpectatePlayback controller={controller} pair={pair} />

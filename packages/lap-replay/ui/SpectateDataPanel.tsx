@@ -44,7 +44,7 @@ const content = <>
   {!currentFrame && <p role="status" className="p-3 text-app-detail text-app-text-muted">{m.spectate_replay_unavailable()}</p>}
   <AnalyseDataContent key={side} currentFrame={currentFrame} packetNumber={pair.b ? envelope?.sequence ?? 0 : envelopeIndex + 1} startFuel={typeof fuel === "number" ? fuel : undefined} gameId={pair.gameId} wearRate={currentFrame ? wearRate : null} />
 </>;
-return <div data-spectate-data-side={pair.b ? side : "a"}>
+return <div data-spectate-data-side={pair.b ? side : "a"} data-packet-number={envelopeIndex + 1} data-packet-count={lap.replay.envelopes.length}>
   {pair.b ? <SpectateLapTabs side={side} onSideChange={setSide}>{content}</SpectateLapTabs> : content}
 </div>;
 }

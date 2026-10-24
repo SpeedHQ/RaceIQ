@@ -27,7 +27,7 @@ test("Spectate panel headers stay aligned and remember opened panels", async ({ 
         panels: panelIds.filter((id) => document.getElementById(id)).map((id) => {
           const header = document.querySelector(`[data-panel-header="${id}"]`)!.getBoundingClientRect();
           const panel = document.getElementById(id)!.getBoundingClientRect();
-          return { id, offset: Math.abs(header.left - panel.left), widthDifference: Math.abs(header.width - panel.width), clipped: Math.max(0, header.right - clip.right) };
+          return { id, offset: Math.abs(header.left - panel.left), widthDifference: Math.abs(header.width - panel.width), clipped: Math.abs(Math.max(0, header.right - clip.right) - Math.max(0, panel.right - document.querySelector("[data-panel-rail]")!.getBoundingClientRect().right)) };
         }),
       };
     }, ids);
@@ -39,7 +39,7 @@ test("Spectate panel headers stay aligned and remember opened panels", async ({ 
     for (const panel of layout.panels) {
       expect(panel.offset, `${panel.id} follows panel opening immediately`).toBeLessThanOrEqual(1);
       expect(panel.widthDifference, `${panel.id} header matches panel width`).toBeLessThanOrEqual(1);
-      expect(panel.clipped, `${panel.id} header is not clipped during expansion`).toBeLessThanOrEqual(1);
+      expect(panel.clipped, `${panel.id} header and panel share the same scroll clipping`).toBeLessThanOrEqual(1);
     }
   }
   await toggle("spectate-ai-panel", true);
@@ -62,8 +62,11 @@ test("Spectate panel headers stay aligned and remember opened panels", async ({ 
   await page.setViewportSize({ width: 700, height: 950 });
   for (const id of ids) await toggle(id, true);
   await page.reload();
-  for (const id of ids) await expect(page.locator(`[data-panel-toggle="${id}"]`)).toHaveAttribute("aria-expanded", "true");
+  // Narrow workspaces show one panel at a time; the last selection survives reload.
+  for (const id of ids) await expect(page.locator(`[data-panel-toggle="${id}"]`)).toHaveAttribute("aria-expanded", String(id === ids.at(-1)));
   await page.setViewportSize({ width: 900, height: 950 });
+  await expect(page.locator("[data-mobile-panel-tabs]")).toHaveCount(0);
+  for (const id of ids) await toggle(id, true);
   const compactLayout = await page.locator("[data-spectate-view]").evaluate((root) => {
     const rail = root.querySelector<HTMLElement>("aside")!;
     const scene = root.querySelector<HTMLElement>("main")!;
