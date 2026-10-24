@@ -465,7 +465,7 @@ describe("recording-directory relocation", () => {
       await expect(readFile(target)).rejects.toMatchObject({ code: "ENOENT" });
       await mkdir(dirname(target), { recursive: true });
       await writeFile(target, bytes);
-      const targetInfo = await lstat(target);
+      const targetInfo = await lstat(target, { bigint: true });
       await writeFile(journalPath, JSON.stringify({ ...journal, entries: [{ source: capture, destination: target, size: bytes.length, sha256: digest, published: false, publication: { dev: String(targetInfo.dev), ino: String(targetInfo.ino) } }] }));
       await recoverRecordingDirectoryMove();
       await expect(readFile(target)).rejects.toMatchObject({ code: "ENOENT" });

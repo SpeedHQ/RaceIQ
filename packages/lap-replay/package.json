@@ -4,7 +4,7 @@
   "type": "module",
   "exports": { "./ui": "./ui/index.ts", "./server": "./server/index.ts", "./contracts": "./contracts/index.ts" },
   "scripts": {
-    "lint": "../../client/node_modules/.bin/oxlint .",
+    "lint": "bun ../../client/node_modules/oxlint/bin/oxlint .",
     "typecheck": "bun check --project tsconfig.ui.json && bun check --project tsconfig.server.json",
     "test:boundaries": "bun ../../scripts/test/check-feature-boundaries.ts lap-replay",
     "e2e:impact": "bun ../../scripts/test/check-feature-boundaries.ts lap-replay",
