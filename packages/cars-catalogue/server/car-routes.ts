@@ -25,6 +25,13 @@ import { ams2CarCatalog } from "@raceiq/game-ams2-metadata/index";
 
 import { USER_DATA_DIR } from "@raceiq/backend-core/runtime/config/paths";
 import { gameCatalogDir } from "@raceiq/shared/platform/runtime/data-paths";
+// Optional local thumbnails extracted from the user's AMS2 installation.
+function ams2CarImagePath(carId: string): string | null {
+  if (!/^\d{1,10}$/.test(carId)) return null;
+  const file = resolve(gameAssetsDir("ams2"), "cars", `${carId}.webp`);
+  return existsSync(file) ? file : null;
+}
+
 const CAR_MODEL_CONFIGS_PATH = resolve(USER_DATA_DIR, "car-model-configs.json");
 const CAR_DIMENSIONS_PATH = resolve(gameCatalogDir("fm-2023"), "car-dimensions.csv");
 
@@ -127,7 +134,7 @@ export const carRoutes = new Hono()
     }
 
     if (gameIdResult.data === "ams2") {
-      const cars: Map<string, {id:string;name:string;path:string;category:string;imageUrl:string}> = new Map(ams2CarCatalog.map(car => [car.id, { ...car, path: "", category: car.classes.join(" / "), imageUrl: "" }]));
+      const cars: Map<string, {id:string;name:string;path:string;category:string;imageUrl:string}> = new Map(ams2CarCatalog.map(car => [car.id, { ...car, path: "", category: car.classes.join(" / "), imageUrl: ams2CarImagePath(car.id) ? `/api/ams2-assets/cars/${car.id}` : "" }]));
       for (const { carId, name } of await listDiscoveredCars("ams2")) {
         if (!cars.has(carId)) cars.set(carId, { id: carId, name, path: "", category: "discovered", imageUrl: "" });
       }
@@ -170,6 +177,14 @@ export const carRoutes = new Hono()
     }));
     cars.sort((a, b) => a.name.localeCompare(b.name));
     return c.json(cars);
+  })
+
+  .get("/api/ams2-assets/cars/:id", (c) => {
+    const file = ams2CarImagePath(c.req.param("id"));
+    if (!file) return c.json({ error: "AMS2 car image not found" }, 404);
+    return new Response(readFileSync(file), {
+      headers: { "Content-Type": "image/webp", "Cache-Control": "public, max-age=3600" },
+    });
   })
 
   .get("/api/lmu-assets/cars/:id", (c) => {

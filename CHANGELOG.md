@@ -1,6 +1,7 @@
 ## Unreleased
 
 ### Features
+- Display locally extracted AMS2 car thumbnails in the car catalogue when available.
 - Show clickable circuit-overview sector markers on desktop only while hovering or using keyboard focus; keep them visible on touch screens.
 - Group LMU state of charge, virtual energy and regenerative power in a separate table below the main Replay and Compare → Spectate metrics.
 - Use dashed track edges in Replay and Compare → Spectate to provide fixed-distance speed cues.
