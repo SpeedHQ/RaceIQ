@@ -57,6 +57,7 @@ export function detectLapBoundary(currentLapNumber: number, packet: TelemetryPac
 }
 
 export type LapResetResult =
+  | { action: "reset-untimed-lap" }
   | { action: "none" }
   | { action: "complete-final-lap" }
   | { action: "reset-restart" };

@@ -1,0 +1,38 @@
+[
+  {
+    "name": "time-trial",
+    "source": "ams2-2026-10-10T01-57-36-584Z-e42183c3.bin",
+    "sourceFrames": 41574,
+    "sourceFramesSha256": "512d4a96bbe4f36852fe358e21a6a409ec5a011cd073293ff55185282a16aa00",
+    "fixtureFrames": 4349,
+    "bytes": 1729635,
+    "sha256": "db17d06b779002dda5d58700dded2042a99bcf52e1c9340b8f4a613980ccb48f"
+  },
+  {
+    "name": "race-pit-stop",
+    "source": "ams2-2026-10-11T21-14-35-509Z-ff876e52.bin",
+    "sourceFrames": 39805,
+    "sourceFramesSha256": "1b988dfc012856c0bd8dc7b8b2f1af5e79f55873f9ce616bfe93e1884366a764",
+    "fixtureFrames": 4905,
+    "bytes": 3723812,
+    "sha256": "1bdca3877ba473fb8aceb83bfc9b08e0e2444dab18c70bd30d8f4b11e8e405b9"
+  },
+  {
+    "name": "weekend-sparse-qualifying",
+    "source": "ams2-2026-10-11T23-25-00-375Z-a722b396.bin",
+    "sourceFrames": 72230,
+    "sourceFramesSha256": "d92dff4a6f4e263336f8cc756f47eabebad8616e0331c03a70974ba2d285d863",
+    "fixtureFrames": 7703,
+    "bytes": 5417334,
+    "sha256": "8ca981aa45297a20c4a6578152c7f2a837680dfebe6bf4d173c02633d7d3d760"
+  },
+  {
+    "name": "qualifying",
+    "source": "ams2-2026-10-12T02-09-48-415Z-c7bd6ffa.bin",
+    "sourceFrames": 32955,
+    "sourceFramesSha256": "f9a8a808e76ca23bb116fb576ad7b3a6f834957df81e556b400b72741b98e308",
+    "fixtureFrames": 3411,
+    "bytes": 2514415,
+    "sha256": "fba706caee871a4ea243febcf796e104085fb0116cf03f7e41b78bf6cf1cf187"
+  }
+]

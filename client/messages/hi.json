@@ -2904,5 +2904,9 @@
   "compare_overview_ers_deployed": "ERS उपयोग",
   "compare_overview_ers_recovered": "ERS पुनर्प्राप्त",
   "compare_overview_top_speed": "अधिकतम गति",
-  "compare_overview_unavailable": "उपलब्ध नहीं"
+  "compare_overview_unavailable": "उपलब्ध नहीं",
+  "setupguide_ams2_same_pc": "AMS2 और RaceIQ को एक ही Windows कंप्यूटर पर चलाएँ।",
+  "setupguide_ams2_shared_memory": "AMS2 की सिस्टम सेटिंग में Shared Memory को Project CARS 2 पर सेट करें।",
+  "setupguide_ams2_driving": "ड्राइविंग सत्र में प्रवेश करें और कार चलाएँ।",
+  "setupguide_ams2_direct_note": "AMS2 सीधे साझा मेमोरी का उपयोग करता है; UDP सेटअप आवश्यक नहीं है।"
 }

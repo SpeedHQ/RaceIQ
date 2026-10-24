@@ -2903,5 +2903,9 @@
   "compare_overview_ers_deployed": "ERS 已释放",
   "compare_overview_ers_recovered": "ERS 已回收",
   "compare_overview_top_speed": "最高速度",
-  "compare_overview_unavailable": "不可用"
+  "compare_overview_unavailable": "不可用",
+  "setupguide_ams2_same_pc": "在同一台 Windows 电脑上运行 AMS2 和 RaceIQ。",
+  "setupguide_ams2_shared_memory": "在 AMS2 系统设置中，将 Shared Memory 设置为 Project CARS 2。",
+  "setupguide_ams2_driving": "进入驾驶会话并驾驶车辆。",
+  "setupguide_ams2_direct_note": "AMS2 直接使用共享内存，无需配置 UDP。"
 }

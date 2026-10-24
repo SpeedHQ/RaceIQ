@@ -1,6 +1,7 @@
 ## Unreleased
 
 ### Features
+- Display locally extracted AMS2 car thumbnails in the car catalogue when available.
 - Show clickable circuit-overview sector markers on desktop only while hovering or using keyboard focus; keep them visible on touch screens.
 - Group LMU state of charge, virtual energy and regenerative power in a separate table below the main Replay and Compare → Spectate metrics.
 - Use dashed track edges in Replay and Compare → Spectate to provide fixed-distance speed cues.
@@ -10,6 +11,17 @@
 - Show separate LMU player energy, engine, electric motor, steering feedback, weather and race-control readings in live telemetry when provided by the game.
 - Show read-only LMU setup, forecast and condition snapshots with source age and availability, without waiting for network requests before displaying live telemetry.
 - Compare laps in Spectate with synchronized 3D replay, configurable cameras and overlays, live A/B instruments, sector deltas, and telemetry, car, AI, Focus View, and lap-statistics panels.
+- Display the Automobilista 2 logo on its home dashboard card.
+- Bundle 235 original AMS2 road-corridor maps, selected by exact layout names or recording-verified aliases with track-length checks when available; Brands Hatch Indy alignment has been manually checked.
+- Add native Windows AMS2 telemetry capture through Project CARS 2 shared memory, with game-specific car and track identity.
+- Add separate Driver profiles for AMS2 and iRacing.
+- Organize AMS2 raw fixtures under shared recording artifacts and add E2E checks for lap numbering, duplicate saves, timestamps and driving-channel variation.
+- Add compact real AMS2 raw-dump fixtures covering session lifecycle, Time Trial crossings, race-start validity, qualifying and pit stops.
+- Report AMS2 dump-mode capture counters for rejected memory reads and busy processing.
+- Add AMS2 development dump recording and replay, preserving raw menu/session transitions and undecoded mapped data for fixture testing.
+- Run AMS2 capture tests through the isolated integration test runner.
+- Complete AMS2 telemetry catalog provenance, native units, extension coverage and supported fuel projections.
+
 - Inspect recorded telemetry in Compare → Spectate with a Data panel and switch between lap A and B without showing both panels at once.
 - Bring Compare → Spectate's scene, playback, telemetry and Insights to single-lap Replay, with saved 3D settings, grouped wheel graphs, stable ERS bands, chassis/tire-info rendering and independently resizable, horizontally scrollable panels.
 - Show LMU traction-control and ABS settings and activation, traction-control cut level, motor map, battery state of charge, virtual energy and signed regen power in Replay's existing Data panel instead of a separate Player telemetry section; show brake migration beside brake bias in Dynamics.
@@ -27,6 +39,8 @@
 - Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
 
 ### Fixes
+- Preserve Replay and Spectate panel widths when panels are toggled, and keep the mobile circuit overview clear of driver inputs and focus controls.
+- Keep Spectate selected when switching comparison views with the keyboard.
 - Correct the LMU steering indicator direction in the Replay and Compare → Spectate center dashboard without changing recorded steering values.
 - Show active TC and ABS readings in green in Replay's Data panel, while keeping inactive and unavailable readings neutral.
 - Use reported traction-control activity in Replay and lap insights when the game's telemetry provides it; infer activation only when that channel is unavailable.
@@ -50,6 +64,21 @@
 - Keep LMU snapshots responsive when the local telemetry service returns oversized, rejected, or malformed condition responses.
 - Open the dashboard in your default browser when launching RaceIQ from the optional desktop shortcut or Start menu, even when the server was stopped.
 - Preserve incomplete-lap eligibility and LMU first-outlap classification across ordinal detector transitions.
+- Keep recording splitting and the dashboard running when another application already uses the live telemetry UDP port.
+- Keep Windows recording publication working when directory metadata flushing is unsupported, while retaining file-content flushing and reporting other I/O failures.
+- Accept captured AMS2 first race laps from the starting grid when the initial invalid flag clears, while preserving later invalidations, pit exclusions, and recording-quality checks.
+- Avoid false AMS2 restart detection when untimed start-line crossings wrap lap distance without advancing the lap counter.
+- Prevent retained qualifying timing from creating a spurious AMS2 race session during live recording transitions.
+- Keep AMS2 lap exports readable when exporting later laps or multiple laps from a compressed recording.
+- Keep session Overview maps complete when an unfinished lap follows completed invalid laps.
+- Keep session Overview maps compact on wide screens and fit the driven lap line without hidden track edges shrinking it.
+- Correct the reversed AMS2 track direction arrow.
+- Restore the Analyse G-force dot and center the AMS2 suspension indicator, labelled as compression balance rather than measured wheel load.
+- Return AMS2 Live to connection instructions after telemetry stops, and clear live readings when the server disconnects.
+- Show AMS2 connection instructions when waiting for telemetry, including the required shared-memory setting and driving-session steps.
+- Restore Live child-page routing, production Raw Data updates and AMS2 game navigation.
+- Restore AMS2 live sector progression using telemetry track length and lap position; show available live tire pressures, use percentages in replay pedal charts, and exclude invalid laps from recorded PBs.
+- Keep game links visible on Live pages.
 - Keep first-run setup responsive by omitting the optional telemetry demo.
 - Label the community setup copy action “Clone” in the setup browser.
 - Leave MoTeC imports unchanged during historical lap-classification upgrades.
@@ -98,6 +127,7 @@
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
+- Target comparison lap pickers explicitly in browser checks and wait for rendered frames in the native camera zoom check.
 - Extract Sessions and Session Analyse into feature-owned UI, server, contract, and test workspaces while preserving existing navigation and analysis behavior.
 - Move Sessions and Session Review into their own package.
 - Update the dependency lockfile for Bun 1.4.4 so the Bench compare workflow can use frozen installs.

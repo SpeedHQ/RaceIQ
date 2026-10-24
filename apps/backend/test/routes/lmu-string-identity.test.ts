@@ -18,6 +18,18 @@ afterEach(async () => {
 });
 
 describe("LMU string identity routes", () => {
+  test("optional maps preserve unavailable legacy identity without guessing a Spa layout", async () => {
+    const path = `/api/track-outline/${encodeURIComponent("Circuit de Spa-Francorchamps")}?gameId=lmu`;
+    expect((await trackRoutes.request(path)).status).toBe(404);
+    const optional = await trackRoutes.request(`${path}&optional=1`);
+    expect(optional.status).toBe(200);
+    expect(await optional.json()).toEqual({ points: [], source: "unavailable" });
+    const known = await trackRoutes.request("/api/track-outline/spa_2023%2Fspawec?gameId=lmu&optional=1");
+    expect(known.status).toBe(200);
+    expect(((await known.json()) as { points: unknown[] }).points.length).toBeGreaterThan(10);
+    expect((await trackRoutes.request(`${path}&optional=invalid`)).status).toBe(400);
+  });
+
   test("round-trips full canonical track IDs through catalog and geometry routes", async () => {
     const encoded = encodeURIComponent("spa_2023/spawec");
     const catalogResponse = await trackRoutes.request("/api/tracks?gameId=lmu");

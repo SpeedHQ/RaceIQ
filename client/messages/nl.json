@@ -2903,5 +2903,9 @@
   "compare_overview_ers_deployed": "ERS ingezet",
   "compare_overview_ers_recovered": "ERS teruggewonnen",
   "compare_overview_top_speed": "Topsnelheid",
-  "compare_overview_unavailable": "Niet beschikbaar"
+  "compare_overview_unavailable": "Niet beschikbaar",
+  "setupguide_ams2_same_pc": "Start Automobilista 2 en RaceIQ op dezelfde Windows-pc.",
+  "setupguide_ams2_shared_memory": "Open in AMS2 Opties → Systeem en stel gedeeld geheugen in op Project CARS 2.",
+  "setupguide_ams2_driving": "Start een training of race, stap in de auto en rijd om telemetrie te ontvangen.",
+  "setupguide_ams2_direct_note": "RaceIQ leest AMS2 rechtstreeks uit. Een SimHub-verbinding of afzonderlijk telemetrieprogramma is niet nodig."
 }

@@ -4,7 +4,7 @@
   "type": "module",
   "exports": { "./ui": "./ui/index.ts", "./server": "./server/index.ts", "./contracts": "./contracts/index.ts" },
   "scripts": {
-    "lint": "../../client/node_modules/.bin/oxlint .",
+    "lint": "node ../../client/node_modules/oxlint/bin/oxlint .",
     "typecheck": "bun check --project tsconfig.ui.json && bun check --project tsconfig.server.json",
     "test:boundaries": "bun ../../scripts/test/check-feature-boundaries.ts sessions-page",
     "e2e:impact": "bun ../../scripts/test/check-feature-boundaries.ts sessions-page",
@@ -31,5 +31,5 @@
     "@raceiq/game-ac-evo": "workspace:*",
     "@raceiq/game-iracing": "workspace:*"
   },
-  "devDependencies": { "@types/react": "^19.3.0", "@types/react-dom": "^19.3.0", "@playwright/test": "1.62.1", "drizzle-orm": "^0.45.2", "@raceiq/game-fm-2023-metadata": "workspace:*" }
+  "devDependencies": { "@types/react": "^19.3.0", "@types/react-dom": "^19.3.0", "@playwright/test": "1.62.1", "drizzle-orm": "^0.45.2", "@raceiq/game-fm-2023-metadata": "workspace:*", "@raceiq/game-ams2-metadata": "workspace:*", "@raceiq/cars-catalogue": "workspace:*", "@raceiq/tracks-catalogue": "workspace:*" }
 }

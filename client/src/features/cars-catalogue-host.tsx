@@ -30,8 +30,8 @@ const host = {
   },
   loadAccCars: () => client.api.acc.cars.$get().then((response) => response.json()),
   loadAcEvoCars: () => client.api["ac-evo"].cars.$get().then((response) => response.json()),
-  async loadIRacingCars() {
-    const response = await client.api.cars.$get({}, { headers: { "X-Game-Id": "iracing" } });
+  async loadIRacingCars(gameId = "iracing") {
+    const response = await client.api.cars.$get({}, { headers: { "X-Game-Id": gameId } });
     if (!response.ok) throw await errorFromResponse(response);
     return response.json() as Promise<IRacingCatalogueCar[]>;
   },

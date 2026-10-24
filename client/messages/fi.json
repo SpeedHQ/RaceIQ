@@ -2904,5 +2904,9 @@
   "compare_overview_starting_fuel": "Lähtöpolttoaine",
   "compare_overview_fuel_used": "Polttoaineen kulutus",
   "compare_overview_top_speed": "Huippunopeus",
-  "compare_overview_unavailable": "Ei käytettävissä"
+  "compare_overview_unavailable": "Ei käytettävissä",
+  "setupguide_ams2_same_pc": "Käynnistä Automobilista 2 ja RaceIQ samalla Windows-tietokoneella.",
+  "setupguide_ams2_shared_memory": "Avaa AMS2:ssa Asetukset → Järjestelmä ja valitse jaetun muistin asetukseksi Project CARS 2.",
+  "setupguide_ams2_driving": "Aloita harjoitus tai kilpailu, siirry autoon ja aja, jotta telemetrian vastaanotto alkaa.",
+  "setupguide_ams2_direct_note": "RaceIQ lukee AMS2:n tietoja suoraan. SimHub-yhteyttä tai erillistä telemetriatyökalua ei tarvita."
 }

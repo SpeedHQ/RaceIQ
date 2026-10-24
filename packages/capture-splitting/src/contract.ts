@@ -4,7 +4,7 @@ export const PositiveInt = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1));
 
 export const ManifestVersion = 3;
 export const MAX_CAPTURE_MANIFEST_BYTES = 16 * 1024 * 1024;
-export const GameId = Schema.Literals(["acc", "ac-evo", "f1-2025", "fm-2023", "iracing", "lmu"]);
+export const GameId = Schema.Literals(["acc", "ac-evo", "f1-2025", "fm-2023", "iracing", "lmu", "ams2"]);
 export type GameId = typeof GameId.Type;
 
 export const LapWindowSchema = Schema.Struct({

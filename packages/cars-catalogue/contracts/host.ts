@@ -103,9 +103,9 @@ export interface AccCatalogueCar {
 }
 export interface AcEvoCatalogueCar { id: string; name: string; class: string }
 export interface IRacingCatalogueCar {
-  id: string; name: string; shortName: string; path: string; category: string; imageUrl: string;
-  hp: number | null; weightLb: number | null; hasHeadlights: boolean | null;
-  rainEnabled: boolean | null; hasMultipleDryTireTypes: boolean | null; searchTerms: string;
+  id: string; name: string; shortName?: string | null; path: string; category: string; imageUrl: string;
+  hp?: number | null; weightLb?: number | null; hasHeadlights?: boolean | null;
+  rainEnabled?: boolean | null; hasMultipleDryTireTypes?: boolean | null; searchTerms?: string | null;
 }
 export interface LMUCatalogueCar { id: string; name: string; class?: string; series?: string[]; imageUrl?: string }
 
@@ -119,7 +119,7 @@ export interface CarsCatalogueHost {
   loadCars: (gameId: GameId) => Promise<Car[]>;
   loadAccCars: () => Promise<AccCatalogueCar[]>;
   loadAcEvoCars: () => Promise<AcEvoCatalogueCar[]>;
-  loadIRacingCars: () => Promise<IRacingCatalogueCar[]>;
+  loadIRacingCars: (gameId?: "iracing" | "ams2") => Promise<IRacingCatalogueCar[]>;
   loadLMUCars: () => Promise<LMUCatalogueCar[]>;
   PiBadge: ComponentType<{ pi: number; showNumber?: boolean }>;
   AppInput: ComponentType<ComponentProps<"input">>;

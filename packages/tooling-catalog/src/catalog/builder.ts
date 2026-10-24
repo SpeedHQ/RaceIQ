@@ -139,7 +139,7 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
     typesSource,
     typesTree,
     "TelemetryPacket",
-  ).filter((field) => !["gameId", "f1", "acc", "iracing", "lmu"].includes(field.name));
+  ).filter((field) => !["gameId", "f1", "acc", "iracing", "lmu", "ams2"].includes(field.name));
   const packetFieldNames = packetFields.map((field) => field.name);
   const packetSets = wheelFieldSets(packetFieldNames);
 
@@ -160,6 +160,7 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
     "ac-evo": [],
     iracing: [],
     lmu: [],
+    ams2: [],
   };
   for (const set of packetSets) {
     const semantic = normalizedSemantic(set);
@@ -556,6 +557,22 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
 
   addCrossSourceProjections(variables, groups);
   addSectorDerivedVariables(variables, groups);
+
+  for (const variable of variables.values()) {
+    variable.games.ams2 ??= {kind: "unavailable", reason: "source-not-provided", description: "AMS2 stable shared-memory prefix does not provide this semantic."};
+  }
+  for (const [semantic, path, unit] of [
+    ["timing.track-length", "ams2.trackLengthM", "m"],
+    ["race.on-pit-road", "ams2.inPits", "boolean"],
+    ["session.session-type", "ams2.sessionType", "text"],
+  ] as const) {
+    const variable = variables.get(semantic);
+    if (variable) {
+      variable.games.ams2 = {kind: "direct", nativeUnit: unit, sources: [path], freshness: "continuous", description: "Recorded AMS2 shared-memory value"};
+      // Other game extension paths are read via their own mappings; they are not packet fields.
+      addSource(inventories, "ams2", {path, label: path, semanticId: semantic, unit, dataType: unit === "boolean" ? "boolean" : unit === "text" ? "string" : "number", description: "AMS2 recorded shared-memory extension", sourceKind: "extension", recordedByRaceIQ: true, retention: "exact"});
+    }
+  }
 
   for (const group of groups.values()) {
     if (group.parentId) attachChild(groups, group.parentId, group.id);

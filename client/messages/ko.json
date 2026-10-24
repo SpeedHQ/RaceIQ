@@ -2904,5 +2904,9 @@
   "compare_overview_ers_deployed": "ERS 사용량",
   "compare_overview_ers_recovered": "ERS 회수량",
   "compare_overview_top_speed": "최고 속도",
-  "compare_overview_unavailable": "사용할 수 없음"
+  "compare_overview_unavailable": "사용할 수 없음",
+  "setupguide_ams2_same_pc": "같은 Windows 컴퓨터에서 AMS2와 RaceIQ를 실행하세요.",
+  "setupguide_ams2_shared_memory": "AMS2 시스템 설정에서 Shared Memory를 Project CARS 2로 설정하세요.",
+  "setupguide_ams2_driving": "주행 세션에 들어가 차를 운전하세요.",
+  "setupguide_ams2_direct_note": "AMS2는 공유 메모리를 직접 사용하므로 UDP 설정이 필요하지 않습니다."
 }

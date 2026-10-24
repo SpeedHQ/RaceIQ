@@ -2907,5 +2907,9 @@
   "compare_overview_starting_fuel": "Starting fuel",
   "compare_overview_fuel_used": "Fuel used",
   "compare_overview_top_speed": "Top speed",
-  "compare_overview_unavailable": "Unavailable"
+  "compare_overview_unavailable": "Unavailable",
+  "setupguide_ams2_same_pc": "Run Automobilista 2 and RaceIQ on the same Windows PC.",
+  "setupguide_ams2_shared_memory": "In AMS2, open Options → System and set Shared Memory to Project CARS 2.",
+  "setupguide_ams2_driving": "Enter a practice or race session, get into the car, and drive to start receiving telemetry.",
+  "setupguide_ams2_direct_note": "RaceIQ reads AMS2 directly. No SimHub connection or separate telemetry tool is required."
 }

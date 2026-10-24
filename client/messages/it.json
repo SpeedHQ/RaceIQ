@@ -2903,5 +2903,9 @@
   "compare_overview_ers_deployed": "ERS utilizzato",
   "compare_overview_ers_recovered": "ERS recuperato",
   "compare_overview_top_speed": "Velocità massima",
-  "compare_overview_unavailable": "Non disponibile"
+  "compare_overview_unavailable": "Non disponibile",
+  "setupguide_ams2_same_pc": "Avvia Automobilista 2 e RaceIQ sullo stesso PC Windows.",
+  "setupguide_ams2_shared_memory": "In AMS2, apri Opzioni → Sistema e imposta la memoria condivisa su Project CARS 2.",
+  "setupguide_ams2_driving": "Entra in una sessione di prove o gara, sali in auto e guida per iniziare a ricevere la telemetria.",
+  "setupguide_ams2_direct_note": "RaceIQ legge direttamente i dati di AMS2. Non serve una connessione a SimHub né un altro strumento di telemetria."
 }

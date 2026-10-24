@@ -2903,5 +2903,9 @@
   "compare_overview_ers_deployed": "ЕРС использовано",
   "compare_overview_ers_recovered": "ЕРС рекуперировано",
   "compare_overview_top_speed": "Максимальная скорость",
-  "compare_overview_unavailable": "Недоступно"
+  "compare_overview_unavailable": "Недоступно",
+  "setupguide_ams2_same_pc": "Запустите Automobilista 2 и RaceIQ на одном компьютере с Windows.",
+  "setupguide_ams2_shared_memory": "В AMS2 откройте Настройки → Система и установите для общей памяти значение Project CARS 2.",
+  "setupguide_ams2_driving": "Начните тренировку или гонку, сядьте в автомобиль и начните движение, чтобы получать телеметрию.",
+  "setupguide_ams2_direct_note": "RaceIQ считывает данные AMS2 напрямую. Подключение к SimHub или отдельная программа телеметрии не требуется."
 }

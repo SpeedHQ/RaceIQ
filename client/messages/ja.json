@@ -2903,5 +2903,9 @@
   "compare_overview_ers_deployed": "ERS使用量",
   "compare_overview_ers_recovered": "ERS回生量",
   "compare_overview_top_speed": "最高速度",
-  "compare_overview_unavailable": "利用不可"
+  "compare_overview_unavailable": "利用不可",
+  "setupguide_ams2_same_pc": "同じWindows PCでAutomobilista 2とRaceIQを起動してください。",
+  "setupguide_ams2_shared_memory": "AMS2で「オプション → システム」を開き、共有メモリを「Project CARS 2」に設定してください。",
+  "setupguide_ams2_driving": "練習またはレースセッションに入り、車に乗って走行するとテレメトリの受信が始まります。",
+  "setupguide_ams2_direct_note": "RaceIQはAMS2のデータを直接読み取ります。SimHubへの接続や別のテレメトリツールは不要です。"
 }

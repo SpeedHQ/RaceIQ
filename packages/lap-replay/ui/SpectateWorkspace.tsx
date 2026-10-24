@@ -112,9 +112,6 @@ export function SpectateWorkspace({ children, panels, panelHeaderTarget, storage
     const open = panels.filter((panel) => panel.open);
     const previous = previousOpenPanels.current;
     const selected = open.find((panel) => !previous?.has(panel.id)) ?? open[0];
-    if (!narrow && previous && (previous.size !== open.length || open.some((panel) => !previous.has(panel.id)))) {
-      persistLayout({ ...layout, railWidth: null });
-    }
     if (narrow && open.length > 1) {
       for (const panel of open) if (panel !== selected) panel.toggle(false);
     }

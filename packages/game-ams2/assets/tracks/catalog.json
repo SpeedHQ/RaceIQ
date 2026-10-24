@@ -1,0 +1,1182 @@
+{
+  "schemaVersion": 1,
+  "coordSystem": "ams2-world",
+  "matching": "Exact discovered telemetry variation, with length check when available; no guessed aliases",
+  "layouts": [
+    {
+      "layout": "Adelaide_Historic",
+      "file": "adelaide-historic-boundaries.json",
+      "lengthM": 3760.662354
+    },
+    {
+      "layout": "Adelaide_Modern",
+      "file": "adelaide-modern-boundaries.json",
+      "lengthM": 3228.194824
+    },
+    {
+      "layout": "Adelaide_Modern_STT",
+      "file": "adelaide-modern-stt-boundaries.json",
+      "lengthM": 3228.761475
+    },
+    {
+      "layout": "Ascurra_Dirt",
+      "file": "ascurra-dirt-boundaries.json",
+      "lengthM": 2100.474609
+    },
+    {
+      "layout": "Ascurra_RX",
+      "file": "ascurra-rx-boundaries.json",
+      "lengthM": 2100.5
+    },
+    {
+      "layout": "Azure_Circuit_2021",
+      "file": "azure-circuit-2021-boundaries.json",
+      "lengthM": 3321.668213
+    },
+    {
+      "layout": "Barcelona_1991",
+      "file": "barcelona-1991-boundaries.json",
+      "lengthM": 4755.097656
+    },
+    {
+      "layout": "Barcelona_GP",
+      "file": "barcelona-gp-boundaries.json",
+      "lengthM": 4674.351563
+    },
+    {
+      "layout": "Barcelona_GP_1999",
+      "file": "barcelona-gp-1999-boundaries.json",
+      "lengthM": 4733.830078
+    },
+    {
+      "layout": "Barcelona_GP_2001",
+      "file": "barcelona-gp-2001-boundaries.json",
+      "lengthM": 4733.830078
+    },
+    {
+      "layout": "Barcelona_GP_NC",
+      "file": "barcelona-gp-nc-boundaries.json",
+      "lengthM": 4657.512695
+    },
+    {
+      "layout": "Barcelona_NATL_NC",
+      "file": "barcelona-natl-nc-boundaries.json",
+      "lengthM": 2976.072998
+    },
+    {
+      "layout": "Barcelona_RX",
+      "file": "barcelona-rx-boundaries.json",
+      "lengthM": 1122.779175
+    },
+    {
+      "layout": "Bathurst_1983",
+      "file": "bathurst-1983-boundaries.json",
+      "lengthM": 6157.441406
+    },
+    {
+      "layout": "Bathurst_2020",
+      "file": "bathurst-2020-boundaries.json",
+      "lengthM": 6205.469238
+    },
+    {
+      "layout": "BrandsHatch_GP",
+      "file": "brandshatch-gp-boundaries.json",
+      "lengthM": 3893.938477
+    },
+    {
+      "layout": "BrandsHatch_Indy",
+      "file": "brandshatch-indy-boundaries.json",
+      "lengthM": 1932.822876
+    },
+    {
+      "layout": "Brasilia",
+      "file": "brasilia-boundaries.json",
+      "lengthM": 5498.043457
+    },
+    {
+      "layout": "Brasilia_outer",
+      "file": "brasilia-outer-boundaries.json",
+      "lengthM": 2912.945557
+    },
+    {
+      "layout": "Buenos_Aires_12",
+      "file": "buenos-aires-12-boundaries.json",
+      "lengthM": 5407.76709
+    },
+    {
+      "layout": "Buenos_Aires_15",
+      "file": "buenos-aires-15-boundaries.json",
+      "lengthM": 6196.922363
+    },
+    {
+      "layout": "Buenos_Aires_6",
+      "file": "buenos-aires-6-boundaries.json",
+      "lengthM": 4381.376465
+    },
+    {
+      "layout": "Buenos_Aires_6T",
+      "file": "buenos-aires-6t-boundaries.json",
+      "lengthM": 4295.263672
+    },
+    {
+      "layout": "Buenos_Aires_7",
+      "file": "buenos-aires-7-boundaries.json",
+      "lengthM": 2693.393555
+    },
+    {
+      "layout": "Buenos_Aires_8",
+      "file": "buenos-aires-8-boundaries.json",
+      "lengthM": 3503.412842
+    },
+    {
+      "layout": "Buenos_Aires_9",
+      "file": "buenos-aires-9-boundaries.json",
+      "lengthM": 3485.198242
+    },
+    {
+      "layout": "Buskerud_Long",
+      "file": "buskerud-long-boundaries.json",
+      "lengthM": 1531.142822
+    },
+    {
+      "layout": "Buskerud_Short",
+      "file": "buskerud-short-boundaries.json",
+      "lengthM": 958.987244
+    },
+    {
+      "layout": "CadwellPark",
+      "file": "cadwellpark-boundaries.json",
+      "lengthM": 3490.263672
+    },
+    {
+      "layout": "CampoGrande",
+      "file": "campogrande-boundaries.json",
+      "lengthM": 3484.125732
+    },
+    {
+      "layout": "Cascavel",
+      "file": "cascavel-boundaries.json",
+      "lengthM": 3030.512207
+    },
+    {
+      "layout": "Cleveland_GP",
+      "file": "cleveland-gp-boundaries.json",
+      "lengthM": 3382.679199
+    },
+    {
+      "layout": "Cleveland_STT",
+      "file": "cleveland-stt-boundaries.json",
+      "lengthM": 3382.707764
+    },
+    {
+      "layout": "Cordoba",
+      "file": "cordoba-boundaries.json",
+      "lengthM": 3655.272461
+    },
+    {
+      "layout": "Cordoba_GP",
+      "file": "cordoba-gp-boundaries.json",
+      "lengthM": 4055.424805
+    },
+    {
+      "layout": "Cordoba_NATL",
+      "file": "cordoba-natl-boundaries.json",
+      "lengthM": 2278.025391
+    },
+    {
+      "layout": "Curitiba",
+      "file": "curitiba-boundaries.json",
+      "lengthM": 3660.07373
+    },
+    {
+      "layout": "Curitiba_outer",
+      "file": "curitiba-outer-boundaries.json",
+      "lengthM": 2519.932373
+    },
+    {
+      "layout": "Curvelo",
+      "file": "curvelo-boundaries.json",
+      "lengthM": 4391.321289
+    },
+    {
+      "layout": "Curvelob",
+      "file": "curvelob-boundaries.json",
+      "lengthM": 3282.605469
+    },
+    {
+      "layout": "Daytona",
+      "file": "daytona-boundaries.json",
+      "lengthM": 3999.729736
+    },
+    {
+      "layout": "Daytona_Circuit",
+      "file": "daytona-circuit-boundaries.json",
+      "lengthM": 5741.347656
+    },
+    {
+      "layout": "Daytona_Nascar_Road",
+      "file": "daytona-nascar-road-boundaries.json",
+      "lengthM": 5755.372559
+    },
+    {
+      "layout": "Donington_GP",
+      "file": "donington-gp-boundaries.json",
+      "lengthM": 3985.286133
+    },
+    {
+      "layout": "Donington_Nat",
+      "file": "donington-nat-boundaries.json",
+      "lengthM": 3182.256836
+    },
+    {
+      "layout": "Enna_Pergusa",
+      "file": "enna-pergusa-boundaries.json",
+      "lengthM": 4966.593262
+    },
+    {
+      "layout": "Estoril_1988",
+      "file": "estoril-1988-boundaries.json",
+      "lengthM": 4313.504883
+    },
+    {
+      "layout": "Estoril_2019",
+      "file": "estoril-2019-boundaries.json",
+      "lengthM": 4180.442871
+    },
+    {
+      "layout": "Estoril_2019_T",
+      "file": "estoril-2019-t-boundaries.json",
+      "lengthM": 4157.42627
+    },
+    {
+      "layout": "Fontana_OVAL",
+      "file": "fontana-oval-boundaries.json",
+      "lengthM": 3217.300781
+    },
+    {
+      "layout": "Fontana_OVAL_Historic",
+      "file": "fontana-oval-historic-boundaries.json",
+      "lengthM": 3217.300781
+    },
+    {
+      "layout": "Fontana_SCC",
+      "file": "fontana-scc-boundaries.json",
+      "lengthM": 4509.239746
+    },
+    {
+      "layout": "Foz_RX",
+      "file": "foz-rx-boundaries.json",
+      "lengthM": 784.179321
+    },
+    {
+      "layout": "Fuji",
+      "file": "fuji-boundaries.json",
+      "lengthM": 4491.96582
+    },
+    {
+      "layout": "Galeao_Airport",
+      "file": "galeao-airport-boundaries.json",
+      "lengthM": 3224.73877
+    },
+    {
+      "layout": "Gateway_OVAL",
+      "file": "gateway-oval-boundaries.json",
+      "lengthM": 2027.352051
+    },
+    {
+      "layout": "Gateway_RC1",
+      "file": "gateway-rc1-boundaries.json",
+      "lengthM": 2599.7771
+    },
+    {
+      "layout": "Gateway_RC2",
+      "file": "gateway-rc2-boundaries.json",
+      "lengthM": 3082.373779
+    },
+    {
+      "layout": "Goiania",
+      "file": "goiania-boundaries.json",
+      "lengthM": 3846.670654
+    },
+    {
+      "layout": "GoianiaOuter",
+      "file": "goianiaouter-boundaries.json",
+      "lengthM": 2708.443359
+    },
+    {
+      "layout": "GoianiaShort",
+      "file": "goianiashort-boundaries.json",
+      "lengthM": 1914.726807
+    },
+    {
+      "layout": "Granja_Viana_CSP2",
+      "file": "granja-viana-csp2-boundaries.json",
+      "lengthM": 957.869324
+    },
+    {
+      "layout": "Granja_Viana_KGV101",
+      "file": "granja-viana-kgv101-boundaries.json",
+      "lengthM": 994.181763
+    },
+    {
+      "layout": "Granja_Viana_KGV102",
+      "file": "granja-viana-kgv102-boundaries.json",
+      "lengthM": 967.08905
+    },
+    {
+      "layout": "Granja_Viana_KGV121",
+      "file": "granja-viana-kgv121-boundaries.json",
+      "lengthM": 788.962524
+    },
+    {
+      "layout": "Guapore",
+      "file": "guapore-boundaries.json",
+      "lengthM": 3037.418213
+    },
+    {
+      "layout": "Guapore_STT",
+      "file": "guapore-stt-boundaries.json",
+      "lengthM": 3037.53833
+    },
+    {
+      "layout": "Heusden",
+      "file": "heusden-boundaries.json",
+      "lengthM": 4146.723145
+    },
+    {
+      "layout": "Hockenheim_1977",
+      "file": "hockenheim-1977-boundaries.json",
+      "lengthM": 6789.338379
+    },
+    {
+      "layout": "Hockenheim_1988",
+      "file": "hockenheim-1988-boundaries.json",
+      "lengthM": 6792.611816
+    },
+    {
+      "layout": "Hockenheim_1988_short",
+      "file": "hockenheim-1988-short-boundaries.json",
+      "lengthM": 2636.619385
+    },
+    {
+      "layout": "Hockenheim_2001",
+      "file": "hockenheim-2001-boundaries.json",
+      "lengthM": 6814.494141
+    },
+    {
+      "layout": "Hockenheim_GP",
+      "file": "hockenheim-gp-boundaries.json",
+      "lengthM": 4541.13916
+    },
+    {
+      "layout": "Hockenheim_National",
+      "file": "hockenheim-national-boundaries.json",
+      "lengthM": 3667.755859
+    },
+    {
+      "layout": "Hockenheim_RX",
+      "file": "hockenheim-rx-boundaries.json",
+      "lengthM": 1237.424927
+    },
+    {
+      "layout": "Hockenheim_STT",
+      "file": "hockenheim-stt-boundaries.json",
+      "lengthM": 2601.170898
+    },
+    {
+      "layout": "Hockenheim_ShortA",
+      "file": "hockenheim-shorta-boundaries.json",
+      "lengthM": 2600.984375
+    },
+    {
+      "layout": "Hockenheim_ShortB",
+      "file": "hockenheim-shortb-boundaries.json",
+      "lengthM": 2587.645508
+    },
+    {
+      "layout": "Hungaroring_GP_2025",
+      "file": "hungaroring-gp-2025-boundaries.json",
+      "lengthM": 4376.089355
+    },
+    {
+      "layout": "Ibarra",
+      "file": "ibarra-boundaries.json",
+      "lengthM": 3596.209229
+    },
+    {
+      "layout": "Ibarra_R",
+      "file": "ibarra-r-boundaries.json",
+      "lengthM": 3591.053467
+    },
+    {
+      "layout": "Ibarra_STT",
+      "file": "ibarra-stt-boundaries.json",
+      "lengthM": 3596.313232
+    },
+    {
+      "layout": "Imola",
+      "file": "imola-boundaries.json",
+      "lengthM": 4908.217773
+    },
+    {
+      "layout": "Imola_01",
+      "file": "imola-01-boundaries.json",
+      "lengthM": 4912.260254
+    },
+    {
+      "layout": "Imola_05",
+      "file": "imola-05-boundaries.json",
+      "lengthM": 4912.260254
+    },
+    {
+      "layout": "Imola_72",
+      "file": "imola-72-boundaries.json",
+      "lengthM": 4952.01416
+    },
+    {
+      "layout": "Imola_88",
+      "file": "imola-88-boundaries.json",
+      "lengthM": 4965.667969
+    },
+    {
+      "layout": "Indianapolis_2001_Oval",
+      "file": "indianapolis-2001-oval-boundaries.json",
+      "lengthM": 4069.728027
+    },
+    {
+      "layout": "Indianapolis_2001_RC",
+      "file": "indianapolis-2001-rc-boundaries.json",
+      "lengthM": 4191.506348
+    },
+    {
+      "layout": "Indianapolis_2022_Oval",
+      "file": "indianapolis-2022-oval-boundaries.json",
+      "lengthM": 4069.728027
+    },
+    {
+      "layout": "Indianapolis_2022_RC",
+      "file": "indianapolis-2022-rc-boundaries.json",
+      "lengthM": 3888.776367
+    },
+    {
+      "layout": "Interlagos",
+      "file": "interlagos-boundaries.json",
+      "lengthM": 4294.946777
+    },
+    {
+      "layout": "InterlagosKart1",
+      "file": "interlagoskart1-boundaries.json",
+      "lengthM": 1129.446777
+    },
+    {
+      "layout": "InterlagosKart2",
+      "file": "interlagoskart2-boundaries.json",
+      "lengthM": 1119.801147
+    },
+    {
+      "layout": "InterlagosKart3",
+      "file": "interlagoskart3-boundaries.json",
+      "lengthM": 698.640198
+    },
+    {
+      "layout": "Interlagos_1991",
+      "file": "interlagos-1991-boundaries.json",
+      "lengthM": 4330.554688
+    },
+    {
+      "layout": "Interlagos_1993",
+      "file": "interlagos-1993-boundaries.json",
+      "lengthM": 4330.554688
+    },
+    {
+      "layout": "Interlagos_Historic",
+      "file": "interlagos-historic-boundaries.json",
+      "lengthM": 7926.645508
+    },
+    {
+      "layout": "Interlagos_Historic_Outer",
+      "file": "interlagos-historic-outer-boundaries.json",
+      "lengthM": 3236.341309
+    },
+    {
+      "layout": "Interlagos_SCB",
+      "file": "interlagos-scb-boundaries.json",
+      "lengthM": 4294.946777
+    },
+    {
+      "layout": "Jacarepagua2005",
+      "file": "jacarepagua2005-boundaries.json",
+      "lengthM": 4904.376465
+    },
+    {
+      "layout": "JacarepaguaOVAL",
+      "file": "jacarepaguaoval-boundaries.json",
+      "lengthM": 2985.161621
+    },
+    {
+      "layout": "JacarepaguaSCB",
+      "file": "jacarepaguascb-boundaries.json",
+      "lengthM": 3316.909668
+    },
+    {
+      "layout": "JacarepaguaSHORT",
+      "file": "jacarepaguashort-boundaries.json",
+      "lengthM": 3047.070313
+    },
+    {
+      "layout": "Jacarepagua_Historic",
+      "file": "jacarepagua-historic-boundaries.json",
+      "lengthM": 5005.331055
+    },
+    {
+      "layout": "Jerez_1988",
+      "file": "jerez-1988-boundaries.json",
+      "lengthM": 4232.51416
+    },
+    {
+      "layout": "Jerez_2019",
+      "file": "jerez-2019-boundaries.json",
+      "lengthM": 4428.951172
+    },
+    {
+      "layout": "Jerez_Standard",
+      "file": "jerez-standard-boundaries.json",
+      "lengthM": 4425.547852
+    },
+    {
+      "layout": "Kansai_Classic",
+      "file": "kansai-classic-boundaries.json",
+      "lengthM": 5806.661133
+    },
+    {
+      "layout": "Kansai_East",
+      "file": "kansai-east-boundaries.json",
+      "lengthM": 2237.886963
+    },
+    {
+      "layout": "Kansai_GP",
+      "file": "kansai-gp-boundaries.json",
+      "lengthM": 5802.320801
+    },
+    {
+      "layout": "Kansai_West",
+      "file": "kansai-west-boundaries.json",
+      "lengthM": 3465.035889
+    },
+    {
+      "layout": "Kyalami_2019",
+      "file": "kyalami-2019-boundaries.json",
+      "lengthM": 4555.064453
+    },
+    {
+      "layout": "Kyalami_Historic",
+      "file": "kyalami-historic-boundaries.json",
+      "lengthM": 4047.910156
+    },
+    {
+      "layout": "Laguna_Seca_2020",
+      "file": "laguna-seca-2020-boundaries.json",
+      "lengthM": 3601.863281
+    },
+    {
+      "layout": "Le_Mans_24h",
+      "file": "le-mans-24h-boundaries.json",
+      "lengthM": 13627.019531
+    },
+    {
+      "layout": "Le_Mans_24h_2005",
+      "file": "le-mans-24h-2005-boundaries.json",
+      "lengthM": 13647.355469
+    },
+    {
+      "layout": "Le_Mans_Bugatti",
+      "file": "le-mans-bugatti-boundaries.json",
+      "lengthM": 4165.562012
+    },
+    {
+      "layout": "Londrina",
+      "file": "londrina-boundaries.json",
+      "lengthM": 3056.219482
+    },
+    {
+      "layout": "Londrina_long",
+      "file": "londrina-long-boundaries.json",
+      "lengthM": 3168.21167
+    },
+    {
+      "layout": "Londrinakart1",
+      "file": "londrinakart1-boundaries.json",
+      "lengthM": 1002.849243
+    },
+    {
+      "layout": "Londrinakart2",
+      "file": "londrinakart2-boundaries.json",
+      "lengthM": 864.361755
+    },
+    {
+      "layout": "Long_Beach",
+      "file": "long-beach-boundaries.json",
+      "lengthM": 3147.864746
+    },
+    {
+      "layout": "Long_Beach_STT",
+      "file": "long-beach-stt-boundaries.json",
+      "lengthM": 3147.936768
+    },
+    {
+      "layout": "MontrealHistoric",
+      "file": "montrealhistoric-boundaries.json",
+      "lengthM": 4386.257813
+    },
+    {
+      "layout": "MontrealHistoric_1991",
+      "file": "montrealhistoric-1991-boundaries.json",
+      "lengthM": 4410.77832
+    },
+    {
+      "layout": "MontrealModern",
+      "file": "montrealmodern-boundaries.json",
+      "lengthM": 4322.458984
+    },
+    {
+      "layout": "Monza_1971",
+      "file": "monza-1971-boundaries.json",
+      "lengthM": 5767.306152
+    },
+    {
+      "layout": "Monza_1971_10k",
+      "file": "monza-1971-10k-boundaries.json",
+      "lengthM": 10106.133789
+    },
+    {
+      "layout": "Monza_1971_10knc",
+      "file": "monza-1971-10knc-boundaries.json",
+      "lengthM": 10026.535156
+    },
+    {
+      "layout": "Monza_1971_Junior",
+      "file": "monza-1971-junior-boundaries.json",
+      "lengthM": 2406.882813
+    },
+    {
+      "layout": "Monza_1991",
+      "file": "monza-1991-boundaries.json",
+      "lengthM": 5811.032715
+    },
+    {
+      "layout": "Monza_2005",
+      "file": "monza-2005-boundaries.json",
+      "lengthM": 5789.291992
+    },
+    {
+      "layout": "Monza_2020",
+      "file": "monza-2020-boundaries.json",
+      "lengthM": 5789.291992
+    },
+    {
+      "layout": "Monza_2020_Junior",
+      "file": "monza-2020-junior-boundaries.json",
+      "lengthM": 2413.476807
+    },
+    {
+      "layout": "Monza_2020_STT",
+      "file": "monza-2020-stt-boundaries.json",
+      "lengthM": 2413.607666
+    },
+    {
+      "layout": "Moravia",
+      "file": "moravia-boundaries.json",
+      "lengthM": 5377.731445
+    },
+    {
+      "layout": "Mosport",
+      "file": "mosport-boundaries.json",
+      "lengthM": 3936.442871
+    },
+    {
+      "layout": "Nordschleife_2020",
+      "file": "nordschleife-2020-boundaries.json",
+      "lengthM": 20814.677734
+    },
+    {
+      "layout": "Nordschleife_2020_24hr",
+      "file": "nordschleife-2020-24hr-boundaries.json",
+      "lengthM": 25389.503906
+    },
+    {
+      "layout": "Nordschleife_2025",
+      "file": "nordschleife-2025-boundaries.json",
+      "lengthM": 20814.673828
+    },
+    {
+      "layout": "Nordschleife_2025_24hr",
+      "file": "nordschleife-2025-24hr-boundaries.json",
+      "lengthM": 25389.5
+    },
+    {
+      "layout": "Nordschleife_2025_tourist",
+      "file": "nordschleife-2025-tourist-boundaries.json",
+      "lengthM": 20817.367188
+    },
+    {
+      "layout": "Nurb_1971_Beton",
+      "file": "nurb-1971-beton-boundaries.json",
+      "lengthM": 2391.722412
+    },
+    {
+      "layout": "Nurb_1971_Gesamt",
+      "file": "nurb-1971-gesamt-boundaries.json",
+      "lengthM": 28266.683594
+    },
+    {
+      "layout": "Nurb_1971_Nords",
+      "file": "nurb-1971-nords-boundaries.json",
+      "lengthM": 22883.308594
+    },
+    {
+      "layout": "Nurb_1971_Suds",
+      "file": "nurb-1971-suds-boundaries.json",
+      "lengthM": 7775.596191
+    },
+    {
+      "layout": "Nurb_2020_RX",
+      "file": "nurb-2020-rx-boundaries.json",
+      "lengthM": 1022.976685
+    },
+    {
+      "layout": "Nurb_GP_2020",
+      "file": "nurb-gp-2020-boundaries.json",
+      "lengthM": 5133.624512
+    },
+    {
+      "layout": "Nurb_GP_2020_Sprint",
+      "file": "nurb-gp-2020-sprint-boundaries.json",
+      "lengthM": 3613.767578
+    },
+    {
+      "layout": "Nurb_GP_2020_Sprint_S",
+      "file": "nurb-gp-2020-sprint-s-boundaries.json",
+      "lengthM": 3074.949219
+    },
+    {
+      "layout": "Nurb_GP_2020_Veedol",
+      "file": "nurb-gp-2020-veedol-boundaries.json",
+      "lengthM": 5125.296387
+    },
+    {
+      "layout": "Nurb_GP_2025",
+      "file": "nurb-gp-2025-boundaries.json",
+      "lengthM": 5133.624512
+    },
+    {
+      "layout": "Ortona",
+      "file": "ortona-boundaries.json",
+      "lengthM": 1508.03894
+    },
+    {
+      "layout": "Ortona2",
+      "file": "ortona2-boundaries.json",
+      "lengthM": 1552.690308
+    },
+    {
+      "layout": "Ortona3",
+      "file": "ortona3-boundaries.json",
+      "lengthM": 1335.23999
+    },
+    {
+      "layout": "Ortona4",
+      "file": "ortona4-boundaries.json",
+      "lengthM": 962.735962
+    },
+    {
+      "layout": "OultonPark",
+      "file": "oultonpark-boundaries.json",
+      "lengthM": 4316.091797
+    },
+    {
+      "layout": "OultonParkClassic",
+      "file": "oultonparkclassic-boundaries.json",
+      "lengthM": 4282.197754
+    },
+    {
+      "layout": "OultonParkFosters",
+      "file": "oultonparkfosters-boundaries.json",
+      "lengthM": 2660.225586
+    },
+    {
+      "layout": "OultonParkIsland",
+      "file": "oultonparkisland-boundaries.json",
+      "lengthM": 3563.393799
+    },
+    {
+      "layout": "Pocono_OVAL",
+      "file": "pocono-oval-boundaries.json",
+      "lengthM": 4061.321289
+    },
+    {
+      "layout": "Pocono_RC1",
+      "file": "pocono-rc1-boundaries.json",
+      "lengthM": 4093.862549
+    },
+    {
+      "layout": "Pocono_RC2",
+      "file": "pocono-rc2-boundaries.json",
+      "lengthM": 3610.021729
+    },
+    {
+      "layout": "Pocono_RC3",
+      "file": "pocono-rc3-boundaries.json",
+      "lengthM": 4075.73291
+    },
+    {
+      "layout": "Pocono_RC4",
+      "file": "pocono-rc4-boundaries.json",
+      "lengthM": 2203.833252
+    },
+    {
+      "layout": "Pocono_RC5",
+      "file": "pocono-rc5-boundaries.json",
+      "lengthM": 2195.349365
+    },
+    {
+      "layout": "Pocono_RC6",
+      "file": "pocono-rc6-boundaries.json",
+      "lengthM": 3020.026611
+    },
+    {
+      "layout": "Red_Bull_Ring_Club",
+      "file": "red-bull-ring-club-boundaries.json",
+      "lengthM": 1830.871826
+    },
+    {
+      "layout": "Road_America",
+      "file": "road-america-boundaries.json",
+      "lengthM": 6440.411621
+    },
+    {
+      "layout": "Road_America_RCB",
+      "file": "road-america-rcb-boundaries.json",
+      "lengthM": 6495.893066
+    },
+    {
+      "layout": "Road_America_STT",
+      "file": "road-america-stt-boundaries.json",
+      "lengthM": 3439.516113
+    },
+    {
+      "layout": "Road_Atlanta",
+      "file": "road-atlanta-boundaries.json",
+      "lengthM": 4087.875
+    },
+    {
+      "layout": "Road_Atlanta_2005",
+      "file": "road-atlanta-2005-boundaries.json",
+      "lengthM": 4087.874756
+    },
+    {
+      "layout": "Road_Atlanta_2005_short",
+      "file": "road-atlanta-2005-short-boundaries.json",
+      "lengthM": 2857.339355
+    },
+    {
+      "layout": "Road_Atlanta_Moto",
+      "file": "road-atlanta-moto-boundaries.json",
+      "lengthM": 4142.120605
+    },
+    {
+      "layout": "Salvador",
+      "file": "salvador-boundaries.json",
+      "lengthM": 2708.614258
+    },
+    {
+      "layout": "SantaCruz",
+      "file": "santacruz-boundaries.json",
+      "lengthM": 3325.275879
+    },
+    {
+      "layout": "Sebring",
+      "file": "sebring-boundaries.json",
+      "lengthM": 5854.130859
+    },
+    {
+      "layout": "Sebring_Club",
+      "file": "sebring-club-boundaries.json",
+      "lengthM": 2680.988525
+    },
+    {
+      "layout": "Sebring_STT",
+      "file": "sebring-stt-boundaries.json",
+      "lengthM": 3163.119385
+    },
+    {
+      "layout": "Sebring_School",
+      "file": "sebring-school-boundaries.json",
+      "lengthM": 3162.906006
+    },
+    {
+      "layout": "Silverstone_1975",
+      "file": "silverstone-1975-boundaries.json",
+      "lengthM": 4759.34668
+    },
+    {
+      "layout": "Silverstone_1975nc",
+      "file": "silverstone-1975nc-boundaries.json",
+      "lengthM": 4752.202637
+    },
+    {
+      "layout": "Silverstone_1991",
+      "file": "silverstone-1991-boundaries.json",
+      "lengthM": 5212.092773
+    },
+    {
+      "layout": "Silverstone_2001",
+      "file": "silverstone-2001-boundaries.json",
+      "lengthM": 5141.240234
+    },
+    {
+      "layout": "Silverstone_2001_Intl",
+      "file": "silverstone-2001-intl-boundaries.json",
+      "lengthM": 3622.065918
+    },
+    {
+      "layout": "Silverstone_2001_Nat",
+      "file": "silverstone-2001-nat-boundaries.json",
+      "lengthM": 2636.432861
+    },
+    {
+      "layout": "Silverstone_2019",
+      "file": "silverstone-2019-boundaries.json",
+      "lengthM": 5883.644531
+    },
+    {
+      "layout": "Silverstone_Intl_2019",
+      "file": "silverstone-intl-2019-boundaries.json",
+      "lengthM": 2976.156982
+    },
+    {
+      "layout": "Silverstone_Natl_2019",
+      "file": "silverstone-natl-2019-boundaries.json",
+      "lengthM": 2636.188965
+    },
+    {
+      "layout": "Snetterton2019_100",
+      "file": "snetterton2019-100-boundaries.json",
+      "lengthM": 1558.770508
+    },
+    {
+      "layout": "Snetterton2019_200",
+      "file": "snetterton2019-200-boundaries.json",
+      "lengthM": 3198.72998
+    },
+    {
+      "layout": "Snetterton2019_300",
+      "file": "snetterton2019-300-boundaries.json",
+      "lengthM": 4788.163574
+    },
+    {
+      "layout": "Spa-Francorchamps_1970",
+      "file": "spa-francorchamps-1970-boundaries.json",
+      "lengthM": 14092.922852
+    },
+    {
+      "layout": "Spa-Francorchamps_1970_NC",
+      "file": "spa-francorchamps-1970-nc-boundaries.json",
+      "lengthM": 14073.651367
+    },
+    {
+      "layout": "Spa-Francorchamps_1993",
+      "file": "spa-francorchamps-1993-boundaries.json",
+      "lengthM": 6949.403809
+    },
+    {
+      "layout": "Spa-Francorchamps_2005",
+      "file": "spa-francorchamps-2005-boundaries.json",
+      "lengthM": 6976.82959
+    },
+    {
+      "layout": "Spa-Francorchamps_2005_EC",
+      "file": "spa-francorchamps-2005-ec-boundaries.json",
+      "lengthM": 6976.829102
+    },
+    {
+      "layout": "Spa-Francorchamps_2020",
+      "file": "spa-francorchamps-2020-boundaries.json",
+      "lengthM": 6993.002441
+    },
+    {
+      "layout": "Spa-Francorchamps_2022",
+      "file": "spa-francorchamps-2022-boundaries.json",
+      "lengthM": 6993.003418
+    },
+    {
+      "layout": "Spa-Francorchamps_2022_RX",
+      "file": "spa-francorchamps-2022-rx-boundaries.json",
+      "lengthM": 889.781799
+    },
+    {
+      "layout": "Speedland1",
+      "file": "speedland1-boundaries.json",
+      "lengthM": 964.90094
+    },
+    {
+      "layout": "Speedland2",
+      "file": "speedland2-boundaries.json",
+      "lengthM": 988.636414
+    },
+    {
+      "layout": "Speedland3",
+      "file": "speedland3-boundaries.json",
+      "lengthM": 438.547302
+    },
+    {
+      "layout": "Speedland4",
+      "file": "speedland4-boundaries.json",
+      "lengthM": 581.765564
+    },
+    {
+      "layout": "Spielberg_2001",
+      "file": "spielberg-2001-boundaries.json",
+      "lengthM": 4307.275879
+    },
+    {
+      "layout": "Spielberg_GP",
+      "file": "spielberg-gp-boundaries.json",
+      "lengthM": 4307.275879
+    },
+    {
+      "layout": "Spielberg_Historic",
+      "file": "spielberg-historic-boundaries.json",
+      "lengthM": 5916.160645
+    },
+    {
+      "layout": "Spielberg_STT",
+      "file": "spielberg-stt-boundaries.json",
+      "lengthM": 2327.728027
+    },
+    {
+      "layout": "Spielberg_Short",
+      "file": "spielberg-short-boundaries.json",
+      "lengthM": 2327.567871
+    },
+    {
+      "layout": "Spielberg_Vintage",
+      "file": "spielberg-vintage-boundaries.json",
+      "lengthM": 5896.263672
+    },
+    {
+      "layout": "Taruma",
+      "file": "taruma-boundaries.json",
+      "lengthM": 3046.963135
+    },
+    {
+      "layout": "TarumaC",
+      "file": "tarumac-boundaries.json",
+      "lengthM": 3074.952393
+    },
+    {
+      "layout": "Termas_Rio_Hondo",
+      "file": "termas-rio-hondo-boundaries.json",
+      "lengthM": 4800.217773
+    },
+    {
+      "layout": "Tykki_Dirt1",
+      "file": "tykki-dirt1-boundaries.json",
+      "lengthM": 909.446228
+    },
+    {
+      "layout": "Tykki_Dirt2",
+      "file": "tykki-dirt2-boundaries.json",
+      "lengthM": 1681.477539
+    },
+    {
+      "layout": "Tykki_RX",
+      "file": "tykki-rx-boundaries.json",
+      "lengthM": 1014.296509
+    },
+    {
+      "layout": "Tykki_Tarmac",
+      "file": "tykki-tarmac-boundaries.json",
+      "lengthM": 752.742004
+    },
+    {
+      "layout": "Velocitta",
+      "file": "velocitta-boundaries.json",
+      "lengthM": 3327.810303
+    },
+    {
+      "layout": "VelocittaCD",
+      "file": "velocittacd-boundaries.json",
+      "lengthM": 1721.321655
+    },
+    {
+      "layout": "VelocittaTD",
+      "file": "velocittatd-boundaries.json",
+      "lengthM": 3369.524658
+    },
+    {
+      "layout": "Velopark",
+      "file": "velopark-boundaries.json",
+      "lengthM": 2036.608276
+    },
+    {
+      "layout": "Velopark2",
+      "file": "velopark2-boundaries.json",
+      "lengthM": 2168.695313
+    },
+    {
+      "layout": "Velopark2_STT",
+      "file": "velopark2-stt-boundaries.json",
+      "lengthM": 2158.096191
+    },
+    {
+      "layout": "VirginiaFull",
+      "file": "virginiafull-boundaries.json",
+      "lengthM": 5261.92334
+    },
+    {
+      "layout": "VirginiaGrand",
+      "file": "virginiagrand-boundaries.json",
+      "lengthM": 6649.729004
+    },
+    {
+      "layout": "VirginiaNorth",
+      "file": "virginianorth-boundaries.json",
+      "lengthM": 3667.266113
+    },
+    {
+      "layout": "VirginiaPatriot",
+      "file": "virginiapatriot-boundaries.json",
+      "lengthM": 1570.951538
+    },
+    {
+      "layout": "VirginiaSouth",
+      "file": "virginiasouth-boundaries.json",
+      "lengthM": 2605.022705
+    },
+    {
+      "layout": "Watkins_Glen",
+      "file": "watkins-glen-boundaries.json",
+      "lengthM": 5440.273438
+    },
+    {
+      "layout": "Watkins_Glen_GPIL",
+      "file": "watkins-glen-gpil-boundaries.json",
+      "lengthM": 5461.651367
+    },
+    {
+      "layout": "Watkins_Glen_S",
+      "file": "watkins-glen-s-boundaries.json",
+      "lengthM": 3907.693115
+    },
+    {
+      "layout": "Watkins_Glen_SIL",
+      "file": "watkins-glen-sil-boundaries.json",
+      "lengthM": 3929.112061
+    },
+    {
+      "layout": "Watkins_Glen_STT",
+      "file": "watkins-glen-stt-boundaries.json",
+      "lengthM": 3922.134033
+    }
+  ]
+}

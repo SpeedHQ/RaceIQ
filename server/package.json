@@ -228,6 +228,7 @@
     "effect": "4.0.4",
     "@raceiq/game-catalogs": "workspace:*",
     "@raceiq/game-lmu-metadata": "workspace:*",
+    "@raceiq/game-ams2-metadata": "workspace:*",
     "@raceiq/game-ac-evo-metadata": "workspace:*",
     "@raceiq/game-iracing-metadata": "workspace:*",
     "@raceiq/game-fm-2023-metadata": "workspace:*",
@@ -235,7 +236,7 @@
     "@raceiq/analysis-core": "workspace:*"
   },
   "scripts": {
-    "lint": "../client/node_modules/.bin/oxlint .",
+    "lint": "node ../client/node_modules/oxlint/bin/oxlint .",
     "typecheck": "bun check --project tsconfig.json",
     "test": "bun ../scripts/test/run-suite.ts all --package @raceiq/backend-core",
     "test:integration": "bun ../scripts/test/run-suite.ts integration --package @raceiq/backend-core",

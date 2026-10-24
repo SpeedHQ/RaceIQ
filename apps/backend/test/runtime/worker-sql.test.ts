@@ -8,7 +8,11 @@ import { MessageChannel } from "node:worker_threads";
 async function withDatabase(run: (path: string) => Promise<void>) {
   const directory = await mkdtemp(join(tmpdir(), "raceiq-worker-sql-"));
   try { await run(join(directory, "database.sqlite")); }
-  finally { await rm(directory, { recursive: true, force: true }); }
+  finally {
+    // Closed native SQLite handles can remain reachable until collection on Windows.
+    if (process.platform === "win32") { Bun.gc(true); await Bun.sleep(0); }
+    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  }
 }
 
 function channelFor(client: Client, leaseId: string) {

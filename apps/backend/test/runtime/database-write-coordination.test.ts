@@ -229,7 +229,12 @@ async function databaseFixture() {
   const directory = await mkdtemp(join(tmpdir(), "raceiq-write-resource-"));
   const client = createClient({ url: `file:${join(directory, "test.db")}` });
   await client.executeMultiple("PRAGMA foreign_keys=ON; CREATE TABLE entries(id INTEGER PRIMARY KEY); CREATE TABLE parents(id INTEGER PRIMARY KEY); CREATE TABLE children(parent_id INTEGER REFERENCES parents(id) DEFERRABLE INITIALLY DEFERRED);");
-  return { client, async close() { client.close(); await rm(directory, { recursive: true, force: true }); } };
+  return { client, async close() {
+    client.close();
+    // Closed native SQLite handles can remain reachable until collection on Windows.
+    if (process.platform === "win32") { Bun.gc(true); await Bun.sleep(0); }
+    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  } };
 }
 
 describe("native write transaction settlement", () => {
