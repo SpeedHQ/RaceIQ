@@ -1,6 +1,6 @@
 import type { ComparisonData } from "@raceiq/shared/racing/comparison/types";
 import type { SemanticLapTelemetry, SemanticReplayFrame } from "../contracts/replay"
-import { hasTelemetryGap } from "./telemetry-gap"
+import { hasTelemetryGap, recordedTelemetryGapSeconds } from "./telemetry-gap"
 import type { SpectateController, SpectateLap, SpectatePose, SpectateReading, SpectateSample, SpectateSnapshot } from "../contracts/spectate";
 const SEGMENT_SEEK_DURATION_MS = 1200;
 const number = (value: unknown): number | null => (typeof value === "number" && Number.isFinite(value) ? value : null);
@@ -35,6 +35,9 @@ function lowerBound<T>(items: readonly T[], target: number, value: (item: T) => 
 
 /** Register native samples to aligned comparison path when supplied. */
 export function prepareSpectateLap(replay: SemanticLapTelemetry, comparison?: ComparisonData, side: "a" | "b" = "a"): SpectateLap {
+  const maximumGapSeconds = replay.envelopes[0]?.simulator === "ams2"
+    ? recordedTelemetryGapSeconds(replay.envelopes.map(frame => frame.observedAt.milliseconds))
+    : undefined;
   const traces = comparison?.traces;
   const elapsed = traces ? (side === "a" ? traces.elapsedTimeA : traces.elapsedTimeB) : [];
   const aligned: Array<{ time: number; distance: number; first: number; last: number }> = [];
@@ -53,8 +56,8 @@ export function prepareSpectateLap(replay: SemanticLapTelemetry, comparison?: Co
     if (!hasAlignedPath || aligned.length < 2) return null;
     let first = Math.max(0, Math.min(aligned.length - 2, index - 1));
     let last = Math.min(aligned.length - 1, index);
-    while (first > 0 && !hasTelemetryGap(aligned[first - 1]!.time, time)) first--;
-    while (last + 1 < aligned.length && !hasTelemetryGap(time, aligned[last + 1]!.time)) last++;
+    while (first > 0 && !hasTelemetryGap(aligned[first - 1]!.time, time, maximumGapSeconds)) first--;
+    while (last + 1 < aligned.length && !hasTelemetryGap(time, aligned[last + 1]!.time, maximumGapSeconds)) last++;
     let bestError = Infinity, bestDistance: number | null = null, tolerance = 0;
     for (let segment = aligned[first]!.first; segment < aligned[last]!.last; segment++) {
       const ax = positionX[segment]!, az = positionZ[segment]!;
@@ -111,7 +114,7 @@ export function prepareSpectateLap(replay: SemanticLapTelemetry, comparison?: Co
     }
     // A reset starts another lap/interval. Do not splice it into this recording.
     if (time < previousTime - 0.001) break;
-    if (hasTelemetryGap(previousTime, time)) run++;
+    if (hasTelemetryGap(previousTime, time, maximumGapSeconds)) run++;
     const values: Record<string, unknown> = {};
     for (const entry of frame.values) {
       values[entry.semanticId] = validEntry(entry) ? (typeof entry.value === "boolean" || entry.semanticId === "fuel.ers-deploy-mode" ? entry.value : numericShape(entry.value)) : null;
@@ -152,7 +155,7 @@ export function prepareSpectateLap(replay: SemanticLapTelemetry, comparison?: Co
     if (sample.distance > lastDistance) progressCount++;
     lastDistance = sample.distance;
   }
-  return { samples, motionSamples, duration: samples.at(-1)?.time ?? 0, distance: maxDistance, hasProgress: monotonic && progressCount > 1 && (traces ? aligned.length > 1 : trustworthy), replay };
+  return { samples, motionSamples, maximumGapSeconds, duration: samples.at(-1)?.time ?? 0, distance: maxDistance, hasProgress: monotonic && progressCount > 1 && (traces ? aligned.length > 1 : trustworthy), replay };
 }
 
 function poseOf(values: Readonly<Record<string, unknown>>): SpectatePose | null {
@@ -162,14 +165,14 @@ function poseOf(values: Readonly<Record<string, unknown>>): SpectatePose | null 
   if (x === null || z === null || yaw === null) return null;
   return { x, y: number(values["motion.position-y"]) ?? 0, z, yaw };
 }
-export function sampleMotion(samples: readonly SpectateSample[], time: number, holdPose: boolean): Pick<SpectateReading, "pose" | "distance"> {
+export function sampleMotion(samples: readonly SpectateSample[], time: number, holdPose: boolean, maximumGapSeconds?: number): Pick<SpectateReading, "pose" | "distance"> {
   const first = samples[0], last = samples.at(-1);
   if (!first || !last || time < first.time) return { pose: null, distance: null };
   if (time > last.time) return { pose: holdPose ? poseOf(last.values) : null, distance: holdPose && Number.isFinite(last.distance) ? last.distance : null };
   const index = lowerBound(samples, time, (sample) => sample.time), right = samples[index]!;
   if (right.time === time) return { pose: poseOf(right.values), distance: Number.isFinite(right.distance) ? right.distance : null };
   const left = samples[index - 1];
-  if (!left || left.run !== right.run || hasTelemetryGap(left.time, right.time)) return { pose: null, distance: null };
+  if (!left || left.run !== right.run || hasTelemetryGap(left.time, right.time, maximumGapSeconds)) return { pose: null, distance: null };
   const a = poseOf(left.values), b = poseOf(right.values);
   if (!a || !b) return { pose: null, distance: null };
   const fraction = (time - left.time) / (right.time - left.time);
@@ -193,7 +196,7 @@ export function sampleLap(lap: SpectateLap, time: number, holdPose: boolean): Sp
   const right = samples[index]!;
   if (right.time === time) return { time, distance: Number.isFinite(right.distance) ? right.distance : null, pose: poseOf(right.values), values: right.values };
   const left = samples[index - 1];
-  if (!left || left.run !== right.run || hasTelemetryGap(left.time, right.time)) return null;
+  if (!left || left.run !== right.run || hasTelemetryGap(left.time, right.time, lap.maximumGapSeconds)) return null;
   const fraction = (time - left.time) / (right.time - left.time);
   const values: Record<string, unknown> = {};
   for (const key of Object.keys(left.values)) {
@@ -218,7 +221,7 @@ function progressIndex(lap: SpectateLap): readonly SpectateSample[] {
   }
   return index;
 }
-function arrivalAt(index: readonly SpectateSample[], distance: number): number | null {
+function arrivalAt(index: readonly SpectateSample[], distance: number, maximumGapSeconds?: number): number | null {
   const first = index[0],
     last = index.at(-1);
   if (!first || !last || distance < first.distance || distance > last.distance) return null;
@@ -226,7 +229,7 @@ function arrivalAt(index: readonly SpectateSample[], distance: number): number |
     right = index[found]!;
   if (right.distance === distance) return right.time;
   const left = index[found - 1];
-  if (!left || left.run !== right.run || hasTelemetryGap(left.time, right.time)) return null;
+  if (!left || left.run !== right.run || hasTelemetryGap(left.time, right.time, maximumGapSeconds)) return null;
   return left.time + ((right.time - left.time) * (distance - left.distance)) / (right.distance - left.distance);
 }
 
@@ -237,7 +240,7 @@ export function createSpectateController(a: SpectateLap, b: SpectateLap | null, 
   const aProgress = progressIndex(a),
     bProgress = b ? progressIndex(b) : [];
   const canLock = !!b && a.hasProgress && b.hasProgress;
-  let time = initialDistance == null ? 0 : (arrivalAt(aProgress, initialDistance) ?? 0),
+  let time = initialDistance == null ? 0 : (arrivalAt(aProgress, initialDistance, a.maximumGapSeconds) ?? 0),
     playing = false,
     speed = 1,
     positionLock = canLock,
@@ -251,16 +254,16 @@ export function createSpectateController(a: SpectateLap, b: SpectateLap | null, 
   let snapshot: SpectateSnapshot;
   const read = (target: number, holdPose = true) => {
     const ra = sampleLap(a, target, holdPose);
-    if (ra && a.motionSamples) Object.assign(ra, sampleMotion(a.motionSamples, target, holdPose));
+    if (ra && a.motionSamples) Object.assign(ra, sampleMotion(a.motionSamples, target, holdPose, a.maximumGapSeconds));
     if (!b) return { a: ra, b: null };
     if (!positionLock) {
       const rb = sampleLap(b, target, holdPose);
-      if (rb && b.motionSamples) Object.assign(rb, sampleMotion(b.motionSamples, target, holdPose));
+      if (rb && b.motionSamples) Object.assign(rb, sampleMotion(b.motionSamples, target, holdPose, b.maximumGapSeconds));
       return { a: ra, b: rb };
     }
-    const bTime = ra?.distance == null ? null : arrivalAt(bProgress, ra.distance);
+    const bTime = ra?.distance == null ? null : arrivalAt(bProgress, ra.distance, b.maximumGapSeconds);
     const rb = bTime === null ? null : sampleLap(b, bTime, holdPose);
-    if (rb && b.motionSamples && bTime !== null) Object.assign(rb, sampleMotion(b.motionSamples, bTime, holdPose));
+    if (rb && b.motionSamples && bTime !== null) Object.assign(rb, sampleMotion(b.motionSamples, bTime, holdPose, b.maximumGapSeconds));
     return { a: ra, b: rb };
   };
   const timeAt = (now: number) => {
@@ -352,7 +355,7 @@ export function createSpectateController(a: SpectateLap, b: SpectateLap | null, 
       start();
     },
     seekDistance: (distance, immediate = false) => {
-      const target = arrivalAt(aProgress, distance);
+      const target = arrivalAt(aProgress, distance, a.maximumGapSeconds);
       if (target === null || disposed) return;
       const reduced = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
       seekGeneration++;
@@ -378,8 +381,8 @@ export function createSpectateController(a: SpectateLap, b: SpectateLap | null, 
       const sample = lap.samples[Math.min(index, lap.samples.length - 1)]!;
       let target = sample.time;
       if (side === "b" && positionLock) {
-        const alignedTime = Number.isFinite(sample.distance) ? arrivalAt(aProgress, sample.distance) : null;
-        const nativeTime = Number.isFinite(sample.distance) ? arrivalAt(bProgress, sample.distance) : null;
+        const alignedTime = Number.isFinite(sample.distance) ? arrivalAt(aProgress, sample.distance, a.maximumGapSeconds) : null;
+        const nativeTime = Number.isFinite(sample.distance) ? arrivalAt(bProgress, sample.distance, b?.maximumGapSeconds) : null;
         if (alignedTime === null || nativeTime === null || Math.abs(nativeTime - sample.time) > 0.001) positionLock = false;
         else target = alignedTime;
       }

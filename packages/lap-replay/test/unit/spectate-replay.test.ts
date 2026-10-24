@@ -508,3 +508,53 @@ describe("Spectate native sampling", () => {
     controller.dispose();
   });
 });
+
+function reducedRateReplay(simulator: "ams2" | "fm-2023" = "ams2"): SemanticLapTelemetry {
+  const replay = recordedLap(1.2, time => time * 20).replay;
+  let milliseconds = 0;
+  replay.envelopes = replay.envelopes.map((frame, index) => {
+    if (index) milliseconds += [106, 110, 107, 109][index % 4]!;
+    return {
+      ...frame, simulator,
+      observedAt: { domain: "session", milliseconds },
+      values: [...frame.values, { semanticId: "motion.speed", value: 50 + index }, { semanticId: "timing.distance-traveled", value: index * 10 }],
+    };
+  });
+  return replay;
+}
+
+test("reduced-rate AMS2 replays interpolate normal recorded jitter in single and locked comparison playback", () => {
+  const replay = reducedRateReplay();
+  const a = prepareSpectateLap(replay);
+  const controller = createSpectateController(a, prepareSpectateLap(replay));
+  try {
+    expect(controller.getSnapshot().canLock).toBe(true);
+    for (let index = 1; index < a.samples.length; index++) {
+      const time = (a.samples[index - 1]!.time + a.samples[index]!.time) / 2;
+      const reading = controller.sample(time);
+      expect(reading.a?.pose).not.toBeNull();
+      expect(reading.a?.values["motion.speed"]).toBeCloseTo(49.5 + index);
+      expect(reading.b?.pose).not.toBeNull();
+    }
+  } finally { controller.dispose(); }
+});
+
+test("reduced-rate AMS2 replays keep a missing recorded tick blank", () => {
+  const replay = reducedRateReplay();
+  const before = replay.envelopes[9]!.observedAt.milliseconds / 1000;
+  const after = replay.envelopes[11]!.observedAt.milliseconds / 1000;
+  replay.envelopes.splice(10, 1);
+  const controller = createSpectateController(prepareSpectateLap(replay), null);
+  try {
+    expect(controller.sample((before + after) / 2).a).toBeNull();
+    expect(controller.sample(before).a?.pose).not.toBeNull();
+    expect(controller.sample(after).a?.pose).not.toBeNull();
+  } finally { controller.dispose(); }
+});
+
+test("reduced-rate AMS2 cadence does not loosen gap handling for other simulators", () => {
+  const a = prepareSpectateLap(reducedRateReplay("fm-2023"));
+  const controller = createSpectateController(a, null);
+  try { expect(controller.sample((a.samples[0]!.time + a.samples[1]!.time) / 2).a).toBeNull(); }
+  finally { controller.dispose(); }
+});

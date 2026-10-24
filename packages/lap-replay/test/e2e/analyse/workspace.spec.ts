@@ -489,3 +489,33 @@ test("Replay segment timings retain position-based fallback without native dista
   await page.getByRole("slider", { name: "Replay position", exact: true }).press("End");
   await expect(times).toHaveText(initial);
 });
+
+
+test("AMS2 reduced-rate Polo replay keeps the car and telemetry visible between recorded frames", async ({ page, request }, testInfo) => {
+  test.setTimeout(120_000);
+  const response = await request.get("/api/laps?gameId=ams2");
+  expect(response.ok()).toBe(true);
+  const laps = await response.json() as { id: number; sessionId: number; lapNumber: number; lapTime: number }[];
+  const lap = laps.find(lap => lap.lapNumber === 5 && lap.lapTime > 60);
+  expect(lap, "uploaded Polo race fixture needs its fifth completed lap").toBeDefined();
+  await page.goto(`/ams2/sessions/${lap!.sessionId}/replay/${lap!.id}?forceWebGL=true`);
+  const split = page.getByRole("button", { name: "Split recordings", exact: true });
+  await page.addLocatorHandler(split, () => split.click());
+  const scene = page.locator("[data-replay-scene]");
+  await expect(scene).toHaveAttribute("data-scene-ready", "true", { timeout: 60_000 });
+  const timeline = page.getByRole("slider", { name: "Replay position", exact: true });
+  const clock = page.locator("[data-spectate-playback]");
+  const data = page.locator("[data-spectate-data-side]");
+  for (const time of [5.055, 12.345, 20.025, 27.295, 41.035, 55.075]) {
+    await timeline.fill(String(time));
+    await expect.poll(async () => Number(await clock.getAttribute("data-time"))).toBeCloseTo(time, 2);
+    await expect(scene).toHaveAttribute("data-side-a-state", "ready");
+    await expect.poll(async () => Number(await data.getAttribute("data-packet-number"))).toBeGreaterThan(0);
+    await expect(data.getByText("This pair has no usable recorded replay.", { exact: true })).toHaveCount(0);
+  }
+  await page.getByRole("button", { name: "Play replay", exact: true }).click();
+  await expect.poll(async () => Number(await clock.getAttribute("data-time"))).toBeGreaterThan(55.575);
+  await expect(scene).toHaveAttribute("data-side-a-state", "ready");
+  await page.getByRole("button", { name: "Pause replay", exact: true }).click();
+  await page.screenshot({ path: testInfo.outputPath("ams2-polo-replay.png"), animations: "disabled" });
+});

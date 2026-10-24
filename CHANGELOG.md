@@ -39,6 +39,7 @@
 - Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
 
 ### Fixes
+- Keep the car and telemetry visible between valid samples in reduced-rate AMS2 Replay and Spectate recordings, while preserving missing-data gaps.
 - Preserve Replay and Spectate panel widths when panels are toggled, and keep the mobile circuit overview clear of driver inputs and focus controls.
 - Keep Spectate selected when switching comparison views with the keyboard.
 - Correct the LMU steering indicator direction in the Replay and Compare → Spectate center dashboard without changing recorded steering values.
