@@ -109,6 +109,7 @@ apps/backend/test/routes/tune-deletion-guard.test.ts
 apps/backend/test/runtime/http-server.test.ts
 apps/backend/test/runtime/dashboard-auth.test.ts
 apps/backend/test/runtime/http-access-compiled.test.ts
+apps/backend/test/runtime/iracing-capture.test.ts
 apps/backend/test/runtime/native-sources.test.ts
 apps/backend/test/runtime/release-feature-flags.test.ts
 apps/backend/test/runtime/runtime-options.test.ts
@@ -142,6 +143,7 @@ apps/backend/test/session-capture/session-downsample-rewrite.test.ts
 apps/backend/test/session-capture/session-downsample-routes.test.ts
 apps/backend/test/session-capture/session-compressor.test.ts
 apps/backend/test/session-capture/session-recorder.test.ts
+apps/backend/test/routes/iracing-incident-report.test.ts
 apps/backend/test/session-capture/bundle-consumers.test.ts
 apps/backend/test/session-capture/split-lifecycle.test.ts
 apps/backend/test/session-capture/live-capture-boundaries.test.ts

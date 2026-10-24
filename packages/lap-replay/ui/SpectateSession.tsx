@@ -3,7 +3,7 @@ import type { GameId } from "@raceiq/shared/games/ids";
 import type { ComparisonData } from "@raceiq/shared/racing/comparison/types";
 import { useLapSemanticTelemetry } from "./host"
 import { useSettings } from "./host"
-import { createSpectateController, prepareSpectateLap } from "./spectate-replay";
+import { createSpectateController, placeIRacingSpectateLaps, prepareSpectateLap } from "./spectate-replay";
 import { useMessages } from "./host"
 import { Button } from "./host"
 import { LoadingIndicator } from "./host"
@@ -54,7 +54,9 @@ const replayA = useLapSemanticTelemetry(requested ? comparison.lapA.id : null);
 const replayB = useLapSemanticTelemetry(requested ? comparison.lapB.id : null);
 const pair = useMemo<SpectatePair | null>(() => {
   if (!replayA.data || !replayB.data) return null;
-  return { gameId, comparison, a: prepareSpectateLap(replayA.data, comparison, "a"), b: prepareSpectateLap(replayB.data, comparison, "b") };
+  const laps = [prepareSpectateLap(replayA.data, comparison, "a"), prepareSpectateLap(replayB.data, comparison, "b")] as const;
+  const [a, b] = gameId === "iracing" ? placeIRacingSpectateLaps(laps, null) : laps;
+  return { gameId, comparison, a, b };
 }, [gameId, comparison, replayA.data, replayB.data]);
 const [controller, setController] = useState<SpectateController | null>(null);
 const distanceCallback = useRef(onDistanceChange);

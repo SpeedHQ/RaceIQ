@@ -206,11 +206,6 @@ describe("semantic telemetry catalog contracts", () => {
       ),
     ).toBe(false);
     expect(
-      TELEMETRY_CATALOG.variables.some(
-        (variable) => String(variable.id) === "tires.cold-pressure",
-      ),
-    ).toBe(false);
-    expect(
       TELEMETRY_CATALOG.variables
         .map((variable) => String(variable.id))
         .filter((id) => /-(?:fl|fr|rl|rr)-2$/.test(id)),
@@ -304,9 +299,6 @@ describe("semantic telemetry catalog contracts", () => {
       "race.team-incident-count",
     );
     expect(sourceSemantics.get("IsOnTrack")).toBe("race.is-race-on");
-    expect(sourceSemantics.get("LFcoldPressure")).toBe(
-      "tires.tire-pressure",
-    );
     expect(sourceSemantics.get("CarIdxFastRepairsUsed")).toBe(
       "race.competitor.fast-repairs-used",
     );

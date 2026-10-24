@@ -128,6 +128,22 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     if (Array.isArray(d)) return d;
     return null;
   }, [outlineData]);
+  const trackOutlineBounds = useMemo(() => {
+    if (gameId !== "iracing" || !outlineData || Array.isArray(outlineData) || !("ribbonEdges" in outlineData)) return null;
+    const rawEdges = outlineData.ribbonEdges;
+    if (!rawEdges || typeof rawEdges !== "object" || !("leftEdge" in rawEdges) || !("rightEdge" in rawEdges)) return null;
+    const isPointList = (value: unknown): value is Point[] =>
+      Array.isArray(value) &&
+      value.every((point) => point && typeof point === "object" && "x" in point && typeof point.x === "number" && Number.isFinite(point.x) && "z" in point && typeof point.z === "number" && Number.isFinite(point.z));
+    const leftEdge = rawEdges.leftEdge;
+    const rightEdge = rawEdges.rightEdge;
+    if (!isPointList(leftEdge) || !isPointList(rightEdge) || leftEdge.length < 2 || leftEdge.length !== rightEdge.length) return null;
+    const centerLine = leftEdge.map((left, index) => {
+      const right = rightEdge[index]!;
+      return { x: (left.x + right.x) / 2, z: (left.z + right.z) / 2 };
+    });
+    return { leftEdge, rightEdge, centerLine, pitLane: null, coordSystem: "official-map" };
+  }, [outlineData, gameId]);
   const { data: sectorsData } = useTrackSectors(selectedTrack ?? undefined);
   const trackSegments = useMemo((): { type: string; name: string; startFrac: number; endFrac: number }[] | null => {
     const s = sectorsData as { segments?: { type: string; name: string; startFrac: number; endFrac: number }[] } | undefined;
@@ -571,7 +587,11 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
           >
             <CompareTrackMap
               outline={trackOutline ?? syntheticOutline}
+              outlineBounds={gameId === "iracing" ? trackOutlineBounds : null}
               traces={mergedComparison?.traces ?? comparison.traces}
+              lapAId={comparison.lapA.id}
+              lapBId={comparison.lapB.id}
+              
               labelA={`${carNames.get(comparison.lapA.carId!) || m.compare_car_a_fallback()} — ${m.compare_lap_label()} ${comparison.lapA.lapNumber}`}
               labelB={`${carNames.get(comparison.lapB.carId!) || m.compare_car_b_fallback()} — ${m.compare_lap_label()} ${comparison.lapB.lapNumber}`}
               lapTimeA={formatLapTime(comparison.lapA.lapTime)}

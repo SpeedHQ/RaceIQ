@@ -218,7 +218,7 @@ async function enumerate(root: string, excluded?: string): Promise<string[]> {
       if (excluded && (path === excluded || isContained(excluded, path))) continue;
       const info = await lstat(path);
       if (info.isDirectory()) await visit(path);
-      else if (info.isFile() && (name.endsWith(".bin") || name.endsWith(".bin.gz") || name.endsWith(".motec.zip"))) found.push(path);
+      else if (info.isFile() && [".bin", ".bin.gz", ".motec.zip", ".ibt"].some((extension) => name.toLowerCase().endsWith(extension))) found.push(path);
     }
   }
   try { await visit(root); } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }

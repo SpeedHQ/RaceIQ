@@ -2,7 +2,7 @@
   "name": "raceiq-e2e",
   "private": true,
   "scripts": {
-    "lint": "../client/node_modules/.bin/oxlint .",
+    "lint": "bun ../client/node_modules/oxlint/bin/oxlint .",
     "test": "playwright test --workers=1",
     "test:ui": "bunx turbo run test --filter=raceiq-e2e -- --ui",
     "screenshots": "playwright test --config=marketing-screenshots.config.ts",
@@ -13,6 +13,7 @@
     "@playwright/test": "1.62.1",
     "@raceiq/tooling": "workspace:*",
     "@raceiq/backend-core": "workspace:*",
+    "@raceiq/game-catalogs": "workspace:*",
     "@raceiq/shared": "workspace:*"
   },
   "dependencies": {

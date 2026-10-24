@@ -1,3 +1,4 @@
+import type { TrackProjection } from "@raceiq/scene-3d/wireframe/ScenePlacement";
 import { useQuery } from "@tanstack/react-query";
 import { resolveLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import type { GameId } from "@raceiq/shared/games/ids";
@@ -66,9 +67,10 @@ export function useTrackOutline(trackId: string | undefined, gameIdOverride?: Ga
   return useQuery({
     queryKey: [...queryKeys.trackOutline(trackId!), gameId ?? null],
     queryFn: async () => {
-      if (!resolvedTrackId || !gameId) return [];
+      if (!resolvedTrackId || !gameId) return null;
       const res = await trackIdRoutes["track-outline"][":trackId"].$get({ param: { trackId: encodeURIComponent(resolvedTrackId) }, query: { gameId } });
-      return rpcJson<{ points?: { x: number; z: number }[]; labels?: { text: string; x: number; z: number }[]; flipX?: boolean; recorded?: boolean; source?: string; pitLines?: PitLine[]; closed?: boolean } | { x: number; z: number }[]>(
+      if (res.status === 404) return null;
+      return rpcJson<{ points?: { x: number; z: number }[]; projection?: TrackProjection | null; ribbonEdges?: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[] } | null; labels?: { text: string; x: number; z: number }[]; flipX?: boolean; recorded?: boolean; source?: string; pitLines?: PitLine[]; closed?: boolean } | { x: number; z: number }[]>(
         res,
       );
     },

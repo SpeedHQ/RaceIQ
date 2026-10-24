@@ -1,3 +1,4 @@
+import { updateSessionRawFile } from "@raceiq/backend-core/db/session-queries";
 import { afterEach, expect, mock, test } from "bun:test";
 import { eq } from "drizzle-orm";
 import { db } from "@raceiq/backend-core/db/index";
@@ -46,7 +47,7 @@ mock.module("@raceiq/backend-core/db/telemetry-replay-storage", () => ({
   parseSessionLapsBatched: parseSessionLapsBatchedGate,
 }));
 
-const { getLapsByIds, getSessionLaps } = await import("@raceiq/backend-core/db/lap-read-queries");
+const { getLapById, getLapsByIds, getSessionLaps } = await import("@raceiq/backend-core/db/lap-read-queries");
 
 // Bun module mocks are process-global and cannot be restored. These wrappers
 const sessionIds: number[] = [];
@@ -121,6 +122,51 @@ test("lap export readiness includes usable legacy raw captures and published bun
   ]);
   expect(unpublishedLaps[0]?.standaloneCaptureReady).toBe(false);
   expect(legacyLaps[0]?.standaloneCaptureReady).toBe(true);
+});
+
+test("unpublished and empty legacy captures remain unavailable without binary retries", async () => {
+  const inserted = await db.insert(sessions).values([
+    { carId: "1", trackId: "2", gameId: "ac-evo", rawFile: "/captures/legacy-manifest.json" },
+    { carId: "1", trackId: "2", gameId: "ac-evo", captureLayoutVersion: 1, captureManifestFile: "/captures/registered-manifest.json", rawFile: "/captures/registered-manifest.json" },
+    { carId: "1", trackId: "2", gameId: "ac-evo", rawFile: "/captures/empty.bin" },
+  ]).returning({ id: sessions.id }).all();
+  sessionIds.push(...inserted.map(({ id }) => id));
+  const insertedLaps = await db.insert(laps).values([
+    { sessionId: inserted[0]!.id, lapNumber: 1, lapTime: 90, isValid: true, rawByteOffset: 115165, rawFrameCount: 0 },
+    { sessionId: inserted[0]!.id, lapNumber: 2, lapTime: 91, isValid: true, rawByteOffset: 115165, rawFrameCount: 1 },
+    { sessionId: inserted[1]!.id, lapNumber: 3, lapTime: 92, isValid: true, rawByteOffset: 115165, rawFrameCount: 1 },
+    { sessionId: inserted[2]!.id, lapNumber: 4, lapTime: 93, isValid: true, rawByteOffset: 12, rawFrameCount: 0 },
+  ]).returning({ id: laps.id }).all();
+  const ids = insertedLaps.map(({ id }) => id);
+  const single = await getSessionLaps("ac-evo", inserted[0]!.id);
+  expect(single.map(({ telemetryAvailable, standaloneCaptureReady }) => [telemetryAvailable, standaloneCaptureReady])).toEqual([[false, false], [false, false]]);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    for (const id of ids) {
+      const result = await getLapById(id);
+      expect(result).toMatchObject({ telemetry: [], telemetryAvailable: false, standaloneCaptureReady: false });
+      expect(result).not.toHaveProperty("parseError");
+    }
+  }
+  for (let attempt = 0; attempt < 2; attempt++) {
+    for (const parallelSessionDecodes of [false, true]) {
+      const result = await getLapsByIds(ids, { parallelSessionDecodes });
+      expect(result.map(({ id, telemetry, parseError }) => [id, telemetry.length, parseError])).toEqual(ids.map((id) => [id, 0, undefined]));
+    }
+  }
+  expect(parseRawLapFrames).not.toHaveBeenCalled();
+  expect(parseSessionLapsBatched).not.toHaveBeenCalled();
+});
+
+test("manifest registration becomes layout-aware before manifest persistence", async () => {
+  const session = await db.insert(sessions).values({ carId: "1", trackId: "2", gameId: "ac-evo" }).returning({ id: sessions.id }).get();
+  sessionIds.push(session.id);
+  const inserted = await db.insert(laps).values({ sessionId: session.id, lapNumber: 1, lapTime: 90, isValid: true, rawByteOffset: 115165, rawFrameCount: 1 }).returning({ id: laps.id }).get();
+  await updateSessionRawFile(session.id, "/captures/pending/manifest.json", "test-detector");
+
+  const lap = await getLapById(inserted.id);
+  expect(lap).toMatchObject({ telemetry: [], telemetryAvailable: false, standaloneCaptureReady: false });
+  expect(lap?.parseError).toBeUndefined();
+  expect(parseRawLapFrames).not.toHaveBeenCalled();
 });
 
 test("getLapsByIds decodes different sessions in parallel and preserves order", async () => {

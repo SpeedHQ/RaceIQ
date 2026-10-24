@@ -62,11 +62,12 @@ test("confirmed cleanup removes disposable capture while preserving session and 
     // Cleanup also counts published manifest and bundle members, not only imported source files.
     expect(preview.fileCount).toBeGreaterThanOrEqual(newCaptures.length);
     expect(preview.reclaimableBytes).toBeGreaterThanOrEqual(bytes);
-    await expect(page.getByRole("dialog")).toBeVisible();
+    const cleanupDialog = page.getByRole("dialog", { name: "Free space", exact: true });
+    await expect(cleanupDialog).toBeVisible();
     expect(captures.every(existsSync), "preview must not delete captures").toBe(true);
 
     const cleanupResponse = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === "/api/storage/session-cleanup");
-    await page.getByRole("button", { name: "Remove raw telemetry", exact: true }).click();
+    await cleanupDialog.getByRole("button", { name: "Remove raw telemetry", exact: true }).click();
     const cleanupHttp = await cleanupResponse;
     expect(cleanupHttp.ok()).toBe(true);
     const result = (await cleanupHttp.json()) as SessionCleanupResult;
@@ -74,7 +75,7 @@ test("confirmed cleanup removes disposable capture while preserving session and 
     expect(result.deletedFiles).toBe(preview.fileCount);
     expect(result.freedBytes).toBe(preview.reclaimableBytes);
     expect(result.failed).toEqual([]);
-    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(cleanupDialog).toHaveCount(0);
     expect(captures.some(existsSync), "cleanup deletes disposable captures").toBe(false);
     expect([...capturesBefore].every((name) => existsSync(join(capturesDir, name))), "seeded captures stay untouched").toBe(true);
 
@@ -123,7 +124,7 @@ for (const favorite of ["session", "lap"] as const) {
       const preview = (await previewHttp.json()) as SessionCleanupPreview;
       expect(preview.protectedSessionIds).toContain(sessionId);
       expect(preview.candidateSessionIds).toEqual([]);
-      await expect(page.getByRole("dialog").getByRole("button", { name: "Remove raw telemetry", exact: true })).toBeDisabled();
+      await expect(page.getByRole("dialog", { name: "Free space", exact: true }).getByRole("button", { name: "Remove raw telemetry", exact: true })).toBeDisabled();
 
       const cleanupHttp = await request.post("/api/storage/session-cleanup", { data: { mode: "selected", sessionIds: [sessionId] } });
       expect(cleanupHttp.ok()).toBe(true);
@@ -181,7 +182,7 @@ test("selected-session cleanup previews protection and waits for confirmation", 
   const first = sessionRows(page).first();
   await first.getByRole("checkbox").check();
   await page.getByRole("button", { name: "Free space", exact: true }).click();
-  const dialog = page.getByRole("dialog");
+  const dialog = page.getByRole("dialog", { name: "Free space", exact: true });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText("Removes .bin recording files to free disk space. Session and lap details remain, and favorite sessions and laps are protected.", { exact: true })).toBeVisible();
   await expect(dialog.getByText("Protected sessions", { exact: true })).toBeVisible();
@@ -232,7 +233,7 @@ test("missing capture can be cleaned when no file bytes remain", async ({ page }
   await page.goto("/fm23/sessions", { waitUntil: "domcontentloaded" });
   await sessionRows(page).first().getByRole("checkbox").check();
   await page.getByRole("button", { name: "Free space", exact: true }).click();
-  const confirm = page.getByRole("button", { name: "Remove raw telemetry", exact: true });
+  const confirm = page.getByRole("dialog", { name: "Free space", exact: true }).getByRole("button", { name: "Remove raw telemetry", exact: true });
   await expect(confirm).toBeEnabled();
   await confirm.click();
   await expect.poll(() => executeCalls).toBe(1);

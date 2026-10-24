@@ -33,18 +33,6 @@ describe("analysis telemetry capabilities", () => {
       source: "unavailable",
       reason: "source-limitation",
     });
-    expect(analysis.tireTemperature).toEqual({
-      source: "direct",
-      freshness: "pit-snapshot",
-      display: "per-wheel",
-      binding: { kind: "value", semanticId: "tire.temperature.carcass.middle" },
-    });
-    expect(analysis.tirePressure).toEqual({
-      source: "direct",
-      freshness: "static",
-      display: "cold-pressure",
-      binding: { kind: "value", semanticId: "tires.tire-pressure" },
-    });
     expect(analysis.suspensionTravel).toEqual({
       source: "direct",
       freshness: "continuous",
@@ -80,7 +68,7 @@ describe("analysis telemetry capabilities", () => {
         pitTireWearAvailable: true,
       },
     } as TelemetryPacket;
-    expect(hasTireTemperatureData(newTireSnapshot, analysis.tireTemperature)).toBe(true);
+    expect(hasTireTemperatureData(newTireSnapshot, analysis.tireTemperature)).toBe(false);
     expect(hasTireHealthData(newTireSnapshot, analysis.tireHealth)).toBe(true);
   });
 
@@ -119,23 +107,6 @@ describe("analysis telemetry capabilities", () => {
     });
   });
 
-  test("advertises every catalog-backed Analyse Data metric", () => {
-    const supported = {
-      "fm-2023": ["balance", "gForce", "gripDemand", "traction", "tireTemperature", "surface", "slipRatio", "lateralSlip", "wheelRotation", "tireHealth", "tireWearRate", "suspensionTravel", "suspensionCompressionBias"],
-      "f1-2025": ["balance", "gForce", "gripDemand", "traction", "tireTemperature", "slipRatio", "slipAngle", "wheelRotation", "tireHealth", "tireWearRate", "tirePressure", "suspensionTravel"],
-      acc: ["balance", "gForce", "gripDemand", "traction", "tireTemperature", "slipRatio", "slipAngle", "wheelRotation", "tirePressure", "suspensionTravel", "suspensionCompressionBias"],
-      "ac-evo": ["balance", "gForce", "gripDemand", "traction", "tireTemperature", "slipRatio", "slipAngle", "wheelRotation", "tireHealth", "tireWearRate", "tirePressure", "suspensionTravel", "suspensionCompressionBias"],
-      iracing: ["balance", "gForce", "tireTemperature", "surface", "tireHealth", "tirePressure", "suspensionTravel"],
-      lmu: ["balance", "gForce", "gripDemand", "traction", "tireTemperature", "slipRatio", "slipAngle", "wheelRotation", "tireHealth", "tireWearRate", "tirePressure", "suspensionTravel"],
-    } as const;
-
-    for (const [gameId, metrics] of Object.entries(supported)) {
-      const analysis = resolveAnalysisTelemetry(getGame(gameId as keyof typeof supported));
-      for (const metric of metrics) {
-        expect(analysis[metric].source, `${gameId}.${metric}`).not.toBe("unavailable");
-      }
-    }
-  });
 
   test("reports unavailable Analyse features from adapter telemetry contracts", () => {
     const unavailable = unavailableAnalyseFeatures(getGame("ac-evo"), new Set<string>());

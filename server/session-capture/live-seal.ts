@@ -69,8 +69,11 @@ export async function sealLiveCaptureMetadata(identity: LiveCaptureIdentity): Pr
     await file.sync();
   } finally { await file.close(); }
   await rename(temporaryPath, manifestPath);
-  const directory = await open(dirname(manifestPath), "r");
-  try { await directory.sync(); } finally { await directory.close(); }
+  // Windows cannot flush directory handles; the manifest file is already synced.
+  if (process.platform !== "win32") {
+    const directory = await open(dirname(manifestPath), "r");
+    try { await directory.sync(); } finally { await directory.close(); }
+  }
   const seal = db.update(liveCaptures).set({ status: "sealed", error: null })
     .where(and(fence, eq(liveCaptures.status, "finalizing"), eq(liveCaptures.generation, progress.generation),
       eq(liveCaptures.committedArchiveLength, progress.committedArchiveLength))).toSQL();

@@ -11,7 +11,7 @@ export const FIXTURES: Record<GameId, string[]> = {
   "f1-2025": ["test/artifacts/sessions/f1-2025-2026-04-22T11-42-43-029Z.bin.gz"],
   acc: ["test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz"],
   "ac-evo": ["test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz"],
-  iracing: ["test/artifacts/sessions/iracing-road-america-gt3.bin.gz"],
+  iracing: ["test/artifacts/sessions/iracing-navarra-mx5-2026-10-19.ibt"],
   lmu: [
     "test/artifacts/sessions/lmu-spa-iron-lynx-gte.bin.gz",
     "test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part1",
@@ -28,7 +28,7 @@ export function parseOptions(argv = process.argv): SeedOptions {
   const legacyRecordings = argv.includes("--legacy-recordings");
   const gamesArg = argv.find((arg) => arg.startsWith("--games="))?.slice("--games=".length)
     ?? (argv.includes("--games") ? argv[argv.indexOf("--games") + 1] : undefined);
-  const games = (gamesArg ? gamesArg.split(",") : DEFAULT_GAMES).filter((game): game is GameId => DEFAULT_GAMES.includes(game as GameId));
+  const games = (gamesArg ? gamesArg.split(",") : DEFAULT_GAMES).filter((game): game is GameId => Object.hasOwn(FIXTURES, game));
   if (games.length === 0) throw new Error("--games must include at least one of fm-2023,f1-2025,acc,ac-evo,iracing,lmu");
   const fixturesArg = argv.find((arg) => arg.startsWith("--fixtures="))?.slice("--fixtures=".length);
   if (fixturesArg !== undefined && (games.length !== 1 || !fixturesArg)) {

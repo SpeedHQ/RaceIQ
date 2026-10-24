@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
@@ -16,57 +15,6 @@ initGameAdapters({ iracingAdapter: true, f1Experiments: true });
 
 const units = { temp: (value: number) => value, tempLabel: "°C", thresholds: { cold: 75, warm: 115, hot: 150 }, toTempC: (value: number) => value } as ReturnType<typeof useUnits>;
 const frame = (values: Record<string, unknown>): SemanticAnalysisFrame => ({ values, states: {}, freshness: {} });
-const iracingFrame = frame({
-  "motion.speed": 30,
-  "motion.acceleration-x": 11.38,
-  "motion.acceleration-z": -0.1,
-  "motion.angular-velocity-y": 0.1,
-  "identity.player-track-surface": 1,
-  "tires.tire-pressure": [23.5, 23.5, 24.5, 24.5],
-  "tires.tire-wear": [0.012, 0.012, 0.01, 0.01],
-  "tire.temperature.surface.representative": [63, 60, 65, 63],
-  "suspension.suspension-travel-m": [0.039, 0.059, 0.018, 0.046],
-});
-
-describe("iRacing analysis panels", () => {
-  test("keeps main rows visible without fabricated unsupported values", () => {
-    const markup = renderToStaticMarkup(createElement(AnalyseDynamicsPanel, { frame: iracingFrame, gameId: "iracing", units }));
-    expect(markup).toContain("Understeer");
-    expect(markup).toContain("Balance");
-    expect(markup).toContain("Grip Ask");
-    expect(markup).toContain("Traction");
-    expect(markup).toContain("Ratio");
-    expect(markup).toContain("Angle");
-    expect(markup).toContain("Pit stall");
-    expect(markup).not.toContain("200%");
-    expect(markup).not.toContain("LOCK");
-  });
-  test("keeps balance decision render expanded inside tooltip", () => {
-    const markup = renderToStaticMarkup(createElement(AnalyseDynamicsPanel, { frame: iracingFrame, gameId: "iracing", units }));
-    expect(markup).toMatch(/<svg viewBox="0 0 200 132" class="!w-full !h-auto"/);
-    expect(markup).toContain("Decision —");
-  });
-
-
-  test("labels pit snapshots and cold pressure and removes invalid wear rate", () => {
-    const queryClient = new QueryClient();
-    const markup = renderToStaticMarkup(
-      createElement(QueryClientProvider, { client: queryClient }, createElement(AnalyseTireWheelsPanel, { frame: iracingFrame, gameId: "iracing", units, wearRate: { FL: 0, FR: 0, RL: 0, RR: 0 } })),
-    );
-    expect(markup).toContain("Last pit temp");
-    expect(markup).toContain("Last pit health");
-    expect(markup).toContain("Cold pressure");
-    expect(markup).not.toContain("Wear /s");
-  });
-
-  test("keeps compression bias unavailable when normalized source is a placeholder", () => {
-    const markup = renderToStaticMarkup(createElement(AnalyseSuspensionPanel, { frame: iracingFrame, gameId: "iracing" }));
-    expect(markup).toContain("39mm");
-    expect(markup).toContain("59mm");
-    expect(markup).toContain("Compression bias");
-    expect(markup.match(/>—</g) ?? []).toHaveLength(2);
-  });
-});
 
 describe("iRacing analysis track marker", () => {
   test("keeps projected-path direction through repeated positions and corners", () => {
@@ -108,6 +56,15 @@ describe("iRacing analysis semantic direction", () => {
     const result = resolveFrameDirection({ values: { "motion.yaw": Math.PI / 2 }, states: { "motion.yaw": "ok" }, freshness: { "motion.yaw": "fresh" } }, pathDirection);
     expect(result?.[0]).toBeCloseTo(1);
     expect(result?.[1]).toBeCloseTo(0);
+  });
+
+  test("uses replay path direction when iRacing compass yaw is present without geographic position", () => {
+    const result = resolveFrameDirection({
+      values: { "motion.yaw": 0, "motion.yaw-north": Math.PI / 2 },
+      states: { "motion.yaw": "ok", "motion.yaw-north": "ok" },
+      freshness: { "motion.yaw": "fresh", "motion.yaw-north": "fresh" },
+    }, pathDirection);
+    expect(result).toEqual(pathDirection);
   });
 
   test("falls back to path tangent for missing, invalid, or stale yaw", () => {

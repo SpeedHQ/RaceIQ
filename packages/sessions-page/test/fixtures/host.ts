@@ -109,6 +109,8 @@ export const m: SessionsMessages = {
 
 export const host: SessionsPageHost = {
   m,
+  IbtImportPreviewModal: () => null,
+  useIbtImport: unexpectedCall,
   Button: () => null,
   Badge: () => null,
   Table: () => null,

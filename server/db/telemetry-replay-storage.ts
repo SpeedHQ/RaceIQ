@@ -13,6 +13,7 @@ import { loadSessionSource, iterateSessionCaptureRecordsFromSource, clearSession
 import { iterateSessionFrameRecords } from "@raceiq/capture-formats/session/framing";
 import { applyFrameTime } from "../session-capture/frame-time";
 import { legacyMotecOffsetToPacketIndex } from "../motec/source-archive";
+import { cloneSessionPacket } from "../session-capture/source-loader";
 import { countFullPacketMaterialized, countParserStatePrime, countSourceFrameScanned } from "../session-capture/test-instrumentation";
 import { runningStartPacketIndex } from "@raceiq/telemetry-core/processor/ordinal-engine";
 
@@ -275,7 +276,7 @@ function packetIndexForOffset(gameId: GameId, offset: number, encoding: "packet-
 }
 
 function freshReplayPacket(packet: TelemetryPacket): TelemetryPacket {
-  return { ...packet };
+  return cloneSessionPacket(packet);
 }
 
 
@@ -298,12 +299,11 @@ function appendDelayedFinishPacket(packets: TelemetryPacket[], trailing: Telemet
 
   const finishTime = trailing.LastLap ?? 0;
   if (!isDelayedFinishContext(last, trailing)) return;
-  packets.push({
-    ...trailing,
-    CurrentLap: finishTime,
-    LapNumber: last.LapNumber,
-    DistanceTraveled: Math.max(trailing.DistanceTraveled, last.DistanceTraveled),
-  });
+  const appended = cloneSessionPacket(trailing);
+  appended.CurrentLap = finishTime;
+  appended.LapNumber = last.LapNumber;
+  appended.DistanceTraveled = Math.max(trailing.DistanceTraveled, last.DistanceTraveled);
+  packets.push(appended);
 }
 
 function trimRunningStartPackets(packets: TelemetryPacket[]): void {
@@ -358,7 +358,7 @@ export async function* iterateSessionTelemetry(sessionId: number, gameId: GameId
     rawFile: session.rawFile, source: session.source, gameId: session.gameId as GameId,
     carId: session.carId, trackId: session.trackId, captureFormatVersion: session.captureFormatVersion,
   };
-  if (session.rawFile.endsWith(".motec.zip")) {
+  if (session.rawFile.endsWith(".motec.zip") || session.rawFile.toLowerCase().endsWith(".ibt")) {
     const loaded = await loadSessionSource(source);
     if (loaded.kind !== "packets") throw new Error("Expected canonical packet source");
     const serverGame = getServerGame(gameId);
@@ -515,7 +515,7 @@ async function parseRawLapFramesFromSource(
 }
 
 export async function parseRawLapFrames(source: SessionCaptureSource, rawByteOffset: number, rawFrameCount: number): Promise<TelemetryPacket[]> {
-  if (!source.rawFile.endsWith(".motec.zip")) {
+  if (!source.rawFile.endsWith(".motec.zip") && !source.rawFile.toLowerCase().endsWith(".ibt")) {
     return parseRawLapFramesFromSource(source, rawByteOffset, rawFrameCount);
   }
   const loaded = await loadSessionSource(source);
@@ -588,6 +588,7 @@ export interface LapReplaySource {
   sessionId: number;
   createdAt: string;
   gameId: GameId;
+  source?: string | null;
   rawFile: string | null;
   rawByteOffset: number | null;
   rawFrameCount: number | null;
@@ -609,6 +610,7 @@ export async function getLapReplaySource(id: number): Promise<LapReplaySource | 
       createdAt: laps.createdAt,
       gameId: sessions.gameId,
       rawFile: sessions.rawFile,
+      source: sessions.source,
       rawByteOffset: laps.rawByteOffset,
       rawFrameCount: laps.rawFrameCount,
       captureManifestFile: sessions.captureManifestFile,
@@ -636,6 +638,7 @@ export async function getLapReplaySource(id: number): Promise<LapReplaySource | 
     createdAt: row.createdAt,
     gameId: row.gameId as GameId,
     rawFile: row.rawFile,
+    source: row.source,
     rawByteOffset: row.rawByteOffset,
     rawFrameCount: row.rawFrameCount,
     captureManifestFile: row.captureManifestFile,
@@ -685,17 +688,12 @@ export async function parseSessionLapsBatched(source: SessionCaptureSource, lapM
   if (lapMetas.length === 0) return out;
   const serverGame = getServerGame(source.gameId);
 
-  if (source.rawFile.endsWith(".motec.zip")) {
+  if (source.rawFile.endsWith(".motec.zip") || source.rawFile.toLowerCase().endsWith(".ibt")) {
     const loaded = await loadSessionSource(source);
     if (loaded.kind !== "packets") throw new Error("Expected canonical packet source");
     for (const meta of lapMetas) {
       const start = packetIndexForOffset(source.gameId, meta.rawByteOffset, loaded.offsetEncoding);
-      const packets = replayCanonicalLap(
-        loaded.packets,
-        start,
-        meta.rawFrameCount,
-        serverGame,
-      );
+      const packets = replayCanonicalLap(loaded.packets, start, meta.rawFrameCount, serverGame);
       if (packets.length > 0) out.set(meta.id, packets);
     }
     return out;

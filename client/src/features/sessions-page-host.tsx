@@ -1,4 +1,7 @@
 import type { ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { IbtImportPreviewModal } from "@/components/analyse/IbtImportPreviewModal";
+import { useAnalyseImports } from "@/components/analyse/useAnalyseImports";
 import { SessionsPageProvider } from "@raceiq/sessions-page/ui";
 import type { SessionsPageHost } from "@raceiq/sessions-page/contracts";
 import { Button } from "@/components/ui/button";
@@ -34,11 +37,15 @@ import { getLocale } from "@/paraglide/runtime";
 import { useGameId, useGameRoute } from "@/stores/game";
 import { useTelemetryStore } from "@/stores/telemetry";
 
+function useIbtImport() {
+  const queryClient = useQueryClient();
+  return useAnalyseImports({ queryClient });
+}
 export const sessionsPageHost: SessionsPageHost = {
   m, Button, Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
   SortableTableHead, AppInput, Toggle, ToggleGroup03, Dialog, DialogContent, DialogHeader, DialogTitle,
   NoteModal, FavoriteToggleButton, SessionTypeBadge, SessionCleanupDialog, RaceResultLedger,
-  SessionIdentityDialog, MotecImportModal, OwnershipChoice, ImportSetupFile, useAcEvoCars,
+  SessionIdentityDialog, MotecImportModal, OwnershipChoice, ImportSetupFile, useAcEvoCars, IbtImportPreviewModal, useIbtImport,
   useGameId, useGameRoute, useSessions, useLaps, useDeleteLap, useResolveNames,
   useLiveCaptureLifecycle: (sessionId) => useTelemetryStore((state) => state.liveCaptureLifecycles[sessionId ?? -1] ?? null),
   authenticatedFetch, importLapsZip, exportLapsZip, queryKeys, invalidateDashboardQueries,

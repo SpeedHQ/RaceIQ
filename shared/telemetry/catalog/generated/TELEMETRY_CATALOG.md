@@ -7,8 +7,8 @@
 - Catalog version: `0.20.0`
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.20.0`
-- Generator source SHA-256: `eb906c80e364654832725bf35a0341a4450961000417a1ee6ac47d6f05d21d12`
-- Content SHA-256: `57fd86ccffc2e72f50fafb9da6c346df151da0895bccfb003a3f2d70321d0bd1`
+- Generator source SHA-256: `42c0eadfc2e8d112d1a4b6704c76f88a7f064027a5022b52f53cbbf15a423f34`
+- Content SHA-256: `391a1b422b06e3170983081b3e17a47b1d4c3fc9f29a2d6ef0f6cfedaa62a3d2`
 
 ## Coverage
 
@@ -18,7 +18,7 @@
 | f1-2025 | 292 | 292 | 119 | 173 | 0 | 0 | 0 |
 | acc | 205 | 172 | 124 | 48 | 0 | 0 | 33 |
 | ac-evo | 258 | 226 | 126 | 100 | 0 | 0 | 32 |
-| iracing | 952 | 702 | 115 | 18 | 324 | 495 | 0 |
+| iracing | 956 | 706 | 115 | 18 | 328 | 495 | 0 |
 | lmu | 210 | 210 | 126 | 84 | 0 | 0 | 0 |
 
 ## Semantic variables
@@ -316,6 +316,7 @@
 | `motion.acceleration-x` | Acceleration X | number | length × time^-2 | m/s² | scalar |  |  |  |
 | `motion.acceleration-y` | Acceleration Y | number | length × time^-2 | m/s² | scalar |  |  |  |
 | `motion.acceleration-z` | Acceleration Z | number | length × time^-2 | m/s² | scalar |  |  |  |
+| `motion.altitude` | Altitude | number | length | m | scalar |  |  |  |
 | `motion.angular-velocity-x` | Angular Velocity X | number | length × time^-1 | m/s | scalar |  |  |  |
 | `motion.angular-velocity-y` | Angular Velocity Y | number | length × time^-1 | m/s | scalar |  |  |  |
 | `motion.angular-velocity-z` | Angular Velocity Z | number | length × time^-1 | m/s | scalar |  |  |  |
@@ -324,8 +325,10 @@
 | `motion.driver-head-position.z` | Driver head position Z | number | length | m | scalar |  |  |  |
 | `motion.front-axle-roll-angle` | Front axle roll angle | number | angle | rad | scalar |  |  |  |
 | `motion.lat-accel-st` | Lat Accel ST | number | length × time^-2 | m/s² | variable:0-* | source-order |  |  |
+| `motion.latitude` | Latitude | number | angle | deg | scalar |  |  |  |
 | `motion.local-velocity` | Local Velocity | number | length × time^-1 | m/s | scalar |  |  |  |
 | `motion.long-accel-st` | Long Accel ST | number | length × time^-2 | m/s² | variable:0-* | source-order |  |  |
+| `motion.longitude` | Longitude | number | angle | deg | scalar |  |  |  |
 | `motion.pitch` | Pitch | number | angle | rad | scalar |  |  |  |
 | `motion.pitch-rate-st` | Pitch Rate ST | number | angle × time^-1 | rad/s | variable:0-* | source-order |  |  |
 | `motion.position-x` | Position X | number | length | m | scalar |  |  |  |
@@ -742,6 +745,7 @@
 | `tire.temperature.surface.outer` | Outer surface temperature | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
 | `tire.temperature.surface.representative` | Representative surface temperature | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
 | `tires.actual-tyre-compound` | Actual Tyre Compound | number | dimensionless | count | scalar |  |  |  |
+| `tires.cold-pressure` | Cold Pressure | number | mass × length^-1 × time^-2 | kPa | fixed:4 | FL, FR, RL, RR |  |  |
 | `tires.competitor.age` | Competitor tire age | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `tires.competitor.compound` | Competitor tire compound | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
 | `tires.competitor.qualifying-compound` | Competitor qualifying tire compound | structured | dimensionless | id | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
@@ -771,6 +775,9 @@
 | `tires.right-tire-sets-used` | Right Tire Sets Used | number | unit:unitless | unitless | scalar |  |  |  |
 | `tires.slip-vibrations` | Slip Vibrations | number | dimensionless | ratio | scalar |  |  |  |
 | `tires.surface-rumble` | Surface rumble | number | unit:unitless | unitless | fixed:4 | FL, FR, RL, RR |  |  |
+| `tires.temp-cl` | Temp CL | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
+| `tires.temp-cm` | Temp CM | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
+| `tires.temp-cr` | Temp CR | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
 | `tires.tire-camber` | Tire Camber | number | angle | rad | fixed:4 | FL, FR, RL, RR |  |  |
 | `tires.tire-combined-slip` | Tire combined slip | number | dimensionless | ratio | fixed:4 | FL, FR, RL, RR |  |  |
 | `tires.tire-compound` | Tire compound | enum | unit:enum | enum | scalar |  | domain: 7, 8, 16, 17, 18, dry_compound, wet_compound |  |

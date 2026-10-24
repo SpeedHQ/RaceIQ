@@ -35,6 +35,7 @@ import { resolveLapF1Setup } from "@raceiq/backend-core/ai/f1-setup-identity";
 
 const gzipAsync = promisify(gzip);
 
+
 export const resourceRoutes = new Hono()
   .route("/", replayRoutes)
   .route("/", createSessionAnalyseRoutes(resolveLapCorners))
@@ -246,13 +247,18 @@ export const resourceRoutes = new Hono()
           carId: row.carId, trackId: row.trackId,
         });
       } else {
+        if (row.rawFile!.toLowerCase().endsWith(".ibt")) {
+          const original = await Bun.file(row.rawFile!).arrayBuffer();
+          c.header("Content-Type", "application/octet-stream");
+          c.header("Content-Disposition", `attachment; filename="iracing-session${row.sessionId}.ibt"`);
+          c.header("Content-Length", String(original.byteLength));
+          return c.body(original);
+        }
         const loaded = await loadSessionSource({
           rawFile: row.rawFile!, source: row.source ?? null, gameId: row.gameId as GameId,
           carId: row.carId, trackId: row.trackId, captureFormatVersion: row.captureFormatVersion,
         });
-        if (loaded.kind === "packets") {
-          return c.json({ error: "MoTeC sessions use canonical packets and have no BIN capture" }, 409);
-        }
+        if (loaded.kind === "packets") return c.json({ error: "MoTeC sessions use canonical packets and have no BIN capture" }, 409);
         bytes = loaded.buffer;
       }
     } catch (error) {

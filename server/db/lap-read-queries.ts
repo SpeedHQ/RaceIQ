@@ -10,7 +10,6 @@ import type { GameId } from "@raceiq/shared/games/ids";
 import { getLiveLapCaptureSnapshot } from "./live-capture-queries";
 import { resolveLiveLapCaptureArtifact } from "../session-capture/source-loader";
 const inFlightSessionDecodes = new Map<string, Promise<void>>();
-
 interface LapStats {
   totalLaps: number;
   validLaps: number;
@@ -73,44 +72,45 @@ export async function getLapStats(gameId?: GameId): Promise<LapStats> {
  */
 
 export async function getLaps(gameId?: GameId, limit: number = 200, sessionId?: number): Promise<LapMeta[]> {
-  const query = readDb.select({
-    id: laps.id,
-    sessionId: laps.sessionId,
-    lapNumber: laps.lapNumber,
-    lapTime: laps.lapTime,
-    isValid: laps.isValid,
-    classification: laps.classification,
-    invalidReason: laps.invalidReason,
-    notes: laps.notes,
-    pi: laps.pi,
-    carSetup: laps.carSetup,
-    createdAt: laps.createdAt,
-    carId: sessions.carId,
-    trackId: sessions.trackId,
-    tuneId: laps.tuneId,
-    tuneName: tunes.name,
-    gameId: sessions.gameId,
-    sectorTimes: laps.sectorTimes,
-    isFavorite: laps.isFavorite,
-    rawByteOffset: laps.rawByteOffset,
-    rawFrameCount: laps.rawFrameCount,
-    rawFile: sessions.rawFile,
-    ownership: sessions.ownership,
-    source: sessions.source,
-    experimentId: laps.experimentId,
-    experimentVersionId: laps.experimentVersionId,
-    experimentExcluded: laps.experimentExcluded,
-    experimentExcludedSource: laps.experimentExcludedSource,
-    fuelPerLap: laps.fuelPerLap,
-    tyreWear: laps.tyreWear,
-    catalogVersion: laps.catalogVersion,
-    catalogHash: laps.catalogHash,
-    catalogSchemaVersion: laps.catalogSchemaVersion,
-    parserVersion: laps.parserVersion,
-    resolverVersion: laps.resolverVersion,
-    derivationVersion: laps.derivationVersion,
-    standaloneCaptureReady: sql<boolean>`(${sessions.captureLayoutVersion} IS NULL AND ${sessions.rawFile} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 1 AND ${sessions.captureManifestFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 2 AND ${sessions.captureManifestFile} IS NOT NULL AND ${sessions.captureArchiveFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 3 AND ${laps.captureChunkId} IS NOT NULL AND EXISTS (SELECT 1 FROM live_capture_members m JOIN live_captures c ON c.capture_epoch = m.capture_epoch WHERE m.lap_id = ${laps.id} AND c.session_id = ${sessions.id} AND json_extract(m.descriptor, '$.id') = ${laps.captureChunkId}))`,
-  })
+  const query = readDb
+    .select({
+      id: laps.id,
+      sessionId: laps.sessionId,
+      lapNumber: laps.lapNumber,
+      lapTime: laps.lapTime,
+      isValid: laps.isValid,
+      classification: laps.classification,
+      invalidReason: laps.invalidReason,
+      notes: laps.notes,
+      pi: laps.pi,
+      carSetup: laps.carSetup,
+      createdAt: laps.createdAt,
+      carId: sessions.carId,
+      trackId: sessions.trackId,
+      tuneId: laps.tuneId,
+      tuneName: tunes.name,
+      gameId: sessions.gameId,
+      sectorTimes: laps.sectorTimes,
+      isFavorite: laps.isFavorite,
+      rawByteOffset: laps.rawByteOffset,
+      rawFrameCount: laps.rawFrameCount,
+      rawFile: sessions.rawFile,
+      ownership: sessions.ownership,
+      source: sessions.source,
+      experimentId: laps.experimentId,
+      experimentVersionId: laps.experimentVersionId,
+      experimentExcluded: laps.experimentExcluded,
+      experimentExcludedSource: laps.experimentExcludedSource,
+      fuelPerLap: laps.fuelPerLap,
+      tyreWear: laps.tyreWear,
+      catalogVersion: laps.catalogVersion,
+      catalogHash: laps.catalogHash,
+      catalogSchemaVersion: laps.catalogSchemaVersion,
+      parserVersion: laps.parserVersion,
+      resolverVersion: laps.resolverVersion,
+      derivationVersion: laps.derivationVersion,
+      standaloneCaptureReady: sql<boolean>`(${sessions.captureLayoutVersion} IS NULL AND ${sessions.rawFile} IS NOT NULL AND substr(${sessions.rawFile}, -13) <> 'manifest.json' AND ${laps.rawByteOffset} IS NOT NULL AND ${laps.rawFrameCount} > 0) OR (${sessions.captureLayoutVersion} = 1 AND ${sessions.captureManifestFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 2 AND ${sessions.captureManifestFile} IS NOT NULL AND ${sessions.captureArchiveFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 3 AND ${laps.captureChunkId} IS NOT NULL AND EXISTS (SELECT 1 FROM live_capture_members m JOIN live_captures c ON c.capture_epoch = m.capture_epoch WHERE m.lap_id = ${laps.id} AND c.session_id = ${sessions.id} AND json_extract(m.descriptor, '$.id') = ${laps.captureChunkId}))`,
+    })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .leftJoin(tunes, eq(laps.tuneId, tunes.id))
@@ -123,14 +123,12 @@ export async function getLaps(gameId?: GameId, limit: number = 200, sessionId?: 
       ? await query.where(eq(sessions.gameId, gameId)).all()
       : await query.all();
 
-  return rows.map(toLapMeta);
+  return rows.map((row) => ({ ...toLapMeta(row), telemetryAvailable: Boolean(row.standaloneCaptureReady) }));
 }
 
 export async function getSessionLaps(gameId: GameId, sessionId: number): Promise<LapMeta[]> {
   return getLaps(gameId, 1_000_000, sessionId);
 }
-
-
 /**
  * Every lap in a driver-profile scope, newest first — deliberately unlimited.
  *
@@ -177,7 +175,7 @@ export async function getLapMetaForProfileScope(gameId: GameId, carId?: string, 
       experimentExcludedSource: laps.experimentExcludedSource,
       fuelPerLap: laps.fuelPerLap,
       tyreWear: laps.tyreWear,
-      standaloneCaptureReady: sql<boolean>`(${sessions.captureLayoutVersion} IS NULL AND ${sessions.rawFile} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 1 AND ${sessions.captureManifestFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 2 AND ${sessions.captureManifestFile} IS NOT NULL AND ${sessions.captureArchiveFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 3 AND ${laps.captureChunkId} IS NOT NULL AND EXISTS (SELECT 1 FROM live_capture_members m JOIN live_captures c ON c.capture_epoch = m.capture_epoch WHERE m.lap_id = ${laps.id} AND c.session_id = ${sessions.id} AND json_extract(m.descriptor, '$.id') = ${laps.captureChunkId}))`,
+      standaloneCaptureReady: sql<boolean>`(${sessions.captureLayoutVersion} IS NULL AND ${sessions.rawFile} IS NOT NULL AND substr(${sessions.rawFile}, -13) <> 'manifest.json' AND ${laps.rawByteOffset} IS NOT NULL AND ${laps.rawFrameCount} > 0) OR (${sessions.captureLayoutVersion} = 1 AND ${sessions.captureManifestFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 2 AND ${sessions.captureManifestFile} IS NOT NULL AND ${sessions.captureArchiveFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 3 AND ${laps.captureChunkId} IS NOT NULL AND EXISTS (SELECT 1 FROM live_capture_members m JOIN live_captures c ON c.capture_epoch = m.capture_epoch WHERE m.lap_id = ${laps.id} AND c.session_id = ${sessions.id} AND json_extract(m.descriptor, '$.id') = ${laps.captureChunkId}))`,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
@@ -186,7 +184,7 @@ export async function getLapMetaForProfileScope(gameId: GameId, carId?: string, 
     .orderBy(desc(laps.id))
     .all();
 
-  return rows.map(toLapMeta);
+  return rows.map((row) => ({ ...toLapMeta(row), telemetryAvailable: Boolean(row.standaloneCaptureReady) }));
 }
 
 /**
@@ -295,28 +293,31 @@ type LapMetadataRow = {
 };
 
 async function getLapMetadataRow(id: number): Promise<LapMetadataRow | undefined> {
-  return readDb.select({
-    id: laps.id, sessionId: laps.sessionId, lapNumber: laps.lapNumber, lapTime: laps.lapTime,
-    isValid: laps.isValid, classification: laps.classification, isFavorite: laps.isFavorite, createdAt: laps.createdAt, rawByteOffset: laps.rawByteOffset,
-    rawFrameCount: laps.rawFrameCount, rawFile: sessions.rawFile, source: sessions.source,
-    carId: sessions.carId, trackId: sessions.trackId,
-    captureManifestFile: sessions.captureManifestFile, captureLayoutVersion: sessions.captureLayoutVersion, captureChunkId: laps.captureChunkId,
-    captureFormatVersion: sessions.captureFormatVersion,
-    captureArchiveFile: sessions.captureArchiveFile,
-    tuneId: laps.tuneId, tuneName: tunes.name, gameId: sessions.gameId,
-    ownership: sessions.ownership, carSetup: laps.carSetup,
-    sectorTimes: laps.sectorTimes, catalogVersion: laps.catalogVersion, catalogHash: laps.catalogHash,
-    catalogSchemaVersion: laps.catalogSchemaVersion, parserVersion: laps.parserVersion,
-    resolverVersion: laps.resolverVersion, derivationVersion: laps.derivationVersion,
-    standaloneCaptureReady: sql<boolean>`(${sessions.captureLayoutVersion} IS NULL AND ${sessions.rawFile} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 1 AND ${sessions.captureManifestFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 2 AND ${sessions.captureManifestFile} IS NOT NULL AND ${sessions.captureArchiveFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 3 AND ${laps.captureChunkId} IS NOT NULL AND EXISTS (SELECT 1 FROM live_capture_members m JOIN live_captures c ON c.capture_epoch = m.capture_epoch WHERE m.lap_id = ${laps.id} AND c.session_id = ${sessions.id} AND json_extract(m.descriptor, '$.id') = ${laps.captureChunkId}))`,
-  })
+  return readDb
+    .select({
+      id: laps.id, sessionId: laps.sessionId, lapNumber: laps.lapNumber, lapTime: laps.lapTime,
+      isValid: laps.isValid, isFavorite: laps.isFavorite, createdAt: laps.createdAt, rawByteOffset: laps.rawByteOffset,
+      classification: laps.classification,
+      rawFrameCount: laps.rawFrameCount, rawFile: sessions.rawFile, source: sessions.source,
+      carId: sessions.carId, trackId: sessions.trackId,
+      captureManifestFile: sessions.captureManifestFile, captureLayoutVersion: sessions.captureLayoutVersion, captureChunkId: laps.captureChunkId,
+// keep capture archive ref and capture format version
+      captureFormatVersion: sessions.captureFormatVersion,
+      captureArchiveFile: sessions.captureArchiveFile,
+      tuneId: laps.tuneId, tuneName: tunes.name, gameId: sessions.gameId,
+      ownership: sessions.ownership, carSetup: laps.carSetup,
+      sectorTimes: laps.sectorTimes, catalogVersion: laps.catalogVersion, catalogHash: laps.catalogHash,
+      catalogSchemaVersion: laps.catalogSchemaVersion, parserVersion: laps.parserVersion,
+      resolverVersion: laps.resolverVersion, derivationVersion: laps.derivationVersion,
+      standaloneCaptureReady: sql<boolean>`(${sessions.captureLayoutVersion} IS NULL AND ${sessions.rawFile} IS NOT NULL AND substr(${sessions.rawFile}, -13) <> 'manifest.json' AND ${laps.rawByteOffset} IS NOT NULL AND ${laps.rawFrameCount} > 0) OR (${sessions.captureLayoutVersion} = 1 AND ${sessions.captureManifestFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 2 AND ${sessions.captureManifestFile} IS NOT NULL AND ${sessions.captureArchiveFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 3 AND ${laps.captureChunkId} IS NOT NULL AND EXISTS (SELECT 1 FROM live_capture_members m JOIN live_captures c ON c.capture_epoch = m.capture_epoch WHERE m.lap_id = ${laps.id} AND c.session_id = ${sessions.id} AND json_extract(m.descriptor, '$.id') = ${laps.captureChunkId}))`,
+    })
     .from(laps).innerJoin(sessions, eq(laps.sessionId, sessions.id)).leftJoin(tunes, eq(laps.tuneId, tunes.id))
     .where(eq(laps.id, id)).get();
 }
 
-export async function getLapMetaById(id: number): Promise<(LapMeta & { telemetry: TelemetryPacket[]; rawFile: string | null; source: "motec" | null; rawByteOffset: number | null; rawFrameCount: number | null; captureFormatVersion: number | null }) | null> {
+export async function getLapMetaById(id: number): Promise<(LapMeta & { telemetry: TelemetryPacket[]; rawFile: string | null; source: "motec" | "ibt" | null; rawByteOffset: number | null; rawFrameCount: number | null; captureFormatVersion: number | null }) | null> {
   const row = await getLapMetadataRow(id);
-  return row ? { ...buildLapResult(row, []), rawFile: row.rawFile ?? null, source: row.source === "motec" ? "motec" : null, rawByteOffset: row.rawByteOffset, rawFrameCount: row.rawFrameCount, captureFormatVersion: row.captureFormatVersion } : null;
+  return row ? { ...buildLapResult(row, []), rawFile: row.rawFile ?? null, source: row.source === "motec" || row.source === "ibt" ? row.source : null, rawByteOffset: row.rawByteOffset, rawFrameCount: row.rawFrameCount, captureFormatVersion: row.captureFormatVersion } : null;
 }
 
 export async function getLapById(
@@ -332,13 +333,12 @@ export async function getLapById(
   if (hasPublishedLayout && row.captureLayoutVersion !== 1 && row.captureLayoutVersion !== 2 && row.captureLayoutVersion !== 3) {
     return { ...buildLapResult(row, []), parseError: `Unsupported capture layout version: ${row.captureLayoutVersion}` };
   }
-  if (hasPublishedLayout && row.captureLayoutVersion !== 3 && (!row.captureManifestFile || !row.captureChunkId || (row.captureLayoutVersion === 2 && !row.captureArchiveFile))) {
+  if (hasPublishedLayout && row.captureLayoutVersion !== 3 && (!row.captureManifestFile || (row.captureLayoutVersion === 2 && !row.captureArchiveFile))) {
     return { ...buildLapResult(row, []), parseError: "Incomplete capture bundle references" };
   }
-  if (row.captureLayoutVersion === 3 && !live) {
-    return { ...buildLapResult(row, []), parseError: "Live lap capture member is not committed" };
-  }
+  if (hasPublishedLayout && row.captureLayoutVersion !== 3 && !row.captureChunkId) return buildLapResult(row, []);
   if (cached && !hasPublishedLayout) return buildLapResult(row, cached);
+  if (row.captureLayoutVersion == null && !(row.rawFile != null && !row.rawFile.endsWith("manifest.json") && row.rawByteOffset != null && (row.rawFrameCount ?? 0) > 0)) return buildLapResult(row, []);
 
   let telemetry: TelemetryPacket[] = [];
   let parseError: string | undefined;
@@ -363,7 +363,7 @@ export async function getLapById(
   } else if (row.captureLayoutVersion == null && row.rawFile != null && row.rawByteOffset != null && row.rawFrameCount != null) {
     try {
       telemetry = await parseRawLapFrames(
-        { rawFile: row.rawFile, source: row.source === "motec" ? "motec" : null, gameId: row.gameId as GameId, carId: row.carId, trackId: row.trackId, captureFormatVersion: row.captureFormatVersion },
+        { rawFile: row.rawFile, source: row.source === "motec" || row.source === "ibt" ? row.source : null, gameId: row.gameId as GameId, carId: row.carId, trackId: row.trackId, captureFormatVersion: row.captureFormatVersion },
         row.rawByteOffset, row.rawFrameCount,
       );
     } catch (err) {
@@ -430,7 +430,7 @@ function buildLapResult(
     isValid: Boolean(row.isValid),
     classification: row.classification,
     isFavorite: Boolean(row.isFavorite),
-    telemetryAvailable: (row.rawFile != null && row.rawByteOffset != null && (row.rawFrameCount ?? 0) > 0) || Boolean(row.standaloneCaptureReady),
+    telemetryAvailable: Boolean(row.standaloneCaptureReady),
     standaloneCaptureReady: row.standaloneCaptureReady == null ? undefined : Boolean(row.standaloneCaptureReady),
     carId: row.carId,
     trackId: row.trackId,
@@ -500,7 +500,7 @@ export async function getLapsByIds(
       parserVersion: laps.parserVersion,
       resolverVersion: laps.resolverVersion,
       derivationVersion: laps.derivationVersion,
-      standaloneCaptureReady: sql<boolean>`(${sessions.captureLayoutVersion} IS NULL AND ${sessions.rawFile} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 1 AND ${sessions.captureManifestFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 2 AND ${sessions.captureManifestFile} IS NOT NULL AND ${sessions.captureArchiveFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 3 AND ${laps.captureChunkId} IS NOT NULL AND EXISTS (SELECT 1 FROM live_capture_members m JOIN live_captures c ON c.capture_epoch = m.capture_epoch WHERE m.lap_id = ${laps.id} AND c.session_id = ${sessions.id} AND json_extract(m.descriptor, '$.id') = ${laps.captureChunkId}))`,
+      standaloneCaptureReady: sql<boolean>`(${sessions.captureLayoutVersion} IS NULL AND ${sessions.rawFile} IS NOT NULL AND substr(${sessions.rawFile}, -13) <> 'manifest.json' AND ${laps.rawByteOffset} IS NOT NULL AND ${laps.rawFrameCount} > 0) OR (${sessions.captureLayoutVersion} = 1 AND ${sessions.captureManifestFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 2 AND ${sessions.captureManifestFile} IS NOT NULL AND ${sessions.captureArchiveFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 3 AND ${laps.captureChunkId} IS NOT NULL AND EXISTS (SELECT 1 FROM live_capture_members m JOIN live_captures c ON c.capture_epoch = m.capture_epoch WHERE m.lap_id = ${laps.id} AND c.session_id = ${sessions.id} AND json_extract(m.descriptor, '$.id') = ${laps.captureChunkId}))`,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
@@ -535,7 +535,14 @@ export async function getLapsByIds(
         } catch (err) { console.error(`[DB] Live bundle decode failed for lap ${row.id}:`, err); }
         continue;
       }
-      if ((row.captureLayoutVersion !== 1 && row.captureLayoutVersion !== 2) || !row.captureManifestFile || !row.captureChunkId) continue;
+      if ((row.captureLayoutVersion !== 1 && row.captureLayoutVersion !== 2) || !row.captureManifestFile) {
+        decoded.set(row.id, []);
+        continue;
+      }
+      if (!row.captureChunkId) {
+        decoded.set(row.id, []);
+        continue;
+      }
       try {
         const { path, artifact, chunk, publicationIdentity } = await resolveLapCaptureArtifact(row.captureManifestFile, row.captureChunkId, row.id, row);
         const cached = cacheGet(row.id, publicationIdentity);
@@ -553,12 +560,16 @@ export async function getLapsByIds(
       }
       continue;
     }
+    if (row.rawFile == null || row.rawFile.endsWith("manifest.json") || row.rawByteOffset == null || (row.rawFrameCount ?? 0) <= 0) {
+      decoded.set(row.id, []);
+      continue;
+    }
     const cached = cacheGet(row.id);
     if (cached) {
       decoded.set(row.id, cached);
       continue;
     }
-    if (row.rawByteOffset != null && row.rawFrameCount && row.rawFile) {
+    if (row.rawByteOffset != null && row.rawFrameCount != null && row.rawFile) {
       let group = bySession.get(row.rawFile);
       if (!group) {
         group = { source: row.source, gameId: row.gameId as GameId, carId: row.carId, trackId: row.trackId, captureFormatVersion: row.captureFormatVersion, metas: [] };

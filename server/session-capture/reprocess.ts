@@ -48,7 +48,8 @@ export class SessionNotFoundError extends Error {
  */
 export async function reprocessSession(sessionId: number): Promise<ReprocessResult> {
   const result = await withSessionCaptureMaintenanceLock(() => reprocessSessionUnlocked(sessionId));
-  await enqueueSessionCaptureSplit(sessionId);
+  const row = await readDb.select({ rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, sessionId)).get();
+  if (!row?.rawFile?.toLowerCase().endsWith(".ibt")) await enqueueSessionCaptureSplit(sessionId);
   return result;
 }
 
@@ -81,7 +82,7 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
     rawFile: session.rawFile, source: session.source, gameId,
     carId: session.carId, trackId: session.trackId, captureFormatVersion: session.captureFormatVersion,
   };
-  const loaded = session.rawFile.endsWith(".motec.zip") ? await loadSessionSource(source) : null;
+  const loaded = session.rawFile.toLowerCase().endsWith(".ibt") || session.rawFile.endsWith(".motec.zip") ? await loadSessionSource(source) : null;
   const existingLaps = await getLapsForSession(sessionId);
   const capturingDb = new CapturingDbAdapter();
   let detector = serverGame.createLapDetector({ db: capturingDb, bypassPacketRateFilter: true });

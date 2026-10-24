@@ -38,7 +38,7 @@ describe("GET /api/laps/:id/semantic-telemetry", () => {
         headers: { "X-Game-Id": "f1-2025" },
       });
 
-      expect(response.status).toBe(200);
+      expect(response.status, await response.clone().text()).toBe(200);
       const body = await response.json() as {
         lapId: number;
         requestedSemanticIds: readonly string[];

@@ -31,10 +31,12 @@ The Analyse page accepts `.ibt` recordings:
 1. Upload streams to a temporary staging file.
 2. Preview scans telemetry rows and reports identity, duration, channel coverage, driving rows, and complete-lap candidates without creating a session.
 3. A recording without a complete lap is rejected.
-4. Confirmation replays the useful driving window through an isolated iRacing parser and the common `Pipeline`.
-5. RaceIQ creates normal session/lap rows plus a canonical `.bin` raw capture. The source `.ibt` is not retained as `sessions.rawFile`.
+4. Confirmation decodes the useful driving window directly into telemetry packets and feeds the common import pipeline at the recording's native cadence.
+5. RaceIQ retains a byte-identical `.ibt` as `sessions.rawFile`, marks the session source as `ibt`, and stores lap windows as packet indices. It does not create a derived `.bin` capture.
 
-Cancel, commit, and preview expiry remove the staged file. Confirmed previews expire after 30 minutes.
+Cancel, commit, and preview expiry remove the staged file. Confirmed previews expire after 30 minutes. A successful import keeps its owned original-format recording; failed imports roll back their sessions and owned recording. Replay and reprocessing decode that retained IBT, including original native channels, rather than converting it into BIN.
+
+Exports of imported IBT telemetry retain the complete original recording, even when initiated from a single lap. ZIP archives contain the original `.ibt` rather than a converted lap capture; re-import uses the same production IBT preview and commit service.
 
 ## Analysis boundaries
 
@@ -53,4 +55,5 @@ Cancel, commit, and preview expiry remove the staged file. Confirmed previews ex
 - `packages/game-iracing/src/normalizer.ts` — canonical telemetry mapping
 - `packages/game-iracing/src/index.ts` — server adapter
 - `packages/game-iracing/src/ibt-reader.ts` — streaming IBT decoder
-- `server/games/iracing/import-ibt.ts` — preview, staging, commit, and cleanup
+- `packages/game-iracing/src/ibt-source.ts` — original-format packet and native-channel decoding
+- `apps/backend/src/imports/iracing-ibt.ts` — preview, original-file publication, commit, and cleanup

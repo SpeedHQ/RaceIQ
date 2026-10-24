@@ -17,6 +17,13 @@ import { createRawCaptureIdentity, loadRawCaptureIdentity } from "@raceiq/backen
 import { getLiveLapCaptureSnapshot } from "@raceiq/backend-core/db/live-capture-queries";
 import { resolveTelemetryReplay } from "@raceiq/backend-core/telemetry/replay";
 import type { SemanticLapTelemetry } from "../contracts/replay";
+const IRACING_TRACK_MAP_SEMANTIC_IDS: Record<string, true> = {
+  "identity.track.latitude": true,
+  "identity.track.longitude": true,
+  "motion.latitude": true,
+  "motion.longitude": true,
+  "timing.lap-fraction": true,
+};
 
 export function semanticReplayIds(gameId: GameId): readonly string[] {
   return analyseSemanticIds(getGame(gameId));
@@ -34,7 +41,10 @@ export const replayRoutes = new Hono()
       if (!meta || meta.gameId !== gameIdResult.data) return c.json({ error: "Lap not found" }, 404);
       const lap = await getLapById(id);
       if (!lap) return c.json({ error: "Lap not found" }, 404);
+      const trackMapView = c.req.query("view") === "track-map";
+      if (trackMapView && gameIdResult.data !== "iracing") return c.json({ error: "Track map replay is only available for iRacing" }, 400);
       if (lap.parseError) {
+        if (trackMapView) return c.json({ lapId: id, trackOrigin: null, samples: [], parseError: lap.parseError });
         return c.json({
           lapId: id, requestedSemanticIds: [], sectorTimes: meta.sectorTimes ?? null,
           sectorStarts: null, insights: [], detectorCoverage: INSIGHT_DETECTORS.map((detector) => ({ ...detector, status: "unavailable" as const, reason: "Lap telemetry could not be parsed" })), parseError: lap.parseError, envelopes: [],
@@ -60,8 +70,42 @@ export const replayRoutes = new Hono()
             )
           : source.rawFile ? await loadRawCaptureIdentity(source.rawFile) : undefined
         : undefined;
-      const semanticIds = meta.gameId === "lmu" ? [...new Set([...semanticReplayIds(meta.gameId), ...liveSemanticIds("lmu")])] : semanticReplayIds(meta.gameId);
+      const semanticIds = trackMapView
+        ? semanticReplayIds("iracing").filter((semanticId) => IRACING_TRACK_MAP_SEMANTIC_IDS[semanticId] === true)
+        : meta.gameId === "lmu"
+          ? [...new Set([...semanticReplayIds(meta.gameId), ...liveSemanticIds("lmu")])]
+          : semanticReplayIds(meta.gameId);
       const replay = resolveTelemetryReplay(id, replaySource, lap.telemetry, semanticIds, rawCapture);
+      if (trackMapView) {
+        const readNumber = (values: typeof replay.envelopes[number]["values"], semanticId: string) => {
+          const value = values.find((entry) => entry.semanticId === semanticId);
+          return value
+            && (value.state === undefined || value.state === "ok")
+            && (value.freshness === undefined || value.freshness === "fresh")
+            && typeof value.value === "number"
+            && Number.isFinite(value.value)
+            ? value.value
+            : null;
+        };
+        const firstNumber = (semanticId: string) => {
+          for (const envelope of replay.envelopes) {
+            const value = readNumber(envelope.values, semanticId);
+            if (value !== null) return value;
+          }
+          return null;
+        };
+        const latitude = firstNumber("identity.track.latitude");
+        const longitude = firstNumber("identity.track.longitude");
+        return c.json({
+          lapId: replay.lapId,
+          trackOrigin: latitude !== null && longitude !== null ? { latitude, longitude } : null,
+          samples: replay.envelopes.map(({ values }) => ({
+            latitude: readNumber(values, "motion.latitude"),
+            longitude: readNumber(values, "motion.longitude"),
+            fraction: readNumber(values, "timing.lap-fraction"),
+          })),
+        });
+      }
       const nativeLayout = getGame(meta.gameId).getNativeSectorLayout?.(lap.telemetry[0]);
       const processed = processLap(lap.telemetry, meta.gameId);
       const analysis = runInsightScanWithCoverage(processed.packets, meta.gameId, resolveLapAnalysisContext(meta.gameId, meta.trackId, processed.packets));

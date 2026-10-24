@@ -13,6 +13,7 @@ import { parseLd } from "../motec/ld";
 import { parseLdxBeacons } from "../motec/ldx";
 import { resolveMotecTarget } from "../motec/targets";
 import { countSourceFrameScanned } from "./test-instrumentation";
+import { getServerGame } from "../games/registry";
 import {
   containsSparseCaptureFrames,
   META_FRAME_MAGIC,
@@ -54,10 +55,36 @@ export interface SessionCaptureSource {
   captureFormatVersion?: number | null;
   artifact?: { archivePath: string; entryName: string; manifest: ArchiveManifest; liveSnapshot?: LiveArchiveSnapshot };
 }
+const importedNativeValues = new WeakMap<TelemetryPacket, Readonly<Record<string, unknown>>>();
+export function attachImportedNativeValues(
+  packets: readonly TelemetryPacket[],
+  values: readonly Readonly<Record<string, unknown>>[] | undefined,
+): void {
+  if (!values) return;
+  for (let index = 0; index < Math.min(packets.length, values.length); index++) {
+    importedNativeValues.set(packets[index]!, values[index]!);
+  }
+}
+export function importedNativeValuesFor(packet: TelemetryPacket): Readonly<Record<string, unknown>> | undefined {
+  return importedNativeValues.get(packet);
+}
+export function cloneSessionPacket(packet: TelemetryPacket): TelemetryPacket {
+  const clone = { ...packet };
+  const values = importedNativeValues.get(packet);
+  if (values) importedNativeValues.set(clone, values);
+  return clone;
+}
+
+interface CacheEntry {
+  size: number;
+  mtimeMs: number;
+  dev: number;
+  ino: number;
+  loaded: LoadedSessionSource;
+}
 export type LoadedSessionSource =
   | { kind: "capture"; buffer: Buffer; frameIndex: SessionCaptureFrameIndex }
   | { kind: "packets"; packets: TelemetryPacket[]; offsetEncoding: MotecOffsetEncoding };
-interface CacheEntry { size: number; mtimeMs: number; dev: number; ino: number; loaded: LoadedSessionSource }
 export interface SessionCaptureFile {
   readonly size: number;
   readonly lastModified: number;
@@ -253,9 +280,7 @@ export async function* iterateSessionCaptureRecordsFromSource(
     yield* iterateStandaloneManifest(source);
     return;
   }
-  if (source.rawFile.endsWith(".motec.zip")) {
-    throw new Error("Motec source archives expose canonical packets, not BIN frames");
-  }
+  if (source.rawFile.toLowerCase().endsWith(".ibt")) throw new Error("Original IBT sources are packet-index captures, not BIN frames");
 
   const file = captureFileFactory(source.rawFile);
   if (!options.allowLegacyFullFrames && source.captureFormatVersion !== 1) {
@@ -416,6 +441,17 @@ export async function loadSessionSource(source: SessionCaptureSource): Promise<L
   const cacheKey = key(source);
   const hit = cache.get(cacheKey);
   if (hit && (!info || hit.size === info.size && hit.mtimeMs === info.mtimeMs && hit.dev === info.dev && hit.ino === info.ino)) return hit.loaded;
+  if (source.rawFile.toLowerCase().endsWith(".ibt")) {
+    if (source.gameId !== "iracing" || source.source !== "ibt") throw new Error("IBT source requires an iRacing session marked 'ibt'");
+    const adapter = getServerGame(source.gameId);
+    if (!adapter.loadImportedSource) throw new Error("iRacing IBT source loader is unavailable");
+    const imported = await adapter.loadImportedSource(source.rawFile);
+    attachImportedNativeValues(imported.packets, imported.nativeValues);
+    const loaded: LoadedSessionSource = { kind: "packets", packets: imported.packets, offsetEncoding: "packet-index" };
+    cache.set(cacheKey, { size: info?.size ?? 0, mtimeMs: info?.mtimeMs ?? 0, dev: info?.dev ?? 0, ino: info?.ino ?? 0, loaded });
+    while (cache.size > MAX_ENTRIES) { const oldest = cache.keys().next().value; if (oldest) cache.delete(oldest); }
+    return loaded;
+  }
   if (source.rawFile.endsWith("manifest.json")) {
     const records: Buffer[] = [encodeMetaFrame()];
     for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: true })) {

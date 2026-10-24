@@ -12,6 +12,9 @@ import { laps, sessions } from "@raceiq/backend-core/db/schema";
 import { parsePacket, subscribeParserSource, type ParserReplayLocator } from "@raceiq/backend-core/games/packet-dispatch";
 import type { DetectorOwnershipTransition, DetectorOwnershipWindow } from "@raceiq/telemetry-core/processor/ordinal-engine";
 import { DirectCaptureRecording } from "@raceiq/backend-core/session-capture/direct-recorder";
+import { iterateSessionCaptureRecordsFromSource } from "@raceiq/backend-core/session-capture/source-loader";
+import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
+import { updateSessionRawFile } from "@raceiq/backend-core/db/session-queries";
 import { initServerGameAdapters } from "../../src/games/init";
 import { eq } from "drizzle-orm";
 
@@ -27,9 +30,9 @@ afterEach(async () => {
   await Promise.all(directories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })));
 });
 
-function fixtureFrames(): Buffer[] {
+function fixtureFrames(count = 4): Buffer[] {
   const fixture = gunzipSync(readFileSync(join(ROOT_DIR, "test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz")));
-  return [...iterateSessionFrames(fixture)].slice(0, 4);
+  return [...iterateSessionFrames(fixture)].slice(0, count);
 }
 
 function ownershipTransition(kind: DetectorOwnershipTransition["kind"], window: DetectorOwnershipWindow): DetectorOwnershipTransition {
@@ -93,10 +96,15 @@ describe("DirectCaptureRecording", () => {
     const rowA = await db.insert(laps).values({ sessionId: session.id, lapNumber: 1, lapTime: 60, isValid: true, rawByteOffset: offsetA, rawFrameCount: 1 }).returning({ id: laps.id }).get();
     const rowB = await db.insert(laps).values({ sessionId: session.id, lapNumber: 2, lapTime: 61, isValid: true, rawByteOffset: offsetB, rawFrameCount: 1 }).returning({ id: laps.id }).get();
     if (!rowA || !rowB) throw new Error("Failed creating direct-recorder lap fixtures");
+    const manifestPath = join(directory, "capture-manifest.json");
+    await updateSessionRawFile(session.id, manifestPath, "test-detector");
+    const beforePublication = await getLapById(rowA.id);
+    expect(beforePublication).toMatchObject({ telemetry: [], telemetryAvailable: false, standaloneCaptureReady: false });
+    expect(beforePublication).not.toHaveProperty("parseError");
 
     let closedA!: () => void;
     const durableCloseA = new Promise<void>((resolve) => { closedA = resolve; });
-    const capture = new DirectCaptureRecording("fm-2023", directory, join(directory, "capture-manifest.json"), {
+    const capture = new DirectCaptureRecording("fm-2023", directory, manifestPath, {
       writerOptions: { maxBatchDelayMs: 0, onClosed: () => closedA() },
     });
     captures.push(capture);
@@ -133,6 +141,64 @@ describe("DirectCaptureRecording", () => {
     expect(publishedLaps).toHaveLength(2);
     expect(publishedLaps.every((lap) => lap.captureChunkId !== null && lap.sourceFrameCount === 1)).toBe(true);
     expect(publishedLaps.map((lap) => lap.sourceFrameStart)).toEqual([0, 1]);
+    const publishedSession = await db.select({
+      rawFile: sessions.rawFile, captureManifestFile: sessions.captureManifestFile,
+      captureLayoutVersion: sessions.captureLayoutVersion,
+    }).from(sessions).where(eq(sessions.id, session.id)).get();
+    expect(publishedSession).toEqual({
+      rawFile: join(directory, "capture-manifest.json"),
+      captureManifestFile: join(directory, "capture-manifest.json"), captureLayoutVersion: 1,
+    });
+    const replayFrames: Buffer[] = [];
+    for await (const record of iterateSessionCaptureRecordsFromSource({
+      rawFile: publishedSession!.rawFile!, source: null, gameId: "fm-2023",
+      carId: "test-car", trackId: "test-track",
+    }, { strict: true })) {
+      if (record.kind === "frame") replayFrames.push(record.frame);
+    }
+    expect(replayFrames).toEqual([lapAFrame!, boundaryFrame!]);
+
+  });
+  it("replays a bound direct capture after its manifest was registered early", async () => {
+    initServerGameAdapters();
+    const directory = await mkdtemp(join(tmpdir(), "raceiq-direct-replay-"));
+    directories.push(directory);
+    const frames = fixtureFrames(260);
+    const session = await db.insert(sessions).values({ gameId: "fm-2023", carId: "test-car", trackId: "test-track", rawFile: null }).returning({ id: sessions.id }).get();
+    if (!session) throw new Error("Failed creating direct-replay session fixture");
+    sessionIds.push(session.id);
+    const startByteOffset = META_FRAME_BYTES;
+    const lap = await db.insert(laps).values({
+      sessionId: session.id, lapNumber: 1, lapTime: 60, isValid: true,
+      rawByteOffset: startByteOffset, rawFrameCount: frames.length,
+    }).returning({ id: laps.id }).get();
+    if (!lap) throw new Error("Failed creating direct-replay lap fixture");
+
+    const manifestPath = join(directory, "capture-manifest.json");
+    await updateSessionRawFile(session.id, manifestPath, "test-detector");
+    const pending = await getLapById(lap.id);
+    expect(pending).toMatchObject({ telemetry: [], telemetryAvailable: false, standaloneCaptureReady: false });
+    expect(pending).not.toHaveProperty("parseError");
+
+    const capture = new DirectCaptureRecording("fm-2023", directory, manifestPath, { writerOptions: { maxBatchDelayMs: 0 } });
+    captures.push(capture);
+    await capture.ready;
+    capture.attachSession(session.id, Promise.resolve(), () => {});
+    const window: DetectorOwnershipWindow = {
+      revision: 1, lapNumber: 1, startOffset: startByteOffset, startOrdinal: 0,
+      frameCount: frames.length, status: "provisional", trailingContextFrameCount: 0, bounded: true,
+    };
+    capture.writeRecord(frames[0]!, 100);
+    capture.processTransitions([ownershipTransition("window-start", window)], null);
+    for (let index = 1; index < frames.length; index++) capture.writeRecord(frames[index]!, 100 + index);
+    capture.processTransitions([ownershipTransition("window-finalized", { ...window, revision: 2, status: "final" })], null);
+    capture.bindLap({ sessionId: session.id, lapId: lap.id, lapNumber: 1, startByteOffset, frameCount: frames.length });
+    await capture.stop();
+
+    const replayed = await getLapById(lap.id);
+    expect(replayed).toMatchObject({ telemetryAvailable: true, standaloneCaptureReady: true });
+    expect(replayed).not.toHaveProperty("parseError");
+    expect(replayed?.telemetry.length).toBeGreaterThan(0);
   });
   it("promotes a previously announced boundary without rotating or losing later native frames", async () => {
     const directory = await mkdtemp(join(tmpdir(), "raceiq-direct-promotion-"));

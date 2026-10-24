@@ -57,9 +57,9 @@ test("Compare ignores a stale URL lap before selecting another F1 lap", async ({
 
   await page.goto(`/${f1.prefix}/compare?track=${encodeURIComponent(f1Lap.trackId)}&carA=${encodeURIComponent(f1Lap.carId)}&carB=${encodeURIComponent(f1Lap.carId)}&lapA=${staleLap.id}&lapB=${f1Lap.id}&view=compare`);
   await expect(page.getByTestId("lap-compare-workspace").getByText("Select two laps above to compare")).toBeVisible();
-  await expect(page.getByLabel("Lap A")).toHaveValue("");
+  await expect(page.getByRole("combobox", { name: "Lap A", exact: true })).toHaveValue("");
   expect(alignmentRequests).toEqual([]);
-  const lapA = page.getByLabel("Lap A");
+  const lapA = page.getByRole("combobox", { name: "Lap A", exact: true });
   await lapA.click();
   const listbox = await lapA.getAttribute("aria-controls");
   await page.locator(`[id="${listbox}"]`).getByRole("option", { name: lapOptionLabel(nextLap), exact: true }).click();

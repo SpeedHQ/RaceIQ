@@ -15,8 +15,8 @@ import { tryGetGame } from "@raceiq/shared/games/registry";
 import { GameIdSchema, type GameId } from "@raceiq/shared/games/ids";
 import { getIRacingSvgTrackMap } from "@raceiq/game-iracing/track-map";
 import { applyAlignment, computeAlignment } from "@raceiq/shared/racing/tracks/geometry/points";
-import type { IRacingPitLine } from "@raceiq/game-iracing/track-map-svg";
-import { alignIRacingAutoSegmentsToTurnLabels, type IRacingMapLabel } from "@raceiq/game-iracing/track-map-svg";
+import { alignIRacingAutoSegmentsToTurnLabels, type IRacingPitLine, type IRacingMapLabel, type IRacingSvgTrackMap } from "@raceiq/game-iracing/track-map-svg";
+import { getIRacingTrack } from "@raceiq/game-iracing-metadata/racing/tracks/catalogs/iracing";
 import { lapPath } from "@raceiq/shared/racing/tracks/path";
 import { getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import { getLMUTrackOutline } from "@raceiq/game-lmu-metadata/track-boundaries";
@@ -51,6 +51,22 @@ export function getSharedTrackName(trackId: string, gameId?: string): string | u
   return adapter?.getSharedTrackName?.(trackId);
 }
 
+export interface TrackProjectionGeometry {
+  points: { x: number; z: number }[];
+  /** Edges of the published map ribbon, in the same frame as projected positions. */
+  boundaries: {
+    leftEdge: { x: number; z: number }[];
+    rightEdge: { x: number; z: number }[];
+    centerLine: { x: number; z: number }[];
+    pitLane: null;
+    coordSystem: "iracing-map";
+  } | null;
+  source: "official-svg";
+  units: "m";
+  start: "start-finish";
+  direction: "forward";
+}
+
 export interface ResolvedTrackOutline {
   points: { x: number; z: number }[];
   labels: IRacingMapLabel[];
@@ -58,6 +74,35 @@ export interface ResolvedTrackOutline {
   source: "shared" | "official-svg" | "generated" | "bundled" | "recorded" | "none";
   pitLines: IRacingPitLine[];
   closed: boolean;
+  projection?: TrackProjectionGeometry | null;
+}
+
+export function resolveIRacingProjection(trackId: string, official: IRacingSvgTrackMap | null): TrackProjectionGeometry | null {
+  const track = getIRacingTrack(Number(trackId));
+  if (!official || !official.startFinishAligned || !official.forwardDirectionKnown || !track?.lengthKm || track.lengthKm <= 0) return null;
+  if (official.points.length < 2 || official.points.some(({ x, z }) => !Number.isFinite(x) || !Number.isFinite(z))) return null;
+  const closedPoints = [...official.points, official.points[0]];
+  const sourceLength = computeOutlineLength(closedPoints);
+  if (!Number.isFinite(sourceLength) || sourceLength <= 0) return null;
+  const scale = track.lengthKm * 1000 / sourceLength;
+  const points = closedPoints.map(({ x, z }) => ({ x: x * scale, z: z * scale }));
+  const edges = official.ribbonEdges;
+  const validEdges = edges && edges.leftEdge.length === official.points.length && edges.rightEdge.length === official.points.length
+    && edges.leftEdge.every(({ x, z }) => Number.isFinite(x) && Number.isFinite(z))
+    && edges.rightEdge.every(({ x, z }) => Number.isFinite(x) && Number.isFinite(z));
+  const scaleEdge = (edge: { x: number; z: number }[]) => {
+    const result = edge.map(({ x, z }) => ({ x: x * scale, z: z * scale }));
+    result.push({ ...result[0] });
+    return result;
+  };
+  return {
+    points,
+    boundaries: validEdges ? { leftEdge: scaleEdge(edges.leftEdge), rightEdge: scaleEdge(edges.rightEdge), centerLine: points, pitLane: null, coordSystem: "iracing-map" } : null,
+    source: "official-svg",
+    units: "m",
+    start: "start-finish",
+    direction: "forward",
+  };
 }
 
 function resolveTouristOutline(trackId: string): ResolvedTrackOutline {
@@ -109,6 +154,7 @@ export async function resolveTrackOutline(
           recorded: false,
           source: "shared",
           closed: true,
+          projection: resolveIRacingProjection(trackId, official),
         };
       }
     }
@@ -118,6 +164,7 @@ export async function resolveTrackOutline(
         recorded: false,
         source: "official-svg",
         closed: true,
+        projection: resolveIRacingProjection(trackId, official),
       };
     }
 
@@ -130,6 +177,7 @@ export async function resolveTrackOutline(
         recorded: true,
         source: "generated",
         closed: true,
+        projection: null,
       };
     }
   } else {

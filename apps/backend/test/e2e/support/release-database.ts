@@ -24,7 +24,11 @@ export async function seedReleaseDatabase(temporary: string, source?: ReleaseFix
   await command(["git", "archive", "--format=tar", `--output=${archive}`, CLASSIFICATION_BASELINE]);
   await command(["tar", "-xf", archive, "-C", releaseDir, "--exclude=.claude"]);
   await command(["git", "init", "--quiet"], releaseDir);
-  await command([process.execPath, "install", "--frozen-lockfile"], releaseDir);
+  const { packageManager } = JSON.parse(readFileSync(join(releaseDir, "package.json"), "utf8")) as { packageManager?: string };
+  const bunVersion = packageManager?.match(/^bun@(\d+\.\d+\.\d+)$/)?.[1];
+  if (!bunVersion) throw new Error(`Historical release has unsupported packageManager: ${packageManager}`);
+  const historicalBun = [process.execPath, "x", "--package", `bun@${bunVersion}`, "bun"];
+  await command([...historicalBun, "install", "--frozen-lockfile"], releaseDir);
   let paths = source?.paths;
   if (!paths) {
     const fixture = join(temporary, "ac-evo-tourist.bin.gz");
@@ -33,7 +37,7 @@ export async function seedReleaseDatabase(temporary: string, source?: ReleaseFix
     )));
     paths = [fixture];
   }
-  await command([process.execPath, "run", "db:seed", `--games=${source?.gameId ?? "ac-evo"}`, `--fixtures=${paths.join(",")}`], releaseDir, upgradeEnvironment(dataDir));
+  await command([...historicalBun, "run", "db:seed", `--games=${source?.gameId ?? "ac-evo"}`, `--fixtures=${paths.join(",")}`], releaseDir, upgradeEnvironment(dataDir));
   return { releaseDir, dataDir };
 }
 

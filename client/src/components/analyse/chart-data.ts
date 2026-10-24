@@ -4,6 +4,7 @@ export interface ChartData {
   speed: number[];
   throttle: number[];
   brake: number[];
+  clutch: number[];
   rpm: number[];
   steering: number[];
   timeFracs: number[];
@@ -44,7 +45,7 @@ export function buildChartData(
   temperatureConverter: (celsius: number) => number = (celsius) => celsius,
 ): ChartData | null {
   if (semanticFrames.length === 0) return null;
-  const speed: number[] = [], throttle: number[] = [], brake: number[] = [], rpm: number[] = [], steering: number[] = [];
+  const speed: number[] = [], throttle: number[] = [], brake: number[] = [], clutch: number[] = [], rpm: number[] = [], steering: number[] = [];
   const tireTempFL: number[] = [], tireTempFR: number[] = [], tireTempRL: number[] = [], tireTempRR: number[] = [];
   const tireCoreTempFL: number[] = [], tireCoreTempFR: number[] = [], tireCoreTempRL: number[] = [], tireCoreTempRR: number[] = [];
   const tireCarcassTempFL: number[] = [], tireCarcassTempFR: number[] = [], tireCarcassTempRL: number[] = [], tireCarcassTempRR: number[] = [];
@@ -69,6 +70,7 @@ export function buildChartData(
     speed.push(semanticNumber(frame, "motion.speed") ?? NaN);
     throttle.push(semanticNumber(frame, "inputs.accel") ?? NaN);
     brake.push(semanticNumber(frame, "inputs.brake") ?? NaN);
+    clutch.push(semanticNumber(frame, "inputs.clutch") ?? NaN);
     rpm.push(semanticNumber(frame, "engine.current-engine-rpm") ?? NaN);
     steering.push(semanticNumber(frame, "inputs.steer") ?? NaN);
     const rotation = semanticWheelNumbers(frame, "tires.wheel-rotation-speed");
@@ -115,7 +117,7 @@ export function buildChartData(
     if (brakes.some((value) => value != null)) hasBrakeTemp = true;
   }
   return {
-    speed, throttle, brake, rpm, steering, timeFracs, times, tireTempFL, tireTempFR, tireTempRL, tireTempRR,
+    speed, throttle, brake, clutch, rpm, steering, timeFracs, times, tireTempFL, tireTempFR, tireTempRL, tireTempRR,
     ...(hasWheelRotation ? { wheelRotationFL, wheelRotationFR, wheelRotationRL, wheelRotationRR } : {}),
     ...(hasTireTemp && hasCoreTemp && tireTemperatureSemanticId === "tire.temperature.surface.representative" ? { tireCoreTempFL, tireCoreTempFR, tireCoreTempRL, tireCoreTempRR } : {}),
     ...(hasTireTemp && hasCarcassTemp && tireTemperatureSemanticId === "tire.temperature.surface.representative" ? { tireCarcassTempFL, tireCarcassTempFR, tireCarcassTempRL, tireCarcassTempRR } : {}),

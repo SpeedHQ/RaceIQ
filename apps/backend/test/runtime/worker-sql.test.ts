@@ -1,14 +1,16 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect } from "bun:test";
 import { createClient, type Client } from "@libsql/client/sqlite3";
 import { createWorkerSqlClient, createWorkerSqlHost, type WorkerSqlOperation, type WorkerSqlRequest, type WorkerSqlResponse, type WorkerSqlSender } from "@raceiq/backend-core/db/worker-sql";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp } from "node:fs/promises";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { MessageChannel } from "node:worker_threads";
+import { nativeDatabaseTest } from "../support/native-database-test";
+
+const test = nativeDatabaseTest(import.meta.path);
+
 async function withDatabase(run: (path: string) => Promise<void>) {
-  const directory = await mkdtemp(join(tmpdir(), "raceiq-worker-sql-"));
-  try { await run(join(directory, "database.sqlite")); }
-  finally { await rm(directory, { recursive: true, force: true }); }
+  const directory = await mkdtemp(join(process.env.RACEIQ_NATIVE_DB_ROOT!, "worker-sql-"));
+  await run(join(directory, "database.sqlite"));
 }
 
 function channelFor(client: Client, leaseId: string) {

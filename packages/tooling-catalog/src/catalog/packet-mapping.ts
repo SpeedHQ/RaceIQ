@@ -618,6 +618,12 @@ function packetGameLink(
   output: ParserOutput,
   unit: string,
 ): GameLink {
+  if (gameId === "iracing" && (/^Tire.*Temp/.test(set.key) || set.key === "TirePressure")) {
+    return unavailable(
+      "source-not-provided",
+      "iRacing reports tire temperatures only as pit snapshots and cold pressure as a setup value, not live tire telemetry. Raw SDK values remain available for source inspection.",
+    );
+  }
   const explicitlyUnavailable = UNAVAILABLE_PACKET_FIELDS[gameId]?.[set.key];
   if (explicitlyUnavailable) {
     return unavailable("parser-placeholder", explicitlyUnavailable);
@@ -677,12 +683,7 @@ function packetGameLink(
     return value ? expandedExpressionText(output, value) : "";
   });
   const native = packetNativeMetadata(gameId, set.key, unit);
-  const directIRacingCarcassBand =
-    gameId === "iracing" &&
-    /^TireCarcassTemp(Left|Middle|Right)$/.test(set.key);
-  const mappingKind = directIRacingCarcassBand
-    ? "direct"
-    : classifyPacketMapping(gameId, set.key, native, expressions);
+  const mappingKind = classifyPacketMapping(gameId, set.key, native, expressions);
   const sourceShape =
     set.shape === "per-wheel"
       ? Object.fromEntries(

@@ -185,6 +185,7 @@ for (const gameId of ["fm-2023", "f1-2025"] as const) {
     await page.screenshot({ path: testInfo.outputPath(`${gameId}-focus-desktop.png`), animations: "disabled" });
     await page.setViewportSize({ width: 600, height: 900 });
     const carPanel = page.getByRole("button", { name: "Car layout", exact: true });
+    if ((await carPanel.getAttribute("aria-pressed")) === "true") await carPanel.click();
     await carPanel.focus();
     await page.keyboard.press("Enter");
     await expect(carPanel).toHaveAttribute("aria-pressed", "true");

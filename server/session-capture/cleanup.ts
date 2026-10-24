@@ -89,7 +89,7 @@ export async function listSessionCaptureFiles(): Promise<string[]> {
       continue;
     }
     for (const entry of entries) {
-      if (entry.isFile() && (entry.name.endsWith(".bin") || entry.name.endsWith(".bin.gz") || entry.name.endsWith(".motec.zip"))) {
+      if (entry.isFile() && (entry.name.endsWith(".bin") || entry.name.endsWith(".bin.gz") || entry.name.endsWith(".motec.zip") || entry.name.toLowerCase().endsWith(".ibt"))) {
         captureFiles.push(join(gamePath, entry.name));
       } else if (entry.isDirectory() && (entry.name === "own" || entry.name === "others")) {
         const ownershipPath = join(gamePath, entry.name);
@@ -100,7 +100,7 @@ export async function listSessionCaptureFiles(): Promise<string[]> {
           continue;
         }
         for (const file of captures) {
-          if (file.isFile() && (file.name.endsWith(".bin") || file.name.endsWith(".bin.gz") || file.name.endsWith(".motec.zip"))) {
+          if (file.isFile() && (file.name.endsWith(".bin") || file.name.endsWith(".bin.gz") || file.name.endsWith(".motec.zip") || file.name.toLowerCase().endsWith(".ibt"))) {
             captureFiles.push(join(ownershipPath, file.name));
           }
         }

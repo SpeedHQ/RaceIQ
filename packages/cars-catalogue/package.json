@@ -8,7 +8,7 @@
     "./contracts": "./contracts/index.ts"
   },
   "scripts": {
-    "lint": "../../client/node_modules/.bin/oxlint .",
+    "lint": "bun ../../client/node_modules/oxlint/bin/oxlint .",
     "typecheck": "bun check --project tsconfig.ui.json && bun check --project tsconfig.server.json",
     "test:boundaries": "bun ../../scripts/test/check-feature-boundaries.ts cars-catalogue",
     "e2e:impact": "bun ../../scripts/test/check-feature-boundaries.ts cars-catalogue",

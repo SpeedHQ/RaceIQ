@@ -16,6 +16,12 @@ export interface ReplayMessages {
   overlay_segments: () => string;
   analyse_unavailable: () => string;
   analyse_wheels_wear_s: () => string;
+  analyse_wheels_pit_temp: () => string;
+  analyse_wheels_pit_health: () => string;
+  analyse_wheels_cold_pressure: () => string;
+  analyse_wheels_pressure: () => string;
+  analyse_wheels_brake: () => string;
+  carwire_snapshot_stale: () => string;
   carwire_hidden: () => string;
   carwire_solid: () => string;
   carwire_wire: () => string;

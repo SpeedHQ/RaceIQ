@@ -48,7 +48,7 @@ test("failed reprocessing exposes Retry and supports keyboard dismissal", async 
 
   await page.getByRole("button", { name: "Reparse 1 session" }).click();
 
-  const dialog = page.getByRole("dialog");
+  const dialog = page.getByRole("dialog", { name: /^(?:Starting reprocessing…|Reprocessing (?:sessions…|failed|complete))$/ });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole("heading", { name: "Reprocessing failed" })).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Retry" })).toBeVisible();
@@ -86,7 +86,7 @@ test("Retry completes successfully and clears the stale-session action", async (
   socket.send();
 
   await page.getByRole("button", { name: "Reparse 1 session" }).click();
-  const dialog = page.getByRole("dialog");
+  const dialog = page.getByRole("dialog", { name: /^(?:Starting reprocessing…|Reprocessing (?:sessions…|failed|complete))$/ });
   await expect(dialog.getByRole("heading", { name: "Reprocessing failed" })).toBeVisible();
 
   await dialog.getByRole("button", { name: "Retry" }).click();
@@ -119,7 +119,7 @@ test("an in-flight request can be dismissed without exposing a duplicate action"
   socket.send();
 
   await page.getByRole("button", { name: "Reparse 1 session" }).click();
-  const dialog = page.getByRole("dialog");
+  const dialog = page.getByRole("dialog", { name: /^(?:Starting reprocessing…|Reprocessing (?:sessions…|failed|complete))$/ });
   await expect(dialog).toBeVisible();
 
   await page.keyboard.press("Escape");

@@ -23,7 +23,8 @@ export type TrackOutlineData =
       source?: string;
       pitLines?: PitLine[];
     }
-  | { x: number; z: number }[];
+  | { x: number; z: number }[]
+  | null;
 export type TrackSectorBounds = { s1End: number; s2End: number } | null;
 
 type SectorStatus = "record" | "session-best" | "lost";

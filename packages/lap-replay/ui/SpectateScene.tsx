@@ -143,6 +143,10 @@ useEffect(() => {
       inner: m.label_inner(), middle: m.label_middle(), outer: m.label_outer(),
       core: m.label_core(), carcass: m.label_carcass(), surface: m.label_surface(),
     },
+    pitTemperatureLabel: m.analyse_wheels_pit_temp(), carcassLabel: m.label_carcass(),
+    pitHealthLabel: m.analyse_wheels_pit_health(), coldPressureLabel: m.analyse_wheels_cold_pressure(),
+    pressureLabel: m.analyse_wheels_pressure(), brakeLabel: m.analyse_wheels_brake(),
+    wearRateLabel: m.analyse_wheels_wear_s(), snapshotStaleLabel: m.carwire_snapshot_stale(),
     pressureOptimal: [pressureA, pressureB],
   });
 }, [tireInfo, units.temp, units.tempLabel, pressureA, pressureB, m, locale, key, controller, displaySettings.renderFpsCap]);
@@ -186,7 +190,7 @@ useEffect(() => {
 }, [pair, key]);
 return (
   <div
-    className="relative h-full min-h-0 w-full overflow-hidden bg-app-bg"
+    className="absolute inset-0 min-h-0 w-full overflow-hidden bg-app-bg"
     data-replay-scene={pair.b === null ? "" : undefined}
     data-spectate-scene=""
     data-scene-ready={ready ? "true" : "false"}
@@ -200,7 +204,7 @@ return (
       data-spectate-zoom-indicator=""
       data-snap-zone-end={FOCUS_ZOOM_SNAP_ZONE_END}
       aria-hidden="true"
-      className="absolute left-14 top-1/2 z-30 -translate-y-1/2 rounded-sm border border-app-border bg-app-surface/90 p-2"
+      className="absolute left-14 top-1/2 z-30 -translate-y-1/2 rounded-sm border border-app-border bg-app-surface/90 p-2 max-sm:left-16 max-sm:top-44"
       style={{ display: "none" }}
     >
       <div className="relative h-24 w-1.5 rounded bg-app-border">
@@ -211,12 +215,12 @@ return (
         <div className="absolute left-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-app-bg bg-app-text" style={{ top: "var(--zoom-position)" }} />
       </div>
     </div>
-    {overviewVisible && <>{overview}
+    {overviewVisible && <div className="contents max-sm:absolute max-sm:bottom-[calc(var(--spectate-inputs-height,8rem)+1.5rem)] max-sm:left-3 max-sm:right-3 max-sm:z-20 max-sm:block max-sm:max-w-[360px]">{overview}
       <button type="button" aria-label={`${m.common_close()} ${m.spectate_overview()}`} onClick={() => setOverviewVisible(false)}
-        className="absolute right-5 top-5 z-[60] flex size-11 items-center justify-center rounded-sm text-app-text focus-visible:outline-2 focus-visible:outline-app-accent sm:hidden">
+        className="absolute right-2 top-2 z-[60] flex size-11 items-center justify-center rounded-sm text-app-text focus-visible:outline-2 focus-visible:outline-app-accent sm:hidden">
         <X size={18} aria-hidden="true" />
       </button>
-    </>}
+    </div>}
       <TooltipProvider delay={0}>
         <div role="toolbar" aria-label={pair.b ? m.spectate_direction_lock() : m.overlay_follow()} aria-orientation="vertical" className="absolute left-3 top-3 z-30 flex flex-col rounded-sm border border-app-border bg-app-surface/90 p-0 sm:top-1/2 sm:-translate-y-1/2">
           <ToolbarTooltip

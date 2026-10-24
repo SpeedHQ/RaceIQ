@@ -13,6 +13,7 @@ import { PeriodSelector } from "./Stats";
 import type { HomePageViewProps } from "./types";
 import { Link } from "@tanstack/react-router";
 import { getGameRoute } from "@/stores/game";
+import { sessionCleanDrivingScore } from "./dashboard-insights";
 
 export function HomePageView({
   gameId,
@@ -44,13 +45,14 @@ export function HomePageView({
     : null;
   const latestSessionLoading = latestRecapLoading || sessionsLoading;
   const showFinishPlaceholder = !latestSession || /^(race|sprint)/i.test(latestSession.sessionType?.trim() ?? "");
+  const cleanDriving = latestRecap?.gameId === "iracing" ? sessionCleanDrivingScore(latestRecap.sparkline) : null;
   const latestSessionCard = (
     <Card variant="transparent-panel" className="dashboard-hover-panel latest-session-card relative h-full p-4" aria-busy={latestSessionLoading}>
       <div className="flex items-start justify-between gap-2">
         <h2 className="mb-2 text-app-heading font-semibold text-app-text">{m.recap_latest_session()}</h2>
         {latestRecap?.personalBest?.isNew && latestRecap.bestLapSec != null && <span className="recap-pb shrink-0 px-2 py-0.5 text-app-label font-semibold">{m.recap_new_pb()}</span>}
       </div>
-      {latestRecap && latestSession && !latestRecapLoading && !latestRecapError ? (
+      {latestRecap && latestSession && !latestRecapLoading && !latestRecapError ? (<>
         <SessionRecapView
           recap={latestRecap}
           gameId={latestRecap.gameId}
@@ -63,6 +65,14 @@ export function HomePageView({
           bounds={latestRecapBounds}
           carImageUrl={latestRecapCarImageUrl}
         />
+        {cleanDriving && <section className="mt-3 rounded-lg border border-app-border bg-app-surface-alt/30 p-3" aria-label={m.home_clean_driving_score()}>
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h3 className="text-app-subtext font-semibold text-app-text">{m.home_clean_driving_score()}</h3>
+            <div className="font-mono text-2xl font-semibold tabular-nums text-app-accent">{cleanDriving.score === null ? "—" : <>{cleanDriving.score}<span className="ml-1 text-app-subtext text-app-text-muted">/ 100</span></>}</div>
+          </div>
+          <p className="mt-2 text-app-caption leading-relaxed text-app-text-muted">{m.home_clean_driving_score_description({ clean: cleanDriving.clean, total: cleanDriving.completed })}</p>
+        </section>}
+      </>
       ) : (
         <div className="recap-cinematic @container relative isolate flex min-w-0 flex-col gap-3" aria-busy={latestSessionLoading}>
           <div className="relative flex min-h-20 min-w-0 flex-col justify-center gap-3 @sm:flex-row @sm:items-center @sm:justify-between">

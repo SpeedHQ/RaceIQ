@@ -45,6 +45,7 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
     selectedLapId,
     setSelectedLapId,
     outline,
+
     segments,
     initialCursor,
     trackNames,

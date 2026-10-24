@@ -39,7 +39,7 @@ test("global landing cards, period filters, and recent sessions navigate", async
     await expect(page.getByRole("button", { name: /^Laps: \d+ · Primary: Lap \d+$/ })).toBeVisible();
     await page.getByRole("button", { name: `Analyse lap ${reviewLaps[0].lapNumber}`, exact: true }).click();
     await expect(page).toHaveURL(/\/(fm23|f125|acc|ac-evo|iracing|lmu)\/sessions\/\d+\/replay\/\d+(?:\?|$)/);
-    await expect(page.getByRole("heading", { name: "Metrics at Cursor" })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("slider", { name: "Replay position", exact: true })).toBeVisible({ timeout: 20_000 });
   }
   expect(browserErrors.errors, "unexpected browser errors in landing flow").toEqual([]);
 });
@@ -94,7 +94,7 @@ for (const game of SEEDED_GAME_CASES) {
       const targetLap = reviewLaps[0];
       await page.getByRole("button", { name: `Analyse lap ${targetLap.lapNumber}`, exact: true }).click();
       await expect(page).toHaveURL(new RegExp(`/${game.prefix}/sessions/${latestSession!.id}/replay/${targetLap.id}(?:\\?|$)`));
-      await expect(page.getByRole("heading", { name: "Metrics at Cursor" })).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByRole("slider", { name: "Replay position", exact: true })).toBeVisible({ timeout: 20_000 });
     }
     expect(browserErrors.errors, `unexpected browser errors on ${game.prefix} dashboard`).toEqual([]);
   });
