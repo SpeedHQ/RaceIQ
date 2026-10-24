@@ -2946,5 +2946,14 @@
   "compare_overview_ers_deployed": "ERS ingezet",
   "compare_overview_ers_recovered": "ERS teruggewonnen",
   "compare_overview_top_speed": "Topsnelheid",
-  "compare_overview_unavailable": "Niet beschikbaar"
+  "compare_overview_unavailable": "Niet beschikbaar",
+  "compare_opponent_index_waiting": "Ronden van tegenstanders zijn beschikbaar nadat de opname is beëindigd.",
+  "compare_opponent_index_queued": "Ronden van tegenstanders staan in de wachtrij voor voorbereiding.",
+  "compare_opponent_index_building": "Ronden van tegenstanders voorbereiden…",
+  "compare_opponent_index_failed": "Voorbereiden van ronden van tegenstanders mislukt. Werk de status bij.",
+  "recording_processing_loading": "Verwerkingsstatus van opname controleren…",
+  "recording_processing_queued": "In wachtrij voor verwerking…",
+  "recording_processing_running": "Bezig met verwerken…",
+  "recording_processing_failed": "Verwerking mislukt: {error}",
+  "recording_processing_refresh": "Status bijwerken"
 }

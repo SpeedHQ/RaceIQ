@@ -31,7 +31,7 @@ import { getLiveLapCaptureSnapshot } from "@raceiq/backend-core/db/live-capture-
 import { resolveLiveLapCaptureArtifact } from "@raceiq/backend-core/session-capture/source-loader";
 import { getLMUPartitionKey, partitionLMUSourceFrame, restoreLMUSourceFrame, isLMUPartitionPrimary, isLMUPartitionCompanion } from "@raceiq/capture-formats/lmu/partition";
 import { decodeLmuSparseFrame, encodeLmuSparseFrame, isLmuSparseFrame, lmuSparseSourceIdentity } from "@raceiq/capture-formats/session/lmu-sparse";
-import { canHandleLMUSourceFrame, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
+import { canHandleLMUSourceFrame, decodeLMUSourceFrame, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
 import { ACC_PACKED_MAGIC, ACEVO_PACKED_MAGIC } from "@raceiq/capture-formats/kunos/pack-triplet";
 import { encodeKunosSparseFrame } from "@raceiq/capture-formats/session/kunos-sparse";
 import { decodeGenericSparseFrame, encodeGenericSparseFrame, genericFrameIdentity, isGenericSparseFrame } from "@raceiq/capture-formats/session/generic-sparse";
@@ -728,15 +728,46 @@ export async function buildLapsZip(
     const trackName = resolveTrackName(first.trackId ?? "", gameId);
     const carName = resolveCarName(first.carId ?? "", gameId);
     if (opponentFrames && selectedPlayerSessionId === sessionId) {
-      const context: Buffer[] = [encodeSegmentBoundaryFrame()];
+      const includedOpponentFrames = new Set<string>();
+      let firstSequence: bigint | null = null;
+      let previousPrimary: Buffer | null = null;
+      for (const record of iterateSessionCaptureRecords(Buffer.concat([encodeMetaFrame(), ...segments]))) {
+        if (record.kind === "segment-boundary") {
+          previousPrimary = null;
+          continue;
+        }
+        if (record.kind !== "frame") continue;
+        let frame = record.frame;
+        if (isLmuSparseFrame(frame)) {
+          if (!previousPrimary) throw new Error("LMU opponent context lost its primary checkpoint");
+          frame = decodeLmuSparseFrame(frame, previousPrimary);
+        }
+        previousPrimary = isLMUPartitionPrimary(frame) ? frame : null;
+        const decoded = decodeLMUSourceFrame(frame);
+        if (!decoded?.lmuContext) continue;
+        const { sessionKey, captureSequence } = decoded.lmuContext.key;
+        includedOpponentFrames.add(JSON.stringify([sessionKey, captureSequence]));
+        if (sessionKey !== opponentFrames[0]!.frame.sessionKey) continue;
+        const sequence = BigInt(captureSequence);
+        if (firstSequence === null || sequence < firstSequence) firstSequence = sequence;
+      }
+      const beforeContext: Buffer[] = [];
+      const afterContext: Buffer[] = [];
       for (const { frame, primary } of opponentFrames) {
         const key = getLMUPartitionKey(primary);
         const partition = partitionLMUSourceFrame(frame.sourceFrame);
+        const frameKey = JSON.stringify([frame.sessionKey, frame.captureSequence]);
+        if (includedOpponentFrames.has(frameKey)) continue;
+        includedOpponentFrames.add(frameKey);
         if (key && partition?.companion) partitionCompanions.set(key, { frame: partition.companion, timestamp: frame.frameTime });
+        const context = frame.captureSequence && firstSequence !== null && BigInt(frame.captureSequence) < firstSequence
+          ? beforeContext
+          : afterContext;
         if (frame.parserBootstrap) context.push(encodeParserBootstrapFrame("lmu", frame.parserBootstrap));
         context.push(encodeSegmentContextFrame(), encodeFrameLength(primary.length, frame.frameTime), primary, encodeSegmentContextEndFrame());
       }
-      segments.push(Buffer.concat(context));
+      if (beforeContext.length > 0) segments.unshift(Buffer.concat([encodeSegmentBoundaryFrame(), ...beforeContext]));
+      if (afterContext.length > 0) segments.push(Buffer.concat([encodeSegmentBoundaryFrame(), ...afterContext]));
     }
     const slice = Buffer.concat([encodeMetaFrame(), ...segments]);
     const fileName = `${gameId}-${slugify(trackName) || `track${first.trackId ?? ""}`}-session${sessionId}.bin.gz`;

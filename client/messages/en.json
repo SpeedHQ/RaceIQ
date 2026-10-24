@@ -2950,5 +2950,14 @@
   "compare_overview_starting_fuel": "Starting fuel",
   "compare_overview_fuel_used": "Fuel used",
   "compare_overview_top_speed": "Top speed",
-  "compare_overview_unavailable": "Unavailable"
+  "compare_overview_unavailable": "Unavailable",
+  "compare_opponent_index_waiting": "Opponent laps will be available after recording ends.",
+  "compare_opponent_index_queued": "Opponent laps are queued for preparation.",
+  "compare_opponent_index_building": "Preparing opponent laps…",
+  "compare_opponent_index_failed": "Opponent lap preparation failed. Refresh status to check again.",
+  "recording_processing_loading": "Checking recording processing status…",
+  "recording_processing_queued": "Queued for processing…",
+  "recording_processing_running": "Processing…",
+  "recording_processing_failed": "Processing failed: {error}",
+  "recording_processing_refresh": "Refresh status"
 }

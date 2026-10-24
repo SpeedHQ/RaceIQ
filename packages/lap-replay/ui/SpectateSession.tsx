@@ -19,6 +19,8 @@ type OpponentReplayComparison = {
   opponent: OpponentLapSummary;
   reference: Extract<OpponentLapReference, { kind: "opponent" }>;
 };
+type ReplayPair = ReplaySession & { b: SpectateLap };
+
 /** Kept above the conditional body: tabs preserve location, but never autoplay. */
 export function SpectateSession({
   gameId,
@@ -36,6 +38,7 @@ export function SpectateSession({
   onCarPanelOpenChange,
   panelHeaderTarget,
   onAiOpenChange,
+  onOpponentStatusRefresh,
 }: {
   gameId: GameId;
   comparison: ComparisonData | OpponentReplayComparison;
@@ -52,6 +55,7 @@ export function SpectateSession({
   onCarPanelOpenChange: (open: boolean) => void;
   panelHeaderTarget: HTMLDivElement | null;
   onAiOpenChange: (open: boolean) => void;
+  onOpponentStatusRefresh?: () => void;
 }) { const m = useMessages(); const { displaySettings } = useSettings();
 const fpsCap = useRef(displaySettings.renderFpsCap);
 fpsCap.current = displaySettings.renderFpsCap;
@@ -62,18 +66,27 @@ useEffect(() => {
 const playerComparison = "lapA" in comparison ? comparison : null;
 const opponentComparison = "kind" in comparison ? comparison : null;
 const playerLap = playerComparison ? playerComparison.lapA : opponentComparison!.playerLap;
-const replayA = useLapSemanticTelemetry(requested ? playerLap.id : null);
-const replayB = useLapSemanticTelemetry(requested && playerComparison ? playerComparison.lapB.id : null);
-const replayOpponent = useReplayHost().useOpponentLapSemanticTelemetry(requested && opponentComparison ? opponentComparison.reference : null);
-const pair = useMemo<(ReplaySession & { b: SpectateLap }) | null>(() => {
-  const other = opponentComparison ? replayOpponent.data : replayB.data;
-  if (!replayA.data || !other) return null;
-  if (playerComparison) return {
-    gameId, comparison: playerComparison,
-    a: prepareSpectateLap(replayA.data, playerComparison, "a"),
-    b: prepareSpectateLap(other, playerComparison, "b"),
-  };
+const replayHost = useReplayHost();
+const replayAllowed = requested && playerLap.processing.state === "ready"
+  && (!playerComparison || playerComparison.lapB.processing.state === "ready");
+const replayA = useLapSemanticTelemetry(replayAllowed ? playerLap.id : null);
+const replayB = useLapSemanticTelemetry(replayAllowed && playerComparison ? playerComparison.lapB.id : null);
+const replayOpponent = replayHost.useOpponentLapSemanticTelemetry(replayAllowed && opponentComparison ? opponentComparison.reference : null);
+const pair = useMemo<ReplayPair | null>(() => {
+  if (playerLap.processing.state !== "ready" || (playerComparison && playerComparison.lapB.processing.state !== "ready")) return null;
+  if (!replayA.data || replayA.data.lapId !== playerLap.id) return null;
+  if (playerComparison) {
+    const other = replayB.data;
+    if (!other || other.lapId !== playerComparison.lapB.id) return null;
+    return {
+      gameId, comparison: playerComparison,
+      a: prepareSpectateLap(replayA.data, playerComparison, "a"),
+      b: prepareSpectateLap(other, playerComparison, "b"),
+    };
+  }
   const selected = opponentComparison!;
+  const other = replayOpponent.data;
+  if (!other || other.opponentLapId !== selected.reference.opponentLapId || other.sourceRevision !== selected.reference.sourceRevision) return null;
   const sectors = selected.opponent.sectors;
   return {
     gameId,
@@ -87,14 +100,15 @@ const pair = useMemo<(ReplaySession & { b: SpectateLap }) | null>(() => {
     a: prepareSpectateLap(replayA.data, undefined, "a", { preserveLapDistance: true }),
     b: prepareSpectateLap(other, undefined, "b", { preserveLapDistance: true }),
   };
-}, [gameId, playerComparison, opponentComparison, replayA.data, replayB.data, replayOpponent.data]);
-const [controller, setController] = useState<SpectateController | null>(null);
+}, [gameId, playerLap, playerComparison, opponentComparison, replayA.data, replayB.data, replayOpponent.data]);
+const [controllerEntry, setControllerEntry] = useState<{ pair: ReplayPair; controller: SpectateController } | null>(null);
+const controller = controllerEntry?.pair === pair ? controllerEntry.controller : null;
 const distanceCallback = useRef(onDistanceChange);
 distanceCallback.current = onDistanceChange;
 useEffect(() => {
   if (!pair) return;
   const next = createSpectateController(pair.a, pair.b, distanceRef.current ?? undefined, () => fpsCap.current);
-  setController(next);
+  setControllerEntry({ pair, controller: next });
   return () => {
     next.dispose();
   };
@@ -149,7 +163,27 @@ useEffect(() => {
   appliedCursor.current = cursor;
 }, [cursor, controller, playerComparison, active]);
 if (!active) return null;
-const error = replayA.error ?? (opponentComparison ? replayOpponent.error : replayB.error);
+const blockedLap = playerLap.processing.state !== "ready" ? playerLap
+  : playerComparison && playerComparison.lapB.processing.state !== "ready" ? playerComparison.lapB : null;
+if (blockedLap) {
+  const pending = blockedLap.processing.state === "queued" || blockedLap.processing.state === "processing";
+  const message = blockedLap.processing.state === "queued" ? m.recording_processing_queued()
+    : blockedLap.processing.state === "processing" ? m.recording_processing_running()
+      : blockedLap.processing.error
+        ? m.recording_processing_failed({ error: blockedLap.processing.error })
+        : null;
+  return <div role={pending ? "status" : "alert"} aria-busy={pending || undefined} data-processing-state={blockedLap.processing.state} className="flex flex-1 items-center justify-center text-app-detail text-app-text-secondary">{message}</div>;
+}
+const error = opponentComparison ? replayOpponent.error ?? replayA.error : replayA.error ?? replayB.error;
+const errorCode = error && "code" in error ? error.code : null;
+if (error && opponentComparison && errorCode === "OPPONENT_INDEX_NOT_READY")
+  return <div role="status" data-opponent-state="not-ready" className="flex flex-1 items-center justify-center"><LoadingIndicator label={m.compare_loading()} /></div>;
+if (error && opponentComparison && errorCode === "OPPONENT_INDEX_FAILED")
+  return <div role="alert" data-opponent-state="failed" className="flex flex-1 flex-col items-center justify-center gap-3 text-app-detail text-status-danger">
+    <p>{m.compare_opponent_index_failed()}</p>
+    <p>{error.message}</p>
+    <Button variant="app-outline" disabled={!onOpponentStatusRefresh} onClick={() => onOpponentStatusRefresh?.()}>{m.recording_processing_refresh()}</Button>
+  </div>;
 if (error)
   return (
     <div role="alert" className="flex flex-1 flex-col items-center justify-center gap-3 text-app-detail text-status-danger">

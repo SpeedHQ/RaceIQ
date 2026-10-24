@@ -1,12 +1,14 @@
 import { expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { readFile, rm } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import { basename, dirname, join, resolve } from "node:path";
+import { tmpdir } from "node:os";
 import { setImmediate as nextTurn } from "node:timers/promises";
 import { inArray } from "drizzle-orm";
 import { db } from "@raceiq/backend-core/db/index";
 import { sessions } from "@raceiq/backend-core/db/schema";
 import { RealDbAdapter, NullWsAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
+import { getActiveLmuOpponentSourceKind, isActiveLmuOpponentSource, registerActiveLmuOpponentSource } from "@raceiq/backend-core/session-capture/storage-activity";
 import { DirectSessionRecorderAdapter } from "@raceiq/backend-core/session-capture/direct-recorder";
 import { LiveTelemetryPipeline } from "@raceiq/backend-core/telemetry/live-pipeline";
 import { iterateSessionCaptureRecordsFromSource } from "@raceiq/backend-core/session-capture/source-loader";
@@ -25,6 +27,34 @@ import type { GameId } from "@raceiq/shared/games/ids";
 import { fixturePath } from "../../../support/fixtures";
 
 registerDriverProfileLapNotifier(() => {});
+test("active LMU source registry canonicalizes nested paths before source directory exists", async () => {
+  const root = await mkdtemp(join(tmpdir(), "raceiq-active-lmu-source-"));
+  const physicalRoot = join(root, "physical");
+  const aliasRoot = join(root, "alias");
+  const aliasPath = join(aliasRoot, "sessions", "lmu", "capture-manifest.json");
+  await mkdir(physicalRoot);
+  await symlink(physicalRoot, aliasRoot, "dir");
+  const releaseLive = registerActiveLmuOpponentSource(aliasPath);
+  let releaseImport: (() => void) | undefined;
+  try {
+    await mkdir(dirname(aliasPath), { recursive: true });
+    await writeFile(aliasPath, "");
+    const physicalPath = await realpath(aliasPath);
+    releaseImport = registerActiveLmuOpponentSource(physicalPath, "import");
+    expect(isActiveLmuOpponentSource(physicalPath)).toBe(true);
+    expect(getActiveLmuOpponentSourceKind(aliasPath)).toBe("import");
+    releaseImport();
+    releaseImport = undefined;
+    expect(getActiveLmuOpponentSourceKind(physicalPath)).toBe("live");
+    expect(isActiveLmuOpponentSource(aliasPath)).toBe(true);
+  } finally {
+    releaseImport?.();
+    releaseLive();
+    await rm(root, { recursive: true, force: true });
+  }
+  expect(isActiveLmuOpponentSource(aliasPath)).toBe(false);
+});
+
 class SourceDigest {
   readonly hash = createHash("sha256");
   private readonly prefix = Buffer.alloc(13);
@@ -117,17 +147,23 @@ test("direct LMU capture backpressures rapid context generations and replays eve
     await pipeline.finalizeCurrentSession();
     unsubscribe();
     expect(failures).toEqual([]);
-    const rows = await db.select().from(sessions).where(inArray(sessions.rawFile, [...recorder.accepted.keys()])).all();
     const generationKeys = new Set<string>();
+    const rows = (await db.select().from(sessions).all()).filter(row => !before.has(row.id) && row.rawFile);
     for (const row of rows) {
+      const actual = new SourceDigest();
       for await (const record of iterateSessionCaptureRecordsFromSource({ ...row, rawFile: row.rawFile!, gameId: "lmu" }, { strict: true })) {
         if (record.kind !== "frame") continue;
+        actual.add(record.frame, record.frameTimeMs);
         const frame = decodeLMUSourceFrame(record.frame);
         if (frame?.lmuContext) {
           expect(frame.schemaVersion).toBe(3);
           generationKeys.add(frame.lmuContext.key.sessionKey);
         }
       }
+      const expected = recorder.accepted.get(row.rawFile!);
+      expect(expected).toBeDefined();
+      expect(actual.count).toBe(expected!.count);
+      expect(actual.value()).toBe(expected!.value());
     }
     expect(generationKeys).toEqual(new Set([0, 1, 2, 3].map(index => `recording-generation-${index}`)));
   } finally {

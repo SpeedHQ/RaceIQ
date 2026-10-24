@@ -26,6 +26,7 @@ function makeLaps(sessionId: number, count: number, base: number): LapMeta[] {
     trackId: "7",
     sectorTimes: sessionId === 2 ? undefined : [30.1, 33.5, 30.6],
     createdAt: new Date(Date.now() - (count - i) * 95_000).toISOString(),
+    processing: { state: "ready", stage: null, error: null },
   }));
 }
 
@@ -44,6 +45,7 @@ const sessions = [
     sessionType: "practice",
     notes: "Long run on used tyres",
     source: null,
+    processing: { state: "ready", stage: null, error: null },
     createdAt: new Date(Date.now() - 3_600_000).toISOString(),
   },
   {
@@ -56,6 +58,7 @@ const sessions = [
     sessionType: "race",
     notes: null,
     source: null,
+    processing: { state: "ready", stage: null, error: null },
     createdAt: new Date(Date.now() - 7_200_000).toISOString(),
   },
   {
@@ -68,6 +71,7 @@ const sessions = [
     sessionType: "practice",
     notes: "Coach reference lap (MoTeC)",
     source: MOTEC_SESSION_SOURCE,
+    processing: { state: "ready", stage: null, error: null },
     createdAt: new Date(Date.now() - 1_800_000).toISOString(),
   },
   {
@@ -80,6 +84,7 @@ const sessions = [
     sessionType: "qualifying",
     notes: null,
     source: MOTEC_SESSION_SOURCE,
+    processing: { state: "ready", stage: null, error: null },
     createdAt: new Date(Date.now() - 900_000).toISOString(),
   },
 ] as unknown as SessionMeta[];

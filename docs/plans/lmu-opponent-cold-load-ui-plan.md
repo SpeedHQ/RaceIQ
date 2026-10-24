@@ -1,6 +1,6 @@
 # LMU opponent cold-load UI plan
 
-Status: planning only; implementation and E2E scenarios have not run.
+Status: implementation changes are present, but acceptance remains incomplete. E7/E9 have not passed; shared results and source blocker are recorded in the [contract](lmu-opponent-cold-load-contract.md#execution-evidence--2026-10-24).
 
 Shared boundary: [contract](lmu-opponent-cold-load-contract.md). Acceptance OP1–OP9, exact readiness values, endpoints, errors, polling, and shared E1–E9 definitions live there. Backend implementation: [backend plan](lmu-opponent-cold-load-backend-plan.md).
 
@@ -22,6 +22,8 @@ Disable selection/comparison/replay until ready; preserve normal player-versus-p
 
 Launch-seeded laps use the same readiness states and real routes; there is no seed-only fallback or client-triggered preparation. Completed eligible seed preparation should already be ready on first visit. If recording deferred launch preparation, show queued/preparing state rather than an empty catalog or a false ready indicator (OP7, E8).
 
+Launch preparation may explicitly finish with pending admission, as defined by the shared private lifecycle boundary. The UI still consumes the same queued status and never interprets seed-process exit as opponent readiness; E8/E9 cover this transition.
+
 ### U2 — Bounded polling and lifecycle updates (OP5, OP6)
 
 Poll catalog every two seconds only for queued/building while the relevant surface is mounted and visible. Stop on terminal state, hidden surface, navigation, or unmount. Reuse existing query/lifecycle infrastructure; recording finalization invalidates waiting-finalization status. No active-recording polling, new job-start route, client-side session scan, or browser-started index build.
@@ -34,6 +36,8 @@ Handle `OPPONENT_INDEX_NOT_READY` and `OPPONENT_INDEX_FAILED` using existing typ
 
 Keep existing comparison request shapes, range limits, replay decoder, and full-cadence consumer model. Once ready, selection calls actual comparison/replay routes and renders real results. No fabricated timing values, sampled playback, fake fallback, or unrelated player replay rewrite.
 
+The contract's [private index boundary](lmu-opponent-cold-load-contract.md#private-index-boundary-version-1) shards stored observations by identity without changing HTTP payloads. E2/E3 must prove that selected loading still renders the same full-cadence samples and context through the existing decoder.
+
 ### U4 — Focused UI verification (OP2, OP4, OP6)
 
 Extend existing LMU comparison/browser scenarios for every readiness state and transition. Contract fixtures can test isolated rendering but cannot prove production integration or performance. Share selectors and helpers with current browser suite instead of creating a second harness.
@@ -45,6 +49,10 @@ Keep affected sessions/laps visible with a spinner and the contracted queued or 
 Use authoritative processing metadata for both queued and running work, including seed/import/rebuild and shared-source dependencies. Direct/bookmarked routes render status shells before requesting heavy data. Handle pending/failure backend responses without stale content. Failed preparation stops the spinner and shows error with applicable existing recovery/status-refresh behavior; no endless busy state. On ready, remove spinner and re-enable opening without full reload or automatic navigation.
 
 Use existing lifecycle/query invalidation plus shared visible pending polling, not timers or catalog calls per row. Stop polling on terminal state/unmount/navigation; queued work deferred by recording stays visibly queued without starting indexing. Preserve live-recording access outside this post-processing scope. Extend existing sessions-page navigation and comparison/browser scenarios for E9.
+
+Track lap management consumes `TrackLap.processing` directly from its all-laps response, rather than joining the limited global lap list. E9 covers older history outside the latest 200 laps, blocked neighbors, and unchanged non-opening actions.
+
+Chat opening links consume processing from their existing linked-lap summaries. One shared visible pending chat-list query restores ready links without reload; missing/deleted references do not spin forever. E9 covers older links outside the global lap-list limit.
 
 ## Acceptance and edge handling
 

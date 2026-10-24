@@ -4,7 +4,7 @@ import { constants } from "node:fs";
 import type { Stats } from "node:fs";
 import { copyFile, lstat, mkdir, open, readFile, realpath, rename, rm, readdir, unlink, rmdir, link, stat } from "node:fs/promises";
 import { basename, dirname, isAbsolute, parse, relative, resolve, sep } from "node:path";
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { cacheDelete } from "../db/telemetry-replay-storage";
 import { clearSessionCaptureCache } from "./source-loader";
 import { getSessionCaptureSourceRevision } from "../db/session-queries";
@@ -17,6 +17,7 @@ import { resolveRecordingDirectory } from "../runtime/config/recording-directory
 import { isSessionActive } from "../telemetry/live-pipeline";
 import { reserveRecordingStorageOperation } from "./storage-activity";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
+import { enqueueLmuOpponentIndex, invalidateLmuOpponentIndexUnderFence } from "./lmu-opponent-index-runtime";
 import { hasPendingLayoutMigration } from "./layout-migration";
 
 export type RecordingDirectoryMoveStatus = { operationId: string | null; state: "idle" | "moving" | "complete" | "error"; phase: "copying" | "committing" | "removing-sources" | null; completedFiles: number; totalFiles: number; directory: string; code: string | null; error: string | null };
@@ -217,7 +218,7 @@ async function enumerate(root: string, excluded?: string): Promise<string[]> {
       const path = resolve(directory, name);
       if (excluded && (path === excluded || isContained(excluded, path))) continue;
       const info = await lstat(path);
-      if (info.isDirectory()) await visit(path);
+      if (info.isDirectory() && !name.endsWith(".opponent-index")) await visit(path);
       else if (info.isFile() && (name.endsWith(".bin") || name.endsWith(".bin.gz") || name.endsWith(".motec.zip"))) found.push(path);
     }
   }
@@ -302,7 +303,32 @@ async function removeEmptySourceDirs(root: string, entries: Entry[]): Promise<vo
     try { await rmdir(dir); } catch (error) { const code = (error as NodeJS.ErrnoException).code; if (code !== "ENOENT" && code !== "ENOTEMPTY") throw error; }
   }
 }
+async function invalidateRelocatedOpponentIndexes(journal: Journal): Promise<string[]> {
+  const references = journal.references.filter((reference) =>
+    (reference.table ?? "sessions") === "sessions" &&
+    ["rawFile", "captureManifestFile"].includes(reference.field ?? "rawFile"),
+  );
+  const sessionIds = [...new Set(references.map((reference) => reference.sessionId))];
+  if (!sessionIds.length) return [];
+  const rows = await readDb.select({ id: sessions.id, gameId: sessions.gameId })
+    .from(sessions).where(inArray(sessions.id, sessionIds)).all();
+  const lmuSessions = new Set(rows.filter((row) => row.gameId === "lmu").map((row) => row.id));
+  const paths = references.filter((reference) => lmuSessions.has(reference.sessionId))
+    .map(({ oldPath, newPath }) => ({ oldPath: resolve(oldPath), newPath: resolve(newPath) }));
+  const oldSources = new Set(paths.map(({ oldPath }) => oldPath));
+  const newSources = new Set(paths.map(({ newPath }) => newPath));
+  for (const sourcePath of oldSources) {
+    await invalidateLmuOpponentIndexUnderFence(sourcePath);
+    await rm(resolve(`${sourcePath}.opponent-index`), { recursive: true, force: true });
+  }
+  for (const sourcePath of newSources) {
+    if (!oldSources.has(sourcePath)) await invalidateLmuOpponentIndexUnderFence(sourcePath);
+  }
+  return [...newSources];
+}
+
 async function cleanupSources(journal: Journal, removeSource: typeof unlink = unlink): Promise<void> {
+  const relocatedOpponentSources = await invalidateRelocatedOpponentIndexes(journal);
   const residual: string[] = [];
   for (const entry of journal.entries) {
     try {
@@ -315,6 +341,7 @@ async function cleanupSources(journal: Journal, removeSource: typeof unlink = un
   }
   if (residual.length) throw Object.assign(new Error(`Unable to remove source recordings: ${residual.join(", ")}`), { code: "SOURCE_CLEANUP_FAILED" });
   await removeEmptySourceDirs(journal.oldDirectory, journal.entries);
+  for (const sourcePath of relocatedOpponentSources) enqueueLmuOpponentIndex(sourcePath);
   await rm(journalPath, { force: true });
 }
 async function cleanupOwnedTemporary(entry: Entry, operationId: string, root: string): Promise<void> {
@@ -516,7 +543,7 @@ export async function startRecordingDirectoryMove(directory: string, overrides?:
         const digest = await hashFile(entry.destination);
         if (digest.size !== entry.size || digest.sha256 !== entry.sha256) throw new Error("Committed recording verification failed");
       }
-      await cleanupSources(pending, hooks.unlink);
+      await withSessionCaptureMaintenanceLock(() => cleanupSources(pending, hooks.unlink));
       status = { operationId: pending.operationId, state: "complete", phase: null, completedFiles: pending.entries.length, totalFiles: pending.entries.length, directory: current, code: null, error: null };
       release();
       active = false;

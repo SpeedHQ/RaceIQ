@@ -1,5 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo } from "react";
 import type { GameId } from "@raceiq/shared/games/ids";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { LineSpreadTrace } from "@raceiq/analysis-core/racing/laps/consistency-types";
@@ -13,19 +13,23 @@ import { errorFromResponse } from "../lib/rpc-error";
 import { rpcJson } from "../lib/rpc-json";
 import { useGameId } from "../stores/game";
 import { queryKeys } from "./query-keys";
+import { usePendingMetadataRefetchInterval } from "./session-queries";
 import { invalidateDashboardQueries } from "./dashboard";
 import { decodeSemanticLapTelemetry, SEMANTIC_REPLAY_MEDIA_TYPE } from "@raceiq/lap-replay/contracts";
 
-export function useLaps(options?: { refetchInterval?: number | false; allGames?: boolean }) {
+export function useLaps(options?: { refetchInterval?: number | false; allGames?: boolean; enabled?: boolean }) {
   const gameId = useGameId();
-  const { allGames = false, ...queryOptions } = options ?? {};
+  const { allGames = false, refetchInterval, ...queryOptions } = options ?? {};
   const queryGameId = allGames ? null : gameId;
+  const pendingRefetchInterval = usePendingMetadataRefetchInterval<LapMeta>();
   return useQuery({
     queryKey: ["laps", queryGameId],
     queryFn: async () => {
       const res = await client.api.laps.$get({ query: { gameId: queryGameId ?? undefined } });
       return rpcJson<LapMeta[]>(res);
     },
+    refetchInterval: refetchInterval ?? pendingRefetchInterval,
+    refetchIntervalInBackground: false,
     ...queryOptions,
   });
 }
@@ -41,22 +45,30 @@ export function useSessionLaps(sessionId: number | null) {
       return rpcJson<LapMeta[]>(res);
     },
     enabled: !!gameId && sessionId != null,
+    refetchInterval: usePendingMetadataRefetchInterval<LapMeta>(),
+    refetchIntervalInBackground: false,
   });
 }
 
 
 export function useCompareLineSpread(gameId: GameId, lapIds: readonly number[], enabled = true) {
+  const activeGameId = useGameId();
   const orderedIds = useMemo(() => [...lapIds], [lapIds]);
-  return useQuery({
+  const lapsQuery = useLaps();
+  const canRead = gameId === activeGameId && canReadLapMetadata(lapsQuery.data, lapsQuery.isError, orderedIds);
+  const query = useQuery({
     queryKey: ["compare-line-spread", gameId, orderedIds],
     queryFn: async () => {
       const res = await client.api.laps["compare-line-spread"].$get({
         query: { gameId, lapIds: orderedIds.join(",") },
       });
-      return rpcJson<LineSpreadTrace | null>(res);
+      if (!res.ok) throw await errorFromResponse(res);
+      return res.json() as Promise<LineSpreadTrace | null>;
     },
-    enabled: enabled && !!gameId && orderedIds.length === 2 && orderedIds[0] !== orderedIds[1],
+    enabled: enabled && canRead && !!gameId && orderedIds.length === 2 && orderedIds[0] !== orderedIds[1],
   });
+  useRefreshProcessingMetadataOnError(query.error);
+  return { ...query, data: isProcessingReadinessError(query.error) ? undefined : query.data };
 }
 function alignedComparison(set: AlignedLapSet, lapA: LapMeta, lapB: LapMeta): ComparisonData {
   const a = set.laps[0]!,
@@ -92,20 +104,32 @@ function alignedComparison(set: AlignedLapSet, lapA: LapMeta, lapB: LapMeta): Co
 }
 export function useLapComparison(lapAId: number | null, lapBId: number | null) {
   const ids = lapAId != null && lapBId != null && lapAId !== lapBId ? [lapAId, lapBId] : [];
-  const aligned = useAlignedTelemetry(ids, { step: 1 });
-  const laps = useLaps().data ?? [];
+  const lapsQuery = useLaps();
+  const canRead = canReadLapMetadata(lapsQuery.data, lapsQuery.isError, ids);
+  const aligned = useAlignedTelemetry(canRead ? ids : [], { step: 1 });
+  useRefreshProcessingMetadataOnError(aligned.error);
+  const laps = lapsQuery.data ?? [];
   const lapA = laps.find((lap) => lap.id === lapAId);
   const lapB = laps.find((lap) => lap.id === lapBId);
-  const data = useMemo(() => aligned.data && lapA && lapB ? alignedComparison(aligned.data, lapA, lapB) : undefined, [aligned.data, lapA, lapB]);
+  const data = useMemo(
+    () => !isProcessingReadinessError(aligned.error) && aligned.data && lapA && lapB ? alignedComparison(aligned.data, lapA, lapB) : undefined,
+    [aligned.data, aligned.error, lapA, lapB],
+  );
   return { ...aligned, data, isLoading: aligned.isLoading, error: aligned.error };
 }
 export function useLapComparisonRange(lapAId: number | null, lapBId: number | null, stepMeters: 0.1 | null, start: number | null, end: number | null) {
   const ids = lapAId != null && lapBId != null && lapAId !== lapBId ? [lapAId, lapBId] : [];
-  const aligned = useAlignedTelemetry(ids, stepMeters === 0.1 && start != null && end != null ? { step: 0.1, start, end } : { step: 1 });
-  const laps = useLaps().data ?? [];
+  const lapsQuery = useLaps();
+  const canRead = canReadLapMetadata(lapsQuery.data, lapsQuery.isError, ids);
+  const aligned = useAlignedTelemetry(
+    canRead ? ids : [],
+    stepMeters === 0.1 && start != null && end != null ? { step: 0.1, start, end } : { step: 1 },
+  );
+  useRefreshProcessingMetadataOnError(aligned.error);
+  const laps = lapsQuery.data ?? [];
   const lapA = laps.find((lap) => lap.id === lapAId);
   const lapB = laps.find((lap) => lap.id === lapBId);
-  const data = aligned.data && lapA && lapB ? alignedComparison(aligned.data, lapA, lapB) : undefined;
+  const data = !isProcessingReadinessError(aligned.error) && aligned.data && lapA && lapB ? alignedComparison(aligned.data, lapA, lapB) : undefined;
   return {
     data: data
       ? {
@@ -123,50 +147,118 @@ export function useLapComparisonRange(lapAId: number | null, lapBId: number | nu
   };
 }
 
+type ProcessingReadinessError = Error & {
+  status: 409 | 422;
+  code: "RECORDING_PROCESSING" | "RECORDING_PROCESSING_FAILED";
+};
+
+export function isProcessingReadinessError(error: unknown): error is ProcessingReadinessError {
+  if (!(error instanceof Error)) return false;
+  const { status, code } = error as ProcessingReadinessError;
+  return (status === 409 && code === "RECORDING_PROCESSING") ||
+    (status === 422 && code === "RECORDING_PROCESSING_FAILED");
+}
+
+function canReadLapMetadata(laps: readonly LapMeta[] | undefined, isError: boolean, lapIds: readonly number[]) {
+  return laps !== undefined && !isError && lapIds.every((id) => {
+    const lap = laps.find((candidate) => candidate.id === id);
+    return lap == null || lap.processing.state === "ready";
+  });
+}
+
+function invalidateProcessingMetadata(queryClient: QueryClient) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: queryKeys.laps }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.sessions }),
+    queryClient.invalidateQueries({ queryKey: ["session-laps"] }),
+    queryClient.invalidateQueries({ queryKey: ["aligned-telemetry"] }),
+  ]);
+}
+
+function useRefreshProcessingMetadataOnError(error: unknown) {
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (!isProcessingReadinessError(error)) return;
+    void invalidateProcessingMetadata(queryClient);
+  }, [error, queryClient]);
+}
+
 
 interface SemanticTelemetryError extends Error {
   parseError?: string;
+  status?: number;
+  code?: string;
 }
 
 /** Canonical semantic replay; unlike useLapTelemetry this never exposes native packets. */
 export function useLapSemanticTelemetry(lapId: number | null) {
   const gameId = useGameId();
-  return useQuery({
+  const queryClient = useQueryClient();
+  const lapsQuery = useLaps();
+  const metadataReady = lapId != null && gameId != null && canReadLapMetadata(lapsQuery.data, lapsQuery.isError, [lapId]);
+  const query = useQuery({
     queryKey: ["lap-semantic-telemetry", lapId, gameId ?? null],
     // Keep replay work alive across view/page changes so new observers await it.
     queryFn: async () => {
       if (lapId == null) throw new Error("Missing lap ID");
       if (!gameId) throw new Error("Missing game context");
-      const res: Pick<Response, "ok" | "statusText" | "json"> = await client.api.laps[":id"]["semantic-telemetry"].$get({ param: { id: String(lapId) } }, { headers: { "X-Game-Id": gameId, Accept: SEMANTIC_REPLAY_MEDIA_TYPE } });
-      const body = (await res.json().catch(() => null)) as { error?: string; parseError?: string } | null;
+      const res: Pick<Response, "ok" | "status" | "statusText" | "json"> = await client.api.laps[":id"]["semantic-telemetry"].$get({ param: { id: String(lapId) } }, { headers: { "X-Game-Id": gameId, Accept: SEMANTIC_REPLAY_MEDIA_TYPE } });
+      const body = (await res.json().catch(() => null)) as { code?: string; error?: string; parseError?: string } | null;
       if (!res.ok || body?.parseError) {
-        const message = body?.parseError ?? body?.error ?? res.statusText;
-        const error = new Error(message) as SemanticTelemetryError;
+        const error = new Error(body?.parseError ?? body?.error ?? res.statusText) as SemanticTelemetryError;
         error.parseError = body?.parseError;
+        error.status = res.status;
+        error.code = body?.code;
         throw error;
       }
       if (!body) throw new Error("Unable to replay telemetry");
       return decodeSemanticLapTelemetry(body);
     },
-    enabled: lapId != null && gameId != null,
+    enabled: metadataReady,
     gcTime: 5 * 60 * 1000,
     staleTime: Number.POSITIVE_INFINITY,
-    refetchOnMount: false,
+    refetchOnMount: (current) => isProcessingReadinessError(current.state.error) ? "always" : false,
   });
+  useEffect(() => {
+    if (!isProcessingReadinessError(query.error) || lapId == null || gameId == null) return;
+    void Promise.all([
+      invalidateProcessingMetadata(queryClient),
+      queryClient.invalidateQueries({
+        queryKey: ["lap-semantic-telemetry", lapId, gameId],
+        refetchType: "none",
+      }),
+    ]).then(() => {
+      const latestLaps = queryClient.getQueryData<LapMeta[]>(["laps", gameId]);
+      if (latestLaps && canReadLapMetadata(latestLaps, false, [lapId])) void query.refetch();
+    });
+  }, [gameId, lapId, query.error, query.refetch, queryClient]);
+  const metadataError = lapsQuery.error;
+  const blocked = lapId != null && !metadataReady;
+  const showTelemetry = !blocked && !isProcessingReadinessError(query.error);
+  return {
+    ...query,
+    data: showTelemetry ? query.data : undefined,
+    error: metadataError ?? query.error,
+    isLoading: blocked ? !lapsQuery.isError : query.isLoading,
+  };
 }
 
 /** Findings only; avoids loading full semantic replay in session Analyse. */
 export function useLapInsights(lapId: number | null) {
   const gameId = useGameId();
-  return useQuery({
+  const lapsQuery = useLaps();
+  const canRead = lapId != null && gameId != null && canReadLapMetadata(lapsQuery.data, lapsQuery.isError, [lapId]);
+  const query = useQuery({
     queryKey: ["lap-insights", lapId, gameId ?? null],
     queryFn: async () => {
       const res = await fetch(`/api/laps/${lapId}/insights`, { headers: { "X-Game-Id": gameId! } });
       if (!res.ok) throw await errorFromResponse(res);
       return (await res.json() as { insights: LapInsight[] }).insights;
     },
-    enabled: lapId != null && gameId != null,
+    enabled: canRead,
   });
+  useRefreshProcessingMetadataOnError(query.error);
+  return { ...query, data: canRead && !isProcessingReadinessError(query.error) ? query.data : undefined };
 }
 
 export function useDeleteLap() {

@@ -1,5 +1,7 @@
+import type { ProcessingMetadata } from "@raceiq/shared/racing/sessions/types";
 import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
 export interface TrackLap {
+  processing: ProcessingMetadata;
   lapId: number;
   lapNumber: number;
   lapTime: number;

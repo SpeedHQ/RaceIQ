@@ -21,12 +21,23 @@ import { canonicalizeTelemetryScalar } from "@raceiq/telemetry-core/telemetry/re
 import { createLmuContextEncoder } from "@raceiq/shared/telemetry/lmu-context";
 import { createSemanticReplayEncoder, SEMANTIC_REPLAY_MEDIA_TYPE } from "../contracts/replay-wire";
 import type { SemanticLapTelemetry } from "../contracts/replay";
+import type { ProcessingMetadata } from "@raceiq/shared/racing/sessions/types";
 
 export function semanticReplayIds(gameId: GameId): readonly string[] {
   return analyseSemanticIds(getGame(gameId));
 }
 const timestampMilliseconds = (timestamp: { domain: string; milliseconds?: number; nanoseconds?: bigint }) =>
   timestamp.domain === "monotonic" ? Number(timestamp.nanoseconds ?? 0n) / 1_000_000 : timestamp.milliseconds ?? 0;
+
+function processingFailure(processing: ProcessingMetadata) {
+  if (processing.state === "queued" || processing.state === "processing") {
+    return { code: "RECORDING_PROCESSING", error: "Recording is queued or processing", status: 409 as const };
+  }
+  if (processing.state === "failed") {
+    return { code: "RECORDING_PROCESSING_FAILED", error: processing.error, status: 422 as const };
+  }
+  return null;
+}
 
 export const replayRoutes = new Hono()
   .get("/api/laps/:id/semantic-telemetry", zValidator("param", IdParamSchema), async (c) => {
@@ -37,7 +48,14 @@ export const replayRoutes = new Hono()
     try {
       const meta = await getLapMetaById(id);
       if (!meta || meta.gameId !== gameIdResult.data) return c.json({ error: "Lap not found" }, 404);
-      const lap = await getLapById(id);
+      const source = await getLapReplaySource(id);
+      if (!source) return c.json({ error: "Lap not found" }, 404);
+      const live = source.captureLayoutVersion === 3 ? await getLiveLapCaptureSnapshot(source.sessionId, id) : null;
+      if (!(source.captureLayoutVersion === 3 && !live) && meta.processing.stage !== "opponent-index") {
+        const blocked = processingFailure(meta.processing);
+        if (blocked) return c.json({ code: blocked.code, error: blocked.error }, blocked.status);
+      }
+      const lap = await getLapById(id, meta.processing);
       if (!lap) return c.json({ error: "Lap not found" }, 404);
       if (lap.parseError) {
         return c.json({
@@ -45,9 +63,6 @@ export const replayRoutes = new Hono()
           sectorStarts: null, insights: [], detectorCoverage: INSIGHT_DETECTORS.map((detector) => ({ ...detector, status: "unavailable" as const, reason: "Lap telemetry could not be parsed" })), parseError: lap.parseError, envelopes: [],
         } satisfies SemanticLapTelemetry);
       }
-      const source = await getLapReplaySource(id);
-      if (!source) return c.json({ error: "Lap not found" }, 404);
-      const live = source.captureLayoutVersion === 3 ? await getLiveLapCaptureSnapshot(source.sessionId, id) : null;
       const artifact = source.captureLayoutVersion === 3
         ? live ? resolveLiveLapCaptureArtifact(live.archivePath, live.snapshot) : undefined
         : (source.captureLayoutVersion === 1 || source.captureLayoutVersion === 2) && source.captureManifestFile && source.captureChunkId
@@ -114,7 +129,12 @@ export const replayRoutes = new Hono()
     }
   })
   .post("/api/laps/:id/insights/rerun", zValidator("param", IdParamSchema), async (c) => {
-    const insights = await recomputeLapInsights(c.req.valid("param").id);
+    const { id } = c.req.valid("param");
+    const meta = await getLapMetaById(id);
+    if (!meta) return c.json({ error: "Lap not found or has no telemetry" }, 404);
+    const blocked = processingFailure(meta.processing);
+    if (blocked) return c.json({ code: blocked.code, error: blocked.error }, blocked.status);
+    const insights = await recomputeLapInsights(id);
     return insights ? c.json({ insights }) : c.json({ error: "Lap not found or has no telemetry" }, 404);
   })
   .get("/api/laps/:id/insights", zValidator("param", IdParamSchema), async (c) => {
@@ -123,6 +143,8 @@ export const replayRoutes = new Hono()
     const { id } = c.req.valid("param");
     const meta = await getLapMetaById(id);
     if (!meta || meta.gameId !== gameId.data) return c.json({ error: "Lap not found" }, 404);
+    const blocked = processingFailure(meta.processing);
+    if (blocked) return c.json({ code: blocked.code, error: blocked.error }, blocked.status);
     return c.json({ insights: await getOrComputeLapInsights(id) ?? [] });
   })
   .route("/", opponentRoutes);

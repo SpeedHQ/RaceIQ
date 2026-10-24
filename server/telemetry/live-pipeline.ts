@@ -76,6 +76,7 @@ export class LiveTelemetryPipeline {
   private _pendingDirectHead = 0;
   private _pendingDirectBytes = 0;
   private _processingSource: CapturedParserSource | null = null;
+  private _pendingRecordingStarts = 0;
   private readonly _retiringCaptures = new Set<Promise<void>>();
   private _processingNativeFrame: Buffer | null = null;
   private _processingTimestamp: number | undefined;
@@ -95,9 +96,9 @@ export class LiveTelemetryPipeline {
     this._liveIssuesEnabled = enabled;
   }
 
-  /** Maintenance stays excluded until active and retiring capture I/O has finished. */
+  /** Maintenance stays excluded while recording starts, runs, or drains. */
   get isSessionActive(): boolean {
-    return this.recorder.active || this._recordingSession?.directCapture !== undefined ||
+    return this._pendingRecordingStarts > 0 || this.recorder.active || this._recordingSession?.directCapture !== undefined ||
       this._retiringSessions.size > 0 || this._retiringCaptures.size > 0;
   }
 
@@ -436,6 +437,9 @@ export class LiveTelemetryPipeline {
         const continuing = this._continuingSegment && previousSession?.sessionId === session.sessionId && previousSession.gameId === session.gameId;
         this._continuingSegment = false;
         if (!continuing) {
+          this._pendingRecordingStarts++;
+          let recorderOwnsStart = false;
+          try {
           if (previousSession?.directCapture && this.recorder instanceof DirectSessionRecorderAdapter) {
             while (this._retiringCaptures.size >= 2) {
               const oldestRetirement = this._retiringCaptures.values().next().value;
@@ -467,6 +471,8 @@ export class LiveTelemetryPipeline {
             this.recorder.writeMetaFrame();
             const recording: RecordingSession = { sessionId: session.sessionId, gameId: session.gameId };
             this._recordingSession = recording;
+            recorderOwnsStart = true;
+            this._pendingRecordingStarts--;
             const rawFile = this.recorder.path;
             this._dashboardCaptureObservations.set(session.sessionId, {
               observation: new DashboardCaptureObservation(session.gameId, session.trackId ?? null), rawFile,
@@ -493,6 +499,9 @@ export class LiveTelemetryPipeline {
               await markDashboardCaptureCheckpoint(session.sessionId, false);
             }
           });
+          } finally {
+            if (!recorderOwnsStart) this._pendingRecordingStarts--;
+          }
           if (previousSession && !previousSession.directCapture) {
             if (previousCapture && previousCapture.rawFile !== this.recorder.path) {
               await this.finalizeDashboardCaptureFacts([previousSession.sessionId]);
@@ -543,6 +552,7 @@ export class LiveTelemetryPipeline {
         if (!recording || recording.sessionId !== event.sessionId) return;
         const session = this._lapDetector?.session ?? null;
         if (!session || session.sessionId !== event.sessionId) return;
+        const standaloneCaptureReady = recording.directCapture?.isLapReady(event.lapId);
         this._sessionLaps.push({
           id: event.lapId,
           sessionId: event.sessionId,
@@ -555,7 +565,10 @@ export class LiveTelemetryPipeline {
           carId: session.carId,
           trackId: session.trackId,
           sectorTimes: event.sectors ?? undefined,
-          standaloneCaptureReady: recording.directCapture?.isLapReady(event.lapId),
+          processing: standaloneCaptureReady === true
+            ? { state: "ready", stage: null, error: null }
+            : { state: "processing", stage: "capture", error: null },
+          standaloneCaptureReady,
         });
         if (this._sessionLaps.length > CURRENT_SESSION_LAP_SNAPSHOT_LIMIT) {
           this._sessionLaps.splice(0, this._sessionLaps.length - CURRENT_SESSION_LAP_SNAPSHOT_LIMIT);
@@ -1000,6 +1013,7 @@ let dumpOnlyTelemetry = false;
 export function setDumpOnlyTelemetryRouting(enabled: boolean): void { dumpOnlyTelemetry = enabled; }
 export const processPacket = (packet: TelemetryPacket, source?: PacketSourceReference, frameTimeMs?: number) =>
   dumpOnlyTelemetry ? publishLivePacket(packet, frameTimeMs) : _default.processPacket(packet, source, frameTimeMs);
+export const drainSessionRecorderWrites = () => _default.drainSessionRecorderWrites();
 const _dumpProjector = new LiveTelemetryProjector();
 async function publishLivePacket(packet: TelemetryPacket, frameTimeMs?: number): Promise<void> {
   applyFrameTime(packet, frameTimeMs);

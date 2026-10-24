@@ -32,6 +32,7 @@ import { combineRecordingParts } from "@raceiq/backend-core/session-capture/comb
 import { registerDriverProfileLapNotifier } from "@raceiq/backend-core/driver-profile/lap-notifier";
 import { notifyDriverProfileLap } from "../../src/driver-profile/runner";
 import { resolveRecordingDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
+import { reconcileLmuOpponentIndexes, stopLmuOpponentIndexRuntime } from "@raceiq/backend-core/session-capture/lmu-opponent-index-runtime";
 
 async function placeSeedRecordingsInLegacyLayout(): Promise<void> {
   const root = resolveRecordingDirectory();
@@ -141,8 +142,19 @@ function* seedCaptureFrames(path: string) {
     }
   }
 }
+async function reconcileSeedLmuOpponentIndexes(): Promise<number> {
+  const indexStartedAt = performance.now();
+  const result = await reconcileLmuOpponentIndexes({ awaitPreparation: true });
+  if (result === "pending") {
+    console.log("[DB Seed] Opponent index pending; publication deferred for recording activity.");
+  }
+  return performance.now() - indexStartedAt;
+}
+
 
 async function main(): Promise<void> {
+  const seedStartedAt = performance.now();
+  let importDurationMs = 0;
   const options = parseOptions();
   await initDb();
   initGameAdapters(developmentReleaseFeatures);
@@ -153,6 +165,9 @@ async function main(): Promise<void> {
   if (await seedRowCount()) {
     if (options.legacyRecordings) await placeSeedRecordingsInLegacyLayout();
     markOnboardingComplete();
+    const indexDurationMs = await reconcileSeedLmuOpponentIndexes();
+    const seedDurationMs = performance.now() - seedStartedAt;
+    console.log(`[DB Seed] Durations: seed=${seedDurationMs.toFixed(1)}ms, import=0.0ms, index=${indexDurationMs.toFixed(1)}ms.`);
     console.log("[DB Seed] Seed data already exists; nothing to do.");
     return;
   }
@@ -179,13 +194,19 @@ async function main(): Promise<void> {
       const fixturePath = combined?.path ?? partPaths[0]!;
       try {
         if (game === "iracing") {
-          await seedIRacingSession(fixturePath);
+          const importStartedAt = performance.now();
+          try {
+            await seedIRacingSession(fixturePath);
+          } finally {
+            importDurationMs += performance.now() - importStartedAt;
+          }
           continue;
         }
         const existingSessionIds = new Set(
           (await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.gameId, game)).all()).map((row) => row.id),
         );
         console.log(`[DB Seed] ${game}: ${game === "lmu" ? "streaming" : "converting"} ${fixture} to sparse storage...`);
+        const importStartedAt = performance.now();
         const converted = game === "lmu" ? null : await convertSeedFramesToSparse(game, seedCaptureFrames(fixturePath));
         try {
           const importOptions = {
@@ -195,6 +216,7 @@ async function main(): Promise<void> {
           const result = converted
             ? await importSessionBin(readFileSync(converted.path), game, importOptions)
             : await importLMUSeedCapture(fixturePath, options.legacyRecordings);
+          importDurationMs += performance.now() - importStartedAt;
           const seededSessionIds = (await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.gameId, game)).all())
             .map((row) => row.id)
             .filter((id) => !existingSessionIds.has(id));
@@ -219,12 +241,16 @@ async function main(): Promise<void> {
   }
   if (options.legacyRecordings) await placeSeedRecordingsInLegacyLayout();
   markOnboardingComplete();
-  console.log(`[DB Seed] Complete: ${importedLapIds.length} valid laps, ${options.games.join(", ")}.`);
+  const indexDurationMs = await reconcileSeedLmuOpponentIndexes();
+  const seedDurationMs = performance.now() - seedStartedAt;
+  console.log(`[DB Seed] Durations: seed=${seedDurationMs.toFixed(1)}ms, import=${importDurationMs.toFixed(1)}ms, index=${indexDurationMs.toFixed(1)}ms.`);
+  console.log(`[DB Seed] Seed complete: ${importedLapIds.length} valid laps, ${options.games.join(", ")}.`);
 }
 
 try {
   await main();
 } finally {
   stopMaintenanceTasks();
+  await stopLmuOpponentIndexRuntime();
   closeDb();
 }

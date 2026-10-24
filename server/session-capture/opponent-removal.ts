@@ -21,6 +21,8 @@ import { getRecordingMaintenanceController, admitMaintenance, releaseMaintenance
 import { loadReferencedCapturePaths, withSessionCaptureMaintenanceLock } from "./cleanup";
 import { readLmuOpponentRetention } from "./lmu-companion";
 import { resolveRecordingDirectory } from "../runtime/config/recording-directory";
+import { inventoryLmuOpponentIndex } from "../lap-analysis/lmu-opponent-index";
+import { revokeLmuOpponentIndex } from "./lmu-opponent-index-runtime";
 
 const initialStatus = (): OpponentRemovalStatus => ({
   status: "idle", request: null, done: 0, total: 0, removedSessionIds: [], freedBytes: 0,
@@ -29,7 +31,7 @@ const initialStatus = (): OpponentRemovalStatus => ({
 let status = initialStatus();
 
 type SessionRow = { id: number; rawFile: string | null; gameId: string; captureLayoutVersion?: number | null; captureManifestFile?: string | null; captureFormatVersion?: number | null; carId?: string; trackId?: string };
-type Candidate = { path: string; referencePath: string; sessionIds: number[]; revision: string; manifest?: Manifest; companionBytes: number; legacy?: boolean };
+type Candidate = { path: string; referencePath: string; sessionIds: number[]; revision: string; manifest?: Manifest; companionBytes: number; indexBytes: number; legacy?: boolean };
 type Plan = { preview: OpponentRemovalPreview; candidates: Candidate[] };
 
 function skip(sessionIds: number[], reason: OpponentRemovalSkip["reason"]): OpponentRemovalSkip {
@@ -39,6 +41,14 @@ function skip(sessionIds: number[], reason: OpponentRemovalSkip["reason"]): Oppo
 async function readManifest(path: string): Promise<Manifest> {
   const bytes = await readFile(path);
   return Schema.decodeUnknownSync(ManifestSchema)(JSON.parse(bytes.toString("utf8")));
+}
+
+async function opponentIndexBytes(sourcePath: string, preserveRootState: boolean): Promise<number> {
+  const inventory = await inventoryLmuOpponentIndex(resolve(`${sourcePath}.opponent-index`));
+  return preserveRootState
+    ? inventory.artifacts.filter((artifact) => artifact.kind !== "state" && artifact.kind !== "other")
+      .reduce((sum, artifact) => sum + artifact.bytes, 0)
+    : inventory.totalBytes;
 }
 
 
@@ -79,12 +89,16 @@ async function buildPlan(request: OpponentRemovalRequest): Promise<Plan> {
       catch { skipped.push(skip(ids, "invalid-source")); continue; }
       const retention = await readLmuOpponentRetention(manifestPath);
       if (retention.opponentRetention === "not-recorded") { skipped.push(skip(ids, "not-recorded")); continue; }
-      if (retention.opponentRetention === "removed" && (manifest.cleanupPending?.length ?? 0) === 0) {
+      const indexBytes = await opponentIndexBytes(manifestPath, true);
+      if (retention.opponentRetention === "removed" && (manifest.cleanupPending?.length ?? 0) === 0 && indexBytes === 0) {
         skipped.push(skip(ids, "already-removed"));
         continue;
       }
       if (manifest.opponentRetention === "removed") {
-        candidates.push({ path: manifestPath, referencePath: path, sessionIds: ids, revision: manifest.sourceRevision, manifest, companionBytes: 0 });
+        candidates.push({
+          path: manifestPath, referencePath: path, sessionIds: ids, revision: manifest.sourceRevision, manifest,
+          companionBytes: 0, indexBytes,
+        });
         continue;
       }
       if (!manifest.opponentCompanion) { skipped.push(skip(ids, "unsupported-format")); continue; }
@@ -95,7 +109,10 @@ async function buildPlan(request: OpponentRemovalRequest): Promise<Plan> {
       }
       const companionPath = resolve(dirname(manifestPath), companion.file);
       const companionBytes = await stat(companionPath).then((value) => value.size).catch(() => 0);
-      candidates.push({ path: manifestPath, referencePath: path, sessionIds: ids, revision: manifest.sourceRevision, manifest, companionBytes });
+      candidates.push({
+        path: manifestPath, referencePath: path, sessionIds: ids, revision: manifest.sourceRevision, manifest,
+        companionBytes, indexBytes,
+      });
       continue;
     }
     const row = selected[0]!;
@@ -109,13 +126,19 @@ async function buildPlan(request: OpponentRemovalRequest): Promise<Plan> {
     if (!info?.isFile()) { skipped.push(skip(ids, "invalid-source")); continue; }
     candidates.push({
       path, referencePath: path, sessionIds: ids, revision: `${info.dev}:${info.ino}:${info.size}:${info.mtimeMs}`,
-      companionBytes: 0, legacy: true,
+      companionBytes: 0, indexBytes: await opponentIndexBytes(path, false), legacy: true,
     });
   }
   const candidateSessionIds = candidates.flatMap((group) => group.sessionIds).sort((a, b) => a - b);
+  const opponentIndexBytesByRoot = new Map<string, number>();
+  for (const candidate of candidates) {
+    opponentIndexBytesByRoot.set(resolve(`${candidate.path}.opponent-index`), candidate.indexBytes);
+  }
   return {
     preview: {
-      request, candidateSessionIds, companionBytes: candidates.reduce((sum, group) => sum + group.companionBytes, 0),
+      request, candidateSessionIds,
+      companionBytes: candidates.reduce((sum, group) => sum + group.companionBytes, 0) +
+        [...opponentIndexBytesByRoot.values()].reduce((sum, bytes) => sum + bytes, 0),
       rewriteSessionIds: candidates.filter((candidate) => candidate.legacy).flatMap((candidate) => candidate.sessionIds).sort((a, b) => a - b),
       skipped,
     },
@@ -489,20 +512,32 @@ async function recoverPendingOpponentRemovalCleanupDetailed(onlyManifestPath?: s
   let removedFiles = 0;
   let freedBytes = 0;
   for (const manifestPath of manifestPaths) {
+    const indexSources = new Set<string>();
+    let cleanupUpdate: { sourceRevision: string; original: readonly string[]; remaining: string[] } | null = null;
+    let reclaimedNativeBytes = 0;
     await withSessionCaptureMaintenanceLock(async () => {
       if (isSessionActive()) return;
       let manifest: Manifest;
       try { manifest = await readManifest(manifestPath); } catch { return; }
-      if (manifest.opponentRetention !== "removed" || !manifest.cleanupPending?.length) return;
+      if (manifest.opponentRetention !== "removed") return;
       const directory = dirname(manifestPath);
       const canonicalDirectory = await realpath(directory);
       const canonicalRoot = await realpath(resolveRecordingDirectory());
       const directoryRelative = relative(canonicalRoot, canonicalDirectory);
       if (directoryRelative === ".." || directoryRelative.startsWith(`..${sep}`) || isAbsolute(directoryRelative)) return;
+      indexSources.add(manifestPath);
+      const pending = manifest.cleanupPending ?? [];
+      if (!manifest.opponentCompanion) {
+        for (const relativePath of pending) {
+          if (basename(relativePath) !== relativePath) continue;
+          const sourcePath = resolve(directory, relativePath);
+          if (isOwnedSessionRawFile(sourcePath)) indexSources.add(sourcePath);
+        }
+      }
       const referenced = await loadReferencedCapturePaths(manifestPath);
       let reclaimedBytes = 0;
       const remaining: string[] = [];
-      for (const relativePath of manifest.cleanupPending) {
+      for (const relativePath of pending) {
         if (basename(relativePath) !== relativePath) { remaining.push(relativePath); continue; }
         const path = resolve(directory, relativePath);
         if (relative(directory, path) !== relativePath || !isOwnedSessionRawFile(path) ||
@@ -529,16 +564,37 @@ async function recoverPendingOpponentRemovalCleanupDetailed(onlyManifestPath?: s
           if ((error as NodeJS.ErrnoException).code !== "ENOENT") remaining.push(relativePath);
         }
       }
-      if (remaining.length !== manifest.cleanupPending.length) {
-        await persistCaptureManifest(manifestPath, Schema.decodeSync(ManifestSchema)({ ...manifest, cleanupPending: remaining }));
-        clearCaptureManifestCache(manifestPath);
-        clearSessionCaptureCache(manifestPath);
+      if (remaining.length !== pending.length || remaining.some((path, index) => path !== pending[index])) {
+        cleanupUpdate = { sourceRevision: manifest.sourceRevision, original: pending, remaining };
       }
       if (reclaimedBytes > 0) {
-        freedBytes += manifest.opponentCompanion ? reclaimedBytes
+        reclaimedNativeBytes = manifest.opponentCompanion ? reclaimedBytes
           : Math.max(0, reclaimedBytes - manifest.chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0));
       }
     });
+    for (const sourcePath of indexSources) {
+      const indexRoot = resolve(`${sourcePath}.opponent-index`);
+      const before = await inventoryLmuOpponentIndex(indexRoot);
+      await revokeLmuOpponentIndex(sourcePath);
+      const after = await inventoryLmuOpponentIndex(indexRoot);
+      const remaining = new Set(after.artifacts.map((artifact) => resolve(artifact.path)));
+      removedFiles += before.artifacts.filter((artifact) => !remaining.has(resolve(artifact.path))).length;
+      freedBytes += Math.max(0, before.totalBytes - after.totalBytes);
+    }
+    freedBytes += reclaimedNativeBytes;
+    if (cleanupUpdate) {
+      await withSessionCaptureMaintenanceLock(async () => {
+        let manifest: Manifest;
+        try { manifest = await readManifest(manifestPath); } catch { return; }
+        const currentPending = manifest.cleanupPending ?? [];
+        if (manifest.opponentRetention !== "removed" || manifest.sourceRevision !== cleanupUpdate!.sourceRevision ||
+            currentPending.length !== cleanupUpdate!.original.length ||
+            currentPending.some((path, index) => path !== cleanupUpdate!.original[index])) return;
+        await persistCaptureManifest(manifestPath, Schema.decodeSync(ManifestSchema)({ ...manifest, cleanupPending: cleanupUpdate!.remaining }));
+        clearCaptureManifestCache(manifestPath);
+        clearSessionCaptureCache(manifestPath);
+      });
+    }
   }
   if (status.status === "partial" && onlyManifestPath === undefined) status.freedBytes += freedBytes;
   if (status.status === "partial" && status.cleanupPendingSessionIds.length > 0) {

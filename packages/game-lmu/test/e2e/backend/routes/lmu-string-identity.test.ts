@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import type { ProcessingMetadata } from "@raceiq/shared/racing/sessions/types";
+import { db } from "@raceiq/backend-core/db/index";
 import { insertLap } from "@raceiq/backend-core/db/lap-mutation-queries";
+import { sessionCaptureSplitJobs } from "@raceiq/backend-core/db/schema";
 import { getLapStats } from "@raceiq/backend-core/db/lap-read-queries";
 import { deleteSession, insertSession, updateSessionRawFile } from "@raceiq/backend-core/db/session-queries";
 import { prepareDashboardPublicationCandidate, publishDashboardSession } from "@raceiq/backend-core/db/dashboard-summary-queries";
@@ -13,6 +16,22 @@ import { loadLabelledSegments } from "@raceiq/shared/racing/tracks/storage/meta"
 const sessionRoutes = createSessionRoutes(isSessionIdentityInCatalog);
 const sessionIds: number[] = [];
 
+async function createProcessingLap(status: "queued" | "failed") {
+  const sessionId = await insertSession("10", "20", "acc");
+  sessionIds.push(sessionId);
+  const sourcePath = `track-processing-${sessionId}.bin`;
+  await updateSessionRawFile(sessionId, sourcePath, "test");
+  const lapId = await insertLap(sessionId, 1, 60, true, 0, 1, null, null, null, null, null);
+  await db.insert(sessionCaptureSplitJobs).values({
+    sessionId,
+    jobId: `track-processing-${sessionId}`,
+    pendingSourceRevision: "test-source-revision",
+    sourcePath,
+    status,
+    errorMessage: status === "failed" ? "Internal worker detail" : null,
+  });
+  return { lapId, sessionId };
+}
 
 afterEach(async () => {
   for (const id of sessionIds.splice(0)) await deleteSession(id);
@@ -163,15 +182,37 @@ describe("LMU string identity routes", () => {
 
     const lapsResponse = await trackRoutes.request(`/api/tracks/${encodeURIComponent("spa_2023/spawec")}/all-laps?gameId=lmu`);
     expect(lapsResponse.status).toBe(200);
-    const trackLaps = await lapsResponse.json() as Array<{ sessionId: number; carId: string | null }>;
+    const trackLaps = await lapsResponse.json() as Array<{ sessionId: number; carId: string | null; processing: ProcessingMetadata }>;
     expect(trackLaps.map((lap) => lap.sessionId)).toEqual([stringSession]);
     expect(trackLaps[0]?.carId).toBe("ferrari_499p_2023");
+    expect(trackLaps[0]?.processing).toEqual({ state: "ready", stage: null, error: null });
 
     const sessionsResponse = await sessionRoutes.request("/api/sessions?gameId=lmu");
     expect(sessionsResponse.status).toBe(200);
     const rows = await sessionsResponse.json() as Array<{ id: number; carId: string; trackId: string }>;
     expect(rows.find((row) => row.id === stringSession)).toMatchObject({ carId: "ferrari_499p_2023", trackId: "spa_2023/spawec" });
     expect(rows.find((row) => row.id === legacySession)).toMatchObject({ carId: "1896582084", trackId: "481869333" });
+  });
+
+  test("keeps older ready laps reachable with truthful processing metadata", async () => {
+    const readySessionId = await insertSession("10", "20", "acc");
+    sessionIds.push(readySessionId);
+    const readyLapIds: number[] = [];
+    for (let lapNumber = 1; lapNumber <= 201; lapNumber++) {
+      readyLapIds.push(await insertLap(readySessionId, lapNumber, 80 + lapNumber / 100, true, null, 0, null, null, null, null, null));
+    }
+    const { lapId: queuedLapId } = await createProcessingLap("queued");
+
+    const response = await trackRoutes.request("/api/tracks/20/all-laps?gameId=acc");
+    expect(response.status).toBe(200);
+    const rows = await response.json() as Array<{ lapId: number; sessionId: number; processing: ProcessingMetadata }>;
+    const readyRows = rows.filter((row) => row.sessionId === readySessionId);
+    expect(readyRows).toHaveLength(201);
+    expect(readyRows.slice(0, 200).some((row) => row.lapId === readyLapIds[0])).toBe(false);
+    expect(readyRows.find((row) => row.lapId === readyLapIds[0])?.processing)
+      .toEqual({ state: "ready", stage: null, error: null });
+    expect(rows.find((row) => row.lapId === queuedLapId)?.processing)
+      .toEqual({ state: "queued", stage: "capture", error: null });
   });
 
 
@@ -223,5 +264,35 @@ describe("LMU string identity routes", () => {
     const unknown = await trackRoutes.request("/api/track-sector-boundaries/unknown-native-track?gameId=lmu");
     expect(unknown.status).toBe(200);
     expect(await unknown.json()).toEqual({ s1End: 1 / 3, s2End: 2 / 3, trackLength: 0 });
+  });
+});
+
+describe("processing-gated track reads", () => {
+  test("queued laps block calibration and every telemetry-backed track route", async () => {
+    const { lapId } = await createProcessingLap("queued");
+    const requests = [
+      await trackRoutes.request("/api/track-calibration/20/from-lap?gameId=acc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lapId }),
+      }),
+      await trackRoutes.request(`/api/tracks/20/recompute-outline?lapId=${lapId}&gameId=acc`, { method: "POST" }),
+      await trackRoutes.request("/api/tracks/20/recompute-outline?gameId=acc", { method: "POST" }),
+      await trackRoutes.request("/api/tracks/20/lap-sectors?gameId=acc"),
+    ];
+    for (const response of requests) {
+      expect(response.status).toBe(409);
+      expect(await response.json()).toEqual({ code: "RECORDING_PROCESSING", error: "Recording is queued or processing" });
+    }
+  });
+
+  test("failed selected laps return safe processing errors", async () => {
+    const { lapId } = await createProcessingLap("failed");
+    const response = await trackRoutes.request(`/api/tracks/20/recompute-outline?lapId=${lapId}&gameId=acc`, { method: "POST" });
+    expect(response.status).toBe(422);
+    const body = await response.json() as { code: string; error: string };
+    expect(body.code).toBe("RECORDING_PROCESSING_FAILED");
+    expect(body.error.trim().length).toBeGreaterThan(0);
+    expect(body.error).not.toContain("Internal worker detail");
   });
 });

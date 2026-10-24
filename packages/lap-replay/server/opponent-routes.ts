@@ -4,15 +4,20 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { GameIdSchema } from "@raceiq/shared/games/ids";
 import type { ResolvedValue, TelemetryTimestamp } from "@raceiq/shared/telemetry/resolver/contracts";
+import type { LmuResolvedValueWire } from "@raceiq/shared/telemetry/lmu-context";
 import { getLapById, getLapMetaById } from "@raceiq/backend-core/db/lap-read-queries";
 import { getLapReplaySource } from "@raceiq/backend-core/db/telemetry-replay-storage";
-import { readLmuOpponentRetention } from "@raceiq/backend-core/session-capture/lmu-companion";
 import type { SessionCaptureSource } from "@raceiq/backend-core/session-capture/source-loader";
-import { indexLmuOpponentLaps, LmuOpponentSourceError, projectLmuOpponentTelemetry, readLmuOpponentCaptureFrames, type LmuOpponentFrame, type LmuOpponentLapInterval } from "@raceiq/backend-core/lap-analysis/lmu-opponent-laps";
+import { getLmuOpponentIndexStatus, reportLmuOpponentIndexReadFailure } from "@raceiq/backend-core/session-capture/lmu-opponent-index-runtime";
+import { LmuOpponentIndexError, loadLmuOpponentInterval, readLmuOpponentCatalogSummary, readLmuOpponentIndex, type LmuOpponentIndex, type LmuOpponentIndexSourceDependency } from "@raceiq/backend-core/lap-analysis/lmu-opponent-index";
+import { LmuOpponentSourceError, projectLmuOpponentTelemetry, type LmuOpponentLapInterval } from "@raceiq/backend-core/lap-analysis/lmu-opponent-laps";
+import { groupLmuOpponentSessions as groupOpponentSessions } from "@raceiq/backend-core/lap-analysis/lmu-opponent-summary";
 import { encodeLmuContext, encodeLmuResolvedValue } from "@raceiq/shared/telemetry/lmu-context";
 import type { LmuCompetitor } from "@raceiq/shared/telemetry/lmu";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import type { OpponentLapCatalog, OpponentLapSummary, OpponentSemanticLapTelemetry, OpponentSessionSummary } from "../contracts/opponents";
+import type { OpponentLapCatalog, OpponentSemanticLapTelemetry } from "../contracts/opponents";
+
+export { groupOpponentSessions };
 
 const linearInterpolate = (lower: number, upper: number, fraction: number) => lower + (upper - lower) * fraction;
 const DISTANCE_ALIGNMENT_HASH = createHash("sha256").update(linearInterpolate.toString()).digest("hex");
@@ -237,80 +242,6 @@ const RevisionQuery = z.object({ sourceRevision: OPAQUE }).strict();
 const error = (code: string, message: string, status: 400 | 404 | 409 | 410 | 422 | 500) =>
   Response.json({ code, error: message }, { status });
 
-type OpponentLapDomainSummary = Omit<OpponentLapSummary, "lapTime" | "sectors"> & {
-  lapTime: ResolvedValue<number>;
-  sectors: readonly { semanticId: string; duration: ResolvedValue<number> }[];
-};
-function encodeSummary(value: OpponentLapDomainSummary): OpponentLapSummary {
-  return { ...value, lapTime: encodeLmuResolvedValue(value.lapTime), sectors: value.sectors.map((sector) => ({ ...sector, duration: encodeLmuResolvedValue(sector.duration) })) };
-}
-function summary(interval: LmuOpponentLapInterval, playerChannels: ReadonlySet<string> = new Set()): OpponentLapDomainSummary {
-  const competitor = interval.frames.at(-1)?.competitors.find((entry) =>
-    entry.vehicleId === interval.vehicleId && entry.incarnation === interval.incarnation);
-  const value = (semanticId: string) => competitor?.channels[semanticId]?.value ?? null;
-  const resolved = (semanticId: string) => {
-    const channel = competitor?.channels[semanticId];
-    return channel?.state === "ok" && channel.freshness === "fresh" && typeof channel.value === "number" && Number.isFinite(channel.value)
-      ? channel as ResolvedValue<number>
-      : null;
-  };
-  const missing = (semanticId: string): ResolvedValue<number> => {
-    const source = Object.values(competitor?.channels ?? {})[0];
-    if (!source) throw new Error("Opponent frame has no semantic source metadata");
-    const { sourceChannel: _sourceChannel, ...provenance } = source.provenance;
-    return {
-      ...source, semanticId, value: null, unit: "s", mappingStatus: "unavailable", state: "missing",
-      confidence: null, freshness: "unknown",
-      confidenceComponents: { semanticFidelity: 0, freshness: null, inputCompleteness: 0 },
-      provenance, limitations: [...source.limitations, "No source-backed timing report for this opponent interval."],
-    };
-  };
-  const completed = interval.endSequence !== null;
-  const lapTime = (completed ? resolved("race.competitor.last-lap-time") : null) ?? missing("race.competitor.last-lap-time");
-  const timing = completed ? resolved("race.competitor.last-sector-1") : null;
-  const cumulative = completed ? resolved("race.competitor.last-sector-2-cumulative") : null;
-  const sectors = [
-    ...(timing ? [{ semanticId: "timing.sector.last-lap.s1", duration: timing }] : []),
-    ...(timing && cumulative ? [{
-      semanticId: "timing.sector.last-lap.s2",
-      duration: { ...cumulative, value: cumulative.value! - timing.value!, mappingStatus: "derived" as const,
-        provenance: { ...cumulative.provenance, derivation: { id: "lmu.opponent-sector-two.duration", version: "1", codeHash: createHash("sha256").update("cumulative-sector-1-2-minus-sector-1").digest("hex") } },
-        limitations: [...cumulative.limitations, "Derived from cumulative sectors 1-2 minus sector 1."],
-      } },
-    ] : []),
-  ];
-  const paired = (semanticId: string) => playerChannels.has(semanticId) && interval.frames.some((frame) => {
-    const candidate = frame.competitors.find((entry) =>
-      entry.vehicleId === interval.vehicleId && entry.incarnation === interval.incarnation);
-    return numeric(candidate?.channels[semanticId]) !== null;
-  });
-  const positionTrace = paired("motion.competitor.position.x") && paired("motion.competitor.position.z") &&
-    paired("race.competitor.lap-distance");
-  const comparableSemanticIds = [
-    ...(lapTime.state === "ok" ? ["timing.lap-time"] : []),
-    ...(positionTrace ? ["motion.position-x", "motion.position-z"] : []),
-    ...(paired("motion.competitor.speed") ? ["motion.speed"] : []),
-    ...(paired("race.competitor.scoring-time") && paired("race.competitor.lap-start-time")
-      ? ["race.competitor.scoring-time", "race.competitor.lap-start-time"] : []),
-  ];
-  const driverName = value("identity.competitor.driver-name");
-  const carName = value("identity.competitor.car-name");
-  const className = value("identity.competitor.vehicle-class");
-  return {
-    opponentLapId: interval.opponentLapId, sessionKey: interval.sessionKey, vehicleId: interval.vehicleId,
-    incarnation: interval.incarnation, driverName: typeof driverName === "string" ? driverName : null,
-    carName: typeof carName === "string" ? carName : null, className: typeof className === "string" ? className : null,
-    lapNumber: interval.lapNumber, coverage: interval.coverage, validity: interval.validity,
-    lapTime, sectors, comparableSemanticIds,
-    mode: positionTrace ? "telemetry" : lapTime.state === "ok" ? "timing-only" : "unavailable",
-    reasons: [
-      ...(interval.coverage === "partial" ? ["partial-lap" as const] : []),
-      ...(interval.validity === "unknown" ? ["unknown-validity" as const] : interval.validity === "invalid" ? ["invalid-lap" as const] : []),
-      "restricted-channels" as const,
-      ...(positionTrace || lapTime.state === "ok" ? [] : ["missing-timing" as const, "no-comparable-data" as const]),
-    ],
-  };
-}
 
 function playerRows(packets: readonly TelemetryPacket[]) {
   return packets.flatMap((packet) => {
@@ -320,60 +251,10 @@ function playerRows(packets: readonly TelemetryPacket[]) {
   });
 }
 
-function playerChannels(packets: readonly TelemetryPacket[]): Set<string> {
-  const channels = new Set<string>();
-  for (const { competitor } of playerRows(packets)) {
-    for (const [semanticId, channel] of Object.entries(competitor.channels)) {
-      if (numeric(channel)) channels.add(semanticId);
-    }
-  }
-  return channels;
-}
 
 async function sourceForLap(id: number) {
   const [meta, source] = await Promise.all([getLapMetaById(id), getLapReplaySource(id)]);
   return meta && source ? { meta, source } : null;
-}
-
-// Share one bounded session snapshot across catalog, comparison and replay requests.
-const OPPONENT_INDEX_MAX_BYTES = 512 * 1024 * 1024;
-const OPPONENT_INDEX_TTL_MS = 30_000;
-let opponentIndexCache: { key: string; index: Promise<LmuOpponentLapInterval[]> } | undefined;
-
-async function sessionOpponentIndex(
-  source: SessionCaptureSource,
-  sourceRevision: string,
-  availability: string | null,
-): Promise<LmuOpponentLapInterval[]> {
-  const key = JSON.stringify([source.rawFile, sourceRevision, availability]);
-  if (opponentIndexCache?.key === key) return opponentIndexCache.index;
-  const index = readLmuOpponentCaptureFrames(source, sourceRevision, { retainSourceFrames: false })
-    .then((frames) => {
-      const intervals = indexLmuOpponentLaps(frames);
-      const seen = new WeakSet<LmuOpponentFrame["competitors"][number]>();
-      let bytes = frames.length * 256;
-      for (const frame of frames) {
-        for (const competitor of frame.competitors) {
-          if (seen.has(competitor)) continue;
-          seen.add(competitor);
-          bytes += Object.keys(competitor.channels).length * 1024;
-        }
-      }
-      if (opponentIndexCache?.index === index) {
-        if (bytes > OPPONENT_INDEX_MAX_BYTES) opponentIndexCache = undefined;
-        else {
-          setTimeout(() => {
-            if (opponentIndexCache?.index === index) opponentIndexCache = undefined;
-          }, OPPONENT_INDEX_TTL_MS).unref();
-        }
-      }
-      return intervals;
-    }).catch((cause) => {
-      if (opponentIndexCache?.index === index) opponentIndexCache = undefined;
-      throw cause;
-    });
-  opponentIndexCache = { key, index };
-  return index;
 }
 
 async function opponentIndex(id: number, requestedGameId: string) {
@@ -382,36 +263,86 @@ async function opponentIndex(id: number, requestedGameId: string) {
     return { error: error("LAP_NOT_FOUND", "Lap not found", 404) } as const;
   }
   const { meta, source } = resolved;
-  if (meta.gameId !== "lmu" || source.gameId !== "lmu") return { error: error("INVALID_OPPONENT_COMPARISON", "Opponent laps require an LMU lap", 400) } as const;
+  if (meta.gameId !== "lmu" || source.gameId !== "lmu") {
+    return { error: error("INVALID_OPPONENT_COMPARISON", "Opponent laps require an LMU lap", 400) } as const;
+  }
   const sourcePath = source.captureManifestFile ?? source.rawFile;
   if (!sourcePath) return { error: error("OPPONENT_DATA_UNAVAILABLE", "Session source is unavailable", 422) } as const;
-  let sourceRevision: string | undefined;
+  const captureSource: SessionCaptureSource = {
+    rawFile: sourcePath, source: source.source, gameId: source.gameId, carId: source.carId ?? "",
+    trackId: source.trackId ?? "", captureFormatVersion: source.captureFormatVersion,
+  };
+  let status = await getLmuOpponentIndexStatus(captureSource);
+  if (status.indexState !== "ready") {
+    // A removal may publish a new retention revision while the index transitions out of ready.
+    // Re-read durable retention before reporting transient index readiness to callers.
+    status = await getLmuOpponentIndexStatus(captureSource);
+  }
+  return { meta, status, captureSource };
+}
+
+async function readReadyOpponentIndex(
+  publicationPath: string | null,
+  sourceRevision: string,
+  sourceDependencies: readonly LmuOpponentIndexSourceDependency[],
+) {
+  if (!publicationPath) throw new Error("Ready opponent index has no publication path");
+  return readLmuOpponentIndex(publicationPath, { sourceRevision, sourceDependencies });
+}
+
+async function loadSelectedOpponentInterval(
+  source: SessionCaptureSource,
+  index: LmuOpponentIndex,
+  opponentLapId: string,
+) {
   try {
-    const retention = await readLmuOpponentRetention(sourcePath);
-    sourceRevision = retention.sourceRevision;
-    const playerLap = await getLapById(id);
-    const playerPackets = playerLap?.telemetry ?? [];
-    const intervals = retention.opponentRetention !== "retained" ||
-      retention.opponentAvailability === "missing" || retention.opponentAvailability === "corrupt"
-      ? []
-      : await sessionOpponentIndex({
-      rawFile: source.captureManifestFile ?? source.rawFile!, source: source.source,
-      gameId: source.gameId, carId: source.carId, trackId: source.trackId,
-      captureFormatVersion: source.captureFormatVersion,
-    }, retention.sourceRevision, retention.opponentAvailability);
-    const latest = await readLmuOpponentRetention(sourcePath);
-    if (latest.sourceRevision !== retention.sourceRevision) return { error: error("SOURCE_CHANGED", "Opponent source revision changed", 409) } as const;
-    return { meta, source, sourcePath, retention, playerPackets, intervals };
+    return await loadLmuOpponentInterval(index, opponentLapId);
   } catch (cause) {
-    const current = await getLapReplaySource(id);
-    const currentPath = current?.captureManifestFile ?? current?.rawFile;
-    if (currentPath !== sourcePath || (sourceRevision !== undefined &&
-        (await readLmuOpponentRetention(sourcePath)).sourceRevision !== sourceRevision)) {
-      return { error: error("SOURCE_CHANGED", "Opponent source revision changed", 409) } as const;
+    if (cause instanceof LmuOpponentIndexError && cause.code === "BLOCK_CORRUPT") {
+      await reportLmuOpponentIndexReadFailure(source, index.publicationPath);
     }
     throw cause;
   }
 }
+
+function opponentReadinessError(status: { indexState: OpponentLapCatalog["indexState"]; error: string | null }) {
+  if (status.indexState === "waiting-finalization" || status.indexState === "queued" || status.indexState === "building") {
+    return error("OPPONENT_INDEX_NOT_READY", "Opponent index is not ready", 409);
+  }
+  if (status.indexState === "failed") {
+    return error("OPPONENT_INDEX_FAILED", status.error ?? "Opponent index preparation failed", 422);
+  }
+  return status.indexState === "ready" ? null : error("OPPONENT_DATA_UNAVAILABLE", "Opponent data is unavailable", 422);
+}
+
+function opponentStorageError(cause: unknown, fallback: string) {
+  if (cause instanceof LmuOpponentSourceError) return error("OPPONENT_DATA_UNAVAILABLE", cause.message, 422);
+  if (cause instanceof LmuOpponentIndexError) {
+    if (cause.code === "SOURCE_CHANGED") return error("SOURCE_CHANGED", "Opponent source revision changed", 409);
+    if (cause.code === "BLOCK_CORRUPT") return error("OPPONENT_DATA_UNAVAILABLE", cause.message, 422);
+  }
+  return error("STORAGE_IO_ERROR", cause instanceof Error ? cause.message : fallback, 500);
+}
+
+function decodeOpponentValue(value: LmuResolvedValueWire<number>): ResolvedValue<number> {
+  const decodeTimestamp = (timestamp: LmuResolvedValueWire<number>["provenance"]["observedAt"]): TelemetryTimestamp =>
+    timestamp.domain === "monotonic" ? { domain: "monotonic", nanoseconds: BigInt(timestamp.nanoseconds) } : timestamp;
+  const { sourceObservation, ...provenance } = value.provenance;
+  return {
+    ...value,
+    provenance: {
+      ...provenance,
+      observedAt: decodeTimestamp(provenance.observedAt),
+      ...(sourceObservation ? {
+        sourceObservation: {
+          timestamp: decodeTimestamp(sourceObservation.timestamp),
+          updateSequence: BigInt(sourceObservation.updateSequence),
+        },
+      } : {}),
+    },
+  };
+}
+
 
 function semanticFrameTime(timestamp: TelemetryTimestamp) {
   return timestamp.domain === "monotonic"
@@ -494,35 +425,6 @@ export function buildLmuOpponentSemanticFrames(interval: LmuOpponentLapInterval)
   return envelopes;
 }
 
-export function groupOpponentSessions(laps: readonly OpponentLapSummary[]): OpponentSessionSummary[] {
-  const sessionsByIdentity = new Map<string, {
-    summary: Omit<OpponentSessionSummary, "lapIds">;
-    laps: OpponentLapSummary[];
-  }>();
-  for (const lap of laps) {
-    const identity = JSON.stringify([lap.sessionKey, lap.vehicleId, lap.incarnation]);
-    let session = sessionsByIdentity.get(identity);
-    if (!session) {
-      session = {
-        summary: {
-          opponentSessionId: createHash("sha256").update(identity).digest("hex"),
-          sessionKey: lap.sessionKey, vehicleId: lap.vehicleId, incarnation: lap.incarnation,
-          driverName: lap.driverName, carName: lap.carName, className: lap.className,
-        },
-        laps: [],
-      };
-      sessionsByIdentity.set(identity, session);
-    }
-    session.laps.push(lap);
-  }
-  return [...sessionsByIdentity.values()].map(({ summary, laps: sessionLaps }) => ({
-    ...summary,
-    lapIds: sessionLaps.sort((a, b) => (a.lapNumber ?? 0) - (b.lapNumber ?? 0) ||
-      a.opponentLapId.localeCompare(b.opponentLapId)).map((lap) => lap.opponentLapId),
-  })).sort((a, b) => (a.driverName ?? "").localeCompare(b.driverName ?? "") ||
-    a.vehicleId - b.vehicleId || a.incarnation - b.incarnation || a.sessionKey.localeCompare(b.sessionKey) ||
-    a.opponentSessionId.localeCompare(b.opponentSessionId));
-}
 
 export const opponentRoutes = new Hono()
   .get("/api/laps/:id/opponent-laps", zValidator("param", PlayerLapParam, (result, c) => result.success ? undefined : c.json({ code: "INVALID_OPPONENT_COMPARISON", error: "Malformed opponent request" }, 400)), async (c) => {
@@ -533,23 +435,26 @@ export const opponentRoutes = new Hono()
       const result = await opponentIndex(id, gameId.data);
       if ("error" in result) return result.error;
       if (result.meta.gameId !== gameId.data) return c.json({ error: "Lap not found" }, 404);
-      const pairedPlayerChannels = playerChannels(result.playerPackets);
-      const laps = result.intervals.map((interval) => encodeSummary(summary(interval, pairedPlayerChannels)))
-        .sort((a, b) => (a.driverName ?? "").localeCompare(b.driverName ?? "") ||
-          a.vehicleId - b.vehicleId || a.incarnation - b.incarnation || (a.lapNumber ?? 0) - (b.lapNumber ?? 0) ||
-          a.opponentLapId.localeCompare(b.opponentLapId));
-      const sessions = groupOpponentSessions(laps);
+      const summary = result.status.indexState === "ready"
+        ? readLmuOpponentCatalogSummary(
+            await readReadyOpponentIndex(
+              result.status.publicationPath,
+              result.status.retention.sourceRevision,
+              result.status.sourceDependencies,
+            ),
+            id,
+          )
+        : { sessions: [], laps: [] };
       const catalog: OpponentLapCatalog = {
-        playerLapId: id, sourceRevision: result.retention.sourceRevision,
-        opponentRetention: result.retention.opponentRetention,
-        opponentAvailability: result.retention.opponentAvailability,
-        sessions, laps,
+        playerLapId: id, sourceRevision: result.status.retention.sourceRevision,
+        opponentRetention: result.status.retention.opponentRetention,
+        opponentAvailability: result.status.retention.opponentAvailability,
+        indexState: result.status.indexState,
+        sessions: summary.sessions, laps: summary.laps,
       };
       return c.json(catalog);
     } catch (cause) {
-      return cause instanceof LmuOpponentSourceError
-        ? error("OPPONENT_DATA_UNAVAILABLE", cause.message, 422)
-        : error("STORAGE_IO_ERROR", cause instanceof Error ? cause.message : "Unable to read opponent source", 500);
+      return opponentStorageError(cause, "Unable to read opponent source");
     }
   })
   .post("/api/laps/:id/opponent-comparison", zValidator("param", PlayerLapParam, (result, c) => result.success ? undefined : c.json({ code: "INVALID_OPPONENT_COMPARISON", error: "Malformed opponent request" }, 400)), zValidator("json", ComparisonBody, (result, c) => result.success ? undefined : c.json({ code: "INVALID_OPPONENT_COMPARISON", error: "Malformed opponent request" }, 400)), async (c) => {
@@ -561,18 +466,24 @@ export const opponentRoutes = new Hono()
       if ("error" in result) return result.error;
       if (result.meta.gameId !== gameId.data) return error("LAP_NOT_FOUND", "Lap not found", 404);
       const body = c.req.valid("json");
-      if (body.sourceRevision !== result.retention.sourceRevision) return error("SOURCE_CHANGED", "Opponent source revision changed", 409);
-      if (result.retention.opponentRetention === "removed") return error("OPPONENT_DATA_REMOVED", "Opponent data was removed", 410);
-      if (result.retention.opponentRetention === "not-recorded" || result.retention.opponentAvailability === "missing" || result.retention.opponentAvailability === "corrupt") {
+      const retention = result.status.retention;
+      if (body.sourceRevision !== retention.sourceRevision) return error("SOURCE_CHANGED", "Opponent source revision changed", 409);
+      if (retention.opponentRetention === "removed") return error("OPPONENT_DATA_REMOVED", "Opponent data was removed", 410);
+      if (retention.opponentRetention === "not-recorded" || retention.opponentAvailability === "missing" || retention.opponentAvailability === "corrupt") {
         return error("OPPONENT_DATA_UNAVAILABLE", "Opponent data is unavailable", 422);
       }
-      const opponent = result.intervals.find((interval) => interval.opponentLapId === body.opponentLapId);
-      if (!opponent) return error("OPPONENT_LAP_NOT_FOUND", "Opponent lap not found", 404);
-      const comparisonPlayerChannels = playerChannels(result.playerPackets);
-      const opponentSummary = summary(opponent, comparisonPlayerChannels);
-      const opponentLapTime = opponentSummary.lapTime;
+      const readiness = opponentReadinessError(result.status);
+      if (readiness) return readiness;
+      const index = await readReadyOpponentIndex(result.status.publicationPath, retention.sourceRevision, result.status.sourceDependencies);
+      const summary = readLmuOpponentCatalogSummary(index, id);
+      const opponentSummary = summary.laps.find((lap) => lap.opponentLapId === body.opponentLapId);
+      if (!opponentSummary) return error("OPPONENT_LAP_NOT_FOUND", "Opponent lap not found", 404);
+      const opponent = await loadSelectedOpponentInterval(result.captureSource, index, body.opponentLapId);
+      const playerLap = await getLapById(id);
+      const playerPackets = playerLap?.telemetry ?? [];
+      const opponentLapTime = decodeOpponentValue(opponentSummary.lapTime);
       const playerLapTime = result.meta.lapTime;
-      const traces = alignLmuOpponentPositionTraces(playerRows(result.playerPackets), opponent, body);
+      const traces = alignLmuOpponentPositionTraces(playerRows(playerPackets), opponent, body);
       if (traces && "error" in traces) {
         return traces.error === "range"
           ? error("INVALID_OPPONENT_COMPARISON", "Requested distance range exceeds paired source coverage", 400)
@@ -641,7 +552,7 @@ export const opponentRoutes = new Hono()
         sectorDeltas.push({ semanticId: "timing.sector.last-lap.s2", deltaSeconds: delta("timing.sector.last-lap.s2.delta", playerSectorTimes[1], opponentSectorTwo as KnownTiming) });
       }
       return c.json({
-        playerLapId: id, sourceRevision: result.retention.sourceRevision, opponent: encodeSummary(opponentSummary),
+        playerLapId: id, sourceRevision: retention.sourceRevision, opponent: opponentSummary,
         mode: traces ? "telemetry" as const : "timing-only" as const,
         lapDeltaSeconds: encodeLmuResolvedValue(lapDeltaSeconds), sectorDeltas: sectorDeltas.map((sector) => ({ ...sector, deltaSeconds: encodeLmuResolvedValue(sector.deltaSeconds) })),
         traces: (traces?.traces ?? []).map((trace) => ({ ...trace,
@@ -649,9 +560,7 @@ export const opponentRoutes = new Hono()
         })),
       });
     } catch (cause) {
-      return cause instanceof LmuOpponentSourceError
-        ? error("OPPONENT_DATA_UNAVAILABLE", cause.message, 422)
-        : error("STORAGE_IO_ERROR", cause instanceof Error ? cause.message : "Unable to compare opponent lap", 500);
+      return opponentStorageError(cause, "Unable to compare opponent lap");
     }
   })
   .get("/api/laps/:id/opponent-laps/:opponentLapId/semantic-telemetry", zValidator("param", OpponentLapParam, (result, c) => result.success ? undefined : c.json({ code: "INVALID_OPPONENT_COMPARISON", error: "Malformed opponent request" }, 400)), zValidator("query", RevisionQuery, (result, c) => result.success ? undefined : c.json({ code: "INVALID_OPPONENT_COMPARISON", error: "Malformed opponent request" }, 400)), async (c) => {
@@ -663,13 +572,20 @@ export const opponentRoutes = new Hono()
       if ("error" in result) return result.error;
       if (result.meta.gameId !== gameId.data) return error("LAP_NOT_FOUND", "Lap not found", 404);
       const revision = c.req.valid("query").sourceRevision;
-      if (revision !== result.retention.sourceRevision) return error("SOURCE_CHANGED", "Opponent source revision changed", 409);
-      if (result.retention.opponentRetention === "removed") return error("OPPONENT_DATA_REMOVED", "Opponent data was removed", 410);
-      if (result.retention.opponentRetention !== "retained" || result.retention.opponentAvailability === "missing" || result.retention.opponentAvailability === "corrupt") {
+      const retention = result.status.retention;
+      if (revision !== retention.sourceRevision) return error("SOURCE_CHANGED", "Opponent source revision changed", 409);
+      if (retention.opponentRetention === "removed") return error("OPPONENT_DATA_REMOVED", "Opponent data was removed", 410);
+      if (retention.opponentRetention !== "retained" || retention.opponentAvailability === "missing" || retention.opponentAvailability === "corrupt") {
         return error("OPPONENT_DATA_UNAVAILABLE", "Opponent data is unavailable", 422);
       }
-      const interval = result.intervals.find((entry) => entry.opponentLapId === opponentLapId);
-      if (!interval) return error("OPPONENT_LAP_NOT_FOUND", "Opponent lap not found", 404);
+      const readiness = opponentReadinessError(result.status);
+      if (readiness) return readiness;
+      const index = await readReadyOpponentIndex(result.status.publicationPath, retention.sourceRevision, result.status.sourceDependencies);
+      const summary = readLmuOpponentCatalogSummary(index, id);
+      if (!summary.laps.some((lap) => lap.opponentLapId === opponentLapId)) {
+        return error("OPPONENT_LAP_NOT_FOUND", "Opponent lap not found", 404);
+      }
+      const interval = await loadSelectedOpponentInterval(result.captureSource, index, opponentLapId);
       const envelopes = buildLmuOpponentSemanticFrames(interval);
       if (envelopes.length === 0) {
         return error("OPPONENT_DATA_UNAVAILABLE", "Opponent interval has no source-backed scoring observations", 422);
@@ -682,8 +598,6 @@ export const opponentRoutes = new Hono()
       };
       return c.json(response);
     } catch (cause) {
-      return cause instanceof LmuOpponentSourceError
-        ? error("OPPONENT_DATA_UNAVAILABLE", cause.message, 422)
-        : error("STORAGE_IO_ERROR", cause instanceof Error ? cause.message : "Unable to read opponent telemetry", 500);
+      return opponentStorageError(cause, "Unable to read opponent telemetry");
     }
   });

@@ -38,6 +38,7 @@ import {
 import { cleanupInterruptedSessionDownsampleFiles, runScheduledSessionDownsampleEffect } from "./session-downsample";
 import { isRecordingRetentionPolicyValid } from "@raceiq/shared/platform/runtime/recording-frequency";
 import { RecordingStorageBusyError, reserveRecordingStorageOperation } from "./storage-activity";
+import { startLmuOpponentIndexRuntime, stopLmuOpponentIndexRuntime } from "./lmu-opponent-index-runtime";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 type MaintenanceError = RecordingMaintenanceBusyError | RecordingMaintenanceIOError | RecordingMaintenanceValidationError;
@@ -338,9 +339,11 @@ export function startSessionCompressor(): void {
   if (maintenanceFiber) return;
   const runtime = getRecordingMaintenanceController();
   maintenanceFiber = trackMaintenanceFiber(runtime, runtime.managed.runFork(sessionMaintenanceSchedule(runAdmittedMaintenanceEffect())));
+  startLmuOpponentIndexRuntime();
 }
 
 export async function stopSessionCompressor(): Promise<void> {
   maintenanceFiber = null;
+  await stopLmuOpponentIndexRuntime();
   await disposeRecordingMaintenanceRuntime();
 }

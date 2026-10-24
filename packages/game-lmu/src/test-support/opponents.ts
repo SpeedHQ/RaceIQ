@@ -15,8 +15,9 @@ import {
 } from "@raceiq/capture-formats/lmu/layout";
 
 /** Controlled scoring geometry, not evidence of online LMU channel population. */
-export function makeLmuOpponentCapture(options: { identity?: string; frequencyHz?: 20 | 100 } = {}): Buffer {
+export function makeLmuOpponentCapture(options: { identity?: string; frequencyHz?: 20 | 100; opponents?: boolean } = {}): Buffer {
   const identity = options.identity ?? "default";
+  const hasOpponents = options.opponents ?? true;
   const fixture = gunzipSync(readFileSync(resolve(__dirname, "../../test/fixtures/sessions/lmu-real-opponents-grid-2026-10-22.bin.gz")));
   const firstFrame = [...iterateSessionCaptureRecords(fixture, 0, { strict: true })].find((record) => record.kind === "frame");
   assert(firstFrame?.kind === "frame");
@@ -40,13 +41,13 @@ export function makeLmuOpponentCapture(options: { identity?: string; frequencyHz
   text(LMU_TELEMETRY_INFO_OFFSET + LMU_TELEMETRY.trackName, 64, identity === "default" ? "RaceIQ Opponent Fixture" : `RaceIQ Opponent Fixture ${identity}`);
   text(LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.trackName, 64, identity === "default" ? "RaceIQ Opponent Fixture" : `RaceIQ Opponent Fixture ${identity}`);
   memory.writeInt32LE(42, LMU_TELEMETRY_INFO_OFFSET + LMU_TELEMETRY.id);
-  memory.writeInt32LE(2, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.numberOfVehicles);
+  memory.writeInt32LE(hasOpponents ? 2 : 1, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.numberOfVehicles);
   memory.writeUInt8(1, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.inRealtime);
   memory.writeDoubleLE(1200, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.lapDistance);
-  for (const [offset, id, name, place] of [
-    [playerOffset, 42, "Controlled player", 1],
-    [opponentOffset, 7, "Controlled opponent", 2],
-  ] as const) {
+  const scoringVehicles = hasOpponents
+    ? [[playerOffset, 42, "Controlled player", 1], [opponentOffset, 7, "Controlled opponent", 2]] as const
+    : [[playerOffset, 42, "Controlled player", 1]] as const;
+  for (const [offset, id, name, place] of scoringVehicles) {
     memory.writeInt32LE(id, offset + LMU_SCORING_VEHICLE.id);
     memory.writeUInt8(id === 42 ? 1 : 0, offset + LMU_SCORING_VEHICLE.isPlayer);
     memory.writeUInt8(place, offset + LMU_SCORING_VEHICLE.place);
@@ -85,7 +86,7 @@ export function makeLmuOpponentCapture(options: { identity?: string; frequencyHz
     const elapsed = 100 + index / rate;
     const timestamp = 1_790_000_000_000 + index * (1000 / rate);
     const player = updateVehicle(playerOffset, index, 12, 0);
-    updateVehicle(opponentOffset, index, 18, 3);
+    if (hasOpponents) updateVehicle(opponentOffset, index, 18, 3);
     memory.writeDoubleLE(elapsed, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.currentElapsedTime);
     memory.writeDoubleLE(elapsed, LMU_TELEMETRY_INFO_OFFSET + LMU_TELEMETRY.elapsedTime);
     memory.writeDoubleLE(100 + player.completed * 12, LMU_TELEMETRY_INFO_OFFSET + LMU_TELEMETRY.lapStartElapsedTime);
@@ -97,7 +98,7 @@ export function makeLmuOpponentCapture(options: { identity?: string; frequencyHz
     for (let axis = 0; axis < 9; axis++) memory.writeDoubleLE(player.orientation[axis]!, LMU_TELEMETRY_INFO_OFFSET + LMU_TELEMETRY.orientation + axis * 8);
     const sessionKey = identity === "default" ? "controlled-opponent-fixture" : `controlled-opponent-fixture:${identity}`;
     const competitors = tracker.snapshot(memory, sessionKey, BigInt(index + 1), 42);
-    assert.equal(competitors?.length, 2);
+    assert.equal(competitors?.length, hasOpponents ? 2 : 1);
     const frame = encodeLMUSourceFrame(memory, timestamp, { context: {
       schemaVersion: 1, status: "active", playerVehicleId: 42, supplemental: [], competitors: competitors!,
       key: { sessionKey, captureSequence: String(index + 1), frameTime: { domain: "wall-clock", milliseconds: timestamp } },

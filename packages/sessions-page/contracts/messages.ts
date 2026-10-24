@@ -111,9 +111,21 @@ export type SessionsMessageKey =
   | "sessions_opponents_partial"
   | "sessions_opponents_invalid"
   | "sessions_opponents_unknown"
-  | "sessions_opponents_no_comparable";
+  | "sessions_opponents_no_comparable"
+  | "compare_opponent_index_waiting"
+  | "compare_opponent_index_queued"
+  | "compare_opponent_index_building"
+  | "compare_opponent_index_failed"
+  | "recording_processing_loading"
+  | "recording_processing_queued"
+  | "recording_processing_running"
+  | "recording_processing_failed"
+  | "recording_processing_refresh"
+  | "storage_opponents_skip_invalid_source"
+  | "lmu_state_missing";
 
-export type SessionsMessages = Record<SessionsMessageKey, () => string> & {
+export type SessionsMessages = Record<Exclude<SessionsMessageKey, "recording_processing_failed">, () => string> & {
+  recording_processing_failed: (inputs: { error: string }) => string;
   session_imported: (inputs: { count: number; skipped: string }) => string;
   session_skipped: (inputs: { count: number }) => string;
   session_detected: (inputs: { format: string }) => string;

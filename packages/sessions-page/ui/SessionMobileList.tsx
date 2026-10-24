@@ -23,9 +23,10 @@ export type SessionMobileListProps = {
   showSessionType: boolean;
   gameId: GameId | null;
   emptyMessage: string;
+  selectedSessions: Set<number>;
   expandedSessions: Set<number>;
   toggleExpand: (id: number) => void;
-  selectedSessions: Set<number>;
+  refreshProcessingStatus: () => void;
   toggleSessionSelection: (id: number, event: SessionSelectionEvent) => void;
   selectedLaps: Set<number>;
   toggleLapSelection: (id: number) => void;
@@ -49,6 +50,7 @@ export function SessionMobileList({
   emptyMessage,
   expandedSessions,
   toggleExpand,
+  refreshProcessingStatus,
   selectedSessions,
   toggleSessionSelection,
   selectedLaps,
@@ -69,21 +71,25 @@ export function SessionMobileList({
         <div className="px-3 py-8 text-center text-app-text/90">{emptyMessage}</div>
       ) : (
         sessions.map((session) => {
-          const isExpanded = expandedSessions.has(session.id);
+          const isBlocked = session.processing.state !== "ready";
+          const isProcessing = session.processing.state === "queued" || session.processing.state === "processing";
+          const isExpanded = expandedSessions.has(session.id) && !isBlocked;
           const sessionLaps = lapsBySession.get(session.id) ?? [];
           const paceLaps = sessionLaps.filter((lap) => lap.isValid && isPaceLap(lap.classification));
           const bestTime = session.bestLapTime || (paceLaps.length > 0 ? Math.min(...paceLaps.map((lap) => lap.lapTime)) : 0);
           return (
-            <div key={session.id} className={`min-w-0 overflow-hidden rounded-lg border border-app-border bg-app-surface ${isExpanded ? "bg-app-surface-alt/40" : ""}`}>
+            <div key={session.id} aria-busy={isProcessing || undefined} data-processing-state={isBlocked ? session.processing.state : undefined} className={`min-w-0 overflow-hidden rounded-lg border border-app-border bg-app-surface ${isExpanded ? "bg-app-surface-alt/40" : ""}`}>
               {/* oxlint-disable-next-line a11y/useSemanticElements: wraps checkbox and buttons */}
               <div
                 role="button"
-                tabIndex={0}
+                tabIndex={isBlocked ? -1 : 0}
                 aria-expanded={isExpanded}
+                aria-disabled={isBlocked || undefined}
+                aria-busy={isProcessing || undefined}
                 className="flex items-start gap-3 p-3 cursor-pointer"
-                onClick={() => toggleExpand(session.id)}
+                onClick={() => { if (!isBlocked) toggleExpand(session.id); }}
                 onKeyDown={(event) => {
-                  if (event.target !== event.currentTarget) return;
+                  if (isBlocked || event.target !== event.currentTarget) return;
                   if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
                     toggleExpand(session.id);
@@ -109,7 +115,7 @@ export function SessionMobileList({
                       <Button
                         variant="app-primary"
                         size="app-sm"
-                        disabled={session.telemetryAvailable === false}
+                        disabled={session.telemetryAvailable === false || isBlocked}
                         title={session.telemetryAvailable === false ? m.sessions_raw_telemetry_removed() : undefined}
                         onClick={(event) => {
                           event.stopPropagation();
@@ -126,7 +132,7 @@ export function SessionMobileList({
                   </div>
                   <div className="mt-2">
                     <SessionResultMeta session={session} />
-                    <SessionCaptureSplitStatus status={session.captureSplit} sessionId={session.id} />
+                    <SessionCaptureSplitStatus status={session.captureSplit} sessionId={session.id} processing={session.processing} onRefreshProcessing={refreshProcessingStatus} />
                   </div>
                   <div className="flex items-center gap-4 mt-2 text-xs">
                     <span className="text-app-text/90">
@@ -159,6 +165,7 @@ export function SessionMobileList({
                     toggleLapSort={toggleLapSort}
                     selectedLaps={selectedLaps}
                     toggleLapSelection={toggleLapSelection}
+                    refreshProcessingStatus={refreshProcessingStatus}
                   />
                 </div>
               )}

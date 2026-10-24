@@ -1,10 +1,14 @@
-import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Browser, type Page } from "@playwright/test";
 import { makeLmuOpponentCapture } from "@raceiq/game-lmu/test-support/opponents";
 import { readFileSync } from "node:fs";
+import { realpath, mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fixturePath } from "../../../support/fixtures";
 import deMessages from "client/test-support/messages/de";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import type { OpponentLapCatalog, OpponentSemanticLapTelemetry } from "@raceiq/lap-replay/contracts";
+import { startOpponentColdLoadServer, type OpponentColdLoadServer } from "../../../support/opponent-cold-load-server";
 import { collectBrowserErrors } from "raceiq-e2e/test-support/browser-errors";
 
 interface ImportedLap { lapId: number; sessionId: number }
@@ -21,7 +25,27 @@ interface OpponentSummary {
   comparableSemanticIds: string[];
   reasons: string[];
 }
-interface OpponentCatalog { sourceRevision: string; opponentRetention: string; laps: OpponentSummary[] }
+interface OpponentCatalog { sourceRevision: string; opponentRetention: string; indexState: "waiting-finalization" | "queued" | "building" | "ready" | "failed" | "not-required"; laps: OpponentSummary[] }
+async function waitForCatalogState(
+  request: APIRequestContext,
+  playerLapId: number,
+  state: OpponentLapCatalog["indexState"],
+  appURL?: string,
+): Promise<OpponentLapCatalog> {
+  let latest: OpponentLapCatalog | undefined;
+  const url = appURL ? new URL(`/api/laps/${playerLapId}/opponent-laps`, appURL).toString() : `/api/laps/${playerLapId}/opponent-laps`;
+  await expect.poll(async () => {
+    const response = await request.get(url, { timeout: 60_000, headers: { "X-Game-Id": "lmu" } });
+    if (!response.ok()) throw new Error(`opponent catalog request: ${response.status()} ${await response.text()}`);
+    latest = await response.json() as OpponentLapCatalog;
+    return latest.indexState;
+  }, { timeout: 120_000, intervals: [250, 500, 1_000, 2_000] }).toBe(state);
+  return latest!;
+}
+
+async function waitForReadyCatalog(request: APIRequestContext, playerLapId: number, appURL?: string): Promise<OpponentLapCatalog> {
+  return waitForCatalogState(request, playerLapId, "ready", appURL);
+}
 interface ImportedFixture { lap: LapMeta; sessionId: number }
 
 async function importFixture(request: APIRequestContext, identity: string, capture = makeLmuOpponentCapture({ identity })): Promise<ImportedFixture> {
@@ -50,6 +74,72 @@ async function removeFixture(request: APIRequestContext, sessionId: number): Pro
   const response = await request.post("/api/sessions/bulk-delete", { data: { ids: [sessionId] } });
   expect(response.ok(), `remove isolated LMU fixture session ${sessionId}: ${await response.text()}`).toBe(true);
 }
+async function readLmuLapAt(request: APIRequestContext, appURL: string, lapId: number): Promise<LapMeta | undefined> {
+  const response = await request.get(new URL("/api/laps?gameId=lmu", appURL).toString(), { timeout: 60_000 });
+  expect(response.ok(), `read LMU lap metadata: ${await response.text()}`).toBe(true);
+  return ((await response.json()) as LapMeta[]).find((lap) => lap.id === lapId);
+}
+
+async function waitForLmuLapReadyAt(request: APIRequestContext, appURL: string, lapId: number): Promise<LapMeta> {
+  let latest: LapMeta | undefined;
+  await expect.poll(async () => {
+    latest = await readLmuLapAt(request, appURL, lapId);
+    return latest?.processing.state ?? "missing";
+  }, { timeout: 120_000, intervals: [250, 500, 1_000, 2_000] }).toBe("ready");
+  return latest!;
+}
+
+async function startLiveOpponentCapture(
+  cold: OpponentColdLoadServer,
+  request: APIRequestContext,
+  identity: string,
+  opponents = true,
+): Promise<{ sessionId: number; sourcePath: string; lap: LapMeta }> {
+  await cold.startLmuOpponentCapture(identity, { opponents });
+  await cold.feedLmuOpponentFrames();
+  const capture = await cold.getLmuOpponentCaptureState();
+  expect(capture.sessionId).not.toBeNull();
+  expect(capture.lapIds.length).toBeGreaterThan(0);
+  const sessionId = capture.sessionId!;
+  const sourcePath = await cold.getLmuOpponentSessionSourcePath(sessionId);
+  expect(sourcePath).toBeTruthy();
+  const canonicalSourcePath = await realpath(sourcePath!);
+  const lapId = capture.lapIds[0]!;
+  let lap: LapMeta | undefined;
+  await expect.poll(async () => {
+    lap = await readLmuLapAt(request, cold.baseURL, lapId);
+    return lap?.id ?? null;
+  }, { timeout: 60_000, intervals: [250, 500, 1_000] }).toBe(lapId);
+  return { sessionId, sourcePath: canonicalSourcePath, lap: lap! };
+}
+
+async function finalizeLiveOpponentCapture(cold: OpponentColdLoadServer): Promise<void> {
+  await cold.holdAt("direct-capture:before-final-seal");
+  const finalizing = cold.finalizeLmuOpponentCapture();
+  const barrier = await cold.waitForBarrier("direct-capture:before-final-seal");
+  await cold.releaseBarrier(barrier.id);
+  await finalizing;
+}
+
+function compareUrlForLap(baseURL: string, lap: LapMeta): string {
+  const url = new URL("/lmu/compare", baseURL);
+  url.searchParams.set("track", lap.trackId);
+  url.searchParams.set("carA", lap.carId);
+  url.searchParams.set("lapA", String(lap.id));
+  url.searchParams.set("reference", "opponent");
+  return url.toString();
+}
+
+function disableOpponentActions(page: Page) {
+  return Promise.all([
+    expect(page.locator("#compare-opponent-driver")).toBeDisabled(),
+    expect(page.locator("#compare-opponent-lap")).toBeDisabled(),
+    expect(page.getByRole("button", { name: "Lap compare", exact: true })).toBeDisabled(),
+    expect(page.locator("[data-opponent-replay]")).toHaveCount(0),
+    expect(page.getByTestId("opponent-comparison")).toHaveCount(0),
+  ]);
+}
+
 
 async function exerciseOpponentComparison(page: Page, request: APIRequestContext): Promise<void> {
   test.setTimeout(180_000);
@@ -65,9 +155,7 @@ async function exerciseOpponentComparison(page: Page, request: APIRequestContext
   try {
     fixture = await importFixture(request, identity);
     const { lap } = fixture;
-    const catalogResponse = await request.get(`/api/laps/${lap.id}/opponent-laps`, { timeout: 60_000, headers: { "X-Game-Id": "lmu" } });
-    expect(catalogResponse.ok()).toBe(true);
-    const catalog = (await catalogResponse.json()) as OpponentCatalog;
+    const catalog = await waitForReadyCatalog(request, lap.id) as OpponentCatalog;
     expect(catalog.opponentRetention).toBe("retained");
     expect(catalog.laps.length).toBeGreaterThan(0);
     expect(catalog.laps.some((entry) => entry.validity === "unknown"), "uncertain native lap validity remains explicit").toBe(true);
@@ -104,9 +192,7 @@ async function exerciseOpponentComparison(page: Page, request: APIRequestContext
     const restoredLaps = afterZip.filter((entry) => !oldLapIds.has(entry.id) && entry.trackId === lap.trackId);
     expect(restoredLaps.length).toBeGreaterThan(0);
     zipSessionIds = [...new Set(restoredLaps.map((entry) => entry.sessionId).filter((id): id is number => id != null))];
-    const restoredCatalogResponse = await request.get(`/api/laps/${restoredLaps[0]!.id}/opponent-laps`, { timeout: 60_000, headers: { "X-Game-Id": "lmu" } });
-    expect(restoredCatalogResponse.ok()).toBe(true);
-    const restoredCatalog = (await restoredCatalogResponse.json()) as OpponentCatalog;
+    const restoredCatalog = await waitForReadyCatalog(request, restoredLaps[0]!.id);
     expect(restoredCatalog.opponentRetention).toBe("retained");
     expect(restoredCatalog.laps.some((entry) => entry.coverage === "complete" && entry.mode === "telemetry")).toBe(true);
 
@@ -198,7 +284,7 @@ async function exerciseOpponentComparison(page: Page, request: APIRequestContext
     const staleUrl = new URL(page.url());
     staleUrl.searchParams.set("opponentRevision", "stale-revision");
     await page.goto(staleUrl.toString(), { waitUntil: "domcontentloaded" });
-    await expect(page.locator('[data-opponent-state="source-changed"]')).toBeVisible();
+    await expect.poll(() => new URL(page.url()).searchParams.get("opponentLap")).toBeNull();
     await expect(page.locator("[data-opponent-replay]")).toHaveCount(0);
     await page.goto(persistedUrl, { waitUntil: "domcontentloaded" });
     await expect(page.locator("[data-opponent-replay]")).toBeVisible();
@@ -223,7 +309,7 @@ async function exerciseOpponentComparison(page: Page, request: APIRequestContext
     expect(stripped.laps.length).toBeGreaterThan(0);
     const strippedCatalog = await request.get(`/api/laps/${stripped.laps[0]!.lapId}/opponent-laps`, { timeout: 60_000, headers: { "X-Game-Id": "lmu" } });
     expect(strippedCatalog.ok()).toBe(true);
-    expect(await strippedCatalog.json()).toMatchObject({ opponentRetention: "removed", opponentAvailability: null, laps: [] });
+    expect(await strippedCatalog.json()).toMatchObject({ opponentRetention: "removed", opponentAvailability: null, indexState: "not-required", laps: [] });
     expect(browserErrors.errors).toEqual([]);
   } finally {
     const restored = await request.put("/api/settings", { data: { recordLmuOpponents: originalSettings.recordLmuOpponents } });
@@ -251,9 +337,7 @@ async function exerciseRealOpponentSessions(page: Page, request: APIRequestConte
     const recordedLap = playerLaps.find((entry) => entry.sessionId === fixture!.sessionId && entry.lapNumber === 3);
     expect(recordedLap, "recorded player lap 3 spans the circuit; initial lap 2 starts mid-lap").toBeDefined();
     const lap = recordedLap!;
-    const response = await request.get(`/api/laps/${lap.id}/opponent-laps`, { timeout: 60_000, headers: { "X-Game-Id": "lmu" } });
-    expect(response.ok()).toBe(true);
-    const catalog = await response.json() as OpponentCatalog & { sessions: { opponentSessionId: string; sessionKey: string; vehicleId: number; incarnation: number; driverName: string | null; lapIds: string[] }[] };
+    const catalog = await waitForReadyCatalog(request, lap.id) as OpponentLapCatalog & { sessions: { opponentSessionId: string; sessionKey: string; vehicleId: number; incarnation: number; driverName: string | null; lapIds: string[] }[] };
     expect(catalog.opponentRetention).toBe("retained");
     expect(catalog.sessions.length).toBeGreaterThan(0);
     expect(catalog.sessions.every((session) => session.driverName !== "A Cooper#3593"), "source player is excluded").toBe(true);
@@ -334,13 +418,254 @@ test("OS-E3 mobile imports real recording and compares an individual opponent la
   await exerciseRealOpponentSessions(page, request);
 });
 
+test("[E7] U4 drives real opponent index states, visible polling, readiness, and status-only refresh", async ({ browser, request }) => {
+  test.setTimeout(360_000);
+  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  const page = await context.newPage();
+  const browserErrors = collectBrowserErrors(page);
+  const dataDir = await mkdtemp(join(tmpdir(), "raceiq-test-data-lmu-opponent-u4-"));
+  const websocketConnections: Array<{ event: "opened" | "closed" | "error"; url: string; detail?: string }> = [];
+  const websocketFrameDiagnostics: Array<{ kind: "text" | "binary"; byteLength: number; preview: string; classification: string }> = [];
+  let onboardingCompleteFrameReceived = false;
+  const opponentCatalogUpdates: Array<{ url: string }> = [];
+  const heldBarriers = new Set<string>();
+  let cold: OpponentColdLoadServer | null = null;
+  const catalogReads = new Map<number, number[]>();
+  page.on("websocket", (socket) => {
+    const url = socket.url().slice(0, 500);
+    const recordConnection = (event: "opened" | "closed" | "error", detail?: string) => {
+      if (websocketConnections.length < 40) websocketConnections.push({ event, url, ...(detail ? { detail: detail.slice(0, 200) } : {}) });
+    };
+    recordConnection("opened");
+    socket.on("close", () => recordConnection("closed"));
+    socket.on("socketerror", (error) => recordConnection("error", error));
+    socket.on("framereceived", (event) => {
+      const payload: unknown = event && typeof event === "object" && "payload" in event ? event.payload : event;
+      const isText = typeof payload === "string";
+      const isBuffer = Buffer.isBuffer(payload);
+      const bytes = isText ? Buffer.from(payload, "utf8") : isBuffer ? payload : Buffer.alloc(0);
+      const frame = isText ? payload : "";
+      let classification = isText ? "text" : isBuffer ? "binary:Buffer" : "binary:unsupported";
+      if (isText) {
+        try {
+          const parsed: unknown = JSON.parse(frame);
+          const type = parsed && typeof parsed === "object" && "type" in parsed && typeof parsed.type === "string"
+            ? parsed.type
+            : typeof parsed;
+          classification = `json:${type}`;
+        } catch {
+          classification = "malformed-json";
+        }
+      }
+      if (websocketFrameDiagnostics.length < 40) {
+        const preview = isText
+          ? frame.slice(0, 160).replace(/("(?:[^"\\]|\\.)*(?:token|secret|password|authorization|cookie|api[_-]?key)(?:[^"\\]|\\.)*"\s*:\s*)"(?:[^"\\]|\\.)*"/gi, '$1"<REDACTED>"').replace(/[\u0000-\u001f\u007f]/g, (character) => `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`)
+          : bytes.subarray(0, 24).toString("hex");
+        websocketFrameDiagnostics.push({ kind: isText ? "text" : "binary", byteLength: bytes.length, preview, classification });
+      }
+      if (classification === "json:onboarding_complete") onboardingCompleteFrameReceived = true;
+      if (isText && frame.includes("lmu-opponent-catalog-updated") && opponentCatalogUpdates.length < 10) {
+        opponentCatalogUpdates.push({ url });
+      }
+    });
+  });
+  page.on("request", (browserRequest) => {
+    const match = /^\/api\/laps\/(\d+)\/opponent-laps$/.exec(new URL(browserRequest.url()).pathname);
+    if (match) {
+      const lapId = Number(match[1]);
+      const reads = catalogReads.get(lapId) ?? [];
+      reads.push(Date.now());
+      catalogReads.set(lapId, reads);
+    }
+  });
+  const readCount = (lapId: number) => catalogReads.get(lapId)?.length ?? 0;
+  try {
+    cold = await startOpponentColdLoadServer({ dataDir });
+    const onboarding = await request.put(new URL("/api/settings", cold.baseURL).toString(), { data: { onboardingComplete: true } });
+    expect(onboarding.ok(), `complete isolated server onboarding: ${await onboarding.text()}`).toBe(true);
+    const waitBarrier = async (name: string, sourcePath?: string) => {
+      const barrier = await cold!.waitForBarrier(name, sourcePath ? { sourcePath } : undefined);
+      heldBarriers.add(barrier.id);
+      return barrier;
+    };
+    const releaseBarrier = async (id: string) => {
+      await cold!.releaseBarrier(id);
+      heldBarriers.delete(id);
+    };
+    const failBarrier = async (id: string) => {
+      await cold!.failBarrier(id);
+      heldBarriers.delete(id);
+    };
+    const populated = await startLiveOpponentCapture(cold, request, `u4-populated-${crypto.randomUUID()}`);
+    const populatedUrl = compareUrlForLap(cold.baseURL, populated.lap);
+    await page.goto(populatedUrl, { waitUntil: "domcontentloaded" });
+    await expect(page.locator('[data-opponent-state="waiting-finalization"]')).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator('[data-opponent-state="waiting-finalization"]')).toContainText("after recording ends");
+    expect(await cold.isSessionActive()).toBe(true);
+    const waitingReads = readCount(populated.lap.id);
+    expect(waitingReads).toBeGreaterThan(0);
+    await page.waitForTimeout(2_300);
+    expect(readCount(populated.lap.id), "waiting-finalization must not poll").toBe(waitingReads);
+    const baselineOnboarding = await request.put(new URL("/api/settings", cold.baseURL).toString(), { data: { onboardingComplete: true } });
+    expect(baselineOnboarding.ok(), `trigger onboarding_complete WebSocket baseline: ${await baselineOnboarding.text()}`).toBe(true);
+    await page.waitForTimeout(1_000);
+
+    await cold.holdAt("source-discovery-complete");
+    await cold.holdAt("admission-granted");
+    await cold.holdAt("before-publication-fence");
+    await finalizeLiveOpponentCapture(cold);
+    const discovery = await waitBarrier("source-discovery-complete", populated.sourcePath);
+    expect(discovery.sourcePath).toBe(populated.sourcePath);
+    const queued = await waitForCatalogState(request, populated.lap.id, "queued", cold.baseURL);
+    expect(queued.laps).toEqual([]);
+    try {
+      await expect(page.locator('[data-opponent-state="queued"]')).toBeVisible({ timeout: 30_000 });
+    } catch (error) {
+      throw new Error(
+        `[E7] UI did not transition to queued after API reported queued. ` +
+          `WebSocket connections: ${JSON.stringify(websocketConnections)}; ` +
+          `onboarding_complete baseline frame received: ${onboardingCompleteFrameReceived}; ` +
+          `received frame diagnostics (max 40; preview redacted/bounded): ${JSON.stringify(websocketFrameDiagnostics)}; ` +
+          `opponent catalog frames (max 10): ${JSON.stringify(opponentCatalogUpdates)}; ` +
+          `catalog requests: ${readCount(populated.lap.id)}; URL: ${populatedUrl}; ` +
+          `DOM: ${JSON.stringify(await page.locator("body").innerText().catch(() => "<unavailable>"))}`,
+        { cause: error },
+      );
+    }
+    await disableOpponentActions(page);
+
+    await releaseBarrier(discovery.id);
+    const admission = await waitBarrier("admission-granted", populated.sourcePath);
+    expect(admission.sourcePath).toBe(populated.sourcePath);
+    const publicationFence = await Promise.race([
+      waitBarrier("before-publication-fence", populated.sourcePath).then((barrier) => ({ barrier })),
+      Promise.any([
+        cold.waitForRuntimeEvent("worker-error", { sourcePath: populated.sourcePath }),
+        cold.waitForRuntimeEvent("candidate-error", { sourcePath: populated.sourcePath }),
+      ]).then((event) => {
+        throw new Error(`[E7] ${event.type} before publication fence: ${JSON.stringify(event).slice(0, 4_000)}`);
+      }),
+      cold.waitForRuntimeEvent("worker-yielded", { sourcePath: populated.sourcePath }).then((event) => {
+        throw new Error(`[E7] worker yielded before publication fence: ${JSON.stringify(event).slice(0, 4_000)}`);
+      }),
+    ]);
+    expect(publicationFence.barrier.sourcePath).toBe(populated.sourcePath);
+    await waitForCatalogState(request, populated.lap.id, "building", cold.baseURL);
+    await expect(page.locator('[data-opponent-state="building"]')).toBeVisible({ timeout: 30_000 });
+    await disableOpponentActions(page);
+
+    const beforeVisiblePoll = readCount(populated.lap.id);
+    await expect.poll(() => readCount(populated.lap.id), { timeout: 4_000, intervals: [100, 200, 400] }).toBeGreaterThan(beforeVisiblePoll);
+    const firstVisiblePollAt = catalogReads.get(populated.lap.id)!.at(-1)!;
+    const beforeSecondVisiblePoll = readCount(populated.lap.id);
+    await expect.poll(() => readCount(populated.lap.id), { timeout: 4_000, intervals: [100, 200, 400] }).toBeGreaterThan(beforeSecondVisiblePoll);
+    const secondVisiblePollAt = catalogReads.get(populated.lap.id)!.at(-1)!;
+    expect(secondVisiblePollAt - firstVisiblePollAt).toBeGreaterThanOrEqual(1_700);
+    expect(secondVisiblePollAt - firstVisiblePollAt).toBeLessThan(3_000);
+    await page.evaluate(() => {
+      Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    const hiddenReads = readCount(populated.lap.id);
+    await page.waitForTimeout(2_300);
+    expect(readCount(populated.lap.id), "hidden mounted comparison must not poll").toBe(hiddenReads);
+    await page.evaluate(() => {
+      Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "visible" });
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await expect.poll(() => readCount(populated.lap.id), { timeout: 4_000, intervals: [100, 200, 400] }).toBeGreaterThan(hiddenReads);
+
+    const beforeNavigation = readCount(populated.lap.id);
+    await page.goto(new URL("/lmu/sessions", cold.baseURL).toString(), { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(2_300);
+    expect(readCount(populated.lap.id), "unmounted comparison must stop polling").toBe(beforeNavigation);
+    await page.goto(populatedUrl, { waitUntil: "domcontentloaded" });
+    await expect(page.locator('[data-opponent-state="building"]')).toBeVisible({ timeout: 30_000 });
+    await releaseBarrier(publicationFence.id);
+    const readyCatalog = await waitForCatalogState(request, populated.lap.id, "ready", cold.baseURL);
+    expect(readyCatalog.laps.length).toBeGreaterThan(0);
+    const comparable = readyCatalog.laps.find((lap) => lap.mode === "telemetry" && lap.comparableSemanticIds.length > 0);
+    expect(comparable, "real controlled capture should publish a selectable telemetry opponent").toBeDefined();
+    await page.locator("#compare-opponent-driver").click();
+    await page.getByRole("option").filter({ hasText: "Controlled opponent" }).first().click();
+    await page.locator("#compare-opponent-lap").click();
+    await page.getByRole("option").first().click();
+    await page.getByRole("button", { name: "Lap compare", exact: true }).click();
+    await expect(page.getByTestId("opponent-comparison")).toBeVisible({ timeout: 60_000 });
+    await expect(page.locator("[data-opponent-replay]")).toBeVisible({ timeout: 60_000 });
+    await expect(page.locator("[data-spectate-scene]")).toHaveAttribute("data-scene-ready", "true", { timeout: 60_000 });
+    const terminalReads = readCount(populated.lap.id);
+    await page.waitForTimeout(2_300);
+    expect(readCount(populated.lap.id), "ready catalog must stop polling").toBe(terminalReads);
+
+    const empty = await startLiveOpponentCapture(cold, request, `u4-empty-${crypto.randomUUID()}`, false);
+    await cold.holdAt("source-discovery-complete");
+    await cold.holdAt("admission-granted");
+    await cold.holdAt("before-publication-fence");
+    await finalizeLiveOpponentCapture(cold);
+    const emptyDiscovery = await waitBarrier("source-discovery-complete", empty.sourcePath);
+    expect(emptyDiscovery.sourcePath).toBe(empty.sourcePath);
+    await releaseBarrier(emptyDiscovery.id);
+    const emptyAdmission = await waitBarrier("admission-granted", empty.sourcePath);
+    expect(emptyAdmission.sourcePath).toBe(empty.sourcePath);
+    await releaseBarrier(emptyAdmission.id);
+    const emptyFence = await waitBarrier("before-publication-fence", empty.sourcePath);
+    expect(emptyFence.sourcePath).toBe(empty.sourcePath);
+    await releaseBarrier(emptyFence.id);
+    const emptyCatalog = await waitForCatalogState(request, empty.lap.id, "ready", cold.baseURL);
+    expect(emptyCatalog.laps).toEqual([]);
+    await page.goto(compareUrlForLap(cold.baseURL, empty.lap), { waitUntil: "domcontentloaded" });
+    await expect(page.locator('[data-opponent-state="ready-empty"]')).toBeVisible({ timeout: 30_000 });
+    await disableOpponentActions(page);
+    const emptyReads = readCount(empty.lap.id);
+    await page.waitForTimeout(2_300);
+    expect(readCount(empty.lap.id), "ready-empty catalog must stop polling").toBe(emptyReads);
+
+    const failed = await startLiveOpponentCapture(cold, request, `u4-failed-${crypto.randomUUID()}`);
+    await cold.holdAt("source-discovery-complete");
+    await cold.holdAt("admission-granted");
+    await cold.holdAt("before-publication-fence");
+    await finalizeLiveOpponentCapture(cold);
+    const failedDiscovery = await waitBarrier("source-discovery-complete", failed.sourcePath);
+    expect(failedDiscovery.sourcePath).toBe(failed.sourcePath);
+    await releaseBarrier(failedDiscovery.id);
+    const failedAdmission = await waitBarrier("admission-granted", failed.sourcePath);
+    expect(failedAdmission.sourcePath).toBe(failed.sourcePath);
+    await releaseBarrier(failedAdmission.id);
+    const failedFence = await waitBarrier("before-publication-fence", failed.sourcePath);
+    expect(failedFence.sourcePath).toBe(failed.sourcePath);
+    await page.goto(compareUrlForLap(cold.baseURL, failed.lap), { waitUntil: "domcontentloaded" });
+    await expect(page.locator('[data-opponent-state="building"]')).toBeVisible({ timeout: 30_000 });
+    await failBarrier(failedFence.id);
+    await waitForCatalogState(request, failed.lap.id, "failed", cold.baseURL);
+    await expect(page.locator('[data-opponent-state="failed"]')).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator('[data-opponent-state="failed"]')).toContainText("preparation failed");
+    await disableOpponentActions(page);
+    const failedReads = readCount(failed.lap.id);
+    await page.waitForTimeout(2_300);
+    expect(readCount(failed.lap.id), "failed catalog must wait for explicit refresh").toBe(failedReads);
+    await page.getByRole("button", { name: "Refresh status", exact: true }).click();
+    await expect.poll(() => readCount(failed.lap.id), { timeout: 5_000, intervals: [100, 200, 400] }).toBe(failedReads + 1);
+    const refreshedStatus = await request.get(new URL(`/api/laps/${failed.lap.id}/opponent-laps`, cold.baseURL).toString(), { headers: { "X-Game-Id": "lmu" } });
+    expect(refreshedStatus.ok()).toBe(true);
+    expect(await refreshedStatus.json()).toMatchObject({ indexState: "failed", laps: [] });
+    expect(browserErrors.errors).toEqual([]);
+  } finally {
+    if (cold) {
+      for (const barrierId of heldBarriers) {
+        try { await cold.releaseBarrier(barrierId); } catch {}
+      }
+    }
+    await context.close();
+    await rm(dataDir, { recursive: true, force: true });
+  }
+});
+
 test("OS-E4 lists only comparable opponent laps and retains timing-only drivers", async ({ page, request }) => {
   test.setTimeout(120_000);
   const fixture = await importFixture(request, `pw-filter-${crypto.randomUUID()}`);
   try {
-    const response = await request.get(`/api/laps/${fixture.lap.id}/opponent-laps`, { headers: { "X-Game-Id": "lmu" }, timeout: 60_000 });
-    expect(response.ok()).toBe(true);
-    const catalog = await response.json() as OpponentLapCatalog;
+    const catalog = await waitForReadyCatalog(request, fixture.lap.id);
     const available = catalog.laps.filter((lap) => lap.mode !== "unavailable");
     expect(catalog.laps.some((lap) => lap.mode === "unavailable")).toBe(true);
     expect(available.some((lap) => lap.coverage === "partial")).toBe(true);
@@ -374,9 +699,7 @@ test("OS-E2 preserves all 15 recorded opponents as individual session records", 
   const capture = readFileSync(fixturePath("sessions/lmu-real-opponents-grid-2026-10-22.bin.gz"));
   const fixture = await importFixture(request, `pw-real-grid-${crypto.randomUUID()}`, capture);
   try {
-    const response = await request.get(`/api/laps/${fixture.lap.id}/opponent-laps`, { headers: { "X-Game-Id": "lmu" }, timeout: 60_000 });
-    expect(response.ok(), await response.text()).toBe(true);
-    const catalog = await response.json() as OpponentLapCatalog;
+    const catalog = await waitForReadyCatalog(request, fixture.lap.id);
     expect(catalog.sessions.map((entry) => entry.vehicleId).sort((a, b) => a - b))
       .toEqual([16, 17, 18, 20, 22, 24, 30, 32, 34, 35, 37, 47, 50, 51, 53]);
     expect(catalog.sessions.find((entry) => entry.vehicleId === 16)?.driverName).toBe("Monsieur PTITRAIN");

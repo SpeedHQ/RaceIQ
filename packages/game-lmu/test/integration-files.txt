@@ -9,6 +9,7 @@ packages/game-lmu/test/e2e/backend/detection/lmu-session-boundary.test.ts
 packages/game-lmu/test/e2e/backend/detection/lmu-session-start.test.ts
 packages/game-lmu/test/e2e/backend/imports/lmu-duckdb.test.ts
 packages/game-lmu/test/e2e/backend/integration/opponent-routes.test.ts
+packages/game-lmu/test/e2e/backend/integration/opponent-index-lifecycle.test.ts
 packages/game-lmu/test/e2e/backend/integration/replay-routes.test.ts
 packages/game-lmu/test/e2e/backend/lap-analysis/lmu-export-import-roundtrip.test.ts
 packages/game-lmu/test/e2e/backend/race-results/lmu-race-results-storage.test.ts

@@ -6,7 +6,10 @@ import type { LmuCompetitor, LmuLiveContext } from "@raceiq/shared/telemetry/lmu
 import type { ResolvedValue } from "@raceiq/shared/telemetry/resolver/contracts";
 import type { TelemetryTimestamp } from "@raceiq/shared/telemetry/resolver/contracts";
 import { getLapReplaySource, type LapReplaySource } from "../db/telemetry-replay-storage";
-import { readLmuOpponentRetention } from "../session-capture/lmu-companion";
+import { LmuOpponentAdmissionError, readLmuOpponentRetention } from "../session-capture/lmu-companion";
+import { countSourceFrameScanned } from "../session-capture/test-instrumentation";
+export { LmuOpponentAdmissionError };
+
 
 export class LmuOpponentSourceError extends Error {
   constructor(message: string) {
@@ -21,18 +24,34 @@ export async function readLmuOpponentCaptureFrames(
   _sourceRevision: string,
   options: { retainSourceFrames: boolean } = { retainSourceFrames: true },
 ): Promise<LmuOpponentFrame[]> {
-  if (source.gameId !== "lmu") return [];
+  const frames: LmuOpponentFrame[] = [];
+  for await (const frame of iterateLmuOpponentCaptureFrames(source, options)) frames.push(frame);
+  return frames;
+}
+
+export async function* iterateLmuOpponentCaptureFrames(
+  source: SessionCaptureSource,
+  options: { retainSourceFrames?: boolean; onSourceFrame?: () => void; admission?: () => Promise<boolean> } = {},
+): AsyncGenerator<LmuOpponentFrame | LmuOpponentCaptureFrame> {
+  if (source.gameId !== "lmu") return;
   const tracker = new LmuOpponentIdentityTracker();
   const decoder = createLMUSourceFrameDecoder();
-  const frames: LmuOpponentFrame[] = [];
   let fallbackSessionKey = `legacy:${source.rawFile}`;
   let parserBootstrap: Buffer | null = null;
-  for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: true })) {
+  let admissionFrames = 0;
+  for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: true, admission: options.admission })) {
     if (record.kind === "parser-bootstrap") {
       parserBootstrap = record.payload;
       continue;
     }
     if (record.kind !== "frame") continue;
+    countSourceFrameScanned();
+    admissionFrames++;
+    if (admissionFrames === 256) {
+      admissionFrames = 0;
+      if (options.admission && !(await options.admission())) throw new LmuOpponentAdmissionError();
+    }
+    options.onSourceFrame?.();
     const decoded = decoder.decode(record.frame);
     if (!decoded) throw new LmuOpponentSourceError("Session contains an unreadable LMU source frame");
     const context = decoded.lmuContext;
@@ -44,13 +63,13 @@ export async function readLmuOpponentCaptureFrames(
       : decoded.rawSharedMemory
         ? tracker.snapshot(decoded.rawSharedMemory, sessionKey, BigInt(captureSequence), context?.playerVehicleId ?? null) ?? []
         : [];
-    if (competitors.length) frames.push({
+    if (!competitors.length) continue;
+    yield {
       sessionKey, captureSequence, frameTime: decoded.captureTimestampMs, competitors,
-      ...(options.retainSourceFrames ? { sourceFrame: record.frame, parserBootstrap } : {}),
+      ...(options.retainSourceFrames === false ? {} : { sourceFrame: record.frame, parserBootstrap }),
       ...(context ? { lmuContext: context } : {}),
-    });
+    };
   }
-  return frames;
 }
 
 export interface LmuOpponentFrame {
@@ -85,92 +104,258 @@ const numberValue = (value: ResolvedValue<unknown> | undefined): number | null =
   return value.value;
 };
 
+export interface LmuOpponentFrameLocator {
+  blockIndex: number;
+  frameIndex: number;
+}
+
+export interface LmuOpponentIntervalLocator {
+  blockIndex: number;
+  firstFrameIndex: number;
+  lastFrameIndex: number;
+  repeatedFrames: readonly { frameIndex: number; extraCount: number }[];
+}
+
+export interface LmuOpponentLapIndexRecord extends Omit<LmuOpponentLapInterval, "frames"> {
+  locators: readonly LmuOpponentIntervalLocator[];
+  lastCompetitor: LmuCompetitor | null;
+  opponentNumericChannelIds: readonly string[];
+}
+
+type MutableLocator = {
+  blockIndex: number;
+  firstFrameIndex: number;
+  lastFrameIndex: number;
+  repeatedFrames: Map<number, number>;
+};
+
+type ActiveInterval = {
+  lapNumber: number | null;
+  startSequence: string;
+  previousDistance: number | null;
+  previousLap: number | null;
+  boundaryObserved: boolean;
+  sampleCount: number;
+  completeCoverage: boolean;
+  sequenceCheckError: unknown;
+  previousSampleSequence: string | null;
+  previousSampleHasContext: boolean;
+  locators: MutableLocator[];
+  lastCompetitor: LmuCompetitor | null;
+  opponentNumericChannelIds: Set<string>;
+};
+
+function identityKey(sessionKey: string, vehicleId: number, incarnation: number): string {
+  return JSON.stringify([sessionKey, vehicleId, incarnation]);
+}
+
+function identityParts(identity: string): [string, number, number] {
+  return JSON.parse(identity) as [string, number, number];
+}
+
+export class LmuOpponentIndexLimitError extends Error {
+  constructor() {
+    super("Opponent index locator segment limit exceeded");
+    this.name = "LmuOpponentIndexLimitError";
+  }
+}
 function lapId(sessionKey: string, vehicleId: number, incarnation: number, start: string): string {
   return createHash("sha256").update(`${sessionKey}\0${vehicleId}\0${incarnation}\0${start}`).digest("hex");
 }
-/** Indexes only observed lap-distance wraps; scalar best/last reports never create intervals. */
-export function indexLmuOpponentLaps<Frame extends LmuOpponentFrame>(frames: readonly Frame[]): LmuOpponentLapInterval<Frame>[] {
-  const intervals: LmuOpponentLapInterval<Frame>[] = [];
-  type ActiveInterval = {
-    lapNumber: number | null;
-    startSequence: string;
-    frames: Frame[];
-    previousDistance: number | null;
-    previousLap: number | null;
-    boundaryObserved: boolean;
-  };
-  const active = new Map<string, ActiveInterval>();
-  const present = new Set<string>();
-  const finish = (
-    identity: string,
-    current: ActiveInterval,
-    endSequence: string | null,
-    complete: boolean,
-  ) => {
-    const [sessionKey, vehicleId, incarnation] = identity.split("\0");
-    intervals.push({
-      opponentLapId: lapId(sessionKey!, Number(vehicleId), Number(incarnation), current.startSequence),
-      sessionKey: sessionKey!, vehicleId: Number(vehicleId), incarnation: Number(incarnation),
-      lapNumber: current.lapNumber, startSequence: current.startSequence, endSequence,
-      coverage: complete ? "complete" : "partial", validity: "unknown", frames: current.frames,
+
+function appendLocator(current: ActiveInterval, locator: LmuOpponentFrameLocator, onNewSegment: () => void): void {
+  const last = current.locators.at(-1);
+  if (last && last.blockIndex === locator.blockIndex && locator.frameIndex === last.lastFrameIndex) {
+    last.repeatedFrames.set(locator.frameIndex, (last.repeatedFrames.get(locator.frameIndex) ?? 0) + 1);
+  } else if (last && last.blockIndex === locator.blockIndex && locator.frameIndex === last.lastFrameIndex + 1) {
+    last.lastFrameIndex = locator.frameIndex;
+  } else {
+    onNewSegment();
+    current.locators.push({
+      blockIndex: locator.blockIndex, firstFrameIndex: locator.frameIndex, lastFrameIndex: locator.frameIndex,
+      repeatedFrames: new Map(),
     });
+  }
+}
+
+function appendSample(
+  current: ActiveInterval,
+  frame: LmuOpponentFrame,
+  locator: LmuOpponentFrameLocator,
+  competitor: LmuCompetitor,
+  onNewLocatorSegment: () => void,
+): void {
+  if (current.boundaryObserved && current.completeCoverage && current.sampleCount > 0) {
+    if (!frame.lmuContext || !current.previousSampleHasContext) {
+      current.completeCoverage = false;
+    } else {
+      try {
+        if (BigInt(frame.captureSequence) !== BigInt(current.previousSampleSequence!) + 1n) {
+          current.completeCoverage = false;
+        }
+      } catch (error) {
+        current.sequenceCheckError = error;
+        current.completeCoverage = false;
+      }
+    }
+  }
+  appendLocator(current, locator, onNewLocatorSegment);
+  current.sampleCount++;
+  current.lastCompetitor = competitor;
+  for (const [semanticId, value] of Object.entries(competitor.channels)) {
+    if (value.state === "ok" && value.freshness === "fresh" &&
+        typeof value.value === "number" && Number.isFinite(value.value)) {
+      current.opponentNumericChannelIds.add(semanticId);
+    }
+  }
+  current.previousSampleSequence = frame.captureSequence;
+  current.previousSampleHasContext = frame.lmuContext !== undefined;
+}
+
+function createActiveInterval(lapNumber: number | null, startSequence: string, boundaryObserved: boolean): ActiveInterval {
+  return {
+    lapNumber, startSequence, previousDistance: null, previousLap: boundaryObserved ? lapNumber : null,
+    boundaryObserved, sampleCount: 0, completeCoverage: true, sequenceCheckError: null,
+    previousSampleSequence: null, previousSampleHasContext: false, locators: [], lastCompetitor: null,
+    opponentNumericChannelIds: new Set(),
   };
-  for (const frame of frames) {
+}
+
+/** Incremental wrap detector. Retains bounded active state plus compressed block locators. */
+export class LmuOpponentLapIndexer {
+  private readonly active = new Map<string, ActiveInterval>();
+  private readonly present = new Set<string>();
+  locatorSegmentCount = 0;
+  private readonly maxLocatorSegments: number;
+
+  constructor(maxLocatorSegments = Number.MAX_SAFE_INTEGER) {
+    this.maxLocatorSegments = maxLocatorSegments;
+  }
+
+  push(
+    frame: LmuOpponentFrame,
+    locator: LmuOpponentFrameLocator | ((competitor: LmuCompetitor) => LmuOpponentFrameLocator),
+  ): LmuOpponentLapIndexRecord[] {
+    const locatorFor = (competitor: LmuCompetitor) => typeof locator === "function" ? locator(competitor) : locator;
+    const completed: LmuOpponentLapIndexRecord[] = [];
+    const noteLocatorSegment = () => {
+      if (this.locatorSegmentCount >= this.maxLocatorSegments) throw new LmuOpponentIndexLimitError();
+      this.locatorSegmentCount++;
+    };
+    const finish = (identity: string, current: ActiveInterval, endSequence: string | null, complete: boolean) => {
+      const [sessionKey, vehicleId, incarnation] = identityParts(identity);
+      completed.push({
+        opponentLapId: lapId(sessionKey, vehicleId, incarnation, current.startSequence),
+        sessionKey, vehicleId, incarnation,
+        lapNumber: current.lapNumber, startSequence: current.startSequence, endSequence,
+        coverage: complete ? "complete" : "partial", validity: "unknown",
+        locators: current.locators.map((segment) => ({
+          blockIndex: segment.blockIndex,
+          firstFrameIndex: segment.firstFrameIndex,
+          lastFrameIndex: segment.lastFrameIndex,
+          repeatedFrames: [...segment.repeatedFrames].map(([frameIndex, extraCount]) => ({ frameIndex, extraCount })),
+        })),
+        lastCompetitor: current.lastCompetitor,
+        opponentNumericChannelIds: [...current.opponentNumericChannelIds],
+      });
+    };
     const inFrame = new Set<string>();
     for (const competitor of frame.competitors) {
       if (competitor.isPlayer) continue;
-      const identity = `${frame.sessionKey}\0${competitor.vehicleId}\0${competitor.incarnation}`;
+      const identity = identityKey(frame.sessionKey, competitor.vehicleId, competitor.incarnation);
       inFrame.add(identity);
       const distance = numberValue(channel(competitor, "race.competitor.lap-distance"));
       const lap = numberValue(channel(competitor, "race.competitor.current-lap-number"));
-      let current = active.get(identity);
+      let current = this.active.get(identity);
       if (!current) {
-        current = {
-          lapNumber: lap, startSequence: frame.captureSequence, frames: [], previousDistance: null,
-          previousLap: null, boundaryObserved: false,
-        };
-        active.set(identity, current);
+        current = createActiveInterval(lap, frame.captureSequence, false);
+        this.active.set(identity, current);
       }
       const counterChanged = current.previousLap !== null && lap !== null && lap !== current.previousLap;
       if (counterChanged && lap !== current.previousLap! + 1) {
-        if (current.frames.length) finish(identity, current, null, false);
-        current = {
-          lapNumber: lap, startSequence: frame.captureSequence, frames: [], previousDistance: null,
-          previousLap: lap, boundaryObserved: false,
-        };
-        active.set(identity, current);
+        if (current.sampleCount) finish(identity, current, null, false);
+        current = createActiveInterval(lap, frame.captureSequence, false);
+        this.active.set(identity, current);
       }
       const wrap = current.previousDistance !== null && distance !== null &&
-        distance < current.previousDistance && current.previousLap !== null && lap === current.previousLap + 1;
+        current.previousLap !== null && lap === current.previousLap + 1 &&
+        distance < current.previousDistance;
       if (wrap) {
-        current.frames.push(frame);
-        if (current.frames.length) finish(identity, current, frame.captureSequence, current.boundaryObserved &&
-          current.frames.every((sample, index) => index === 0 ||
-            (sample.lmuContext !== undefined && current!.frames[index - 1]?.lmuContext !== undefined &&
-              BigInt(sample.captureSequence) === BigInt(current!.frames[index - 1]!.captureSequence) + 1n)));
-        current = {
-          lapNumber: lap, startSequence: frame.captureSequence, frames: [], previousDistance: null,
-          previousLap: lap, boundaryObserved: true,
-        };
-        active.set(identity, current);
+        const lastCompetitor = frame.competitors.find((entry) =>
+          entry.vehicleId === competitor.vehicleId && entry.incarnation === competitor.incarnation)!;
+        appendSample(current, frame, locatorFor(competitor), lastCompetitor, noteLocatorSegment);
+        if (current.sampleCount) {
+          if (current.boundaryObserved && current.sequenceCheckError !== null) throw current.sequenceCheckError;
+          finish(identity, current, frame.captureSequence, current.boundaryObserved && current.completeCoverage);
+        }
+        current = createActiveInterval(lap, frame.captureSequence, true);
+        this.active.set(identity, current);
       }
-      current.frames.push(frame);
+      const lastCompetitor = frame.competitors.find((entry) =>
+        entry.vehicleId === competitor.vehicleId && entry.incarnation === competitor.incarnation)!;
+      appendSample(current, frame, locatorFor(competitor), lastCompetitor, noteLocatorSegment);
       current.previousDistance = distance;
       current.previousLap = lap;
     }
-    for (const identity of present) {
+    for (const identity of this.present) {
       if (inFrame.has(identity)) continue;
-      const current = active.get(identity);
-      if (current?.frames.length) finish(identity, current, null, false);
-      active.delete(identity);
+      const current = this.active.get(identity);
+      if (current?.sampleCount) finish(identity, current, null, false);
+      this.active.delete(identity);
     }
-    present.clear();
-    for (const identity of inFrame) present.add(identity);
+    this.present.clear();
+    for (const identity of inFrame) this.present.add(identity);
+    return completed;
   }
-  for (const [identity, current] of active) {
-    if (current.frames.length > 1) finish(identity, current, null, false);
+
+  finish(): LmuOpponentLapIndexRecord[] {
+    const completed: LmuOpponentLapIndexRecord[] = [];
+    for (const [identity, current] of this.active) {
+      if (current.sampleCount > 1) {
+        const [sessionKey, vehicleId, incarnation] = identityParts(identity);
+        completed.push({
+          opponentLapId: lapId(sessionKey, vehicleId, incarnation, current.startSequence),
+          sessionKey, vehicleId, incarnation,
+          lapNumber: current.lapNumber, startSequence: current.startSequence, endSequence: null,
+          coverage: "partial", validity: "unknown",
+          locators: current.locators.map((segment) => ({
+            blockIndex: segment.blockIndex,
+            firstFrameIndex: segment.firstFrameIndex,
+            lastFrameIndex: segment.lastFrameIndex,
+            repeatedFrames: [...segment.repeatedFrames].map(([frameIndex, extraCount]) => ({ frameIndex, extraCount })),
+          })),
+          lastCompetitor: current.lastCompetitor,
+          opponentNumericChannelIds: [...current.opponentNumericChannelIds],
+        });
+      }
+    }
+    this.active.clear();
+    this.present.clear();
+    return completed;
   }
-  return intervals;
+}
+
+/** Indexes only observed lap-distance wraps; scalar best/last reports never create intervals. */
+export function indexLmuOpponentLaps<Frame extends LmuOpponentFrame>(frames: readonly Frame[]): LmuOpponentLapInterval<Frame>[] {
+  const indexer = new LmuOpponentLapIndexer();
+  const records: LmuOpponentLapIndexRecord[] = [];
+  for (let frameIndex = 0; frameIndex < frames.length; frameIndex++) {
+    records.push(...indexer.push(frames[frameIndex]!, { blockIndex: 0, frameIndex }));
+  }
+  records.push(...indexer.finish());
+  return records.map((record) => {
+    const { locators, lastCompetitor: _lastCompetitor, opponentNumericChannelIds: _opponentNumericChannelIds, ...interval } = record;
+    const materialized: Frame[] = [];
+    for (const locator of locators) {
+      const repeated = new Map(locator.repeatedFrames.map((entry) => [entry.frameIndex, entry.extraCount]));
+      for (let index = locator.firstFrameIndex; index <= locator.lastFrameIndex; index++) {
+        const frame = frames[index]!;
+        materialized.push(frame);
+        for (let extra = repeated.get(index) ?? 0; extra > 0; extra--) materialized.push(frame);
+      }
+    }
+    return { ...interval, frames: materialized };
+  });
 }
 
 export type LmuOpponentLapReadErrorCode =

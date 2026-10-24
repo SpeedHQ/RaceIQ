@@ -5,7 +5,7 @@ import { SessionsPageProvider, SessionResultMeta } from "@raceiq/sessions-page/u
 import { host } from "@raceiq/sessions-page/test-support/host";
 
 function render(sessionType: string) {
-  const session: SessionMeta = { id: 1, carId: "car", trackId: "track", createdAt: "", gameId: "lmu", sessionType, finishingPosition: 1 };
+  const session: SessionMeta = { id: 1, carId: "car", trackId: "track", createdAt: "", gameId: "lmu", sessionType, finishingPosition: 1, processing: { state: "ready", stage: null, error: null } };
   return renderToStaticMarkup(
     <SessionsPageProvider host={{ ...host, Badge: ({ children }) => <span>{children}</span> }}>
       <SessionResultMeta session={session} />

@@ -1,12 +1,12 @@
 import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
-import { beginRecordingStorageImport } from "./storage-activity";
+import { beginRecordingStorageImport, registerActiveLmuOpponentSource } from "./storage-activity";
 import { existsSync, unlinkSync } from "node:fs";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { LapIndexPacket } from "@raceiq/shared/telemetry/lap-index";
-import type { LapMeta, SessionOwnership } from "@raceiq/shared/racing/sessions/types";
+import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
-import { deleteSession, enqueueSessionCaptureSplit, updateSessionSource } from "../db/session-queries";
+import { deleteSessionForImportRollback, enqueueSessionCaptureSplit, revokeUnreferencedLmuOpponentIndexes, updateSessionSource } from "../db/session-queries";
 import { isDelayedFinishContext } from "../db/telemetry-replay-storage";
 import { getServerGame } from "../games/registry";
 import { isIRacingSessionFrame } from "@raceiq/capture-formats/iracing/source-frame";
@@ -18,6 +18,7 @@ import { NullWsAdapter, RealDbAdapter, SparseSessionRecorderAdapter, type Sessio
 import { reconcileSessionResult } from "../race-results/reconcile";
 
 import { countIndexSampleMaterialized, countSourceFrameScanned } from "./test-instrumentation";
+import { enqueueLmuOpponentIndex } from "./lmu-opponent-index-runtime";
 
 
 
@@ -168,24 +169,41 @@ export class ImportCaptureAdapter extends RealDbAdapter {
    * Best-effort rollback for an isolated file import. The recorder must be
    * stopped before this runs so no process still owns the canonical capture.
    */
-  async rollback(): Promise<void> {
+  async rollback(): Promise<string[]> {
+    const indexSourcePaths = new Set<string>(this.rawFiles);
     for (const sessionId of this.sessionIds) {
-      await deleteSession(sessionId);
+      try {
+        const deleted = await deleteSessionForImportRollback(sessionId);
+        if (deleted.indexSourcePath) indexSourcePaths.add(deleted.indexSourcePath);
+      } catch (error) {
+        console.error(`[Import] Failed to delete session ${sessionId} during rollback:`, error);
+      }
     }
     for (const rawFile of this.rawFiles) {
-      if (existsSync(rawFile)) unlinkSync(rawFile);
+      try {
+        if (existsSync(rawFile)) unlinkSync(rawFile);
+      } catch (error) {
+        console.error(`[Import] Failed to remove rollback file ${rawFile}:`, error);
+      }
     }
     this.laps.length = 0;
+    return [...indexSourcePaths];
   }
 }
 
 async function rollbackImport(
   capture: ImportCaptureAdapter,
   error: unknown,
+  deferredOpponentIndexRevocations: Set<string>,
 ): Promise<never> {
-  await capture.rollback();
+  try {
+    for (const path of await capture.rollback()) deferredOpponentIndexRevocations.add(path);
+  } catch (rollbackError) {
+    console.error("[Import] Rollback failed:", rollbackError);
+  }
   throw error;
 }
+
 
 type SessionFrame = Buffer | { frame: Buffer; frameTimeMs?: number }
   | { kind: "parser-bootstrap"; gameId: GameId; formatVersion: number; payload: Buffer }
@@ -261,27 +279,34 @@ async function importTelemetrySource<T>(
   options: ImportSessionOptions,
   processItem: ImportItemHandler<T>,
 ): Promise<ImportSessionResult> {
-  const releaseStorageImport = beginRecordingStorageImport();
+  const deferredOpponentIndexRevocations = new Set<string>();
+  let releaseImportOpponentSource: (() => void) | null = null;
+  let releaseStorageImport: (() => void) | null = null;
   try {
+  releaseStorageImport = beginRecordingStorageImport();
   const db = new ImportCaptureAdapter({
     notifyDriverProfile: options.notifyDriverProfile,
     ownership: options.ownership,
     sessionSource: options.sessionSource,
     rollbackFiles: options.rollbackFiles,
   });
+  const recorder = options.recorder ?? (options.opponentRetention
+    ? new DirectSessionRecorderAdapter(options.ownership, {
+      opponentRetentionOverride: options.opponentRetention,
+      deferOpponentIndexEnqueue: true,
+      writerOptions: { maxQueuedBytes: 16 * 1024 * 1024 + 12 },
+    })
+    : new SparseSessionRecorderAdapter(options.ownership, {}, "offline"));
   const pipeline = new LiveTelemetryPipeline(db, new NullWsAdapter(), {
     bypassPacketRateFilter: true,
     enqueueSessionCaptureSplits: false,
-    recorder: options.recorder ?? (options.opponentRetention
-      ? new DirectSessionRecorderAdapter(options.ownership, {
-        opponentRetentionOverride: options.opponentRetention,
-        writerOptions: { maxQueuedBytes: 16 * 1024 * 1024 + 12 },
-      })
-      : new SparseSessionRecorderAdapter(options.ownership, {}, "offline")),
+    recorder,
   });
 
   let packetCount = 0;
   let failure: unknown;
+  let finalizedOpponentSourcePath: string | null = null;
+
   try {
     for await (const item of source) {
       if (await processItem(item, packetCount, pipeline, db)) packetCount++;
@@ -293,17 +318,22 @@ async function importTelemetrySource<T>(
     failure = error;
   } finally {
     try {
+      if (gameId === "lmu" && options.opponentRetention === "retained" && recorder.path) {
+        finalizedOpponentSourcePath = recorder.path;
+        releaseImportOpponentSource = registerActiveLmuOpponentSource(recorder.path, "import");
+      }
       await pipeline.flushSessionRecorder();
     } catch (error) {
       failure ??= error;
     }
   }
 
-  if (failure) await rollbackImport(db, failure);
+  if (failure) await rollbackImport(db, failure, deferredOpponentIndexRevocations);
   if (options.requireLaps && db.laps.length === 0) {
     await rollbackImport(
       db,
       new Error("No complete, importable laps were found"),
+      deferredOpponentIndexRevocations,
     );
   }
 
@@ -314,11 +344,12 @@ async function importTelemetrySource<T>(
     }
     await pipeline.finalizeDashboardCaptureFacts([...db.sessionIds]);
   } catch (error) {
-    await rollbackImport(db, error);
+    await rollbackImport(db, error, deferredOpponentIndexRevocations);
   }
   for (const sessionId of db.sessionIds) {
     await enqueueSessionCaptureSplit(sessionId);
   }
+  if (finalizedOpponentSourcePath) enqueueLmuOpponentIndex(finalizedOpponentSourcePath);
 
   return {
     packetCount,
@@ -326,7 +357,15 @@ async function importTelemetrySource<T>(
     sessionIds: [...db.sessionIds],
   };
   } finally {
-    releaseStorageImport();
+    releaseImportOpponentSource?.();
+    releaseStorageImport?.();
+    if (deferredOpponentIndexRevocations.size > 0) {
+      try {
+        await revokeUnreferencedLmuOpponentIndexes([...deferredOpponentIndexRevocations]);
+      } catch (error) {
+        console.error("[Import] Failed to revoke opponent indexes after rollback:", error);
+      }
+    }
   }
 }
 

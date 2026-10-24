@@ -43,7 +43,7 @@ export interface SessionsPageHost {
   ImportSetupFile: ComponentType<{ gameId: "acc" | "ac-evo"; routePrefix: string; gameLabel: string; cars: { id: string; name: string }[]; initialFile?: File; onClose?: () => void }>;
   useAcEvoCars: () => { data?: { id: string; name: string }[] };
   useLiveCaptureLifecycle: (sessionId: number | undefined) => LiveCaptureLifecycle | null;
-  useOpponentLapCatalog: (playerLapId: number | null) => { data?: OpponentLapCatalog; isLoading: boolean; error?: Error | null };
+  useOpponentLapCatalog: (playerLapId: number | null) => { data?: OpponentLapCatalog; isLoading: boolean; isFetching: boolean; error?: Error | null; refetch: () => Promise<unknown> };
   useGameId: () => GameId | null;
   useGameRoute: () => string;
   useSessions: () => { data?: SessionMeta[]; isLoading: boolean; isError: boolean };

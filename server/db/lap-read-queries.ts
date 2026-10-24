@@ -1,15 +1,53 @@
 import { cacheGet, cacheSet, LapParseError, parseRawLapFrames, parseSessionLapsBatched } from "./telemetry-replay-storage";
 import { resolveLapCaptureArtifact } from "../session-capture/source-loader";
-import { toLapMeta } from "./lap-meta";
+import { mergeLapProcessingMetadata, toLapMeta } from "./lap-meta";
 import { eq, desc, and, or, sql, inArray } from "drizzle-orm";
 import { db, readDb } from "./index";
-import { sessions, laps, tunes } from "./schema";
+import { sessions, laps, tunes, sessionCaptureSplitJobs } from "./schema";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
+import type { LapMeta, ProcessingMetadata, SessionCaptureSplitPhase } from "@raceiq/shared/racing/sessions/types";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { getLiveLapCaptureSnapshot } from "./live-capture-queries";
 import { resolveLiveLapCaptureArtifact } from "../session-capture/source-loader";
+import { resolve } from "node:path";
+import { getLmuOpponentProcessing } from "../session-capture/lmu-opponent-index-runtime";
+import { readLmuOpponentRetention } from "../session-capture/lmu-companion";
 const inFlightSessionDecodes = new Map<string, Promise<void>>();
+
+const READY_PROCESSING: ProcessingMetadata = { state: "ready", stage: null, error: null };
+
+export async function withLapProcessingMetadata<T extends {
+  id: number;
+  gameId: string;
+  rawFile: string | null;
+  captureManifestFile?: string | null;
+  capturePhase?: SessionCaptureSplitPhase | null;
+}>(
+  rows: readonly T[],
+  knownProcessingByLapId?: ReadonlyMap<number, ProcessingMetadata>,
+): Promise<(T & { processing: ProcessingMetadata })[]> {
+  const paths = new Map<string, string>();
+  for (const row of rows) {
+    if (row.gameId !== "lmu" || knownProcessingByLapId?.has(row.id)) continue;
+    const sourcePath = row.captureManifestFile ?? row.rawFile;
+    if (sourcePath) paths.set(resolve(sourcePath), sourcePath);
+  }
+  const indexProcessing = new Map<string, ProcessingMetadata>();
+  await Promise.all([...paths].map(async ([key, sourcePath]) => {
+    indexProcessing.set(key, await getLmuOpponentProcessing(sourcePath));
+  }));
+  return rows.map((row) => {
+    const known = knownProcessingByLapId?.get(row.id);
+    if (known) return { ...row, processing: known };
+    const sourcePath = row.gameId === "lmu" ? row.captureManifestFile ?? row.rawFile : null;
+    const indexState = sourcePath ? indexProcessing.get(resolve(sourcePath)) : undefined;
+    return {
+      ...row,
+      processing: mergeLapProcessingMetadata(row.capturePhase, indexState ?? READY_PROCESSING),
+    };
+  });
+}
+
 
 interface LapStats {
   totalLaps: number;
@@ -95,6 +133,8 @@ export async function getLaps(gameId?: GameId, limit: number = 200, sessionId?: 
     rawByteOffset: laps.rawByteOffset,
     rawFrameCount: laps.rawFrameCount,
     rawFile: sessions.rawFile,
+    captureManifestFile: sessions.captureManifestFile,
+    capturePhase: sessionCaptureSplitJobs.status,
     ownership: sessions.ownership,
     source: sessions.source,
     experimentId: laps.experimentId,
@@ -114,6 +154,7 @@ export async function getLaps(gameId?: GameId, limit: number = 200, sessionId?: 
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .leftJoin(tunes, eq(laps.tuneId, tunes.id))
+    .leftJoin(sessionCaptureSplitJobs, eq(sessionCaptureSplitJobs.sessionId, sessions.id))
     .orderBy(sessionId != null ? laps.lapNumber : desc(laps.id))
     .limit(sessionId != null ? 1_000_000 : limit);
 
@@ -123,7 +164,7 @@ export async function getLaps(gameId?: GameId, limit: number = 200, sessionId?: 
       ? await query.where(eq(sessions.gameId, gameId)).all()
       : await query.all();
 
-  return rows.map(toLapMeta);
+  return (await withLapProcessingMetadata(rows)).map(toLapMeta);
 }
 
 export async function getSessionLaps(gameId: GameId, sessionId: number): Promise<LapMeta[]> {
@@ -169,6 +210,8 @@ export async function getLapMetaForProfileScope(gameId: GameId, carId?: string, 
       rawByteOffset: laps.rawByteOffset,
       rawFrameCount: laps.rawFrameCount,
       rawFile: sessions.rawFile,
+      captureManifestFile: sessions.captureManifestFile,
+      capturePhase: sessionCaptureSplitJobs.status,
       ownership: sessions.ownership,
       source: sessions.source,
       experimentId: laps.experimentId,
@@ -182,11 +225,12 @@ export async function getLapMetaForProfileScope(gameId: GameId, carId?: string, 
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .leftJoin(tunes, eq(laps.tuneId, tunes.id))
+    .leftJoin(sessionCaptureSplitJobs, eq(sessionCaptureSplitJobs.sessionId, sessions.id))
     .where(and(...filters))
     .orderBy(desc(laps.id))
     .all();
 
-  return rows.map(toLapMeta);
+  return (await withLapProcessingMetadata(rows)).map(toLapMeta);
 }
 
 /**
@@ -201,7 +245,7 @@ export async function getLapMetaForProfileScope(gameId: GameId, carId?: string, 
  * going forward.
  */
 
-type LapSummary = {
+export type LapSummary = {
   lapId: number;
   lapNumber: number;
   lapTime: number;
@@ -215,6 +259,7 @@ type LapSummary = {
   classification: LapMeta["classification"];
   invalidReason: string | null;
   notes: string | null;
+  processing: ProcessingMetadata;
 };
 
 export async function getLapSummariesByTrack(trackId: string, gameId?: GameId): Promise<LapSummary[]> {
@@ -240,22 +285,28 @@ export async function getLapSummariesByTrack(trackId: string, gameId?: GameId): 
     .orderBy(desc(laps.id));
 
   const rows = await query.all();
-  return rows
-    .filter(r => (r.lapTime ?? 0) > 0)
-    .map(r => ({
-      lapId: r.lapId,
-      lapNumber: r.lapNumber ?? 0,
-      lapTime: r.lapTime,
-      carId: r.carId,
-      pi: r.pi ?? 0,
-      gameId: r.gameId as GameId,
-      sessionId: r.sessionId,
-      createdAt: r.createdAt,
-      sectorTimes: r.sectorTimes ?? null,
-      isValid: Boolean(r.isValid),
-      classification: r.classification,
-      invalidReason: r.invalidReason ?? null,
-      notes: r.notes ?? null,
+  const eligibleRows = rows.filter((row) => (row.lapTime ?? 0) > 0);
+  const processingByLapId = new Map<number, ProcessingMetadata>(
+    (await getLapProcessingByIds(eligibleRows.map(({ lapId }) => lapId)))
+      .map(({ id, processing }) => [id, processing] as const),
+  );
+  return eligibleRows
+    .filter((row) => processingByLapId.has(row.lapId))
+    .map((row) => ({
+      lapId: row.lapId,
+      lapNumber: row.lapNumber ?? 0,
+      lapTime: row.lapTime,
+      carId: row.carId,
+      pi: row.pi ?? 0,
+      gameId: row.gameId as GameId,
+      sessionId: row.sessionId,
+      createdAt: row.createdAt,
+      sectorTimes: row.sectorTimes ?? null,
+      isValid: Boolean(row.isValid),
+      classification: row.classification,
+      invalidReason: row.invalidReason ?? null,
+      notes: row.notes ?? null,
+      processing: processingByLapId.get(row.lapId)!,
     }));
 }
 
@@ -276,6 +327,7 @@ type LapMetadataRow = {
   captureArchiveFile?: string | null;
   captureLayoutVersion?: number | null;
   captureChunkId?: string | null;
+  capturePhase?: SessionCaptureSplitPhase | null;
   captureFormatVersion: number | null;
   carId: string;
   trackId: string;
@@ -301,6 +353,7 @@ async function getLapMetadataRow(id: number): Promise<LapMetadataRow | undefined
     rawFrameCount: laps.rawFrameCount, rawFile: sessions.rawFile, source: sessions.source,
     carId: sessions.carId, trackId: sessions.trackId,
     captureManifestFile: sessions.captureManifestFile, captureLayoutVersion: sessions.captureLayoutVersion, captureChunkId: laps.captureChunkId,
+    capturePhase: sessionCaptureSplitJobs.status,
     captureFormatVersion: sessions.captureFormatVersion,
     captureArchiveFile: sessions.captureArchiveFile,
     tuneId: laps.tuneId, tuneName: tunes.name, gameId: sessions.gameId,
@@ -311,19 +364,69 @@ async function getLapMetadataRow(id: number): Promise<LapMetadataRow | undefined
     standaloneCaptureReady: sql<boolean>`(${sessions.captureLayoutVersion} IS NULL AND ${sessions.rawFile} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 1 AND ${sessions.captureManifestFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 2 AND ${sessions.captureManifestFile} IS NOT NULL AND ${sessions.captureArchiveFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 3 AND ${laps.captureChunkId} IS NOT NULL AND EXISTS (SELECT 1 FROM live_capture_members m JOIN live_captures c ON c.capture_epoch = m.capture_epoch WHERE m.lap_id = ${laps.id} AND c.session_id = ${sessions.id} AND json_extract(m.descriptor, '$.id') = ${laps.captureChunkId}))`,
   })
     .from(laps).innerJoin(sessions, eq(laps.sessionId, sessions.id)).leftJoin(tunes, eq(laps.tuneId, tunes.id))
+    .leftJoin(sessionCaptureSplitJobs, eq(sessionCaptureSplitJobs.sessionId, sessions.id))
     .where(eq(laps.id, id)).get();
 }
 
-export async function getLapMetaById(id: number): Promise<(LapMeta & { telemetry: TelemetryPacket[]; rawFile: string | null; source: "motec" | null; rawByteOffset: number | null; rawFrameCount: number | null; captureFormatVersion: number | null }) | null> {
+export type LapIdentity = { id: number; sessionId: number; gameId: GameId };
+
+export async function getLapIdentitiesByIds(ids: readonly number[]): Promise<LapIdentity[]> {
+  if (ids.length === 0) return [];
+  const rows = await readDb.select({ id: laps.id, sessionId: laps.sessionId, gameId: sessions.gameId })
+    .from(laps)
+    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .where(inArray(laps.id, [...ids]))
+    .all();
+  return rows.map((row) => ({ ...row, gameId: row.gameId as GameId }));
+}
+
+export type LapProcessingIdentity = LapIdentity & { processing: ProcessingMetadata };
+
+export async function getLapProcessingByIds(ids: readonly number[]): Promise<LapProcessingIdentity[]> {
+  if (ids.length === 0) return [];
+  const rows = await readDb.select({
+    id: laps.id,
+    sessionId: laps.sessionId,
+    gameId: sessions.gameId,
+    rawFile: sessions.rawFile,
+    captureManifestFile: sessions.captureManifestFile,
+    capturePhase: sessionCaptureSplitJobs.status,
+  })
+    .from(laps)
+    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .leftJoin(sessionCaptureSplitJobs, eq(sessionCaptureSplitJobs.sessionId, sessions.id))
+    .where(inArray(laps.id, [...ids]))
+    .all();
+  const projected = await withLapProcessingMetadata(rows);
+  return projected.map(({ id, sessionId, gameId, processing }) => ({
+    id,
+    sessionId,
+    gameId: gameId as GameId,
+    processing,
+  }));
+}
+
+export async function getLapMetaById(
+  id: number,
+  knownProcessing?: ProcessingMetadata,
+): Promise<(LapMeta & { telemetry: TelemetryPacket[]; rawFile: string | null; source: "motec" | null; rawByteOffset: number | null; rawFrameCount: number | null; captureFormatVersion: number | null }) | null> {
   const row = await getLapMetadataRow(id);
-  return row ? { ...buildLapResult(row, []), rawFile: row.rawFile ?? null, source: row.source === "motec" ? "motec" : null, rawByteOffset: row.rawByteOffset, rawFrameCount: row.rawFrameCount, captureFormatVersion: row.captureFormatVersion } : null;
+  if (!row) return null;
+  const [projected] = knownProcessing
+    ? [{ ...row, processing: knownProcessing }]
+    : await withLapProcessingMetadata([row]);
+  return { ...buildLapResult(projected!, []), rawFile: row.rawFile ?? null, source: row.source === "motec" ? "motec" : null, rawByteOffset: row.rawByteOffset, rawFrameCount: row.rawFrameCount, captureFormatVersion: row.captureFormatVersion };
 }
 
 export async function getLapById(
-  id: number
+  id: number,
+  knownProcessing?: ProcessingMetadata,
 ): Promise<(LapMeta & { telemetry: TelemetryPacket[]; parseError?: string }) | null> {
-  const row = await getLapMetadataRow(id);
-  if (!row) return null;
+  const storedRow = await getLapMetadataRow(id);
+  if (!storedRow) return null;
+  const row = knownProcessing
+    ? { ...storedRow, processing: knownProcessing }
+    : (await withLapProcessingMetadata([storedRow]))[0]!;
   const cached = cacheGet(id);
   const live = row.captureLayoutVersion === 3
     ? await getLiveLapCaptureSnapshot(row.sessionId, row.id)
@@ -355,10 +458,28 @@ export async function getLapById(
     try {
       const resolved = await resolveLapCaptureArtifact(row.captureManifestFile, row.captureChunkId, row.id, row);
       const { path, artifact, chunk } = resolved;
-      publicationIdentity = resolved.publicationIdentity;
+      let companionComplete = false;
+      let companionRevision: string | undefined;
+      if (row.gameId === "lmu" && row.rawFile && row.rawByteOffset != null && row.rawFrameCount != null) {
+        try {
+          const retention = await readLmuOpponentRetention(row.rawFile, { verifyIntegrity: false });
+          companionComplete = retention.opponentAvailability === "complete";
+          if (companionComplete) companionRevision = retention.sourceRevision;
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+        }
+      }
+      publicationIdentity = companionComplete
+        ? `${resolved.publicationIdentity}\0companion:${companionRevision}`
+        : resolved.publicationIdentity;
       const publishedCached = cacheGet(id, publicationIdentity);
       if (publishedCached) return buildLapResult(row, publishedCached);
-      telemetry = await parseRawLapFrames({ rawFile: path, artifact, source: null, gameId: row.gameId as GameId, carId: row.carId, trackId: row.trackId }, chunk.ownedFrameByteOffset!, chunk.ownedFrameCount!);
+      telemetry = companionComplete
+        ? await parseRawLapFrames(
+          { rawFile: row.rawFile!, source: row.source ?? null, gameId: "lmu", carId: row.carId, trackId: row.trackId, captureFormatVersion: row.captureFormatVersion },
+          row.rawByteOffset!, row.rawFrameCount!,
+        )
+        : await parseRawLapFrames({ rawFile: path, artifact, source: null, gameId: row.gameId as GameId, carId: row.carId, trackId: row.trackId }, chunk.ownedFrameByteOffset!, chunk.ownedFrameCount!);
     } catch (err) { parseError = err instanceof Error ? err.message : String(err); }
   } else if (row.captureLayoutVersion == null && row.rawFile != null && row.rawByteOffset != null && row.rawFrameCount != null) {
     try {
@@ -385,6 +506,7 @@ export async function getLapById(
 }
 
 type LapResultRow = {
+  processing: ProcessingMetadata;
   id: number;
   sessionId: number;
   lapNumber: number;
@@ -424,6 +546,7 @@ function buildLapResult(
 ): LapMeta & { telemetry: TelemetryPacket[] } {
   return {
     id: row.id,
+    processing: row.processing,
     sessionId: row.sessionId,
     lapNumber: row.lapNumber,
     lapTime: row.lapTime,
@@ -463,11 +586,14 @@ function buildLapResult(
 
 export async function getLapsByIds(
   ids: number[],
-  options: { readonly parallelSessionDecodes?: boolean } = {},
+  options: {
+    readonly parallelSessionDecodes?: boolean;
+    readonly processingByLapId?: ReadonlyMap<number, ProcessingMetadata>;
+  } = {},
 ): Promise<(LapMeta & { telemetry: TelemetryPacket[]; parseError?: string })[]> {
   if (ids.length === 0) return [];
 
-  const rows = await readDb
+  const queryRows = await readDb
     .select({
       id: laps.id,
       sessionId: laps.sessionId,
@@ -484,6 +610,7 @@ export async function getLapsByIds(
       rawFrameCount: laps.rawFrameCount,
       source: sessions.source,
       captureManifestFile: sessions.captureManifestFile,
+      capturePhase: sessionCaptureSplitJobs.status,
       captureArchiveFile: sessions.captureArchiveFile,
       captureLayoutVersion: sessions.captureLayoutVersion,
       captureChunkId: laps.captureChunkId,
@@ -505,8 +632,10 @@ export async function getLapsByIds(
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .leftJoin(tunes, eq(laps.tuneId, tunes.id))
+    .leftJoin(sessionCaptureSplitJobs, eq(sessionCaptureSplitJobs.sessionId, sessions.id))
     .where(inArray(laps.id, ids))
     .all();
+  const rows = await withLapProcessingMetadata(queryRows, options.processingByLapId);
 
   const rowById = new Map(rows.map((r) => [r.id, r]));
 
@@ -610,7 +739,7 @@ export async function getLapsByIds(
   const results: (LapMeta & { telemetry: TelemetryPacket[]; parseError?: string })[] = [];
   const fallbackIds = ids.filter((id) => rowById.has(id) && !decoded.has(id));
   const fallbacks = options.parallelSessionDecodes
-    ? await Promise.all(fallbackIds.map((id) => getLapById(id)))
+    ? await Promise.all(fallbackIds.map((id) => getLapById(id, rowById.get(id)!.processing)))
     : [];
   const fallbackById = new Map(fallbackIds.map((id, index) => [id, fallbacks[index]]));
   for (const id of ids) {
@@ -620,7 +749,7 @@ export async function getLapsByIds(
     if (telemetry) {
       results.push(buildLapResult(row, telemetry));
     } else {
-      const lap = options.parallelSessionDecodes ? fallbackById.get(id) : await getLapById(id);
+      const lap = options.parallelSessionDecodes ? fallbackById.get(id) : await getLapById(id, row.processing);
       if (lap) results.push(lap);
     }
   }

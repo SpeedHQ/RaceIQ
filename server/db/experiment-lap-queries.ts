@@ -2,7 +2,8 @@ import { eq, desc, and, inArray, isNull } from "drizzle-orm";
 import { db, readDb } from "./index"
 import { withDatabaseWrite } from "./write-coordination";
 import { toLapMeta } from "./lap-meta";
-import { sessions, laps, tunes, experiments, experimentActions } from "./schema";
+import { withLapProcessingMetadata } from "./lap-read-queries";
+import { sessions, laps, tunes, experiments, experimentActions, sessionCaptureSplitJobs } from "./schema";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import type { GameId } from "@raceiq/shared/games/ids";
 
@@ -131,7 +132,9 @@ const experimentLapSelection = {
   tuneId: laps.tuneId,
   tuneName: tunes.name,
   gameId: sessions.gameId,
-  ownership: sessions.ownership,
+  rawFile: sessions.rawFile,
+  captureManifestFile: sessions.captureManifestFile,
+  capturePhase: sessionCaptureSplitJobs.status,
   sectorTimes: laps.sectorTimes,
   source: sessions.source,
   experimentId: laps.experimentId,
@@ -151,11 +154,12 @@ export async function getLapsForExperiment(experimentId: number): Promise<LapMet
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .leftJoin(tunes, eq(laps.tuneId, tunes.id))
+    .leftJoin(sessionCaptureSplitJobs, eq(sessionCaptureSplitJobs.sessionId, sessions.id))
     .where(eq(laps.experimentId, experimentId))
     .orderBy(desc(laps.id))
     .all();
 
-  return rows.map(toLapMeta);
+  return (await withLapProcessingMetadata(rows)).map(toLapMeta);
 }
 
 /**
@@ -170,11 +174,12 @@ export async function getLapMetaForExperimentVersion(experimentVersionId: number
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .leftJoin(tunes, eq(laps.tuneId, tunes.id))
+    .leftJoin(sessionCaptureSplitJobs, eq(sessionCaptureSplitJobs.sessionId, sessions.id))
     .where(eq(laps.experimentVersionId, experimentVersionId))
     .orderBy(desc(laps.id))
     .all();
 
-  return rows.map(toLapMeta);
+  return (await withLapProcessingMetadata(rows)).map(toLapMeta);
 }
 
 /**
@@ -196,11 +201,12 @@ export async function getImportableLapsForExperiment(
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .leftJoin(tunes, eq(laps.tuneId, tunes.id))
+    .leftJoin(sessionCaptureSplitJobs, eq(sessionCaptureSplitJobs.sessionId, sessions.id))
     .where(and(...conds))
     .orderBy(desc(laps.id))
     .all();
 
-  return rows.map(toLapMeta);
+  return (await withLapProcessingMetadata(rows)).map(toLapMeta);
 }
 
 /**

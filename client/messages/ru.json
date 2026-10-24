@@ -2946,5 +2946,14 @@
   "compare_overview_ers_deployed": "ЕРС использовано",
   "compare_overview_ers_recovered": "ЕРС рекуперировано",
   "compare_overview_top_speed": "Максимальная скорость",
-  "compare_overview_unavailable": "Недоступно"
+  "compare_overview_unavailable": "Недоступно",
+  "compare_opponent_index_waiting": "Круги соперников станут доступны после завершения записи.",
+  "compare_opponent_index_queued": "Круги соперников ожидают подготовки.",
+  "compare_opponent_index_building": "Подготовка кругов соперников…",
+  "compare_opponent_index_failed": "Не удалось подготовить круги соперников. Обновите статус.",
+  "recording_processing_loading": "Проверка состояния обработки записи…",
+  "recording_processing_queued": "В очереди на обработку…",
+  "recording_processing_running": "Обработка…",
+  "recording_processing_failed": "Ошибка обработки: {error}",
+  "recording_processing_refresh": "Обновить статус"
 }

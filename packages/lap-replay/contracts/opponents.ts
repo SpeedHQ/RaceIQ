@@ -1,5 +1,6 @@
 import type { SemanticLapTelemetry, SemanticReplayFrame } from "./replay";
 import type { LmuResolvedValueWire } from "@raceiq/shared/telemetry/lmu-context";
+import type { OpponentIndexState } from "@raceiq/shared/racing/sessions/types";
 
 export type OpponentLapReference =
   | { kind: "player"; lapId: number }
@@ -44,6 +45,7 @@ export interface OpponentLapCatalog {
   sourceRevision: string;
   opponentRetention: "retained" | "removed" | "not-recorded";
   opponentAvailability: "complete" | "incomplete" | "missing" | "corrupt" | null;
+  indexState: OpponentIndexState;
   sessions: readonly OpponentSessionSummary[];
   laps: readonly OpponentLapSummary[];
 }
@@ -71,8 +73,7 @@ export type OpponentComparisonRequest =
 export type OpponentDataErrorCode =
   | "INVALID_OPPONENT_COMPARISON" | "LAP_NOT_FOUND" | "OPPONENT_LAP_NOT_FOUND"
   | "SOURCE_CHANGED" | "OPPONENT_DATA_REMOVED" | "OPPONENT_DATA_UNAVAILABLE"
-  | "STORAGE_IO_ERROR";
-
+  | "OPPONENT_INDEX_NOT_READY" | "OPPONENT_INDEX_FAILED" | "STORAGE_IO_ERROR";
 export interface OpponentDataError {
   code: OpponentDataErrorCode;
   error: string;

@@ -1,22 +1,32 @@
+import { MessageChannel } from "node:worker_threads";
 import { deleteSession } from "@raceiq/backend-core/db/session-queries";
+import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
 import { getLapReplaySource } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { importSessionBin } from "@raceiq/backend-core/session-capture/import-capture";
-import { startSessionOpponentRemoval } from "@raceiq/backend-core/session-capture/opponent-removal";
+import { importSessionFrames } from "@raceiq/backend-core/session-capture/import-pipeline";
+import { startSessionOpponentRemoval, getSessionOpponentRemovalStatus, recoverPendingOpponentRemovalCleanup } from "@raceiq/backend-core/session-capture/opponent-removal";
 import { getRecordingMaintenanceController } from "@raceiq/backend-core/session-capture/maintenance-runtime";
-import { SparseSessionRecorderAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
+import { getLmuOpponentIndexStatus, reconcileLmuOpponentIndexes, setLmuOpponentIndexTestPortForTest } from "@raceiq/backend-core/session-capture/lmu-opponent-index-runtime";
+import { registerActiveLmuOpponentSource } from "@raceiq/backend-core/session-capture/storage-activity";
+import { enableParserInstrumentation, getParserInstrumentation, resetParserInstrumentation } from "@raceiq/backend-core/session-capture/test-instrumentation";
+import { fixtureFrames } from "@raceiq/backend/test-support/fixture-frames";
+import { decodeLMUSourceFrame, encodeLMUSourceFrame } from "@raceiq/capture-formats/lmu/source-frame";
 import { makeLmuOpponentCapture } from "@raceiq/game-lmu/test-support/opponents";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { lmuServerAdapter } from "@raceiq/game-lmu";
 import { registerServerGame } from "@raceiq/backend-core/games/registry";
 import { encodeLmuResolvedValue } from "@raceiq/shared/telemetry/lmu-context";
 import { describe, expect, test } from "bun:test";
+import type { OpponentSessionSummary } from "@raceiq/lap-replay/contracts";
 import type { LmuCompetitor, LmuLiveContext } from "@raceiq/shared/telemetry/lmu";
 import type { ResolvedValue } from "@raceiq/shared/telemetry/resolver/contracts";
 import { replayRoutes } from "@raceiq/lap-replay/server";
 import { alignLmuOpponentPositionTraces, buildLmuOpponentSemanticFrames, groupOpponentSessions } from "@raceiq/lap-replay/test-support/opponents";
-import { indexLmuOpponentLaps, projectLmuOpponentTelemetry, LmuOpponentSourceError, type LmuOpponentCaptureFrame } from "@raceiq/backend-core/lap-analysis/lmu-opponent-laps";
+import { indexLmuOpponentLaps, projectLmuOpponentTelemetry, readLmuOpponentCaptureFrames, LmuOpponentSourceError, type LmuOpponentCaptureFrame } from "@raceiq/backend-core/lap-analysis/lmu-opponent-laps";
+import { readLmuOpponentIndex } from "@raceiq/backend-core/lap-analysis/lmu-opponent-index";
+import { groupLmuOpponentSessions, sortLmuOpponentLapSummaries, summarizeLmuOpponentInterval } from "@raceiq/backend-core/lap-analysis/lmu-opponent-summary";
 
 const observation = <T>(semanticId: string, value: T | null, sequence = 1n): ResolvedValue<T> => ({
   semanticId, value, unit: semanticId.startsWith("motion.competitor.position.") || semanticId.endsWith("lap-distance") ? "m" :
@@ -366,20 +376,56 @@ describe("opponent route serialization", () => {
     registerServerGame(lmuServerAdapter);
     const imported = await importSessionBin(makeLmuOpponentCapture(), "lmu", {
       notifyDriverProfile: false,
-      recorder: new SparseSessionRecorderAdapter("mine", {}, "offline"),
     });
     const sessionIds = [...new Set(imported.laps.map((lap) => lap.sessionId))];
     try {
       const lapId = imported.laps[0]!.lapId;
-      const response = await replayRoutes.request(`/api/laps/${lapId}/opponent-laps`, { headers: { "X-Game-Id": "lmu" } });
+      await reconcileLmuOpponentIndexes({ awaitPreparation: true });
+      enableParserInstrumentation(true);
+      resetParserInstrumentation();
+      let response: Response;
+      try {
+        response = await replayRoutes.request(`/api/laps/${lapId}/opponent-laps`, { headers: { "X-Game-Id": "lmu" } });
+      } finally {
+        const instrumentation = getParserInstrumentation();
+        enableParserInstrumentation(false);
+        expect(instrumentation).toMatchObject({
+          sourceFramesScanned: 0, parserStatePrimes: 0, indexSamplesMaterialized: 0, fullPacketsMaterialized: 0,
+        });
+      }
       expect(response.status).toBe(200);
       const body = await response.json() as {
+        indexState: string;
         sourceRevision: string;
-        sessions: { opponentSessionId: string; sessionKey: string; vehicleId: number; incarnation: number;
-          driverName: string | null; carName: string | null; className: string | null; lapIds: string[] }[];
+        sessions: readonly OpponentSessionSummary[];
         laps: { opponentLapId: string; sessionKey: string; vehicleId: number; incarnation: number;
           lapNumber: number | null; lapTime: { value: number | null; state: string }; coverage: string }[];
       };
+      expect(body.indexState).toBe("ready");
+      const replaySource = (await getLapReplaySource(lapId))!;
+      const captureSource = {
+        rawFile: replaySource.captureManifestFile ?? replaySource.rawFile!, source: replaySource.source,
+        gameId: "lmu" as const, carId: replaySource.carId ?? "", trackId: replaySource.trackId ?? "",
+        captureFormatVersion: replaySource.captureFormatVersion,
+      };
+      const indexStatus = await getLmuOpponentIndexStatus(captureSource);
+      expect(indexStatus.indexState).toBe("ready");
+      const index = await readLmuOpponentIndex(indexStatus.publicationPath!, {
+        sourceRevision: indexStatus.retention.sourceRevision, sourceDependencies: indexStatus.sourceDependencies,
+      });
+      const playerFacts = index.manifest.playerLapFacts.find((facts) => facts.playerLapId === lapId);
+      expect(playerFacts).toBeDefined();
+      const intervals = indexLmuOpponentLaps(await readLmuOpponentCaptureFrames(captureSource, indexStatus.retention.sourceRevision));
+      const referenceLaps = sortLmuOpponentLapSummaries(intervals.map((interval) => {
+        const summary = summarizeLmuOpponentInterval(interval, new Set(playerFacts!.comparableChannelIds));
+        return {
+          ...summary,
+          lapTime: encodeLmuResolvedValue(summary.lapTime),
+          sectors: summary.sectors.map((sector) => ({ ...sector, duration: encodeLmuResolvedValue(sector.duration) })),
+        };
+      }));
+      expect(body.laps).toEqual(referenceLaps);
+      expect(body.sessions).toEqual(groupLmuOpponentSessions(referenceLaps));
       const repeated = await replayRoutes.request(`/api/laps/${lapId}/opponent-laps`, { headers: { "X-Game-Id": "lmu" } });
       const repeatedBody = await repeated.json() as typeof body;
       expect(body.sessions).toEqual(repeatedBody.sessions);
@@ -397,51 +443,415 @@ describe("opponent route serialization", () => {
       const partial = body.laps.findLast((lap) => lap.coverage === "partial");
       expect(completed?.lapTime.value).toBe(18);
       expect(partial?.lapTime).toMatchObject({ value: null, state: "missing" });
-      expect(JSON.stringify(body)).not.toContain("BigInt");
-      const semantic = await replayRoutes.request(
-        `/api/laps/${lapId}/opponent-laps/${completed!.opponentLapId}/semantic-telemetry?sourceRevision=${body.sourceRevision}`,
+      const unauthenticated = await replayRoutes.request(`/api/laps/${lapId}/opponent-laps`);
+      expect(unauthenticated.status).toBe(400);
+      const wrongGame = await replayRoutes.request(`/api/laps/${lapId}/opponent-laps`, { headers: { "X-Game-Id": "ac-evo" } });
+      expect(wrongGame.status).toBe(404);
+      expect(await wrongGame.json()).toMatchObject({ code: "LAP_NOT_FOUND" });
+      const missingLap = await replayRoutes.request("/api/laps/999999999/opponent-laps", { headers: { "X-Game-Id": "lmu" } });
+      expect(missingLap.status).toBe(404);
+      expect(await missingLap.json()).toMatchObject({ code: "LAP_NOT_FOUND" });
+      const missingOpponentComparison = await replayRoutes.request(`/api/laps/${lapId}/opponent-comparison`, {
+        method: "POST", headers: { "X-Game-Id": "lmu", "Content-Type": "application/json" },
+        body: JSON.stringify({ opponentLapId: "missing-opponent", sourceRevision: body.sourceRevision, step: 1 }),
+      });
+      expect(missingOpponentComparison.status).toBe(404);
+      expect(await missingOpponentComparison.json()).toMatchObject({ code: "OPPONENT_LAP_NOT_FOUND" });
+      const missingOpponentReplay = await replayRoutes.request(
+        `/api/laps/${lapId}/opponent-laps/missing-opponent/semantic-telemetry?sourceRevision=${body.sourceRevision}`,
         { headers: { "X-Game-Id": "lmu" } },
       );
+      expect(missingOpponentReplay.status).toBe(404);
+      expect(await missingOpponentReplay.json()).toMatchObject({ code: "OPPONENT_LAP_NOT_FOUND" });
+      expect(JSON.stringify(body)).not.toContain("BigInt");
+      enableParserInstrumentation(true);
+      resetParserInstrumentation();
+      let semantic: Response;
+      try {
+        semantic = await replayRoutes.request(
+          `/api/laps/${lapId}/opponent-laps/${completed!.opponentLapId}/semantic-telemetry?sourceRevision=${body.sourceRevision}`,
+          { headers: { "X-Game-Id": "lmu" } },
+        );
+      } finally {
+        const instrumentation = getParserInstrumentation();
+        enableParserInstrumentation(false);
+        expect(instrumentation).toMatchObject({
+          sourceFramesScanned: 0, parserStatePrimes: 0, indexSamplesMaterialized: 0, fullPacketsMaterialized: 0,
+        });
+      }
       expect(semantic.status, await semantic.clone().text()).toBe(200);
-      const replay = await semantic.json() as { envelopes: { sequence: number; values: unknown[] }[] };
-      expect(replay.envelopes.length).toBeGreaterThan(0);
-      expect(replay.envelopes.every((entry) => Number.isSafeInteger(entry.sequence))).toBe(true);
+      const replay = await semantic.json() as {
+        requestedSemanticIds: string[];
+        envelopes: { sequence: number; values: { semanticId: string }[] }[];
+      };
+      const completedInterval = intervals.find((interval) => interval.opponentLapId === completed!.opponentLapId);
+      if (!completedInterval) throw new Error("Completed catalog summary has no authoritative interval");
+      const referenceEnvelopes = buildLmuOpponentSemanticFrames(completedInterval)
+        .map((envelope) => ({ ...envelope, values: envelope.values.map(encodeLmuResolvedValue) }));
+      expect(replay.envelopes).toEqual(JSON.parse(JSON.stringify(referenceEnvelopes)));
+      expect(replay.requestedSemanticIds).toEqual(
+        [...new Set(referenceEnvelopes.flatMap((envelope) => envelope.values.map((value) => value.semanticId)))].sort(),
+      );
+      const playerLap = await getLapById(lapId);
+      const playerRows = (playerLap?.telemetry ?? []).flatMap((packet) => {
+        const context = packet.lmuContext;
+        const competitor = context?.competitors?.find((entry) => entry.isPlayer);
+        return context && competitor ? [{ competitor, captureSequence: context.key.captureSequence }] : [];
+      });
+      const expectedTraces = alignLmuOpponentPositionTraces(playerRows, completedInterval, { step: 1 });
+      if (!expectedTraces || "error" in expectedTraces) throw new Error("Completed opponent interval has no expected paired trace");
+      const comparisonResponse = await replayRoutes.request(`/api/laps/${lapId}/opponent-comparison`, {
+        method: "POST", headers: { "X-Game-Id": "lmu", "Content-Type": "application/json" },
+        body: JSON.stringify({ opponentLapId: completed!.opponentLapId, sourceRevision: body.sourceRevision, step: 1 }),
+      });
+      expect(comparisonResponse.status, await comparisonResponse.clone().text()).toBe(200);
+      const comparison = await comparisonResponse.json() as {
+        opponent: unknown; traces: { semanticId: string; unit: string; distanceMeters: number[]; player: unknown[]; opponent: unknown[] }[];
+      };
+      expect(comparison.opponent).toEqual(completed);
+      expect(comparison.traces).toEqual(expectedTraces.traces.map((trace) => ({
+        ...trace,
+        player: trace.player.map(encodeLmuResolvedValue),
+        opponent: trace.opponent.map(encodeLmuResolvedValue),
+      })));
       const racingRead = replayRoutes.request(
         `/api/laps/${lapId}/opponent-laps/${completed!.opponentLapId}/semantic-telemetry?sourceRevision=${body.sourceRevision}`,
         { headers: { "X-Game-Id": "lmu" } },
       );
+      const maintenance = getRecordingMaintenanceController();
+      const fibersBeforeRemoval = new Set(maintenance.fibers);
       await startSessionOpponentRemoval({ sessionIds });
-      await Promise.all([...getRecordingMaintenanceController().fibers].map((fiber) =>
-        new Promise<void>((resolve) => fiber.addObserver(() => resolve()))));
+      const removalFibers = [...maintenance.fibers].filter((fiber) => !fibersBeforeRemoval.has(fiber));
+      expect(removalFibers).toHaveLength(1);
+      const removalFiberCompletion = removalFibers.map((fiber) => {
+        const { promise, resolve } = Promise.withResolvers<void>();
+        fiber.addObserver(() => resolve());
+        return promise;
+      });
+      await Promise.all(removalFiberCompletion);
+      const removalStatus = getSessionOpponentRemovalStatus();
+      expect(["success", "partial"]).toContain(removalStatus.status);
+      expect(removalStatus).toMatchObject({ removedSessionIds: sessionIds, skipped: [], failed: [] });
+      if (removalStatus.status === "partial") {
+        expect(removalStatus.cleanupPendingSessionIds).toEqual(sessionIds);
+      } else {
+        expect(removalStatus.cleanupPendingSessionIds).toEqual([]);
+      }
+      const removedCatalog = await replayRoutes.request(`/api/laps/${lapId}/opponent-laps`, { headers: { "X-Game-Id": "lmu" } });
+      expect(removedCatalog.status).toBe(200);
       const raced = await racingRead;
       expect([200, 409]).toContain(raced.status);
       if (raced.status === 409) expect(await raced.json()).toMatchObject({ code: "SOURCE_CHANGED" });
+      await recoverPendingOpponentRemovalCleanup();
+      const cleanupStatus = getSessionOpponentRemovalStatus();
+      const removedSource = (await getLapReplaySource(lapId))!;
+      const removedManifestPath = removedSource.captureManifestFile!;
+      const removedManifest = JSON.parse(await readFile(removedManifestPath, "utf8")) as {
+        opponentRetention: string;
+        opponentCompanion?: { file: string } | null;
+        cleanupPending?: string[];
+      };
+      expect(removedManifest.opponentCompanion?.file).toBeTruthy();
+      const opponentCompanionPath = join(dirname(removedManifestPath), removedManifest.opponentCompanion!.file);
+      const pendingCleanup = removedManifest.cleanupPending ?? [];
+      expect(removedManifest.opponentRetention).toBe("removed");
+      expect(cleanupStatus).toMatchObject({
+        status: pendingCleanup.length ? "partial" : "success",
+        removedSessionIds: sessionIds,
+        cleanupPendingSessionIds: pendingCleanup.length ? sessionIds : [],
+        skipped: [], failed: [],
+      });
+      if (pendingCleanup.length) {
+        for (const pendingPath of pendingCleanup) {
+          expect(await readFile(join(dirname(removedManifestPath), pendingPath))).toBeInstanceOf(Buffer);
+        }
+        expect(await readFile(opponentCompanionPath)).toBeInstanceOf(Buffer);
+      } else {
+        await expect(readFile(opponentCompanionPath)).rejects.toMatchObject({ code: "ENOENT" });
+      }
       const stale = await replayRoutes.request(
         `/api/laps/${lapId}/opponent-laps/${completed!.opponentLapId}/semantic-telemetry?sourceRevision=${body.sourceRevision}`,
         { headers: { "X-Game-Id": "lmu" } },
       );
       expect(stale.status).toBe(409);
       expect(await stale.json()).toMatchObject({ code: "SOURCE_CHANGED" });
-      const removedCatalog = await replayRoutes.request(`/api/laps/${lapId}/opponent-laps`, { headers: { "X-Game-Id": "lmu" } });
-      expect(removedCatalog.status).toBe(200);
-      expect(await removedCatalog.json()).toMatchObject({ opponentRetention: "removed", sessions: [], laps: [] });
+      const removedBody = await removedCatalog.json() as { sourceRevision: string; indexState: string };
+      expect(removedBody).toMatchObject({
+        opponentRetention: "removed", indexState: "not-required", sessions: [], laps: [],
+      });
+      const removedComparison = await replayRoutes.request(`/api/laps/${lapId}/opponent-comparison`, {
+        method: "POST", headers: { "X-Game-Id": "lmu", "Content-Type": "application/json" },
+        body: JSON.stringify({ opponentLapId: completed!.opponentLapId, sourceRevision: removedBody.sourceRevision, step: 1 }),
+      });
+      expect(removedComparison.status).toBe(410);
+      expect(await removedComparison.json()).toMatchObject({ code: "OPPONENT_DATA_REMOVED" });
+      const removedReplay = await replayRoutes.request(
+        `/api/laps/${lapId}/opponent-laps/${completed!.opponentLapId}/semantic-telemetry?sourceRevision=${removedBody.sourceRevision}`,
+        { headers: { "X-Game-Id": "lmu" } },
+      );
+      expect(removedReplay.status).toBe(410);
+      expect(await removedReplay.json()).toMatchObject({ code: "OPPONENT_DATA_REMOVED" });
       const player = await replayRoutes.request(`/api/laps/${lapId}/semantic-telemetry`, { headers: { "X-Game-Id": "lmu" } });
-      expect(player.status).toBe(200);
+      expect(player.status, await player.clone().text()).toBe(200);
     } finally {
       await Promise.all(sessionIds.map(deleteSession));
     }
   });
 
-  test("warm native catalog rejects corrupted or missing companions and recovers after repair", async () => {
+
+  test("keeps pending and failed index states readable without request-time preparation", async () => {
     initGameAdapters();
     registerServerGame(lmuServerAdapter);
     const imported = await importSessionBin(makeLmuOpponentCapture(), "lmu", { notifyDriverProfile: false });
     const sessionIds = [...new Set(imported.laps.map((lap) => lap.sessionId))];
     try {
+      await reconcileLmuOpponentIndexes({ awaitPreparation: true });
+      const lapId = imported.laps[0]!.lapId;
+      const readyResponse = await replayRoutes.request(`/api/laps/${lapId}/opponent-laps`, { headers: { "X-Game-Id": "lmu" } });
+      expect(readyResponse.status).toBe(200);
+      const ready = await readyResponse.json() as { sourceRevision: string; indexState: string; sessions: unknown[]; laps: { opponentLapId: string }[] };
+      expect(ready.indexState).toBe("ready");
+      const source = await getLapReplaySource(lapId);
+      const sourcePath = source!.captureManifestFile ?? source!.rawFile!;
+      const statePath = `${sourcePath}.opponent-index/state.json`;
+      const originalState = await readFile(statePath);
+      const baseState = JSON.parse(originalState.toString("utf8")) as Record<string, unknown>;
+      try {
+        const queuedState = {
+          ...baseState, indexState: "queued", sourceRevision: ready.sourceRevision,
+          publicationPath: null, error: null,
+        };
+        await writeFile(statePath, JSON.stringify(queuedState));
+        const expectNotReadyRoutes = async (indexState: "queued" | "waiting-finalization" | "building") => {
+          const pendingCatalog = await replayRoutes.request(`/api/laps/${lapId}/opponent-laps`, { headers: { "X-Game-Id": "lmu" } });
+          expect(pendingCatalog.status).toBe(200);
+          expect(await pendingCatalog.json()).toMatchObject({ indexState, sessions: [], laps: [] });
+          const pendingComparison = await replayRoutes.request(`/api/laps/${lapId}/opponent-comparison`, {
+            method: "POST", headers: { "X-Game-Id": "lmu", "Content-Type": "application/json" },
+            body: JSON.stringify({ opponentLapId: "missing", sourceRevision: ready.sourceRevision, step: 1 }),
+          });
+          expect(pendingComparison.status).toBe(409);
+          expect(await pendingComparison.json()).toMatchObject({ code: "OPPONENT_INDEX_NOT_READY" });
+          const pendingReplay = await replayRoutes.request(
+            `/api/laps/${lapId}/opponent-laps/missing/semantic-telemetry?sourceRevision=${ready.sourceRevision}`,
+            { headers: { "X-Game-Id": "lmu" } },
+          );
+          expect(pendingReplay.status).toBe(409);
+          expect(await pendingReplay.json()).toMatchObject({ code: "OPPONENT_INDEX_NOT_READY" });
+        };
+        await expectNotReadyRoutes("queued");
+        expect(JSON.parse(await readFile(statePath, "utf8")).indexState).toBe("queued");
+
+        const releaseActive = registerActiveLmuOpponentSource(sourcePath, "live");
+        try {
+          await expectNotReadyRoutes("waiting-finalization");
+        } finally {
+          releaseActive();
+        }
+
+        const channel = new MessageChannel();
+        const releaseTestPort = setLmuOpponentIndexTestPortForTest(channel.port1);
+        const buildingBarrier = Promise.withResolvers<string>();
+        channel.port2.on("message", (event: { type?: string; name?: string; id?: string }) => {
+          if (event.type !== "barrier") return;
+          if (event.name === "admission-granted") buildingBarrier.resolve(event.id!);
+          else channel.port2.postMessage({ type: "release", id: event.id });
+        });
+        channel.port2.start();
+        try {
+          const preparation = reconcileLmuOpponentIndexes({ awaitPreparation: true });
+          const barrierId = await buildingBarrier.promise;
+          try {
+            await expectNotReadyRoutes("building");
+          } finally {
+            channel.port2.postMessage({ type: "release", id: barrierId });
+          }
+          await preparation;
+        } finally {
+          releaseTestPort();
+          channel.port2.close();
+        }
+
+        const failedState = { ...queuedState, indexState: "failed", error: "Controlled index failure" };
+        await writeFile(statePath, JSON.stringify(failedState));
+        const failedCatalog = await replayRoutes.request(`/api/laps/${lapId}/opponent-laps`, { headers: { "X-Game-Id": "lmu" } });
+        expect(await failedCatalog.json()).toMatchObject({ indexState: "failed", sessions: [], laps: [] });
+        const failedComparison = await replayRoutes.request(`/api/laps/${lapId}/opponent-comparison`, {
+          method: "POST", headers: { "X-Game-Id": "lmu", "Content-Type": "application/json" },
+          body: JSON.stringify({ opponentLapId: ready.laps[0]!.opponentLapId, sourceRevision: ready.sourceRevision, step: 1 }),
+        });
+        expect(failedComparison.status).toBe(422);
+        expect(await failedComparison.json()).toMatchObject({ code: "OPPONENT_INDEX_FAILED" });
+        const failedReplay = await replayRoutes.request(
+          `/api/laps/${lapId}/opponent-laps/${ready.laps[0]!.opponentLapId}/semantic-telemetry?sourceRevision=${ready.sourceRevision}`,
+          { headers: { "X-Game-Id": "lmu" } },
+        );
+        expect(failedReplay.status).toBe(422);
+        expect(await failedReplay.json()).toMatchObject({ code: "OPPONENT_INDEX_FAILED" });
+        expect(JSON.parse(await readFile(statePath, "utf8")).indexState).toBe("failed");
+      } finally {
+        await writeFile(statePath, originalState);
+      }
+      const restored = await replayRoutes.request(`/api/laps/${lapId}/opponent-laps`, { headers: { "X-Game-Id": "lmu" } });
+      expect(await restored.json()).toEqual(ready);
+    } finally {
+      await Promise.all(sessionIds.map(deleteSession));
+    }
+  });
+  test("keeps a prepared empty opponent catalog ready", async () => {
+    initGameAdapters();
+    registerServerGame(lmuServerAdapter);
+    function* playerOnlyFrames() {
+      for (const { bytes } of fixtureFrames(makeLmuOpponentCapture(), "lmu").slice(0, 300)) {
+        const native = decodeLMUSourceFrame(bytes);
+        if (!native?.rawSharedMemory || !native.lmuContext) throw new Error("Fixture frame lacks decoded LMU source context");
+        const encoded = encodeLMUSourceFrame(native.rawSharedMemory, native.captureTimestampMs, {
+          context: {
+            ...native.lmuContext,
+            competitors: native.lmuContext.competitors?.filter((competitor) => competitor.isPlayer) ?? [],
+          },
+        });
+        if (!encoded) throw new Error("Unable to encode player-only LMU fixture frame");
+        yield encoded;
+      }
+    }
+    const imported = await importSessionFrames(playerOnlyFrames(), "lmu", {
+      opponentRetention: "retained", notifyDriverProfile: false,
+    });
+    const sessionIds = [...new Set(imported.laps.map((lap) => lap.sessionId))];
+    try {
+      await reconcileLmuOpponentIndexes({ awaitPreparation: true });
+      const lapId = imported.laps[0]?.lapId;
+      if (!lapId) throw new Error("Player-only LMU import produced no laps");
+      const response = await replayRoutes.request(`/api/laps/${lapId}/opponent-laps`, { headers: { "X-Game-Id": "lmu" } });
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        opponentRetention: "retained", indexState: "ready", sessions: [], laps: [],
+      });
+    } finally {
+      await Promise.all(sessionIds.map(deleteSession));
+    }
+  });
+  test("revokes selected-block failures and repairs through reconciliation without request backfill", async () => {
+    initGameAdapters();
+    registerServerGame(lmuServerAdapter);
+    const imported = await importSessionBin(makeLmuOpponentCapture(), "lmu", { notifyDriverProfile: false });
+    const sessionIds = [...new Set(imported.laps.map((lap) => lap.sessionId))];
+    try {
+      await reconcileLmuOpponentIndexes({ awaitPreparation: true });
+      const lapId = imported.laps[0]!.lapId;
+      const catalogResponse = await replayRoutes.request(`/api/laps/${lapId}/opponent-laps`, { headers: { "X-Game-Id": "lmu" } });
+      expect(catalogResponse.status).toBe(200);
+      const catalog = await catalogResponse.json() as {
+        sourceRevision: string; indexState: string; sessions: unknown[];
+        laps: { opponentLapId: string }[];
+      };
+      expect(catalog.indexState).toBe("ready");
+      const source = await getLapReplaySource(lapId);
+      const captureSource = {
+        rawFile: source!.captureManifestFile ?? source!.rawFile!, source: source!.source, gameId: "lmu" as const,
+        carId: source!.carId ?? "", trackId: source!.trackId ?? "", captureFormatVersion: source!.captureFormatVersion,
+      };
+      const status = await getLmuOpponentIndexStatus(captureSource);
+      const statePath = `${captureSource.rawFile}.opponent-index/state.json`;
+      if (!status.publicationPath) throw new Error("Ready opponent index has no publication path");
+      const index = await readLmuOpponentIndex(status.publicationPath, {
+        sourceRevision: status.retention.sourceRevision, sourceDependencies: status.sourceDependencies,
+      });
+      const opponentLapId = catalog.laps[0]?.opponentLapId;
+      if (!opponentLapId) throw new Error("Prepared opponent catalog has no laps");
+      const interval = index.manifest.intervals.find((entry) => entry.opponentLapId === opponentLapId);
+      const locator = interval?.locators[0];
+      const block = locator && index.manifest.blocks[locator.blockIndex];
+      if (!block) throw new Error("Selected opponent interval has no persisted block");
+      const blockPath = join(dirname(status.publicationPath), block.file);
+      const originalBlock = await readFile(blockPath);
+      const damagedBlock = Buffer.from(originalBlock);
+      damagedBlock[0] = damagedBlock[0]! ^ 1;
+      await writeFile(blockPath, damagedBlock);
+      const metadataOnly = await replayRoutes.request(`/api/laps/${lapId}/opponent-laps`, { headers: { "X-Game-Id": "lmu" } });
+      expect(metadataOnly.status).toBe(200);
+      expect(await metadataOnly.json()).toMatchObject({ indexState: "ready", sessions: catalog.sessions, laps: catalog.laps });
+
+      const selectedComparison = await replayRoutes.request(`/api/laps/${lapId}/opponent-comparison`, {
+        method: "POST", headers: { "X-Game-Id": "lmu", "Content-Type": "application/json" },
+        body: JSON.stringify({ opponentLapId, sourceRevision: catalog.sourceRevision, step: 1 }),
+      });
+      expect(selectedComparison.status).toBe(422);
+      expect(await selectedComparison.json()).toMatchObject({ code: "OPPONENT_DATA_UNAVAILABLE" });
+      expect(await reconcileLmuOpponentIndexes({ awaitPreparation: true })).toBe("ready");
+      const repairedStatus = await getLmuOpponentIndexStatus(captureSource);
+      expect(repairedStatus.indexState).toBe("ready");
+      expect(repairedStatus.publicationPath).not.toBe(status.publicationPath);
+      const repairedCatalog = await replayRoutes.request(`/api/laps/${lapId}/opponent-laps`, { headers: { "X-Game-Id": "lmu" } });
+      expect(await repairedCatalog.json()).toMatchObject({ indexState: "ready", sessions: catalog.sessions, laps: catalog.laps });
+      const repairedIndex = await readLmuOpponentIndex(repairedStatus.publicationPath!, {
+        sourceRevision: repairedStatus.retention.sourceRevision, sourceDependencies: repairedStatus.sourceDependencies,
+      });
+      const repairedInterval = repairedIndex.manifest.intervals.find((entry) => entry.opponentLapId === opponentLapId);
+      const missingLocator = repairedInterval?.locators[0];
+      const missingBlock = missingLocator && repairedIndex.manifest.blocks[missingLocator.blockIndex];
+      if (!missingBlock || !repairedStatus.publicationPath) throw new Error("Repaired opponent interval has no persisted block");
+      await rm(join(dirname(repairedStatus.publicationPath), missingBlock.file));
+      const selectedReplay = await replayRoutes.request(
+        `/api/laps/${lapId}/opponent-laps/${opponentLapId}/semantic-telemetry?sourceRevision=${catalog.sourceRevision}`,
+        { headers: { "X-Game-Id": "lmu" } },
+      );
+      expect(selectedReplay.status).toBe(422);
+      expect(await selectedReplay.json()).toMatchObject({ code: "OPPONENT_DATA_UNAVAILABLE" });
+      expect(await reconcileLmuOpponentIndexes({ awaitPreparation: true })).toBe("ready");
+      const finalStatus = await getLmuOpponentIndexStatus(captureSource);
+      expect(finalStatus.indexState).toBe("ready");
+      expect(finalStatus.publicationPath).not.toBe(repairedStatus.publicationPath);
+      const restoredReplay = await replayRoutes.request(
+        `/api/laps/${lapId}/opponent-laps/${opponentLapId}/semantic-telemetry?sourceRevision=${catalog.sourceRevision}`,
+        { headers: { "X-Game-Id": "lmu" } },
+      );
+      expect(restoredReplay.status).toBe(200);
+      const readyState = await readFile(statePath);
+
+      const indexBytes = await readFile(finalStatus.publicationPath!);
+      const incompatibleManifest = JSON.parse(indexBytes.toString("utf8")) as { schemaVersion: number };
+      incompatibleManifest.schemaVersion = 999;
+      const incompatibleBytes = Buffer.from(JSON.stringify(incompatibleManifest));
+      await writeFile(finalStatus.publicationPath!, incompatibleBytes);
+      const incompatibleCatalog = await replayRoutes.request(`/api/laps/${lapId}/opponent-laps`, { headers: { "X-Game-Id": "lmu" } });
+      expect(incompatibleCatalog.status).toBe(200);
+      expect(await incompatibleCatalog.json()).toMatchObject({ indexState: "queued", sessions: [], laps: [] });
+      const incompatibleReplay = await replayRoutes.request(
+        `/api/laps/${lapId}/opponent-laps/${opponentLapId}/semantic-telemetry?sourceRevision=${catalog.sourceRevision}`,
+        { headers: { "X-Game-Id": "lmu" } },
+      );
+      expect(incompatibleReplay.status).toBe(409);
+      expect(await incompatibleReplay.json()).toMatchObject({ code: "OPPONENT_INDEX_NOT_READY" });
+      expect(await readFile(finalStatus.publicationPath!)).toEqual(incompatibleBytes);
+      expect(await readFile(statePath)).toEqual(readyState);
+
+      await reconcileLmuOpponentIndexes({ awaitPreparation: true });
+      const preparedAgain = await replayRoutes.request(`/api/laps/${lapId}/opponent-laps`, { headers: { "X-Game-Id": "lmu" } });
+      expect(preparedAgain.status).toBe(200);
+      expect(await preparedAgain.json()).toMatchObject({
+        indexState: "ready", sessions: catalog.sessions, laps: catalog.laps,
+      });
+    } finally {
+      await Promise.all(sessionIds.map(deleteSession));
+    }
+  });
+  test("rejects changed native identities and requires explicit preparation after restoration", async () => {
+    initGameAdapters();
+    registerServerGame(lmuServerAdapter);
+    const imported = await importSessionBin(makeLmuOpponentCapture(), "lmu", { notifyDriverProfile: false });
+    const sessionIds = [...new Set(imported.laps.map((lap) => lap.sessionId))];
+    try {
+      await reconcileLmuOpponentIndexes({ awaitPreparation: true });
       const lapId = imported.laps[0]!.lapId;
       const response = await replayRoutes.request(`/api/laps/${lapId}/opponent-laps`, { headers: { "X-Game-Id": "lmu" } });
       expect(response.status).toBe(200);
-      const body = await response.json();
+      const body = await response.json() as {
+        sourceRevision: string; indexState: string; opponentAvailability: string | null;
+        sessions: unknown[]; laps: { opponentLapId: string }[];
+      };
+      expect(body.indexState).toBe("ready");
       const source = await getLapReplaySource(lapId);
       const manifestPath = source!.captureManifestFile!;
       const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
@@ -450,14 +860,48 @@ describe("opponent route serialization", () => {
       const damaged = Buffer.from(companion);
       damaged[damaged.length - 1] = damaged[damaged.length - 1]! ^ 1;
       await writeFile(companionPath, damaged);
-      const corrupt = await replayRoutes.request(`/api/laps/${lapId}/opponent-laps`, { headers: { "X-Game-Id": "lmu" } });
-      expect(await corrupt.json()).toMatchObject({ opponentAvailability: "corrupt", sessions: [], laps: [] });
-      await rm(companionPath);
-      const missing = await replayRoutes.request(`/api/laps/${lapId}/opponent-laps`, { headers: { "X-Game-Id": "lmu" } });
-      expect(await missing.json()).toMatchObject({ opponentAvailability: "missing", sessions: [], laps: [] });
+      const changed = await replayRoutes.request(`/api/laps/${lapId}/opponent-laps`, { headers: { "X-Game-Id": "lmu" } });
+      expect(changed.status).toBe(200);
+      const changedBody = await changed.json() as typeof body;
+      expect(changedBody.indexState).not.toBe("ready");
+      expect(changedBody.sessions).toEqual([]);
+      expect(changedBody.laps).toEqual([]);
+
       await writeFile(companionPath, companion);
+      const restoredBeforePreparation = await replayRoutes.request(`/api/laps/${lapId}/opponent-laps`, { headers: { "X-Game-Id": "lmu" } });
+      const staleBody = await restoredBeforePreparation.json() as typeof body;
+      expect(staleBody.indexState).not.toBe("ready");
+      expect(staleBody.sessions).toEqual([]);
+      expect(staleBody.laps).toEqual([]);
+
+      await reconcileLmuOpponentIndexes({ awaitPreparation: true });
       const repaired = await replayRoutes.request(`/api/laps/${lapId}/opponent-laps`, { headers: { "X-Game-Id": "lmu" } });
-      expect(await repaired.json()).toEqual(body);
+      const repairedBody = await repaired.json() as typeof body;
+      expect(repairedBody).toMatchObject({ indexState: "ready", sessions: body.sessions, laps: body.laps });
+
+      await rm(companionPath);
+      const missingResponse = await replayRoutes.request(`/api/laps/${lapId}/opponent-laps`, { headers: { "X-Game-Id": "lmu" } });
+      const missing = await missingResponse.json() as typeof body;
+      expect(missing).toMatchObject({
+        indexState: "not-required", opponentAvailability: "missing", sessions: [], laps: [],
+      });
+      const unavailableComparison = await replayRoutes.request(`/api/laps/${lapId}/opponent-comparison`, {
+        method: "POST", headers: { "X-Game-Id": "lmu", "Content-Type": "application/json" },
+        body: JSON.stringify({ opponentLapId: body.laps[0]!.opponentLapId, sourceRevision: missing.sourceRevision, step: 1 }),
+      });
+      expect(unavailableComparison.status).toBe(422);
+      expect(await unavailableComparison.json()).toMatchObject({ code: "OPPONENT_DATA_UNAVAILABLE" });
+      const unavailableReplay = await replayRoutes.request(
+        `/api/laps/${lapId}/opponent-laps/${body.laps[0]!.opponentLapId}/semantic-telemetry?sourceRevision=${missing.sourceRevision}`,
+        { headers: { "X-Game-Id": "lmu" } },
+      );
+      expect(unavailableReplay.status).toBe(422);
+      expect(await unavailableReplay.json()).toMatchObject({ code: "OPPONENT_DATA_UNAVAILABLE" });
+
+      await writeFile(companionPath, companion);
+      await reconcileLmuOpponentIndexes({ awaitPreparation: true });
+      const finalResponse = await replayRoutes.request(`/api/laps/${lapId}/opponent-laps`, { headers: { "X-Game-Id": "lmu" } });
+      expect(await finalResponse.json()).toMatchObject({ indexState: "ready", sessions: body.sessions, laps: body.laps });
     } finally {
       await Promise.all(sessionIds.map(deleteSession));
     }

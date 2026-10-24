@@ -1,6 +1,6 @@
 # LMU opponent cold-load backend plan
 
-Status: planning only; implementation and E2E scenarios have not run.
+Status: implementation changes are present, but acceptance remains incomplete. E2/E9 require an existing LMU recording with a complete source-backed player lap and telemetry opponent interval; all three repository recordings tested lack one. Shared results and blocker are recorded in the [contract](lmu-opponent-cold-load-contract.md#execution-evidence--2026-10-24).
 
 Shared boundary: [contract](lmu-opponent-cold-load-contract.md). Acceptance OP1–OP9, lifecycle/error definitions, and E1–E9 live there rather than being redefined here. Related frontend work: [UI plan](lmu-opponent-cold-load-ui-plan.md).
 
@@ -28,6 +28,8 @@ Place new index reader/writer/schema/worker code under existing backend lap-anal
 
 Publish contracted `indexState` and error codes without changing existing comparison/replay payloads. Define versioned private schema, source dependency identity, atomic publication reference, digest/size limits, and block locators before implementation. Reuse existing lossless value/context encoding and storage patterns. Preserve exact large timestamps and distinguish absent/empty/missing/stale values.
 
+Use the contract's [private index boundary](lmu-opponent-cold-load-contract.md#private-index-boundary-version-1): identity-keyed observation blocks and shared context blocks avoid reading unrelated opponent channels. Verify fragmented observations and context reconstruction through E2/E3; block limits must not truncate supported samples.
+
 Persist catalog summaries plus comparable-channel facts for each player lap so catalog reads do not call `getLapById` or decode player packets. Preserve current sorting, grouping, opponent IDs, and paired-channel semantics. Persist ordered, independently readable shared observation blocks with enough boundary/context data for exact interval reconstruction. Bound retained build state and avoid entire-session decoded arrays, export buffers, and whole-grid-per-opponent duplication.
 
 ### B2 — Finalization and launch-seed admission (OP4, OP5, OP7)
@@ -37,6 +39,8 @@ Find the existing successful seal/manifest/reference commit points for direct ca
 Use existing backend lifecycle, storage reservation, maintenance lock, write permit, and tracked-worker ownership. Admit at most one build and only while no recording is active/draining. Yield at bounded block boundaries if recording starts; retain safe unpublished staging or restart later. Recording startup must never await a session scan or worker completion. Check startup/shutdown ordering so recording finalization during shutdown does not enqueue work into a disposed runtime; startup discovery handles deferred work.
 
 Discover finalized unindexed sources, interrupted jobs, and incompatible index versions through startup/idle reconciliation. HTTP routes only read state and never enqueue repair/backfill. Imports use the same finalized-source path, not a second indexer.
+
+Awaited reconciliation uses the contract's explicit ready/pending outcome; deferred admission must not be logged as completed opponent preparation. Eligible preparation failure remains an explicit failure. E8 verifies both outcomes through the launch entry point.
 
 Launch-time lap seeding must call the same index preparation after native capture finalization and any requested final-layout conversion. Extend `apps/backend/scripts/data/seed-db-runner.ts` for both fresh imports and the existing-seed early return at `seedRowCount()`: already-present lap rows must not bypass missing/interrupted/incompatible index reconciliation. Reuse valid matching publications without a full rebuild or lap reimport. Await eligible seeded preparation before reporting opponent readiness and before the seed runner's maintenance teardown/process exit; do not enqueue into a disposable runtime and lose the job. Persist/discover pending work if recording prevents admission; never perform indexing during recording or block recorder startup. Record seed/import/build durations separately. Verify the actual launch caller as well as standalone seed execution.
 
@@ -61,6 +65,10 @@ Coordinate opponent removal against pending workers and publications so removed 
 ### B6 — Session/lap queued and processing gates (OP8, OP9)
 
 Project the contracted non-null `processing` metadata onto session/lap lists from existing capture/job/publication facts without decoding native frames or fetching each opponent catalog. Include post-finalization, launch-seed, import, and rebuild queues, not only actively running jobs. Aggregate shared-source dependencies correctly while keeping unrelated rows usable. Preserve active live-recording behavior and player-only access when opponent retention is not required. Add readiness checks before affected heavy reads; preserve metadata/status access and existing error precedence. Backend authority, not spinner state, prevents a stale client from loading incomplete content. Use existing invalidation/query facilities; no new job-start API.
+
+Include `getLapSummariesByTrack()` and the existing `TrackLap` all-laps response in the same bulk projection. E9 additionally verifies an older ready track lap outside the latest-200 global list and an affected pending neighbor; no per-row lookup or optimistic fallback is permitted.
+
+Project processing onto existing chat-linked lap summaries through one distinct-ID bulk lookup per chat response, preserving missing/deleted reference behavior. E9 covers historical linked laps outside the global list limit.
 
 ## Acceptance and edge handling
 

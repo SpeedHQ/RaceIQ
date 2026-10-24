@@ -220,6 +220,17 @@ describe("errorFromResponse", () => {
     expect((await errorFromResponse(res)).message).toBe("Couldn't decode that .carsetup file");
   });
 
+  test("preserves contracted status and code", async () => {
+    const err = await errorFromResponse(new Response(JSON.stringify({
+      code: "RECORDING_PROCESSING",
+      error: "Recording is queued or processing",
+    }), { status: 409 }));
+    expect(err.message).toBe("Recording is queued or processing");
+    expect(err.status).toBe(409);
+    expect(err.code).toBe("RECORDING_PROCESSING");
+  });
+
+
   test("an HTML error page degrades to status + snippet, never a parse throw", async () => {
     const res = new Response("<!DOCTYPE html><html><body>nope</body></html>", { status: 500, statusText: "Internal Server Error" });
     const err = await errorFromResponse(res);

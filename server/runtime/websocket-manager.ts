@@ -438,4 +438,6 @@ export class WebSocketManager {
   }
 }
 
-export const wsManager = new WebSocketManager();
+const wsManagerKey = Symbol.for("@raceiq/backend-core/runtime/websocket-manager");
+const sharedManagers = globalThis as typeof globalThis & Record<symbol, WebSocketManager | undefined>;
+export const wsManager = sharedManagers[wsManagerKey] ??= new WebSocketManager();

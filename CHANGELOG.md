@@ -31,6 +31,7 @@
 - Include the complete LMU multiplayer recording in demo seeds as sub-100 MB gzip parts, stream native input without buffering the whole capture, and retain separate player and opponent recordings.
 
 ### Fixes
+- On the Compare page, opening a lap-only link to queued laps now shows their processing status.
 - Reduce LMU opponent comparison loading and memory use by sharing a bounded, short-lived session index, reusing validated source contexts, and avoiding export-only raw frame retention.
 - Reuse published session-duration summaries in Sessions listings instead of rescanning recordings.
 - Publish player lap chunks and replay references when importing LMU recordings with retained opponents.

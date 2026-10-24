@@ -2946,5 +2946,14 @@
   "compare_overview_ers_deployed": "ERS déployé",
   "compare_overview_ers_recovered": "ERS récupéré",
   "compare_overview_top_speed": "Vitesse maximale",
-  "compare_overview_unavailable": "Indisponible"
+  "compare_overview_unavailable": "Indisponible",
+  "compare_opponent_index_waiting": "Les tours adverses seront disponibles à la fin de l’enregistrement.",
+  "compare_opponent_index_queued": "Les tours adverses sont en attente de préparation.",
+  "compare_opponent_index_building": "Préparation des tours adverses…",
+  "compare_opponent_index_failed": "Échec de la préparation des tours adverses. Actualisez le statut.",
+  "recording_processing_loading": "Vérification du traitement de l’enregistrement…",
+  "recording_processing_queued": "En attente de traitement…",
+  "recording_processing_running": "Traitement en cours…",
+  "recording_processing_failed": "Échec du traitement : {error}",
+  "recording_processing_refresh": "Actualiser le statut"
 }

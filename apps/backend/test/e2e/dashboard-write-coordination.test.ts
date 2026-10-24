@@ -410,6 +410,7 @@ for(const format of ["bin","zip","ibt","duckdb","motec"] as const) {
   },600_000);
 }
 
+
 for(const phase of ["beforeCommit","afterCommit"] as const) {
   test(`W-E5: stop at ${phase} reports settled rollback or commit and releases every resource`,async()=>{
     const f=await fixture();let restarted:Backend|undefined;

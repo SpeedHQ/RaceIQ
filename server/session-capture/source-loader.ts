@@ -39,7 +39,7 @@ import { decodeLmuSparseFrame, isLmuSparseFrame, lmuSparseSourceIdentity } from 
 import { decodeKunosSparseFrame, isKunosSparseFrame, kunosSourceMagic } from "@raceiq/capture-formats/session/kunos-sparse";
 import { decodeGenericSparseFrame, genericFrameIdentity, isGenericSparseFrame } from "@raceiq/capture-formats/session/generic-sparse";
 import { getLMUPartitionKey, getLMUPartitionSourceLength, isLMUPartitionCompanion, isLMUPartitionPrimary, restoreLMUSourceFrame } from "@raceiq/capture-formats/lmu/partition";
-import { readLmuOpponentRetention } from "./lmu-companion";
+import { LmuOpponentAdmissionError, readLmuOpponentRetention } from "./lmu-companion";
 
 export interface SessionCaptureFrameRecord { readonly offset: number; readonly length: number; readonly frameIndex: number; }
 export interface SessionCaptureFrameIndex {
@@ -58,6 +58,12 @@ export interface SessionCaptureSource {
 export type LoadedSessionSource =
   | { kind: "capture"; buffer: Buffer; frameIndex: SessionCaptureFrameIndex }
   | { kind: "packets"; packets: TelemetryPacket[]; offsetEncoding: MotecOffsetEncoding };
+
+
+async function checkSessionCaptureAdmission(admission?: () => Promise<boolean>): Promise<void> {
+  if (admission && !(await admission())) throw new LmuOpponentAdmissionError();
+}
+
 interface CacheEntry { size: number; mtimeMs: number; dev: number; ino: number; loaded: LoadedSessionSource }
 export interface SessionCaptureFile {
   readonly size: number;
@@ -75,6 +81,25 @@ function assertCaptureRecordLength(length: number): void {
   if (length > MAX_CAPTURE_RECORD_BYTES) {
     throw new Error(`Capture record length ${length} exceeds 16 MiB limit`);
   }
+}
+
+async function readCaptureManifest(
+  path: string,
+  size: number,
+  admission?: () => Promise<boolean>,
+): Promise<Buffer> {
+  const file = captureFileFactory(path);
+  if (!admission) return Buffer.from(await file.arrayBuffer());
+  const stored = Buffer.allocUnsafe(size);
+  for (let offset = 0; offset < size; offset += 64 * 1024) {
+    await checkSessionCaptureAdmission(admission);
+    const length = Math.min(64 * 1024, size - offset);
+    const chunk = Buffer.from(await file.slice(offset, offset + length).arrayBuffer());
+    if (chunk.length !== length) throw new Error("Capture manifest changed during read");
+    chunk.copy(stored, offset);
+  }
+  await checkSessionCaptureAdmission(admission);
+  return stored;
 }
 function compatibleLmuCheckpointIdentity(frame: Buffer): string | null {
   const identity = lmuSparseSourceIdentity(frame);
@@ -145,7 +170,12 @@ export async function isSparseCaptureFile(rawFile: string, info?: Stats): Promis
   sparseEligibilityCache.set(rawFile, { signature, sparse });
   return sparse;
 }
-async function hasSparseCaptureFormat(file: SessionCaptureFile, streamOverride?: ReadableStream<Uint8Array>, compressedOverride?: boolean): Promise<boolean> {
+async function hasSparseCaptureFormat(
+  file: SessionCaptureFile,
+  streamOverride?: ReadableStream<Uint8Array>,
+  compressedOverride?: boolean,
+  admission?: () => Promise<boolean>,
+): Promise<boolean> {
   const prefix = streamOverride ? new Uint8Array() : new Uint8Array(await file.slice(0, 2).arrayBuffer());
   let stream = streamOverride ?? file.stream();
   if (compressedOverride ?? (prefix[0] === 0x1f && prefix[1] === 0x8b)) {
@@ -178,6 +208,7 @@ async function hasSparseCaptureFormat(file: SessionCaptureFile, streamOverride?:
       }
       const next = await reader.read();
       if (next.done) return false;
+      await checkSessionCaptureAdmission(admission);
       pending = Buffer.concat([pending, Buffer.from(next.value)]);
     }
   } finally {
@@ -188,10 +219,14 @@ async function hasSparseCaptureFormat(file: SessionCaptureFile, streamOverride?:
     }
   }
 }
-async function* iterateStandaloneManifest(source: SessionCaptureSource): AsyncGenerator<SessionCaptureRecord> {
+async function* iterateStandaloneManifest(
+  source: SessionCaptureSource,
+  options: { admission?: () => Promise<boolean> } = {},
+): AsyncGenerator<SessionCaptureRecord> {
   const manifestInfo = await stat(source.rawFile);
   if (manifestInfo.size > MAX_CAPTURE_MANIFEST_BYTES) throw new Error("Capture manifest exceeds size limit");
-  const stored = Buffer.from(await captureFileFactory(source.rawFile).arrayBuffer());
+  const stored = await readCaptureManifest(source.rawFile, manifestInfo.size, options.admission);
+  await checkSessionCaptureAdmission(options.admission);
   const manifest = Schema.decodeUnknownSync(ManifestSchema)(JSON.parse(stored.toString("utf8")));
   if (manifest.version !== 3 || manifest.sourceCoordinates !== "native-wire-v1") throw new Error("Standalone session manifest lacks native-wire source coordinates");
   if (manifest.gameId !== source.gameId) throw new Error("Session source manifest game does not match replay game");
@@ -201,7 +236,9 @@ async function* iterateStandaloneManifest(source: SessionCaptureSource): AsyncGe
   let companionIterator: AsyncIterator<SessionCaptureRecord> | null = null;
   let companionPending: SessionCaptureRecord | null = null;
   let companionFailed = false;
-  const retention = manifest.gameId === "lmu" ? await readLmuOpponentRetention(source.rawFile) : null;
+  const retention = manifest.gameId === "lmu"
+    ? await readLmuOpponentRetention(source.rawFile, { admission: options.admission })
+    : null;
   if (manifest.gameId === "lmu" && manifest.opponentRetention === "retained" &&
       manifest.opponentCompanion && retention?.opponentAvailability === "complete") {
     const companionPath = resolve(directory, manifest.opponentCompanion.file);
@@ -213,7 +250,7 @@ async function* iterateStandaloneManifest(source: SessionCaptureSource): AsyncGe
     }
     companionIterator = iterateSessionCaptureRecordsFromSource(
       { ...source, rawFile: resolvedCompanionPath, artifact: undefined },
-      { strict: true, allowLegacyFullFrames: true },
+      { strict: true, allowLegacyFullFrames: true, admission: options.admission },
     );
   }
   const joinCompanion = async (primary: Buffer): Promise<Buffer> => {
@@ -234,13 +271,15 @@ async function* iterateStandaloneManifest(source: SessionCaptureSource): AsyncGe
       const restored = restoreLMUSourceFrame(primary, companionPending.frame);
       companionPending = null;
       return restored;
-    } catch {
+    } catch (error) {
+      if (error instanceof LmuOpponentAdmissionError) throw error;
       companionFailed = true;
       return primary;
     }
   };
   try {
     for (const chunk of manifest.chunks) {
+      await checkSessionCaptureAdmission(options.admission);
     if (chunk.firstOrdinal !== ordinal || chunk.sourceStart !== ordinal || chunk.sourceEnd !== ordinal + chunk.recordCount ||
         chunk.sourceByteStart !== sourceByteOffset || chunk.sourceByteEnd < chunk.sourceByteStart) {
       throw new Error(`Manifest chunk ${chunk.id} has discontinuous source coordinates`);
@@ -265,7 +304,7 @@ async function* iterateStandaloneManifest(source: SessionCaptureSource): AsyncGe
     let virtualOffset = chunk.sourceByteStart;
     let foundStart = false;
     const chunkSource = { ...source, rawFile: resolvedPath, artifact: undefined };
-    for await (const record of iterateSessionCaptureRecordsFromSource(chunkSource, { strict: true })) {
+    for await (const record of iterateSessionCaptureRecordsFromSource(chunkSource, { strict: true, admission: options.admission })) {
       if (record.offset < chunk.sourceRecordByteOffset) continue;
       if (!foundStart) {
         if (record.offset !== chunk.sourceRecordByteOffset) throw new Error(`Manifest chunk ${chunk.id} sourceRecordByteOffset is not record-aligned`);
@@ -303,10 +342,11 @@ async function* iterateStandaloneManifest(source: SessionCaptureSource): AsyncGe
  */
 export async function* iterateSessionCaptureRecordsFromSource(
   source: SessionCaptureSource,
-  options: { strict?: boolean; allowLegacyFullFrames?: boolean } = {},
+  options: { strict?: boolean; allowLegacyFullFrames?: boolean; admission?: () => Promise<boolean> } = {},
 ): AsyncGenerator<SessionCaptureRecord> {
+  await checkSessionCaptureAdmission(options.admission);
   if (source.rawFile.endsWith("manifest.json")) {
-    yield* iterateStandaloneManifest(source);
+    yield* iterateStandaloneManifest(source, { admission: options.admission });
     return;
   }
   if (source.rawFile.endsWith(".motec.zip")) {
@@ -317,7 +357,7 @@ export async function* iterateSessionCaptureRecordsFromSource(
   if (!options.allowLegacyFullFrames && source.captureFormatVersion !== 1) {
     // Persisted converted captures can contain only full checkpoints; match buffered replay eligibility.
     const first = await streamForSource(source, file);
-    if (!await hasSparseCaptureFormat(file, first.stream, first.gzip)) {
+    if (!await hasSparseCaptureFormat(file, first.stream, first.gzip, options.admission)) {
       throw new Error("Legacy full-frame captures are not supported; provide a sparse RaceIQ capture.");
     }
   }
@@ -340,6 +380,7 @@ export async function* iterateSessionCaptureRecordsFromSource(
     while (true) {
       const next = await reader.read();
       if (next.done) break;
+      await checkSessionCaptureAdmission(options.admission);
       pending = pending.length === 0
         ? Buffer.from(next.value)
         : Buffer.concat([pending, next.value]);

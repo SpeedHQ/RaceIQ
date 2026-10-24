@@ -2946,5 +2946,14 @@
   "compare_overview_ers_deployed": "Wykorzystana energia ERS",
   "compare_overview_ers_recovered": "Odzyskana energia ERS",
   "compare_overview_top_speed": "Prędkość maksymalna",
-  "compare_overview_unavailable": "Niedostępne"
+  "compare_overview_unavailable": "Niedostępne",
+  "compare_opponent_index_waiting": "Okrążenia rywali będą dostępne po zakończeniu nagrywania.",
+  "compare_opponent_index_queued": "Okrążenia rywali oczekują na przygotowanie.",
+  "compare_opponent_index_building": "Przygotowywanie okrążeń rywali…",
+  "compare_opponent_index_failed": "Nie udało się przygotować okrążeń rywali. Odśwież stan.",
+  "recording_processing_loading": "Sprawdzanie stanu przetwarzania nagrania…",
+  "recording_processing_queued": "W kolejce do przetworzenia…",
+  "recording_processing_running": "Przetwarzanie…",
+  "recording_processing_failed": "Przetwarzanie nie powiodło się: {error}",
+  "recording_processing_refresh": "Odśwież stan"
 }

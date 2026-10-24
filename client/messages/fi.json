@@ -2947,5 +2947,14 @@
   "compare_overview_starting_fuel": "Lähtöpolttoaine",
   "compare_overview_fuel_used": "Polttoaineen kulutus",
   "compare_overview_top_speed": "Huippunopeus",
-  "compare_overview_unavailable": "Ei käytettävissä"
+  "compare_overview_unavailable": "Ei käytettävissä",
+  "compare_opponent_index_waiting": "Vastustajien kierrokset ovat saatavilla tallennuksen päätyttyä.",
+  "compare_opponent_index_queued": "Vastustajien kierrokset odottavat valmistelua.",
+  "compare_opponent_index_building": "Valmistellaan vastustajien kierroksia…",
+  "compare_opponent_index_failed": "Vastustajien kierrosten valmistelu epäonnistui. Päivitä tila.",
+  "recording_processing_loading": "Tarkistetaan tallenteen käsittelytilaa…",
+  "recording_processing_queued": "Jonossa käsittelyä varten…",
+  "recording_processing_running": "Käsitellään…",
+  "recording_processing_failed": "Käsittely epäonnistui: {error}",
+  "recording_processing_refresh": "Päivitä tila"
 }

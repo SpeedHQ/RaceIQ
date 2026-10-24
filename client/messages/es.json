@@ -2946,5 +2946,14 @@
   "compare_overview_starting_fuel": "Combustible inicial",
   "compare_overview_fuel_used": "Combustible usado",
   "compare_overview_top_speed": "Velocidad máxima",
-  "compare_overview_unavailable": "No disponible"
+  "compare_overview_unavailable": "No disponible",
+  "compare_opponent_index_waiting": "Las vueltas rivales estarán disponibles cuando termine la grabación.",
+  "compare_opponent_index_queued": "Las vueltas rivales están en cola para prepararse.",
+  "compare_opponent_index_building": "Preparando vueltas rivales…",
+  "compare_opponent_index_failed": "No se pudieron preparar las vueltas rivales. Actualiza el estado.",
+  "recording_processing_loading": "Comprobando el estado de procesamiento de la grabación…",
+  "recording_processing_queued": "En cola para procesar…",
+  "recording_processing_running": "Procesando…",
+  "recording_processing_failed": "Error de procesamiento: {error}",
+  "recording_processing_refresh": "Actualizar estado"
 }

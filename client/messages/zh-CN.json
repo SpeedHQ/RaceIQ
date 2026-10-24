@@ -2946,5 +2946,14 @@
   "compare_overview_ers_deployed": "ERS 已释放",
   "compare_overview_ers_recovered": "ERS 已回收",
   "compare_overview_top_speed": "最高速度",
-  "compare_overview_unavailable": "不可用"
+  "compare_overview_unavailable": "不可用",
+  "compare_opponent_index_waiting": "录制结束后即可使用对手圈速。",
+  "compare_opponent_index_queued": "对手圈速正在等待准备。",
+  "compare_opponent_index_building": "正在准备对手圈速…",
+  "compare_opponent_index_failed": "无法准备对手圈速。请刷新状态。",
+  "recording_processing_loading": "正在检查录制处理状态…",
+  "recording_processing_queued": "已加入处理队列…",
+  "recording_processing_running": "正在处理…",
+  "recording_processing_failed": "处理失败：{error}",
+  "recording_processing_refresh": "刷新状态"
 }

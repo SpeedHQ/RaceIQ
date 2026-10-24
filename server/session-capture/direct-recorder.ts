@@ -22,16 +22,30 @@ import type { PersistedLapBinding } from "../telemetry/pipeline-ports";
 import { SparseSessionRecorderAdapter } from "../telemetry/pipeline-ports";
 import { timestampForFilename } from "./filename";
 import { loadSettings } from "../runtime/config/settings";
+import { enqueueLmuOpponentIndex } from "./lmu-opponent-index-runtime";
+import { registerActiveLmuOpponentSource } from "./storage-activity";
 
 export interface DirectCaptureRecordingOptions {
   writerOptions?: PreopenedFileWriterOptions;
   recordLmuOpponents?: boolean;
   opponentRetentionOverride?: "retained" | "removed" | "not-recorded";
+  deferOpponentIndexEnqueue?: boolean;
 }
 type Owner = { binding?: PersistedLapBinding; startOrdinal: number; count: number; trailing: number; finalized: boolean; abandoned: boolean; ownedByteOffset: number };
 type Part = { info: PreopenedFileInfo; encoder: SparseCaptureEncoder | null; localOffset: number; prefixBytes: number; records: number; firstOrdinal: number; sourceStart: number; sourceEnd: number; kind: "lap" | "auxiliary"; owner?: Owner; bootstrapHash?: string; firstTimestamp?: number; lastTimestamp?: number; closed?: boolean; chunkId?: string };
 type FrameRef = { frame: Buffer; timestamp?: number; start: number; end: number; ordinal: number; localOffset: number };
 const MAX_CANDIDATE_SUFFIX_RECORDS = 1_200;
+type DirectCaptureStopTestBarrier = (point: "before-writer-close" | "before-final-seal" | "index-enqueued" | "index-skipped-non-lmu" | "index-skipped-retention" | "index-skipped-companion-failure" | "index-skipped-deferred", detail?: string) => Promise<void> | void;
+let directCaptureStopTestBarrier: DirectCaptureStopTestBarrier | null = null;
+export function setDirectCaptureStopTestBarrierForTest(barrier: DirectCaptureStopTestBarrier | null): () => void {
+  const previous = directCaptureStopTestBarrier;
+  directCaptureStopTestBarrier = barrier;
+  return () => { if (directCaptureStopTestBarrier === barrier) directCaptureStopTestBarrier = previous; };
+}
+
+async function waitAtDirectCaptureStopTestBarrier(point: Parameters<DirectCaptureStopTestBarrier>[0], detail?: string): Promise<void> {
+  await directCaptureStopTestBarrier?.(point, detail);
+}
 
 export class DirectCaptureRecording {
   readonly ready: Promise<void>;
@@ -42,6 +56,8 @@ export class DirectCaptureRecording {
   private readonly writer: PreopenedFileWriter;
   private readonly recordLmuOpponents: boolean;
   private readonly opponentRetentionOverride: DirectCaptureRecordingOptions["opponentRetentionOverride"];
+  private readonly deferOpponentIndexEnqueue: boolean;
+  private readonly releaseActiveOpponentSource: (() => void) | null;
   private readonly companionWriter: PreopenedFileWriter | null;
   private readonly companionEncoder: SparseCaptureEncoder | null;
   private companionRecordCount = 0;
@@ -94,6 +110,10 @@ export class DirectCaptureRecording {
   constructor(gameId: GameId, directory: string, manifestPath: string, options: DirectCaptureRecordingOptions = {}) {
     this.gameId = gameId; this.manifestPath = manifestPath; this.sourcePath = manifestPath;
     this.opponentRetentionOverride = options.opponentRetentionOverride;
+    this.deferOpponentIndexEnqueue = options.deferOpponentIndexEnqueue ?? false;
+    this.releaseActiveOpponentSource = gameId === "lmu"
+      ? registerActiveLmuOpponentSource(manifestPath, this.deferOpponentIndexEnqueue ? "import" : "live")
+      : null;
     this.recordLmuOpponents = gameId === "lmu" && (options.opponentRetentionOverride === "retained" || (
       options.opponentRetentionOverride === undefined && options.recordLmuOpponents !== false
     ));
@@ -396,13 +416,16 @@ export class DirectCaptureRecording {
   }
 
   stop(): Promise<void> {
-    if (!this.stopTask) this.stopTask = this.stopImpl();
+    if (!this.stopTask) {
+      this.stopTask = this.stopImpl().finally(() => this.releaseActiveOpponentSource?.());
+    }
     return this.stopTask;
   }
   private async stopImpl(): Promise<void> {
     this.closing = true;
     try { await this.ready; } catch (error) { this.fail(error); }
     await this.startupTask;
+    await waitAtDirectCaptureStopTestBarrier("before-writer-close");
     this.writer.flush();
     try { await this.writer.close(); } catch (error) { this.fail(error); }
     if (this.companionWriter) {
@@ -429,7 +452,20 @@ export class DirectCaptureRecording {
     }
     this.lastFrame = null;
     if (this.failure) throw this.failure;
+    await waitAtDirectCaptureStopTestBarrier("before-final-seal");
     this.sealed = true;
+    if (this.gameId !== "lmu") {
+      await waitAtDirectCaptureStopTestBarrier("index-skipped-non-lmu");
+    } else if (this.manifest.opponentRetention !== "retained") {
+      await waitAtDirectCaptureStopTestBarrier("index-skipped-retention");
+    } else if (this.companionFailure) {
+      await waitAtDirectCaptureStopTestBarrier("index-skipped-companion-failure", this.companionFailure.message);
+    } else if (this.deferOpponentIndexEnqueue) {
+      await waitAtDirectCaptureStopTestBarrier("index-skipped-deferred");
+    } else {
+      enqueueLmuOpponentIndex(this.manifestPath);
+      await waitAtDirectCaptureStopTestBarrier("index-enqueued");
+    }
   }
 
   private rotate(window: NonNullable<DetectorOwnershipTransition["window"]>, locator: ParserReplayLocator | null, ordinal: number): void {

@@ -2946,5 +2946,14 @@
   "compare_overview_ers_deployed": "ERS utilizzato",
   "compare_overview_ers_recovered": "ERS recuperato",
   "compare_overview_top_speed": "Velocità massima",
-  "compare_overview_unavailable": "Non disponibile"
+  "compare_overview_unavailable": "Non disponibile",
+  "compare_opponent_index_waiting": "I giri degli avversari saranno disponibili al termine della registrazione.",
+  "compare_opponent_index_queued": "I giri degli avversari sono in coda per la preparazione.",
+  "compare_opponent_index_building": "Preparazione dei giri degli avversari…",
+  "compare_opponent_index_failed": "Preparazione dei giri degli avversari non riuscita. Aggiorna lo stato.",
+  "recording_processing_loading": "Controllo dello stato di elaborazione della registrazione…",
+  "recording_processing_queued": "In coda per l’elaborazione…",
+  "recording_processing_running": "Elaborazione in corso…",
+  "recording_processing_failed": "Elaborazione non riuscita: {error}",
+  "recording_processing_refresh": "Aggiorna stato"
 }

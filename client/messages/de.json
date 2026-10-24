@@ -2950,5 +2950,14 @@
   "compare_overview_starting_fuel": "Startkraftstoff",
   "compare_overview_fuel_used": "Kraftstoffverbrauch",
   "compare_overview_top_speed": "Höchstgeschwindigkeit",
-  "compare_overview_unavailable": "Nicht verfügbar"
+  "compare_overview_unavailable": "Nicht verfügbar",
+  "compare_opponent_index_waiting": "Gegnerische Runden sind nach Ende der Aufzeichnung verfügbar.",
+  "compare_opponent_index_queued": "Gegnerische Runden warten auf die Vorbereitung.",
+  "compare_opponent_index_building": "Gegnerische Runden werden vorbereitet…",
+  "compare_opponent_index_failed": "Vorbereitung der gegnerischen Runden fehlgeschlagen. Status aktualisieren.",
+  "recording_processing_loading": "Verarbeitungsstatus der Aufzeichnung wird geprüft…",
+  "recording_processing_queued": "Zur Verarbeitung vorgemerkt…",
+  "recording_processing_running": "Wird verarbeitet…",
+  "recording_processing_failed": "Verarbeitung fehlgeschlagen: {error}",
+  "recording_processing_refresh": "Status aktualisieren"
 }

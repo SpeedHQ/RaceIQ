@@ -2,3 +2,7 @@ packages/game-lmu/test/e2e/recordings/lmu-live-recording-fixture.test.ts
 packages/game-lmu/test/e2e/recordings/lmu-multi-lap-dump.test.ts
 packages/game-lmu/test/e2e/recordings/classification-migration.test.ts
 packages/game-lmu/test/e2e/recordings/lmu-dump-shutdown.test.ts
+packages/game-lmu/test/e2e/backend/integration/opponent-index-lifecycle.test.ts
+packages/game-lmu/test/e2e/backend/integration/opponent-index-recording-priority.test.ts
+packages/game-lmu/test/e2e/backend/integration/opponent-index-ownership.test.ts
+packages/game-lmu/test/e2e/backend/integration/opponent-index-seeding.test.ts

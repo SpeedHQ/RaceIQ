@@ -5,12 +5,69 @@ import { resolveRecordingDirectory } from "../runtime/config/recording-directory
  * Removes unreferenced recording files and controlled legacy/indexed bundle artifacts.
  * Protects published references, shared sources, and active split attempts.
  */
-import { readdir, lstat, unlink } from "node:fs/promises";
+import { readdir, lstat, unlink, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { dirname, resolve, join } from "node:path";
+import { dirname, resolve, join, relative, sep, isAbsolute } from "node:path";
 import { readDb } from "../db/index";
 import { sessions, sessionCaptureSplitJobs, liveCaptures } from "../db/schema";
+import { inventoryLmuOpponentIndex } from "../lap-analysis/lmu-opponent-index";
+import { invalidateLmuOpponentIndexUnderFence } from "./lmu-opponent-index-runtime";
+import { reserveRecordingStorageOperation } from "./storage-activity";
 import { clearCaptureManifestCache, clearSessionCaptureCache, loadCaptureManifest } from "./source-loader";
+const OPPONENT_INDEX_SUFFIX = ".opponent-index";
+
+function isContained(root: string, path: string): boolean {
+  const part = relative(root, path);
+  return part !== "" && part !== ".." && !part.startsWith(`..${sep}`) && !isAbsolute(part);
+}
+
+async function addOpponentIndexReferences(referenced: Set<string>, sourcePath: string): Promise<void> {
+  const root = resolve(`${sourcePath}${OPPONENT_INDEX_SUFFIX}`);
+  referenced.add(root);
+  const inventory = await inventoryLmuOpponentIndex(root);
+  for (const artifact of inventory.artifacts) {
+    const path = resolve(artifact.path);
+    if (!isContained(root, path)) continue;
+    referenced.add(path);
+    let directory = dirname(path);
+    while (directory !== root && isContained(root, directory)) {
+      referenced.add(directory);
+      directory = dirname(directory);
+    }
+  }
+}
+
+async function listOpponentIndexRoots(root: string): Promise<string[]> {
+  const found: string[] = [];
+  async function visit(directory: string): Promise<void> {
+    for (const entry of await readdir(directory, { withFileTypes: true }).catch(() => [])) {
+      if (!entry.isDirectory()) continue;
+      const path = resolve(directory, entry.name);
+      if (entry.name.endsWith(OPPONENT_INDEX_SUFFIX)) found.push(path);
+      else await visit(path);
+    }
+  }
+  await visit(root);
+  return found;
+}
+
+async function cleanupOrphanOpponentIndexes(root: string, referenced: Set<string>): Promise<number> {
+  let removed = 0;
+  for (const indexRoot of await listOpponentIndexRoots(root)) {
+    const info = await lstat(indexRoot).catch((error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") return null;
+      throw error;
+    });
+    if (!info?.isDirectory() || info.isSymbolicLink()) continue;
+    if (referenced.has(resolve(indexRoot))) continue;
+    const inventory = await inventoryLmuOpponentIndex(indexRoot);
+    await invalidateLmuOpponentIndexUnderFence(indexRoot.slice(0, -OPPONENT_INDEX_SUFFIX.length));
+    await rm(indexRoot, { recursive: true, force: true });
+    removed += inventory.artifacts.length;
+  }
+  return removed;
+}
+
 let maintenanceQueue = Promise.resolve();
 
 export function withSessionCaptureMaintenanceLock<T>(
@@ -26,23 +83,31 @@ export function withSessionCaptureMaintenanceLock<T>(
 
 export async function loadReferencedCapturePaths(excludeCleanupPendingForManifest?: string): Promise<Set<string>> {
   const [sessionRows, jobRows, liveRows] = await Promise.all([
-    readDb.select({ rawFile: sessions.rawFile, archiveFile: sessions.captureArchiveFile, manifestFile: sessions.captureManifestFile }).from(sessions).all(),
-    readDb.select({ sourcePath: sessionCaptureSplitJobs.sourcePath, stagingPath: sessionCaptureSplitJobs.stagingPath })
+    readDb.select({ id: sessions.id, gameId: sessions.gameId, rawFile: sessions.rawFile, archiveFile: sessions.captureArchiveFile, manifestFile: sessions.captureManifestFile }).from(sessions).all(),
+    readDb.select({ sessionId: sessionCaptureSplitJobs.sessionId, sourcePath: sessionCaptureSplitJobs.sourcePath, stagingPath: sessionCaptureSplitJobs.stagingPath })
       .from(sessionCaptureSplitJobs).all(),
     readDb.select({ sourcePath: liveCaptures.sourcePath, archivePath: liveCaptures.archivePath, status: liveCaptures.status, committedArchiveLength: liveCaptures.committedArchiveLength })
       .from(liveCaptures).all(),
   ]);
   const referenced = new Set<string>();
+  const opponentIndexSources = new Set<string>();
+  const lmuSessionIds = new Set(sessionRows.filter((row) => row.gameId === "lmu").map((row) => row.id));
   for (const row of sessionRows) {
     if (row.rawFile) referenced.add(resolve(row.rawFile));
     if (row.archiveFile) referenced.add(resolve(row.archiveFile));
     if (row.manifestFile) referenced.add(resolve(row.manifestFile));
     if (row.manifestFile) referenced.add(resolve(`${row.manifestFile}.recovery`));
     if (row.rawFile?.endsWith("capture-manifest.json")) referenced.add(resolve(`${row.rawFile}.recovery`));
+    if (row.gameId === "lmu") {
+      for (const path of [row.rawFile, row.manifestFile, row.archiveFile]) {
+        if (path) opponentIndexSources.add(resolve(path));
+      }
+    }
   }
   for (const row of jobRows) {
     referenced.add(resolve(row.sourcePath));
     if (row.stagingPath) referenced.add(resolve(row.stagingPath));
+    if (lmuSessionIds.has(row.sessionId)) opponentIndexSources.add(resolve(row.sourcePath));
   }
   const rawManifestPaths = sessionRows.flatMap((row) => row.rawFile?.endsWith("capture-manifest.json") ? [row.rawFile] : []);
   const manifestPaths = [...new Set(sessionRows.flatMap((row) => row.manifestFile ? [row.manifestFile] : []).concat(rawManifestPaths))];
@@ -72,7 +137,10 @@ export async function loadReferencedCapturePaths(excludeCleanupPendingForManifes
     referenced.add(archive);
     referenced.add(dirname(source));
     referenced.add(dirname(archive));
+    opponentIndexSources.add(source);
+    opponentIndexSources.add(archive);
   }
+  for (const sourcePath of opponentIndexSources) await addOpponentIndexReferences(referenced, sourcePath);
   return referenced;
 }
 
@@ -169,7 +237,13 @@ async function listBundleFiles(): Promise<string[]> {
 export async function cleanupOrphanSessionFiles(
   sessionActive: () => boolean = () => false,
 ): Promise<number> {
-  return withSessionCaptureMaintenanceLock(async () => {
+  if (sessionActive()) {
+    console.log("[Cleanup] Session active — skipping orphan sweep");
+    return 0;
+  }
+  const releaseStorage = reserveRecordingStorageOperation("opponent-index");
+  try {
+    return await withSessionCaptureMaintenanceLock(async () => {
     if (sessionActive()) {
       console.log("[Cleanup] Session active — skipping orphan sweep");
       return 0;
@@ -201,7 +275,11 @@ export async function cleanupOrphanSessionFiles(
         // Skip unreadable / concurrently-removed entries
       }
     }
+    if (!sessionActive()) removed += await cleanupOrphanOpponentIndexes(sessionsDir, referenced);
     if (removed > 0) clearCaptureManifestCache();
     return removed;
-  });
+    });
+  } finally {
+    releaseStorage();
+  }
 }

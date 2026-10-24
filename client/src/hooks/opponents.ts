@@ -1,6 +1,15 @@
-import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { OpponentDataErrorCode, OpponentLapCatalog, OpponentLapComparison, OpponentComparisonRequest, OpponentLapReference, OpponentSemanticLapTelemetry } from "@raceiq/lap-replay/contracts";
 import { client } from "../lib/rpc";
+function useRefreshOpponentCatalogOnIndexError(playerLapId: number | null, error: unknown) {
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (playerLapId == null || !(error instanceof OpponentQueryError) ||
+      !["OPPONENT_INDEX_NOT_READY", "OPPONENT_INDEX_FAILED", "SOURCE_CHANGED", "OPPONENT_DATA_REMOVED", "OPPONENT_DATA_UNAVAILABLE", "OPPONENT_LAP_NOT_FOUND"].includes(error.code ?? "")) return;
+    void queryClient.invalidateQueries({ queryKey: ["opponent-lap-catalog", playerLapId] });
+  }, [error, playerLapId, queryClient]);
+}
 
 export class OpponentQueryError extends Error {
   readonly code: OpponentDataErrorCode | null;
@@ -28,11 +37,13 @@ export function useOpponentLapCatalog(playerLapId: number | null) {
       const response = await client.api.laps[":id"]["opponent-laps"].$get({ param: { id: String(playerLapId) } }, { headers: { "X-Game-Id": "lmu" } });
       return responseJson<OpponentLapCatalog>(response);
     },
+    refetchInterval: (query) => query.state.data?.indexState === "queued" || query.state.data?.indexState === "building" ? 2_000 : false,
+    refetchIntervalInBackground: false,
   });
 }
 
 export function useOpponentLapComparison(playerLapId: number | null, request: OpponentComparisonRequest | null) {
-  return useQuery({
+  const query = useQuery({
     queryKey: ["opponent-lap-comparison", playerLapId, request],
     enabled: playerLapId != null && request != null,
     queryFn: async (): Promise<OpponentLapComparison> => {
@@ -44,11 +55,13 @@ export function useOpponentLapComparison(playerLapId: number | null, request: Op
       return responseJson<OpponentLapComparison>(response);
     },
   });
+  useRefreshOpponentCatalogOnIndexError(playerLapId, query.error);
+  return query;
 }
 
 export function useOpponentLapSemanticTelemetry(reference: OpponentLapReference | null) {
   const opponent = reference?.kind === "opponent" ? reference : null;
-  return useQuery({
+  const query = useQuery({
     queryKey: ["opponent-semantic-telemetry", opponent],
     enabled: opponent != null,
     queryFn: async (): Promise<OpponentSemanticLapTelemetry> => {
@@ -60,4 +73,6 @@ export function useOpponentLapSemanticTelemetry(reference: OpponentLapReference 
       return responseJson<OpponentSemanticLapTelemetry>(response);
     },
   });
+  useRefreshOpponentCatalogOnIndexError(opponent?.playerLapId ?? null, query.error);
+  return query;
 }
