@@ -59,14 +59,21 @@ for (const game of REVIEW_GAMES.filter((game) => game.gameId === "acc")) {
     await page.goto(`/${game.prefix}/sessions/analyse?session=${sessionId}`, { waitUntil: "domcontentloaded" });
     expect((await baseResponse).ok()).toBe(true);
     await expect(page.getByRole("button", { name: "Overview", exact: true })).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByRole("button", { name: "Analyse", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Issues", exact: true })).toBeVisible();
     const baseRequests = alignedRequests.filter((entry) => entry.step === 1);
     expect(baseRequests.length).toBeGreaterThan(0);
     expect(baseRequests.every((entry) => [...entry.ids].sort((a, b) => a - b).join(",") === [...expectedIds].sort((a, b) => a - b).join(","))).toBe(true);
     expect(semanticRequests).toBe(0);
 
+    await page.getByRole("button", { name: "Issues", exact: true }).click();
+    await expect(page).toHaveURL(/view=issues/);
+    await expect(page.getByText("Detected from telemetry", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Overview", exact: true }).click();
+    await expect(page).not.toHaveURL(/view=issues/);
+    await expect(page.getByText("Detected from telemetry", { exact: true })).toHaveCount(0);
+
     await expect(page.getByRole("button", { name: /^Sector \d+$/ })).toHaveCount(0);
-    await page.getByRole("button", { name: "Stint averages", exact: true }).click();
+    await expect(page.getByTestId("stint-analysis")).toBeVisible();
     await expect(page.getByTestId("stint-analysis")).toBeVisible();
     await page.getByRole("button", { name: "Analyse", exact: true }).click();
     await expect(page.getByRole("button", { name: "Consistency", exact: true })).toBeVisible();

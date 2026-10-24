@@ -1,4 +1,4 @@
-import { BaselineResponseSchema, PitEstimatePageSchema, StintsResponseSchema } from "@raceiq/shared/racing/live/strategy-schemas";
+import { BaselineResponseSchema, PitEstimatePageSchema, StintsResponseSchema, StrategyLapMetricsResponseSchema } from "@raceiq/shared/racing/live/strategy-schemas";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { HistoricalBaseline, StrategyHistoryUpdatedMessage } from "@raceiq/shared/racing/live/strategy";
 import { z } from "zod";
@@ -40,6 +40,7 @@ function assertBaselineRevision(gameId: GameId, driverKey: string | null, baseli
 
 export const strategyKeys = {
   stints: (gameId: GameId | null, sessionId: number | null) => ["strategy-stints", gameId, sessionId] as const,
+  lapMetrics: (gameId: GameId | null, sessionId: number | null) => ["strategy-lap-metrics", gameId, sessionId] as const,
   estimates: (gameId: GameId | null, sessionId: number | null, driverKey: string | null, cursor: string | null) => ["strategy-estimates", gameId, sessionId, driverKey, cursor] as const,
   baseline: (gameId: GameId | null, sessionId: number | null, stintId: string | null, driverKey: string | null) => ["strategy-baseline", gameId, sessionId, stintId, driverKey] as const,
 };
@@ -52,6 +53,17 @@ export function useStrategyStints(gameId: GameId | null, sessionId: number | nul
     refetchOnMount: "always",
     refetchOnReconnect: "always",
     queryFn: async () => StintsResponseSchema.parse(await api.stints(gameId!, sessionId!)),
+  });
+}
+
+export function useStrategyLapMetrics(gameId: GameId | null, sessionId: number | null) {
+  const { api } = useRaceStrategyHost();
+  return useQuery({
+    queryKey: strategyKeys.lapMetrics(gameId, sessionId),
+    enabled: !!gameId && sessionId != null,
+    refetchOnMount: "always",
+    refetchOnReconnect: "always",
+    queryFn: async () => StrategyLapMetricsResponseSchema.parse(await api.lapMetrics(gameId!, sessionId!)),
   });
 }
 

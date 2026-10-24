@@ -56,7 +56,7 @@ test("reprocess discards abandoned service-crossing lap before same-number clean
 });
 
 
-test("E2 native ACC litre consumption stays distinct from tank-fraction rates in the session table and chart", async ({ browser, playwright }, testInfo) => {
+test("E2 native ACC litre consumption stays distinct from tank-fraction rates in the session cards and chart", async ({ browser, playwright }, testInfo) => {
   test.setTimeout(180_000);
   const runtime = await StrategyRuntime.start(testInfo.outputPath("test-data-strategy-litres"));
   const api = await playwright.request.newContext({ baseURL: runtime.apiURL });
@@ -81,7 +81,7 @@ test("E2 native ACC litre consumption stays distinct from tank-fraction rates in
     expect(measured!.fuel.value).toBeCloseTo(2.4, 4);
     expect(measured!.tires.every((wheel) => wheel.value === null)).toBe(true);
     await page.goto(`${runtime.baseURL}/acc/sessions/${session!.id}/analyse`);
-    await expect(page.getByTestId("stint-summary-table")).toContainText(/2[.,]40?\s*L/);
+    await expect(page.getByTestId("stint-summary-cards")).toContainText(/2[.,]40?\s*L/);
     await expect(page.getByTestId("stint-summary-chart")).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("litre-stint-averages.png"), fullPage: true });
   } finally {
@@ -202,7 +202,7 @@ test("E4/E9 different native F1 compounds preserve measured values and suppress 
     expect(first.tires[0].value).toBeCloseTo(0.008, 4);
     expect(last.tires[0].value).toBeCloseTo(0.008, 4);
     await page.goto(`${runtime.baseURL}/f125/sessions/${id}/analyse`);
-    const selection = page.getByTestId("stint-summary-table").getByRole("checkbox");
+    const selection = page.getByTestId("stint-summary-cards").getByRole("checkbox");
     await selection.nth(stints.indexOf(first)).check();
     await selection.nth(stints.indexOf(last)).check();
     const comparison = page.getByTestId("stint-comparison");

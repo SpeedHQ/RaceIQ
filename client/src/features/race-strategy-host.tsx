@@ -28,6 +28,7 @@ const host = {
     setActivePlan: async (input) => rpcJson<unknown>(await client.api["race-plans"].active.$put({ json: input })),
     recalculatePlan: async (id, generation) => rpcJson<unknown>(await client.api["race-plans"][":id"].recalculate.$post({ param: { id }, json: { generation } })),
     stints: async (gameId, sessionId) => rpcJson<unknown>(await sessionApi.stints.$get({ param: { id: String(sessionId) }, query: {} }, { headers: { "X-Game-Id": gameId } })),
+    lapMetrics: async (gameId, sessionId) => rpcJson<unknown>(await sessionApi["stint-lap-metrics"].$get({ param: { id: String(sessionId) }, query: {} }, { headers: { "X-Game-Id": gameId } })),
     estimates: async (gameId, sessionId, driverKey, cursor) => rpcJson<unknown>(await sessionApi["pit-estimates"].$get({ param: { id: String(sessionId) }, query: { driverKey: driverKey ?? undefined, before: cursor ?? undefined, limit: "25" } }, { headers: { "X-Game-Id": gameId } })),
     baseline: async (gameId, sessionId, stintId) => rpcJson<unknown>(await sessionApi["strategy-baseline"].$get({ param: { id: String(sessionId) }, query: { stintId } }, { headers: { "X-Game-Id": gameId } })),
     clearEstimates: async (gameId, sessionId, driverKey) => rpcJson<unknown>(await sessionApi["pit-estimates"].$delete({ param: { id: String(sessionId) }, json: { driverKey } }, { headers: { "X-Game-Id": gameId } })),

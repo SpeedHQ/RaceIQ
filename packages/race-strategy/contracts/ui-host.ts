@@ -24,6 +24,7 @@ export interface RaceStrategyApi {
   setActivePlan(input: SetActiveRacePlanInput): Promise<unknown>;
   recalculatePlan(id: string, generation: RacePlanGeneration): Promise<unknown>;
   stints(gameId: GameId, sessionId: number): Promise<unknown>;
+  lapMetrics(gameId: GameId, sessionId: number): Promise<unknown>;
   estimates(gameId: GameId, sessionId: number, driverKey: string | null, cursor: string | null): Promise<unknown>;
   baseline(gameId: GameId, sessionId: number, stintId: string): Promise<unknown>;
   clearEstimates(gameId: GameId, sessionId: number, driverKey: string): Promise<unknown>;

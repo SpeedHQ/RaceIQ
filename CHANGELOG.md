@@ -1,6 +1,7 @@
 ## Unreleased
 
 ### Features
+- Move telemetry-detected issues from Overview into a dedicated Issues tab in session review.
 - Show stint trends as p50 and p95 fuel and tire-wear percentiles for hot tires, with separate cold-tire figures measured from the core temperature channel.
 - Give ACC, AC Evo, and F1 2025 per-compound optimal core-temperature ranges used for cold-tire stint figures and tire-temperature diagnosis.
 - Show class-specific dry compounds and Wet tire rows with unavailable temperature targets on LMU race cars, excluding the safety car.
@@ -13,7 +14,7 @@
 - Plan races by lap count or race duration using your measured lap time, save the chosen basis, and estimate required fuel and refueling at selected pit stops.
 - Replace live pit estimates with the selected matching race strategy, including planned stops, next-stint compounds/fuel, and measured compound-specific tire life with cliff/dead and fuel-shortfall warnings.
 - Keep pit-estimate history across sessions and restarts, with per-driver clearing and evidence from compatible previous stints.
-- Review per-stint fuel use and four-wheel tire wear at the bottom of session Overview, with optional two-stint comparison, explicit units, sample counts and unavailable data.
+- Plot individual stint-lap fuel and tire wear with independently toggled p50/p95 references, hot/cold selection, tire-compound filtering, and linked lap evidence; show compact per-stint summary cards with expandable audit details.
 - Review average, median, and peak per-lap fuel use and tire wear from all eligible laps in each stint, with metric-specific lap counts.
 - Pin selected race strategies independently to each game, car, and track combination, retaining selections across sessions and restarts.
 - Compare live fuel and four-wheel tire progression against the selected strategy, with evidence-aware adherence and pit windows recalculated from actual resources after early, late, or fuel-only service without modifying the saved plan.
@@ -33,7 +34,7 @@
 ### Fixes
 - Keep navigation from strategy evidence, the pit-estimate dialog, Driver Profile's all-laps action, and in-app chat links within the app without reloading the page.
 - Restore LMU fractional-lap telemetry from validated native scoring distance and track length, using scoring-clock freshness so live adherence and virtual-energy-aware pit windows resolve without inventing missing position.
-- Simplify Stint averages into a compact metric table with expandable evidence and quality details. Plot only measured rates, and stop labeling unavailable completed-stint measurements as gathering data.
+- Show compact stint summary cards with scannable hot fuel and tire percentiles, eligible-lap counts, and expandable audit details. Plot only measured rates, and stop labeling unavailable completed-stint measurements as gathering data.
 - Automatically rebuild missing or outdated stint averages from each session's own saved recording at startup without changing lap IDs, lap times, validity, notes, favorites, or session identity. Skip active, unavailable, corrupt, or mismatched sources without blocking valid recordings.
 - Keep the issues list stationary on hover and highlight the exact hovered issue rather than the first issue in the same corner.
 - Manage saved plans and open the race strategy builder on the Strategies page in each game's navigation, separate from session analysis; reach it from Stint averages or the live strategy dialog.

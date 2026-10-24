@@ -17,22 +17,23 @@
     "test:e2e": "cd ../../playwright && E2E_SERVER_MODE=compiled PW_SERVER_SET=isolated bun ../scripts/playwright-ci.ts test --config=playwright.config.ts --project=race-strategy --output=test-results/race-strategy"
   },
   "dependencies": {
-    "react": "^19.3.0",
     "@base-ui/react": "^1.8.0",
-    "@tanstack/react-query": "^5.103.1",
-    "@tanstack/react-router": "^1.170.38",
-    "hono": "4.13.8",
     "@hono/zod-validator": "0.9.1",
-    "zod": "^4.6.5",
     "@libsql/client": "^0.18.0",
-    "drizzle-orm": "^0.45.2",
-    "@raceiq/shared": "workspace:*",
+    "@raceiq/analysis-core": "workspace:*",
     "@raceiq/backend-core": "workspace:*",
     "@raceiq/frontend-pure": "workspace:*",
     "@raceiq/game-catalogs": "workspace:*",
+    "@raceiq/scene-3d": "workspace:*",
+    "@raceiq/shared": "workspace:*",
     "@raceiq/telemetry-core": "workspace:*",
-    "@raceiq/analysis-core": "workspace:*",
-    "@raceiq/scene-3d": "workspace:*"
+    "@tanstack/charts": "1.1.0",
+    "@tanstack/react-query": "^5.103.1",
+    "@tanstack/react-router": "^1.170.38",
+    "drizzle-orm": "^0.45.2",
+    "hono": "4.13.8",
+    "react": "^19.3.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

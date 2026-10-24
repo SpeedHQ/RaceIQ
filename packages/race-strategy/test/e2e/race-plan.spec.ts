@@ -131,7 +131,7 @@ test("R1-R5 builds a history-backed plan, survives restart, and applies only to 
     }).toBe(true);
 
     await page.goto(`${runtime.baseURL}/f125/sessions/${source.id}/analyse`, { waitUntil: "domcontentloaded" });
-    await expect(page.getByTestId("stint-summary-table")).toBeVisible();
+    await expect(page.getByTestId("stint-summary-cards")).toBeVisible();
     await expect(page.getByTestId("race-strategy-planner")).toHaveCount(0);
     await page.getByRole("link", { name: "Strategies", exact: true }).click();
     await expect(page).toHaveURL(`${runtime.baseURL}/f125/strategy`);

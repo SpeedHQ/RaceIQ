@@ -201,6 +201,9 @@ export function useWebSocket() {
               predicate: (query) => query.queryKey[0] === "strategy-stints" && query.queryKey[2] === data.sessionId,
             });
             queryClient.invalidateQueries({
+              predicate: (query) => query.queryKey[0] === "strategy-lap-metrics" && query.queryKey[2] === data.sessionId,
+            });
+            queryClient.invalidateQueries({
               predicate: (query) => query.queryKey[0] === "strategy-estimates" && query.queryKey[2] === data.sessionId && (query.queryKey[3] === data.driverKey || query.queryKey[3] == null),
             });
             queryClient.invalidateQueries({

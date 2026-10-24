@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { GameIdSchema } from "../../games/ids";
-import type { CompatibilityContext, HistoricalBaseline, MetricRate, PitEstimatePage, PitEstimateRecord, SourceOrder, StintSummary } from "./strategy";
+import type { CompatibilityContext, HistoricalBaseline, MetricRate, PitEstimatePage, PitEstimateRecord, SourceOrder, StintSummary, StrategyLapMetric, StrategyLapMetricsResponse, StrategyLapMetricValue, StrategyLapTireMetric } from "./strategy";
 
 const finite = z.number().finite();
 const count = z.number().int().nonnegative().safe();
@@ -72,3 +72,27 @@ export const PitEstimateRecordSchema: z.ZodType<PitEstimateRecord> = z.object({
 export const PitEstimatePageSchema: z.ZodType<PitEstimatePage> = z.object({ estimates: z.array(PitEstimateRecordSchema), nextCursor: nullableText });
 export const StintsResponseSchema = z.object({ stints: z.array(StintSummarySchema) });
 export const BaselineResponseSchema = z.object({ baseline: HistoricalBaselineSchema });
+const StrategyLapMetricValueSchema: z.ZodType<StrategyLapMetricValue> = z.object({
+  value: nullableNumber,
+  unit: z.enum(["L/lap", "tankFraction/lap"]),
+  unavailableReason: nullableText,
+});
+const StrategyLapTireMetricSchema: z.ZodType<StrategyLapTireMetric> = z.object({
+  value: nullableNumber,
+  unit: z.literal("wearFraction/lap"),
+  unavailableReason: nullableText,
+  compound: nullableText,
+});
+export const StrategyLapMetricSchema: z.ZodType<StrategyLapMetric> = z.object({
+  lapId: count,
+  lapNumber: count,
+  driverKey: z.string().min(1),
+  stintId: z.string().min(1),
+  stintOrdinal: count,
+  thermalState: z.enum(["cold", "warm", "unavailable"]),
+  fuel: StrategyLapMetricValueSchema,
+  tires: four(StrategyLapTireMetricSchema),
+});
+export const StrategyLapMetricsResponseSchema: z.ZodType<StrategyLapMetricsResponse> = z.object({
+  laps: z.array(StrategyLapMetricSchema),
+});

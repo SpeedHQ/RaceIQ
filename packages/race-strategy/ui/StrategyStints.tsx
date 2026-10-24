@@ -5,9 +5,10 @@ import { useRaceStrategyHost } from "./host";
 import type { RaceStrategyMessages } from "../contracts";
 import { useEffect, useState } from "react";
 import type { GameId } from "@raceiq/shared/games/ids";
-import type { MetricRate, StintSummary } from "@raceiq/shared/racing/live/strategy";
-import { useStrategyStints } from "./stint-strategy";
+import type { MetricRate, StrategyLapMetric, StintSummary } from "@raceiq/shared/racing/live/strategy";
+import { useStrategyLapMetrics, useStrategyStints } from "./stint-strategy";
 import { useStrategyFormat } from "./strategy-format";
+import { StintDumbbellChart, type StintMetric, type ThermalPopulation } from "./StintDumbbellChart";
 
 const wheels = ["FL", "FR", "RL", "RR"] as const;
 type Statistics = { p50: number | null; p95: number | null };
@@ -16,32 +17,6 @@ function compatibleMetric(a: StintSummary, b: StintSummary, metric: "fuel" | num
     a.compatibility.setupKey !== b.compatibility.setupKey || piRequired && (a.pi == null || b.pi == null || a.pi !== b.pi)) return false;
   if (metric === "fuel") return a.fuelUnit === b.fuelUnit && a.compatibility.fuelSemanticVersion != null && a.compatibility.fuelSemanticVersion === b.compatibility.fuelSemanticVersion;
   return a.compounds[metric] === b.compounds[metric] && a.compatibility.tireSemanticVersions[metric] != null && a.compatibility.tireSemanticVersions[metric] === b.compatibility.tireSemanticVersions[metric];
-}
-function RateChart({ stints, metric }: { stints: StintSummary[]; metric: "fuel" | number }) {
-  const { m } = useRaceStrategyHost();
-  const { strategyRateText: rateValue } = useStrategyFormat();
-  const entries = stints.filter((stint) => (metric === "fuel" ? stint.fuel : stint.tires[metric])!.value != null).map((stint) => {
-    const rate = metric === "fuel" ? stint.fuel : stint.tires[metric];
-    const semantic = metric === "fuel" ? stint.compatibility.fuelSemanticVersion : stint.compatibility.tireSemanticVersions[metric];
-    const compound = metric === "fuel" ? "" : stint.compounds[metric] ?? m.strategy_unknown();
-    const piContext = stint.gameId === "fm-2023" ? stint.pi ?? `unknown:${stint.id}` : "not-required";
-    const context = [stint.gameId, stint.trackId, stint.carId, stint.driverKey, rate.unit, semantic ?? `unknown:${stint.id}`, stint.compatibility.setupKey ?? "unknown", piContext, compound].join("|");
-    const unit = (rate.unit === "L/lap" ? m.strategy_rate_litres({ value: "" }) : m.strategy_rate_points({ value: "" })).trim();
-    return { stint, rate, context, label: `${unit}${metric === "fuel" ? "" : ` · ${compound}`}` };
-  });
-  const contexts = [...new Set(entries.map((entry) => entry.context))];
-  if (entries.length === 0) return <p className="text-xs text-app-text-muted">{m.strategy_reason_missing()}</p>;
-  return <div className="space-y-2">{contexts.map((context) => {
-    const group = entries.filter((entry) => entry.context === context);
-    const max = Math.max(...group.map(({ rate }) => rate.value ?? 0), Number.EPSILON);
-    return <div key={context} role="group" aria-label={group[0]!.label} className="space-y-2"><p className="text-xs text-app-text-muted">{group[0]!.label}</p>
-      {group.map(({ stint, rate }) => <div key={stint.id} className="grid grid-cols-[minmax(4rem,auto)_1fr_auto] items-center gap-2 text-xs">
-        <span>{m.strategy_stint({ ordinal: stint.ordinal })}<small className="block text-app-text-muted">{m.strategy_sample_laps({ count: rate.eligibleLaps })}</small></span>
-        <div role="img" aria-label={m.strategy_rate_for_stint({ rate: rateValue(rate), ordinal: stint.ordinal })} className="h-2 rounded bg-app-border"><div className="h-full rounded bg-app-accent" style={{ width: rate.value == null ? "0%" : `${Math.max(0, Math.min(100, rate.value / max * 100))}%` }} /></div>
-        <span className="font-mono">{rateValue(rate)}</span>
-      </div>)}
-    </div>;
-  })}</div>;
 }
 
 function difference(a: MetricRate, b: MetricRate, compatible: boolean, m: RaceStrategyMessages) {
@@ -56,11 +31,34 @@ export function StrategyStints({ gameId, sessionId }: { gameId: GameId; sessionI
   const { m } = useRaceStrategyHost();
   const { strategyReasonText: reasonText, strategyRateText: rateValue, strategyFuelUsedText } = useStrategyFormat();
   const query = useStrategyStints(gameId, sessionId);
+  const lapQuery = useStrategyLapMetrics(gameId, sessionId);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  useEffect(() => setSelectedIds([]), [gameId, sessionId]);
+  const [population, setPopulation] = useState<ThermalPopulation>("hot");
+  const [focusedLapId, setFocusedLapId] = useState<number | null>(null);
+  const [selectedCompound, setSelectedCompound] = useState("all");
+  const [showP50, setShowP50] = useState(true);
+  const [showP95, setShowP95] = useState(true);
+  useEffect(() => {
+    setSelectedIds([]);
+    setPopulation("hot");
+    setFocusedLapId(null);
+    setSelectedCompound("all");
+    setShowP50(true);
+    setShowP95(true);
+  }, [gameId, sessionId]);
   const stints = query.data?.stints ?? [];
-  const coldData = (stint: StintSummary) => stint.coldRateStatistics?.p50 != null || stint.coldTireRateStatistics?.some((stats) => stats.p50 != null) === true;
+  const laps = lapQuery.data?.laps ?? [];
+  const coldData = (stint: StintSummary) => stint.coldRateStatistics?.p50 != null || stint.coldRateStatistics?.p95 != null ||
+    stint.coldTireRateStatistics?.some((stats) => stats.p50 != null || stats.p95 != null) === true;
   const hasCold = stints.some(coldData);
+  const hasColdLaps = laps.some((lap) => lap.thermalState === "cold");
+  const compounds = [...new Set(laps.flatMap((lap) => lap.tires.map((tire) => tire.compound)))];
+  const hasCompoundFilter = compounds.length > 1;
+  useEffect(() => {
+    if (!hasColdLaps) setPopulation("hot");
+    if (focusedLapId != null && !laps.some((lap) => lap.lapId === focusedLapId)) setFocusedLapId(null);
+    if (!compounds.includes(selectedCompound === "unknown" ? null : selectedCompound)) setSelectedCompound("all");
+  }, [hasColdLaps, focusedLapId, laps, compounds, selectedCompound]);
   const statsText = (rate: MetricRate, stats: Statistics | undefined) => stats == null ? "—" :
     `${m.strategy_percentile_p50()} ${stats.p50 == null ? "—" : rateValue({ ...rate, value: stats.p50 })} · ${m.strategy_percentile_p95()} ${stats.p95 == null ? "—" : rateValue({ ...rate, value: stats.p95 })}`;
   const statsRate = (rate: MetricRate, stats: Statistics | undefined): MetricRate => ({ ...rate, value: stats?.p50 ?? null });
@@ -68,6 +66,15 @@ export function StrategyStints({ gameId, sessionId }: { gameId: GameId; sessionI
     rate.value == null && stint.status !== "active" && rate.unavailableReason === "no-current-samples"
       ? m.strategy_reason_missing()
       : rateValue(rate);
+  const focusedLap = laps.find((lap) => lap.lapId === focusedLapId) ?? laps[0];
+  const populationLabel = population === "cold" ? m.strategy_population_cold() : m.strategy_population_hot();
+  const readoutMetrics: Array<{ label: string; metric: StintMetric }> = [
+    { label: m.strategy_fuel_rate(), metric: "fuel" },
+    ...wheels.map((wheel, index) => ({ label: wheel, metric: index })),
+  ];
+  const percentileText = (measurement: StrategyLapMetric["fuel"] | StrategyLapMetric["tires"][number]) => measurement.value == null
+    ? reasonText(measurement.unavailableReason)
+    : rateValue({ value: measurement.value, unit: measurement.unit, eligibleLaps: 1, source: "current-stint", provisional: false, unavailableReason: null });
   const selected = stints.filter((stint) => selectedIds.includes(stint.id));
   const setSelected = (id: string, checked: boolean) => setSelectedIds((ids) => checked ? [...ids, id] : ids.filter((item) => item !== id));
   const piRequired = gameId === "fm-2023";
@@ -104,45 +111,94 @@ export function StrategyStints({ gameId, sessionId }: { gameId: GameId; sessionI
       <h2 id="stint-analysis-title" className="text-sm font-semibold text-app-text">{m.strategy_title()}</h2>
       <Link className="rounded bg-app-accent px-3 py-2 text-sm text-app-on-filled focus-visible:outline-2 focus-visible:outline-app-accent" to="/$gameid/strategy" params={{ gameid: getGame(gameId).routePrefix }} search={{ sessionId }}>{m.race_plan_generate()}</Link>
     </div>
-    {hasCold && <p className="max-w-prose text-xs text-app-text-muted">{m.strategy_cold_help()}</p>}
+
     {query.isLoading && <p role="status">{m.common_loading()}</p>}
     {query.isError && <div role="alert" className="text-status-danger">{m.common_error()}: {m.strategy_stints_error()} <button type="button" className="underline" onClick={() => void query.refetch()}>{m.strategy_retry()}</button></div>}
     {!query.isLoading && !query.isError && stints.length === 0 && <p role="status" className="text-sm text-app-text-muted">{m.strategy_stints_empty()}</p>}
-    {stints.length > 0 && <div role="region" aria-label={m.strategy_table_caption()} tabIndex={0} className="overflow-x-auto rounded border border-app-border"><table data-testid="stint-summary-table" className="min-w-[48rem] w-full border-collapse text-left text-xs tabular-nums">
-      <caption className="sr-only">{m.strategy_table_caption()}</caption>
-      <thead><tr className="border-b border-app-border bg-app-surface-alt text-app-text-muted">{stints.length > 1 && <th scope="col" className="px-3 py-3">{m.strategy_compare()}</th>}<th scope="col" className="px-3 py-3">{m.strategy_stint_laps()}</th><th scope="col" className="px-3 py-3">{m.strategy_fuel_rate()}</th><th scope="col" className="px-3 py-3">{m.strategy_wheel_rates()}</th>{hasCold && <th scope="col" className="px-3 py-3">{m.strategy_cold_fuel()}</th>}{hasCold && <th scope="col" className="px-3 py-3">{m.strategy_cold_wear()}</th>}<th scope="col" className="px-3 py-3">{m.strategy_fuel_coverage()}</th><th scope="col" className="px-3 py-3">{m.strategy_average_lap()}</th><th scope="col" className="px-3 py-3">{m.strategy_status_boundary()}</th></tr></thead>
-      <tbody>{stints.map((stint) => <tr id={`stint-${stint.id}`} key={stint.id} className="border-b border-app-border/60 last:border-0 align-top hover:bg-app-surface-alt/50">
-        {stints.length > 1 && <td className="px-3 py-4"><input className="accent-app-accent focus-visible:outline-2 focus-visible:outline-app-accent" aria-label={m.strategy_compare_stint({ ordinal: stint.ordinal })} type="checkbox" checked={selectedIds.includes(stint.id)} disabled={!selectedIds.includes(stint.id) && selected.length === 2} aria-describedby={!selectedIds.includes(stint.id) && selected.length === 2 ? "stint-selection-limit" : undefined} onChange={(event) => setSelected(stint.id, event.target.checked)} /></td>}
-        <th scope="row" className="px-3 py-4 font-medium whitespace-nowrap">{m.strategy_stint({ ordinal: stint.ordinal })}<span className="block pt-1 font-mono text-app-text-muted">{stint.firstLapNumber == null ? "—" : `${stint.firstLapNumber}–${stint.lastLapNumber ?? "?"}`}</span></th>
-        <td className="px-3 py-4 whitespace-nowrap" title={rateReason(stint.fuel, stint)}><span className="font-mono">{statsText(stint.fuel, stint.rateStatistics?.fuel)}</span><small className="block pt-1 text-app-text-muted">{m.strategy_sample_laps({ count: stint.fuel.eligibleLaps })}</small></td>
-        <td className="min-w-64 px-3 py-4"><div className="grid grid-cols-2 gap-x-4 gap-y-2">{stint.tires.map((rate, index) => <span key={wheels[index]} className="flex items-baseline justify-between gap-2 whitespace-nowrap" title={rateReason(rate, stint)}><span className="text-app-text-muted">{wheels[index]}</span><span className="text-right"><span className="font-mono">{statsText(rate, stint.rateStatistics?.tires[index])}</span><small className="block text-app-text-muted">{m.strategy_sample_laps({ count: rate.eligibleLaps })}</small></span></span>)}</div></td>
-        {hasCold && <td className="px-3 py-4 whitespace-nowrap"><span className="font-mono">{statsText(stint.fuel, stint.coldRateStatistics)}</span><small className="block pt-1 text-app-text-muted">{m.strategy_sample_laps({ count: stint.coldLaps ?? 0 })}</small></td>}
-        {hasCold && <td className="min-w-64 px-3 py-4"><div className="grid grid-cols-2 gap-x-4 gap-y-2">{stint.tires.map((rate, index) => <span key={wheels[index]} className="flex items-baseline justify-between gap-2 whitespace-nowrap"><span className="text-app-text-muted">{wheels[index]}</span><span className="text-right font-mono">{statsText(rate, stint.coldTireRateStatistics?.[index])}</span></span>)}</div></td>}
-        <td className="px-3 py-4 whitespace-nowrap"><span className="font-mono">{stint.measuredFuelUsed == null ? "—" : strategyFuelUsedText(stint.measuredFuelUsed, stint.fuelUnit)}</span>{stint.fuelCoverage === "partial" && <span className="block pt-1 text-app-text-muted">{m.strategy_coverage_partial()}</span>}</td>
-        <td className="px-3 py-4 font-mono whitespace-nowrap">{stint.averageLapSeconds == null ? "—" : `${stint.averageLapSeconds.toFixed(2)}s`}</td>
-        <td className="px-3 py-4"><details className="min-w-28 text-app-text-muted">
-          <summary className="cursor-pointer text-app-text focus-visible:outline-2 focus-visible:outline-app-accent">{stint.status === "active" ? m.strategy_status_active() : stint.status === "completed" ? m.strategy_status_completed() : m.strategy_status_interrupted()}</summary>
-          <div className="space-y-2 pt-3 max-w-64">
-            <p>{m.strategy_driver({ driver: stint.driverKey === "local-player" ? m.strategy_local_player() : stint.driverKey })}</p>
-            <p>{stint.boundary.confidence === "observed" ? m.strategy_confidence_observed() : stint.boundary.confidence === "inferred" ? m.strategy_confidence_inferred() : m.strategy_confidence_unknown()} · {reasonText(stint.boundary.reason)}</p>
-            <p>{m.strategy_completed_laps({ count: stint.completedLaps })} · {m.strategy_pace_laps({ count: stint.paceLaps })}</p>
+    {stints.length > 0 && <div data-testid="stint-summary-chart" role="region" aria-label={m.strategy_chart_label()} className="min-w-0 space-y-4 rounded-lg border border-app-border bg-app-surface/40 p-4">
+      {hasColdLaps && <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 border-b border-app-border/60 pb-3">
+        <p className="max-w-prose text-xs text-app-text-muted">{m.strategy_cold_help()}</p>
+        <div role="group" aria-label={m.strategy_population_label()} className="inline-flex shrink-0 rounded-md border border-app-border bg-app-surface p-0.5">
+          <button type="button" aria-pressed={population === "hot"} onClick={() => setPopulation("hot")} className={`min-h-10 rounded px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-accent ${population === "hot" ? "bg-app-accent text-app-on-filled" : "text-app-text-muted hover:text-app-text"}`}>{m.strategy_population_hot()}</button>
+          <button type="button" aria-pressed={population === "cold"} onClick={() => setPopulation("cold")} className={`min-h-10 rounded px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-accent ${population === "cold" ? "bg-app-accent text-app-on-filled" : "text-app-text-muted hover:text-app-text"}`}>{m.strategy_population_cold()}</button>
+        </div>
+      </div>}
+      <div role="group" aria-label={m.strategy_chart_heading()} className="flex flex-wrap items-center gap-3 text-xs text-app-text-muted">
+        <label className="inline-flex min-h-10 items-center gap-2"><input type="checkbox" checked={showP50} onChange={(event) => setShowP50(event.target.checked)} />{m.strategy_percentile_p50()}</label>
+        <label className="inline-flex min-h-10 items-center gap-2"><input type="checkbox" checked={showP95} onChange={(event) => setShowP95(event.target.checked)} />{m.strategy_percentile_p95()}</label>
+        {hasCompoundFilter && <label className="inline-flex min-h-10 items-center gap-2">{m.strategy_compounds()}
+          <select aria-label={m.strategy_compounds()} value={selectedCompound} onChange={(event) => setSelectedCompound(event.target.value)} className="min-h-10 rounded border border-app-border bg-app-surface px-2 text-app-text">
+            <option value="all">{m.strategy_filter_all()}</option>
+            {compounds.includes(null) && <option value="unknown">{m.strategy_unknown()}</option>}
+            {compounds.filter((compound): compound is string => compound != null).sort().map((compound) => <option key={compound} value={compound}>{compound}</option>)}
+          </select>
+        </label>}
+      </div>
+      {lapQuery.isError ? <div role="alert" className="text-status-danger">{m.common_error()}: {m.strategy_stints_error()} <button type="button" className="underline" onClick={() => void lapQuery.refetch()}>{m.strategy_retry()}</button></div>
+        : query.isLoading || lapQuery.isLoading ? <p role="status">{m.common_loading()}</p>
+        : <div className="grid min-w-0 grid-cols-1 gap-5 xl:grid-flow-dense xl:grid-cols-2 xl:grid-rows-2">
+          <div className="min-w-0 xl:row-span-2"><StintDumbbellChart stints={stints} laps={laps} metric="fuel" population={population} selectedCompound={selectedCompound} showP50={showP50} showP95={showP95} focusedLapId={focusedLap?.lapId ?? null} onFocusLap={setFocusedLapId} /></div>
+          <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 xl:col-start-2 xl:row-span-2">
+            {wheels.map((wheel, index) => <div key={wheel} className="min-w-0"><StintDumbbellChart stints={stints} laps={laps} metric={index} population={population} selectedCompound={selectedCompound} showP50={showP50} showP95={showP95} focusedLapId={focusedLap?.lapId ?? null} onFocusLap={setFocusedLapId} /></div>)}
+          </div>
+        </div>}
+      {focusedLap && <div className="min-w-0 space-y-2 border-t border-app-border/60 pt-3">
+        <h3 className="text-xs font-semibold text-app-text">{m.strategy_stint({ ordinal: focusedLap.stintOrdinal })} · {m.strategy_lap_number({ lap: focusedLap.lapNumber })} · {focusedLap.driverKey} · {populationLabel} · {focusedLap.thermalState}</h3>
+        <div role="region" aria-label={m.strategy_chart_heading()} tabIndex={0} className="min-w-0 overflow-x-auto rounded border border-app-border">
+          <table data-testid="stint-lap-readout" className="min-w-[38rem] w-full text-left text-xs tabular-nums">
+            <caption className="sr-only">{m.strategy_chart_heading()}</caption>
+            <thead><tr className="border-b border-app-border bg-app-surface-alt text-app-text-muted"><th scope="col" className="px-3 py-2">{m.strategy_metric()}</th><th scope="col" className="px-3 py-2">{m.strategy_value()}</th><th scope="col" className="px-3 py-2">{m.strategy_compounds()}</th></tr></thead>
+            <tbody>{readoutMetrics.map(({ label, metric }) => {
+              const measurement = metric === "fuel" ? focusedLap.fuel : focusedLap.tires[metric]!;
+              return <tr key={label} className="border-b border-app-border/60 last:border-0"><th scope="row" className="px-3 py-2 font-medium">{label}</th><td className="px-3 py-2 font-mono">{percentileText(measurement)}</td><td className="px-3 py-2">{metric === "fuel" ? "—" : focusedLap.tires[metric]!.compound ?? m.strategy_unknown()}</td></tr>;
+            })}</tbody>
+          </table>
+        </div>
+      </div>}
+    </div>}
+    {stints.length > 0 && <div data-testid="stint-summary-cards" role="region" aria-label={m.strategy_stint_summary_label()} className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+      {stints.map((stint) => <article id={`stint-${stint.id}`} key={stint.id} className="min-w-0 rounded-lg border border-app-border bg-app-surface/40 p-4">
+        <header className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="font-semibold text-app-text">{m.strategy_stint({ ordinal: stint.ordinal })}</h3>
+            <p className="text-sm text-app-text-muted">{m.strategy_stint_laps()}: {stint.firstLapNumber == null ? "—" : `${stint.firstLapNumber}–${stint.lastLapNumber ?? "?"}`} · {stint.status === "active" ? m.strategy_status_active() : stint.status === "completed" ? m.strategy_status_completed() : m.strategy_status_interrupted()}</p>
+          </div>
+          {stints.length > 1 && <label className="inline-flex min-h-10 items-center gap-2 text-sm text-app-text"><input className="accent-app-accent focus-visible:outline-2 focus-visible:outline-app-accent" aria-label={m.strategy_compare_stint({ ordinal: stint.ordinal })} type="checkbox" checked={selectedIds.includes(stint.id)} disabled={!selectedIds.includes(stint.id) && selected.length === 2} aria-describedby={!selectedIds.includes(stint.id) && selected.length === 2 ? "stint-selection-limit" : undefined} onChange={(event) => setSelected(stint.id, event.target.checked)} />{m.strategy_compare()}</label>}
+        </header>
+        <div className="mt-4 grid min-w-0 grid-cols-1 gap-3">
+          <section className="min-w-0" title={rateReason(stint.fuel, stint)}>
+            <h4 className="text-xs font-semibold text-app-text-muted">{m.strategy_fuel_rate()} · {m.strategy_sample_laps({ count: stint.fuel.eligibleLaps })}</h4>
+            <p className="mt-1 break-words font-mono text-sm text-app-text">{statsText(stint.fuel, stint.rateStatistics?.fuel)}</p>
+          </section>
+          <section className="grid min-w-0 grid-cols-2 gap-3">
+            {stint.tires.map((rate, index) => <div key={wheels[index]} className="min-w-0" title={rateReason(rate, stint)}>
+              <h4 className="text-xs font-semibold text-app-text-muted">{wheels[index]} · {stint.compounds[index] ?? m.strategy_unknown()} · {m.strategy_sample_laps({ count: rate.eligibleLaps })}</h4>
+              <p className="mt-1 break-words font-mono text-sm text-app-text">{statsText(rate, stint.rateStatistics?.tires[index])}</p>
+            </div>)}
+          </section>
+        </div>
+        <details className="mt-4 border-t border-app-border/60 pt-3 text-sm text-app-text-muted">
+          <summary className="cursor-pointer text-app-text focus-visible:outline-2 focus-visible:outline-app-accent">{m.strategy_stint_details()}</summary>
+          <div className="min-w-0 space-y-2 pt-3 break-words">
+            {hasCold && <><p>{m.strategy_cold_fuel()}: {statsText(stint.fuel, stint.coldRateStatistics)} · {m.strategy_sample_laps({ count: stint.coldLaps ?? 0 })}</p>
+              {stint.tires.map((rate, index) => <p key={wheels[index]}>{m.strategy_cold_wear()} · {wheels[index]} · {stint.compounds[index] ?? m.strategy_unknown()}: {statsText(rate, stint.coldTireRateStatistics?.[index])}</p>)}</>}
             <p>{m.strategy_fuel_rate()}: {rateReason(stint.fuel, stint)} · {m.strategy_eligible_laps({ count: stint.fuel.eligibleLaps })}</p>
             {stint.tires.map((rate, index) => <p key={wheels[index]}>{wheels[index]} · {stint.compounds[index] ?? m.strategy_unknown()} · {rateReason(rate, stint)} · {m.strategy_eligible_laps({ count: rate.eligibleLaps })}</p>)}
-            <p>{m.strategy_fuel_coverage()}: {stint.fuelCoverage === "complete" ? m.strategy_coverage_complete() : stint.fuelCoverage === "partial" ? m.strategy_coverage_partial() : m.strategy_coverage_unavailable()}</p>
+            <p>{m.strategy_fuel_coverage()}: {stint.measuredFuelUsed == null ? "—" : strategyFuelUsedText(stint.measuredFuelUsed, stint.fuelUnit)} · {stint.fuelCoverage === "complete" ? m.strategy_coverage_complete() : stint.fuelCoverage === "partial" ? m.strategy_coverage_partial() : m.strategy_coverage_unavailable()}</p>
+            <p>{m.strategy_average_lap()}: {stint.averageLapSeconds == null ? "—" : `${stint.averageLapSeconds.toFixed(2)}s`}</p>
+            <p>{m.strategy_driver({ driver: stint.driverKey === "local-player" ? m.strategy_local_player() : stint.driverKey })}</p>
+            <p>{m.strategy_completed_laps({ count: stint.completedLaps })} · {m.strategy_pace_laps({ count: stint.paceLaps })}</p>
+            <p>{stint.boundary.confidence === "observed" ? m.strategy_confidence_observed() : stint.boundary.confidence === "inferred" ? m.strategy_confidence_inferred() : m.strategy_confidence_unknown()} · {reasonText(stint.boundary.reason)}</p>
             <p>{m.strategy_exclusions({ count: stint.exclusions.reduce((sum, item) => sum + item.count, 0) })}</p>
             {stint.exclusions.map((item) => <p key={item.reason}>{reasonText(item.reason)}: {item.count}</p>)}
           </div>
-        </details></td>
-      </tr>)}</tbody>
-    </table></div>}
-    {stints.some((stint) => [stint.fuel, ...stint.tires].some((rate) => rate.value != null)) && <div data-testid="stint-summary-chart" aria-label={m.strategy_chart_label()} className="grid gap-5 rounded border border-app-border p-4 sm:grid-cols-2 lg:grid-cols-3">
-      <fieldset className="space-y-2"><legend className="pb-2 text-xs font-medium">{m.strategy_fuel_rate()}</legend><RateChart stints={stints} metric="fuel" /></fieldset>
-      {wheels.map((wheel, index) => <fieldset key={wheel} className="space-y-2"><legend className="pb-2 text-xs font-medium">{m.strategy_wheel_rate({ wheel })}</legend><RateChart stints={stints} metric={index} /></fieldset>)}
+        </details>
+      </article>)}
     </div>}
     {selected.length === 2 && <p className="text-app-text-muted">{m.strategy_conditions()}</p>}
     {selected.length === 2 && <p id="stint-selection-limit" className="text-app-text-muted">{m.strategy_remove_first()}</p>}
     {selected.length === 2 && <div data-testid="stint-comparison" role="region" aria-label={m.strategy_compare()} tabIndex={0} aria-live="polite" className="overflow-x-auto rounded border border-app-border p-3 text-xs">
-      {selected.length === 2 && <div className="space-y-2"><h3 className="font-semibold">{m.strategy_comparison_heading({ first: selected[0]!.ordinal, second: selected[1]!.ordinal })}</h3><table className="min-w-[40rem] w-full text-left"><thead><tr><th scope="col">{m.strategy_metric()}</th><th scope="col">{m.strategy_stint({ ordinal: selected[0]!.ordinal })}</th><th scope="col">{m.strategy_stint({ ordinal: selected[1]!.ordinal })}</th><th scope="col">{m.strategy_difference()}</th></tr></thead><tbody>{metrics.map((row) => <tr key={row.label}><th scope="row">{row.label}</th><td>{row.first}</td><td>{row.second}</td><td>{row.diff}</td></tr>)}</tbody></table><p>{m.strategy_conditions()}</p><Link className="underline" to="/$gameid/sessions/$sessionId/analyse" params={{ gameid: getGame(gameId).routePrefix, sessionId: String(selected[0]!.sessionId) }}>{m.strategy_evidence_link({ session: selected[0]!.sessionId, stint: selected[0]!.id })}</Link></div>}
+      {selected.length === 2 && <div className="space-y-2"><h3 className="font-semibold">{m.strategy_comparison_heading({ first: selected[0]!.ordinal, second: selected[1]!.ordinal })}</h3><table className="min-w-[40rem] w-full text-left"><thead><tr><th scope="col">{m.strategy_metric()}</th><th scope="col">{m.strategy_stint({ ordinal: selected[0]!.ordinal })}</th><th scope="col">{m.strategy_stint({ ordinal: selected[1]!.ordinal })}</th><th scope="col">{m.strategy_difference()}</th></tr></thead><tbody>{metrics.map((row) => <tr key={row.label}><th scope="row">{row.label}</th><td>{row.first}</td><td>{row.second}</td><td>{row.diff}</td></tr>)}</tbody></table><p>{m.strategy_conditions()}</p><Link className="underline" to="/$gameid/sessions/$sessionId/analyse" params={{ gameid: getGame(gameId).routePrefix, sessionId: String(selected[0]!.sessionId) }} search={true} hash={`stint-${encodeURIComponent(selected[0]!.id)}`}>{m.strategy_evidence_link({ session: selected[0]!.sessionId, stint: selected[0]!.id })}</Link></div>}
     </div>}
   </section>;
 }

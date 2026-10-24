@@ -18,6 +18,31 @@ export interface MetricRate {
   provisional: boolean;
   unavailableReason: string | null;
 }
+export interface StrategyLapMetricValue {
+  value: number | null;
+  unit: "L/lap" | "tankFraction/lap";
+  unavailableReason: string | null;
+}
+export interface StrategyLapTireMetric {
+  value: number | null;
+  unit: "wearFraction/lap";
+  unavailableReason: string | null;
+  compound: string | null;
+}
+export interface StrategyLapMetric {
+  lapId: number;
+  lapNumber: number;
+  driverKey: string;
+  stintId: string;
+  stintOrdinal: number;
+  thermalState: "cold" | "warm" | "unavailable";
+  fuel: StrategyLapMetricValue;
+  tires: FourWheels<StrategyLapTireMetric>;
+}
+export interface StrategyLapMetricsResponse {
+  laps: StrategyLapMetric[];
+}
+
 export interface StintSummary {
   id: string;
   sessionId: number;

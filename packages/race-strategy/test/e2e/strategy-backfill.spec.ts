@@ -47,7 +47,7 @@ test("A1-A3 startup backfills missing LMU stints from their recording without ch
     const summaries = await readStints();
     const page = await context.newPage();
     await page.goto(`${runtime.baseURL}/lmu/sessions/${sessionId}/analyse`);
-    await expect(page.getByTestId("stint-summary-table")).toBeVisible();
+    await expect(page.getByTestId("stint-summary-cards")).toBeVisible();
     await expect(page.getByTestId("stint-summary-chart")).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("automatically-backfilled-lmu-stints.png") });
     await runtime.crash();

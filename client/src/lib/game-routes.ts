@@ -53,7 +53,7 @@ export type TuneSearch = {
   view?: TuneView;
 };
 
-export type TuneReviewView = "overview" | "track" | `s${number}`;
+export type TuneReviewView = "overview" | "issues" | "track" | `s${number}`;
 export type TuneReviewTrackTab = "consistency" | "braking" | "throttle" | "dynamics" | "fuel" | "suspension";
 export type TuneReviewSearch = {
   laps?: string;
@@ -183,7 +183,7 @@ export function validateTuneSearch(search: Record<string, unknown>): TuneSearch 
   };
 }
 export function validateTuneReviewSearch(search: Record<string, unknown>): TuneReviewSearch {
-  const view = search.view === "overview" || search.view === "track" || (typeof search.view === "string" && /^s[1-9]\d*$/.test(search.view)) ? search.view : undefined;
+  const view = search.view === "overview" || search.view === "issues" || search.view === "track" || (typeof search.view === "string" && /^s[1-9]\d*$/.test(search.view)) ? search.view : undefined;
   const requestedTab = search.tab ?? search.trackTab;
   const tab =
     requestedTab === "consistency" ||

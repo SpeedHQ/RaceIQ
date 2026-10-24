@@ -231,9 +231,10 @@ export interface RaceStrategyMessages {
   strategy_status_interrupted: () => string;
   strategy_stint: (inputs: { ordinal: string | number }) => string;
   strategy_stint_laps: () => string;
+  strategy_stint_details: () => string;
   strategy_stints_empty: () => string;
   strategy_stints_error: () => string;
-  strategy_table_caption: () => string;
+  strategy_stint_summary_label: () => string;
   strategy_tire_semantics: () => string;
   strategy_tires_not_indicated: () => string;
   strategy_tires_unavailable: () => string;
@@ -244,6 +245,13 @@ export interface RaceStrategyMessages {
   strategy_cold_fuel: () => string;
   strategy_cold_wear: () => string;
   strategy_cold_help: () => string;
+  strategy_population_label: () => string;
+  strategy_population_hot: () => string;
+  strategy_population_cold: () => string;
+  strategy_lap_axis: () => string;
+  strategy_lap_number: (inputs: { lap: string | number }) => string;
+  strategy_filter_all: () => string;
+  strategy_value: () => string;
   race_adherence_title: () => string;
   race_adherence_within: () => string;
   race_adherence_over: () => string;

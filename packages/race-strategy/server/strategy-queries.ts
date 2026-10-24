@@ -1,13 +1,34 @@
 import type { Client, Transaction } from "@libsql/client";
 import { client } from "@raceiq/backend-core/db/index";
-import { PitEstimateRecordSchema, StintSummarySchema } from "@raceiq/shared/racing/live/strategy-schemas";
+import { PitEstimateRecordSchema, StintSummarySchema, StrategyLapMetricsResponseSchema } from "@raceiq/shared/racing/live/strategy-schemas";
 import { GameIdSchema, type GameId } from "@raceiq/shared/games/ids";
-import type { PitEstimateRecord, SourceOrder, StintSummary, StrategyHistoryUpdatedMessage } from "@raceiq/shared/racing/live/strategy";
-import type { LapMetricContribution } from "./lap-metrics";
+import type { PitEstimateRecord, SourceOrder, StintSummary, StrategyHistoryUpdatedMessage, StrategyLapMetric } from "@raceiq/shared/racing/live/strategy";
+import { STRATEGY_ALGORITHM_VERSION, type LapMetricContribution } from "./lap-metrics";
 import type { StrategyTotals } from "./stint-accumulator";
 import { publishStrategyHistory } from "./history-events";
 import { z } from "zod";
 import { withDatabaseWrite } from "@raceiq/backend-core/db/write-coordination";
+const finite = z.number().finite();
+const nullableFinite = finite.nullable();
+const four = <T extends z.ZodType>(schema: T) => z.tuple([schema, schema, schema, schema]);
+const StrategyLapContributionSchema = z.object({
+  fuelUsed: nullableFinite,
+  fuelExcludedReason: z.string().nullable(),
+  virtualEnergyUsed: nullableFinite.optional(),
+  virtualEnergyExcludedReason: z.string().nullable().optional(),
+  tireWear: four(nullableFinite),
+  tireExcludedReasons: four(z.string().nullable()),
+  lapTimeSeconds: nullableFinite,
+  exclusionReason: z.string().nullable(),
+  measuredFuelUsed: nullableFinite,
+  fuelCoverage: z.enum(["complete", "partial", "unavailable"]),
+  thermalState: z.enum(["cold", "warm", "unavailable"]),
+  evidence: z.object({
+    firstTimestampMs: nullableFinite,
+    lastTimestampMs: nullableFinite,
+    samples: z.number().int().nonnegative().safe(),
+  }),
+});
 
 export interface PersistStrategyLapInput {
   sessionId: number; driverKey: string; lapId: number; stintId: string; algorithmVersion: string;
@@ -126,6 +147,52 @@ export async function getStrategyStints(sessionId: number, driverKey?: string): 
     args: driverKey == null ? [sessionId] : [sessionId, driverKey],
   });
   return result.rows.map((row) => StintSummarySchema.parse(JSON.parse(String(row.payload))));
+}
+
+export async function getStrategyLapMetrics(sessionId: number, driverKey?: string): Promise<StrategyLapMetric[]> {
+  const result = await client.execute({
+    sql: `SELECT l.id AS lap_id, l.lap_number, m.driver_key, m.stint_id, m.payload AS contribution_payload, s.payload AS stint_payload
+      FROM strategy_lap_metrics m
+      JOIN laps l ON l.id = m.lap_id AND l.session_id = m.session_id
+      JOIN strategy_stints s ON s.id = m.stint_id AND s.session_id = m.session_id AND s.driver_key = m.driver_key
+      WHERE m.session_id = ? AND m.algorithm_version = ? ${driverKey == null ? "" : "AND m.driver_key = ?"}
+      ORDER BY l.lap_number ASC, m.driver_key ASC, l.id ASC`,
+    args: driverKey == null
+      ? [sessionId, STRATEGY_ALGORITHM_VERSION]
+      : [sessionId, STRATEGY_ALGORITHM_VERSION, driverKey],
+  });
+  const laps = result.rows.map((row) => {
+    const contribution = StrategyLapContributionSchema.parse(JSON.parse(String(row.contribution_payload)));
+    const summary = StintSummarySchema.parse(JSON.parse(String(row.stint_payload)));
+    const lapId = Number(row.lap_id);
+    const lapNumber = Number(row.lap_number);
+    const rowDriverKey = String(row.driver_key);
+    const stintId = String(row.stint_id);
+    if (summary.id !== stintId || summary.sessionId !== sessionId || summary.driverKey !== rowDriverKey ||
+      summary.algorithmVersion !== STRATEGY_ALGORITHM_VERSION) {
+      throw new Error("Persisted strategy lap metric identity mismatch");
+    }
+    return {
+      lapId,
+      lapNumber,
+      driverKey: rowDriverKey,
+      stintId,
+      stintOrdinal: summary.ordinal,
+      thermalState: contribution.thermalState,
+      fuel: {
+        value: contribution.fuelUsed,
+        unit: summary.fuelUnit === "L" ? "L/lap" : "tankFraction/lap",
+        unavailableReason: contribution.fuelExcludedReason,
+      },
+      tires: contribution.tireWear.map((value, index) => ({
+        value,
+        unit: "wearFraction/lap" as const,
+        unavailableReason: contribution.tireExcludedReasons[index]!,
+        compound: summary.compounds[index]!,
+      })) as StrategyLapMetric["tires"],
+    };
+  });
+  return StrategyLapMetricsResponseSchema.parse({ laps }).laps;
 }
 
 /** Durably allocate source order before asynchronous estimate derivation begins. */
