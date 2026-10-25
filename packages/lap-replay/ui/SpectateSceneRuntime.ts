@@ -29,7 +29,7 @@ import { sampleMotion } from "./spectate-replay";
 const color = (name: string) => resolveCssColor(`var(${name})`);
 import { hasTelemetryGap } from "./telemetry-gap";
 
-export function estimatedRaceLineSegments(samples: readonly SpectateSample[], opponent = false): number[] {
+export function estimatedRaceLineSegments(samples: readonly SpectateSample[], opponent = false, maximumGapSeconds?: number): number[] {
   const positions: number[] = [];
   for (let i = 1; i < samples.length; i++) {
     const previous = samples[i - 1]!, sample = samples[i]!;
@@ -38,7 +38,7 @@ export function estimatedRaceLineSegments(samples: readonly SpectateSample[], op
     const gap = sample.time - previous.time;
     if (!Number.isFinite(previous.time) || !Number.isFinite(sample.time) || sample.time < previous.time
       || (opponent && previous.frame && sample.frame && sample.frame.sequence <= previous.frame.sequence)
-      || (opponent ? gap <= 0.1 || gap > 1 : !hasTelemetryGap(previous.time, sample.time) || gap > 1)
+      || (opponent ? gap <= 0.1 || gap > 1 : !hasTelemetryGap(previous.time, sample.time, maximumGapSeconds) || gap > 1)
       || typeof px !== "number" || !Number.isFinite(px) || typeof pz !== "number" || !Number.isFinite(pz)
       || typeof x !== "number" || !Number.isFinite(x) || typeof z !== "number" || !Number.isFinite(z)) continue;
     positions.push(px, 0, pz, x, 0, z);
@@ -331,7 +331,7 @@ export class SpectateSceneRuntime {
     if (displayBoundaries && needsTrackFlip(this.pair.gameId)) displayBoundaries = flipBoundaries(displayBoundaries);
     // These endpoints already return game-world metres. Fitting their centerline
     // to a driven lap moves the track toward the car and changes its scale.
-    const worldBoundaries = displayBoundaries?.coordSystem === "forza" || displayBoundaries?.coordSystem === "f1-2025" || displayBoundaries?.coordSystem === "acc" || displayBoundaries?.coordSystem === "lmu";
+    const worldBoundaries = displayBoundaries?.coordSystem === "forza" || displayBoundaries?.coordSystem === "f1-2025" || displayBoundaries?.coordSystem === "acc" || displayBoundaries?.coordSystem === "lmu" || displayBoundaries?.coordSystem === "ams2-world";
     let boundaryAlignment: TrackAlignment | null = worldBoundaries ? WORLD_ALIGNMENT : null;
     if (!worldBoundaries && displayBoundaries && displayBoundaries.centerLine.length >= 5) boundaryAlignment = computeAlignment(displayBoundaries.centerLine, native);
     const validAlignment = (source: readonly TrackPoint[], alignment: TrackAlignment | null) => {
@@ -439,7 +439,7 @@ export class SpectateSceneRuntime {
       if (center.length > 1) this.centerLineRuns = [center];
       const project = (lap: ReplaySession["a"], side: 0 | 1) => {
         const points = lap.samples.map((sample): FocusNativePoint => {
-          const motion = lap.motionSamples ? sampleMotion(lap.motionSamples, sample.time, true, "opponentLapId" in lap.replay) : null;
+          const motion = lap.motionSamples ? sampleMotion(lap.motionSamples, sample.time, true, "opponentLapId" in lap.replay, lap.maximumGapSeconds) : null;
           const pose = motion?.pose;
           const x = sample.values["motion.position-x"], y = "opponentLapId" in lap.replay ? 0 : sample.values["motion.position-y"], z = sample.values["motion.position-z"];
           return {
@@ -488,7 +488,7 @@ export class SpectateSceneRuntime {
       const opponent = side === "a"
         ? "kind" in this.pair.comparison.lapA && this.pair.comparison.lapA.kind === "opponent"
         : !!this.pair.comparison.lapB && "kind" in this.pair.comparison.lapB && this.pair.comparison.lapB.kind === "opponent";
-      const estimated = estimatedRaceLineSegments(samples, opponent);
+      const estimated = estimatedRaceLineSegments(samples, opponent, (side === "a" ? this.pair.a : this.pair.b)?.maximumGapSeconds);
       this.canvas.dataset[`${side}EstimatedRacingLineSegments`] = String(estimated.length / 6);
       const recorded: RibbonRun[] = [], projected: FocusLaneSource[][] = [];
       let native: FocusRenderPoint[] = [], lane: FocusLaneSource[] = [];
@@ -500,7 +500,7 @@ export class SpectateSceneRuntime {
         const sample = samples[i], center = this.focusCenterPoints[index]?.[i] ?? null;
         const x = sample.values["motion.position-x"], z = sample.values["motion.position-z"];
         const valid = typeof x === "number" && Number.isFinite(x) && typeof z === "number" && Number.isFinite(z);
-        const connected = prior && valid && prior.run === sample.run && sample.time >= prior.time && sample.time - prior.time <= (opponent ? 0.3 : 0.1);
+        const connected = prior && valid && prior.run === sample.run && sample.time >= prior.time && !hasTelemetryGap(prior.time, sample.time, opponent ? 0.3 : (side === "a" ? this.pair.a : this.pair.b)?.maximumGapSeconds);
         if (prior && connected) {
           if (!native.length) native.push(nativePoint(prior, opponent));
           native.push(nativePoint(sample, opponent));

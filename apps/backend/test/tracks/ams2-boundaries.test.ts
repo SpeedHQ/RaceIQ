@@ -12,9 +12,10 @@ test("AMS2 Indy boundaries preserve native telemetry coordinates and paired edge
   injectDiscoveredAMS2Identity([], [{ ordinal: 165370945, name: "BrandsHatch - BrandsHatch_Indy" }]);
   const boundaries = getTrackBoundariesByOrdinal(165370945, "ams2")!;
   expect(boundaries).not.toBeNull();
-  expect(boundaries.leftEdge).toHaveLength(379);
-  expect(boundaries.rightEdge).toHaveLength(379);
-  expect(boundaries.centerLine).toHaveLength(379);
+  // The SVG Z command explicitly closes the 379-point native path.
+  expect(boundaries.leftEdge).toHaveLength(380);
+  expect(boundaries.rightEdge).toHaveLength(380);
+  expect(boundaries.centerLine).toHaveLength(380);
   // Native world origin and signs must survive export: no SVG translation or reflection.
   expect(boundaries.centerLine![0]).toEqual({ x: 29.7044, z: 14.4233 });
   for (let i = 0; i < boundaries.leftEdge.length; i++) {
@@ -70,7 +71,7 @@ test("AMS2 map lookup does not substitute Indy for another track", () => {
 
 test("persisted string track identities restore map lookup after startup", () => {
   injectDiscoveredAMS2Identity([], [{ trackId: "899999997", name: "BrandsHatch - BrandsHatch_Indy" }]);
-  expect(getTrackBoundariesByOrdinal(899999997, "ams2")?.leftEdge).toHaveLength(379);
+  expect(getTrackBoundariesByOrdinal(899999997, "ams2")?.leftEdge).toHaveLength(380);
 });
 
 test("AMS2 Indy reuses only the matching shared name and preserves native identity", () => {
@@ -84,7 +85,7 @@ test("AMS2 Indy reuses only the matching shared name and preserves native identi
   expect(ams2Adapter.getSharedTrackName?.("899999996")).toBe("brands-hatch");
   expect(ams2Adapter.getSharedTrackName?.("1250765071")).toBeUndefined();
   expect(ams2Adapter.getTrackName("1250765071")).toBe("Cordoba International");
-  expect(getTrackBoundariesByOrdinal(Number(id), "ams2")?.leftEdge).toHaveLength(379);
+  expect(getTrackBoundariesByOrdinal(Number(id), "ams2")?.leftEdge).toHaveLength(380);
 });
 
 test("server inventory preserves recorded IDs and keeps historical and layout facts separate", () => {
@@ -127,8 +128,8 @@ test("Cordoba International uses the recording-verified standard archive, not GP
   const boundaries = getTrackBoundariesByOrdinal(ordinal, "ams2")!;
   const original = JSON.parse(readFileSync(resolve(gameAssetsDir("ams2"), "tracks/cordoba-boundaries.json"), "utf8"));
   expect(boundaries).not.toBeNull();
-  expect(boundaries.leftEdge).toEqual(original.leftEdge);
-  expect(boundaries.rightEdge).toEqual(original.rightEdge);
+  expect(boundaries.leftEdge).toEqual([...original.leftEdge, original.leftEdge[0]]);
+  expect(boundaries.rightEdge).toEqual([...original.rightEdge, original.rightEdge[0]]);
   const entries = [{ layout: "Cordoba", file: "cordoba-boundaries.json", lengthM: 3655.272461 }];
   expect(matchAMS2Layout("Cordoba - Cordoba_International", 4055.424805, entries)).toBeNull();
   expect(matchAMS2Layout("Other location - Cordoba_International", undefined, entries)).toBeNull();

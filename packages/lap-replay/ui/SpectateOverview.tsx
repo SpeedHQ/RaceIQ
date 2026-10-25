@@ -117,7 +117,7 @@ function splitText(delta: number | null, unavailable: string) {
   return delta === null ? unavailable : `${delta > 0 ? "+" : ""}${delta.toFixed(3)} s`;
 }
 
-export function SpectateOverview({ pair, controller, segments, focus }: { pair: ReplaySession; controller: SpectateController; segments: readonly SpectateSegment[]; focus: SpectateFocus }) { const m = useMessages(); const coloredRuns = useMemo(() => [focusRuns(pair.a.samples, focus), ...(pair.b ? [focusRuns(pair.b.samples, focus)] : [])], [pair, focus]);
+export function SpectateOverview({ pair, controller, segments, focus }: { pair: ReplaySession; controller: SpectateController; segments: readonly SpectateSegment[]; focus: SpectateFocus }) { const m = useMessages(); const coloredRuns = useMemo(() => [focusRuns(pair.a.samples, focus, "opponentLapId" in pair.a.replay ? 0.3 : pair.a.maximumGapSeconds), ...(pair.b ? [focusRuns(pair.b.samples, focus, "opponentLapId" in pair.b.replay ? 0.3 : pair.b.maximumGapSeconds)] : [])], [pair, focus]);
 const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
 const splitAt = useMemo(() => splitLookup(pair), [pair]);
   const hasAuthoritativeOpponentLength = !("opponentLapId" in pair.a.replay) || (typeof pair.a.trackLengthM === "number" && Number.isFinite(pair.a.trackLengthM) && pair.a.trackLengthM > 0);
