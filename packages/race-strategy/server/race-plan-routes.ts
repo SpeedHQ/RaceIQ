@@ -1,6 +1,6 @@
 import { Hono, type Context } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { ActiveRacePlansResponseSchema, RacePlanInputSchema, RacePlanRecalculationInputSchema, SetActiveRacePlanInputSchema } from "@raceiq/shared/racing/live/race-plan";
+import { ActiveRacePlansResponseSchema, RacePlanGenerationEvidenceResponseSchema, RacePlanInputSchema, RacePlanRecalculationInputSchema, RacePlanWeatherSchema, SetActiveRacePlanInputSchema } from "@raceiq/shared/racing/live/race-plan";
 import { z } from "zod";
 import { GameIdSchema } from "@raceiq/shared/games/ids";
 import {
@@ -14,12 +14,20 @@ import {
   RacePlanSourceNotFoundError,
   setActiveRacePlan,
   updateRacePlan,
+  getRacePlanGenerationEvidence,
 } from "./race-plan-queries";
 
 import { recalculateRacePlan, RacePlanEvidenceUnavailableError } from "./race-plan-recalculation";
 
 const PlanIdParam = z.object({ id: z.string().min(1).max(200) }).strict();
 const ActivePlanInput = SetActiveRacePlanInputSchema;
+
+const GenerationEvidenceQuery = z.object({
+  gameId: GameIdSchema,
+  carId: z.string().trim().min(1).max(200),
+  trackId: z.string().trim().min(1).max(200),
+  weather: RacePlanWeatherSchema,
+}).strict();
 
 const GameQuery = z.object({ gameId: GameIdSchema }).strict();
 function failure(error: unknown, c: Context) {
@@ -40,6 +48,14 @@ function validationHook(result: { success: boolean }, c: Context) {
 }
 
 export const racePlanRoutes = new Hono()
+  .get("/api/race-plans/generation-evidence", zValidator("query", GenerationEvidenceQuery, validationHook), async (c) => {
+    try {
+      const baseline = await getRacePlanGenerationEvidence(c.req.valid("query"));
+      return c.json(RacePlanGenerationEvidenceResponseSchema.parse({ baseline }));
+    } catch {
+      return c.json({ code: "STRATEGY_STORAGE_UNAVAILABLE", error: "Strategy storage unavailable" }, 503);
+    }
+  })
   .get("/api/race-plans/active", async (c): Promise<Response> => c.json(ActiveRacePlansResponseSchema.parse({ plans: await getActiveRacePlans() })))
   .put("/api/race-plans/active", zValidator("json", ActivePlanInput, validationHook), async (c) => {
     try {

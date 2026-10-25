@@ -13,12 +13,14 @@ import { client } from "../lib/rpc";
 import { rpcJson } from "../lib/rpc-json";
 import { m } from "../paraglide/messages";
 
+import { useCarsForGame, useTracksForGame } from "../hooks/catalog-queries";
 const sessionApi = client.api.sessions[":id"];
 const host = {
   m, Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger,
   Input: AppInput, Select: NativeSelect, Textarea,
-  useSessions, useSettings, useTelemetryState: useTelemetryStore,
+  useSessions, useTracksForGame, useCarsForGame, useSettings, useTelemetryState: useTelemetryStore,
   api: {
+    generationEvidence: async (gameId, carId, trackId, weather, signal) => rpcJson<unknown>(await client.api["race-plans"]["generation-evidence"].$get({ query: { gameId, carId, trackId, weather } }, { init: { signal } })),
     listPlans: async (gameId, signal) => rpcJson<unknown>(await client.api["race-plans"].$get({ query: { gameId } }, { init: { signal } })),
     activePlans: async (signal) => rpcJson<unknown>(await client.api["race-plans"].active.$get({}, { init: { signal } })),
     savePlan: async (input, id) => rpcJson<unknown>(id

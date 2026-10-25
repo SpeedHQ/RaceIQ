@@ -128,16 +128,20 @@ export const buildStrategyAdherence: BuildStrategyAdherence = (input: BuildStrat
     (plan.gameId !== "fm-2023" || (plan.pi !== null && currentStint.pi === plan.pi));
   const compatible = (evidence: StintSummary) => evidence.gameId === plan.gameId && evidence.carId === plan.carId && evidence.trackId === plan.trackId &&
     (plan.gameId !== "fm-2023" || evidence.pi === plan.pi);
+  const plannedStint = plan.stints.find((stint) => input.currentLap !== null && input.currentLap <= stint.endLap);
+  const baseline = plannedStint?.baseline ?? null;
   const evidence = matches ? plan.stints.map((stint) => stint.evidence).filter((item): item is StintSummary => !!item && compatible(item)) : [];
   const usesFuel = supportsRaceRefueling(plan.gameId);
-  const referenceStint = plan.stints.find((stint) => input.currentLap !== null && input.currentLap <= stint.endLap)?.evidence;
+  const referenceStint = plannedStint?.evidence;
   const fuelUnit = plan.fuelUnit === "L" ? "L/lap" : "tankFraction/lap";
   const fuelCandidates = evidence.filter((item) => item.fuelUnit === plan.fuelUnit && item.compatibility.fuelSemanticVersion !== null &&
     item.compatibility.fuelSemanticVersion === currentStint?.compatibility.fuelSemanticVersion).map((item) => rateValue(item.fuel, fuelUnit)).filter((value): value is number => value !== null);
   const referenceFuel = referenceStint && compatible(referenceStint) && referenceStint.fuelUnit === plan.fuelUnit &&
     referenceStint.compatibility.fuelSemanticVersion !== null && referenceStint.compatibility.fuelSemanticVersion === currentStint?.compatibility.fuelSemanticVersion
     ? rateValue(referenceStint.fuel, fuelUnit) : null;
-  const plannedFuel = usesFuel ? referenceFuel ?? (fuelCandidates.length > 0 && fuelCandidates.every((value) => value === fuelCandidates[0]) ? fuelCandidates[0]! : null) : null;
+  const plannedFuel = usesFuel ? baseline?.fuelUnit === plan.fuelUnit && baseline.compatibility.fuelSemanticVersion != null &&
+    baseline.compatibility.fuelSemanticVersion === currentStint?.compatibility.fuelSemanticVersion
+    ? rateValue(baseline.fuel, fuelUnit) : referenceFuel ?? (fuelCandidates.length > 0 && fuelCandidates.every((value) => value === fuelCandidates[0]) ? fuelCandidates[0]! : null) : null;
   const physicalCapacity = nonnegative(input.fuelCapacity) && input.fuelCapacity > 0 ? input.fuelCapacity : null;
   const liveFuelValid = input.fuelUnit === plan.fuelUnit && currentStint?.fuelUnit === plan.fuelUnit && nonnegative(input.fuelRemaining) &&
     (physicalCapacity === null || input.fuelRemaining! <= physicalCapacity);
@@ -158,7 +162,9 @@ export const buildStrategyAdherence: BuildStrategyAdherence = (input: BuildStrat
       .map((item) => rateValue(item.tires[wheel], "wearFraction/lap")).filter((value): value is number => value !== null);
     const preferred = referenceStint && compatible(referenceStint) && referenceStint.compounds[wheel] === compound && semantic != null &&
       referenceStint.compatibility.tireSemanticVersions[wheel] === semantic ? rateValue(referenceStint.tires[wheel], "wearFraction/lap") : null;
-    const planned = preferred ?? (candidates.length > 0 && candidates.every((value) => value === candidates[0]) ? candidates[0]! : null);
+    const planned = baseline && baseline.compounds[wheel] === compound && baseline.compatibility.tireSemanticVersions[wheel] != null &&
+      baseline.compatibility.tireSemanticVersions[wheel] === semantic ? rateValue(baseline.tires[wheel], "wearFraction/lap")
+      : preferred ?? (candidates.length > 0 && candidates.every((value) => value === candidates[0]) ? candidates[0]! : null);
     const current = wearValue(input.tireWear[wheel]) ? input.tireWear[wheel] : null;
     const live = strategy && strategy.tires[wheel].source === "current-stint" && strategy.tires[wheel].eligibleLaps >= 2 && strategy.tires[wheel].unit === "wearFraction/lap"
       ? rateValue(strategy.tires[wheel], "wearFraction/lap") : null;
@@ -176,7 +182,10 @@ export const buildStrategyAdherence: BuildStrategyAdherence = (input: BuildStrat
   const energyReference = referenceStint && compatible(referenceStint) && currentStint?.compatibility.virtualEnergySemanticVersion != null &&
     referenceStint.compatibility.virtualEnergySemanticVersion === currentStint.compatibility.virtualEnergySemanticVersion
     ? rateValue(referenceStint.virtualEnergy, "energyFraction/lap") : null;
-  const energyPlan = energyReference ?? (energyCompatible && energyEvidence.length && energyEvidence.every((value) => value === energyEvidence[0]) ? energyEvidence[0]! : null);
+  const energyPlan = baseline?.compatibility.virtualEnergySemanticVersion != null &&
+    baseline.compatibility.virtualEnergySemanticVersion === currentStint?.compatibility.virtualEnergySemanticVersion
+    ? rateValue(baseline.virtualEnergy, "energyFraction/lap")
+    : energyReference ?? (energyCompatible && energyEvidence.length && energyEvidence.every((value) => value === energyEvidence[0]) ? energyEvidence[0]! : null);
   const energyLive = currentStint?.virtualEnergy?.source === "current-stint" && currentStint.virtualEnergy.eligibleLaps >= 2
     ? rateValue(currentStint.virtualEnergy, "energyFraction/lap") : null;
 

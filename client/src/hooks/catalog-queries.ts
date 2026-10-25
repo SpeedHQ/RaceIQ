@@ -25,9 +25,9 @@ export function useCarsForGame(gameId: GameId | null) {
         return rpcJson<Array<{ id: number | string; name: string }>>(response).then((rows) => rows.map((row) => ({ id: String(row.id), name: row.name })));
       }
       if (gameId === "ac-evo") {
-        const response = await fetch("/api/ac-evo/cars");
-        if (!response.ok) throw new Error(`Failed to load car catalog (${response.status})`);
-        return (await response.json() as Array<{ id: string; name: string }>).map(({ id, name }) => ({ id, name }));
+        const response = await client.api["ac-evo"].cars.$get();
+        const rows = await rpcJson<Array<{ id: string; name: string }>>(response);
+        return rows.map(({ id, name }) => ({ id, name }));
       }
       const response = await client.api.cars.$get({ header: { "X-Game-Id": gameId! } });
       return rpcJson<{ id: string; name: string }[]>(response);

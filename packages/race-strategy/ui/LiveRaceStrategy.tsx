@@ -15,8 +15,12 @@ export function LiveRaceStrategy({ gameId, carId, trackId, pi, currentLap, onMan
   const plan = selected;
   const applicable = isRacePlanApplicable(plan, { gameId, carId, trackId, pi });
   const { currentStint, finished } = plan ? racePlanProgress(plan, currentLap) : { currentStint: null, finished: false };
+  const baseline = currentStint?.baseline;
   return <section data-testid="live-race-strategy" className="min-w-0 space-y-2 rounded-xl border border-app-border bg-app-surface p-3" aria-labelledby="live-race-strategy-title">
     <div className="flex min-w-0 flex-wrap items-start justify-between gap-2"><div className="min-w-0"><h2 id="live-race-strategy-title" className="text-sm font-semibold">{m.race_plan_live_title()}</h2>{query.isLoading ? <p role="status" className="text-sm text-app-text-muted">{m.common_loading()}</p> : query.isError ? <p role="alert" className="text-sm text-status-danger">{m.race_plan_live_error()} <button type="button" className="underline" onClick={() => void query.refetch()}>{m.strategy_retry()}</button></p> : !plan ? <p className="text-sm text-app-text-muted">{m.race_plan_none_loaded()}</p> : <div className="min-w-0 break-words text-sm"><p className="font-medium">{plan.name}</p>{!applicable ? <p role="status" className="text-status-warning">{m.race_plan_mismatch()}</p> : finished ? <p role="status" className="text-app-text-muted">{m.race_plan_complete()}</p> : currentStint == null ? <p role="status" className="text-app-text-muted">{m.race_plan_lap_unavailable()}</p> : <><p>{m.race_plan_current_stint({ ordinal: plan.stints.indexOf(currentStint) + 1, endLap: currentStint.endLap })}</p>{currentStint.endLap === plan.totalLaps ? <p>{m.race_plan_finish_no_stop()}</p> : <p>{m.race_plan_next_stop({ lap: currentStint.endLap, remaining: Math.max(0, currentStint.endLap - currentLap!) })}</p>}<p>{m.race_plan_live_fuel({ fuel: currentStint.startFuel == null ? m.strategy_unavailable() : plan.fuelUnit === "tankFraction" ? `${(currentStint.startFuel * 100).toFixed(1)}%` : `${currentStint.startFuel.toFixed(1)} L`, compounds: currentStint.compounds.map((compound, index) => `${["FL", "FR", "RL", "RR"][index]} ${compound ?? m.strategy_unknown()}`).join(" · ") })}</p>{currentStint.evidence && <Link className="block text-xs text-app-text-muted underline" to="/$gameid/sessions/$sessionId/analyse" params={{ gameid: getGame(plan.gameId).routePrefix, sessionId: String(currentStint.evidence.sessionId) }} hash={`stint-${encodeURIComponent(currentStint.evidence.id)}`}>{m.race_plan_live_source({ session: currentStint.sourceSessionId ?? currentStint.evidence.sessionId, stint: currentStint.evidence.ordinal, laps: currentStint.evidence.completedLaps })}</Link>}</>}</div>}</div>{onManage && <button type="button" className="shrink-0 rounded border border-app-border px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-app-accent" onClick={onManage}>{m.race_plan_manage()}</button>}</div>
+    {baseline && <ul aria-label={m.race_plan_sources_label()} className="flex flex-wrap gap-x-3 text-xs text-app-text-muted">
+      {baseline.sources.map((source) => <li key={`${source.sessionId}:${source.id}`}><Link className="underline" to="/$gameid/sessions/$sessionId/analyse" params={{ gameid: getGame(gameId).routePrefix, sessionId: String(source.sessionId) }} hash={`stint-${encodeURIComponent(source.id)}`}>{m.review_session()} {source.sessionId} · {new Date(source.endedAt ?? source.startedAt).toLocaleDateString()}</Link></li>)}
+    </ul>}
   </section>;
 }
 
@@ -25,7 +29,7 @@ export function CompactRaceStrategy({ plan, currentLap }: { plan: RacePlan; curr
   const { displaySettings } = useSettings();
   const { index, currentStint, nextStint, finished } = racePlanProgress(plan, currentLap);
   const forecast = currentStint ? projectRacePlanStint(
-    currentStint, plan.stints[index - 1]?.endLap ?? 0, plan, currentStint.evidence,
+    currentStint, plan.stints[index - 1]?.endLap ?? 0, plan, currentStint.baseline ?? currentStint.evidence,
     (compound) => getTireThresholds(displaySettings.tireThresholdOverrides ?? {}, plan.gameId, compound),
   ) : null;
   const fuelText = (value: number | null) => value == null ? m.strategy_unavailable() : plan.fuelUnit === "tankFraction" ? `${(value * 100).toFixed(1)}%` : `${value.toFixed(1)} L`;

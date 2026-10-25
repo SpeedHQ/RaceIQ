@@ -2,6 +2,8 @@ export interface RaceStrategyMessages {
   race_plan_choose_recorded_session: () => string;
   race_plan_choose_recorded_stint: () => string;
   race_plan_generator_no_evidence: () => string;
+  race_plan_select_track: () => string;
+  race_plan_select_car: () => string;
   race_plan_clone: () => string;
   race_plan_recalculate: () => string;
   race_plan_copy_name: (inputs: { name: string | number }) => string;
@@ -136,6 +138,7 @@ export interface RaceStrategyMessages {
   race_plan_source_details: (inputs: { date: string | number; status: string | number; setup: string | number; conditions: string | number }) => string;
   race_plan_source_session: () => string;
   race_plan_source_unavailable: () => string;
+  race_plan_catalogue_error: () => string;
   race_plan_sources_error: () => string;
   race_plan_start_fuel: () => string;
   race_plan_stint: (inputs: { ordinal: string | number }) => string;
@@ -293,5 +296,12 @@ export interface RaceStrategyMessages {
   strategy_unknown: () => string;
   strategy_wheel_rate: (inputs: { wheel: string | number }) => string;
   strategy_wheel_rates: () => string;
+  race_plan_weather: () => string;
+  race_plan_weather_any: () => string;
+  race_plan_weather_dry: () => string;
+  race_plan_weather_wet: () => string;
+  race_plan_weather_unknown: () => string;
+  race_plan_sources_count: (inputs: { count: string | number }) => string;
+  race_plan_sources_label: () => string;
   tune_tire: () => string;
 }

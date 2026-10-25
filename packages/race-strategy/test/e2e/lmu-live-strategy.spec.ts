@@ -5,8 +5,10 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { z } from "zod";
-import { RacePlanSchema, RacePlansResponseSchema } from "@raceiq/shared/racing/live/race-plan";
+import { RacePlanGenerationEvidenceResponseSchema, RacePlanSchema, RacePlansResponseSchema } from "@raceiq/shared/racing/live/race-plan";
+import { generateRacePlanStints } from "@raceiq/race-strategy/contracts";
 import { StintsResponseSchema } from "@raceiq/shared/racing/live/strategy-schemas";
+
 import { StrategyRuntime } from "./runtime";
 
 const root = fileURLToPath(new URL("../../../../", import.meta.url));
@@ -36,8 +38,8 @@ test("LMU-L1-L4 native live energy independently limits windows and actual servi
     return StintsResponseSchema.parse(await response.json()).stints;
   };
   try {
-    await runtime.nativeInput({ laps: 6 });
-    await runtime.nativeInput({ sessionEvent: 2, laps: 6 });
+    await runtime.nativeInput({ laps: 6, rainIntensity: 0 });
+    await runtime.nativeInput({ sessionEvent: 2, laps: 6, rainIntensity: 0 });
     const listed = await api.get("/api/sessions?gameId=lmu");
     expect(listed.ok(), await listed.text()).toBe(true);
     const sessions = z.array(z.object({ id: z.number().int() })).parse(await listed.json()).sort((a, b) => a.id - b.id);
@@ -118,10 +120,54 @@ test("LMU-L1-L4 native live energy independently limits windows and actual servi
     const invalidGeometry = await graph.locator("svg").evaluateAll((elements) => elements.flatMap((svg) => [...svg.querySelectorAll("*")].flatMap((element) => [...element.attributes].filter((attribute) => /NaN|Infinity|undefined/.test(attribute.value)).map((attribute) => attribute.name))));
     expect(invalidGeometry).toEqual([]);
     await graph.screenshot({ path: testInfo.outputPath("lmu-live-service-mobile.png") });
+    await runtime.nativeInput({ laps: 3, rainIntensity: 0.4 });
     await runtime.nativeInput({ sessionEvent: 3, laps: 0 });
     await expect(graph).toHaveAttribute("data-adherence-state", "unknown");
     await unchanged();
-    expect(failures).toEqual([]);
+    const transitioned = await readStints(live.id);
+    expect(transitioned.map((stint) => stint.compatibility.conditions.weather)).toEqual(expect.arrayContaining(["dry", "wet"]));
+    const query = `/api/race-plans/generation-evidence?gameId=lmu&carId=${encodeURIComponent(reference.carId)}&trackId=${encodeURIComponent(reference.trackId)}`;
+    const dry = RacePlanGenerationEvidenceResponseSchema.parse(await (await api.get(`${query}&weather=dry`)).json()).baseline;
+    const wet = RacePlanGenerationEvidenceResponseSchema.parse(await (await api.get(`${query}&weather=wet`)).json()).baseline;
+    expect(dry?.sources.every((stint) => stint.compatibility.conditions.weather === "dry")).toBe(true);
+    expect(wet?.sources.every((stint) => stint.compatibility.conditions.weather === "wet")).toBe(true);
+    expect(dry?.sources.some((stint) => stint.sessionId === live.id)).toBe(true);
+    expect(wet?.sources.some((stint) => stint.sessionId === live.id)).toBe(true);
+    const totalLaps = 20;
+    const generation = { fuelCapacity: 100, fuelReserve: 2, energyReserveFraction: 0.07 };
+    const tireThresholds: Record<string, { cliffPct: number; deadPct: number }> = Object.fromEntries([...new Set(dry.compounds)].filter((compound): compound is string => compound != null)
+      .map((compound) => [compound, { cliffPct: 70, deadPct: 50 }]));
+    expect((await api.put("/api/settings", { data: { tireThresholdOverrides: { lmu: tireThresholds } } })).ok()).toBe(true);
+    const aggregateStints = generateRacePlanStints(dry, totalLaps, generation.fuelCapacity, generation.fuelReserve,
+      (compound) => tireThresholds[compound]!, generation.energyReserveFraction);
+    if (!aggregateStints) throw new Error("Expected generated aggregate LMU stints");
+    const aggregateResponse = await api.post("/api/race-plans", { data: {
+      name: "Aggregate LMU live forecast", gameId: "lmu", carId: reference.carId, trackId: reference.trackId, pi: reference.pi,
+      totalLaps, fuelUnit: "L", weather: "dry", notes: "Aggregate evidence must drive live forecast.",
+      generation, stints: aggregateStints,
+    } });
+    expect(aggregateResponse.status(), await aggregateResponse.text()).toBe(201);
+    const aggregatePlan = RacePlanSchema.parse(await aggregateResponse.json());
+    expect(aggregatePlan.stints.every((stint) => stint.evidence === null && stint.baseline?.sources.length === dry.sources.length &&
+      stint.sourceStints?.length === dry.sources.length)).toBe(true);
+    const active = await api.put("/api/race-plans/active", { data: {
+      gameId: aggregatePlan.gameId, carId: aggregatePlan.carId, trackId: aggregatePlan.trackId, planId: aggregatePlan.id,
+    } });
+    expect(active.ok(), await active.text()).toBe(true);
+    await runtime.nativeInput({ sessionEvent: 4, laps: 1, rainIntensity: 0 });
+    await page.setViewportSize({ width: 1365, height: 1000 });
+    await page.goto(`${runtime.baseURL}/live/pit`, { waitUntil: "domcontentloaded" });
+    const liveSummary = page.getByTestId("race-strategy-summary");
+    await expect(liveSummary).toBeVisible();
+    const currentStintLaps = aggregatePlan.stints[0]!.endLap;
+    await expect(liveSummary).toContainText((dry.fuel.value! * currentStintLaps).toFixed(1));
+    await expect(liveSummary.getByTestId("race-strategy-tire-life").first()).toContainText(((1 - 70 / 100) / dry.tires[0]!.value!).toFixed(1));
+    await page.getByRole("button", { name: "Open strategy timeline", exact: true }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.locator("summary").filter({ hasText: "Race strategy" }).click();
+    const liveStrategy = dialog.getByTestId("live-race-strategy");
+    await expect(liveStrategy).toContainText(aggregatePlan.name);
+    for (const source of dry.sources) await expect(liveStrategy).toContainText(`Session ${source.sessionId}`);
   } finally {
     await context.close();
     await api.dispose();

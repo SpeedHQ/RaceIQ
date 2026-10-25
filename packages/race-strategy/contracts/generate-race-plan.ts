@@ -1,11 +1,11 @@
-import type { RacePlanStintInput } from "@raceiq/shared/racing/live/race-plan";
+import type { RacePlanBaseline, RacePlanStintInput } from "@raceiq/shared/racing/live/race-plan";
 import type { StintSummary } from "@raceiq/shared/racing/live/strategy";
 import type { TireThresholds } from "@raceiq/shared/racing/live/tire-thresholds";
 import { supportsRaceRefueling } from "./race-rules";
 
 const wholeLaps = (value: number) => Math.floor(value + Number.EPSILON * Math.max(1, Math.abs(value)) * 4);
 /** Minimum-stop proposal respecting the game's refueling rule and measured resource limits. */
-export function generateRacePlanStints(source: StintSummary, totalLaps: number, capacity: number, reserve: number,
+export function generateRacePlanStints(source: StintSummary | RacePlanBaseline, totalLaps: number, capacity: number, reserve: number,
   thresholds: (compound: string) => TireThresholds, energyReserveFraction = 0): RacePlanStintInput[] | null {
   const fuel = source.fuel;
   const isLmu = source.gameId === "lmu";
@@ -41,7 +41,9 @@ export function generateRacePlanStints(source: StintSummary, totalLaps: number, 
   for (let start = 0; start < totalLaps; start += stintLaps) {
     const endLap = Math.min(totalLaps, start + stintLaps);
     stints.push({ endLap, startFuel: supportsRefueling ? Math.min(capacity, (endLap - start) * fuel.value + reserve) : capacity - cumulativeFuel,
-      compounds: [...source.compounds], sourceSessionId: source.sessionId, sourceStintId: source.id });
+      compounds: [...source.compounds], sourceSessionId: "sessionId" in source ? source.sessionId : null,
+      sourceStintId: "id" in source ? source.id : null,
+      ...("sources" in source ? { sourceStints: source.sources.map(({ sessionId, id }) => ({ sessionId, stintId: id })) } : {}) });
     cumulativeFuel += (endLap - start) * fuel.value;
   }
   return stints;

@@ -7,6 +7,7 @@ import {
   createRacePlan,
   deleteRacePlan,
   getActiveRacePlans,
+  getRacePlanGenerationEvidence,
   InvalidRacePlanError,
   InvalidRacePlanSourceError,
   listRacePlans,
@@ -77,6 +78,26 @@ async function sourceSession(): Promise<number> {
   });
   return id;
 }
+async function aggregateSourceSession(fuel: number, laps: number): Promise<number> {
+  const id = await insertSession("642", "5", "fm-2023", undefined, undefined, "mine");
+  sessions.push(id);
+  const summary = {
+    ...sourceEvidence,
+    id: `aggregate-source-${id}`,
+    sessionId: id,
+    compounds: ["soft", "soft", "soft", "soft"],
+    compatibility: { ...sourceEvidence.compatibility, fuelSemanticVersion: "fuel-v1", tireSemanticVersions: ["tire-v1", "tire-v1", "tire-v1", "tire-v1"] },
+    fuel: { ...sourceEvidence.fuel, value: fuel, unit: "L/lap", eligibleLaps: laps },
+    fuelUnit: "L",
+    tires: [0, 1, 2, 3].map(() => ({ value: 0.01, unit: "wearFraction/lap", eligibleLaps: laps, source: "history", provisional: false, unavailableReason: null })),
+  };
+  await client.execute({
+    sql: "INSERT INTO strategy_stints(id, session_id, driver_key, ordinal, status, payload) VALUES(?,?,?,?,?,?)",
+    args: [summary.id, id, "local-player", 1, "completed", JSON.stringify(summary)],
+  });
+  return id;
+}
+
 
 describe("saved race plan persistence", () => {
   test("freezes owned source evidence, preserves zero and null, and survives source deletion", async () => {
@@ -93,6 +114,32 @@ describe("saved race plan persistence", () => {
     const saved = await listRacePlans("fm-2023");
     expect(saved.find(({ id }) => id === created.id)?.stints[0]?.evidence?.sessionId).toBe(sessionId);
   });
+  test("weights validated multi-session sources and preserves saved aggregate after deletion and reload", async () => {
+    const first = await aggregateSourceSession(0.02, 2);
+    const second = await aggregateSourceSession(0.04, 6);
+    const discovered = await getRacePlanGenerationEvidence({ gameId: "fm-2023", carId: "642", trackId: "5", weather: "any" });
+    expect(discovered?.fuel.value).toBeCloseTo(0.035);
+    expect(discovered?.fuel.eligibleLaps).toBe(8);
+    expect(await getRacePlanGenerationEvidence({ gameId: "fm-2023", carId: "642", trackId: "5", weather: "dry" })).toBeNull();
+    const input = {
+      name: "Aggregate", gameId: "fm-2023", carId: "642", trackId: "5", pi: 800, totalLaps: 8, fuelUnit: "L", notes: "", weather: "any",
+      stints: [{ endLap: 8, startFuel: null, compounds: ["soft", "soft", "soft", "soft"],
+        sourceSessionId: null, sourceStintId: null,
+        sourceStints: [{ sessionId: first, stintId: `aggregate-source-${first}` }, { sessionId: second, stintId: `aggregate-source-${second}` }] }],
+    };
+    const created = await createRacePlan(input);
+    plans.push(created.id);
+    expect(created.stints[0]?.baseline?.fuel.value).toBeCloseTo(0.035);
+    expect(created.stints[0]?.baseline?.fuel.eligibleLaps).toBe(8);
+    await deleteSession(first);
+    await deleteSession(second);
+    sessions.splice(sessions.indexOf(first), 1);
+    sessions.splice(sessions.indexOf(second), 1);
+    const saved = await updateRacePlan(created.id, input);
+    expect(saved.stints[0]?.baseline?.sources).toHaveLength(2);
+    expect((await listRacePlans("fm-2023")).find(({ id }) => id === created.id)?.stints[0]?.baseline?.fuel.value).toBeCloseTo(0.035);
+  });
+
 
   test("rejects incompatible source without changing existing plan and clears active on deletion", async () => {
     const sessionId = await sourceSession();

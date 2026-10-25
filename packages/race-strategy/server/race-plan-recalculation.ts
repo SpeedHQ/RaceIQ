@@ -7,6 +7,8 @@ import { getTireThresholds } from "@raceiq/shared/racing/live/tire-thresholds";
 import { RacePlanRecalculationInputSchema, RacePlanInputSchema, RacePlanSchema, type RacePlan, type RacePlanInput, estimateRaceLaps } from "@raceiq/shared/racing/live/race-plan";
 import { StintSummarySchema } from "@raceiq/shared/racing/live/strategy-schemas";
 import type { StintSummary } from "@raceiq/shared/racing/live/strategy";
+import type { RacePlanBaseline } from "@raceiq/shared/racing/live/race-plan";
+import { aggregateRacePlanEvidence } from "@raceiq/shared/racing/live/race-plan-evidence";
 import { InvalidRacePlanError, RacePlanNotFoundError } from "./race-plan-queries";
 import { generateRacePlanStints } from "../contracts/generate-race-plan";
 
@@ -27,14 +29,23 @@ async function recalculateRacePlanUnlocked(id: string, value: unknown) {
   catch { throw new InvalidRacePlanError(); }
   if (saved.fuelUnit === "tankFraction" && request.data.generation.fuelCapacity > 1) throw new InvalidRacePlanError();
   const raceLength = saved.raceLength ?? { mode: "laps" };
-  if (!saved.stints.some((stint) => stint.evidence)) throw new RacePlanEvidenceUnavailableError();
+  const hasAggregate = saved.stints.some((stint) => stint.baseline);
+  const sessionResult = await client.execute({
+    sql: `SELECT s.id FROM sessions s WHERE s.game_id=? AND s.car_id=? AND s.track_id=? AND s.ownership='mine'
+      AND (NOT EXISTS (SELECT 1 FROM live_captures c WHERE c.session_id=s.id)
+        OR EXISTS (SELECT 1 FROM live_captures c WHERE c.session_id=s.id AND c.status='sealed'))
+      ORDER BY s.created_at DESC,s.id DESC`,
+    args: [saved.gameId, saved.carId, saved.trackId],
+  });
+  const recentSessionIds = new Set(sessionResult.rows.filter((row) => !isRecordingSession(Number(row.id))).slice(0, 5).map((row) => Number(row.id)));
+  if (hasAggregate && !recentSessionIds.size) throw new RacePlanEvidenceUnavailableError();
   const result = await client.execute({
     sql: `SELECT s.id, s.session_id, s.payload, s.driver_key, s.ordinal, s.status, se.created_at, se.ownership, se.game_id, se.car_id, se.track_id
       FROM strategy_stints s JOIN sessions se ON se.id=s.session_id
       WHERE se.game_id=? AND se.car_id=? AND se.track_id=? AND se.ownership='mine'
+        AND (NOT EXISTS (SELECT 1 FROM live_captures c WHERE c.session_id=se.id)
+          OR EXISTS (SELECT 1 FROM live_captures c WHERE c.session_id=se.id AND c.status='sealed'))
         AND s.driver_key='local-player' AND s.status IN ('completed','interrupted')
-        AND (NOT EXISTS (SELECT 1 FROM live_captures any_capture WHERE any_capture.session_id=se.id)
-          OR EXISTS (SELECT 1 FROM live_captures sealed_capture WHERE sealed_capture.session_id=se.id AND sealed_capture.status='sealed'))
       ORDER BY se.created_at DESC,se.id DESC,s.ordinal DESC,s.id ASC`,
     args: [saved.gameId, saved.carId, saved.trackId],
   });
@@ -59,15 +70,15 @@ async function recalculateRacePlanUnlocked(id: string, value: unknown) {
           summary.averageLapSeconds == null || summary.averageLapSeconds <= 0 || summary.paceLaps < 1 ||
           saved.gameId === "lmu" && (!summary.virtualEnergy || summary.virtualEnergy.value == null || summary.virtualEnergy.value < 0 || summary.virtualEnergy.eligibleLaps < 1 || summary.virtualEnergy.unit !== "energyFraction/lap")) continue;
       candidates.push({ summary, createdAt, endedAt });
-    } catch { /* malformed or mismatched historical payload is ineligible */ }
+    } catch { /* malformed or mismatched historical evidence is ineligible */ }
   }
   candidates.sort((a, b) => b.createdAt - a.createdAt || b.summary.sessionId - a.summary.sessionId ||
     b.endedAt - a.endedAt || b.summary.ordinal - a.summary.ordinal || a.summary.id.localeCompare(b.summary.id));
-  if (!candidates.length) throw new RacePlanEvidenceUnavailableError();
+  if (!candidates.length && !hasAggregate) throw new RacePlanEvidenceUnavailableError();
 
   const { generation } = request.data;
-  const phases: { compound: StintSummary["compounds"]; originalLaps: number; source: StintSummary }[] = [];
-  const picked: typeof candidates = [];
+  const phases: { compound: StintSummary["compounds"]; originalLaps: number; source: StintSummary | RacePlanBaseline }[] = [];
+  const picked: StintSummary[] = [];
   let previousCompound: StintSummary["compounds"] | null = null;
   let previousEnd = 0;
   for (const old of saved.stints) {
@@ -76,27 +87,37 @@ async function recalculateRacePlanUnlocked(id: string, value: unknown) {
       previousEnd = old.endLap;
       continue;
     }
-    if (!old.evidence) throw new RacePlanEvidenceUnavailableError();
-    const originalPhase = old.evidence;
+    const originalPhase = old.baseline ?? old.evidence;
+    if (!originalPhase) throw new RacePlanEvidenceUnavailableError();
     const knownSemantics = originalPhase.compatibility.fuelSemanticVersion !== null &&
       originalPhase.compatibility.tireSemanticVersions.every((version) => version !== null) &&
       (saved.gameId !== "lmu" || originalPhase.compatibility.virtualEnergySemanticVersion != null);
-    const match = knownSemantics ? candidates.find((item) => item.summary.compounds.every((compound, index) => compound === old.compounds[index]) &&
+    const matching = candidates.filter((item) => (!old.baseline || recentSessionIds.has(item.summary.sessionId)) &&
+      item.summary.compounds.every((compound, index) => compound === old.compounds[index]) &&
+      item.summary.pi === saved.pi && item.summary.fuelUnit === saved.fuelUnit &&
       item.summary.compatibility.setupKey === originalPhase.compatibility.setupKey &&
       item.summary.compatibility.fuelSemanticVersion === originalPhase.compatibility.fuelSemanticVersion &&
       item.summary.compatibility.tireSemanticVersions.every((version, index) => version !== null && version === originalPhase.compatibility.tireSemanticVersions[index]) &&
       (saved.gameId !== "lmu" || item.summary.compatibility.virtualEnergySemanticVersion !== null &&
-        item.summary.compatibility.virtualEnergySemanticVersion === originalPhase.compatibility.virtualEnergySemanticVersion)) : undefined;
-    if (!match) throw new RacePlanEvidenceUnavailableError();
-    phases.push({ compound: [...old.compounds] as StintSummary["compounds"], originalLaps: old.endLap - previousEnd, source: match.summary });
-    if (!picked.some((item) => item.summary.id === match.summary.id)) picked.push(match);
+        item.summary.compatibility.virtualEnergySemanticVersion === originalPhase.compatibility.virtualEnergySemanticVersion));
+    const refreshed = old.baseline && knownSemantics
+      ? aggregateRacePlanEvidence(matching.slice(0, 100).map((item) => item.summary), saved.weather ?? "any") ?? undefined : undefined;
+    const match = old.baseline ? undefined : knownSemantics ? matching[0] : undefined;
+    const source = old.baseline ? refreshed : match?.summary;
+    if (!source) throw new RacePlanEvidenceUnavailableError();
+    phases.push({ compound: [...old.compounds] as StintSummary["compounds"], originalLaps: old.endLap - previousEnd, source });
+    if (old.baseline) {
+      for (const summary of refreshed!.sources) if (!picked.some((item) => item.id === summary.id && item.sessionId === summary.sessionId)) picked.push(summary);
+    } else if (match && !picked.some((item) => item.id === match.summary.id)) picked.push(match.summary);
     previousCompound = [...old.compounds] as StintSummary["compounds"];
     previousEnd = old.endLap;
   }
   if (!phases.length) throw new RacePlanEvidenceUnavailableError();
   const originalLaps = phases.reduce((sum, phase) => sum + phase.originalLaps, 0);
-  const weightedPace = phases.reduce((sum, phase) => sum + phase.originalLaps * phase.source.averageLapSeconds!, 0) / originalLaps;
-  const totalLaps = raceLength.mode === "time" ? estimateRaceLaps(raceLength.durationSeconds, weightedPace) : saved.totalLaps;
+  const weightedPace = phases.every((phase) => phase.source.averageLapSeconds !== null)
+    ? phases.reduce((sum, phase) => sum + phase.originalLaps * phase.source.averageLapSeconds!, 0) / originalLaps : null;
+  const totalLaps = raceLength.mode === "time" && weightedPace !== null ? estimateRaceLaps(raceLength.durationSeconds, weightedPace) :
+    raceLength.mode === "time" ? null : saved.totalLaps;
   if (!totalLaps || totalLaps <= phases.slice(0, -1).reduce((sum, phase) => sum + phase.originalLaps, 0)) {
     throw new RacePlanEvidenceUnavailableError();
   }
@@ -118,9 +139,9 @@ async function recalculateRacePlanUnlocked(id: string, value: unknown) {
   }
   if (stints.length > 100 || stints.at(-1)?.endLap !== totalLaps) throw new RacePlanEvidenceUnavailableError();
   const draft = RacePlanInputSchema.parse({ name: saved.name, gameId: saved.gameId, carId: saved.carId, trackId: saved.trackId, pi: saved.pi,
-    totalLaps, raceLength: raceLength.mode === "time" ? { ...raceLength, averageLapSeconds: weightedPace } : raceLength,
-    fuelUnit: saved.fuelUnit, notes: saved.notes, generation, stints });
-  return { draft, sources: picked.map((item) => item.summary) };
+    totalLaps, raceLength: raceLength.mode === "time" && weightedPace !== null ? { ...raceLength, averageLapSeconds: weightedPace } : raceLength,
+    weather: saved.weather ?? "any", fuelUnit: saved.fuelUnit, notes: saved.notes, generation, stints });
+  return { draft, sources: picked };
 }
 
 export function recalculateRacePlan(id: string, value: unknown) {

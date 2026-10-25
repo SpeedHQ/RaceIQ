@@ -1,11 +1,26 @@
 import { z } from "zod";
 import { GameIdSchema, type GameId } from "../../games/ids";
-import { StintSummarySchema } from "./strategy-schemas";
+import { CompatibilityContextSchema, MetricRateSchema, StintSummarySchema } from "./strategy-schemas";
 import type { StintSummary, StrategyFuelUnit } from "./strategy";
 
 const finite = z.number();
 const fourCompounds = z.tuple([z.string().nullable(), z.string().nullable(), z.string().nullable(), z.string().nullable()]);
 const nonemptyTrimmed = (max: number) => z.string().trim().min(1).max(max);
+
+export const RacePlanWeatherSchema = z.enum(["any", "dry", "wet"]);
+export type RacePlanWeather = z.infer<typeof RacePlanWeatherSchema>;
+export const RacePlanWeatherCategorySchema = z.enum(["dry", "wet", "unknown"]);
+export type RacePlanWeatherCategory = z.infer<typeof RacePlanWeatherCategorySchema>;
+
+export const RacePlanBaselineSchema = z.object({
+  gameId: GameIdSchema, carId: nonemptyTrimmed(200), trackId: nonemptyTrimmed(200), pi: finite.nullable(),
+  fuelUnit: z.enum(["L", "tankFraction"]), compounds: fourCompounds, compatibility: CompatibilityContextSchema,
+  fuel: MetricRateSchema, tires: z.tuple([MetricRateSchema, MetricRateSchema, MetricRateSchema, MetricRateSchema]),
+  virtualEnergy: MetricRateSchema.optional(), averageLapSeconds: finite.nullable(), paceLaps: z.number().int().nonnegative(),
+  weather: RacePlanWeatherCategorySchema, sources: z.array(StintSummarySchema).min(1).max(100),
+}).strict();
+export type RacePlanBaseline = z.infer<typeof RacePlanBaselineSchema>;
+export const RacePlanGenerationEvidenceResponseSchema = z.object({ baseline: RacePlanBaselineSchema.nullable() }).strict();
 
 export type RacePlanLength = { mode: "laps" } | { mode: "time"; durationSeconds: number; averageLapSeconds: number };
 
@@ -43,9 +58,16 @@ export const RacePlanStintInputSchema = z.object({
   compounds: fourCompounds,
   sourceSessionId: z.number().int().positive().max(Number.MAX_SAFE_INTEGER).nullable(),
   sourceStintId: z.string().min(1).max(200).nullable(),
+  sourceStints: z.array(z.object({ sessionId: z.number().int().positive().max(Number.MAX_SAFE_INTEGER), stintId: z.string().min(1).max(200) }).strict()).min(1).max(100).optional(),
 }).strict().superRefine((stint, context) => {
   if ((stint.sourceSessionId === null) !== (stint.sourceStintId === null)) {
     context.addIssue({ code: "custom", message: "Source session and stint must both be set or null", path: ["sourceStintId"] });
+  }
+  if (stint.sourceStints && (stint.sourceSessionId !== null || stint.sourceStintId !== null)) {
+    context.addIssue({ code: "custom", message: "Multi-session and legacy sources are mutually exclusive", path: ["sourceStints"] });
+  }
+  if (stint.sourceStints && new Set(stint.sourceStints.map((source) => `${source.sessionId}:${source.stintId}`)).size !== stint.sourceStints.length) {
+    context.addIssue({ code: "custom", message: "Source references must be unique", path: ["sourceStints"] });
   }
 });
 
@@ -55,6 +77,7 @@ export type RacePlanStintInput = {
   compounds: [string | null, string | null, string | null, string | null];
   sourceSessionId: number | null;
   sourceStintId: string | null;
+  sourceStints?: { sessionId: number; stintId: string }[];
 };
 
 export const RacePlanInputSchema = z.object({
@@ -65,11 +88,13 @@ export const RacePlanInputSchema = z.object({
   pi: finite.nullable(),
   totalLaps: z.number().int().min(1).max(10_000),
   raceLength: RacePlanLengthSchema.default({ mode: "laps" }),
+  weather: RacePlanWeatherSchema.default("any"),
   fuelUnit: z.enum(["L", "tankFraction"]),
   notes: z.string().max(4_000),
   generation: RacePlanGenerationSchema.nullable().default(null),
   stints: z.array(RacePlanStintInputSchema).min(1).max(100),
 }).strict().superRefine((plan, context) => {
+
   if (plan.raceLength.mode === "time" &&
       estimateRaceLaps(plan.raceLength.durationSeconds, plan.raceLength.averageLapSeconds) !== plan.totalLaps) {
     context.addIssue({ code: "custom", message: "Timed race laps must match duration and average lap time", path: ["totalLaps"] });
@@ -102,14 +127,18 @@ export type RacePlanInput = {
   pi: number | null;
   totalLaps: number;
   raceLength?: RacePlanLength;
+  weather?: RacePlanWeather;
   fuelUnit: StrategyFuelUnit;
   notes: string;
   generation?: RacePlanGeneration | null;
   stints: RacePlanStintInput[];
 };
 
-export const RacePlanStintSchema = RacePlanStintInputSchema.safeExtend({ evidence: StintSummarySchema.nullable() }).strict();
-export type RacePlanStint = RacePlanStintInput & { evidence: StintSummary | null };
+export const RacePlanStintSchema = RacePlanStintInputSchema.safeExtend({
+  evidence: StintSummarySchema.nullable(),
+  baseline: RacePlanBaselineSchema.nullable().optional(),
+}).strict();
+export type RacePlanStint = RacePlanStintInput & { evidence: StintSummary | null; baseline?: RacePlanBaseline | null };
 
 const utcIsoDate = z.string().regex(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z$/).refine((value) => Number.isFinite(Date.parse(value)));
 export const RacePlanSchema = RacePlanInputSchema.safeExtend({

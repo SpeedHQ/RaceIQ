@@ -225,6 +225,22 @@ describe("durable stint strategy contract", () => {
     expect(acc.snapshot().virtualEnergy?.value).toBeCloseTo(0.1, 6);
     expect(strategyContext(lmuPacket(0.8, 0.9, 1_000)).compatibility.virtualEnergySemanticVersion).toContain("virtual-energy-remaining-fraction-v1");
   });
+  test("LMU native rain intensity classifies measured weather and splits dry/wet stints", () => {
+    const make = (rainIntensity?: number): TelemetryPacket => ({
+      ...packet(0.8), gameId: "lmu", lmu: rainIntensity === undefined ? {} as NonNullable<TelemetryPacket["lmu"]> :
+        { rainIntensity } as NonNullable<TelemetryPacket["lmu"]>,
+    });
+    const dry = make(0);
+    const wet = make(0.1);
+    const missing = make(undefined);
+    expect(strategyContext(dry).compatibility.conditions.weather).toBe("dry");
+    expect(strategyContext(wet).compatibility.conditions.weather).toBe("wet");
+    expect(strategyContext(missing).compatibility.conditions.weather).toBeNull();
+    expect(strategyContext(make(1.1)).compatibility.conditions.weather).toBeNull();
+    expect(new StrategyBoundaryTracker().observe(dry, wet) & StrategyBoundary.Weather).toBe(StrategyBoundary.Weather);
+    expect(new StrategyBoundaryTracker().observe(wet, make(0.2)) & StrategyBoundary.Weather).toBe(0);
+  });
+
   test("LMU energy refills coalesce as energy boundaries without false fuel boundaries", () => {
     const make = (fuel: number, energy: number, timestamp: number): TelemetryPacket => ({
       ...packet(fuel, 0.1, timestamp), gameId: "lmu", lmu: { virtualEnergy: energy } as NonNullable<TelemetryPacket["lmu"]>,

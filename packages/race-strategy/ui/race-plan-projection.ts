@@ -1,5 +1,5 @@
 import type { GameId } from "@raceiq/shared/games/ids";
-import type { RacePlan, RacePlanInput, RacePlanStintInput } from "@raceiq/shared/racing/live/race-plan";
+import type { RacePlan, RacePlanBaseline, RacePlanInput, RacePlanStintInput } from "@raceiq/shared/racing/live/race-plan";
 import type { StintSummary } from "@raceiq/shared/racing/live/strategy";
 import type { TireThresholds } from "@raceiq/shared/racing/live/tire-thresholds";
 
@@ -17,7 +17,7 @@ export function racePlanProgress(plan: RacePlan, currentLap: number | null) {
   return { index, currentStint: plan.stints[index] ?? null, nextStint: index >= 0 ? plan.stints[index + 1] ?? null : null, finished: validLap && currentLap > plan.totalLaps };
 }
 
-export function projectRacePlanStint(stint: RacePlanStintInput, previousEnd: number, plan: PlanIdentity & Pick<RacePlanInput, "fuelUnit">, evidence: StintSummary | null, thresholds: (compound: string) => TireThresholds) {
+export function projectRacePlanStint(stint: RacePlanStintInput, previousEnd: number, plan: PlanIdentity & Pick<RacePlanInput, "fuelUnit">, evidence: StintSummary | RacePlanBaseline | null, thresholds: (compound: string) => TireThresholds) {
   const laps = stint.endLap - previousEnd;
   const identityMatches = evidence != null && evidence.gameId === plan.gameId && evidence.carId === plan.carId && evidence.trackId === plan.trackId && (plan.gameId !== "fm-2023" || evidence.pi === plan.pi);
   const rate = evidence?.fuel.value;
@@ -34,7 +34,7 @@ export function projectRacePlanStint(stint: RacePlanStintInput, previousEnd: num
     const tire = evidence?.tires[index];
     const compoundKey = compound?.trim().toLowerCase();
     const knownCompound = compoundKey != null && compoundKey !== "" && compoundKey !== "default" && compoundKey !== "unknown";
-    const compatible = identityMatches && evidence != null && knownCompound && compound === evidence.compounds[index] && evidence.compatibility.tireSemanticVersions[index] != null && tire?.unit === "wearFraction/lap" && tire.eligibleLaps > 0 && tire.source != null && tire.value != null && Number.isFinite(tire.value) && tire.value >= 0;
+    const compatible = identityMatches && evidence != null && knownCompound && compound === evidence.compounds[index] && evidence.compatibility.tireSemanticVersions[index] != null && tire?.unit === "wearFraction/lap" && tire.eligibleLaps > 0 && ("sources" in evidence || tire.source != null) && tire.value != null && Number.isFinite(tire.value) && tire.value >= 0;
     const wear = compatible ? tire!.value! : null;
     const limit = thresholds(compound ?? "default");
     return {

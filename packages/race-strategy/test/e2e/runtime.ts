@@ -120,7 +120,7 @@ export class StrategyRuntime {
   /** Read or mutate only this runner's disposable SQLite fixture, never application data. */
   async databaseStatement(sql: string, args: Array<string | number | null> = [], write = false): Promise<unknown> {
     const child = this.launch(["-e",
-      'import { Database } from "bun:sqlite"; const db = new Database(process.argv[1]); db.run("PRAGMA foreign_keys=ON"); const args = JSON.parse(process.argv[3]); const rows = process.argv[4] === "write" ? (db.run(process.argv[2], args), []) : db.query(process.argv[2]).all(...args); console.log(JSON.stringify(rows)); db.close();',
+      'import { Database } from "bun:sqlite"; const db = new Database(process.argv[1]); db.run("PRAGMA foreign_keys=ON"); db.run("PRAGMA busy_timeout=5000"); const args = JSON.parse(process.argv[3]); const rows = process.argv[4] === "write" ? (db.run(process.argv[2], args), []) : db.query(process.argv[2]).all(...args); console.log(JSON.stringify(rows)); db.close();',
       resolve(this.dataDir, "app.db"), sql, JSON.stringify(args), write ? "write" : "read"]);
     let stdout = "";
     child.stdout?.on("data", (chunk: Buffer) => { stdout += chunk.toString(); });

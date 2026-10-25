@@ -4,7 +4,7 @@ import type { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { LapMeta, SessionMeta } from "@raceiq/shared/racing/sessions/types";
-import type { RacePlanGeneration, RacePlanInput, SetActiveRacePlanInput } from "@raceiq/shared/racing/live/race-plan";
+import type { RacePlanGeneration, RacePlanInput, RacePlanWeather, SetActiveRacePlanInput } from "@raceiq/shared/racing/live/race-plan";
 import type { TireThresholdOverrides } from "@raceiq/shared/racing/live/tire-thresholds";
 import type { LiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
 import type { RaceStrategyMessages } from "./messages";
@@ -17,6 +17,7 @@ export interface RaceStrategyLiveState {
 
 /** Host retains inferred authenticated RPC; feature validates untrusted response bodies with shared schemas. */
 export interface RaceStrategyApi {
+  generationEvidence(gameId: GameId, carId: string, trackId: string, weather: RacePlanWeather, signal?: AbortSignal): Promise<unknown>;
   listPlans(gameId: GameId, signal?: AbortSignal): Promise<unknown>;
   activePlans(signal?: AbortSignal): Promise<unknown>;
   savePlan(input: RacePlanInput, id?: string): Promise<unknown>;
@@ -34,6 +35,8 @@ export interface RaceStrategyHost {
   m: RaceStrategyMessages;
   api: RaceStrategyApi;
   useSessions(options?: { allGames?: boolean }): UseQueryResult<SessionMeta[], Error>;
+  useTracksForGame(gameId: GameId): UseQueryResult<{ id: string; name: string; variant?: string }[], Error>;
+  useCarsForGame(gameId: GameId): UseQueryResult<{ id: string; name: string }[], Error>;
   useSettings(): { displaySettings: { tireThresholdOverrides?: TireThresholdOverrides }; settingsLoaded: boolean };
   useTelemetryState<T>(selector: (state: RaceStrategyLiveState) => T): T;
   Input: ComponentType<ComponentProps<"input">>;

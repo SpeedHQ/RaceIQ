@@ -8,7 +8,16 @@ import { forzaPitTransitionEvidence } from "@raceiq/analysis-core/racing/laps/pi
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import type { StintIdentity } from "./stint-accumulator";
 
-const wearChannels = ["TireWearFL", "TireWearFR", "TireWearRL", "TireWearRR"] as const;
+type WeatherCategory = "dry" | "wet";
+function weatherCategory(packet: TelemetryPacket): WeatherCategory | null {
+  if (packet.f1) {
+    if (packet.f1.weather >= 0 && packet.f1.weather <= 2) return "dry";
+    if (packet.f1.weather >= 3 && packet.f1.weather <= 5) return "wet";
+  }
+  const rain = packet.gameId === "lmu" ? packet.lmu?.rainIntensity : undefined;
+  if (rain != null && Number.isFinite(rain) && rain >= 0 && rain <= 1) return rain === 0 ? "dry" : "wet";
+  return null;
+}
 
 /** Native channel/version identity, not a telemetry-derived setup fingerprint. */
 export function strategyContext(packet: TelemetryPacket): Pick<StintIdentity, "gameId" | "carId" | "trackId" | "pi" | "compounds" | "compatibility" | "fuelUnit"> {
@@ -31,10 +40,11 @@ export function strategyContext(packet: TelemetryPacket): Pick<StintIdentity, "g
     compounds, fuelUnit,
     compatibility: { fuelSemanticVersion: `${semanticVersion}:fuel-${fuelUnit}-v1`, tireSemanticVersions: [tireVersion, tireVersion, tireVersion, tireVersion],
       virtualEnergySemanticVersion: packet.gameId === "lmu" ? `${semanticVersion}:virtual-energy-remaining-fraction-v1` : null, setupKey: null,
-      conditions: { weather: packet.f1 ? String(packet.f1.weather) : null, airTemperatureC: temperature(packet.f1?.airTemperature), trackTemperatureC: temperature(packet.f1?.trackTemperature) } } };
+      conditions: { weather: packet.f1 ? String(packet.f1.weather) : packet.gameId === "lmu" ? weatherCategory(packet) : null,
+        airTemperatureC: temperature(packet.f1?.airTemperature), trackTemperatureC: temperature(packet.f1?.trackTemperature) } } };
 }
-
-export const StrategyBoundary = { Rewind: 1, Configuration: 2, Tires: 4, Fuel: 8, Pit: 16, Gap: 32, Energy: 64 } as const;
+export const StrategyBoundary = { Rewind: 1, Configuration: 2, Tires: 4, Fuel: 8, Pit: 16, Gap: 32, Energy: 64, Weather: 128 } as const;
+const wearChannels = ["TireWearFL", "TireWearFR", "TireWearRL", "TireWearRR"] as const;
 /** Boundary evidence is shared by live ingestion and offline source-backed rebuilding. */
 export function strategyBoundary(before: TelemetryPacket, after: TelemetryPacket): number {
   let result = 0;
@@ -44,6 +54,9 @@ export function strategyBoundary(before: TelemetryPacket, after: TelemetryPacket
     after.gameId === "fm-2023" && after.CarPerformanceIndex !== before.CarPerformanceIndex ||
     after.f1?.tyreCompound !== before.f1?.tyreCompound || after.acc?.tireCompound !== before.acc?.tireCompound ||
     after.lmu?.frontTireCompound !== before.lmu?.frontTireCompound || after.lmu?.rearTireCompound !== before.lmu?.rearTireCompound) result |= StrategyBoundary.Configuration;
+  const previousWeather = weatherCategory(before);
+  const nextWeather = weatherCategory(after);
+  if (previousWeather !== null && nextWeather !== null && previousWeather !== nextWeather) result |= StrategyBoundary.Weather;
   for (const wheel of wearChannels) {
     if (Number.isFinite(after[wheel]) && after[wheel] >= 0 && before[wheel] >= 0 && before[wheel] - after[wheel] >= 0.005) result |= StrategyBoundary.Tires;
   }
@@ -58,6 +71,7 @@ export function strategyBoundary(before: TelemetryPacket, after: TelemetryPacket
 export function strategyBoundaryReason(boundary: number): string {
   if (boundary & StrategyBoundary.Rewind) return "timebase-discontinuity";
   if (boundary & StrategyBoundary.Gap) return "source-gap";
+  if (boundary & StrategyBoundary.Weather) return "weather-change";
   if (boundary & StrategyBoundary.Configuration) return "configuration-change";
   if (boundary & StrategyBoundary.Tires) return "tire-replacement";
   if (boundary & StrategyBoundary.Fuel) return "refill";
@@ -96,7 +110,7 @@ export class StrategyBoundaryTracker {
       else this.energyRefilling = true;
     }
 
-    if (boundary & (StrategyBoundary.Rewind | StrategyBoundary.Gap | StrategyBoundary.Configuration)) this.reset();
+    if (boundary & (StrategyBoundary.Rewind | StrategyBoundary.Gap | StrategyBoundary.Configuration | StrategyBoundary.Weather)) this.reset();
     return boundary;
   }
 

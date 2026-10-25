@@ -4,20 +4,24 @@ import { useQueries } from "@tanstack/react-query";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { getGame } from "@raceiq/shared/games/registry";
 import { getTireCompoundOptions, getTireThresholds } from "@raceiq/shared/racing/live/tire-thresholds";
-import { estimateRaceLaps, type RacePlan, type RacePlanInput, type RacePlanStintInput, type RacePlanLength } from "@raceiq/shared/racing/live/race-plan";
+import { estimateRaceLaps, type RacePlan, type RacePlanBaseline, type RacePlanInput, type RacePlanStintInput, type RacePlanLength } from "@raceiq/shared/racing/live/race-plan";
 import type { StintSummary, StrategyFuelUnit } from "@raceiq/shared/racing/live/strategy";
 import { StintsResponseSchema } from "@raceiq/shared/racing/live/strategy-schemas";
 import { useSaveRacePlan, useSetActiveRacePlan } from "./race-plans";
 import { strategyKeys } from "./stint-strategy";
 import { useRaceStrategyHost } from "./host";
 import { projectRacePlanStint } from "./race-plan-projection";
+import { aggregateRacePlanEvidence } from "@raceiq/shared/racing/live/race-plan-evidence";
 
 const wheels = ["FL", "FR", "RL", "RR"] as const;
 type PlannerDraft = RacePlanInput & { id?: string };
 type RetryAction = { type: "save" };
+function sourceGroupKey(refs: RacePlanStintInput["sourceStints"]): string | null {
+  return refs?.length ? refs.map(({ sessionId, stintId }) => `${sessionId}:${stintId}`).sort().join("|") : null;
+}
 function toDraft(plan: RacePlan): PlannerDraft {
   const { id, name, gameId, carId, trackId, pi, totalLaps, raceLength, fuelUnit, notes, generation } = plan;
-  return { id, name, gameId, carId, trackId, pi, totalLaps, raceLength: raceLength ?? { mode: "laps" }, fuelUnit, notes, generation, stints: plan.stints.map(({ evidence: _evidence, ...stint }) => stint) };
+  return { id, name, gameId, carId, trackId, pi, totalLaps, raceLength: raceLength ?? { mode: "laps" }, weather: plan.weather, fuelUnit, notes, generation, stints: plan.stints.map(({ evidence: _evidence, baseline: _baseline, ...stint }) => stint) };
 }
 function emptyStint(endLap: number): RacePlanStintInput {
   return { endLap, startFuel: null, compounds: [null, null, null, null], sourceSessionId: null, sourceStintId: null };
@@ -35,9 +39,9 @@ function validDraft(draft: PlannerDraft) {
     (draft.gameId !== "fm-2023" || draft.pi != null);
 }
 
-export function RaceStrategyPlanner({ gameId, sessionId, carId, trackId, pi, initialPlan, initialDraft, cloneName, initialSources, onSavingChange }: {
+export function RaceStrategyPlanner({ gameId, sessionId, carId, trackId, pi, initialPlan, initialDraft, initialBaseline, cloneName, initialSources, onSavingChange }: {
   gameId: GameId; sessionId?: number | null; carId?: string | null; trackId?: string | null; pi?: number | null;
-  initialPlan?: RacePlan; initialDraft?: RacePlanInput; cloneName?: string; initialSources?: StintSummary[]; onSavingChange?: (pending: boolean) => void;
+  initialPlan?: RacePlan; initialDraft?: RacePlanInput; initialBaseline?: RacePlanBaseline; cloneName?: string; initialSources?: StintSummary[]; onSavingChange?: (pending: boolean) => void;
 }) {
   const { m, api, useSessions, useSettings, useTelemetryState, Button, Input, Select, Textarea } = useRaceStrategyHost();
   const sessionsQuery = useSessions({ allGames: true });
@@ -52,6 +56,23 @@ export function RaceStrategyPlanner({ gameId, sessionId, carId, trackId, pi, ini
     const input = initialPlan ? toDraft(initialPlan) : initialDraft ?? makeDraft(gameId, carId ?? initialSession?.carId ?? "", trackId ?? initialSession?.trackId ?? "", pi ?? null);
     return cloneName == null ? input : { ...input, id: undefined, name: cloneName };
   });
+  const [draftBaselines, setDraftBaselines] = useState(() => {
+    const baselines = new Map<string, RacePlanBaseline>();
+    if (initialPlan) for (const stint of initialPlan.stints) {
+      const key = sourceGroupKey(stint.sourceStints);
+      if (key && stint.baseline) baselines.set(key, stint.baseline);
+    }
+    const inputDraft = initialPlan ? toDraft(initialPlan) : initialDraft;
+    for (const stint of inputDraft?.stints ?? []) {
+      const key = sourceGroupKey(stint.sourceStints);
+      if (!key || baselines.has(key)) continue;
+      const refs = new Set(key.split("|"));
+      const group = (initialSources ?? []).filter((source) => refs.has(`${source.sessionId}:${source.id}`));
+      const baseline = aggregateRacePlanEvidence(group, inputDraft?.weather ?? "any") ?? initialBaseline;
+      if (baseline) baselines.set(key, baseline);
+    }
+    return baselines;
+  });
   const [savedCombo, setSavedCombo] = useState(() => cloneName == null && initialPlan ? { gameId: initialPlan.gameId, carId: initialPlan.carId, trackId: initialPlan.trackId } : null);
   const liveView = useTelemetryState((state) => state.telemetryView);
   const liveLaps = useTelemetryState((state) => state.sessionLaps);
@@ -61,7 +82,7 @@ export function RaceStrategyPlanner({ gameId, sessionId, carId, trackId, pi, ini
   const [sourceSnapshots, setSourceSnapshots] = useState(() => new Map<string, StintSummary>([
     ...(initialPlan?.stints.flatMap((stint) => stint.evidence ? [stint.evidence] : []) ?? []), ...(initialSources ?? []),
   ].map((source) => [`${source.sessionId}:${source.id}`, source])));
-  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(initialPlan?.stints.find((stint) => stint.sourceSessionId != null)?.sourceSessionId ?? initialDraft?.stints[0]?.sourceSessionId ?? sessionId ?? null);
+  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(initialPlan?.stints.find((stint) => stint.sourceSessionId != null)?.sourceSessionId ?? initialDraft?.stints[0]?.sourceSessionId ?? (initialDraft?.stints[0]?.sourceStints?.length ? null : sessionId ?? null));
   useEffect(() => {
     const selected = sessions.find((session) => session.id === selectedSessionId);
     if (selected) setDraft((current) => current.carId || current.trackId ? current : { ...current, carId: selected.carId, trackId: selected.trackId });
@@ -77,6 +98,10 @@ export function RaceStrategyPlanner({ gameId, sessionId, carId, trackId, pi, ini
   const update = (patch: Partial<PlannerDraft>) => setDraft((current) => ({ ...current, ...patch }));
   const sourceKey = (sourceSessionId: number | null, sourceStintId: string | null) => `${sourceSessionId}:${sourceStintId}`;
   const sourceFor = (stint: RacePlanStintInput) => sourceSnapshots.get(sourceKey(stint.sourceSessionId, stint.sourceStintId)) ?? sources.find(({ session, stint: source }) => source.sessionId === stint.sourceSessionId && source.id === stint.sourceStintId && session.ownership === "mine")?.stint ?? null;
+  const baselineFor = (stint: RacePlanStintInput) => {
+    const key = sourceGroupKey(stint.sourceStints);
+    return key ? draftBaselines.get(key) : undefined;
+  };
   const paceSource = draft.stints.map(sourceFor).find((source) => source != null &&
     source.gameId === draft.gameId && source.carId === draft.carId && source.trackId === draft.trackId &&
     (draft.gameId !== "fm-2023" || source.pi === draft.pi) && source.paceLaps > 0 &&
@@ -86,7 +111,7 @@ export function RaceStrategyPlanner({ gameId, sessionId, carId, trackId, pi, ini
   const paceLaps = matchingLive && sessionId != null
     ? liveLaps.filter((lap) => lap.sessionId === sessionId && lap.isValid && lap.classification === "pace" && Number.isFinite(lap.lapTime) && lap.lapTime > 0)
     : [];
-  const measuredPace = paceSource?.averageLapSeconds ?? (paceLaps.length ? paceLaps.reduce((sum, lap) => sum + lap.lapTime, 0) / paceLaps.length : null);
+  const measuredPace = draft.stints.map((stint) => baselineFor(stint)).find((baseline) => baseline?.averageLapSeconds != null)?.averageLapSeconds ?? paceSource?.averageLapSeconds ?? (paceLaps.length ? paceLaps.reduce((sum, lap) => sum + lap.lapTime, 0) / paceLaps.length : null);
   const timedLength = draft.raceLength?.mode === "time" ? draft.raceLength : null;
   const estimatedLaps = timedLength ? estimateRaceLaps(timedLength.durationSeconds, timedLength.averageLapSeconds) : null;
   const setRaceLength = (raceLength: RacePlanLength) => setDraft((current) => {
@@ -159,7 +184,7 @@ export function RaceStrategyPlanner({ gameId, sessionId, carId, trackId, pi, ini
     setError(null); setNotice(null);
   };
   const setStint = (index: number, patch: Partial<RacePlanStintInput>) => update({ stints: draft.stints.map((stint, row) => row === index ? { ...stint, ...patch } : stint) });
-  const createBlank = () => { setDraft(makeDraft(gameId, carId ?? initialSession?.carId ?? "", trackId ?? initialSession?.trackId ?? "", pi ?? null)); setSavedCombo(null); setSelectedSessionId(sessionId ?? null); setError(null); setNotice(null); setRetryAction(null); };
+  const createBlank = () => { setDraft(makeDraft(gameId, carId ?? initialSession?.carId ?? "", trackId ?? initialSession?.trackId ?? "", pi ?? null)); setDraftBaselines(new Map()); setSavedCombo(null); setSelectedSessionId(sessionId ?? null); setError(null); setNotice(null); setRetryAction(null); };
   const savePlan = async () => {
     if (!draftValid) { setError(draftSourcesValid ? m.race_plan_invalid() : m.race_plan_source_unavailable()); return; }
     setError(null); setNotice(null); setRetryAction(null);
@@ -167,6 +192,7 @@ export function RaceStrategyPlanner({ gameId, sessionId, carId, trackId, pi, ini
     try {
       const saved = await save.mutateAsync({ id, input });
       setDraft(toDraft(saved));
+      setDraftBaselines(new Map(saved.stints.flatMap((stint) => { const key = sourceGroupKey(stint.sourceStints); return key && stint.baseline ? [[key, stint.baseline] as const] : []; })));
       setSavedCombo({ gameId: saved.gameId, carId: saved.carId, trackId: saved.trackId });
       setSourceSnapshots((previous) => new Map([...previous, ...saved.stints.flatMap((stint) => stint.evidence ? [[sourceKey(stint.sourceSessionId, stint.sourceStintId), stint.evidence] as const] : [])]));
       setNotice(m.race_plan_saved_notice());
@@ -174,7 +200,8 @@ export function RaceStrategyPlanner({ gameId, sessionId, carId, trackId, pi, ini
   };
   const thresholds = (compound: string) => getTireThresholds(overrides, gameId, compound);
   const forecasts = draft.stints.map((stint, index) => {
-    const result = projectRacePlanStint(stint, draft.stints[index - 1]?.endLap ?? 0, draft, sourceFor(stint), thresholds);
+    const baseline = baselineFor(stint);
+    const result = projectRacePlanStint(stint, draft.stints[index - 1]?.endLap ?? 0, draft, baseline ?? sourceFor(stint), thresholds);
     return timedLength && estimatedLaps == null
       ? { ...result, consumed: null, fuelEnd: null, fuelWarning: false, tires: result.tires.map((tire) => ({ ...tire, health: null })) }
       : result;
@@ -183,10 +210,14 @@ export function RaceStrategyPlanner({ gameId, sessionId, carId, trackId, pi, ini
   return <section data-testid="race-strategy-planner" className="min-w-0 space-y-4 rounded border border-app-border bg-app-surface p-4" aria-labelledby="race-plan-title">
     <div className="flex min-w-0 flex-wrap items-start justify-between gap-3"><div><h2 id="race-plan-title" className="text-app-heading font-semibold">{m.race_plan_title()}</h2><p className="mt-1 text-app-subtext text-app-text-muted">{m.race_plan_generate_help()}</p></div><Button variant="app-outline" type="button" disabled={save.isPending} onClick={createBlank}>{m.race_plan_new()}</Button></div>
     {(sessionsQuery.isError || sourceQueries.some((query) => query.isError)) && <p role="alert" className="text-app-detail text-status-danger">{m.race_plan_sources_error()} <Button variant="app-outline" type="button" className="underline" onClick={() => { void sessionsQuery.refetch(); sourceQueries.forEach((query) => void query.refetch()); }}>{m.strategy_retry()}</Button></p>}
+      {draft.stints.some((stint) => baselineFor(stint)) && <>{[...new Map(draft.stints.flatMap((stint) => { const key = sourceGroupKey(stint.sourceStints), baseline = baselineFor(stint); return key && baseline ? [[key, baseline] as const] : []; })).values()].map((baseline) => <section key={sourceGroupKey(baseline.sources.map((source) => ({ sessionId: source.sessionId, stintId: source.id }))) ?? "sources"} aria-label={m.race_plan_sources_label()} className="rounded border border-app-border bg-app-surface-alt p-3 text-app-detail text-app-text-muted">
+        <h3 className="font-semibold">{m.race_plan_sources_count({ count: new Set(baseline.sources.map((source) => source.sessionId)).size })} · {draft.weather ?? "any"}</h3>
+        <ul>{baseline.sources.map((source) => <li key={`${source.sessionId}:${source.id}`}>{m.review_session()} {source.sessionId} · {new Date(source.endedAt ?? source.startedAt).toLocaleString()} · {m.strategy_eligible_laps({ count: source.fuel.eligibleLaps })}</li>)}</ul>
+      </section>)}</>}
       <div className="min-w-0 space-y-3">
         <div className="grid min-w-0 gap-3 sm:grid-cols-2">
           <label className="min-w-0 text-app-detail">{m.race_plan_name()}<Input className="mt-1 w-full min-w-0 bg-app-surface-alt text-app-detail" disabled={save.isPending} maxLength={120} value={draft.name} onChange={(event) => update({ name: event.target.value })} /></label>
-          <label className="min-w-0 text-app-detail">{m.race_plan_source_session()}<Select className="mt-1 w-full min-w-0 bg-app-surface-alt text-app-detail" disabled={save.isPending} value={selectedSessionId ?? ""} onChange={(event) => selectSession(event.target.value)}><option value="">{m.race_plan_manual_source()}</option>{sessions.map((session) => <option key={session.id} value={session.id}>{m.review_session()} {session.id} · {new Date(session.createdAt).toLocaleDateString()} · {session.carId}/{session.trackId}</option>)}</Select></label>
+          {!draft.stints.some((stint) => stint.sourceStints?.length) && <label className="min-w-0 text-app-detail">{m.race_plan_source_session()}<Select className="mt-1 w-full min-w-0 bg-app-surface-alt text-app-detail" disabled={save.isPending} value={selectedSessionId ?? ""} onChange={(event) => selectSession(event.target.value)}><option value="">{m.race_plan_manual_source()}</option>{sessions.map((session) => <option key={session.id} value={session.id}>{m.review_session()} {session.id} · {new Date(session.createdAt).toLocaleDateString()} · {session.carId}/{session.trackId}</option>)}</Select></label>}
           <label className="min-w-0 text-app-detail">{m.race_plan_length_mode()}<Select aria-label={m.race_plan_length_mode()} className="mt-1 w-full bg-app-surface-alt text-app-detail" disabled={save.isPending} value={timedLength ? "time" : "laps"} onChange={(event) => setRaceLength(event.target.value === "time" ? { mode: "time", durationSeconds: 0, averageLapSeconds: measuredPace ?? 0 } : { mode: "laps" })}><option value="laps">{m.label_laps()}</option><option value="time">{m.race_plan_time()}</option></Select></label>
           {timedLength ? <>
             <label className="min-w-0 text-app-detail">{m.race_plan_duration_minutes()}<Input className="mt-1 w-full bg-app-surface-alt text-app-detail" disabled={save.isPending} type="number" min={0} max={10080} step="any" value={timedLength.durationSeconds === 0 ? "" : timedLength.durationSeconds / 60} onChange={(event) => setRaceLength({ ...timedLength, durationSeconds: Number(event.target.value) * 60 })} /></label>
@@ -219,11 +250,11 @@ export function RaceStrategyPlanner({ gameId, sessionId, carId, trackId, pi, ini
             <legend className="px-1 text-app-detail font-medium">{m.race_plan_stint({ ordinal: index + 1 })}</legend>
             <div className="grid min-w-0 gap-3 sm:grid-cols-2">
               <label className="min-w-0 text-app-detail">{m.race_plan_end_lap()}<Input className="mt-1 w-full bg-app-surface-alt text-app-detail" disabled={save.isPending || timedLength != null && index === draft.stints.length - 1} type="number" min={previousEnd + 1} max={draft.totalLaps} value={stint.endLap} onChange={(event) => setStint(index, { endLap: Number(event.target.value) })} /></label>
-              <label className="min-w-0 text-app-detail">{m.race_plan_evidence()}<Select className="mt-1 w-full min-w-0 bg-app-surface-alt text-app-detail" disabled={save.isPending} value={sourceValue} onChange={(event) => chooseSource(index, event.target.value)}><option value="">{m.race_plan_manual_source()}</option>{sourceValue && !compatible.some(({ stint: source }) => source.id === stint.sourceStintId) && <option value={sourceValue}>{m.race_plan_source_unavailable()}</option>}{compatible.map(({ session, stint: source }) => <option key={`${session.id}:${source.id}`} value={`${session.id}:${source.id}`}>{m.review_session()} {session.id} · {m.strategy_stint({ ordinal: source.ordinal })} · {new Date(source.endedAt ?? source.startedAt).toLocaleString()}</option>)}</Select></label>
+              {!stint.sourceStints?.length && <label className="min-w-0 text-app-detail">{m.race_plan_evidence()}<Select className="mt-1 w-full min-w-0 bg-app-surface-alt text-app-detail" disabled={save.isPending} value={sourceValue} onChange={(event) => chooseSource(index, event.target.value)}><option value="">{m.race_plan_manual_source()}</option>{sourceValue && !compatible.some(({ stint: source }) => source.id === stint.sourceStintId) && <option value={sourceValue}>{m.race_plan_source_unavailable()}</option>}{compatible.map(({ session, stint: source }) => <option key={`${session.id}:${source.id}`} value={`${session.id}:${source.id}`}>{m.review_session()} {session.id} · {m.strategy_stint({ ordinal: source.ordinal })} · {new Date(source.endedAt ?? source.startedAt).toLocaleString()}</option>)}</Select></label>}
               {supportsRaceRefueling(gameId) && <label className="min-w-0 text-app-detail">{m.race_plan_start_fuel()} ({draft.fuelUnit === "tankFraction" ? "%" : "L"})<Input className="mt-1 w-full bg-app-surface-alt text-app-detail" disabled={save.isPending} type="number" min={0} max={draft.fuelUnit === "tankFraction" ? 100 : undefined} step="any" value={stint.startFuel == null ? "" : draft.fuelUnit === "tankFraction" ? stint.startFuel * 100 : stint.startFuel} onChange={(event) => setStint(index, { startFuel: event.target.value === "" ? null : draft.fuelUnit === "tankFraction" ? Number(event.target.value) / 100 : Number(event.target.value) })} /></label>}
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{wheels.map((wheel, wheelIndex) => <label key={wheel} className="min-w-0 text-app-detail">{wheel} {m.label_tires()}<Select aria-label={`${wheel} ${m.label_tires()}`} className="mt-1 w-full min-w-0 bg-app-surface-alt text-app-detail" disabled={save.isPending} value={stint.compounds[wheelIndex] ?? ""} onChange={(event) => setStint(index, { compounds: stint.compounds.map((value, slot) => slot === wheelIndex ? event.target.value || null : value) as RacePlanStintInput["compounds"] })}><option value="">{m.strategy_unknown()}</option>{compoundOptions.map((compound) => <option key={compound} value={compound}>{compound}</option>)}</Select></label>)}</div>
-            {evidence ? <div className="space-y-1 border-t border-app-border pt-2 text-app-compact text-app-text-muted"><p>{m.race_plan_snapshot({ session: evidence.sessionId, stint: evidence.ordinal, laps: evidence.completedLaps, fuelLaps: evidence.fuel.eligibleLaps, tireLaps: evidence.tires.map((rate) => rate.eligibleLaps).join("/") })}</p><p>{m.race_plan_source_details({ date: new Date(evidence.endedAt ?? evidence.startedAt).toLocaleString(), status: evidence.status, setup: evidence.compatibility.setupKey ?? m.strategy_unknown(), conditions: evidence.compatibility.conditions.weather ?? m.strategy_unknown() })}</p></div> : <p className="text-app-compact text-app-text-muted">{m.race_plan_no_evidence()}</p>}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{wheels.map((wheel, wheelIndex) => <label key={wheel} className="min-w-0 text-app-detail">{wheel} {m.label_tires()}<Select aria-label={`${wheel} ${m.label_tires()}`} className="mt-1 w-full min-w-0 bg-app-surface-alt text-app-detail" disabled={save.isPending} value={stint.compounds[wheelIndex] ?? ""} onChange={(event) => { setStint(index, { compounds: stint.compounds.map((value, slot) => slot === wheelIndex ? event.target.value || null : value) as RacePlanStintInput["compounds"], sourceStints: undefined }); }}><option value="">{m.strategy_unknown()}</option>{compoundOptions.map((compound) => <option key={compound} value={compound}>{compound}</option>)}</Select></label>)}</div>
+            {evidence ? <div className="space-y-1 border-t border-app-border pt-2 text-app-compact text-app-text-muted"><p>{m.race_plan_snapshot({ session: evidence.sessionId, stint: evidence.ordinal, laps: evidence.completedLaps, fuelLaps: evidence.fuel.eligibleLaps, tireLaps: evidence.tires.map((rate) => rate.eligibleLaps).join("/") })}</p><p>{m.race_plan_source_details({ date: new Date(evidence.endedAt ?? evidence.startedAt).toLocaleString(), status: evidence.status, setup: evidence.compatibility.setupKey ?? m.strategy_unknown(), conditions: evidence.compatibility.conditions.weather ?? m.strategy_unknown() })}</p></div> : stint.sourceStints?.length && baselineFor(stint) ? <ul className="border-t border-app-border pt-2 text-app-compact text-app-text-muted">{baselineFor(stint)!.sources.map((source) => <li key={`${source.sessionId}:${source.id}`}>{m.review_session()} {source.sessionId} · {m.strategy_eligible_laps({ count: source.fuel.eligibleLaps })}</li>)}</ul> : <p className="text-app-compact text-app-text-muted">{m.race_plan_no_evidence()}</p>}
             <div className="grid min-w-0 gap-2 sm:grid-cols-2">
               <p className="break-words text-app-detail tabular-nums">{m.race_plan_duration({ laps: forecast.laps })}{supportsRaceRefueling(gameId) && <><br />{forecast.consumed == null ? m.race_plan_projection_unavailable() : m.race_plan_fuel_used({ value: draft.fuelUnit === "tankFraction" ? (forecast.consumed * 100).toFixed(1) : forecast.consumed.toFixed(1), unit: draft.fuelUnit === "tankFraction" ? "%" : "L" })} · {forecast.fuelEnd == null ? m.race_plan_fuel_end_unknown() : m.race_plan_fuel_end({ value: draft.fuelUnit === "tankFraction" ? `${(forecast.fuelEnd * 100).toFixed(1)}%` : `${forecast.fuelEnd.toFixed(1)} L` })}{forecast.fuelWarning && <strong className="block text-status-danger">{m.race_plan_fuel_short()}</strong>}</>}</p>
               <div className="min-w-0 space-y-1 text-app-detail text-app-text-muted tabular-nums"><p>{m.race_plan_fresh_tires()}</p>{forecast.tires.map((tire, wheelIndex) => <div key={wheels[wheelIndex]}>

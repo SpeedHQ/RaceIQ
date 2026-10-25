@@ -14,6 +14,7 @@ export interface NativeLmuInput {
   scoringLagSeconds?: number;
   advanceSeconds?: number;
   inPits?: boolean;
+  rainIntensity?: number;
 }
 
 /** Replaces only the OS shared-memory read; the production source encodes and dispatches every frame. */
@@ -81,6 +82,7 @@ export class NativeLmuMemory {
     const wearRates: Wheels = input.wearPerLap ?? [0.008, 0.008, 0.008, 0.008];
     const telemetry = LMU_TELEMETRY_INFO_OFFSET;
     const scoring = LMU_SCORING_VEHICLES_OFFSET;
+    if (input.rainIntensity !== undefined) this.memory.writeDoubleLE(input.rainIntensity, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.raining);
     this.clockOffset += input.advanceSeconds ?? 0;
     const clockOffset = 1 + this.clockOffset + ++this.command * 0.001;
     this.memory.writeUInt32LE(this.event, LMU_SESSION_EVENT_OFFSET);

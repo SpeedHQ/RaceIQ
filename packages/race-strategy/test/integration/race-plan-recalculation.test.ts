@@ -66,6 +66,30 @@ describe("race plan recalculation", () => {
     expect(routeBody.draft.totalLaps).toBe(20);
     expect(await client.execute("SELECT game_id, car_id, track_id, plan_id FROM active_race_plans ORDER BY game_id, car_id, track_id")).toEqual(activeBefore);
   });
+  test("legacy recalculation still finds matching evidence older than five incompatible sessions", async () => {
+    const original = await addSource();
+    const saved = await makePlan(original);
+    for (let index = 0; index < 6; index++) await addSource({ newer: true, compound: "soft" });
+    const result = await recalculateRacePlan(saved.id, { generation: { fuelCapacity: 10, fuelReserve: 1, energyReserveFraction: 0 } });
+    expect(result.sources.map((item) => item.id)).toEqual([original.id]);
+  });
+  test("recalculates aggregate plans from latest compatible multi-session rates", async () => {
+    const first = await addSource({ fuel: 0.1 });
+    const second = await addSource({ fuel: 0.05 });
+    const saved = await createRacePlan({ name: "Aggregate", gameId: first.gameId, carId: first.carId, trackId: first.trackId, pi: first.pi,
+      totalLaps: 20, raceLength: { mode: "laps" }, fuelUnit: "L", notes: "", weather: "any",
+      stints: [{ endLap: 20, startFuel: 5, compounds: [...first.compounds], sourceSessionId: null, sourceStintId: null,
+        sourceStints: [{ sessionId: first.sessionId, stintId: first.id }, { sessionId: second.sessionId, stintId: second.id }] }] });
+    plans.push(saved.id);
+    const newerFirst = await addSource({ newer: true, fuel: 0.02 });
+    const newerSecond = await addSource({ newer: true, fuel: 0.04 });
+    const result = await recalculateRacePlan(saved.id, { generation: { fuelCapacity: 10, fuelReserve: 1, energyReserveFraction: 0 } });
+    expect(result.sources.map((item) => item.id)).toEqual(expect.arrayContaining([first.id, second.id, newerFirst.id, newerSecond.id]));
+    expect(result.sources).toHaveLength(4);
+    expect(result.draft.stints[0]?.sourceSessionId).toBeNull();
+    expect(result.draft.stints[0]?.sourceStints).toHaveLength(4);
+  });
+
   test("rejects when no compatible measured source exists", async () => {
     const source = await addSource(); const saved = await makePlan(source);
     const unavailable = { ...source, fuel: { ...source.fuel, value: null, eligibleLaps: 0 } };

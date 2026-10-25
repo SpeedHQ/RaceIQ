@@ -1,15 +1,16 @@
-import type { MetricRate } from "@raceiq/shared/racing/live/strategy";
+import { Link } from "@tanstack/react-router";
+import { getGame } from "@raceiq/shared/games/registry";
 import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import type { GameId } from "@raceiq/shared/games/ids";
-import { estimateRaceLaps, RacePlanGenerationSchema, type RacePlan, type RacePlanGeneration, type RacePlanInput } from "@raceiq/shared/racing/live/race-plan";
+import { estimateRaceLaps, RacePlanGenerationEvidenceResponseSchema, RacePlanGenerationSchema, type RacePlan, type RacePlanBaseline, type RacePlanGeneration, type RacePlanInput, type RacePlanWeather } from "@raceiq/shared/racing/live/race-plan";
+import { generateRacePlanStints } from "../contracts/generate-race-plan";
 import type { StintSummary } from "@raceiq/shared/racing/live/strategy";
 import { getTireThresholds } from "@raceiq/shared/racing/live/tire-thresholds";
 import { useRaceStrategyHost } from "./host";
 import { useActiveRacePlans, useDeleteRacePlan, useRacePlans, useRecalculateRacePlan, useSetActiveRacePlan } from "./race-plans";
-import { useStrategyStints } from "./stint-strategy";
 import { RaceStrategyPlanner } from "./RaceStrategyPlanner";
-import { generateRacePlanStints } from "../contracts/generate-race-plan";
-
+import { aggregateRacePlanEvidence } from "@raceiq/shared/racing/live/race-plan-evidence";
 import { supportsRaceRefueling } from "../contracts/race-rules";
 import { useStrategyFormat } from "./strategy-format";
 
@@ -34,28 +35,47 @@ function parseConstraints(fractional: boolean, capacity: string, reserve: string
   return parsed.success && (!fractional || parsed.data.fuelCapacity <= 1) ? parsed.data : null;
 }
 
-function StrategyGenerator({ gameId, sessionId, onGenerate, onManual }: { gameId: GameId; sessionId?: number; onGenerate(input: RacePlanInput): void; onManual(): void }) {
-  const { m, useSessions, useSettings, Button, Input, Select } = useRaceStrategyHost();
+function StrategyGenerator({ gameId, onGenerate, onManual }: { gameId: GameId; onGenerate(input: RacePlanInput, baseline: RacePlanBaseline): void; onManual(): void }) {
+  const { m, api, useSessions, useTracksForGame, useCarsForGame, useSettings, Button, Input, Select } = useRaceStrategyHost();
   const { strategyRateText } = useStrategyFormat();
   const sessions = useSessions({ allGames: true });
-  const ownSessions = (sessions.data ?? []).filter((session) => session.gameId === gameId && session.ownership === "mine");
-  const [selectedSession, setSelectedSession] = useState<number | null>(sessionId ?? null);
-  const selectedRecording = ownSessions.find((session) => session.id === selectedSession);
-  const stints = useStrategyStints(gameId, selectedSession);
-  const [sourceId, setSourceId] = useState("");
-  const sources = (stints.data?.stints ?? []).filter((stint) => stint.driverKey === "local-player" && stint.status !== "active");
+  const trackCatalog = useTracksForGame(gameId);
+  const carCatalog = useCarsForGame(gameId);
+  const ownSessions = (sessions.data ?? []).filter((session) => session.gameId === gameId && session.ownership === "mine")
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id - a.id);
+  const tracks = [...new Set([...(trackCatalog.data ?? []).map(({ id }) => id), ...ownSessions.map((session) => session.trackId)])];
+  const cars = [...new Set([...(carCatalog.data ?? []).map(({ id }) => id), ...ownSessions.map((session) => session.carId)])];
+  const game = getGame(gameId);
+  const trackName = (id: string) => {
+    const track = trackCatalog.data?.find((candidate) => candidate.id === id);
+    return track ? `${track.name}${track.variant ? ` · ${track.variant}` : ""}` : game.getTrackName(id);
+  };
+  const trackNames = tracks.map(trackName);
+  const carNames = cars.map((id) => carCatalog.data?.find((car) => car.id === id)?.name ?? game.getCarName(id));
+  const trackLabel = (id: string) => {
+    const name = trackName(id);
+    return name === id ? id : trackNames.filter((candidate) => candidate === name).length > 1 ? `${name} (${id})` : name;
+  };
+  const carLabel = (id: string) => {
+    const name = carCatalog.data?.find((car) => car.id === id)?.name ?? game.getCarName(id);
+    return name === id ? id : carNames.filter((candidate) => candidate === name).length > 1 ? `${name} (${id})` : name;
+  };
+  const latest = ownSessions[0];
+  const [trackId, setTrackId] = useState("");
+  const [carId, setCarId] = useState("");
+  const [weather, setWeather] = useState<RacePlanWeather>("any");
+  const [initialized, setInitialized] = useState(false);
+  useEffect(() => {
+    if (!initialized && latest) { setTrackId(latest.trackId); setCarId(latest.carId); setInitialized(true); }
+  }, [initialized, latest]);
   const { displaySettings } = useSettings();
-  const usable = (stint: StintSummary) => stint.fuel.value != null && Number.isFinite(stint.fuel.value) && stint.fuel.value >= 0 && stint.fuel.eligibleLaps > 0 &&
-    stint.fuel.unit === (stint.fuelUnit === "L" ? "L/lap" : "tankFraction/lap") &&
-    (gameId !== "lmu" || stint.virtualEnergy?.value != null && Number.isFinite(stint.virtualEnergy.value) && stint.virtualEnergy.value >= 0 && stint.virtualEnergy.eligibleLaps > 0 && stint.virtualEnergy.unit === "energyFraction/lap") &&
-    stint.tires.every((rate, index) => {
-      const compound = stint.compounds[index];
-      if (rate.value == null || !Number.isFinite(rate.value) || rate.value < 0 || rate.eligibleLaps < 1 || rate.unit !== "wearFraction/lap" || compound == null) return false;
-      const { cliffPct } = getTireThresholds(displaySettings.tireThresholdOverrides ?? {}, gameId, compound);
-      return Number.isFinite(cliffPct) && cliffPct >= 0 && cliffPct < 100;
-    }) && (gameId !== "fm-2023" || stint.pi != null);
-  const source = sourceId ? sources.find((stint) => stint.id === sourceId) : sources.find(usable);
-  const hasUsableSource = sources.some(usable);
+  const evidence = useQuery({
+    queryKey: ["race-plan-generation-evidence", gameId, trackId, carId, weather],
+    enabled: !!trackId && !!carId,
+    queryFn: async ({ signal }) => RacePlanGenerationEvidenceResponseSchema.parse(await api.generationEvidence(gameId, carId, trackId, weather, signal)),
+    refetchOnMount: "always",
+  });
+  const source = evidence.data?.baseline ?? null;
   const [name, setName] = useState("");
   const [mode, setMode] = useState<"laps" | "time">("laps");
   const [laps, setLaps] = useState(20);
@@ -66,45 +86,61 @@ function StrategyGenerator({ gameId, sessionId, onGenerate, onManual }: { gameId
   const [error, setError] = useState(false);
   const fractional = source?.fuelUnit === "tankFraction";
   const totalLaps = mode === "time" ? estimateRaceLaps(minutes * 60, source?.averageLapSeconds ?? 0) : laps;
+  const resetConditions = (patch: { trackId?: string; carId?: string; weather?: RacePlanWeather }) => {
+    setInitialized(true);
+    if (patch.trackId !== undefined) setTrackId(patch.trackId);
+    if (patch.carId !== undefined) setCarId(patch.carId);
+    if (patch.weather !== undefined) setWeather(patch.weather);
+    setCapacity(""); setError(false);
+  };
   const generate = () => {
     const generation = parseConstraints(fractional, capacity, reserve, energyReserve);
-    if (!source || !usable(source) || !ownSessions.some((session) => session.id === selectedSession) || !name.trim() || name.trim().length > 120 || totalLaps == null || !generation) { setError(true); return; }
+    if (!source || !name.trim() || name.trim().length > 120 || totalLaps == null || !generation) { setError(true); return; }
     const generated = generateRacePlanStints(source, totalLaps, generation.fuelCapacity, generation.fuelReserve,
       (compound) => getTireThresholds(displaySettings.tireThresholdOverrides ?? {}, gameId, compound), generation.energyReserveFraction);
     if (!generated) { setError(true); return; }
     onGenerate({ name: name.trim(), gameId, carId: source.carId, trackId: source.trackId, pi: source.pi, totalLaps,
       raceLength: mode === "time" ? { mode: "time", durationSeconds: minutes * 60, averageLapSeconds: source.averageLapSeconds! } : { mode: "laps" },
-      fuelUnit: source.fuelUnit, notes: "", generation, stints: generated });
+      fuelUnit: source.fuelUnit, weather, notes: "", generation, stints: generated }, source);
   };
+  const catalogsLoading = trackCatalog.isPending || carCatalog.isPending;
+  const loading = catalogsLoading || sessions.isLoading || (!!trackId && !!carId && (evidence.isPending || evidence.isFetching));
   return <section data-testid="race-strategy-generator" className="space-y-3 rounded border border-app-border bg-app-surface p-4">
     <h2 className="text-app-heading font-semibold">{m.race_plan_generate()}</h2>
     <p className="max-w-prose text-app-subtext text-app-text-muted">{m.race_plan_generate_help()}</p>
     {gameId === "lmu" && <p className="max-w-prose text-app-detail text-app-text-muted">{m.race_plan_energy_assumption()}</p>}
     {sessions.isError && <p role="alert">{m.race_plan_sources_error()} <Button variant="app-ghost" onClick={() => void sessions.refetch()}>{m.strategy_retry()}</Button></p>}
-    {stints.isError && <p role="alert">{m.strategy_stints_error()} <Button variant="app-ghost" onClick={() => void stints.refetch()}>{m.strategy_retry()}</Button></p>}
+    {trackCatalog.isError && <p role="alert">{m.race_plan_catalogue_error()} <Button variant="app-ghost" onClick={() => void trackCatalog.refetch()}>{m.strategy_retry()}</Button></p>}
+    {carCatalog.isError && <p role="alert">{m.race_plan_catalogue_error()} <Button variant="app-ghost" onClick={() => void carCatalog.refetch()}>{m.strategy_retry()}</Button></p>}
+    {evidence.isError && <p role="alert">{m.strategy_stints_error()} <Button variant="app-ghost" onClick={() => void evidence.refetch()}>{m.strategy_retry()}</Button></p>}
     <form onSubmit={(event) => { event.preventDefault(); generate(); }} className="space-y-3">
       <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <label className="min-w-0 text-app-detail">{m.race_plan_name()}<Input required maxLength={120} className={fieldClass} value={name} onChange={(event) => setName(event.target.value)} /></label>
-        <label className="min-w-0 text-app-detail">{m.race_plan_source_session()}<Select required className={fieldClass} value={selectedSession ?? ""} onChange={(event) => { setSelectedSession(Number(event.target.value) || null); setSourceId(""); setCapacity(""); setError(false); }}><option value="">{m.race_plan_choose_recorded_session()}</option>{ownSessions.map((session) => <option key={session.id} value={session.id}>{m.review_session()} {session.id} · {session.carId} / {session.trackId}</option>)}</Select></label>
-        <label className="min-w-0 text-app-detail">{m.race_plan_evidence()}<Select required className={fieldClass} value={source?.id ?? ""} onChange={(event) => { setSourceId(event.target.value); setCapacity(""); setError(false); }}><option value="">{m.race_plan_choose_recorded_stint()}</option>{sources.map((stint) => <option key={stint.id} value={stint.id} disabled={!usable(stint)}>{m.strategy_stint({ ordinal: stint.ordinal })} · {m.strategy_eligible_laps({ count: stint.fuel.eligibleLaps })}</option>)}</Select></label>
+        <label className="min-w-0 text-app-detail">{m.analyse_track_label()}<Select aria-label={m.analyse_track_label()} className={fieldClass} value={trackId} onChange={(event) => resetConditions({ trackId: event.target.value })}><option value="">{m.race_plan_select_track()}</option>{tracks.map((track) => <option key={track} value={track}>{trackLabel(track)}</option>)}</Select></label>
+        <label className="min-w-0 text-app-detail">{m.analyse_car_label()}<Select aria-label={m.analyse_car_label()} className={fieldClass} value={carId} onChange={(event) => resetConditions({ carId: event.target.value })}><option value="">{m.race_plan_select_car()}</option>{cars.map((car) => <option key={car} value={car}>{carLabel(car)}</option>)}</Select></label>
+        <label className="min-w-0 text-app-detail">{m.race_plan_weather()}<Select aria-label={m.race_plan_weather()} className={fieldClass} value={weather} onChange={(event) => resetConditions({ weather: event.target.value as RacePlanWeather })}><option value="any">{m.race_plan_weather_any()}</option><option value="dry">{m.race_plan_weather_dry()}</option><option value="wet">{m.race_plan_weather_wet()}</option></Select></label>
         <label className="min-w-0 text-app-detail">{m.race_plan_length_mode()}<Select aria-label={m.race_plan_length_mode()} className={fieldClass} value={mode} onChange={(event) => setMode(event.target.value as "laps" | "time")}><option value="laps">{m.label_laps()}</option><option value="time">{m.race_plan_time()}</option></Select></label>
         {mode === "laps" ? <label className="min-w-0 text-app-detail">{m.race_plan_total_laps()}<Input required className={fieldClass} type="number" min={1} max={10000} step={1} value={laps} onChange={(event) => setLaps(Number(event.target.value))} /></label> : <label className="min-w-0 text-app-detail">{m.race_plan_duration_minutes()}<Input required className={fieldClass} type="number" min={0.01} max={10080} step="any" value={minutes} onChange={(event) => setMinutes(Number(event.target.value))} /></label>}
-        <ResourceFields gameId={gameId} fractional={fractional} energy={gameId === "lmu"} capacity={capacity} reserve={reserve} energyReserve={energyReserve} onCapacity={setCapacity} onReserve={setReserve} onEnergyReserve={setEnergyReserve} />
+        <ResourceFields gameId={gameId} fractional={fractional} energy={gameId === "lmu"} capacity={capacity} reserve={reserve} energyReserve={energyReserve} onCapacity={setCapacity} onReserve={setReserve} onEnergyReserve={setEnergyReserve} disabled={!source} />
       </div>
-      {!source && <p role="status" className="text-app-detail text-app-text-muted">{m.race_plan_generator_no_evidence()}</p>}
-      {source && <div className="text-app-detail text-app-text-muted">
-        <p>{selectedRecording ? `${m.review_session()} ${selectedRecording.id} · ${new Date(selectedRecording.createdAt).toLocaleDateString()}` : m.strategy_unavailable()} · {source.carId} / {source.trackId} · {m.strategy_stint({ ordinal: source.ordinal })}</p>
-        <p>{m.strategy_fuel_rate()} · {strategyRateText(source.fuel as MetricRate)} · {m.strategy_eligible_laps({ count: source.fuel.eligibleLaps })} · {source.fuel.value != null && Number.isFinite(source.fuel.value) && source.fuel.eligibleLaps > 0 && source.fuel.unit === (source.fuelUnit === "L" ? "L/lap" : "tankFraction/lap") ? m.race_plan_evidence_ready() : m.strategy_unavailable()}</p>
-        {source.tires.map((rate, index) => <p key={index}>{["FL", "FR", "RL", "RR"][index]} · {strategyRateText(rate as MetricRate)} · {m.strategy_eligible_laps({ count: rate.eligibleLaps })} · {source.compounds[index] ?? m.strategy_unavailable()} · {rate.value != null && Number.isFinite(rate.value) && rate.value >= 0 && rate.eligibleLaps > 0 && rate.unit === "wearFraction/lap" && source.compounds[index] != null ? m.race_plan_evidence_ready() : m.strategy_unavailable()}</p>)}
-        {gameId === "lmu" && <p>{m.race_plan_energy_rate({ value: source.virtualEnergy?.value == null ? m.strategy_unavailable() : (source.virtualEnergy.value * 100).toFixed(2) })} · {m.strategy_eligible_laps({ count: source.virtualEnergy?.eligibleLaps ?? 0 })} · {source.virtualEnergy?.value != null && Number.isFinite(source.virtualEnergy.value) && source.virtualEnergy.value >= 0 && source.virtualEnergy.eligibleLaps > 0 && source.virtualEnergy.unit === "energyFraction/lap" ? m.race_plan_evidence_ready() : m.strategy_unavailable()}</p>}
+      {weather === "any" && source?.weather === "unknown" && <p role="status">{m.race_plan_weather_unknown()}</p>}
+      {weather === "any" && source && source.weather !== "unknown" && <p role="status">{m.race_plan_weather()}: {source.weather === "dry" ? m.race_plan_weather_dry() : m.race_plan_weather_wet()}</p>}
+      {loading && <p role="status">{m.common_loading()}</p>}
+      {!loading && trackId && carId && !source && !evidence.isError && <div className="flex flex-wrap items-center gap-3"><p role="status" className="text-app-detail text-app-text-muted">{m.race_plan_generator_no_evidence()}</p><Button type="button" variant="app-outline" onClick={onManual}>{m.race_plan_manual_source()}</Button></div>}
+      {source && <div className="text-app-detail text-app-text-muted" data-testid="generation-evidence">
+        <p>{source.carId} / {source.trackId} · {m.race_plan_sources_count({ count: new Set(source.sources.map((item) => item.sessionId)).size })}</p>
+        <p>{m.strategy_fuel_rate()} · {strategyRateText(source.fuel)} · {m.strategy_eligible_laps({ count: source.fuel.eligibleLaps })}</p>
+        {source.tires.map((rate, index) => <p key={index}>{["FL", "FR", "RL", "RR"][index]} · {strategyRateText(rate)} · {m.strategy_eligible_laps({ count: rate.eligibleLaps })} · {source.compounds[index] ?? m.strategy_unavailable()}</p>)}
+        {gameId === "lmu" && <p>{m.race_plan_energy_rate({ value: source.virtualEnergy?.value == null ? m.strategy_unavailable() : (source.virtualEnergy.value * 100).toFixed(2) })}</p>}
+        <ul aria-label={m.race_plan_sources_label()}>{source.sources.map((item) => <li key={`${item.sessionId}:${item.id}`}><Link className="underline" to="/$gameid/sessions/$sessionId/analyse" params={{ gameid: getGame(gameId).routePrefix, sessionId: String(item.sessionId) }} hash={`stint-${encodeURIComponent(item.id)}`}>{m.review_session()} {item.sessionId} · {new Date(item.endedAt ?? item.startedAt).toLocaleDateString()} · {m.strategy_eligible_laps({ count: item.fuel.eligibleLaps })}</Link></li>)}</ul>
       </div>}
-      {!hasUsableSource && <Button variant="app-outline" type="button" onClick={onManual}>{m.race_plan_manual_source()}</Button>}
       {mode === "time" && <p role="status" className="text-app-detail tabular-nums">{totalLaps == null ? m.race_plan_time_unavailable() : m.race_plan_time_estimate({ laps: totalLaps, seconds: source!.averageLapSeconds!.toFixed(2) })}</p>}
       {error && <p role="alert" className="text-app-detail text-status-danger">{m.race_plan_generate_error()}</p>}
-      <Button variant="app-primary" type="submit" disabled={sessions.isLoading || stints.isLoading || stints.isFetching || !source || !usable(source)}>{m.race_plan_generate()}</Button>
+      <Button variant="app-primary" type="submit" disabled={loading || !source || sessions.isError || evidence.isError || !totalLaps}>{m.race_plan_generate()}</Button>
     </form>
   </section>;
 }
+
 
 function StrategyRecalculator({ plan, onGenerate }: { plan: RacePlan; onGenerate(input: RacePlanInput, sources: StintSummary[]): void }) {
   const { m, Button } = useRaceStrategyHost();
@@ -142,7 +178,7 @@ function StrategyRecalculator({ plan, onGenerate }: { plan: RacePlan; onGenerate
   </section>;
 }
 
-type Editor = { plan?: RacePlan; draft?: RacePlanInput; cloneName?: string; sources?: StintSummary[]; original?: RacePlan };
+type Editor = { plan?: RacePlan; draft?: RacePlanInput; baseline?: RacePlanBaseline; cloneName?: string; sources?: StintSummary[]; original?: RacePlan };
 
 export function RaceStrategiesPage({ gameId, sessionId }: { gameId: GameId; sessionId?: number }) {
   const { m, Button } = useRaceStrategyHost();
@@ -174,10 +210,10 @@ export function RaceStrategiesPage({ gameId, sessionId }: { gameId: GameId; sess
           {source.compatibility.setupKey == null && <p className="text-app-text-muted">{m.strategy_setup_uncertain()}</p>}
         </div>)}
       </section>}
-      <RaceStrategyPlanner key={`${editing.plan?.id ?? "new"}:${editing.cloneName ?? "edit"}`} gameId={gameId} sessionId={sessionId} initialPlan={editing.plan} initialDraft={editing.draft} cloneName={editing.cloneName} initialSources={editing.sources} onSavingChange={setSaving} />
+      <RaceStrategyPlanner key={`${editing.plan?.id ?? "new"}:${editing.cloneName ?? "edit"}`} gameId={gameId} sessionId={sessionId} initialPlan={editing.plan} initialDraft={editing.draft} initialBaseline={editing.baseline} cloneName={editing.cloneName} initialSources={editing.sources} onSavingChange={setSaving} />
     </>}
-    {!editing && recalculating && <StrategyRecalculator key={recalculating.id} plan={recalculating} onGenerate={(draft, sources) => openEditor({ draft, sources, original: recalculating })} />}
-    {!editing && generating && !recalculating && <StrategyGenerator gameId={gameId} sessionId={sessionId} onGenerate={(draft) => openEditor({ draft })} onManual={() => openEditor({})} />}
+    {!editing && recalculating && <StrategyRecalculator key={recalculating.id} plan={recalculating} onGenerate={(draft, sources) => openEditor({ draft, sources, baseline: aggregateRacePlanEvidence(sources, draft.weather ?? "any") ?? undefined, original: recalculating })} />}
+    {!editing && generating && !recalculating && <StrategyGenerator gameId={gameId} onGenerate={(draft, baseline) => openEditor({ draft, baseline })} onManual={() => openEditor({})} />}
     {!editing && <section aria-label={m.race_plan_saved()} className="space-y-3">
       {plans.isLoading && <p role="status" className="text-app-detail">{m.common_loading()}</p>}
       {plans.isError && <p role="alert">{m.race_plan_load_error()} <Button variant="app-ghost" onClick={() => void plans.refetch()}>{m.strategy_retry()}</Button></p>}

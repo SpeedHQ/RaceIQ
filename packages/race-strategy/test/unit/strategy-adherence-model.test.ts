@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
+import { aggregateRacePlanEvidence } from "@raceiq/shared/racing/live/race-plan-evidence";
 import type { RacePlan } from "@raceiq/shared/racing/live/race-plan";
 import type { PitEstimateRecord, StintSummary } from "@raceiq/shared/racing/live/strategy";
 import { buildStrategyAdherence, resolveAdherenceCheckpoints } from "../../ui/strategy-adherence-model";
+import { projectRacePlanStint } from "../../ui/race-plan-projection";
 import type { BuildStrategyAdherenceInput, ResolveAdherenceCheckpointsInput } from "../../contracts/strategy-adherence";
 
 const rate = (value: number | null, unit: "L/lap" | "wearFraction/lap" | "energyFraction/lap" = "L/lap") => ({ value, unit, eligibleLaps: 4, source: "history" as const, provisional: false, unavailableReason: null });
@@ -185,6 +187,34 @@ describe("strategy adherence model", () => {
     const sameLapReset = buildStrategyAdherence(base({ currentLap: 6, lapFraction: 0, checkpoints: input.checkpoints, fuelRemaining: 35 }));
     expect(sameLapReset.fuel.actual.at(-1)?.breakBefore).toBe(true);
     expect(sameLapReset.fuel.reference[0]).toEqual({ lap: 5, value: 35, breakBefore: false });
+  });
+  test("uses current planned phase baseline and leaves unsourced manual phase unavailable", () => {
+    const baselineFor = (id: number, fuel: number, tire: number) => {
+      const baseline = aggregateRacePlanEvidence([{
+        ...summary, id: `phase-${id}`, sessionId: id, status: "completed", endedAt: "2026-01-01T00:10:00Z", fuel: { ...summary.fuel, value: fuel },
+        tires: [0, 1, 2, 3].map(() => ({ ...rate(tire, "wearFraction/lap") })) as StintSummary["tires"],
+      }], "any");
+      if (!baseline) throw new Error("Expected complete phase evidence baseline");
+      return baseline;
+    };
+    const firstBaseline = baselineFor(8, 1, 0.01);
+    const secondBaseline = baselineFor(9, 3, 0.03);
+    const phasedPlan: RacePlan = { ...plan, totalLaps: 20, stints: [
+      { ...plan.stints[0]!, endLap: 10, evidence: null, baseline: firstBaseline },
+      { ...plan.stints[1]!, endLap: 18, evidence: null, baseline: secondBaseline },
+      { ...plan.stints[1]!, endLap: 20, sourceSessionId: null, sourceStintId: null, evidence: null, baseline: null },
+    ] };
+    const secondPhase = buildStrategyAdherence(base({ plan: phasedPlan, currentLap: 12 }));
+    expect(secondPhase.fuel.plannedRate).toBeCloseTo(3, 8);
+    const secondForecast = projectRacePlanStint(phasedPlan.stints[1]!, 10, phasedPlan, secondBaseline, () => ({ cliffPct: 70, deadPct: 50 }));
+    expect(secondForecast.consumed).toBe(24);
+    const manualForecast = projectRacePlanStint(phasedPlan.stints[2]!, 18, phasedPlan, null, () => ({ cliffPct: 70, deadPct: 50 }));
+    expect(manualForecast.consumed).toBeNull();
+    expect(secondPhase.tires.map((tire) => tire.plannedRate)).toEqual([0.03, 0.03, 0.03, 0.03]);
+    const manualPhase = buildStrategyAdherence(base({ plan: phasedPlan, currentLap: 19 }));
+    expect(manualPhase.fuel.basis).toBe("unknown");
+    expect(manualPhase.fuel.plannedRate).toBeNull();
+    expect(manualPhase.tires.every((tire) => tire.basis === "unknown" && tire.plannedRate === null)).toBe(true);
   });
   test("Float32 tire-rate noise stays within budget while a real rate increase remains over", () => {
     const evidence: StintSummary = { ...summary, tires: [0, 1, 2, 3].map(() => rate(0.008, "wearFraction/lap")) as StintSummary["tires"] };
