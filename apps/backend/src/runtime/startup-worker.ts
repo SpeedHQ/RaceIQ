@@ -1,3 +1,4 @@
+import type { StrategyHistoryUpdatedMessage } from "@raceiq/shared/racing/live/strategy";
 import { MessageChannel, Worker, type MessagePort } from "node:worker_threads";
 import { Effect, Fiber, Layer, ManagedRuntime } from "effect";
 import { IS_COMPILED } from "@raceiq/backend-core/runtime/config/paths";
@@ -7,11 +8,11 @@ import { client } from "@raceiq/backend-core/db/index";
 import { isLayoutMigrationReadyForStartup, subscribeLayoutMigrationComplete } from "@raceiq/backend-core/session-capture/layout-migration";
 import { createStartupReadiness } from "./startup-readiness";
 
-type WorkerMessage = { type: "publication" } | { type: "ready" } | { type: "lap-reprocessed"; reprocessed: ReprocessResult } | { type: "clear-stale-sessions" } | { type: "error"; task: string; error: string } | { type: "stopped" } | WriteLeaseRequest;
+type WorkerMessage = { type: "publication" } | { type: "ready" } | { type: "lap-reprocessed"; reprocessed: ReprocessResult } | { type: "strategy-history-updated"; event: StrategyHistoryUpdatedMessage } | { type: "clear-stale-sessions" } | { type: "error"; task: string; error: string } | { type: "stopped" } | WriteLeaseRequest;
 export interface StartupWorkerHandle { stop(): Promise<void>; }
 export type StartupWorkerTestEvent = { type: "candidatePrepared" | "transactionOpen" | "beforeCommit" | "afterCommit"; eventId: number; sessionId: number } | { type: "stageEntered"; stage: "historical" | "lmu-identity" | "race-results" | "dashboard"; eventId: number } | { type: "workerStopped" | "workerExited"; code?: number };
 
-export function startStartupWorker(notifyDashboardUpdated: () => void, notifyLapReprocessed: (reprocessed: ReprocessResult) => void, clearStaleSessions: () => void, workerTestPort?: MessagePort): StartupWorkerHandle {
+export function startStartupWorker(notifyDashboardUpdated: () => void, notifyLapReprocessed: (reprocessed: ReprocessResult) => void, notifyStrategyHistoryUpdated: (event: StrategyHistoryUpdatedMessage) => void, clearStaleSessions: () => void, workerTestPort?: MessagePort): StartupWorkerHandle {
   const runtime = ManagedRuntime.make(Layer.empty);
   let stopping = false;
   let stopPromise: Promise<void> | null = null;
@@ -48,6 +49,7 @@ export function startStartupWorker(notifyDashboardUpdated: () => void, notifyLap
       if (message.type.startsWith("write-lease-")) authority.receive(message as WriteLeaseRequest);
       else if (message.type === "publication") { if (!stopping) notifyDashboardUpdated(); }
       else if (message.type === "lap-reprocessed") { if (!stopping) notifyLapReprocessed(message.reprocessed); }
+      else if (message.type === "strategy-history-updated") { if (!stopping) notifyStrategyHistoryUpdated(message.event); }
       else if (message.type === "clear-stale-sessions") { if (!stopping) clearStaleSessions(); }
       else if (message.type === "error") console.error(`[StartupWorker] ${message.task} failed: ${message.error}`);
       else if (message.type === "stopped") acknowledged = true;

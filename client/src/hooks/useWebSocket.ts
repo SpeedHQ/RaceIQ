@@ -235,6 +235,9 @@ export function useWebSocket() {
               void queryClient.resetQueries({
                 predicate: (query) => query.queryKey[0] === "strategy-baseline" && query.queryKey[1] === message.gameId && query.queryKey[4] === message.driverKey,
               });
+              void queryClient.invalidateQueries({
+                predicate: (query) => query.queryKey[0] === "race-plan-generation-evidence" && query.queryKey[1] === message.gameId,
+              });
             }
           } else if (data.type === "session-laps") {
             telemetryStore.actions.setSessionLaps(data.laps);

@@ -1,7 +1,7 @@
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import { z } from "zod";
 import { BaselineResponseSchema, PitEstimatePageSchema, StintsResponseSchema } from "@raceiq/shared/racing/live/strategy-schemas";
-import { ingestNativeRun, nativeRunFrames, type NativeLap, type NativeRun } from "./native-source";
+import { ingestNativeRun, nativeRunFrames, primeNativeRun, type NativeLap, type NativeRun } from "./native-source";
 import { StrategyRuntime } from "./runtime";
 import { createSocket } from "node:dgram";
 import { setTimeout as delay } from "node:timers/promises";
@@ -35,6 +35,54 @@ async function advanceTelemetry(runtime: StrategyRuntime, run: NativeRun) {
   }
 }
 
+
+test("invalid native lap contributes completion and reliable measured fuel, not qualifying rates, live and after rebuild", async ({ playwright }, testInfo) => {
+  const runtime = await StrategyRuntime.start(testInfo.outputPath("test-data-invalid-lap-contribution"));
+  const api = await playwright.request.newContext({ baseURL: runtime.apiURL });
+  const ingestWithInvalidSecondLap = async () => {
+    const socket = createSocket("udp4");
+    try {
+      let frameIndex = 0;
+      for (const packet of nativeRunFrames({ carId: 641, laps: [lap, lap, lap] })) {
+        if (frameIndex >= 240 && frameIndex < 480) packet.writeFloatLE(3_000, 280);
+        await new Promise<void>((accept, reject) => socket.send(packet, runtime.udpPort, "127.0.0.1", (error) => error ? reject(error) : accept()));
+        frameIndex++;
+        await delay(6);
+      }
+    } finally { socket.close(); }
+  };
+  const assertContribution = async (sessionId: number) => {
+    const stint = (await summaries(api, sessionId))[0]!;
+    expect(stint.completedLaps).toBe(3);
+    expect(stint.fuel.eligibleLaps).toBe(2);
+    expect(stint.fuel.value).toBeCloseTo(0.02, 5);
+    expect(stint.measuredFuelUsed).toBeGreaterThan(0);
+    expect(stint.exclusions.some((item) => item.reason === "invalid-lap" && item.count > 0)).toBe(true);
+    const result = await runtime.databaseStatement(
+      "SELECT l.is_valid,l.invalid_reason,m.payload FROM laps l JOIN strategy_lap_metrics m ON m.lap_id=l.id WHERE l.session_id=? AND l.lap_number=2",
+      [sessionId],
+    );
+    const saved = z.array(z.object({ is_valid: z.number(), invalid_reason: z.string(), payload: z.string() })).parse(result)[0];
+    expect(saved?.is_valid).toBe(0);
+    expect(saved?.invalid_reason).toContain("telemetry distance too short");
+    const contribution = z.object({ exclusionReason: z.string(), measuredFuelUsed: z.number().positive() }).parse(JSON.parse(saved!.payload));
+    expect(contribution.exclusionReason).toBe("invalid-lap");
+  };
+  try {
+    const run = { carId: 641, laps: [lap, lap, lap] };
+    await primeNativeRun(run, runtime.udpPort, runtime.apiURL);
+    await ingestWithInvalidSecondLap();
+    const source = await sourceSession(api, "641");
+    await expect.poll(async () => (await summaries(api, source.id)).reduce((sum, item) => sum + item.completedLaps, 0)).toBe(3);
+    await assertContribution(source.id);
+    const rebuilt = await api.post(`/api/sessions/${source.id}/reprocess`, { timeout: 60_000 });
+    expect(rebuilt.ok(), await rebuilt.text()).toBe(true);
+    await assertContribution(source.id);
+  } finally {
+    await api.dispose();
+    await runtime.stop();
+  }
+});
 test("shared contract: native ingestion → SQLite → HTTP/WebSocket, restart, rebuild, clear and storage recovery", async ({ playwright }, testInfo) => {
   const runtime = await StrategyRuntime.start(testInfo.outputPath("test-data-shared-contract"));
   const api = await playwright.request.newContext({ baseURL: runtime.apiURL });

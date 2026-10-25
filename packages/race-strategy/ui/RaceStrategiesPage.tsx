@@ -129,6 +129,7 @@ function StrategyGenerator({ gameId, onGenerate, onManual }: { gameId: GameId; o
       {!loading && trackId && carId && !source && !evidence.isError && <div className="flex flex-wrap items-center gap-3"><p role="status" className="text-app-detail text-app-text-muted">{m.race_plan_generator_no_evidence()}</p><Button type="button" variant="app-outline" onClick={onManual}>{m.race_plan_manual_source()}</Button></div>}
       {source && <div className="text-app-detail text-app-text-muted" data-testid="generation-evidence">
         <p>{source.carId} / {source.trackId} · {m.race_plan_sources_count({ count: new Set(source.sources.map((item) => item.sessionId)).size })}</p>
+        <p>{m.strategy_completed_laps({ count: source.sources.reduce((total, item) => total + item.completedLaps, 0) })}</p>
         <p>{m.strategy_fuel_rate()} · {strategyRateText(source.fuel)} · {m.strategy_eligible_laps({ count: source.fuel.eligibleLaps })}</p>
         {source.tires.map((rate, index) => <p key={index}>{["FL", "FR", "RL", "RR"][index]} · {strategyRateText(rate)} · {m.strategy_eligible_laps({ count: rate.eligibleLaps })} · {source.compounds[index] ?? m.strategy_unavailable()}</p>)}
         {gameId === "lmu" && <p>{m.race_plan_energy_rate({ value: source.virtualEnergy?.value == null ? m.strategy_unavailable() : (source.virtualEnergy.value * 100).toFixed(2) })}</p>}

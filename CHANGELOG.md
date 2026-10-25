@@ -7,7 +7,7 @@
 - Show class-specific dry compounds and Wet tire rows with unavailable temperature targets on LMU race cars, excluding the safety car.
 - Override tire cliff and dead-health thresholds per game and tire compound.
 - Open an expanded pit-estimate dialog with a projected lap horizon, four-wheel readings, and evidence; mark missing forecasts as unavailable.
-- Generate race strategies on the Strategies page from weighted evidence across recent sessions, with Track, Car, Laps, and Weather controls and read-only source provenance.
+- Generate race strategies on the Strategies page from weighted evidence across recent sessions, with Track, Car, Laps, and Weather controls, total recorded lap counts, and read-only source provenance.
 - Clone saved strategies into independent editable copies without changing the original or active plan.
 - Recalculate copied strategies from the latest compatible recorded sessions, updating stops, fuel loads and timed-race lap estimates as driving changes.
 - Limit LMU strategy stints using native virtual energy separately from fuel, with an explicit energy reserve.
@@ -50,6 +50,7 @@
 - Preserve Forza performance index when switching compatible history sessions and derive missing values from matching evidence.
 - Let F1 dashboard pit estimates span the full left telemetry column.
 - Reject unknown car or track identities when reusing historical stint averages.
+- Include invalid completed laps in stint fuel totals while excluding them from eligible rates, and refresh live strategy baselines and generator evidence after history is rebuilt, reprocessed, or deleted.
 - Preserve existing laps and strategy history when session reprocessing fails.
 - Keep valid stint measurements after recording segment breaks.
 - Treat continuous refueling as one stint boundary, including repeated unchanged fuel readings.

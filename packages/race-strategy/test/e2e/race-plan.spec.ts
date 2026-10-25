@@ -116,6 +116,7 @@ test("G1 Strategies page selects latest combo evidence and generates with locali
     await expect(generator.getByLabel("Car")).toHaveValue("639");
     await expect(generator.getByLabel("History session")).toHaveCount(0);
     await expect(generator.getByLabel("Evidence stint")).toHaveCount(0);
+    await expect(generator.getByTestId("generation-evidence")).toContainText(`Completed laps: ${readyEvidence.completedLaps}`);
     await expect(generator).toContainText(`Eligible laps: ${readyEvidence.fuel.eligibleLaps}`);
     await expect(generator).toContainText("Fuel / lap");
     await expect(generator).toContainText(/FL.*%\/lap/);
@@ -1034,6 +1035,7 @@ test("G1-G2/L1 generates measured stops and manages persisted strategies", async
     await expect(generator).toContainText(`Session ${source.id}`);
     await expect(generator).toContainText(`Session ${secondSource.id}`);
     await expect(generator).not.toContainText(`Session ${wetSource.id}`);
+    await expect(generator.getByTestId("generation-evidence")).toContainText(`Completed laps: ${baseline.sources.reduce((total, item) => total + item.completedLaps, 0)}`);
     await generator.getByLabel("Plan name").fill("Generated measured strategy");
     await generator.getByLabel("Total laps").fill("12");
     await generator.getByLabel("Fuel tank capacity (%)").fill(String(insufficientFuel * 100));
@@ -1136,6 +1138,17 @@ test("G1-G2/L1 generates measured stops and manages persisted strategies", async
     expect(savedAfterRecalculation.stints[0]!.baseline!.fuel.value).toBe(baseline.fuel.value);
     await bridge(3_000_000);
     await page.getByRole("button", { name: "Strategies", exact: true }).click();
+    await page.getByRole("button", { name: "Generate race strategy", exact: true }).click();
+    await generator.getByLabel("Track").selectOption(evidence.trackId);
+    await generator.getByLabel("Car").selectOption(evidence.carId);
+    await generator.getByLabel("Weather").selectOption("dry");
+    const beforeDelete = (await baselineFor("dry"))!;
+    await expect(generator.getByTestId("generation-evidence")).toContainText(`Completed laps: ${beforeDelete.sources.reduce((total, item) => total + item.completedLaps, 0)}`);
+    const deletedSource = await api.post("/api/sessions/bulk-delete", { data: { ids: [source.id] } });
+    expect(deletedSource.ok(), await deletedSource.text()).toBe(true);
+    await expect(generator.getByTestId("generation-evidence")).toContainText(`Completed laps: ${beforeDelete.sources.filter((item) => item.sessionId !== source.id).reduce((total, item) => total + item.completedLaps, 0)}`);
+    await expect(generator.getByTestId("generation-evidence")).not.toContainText(`Session ${source.id}`);
+    await page.goto(`${runtime.baseURL}/fm23/strategy`);
     await page.screenshot({ path: testInfo.outputPath("strategies-desktop.png") });
     await page.setViewportSize({ width: 390, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

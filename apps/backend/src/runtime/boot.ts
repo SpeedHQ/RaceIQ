@@ -33,8 +33,7 @@ import { registerDriverProfileLapNotifier } from "@raceiq/backend-core/driver-pr
 import { notifyDriverProfileLap } from "../driver-profile/runner";
 import { DashboardAuth, setDashboardAuth } from "./dashboard-auth";
 import { configureHttpAccess, httpAccess } from "./http-access";
-import { interruptActiveStrategyStints } from "@raceiq/race-strategy/server";
-import { subscribeStrategyHistory } from "@raceiq/race-strategy/server";
+import { interruptActiveStrategyStints, publishStrategyChanges, subscribeStrategyHistory } from "@raceiq/race-strategy/server";
 
 export interface BootOptions {
   httpPort?: number;
@@ -154,6 +153,7 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   startupWorker = startStartupWorker(
     () => wsManager.notifyDashboardUpdated(),
     (reprocessed) => wsManager.broadcastNotification({ type: "lap-reprocessed", ...reprocessed }),
+    (event) => publishStrategyChanges([event]),
     () => wsManager.setStaleSessionsNotification(null),
     options.testDependencies?.workerPort,
   );
