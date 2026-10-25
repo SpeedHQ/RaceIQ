@@ -4,6 +4,7 @@ import { gzip } from "node:zlib";
 import { promisify } from "node:util";
 import { z } from "zod";
 import { replayRoutes } from "@raceiq/lap-replay/server";
+import { createSessionAnalyseRoutes } from "@raceiq/session-analyse/server";
 
 import { IdParamSchema } from "@raceiq/shared/platform/http/route-schemas";
 import { GameIdSchema, type GameId } from "@raceiq/shared/games/ids";
@@ -13,7 +14,8 @@ import { backfillLapInsights, getOrComputeLapInsights } from "@raceiq/backend-co
 import { alignLapSet, prepareLapSetAlignmentIndex, type AlignmentLapInput } from "@raceiq/analysis-core/racing/laps/alignment/build";
 import { encodeAlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/codec";
 import type { EncodedAlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/types";
-import { getLaps, getLapById, getLapsByIds, getLapsRaw, getSessionLaps } from "@raceiq/backend-core/db/lap-read-queries";
+import { getLaps, getLapById, getLapsByIds, getLapsRaw, getSessionLaps, getLapProcessingByIds } from "@raceiq/backend-core/db/lap-read-queries";
+import type { ProcessingMetadata } from "@raceiq/shared/racing/sessions/types";
 import { alignedTelemetryCacheGet, alignedTelemetryCacheSet, lapSetAlignmentIndexCacheGet, lapSetAlignmentIndexCacheSet } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { loadSessionCapture, loadSessionSource, resolveLapCaptureArtifact } from "@raceiq/backend-core/session-capture/source-loader";
 import { getLiveLapCaptureSnapshot } from "@raceiq/backend-core/db/live-capture-queries";
@@ -30,10 +32,18 @@ import { computeLineSpreadTrace } from "@raceiq/backend-core/lap-analysis/consis
 import { hasWorldPositions } from "@raceiq/shared/racing/tracks/path";
 import { BulkDeleteSchema, LapsQuerySchema, CompareLineSpreadQuerySchema, AlignedTelemetryRequestSchema, LapInsightBackfillSchema } from "./support";
 import { resolveLapCorners } from "../../tracks/corner-resolution";
-import { createSessionAnalyseRoutes } from "@raceiq/session-analyse/server";
 import { resolveLapF1Setup } from "@raceiq/backend-core/ai/f1-setup-identity";
 
 const gzipAsync = promisify(gzip);
+
+function processingFailure(processing: readonly ProcessingMetadata[]) {
+  const failed = processing.find((item) => item.state === "failed");
+  if (failed) return { code: "RECORDING_PROCESSING_FAILED", error: failed.error?.trim() || "Recording processing failed", status: 422 as const };
+  if (processing.some((item) => item.state === "queued" || item.state === "processing")) {
+    return { code: "RECORDING_PROCESSING", error: "Recording is queued or processing", status: 409 as const };
+  }
+  return null;
+}
 
 export const resourceRoutes = new Hono()
   .route("/", replayRoutes)
@@ -77,11 +87,16 @@ export const resourceRoutes = new Hono()
 
   .post("/api/laps/aligned-telemetry", zValidator("json", AlignedTelemetryRequestSchema), async (c) => {
     const request = c.req.valid("json");
+    const processingRows = await getLapProcessingByIds(request.ids);
+    for (const id of request.ids) if (!processingRows.some((row) => row.id === id)) return c.json({ error: `Lap ${id} not found` }, 404);
+    const processingById = new Map(processingRows.map((row) => [row.id, row.processing] as const));
+    const blocked = processingFailure(request.ids.map((id) => processingById.get(id)!));
+    if (blocked) return c.json({ code: blocked.code, error: blocked.error }, blocked.status);
     if (request.step === 1) {
       const cached = alignedTelemetryCacheGet(request.ids);
       if (cached !== undefined) return c.body(cached, 200, { "Content-Type": "application/json; charset=UTF-8", "X-RaceIQ-Cache": "HIT" });
     }
-    const laps = await getLapsByIds(request.ids);
+    const laps = await getLapsByIds(request.ids, { processingByLapId: processingById });
     const byId = new Map(laps.map((lap) => [lap.id, lap]));
     for (const id of request.ids) if (!byId.has(id)) return c.json({ error: `Lap ${id} not found` }, 404);
     for (const id of request.ids) if (byId.get(id)!.telemetry.length === 0) return c.json({ error: `Lap ${id} has no telemetry data` }, 400);
@@ -121,10 +136,13 @@ export const resourceRoutes = new Hono()
     }
     const gameId = gameIdResult.data;
     const { id } = c.req.valid("param");
-    const lap = await getLapById(id);
-    if (!lap || lap.gameId !== gameId) {
-      return c.json({ error: "Lap not found" }, 404);
-    }
+    const processingRows = await getLapProcessingByIds([id]);
+    const processingRow = processingRows[0];
+    if (!processingRow || processingRow.gameId !== gameId) return c.json({ error: "Lap not found" }, 404);
+    const processing = processingFailure([processingRow.processing]);
+    if (processing) return c.json({ code: processing.code, error: processing.error }, processing.status);
+    const lap = await getLapById(id, processingRow.processing);
+    if (!lap || lap.gameId !== gameId) return c.json({ error: "Lap not found" }, 404);
 
     // Compute sector times server-side
     let sectorTimes: {

@@ -1,0 +1,6 @@
+packages/game-lmu/test/unit/telemetry/batch-metadata.test.ts
+packages/game-lmu/test/unit/telemetry/lap-policy.test.ts
+packages/game-lmu/test/unit/telemetry/ordinal-engine.test.ts
+packages/game-lmu/test/unit/integration/spectate-sequence-gap.test.ts
+packages/game-lmu/test/unit/client/session-result-meta.test.tsx
+packages/game-lmu/test/unit/client/spectate-track-geometry.test.ts

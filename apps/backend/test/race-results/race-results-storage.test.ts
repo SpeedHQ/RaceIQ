@@ -9,37 +9,10 @@ import { initServerGameAdapters } from "../../src/games/init";
 import { RACE_RESULT_PROCESSOR_ID, backfillRaceResults, backfillStaleRaceResults, reconcileSessionResult } from "@raceiq/backend-core/race-results/reconcile";
 import { createSessionRoutes } from "@raceiq/sessions-page/server";
 import { isSessionIdentityInCatalog } from "../../src/games/session-identity";
-import type { RaceResultEvidence, RaceResultProvenance } from "@raceiq/shared/racing/results/types";
+import { evidence, provenance } from "./fixtures";
 import * as elapsedDuration from "@raceiq/backend-core/session-capture/elapsed-duration";
 const sessionRoutes = createSessionRoutes(isSessionIdentityInCatalog);
 
-const evidence: RaceResultEvidence = {
-  fieldStatus: {
-    sessionType: "direct",
-    classification: "direct",
-    finishingPosition: "direct",
-    qualifyingPosition: "direct",
-    isPodium: "derived",
-    isFastestLap: "derived",
-    pitEvents: "derived",
-    tyreStrategy: "simplified",
-    fuelStrategy: "unavailable",
-  },
-  conflicts: [],
-};
-const provenance: RaceResultProvenance = {
-  catalogVersion: "catalog-7",
-  catalogHash: "sha256:catalog",
-  catalogSchemaVersion: "schema-2",
-  parserVersion: "f1-parser-3",
-  resolverVersion: "resolver-4",
-  derivationId: "race-result-derivation",
-  derivationVersion: "3",
-  derivationCodeHash: "sha256:derivation",
-  rawInput: { objectId: "session.bin", contentHash: "sha256:raw", byteOffset: 64, byteLength: 128 },
-  authorityPolicyId: "race-result-outcome-authority",
-  authorityPolicyVersion: "1",
-};
 
 describe("persisted race result metadata", () => {
   test("pit-event reconciliation preserves telemetry outlaps and quality", async () => {
@@ -96,50 +69,6 @@ describe("persisted race result metadata", () => {
       { lapNumber: 6, isValid: true, invalidReason: null, classification: "grid_start" },
       { lapNumber: 7, isValid: true, invalidReason: null, classification: "pit_lap" },
       { lapNumber: 8, isValid: true, invalidReason: null, classification: "out_lap" },
-    ]);
-  });
-  test("LMU in-pits event at lap start does not override detected out-lap", async () => {
-    const sessionId = await insertSession("lmu-car", "lmu-track", "lmu", "race");
-    await db.insert(laps).values([
-      { sessionId, lapNumber: 2, lapTime: 102.7, isValid: true, invalidReason: null, classification: "out_lap" },
-      { sessionId, lapNumber: 3, lapTime: 85.1, isValid: true, invalidReason: null, classification: "pace" },
-    ]);
-    await upsertSessionResult({
-      sessionId,
-      sessionType: "race",
-      classification: "finished",
-      outcomeStatus: "confirmed",
-      finishingPosition: 1,
-      qualifyingPosition: null,
-      isPodium: true,
-      isFastestLap: false,
-      pitCount: 1,
-      tyreStrategy: null,
-      fuelStrategy: null,
-      provenance,
-      evidence,
-      reasons: [],
-    }, [{
-      sequence: 1,
-      lapNumber: 2,
-      elapsedSeconds: 0.16,
-      durationSeconds: null,
-      service: "unknown",
-      tyreChange: null,
-      fuelAdded: null,
-      fuelBefore: null,
-      fuelAfter: null,
-      linkage: "linked",
-      source: { channel: "lmu.inPits", value: true },
-    }]);
-
-    const stored = await db.select({
-      lapNumber: laps.lapNumber,
-      classification: laps.classification,
-    }).from(laps).where(eq(laps.sessionId, sessionId)).orderBy(laps.lapNumber).all();
-    expect(stored).toEqual([
-      { lapNumber: 2, classification: "out_lap" },
-      { lapNumber: 3, classification: "out_lap" },
     ]);
   });
   test("counts and lists only results from older processor versions", async () => {

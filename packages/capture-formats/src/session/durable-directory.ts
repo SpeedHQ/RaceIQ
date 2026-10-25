@@ -1,8 +1,10 @@
 import { open } from "node:fs/promises";
 import { dirname } from "node:path";
 
-/** Persist directory entries from leaf through root after create/rename operations. */
+/** Persist directory entries on platforms supporting directory fsync. */
 export async function syncDirectoryTree(directoryPath: string): Promise<void> {
+  // Windows supports file flushes, but not fsync on directory handles.
+  if (process.platform === "win32") return;
   let current = directoryPath;
   while (true) {
     const directory = await open(current, "r");

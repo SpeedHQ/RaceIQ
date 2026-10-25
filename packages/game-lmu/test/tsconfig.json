@@ -1,0 +1,9 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": false,
+    "rootDir": "../../.."
+  },
+  "include": ["unit/**/*.ts", "unit/**/*.tsx", "e2e/**/*.ts", "support/**/*.ts", "fixtures/*.ts"],
+  "exclude": ["**/node_modules/**", "**/dist/**", "e2e/browser/**"]
+}

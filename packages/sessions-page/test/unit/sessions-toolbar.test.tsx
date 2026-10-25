@@ -20,10 +20,10 @@ const Button: SessionsPageHost["Button"] = (props) => {
 // Load after mocking the router so the unit test needs no application router.
 const { SessionToolbar, SessionsPageProvider } = await import("@raceiq/sessions-page/ui");
 
-const session: SessionMeta = { id: 1, trackId: "10", carId: "20", createdAt: "" };
+const session: SessionMeta = { id: 1, trackId: "10", carId: "20", createdAt: "", processing: { state: "ready", stage: null, error: null } };
 const sessions = [session];
-const lap: LapMeta = { id: 101, sessionId: 1, lapNumber: 1, lapTime: 90, isValid: true, classification: null, createdAt: "", carId: "", trackId: "" };
-const secondLap: LapMeta = { id: 102, sessionId: 1, lapNumber: 2, lapTime: 90, isValid: true, classification: null, createdAt: "", carId: "", trackId: "" };
+const lap: LapMeta = { id: 101, sessionId: 1, lapNumber: 1, lapTime: 90, isValid: true, classification: null, createdAt: "", carId: "", trackId: "", processing: { state: "ready", stage: null, error: null } };
+const secondLap: LapMeta = { id: 102, sessionId: 1, lapNumber: 2, lapTime: 90, isValid: true, classification: null, createdAt: "", carId: "", trackId: "", processing: { state: "ready", stage: null, error: null } };
 
 type ToolbarOverrides = Partial<Pick<ComponentProps<typeof SessionToolbar>, "exporting" | "runExport">>;
 

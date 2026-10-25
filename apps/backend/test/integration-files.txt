@@ -35,7 +35,6 @@ apps/backend/test/db/dashboard-mutations.test.ts
 apps/backend/test/db/dashboard-summaries.test.ts
 apps/backend/test/db/lap-ownership.test.ts
 apps/backend/test/db/lap-read-batching.test.ts
-apps/backend/test/db/lmu-session-identity.test.ts
 apps/backend/test/db/migrations/dashboard-migration.test.ts
 apps/backend/test/db/migrations/migration-regression.test.ts
 apps/backend/test/db/migrations/migrations.test.ts
@@ -70,10 +69,7 @@ apps/backend/test/experiments/chat-branch-context.test.ts
 apps/backend/test/experiments/chat-branch-evidence.test.ts
 apps/backend/test/experiments/drills/atomic-chat-mutations.test.ts
 apps/backend/test/experiments/drills/versions.test.ts
-apps/backend/test/games/kunos/shared-memory-replay.test.ts
 apps/backend/test/games/shared/release-game-registration.test.ts
-apps/backend/test/imports/lmu-duckdb.test.ts
-apps/backend/test/lap-analysis/detection/session-start.test.ts
 apps/backend/test/lap-analysis/lap-cache.test.ts
 apps/backend/test/lap-analysis/lap-consistency.test.ts
 apps/backend/test/lap-analysis/lap-export-zip.test.ts
@@ -99,7 +95,6 @@ apps/backend/test/routes/lap-analysis-integration.test.ts
 apps/backend/test/routes/lap-analysis-route.test.ts
 apps/backend/test/routes/laps-issues-route.test.ts
 apps/backend/test/routes/layout-migration.test.ts
-apps/backend/test/routes/lmu-string-identity.test.ts
 apps/backend/test/routes/place-setup-sanitise.test.ts
 apps/backend/test/routes/recording-support.test.ts
 apps/backend/test/routes/runtime-features.test.ts
@@ -108,6 +103,7 @@ apps/backend/test/routes/storage-routes.test.ts
 apps/backend/test/routes/tune-deletion-guard.test.ts
 apps/backend/test/runtime/http-server.test.ts
 apps/backend/test/runtime/dashboard-auth.test.ts
+apps/backend/test/runtime/dump-only.test.ts
 apps/backend/test/runtime/http-access-compiled.test.ts
 apps/backend/test/runtime/native-sources.test.ts
 apps/backend/test/runtime/release-feature-flags.test.ts
@@ -129,8 +125,6 @@ apps/backend/test/session-capture/generic-sparse-recorder.test.ts
 apps/backend/test/session-capture/historical-reconciliation.test.ts
 apps/backend/test/session-capture/kunos-sparse-recorder.test.ts
 apps/backend/test/session-capture/lap-index-import.test.ts
-apps/backend/test/session-capture/lmu-capture-format.test.ts
-apps/backend/test/session-capture/lmu-sparse-recorder.test.ts
 apps/backend/test/session-capture/parse-bin-vs-gz.test.ts
 apps/backend/test/session-capture/parse-dump.test.ts
 apps/backend/test/session-capture/raw-binary-storage.test.ts

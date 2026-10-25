@@ -5,8 +5,8 @@ import { validateSessionsSearch } from "@raceiq/sessions-page/contracts";
 
 const names = { trackNames: { 1: "Silverstone" }, carNames: { 2: "Porsche" } };
 const sessions: SessionMeta[] = [
-  { id: 1, trackId: "1", carId: "2", createdAt: "2026-01-01", ownership: "mine", source: "motec", isFavorite: true },
-  { id: 2, trackId: "1", carId: "2", createdAt: "2026-01-02", ownership: "others", source: undefined },
+  { id: 1, trackId: "1", carId: "2", createdAt: "2026-01-01", ownership: "mine", source: "motec", isFavorite: true, processing: { state: "ready", stage: null, error: null } },
+  { id: 2, trackId: "1", carId: "2", createdAt: "2026-01-02", ownership: "others", source: undefined, processing: { state: "ready", stage: null, error: null } },
 ];
 
 describe("sessions ownership tabs", () => {

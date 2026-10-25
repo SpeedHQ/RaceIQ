@@ -6,6 +6,7 @@ import type { ResolvedTrackGuide } from "@raceiq/shared/racing/tracks/guide/type
 import type { TuneSettings } from "@raceiq/shared/racing/tuning/types";
 import type { Point, TrackInfo, TrackSectors, TrackSegment, TrackBoundaries } from "./types";
 import type { TrackLap } from "./laps";
+import type { ProcessingMetadata } from "@raceiq/shared/racing/sessions/types";
 import type { CalibrationComparison } from "./calibration";
 
 export interface PitLine { kind: "pit-road" | "merge-line"; points: Point[] }
@@ -36,9 +37,24 @@ export interface CatalogueUserTune {
   description: string;
   settings: unknown;
 }
-export interface CatalogueLapTime { track: string; car: string; driver: string; carClass: string; laptime: string }
+export interface CatalogueLapTime {
+  track: string;
+  carClass: string;
+  car: string;
+  driver: string;
+  laptime: string;
+}
+export interface ResolvedCatalogueNames {
+  trackNames: Record<string, string>;
+  carNames: Record<string, string>;
+}
 export interface QueryValue<T> { data: T | undefined; isLoading: boolean }
-export interface ResolvedCatalogueNames { trackNames: Record<string, string>; carNames: Record<string, string> }
+export interface ProcessingStatusProps {
+  processing: ProcessingMetadata | undefined;
+  loading?: boolean;
+  onRefresh?: () => void;
+  className?: string;
+}
 export interface TrackMatchTune { trackId?: string | null; bestTracks?: string[] }
 export interface TrackMatchTarget { id: string; name: string; variant: string }
 export interface CatalogueNavigation {
@@ -164,6 +180,7 @@ export interface TracksCatalogueHost {
   F125TrackGuide: ComponentType<{ trackId: string }>;
   F125SetupsWithGuide: ComponentType<{ trackId: string; trackName: string }>;
   F125Leaderboard: ComponentType<{ trackId: string }>;
+  ProcessingStatus: ComponentType<ProcessingStatusProps>;
   useTracks: () => QueryValue<TrackInfo[]>;
   useCatalogTunes: () => QueryValue<CatalogueTune[]>;
   useUserTunes: (gameId?: GameId) => QueryValue<CatalogueUserTune[]>;

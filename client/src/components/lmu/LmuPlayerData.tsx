@@ -2,6 +2,35 @@ import type { LmuLiveContextWire } from "@raceiq/shared/telemetry/lmu-context";
 import { m } from "@/paraglide/messages";
 
 const CHANNEL_LABELS: Readonly<Record<string, () => string>> = {
+  "race.competitor.time-behind-next": m.lmu_channel_timing_gap_place_ahead,
+  "race.competitor.time-behind-leader": m.streaming_gap_to_leader,
+  "race.competitor.laps-behind-next": () => `${m.lmu_channel_timing_gap_place_ahead()} · ${m.pitwindow_laps()}`,
+  "race.competitor.laps-behind-leader": () => `${m.streaming_gap_to_leader()} · ${m.pitwindow_laps()}`,
+  "race.competitor.in-pits": m.lmu_channel_race_on_pit_road,
+  "race.competitor.pit-state": m.lmu_channel_race_pit_state,
+  "identity.competitor.driver-name": m.label_driver,
+  "identity.competitor.car-name": m.compare_car_fallback,
+  "identity.competitor.vehicle-class": m.track_detail_class,
+  "race.competitor.position": m.raceinfo_position,
+  "race.competitor.class-position": () => `${m.track_detail_class()} · ${m.raceinfo_position()}`,
+  "race.competitor.total-laps": m.pitwindow_laps,
+  "race.competitor.current-lap-number": m.compare_lap_label,
+  "race.competitor.scoring-time": m.e2e_elapsed_label,
+  "race.competitor.best-lap-time": m.sessions_col_best_lap,
+  "race.competitor.last-lap-time": () => `${m.label_last()} · ${m.compare_lap_label()}`,
+  "race.competitor.best-sector-1": m.lmu_channel_diagnostics_best_sector1,
+  "race.competitor.best-sector-2-cumulative": m.lmu_channel_diagnostics_best_sector2,
+  "race.competitor.last-sector-1": m.lmu_channel_diagnostics_last_sector1,
+  "race.competitor.last-sector-2-cumulative": m.lmu_channel_diagnostics_last_sector2,
+  "race.competitor.current-sector-1": m.lmu_channel_diagnostics_current_sector1,
+  "race.competitor.current-sector-2-cumulative": m.lmu_channel_diagnostics_current_sector2,
+  "race.competitor.pit-stop-count": m.lmu_channel_race_pit_stop_count,
+  "race.competitor.count-lap-flag": m.lmu_channel_race_count_lap_flag,
+  "race.competitor.lap-distance": m.recap_distance,
+  "motion.competitor.speed": m.e2e_speed_label,
+  "motion.competitor.position.x": () => `${m.label_position()} · X`,
+  "motion.competitor.position.y": () => `${m.label_position()} · Y`,
+  "motion.competitor.position.z": () => `${m.label_position()} · Z`,
   "fuel.battery-charge-fraction": m.lmu_channel_fuel_battery_charge_fraction,
   "fuel.state-of-charge": m.lmu_channel_fuel_state_of_charge,
   "fuel.virtual-energy": m.lmu_channel_fuel_virtual_energy,
@@ -203,5 +232,32 @@ export function LmuPlayerData({ values, units, states, freshness, context, refer
         </details>;
       })}
     </div>
+    <LmuLiveOpponents context={context ?? null} />
+  </section>;
+}
+
+export function LmuLiveOpponents({ context }: { context: LmuLiveContextWire | null }) {
+  const competitors = context?.competitors?.filter((competitor) => !competitor.isPlayer) ?? [];
+  if (competitors.length === 0) return null;
+  return <section className="border-b border-app-border p-3" data-lmu-live-opponents>
+    <h2 className="mb-2 text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.lmu_live_opponents()}</h2>
+    <p className="text-xs text-app-text-muted">{m.compare_opponent_restricted_channels()}</p>
+    {competitors.map((competitor) => <details key={`${context?.key.sessionKey}:${competitor.vehicleId}:${competitor.incarnation}`} className="mt-2" data-lmu-competitor={competitor.vehicleId} data-lmu-incarnation={competitor.incarnation}>
+      <summary className="cursor-pointer text-sm text-app-text">{String(competitor.channels["identity.competitor.driver-name"]?.value ?? `#${competitor.vehicleId}`)} · #{competitor.vehicleId}/{competitor.incarnation}</summary>
+      {[...new Set(Object.values(competitor.channels).flatMap((observation) => observation.limitations))].map((limitation) =>
+        <p key={limitation} className="break-words text-xs text-app-text-muted">{limitation}</p>)}
+      <div className="mt-1 grid grid-cols-1 gap-x-4 gap-y-1 @md/workspace:grid-cols-2 text-xs">
+        {Object.entries(competitor.channels).map(([semanticId, observation]) => <div key={semanticId} className="min-w-0">
+          <div className="flex min-w-0 justify-between gap-2">
+            <span className="break-words">{CHANNEL_LABELS[semanticId]?.() ?? semanticId}</span>
+            <span className="min-w-0 break-all text-right tabular-nums">{observation.state === "ok" && observation.value !== null
+              ? <>{typeof observation.value === "number" ? observation.value.toLocaleString(undefined, { maximumFractionDigits: 3 }) : JSON.stringify(observation.value)} {observation.unit === "fraction" ? m.lmu_unit_fraction() : observation.unit ?? ""}</>
+              : STATE_LABELS[observation.state]?.() ?? m.lmu_state_missing()}
+              {observation.freshness !== "fresh" && <> · {STATE_LABELS[observation.freshness]?.() ?? m.lmu_state_unknown()}</>}
+            </span>
+          </div>
+        </div>)}
+      </div>
+    </details>)}
   </section>;
 }

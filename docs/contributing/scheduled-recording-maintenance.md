@@ -20,11 +20,12 @@ Routes remain Promise boundaries; Effect programs do not call `Effect.run*`. Wor
 
 `maintenancePassEffect()` in [`server/session-capture/compressor.ts`](../../server/session-capture/compressor.ts) runs stages in order:
 
-1. Compress eligible recordings.
-2. Load fresh settings and validate the complete retention policy.
-3. If enabled and no capture is active, automatically downsample recordings strictly older than the configured age.
-4. If enabled and no capture is active, delete recordings strictly older than the configured deletion age.
-5. Clean orphan recordings, expired staged MoTeC imports, and only this operation's interrupted downsample temporary files.
+1. While idle, reconcile database-referenced direct-capture manifests and publication fields. A missing or malformed manifest can be restored from its validated `.recovery` snapshot; an unsuccessful repair blocks the remaining maintenance stages and preserves evidence.
+2. Compress eligible recordings and recover pending opponent-removal cleanup.
+3. Load fresh settings and validate the complete retention policy.
+4. If enabled and no capture is active, automatically downsample recordings strictly older than the configured age.
+5. If enabled and no capture is active, delete recordings strictly older than the configured deletion age.
+6. Clean orphan recordings and expired staged MoTeC imports. Defer interrupted downsample temporary-file cleanup while capture is active or draining; retry on a later idle pass.
 
 Ordinary downsample skips (for example favorites or unsupported timebases) do not fail the stage. A failed/partial automatic downsample skips deletion for that pass. Disabled downsampling leaves existing deletion behavior intact. Cleanup uses the shared session-capture maintenance lock; each downsample group is re-planned and rechecked while holding it.
 

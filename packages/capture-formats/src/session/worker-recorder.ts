@@ -160,6 +160,36 @@ export class WorkerSessionRecorder {
     if (!Number.isSafeInteger(countDelta) || countDelta < 0) throw new RangeError("Invalid raw capture record count");
     this.reserve("raw", bytes, undefined, false, false, bytes, bytes.length, countDelta, countDelta);
   }
+  /** Wait for disk acknowledgements instead of failing transiently full admission. */
+  async writeRawCaptureRecordAsync(bytes: Buffer, countDelta = 1): Promise<void> {
+    if (!Number.isSafeInteger(countDelta) || countDelta < 0) throw new RangeError("Invalid raw capture record count");
+    for (;;) {
+      this.assertAccepting();
+      const prefixBytes = this.metaPending && !this.headerWritten ? META_FRAME_BYTES : 0;
+      const transportBytes = bytes.byteLength * 2 + prefixBytes + RECORD_TRANSPORT_OVERHEAD_BYTES;
+      const chargeBytes = transportBytes + (this.listeners.size ? bytes.byteLength : 0);
+      // Oversized records retain the synchronous API's explicit failure.
+      if (transportBytes > this.options.maxBatchBytes || chargeBytes > this.options.maxInFlightBytes ||
+        this.inFlightBytes + chargeBytes <= this.options.maxInFlightBytes) break;
+      this.flushBatch();
+      await new Promise<void>((resolve, reject) => {
+        const cleanup = () => {
+          this.worker.off("message", onMessage);
+          this.failureListeners.delete(onFailure);
+        };
+        const onFailure = (error: Error) => { cleanup(); reject(error); };
+        const onMessage = (message: { type: string }) => {
+          if (message.type === "ack" || message.type === "sync-ack" || message.type === "capture-control-ack" || message.type === "closed") {
+            cleanup();
+            resolve();
+          }
+        };
+        this.failureListeners.add(onFailure);
+        this.worker.on("message", onMessage);
+      });
+    }
+    this.writeRawCaptureRecord(bytes, countDelta);
+  }
   writeSegmentBoundary(): void {
     this.assertAccepting();
     if (!this.hasSourceRecord) {
