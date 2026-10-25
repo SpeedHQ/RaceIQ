@@ -113,9 +113,12 @@ export class LMUTelemetrySource {
     clearInterval(this.timer ?? undefined);
     this.timer = null;
     this.captureRateLimiter.reset();
+    const readerStop = this.reader.stop();
+    // Let every poll accepted before timer shutdown finish acquisition and queue its frame before invalidating context.
+    await this.pollLock;
     const invalidation = this.invalidate();
     if (this.holdsTimerResolution) { this.holdsTimerResolution = false; releaseHighResolutionTimer(); }
-    try { await this.reader.stop(); await this.drainPromise; await invalidation; }
+    try { await this.drainPromise; await invalidation; await readerStop; }
     finally {
       this.rest?.stop();
       if (this.recordingEnabled) await this.recorder.stop();
@@ -127,11 +130,24 @@ export class LMUTelemetrySource {
     }
   }
 
+  private pollLock: Promise<void> = Promise.resolve();
+
   async pollOnce(): Promise<boolean> {
+    const readerMemory = this.reader.readLatest();
+    // Reader reuses its buffer; copy each poll before waiting for serialized processing.
+    const memory = readerMemory ? Buffer.from(readerMemory) : null;
+    const now = Date.now();
+    const monotonicNow = performance.now();
+    const previous = this.pollLock;
+    const { promise, resolve } = Promise.withResolvers<void>();
+    this.pollLock = promise;
+    await previous;
+    try { return await this.pollOnceLocked(memory, now, monotonicNow, resolve); }
+    finally { resolve(); }
+  }
+
+  private async pollOnceLocked(memory: Buffer | null, now: number, monotonicNow: number, release: () => void): Promise<boolean> {
     try {
-      const memory = this.reader.readLatest();
-      const now = Date.now();
-      const monotonicNow = performance.now();
       if (!memory || memory.length < LMU_SHARED_MEMORY_SIZE) {
         if (monotonicNow - this.lastNativeUpdateAt > 1000) await this.invalidate();
         return false;
@@ -195,6 +211,7 @@ export class LMUTelemetrySource {
       const pending = Promise.withResolvers<boolean>();
       this.frameQueue.push({ rawFrame, frameTimeMs: now, identity, resolve: pending.resolve });
       this.ensureDrain();
+      release();
       return await pending.promise;
     } catch (error) { this.logFrameFailure(error); return false; }
   }

@@ -326,6 +326,38 @@ describe("opponent lap indexing", () => {
     expect(buildLmuOpponentSemanticFrames(repeated).map((entry) => entry.sequence)).toEqual([1, 2]);
   });
 
+  test("preserves recorded positions around null-distance observations without interpolating the gap", () => {
+    const frames = [frame(1, 0), frame(2, 10), frame(3, 20), frame(4, 30), frame(5, 40)].map((source, index) => {
+      if (index !== 2) return source;
+      const competitor = source.competitors[0]!;
+      const channels = {
+        ...competitor.channels,
+        "race.competitor.lap-distance": observation("race.competitor.lap-distance", null, 3n),
+      };
+      const updatedCompetitor = { ...competitor, channels };
+      return {
+        ...source,
+        competitors: [updatedCompetitor],
+        lmuContext: {
+          ...source.lmuContext!,
+          competitors: [updatedCompetitor],
+        },
+      };
+    });
+    const opponent = indexLmuOpponentLaps(frames)[0]!;
+    const playerRows = frames.filter((_, index) => index !== 2).map((source) => ({
+      competitor: { ...source.competitors[0]!, vehicleId: 1, isPlayer: true },
+      captureSequence: source.captureSequence,
+    }));
+    const aligned = alignLmuOpponentPositionTraces(playerRows, opponent, { step: 10 });
+    if (!aligned || "error" in aligned) throw new Error("Expected distance-aligned position traces");
+    const x = aligned.traces.find((trace) => trace.semanticId === "motion.position-x")?.opponent;
+    expect(x?.map((value) => value.value)).toEqual([0, 100, null, 300, 400]);
+    expect(x?.[1]).toMatchObject({ value: 100, state: "ok" });
+    expect(x?.[3]).toMatchObject({ value: 300, state: "ok" });
+    expect(x?.[2]).toMatchObject({ value: null, state: "missing" });
+  });
+
   test("builds distance-aligned position traces without interpolating across source-update gaps", () => {
     const opponent = indexLmuOpponentLaps([
       frame(1, 0.01), frame(2, 0.5), frame(3, 0.99), frame(4, 0.01, 2),

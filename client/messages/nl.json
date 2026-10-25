@@ -2954,5 +2954,7 @@
   "recording_processing_queued": "In wachtrij voor verwerking…",
   "recording_processing_running": "Bezig met verwerken…",
   "recording_processing_failed": "Verwerking mislukt: {error}",
-  "recording_processing_refresh": "Status bijwerken"
+  "recording_processing_refresh": "Status bijwerken",
+  "opponent_recording_failed": "Opname van tegenstander mislukt: {error}",
+  "opponent_recording_dismiss": "Sluiten"
 }

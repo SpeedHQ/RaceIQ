@@ -2954,5 +2954,7 @@
   "recording_processing_queued": "В очереди на обработку…",
   "recording_processing_running": "Обработка…",
   "recording_processing_failed": "Ошибка обработки: {error}",
-  "recording_processing_refresh": "Обновить статус"
+  "recording_processing_refresh": "Обновить статус",
+  "opponent_recording_failed": "Не удалось записать соперника: {error}",
+  "opponent_recording_dismiss": "Закрыть"
 }

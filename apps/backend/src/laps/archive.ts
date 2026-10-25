@@ -27,6 +27,7 @@ import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import { getLapsRaw } from "@raceiq/backend-core/db/lap-read-queries";
 import { resolveLapCaptureArtifact } from "@raceiq/backend-core/session-capture/source-loader";
 import { loadSessionCapture } from "@raceiq/backend-core/session-capture/source-loader";
+import { iterateSessionCaptureRecordsFromSource } from "@raceiq/backend-core/session-capture/source-loader";
 import { getLiveLapCaptureSnapshot } from "@raceiq/backend-core/db/live-capture-queries";
 import { resolveLiveLapCaptureArtifact } from "@raceiq/backend-core/session-capture/source-loader";
 import { getLMUPartitionKey, partitionLMUSourceFrame, restoreLMUSourceFrame, isLMUPartitionPrimary, isLMUPartitionCompanion } from "@raceiq/capture-formats/lmu/partition";
@@ -41,7 +42,7 @@ import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
 import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
 import { extractMotecArchive } from "@raceiq/backend-core/motec/import-staging";
 import { importMotec } from "@raceiq/backend-core/motec/import";
-import { getLmuOpponentLapForExport, readLmuOpponentCaptureFrames } from "@raceiq/backend-core/lap-analysis/lmu-opponent-laps";
+import { getLmuOpponentLapForExport } from "@raceiq/backend-core/lap-analysis/lmu-opponent-laps";
 import { readLmuOpponentRetention } from "@raceiq/backend-core/session-capture/lmu-companion";
 import {
   detectGameIdFromBuffer,
@@ -205,15 +206,16 @@ function isLegacyPlayerOnlyLmuCapture(bytes: Buffer): boolean {
   return sawFrame;
 }
 function joinArchiveOpponentCompanion(primaryCapture: Buffer, companionCapture: Buffer): Buffer {
-  const companions: Array<{ frame: Buffer; timestamp: number | undefined }> = [];
+  const companions = new Map<string, { frame: Buffer; timestamp: number | undefined }>();
   for (const record of iterateSessionCaptureRecords(companionCapture, undefined, { strict: true })) {
-    if (record.kind === "frame") {
-      if (!isLMUPartitionCompanion(record.frame)) throw new Error("Opponent companion contains a non-companion frame");
-      companions.push({ frame: record.frame, timestamp: record.frameTimeMs });
-    }
+    if (record.kind !== "frame") continue;
+    if (!isLMUPartitionCompanion(record.frame)) throw new Error("Opponent companion contains a non-companion frame");
+    const key = getLMUPartitionKey(record.frame);
+    if (!key || companions.has(key)) throw new Error("Opponent companion contains duplicate or unidentified LMU frames");
+    companions.set(key, { frame: record.frame, timestamp: record.frameTimeMs });
   }
   const parts = [encodeMetaFrame(), encodeSparseCaptureFormatFrame()];
-  let companionIndex = 0;
+  const associated = new Set<string>();
   let previousPrimary: Buffer | null = null;
   for (const record of iterateSessionCaptureRecords(primaryCapture, undefined, { strict: true })) {
     if (record.kind !== "frame") {
@@ -228,11 +230,20 @@ function joinArchiveOpponentCompanion(primaryCapture: Buffer, companionCapture: 
     }
     let frame = primary;
     if (isLMUPartitionPrimary(primary)) {
-      const companion = companions[companionIndex++];
-      if (!companion || companion.timestamp !== record.frameTimeMs ||
-          getLMUPartitionKey(companion.frame) !== getLMUPartitionKey(primary)) {
-        throw new Error("Retained archive is missing or mismatching an LMU opponent companion frame");
+      const key = getLMUPartitionKey(primary);
+      const companion = key ? companions.get(key) : undefined;
+      if (!companion) {
+        throw new Error(`Retained archive is missing LMU opponent companion frame for partition ${key ?? "<unidentified>"}`);
       }
+      if (companion.timestamp !== record.frameTimeMs) {
+        throw new Error(
+          `Retained archive has LMU opponent companion timestamp mismatch for partition ${key}: primary ${record.frameTimeMs}, companion ${companion.timestamp}`,
+        );
+      }
+      if (associated.has(key!)) {
+        throw new Error(`Retained archive has duplicate associated LMU primary identity for partition ${key}`);
+      }
+      associated.add(key!);
       frame = restoreLMUSourceFrame(primary, companion.frame);
       previousPrimary = primary;
     } else {
@@ -240,7 +251,7 @@ function joinArchiveOpponentCompanion(primaryCapture: Buffer, companionCapture: 
     }
     parts.push(encodeFrameLength(frame.length, record.frameTimeMs), frame);
   }
-  if (companionIndex !== companions.length) throw new Error("Opponent companion contains unassociated LMU frames");
+  if (associated.size !== companions.size) throw new Error("Opponent companion contains unassociated LMU frames");
   return Buffer.concat(parts);
 }
 
@@ -467,6 +478,10 @@ function firstFrameOffsetAcrossContext(buf: Buffer, offset: number): number | nu
   }
   return null;
 }
+function lmuAcquisitionKey(sourceFrame: Buffer): string | null {
+  const identity = decodeLMUSourceFrame(sourceFrame)?.lmuContext?.key;
+  return identity ? JSON.stringify([identity.sessionKey, identity.captureSequence]) : null;
+}
 /** Re-encode lap frames with segment-local checkpoints and source identities. */
 function sparseLapRecords(
   buf: Buffer,
@@ -475,6 +490,7 @@ function sparseLapRecords(
   gameId: GameId,
   includeFormatMarker: boolean,
   companions?: Map<string, { frame: Buffer; timestamp: number | undefined }>,
+  emittedLmuIdentities?: Set<string>,
 ): Buffer[] {
   const parts: Buffer[] = [];
   let previous: Buffer | null = null;
@@ -490,6 +506,12 @@ function sparseLapRecords(
     const partition = isLmu ? partitionLMUSourceFrame(record.frame) : null;
     const frameSource = partition?.primary ?? record.frame;
     const lmuIdentity = gameId === "lmu" ? lmuSparseSourceIdentity(frameSource) : null;
+    const acquisitionKey = lmuIdentity ? lmuAcquisitionKey(frameSource) : null;
+    if (acquisitionKey && emittedLmuIdentities?.has(acquisitionKey)) {
+      previous = null;
+      continue;
+    }
+    if (acquisitionKey) emittedLmuIdentities?.add(acquisitionKey);
     if (partition?.companion) {
       const key = getLMUPartitionKey(frameSource);
       if (key) companions?.set(key, { frame: partition.companion, timestamp: record.frameTimeMs });
@@ -583,24 +605,11 @@ export async function buildLapsZip(
     frameTime: frame.frameTime,
     parserBootstrap: frame.parserBootstrap?.toString("base64") ?? null,
   })) ?? null;
-  const companionSourceFrames = new Map<number, Map<string, { frame: Buffer; timestamp: number | undefined }>>();
   for (const [sessionId, rows] of sessions) {
-    const row = rows.find((candidate) => candidate.gameId === "lmu" && candidate.captureManifestFile);
-    if (!row?.captureManifestFile) continue;
-    const sourceFrames = await readLmuOpponentCaptureFrames({
-      rawFile: row.captureManifestFile, source: null, gameId: "lmu",
-      carId: row.carId ?? "", trackId: row.trackId ?? "",
-    }, "");
-    const byKey = new Map<string, { frame: Buffer; timestamp: number | undefined }>();
-    for (const frame of sourceFrames) {
-      const partition = partitionLMUSourceFrame(frame.sourceFrame);
-      const key = partition && getLMUPartitionKey(partition.primary);
-      if (key && partition?.companion) byKey.set(key, { frame: partition.companion, timestamp: frame.frameTime });
-    }
-    companionSourceFrames.set(sessionId, byKey);
-  }
-  for (const [sessionId, rows] of sessions) {
-    const partitionCompanions = new Map<string, { frame: Buffer; timestamp: number | undefined }>(companionSourceFrames.get(sessionId));
+    const emittedLmuIdentities = options && selectedPlayerSessionId === sessionId
+      ? new Set<string>()
+      : undefined;
+    const partitionCompanions = new Map<string, { frame: Buffer; timestamp: number | undefined }>();
     for (const row of rows) {
       if (row.captureLayoutVersion != null && row.captureLayoutVersion !== 1 && row.captureLayoutVersion !== 2 && row.captureLayoutVersion !== 3) {
         throw new Error(`Unsupported capture layout version ${row.captureLayoutVersion} for lap ${row.id}`);
@@ -704,10 +713,12 @@ export async function buildLapsZip(
       const end = first.gameId === "iracing"
         ? iracingSegmentEnd(buf, start, frameCount, prefix, parserBootstrap)
         : advanceLapFramesAcrossContext(buf, start, frameCount + trailingContextFrameCount);
-      const trailingContext = end > ownedEnd ? sparseLapRecords(buf, ownedEnd, end, first.gameId as GameId, false, partitionCompanions) : [];
+      const trailingContext = end > ownedEnd
+        ? sparseLapRecords(buf, ownedEnd, end, first.gameId as GameId, false, partitionCompanions, emittedLmuIdentities)
+        : [];
       const sparseRecords = first.gameId === "lmu" || first.gameId === "acc" || first.gameId === "ac-evo" ||
         first.gameId === "fm-2023" || first.gameId === "f1-2025" || first.gameId === "iracing"
-        ? sparseLapRecords(buf, start, ownedEnd, first.gameId as GameId, !sparseFormatMarkerWritten, partitionCompanions)
+        ? sparseLapRecords(buf, start, ownedEnd, first.gameId as GameId, !sparseFormatMarkerWritten, partitionCompanions, emittedLmuIdentities)
         : [buf.subarray(start, ownedEnd)];
       if (sparseRecords.length > 0) sparseFormatMarkerWritten = true;
       segments.push(Buffer.concat([
@@ -745,22 +756,36 @@ export async function buildLapsZip(
         previousPrimary = isLMUPartitionPrimary(frame) ? frame : null;
         const decoded = decodeLMUSourceFrame(frame);
         if (!decoded?.lmuContext) continue;
-        const { sessionKey, captureSequence } = decoded.lmuContext.key;
-        includedOpponentFrames.add(JSON.stringify([sessionKey, captureSequence]));
-        if (sessionKey !== opponentFrames[0]!.frame.sessionKey) continue;
-        const sequence = BigInt(captureSequence);
+        const acquisitionKey = lmuAcquisitionKey(frame);
+        if (!acquisitionKey) continue;
+        includedOpponentFrames.add(acquisitionKey);
+        const identity = decoded.lmuContext.key;
+        const opponentIdentity = opponentFrames[0] &&
+          decodeLMUSourceFrame(opponentFrames[0].frame.sourceFrame)?.lmuContext?.key;
+        if (!opponentIdentity || identity.sessionKey !== opponentIdentity.sessionKey) continue;
+        const sequence = BigInt(identity.captureSequence);
         if (firstSequence === null || sequence < firstSequence) firstSequence = sequence;
       }
       const beforeContext: Buffer[] = [];
       const afterContext: Buffer[] = [];
-      for (const { frame, primary } of opponentFrames) {
-        const key = getLMUPartitionKey(primary);
-        const partition = partitionLMUSourceFrame(frame.sourceFrame);
-        const frameKey = JSON.stringify([frame.sessionKey, frame.captureSequence]);
-        if (includedOpponentFrames.has(frameKey)) continue;
+      const orderedOpponentFrames = [...new Map(opponentFrames
+        .map((entry) => [lmuAcquisitionKey(entry.frame.sourceFrame), entry] as const)
+        .filter((entry): entry is readonly [string, typeof opponentFrames[number]] => entry[0] !== null))
+        .values()]
+        .sort((a, b) => a.frame.frameTime - b.frame.frameTime ||
+          (BigInt(decodeLMUSourceFrame(a.frame.sourceFrame)!.lmuContext!.key.captureSequence) <
+            BigInt(decodeLMUSourceFrame(b.frame.sourceFrame)!.lmuContext!.key.captureSequence) ? -1 :
+            BigInt(decodeLMUSourceFrame(a.frame.sourceFrame)!.lmuContext!.key.captureSequence) >
+              BigInt(decodeLMUSourceFrame(b.frame.sourceFrame)!.lmuContext!.key.captureSequence) ? 1 : 0));
+      for (const { frame, primary } of orderedOpponentFrames) {
+        const frameIdentity = decodeLMUSourceFrame(frame.sourceFrame)?.lmuContext?.key;
+        const frameKey = lmuAcquisitionKey(frame.sourceFrame);
+        if (!frameKey || !frameIdentity || includedOpponentFrames.has(frameKey)) continue;
         includedOpponentFrames.add(frameKey);
+        const partition = partitionLMUSourceFrame(frame.sourceFrame);
+        const key = getLMUPartitionKey(primary);
         if (key && partition?.companion) partitionCompanions.set(key, { frame: partition.companion, timestamp: frame.frameTime });
-        const context = frame.captureSequence && firstSequence !== null && BigInt(frame.captureSequence) < firstSequence
+        const context = firstSequence !== null && BigInt(frameIdentity.captureSequence) < firstSequence
           ? beforeContext
           : afterContext;
         if (frame.parserBootstrap) context.push(encodeParserBootstrapFrame("lmu", frame.parserBootstrap));
@@ -779,7 +804,48 @@ export async function buildLapsZip(
         gameId === "lmu" && isLegacyPlayerOnlyLmuCapture(slice)
       ? { ...sourceRetention, opponentRetention: "not-recorded" as const, opponentAvailability: null }
       : sourceRetention;
-    const companionRecords: Buffer[] = [];
+    if (gameId === "lmu" && retention?.opponentRetention === "retained" && first.rawFile) {
+      const selectedKeys = new Set<string>();
+      let primaryCheckpoint: Buffer | null = null;
+      for (const record of iterateSessionCaptureRecords(slice)) {
+        if (record.kind === "segment-boundary") primaryCheckpoint = null;
+        if (record.kind !== "frame") continue;
+        let frame = record.frame;
+        if (isLmuSparseFrame(frame)) {
+          if (!primaryCheckpoint) throw new Error("LMU sparse export lost its primary checkpoint");
+          frame = decodeLmuSparseFrame(frame, primaryCheckpoint);
+        }
+        if (!frame) throw new Error("LMU sparse export lost its primary checkpoint");
+        if (isLMUPartitionPrimary(frame)) {
+          const key = getLMUPartitionKey(frame);
+          if (key) selectedKeys.add(key);
+          primaryCheckpoint = frame;
+        } else {
+          primaryCheckpoint = null;
+        }
+      }
+      if (selectedKeys.size > 0) {
+        for await (const record of iterateSessionCaptureRecordsFromSource({
+          rawFile: first.captureManifestFile ?? first.rawFile, source: first.source ?? null, gameId: "lmu",
+          carId: first.carId ?? "", trackId: first.trackId ?? "",
+        }, { strict: true, allowLegacyFullFrames: true })) {
+          if (record.kind !== "frame") continue;
+          const partition = partitionLMUSourceFrame(record.frame);
+          const key = partition?.primary && getLMUPartitionKey(partition.primary);
+          if (key && selectedKeys.has(key) && partition?.companion) {
+            partitionCompanions.set(key, { frame: partition.companion, timestamp: record.frameTimeMs });
+            selectedKeys.delete(key);
+            if (selectedKeys.size === 0) break;
+          }
+        }
+      }
+    }
+    const companionByAcquisition = new Map<string, {
+      frame: Buffer;
+      timestamp: number | undefined;
+      sessionKey: string;
+      captureSequence: string;
+    }>();
     let previousPrimary: Buffer | null = null;
     for (const record of iterateSessionCaptureRecords(slice)) {
       if (record.kind === "segment-boundary") {
@@ -795,15 +861,28 @@ export async function buildLapsZip(
       if (isLMUPartitionPrimary(primary)) {
         const key = getLMUPartitionKey(primary);
         const companion = key ? partitionCompanions.get(key) : undefined;
-        if (!companion) {
-          companionRecords.length = 0;
+        const identity = decodeLMUSourceFrame(primary)?.lmuContext?.key;
+        const acquisitionKey = lmuAcquisitionKey(primary);
+        if (!companion || !acquisitionKey || !identity) {
+          if (!companion) companionByAcquisition.clear();
           break;
         }
-        companionRecords.push(encodeFrameLength(companion.frame.length, companion.timestamp), companion.frame);
+        companionByAcquisition.set(acquisitionKey, {
+          ...companion, timestamp: record.frameTimeMs, sessionKey: identity.sessionKey, captureSequence: identity.captureSequence,
+        });
         previousPrimary = primary;
       } else {
         previousPrimary = null;
       }
+    }
+    const orderedCompanions = [...companionByAcquisition.values()].sort((a, b) =>
+      (a.timestamp ?? 0) - (b.timestamp ?? 0) ||
+      a.sessionKey.localeCompare(b.sessionKey) ||
+      (BigInt(a.captureSequence) < BigInt(b.captureSequence) ? -1 :
+        BigInt(a.captureSequence) > BigInt(b.captureSequence) ? 1 : 0));
+    const companionRecords: Buffer[] = [];
+    for (const companion of orderedCompanions) {
+      companionRecords.push(encodeFrameLength(companion.frame.length, companion.timestamp), companion.frame);
     }
     if (gameId === "lmu" && retention?.opponentRetention === "retained" &&
         hasPartitionPrimary(slice) && companionRecords.length === 0) {

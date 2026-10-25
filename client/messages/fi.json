@@ -2955,5 +2955,7 @@
   "recording_processing_queued": "Jonossa käsittelyä varten…",
   "recording_processing_running": "Käsitellään…",
   "recording_processing_failed": "Käsittely epäonnistui: {error}",
-  "recording_processing_refresh": "Päivitä tila"
+  "recording_processing_refresh": "Päivitä tila",
+  "opponent_recording_failed": "Vastustajan tallennus epäonnistui: {error}",
+  "opponent_recording_dismiss": "Sulje"
 }

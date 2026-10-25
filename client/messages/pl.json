@@ -2954,5 +2954,7 @@
   "recording_processing_queued": "W kolejce do przetworzenia…",
   "recording_processing_running": "Przetwarzanie…",
   "recording_processing_failed": "Przetwarzanie nie powiodło się: {error}",
-  "recording_processing_refresh": "Odśwież stan"
+  "recording_processing_refresh": "Odśwież stan",
+  "opponent_recording_failed": "Nie udało się nagrać przeciwnika: {error}",
+  "opponent_recording_dismiss": "Zamknij"
 }

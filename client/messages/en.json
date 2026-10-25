@@ -2958,5 +2958,7 @@
   "recording_processing_queued": "Queued for processing…",
   "recording_processing_running": "Processing…",
   "recording_processing_failed": "Processing failed: {error}",
-  "recording_processing_refresh": "Refresh status"
+  "recording_processing_refresh": "Refresh status",
+  "opponent_recording_failed": "Opponent recording failed: {error}",
+  "opponent_recording_dismiss": "Dismiss"
 }

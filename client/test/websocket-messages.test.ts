@@ -25,6 +25,15 @@ const schema = {
 } as const;
 const packet = { gameId: "acc", TimestampMS: 1 } as unknown as TelemetryPacket;
 describe("websocket message router", () => {
+  it("surfaces opponent recording failures without failing player recording", () => {
+    telemetryStore.actions.setOpponentRecordingError(null);
+    telemetryStore.actions.setLiveCaptureLifecycle({ sessionId: 42, gameId: "lmu", captureEpoch: "epoch", phase: "recording" });
+    handleWebSocketMessage({ type: "opponent-recording-failed", error: "Disk unavailable" });
+    expect(telemetryStore.get().opponentRecordingError).toBe("Disk unavailable");
+    expect(telemetryStore.get().liveCaptureError).toBeNull();
+    expect(telemetryStore.get().liveCaptureLifecycles[42]?.phase).toBe("recording");
+    telemetryStore.actions.setOpponentRecordingError(null);
+  });
   it("routes canonical schema/frame to production store", () => {
     telemetryStore.actions.clearTelemetry();
     handleWebSocketMessage(schema);

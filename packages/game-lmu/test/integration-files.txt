@@ -11,6 +11,7 @@ packages/game-lmu/test/e2e/backend/imports/lmu-duckdb.test.ts
 packages/game-lmu/test/e2e/backend/integration/opponent-routes.test.ts
 packages/game-lmu/test/e2e/backend/integration/replay-routes.test.ts
 packages/game-lmu/test/e2e/backend/lap-analysis/lmu-export-import-roundtrip.test.ts
+packages/game-lmu/test/e2e/backend/lap-analysis/lmu-opponent-native-v2.test.ts
 packages/game-lmu/test/e2e/backend/race-results/lmu-race-results-storage.test.ts
 packages/game-lmu/test/e2e/backend/race-results/lmu-race-results.test.ts
 packages/game-lmu/test/e2e/backend/routes/lmu-string-identity.test.ts

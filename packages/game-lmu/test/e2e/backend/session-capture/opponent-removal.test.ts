@@ -24,9 +24,14 @@ import { importSessionFrames } from "@raceiq/backend-core/session-capture/import
 import { reconcileLmuOpponentIndexes, getLmuOpponentIndexStatus } from "@raceiq/backend-core/session-capture/lmu-opponent-index-runtime";
 import { inventoryLmuOpponentIndex } from "@raceiq/backend-core/lap-analysis/lmu-opponent-index";
 import { makeLmuOpponentCapture } from "@raceiq/game-lmu/test-support/opponents";
+import { registerDriverProfileLapNotifier } from "@raceiq/backend-core/driver-profile/lap-notifier";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
-import { lmuServerAdapter } from "@raceiq/game-lmu";
-import { registerServerGame } from "@raceiq/backend-core/games/registry";
+import { buildLapsZip, importLapsZip } from "@raceiq/backend/test-support/lap-archive";
+import { initServerGameAdapters } from "@raceiq/backend/test-support/games";
+
+initGameAdapters();
+initServerGameAdapters();
+registerDriverProfileLapNotifier(() => {});
 
 const directories: string[] = [];
 const sessionIds: number[] = [];
@@ -47,7 +52,7 @@ afterEach(async () => {
 describe("LMU opponent removal lifecycle", () => {
   test("rewrites sparse legacy v2/v3 gzip input with lap identity and physical offsets intact", async () => {
     const sourceFrames = [...iterateSessionCaptureRecords(gunzipSync(readFileSync("packages/game-lmu/test/fixtures/sessions/lmu-real-opponents-grid-2026-10-22.bin.gz")), 0, { strict: true })].filter((record) => record.kind === "frame").slice(0, 2).map((record) => record.frame);
-    const frames = [0, 0, 1].map((sourceIndex, index) => {
+    const frames = [0, 0, 1, 1].map((sourceIndex, index) => {
       const original = decodeLMUSourceFrame(sourceFrames[sourceIndex]!)!;
       const memory = Buffer.alloc(LMU_SHARED_MEMORY_SIZE);
       memory.writeInt32LE(original.gameVersion, LMU_GAME_VERSION_OFFSET);
@@ -65,12 +70,16 @@ describe("LMU opponent removal lifecycle", () => {
       memory.writeInt32LE(playerId + 1000, opponentOffset + LMU_SCORING_VEHICLE.id);
       memory.writeUInt8(0, opponentOffset + LMU_SCORING_VEHICLE.isPlayer);
       memory.write("ControlledOpponent485", opponentOffset + LMU_SCORING_VEHICLE.driverName);
+      if (index === 3) {
+        memory.writeDoubleLE(0, opponentOffset + LMU_SCORING_VEHICLE.lapDistance);
+        memory.writeDoubleLE(0, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.lapDistance);
+      }
       return encodeLMUSourceFrame(memory, original.captureTimestampMs + index, index === 2 ? { context: {
         schemaVersion: 1, status: "active", playerVehicleId: playerId, supplemental: [],
         key: { sessionKey: "legacy-removal-fixture", captureSequence: String(index), frameTime: { domain: "wall-clock", milliseconds: original.captureTimestampMs + index } },
       } } : undefined)!;
     });
-    expect(frames).toHaveLength(3);
+    expect(frames).toHaveLength(4);
     for (const frame of frames) expect(partitionLMUSourceFrame(frame)?.companion).toBeInstanceOf(Buffer);
     const directory = join(resolveRecordingDirectory(), "lmu", `opponent-removal-${crypto.randomUUID()}`);
     mkdirSync(directory, { recursive: true });
@@ -94,7 +103,7 @@ describe("LMU opponent removal lifecycle", () => {
     const originalCompressedBytes = readFileSync(sourcePath).length;
     sessionIds.push(session.id);
     const lap = await db.insert(laps).values({
-      sessionId: session.id, lapNumber: 1, lapTime: 90, rawByteOffset: meta.length + format.length, rawFrameCount: frames.length,
+      sessionId: session.id, lapNumber: 1, lapTime: 90, rawByteOffset: meta.length + format.length, rawFrameCount: 3,
     }).returning({ id: laps.id }).get();
     const preview = await previewSessionOpponentRemoval({ sessionIds: [session.id] });
     expect(preview.rewriteSessionIds).toEqual([session.id]);
@@ -106,14 +115,14 @@ describe("LMU opponent removal lifecycle", () => {
     const updated = await db.select({ rawFile: sessions.rawFile, captureManifestFile: sessions.captureManifestFile, captureLayoutVersion: sessions.captureLayoutVersion }).from(sessions).where(eq(sessions.id, session.id)).get();
     expect(updated?.rawFile).toBe(updated?.captureManifestFile);
     expect(updated?.captureLayoutVersion).toBe(1);
-    const manifest = JSON.parse(await readFile(updated!.captureManifestFile!, "utf8")) as { opponentRetention: string; cleanupPending: string[]; chunks: Array<{ id: string; lapId?: string; ownedFrameByteOffset?: number; ownedFrameCount?: number; byteLength: number; path: string }> };
+    const manifest = JSON.parse(await readFile(updated!.captureManifestFile!, "utf8")) as { opponentRetention: string; cleanupPending: string[]; chunks: Array<{ id: string; lapId?: string; ownedFrameByteOffset?: number; ownedFrameCount?: number; trailingContextFrameCount?: number; byteLength: number; path: string }> };
     expect(manifest.opponentRetention).toBe("removed");
     expect(manifest.cleanupPending).toEqual([]);
     expect(getSessionOpponentRemovalStatus().freedBytes).toBe(Math.max(0, originalCompressedBytes - manifest.chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0)));
     const lapChunk = manifest.chunks.find((chunk) => chunk.lapId === String(lap.id));
-    expect(lapChunk).toMatchObject({ ownedFrameCount: frames.length });
+    expect(lapChunk).toMatchObject({ ownedFrameCount: 3, trailingContextFrameCount: 1 });
     expect((await db.select({ rawByteOffset: laps.rawByteOffset, rawFrameCount: laps.rawFrameCount, captureChunkId: laps.captureChunkId }).from(laps).where(eq(laps.id, lap.id)).get())).toMatchObject({
-      rawByteOffset: meta.length + format.length, rawFrameCount: frames.length, captureChunkId: lapChunk!.id,
+      rawByteOffset: meta.length + format.length, rawFrameCount: 3, captureChunkId: lapChunk!.id,
     });
     let rewrittenFrames = 0;
     for (const chunk of manifest.chunks) {
@@ -130,7 +139,7 @@ describe("LMU opponent removal lifecycle", () => {
         rewrittenFrames++;
       }
     }
-    expect(rewrittenFrames).toBe(frames.length);
+    expect(rewrittenFrames).toBe(4);
     const logicalSource: SessionCaptureSource = {
       rawFile: updated!.captureManifestFile!, source: null, gameId: "lmu", carId: "1", trackId: "1", captureFormatVersion: 1,
     };
@@ -139,13 +148,39 @@ describe("LMU opponent removal lifecycle", () => {
     for await (const record of iterateSessionCaptureRecordsFromSource(logicalSource, { strict: true })) {
       if (record.kind !== "frame") continue;
       expect(record.offset).toBe(logicalOffset);
-      expect(decodeLMUSourceFrame(record.frame)?.lmuContext).toEqual(decodeLMUSourceFrame(frames[logicalFrameIndex]!)?.lmuContext);
-      const logicalLength = encodeFrameLength(frames[logicalFrameIndex]!.length).length + frames[logicalFrameIndex]!.length;
-      expect(record.endOffset).toBe(logicalOffset + logicalLength);
+      const expectedFrameIndex = logicalFrameIndex < 3 ? logicalFrameIndex : 3;
+      expect(decodeLMUSourceFrame(record.frame)?.lmuContext).toEqual(decodeLMUSourceFrame(frames[expectedFrameIndex]!)?.lmuContext);
+      const logicalLength = encodeFrameLength(frames[expectedFrameIndex]!.length).length + frames[expectedFrameIndex]!.length;
       logicalOffset += logicalLength;
       logicalFrameIndex++;
     }
-    expect(logicalFrameIndex).toBe(frames.length);
+    expect(logicalFrameIndex).toBe(4);
+    const exported = await buildLapsZip([lap.id]);
+    const imported = await importLapsZip(exported.bytes);
+    expect(imported.errors).toEqual([]);
+    expect(imported.laps).toHaveLength(1);
+    const roundTrippedLap = await db.select().from(laps).where(eq(laps.id, imported.laps[0]!.lapId)).get();
+    expect(roundTrippedLap).toMatchObject({ lapNumber: 1, rawFrameCount: 3 });
+    const roundTrippedSession = await db.select().from(sessions).where(eq(sessions.id, imported.laps[0]!.sessionId)).get();
+    expect(roundTrippedSession?.rawFile).toBeTruthy();
+    const roundTrippedSource: SessionCaptureSource = {
+      rawFile: roundTrippedSession!.captureManifestFile ?? roundTrippedSession!.rawFile!,
+      source: null,
+      gameId: "lmu",
+      carId: roundTrippedSession!.carId,
+      trackId: roundTrippedSession!.trackId,
+      captureFormatVersion: roundTrippedSession!.captureLayoutVersion,
+    };
+    const roundTrippedFrames: Buffer[] = [];
+    for await (const record of iterateSessionCaptureRecordsFromSource(roundTrippedSource, { strict: true })) {
+      if (record.kind === "frame") roundTrippedFrames.push(record.frame);
+    }
+    expect(roundTrippedFrames).toHaveLength(4);
+    const roundTrippedPrimaries = roundTrippedFrames.map((frame) => decodeLMUPartitionPrimary(frame)!);
+    expect(roundTrippedPrimaries.every(Boolean)).toBe(true);
+    expect(roundTrippedPrimaries[3]!.scoringInfo.readDoubleLE(LMU_SCORING_INFO.lapDistance))
+      .toBeLessThan(roundTrippedPrimaries[2]!.scoringInfo.readDoubleLE(LMU_SCORING_INFO.lapDistance));
+    expect(roundTrippedFrames.some((frame) => frame.includes(Buffer.from("ControlledOpponent485")))).toBe(false);
     expect(await readLmuOpponentRetention(updated!.captureManifestFile!)).toMatchObject({ opponentRetention: "removed", opponentAvailability: null });
     expect(await recoverPendingOpponentRemovalCleanup()).toBe(0);
     expect(existsSync(sourcePath)).toBe(false);

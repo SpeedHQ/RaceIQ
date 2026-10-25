@@ -94,13 +94,11 @@ function interpolatedValue(
   semanticId: string,
 ): ResolvedValue<number> | null {
   let low = 0;
-  let high = points.length;
-  while (low < high) {
-    const middle = (low + high) >>> 1;
-    if (points[middle]!.distance === null || points[middle]!.distance! < distance) low = middle + 1;
-    else high = middle;
+  while (low < points.length) {
+    const pointDistance = points[low]!.distance;
+    if (pointDistance !== null && pointDistance >= distance) break;
+    low++;
   }
-  if (low === points.length) return null;
   const upperPoint = points[low]!;
   const upperValue = sourceValue(upperPoint, sourceId, semanticId);
   if (upperPoint.distance === distance) return upperValue;

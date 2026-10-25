@@ -2954,5 +2954,7 @@
   "recording_processing_queued": "Na fila para processamento…",
   "recording_processing_running": "Processando…",
   "recording_processing_failed": "Falha no processamento: {error}",
-  "recording_processing_refresh": "Atualizar status"
+  "recording_processing_refresh": "Atualizar status",
+  "opponent_recording_failed": "Falha na gravação do adversário: {error}",
+  "opponent_recording_dismiss": "Fechar"
 }

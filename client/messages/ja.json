@@ -2954,5 +2954,7 @@
   "recording_processing_queued": "処理待ち…",
   "recording_processing_running": "処理中…",
   "recording_processing_failed": "処理に失敗しました: {error}",
-  "recording_processing_refresh": "状態を更新"
+  "recording_processing_refresh": "状態を更新",
+  "opponent_recording_failed": "対戦相手の記録に失敗しました: {error}",
+  "opponent_recording_dismiss": "閉じる"
 }

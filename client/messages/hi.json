@@ -2955,5 +2955,7 @@
   "recording_processing_queued": "प्रोसेसिंग के लिए कतार में…",
   "recording_processing_running": "प्रोसेसिंग हो रही है…",
   "recording_processing_failed": "प्रोसेसिंग विफल: {error}",
-  "recording_processing_refresh": "स्थिति रीफ़्रेश करें"
+  "recording_processing_refresh": "स्थिति रीफ़्रेश करें",
+  "opponent_recording_failed": "प्रतिद्वंद्वी की रिकॉर्डिंग विफल: {error}",
+  "opponent_recording_dismiss": "बंद करें"
 }

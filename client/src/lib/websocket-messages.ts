@@ -2,8 +2,12 @@ import { isDevTelemetryPacketMessageV1, isDevTelemetrySubscriptionMessageV1, isL
 import { devTelemetryStore } from "../stores/dev-telemetry";
 import { telemetryStore } from "../stores/telemetry";
 import { decodeLmuPacket, isLmuLiveContextWire } from "@raceiq/shared/telemetry/lmu-context";
-
 export function handleWebSocketMessage(data: unknown): boolean {
+  if (data !== null && typeof data === "object" && "type" in data && data.type === "opponent-recording-failed") {
+    const error = "error" in data && typeof data.error === "string" ? data.error : "Unknown error";
+    telemetryStore.actions.setOpponentRecordingError(error);
+    return false;
+  }
   if (data !== null && typeof data === "object" && "type" in data && data.type === "lmu-context" && "lmu" in data && isLmuLiveContextWire(data.lmu)) {
     telemetryStore.actions.setLmuLiveContext(data.lmu);
     return false;

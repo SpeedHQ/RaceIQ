@@ -2954,5 +2954,7 @@
   "recording_processing_queued": "已加入处理队列…",
   "recording_processing_running": "正在处理…",
   "recording_processing_failed": "处理失败：{error}",
-  "recording_processing_refresh": "刷新状态"
+  "recording_processing_refresh": "刷新状态",
+  "opponent_recording_failed": "对手录制失败：{error}",
+  "opponent_recording_dismiss": "关闭"
 }

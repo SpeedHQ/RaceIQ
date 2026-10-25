@@ -416,6 +416,39 @@ describe("LMU adapter", () => {
     expect(recorderStopped).toBe(true);
   });
 
+  test("captures reusable reader bytes before awaiting session-transition invalidation", async () => {
+    const memory = lmuSharedMemoryFixture();
+    const enteredInvalidation = Promise.withResolvers<void>();
+    const releaseInvalidation = Promise.withResolvers<void>();
+    const captured: Buffer[] = [];
+    const source = new LMUTelemetrySource({
+      reader: { start() {}, async stop() {}, readLatest: () => memory },
+      async publishUnavailable() {
+        enteredInvalidation.resolve();
+        await releaseInvalidation.promise;
+      },
+      async dispatchRawFrame(frame) {
+        captured.push(Buffer.from(frame));
+      },
+    });
+    expect(await source.pollOnce()).toBe(true);
+
+    memory.writeUInt32LE(10, LMU_SESSION_EVENT_OFFSET);
+    memory.writeDoubleLE(322.5, LMU_TELEMETRY_INFO_OFFSET + LMU_TELEMETRY.elapsedTime);
+    memory.writeDoubleLE(322.5, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.currentElapsedTime);
+    const transition = source.pollOnce();
+    await enteredInvalidation.promise;
+
+    memory.writeDoubleLE(999.5, LMU_TELEMETRY_INFO_OFFSET + LMU_TELEMETRY.elapsedTime);
+    memory.writeDoubleLE(999.5, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.currentElapsedTime);
+    releaseInvalidation.resolve();
+    expect(await transition).toBe(true);
+
+    const native = decodeLMUSourceFrame(captured[1]!)!;
+    expect(native.telemetry.readDoubleLE(LMU_TELEMETRY.elapsedTime)).toBe(322.5);
+    expect(native.lmuContext?.key.frameTime).toEqual({ domain: "session", milliseconds: 322_500 });
+  });
+
   test("scheduled dump capture waits for writer admission instead of accumulating snapshots", async () => {
     let nowMs = 0;
     let tick: (() => Promise<void>) | undefined;

@@ -33,6 +33,10 @@
 - Include the complete LMU multiplayer recording in demo seeds as sub-100 MB gzip parts, stream native input without buffering the whole capture, and retain separate player and opponent recordings.
 
 ### Fixes
+- Keep selected LMU lap exports within the chosen recording window, preserve opponent frame order, and avoid duplicate samples.
+- Preserve recorded opponent position samples around missing distance observations without interpolating across gaps.
+- Keep completed player laps importable after removing LMU opponent data.
+- Show a warning when opponent recording stops while player recording continues.
 - On the Compare page, opening a lap-only link to queued laps now shows their processing status.
 - Add immediate lap selection to opponent replay, with saved LMU sessions listed newest first using readable date, track and car labels. Keep unavailable sessions selectable so another session can be opened.
 - Hide replay telemetry categories without recorded values while retaining valid zero readings.

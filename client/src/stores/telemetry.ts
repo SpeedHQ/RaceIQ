@@ -168,6 +168,8 @@ export interface TelemetryState {
   liveCaptureLifecycles: Record<number, { sessionId: number; gameId: string; captureEpoch: string; phase: "recording" | "finalizing" | "sealed" | "failed"; error?: string }>;
   /** Failure reported before a recording identity was established. */
   liveCaptureError: string | null;
+  /** Latest opponent recording failure warning. */
+  opponentRecordingError: string | null;
   reprocessState: ReprocessState;
   /** Live Tuning Dashboard: transient per-packet issues from the latest broadcast
    *  (only populated while `POST /api/live-analysis {enabled:true}` is active). */
@@ -203,6 +205,7 @@ const initialTelemetryState = {
   staleLapDetection: null,
   liveCaptureLifecycles: {},
   liveCaptureError: null,
+  opponentRecordingError: null,
   reprocessState: initialReprocessState,
 
   liveIssues: [],
@@ -239,7 +242,7 @@ export interface TelemetryActions extends StoreActionMap {
   toggleDevStatePause: () => void;
   acquireDevState: () => () => void;
   setDisplayUnits: (unit: "metric" | "imperial", temperatureUnit: "C" | "F") => void;
-  setLiveCaptureError: (error: string | null) => void;
+  setOpponentRecordingError: (error: string | null) => void;
 }
 
 export const telemetryStore = createStore(initialTelemetryState, (store): TelemetryActions => ({
@@ -292,7 +295,7 @@ export const telemetryStore = createStore(initialTelemetryState, (store): Teleme
     if (ids.length > 128) delete liveCaptureLifecycles[Number(ids[0])];
     return { ...prev, liveCaptureLifecycles, liveCaptureError: null };
   }),
-  setLiveCaptureError: (liveCaptureError) => store.setState((prev) => ({ ...prev, liveCaptureError })),
+  setOpponentRecordingError: (opponentRecordingError) => store.setState((prev) => ({ ...prev, opponentRecordingError })),
   setStaleLapDetection: (data) => store.setState((prev) => ({ ...prev, staleLapDetection: data })),
 
   beginReprocess: (total) => store.setState((prev) => ({ ...prev, reprocessState: beginReprocess(prev.reprocessState, total) })),

@@ -9,8 +9,39 @@ import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { buildSpectateChannels } from "../../ui/spectate-channels"
 import type { SpectatePair } from "../../contracts/spectate"
 import type { OpponentSemanticLapTelemetry } from "../../contracts/opponents";
+import { alignLmuOpponentPositionTraces } from "../../server/opponent-routes";
 
-initGameAdapters({ f1Experiments: true, iracingAdapter: true });
+initGameAdapters();
+
+test("opponent distance alignment preserves exact samples around missing distances", () => {
+  const rows = [0, 10, null, 30, 40].map((distance, index) => {
+    const channel = (semanticId: string, value: number | null) => ({
+      semanticId, value, state: value === null ? "missing" : "ok", freshness: "fresh",
+      provenance: { sourceObservation: { updateSequence: BigInt(index) } },
+      mappingStatus: "mapped", confidence: null, confidenceComponents: {}, limitations: [],
+    });
+    return {
+      captureSequence: String(index),
+      competitor: {
+        vehicleId: "car", incarnation: "1",
+        channels: {
+          "race.competitor.lap-distance": channel("race.competitor.lap-distance", distance),
+          "motion.competitor.position.x": channel("motion.competitor.position.x", index * 10),
+          "motion.competitor.position.z": channel("motion.competitor.position.z", index * 100),
+        },
+      },
+    };
+  });
+  const opponent = {
+    vehicleId: "car", incarnation: "1", endSequence: "-1",
+    frames: rows.map(({ captureSequence, competitor }) => ({ captureSequence, competitors: [competitor] })),
+  };
+  const result = alignLmuOpponentPositionTraces(rows as never, opponent as never, { step: 10 });
+  const x = result!.traces.find((trace) => trace.semanticId === "motion.position-x")!;
+  expect(x.player[1]!.value).toBe(10);
+  expect(x.player[2]!.value).toBeNull();
+  expect(x.player[3]!.value).toBe(30);
+});
 
 function lap(duration: number, distanceAt: (time: number) => number): SpectateLap {
   const samples: SpectateSample[] = Array.from({ length: Math.round(duration * 20) + 1 }, (_, index) => {

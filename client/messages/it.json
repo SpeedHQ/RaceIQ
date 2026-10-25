@@ -2954,5 +2954,7 @@
   "recording_processing_queued": "In coda per l’elaborazione…",
   "recording_processing_running": "Elaborazione in corso…",
   "recording_processing_failed": "Elaborazione non riuscita: {error}",
-  "recording_processing_refresh": "Aggiorna stato"
+  "recording_processing_refresh": "Aggiorna stato",
+  "opponent_recording_failed": "Registrazione dell’avversario non riuscita: {error}",
+  "opponent_recording_dismiss": "Chiudi"
 }

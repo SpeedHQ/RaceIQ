@@ -2954,5 +2954,7 @@
   "recording_processing_queued": "En attente de traitement…",
   "recording_processing_running": "Traitement en cours…",
   "recording_processing_failed": "Échec du traitement : {error}",
-  "recording_processing_refresh": "Actualiser le statut"
+  "recording_processing_refresh": "Actualiser le statut",
+  "opponent_recording_failed": "Échec de l’enregistrement de l’adversaire : {error}",
+  "opponent_recording_dismiss": "Fermer"
 }

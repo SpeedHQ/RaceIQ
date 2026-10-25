@@ -175,6 +175,7 @@ type LegacyChunk = {
   sourceRecordByteOffset: number;
   ownedFrameByteOffset?: number;
   ownedFrameCount: number;
+  trailingContextFrameCount?: number;
   firstTimestamp?: number;
   lastTimestamp?: number;
   parserBootstrapHash?: string;
@@ -261,6 +262,7 @@ async function rewriteLegacyCandidate(candidate: Candidate): Promise<{ freedByte
   try {
     for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: true, allowLegacyFullFrames: true })) {
       let lap: (typeof windows)[number] | null = null;
+      let trailingContext = false;
       if (record.kind === "frame") {
         if (!activeLap && nextLap < windows.length && windows[nextLap]!.rawByteOffset === record.offset) {
           activeLap = windows[nextLap++]!;
@@ -276,10 +278,16 @@ async function rewriteLegacyCandidate(candidate: Candidate): Promise<{ freedByte
             frameWindowsVerified += activeLap.rawFrameCount!;
             activeLap = null;
           }
+        } else {
+          const existingChunk = current as LegacyChunk | null;
+          if (existingChunk?.kind === "lap" && existingChunk.trailingContextFrameCount === undefined) {
+            trailingContext = true;
+          }
         }
       }
       const group = lap ? String(lap.id) : currentGroup;
       await ensureChunk(group, lap ?? undefined);
+      if (trailingContext) current!.trailingContextFrameCount = (current!.trailingContextFrameCount ?? 0) + 1;
       if (record.offset < physicalInputOffset) throw new Error(`Legacy source coordinate regressed at ${record.offset}`);
       physicalInputOffset = record.endOffset;
       let wireLength: number;
@@ -337,9 +345,11 @@ async function rewriteLegacyCandidate(candidate: Candidate): Promise<{ freedByte
       recordCount: chunk.recordCount, sourceStart: chunk.firstOrdinal, sourceEnd: chunk.firstOrdinal + chunk.recordCount,
       sourceByteStart: chunk.sourceByteStart,
       sourceByteEnd: chunk.sourceByteEnd, sourceRecordByteOffset: chunk.sourceRecordByteOffset,
+      ...(chunk.ownedFrameByteOffset === undefined ? {} : { ownedFrameByteOffset: chunk.ownedFrameByteOffset }),
+      ...(chunk.ownedFrameCount > 0 ? { ownedFrameCount: chunk.ownedFrameCount } : {}),
       ...(chunk.firstTimestamp === undefined ? {} : { firstTimestamp: chunk.firstTimestamp }),
       ...(chunk.lastTimestamp === undefined ? {} : { lastTimestamp: chunk.lastTimestamp }),
-      ...(chunk.ownedFrameByteOffset === undefined ? {} : { ownedFrameByteOffset: chunk.ownedFrameByteOffset, ownedFrameCount: chunk.ownedFrameCount }),
+      ...(chunk.trailingContextFrameCount ? { trailingContextFrameCount: chunk.trailingContextFrameCount } : {}),
       ...(chunk.parserBootstrapHash ? { parserBootstrapHash: chunk.parserBootstrapHash } : {}),
     }));
     let recordStart = 0;

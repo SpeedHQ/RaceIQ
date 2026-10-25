@@ -1,4 +1,4 @@
-import { LMU_SCORING_INFO } from "@raceiq/capture-formats/lmu/layout";
+import { LMU_MAX_VEHICLES, LMU_SCORING_INFO, LMU_SCORING_INFO_OFFSET, LMU_SCORING_VEHICLES_OFFSET, LMU_SCORING_VEHICLE, LMU_SCORING_VEHICLE_SIZE } from "@raceiq/capture-formats/lmu/layout";
 import { createHash } from "node:crypto";
 import { createLMUSourceFrameDecoder } from "@raceiq/capture-formats/lmu/source-frame";
 import { LmuOpponentIdentityTracker, lmuYawFromOrientationMatrix } from "@raceiq/capture-formats/lmu/opponent-snapshot";
@@ -18,6 +18,21 @@ export class LmuOpponentSourceError extends Error {
     this.name = "LmuOpponentSourceError";
   }
 }
+
+function nativePlayerVehicleId(memory: Buffer): number | null {
+  const count = memory.readInt32LE(LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.numberOfVehicles);
+  if (!Number.isInteger(count) || count < 1 || count > LMU_MAX_VEHICLES) return null;
+  let playerVehicleId: number | null = null;
+  for (let index = 0; index < count; index++) {
+    const offset = LMU_SCORING_VEHICLES_OFFSET + index * LMU_SCORING_VEHICLE_SIZE;
+    if (!memory.readUInt8(offset + LMU_SCORING_VEHICLE.isPlayer)) continue;
+    const id = memory.readInt32LE(offset + LMU_SCORING_VEHICLE.id);
+    if (playerVehicleId !== null || !Number.isSafeInteger(id) || id < 0) return null;
+    playerVehicleId = id;
+  }
+  return playerVehicleId;
+}
+
 export function readLmuOpponentCaptureFrames(source: SessionCaptureSource, sourceRevision: string, options: { retainSourceFrames: false }): Promise<LmuOpponentFrame[]>;
 export function readLmuOpponentCaptureFrames(source: SessionCaptureSource, sourceRevision: string): Promise<LmuOpponentCaptureFrame[]>;
 export async function readLmuOpponentCaptureFrames(
@@ -91,10 +106,13 @@ export async function* iterateLmuOpponentCaptureFrames(
     const sessionKey = nativeSession !== null && scoringTime !== null
       ? `lmu:${nativeSession}:${scoringEpoch}`
       : acquisitionKey;
+    const nativePlayerId = decoded.rawSharedMemory && !context?.competitors?.length
+      ? context?.playerVehicleId ?? nativePlayerVehicleId(decoded.rawSharedMemory)
+      : context?.playerVehicleId ?? null;
     const competitors: readonly LmuCompetitor[] = context?.competitors?.length
       ? context.competitors
       : decoded.rawSharedMemory
-        ? tracker.snapshot(decoded.rawSharedMemory, sessionKey, BigInt(captureSequence), context?.playerVehicleId ?? null) ?? []
+        ? tracker.snapshot(decoded.rawSharedMemory, sessionKey, BigInt(captureSequence), nativePlayerId) ?? []
         : [];
     yield {
       sessionKey, captureSequence, frameTime: decoded.captureTimestampMs, competitors, trackLengthMeters,
@@ -407,50 +425,72 @@ export async function getLmuOpponentLapForExport(
   }
   const sourcePath = source.captureManifestFile ?? source.rawFile;
   if (!sourcePath) throw new LmuOpponentLapReadError("OPPONENT_DATA_UNAVAILABLE", "Session source is unavailable");
-  const before = await readLmuOpponentRetention(sourcePath);
-  if (before.sourceRevision !== sourceRevision) {
-    throw new LmuOpponentLapReadError("SOURCE_CHANGED", "Opponent source revision changed");
+  const checkRetention = async () => {
+    const retention = await readLmuOpponentRetention(sourcePath);
+    if (retention.sourceRevision !== sourceRevision) {
+      throw new LmuOpponentLapReadError("SOURCE_CHANGED", "Opponent source revision changed");
+    }
+    if (retention.opponentRetention === "removed") {
+      throw new LmuOpponentLapReadError("OPPONENT_DATA_REMOVED", "Opponent data was removed");
+    }
+    if (retention.opponentRetention !== "retained" ||
+        retention.opponentAvailability === "missing" || retention.opponentAvailability === "corrupt") {
+      throw new LmuOpponentLapReadError("OPPONENT_DATA_UNAVAILABLE", "Opponent data is unavailable");
+    }
+  };
+  const captureSource = {
+    rawFile: sourcePath, source: source.source, gameId: source.gameId, carId: source.carId,
+    trackId: source.trackId, captureFormatVersion: source.captureFormatVersion,
+  };
+  await checkRetention();
+  const indexer = new LmuOpponentLapIndexer();
+  let target: LmuOpponentLapIndexRecord | undefined;
+  let frameIndex = 0;
+  for await (const frame of iterateLmuOpponentCaptureFrames(captureSource, { retainSourceFrames: false })) {
+    if (target) break;
+    target = indexer.push(frame, { blockIndex: 0, frameIndex })
+      .find((record) => record.opponentLapId === opponentLapId);
+    frameIndex++;
   }
-  if (before.opponentRetention === "removed") {
-    throw new LmuOpponentLapReadError("OPPONENT_DATA_REMOVED", "Opponent data was removed");
+  if (!target) target = indexer.finish().find((record) => record.opponentLapId === opponentLapId);
+  if (!target) throw new LmuOpponentLapReadError("OPPONENT_LAP_NOT_FOUND", "Opponent lap not found");
+  const firstIndex = target.locators[0]?.firstFrameIndex ?? 0;
+  const selectedIndexes = new Set<number>();
+  for (const locator of target.locators) {
+    for (let index = locator.firstFrameIndex; index <= locator.lastFrameIndex; index++) selectedIndexes.add(index);
   }
-  if (before.opponentRetention !== "retained" ||
-      before.opponentAvailability === "missing" || before.opponentAvailability === "corrupt") {
-    throw new LmuOpponentLapReadError("OPPONENT_DATA_UNAVAILABLE", "Opponent data is unavailable");
+  if (firstIndex > 0) selectedIndexes.add(firstIndex - 1);
+  const selectedFrames = new Map<number, LmuOpponentCaptureFrame>();
+  frameIndex = 0;
+  const lastIndex = Math.max(...selectedIndexes);
+  for await (const frame of iterateLmuOpponentCaptureFrames(captureSource)) {
+    if (selectedIndexes.has(frameIndex) && "sourceFrame" in frame) selectedFrames.set(frameIndex, frame);
+    if (frameIndex++ >= lastIndex) break;
   }
-  const frames = await readLmuOpponentCaptureFrames({
-    rawFile: sourcePath,
-    source: source.source,
-    gameId: source.gameId,
-    carId: source.carId,
-    trackId: source.trackId,
-    captureFormatVersion: source.captureFormatVersion,
-  }, sourceRevision);
-  const after = await readLmuOpponentRetention(sourcePath);
-  if (after.sourceRevision !== sourceRevision) {
-    throw new LmuOpponentLapReadError("SOURCE_CHANGED", "Opponent source revision changed");
+  await checkRetention();
+  const intervalFrames: LmuOpponentCaptureFrame[] = [];
+  for (const locator of target.locators) {
+    const repeated = new Map(locator.repeatedFrames.map((entry) => [entry.frameIndex, entry.extraCount]));
+    for (let index = locator.firstFrameIndex; index <= locator.lastFrameIndex; index++) {
+      const frame = selectedFrames.get(index);
+      if (!frame) continue;
+      intervalFrames.push(frame);
+      for (let extra = repeated.get(index) ?? 0; extra > 0; extra--) intervalFrames.push(frame);
+    }
   }
-  if (after.opponentRetention === "removed") {
-    throw new LmuOpponentLapReadError("OPPONENT_DATA_REMOVED", "Opponent data was removed");
-  }
-  if (after.opponentRetention !== "retained" ||
-      after.opponentAvailability === "missing" || after.opponentAvailability === "corrupt") {
-    throw new LmuOpponentLapReadError("OPPONENT_DATA_UNAVAILABLE", "Opponent data is unavailable");
-  }
-  const interval = indexLmuOpponentLaps(frames).find((candidate) => candidate.opponentLapId === opponentLapId);
-  if (!interval) throw new LmuOpponentLapReadError("OPPONENT_LAP_NOT_FOUND", "Opponent lap not found");
-  const first = interval.frames[0];
-  const firstIndex = first ? frames.findIndex((frame) => frame.sessionKey === first.sessionKey && frame.captureSequence === first.captureSequence) : -1;
-  const prior = firstIndex > 0 ? frames[firstIndex - 1] : undefined;
-  const priorCompetitor = prior?.competitors.find((competitor) =>
-    competitor.vehicleId === interval.vehicleId && competitor.incarnation === interval.incarnation && !competitor.isPlayer);
+  const first = intervalFrames[0];
+  const priorFrame = firstIndex > 0 ? selectedFrames.get(firstIndex - 1) : undefined;
+  const priorCompetitor = priorFrame?.competitors.find((competitor) =>
+    competitor.vehicleId === target!.vehicleId && competitor.incarnation === target!.incarnation && !competitor.isPlayer);
   const firstCompetitor = first?.competitors.find((competitor) =>
-    competitor.vehicleId === interval.vehicleId && competitor.incarnation === interval.incarnation && !competitor.isPlayer);
+    competitor.vehicleId === target!.vehicleId && competitor.incarnation === target!.incarnation && !competitor.isPlayer);
   const priorLap = priorCompetitor && numberValue(channel(priorCompetitor, "race.competitor.current-lap-number"));
   const firstLap = firstCompetitor && numberValue(channel(firstCompetitor, "race.competitor.current-lap-number"));
-  const context = prior && priorCompetitor && priorLap !== null && firstLap !== null &&
-    priorLap !== firstLap ? [prior] : [];
-  return { source, interval: { ...interval, frames: [...context, ...interval.frames] } };
+  const context = priorFrame && priorCompetitor && priorLap !== null && firstLap !== null && priorLap !== firstLap
+    ? [priorFrame]
+    : [];
+  const { locators: _locators, lastCompetitor: _lastCompetitor, opponentNumericChannelIds: _channels, ...interval } = target;
+  return { source, interval: { ...interval, frames: [...context, ...intervalFrames] } };
 }
 
 const ORIENTATION_YAW_DERIVATION = {
