@@ -125,6 +125,134 @@ test("opponent replay keeps native partial-lap distance and never aligns uncover
     expect(controller.sample(0.75).b?.values["inputs.gear"]).toBeUndefined();
   } finally { controller.dispose(); }
 });
+test("opponent render pose omits native height while source values remain intact", () => {
+  const playerReplay = recordedLap(0.1, (time) => time * 20).replay;
+  const opponentFrames = recordedLap(0.1, (time) => time * 20).replay.envelopes;
+  for (const [index, frame] of opponentFrames.entries()) {
+    frame.simulator = "lmu";
+    frame.sequence = index + 1;
+    frame.values = [
+      { semanticId: "motion.position-x", value: index },
+      { semanticId: "motion.position-y", value: 2 + index * 3 },
+      { semanticId: "motion.position-z", value: index * 2 },
+      { semanticId: "motion.yaw", value: 0.5 },
+    ];
+  }
+  const opponent: OpponentSemanticLapTelemetry = {
+    opponentLapId: "native-height",
+    sourceRevision: "source-revision",
+    requestedSemanticIds: ["motion.position-x", "motion.position-y", "motion.position-z", "motion.yaw"],
+    envelopes: opponentFrames,
+  };
+  const playerFrames = playerReplay.envelopes;
+  playerFrames.forEach((frame, index) => {
+    frame.values = [
+      { semanticId: "motion.position-x", value: index },
+      { semanticId: "motion.position-y", value: 2 + index * 3 },
+      { semanticId: "motion.position-z", value: index * 2 },
+      { semanticId: "motion.yaw", value: 0.5 },
+    ];
+  });
+  const player = prepareSpectateLap(playerReplay);
+  const preparedOpponent = prepareSpectateLap(opponent);
+  const controller = createSpectateController(player, preparedOpponent);
+  try {
+    expect(controller.sample(0).b?.pose?.y).toBe(0);
+    expect(controller.sample(0).b?.values["motion.position-y"]).toBe(2);
+    expect(controller.sample(0.025).b?.pose?.y).toBe(0);
+    expect(controller.sample(0.025).b?.values["motion.position-y"]).toBeCloseTo(3.5);
+    expect(opponent.envelopes.map((frame) => frame.values.find((value) => value.semanticId === "motion.position-y")?.value))
+      .toEqual([2, 5, 8]);
+    expect(controller.sample(0).a?.pose?.y).toBe(2);
+    expect(controller.sample(0.025).a?.pose?.y).toBeCloseTo(3.5);
+  } finally { controller.dispose(); }
+});
+test("opponent partial interval uses observed time, exact source frames, and preserves gaps", () => {
+  const envelopes = recordedLap(5.4, (time) => time * 20).replay.envelopes.slice(0, 28);
+  envelopes.forEach((frame, index) => {
+    frame.simulator = "lmu";
+    frame.sequence = index + 1;
+    frame.observedAt = { domain: "session", milliseconds: 100_000 + index * 200 };
+    frame.values = [
+      { semanticId: "timing.current-lap", value: 3152 + index * 0.2 },
+      { semanticId: "motion.position-x", value: index },
+      { semanticId: "motion.position-y", value: 1 },
+      { semanticId: "motion.position-z", value: index * 2 },
+      { semanticId: "motion.yaw", value: 0.5 },
+      { semanticId: "motion.speed", value: 40 + index },
+    ];
+  });
+  const opponent: OpponentSemanticLapTelemetry = {
+    opponentLapId: "partial-source-interval",
+    sourceRevision: "source-revision",
+    requestedSemanticIds: ["motion.position-x", "motion.position-y", "motion.position-z", "motion.yaw", "motion.speed"],
+    envelopes,
+  };
+  const prepared = prepareSpectateLap(opponent);
+  expect(prepared.duration).toBeCloseTo(5.4);
+  expect(prepared.samples[0]!.time).toBe(0);
+  expect(prepared.samples[0]!.values["timing.current-lap"]).toBe(3152);
+  const controller = createSpectateController(prepared, null);
+  try {
+    expect(controller.getSnapshot().a?.pose).toEqual({ x: 0, y: 0, z: 0, yaw: 0.5 });
+    expect(controller.getSnapshot().a?.values["motion.speed"]).toBe(40);
+    expect(controller.getSnapshot().a?.values["inputs.throttle"]).toBeUndefined();
+    expect(controller.sample(0.1).a?.pose?.x).toBeCloseTo(0.5);
+    expect(controller.sample(0.1).a?.values["motion.speed"]).toBeCloseTo(40.5);
+    expect(controller.sample(0.2).a?.pose?.x).toBeCloseTo(1);
+    controller.seekFrame("a", 7);
+    expect(controller.getSnapshot().time).toBeCloseTo(1.4);
+    expect(controller.getSnapshot().a?.pose).toEqual({ x: 7, y: 0, z: 14, yaw: 0.5 });
+    expect(controller.getSnapshot().a?.values["motion.speed"]).toBe(47);
+    controller.scrub(2.2);
+    expect(controller.getSnapshot().a?.pose).toEqual({ x: 11, y: 0, z: 22, yaw: 0.5 });
+  } finally { controller.dispose(); }
+  const gappedFrames = envelopes.map((frame, index) => ({
+    ...frame,
+    sequence: index < 2 ? index + 1 : index + 3,
+    observedAt: { domain: "session" as const, milliseconds: 100_000 + (index < 2 ? index * 200 : 600 + (index - 2) * 200) },
+    values: frame.values.map((value) => value.semanticId === "timing.current-lap" && index >= 2
+      ? { ...value, value: 3152 + 0.6 + (index - 2) * 0.2 }
+      : value),
+  }));
+  const gapped = prepareSpectateLap({ ...opponent, envelopes: gappedFrames });
+  const sequenceHole = envelopes.slice(0, 3).map((frame, index) => ({
+    ...frame,
+    sequence: index === 2 ? 4 : index + 1,
+    observedAt: { domain: "session" as const, milliseconds: 100_000 + index * 200 },
+  }));
+  const sequenceGap = prepareSpectateLap({ ...opponent, envelopes: sequenceHole });
+  expect(sequenceGap.samples[1]!.time).toBeCloseTo(0.2);
+  expect(sequenceGap.samples[2]!.time).toBeCloseTo(0.4);
+  expect(sequenceGap.samples[1]!.run).not.toBe(sequenceGap.samples[2]!.run);
+  expect(gapped.samples[1]!.run).not.toBe(gapped.samples[2]!.run);
+  const player = prepareSpectateLap({ lapId: 1, requestedSemanticIds: [], envelopes: gappedFrames });
+  expect(player.samples[1]!.run).not.toBe(player.samples[2]!.run);
+});
+
+test("opponent segment seeks interpolate native scoring cadence but never cross missing observations", () => {
+  const replay: OpponentSemanticLapTelemetry = {
+    opponentLapId: "native-scoring-distance",
+    sourceRevision: "source-revision",
+    requestedSemanticIds: ["timing.distance-traveled"],
+    envelopes: [0, 1, 2, 4].map((index) => ({
+      sequence: index + 1,
+      simulator: "lmu",
+      observedAt: { domain: "session", milliseconds: 100_000 + index * 200 },
+      receivedAt: { domain: "session", milliseconds: 100_000 + index * 200 },
+      values: [{ semanticId: "timing.distance-traveled", value: 2000 + index * 10 }],
+    })),
+  };
+  const controller = createSpectateController(prepareSpectateLap(replay), null);
+  try {
+    controller.seekDistance(5, true);
+    expect(controller.getSnapshot().time).toBeCloseTo(0.1);
+    controller.seekDistance(30, true);
+    expect(controller.getSnapshot().time).toBeCloseTo(0.1);
+    controller.seekDistance(40, true);
+    expect(controller.getSnapshot().time).toBeCloseTo(0.8);
+  } finally { controller.dispose(); }
+});
 test("seekGeneration changes only for explicit time discontinuities", () => {
   const controller = createSpectateController(recordedLap(1, time => time * 20), null);
   try {

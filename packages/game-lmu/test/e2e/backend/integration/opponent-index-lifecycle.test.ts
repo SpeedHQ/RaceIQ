@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { createInterface } from "node:readline";
 
 const E5_CHILD = String.raw`
+import { createHash } from "node:crypto";
 const { initDb, closeDb } = await import("@raceiq/backend-core/db/index");
 await initDb();
 let runtime;
@@ -161,6 +162,8 @@ let lapId;
   }
 
   if (phase === "recover") {
+    const nativeBytesBefore = await Bun.file(sourcePath).arrayBuffer();
+    const nativeHashBefore = createHash("sha256").update(Buffer.from(nativeBytesBefore)).digest("hex");
     const firstReconcile = await runtime.reconcileLmuOpponentIndexes({ awaitPreparation: true });
     const firstStatus = await runtime.getLmuOpponentIndexStatus(source);
     const firstResponse = await replayRoutes.request("/api/laps/" + lapId + "/opponent-laps", { headers: { "X-Game-Id": "lmu" } });
@@ -169,13 +172,30 @@ let lapId;
     const secondReconcile = await runtime.reconcileLmuOpponentIndexes({ awaitPreparation: true });
     const secondStatus = await runtime.getLmuOpponentIndexStatus(source);
     const secondMetrics = instrumentation.getLmuOpponentIndexInstrumentation();
+    const selectedLap = firstCatalog.laps?.[0];
+    if (!selectedLap) throw new Error("Rebuilt opponent catalog has no selectable interval");
+    const selectedReplayResponse = await replayRoutes.request(
+      "/api/laps/" + lapId + "/opponent-laps/" + encodeURIComponent(selectedLap.opponentLapId) +
+        "/semantic-telemetry?sourceRevision=" + encodeURIComponent(firstCatalog.sourceRevision),
+      { headers: { "X-Game-Id": "lmu" } },
+    );
+    const selectedReplay = await selectedReplayResponse.json();
+    const comparisonResponse = await replayRoutes.request("/api/laps/" + lapId + "/opponent-comparison", {
+      method: "POST",
+      headers: { "X-Game-Id": "lmu", "Content-Type": "application/json" },
+      body: JSON.stringify({ opponentLapId: selectedLap.opponentLapId, sourceRevision: firstCatalog.sourceRevision, step: 1 }),
+    });
+    const comparison = await comparisonResponse.json();
+    const nativeHashAfter = createHash("sha256").update(Buffer.from(await Bun.file(sourcePath).arrayBuffer())).digest("hex");
     process.stdout.write("__E5_RECOVERED__" + JSON.stringify({
       lapId, sourcePath, firstReconcile, secondReconcile,
       firstState: firstStatus.indexState, secondState: secondStatus.indexState,
       firstPublicationPath: firstStatus.publicationPath,
       secondPublicationPath: secondStatus.publicationPath,
       catalog: { status: firstResponse.status, body: firstCatalog },
-      firstMetrics, secondMetrics,
+      firstMetrics, secondMetrics, selectedReplay: { status: selectedReplayResponse.status, body: selectedReplay },
+      comparison: { status: comparisonResponse.status, body: comparison },
+      nativeHashBefore, nativeHashAfter, postRequestMetrics: instrumentation.getLmuOpponentIndexInstrumentation(),
     }) + "\n");
   }
 
@@ -325,11 +345,17 @@ test("LMU opponent restart repairs interrupted staging/publication and exposes f
 
     child = startChild(dataDir, "recover", staging.lapId);
     const recovered = parseLine<{
-      firstReconcile: string; secondReconcile: string; firstState: string; secondState: string;
       firstPublicationPath: string | null; secondPublicationPath: string | null;
-      catalog: { status: number; body: { indexState: string; sessions: unknown[]; laps: unknown[] } };
-      firstMetrics: { sourceFramesScanned: number; blocksWritten: number };
-      secondMetrics: { sourceFramesScanned: number; blocksWritten: number };
+      catalog: { status: number; body: { indexState: string; sourceRevision: string; sessions: unknown[]; laps: { opponentLapId: string }[] } };
+      firstMetrics: { sourceFramesScanned: number; parserStatePrimes: number; indexSamplesMaterialized: number; blocksWritten: number };
+      secondMetrics: { sourceFramesScanned: number; parserStatePrimes: number; indexSamplesMaterialized: number; blocksWritten: number };
+      selectedReplay: { status: number; body: { envelopes: { sequence: number; values: { semanticId: string; value: unknown }[] }[] } };
+      comparison: { status: number; body: { opponent: { opponentLapId: string }; traces: { semanticId: string; opponent: unknown[] }[] } };
+      nativeHashBefore: string; nativeHashAfter: string;
+      postRequestMetrics: {
+        sourceFramesScanned: number; parserStatePrimes: number; indexSamplesMaterialized: number;
+        fullPacketsMaterialized: number; blocksWritten: number;
+      };
     }>(await child.waitForLine("__E5_RECOVERED__"), "__E5_RECOVERED__");
     expect(await child.waitForExit()).toEqual({ code: 0, signal: null });
     child = null;
@@ -345,6 +371,23 @@ test("LMU opponent restart repairs interrupted staging/publication and exposes f
     expect(recovered.firstMetrics.blocksWritten).toBeGreaterThan(0);
     expect(recovered.secondMetrics.sourceFramesScanned).toBe(recovered.firstMetrics.sourceFramesScanned);
     expect(recovered.secondMetrics.blocksWritten).toBe(recovered.firstMetrics.blocksWritten);
+    expect(recovered.selectedReplay.status).toBe(200);
+    expect(recovered.selectedReplay.body.envelopes.length).toBeGreaterThan(0);
+    expect(recovered.selectedReplay.body.envelopes.some((envelope) =>
+      envelope.sequence >= 0 && envelope.values.some((value) => value.semanticId.length > 0 && value.value !== undefined),
+    )).toBe(true);
+    expect(recovered.comparison.status).toBe(200);
+    expect(recovered.comparison.body.opponent.opponentLapId).toBe(recovered.catalog.body.laps[0]!.opponentLapId);
+    expect(recovered.comparison.body.traces.length).toBeGreaterThan(0);
+    expect(recovered.comparison.body.traces.some((trace) => trace.opponent.length > 0)).toBe(true);
+    expect(recovered.nativeHashAfter).toBe(recovered.nativeHashBefore);
+    expect(recovered.postRequestMetrics.sourceFramesScanned).toBe(recovered.secondMetrics.sourceFramesScanned);
+    expect(recovered.postRequestMetrics).toMatchObject({
+      parserStatePrimes: recovered.secondMetrics.parserStatePrimes,
+      indexSamplesMaterialized: recovered.secondMetrics.indexSamplesMaterialized,
+      blocksWritten: recovered.secondMetrics.blocksWritten,
+    });
+    expect(recovered.postRequestMetrics.fullPacketsMaterialized).toBeGreaterThan(0);
     const originalPublicationPath = recovered.firstPublicationPath!;
     child = startChild(dataDir, "recover", staging.lapId);
     const reusedPublication = parseLine<{
@@ -393,8 +436,22 @@ test("LMU opponent restart repairs interrupted staging/publication and exposes f
     });
 
     const incompatible = JSON.parse(readFileSync(originalPublicationPath, "utf8")) as Record<string, unknown>;
-    incompatible.schemaVersion = 999;
+    incompatible.algorithmVersion = 1;
     writeFileSync(originalPublicationPath, JSON.stringify(incompatible));
+    child = startChild(dataDir, "inspect-identity", staging.lapId);
+    const obsoletePublication = parseLine<{
+      indexState: string; publicationPath: string | null;
+      catalog: { status: number; body: { indexState: string; sessions: unknown[]; laps: unknown[] } };
+      metrics: { sourceFramesScanned: number; blocksWritten: number };
+    }>(await child.waitForLine("__E5_IDENTITY__"), "__E5_IDENTITY__");
+    expect(await child.waitForExit()).toEqual({ code: 0, signal: null });
+    child = null;
+    expect(obsoletePublication).toMatchObject({
+      indexState: "queued", publicationPath: null,
+      catalog: { status: 200, body: { indexState: "queued", sessions: [], laps: [] } },
+      metrics: { sourceFramesScanned: 0, blocksWritten: 0 },
+    });
+
 
     child = startChild(dataDir, "interrupt-publication", staging.lapId);
     const publication = parseLine<{
@@ -425,6 +482,7 @@ test("LMU opponent restart repairs interrupted staging/publication and exposes f
     expect(repairedVersion.catalog).toMatchObject({ status: 200, body: { indexState: "ready" } });
     expect(repairedVersion.firstPublicationPath).toBeTruthy();
     expect(repairedVersion.firstPublicationPath).not.toBe(originalPublicationPath);
+    expect((JSON.parse(readFileSync(repairedVersion.firstPublicationPath!, "utf8")) as { algorithmVersion: number }).algorithmVersion).toBe(3);
     expect(repairedVersion.firstMetrics.sourceFramesScanned).toBeGreaterThan(0);
 
     rmSync(indexRoot, { recursive: true, force: true });

@@ -1,8 +1,8 @@
 # LMU opponent cold-load backend plan
 
-Status: implementation changes are present, but acceptance remains incomplete. E2/E9 require an existing LMU recording with a complete source-backed player lap and telemetry opponent interval; all three repository recordings tested lack one. Shared results and blocker are recorded in the [contract](lmu-opponent-cold-load-contract.md#execution-evidence--2026-10-24).
+Status: implementation changes are present, but acceptance remains incomplete. E2/E7/E9 require production-path evidence; OP11 raw source analysis now identifies a qualifying complete opponent lap in the October 24 recording. Results and earlier blockers are recorded in the [contract](lmu-opponent-cold-load-contract.md#execution-evidence--2026-10-24).
 
-Shared boundary: [contract](lmu-opponent-cold-load-contract.md). Acceptance OP1–OP9, lifecycle/error definitions, and E1–E9 live there rather than being redefined here. Related frontend work: [UI plan](lmu-opponent-cold-load-ui-plan.md).
+Shared boundary: [contract](lmu-opponent-cold-load-contract.md). Acceptance OP1–OP11, lifecycle/error definitions, and E1–E11 live there rather than being redefined here. OP10/E10 remains UI-only; OP11/E11 covers backend source-backed lap boundaries. Related frontend work: [UI plan](lmu-opponent-cold-load-ui-plan.md).
 
 ## Ownership and prerequisites
 
@@ -72,11 +72,17 @@ Project processing onto existing chat-linked lap summaries through one distinct-
 
 ## Acceptance and edge handling
 
-Backend acceptance references OP1–OP9 and E1–E9 in the contract. Cover recording restarts mid-build, finalization during shutdown, shared generations, no-opponent recordings, malformed or incompatible blocks, source races, repair, removal, low-disk/write failure, launch-seed reconciliation, and both queued/running session/lap opening gates. Do not silently serve the old session-scan implementation for any state.
+Backend acceptance references OP1–OP9 and OP11, with E1–E9 and E11 in the contract. OP10/E10 remains UI-only. Cover recording restarts mid-build, finalization during shutdown, shared generations, no-opponent recordings, malformed or incompatible blocks, source races, repair, removal, low-disk/write failure, launch-seed reconciliation, opening gates, and ambiguous lap boundaries. Do not silently serve the old session-scan implementation for any state.
+
+### B7 — Source-backed lap completeness (OP11)
+
+Update `server/lap-analysis/lmu-opponent-laps.ts` to require native track-distance traversal for complete coverage. Counter increments alone cannot establish a full lap. Keep intervals with ambiguous/missing boundaries partial, retain their observed samples for replay, and preserve genuine gaps. Genuine sequence gaps do not negate full geometric coverage and remain absent; no interpolation. Include track length from decoded native scoring info only when available; do not guess a circuit length or fabricate observations. Bump `LMU_OPPONENT_INDEX_ALGORITHM_VERSION` so existing publications rebuild under corrected coverage rules.
+
+Acceptance: OP11. Extend E3 boundaries and execute E11 against the October 24 raw recording through production decoding/indexing and route output. Confirm vehicle 16 lap 8 remains complete while vehicle 50's partial and short counter-wrap intervals do not become complete.
 
 ## Verification and completion dependency
 
-Execute E1–E9 through actual ingress/import/launch seeding, finalized files, durable publication, production Hono routes, UI decoder, and real browser surfaces. Extend existing opponent route, export/import, recorder safety/removal, seed idempotency, sessions-page navigation, and comparison browser scenarios. Add focused deterministic tests for uncertain index boundaries and publication races; compiler/unit success alone is insufficient.
+Execute E1–E10 through actual ingress/import/launch seeding, finalized files, durable publication, production Hono routes, UI decoder, and real browser surfaces. E10 adds no endpoint or storage change; verify the existing partial-coverage recording through production comparison/replay. Extend existing opponent route, export/import, recorder safety/removal, seed idempotency, sessions-page navigation, and comparison browser scenarios. Add focused deterministic tests for uncertain index boundaries and publication races; compiler/unit success alone is insufficient.
 
 E1/E5/E6 prove OP4/OP5 and scheduling/recovery; E2 proves OP1/OP2 plus real OP3/OP6 integration; E3 proves OP3; E4 proves OP3/OP4; E7 proves OP6 with UI owner. Gate interleavings with controlled barriers rather than sleeps. Use isolated data directories and actual files; mocks cannot substitute for the integration under test.
 
@@ -84,4 +90,4 @@ E8 proves OP7 and its OP1–OP6 integration: run fresh launch seeding, restart a
 
 E9 proves OP8/OP9 plus OP4–OP7 integration: hold real jobs queued/running, verify metadata state and heavy-read rejection, fail/repair them, and exercise actual session/lap UI and direct links. Assert shared-source aggregation, unaffected rows, no native status scan, and no false readiness while recording defers the queue.
 
-Run real-recording performance verification alone, with separate restarted processes per measured path. Record source identity, first-click preparation time separately from ready-load time, bytes/blocks read, native frame/player decode counters, response bytes, CPU/RSS, and matched own-lap timing. Include OS-cache caveat. Run affected backend/replay/LMU compiler gates and relevant existing tests after integration. Update docs/release notes only for implemented verified behavior. Record every E1–E9 outcome and unmet target; completion requires all criteria and mapped edge paths passing, not merely a ready UI fixture.
+Run real-recording performance verification alone, with separate restarted processes per measured path. Record source identity, first-click preparation time separately from ready-load time, bytes/blocks read, native frame/player decode counters, response bytes, CPU/RSS, and matched own-lap timing. Include OS-cache caveat. Run affected backend/replay/LMU compiler gates and relevant existing tests after integration. Update docs/release notes only for implemented verified behavior. Record every E1–E11 outcome and unmet target; completion requires all criteria and mapped edge paths passing, not merely a ready UI fixture.

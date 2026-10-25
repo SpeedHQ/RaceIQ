@@ -18,6 +18,7 @@ import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { lmuServerAdapter } from "@raceiq/game-lmu";
 import { registerServerGame } from "@raceiq/backend-core/games/registry";
 import { encodeLmuResolvedValue } from "@raceiq/shared/telemetry/lmu-context";
+import { LMU_SCORING_INFO, LMU_SCORING_INFO_OFFSET, LMU_SESSION_EVENT_OFFSET } from "@raceiq/capture-formats/lmu/layout";
 import { describe, expect, test } from "bun:test";
 import type { OpponentSessionSummary } from "@raceiq/lap-replay/contracts";
 import type { LmuCompetitor, LmuLiveContext } from "@raceiq/shared/telemetry/lmu";
@@ -89,7 +90,8 @@ function frame(sequence: number, distance: number, lap = 1): LmuOpponentCaptureF
   const competitor: LmuCompetitor = context.competitors![0]!;
   return {
     sessionKey: context.key.sessionKey, captureSequence: context.key.captureSequence,
-    frameTime: sequence * 20, competitors: [competitor], sourceFrame: Buffer.alloc(0), parserBootstrap: null, lmuContext: context,
+    frameTime: sequence * 20, competitors: [competitor], trackLengthMeters: 1_000,
+    sourceFrame: Buffer.alloc(0), parserBootstrap: null, lmuContext: context,
   };
 }
 
@@ -109,11 +111,33 @@ describe("opponent lap indexing", () => {
       .toHaveLength(1);
     expect(indexLmuOpponentLaps([frame(1, 400, 1), frame(2, 3, 4)])).toHaveLength(1);
   });
+  test("keeps geometric coverage complete across missing source sequences", () => {
+    const laps = indexLmuOpponentLaps([
+      frame(1, 3, 1), frame(3, 500, 1), frame(4, 990, 1), frame(5, 4, 2),
+    ]);
+    expect(laps[0]).toMatchObject({ coverage: "complete", startSequence: "1", endSequence: "5" });
+    expect(laps[0]!.frames.map(({ captureSequence }) => captureSequence)).toEqual(["1", "3", "4", "5"]);
+  });
+  test("counter wrap without near-full native-distance traversal stays partial", () => {
+    const frames = [frame(1, 2_352, 8), frame(2, 7, 9), frame(3, 179, 9)];
+    const laps = indexLmuOpponentLaps(frames);
+    expect(laps.map(({ coverage }) => coverage)).toEqual(["partial", "partial"]);
+    expect(laps.map(({ frames: samples }) => samples.map(({ captureSequence }) => captureSequence)))
+      .toEqual([["1", "2"], ["2", "3"]]);
+  });
+
+  test("unknown track length and absent full-boundary evidence never complete", () => {
+    const frames = [frame(1, 3, 1), frame(2, 990, 1), frame(3, 4, 2)]
+      .map(({ trackLengthMeters: _length, ...sample }) => sample);
+    const laps = indexLmuOpponentLaps(frames);
+    expect(laps[0]).toMatchObject({ coverage: "partial" });
+    expect(laps[0]!.frames.map((sample) => sample.captureSequence)).toEqual(["1", "2", "3"]);
+  });
 
   test("resynchronizes after lap-counter jump without completing across it", () => {
     const laps = indexLmuOpponentLaps([
       frame(1, 400, 1), frame(2, 700, 1), frame(3, 20, 4),
-      frame(4, 800, 4), frame(5, 5, 5), frame(6, 900, 5), frame(7, 2, 6),
+      frame(4, 800, 4), frame(5, 5, 5), frame(6, 990, 5), frame(7, 2, 6),
     ]);
     expect(laps.map(({ coverage }) => coverage)).toEqual(["partial", "partial", "complete"]);
     expect(laps[2]).toMatchObject({ startSequence: "5", endSequence: "7", lapNumber: 5 });
@@ -201,31 +225,75 @@ describe("opponent lap indexing", () => {
       sourceUpdate(frame(1, 300), start), sourceUpdate(frame(2, 500), start),
       sourceUpdate(frame(3, 900), start + 1n), sourceUpdate(frame(4, 2, 2), start + 2n),
     ])[0]!;
+    const sameSequenceWithAdvancingTime = indexLmuOpponentLaps([
+      sourceUpdate(frame(1, 300), start, 100),
+      sourceUpdate(frame(2, 500), start, 200),
+      sourceUpdate(frame(3, 900), start + 1n, 300),
+      sourceUpdate(frame(4, 2, 2), start + 2n, 400),
+    ])[0]!;
+    const advancingReplay = buildLmuOpponentSemanticFrames(sameSequenceWithAdvancingTime);
+    expect(advancingReplay.map(({ sequence }) => sequence)).toEqual([1, 2, 3]);
+    expect(advancingReplay.map(({ observedAt }) => observedAt.milliseconds)).toEqual([100, 200, 300]);
+    expect(advancingReplay[1]!.values[0]!.limitations).not.toContain(
+      "Scoring observation counter restarted before this frame.",
+    );
     expect(buildLmuOpponentSemanticFrames(repeated).map(({ sequence }) => sequence)).toEqual([1, 2]);
   });
 
-  test("preserves forward-clock counter restarts as discontinuous opponent observations", () => {
-    const interval = indexLmuOpponentLaps([
+  test("keeps advancing counter resets contiguous and forward source gaps discontinuous", () => {
+    const resetInterval = indexLmuOpponentLaps([
       sourceUpdate(frame(1, 300), 23n, 3_320_200),
       sourceUpdate(frame(2, 500), 2n, 3_320_800),
       sourceUpdate(frame(3, 700), 1n, 3_331_000),
       sourceUpdate(frame(4, 900), 1n, 3_331_600),
       sourceUpdate(frame(5, 2, 2), 2n, 3_332_000),
     ])[0]!;
-    const replay = buildLmuOpponentSemanticFrames(interval);
-    expect(replay.map((entry) => entry.sequence)).toEqual([1, 3, 5, 7]);
+    const replay = buildLmuOpponentSemanticFrames(resetInterval);
+    expect(replay.map((entry) => entry.sequence)).toEqual([1, 2, 3, 4]);
     expect(replay.map((entry) => entry.observedAt.milliseconds)).toEqual([3_320_200, 3_320_800, 3_331_000, 3_331_600]);
     expect(replay.map((entry) => (entry.values[0] as ResolvedValue<number>).provenance.sourceObservation?.updateSequence))
       .toEqual([23n, 2n, 1n, 1n]);
     expect(replay.map((entry) => entry.values.find((value) => value.semanticId === "motion.position-x")?.value))
       .toEqual([3000, 5000, 7000, 9000]);
+    expect(replay.flatMap((entry) => entry.values).every((value) =>
+      !value.limitations.some((limitation) => limitation.includes("unavailable before this frame"))))
+      .toBe(true);
+
+    const gapInterval = indexLmuOpponentLaps([
+      sourceUpdate(frame(1, 300), 1n),
+      sourceUpdate(frame(10, 500), 3n),
+      sourceUpdate(frame(29, 900), 4n),
+      sourceUpdate(frame(40, 2, 2), 5n),
+    ])[0]!;
+    const gapReplay = buildLmuOpponentSemanticFrames(gapInterval);
+    expect(gapReplay.map((entry) => entry.sequence)).toEqual([1, 3, 4]);
+    expect(gapReplay[1]!.values[0]!.limitations).toContain("1 source scoring update(s) unavailable before this frame.");
   });
 
-  test("leaves replay gaps for missing native captures even when scoring counters are adjacent", () => {
+  test("does not treat sparse capture cadence as a scoring discontinuity", () => {
     const interval = indexLmuOpponentLaps([
-      sourceUpdate(frame(1, 300), 1n), sourceUpdate(frame(3, 900), 2n), sourceUpdate(frame(4, 2, 2), 3n),
+      sourceUpdate(frame(1, 300), 1n),
+      sourceUpdate(frame(10, 500), 2n),
+      sourceUpdate(frame(29, 900), 3n),
+      sourceUpdate(frame(40, 2, 2), 4n),
     ])[0]!;
-    expect(buildLmuOpponentSemanticFrames(interval).map((entry) => entry.sequence)).toEqual([1, 3]);
+    const replay = buildLmuOpponentSemanticFrames(interval);
+    expect(replay.map((entry) => entry.sequence)).toEqual([1, 2, 3]);
+    expect(replay.map((entry) => entry.values.some((value) =>
+      value.limitations.some((limitation) => limitation.includes("unavailable before this frame")))))
+      .toEqual([false, false, false]);
+  });
+
+  test("keeps discontinuities for missing source scoring updates", () => {
+    const interval = indexLmuOpponentLaps([
+      sourceUpdate(frame(1, 300), 1n),
+      sourceUpdate(frame(10, 500), 3n),
+      sourceUpdate(frame(29, 900), 4n),
+      sourceUpdate(frame(40, 2, 2), 5n),
+    ])[0]!;
+    const replay = buildLmuOpponentSemanticFrames(interval);
+    expect(replay.map((entry) => entry.sequence)).toEqual([1, 3, 4]);
+    expect(replay[1]!.values[0]!.limitations).toContain("1 source scoring update(s) unavailable before this frame.");
   });
 
   test("replays canonical samples on scoring timestamps with source gaps retained", () => {
@@ -306,9 +374,9 @@ describe("opponent lap indexing", () => {
   });
 
   test("preserves capture continuity across repeated scoring observations", () => {
-    for (const [duplicateCapture, nextCapture, expectedSequence, expectedMiddle] of [
-      [2, 3, 2, 500],
-      [3, 4, 3, null],
+    for (const [duplicateCapture, nextCapture, expectedMiddle] of [
+      [2, 3, 500],
+      [3, 4, null],
     ] as const) {
       const interval = indexLmuOpponentLaps([
         sourceUpdate(frame(1, 10), 1n, 1000),
@@ -316,7 +384,7 @@ describe("opponent lap indexing", () => {
         sourceUpdate(frame(nextCapture, 90), 2n, 2000),
         sourceUpdate(frame(nextCapture + 1, 2, 2), 3n, 3000),
       ])[0]!;
-      expect(buildLmuOpponentSemanticFrames(interval).map((entry) => entry.sequence)).toEqual([1, expectedSequence]);
+      expect(buildLmuOpponentSemanticFrames(interval).map((entry) => entry.sequence)).toEqual([1, 2]);
       const playerRows = [frame(1, 10), frame(2, 90)].map((source) => ({
         competitor: { ...source.competitors[0]!, vehicleId: 1, isPlayer: true }, captureSequence: source.captureSequence,
       }));
@@ -371,6 +439,226 @@ describe("opponent lap indexing", () => {
 });
 
 describe("opponent route serialization", () => {
+  test("compares partial opponent telemetry when player scoring trails the selected lap boundary", async () => {
+    initGameAdapters();
+    registerServerGame(lmuServerAdapter);
+    function* delayedPlayerScoring() {
+      let previousPlayer: LmuCompetitor | undefined;
+      for (const { bytes } of fixtureFrames(makeLmuOpponentCapture(), "lmu")) {
+        const native = decodeLMUSourceFrame(bytes);
+        if (!native?.rawSharedMemory || !native.lmuContext) throw new Error("Missing native LMU fixture context");
+        const player = native.lmuContext.competitors?.find((entry) => entry.isPlayer);
+        const crossed = previousPlayer && player &&
+          previousPlayer.channels["race.competitor.current-lap-number"]?.value !== player.channels["race.competitor.current-lap-number"]?.value;
+        const encoded = encodeLMUSourceFrame(native.rawSharedMemory, native.captureTimestampMs, {
+          context: {
+            ...native.lmuContext,
+            competitors: native.lmuContext.competitors?.map((entry) => entry.isPlayer && crossed ? previousPlayer! : entry),
+          },
+        });
+        if (!encoded) throw new Error("Unable to encode delayed player scoring");
+        previousPlayer = player;
+        yield encoded;
+      }
+    }
+    const imported = await importSessionFrames(delayedPlayerScoring(), "lmu", {
+      opponentRetention: "retained", notifyDriverProfile: false,
+    });
+    const sessionIds = [...new Set(imported.laps.map((lap) => lap.sessionId))];
+    try {
+      await reconcileLmuOpponentIndexes({ awaitPreparation: true });
+      const selected = imported.laps[1]!;
+      const playerLap = await getLapById(selected.lapId);
+      const firstPlayer = playerLap!.telemetry[0]!.lmuContext!.competitors!.find((entry) => entry.isPlayer)!;
+      const firstPacket = playerLap!.telemetry[0]!;
+      expect(firstPlayer.channels["race.competitor.lap-start-time"]?.value as number)
+        .toBeLessThan(firstPacket.CurrentRaceTime - firstPacket.CurrentLap);
+      const catalogResponse = await replayRoutes.request(`/api/laps/${selected.lapId}/opponent-laps`, {
+        headers: { "X-Game-Id": "lmu" },
+      });
+      const catalog = await catalogResponse.json() as {
+        sourceRevision: string;
+        laps: { opponentLapId: string; lapTime: { state: string; value: number | null }; coverage: string }[];
+      };
+      const partial = catalog.laps.find((lap) => lap.coverage === "partial" && lap.lapTime.value === null);
+      expect(partial).toBeDefined();
+      const response = await replayRoutes.request(`/api/laps/${selected.lapId}/opponent-comparison`, {
+        method: "POST", headers: { "X-Game-Id": "lmu", "Content-Type": "application/json" },
+        body: JSON.stringify({ opponentLapId: partial!.opponentLapId, sourceRevision: catalog.sourceRevision, step: 1 }),
+      });
+      expect(response.status, await response.clone().text()).toBe(200);
+      const comparison = await response.json() as {
+        mode: string; lapDeltaSeconds: { value: number | null };
+        traces: { semanticId: string; distanceMeters: number[]; player: { value: number | null }[] }[];
+      };
+      expect(comparison.mode).toBe("telemetry");
+      expect(comparison.lapDeltaSeconds.value).toBeNull();
+      const position = comparison.traces.find((trace) => trace.semanticId === "motion.position-x")!;
+      expect(position.distanceMeters[0]).toBeLessThan(100);
+      expect(position.distanceMeters.at(-1)).toBeGreaterThan(100);
+      expect(position.player.some((value) => value.value !== null)).toBe(true);
+    } finally {
+      await Promise.all(sessionIds.map(deleteSession));
+    }
+  });
+
+  test("keeps opponent laps continuous across acquisition session-key generations", async () => {
+    initGameAdapters();
+    registerServerGame(lmuServerAdapter);
+    const source = makeLmuOpponentCapture();
+    const nativeFrames = [...fixtureFrames(source, "lmu")].map(({ bytes }) => Buffer.from(bytes));
+    const originals: Buffer[] = [];
+    let frameIndex = 0;
+    function* rotateAcquisitionKeys() {
+      for (const bytes of nativeFrames) {
+        originals.push(Buffer.from(bytes));
+        const native = decodeLMUSourceFrame(bytes);
+        if (!native?.rawSharedMemory || !native.lmuContext) throw new Error("Missing native LMU fixture context");
+        const encoded = encodeLMUSourceFrame(native.rawSharedMemory, native.captureTimestampMs, {
+          context: { ...native.lmuContext, key: { ...native.lmuContext.key, sessionKey: `acquisition-${Math.floor(frameIndex++ / 100)}` } },
+        });
+        if (!encoded) throw new Error("Unable to encode acquisition-key transition");
+        yield encoded;
+      }
+    }
+    const imported = await importSessionFrames(rotateAcquisitionKeys(), "lmu", {
+      opponentRetention: "retained", notifyDriverProfile: false,
+    });
+    const sessionIds = [...new Set(imported.laps.map((lap) => lap.sessionId))];
+    try {
+      await reconcileLmuOpponentIndexes({ awaitPreparation: true });
+      const lapId = imported.laps[0]!.lapId;
+      const response = await replayRoutes.request(`/api/laps/${lapId}/opponent-laps`, { headers: { "X-Game-Id": "lmu" } });
+      const catalog = await response.json() as {
+        sourceRevision: string;
+        laps: { opponentLapId: string; vehicleId: number; incarnation: number; lapNumber: number | null; coverage: "complete" | "partial" }[];
+      };
+      expect(catalog.laps.some((lap) => lap.vehicleId !== 0 && lap.coverage === "complete")).toBe(true);
+      expect(catalog.laps.length).toBeGreaterThan(0);
+      const lapsByOpponentAndSourceLap = new Map<string, number>();
+      for (const lap of catalog.laps) {
+        const key = `${lap.vehicleId}:${lap.incarnation}:${lap.lapNumber}`;
+        lapsByOpponentAndSourceLap.set(key, (lapsByOpponentAndSourceLap.get(key) ?? 0) + 1);
+      }
+      expect([...lapsByOpponentAndSourceLap.values()].every((count) => count === 1)).toBe(true);
+      expect(originals).toEqual(nativeFrames);
+      const replaySource = (await getLapReplaySource(lapId))!;
+      const captureSource = {
+        rawFile: replaySource.captureManifestFile ?? replaySource.rawFile!, source: replaySource.source,
+        gameId: "lmu" as const, carId: replaySource.carId ?? "", trackId: replaySource.trackId ?? "",
+        captureFormatVersion: replaySource.captureFormatVersion,
+      };
+      const indexedFrames = await readLmuOpponentCaptureFrames(captureSource, catalog.sourceRevision);
+      const intervals = indexLmuOpponentLaps(indexedFrames);
+      const selected = catalog.laps.find((lap) => lap.vehicleId !== 0)!;
+      const interval = intervals.find((entry) => entry.opponentLapId === selected.opponentLapId);
+      if (!interval) throw new Error("Catalog lap has no authoritative source interval");
+      const originalKeys = new Set(interval.frames.map((entry) => entry.lmuContext?.key.sessionKey));
+      expect(originalKeys.size).toBeGreaterThan(1);
+      const semantic = await replayRoutes.request(
+        `/api/laps/${lapId}/opponent-laps/${selected.opponentLapId}/semantic-telemetry?sourceRevision=${catalog.sourceRevision}`,
+        { headers: { "X-Game-Id": "lmu" } },
+      );
+      expect(semantic.status, await semantic.clone().text()).toBe(200);
+      const replay = await semantic.json() as { envelopes: { sequence: number; values: ResolvedValue<unknown>[] }[] };
+      const expected = buildLmuOpponentSemanticFrames(interval)
+        .map((envelope) => ({ ...envelope, values: envelope.values.map(encodeLmuResolvedValue) }));
+      expect(replay.envelopes).toEqual(JSON.parse(JSON.stringify(expected)));
+      expect(replay.envelopes.map((envelope) => envelope.sequence)).toEqual(
+        buildLmuOpponentSemanticFrames(interval).map((envelope) => envelope.sequence),
+      );
+      for (const entry of interval.frames) {
+        expect(entry.competitors.flatMap((competitor) => [
+          competitor.channels["motion.competitor.position.x"],
+          competitor.channels["motion.competitor.speed"],
+          competitor.channels["motion.competitor.orientation"],
+        ])).toEqual(expect.arrayContaining([
+          expect.objectContaining({ provenance: expect.objectContaining({ sourceObservation: expect.any(Object) }) }),
+        ]));
+      }
+    } finally {
+      await Promise.all(sessionIds.map(deleteSession));
+    }
+  });
+
+  test("separates native identity changes, clock resets, and vehicle reincarnation", async () => {
+    initGameAdapters();
+    registerServerGame(lmuServerAdapter);
+    const baseFrames = [...fixtureFrames(makeLmuOpponentCapture(), "lmu")].map(({ bytes }) => Buffer.from(bytes));
+    const scenarios = ["event", "session", "track", "clock", "incarnation"] as const;
+    for (const scenario of scenarios) {
+      let index = 0;
+      function* transitionedFrames() {
+        for (const bytes of baseFrames) {
+          const native = decodeLMUSourceFrame(bytes);
+          if (!native?.rawSharedMemory || !native.lmuContext) throw new Error("Missing native LMU fixture context");
+          const segment = Math.floor(index / Math.ceil(baseFrames.length / 3));
+          const memory = Buffer.from(native.rawSharedMemory);
+          const scoring = memory.subarray(LMU_SCORING_INFO_OFFSET, LMU_SCORING_INFO_OFFSET + native.scoringInfo.length);
+          let context = native.lmuContext;
+          if (scenario === "event" && segment > 0) memory.writeInt32LE(segment === 1 ? 2 : 1, LMU_SESSION_EVENT_OFFSET);
+          if (scenario === "session" && segment > 0) scoring.writeInt32LE(segment === 1 ? 2 : 1, LMU_SCORING_INFO.session);
+          if (scenario === "track" && segment > 0) {
+            scoring.fill(0, LMU_SCORING_INFO.trackName, LMU_SCORING_INFO.session);
+            scoring.write(segment === 1 ? "Track B" : "Track A", LMU_SCORING_INFO.trackName);
+          }
+          if (scenario === "clock" && segment === 1) {
+            const competitor = context.competitors?.find((entry) => !entry.isPlayer);
+            const channel = competitor?.channels["race.competitor.scoring-time"];
+            const rollback = typeof channel?.value === "number" ? channel.value - 10_000 : 0;
+            scoring.writeDoubleLE(rollback, LMU_SCORING_INFO.currentElapsedTime);
+            if (competitor && channel) {
+              const competitors = context.competitors!.map((entry) => entry === competitor ? {
+                ...entry, channels: { ...entry.channels, "race.competitor.scoring-time": { ...channel, value: rollback } },
+              } : entry);
+              context = { ...context, competitors };
+            }
+          }
+          if (scenario === "incarnation" && segment > 0) {
+            context = {
+              ...context,
+              competitors: context.competitors?.map((entry) => !entry.isPlayer
+                ? { ...entry, incarnation: segment === 1 ? entry.incarnation + 1 : entry.incarnation }
+                : entry),
+            };
+          }
+          const frameBytes = encodeLMUSourceFrame(memory, native.captureTimestampMs, { context });
+          if (!frameBytes) throw new Error("Unable to encode native identity transition");
+          index++;
+          yield frameBytes;
+        }
+      }
+      const imported = await importSessionFrames(transitionedFrames(), "lmu", {
+        opponentRetention: "retained", notifyDriverProfile: false,
+      });
+      const sessionIds = [...new Set(imported.laps.map((lap) => lap.sessionId))];
+      try {
+        await reconcileLmuOpponentIndexes({ awaitPreparation: true });
+        const catalogs = await Promise.all(imported.laps.map(async (playerLap) => {
+          const response = await replayRoutes.request(`/api/laps/${playerLap.lapId}/opponent-laps`, {
+            headers: { "X-Game-Id": "lmu" },
+          });
+          expect(response.status, `${scenario} catalog status`).toBe(200);
+          return await response.json() as {
+            sessions: { sessionKey: string; vehicleId: number; incarnation: number }[];
+            laps: { vehicleId: number; incarnation: number; opponentLapId: string }[];
+          };
+        }));
+        if (scenario === "incarnation") {
+          const incarnations = new Set(catalogs.flatMap((catalog) => catalog.laps
+            .filter((lap) => lap.vehicleId !== 0).map((lap) => lap.incarnation)));
+          expect(incarnations.size, scenario).toBeGreaterThan(1);
+        } else {
+          const nativeSessions = new Set(catalogs.flatMap((catalog) => catalog.sessions
+            .map((session) => session.sessionKey)));
+          expect(nativeSessions.size, scenario).toBeGreaterThan(1);
+        }
+      } finally {
+        await Promise.all(sessionIds.map(deleteSession));
+      }
+    }
+  });
+
   test("imports native capture and returns completed/partial timing through HTTP", async () => {
     initGameAdapters();
     registerServerGame(lmuServerAdapter);

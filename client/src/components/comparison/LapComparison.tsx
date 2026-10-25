@@ -641,25 +641,25 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
         ? processingLap && processingLap.processing.stage !== "opponent-index"
           ? <LapProcessingNotice lap={processingLap} onRefresh={() => { void lapsQuery.refetch(); }} />
           : <OpponentComparisonPanel
-            catalog={catalogForDisplay}
-            summary={selectedOpponent}
-            comparison={opponentComparison}
-            loading={opponentComparisonLoading}
-            error={opponentComparisonError}
-            playerLap={selectedPlayerLap}
-            processingLap={processingLap}
-            selectionValid={opponentSelectionValid}
-            hasSelection={opponentLapId != null || opponentReferenceInvalidated}
-            onRefreshStatus={() => { void opponentCatalogQuery.refetch(); }}
-            onProcessingRefresh={() => { void opponentCatalogQuery.refetch(); }}
-            replay={gameId && opponentReplayComparison ? <div className="mt-4 flex min-h-[38rem] flex-col" data-opponent-replay>
-              <SpectateSession key={`${gameId}:${opponentRevision}:${opponentLapId}`} gameId={gameId} comparison={opponentReplayComparison}
-                active outline={trackOutline} segments={trackSegments ?? []} distanceRef={spectateDistanceRef} onDistanceChange={receiveSpectateDistance}
-                aiOpen={false} telemetryOpen={spectateTelemetryOpen} carPanelOpen={spectateCarPanelOpen} onTelemetryOpenChange={setSpectateTelemetryOpen}
-                onCarPanelOpenChange={setSpectateCarPanelOpen} onAiOpenChange={toggleAiPanel} panelHeaderTarget={null}
-                onOpponentStatusRefresh={() => { void opponentCatalogQuery.refetch(); }} />
-            </div> : null}
-          />
+              catalog={catalogForDisplay}
+              summary={selectedOpponent}
+              comparison={opponentComparison}
+              loading={opponentComparisonLoading}
+              error={opponentComparisonError}
+              playerLap={selectedPlayerLap}
+              processingLap={processingLap}
+              selectionValid={opponentSelectionValid}
+              hasSelection={opponentLapId != null || opponentReferenceInvalidated}
+              onRefreshStatus={() => { void opponentCatalogQuery.refetch(); }}
+              onProcessingRefresh={() => { void opponentCatalogQuery.refetch(); }}
+              replay={gameId && opponentReplayComparison ? <div className="mt-4 flex min-h-[38rem] flex-col" data-opponent-replay>
+                <SpectateSession key={`${gameId}:${opponentRevision}:${opponentLapId}`} gameId={gameId} comparison={opponentReplayComparison}
+                  active outline={trackOutline} segments={trackSegments ?? []} distanceRef={spectateDistanceRef} onDistanceChange={receiveSpectateDistance}
+                  aiOpen={false} telemetryOpen={spectateTelemetryOpen} carPanelOpen={spectateCarPanelOpen} onTelemetryOpenChange={setSpectateTelemetryOpen}
+                  onCarPanelOpenChange={setSpectateCarPanelOpen} onAiOpenChange={toggleAiPanel} panelHeaderTarget={null}
+                  onOpponentStatusRefresh={() => { void opponentCatalogQuery.refetch(); }} />
+              </div> : null}
+            />
         : <>
       <ComparisonLoadStatus loading={loading} error={error} hasComparison={comparison != null} />
       {processingLap && <LapProcessingNotice lap={processingLap} onRefresh={() => { void lapsQuery.refetch(); }} />}

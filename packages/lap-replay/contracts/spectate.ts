@@ -17,6 +17,8 @@ export interface SpectateLap {
   motionSamples?: readonly SpectateSample[];
   duration: number;
   distance: number;
+  /** Authoritative circuit length for locating partial native opponent recordings. */
+  trackLengthM?: number;
   hasProgress: boolean;
   replay: SemanticLapTelemetry | OpponentSemanticLapTelemetry;
 }
@@ -77,7 +79,7 @@ export interface ReplaySession {
   gameId: GameId;
   a: SpectateLap;
   b: SpectateLap | null;
-  comparison: { lapA: ComparisonData["lapA"]; lapB: ComparisonData["lapB"] | ReplayOpponentMetadata | null; traces?: ComparisonData["traces"]; timeDelta?: ComparisonData["timeDelta"] };
+  comparison: { lapA: ComparisonData["lapA"] | ReplayOpponentMetadata; lapB: ComparisonData["lapB"] | ReplayOpponentMetadata | null; traces?: ComparisonData["traces"]; timeDelta?: ComparisonData["timeDelta"] };
 }
 /** Compare-only session. */
 export interface SpectatePair extends ReplaySession {

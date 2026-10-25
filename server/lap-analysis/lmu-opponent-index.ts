@@ -1002,8 +1002,8 @@ function parseSelectedRecords<T>(parts: readonly RecordPart[], expectedKind: "co
         } catch {
           throw new LmuOpponentIndexError("BLOCK_CORRUPT", "Shared context failed lossless codec validation");
         }
-        if (!context || context.key.sessionKey !== contextRecord.sessionKey ||
-            context.key.captureSequence !== contextRecord.captureSequence) {
+        // Native acquisition keys remain provenance; opponent session grouping has its own identity.
+        if (!context || context.key.captureSequence !== contextRecord.captureSequence) {
           throw new LmuOpponentIndexError("BLOCK_CORRUPT", "Shared context key disagrees with frame identity");
         }
       }
@@ -1083,6 +1083,9 @@ export async function loadLmuOpponentInterval(
   for (const frameIndex of selectedFrames) {
     const record = contextRecords.get(frameIndex)?.[0];
     if (!record) throw new LmuOpponentIndexError("BLOCK_CORRUPT", "Selected interval lacks shared context record");
+    if (record.sessionKey !== interval.sessionKey) {
+      throw new LmuOpponentIndexError("BLOCK_CORRUPT", "Shared context disagrees with opponent session identity");
+    }
     baseContexts.set(frameIndex, record);
   }
   const frames: LmuOpponentFrame[] = frameOrder.map((frameIndex) => {

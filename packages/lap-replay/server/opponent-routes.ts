@@ -247,6 +247,11 @@ function playerRows(packets: readonly TelemetryPacket[]) {
   return packets.flatMap((packet) => {
     const context = packet.lmuContext;
     const competitor = context?.competitors?.find((entry) => entry.isPlayer);
+    const scoringLapStart = competitor && numeric(competitor.channels["race.competitor.lap-start-time"]);
+    const telemetryLapStart = packet.CurrentRaceTime - packet.CurrentLap;
+    // Scoring can still describe the previous lap after high-rate telemetry crosses the line.
+    if (scoringLapStart && Number.isFinite(telemetryLapStart) &&
+        Math.abs(scoringLapStart.value! - telemetryLapStart) > 1e-6) return [];
     return context && competitor ? [{ competitor, captureSequence: context.key.captureSequence }] : [];
   });
 }
@@ -363,7 +368,6 @@ export function buildLmuOpponentSemanticFrames(interval: LmuOpponentLapInterval)
   let previousSequence: bigint | null = null;
   let previousObservedAt: TelemetryTimestamp | null = null;
   let previousCaptureSequence: bigint | null = null;
-  let pendingCaptureGap = false;
   let replaySequence = 0;
   for (const frame of interval.frames) {
     if (frame.captureSequence === interval.endSequence) continue;
@@ -378,12 +382,10 @@ export function buildLmuOpponentSemanticFrames(interval: LmuOpponentLapInterval)
       : observedAt.milliseconds.toString();
     const key = `${observedAt.domain}:${sourceSequence}:${timestampKey}`;
     const captureSequence = BigInt(frame.captureSequence);
-    const captureGap = previousCaptureSequence !== null && captureSequence > previousCaptureSequence + 1n;
-    pendingCaptureGap ||= captureGap;
     const captureAdvanced = previousCaptureSequence === null || captureSequence > previousCaptureSequence;
     previousCaptureSequence = captureSequence;
     if (key === previousKey) continue;
-    const counterReset = previousSequence !== null && sourceSequence <= previousSequence;
+    const counterReset = previousSequence !== null && sourceSequence < previousSequence;
     if (counterReset && (!captureAdvanced || !observationAdvances(previousObservedAt, observedAt))) {
       throw new LmuOpponentSourceError("Opponent scoring source sequence is not strictly increasing");
     }
@@ -391,11 +393,9 @@ export function buildLmuOpponentSemanticFrames(interval: LmuOpponentLapInterval)
       ? sourceSequence - previousSequence - 1n
       : 0n;
     // Replay sequence is an ordinal, not a source counter; reserve a hole to stop playback bridging missing observations.
-    replaySequence += counterReset || pendingCaptureGap || gap > 0n ? 2 : 1;
+    replaySequence += gap > 0n ? 2 : 1;
+    const discontinuity = gap > 0n ? `${gap} source scoring update(s) unavailable before this frame.` : null;
     const projected = projectLmuOpponentTelemetry(competitor);
-    const discontinuity = counterReset ? "Scoring observation counter restarted before this frame." :
-      pendingCaptureGap ? "Source capture range unavailable before this frame." :
-      gap > 0n ? `${gap} source scoring update(s) unavailable before this frame.` : null;
     const values = discontinuity
       ? projected.map((value) => ({
           ...value,
@@ -420,7 +420,6 @@ export function buildLmuOpponentSemanticFrames(interval: LmuOpponentLapInterval)
     previousKey = key;
     previousSequence = sourceSequence;
     previousObservedAt = observedAt;
-    pendingCaptureGap = false;
   }
   return envelopes;
 }

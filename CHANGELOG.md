@@ -26,12 +26,17 @@
 - Show lap classifications separately from validity in expanded session lap tables.
 - Simplify session timelines into compact circles with single-word event labels, starting positions, and arrows showing the new position.
 - Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
-- Capture LMU opponents by default in a separate removable companion recording; opt out for the next live session, preview and explicitly compare an exact recorded opponent through class/driver/lap filters that show only drivers with comparable laps, export its full interval, or irreversibly remove session-wide opponent data while preserving player telemetry. Keep stale, removed, missing and unrecorded references distinct.
-- Expand an LMU session on the Sessions page to browse individual recorded opponents and their laps, choose your player lap, and open an exact opponent comparison without duplicating recordings.
+- Capture LMU opponents by default in a separate removable companion recording; opt out for the next live session, preview and explicitly compare an exact recorded opponent through session, driver, and lap filters with car details and without coverage or telemetry status labels, switch Driver to Me to browse every player lap in the session, export its full interval, or irreversibly remove session-wide opponent data while preserving player telemetry. Compare partial opponent laps even when scoring updates lag behind the player's lap boundary. Keep stale, removed, missing and unrecorded references distinct.
+- Expand an LMU session on the Sessions page to see recorded opponents immediately, without choosing a player lap, as collapsible driver rows showing their fastest recorded lap and its sector splits. Sort recorded opponents by fastest valid best lap by default. Browse opponents in a scrollable child table that stays within the session table, with lap warnings behind compact info indicators. Expand a driver to replay or compare an exact recorded lap without duplicating recordings, keeping opponent laps together across player recording splits. Opponent Replay fills the available workspace. Keep opponent cars and paths on the flat track plane without changing recorded elevation.
+- Use black backgrounds for recorded opponent tables and expanded opponent lap rows on the Sessions page.
+- Hide Car layout and Data panels, including the tire-panel shortcut, when replaying an LMU opponent lap. Player replay and comparison panels remain unchanged.
 - Include the complete LMU multiplayer recording in demo seeds as sub-100 MB gzip parts, stream native input without buffering the whole capture, and retain separate player and opponent recordings.
 
 ### Fixes
 - On the Compare page, opening a lap-only link to queued laps now shows their processing status.
+- Add immediate lap selection to opponent replay, with saved LMU sessions listed newest first using readable date, track and car labels. Keep unavailable sessions selectable so another session can be opened.
+- Hide replay telemetry categories without recorded values while retaining valid zero readings.
+- Locate partial LMU opponent segments using authoritative circuit distance, interpolate only covered timing boundaries, and draw available circuit-overview geometry without bridging recording gaps.
 - Reduce LMU opponent comparison loading and memory use by sharing a bounded, short-lived session index, reusing validated source contexts, and avoiding export-only raw frame retention.
 - Reuse published session-duration summaries in Sessions listings instead of rescanning recordings.
 - Publish player lap chunks and replay references when importing LMU recordings with retained opponents.
@@ -51,6 +56,8 @@
 - Select and deselect child laps with the Sessions table header checkbox, preserving selections on other pages and ownership tabs.
 - Stop recording curb maps and using detected curbs to recalibrate track boundaries; preserve telemetry-based curb detection.
 - Keep Spectate racing lines visible when zooming out to the full circuit.
+- On Replay and Compare → Spectate, show dashed estimated opponent race lines across short recorded telemetry gaps while keeping longer gaps disconnected. Ignore sparse capture-sequence cadence when determining discontinuities, while keeping genuine scoring-counter gaps and resets disconnected.
+- Classify full LMU opponent laps from native track length and observed distance boundaries despite capture-sequence gaps, while preserving missing source samples and keeping counter-only short transitions partial.
 - Distinguish native fractional LMU brake and clutch inputs from normalized control readings in the telemetry catalog.
 - Keep unchanged LMU supplemental snapshots available while successful polling continues, without resetting their original observation ages.
 - Render LMU developer telemetry snapshots without crashing on precision-preserved observation sequences.

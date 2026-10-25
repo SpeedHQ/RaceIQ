@@ -352,14 +352,12 @@ const hasERSModeData = useMemo(() =>
 [pair]);
 const categorized = useMemo(() => channels.filter((channel) => channel.derived !== "delta").map((channel) => ({ channel, category: classify(channel) })), [channels]);
 const presentCategories = useMemo(() => (["inputs", "motion", "engine", "fuel", "tires", "suspension", "brakes", "other"] as const)
-  .filter((item) => item === "inputs" || categorized.some(({ category: itemCategory }) => itemCategory === item) || (item === "fuel" && hasERSModeData)), [categorized, hasERSModeData]);
-useEffect(() => {
-  if (!presentCategories.includes(category)) setCategory("inputs");
-}, [category, presentCategories]);
+  .filter((item) => categorized.some(({ category: itemCategory }) => itemCategory === item) || (item === "fuel" && hasERSModeData)), [categorized, hasERSModeData]);
 useEffect(() => setCategory("inputs"), [pair.gameId, pair.comparison.lapA.id, pair.comparison.lapB?.id]);
 const tabs = presentCategories;
+const activeCategory = tabs.includes(category) ? category : tabs[0];
 const onTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
-  const index = tabs.indexOf(category as (typeof tabs)[number]);
+  const index = activeCategory ? tabs.indexOf(activeCategory) : -1;
   const next = event.key === "ArrowRight" ? (index + 1) % tabs.length
     : event.key === "ArrowLeft" ? (index + tabs.length - 1) % tabs.length
       : event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : -1;
@@ -393,29 +391,29 @@ return (
       </select>,
       headerTarget,
     )}
-    <div role="tablist" aria-label={m.label_category()} className="flex gap-1 overflow-x-auto px-3 pt-3 pb-2">
+    {tabs.length > 0 && <div role="tablist" aria-label={m.label_category()} className="flex gap-1 overflow-x-auto px-3 pt-3 pb-2">
       {tabs.map((item) => (
-        <button key={item} type="button" role="tab" aria-selected={category === item} tabIndex={category === item ? 0 : -1}
+        <button key={item} type="button" role="tab" aria-selected={activeCategory === item} tabIndex={activeCategory === item ? 0 : -1}
           id={`spectate-category-${item}`} aria-controls="spectate-telemetry-channels"
           onClick={() => setCategory(item)} onKeyDown={onTabKeyDown}
-          className={`shrink-0 rounded px-2 py-1 text-app-micro ${category === item ? "bg-app-accent text-app-on-filled" : "text-app-text-secondary"}`}>
+          className={`shrink-0 rounded px-2 py-1 text-app-micro ${activeCategory === item ? "bg-app-accent text-app-on-filled" : "text-app-text-secondary"}`}>
           {m[CATEGORY_LABELS[item]]()}
         </button>
       ))}
-    </div>
+    </div>}
     <div className="flex justify-between px-4 pb-2 text-app-micro text-app-text-muted">
       <span>{formatSeconds(-windowSeconds)}</span>
       <span>{m.spectate_window_current()}</span>
       <span>+{formatSeconds(windowSeconds)}</span>
     </div>
-    <div ref={scroll} id="spectate-telemetry-channels" role="tabpanel" aria-labelledby={`spectate-category-${category}`} data-spectate-scroll className="min-h-0 flex-1 overflow-y-auto px-4">
+    <div ref={scroll} id="spectate-telemetry-channels" role="tabpanel" aria-labelledby={activeCategory ? `spectate-category-${activeCategory}` : undefined} aria-label={activeCategory ? undefined : m.spectate_telemetry()} data-spectate-scroll className="min-h-0 flex-1 overflow-y-auto px-4">
       <div className="sticky top-0 z-10 bg-app-bg">
         {channels.filter((channel) => channel.derived === "delta").map((channel) => (
           <ChartRow key={channel.id} channel={channel} windowSeconds={windowSeconds} controller={controller} snapshot={snapshot} convert={convert} single={!pair.b} />
         ))}
       </div>
-      {category === "fuel" && hasERSModeData && <ERSModeChartRow windowSeconds={windowSeconds} controller={controller} snapshot={snapshot} single={!pair.b} />}
-      {categorized.filter(({ category: item }) => item === category).map(({ channel }) => (
+      {activeCategory === "fuel" && hasERSModeData && <ERSModeChartRow windowSeconds={windowSeconds} controller={controller} snapshot={snapshot} single={!pair.b} />}
+      {categorized.filter(({ category: item }) => item === activeCategory).map(({ channel }) => (
         <ChartRow key={`${channel.id}:${channel.components[0]?.key}`} channel={channel} windowSeconds={windowSeconds} controller={controller} snapshot={snapshot} convert={convert}
           single={!pair.b} groupComponents={!pair.b && isFourWheelChannel(channel)} />
       ))}

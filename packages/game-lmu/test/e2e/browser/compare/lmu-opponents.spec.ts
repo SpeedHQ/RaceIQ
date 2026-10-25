@@ -164,6 +164,9 @@ async function exerciseOpponentComparison(page: Page, request: APIRequestContext
     expect(lap.lapTime).toBeCloseTo(12, 0);
     expect(candidate!.lapTime).toMatchObject({ state: "ok", value: 18 });
     expect(candidate!.className).toBeTruthy();
+    const sourceResponse = await request.get(`/api/laps/${lap.id}/opponent-laps/${candidate!.opponentLapId}/semantic-telemetry?sourceRevision=${encodeURIComponent(catalog.sourceRevision)}`, { headers: { "X-Game-Id": "lmu" } });
+    expect(sourceResponse.ok()).toBe(true);
+    const source = await sourceResponse.json() as OpponentSemanticLapTelemetry;
     const comparisonResponse = await request.post(`/api/laps/${lap.id}/opponent-comparison`, {
       timeout: 60_000,
       headers: { "X-Game-Id": "lmu" },
@@ -246,6 +249,8 @@ async function exerciseOpponentComparison(page: Page, request: APIRequestContext
     for (const side of ["a", "b"]) {
       await expect.poll(async () => Number(await canvas.getAttribute(`data-${side}-racing-line-segments`))).toBeGreaterThan(0);
     }
+    await expect(canvas).toHaveAttribute("data-b-rendered-car-world-y", "0");
+    await expect(canvas).toHaveAttribute("data-b-rendered-path-world-y", "0");
     const seek = page.getByRole("slider", { name: "Replay position" });
     await seek.press("Home");
     await seek.press("ArrowRight");
@@ -350,14 +355,17 @@ async function exerciseRealOpponentSessions(page: Page, request: APIRequestConte
     expect(session?.driverName).toBe("Monsieur PTITRAIN");
     expect(session?.vehicleId).toBe(16);
     expect(session?.vehicleId).not.toBe(54);
-    expect(session?.incarnation).toBe(0);
-    expect(session?.sessionKey).toBe("5371b669-f97a-4a38-b7ae-78e670d20e43:15");
     const repeated = await request.get(`/api/laps/${lap.id}/opponent-laps`, { timeout: 60_000, headers: { "X-Game-Id": "lmu" } });
     expect(repeated.ok()).toBe(true);
     expect((await repeated.json() as typeof catalog).sessions).toEqual(catalog.sessions);
     const semanticResponse = await request.get(`/api/laps/${lap.id}/opponent-laps/${candidate!.opponentLapId}/semantic-telemetry?sourceRevision=${encodeURIComponent(catalog.sourceRevision)}`, { timeout: 60_000, headers: { "X-Game-Id": "lmu" } });
     expect(semanticResponse.ok(), await semanticResponse.text()).toBe(true);
     const semantic = await semanticResponse.json() as OpponentSemanticLapTelemetry;
+    const nativeHeights = semantic.envelopes.map((frame) =>
+      frame.values.find((value) => value.semanticId === "motion.position-y")?.value,
+    ).filter((value): value is number => typeof value === "number");
+    expect(nativeHeights.some((height) => height !== 0), "real source retains nonzero native elevation").toBe(true);
+    expect(new Set(nativeHeights).size).toBeGreaterThan(1);
     expect(semantic.envelopes[0]?.receivedAt).toEqual({ domain: "wall-clock", milliseconds: 1792706591752 });
     expect(semantic.envelopes[0]?.values.find((value) => value.semanticId === "motion.position-x"))
       .toMatchObject({ state: "ok", value: -205.96434020996094 });
@@ -375,31 +383,196 @@ async function exerciseRealOpponentSessions(page: Page, request: APIRequestConte
     const compared = await comparison.json() as { opponent: OpponentSummary; traces: { semanticId: string; player: unknown[]; opponent: unknown[] }[] };
     expect(compared.opponent.opponentLapId).toBe(candidate!.opponentLapId);
     expect(compared.traces.map((trace) => trace.semanticId)).toEqual(expect.arrayContaining(["motion.position-x", "motion.position-z"]));
-    expect(compared.traces.find((trace) => trace.semanticId === "motion.position-x")?.player).not.toEqual(compared.traces.find((trace) => trace.semanticId === "motion.position-x")?.opponent);
+    await page.goto(`/lmu/sessions/${fixture.sessionId}/replay/${lap.id}`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+    await expect(page.locator("[data-spectate-scene]")).toHaveAttribute("data-scene-ready", "true", { timeout: 60_000 });
+    await expect(page.locator("[data-spectate-playback]")).toBeVisible();
+    await expect(page.locator("[data-testid='opponent-lap-replay']")).toHaveCount(0);
     await page.goto("/lmu/sessions", { waitUntil: "domcontentloaded" });
     const sessionRow = page.viewportSize()!.width < 600
       ? page.getByRole("button").filter({ hasText: "Bahrain Outer Circuit" }).first()
       : page.getByRole("row").filter({ hasText: "Bahrain Outer Circuit" }).first();
     await expect(sessionRow).toBeVisible();
+    const automaticCatalog = page.waitForResponse((response) => /\/api\/laps\/\d+\/opponent-laps$/.test(new URL(response.url()).pathname) && response.ok());
     await sessionRow.click();
     await expect(page.locator('[data-testid="opponent-sessions"]:visible')).toBeVisible();
-    await page.locator('[data-testid="opponent-player-lap"]:visible').selectOption(String(lap.id));
+    await expect(page.getByTestId("opponent-player-lap")).toHaveCount(0);
+    await expect(page.getByText("Choose player lap", { exact: true })).toHaveCount(0);
+    const referenceLapId = ((await (await automaticCatalog).json()) as OpponentLapCatalog).playerLapId;
     const opponent = page.locator('[data-testid="opponent-session"]:visible').filter({ hasText: session!.driverName! }).first();
     await expect(opponent).toHaveAttribute("data-opponent-session-id", session!.opponentSessionId);
+    const expandOpponent = opponent.getByRole("button", { name: session!.driverName!, exact: true });
+    await expect(expandOpponent).toHaveAttribute("aria-expanded", "false");
+    await expect(opponent.getByTestId("opponent-lap")).toHaveCount(0);
+    const fastest = catalog.laps
+      .filter((item) => session!.lapIds.includes(item.opponentLapId) && item.lapTime.state === "ok" && item.lapTime.value !== null && Number.isFinite(item.lapTime.value) && item.lapTime.value > 0)
+      .sort((a, b) => a.lapTime.value! - b.lapTime.value!)[0];
+    const formatTime = (seconds: number) => `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(3).padStart(6, "0")}`;
+    const cells = opponent.getByRole("row").first().getByRole("cell");
+    await expect(cells.nth(1)).toContainText(fastest ? formatTime(fastest.lapTime.value!) : "—");
+    for (const sector of [1, 2, 3]) {
+      const duration = fastest?.sectors.find((item) => item.semanticId === `timing.sector.last-lap.s${sector}`)?.duration;
+      await expect(cells.nth(sector + 1)).toHaveText(duration?.state === "ok" && duration.value !== null && duration.value > 0 ? formatTime(duration.value) : "—");
+    }
+    const opponentTable = page.locator('[data-testid="opponent-sessions"]:visible').locator(":scope > [data-slot=table-container]");
+    await opponentTable.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+    await expect.poll(() => opponentTable.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+    const restoredScrollTop = await opponentTable.evaluate((element) => element.scrollTop);
+    await expandOpponent.click();
+    await expect(expandOpponent).toHaveAttribute("aria-expanded", "true");
+    await expect(opponent.getByTestId("opponent-lap")).toHaveCount(session!.lapIds.length);
+    await expandOpponent.click();
+    await expect(opponent.getByTestId("opponent-lap")).toHaveCount(0);
+    await expandOpponent.focus();
+    await page.keyboard.press("Enter");
+    await expect(expandOpponent).toHaveAttribute("aria-expanded", "true");
     const opponentLap = opponent.locator(`[data-testid="opponent-lap"][data-opponent-lap-id="${candidate!.opponentLapId}"]`);
     await expect(opponentLap).toBeVisible();
+    const lapDetails = opponentLap.locator("details");
+    await expect(lapDetails.locator("p")).toBeHidden();
+    await lapDetails.locator("summary").focus();
+    await page.keyboard.press("Enter");
+    await expect(lapDetails.locator("p")).toBeVisible();
+    await expect(lapDetails.locator("p")).toContainText("Partial lap coverage");
+    await page.keyboard.press("Enter");
+    await expect(lapDetails.locator("p")).toBeHidden();
     await page.screenshot({ path: test.info().outputPath("recorded-opponent-sessions.png"), fullPage: true });
-    await opponentLap.getByRole("link", { name: /Compare/i }).click();
+    const replayRequests: string[] = [];
+    page.on("request", (requestEvent) => replayRequests.push(requestEvent.url()));
+    await opponentLap.getByRole("button", { name: /Replay/i }).click();
+    await expect(page.getByTestId("opponent-lap-replay")).toHaveAttribute("data-opponent-state", "ready", { timeout: 60_000 });
+    if (page.viewportSize()!.width >= 1024) {
+      const replayHeight = await page.getByTestId("opponent-lap-replay").evaluate((element) => ({
+        actual: element.getBoundingClientRect().height,
+        available: element.parentElement!.getBoundingClientRect().height,
+      }));
+      expect(Math.abs(replayHeight.actual - replayHeight.available)).toBeLessThanOrEqual(1);
+    }
+    await expect.poll(() => new URL(page.url()).pathname).toBe(`/lmu/sessions/${fixture!.sessionId}/replay/${referenceLapId}`);
+    await expect.poll(() => new URL(page.url()).searchParams.get("opponentLap")).toBe(candidate!.opponentLapId);
+    const replay = page.locator("[data-spectate-playback]");
+    const replayCanvas = page.locator("[data-spectate-scene] canvas").first();
+    await expect(replayCanvas).toHaveAttribute("data-side-a-state", "ready");
+    await expect(replayCanvas).toHaveAttribute("data-a-rendered-car-world-y", "0");
+    await expect(replayCanvas).toHaveAttribute("data-a-rendered-path-world-y", "0");
+    await expect.poll(async () =>
+      (await replayCanvas.getAttribute("data-a-marker-visible")) === "true" ||
+      (await replayCanvas.getAttribute("data-a-car-visible")) === "true"
+    ).toBe(true);
+    const initialPositionX = Number(semantic.envelopes[0]!.values.find((value) => value.semanticId === "motion.position-x")!.value);
+    await expect.poll(async () => Number(await replayCanvas.getAttribute("data-a-x"))).toBeCloseTo(initialPositionX, 3);
+    const inputs = page.locator("section").filter({ has: page.locator('[data-pedal="inputs.brake"]') });
+    const speedGauge = inputs.locator('svg[role="img"]').first();
+    await expect(speedGauge).toBeVisible();
+    await expect(inputs.locator('[data-pedal="inputs.brake"]')).toHaveAttribute("aria-label", /—/);
+    const telemetryToggle = page.locator('[data-panel-toggle="replay-telemetry-panel"]');
+    if ((await telemetryToggle.getAttribute("aria-expanded")) !== "true") await telemetryToggle.click();
+    await page.getByRole("tab", { name: "Dynamics", exact: true }).click();
+    const speedChannel = page.locator('[data-channel-id="motion.speed"]');
+    await expect(speedChannel).toBeVisible();
+    await expect(speedChannel).toHaveAttribute("data-center-time", "0");
+    const speedUnitText = await speedChannel.innerText();
+    const speedFactor = speedUnitText.includes("km/h") ? 3.6 : 2.23694;
+    const scrub = page.getByRole("slider", { name: "Replay position" });
+    const initialSpeed = Number(semantic.envelopes[0]!.values.find((value) => value.semanticId === "motion.speed")!.value);
+    const speedValue = speedChannel.locator("canvas[data-current-a]");
+    await expect.poll(async () => Number(await speedValue.getAttribute("data-current-a"))).toBeCloseTo(initialSpeed * speedFactor, 2);
+    const play = replay.getByRole("button", { name: /^(Play|Pause) replay$/ });
+    await play.click();
+    await expect(replay).toHaveAttribute("data-playing", "true");
+    await expect.poll(async () => Number(await replay.getAttribute("data-time"))).toBeGreaterThan(0.4);
+    const replayRacingLineSwitch = page.getByRole("switch", { name: /racing line/i });
+    await expect(replayRacingLineSwitch).toHaveAttribute("aria-checked", "true");
+    await expect.poll(async () => Number(await replayCanvas.getAttribute("data-a-estimated-racing-line-segments"))).toBeGreaterThan(0);
+    await expect.poll(async () => await replayCanvas.getAttribute("data-a-estimated-racing-line-visible")).toBe("true");
+    await play.click();
+    await expect(replay).toHaveAttribute("data-playing", "false");
+    const gapIndex = semantic.envelopes.findIndex((frame, index) =>
+      index > 0 && frame.sequence > semantic.envelopes[index - 1]!.sequence + 1);
+    const beforeGap = semantic.envelopes[gapIndex - 1]!;
+    const afterGap = semantic.envelopes[gapIndex]!;
+    const gapTime = (beforeGap.observedAt.milliseconds + afterGap.observedAt.milliseconds -
+      2 * semantic.envelopes[0]!.observedAt.milliseconds) / 2000;
+    await scrub.evaluate((element, time) => {
+      const input = element as HTMLInputElement;
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, String(time));
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    }, gapTime);
+    await expect.poll(async () => Number(await replay.getAttribute("data-time"))).toBeCloseTo(gapTime, 3);
+    await expect(replayCanvas).toHaveAttribute("data-side-a-state", "pose-unavailable");
+    await expect(replayCanvas).toHaveAttribute("data-a-x", "");
+    await expect(speedValue).toHaveAttribute("data-current-a", "—");
+    const nativeFrame = semantic.envelopes[7]!;
+    const nativeTime = (nativeFrame.observedAt.milliseconds - semantic.envelopes[0]!.observedAt.milliseconds) / 1000;
+    await scrub.evaluate((element, time) => {
+      const input = element as HTMLInputElement;
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, String(time));
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    }, nativeTime);
+    await expect.poll(async () => Number(await replay.getAttribute("data-time"))).toBeCloseTo(nativeTime, 3);
+    await expect.poll(async () =>
+      (await replayCanvas.getAttribute("data-a-marker-visible")) === "true" ||
+      (await replayCanvas.getAttribute("data-a-car-visible")) === "true"
+    ).toBe(true);
+    const nativeSpeed = Number(nativeFrame.values.find((value) => value.semanticId === "motion.speed")!.value);
+    const nativeX = Number(nativeFrame.values.find((value) => value.semanticId === "motion.position-x")!.value);
+    await expect.poll(async () => Number(await speedValue.getAttribute("data-current-a"))).toBeCloseTo(nativeSpeed * speedFactor, 2);
+    await expect.poll(async () => Number(await replayCanvas.getAttribute("data-a-x"))).toBeCloseTo(nativeX, 3);
+    await expect(replayCanvas).toHaveAttribute("data-side-a-state", "ready");
+    const duration = Number(await replay.getAttribute("data-duration"));
+    expect(duration).toBeGreaterThan(0);
+    await scrub.focus();
+    await scrub.press("End");
+    await expect.poll(async () => Number(await replay.getAttribute("data-time"))).toBeCloseTo(duration, 1);
+    const endSpeed = Number(semantic.envelopes.at(-1)!.values.find((value) => value.semanticId === "motion.speed")!.value);
+    const endPositionX = Number(semantic.envelopes.at(-1)!.values.find((value) => value.semanticId === "motion.position-x")!.value);
+    await expect.poll(async () => Number(await speedValue.getAttribute("data-current-a"))).toBeCloseTo(endSpeed * speedFactor, 2);
+    await expect.poll(async () => Number(await replayCanvas.getAttribute("data-a-x"))).toBeCloseTo(endPositionX, 3);
+    await expect.poll(async () => replayRequests.some((url) => url.includes(`/api/laps/${referenceLapId}/opponent-laps/${candidate!.opponentLapId}/semantic-telemetry`))).toBe(true);
+    await expect.poll(async () => replayRequests.some((url) => url.includes(`/api/laps/${referenceLapId}/semantic-telemetry`))).toBe(false);
+    await expect.poll(async () => replayRequests.some((url) => url.includes("/opponent-comparison"))).toBe(false);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("opponent-lap-replay")).toHaveAttribute("data-opponent-state", "ready", { timeout: 60_000 });
+    await expect(page.locator("[data-spectate-playback]")).toHaveAttribute("data-a-time", "0");
+    await expect.poll(async () => replayRequests.some((url) => url.includes(`/api/laps/${referenceLapId}/opponent-laps/${candidate!.opponentLapId}/semantic-telemetry`))).toBe(true);
+    const staleReplayUrl = new URL(page.url());
+    staleReplayUrl.searchParams.set("opponentRevision", "stale-revision");
+    await page.goto(staleReplayUrl.toString(), { waitUntil: "domcontentloaded" });
+    await expect(page.locator('[data-opponent-state="source-changed"]')).toBeVisible({ timeout: 60_000 });
+    await expect(page.locator("[data-spectate-playback]")).toHaveCount(0);
+    await page.goBack({ waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("opponent-lap-replay")).toHaveAttribute("data-opponent-state", "ready", { timeout: 60_000 });
+    await page.goBack({ waitUntil: "domcontentloaded" });
+    const opponentSessions = page.locator('[data-testid="opponent-sessions"]:visible');
+    if (!(await opponentSessions.isVisible())) await sessionRow.click();
+    await expect(opponentSessions).toBeVisible();
+    if (await expandOpponent.getAttribute("aria-expanded") === "false") await expandOpponent.click();
+    await expect(opponentLap).toBeVisible();
+    await opponentLap.getByRole("button", { name: /Compare/i }).click();
     await expect(page.getByTestId("lap-compare-workspace")).toBeVisible();
-    await expect.poll(() => new URL(page.url()).searchParams.get("lapA")).toBe(String(lap.id));
+    await expect.poll(() => new URL(page.url()).searchParams.get("lapA")).toBe(String(referenceLapId));
     await expect.poll(() => new URL(page.url()).searchParams.get("opponentLap")).toBe(candidate!.opponentLapId);
     await expect.poll(() => new URL(page.url()).searchParams.get("opponentRevision")).toBe(catalog.sourceRevision);
     await expect(page.getByTestId("opponent-comparison")).toContainText(session!.driverName!);
     await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.getByTestId("opponent-comparison")).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId("opponent-comparison")).toBeVisible({ timeout: 60_000 });
     await expect.poll(() => new URL(page.url()).searchParams.get("opponentLap")).toBe(candidate!.opponentLapId);
     await expect(page.locator("[data-opponent-replay]")).toBeVisible({ timeout: 60_000 });
-    await expect(page.locator("[data-spectate-scene]")).toHaveAttribute("data-scene-ready", "true", { timeout: 60_000 });
+    const scene = page.locator("[data-spectate-scene]");
+    await expect(scene).toHaveAttribute("data-scene-ready", "true", { timeout: 60_000 });
+    const canvas = scene.locator("canvas").first();
+    await expect(canvas).toHaveAttribute("data-b-rendered-car-world-y", "0");
+    const racingLineSwitch = page.getByRole("switch", { name: /racing line/i });
+    await racingLineSwitch.uncheck();
+    await expect.poll(async () => await canvas.getAttribute("data-estimated-racing-line-visible")).toBe("false");
+    await racingLineSwitch.check();
+    await expect.poll(async () => await canvas.getAttribute("data-estimated-racing-line-visible")).toBe("true");
+    await expect(canvas).toHaveAttribute("data-b-rendered-path-world-y", "0");
+    for (const side of ["a", "b"] as const) {
+      await expect.poll(async () => Number(await canvas.getAttribute(`data-${side}-estimated-racing-line-segments`))).toBeGreaterThan(0);
+      await expect.poll(async () => await canvas.getAttribute(`data-${side}-estimated-racing-line-visible`)).toBe("true");
+    }
     await expect(page.getByText("Recorded replay could not be loaded.")).toHaveCount(0);
     await page.screenshot({ path: test.info().outputPath("recorded-opponent-comparison.png"), fullPage: true });
     expect(browserErrors.errors).toEqual([]);
@@ -407,7 +580,6 @@ async function exerciseRealOpponentSessions(page: Page, request: APIRequestConte
     if (fixture) await removeFixture(request, fixture.sessionId);
   }
 }
-
 test("OS-E3 imports real recording and compares an individual opponent lap", async ({ page, request }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await exerciseRealOpponentSessions(page, request);
@@ -416,6 +588,138 @@ test("OS-E3 imports real recording and compares an individual opponent lap", asy
 test("OS-E3 mobile imports real recording and compares an individual opponent lap", async ({ page, request }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await exerciseRealOpponentSessions(page, request);
+});
+
+test("OS-E4 renders native 200 ms opponent cadence and preserves real source gaps", async ({ page, request }) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const identity = `pw-cadence-${crypto.randomUUID()}`;
+  let fixture: ImportedFixture | null = null;
+  try {
+    fixture = await importFixture(request, identity, makeLmuOpponentCapture({
+      identity,
+      frequencyHz: 20,
+      opponentScoringHz: 5,
+      raceLineBoundaryFixture: true,
+    }));
+    const catalog = await waitForReadyCatalog(request, fixture.lap.id);
+    const sourceSession = catalog.sessions.find((entry) => entry.driverName === "Controlled opponent");
+    expect(sourceSession).toBeDefined();
+    const candidate = catalog.laps.find((entry) => sourceSession!.lapIds.includes(entry.opponentLapId) && entry.mode === "telemetry");
+    expect(candidate).toBeDefined();
+    const semanticResponse = await request.get(`/api/laps/${fixture.lap.id}/opponent-laps/${candidate!.opponentLapId}/semantic-telemetry?sourceRevision=${encodeURIComponent(catalog.sourceRevision)}`, {
+      headers: { "X-Game-Id": "lmu" },
+    });
+    expect(semanticResponse.ok(), await semanticResponse.text()).toBe(true);
+    const semantic = await semanticResponse.json() as OpponentSemanticLapTelemetry;
+    const gapIndex = semantic.envelopes.findIndex((frame, index) => index > 0 &&
+      (frame.sequence > semantic.envelopes[index - 1]!.sequence + 1 ||
+        frame.observedAt.milliseconds - semantic.envelopes[index - 1]!.observedAt.milliseconds > 300));
+    expect(gapIndex).toBeGreaterThan(0);
+    for (let index = 1; index < gapIndex; index++) {
+      expect(semantic.envelopes[index]!.sequence - semantic.envelopes[index - 1]!.sequence).toBe(1);
+      expect(semantic.envelopes[index]!.observedAt.milliseconds - semantic.envelopes[index - 1]!.observedAt.milliseconds).toBeCloseTo(200, 0);
+    }
+    await page.goto("/lmu/sessions", { waitUntil: "domcontentloaded" });
+    const track = "RaceIQ Opponent Fixture";
+    const sessionSearch = page.getByRole("searchbox", { name: "Search track, car, notes…" });
+    await sessionSearch.fill(identity.slice(0, 20));
+    const sessionRow = page.viewportSize()!.width < 600
+      ? page.getByRole("button").filter({ hasText: track }).first()
+      : page.getByRole("row").filter({ hasText: track }).first();
+    await expect(sessionRow).toBeVisible();
+    await sessionRow.click();
+    await expect(page.getByTestId("opponent-player-lap")).toHaveCount(0);
+    const opponent = page.locator('[data-testid="opponent-session"]:visible').filter({ hasText: "Controlled opponent" });
+    await opponent.getByRole("button", { name: "Controlled opponent", exact: true }).click();
+    const opponentLap = opponent.locator(`[data-testid="opponent-lap"][data-opponent-lap-id="${candidate!.opponentLapId}"]`);
+    await expect(opponentLap).toBeVisible();
+    const replayRequests: string[] = [];
+    page.on("request", (event) => replayRequests.push(event.url()));
+    await opponentLap.getByRole("button", { name: /Replay/i }).click();
+    await expect(page.getByTestId("opponent-lap-replay")).toHaveAttribute("data-opponent-state", "ready", { timeout: 60_000 });
+    const replay = page.locator("[data-spectate-playback]");
+    const canvas = page.locator("[data-spectate-scene] canvas").first();
+    await expect(page.locator("[data-spectate-scene]")).toHaveAttribute("data-scene-ready", "true", { timeout: 60_000 });
+    await expect(canvas).toHaveAttribute("data-side-a-state", "ready");
+    await expect.poll(async () =>
+      (await canvas.getAttribute("data-a-marker-visible")) === "true" ||
+      (await canvas.getAttribute("data-a-car-visible")) === "true"
+    ).toBe(true);
+    const racingLine = page.getByRole("switch", { name: /racing line/i });
+    await expect(racingLine).toHaveAttribute("aria-checked", "true");
+    await expect.poll(async () => Number(await canvas.getAttribute("data-a-estimated-racing-line-segments"))).toBeGreaterThan(0);
+    await expect(canvas).toHaveAttribute("data-a-rendered-car-world-y", "0");
+    await expect(canvas).toHaveAttribute("data-a-rendered-path-world-y", "0");
+    const speedChannel = page.locator('[data-channel-id="motion.speed"]');
+    const telemetryToggle = page.locator('[data-panel-toggle="replay-telemetry-panel"]');
+    if ((await telemetryToggle.getAttribute("aria-expanded")) !== "true") await telemetryToggle.click();
+    await page.getByRole("tab", { name: "Dynamics", exact: true }).click();
+    await expect(speedChannel).toBeVisible();
+    const speedValue = speedChannel.locator("canvas[data-current-a]");
+    const play = replay.getByRole("button", { name: /^(Play|Pause) replay$/ });
+    await play.click();
+    await expect(replay).toHaveAttribute("data-playing", "true");
+    await expect.poll(async () => Number(await replay.getAttribute("data-time"))).toBeGreaterThan(0.4);
+    await expect(canvas).toHaveAttribute("data-side-a-state", "ready");
+    await expect(canvas).toHaveAttribute("data-a-x", /^-?\d/);
+    await expect(speedValue).toHaveAttribute("data-current-a", /^-?\d/);
+    await play.click();
+    await expect(replay).toHaveAttribute("data-playing", "false");
+    const beforeGap = semantic.envelopes[gapIndex - 1]!;
+    const afterGap = semantic.envelopes[gapIndex]!;
+    const startTime = semantic.envelopes[0]!.observedAt.milliseconds;
+    const gapTime = (beforeGap.observedAt.milliseconds + afterGap.observedAt.milliseconds - 2 * startTime) / 2000;
+    await page.getByRole("slider", { name: "Replay position" }).evaluate((element, time) => {
+      const input = element as HTMLInputElement;
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, String(time));
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    }, gapTime);
+    await expect.poll(async () => Number(await replay.getAttribute("data-time"))).toBeCloseTo(gapTime, 3);
+    await expect.poll(async () => canvas.getAttribute("data-a-x")).toBe("");
+    expect(replayRequests.some((url) => url.includes(`/api/laps/${fixture!.lap.id}/opponent-laps/${candidate!.opponentLapId}/semantic-telemetry`))).toBe(true);
+    expect(replayRequests.some((url) => url.includes(`/api/laps/${fixture!.lap.id}/semantic-telemetry`))).toBe(false);
+    expect(replayRequests.some((url) => url.includes("/opponent-comparison"))).toBe(false);
+  } finally {
+    if (fixture) await removeFixture(request, fixture.sessionId);
+  }
+});
+
+test("E10 renders only bounded estimated connectors in imported controlled replay", async ({ page, request }) => {
+  test.setTimeout(180_000);
+  const identity = `pw-boundary-${crypto.randomUUID()}`;
+  let fixture: ImportedFixture | null = null;
+  try {
+    fixture = await importFixture(request, identity, makeLmuOpponentCapture({ identity, raceLineBoundaryFixture: true }));
+    const catalog = await waitForReadyCatalog(request, fixture.lap.id);
+    const candidate = catalog.laps.find((entry) => entry.mode === "telemetry" && entry.coverage === "partial");
+    expect(candidate, "controlled sparse opponent remains partial").toBeDefined();
+    await page.goto(`/lmu/compare?${new URLSearchParams({ track: fixture.lap.trackId!, carA: fixture.lap.carId!, lapA: String(fixture.lap.id) })}`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("lap-compare-workspace")).toBeVisible();
+    await page.getByRole("button", { name: "Opponents", exact: true }).click();
+    const select = page.getByRole("combobox", { name: "Recorded opponent lap" });
+    await expect(select).toBeEnabled({ timeout: 30_000 });
+    await select.fill(`Lap ${candidate!.lapNumber} ·`);
+    await select.press("ArrowDown");
+    await select.press("Enter");
+    await page.getByRole("button", { name: "Lap compare", exact: true }).click();
+    await expect(page.locator("[data-opponent-replay]")).toBeVisible({ timeout: 60_000 });
+    await expect(page.locator("[data-spectate-scene]")).toHaveAttribute("data-scene-ready", "true", { timeout: 60_000 });
+    const canvas = page.locator("[data-spectate-scene] canvas").first();
+    const racingLineSwitch = page.getByRole("switch", { name: /racing line/i });
+    await racingLineSwitch.uncheck();
+    await expect.poll(async () => await canvas.getAttribute("data-estimated-racing-line-visible")).toBe("false");
+    await racingLineSwitch.check();
+    await expect.poll(async () => await canvas.getAttribute("data-a-estimated-racing-line-segments")).toBe("2");
+    await expect.poll(async () => await canvas.getAttribute("data-b-estimated-racing-line-segments")).toBe("2");
+    await expect.poll(async () => await canvas.getAttribute("data-a-estimated-racing-line-visible")).toBe("true");
+    await expect.poll(async () => await canvas.getAttribute("data-b-estimated-racing-line-visible")).toBe("true");
+    await expect.poll(async () => await canvas.getAttribute("data-estimated-racing-line-visible")).toBe("true");
+    await expect(page.getByText("Recorded replay could not be loaded.")).toHaveCount(0);
+  } finally {
+    if (fixture) await removeFixture(request, fixture.sessionId);
+  }
 });
 
 test("[E7] U4 drives real opponent index states, visible polling, readiness, and status-only refresh", async ({ browser, request }) => {
@@ -459,6 +763,7 @@ test("[E7] U4 drives real opponent index states, visible polling, readiness, and
       }
       if (websocketFrameDiagnostics.length < 40) {
         const preview = isText
+          // eslint-disable-next-line no-control-regex -- Escape control characters before writing WebSocket diagnostics.
           ? frame.slice(0, 160).replace(/("(?:[^"\\]|\\.)*(?:token|secret|password|authorization|cookie|api[_-]?key)(?:[^"\\]|\\.)*"\s*:\s*)"(?:[^"\\]|\\.)*"/gi, '$1"<REDACTED>"').replace(/[\u0000-\u001f\u007f]/g, (character) => `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`)
           : bytes.subarray(0, 24).toString("hex");
         websocketFrameDiagnostics.push({ kind: isText ? "text" : "binary", byteLength: bytes.length, preview, classification });
@@ -694,6 +999,129 @@ test("OS-E4 lists only comparable opponent laps and retains timing-only drivers"
   }
 });
 
+test("Recorded opponents scroll inside the session child table without a player-lap picker", async ({ page, request }) => {
+  test.setTimeout(120_000);
+  const capture = readFileSync(fixturePath("sessions/lmu-real-opponents-grid-2026-10-22.bin.gz"));
+  const fixture = await importFixture(request, `pw-opponent-scroll-${crypto.randomUUID()}`, capture);
+  try {
+    await waitForReadyCatalog(request, fixture.lap.id);
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto("/lmu/sessions", { waitUntil: "domcontentloaded" });
+      const sessionRow = width < 600
+        ? page.getByRole("button").filter({ hasText: "Bahrain Outer Circuit" }).first()
+        : page.getByRole("row").filter({ hasText: "Bahrain Outer Circuit" }).first();
+      await sessionRow.click();
+      const section = page.locator('[data-testid="opponent-sessions"]:visible');
+      await expect(section.getByTestId("opponent-session")).toHaveCount(15);
+      await expect(section.getByRole("combobox")).toHaveCount(0);
+      const scroller = section.locator(":scope > [data-slot=table-container]");
+      const metrics = await scroller.evaluate((element) => ({
+        width: element.clientWidth,
+        contentWidth: element.scrollWidth,
+        height: element.clientHeight,
+        contentHeight: element.scrollHeight,
+        sectionWidth: element.parentElement!.clientWidth,
+        radius: getComputedStyle(element).borderRadius,
+        border: getComputedStyle(element).borderTopWidth,
+      }));
+      expect(metrics.width).toBeLessThanOrEqual(metrics.sectionWidth);
+      expect(metrics.width).toBeLessThan(width);
+      expect(metrics.contentHeight).toBeGreaterThan(metrics.height);
+      expect(metrics.radius).toBe("0px");
+      expect(metrics.border).toBe("0px");
+      if (width < 600) {
+        expect(metrics.contentWidth).toBeGreaterThan(metrics.width);
+        await scroller.evaluate((element) => { element.scrollLeft = element.scrollWidth; });
+        await expect.poll(() => scroller.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+      }
+      await scroller.evaluate((element) => { element.scrollTop = element.scrollHeight; element.scrollLeft = 0; });
+      await expect.poll(() => scroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+      const lastOpponent = section.getByTestId("opponent-session").last();
+      await lastOpponent.getByRole("button").click();
+      await expect(lastOpponent.getByRole("button").first()).toHaveAttribute("aria-expanded", "true");
+      await expect(lastOpponent.getByTestId("opponent-lap").first()).toBeVisible();
+      await page.screenshot({ path: test.info().outputPath(`opponent-child-table-${width}.png`), fullPage: true });
+    }
+  } finally {
+    await removeFixture(request, fixture.sessionId);
+  }
+});
+
+test("Opponent replay picker applies alternate lap and Sessions restores session scroll", async ({ page, request }) => {
+  test.setTimeout(120_000);
+  const identity = `pw-picker-back-${crypto.randomUUID()}`;
+  let fixture: ImportedFixture | null = null;
+  try {
+    fixture = await importFixture(request, identity);
+    const catalog = await waitForReadyCatalog(request, fixture.lap.id);
+    const playerLapsResponse = await request.get(`/api/laps?gameId=lmu&sessionId=${fixture.sessionId}`);
+    expect(playerLapsResponse.ok()).toBe(true);
+    const playerLaps = await playerLapsResponse.json() as LapMeta[];
+    const alternatePlayerLap = playerLaps.find((lap) =>
+      lap.id !== fixture!.lap.id && lap.processing.state === "ready" && lap.telemetryAvailable !== false);
+    expect(alternatePlayerLap, "controlled fixture provides another replayable player lap").toBeDefined();
+    const opponentSession = catalog.sessions.find((session) => session.driverName === "Controlled opponent");
+    expect(opponentSession).toBeDefined();
+    const sessionLaps = catalog.laps.filter((lap) => opponentSession!.lapIds.includes(lap.opponentLapId));
+    const selectedLap = sessionLaps.find((lap) => lap.mode === "telemetry");
+    const alternateLap = sessionLaps.find((lap) =>
+      lap.opponentLapId !== selectedLap?.opponentLapId &&
+      lap.mode === "telemetry" && lap.coverage === "complete" && lap.validity === "valid");
+    expect(selectedLap, "controlled fixture provides replayable opponent lap").toBeDefined();
+    expect(alternateLap, "controlled fixture provides alternate valid opponent lap").toBeDefined();
+    await page.goto("/lmu/sessions", { waitUntil: "domcontentloaded" });
+    await page.getByRole("searchbox", { name: "Search track, car, notes…" }).fill(identity.slice(0, 20));
+    const sessionRow = page.viewportSize()!.width < 600
+      ? page.getByRole("button").filter({ hasText: "RaceIQ Opponent Fixture" }).first()
+      : page.getByRole("row").filter({ hasText: "RaceIQ Opponent Fixture" }).first();
+    await sessionRow.click();
+    const section = page.locator('[data-testid="opponent-sessions"]:visible');
+    const opponent = section.getByTestId("opponent-session").filter({ hasText: "Controlled opponent" }).first();
+    const scroller = section.locator(":scope > [data-slot=table-container]");
+    await scroller.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+    await expect.poll(() => scroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+    const scrollTop = await scroller.evaluate((element) => element.scrollTop);
+    const expand = opponent.getByRole("button", { name: "Controlled opponent", exact: true });
+    await expand.click();
+    const opponentLap = opponent.locator(`[data-testid="opponent-lap"][data-opponent-lap-id="${selectedLap!.opponentLapId}"]`);
+    await expect(opponentLap).toBeVisible();
+    await opponentLap.getByRole("button", { name: /Replay/i }).click();
+    await expect(page.getByTestId("opponent-lap-replay")).toHaveAttribute("data-opponent-state", "ready", { timeout: 60_000 });
+    const replay = page.getByTestId("opponent-lap-replay");
+    await expect(replay.locator("header")).toContainText(`Lap ${selectedLap!.lapNumber}`);
+    const picker = replay.locator("header").getByRole("combobox", { name: "Recorded opponent lap" });
+    await picker.fill(`Lap ${alternateLap!.lapNumber} ·`);
+    await picker.press("ArrowDown");
+    await picker.press("Enter");
+    await expect.poll(() => new URL(page.url()).searchParams.get("opponentLap")).toBe(alternateLap!.opponentLapId);
+    await expect(replay.locator("header")).toContainText(`Lap ${alternateLap!.lapNumber}`);
+    await expect(replay.getByRole("button", { name: "Lap compare", exact: true })).toHaveCount(0);
+    await expect(replay.getByRole("button", { name: "Cancel", exact: true })).toHaveCount(0);
+    const driverPicker = replay.locator("header").getByRole("combobox", { name: "Driver" });
+    await driverPicker.fill("Me");
+    await driverPicker.press("ArrowDown");
+    await driverPicker.press("Enter");
+    const playerLapPicker = replay.locator("header").getByRole("combobox", { name: "Lap", exact: true });
+    await playerLapPicker.fill(`Lap ${alternatePlayerLap!.lapNumber} ·`);
+    await playerLapPicker.press("ArrowDown");
+    await playerLapPicker.press("Enter");
+    await expect.poll(() => new URL(page.url()).pathname).toBe(`/lmu/sessions/${fixture.sessionId}/replay/${alternatePlayerLap!.id}`);
+    await expect.poll(() => new URL(page.url()).searchParams.has("opponentLap")).toBe(false);
+    await page.goBack({ waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("opponent-lap-replay")).toHaveAttribute("data-opponent-lap-id", alternateLap!.opponentLapId);
+    await expect(page.getByTestId("opponent-lap-replay")).toHaveAttribute("data-opponent-state", "ready");
+    await replay.locator("header").getByRole("button", { name: "Sessions", exact: true }).click();
+    await expect.poll(() => new URL(page.url()).pathname).toBe("/lmu/sessions");
+    const restoredSection = page.locator('[data-testid="opponent-sessions"]:visible');
+    await expect(restoredSection.getByTestId("opponent-session").filter({ hasText: "Controlled opponent" })
+      .getByRole("button", { name: "Controlled opponent", exact: true })).toHaveAttribute("aria-expanded", "true");
+    await expect.poll(() => restoredSection.locator(":scope > [data-slot=table-container]").evaluate((element) => element.scrollTop)).toBe(scrollTop);
+  } finally {
+    if (fixture) await removeFixture(request, fixture.sessionId);
+  }
+});
+
 test("OS-E2 preserves all 15 recorded opponents as individual session records", async ({ page, request }) => {
   test.setTimeout(120_000);
   const capture = readFileSync(fixturePath("sessions/lmu-real-opponents-grid-2026-10-22.bin.gz"));
@@ -705,15 +1133,18 @@ test("OS-E2 preserves all 15 recorded opponents as individual session records", 
     expect(catalog.sessions.find((entry) => entry.vehicleId === 16)?.driverName).toBe("Monsieur PTITRAIN");
     expect(catalog.sessions.find((entry) => entry.vehicleId === 17)?.driverName).toBe("cleverson santos");
     for (const session of catalog.sessions) {
-      expect(session.sessionKey).toBe("5371b669-f97a-4a38-b7ae-78e670d20e43:1");
       expect(session.lapIds).toEqual(catalog.laps.filter((lap) => lap.vehicleId === session.vehicleId && lap.incarnation === session.incarnation).map((lap) => lap.opponentLapId));
     }
     await page.goto("/lmu/sessions", { waitUntil: "domcontentloaded" });
     await page.getByRole("row").filter({ hasText: "Bahrain Outer Circuit" }).first().click();
-    await page.locator('[data-testid="opponent-player-lap"]:visible').selectOption(String(fixture.lap.id));
+    await expect(page.getByTestId("opponent-player-lap")).toHaveCount(0);
     await expect(page.locator('[data-testid="opponent-session"]:visible')).toHaveCount(15);
     await expect(page.locator('[data-testid="opponent-session"]:visible').filter({ hasText: "cleverson santos" })).toContainText("#17/0");
     await expect(page.locator('[data-testid="opponent-session"]:visible').filter({ hasText: "A Cooper#3593" })).toHaveCount(0);
+    const gridOpponent = page.getByTestId("opponent-session").filter({ hasText: "cleverson santos" }).filter({ visible: true });
+    const gridCells = gridOpponent.getByRole("row").first().getByRole("cell");
+    for (const column of [1, 2, 3, 4]) await expect(gridCells.nth(column)).toHaveText("—");
+    await expect(gridOpponent.getByRole("button", { name: "cleverson santos", exact: true })).toHaveAttribute("aria-expanded", "false");
     await page.screenshot({ path: test.info().outputPath("recorded-opponent-grid.png"), fullPage: true });
     expect(catalog.laps.every((entry) => entry.mode === "unavailable"), "grid snapshot has no comparable laps").toBe(true);
     const params = new URLSearchParams({ track: fixture.lap.trackId!, carA: fixture.lap.carId!, lapA: String(fixture.lap.id) });

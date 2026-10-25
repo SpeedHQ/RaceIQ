@@ -71,7 +71,8 @@ const units = useUnits(pair.gameId);
 const locale = getLocale();
 const pressureA = useTirePressureOptimal(pair.gameId, pair.comparison.lapA.carId, tireInfo);
 const pressureB = useTirePressureOptimal(pair.gameId, pair.comparison.lapB?.carId, tireInfo && !!pair.b);
-const [racingLine, setRacingLine] = useToolbarToggle("spectate-racing-line", false);
+const opponentReplay = pair.b === null && "kind" in pair.comparison.lapA && pair.comparison.lapA.kind === "opponent";
+const [racingLine, setRacingLine] = useToolbarToggle(opponentReplay ? "spectate-opponent-racing-line" : "spectate-racing-line", opponentReplay);
 const [positionLockPreferred, setPositionLockPreferred] = useToolbarToggle("spectate-position-lock", true);
 const [overviewVisible, setOverviewVisible] = useToolbarToggle("spectate-track-overview", true);
 const [carModelMode, setCarModelMode] = useSceneMode<CarModelMode>("spectate-car-model-mode", "solid", CAR_MODEL_MODES);
@@ -147,8 +148,8 @@ useEffect(() => {
   });
 }, [tireInfo, units.temp, units.tempLabel, pressureA, pressureB, m, locale, key, controller, displaySettings.renderFpsCap]);
 useEffect(() => {
-  runtime.current?.setRacingLine(racingLine && hasRacingLine);
-}, [racingLine, hasRacingLine, key, controller, displaySettings.renderFpsCap]);
+  runtime.current?.setRacingLine(racingLine);
+}, [racingLine, key, controller, displaySettings.renderFpsCap]);
 useEffect(() => {
   controller.setPositionLock(pair.b !== null && positionLockPreferred);
 }, [controller, canLock, positionLockPreferred, pair.b]);

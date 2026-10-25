@@ -15,7 +15,7 @@ import {
 } from "@raceiq/capture-formats/lmu/layout";
 
 /** Controlled scoring geometry, not evidence of online LMU channel population. */
-export function makeLmuOpponentCapture(options: { identity?: string; frequencyHz?: 20 | 100; opponents?: boolean } = {}): Buffer {
+export function makeLmuOpponentCapture(options: { identity?: string; frequencyHz?: 20 | 100; opponentScoringHz?: 5; opponents?: boolean; raceLineBoundaryFixture?: boolean } = {}): Buffer {
   const identity = options.identity ?? "default";
   const hasOpponents = options.opponents ?? true;
   const fixture = gunzipSync(readFileSync(resolve(__dirname, "../../test/fixtures/sessions/lmu-real-opponents-grid-2026-10-22.bin.gz")));
@@ -82,12 +82,20 @@ export function makeLmuOpponentCapture(options: { identity?: string; frequencyHz
     for (let axis = 0; axis < 9; axis++) memory.writeDoubleLE(orientation[axis]!, vehicleOffset + LMU_SCORING_VEHICLE.orientation + axis * 8);
     return { completed, position, orientation, speed };
   };
+  let scoringElapsed = 100;
   for (let index = 0; index <= 39 * rate; index++) {
     const elapsed = 100 + index / rate;
-    const timestamp = 1_790_000_000_000 + index * (1000 / rate);
+    if (options.raceLineBoundaryFixture && ((index >= 101 && index < 120) || (index >= 201 && index < 220) || index === 501 || (index >= 401 && index < 403))) continue;
+    const timestamp = 1_790_000_000_000 + index * (1000 / rate) + (options.raceLineBoundaryFixture && index >= 220 ? 1 : 0);
     const player = updateVehicle(playerOffset, index, 12, 0);
-    if (hasOpponents) updateVehicle(opponentOffset, index, 18, 3);
-    memory.writeDoubleLE(elapsed, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.currentElapsedTime);
+    const scoringInterval = options.opponentScoringHz === undefined ? 1 : rate / options.opponentScoringHz;
+    if (index % scoringInterval === 0) {
+      scoringElapsed = elapsed;
+      if (hasOpponents) updateVehicle(opponentOffset, index, 18, 3);
+    }
+    if (options.raceLineBoundaryFixture && hasOpponents && index === 300)
+      memory.writeDoubleLE(Number.NaN, opponentOffset + LMU_SCORING_VEHICLE.position);
+    memory.writeDoubleLE(scoringElapsed, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.currentElapsedTime);
     memory.writeDoubleLE(elapsed, LMU_TELEMETRY_INFO_OFFSET + LMU_TELEMETRY.elapsedTime);
     memory.writeDoubleLE(100 + player.completed * 12, LMU_TELEMETRY_INFO_OFFSET + LMU_TELEMETRY.lapStartElapsedTime);
     memory.writeInt32LE(player.completed + 1, LMU_TELEMETRY_INFO_OFFSET + LMU_TELEMETRY.lapNumber);

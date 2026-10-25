@@ -1444,7 +1444,6 @@
   "sessions_opponents_loading": "기록된 상대를 불러오는 중…",
   "sessions_opponents_unavailable": "기록된 상대 데이터를 사용할 수 없습니다.",
   "sessions_opponents_none": "기록된 상대 랩이 없습니다",
-  "sessions_opponents_choose_player_lap": "플레이어 랩 선택",
   "sessions_opponents_compare": "비교",
   "sessions_opponents_identity": "상대 식별 정보",
   "sessions_opponents_partial": "부분",

@@ -18,8 +18,6 @@ export function seedE2ESetupData(repoDir: string, dataDir: string): void {
 // Large native captures stay in normal seeds; bounded fixtures cover multiplayer
 // browser flows without making every screenshot/CI startup import multi-GB dumps.
 const EXCLUDED_SCREENSHOT_SEED_FIXTURES = [
-  "packages/game-lmu/test/fixtures/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part1",
-  "packages/game-lmu/test/fixtures/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part2",
   ...LMU_MULTIPLAYER_FIXTURE_PARTS,
 ] as const;
 export function seedScreenshotData(repoDir: string, dataDir: string): void {

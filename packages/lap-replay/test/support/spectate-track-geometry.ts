@@ -27,9 +27,11 @@ export function geometry(gameId: string, points: Point[]): GeometryProbe {
   }));
   // Exercise the production geometry builder without creating a GPU renderer.
   return Object.assign(Object.create(SpectateSceneRuntime.prototype) as GeometryProbe, {
-    pair: { gameId, a: { samples }, b: { samples } },
+    pair: { gameId, a: { samples, replay: {} }, b: { samples, replay: {} }, comparison: { lapA: {}, lapB: {} } },
     origin, canvas: { dataset: {} }, wake: () => {}, scene: new THREE.Scene(),
     racingLinePoints: new THREE.InstancedMesh(new THREE.CircleGeometry(1), new THREE.MeshBasicMaterial(), 1),
+    estimatedLines: [0, 1].map(() => new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineDashedMaterial())),
+    estimatedLineCounts: [0, 0],
     edgeRuns: [], lineRuns: [[], []],
     projectedCenterlinePoints: [[], []],
     focusLaneAvailable: false, schematicLinesActive: false,

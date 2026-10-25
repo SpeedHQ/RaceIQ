@@ -16,12 +16,12 @@
       "packages/game-fm-2023/src/parser.ts": "71c348b894f84f6086c9582d0cce473bac75a3c85896010a0e5762854718b835",
       "packages/game-iracing-metadata/src/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "packages/game-iracing/src/normalizer.ts": "bcc73bc4805a310f968b9743e6c9c88a688e3216cd28eecc3ee9f6c3d36b0afc",
-      "packages/game-lmu/src/normalizer.ts": "0530f98b8a4c23cc8aac5a77f95742fbe4fd0d89e868c554f532755355eb2694",
+      "packages/game-lmu/src/normalizer.ts": "dbd68de1aad791136103401c6502893502b2f52559fe3f4388892ee5103e4b8e",
       "packages/tooling-catalog/src/catalog/derived-projections.ts": "b81b4ebdaeb86a88a289d245946b3e9f32cf104970d11532ac517fb219e0eff7",
       "server/session-capture/frame-time.ts": "55c44a6cede5e2c5fb1e1c45568fe44b4a9a8b156f260f69bb5d89f9c24935a2",
       "shared/racing/setups/schema.ts": "987941bb8f38520920686ef540e67ce2259fdc962de03ccb959f6b5ef773b28f"
     },
-    "contentHash": "c3339357cd894151c37d715f25464fd7916419c71cc4634ff469f68f526a277a"
+    "contentHash": "002e8fcf70c2559968bc2dac39516c290866b7cbe12bc4611f9832983a01acfe"
   },
   "generatedFrom": [
     "packages/tooling-catalog/src/root.ts",
@@ -40207,7 +40207,7 @@
           }
         },
         "lmu": {
-          "kind": "normalized",
+          "kind": "direct",
           "nativeUnit": "text",
           "sources": [
             "LMU.Generic.gameVersion",
@@ -40217,28 +40217,12 @@
             "LMU.Telemetry.vehicleModel"
           ],
           "freshness": "continuous",
-          "normalization": "JSON.stringify([ frame.gameVersion, frame.sessionEvent, scoringInfo.readInt32LE(LMU_SCORING_INFO.session), identity.carId, identity.trackId, ...(frame.lmuContext ? [frame.lmuContext.key.sessionKey] : []), ])",
           "description": "lmu maps 5 native source channels into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-lmu/src/normalizer.ts"
           },
-          "limitations": [],
-          "execution": {
-            "kind": "conversion",
-            "id": "lmu:session.session-uid:normalized",
-            "version": "0.20.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LMU.Generic.gameVersion",
-              "LMU.Generic.startSessionEvent",
-              "LMU.ScoringInfo.session",
-              "LMU.ScoringInfo.trackName",
-              "LMU.Telemetry.vehicleModel"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "d0496ae73ea317402d7587bec79e406b12371bdff6a5716e76722b0ff60a2f2a"
-          }
+          "limitations": []
         }
       },
       "valueType": "string",

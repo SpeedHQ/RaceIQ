@@ -223,7 +223,7 @@ export function SessionDesktopTable({
                       </TableCell>
                     </TableRow>
                   )}
-                  {isExpanded && gameId === "lmu" && <TableRow className="hover:bg-transparent"><TableCell colSpan={colCount} className="p-0"><SessionOpponentRecords session={session} laps={sessionLaps} enabled={isExpanded} /></TableCell></TableRow>}
+                  {isExpanded && gameId === "lmu" && <TableRow className="hover:bg-transparent"><TableCell colSpan={colCount} className="p-0 max-w-0"><SessionOpponentRecords session={session} laps={sessionLaps} enabled={isExpanded} /></TableCell></TableRow>}
                 </Fragment>
               );
             })

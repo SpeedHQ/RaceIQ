@@ -2,7 +2,7 @@
 
 Status: implementation changes are present, but acceptance remains incomplete. E7/E9 have not passed; shared results and source blocker are recorded in the [contract](lmu-opponent-cold-load-contract.md#execution-evidence--2026-10-24).
 
-Shared boundary: [contract](lmu-opponent-cold-load-contract.md). Acceptance OP1–OP9, exact readiness values, endpoints, errors, polling, and shared E1–E9 definitions live there. Backend implementation: [backend plan](lmu-opponent-cold-load-backend-plan.md).
+Shared boundary: [contract](lmu-opponent-cold-load-contract.md). Acceptance OP1–OP11, exact readiness values, endpoints, errors, polling, and shared E1–E11 definitions live there. Backend implementation: [backend plan](lmu-opponent-cold-load-backend-plan.md).
 
 ## Ownership and parallel work
 
@@ -54,6 +54,16 @@ Track lap management consumes `TrackLap.processing` directly from its all-laps r
 
 Chat opening links consume processing from their existing linked-lap summaries. One shared visible pending chat-list query restores ready links without reload; missing/deleted references do not spin forever. E9 covers older links outside the global lap-list limit.
 
+### U6 — Sparse partial-opponent traces (OP10)
+
+Render dashed estimate connectors between adjacent finite position samples only when recorded timestamps differ by >0.1s and ≤1.0s. Keep complete contiguous observations solid; use corresponding A/B comparison colors for each side. Preserve original positions, source gaps, and replay timing; never manufacture or persist telemetry. Keep missing/non-finite positions and longer gaps disconnected.
+
+E10 imports the committed Oct 22 recording, selects its real partial-coverage opponent, and exercises production comparison/replay. Also import a controlled recording with exact 1.0s, 1.001s, and missing/invalid-position gaps through the same app surface. Assert dashed estimates at ≤1s only, unchanged source/replay samples, and preserved partial coverage. No backend/API work; E2/E9/OP11 define complete-interval criteria.
+
+### U7 — Preserve partial classification (OP11)
+
+No UI interval inference or telemetry repair. Consume backend coverage unchanged: complete intervals remain solid; partial intervals retain existing partial-trace treatment. E11 verifies the production route/UI does not relabel a partial interval as complete; backend owns boundary classification.
+
 ## Acceptance and edge handling
 
 - OP6: Correct waiting/preparing/failed/native-unavailable/ready-empty/ready-populated presentation and accessible disabled actions. E1/E5/E7 cover real transitions.
@@ -62,11 +72,12 @@ Chat opening links consume processing from their existing linked-lap summaries. 
 - OP2/OP3: Ready selected comparison/replay retains exact values and native cadence and meets shared real-browser target. E2/E3 cover selected interval and actual rendered/playable surface; UI does not redefine backend performance criteria.
 - OP7/OP6: Fresh launch seed, repeat launch, and repaired existing-seed publication appear correctly on first visit without requesting a native scan. E8 verifies real launch -> seed -> publication -> browser selection, including recording-deferred preparation.
 - OP8/OP9: Both queued and running sessions/laps block every opening path with accessible spinners and accurate labels; direct links show status shells; failure stops spinning; ready restores access; unrelated rows remain usable. E9 proves real backend/UI behavior.
+- **U6 / OP10:** Imported partial opponent data displays observed traces plus dashed estimates only across eligible adjacent finite positions; longer/missing-position gaps remain disconnected. A/B estimates keep side colors. Source samples, timestamps, sequence gaps, coverage, and validity remain unchanged. E10 proves real and controlled production comparison/replay paths.
 
 ## Verification and completion dependency
 
 Support backend integration owner executing shared E1–E9 against the real backend. In E7, drive actual recording/finalization and controlled worker states rather than intercepting production endpoints; verify pending text, selection availability, request cadence, polling cessation, stale-selection clearing, and ready playback/comparison. E8 additionally exercises the actual launch seed path and first seeded opponent selection after backend restart. E9 exercises session and lap row opening gates plus direct-link shells for queued/running/failure/ready states. Use deterministic backend barriers/test clocks for race setup where existing harness permits.
 
-In E2, measure from user action through network, JSON/production decoding, preparation, and visible comparison/playable replay readiness. Repeat after backend restart separately for catalog/comparison/replay; report preparation delay separately, not as hidden work. Observe actual scene/instruments and timing deltas, not just successful HTTP status. Backend owner supplies source/block-read evidence and matched own-lap timing.
+E2 measures user action through network, production decoding, preparation, and visible comparison/playable replay readiness. Repeat after backend restart separately for catalog/comparison/replay; report preparation delay separately, not as hidden work. Observe actual scene/instruments and timing deltas, not just successful HTTP status. Backend owner supplies source/block-read evidence and matched own-lap timing. E10 separately verifies the committed partial-coverage recording's dotted trace presentation without changing E2/E9 complete-interval criteria.
 
 Run affected UI/replay compiler gates and existing browser scenarios after integration. Record scenario IDs, outcomes, timing evidence, and any unavailable environment or target failure. No completion claim from fixtures, isolated component checks, planned/skipped E2E, or successful warm cache alone. No implementation is authorized by creating these planning artifacts.

@@ -261,6 +261,7 @@ describe("LMU lap export/import round-trip", () => {
     const fixtureIntervals = indexLmuOpponentLaps(frames.map(({ bytes }) => {
       const native = decodeLMUSourceFrame(bytes)!;
       const context = native.lmuContext!;
+      if (!context.competitors) throw new Error("LMU opponent fixture requires competitor observations");
       return {
         sessionKey: context.key.sessionKey,
         captureSequence: context.key.captureSequence,

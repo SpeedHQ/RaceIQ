@@ -18,7 +18,7 @@ startClientLoadTrace();
 installCrashDiagnostics();
 
 function createAppRouter() {
-  return createRouter({ routeTree });
+  return createRouter({ routeTree, scrollRestoration: true });
 }
 
 function ClientBootstrap() {

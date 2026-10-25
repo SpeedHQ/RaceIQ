@@ -1446,7 +1446,6 @@
   "sessions_opponents_loading": "記録済みの対戦相手を読み込み中…",
   "sessions_opponents_unavailable": "記録済みの対戦相手データを利用できません。",
   "sessions_opponents_none": "記録された対戦相手のラップはありません",
-  "sessions_opponents_choose_player_lap": "プレイヤーのラップを選択",
   "sessions_opponents_compare": "比較",
   "sessions_opponents_identity": "対戦相手の識別情報",
   "sessions_opponents_partial": "一部",

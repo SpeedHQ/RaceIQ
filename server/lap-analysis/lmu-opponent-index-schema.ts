@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { LmuOpponentSessionSummary, LmuOpponentSummaryFacts } from "./lmu-opponent-summary";
 
 export const LMU_OPPONENT_INDEX_SCHEMA_VERSION = 1;
-export const LMU_OPPONENT_INDEX_ALGORITHM_VERSION = 1;
+export const LMU_OPPONENT_INDEX_ALGORITHM_VERSION = 3;
 export const LMU_OPPONENT_INDEX_MAX_BLOCK_FRAMES = 256;
 export const LMU_OPPONENT_INDEX_MAX_BLOCK_BYTES = 16 * 1024 * 1024;
 export const LMU_OPPONENT_INDEX_MAX_METADATA_BYTES = 16 * 1024 * 1024;

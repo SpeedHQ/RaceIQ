@@ -105,7 +105,6 @@ export type SessionsMessageKey =
   | "sessions_opponents_loading"
   | "sessions_opponents_unavailable"
   | "sessions_opponents_none"
-  | "sessions_opponents_choose_player_lap"
   | "sessions_opponents_compare"
   | "sessions_opponents_identity"
   | "sessions_opponents_partial"

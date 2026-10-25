@@ -1,3 +1,4 @@
+import { LMU_SCORING_INFO } from "@raceiq/capture-formats/lmu/layout";
 import { createHash } from "node:crypto";
 import { createLMUSourceFrameDecoder } from "@raceiq/capture-formats/lmu/source-frame";
 import { LmuOpponentIdentityTracker, lmuYawFromOrientationMatrix } from "@raceiq/capture-formats/lmu/opponent-snapshot";
@@ -35,10 +36,15 @@ export async function* iterateLmuOpponentCaptureFrames(
 ): AsyncGenerator<LmuOpponentFrame | LmuOpponentCaptureFrame> {
   if (source.gameId !== "lmu") return;
   const tracker = new LmuOpponentIdentityTracker();
+  const recordingScope = (await readLmuOpponentRetention(source.rawFile, { admission: options.admission })).sourceRevision;
   const decoder = createLMUSourceFrameDecoder();
   let fallbackSessionKey = `legacy:${source.rawFile}`;
   let parserBootstrap: Buffer | null = null;
   let admissionFrames = 0;
+  let previousSessionIdentity: string | null = null;
+  let hasSeenNativeIdentity = false;
+  let previousScoringTime: number | null = null;
+  let scoringEpoch = 0;
   for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: true, admission: options.admission })) {
     if (record.kind === "parser-bootstrap") {
       parserBootstrap = record.payload;
@@ -56,16 +62,42 @@ export async function* iterateLmuOpponentCaptureFrames(
     if (!decoded) throw new LmuOpponentSourceError("Session contains an unreadable LMU source frame");
     const context = decoded.lmuContext;
     const captureSequence = context?.key.captureSequence ?? String(record.offset);
-    const sessionKey = context?.key.sessionKey ?? fallbackSessionKey;
-    fallbackSessionKey = sessionKey;
+    const acquisitionKey = context?.key.sessionKey ?? fallbackSessionKey;
+    fallbackSessionKey = acquisitionKey;
+    const rawScoringTime = decoded.scoringInfo.readDoubleLE(LMU_SCORING_INFO.currentElapsedTime);
+    const scoringTime = Number.isFinite(rawScoringTime) && rawScoringTime >= 0 ? rawScoringTime : null;
+    const nativeTrackLength = decoded.scoringInfo.readDoubleLE(LMU_SCORING_INFO.lapDistance);
+    const trackLengthMeters = Number.isFinite(nativeTrackLength) && nativeTrackLength > 0 ? nativeTrackLength : null;
+    const trackNameBytes = decoded.scoringInfo.subarray(LMU_SCORING_INFO.trackName, LMU_SCORING_INFO.session);
+    const nativeTrackName = trackNameBytes.toString("utf8").replace(/\0.*$/s, "").trim();
+    const nativeSessionType = decoded.scoringInfo.readInt32LE(LMU_SCORING_INFO.session);
+    const hasNativeIdentity = Number.isSafeInteger(decoded.sessionEvent) && Number.isSafeInteger(nativeSessionType) &&
+      source.trackId.length > 0 && nativeTrackName.length > 0;
+    const nativeSession = hasNativeIdentity
+      ? JSON.stringify([recordingScope, decoded.sessionEvent, nativeSessionType, source.trackId, nativeTrackName])
+      : null;
+    if (nativeSession !== null && previousSessionIdentity !== null && previousSessionIdentity !== nativeSession) {
+      scoringEpoch++;
+      previousScoringTime = null;
+    } else if (nativeSession !== null && previousSessionIdentity === null && hasSeenNativeIdentity) {
+      scoringEpoch++;
+      previousScoringTime = null;
+    } else if (nativeSession !== null && scoringTime !== null && previousScoringTime !== null && scoringTime < previousScoringTime) {
+      scoringEpoch++;
+    }
+    if (nativeSession !== null) hasSeenNativeIdentity = true;
+    previousSessionIdentity = nativeSession;
+    if (scoringTime !== null) previousScoringTime = scoringTime;
+    const sessionKey = nativeSession !== null && scoringTime !== null
+      ? `lmu:${nativeSession}:${scoringEpoch}`
+      : acquisitionKey;
     const competitors: readonly LmuCompetitor[] = context?.competitors?.length
       ? context.competitors
       : decoded.rawSharedMemory
         ? tracker.snapshot(decoded.rawSharedMemory, sessionKey, BigInt(captureSequence), context?.playerVehicleId ?? null) ?? []
         : [];
-    if (!competitors.length) continue;
     yield {
-      sessionKey, captureSequence, frameTime: decoded.captureTimestampMs, competitors,
+      sessionKey, captureSequence, frameTime: decoded.captureTimestampMs, competitors, trackLengthMeters,
       ...(options.retainSourceFrames === false ? {} : { sourceFrame: record.frame, parserBootstrap }),
       ...(context ? { lmuContext: context } : {}),
     };
@@ -77,6 +109,7 @@ export interface LmuOpponentFrame {
   captureSequence: string;
   frameTime: number;
   competitors: readonly LmuCompetitor[];
+  trackLengthMeters?: number | null;
   lmuContext?: LmuLiveContext;
 }
 
@@ -134,12 +167,8 @@ type ActiveInterval = {
   startSequence: string;
   previousDistance: number | null;
   previousLap: number | null;
-  boundaryObserved: boolean;
+  nearZeroStart: boolean;
   sampleCount: number;
-  completeCoverage: boolean;
-  sequenceCheckError: unknown;
-  previousSampleSequence: string | null;
-  previousSampleHasContext: boolean;
   locators: MutableLocator[];
   lastCompetitor: LmuCompetitor | null;
   opponentNumericChannelIds: Set<string>;
@@ -180,25 +209,10 @@ function appendLocator(current: ActiveInterval, locator: LmuOpponentFrameLocator
 
 function appendSample(
   current: ActiveInterval,
-  frame: LmuOpponentFrame,
   locator: LmuOpponentFrameLocator,
   competitor: LmuCompetitor,
   onNewLocatorSegment: () => void,
 ): void {
-  if (current.boundaryObserved && current.completeCoverage && current.sampleCount > 0) {
-    if (!frame.lmuContext || !current.previousSampleHasContext) {
-      current.completeCoverage = false;
-    } else {
-      try {
-        if (BigInt(frame.captureSequence) !== BigInt(current.previousSampleSequence!) + 1n) {
-          current.completeCoverage = false;
-        }
-      } catch (error) {
-        current.sequenceCheckError = error;
-        current.completeCoverage = false;
-      }
-    }
-  }
   appendLocator(current, locator, onNewLocatorSegment);
   current.sampleCount++;
   current.lastCompetitor = competitor;
@@ -208,15 +222,12 @@ function appendSample(
       current.opponentNumericChannelIds.add(semanticId);
     }
   }
-  current.previousSampleSequence = frame.captureSequence;
-  current.previousSampleHasContext = frame.lmuContext !== undefined;
 }
 
-function createActiveInterval(lapNumber: number | null, startSequence: string, boundaryObserved: boolean): ActiveInterval {
+function createActiveInterval(lapNumber: number | null, startSequence: string, nearZeroStart = false): ActiveInterval {
   return {
-    lapNumber, startSequence, previousDistance: null, previousLap: boundaryObserved ? lapNumber : null,
-    boundaryObserved, sampleCount: 0, completeCoverage: true, sequenceCheckError: null,
-    previousSampleSequence: null, previousSampleHasContext: false, locators: [], lastCompetitor: null,
+    lapNumber, startSequence, previousDistance: null, previousLap: null,
+    nearZeroStart, sampleCount: 0, locators: [], lastCompetitor: null,
     opponentNumericChannelIds: new Set(),
   };
 }
@@ -268,32 +279,41 @@ export class LmuOpponentLapIndexer {
       const lap = numberValue(channel(competitor, "race.competitor.current-lap-number"));
       let current = this.active.get(identity);
       if (!current) {
-        current = createActiveInterval(lap, frame.captureSequence, false);
+        current = createActiveInterval(lap, frame.captureSequence);
         this.active.set(identity, current);
       }
       const counterChanged = current.previousLap !== null && lap !== null && lap !== current.previousLap;
       if (counterChanged && lap !== current.previousLap! + 1) {
         if (current.sampleCount) finish(identity, current, null, false);
-        current = createActiveInterval(lap, frame.captureSequence, false);
+        current = createActiveInterval(lap, frame.captureSequence);
         this.active.set(identity, current);
       }
+      const trackLengthMeters = frame.trackLengthMeters;
+      const fullTraversal = typeof trackLengthMeters === "number" && Number.isFinite(trackLengthMeters) &&
+        trackLengthMeters > 0 && current.previousDistance !== null && distance !== null &&
+        current.previousDistance >= trackLengthMeters * 0.95 && distance <= trackLengthMeters * 0.05;
       const wrap = current.previousDistance !== null && distance !== null &&
         current.previousLap !== null && lap === current.previousLap + 1 &&
         distance < current.previousDistance;
       if (wrap) {
         const lastCompetitor = frame.competitors.find((entry) =>
           entry.vehicleId === competitor.vehicleId && entry.incarnation === competitor.incarnation)!;
-        appendSample(current, frame, locatorFor(competitor), lastCompetitor, noteLocatorSegment);
+        appendSample(current, locatorFor(competitor), lastCompetitor, noteLocatorSegment);
         if (current.sampleCount) {
-          if (current.boundaryObserved && current.sequenceCheckError !== null) throw current.sequenceCheckError;
-          finish(identity, current, frame.captureSequence, current.boundaryObserved && current.completeCoverage);
+          finish(identity, current, frame.captureSequence, current.nearZeroStart && fullTraversal);
         }
-        current = createActiveInterval(lap, frame.captureSequence, true);
+        current = createActiveInterval(lap, frame.captureSequence,
+          typeof trackLengthMeters === "number" && Number.isFinite(trackLengthMeters) && trackLengthMeters > 0 &&
+          distance !== null && distance <= trackLengthMeters * 0.05);
         this.active.set(identity, current);
       }
       const lastCompetitor = frame.competitors.find((entry) =>
         entry.vehicleId === competitor.vehicleId && entry.incarnation === competitor.incarnation)!;
-      appendSample(current, frame, locatorFor(competitor), lastCompetitor, noteLocatorSegment);
+      if (current.sampleCount === 0 && typeof trackLengthMeters === "number" && Number.isFinite(trackLengthMeters) &&
+          trackLengthMeters > 0) {
+        current.nearZeroStart = distance !== null && distance <= trackLengthMeters * 0.05;
+      }
+      appendSample(current, locatorFor(competitor), lastCompetitor, noteLocatorSegment);
       current.previousDistance = distance;
       current.previousLap = lap;
     }

@@ -2,16 +2,18 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import type { SemanticLapTelemetry } from "../contracts/replay";
-import type { ReplaySession as ReplaySessionData, SpectateController, SpectateSegment } from "../contracts/spectate";
+import type { ReplayOpponentMetadata, ReplaySession as ReplaySessionData, SpectateController, SpectateSegment } from "../contracts/spectate";
+import type { OpponentSemanticLapTelemetry } from "../contracts/opponents";
 import { createSpectateController, prepareSpectateLap } from "./spectate-replay";
 import { SpectateView } from "./SpectateView";
 import { useLocalStorage, useSettings } from "./host";
 export interface SingleReplaySessionProps {
   gameId: GameId;
-  lap: LapMeta;
-  replay: SemanticLapTelemetry;
+  lap: LapMeta | ReplayOpponentMetadata;
+  replay: SemanticLapTelemetry | OpponentSemanticLapTelemetry;
   outline: readonly { x: number; z: number }[] | null;
   segments: readonly SpectateSegment[];
+  trackLengthM?: number;
   initialFrame?: number;
   ai: (headerTarget: HTMLDivElement | null) => ReactNode;
   aiOpen: boolean;
@@ -21,8 +23,12 @@ export interface SingleReplaySessionProps {
 }
 
 /** One native replay clock rendered through the same scene and panels as comparison. */
-export function SingleReplaySession({ gameId, lap, replay, outline, segments, initialFrame, ai, aiOpen, onAiOpenChange, onController, panelHeaderTarget }: SingleReplaySessionProps) {
-  const a = useMemo(() => prepareSpectateLap(replay), [replay]);
+export function SingleReplaySession({ gameId, lap, replay, outline, segments, trackLengthM, initialFrame, ai, aiOpen, onAiOpenChange, onController, panelHeaderTarget }: SingleReplaySessionProps) {
+  const a = useMemo(() => {
+    const prepared = prepareSpectateLap(replay);
+    if (typeof trackLengthM === "number" && Number.isFinite(trackLengthM) && trackLengthM > 0) prepared.trackLengthM = trackLengthM;
+    return prepared;
+  }, [replay, trackLengthM]);
   const session = useMemo<ReplaySessionData>(() => ({
     gameId,
     a,

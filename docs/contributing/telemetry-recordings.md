@@ -151,11 +151,20 @@ remains in the primary recording; captured opponents are stored separately in
 the removable companion recording.
 
 On **Sessions**, expand a saved LMU session and use **Recorded opponent sessions**.
-Choose your player lap, then select **Compare** beside an individual's recorded
-lap. Driver, car, class and native vehicle/incarnation identity distinguish
-records, including duplicate names. These source-backed records do not create
-duplicate player sessions or recording files. Partial coverage and unknown lap
-validity remain visible and do not prevent comparison when evidence is available.
+Recorded opponents load automatically as collapsed driver rows, with each
+driver's fastest recorded lap and that lap's sector splits. Missing splits show
+as unavailable rather than substituting another lap's sectors. Expand a driver's
+row, then select **Replay** or **Compare** beside an individual recorded lap.
+Replay and Compare use the first ready player lap in the session as their
+recording reference; no player-lap selection is needed to browse opponents.
+The opponent list uses the session's child-table styling, with contained vertical
+scrolling and horizontal scrolling on narrow screens.
+Driver, car, class and native vehicle/incarnation identity distinguish records,
+including duplicate names. These source-backed records do not create
+duplicate player sessions or recording files. Expand the info indicator beside a
+lap to inspect coverage, validity and channel limitations without repeated warning
+sentences in the table. Partial coverage and unknown validity do not prevent
+comparison when evidence is available.
 
 Open Compare with a player lap, choose **Opponents**, filter by class or
 driver/car, and preview a recorded lap. **Lap compare** commits that exact
