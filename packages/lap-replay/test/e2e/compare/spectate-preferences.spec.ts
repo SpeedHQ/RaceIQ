@@ -548,3 +548,30 @@ test("3D toggle preferences recover from invalid stored modes", async ({ page, r
   await expect(model).toHaveAttribute("data-car-model-mode", "hidden");
   await expect(scene.locator("canvas").first()).toHaveAttribute("data-car-model-mode", "hidden");
 });
+
+test("AMS2 Spectate renders animated suspension for both cars", async ({ page, request }, testInfo) => {
+  test.setTimeout(120_000);
+  const pair = await getDistinctPair(request, "ams2");
+  await page.goto(`/ams2/compare?${compareQuery(pair)}&view=spectate&forceWebGL=true`);
+  const canvas = page.locator("[data-spectate-scene] canvas").first();
+  await expect(canvas).toHaveAttribute("data-scene-rendered", "true", { timeout: 60_000 });
+  const seek = page.getByRole("slider", { name: "Replay position", exact: true });
+  await seek.fill("10");
+  for (let step = 0; step < 24 && Math.min(Number(await canvas.getAttribute("data-a-model-pixels")), Number(await canvas.getAttribute("data-b-model-pixels"))) < 350; step++) {
+    const bounds = await canvas.boundingBox();
+    expect(bounds).not.toBeNull();
+    await page.mouse.move(bounds!.x + bounds!.width * .65, bounds!.y + bounds!.height * .5);
+    const before = await canvas.getAttribute("data-render-count");
+    await page.mouse.wheel(0, -500);
+    await expect.poll(() => canvas.getAttribute("data-render-count")).not.toBe(before);
+  }
+  for (const side of ["a", "b"]) await expect(canvas).toHaveAttribute(`data-${side}-suspension-visible-count`, "4");
+  const before = await canvas.evaluate(node => ({ a: (node as HTMLCanvasElement).dataset.aBodyHeave, b: (node as HTMLCanvasElement).dataset.bBodyHeave }));
+  await page.getByRole("button", { name: "Play replay", exact: true }).click();
+  for (const side of ["a", "b"] as const) {
+    await expect.poll(() => canvas.getAttribute(`data-${side}-body-heave`)).not.toBe(before[side]);
+    await expect(canvas).toHaveAttribute(`data-${side}-suspension-visible-count`, "4");
+  }
+  await page.getByRole("button", { name: "Pause replay", exact: true }).click();
+  await page.screenshot({ path: testInfo.outputPath("ams2-suspension-pair.png"), animations: "disabled" });
+});
