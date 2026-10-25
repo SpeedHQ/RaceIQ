@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { compareQuery, getDistinctPair } from "../../../../../playwright/tests/seeded/compare/interaction-helpers"
+import { getSeededLaps } from "../../../../../playwright/tests/seeded/compare/helpers";
 
 test("Spectate panel headers stay aligned and remember opened panels", async ({ page, request }) => {
   test.setTimeout(180_000);
@@ -551,12 +552,18 @@ test("3D toggle preferences recover from invalid stored modes", async ({ page, r
 
 test("AMS2 Spectate renders animated suspension for both cars", async ({ page, request }, testInfo) => {
   test.setTimeout(120_000);
-  const pair = await getDistinctPair(request, "ams2");
+  const laps = await getSeededLaps(request, "ams2");
+  const lapA = laps.find(lap => lap.lapNumber === 4 && lap.lapTime > 60);
+  const lapB = laps.find(lap => lap.sessionId === lapA?.sessionId && lap.lapNumber === 2);
+  expect(lapA, "uploaded Polo race fixture needs lap four").toBeDefined();
+  expect(lapB, "uploaded Polo race fixture needs lap two").toBeDefined();
+  const pair = { lapA: lapA!, lapB: lapB! };
   await page.goto(`/ams2/compare?${compareQuery(pair)}&view=spectate&forceWebGL=true`);
   const canvas = page.locator("[data-spectate-scene] canvas").first();
   await expect(canvas).toHaveAttribute("data-scene-rendered", "true", { timeout: 60_000 });
   const seek = page.getByRole("slider", { name: "Replay position", exact: true });
-  await seek.fill("10");
+  // These recorded laps are alongside one another here, so pair auto-fit allows close 3D inspection.
+  await seek.fill("47.75");
   for (let step = 0; step < 24 && Math.min(Number(await canvas.getAttribute("data-a-model-pixels")), Number(await canvas.getAttribute("data-b-model-pixels"))) < 350; step++) {
     const bounds = await canvas.boundingBox();
     expect(bounds).not.toBeNull();
