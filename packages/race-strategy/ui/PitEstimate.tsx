@@ -112,7 +112,7 @@ export function PitEstimate({ packet, view, pit }: PitEstimateProps) {
   const deadHeader = thresholdText(m.pit_dead(), tireData.map((tire) => tire.deadPct));
   const projectionPit = !receivedRevisionCurrent && (receivedStrategy?.fuel.source === "history" || receivedStrategy?.tires.some((rate) => rate.source === "history")) ? null : pit;
   const dialogPit = projectionPit && !fuelAvailable
-    ? { ...projectionPit, fuelLapsRemaining: null, ...(projectionPit.limitedBy === "fuel" ? { pitInLaps: null, limitedBy: null } : {}) }
+    ? { ...projectionPit, fuelLapsRemaining: null, ...(projectionPit.limitedBy === "fuel" ? { pitInLaps: null } : {}) }
     : projectionPit;
 
   const pitStatus = telemetryModel.pitStatus ? (view?.competitors[0]?.pitStatus ?? packet?.acc?.pitStatus ?? (packet?.iracing?.onPitRoad || packet?.lmu?.inPits ? "pit_lane" : "out")) : undefined;

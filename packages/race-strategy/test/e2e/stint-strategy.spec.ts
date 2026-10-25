@@ -158,9 +158,9 @@ test("full-stint p50/p95 fuel and wear render and survive reload with per-metric
     const chart = page.getByTestId("stint-summary-chart");
     const plots = chart.getByTestId("stint-lap-scatter-plot");
     await expect(plots).toHaveCount(5);
-    await expect(plots.nth(1).locator("circle")).toHaveCount(7);
-    await expect(plots.nth(2).locator("circle")).toHaveCount(6);
-    await expect(plots.nth(0).locator('circle[data-value="0"]')).toHaveCount(1);
+    await expect(plots.nth(1).locator("[data-lap-id]")).toHaveCount(7);
+    await expect(plots.nth(2).locator("[data-lap-id]")).toHaveCount(6);
+    await expect(plots.nth(0).locator('[data-lap-id][data-value="0"]')).toHaveCount(1);
     await expect(chart.getByTestId("stint-p50-overlay")).toHaveCount(5);
     await expect(chart.getByTestId("stint-p95-overlay")).toHaveCount(5);
     const overlays = chart.locator('[data-testid="stint-p50-overlay"], [data-testid="stint-p95-overlay"]');
@@ -173,17 +173,29 @@ test("full-stint p50/p95 fuel and wear render and survive reload with per-metric
       }
     }
     const readout = chart.getByTestId("stint-lap-readout");
-    await expect(readout.getByRole("row")).toHaveCount(6);
-    await plots.first().locator("circle").first().focus();
+    const selection = cards.getByRole("checkbox");
+    await expect(chart.getByRole("status").filter({ hasText: /Select a lap/i })).toBeVisible();
+    const firstPoint = plots.first().locator("[data-lap-id]").first();
+    await expect(firstPoint).toHaveAttribute("aria-pressed", "false");
+    await firstPoint.hover();
     await expect(chart.locator("h3").filter({ hasText: "Lap 1" })).toBeVisible();
+    await expect(firstPoint).toHaveAttribute("aria-pressed", "true");
+    await firstPoint.focus();
+    await expect(chart.locator("h3").filter({ hasText: "Lap 1" })).toBeVisible();
+    await expect(readout).toHaveCount(1);
     await expect(readout).toContainText("FL");
     await expect(readout).toContainText("Measurement unavailable");
+    const axisLabel = plots.first().locator("text").filter({ hasText: "Lap" }).first();
+    expect(await axisLabel.evaluate((element) => Number(element.getAttribute("font-size")))).toBeGreaterThanOrEqual(11);
     await analysis.screenshot({ path: testInfo.outputPath("stint-trends-desktop.png") });
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.setViewportSize({ width: 390, height: 844 });
     await analysis.scrollIntoViewIfNeeded();
     await expect.poll(async () => plots.evaluateAll((items) => items.length === 5 && items.every((plot) => plot.getBoundingClientRect().width > 0))).toBe(true);
+    await firstPoint.click();
+    await expect(firstPoint).toHaveAttribute("aria-pressed", "true");
     await expect(readout).toBeVisible();
+    await cards.scrollIntoViewIfNeeded();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await analysis.screenshot({ path: testInfo.outputPath("stint-trends-mobile.png") });
     await ingestNativeRun({ carId: 642, firstLap: 8, timestampMs: 421_250, initialFuel: 0.9, initialWear: [0.02, 0.02, 0.02, 0.02], laps: [
@@ -194,11 +206,17 @@ test("full-stint p50/p95 fuel and wear render and survive reload with per-metric
     await expect.poll(async () => (await stints(api, session.id)).filter((stint) => stint.fuel.value != null).length).toBe(2);
     await expect.poll(async () => lapMetrics(api, session.id).then((laps) => laps.filter((lap) => lap.fuel.value != null).length)).toBeGreaterThan(7);
     const eligibleFuelLaps = (await lapMetrics(api, session.id)).filter((lap) => lap.fuel.value != null).length;
-    await expect.poll(async () => plots.first().locator("circle").count()).toBe(eligibleFuelLaps);
-    const selection = cards.getByRole("checkbox");
+    await expect.poll(async () => plots.first().locator("[data-lap-id]").count()).toBe(eligibleFuelLaps);
+    const selectedLapCellValues = await readout.getByRole("cell").allTextContents();
     await selection.nth(0).check();
+    await expect(selection.nth(0)).toBeChecked();
+    await expect(readout).toBeVisible();
+    await expect(await readout.getByRole("cell").allTextContents()).toEqual(selectedLapCellValues);
     await selection.nth(1).check();
-    const comparisonFuel = page.getByTestId("stint-comparison").getByRole("row").filter({ has: page.getByRole("rowheader", { name: "Fuel / lap", exact: true }) });
+    const comparison = page.getByTestId("stint-comparison");
+    await expect(comparison).toBeFocused();
+    expect((await comparison.boundingBox())!.y).toBeLessThan((await cards.boundingBox())!.y);
+    const comparisonFuel = comparison.getByRole("row").filter({ has: page.getByRole("rowheader", { name: "Fuel / lap", exact: true }) });
     await expect(comparisonFuel.locator("td").nth(0)).toContainText("p50");
     await expect(comparisonFuel.locator("td").nth(0)).toContainText("p95");
     await expect(comparisonFuel.locator("td").nth(1)).toContainText("p50");
@@ -263,6 +281,17 @@ test("E2/E5 persisted per-lap thermal population, percentile overlays, focus and
       }),
       summaryRows[0]!.id, session.id,
     ], true);
+    const emptySummary = z.record(z.string(), z.unknown()).parse(JSON.parse(summaryRows[1]!.payload));
+    const noSamples = (rate: Record<string, unknown>) => ({ ...rate, value: null, eligibleLaps: 0, unavailableReason: "no-current-samples" });
+    await runtime.databaseStatement("UPDATE strategy_stints SET payload=? WHERE id=? AND session_id=?", [
+      JSON.stringify({
+        ...emptySummary,
+        fuel: noSamples(z.record(z.string(), z.unknown()).parse(emptySummary.fuel)),
+        tires: z.array(z.record(z.string(), z.unknown())).parse(emptySummary.tires).map(noSamples),
+        rateStatistics: { fuel: { p50: null, p95: null }, tires: Array.from({ length: 4 }, () => ({ p50: null, p95: null })) },
+      }),
+      summaryRows[1]!.id, session.id,
+    ], true);
     await runtime.restart();
     expect((await lapMetrics(api, session.id))[0]?.thermalState).toBe("cold");
     expect((await lapMetrics(api, session.id))[0]?.fuel.value).toBe(0.04);
@@ -282,17 +311,38 @@ test("E2/E5 persisted per-lap thermal population, percentile overlays, focus and
     const cards = page.getByRole("region", { name: "Persisted per-stint averages, evidence counts, and data quality" });
     const selection = cards.getByRole("checkbox");
     const firstCard = cards.locator("article").first();
-    const hotHeadline = firstCard.locator("section").first();
+    const hotHeadline = firstCard;
     const expectHotHeadline = async () => {
       await expect(hotHeadline).toContainText("p50 2.00%/lap");
       await expect(hotHeadline).toContainText("p95 2.00%/lap");
       await expect(hotHeadline).toContainText("3 laps");
     };
     await expectHotHeadline();
+    const emptyCard = cards.locator("article").last();
+    const emptyDetails = emptyCard.locator("details");
+    await expect(emptyDetails).toHaveCount(1);
+    await expect(emptyDetails).not.toHaveAttribute("open", "");
+    const emptyColdEvidence = emptyDetails.getByText("Cold fuel", { exact: false });
+    const emptyPercentile = emptyDetails.getByText(/p50/);
+    await expect(emptyColdEvidence).not.toBeVisible();
+    await expect(emptyPercentile).toHaveCount(10);
+    for (const percentile of await emptyPercentile.all()) await expect(percentile).toBeHidden();
+    await emptyDetails.locator("summary").click();
+    await expect(emptyColdEvidence).toBeVisible();
+    for (const percentile of await emptyPercentile.all()) await expect(percentile).toBeVisible();
+    await emptyDetails.locator("summary").click();
+    await expect(emptyDetails).not.toHaveAttribute("open", "");
+    for (const percentile of await emptyPercentile.all()) await expect(percentile).toBeHidden();
+    const emptyCardId = await emptyCard.getAttribute("id");
+    expect(emptyCardId).toMatch(/^stint-/);
+    await expect(page.locator(`#${emptyCardId}`)).toHaveCount(1);
     await selection.nth(0).check();
     await selection.nth(1).check();
+    expect(await cards.evaluate((element) => Boolean(element.compareDocumentPosition(document.getElementById("stint-comparison")!) & Node.DOCUMENT_POSITION_PRECEDING))).toBe(true);
     const comparison = page.getByTestId("stint-comparison");
     await expect(comparison).toBeVisible();
+    await expect(comparison).toBeFocused();
+    await expect(page.getByRole("button", { name: "View comparison", exact: true })).toHaveCount(3);
 
     const p50 = dashboard.getByLabel("p50", { exact: true });
     const p95 = dashboard.getByLabel("p95", { exact: true });
@@ -306,14 +356,22 @@ test("E2/E5 persisted per-lap thermal population, percentile overlays, focus and
     await expect(cold).toBeFocused();
     expect(await cold.evaluate((element) => getComputedStyle(element).outlineStyle)).not.toBe("none");
     await page.keyboard.press("Enter");
-    await firstCard.locator("details > summary").click();
-    const coldEvidence = firstCard.locator("details");
-    await expect(coldEvidence).toContainText("Cold fuel");
+    const coldEvidence = firstCard.locator("details").first();
+    await expect(coldEvidence).not.toHaveAttribute("open", "");
+    await coldEvidence.locator("summary").click();
+    await expect(coldEvidence).toHaveAttribute("open", "");
+    await expect(coldEvidence.getByText("Cold fuel", { exact: false })).toBeVisible();
     await expect(coldEvidence).toContainText("4.00%/lap");
-    await expect(coldEvidence).toContainText("Cold wear");
-    await expect(coldEvidence).toContainText("0.40%/lap");
+    const coldWearRows = coldEvidence.getByText("Cold wear", { exact: false });
+    await expect(coldWearRows).toHaveCount(4);
+    for (const coldWearRow of await coldWearRows.all()) {
+      await expect(coldWearRow).toBeVisible();
+      await expect(coldWearRow).toContainText("0.40%/lap");
+    }
+    await coldEvidence.locator("summary").click();
+    await expect(coldEvidence).not.toHaveAttribute("open", "");
     await expectHotHeadline();
-    const coldFuel = dashboard.getByTestId("stint-lap-scatter-plot").first().locator('circle[data-value="0.04"]');
+    const coldFuel = dashboard.getByTestId("stint-lap-scatter-plot").first().locator('[data-lap-id][data-value="0.04"]');
     await expect(coldFuel).toHaveCount(1);
     const p95Control = dashboard.locator('input[type="checkbox"]').nth(1);
     await p95Control.focus();
@@ -327,10 +385,26 @@ test("E2/E5 persisted per-lap thermal population, percentile overlays, focus and
     }
     expect(focusedColdFuel, "cold fuel point should receive keyboard focus within 12 tab stops").toBe(true);
     const focusedLapId = await coldFuel.getAttribute("data-lap-id");
-    await expect(dashboard.getByTestId("stint-lap-scatter-plot").nth(1).locator(`circle[data-lap-id="${focusedLapId}"]`)).toHaveAttribute("r", "7");
+    await expect(dashboard.getByTestId("stint-lap-scatter-plot").nth(1).locator(`circle[data-lap-id="${focusedLapId}"]`)).toHaveAttribute("aria-pressed", "true");
     const readout = dashboard.getByTestId("stint-lap-readout");
     await expect(readout).toContainText("4.00%/lap");
     await expect(readout).toContainText("0.40%/lap");
+    const labelSize = await dashboard.getByTestId("stint-lap-scatter-plot").first().locator("text").first().evaluate((element) => {
+      const svg = element.ownerSVGElement!;
+      return element.getBBox().height * svg.getBoundingClientRect().width / svg.viewBox.baseVal.width;
+    });
+    expect(labelSize).toBeGreaterThanOrEqual(11);
+    const targetSize = await coldFuel.evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      return Math.min(bounds.width, bounds.height);
+    });
+    expect(targetSize).toBeGreaterThanOrEqual(24);
+    await hot.evaluate((element) => (element as HTMLButtonElement).click());
+    await expect(readout).toHaveCount(0);
+    await cold.click();
+    await coldFuel.focus();
+    await page.keyboard.press("Space");
+    await expect(readout).toContainText("4.00%/lap");
     await expect(comparison).toBeVisible();
     await expect(selection.nth(0)).toBeChecked();
     await expect(selection.nth(1)).toBeChecked();
@@ -341,7 +415,12 @@ test("E2/E5 persisted per-lap thermal population, percentile overlays, focus and
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.setViewportSize({ width: 390, height: 844 });
     await expect.poll(async () => dashboard.getByTestId("stint-lap-scatter-plot").evaluateAll((plots) =>
-      plots.length === 5 && plots.every((plot) => plot.getBoundingClientRect().width <= plot.closest('[data-testid="stint-summary-chart"]')!.clientWidth),
+      plots.length === 5 && plots.every((plot) => {
+        const bounds = plot.getBoundingClientRect();
+        const viewport = plot.parentElement!.getBoundingClientRect();
+        const chart = plot.closest('[data-testid="stint-summary-chart"]')!;
+        return bounds.width >= 560 && plot.parentElement!.scrollWidth >= bounds.width && viewport.width <= chart.clientWidth;
+      }),
     )).toBe(true);
     const articles = cards.getByRole("article");
     await expect(articles).toHaveCount(2);
@@ -359,9 +438,22 @@ test("E2/E5 persisted per-lap thermal population, percentile overlays, focus and
     await expect(otherPopulation.getByRole("button", { name: "Hot", exact: true })).toHaveAttribute("aria-pressed", "true");
     await expect(otherPopulation.getByRole("button", { name: "Cold", exact: true })).toHaveAttribute("aria-pressed", "false");
     const otherLaps = await lapMetrics(api, otherSession.id);
-    const focusedHeading = otherDashboard.getByRole("heading").filter({ hasText: `Lap ${otherLaps[0]!.lapNumber}` });
-    await expect(focusedHeading).toBeVisible();
-    await expect(focusedHeading).toContainText("Hot");
+    const otherReadout = otherDashboard.getByTestId("stint-lap-readout");
+    await expect(otherReadout).toHaveCount(0);
+    await expect(otherDashboard.getByRole("status").filter({ hasText: /Select a lap/i })).toBeVisible();
+    await expect(otherDashboard.getByRole("button", { name: "Hot", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(otherDashboard.getByLabel("p50", { exact: true })).toBeChecked();
+    await expect(otherDashboard.getByLabel("p95", { exact: true })).toBeChecked();
+    const otherPoint = otherDashboard.getByTestId("stint-lap-scatter-plot").first().locator("[data-lap-id]").first();
+    await otherPoint.hover();
+    await expect(otherPoint).toHaveAttribute("aria-pressed", "true");
+    const otherPointLapId = Number(await otherPoint.getAttribute("data-lap-id"));
+    const selectedOtherLap = otherLaps.find((lap) => lap.lapId === otherPointLapId);
+    expect(selectedOtherLap).toBeDefined();
+    await expect(otherDashboard.locator("h3").filter({ hasText: `Lap ${selectedOtherLap!.lapNumber}` })).toBeVisible();
+    const thermalState = selectedOtherLap!.thermalState === "unavailable" ? "Unavailable" : selectedOtherLap!.thermalState;
+    await expect(otherDashboard.locator("h3").filter({ hasText: thermalState })).toBeVisible();
+    await expect(otherReadout).toContainText(selectedOtherLap!.fuel.value === null ? "Measurement unavailable" : `${(selectedOtherLap!.fuel.value * 100).toFixed(2)}%/lap`);
   } finally {
     await context.close();
     await api.dispose();
@@ -442,24 +534,28 @@ test("E4 plots valid zero and partial per-lap metrics; filters tire compounds wi
     const dashboard = page.getByTestId("stint-summary-chart");
     const plots = dashboard.getByTestId("stint-lap-scatter-plot");
     await expect(plots).toHaveCount(9);
-    await expect(plots.first().locator('circle[data-value="0"]')).toHaveCount(1);
-    await expect(plots.nth(1).locator('circle[data-value="0"]')).toHaveCount(1);
+    await expect(plots.first().locator('[data-lap-id][data-value="0"]')).toHaveCount(1);
+    await expect(plots.nth(1).locator('[data-lap-id][data-value="0"]')).toHaveCount(1);
     const filter = dashboard.getByLabel("Compounds", { exact: true });
     await expect(filter).toBeVisible();
     await expect(filter.locator("option")).toHaveText(["All", "Unknown", "hard"]);
-    const fuelCount = await plots.first().locator("circle").count();
+    const fuelCount = await plots.first().locator("[data-lap-id]").count();
     await filter.selectOption("hard");
     await expect(plots).toHaveCount(5);
-    await expect(plots.first().locator("circle")).toHaveCount(fuelCount);
+    await expect(plots.first().locator("[data-lap-id]")).toHaveCount(fuelCount);
     for (const plot of await plots.all().then((items) => items.slice(1))) {
-      await expect(plot.locator("circle")).toHaveCount(1);
+      await expect(plot.locator("[data-lap-id]")).toHaveCount(1);
     }
     await filter.selectOption("unknown");
     await expect(plots).toHaveCount(5);
     for (const plot of await plots.all().then((items) => items.slice(1))) {
-      await expect(plot.locator("circle")).toHaveCount(1);
+      await expect(plot.locator("[data-lap-id]")).toHaveCount(1);
     }
     const readout = dashboard.getByTestId("stint-lap-readout");
+    const zeroPoint = plots.first().locator('[data-lap-id][data-value="0"]').first();
+    await zeroPoint.focus();
+    await zeroPoint.click();
+    await expect(zeroPoint).toHaveAttribute("aria-pressed", "true");
     await expect(readout).toContainText("0.00%/lap");
     await expect(readout).toContainText("Not supported by this telemetry source");
     await expect(page.getByTestId("stint-summary-cards").locator("article")).toHaveCount(2);
@@ -497,7 +593,7 @@ test("E6 real lap-metrics request loading and retry preserve page states", async
     await page.goto(`${runtime.baseURL}/fm23/sessions/${session.id}/analyse`);
     const analysis = page.getByTestId("stint-analysis");
     await expect.poll(() => responseHeld).toBe(true);
-    await expect(analysis.getByRole("status")).toBeVisible();
+    await expect(analysis.getByRole("status").filter({ hasText: /^Loading/ })).toBeVisible();
     releaseResponse?.();
     await expect(page.getByTestId("stint-summary-cards")).toBeVisible();
     await page.unroute(endpoint);

@@ -1592,6 +1592,7 @@
   "strategy_population_hot": "温間",
   "strategy_population_cold": "冷間",
   "strategy_lap_axis": "ラップ番号",
+  "strategy_lap_select_guidance": "ラップ地点を選択すると、その計測値を確認できます。",
   "strategy_lap_number": "{lap}周",
   "strategy_filter_all": "すべて",
   "strategy_value": "値",
@@ -1669,6 +1670,7 @@
   "strategy_stints_empty": "記録済みのスティント推移はありません。",
   "strategy_stint_summary_label": "保存済みのスティント別平均、記録数、データ品質",
   "strategy_compare": "比較",
+  "strategy_view_comparison": "比較を表示",
   "strategy_stint_laps": "スティント／ラップ",
   "strategy_stint_details": "詳細",
   "strategy_status_boundary": "状態／区切り",
@@ -3092,6 +3094,7 @@
   "race_plan_stint": "スティント{ordinal}",
   "race_plan_end_lap": "ピット／フィニッシュ周",
   "race_plan_evidence": "根拠となるスティント",
+  "race_plan_evidence_ready": "準備完了",
   "race_plan_start_fuel": "スタート時の燃料",
   "race_plan_snapshot": "スナップショット：セッション{session}、スティント{stint} · 完了ラップ数{laps} · 燃料対象ラップ{fuelLaps}周 · タイヤラップ FL/FR/RL/RR {tireLaps}",
   "race_plan_source_details": "記録日時{date} · {status} · セットアップ{setup} · 条件{conditions}",
@@ -3199,5 +3202,8 @@
   "compare_overview_ers_deployed": "ERS使用量",
   "compare_overview_ers_recovered": "ERS回生量",
   "compare_overview_top_speed": "最高速度",
-  "compare_overview_unavailable": "利用不可"
+  "compare_overview_unavailable": "利用不可",
+  "race_plan_choose_recorded_session": "記録済みセッションを選択",
+  "race_plan_choose_recorded_stint": "記録済みスティントを選択",
+  "race_plan_generator_no_evidence": "適切な記録データがありません。別のセッションを選択するか、手動プランを作成してください。"
 }

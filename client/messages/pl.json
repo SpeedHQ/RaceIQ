@@ -1529,6 +1529,7 @@
   "strategy_population_hot": "Rozgrzane",
   "strategy_population_cold": "Zimne",
   "strategy_lap_axis": "Numer okrążenia",
+  "strategy_lap_select_guidance": "Wybierz punkt okrążenia, aby sprawdzić jego pomiary.",
   "strategy_lap_number": "Okrążenie {lap}",
   "strategy_filter_all": "Wszystkie",
   "strategy_value": "Wartość",
@@ -1606,6 +1607,7 @@
   "strategy_stints_empty": "Brak zapisanych trendów stintów.",
   "strategy_stint_summary_label": "Zapisane średnie stintów, liczba danych źródłowych i jakość danych",
   "strategy_compare": "Porównaj",
+  "strategy_view_comparison": "Zobacz porównanie",
   "strategy_stint_laps": "Stint / okrążenia",
   "strategy_stint_details": "Szczegóły",
   "strategy_status_boundary": "Status / granica",
@@ -3032,6 +3034,7 @@
   "race_plan_stint": "Stint {ordinal}",
   "race_plan_end_lap": "Okrążenie pit stopu / mety",
   "race_plan_evidence": "Stint z danymi",
+  "race_plan_evidence_ready": "Gotowe",
   "race_plan_start_fuel": "Paliwo na starcie",
   "race_plan_snapshot": "Migawka: sesja {session}, stint {stint} · ukończone okrążenia: {laps} · okrążenia możliwe według paliwa: {fuelLaps} · okrążenia opon FL/FR/RL/RR {tireLaps}",
   "race_plan_source_details": "Zarejestrowano {date} · {status} · ustawienia {setup} · warunki {conditions}",
@@ -3199,5 +3202,8 @@
   "compare_overview_ers_deployed": "Wykorzystana energia ERS",
   "compare_overview_ers_recovered": "Odzyskana energia ERS",
   "compare_overview_top_speed": "Prędkość maksymalna",
-  "compare_overview_unavailable": "Niedostępne"
+  "compare_overview_unavailable": "Niedostępne",
+  "race_plan_choose_recorded_session": "Wybierz zapisaną sesję",
+  "race_plan_choose_recorded_stint": "Wybierz zapisany stint",
+  "race_plan_generator_no_evidence": "Brak odpowiednich zapisanych danych. Wybierz inną sesję lub utwórz plan ręczny."
 }

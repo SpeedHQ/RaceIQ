@@ -1531,6 +1531,7 @@
   "strategy_population_hot": "Прогріті",
   "strategy_population_cold": "Холодні",
   "strategy_lap_axis": "Номер кола",
+  "strategy_lap_select_guidance": "Виберіть точку кола, щоб переглянути її показники.",
   "strategy_lap_number": "Коло {lap}",
   "strategy_filter_all": "Усі",
   "strategy_value": "Значення",
@@ -1608,6 +1609,7 @@
   "strategy_stints_empty": "Записаних трендів відрізків немає.",
   "strategy_stint_summary_label": "Збережені середні за відрізками, кількість даних і їхня якість",
   "strategy_compare": "Порівняти",
+  "strategy_view_comparison": "Переглянути порівняння",
   "strategy_stint_laps": "Відрізок / кола",
   "strategy_stint_details": "Деталі",
   "strategy_status_boundary": "Статус / межа",
@@ -3032,6 +3034,7 @@
   "race_plan_stint": "Відрізок {ordinal}",
   "race_plan_end_lap": "Коло зупинки в боксах / фінішу",
   "race_plan_evidence": "Відрізок із даними",
+  "race_plan_evidence_ready": "Готово",
   "race_plan_start_fuel": "Пальне на старті",
   "race_plan_snapshot": "Знімок: сесія {session}, відрізок {stint} · завершено кіл: {laps} · придатні кола за пальним: {fuelLaps} · кола шин FL/FR/RL/RR {tireLaps}",
   "race_plan_source_details": "Записано {date} · {status} · налаштування {setup} · умови {conditions}",
@@ -3199,5 +3202,8 @@
   "compare_overview_ers_deployed": "ЕРС використано",
   "compare_overview_ers_recovered": "ЕРС рекуперовано",
   "compare_overview_top_speed": "Максимальна швидкість",
-  "compare_overview_unavailable": "Недоступно"
+  "compare_overview_unavailable": "Недоступно",
+  "race_plan_choose_recorded_session": "Виберіть записану сесію",
+  "race_plan_choose_recorded_stint": "Виберіть записаний відрізок",
+  "race_plan_generator_no_evidence": "Немає відповідних записаних даних. Виберіть іншу сесію або створіть план вручну."
 }

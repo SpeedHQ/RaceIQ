@@ -1590,6 +1590,7 @@
   "strategy_population_hot": "온간",
   "strategy_population_cold": "냉간",
   "strategy_lap_axis": "랩 번호",
+  "strategy_lap_select_guidance": "측정값을 확인할 랩 지점을 선택하세요.",
   "strategy_lap_number": "{lap}랩",
   "strategy_filter_all": "전체",
   "strategy_value": "값",
@@ -1667,6 +1668,7 @@
   "strategy_stints_empty": "기록된 스틴트 추세가 없습니다.",
   "strategy_stint_summary_label": "저장된 스틴트별 평균, 기록 수 및 데이터 품질",
   "strategy_compare": "비교",
+  "strategy_view_comparison": "비교 보기",
   "strategy_stint_laps": "스틴트 / 랩",
   "strategy_stint_details": "세부정보",
   "strategy_status_boundary": "상태 / 경계",
@@ -3093,6 +3095,7 @@
   "race_plan_stint": "스틴트 {ordinal}",
   "race_plan_end_lap": "피트 / 완주 랩",
   "race_plan_evidence": "근거 스틴트",
+  "race_plan_evidence_ready": "준비",
   "race_plan_start_fuel": "시작 연료",
   "race_plan_snapshot": "스냅샷: 세션 {session}, 스틴트 {stint} · 완료 랩 {laps}개 · 연료 유효 랩 {fuelLaps}개 · 타이어 랩 FL/FR/RL/RR {tireLaps}",
   "race_plan_source_details": "기록일 {date} · {status} · 설정 {setup} · 조건 {conditions}",
@@ -3200,5 +3203,8 @@
   "compare_overview_ers_deployed": "ERS 사용량",
   "compare_overview_ers_recovered": "ERS 회수량",
   "compare_overview_top_speed": "최고 속도",
-  "compare_overview_unavailable": "사용할 수 없음"
+  "compare_overview_unavailable": "사용할 수 없음",
+  "race_plan_choose_recorded_session": "기록된 세션 선택",
+  "race_plan_choose_recorded_stint": "기록된 스틴트 선택",
+  "race_plan_generator_no_evidence": "적합한 기록 데이터가 없습니다. 다른 세션을 선택하거나 수동 계획을 만드세요."
 }

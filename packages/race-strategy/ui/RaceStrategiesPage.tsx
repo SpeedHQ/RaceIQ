@@ -1,3 +1,4 @@
+import type { MetricRate } from "@raceiq/shared/racing/live/strategy";
 import { useEffect, useRef, useState } from "react";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { estimateRaceLaps, RacePlanGenerationSchema, type RacePlan, type RacePlanGeneration, type RacePlanInput } from "@raceiq/shared/racing/live/race-plan";
@@ -10,6 +11,7 @@ import { RaceStrategyPlanner } from "./RaceStrategyPlanner";
 import { generateRacePlanStints } from "../contracts/generate-race-plan";
 
 import { supportsRaceRefueling } from "../contracts/race-rules";
+import { useStrategyFormat } from "./strategy-format";
 
 const fieldClass = "mt-1 w-full bg-app-surface-alt text-app-detail";
 
@@ -32,15 +34,28 @@ function parseConstraints(fractional: boolean, capacity: string, reserve: string
   return parsed.success && (!fractional || parsed.data.fuelCapacity <= 1) ? parsed.data : null;
 }
 
-function StrategyGenerator({ gameId, sessionId, onGenerate }: { gameId: GameId; sessionId?: number; onGenerate(input: RacePlanInput): void }) {
+function StrategyGenerator({ gameId, sessionId, onGenerate, onManual }: { gameId: GameId; sessionId?: number; onGenerate(input: RacePlanInput): void; onManual(): void }) {
   const { m, useSessions, useSettings, Button, Input, Select } = useRaceStrategyHost();
+  const { strategyRateText } = useStrategyFormat();
   const sessions = useSessions({ allGames: true });
   const ownSessions = (sessions.data ?? []).filter((session) => session.gameId === gameId && session.ownership === "mine");
   const [selectedSession, setSelectedSession] = useState<number | null>(sessionId ?? null);
+  const selectedRecording = ownSessions.find((session) => session.id === selectedSession);
   const stints = useStrategyStints(gameId, selectedSession);
   const [sourceId, setSourceId] = useState("");
   const sources = (stints.data?.stints ?? []).filter((stint) => stint.driverKey === "local-player" && stint.status !== "active");
-  const source = sourceId ? sources.find((stint) => stint.id === sourceId) : sources.find((stint) => stint.fuel.value != null && stint.fuel.eligibleLaps > 0);
+  const { displaySettings } = useSettings();
+  const usable = (stint: StintSummary) => stint.fuel.value != null && Number.isFinite(stint.fuel.value) && stint.fuel.value >= 0 && stint.fuel.eligibleLaps > 0 &&
+    stint.fuel.unit === (stint.fuelUnit === "L" ? "L/lap" : "tankFraction/lap") &&
+    (gameId !== "lmu" || stint.virtualEnergy?.value != null && Number.isFinite(stint.virtualEnergy.value) && stint.virtualEnergy.value >= 0 && stint.virtualEnergy.eligibleLaps > 0 && stint.virtualEnergy.unit === "energyFraction/lap") &&
+    stint.tires.every((rate, index) => {
+      const compound = stint.compounds[index];
+      if (rate.value == null || !Number.isFinite(rate.value) || rate.value < 0 || rate.eligibleLaps < 1 || rate.unit !== "wearFraction/lap" || compound == null) return false;
+      const { cliffPct } = getTireThresholds(displaySettings.tireThresholdOverrides ?? {}, gameId, compound);
+      return Number.isFinite(cliffPct) && cliffPct >= 0 && cliffPct < 100;
+    }) && (gameId !== "fm-2023" || stint.pi != null);
+  const source = sourceId ? sources.find((stint) => stint.id === sourceId) : sources.find(usable);
+  const hasUsableSource = sources.some(usable);
   const [name, setName] = useState("");
   const [mode, setMode] = useState<"laps" | "time">("laps");
   const [laps, setLaps] = useState(20);
@@ -49,15 +64,14 @@ function StrategyGenerator({ gameId, sessionId, onGenerate }: { gameId: GameId; 
   const [reserve, setReserve] = useState("0");
   const [energyReserve, setEnergyReserve] = useState("0");
   const [error, setError] = useState(false);
-  const { displaySettings } = useSettings();
   const fractional = source?.fuelUnit === "tankFraction";
   const totalLaps = mode === "time" ? estimateRaceLaps(minutes * 60, source?.averageLapSeconds ?? 0) : laps;
   const generate = () => {
     const generation = parseConstraints(fractional, capacity, reserve, energyReserve);
-    if (!source || !ownSessions.some((session) => session.id === selectedSession) || !name.trim() || name.trim().length > 120 || totalLaps == null || !generation) { setError(true); return; }
+    if (!source || !usable(source) || !ownSessions.some((session) => session.id === selectedSession) || !name.trim() || name.trim().length > 120 || totalLaps == null || !generation) { setError(true); return; }
     const generated = generateRacePlanStints(source, totalLaps, generation.fuelCapacity, generation.fuelReserve,
       (compound) => getTireThresholds(displaySettings.tireThresholdOverrides ?? {}, gameId, compound), generation.energyReserveFraction);
-    if (!generated || gameId === "fm-2023" && source.pi == null) { setError(true); return; }
+    if (!generated) { setError(true); return; }
     onGenerate({ name: name.trim(), gameId, carId: source.carId, trackId: source.trackId, pi: source.pi, totalLaps,
       raceLength: mode === "time" ? { mode: "time", durationSeconds: minutes * 60, averageLapSeconds: source.averageLapSeconds! } : { mode: "laps" },
       fuelUnit: source.fuelUnit, notes: "", generation, stints: generated });
@@ -71,15 +85,23 @@ function StrategyGenerator({ gameId, sessionId, onGenerate }: { gameId: GameId; 
     <form onSubmit={(event) => { event.preventDefault(); generate(); }} className="space-y-3">
       <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <label className="min-w-0 text-app-detail">{m.race_plan_name()}<Input required maxLength={120} className={fieldClass} value={name} onChange={(event) => setName(event.target.value)} /></label>
-        <label className="min-w-0 text-app-detail">{m.race_plan_source_session()}<Select required className={fieldClass} value={selectedSession ?? ""} onChange={(event) => { setSelectedSession(Number(event.target.value) || null); setSourceId(""); setCapacity(""); setError(false); }}><option value="">{m.race_plan_manual_source()}</option>{ownSessions.map((session) => <option key={session.id} value={session.id}>{m.review_session()} {session.id} · {session.carId} / {session.trackId}</option>)}</Select></label>
-        <label className="min-w-0 text-app-detail">{m.race_plan_evidence()}<Select required className={fieldClass} value={source?.id ?? ""} onChange={(event) => { setSourceId(event.target.value); setCapacity(""); setError(false); }}><option value="">{m.race_plan_source_unavailable()}</option>{sources.map((stint) => <option key={stint.id} value={stint.id}>{m.strategy_stint({ ordinal: stint.ordinal })} · {m.strategy_eligible_laps({ count: stint.fuel.eligibleLaps })}</option>)}</Select></label>
+        <label className="min-w-0 text-app-detail">{m.race_plan_source_session()}<Select required className={fieldClass} value={selectedSession ?? ""} onChange={(event) => { setSelectedSession(Number(event.target.value) || null); setSourceId(""); setCapacity(""); setError(false); }}><option value="">{m.race_plan_choose_recorded_session()}</option>{ownSessions.map((session) => <option key={session.id} value={session.id}>{m.review_session()} {session.id} · {session.carId} / {session.trackId}</option>)}</Select></label>
+        <label className="min-w-0 text-app-detail">{m.race_plan_evidence()}<Select required className={fieldClass} value={source?.id ?? ""} onChange={(event) => { setSourceId(event.target.value); setCapacity(""); setError(false); }}><option value="">{m.race_plan_choose_recorded_stint()}</option>{sources.map((stint) => <option key={stint.id} value={stint.id} disabled={!usable(stint)}>{m.strategy_stint({ ordinal: stint.ordinal })} · {m.strategy_eligible_laps({ count: stint.fuel.eligibleLaps })}</option>)}</Select></label>
         <label className="min-w-0 text-app-detail">{m.race_plan_length_mode()}<Select aria-label={m.race_plan_length_mode()} className={fieldClass} value={mode} onChange={(event) => setMode(event.target.value as "laps" | "time")}><option value="laps">{m.label_laps()}</option><option value="time">{m.race_plan_time()}</option></Select></label>
         {mode === "laps" ? <label className="min-w-0 text-app-detail">{m.race_plan_total_laps()}<Input required className={fieldClass} type="number" min={1} max={10000} step={1} value={laps} onChange={(event) => setLaps(Number(event.target.value))} /></label> : <label className="min-w-0 text-app-detail">{m.race_plan_duration_minutes()}<Input required className={fieldClass} type="number" min={0.01} max={10080} step="any" value={minutes} onChange={(event) => setMinutes(Number(event.target.value))} /></label>}
         <ResourceFields gameId={gameId} fractional={fractional} energy={gameId === "lmu"} capacity={capacity} reserve={reserve} energyReserve={energyReserve} onCapacity={setCapacity} onReserve={setReserve} onEnergyReserve={setEnergyReserve} />
       </div>
+      {!source && <p role="status" className="text-app-detail text-app-text-muted">{m.race_plan_generator_no_evidence()}</p>}
+      {source && <div className="text-app-detail text-app-text-muted">
+        <p>{selectedRecording ? `${m.review_session()} ${selectedRecording.id} · ${new Date(selectedRecording.createdAt).toLocaleDateString()}` : m.strategy_unavailable()} · {source.carId} / {source.trackId} · {m.strategy_stint({ ordinal: source.ordinal })}</p>
+        <p>{m.strategy_fuel_rate()} · {strategyRateText(source.fuel as MetricRate)} · {m.strategy_eligible_laps({ count: source.fuel.eligibleLaps })} · {source.fuel.value != null && Number.isFinite(source.fuel.value) && source.fuel.eligibleLaps > 0 && source.fuel.unit === (source.fuelUnit === "L" ? "L/lap" : "tankFraction/lap") ? m.race_plan_evidence_ready() : m.strategy_unavailable()}</p>
+        {source.tires.map((rate, index) => <p key={index}>{["FL", "FR", "RL", "RR"][index]} · {strategyRateText(rate as MetricRate)} · {m.strategy_eligible_laps({ count: rate.eligibleLaps })} · {source.compounds[index] ?? m.strategy_unavailable()} · {rate.value != null && Number.isFinite(rate.value) && rate.value >= 0 && rate.eligibleLaps > 0 && rate.unit === "wearFraction/lap" && source.compounds[index] != null ? m.race_plan_evidence_ready() : m.strategy_unavailable()}</p>)}
+        {gameId === "lmu" && <p>{m.race_plan_energy_rate({ value: source.virtualEnergy?.value == null ? m.strategy_unavailable() : (source.virtualEnergy.value * 100).toFixed(2) })} · {m.strategy_eligible_laps({ count: source.virtualEnergy?.eligibleLaps ?? 0 })} · {source.virtualEnergy?.value != null && Number.isFinite(source.virtualEnergy.value) && source.virtualEnergy.value >= 0 && source.virtualEnergy.eligibleLaps > 0 && source.virtualEnergy.unit === "energyFraction/lap" ? m.race_plan_evidence_ready() : m.strategy_unavailable()}</p>}
+      </div>}
+      {!hasUsableSource && <Button variant="app-outline" type="button" onClick={onManual}>{m.race_plan_manual_source()}</Button>}
       {mode === "time" && <p role="status" className="text-app-detail tabular-nums">{totalLaps == null ? m.race_plan_time_unavailable() : m.race_plan_time_estimate({ laps: totalLaps, seconds: source!.averageLapSeconds!.toFixed(2) })}</p>}
       {error && <p role="alert" className="text-app-detail text-status-danger">{m.race_plan_generate_error()}</p>}
-      <Button variant="app-primary" type="submit" disabled={sessions.isLoading || stints.isFetching}>{m.race_plan_generate()}</Button>
+      <Button variant="app-primary" type="submit" disabled={sessions.isLoading || stints.isLoading || stints.isFetching || !source || !usable(source)}>{m.race_plan_generate()}</Button>
     </form>
   </section>;
 }
@@ -155,7 +177,7 @@ export function RaceStrategiesPage({ gameId, sessionId }: { gameId: GameId; sess
       <RaceStrategyPlanner key={`${editing.plan?.id ?? "new"}:${editing.cloneName ?? "edit"}`} gameId={gameId} sessionId={sessionId} initialPlan={editing.plan} initialDraft={editing.draft} cloneName={editing.cloneName} initialSources={editing.sources} onSavingChange={setSaving} />
     </>}
     {!editing && recalculating && <StrategyRecalculator key={recalculating.id} plan={recalculating} onGenerate={(draft, sources) => openEditor({ draft, sources, original: recalculating })} />}
-    {!editing && generating && !recalculating && <StrategyGenerator gameId={gameId} sessionId={sessionId} onGenerate={(draft) => openEditor({ draft })} />}
+    {!editing && generating && !recalculating && <StrategyGenerator gameId={gameId} sessionId={sessionId} onGenerate={(draft) => openEditor({ draft })} onManual={() => openEditor({})} />}
     {!editing && <section aria-label={m.race_plan_saved()} className="space-y-3">
       {plans.isLoading && <p role="status" className="text-app-detail">{m.common_loading()}</p>}
       {plans.isError && <p role="alert">{m.race_plan_load_error()} <Button variant="app-ghost" onClick={() => void plans.refetch()}>{m.strategy_retry()}</Button></p>}

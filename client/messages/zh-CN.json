@@ -1590,6 +1590,7 @@
   "strategy_population_hot": "热胎",
   "strategy_population_cold": "冷胎",
   "strategy_lap_axis": "圈数",
+  "strategy_lap_select_guidance": "选择一个圈速点以查看其测量数据。",
   "strategy_lap_number": "第 {lap} 圈",
   "strategy_filter_all": "全部",
   "strategy_value": "数值",
@@ -1667,6 +1668,7 @@
   "strategy_stints_empty": "没有已记录的赛段趋势。",
   "strategy_stint_summary_label": "已保存的分赛段平均值、记录数量和数据质量",
   "strategy_compare": "比较",
+  "strategy_view_comparison": "查看比较",
   "strategy_stint_laps": "赛段 / 圈数",
   "strategy_stint_details": "详情",
   "strategy_status_boundary": "状态 / 边界",
@@ -3092,6 +3094,7 @@
   "race_plan_stint": "赛段 {ordinal}",
   "race_plan_end_lap": "进站 / 完赛圈",
   "race_plan_evidence": "依据赛段",
+  "race_plan_evidence_ready": "就绪",
   "race_plan_start_fuel": "起步燃油",
   "race_plan_snapshot": "快照：比赛 {session}，赛段 {stint} · 已完成 {laps} 圈 · 燃油有效圈数 {fuelLaps} · 轮胎圈数 FL/FR/RL/RR {tireLaps}",
   "race_plan_source_details": "记录于 {date} · {status} · 设置 {setup} · 条件 {conditions}",
@@ -3199,5 +3202,8 @@
   "compare_overview_ers_deployed": "ERS 已释放",
   "compare_overview_ers_recovered": "ERS 已回收",
   "compare_overview_top_speed": "最高速度",
-  "compare_overview_unavailable": "不可用"
+  "compare_overview_unavailable": "不可用",
+  "race_plan_choose_recorded_session": "选择已记录的比赛",
+  "race_plan_choose_recorded_stint": "选择已记录的轮次",
+  "race_plan_generator_no_evidence": "没有合适的记录数据。请选择其他比赛或创建手动计划。"
 }

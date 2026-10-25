@@ -1,4 +1,7 @@
 export interface RaceStrategyMessages {
+  race_plan_choose_recorded_session: () => string;
+  race_plan_choose_recorded_stint: () => string;
+  race_plan_generator_no_evidence: () => string;
   race_plan_clone: () => string;
   race_plan_recalculate: () => string;
   race_plan_copy_name: (inputs: { name: string | number }) => string;
@@ -89,6 +92,7 @@ export interface RaceStrategyMessages {
   race_plan_empty: () => string;
   race_plan_end_lap: () => string;
   race_plan_evidence: () => string;
+  race_plan_evidence_ready: () => string;
   race_plan_finish_no_stop: () => string;
   race_plan_fresh_tires: () => string;
   race_plan_fuel_end: (inputs: { value: string | number }) => string;
@@ -159,6 +163,7 @@ export interface RaceStrategyMessages {
   strategy_clear_error: () => string;
   strategy_clearing: () => string;
   strategy_compare: () => string;
+  strategy_view_comparison: () => string;
   strategy_compare_stint: (inputs: { ordinal: string | number }) => string;
   strategy_comparison_heading: (inputs: { first: string | number; second: string | number }) => string;
   strategy_completed_laps: (inputs: { count: string | number }) => string;
@@ -249,6 +254,7 @@ export interface RaceStrategyMessages {
   strategy_population_hot: () => string;
   strategy_population_cold: () => string;
   strategy_lap_axis: () => string;
+  strategy_lap_select_guidance: () => string;
   strategy_lap_number: (inputs: { lap: string | number }) => string;
   strategy_filter_all: () => string;
   strategy_value: () => string;

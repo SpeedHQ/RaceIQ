@@ -1529,6 +1529,7 @@
   "strategy_population_hot": "Quente",
   "strategy_population_cold": "Frio",
   "strategy_lap_axis": "Número da volta",
+  "strategy_lap_select_guidance": "Selecione um ponto da volta para consultar as respetivas medições.",
   "strategy_lap_number": "Volta {lap}",
   "strategy_filter_all": "Todas",
   "strategy_value": "Valor",
@@ -1606,6 +1607,7 @@
   "strategy_stints_empty": "Nenhuma tendência de stint registada.",
   "strategy_stint_summary_label": "Médias guardadas por stint, contagens de evidências e qualidade dos dados",
   "strategy_compare": "Comparar",
+  "strategy_view_comparison": "Ver comparação",
   "strategy_stint_details": "Detalhes",
   "strategy_stint_laps": "Stint / voltas",
   "strategy_status_boundary": "Estado / limite",
@@ -3032,6 +3034,7 @@
   "race_plan_stint": "Stint {ordinal}",
   "race_plan_end_lap": "Volta de paragem / chegada",
   "race_plan_evidence": "Stint de evidência",
+  "race_plan_evidence_ready": "Pronto",
   "race_plan_start_fuel": "Combustível inicial",
   "race_plan_snapshot": "Instantâneo: sessão {session}, stint {stint} · {laps} voltas concluídas · {fuelLaps} voltas elegíveis de combustível · voltas dos pneus DE/ DD/ TE/ TD {tireLaps}",
   "race_plan_source_details": "Registado em {date} · {status} · afinação {setup} · condições {conditions}",
@@ -3199,5 +3202,8 @@
   "compare_overview_ers_deployed": "ERS utilizado",
   "compare_overview_ers_recovered": "ERS recuperado",
   "compare_overview_top_speed": "Velocidade máxima",
-  "compare_overview_unavailable": "Indisponível"
+  "compare_overview_unavailable": "Indisponível",
+  "race_plan_choose_recorded_session": "Escolha uma sessão gravada",
+  "race_plan_choose_recorded_stint": "Escolha um stint gravado",
+  "race_plan_generator_no_evidence": "Não há dados gravados adequados. Selecione outra sessão ou crie um plano manual."
 }

@@ -15,6 +15,8 @@ Shared boundary and E2E scenarios: [contract](stint-lap-scatter-contract.md). Ba
 
 Own **L2–L7** in shared contract; consume **L1**. All finite points—including zero—plot once at correct lap number; null/excluded values remain absent and accessible. Unknown compounds remain selectable; no compound change hides filter. One/constant lap number receives nondegenerate x domain. Empty/loading/error states cannot show old-session points. Session changes reset selection/filter/focus; real `strategy-updated` invalidates query. Stint cards surface hot percentile summaries and eligible counts; expandable details preserve cold evidence, fuel totals/coverage, lap averages, boundaries and exclusions. One stint omits comparison selector; more than two selected remains impossible. Cards stack on mobile without document overflow.
 
+The approved UI audit refinement extends L4/L6/L7: keep axis labels at least 11 CSS pixels and point targets at least 24 CSS pixels through plot-local scrolling; keep diagnostic metadata expandable; show selection guidance before a lap is selected and label its actual measured thermal state. Preserve focus while any finite metric remains visible after filtering. Put comparison above cards, focus it after the second selection, and expose return controls beside selectors. Show measured cards first; keep zero-evidence metrics and audit facts in a closed native disclosure without losing anchors or compare controls. Extend shared E1/E2/E4/E5/E6 in the existing suite; coordinator executes them through the compiled application.
+
 ## Compact card design amendment
 
 Replace the wide, many-column table below the plots with one low-chrome card per stint. Keep all text left-aligned and preserve app typography/tokens.

@@ -1530,6 +1530,7 @@
   "strategy_population_hot": "Caliente",
   "strategy_population_cold": "Frío",
   "strategy_lap_axis": "Número de vuelta",
+  "strategy_lap_select_guidance": "Selecciona un punto de vuelta para consultar sus mediciones.",
   "strategy_lap_number": "Vuelta {lap}",
   "strategy_filter_all": "Todos",
   "strategy_value": "Valor",
@@ -1607,6 +1608,7 @@
   "strategy_stints_empty": "No hay tendencias por stint registradas.",
   "strategy_stint_summary_label": "Promedios guardados por stint, recuentos de datos y calidad de los datos",
   "strategy_compare": "Comparar",
+  "strategy_view_comparison": "Ver comparación",
   "strategy_stint_laps": "Stint / vueltas",
   "strategy_stint_details": "Detalles",
   "strategy_status_boundary": "Estado / límite",
@@ -3032,6 +3034,7 @@
   "race_plan_stint": "Stint {ordinal}",
   "race_plan_end_lap": "Vuelta de parada / meta",
   "race_plan_evidence": "Stint de referencia",
+  "race_plan_evidence_ready": "Listo",
   "race_plan_start_fuel": "Combustible inicial",
   "race_plan_snapshot": "Instantánea: sesión {session}, stint {stint} · {laps} vueltas completadas · combustible: {fuelLaps} vueltas válidas · vueltas de neumáticos FL/FR/RL/RR {tireLaps}",
   "race_plan_source_details": "Registrado el {date} · {status} · configuración {setup} · condiciones {conditions}",
@@ -3199,5 +3202,8 @@
   "compare_overview_starting_fuel": "Combustible inicial",
   "compare_overview_fuel_used": "Combustible usado",
   "compare_overview_top_speed": "Velocidad máxima",
-  "compare_overview_unavailable": "No disponible"
+  "compare_overview_unavailable": "No disponible",
+  "race_plan_choose_recorded_session": "Elige una sesión grabada",
+  "race_plan_choose_recorded_stint": "Elige un stint grabado",
+  "race_plan_generator_no_evidence": "No hay datos grabados adecuados. Elige otra sesión o crea un plan manual."
 }

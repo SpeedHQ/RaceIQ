@@ -1,13 +1,14 @@
+import { z } from "zod";
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import { ActiveRacePlansResponseSchema, RacePlanSchema, RacePlansResponseSchema, type RacePlanCombo } from "@raceiq/shared/racing/live/race-plan";
 import { StintsResponseSchema } from "@raceiq/shared/racing/live/strategy-schemas";
-import { z } from "zod";
+import { getTireCompoundOptions } from "@raceiq/shared/racing/live/tire-thresholds";
 import { ingestF1Laps } from "./f1-source";
 import { ingestNativeRun, primeNativeRun, type NativeRun } from "./native-source";
 import { StrategyRuntime } from "./runtime";
 
 const headers = { "X-Game-Id": "f1-2025" };
-const SessionSchema = z.object({ id: z.number().int(), carId: z.string() });
+const SessionSchema = z.object({ id: z.number().int(), carId: z.string(), createdAt: z.string() });
 
 async function sessionFor(api: APIRequestContext, gameId: string) {
   let session: z.infer<typeof SessionSchema> | undefined;
@@ -26,6 +27,121 @@ async function activePlan(api: APIRequestContext, combo: RacePlanCombo) {
   return ActiveRacePlansResponseSchema.parse(await response.json()).plans.find((plan) =>
     plan.gameId === combo.gameId && plan.carId === combo.carId && plan.trackId === combo.trackId) ?? null;
 }
+
+test("G0 generator without evidence opens existing manual editor", async ({ browser }, testInfo) => {
+  const runtime = await StrategyRuntime.start(testInfo.outputPath("test-data-generator-no-evidence"));
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await context.newPage();
+  try {
+    await page.goto(`${runtime.baseURL}/fm23/strategy`);
+    await page.getByRole("button", { name: "Generate race strategy", exact: true }).click();
+    const generator = page.getByTestId("race-strategy-generator");
+    await expect(generator.getByRole("status")).toContainText("No suitable recorded evidence.");
+    await expect(generator.getByRole("button", { name: "Generate race strategy", exact: true })).toBeDisabled();
+    await expect(generator.getByRole("button", { name: "Manual / no history", exact: true })).toBeEnabled();
+    await generator.getByRole("button", { name: "Manual / no history", exact: true }).click();
+    await expect(page.getByTestId("race-strategy-generator")).not.toBeAttached();
+    await expect(page.getByTestId("race-strategy-planner")).toBeVisible();
+    await expect(page.getByLabel("Car")).toBeVisible();
+    await expect(page.getByLabel("Track")).toBeVisible();
+  } finally {
+    await context.close();
+    await runtime.stop();
+  }
+});
+test("G1 tank-fraction generator displays localized per-lap fuel and tire rates", async ({ browser, playwright }, testInfo) => {
+  const runtime = await StrategyRuntime.start(testInfo.outputPath("test-data-tank-fraction-rates"));
+  const api = await playwright.request.newContext({ baseURL: runtime.apiURL });
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await context.newPage();
+  try {
+    const sourceRun = { carId: 639, trackId: 5, pi: 800, firstLap: 7, initialFuel: 0.9, laps: Array.from({ length: 6 }, () => ({ fuelUsed: 0.03, wear: [0.002, 0.002, 0.002, 0.002] as [number, number, number, number] })) };
+    await ingestNativeRun(sourceRun, runtime.udpPort);
+    const source = await sessionFor(api, "fm-2023");
+    await page.goto(`${runtime.baseURL}/fm23/strategy?sessionId=${source.id}`);
+    const generator = page.getByTestId("race-strategy-generator");
+    await expect(generator.getByLabel("History session")).toHaveValue(String(source.id));
+    await expect(generator.getByRole("button", { name: "Generate race strategy", exact: true })).toBeDisabled();
+    await expect(generator).toContainText("No suitable recorded evidence.");
+    // Same-car run closes source stint using the production session transition pattern.
+    await ingestNativeRun({ ...sourceRun, firstLap: 7, initialFuel: 0.85, timestampMs: 500_000 }, runtime.udpPort);
+    const readStints = async () => {
+      const response = await api.get(`/api/sessions/${source.id}/stints`, { headers: { "X-Game-Id": "fm-2023" } });
+      return response.ok() ? StintsResponseSchema.parse(await response.json()).stints : [];
+    };
+    await expect.poll(async () => (await readStints()).some((stint) =>
+      stint.status !== "active" && stint.fuel.value != null && stint.tires.every((tire) => tire.value != null))).toBe(true);
+    let stints = await readStints();
+    const evidence = stints.find((stint) =>
+      stint.status !== "active" && stint.fuel.value != null && stint.tires.every((tire) => tire.value != null))!;
+    expect(evidence.compounds).toEqual([null, null, null, null]);
+    await page.reload();
+    await expect(generator.getByRole("button", { name: "Generate race strategy", exact: true })).toBeDisabled();
+    await expect(generator).toContainText("No suitable recorded evidence.");
+    // Runner-owned metadata supplies compounds only; production still parses native measured rates and identity.
+    await runtime.stop();
+    const rows = await runtime.databaseStatement("SELECT payload FROM strategy_stints WHERE id=? AND session_id=?", [evidence.id, source.id]) as { payload: string }[];
+    const payload = JSON.parse(rows[0]!.payload) as { compounds: (string | null)[]; compatibility: { tireSemanticVersions: (string | null)[] } };
+    const compound = getTireCompoundOptions("fm-2023")[0]!;
+    await runtime.databaseStatement("UPDATE strategy_stints SET payload=? WHERE id=? AND session_id=?", [
+      JSON.stringify({ ...payload, compounds: [compound, compound, compound, compound] }),
+      evidence.id, source.id,
+    ], true);
+    await runtime.restart();
+    stints = await readStints();
+    const readyEvidence = stints.find((stint) => stint.id === evidence.id)!;
+    expect(readyEvidence.compounds).toEqual([compound, compound, compound, compound]);
+    expect(readyEvidence.fuel.value).toBeCloseTo(0.03, 4);
+    expect(readyEvidence.fuel.eligibleLaps).toBe(5);
+    readyEvidence.tires.forEach((tire) => expect(tire.value).toBeCloseTo(0.002, 4));
+    expect(readyEvidence.tires.map((tire) => tire.eligibleLaps)).toEqual([5, 5, 5, 5]);
+    await page.goto(`${runtime.baseURL}/fm23/strategy?sessionId=${source.id}`);
+    await expect(generator.getByLabel("History session")).toHaveValue(String(source.id));
+    await expect(generator.getByLabel("Evidence stint")).toHaveValue(evidence.id);
+    await expect(generator).toContainText(`Session ${source.id} · ${new Date(source.createdAt).toLocaleDateString()}`);
+    await expect(generator).toContainText(`Eligible laps: ${readyEvidence.fuel.eligibleLaps}`);
+    await expect(generator).toContainText("Fuel / lap");
+    await expect(generator).toContainText(/FL.*%\/lap/);
+    await expect(generator).not.toContainText("tankFraction/lap");
+    await generator.getByLabel("Plan name").fill("Generated native strategy");
+    await generator.getByLabel("Total laps").fill("12");
+    await generator.getByLabel("Fuel tank capacity (%)").fill("100");
+    await expect(generator.getByRole("button", { name: "Generate race strategy", exact: true })).toBeEnabled();
+    await generator.getByRole("button", { name: "Generate race strategy", exact: true }).click();
+    const planner = page.getByTestId("race-strategy-planner");
+    await expect(planner).toBeVisible();
+    await planner.getByRole("button", { name: "Save plan", exact: true }).click();
+    await expect(planner.getByRole("status")).toContainText("Plan saved");
+    await page.reload();
+    await expect(page.getByTestId("saved-strategies-table")).toContainText("Generated native strategy");
+  } finally {
+    await context.close();
+    await api.dispose();
+    await runtime.stop();
+  }
+});
+test("A6 Forza without measured laps keeps fuel projection unavailable", async ({ browser }, testInfo) => {
+  const runtime = await StrategyRuntime.start(testInfo.outputPath("test-data-forza-no-fuel-forecast"));
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await context.newPage();
+  try {
+    await ingestNativeRun({ carId: 639, trackId: 5, pi: 800, laps: [] }, runtime.udpPort);
+    await page.goto(`${runtime.baseURL}/live/pit`, { waitUntil: "domcontentloaded" });
+    const compact = page.getByTestId("pit-estimate-live");
+    await expect(compact).toBeVisible();
+    await expect(compact).toContainText("—");
+    await expect(compact).toContainText("Projection unavailable");
+    await expect(compact).not.toContainText("No limiter");
+    await page.getByRole("button", { name: "Open strategy timeline", exact: true }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toContainText("Projection unavailable");
+    await expect(dialog).not.toContainText("No limiter");
+  } finally {
+    await context.close();
+    await runtime.stop();
+  }
+});
+
 
 test("combo-pinned strategies migrate, remain independent, and restore through live identity switches", async ({ browser, playwright }, testInfo) => {
   test.setTimeout(240_000);
@@ -73,6 +189,7 @@ test("combo-pinned strategies migrate, remain independent, and restore through l
     await expect(selected).toContainText(b.name);
     await ingestNativeRun({ carId: 642, trackId: 6, pi: 800, timestampMs: 1_002_000, laps: [] }, runtime.udpPort);
     await expect(page.getByTestId("pit-estimate-live")).toBeVisible();
+    await expect(page.getByTestId("pit-estimate-live")).toContainText("Projection unavailable");
     await expect(selected).not.toBeAttached();
     await expect(page.getByTestId("strategy-adherence")).not.toBeAttached();
     await ingestNativeRun({ carId: 639, trackId: 5, pi: 800, timestampMs: 1_003_000, laps: [] }, runtime.udpPort);
@@ -826,8 +943,9 @@ test("G1-G2/L1 generates measured stops and manages persisted strategies", async
     const generator = page.getByTestId("race-strategy-generator");
     await expect(generator.getByLabel("History session")).toHaveValue(String(source.id));
     await expect(page.locator("html")).toHaveAttribute("data-strategy-navigation-probe", "retained");
+    await expect(generator.getByLabel("Evidence stint")).toHaveValue(evidence.id);
+    await expect(generator).toContainText("Ready");
     await generator.getByLabel("Plan name").fill("Generated measured strategy");
-    await generator.getByLabel("Evidence stint").selectOption(evidence.id);
     await generator.getByLabel("Total laps").fill("12");
     await generator.getByLabel("Starting fuel (%)").fill(String(insufficientFuel * 100));
     await generator.getByLabel("Fuel reserve at the finish (%)").fill(String(insufficientFuel * 100));

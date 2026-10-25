@@ -1592,6 +1592,7 @@
   "strategy_population_hot": "गर्म",
   "strategy_population_cold": "ठंडा",
   "strategy_lap_axis": "लैप संख्या",
+  "strategy_lap_select_guidance": "माप देखने के लिए लैप बिंदु चुनें।",
   "strategy_lap_number": "लैप {lap}",
   "strategy_filter_all": "सभी",
   "strategy_value": "मान",
@@ -1669,6 +1670,7 @@
   "strategy_stints_empty": "कोई स्टिंट रुझान दर्ज नहीं है।",
   "strategy_stint_summary_label": "सहेजे गए प्रति-स्टिंट औसत, रिकॉर्ड संख्या और डेटा गुणवत्ता",
   "strategy_compare": "तुलना करें",
+  "strategy_view_comparison": "तुलना देखें",
   "strategy_stint_laps": "स्टिंट / लैप",
   "strategy_stint_details": "विवरण",
   "strategy_status_boundary": "स्थिति / सीमा",
@@ -3093,6 +3095,7 @@
   "race_plan_stint": "स्टिंट {ordinal}",
   "race_plan_end_lap": "पिट / अंतिम लैप",
   "race_plan_evidence": "साक्ष्य स्टिंट",
+  "race_plan_evidence_ready": "तैयार",
   "race_plan_start_fuel": "शुरुआती ईंधन",
   "race_plan_snapshot": "स्नैपशॉट: सत्र {session}, स्टिंट {stint} · पूरे हुए {laps} लैप · ईंधन के योग्य {fuelLaps} लैप · टायर लैप FL/FR/RL/RR {tireLaps}",
   "race_plan_source_details": "रिकॉर्ड किया गया {date} · {status} · सेटअप {setup} · परिस्थितियाँ {conditions}",
@@ -3200,5 +3203,8 @@
   "compare_overview_ers_deployed": "ERS उपयोग",
   "compare_overview_ers_recovered": "ERS पुनर्प्राप्त",
   "compare_overview_top_speed": "अधिकतम गति",
-  "compare_overview_unavailable": "उपलब्ध नहीं"
+  "compare_overview_unavailable": "उपलब्ध नहीं",
+  "race_plan_choose_recorded_session": "रिकॉर्ड किया गया सत्र चुनें",
+  "race_plan_choose_recorded_stint": "रिकॉर्ड किया गया स्टिंट चुनें",
+  "race_plan_generator_no_evidence": "उपयुक्त रिकॉर्ड किया गया साक्ष्य नहीं है। दूसरा सत्र चुनें या मैन्युअल योजना बनाएँ।"
 }

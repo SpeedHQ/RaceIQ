@@ -7,7 +7,7 @@ const wheels = ["FL", "FR", "RL", "RR"] as const;
 export type ThermalPopulation = "hot" | "cold";
 export type StintMetric = "fuel" | number;
 type Point = { lap: StrategyLapMetric; value: number; unit: string; compound: string | null; stint: StintSummary };
-type Group = { key: string; label: string; points: Point[] };
+type Group = { key: string; label: string; context: string; points: Point[] };
 
 function percentile(values: number[], fraction: number): number | null {
   if (!values.length) return null;
@@ -48,9 +48,9 @@ export function StintDumbbellChart({ stints, laps, metric, population, selectedC
       let group = byContext.get(key);
       if (!group) {
         const semantic = metric === "fuel" ? stint.compatibility.fuelSemanticVersion : stint.compatibility.tireSemanticVersions[metric];
-        const context = [`${m.analyse_game_label()}: ${stint.gameId}`, `${m.analyse_track_label()}: ${stint.trackId}`, `${m.analyse_car_label()}: ${stint.carId}`, m.strategy_driver({ driver: lap.driverKey === "local-player" ? m.strategy_local_player() : lap.driverKey }), `${m.strategy_setup()}: ${stint.compatibility.setupKey ?? m.strategy_unknown()}`, ...(stint.gameId === "fm-2023" ? [`${m.cars_pi()}: ${stint.pi ?? m.strategy_unknown()}`] : []), `${label} · ${semantic ?? m.strategy_unknown()}`, ...(metric === "fuel" ? [] : [`${wheels[metric]} ${compound ?? m.strategy_unknown()}`]), ...(semantic == null || stint.gameId === "fm-2023" && stint.pi == null ? [m.strategy_stint({ ordinal: stint.ordinal })] : [])].join(" · ");
         const unitLabel = measurement.unit === "L/lap" ? m.strategy_rate_litres({ value: "" }).trim() : m.strategy_rate_points({ value: "" }).trim();
-        group = { key, label: `${unitLabel} · ${context}`, points: [] };
+        const context = [`${m.analyse_game_label()}: ${stint.gameId}`, `${m.analyse_track_label()}: ${stint.trackId}`, `${m.analyse_car_label()}: ${stint.carId}`, m.strategy_driver({ driver: lap.driverKey === "local-player" ? m.strategy_local_player() : lap.driverKey }), `${m.strategy_setup()}: ${stint.compatibility.setupKey ?? m.strategy_unknown()}`, ...(stint.gameId === "fm-2023" ? [`${m.cars_pi()}: ${stint.pi ?? m.strategy_unknown()}`] : []), `${label} · ${semantic ?? m.strategy_unknown()}`, ...(metric === "fuel" ? [] : [`${wheels[metric]} ${compound ?? m.strategy_unknown()}`]), ...(semantic == null || stint.gameId === "fm-2023" && stint.pi == null ? [m.strategy_stint({ ordinal: stint.ordinal })] : [])].join(" · ");
+        group = { key, label: `${label}${metric === "fuel" ? "" : ` · ${compound ?? m.strategy_unknown()}`} · ${unitLabel}`, context, points: [] };
         byContext.set(key, group);
       }
       if (measurement.value != null && Number.isFinite(measurement.value)) group.points.push({ lap, value: measurement.value, unit: measurement.unit, compound, stint });
@@ -78,7 +78,7 @@ function ScatterContextChart({ group, metricLabel, metric, showP50, showP95, foc
   const { strategyRateText, strategyReasonText } = useStrategyFormat();
   const points = group.points;
   const first = points[0];
-  if (!first) return <div role="group" aria-label={group.label}><h4 className="break-words text-xs text-app-text-muted">{group.label}</h4><p role="status" className="p-5 text-center text-sm text-app-text-muted">{m.strategy_unavailable()}</p></div>;
+  if (!first) return <div role="group" aria-label={group.label}><h4 className="break-words text-xs text-app-text-muted">{group.label}</h4><details className="text-xs text-app-text-muted"><summary className="cursor-pointer">{m.strategy_stint_details()}</summary><p>{group.context}</p></details><p role="status" className="p-5 text-center text-sm text-app-text-muted">{m.strategy_unavailable()}</p></div>;
   const values = points.map((point) => point.value);
   const p50 = percentile(values, 0.5);
   const p95 = percentile(values, 0.95);
@@ -92,7 +92,7 @@ function ScatterContextChart({ group, metricLabel, metric, showP50, showP95, foc
   const yMax = maxValue > 0 ? Number.isFinite(paddedMax) ? paddedMax : maxValue : 1;
   const width = 560;
   const height = Math.max(220, 76 + 30 * Math.min(points.length, 20));
-  const left = 52, right = 14, top = 14, bottom = 40;
+  const left = 100, right = 14, top = 14, bottom = 40;
   const x = (value: number) => left + (value - xMin) / (xMax - xMin) * (width - left - right);
   const y = (value: number) => height - bottom - value / yMax * (height - top - bottom);
   const unit = first.unit === "L/lap" ? m.strategy_rate_litres({ value: "" }).trim() : m.strategy_rate_points({ value: "" }).trim();
@@ -100,20 +100,23 @@ function ScatterContextChart({ group, metricLabel, metric, showP50, showP95, foc
   const ticks = [xMin, xMin + (xMax - xMin) / 2, xMax];
   return <div role="group" aria-label={group.label} className="min-w-0 space-y-1.5">
     <h4 className="break-words text-xs text-app-text-muted">{group.label}</h4>
-    <svg data-testid="stint-lap-scatter-plot" data-context={group.key} data-point-count={points.length} role="group" aria-label={`${metricLabel} · ${group.label}`} viewBox={`0 0 ${width} ${height}`} className="block w-full max-w-full rounded border border-app-border/60 focus-visible:outline-2" onPointerLeave={() => onFocusLap(null)}>
-      <text x={width / 2} y={height - 5} textAnchor="middle" className="fill-app-text-muted text-[11px]">{m.strategy_lap_axis()}</text>
-      <text x="12" y={height / 2} transform={`rotate(-90 12 ${height / 2})`} textAnchor="middle" className="fill-app-text-muted text-[11px]">{unit}</text>
-      {[0, 0.5, 1].map((fraction) => <g key={fraction}><line x1={left} x2={width - right} y1={top + fraction * (height - top - bottom)} y2={top + fraction * (height - top - bottom)} stroke="var(--app-border)" strokeOpacity=".5"/><text x={left - 6} y={top + fraction * (height - top - bottom) + 4} textAnchor="end" className="fill-app-text-muted text-[10px]">{rate(yMax * (1 - fraction))}</text></g>)}
-      {ticks.map((tick) => <text key={tick} x={x(tick)} y={height - bottom + 16} textAnchor="middle" className="fill-app-text-muted text-[10px]">{Number.isInteger(tick) ? tick : tick.toFixed(1)}</text>)}
+    <details className="text-xs text-app-text-muted"><summary className="cursor-pointer">{m.strategy_stint_details()}</summary><p className="break-words">{group.context}</p></details>
+    <div className="min-w-0 overflow-x-auto rounded border border-app-border/60" role="region" aria-label={group.label} tabIndex={0}>
+    <svg data-testid="stint-lap-scatter-plot" data-context={group.key} data-point-count={points.length} role="group" aria-label={`${metricLabel} · ${group.label}`} viewBox={`0 0 ${width} ${height}`} width={width} height={height} className="block min-w-[560px] rounded focus-visible:outline-2">
+      <text x={width / 2} y={height - 5} textAnchor="middle" className="fill-app-text-muted" fontSize="11">{m.strategy_lap_axis()}</text>
+      <text x="12" y={height / 2} transform={`rotate(-90 12 ${height / 2})`} textAnchor="middle" className="fill-app-text-muted" fontSize="11">{unit}</text>
+      {[0, 0.5, 1].map((fraction) => <g key={fraction}><line x1={left} x2={width - right} y1={top + fraction * (height - top - bottom)} y2={top + fraction * (height - top - bottom)} stroke="var(--app-border)" strokeOpacity=".5"/><text x={left - 6} y={top + fraction * (height - top - bottom) + 4} textAnchor="end" className="fill-app-text-muted" fontSize="11">{rate(yMax * (1 - fraction))}</text></g>)}
+      {ticks.map((tick) => <text key={tick} x={x(tick)} y={height - bottom + 16} textAnchor="middle" className="fill-app-text-muted" fontSize="11">{Number.isInteger(tick) ? tick : tick.toFixed(1)}</text>)}
       {showP50 && p50 != null && <line data-testid="stint-p50-overlay" x1={left} x2={width - right} y1={y(p50)} y2={y(p50)} stroke="var(--app-accent)" strokeWidth="2" strokeDasharray="5 4"><title>{m.strategy_percentile_p50()} {rate(p50)}</title></line>}
       {showP95 && p95 != null && <line data-testid="stint-p95-overlay" x1={left} x2={width - right} y1={y(p95)} y2={y(p95)} stroke="var(--app-text-muted)" strokeWidth="2" strokeDasharray="2 4"><title>{m.strategy_percentile_p95()} {rate(p95)}</title></line>}
       {points.map((point) => {
         const value = metric === "fuel" ? point.lap.fuel : point.lap.tires[metric]!;
         const focused = point.lap.lapId === focusedLapId;
         const valueText = strategyRateText({ ...first.stint.fuel, unit: value.unit, value: point.value } as MetricRate);
-        return <circle key={point.lap.lapId} data-lap-id={point.lap.lapId} data-lap-number={point.lap.lapNumber} data-value={point.value} tabIndex={0} role="button" aria-label={`${m.strategy_lap_number({ lap: point.lap.lapNumber })} · ${metricLabel} ${valueText}${point.compound ? ` · ${point.compound}` : ""}`} cx={x(point.lap.lapNumber)} cy={y(point.value)} r={focused ? 7 : 4.5} fill={focused ? "var(--app-accent)" : "var(--app-text-muted)"} stroke={focused ? "var(--app-text)" : "var(--app-accent)"} strokeWidth={focused ? 2 : 1} onFocus={() => onFocusLap(point.lap.lapId)} onPointerEnter={() => onFocusLap(point.lap.lapId)} onBlur={(event) => { if (!event.currentTarget.ownerSVGElement?.contains(event.relatedTarget as Node | null)) onFocusLap(null); }}><title>{`${m.strategy_lap_number({ lap: point.lap.lapNumber })} · ${valueText} · ${point.compound ?? strategyReasonText(value.unavailableReason)}`}</title></circle>;
+        return <g key={point.lap.lapId}><circle data-lap-id={point.lap.lapId} data-lap-number={point.lap.lapNumber} data-value={point.value} tabIndex={0} role="button" aria-pressed={focused} aria-label={`${m.strategy_lap_number({ lap: point.lap.lapNumber })} · ${metricLabel} ${valueText}${point.compound ? ` · ${point.compound}` : ""}`} cx={x(point.lap.lapNumber)} cy={y(point.value)} r="12" fill="transparent" stroke="transparent" onClick={() => onFocusLap(point.lap.lapId)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onFocusLap(point.lap.lapId); } }} onFocus={() => onFocusLap(point.lap.lapId)} onPointerEnter={() => onFocusLap(point.lap.lapId)}><title>{`${m.strategy_lap_number({ lap: point.lap.lapNumber })} · ${valueText} · ${point.compound ?? strategyReasonText(value.unavailableReason)}`}</title></circle><circle cx={x(point.lap.lapNumber)} cy={y(point.value)} r={focused ? 7 : 4.5} pointerEvents="none" fill={focused ? "var(--app-accent)" : "var(--app-text-muted)"} stroke={focused ? "var(--app-text)" : "var(--app-accent)"} strokeWidth={focused ? 2 : 1}/></g>;
       })}
     </svg>
+    </div>
     <p className="text-[11px] text-app-text-muted">{showP50 ? `${m.strategy_percentile_p50()} ${p50 == null ? m.strategy_unavailable() : rate(p50)}` : ""}{showP50 && showP95 ? " · " : ""}{showP95 ? `${m.strategy_percentile_p95()} ${p95 == null ? m.strategy_unavailable() : rate(p95)}` : ""}</p>
   </div>;
 }

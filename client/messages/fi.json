@@ -1529,6 +1529,7 @@
   "strategy_population_hot": "Lämmin",
   "strategy_population_cold": "Kylmä",
   "strategy_lap_axis": "Kierrosnumero",
+  "strategy_lap_select_guidance": "Valitse kierrospiste nähdäksesi sen mittaukset.",
   "strategy_lap_number": "Kierros {lap}",
   "strategy_filter_all": "Kaikki",
   "strategy_value": "Arvo",
@@ -1606,6 +1607,7 @@
   "strategy_stints_empty": "Stinttien trendejä ei ole tallennettu.",
   "strategy_stint_summary_label": "Tallennetut stinttikohtaiset keskiarvot, havaintomäärät ja tietojen laatu",
   "strategy_compare": "Vertaa",
+  "strategy_view_comparison": "Näytä vertailu",
   "strategy_stint_laps": "Stintti / kierrokset",
   "strategy_stint_details": "Tiedot",
   "strategy_status_boundary": "Tila / raja",
@@ -3033,6 +3035,7 @@
   "race_plan_stint": "Ajovuoro {ordinal}",
   "race_plan_end_lap": "Varikko-/maalikierros",
   "race_plan_evidence": "Näyttöaineiston ajovuoro",
+  "race_plan_evidence_ready": "Valmis",
   "race_plan_start_fuel": "Lähtöpolttoaine",
   "race_plan_snapshot": "Tilannekuva: ajokerta {session}, ajovuoro {stint} · {laps} ajettua kierrosta · {fuelLaps} kelvollista polttoainekierrosta · rengaskierrokset FL/FR/RL/RR {tireLaps}",
   "race_plan_source_details": "Tallennettu {date} · {status} · säädöt {setup} · olosuhteet {conditions}",
@@ -3200,5 +3203,8 @@
   "compare_overview_starting_fuel": "Lähtöpolttoaine",
   "compare_overview_fuel_used": "Polttoaineen kulutus",
   "compare_overview_top_speed": "Huippunopeus",
-  "compare_overview_unavailable": "Ei käytettävissä"
+  "compare_overview_unavailable": "Ei käytettävissä",
+  "race_plan_choose_recorded_session": "Valitse tallennettu istunto",
+  "race_plan_choose_recorded_stint": "Valitse tallennettu stintti",
+  "race_plan_generator_no_evidence": "Sopivaa tallennettua näyttöä ei ole. Valitse toinen istunto tai luo manuaalinen suunnitelma."
 }

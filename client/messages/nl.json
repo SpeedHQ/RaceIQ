@@ -1531,6 +1531,7 @@
   "strategy_population_hot": "Warm",
   "strategy_population_cold": "Koud",
   "strategy_lap_axis": "Rondenummer",
+  "strategy_lap_select_guidance": "Selecteer een rondepunt om de metingen te bekijken.",
   "strategy_lap_number": "Ronde {lap}",
   "strategy_filter_all": "Alle",
   "strategy_value": "Waarde",
@@ -1608,6 +1609,7 @@
   "strategy_stints_empty": "Geen stinttrends geregistreerd.",
   "strategy_stint_summary_label": "Opgeslagen gemiddelden per stint, aantallen gegevens en gegevenskwaliteit",
   "strategy_compare": "Vergelijken",
+  "strategy_view_comparison": "Vergelijking bekijken",
   "strategy_stint_laps": "Stint / ronden",
   "strategy_stint_details": "Details",
   "strategy_status_boundary": "Status / grens",
@@ -3032,6 +3034,7 @@
   "race_plan_stint": "Stint {ordinal}",
   "race_plan_end_lap": "Pit-/finishronde",
   "race_plan_evidence": "Bewijsstint",
+  "race_plan_evidence_ready": "Gereed",
   "race_plan_start_fuel": "Startbrandstof",
   "race_plan_snapshot": "Snapshot: sessie {session}, stint {stint} · {laps} voltooide ronden · {fuelLaps} bruikbare brandstofronden · bandronden FL/FR/RL/RR {tireLaps}",
   "race_plan_source_details": "Geregistreerd {date} · {status} · setup {setup} · omstandigheden {conditions}",
@@ -3199,5 +3202,8 @@
   "compare_overview_ers_deployed": "ERS ingezet",
   "compare_overview_ers_recovered": "ERS teruggewonnen",
   "compare_overview_top_speed": "Topsnelheid",
-  "compare_overview_unavailable": "Niet beschikbaar"
+  "compare_overview_unavailable": "Niet beschikbaar",
+  "race_plan_choose_recorded_session": "Kies een opgenomen sessie",
+  "race_plan_choose_recorded_stint": "Kies een opgenomen stint",
+  "race_plan_generator_no_evidence": "Geen geschikte opgenomen gegevens. Kies een andere sessie of maak een handmatig plan."
 }

@@ -1528,6 +1528,7 @@
   "strategy_population_hot": "Горячие",
   "strategy_population_cold": "Холодные",
   "strategy_lap_axis": "Номер круга",
+  "strategy_lap_select_guidance": "Выберите точку круга, чтобы просмотреть её показатели.",
   "strategy_lap_number": "Круг {lap}",
   "strategy_filter_all": "Все",
   "strategy_value": "Значение",
@@ -1605,6 +1606,7 @@
   "strategy_stints_empty": "Нет записанных трендов отрезков.",
   "strategy_stint_summary_label": "Сохранённые средние по отрезкам, количество данных и их качество",
   "strategy_compare": "Сравнить",
+  "strategy_view_comparison": "Посмотреть сравнение",
   "strategy_stint_laps": "Отрезок / круги",
   "strategy_stint_details": "Подробнее",
   "strategy_status_boundary": "Статус / граница",
@@ -3032,6 +3034,7 @@
   "race_plan_stint": "Отрезок {ordinal}",
   "race_plan_end_lap": "Круг пит-стопа / финиша",
   "race_plan_evidence": "Отрезок с данными",
+  "race_plan_evidence_ready": "Готово",
   "race_plan_start_fuel": "Топливо на старте",
   "race_plan_snapshot": "Снимок: сессия {session}, отрезок {stint} · завершено кругов: {laps} · кругов по запасу топлива: {fuelLaps} · кругов шин FL/FR/RL/RR {tireLaps}",
   "race_plan_source_details": "Записано {date} · {status} · настройки {setup} · условия {conditions}",
@@ -3199,5 +3202,8 @@
   "compare_overview_ers_deployed": "ЕРС использовано",
   "compare_overview_ers_recovered": "ЕРС рекуперировано",
   "compare_overview_top_speed": "Максимальная скорость",
-  "compare_overview_unavailable": "Недоступно"
+  "compare_overview_unavailable": "Недоступно",
+  "race_plan_choose_recorded_session": "Выберите записанную сессию",
+  "race_plan_choose_recorded_stint": "Выберите записанный отрезок",
+  "race_plan_generator_no_evidence": "Нет подходящих записанных данных. Выберите другую сессию или создайте план вручную."
 }

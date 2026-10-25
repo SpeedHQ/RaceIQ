@@ -1532,6 +1532,7 @@
   "strategy_population_hot": "Hot",
   "strategy_population_cold": "Cold",
   "strategy_lap_axis": "Lap number",
+  "strategy_lap_select_guidance": "Select a lap point to inspect its measurements.",
   "strategy_lap_number": "Lap {lap}",
   "strategy_filter_all": "All",
   "strategy_value": "Value",
@@ -1609,6 +1610,7 @@
   "strategy_stints_empty": "No recorded stint trends.",
   "strategy_stint_summary_label": "Persisted per-stint averages, evidence counts, and data quality",
   "strategy_compare": "Compare",
+  "strategy_view_comparison": "View comparison",
   "strategy_stint_laps": "Stint / laps",
   "strategy_stint_details": "Details",
   "strategy_status_boundary": "Status / boundary",
@@ -2937,6 +2939,7 @@
   "race_plan_stint": "Stint {ordinal}",
   "race_plan_end_lap": "Pit / finish lap",
   "race_plan_evidence": "Evidence stint",
+  "race_plan_evidence_ready": "Ready",
   "race_plan_start_fuel": "Starting fuel",
   "race_plan_snapshot": "Snapshot: session {session}, stint {stint} · {laps} completed laps · fuel {fuelLaps} eligible laps · tire laps FL/FR/RL/RR {tireLaps}",
   "race_plan_source_details": "Recorded {date} · {status} · setup {setup} · conditions {conditions}",
@@ -3203,5 +3206,8 @@
   "compare_overview_starting_fuel": "Starting fuel",
   "compare_overview_fuel_used": "Fuel used",
   "compare_overview_top_speed": "Top speed",
-  "compare_overview_unavailable": "Unavailable"
+  "compare_overview_unavailable": "Unavailable",
+  "race_plan_choose_recorded_session": "Choose a recorded session",
+  "race_plan_choose_recorded_stint": "Choose a recorded stint",
+  "race_plan_generator_no_evidence": "No suitable recorded evidence. Select another session or create a manual plan."
 }

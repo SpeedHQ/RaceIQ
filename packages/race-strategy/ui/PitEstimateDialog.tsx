@@ -100,7 +100,8 @@ export function PitEstimateDialog({ gameId, sessionId, currentLap, carId, trackI
   const mixedCliff = new Set(thresholdTuple("cliffPct")).size > 1;
   const mixedDead = new Set(thresholdTuple("deadPct")).size > 1;
   const rangeEnd = horizon == null ? null : horizon + graphRange;
-  const limiter = pit?.limitedBy === "fuel" ? supportsRaceRefueling(gameId) ? m.pit_timeline_fuel_first() : m.pit_timeline_no_limiter() : pit?.limitedBy === "tires" ? m.pit_timeline_tires_first() : pit?.limitedBy === null ? m.pit_timeline_no_limiter() : m.strategy_unavailable();
+  const hasPitEstimate = pit?.pitInLaps != null && Number.isFinite(pit.pitInLaps) && pit.pitInLaps >= 0;
+  const limiter = pit?.limitedBy === "fuel" ? supportsRaceRefueling(gameId) ? m.pit_timeline_fuel_first() : m.pit_timeline_projection_unavailable() : pit?.limitedBy === "tires" ? m.pit_timeline_tires_first() : pit?.limitedBy === null && hasPitEstimate ? m.pit_timeline_no_limiter() : m.pit_timeline_projection_unavailable();
 
   return <Dialog>
     <DialogTrigger render={<Button variant="outline" size="sm" className="shrink-0">{m.pit_timeline_open()}</Button>} />

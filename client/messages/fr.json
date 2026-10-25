@@ -1463,6 +1463,7 @@
   "strategy_population_hot": "Chaud",
   "strategy_population_cold": "Froid",
   "strategy_lap_axis": "Numéro de tour",
+  "strategy_lap_select_guidance": "Sélectionnez un point de tour pour consulter ses mesures.",
   "strategy_lap_number": "Tour {lap}",
   "strategy_filter_all": "Tout",
   "strategy_value": "Valeur",
@@ -1540,6 +1541,7 @@
   "strategy_stints_empty": "Aucune tendance par relais enregistrée.",
   "strategy_stint_summary_label": "Moyennes enregistrées par relais, décomptes des données et qualité des données",
   "strategy_compare": "Comparer",
+  "strategy_view_comparison": "Voir la comparaison",
   "strategy_stint_laps": "Relais / tours",
   "strategy_stint_details": "Détails",
   "strategy_status_boundary": "État / limite",
@@ -3032,6 +3034,7 @@
   "race_plan_stint": "Relais {ordinal}",
   "race_plan_end_lap": "Tour d’arrêt / d’arrivée",
   "race_plan_evidence": "Relais de référence",
+  "race_plan_evidence_ready": "Prêt",
   "race_plan_start_fuel": "Carburant au départ",
   "race_plan_snapshot": "Relevé : session {session}, relais {stint} · {laps} tours terminés · carburant : {fuelLaps} tours admissibles · tours des pneus FL/FR/RL/RR {tireLaps}",
   "race_plan_source_details": "Enregistré le {date} · {status} · réglage {setup} · conditions {conditions}",
@@ -3199,5 +3202,8 @@
   "compare_overview_ers_deployed": "ERS déployé",
   "compare_overview_ers_recovered": "ERS récupéré",
   "compare_overview_top_speed": "Vitesse maximale",
-  "compare_overview_unavailable": "Indisponible"
+  "compare_overview_unavailable": "Indisponible",
+  "race_plan_choose_recorded_session": "Choisir une session enregistrée",
+  "race_plan_choose_recorded_stint": "Choisir un relais enregistré",
+  "race_plan_generator_no_evidence": "Aucune donnée enregistrée adaptée. Choisissez une autre session ou créez un plan manuel."
 }
