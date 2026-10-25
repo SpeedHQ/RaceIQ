@@ -1,4 +1,3 @@
 packages/sessions-page/test/unit/sessions-export.test.ts
 packages/sessions-page/test/unit/sessions-ownership.test.ts
 packages/sessions-page/test/unit/sessions-toolbar.test.tsx
-packages/sessions-page/test/unit/session-result-meta.test.tsx

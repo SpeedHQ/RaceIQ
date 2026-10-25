@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { getLocale } from "@/paraglide/runtime";
 import { parseUtcTimestamp } from "@raceiq/frontend-pure/utc-date";
 import { ChevronDown, Download, FileDown, NotebookPen, Sparkles, Trash2 } from "lucide-react";
-import type { LapMeta, SessionOwnership } from "@raceiq/shared/racing/sessions/types";
+import type { LapMeta, ProcessingMetadata, SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { formatLapTime } from "../../lib/format";
 import { useMotecTargets, type MotecTargetInfo } from "../../hooks/catalog-queries";
@@ -11,6 +11,7 @@ import { m } from "../../paraglide/messages";
 import { Button } from "../ui/button";
 import { SearchSelect } from "../ui/SearchSelect";
 import { FavoriteToggleButton } from "../FavoriteToggleButton";
+import { ProcessingStatus } from "../ProcessingStatus";
 import { queryKeys } from "../../hooks/query-keys";
 
 function buildAnalyseLapOption(lap: LapMeta, locale?: "en" | "de") {
@@ -49,6 +50,10 @@ interface Props {
   tunePending: boolean;
   // UI state
   loading: boolean;
+  processingLoading: boolean;
+  onRefreshProcessing: () => void;
+  analyseSessionProcessing?: ProcessingMetadata;
+  sessionProcessingLoading?: boolean;
   // Callbacks
   onTrackChange: (v: string | null) => void;
   onCarChange: (v: string | null) => void;
@@ -87,11 +92,15 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
   availableTunes,
   tunePending,
   loading,
+  processingLoading,
+  onRefreshProcessing,
+  analyseSessionProcessing,
+  sessionProcessingLoading = false,
   onTrackChange,
   onCarChange,
-  onLapChange,
   onTuneChange,
   onViewTune,
+  onLapChange,
   onShowSetup,
   onExport,
   onExportBin,
@@ -123,7 +132,14 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
       const sessionLaps = sessions.get(lap.sessionId) ?? [lap];
       const sessionDate = parseUtcTimestamp(sessionLaps[sessionLaps.length - 1].createdAt);
       const sessionLabel = m.analyse_session_group({ date: sessionDate.toLocaleDateString(getLocale()), time: sessionDate.toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" }), count: sessionLaps.length });
-      return { ...buildAnalyseLapOption(lap), group: sessionLabel };
+      const processing = lap.processing;
+      const status = processing?.state === "queued" ? m.recording_processing_queued()
+        : processing?.state === "processing" ? m.recording_processing_running()
+          : processing?.state === "failed" ? m.recording_processing_failed({ error: processing.error })
+            : processing?.state == null ? m.recording_processing_loading()
+              : "";
+      const option = buildAnalyseLapOption(lap);
+      return { ...option, label: status ? `${option.label} — ${status}` : option.label, group: sessionLabel, disabled: processing?.state !== "ready" };
     });
   }, [filteredLaps]);
   const [pendingImport, setPendingImport] = useState<File | null>(null);
@@ -166,7 +182,9 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
             disabled={selectedCar == null}
             className="w-full min-w-0 @3xl/workspace:w-auto @3xl/workspace:min-w-[160px] @3xl/workspace:flex-1 @5xl/workspace:flex-none"
             fallbackLabel={selectedLap ? buildAnalyseLapOption(selectedLap).label : selectedLapId != null ? `Lap ${selectedLapId}` : undefined}
+            ariaLabel={m.analyse_search_laps_placeholder()}
           />
+          {selectedLapId != null && <ProcessingStatus processing={selectedLap?.processing} loading={processingLoading} onRefresh={onRefreshProcessing} />}
           {selectedLap && <FavoriteToggleButton target="lap" id={selectedLap.id} isFavorite={Boolean(selectedLap.isFavorite)} />}
           {selectedLapId != null && selectedLap?.source === "motec" && <MotecBadge />}
         </div>
@@ -312,6 +330,9 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
             ]}
           />
           {loading && <span className="text-xs text-app-text-muted animate-pulse">{m.common_loading()}</span>}
+          {analyseSessionProcessing != null || sessionProcessingLoading ? (
+            <ProcessingStatus processing={analyseSessionProcessing} loading={sessionProcessingLoading} onRefresh={onRefreshProcessing} />
+          ) : null}
         </div>
       </div>
       {pendingImport && (

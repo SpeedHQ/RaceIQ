@@ -89,8 +89,9 @@ function AppShell() {
   const updateAvailable = useTelemetryStore((s) => s.updateAvailable);
   const updateProgress = useTelemetryStore((s) => s.updateProgress);
   const showSettings = useUiStore((s) => s.settingsOpen);
-  const liveCaptureError = useTelemetryStore((s) => s.liveCaptureError);
   const settingsSection = useUiStore((s) => s.settingsSection);
+  const liveCaptureError = useTelemetryStore((s) => s.liveCaptureError);
+  const opponentRecordingError = useTelemetryStore((s) => s.opponentRecordingError);
   const onboardingOpen = useUiStore((s) => s.onboardingOpen);
   const { openSettings, closeSettings, closeOnboarding } = uiStore.actions;
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -222,6 +223,10 @@ function AppShell() {
       {liveCaptureError && <div role="alert" className="fixed bottom-4 left-1/2 z-40 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-start gap-3 border border-status-danger/40 bg-app-surface px-4 py-3 text-sm text-app-danger">
         <p className="min-w-0 whitespace-pre-wrap break-words">{liveCaptureError}</p>
         <Button type="button" variant="app-ghost" size="app-sm" aria-label="Dismiss recording failure" onClick={() => telemetryStore.actions.setLiveCaptureError(null)} className="shrink-0">Dismiss</Button>
+      </div>}
+      {opponentRecordingError && <div role="alert" className="fixed bottom-20 left-1/2 z-40 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-start gap-3 border border-status-warning/40 bg-app-surface px-4 py-3 text-sm text-app-text">
+        <p className="min-w-0 whitespace-pre-wrap break-words">{m.opponent_recording_failed({ error: opponentRecordingError })}</p>
+        <Button type="button" variant="app-ghost" size="app-sm" aria-label={m.opponent_recording_dismiss()} onClick={() => telemetryStore.actions.setOpponentRecordingError(null)} className="shrink-0">{m.opponent_recording_dismiss()}</Button>
       </div>}
     </>
   );

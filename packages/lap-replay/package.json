@@ -2,7 +2,14 @@
   "name": "@raceiq/lap-replay",
   "private": true,
   "type": "module",
-  "exports": { "./ui": "./ui/index.ts", "./server": "./server/index.ts", "./contracts": "./contracts/index.ts" },
+  "exports": {
+    "./ui": "./ui/index.ts",
+    "./server": "./server/index.ts",
+    "./contracts": "./contracts/index.ts",
+    "./test-support/opponents": "./server/opponent-routes.ts",
+    "./test-support/spectate-replay": "./ui/spectate-replay.ts",
+    "./test-support/spectate-track-geometry": "./test/support/spectate-track-geometry.ts"
+  },
   "scripts": {
     "lint": "node ../../client/node_modules/oxlint/bin/oxlint .",
     "typecheck": "bun check --project tsconfig.ui.json && bun check --project tsconfig.server.json",

@@ -3,7 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { GameIdQuerySchema, IdParamSchema } from "@raceiq/shared/platform/http/route-schemas";
 import { GameIdSchema } from "@raceiq/shared/games/ids";
-import { getSessions, deleteSession, updateSession, updateSessionCarTrack, countStaleSessions, getStaleSessions, getSessionRecapData, setSessionFavorite, SessionCaptureActiveError } from "@raceiq/backend-core/db/session-queries";
+import { getSessions, deleteSession, updateSession, updateSessionCarTrack, countStaleSessions, getStaleSessions, getSessionProcessingById, getSessionRecapData, setSessionFavorite, SessionCaptureActiveError } from "@raceiq/backend-core/db/session-queries";
 import { reprocessSession, SessionNotFoundError, SessionRawFileMissingError } from "@raceiq/backend-core/session-capture/reprocess";
 import {
   getClassificationMigrationStatus,
@@ -69,6 +69,14 @@ export const createSessionRoutes = (
     const { id } = c.req.valid("param");
     const { gameId } = c.req.valid("query");
     if (!gameId) return c.json({ error: "gameId is required" }, 400);
+    const processing = await getSessionProcessingById(id, gameId);
+    if (!processing) return c.json({ error: "Session not found" }, 404);
+    if (processing.state === "queued" || processing.state === "processing") {
+      return c.json({ code: "RECORDING_PROCESSING", error: "Recording is queued or processing" }, 409);
+    }
+    if (processing.state === "failed") {
+      return c.json({ code: "RECORDING_PROCESSING_FAILED", error: processing.error }, 422);
+    }
     const data = await getSessionRecapData(id, gameId);
     if (!data) return c.json({ error: "Session not found" }, 404);
     const adapter = tryGetGame(gameId);

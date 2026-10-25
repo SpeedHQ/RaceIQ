@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { gunzipSync } from "node:zlib";
@@ -14,6 +14,7 @@ import type { DetectorOwnershipTransition, DetectorOwnershipWindow } from "@race
 import { DirectCaptureRecording } from "@raceiq/backend-core/session-capture/direct-recorder";
 import { initServerGameAdapters } from "../../src/games/init";
 import { eq } from "drizzle-orm";
+import { runSessionCaptureMaintenanceNow } from "@raceiq/backend-core/session-capture/compressor";
 
 const captures: DirectCaptureRecording[] = [];
 const directories: string[] = [];
@@ -114,6 +115,8 @@ describe("DirectCaptureRecording", () => {
     capture.processTransitions([ownershipTransition("final-incomplete", { ...windowB, revision: 4, status: "incomplete" })], null);
     capture.bindLap({ sessionId: session.id, lapId: rowB.id, lapNumber: 2, startByteOffset: offsetB, frameCount: 1 });
     await capture.stop();
+    await writeFile(join(directory, "capture-manifest.json"), "{interrupted publication");
+    await runSessionCaptureMaintenanceNow();
 
     const manifest = JSON.parse(await readFile(join(directory, "capture-manifest.json"), "utf8"));
     expect(manifest.sourceRecordCount).toBe(2);

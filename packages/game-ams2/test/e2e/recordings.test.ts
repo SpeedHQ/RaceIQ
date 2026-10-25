@@ -107,7 +107,7 @@ describe("AMS2 real raw-dump fixtures", () => {
     expect(db.sessions.map(s => s.sessionType)).toEqual(["practice"]);
     const laps = completed(db);
     expect(laps.map(lap => lap.lapNumber)).toEqual([1, 2, 3]);
-    expect(laps.map(l => l.invalidReason)).toEqual(["outlap", null, null]);
+    expect(laps.map(l => l.classification)).toEqual(["out_lap", "pace", "pace"]);
     expect(laps.map(l => l.lapTime.toFixed(3))).toEqual(["50.460", "52.080", "51.300"]);
     expect(messages.filter(m => m.includes("Untimed start-line crossing"))).toHaveLength(2);
     expect(messages.filter(m => m.includes("Race restart detected"))).toHaveLength(0);
@@ -133,7 +133,7 @@ describe("AMS2 real raw-dump fixtures", () => {
     expect(channels.PositionX.max - channels.PositionX.min).toBeGreaterThan(100);
     expect(channels.PositionZ.max - channels.PositionZ.min).toBeGreaterThan(100);
     expect(db.sessions.map(s => s.sessionType)).toEqual(["race"]);
-    expect(completed(db).map(l => l.invalidReason)).toEqual([null, null, "inlap", "outlap", null]);
+    expect(completed(db).map(l => l.classification)).toEqual(["pace", "pace", "in_lap", "out_lap", "pace"]);
     expect(completed(db).map(l => l.lapTime.toFixed(3))).toEqual(["84.850", "72.645", "112.819", "70.170", "66.820"]);
     expect(db.laps.at(-1)?.invalidReason).toBe("incomplete");
   });
@@ -142,7 +142,7 @@ describe("AMS2 real raw-dump fixtures", () => {
     const { db, diagnostics } = await replay("qualifying");
     expect(db.sessions.map(s => s.sessionType)).toEqual(["qualifying", "race"]);
     expect(completed(db).map(lap => lap.lapNumber)).toEqual([1, 2, 3, 4]);
-    expect(completed(db).map(l => l.invalidReason)).toEqual(["outlap", null, null, null]);
+    expect(completed(db).map(l => l.classification)).toEqual(["out_lap", "pace", "pace", "pace"]);
     expect(completed(db).map(l => l.lapTime.toFixed(3))).toEqual(["65.396", "65.371", "65.738", "65.478"]);
     expect(diagnostics.staleTransition).toBe(1);
     expect(db.laps.at(-1)?.invalidReason).toBe("incomplete");

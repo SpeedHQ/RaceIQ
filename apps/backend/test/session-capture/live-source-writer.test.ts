@@ -1,6 +1,6 @@
 import { afterAll, expect, test } from "bun:test";
 import { WorkerSessionRecorder } from "@raceiq/capture-formats/session/worker-recorder";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -180,3 +180,60 @@ test("premature worker exit rejects pending recorder close", async () => {
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("raw source admission reuses bounded disk credits without losing records", async () => {
+  const root = await mkdtemp(join(tmpdir(), "raceiq-raw-source-pressure-"));
+  const path = join(root, "source.bin");
+  const recorder = new WorkerSessionRecorder("fm-2023", { maxBatchBytes: 1024, maxInFlightBytes: 1024, syncIntervalMs: 0 });
+  const expected = Array.from({ length: 32 }, (_, index) => nativeFrame(index));
+  try {
+    recorder.start(path);
+    recorder.writeMetaFrame();
+    for (const [index, frame] of expected.entries()) {
+      await recorder.writeRawCaptureRecordAsync(Buffer.concat([encodeFrameLength(frame.length, index), frame]));
+      expect(recorder.inFlightByteCount).toBeLessThanOrEqual(1024);
+    }
+    await recorder.stop();
+    const bytes = await readFile(path);
+    expect(bytes.readUInt32LE(8)).toBe(32);
+    const frames = [...iterateSessionCaptureRecords(bytes, 0, { strict: true })].filter(record => record.kind === "frame");
+    expect(frames.map(record => record.frame)).toEqual(expected);
+    expect(frames.map(record => record.frameTimeMs)).toEqual(expected.map((_, index) => index));
+  } finally {
+    await recorder.stop().catch(() => {});
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+for (const termination of ["io-failure", "close"] as const) {
+  test(`waiting raw admission rejects on ${termination} without advancing accepted count`, async () => {
+    const root = await mkdtemp(join(tmpdir(), "raceiq-raw-source-terminal-"));
+    const blocker = join(root, "not-a-directory");
+    if (termination === "io-failure") await writeFile(blocker, "preserve");
+    const path = termination === "io-failure" ? join(blocker, "source.bin") : join(root, "source.bin");
+    const recorder = new WorkerSessionRecorder("fm-2023", { maxBatchBytes: 1024, maxInFlightBytes: 1024, syncIntervalMs: 0 });
+    const first = nativeFrame(11), second = nativeFrame(22);
+    try {
+      recorder.start(path);
+      recorder.writeMetaFrame();
+      recorder.writeRawCaptureRecord(Buffer.concat([encodeFrameLength(first.length), first]));
+      const waiting = recorder.writeRawCaptureRecordAsync(Buffer.concat([encodeFrameLength(second.length), second])).then(() => null, (error: unknown) => error);
+      if (termination === "close") {
+        const closing = recorder.stop();
+        expect(await waiting).toBeInstanceOf(Error);
+        await closing;
+        const frames = [...iterateSessionCaptureRecords(await readFile(path), 0, { strict: true })].filter(record => record.kind === "frame");
+        expect(frames.map(record => record.frame)).toEqual([first]);
+      } else {
+        expect(await waiting).toBeInstanceOf(Error);
+        expect(recorder.error).toBeInstanceOf(Error);
+        expect(await readFile(blocker, "utf8")).toBe("preserve");
+      }
+      expect(recorder.recordCount).toBe(1);
+      expect(recorder.sourceRecordCount).toBe(1);
+    } finally {
+      await recorder.stop().catch(() => {});
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+}

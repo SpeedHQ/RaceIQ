@@ -17,7 +17,6 @@ import { iterateSessionCaptureFrames } from "@raceiq/backend-core/session-captur
 import { readKunosFrames } from "@raceiq/capture-formats/kunos/dump";
 import { ACC_PACKED_MAGIC, packTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
 import { readIRacingFrames } from "@raceiq/capture-formats/iracing/dump";
-import { readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { convertSeedFramesToSparse } from "@raceiq/tooling-data/data/seed-capture-conversion";
 
@@ -28,14 +27,22 @@ initServerGameAdapters();
 afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }); });
 
 function fixtureFrames(name: string, gameId: GameId): Buffer[] {
-  const path = join(ROOT_DIR, "test/artifacts/sessions", name);
+  const path = gameId === "lmu"
+    ? join(ROOT_DIR, "packages/game-lmu/test/fixtures/sessions", name)
+    : join(ROOT_DIR, "test/artifacts/sessions", name);
   if (gameId === "acc") {
     return readKunosFrames(path).slice(0, 260).map(({ physics, graphics, staticData }) =>
       packTriplet(ACC_PACKED_MAGIC, 1, 1, physics, graphics, staticData));
   }
   if (gameId === "iracing") return readIRacingFrames(path, 260);
   const bytes = gunzipSync(readFileSync(path));
-  if (gameId === "lmu") return readLMUFramesFromBuffer(bytes).slice(0, 260);
+  if (gameId === "lmu") {
+    const frames = [...iterateSessionCaptureRecords(bytes)]
+      .filter((record): record is Extract<typeof record, { kind: "frame" }> => record.kind === "frame")
+      .slice(0, 260).map(({ frame }) => frame);
+    expect(frames.length).toBeGreaterThan(0);
+    return frames;
+  }
   const frames: Buffer[] = [];
   const limit = gameId === "f1-2025" ? 520 : 260;
   for (const frame of iterateSessionFrames(bytes)) {
@@ -53,42 +60,49 @@ describe("generic sparse session recorder", () => {
     ["acc", "acc-2026-04-10T02-55-22-777Z.bin.gz"],
     ["ac-evo", "session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz"],
     ["iracing", "iracing-daytona-am-vantage-gt3-pit.bin.gz"],
-    ["lmu", "lmu-spa-iron-lynx-gte.bin.gz"],
+    ["lmu", "lmu-real-opponents-2026-10-22.bin.gz"],
   ] as const)("restores fixture source bytes and seeks for %s", async (gameId, fixture) => {
     const dir = mkdtempSync(join(tmpdir(), "raceiq-generic-sparse-")); dirs.push(dir);
     const previousDataDir = process.env.DATA_DIR;
-    process.env.DATA_DIR = dir;
-    const recorder = new SparseSessionRecorderAdapter();
-    recorder.start(gameId); recorder.writeMetaFrame();
-    const frames = fixtureFrames(fixture, gameId);
-    const offsets: number[] = [];
-    for (const frame of frames) { offsets.push(recorder.getCurrentByteOffset()); recorder.writeRecord(frame); }
-    const file = recorder.path!;
-    await recorder.stop();
-    if (previousDataDir === undefined) delete process.env.DATA_DIR;
-    else process.env.DATA_DIR = previousDataDir;
-    const captureSource = (rawFile: string) => ({ rawFile, source: null, gameId, carId: "0", trackId: "0" });
-    const sparseStreamedPackets = await parseRawLapFrames(captureSource(file), 12, frames.length);
-    expect(sparseStreamedPackets.length).toBeGreaterThan(0);
-    const bytes = readFileSync(file);
-    const records = [...iterateSessionCaptureRecords(bytes)];
-    expect(records.map((record) => record.kind === "frame" ? record.offset : -1)).toEqual(offsets);
-    expect(records.map((record) => record.kind === "frame" ? record.frame : null)).toEqual(frames);
-    for (const index of [0, 1, 126, 127, 128, 129, 259]) {
-      if (index < frames.length) expect(sessionFrameAt(bytes, offsets[index]!)).toEqual(frames[index]);
-    }
-    const streamed: Buffer[] = [];
-    for await (const record of iterateSessionCaptureFrames({ rawFile: file, source: null, gameId, carId: "0", trackId: "0" })) streamed.push(record.frame);
-    expect(streamed).toEqual(frames);
-    const gzFile = join(dir, "capture.bin.gz");
-    writeFileSync(gzFile, gzipSync(bytes));
-    const gzFrames: Buffer[] = [];
-    for await (const record of iterateSessionCaptureFrames({ rawFile: gzFile, source: null, gameId, carId: "0", trackId: "0" })) gzFrames.push(record.frame);
-    expect(gzFrames).toEqual(frames);
-    if (gameId === "fm-2023" || gameId === "f1-2025") {
-      const deltas = records.filter((record) => record.kind === "frame" && isGenericSparseFrame(bytes.subarray(record.offset + 4, record.offset + 4 + bytes.readUInt32LE(record.offset))));
-      expect(deltas.length).toBeGreaterThan(0);
-      expect(bytes.length).toBeLessThan(frames.reduce((sum, frame) => sum + frame.length + 4, 0) + 12);
+    try {
+      process.env.DATA_DIR = dir;
+      const recorder = new SparseSessionRecorderAdapter();
+      recorder.start(gameId); recorder.writeMetaFrame();
+      const frames = fixtureFrames(fixture, gameId);
+      const offsets: number[] = [];
+      for (const frame of frames) {
+        offsets.push(recorder.getCurrentByteOffset());
+        recorder.writeRecord(frame);
+        if (gameId === "lmu") await recorder.workerRecorder!.requestSync();
+      }
+      const file = recorder.path!;
+      await recorder.stop();
+      const captureSource = (rawFile: string) => ({ rawFile, source: null, gameId, carId: "0", trackId: "0" });
+      const sparseStreamedPackets = await parseRawLapFrames(captureSource(file), 12, frames.length);
+      expect(sparseStreamedPackets.length).toBeGreaterThan(0);
+      const bytes = readFileSync(file);
+      const records = [...iterateSessionCaptureRecords(bytes)];
+      expect(records.map((record) => record.kind === "frame" ? record.offset : -1)).toEqual(offsets);
+      expect(records.map((record) => record.kind === "frame" ? record.frame : null)).toEqual(frames);
+      for (const index of [0, 1, 126, 127, 128, 129, 259]) {
+        if (index < frames.length) expect(sessionFrameAt(bytes, offsets[index]!)).toEqual(frames[index]);
+      }
+      const streamed: Buffer[] = [];
+      for await (const record of iterateSessionCaptureFrames({ rawFile: file, source: null, gameId, carId: "0", trackId: "0" })) streamed.push(record.frame);
+      expect(streamed).toEqual(frames);
+      const gzFile = join(dir, "capture.bin.gz");
+      writeFileSync(gzFile, gzipSync(bytes));
+      const gzFrames: Buffer[] = [];
+      for await (const record of iterateSessionCaptureFrames({ rawFile: gzFile, source: null, gameId, carId: "0", trackId: "0" })) gzFrames.push(record.frame);
+      expect(gzFrames).toEqual(frames);
+      if (gameId === "fm-2023" || gameId === "f1-2025") {
+        const deltas = records.filter((record) => record.kind === "frame" && isGenericSparseFrame(bytes.subarray(record.offset + 4, record.offset + 4 + bytes.readUInt32LE(record.offset))));
+        expect(deltas.length).toBeGreaterThan(0);
+        expect(bytes.length).toBeLessThan(frames.reduce((sum, frame) => sum + frame.length + 4, 0) + 12);
+      }
+    } finally {
+      if (previousDataDir === undefined) delete process.env.DATA_DIR;
+      else process.env.DATA_DIR = previousDataDir;
     }
   });
   test.each([
@@ -97,7 +111,7 @@ describe("generic sparse session recorder", () => {
     ["acc", "acc-2026-04-10T02-55-22-777Z.bin.gz"],
     ["ac-evo", "session-ac-evo-menu-exit-2026-04-23T18-11-48-959Z.bin.gz"],
     ["iracing", "iracing-road-america-gt3.bin.gz"],
-    ["lmu", "lmu-spa-iron-lynx-gte.bin.gz"],
+    ["lmu", "lmu-real-opponents-2026-10-22.bin.gz"],
   ] as const)("preserves acquisition UTC, gaps and source bytes for %s", async (gameId, fixture) => {
     const dir = mkdtempSync(join(tmpdir(), "raceiq-captured-utc-")); dirs.push(dir);
     const frames = fixtureFrames(fixture, gameId);

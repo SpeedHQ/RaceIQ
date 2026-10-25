@@ -1,5 +1,9 @@
 import { readAMS2DumpFrames } from "@raceiq/capture-formats/ams2/dump";
 /**
+ * Generic lap/session ZIP round-trips across all supported games.
+ * LMU-only opponent and supplemental-data cases live in packages/game-lmu.
+ */
+/**
  * End-to-end round-trip for the lap/session ZIP feature, against a *real*
  * recorded capture rather than the synthetic frames used in
  * lap-export-zip.test.ts.
@@ -19,7 +23,7 @@ import { db } from "@raceiq/backend-core/db/index";
 import { sessions, laps } from "@raceiq/backend-core/db/schema";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
-import { readLMUFrames } from "@raceiq/capture-formats/lmu/dump";
+import { META_FRAME_BYTES, iterateSessionCaptureRecords, iterateSessionFrames } from "@raceiq/capture-formats/session/framing";
 import { isIRacingSessionFrame } from "@raceiq/capture-formats/iracing/source-frame";
 import { readIRacingFrames } from "@raceiq/capture-formats/iracing/dump";
 import { importSessionFrames } from "@raceiq/backend-core/session-capture/import-pipeline";
@@ -30,13 +34,7 @@ import { parseRawLapFrames, parseSessionLapsBatched } from "@raceiq/backend-core
 import { readRecordedTelemetry } from "../../src/session-capture/replay-packets";
 import { reprocessSession } from "@raceiq/backend-core/session-capture/reprocess";
 import { setCaptureFileFactoryForTest, type SessionCaptureSource } from "@raceiq/backend-core/session-capture/source-loader";
-import {
-  iterateSessionCaptureRecords,
-  iterateSessionFrames,
-  META_FRAME_BYTES,
-  readFramePrefix,
-} from "@raceiq/capture-formats/session/framing";
-import { encodeLmuSparseFrame, isLmuSparseFrame } from "@raceiq/capture-formats/session/lmu-sparse";
+import { encodeLmuSparseFrame } from "@raceiq/capture-formats/session/lmu-sparse";
 import { queryLapTelemetryBySemanticId } from "@raceiq/backend-core/telemetry/replay";
 import { KNOWN_GAME_IDS, type GameId } from "@raceiq/shared/games/ids";
 import { buildLd, buildLdx, syntheticStint } from "@raceiq/backend-core/test-support/motec/ld";
@@ -47,6 +45,9 @@ import { decodeLMUSourceFrame, encodeLMUSourceFrame, LMU_MAX_SOURCE_FRAME_SIZE }
 import { LMU_SHARED_MEMORY_SIZE, LMU_GAME_VERSION_OFFSET, LMU_SESSION_EVENT_OFFSET, LMU_TELEMETRY_HEADER_OFFSET, LMU_TELEMETRY_INFO_OFFSET, LMU_TELEMETRY, LMU_SCORING_INFO, LMU_SCORING_INFO_OFFSET, LMU_SCORING_VEHICLE, LMU_SCORING_VEHICLES_OFFSET } from "@raceiq/capture-formats/lmu/layout";
 import type { LmuLiveContext } from "@raceiq/shared/telemetry/lmu";
 import { encodeLmuContext } from "@raceiq/shared/telemetry/lmu-context";
+import { importSessionBin } from "@raceiq/backend-core/session-capture/import-capture";
+import { readLmuOpponentCaptureFrames, indexLmuOpponentLaps } from "@raceiq/backend-core/lap-analysis/lmu-opponent-laps";
+import { readLmuOpponentRetention } from "@raceiq/backend-core/session-capture/lmu-companion";
 initGameAdapters();
 initServerGameAdapters();
 initMotecTargets();
@@ -64,7 +65,7 @@ const GAME_CAPTURES: Record<GameId, { capture: string; label: string }> = {
   "ac-evo": { capture: "test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz", label: "Assetto Corsa Evo" },
   iracing: { capture: IRACING_CAPTURE, label: "iRacing" },
   ams2: { capture: "test/artifacts/sessions/ams2-time-trial.bin.gz", label: "Automobilista 2" },
-  lmu: { capture: "test/artifacts/sessions/lmu-spa-iron-lynx-gte.bin.gz", label: "Le Mans Ultimate" },
+  lmu: { capture: "packages/game-lmu/test/fixtures/sessions/lmu-real-opponents-2026-10-22.bin.gz", label: "Le Mans Ultimate" },
 };
 function captureSource(session: {
   rawFile: string | null;
@@ -126,7 +127,9 @@ describe("lap export → import round-trip (real capture)", () => {
       : gameId === "iracing"
       ? readIRacingFrames(capture)
       : gameId === "lmu"
-        ? readLMUFrames(capture)
+        ? [...iterateSessionCaptureRecords(Buffer.from(gunzipSync(await Bun.file(capture).arrayBuffer())))]
+            .filter((record): record is Extract<typeof record, { kind: "frame" }> => record.kind === "frame")
+            .map(({ frame }) => Buffer.from(frame))
         : iterateSessionFrames(
             Buffer.from(gunzipSync(await Bun.file(capture).arrayBuffer())),
           );
@@ -175,119 +178,6 @@ describe("lap export → import round-trip (real capture)", () => {
 
     const match = result.laps.find((l) => Math.abs(l.lapTime - exported.lapTime) < 0.001);
     expect(match).toBeDefined();
-  }, 120000);
-  test("LMU changing supplemental values and original nanoseconds survive selected-lap export, import and historical replay", async () => {
-    let oversizedDeltaExercised = false;
-    function* sourceFrames() {
-      let index = 0;
-      let previous: Buffer | null = null;
-      for (const bytes of readLMUFrames(GAME_CAPTURES.lmu.capture)) {
-        const native = decodeLMUSourceFrame(bytes)!;
-        const memory = Buffer.alloc(LMU_SHARED_MEMORY_SIZE);
-        if (native.rawSharedMemory) native.rawSharedMemory.copy(memory);
-        else {
-          memory.writeInt32LE(native.gameVersion, LMU_GAME_VERSION_OFFSET);
-          memory.writeUInt32LE(native.sessionEvent, LMU_SESSION_EVENT_OFFSET);
-          memory.writeUInt8(1, LMU_TELEMETRY_HEADER_OFFSET);
-          memory.writeUInt8(1, LMU_TELEMETRY_HEADER_OFFSET + 2);
-          native.telemetry.copy(memory, LMU_TELEMETRY_INFO_OFFSET);
-          native.scoringInfo.copy(memory, LMU_SCORING_INFO_OFFSET);
-          native.playerScoring?.copy(memory, LMU_SCORING_VEHICLES_OFFSET);
-        }
-        const sessionKey = `phase1-retention:${native.sessionEvent}`;
-        const timestamp = { domain: "monotonic" as const, nanoseconds: 9_007_199_254_740_993_123n + BigInt(index) * 1_000_000n };
-        const state = index % 7 === 0 ? "error" as const : "ok" as const;
-        const context: LmuLiveContext = {
-          schemaVersion: 1, status: "active", playerVehicleId: native.telemetry.readInt32LE(LMU_TELEMETRY.id),
-          key: { sessionKey, captureSequence: String(index), frameTime: { domain: "wall-clock", milliseconds: native.captureTimestampMs } },
-          supplemental: [{
-            semanticId: "lmu.rest.session.time-scale", endpoint: "/rest/sessions", method: "GET", sessionKey,
-            vehicleId: null, applicability: "session", acquiredAt: timestamp, responseVersion: "fixture-v1",
-            observation: {
-              semanticId: "lmu.rest.session.time-scale", value: state === "ok" ? index % 5 : null,
-              unit: "ratio", mappingStatus: "direct", state, confidence: null, freshness: "unknown",
-              confidenceComponents: { semanticFidelity: 1, freshness: null, inputCompleteness: state === "ok" ? 1 : 0 },
-              provenance: { simulator: "lmu", parserId: "lmu-rest", parserVersion: "1", resolverVersion: "1", catalogVersion: "fixture-v1", catalogHash: "fixture-v1", observedAt: timestamp,
-                sourceObservation: { timestamp, updateSequence: 9_007_199_254_740_993n + BigInt(index) },
-              }, schemaVersion: "1", limitations: ["Controlled storage integration fixture"],
-            },
-          }],
-        };
-        let frame: Buffer;
-        if (index === 3_000) {
-          // Change every native block, retaining the lap/session clock fields.
-          for (let offset = 63; offset < memory.length; offset += 64) memory[offset] ^= 1;
-          for (const offset of [LMU_TELEMETRY.elapsedTime, LMU_TELEMETRY.lapStartElapsedTime]) {
-            native.telemetry.copy(memory, LMU_TELEMETRY_INFO_OFFSET + offset, offset, offset + 8);
-          }
-          for (const [offset, size] of [[LMU_TELEMETRY.vehicleName, 64], [LMU_TELEMETRY.trackName, 64], [LMU_TELEMETRY.vehicleModel, 30]]) {
-            native.telemetry.copy(memory, LMU_TELEMETRY_INFO_OFFSET + offset, offset, offset + size);
-          }
-          native.scoringInfo.copy(memory, LMU_SCORING_INFO_OFFSET, 0, 64);
-          native.scoringInfo.copy(memory, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.lapDistance, LMU_SCORING_INFO.lapDistance, LMU_SCORING_INFO.lapDistance + 8);
-          native.playerScoring!.copy(memory, LMU_SCORING_VEHICLES_OFFSET + LMU_SCORING_VEHICLE.lapDistance, LMU_SCORING_VEHICLE.lapDistance, LMU_SCORING_VEHICLE.lapDistance + 8);
-          native.telemetry.copy(memory, LMU_TELEMETRY_INFO_OFFSET + LMU_TELEMETRY.lapNumber, LMU_TELEMETRY.lapNumber, LMU_TELEMETRY.lapNumber + 4);
-          const largeContext = { ...context, supplemental: [{ ...context.supplemental[0]!, responseVersion: "" }] };
-          const base = encodeLMUSourceFrame(memory, native.captureTimestampMs, { context: largeContext })!;
-          largeContext.supplemental[0]!.responseVersion = "x".repeat(LMU_MAX_SOURCE_FRAME_SIZE - base.length);
-          frame = encodeLMUSourceFrame(memory, native.captureTimestampMs, { context: largeContext })!;
-          expect(decodeLMUSourceFrame(frame)).not.toBeNull();
-          expect(encodeLmuSparseFrame(frame, previous!, 0).length).toBeGreaterThan(LMU_MAX_SOURCE_FRAME_SIZE);
-          oversizedDeltaExercised = true;
-        } else {
-          frame = encodeLMUSourceFrame(memory, native.captureTimestampMs, { context })!;
-        }
-        index++;
-        previous = frame;
-        yield frame;
-      }
-    }
-    const seeded = await importSessionFrames(sourceFrames(), "lmu");
-    createdSessions.push(...seeded.laps.map((lap) => lap.sessionId));
-    expect(oversizedDeltaExercised).toBe(true);
-    const exportedLap = seeded.laps.find((lap) => lap.isValid)!;
-    expect(exportedLap).toBeDefined();
-    const originalSession = (await db.select().from(sessions).where(eq(sessions.id, exportedLap.sessionId)).get())!;
-    if (originalSession.rawFile) tmpFiles.push(originalSession.rawFile);
-    const originalRow = (await db.select().from(laps).where(eq(laps.id, exportedLap.lapId)).get())!;
-    const original = await parseRawLapFrames(captureSource(originalSession), originalRow.rawByteOffset!, originalRow.rawFrameCount!);
-    expect(new Set(original.map((packet) => packet.lmuContext?.supplemental[0]?.observation.value)).size).toBe(6);
-    const exported = await buildLapsZip([originalRow.id]);
-    const archive = unzipSync(exported.bytes);
-    const captureMember = Object.entries(archive).find(([name]) => name.endsWith(".bin.gz"))?.[1];
-    expect(captureMember).toBeDefined();
-    const sparseCapture = gunzipSync(captureMember!);
-    expect(sparseCapture.length).toBeLessThan(original.length * LMU_SHARED_MEMORY_SIZE * 0.75);
-    let segmentBoundaries = 0;
-    let sparseFrames = 0;
-    for (const record of iterateSessionCaptureRecords(sparseCapture)) {
-      if (record.kind === "segment-boundary") {
-        segmentBoundaries++;
-        continue;
-      }
-      if (record.kind !== "frame") continue;
-      const prefix = readFramePrefix(sparseCapture, record.offset)!;
-      const payload = sparseCapture.subarray(record.offset + prefix.prefixBytes, record.offset + prefix.prefixBytes + prefix.length);
-      if (isLmuSparseFrame(payload)) {
-        sparseFrames++;
-      }
-    }
-    expect(segmentBoundaries).toBeGreaterThan(0);
-    expect(sparseFrames).toBeGreaterThan(0);
-    const imported = await importLapsZip(exported.bytes);
-    expect(imported.errors).toEqual([]);
-    expect(imported.laps).toHaveLength(1);
-    createdSessions.push(imported.laps[0]!.sessionId);
-    const importedSession = (await db.select().from(sessions).where(eq(sessions.id, imported.laps[0]!.sessionId)).get())!;
-    if (importedSession.rawFile) tmpFiles.push(importedSession.rawFile);
-    const importedRow = (await db.select().from(laps).where(eq(laps.id, imported.laps[0]!.lapId)).get())!;
-    const restored = await parseRawLapFrames(captureSource(importedSession), importedRow.rawByteOffset!, importedRow.rawFrameCount!);
-    expect(restored.map((packet) => packet.lmu)).toEqual(original.map((packet) => packet.lmu));
-    expect(restored.map((packet) => packet.lmuContext)).toEqual(original.map((packet) => packet.lmuContext));
-    const historical = await queryLapTelemetryBySemanticId(importedRow.id, ["fuel.virtual-energy"]);
-    expect(historical!.envelopes[0]!.observedAt).toEqual(restored[0]!.lmuContext!.key.frameTime);
-    expect(historical!.envelopes.map((envelope) => envelope.lmu)).toEqual(restored.map((packet) => encodeLmuContext(packet.lmuContext!)));
-    expect(historical!.envelopes[0]!.lmu!.supplemental[0]!.observation.provenance.sourceObservation!.updateSequence).toMatch(/^9007199254/);
   }, 120000);
 
   for (const gameId of KNOWN_GAME_IDS) {

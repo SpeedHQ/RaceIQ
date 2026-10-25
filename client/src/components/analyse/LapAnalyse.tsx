@@ -19,6 +19,7 @@ import { useAnalyseImports } from "./useAnalyseImports";
 import { useAnalyseSelections } from "./useAnalyseSelections";
 import { SessionIdentityDialog } from "../import/SessionIdentityDialog";
 import { useCarsForGame, useTracksForGame } from "../../hooks/catalog-queries";
+import { useSessions } from "../../hooks/session-queries";
 import { buildExportCsv } from "../../lib/lap-export";
 
 // ── Main Component ───────────────────────────────────────────────────
@@ -39,11 +40,15 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
     parseError,
     semanticFrames,
     selectedLap,
+    selectedLapReady,
+    selectedLapProcessingLoading,
+    refreshProcessing,
     semanticReplay,
     selectedTrack,
     selectedCar,
     selectedLapId,
     setSelectedLapId,
+    handleLapChange,
     outline,
     segments,
     initialCursor,
@@ -58,15 +63,7 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
     handleCarChange,
   } = useAnalyseSelections(initialLapId == null ? search : { ...search, lap: initialLapId }, gameId, sessionId);
   const identitySessionId = sessionId ?? selectedLap?.sessionId;
-  const { data: sessions = [] } = useQuery({
-    queryKey: [...queryKeys.sessions, gameId],
-    queryFn: async () => {
-      const response = await client.api.sessions.$get({ query: { gameId } });
-      if (!response.ok) throw new Error(`Failed to load sessions (${response.status})`);
-      return response.json() as Promise<{ id: number; carId: string | null; trackId: string | null; gameId: string }[]>;
-    },
-    enabled: identitySessionId != null,
-  });
+  const { data: sessions = [], isLoading: sessionsLoading, refetch: refetchSessions } = useSessions();
   const identitySession = sessions.find((session) => session.id === identitySessionId);
   const { data: catalogCars, isError: carsCatalogError } = useCarsForGame(gameId);
   const { data: catalogTracks, isError: tracksCatalogError } = useTracksForGame(gameId);
@@ -119,7 +116,7 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
   const { data: availableTunes } = useQuery({
     queryKey: ["tunes", gameId, selectedLap?.carId],
     queryFn: () => client.api.tunes.$get({ query: { gameId, carId: selectedLap?.carId ?? undefined } }).then((r) => r.json() as any),
-    enabled: gameId !== "lmu" && selectedLap?.carId != null,
+    enabled: gameId !== "lmu" && selectedLapReady && selectedLap?.carId != null,
   });
   const { data: persistedF1Setup } = useQuery<{ setup: F1CarSetup | null }>({
     queryKey: ["lap-setup", gameId, selectedLapId],
@@ -128,7 +125,7 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
       if (!response.ok) throw new Error("Failed to load lap setup");
       return response.json() as Promise<{ setup: F1CarSetup | null }>;
     },
-    enabled: gameId === "f1-2025" && selectedLapId != null,
+    enabled: gameId === "f1-2025" && selectedLapReady && selectedLapId != null,
   });
 
   const updateLapTune = useMutation({
@@ -177,7 +174,7 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
   const handleTuneChange = useCallback((tuneId: number | null) => updateLapTune.mutate(tuneId), [updateLapTune.mutate]);
   const handleNotesChange = useCallback((notes: string) => updateLapNotesMutation.mutate(notes), [updateLapNotesMutation.mutate]);
   const f1Setup = useMemo<F1CarSetup | null>(() => {
-    if (gameId !== "f1-2025") return null;
+    if (gameId !== "f1-2025" || !selectedLapReady) return null;
     if (persistedF1Setup?.setup) return persistedF1Setup.setup;
     if (!selectedLap?.carSetup) return null;
     try {
@@ -185,7 +182,7 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
     } catch {
       return null;
     }
-  }, [gameId, persistedF1Setup?.setup, selectedLap?.carSetup]);
+  }, [gameId, persistedF1Setup?.setup, selectedLap?.carSetup, selectedLapReady]);
   const hasF1Setup = f1Setup != null;
   const handleShowSetup = useCallback(() => {
     if (f1Setup) setSetup(f1Setup);
@@ -199,10 +196,17 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
     if (routePrefix) void navigate({ to: `/${routePrefix}/sessions` as never });
   }, [gameId, navigate]);
   const analyseSessionId = sessionId ?? selectedLap?.sessionId;
+  const analyseSessionProcessing = sessions.find((session) => session.id === analyseSessionId)?.processing;
+  const sessionProcessingLoading = analyseSessionId != null && (sessionsLoading || analyseSessionProcessing == null);
+  const refreshProcessingStatus = useCallback(() => {
+    refreshProcessing();
+    void refetchSessions();
+  }, [refreshProcessing, refetchSessions]);
   const handleAnalyseSession = useCallback(() => {
+    if (analyseSessionProcessing?.state !== "ready") return;
     const routePrefix = routePrefixForGameId(gameId);
     if (routePrefix && analyseSessionId != null) void navigate({ to: `/${routePrefix}/sessions/${analyseSessionId}/analyse` as never });
-  }, [analyseSessionId, gameId, navigate]);
+  }, [analyseSessionId, analyseSessionProcessing, gameId, navigate]);
   return (
     <div data-testid="lap-analyse-workspace" className="flex min-h-full min-w-0 flex-col @5xl/workspace:h-full @5xl/workspace:min-h-0 @5xl/workspace:overflow-hidden">
       {/* Header: cascading selectors + export */}
@@ -210,8 +214,8 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
         gameId={gameId}
         onBack={handleBackToSessions}
         sessionFocused={sessionId != null}
-        onAnalyseSession={analyseSessionId != null ? handleAnalyseSession : undefined}
         panelHeaderRef={setPanelHeaderTarget}
+        onAnalyseSession={analyseSessionProcessing?.state === "ready" ? handleAnalyseSession : undefined}
         onExport={() =>
           buildExportCsv(
             semanticFrames.map((frame) => frame.values),
@@ -226,6 +230,10 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
         selectedCar={selectedCar}
         selectedLapId={selectedLapId}
         selectedLap={selectedLap}
+        processingLoading={selectedLapProcessingLoading}
+        onRefreshProcessing={refreshProcessingStatus}
+        analyseSessionProcessing={analyseSessionProcessing}
+        sessionProcessingLoading={sessionProcessingLoading}
         hasF1Setup={hasF1Setup}
         trackNames={trackNames}
         carNames={carNames}
@@ -238,7 +246,7 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
         loading={loading}
         onTrackChange={handleTrackChange}
         onCarChange={handleCarChange}
-        onLapChange={setSelectedLapId}
+        onLapChange={handleLapChange}
         onTuneChange={handleTuneChange}
         onViewTune={setViewingTuneId}
         onShowSetup={handleShowSetup}
@@ -251,7 +259,7 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
         onNotesChange={handleNotesChange}
       />
 
-      {semanticFrames.length === 0 && <AnalyseWorkspaceStatus loading={loading} lapError={lapError} parseError={parseError} selectedLapId={selectedLapId} />}
+      {semanticFrames.length === 0 && (selectedLapId == null || selectedLapReady) && <AnalyseWorkspaceStatus loading={loading} lapError={lapError} parseError={parseError} selectedLapId={selectedLapId} />}
 
       {semanticReplay && selectedLap && semanticFrames.length > 0 && (
         <SingleReplaySession

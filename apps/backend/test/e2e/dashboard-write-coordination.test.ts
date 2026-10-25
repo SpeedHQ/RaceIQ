@@ -1,17 +1,31 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import Database from "libsql";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { z } from "zod";
 import { createRecording, drivenRows } from "@raceiq/game-iracing/test-support/games/iracing-ibt";
 import { createLMUDuckDB } from "@raceiq/game-lmu/test-support/duckdb";
-import { convertSeedFramesToSparse } from "@raceiq/tooling-data/data/seed-capture-conversion";
 import { containsSparseCaptureFrames, decompressIfGzipSync } from "@raceiq/capture-formats/session/framing";
-import { readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump";
 import { DASHBOARD_PROCESSOR_VERSION } from "@raceiq/backend-core/db/dashboard-summary-queries";
 import { dashboardCarIdentity, dashboardTrackIdentity } from "@raceiq/shared/racing/sessions/dashboard";
 import type { GameId } from "@raceiq/shared/games/ids";
+
+async function removeDatabaseDirectory(directory: string) {
+  // Release unreachable native handles before deleting the Windows fixture.
+  if (process.platform === "win32") Bun.gc(true);
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await rm(directory, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      const isBusyOnWindows = process.platform === "win32" && error instanceof Error && "code" in error && error.code === "EBUSY";
+      if (!isBusyOnWindows || attempt === 9) throw error;
+      await new Promise<void>((resolve) => setTimeout(resolve, 200));
+    }
+  }
+}
 
 const ROOT = resolve(import.meta.dir, "../../../..");
 const PublicationSchema = z.object({ type: z.enum(["candidatePrepared", "transactionOpen", "beforeCommit", "afterCommit"]), eventId: z.number(), sessionId: z.number() });
@@ -24,12 +38,9 @@ let motecBytes: Uint8Array<ArrayBuffer>;
 let fixtureDirectory: string;
 beforeAll(async () => {
   fixtureDirectory = mkdtempSync(join(tmpdir(), "raceiq-write-fixtures-"));
-  const raw = decompressIfGzipSync(readFileSync(join(ROOT, "test/artifacts/sessions/lmu-spa-iron-lynx-gte.bin.gz")));
-  if (containsSparseCaptureFrames(raw)) binBytes = Uint8Array.from(raw);
-  else {
-    const converted = await convertSeedFramesToSparse("lmu", readLMUFramesFromBuffer(raw));
-    try { binBytes = Uint8Array.from(readFileSync(converted.path)); } finally { converted.cleanup(); }
-  }
+  const raw = decompressIfGzipSync(readFileSync(join(ROOT, "packages/game-lmu/test/fixtures/sessions/lmu-real-opponents-grid-2026-10-22.bin.gz")));
+  if (!containsSparseCaptureFrames(raw)) throw new Error("LMU grid fixture must be canonical sparse capture");
+  binBytes = Uint8Array.from(raw);
   const ibt = createRecording("driven.ibt", drivenRows());
   try { ibtBytes = Uint8Array.from(readFileSync(ibt.path)); } finally { ibt.cleanup(); }
   const duckdb = join(fixtureDirectory, "import.duckdb");
@@ -242,8 +253,8 @@ async function fixture() {
     const openedDatabase = new Database(join(dataDir,"app.db"));
     database = openedDatabase;
     await drain(openedDatabase);
-    return {directory,dataDir,backend,database:openedDatabase,lap,async close() { await backend.stop(); openedDatabase.close(); rmSync(directory,{recursive:true,force:true}); }};
-  } catch(error) { await backend.stop(); database?.close(); rmSync(directory,{recursive:true,force:true}); throw error; }
+    return {directory,dataDir,backend,database:openedDatabase,lap,async close() { await backend.stop(); openedDatabase.close(); await removeDatabaseDirectory(directory); }};
+  } catch(error) { await backend.stop(); database?.close(); await removeDatabaseDirectory(directory); throw error; }
 }
 async function dirty(backend: Backend, lap: { lapId: number; sessionId: number }, favorite: boolean) {
   const response = await backend.api(`/api/laps/${lap.lapId}/favorite`,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({favorite})});
@@ -398,6 +409,7 @@ for(const format of ["bin","zip","ibt","duckdb","motec"] as const) {
     } finally { await f.close(); }
   },600_000);
 }
+
 
 for(const phase of ["beforeCommit","afterCommit"] as const) {
   test(`W-E5: stop at ${phase} reports settled rollback or commit and releases every resource`,async()=>{

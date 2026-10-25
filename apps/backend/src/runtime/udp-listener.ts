@@ -19,6 +19,7 @@ import { getRunningGame } from "@raceiq/backend-core/games/registry";
 import { WorkerSessionRecorder } from "@raceiq/capture-formats/session/worker-recorder";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { timestampForFilename } from "@raceiq/backend-core/session-capture/filename";
+import { encodeFrameLength } from "@raceiq/capture-formats/session/framing";
 
 
 const MIN_PACKET_LENGTH = 29; // Minimum: F1 header size
@@ -33,8 +34,9 @@ class UdpListener {
   private _socket: { stop(): void } | null = null;
   private _port = 5301;
   private _hostname = "0.0.0.0";
-  private _recorder: WorkerSessionRecorder | null = null;
   private _recordingGameId: GameId | null = null;
+  private _recorder: WorkerSessionRecorder | null = null;
+  private _dumpOnly = false;
   private _lastDetectedGame: ReturnType<typeof getRunningGame> = null;
   private _lastRaceOn = false;
   private _lastWsPacketCount = 0;
@@ -61,13 +63,17 @@ class UdpListener {
   /**
    * Pin a recording gameId. When set, `start()` opens a timestamped .bin file
    * under test/artifacts/sessions/ and every incoming datagram is appended to it
-   * (in addition to the normal parse → pipeline → DB/WS flow). Mirrors how the
+   * with live-only WebSocket publication in dump mode, or normal processing otherwise.
    * AccSharedMemoryReader/AcEvoSharedMemoryReader constructors create their
    * .bin files when `recordingEnabled=true`. Used by `dev:dump:fm` / `dev:dump:f1`.
    */
   setRecordingGameId(gameId: GameId | null): void {
     this._recordingGameId = gameId;
   }
+  setDumpOnly(enabled: boolean): void {
+    this._dumpOnly = enabled;
+  }
+
 
   async start(port: number = 5301, hostname: string = "0.0.0.0"): Promise<void> {
     this._port = port;
@@ -78,33 +84,13 @@ class UdpListener {
       const dir = resolve(process.cwd(), "test", "artifacts", "sessions");
       const timestamp = timestampForFilename();
       const filePath = resolve(dir, `${this._recordingGameId}-${timestamp}.bin`);
-      this._recorder = new WorkerSessionRecorder(this._recordingGameId);
+      this._recorder = new WorkerSessionRecorder(this._recordingGameId, { exclusiveFile: true, patchCountOnClose: true });
       this._recorder.start(filePath);
+      this._recorder.writeMetaFrame();
     }
 
-    // Use dgram for socket buffer tuning — Bun.udpSocket doesn't expose setsockopt
-    const dgram = require("node:dgram");
-    const sock = dgram.createSocket("udp4");
-    sock.on("message", (sourceFrame: Buffer) => this.handlePacket(sourceFrame));
-    await new Promise<void>((resolve, reject) => {
-      sock.bind(port, hostname, () => {
-        try {
-          // F1 sends ~10 packet types per frame in bursts. The default 8KB OS buffer
-          // overflows during bursts causing consistent packet loss (~20% drops).
-          // 64MB ensures the OS can queue packets while the event loop processes them.
-          sock.setRecvBufferSize(64 * 1024 * 1024);
-          console.log(`[UDP] Receive buffer set to 64MB`);
-        } catch {}
-        resolve();
-      });
-      sock.on("error", reject);
-    });
-    this._socket = { stop: () => sock.close() };
-
-    console.log(`[UDP] Listening on ${hostname}:${port}`);
-
-    // Update packets/sec every second. Own the handle so restart replaces,
-    // rather than stacks, status/flush loops.
+    // Native telemetry and game status must keep updating even if UDP cannot bind.
+    // Own the timer so restart replaces, rather than stacks, status/flush loops.
     clearInterval(this._statusTimer ?? undefined);
     this._lastStatusAt = performance.now();
     this._lastWsPacketCount = wsManager.packetCount;
@@ -119,7 +105,7 @@ class UdpListener {
       // stored on lap rows always has corresponding bytes on disk. Without
       // this, an abrupt termination leaves lap offsets pointing past EOF and
       // telemetry disappears from the analyse view.
-      flushSessionRecorderBuffer();
+      if (!this._dumpOnly) flushSessionRecorderBuffer();
 
       // Mark as not receiving if no packets in last second
       if (this._packetsPerSec === 0 && this._receiving) {
@@ -133,7 +119,7 @@ class UdpListener {
       const telemetryPps = Math.round(((wsCount - this._lastWsPacketCount) * 1000) / elapsedMs);
       this._lastWsPacketCount = wsCount;
       const runningGame = getRunningGame();
-      const session = lapDetector.session;
+      const session = this._dumpOnly ? null : lapDetector.session;
       const raceOn = runningGame?.id === "fm-2023"
         ? this._forzaRaceActive
         : this._receiving || telemetryPps > 0;
@@ -148,9 +134,11 @@ class UdpListener {
           console.log("[Game] state change to null");
           this._forzaRaceActive = false;
           // Finalize session immediately when game disconnects
-          void lapDetector.finalizeCurrentSession().catch((error) => {
-            console.error("[Live Telemetry] Session finalization failed:", error);
-          });
+          if (!this._dumpOnly) {
+            void lapDetector.finalizeCurrentSession().catch((error) => {
+              console.error("[Live Telemetry] Session finalization failed:", error);
+            });
+          }
         }
       }
       this._lastDetectedGame = runningGame;
@@ -185,6 +173,27 @@ class UdpListener {
         console.log(`[UDP] total=${this._totalPackets} dropped=${this._droppedPackets} pps=${this._packetsPerSec}`);
       }
     }, PACKETS_PER_SEC_WINDOW);
+
+    // Use dgram for socket buffer tuning — Bun.udpSocket doesn't expose setsockopt
+    const dgram = require("node:dgram");
+    const sock = dgram.createSocket("udp4");
+    sock.on("message", (sourceFrame: Buffer) => this.handlePacket(sourceFrame));
+    await new Promise<void>((resolve, reject) => {
+      sock.bind(port, hostname, () => {
+        try {
+          // F1 sends ~10 packet types per frame in bursts. The default 8KB OS buffer
+          // overflows during bursts causing consistent packet loss (~20% drops).
+          // 64MB ensures the OS can queue packets while the event loop processes them.
+          sock.setRecvBufferSize(64 * 1024 * 1024);
+          console.log(`[UDP] Receive buffer set to 64MB`);
+        } catch {}
+        resolve();
+      });
+      sock.on("error", reject);
+    });
+    this._socket = { stop: () => sock.close() };
+
+    console.log(`[UDP] Listening on ${hostname}:${port}`);
   }
 
   private async handlePacket(sourceFrame: Buffer): Promise<void> {
@@ -199,10 +208,10 @@ class UdpListener {
 
     // Append raw datagrams to the dump BEFORE parsing so recordings preserve
     // the exact wire format (including any packets parsePacket would skip).
-    this._recorder?.writeRecord(sourceFrame, frameTimeMs);
+    this._recorder?.writeRawCaptureRecord(Buffer.concat([encodeFrameLength(sourceFrame.length, frameTimeMs), sourceFrame]));
 
     const runningGame = getRunningGame();
-    if (runningGame?.id === "fm-2023" && isForzaRaceOffPacket(sourceFrame)) {
+    if (!this._dumpOnly && runningGame?.id === "fm-2023" && isForzaRaceOffPacket(sourceFrame)) {
       // FM emits the same zeroed packet during pit service and after the race.
       // Keep live ownership; a resumed race replaces this provisional snapshot.
       if (this._forzaRaceActive) await lapDetector.snapshotIncompleteLap();

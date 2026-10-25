@@ -19,7 +19,10 @@ export async function syncDirectory(directoryPath: string): Promise<void> {
   } finally { await directory.close(); }
 }
 
+/** Persist directory entries on platforms supporting directory fsync. */
 export async function syncDirectoryTree(directoryPath: string): Promise<void> {
+  // Windows supports file flushes, but not fsync on directory handles.
+  if (process.platform === "win32") return;
   let current = directoryPath;
   while (true) {
     await syncDirectory(current);

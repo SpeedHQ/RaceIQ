@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { discoverTestOwners, readSuiteFiles, SUITES, type Suite } from "./owners";
+import { discoverTestOwners, ownerTestRoot, readSuiteFiles, SUITES, type Suite } from "./owners";
 
 interface Assignment {
   location: string;
@@ -19,7 +19,7 @@ function ordinaryTests(root: string, directory: string): string[] {
   for (const pattern of ["**/*.test.ts", "**/*.test.tsx"]) {
     for (const file of new Bun.Glob(pattern).scanSync({ cwd: resolve(root, directory), onlyFiles: true })) {
       const normalized = file.replaceAll("\\", "/");
-      if (normalized.split("/").some((part) => part === "fixtures" || part === "artifacts")) continue;
+      if (normalized.split("/").some((part) => part === "fixtures" || part === "artifacts" || part === "node_modules")) continue;
       files.add(`${directory}/${normalized}`);
     }
   }
@@ -34,12 +34,11 @@ export function checkTestShards(root = resolve(import.meta.dir, "../..")): Shard
   const ownerTests = new Set<string>();
 
   for (const owner of owners) {
-    const discovered = ordinaryTests(root, owner.root).filter((file) =>
-      file.startsWith(`${owner.root}/test/`),
-    );
+    const testRoot = ownerTestRoot(owner);
+    const discovered = ordinaryTests(root, testRoot);
     for (const file of discovered) ownerTests.add(file);
     for (const suite of SUITES) {
-      const manifestRelativePath = `${owner.root}/test/${suite}-files.txt`;
+      const manifestRelativePath = `${testRoot}/${suite}-files.txt`;
       try {
         const files = readSuiteFiles(root, owner, suite);
         for (const file of files) {

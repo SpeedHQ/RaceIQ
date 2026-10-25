@@ -10,9 +10,6 @@ const loader = new GLTFLoader();
 loader.setMeshoptDecoder(MeshoptDecoder);
 const modelCache = new Map<string, Promise<GLTF>>();
 
-export function preloadCarModel(path: string): void {
-  void loadModel(path).catch(() => {});
-}
 
 function loadModel(path: string): Promise<GLTF> {
   let cached = modelCache.get(path);

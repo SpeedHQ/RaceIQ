@@ -20,7 +20,7 @@ export interface Range { min: number; avg: number; max: number; n: number }
 export interface SectorRangeModel { sectors: Record<CornerKey, Range>[]; domain: [number, number] }
 export interface ReviewExperiment { kind: VersionKind; experimentId: number; driverComment?: string | null; notes?: string | null }
 interface TireSnapshot { tempC?: number; coreTempC?: number; carcassTempC?: number; wear?: number; pressure?: number; brakeTemp?: number }
-interface QueryState<T> { data?: T; isLoading: boolean; isError: boolean }
+interface QueryState<T> { data?: T; isLoading: boolean; isError: boolean; refetch: () => Promise<unknown> }
 
 export interface SessionAnalyseHost {
   m: SessionAnalyseMessages;

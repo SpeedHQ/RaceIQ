@@ -1,18 +1,23 @@
-import { canHandleLMUSourceFrame, LMU_SOURCE_FRAME_HEADER_SIZE, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
+import { canHandleLMUSourceFrame, LMU_MAX_SOURCE_FRAME_SIZE, LMU_SOURCE_FRAME_HEADER_SIZE, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
+import { isLMUPartitionCompanion } from "../lmu/partition";
 
 export const LMU_SPARSE_MAGIC = Buffer.from("LMSD", "ascii");
 const LMU_SPARSE_CONTEXT_MAGIC = Buffer.from("LMS3", "ascii");
+const LMU_PARTITION_SPARSE_MAGIC = Buffer.from("LMP5", "ascii");
 const SHARED_MEMORY_BYTES = 324_820;
 const BLOCK_BYTES = 64;
 const BITMAP_BYTES = Math.ceil(SHARED_MEMORY_BYTES / BLOCK_BYTES / 8);
 const PREFIX_BYTES = 8 + LMU_SOURCE_FRAME_HEADER_SIZE + BITMAP_BYTES;
 
 export function isLmuSparseFrame(payload: Buffer): boolean {
-  return payload.length >= 4 && (payload.subarray(0, 4).equals(LMU_SPARSE_MAGIC) || payload.subarray(0, 4).equals(LMU_SPARSE_CONTEXT_MAGIC));
+  return payload.length >= 4 && (payload.subarray(0, 4).equals(LMU_SPARSE_MAGIC) || payload.subarray(0, 4).equals(LMU_SPARSE_CONTEXT_MAGIC) || payload.subarray(0, 4).equals(LMU_PARTITION_SPARSE_MAGIC));
 }
 
 /** Native blocks are delta encoded; v3 context retains its own exact observation times. */
 export function encodeLmuSparseFrame(frame: Buffer, previous: Buffer, backDistance: number): Buffer {
+  if (frame.length >= 10 && (frame.readUInt16LE(8) === 5 || isLMUPartitionCompanion(frame))) {
+    return encodePartitionDelta(frame, previous, backDistance);
+  }
   if (frame.length < LMU_SOURCE_FRAME_V2_SIZE || previous.length < LMU_SOURCE_FRAME_V2_SIZE || !canHandleLMUSourceFrame(frame) || !canHandleLMUSourceFrame(previous)) throw new Error("Invalid LMU sparse source frame");
   if (!Number.isInteger(backDistance) || backDistance < 0 || backDistance > 0xffffffff) throw new Error("Invalid LMU sparse back-distance");
   const bitmap = Buffer.alloc(BITMAP_BYTES);
@@ -40,6 +45,9 @@ export function encodeLmuSparseFrame(frame: Buffer, previous: Buffer, backDistan
 }
 
 export function decodeLmuSparseFrame(payload: Buffer, previous: Buffer): Buffer {
+  if (payload.length >= 4 && payload.subarray(0, 4).equals(LMU_PARTITION_SPARSE_MAGIC)) {
+    return decodePartitionDelta(payload, previous);
+  }
   if (!isLmuSparseFrame(payload) || payload.length < PREFIX_BYTES || previous.length < LMU_SOURCE_FRAME_V2_SIZE || !canHandleLMUSourceFrame(previous)) throw new Error("Invalid LMU sparse frame");
   const withContext = payload.subarray(0, 4).equals(LMU_SPARSE_CONTEXT_MAGIC);
   const version = payload.readUInt16LE(16);
@@ -66,5 +74,73 @@ export function decodeLmuSparseFrame(payload: Buffer, previous: Buffer): Buffer 
   }
   payload.copy(frame, LMU_SOURCE_FRAME_V2_SIZE, expected);
   if (!canHandleLMUSourceFrame(frame)) throw new Error("Invalid reconstructed LMU frame");
+  return frame;
+}
+
+/** Distinguish native, partitioned and companion checkpoint chains. */
+export function lmuSparseSourceIdentity(frame: Buffer): string | null {
+  if (isLMUPartitionCompanion(frame)) return "lmu-companion-1";
+  if (!canHandleLMUSourceFrame(frame)) return null;
+  const version = frame.readUInt16LE(8);
+  return version === 2 || version === 3 || version === 5 ? `lmu-source-${version}` : null;
+}
+
+export function isLmuSparseSourceFrame(frame: Buffer): boolean {
+  return lmuSparseSourceIdentity(frame) !== null;
+}
+
+function encodePartitionDelta(frame: Buffer, previous: Buffer, backDistance: number): Buffer {
+  const identity = lmuSparseSourceIdentity(frame);
+  if (!identity || lmuSparseSourceIdentity(previous) !== identity || !Number.isInteger(backDistance) || backDistance <= 0 || backDistance > 0xffffffff) throw new Error("Invalid LMU partition sparse source");
+  const blocks = Math.ceil(frame.length / BLOCK_BYTES);
+  const bitmap = Buffer.alloc(Math.ceil(blocks / 8));
+  let changedBytes = 0;
+  for (let block = 0; block < blocks; block++) {
+    const start = block * BLOCK_BYTES, end = Math.min(frame.length, start + BLOCK_BYTES);
+    if (end > previous.length || frame.compare(previous, start, end, start, end) !== 0) {
+      bitmap[block >> 3] |= 1 << (block & 7);
+      changedBytes += end - start;
+    }
+  }
+  const encoded = Buffer.allocUnsafe(12 + bitmap.length + changedBytes);
+  LMU_PARTITION_SPARSE_MAGIC.copy(encoded);
+  encoded.writeUInt32LE(backDistance, 4);
+  encoded.writeUInt32LE(frame.length, 8);
+  bitmap.copy(encoded, 12);
+  let cursor = 12 + bitmap.length;
+  for (let block = 0; block < blocks; block++) {
+    if (!(bitmap[block >> 3]! & (1 << (block & 7)))) continue;
+    const start = block * BLOCK_BYTES, end = Math.min(frame.length, start + BLOCK_BYTES);
+    frame.copy(encoded, cursor, start, end);
+    cursor += end - start;
+  }
+  return encoded;
+}
+
+function decodePartitionDelta(payload: Buffer, previous: Buffer): Buffer {
+  if (payload.length < 12 || !lmuSparseSourceIdentity(previous)) throw new Error("Invalid LMU partition sparse checkpoint");
+  const length = payload.readUInt32LE(8);
+  if (!length || length > LMU_MAX_SOURCE_FRAME_SIZE) throw new Error("Invalid LMU partition sparse length");
+  const blocks = Math.ceil(length / BLOCK_BYTES), bitmapLength = Math.ceil(blocks / 8);
+  if (payload.length < 12 + bitmapLength) throw new Error("Truncated LMU partition sparse bitmap");
+  const bitmap = payload.subarray(12, 12 + bitmapLength);
+  if ((blocks & 7) && (bitmap[bitmap.length - 1]! & ~((1 << (blocks & 7)) - 1))) throw new Error("Invalid LMU partition sparse bitmap");
+  let expected = 12 + bitmapLength;
+  for (let block = 0; block < blocks; block++) {
+    const start = block * BLOCK_BYTES, end = Math.min(length, start + BLOCK_BYTES);
+    if (bitmap[block >> 3]! & (1 << (block & 7))) expected += end - start;
+    else if (end > previous.length) throw new Error("LMU partition sparse frame omits new bytes");
+  }
+  if (payload.length !== expected) throw new Error("Invalid LMU partition sparse payload size");
+  const frame = Buffer.allocUnsafe(length);
+  previous.copy(frame, 0, 0, Math.min(previous.length, length));
+  let cursor = 12 + bitmapLength;
+  for (let block = 0; block < blocks; block++) {
+    if (!(bitmap[block >> 3]! & (1 << (block & 7)))) continue;
+    const start = block * BLOCK_BYTES, end = Math.min(length, start + BLOCK_BYTES);
+    payload.copy(frame, start, cursor, cursor + end - start);
+    cursor += end - start;
+  }
+  if (lmuSparseSourceIdentity(frame) !== lmuSparseSourceIdentity(previous)) throw new Error("LMU partition sparse identity changed");
   return frame;
 }

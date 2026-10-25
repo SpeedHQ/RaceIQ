@@ -59,6 +59,7 @@ playwright/screenshots/
 
 # Dev dump recordings — track gzipped fixtures only
 test/artifacts/sessions/*.bin
+packages/game-lmu/test/fixtures/**/*.bin
 .claude/scheduled_tasks.lock
 .claude/worktrees/
 /.crew

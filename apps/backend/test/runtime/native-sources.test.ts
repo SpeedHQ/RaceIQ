@@ -81,4 +81,24 @@ describe("native source shutdown", () => {
       setLmuSource(previous[3]);
     }
   });
+  test.skipIf(!IS_WINDOWS)("propagates native finalization failure after draining other attached sources", async () => {
+    const previous = [getAccReader(), getAcEvoReader(), getIracingSource(), getLmuSource()] as const;
+    const expected = new Error("native writer close failed");
+    let drained = false;
+    let supervisor: NativeSourceSupervisor | undefined;
+    try {
+      setAccReader({ async stop() { drained = true; } } as unknown as AccSharedMemoryReader);
+      setAcEvoReader(null); setIracingSource(null);
+      setLmuSource({ async stop() { throw expected; } } as unknown as LMUTelemetrySource);
+      supervisor = startNativeSourceSupervisor("lmu", true);
+      const failure = await supervisor.stop().then(() => null, (error: unknown) => error);
+      expect(failure).toBeInstanceOf(AggregateError);
+      expect((failure as AggregateError).errors).toEqual([expected]);
+      expect(drained).toBe(true);
+    } finally {
+      await supervisor?.stop();
+      setAccReader(previous[0]); setAcEvoReader(previous[1]);
+      setIracingSource(previous[2]); setLmuSource(previous[3]);
+    }
+  });
 });

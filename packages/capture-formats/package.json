@@ -22,6 +22,8 @@
     "./lmu/dump-decoder": "./src/lmu/dump-decoder.ts",
     "./lmu/layout": "./src/lmu/layout.ts",
     "./lmu/source-frame": "./src/lmu/source-frame.ts",
+    "./lmu/partition": "./src/lmu/partition.ts",
+    "./lmu/opponent-snapshot": "./src/lmu/opponent-snapshot.ts",
     "./session/framing": "./src/session/framing.ts",
     "./session/generic-sparse": "./src/session/generic-sparse.ts",
     "./session/kunos-sparse": "./src/session/kunos-sparse.ts",

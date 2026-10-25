@@ -1,5 +1,4 @@
-import { decodeLmuSparseFrame, isLmuSparseFrame } from "./lmu-sparse";
-import { canHandleLMUSourceFrame } from "@raceiq/capture-formats/lmu/source-frame";
+import { decodeLmuSparseFrame, isLmuSparseFrame, isLmuSparseSourceFrame } from "./lmu-sparse";
 import { decodeKunosSparseFrame, isKunosSparseFrame, kunosSourceMagic } from "./kunos-sparse";
 import { decodeGenericSparseFrame, genericFrameIdentity, isGenericSparseFrame } from "./generic-sparse";
 import { gzip, gzipSync, gunzip, gunzipSync } from "node:zlib";
@@ -7,7 +6,7 @@ import { promisify } from "node:util";
 import { MAX_DECOMPRESSED_CAPTURE_BYTES } from "./limits";
 
 function isLmuSourceFrame(frame: Buffer): boolean {
-  return canHandleLMUSourceFrame(frame);
+  return isLmuSparseSourceFrame(frame);
 }
 export const META_FRAME_MAGIC = 0xffffffff;
 const META_FRAME_PAYLOAD_BYTES = 4;

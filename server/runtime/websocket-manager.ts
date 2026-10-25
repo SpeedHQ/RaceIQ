@@ -324,7 +324,13 @@ export class WebSocketManager {
     this.broadcastNotification({ type: "telemetry-idle" });
   }
 
+  /** Publish scoring-only LMU snapshots without synthesizing a player telemetry frame. */
+  publishLmuContext(context: LmuLiveContext): void {
+    const lmu = encodeLmuContext(context);
+    this.broadcastNotification({ type: "lmu-context", lmu });
+  }
   /** Clear only the LMU generation that lost its player/native source. */
+
   invalidateLmuTelemetry(context: LmuLiveContext): void {
     const frame = this.lastFrame;
     if (!frame?.lmu || frame.lmu.key.sessionKey !== context.key.sessionKey) return;
@@ -444,4 +450,6 @@ export class WebSocketManager {
   }
 }
 
-export const wsManager = new WebSocketManager();
+const wsManagerKey = Symbol.for("@raceiq/backend-core/runtime/websocket-manager");
+const sharedManagers = globalThis as typeof globalThis & Record<symbol, WebSocketManager | undefined>;
+export const wsManager = sharedManagers[wsManagerKey] ??= new WebSocketManager();

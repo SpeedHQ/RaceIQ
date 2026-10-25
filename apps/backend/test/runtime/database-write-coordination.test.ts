@@ -231,9 +231,16 @@ async function databaseFixture() {
   await client.executeMultiple("PRAGMA foreign_keys=ON; CREATE TABLE entries(id INTEGER PRIMARY KEY); CREATE TABLE parents(id INTEGER PRIMARY KEY); CREATE TABLE children(parent_id INTEGER REFERENCES parents(id) DEFERRABLE INITIALLY DEFERRED);");
   return { client, async close() {
     client.close();
-    // Closed native SQLite handles can remain reachable until collection on Windows.
-    if (process.platform === "win32") { Bun.gc(true); await Bun.sleep(0); }
-    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await rm(directory, { recursive: true, force: true });
+        break;
+      } catch (error) {
+        const isBusyOnWindows = process.platform === "win32" && error instanceof Error && "code" in error && error.code === "EBUSY";
+        if (!isBusyOnWindows || attempt === 9) throw error;
+        await new Promise<void>((resolve) => setTimeout(resolve, 200));
+      }
+    }
   } };
 }
 

@@ -1,4 +1,9 @@
 export interface SessionAnalyseMessages {
+  recording_processing_loading: () => string;
+  recording_processing_queued: () => string;
+  recording_processing_running: () => string;
+  recording_processing_failed: (inputs: { error: string }) => string;
+  recording_processing_refresh: () => string;
   analyse_lap_button: (inputs: { lap: string | number }) => string;
   analyse_tires_end_of_lap: () => string;
   label_analyse: () => string;

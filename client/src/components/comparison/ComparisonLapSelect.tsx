@@ -6,7 +6,11 @@ import { formatLapTime } from "@/lib/format";
 import { m } from "@/paraglide/messages";
 
 function lapLabel(lap: LapMeta) {
-  return `${m.compare_lap_label()} ${lap.lapNumber} — ${formatLapTime(lap.lapTime)} — ${lap.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}${!lap.isValid ? " (inv)" : ""}`;
+  const processing = lap.processing.state === "queued" ? m.recording_processing_queued()
+    : lap.processing.state === "processing" ? m.recording_processing_running()
+      : lap.processing.state === "failed" ? m.recording_processing_failed({ error: lap.processing.error })
+        : null;
+  return `${m.compare_lap_label()} ${lap.lapNumber} — ${formatLapTime(lap.lapTime)} — ${lap.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}${!lap.isValid ? " (inv)" : ""}${processing ? ` · ${processing}` : ""}`;
 }
 
 export function ComparisonLapSelect({ id, label, lapId, laps, onChange, disabled, className }: {
@@ -26,7 +30,7 @@ export function ComparisonLapSelect({ id, label, lapId, laps, onChange, disabled
     <div className="flex min-w-0 flex-col gap-1">
       <SearchSelect id={id} ariaLabel={label} value={selectedVisible ? String(lapId) : ""}
         onChange={(value) => onChange(value ? Number(value) : null)}
-        options={visibleLaps.map((lap) => ({ value: String(lap.id), label: lapLabel(lap) }))}
+        options={visibleLaps.map((lap) => ({ value: String(lap.id), label: lapLabel(lap), disabled: lap.processing.state !== "ready" }))}
         popupHeader={
           <ToggleGroup03 ariaLabel={label}
             value={ownership} onValueChange={setOwnership}

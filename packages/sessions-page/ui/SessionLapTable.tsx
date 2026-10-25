@@ -2,15 +2,16 @@ import { isPaceLap } from "@raceiq/shared/racing/lap-classification"
 import { isPitCycleLap } from "@raceiq/analysis-core/racing/laps/pit-cycle"
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSessionsPageHost } from "./host";
 import { sortLaps } from "./helpers";
 import { NoteCell } from "./NoteCell";
+import { SessionProcessingStatus } from "./SessionCaptureSplitStatus";
 import type { SessionLapTableProps } from "./types";
 
 type ContextMenu = { x: number; y: number; lapId: number } | null;
 
-export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSortDir, toggleLapSort, selectedLaps, toggleLapSelection }: SessionLapTableProps) {
+export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSortDir, toggleLapSort, selectedLaps, toggleLapSelection, refreshProcessingStatus }: SessionLapTableProps & { refreshProcessingStatus: () => void }) {
   const { m, formatLapTime, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, SortableTableHead, Button, FavoriteToggleButton, queryKeys, bestSectorLapIds, authenticatedFetch, exportLapsZip, useGameRoute, patchLapNotes } = useSessionsPageHost();
   const gameRoute = useGameRoute();
   const navigate = useNavigate();
@@ -40,6 +41,9 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
     [laps, sectorCount],
   );
   const contextLap = contextMenu ? laps.find((lap) => lap.id === contextMenu.lapId) : undefined;
+  useEffect(() => {
+    if (contextMenu && !contextLap) setContextMenu(null);
+  }, [contextMenu, contextLap]);
   const sortedLaps = useMemo(() => sortLaps(laps, lapSortKey, lapSortDir), [laps, lapSortKey, lapSortDir]);
 
   return (
@@ -70,9 +74,13 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
         <TableBody>
           {sortedLaps.map((lap) => {
             const isBest = (session.bestLapTime ?? 0) > 0 && Math.abs(lap.lapTime - (session.bestLapTime ?? 0)) < 0.001;
+            const isBlocked = lap.processing.state !== "ready";
+            const isProcessing = lap.processing.state === "queued" || lap.processing.state === "processing";
             return (
               <TableRow
                 key={lap.id}
+                aria-disabled={isBlocked || undefined}
+                aria-busy={isProcessing || undefined}
                 onContextMenu={(event) => {
                   event.preventDefault();
                   setContextMenu({ x: event.clientX, y: event.clientY, lapId: lap.id });
@@ -81,17 +89,21 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
                 <TableCell className="w-11 min-w-11 max-w-11 text-center whitespace-nowrap">
                   <input type="checkbox" checked={selectedLaps.has(lap.id)} onChange={() => toggleLapSelection(lap.id)} className="accent-app-accent w-4 h-4" />
                 </TableCell>
-                <TableCell className="w-1 min-w-10 pr-1 font-mono tabular-nums text-app-label whitespace-nowrap">{lap.lapNumber}</TableCell>
+                <TableCell className="w-1 min-w-10 pr-1 font-mono tabular-nums text-app-label whitespace-nowrap">
+                  {lap.lapNumber}
+                  <SessionProcessingStatus processing={lap.processing} onRefresh={refreshProcessingStatus} />
+                </TableCell>
                 <TableCell className="w-1 pl-1 whitespace-nowrap" onClick={(event) => event.stopPropagation()}>
                   <div className="flex items-center gap-1">
                     <FavoriteToggleButton target="lap" id={lap.id} isFavorite={Boolean(lap.isFavorite)} />
                     <Button
                       variant="app-primary"
                       size="app-sm"
-                      disabled={lap.telemetryAvailable === false}
+                      disabled={lap.telemetryAvailable === false || isBlocked}
                       title={lap.telemetryAvailable === false ? m.sessions_raw_telemetry_removed() : undefined}
                       onClick={(event) => {
                         event.stopPropagation();
+                        if (isBlocked) return;
                         navigate({ to: `${gameRoute}/sessions/${lap.sessionId}/replay/${lap.id}` as never });
                       }}
                     >
@@ -143,7 +155,7 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
           })}
         </TableBody>
       </Table>
-      {contextMenu && (
+      {contextMenu && contextLap && (
         <>
           <Button
             type="button"
@@ -156,25 +168,26 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
             }}
           />
           <div className="fixed z-50 bg-app-surface border border-app-border rounded shadow-lg py-1 text-sm" style={{ left: contextMenu.x, top: contextMenu.y }}>
-            {contextLap?.telemetryAvailable !== false && (
+            {contextLap.telemetryAvailable !== false && (
               <>
-            <Button
-              variant="app-ghost"
-              size="app-sm"
-              disabled={false}
-              title={undefined}
-              className="w-full !justify-start !rounded-none !px-3 !py-1.5 text-left text-app-text hover:bg-app-surface-hover"
-              onClick={async () => {
-                const response = await authenticatedFetch(`/api/laps/${contextMenu.lapId}/recheck`, { method: "POST" });
-                const data = await response.json();
-                console.log("[Recheck]", data);
-                await queryClient.invalidateQueries({ queryKey: queryKeys.laps });
-                await queryClient.invalidateQueries({ queryKey: queryKeys.userTunes });
-                setContextMenu(null);
-              }}
-            >
-              {m.sessions_recheck_validity()}
-            </Button>
+                <Button
+                  variant="app-ghost"
+                  size="app-sm"
+                  disabled={contextLap.processing.state !== "ready"}
+                  title={undefined}
+                  className="w-full !justify-start !rounded-none !px-3 !py-1.5 text-left text-app-text hover:bg-app-surface-hover"
+                  onClick={async () => {
+                    if (contextLap.processing.state !== "ready") return;
+                    const response = await authenticatedFetch(`/api/laps/${contextMenu.lapId}/recheck`, { method: "POST" });
+                    const data = await response.json();
+                    console.log("[Recheck]", data);
+                    await queryClient.invalidateQueries({ queryKey: queryKeys.laps });
+                    await queryClient.invalidateQueries({ queryKey: queryKeys.userTunes });
+                    setContextMenu(null);
+                  }}
+                >
+                  {m.sessions_recheck_validity()}
+                </Button>
             <Button
               variant="app-ghost"
               size="app-sm"

@@ -6,9 +6,10 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.20.0",
-      "sourceHash": "cb706fee4323adfa621346852ed40e3b13faf01ac71b40b7c5103225e15119cb"
+      "sourceHash": "fd03c450b03f31505862d865bb4574da2f25c6d704cd387c6cbbbfc1bb5c9472"
     },
     "sourceHashes": {
+      "packages/capture-formats/src/lmu/opponent-snapshot.ts": "c18e10f39668501f9c4742bec8999bc7faeeba2c8ea7b42d60accfbbe4e8f0c6",
       "packages/game-ac-evo/src/parser.ts": "29cb3985fe32c797554d98f107a0c4d76ddcc5279d97e75423365e1a0887f5de",
       "packages/game-acc/src/parser.ts": "ebbcaf92f7a7aa4d60eb3d408dfd6278e8ff97530c5d47c93597cffed0f8a47c",
       "packages/game-ams2/src/normalizer.ts": "0b3a2c0b5cad95cf117d7bd9b2b16f4c3bcf57461f206936b3fdf26bc5680dde",
@@ -16,12 +17,12 @@
       "packages/game-fm-2023/src/parser.ts": "71c348b894f84f6086c9582d0cce473bac75a3c85896010a0e5762854718b835",
       "packages/game-iracing-metadata/src/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "packages/game-iracing/src/normalizer.ts": "bcc73bc4805a310f968b9743e6c9c88a688e3216cd28eecc3ee9f6c3d36b0afc",
-      "packages/game-lmu/src/normalizer.ts": "bf9b11b3a767535886e530e383ea9f744975ab604fbdc13c2723a4d5a7a3da85",
+      "packages/game-lmu/src/normalizer.ts": "dbd68de1aad791136103401c6502893502b2f52559fe3f4388892ee5103e4b8e",
       "packages/tooling-catalog/src/catalog/derived-projections.ts": "6d878cc39729fcc96ff88b3d06266893bc396584d60a050cd3990d4f50aa9378",
       "server/session-capture/frame-time.ts": "55c44a6cede5e2c5fb1e1c45568fe44b4a9a8b156f260f69bb5d89f9c24935a2",
       "shared/racing/setups/schema.ts": "987941bb8f38520920686ef540e67ce2259fdc962de03ccb959f6b5ef773b28f"
     },
-    "contentHash": "c043f5e530f52b673006033ff2bcbbf5dd9ec64f99745b84a9839404577c3fd7"
+    "contentHash": "2c115419ceb87a3e3939cadb9a3bc0aa696b13e5fb4dafbcf90924fc258c3d30"
   },
   "generatedFrom": [
     "packages/tooling-catalog/src/root.ts",
@@ -489,6 +490,14 @@
         "motion.angular-velocity-x",
         "motion.angular-velocity-y",
         "motion.angular-velocity-z",
+        "motion.competitor.local-velocity.x",
+        "motion.competitor.local-velocity.y",
+        "motion.competitor.local-velocity.z",
+        "motion.competitor.orientation",
+        "motion.competitor.position.x",
+        "motion.competitor.position.y",
+        "motion.competitor.position.z",
+        "motion.competitor.speed",
         "motion.front-axle-roll-angle",
         "motion.lat-accel-st",
         "motion.local-velocity",
@@ -609,6 +618,9 @@
       "description": "Driver, team, vehicle, and class fields for each competitor.",
       "parentId": "race.competitor",
       "children": [
+        "identity.competitor.car-name",
+        "identity.competitor.driver-name",
+        "identity.competitor.vehicle-class",
         "race.competitor.car-class-color",
         "race.competitor.car-class-id",
         "race.competitor.car-class-license-level",
@@ -654,9 +666,12 @@
       "description": "Running and classified race-result fields for each competitor.",
       "parentId": "race.competitor",
       "children": [
+        "fuel.competitor.ambiguous-fuel-fraction",
         "race.competitor.class-position",
+        "race.competitor.count-lap-flag",
         "race.competitor.driver-incident-count",
         "race.competitor.fast-repairs-used",
+        "race.competitor.in-pits",
         "race.competitor.incidents",
         "race.competitor.laps-complete",
         "race.competitor.laps-led",
@@ -664,13 +679,17 @@
         "race.competitor.pace-line",
         "race.competitor.pace-row",
         "race.competitor.penalties",
+        "race.competitor.pit-state",
         "race.competitor.pit-status",
+        "race.competitor.pit-stop-count",
         "race.competitor.pit-stops",
         "race.competitor.position",
         "race.competitor.push-to-pass-active",
         "race.competitor.push-to-pass-count",
+        "race.competitor.server-scored",
         "race.competitor.session-flags",
         "race.competitor.team-incident-count",
+        "race.competitor.total-laps",
         "race.competitor.track-location",
         "race.competitor.track-surface-material",
         "tires.competitor.age",
@@ -687,6 +706,26 @@
         "engine.competitor-rpm",
         "inputs.competitor-steering-angle",
         "inputs.competitor.gear",
+        "race.competitor.best-lap-time",
+        "race.competitor.best-sector-1",
+        "race.competitor.best-sector-2-cumulative",
+        "race.competitor.current-lap-number",
+        "race.competitor.current-sector",
+        "race.competitor.current-sector-1",
+        "race.competitor.current-sector-2-cumulative",
+        "race.competitor.estimated-lap-time",
+        "race.competitor.lap-distance",
+        "race.competitor.lap-fraction",
+        "race.competitor.lap-start-time",
+        "race.competitor.laps-behind-leader",
+        "race.competitor.laps-behind-next",
+        "race.competitor.last-lap-time",
+        "race.competitor.last-sector-1",
+        "race.competitor.last-sector-2-cumulative",
+        "race.competitor.scoring-time",
+        "race.competitor.time-behind-leader",
+        "race.competitor.time-behind-next",
+        "race.competitor.time-into-lap-estimate",
         "timing.competitor.best-lap-number",
         "timing.competitor.best-lap-time",
         "timing.competitor.current-lap-number",
@@ -14855,6 +14894,83 @@
       "limitations": []
     },
     {
+      "id": "fuel.competitor.ambiguous-fuel-fraction",
+      "label": "Competitor ambiguous fuel fraction",
+      "description": "Native fraction represents fuel or battery; applicability is unknown.",
+      "parentId": "race.competitor.results",
+      "canonicalUnit": "fraction",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "derived",
+          "nativeUnit": "fraction",
+          "sources": [
+            "LMU.ScoringSnapshot.fuel.competitor.ambiguous-fuel-fraction"
+          ],
+          "freshness": "continuous",
+          "description": "Derived from native LMU scoring data: fuelFraction.",
+          "provenance": {
+            "origin": "derivation",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "derivation",
+            "id": "lmu:fuel.competitor.ambiguous-fuel-fraction:derived",
+            "version": "0.20.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "LMU.ScoringSnapshot.fuel.competitor.ambiguous-fuel-fraction"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "d3cafeccbc3bd91c44f178f4a6222ba70464ff355a495e43e80b7ba29d9eb0f9"
+          }
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "range": {
+        "min": 0,
+        "max": 1
+      },
+      "limitations": []
+    },
+    {
       "id": "fuel.density",
       "label": "Fuel density",
       "description": "Fuel mass per unit volume.",
@@ -17953,6 +18069,192 @@
         }
       },
       "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "identity.competitor.car-name",
+      "label": "Competitor car name",
+      "description": "Native scoring vehicle name.",
+      "parentId": "race.competitor.identity",
+      "canonicalUnit": "text",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "text",
+          "sources": [
+            "LMU.ScoringSnapshot.identity.competitor.car-name"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: vehicleName.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "string",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "identity.competitor.driver-name",
+      "label": "Competitor driver name",
+      "description": "Native scoring driver name.",
+      "parentId": "race.competitor.identity",
+      "canonicalUnit": "text",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "text",
+          "sources": [
+            "LMU.ScoringSnapshot.identity.competitor.driver-name"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: driverName.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "string",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "identity.competitor.vehicle-class",
+      "label": "Competitor vehicle class",
+      "description": "Native scoring class label.",
+      "parentId": "race.competitor.identity",
+      "canonicalUnit": "text",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "text",
+          "sources": [
+            "LMU.ScoringSnapshot.identity.competitor.vehicle-class"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: vehicleClass.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "string",
       "dimensions": [
         "dimensionless"
       ],
@@ -24043,6 +24345,544 @@
       "limitations": []
     },
     {
+      "id": "motion.competitor.local-velocity.x",
+      "label": "Competitor local velocity X",
+      "description": "Native scoring local velocity X.",
+      "parentId": "motion",
+      "canonicalUnit": "m/s",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "m/s",
+          "sources": [
+            "LMU.ScoringSnapshot.motion.competitor.local-velocity.x"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: localVelocity.x.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "length",
+        "time^-1"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "motion.competitor.local-velocity.y",
+      "label": "Competitor local velocity Y",
+      "description": "Native scoring local velocity Y.",
+      "parentId": "motion",
+      "canonicalUnit": "m/s",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "m/s",
+          "sources": [
+            "LMU.ScoringSnapshot.motion.competitor.local-velocity.y"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: localVelocity.y.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "length",
+        "time^-1"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "motion.competitor.local-velocity.z",
+      "label": "Competitor local velocity Z",
+      "description": "Native scoring local velocity Z.",
+      "parentId": "motion",
+      "canonicalUnit": "m/s",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "m/s",
+          "sources": [
+            "LMU.ScoringSnapshot.motion.competitor.local-velocity.z"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: localVelocity.z.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "length",
+        "time^-1"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "motion.competitor.orientation",
+      "label": "Competitor orientation matrix",
+      "description": "Native scoring orientation matrix rows.",
+      "parentId": "motion",
+      "canonicalUnit": "matrix",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "matrix",
+          "sources": [
+            "LMU.ScoringSnapshot.motion.competitor.orientation"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: orientation.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "unit:matrix"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0,
+        "max": 64
+      },
+      "ordering": [
+        "competitor-index:numeric-ascending"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "competitor-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0,
+              "max": 64
+            },
+            "ordering": "numeric-ascending"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "unit:matrix"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "motion.competitor.position.x",
+      "label": "Competitor world position X",
+      "description": "Native scoring world position X.",
+      "parentId": "motion",
+      "canonicalUnit": "m",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "m",
+          "sources": [
+            "LMU.ScoringSnapshot.motion.competitor.position.x"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: position.x.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "length"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "motion.competitor.position.y",
+      "label": "Competitor world position Y",
+      "description": "Native scoring world position Y.",
+      "parentId": "motion",
+      "canonicalUnit": "m",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "m",
+          "sources": [
+            "LMU.ScoringSnapshot.motion.competitor.position.y"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: position.y.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "length"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "motion.competitor.position.z",
+      "label": "Competitor world position Z",
+      "description": "Native scoring world position Z.",
+      "parentId": "motion",
+      "canonicalUnit": "m",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "m",
+          "sources": [
+            "LMU.ScoringSnapshot.motion.competitor.position.z"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: position.z.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "length"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "motion.competitor.speed",
+      "label": "Competitor derived speed",
+      "description": "Magnitude of native scoring local velocity.",
+      "parentId": "motion",
+      "canonicalUnit": "m/s",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "derived",
+          "nativeUnit": "m/s",
+          "sources": [
+            "LMU.ScoringSnapshot.motion.competitor.speed"
+          ],
+          "freshness": "continuous",
+          "description": "Derived from native LMU scoring data: localVelocity.",
+          "provenance": {
+            "origin": "derivation",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "derivation",
+            "id": "lmu:motion.competitor.speed:derived",
+            "version": "0.20.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "LMU.ScoringSnapshot.motion.competitor.speed"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "a5d5e3c855c99437287a790380f22b8597e1ac5ba981490b0f2f0a29468c8335"
+          }
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "length",
+        "time^-1"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "motion.driver-head-position.x",
       "label": "Driver head position X",
       "description": "Driver head position on source X axis.",
@@ -26784,6 +27624,192 @@
       "limitations": []
     },
     {
+      "id": "race.competitor.best-lap-time",
+      "label": "Competitor best lap time",
+      "description": "Native best lap time.",
+      "parentId": "race.competitor.timing",
+      "canonicalUnit": "s",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "s",
+          "sources": [
+            "LMU.ScoringSnapshot.race.competitor.best-lap-time"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: bestLapTime.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "time"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.competitor.best-sector-1",
+      "label": "Competitor best sector 1",
+      "description": "Native best sector 1 time.",
+      "parentId": "race.competitor.timing",
+      "canonicalUnit": "s",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "s",
+          "sources": [
+            "LMU.ScoringSnapshot.race.competitor.best-sector-1"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: bestSector1.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "time"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.competitor.best-sector-2-cumulative",
+      "label": "Competitor best cumulative sector 2",
+      "description": "Native best sector 2 cumulative through sector 1.",
+      "parentId": "race.competitor.timing",
+      "canonicalUnit": "s",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "s",
+          "sources": [
+            "LMU.ScoringSnapshot.race.competitor.best-sector-2-cumulative"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: bestSector2.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "time"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "race.competitor.car-class-color",
       "label": "Competitor car-class color",
       "description": "Source display color for each competitor car class.",
@@ -28169,30 +29195,30 @@
     {
       "id": "race.competitor.class-position",
       "label": "Competitor class position",
-      "description": "Class running or classified position for each competitor.",
+      "description": "Derived position among vehicles sharing native class label.",
       "parentId": "race.competitor.results",
       "canonicalUnit": "count",
-      "shape": "structured",
+      "shape": "scalar",
       "games": {
         "fm-2023": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
         },
         "f1-2025": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
         },
         "acc": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
         },
         "ac-evo": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
         },
         "iracing": {
           "kind": "direct",
@@ -28211,49 +29237,42 @@
           "limitations": []
         },
         "lmu": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "kind": "derived",
+          "nativeUnit": "count",
+          "sources": [
+            "LMU.ScoringSnapshot.race.competitor.class-position"
+          ],
+          "freshness": "continuous",
+          "description": "Derived from native LMU scoring data: place,vehicleClass.",
+          "provenance": {
+            "origin": "derivation",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "derivation",
+            "id": "lmu:race.competitor.class-position:derived",
+            "version": "0.20.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "LMU.ScoringSnapshot.race.competitor.class-position"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "fe76ab52ac3feacc6508b2c9b1e1f5f60cdc3a9670032f09a1e9ba55b643369d"
+          }
         },
         "ams2": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
         }
       },
-      "valueType": "structured",
+      "valueType": "number",
       "dimensions": [
         "dimensionless"
       ],
       "cardinality": {
-        "kind": "variable",
-        "min": 0,
-        "max": 64
-      },
-      "ordering": [
-        "competitor-index:numeric-ascending"
-      ],
-      "structuredSchema": {
-        "indices": [
-          {
-            "id": "competitor-index",
-            "cardinality": {
-              "kind": "variable",
-              "min": 0,
-              "max": 64
-            },
-            "ordering": "numeric-ascending"
-          }
-        ],
-        "fields": [
-          {
-            "id": "value",
-            "valueType": "number",
-            "dimensions": [
-              "dimensionless"
-            ]
-          }
-        ]
+        "kind": "scalar"
       },
       "limitations": []
     },
@@ -28743,6 +29762,327 @@
             ]
           }
         ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.competitor.count-lap-flag",
+      "label": "Competitor count-lap flag",
+      "description": "Native lap counting and timing eligibility code.",
+      "parentId": "race.competitor.results",
+      "canonicalUnit": "index",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "index",
+          "sources": [
+            "LMU.ScoringSnapshot.race.competitor.count-lap-flag"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: countLapFlag.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.competitor.current-lap-number",
+      "label": "Competitor current lap number",
+      "description": "Completed lap count plus one; lap identity remains partial until a confirmed transition.",
+      "parentId": "race.competitor.timing",
+      "canonicalUnit": "count",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "derived",
+          "nativeUnit": "count",
+          "sources": [
+            "LMU.ScoringSnapshot.race.competitor.current-lap-number"
+          ],
+          "freshness": "continuous",
+          "description": "Derived from native LMU scoring data: totalLaps.",
+          "provenance": {
+            "origin": "derivation",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "derivation",
+            "id": "lmu:race.competitor.current-lap-number:derived",
+            "version": "0.20.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "LMU.ScoringSnapshot.race.competitor.current-lap-number"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "4cc852785559ddb200742601814de74b507b82766931c9f70e2697843c4e0423"
+          }
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.competitor.current-sector",
+      "label": "Competitor current sector",
+      "description": "Native scoring sector index.",
+      "parentId": "race.competitor.timing",
+      "canonicalUnit": "index",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "index",
+          "sources": [
+            "LMU.ScoringSnapshot.race.competitor.current-sector"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: sector.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.competitor.current-sector-1",
+      "label": "Competitor current sector 1",
+      "description": "Native current sector 1 time.",
+      "parentId": "race.competitor.timing",
+      "canonicalUnit": "s",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "s",
+          "sources": [
+            "LMU.ScoringSnapshot.race.competitor.current-sector-1"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: currentSector1.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "time"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.competitor.current-sector-2-cumulative",
+      "label": "Competitor current cumulative sector 2",
+      "description": "Native current sector 2 cumulative through sector 1.",
+      "parentId": "race.competitor.timing",
+      "canonicalUnit": "s",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "s",
+          "sources": [
+            "LMU.ScoringSnapshot.race.competitor.current-sector-2-cumulative"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: currentSector2.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "time"
+      ],
+      "cardinality": {
+        "kind": "scalar"
       },
       "limitations": []
     },
@@ -29388,6 +30728,68 @@
       "limitations": []
     },
     {
+      "id": "race.competitor.estimated-lap-time",
+      "label": "Competitor estimated lap time",
+      "description": "Native scoring estimate.",
+      "parentId": "race.competitor.timing",
+      "canonicalUnit": "s",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "s",
+          "sources": [
+            "LMU.ScoringSnapshot.race.competitor.estimated-lap-time"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: estimatedLapTime.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "time"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "race.competitor.fast-repairs-used",
       "label": "Competitor fast repairs used",
       "description": "Count of fast repairs consumed by each competitor.",
@@ -29562,6 +30964,68 @@
             ]
           }
         ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.competitor.in-pits",
+      "label": "Competitor reported in pits",
+      "description": "Native pit-lane report, documented as not always accurate for remote vehicles.",
+      "parentId": "race.competitor.results",
+      "canonicalUnit": "boolean",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "boolean",
+          "sources": [
+            "LMU.ScoringSnapshot.race.competitor.in-pits"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: inPits.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "boolean",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
       },
       "limitations": []
     },
@@ -30011,6 +31475,331 @@
       "limitations": []
     },
     {
+      "id": "race.competitor.lap-distance",
+      "label": "Competitor lap distance",
+      "description": "Native distance around track.",
+      "parentId": "race.competitor.timing",
+      "canonicalUnit": "m",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "m",
+          "sources": [
+            "LMU.ScoringSnapshot.race.competitor.lap-distance"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: lapDistance.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "length"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.competitor.lap-fraction",
+      "label": "Competitor lap fraction",
+      "description": "Distance divided by native track length.",
+      "parentId": "race.competitor.timing",
+      "canonicalUnit": "fraction",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "derived",
+          "nativeUnit": "fraction",
+          "sources": [
+            "LMU.ScoringSnapshot.race.competitor.lap-fraction"
+          ],
+          "freshness": "continuous",
+          "description": "Derived from native LMU scoring data: lapDistance,LMU.ScoringInfo.lapDistance.",
+          "provenance": {
+            "origin": "derivation",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "derivation",
+            "id": "lmu:race.competitor.lap-fraction:derived",
+            "version": "0.20.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "LMU.ScoringSnapshot.race.competitor.lap-fraction"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "61e5b15cee50d8c5deec4035958981b15e0727b1af44b210cab695ccb8eeffdb"
+          }
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "range": {
+        "min": 0,
+        "max": 1
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.competitor.lap-start-time",
+      "label": "Competitor lap start time",
+      "description": "Native session elapsed time at lap start.",
+      "parentId": "race.competitor.timing",
+      "canonicalUnit": "s",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "s",
+          "sources": [
+            "LMU.ScoringSnapshot.race.competitor.lap-start-time"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: lapStartElapsedTime.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "time"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.competitor.laps-behind-leader",
+      "label": "Competitor laps behind leader",
+      "description": "Native lap deficit to the leader.",
+      "parentId": "race.competitor.timing",
+      "canonicalUnit": "count",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "LMU.ScoringSnapshot.race.competitor.laps-behind-leader"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: lapsBehindLeader.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.competitor.laps-behind-next",
+      "label": "Competitor laps behind next place",
+      "description": "Native lap deficit to the vehicle in the next higher place.",
+      "parentId": "race.competitor.timing",
+      "canonicalUnit": "count",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "LMU.ScoringSnapshot.race.competitor.laps-behind-next"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: lapsBehindNext.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "race.competitor.laps-complete",
       "label": "Competitor laps complete",
       "description": "Completed lap count for each competitor.",
@@ -30275,6 +32064,192 @@
             ]
           }
         ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.competitor.last-lap-time",
+      "label": "Competitor last lap time",
+      "description": "Native last lap time.",
+      "parentId": "race.competitor.timing",
+      "canonicalUnit": "s",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "s",
+          "sources": [
+            "LMU.ScoringSnapshot.race.competitor.last-lap-time"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: lastLapTime.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "time"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.competitor.last-sector-1",
+      "label": "Competitor last sector 1",
+      "description": "Native last sector 1 time.",
+      "parentId": "race.competitor.timing",
+      "canonicalUnit": "s",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "s",
+          "sources": [
+            "LMU.ScoringSnapshot.race.competitor.last-sector-1"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: lastSector1.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "time"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.competitor.last-sector-2-cumulative",
+      "label": "Competitor last cumulative sector 2",
+      "description": "Native last sector 2 cumulative through sector 1.",
+      "parentId": "race.competitor.timing",
+      "canonicalUnit": "s",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "s",
+          "sources": [
+            "LMU.ScoringSnapshot.race.competitor.last-sector-2-cumulative"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: lastSector2.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "time"
+      ],
+      "cardinality": {
+        "kind": "scalar"
       },
       "limitations": []
     },
@@ -31003,6 +32978,75 @@
       "limitations": []
     },
     {
+      "id": "race.competitor.pit-state",
+      "label": "Competitor pit state",
+      "description": "Native pit-state code: none, request, entering, stopped, exiting.",
+      "parentId": "race.competitor.results",
+      "canonicalUnit": "enum",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "enum",
+          "sources": [
+            "LMU.ScoringSnapshot.race.competitor.pit-state"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: pitState.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "enum",
+      "dimensions": [
+        "unit:enum"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "enumDomain": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4"
+      ],
+      "limitations": []
+    },
+    {
       "id": "race.competitor.pit-status",
       "label": "Competitor pit status",
       "description": "Current pit state for each competitor.",
@@ -31125,6 +33169,68 @@
       "limitations": []
     },
     {
+      "id": "race.competitor.pit-stop-count",
+      "label": "Competitor pit-stop count",
+      "description": "Native completed pit-stop count.",
+      "parentId": "race.competitor.results",
+      "canonicalUnit": "count",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "LMU.ScoringSnapshot.race.competitor.pit-stop-count"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: pitStopCount.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "race.competitor.pit-stops",
       "label": "Competitor pit-stop count",
       "description": "Completed pit-stop count for each competitor.",
@@ -31216,10 +33322,10 @@
     {
       "id": "race.competitor.position",
       "label": "Competitor position",
-      "description": "Overall running or classified position for each competitor.",
+      "description": "Native overall scoring place.",
       "parentId": "race.competitor.results",
       "canonicalUnit": "count",
-      "shape": "structured",
+      "shape": "scalar",
       "games": {
         "fm-2023": {
           "kind": "unavailable",
@@ -31267,9 +33373,18 @@
           "limitations": []
         },
         "lmu": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "LMU.ScoringSnapshot.race.competitor.position"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: place.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
         },
         "ams2": {
           "kind": "unavailable",
@@ -31277,39 +33392,12 @@
           "description": "This parser does not expose an equivalent source value."
         }
       },
-      "valueType": "structured",
+      "valueType": "number",
       "dimensions": [
         "dimensionless"
       ],
       "cardinality": {
-        "kind": "variable",
-        "min": 0,
-        "max": 64
-      },
-      "ordering": [
-        "competitor-index:numeric-ascending"
-      ],
-      "structuredSchema": {
-        "indices": [
-          {
-            "id": "competitor-index",
-            "cardinality": {
-              "kind": "variable",
-              "min": 0,
-              "max": 64
-            },
-            "ordering": "numeric-ascending"
-          }
-        ],
-        "fields": [
-          {
-            "id": "value",
-            "valueType": "number",
-            "dimensions": [
-              "dimensionless"
-            ]
-          }
-        ]
+        "kind": "scalar"
       },
       "limitations": []
     },
@@ -31848,6 +33936,68 @@
       "limitations": []
     },
     {
+      "id": "race.competitor.scoring-time",
+      "label": "Competitor scoring observation time",
+      "description": "Native shared scoring elapsed time for this snapshot.",
+      "parentId": "race.competitor.timing",
+      "canonicalUnit": "s",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "s",
+          "sources": [
+            "LMU.ScoringSnapshot.race.competitor.scoring-time"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: LMU.ScoringInfo.currentElapsedTime.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "time"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "race.competitor.secondary-sponsor",
       "label": "Competitor secondary sponsor",
       "description": "Secondary sponsor identifier for each competitor.",
@@ -31933,6 +34083,68 @@
             ]
           }
         ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.competitor.server-scored",
+      "label": "Competitor server-scored report",
+      "description": "Native server scoring eligibility; mode-dependent and not lap validity.",
+      "parentId": "race.competitor.results",
+      "canonicalUnit": "boolean",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "boolean",
+          "sources": [
+            "LMU.ScoringSnapshot.race.competitor.server-scored"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: serverScored.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "boolean",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
       },
       "limitations": []
     },
@@ -32399,6 +34611,254 @@
             ]
           }
         ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.competitor.time-behind-leader",
+      "label": "Competitor time behind leader",
+      "description": "Native time behind the leader; separate from lap deficit.",
+      "parentId": "race.competitor.timing",
+      "canonicalUnit": "s",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "s",
+          "sources": [
+            "LMU.ScoringSnapshot.race.competitor.time-behind-leader"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: timeBehindLeader.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "time"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.competitor.time-behind-next",
+      "label": "Competitor time behind next place",
+      "description": "Native time behind the vehicle in the next higher place; separate from lap deficit.",
+      "parentId": "race.competitor.timing",
+      "canonicalUnit": "s",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "s",
+          "sources": [
+            "LMU.ScoringSnapshot.race.competitor.time-behind-next"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: timeBehindNext.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "time"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.competitor.time-into-lap-estimate",
+      "label": "Competitor estimated time into lap",
+      "description": "Native scoring estimate, not measured elapsed time.",
+      "parentId": "race.competitor.timing",
+      "canonicalUnit": "s",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "s",
+          "sources": [
+            "LMU.ScoringSnapshot.race.competitor.time-into-lap-estimate"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: timeIntoLap.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "time"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.competitor.total-laps",
+      "label": "Competitor total laps",
+      "description": "Native scoring completed laps count.",
+      "parentId": "race.competitor.results",
+      "canonicalUnit": "count",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "LMU.ScoringSnapshot.race.competitor.total-laps"
+          ],
+          "freshness": "continuous",
+          "description": "Read from native LMU scoring data: totalLaps.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
+          },
+          "limitations": []
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
       },
       "limitations": []
     },
@@ -41133,7 +43593,7 @@
           }
         },
         "lmu": {
-          "kind": "normalized",
+          "kind": "direct",
           "nativeUnit": "text",
           "sources": [
             "LMU.Generic.gameVersion",
@@ -41143,28 +43603,12 @@
             "LMU.Telemetry.vehicleModel"
           ],
           "freshness": "continuous",
-          "normalization": "JSON.stringify([ frame.gameVersion, frame.sessionEvent, scoringInfo.readInt32LE(LMU_SCORING_INFO.session), identity.carId, identity.trackId, ...(frame.lmuContext ? [frame.lmuContext.key.sessionKey] : []), ])",
           "description": "lmu maps 5 native source channels into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-lmu/src/normalizer.ts"
           },
-          "limitations": [],
-          "execution": {
-            "kind": "conversion",
-            "id": "lmu:session.session-uid:normalized",
-            "version": "0.20.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LMU.Generic.gameVersion",
-              "LMU.Generic.startSessionEvent",
-              "LMU.ScoringInfo.session",
-              "LMU.ScoringInfo.trackName",
-              "LMU.Telemetry.vehicleModel"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "d0496ae73ea317402d7587bec79e406b12371bdff6a5716e76722b0ff60a2f2a"
-          }
+          "limitations": []
         },
         "ams2": {
           "kind": "direct",
@@ -89813,6 +92257,486 @@
     ],
     "lmu": [
       {
+        "path": "LMU.ScoringSnapshot.fuel.competitor.ambiguous-fuel-fraction",
+        "label": "Competitor ambiguous fuel fraction",
+        "unit": "fraction",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native fraction represents fuel or battery; applicability is unknown. Per-competitor scoring snapshot.",
+        "semanticId": "fuel.competitor.ambiguous-fuel-fraction",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.identity.competitor.car-name",
+        "label": "Competitor car name",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "Native scoring vehicle name. Per-competitor scoring snapshot.",
+        "semanticId": "identity.competitor.car-name",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.identity.competitor.driver-name",
+        "label": "Competitor driver name",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "Native scoring driver name. Per-competitor scoring snapshot.",
+        "semanticId": "identity.competitor.driver-name",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.identity.competitor.vehicle-class",
+        "label": "Competitor vehicle class",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "Native scoring class label. Per-competitor scoring snapshot.",
+        "semanticId": "identity.competitor.vehicle-class",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.motion.competitor.local-velocity.x",
+        "label": "Competitor local velocity X",
+        "unit": "m/s",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native scoring local velocity X. Per-competitor scoring snapshot.",
+        "semanticId": "motion.competitor.local-velocity.x",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.motion.competitor.local-velocity.y",
+        "label": "Competitor local velocity Y",
+        "unit": "m/s",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native scoring local velocity Y. Per-competitor scoring snapshot.",
+        "semanticId": "motion.competitor.local-velocity.y",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.motion.competitor.local-velocity.z",
+        "label": "Competitor local velocity Z",
+        "unit": "m/s",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native scoring local velocity Z. Per-competitor scoring snapshot.",
+        "semanticId": "motion.competitor.local-velocity.z",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.motion.competitor.orientation",
+        "label": "Competitor orientation matrix",
+        "unit": "matrix",
+        "dataType": "number[]",
+        "count": 9,
+        "description": "Native scoring orientation matrix rows. Per-competitor scoring snapshot.",
+        "semanticId": "motion.competitor.orientation",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.motion.competitor.position.x",
+        "label": "Competitor world position X",
+        "unit": "m",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native scoring world position X. Per-competitor scoring snapshot.",
+        "semanticId": "motion.competitor.position.x",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.motion.competitor.position.y",
+        "label": "Competitor world position Y",
+        "unit": "m",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native scoring world position Y. Per-competitor scoring snapshot.",
+        "semanticId": "motion.competitor.position.y",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.motion.competitor.position.z",
+        "label": "Competitor world position Z",
+        "unit": "m",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native scoring world position Z. Per-competitor scoring snapshot.",
+        "semanticId": "motion.competitor.position.z",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.motion.competitor.speed",
+        "label": "Competitor derived speed",
+        "unit": "m/s",
+        "dataType": "number",
+        "count": 1,
+        "description": "Magnitude of native scoring local velocity. Per-competitor scoring snapshot.",
+        "semanticId": "motion.competitor.speed",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.race.competitor.best-lap-time",
+        "label": "Competitor best lap time",
+        "unit": "s",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native best lap time. Per-competitor scoring snapshot.",
+        "semanticId": "race.competitor.best-lap-time",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.race.competitor.best-sector-1",
+        "label": "Competitor best sector 1",
+        "unit": "s",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native best sector 1 time. Per-competitor scoring snapshot.",
+        "semanticId": "race.competitor.best-sector-1",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.race.competitor.best-sector-2-cumulative",
+        "label": "Competitor best cumulative sector 2",
+        "unit": "s",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native best sector 2 cumulative through sector 1. Per-competitor scoring snapshot.",
+        "semanticId": "race.competitor.best-sector-2-cumulative",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.race.competitor.class-position",
+        "label": "Competitor class position",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Derived position among vehicles sharing native class label. Per-competitor scoring snapshot.",
+        "semanticId": "race.competitor.class-position",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.race.competitor.count-lap-flag",
+        "label": "Competitor count-lap flag",
+        "unit": "index",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native lap counting and timing eligibility code. Per-competitor scoring snapshot.",
+        "semanticId": "race.competitor.count-lap-flag",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.race.competitor.current-lap-number",
+        "label": "Competitor current lap number",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Completed lap count plus one; lap identity remains partial until a confirmed transition. Per-competitor scoring snapshot.",
+        "semanticId": "race.competitor.current-lap-number",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.race.competitor.current-sector",
+        "label": "Competitor current sector",
+        "unit": "index",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native scoring sector index. Per-competitor scoring snapshot.",
+        "semanticId": "race.competitor.current-sector",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.race.competitor.current-sector-1",
+        "label": "Competitor current sector 1",
+        "unit": "s",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native current sector 1 time. Per-competitor scoring snapshot.",
+        "semanticId": "race.competitor.current-sector-1",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.race.competitor.current-sector-2-cumulative",
+        "label": "Competitor current cumulative sector 2",
+        "unit": "s",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native current sector 2 cumulative through sector 1. Per-competitor scoring snapshot.",
+        "semanticId": "race.competitor.current-sector-2-cumulative",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.race.competitor.estimated-lap-time",
+        "label": "Competitor estimated lap time",
+        "unit": "s",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native scoring estimate. Per-competitor scoring snapshot.",
+        "semanticId": "race.competitor.estimated-lap-time",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.race.competitor.in-pits",
+        "label": "Competitor reported in pits",
+        "unit": "boolean",
+        "dataType": "boolean",
+        "count": 1,
+        "description": "Native pit-lane report, documented as not always accurate for remote vehicles. Per-competitor scoring snapshot.",
+        "semanticId": "race.competitor.in-pits",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.race.competitor.lap-distance",
+        "label": "Competitor lap distance",
+        "unit": "m",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native distance around track. Per-competitor scoring snapshot.",
+        "semanticId": "race.competitor.lap-distance",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.race.competitor.lap-fraction",
+        "label": "Competitor lap fraction",
+        "unit": "fraction",
+        "dataType": "number",
+        "count": 1,
+        "description": "Distance divided by native track length. Per-competitor scoring snapshot.",
+        "semanticId": "race.competitor.lap-fraction",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.race.competitor.lap-start-time",
+        "label": "Competitor lap start time",
+        "unit": "s",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native session elapsed time at lap start. Per-competitor scoring snapshot.",
+        "semanticId": "race.competitor.lap-start-time",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.race.competitor.laps-behind-leader",
+        "label": "Competitor laps behind leader",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native lap deficit to the leader. Per-competitor scoring snapshot.",
+        "semanticId": "race.competitor.laps-behind-leader",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.race.competitor.laps-behind-next",
+        "label": "Competitor laps behind next place",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native lap deficit to the vehicle in the next higher place. Per-competitor scoring snapshot.",
+        "semanticId": "race.competitor.laps-behind-next",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.race.competitor.last-lap-time",
+        "label": "Competitor last lap time",
+        "unit": "s",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native last lap time. Per-competitor scoring snapshot.",
+        "semanticId": "race.competitor.last-lap-time",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.race.competitor.last-sector-1",
+        "label": "Competitor last sector 1",
+        "unit": "s",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native last sector 1 time. Per-competitor scoring snapshot.",
+        "semanticId": "race.competitor.last-sector-1",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.race.competitor.last-sector-2-cumulative",
+        "label": "Competitor last cumulative sector 2",
+        "unit": "s",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native last sector 2 cumulative through sector 1. Per-competitor scoring snapshot.",
+        "semanticId": "race.competitor.last-sector-2-cumulative",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.race.competitor.pit-state",
+        "label": "Competitor pit state",
+        "unit": "enum",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native pit-state code: none, request, entering, stopped, exiting. Per-competitor scoring snapshot.",
+        "semanticId": "race.competitor.pit-state",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.race.competitor.pit-stop-count",
+        "label": "Competitor pit-stop count",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native completed pit-stop count. Per-competitor scoring snapshot.",
+        "semanticId": "race.competitor.pit-stop-count",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.race.competitor.position",
+        "label": "Competitor position",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native overall scoring place. Per-competitor scoring snapshot.",
+        "semanticId": "race.competitor.position",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.race.competitor.scoring-time",
+        "label": "Competitor scoring observation time",
+        "unit": "s",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native shared scoring elapsed time for this snapshot. Per-competitor scoring snapshot.",
+        "semanticId": "race.competitor.scoring-time",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.race.competitor.server-scored",
+        "label": "Competitor server-scored report",
+        "unit": "boolean",
+        "dataType": "boolean",
+        "count": 1,
+        "description": "Native server scoring eligibility; mode-dependent and not lap validity. Per-competitor scoring snapshot.",
+        "semanticId": "race.competitor.server-scored",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.race.competitor.time-behind-leader",
+        "label": "Competitor time behind leader",
+        "unit": "s",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native time behind the leader; separate from lap deficit. Per-competitor scoring snapshot.",
+        "semanticId": "race.competitor.time-behind-leader",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.race.competitor.time-behind-next",
+        "label": "Competitor time behind next place",
+        "unit": "s",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native time behind the vehicle in the next higher place; separate from lap deficit. Per-competitor scoring snapshot.",
+        "semanticId": "race.competitor.time-behind-next",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.race.competitor.time-into-lap-estimate",
+        "label": "Competitor estimated time into lap",
+        "unit": "s",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native scoring estimate, not measured elapsed time. Per-competitor scoring snapshot.",
+        "semanticId": "race.competitor.time-into-lap-estimate",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "LMU.ScoringSnapshot.race.competitor.total-laps",
+        "label": "Competitor total laps",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native scoring completed laps count. Per-competitor scoring snapshot.",
+        "semanticId": "race.competitor.total-laps",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "TelemetryPacket.Accel",
         "label": "Accel",
         "unit": "0–255",
@@ -93677,7 +96601,7 @@
   },
   "coverage": {
     "normalizedPacketFields": 151,
-    "semanticVariables": 812,
+    "semanticVariables": 850,
     "sourceCounts": {
       "fm-2023": {
         "total": 96,
@@ -93725,13 +96649,13 @@
         "recorded": 702
       },
       "lmu": {
-        "total": 210,
+        "total": 250,
         "packet": 126,
-        "extension": 84,
+        "extension": 124,
         "sdk": 0,
         "yaml": 0,
         "setup": 0,
-        "recorded": 210
+        "recorded": 250
       },
       "ams2": {
         "total": 112,

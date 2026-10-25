@@ -12,6 +12,8 @@ export function useReviewLaps(trackId: string | null, carId: string | null, limi
       return fetchReviewLaps(gameId, trackId, carId, limit);
     },
     enabled: !!gameId && trackId != null && carId != null,
+    refetchInterval: ({ state }) => state.data?.some(({ processing }) => processing.state === "queued" || processing.state === "processing") ? 2_000 : false,
+    refetchIntervalInBackground: false,
   });
 }
 
@@ -19,7 +21,7 @@ export function useSessionLineSpread(sessionId: number | null, lapIds: readonly 
   const { useGameId, fetchSessionLineSpread } = useSessionAnalyseHost();
   const gameId = useGameId();
   const orderedIds = useMemo(() => [...lapIds], [lapIds]);
-  return useQuery({
+  const query = useQuery({
     queryKey: ["session-review-line-spread", gameId ?? null, sessionId, orderedIds],
     queryFn: async () => {
       if (!gameId || sessionId == null || orderedIds.length === 0) return null;
@@ -27,4 +29,8 @@ export function useSessionLineSpread(sessionId: number | null, lapIds: readonly 
     },
     enabled: enabled && !!gameId && sessionId != null && orderedIds.length > 0,
   });
+  const error = query.error as (Error & { status?: number; code?: string }) | null;
+  const blocked = (error?.status === 409 && error.code === "RECORDING_PROCESSING") ||
+    (error?.status === 422 && error.code === "RECORDING_PROCESSING_FAILED");
+  return blocked ? { ...query, data: undefined } : query;
 }
