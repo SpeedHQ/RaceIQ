@@ -4,7 +4,71 @@ import { createWorkerSqlClient, createWorkerSqlHost, type WorkerSqlOperation, ty
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { MessageChannel } from "node:worker_threads";
+import { MessageChannel, Worker } from "node:worker_threads";
+import { drizzle } from "drizzle-orm/libsql";
+import { sql } from "drizzle-orm";
+import { createDatabaseWorkerClient, createDatabaseWriteLeaseAuthority, installDatabaseWriteAuthority, installDatabaseWriteTestHooks, withDatabaseWrite, type DatabaseWriteLeaseAuthority, type WriteLeaseRequest, type WriteLeaseResponse } from "@raceiq/backend-core/db/write-coordination";
+function deferred<T>() {
+  const { promise, resolve } = Promise.withResolvers<T>();
+  return { promise, resolve };
+}
+
+type WorkerTestMessage = { type: "test-held" | "test-done" } | { type: "test-error"; message: string };
+const testTimeout = 15_000;
+
+function waitForWorkerMessage(worker: Worker, type: "test-held" | "test-done", exit: Promise<number>) {
+  const { promise, resolve, reject } = Promise.withResolvers<WorkerTestMessage>();
+  let settled = false;
+  const cleanup = () => {
+    clearTimeout(timer);
+    worker.off("message", onMessage);
+    worker.off("error", onError);
+  };
+  const finish = (error?: unknown, message?: WorkerTestMessage) => {
+    if (settled) return;
+    settled = true;
+    cleanup();
+    if (error) reject(error);
+    else resolve(message!);
+  };
+  const timer = setTimeout(() => finish(new Error(`Timed out waiting for worker ${type}`)), testTimeout);
+  const onError = (error: Error) => finish(error);
+  const onMessage = (message: WorkerTestMessage) => {
+    if (message.type === "test-error") finish(new Error(message.message));
+    else if (message.type === type) finish(undefined, message);
+  };
+  worker.on("message", onMessage);
+  worker.once("error", onError);
+  void exit.then((code) => finish(new Error(`Worker exited before ${type} (${code})`)), finish);
+  return promise;
+}
+
+function waitForExit(worker: Worker) {
+  const { promise, resolve, reject } = Promise.withResolvers<number>();
+  const timer = setTimeout(() => {
+    worker.off("exit", onExit);
+    worker.off("error", onError);
+    reject(new Error("Timed out waiting for worker exit"));
+  }, testTimeout);
+  const onExit = (code: number) => { clearTimeout(timer); worker.off("error", onError); resolve(code); };
+  const onError = (error: Error) => { clearTimeout(timer); worker.off("exit", onExit); reject(error); };
+  worker.once("exit", onExit);
+  worker.once("error", onError);
+  return promise;
+}
+
+async function waitForSignal<T>(signal: Promise<T>, label: string, exit: Promise<number>) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      signal,
+      new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error(`Timed out waiting for ${label}`)), testTimeout); }),
+      exit.then((code) => { throw new Error(`Worker exited before ${label} (${code})`); }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 async function withDatabase(run: (path: string) => Promise<void>) {
   const directory = await mkdtemp(join(tmpdir(), "raceiq-worker-sql-"));
   try { await run(join(directory, "database.sqlite")); }
@@ -31,6 +95,70 @@ function channelFor(client: Client, leaseId: string) {
   };
   return { host, channel, sender };
 }
+
+
+
+test("lazy Drizzle run stays inside remote write lease and releases it for next writer", async () => withDatabase(async (path) => {
+  const native = createClient({ url: `file:${path}` });
+  await native.execute("CREATE TABLE entries (id INTEGER PRIMARY KEY, value TEXT)");
+  let worker: Worker | undefined;
+  let workerExit: Promise<number> | undefined;
+  let exited = false;
+  const stopWriteAuthority = installDatabaseWriteAuthority();
+  const waiting = deferred<void>();
+  const removeHooks = installDatabaseWriteTestHooks({
+    waiting(operation) { if (operation === "worker-sql-test-competing-writer") waiting.resolve(); },
+  });
+  let authority: DatabaseWriteLeaseAuthority | undefined;
+  let competingWrite: Promise<unknown> | undefined;
+  try {
+    worker = new Worker(new URL("../fixtures/worker-sql-lease-worker.ts", import.meta.url));
+    const activeWorker = worker;
+    workerExit = waitForExit(activeWorker);
+    void workerExit.catch(() => {});
+    activeWorker.once("exit", () => { exited = true; });
+    authority = createDatabaseWriteLeaseAuthority((message: WriteLeaseResponse) => activeWorker.postMessage(message), native);
+    activeWorker.on("message", (message: WorkerTestMessage | WriteLeaseRequest) => {
+      if (message.type.startsWith("write-lease-")) authority!.receive(message as WriteLeaseRequest);
+    });
+    await waitForWorkerMessage(activeWorker, "test-held", workerExit);
+
+    const unauthorized = createDatabaseWorkerClient();
+    await expect(unauthorized.execute("INSERT INTO entries VALUES (90, 'unauthorized')"))
+      .rejects.toThrow("Worker SQL requires an active remote database write lease");
+
+    competingWrite = withDatabaseWrite(
+      () => native.execute("INSERT INTO entries VALUES (4, 'competing writer')"),
+      undefined,
+      "worker-sql-test-competing-writer",
+    );
+    void competingWrite.catch(() => {});
+    await waitForSignal(waiting.promise, "competing writer admission", workerExit);
+    expect((await native.execute("SELECT id FROM entries WHERE id = 4")).rows).toHaveLength(0);
+    activeWorker.postMessage({ type: "test-release" });
+    await competingWrite;
+    await waitForWorkerMessage(activeWorker, "test-done", workerExit);
+    expect(await workerExit).toBe(0);
+    expect((await native.execute("SELECT id, value FROM entries ORDER BY id")).rows.map(({ id, value }) => [Number(id), value]))
+      .toEqual([
+        [1, "committed"],
+        [2, "worker execute"],
+        [3, "nested lazy Drizzle"],
+        [4, "competing writer"],
+        [5, "after rejected SQL"],
+      ]);
+  } finally {
+    removeHooks();
+    if (worker && !exited) {
+      await worker.terminate();
+      await workerExit?.catch(() => {});
+    }
+    await authority?.workerExited();
+    await competingWrite?.catch(() => {});
+    await stopWriteAuthority();
+    await native.close();
+  }
+}));
 
 describe("worker SQL native transport", () => {
   test("preserves rows, metadata, blobs, bigint IDs and JSON over MessageChannel", async () => withDatabase(async (path) => {

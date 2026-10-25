@@ -9,6 +9,7 @@ import {
 	uniqueIndex,
 	primaryKey,
 	check,
+	foreignKey,
 } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
@@ -102,6 +103,49 @@ export const nativeOriginalSourceClosures = sqliteTable("native_original_source_
 	lapCount: integer("lap_count").notNull(),
 	gapCount: integer("gap_count").notNull(),
 });
+
+export const nativeGameIdentities = sqliteTable("native_game_identities", {
+	gameId: text("game_id").primaryKey(),
+});
+export const nativeTrackIdentities = sqliteTable("native_track_identities", {
+	gameId: text("game_id").notNull().references(() => nativeGameIdentities.gameId, { onDelete: "cascade" }),
+	trackId: text("track_id").notNull(),
+}, (table) => [primaryKey({ columns: [table.gameId, table.trackId] })]);
+export const nativeCarIdentities = sqliteTable("native_car_identities", {
+	gameId: text("game_id").notNull().references(() => nativeGameIdentities.gameId, { onDelete: "cascade" }),
+	carId: text("car_id").notNull(),
+}, (table) => [primaryKey({ columns: [table.gameId, table.carId] })]);
+export const onlineFastestComboLaps = sqliteTable("online_fastest_combo_laps", {
+	gameId: text("game_id").notNull().references(() => nativeGameIdentities.gameId),
+	trackId: text("track_id").notNull(),
+	carId: text("car_id").notNull(),
+	lapId: integer("lap_id").references(() => laps.id, { onDelete: "set null" }),
+	lapTimeMs: integer("lap_time_ms"),
+}, (table) => [
+	primaryKey({ columns: [table.gameId, table.trackId, table.carId] }),
+	unique("online_fastest_combo_selected_lap_unique").on(table.lapId),
+	index("online_fastest_combo_lap_idx").on(table.lapId),
+	foreignKey({ columns: [table.gameId, table.trackId], foreignColumns: [nativeTrackIdentities.gameId, nativeTrackIdentities.trackId] }),
+	foreignKey({ columns: [table.gameId, table.carId], foreignColumns: [nativeCarIdentities.gameId, nativeCarIdentities.carId] }),
+]);
+export const onlineFastestLapInitialization = sqliteTable("online_fastest_lap_initialization", {
+	id: integer("id").primaryKey(),
+	lastCheckedLapId: integer("last_checked_lap_id").notNull().default(0),
+	complete: integer("complete", { mode: "boolean" }).notNull().default(false),
+});
+export const onlineLegacyUploadConversionState = sqliteTable("online_legacy_upload_conversion_state", {
+	id: integer("id").primaryKey(),
+	complete: integer("complete", { mode: "boolean" }).notNull().default(false),
+});
+export const onlineRecordingSources = sqliteTable("online_recording_sources", {
+	sessionId: integer("session_id").primaryKey().references(() => sessions.id, { onDelete: "cascade" }),
+	generation: integer("generation").notNull().default(1),
+	reprocessPending: integer("reprocess_pending", { mode: "boolean" }).notNull().default(false),
+	reprocessToken: text("reprocess_token"),
+}, (table) => [
+	check("online_recording_sources_generation_check", sql`${table.generation} > 0`),
+	check("online_recording_sources_reprocess_pending_check", sql`${table.reprocessPending} IN (0,1)`),
+]);
 
 /** Source-bound preparation survives deletion; dirty sources never erase accepted remote history. */
 export const originalActivityPreparations = sqliteTable("original_activity_preparations", {
@@ -246,6 +290,8 @@ export const sessions = sqliteTable(
 		ownership: text("ownership").$type<SessionOwnership>().notNull().default("mine"),
 		ownerUserId: text("owner_user_id"),
 		originalActivityId: text("original_activity_id"),
+		recordingOrigin: text("recording_origin", { enum: ["native_capture", "imported", "unknown"] }).notNull().default("unknown"),
+		recordingInstallationId: text("recording_installation_id"),
 		originalSourceRevision: text("original_source_revision"),
 		nativeCaptureOrigin: integer("native_capture_origin", { mode: "boolean" }).notNull().default(false),
 		driverAttributionStints: text("driver_attribution_stints", { mode: "json" }).$type<DriverAttributionStint[]>(),
@@ -344,6 +390,7 @@ export const laps = sqliteTable(
 		totalTimeMs: integer("total_time_ms"),
 		sectorTimesMs: text("sector_times_ms", { mode: "json" }).$type<number[]>(),
 		recordedAt: text("recorded_at"),
+		sourceFinishedAt: text("source_finished_at"),
 		rawByteOffset: integer("raw_byte_offset"),
 		rawFrameCount: integer("raw_frame_count"),
 		captureChunkId: text("capture_chunk_id"),
@@ -386,6 +433,18 @@ export const laps = sqliteTable(
 		lapGuid: text("lap_guid"),
 		driverAttributionStints: text("driver_attribution_stints", { mode: "json" }).$type<DriverAttributionStint[]>(),
 		driverAttribution: text("driver_attribution", { enum: ["Self", "Other", "Mixed", "Unknown"] }),
+		onlineEvaluatedAt: text("online_evaluated_at"),
+		onlineUploadResult: text("online_upload_result"),
+		onlineUploadedAt: text("online_uploaded_at"),
+		onlineResultAt: text("online_result_at"),
+		onlineAccountId: text("online_account_id"),
+		onlineIdempotencyKey: text("online_idempotency_key"),
+		onlineIdentityJson: text("online_identity_json"),
+		onlinePayloadFingerprint: text("online_payload_fingerprint"),
+		onlineReservationToken: text("online_reservation_token"),
+		onlineRemoteJobId: text("online_remote_job_id"),
+		onlineRetryAfter: text("online_retry_after"),
+		onlineUploadBlockedReason: text("online_upload_blocked_reason"),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 	},
 	(table) => ({

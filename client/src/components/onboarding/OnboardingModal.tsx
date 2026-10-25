@@ -55,11 +55,21 @@ function restoredStep(): string {
   return "welcome";
 }
 
-export function OnboardingModal({ onClose, onComplete, initialStep = 0 }: { onClose?: () => void; onComplete?: () => Promise<void>; initialStep?: number } = {}) {
+export const ONBOARDING_STEP_IDS = MODAL_STEPS.map(({ id }) => id);
+
+export function OnboardingModal({ onClose, onComplete, initialStep = 0, initialStepId }: { onClose?: () => void; onComplete?: () => Promise<void>; initialStep?: number; initialStepId?: string } = {}) {
   const { status, refresh } = useDashboardAuth();
   const restored = restoredStep();
-  const [stepId, setStepId] = useState(() => initialStep === 1 ? "access" : restored);
+  const [stepId, setActiveStepId] = useState(() => initialStepId && ONBOARDING_STEP_IDS.some((id) => id === initialStepId) ? initialStepId : initialStep === 1 ? "access" : restored);
   const [choice, setChoice] = useState<"welcome" | "discord" | "offline">(() => restored === "welcome" ? "welcome" : "discord");
+  const setStepId = (id: string) => {
+    setActiveStepId(id);
+    const url = new URL(window.location.href);
+    url.pathname = "/onboarding";
+    url.searchParams.set("welcome", "true");
+    url.searchParams.set("step", id);
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+  };
   const [cancelError, setCancelError] = useState(false);
   const [accessFooter, setAccessFooter] = useState<HTMLSpanElement | null>(null);
   const profileHandle = useRef<ProfileStepHandle | null>(null);
@@ -124,17 +134,26 @@ export function OnboardingModal({ onClose, onComplete, initialStep = 0 }: { onCl
   }, [online.state?.connection.status, stepId]);
   useEffect(() => {
     if (stepId !== "online-permissions" || !online.state || online.state.connection.status === "connected") return;
-    setOnlineStep("online-auth");
-  }, [online.state?.connection.status, stepId]);
+    let current = true;
+    void online.refresh().then((state) => {
+      if (current && state && state.connection.status !== "connected") setOnlineStep("online-auth");
+    });
+    return () => { current = false; };
+  }, [online.state?.accountEpoch, online.state?.connection.status, online.state?.revision, stepId]);
   function setOnlineStep(id: "online-auth" | "online-permissions") {
     setChoice("discord");
     setStepId(id);
     try { sessionStorage.setItem(FLOW_KEY, JSON.stringify({ path: location.pathname, choice: "discord", step: id })); } catch { /* storage optional */ }
   }
-  function chooseDiscord() {
+  async function chooseDiscord() {
     setCancelError(false);
+    const state = await online.refresh();
+    if (state?.connection.status === "connected") {
+      setOnlineStep("online-permissions");
+      return;
+    }
     setOnlineStep("online-auth");
-    void online.connect();
+    if (state?.connection.status !== "signing_in") void online.connect();
   }
   async function chooseOffline() {
     if (online.state?.connection.status === "signing_in") {

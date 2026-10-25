@@ -3,13 +3,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createConnection } from "node:net";
 import { describe, expect, test } from "bun:test";
-import { forwardRaceIqActivation, parseRaceIqImportLink, startRaceIqActivationBroker } from "../../src/runtime/protocol-activation";
+import { forwardRaceIqActivation, isRaceIqImportActivation, parseRaceIqActivation, parseRaceIqImportLink, startRaceIqActivationBroker } from "../../src/runtime/protocol-activation";
 
 const trustedUrl = "https://raceiq.snazzie.space/api/v1/laps/lap_123/import.zip";
 const activation = `raceiq://import?url=${encodeURIComponent(trustedUrl)}`;
 
 describe("RaceIQ protocol activation", () => {
   test("validates import deep links and rejects unsafe forms", () => {
+    expect(parseRaceIqImportLink("raceiq://consent?browserReturnTo=http%3A%2F%2Flocalhost%2F")).toBeNull();
+    expect(parseRaceIqImportLink("raceiq://consent")).toBeNull();
     expect(parseRaceIqImportLink(activation)).toBe(activation);
     expect(parseRaceIqImportLink("https://example.com/")).toBeNull();
     expect(parseRaceIqImportLink(`raceiq://other?url=${encodeURIComponent(trustedUrl)}`)).toBeNull();
@@ -29,12 +31,14 @@ describe("RaceIQ protocol activation", () => {
     const pipePath = join(directory, "activation.sock");
     const { promise: dispatchStarted, resolve: markDispatchStarted } = Promise.withResolvers<void>();
     const { promise: dispatchTwice, resolve: markDispatchTwice } = Promise.withResolvers<void>();
+    const { promise: dispatchThrice, resolve: markDispatchThrice } = Promise.withResolvers<void>();
     const { promise: finishDispatch, resolve: finish } = Promise.withResolvers<void>();
-    let dispatchCount = 0;
-    const broker = await startRaceIqActivationBroker(async () => {
-      dispatchCount++;
+    const dispatched: string[] = [];
+    const broker = await startRaceIqActivationBroker(async (url) => {
+      dispatched.push(url);
       markDispatchStarted();
-      if (dispatchCount === 2) markDispatchTwice();
+      if (dispatched.length === 2) markDispatchTwice();
+      if (dispatched.length === 3) markDispatchThrice();
       await finishDispatch;
     }, { pipePath });
     expect(broker).not.toBeNull();
@@ -64,7 +68,7 @@ describe("RaceIQ protocol activation", () => {
 
       expect(await forwardRaceIqActivation(activation, { pipePath })).toBe(true);
       await dispatchStarted;
-      expect(dispatchCount).toBe(1);
+      expect(dispatched).toEqual([activation]);
 
       const repeated = createConnection(pipePath);
       const repeatedResponse = new Promise<string>((resolve, reject) => {
@@ -81,7 +85,7 @@ describe("RaceIQ protocol activation", () => {
       repeated.end(message + message);
       expect(await repeatedResponse).toBe("ok\n");
       await dispatchTwice;
-      expect(dispatchCount).toBe(2);
+      expect(dispatched).toEqual([activation, activation]);
     } finally {
       finish();
       if (broker) await broker.close();

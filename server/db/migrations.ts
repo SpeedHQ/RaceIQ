@@ -2665,6 +2665,87 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `UPDATE dashboard_summary_state SET source_revision=source_revision+1,metadata_dirty=1,updated_at=datetime('now')`,
     ],
   },
+  {
+    version: 104,
+    name: "persist trusted recording origin and finalized online winners",
+    sql: [
+      `ALTER TABLE sessions ADD COLUMN recording_origin TEXT NOT NULL DEFAULT 'unknown' CHECK(recording_origin IN ('native_capture','imported','unknown'))`,
+      `ALTER TABLE sessions ADD COLUMN recording_installation_id TEXT`,
+      `ALTER TABLE laps ADD COLUMN online_evaluated_at TEXT`,
+      `ALTER TABLE laps ADD COLUMN online_upload_result TEXT`,
+      `ALTER TABLE laps ADD COLUMN online_uploaded_at TEXT`,
+      `ALTER TABLE laps ADD COLUMN source_finished_at TEXT`,
+      `ALTER TABLE laps ADD COLUMN online_result_at TEXT`,
+      `ALTER TABLE laps ADD COLUMN online_account_id TEXT`,
+      `ALTER TABLE laps ADD COLUMN online_idempotency_key TEXT`,
+      `ALTER TABLE laps ADD COLUMN online_identity_json TEXT`,
+      `ALTER TABLE laps ADD COLUMN online_payload_fingerprint TEXT`,
+      `ALTER TABLE laps ADD COLUMN online_reservation_token TEXT`,
+      `ALTER TABLE laps ADD COLUMN online_remote_job_id TEXT`,
+      `ALTER TABLE laps ADD COLUMN online_retry_after TEXT`,
+      `ALTER TABLE laps ADD COLUMN online_upload_blocked_reason TEXT`,
+      `CREATE INDEX idx_laps_online_initialization ON laps(id) WHERE online_evaluated_at IS NULL`,
+      `CREATE TABLE native_game_identities(game_id TEXT PRIMARY KEY)`,
+      `INSERT INTO native_game_identities(game_id) SELECT DISTINCT game_id FROM sessions WHERE game_id IS NOT NULL`,
+      `CREATE TABLE native_track_identities(game_id TEXT NOT NULL,track_id TEXT NOT NULL,PRIMARY KEY(game_id,track_id),FOREIGN KEY(game_id) REFERENCES native_game_identities(game_id) ON DELETE CASCADE)`,
+      `CREATE TABLE native_car_identities(game_id TEXT NOT NULL,car_id TEXT NOT NULL,PRIMARY KEY(game_id,car_id),FOREIGN KEY(game_id) REFERENCES native_game_identities(game_id) ON DELETE CASCADE)`,
+      `INSERT INTO native_track_identities(game_id,track_id) SELECT DISTINCT game_id,track_id FROM sessions WHERE game_id IS NOT NULL AND track_id IS NOT NULL`,
+      `INSERT INTO native_car_identities(game_id,car_id) SELECT DISTINCT game_id,car_id FROM sessions WHERE game_id IS NOT NULL AND car_id IS NOT NULL`,
+      `CREATE TABLE online_fastest_combo_laps(
+        game_id TEXT NOT NULL,track_id TEXT NOT NULL,car_id TEXT NOT NULL,lap_id INTEGER,lap_time_ms INTEGER,
+        PRIMARY KEY(game_id,track_id,car_id),
+        FOREIGN KEY(game_id) REFERENCES native_game_identities(game_id),
+        FOREIGN KEY(game_id,track_id) REFERENCES native_track_identities(game_id,track_id),
+        FOREIGN KEY(game_id,car_id) REFERENCES native_car_identities(game_id,car_id),
+        FOREIGN KEY(lap_id) REFERENCES laps(id) ON DELETE SET NULL
+      )`,
+      `CREATE UNIQUE INDEX online_fastest_combo_selected_lap_unique ON online_fastest_combo_laps(lap_id) WHERE lap_id IS NOT NULL`,
+      `CREATE INDEX online_fastest_combo_lap_idx ON online_fastest_combo_laps(lap_id)`,
+      `CREATE TABLE online_fastest_lap_initialization(id INTEGER PRIMARY KEY CHECK(id=1),last_checked_lap_id INTEGER NOT NULL DEFAULT 0 CHECK(last_checked_lap_id>=0),complete INTEGER NOT NULL DEFAULT 0 CHECK(complete IN (0,1)))`,
+      `INSERT INTO online_fastest_lap_initialization(id,last_checked_lap_id,complete) VALUES(1,0,0)`,
+      `CREATE TABLE online_legacy_upload_conversion_state(id INTEGER PRIMARY KEY CHECK(id=1),complete INTEGER NOT NULL DEFAULT 0 CHECK(complete IN (0,1)))`,
+      `INSERT INTO online_legacy_upload_conversion_state(id,complete) VALUES(1,0)`,
+      `CREATE TRIGGER online_fastest_combo_tuple_insert BEFORE INSERT ON online_fastest_combo_laps WHEN NEW.lap_id IS NOT NULL AND NOT EXISTS(
+        SELECT 1 FROM laps l JOIN sessions s ON s.id=l.session_id WHERE l.id=NEW.lap_id AND s.game_id=NEW.game_id AND s.track_id=NEW.track_id AND s.car_id=NEW.car_id
+      ) BEGIN SELECT RAISE(ABORT,'online fastest lap tuple mismatch'); END`,
+      `CREATE TRIGGER online_fastest_combo_tuple_update BEFORE UPDATE OF game_id,track_id,car_id,lap_id ON online_fastest_combo_laps WHEN NEW.lap_id IS NOT NULL AND NOT EXISTS(
+        SELECT 1 FROM laps l JOIN sessions s ON s.id=l.session_id WHERE l.id=NEW.lap_id AND s.game_id=NEW.game_id AND s.track_id=NEW.track_id AND s.car_id=NEW.car_id
+      ) BEGIN SELECT RAISE(ABORT,'online fastest lap tuple mismatch'); END`,
+      `CREATE TRIGGER online_fastest_combo_lap_delete BEFORE DELETE ON laps BEGIN
+        UPDATE online_fastest_combo_laps SET lap_id=NULL,lap_time_ms=NULL WHERE lap_id=OLD.id;
+      END`,
+      `CREATE TRIGGER online_fastest_combo_lap_invalidate AFTER UPDATE OF is_valid,driver_attribution ON laps
+        WHEN NEW.is_valid<>1 OR NEW.driver_attribution IS NOT 'Self' BEGIN
+        UPDATE online_fastest_combo_laps SET lap_id=NULL,lap_time_ms=NULL WHERE lap_id=NEW.id;
+      END`,
+      `CREATE TRIGGER online_fastest_combo_evidence_invalidate AFTER UPDATE OF driver_attribution_stints,source_clock_domain,source_lap_start_ms,source_lap_end_ms ON laps
+        BEGIN UPDATE online_fastest_combo_laps SET lap_id=NULL,lap_time_ms=NULL WHERE lap_id=NEW.id; END`,
+      `CREATE TRIGGER online_fastest_combo_session_tuple_change AFTER UPDATE OF game_id,track_id,car_id ON sessions
+        WHEN OLD.game_id IS NOT NEW.game_id OR OLD.track_id IS NOT NEW.track_id OR OLD.car_id IS NOT NEW.car_id BEGIN
+        UPDATE online_fastest_combo_laps SET lap_id=NULL,lap_time_ms=NULL WHERE lap_id IN (SELECT id FROM laps WHERE session_id=NEW.id);
+      END`,
+      `CREATE TRIGGER online_import_lap_evaluated AFTER INSERT ON laps
+        WHEN (SELECT recording_origin FROM sessions WHERE id=NEW.session_id)='imported' BEGIN
+        UPDATE laps SET online_evaluated_at=COALESCE(NEW.online_evaluated_at,datetime('now')) WHERE id=NEW.id;
+      END`,
+      `CREATE TRIGGER online_import_completion_evaluated AFTER UPDATE OF is_valid ON laps
+        WHEN OLD.is_valid=0 AND NEW.is_valid=1 AND NEW.online_evaluated_at IS NULL
+          AND (SELECT recording_origin FROM sessions WHERE id=NEW.session_id)='imported' BEGIN
+        UPDATE laps SET online_evaluated_at=datetime('now') WHERE id=NEW.id;
+      END`,
+      `CREATE TABLE IF NOT EXISTS online_recording_sources(
+        session_id INTEGER PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+        generation INTEGER NOT NULL DEFAULT 1 CHECK(generation>0),
+        reprocess_pending INTEGER NOT NULL DEFAULT 0 CHECK(reprocess_pending IN (0,1)),
+        reprocess_token TEXT
+      )`,
+      `INSERT INTO online_recording_sources(session_id,generation)
+        SELECT id,1 FROM sessions WHERE id NOT IN (SELECT session_id FROM online_recording_sources)`,
+      `CREATE TRIGGER online_recording_source_lock_insert AFTER INSERT ON sessions BEGIN
+        INSERT INTO online_recording_sources(session_id,generation) VALUES(NEW.id,1);
+      END`,
+    ],
+  },
 ];
 const dashboardCanonicalTriggers = (() => {
   const readModel = migrations.find((migration) => migration.version === 68);

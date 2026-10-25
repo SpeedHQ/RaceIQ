@@ -8,6 +8,9 @@
 - Open website lap links in the installed Windows app, resume downloads after sign-in, and reuse already imported laps.
 - Preserve original lap identifiers, authorship and recorded timing across portable exports, imports, reprocessing and downloaded replays.
 - Add optional RaceIQ Online onboarding, Online controls in General settings, and separate Community Laps while keeping offline features available.
+- Record required Online terms acceptance on RaceIQ Cloud from onboarding and Settings; keep desktop consent pending until service confirms acceptance for current account and policy.
+- Open website consent in the current browser tab with the current loopback route, excluding authentication secrets from query and fragment regardless of parameter order or casing.
+- Return to the same Settings section or onboarding step after accepting current Online policies in the browser; reuse an already-connected account instead of restarting sign-in during onboarding.
 - Choose Discord sign-in or offline setup using selectable cards after Welcome and review sharing permissions after sign-in.
 - Use your Discord-linked Online name as the onboarding placeholder; offline names remain local.
 - Inspect Online upload status, queue counts, and the last successful sync time in a persistent Upload queue panel.

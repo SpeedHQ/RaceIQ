@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { RecordingLayoutMigration } from "../components/RecordingLayoutMigration";
 import { getAllGames } from "@raceiq/shared/games/registry"
 import { QueryClientProvider } from "@tanstack/react-query";
-import { createRootRoute, ErrorComponent, Link, Outlet, redirect, useLocation, useRouter } from "@tanstack/react-router";
+import { createRootRoute, ErrorComponent, Link, Outlet, redirect, useLocation, useNavigate, useRouter } from "@tanstack/react-router";
 import { Menu } from "lucide-react";
 import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
 import { Settings } from "@/components/settings/Settings";
@@ -30,6 +30,7 @@ import { GameRouteProvider, gameStore, usesStoreGameContext, useGameStore } from
 import { RaceIqOnlineProvider, CloudLapImportActivation } from "@raceiq/online/ui";
 import { onlineUiHost } from "@/features/online-host";
 import { CarsCatalogueHostProvider } from "../features/cars-catalogue-host";
+import { NAV_ITEMS, type SectionId } from "@/components/settings/navigation";
 import { TracksCatalogueHostProvider } from "../features/tracks-catalogue-host";
 function OverlayShell() {
   useWebSocket();
@@ -92,7 +93,7 @@ function AppShell() {
   const liveCaptureError = useTelemetryStore((s) => s.liveCaptureError);
   const settingsSection = useUiStore((s) => s.settingsSection);
   const onboardingOpen = useUiStore((s) => s.onboardingOpen);
-  const { openSettings, closeSettings, closeOnboarding } = uiStore.actions;
+  const { openSettings, closeSettings: closeSettingsStore, closeOnboarding } = uiStore.actions;
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useLocalStorage<boolean>("raceiq-sidebar-collapsed", false);
   const [showUpdateModal, setShowUpdateModal] = useState(() => {
@@ -104,6 +105,38 @@ function AppShell() {
     return true;
   });
   const location = useLocation();
+  const navigate = useNavigate();
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has("settings")) return;
+    const section = params.get("settings");
+    openSettings(section && NAV_ITEMS.some((item) => item.id === section) ? section : undefined);
+  }, [location.pathname, location.search, openSettings]);
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (showSettings) url.searchParams.set("settings", settingsSection && NAV_ITEMS.some((item) => item.id === settingsSection) ? settingsSection : "general");
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+  }, [showSettings, settingsSection]);
+  const closeSettings = () => {
+    closeSettingsStore();
+    const url = new URL(window.location.href);
+    url.searchParams.delete("settings");
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+  };
+  const setSettingsSection = (section: SectionId) => {
+    uiStore.actions.openSettings(section);
+    const url = new URL(window.location.href);
+    url.searchParams.set("settings", section);
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+  };
+  useEffect(() => {
+    if (!onboardingOpen) return;
+    const url = new URL("/onboarding", window.location.origin);
+    url.searchParams.set("welcome", "true");
+    url.searchParams.set("step", "welcome");
+    void navigate({ href: `${url.pathname}${url.search}` });
+    closeOnboarding();
+  }, [onboardingOpen, navigate, closeOnboarding]);
   const routeGameId = gameIdForPathname(location.pathname);
   useLayoutEffect(() => {
     if (!(routeGameId === null && usesStoreGameContext(location.pathname))) {
@@ -207,7 +240,7 @@ function AppShell() {
                   </DialogPrimitive.Close>
                 </div>
                 <div className="h-[calc(100%-3rem)]">
-                  <Settings initialSection={settingsSection as "games" | "ai" | "updates" | "about" | undefined} onClose={closeSettings} />
+                  <Settings initialSection={NAV_ITEMS.find((item) => item.id === settingsSection)?.id} onSectionChange={setSettingsSection} onClose={closeSettings} />
                 </div>
               </DialogPrimitive.Popup>
               </div>
@@ -273,14 +306,14 @@ export const Route = createRootRoute({
   beforeLoad: async ({ location }) => {
     const auth = await loadDashboardAuth();
     if (auth.pending && location.pathname !== "/onboarding") {
-      throw redirect({ to: "/onboarding", search: { redirect: location.href, welcome: undefined } });
+      throw redirect({ to: "/onboarding", search: { redirect: location.href, welcome: undefined, step: undefined } });
     }
     if (!auth.pending && !auth.authenticated && location.pathname !== "/login") {
       throw redirect({ to: "/login", search: { redirect: location.href } });
     }
     if (auth.authenticated && location.pathname !== "/login" && location.pathname !== "/onboarding" &&
       (!auth.onboardingComplete || new URLSearchParams(location.searchStr).has("welcome"))) {
-      throw redirect({ to: "/onboarding", search: { redirect: location.href, welcome: true } });
+      throw redirect({ to: "/onboarding", search: { redirect: location.href, welcome: true, step: undefined } });
     }
     return { auth };
   },

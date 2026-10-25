@@ -363,7 +363,7 @@ async function acquireLease(signal?: AbortSignal, operation?: string): Promise<L
 
 /** Acquires the permit as a scoped resource; Promise I/O settles before finalization releases it. */
 export function withDatabaseWrite<T>(operation: () => Promise<T>, signal?: AbortSignal, operationName?: string): Promise<T> {
-  if (leaseContext.getStore()) return operation();
+  if (leaseContext.getStore()) return operation().then();
   const leaseEffect = Effect.scoped(Effect.gen(function* () {
     const lease = yield* Effect.acquireRelease(
       Effect.promise(() => acquireLease(signal, operationName)),
@@ -371,7 +371,7 @@ export function withDatabaseWrite<T>(operation: () => Promise<T>, signal?: Abort
     );
     return yield* Effect.uninterruptible(Effect.promise(() => leaseContext.run(lease, () => {
       signal?.throwIfAborted();
-      return operation();
+      return operation().then();
     })));
   }));
   return writeRuntime.runPromise(leaseEffect);

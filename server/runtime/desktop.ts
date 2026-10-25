@@ -17,22 +17,28 @@ export function preventMacSleep(): void {
   }
 }
 
-export function openDashboard(url: string): void {
-  let parsed: URL;
+export function openDashboard(url: string, route = "/"): void {
+  let destination: URL;
   try {
-    parsed = new URL(url);
+    const parsed = new URL(url);
     if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password || parsed.pathname !== "/" || parsed.search || parsed.hash) return;
+    destination = new URL(route, parsed.origin);
+    if (destination.origin !== parsed.origin || destination.username || destination.password) return;
+    for (const character of route) {
+      const code = character.charCodeAt(0);
+      if (character === "\\" || code <= 0x1f || code === 0x7f) return;
+    }
   } catch {
     return;
   }
-  console.log(`[Server] Opening dashboard at ${parsed.origin}`);
+  console.log(`[Server] Opening dashboard at ${destination.origin}`);
   try {
     if (IS_WINDOWS) {
-      spawn("cmd", ["/c", "start", "", parsed.origin], { stdio: "ignore", detached: true }).unref();
+      spawn("cmd", ["/c", "start", "", destination.href], { stdio: "ignore", detached: true }).unref();
     } else if (IS_DARWIN) {
-      spawn("open", [parsed.origin], { stdio: "ignore", detached: true }).unref();
+      spawn("open", [destination.href], { stdio: "ignore", detached: true }).unref();
     } else {
-      spawn("xdg-open", [parsed.origin], { stdio: "ignore", detached: true }).unref();
+      spawn("xdg-open", [destination.href], { stdio: "ignore", detached: true }).unref();
     }
   } catch {}
 }

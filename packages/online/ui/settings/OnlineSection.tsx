@@ -1,10 +1,36 @@
-import { useEffect, useState } from "react";
 import type { OnlinePreferences, OnlineVisibility } from "@raceiq/online/contracts";
+import { useEffect, useState } from "react";
 import { onlineErrorMessage } from "../messages";
 import { useOnlineHost, useRaceIqOnline } from "../hooks/raceiq-online";
 import { DriverIdentitySettings } from "./DriverIdentitySettings";
 
-const accountUrl = "https://raceiq.snazzie.space/account";
+const policyAcceptanceUrl = "https://raceiq.snazzie.space/flows/consent";
+
+export function consentReturnUrl(location: Pick<Location, "origin" | "pathname" | "search" | "hash">): string {
+  const origin = new URL(location.origin);
+  if (!["localhost", "127.0.0.1", "[::1]"].includes(origin.hostname) || !["http:", "https:"].includes(origin.protocol)) throw new Error("Consent return URL requires a loopback origin");
+  const route = new URL(`${location.pathname}${location.search}${location.hash}`, origin);
+  const sensitiveNames = ["access_token", "refresh_token", "token", "code", "state"];
+  for (const key of [...route.searchParams.keys()]) if (sensitiveNames.includes(key.toLowerCase())) route.searchParams.delete(key);
+  const hashQuery = route.hash.indexOf("?");
+  const hasQueryShape = hashQuery >= 0 || route.hash.includes("=");
+  if (hasQueryShape) {
+    const fragmentQuery = hashQuery >= 0 ? hashQuery + 1 : 1;
+    const fragmentParams = new URLSearchParams(route.hash.slice(fragmentQuery));
+    for (const param of [...fragmentParams.keys()]) if (sensitiveNames.includes(param.toLowerCase())) fragmentParams.delete(param);
+    route.hash = `${hashQuery >= 0 ? route.hash.slice(0, hashQuery) : ""}${fragmentParams.size ? `${hashQuery >= 0 ? "?" : "#"}${fragmentParams}` : ""}`;
+  }
+  let returnTo = `${route.origin}${route.pathname}${route.search}${route.hash}`;
+  let hasControl = false;
+  for (let index = 0; index < returnTo.length; index += 1) {
+    const code = returnTo.charCodeAt(index);
+    if (code <= 0x1f || code === 0x7f || code === 0x5c) { hasControl = true; break; }
+  }
+  if (returnTo.length > 2048 || hasControl) returnTo = `${origin.origin}/`;
+  const url = new URL(policyAcceptanceUrl);
+  url.searchParams.set("browserReturnTo", returnTo);
+  return url.href;
+}
 
 export function OnlineSection({ onboarding = false, stage = "permissions", onSkip, onComplete }: { onboarding?: boolean; stage?: "auth" | "permissions"; onSkip?: () => void; onComplete?: () => void } = {}) {
   const { Avatar, AvatarFallback, AvatarImage, Button, Input, m } = useOnlineHost();
@@ -13,7 +39,6 @@ export function OnlineSection({ onboarding = false, stage = "permissions", onSki
     public: m.online_visibility_public,
     private: m.online_visibility_private,
   };
-  const [confirmed, setConfirmed] = useState(false);
   const [draft, setDraft] = useState<OnlinePreferences>({ visibility: "private", setupUploads: false });
   const [draftReady, setDraftReady] = useState(false);
   const [nameDraft, setNameDraft] = useState<{ accountEpoch: string; value: string } | null>(null);
@@ -32,8 +57,6 @@ export function OnlineSection({ onboarding = false, stage = "permissions", onSki
   const connected = state?.connection.status === "connected" && !accountHidden;
   const pending = online.isMutating || online.signOutPending;
   const failure = actionError ?? (online.commandError ? onlineErrorMessage(online.commandError.code, m) : online.transportError ? m.online_transport_error() : null);
-  const confirmationKey = `${state?.accountEpoch ?? ""}:${policy?.versions.termsVersion ?? ""}:${policy?.versions.privacyVersion ?? ""}`;
-  useEffect(() => { setConfirmed(false); }, [confirmationKey, draft.visibility, draft.setupUploads]);
   useEffect(() => { if (state?.connection.status === "signed_out") setSignOutRequested(false); }, [state?.accountEpoch, state?.connection.status]);
   useEffect(() => {
     setDraft(state?.preferences ?? { visibility: "private", setupUploads: false });
@@ -54,20 +77,9 @@ export function OnlineSection({ onboarding = false, stage = "permissions", onSki
     setActionError(null);
     await online.connect();
   }
-  async function consent() {
-    if (!confirmed) return false;
+  function goToPolicyAcceptance() {
     setActionError(null);
-    const result = await online.acceptConsent();
-    if (!result?.ok) {
-      if (!result) setActionError(m.online_transport_error());
-      return false;
-    }
-    setConfirmed(false);
-    return result.state.consent.status === "accepted";
-  }
-  async function acceptSettingsConsent() {
-    if (!await consent()) return;
-    if (state?.preferencePersistence !== "confirmed") await savePreferences(settingsPreferences);
+    window.location.assign(consentReturnUrl(window.location));
   }
   async function savePreferences(next: OnlinePreferences) {
     setDraft(next);
@@ -100,10 +112,12 @@ export function OnlineSection({ onboarding = false, stage = "permissions", onSki
     if (settingsDirty || state.preferencePersistence !== "confirmed") await savePreferences(settingsPreferences);
   }
   async function completePermissions() {
-    if ((needsConsent && !confirmed) || !connected) return;
-    if (needsConsent && !await consent()) return;
+    if (!connected) return;
+    if (needsConsent) {
+      goToPolicyAcceptance();
+      return;
+    }
     if (!await savePreferences(draft)) return;
-    setConfirmed(false);
     onComplete?.();
   }
   async function signOut() {
@@ -171,10 +185,10 @@ export function OnlineSection({ onboarding = false, stage = "permissions", onSki
         <PreferenceControl title={m.online_setup_title()} description={m.online_setup_desc()} checked={draft.setupUploads} disabled={pending || !online.canMutate} onChange={(checked) => { setDraft({ ...draft, setupUploads: checked }); setDraftReady(true); }} />
         {policy && <div className="my-4 flex gap-4 text-sm"><a className="text-app-accent underline" href={policy.termsUrl} target="_blank" rel="noopener noreferrer">{m.online_terms()}</a><a className="text-app-accent underline" href={policy.privacyUrl} target="_blank" rel="noopener noreferrer">{m.online_privacy()}</a></div>}
         <ul className="my-4 list-disc space-y-1 pl-5 text-sm text-app-text-muted"><li>{m.online_disclosure_public()}</li><li>{m.online_future_transfers_note()}</li><li>{m.online_disclosure_setup()}</li><li>{m.online_disclosure_sanitization()}</li><li>{m.online_summary_aggregate_note()}</li><li>{m.online_community_best_effort()}</li></ul>
-        {needsConsent && <label className="my-4 flex items-start gap-3 text-sm text-app-text"><input type="checkbox" className="mt-1 accent-app-accent" checked={confirmed} disabled={!policy || pending || !online.canMutate} onChange={(event) => setConfirmed(event.currentTarget.checked)} /><span>{m.online_confirm_policy()}</span></label>}
+        {needsConsent && <p className="my-4 text-sm text-app-text-muted">{m.online_confirm_policy()}</p>}
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
           {onboarding ? <Button className="min-h-11" variant="outline" disabled={pending} onClick={() => void abortSignIn()}>{m.ob_continue_offline()}</Button> : <Button className="min-h-11" variant="outline" disabled={pending} onClick={() => void signOut()}>{m.online_sign_out()}</Button>}
-          <Button className="min-h-11" variant="app-primary" disabled={(needsConsent && !confirmed) || pending || !online.canMutate || !policy || state?.service !== "available"} onClick={() => void completePermissions()}>{needsConsent ? m.online_connect_accept() : m.common_next()}</Button>
+          <Button className="min-h-11" variant="app-primary" disabled={pending || !online.canMutate || !policy || state?.service !== "available"} onClick={() => void completePermissions()}>{needsConsent ? m.online_connect_accept() : m.common_next()}</Button>
         </div>
       </>}
     </section>;
@@ -208,7 +222,7 @@ export function OnlineSection({ onboarding = false, stage = "permissions", onSki
               </label>
             </div>
           </div>
-          <div className="mt-3 flex flex-wrap gap-3 text-sm"><a className="text-app-accent underline" href={accountUrl} target="_blank" rel="noopener noreferrer">{m.online_manage_account()}</a>
+          <div className="mt-3 flex flex-wrap gap-3 text-sm"><a className="text-app-accent underline" href="https://raceiq.snazzie.space/account" target="_blank" rel="noopener noreferrer">{m.online_manage_account()}</a>
           <button className="text-status-danger underline disabled:opacity-50" disabled={pending} onClick={() => void signOut()}>{m.online_sign_out()}</button></div>
         </div>}
         {connected && <div className="space-y-4 border-y border-app-border py-4">
@@ -224,8 +238,8 @@ export function OnlineSection({ onboarding = false, stage = "permissions", onSki
         {connected && needsConsent && <div className="my-4 border-b border-app-border pb-4">
           <h3 className="font-medium">{m.online_reconsent_title()}</h3>
           <ul className="my-4 list-disc space-y-1 pl-5 text-sm text-app-text-muted"><li>{m.online_disclosure_public()}</li><li>{m.online_future_transfers_note()}</li><li>{m.online_disclosure_setup()}</li><li>{m.online_disclosure_sanitization()}</li><li>{m.online_community_best_effort()}</li></ul>
-          <label className="my-4 flex items-start gap-3 text-sm text-app-text"><input type="checkbox" className="mt-1 accent-app-accent" checked={confirmed} disabled={!policy || pending || !online.canMutate} onChange={(event) => setConfirmed(event.currentTarget.checked)} /><span>{m.online_confirm_policy()}</span></label>
-          <Button variant="app-primary" disabled={!confirmed || pending || !online.canMutate || !policy} onClick={() => void acceptSettingsConsent()}>{m.online_connect_accept()}</Button>
+          <p className="my-4 text-sm text-app-text-muted">{m.online_confirm_policy()}</p>
+          <Button variant="app-primary" disabled={pending || !online.canMutate || !policy} onClick={goToPolicyAcceptance}>{m.online_connect_accept()}</Button>
         </div>}
         {!accountHidden && policy && <div className="my-4 flex gap-4 text-sm"><a className="text-app-accent underline" href={policy.termsUrl} target="_blank" rel="noopener noreferrer">{m.online_terms()}</a><a className="text-app-accent underline" href={policy.privacyUrl} target="_blank" rel="noopener noreferrer">{m.online_privacy()}</a></div>}
         {!accountHidden && draftReady && (settingsDirty || !connected || online.isMutating || state?.preferencePersistence !== "confirmed" || !!online.transportError) && <p role="status" className="mt-2 text-sm text-app-text-muted">{m.online_draft_only()} {visibilityLabels[draft.visibility]()} · {m.online_setup_title()}: {draft.setupUploads ? m.common_on() : m.common_off()}</p>}

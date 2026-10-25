@@ -19,7 +19,7 @@ import { WheelSection } from "./wheel/WheelSection";
 import { UploadSection } from "@raceiq/online/ui"
 
 
-export function Settings({ initialSection, onClose }: { initialSection?: SectionId; onClose?: () => void } = {}) {
+export function Settings({ initialSection, onSectionChange, onClose }: { initialSection?: SectionId; onSectionChange?: (section: SectionId) => void; onClose?: () => void } = {}) {
   const { openOnboarding } = uiStore.actions;
   const [activeSection, setActiveSection] = useState<SectionId>(initialSection ?? "general");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -43,6 +43,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
             key={item.id}
             onClick={() => {
               setActiveSection(item.id);
+              onSectionChange?.(item.id);
               setMobileMenuOpen(false);
             }}
           >
@@ -80,7 +81,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
       {/* Right content */}
       <div className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
         {activeSection === "general" && <GeneralSection />}
-        {activeSection === "upload" && <UploadSection onOpenAccount={() => setActiveSection("general")} />}
+        {activeSection === "upload" && <UploadSection onOpenAccount={() => { setActiveSection("general"); onSectionChange?.("general"); }} />}
 
         {activeSection === "games" && <GamesSection />}
 

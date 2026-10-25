@@ -2,7 +2,6 @@ import { createConnection, createServer, type Server, type Socket } from "node:n
 
 const PIPE = "\\\\.\\pipe\\RaceIQ-Protocol";
 const MAX_MESSAGE_BYTES = 8192;
-
 /** Accept only exact, credential-free RaceIQ import links; importer validates the embedded service URL again. */
 export function parseRaceIqImportLink(value: string): string | null {
   if (value.length > 4096 || /[\r\n\0]/.test(value)) return null;
@@ -17,7 +16,12 @@ export function parseRaceIqImportLink(value: string): string | null {
     return null;
   }
 }
+export const parseRaceIqActivation = parseRaceIqImportLink;
 
+/** Identify valid import activations without accepting consent callbacks. */
+export function isRaceIqImportActivation(value: string): boolean {
+  return parseRaceIqImportLink(value) !== null;
+}
 export interface ProtocolActivationTransportOptions {
   pipePath?: string;
   platform?: NodeJS.Platform;
@@ -33,7 +37,7 @@ function canUseTransport(options: ProtocolActivationTransportOptions): boolean {
 
 /** Forward a validated activation to an existing instance. */
 export async function forwardRaceIqActivation(value: string, options: ProtocolActivationTransportOptions = {}): Promise<boolean> {
-  const link = parseRaceIqImportLink(value);
+  const link = parseRaceIqActivation(value);
   if (!link || !canUseTransport(options)) return false;
   const { promise, resolve } = Promise.withResolvers<boolean>();
   const socket = createConnection(transportPath(options));
@@ -74,7 +78,7 @@ export async function startRaceIqActivationBroker(
       let link: string | null = null;
       try {
         const data = JSON.parse(buffer.slice(0, end)) as { url?: unknown };
-        if (typeof data.url === "string") link = parseRaceIqImportLink(data.url);
+        if (typeof data.url === "string") link = parseRaceIqActivation(data.url);
       } catch {}
       if (!link) { socket.end("rejected\n"); return; }
       socket.end("ok\n");
