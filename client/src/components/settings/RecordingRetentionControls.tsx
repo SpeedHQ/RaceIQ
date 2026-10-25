@@ -10,10 +10,11 @@ import type { DisplaySettings } from "@/stores/telemetry";
 
 const AGE_OPTIONS = [30, 90, 180, 365] as const;
 type AgeDays = (typeof AGE_OPTIONS)[number];
-type RetentionDraft = Pick<DisplaySettings, "sessionDownsampleEnabled" | "sessionDownsampleAgeDays" | "sessionDownsampleFrequencyHz" | "sessionCleanupEnabled" | "sessionCleanupAgeDays">;
+type RetentionDraft = Pick<DisplaySettings, "recordLmuOpponents" | "sessionDownsampleEnabled" | "sessionDownsampleAgeDays" | "sessionDownsampleFrequencyHz" | "sessionCleanupEnabled" | "sessionCleanupAgeDays">;
 
 function fromSettings(settings: RetentionDraft): RetentionDraft {
   return {
+    recordLmuOpponents: settings.recordLmuOpponents,
     sessionDownsampleEnabled: settings.sessionDownsampleEnabled,
     sessionDownsampleAgeDays: settings.sessionDownsampleAgeDays,
     sessionDownsampleFrequencyHz: settings.sessionDownsampleFrequencyHz,
@@ -24,6 +25,7 @@ function fromSettings(settings: RetentionDraft): RetentionDraft {
 
 function sameDraft(a: RetentionDraft, b: RetentionDraft) {
   return (
+    a.recordLmuOpponents === b.recordLmuOpponents &&
     a.sessionDownsampleEnabled === b.sessionDownsampleEnabled &&
     a.sessionDownsampleAgeDays === b.sessionDownsampleAgeDays &&
     a.sessionDownsampleFrequencyHz === b.sessionDownsampleFrequencyHz &&
@@ -69,17 +71,32 @@ export function RecordingRetentionControls({ disabled = false }: { disabled?: bo
     setSaved(false);
     try {
       const savedValues = { ...draft };
-      await saveSettings.mutateAsync(savedValues);
+      const changes = Object.fromEntries(Object.entries(savedValues).filter(([key, value]) => value !== baseline[key as keyof RetentionDraft]));
+      await saveSettings.mutateAsync(changes);
       setBaseline(savedValues);
       setDraft(savedValues);
       setSaved(true);
     } catch {
+      setDraft(baseline);
       setSaveError(true);
     }
   };
 
   return (
     <FieldSet className="gap-3">
+      <Field orientation="horizontal" className="items-start">
+        <FieldContent>
+          <FieldTitle>{m.storage_record_lmu_opponents_label()}</FieldTitle>
+          <FieldDescription>{m.storage_record_lmu_opponents_description()}</FieldDescription>
+          <FieldDescription>{m.storage_record_lmu_opponents_next_session()}</FieldDescription>
+        </FieldContent>
+        <Switch
+          aria-label={m.storage_record_lmu_opponents_label()}
+          checked={draft.recordLmuOpponents}
+          disabled={locked}
+          onCheckedChange={(checked) => update({ recordLmuOpponents: checked })}
+        />
+      </Field>
       <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
         <section className="flex min-w-0 flex-col gap-3">
           <Field orientation="horizontal" className="items-start">

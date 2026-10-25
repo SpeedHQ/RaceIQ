@@ -4,6 +4,7 @@ import type { Dialog as BaseDialog } from "@base-ui/react/dialog";
 import type { Toggle as BaseToggle } from "@base-ui/react/toggle";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { LapMeta, SessionMeta, SessionOwnership } from "@raceiq/shared/racing/sessions/types";
+import type { OpponentLapCatalog } from "@raceiq/lap-replay/contracts";
 import type { SessionCleanupRequest, SessionCleanupResult } from "@raceiq/shared/racing/sessions/cleanup";
 import type { SessionsMessages } from "./messages";
 export type { SessionsMessages } from "./messages";
@@ -89,6 +90,7 @@ export interface SessionsPageHost extends IbtImportHost {
   ImportSetupFile: ComponentType<{ gameId: "acc" | "ac-evo"; routePrefix: string; gameLabel: string; cars: { id: string; name: string }[]; initialFile?: File; onClose?: () => void }>;
   useAcEvoCars: () => { data?: { id: string; name: string }[] };
   useLiveCaptureLifecycle: (sessionId: number | undefined) => LiveCaptureLifecycle | null;
+  useOpponentLapCatalog: (playerLapId: number | null) => { data?: OpponentLapCatalog; isLoading: boolean; isFetching: boolean; error?: Error | null; refetch: () => Promise<unknown> };
   useGameId: () => GameId | null;
   useGameRoute: () => string;
   useSessions: () => { data?: SessionMeta[]; isLoading: boolean; isError: boolean };

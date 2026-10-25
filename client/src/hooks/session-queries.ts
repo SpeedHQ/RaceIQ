@@ -1,12 +1,42 @@
 import type { RaceResult } from "@raceiq/shared/racing/results/types";
 import { useQuery } from "@tanstack/react-query";
+import { useCallback, useSyncExternalStore } from "react";
 import type { GameId } from "@raceiq/shared/games/ids";
-import type { SessionMeta, SessionRecap } from "@raceiq/shared/racing/sessions/types";
 import type { IRacingIncidentReport } from "@raceiq/shared/racing/sessions/iracing-incidents";
+import type { ProcessingMetadata, SessionMeta, SessionRecap } from "@raceiq/shared/racing/sessions/types";
 import { client } from "../lib/rpc";
 import { rpcJson } from "../lib/rpc-json";
 import { useGameId } from "../stores/game";
 import { queryKeys } from "./query-keys";
+
+const subscribeToVisibility = (onChange: () => void) => {
+  if (typeof document === "undefined") return () => {};
+  document.addEventListener("visibilitychange", onChange);
+  return () => document.removeEventListener("visibilitychange", onChange);
+};
+
+const getDocumentVisible = () => typeof document === "undefined" || document.visibilityState === "visible";
+
+export function usePendingMetadataRefetchInterval<T extends { processing: ProcessingMetadata }>() {
+  const visible = useSyncExternalStore(subscribeToVisibility, getDocumentVisible, () => true);
+  return useCallback((query: { state: { data?: readonly T[] } }) =>
+    visible && query.state.data?.some(({ processing }) => processing.state === "queued" || processing.state === "processing")
+      ? 2_000
+      : false, [visible]);
+}
+
+export function indexProcessingById<T extends { id: number; processing: ProcessingMetadata }>(
+  items: readonly T[] | undefined,
+  ids: readonly number[],
+): { isLoading: boolean; byId: ReadonlyMap<number, ProcessingMetadata> } {
+  const requested = new Set(ids);
+  const byId = new Map<number, ProcessingMetadata>();
+  for (const item of items ?? []) {
+    if (requested.has(item.id)) byId.set(item.id, item.processing);
+  }
+  return { isLoading: items === undefined, byId };
+}
+
 
 export function useSessions(options?: { allGames?: boolean }) {
   const gameId = useGameId();
@@ -15,6 +45,8 @@ export function useSessions(options?: { allGames?: boolean }) {
   return useQuery({
     queryKey: ["sessions", queryGameId],
     queryFn: async () => rpcJson<SessionMeta[]>(await client.api.sessions.$get({ query: { gameId: queryGameId ?? undefined } })),
+    refetchInterval: usePendingMetadataRefetchInterval<SessionMeta>(),
+    refetchIntervalInBackground: false,
   });
 }
 

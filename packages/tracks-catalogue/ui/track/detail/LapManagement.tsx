@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { isPaceLap } from "@raceiq/shared/racing/lap-classification";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTracksCatalogueHost } from "../../host";
@@ -39,7 +40,8 @@ interface LapManagementProps {
 }
 
 export function LapManagement(props: LapManagementProps) {
-  const { useNavigate, F125Leaderboard, SortableTableHead, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Button, SearchMultiSelect, Tabs, TabsContent, TabsList, TabsTrigger, formatLapTime, m, getGameRoute, parseUtcTimestamp, VISUALIZATION_COLOR_VARS } = useTracksCatalogueHost();
+  const { useNavigate, F125Leaderboard, SortableTableHead, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Button, SearchMultiSelect, Tabs, TabsContent, TabsList, TabsTrigger, formatLapTime, m, getGameRoute, parseUtcTimestamp, VISUALIZATION_COLOR_VARS, ProcessingStatus } = useTracksCatalogueHost();
+  const queryClient = useQueryClient();
   const {
     track,
     gameId,
@@ -70,6 +72,14 @@ export function LapManagement(props: LapManagementProps) {
     sortAsc,
     handleSort,
   } = props;
+  const lapProcessingById = useMemo(() => new Map(trackLaps.map(({ lapId, processing }) => [lapId, processing] as const)), [trackLaps]);
+  const refreshProcessing = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ["track-laps", track.id, gameId] });
+  }, [gameId, queryClient, track.id]);
+  const selectedLapsReady = useMemo(
+    () => selectedLaps.size === 2 && [...selectedLaps].every((id) => lapProcessingById.get(id)?.state === "ready"),
+    [lapProcessingById, selectedLaps],
+  );
   const navTo = useNavigate();
   const [carouselEl, setCarouselEl] = useState<HTMLDivElement | null>(null);
   const [carouselPage, setCarouselPage] = useState(0);
@@ -140,7 +150,9 @@ export function LapManagement(props: LapManagementProps) {
                       return (
                         <Button
                           type="button"
-                          onClick={() =>
+                          disabled={!selectedLapsReady}
+                          onClick={() => {
+                            if (!selectedLapsReady) return;
                             navTo({
                               to: `${getGameRoute(gameId ?? "")}/compare`,
                               search: {
@@ -150,8 +162,8 @@ export function LapManagement(props: LapManagementProps) {
                                 carA: trackLaps.find((l) => l.lapId === lapA)?.carId,
                                 carB: trackLaps.find((l) => l.lapId === lapB)?.carId,
                               },
-                            })
-                          }
+                            });
+                          }}
                           className="text-app-compact px-2 py-0.5 rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled font-medium"
                         >
                           {m.trackdetail_compare()}
@@ -267,10 +279,14 @@ export function LapManagement(props: LapManagementProps) {
                         return <div className="px-3 py-6 text-center text-sm text-app-text-dim">{m.track_detail_no_laps_match_filters()}</div>;
                       }
                       return filteredLaps.map((lap) => {
+                        const processing = lap.processing;
+                        const processingLoading = processing == null;
+                        const openingReady = processing?.state === "ready";
+                        const openingPending = processingLoading || processing?.state === "queued" || processing?.state === "processing";
                         const isFastest = fastestTime !== null && lap.lapTime === fastestTime && lap.isValid !== false && isPaceLap(lap.classification);
                         const selected = selectedLaps.has(lap.lapId);
                         return (
-                          <div key={lap.lapId} className={`rounded-lg border border-app-border p-3 ${selected ? "bg-app-accent/5 border-app-accent/30" : ""}`}>
+                          <div key={lap.lapId} className={`rounded-lg border border-app-border p-3 ${selected ? "bg-app-accent/5 border-app-accent/30" : ""}`} aria-busy={openingPending}>
                             <div className="flex items-start gap-3">
                               <input type="checkbox" checked={selected} onChange={() => toggleLapSelect(lap.lapId)} className="accent-app-accent w-5 h-5 mt-0.5 shrink-0" />
                               <div className="flex-1 min-w-0">
@@ -326,6 +342,7 @@ export function LapManagement(props: LapManagementProps) {
                                 </div>
                               </div>
                             </div>
+                            {!openingReady && <ProcessingStatus processing={processing} loading={processingLoading} onRefresh={refreshProcessing} className="mt-2" />}
                           </div>
                         );
                       });
@@ -385,8 +402,12 @@ export function LapManagement(props: LapManagementProps) {
                         const fastestTime = validLaps.length > 0 ? Math.min(...validLaps.map((l) => l.lapTime)) : null;
                         return filteredLaps.map((lap) => {
                           const isFastest = fastestTime !== null && lap.lapTime === fastestTime && lap.isValid !== false && isPaceLap(lap.classification);
+                          const processing = lap.processing;
+                          const processingLoading = processing == null;
+                          const openingReady = processing?.state === "ready";
+                          const openingPending = processingLoading || processing?.state === "queued" || processing?.state === "processing";
                           return (
-                            <TableRow key={lap.lapId} data-testid={`track-lap-${lap.lapId}`} data-state={selectedLaps.has(lap.lapId) ? "selected" : undefined}>
+                            <TableRow key={lap.lapId} data-testid={`track-lap-${lap.lapId}`} data-state={selectedLaps.has(lap.lapId) ? "selected" : undefined} aria-busy={openingPending}>
                               <TableCell>
                                 <input type="checkbox" checked={selectedLaps.has(lap.lapId)} onChange={() => toggleLapSelect(lap.lapId)} className="accent-app-accent" />
                               </TableCell>
@@ -411,14 +432,15 @@ export function LapManagement(props: LapManagementProps) {
                                 <Button
                                   variant="app-primary"
                                   size="app-sm"
-                                  disabled={!gameId || lap.sessionId == null}
+                                  disabled={!gameId || lap.sessionId == null || !openingReady}
                                   onClick={() => {
-                                    if (!gameId || lap.sessionId == null) return;
+                                    if (!gameId || lap.sessionId == null || !openingReady) return;
                                     navTo({ to: `${getGameRoute(gameId)}/sessions/${lap.sessionId}/replay/${lap.lapId}` });
                                   }}
                                 >
                                   {m.sessions_replay_lap()}
                                 </Button>
+                                {!openingReady && <ProcessingStatus processing={processing} loading={processingLoading} onRefresh={refreshProcessing} className="mt-1" />}
                               </TableCell>
                               <TableCell className="text-right whitespace-nowrap">
                                 <div className="flex items-center justify-end gap-1">

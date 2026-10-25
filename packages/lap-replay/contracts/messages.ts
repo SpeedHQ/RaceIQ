@@ -34,6 +34,9 @@ export interface ReplayMessages {
   label_surface: () => string;
   chart_suspension: () => string;
   compare_lap_label: () => string;
+  compare_opponent_index_building: () => string;
+  compare_opponent_index_failed: () => string;
+  recording_processing_refresh: () => string;
   compare_loading: () => string;
   compare_telemetry_unavailable: () => string;
   f1live_ers_label: () => string;
@@ -108,4 +111,7 @@ export interface ReplayMessages {
   spectate_time_delta: () => string;
   spectate_tire_trails: () => string;
   spectate_window_current: () => string;
+  recording_processing_queued: () => string;
+  recording_processing_running: () => string;
+  recording_processing_failed: (input: { error: string }) => string;
 }

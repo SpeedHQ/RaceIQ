@@ -1,3 +1,4 @@
+import { useCallback, useMemo } from "react";
 import { EmptyStateOverlay } from "@/components/ui/empty-state-overlay";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Flag, Gauge, Timer } from "lucide-react";
@@ -6,6 +7,8 @@ import { ActivityHeatmap } from "@/components/ActivityHeatmap";
 import { SessionRecapView } from "@/components/SessionRecap";
 import { Card } from "@/components/ui/card";
 import { m } from "@/paraglide/messages";
+import { indexProcessingById, useSessions } from "@/hooks/session-queries";
+import { ProcessingStatus } from "@/components/ProcessingStatus";
 import { GameBrandCards } from "./Brand";
 import { DashboardInsights } from "./DashboardInsights";
 import { RecentSessionsTable } from "./RecentSessions";
@@ -40,14 +43,25 @@ export function HomePageView({
   periodStats,
   onPeriodTabChange,
 }: HomePageViewProps) {
-  const recapDestination = latestSession && latestRecap && !latestRecapLoading && !latestRecapError
+  const sessionMetadataQuery = useSessions({ allGames: gameId == null });
+  const statusIds = useMemo(() => [...sessions.map((session) => session.id), ...(latestSession ? [latestSession.id] : [])], [latestSession, sessions]);
+  const sessionProcessing = useMemo(
+    () => indexProcessingById(sessionMetadataQuery.data, statusIds),
+    [sessionMetadataQuery.data, statusIds],
+  );
+  const latestProcessing = latestSession ? sessionProcessing.byId.get(latestSession.id) : undefined;
+  const latestProcessingLoading = latestSession != null && (sessionProcessing.isLoading || latestProcessing == null);
+  const latestProcessingPending = latestProcessingLoading || latestProcessing?.state === "queued" || latestProcessing?.state === "processing";
+  const latestProcessingReady = !latestProcessingLoading && latestProcessing?.state === "ready";
+  const refreshProcessing = useCallback(() => { void sessionMetadataQuery.refetch(); }, [sessionMetadataQuery.refetch]);
+  const recapDestination = latestSession && latestRecap && !latestRecapLoading && !latestRecapError && latestProcessingReady
     ? `${getGameRoute(latestRecap.gameId)}/sessions/${latestRecap.sessionId}/analyse` as never
     : null;
-  const latestSessionLoading = latestRecapLoading || sessionsLoading;
+  const latestSessionLoading = latestRecapLoading || sessionsLoading || latestProcessingLoading;
   const showFinishPlaceholder = !latestSession || /^(race|sprint)/i.test(latestSession.sessionType?.trim() ?? "");
   const cleanDriving = latestRecap?.gameId === "iracing" ? sessionCleanDrivingScore(latestRecap.sparkline) : null;
   const latestSessionCard = (
-    <Card variant="transparent-panel" className="dashboard-hover-panel latest-session-card relative h-full p-4" aria-busy={latestSessionLoading}>
+    <Card variant="transparent-panel" className="dashboard-hover-panel latest-session-card relative h-full p-4" aria-busy={latestSessionLoading || latestProcessingPending}>
       <div className="flex items-start justify-between gap-2">
         <h2 className="mb-2 text-app-heading font-semibold text-app-text">{m.recap_latest_session()}</h2>
         {latestRecap?.personalBest?.isNew && latestRecap.bestLapSec != null && <span className="recap-pb shrink-0 px-2 py-0.5 text-app-label font-semibold">{m.recap_new_pb()}</span>}
@@ -64,6 +78,9 @@ export function HomePageView({
           outlineData={latestRecapOutline}
           bounds={latestRecapBounds}
           carImageUrl={latestRecapCarImageUrl}
+          processing={latestProcessing}
+          processingLoading={latestProcessingLoading}
+          onRefreshProcessing={refreshProcessing}
         />
         {cleanDriving && <section className="mt-3 rounded-lg border border-app-border bg-app-surface-alt/30 p-3" aria-label={m.home_clean_driving_score()}>
           <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -75,6 +92,7 @@ export function HomePageView({
       </>
       ) : (
         <div className="recap-cinematic @container relative isolate flex min-w-0 flex-col gap-3" aria-busy={latestSessionLoading}>
+          {latestSession && <ProcessingStatus processing={latestProcessing} loading={latestProcessingLoading} onRefresh={refreshProcessing} />}
           <div className="relative flex min-h-20 min-w-0 flex-col justify-center gap-3 @sm:flex-row @sm:items-center @sm:justify-between">
             <div className="relative min-w-0 max-w-[65%] @max-sm:max-w-full">
               <div className="flex items-center gap-3">
@@ -131,7 +149,16 @@ export function HomePageView({
 
           <div className="grid min-w-0 items-start gap-3 @3xl/workspace:grid-cols-3">
             <section className="min-w-0 @3xl/workspace:col-span-2">
-              <RecentSessionsTable sessions={sessions} gameId={gameId} onAnalyseSession={onAnalyseSession} loading={sessionsLoading} error={sessionsError} />
+              <RecentSessionsTable
+                sessions={sessions}
+                gameId={gameId}
+                onAnalyseSession={onAnalyseSession}
+                loading={sessionsLoading}
+                error={sessionsError}
+                processingById={sessionProcessing.byId}
+                processingLoading={sessionProcessing.isLoading}
+                onRefreshProcessing={refreshProcessing}
+              />
             </section>
             <ActivityHeatmap buckets={response?.calendar ?? []} periodStart={periodStart} loading={lapsLoading || sessionsLoading} error={lapsError || sessionsError} />
           </div>

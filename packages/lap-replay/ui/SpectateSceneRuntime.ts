@@ -25,6 +25,32 @@ import { inputFocusColor, type SpectateFocus } from "./spectate-focus";
 import { FOCUS_ZOOM_NEAR, FOCUS_ZOOM_SNAP_OUT, focusLaneWidth, focusZoomBlend, offsetFocusLane, projectFocusCenterline, sampleFocusLane, smallestAvailableModelLength, zoomIndicatorPosition, type FocusCenterPoint, type TimedFocusPoint } from "./spectate-focus-lanes";
 import { sampleMotion, spectateSamplePosition } from "./spectate-replay"
 const color = (name: string) => resolveCssColor(`var(${name})`);
+import { hasTelemetryGap } from "./telemetry-gap";
+
+export function estimatedRaceLineSegments(samples: readonly SpectateSample[], opponent = false): number[] {
+  const positions: number[] = [];
+  for (let i = 1; i < samples.length; i++) {
+    const previous = samples[i - 1]!, sample = samples[i]!;
+    const px = previous.values["motion.position-x"], pz = previous.values["motion.position-z"];
+    const x = sample.values["motion.position-x"], z = sample.values["motion.position-z"];
+    const gap = sample.time - previous.time;
+    if (!Number.isFinite(previous.time) || !Number.isFinite(sample.time) || sample.time < previous.time
+      || (opponent && previous.frame && sample.frame && sample.frame.sequence <= previous.frame.sequence)
+      || (opponent ? gap <= 0.1 || gap > 1 : !hasTelemetryGap(previous.time, sample.time) || gap > 1)
+      || typeof px !== "number" || !Number.isFinite(px) || typeof pz !== "number" || !Number.isFinite(pz)
+      || typeof x !== "number" || !Number.isFinite(x) || typeof z !== "number" || !Number.isFinite(z)) continue;
+    positions.push(px, 0, pz, x, 0, z);
+  }
+  return positions;
+}
+export function translateEstimatedRaceLineToScene(positions: number[], origin: TrackPoint, y: number): void {
+  for (let i = 0; i < positions.length; i += 3) {
+    positions[i] -= origin.x;
+    positions[i + 1] = y;
+    positions[i + 2] -= origin.z;
+  }
+}
+
 type TrackPoint = { x: number; z: number };
 type TrackAlignment = NonNullable<ReturnType<typeof computeAlignment>>;
 const WORLD_ALIGNMENT: TrackAlignment = { scale: 1, cos: 1, sin: 0, tx: 0, tz: 0, flipX: false, flipZ: false };
@@ -75,6 +101,11 @@ export class SpectateSceneRuntime {
   private observer: ResizeObserver;
   private edgePool: RibbonPool = createRibbonPool({ depthTest: false, opacity: SCENE_PRESENTATION.trackOpacity });
   private racingLinePoints = new THREE.InstancedMesh(new THREE.CircleGeometry(1, 12), new THREE.MeshBasicMaterial({ depthTest: false, depthWrite: false }), 1);
+  private estimatedLines: [THREE.LineSegments<THREE.BufferGeometry, THREE.LineDashedMaterial>, THREE.LineSegments<THREE.BufferGeometry, THREE.LineDashedMaterial>] = [
+    new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineDashedMaterial({ depthTest: false, depthWrite: false, dashSize: 1.5, gapSize: 1 })),
+    new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineDashedMaterial({ depthTest: false, depthWrite: false, dashSize: 1.5, gapSize: 1 })),
+  ];
+  private estimatedLineCounts: [number, number] = [0, 0];
   private racingLinePositions: number[] = [];
   private dotTransform = new THREE.Object3D();
   private dotView = new THREE.Vector3();
@@ -247,6 +278,7 @@ export class SpectateSceneRuntime {
     this.scene.add(light, this.track, ...this.groups, ...this.markers, this.edgePool.group, ...this.linePools.map((pool) => pool.group));
     this.scene.add(this.centerLinePool.group, ...this.schematicLinePools.map((pool) => pool.group));
     this.scene.add(this.racingLinePoints);
+    this.scene.add(...this.estimatedLines);
     this.controls = new OrbitControls(this.camera, this.canvas);
     this.controls.enableDamping = false;
     this.controls.enablePan = false;
@@ -325,7 +357,7 @@ export class SpectateSceneRuntime {
     const outlineAlignment = this.pair.gameId === "lmu" ? WORLD_ALIGNMENT : computeAlignment([...(outline ?? [])], native);
     const validOutlineAlignment = this.pair.gameId === "lmu" || validAlignment(outline ?? [], outlineAlignment) ? outlineAlignment : null;
     const transform = (points: readonly Point[], alignment: TrackAlignment) => points.map((point) => applyAlignment(point, alignment));
-    const drawPoints = (points: readonly Point[], alignment: TrackAlignment, tint: string, runs: RibbonRun[]) => {
+    const drawPoints = (points: readonly Point[], alignment: TrackAlignment, tint: string, runs: RibbonRun[], dashed = true) => {
       const transformed = transform(points, alignment);
       const tintColor = color(tint);
       let distance = 0, run: RibbonRun[number][] = [], count = 0;
@@ -340,9 +372,9 @@ export class SpectateSceneRuntime {
         if (!Number.isFinite(length) || length === 0) continue;
         let offset = 0;
         while (offset < length) {
-          const phase = distance % 7;
-          const step = Math.min(length - offset, (phase < 6 ? 6 : 7) - phase);
-          const alpha = phase < 6 ? 1 : 0;
+          const phase = dashed ? distance % 7 : 0;
+          const step = dashed ? Math.min(length - offset, (phase < 6 ? 6 : 7) - phase) : length - offset;
+          const alpha = !dashed || phase < 6 ? 1 : 0;
           add(a.x + (b.x - a.x) * offset / length, a.z + (b.z - a.z) * offset / length, alpha);
           offset += step;
           distance += step;
@@ -389,7 +421,7 @@ export class SpectateSceneRuntime {
     let geometrySource = native.length > 1 ? "recorded-trace" : "unavailable";
     if (edgeCount) geometrySource = "calibrated-boundaries";
     else if (outline && outline.length > 1 && validOutlineAlignment) {
-      drawPoints(outline, validOutlineAlignment, "--app-text", edgeRuns);
+      drawPoints(outline, validOutlineAlignment, "--app-text", edgeRuns, false);
       geometrySource = "calibrated-outline";
     }
     this.focusLaneAvailable = false;
@@ -446,6 +478,11 @@ export class SpectateSceneRuntime {
       distance: native.distance, endDistance: native.distance, color: focusColor(sample),
     });
     const renderLap = (side: "a" | "b", index: 0 | 1, samples: readonly SpectateSample[]) => {
+      const opponent = side === "a"
+        ? "kind" in this.pair.comparison.lapA && this.pair.comparison.lapA.kind === "opponent"
+        : !!this.pair.comparison.lapB && "kind" in this.pair.comparison.lapB && this.pair.comparison.lapB.kind === "opponent";
+      const estimated = estimatedRaceLineSegments(samples, opponent);
+      this.canvas.dataset[`${side}EstimatedRacingLineSegments`] = String(estimated.length / 6);
       const recorded: RibbonRun[] = [], projected: FocusLaneSource[][] = [];
       let native: FocusRenderPoint[] = [], lane: FocusLaneSource[] = [];
       let prior: SpectateSample | null = null, priorCenter: FocusCenterPoint | null = null;
@@ -490,9 +527,22 @@ export class SpectateSceneRuntime {
       this.canvas.dataset[`${side}NeutralSegments`] = String(neutralCount);
       this.canvas.dataset[`${side}FocusLaneSegments`] = String(laneCount);
       this.canvas.dataset[`${side}LineSegments`] = String(nativeCount);
-      return { recorded, projected, laneCount };
+      return { recorded, projected, laneCount, estimated };
     };
-    const a = renderLap("a", 0, this.pair.a.samples), b = this.pair.b ? renderLap("b", 1, this.pair.b.samples) : { recorded: [], projected: [], laneCount: 0 };
+    const a = renderLap("a", 0, this.pair.a.samples), b = this.pair.b ? renderLap("b", 1, this.pair.b.samples) : { recorded: [], projected: [], laneCount: 0, estimated: [] };
+    for (const [index, lap] of [a, b].entries()) {
+      const line = this.estimatedLines[index]!;
+      const positions = lap.estimated;
+      translateEstimatedRaceLineToScene(positions, this.origin, -this.origin.y);
+      line.geometry.dispose();
+      line.geometry = new THREE.BufferGeometry();
+      line.geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+      line.computeLineDistances();
+      line.material.color.set(color(index === 0 ? "--comparison-lap-a" : "--comparison-lap-b"));
+      this.estimatedLineCounts[index] = positions.length / 6;
+      this.canvas.dataset[`${index === 0 ? "a" : "b"}EstimatedRacingLineSegments`] = String(this.estimatedLineCounts[index]);
+    }
+    this.canvas.dataset.estimatedRacingLineSegments = String(this.estimatedLineCounts[0] + this.estimatedLineCounts[1]);
     this.lineRuns = [a.recorded, b.recorded];
     this.projectedLaneSources = [a.projected, b.projected];
     this.laneHasProgress = [a.projected, b.projected].map((runs) => {
@@ -778,12 +828,13 @@ export class SpectateSceneRuntime {
     this.camera.lookAt(this.controls.target);
     this.controls.update();
   }
-  private pose(group: THREE.Group, pose: SpectatePose | null) {
+  private pose(group: THREE.Group, pose: SpectatePose | null, side: "a" | "b") {
     // CarBody's canonical front is +X; Analyse's semantic yaw points [sin(yaw), cos(yaw)].
     if (pose) {
       group.position.set(pose.x - this.origin.x, pose.y - this.origin.y, pose.z - this.origin.z);
       group.rotation.set(0, pose.yaw - Math.PI / 2, 0);
     }
+    this.canvas.dataset[`${side}RenderedCarWorldY`] = pose ? String(group.position.y + this.origin.y) : "";
   }
   requestFrame(index: number): Promise<void> {
     if (this.disposed) return Promise.reject(new Error("Scene runtime disposed"));
@@ -886,8 +937,8 @@ export class SpectateSceneRuntime {
     if (this.disposed || document.hidden || !this.initialized) return;
     this.drawing = true;
     const snapshot = this.controller.getFrameSnapshot(now);
-    this.pose(this.groups[0], snapshot.a?.pose ?? null);
-    this.pose(this.groups[1], snapshot.b?.pose ?? null);
+    this.pose(this.groups[0], snapshot.a?.pose ?? null, "a");
+    this.pose(this.groups[1], snapshot.b?.pose ?? null, "b");
     const wheelElapsed = this.lastWheelUpdate ? (now - this.lastWheelUpdate) / 1000 : 0;
     this.lastWheelUpdate = now;
     const first = snapshot.a?.pose ?? null,
@@ -1013,6 +1064,12 @@ export class SpectateSceneRuntime {
         this.centerLinePool.material.opacity = blend;
         if (blend < 1) updateRibbonPool(this.edgePool, this.camera, this.edgeRuns, SCENE_PRESENTATION.trackWidth, Math.max(1, this.canvas.clientHeight));
         if (blend > 0) updateRibbonPool(this.centerLinePool, this.camera, this.centerLineRuns, Math.max(1, SCHEMATIC_TRACK_WIDTH * blend), Math.max(1, this.canvas.clientHeight));
+        for (const [index, line] of this.estimatedLines.entries()) {
+          // Estimated opponent trajectories remain useful in schematic focus mode.
+          line.visible = this.racingLine && this.estimatedLineCounts[index]! > 0;
+          this.canvas.dataset[`${index === 0 ? "a" : "b"}EstimatedRacingLineVisible`] = String(line.visible);
+        }
+        this.canvas.dataset.estimatedRacingLineVisible = String(this.estimatedLines.some((line) => line.visible));
         this.racingLinePoints.visible = nativeViewVisible && this.racingLine && this.racingLinePositions.length > 0;
         if (this.racingLinePoints.visible) {
           this.dotView.set(0, 0, -1).applyQuaternion(this.camera.quaternion);
@@ -1045,13 +1102,18 @@ export class SpectateSceneRuntime {
                 const depth = (source.x - this.camera.position.x) * viewX + (source.y - this.camera.position.y) * viewY + (source.z - this.camera.position.z) * viewZ;
                 offsetFocusLane(this.laneOffset, source, this.laneRight, this.laneUp, side === 0 ? SCHEMATIC_LANE_OFFSET : -SCHEMATIC_LANE_OFFSET, Math.max(this.camera.near, depth) * pixelScale);
                 output.x = THREE.MathUtils.lerp(source.nativeX, source.x + this.laneOffset.x, blend);
-                output.y = THREE.MathUtils.lerp(source.nativeY, source.y + this.laneOffset.y, blend);
+                output.y = (side === 0 && "kind" in this.pair.comparison.lapA && this.pair.comparison.lapA.kind === "opponent")
+                  || (side === 1 && !!this.pair.comparison.lapB && "kind" in this.pair.comparison.lapB && this.pair.comparison.lapB.kind === "opponent")
+                  ? -this.origin.y
+                  : THREE.MathUtils.lerp(source.nativeY, source.y + this.laneOffset.y, blend);
                 output.z = THREE.MathUtils.lerp(source.nativeZ, source.z + this.laneOffset.z, blend);
               }
             }
             const marker = this.markers[side], reading = side === 0 ? snapshot.a : snapshot.b;
             const byDistance = this.laneHasProgress[side] && reading?.distance !== null && reading?.distance !== undefined;
-            marker.visible = showLabels && !!reading?.pose && sampleFocusLane(marker.position, outputs, byDistance ? reading.distance! : reading.time, byDistance ? "distance" : "time");
+            if (reading?.pose) sampleFocusLane(marker.position, outputs, byDistance ? reading.distance! : reading.time, byDistance ? "distance" : "time");
+            // Keep a valid native pose visible when projected lane geometry is absent at this sample.
+            marker.visible = showLabels && !!reading?.pose;
             const depth = (marker.position.x - this.camera.position.x) * viewX + (marker.position.y - this.camera.position.y) * viewY + (marker.position.z - this.camera.position.z) * viewZ;
             const size = 28 * Math.max(this.camera.near, depth) * pixelScale;
             marker.scale.set(size, size, 1);
@@ -1070,6 +1132,16 @@ export class SpectateSceneRuntime {
         const renderedPools = this.schematicLinesActive ? this.schematicLinePools : this.linePools;
         updateRibbonPool(renderedPools[0], this.camera, renderedRuns[0], inputWidth, Math.max(1, this.canvas.clientHeight));
         updateRibbonPool(renderedPools[1], this.camera, renderedRuns[1], inputWidth, Math.max(1, this.canvas.clientHeight));
+        for (let side = 0; side < 2; side++) {
+          const point = renderedRuns[side][0]?.[0];
+          const position = this.estimatedLines[side]!.geometry.getAttribute("position");
+          const y = point
+            ? point.y + this.origin.y
+            : this.estimatedLines[side]!.visible && position.count
+              ? position.getY(0) + this.origin.y
+              : null;
+          this.canvas.dataset[side === 0 ? "aRenderedPathWorldY" : "bRenderedPathWorldY"] = y === null ? "" : String(y);
+        }
         this.canvas.dataset.aTrailCount = String(this.trails[0]?.mesh.visible ? this.trails[0].mesh.count : 0);
         this.canvas.dataset.bTrailCount = String(this.trails[1]?.mesh.visible ? this.trails[1].mesh.count : 0);
         this.renderer.render(this.scene, this.camera);
@@ -1217,6 +1289,10 @@ export class SpectateSceneRuntime {
     this.racingLinePoints.geometry.dispose();
     this.racingLinePoints.dispose();
     this.racingLinePoints.material.dispose();
+    for (const line of this.estimatedLines) {
+      line.geometry.dispose();
+      line.material.dispose();
+    }
     for (const pool of this.linePools) disposeRibbonPool(pool);
     for (const trail of this.trails) if (trail) disposeTireTrailResource(trail);
     for (const marker of this.markers) {

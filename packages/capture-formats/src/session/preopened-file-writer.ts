@@ -118,6 +118,19 @@ export class PreopenedFileWriter {
   }
 
   flush(): void { this.schedule(this.activeState, true); }
+  async drainQueued(): Promise<void> {
+    while (this.queued > 0) {
+      if (this.failure !== undefined) throw this.failure;
+      const pending: Promise<void>[] = [];
+      for (const state of this.states) {
+        if (state.timer) { clearTimeout(state.timer); state.timer = undefined; }
+        if (state.drain) pending.push(state.drain);
+        else if (state.queued) pending.push(this.drain(state));
+      }
+      await Promise.all(pending);
+    }
+    if (this.failure !== undefined) throw this.failure;
+  }
 
   close(): Promise<void> {
     if (!this.closing) this.closing = this.closeImpl();

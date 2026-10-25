@@ -1,22 +1,24 @@
 import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
-import { beginRecordingStorageImport } from "./storage-activity";
+import { beginRecordingStorageImport, registerActiveLmuOpponentSource } from "./storage-activity";
 import { existsSync, unlinkSync } from "node:fs";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { LapIndexPacket } from "@raceiq/shared/telemetry/lap-index";
-import type { LapMeta, SessionOwnership } from "@raceiq/shared/racing/sessions/types";
+import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
-import { deleteSession, enqueueSessionCaptureSplit, updateSessionSource } from "../db/session-queries";
+import { deleteSessionForImportRollback, enqueueSessionCaptureSplit, revokeUnreferencedLmuOpponentIndexes, updateSessionSource } from "../db/session-queries";
 import { isDelayedFinishContext } from "../db/telemetry-replay-storage";
 import { getServerGame } from "../games/registry";
 import { isIRacingSessionFrame } from "@raceiq/capture-formats/iracing/source-frame";
 import { PARSER_BOOTSTRAP_VERSION, SESSION_SEGMENT_BOUNDARY, SESSION_SEGMENT_CONTEXT, SESSION_SEGMENT_CONTEXT_END } from "@raceiq/capture-formats/session/framing";
 import { applyFrameTime } from "./frame-time";
+import { DirectSessionRecorderAdapter } from "./direct-recorder";
 import { LiveTelemetryPipeline } from "../telemetry/live-pipeline";
-import { NullWsAdapter, RealDbAdapter, SparseSessionRecorderAdapter, type DbAdapter, type SessionRecorderAdapter } from "../telemetry/pipeline-ports";
+import { NullWsAdapter, RealDbAdapter, SparseSessionRecorderAdapter, type SessionRecorderAdapter } from "../telemetry/pipeline-ports";
 import { reconcileSessionResult } from "../race-results/reconcile";
 
 import { countIndexSampleMaterialized, countSourceFrameScanned } from "./test-instrumentation";
+import { enqueueLmuOpponentIndex } from "./lmu-opponent-index-runtime";
 
 
 
@@ -37,12 +39,9 @@ export interface ImportSessionResult {
 }
 
 /**
- * Delegates to RealDbAdapter but captures the returned lap IDs + session
- * metadata so an import caller can tell the UI what got inserted and build
- * deep links into the analyse page.
+ * Captures import metadata while inheriting real DB lap-binding publication.
  */
-export class ImportCaptureAdapter implements DbAdapter {
-  private readonly _inner: RealDbAdapter;
+export class ImportCaptureAdapter extends RealDbAdapter {
   readonly laps: ImportedLap[] = [];
   readonly sessionIds = new Set<number>();
   readonly rawFiles = new Set<string>();
@@ -52,17 +51,17 @@ export class ImportCaptureAdapter implements DbAdapter {
   private _continueSession = false;
   private readonly _sessionSource?: string;
 
-
   constructor(options: {
     notifyDriverProfile?: boolean;
     ownership?: SessionOwnership;
     sessionSource?: string;
     rollbackFiles?: Iterable<string>;
   } = {}) {
-    this._inner = new RealDbAdapter(options);
+    super(options);
     this._sessionSource = options.sessionSource;
     for (const path of options.rollbackFiles ?? []) this.rawFiles.add(path);
   }
+
 
 
   async insertSession(
@@ -84,17 +83,16 @@ export class ImportCaptureAdapter implements DbAdapter {
         throw new Error("Import segment game does not match its source session");
       }
       if (meta && (meta.carId !== carId || meta.trackId !== trackId)) {
-        await this._inner.updateSessionCarTrack(sessionId, carId, trackId);
+        await super.updateSessionCarTrack(sessionId, carId, trackId);
       }
       this._sessionMeta.set(sessionId, { carId, trackId, gameId });
       return sessionId;
     }
-    const id = await this._inner.insertSession(carId, trackId, gameId, sessionType, versionIdentity, ownership);
+    const id = await super.insertSession(carId, trackId, gameId, sessionType, versionIdentity, ownership);
     this.sessionIds.add(id);
     this._sessionMeta.set(id, { carId, trackId, gameId });
     if (this._sessionSource) await updateSessionSource(id, this._sessionSource);
     return id;
-
   }
 
   continueSessionOnNextInsert(): void {
@@ -118,7 +116,7 @@ export class ImportCaptureAdapter implements DbAdapter {
     classification: LapClassification | null,
     versionIdentity?: TelemetryVersionIdentity,
   ): Promise<number> {
-    const pending = this._inner.insertLap(
+    const pending = super.insertLap(
       sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, classification, versionIdentity
     ).then((id) => {
       const meta = this._sessionMeta.get(sessionId);
@@ -145,40 +143,19 @@ export class ImportCaptureAdapter implements DbAdapter {
     return pending;
   }
   async deleteLap(lapId: number): Promise<void> {
-    await this._inner.deleteLap(lapId);
+    await super.deleteLap(lapId);
     const index = this.laps.findIndex((lap) => lap.lapId === lapId);
     if (index >= 0) this.laps.splice(index, 1);
   }
 
-  setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void> {
-    return this._inner.setLapMetrics(lapId, fuelPerLap, tyreWear);
-  }
-  updateLapCarSetup(lapId: number, carSetup: object | null): Promise<void> {
-    return this._inner.updateLapCarSetup(lapId, carSetup);
-  }
-  getLaps(gameId: GameId, limit: number): Promise<LapMeta[]> {
-    return this._inner.getLaps(gameId, limit);
-  }
-  getTuneAssignment(gameId: GameId, carId: string, trackId: string) {
-    return this._inner.getTuneAssignment(gameId, carId, trackId);
-  }
   updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string, sparseCapture = false): Promise<void> {
     this.rawFiles.add(rawFile);
-    return this._inner.updateSessionRawFile(sessionId, rawFile, lapDetectorVersion, sparseCapture);
+    return super.updateSessionRawFile(sessionId, rawFile, lapDetectorVersion, sparseCapture);
   }
   updateSessionCarTrack(sessionId: number, carId: string, trackId: string): Promise<void> {
     const existing = this._sessionMeta.get(sessionId);
     if (existing) this._sessionMeta.set(sessionId, { ...existing, carId, trackId });
-    return this._inner.updateSessionCarTrack(sessionId, carId, trackId);
-  }
-  getLapsForExclusionScope(experimentId: number, tuneId: number) {
-    return this._inner.getLapsForExclusionScope(experimentId, tuneId);
-  }
-  setLapAutoExclusion(lapId: number, excluded: boolean): Promise<void> {
-    return this._inner.setLapAutoExclusion(lapId, excluded);
-  }
-  getLapExperimentScope(lapId: number) {
-    return this._inner.getLapExperimentScope(lapId);
+    return super.updateSessionCarTrack(sessionId, carId, trackId);
   }
 
   async waitForPendingLapWrites(): Promise<void> {
@@ -192,24 +169,41 @@ export class ImportCaptureAdapter implements DbAdapter {
    * Best-effort rollback for an isolated file import. The recorder must be
    * stopped before this runs so no process still owns the canonical capture.
    */
-  async rollback(): Promise<void> {
+  async rollback(): Promise<string[]> {
+    const indexSourcePaths = new Set<string>(this.rawFiles);
     for (const sessionId of this.sessionIds) {
-      await deleteSession(sessionId);
+      try {
+        const deleted = await deleteSessionForImportRollback(sessionId);
+        if (deleted.indexSourcePath) indexSourcePaths.add(deleted.indexSourcePath);
+      } catch (error) {
+        console.error(`[Import] Failed to delete session ${sessionId} during rollback:`, error);
+      }
     }
     for (const rawFile of this.rawFiles) {
-      if (existsSync(rawFile)) unlinkSync(rawFile);
+      try {
+        if (existsSync(rawFile)) unlinkSync(rawFile);
+      } catch (error) {
+        console.error(`[Import] Failed to remove rollback file ${rawFile}:`, error);
+      }
     }
     this.laps.length = 0;
+    return [...indexSourcePaths];
   }
 }
 
 async function rollbackImport(
   capture: ImportCaptureAdapter,
   error: unknown,
+  deferredOpponentIndexRevocations: Set<string>,
 ): Promise<never> {
-  await capture.rollback();
+  try {
+    for (const path of await capture.rollback()) deferredOpponentIndexRevocations.add(path);
+  } catch (rollbackError) {
+    console.error("[Import] Rollback failed:", rollbackError);
+  }
   throw error;
 }
+
 
 type SessionFrame = Buffer | { frame: Buffer; frameTimeMs?: number }
   | { kind: "parser-bootstrap"; gameId: GameId; formatVersion: number; payload: Buffer }
@@ -266,6 +260,8 @@ export interface ImportSessionOptions {
   rollbackFiles?: Iterable<string>;
   /** Source-specific metadata persisted transactionally before reconciliation. */
   onImportedLaps?: (laps: readonly ImportedLap[]) => Promise<void>;
+  /** Import-only LMU retention state; never modifies the saved live-session preference. */
+  opponentRetention?: "retained" | "removed" | "not-recorded";
 }
 
 
@@ -283,25 +279,38 @@ async function importTelemetrySource<T>(
   options: ImportSessionOptions,
   processItem: ImportItemHandler<T>,
 ): Promise<ImportSessionResult> {
-  const releaseStorageImport = beginRecordingStorageImport();
+  const deferredOpponentIndexRevocations = new Set<string>();
+  let releaseImportOpponentSource: (() => void) | null = null;
+  let releaseStorageImport: (() => void) | null = null;
   try {
+  releaseStorageImport = beginRecordingStorageImport();
   const db = new ImportCaptureAdapter({
     notifyDriverProfile: options.notifyDriverProfile,
     ownership: options.ownership,
     sessionSource: options.sessionSource,
     rollbackFiles: options.rollbackFiles,
   });
+  const recorder = options.recorder ?? (options.opponentRetention
+    ? new DirectSessionRecorderAdapter(options.ownership, {
+      opponentRetentionOverride: options.opponentRetention,
+      deferOpponentIndexEnqueue: true,
+      writerOptions: { maxQueuedBytes: 16 * 1024 * 1024 + 12 },
+    })
+    : new SparseSessionRecorderAdapter(options.ownership, {}, "offline"));
   const pipeline = new LiveTelemetryPipeline(db, new NullWsAdapter(), {
     bypassPacketRateFilter: true,
     enqueueSessionCaptureSplits: false,
-    recorder: options.recorder ?? new SparseSessionRecorderAdapter(options.ownership, {}, "offline"),
+    recorder,
   });
 
   let packetCount = 0;
   let failure: unknown;
+  let finalizedOpponentSourcePath: string | null = null;
+
   try {
     for await (const item of source) {
       if (await processItem(item, packetCount, pipeline, db)) packetCount++;
+      if (options.opponentRetention) await pipeline.drainSessionRecorderWrites();
     }
     await pipeline.flushIncompleteLap();
     await db.waitForPendingLapWrites();
@@ -309,17 +318,22 @@ async function importTelemetrySource<T>(
     failure = error;
   } finally {
     try {
+      if (gameId === "lmu" && options.opponentRetention === "retained" && recorder.path) {
+        finalizedOpponentSourcePath = recorder.path;
+        releaseImportOpponentSource = registerActiveLmuOpponentSource(recorder.path, "import");
+      }
       await pipeline.flushSessionRecorder();
     } catch (error) {
       failure ??= error;
     }
   }
 
-  if (failure) await rollbackImport(db, failure);
+  if (failure) await rollbackImport(db, failure, deferredOpponentIndexRevocations);
   if (options.requireLaps && db.laps.length === 0) {
     await rollbackImport(
       db,
       new Error("No complete, importable laps were found"),
+      deferredOpponentIndexRevocations,
     );
   }
 
@@ -330,11 +344,12 @@ async function importTelemetrySource<T>(
     }
     await pipeline.finalizeDashboardCaptureFacts([...db.sessionIds]);
   } catch (error) {
-    await rollbackImport(db, error);
+    await rollbackImport(db, error, deferredOpponentIndexRevocations);
   }
   for (const sessionId of db.sessionIds) {
     await enqueueSessionCaptureSplit(sessionId);
   }
+  if (finalizedOpponentSourcePath) enqueueLmuOpponentIndex(finalizedOpponentSourcePath);
 
   return {
     packetCount,
@@ -342,7 +357,15 @@ async function importTelemetrySource<T>(
     sessionIds: [...db.sessionIds],
   };
   } finally {
-    releaseStorageImport();
+    releaseImportOpponentSource?.();
+    releaseStorageImport?.();
+    if (deferredOpponentIndexRevocations.size > 0) {
+      try {
+        await revokeUnreferencedLmuOpponentIndexes([...deferredOpponentIndexRevocations]);
+      } catch (error) {
+        console.error("[Import] Failed to revoke opponent indexes after rollback:", error);
+      }
+    }
   }
 }
 

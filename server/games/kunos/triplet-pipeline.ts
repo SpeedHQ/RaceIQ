@@ -54,8 +54,8 @@ export interface KunosTripletPipelineOptions {
 }
 
 /**
- * Builds mutually exclusive raw-recording and semantic-processing paths.
- * Recording mode must never invoke parser or persistence work.
+ * Publish normalized live telemetry in both modes; recording additionally retains raw buffers.
+ * The runtime's dump-only route keeps that live display path out of persistence.
  */
 export function createKunosTripletPipeline({
   recordingEnabled,
@@ -65,8 +65,7 @@ export function createKunosTripletPipeline({
 }: KunosTripletPipelineOptions): TripletPipeline {
   const pipeline = new TripletPipeline();
   if (gate) pipeline.register(gate);
-  pipeline.register(
-    recordingEnabled ? new DumpToBinProcessor(recorder) : parser,
-  );
+  if (recordingEnabled) pipeline.register(new DumpToBinProcessor(recorder));
+  pipeline.register(parser);
   return pipeline;
 }

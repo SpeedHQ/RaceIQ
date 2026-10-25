@@ -85,6 +85,7 @@ for (const rawFrameCount of [0, 1, 3]) {
       createdAt: "2026-08-04 00:00:00",
       gameId: "iracing",
       rawFile: null,
+      source: null, carId: "fixture-car", trackId: "fixture-track",
       rawByteOffset: meta.length + preceding.length,
       rawFrameCount,
       captureFormatVersion: null,
@@ -118,6 +119,7 @@ test("iRacing native replay restores parser bootstrap before owned frames", () =
     createdAt: "2026-08-04 00:00:00",
     gameId: "iracing",
     rawFile: null,
+    source: null, carId: "fixture-car", trackId: "fixture-track",
     rawByteOffset: meta.length + bootstrap.length,
     rawFrameCount: 1,
     captureFormatVersion: 1,
@@ -250,7 +252,7 @@ test("native semantic replay matches trimmed and appended frames and rejects amb
   const capture = Buffer.concat([meta, ...native.map((value) => record(encoder.encode(value)))]);
   const source: LapReplaySource = {
     id: 1, sessionId: 1, createdAt: "2026-08-04 00:00:00", gameId: "iracing",
-    rawFile: null, rawByteOffset: meta.length, rawFrameCount: 4, captureFormatVersion: null,
+    rawFile: null, source: null, carId: "test-car", trackId: "test-track", rawByteOffset: meta.length, rawFrameCount: 4, captureFormatVersion: null,
   };
   const retained = [2, 3, 4, 5].map((tick) => packet("iracing", {
     sessionUID: "205:202:1",
@@ -275,7 +277,7 @@ test("native semantic replay matches trimmed and appended frames and rejects amb
 test("IBT semantic replay resolves original native values without BIN decoding", () => {
   const source: LapReplaySource = {
     id: 1, sessionId: 1, createdAt: "2026-08-04 00:00:00", gameId: "iracing",
-    rawFile: "source.ibt", rawByteOffset: 0, rawFrameCount: 2, captureFormatVersion: null,
+    rawFile: "source.ibt", source: "ibt", carId: "test-car", trackId: "test-track", rawByteOffset: 0, rawFrameCount: 2, captureFormatVersion: null,
   };
   const packets = [1, 1].map((tick) => packet("iracing", {
     sessionUID: "205:202:1",

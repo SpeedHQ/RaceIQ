@@ -10,6 +10,7 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
   const sequentialImportSpecs = [
     "seeded/analyse/core-flow.spec.ts",
     "seeded/dev-tools/server-import.spec.ts",
+    "seeded/settings/storage.spec.ts",
   ];
   const nativeGpuSpecs = [
     "compare/spectate-native-camera.spec.ts",
@@ -94,8 +95,12 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
     },
     {
       name: "seeded-imports",
+      testDir: resolve(__dirname, "../.."),
       dependencies: ["seeded-setup"],
-      testMatch: sequentialImportSpecs,
+      testMatch: [
+        ...sequentialImportSpecs.map((spec) => `**/playwright/tests/${spec}`),
+        "**/packages/game-lmu/test/e2e/browser/**/*.spec.ts",
+      ],
       fullyParallel: true,
       workers: 1,
       use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },

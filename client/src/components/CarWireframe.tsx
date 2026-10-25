@@ -22,15 +22,10 @@ import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import { Button } from "./ui/button";
 import { Switch } from "./ui/switch";
 import { DropdownMenu } from "./ui/DropdownMenu";
-import { preloadCarModel } from "@raceiq/scene-3d/wireframe/CarBody";
 import { SceneRuntime, type SceneSource } from "@raceiq/scene-3d/wireframe/SceneRuntime";
 import { ToggleButton } from "./wireframe/ToggleButton";
 import { alignProjectionToMeasured, resolveScenePoses, type TrackProjection } from "@raceiq/scene-3d/wireframe/ScenePlacement";
 import { Alert, AlertDescription } from "./ui/alert";
-
-preloadCarModel("/models/aston_martin_vantage_gt3_optimised.glb");
-preloadCarModel("/models/f1_2025_mclaren_mcl39_optimised.glb");
-preloadCarModel("/models/peugeot_9x8_evo_2024_optimised.glb");
 
 export const CarWireframe = React.memo(function CarWireframe({
   gameId: gameIdProp,

@@ -3,12 +3,12 @@ import type { LapMeta, SessionMeta } from "@raceiq/shared/racing/sessions/types"
 import { selectionIncludesMotec } from "@raceiq/sessions-page/ui";
 
 const sessions: SessionMeta[] = [
-  { id: 1, carId: "1", trackId: "1", createdAt: "2026-01-01", source: "motec" },
-  { id: 2, carId: "1", trackId: "1", createdAt: "2026-01-02", source: undefined },
+  { id: 1, carId: "1", trackId: "1", createdAt: "2026-01-01", source: "motec", processing: { state: "ready", stage: null, error: null } },
+  { id: 2, carId: "1", trackId: "1", createdAt: "2026-01-02", source: undefined, processing: { state: "ready", stage: null, error: null } },
 ];
 const laps: LapMeta[] = [
-  { id: 11, sessionId: 1, carId: "1", trackId: "1", lapNumber: 1, lapTime: 90, isValid: true, classification: null, createdAt: "2026-01-01" },
-  { id: 22, sessionId: 2, carId: "1", trackId: "1", lapNumber: 1, lapTime: 91, isValid: true, classification: null, createdAt: "2026-01-02" },
+  { id: 11, sessionId: 1, carId: "1", trackId: "1", lapNumber: 1, lapTime: 90, isValid: true, classification: null, createdAt: "2026-01-01", processing: { state: "ready", stage: null, error: null } },
+  { id: 22, sessionId: 2, carId: "1", trackId: "1", lapNumber: 1, lapTime: 91, isValid: true, classification: null, createdAt: "2026-01-02", processing: { state: "ready", stage: null, error: null } },
 ];
 
 describe("Sessions MoTeC export selection", () => {

@@ -16,6 +16,7 @@ import { setCacheMaxBytes } from "@raceiq/backend-core/db/telemetry-replay-stora
 import { isFirstRun, loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { setRecordingFrequencyHz } from "@raceiq/backend-core/runtime/config/recording-frequency";
 import { wsManager, type WSData } from "@raceiq/backend-core/runtime/websocket-manager";
+import { setDumpOnlyTelemetryRouting } from "@raceiq/backend-core/telemetry/live-pipeline";
 import { udpListener } from "./udp-listener";
 import { PUBLIC_DIR, IS_COMPILED } from "@raceiq/backend-core/runtime/config/paths";
 import { getOnboardingOverride } from "@raceiq/backend-core/runtime/options";
@@ -75,6 +76,7 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   }
 
   const recordingGameId = options.recordingGameId === undefined ? recordingGameIdFromArgs(process.argv) : options.recordingGameId;
+  const dumpMode = process.argv.includes("--dump-only");
   if (recordingGameId) {
     console.log(`[Server] Recording mode enabled for game: ${recordingGameId}`);
   }
@@ -114,7 +116,7 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
     await mountStudioServer(app);
   }
 
-  await startSyncAndStaleSessionJobs();
+  if (!dumpMode) await startSyncAndStaleSessionJobs();
   const httpServer = startHttpServer({
     app,
     port: httpPort,
@@ -134,6 +136,7 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   if (recordingGameId === "fm-2023" || recordingGameId === "f1-2025") {
     udpListener.setRecordingGameId(recordingGameId);
   }
+  udpListener.setDumpOnly(dumpMode);
 
   let nativeSources: NativeSourceSupervisor | null = null;
   let startupWorker: StartupWorkerHandle | null = null;
@@ -148,14 +151,17 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
     },
   });
   setDashboardPublicationNotifier(() => wsManager.notifyDashboardUpdated());
-  startupWorker = startStartupWorker(
-    () => wsManager.notifyDashboardUpdated(),
-    (reprocessed) => wsManager.broadcastNotification({ type: "lap-reprocessed", ...reprocessed }),
-    () => wsManager.setStaleSessionsNotification(null),
-    options.testDependencies?.workerPort,
-  );
+  if (!dumpMode) {
+    startupWorker = startStartupWorker(
+      () => wsManager.notifyDashboardUpdated(),
+      (reprocessed) => wsManager.broadcastNotification({ type: "lap-reprocessed", ...reprocessed }),
+      () => wsManager.setStaleSessionsNotification(null),
+      options.testDependencies?.workerPort,
+    );
+  }
 
   const udpPort = options.udpPort ?? (Number(process.env.RACEIQ_DEV_UDP_PORT) || settings.udpPort || Number(process.env.UDP_PORT) || 5301);
+  setDumpOnlyTelemetryRouting(dumpMode);
   try {
     await udpListener.start(udpPort);
   } catch (error) {
@@ -163,9 +169,9 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   }
 
 
-  nativeSources = startNativeSourceSupervisor(recordingGameId);
-  if (loadSettings().iracingCaptureEnabled) await iracingCaptureManager.connect(true);
-  classificationWorker = startClassificationMigrationWorker({ resetInterrupted: true });
+  nativeSources = startNativeSourceSupervisor(recordingGameId, dumpMode);
+  if (!dumpMode && loadSettings().iracingCaptureEnabled) await iracingCaptureManager.connect(true);
+  classificationWorker = dumpMode ? null : startClassificationMigrationWorker({ resetInterrupted: true });
   const trayCandidates = httpAccess.hosts
     .map((host) => host === "0.0.0.0" || host === "::" ? "localhost" : host)
     .map((host) => `http://${host.includes(":") ? `[${host}]` : host}:${boundHttpPort}`);
@@ -178,9 +184,10 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
     openFirstRunDashboard(boundHttpPort);
   }
 
-  startMaintenanceJobs();
+  if (!dumpMode) startMaintenanceJobs();
 
   console.log("[Server] RaceIQ Server is ready!");
+  process.send?.({ type: "shutdown-ready" });
 
   return { httpServer, httpPort: boundHttpPort, udpPort };
 }

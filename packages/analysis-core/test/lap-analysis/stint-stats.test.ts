@@ -58,6 +58,7 @@ const lap = (overrides: Partial<LapMeta> = {}): LapMeta => ({
   isValid: true,
   classification: null,
   createdAt: "2026-01-01T00:00:00.000Z",
+  processing: { state: "ready", stage: null, error: null },
   ...overrides,
 });
 

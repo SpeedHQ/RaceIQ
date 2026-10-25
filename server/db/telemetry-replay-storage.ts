@@ -588,8 +588,10 @@ export interface LapReplaySource {
   sessionId: number;
   createdAt: string;
   gameId: GameId;
-  source?: string | null;
+  source: string | null;
   rawFile: string | null;
+  carId: string;
+  trackId: string;
   rawByteOffset: number | null;
   rawFrameCount: number | null;
   captureManifestFile?: string | null;
@@ -611,6 +613,8 @@ export async function getLapReplaySource(id: number): Promise<LapReplaySource | 
       gameId: sessions.gameId,
       rawFile: sessions.rawFile,
       source: sessions.source,
+      carId: sessions.carId,
+      trackId: sessions.trackId,
       rawByteOffset: laps.rawByteOffset,
       rawFrameCount: laps.rawFrameCount,
       captureManifestFile: sessions.captureManifestFile,
@@ -639,6 +643,8 @@ export async function getLapReplaySource(id: number): Promise<LapReplaySource | 
     gameId: row.gameId as GameId,
     rawFile: row.rawFile,
     source: row.source,
+    carId: row.carId,
+    trackId: row.trackId,
     rawByteOffset: row.rawByteOffset,
     rawFrameCount: row.rawFrameCount,
     captureManifestFile: row.captureManifestFile,

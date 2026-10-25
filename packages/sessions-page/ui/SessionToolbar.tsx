@@ -136,7 +136,7 @@ export function SessionToolbar({
             const lapB = allLaps.find((lap) => lap.id === ids[1]);
             const sessionA = sessions.find((session) => session.id === lapA?.sessionId);
             const sessionB = sessions.find((session) => session.id === lapB?.sessionId);
-            const canCompare = selectedLaps.size === 2 && lapA && lapB && sessionA && sessionB && sessionA.trackId === sessionB.trackId && lapA.telemetryAvailable !== false && lapB.telemetryAvailable !== false;
+            const canCompare = selectedLaps.size === 2 && lapA && lapB && sessionA && sessionB && lapA.processing.state === "ready" && lapB.processing.state === "ready" && sessionA.processing.state === "ready" && sessionB.processing.state === "ready" && sessionA.trackId === sessionB.trackId && lapA.telemetryAvailable !== false && lapB.telemetryAvailable !== false;
             return (
               <Button
                 variant="app-primary"

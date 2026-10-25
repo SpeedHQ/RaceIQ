@@ -17,8 +17,8 @@ import {
   MessagesSquare,
   PanelLeftClose,
   PanelLeftOpen,
-  RefreshCw,
   Radio,
+  RefreshCw,
   Settings2,
   SlidersHorizontal,
   UserRound,
@@ -321,9 +321,7 @@ export function AppSidebar({
         )}
 
         <div className="mt-auto border-t border-app-border py-2 pr-2 pl-0">
-          {activeGame?.id === "iracing" && (
-            <SidebarLink collapsed={showCollapsed} exact icon={Radio} label={m.tab_live()} to="/iracing/live" onClick={onClose} />
-          )}
+          <SidebarLink collapsed={showCollapsed} icon={Radio} label={m.tab_live()} to="/live" onClick={onClose} />
           {import.meta.env.DEV && <SidebarLink collapsed={showCollapsed} icon={Code2} label={m.nav_dev()} to="/dev" onClick={onClose} />}
           {updateAvailable && (
             <SidebarAction collapsed={showCollapsed} label={updateLabel} onClick={handleUpdate}>

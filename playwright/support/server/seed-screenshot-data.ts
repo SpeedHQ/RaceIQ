@@ -3,7 +3,7 @@ import Database from "libsql";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { restoreSeededDatabase } from "./seeded-database";
-import { DEFAULT_GAMES } from "@raceiq/tooling-data/data/seed-db-options";
+import { DEFAULT_GAMES, LMU_MULTIPLAYER_FIXTURE_PARTS } from "@raceiq/tooling-data/data/seed-db-options";
 
 export function seedE2ESetupData(repoDir: string, dataDir: string): void {
   const setupHome = resolve(dataDir, "setup-home");
@@ -15,11 +15,10 @@ export function seedE2ESetupData(repoDir: string, dataDir: string): void {
   copyFileSync(resolve(repoDir, "test", "artifacts", "carsetup", "Default-12312.carsetup"), resolve(acEvoDir, "e2e.carsetup"));
 }
 
-// This large capture is covered by game-lmu recording tests; the small LMU session
-// still seeds landing flows without making screenshot setup exceed CI resources.
+// Large native captures stay in normal seeds; bounded fixtures cover multiplayer
+// browser flows without making every screenshot/CI startup import multi-GB dumps.
 const EXCLUDED_SCREENSHOT_SEED_FIXTURES = [
-  "test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part1",
-  "test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part2",
+  ...LMU_MULTIPLAYER_FIXTURE_PARTS,
 ] as const;
 export function seedScreenshotData(repoDir: string, dataDir: string): void {
   if (process.env.PW_SEED_SCREENSHOTS !== "1") return;

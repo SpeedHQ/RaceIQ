@@ -10,6 +10,7 @@ import { SessionResultMeta } from "./SessionResultMeta";
 import { SessionCaptureSplitStatus } from "./SessionCaptureSplitStatus";
 import type { LapSortKey, SessionSelectionEvent, SortDir, SortKey } from "./types";
 import { useSessionsPageHost } from "./host";
+import { SessionOpponentRecords } from "./SessionOpponentRecords";
 import { parseUtcTimestamp } from "@raceiq/frontend-pure/utc-date";
 
 export type SessionDesktopTableProps = {
@@ -28,6 +29,7 @@ export type SessionDesktopTableProps = {
   toggleSort: (key: SortKey) => void;
   expandedSessions: Set<number>;
   toggleExpand: (id: number) => void;
+  refreshProcessingStatus: () => void;
   selectedSessions: Set<number>;
   setSelectedSessions: React.Dispatch<React.SetStateAction<Set<number>>>;
   toggleSessionSelection: (id: number, event: SessionSelectionEvent) => void;
@@ -58,6 +60,7 @@ export function SessionDesktopTable({
   toggleSort,
   expandedSessions,
   toggleExpand,
+  refreshProcessingStatus,
   selectedSessions,
   setSelectedSessions,
   toggleSessionSelection,
@@ -141,13 +144,21 @@ export function SessionDesktopTable({
             </TableRow>
           ) : (
             pageItems.map((session) => {
-              const isExpanded = expandedSessions.has(session.id);
+              const isBlocked = session.processing.state !== "ready";
+              const isProcessing = session.processing.state === "queued" || session.processing.state === "processing";
+              const isExpanded = expandedSessions.has(session.id) && !isBlocked;
               const sessionLaps = lapsBySession.get(session.id) ?? [];
               const paceLaps = sessionLaps.filter((lap) => lap.isValid && isPaceLap(lap.classification));
               const bestTime = session.bestLapTime || (paceLaps.length > 0 ? Math.min(...paceLaps.map((lap) => lap.lapTime)) : 0);
               return (
                 <Fragment key={session.id}>
-                  <TableRow onClick={() => toggleExpand(session.id)} data-state={isExpanded ? "selected" : undefined} className={isExpanded && sessionLaps.length > 0 ? "border-b-0" : undefined}>
+                  <TableRow
+                    onClick={() => { if (!isBlocked) toggleExpand(session.id); }}
+                    aria-disabled={isBlocked || undefined}
+                    aria-busy={isProcessing || undefined}
+                    data-state={isExpanded ? "selected" : undefined}
+                    className={isExpanded && sessionLaps.length > 0 ? "border-b-0" : undefined}
+                  >
                     <TableCell className="text-center" onClick={(event) => event.stopPropagation()}>
                       <input type="checkbox" checked={selectedSessions.has(session.id)} onChange={(event) => toggleSessionSelection(session.id, event)} className="accent-app-accent w-4 h-4" />
                     </TableCell>
@@ -162,7 +173,7 @@ export function SessionDesktopTable({
                         <Button
                           variant="app-primary"
                           size="app-sm"
-                          disabled={session.telemetryAvailable === false}
+                          disabled={session.telemetryAvailable === false || isBlocked}
                           title={session.telemetryAvailable === false ? m.sessions_raw_telemetry_removed() : undefined}
                           onClick={(event) => {
                             event.stopPropagation();
@@ -179,7 +190,7 @@ export function SessionDesktopTable({
                     <TableCell className="text-app-label">{sessionCarName(session, { trackNames, carNames })}</TableCell>
                     <TableCell className="text-app-label">
                       <SessionResultMeta session={session} />
-                      <SessionCaptureSplitStatus status={session.captureSplit} sessionId={session.id} />
+                      <SessionCaptureSplitStatus status={session.captureSplit} sessionId={session.id} processing={session.processing} onRefreshProcessing={refreshProcessingStatus} />
                     </TableCell>
                     {showSessionType && <TableCell className="text-app-label"><SessionTypeBadge type={session.sessionType} /></TableCell>}
                     <TableCell>
@@ -206,11 +217,13 @@ export function SessionDesktopTable({
                             toggleLapSort={toggleLapSort}
                             selectedLaps={selectedLaps}
                             toggleLapSelection={toggleLapSelection}
+                            refreshProcessingStatus={refreshProcessingStatus}
                           />
                         </div>
                       </TableCell>
                     </TableRow>
                   )}
+                  {isExpanded && gameId === "lmu" && <TableRow className="hover:bg-transparent"><TableCell colSpan={colCount} className="p-0 max-w-0"><SessionOpponentRecords session={session} laps={sessionLaps} enabled={isExpanded} /></TableCell></TableRow>}
                 </Fragment>
               );
             })

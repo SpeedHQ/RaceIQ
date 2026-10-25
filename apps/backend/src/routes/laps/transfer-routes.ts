@@ -79,7 +79,7 @@ function duckDBErrorMessage(
 
 export const transferRoutes = new Hono()
   .get("/api/laps/export-zip", zValidator("query", ExportZipQuerySchema), async (c) => {
-    const { ids, sessionIds } = c.req.valid("query");
+    const { ids, sessionIds, opponentLap, opponentRevision } = c.req.valid("query");
 
     const lapIds = new Set<number>(ids ?? []);
     for (const sessionId of sessionIds ?? []) {
@@ -89,7 +89,7 @@ export const transferRoutes = new Hono()
 
     let built: Awaited<ReturnType<typeof buildLapsZip>>;
     try {
-      built = await buildLapsZip([...lapIds]);
+      built = await buildLapsZip([...lapIds], opponentLap && opponentRevision ? { opponentLap, opponentRevision } : undefined);
     } catch (err) {
       return c.json({ error: err instanceof Error ? err.message : String(err) }, 409);
     }

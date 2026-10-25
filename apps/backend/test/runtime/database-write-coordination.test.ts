@@ -1,3 +1,4 @@
+import { rm } from "node:fs/promises";
 import { afterEach, describe, expect } from "bun:test";
 import { createClient, type Client, type Transaction } from "@libsql/client/sqlite3";
 import type { TransactionMode } from "@libsql/client";
@@ -231,10 +232,19 @@ async function databaseFixture() {
   const directory = await mkdtemp(join(process.env.RACEIQ_NATIVE_DB_ROOT!, "write-resource-"));
   const client = createClient({ url: `file:${join(directory, "test.db")}` });
   await client.executeMultiple("PRAGMA foreign_keys=ON; CREATE TABLE entries(id INTEGER PRIMARY KEY); CREATE TABLE parents(id INTEGER PRIMARY KEY); CREATE TABLE children(parent_id INTEGER REFERENCES parents(id) DEFERRABLE INITIALLY DEFERRED);");
-  return {
-    client,
-    close() { client.close(); },
-  };
+  return { client, async close() {
+    client.close();
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await rm(directory, { recursive: true, force: true });
+        break;
+      } catch (error) {
+        const isBusyOnWindows = process.platform === "win32" && error instanceof Error && "code" in error && error.code === "EBUSY";
+        if (!isBusyOnWindows || attempt === 9) throw error;
+        await new Promise<void>((resolve) => setTimeout(resolve, 200));
+      }
+    }
+  } };
 }
 
 describe("native write transaction settlement", () => {
