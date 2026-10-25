@@ -7,9 +7,9 @@
 - Show class-specific dry compounds and Wet tire rows with unavailable temperature targets on LMU race cars, excluding the safety car.
 - Override tire cliff and dead-health thresholds per game and tire compound.
 - Open an expanded pit-estimate dialog with a projected lap horizon, four-wheel readings, and evidence; mark missing forecasts as unavailable.
-- Generate race strategies on the Strategies page from weighted evidence across recent sessions, with Track, Car, Laps, and Weather controls, total recorded lap counts, and read-only source provenance.
-- Clone saved strategies into independent editable copies without changing the original or active plan.
-- Recalculate copied strategies from the latest compatible recorded sessions, updating stops, fuel loads and timed-race lap estimates as driving changes.
+- Generate race strategies on the Strategies page from weighted evidence across recent sessions, with searchable Track and Car controls, Laps and Weather controls, total recorded lap counts, and read-only source provenance.
+- Remove manual new-plan creation, no-history planning, and saved-plan cloning; keep generated-plan saving and existing-plan editing.
+- Recalculate saved strategies from the latest compatible recorded sessions, updating stops, fuel loads and timed-race lap estimates as driving changes.
 - Limit LMU strategy stints using native virtual energy separately from fuel, with an explicit energy reserve.
 - Plan races by lap count or race duration using your measured lap time, save the chosen basis, and estimate required fuel and refueling at selected pit stops.
 - Replace live pit estimates with the selected matching race strategy, including planned stops, next-stint compounds/fuel, and measured compound-specific tire life with cliff/dead and fuel-shortfall warnings.

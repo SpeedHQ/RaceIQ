@@ -1,5 +1,4 @@
 {
-  "race_plan_clone": "Klonen",
   "race_plan_recalculate": "Klonen en herberekenen",
   "race_plan_copy_name": "{name} (kopie)",
   "race_plan_recalculate_help": "Gebruik de nieuwste compatibele sessies voor nieuwe stops en hoeveelheden. Controleer de kopie vóór opslaan; het origineel blijft ongewijzigd.",
@@ -3004,10 +3003,8 @@
   "strategy_amount_points": "{value} procentpunten",
   "sparse_split_migration_description": "We moeten opnames splitsen vanaf {sessions} bestaande sessies in afzonderlijke rondebestanden. Zo laadt ronde 60 net zo snel als ronde 1, zonder door de vorige 59 ronden te hoeven scannen. Splitsen gebeurt op de achtergrond.",
   "race_plan_title": "Raceplan",
-  "race_plan_manual_notice": "Alleen handmatig plan. Voorspellingen gebruiken compatibele geregistreerde stintverbruiken; ze wijzigen live schattingen niet.",
-  "race_plan_new": "Nieuw plan",
   "race_plan_saved": "Opgeslagen plannen",
-  "race_plan_empty": "Geen strategieën opgeslagen voor deze game. Kies circuit, auto, ronden en weer om een strategie te genereren, of maak een handmatig plan.",
+  "race_plan_empty": "Geen strategieën opgeslagen voor deze game. Kies circuit, auto, ronden en weer om een strategie te genereren.",
   "race_plan_load_error": "Opgeslagen plannen laden mislukt.",
   "race_plan_live_error": "Actief raceplan laden mislukt.",
   "race_plan_catalogue_error": "Circuits- en autocatalogi konden niet worden geladen.",
@@ -3213,7 +3210,7 @@
   "compare_overview_unavailable": "Niet beschikbaar",
   "race_plan_choose_recorded_session": "Kies een opgenomen sessie",
   "race_plan_choose_recorded_stint": "Kies een opgenomen stint",
-  "race_plan_generator_no_evidence": "Geen geschikte opgenomen gegevens. Kies een ander circuit, auto of weersomstandigheid, of maak een handmatig plan.",
   "race_plan_select_track": "Selecteer circuit",
+  "race_plan_generator_no_evidence": "Geen geschikte opgenomen gegevens. Kies een ander circuit, auto of weersomstandigheid.",
   "race_plan_select_car": "Selecteer auto"
 }

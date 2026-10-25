@@ -32,7 +32,7 @@ async function active(api: APIRequestContext, combo: RacePlanCombo) {
 }
 const measured = (source: StintSummary) => source.status !== "active" && source.fuel.value != null && source.fuel.eligibleLaps > 0 && source.averageLapSeconds != null && source.tires.every((rate) => rate.value != null && rate.eligibleLaps > 0);
 
-test("C1/R1-R3/S1 clones independently and regenerates from newer improved sealed driving", async ({ browser, playwright }, testInfo) => {
+test("C1/R1-R3/S1 recalculates saved strategy from newer improved sealed driving", async ({ browser, playwright }, testInfo) => {
   test.setTimeout(420_000);
   const runtime = await StrategyRuntime.start(testInfo.outputPath("test-data-recalculation"));
   const api = await playwright.request.newContext({ baseURL: runtime.apiURL });
@@ -67,35 +67,6 @@ test("C1/R1-R3/S1 clones independently and regenerates from newer improved seale
     expect(original.generation).toEqual(generation);
     expect(original.totalLaps).toBe(20);
     expect(original.stints.map((stint) => stint.endLap)).toEqual([5, 10, 15, 20]);
-    await page.getByRole("button", { name: "Strategies", exact: true }).click();
-    const originalActions = page.getByRole("group", { name: original.name, exact: true });
-    await originalActions.getByRole("button", { name: "Load", exact: true }).click();
-    await expect.poll(async () => (await active(api, original))?.id).toBe(original.id);
-    await page.setViewportSize({ width: 390, height: 844 });
-    for (const name of ["Clone", "Clone & recalculate", "Unload active plan", "Delete"]) {
-      const action = originalActions.getByRole("button", { name, exact: true });
-      await expect(action).toBeVisible();
-      const box = await action.boundingBox();
-      expect(box!.x).toBeGreaterThanOrEqual(0);
-      expect(box!.x + box!.width).toBeLessThanOrEqual(390);
-    }
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await page.screenshot({ path: testInfo.outputPath("strategy-actions-mobile.png"), fullPage: true });
-    await originalActions.getByRole("button", { name: "Clone", exact: true }).focus();
-    await page.keyboard.press("Enter");
-    await expect(planner.getByLabel("Plan name")).toHaveValue("Original timed strategy (copy)");
-    await expect(page.getByTestId("saved-strategies-table")).toHaveCount(0);
-    expect(await plans(api)).toEqual([original]);
-    await planner.getByLabel("Notes").fill("Independent edited copy");
-    await planner.getByRole("button", { name: "Save plan", exact: true }).click();
-    await expect(planner.getByRole("status").filter({ hasText: "Plan saved" })).toBeVisible();
-    const cloned = (await plans(api)).find((plan) => plan.id !== original.id)!;
-    expect(cloned.notes).toBe("Independent edited copy");
-    expect(cloned.generation).toEqual(original.generation);
-    expect(cloned.stints).toEqual(original.stints);
-    expect((await plans(api)).find((plan) => plan.id === original.id)).toEqual(original);
-    expect((await active(api, original))?.id).toBe(original.id);
-
     await ingestF1Laps(runtime.udpPort, 6, 1103n, 0.4, 4, 1, { lapSeconds: 50, fuelPerLap: 1.2 });
     const improved = await newestSession(api, "f1-2025");
     const provisional = await api.post(`/api/race-plans/${original.id}/recalculate`, { data: { generation } });
@@ -154,68 +125,6 @@ test("C1/R1-R3/S1 clones independently and regenerates from newer improved seale
     await runtime.crash();
     await runtime.databaseStatement("UPDATE sessions SET raw_file=? WHERE id=?", [recorded.raw_file, improved.id], true);
     await runtime.restart();
-    await page.setViewportSize({ width: 1280, height: 900 });
-    await page.goto(`${runtime.baseURL}/f125/strategy`);
-    await originalActions.getByRole("button", { name: "Clone & recalculate", exact: true }).click();
-    const recalculator = page.getByTestId("race-strategy-recalculator");
-    await expect(recalculator.getByLabel("Starting fuel (%)")).toHaveValue(String(capacity * 100));
-    await expect(recalculator.getByLabel("Fuel reserve at the finish (%)")).toHaveValue("1");
-    await page.route(`**/api/race-plans/${original.id}/recalculate`, (route) => route.abort(), { times: 1 });
-    await recalculator.getByRole("button", { name: "Clone & recalculate", exact: true }).click();
-    await expect(recalculator.getByRole("alert")).toContainText("No safe proposal");
-    await expect(recalculator.getByLabel("Starting fuel (%)")).toHaveValue(String(capacity * 100));
-    const releaseProposal = Promise.withResolvers<void>();
-    const proposalStarted = Promise.withResolvers<void>();
-    await page.route(`**/api/race-plans/${original.id}/recalculate`, async (route) => {
-      proposalStarted.resolve();
-      await releaseProposal.promise;
-      await route.continue();
-    }, { times: 1 });
-    const pendingProposal = page.waitForResponse((response) => response.url().endsWith(`/api/race-plans/${original.id}/recalculate`));
-    await recalculator.getByRole("button", { name: "Clone & recalculate", exact: true }).click();
-    await proposalStarted.promise;
-    try {
-      await page.getByRole("button", { name: "New plan", exact: true }).click();
-      await planner.getByLabel("Plan name").fill("Keep this manual draft");
-    } finally {
-      releaseProposal.resolve();
-    }
-    const completedProposal = await pendingProposal;
-    expect(completedProposal.status()).toBe(200);
-    await completedProposal.finished();
-    await page.evaluate(() => {
-      const settled = Promise.withResolvers<void>();
-      requestAnimationFrame(() => requestAnimationFrame(() => settled.resolve()));
-      return settled.promise;
-    });
-    await expect(planner.getByLabel("Plan name")).toHaveValue("Keep this manual draft");
-    await page.getByRole("button", { name: "Strategies", exact: true }).click();
-    await originalActions.getByRole("button", { name: "Clone & recalculate", exact: true }).click();
-    await recalculator.getByRole("button", { name: "Clone & recalculate", exact: true }).click();
-    await expect(planner).toBeVisible();
-    await expect(page.getByTestId("recalculation-summary")).toHaveText("20 → 24 laps; 3 → 2 pit stops.");
-    await expect(page.getByRole("region", { name: "Latest recorded evidence" })).toBeVisible();
-    await expect(page.getByText(`Session ${improved.id}`, { exact: false }).first()).toBeVisible();
-    const preview = await planner.getByLabel("Pit / finish lap").evaluateAll((inputs) => inputs.map((input) => Number((input as HTMLInputElement).value)));
-    expect(preview).toEqual([10, 20, 24]);
-    const expectedImproved = (await summaries(api, improved.id)).find((item) => measured(item) && item.compounds.every((compound, index) => compound === source.compounds[index]))!;
-    expect(expectedImproved.fuel.value).toBeLessThan(source.fuel.value!);
-    expect(expectedImproved.tires[0].value).toBeLessThan(source.tires[0].value!);
-    await expect(planner.getByTestId("race-plan-required-fuel")).toHaveCount(0);
-    expect((await plans(api)).find((plan) => plan.id === original.id)).toEqual(original);
-    expect((await active(api, original))?.id).toBe(original.id);
-    await page.screenshot({ path: testInfo.outputPath("recalculated-strategy-desktop.png"), fullPage: true });
-    await planner.getByLabel("Plan name").fill("Recalculated strategy");
-    await planner.getByRole("button", { name: "Save plan", exact: true }).click();
-    await expect(planner.getByRole("status").filter({ hasText: "Plan saved" })).toBeVisible();
-    const recalculated = (await plans(api)).find((plan) => plan.name === "Recalculated strategy")!;
-    expect(recalculated.id).not.toBe(original.id);
-    expect(recalculated.stints.every((stint) => stint.sourceSessionId === improved.id)).toBe(true);
-    expect(recalculated.raceLength).toEqual({ mode: "time", durationSeconds: 1200, averageLapSeconds: 50 });
-    expect((await active(api, original))?.id).toBe(original.id);
-    await runtime.restart();
-    expect((await plans(api)).find((plan) => plan.id === original.id)).toEqual(original);
-    expect((await plans(api)).find((plan) => plan.id === recalculated.id)).toEqual(recalculated);
 
     const mixedInput: RacePlanInput = { name: "Mixed compound strategy", gameId: original.gameId, carId: original.carId, trackId: original.trackId, pi: original.pi,
       totalLaps: 20, raceLength: { mode: "time", durationSeconds: 1200, averageLapSeconds: 60 }, fuelUnit: original.fuelUnit, notes: "", generation: null,
@@ -253,14 +162,6 @@ test("C1/R1-R3/S1 clones independently and regenerates from newer improved seale
     expect((await api.post(`/api/race-plans/${long.id}/recalculate`, { data: { generation: { ...generation, fuelCapacity: expectedImproved.fuel.value! + reserve + 0.000001 } } })).status()).toBe(422);
     expect(await plans(api)).toEqual(beforeErrors);
     expect((await active(api, original))?.id).toBe(original.id);
-    await page.goto(`${runtime.baseURL}/f125/strategy`);
-    await page.getByRole("group", { name: mixed.name, exact: true }).getByRole("button", { name: "Clone & recalculate", exact: true }).click();
-    await expect(recalculator.getByLabel("Starting fuel (%)")).toHaveValue("");
-    await recalculator.getByLabel("Starting fuel (%)").fill(String(capacity * 100));
-    await recalculator.getByLabel("Fuel reserve at the finish (%)").fill("1");
-    await recalculator.getByRole("button", { name: "Clone & recalculate", exact: true }).click();
-    await expect(planner).toBeVisible();
-    await expect(planner.getByLabel("Pit / finish lap").first()).toHaveValue("10");
   } finally {
     await context.close();
     await api.dispose();
@@ -322,16 +223,6 @@ test("E1 native LMU energy independently limits stops and missing energy refuses
     const low = (await summaries(api, lowId, "lmu")).find((item) => measured(item) && item.virtualEnergy?.value != null && item.virtualEnergy.value > 0)!;
     expect(low.fuel.value).toBeCloseTo(high.fuel.value!, 5);
     expect(low.virtualEnergy!.value).toBeLessThan(high.virtualEnergy!.value!);
-    await page.goto(`${runtime.baseURL}/lmu/strategy`);
-    await page.getByRole("group", { name: original.name, exact: true }).getByRole("button", { name: "Clone & recalculate", exact: true }).click();
-    const recalculator = page.getByTestId("race-strategy-recalculator");
-    await expect(recalculator.getByLabel("Virtual energy reserve (%)")).toHaveValue("10");
-    await recalculator.getByRole("button", { name: "Clone & recalculate", exact: true }).click();
-    await expect(planner).toBeVisible();
-    expect(Number(await planner.getByLabel("Pit / finish lap").first().inputValue())).toBeGreaterThan(energyLimit);
-    await expect(page.getByText(`Session ${lowId}`, { exact: false }).first()).toBeVisible();
-    await expect(planner.getByLabel("History session")).toHaveValue(String(lowId));
-    await page.screenshot({ path: testInfo.outputPath("native-lmu-energy-recalculation.png"), fullPage: true });
     const zeroId = await importEnergy("strategy-zero-energy");
     const zeroResponse = await api.post(`/api/race-plans/${original.id}/recalculate`, { data: { generation: original.generation } });
     expect(zeroResponse.status(), await zeroResponse.text()).toBe(200);
@@ -343,16 +234,6 @@ test("E1 native LMU energy independently limits stops and missing energy refuses
     expect((await summaries(api, missingId, "lmu")).every((item) => item.virtualEnergy?.value == null)).toBe(true);
     const deletion = await api.post("/api/sessions/bulk-delete", { data: { ids: [highId, lowId, zeroId] } });
     expect(deletion.ok(), await deletion.text()).toBe(true);
-    await page.goto(`${runtime.baseURL}/lmu/strategy`);
-    await page.getByRole("group", { name: original.name, exact: true }).getByRole("button", { name: "Clone & recalculate", exact: true }).click();
-    await recalculator.getByRole("button", { name: "Clone & recalculate", exact: true }).click();
-    await expect(recalculator.getByRole("alert")).toContainText("No safe proposal");
-    expect((await plans(api, "lmu")).find((plan) => plan.id === original.id)).toEqual(original);
-    await expect(recalculator.getByLabel("Virtual energy reserve (%)")).toHaveValue("10");
-    await page.getByRole("group", { name: original.name, exact: true }).getByRole("button", { name: "Clone", exact: true }).click();
-    await expect(planner.getByRole("button", { name: "Save plan", exact: true })).toBeDisabled();
-    await expect(planner.getByTestId("race-plan-required-energy").first()).toContainText((energyLimit * high.virtualEnergy!.value! * 100).toFixed(1));
-    expect((await plans(api, "lmu")).find((plan) => plan.id === original.id)).toEqual(original);
   } finally {
     await context.close();
     await api.dispose();

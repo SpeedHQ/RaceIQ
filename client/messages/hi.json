@@ -1,5 +1,4 @@
 {
-  "race_plan_clone": "कॉपी बनाएँ",
   "race_plan_recalculate": "कॉपी बनाएँ और फिर गणना करें",
   "race_plan_copy_name": "{name} (कॉपी)",
   "race_plan_recalculate_help": "नवीनतम संगत सत्रों से नए स्टॉप और भराव मात्रा सुझाएँ। सहेजने से पहले कॉपी जाँचें; मूल योजना नहीं बदलती।",
@@ -3065,10 +3064,8 @@
   "strategy_amount_litres": "{value} L",
   "strategy_amount_points": "{value} प्रतिशत अंक",
   "race_plan_title": "रेस रणनीति",
-  "race_plan_manual_notice": "केवल मैन्युअल योजना। अनुमान संगत रिकॉर्ड किए गए स्टिंट दरों का उपयोग करते हैं; वे लाइव अनुमानों को नहीं बदलते।",
-  "race_plan_new": "नई योजना",
   "race_plan_saved": "सहेजी गई योजनाएँ",
-  "race_plan_empty": "इस गेम के लिए कोई सहेजी गई रणनीति नहीं है। रणनीति बनाने के लिए ट्रैक, कार, लैप और मौसम चुनें, या मैन्युअल योजना बनाएँ।",
+  "race_plan_empty": "इस गेम के लिए कोई सहेजी गई रणनीति नहीं है। रणनीति बनाने के लिए ट्रैक, कार, लैप और मौसम चुनें।",
   "race_plan_load_error": "सहेजी गई योजनाएँ लोड नहीं हो सकीं।",
   "race_plan_live_error": "सक्रिय रेस योजना लोड नहीं हो सकी।",
   "race_plan_catalogue_error": "ट्रैक और कार कैटलॉग लोड नहीं हो सके।",
@@ -3214,7 +3211,7 @@
   "compare_overview_unavailable": "उपलब्ध नहीं",
   "race_plan_choose_recorded_session": "रिकॉर्ड किया गया सत्र चुनें",
   "race_plan_choose_recorded_stint": "रिकॉर्ड किया गया स्टिंट चुनें",
-  "race_plan_generator_no_evidence": "उपयुक्त रिकॉर्ड किया गया साक्ष्य नहीं है। दूसरा ट्रैक, कार या मौसम चुनें, या मैन्युअल योजना बनाएँ।",
   "race_plan_select_track": "ट्रैक चुनें",
+  "race_plan_generator_no_evidence": "उपयुक्त रिकॉर्ड किया गया साक्ष्य नहीं है। दूसरा ट्रैक, कार या मौसम चुनें।",
   "race_plan_select_car": "कार चुनें"
 }

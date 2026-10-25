@@ -1,5 +1,4 @@
 {
-  "race_plan_clone": "Clone",
   "race_plan_recalculate": "Clone & recalculate",
   "race_plan_copy_name": "{name} (copy)",
   "race_plan_recalculate_help": "Use latest compatible sessions to suggest new stops and loads. Review the copy before saving; the original stays unchanged.",
@@ -2909,10 +2908,8 @@
   "strategy_amount_litres": "{value} L",
   "strategy_amount_points": "{value} percentage points",
   "race_plan_title": "Race strategy",
-  "race_plan_manual_notice": "Manual plan only. Predictions use compatible recorded stint rates; they do not change live estimates.",
-  "race_plan_new": "New plan",
   "race_plan_saved": "Saved plans",
-  "race_plan_empty": "No saved strategies for this game. Choose track, car, laps and weather to generate a strategy, or create a manual plan.",
+  "race_plan_empty": "No saved strategies for this game. Choose track, car, laps and weather to generate a strategy.",
   "race_plan_load_error": "Could not load saved plans.",
   "race_plan_live_error": "Could not load the active race plan.",
   "race_plan_catalogue_error": "Could not load track and car catalogues.",
@@ -3217,7 +3214,7 @@
   "compare_overview_unavailable": "Unavailable",
   "race_plan_choose_recorded_session": "Choose a recorded session",
   "race_plan_choose_recorded_stint": "Choose a recorded stint",
-  "race_plan_generator_no_evidence": "No suitable recorded evidence. Choose another track, car, or weather condition, or create a manual plan.",
   "race_plan_select_track": "Select track",
+  "race_plan_generator_no_evidence": "No suitable recorded evidence. Choose another track, car, or weather condition.",
   "race_plan_select_car": "Select car"
 }

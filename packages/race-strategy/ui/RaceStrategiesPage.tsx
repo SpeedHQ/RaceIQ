@@ -35,8 +35,8 @@ function parseConstraints(fractional: boolean, capacity: string, reserve: string
   return parsed.success && (!fractional || parsed.data.fuelCapacity <= 1) ? parsed.data : null;
 }
 
-function StrategyGenerator({ gameId, onGenerate, onManual }: { gameId: GameId; onGenerate(input: RacePlanInput, baseline: RacePlanBaseline): void; onManual(): void }) {
-  const { m, api, useSessions, useTracksForGame, useCarsForGame, useSettings, Button, Input, Select } = useRaceStrategyHost();
+function StrategyGenerator({ gameId, onGenerate }: { gameId: GameId; onGenerate(input: RacePlanInput, baseline: RacePlanBaseline): void }) {
+  const { m, api, useSessions, useTracksForGame, useCarsForGame, useSettings, Button, Input, Select, SearchSelect } = useRaceStrategyHost();
   const { strategyRateText } = useStrategyFormat();
   const sessions = useSessions({ allGames: true });
   const trackCatalog = useTracksForGame(gameId);
@@ -116,8 +116,8 @@ function StrategyGenerator({ gameId, onGenerate, onManual }: { gameId: GameId; o
     <form onSubmit={(event) => { event.preventDefault(); generate(); }} className="space-y-3">
       <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <label className="min-w-0 text-app-detail">{m.race_plan_name()}<Input required maxLength={120} className={fieldClass} value={name} onChange={(event) => setName(event.target.value)} /></label>
-        <label className="min-w-0 text-app-detail">{m.analyse_track_label()}<Select aria-label={m.analyse_track_label()} className={fieldClass} value={trackId} onChange={(event) => resetConditions({ trackId: event.target.value })}><option value="">{m.race_plan_select_track()}</option>{tracks.map((track) => <option key={track} value={track}>{trackLabel(track)}</option>)}</Select></label>
-        <label className="min-w-0 text-app-detail">{m.analyse_car_label()}<Select aria-label={m.analyse_car_label()} className={fieldClass} value={carId} onChange={(event) => resetConditions({ carId: event.target.value })}><option value="">{m.race_plan_select_car()}</option>{cars.map((car) => <option key={car} value={car}>{carLabel(car)}</option>)}</Select></label>
+        <label className="min-w-0 text-app-detail">{m.analyse_track_label()}<SearchSelect ariaLabel={m.analyse_track_label()} placeholder={m.race_plan_select_track()} className={fieldClass} value={trackId} onChange={(value) => resetConditions({ trackId: value })} options={tracks.map((id) => ({ value: id, label: trackLabel(id) }))} /></label>
+        <label className="min-w-0 text-app-detail">{m.analyse_car_label()}<SearchSelect ariaLabel={m.analyse_car_label()} placeholder={m.race_plan_select_car()} className={fieldClass} value={carId} onChange={(value) => resetConditions({ carId: value })} options={cars.map((id) => ({ value: id, label: carLabel(id) }))} /></label>
         <label className="min-w-0 text-app-detail">{m.race_plan_weather()}<Select aria-label={m.race_plan_weather()} className={fieldClass} value={weather} onChange={(event) => resetConditions({ weather: event.target.value as RacePlanWeather })}><option value="any">{m.race_plan_weather_any()}</option><option value="dry">{m.race_plan_weather_dry()}</option><option value="wet">{m.race_plan_weather_wet()}</option></Select></label>
         <label className="min-w-0 text-app-detail">{m.race_plan_length_mode()}<Select aria-label={m.race_plan_length_mode()} className={fieldClass} value={mode} onChange={(event) => setMode(event.target.value as "laps" | "time")}><option value="laps">{m.label_laps()}</option><option value="time">{m.race_plan_time()}</option></Select></label>
         {mode === "laps" ? <label className="min-w-0 text-app-detail">{m.race_plan_total_laps()}<Input required className={fieldClass} type="number" min={1} max={10000} step={1} value={laps} onChange={(event) => setLaps(Number(event.target.value))} /></label> : <label className="min-w-0 text-app-detail">{m.race_plan_duration_minutes()}<Input required className={fieldClass} type="number" min={0.01} max={10080} step="any" value={minutes} onChange={(event) => setMinutes(Number(event.target.value))} /></label>}
@@ -126,7 +126,7 @@ function StrategyGenerator({ gameId, onGenerate, onManual }: { gameId: GameId; o
       {weather === "any" && source?.weather === "unknown" && <p role="status">{m.race_plan_weather_unknown()}</p>}
       {weather === "any" && source && source.weather !== "unknown" && <p role="status">{m.race_plan_weather()}: {source.weather === "dry" ? m.race_plan_weather_dry() : m.race_plan_weather_wet()}</p>}
       {loading && <p role="status">{m.common_loading()}</p>}
-      {!loading && trackId && carId && !source && !evidence.isError && <div className="flex flex-wrap items-center gap-3"><p role="status" className="text-app-detail text-app-text-muted">{m.race_plan_generator_no_evidence()}</p><Button type="button" variant="app-outline" onClick={onManual}>{m.race_plan_manual_source()}</Button></div>}
+      {!loading && trackId && carId && !source && !evidence.isError && <p role="status" className="text-app-detail text-app-text-muted">{m.race_plan_generator_no_evidence()}</p>}
       {source && <div className="text-app-detail text-app-text-muted" data-testid="generation-evidence">
         <p>{source.carId} / {source.trackId} · {m.race_plan_sources_count({ count: new Set(source.sources.map((item) => item.sessionId)).size })}</p>
         <p>{m.strategy_completed_laps({ count: source.sources.reduce((total, item) => total + item.completedLaps, 0) })}</p>
@@ -179,7 +179,7 @@ function StrategyRecalculator({ plan, onGenerate }: { plan: RacePlan; onGenerate
   </section>;
 }
 
-type Editor = { plan?: RacePlan; draft?: RacePlanInput; baseline?: RacePlanBaseline; cloneName?: string; sources?: StintSummary[]; original?: RacePlan };
+type Editor = { plan?: RacePlan; draft?: RacePlanInput; baseline?: RacePlanBaseline; sources?: StintSummary[]; original?: RacePlan };
 
 export function RaceStrategiesPage({ gameId, sessionId }: { gameId: GameId; sessionId?: number }) {
   const { m, Button } = useRaceStrategyHost();
@@ -195,7 +195,6 @@ export function RaceStrategiesPage({ gameId, sessionId }: { gameId: GameId; sess
   const openEditor = (editor: Editor) => { setEditing(editor); setGenerating(false); setRecalculating(null); setError(null); };
   return <section className="min-w-0 space-y-4" data-testid="race-strategies-page">
     <header className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-app-title font-semibold">{m.race_plan_strategies()}</h1>{!editing && <div className="flex flex-wrap gap-2">
-      <Button variant="app-outline" onClick={() => openEditor({})}>{m.race_plan_new()}</Button>
       <Button variant="app-primary" onClick={() => { setGenerating(true); setRecalculating(null); }}>{m.race_plan_generate()}</Button>
     </div>}</header>
     {editing && <>
@@ -211,10 +210,10 @@ export function RaceStrategiesPage({ gameId, sessionId }: { gameId: GameId; sess
           {source.compatibility.setupKey == null && <p className="text-app-text-muted">{m.strategy_setup_uncertain()}</p>}
         </div>)}
       </section>}
-      <RaceStrategyPlanner key={`${editing.plan?.id ?? "new"}:${editing.cloneName ?? "edit"}`} gameId={gameId} sessionId={sessionId} initialPlan={editing.plan} initialDraft={editing.draft} initialBaseline={editing.baseline} cloneName={editing.cloneName} initialSources={editing.sources} onSavingChange={setSaving} />
+      <RaceStrategyPlanner key={editing.plan?.id ?? "generated"} gameId={gameId} sessionId={sessionId} initialPlan={editing.plan} initialDraft={editing.draft} initialBaseline={editing.baseline} initialSources={editing.sources} onSavingChange={setSaving} />
     </>}
     {!editing && recalculating && <StrategyRecalculator key={recalculating.id} plan={recalculating} onGenerate={(draft, sources) => openEditor({ draft, sources, baseline: aggregateRacePlanEvidence(sources, draft.weather ?? "any") ?? undefined, original: recalculating })} />}
-    {!editing && generating && !recalculating && <StrategyGenerator gameId={gameId} onGenerate={(draft, baseline) => openEditor({ draft, baseline })} onManual={() => openEditor({})} />}
+    {!editing && generating && !recalculating && <StrategyGenerator gameId={gameId} onGenerate={(draft, baseline) => openEditor({ draft, baseline })} />}
     {!editing && <section aria-label={m.race_plan_saved()} className="space-y-3">
       {plans.isLoading && <p role="status" className="text-app-detail">{m.common_loading()}</p>}
       {plans.isError && <p role="alert">{m.race_plan_load_error()} <Button variant="app-ghost" onClick={() => void plans.refetch()}>{m.strategy_retry()}</Button></p>}
@@ -229,7 +228,6 @@ export function RaceStrategiesPage({ gameId, sessionId }: { gameId: GameId; sess
             <p className="text-app-detail tabular-nums">{m.race_plan_laps({ count: plan.totalLaps })} · {m.race_plan_stints()}: {plan.stints.length}{active.data?.plans.some((loaded) => loaded.gameId === plan.gameId && loaded.carId === plan.carId && loaded.trackId === plan.trackId && loaded.id === plan.id) && <span className="ml-2 text-app-accent">{m.race_plan_loaded()}</span>}</p>
           </div>
           <div className="flex min-w-0 flex-wrap gap-2" role="group" aria-label={plan.name}>
-            <Button variant="app-outline" size="app-sm" onClick={() => openEditor({ plan, cloneName: m.race_plan_copy_name({ name: plan.name }).slice(0, 120) })}>{m.race_plan_clone()}</Button>
             <Button variant="app-outline" size="app-sm" onClick={() => { setRecalculating(plan); setGenerating(false); setError(null); }}>{m.race_plan_recalculate()}</Button>
             <Button variant="app-outline" size="app-sm" disabled={activate.isPending || active.isError || active.isLoading} onClick={() => { setError(null); const loaded = active.data?.plans.some((item) => item.gameId === plan.gameId && item.carId === plan.carId && item.trackId === plan.trackId && item.id === plan.id); activate.mutate({ gameId: plan.gameId, carId: plan.carId, trackId: plan.trackId, planId: loaded ? null : plan.id }, { onError: () => setError(m.race_plan_load_error()) }); }}>{active.data?.plans.some((item) => item.gameId === plan.gameId && item.carId === plan.carId && item.trackId === plan.trackId && item.id === plan.id) ? m.race_plan_unload() : m.race_plan_load()}</Button>
             <Button variant="app-ghost" size="app-sm" disabled={remove.isPending} onClick={() => { setError(null); remove.mutate(plan.id, { onError: () => setError(m.race_plan_delete_error()) }); }}>{m.race_plan_delete()}</Button>

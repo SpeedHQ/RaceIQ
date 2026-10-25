@@ -8,6 +8,8 @@ import type { RacePlanGeneration, RacePlanInput, RacePlanWeather, SetActiveRaceP
 import type { TireThresholdOverrides } from "@raceiq/shared/racing/live/tire-thresholds";
 import type { LiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
 import type { RaceStrategyMessages } from "./messages";
+export interface RaceStrategySearchOption { value: string; label: string }
+
 
 export interface RaceStrategyLiveState {
   telemetryView: LiveTelemetryView | null;
@@ -42,6 +44,7 @@ export interface RaceStrategyHost {
   Input: ComponentType<ComponentProps<"input">>;
   Select: ComponentType<ComponentProps<"select">>;
   Textarea: ComponentType<ComponentProps<"textarea">>;
+  SearchSelect: ComponentType<{ value: string; onChange(value: string): void; options: RaceStrategySearchOption[]; placeholder?: string; ariaLabel?: string; className?: string }>;
   Button: ComponentType<ButtonPrimitive.Props & {
     variant?: "app-ghost" | "app-primary" | "app-outline" | "outline";
     size?: "icon-sm" | "app-sm" | "app-md" | "sm";

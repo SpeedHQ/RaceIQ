@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { AppInput } from "../components/ui/AppInput";
 import { NativeSelect } from "../components/ui/native-select";
 import { Textarea } from "../components/ui/textarea";
+import { SearchSelect } from "../components/ui/SearchSelect";
 import { useSessions } from "../hooks/session-queries";
 import { useSettings } from "../hooks/settings";
 import { useTelemetryStore } from "../stores/telemetry";
@@ -17,7 +18,7 @@ import { useCarsForGame, useTracksForGame } from "../hooks/catalog-queries";
 const sessionApi = client.api.sessions[":id"];
 const host = {
   m, Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger,
-  Input: AppInput, Select: NativeSelect, Textarea,
+  Input: AppInput, Select: NativeSelect, Textarea, SearchSelect,
   useSessions, useTracksForGame, useCarsForGame, useSettings, useTelemetryState: useTelemetryStore,
   api: {
     generationEvidence: async (gameId, carId, trackId, weather, signal) => rpcJson<unknown>(await client.api["race-plans"]["generation-evidence"].$get({ query: { gameId, carId, trackId, weather } }, { init: { signal } })),

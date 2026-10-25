@@ -1,5 +1,4 @@
 {
-  "race_plan_clone": "克隆",
   "race_plan_recalculate": "克隆并重新计算",
   "race_plan_copy_name": "{name}（副本）",
   "race_plan_recalculate_help": "使用最新的兼容赛程建议新的进站和补给量。保存前请检查副本，原策略保持不变。",
@@ -3064,10 +3063,8 @@
   "strategy_amount_litres": "{value} L",
   "strategy_amount_points": "{value} 个百分点",
   "race_plan_title": "比赛策略",
-  "race_plan_manual_notice": "仅限手动计划。预测使用兼容的已记录赛段速率，不会更改实时估算。",
-  "race_plan_new": "新建计划",
   "race_plan_saved": "已保存的计划",
-  "race_plan_empty": "此游戏没有已保存的策略。选择赛道、赛车、圈数和天气以生成策略，或创建手动计划。",
+  "race_plan_empty": "此游戏没有已保存的策略。选择赛道、赛车、圈数和天气以生成策略。",
   "race_plan_load_error": "无法加载已保存的计划。",
   "race_plan_live_error": "无法加载当前比赛计划。",
   "race_plan_catalogue_error": "无法加载赛道和赛车目录。",
@@ -3213,7 +3210,7 @@
   "compare_overview_unavailable": "不可用",
   "race_plan_choose_recorded_session": "选择已记录的比赛",
   "race_plan_choose_recorded_stint": "选择已记录的轮次",
-  "race_plan_generator_no_evidence": "没有合适的记录数据。请选择其他赛道、车辆或天气，或创建手动计划。",
   "race_plan_select_track": "选择赛道",
+  "race_plan_generator_no_evidence": "没有合适的记录数据。请选择其他赛道、车辆或天气。",
   "race_plan_select_car": "选择车辆"
 }

@@ -1,5 +1,4 @@
 {
-  "race_plan_clone": "Klonen",
   "race_plan_recalculate": "Klonen und neu berechnen",
   "race_plan_copy_name": "{name} (Kopie)",
   "race_plan_recalculate_help": "Neueste kompatible Sitzungen für neue Stopps und Füllmengen verwenden. Kopie vor dem Speichern prüfen; das Original bleibt unverändert.",
@@ -2909,10 +2908,8 @@
   "strategy_amount_points": "{value} Prozentpunkte",
   "sessions_export_capture_not_ready": "ZIP-Export der Rohdaten ist erst möglich, wenn verlustfreie Aufzeichnungen für alle ausgewählten Nicht-MoTeC-Laps bereitstehen.",
   "race_plan_title": "Rennstrategie",
-  "race_plan_manual_notice": "Nur manueller Plan. Prognosen verwenden kompatible aufgezeichnete Stint-Raten; Live-Schätzungen werden nicht verändert.",
-  "race_plan_new": "Neuer Plan",
   "race_plan_saved": "Gespeicherte Pläne",
-  "race_plan_empty": "Für dieses Spiel sind keine Strategien gespeichert. Wähle Strecke, Fahrzeug, Runden und Wetter, um eine Strategie zu erstellen, oder erstelle einen manuellen Plan.",
+  "race_plan_empty": "Für dieses Spiel sind keine Strategien gespeichert. Wähle Strecke, Fahrzeug, Runden und Wetter, um eine Strategie zu erstellen.",
   "race_plan_load_error": "Gespeicherte Pläne konnten nicht geladen werden.",
   "race_plan_live_error": "Der aktive Rennplan konnte nicht geladen werden.",
   "race_plan_catalogue_error": "Strecken- und Fahrzeugkataloge konnten nicht geladen werden.",
@@ -3217,7 +3214,7 @@
   "compare_overview_unavailable": "Nicht verfügbar",
   "race_plan_choose_recorded_session": "Aufgezeichnete Sitzung auswählen",
   "race_plan_choose_recorded_stint": "Aufgezeichneten Stint auswählen",
-  "race_plan_generator_no_evidence": "Keine geeigneten aufgezeichneten Daten. Wähle eine andere Strecke, ein anderes Auto oder Wetter oder erstelle einen manuellen Plan.",
   "race_plan_select_track": "Strecke auswählen",
+  "race_plan_generator_no_evidence": "Keine geeigneten aufgezeichneten Daten. Wähle eine andere Strecke, ein anderes Auto oder Wetter.",
   "race_plan_select_car": "Auto auswählen"
 }

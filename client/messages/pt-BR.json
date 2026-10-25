@@ -1,5 +1,4 @@
 {
-  "race_plan_clone": "Clonar",
   "race_plan_recalculate": "Clonar e recalcular",
   "race_plan_copy_name": "{name} (cópia)",
   "race_plan_recalculate_help": "Use as últimas sessões compatíveis para sugerir paradas e cargas. Revise a cópia antes de salvar; o original não muda.",
@@ -3004,10 +3003,8 @@
   "strategy_amount_points": "{value} pontos percentuais",
   "sparse_split_migration_description": "Precisamos dividir gravações de {sessions} sessões existentes em arquivos de volta individuais. Isso permite que a volta 60 carregue tão rápido quanto a volta 1, sem precisar varrer as 59 voltas anteriores. A divisão é executada em segundo plano.",
   "race_plan_title": "Estratégia de corrida",
-  "race_plan_manual_notice": "Somente plano manual. Previsões usam taxas compatíveis de stints registrados; não alteram estimativas ao vivo.",
-  "race_plan_new": "Novo plano",
   "race_plan_saved": "Planos salvos",
-  "race_plan_empty": "Não há estratégias salvas para este jogo. Escolha pista, carro, voltas e clima para gerar uma estratégia ou crie um plano manual.",
+  "race_plan_empty": "Não há estratégias salvas para este jogo. Escolha pista, carro, voltas e clima para gerar uma estratégia.",
   "race_plan_load_error": "Não foi possível carregar os planos salvos.",
   "race_plan_live_error": "Não foi possível carregar o plano de corrida ativo.",
   "race_plan_catalogue_error": "Não foi possível carregar os catálogos de pistas e carros.",
@@ -3213,7 +3210,7 @@
   "compare_overview_unavailable": "Indisponível",
   "race_plan_choose_recorded_session": "Escolha uma sessão gravada",
   "race_plan_choose_recorded_stint": "Escolha um stint gravado",
-  "race_plan_generator_no_evidence": "Não há dados gravados adequados. Escolha outra pista, carro ou condição climática, ou crie um plano manual.",
   "race_plan_select_track": "Selecionar pista",
+  "race_plan_generator_no_evidence": "Não há dados gravados adequados. Escolha outra pista, carro ou condição climática.",
   "race_plan_select_car": "Selecionar carro"
 }

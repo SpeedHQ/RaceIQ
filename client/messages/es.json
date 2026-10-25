@@ -1,5 +1,4 @@
 {
-  "race_plan_clone": "Clonar",
   "race_plan_recalculate": "Clonar y recalcular",
   "race_plan_copy_name": "{name} (copia)",
   "race_plan_recalculate_help": "Usa las últimas sesiones compatibles para sugerir paradas y cargas. Revisa la copia antes de guardar; el original no cambia.",
@@ -3004,10 +3003,8 @@
   "strategy_amount_points": "{value} puntos porcentuales",
   "sparse_split_migration_description": "Necesitamos dividir grabaciones de {sessions} sesiones existentes en archivos de vuelta individuales. Esto permite que la vuelta 60 se cargue tan rápido como la vuelta 1, sin tener que examinar las 59 vueltas anteriores. La división se ejecuta en segundo plano.",
   "race_plan_title": "Estrategia de carrera",
-  "race_plan_manual_notice": "Solo plan manual. Las previsiones usan consumos de stint registrados compatibles; no modifican las estimaciones en directo.",
-  "race_plan_new": "Nuevo plan",
   "race_plan_saved": "Planes guardados",
-  "race_plan_empty": "No hay estrategias guardadas para este juego. Elige circuito, coche, vueltas y clima para generar una estrategia, o crea un plan manual.",
+  "race_plan_empty": "No hay estrategias guardadas para este juego. Elige circuito, coche, vueltas y clima para generar una estrategia.",
   "race_plan_load_error": "No se pudieron cargar los planes guardados.",
   "race_plan_live_error": "No se pudo cargar el plan de carrera activo.",
   "race_plan_catalogue_error": "No se pudieron cargar los catálogos de circuitos y coches.",
@@ -3213,7 +3210,7 @@
   "compare_overview_unavailable": "No disponible",
   "race_plan_choose_recorded_session": "Elige una sesión grabada",
   "race_plan_choose_recorded_stint": "Elige un stint grabado",
-  "race_plan_generator_no_evidence": "No hay datos grabados adecuados. Elige otro circuito, coche o clima, o crea un plan manual.",
   "race_plan_select_track": "Seleccionar circuito",
+  "race_plan_generator_no_evidence": "No hay datos grabados adecuados. Elige otro circuito, coche o clima.",
   "race_plan_select_car": "Seleccionar coche"
 }

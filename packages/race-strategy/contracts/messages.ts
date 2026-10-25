@@ -4,7 +4,6 @@ export interface RaceStrategyMessages {
   race_plan_generator_no_evidence: () => string;
   race_plan_select_track: () => string;
   race_plan_select_car: () => string;
-  race_plan_clone: () => string;
   race_plan_recalculate: () => string;
   race_plan_copy_name: (inputs: { name: string | number }) => string;
   race_plan_recalculate_help: () => string;
@@ -114,11 +113,9 @@ export interface RaceStrategyMessages {
   race_plan_load_error: () => string;
   race_plan_loaded: () => string;
   race_plan_manage: () => string;
-  race_plan_manual_notice: () => string;
   race_plan_manual_source: () => string;
   race_plan_mismatch: () => string;
   race_plan_name: () => string;
-  race_plan_new: () => string;
   race_plan_next_stop: (inputs: { lap: string | number; remaining: string | number }) => string;
   race_plan_no_evidence: () => string;
   race_plan_none_loaded: () => string;

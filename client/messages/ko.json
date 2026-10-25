@@ -1,5 +1,4 @@
 {
-  "race_plan_clone": "복제",
   "race_plan_recalculate": "복제 및 재계산",
   "race_plan_copy_name": "{name} (사본)",
   "race_plan_recalculate_help": "최신 호환 세션으로 새 스톱과 보충량을 제안합니다. 저장 전에 사본을 검토하세요. 원본은 변경되지 않습니다.",
@@ -3065,10 +3064,8 @@
   "strategy_amount_litres": "{value} L",
   "strategy_amount_points": "{value}퍼센트포인트",
   "race_plan_title": "레이스 전략",
-  "race_plan_manual_notice": "수동 계획 전용입니다. 예측에는 호환되는 기록 스틴트의 비율을 사용하며 실시간 추정값은 바꾸지 않습니다.",
-  "race_plan_new": "새 계획",
   "race_plan_saved": "저장된 계획",
-  "race_plan_empty": "이 게임에 저장된 전략이 없습니다. 트랙, 차량, 랩, 날씨를 선택해 전략을 생성하거나 수동 계획을 만드세요.",
+  "race_plan_empty": "이 게임에 저장된 전략이 없습니다. 트랙, 차량, 랩, 날씨를 선택해 전략을 생성하세요.",
   "race_plan_load_error": "저장된 계획을 불러오지 못했습니다.",
   "race_plan_live_error": "활성 레이스 계획을 불러오지 못했습니다.",
   "race_plan_catalogue_error": "트랙 및 차량 카탈로그를 불러오지 못했습니다.",
@@ -3214,7 +3211,7 @@
   "compare_overview_unavailable": "사용할 수 없음",
   "race_plan_choose_recorded_session": "기록된 세션 선택",
   "race_plan_choose_recorded_stint": "기록된 스틴트 선택",
-  "race_plan_generator_no_evidence": "적합한 기록 데이터가 없습니다. 다른 트랙, 차량 또는 날씨를 선택하거나 수동 계획을 만드세요.",
   "race_plan_select_track": "트랙 선택",
+  "race_plan_generator_no_evidence": "적합한 기록 데이터가 없습니다. 다른 트랙, 차량 또는 날씨를 선택하세요.",
   "race_plan_select_car": "차량 선택"
 }

@@ -1,5 +1,4 @@
 {
-  "race_plan_clone": "Kopioi",
   "race_plan_recalculate": "Kopioi ja laske uudelleen",
   "race_plan_copy_name": "{name} (kopio)",
   "race_plan_recalculate_help": "Ehdota pysähdyksiä ja täyttömääriä uusimpien yhteensopivien sessioiden avulla. Tarkista kopio ennen tallennusta; alkuperäinen ei muutu.",
@@ -3005,10 +3004,8 @@
   "strategy_amount_points": "{value} prosenttiyksikköä",
   "sparse_split_migration_refresh": "Päivitä tila",
   "race_plan_title": "Kilpailustrategia",
-  "race_plan_manual_notice": "Vain manuaalinen suunnitelma. Ennusteet käyttävät yhteensopivia tallennettuja ajovuoron kulutusnopeuksia; ne eivät muuta reaaliaikaisia arvioita.",
-  "race_plan_new": "Uusi suunnitelma",
   "race_plan_saved": "Tallennetut suunnitelmat",
-  "race_plan_empty": "Tälle pelille ei ole tallennettuja strategioita. Valitse rata, auto, kierrokset ja sää strategian luomiseksi tai luo manuaalinen suunnitelma.",
+  "race_plan_empty": "Tälle pelille ei ole tallennettuja strategioita. Valitse rata, auto, kierrokset ja sää strategian luomiseksi.",
   "race_plan_load_error": "Tallennettujen suunnitelmien lataaminen epäonnistui.",
   "race_plan_live_error": "Aktiivisen kilpailusuunnitelman lataaminen epäonnistui.",
   "race_plan_catalogue_error": "Rata- ja autoluetteloita ei voitu ladata.",
@@ -3214,7 +3211,7 @@
   "compare_overview_unavailable": "Ei käytettävissä",
   "race_plan_choose_recorded_session": "Valitse tallennettu istunto",
   "race_plan_choose_recorded_stint": "Valitse tallennettu stintti",
-  "race_plan_generator_no_evidence": "Sopivaa tallennettua näyttöä ei ole. Valitse toinen rata, auto tai sää, tai luo manuaalinen suunnitelma.",
   "race_plan_select_track": "Valitse rata",
+  "race_plan_generator_no_evidence": "Sopivaa tallennettua näyttöä ei ole. Valitse toinen rata, auto tai sää.",
   "race_plan_select_car": "Valitse auto"
 }

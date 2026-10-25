@@ -1,5 +1,4 @@
 {
-  "race_plan_clone": "複製",
   "race_plan_recalculate": "複製して再計算",
   "race_plan_copy_name": "{name}（コピー）",
   "race_plan_recalculate_help": "最新の互換性のあるセッションから停止と補給量を提案します。保存前にコピーを確認してください。元の戦略は変更されません。",
@@ -3064,10 +3063,8 @@
   "strategy_amount_litres": "{value} L",
   "strategy_amount_points": "{value} パーセントポイント",
   "race_plan_title": "レース戦略",
-  "race_plan_manual_notice": "手動プランのみです。予測には互換性のある記録済みスティントの消費率を使用します。ライブ推定には影響しません。",
-  "race_plan_new": "新しいプラン",
   "race_plan_saved": "保存済みプラン",
-  "race_plan_empty": "このゲームには保存済み戦略がありません。コース、車、周回数、天候を選んで戦略を生成するか、手動プランを作成してください。",
+  "race_plan_empty": "このゲームには保存済み戦略がありません。コース、車、周回数、天候を選んで戦略を生成してください。",
   "race_plan_load_error": "保存済みプランを読み込めませんでした。",
   "race_plan_live_error": "有効なレースプランを読み込めませんでした。",
   "race_plan_catalogue_error": "コースと車のカタログを読み込めませんでした。",
@@ -3213,7 +3210,7 @@
   "compare_overview_unavailable": "利用不可",
   "race_plan_choose_recorded_session": "記録済みセッションを選択",
   "race_plan_choose_recorded_stint": "記録済みスティントを選択",
-  "race_plan_generator_no_evidence": "適切な記録データがありません。別のコース、車、または天候を選ぶか、手動プランを作成してください。",
   "race_plan_select_track": "コースを選択",
+  "race_plan_generator_no_evidence": "適切な記録データがありません。別のコース、車、または天候を選んでください。",
   "race_plan_select_car": "車を選択"
 }

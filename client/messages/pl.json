@@ -1,5 +1,4 @@
 {
-  "race_plan_clone": "Klonuj",
   "race_plan_recalculate": "Klonuj i przelicz",
   "race_plan_copy_name": "{name} (kopia)",
   "race_plan_recalculate_help": "Użyj najnowszych zgodnych sesji do zaproponowania postojów i ilości zasobów. Sprawdź kopię przed zapisaniem; oryginał pozostanie bez zmian.",
@@ -3004,10 +3003,8 @@
   "strategy_amount_points": "{value} p.p.",
   "sparse_split_migration_description": "Musimy podzielić nagrania z {sessions} istniejących sesji na pojedyncze pliki okrążeń. Dzięki temu okrążenie 60 wczytuje się tak szybko jak okrążenie 1, bez przeszukiwania poprzednich 59 okrążeń. Dzielenie działa w tle.",
   "race_plan_title": "Strategia wyścigu",
-  "race_plan_manual_notice": "Tylko plan ręczny. Prognozy korzystają z pasujących zarejestrowanych średnich stintów; nie zmieniają bieżących szacunków.",
-  "race_plan_new": "Nowy plan",
   "race_plan_saved": "Zapisane plany",
-  "race_plan_empty": "Brak zapisanych strategii dla tej gry. Wybierz tor, samochód, okrążenia i pogodę, aby wygenerować strategię, albo utwórz plan ręczny.",
+  "race_plan_empty": "Brak zapisanych strategii dla tej gry. Wybierz tor, samochód, okrążenia i pogodę, aby wygenerować strategię.",
   "race_plan_load_error": "Nie można wczytać zapisanych planów.",
   "race_plan_live_error": "Nie można wczytać aktywnego planu wyścigu.",
   "race_plan_catalogue_error": "Nie można wczytać katalogów torów i samochodów.",
@@ -3213,7 +3210,7 @@
   "compare_overview_unavailable": "Niedostępne",
   "race_plan_choose_recorded_session": "Wybierz zapisaną sesję",
   "race_plan_choose_recorded_stint": "Wybierz zapisany stint",
-  "race_plan_generator_no_evidence": "Brak odpowiednich zapisanych danych. Wybierz inny tor, samochód lub pogodę albo utwórz plan ręczny.",
   "race_plan_select_track": "Wybierz tor",
+  "race_plan_generator_no_evidence": "Brak odpowiednich zapisanych danych. Wybierz inny tor, samochód lub pogodę.",
   "race_plan_select_car": "Wybierz samochód"
 }

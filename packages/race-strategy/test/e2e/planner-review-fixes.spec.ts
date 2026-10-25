@@ -1,106 +1,7 @@
-import { expect, test, type APIRequestContext } from "@playwright/test";
-import { RacePlansResponseSchema } from "@raceiq/shared/racing/live/race-plan";
-import { StintsResponseSchema } from "@raceiq/shared/racing/live/strategy-schemas";
-import { z } from "zod";
-import { ingestNativeRun, type NativeLap } from "./native-source";
+import { expect, test } from "@playwright/test";
 import { StrategyRuntime } from "./runtime";
 
-const fmHeaders = { "X-Game-Id": "fm-2023" };
-const SessionSchema = z.object({ id: z.number().int(), carId: z.string() });
 
-async function fmSession(api: APIRequestContext) {
-  let session: z.infer<typeof SessionSchema> | undefined;
-  await expect.poll(async () => {
-    const response = await api.get("/api/sessions?gameId=fm-2023");
-    expect(response.ok(), await response.text()).toBe(true);
-    session = z.array(SessionSchema).parse(await response.json()).filter((row) => row.carId === "642").sort((a, b) => b.id - a.id)[0];
-    return session?.id;
-  }).toBeTruthy();
-  return session!;
-}
-
-async function fmSessions(api: APIRequestContext) {
-  let sessions: z.infer<typeof SessionSchema>[] = [];
-  await expect.poll(async () => {
-    const response = await api.get("/api/sessions?gameId=fm-2023");
-    expect(response.ok(), await response.text()).toBe(true);
-    sessions = z.array(SessionSchema).parse(await response.json()).filter((session) => session.carId === "642").sort((a, b) => a.id - b.id);
-    return sessions.length;
-  }).toBeGreaterThanOrEqual(3);
-  return sessions.slice(-3);
-}
-
-async function sourceStint(api: APIRequestContext, sessionId: number) {
-  let selected: z.infer<typeof StintsResponseSchema>["stints"][number] | undefined;
-  await expect.poll(async () => {
-    const response = await api.get(`/api/sessions/${sessionId}/stints`, { headers: fmHeaders });
-    expect(response.ok(), await response.text()).toBe(true);
-    selected = StintsResponseSchema.parse(await response.json()).stints.find((stint) =>
-      (stint.status === "completed" || stint.status === "interrupted") && stint.fuel.value != null,
-    );
-    return selected?.id;
-  }).toBeTruthy();
-  return selected!;
-}
-
-function manualForzaPlan(name: string) {
-  return {
-    name, gameId: "fm-2023", carId: "642", trackId: "5", pi: 800,
-    totalLaps: 20, fuelUnit: "tankFraction", notes: "",
-    stints: [{ endLap: 20, startFuel: 0.8, compounds: [null, null, null, null], sourceSessionId: null, sourceStintId: null }],
-  };
-}
-
-test("R6 retry submits edited current draft after a failed save", async ({ browser, playwright }, testInfo) => {
-  test.setTimeout(180_000);
-  const runtime = await StrategyRuntime.start(testInfo.outputPath("test-data-planner-review"));
-  const api = await playwright.request.newContext({ baseURL: runtime.apiURL });
-  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
-  const page = await context.newPage();
-  try {
-    const lap: NativeLap = { fuelUsed: 0.02, wear: [0.008, 0.01, 0.006, 0.004] };
-    await ingestNativeRun({ carId: 642, pi: 800, laps: [lap, lap, lap] }, runtime.udpPort);
-    const source = await fmSession(api);
-    const planner = page.getByTestId("race-strategy-planner");
-    await page.goto(`${runtime.baseURL}/fm23/strategy`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: "New plan", exact: true }).click();
-    await expect(planner).toBeVisible();
-    await planner.getByLabel("History session").selectOption(String(source.id));
-    await planner.getByLabel("PI", { exact: true }).fill("800");
-    await planner.getByLabel("Plan name").fill("Before failure");
-    await planner.getByLabel("Total laps").fill("20");
-    await planner.getByLabel("Fuel unit").selectOption("tankFraction");
-    await planner.getByRole("button", { name: "Add pit stop" }).click();
-    const stints = planner.getByRole("group", { name: /Stint/ });
-    await stints.nth(0).getByLabel("Pit / finish lap").fill("10");
-    await stints.nth(0).locator('input[type="number"]').nth(1).fill("65");
-
-    let failNextPost = true;
-    await page.route("**/api/race-plans", async (route) => {
-      if (route.request().method() === "POST" && failNextPost) {
-        failNextPost = false;
-        await route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ error: "Injected save failure" }) });
-      } else await route.continue();
-    });
-    await planner.getByRole("button", { name: "Save plan" }).click();
-    await expect(planner.getByRole("alert")).toBeVisible();
-    await planner.getByLabel("Plan name").fill("Edited retry draft");
-    await stints.nth(0).getByLabel("Pit / finish lap").fill("8");
-    await stints.nth(0).locator('input[type="number"]').nth(1).fill("72");
-    await page.unroute("**/api/race-plans");
-    await planner.getByRole("button", { name: "Retry" }).click();
-    await expect(planner.getByRole("status")).toContainText("Plan saved");
-
-    const response = await api.get("/api/race-plans?gameId=fm-2023");
-    expect(response.ok(), await response.text()).toBe(true);
-    const saved = RacePlansResponseSchema.parse(await response.json()).plans[0]!;
-    expect(saved).toMatchObject({ name: "Edited retry draft", pi: 800, stints: [{ endLap: 8, startFuel: 0.72 }, { endLap: 20 }] });
-  } finally {
-    await runtime.stop();
-    await context.close();
-    await api.dispose();
-  }
-});
 
 test("R7 save locks draft edits and navigation until real API request settles", async ({ browser, playwright }, testInfo) => {
   test.setTimeout(180_000);
@@ -111,10 +12,11 @@ test("R7 save locks draft edits and navigation until real API request settles", 
   const gate = Promise.withResolvers<void>();
   const held = Promise.withResolvers<void>();
   try {
-    const lap: NativeLap = { fuelUsed: 0.02, wear: [0.008, 0.01, 0.006, 0.004] };
-    await ingestNativeRun({ carId: 642, pi: 800, laps: [lap, lap, lap] }, runtime.udpPort);
-    const source = await fmSession(api);
-    const created = await api.post("/api/race-plans", { data: manualForzaPlan("Locked plan") });
+    const created = await api.post("/api/race-plans", { data: {
+      name: "Locked plan", gameId: "fm-2023", carId: "642", trackId: "5", pi: 800,
+      totalLaps: 20, fuelUnit: "tankFraction", notes: "",
+      stints: [{ endLap: 20, startFuel: 0.8, compounds: [null, null, null, null], sourceSessionId: null, sourceStintId: null }],
+    } });
     expect(created.status()).toBe(201);
     await page.goto(`${runtime.baseURL}/fm23/strategy`, { waitUntil: "domcontentloaded" });
     const planner = page.getByTestId("race-strategy-planner");
@@ -133,7 +35,6 @@ test("R7 save locks draft edits and navigation until real API request settles", 
     await planner.getByRole("button", { name: "Save changes" }).click();
     await held.promise;
 
-    await expect(planner.getByRole("button", { name: "New plan" })).toBeDisabled();
     await expect(page.getByRole("button", { name: "Strategies", exact: true })).toBeDisabled();
     await expect(planner.getByLabel("History session")).toBeDisabled();
     await expect(planner.getByLabel("Plan name")).toBeDisabled();
@@ -151,7 +52,6 @@ test("R7 save locks draft edits and navigation until real API request settles", 
     await expect(planner.getByRole("button", { name: "Unload active plan" })).toBeDisabled();
     gate.resolve();
     await expect(planner.getByRole("status")).toContainText("Plan saved");
-    await expect(planner.getByRole("button", { name: "New plan" })).toBeEnabled();
     await expect(page.getByRole("button", { name: "Strategies", exact: true })).toBeEnabled();
     await expect(planner.getByLabel("Plan name")).toBeEnabled();
     await expect(planner.getByLabel("History session")).toBeEnabled();
@@ -162,83 +62,6 @@ test("R7 save locks draft edits and navigation until real API request settles", 
     await expect(planner.getByRole("button", { name: "Add pit stop" })).toBeEnabled();
   } finally {
     gate.resolve();
-    await runtime.stop();
-    await context.close();
-    await api.dispose();
-  }
-});
-
-test("R8 compatible Forza session switches retain PI and reject conflicting source PI", async ({ browser, playwright }, testInfo) => {
-  test.setTimeout(240_000);
-  const runtime = await StrategyRuntime.start(testInfo.outputPath("test-data-planner-review"));
-  const api = await playwright.request.newContext({ baseURL: runtime.apiURL });
-  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
-  const page = await context.newPage();
-  const lap: NativeLap = { fuelUsed: 0.02, wear: [0.008, 0.01, 0.006, 0.004] };
-  try {
-    await ingestNativeRun({ carId: 642, pi: 800, laps: [lap, lap, lap] }, runtime.udpPort);
-    await ingestNativeRun({ carId: 643, pi: 700, laps: [] }, runtime.udpPort);
-    await ingestNativeRun({ carId: 642, pi: 800, timestampMs: 300_000, laps: [lap, lap, lap] }, runtime.udpPort);
-    await ingestNativeRun({ carId: 643, pi: 700, timestampMs: 600_000, laps: [] }, runtime.udpPort);
-    await ingestNativeRun({ carId: 642, pi: 801, timestampMs: 900_000, laps: [lap, lap, lap] }, runtime.udpPort);
-    await ingestNativeRun({ carId: 643, pi: 700, timestampMs: 1_200_000, laps: [] }, runtime.udpPort);
-    const [first, second, conflicting] = await fmSessions(api);
-    const firstStint = await sourceStint(api, first!.id);
-    const secondStint = await sourceStint(api, second!.id);
-    const conflictingStint = await sourceStint(api, conflicting!.id);
-    expect(firstStint.pi).toBe(800);
-    expect(secondStint.pi).toBe(800);
-    expect(conflictingStint.pi).toBe(801);
-
-    const planner = page.getByTestId("race-strategy-planner");
-    await page.goto(`${runtime.baseURL}/fm23/strategy`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: "New plan", exact: true }).click();
-    await expect(planner).toBeVisible();
-    await planner.getByLabel("History session").selectOption(String(first!.id));
-    await planner.getByLabel("Plan name").fill("Compatible Forza history");
-    await planner.getByLabel("Total laps").fill("20");
-    await planner.getByRole("button", { name: "Add pit stop" }).click();
-    const stints = planner.getByRole("group", { name: /Stint/ });
-    const firstSource = `${first!.id}:${firstStint.id}`;
-    const secondSource = `${second!.id}:${secondStint.id}`;
-    await expect.poll(() => stints.nth(0).locator("select").first().locator("option").evaluateAll(
-      (options, value) => options.some((option) => (option as HTMLOptionElement).value === value), firstSource,
-    )).toBe(true);
-    await stints.nth(0).locator("select").first().selectOption(firstSource);
-    await planner.getByLabel("History session").selectOption(String(second!.id));
-    await expect.poll(() => stints.nth(1).locator("select").first().locator("option").evaluateAll(
-      (options, value) => options.some((option) => (option as HTMLOptionElement).value === value), secondSource,
-    )).toBe(true);
-    await stints.nth(1).locator("select").first().selectOption(secondSource);
-    await stints.nth(1).locator("select").first().selectOption("");
-    await planner.getByLabel("PI", { exact: true }).fill("");
-    await stints.nth(1).locator("select").first().selectOption(secondSource);
-    await expect(planner.getByLabel("PI", { exact: true })).toHaveValue("800");
-    await stints.nth(0).locator('input[type="number"]').nth(1).fill("80");
-    await stints.nth(1).locator('input[type="number"]').nth(1).fill("80");
-    const conflictingSource = `${conflicting!.id}:${conflictingStint.id}`;
-    const conflictingStintsLoaded = page.waitForResponse((response) =>
-      response.url().includes(`/api/sessions/${conflicting!.id}/stints`) && response.ok(),
-    );
-    await planner.getByLabel("History session").selectOption(String(conflicting!.id));
-    await conflictingStintsLoaded;
-    await expect.poll(() => stints.nth(1).locator("select").first().locator("option").evaluateAll(
-      (options, value) => options.some((option) => (option as HTMLOptionElement).value === value), conflictingSource,
-    )).toBe(false);
-    await expect(planner.getByLabel("PI", { exact: true })).toHaveValue("800");
-    await planner.getByLabel("History session").selectOption(String(first!.id));
-
-    await expect(planner.getByLabel("PI", { exact: true })).toHaveValue("800");
-    await expect(planner).toContainText("Expected fuel used");
-    await expect(planner.getByRole("button", { name: "Save plan" })).toBeEnabled();
-    await planner.getByRole("button", { name: "Save plan" }).click();
-    await expect(planner.getByRole("status")).toContainText("Plan saved");
-
-    const response = await api.get("/api/race-plans?gameId=fm-2023");
-    expect(response.ok(), await response.text()).toBe(true);
-    const saved = RacePlansResponseSchema.parse(await response.json()).plans[0]!;
-    expect(saved).toMatchObject({ pi: 800, stints: [{ sourceSessionId: first!.id }, { sourceSessionId: second!.id }] });
-  } finally {
     await runtime.stop();
     await context.close();
     await api.dispose();

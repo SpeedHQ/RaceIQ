@@ -1,5 +1,4 @@
 {
-  "race_plan_clone": "Clonar",
   "race_plan_recalculate": "Clonar e recalcular",
   "race_plan_copy_name": "{name} (cópia)",
   "race_plan_recalculate_help": "Use as últimas sessões compatíveis para sugerir paragens e cargas. Reveja a cópia antes de guardar; o original não muda.",
@@ -3004,10 +3003,8 @@
   "strategy_amount_points": "{value} pontos percentuais",
   "sparse_split_migration_description": "Precisamos de dividir gravações de {sessions} sessões existentes em ficheiros de volta individuais. Isto permite que a volta 60 carregue tão depressa como a volta 1, sem ter de percorrer as 59 voltas anteriores. A divisão é executada em segundo plano.",
   "race_plan_title": "Estratégia de corrida",
-  "race_plan_manual_notice": "Apenas plano manual. As previsões usam taxas compatíveis de stints registados; não alteram as estimativas em direto.",
-  "race_plan_new": "Novo plano",
   "race_plan_saved": "Planos guardados",
-  "race_plan_empty": "Não existem estratégias guardadas para este jogo. Escolha circuito, carro, voltas e meteorologia para gerar uma estratégia ou crie um plano manual.",
+  "race_plan_empty": "Não existem estratégias guardadas para este jogo. Escolha circuito, carro, voltas e meteorologia para gerar uma estratégia.",
   "race_plan_load_error": "Não foi possível carregar os planos guardados.",
   "race_plan_live_error": "Não foi possível carregar o plano de corrida ativo.",
   "race_plan_catalogue_error": "Não foi possível carregar os catálogos de circuitos e carros.",
@@ -3213,7 +3210,7 @@
   "compare_overview_unavailable": "Indisponível",
   "race_plan_choose_recorded_session": "Escolha uma sessão gravada",
   "race_plan_choose_recorded_stint": "Escolha um stint gravado",
-  "race_plan_generator_no_evidence": "Não há dados gravados adequados. Escolha outra pista, carro ou condição meteorológica, ou crie um plano manual.",
   "race_plan_select_track": "Selecionar pista",
+  "race_plan_generator_no_evidence": "Não há dados gravados adequados. Escolha outra pista, carro ou condição meteorológica.",
   "race_plan_select_car": "Selecionar carro"
 }

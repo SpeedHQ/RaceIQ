@@ -184,7 +184,6 @@ export function RaceStrategyPlanner({ gameId, sessionId, carId, trackId, pi, ini
     setError(null); setNotice(null);
   };
   const setStint = (index: number, patch: Partial<RacePlanStintInput>) => update({ stints: draft.stints.map((stint, row) => row === index ? { ...stint, ...patch } : stint) });
-  const createBlank = () => { setDraft(makeDraft(gameId, carId ?? initialSession?.carId ?? "", trackId ?? initialSession?.trackId ?? "", pi ?? null)); setDraftBaselines(new Map()); setSavedCombo(null); setSelectedSessionId(sessionId ?? null); setError(null); setNotice(null); setRetryAction(null); };
   const savePlan = async () => {
     if (!draftValid) { setError(draftSourcesValid ? m.race_plan_invalid() : m.race_plan_source_unavailable()); return; }
     setError(null); setNotice(null); setRetryAction(null);
@@ -208,7 +207,7 @@ export function RaceStrategyPlanner({ gameId, sessionId, carId, trackId, pi, ini
   });
   const fuelText = (value: number) => draft.fuelUnit === "tankFraction" ? `${(value * 100).toFixed(1)}%` : `${value.toFixed(1)} L`;
   return <section data-testid="race-strategy-planner" className="min-w-0 space-y-4 rounded border border-app-border bg-app-surface p-4" aria-labelledby="race-plan-title">
-    <div className="flex min-w-0 flex-wrap items-start justify-between gap-3"><div><h2 id="race-plan-title" className="text-app-heading font-semibold">{m.race_plan_title()}</h2><p className="mt-1 text-app-subtext text-app-text-muted">{m.race_plan_generate_help()}</p></div><Button variant="app-outline" type="button" disabled={save.isPending} onClick={createBlank}>{m.race_plan_new()}</Button></div>
+    <div><h2 id="race-plan-title" className="text-app-heading font-semibold">{m.race_plan_title()}</h2><p className="mt-1 text-app-subtext text-app-text-muted">{m.race_plan_generate_help()}</p></div>
     {(sessionsQuery.isError || sourceQueries.some((query) => query.isError)) && <p role="alert" className="text-app-detail text-status-danger">{m.race_plan_sources_error()} <Button variant="app-outline" type="button" className="underline" onClick={() => { void sessionsQuery.refetch(); sourceQueries.forEach((query) => void query.refetch()); }}>{m.strategy_retry()}</Button></p>}
       {draft.stints.some((stint) => baselineFor(stint)) && <>{[...new Map(draft.stints.flatMap((stint) => { const key = sourceGroupKey(stint.sourceStints), baseline = baselineFor(stint); return key && baseline ? [[key, baseline] as const] : []; })).values()].map((baseline) => <section key={sourceGroupKey(baseline.sources.map((source) => ({ sessionId: source.sessionId, stintId: source.id }))) ?? "sources"} aria-label={m.race_plan_sources_label()} className="rounded border border-app-border bg-app-surface-alt p-3 text-app-detail text-app-text-muted">
         <h3 className="font-semibold">{m.race_plan_sources_count({ count: new Set(baseline.sources.map((source) => source.sessionId)).size })} · {draft.weather ?? "any"}</h3>

@@ -1,5 +1,4 @@
 {
-  "race_plan_clone": "Clona",
   "race_plan_recalculate": "Clona e ricalcola",
   "race_plan_copy_name": "{name} (copia)",
   "race_plan_recalculate_help": "Usa le ultime sessioni compatibili per suggerire soste e carichi. Controlla la copia prima di salvare; l’originale non cambia.",
@@ -3004,10 +3003,8 @@
   "strategy_amount_points": "{value} punti percentuali",
   "sparse_split_migration_success_title": "Registrazioni sparse divise",
   "race_plan_title": "Strategia di gara",
-  "race_plan_manual_notice": "Solo piano manuale. Le previsioni usano i consumi di stint registrati compatibili; non modificano le stime in tempo reale.",
-  "race_plan_new": "Nuovo piano",
   "race_plan_saved": "Piani salvati",
-  "race_plan_empty": "Nessuna strategia salvata per questo gioco. Scegli circuito, auto, giri e meteo per generare una strategia oppure crea un piano manuale.",
+  "race_plan_empty": "Nessuna strategia salvata per questo gioco. Scegli circuito, auto, giri e meteo per generare una strategia.",
   "race_plan_load_error": "Impossibile caricare i piani salvati.",
   "race_plan_live_error": "Impossibile caricare il piano di gara attivo.",
   "race_plan_catalogue_error": "Impossibile caricare i cataloghi di circuiti e auto.",
@@ -3213,7 +3210,7 @@
   "compare_overview_unavailable": "Non disponibile",
   "race_plan_choose_recorded_session": "Scegli una sessione registrata",
   "race_plan_choose_recorded_stint": "Scegli uno stint registrato",
-  "race_plan_generator_no_evidence": "Nessuna prova registrata adatta. Scegli un'altra pista, auto o condizione meteo, oppure crea un piano manuale.",
   "race_plan_select_track": "Seleziona pista",
+  "race_plan_generator_no_evidence": "Nessuna prova registrata adatta. Scegli un'altra pista, auto o condizione meteo.",
   "race_plan_select_car": "Seleziona auto"
 }
