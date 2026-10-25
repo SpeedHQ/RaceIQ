@@ -27,9 +27,6 @@ for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 
     const state = await stateResponse.json();
     expect(state.connection.status).toBe("signed_out");
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    const classification = page.getByRole("dialog").filter({ has: page.getByRole("heading", { name: "Historical lap classification", exact: true }) });
-    await classification.waitFor({ state: "visible" });
-    await classification.getByRole("button", { name: "Close", exact: true }).click();
     if (viewport.width < 768) await page.getByRole("button", { name: "Open navigation", exact: true }).click();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "Settings", exact: true });
@@ -93,9 +90,6 @@ test("connected Settings changes account preferences and signs out through the r
   ]);
 
   await page.goto("/", { waitUntil: "domcontentloaded" });
-  const classification = page.getByRole("dialog").filter({ has: page.getByRole("heading", { name: "Historical lap classification", exact: true }) });
-  await classification.waitFor({ state: "visible" });
-  await classification.getByRole("button", { name: "Close", exact: true }).click();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Settings", exact: true });
   await expect(dialog.getByRole("heading", { name: "General", exact: true })).toBeVisible();
