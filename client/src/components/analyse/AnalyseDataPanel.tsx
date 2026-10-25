@@ -28,6 +28,8 @@ interface Props {
   gameId: GameId;
   units: ReturnType<typeof useUnits>;
   wearRate: WearRate | null;
+  estimatedSlipAngles?: readonly [number | null, number | null, number | null, number | null];
+  angleDisclosure?: string;
 }
 function UnavailableFeaturesTooltip({ frame, gameId }: { frame: SemanticAnalysisFrame; gameId: GameId }) {
   const [open, setOpen] = useState(false);
@@ -94,7 +96,7 @@ export function buildAnalyseClipboardJson({ frame, packetNumber }: { frame: Sema
   }, null, 2);
 }
 
-export function AnalyseDataContent({ currentFrame, packetNumber, startFuel, gameId, units, wearRate }: Props) {
+export function AnalyseDataContent({ currentFrame, packetNumber, startFuel, gameId, units, wearRate, estimatedSlipAngles, angleDisclosure }: Props) {
   const [copied, setCopied] = useState(false);
   const handleCopyValues = useCallback(() => {
     if (!currentFrame) return;
@@ -124,7 +126,7 @@ export function AnalyseDataContent({ currentFrame, packetNumber, startFuel, game
               <div className="mt-3 mb-2 border-t border-app-border pt-2">
                 <h3 className="text-app-caption font-semibold text-app-text-muted uppercase tracking-wider">{m.analyse_section_dynamics()}</h3>
               </div>
-              <AnalyseDynamicsPanel frame={currentFrame} gameId={gameId} units={units} />
+              <AnalyseDynamicsPanel frame={currentFrame} gameId={gameId} units={units} estimatedSlipAngles={estimatedSlipAngles} angleDisclosure={angleDisclosure} />
               <AnalyseTireWheelsPanel frame={currentFrame} gameId={gameId} units={units} wearRate={wearRate} />
               <AnalyseSuspensionPanel frame={currentFrame} gameId={gameId} />
               {getGame(gameId).telemetry.ers && <AnalyseF1ErsPanel frame={currentFrame} />}

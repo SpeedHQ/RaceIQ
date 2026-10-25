@@ -11,12 +11,12 @@ export interface SuspensionTravelRangeMm {
 
 export const DEFAULT_SUSPENSION_TRAVEL_RANGE_MM: SuspensionTravelRangeMm = { min: 20, max: 80 };
 
-const observedRanges = new WeakMap<readonly SemanticAnalysisFrame[], { length: number; range: SuspensionTravelRangeMm }>();
+const observedRanges = new WeakMap<readonly Pick<SemanticAnalysisFrame, "values">[], { length: number; range: SuspensionTravelRangeMm }>();
 const ACC_RANGE_MM = { min: 0, max: 50 };
 const IRACING_RANGE_MM = { min: 0, max: 100 };
 
 /** Display-only scale shared by every wheel; observed extrema are not physical suspension limits. */
-export function sceneSuspensionRange(frames: readonly SemanticAnalysisFrame[], gameId: string): SuspensionTravelRangeMm {
+export function sceneSuspensionRange(frames: readonly Pick<SemanticAnalysisFrame, "values">[], gameId: string): SuspensionTravelRangeMm {
   if (gameId === "acc") return ACC_RANGE_MM;
   if (gameId === "iracing") return IRACING_RANGE_MM;
   const cached = observedRanges.get(frames);

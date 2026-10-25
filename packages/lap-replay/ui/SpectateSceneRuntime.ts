@@ -20,7 +20,9 @@ import { createAnalysisWheels, updateAnalysisWheels, type AnalysisWheelConfig } 
 import { createDrivetrainResource, type DrivetrainResource } from "@raceiq/scene-3d/wireframe/Drivetrain";
 import { createWheelLabelResource, disposeWheelLabelResource, updateWheelLabelResource, updateWheelLabelScale, type WheelLabelConfig, type WheelLabelResource } from "@raceiq/scene-3d/wireframe/WheelLabels";
 import { createTireTrailResource, updateTireTrailResource, disposeTireTrailResource, type TireTrailResource } from "@raceiq/scene-3d/wireframe/TireTrails";
+import { createSuspensionSpringResource, disposeSuspensionSpringResource, updateSuspensionSpringResource, type SuspensionSpringResource } from "@raceiq/scene-3d/wireframe/SuspensionSpring";
 import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
+import { normalizeSuspensionTravel, sceneSuspensionRange } from "@raceiq/scene-3d/suspension";
 import { inputFocusColor, type SpectateFocus } from "./spectate-focus";
 import { FOCUS_ZOOM_NEAR, FOCUS_ZOOM_SNAP_OUT, focusLaneWidth, focusZoomBlend, offsetFocusLane, projectFocusCenterline, sampleFocusLane, smallestAvailableModelLength, zoomIndicatorPosition, type FocusCenterPoint, type TimedFocusPoint } from "./spectate-focus-lanes";
 import { sampleMotion } from "./spectate-replay";
@@ -55,7 +57,7 @@ export function wheelHistoryDiscontinuity(previousTime: number | null, nextTime:
 export function wheelLabelsNeedRefresh(playing: boolean, now: number, lastUpdate: number, generation: number, previousGeneration: number): boolean {
   return !playing || now - lastUpdate >= 100 || generation !== previousGeneration;
 }
-type Slot = { body: CarBodyInstance | null; generation: number; wheels: WheelResource[]; drivetrain: DrivetrainResource | null; wheelInfo: WheelInfoState | null; config: AnalysisWheelConfig | null };
+type Slot = { body: CarBodyInstance | null; generation: number; wheels: WheelResource[]; springs: SuspensionSpringResource[]; drivetrain: DrivetrainResource | null; wheelInfo: WheelInfoState | null; config: AnalysisWheelConfig | null };
 type TrailHead = SemanticAnalysisFrame & { values: Record<string, unknown> };
 type FocusRenderPoint = { x: number; y: number; z: number; color: THREE.ColorRepresentation };
 type FocusNativePoint = { x: number; y: number; z: number; distance: number };
@@ -125,9 +127,11 @@ export class SpectateSceneRuntime {
   }
   private modelLengths: [number, number] = [0, 0];
   private modelBoundsScratch = new THREE.Box3();
+  private springBodyScratch = new THREE.Vector3();
+  private springWheelScratch = new THREE.Vector3();
   private slots: [Slot, Slot] = [
-    { body: null, generation: 0, wheels: [], drivetrain: null, wheelInfo: null, config: null },
-    { body: null, generation: 0, wheels: [], drivetrain: null, wheelInfo: null, config: null },
+    { body: null, generation: 0, wheels: [], springs: [], drivetrain: null, wheelInfo: null, config: null },
+    { body: null, generation: 0, wheels: [], springs: [], drivetrain: null, wheelInfo: null, config: null },
   ];
   private track = new THREE.Group();
   private raf = 0;
@@ -568,6 +572,8 @@ export class SpectateSceneRuntime {
     slot.wheelInfo = null;
     for (const wheel of slot.wheels) disposeWheelResource(wheel);
     slot.wheels = [];
+    for (const spring of slot.springs) disposeSuspensionSpringResource(spring);
+    slot.springs = [];
     slot.config = null;
     if (this.trails[i]) disposeTireTrailResource(this.trails[i]);
     this.trails[i] = null;
@@ -602,6 +608,8 @@ export class SpectateSceneRuntime {
       temperatureThresholds: adapter.tireTempThresholds,
     };
     slot.wheels = createAnalysisWheels(this.groups[i], selection.model);
+    slot.springs = Array.from({ length: 4 }, () => createSuspensionSpringResource(this.scene));
+    for (const spring of slot.springs) spring.spring.group.visible = spring.rod.group.visible = false;
     slot.drivetrain = createDrivetrainResource();
     slot.drivetrain.update(selection.model);
     this.groups[i].add(slot.drivetrain.root);
@@ -613,6 +621,40 @@ export class SpectateSceneRuntime {
     const slot = this.slots[side];
     if (!reading || !slot.config) return;
     const frame: SemanticAnalysisFrame = { values: reading.values, states: {}, freshness: {} };
+    if (slot.body) {
+      const normalized = reading.values["suspension.norm-suspension-travel"];
+      const native = Array.isArray(normalized) && normalized.length >= 4 && normalized.slice(0, 4).every(value => typeof value === "number" && Number.isFinite(value));
+      const raw = reading.values["suspension.suspension-travel-m"];
+      const lap = side === 0 ? this.pair.a : this.pair.b;
+      const suspension = native ? normalized as number[]
+        : Array.isArray(raw) && raw.length >= 4 && raw.slice(0, 4).every(value => typeof value === "number" && Number.isFinite(value)) && lap
+          ? normalizeSuspensionTravel(raw, sceneSuspensionRange(lap.samples, this.pair.gameId)) : null;
+      const [fl, fr, rl, rr] = suspension ?? [0.5, 0.5, 0.5, 0.5];
+      const stroke = slot.config.carModel.suspStroke ?? 0.08;
+      slot.body.root.position.y = -((fl! + fr! + rl! + rr!) / 4 - 0.5) * stroke;
+      slot.body.root.rotation.x = ((fr! + rr! - fl! - rl!) / 2) * 0.1;
+      slot.body.root.rotation.z = ((fl! + fr! - rl! - rr!) / 2) * 0.06;
+      const model = slot.config.carModel;
+      const thresholds = getGame(this.pair.gameId).suspensionThresholds.values;
+      this.groups[side].updateMatrixWorld(true);
+      for (let index = 0; index < slot.springs.length; index++) {
+        const spring = slot.springs[index]!;
+        spring.spring.group.visible = spring.rod.group.visible = suspension !== null && this.groups[side].visible;
+        if (!suspension) continue;
+        const rear = index >= 2;
+        const x = rear ? -model.halfWheelbase : model.halfWheelbase;
+        const z = (index % 2 === 0 ? -1 : 1) * ((rear ? model.halfRearTrack : model.halfFrontTrack) - 0.35);
+        const travel = suspension[index]!;
+        this.springBodyScratch.set(x, 0.23 - (travel - 0.5) * stroke, z);
+        this.springWheelScratch.set(x, 0, z);
+        this.groups[side].localToWorld(this.springBodyScratch);
+        this.groups[side].localToWorld(this.springWheelScratch);
+        updateSuspensionSpringResource(spring, this.camera,
+          [this.springBodyScratch.x, this.springBodyScratch.y, this.springBodyScratch.z],
+          [this.springWheelScratch.x, this.springWheelScratch.y, this.springWheelScratch.z],
+          travel, thresholds, Math.max(1, this.canvas.clientHeight));
+      }
+    }
     const readings = updateAnalysisWheels(slot.wheels, frame, slot.config, elapsed, speed, playing);
     const options = this.tireInfoOptions;
     if (!this.tireInfo || !options) {
@@ -998,7 +1040,9 @@ export class SpectateSceneRuntime {
         this.track.visible = nativeViewVisible;
         this.groups[0].visible = !showLabels && !!first;
         this.groups[1].visible = !showLabels && !!second;
-        for (const slot of this.slots) {
+        for (let side = 0; side < this.slots.length; side++) {
+          const slot = this.slots[side];
+          for (const spring of slot.springs) spring.spring.group.visible = spring.rod.group.visible = nativeViewVisible && this.groups[side].visible;
           if (slot.body) slot.body.root.visible = this.carModelMode !== "hidden";
           if (slot.drivetrain) slot.drivetrain.root.visible = this.carModelMode !== "solid";
         }
@@ -1085,6 +1129,13 @@ export class SpectateSceneRuntime {
           }
           this.canvas.dataset[side === 0 ? "aWheelVisibleCount" : "bWheelVisibleCount"] = String(visibleWheels);
           this.canvas.dataset[side === 0 ? "aChassisVisible" : "bChassisVisible"] = String(this.groups[side].visible && !!this.slots[side].drivetrain?.root.visible);
+          let visibleSprings = 0;
+          for (const spring of this.slots[side].springs) if (spring.spring.group.visible && spring.rod.group.visible) visibleSprings++;
+          this.canvas.dataset[side === 0 ? "aSuspensionVisibleCount" : "bSuspensionVisibleCount"] = String(visibleSprings);
+          const body = this.slots[side].body?.root;
+          this.canvas.dataset[side === 0 ? "aBodyHeave" : "bBodyHeave"] = body ? String(body.position.y) : "";
+          this.canvas.dataset[side === 0 ? "aBodyRoll" : "bBodyRoll"] = body ? String(body.rotation.x) : "";
+          this.canvas.dataset[side === 0 ? "aBodyPitch" : "bBodyPitch"] = body ? String(body.rotation.z) : "";
           let visibleLabels = 0;
           const info = this.slots[side].wheelInfo;
           if (this.groups[side].visible && info) for (const label of info.labels) if (label?.sprite.visible) visibleLabels++;
@@ -1197,6 +1248,8 @@ export class SpectateSceneRuntime {
       slot.body = null;
       for (const wheel of slot.wheels) disposeWheelResource(wheel);
       slot.wheels = [];
+      for (const spring of slot.springs) disposeSuspensionSpringResource(spring);
+      slot.springs = [];
       slot.drivetrain?.dispose();
       slot.drivetrain = null;
       if (slot.wheelInfo) for (const label of slot.wheelInfo.labels) if (label) disposeWheelLabelResource(label);

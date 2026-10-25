@@ -23,8 +23,8 @@ export interface ReplayDataProps {
   startFuel: number | undefined;
   gameId: GameId;
   wearRate: { FL: number; FR: number; RL: number; RR: number } | null;
-  vehicleBalanceEstimate?: number | null;
-  vehicleGripDemand?: number | null;
+  estimatedSlipAngles?: readonly [number | null, number | null, number | null, number | null];
+  angleDisclosure?: string;
 }
 export interface ReplayComparisonAiProps {
   lapA: { id: number; label: string; lapTime: number };

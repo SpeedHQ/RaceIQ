@@ -1,8 +1,33 @@
+import { getGame } from "@raceiq/shared/games/registry";
+import type { CarModelEnrichment } from "@raceiq/scene-3d/model-types";
+import { steeringAngleRadians } from "@raceiq/scene-3d/wireframe-utils";
 import type { ComparisonData } from "@raceiq/shared/racing/comparison/types";
 import type { SemanticLapTelemetry, SemanticReplayFrame } from "../contracts/replay"
 import { hasTelemetryGap, recordedTelemetryGapSeconds } from "./telemetry-gap"
 import type { SpectateController, SpectateLap, SpectatePose, SpectateReading, SpectateSample, SpectateSnapshot } from "../contracts/spectate";
 const SEGMENT_SEEK_DURATION_MS = 1200;
+export const AMS2_POLO_APPROXIMATE_GEOMETRY = {
+  halfWheelbase: 2.552 / 2,
+  halfFrontTrack: 1.5 / 2,
+  halfRearTrack: 1.483 / 2,
+} as const;
+export const AMS2_POLO_GEOMETRY_DISCLOSURE = "Estimated geometry uses road-going Volkswagen Polo proxy dimensions (wheelbase 2.552 m, front track 1.500 m, rear track 1.483 m), from https://www.vw.com.na/wp-content/uploads/2024/09/2024-polo-spec-sheet-1-2.pdf. Not verified for AMS2 TSI Cup or game physics.";
+export interface WheelSlipGeometry {
+  model: Pick<CarModelEnrichment, "halfWheelbase" | "halfFrontTrack" | "halfRearTrack">;
+  estimated: boolean;
+}
+export function resolveWheelSlipGeometry(
+  gameId: string,
+  carId: string | undefined,
+  exact: Pick<CarModelEnrichment, "halfWheelbase" | "halfFrontTrack" | "halfRearTrack"> | undefined,
+) {
+  if (exact && [exact.halfWheelbase, exact.halfFrontTrack, exact.halfRearTrack].every(value => Number.isFinite(value) && value > 0)) {
+    return { model: exact, estimated: false };
+  }
+  return gameId === "ams2" && carId === "325487790"
+    ? { model: AMS2_POLO_APPROXIMATE_GEOMETRY, estimated: true }
+    : undefined;
+}
 const number = (value: unknown): number | null => (typeof value === "number" && Number.isFinite(value) ? value : null);
 const validEntry = (value: SemanticReplayFrame["values"][number]) => (value.state == null || value.state === "ok") && (value.freshness == null || value.freshness === "fresh");
 function numericShape(value: unknown): unknown {
@@ -158,6 +183,89 @@ export function prepareSpectateLap(replay: SemanticLapTelemetry, comparison?: Co
   return { samples, motionSamples, maximumGapSeconds, duration: samples.at(-1)?.time ?? 0, distance: maxDistance, hasProgress: monotonic && progressCount > 1 && (traces ? aligned.length > 1 : trustworthy), replay };
 }
 
+/** Vehicle sideslip estimate from ground-plane travel direction versus recorded heading. */
+export function vehicleSideslipDegrees(lap: SpectateLap, time: number): number | null {
+  if (!Number.isFinite(time) || lap.replay.envelopes[0]?.simulator !== "ams2") return null;
+  const samples = lap.samples;
+  const right = lowerBound(samples, time, sample => sample.time);
+  const leftIndex = right < samples.length && samples[right]!.time === time ? Math.max(0, right - 1) : right - 1;
+  const a = samples[leftIndex], b = samples[leftIndex + 1];
+  if (!a || !b || a.run !== b.run || !(b.time > a.time) || b.time - a.time > (lap.maximumGapSeconds ?? 0.1) || time < a.time || time > b.time) return null;
+  const ax = number(a.values["motion.position-x"]), az = number(a.values["motion.position-z"]);
+  const bx = number(b.values["motion.position-x"]), bz = number(b.values["motion.position-z"]);
+  const yawA = number(a.values["motion.yaw"]), yawB = number(b.values["motion.yaw"]);
+  if (ax === null || az === null || bx === null || bz === null || yawA === null || yawB === null) return null;
+  const dt = b.time - a.time, vx = (bx - ax) / dt, vz = (bz - az) / dt;
+  if (!Number.isFinite(vx) || !Number.isFinite(vz) || Math.hypot(vx, vz) < 1.5) return null;
+  const fraction = (time - a.time) / dt;
+  const yawDelta = Math.atan2(Math.sin(yawB - yawA), Math.cos(yawB - yawA));
+  const yaw = yawA + yawDelta * fraction;
+  const forward = vx * Math.sin(yaw) + vz * Math.cos(yaw);
+  const lateralRight = vx * Math.cos(yaw) - vz * Math.sin(yaw);
+  const degrees = Math.atan2(lateralRight, forward) * 180 / Math.PI;
+  return Number.isFinite(degrees) ? degrees : null;
+}
+
+/** Estimate wheel slip from adjacent native replay poses; unavailable spans stay unavailable. */
+export function estimateWheelSlipAngles(
+  lap: SpectateLap,
+  time: number,
+  model: Pick<CarModelEnrichment, "halfWheelbase" | "halfFrontTrack" | "halfRearTrack">,
+): [number | null, number | null, number | null, number | null] {
+  const unavailable: [null, null, null, null] = [null, null, null, null];
+  if (lap.replay.envelopes[0]?.simulator !== "ams2" || !Number.isFinite(time)
+    || !Number.isFinite(model.halfWheelbase) || model.halfWheelbase <= 0
+    || !Number.isFinite(model.halfFrontTrack) || model.halfFrontTrack <= 0
+    || !Number.isFinite(model.halfRearTrack) || model.halfRearTrack <= 0) return unavailable;
+  const samples = lap.samples;
+  const index = lowerBound(samples, time, sample => sample.time);
+  const exact = index < samples.length && samples[index]!.time === time;
+  const previous = samples[index - 1];
+  const current = exact ? samples[index] : undefined;
+  const next = exact ? samples[index + 1] : samples[index];
+  const earlier = exact ? current : previous;
+  const later = next;
+  if (!earlier || !later || earlier.run !== later.run || time < earlier.time || time > later.time) return unavailable;
+  const dt = later.time - earlier.time;
+  if (!(dt > 0) || !Number.isFinite(dt) || hasTelemetryGap(earlier.time, later.time, lap.maximumGapSeconds)) return unavailable;
+  const fraction = (time - earlier.time) / dt;
+  const speedA = number(earlier.values["motion.speed"]), speedB = number(later.values["motion.speed"]);
+  const yawA = number(earlier.values["motion.yaw"]), yawB = number(later.values["motion.yaw"]);
+  const xA = number(earlier.values["motion.position-x"]), xB = number(later.values["motion.position-x"]);
+  const zA = number(earlier.values["motion.position-z"]), zB = number(later.values["motion.position-z"]);
+  const steerA = number(earlier.values["inputs.steer"]), steerB = number(later.values["inputs.steer"]);
+  if (speedA === null || speedB === null || speedA < 1 || speedB < 1 || yawA === null || yawB === null
+    || xA === null || xB === null || zA === null || zB === null || steerA === null || steerB === null) return unavailable;
+  const currentYaw = yawA + Math.atan2(Math.sin(yawB - yawA), Math.cos(yawB - yawA)) * fraction;
+  const currentSteer = steerA + (steerB - steerA) * fraction;
+  const steer = index < samples.length && samples[index]!.time === time
+    ? number(samples[index]!.values["inputs.steer"]) : currentSteer;
+  if (steer === null) return unavailable;
+  const adapter = getGame("ams2");
+  const steering = steeringAngleRadians(steer, adapter);
+  const wheelOffsets: [number, number][] = [
+    [model.halfWheelbase, -model.halfFrontTrack], [model.halfWheelbase, model.halfFrontTrack],
+    [-model.halfWheelbase, -model.halfRearTrack], [-model.halfWheelbase, model.halfRearTrack],
+  ];
+  const wheelVelocity = ([forwardOffset, rightOffset]: [number, number]) => {
+    const wheelPosition = (x: number, z: number, yaw: number) => [
+      x + forwardOffset * Math.sin(yaw) + rightOffset * Math.cos(yaw),
+      z + forwardOffset * Math.cos(yaw) - rightOffset * Math.sin(yaw),
+    ];
+    const [ax, az] = wheelPosition(xA, zA, yawA);
+    const [bx, bz] = wheelPosition(xB, zB, yawB);
+    return [(bx - ax) / dt, (bz - az) / dt];
+  };
+  const result = wheelOffsets.map(([forwardOffset, rightOffset], wheel) => {
+    const velocity = wheelVelocity([forwardOffset, rightOffset]);
+    const wheelYaw = currentYaw + (wheel < 2 ? steering : 0);
+    const forward = velocity[0]! * Math.sin(wheelYaw) + velocity[1]! * Math.cos(wheelYaw);
+    const lateral = velocity[0]! * Math.cos(wheelYaw) - velocity[1]! * Math.sin(wheelYaw);
+    return Number.isFinite(forward) && Number.isFinite(lateral) && Math.hypot(forward, lateral) >= 1
+      ? Math.atan2(lateral, forward) : null;
+  });
+  return result as [number | null, number | null, number | null, number | null];
+}
 function poseOf(values: Readonly<Record<string, unknown>>): SpectatePose | null {
   const x = number(values["motion.position-x"]),
     z = number(values["motion.position-z"]),

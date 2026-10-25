@@ -496,23 +496,87 @@ test("AMS2 reduced-rate Polo replay keeps the car and telemetry visible between 
   const response = await request.get("/api/laps?gameId=ams2");
   expect(response.ok()).toBe(true);
   const laps = await response.json() as { id: number; sessionId: number; lapNumber: number; lapTime: number }[];
-  const lap = laps.find(lap => lap.lapNumber === 5 && lap.lapTime > 60);
-  expect(lap, "uploaded Polo race fixture needs its fifth completed lap").toBeDefined();
+  const lap = laps.find(lap => lap.lapNumber === 4 && lap.lapTime > 60);
+  expect(lap, "uploaded Polo race fixture needs its fourth completed lap").toBeDefined();
   await page.goto(`/ams2/sessions/${lap!.sessionId}/replay/${lap!.id}?forceWebGL=true`);
   const split = page.getByRole("button", { name: "Split recordings", exact: true });
   await page.addLocatorHandler(split, () => split.click());
   const scene = page.locator("[data-replay-scene]");
   await expect(scene).toHaveAttribute("data-scene-ready", "true", { timeout: 60_000 });
-  const timeline = page.getByRole("slider", { name: "Replay position", exact: true });
-  const clock = page.locator("[data-spectate-playback]");
+  const clock = page.locator('[data-spectate-playback]');
   const data = page.locator("[data-spectate-data-side]");
+  const timeline = page.getByRole("slider", { name: "Replay position", exact: true });
+  await timeline.fill("33.512");
+  await expect.poll(async () => Number(await page.locator("[data-spectate-playback]").getAttribute("data-time"))).toBeCloseTo(33.512, 2);
+  const balanceRow = data.getByRole("button", { name: /Balance/ });
+  await expect(balanceRow).toBeVisible();
+  await expect(balanceRow.locator("xpath=..")).toContainText(/\b(?:Neutral|Understeer|Oversteer)\b/);
+  const dashboardBalance = page.locator("[data-balance-state]");
+  await expect(dashboardBalance).toHaveCount(1);
+  await expect(dashboardBalance).toHaveAttribute("data-balance-state", /^(neutral|understeer|oversteer)$/);
+  const dashboardTraction = page.locator('[data-traction-side="a"][data-traction-state]');
+  await expect(dashboardTraction).toHaveCount(4);
+  for (const status of await dashboardTraction.evaluateAll(elements => elements.map(element => element.getAttribute("data-traction-state")))) {
+    expect(status).toMatch(/^(GRIP|SLIP|SLIDE|SPIN|LOCK|IDLE)$/);
+  }
+  const dynamicsTable = data.getByRole("table").first();
+  const traction = dynamicsTable.getByRole("row", { name: /Traction/ });
+  await expect(traction.locator("td")).toHaveCount(5);
+  for (const status of await traction.locator("td").evaluateAll(elements => elements.slice(1).map(element => element.textContent?.trim()))) {
+    expect(status).toMatch(/^(GRIP|SLIP|SLIDE|SPIN|LOCK|IDLE)$/);
+  }
+  const gripAsk = dynamicsTable.getByRole("row", { name: /Grip Ask/ });
+  await expect(gripAsk.locator("td")).toHaveText(["Grip Ask", /\d+%/, /\d+%/, /\d+%/, /\d+%/]);
+  const slipTable = data.getByRole("table").nth(1);
+  const ratioRow = slipTable.getByRole("row", { name: /Ratio/ });
+  const ratioCells = ratioRow.locator("td");
+  await expect(ratioCells).toHaveCount(5);
+  for (const cell of await ratioCells.all().then(cells => cells.slice(1))) {
+    await expect(cell).toHaveText(/^-?\d+%$/);
+  }
+  await expect(ratioCells.first().locator("svg.text-status-warning")).toHaveCount(1);
+  await ratioCells.first().hover();
+  await expect(data.getByRole("tooltip")).toContainText("AMS2 does not output tire slip ratio");
+  await expect(data.getByRole("tooltip")).toContainText("two slowest wheels");
+  const angleRow = slipTable.getByRole("row", { name: /Angle/ });
+  const angleCells = angleRow.locator("td");
+  await expect(angleCells).toHaveCount(5);
+  for (const cell of await angleCells.all().then(cells => cells.slice(1))) {
+    await expect(cell).toHaveText(/-?\d+\.\d°/);
+  }
+  const angleInfo = angleCells.nth(0).locator("svg.text-status-warning");
+  await expect(angleInfo).toHaveCount(1);
+  await expect(angleInfo).toHaveClass(/text-status-warning/);
+  await angleCells.nth(0).hover();
+  await expect(data.getByRole("tooltip")).toContainText("Estimated geometry uses road-going Volkswagen Polo proxy dimensions");
+  await expect(data.getByRole("tooltip")).toContainText("Not verified for AMS2 TSI Cup or game physics");
   for (const time of [5.055, 12.345, 20.025, 27.295, 41.035, 55.075]) {
     await timeline.fill(String(time));
     await expect.poll(async () => Number(await clock.getAttribute("data-time"))).toBeCloseTo(time, 2);
     await expect(scene).toHaveAttribute("data-side-a-state", "ready");
-    await expect.poll(async () => Number(await data.getAttribute("data-packet-number"))).toBeGreaterThan(0);
     await expect(data.getByText("This pair has no usable recorded replay.", { exact: true })).toHaveCount(0);
   }
+  const canvas = scene.locator("canvas").first();
+  for (let step = 0; step < 24 && Number(await canvas.getAttribute("data-a-model-pixels")) < 350; step++) {
+    const bounds = await canvas.boundingBox();
+    expect(bounds).not.toBeNull();
+    await page.mouse.move(bounds!.x + bounds!.width * .65, bounds!.y + bounds!.height * .5);
+    const before = await canvas.getAttribute("data-render-count");
+    await page.mouse.wheel(0, -500);
+    await expect.poll(() => canvas.getAttribute("data-render-count")).not.toBe(before);
+  }
+  await expect(canvas).toHaveAttribute("data-a-car-visible", "true");
+  await expect(canvas).toHaveAttribute("data-a-suspension-visible-count", "4");
+  const heave: number[] = [];
+  for (const time of [5.055, 12.345, 20.025]) {
+    await timeline.fill(String(time));
+    await expect.poll(async () => Number(await canvas.getAttribute("data-render-time"))).toBeCloseTo(time, 2);
+    await expect(canvas).toHaveAttribute("data-a-suspension-visible-count", "4");
+    heave.push(Number(await canvas.getAttribute("data-a-body-heave")));
+  }
+  expect(heave.every(Number.isFinite)).toBe(true);
+  expect(Math.max(...heave) - Math.min(...heave)).toBeGreaterThan(.00001);
+  await timeline.fill("55.075");
   await page.getByRole("button", { name: "Play replay", exact: true }).click();
   await expect.poll(async () => Number(await clock.getAttribute("data-time"))).toBeGreaterThan(55.575);
   await expect(scene).toHaveAttribute("data-side-a-state", "ready");

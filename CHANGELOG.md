@@ -1,6 +1,8 @@
 ## Unreleased
 
 ### Features
+- Show animated suspension springs and chassis movement in Replay and Compare → Spectate; use the lap's observed travel range when no game range is specified, while preserving native normalized readings.
+- Show AMS2 Replay's canonical Balance status and per-wheel Traction, Grip Ask, Slip Angle and Slip Ratio from recorded motion, wheel rotation and disclosed estimates in the existing Data panel.
 - Display locally extracted AMS2 car thumbnails in the car catalogue when available.
 - Show clickable circuit-overview sector markers on desktop only while hovering or using keyboard focus; keep them visible on touch screens.
 - Group LMU state of charge, virtual energy and regenerative power in a separate table below the main Replay and Compare → Spectate metrics.

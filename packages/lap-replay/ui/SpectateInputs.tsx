@@ -1,7 +1,7 @@
-import { useMessages } from "./host"
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { getTelemetryVariable } from "@raceiq/shared/telemetry/catalog/query";
-import { controlInputPercent } from "@raceiq/scene-3d/vehicle-dynamics";
+import { controlInputPercent, balanceColor, tireState, tireStateFromUtilization } from "@raceiq/scene-3d/vehicle-dynamics";
+import { useMessages, useReplayHost } from "./host"
 import { useUnits } from "./host"
 import type { SpectateController, ReplaySession, SpectateReading } from "../contracts/spectate";
 import { channelValue, type SpectateChannel } from "./spectate-channels";
@@ -9,8 +9,20 @@ import { getGame } from "@raceiq/shared/games/registry";
 import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities";
 import type { AnalysisTelemetryMetric } from "@raceiq/shared/games/types";
 import { resolveBalance, resolveWheelStates } from "@raceiq/analysis-core/racing/analysis/metric-values";
-import { balanceColor, tireState, tireStateFromUtilization } from "@raceiq/scene-3d/vehicle-dynamics";
+import { estimateWheelSlipAngles, resolveWheelSlipGeometry, AMS2_POLO_GEOMETRY_DISCLOSURE, type WheelSlipGeometry } from "./spectate-replay";
 import { ERS_DEPLOY_MODES, readERSDeployMode } from "./spectate-ers-mode";
+
+const AMS2_BALANCE_METRIC = {
+  source: "derived",
+  confidence: "high",
+  binding: { kind: "derived", derivation: "physical-balance-v1", requires: ["motion.speed", "motion.acceleration-x", "motion.angular-velocity-y"] },
+} satisfies AnalysisTelemetryMetric;
+const AMS2_TRACTION_METRIC = {
+  source: "derived",
+  confidence: "exact",
+  display: "per-wheel",
+  binding: { kind: "derived", derivation: "traction-v1", requires: ["motion.speed", "inputs.steer", "tires.wheel-rotation-speed"] },
+} satisfies AnalysisTelemetryMetric;
 
 function number(reading: SpectateReading | null, key: string): number | null {
   const value = reading?.values[key];
@@ -82,7 +94,15 @@ function TractionRail({ reading, metric, side, compare }: { reading: SpectateRea
   </div>;
 }
 
-export function SpectateInputs({ pair, controller }: { pair: ReplaySession; controller: SpectateController }) { const m = useMessages(); const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
+export function SpectateInputs({ pair, controller }: { pair: ReplaySession; controller: SpectateController }) { const m = useMessages(); const { models } = useReplayHost(); const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
+const [modelConfigsReady, setModelConfigsReady] = useState(false);
+useEffect(() => {
+  if (pair.gameId !== "ams2") return;
+  let active = true;
+  setModelConfigsReady(false);
+  void models.loadCarModelConfigs().then(() => { if (active) setModelConfigsReady(true); });
+  return () => { active = false; };
+}, [models, pair.gameId]);
 const isF1 = pair.gameId === "f1-2025";
 const units = useUnits(pair.gameId);
 const primaryColor = pair.b ? "var(--comparison-lap-a)" : "var(--app-accent)";
@@ -98,9 +118,31 @@ const nativeAids = useMemo(() => {
     .map(({ side, lap }) => ({ side, aids: channels.filter(({ id }) => lap.samples.some(sample => typeof sample.values[id] === "boolean")) }))
     .filter(({ aids }) => aids.length > 0);
 }, [pair]);
-const balanceMetric = analysis.balance;
-const balanceA = snapshot.a ? resolveBalance(snapshot.a, balanceMetric) : null;
-const balanceB = snapshot.b ? resolveBalance(snapshot.b, balanceMetric) : null;
+const metadataA = pair.comparison.lapA;
+const metadataB = pair.comparison.lapB ?? pair.comparison.lapA;
+const selectionA = pair.gameId === "ams2" && modelConfigsReady ? models.resolveCarModelSelection(pair.gameId, metadataA.carId) : undefined;
+const selectionB = pair.gameId === "ams2" && pair.b && modelConfigsReady ? models.resolveCarModelSelection(pair.gameId, metadataB.carId) : undefined;
+const geometryA = resolveWheelSlipGeometry(pair.gameId, metadataA.carId, selectionA?.label === "exact" && selectionA.model.hasModel ? selectionA.model : undefined);
+const geometryB = resolveWheelSlipGeometry(pair.gameId, metadataB.carId, selectionB?.label === "exact" && selectionB.model.hasModel ? selectionB.model : undefined);
+const withEstimatedAngles = (reading: SpectateReading | null, lap: ReplaySession["a"], geometry: WheelSlipGeometry | undefined) => {
+  if (!reading || !geometry || pair.gameId !== "ams2") return reading;
+  const estimated = estimateWheelSlipAngles(lap, reading.time, geometry.model);
+  const recorded = reading.values["tires.tire-slip-angle"];
+  const angles = [0, 1, 2, 3].map(index => Array.isArray(recorded) && typeof recorded[index] === "number" && Number.isFinite(recorded[index]) ? recorded[index] : estimated[index]);
+  return { ...reading, values: { ...reading.values, "tires.tire-slip-angle": angles } };
+};
+const tractionA = withEstimatedAngles(a, pair.a, geometryA);
+const tractionB = pair.b ? withEstimatedAngles(b, pair.b, geometryB) : b;
+const balanceMetricFor = (reading: SpectateReading | null): AnalysisTelemetryMetric => {
+  if (pair.gameId !== "ams2") return analysis.balance;
+  const angles = reading?.values["tires.tire-slip-angle"];
+  return Array.isArray(angles) && angles.length >= 4 && angles.slice(0, 4).every(value => typeof value === "number" && Number.isFinite(value))
+    ? { ...AMS2_BALANCE_METRIC, binding: { kind: "derived", derivation: "physical-balance-v1", requires: [...AMS2_BALANCE_METRIC.binding!.requires, "tires.tire-slip-angle"] } }
+    : AMS2_BALANCE_METRIC;
+};
+const tractionMetric = pair.gameId === "ams2" ? AMS2_TRACTION_METRIC : analysis.traction;
+const balanceA = tractionA ? resolveBalance(tractionA, balanceMetricFor(tractionA)) : null;
+const balanceB = tractionB ? resolveBalance(tractionB, balanceMetricFor(tractionB)) : null;
 const deltaChannel = useMemo<SpectateChannel | null>(() => pair.b && pair.comparison.traces && pair.comparison.timeDelta
   ? ({
       id: "comparison.time-delta",
@@ -237,32 +279,22 @@ return (
         <span className="text-app-text-secondary">{m.spectate_balance()}</span>
         <div className="flex items-center gap-2">
           {[
-            { side: "A", balance: balanceA, color: "var(--comparison-lap-a)" },
-            ...(pair.b ? [{ side: "B", balance: balanceB, color: "var(--comparison-lap-b)" }] : []),
-          ].map(({ side, balance, color }) => (
+            { side: "A", balance: balanceA },
+            ...(pair.b ? [{ side: "B", balance: balanceB }] : []),
+          ].map(({ side, balance }) => (
             <div key={side} className="flex items-center gap-1">
-              {pair.b && <strong style={{ color }}>{side}</strong>}
-              <output
-                aria-label={pair.b ? `${side} ${m.spectate_balance()}` : m.spectate_balance()}
-                aria-live="off"
-                data-balance-side={side.toLowerCase()}
-                data-balance-state={balance?.state ?? "unavailable"}
-                data-balance-value={balance?.balance ?? ""}
-                className="inline-block whitespace-nowrap tabular-nums"
-                style={{ color: balance ? balanceColor(balance.state) : "var(--app-text-secondary)" }}
-              >
-                {balance
-                  ? balance.state === "neutral" ? m.dynamics_state_neutral() : balance.state === "understeer" ? m.dynamics_state_understeer() : m.dynamics_state_oversteer()
-                  : "—"}
+              {pair.b && <strong style={{ color: `var(--comparison-lap-${side.toLowerCase()})` }}>{side}</strong>}
+              <output aria-label={pair.b ? `${side} ${m.spectate_balance()}` : m.spectate_balance()} aria-live="off" data-balance-side={side.toLowerCase()} data-balance-state={balance?.state ?? "unavailable"} data-balance-value={balance?.balance ?? ""} className="inline-block whitespace-nowrap tabular-nums" style={{ color: balance ? balanceColor(balance.state) : "var(--app-text-secondary)" }}>
+                {balance ? balance.state === "neutral" ? m.dynamics_state_neutral() : balance.state === "understeer" ? m.dynamics_state_understeer() : m.dynamics_state_oversteer() : "—"}
               </output>
             </div>
           ))}
         </div>
       </div>
-      <div role="group" aria-label={m.analyse_dynamics_traction()} className="flex items-center justify-center gap-2 text-app-caption">
+      <div role="group" aria-label={m.analyse_dynamics_traction()} className="flex items-center justify-center gap-2 text-app-caption" title={geometryA?.estimated || geometryB?.estimated ? AMS2_POLO_GEOMETRY_DISCLOSURE : undefined}>
         <span className="text-app-text-secondary">{m.analyse_dynamics_traction()}</span>
-        <TractionRail reading={a} metric={analysis.traction} side="a" compare={!!pair.b} />
-        {pair.b && <TractionRail reading={b} metric={analysis.traction} side="b" compare />}
+        <TractionRail reading={tractionA} metric={tractionMetric} side="a" compare={!!pair.b} />
+        {pair.b && <TractionRail reading={tractionB} metric={tractionMetric} side="b" compare />}
       </div>
     </div>
   </section>

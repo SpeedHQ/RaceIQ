@@ -580,5 +580,14 @@ test("AMS2 Spectate renders animated suspension for both cars", async ({ page, r
     await expect(canvas).toHaveAttribute(`data-${side}-suspension-visible-count`, "4");
   }
   await page.getByRole("button", { name: "Pause replay", exact: true }).click();
+  const bounds = await canvas.boundingBox();
+  expect(bounds).not.toBeNull();
+  const initialPhi = Number(await canvas.getAttribute("data-camera-phi"));
+  await page.mouse.move(bounds!.x + bounds!.width * .65, bounds!.y + bounds!.height * .5);
+  await page.mouse.down();
+  await page.mouse.move(bounds!.x + bounds!.width * .75, bounds!.y + bounds!.height * .32, { steps: 8 });
+  await page.mouse.up();
+  await expect.poll(async () => Number(await canvas.getAttribute("data-camera-phi"))).toBeGreaterThan(initialPhi + .1);
+  for (const side of ["a", "b"]) await expect(canvas).toHaveAttribute(`data-${side}-suspension-visible-count`, "4");
   await page.screenshot({ path: testInfo.outputPath("ams2-suspension-pair.png"), animations: "disabled" });
 });
