@@ -47,6 +47,8 @@
 - Include the complete LMU multiplayer recording in demo seeds as sub-100 MB gzip parts, stream native input without buffering the whole capture, and retain separate player and opponent recordings.
 
 ### Fixes
+- Include the LMU opponent-index worker in packaged builds so recorded opponents can load for replay and comparison.
+- Restore recorded-opponent driver and lap selections after reloading comparisons while the opponent catalog loads.
 - Keep the car and telemetry visible between valid samples in reduced-rate AMS2 Replay and Spectate recordings, while preserving missing-data gaps.
 - Preserve Replay and Spectate panel widths when panels are toggled, and keep the mobile circuit overview clear of driver inputs and focus controls.
 - Keep Spectate selected when switching comparison views with the keyboard.

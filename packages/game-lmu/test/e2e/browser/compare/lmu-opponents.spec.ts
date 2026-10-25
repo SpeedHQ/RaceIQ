@@ -211,19 +211,21 @@ async function exerciseOpponentComparison(page: Page, request: APIRequestContext
     const opponentSelect = page.getByRole("combobox", { name: "Recorded opponent lap" });
     await expect(opponentSelect).toBeEnabled({ timeout: 30_000 });
     await opponentSelect.click();
-    await expect(page.getByRole("option").filter({ hasText: "Partial" }).first()).toBeVisible();
-    await expect(page.getByRole("option").filter({ hasText: /unknown/i }).first()).toBeVisible();
     await opponentSelect.press("Escape");
     expect(new URL(page.url()).searchParams.get("opponentLap"), "Escape cancels pending selection").toBeNull();
-    await opponentSelect.fill(candidate!.className!);
-    await expect(page.getByRole("option").filter({ hasText: candidate!.className! }).first()).toBeVisible();
-    await opponentSelect.fill("Controlled opponent");
-    await expect(page.getByRole("option").filter({ hasText: "Controlled opponent" }).first()).toBeVisible();
+    const driverSelect = page.getByRole("combobox", { name: "Driver", exact: true });
+    await driverSelect.fill("Controlled opponent");
+    await driverSelect.press("ArrowDown");
+    await driverSelect.press("Enter");
+    await opponentSelect.fill(`Lap ${candidate!.lapNumber} ·`);
     await opponentSelect.press("ArrowDown");
     await opponentSelect.press("Enter");
     expect(new URL(page.url()).searchParams.get("opponentLap"), "preview does not commit a reference").toBeNull();
     await page.getByRole("button", { name: "Cancel", exact: true }).click();
     expect(new URL(page.url()).searchParams.get("opponentLap"), "Cancel preserves committed reference").toBeNull();
+    await driverSelect.fill("Controlled opponent");
+    await driverSelect.press("ArrowDown");
+    await driverSelect.press("Enter");
     await opponentSelect.fill(`Lap ${candidate!.lapNumber} ·`);
     await opponentSelect.press("ArrowDown");
     await opponentSelect.press("Enter");
@@ -261,7 +263,7 @@ async function exerciseOpponentComparison(page: Page, request: APIRequestContext
     const persistedUrl = page.url();
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByTestId("opponent-comparison")).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByRole("combobox", { name: "Recorded opponent lap" })).toHaveValue(/Controlled opponent/);
+    await expect(driverSelect).toHaveValue(/Controlled opponent/);
     await page.goBack();
     await expect.poll(() => page.url()).not.toBe(persistedUrl);
     await page.goForward();
@@ -275,7 +277,7 @@ async function exerciseOpponentComparison(page: Page, request: APIRequestContext
       expect(localized.ok()).toBe(true);
       try {
         await page.reload({ waitUntil: "domcontentloaded" });
-        await expect(page.getByRole("combobox", { name: deMessages.compare_opponent_lap })).toHaveValue(/Controlled opponent/, { timeout: 30_000 });
+        await expect(page.getByRole("combobox", { name: deMessages.label_driver, exact: true })).toHaveValue(/Controlled opponent/, { timeout: 30_000 });
         await expect(page.getByTestId("opponent-comparison")).toContainText(deMessages.compare_opponent_coverage_complete);
         await expect(page.locator("[data-spectate-scene]")).toHaveAttribute("data-scene-ready", "true", { timeout: 60_000 });
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

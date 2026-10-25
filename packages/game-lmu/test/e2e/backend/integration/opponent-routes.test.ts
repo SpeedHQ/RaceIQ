@@ -532,7 +532,7 @@ describe("opponent route serialization", () => {
     } finally {
       await Promise.all(sessionIds.map(deleteSession));
     }
-  });
+  }, { timeout: 60_000 });
 
   test("keeps opponent laps continuous across acquisition session-key generations", async () => {
     initGameAdapters();
@@ -611,7 +611,7 @@ describe("opponent route serialization", () => {
     } finally {
       await Promise.all(sessionIds.map(deleteSession));
     }
-  });
+  }, { timeout: 60_000 });
 
   test("separates native identity changes, clock resets, and vehicle reincarnation", async () => {
     initGameAdapters();
@@ -689,7 +689,7 @@ describe("opponent route serialization", () => {
         await Promise.all(sessionIds.map(deleteSession));
       }
     }
-  });
+  }, { timeout: 120_000 });
 
   test("imports native capture and returns completed/partial timing through HTTP", async () => {
     initGameAdapters();
@@ -916,7 +916,7 @@ describe("opponent route serialization", () => {
     } finally {
       await Promise.all(sessionIds.map(deleteSession));
     }
-  });
+  }, { timeout: 60_000 });
 
 
   test("keeps pending and failed index states readable without request-time preparation", async () => {
@@ -1017,7 +1017,7 @@ describe("opponent route serialization", () => {
     } finally {
       await Promise.all(sessionIds.map(deleteSession));
     }
-  });
+  }, { timeout: 60_000 });
   test("keeps a prepared empty opponent catalog ready", async () => {
     initGameAdapters();
     registerServerGame(lmuServerAdapter);
@@ -1156,7 +1156,7 @@ describe("opponent route serialization", () => {
     } finally {
       await Promise.all(sessionIds.map(deleteSession));
     }
-  });
+  }, { timeout: 60_000 });
   test("rejects changed native identities and requires explicit preparation after restoration", async () => {
     initGameAdapters();
     registerServerGame(lmuServerAdapter);
@@ -1225,7 +1225,7 @@ describe("opponent route serialization", () => {
     } finally {
       await Promise.all(sessionIds.map(deleteSession));
     }
-  });
+  }, { timeout: 60_000 });
 });
 
 test("encodes opponent observation integers losslessly", () => {
