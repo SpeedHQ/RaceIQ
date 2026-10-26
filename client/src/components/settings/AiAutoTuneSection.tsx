@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { m } from "@/paraglide/messages";
 import { AiProviderPicker } from "./AiPickers";
 import type { AiAutoTuneState } from "./ai-state";
+import { defaultModelForProvider } from "./recommended-model";
 export function AiAutoTuneSection({ state }: { state: AiAutoTuneState }) {
   const {
     autoTuneProvider,
@@ -38,7 +39,7 @@ export function AiAutoTuneSection({ state }: { state: AiAutoTuneState }) {
             value={autoTuneProvider}
             onChange={(value) => {
               setAutoTuneProvider(value);
-              setAutoTuneModel("");
+              setAutoTuneModel(defaultModelForProvider(value));
             }}
             providers={aiProviders}
             keyStatus={state.keyStatus}

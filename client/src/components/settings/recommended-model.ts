@@ -10,3 +10,8 @@ export function isRecommendedModel(modelId: string): boolean {
 export function recommendedFirst<T extends { id: string }>(models: T[]): T[] {
   return [...models.filter((model) => isRecommendedModel(model.id)), ...models.filter((model) => !isRecommendedModel(model.id))];
 }
+
+/** Model to preselect after switching provider: the recommended Claude model, otherwise none. */
+export function defaultModelForProvider(provider: string): string {
+  return provider === "anthropic" ? RECOMMENDED_CLAUDE_MODEL : "";
+}

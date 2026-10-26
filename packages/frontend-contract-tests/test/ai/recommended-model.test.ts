@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { isRecommendedModel, recommendedFirst } from "client/src/components/settings/recommended-model";
+import { defaultModelForProvider, isRecommendedModel, recommendedFirst } from "client/src/components/settings/recommended-model";
 
 describe("recommended Claude model", () => {
   test("matches Haiku 5.5 and its dated snapshots only", () => {
@@ -19,6 +19,13 @@ describe("recommended Claude model", () => {
       "claude-sonnet-5-5",
       "claude-haiku-4-5",
     ]);
+  });
+
+  test("preselects Haiku 5.5 only when switching to Claude", () => {
+    expect(defaultModelForProvider("anthropic")).toBe("claude-haiku-5-5");
+    expect(defaultModelForProvider("openai")).toBe("");
+    expect(defaultModelForProvider("openai-compatible")).toBe("");
+    expect(defaultModelForProvider("")).toBe("");
   });
 
   test("leaves lists without the recommended model unchanged", () => {
