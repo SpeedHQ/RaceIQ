@@ -40,7 +40,7 @@ export function filterCatalogCars(cars: IRacingCatalogCar[], search: string, fil
 }
 
 export function IRacingCars({ gameId = "iracing" }: { gameId?: "iracing" | "ams2" }) {
-  const { AppInput, Button, m, useUnits, loadIRacingCars } = useCarsCatalogueHost();
+  const { AppInput, SearchSelect, m, useUnits, loadIRacingCars } = useCarsCatalogueHost();
   const units = useUnits();
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState<string | null>(null);
@@ -51,7 +51,16 @@ export function IRacingCars({ gameId = "iracing" }: { gameId?: "iracing" | "ams2
     refetchInterval: gameId === "ams2" ? 30_000 : false,
   });
 
-  const categories = useMemo(() => Array.from(new Set(cars.map((car) => car.category))).sort((a, b) => categoryLabel(m, a).localeCompare(categoryLabel(m, b))), [cars, m]);
+  const categoryOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const car of cars) counts.set(car.category, (counts.get(car.category) ?? 0) + 1);
+    return [
+      { value: "", label: `${m.iracingcars_all_categories()} (${cars.length})` },
+      ...[...counts.keys()]
+        .sort((a, b) => categoryLabel(m, a).localeCompare(categoryLabel(m, b)))
+        .map((category) => ({ value: category, label: `${categoryLabel(m, category)} (${counts.get(category)})` })),
+    ];
+  }, [cars, m]);
 
   const filtered = useMemo(() => filterCatalogCars(cars, search, filterCategory, m), [cars, filterCategory, search, m]);
   return (
@@ -66,33 +75,14 @@ export function IRacingCars({ gameId = "iracing" }: { gameId?: "iracing" | "ams2
       </div>
 
       {!isLoading && (
-        <div className="flex items-center gap-1 flex-wrap">
-          <Button
-            type="button"
-            aria-pressed={filterCategory === null}
-            className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${
-              filterCategory === null ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"
-            }`}
-            onClick={() => setFilterCategory(null)}
-          >
-            {m.iracingcars_all_categories()} ({cars.length})
-          </Button>
-          {categories.map((category) => {
-            const count = cars.filter((car) => car.category === category).length;
-            return (
-              <Button
-                type="button"
-                key={category}
-                data-catalog-category={category}
-                aria-pressed={filterCategory === category}
-                className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${filterCategory === category ? "catalog-category" : "text-app-text-muted hover:text-app-text-secondary"}`}
-                onClick={() => setFilterCategory(filterCategory === category ? null : category)}
-              >
-                {categoryLabel(m, category)} ({count})
-              </Button>
-            );
-          })}
-        </div>
+        <SearchSelect
+          value={filterCategory ?? ""}
+          onChange={(value) => setFilterCategory(value || null)}
+          options={categoryOptions}
+          placeholder={m.iracingcars_all_categories()}
+          ariaLabel={m.iracingcars_all_categories()}
+          className="w-full @3xl/workspace:w-72"
+        />
       )}
 
       {isLoading ? (

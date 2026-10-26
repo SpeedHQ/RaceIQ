@@ -123,6 +123,14 @@ export interface CarsCatalogueHost {
   loadLMUCars: () => Promise<LMUCatalogueCar[]>;
   PiBadge: ComponentType<{ pi: number; showNumber?: boolean }>;
   AppInput: ComponentType<ComponentProps<"input">>;
+  SearchSelect: ComponentType<{
+    value: string;
+    onChange: (value: string) => void;
+    options: { value: string; label: string }[];
+    placeholder?: string;
+    ariaLabel?: string;
+    className?: string;
+  }>;
   Button: ComponentType<ButtonPrimitive.Props & {
     variant?: "app-ghost" | "app-primary" | "app-outline" | "close-action" | "selected-toggle";
     size?: "icon-sm" | "app-sm";

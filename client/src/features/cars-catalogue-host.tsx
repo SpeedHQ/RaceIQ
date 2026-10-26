@@ -3,6 +3,7 @@ import { CarsCatalogueProvider } from "@raceiq/cars-catalogue/ui";
 import type { Car, CarsCatalogueHost, IRacingCatalogueCar, LMUCatalogueCar } from "@raceiq/cars-catalogue/contracts";
 import { PiBadge } from "../components/forza/PiBadge";
 import { AppInput } from "../components/ui/AppInput";
+import { SearchSelect } from "../components/ui/SearchSelect";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
@@ -42,6 +43,7 @@ const host = {
   },
   PiBadge,
   AppInput,
+  SearchSelect,
   Badge,
   Button,
   Dialog,
