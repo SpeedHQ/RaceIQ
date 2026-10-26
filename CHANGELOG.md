@@ -48,6 +48,8 @@
 - Include the complete LMU multiplayer recording in demo seeds as sub-100 MB gzip parts, stream native input without buffering the whole capture, and retain separate player and opponent recordings.
 
 ### Fixes
+- Keep AMS2 racing lines continuous across valid reduced-rate samples in Replay, Spectate and the circuit overview while preserving genuine missing-data gaps.
+- Keep AMS2 Replay and Spectate track boundaries fixed to the circuit when viewing partial or off-center laps.
 - Include the LMU opponent-index worker in packaged builds so recorded opponents can load for replay and comparison.
 - Restore recorded-opponent driver and lap selections after reloading comparisons while the opponent catalog loads.
 - Keep the car and telemetry visible between valid samples in reduced-rate AMS2 Replay and Spectate recordings, while preserving missing-data gaps.
@@ -158,6 +160,7 @@
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
+- Preserve Windows directory-sync path errors when validating recording publication directories.
 - Target comparison lap pickers explicitly in browser checks and wait for rendered frames in the native camera zoom check.
 - Keep diagnostic dump runs in one BIN per selected source, retain raw Forza/F1 datagrams, stream live telemetry over WebSocket for every game, and bypass telemetry-driven session/database processing and background recording maintenance.
 - Extract Sessions and Session Analyse into feature-owned UI, server, contract, and test workspaces while preserving existing navigation and analysis behavior.

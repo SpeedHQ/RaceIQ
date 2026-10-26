@@ -73,6 +73,7 @@ const cases = [
   ["acc", "acc", true],
   ["ac-evo", "acc", true],
   ["lmu", "lmu", false],
+  ["ams2", "ams2-world", false],
 ] as const;
 
 for (const [gameId, coordSystem, flip] of cases) {

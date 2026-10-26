@@ -4,7 +4,7 @@ import { readDataFile } from "@raceiq/shared/racing/tracks/storage/files";
 import type { Point, TrackBoundary } from "@raceiq/shared/racing/tracks/geometry/types";
 import { getAMS2CatalogTrack, getAMS2DiscoveredTrackName, getAMS2TrackLength } from "./index";
 
-interface LayoutEntry { layout: string; file: string; lengthM: number }
+interface LayoutEntry { layout: string; trackSvg: string; lengthM: number }
 let catalog: LayoutEntry[] | undefined;
 const geometryCache = new Map<string, TrackBoundary>();
 // Saved Cordoba recordings report 3655.272705 m and follow this archive's
@@ -14,7 +14,7 @@ const verifiedAliases: Readonly<Record<string, string>> = {
 };
 
 /** Exact variation or explicitly verified full-name alias; no fuzzy guesses. */
-export function matchAMS2Layout(name: string, lengthM: number | undefined, entries: LayoutEntry[]): LayoutEntry | null {
+export function matchAMS2Layout<T extends { layout: string; lengthM: number }>(name: string, lengthM: number | undefined, entries: T[]): T | null {
   const variation = name.split(" - ").at(-1)?.trim();
   if (!variation) return null;
   const layout = Object.hasOwn(verifiedAliases, name.trim().toLowerCase()) ? verifiedAliases[name.trim().toLowerCase()] : variation;
@@ -25,16 +25,39 @@ export function matchAMS2Layout(name: string, lengthM: number | undefined, entri
   return match;
 }
 
-/** Road-corridor visual references in the same native X/Z space as telemetry. */
+/** Read the extraction contract's absolute, closed polylines without fitting or resampling. */
+export function parseAMS2TrackSvg(svg: string): TrackBoundary | null {
+  if (/\btransform\s*=/.test(svg)) return null;
+  const number = "[+-]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?";
+  const polyline = new RegExp(`^M\\s+${number}\\s+${number}(?:\\s+L\\s+${number}\\s+${number})*\\s+Z$`);
+  const paths = [...svg.matchAll(/<path\b([^>]*?)\bd="([^"]*)"([^>]*)>/gs)];
+  const read = (id: string): Point[] | null => {
+    const matches = paths.filter(([, before, , after]) => `${before} ${after}`.match(/\bid="([^"]*)"/)?.[1] === id);
+    if (matches.length !== 1) return null;
+    const d = matches[0]![2];
+    if (!polyline.test(d)) return null;
+    const values = d.match(new RegExp(number, "g"))!.map(Number);
+    if (values.length < 6 || values.some(value => !Number.isFinite(value))) return null;
+    const points: Point[] = [];
+    for (let index = 0; index < values.length; index += 2) points.push({ x: values[index]!, z: values[index + 1]! });
+    const first = points[0]!, last = points.at(-1)!;
+    if (last.x !== first.x || last.z !== first.z) points.push({ ...first });
+    return points;
+  };
+  const leftEdge = read("left"), rightEdge = read("right"), centerLine = read("center-line");
+  return leftEdge && rightEdge && centerLine ? { leftEdge, rightEdge, centerLine, pitLane: null } : null;
+}
+
+/** SVG road-corridor references in the same native X/Z space as telemetry. */
 export function getAMS2TrackBoundaries(ordinal: number): TrackBoundary | null {
   try {
-    const root = resolve(gameAssetsDir("ams2"), "tracks");
+    const root = gameAssetsDir("ams2");
     if (!catalog) {
-      const content = readDataFile(resolve(root, "catalog.json"));
+      const content = readDataFile(resolve(root, "tracks.json"));
       if (!content) return null;
       const data = JSON.parse(content);
-      if (data.schemaVersion !== 1 || !Array.isArray(data.layouts) || !data.layouts.every((entry: LayoutEntry) => typeof entry.layout === "string" && typeof entry.file === "string" && /^[a-z0-9-]+-boundaries\.json$/.test(entry.file) && Number.isFinite(entry.lengthM) && entry.lengthM > 0)) return null;
-      catalog = data.layouts;
+      if (data.schemaVersion !== 1 || !Array.isArray(data.tracks) || !data.tracks.every((entry: LayoutEntry) => typeof entry.layout === "string" && typeof entry.trackSvg === "string" && /^tracks\/[a-z0-9-]+\.track\.svg$/.test(entry.trackSvg) && Number.isFinite(entry.lengthM) && entry.lengthM > 0)) return null;
+      catalog = data.tracks;
     }
     const name = getAMS2DiscoveredTrackName(ordinal) ?? getAMS2CatalogTrack(String(ordinal))?.geometryLayout;
     if (!name) return null;
@@ -42,12 +65,10 @@ export function getAMS2TrackBoundaries(ordinal: number): TrackBoundary | null {
     if (!match) return null;
     const cached = geometryCache.get(match.layout);
     if (cached) return structuredClone(cached);
-    const content = readDataFile(resolve(root, match.file));
+    const content = readDataFile(resolve(root, match.trackSvg));
     if (!content) return null;
-    const data = JSON.parse(content);
-    const validPoints = (points: unknown): points is Point[] => Array.isArray(points) && points.length >= 3 && points.every(p => p && Number.isFinite(p.x) && Number.isFinite(p.z));
-    if (data.layout !== match.layout || data.coordSystem !== "ams2-world" || data.lengthM !== match.lengthM || !validPoints(data.leftEdge) || !validPoints(data.rightEdge) || !validPoints(data.centerLine) || data.leftEdge.length !== data.rightEdge.length || data.leftEdge.length !== data.centerLine.length) return null;
-    const result = { leftEdge: data.leftEdge, rightEdge: data.rightEdge, centerLine: data.centerLine, pitLane: null };
+    const result = parseAMS2TrackSvg(content);
+    if (!result) return null;
     geometryCache.set(match.layout, result);
     return structuredClone(result);
   } catch { return null; }

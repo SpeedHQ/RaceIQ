@@ -86,6 +86,15 @@ test("replay springs follow world-space wheel anchors and animate with chassis t
 });
 
 
+test("estimated race-line connectors respect the recorded AMS2 cadence", () => {
+  const samples = [0, 0.108, 0.216, 0.65].map((time, index) => ({
+    time, run: index < 3 ? 0 : 1, distance: index,
+    values: { "motion.position-x": index, "motion.position-z": 0 },
+  } as SpectateSample));
+  expect(estimatedRaceLineSegments(samples, false, 0.162)).toEqual([2, 0, 0, 3, 0, 0]);
+  expect(estimatedRaceLineSegments(samples)).toHaveLength(18);
+});
+
 test("estimated race-line connectors bridge true gaps up to one second and reject invalid samples", () => {
   const sample = (time: number, x: unknown, z: unknown, run = 0): SpectateSample => ({
     time, run, distance: null, values: { "motion.position-x": x, "motion.position-z": z },

@@ -1,0 +1,35 @@
+import { expect, test } from "@playwright/test";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+test("AMS2 Replay renders the extracted SVG circuit in native coordinates", async ({ page, request }, testInfo) => {
+  test.setTimeout(120_000);
+  const response = await request.get("/api/laps?gameId=ams2");
+  expect(response.ok()).toBe(true);
+  const laps = await response.json() as { id: number; sessionId: number; trackId: string; lapNumber: number; lapTime: number }[];
+  const lap = laps.find(lap => String(lap.trackId) === "165370945" && lap.lapNumber === 4 && lap.lapTime > 60);
+  expect(lap, "Brands Hatch Indy Polo fixture needs its fourth completed lap").toBeDefined();
+  const boundariesResponse = await request.get(`/api/track-boundaries/${lap!.trackId}?gameId=ams2`);
+  expect(boundariesResponse.ok()).toBe(true);
+  const boundaries = await boundariesResponse.json() as { coordSystem: string; leftEdge: unknown[]; rightEdge: unknown[] };
+  const original = JSON.parse(readFileSync(resolve(__dirname, "../../../../game-ams2/assets/tracks/brandshatch-indy-boundaries.json"), "utf8"));
+  expect(boundaries.coordSystem).toBe("ams2-world");
+  expect(boundaries.leftEdge).toEqual([...original.leftEdge, original.leftEdge[0]]);
+  expect(boundaries.rightEdge).toEqual([...original.rightEdge, original.rightEdge[0]]);
+
+  await page.goto(`/ams2/sessions/${lap!.sessionId}/replay/${lap!.id}?forceWebGL=true`);
+  const split = page.getByRole("button", { name: "Split recordings", exact: true });
+  await page.addLocatorHandler(split, () => split.click());
+  const scene = page.locator("[data-replay-scene]");
+  await expect(scene).toHaveAttribute("data-scene-ready", "true", { timeout: 60_000 });
+  const canvas = scene.locator("canvas").first();
+  await expect(canvas).toHaveAttribute("data-track-geometry-source", "calibrated-boundaries");
+  await expect.poll(async () => Number(await canvas.getAttribute("data-track-edge-count"))).toBeGreaterThan(0);
+  const data = page.locator("[data-spectate-data-side]");
+  await expect(data).toHaveAttribute("data-packet-count", /^\d+$/);
+  const packetCount = Number(await data.getAttribute("data-packet-count"));
+  await expect.poll(async () => Number(await canvas.getAttribute("data-a-racing-line-segments"))).toBeGreaterThan(packetCount * 0.95);
+  await page.getByRole("slider", { name: "Replay position", exact: true }).fill("20.025");
+  await expect(scene).toHaveAttribute("data-side-a-state", "ready");
+  await page.screenshot({ path: testInfo.outputPath("ams2-svg-replay.png"), animations: "disabled" });
+});
