@@ -779,11 +779,11 @@
     },
     "build": {
       "cache": false,
-      "env": ["RACEIQ_FEATURE_F1_EXPERIMENTS", "RACEIQ_FEATURE_IRACING_ADAPTER"]
+      "env": ["RACEIQ_FEATURE_F1_EXPERIMENTS", "RACEIQ_FEATURE_IRACING_ADAPTER", "RACEIQ_FEATURE_AMS2_ADAPTER"]
     },
     "build:e2e": {
       "cache": false,
-      "env": ["RACEIQ_FEATURE_F1_EXPERIMENTS", "RACEIQ_FEATURE_IRACING_ADAPTER"]
+      "env": ["RACEIQ_FEATURE_F1_EXPERIMENTS", "RACEIQ_FEATURE_IRACING_ADAPTER", "RACEIQ_FEATURE_AMS2_ADAPTER"]
     },
     "test:e2e": {
       "dependsOn": ["e2e:impact", "@raceiq/tooling-build#build:e2e"],
@@ -830,7 +830,7 @@
     },
     "client#build": {
       "dependsOn": ["transit", "i18n:compile"],
-      "env": ["RACEIQ_FEATURE_F1_EXPERIMENTS", "RACEIQ_FEATURE_IRACING_ADAPTER"]
+      "env": ["RACEIQ_FEATURE_F1_EXPERIMENTS", "RACEIQ_FEATURE_IRACING_ADAPTER", "RACEIQ_FEATURE_AMS2_ADAPTER"]
     },
     "client#typecheck": {
       "dependsOn": ["transit", "i18n:compile"]

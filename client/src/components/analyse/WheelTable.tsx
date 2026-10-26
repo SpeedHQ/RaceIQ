@@ -10,6 +10,8 @@ interface WheelTableRow {
   rr: ReactNode;
   /** Optional: colspan the 4 cells into 2 pairs */
   span2?: boolean;
+  /** Optional: render one value across all four wheel columns */
+  span4?: boolean;
 }
 
 interface WheelTableProps {
@@ -72,8 +74,10 @@ export function WheelTable({ title, showHeaders = true, borderTop = false, rows 
           const key = getRowKey(row, rowKeyState);
           return (
             <tr key={key}>
-              <td className="p-0 text-app-text-secondary">{row.label}</td>
-              {row.span2 ? (
+              <td className="p-0 text-left">{row.label}</td>
+              {row.span4 ? (
+                <td className="p-0 text-right" colSpan={4}>{row.fl}</td>
+              ) : row.span2 ? (
                 <>
                   <td className="p-0 text-right" colSpan={2}>{row.fl}</td>
                   <td className="p-0 text-right" colSpan={2}>{row.rl}</td>

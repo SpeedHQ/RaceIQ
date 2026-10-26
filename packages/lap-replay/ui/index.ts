@@ -2,7 +2,7 @@ export { SpectateSession } from "./SpectateSession";
 export { SpectateView } from "./SpectateView";
 export { SpectateWorkspace } from "./SpectateWorkspace";
 export { InsightPanel } from "./InsightPanel";
-export { createSpectateController, placeIRacingSpectateLaps, prepareSpectateLap, sampleLap, sampleMotion } from "./spectate-replay";
+export { createSpectateController, placeIRacingSpectateLaps, prepareSpectateLap, sampleLap, sampleMotion, vehicleSideslipDegrees } from "./spectate-replay";
 export { AnalyseSegmentList } from "./AnalyseSegmentList";
 export { windowLineSpread } from "./spectate-line-spread";
 export { ReplayProvider, useReplayHost } from "./host";

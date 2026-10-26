@@ -25,7 +25,7 @@
     "@raceiq/telemetry-core": "workspace:*"
   },
   "scripts": {
-    "lint": "bun ../../client/node_modules/oxlint/bin/oxlint .",
+    "lint": "node ../../client/node_modules/oxlint/bin/oxlint .",
     "typecheck": "bun check --project tsconfig.json",
     "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/game-lmu-tests",
     "test:e2e:recordings": "bun ../../scripts/test/run-suite.ts e2e --package @raceiq/game-lmu-tests",

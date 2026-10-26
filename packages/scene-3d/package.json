@@ -15,7 +15,6 @@
     "./rendering/css-values": "./src/rendering/css-values.ts",
     "./rendering/css-canvas": "./src/rendering/css-canvas.ts",
     "./wireframe/SceneRuntime": "./src/wireframe/SceneRuntime.ts",
-    "./wireframe/ScenePlacement": "./src/wireframe/ScenePlacement.ts",
     "./wireframe/SceneOverlays": "./src/wireframe/SceneOverlays.ts",
     "./wireframe/AnalysisWheels": "./src/wireframe/AnalysisWheels.ts",
     "./wireframe/Drivetrain": "./src/wireframe/Drivetrain.ts",
@@ -30,10 +29,11 @@
     "./wireframe/TireTrails": "./src/wireframe/TireTrails.tsx",
     "./wireframe/CurbMarkers": "./src/wireframe/CurbMarkers.tsx",
     "./wireframe/DimensionLines": "./src/wireframe/DimensionLines.tsx",
+    "./wireframe/ScenePlacement": "./src/wireframe/ScenePlacement.ts",
     "./wireframe/SuspensionSpring": "./src/wireframe/SuspensionSpring.tsx"
   },
   "scripts": {
-    "lint": "bun ../../client/node_modules/oxlint/bin/oxlint .",
+    "lint": "node ../../client/node_modules/oxlint/bin/oxlint .",
     "typecheck": "bun check --project tsconfig.json",
     "test": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/scene-3d",
     "test:unit": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/scene-3d"

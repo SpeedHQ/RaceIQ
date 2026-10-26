@@ -1,6 +1,6 @@
 import * as THREE from "three/webgpu";
 import type { TelemetryVariableId } from "@raceiq/shared/telemetry/catalog/generated/telemetry-catalog.types";
-import { normalizeSuspensionTravel } from "../suspension";
+import { normalizeSuspensionTravel, type SuspensionTravelRangeMm } from "../suspension";
 import { steeringAngleRadians, THREE_COLORS, visualWheelRotationSpeed } from "../wireframe-utils";
 import { semanticNumber, type SemanticAnalysisFrame } from "../semantic-frame";
 import { tireTemperatureReadings, type TireTemperatureReading } from "../tire-temperature-profile"
@@ -133,7 +133,7 @@ export class SceneOverlays {
     this.previousSample = null;
   }
 
-  update(frame: SemanticAnalysisFrame, frames: SemanticAnalysisFrame[], cursorIdx: number, config: SceneRuntimeConfig, source: SceneSource | null, now: number, elapsed: number, generation: number, viewportHeight: number): void {
+  update(frame: SemanticAnalysisFrame, frames: SemanticAnalysisFrame[], cursorIdx: number, config: SceneRuntimeConfig, source: SceneSource | null, now: number, elapsed: number, generation: number, viewportHeight: number, suspensionRange: SuspensionTravelRangeMm): void {
     if (this.wheelModel !== config.carModel) this.replaceWheels(config);
     this.updateHistory(frames, source?.seekGeneration ?? 0);
     const nativeX = semanticNumber(frame, "motion.position-x"), nativeZ = semanticNumber(frame, "motion.position-z"), nativeYaw = semanticNumber(frame, "motion.yaw");
@@ -144,7 +144,6 @@ export class SceneOverlays {
     if (config.toggles.grid) this.grid.updatePose(px, pz, yaw);
     else this.grid.resetPose();
     const wb = config.carModel.halfWheelbase, ft = config.carModel.halfFrontTrack, rt = config.carModel.halfRearTrack;
-    const suspensionRange = config.gameId === "acc" ? { min: 0, max: 50 } : config.gameId === "iracing" ? { min: 0, max: 100 } : undefined;
     const normalized = frame.values["suspension.norm-suspension-travel"];
     const suspension = Array.isArray(normalized) && normalized.length >= 4 &&
       Number.isFinite(normalized[0]) && Number.isFinite(normalized[1]) &&

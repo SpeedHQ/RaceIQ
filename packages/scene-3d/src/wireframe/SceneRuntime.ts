@@ -4,7 +4,7 @@ import { WebGPURenderer } from "three/webgpu";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { CarModelEnrichment } from "../model-types";
 import type { TelemetryVariableId } from "@raceiq/shared/telemetry/catalog/generated/telemetry-catalog.types";
-import { normalizeSuspensionTravel } from "../suspension";
+import { normalizeSuspensionTravel, sceneSuspensionRange } from "../suspension";
 import { VIEW_PRESETS, type ViewPreset, type ViewToggles } from "../wireframe-data";
 import { SCENE_PRESENTATION } from "../wireframe-utils";
 import { semanticNumber, type SemanticAnalysisFrame } from "../semantic-frame";
@@ -367,7 +367,7 @@ export class SceneRuntime {
     const config = this.config;
     if (!config) return;
     const normalized = frame.values["suspension.norm-suspension-travel"];
-    const range = config.gameId === "acc" ? { min: 0, max: 50 } : config.gameId === "iracing" ? { min: 0, max: 100 } : undefined;
+    const range = sceneSuspensionRange(frames, config.gameId);
     const suspension = Array.isArray(normalized) && normalized.length >= 4 &&
       Number.isFinite(normalized[0]) && Number.isFinite(normalized[1]) &&
       Number.isFinite(normalized[2]) && Number.isFinite(normalized[3])
@@ -389,7 +389,7 @@ export class SceneRuntime {
       this.camera.position.set(Math.sin(this.smoothYaw) * 5, 1.8, Math.cos(this.smoothYaw) * 5);
       this.camera.lookAt(0, 0.3, 0);
     }
-    this.overlays?.update(frame, frames, cursorIdx, config, this.source, now, elapsed, this.labelGeneration, this.canvas.clientHeight);
+    this.overlays?.update(frame, frames, cursorIdx, config, this.source, now, elapsed, this.labelGeneration, this.canvas.clientHeight, range);
   }
 
   private fail(reason: unknown): void {

@@ -186,6 +186,7 @@ const ANALYSE_BASE_SEMANTIC_IDS = [
   "inputs.steer",
   "motion.speed",
   "motion.acceleration-x",
+  "motion.acceleration-z",
   "motion.angular-velocity-y",
   "motion.pitch",
   "motion.roll",

@@ -1,19 +1,44 @@
+import { getGame } from "@raceiq/shared/games/registry";
+import type { CarModelEnrichment } from "@raceiq/scene-3d/model-types";
+import { steeringAngleRadians } from "@raceiq/scene-3d/wireframe-utils";
 import type { ComparisonData } from "@raceiq/shared/racing/comparison/types";
 import type { SemanticLapTelemetry, SemanticReplayFrame } from "../contracts/replay";
 import type { OpponentSemanticLapTelemetry } from "../contracts/opponents";
-import { hasTelemetryGap } from "./telemetry-gap";
+import { hasTelemetryGap, recordedTelemetryGapSeconds } from "./telemetry-gap";
 import type { SpectateController, SpectateLap, SpectatePose, SpectateReading, SpectateSample, SpectateSnapshot } from "../contracts/spectate";
 import { alignProjectionToMeasured, resolveScenePoses, type TrackProjection } from "@raceiq/scene-3d/wireframe/ScenePlacement";
 const OPPONENT_SAMPLE_GAP_SECONDS = 0.3;
 function isOpponentReplay(replay: SemanticLapTelemetry | OpponentSemanticLapTelemetry): replay is OpponentSemanticLapTelemetry {
   return "opponentLapId" in replay;
 }
-function hasSourceAwareGap(previousTime: number, currentTime: number, opponent: boolean): boolean {
+function hasSourceAwareGap(previousTime: number, currentTime: number, opponent: boolean, maximumGapSeconds?: number): boolean {
   return opponent
     ? currentTime - previousTime > OPPONENT_SAMPLE_GAP_SECONDS + 0.001
-    : hasTelemetryGap(previousTime, currentTime);
+    : hasTelemetryGap(previousTime, currentTime, maximumGapSeconds);
 }
 const SEGMENT_SEEK_DURATION_MS = 1200;
+export const AMS2_POLO_APPROXIMATE_GEOMETRY = {
+  halfWheelbase: 2.552 / 2,
+  halfFrontTrack: 1.5 / 2,
+  halfRearTrack: 1.483 / 2,
+} as const;
+export const AMS2_POLO_GEOMETRY_DISCLOSURE = "Estimated geometry uses road-going Volkswagen Polo proxy dimensions (wheelbase 2.552 m, front track 1.500 m, rear track 1.483 m), from https://www.vw.com.na/wp-content/uploads/2024/09/2024-polo-spec-sheet-1-2.pdf. Not verified for AMS2 TSI Cup or game physics.";
+export interface WheelSlipGeometry {
+  model: Pick<CarModelEnrichment, "halfWheelbase" | "halfFrontTrack" | "halfRearTrack">;
+  estimated: boolean;
+}
+export function resolveWheelSlipGeometry(
+  gameId: string,
+  carId: string | undefined,
+  exact: Pick<CarModelEnrichment, "halfWheelbase" | "halfFrontTrack" | "halfRearTrack"> | undefined,
+) {
+  if (exact && [exact.halfWheelbase, exact.halfFrontTrack, exact.halfRearTrack].every(value => Number.isFinite(value) && value > 0)) {
+    return { model: exact, estimated: false };
+  }
+  return gameId === "ams2" && carId === "325487790"
+    ? { model: AMS2_POLO_APPROXIMATE_GEOMETRY, estimated: true }
+    : undefined;
+}
 const number = (value: unknown): number | null => (typeof value === "number" && Number.isFinite(value) ? value : null);
 const validEntry = (value: SemanticReplayFrame["values"][number]) => (value.state == null || value.state === "ok") && (value.freshness == null || value.freshness === "fresh");
 function numericShape(value: unknown): unknown {
@@ -46,6 +71,9 @@ function lowerBound<T>(items: readonly T[], target: number, value: (item: T) => 
 
 /** Register native samples to aligned comparison path when supplied. */
 export function prepareSpectateLap(replay: SemanticLapTelemetry | OpponentSemanticLapTelemetry, comparison?: ComparisonData, side: "a" | "b" = "a", options?: { preserveLapDistance: boolean }): SpectateLap {
+  const maximumGapSeconds = !isOpponentReplay(replay) && replay.envelopes[0]?.simulator === "ams2"
+    ? recordedTelemetryGapSeconds(replay.envelopes.map(frame => frame.observedAt.milliseconds))
+    : undefined;
   const traces = comparison?.traces;
   const elapsed = traces ? (side === "a" ? traces.elapsedTimeA : traces.elapsedTimeB) : [];
   const aligned: Array<{ time: number; distance: number; first: number; last: number }> = [];
@@ -64,8 +92,8 @@ export function prepareSpectateLap(replay: SemanticLapTelemetry | OpponentSemant
     if (!hasAlignedPath || aligned.length < 2) return null;
     let first = Math.max(0, Math.min(aligned.length - 2, index - 1));
     let last = Math.min(aligned.length - 1, index);
-    while (first > 0 && !hasTelemetryGap(aligned[first - 1]!.time, time)) first--;
-    while (last + 1 < aligned.length && !hasTelemetryGap(time, aligned[last + 1]!.time)) last++;
+    while (first > 0 && !hasTelemetryGap(aligned[first - 1]!.time, time, maximumGapSeconds)) first--;
+    while (last + 1 < aligned.length && !hasTelemetryGap(time, aligned[last + 1]!.time, maximumGapSeconds)) last++;
     let bestError = Infinity, bestDistance: number | null = null, tolerance = 0;
     for (let segment = aligned[first]!.first; segment < aligned[last]!.last; segment++) {
       const ax = positionX[segment]!, az = positionZ[segment]!;
@@ -127,7 +155,7 @@ export function prepareSpectateLap(replay: SemanticLapTelemetry | OpponentSemant
     }
     // A reset starts another lap/interval. Do not splice it into this recording.
     if (time < previousTime - 0.001) break;
-    if (hasSourceAwareGap(previousTime, time, isOpponentReplay(replay))) run++;
+if (hasSourceAwareGap(previousTime, time, isOpponentReplay(replay), maximumGapSeconds)) run++;
     const values: Record<string, unknown> = {};
     for (const entry of frame.values) {
       values[entry.semanticId] = validEntry(entry) ? (typeof entry.value === "boolean" || entry.semanticId === "fuel.ers-deploy-mode" ? entry.value : numericShape(entry.value)) : null;
@@ -171,7 +199,7 @@ export function prepareSpectateLap(replay: SemanticLapTelemetry | OpponentSemant
     if (sample.distance > lastDistance) progressCount++;
     lastDistance = sample.distance;
   }
-  return { samples, motionSamples, duration: samples.at(-1)?.time ?? 0, distance: maxDistance, hasProgress: monotonic && progressCount > 1 && (traces ? aligned.length > 1 : trustworthy), replay };
+  return { samples, motionSamples, maximumGapSeconds, duration: samples.at(-1)?.time ?? 0, distance: maxDistance, hasProgress: monotonic && progressCount > 1 && (traces ? aligned.length > 1 : trustworthy), replay };
 }
 
 /** Resolve both iRacing laps together so measured poses share one geographic origin. */
@@ -211,6 +239,89 @@ export function spectateSamplePosition(sample: SpectateSample): Pick<SpectatePos
   return { x, y: y ?? 0, z };
 }
 
+/** Vehicle sideslip estimate from ground-plane travel direction versus recorded heading. */
+export function vehicleSideslipDegrees(lap: SpectateLap, time: number): number | null {
+  if (!Number.isFinite(time) || lap.replay.envelopes[0]?.simulator !== "ams2") return null;
+  const samples = lap.samples;
+  const right = lowerBound(samples, time, sample => sample.time);
+  const leftIndex = right < samples.length && samples[right]!.time === time ? Math.max(0, right - 1) : right - 1;
+  const a = samples[leftIndex], b = samples[leftIndex + 1];
+  if (!a || !b || a.run !== b.run || !(b.time > a.time) || b.time - a.time > (lap.maximumGapSeconds ?? 0.1) || time < a.time || time > b.time) return null;
+  const ax = number(a.values["motion.position-x"]), az = number(a.values["motion.position-z"]);
+  const bx = number(b.values["motion.position-x"]), bz = number(b.values["motion.position-z"]);
+  const yawA = number(a.values["motion.yaw"]), yawB = number(b.values["motion.yaw"]);
+  if (ax === null || az === null || bx === null || bz === null || yawA === null || yawB === null) return null;
+  const dt = b.time - a.time, vx = (bx - ax) / dt, vz = (bz - az) / dt;
+  if (!Number.isFinite(vx) || !Number.isFinite(vz) || Math.hypot(vx, vz) < 1.5) return null;
+  const fraction = (time - a.time) / dt;
+  const yawDelta = Math.atan2(Math.sin(yawB - yawA), Math.cos(yawB - yawA));
+  const yaw = yawA + yawDelta * fraction;
+  const forward = vx * Math.sin(yaw) + vz * Math.cos(yaw);
+  const lateralRight = vx * Math.cos(yaw) - vz * Math.sin(yaw);
+  const degrees = Math.atan2(lateralRight, forward) * 180 / Math.PI;
+  return Number.isFinite(degrees) ? degrees : null;
+}
+
+/** Estimate wheel slip from adjacent native replay poses; unavailable spans stay unavailable. */
+export function estimateWheelSlipAngles(
+  lap: SpectateLap,
+  time: number,
+  model: Pick<CarModelEnrichment, "halfWheelbase" | "halfFrontTrack" | "halfRearTrack">,
+): [number | null, number | null, number | null, number | null] {
+  const unavailable: [null, null, null, null] = [null, null, null, null];
+  if (lap.replay.envelopes[0]?.simulator !== "ams2" || !Number.isFinite(time)
+    || !Number.isFinite(model.halfWheelbase) || model.halfWheelbase <= 0
+    || !Number.isFinite(model.halfFrontTrack) || model.halfFrontTrack <= 0
+    || !Number.isFinite(model.halfRearTrack) || model.halfRearTrack <= 0) return unavailable;
+  const samples = lap.samples;
+  const index = lowerBound(samples, time, sample => sample.time);
+  const exact = index < samples.length && samples[index]!.time === time;
+  const previous = samples[index - 1];
+  const current = exact ? samples[index] : undefined;
+  const next = exact ? samples[index + 1] : samples[index];
+  const earlier = exact ? current : previous;
+  const later = next;
+  if (!earlier || !later || earlier.run !== later.run || time < earlier.time || time > later.time) return unavailable;
+  const dt = later.time - earlier.time;
+  if (!(dt > 0) || !Number.isFinite(dt) || hasTelemetryGap(earlier.time, later.time, lap.maximumGapSeconds)) return unavailable;
+  const fraction = (time - earlier.time) / dt;
+  const speedA = number(earlier.values["motion.speed"]), speedB = number(later.values["motion.speed"]);
+  const yawA = number(earlier.values["motion.yaw"]), yawB = number(later.values["motion.yaw"]);
+  const xA = number(earlier.values["motion.position-x"]), xB = number(later.values["motion.position-x"]);
+  const zA = number(earlier.values["motion.position-z"]), zB = number(later.values["motion.position-z"]);
+  const steerA = number(earlier.values["inputs.steer"]), steerB = number(later.values["inputs.steer"]);
+  if (speedA === null || speedB === null || speedA < 1 || speedB < 1 || yawA === null || yawB === null
+    || xA === null || xB === null || zA === null || zB === null || steerA === null || steerB === null) return unavailable;
+  const currentYaw = yawA + Math.atan2(Math.sin(yawB - yawA), Math.cos(yawB - yawA)) * fraction;
+  const currentSteer = steerA + (steerB - steerA) * fraction;
+  const steer = index < samples.length && samples[index]!.time === time
+    ? number(samples[index]!.values["inputs.steer"]) : currentSteer;
+  if (steer === null) return unavailable;
+  const adapter = getGame("ams2");
+  const steering = steeringAngleRadians(steer, adapter);
+  const wheelOffsets: [number, number][] = [
+    [model.halfWheelbase, -model.halfFrontTrack], [model.halfWheelbase, model.halfFrontTrack],
+    [-model.halfWheelbase, -model.halfRearTrack], [-model.halfWheelbase, model.halfRearTrack],
+  ];
+  const wheelVelocity = ([forwardOffset, rightOffset]: [number, number]) => {
+    const wheelPosition = (x: number, z: number, yaw: number) => [
+      x + forwardOffset * Math.sin(yaw) + rightOffset * Math.cos(yaw),
+      z + forwardOffset * Math.cos(yaw) - rightOffset * Math.sin(yaw),
+    ];
+    const [ax, az] = wheelPosition(xA, zA, yawA);
+    const [bx, bz] = wheelPosition(xB, zB, yawB);
+    return [(bx - ax) / dt, (bz - az) / dt];
+  };
+  const result = wheelOffsets.map(([forwardOffset, rightOffset], wheel) => {
+    const velocity = wheelVelocity([forwardOffset, rightOffset]);
+    const wheelYaw = currentYaw + (wheel < 2 ? steering : 0);
+    const forward = velocity[0]! * Math.sin(wheelYaw) + velocity[1]! * Math.cos(wheelYaw);
+    const lateral = velocity[0]! * Math.cos(wheelYaw) - velocity[1]! * Math.sin(wheelYaw);
+    return Number.isFinite(forward) && Number.isFinite(lateral) && Math.hypot(forward, lateral) >= 1
+      ? Math.atan2(lateral, forward) : null;
+  });
+  return result as [number | null, number | null, number | null, number | null];
+}
 function poseOf(values: Readonly<Record<string, unknown>>, opponent = false): SpectatePose | null {
   const x = number(values["motion.position-x"]),
     z = number(values["motion.position-z"]),
@@ -228,14 +339,14 @@ function interpolatePose(left: SpectateSample, right: SpectateSample, fraction: 
     yaw: a.yaw + Math.atan2(Math.sin(b.yaw - a.yaw), Math.cos(b.yaw - a.yaw)) * fraction,
   };
 }
-export function sampleMotion(samples: readonly SpectateSample[], time: number, holdPose: boolean, opponent = false): Pick<SpectateReading, "pose" | "distance"> {
+export function sampleMotion(samples: readonly SpectateSample[], time: number, holdPose: boolean, opponent = false, maximumGapSeconds?: number): Pick<SpectateReading, "pose" | "distance"> {
   const first = samples[0], last = samples.at(-1);
   if (!first || !last || time < first.time) return { pose: null, distance: null };
   if (time > last.time) return { pose: holdPose ? spectateSamplePose(last, opponent) : null, distance: holdPose && Number.isFinite(last.distance) ? last.distance : null };
   const index = lowerBound(samples, time, (sample) => sample.time), right = samples[index]!;
   if (right.time === time) return { pose: spectateSamplePose(right, opponent), distance: Number.isFinite(right.distance) ? right.distance : null };
   const left = samples[index - 1];
-  if (!left || left.run !== right.run || hasSourceAwareGap(left.time, right.time, opponent)) return { pose: null, distance: null };
+  if (!left || left.run !== right.run || hasSourceAwareGap(left.time, right.time, opponent, maximumGapSeconds)) return { pose: null, distance: null };
   const fraction = (time - left.time) / (right.time - left.time);
   const pose = interpolatePose(left, right, fraction, opponent);
   if (!pose) return { pose: null, distance: null };
@@ -254,7 +365,7 @@ export function sampleLap(lap: SpectateLap, time: number, holdPose: boolean, opp
   const right = samples[index]!;
   if (right.time === time) return { time, distance: Number.isFinite(right.distance) ? right.distance : null, pose: spectateSamplePose(right, opponent), values: right.values };
   const left = samples[index - 1];
-  if (!left || left.run !== right.run || hasSourceAwareGap(left.time, right.time, opponent)) return null;
+if (!left || left.run !== right.run || hasSourceAwareGap(left.time, right.time, opponent, lap.maximumGapSeconds)) return null;
   const fraction = (time - left.time) / (right.time - left.time);
   const values: Record<string, unknown> = {};
   for (const key of Object.keys(left.values)) {
@@ -279,7 +390,7 @@ function progressIndex(lap: SpectateLap): readonly SpectateSample[] {
   }
   return index;
 }
-function arrivalAt(index: readonly SpectateSample[], distance: number, opponent = false): number | null {
+function arrivalAt(index: readonly SpectateSample[], distance: number, opponent = false, maximumGapSeconds?: number): number | null {
   const first = index[0],
     last = index.at(-1);
   if (!first || !last || distance < first.distance || distance > last.distance) return null;
@@ -287,7 +398,7 @@ function arrivalAt(index: readonly SpectateSample[], distance: number, opponent 
     right = index[found]!;
   if (right.distance === distance) return right.time;
   const left = index[found - 1];
-  if (!left || left.run !== right.run || hasSourceAwareGap(left.time, right.time, opponent)) return null;
+if (!left || left.run !== right.run || hasSourceAwareGap(left.time, right.time, opponent, maximumGapSeconds)) return null;
   return left.time + ((right.time - left.time) * (distance - left.distance)) / (right.distance - left.distance);
 }
 
@@ -298,7 +409,7 @@ export function createSpectateController(a: SpectateLap, b: SpectateLap | null, 
   const aProgress = progressIndex(a),
     bProgress = b ? progressIndex(b) : [];
   const canLock = !!b && a.hasProgress && b.hasProgress;
-  let time = initialDistance == null ? 0 : (arrivalAt(aProgress, initialDistance, isOpponentReplay(a.replay)) ?? 0),
+let time = initialDistance == null ? 0 : (arrivalAt(aProgress, initialDistance, isOpponentReplay(a.replay), a.maximumGapSeconds) ?? 0),
     playing = false,
     speed = 1,
     positionLock = canLock,
@@ -313,17 +424,17 @@ export function createSpectateController(a: SpectateLap, b: SpectateLap | null, 
   const read = (target: number, holdPose = true) => {
     const opponentA = isOpponentReplay(a.replay);
     const ra = sampleLap(a, target, holdPose, opponentA);
-    if (ra && a.motionSamples) Object.assign(ra, sampleMotion(a.motionSamples, target, holdPose, opponentA));
+    if (ra && a.motionSamples) Object.assign(ra, sampleMotion(a.motionSamples, target, holdPose, opponentA, a.maximumGapSeconds));
     if (!b) return { a: ra, b: null };
     const opponentB = isOpponentReplay(b.replay);
     if (!positionLock) {
       const rb = sampleLap(b, target, holdPose, opponentB);
-      if (rb && b.motionSamples) Object.assign(rb, sampleMotion(b.motionSamples, target, holdPose, opponentB));
+      if (rb && b.motionSamples) Object.assign(rb, sampleMotion(b.motionSamples, target, holdPose, opponentB, b.maximumGapSeconds));
       return { a: ra, b: rb };
     }
-    const bTime = ra?.distance == null ? null : arrivalAt(bProgress, ra.distance, isOpponentReplay(b.replay));
+    const bTime = ra?.distance == null ? null : arrivalAt(bProgress, ra.distance, opponentB, b.maximumGapSeconds);
     const rb = bTime === null ? null : sampleLap(b, bTime, holdPose, opponentB);
-    if (rb && b.motionSamples && bTime !== null) Object.assign(rb, sampleMotion(b.motionSamples, bTime, holdPose, opponentB));
+    if (rb && b.motionSamples && bTime !== null) Object.assign(rb, sampleMotion(b.motionSamples, bTime, holdPose, opponentB, b.maximumGapSeconds));
     return { a: ra, b: rb };
   };
   const timeAt = (now: number) => {
@@ -415,7 +526,7 @@ export function createSpectateController(a: SpectateLap, b: SpectateLap | null, 
       start();
     },
     seekDistance: (distance, immediate = false) => {
-      const target = arrivalAt(aProgress, distance, isOpponentReplay(a.replay));
+const target = arrivalAt(aProgress, distance, isOpponentReplay(a.replay), a.maximumGapSeconds);
       if (target === null || disposed) return;
       const reduced = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
       seekGeneration++;
@@ -441,8 +552,8 @@ export function createSpectateController(a: SpectateLap, b: SpectateLap | null, 
       const sample = lap.samples[Math.min(index, lap.samples.length - 1)]!;
       let target = sample.time;
       if (side === "b" && positionLock) {
-        const alignedTime = Number.isFinite(sample.distance) ? arrivalAt(aProgress, sample.distance, isOpponentReplay(a.replay)) : null;
-        const nativeTime = Number.isFinite(sample.distance) ? arrivalAt(bProgress, sample.distance, isOpponentReplay(b!.replay)) : null;
+const alignedTime = Number.isFinite(sample.distance) ? arrivalAt(aProgress, sample.distance, isOpponentReplay(a.replay), a.maximumGapSeconds) : null;
+        const nativeTime = Number.isFinite(sample.distance) ? arrivalAt(bProgress, sample.distance, isOpponentReplay(b!.replay), b?.maximumGapSeconds) : null;
         if (alignedTime === null || nativeTime === null || Math.abs(nativeTime - sample.time) > 0.001) positionLock = false;
         else target = alignedTime;
       }

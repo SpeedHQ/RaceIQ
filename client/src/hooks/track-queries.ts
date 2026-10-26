@@ -13,7 +13,7 @@ type TrackIdRoutes = {
   "track-name": { ":trackId": { $get: TrackIdGet } };
   "track-sectors": { ":trackId": { $get: TrackIdGet } };
   "track-sector-boundaries": { ":trackId": { $get: TrackIdGet } };
-  "track-outline": { ":trackId": { $get: TrackIdGet } };
+  "track-outline": { ":trackId": { $get: (input: { param: { trackId: string }; query: { gameId?: string; optional?: "1" } }) => Promise<Response> } };
   "track-boundaries": { ":trackId": { $get: TrackIdGet } };
   tracks: { ":trackId": { corners: { $get: TrackIdGet } } };
 };

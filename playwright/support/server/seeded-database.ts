@@ -5,12 +5,10 @@ import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { DEFAULT_GAMES } from "@raceiq/tooling-data/data/seed-db-options";
 
 type CaptureRow = { id: number; game_id: string; raw_file: string | null };
-const NATIVE_CAPTURE_PATH = /^sessions\/(?:fm-2023|f1-2025|acc|ac-evo|iracing|lmu)\/(?:(?:own|others)\/)?[^/]+\.bin(?:\.gz)?$/;
-const IBT_SOURCE_PATH = /^sessions\/iracing\/(?:(?:own|others)\/)?[^/]+\.ibt$/;
 
 export function portableCapturePath(path: string): string {
   const normalized = path.replaceAll("\\", "/");
-  if (!NATIVE_CAPTURE_PATH.test(normalized) && !IBT_SOURCE_PATH.test(normalized)) {
+  if (!/^sessions\/(?:fm-2023|f1-2025|acc|ac-evo|iracing|lmu|ams2)\/(?:(?:own|others)\/)?[^/]+\.bin(?:\.gz)?$/.test(normalized)) {
     throw new Error(`Invalid seeded capture path: ${path}`);
   }
   return normalized;

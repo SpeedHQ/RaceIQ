@@ -97,11 +97,13 @@ return (
         lapB={{ id: playerLapB.id, label: `${m.compare_lap_label()} ${playerLapB.lapNumber} (${formatLapTime(playerLapB.lapTime)})`, lapTime: playerLapB.lapTime }}
         segments={segments.map(({ name, startFrac, endFrac }) => ({ name, startFrac, endFrac }))} /> : ai?.(aiHeaderControls)}</div> }] : []),
   ]}>
-    <div ref={view} className="relative min-h-0 flex-1 overflow-hidden max-sm:has-[[data-spectate-overview]]:min-h-[calc(var(--spectate-inputs-height,8rem)+40rem)]">
+    <div ref={view} className="relative flex min-h-0 flex-1 flex-col overflow-hidden max-sm:has-[[data-spectate-overview]]:min-h-[calc(var(--spectate-inputs-height,8rem)+40rem)]">
+      <div className="relative min-h-0 flex-1 overflow-hidden">
       <SpectateScene pair={pair} controller={controller} outline={outline} focus={focus}
         overview={<SpectateOverview pair={pair} controller={controller} segments={segments} focus={focus} />} />
       <SpectateFocusToolbar focus={focus} onChange={setFocusMode} single={single} tirePanelOpen={!opponentReplay && carPanelOpen} onTirePanelOpenChange={opponentReplay ? undefined : onCarPanelOpenChange} />
       {pair.b && playerLapA && playerLapB && <ComparisonLineScore pair={pair} controller={controller} lapAId={playerLapA.id} lapBId={playerLapB.id} />}
+      </div>
       <SpectateInputs pair={pair} controller={controller} />
     </div>
     <SpectatePlayback controller={controller} pair={pair} />

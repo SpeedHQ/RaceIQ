@@ -12,7 +12,7 @@ import { readDb } from "../db/index";
 import { liveCaptures, sessions, laps } from "../db/schema";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import type { SessionCaptureSource } from "./source-loader";
-import { isSessionActive } from "../telemetry/live-pipeline";
+import { isSessionActive } from "./session-activity";
 import {
   admitMaintenance,
   getRecordingMaintenanceController,

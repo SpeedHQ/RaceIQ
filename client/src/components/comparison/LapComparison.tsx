@@ -273,7 +273,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
   const changeBodyView = useCallback((view: "compare" | "spectate") => {
     if (view === "spectate") spectateDistanceRef.current = hoveredDistanceRef.current;
     void navigate({
-      search: (previous: Record<string, unknown>) => ({ ...previous, view: view === "spectate" ? undefined : view }) as never,
+      search: (previous: Record<string, unknown>) => ({ ...previous, view }) as never,
       resetScroll: false,
     });
   }, [navigate, spectateDistanceRef]);

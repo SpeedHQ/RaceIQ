@@ -11,7 +11,7 @@
     "./test-support/spectate-track-geometry": "./test/support/spectate-track-geometry.ts"
   },
   "scripts": {
-    "lint": "bun ../../client/node_modules/oxlint/bin/oxlint .",
+    "lint": "node ../../client/node_modules/oxlint/bin/oxlint .",
     "typecheck": "bun check --project tsconfig.ui.json && bun check --project tsconfig.server.json",
     "test:boundaries": "bun ../../scripts/test/check-feature-boundaries.ts lap-replay",
     "e2e:impact": "bun ../../scripts/test/check-feature-boundaries.ts lap-replay",

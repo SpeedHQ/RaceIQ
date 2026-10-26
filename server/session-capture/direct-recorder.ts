@@ -22,7 +22,6 @@ import type { PersistedLapBinding } from "../telemetry/pipeline-ports";
 import { SparseSessionRecorderAdapter } from "../telemetry/pipeline-ports";
 import { timestampForFilename } from "./filename";
 import { loadSettings } from "../runtime/config/settings";
-import { enqueueLmuOpponentIndex } from "./lmu-opponent-index-runtime";
 import { registerActiveLmuOpponentSource } from "./storage-activity";
 
 export interface DirectCaptureRecordingOptions {
@@ -463,7 +462,7 @@ export class DirectCaptureRecording {
     } else if (this.deferOpponentIndexEnqueue) {
       await waitAtDirectCaptureStopTestBarrier("index-skipped-deferred");
     } else {
-      enqueueLmuOpponentIndex(this.manifestPath);
+      (await import("./lmu-opponent-index-runtime")).enqueueLmuOpponentIndex(this.manifestPath);
       await waitAtDirectCaptureStopTestBarrier("index-enqueued");
     }
   }

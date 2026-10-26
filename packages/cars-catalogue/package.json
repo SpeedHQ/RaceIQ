@@ -8,7 +8,7 @@
     "./contracts": "./contracts/index.ts"
   },
   "scripts": {
-    "lint": "bun ../../client/node_modules/oxlint/bin/oxlint .",
+    "lint": "node ../../client/node_modules/oxlint/bin/oxlint .",
     "typecheck": "bun check --project tsconfig.ui.json && bun check --project tsconfig.server.json",
     "test:boundaries": "bun ../../scripts/test/check-feature-boundaries.ts cars-catalogue",
     "e2e:impact": "bun ../../scripts/test/check-feature-boundaries.ts cars-catalogue",
@@ -30,6 +30,7 @@
     "@raceiq/game-acc-metadata": "workspace:*",
     "@raceiq/game-ac-evo-metadata": "workspace:*",
     "@raceiq/game-iracing-metadata": "workspace:*",
+    "@raceiq/game-ams2-metadata": "workspace:*",
     "@raceiq/game-lmu-metadata": "workspace:*",
     "@raceiq/frontend-pure": "workspace:*"
   },

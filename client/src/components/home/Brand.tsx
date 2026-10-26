@@ -26,7 +26,7 @@ export function GameBrandLogo({ gameId, className = "w-5 h-5" }: { gameId: strin
       />
     );
   }
-  const label = gameId === "iracing" ? "iR" : "ACE";
+  const label = gameId === "iracing" ? "iR" : gameId === "ams2" ? "AMS2" : gameId.toUpperCase();
   return <span className="game-brand-accent text-xs font-black">{label}</span>;
 }
 
@@ -57,7 +57,7 @@ type GameKey = keyof GameStats;
 const BRAND_CARDS: ReadonlyArray<{
   key: GameKey;
   gameId: string;
-  route: "/fm23" | "/f125" | "/acc" | "/ac-evo" | "/iracing" | "/lmu";
+  route: "/fm23" | "/f125" | "/acc" | "/ac-evo" | "/iracing" | "/lmu" | "/ams2";
   name: string;
   logoSrc: string;
 }> = [
@@ -67,6 +67,7 @@ const BRAND_CARDS: ReadonlyArray<{
   { key: "acEvo", gameId: "ac-evo", route: "/ac-evo", name: "Assetto Corsa Evo", logoSrc: "/acevo-logo.svg" },
   { key: "iracing", gameId: "iracing", route: "/iracing", name: "iRacing", logoSrc: "/iracing-logo.svg" },
   { key: "lmu", gameId: "lmu", route: "/lmu", name: "Le Mans Ultimate", logoSrc: "/lmu-logo.svg" },
+  { key: "ams2", gameId: "ams2", route: "/ams2", name: "Automobilista 2", logoSrc: "/ams2-logo.svg" },
 ];
 
 function GameBrandCard({ game, stats, loading, error, selected }: { game: (typeof BRAND_CARDS)[number]; stats: GameStats[GameKey]; loading: boolean; error: boolean; selected: boolean }) {
@@ -81,7 +82,7 @@ function GameBrandCard({ game, stats, loading, error, selected }: { game: (typeo
       <Card variant="gradient" className={`relative h-full min-w-0 flex-row items-center gap-1.5 overflow-hidden rounded-lg p-2 font-normal transition-colors duration-150 motion-reduce:transition-none ${selected ? "border-app-accent" : "group-hover:border-app-border-hover"}`}>
         <span className="sr-only">{game.name}</span>
         <div aria-hidden="true" className="pointer-events-none absolute inset-x-2 inset-y-1 flex items-center [mask-image:linear-gradient(to_right,black_20%,transparent_62%)]">
-          <img src={game.logoSrc} alt="" className="h-[90%] w-[90%] object-contain object-left" />
+          {game.logoSrc ? <img src={game.logoSrc} alt="" className="h-[90%] w-[90%] object-contain object-left" /> : <span className="text-2xl font-bold">AMS2</span>}
         </div>
         <div aria-hidden="true" className="h-14 w-18 shrink-0" />
         <dl className="relative z-10 grid min-w-0 flex-1 grid-cols-[minmax(max-content,1fr)_max-content] items-baseline gap-x-1 gap-y-1 text-right">

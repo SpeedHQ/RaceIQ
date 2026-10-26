@@ -1,5 +1,6 @@
 import { classifyLapCategory } from "@raceiq/analysis-core/racing/laps/classification";
 import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
+import { AMS2_LAP_DETECTOR_POLICY } from "@raceiq/game-ams2/lap-policy";
 import type { SectorComputationOptions } from "@raceiq/telemetry-core/processor/sectors";
 import { computeLapSectors } from "@raceiq/telemetry-core/processor/sectors";
 import type { GameId } from "@raceiq/shared/games/ids";
@@ -76,7 +77,7 @@ export async function processTelemetryBatch(gameId: GameId, frames: readonly Tel
   const result: TelemetryBatchResult = { sessions: [], laps: [] };
   let nextSessionKey = 0;
   const now = options.now ?? (() => 1);
-  const policy = options.policies?.[gameId] ?? (gameId === "lmu" ? LMU_LAP_DETECTOR_POLICY : DEFAULT_LAP_DETECTOR_POLICY);
+  const policy = options.policies?.[gameId] ?? (gameId === "ams2" ? AMS2_LAP_DETECTOR_POLICY : gameId === "lmu" ? LMU_LAP_DETECTOR_POLICY : DEFAULT_LAP_DETECTOR_POLICY);
   const sessionFromPacket = (p: TelemetryPacket): TelemetryBatchSession => {
     const value: TelemetryBatchSession = { sessionKey: ++nextSessionKey, gameId, carId: p.carId, trackId: p.trackId };
     if (p.sessionUID !== undefined) value.sessionUID = p.sessionUID;
@@ -121,6 +122,7 @@ export async function processTelemetryBatch(gameId: GameId, frames: readonly Tel
   let engine!: OrdinalDetectorEngine;
   engine = new OrdinalDetectorEngine({
     now,
+    ...(policy.resolveLapReset ? { resolveLapReset: policy.resolveLapReset } : {}),
     createSession: async p => {
       const session = sessionFromPacket(p); result.sessions.push(session);
       return {

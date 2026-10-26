@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import type { OpponentLapSummary, OpponentSessionSummary } from "@raceiq/lap-replay/contracts";
 import type { SessionMeta } from "@raceiq/shared/racing/sessions/types";
@@ -135,9 +135,16 @@ export function OpponentLapSelector({ laps: recordedLaps, sessions: recordedSess
   const laps = recordedLaps.filter((lap) => lap.mode !== "unavailable");
   const identity = (lap: OpponentLapSummary) => JSON.stringify([lap.sessionKey, lap.vehicleId, lap.incarnation]);
   const committed = laps.find((lap) => lap.opponentLapId === value);
-  const [sessionKey, setSessionKey] = useState(committed?.sessionKey ?? "");
-  const [driver, setDriver] = useState(committed ? identity(committed) : "");
+  const committedSessionKey = committed?.sessionKey ?? "";
+  const committedDriver = committed ? identity(committed) : "";
+  const [sessionKey, setSessionKey] = useState(committedSessionKey);
+  const [driver, setDriver] = useState(committedDriver);
   const [pendingId, setPendingId] = useState(value ?? "");
+  useEffect(() => {
+    setSessionKey(committedSessionKey);
+    setDriver(committedDriver);
+    setPendingId(value ?? "");
+  }, [value, committedSessionKey, committedDriver]);
   const pending = laps.find((lap) => lap.opponentLapId === pendingId);
   const sessions = [...new Set((recordedSessions ?? laps).map((session) => session.sessionKey))];
   const drivers = [...new Map(laps.filter((lap) => !sessionKey || lap.sessionKey === sessionKey)

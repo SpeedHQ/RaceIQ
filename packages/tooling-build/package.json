@@ -15,7 +15,7 @@
     "@duckdb/node-api": "1.5.2-r.2"
   },
   "scripts": {
-    "lint": "bun ../../client/node_modules/oxlint/bin/oxlint .",
+    "lint": "node ../../client/node_modules/oxlint/bin/oxlint .",
     "build": "cd ../.. && bun packages/tooling-build/src/build/build.ts",
     "build:e2e": "cd ../.. && bun scripts/build-browser.ts",
     "typecheck": "bun check --project tsconfig.json",

@@ -4,16 +4,14 @@ import { SplitRequestSchema, WorkerMessageSchema, type SplitRequest, type Worker
 import { SplitFailure } from "./index";
 import type { PublishedManifest } from "./contract";
 
-const modulePath = fileURLToPath(import.meta.url);
-const isCompiled = modulePath.startsWith("/$bunfs/") || modulePath.includes("~BUN");
-
 export function runSplitWorker(request: SplitRequest, onProgress?: (message: Extract<WorkerMessage, { type: "progress" }>) => void, signal?: AbortSignal): Promise<PublishedManifest> {
   const validated = Schema.decodeSync(SplitRequestSchema)(request);
   return new Promise((resolve, reject) => {
     let lastSequence = -1;
-    const worker = isCompiled
-      ? new Worker("./packages/capture-splitting/src/worker.ts")
-      : new Worker(new URL("./worker.ts", import.meta.url), { type: "module" });
+    // Compiled entrypoints live at the executable's virtual root, not beside
+    // this module (Bun flattens import.meta.url while bundling).
+    const compiled = import.meta.dir.startsWith("/$bunfs") || import.meta.dir.includes("~BUN");
+    const worker = new Worker(compiled ? "./packages/capture-splitting/src/worker.ts" : new URL("./worker.ts", import.meta.url), { type: "module" });
     let settled = false;
     const cleanup = () => {
       if (settled) return;

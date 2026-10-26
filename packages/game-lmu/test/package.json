@@ -28,6 +28,7 @@
     "@raceiq/shared": "workspace:*",
     "@raceiq/telemetry-core": "workspace:*",
     "@raceiq/telemetry-processor": "workspace:*",
+    "@raceiq/tooling": "workspace:*",
     "@raceiq/tooling-data": "workspace:*",
     "@raceiq/tooling": "workspace:*",
     "@raceiq/tooling-release": "workspace:*",

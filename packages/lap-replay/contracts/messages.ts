@@ -66,6 +66,8 @@ export interface ReplayMessages {
   spectate_b_unavailable: () => string;
   spectate_balance: () => string;
   spectate_brake: () => string;
+  spectate_vehicle_sideslip_description: () => string;
+  spectate_vehicle_sideslip_side: (input: { side: string }) => string;
   spectate_delta_trend_gaining: (input: { seconds: string }) => string;
   spectate_delta_trend_label: () => string;
   spectate_delta_trend_losing: (input: { seconds: string }) => string;
@@ -78,6 +80,7 @@ export interface ReplayMessages {
   spectate_geometry_unavailable: () => string;
   spectate_grip_demand: () => string;
   spectate_inputs: () => string;
+  spectate_vehicle_sideslip: () => string;
   spectate_line_similarity: () => string;
   spectate_mean_spread: (input: { spread: string }) => string;
   spectate_model_unavailable: () => string;

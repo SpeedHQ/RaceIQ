@@ -11,8 +11,8 @@ import { createIRacingIncidentFixture, createIRacingIncidentMainFixture, type IR
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
 
-initGameAdapters({ iracingAdapter: true, f1Experiments: true });
-initServerGameAdapters({ iracingAdapter: true, f1Experiments: true });
+initGameAdapters({ iracingAdapter: true, f1Experiments: true, ams2Adapter: false });
+initServerGameAdapters({ iracingAdapter: true, f1Experiments: true, ams2Adapter: false });
 
 const sessionIds: number[] = [];
 const tempDirs: string[] = [];

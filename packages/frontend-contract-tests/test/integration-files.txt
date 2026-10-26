@@ -13,3 +13,4 @@ packages/frontend-contract-tests/test/routes/live-route.test.ts
 packages/frontend-contract-tests/test/setups/ac-evo/carsetup-import-routes.test.ts
 packages/frontend-contract-tests/test/tracks/visualization/track-focus-zoom.test.ts
 packages/frontend-contract-tests/test/visualization/suspension.test.ts
+packages/frontend-contract-tests/test/client/catalog-car-cards.test.ts

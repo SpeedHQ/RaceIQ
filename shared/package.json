@@ -108,7 +108,7 @@
     "zod": "^4.6.5"
   },
   "scripts": {
-    "lint": "bun ../client/node_modules/oxlint/bin/oxlint .",
+    "lint": "node ../client/node_modules/oxlint/bin/oxlint .",
     "typecheck": "bun check --project tsconfig.json"
   }
 }

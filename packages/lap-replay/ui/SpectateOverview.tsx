@@ -119,7 +119,7 @@ function splitText(delta: number | null, unavailable: string) {
   return delta === null ? unavailable : `${delta > 0 ? "+" : ""}${delta.toFixed(3)} s`;
 }
 
-export function SpectateOverview({ pair, controller, segments, focus }: { pair: ReplaySession; controller: SpectateController; segments: readonly SpectateSegment[]; focus: SpectateFocus }) { const m = useMessages(); const coloredRuns = useMemo(() => [focusRuns(pair.a.samples, focus), ...(pair.b ? [focusRuns(pair.b.samples, focus)] : [])], [pair, focus]);
+export function SpectateOverview({ pair, controller, segments, focus }: { pair: ReplaySession; controller: SpectateController; segments: readonly SpectateSegment[]; focus: SpectateFocus }) { const m = useMessages(); const coloredRuns = useMemo(() => [focusRuns(pair.a.samples, focus, "opponentLapId" in pair.a.replay ? 0.3 : pair.a.maximumGapSeconds), ...(pair.b ? [focusRuns(pair.b.samples, focus, "opponentLapId" in pair.b.replay ? 0.3 : pair.b.maximumGapSeconds)] : [])], [pair, focus]);
 const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
 const splitAt = useMemo(() => splitLookup(pair), [pair]);
 const rows = useMemo(() => {
@@ -225,7 +225,7 @@ const poseA = geometry?.project(snapshot.a?.pose ?? { x: Number.NaN, z: Number.N
 const poseB = geometry?.project(snapshot.b?.pose ?? { x: Number.NaN, z: Number.NaN });
 return (
   <section
-    className="group/overview absolute left-3 top-3 z-20 w-[min(360px,calc(100%-1.5rem))] rounded-md border border-app-border bg-app-bg/75 p-2.5 text-app-label text-app-text opacity-50 transition-opacity hover:opacity-100 focus-within:opacity-100 motion-reduce:transition-none [@media(hover:none)]:opacity-100 max-sm:relative max-sm:left-auto max-sm:top-auto max-sm:w-full max-sm:bg-app-bg max-sm:opacity-100"
+    className="group/overview absolute left-3 top-3 z-20 max-h-[calc(100%-1.5rem)] w-[min(360px,calc(100%-1.5rem))] overflow-y-auto rounded-md border border-app-border bg-app-bg/75 p-2.5 text-app-label text-app-text opacity-50 transition-opacity hover:opacity-100 focus-within:opacity-100 motion-reduce:transition-none [@media(hover:none)]:opacity-100 max-sm:relative max-sm:left-auto max-sm:top-auto max-sm:z-30 max-sm:w-[calc(100%-5rem)] max-sm:bg-app-bg max-sm:opacity-100"
     aria-label={m.spectate_overview()}
     data-focus-mode={focus.mode}
     data-spectate-overview=""
