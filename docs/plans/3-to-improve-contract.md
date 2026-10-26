@@ -1,6 +1,6 @@
 # 3 to Improve — shared feature contract
 
-Status: proposed; planning only. The user chose coaching from their own session, not an external reference or AI generation. Placement, selection rules, and copy below are proposed defaults, not additional user approvals. Approve this boundary before implementation; changes must update both plans before dependent work continues.
+Status: accepted for implementation on 2026-10-26. The user selected own-session coaching, approved the Overview placement, and requested implementation and a pull request. Changes to this boundary must update both plans before dependent work continues.
 
 Implementation: [UI plan](3-to-improve-ui-plan.md), [backend plan](3-to-improve-backend-plan.md). Decision: [ADR 0016](../adr/0016-3-to-improve.md).
 

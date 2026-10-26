@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 ---
 # Derive 3 to Improve from the driver's own recorded session
 
@@ -7,9 +7,9 @@ status: proposed
 
 Drivers need a quick answer to where and how to improve after a session. RaceIQ already has deterministic lap detectors, source-frame evidence, recording processing guards and a session Analyse feature. Detector symptoms do not establish an optimal driving line, a proven causal fault or guaranteed seconds saved.
 
-The user selected their own session as the coaching basis instead of an external reference lap or AI-generated coaching. The remaining feature details are proposed, not accepted or implemented.
+The user selected their own session as the coaching basis instead of an external reference lap or AI-generated coaching, approved the Overview placement, and requested implementation and a pull request on 2026-10-26.
 
-## Proposed decision
+## Decision
 
 Extend the existing session Analyse Overview with up to three ranked practice priorities. Every card identifies a location, an observed pattern, one suggested practice action and an on-demand evidence view. Use a small allowlist of existing actionable detectors, version-aware recorded evidence, deterministic family/location deduplication and explicit single-lap versus repeated observations. Summarize the whole eligible session independently of comparison selection.
 
@@ -25,4 +25,4 @@ Own-session analysis works without provider setup or a compatible reference lap.
 - [UI implementation plan](../plans/3-to-improve-ui-plan.md)
 - [Backend implementation plan](../plans/3-to-improve-backend-plan.md)
 
-Implementation must wait for contract approval. Planning does not constitute implementation authorization or passing runtime evidence.
+The user approved implementation against the linked contract. Acceptance does not constitute passing implementation or runtime evidence.

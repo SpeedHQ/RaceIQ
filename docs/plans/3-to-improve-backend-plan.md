@@ -1,6 +1,6 @@
 # 3 to Improve — backend implementation plan
 
-Status: proposed, planning only. No implementation authorized by this document.
+Status: accepted for implementation on 2026-10-26 against the approved shared contract.
 
 Shared boundary and acceptance criteria: [contract](3-to-improve-contract.md). Decision: [ADR 0016](../adr/0016-3-to-improve.md). Parallel work: [UI plan](3-to-improve-ui-plan.md).
 
