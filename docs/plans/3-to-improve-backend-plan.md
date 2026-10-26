@@ -50,4 +50,4 @@ After implementation, run focused pure selection and real persistence/route case
 
 Record exact commands, HTTP statuses, deterministic expected candidates/counts, evidence trace values and all failures in the implementation verification report. Mocks may control an existing storage fault boundary for the explicit failure path, but must not replace successful detector, persistence, route or UI/backend integration. All TI-B criteria and mapped shared criteria require passing evidence before completion. Missing environment or fixture coverage is a blocker, not a pass.
 
-Planning outcome: documents only. No code, migrations, application runs or test executions performed for this proposal.
+Implementation and verification outcomes are recorded in the [verification report](3-to-improve-verification.md). Feature HTTP, raw-capture, lifecycle and boundary scenarios pass; overall regression acceptance remains open for the reported replay and full Playwright compiler failures.

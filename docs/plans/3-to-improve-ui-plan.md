@@ -49,4 +49,4 @@ UI development can use typed contract-conforming fixtures before backend complet
 
 Required gates after integration: existing feature typecheck/lint/boundary gates, root `bun run typecheck`, targeted behavioral regressions and feature E2E command from the current package manifest. Reuse existing package scripts rather than introduce new commands for this feature. All TI-U criteria and mapped shared criteria must pass; unavailable fixtures or environments remain explicit blockers, not skipped proof.
 
-Planning outcome: documents only. Application, browser and tests have not been run for this proposal.
+Implementation and verification outcomes are recorded in the [verification report](3-to-improve-verification.md). Feature integration and responsive/unit/localization checks pass; overall regression acceptance remains open for the reported replay and full Playwright compiler failures.
