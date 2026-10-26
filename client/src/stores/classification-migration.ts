@@ -14,7 +14,14 @@ export const classificationMigrationStore = createStore(initial);
 
 export const classificationMigrationActions = {
   applyStatus(status: ClassificationMigrationStatus) {
-    classificationMigrationStore.setState((state) => status.revision < (state.status?.revision ?? -1) ? state : { ...state, status });
+    classificationMigrationStore.setState((state) => {
+      if (status.revision < (state.status?.revision ?? -1)) return state;
+      // Dismissing an active run also dismisses its later progress and completion.
+      // A subsequent run remains visible because it starts after a terminal status.
+      const dismissedRevision = state.dismissedRevision === state.status?.revision && state.status?.status === "running"
+        ? status.revision : state.dismissedRevision;
+      return { ...state, status, dismissedRevision };
+    });
   },
   applyRecordings(revision: number, recordings: ClassificationMigrationRecording[]) {
     classificationMigrationStore.setState((state) => {
