@@ -45,13 +45,24 @@ function ps(args: string[]): string {
 
 const macKeychain = createMacKeychain();
 
+// ── Dev fallback ─────────────────────────────────────────────
+
+// Source checkouts on Linux/WSL have no credential store. Keep secrets in
+// memory for the life of the dev server so API keys can be tested; they are
+// never written to disk and compiled builds keep the warn-and-drop behavior.
+const devMemoryStore = IS_COMPILED ? null : new Map<string, string>();
+
 // ── Public API ───────────────────────────────────────────────
 
 export async function getSecret(key: string): Promise<string> {
   if (IS_DARWIN) {
     try { return macKeychain.get(key); } catch { return ""; }
   }
-  if (!WIN_STORE_AVAILABLE) { warnUnavailableOnce(); return ""; }
+  if (!WIN_STORE_AVAILABLE) {
+    if (devMemoryStore) return devMemoryStore.get(key) ?? "";
+    warnUnavailableOnce();
+    return "";
+  }
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       const tmpFile = join(tmpdir(), `raceiq-cred-${process.pid}-${key}-${randomUUID()}`);
@@ -79,7 +90,15 @@ export async function setSecret(key: string, value: string): Promise<void> {
     }
     return;
   }
-  if (!WIN_STORE_AVAILABLE) { warnUnavailableOnce(); return; }
+  if (!WIN_STORE_AVAILABLE) {
+    if (devMemoryStore) {
+      if (value) devMemoryStore.set(key, value);
+      else devMemoryStore.delete(key);
+      return;
+    }
+    warnUnavailableOnce();
+    return;
+  }
   if (!value) {
     ps(["delete", `${SERVICE}:${key}`]);
   } else {
