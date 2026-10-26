@@ -130,6 +130,7 @@ export interface CarsCatalogueHost {
     placeholder?: string;
     ariaLabel?: string;
     className?: string;
+    clearOnOpen?: boolean;
   }>;
   Button: ComponentType<ButtonPrimitive.Props & {
     variant?: "app-ghost" | "app-primary" | "app-outline" | "close-action" | "selected-toggle";

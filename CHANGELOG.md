@@ -1,7 +1,7 @@
 ## Unreleased
 
 ### Features
-- Replace category tabs on the AMS2 and iRacing Cars pages with a searchable dropdown that preserves category counts and the All categories reset.
+- Replace category tabs on the AMS2 and iRacing Cars pages with a searchable dropdown that shows the total as a placeholder, clears the search when opened, and preserves category counts and the All categories reset.
 - Keep AMS2 adapter availability and native telemetry capture development-only.
 - Show animated suspension springs and chassis movement in Replay and Compare → Spectate; use the lap's observed travel range when no game range is specified, while preserving native normalized readings.
 - Show AMS2 Replay's canonical Balance status and per-wheel Traction, Grip Ask, Slip Angle and Slip Ratio from recorded motion, wheel rotation and disclosed estimates in the existing Data panel.

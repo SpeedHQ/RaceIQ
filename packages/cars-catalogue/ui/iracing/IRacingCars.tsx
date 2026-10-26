@@ -55,7 +55,7 @@ export function IRacingCars({ gameId = "iracing" }: { gameId?: "iracing" | "ams2
     const counts = new Map<string, number>();
     for (const car of cars) counts.set(car.category, (counts.get(car.category) ?? 0) + 1);
     return [
-      { value: "", label: `${m.iracingcars_all_categories()} (${cars.length})` },
+      { value: "__all_categories__", label: `${m.iracingcars_all_categories()} (${cars.length})` },
       ...[...counts.keys()]
         .sort((a, b) => categoryLabel(m, a).localeCompare(categoryLabel(m, b)))
         .map((category) => ({ value: category, label: `${categoryLabel(m, category)} (${counts.get(category)})` })),
@@ -76,10 +76,11 @@ export function IRacingCars({ gameId = "iracing" }: { gameId?: "iracing" | "ams2
 
       {!isLoading && (
         <SearchSelect
+          clearOnOpen
           value={filterCategory ?? ""}
-          onChange={(value) => setFilterCategory(value || null)}
+          onChange={(value) => setFilterCategory(value === "__all_categories__" ? null : value)}
           options={categoryOptions}
-          placeholder={m.iracingcars_all_categories()}
+          placeholder={`${m.iracingcars_all_categories()} (${cars.length})`}
           ariaLabel={m.iracingcars_all_categories()}
           className="w-full @3xl/workspace:w-72"
         />
