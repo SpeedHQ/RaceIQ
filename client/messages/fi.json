@@ -3156,5 +3156,6 @@
   "compare_overview_starting_fuel": "Lähtöpolttoaine",
   "compare_overview_fuel_used": "Polttoaineen kulutus",
   "compare_overview_top_speed": "Huippunopeus",
-  "compare_overview_unavailable": "Ei käytettävissä"
+  "compare_overview_unavailable": "Ei käytettävissä",
+  "online_consent_popup_blocked": "Suostumussivua ei voitu avata. Salli ponnahdusikkunat ja yritä uudelleen."
 }

@@ -3156,5 +3156,6 @@
   "compare_overview_ers_deployed": "ERS utilizzato",
   "compare_overview_ers_recovered": "ERS recuperato",
   "compare_overview_top_speed": "Velocità massima",
-  "compare_overview_unavailable": "Non disponibile"
+  "compare_overview_unavailable": "Non disponibile",
+  "online_consent_popup_blocked": "Impossibile aprire la pagina del consenso. Consenti i popup e riprova."
 }

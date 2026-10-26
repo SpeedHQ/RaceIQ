@@ -3156,5 +3156,6 @@
   "compare_overview_ers_deployed": "ERS 已释放",
   "compare_overview_ers_recovered": "ERS 已回收",
   "compare_overview_top_speed": "最高速度",
-  "compare_overview_unavailable": "不可用"
+  "compare_overview_unavailable": "不可用",
+  "online_consent_popup_blocked": "无法打开同意页面。请允许弹出窗口后重试。"
 }

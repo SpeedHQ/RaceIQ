@@ -122,5 +122,5 @@ export const setupEngineerAgent = new Agent({
     get_lap_issues: setupEngineerTools.getLapIssuesTool,
     compare_laps: setupEngineerTools.compareLapsTool,
   },
-  memory: getChatMemory,
+  memory: getChatMemory(),
 });

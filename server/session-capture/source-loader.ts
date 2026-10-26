@@ -54,6 +54,7 @@ export interface SessionCaptureSource {
   carId: string;
   trackId: string;
   captureFormatVersion?: number | null;
+  buffer?: Buffer;
   artifact?: { archivePath: string; entryName: string; manifest: ArchiveManifest; liveSnapshot?: LiveArchiveSnapshot };
 }
 export interface SessionCapturePart {
@@ -110,6 +111,31 @@ export function clearSessionCaptureCache(rawFile?: string): void {
 }
 export function setCaptureFileFactoryForTest(factory: CaptureFileFactory | null): void {
   captureFileFactory = factory ?? ((path) => Bun.file(path));
+}
+function captureFileFromBuffer(buffer: Buffer): SessionCaptureFile {
+  return {
+    size: buffer.byteLength,
+    lastModified: 0,
+    slice(start = 0, end = buffer.byteLength) {
+      return new Blob([new Uint8Array(buffer.subarray(start, end))]);
+    },
+    stream() {
+      let offset = 0;
+      return new ReadableStream<Uint8Array>({
+        pull(controller) {
+          if (offset >= buffer.byteLength) { controller.close(); return; }
+          const end = Math.min(offset + 64 * 1024, buffer.byteLength);
+          controller.enqueue(buffer.subarray(offset, end));
+          offset = end;
+        },
+      });
+    },
+    arrayBuffer: async () => {
+      const copy = new Uint8Array(buffer.byteLength);
+      copy.set(buffer);
+      return copy.buffer;
+    },
+  };
 }
 function key(source: SessionCaptureSource): string {
   const member = source.artifact?.manifest.chunks.find((chunk) => chunk.entryName === source.artifact!.entryName);
@@ -257,7 +283,7 @@ export async function* iterateSessionCaptureRecordsFromSource(
   source: SessionCaptureSource,
   options: { strict?: boolean; allowLegacyFullFrames?: boolean } = {},
 ): AsyncGenerator<SessionCaptureRecord> {
-  if (source.rawFile.endsWith("manifest.json")) {
+  if (source.rawFile.endsWith("manifest.json") && source.buffer === undefined) {
     yield* iterateStandaloneManifest(source);
     return;
   }
@@ -265,7 +291,7 @@ export async function* iterateSessionCaptureRecordsFromSource(
     throw new Error("Motec source archives expose canonical packets, not BIN frames");
   }
 
-  const file = captureFileFactory(source.rawFile);
+  const file = source.buffer ? captureFileFromBuffer(source.buffer) : captureFileFactory(source.rawFile);
   if (!options.allowLegacyFullFrames && source.captureFormatVersion !== 1) {
     // Persisted converted captures can contain only full checkpoints; match buffered replay eligibility.
     const first = await streamForSource(source, file);
@@ -548,7 +574,12 @@ async function resolvePublishedCaptureArtifact(manifestPath: string, chunkId: st
   const manifestIdentity = `${absoluteManifest}\0${manifestCache.get(absoluteManifest)!.key}\0${chunkId}`;
   const chunk = manifest.chunks.find((candidate) => candidate.id === chunkId && (!lapOnly || candidate.kind === "lap"));
   if (!chunk) throw new Error(`Capture manifest ${absoluteManifest} has no ${lapOnly ? "lap " : ""}chunk ${chunkId}`);
-  if (expectedLapId != null && chunk.lapId !== String(expectedLapId)) throw new Error(`Capture chunk ${chunkId} lap ID mismatch: expected ${expectedLapId}, got ${chunk.lapId}`);
+  // Reprocessed rows can use the immutable chunk only when its original GUID still matches.
+  const lapGuidMatches = Boolean(reference?.lapGuid && chunk.lapGuid &&
+    reference.lapGuid.toLowerCase() === chunk.lapGuid.toLowerCase());
+  if (expectedLapId != null && chunk.lapId !== String(expectedLapId) && !lapGuidMatches) {
+    throw new Error(`Capture chunk ${chunkId} lap ID mismatch: expected ${expectedLapId}, got ${chunk.lapId}`);
+  }
   if (reference?.lapGuid && chunk.lapGuid && reference.lapGuid.toLowerCase() !== chunk.lapGuid.toLowerCase()) {
     throw new Error(`Capture chunk ${chunkId} original GUID disagrees with its lap record`);
   }

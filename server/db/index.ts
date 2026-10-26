@@ -192,6 +192,10 @@ async function runMigrations() {
 }
 
 await runMigrations();
+// Main-owner startup releases interrupted manual reprocess locks; retry remains explicit.
+if (isMainThread) {
+  await withDatabaseWrite(() => client.execute("UPDATE online_recording_sources SET reprocess_pending=0, reprocess_token=NULL WHERE reprocess_pending=1"), undefined, "online-recording-source-startup-release");
+}
 await backfillLapGuids(client);
 
 // Seed default profile if none exist

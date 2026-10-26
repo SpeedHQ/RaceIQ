@@ -9,7 +9,11 @@ import { useOnlineHost, useRaceIqOnline } from "./raceiq-online";
 export const cloudImportKey = ["cloud-lap-import"] as const;
 // A Community click must not activate after its selection or entitlement has changed.
 // Native/website requests still use the backend's independent entitlement/context check.
-let communityIntent: { lapId: string; lapGuid: string; current: () => boolean } | null = null;
+type CommunityIntent = { lapId: string; lapGuid: string; activationId: number | null; accountEpoch: string; current: () => boolean; ready: Promise<void> };
+let communityIntent: CommunityIntent | null = null;
+export function communityActivationMatches(intent: { lapId: string; lapGuid: string; activationId: number | null; accountEpoch: string }, state: Pick<CloudLapImportState, "lapId" | "activationId" | "access">): boolean {
+  return intent.activationId === state.activationId && intent.activationId !== null && intent.accountEpoch === state.access?.accountEpoch;
+}
 
 export function useCloudLapImport() {
   const host = useOnlineHost();
@@ -33,13 +37,25 @@ export function useCloudLapImport() {
 
 export async function startCloudLapImport(host: OnlineUiHost, input: LeaderboardInput & OnlineMutationContext & { lapId: string; lapGuid: string }, current: () => boolean): Promise<void> {
   if (!current()) return;
-  communityIntent = { lapId: input.lapId, lapGuid: input.lapGuid, current };
-  const response = await host.startCloudLapImport(input);
-  await requireCloudImportResponse(response, host.m);
+  const ready = Promise.withResolvers<void>();
+  const intent: CommunityIntent = { lapId: input.lapId, lapGuid: input.lapGuid, activationId: null, accountEpoch: input.accountEpoch, current, ready: ready.promise };
+  communityIntent = intent;
+  try {
+    const response = await host.startCloudLapImport(input);
+    await requireCloudImportResponse(response, host.m);
+    const body: unknown = await response.json();
+    if (typeof body !== "object" || body === null || !("activationId" in body) || typeof body.activationId !== "number" || !Number.isSafeInteger(body.activationId)) throw new CloudLapImportRequestFailure(host.m);
+    intent.activationId = body.activationId;
+  } catch (error) {
+    if (communityIntent === intent) communityIntent = null;
+    throw error;
+  } finally {
+    ready.resolve();
+  }
 }
 
 export async function retryCloudLapImport(host: OnlineUiHost, state: CloudLapImportState, context: OnlineMutationContext, current: () => boolean): Promise<void> {
-  if (state.activationId == null || !current() || state.access?.accountEpoch !== context.accountEpoch || state.access?.expectedRevision !== context.expectedRevision || (communityIntent?.lapId === state.lapId && !communityIntent.current())) return;
+  if (state.activationId == null || !current() || state.access?.accountEpoch !== context.accountEpoch || state.access?.expectedRevision !== context.expectedRevision || (communityIntent?.accountEpoch === context.accountEpoch && communityIntent.activationId === state.activationId && !communityIntent.current())) return;
   const response = await host.retryCloudLapImport({ ...context, activationId: state.activationId });
   await requireCloudImportResponse(response, host.m);
 }
@@ -101,8 +117,8 @@ export function CloudLapImportActivation() {
   const lap = state?.localLap;
   useEffect(() => {
     if (!online.state || !online.communityAllowed || !online.isCurrentCommunityContext() || state?.status !== "complete" || state.activationId == null || !lap?.id || !lap.gameId || !lap.sessionId || !state.lapGuid || lap.gameId !== state.selection?.gameId || state.access?.accountEpoch !== online.state.accountEpoch || state.access?.expectedRevision !== online.state.revision) return;
-    const intent = communityIntent?.lapId === state.lapId ? communityIntent : null;
-    if (intent && (intent.lapGuid !== state.lapGuid || !intent.current())) return;
+    const pendingIntent = communityIntent && communityIntent.accountEpoch === state.access?.accountEpoch && communityIntent.activationId === null && communityIntent.lapId === state.lapId ? communityIntent : null;
+    let intent = communityIntent && communityActivationMatches(communityIntent, state) ? communityIntent : null;
     const activationId = state.activationId;
     const access = { accountEpoch: online.state.accountEpoch, expectedRevision: online.state.revision };
     const activationKey = `${access.accountEpoch}:${activationId}`;
@@ -115,13 +131,16 @@ export function CloudLapImportActivation() {
       try {
         // Let a superseded/StrictMode effect dispose before issuing its acknowledgement.
         await Promise.resolve();
-        if (disposed || !online.isCurrentCommunityContext() || (intent && (communityIntent !== intent || !intent.current())) || activated.current === activationKey) return;
+        await pendingIntent?.ready;
+        if (pendingIntent && communityIntent === pendingIntent && communityActivationMatches(pendingIntent, state)) intent = pendingIntent;
+        if (disposed || !online.isCurrentCommunityContext() || activated.current === activationKey) return;
         activated.current = activationKey;
-        // Backend acknowledgement rechecks entitlement before any cached replay navigation.
+        // Ack stale selections so backend can release its serialized import queue.
         const acknowledgement = await host.acknowledgeCloudLapImport({ activationId, ...access });
         await requireCloudImportResponse(acknowledgement, m);
         acknowledged = true;
-        if (disposed || !online.isCurrentCommunityContext() || (intent && (communityIntent !== intent || !intent.current()))) return;
+        if (communityIntent === intent) communityIntent = null;
+        if (disposed || !online.isCurrentCommunityContext() || intent && (intent.lapGuid !== state.lapGuid || !intent.current())) return;
         host.invalidateCaptureQueries(queryClient);
         await navigate({ gameId: lap.gameId, sessionId: lap.sessionId, id: lap.id });
         await queryClient.invalidateQueries({ queryKey: cloudImportKey });
@@ -133,7 +152,7 @@ export function CloudLapImportActivation() {
       }
     })();
     return () => { disposed = true; };
-  }, [state?.status, state?.activationId, state?.lapId, state?.lapGuid, state?.access?.accountEpoch, state?.access?.expectedRevision, state?.selection?.gameId, state?.selection?.trackId, state?.selection?.carId, lap?.id, lap?.gameId, lap?.sessionId, online.state?.accountEpoch, online.state?.revision, online.communityAllowed, online.communityGeneration, navigate, queryClient]);
+  }, [state, state?.status, state?.activationId, state?.lapId, state?.lapGuid, state?.access?.accountEpoch, state?.access?.expectedRevision, state?.selection?.gameId, state?.selection?.trackId, state?.selection?.carId, lap?.id, lap?.gameId, lap?.sessionId, online.state?.accountEpoch, online.state?.revision, online.communityAllowed, online.communityGeneration, navigate, queryClient]);
   const failed = state?.status === "error";
   const activationFailure = activationError?.key === `${state?.access?.accountEpoch}:${state?.activationId}` ? activationError.message : null;
   if (!online.communityAllowed) return null;

@@ -40,4 +40,4 @@ RaceIQ Online uses `Effect PersistedQueue` for delivery and a separate outbox le
 - Run focused behavioral regressions and `bun run typecheck`. Reuse successful verification only while its relevant inputs remain unchanged.
 - Report the exercised scenarios and any limits explicitly; local queue verification does not establish authenticated remote upload behavior.
 
-For the current Online implementation and remaining recording-integration gates, see [upload recovery progress](../plans/raceiq-online-progress.md).
+For the current Online ownership and planned delivery simplification, see [Online upload and profile sync](../plans/online-upload-profile-sync.md). Historical upload-recovery plans are no longer implementation requirements.

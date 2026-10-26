@@ -12,7 +12,7 @@ import { cacheDelete } from "./telemetry-replay-storage";
 import { eq, desc, and, or, sql, inArray, notInArray, isNull, ne, lt, asc, gt, notExists } from "drizzle-orm";
 import { withDatabaseWrite } from "./write-coordination";
 import { db, readDb } from "./index";
-import { sessions, laps, sessionResults, pitEvents, sessionCaptureSplitJobs, liveCaptures, localAccountOwner, classificationMigrationMeta, classificationMigrationRecordings } from "./schema";
+import { sessions, laps, sessionResults, pitEvents, liveCaptures, sessionCaptureSplitJobs, localAccountOwner, classificationMigrationMeta, classificationMigrationRecordings, nativeGameIdentities, nativeCarIdentities, nativeTrackIdentities } from "./schema";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 import type { SessionMeta, SessionOwnership, SessionCaptureSplitPhase, SessionCaptureSplitErrorCode } from "@raceiq/shared/racing/sessions/types";
 import type { GameId } from "@raceiq/shared/games/ids";
@@ -26,6 +26,7 @@ import { getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import { wsManager } from "../runtime/websocket-manager";
 import type { SessionCaptureSplitStatus } from "@raceiq/shared/racing/sessions/types";
 import type { PublishedManifest, LapWindow } from "@raceiq/capture-splitting";
+import { getRecordingInstallationId } from "./recording-origin";
 import { clearCaptureManifestCache, loadCaptureManifest } from "../session-capture/source-loader";
 import { recoverLiveCaptureStorage } from "../session-capture/live-recovery";
 
@@ -381,6 +382,7 @@ export async function getQueuedSessionCaptureSplitJobs(includeFailed = false): P
 export type SessionSourceOrigin =
   | { kind: "native_capture" }
   | { kind: "portable_import"; originalActivityId: string }
+  | { kind: "imported"; originalActivityId?: string }
   | { kind: "unknown" };
 
 export async function insertSession(
@@ -394,8 +396,10 @@ export async function insertSession(
 ): Promise<number> {
   const sessionOwnership = ownership ?? "mine";
   const nativeOrigin = sourceOrigin.kind === "native_capture" && sessionOwnership === "mine";
+  const recordingOrigin = nativeOrigin ? "native_capture" : sourceOrigin.kind === "portable_import" || sourceOrigin.kind === "imported" ? "imported" : "unknown";
+  const recordingInstallationId = nativeOrigin ? getRecordingInstallationId() : null;
   const originalActivityId = nativeOrigin ? randomUUID()
-    : sourceOrigin.kind === "portable_import" ? sourceOrigin.originalActivityId : null;
+    : sourceOrigin.kind === "portable_import" || sourceOrigin.kind === "imported" ? sourceOrigin.originalActivityId ?? null : null;
   return withDatabaseWrite(() => db.transaction(async (tx) => {
     const owner = nativeOrigin
       ? await tx.select({ onlineUserId: localAccountOwner.onlineUserId }).from(localAccountOwner).where(eq(localAccountOwner.id, 1)).get()
@@ -407,10 +411,15 @@ export async function insertSession(
         ownerUserId: nativeOrigin ? owner?.onlineUserId ?? null : null,
         originalActivityId,
         nativeCaptureOrigin: nativeOrigin,
+        recordingOrigin,
+        recordingInstallationId,
         ...versionIdentity,
       })
       .returning({ id: sessions.id })
       .get();
+    await tx.insert(nativeGameIdentities).values({ gameId }).onConflictDoNothing().run();
+    await tx.insert(nativeTrackIdentities).values({ gameId, trackId }).onConflictDoNothing().run();
+    await tx.insert(nativeCarIdentities).values({ gameId, carId }).onConflictDoNothing().run();
     return result.id;
   }), undefined, "session.insert");
 }
@@ -431,8 +440,15 @@ export async function updateSessionCarTrack(
   carId: string,
   trackId: string,
 ): Promise<boolean> {
-  const result = await withDatabaseWrite(() => db.update(sessions).set({ carId, trackId }).where(eq(sessions.id, sessionId)).run());
-  return result.rowsAffected > 0;
+  return withDatabaseWrite(() => db.transaction(async (tx) => {
+    const session = await tx.select({ gameId: sessions.gameId }).from(sessions).where(eq(sessions.id, sessionId)).get();
+    if (!session) return false;
+    await tx.insert(nativeGameIdentities).values({ gameId: session.gameId }).onConflictDoNothing().run();
+    await tx.insert(nativeTrackIdentities).values({ gameId: session.gameId, trackId }).onConflictDoNothing().run();
+    await tx.insert(nativeCarIdentities).values({ gameId: session.gameId, carId }).onConflictDoNothing().run();
+    const updated = await tx.update(sessions).set({ carId, trackId }).where(eq(sessions.id, sessionId)).run();
+    return updated.rowsAffected > 0;
+  }));
 }
 
 export async function setSessionFavorite(id: number, favorite: boolean): Promise<boolean> {

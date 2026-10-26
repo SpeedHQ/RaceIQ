@@ -32,6 +32,6 @@ try {
     child = replay;
     const [replayCode, replayOut, replayError] = await Promise.all([replay.exited, new Response(replay.stdout).text(), new Response(replay.stderr).text()]);
     if (replayCode !== 0) { console.error(replayOut + replayError); process.exitCode = replayCode || 1; }
-    else console.log("PASS D10 happy\nPASS D10 fail\n20 desktop journey checks passed.");
+    else console.log("PASS D10 happy\nPASS D10 fail\nDesktop journey and cloud-import checks passed.");
   }
 } finally { await rm(data, { recursive: true, force: true }); }

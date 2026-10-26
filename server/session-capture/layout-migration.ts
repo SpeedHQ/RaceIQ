@@ -14,6 +14,8 @@ import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { getRecordingDirectoryMoveStatus, preflightRecordingDirectoryMove, recoverRecordingDirectoryMove, relocateRecordingDirectoryUnderReservation } from "./relocate-recordings";
 import { reserveRecordingStorageOperation } from "./storage-activity";
 import { isSessionActive } from "../telemetry/live-pipeline";
+import { beginSessionSourceMutation, SessionSourceMutationActiveError } from "./source-mutation-activity";
+import { readOnlineRecordingSource, tryBeginOnlineRecordingSourceMutation } from "../db/online-recording-source-queries";
 
 import { clearSessionCaptureCache } from "./source-loader";
 import { cacheDelete } from "../db/telemetry-replay-storage";
@@ -306,7 +308,14 @@ migrationSettlement = withSessionCaptureMaintenanceLock(async () => {
     admitted = true;
     for (const entry of journal.entries) {
       if (entry.cutover) continue;
+      const releases: Array<() => void> = [];
+      const sessionIds = [...new Set(entry.references.map((reference) => reference.sessionId))];
       try {
+        for (const sessionId of sessionIds) releases.push(beginSessionSourceMutation(sessionId));
+        for (const sessionId of sessionIds) {
+          if (await tryBeginOnlineRecordingSourceMutation(sessionId)) continue;
+          if (await readOnlineRecordingSource(sessionId)) throw new SessionSourceMutationActiveError(sessionId);
+        }
         const sourceStat = await lstat(entry.source).catch(() => null);
         if (sourceStat && (!sourceStat.isFile() || sourceStat.isSymbolicLink())) throw new Error("Unsafe legacy source");
         const sourceExists = Boolean(sourceStat);
@@ -350,6 +359,7 @@ migrationSettlement = withSessionCaptureMaintenanceLock(async () => {
         progress.migrated++;
         await rmdir(dirname(entry.source)).catch(() => undefined);
       } catch (error) { progress.failed++; progress.error = error instanceof Error ? error.message : "Layout migration failed"; }
+      finally { for (const release of releases.reverse()) release(); }
       progress.done++;
       journal.progress = { ...progress };
       await saveJournal(journal);

@@ -3156,5 +3156,6 @@
   "compare_overview_ers_deployed": "ЕРС использовано",
   "compare_overview_ers_recovered": "ЕРС рекуперировано",
   "compare_overview_top_speed": "Максимальная скорость",
-  "compare_overview_unavailable": "Недоступно"
+  "compare_overview_unavailable": "Недоступно",
+  "online_consent_popup_blocked": "Не удалось открыть страницу согласия. Разрешите всплывающие окна и повторите попытку."
 }

@@ -17,6 +17,8 @@ export interface PortableLapIdentity {
   trailingContextFrameCount?: number;
   sectorTimes: number[] | null;
   recordedAt: string | null;
+  /** Authoritative original lap finish time; absent in legacy portable metadata means unknown. */
+  finishedAt?: string | null;
   totalTimeMs: number | null;
   sectorTimesMs: number[] | null;
   createdAt: string;

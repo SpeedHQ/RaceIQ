@@ -31,9 +31,9 @@ const keystore = {
   },
 };
 const dirs: string[] = [];
-const outboxDir = mkdtempSync(join(tmpdir(), 'raceiq-auth-outbox-smoke-'));
-dirs.push(outboxDir);
-process.env.DATA_DIR = outboxDir;
+const dataDir = mkdtempSync(join(tmpdir(), 'raceiq-auth-smoke-'));
+dirs.push(dataDir);
+process.env.DATA_DIR = dataDir;
 let consentCalls = 0;
 let preferenceCalls = 0;
 let leaderboardCalls = 0;
@@ -67,7 +67,7 @@ const awaitStage = async (promise: Promise<unknown>, name: string) => {
 };
 function setup(dir=mkdtempSync(join(tmpdir(),'raceiq-auth-smoke-')),onAccountConnected?:OnlineServiceOptions["onAccountConnected"]) {
   if (!dirs.includes(dir)) dirs.push(dir);
-  return createRaceIqOnlineService({recordingProducer:async()=>{throw new Error("Auth-only fixture must not prepare a recording");},storage:new OnlineStateStorage(dir),keystore,auth,onAccountConnected,adapter:{
+  return createRaceIqOnlineService({recordingProducer:async()=>{throw new Error("Auth-only fixture must not prepare a recording");},getUploadStatus:async()=>({queued:0,inFlight:0,rejected:0,lastSyncedAt:null,lastError:null}),storage:new OnlineStateStorage(dir),keystore,auth,onAccountConnected,adapter:{
     async getPolicy() {
       if (policyFailure) throw new Error('temporary policy outage');
       return { available: true, ...versions, termsUrl: 'https://raceiq.example/terms', privacyUrl: 'https://raceiq.example/privacy' };

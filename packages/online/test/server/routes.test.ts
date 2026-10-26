@@ -22,7 +22,7 @@ function isolatedKeystore() {
 function setup() {
   const directory = mkdtempSync(join(tmpdir(), "raceiq-online-routes-"));
   directories.push(directory);
-  const service = createRaceIqOnlineService({ recordingProducer: async () => { throw new Error("Auth-only fixture must not prepare a recording"); }, storage: new OnlineStateStorage(directory), keystore: isolatedKeystore(), adapter: {
+  const service = createRaceIqOnlineService({ recordingProducer: async () => { throw new Error("Auth-only fixture must not prepare a recording"); }, getUploadStatus: async () => ({ queued: 0, inFlight: 0, rejected: 0, lastSyncedAt: null, lastError: null }), storage: new OnlineStateStorage(directory), keystore: isolatedKeystore(), adapter: {
     async getPolicy() { throw new OnlineAdapterError("policy_unavailable", false); },
     async getLeaderboard() { throw new Error("test offline"); },
   } });
@@ -114,7 +114,7 @@ describe("Online account route safety", () => {
     const before = await service.getState();
     await service.signOut({ expectedRevision: before.revision, accountEpoch: before.accountEpoch });
     const previous = await service.getState();
-    const restarted = createRaceIqOnlineService({ recordingProducer: async () => { throw new Error("Auth-only fixture must not prepare a recording"); }, storage: new OnlineStateStorage(directory), keystore: isolatedKeystore(), adapter: {
+    const restarted = createRaceIqOnlineService({ recordingProducer: async () => { throw new Error("Auth-only fixture must not prepare a recording"); }, getUploadStatus: async () => ({ queued: 0, inFlight: 0, rejected: 0, lastSyncedAt: null, lastError: null }), storage: new OnlineStateStorage(directory), keystore: isolatedKeystore(), adapter: {
       async getPolicy() { throw new Error("test offline"); },
       async getLeaderboard() { throw new Error("test offline"); },
     } });

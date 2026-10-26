@@ -6,9 +6,8 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { LapIndexPacket } from "@raceiq/shared/telemetry/lap-index";
 import type { LapMeta, SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
-import type { DriverAttributionStint } from "@raceiq/shared/driver-attribution";
-import type { GameIdentityBinding } from "@raceiq/online/contracts";
-import { deleteSession, enqueueSessionCaptureSplit, updateSessionSource } from "../db/session-queries";
+import type { DriverAttributionStint, GameIdentityBinding } from "@raceiq/shared/driver-attribution";
+import { deleteSession, updateSessionSource } from "../db/session-queries";
 import { isDelayedFinishContext } from "../db/telemetry-replay-storage";
 import { getServerGame } from "../games/registry";
 import { isIRacingSessionFrame } from "@raceiq/capture-formats/iracing/source-frame";
@@ -19,7 +18,6 @@ import { NullWsAdapter, RealDbAdapter, SparseSessionRecorderAdapter, type Captur
 import { reconcileSessionResult } from "../race-results/reconcile";
 
 import { countIndexSampleMaterialized, countSourceFrameScanned } from "./test-instrumentation";
-import { notifyOnlineSync } from "@raceiq/online/server/sync-events";
 
 
 
@@ -62,7 +60,7 @@ export class ImportCaptureAdapter implements DbAdapter {
     sessionSource?: string;
     rollbackFiles?: Iterable<string>;
   } = {}) {
-    this._inner = new RealDbAdapter(options);
+    this._inner = new RealDbAdapter({ ...options, sourceOrigin: { kind: "imported" } });
     this._sessionSource = options.sessionSource;
     for (const path of options.rollbackFiles ?? []) this.rawFiles.add(path);
   }
@@ -349,7 +347,7 @@ async function importTelemetrySource<T>(
     failure = error;
   } finally {
     try {
-      await pipeline.flushSessionRecorder();
+      await pipeline.finalizeCurrentSession();
     } catch (error) {
       failure ??= error;
     }
@@ -369,12 +367,8 @@ async function importTelemetrySource<T>(
       await reconcileSessionResult(sessionId, gameId);
     }
     await pipeline.finalizeDashboardCaptureFacts([...db.sessionIds]);
-    notifyOnlineSync();
   } catch (error) {
     await rollbackImport(db, error);
-  }
-  for (const sessionId of db.sessionIds) {
-    await enqueueSessionCaptureSplit(sessionId);
   }
 
   return {

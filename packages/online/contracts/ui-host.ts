@@ -132,6 +132,7 @@ export interface OnlineMessages {
   online_preferences_failed: () => string;
   online_preferences_pending: () => string;
   online_preferences_persisted_values: (input: { visibility: string | number; setup: string | number }) => string;
+  online_consent_popup_blocked: () => string;
   online_preferences_unconfirmed: () => string;
   online_privacy: () => string;
   online_profile_confirmed: () => string;
@@ -148,6 +149,8 @@ export interface OnlineMessages {
   online_queue_blocked: () => string;
   online_queue_checking: () => string;
   online_queue_empty: () => string;
+  online_queue_last_synced: () => string;
+  online_queue_never_synced: () => string;
   online_queue_idle: () => string;
   online_queue_in_flight: () => string;
   online_queue_paused: () => string;
@@ -231,6 +234,7 @@ export interface OnlineMessages {
 
 export interface OnlineUiHost {
   readonly port: RaceIqOnlinePort;
+  readonly cacheOnlineState: boolean;
   readonly authHost: string;
   readonly m: OnlineMessages;
   getLocale(): string;

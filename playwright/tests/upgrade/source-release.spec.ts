@@ -135,15 +135,11 @@ test("released data upgrades through the required popup dialogs", async ({ page,
       existingIDsByGame.set(game, ids);
       console.log(`[upgrade] ${game} baseline contains ${ids.length} sessions`);
     }
-    await upgradeStep("Reject backup while released application writers are live", async () => {
-      await expect(harness.backupPrevious()).rejects.toThrow();
-    });
 
     await page.goto("about:blank");
     await harness.stop();
     await upgradeStep("Validate released converted recordings before checkout", () => harness.validateConvertedCaptures());
-    await upgradeStep("Back up stopped released data and retain the matching artifact", () => harness.backupPrevious());
-    await upgradeStep(process.env.RACEIQ_UPGRADE_CANDIDATE_DIR ? "Copy selected local workspace snapshot and install dependencies" : "Check out latest origin/main and install dependencies", () => harness.checkoutMain());
+    await upgradeStep("Check out latest origin/main and install dependencies", () => harness.checkoutMain());
     await upgradeStep("Start main against released database and run migrations", () => harness.start());
     await upgradeStep("Complete upgrade setup and recording migration dialogs", async () => {
       await completeAccessSetup(page, request, harness.baseURL, harness.apiURL);
@@ -166,19 +162,6 @@ test("released data upgrades through the required popup dialogs", async ({ page,
         expect(after.ok(), `${game} upgraded sessions are readable`).toBe(true);
         expect((await after.json() as Array<{ id: number }>).map((session) => session.id).sort((a, b) => a - b), `${game} session IDs survive upgrade`).toEqual(existingIDs);
         console.log(`[upgrade] ${game} preserved ${existingIDs.length} sessions`);
-      }
-    });
-    await page.goto("about:blank");
-    await harness.stop();
-    await upgradeStep("Restore released backup without downgrading upgraded data", () => harness.restorePrevious());
-    await upgradeStep("Start matching released artifact against its restored backup", () => harness.start());
-    await upgradeStep("Verify restored application and original sessions through HTTP", async () => {
-      await page.goto(harness.baseURL, { waitUntil: "domcontentloaded" });
-      await expect(page.getByRole("link", { name: "Home", exact: true })).toBeVisible();
-      for (const [game, existingIDs] of existingIDsByGame) {
-        const restored = await request.get(`${harness.apiURL}/api/sessions?gameId=${game}`);
-        expect(restored.ok(), `${game} restored sessions are readable`).toBe(true);
-        expect((await restored.json() as Array<{ id: number }>).map((session) => session.id).sort((a, b) => a - b), `${game} session IDs survive matching-artifact rollback`).toEqual(existingIDs);
       }
     });
   } finally {

@@ -6,7 +6,7 @@ import { clearSessionCaptureCache, loadCaptureManifest } from "../session-captur
 import type { DownsampleCaptureBundle } from "../session-capture/downsample-bundles";
 import { and, eq, isNotNull, or, inArray, sql } from "drizzle-orm";
 import { db, readDb } from "./index";
-import { laps, sessions, lapMetrics, lapAnalyses, compareAnalyses, lineSpreadCache, dashboardSummaryState, sessionCaptureSplitJobs, liveCaptureMembers, lapGuidReconciliation } from "./schema";
+import { laps, sessions, lapMetrics, lapAnalyses, compareAnalyses, lineSpreadCache, dashboardSummaryState, sessionCaptureSplitJobs, liveCaptures, liveCaptureMembers, lapGuidReconciliation, originalActivitySourceLaps } from "./schema";
 import type { RecordingFrequencyHz } from "@raceiq/shared/platform/runtime/recording-frequency";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
 import { withDatabaseWrite } from "./write-coordination";
@@ -182,8 +182,9 @@ export async function commitSessionDownsampleCap(input: {
 
 export async function getLapsForSession(sessionId: number): Promise<Array<{
   id: number; lapNumber: number; lapTime: number; isValid: boolean; isFavorite: boolean;
-  notes: string | null; tuneId: number | null;
+  notes: string | null; tuneId: number | null; lapGuid: string | null;
   rawByteOffset: number | null; rawFrameCount: number | null;
+  sourceFinishedAt: string | null;
   sectorTimes: number[] | null;
 }>> {
   const rows = await readDb
@@ -195,8 +196,10 @@ export async function getLapsForSession(sessionId: number): Promise<Array<{
       isFavorite: laps.isFavorite,
       notes: laps.notes,
       tuneId: laps.tuneId,
+      lapGuid: laps.lapGuid,
       rawByteOffset: laps.rawByteOffset,
       rawFrameCount: laps.rawFrameCount,
+      sourceFinishedAt: laps.sourceFinishedAt,
       sectorTimes: laps.sectorTimes,
     })
     .from(laps)
@@ -248,9 +251,15 @@ export async function replaceLapsForSession(
     invalidReason: string | null;
     sectors: number[] | null;
     classification: LapClassification | null;
+    lapGuid?: string | null;
+    captureChunkId?: string | null;
+    sourceFrameStart?: number | null;
+    sourceFrameCount?: number | null;
+    sourceFinishedAt?: string | null;
     versionIdentity?: TelemetryVersionIdentity;
   }>,
   sessionIdentity?: { carId: string; trackId: string },
+  options: { preserveOriginalSourceArtifacts?: boolean } = {},
 ): Promise<void> {
   const invalidatedIds = await withDatabaseWrite(() => db.transaction(async (tx) => {
     const matchedIds = new Set(replacements.flatMap(({ lapId }) => lapId === null ? [] : [lapId]));
@@ -266,9 +275,12 @@ export async function replaceLapsForSession(
     const deleted = rows.map(({ id }) => id).filter((id) => !matchedIds.has(id));
     const invalidated = [...matchedIds];
     if (ownershipChanged) {
-      await tx.delete(liveCaptureMembers).where(inArray(liveCaptureMembers.lapId, rows.map(({ id }) => id)));
-      await tx.update(sessions).set({ captureLayoutVersion: null, captureManifestFile: null, captureArchiveFile: null }).where(eq(sessions.id, sessionId));
-      await tx.update(laps).set({ captureChunkId: null, sourceFrameStart: null, sourceFrameCount: null }).where(eq(laps.sessionId, sessionId));
+      // Keep immutable original windows available for later retries and exact GUID-based source lookup.
+      if (!options.preserveOriginalSourceArtifacts) {
+        await tx.delete(liveCaptureMembers).where(inArray(liveCaptureMembers.lapId, rows.map(({ id }) => id)));
+        await tx.update(sessions).set({ captureLayoutVersion: null, captureManifestFile: null, captureArchiveFile: null }).where(eq(sessions.id, sessionId));
+        await tx.update(laps).set({ captureChunkId: null, sourceFrameStart: null, sourceFrameCount: null }).where(eq(laps.sessionId, sessionId));
+      }
       await tx.update(sessionCaptureSplitJobs).set({
         jobId: randomUUID(), attemptId: sql`${sessionCaptureSplitJobs.attemptId} + 1`,
         status: "failed", sequence: sql`${sessionCaptureSplitJobs.sequence} + 1`,
@@ -305,6 +317,88 @@ export async function replaceLapsForSession(
       await tx.delete(lineSpreadCache).where(eq(lineSpreadCache.experimentId, experimentId));
     }
     await invalidate(rows.map(({ id }) => id));
+    const sourceIdentity = replacements.some(({ lapGuid }) => lapGuid != null)
+      ? await tx.select({
+        originalActivityId: sessions.originalActivityId, ownerUserId: sessions.ownerUserId,
+        sourceRevision: sessions.originalSourceRevision,
+      }).from(sessions).where(eq(sessions.id, sessionId)).get()
+      : null;
+    const liveCapture = options.preserveOriginalSourceArtifacts
+      ? await tx.select({ captureEpoch: liveCaptures.captureEpoch }).from(liveCaptures).where(eq(liveCaptures.sessionId, sessionId)).get()
+      : null;
+    const liveMemberByChunkId = new Map<string, { generation: number; lapGuid: string }>();
+    if (liveCapture) {
+      const members = await tx.select({ generation: liveCaptureMembers.generation, descriptor: liveCaptureMembers.descriptor })
+        .from(liveCaptureMembers).where(eq(liveCaptureMembers.captureEpoch, liveCapture.captureEpoch)).all();
+      for (const row of members) {
+        const member: unknown = JSON.parse(row.descriptor);
+        if (!member || typeof member !== "object") throw new Error("Live source member descriptor is invalid");
+        const chunkId = "id" in member ? member.id : undefined;
+        const lapGuid = "lapGuid" in member ? member.lapGuid : undefined;
+        if (typeof chunkId !== "string" || typeof lapGuid !== "string") continue;
+        if (liveMemberByChunkId.has(chunkId)) throw new Error(`Live source chunk ${chunkId} is duplicated`);
+        liveMemberByChunkId.set(chunkId, { generation: row.generation, lapGuid: lapGuid.toLowerCase() });
+      }
+    }
+    const relinkLiveMember = async (replacement: typeof replacements[number], lapId: number) => {
+      if (!liveCapture || !replacement.captureChunkId || !replacement.lapGuid) return;
+      const member = liveMemberByChunkId.get(replacement.captureChunkId);
+      if (!member || member.lapGuid !== replacement.lapGuid.toLowerCase()) {
+        throw new Error(`Live source chunk ${replacement.captureChunkId} does not match original lap GUID`);
+      }
+      await tx.update(liveCaptureMembers).set({ lapId })
+        .where(and(eq(liveCaptureMembers.captureEpoch, liveCapture.captureEpoch), eq(liveCaptureMembers.generation, member.generation))).run();
+    };
+    const bindOriginalGuid = async (lapId: number, sourceGuid: string) => {
+      const guid = sourceGuid.toLowerCase();
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(guid)) {
+        throw new Error("Authoritative lap GUID is not canonical UUID");
+      }
+      if (!sourceIdentity?.originalActivityId || !sourceIdentity.sourceRevision) {
+        throw new Error("Original lap GUID has no retained source identity");
+      }
+      const lap = await tx.select({ lapGuid: laps.lapGuid }).from(laps).where(eq(laps.id, lapId)).get();
+      if (!lap) throw new Error("Lap row is missing");
+      const duplicateLap = await tx.select({ id: laps.id }).from(laps)
+        .where(and(sql`lower(${laps.lapGuid}) = ${guid}`, sql`${laps.id} <> ${lapId}`)).get();
+      const duplicateMapping = await tx.select({ id: lapGuidReconciliation.lapId }).from(lapGuidReconciliation)
+        .where(and(sql`lower(${lapGuidReconciliation.lapGuid}) = ${guid}`, sql`${lapGuidReconciliation.lapId} <> ${lapId}`)).get();
+      if (duplicateLap || duplicateMapping) throw new Error("Lap GUID identity conflicts with another original lap");
+      const mapping = await tx.select().from(lapGuidReconciliation).where(eq(lapGuidReconciliation.lapId, lapId)).get();
+      if (mapping?.sourceGuid != null && mapping.sourceGuid.toLowerCase() !== guid) {
+        throw new Error("Lap GUID provenance conflicts with existing source identity");
+      }
+      const existingGuid = mapping?.lapGuid ?? lap.lapGuid;
+      if (existingGuid != null && existingGuid.toLowerCase() !== guid) {
+        throw new Error("Lap GUID identity conflicts with existing original identity");
+      }
+      await tx.update(laps).set({ lapGuid: guid }).where(eq(laps.id, lapId)).run();
+      await tx.insert(lapGuidReconciliation).values({ lapId, lapGuid: guid, sourceGuid: guid, status: "resolved" })
+        .onConflictDoUpdate({
+          target: lapGuidReconciliation.lapId,
+          set: { lapGuid: guid, sourceGuid: guid, status: "resolved" },
+        }).run();
+      const identity = await tx.select().from(originalActivitySourceLaps)
+        .where(eq(originalActivitySourceLaps.lapGuid, guid)).get();
+      if (identity && (identity.ownerUserId !== sourceIdentity.ownerUserId ||
+          (identity.originalActivityId !== null && identity.originalActivityId !== sourceIdentity.originalActivityId))) {
+        throw new Error("Original lap belongs to another source or owner");
+      }
+      if (identity?.sourceRevision != null && identity.sourceRevision !== sourceIdentity.sourceRevision) {
+        throw new Error("Original lap source revision conflicts with retained history");
+      }
+      if (!identity) {
+        await tx.insert(originalActivitySourceLaps).values({
+          lapGuid: guid, originalActivityId: sourceIdentity.originalActivityId,
+          ownerUserId: sourceIdentity.ownerUserId, sourceRevision: sourceIdentity.sourceRevision,
+        }).run();
+      } else if (identity.originalActivityId === null || identity.sourceRevision === null) {
+        await tx.update(originalActivitySourceLaps).set({
+          originalActivityId: identity.originalActivityId ?? sourceIdentity.originalActivityId,
+          sourceRevision: identity.sourceRevision ?? sourceIdentity.sourceRevision,
+        }).where(eq(originalActivitySourceLaps.lapGuid, guid)).run();
+      }
+    };
     for (const id of deleted) await tx.delete(laps).where(eq(laps.id, id));
     for (const replacement of replacements) {
       const values = {
@@ -316,6 +410,10 @@ export async function replaceLapsForSession(
         invalidReason: replacement.invalidReason,
         sectorTimes: replacement.sectors,
         classification: replacement.classification,
+        ...(replacement.captureChunkId !== undefined ? { captureChunkId: replacement.captureChunkId } : {}),
+        ...(replacement.sourceFrameStart !== undefined ? { sourceFrameStart: replacement.sourceFrameStart } : {}),
+        ...(replacement.sourceFrameCount !== undefined ? { sourceFrameCount: replacement.sourceFrameCount } : {}),
+        ...(replacement.sourceFinishedAt == null ? {} : { sourceFinishedAt: replacement.sourceFinishedAt }),
         ...replacement.versionIdentity,
       };
       if (replacement.lapId !== null) {
@@ -328,6 +426,10 @@ export async function replaceLapsForSession(
           }).where(eq(laps.id, replacement.lapId));
         }
         await tx.update(laps).set({ ...values, fuelPerLap: null, tyreWear: null }).where(eq(laps.id, replacement.lapId));
+        if (replacement.lapGuid) {
+          await bindOriginalGuid(replacement.lapId, replacement.lapGuid);
+        }
+        await relinkLiveMember(replacement, replacement.lapId);
       } else {
         const inserted = await tx.insert(laps).values({
           sessionId,
@@ -336,13 +438,18 @@ export async function replaceLapsForSession(
           tuneId: replacement.tuneId,
           notes: replacement.notes,
         }).returning({ id: laps.id }).get();
-        await tx.insert(lapGuidReconciliation).values({
-          lapId: inserted.id,
-          lapGuid: null,
-          sourceGuid: null,
-          status: "held_ambiguous",
-        }).run();
+        if (replacement.lapGuid) {
+          await bindOriginalGuid(inserted.id, replacement.lapGuid);
+        } else {
+          await tx.insert(lapGuidReconciliation).values({
+            lapId: inserted.id,
+            lapGuid: null,
+            sourceGuid: null,
+            status: "held_ambiguous",
+          }).run();
+        }
         invalidated.push(inserted.id);
+        await relinkLiveMember(replacement, inserted.id);
       }
     }
     if (sessionIdentity) {

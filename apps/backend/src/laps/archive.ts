@@ -36,6 +36,8 @@ import { isCatalogCarId, isCatalogTrackId } from "../games/session-identity";
 import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
 import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
 import { extractMotecArchive } from "@raceiq/backend-core/motec/import-staging";
+import { enqueueSessionCaptureSplit } from "@raceiq/backend-core/db/session-queries";
+import { notifyOnlineSync } from "@raceiq/online/server/sync-events";
 import { importMotec } from "@raceiq/backend-core/motec/import";
 import {
   detectGameIdFromBuffer,
@@ -743,7 +745,13 @@ export async function importLapsZip(zipData: Uint8Array, options: { ownership?: 
         const result = await importPortableCapture(bytes, entry.identity, {
           gameId, carId: entry.carId, trackId: entry.trackId, ownership: options.ownership,
         });
-        laps.push(...result.laps);
+        try {
+          laps.push(...result.laps);
+          for (const sessionId of result.sessionIds) await enqueueSessionCaptureSplit(sessionId);
+          notifyOnlineSync();
+        } finally {
+          result.releaseSourceMutations();
+        }
         continue;
       }
       const result = await importSessionBin(bytes, gameId, {

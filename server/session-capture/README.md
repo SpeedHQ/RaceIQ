@@ -60,7 +60,7 @@ Native input waiting behind a detector decision uses a bounded FIFO so later fra
 
 Closed files are synced before a standalone version-3 manifest is atomically persisted and directory-synced; only then are lap references published and readiness announced. Sessions use layout 1 and reference the manifest as their source. Direct manifests declare `sourceCoordinates: "native-wire-v1"`: offsets describe full native frame wire lengths, not compressed/sparse file positions. Each chunk's `sourceRecordByteOffset` skips its synthetic initialization prefix; `recordCount` excludes its duplicated trailing boundary. This lets full-session readers reconstruct original source order and timestamps exactly once without a monolith.
 
-Session changes detach the old capture while the next capture starts. Final shutdown waits for accepted writes and publication. Imported and historical recordings retain the separate splitting path below; new live recording does not enqueue it.
+Session changes detach the old capture while the next capture starts. Final shutdown drains accepted writes but does not independently establish confirmed Online recording closure. Imported and historical recordings retain the separate splitting path below; new live recording does not enqueue it.
 
 Storage maintenance remains excluded while active or retiring captures drain. Orphan cleanup recognizes only controlled direct directory and part names, preserves unpublished parts beside a referenced manifest, and removes those parts only after the source is no longer referenced.
 
@@ -83,6 +83,32 @@ Compression protects split-job and published sources. Migration fences unpublish
 Direct recording regressions live in `apps/backend/test/session-capture/preopened-file-writer.test.ts`, `direct-recorder.test.ts`, and `direct-recording-ingress.test.ts`. They cover partial writes, close/drain races, standby/retirement limits, shared frames, provisional promotion, delayed lap binding, source conservation, and export/import without a monolith. `source-loader-stream.test.ts` covers native-wire manifest reconstruction and invalid paths/coordinates.
 
 ## Online overload and retry verification
+
+Online upload discovery uses `online_fastest_laps` in `app.db`, scoped to the immutable account/game/track/car board. Transactional source invalidation, bounded resumable backfill, dirty/due board evaluation and compare-and-set selection generations replace periodic full-library candidate preparation. The separate outbox and Effect queue retain immutable attempts, acceptance, validation, rejection and superseded history. Older faster accepted history can cover a slower local replacement without claiming that replacement itself was uploaded.
+
+A source becomes eligible only after confirmed recording closure, drained lap writes and durable artifact publication. Pause, garage/race-off telemetry, silence and shutdown alone do not establish closure. Reopening/reprocessing revokes readiness before new writes; stale source generations cannot start new transport. Process-monitor failure is unknown, not proof of process exit. Verified historical recovery is bounded and resumable; unavailable or unproven sources stay held. There is no elapsed-time upload cooldown.
+
+The current confirmed-close mapping is deliberately conservative:
+
+| Game | Confirmed native close boundary | Signals that do not establish closure |
+| --- | --- | --- |
+| F1 2025 | Healthy process monitoring confirms absence, or a known session UID rotates to a different known UID | Pause, race-off, silence, unknown UID, car/track metadata changes |
+| ACC | Healthy process monitoring confirms absence | Garage, race-off, stale-lap flush, silence |
+| AC Evo | Healthy process monitoring confirms absence | Pause (`IsRaceOn=0`), garage, stale-lap flush, silence |
+| iRacing | Healthy process monitoring confirms absence | `IsOnTrack=false`, garage, silence |
+| LMU | Healthy process monitoring confirms absence | `inRealtime=false`, garage, silence |
+
+Verified import/reprocess completion is a separate source-publication boundary for stored recordings. These mappings do not certify native Windows behavior on an unsupported host. Forza remains excluded from Online recording upload.
+
+Historical native recovery requires independently confirmed recording closure, not merely a gap-free attribution row. A closed recording whose original membership changed may still recover from trustworthy surviving artifacts. Its candidate search uses one bounded page per attempt and a durable generation-scoped lap cursor; incomplete searches remain retryable. Reprocessing uses an exclusive durable token: startup releases interrupted ownership but leaves pending work unready until the Online worker completes the existing reprocessor. Main-owned activity checks and generation CAS protect current capture/import/finalization across workers.
+
+Lap finish UTC is source-derived and independent of finalization or upload acceptance. Cloud `finishedAt` is the nullable record-set timestamp; `recordedAt` retains lap-start semantics and `setAt` remains server publication metadata. Preserve native clock anchors and imported finish metadata; never replace unknown timing with the current date.
+
+To create a genuine isolated native source, set `DATA_DIR` to a new empty directory below the platform's `os.tmpdir()`, then run `bun --no-env-file apps/backend/test/fixtures/online-upload-native-source.ts`. The launcher validates the directory before backend imports initialize storage. It replays committed native F1 fixture bytes, explicitly confirms their actual driver binding, finalizes durable capture and asserts real eligible candidates. Use its output directory as `RACEIQ_UPLOAD_SOURCE_DATA_DIR`; never use user data.
+
+The source fixture also records the qualified native LMU Bahrain input through the same production pipeline. Assertions cover actual layout-1 closed manifests, matching native closure evidence and current ready generation, not an assumed layout-3 archive or a candidate count alone.
+
+Historical projection/recovery scenarios in `online-upload-lifecycle-smoke.ts` describe the pre-simplification implementation, not current acceptance requirements. The [Online upload/profile-sync plan](../../docs/plans/online-upload-profile-sync.md) replaces the removed projection plan: valid-lap additions maintain winners transactionally, and Online does not repair sources or select historical fallbacks. Existing recovery behavior described above has not yet been removed; this planning change does not claim the cutover has shipped.
 
 The actual-app cross-repository fixture is `apps/backend/test/fixtures/online-upload-http-recovery-smoke.ts`. Run it from the desktop repository with `RACEIQ_CLOUD_ROOT`, `RACEIQ_UPLOAD_SOURCE_DATA_DIR`, `RACEIQ_UPLOAD_TEST_CERT` and `RACEIQ_UPLOAD_TEST_KEY`. Source data must be an existing isolated temporary native-capture data directory, never a user data directory. It uses isolated clones, loopback-only fake auth/API transports, real desktop workers and the published SDK. Failure logs remain in its reported temporary directory; successful runs remove owned clones and processes.
 

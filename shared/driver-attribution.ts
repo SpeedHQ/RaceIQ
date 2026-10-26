@@ -34,6 +34,16 @@ export interface NativeDriverActor {
   evidenceExpiresAtMs?: number;
 }
 
+/** Local native-actor binding data; transport contracts re-export this shape. */
+export interface GameIdentityBinding {
+  id: string;
+  gameId: string;
+  sourceKind: string;
+  nativeIdentity: string;
+  confirmation: "native_verified" | "user_confirmed";
+  revision: number;
+}
+
 /** Immutable local binding captured with source evidence; remote registration revisions are separate. */
 export interface CapturedDriverBinding {
   readonly id: string;

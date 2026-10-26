@@ -3156,5 +3156,6 @@
   "compare_overview_ers_deployed": "ERS उपयोग",
   "compare_overview_ers_recovered": "ERS पुनर्प्राप्त",
   "compare_overview_top_speed": "अधिकतम गति",
-  "compare_overview_unavailable": "उपलब्ध नहीं"
+  "compare_overview_unavailable": "उपलब्ध नहीं",
+  "online_consent_popup_blocked": "सहमति पृष्ठ नहीं खुल सका। पॉप-अप की अनुमति दें और फिर कोशिश करें।"
 }

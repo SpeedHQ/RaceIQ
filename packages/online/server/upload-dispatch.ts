@@ -1,129 +1,93 @@
-import { createHash, randomUUID } from "node:crypto";
-import { mkdir, rename, rm, writeFile } from "node:fs/promises";
-import { join, resolve, sep } from "node:path";
-import { resolveOnlineDataDir } from "./runtime";
-import { clearRetiredOutboxPayloads, isCurrentOutboxPayloadPath, listRetiredOutboxPayloads, persistOutboxPayload, saveOutboxReservation, type OutboxJob } from "./outbox-storage";
-import { OnlineAdapterError, type createRaceIqOnlineAdapter } from "./adapter";
-import { UPLOAD_GAME_IDS,uploadPayloadFingerprint,getOnlineRecordingError,MAX_ONLINE_UPLOAD_BYTES,MAX_ONLINE_SETUP_BYTES,type PreparedOnlineLapUpload,type UploadGame } from "./payload";
-import type { UploadOutcome } from "./outbox";
-import type { OnlineLapIdentity } from "./payload";
+import { OnlineAdapterError, type ReserveLapUploadInput, type ReserveLapUploadResult, type SanitizedLapUpload } from "./adapter";
+import { getOnlineRecordingError, UPLOAD_GAME_IDS, type PreparedOnlineLapUpload } from "./payload";
+import type { OnlineError } from "../contracts/index";
 
 export interface OnlineUploadContext { accountId: string; accountEpoch: string; revision: number; setupUploads: boolean }
-type Adapter = ReturnType<typeof createRaceIqOnlineAdapter>;
 export interface OnlineUploadDispatchPort {
   getContext(): Promise<OnlineUploadContext | null>;
   isAuthorized(context: OnlineUploadContext, includesSetup: boolean): boolean;
-  reserveLapUpload: Adapter["reserveLapUpload"];
-  uploadLap: Adapter["uploadLap"];
+  reserveLapUpload(input: Omit<ReserveLapUploadInput, "isAuthorized">, context: OnlineUploadContext, mayStart: () => boolean): Promise<ReserveLapUploadResult>;
+  uploadLap(input: Omit<SanitizedLapUpload, "isAuthorized">, context: OnlineUploadContext, mayStart: () => boolean): Promise<{ id: string } | { acceptedJobId: string }>;
   prepareRecording(lapId: number, setupUploads: boolean): Promise<PreparedOnlineLapUpload>;
 }
-function artifactRoot(): string { return join(resolveOnlineDataDir(), "online-upload-payloads"); }
-function ownedPath(path: string): string {
-  const normalized = resolve(path);
-  if (!normalized.startsWith(`${resolve(artifactRoot())}${sep}`)) throw new Error("Online payload path is outside managed storage");
-  return normalized;
-}
-async function publish(path: string, bytes: Uint8Array): Promise<void> {
-  const temporary = `${path}.${randomUUID()}.tmp`;
-  try { await writeFile(temporary, bytes, { flag: "wx", mode: 0o600 }); await rename(temporary, path); }
-  finally { await rm(temporary, { force: true }); }
-}
-async function load(path:string,maxBytes:number):Promise<Uint8Array<ArrayBuffer>> {
-  const file = Bun.file(ownedPath(path));
-  if(file.size<=0||file.size>maxBytes)throw new Error("Online payload size is invalid");
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  if(bytes.byteLength<=0||bytes.byteLength>maxBytes)throw new Error("Online payload size is invalid");
-  return bytes;
-}
-export async function cleanupRetiredOnlinePayloads(): Promise<void> {
-  for (const row of await listRetiredOutboxPayloads()) {
-    for (const path of new Set([row.recordingPath, row.setupPath].filter((value): value is string => value !== null))) {
-      if (!await isCurrentOutboxPayloadPath(path)) await rm(ownedPath(path), { force: true });
-    }
-    await clearRetiredOutboxPayloads(row);
-  }
-}
+export type OnlineUploadRow = { lapId:number;gameId:string;trackId:string;carId:string;lapTimeMs:number;accountId:string;originalActivityId:string;lapGuid:string;result:string|null;idempotencyKey:string|null;identityJson:string|null;payloadFingerprint:string|null;reservationToken:string|null;remoteJobId:string|null;uploadedAt:string|null;retryAfter:string|null };
+export type OnlineUploadStorage = { getOnlineUploadWinnerPage:(cursor:number|null,limit:number)=>Promise<{items:Array<{lapId:number;gameId:string;trackId:string;carId:string;lapTimeMs:number}>;nextCursor:number|null}>;readOnlineLapUpload:(lapId:number)=>Promise<OnlineUploadRow|null>;retainOnlineLapRequest:(lapId:number,request:{accountId:string;idempotencyKey:string;identityJson:string;payloadFingerprint:string;reservationToken?:string|null})=>Promise<boolean>;settleOnlineLapUpload:(lapId:number,key:string,result:string,remoteJobId:string|null,uploadedAt:string|null)=>Promise<boolean>;setOnlineLapRetryAfter:(lapId:number,key:string,retryAfter:string|null)=>Promise<boolean> };
+export type OnlineUploadAttemptResult = { status:"success"|"rejected"|"skipped"|"retry";error:OnlineError|null };
+export type UploadPageBoundary = { time:number;id:string };
 
-const keepRunning = () => true;
-export function createOnlineUploadDispatcher(port: OnlineUploadDispatchPort): (job: OutboxJob, mayStart?: () => boolean) => Promise<UploadOutcome> {
-  return async (initial, mayStart = keepRunning) => {
-    let phase: "prepare" | "reserve" | "upload" = "prepare";
-    let job = initial;
-    const cancelled = (): UploadOutcome => mayStart() ? { kind: "withdrawn" } : { kind: "definitely_not_sent", code: "service_unavailable", retryable: true, retryAfterMs: 0 };
-    if (!mayStart()) return cancelled();
-    const context = await port.getContext();
-    if (!context || context.accountId !== job.accountId || context.accountEpoch !== job.accountEpoch) return { kind: "withdrawn" };
-    if (!job.identity || job.identity.ownerUserId !== job.accountId) return { kind: "ambiguous", code: "activity_identity_ambiguous" };
-    const identity = job.identity;
-    if (!UPLOAD_GAME_IDS.includes(job.gameId as UploadGame) || !job.uploadKey) return { kind: "rejected", code: "unsupported_game" };
-    const gameId = job.gameId as UploadGame;
-    if(gameId==="f1-2025"&&job.carId!=="41")return {kind:"definitely_not_sent",code:"ineligible_lap",retryable:false};
-    const authorized = (includesSetup = false) => mayStart() && port.isAuthorized(context, includesSetup);
-    try {
-      let reconciledToken: string | undefined;
-      if (job.payloadFingerprint && job.recordingPath) {
-        // Reconcile this exact durable identity before replacing bytes after a restriction/reprocess.
-        phase = "reserve";
-        const reservation = await port.reserveLapUpload({ ...identity,gameId, idempotencyKey: job.uploadKey, consentAccepted: true, visibility: "public", isAuthorized: () => authorized() });
-        if (reservation.acceptedJobId) return { kind: "request_accepted", remoteJobId: reservation.acceptedJobId };
-        if (!reservation.reservationToken || !await saveOutboxReservation(job, reservation.reservationToken)) return { kind: "ambiguous", code: "internal_error" };
-        reconciledToken = reservation.reservationToken;
-      }
-      phase = "prepare";
-      const prepared = await port.prepareRecording(job.lapId, context.setupUploads);
-      if (prepared.lapId !== job.lapId || prepared.gameId !== gameId || prepared.trackId !== job.trackId || prepared.carId !== job.carId || prepared.lapTimeMs !== job.lapTimeMs) return { kind: "rejected", code: "ineligible_lap" };
-      const identityFields: readonly (keyof OnlineLapIdentity)[] = ["lapGuid","originalActivityId","sourceRevision","sourceKind","ownerUserId","driverBindingId","driverBindingRevision"];
-      if (identityFields.some((field) => prepared[field] !== identity[field])) return { kind: "rejected", code: "lap_identity_conflict" };
-      // Let queued account/privacy/binding barriers run before any new transport.
-      await Bun.sleep(0);
-      if (!authorized(prepared.setup !== null)) return cancelled();
-      const directory = join(artifactRoot(), createHash("sha256").update(job.accountId).digest("hex"));
-      await mkdir(directory, { recursive: true, mode: 0o700 });
-      const recordingPath = join(directory, `${job.rowId}-${prepared.fingerprint}.bin`);
-      const setupPath = prepared.setup ? join(directory, `${job.rowId}-${prepared.fingerprint}.setup`) : null;
-      await publish(recordingPath, prepared.recording);
-      if (setupPath && prepared.setup) await publish(setupPath, prepared.setup);
-      const stored = await persistOutboxPayload(job, { fingerprint: prepared.fingerprint, recordingPath, setupPath }, reconciledToken);
-      if (!stored?.uploadKey) return { kind: "ambiguous", code: "internal_error" };
-      if (stored.status !== "dispatching") return { kind: "definitely_not_sent", code: "service_unavailable", retryable: true, retryAfterMs: 0 };
-      const uploadKey = stored.uploadKey;
-      job = stored;
-      // The persisted copy, not a mutable source/session, is the transport's immutable payload.
-      const recording=await load(recordingPath,MAX_ONLINE_UPLOAD_BYTES);
-      const setup=setupPath?await load(setupPath,MAX_ONLINE_SETUP_BYTES):null;
-      if (await uploadPayloadFingerprint(recording,setup)!==job.payloadFingerprint||!await prepared.codec.isServiceCompatible(recording,gameId)||(gameId==="f1-2025"&&await prepared.codec.hasF1SetupTelemetry(recording)))return {kind:"rejected",code:gameId==="f1-2025"?"f1_sanitization_failed":"ineligible_lap"};
-      phase = "reserve";
-      // A new key after changed bytes needs its own reservation; unchanged reconciled bytes reuse the fresh token.
-      let token = reconciledToken && stored.uploadKey === initial.uploadKey ? reconciledToken : undefined;
-      if (!token) {
-        const reservation = await port.reserveLapUpload({ ...identity,gameId, idempotencyKey: uploadKey, consentAccepted: true, visibility: "public", isAuthorized: () => authorized() });
-        if (reservation.acceptedJobId) return { kind: "request_accepted", remoteJobId: reservation.acceptedJobId };
-        if (!reservation.reservationToken || !await saveOutboxReservation(job, reservation.reservationToken)) return { kind: "ambiguous", code: "internal_error" };
-        token = reservation.reservationToken;
-      }
-      if (!authorized(setup !== null)) return cancelled();
-      phase = "upload";
-      const result = await port.uploadLap({ ...identity,gameId,carId:prepared.carId, filename: prepared.filename,recording,setup:setup??undefined,payloadFingerprint:prepared.fingerprint,idempotencyKey:uploadKey,reservationToken:token,consentAccepted:true,visibility:"public",setupUploads:context.setupUploads,codec:prepared.codec,isAuthorized:()=>authorized(setup!==null),isSourceCurrent:prepared.isSourceCurrent });
-      const remoteJobId = "acceptedJobId" in result ? result.acceptedJobId : result.id;
-      if (typeof remoteJobId !== "string" || !remoteJobId) return { kind: "ambiguous", code: "internal_error" };
-      return { kind: "request_accepted", remoteJobId };
-    } catch (cause) {
-      if(phase!=="upload"&&!authorized())return cancelled();
-      if(phase==="prepare"){
-        const failure=getOnlineRecordingError(cause);
-        if(failure.code==="driver_identity_required"||failure.code==="activity_identity_ambiguous"||failure.code==="stale_state"||failure.code==="recording_not_ready")return {kind:"held",code:failure.code};
-        return {kind:"definitely_not_sent",code:failure.code,retryable:failure.retryable,...(failure.retryAfter?{retryAfterMs:Math.max(0,Date.parse(failure.retryAfter)-Date.now())}:{})};
-      }
-      if (cause instanceof OnlineAdapterError) {
-        if (cause.code === "not_connected" && !authorized()) return cancelled();
-        if(cause.code==="not_connected"&&cause.responseStatus===null)return {kind:"definitely_not_sent",code:"service_unavailable",retryable:true,retryAfterMs:0};
-        const retryAfterMs = cause.retryAfter ? Math.max(0, Date.parse(cause.retryAfter) - Date.now()) : undefined;
-        const localRejection=cause.responseStatus===null&&!cause.retryable&&cause.code!=="offline"&&cause.code!=="service_unavailable";
-        const definitive=phase!=="upload"||localRejection||(cause.responseStatus!==null&&cause.responseStatus>=400&&cause.responseStatus<500);
-        if (definitive) return { kind: "definitely_not_sent", code: cause.code === "invalid_response" ? "ineligible_lap" : cause.code, retryable: cause.retryable, retryAfterMs };
-        return { kind: "ambiguous", code: cause.code };
-      }
-      return {kind:"ambiguous",code:"internal_error"};
+function sameLap(left:OnlineUploadRow|null,right:OnlineUploadRow):boolean{
+  return !!left&&left.lapId===right.lapId&&left.gameId===right.gameId&&left.trackId===right.trackId&&left.carId===right.carId&&left.lapTimeMs===right.lapTimeMs&&left.accountId===right.accountId&&left.lapGuid===right.lapGuid&&left.originalActivityId===right.originalActivityId&&left.result===null;
+}
+export function createOnlineUploadDispatcher(port:OnlineUploadDispatchPort,storage:OnlineUploadStorage):(lapId:number,mayStart?:()=>boolean)=>Promise<OnlineUploadAttemptResult>{
+  return async(lapId,mayStart=()=>true)=>{
+    const skipped:OnlineUploadAttemptResult={status:"skipped",error:null};
+    const context=await port.getContext();
+    if(!context||!mayStart())return skipped;
+    let row=await storage.readOnlineLapUpload(lapId);
+    const current=(includesSetup=false)=>mayStart()&&port.isAuthorized(context,includesSetup);
+    if(!row||row.accountId!==context.accountId||row.result!==null||row.retryAfter&&Date.parse(row.retryAfter)>Date.now()||!current())return skipped;
+    const key=row.idempotencyKey??Bun.randomUUIDv7();
+    if(row.idempotencyKey){
+      let identity:Partial<PreparedOnlineLapUpload>|null;
+      try{identity=JSON.parse(row.identityJson??"null") as Partial<PreparedOnlineLapUpload>|null;}catch{return skipped;}
+      if(!identity||identity.ownerUserId!==row.accountId||identity.lapGuid!==row.lapGuid||identity.originalActivityId!==row.originalActivityId||typeof identity.sourceRevision!=="string"||!identity.sourceRevision||!(identity.sourceKind==="native_capture"||identity.sourceKind==="verified_portable")||typeof identity.driverBindingId!=="string"||!identity.driverBindingId||typeof identity.driverBindingRevision!=="number"||!Number.isSafeInteger(identity.driverBindingRevision)||identity.driverBindingRevision<1)return skipped;
+      if(!UPLOAD_GAME_IDS.includes(row.gameId as typeof UPLOAD_GAME_IDS[number])||(row.gameId==="f1-2025"&&row.carId!=="41"))return skipped;
+      try{
+        const requestRow=row;
+        const accepted=await port.reserveLapUpload({lapGuid:row.lapGuid,originalActivityId:row.originalActivityId,ownerUserId:row.accountId,sourceRevision:identity.sourceRevision,sourceKind:identity.sourceKind,driverBindingId:identity.driverBindingId,driverBindingRevision:identity.driverBindingRevision,gameId:row.gameId as typeof UPLOAD_GAME_IDS[number],idempotencyKey:key,consentAccepted:true,visibility:"public",isCurrent:async()=>current()&&sameLap(await storage.readOnlineLapUpload(lapId),requestRow)},context,mayStart);
+        if(accepted.acceptedJobId)return await storage.settleOnlineLapUpload(lapId,key,"success",accepted.acceptedJobId,new Date().toISOString())?{status:"success",error:null}:skipped;
+        if(accepted.reservationToken){
+          if(!await storage.retainOnlineLapRequest(lapId,{accountId:context.accountId,idempotencyKey:key,identityJson:row.identityJson??"",payloadFingerprint:row.payloadFingerprint??"",reservationToken:accepted.reservationToken}))return skipped;
+          row=await storage.readOnlineLapUpload(lapId);
+          if(!row||row.idempotencyKey!==key)return skipped;
+        }
+      }catch(cause){return await recordFailure(cause,storage,lapId,key);}
     }
+    let prepared:PreparedOnlineLapUpload;
+    try{prepared=await port.prepareRecording(lapId,context.setupUploads);}catch(cause){return await recordFailure(cause,storage,lapId,key);}
+    if(!await prepared.isSourceCurrent()||!current(prepared.setup!==null))return skipped;
+    const identity={lapGuid:prepared.lapGuid,originalActivityId:prepared.originalActivityId,sourceRevision:prepared.sourceRevision,sourceKind:prepared.sourceKind,ownerUserId:prepared.ownerUserId,driverBindingId:prepared.driverBindingId,driverBindingRevision:prepared.driverBindingRevision};
+    const identityJson=JSON.stringify(identity);
+    if(prepared.lapId!==row.lapId||prepared.gameId!==row.gameId||prepared.trackId!==row.trackId||prepared.carId!==row.carId||prepared.lapTimeMs!==row.lapTimeMs||prepared.ownerUserId!==row.accountId||prepared.lapGuid!==row.lapGuid||prepared.originalActivityId!==row.originalActivityId)return skipped;
+    if(row.idempotencyKey&&(row.identityJson!==identityJson||row.payloadFingerprint!==prepared.fingerprint))return skipped;
+    if(!row.idempotencyKey){
+      if(!await storage.retainOnlineLapRequest(lapId,{accountId:context.accountId,idempotencyKey:key,identityJson,payloadFingerprint:prepared.fingerprint}))return skipped;
+      row=await storage.readOnlineLapUpload(lapId);
+      if(!row||row.idempotencyKey!==key||row.identityJson!==identityJson||row.payloadFingerprint!==prepared.fingerprint)return skipped;
+    }
+    try{
+      if(!current(prepared.setup!==null)||!await prepared.isSourceCurrent()||!sameLap(await storage.readOnlineLapUpload(lapId),row))return skipped;
+      let token=row.reservationToken;
+      if(!token){
+        const requestRow=row;
+        const reservation=await port.reserveLapUpload({...identity,gameId:prepared.gameId,idempotencyKey:key,consentAccepted:true,visibility:"public",isCurrent:async()=>current(prepared.setup!==null)&&await prepared.isSourceCurrent()&&sameLap(await storage.readOnlineLapUpload(lapId),requestRow)},context,mayStart);
+        if(reservation.acceptedJobId)return await storage.settleOnlineLapUpload(lapId,key,"success",reservation.acceptedJobId,new Date().toISOString())?{status:"success",error:null}:skipped;
+        token=reservation.reservationToken;
+        if(!token||!await storage.retainOnlineLapRequest(lapId,{accountId:context.accountId,idempotencyKey:key,identityJson,payloadFingerprint:prepared.fingerprint,reservationToken:token}))return skipped;
+      }
+      const latest=await storage.readOnlineLapUpload(lapId);
+      if(!latest||latest.result!==null||latest.idempotencyKey!==key||latest.identityJson!==identityJson||latest.payloadFingerprint!==prepared.fingerprint||latest.reservationToken!==token||!current(prepared.setup!==null)||!await prepared.isSourceCurrent()||!sameLap(latest,row))return skipped;
+      const requestRow=row;
+      const isCurrent=async()=>current(prepared.setup!==null)&&await prepared.isSourceCurrent()&&sameLap(await storage.readOnlineLapUpload(lapId),requestRow);
+      const receipt=await port.uploadLap({...identity,gameId:prepared.gameId,carId:prepared.carId,filename:prepared.filename,recording:prepared.recording,setup:prepared.setup??undefined,idempotencyKey:key,reservationToken:token,payloadFingerprint:prepared.fingerprint,consentAccepted:true,visibility:"public",setupUploads:context.setupUploads,codec:prepared.codec,isSourceCurrent:isCurrent},context,mayStart);
+      const remote="acceptedJobId"in receipt?receipt.acceptedJobId:receipt.id;
+      if(!remote)return {status:"retry",error:{code:"service_unavailable",retryable:true,retryAfter:null}};
+      return await storage.settleOnlineLapUpload(lapId,key,"success",remote,new Date().toISOString())?{status:"success",error:null}:skipped;
+    }catch(cause){if(cause instanceof OnlineAdapterError&&cause.code==="activity_revision_conflict")return skipped;if(cause instanceof OnlineAdapterError&&cause.code==="not_connected"&&!current(prepared.setup!==null))return skipped;return await recordFailure(cause,storage,lapId,key);}
   };
 }
+async function recordFailure(cause:unknown,storage:OnlineUploadStorage,lapId:number,key:string):Promise<OnlineUploadAttemptResult>{
+  if(cause instanceof OnlineAdapterError){
+    const terminalCodes=["activity_identity_ambiguous","activity_owner_conflict","lap_owner_conflict","lap_identity_conflict","unsupported_recording_format","recording_too_large","unknown_track","unknown_car","unsupported_game","f1_sanitization_failed"];
+    const terminal=cause.responseStatus!==null&&!cause.retryable&&terminalCodes.includes(cause.code);
+    if(terminal){
+      const result=await storage.settleOnlineLapUpload(lapId,key,cause.code==="invalid_response"?"validation_rejected":cause.code,null,null);
+      return result?{status:"rejected",error:{code:"validation_rejected",retryable:false,retryAfter:null}}:{status:"skipped",error:null};
+    }
+    await storage.setOnlineLapRetryAfter(lapId,key,cause.retryAfter);
+    return {status:"retry",error:{code:cause.code==="invalid_response"?"internal_error":cause.code,retryable:true,retryAfter:cause.retryAfter}};
+  }
+  await storage.setOnlineLapRetryAfter(lapId,key,null);
+  return {status:"retry",error:getOnlineRecordingError(cause)};
+}
+

@@ -5,6 +5,7 @@ import { GameIdQuerySchema, IdParamSchema } from "@raceiq/shared/platform/http/r
 import { GameIdSchema } from "@raceiq/shared/games/ids";
 import { getSessions, deleteSession, updateSession, updateSessionCarTrack, countStaleSessions, getStaleSessions, getSessionRecapData, setSessionFavorite, SessionCaptureActiveError } from "@raceiq/backend-core/db/session-queries";
 import { reprocessSession, SessionNotFoundError, SessionRawFileMissingError } from "@raceiq/backend-core/session-capture/reprocess";
+import { SessionSourceMutationActiveError } from "@raceiq/backend-core/session-capture/source-mutation-activity";
 import {
   getClassificationMigrationStatus,
   listClassificationMigrationRecordings,
@@ -173,6 +174,9 @@ export const sessionRoutes = new Hono()
       if (remaining === 0) wsManager.setStaleSessionsNotification(null);
       return c.json(result);
     } catch (error) {
+      if (error instanceof SessionSourceMutationActiveError) {
+        return c.json({ error: error.message, code: "SOURCE_MUTATION_ACTIVE" }, 409);
+      }
       if (error instanceof SessionRawFileMissingError) {
         return c.json({ error: error.message }, 410);
       }
@@ -188,19 +192,24 @@ export const sessionRoutes = new Hono()
       getAllServerGames().map((adapter) => adapter.id),
     );
     const results = [];
-    const skipped: { sessionId: number; reason: "raw-file-missing" }[] = [];
+    const skipped: { sessionId: number; reason: "raw-file-missing" | "source-busy" }[] = [];
     for (const id of staleIds) {
       try {
         const result = await reprocessSession(id);
         wsManager.broadcastNotification({ type: "lap-reprocessed", ...result });
         results.push(result);
       } catch (error) {
-        if (!(error instanceof SessionRawFileMissingError)) throw error;
-        console.warn(`[Reprocess] Skipping session ${id}: ${error.message}`);
-        skipped.push({ sessionId: id, reason: "raw-file-missing" });
+        if (error instanceof SessionRawFileMissingError) {
+          console.warn(`[Reprocess] Skipping session ${id}: ${error.message}`);
+          skipped.push({ sessionId: id, reason: "raw-file-missing" });
+        } else if (error instanceof SessionSourceMutationActiveError) {
+          skipped.push({ sessionId: id, reason: "source-busy" });
+        } else {
+          throw error;
+        }
       }
     }
-    wsManager.setStaleSessionsNotification(null);
+    if (!skipped.some((item) => item.reason === "source-busy")) wsManager.setStaleSessionsNotification(null);
     return c.json({ reprocessed: results.length, skipped, results });
   })
   .post("/api/sessions/bulk-delete", zValidator("json", z.object({ ids: z.array(z.number().int()) })), async (c) => {

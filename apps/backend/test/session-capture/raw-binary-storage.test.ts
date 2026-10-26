@@ -19,14 +19,17 @@ import {
 import { reprocessSession } from "@raceiq/backend-core/session-capture/reprocess";
 import { db } from "@raceiq/backend-core/db/index";
 import { sessions, laps } from "@raceiq/backend-core/db/schema";
+import { readOnlineRecordingSource, revokeOnlineRecordingSource, claimOnlineRecordingSourceReprocess, releaseOnlineRecordingSourceReprocess } from "@raceiq/backend-core/db/online-recording-source-queries";
 import { eq } from "drizzle-orm";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
-import { countStaleSessions, getStaleSessions } from "@raceiq/backend-core/db/session-queries";
 import { sessionRoutes } from "../../src/routes/session-routes";
+import { countStaleSessions, getStaleSessions } from "@raceiq/backend-core/db/session-queries";
+import { beginSessionSourceMutation, SessionSourceMutationActiveError } from "@raceiq/backend-core/session-capture/source-mutation-activity";
 import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
 import { executeSessionCleanup } from "@raceiq/backend-core/session-capture/session-cleanup";
 import { combineRecordingParts } from "@raceiq/backend-core/session-capture/combine-recording-parts";
+import { withSessionCaptureMaintenanceLock } from "@raceiq/backend-core/session-capture/cleanup";
 import { convertSeedFramesToSparse } from "@raceiq/tooling-data/data/seed-capture-conversion";
 
 function* seedCaptureFrames(bytes: Buffer) {
@@ -163,6 +166,27 @@ describe("reprocessSession", () => {
     writeFileSync(path, encodeMetaFrame());
   }
 
+  test("failed manual reprocess release clears its lock and allows explicit retry", async () => {
+    sessionId = await insertTestSession(null);
+    const initial = await readOnlineRecordingSource(sessionId);
+    const first = await claimOnlineRecordingSourceReprocess(sessionId, initial!.generation, false);
+    expect(first).not.toBeNull();
+    expect(await readOnlineRecordingSource(sessionId)).toMatchObject({
+      generation: first!.generation, reprocessPending: true, reprocessToken: first!.token,
+    });
+    expect(await releaseOnlineRecordingSourceReprocess(sessionId, first!.token)).toBe(true);
+    expect(await readOnlineRecordingSource(sessionId)).toMatchObject({
+      generation: first!.generation, reprocessPending: false, reprocessToken: null,
+    });
+    const retry = await claimOnlineRecordingSourceReprocess(sessionId, first!.generation, false);
+    expect(retry).not.toBeNull();
+    expect(await releaseOnlineRecordingSourceReprocess(sessionId, first!.token)).toBe(false);
+    expect(await readOnlineRecordingSource(sessionId)).toMatchObject({
+      generation: retry!.generation, reprocessPending: true, reprocessToken: retry!.token,
+    });
+    expect(await releaseOnlineRecordingSourceReprocess(sessionId, retry!.token)).toBe(true);
+  });
+
   test("throws if session has no raw file", async () => {
     sessionId = await insertTestSession(null);
     await expect(reprocessSession(sessionId)).rejects.toThrow("no raw file");
@@ -256,8 +280,26 @@ describe("reprocessSession", () => {
       error: `Session ${missingSessionId} not found`,
     });
   });
+  test("returns typed busy and leaves source unchanged when reprocess overlaps active source mutation", async () => {
+    sessionId = await insertTestSession(null);
+    const before = await readOnlineRecordingSource(sessionId);
+    expect(before).not.toBeNull();
+    const release = beginSessionSourceMutation(sessionId);
+    try {
+      const response = await sessionRoutes.request(`/api/sessions/${sessionId}/reprocess`, { method: "POST" });
+      expect(response.status).toBe(409);
+      expect(await response.json()).toEqual({
+        error: `Session ${sessionId} source mutation is already active`, code: "SOURCE_MUTATION_ACTIVE",
+      });
+      expect(await readOnlineRecordingSource(sessionId)).toMatchObject({
+        generation: before!.generation, reprocessPending: false, reprocessToken: null,
+      });
+    } finally {
+      release();
+    }
+  });
 
-  test("AC EVO Tourist repair is repeatable and preserves session metadata", async () => {
+  test("AC EVO Tourist repair preserves metadata and fences overlapping reprocess publication", async () => {
     const binPath = join(tmpDir, "ac-evo-tourist.bin");
     const recording = await combineRecordingParts([
       "test/artifacts/sessions/ac-evo-tourist-2026-10-10.bin.gz.part1",
@@ -316,6 +358,23 @@ describe("reprocessSession", () => {
     const session = await db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
     expect(session).toMatchObject({ gameId: "ac-evo", trackId: '["Nurburgring","Touristenfahrten"]', notes: "Tourist repair metadata", isFavorite: true });
     expect(session?.carId).not.toBe("test-car");
+    const entered = Promise.withResolvers<void>();
+    const hold = Promise.withResolvers<void>();
+    const heldLock = withSessionCaptureMaintenanceLock(async () => {
+      entered.resolve();
+      await hold.promise;
+    });
+    await entered.promise;
+    const firstReprocess = reprocessSession(sessionId);
+    const secondReprocess = reprocessSession(sessionId);
+    hold.resolve();
+    await heldLock;
+    const outcomes = await Promise.allSettled([firstReprocess, secondReprocess]);
+    expect(outcomes.filter((outcome) => outcome.status === "fulfilled")).toHaveLength(1);
+    const failed = outcomes.find((outcome) => outcome.status === "rejected");
+    expect(failed?.status).toBe("rejected");
+    if (failed?.status !== "rejected") throw new Error("Concurrent reprocess did not reject");
+    expect(failed.reason).toBeInstanceOf(SessionSourceMutationActiveError);
   }, { timeout: 180_000 });
 });
 

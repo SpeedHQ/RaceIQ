@@ -1,0 +1,10 @@
+{
+  "boardURL": "http://127.0.0.1:55250/leaderboards/f1-2025/32",
+  "expectedFinishedAt": "2026-06-01T12:54:26.240Z",
+  "observedKnownDate": "2026-06-01T12:54:26.240Z",
+  "observedKnownText": "Jun 1, 2026",
+  "runtimeErrors": 0,
+  "visualEvidence": "NOT CAPTURED: custom browser runner timed out after30000ms; single direct targeted screenshot retry timed out after20000ms. No further capture retries.",
+  "unknownMobile": "Not run in this fixture window",
+  "cloudSmokeExit": 1
+}

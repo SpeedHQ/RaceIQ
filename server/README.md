@@ -13,7 +13,7 @@ All other code belongs to domain folders. Each domain README defines ownership, 
 - [`runtime/`](runtime/README.md) — process lifecycle, configuration, HTTP/WebSocket/UDP transport, desktop integration, and updates.
 - [`routes/`](routes/README.md) — Hono HTTP boundary, request validation, and response translation.
 - [`sync/`](sync/README.md) — remote lap-time manifest and payload synchronization.
-- [`@raceiq/online`](../packages/online/) — Online UI, contracts, route/controller services, account service, adapter, upload delivery, separate SQLite storage and feature tests. Typed application hosts supply shared controls/RPC and platform services; `db/online-upload-queries.ts` remains here because it queries the app-owned lap DB. See [feature package boundaries](../docs/architecture/feature-packages.md) and [implementation status and service gates](../docs/plans/raceiq-live-service.md).
+- [`@raceiq/online`](../packages/online/) — Online UI, contracts, route/controller services, account service, adapter, upload delivery and feature tests. Typed application hosts supply shared controls/RPC and platform services. See [feature package boundaries](../docs/architecture/feature-packages.md) and the [current upload/profile-sync simplification plan](../docs/plans/online-upload-profile-sync.md); the plan is not a claim that storage cutover has shipped.
 
 ### Game and telemetry pipeline
 

@@ -1,5 +1,4 @@
 import { expect, test } from "bun:test";
-import { hashActivityContribution } from "@speedhq/live-client";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { DriverAttributionStint } from "@raceiq/shared/driver-attribution";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
@@ -10,8 +9,7 @@ import { deleteSession, insertSession } from "@raceiq/backend-core/db/session-qu
 import { closeNativeOriginalActivitySource, finalizeNativeOriginalActivitySource } from "@raceiq/backend-core/db/original-activity-queries";
 import { prepareDashboardPublicationCandidate, publishDashboardSession } from "@raceiq/backend-core/db/dashboard-summary-queries";
 import { getDashboard } from "@raceiq/backend-core/db/dashboard-queries";
-import { buildLocalDriverSummary, hasPendingDriverSummaryPreparations, prepareDriverSummaryContributions,
-  type DriverSummaryActivityContribution, type PreparedDriverSummaryContribution } from "@raceiq/backend-core/driver-summary/index";
+import { buildLocalDriverSummary } from "@raceiq/backend-core/driver-summary/index";
 import { DashboardCaptureObservation } from "@raceiq/backend-core/session-capture/dashboard-observation";
 
 test("actual personal duration query includes a closed Self session with no completed lap and preserves Unknown session type", async () => {
@@ -47,17 +45,9 @@ test("actual personal duration query includes a closed Self session with no comp
     expect(dashboard.totals).toMatchObject({ laps: 0, drivenSeconds: 0 });
     expect(dashboard.sessionTypes).toMatchObject({ totalSeconds: 12, unknownSeconds: 12,
       sessionsWithDuration: 1, sessionsWithoutDuration: 0, durationCoverage: "complete" });
-    const contributions: PreparedDriverSummaryContribution[] = [];
-    do {
-      contributions.push(...await prepareDriverSummaryContributions(hashActivityContribution));
-    } while (await hasPendingDriverSummaryPreparations());
-    const prepared = contributions.find((item) => item.activityId === activityId);
-    expect(prepared).toMatchObject({ lapGuids: [], state: "ready" });
-    expect((prepared!.payload as DriverSummaryActivityContribution).metrics.sessionTypeSeconds.unknown).toBe(12);
   } finally {
     await deleteSession(sessionId);
     if (activityId) {
-      await client.execute({ sql: "DELETE FROM driver_summary_activities WHERE activity_id=?", args: [activityId] });
       await client.execute({ sql: "DELETE FROM original_activity_source_laps WHERE original_activity_id=?", args: [activityId] });
       await client.execute({ sql: "DELETE FROM original_activity_sources WHERE original_activity_id=?", args: [activityId] });
     }

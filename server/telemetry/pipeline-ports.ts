@@ -31,10 +31,9 @@ import { SparseSessionRecorder } from "@raceiq/capture-formats/session/sparse-re
 import { resolveRecordingGameDirectory } from "../runtime/config/recording-directory";
 import { timestampForFilename } from "../session-capture/filename";
 import { notifyOnlineSync } from "@raceiq/online/server/sync-events";
-import type { GameIdentityBinding } from "@raceiq/online/contracts";
-import type { DriverAttributionStint, LapDriverAttribution, NativeDriverActor } from "@raceiq/shared/driver-attribution";
+import type { DriverAttributionStint, GameIdentityBinding, LapDriverAttribution, NativeDriverActor } from "@raceiq/shared/driver-attribution";
 import { getLocalGameBindingSnapshot, upsertLocalGameBinding } from "../db/local-account-queries";
-import { setLapDriverAttribution, replaceSessionDriverAttributionStints } from "../db/driver-summary-ledger-queries";
+import { replaceSessionDriverAttributionStints } from "../db/driver-summary-ledger-queries";
 import { closeNativeOriginalActivitySource, finalizeNativeOriginalActivitySource } from "../db/original-activity-queries";
 import { encodeNativeDriverBinding } from "../lap-detection/native-attribution";
 
@@ -341,9 +340,8 @@ export class RealDbAdapter implements DbAdapter {
     const pending = (async () => {
       const scope = this.sessionScopes.get(sessionId);
       const lapId = retainedLapId === null
-        ? await insertLap(sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, classification, versionIdentity ?? scope?.versionIdentity)
-        : await updateCapturedLap(retainedLapId, sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, classification, versionIdentity ?? scope?.versionIdentity);
-      if (driverAttribution) await setLapDriverAttribution(lapId, driverAttribution.stints, driverAttribution.attribution, driverAttribution.source);
+        ? await insertLap(sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, classification, versionIdentity ?? scope?.versionIdentity, driverAttribution)
+        : await updateCapturedLap(retainedLapId, sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, classification, versionIdentity ?? scope?.versionIdentity, driverAttribution);
       scope?.lapIds.add(lapId);
       if (scope && this.options.notifyDriverProfile !== false) notifyDriverProfileLap(scope.gameId);
       if (rawByteOffset !== null) {

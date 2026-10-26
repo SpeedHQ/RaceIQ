@@ -175,48 +175,6 @@ describe("Online adapter transfer boundary", () => {
     await expect(upload).rejects.toMatchObject({ code: "activity_revision_conflict", retryable: false });
     expect(requests).toBe(0);
   });
-  test("a profile source changed during credential lookup cannot reach transport", async () => {
-    const contribution: api.ActivityContribution = {
-      schemaVersion: 2, activityId: crypto.randomUUID(), lapGuids: [crypto.randomUUID()],
-      expectedRevision: null, contentHash: "a".repeat(64), gameId: "acc",
-      metrics: { laps: 1, positiveLaps: 1, validLaps: 1, drivenSeconds: 90, validSeconds: 90,
-        distanceMeters: null, sessionTypeSeconds: { practice: 0, qualifying: 0, race: 0, unknown: 0 },
-        sessionsWithDuration: 0, sessionsWithoutDuration: 1 },
-      cars: [{ gameId: "acc", nativeId: "1", seconds: 90, laps: 1 }],
-      tracks: [{ gameId: "acc", nativeId: "1", seconds: 90, laps: 1 }],
-      coverage: { identity: "complete", driverAttribution: "complete", sessionDuration: "unavailable", distance: "unavailable" },
-    };
-    const credentials = { accessToken: "test-token", consentAccepted: true };
-    const entered = Promise.withResolvers<void>();
-    const release = Promise.withResolvers<typeof credentials>();
-    let credentialReads = 0, requests = 0, sourceCurrent = true;
-    const adapter = createRaceIqOnlineAdapter({
-      baseUrl: "https://raceiq.example",
-      credentials: async () => {
-        if (++credentialReads === 2) { entered.resolve(); return release.promise; }
-        return credentials;
-      },
-      identifiers: createBoardIdentifierResolver([]),
-      fetch: Object.assign(async () => {
-        requests++;
-        return Response.json({ activityId: contribution.activityId, revision: 1, contentHash: contribution.contentHash, onlineRevision: 1 });
-      }, { preconnect: globalThis.fetch.preconnect }),
-    });
-    const pending = adapter.writeActivityContribution(contribution, () => true, async () => sourceCurrent);
-    try {
-      await entered.promise;
-      sourceCurrent = false;
-      release.resolve(credentials);
-      await expect(pending).rejects.toMatchObject({ code: "activity_revision_conflict", retryable: false });
-      expect(requests).toBe(0);
-      sourceCurrent = true;
-      await adapter.writeActivityContribution(contribution, () => true, async () => sourceCurrent);
-      expect(requests).toBe(1);
-    } finally {
-      release.resolve(credentials);
-      await pending.catch(() => {});
-    }
-  });
   test("maps reservation lock and expiry responses as recoverable without acceptance", async () => {
     const createAdapter = (response: (request: Request) => Response) => createRaceIqOnlineAdapter({
       baseUrl: "https://raceiq.example",

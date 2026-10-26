@@ -5,7 +5,7 @@ import { withDatabaseWrite } from "../db/write-coordination";
 import { liveCaptures } from "../db/schema";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
 
-/** Host-bound replay implementation must be registered before restart recovery can publish catch-up work. */
+/** Host-bound replay implementation must be registered before live-capture restart replay begins. */
 export type LiveCaptureRecoveryReplay = (captureEpoch: string) => Promise<void>;
 let replayUnpublished: LiveCaptureRecoveryReplay | null = null;
 // Process-local fencing only. Deployment must ensure one recovery owner per DB; DB status is not a cross-process file lease.
@@ -31,6 +31,7 @@ export function registerLiveCaptureRecoveryReplay(replay: LiveCaptureRecoveryRep
 /** Reconcile physical live files against durable DB watermarks before offline job recovery. */
 export async function recoverLiveCaptureStorage(): Promise<void> {
   await withSessionCaptureMaintenanceLock(async () => {
+    
     const captures = await readDb.select().from(liveCaptures)
       .where(inArray(liveCaptures.status, ["recording", "finalizing", "recovering"])).all();
     for (const capture of captures) {
@@ -81,3 +82,4 @@ export async function recoverLiveCaptureStorage(): Promise<void> {
     }
   });
 }
+

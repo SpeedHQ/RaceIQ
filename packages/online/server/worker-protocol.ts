@@ -33,6 +33,7 @@ export interface NativeBindingHostControl {
 }
 export interface OnlineWorkerData {nativeSourceRevisionBuffer:SharedArrayBuffer}
 export interface OnlineHostPort extends OnlineKeystore {
+  isSessionSourceMutationActive(sessionId: number): Promise<boolean>;
   listDriverBindingCandidates():Promise<NativeBindingCandidateSnapshot>;
   resolveDriverBindingCandidate(candidateId:string,expectedBindingRevision:number):Promise<NativeBindingProof|null>;
   consumeDriverBindingCandidate(candidateId:string,sourceRevision:number):Promise<void>;

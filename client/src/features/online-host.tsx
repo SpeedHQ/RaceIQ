@@ -34,7 +34,7 @@ export const raceIqOnlinePort: RaceIqOnlinePort = {
 };
 
 export const onlineUiHost: OnlineUiHost = {
-  port: raceIqOnlinePort,
+  port: raceIqOnlinePort, cacheOnlineState: true,
   authHost: new URL(raceIqAuthConfig.supabaseUrl).hostname,
   m, getLocale, routePrefixForGameId,
   openSettings: (section) => uiStore.actions.openSettings(section),
@@ -91,6 +91,6 @@ export const onlineUiHost: OnlineUiHost = {
   Avatar, AvatarFallback, AvatarImage, Button, Switch, Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 };
 
-export function OnlineHostProvider({ children, port }: { children: ReactNode; port?: RaceIqOnlinePort }) {
-  return <RaceIqOnlineProvider host={onlineUiHost} port={port}>{children}</RaceIqOnlineProvider>;
+export function OnlineHostProvider({ children, host = onlineUiHost }: { children: ReactNode; host?: OnlineUiHost }) {
+  return <RaceIqOnlineProvider host={host}>{children}</RaceIqOnlineProvider>;
 }

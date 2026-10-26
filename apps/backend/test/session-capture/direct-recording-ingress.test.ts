@@ -180,7 +180,10 @@ test.each(["uninterrupted", "overloaded"] as const)("native original completion 
   };
   try {
     const lastPacket = await replay();
-    finalization = Promise.allSettled([pipeline.finalizeCurrentSession()]);
+    expect(pipeline.isSessionActive).toBe(true);
+    const activeSessions = (await db.select().from(sessions).all()).filter(row => !before.has(row.id));
+    expect(activeSessions).toHaveLength(1);
+    finalization = Promise.allSettled([pipeline.finalizeCurrentSession(true)]);
     await durableEntered.promise;
     const affected = (await db.select().from(sessions).all()).filter(row => !before.has(row.id));
     expect(affected).toHaveLength(1);
@@ -205,7 +208,7 @@ test.each(["uninterrupted", "overloaded"] as const)("native original completion 
     } else {
       expect(proof).toBeNull(); expect(manifest.sourceClosed).toBe(false);
       expect(failures).toEqual(["Recording detector queue capacity exhausted"]);
-      await replay(); await pipeline.finalizeCurrentSession();
+      await replay(); await pipeline.finalizeCurrentSession(true);
       const recovered = (await db.select().from(sessions).all()).filter(row => !before.has(row.id) && row.id !== session.id);
       expect(recovered).toHaveLength(1);
       expect(await readOriginalActivitySourceProof(recovered[0]!.id)).not.toBeNull();

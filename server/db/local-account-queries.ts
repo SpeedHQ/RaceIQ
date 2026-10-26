@@ -1,7 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
-import type { GameIdentityBinding } from "@raceiq/online/contracts";
+import type { GameIdentityBinding } from "@raceiq/shared/driver-attribution";
 import { db, readClient, readDb } from "./index";
-import { driverSummaryActivities, driverSummaryActivityLaps, localAccountOwner, localGameBindings, sessions } from "./schema";
+import { localAccountOwner, localGameBindings, sessions } from "./schema";
 import { withDatabaseWrite } from "./write-coordination";
 
 export async function getLocalAccountOwner(): Promise<string | null> {
@@ -41,26 +41,6 @@ export async function claimLocalAccountOwner(onlineUserId:string,guard?:{isCurre
         AND ${sessions.cloudImportOrigin} IS NULL AND ${sessions.cloudImportLapId} IS NULL
       `).run();
       assertCurrent();
-      await tx.update(driverSummaryActivities).set({ ownerUserId: userId }).where(sql`
-        ${driverSummaryActivities.ownerUserId} IS NULL
-        AND NOT EXISTS (
-          SELECT 1 FROM driver_summary_activity_laps contribution_lap
-          LEFT JOIN laps ON laps.lap_guid = contribution_lap.lap_guid
-          LEFT JOIN sessions ON sessions.id = laps.session_id
-          WHERE contribution_lap.activity_id = ${driverSummaryActivities.activityId}
-            AND sessions.id IS NOT NULL
-            AND (sessions.ownership <> 'mine' OR sessions.cloud_import_origin IS NOT NULL
-              OR sessions.cloud_import_lap_id IS NOT NULL
-              OR (sessions.owner_user_id IS NOT NULL AND sessions.owner_user_id <> ${userId}))
-        )
-      `).run();
-      assertCurrent();
-      await tx.update(driverSummaryActivityLaps).set({ ownerUserId: userId }).where(sql`
-        ${driverSummaryActivityLaps.ownerUserId} IS NULL
-        AND ${driverSummaryActivityLaps.activityId} IN (
-          SELECT activity_id FROM driver_summary_activities WHERE owner_user_id = ${userId}
-        )
-      `).run();
     }
     // Process queued cancellation before the final synchronous guard and commit.
     if(guard)await Bun.sleep(0);

@@ -6,6 +6,7 @@ import { OnlineWorkerUnavailable,type HostRequest,type WorkerRequest,type Worker
 import { readOnlineTestPlatform,createOnlineTestKeystore } from "./online-test-platform";
 import { client } from "@raceiq/backend-core/db/index";
 import { createDatabaseWriteLeaseAuthority, type WriteLeaseRequest } from "@raceiq/backend-core/db/write-coordination";
+import { isSessionSourceMutationActive } from "@raceiq/backend-core/session-capture/source-mutation-activity";
 
 let worker: Worker | null = null;
 let ready: Promise<void> | null = null;
@@ -102,6 +103,7 @@ export async function startOnlineWorker(nativeBindings:NativeBindingHostControl)
                 if(message.args[0]!=="raceiq-online-refresh")throw new Error("invalid_keystore_key");
                 value=await keystore.setSecret(...message.args);break;
               case "listDriverBindingCandidates":value=nativeBindings.listCandidates();break;
+              case "isSessionSourceMutationActive":value=isSessionSourceMutationActive(...message.args);break;
               case "resolveDriverBindingCandidate":value=nativeBindings.resolveCandidate(...message.args);break;
               case "consumeDriverBindingCandidate":value=nativeBindings.consumeCandidate(...message.args);break;
             }
@@ -122,7 +124,18 @@ export async function startOnlineWorker(nativeBindings:NativeBindingHostControl)
       reject(new OnlineWorkerUnavailable());
       if (worker === active) { available=false;unsubscribe?.(); unsubscribe = null;unsubscribeNative?.();unsubscribeNative=null;rejectPending(); }
     };
-    active.on("error", () => { unavailable(); terminate(); });
+    active.on("error", (cause:Error) => {
+      const details:string[]=[];
+      let current:unknown=cause;
+      for(let depth=0;depth<3&&current;depth++){
+        if(!(current instanceof Error))break;
+        details.push(`${current.name}${"code"in current?` code=${String(current.code)}`:""}: ${current.message}`);
+        if(depth===0&&current.stack)details.push(...current.stack.split("\n").slice(0,8));
+        current=current.cause;
+      }
+      console.error(`[DEBUG-online-startup] ${details.join("\n").slice(0,4000)}`);
+      unavailable(); terminate();
+    });
     active.on("exit",()=>{
       exited = true;
       unavailable();

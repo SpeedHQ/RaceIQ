@@ -3156,5 +3156,6 @@
   "compare_overview_ers_deployed": "Wykorzystana energia ERS",
   "compare_overview_ers_recovered": "Odzyskana energia ERS",
   "compare_overview_top_speed": "Prędkość maksymalna",
-  "compare_overview_unavailable": "Niedostępne"
+  "compare_overview_unavailable": "Niedostępne",
+  "online_consent_popup_blocked": "Nie można otworzyć strony zgody. Zezwól na wyskakujące okienka i spróbuj ponownie."
 }

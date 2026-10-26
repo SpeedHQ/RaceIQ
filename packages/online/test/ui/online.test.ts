@@ -15,6 +15,16 @@ const onlineState = (accountEpoch = "epoch-a", revision = 1): OnlineState => ({
 const failure = (state: OnlineState): OnlineCommandResult => ({ ok: false, state, error: { code: "stale_state", retryable: true, retryAfter: null } });
 
 describe("RaceIQ Online DTO and response validation", () => {
+  it("accepts unknown upload aggregates and rejects invalid counts", () => {
+    const state = onlineState();
+    const unavailable = { ...state, service: "unavailable" as const, sync: { status: "blocked" as const, blockedBy: "service_unavailable" as const, queued: null, inFlight: null, rejected: null, lastSyncedAt: null, lastError: { code: "service_unavailable" as const, retryable: true, retryAfter: null } } };
+    expect(isOnlineState(unavailable)).toBe(true);
+    for (const field of ["queued", "inFlight", "rejected"] as const) {
+      for (const value of [-1, 0.5, Number.NaN, "1"]) {
+        expect(isOnlineState({ ...state, sync: { ...state.sync, [field]: value } })).toBe(false);
+      }
+    }
+  });
   it("validates full state fields and rejects malformed nested values", () => {
     const state = onlineState();
     expect(isOnlineState(state)).toBe(true);

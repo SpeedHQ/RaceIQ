@@ -2,14 +2,15 @@ import { expect, test } from "bun:test";
 import { createReadStream, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { Readable } from "node:stream";
 import { createGunzip } from "node:zlib";
 import { readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump-decoder";
 import { encodeMetaFrame, encodeFrameLength, encodeSegmentBoundaryFrame, encodeSegmentContextFrame, encodeSegmentContextEndFrame,
   encodeSparseCaptureFormatFrame, iterateSessionCaptureRecords, type SessionCaptureRecord } from "@raceiq/capture-formats/session/framing";
 import { registerServerGame } from "@raceiq/backend-core/games/registry";
 import { lmuServerAdapter } from "@raceiq/game-lmu";
-import { createNativeOnlineRecordingCodec, encodeNativeOnlineRecording } from "@raceiq/backend-core/session-capture/online-recording-codec";
-import { decodeLMUSourceFrame } from "@raceiq/capture-formats/lmu/source-frame";
+import { assertNativeOnlineDriver, createNativeOnlineRecordingCodec, encodeNativeOnlineRecording } from "@raceiq/backend-core/session-capture/online-recording-codec";
+import { decodeLMUSourceFrame, LMU_MAX_SOURCE_FRAME_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
 import { LMU_TELEMETRY } from "@raceiq/capture-formats/lmu/layout";
 import { iterateOnlineLapSourceRecords, type OnlineLapSource } from "@raceiq/backend-core/session-capture/online-source";
 
@@ -42,6 +43,60 @@ async function nativeFrames(filename: string) {
   } finally {
     gzip.destroy();
     file.destroy();
+  }
+}
+
+async function nativeBoundaryFrames(filename: string, continuation?: string): Promise<[Buffer, Buffer, Buffer]> {
+  const compressed = Readable.from((async function* () {
+    for (const part of [filename, ...(continuation ? [continuation] : [])]) {
+      const file = createReadStream(resolve(import.meta.dir, "../../../../test/artifacts/laps", part));
+      try {
+        for await (const chunk of file) yield chunk as Buffer;
+      } finally {
+        file.destroy();
+      }
+    }
+  })(), { objectMode: false });
+  const gzip = createGunzip();
+  const decoded = compressed.pipe(gzip);
+  let pending = Buffer.alloc(0), header = false;
+  const prior: { frame: Buffer; elapsed: number; lapStart: number }[] = [];
+  try {
+    for await (const chunk of decoded) {
+      pending = Buffer.concat([pending, chunk as Buffer]);
+      if (!header) {
+        if (pending.length < 16) continue;
+        if (pending.subarray(0, 8).toString("ascii") !== "LMUQDMP\0" || pending.readUInt32LE(8) !== 1) {
+          throw new Error("Genuine LMU original has an invalid dump header");
+        }
+        pending = pending.subarray(16);
+        header = true;
+      }
+      while (pending.length >= 5) {
+        const length = pending.readUInt32LE(1);
+        if (pending[0] !== 0 || !length || length > LMU_MAX_SOURCE_FRAME_SIZE) {
+          throw new Error("Genuine LMU original has an invalid source frame");
+        }
+        if (pending.length < 5 + length) break;
+        const frame = Buffer.from(pending.subarray(5, 5 + length));
+        const native = decodeLMUSourceFrame(frame);
+        if (!native) throw new Error("Genuine LMU original has an invalid native poll");
+        const elapsed = native.telemetry.readDoubleLE(LMU_TELEMETRY.elapsedTime);
+        const lapStart = native.telemetry.readDoubleLE(LMU_TELEMETRY.lapStartElapsedTime);
+        const before = prior.at(-2), latest = prior.at(-1);
+        if (before && latest && lapStart > latest.lapStart + 5 &&
+            latest.elapsed > lapStart && before.elapsed <= lapStart) {
+          return [before.frame, latest.frame, frame];
+        }
+        prior.push({ frame, elapsed, lapStart });
+        if (prior.length > 2) prior.shift();
+        pending = pending.subarray(5 + length);
+      }
+    }
+    throw new Error("Genuine LMU original lacks a predecessor poll across native lap start");
+  } finally {
+    decoded.destroy();
+    compressed.destroy();
   }
 }
 
@@ -93,30 +148,65 @@ async function sourceRecords(predecessor: readonly Buffer[], prefix: readonly Bu
   }
 }
 
+test("LMU prepared context preserves native actor coverage across fractional lap start", async () => {
+  const [before, finalPrevious, owned] = await nativeBoundaryFrames(originals[0]![1]);
+  const nativeOwned = decodeLMUSourceFrame(owned)!;
+  const sourceStartMs = nativeOwned.telemetry.readDoubleLE(LMU_TELEMETRY.lapStartElapsedTime) * 1000;
+  const sourceEndMs = nativeOwned.telemetry.readDoubleLE(LMU_TELEMETRY.elapsedTime) * 1000;
+  const result = await sourceRecords([framed(before), framed(finalPrevious)], [], owned, sourceStartMs);
+  const packet = lmuServerAdapter.tryParse(owned, null);
+  const actor = packet?.driverActor;
+  if (!packet || !actor || !packet.carId || !packet.trackId) throw new Error("Genuine LMU boundary lacks native actor identity");
+  const binding = {
+    id: "fixture-confirmed-lmu-binding", gameId: "lmu" as const, sourceKind: actor.source,
+    nativeIdentity: JSON.stringify({ schemaVersion: 1, actorId: actor.actorId, bindingScope: actor.bindingScope }),
+    confirmation: "user_confirmed" as const, revision: 1,
+  };
+  async function* uploadRecords(): AsyncGenerator<SessionCaptureRecord> {
+    let contextOpen = false;
+    for (const item of result) {
+      if (item.scope === "context" && !contextOpen) {
+        yield { kind: "segment-context", offset: 0, endOffset: 0 };
+        contextOpen = true;
+      } else if (item.scope === "lap" && contextOpen) {
+        yield { kind: "segment-context-end", offset: 0, endOffset: 0 };
+        contextOpen = false;
+      }
+      yield item.record;
+    }
+    if (contextOpen) yield { kind: "segment-context-end", offset: 0, endOffset: 0 };
+  }
+  const recording = await encodeNativeOnlineRecording(uploadRecords(), "lmu");
+  await assertNativeOnlineDriver(recording, {
+    gameId: "lmu", carId: packet.carId, trackId: packet.trackId,
+    sourceClockDomain: actor.clockDomain, sourceLapStartMs: sourceStartMs, sourceLapEndMs: sourceEndMs,
+    capturedBinding: binding,
+  });
+}, 60_000);
+
 for (const [version, filename] of originals) {
+  const continuation = version === 2 ? "lmu-2026-09-22T21-18-23-218Z.bin.gz.part2" : undefined;
   test(`LMU v${version} source merges only exact bounded member overlap`, async () => {
-    const [a, b, c] = await nativeFrames(filename);
-    const native = decodeLMUSourceFrame(b!)!;
-    const startMs = native.telemetry.readDoubleLE(LMU_TELEMETRY.elapsedTime) * 1000 - 1;
+    const [a, b, c] = await nativeBoundaryFrames(filename, continuation);
+    const native = decodeLMUSourceFrame(c!)!;
+    const startMs = native.telemetry.readDoubleLE(LMU_TELEMETRY.lapStartElapsedTime) * 1000;
     for (const [history, prefix, expected] of [
       [[a!, b!], [a!, b!], [a!, b!]],
-      [[a!, b!], [b!, c!], [b!, c!]],
+      [[a!, b!], [b!, c!], [c!]],
       [[a!, b!], [a!, c!], [a!, c!]],
-      [[a!, b!, c!], [], [b!, c!]],
-      [[a!], [a!, b!, c!], [b!, c!]],
+      [[a!, b!, c!], [], [c!]],
+      [[a!], [a!, b!, c!], [c!]],
       [[a!], [], [a!]],
     ]) {
       const result = await sourceRecords(history!.map(frame => framed(frame)), prefix!.map(frame => framed(frame)), c!, startMs);
       expect(result.map(({ scope }) => scope)).toEqual([...expected!.map(() => "context" as const), "lap" as const]);
       expect(result.map(({ record }) => record.kind === "frame" ? record.frame : null)).toEqual([...expected!, c!]);
     }
-    const minimal = await sourceRecords([framed(a!), framed(b!)], [framed(a!), framed(b!)], c!, startMs + 1);
-    expect(minimal.map(({ record }) => record.kind === "frame" ? record.frame : null)).toEqual([b!, c!]);
   }, 60_000);
 
   test(`LMU v${version} source retains distinct polls despite equal or backwards acquisition clocks`, async () => {
-    const [a, b, c] = await nativeFrames(filename);
-    const startMs = decodeLMUSourceFrame(b!)!.telemetry.readDoubleLE(LMU_TELEMETRY.elapsedTime) * 1000 - 1;
+    const [a, b, c] = await nativeBoundaryFrames(filename, continuation);
+    const startMs = decodeLMUSourceFrame(c!)!.telemetry.readDoubleLE(LMU_TELEMETRY.lapStartElapsedTime) * 1000;
     for (const delta of [0, -1]) {
       const current = Buffer.from(b!);
       current.writeDoubleLE(a!.readDoubleLE(20) + delta, 20);
@@ -124,7 +214,7 @@ for (const [version, filename] of originals) {
       expect(result.map(({ record }) => record.kind === "frame" ? record.frame : null)).toEqual([a!, current, c!]);
       expect(decodeLMUSourceFrame(current)!.telemetry).toEqual(decodeLMUSourceFrame(b!)!.telemetry);
     }
-    const separatelyRecorded = await sourceRecords([framed(b!, 1000)], [framed(b!, 1001)], c!, startMs);
+    const separatelyRecorded = await sourceRecords([framed(a!, 1000)], [framed(b!, 1001)], c!, startMs);
     expect(separatelyRecorded.map(({ record }) => record.kind === "frame" ? record.frameTimeMs : null)).toEqual([1000, 1001, undefined]);
   }, 60_000);
 

@@ -28,7 +28,7 @@ function fixture() {
     lapGuidStatus: "resolved",
     lapNumber: index + 1, lapTime: 60, isValid: true, invalidReason: null,
     rawByteOffset: offsets[index * 2]!, rawFrameCount: 2, sectorTimes: [20, 20, 20], totalTimeMs: 60_000,
-    sectorTimesMs: [20_000, 20_000, 20_000], recordedAt: null, createdAt: "2026-10-20 00:00:00",
+    sectorTimesMs: [20_000, 20_000, 20_000], recordedAt: null, finishedAt: index === 0 ? "2026-10-20T00:01:00.000Z" : null, createdAt: "2026-10-20 00:00:00",
     driverAttribution: "Unknown", driverAttributionStints: null,
     sourceClockDomain: "native-session", sourceLapStartMs: index * 60_000, sourceLapEndMs: (index + 1) * 60_000,
   });
@@ -45,6 +45,14 @@ function fixture() {
   return { bytes, identity, offsets };
 }
 
+
+test("portable metadata preserves explicit finish time and unknown legacy value", () => {
+  const { bytes, identity } = fixture();
+  const restored = validatePortableCaptureIdentity(bytes, JSON.parse(JSON.stringify(identity)));
+  expect(restored.laps.map(({ finishedAt }) => finishedAt)).toEqual(["2026-10-20T00:01:00.000Z", null]);
+  const invalid = { ...identity, laps: identity.laps.map((lap, index) => index === 0 ? { ...lap, finishedAt: "2026-10-20T00:01:00" } : lap) };
+  expect(() => validatePortableCaptureIdentity(bytes, invalid)).toThrow();
+});
 test("valid non-pace classification survives portable validation independently of validity", () => {
   const { bytes, identity } = fixture();
   identity.laps[0]!.classification = "caution";

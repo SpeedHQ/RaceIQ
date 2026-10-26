@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type { GameIdentityBinding, GameIdentityCandidate } from "@raceiq/online/contracts";
+import type { GameIdentityCandidate } from "@raceiq/online/contracts";
+import type { GameIdentityBinding } from "@raceiq/shared/driver-attribution";
 import { F1_HEADER_SIZE, F1_PACKET_IDS } from "@raceiq/capture-formats/f1-2025/f1-wire";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { GameIdSchema, type GameId } from "@raceiq/shared/games/ids";

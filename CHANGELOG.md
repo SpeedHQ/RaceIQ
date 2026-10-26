@@ -2,9 +2,10 @@
 
 
 ### Features
+- Automatically upload the fastest eligible personal lap to RaceIQ Online after its recording is finalized.
 - Track personal driving separately from shared-car teammates and borrowed laps, retaining incomplete coverage when driver or duration evidence is unavailable.
 - Show account-wide reported lifetime statistics separately from local dashboard periods.
-- In Track Details → Laps, view Community times and open the selected replay with its original driver and recording time after sign-in, current policy acceptance and confirmed public sharing.
+- In Track Details → Laps, view Community times and open the selected replay with its original driver and recording time after sign-in, current policy acceptance and confirmed public sharing; keep later website and native replay activations independent of previous Community selections.
 - Open website lap links in the installed Windows app, resume downloads after sign-in, and reuse already imported laps.
 - Preserve original lap identifiers, authorship and recorded timing across portable exports, imports, reprocessing and downloaded replays.
 - Add optional RaceIQ Online onboarding, Online controls in General settings, and separate Community Laps while keeping offline features available.
@@ -13,7 +14,7 @@
 - Return to the same Settings section or onboarding step after accepting current Online policies in the browser; reuse an already-connected account instead of restarting sign-in during onboarding.
 - Choose Discord sign-in or offline setup using selectable cards after Welcome and review sharing permissions after sign-in.
 - Use your Discord-linked Online name as the onboarding placeholder; offline names remain local.
-- Inspect Online upload status, queue counts, and the last successful sync time in a persistent Upload queue panel.
+- Inspect Online upload status, queue counts, and the last successful sync time in a persistent Upload queue panel; retain history navigation during temporary service failures and sync profiles independently of recording-status checks.
 - Keep Sessions actions in a bottom-center floating bar with a selection count and Deselect all. Keep Compare visible and enable it only for two compatible laps; filter comparison laps by Mine, Others, or All inside the lap-picker dropdown.
 - Show separate LMU player energy, engine, electric motor, steering feedback, weather and race-control readings in live telemetry and recorded-lap analysis when provided by the game.
 - Show read-only LMU setup, forecast and condition snapshots with source age and availability, without waiting for network requests before displaying live telemetry.

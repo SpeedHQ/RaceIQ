@@ -1,14 +1,14 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { DeliveryStatus, OnlineSyncBlock, PublicationStatus, ValidationStatus, UploadItem } from "@raceiq/online/contracts";
 import type { OnlineMessages } from "../../contracts/ui-host";
 import { onlineErrorMessage } from "../messages";
-import { useOnlineProfile, useOnlineUploads } from "../hooks/online-activity";
+import { useOnlineUploads } from "../hooks/online-activity";
 import { useOnlineHost, useRaceIqOnline } from "../hooks/raceiq-online";
 import { OnlineTimestamp } from "../components/OnlineTimestamp";
 
 function getDeliveryLabels(m: OnlineMessages): Record<DeliveryStatus, () => string> {
   return {
-    queued: m.online_queue_queued, preparing: m.online_delivery_preparing, uploading: m.online_queue_uploading,
+    queued: m.online_queue_queued, awaiting: m.online_queue_queued, preparing: m.online_delivery_preparing, uploading: m.online_queue_uploading,
     retry_wait: m.online_delivery_retry_wait, blocked: m.online_queue_blocked, ambiguous: m.online_delivery_ambiguous,
     accepted: m.online_delivery_accepted, rejected: m.online_queue_rejected, withdrawn: m.online_delivery_withdrawn, superseded: m.online_delivery_superseded,
   };
@@ -27,35 +27,26 @@ export function UploadSection({ onOpenAccount }: { onOpenAccount: () => void }) 
   const { Button, m } = useOnlineHost();
   const blockLabels = getBlockLabels(m);
   const online = useRaceIqOnline();
-  const profile = useOnlineProfile();
   const state = online.state;
   const sync = state?.sync;
   const stale = online.isCachedState || !!online.transportError && !!state;
-  const contextKey = `${state?.accountEpoch}:${online.communityGeneration}`;
+  const accountEpoch = useRef(state?.accountEpoch);
+  if (state?.accountEpoch) accountEpoch.current = state.accountEpoch;
+  const contextKey = accountEpoch.current;
+
   return <section className="max-w-4xl space-y-5" aria-label={m.online_upload_title()}>
     <header><h2 className="text-lg font-semibold text-app-text">{m.online_upload_title()}</h2><p className="mt-1 text-sm text-app-text-muted">{m.online_upload_description()}</p></header>
     <Button variant="outline" size="sm" onClick={onOpenAccount}>{m.online_upload_account_settings()}</Button>
     <div className="rounded-md border border-app-border p-4 text-sm" role="status">
-      <p className="font-medium">{stale || !state || state.service !== "available" ? m.online_queue_unavailable() : sync?.status === "running" ? m.online_queue_uploading() : sync?.status === "idle" ? m.online_queue_idle() : sync?.status === "blocked" ? m.online_queue_blocked() : m.online_queue_paused()}</p>
+      <p className="font-medium">{stale || !state || state.service !== "available" ? m.online_queue_unavailable() : sync?.status === "blocked" ? m.online_queue_blocked() : m.online_queue_idle()}</p>
       {stale && <p className="mt-1 text-app-text-muted">{m.online_queue_stale()}</p>}
       {state?.service === "offline" && <p>{m.online_block_offline()}</p>}
       {state?.connection.status === "signed_out" && <p>{m.online_block_signed_out()}</p>}
-      {sync && <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div><dt>{m.online_queue_queued()}</dt><dd>{sync.queued}</dd></div>
-        <div><dt>{m.online_queue_in_flight()}</dt><dd>{sync.inFlight}</dd></div>
-        <div><dt>{m.online_queue_rejected()}</dt><dd>{sync.rejected}</dd></div>
-        <div><dt>{m.online_upload_last_receipt()}</dt><dd><OnlineTimestamp value={sync.lastSyncedAt} /></dd></div>
-      </dl>}
       {sync?.blockedBy && <p className="mt-2">{m.online_sync_blocked({ reason: blockLabels[sync.blockedBy]() })}</p>}
-      {sync?.lastError && <p className="mt-2 text-status-danger">{onlineErrorMessage(sync.lastError.code, m)}</p>}
+      {sync && <p className="mt-2">{m.online_queue_queued()}: {sync.queued ?? m.online_queue_unknown()} · {m.online_queue_in_flight()}: {sync.inFlight ?? m.online_queue_unknown()} · {m.online_queue_rejected()}: {sync.rejected ?? m.online_queue_unknown()}</p>}
+      {sync && <p className="mt-1">{m.online_queue_last_synced()}: {sync.lastSyncedAt ? <OnlineTimestamp value={sync.lastSyncedAt} /> : state?.service === "unavailable" || sync.lastError ? m.online_queue_unknown() : m.online_queue_never_synced()}</p>}
+      {sync?.lastError && <p className="mt-1 text-status-danger">{onlineErrorMessage(sync.lastError.code, m)}</p>}
     </div>
-    <section className="rounded-md border border-app-border p-4 text-sm" aria-label={m.online_profile_sync_title()}>
-      <h3 className="font-medium">{m.online_profile_sync_title()}</h3>
-      {profile.isLoading && !profile.data && <p role="status">{m.online_loading()}</p>}
-      {(profile.isError || !profile.data && !profile.isLoading) && <p role="status">{m.online_queue_unavailable()}</p>}
-      {profile.data && profile.data.status !== "ready" && <p role="status">{profile.data.status === "signed_out" ? m.online_block_signed_out() : profile.data.status === "consent_required" ? m.online_error_consent_required() : profile.data.status === "syncing" ? m.online_summary_syncing() : profile.data.status === "legacy_unverified" ? m.online_summary_legacy() : m.online_queue_unavailable()}</p>}
-      {profile.data && <><p>{m.online_profile_sync_counts({ pending: profile.data.localPending, held: profile.data.heldAmbiguous })}</p><dl className="mt-2 grid gap-3 sm:grid-cols-2"><div><dt>{m.online_profile_revision()}</dt><dd>{profile.data.onlineRevision ?? m.online_queue_unknown()}</dd></div><div><dt>{m.online_profile_confirmed()}</dt><dd><OnlineTimestamp value={profile.data.lastConfirmedAt} /></dd></div></dl>{profile.data.error && <p role="alert">{onlineErrorMessage(profile.data.error.code, m)}</p>}</>}
-    </section>
     <p className="text-sm text-app-text-muted">{m.online_upload_automatic_note()} {m.online_queue_acceptance_note()}</p>
     <UploadPages key={contextKey} />
   </section>;
@@ -98,15 +89,16 @@ function UploadRow({ item }: { item: UploadItem }) {
   const validationLabels = getValidationLabels(m);
   const publicationLabels = getPublicationLabels(m);
   return <li className="rounded-md border border-app-border p-4 text-sm">
-    <div className="flex flex-wrap items-baseline justify-between gap-2"><h4 className="font-medium">{item.kind === "profile" ? m.online_profile_sync_title() : m.online_upload_lap()}</h4><span>{deliveryLabels[item.delivery]()}</span></div>
-    {item.kind === "lap" && <><p className="mt-1 break-words text-app-text-muted">{[item.gameId, item.trackId, item.carId].map((value) => value ?? m.online_queue_unknown()).join(" · ")}</p><p className="mt-1 break-all text-xs">{m.online_upload_guid({ guid: item.lapGuid ?? m.online_queue_unknown() })}</p></>}
+    <div className="flex flex-wrap items-baseline justify-between gap-2"><h4 className="font-medium">{m.online_upload_lap()}</h4><span>{deliveryLabels[item.delivery]()}</span></div>
+    <p className="mt-1 break-words text-app-text-muted">{[item.gameId, item.trackId, item.carId].map((value) => value ?? m.online_queue_unknown()).join(" · ")}</p>
+    <p className="mt-1 break-all text-xs">{m.online_upload_guid({ guid: item.lapGuid ?? m.online_queue_unknown() })}</p>
     <dl className="mt-3 grid gap-3 sm:grid-cols-2">
       <div><dt className="text-app-text-muted">{m.online_upload_updated()}</dt><dd><OnlineTimestamp value={item.updatedAt} /></dd></div>
-      <div><dt className="text-app-text-muted">{m.online_upload_attempts()}</dt><dd>{item.attemptCount}</dd></div>
+      <div><dt className="text-app-text-muted">{m.online_upload_attempts()}</dt><dd>{item.attemptCount ?? m.online_queue_unknown()}</dd></div>
       {item.nextAttemptAt && <div><dt className="text-app-text-muted">{m.online_upload_retry_at()}</dt><dd><OnlineTimestamp value={item.nextAttemptAt} /></dd></div>}
-      {item.acceptedAt && <div><dt className="text-app-text-muted">{item.kind === "lap" ? m.online_upload_last_receipt() : m.online_profile_receipt()}</dt><dd><OnlineTimestamp value={item.acceptedAt} /></dd></div>}
-      {item.kind === "profile" && <div><dt className="text-app-text-muted">{m.online_activity_revision()}</dt><dd>{item.activityRevision ?? m.online_queue_unknown()}</dd></div>}
-      {item.kind === "lap" && <><div><dt className="text-app-text-muted">{m.online_upload_validation()}</dt><dd>{validationLabels[item.validation]()}</dd></div><div><dt className="text-app-text-muted">{m.online_upload_publication()}</dt><dd>{publicationLabels[item.publication]()}</dd></div></>}
+      {item.acceptedAt && <div><dt className="text-app-text-muted">{m.online_upload_last_receipt()}</dt><dd><OnlineTimestamp value={item.acceptedAt} /></dd></div>}
+      <div><dt className="text-app-text-muted">{m.online_upload_validation()}</dt><dd>{validationLabels[item.validation]()}</dd></div>
+      <div><dt className="text-app-text-muted">{m.online_upload_publication()}</dt><dd>{publicationLabels[item.publication]()}</dd></div>
     </dl>
     {item.error && <p className="mt-2 text-status-danger">{onlineErrorMessage(item.error.code, m)}</p>}
   </li>;

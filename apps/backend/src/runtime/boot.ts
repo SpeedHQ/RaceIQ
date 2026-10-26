@@ -10,6 +10,7 @@ import { injectDiscoveredLMUIdentity } from "@raceiq/game-lmu-metadata/index";
 import app from "../routes/index";
 import { initServerGameAdapters } from "../games/init";
 import { initDb, DB_PATH, client, readClient } from "@raceiq/backend-core/db/index";
+import { initializeOnlineFastestLapWinners } from "@raceiq/backend-core/db/online-fastest-lap-queries";
 import { recoverCloudLapImports } from "@raceiq/backend-core/session-capture/cloud-lap-import";
 import { listDiscoveredCars } from "@raceiq/backend-core/db/discovered-cars";
 import { hydrateDiscoveredAcEvoTracks, listDiscoveredTracks } from "@raceiq/backend-core/db/discovered-tracks";
@@ -84,6 +85,7 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   }
 
   await initDb();
+  while (!(await initializeOnlineFastestLapWinners(200)).complete) await Bun.sleep(0);
   await recoverCloudLapImports();
   await recoverRecordingDirectoryMove();
   const auth = await DashboardAuth.create(client, DB_PATH, process.env, false, readClient);
@@ -159,7 +161,7 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   setDashboardPublicationNotifier(notifyPublication);
   startupWorker = startStartupWorker(
     notifyPublication,
-    (reprocessed) => {wsManager.broadcastNotification({ type: "lap-reprocessed", ...reprocessed });wakeOnlineWorker();},
+    (reprocessed) => {wsManager.broadcastNotification({ type: "lap-reprocessed", ...reprocessed });},
     () => wsManager.setStaleSessionsNotification(null),
     options.testDependencies?.workerPort,
   );

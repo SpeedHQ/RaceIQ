@@ -5,7 +5,7 @@ import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } fr
 import { LapManagement } from "../components/track/detail/LapManagement";
 import type { TrackLapSortKey } from "../components/track/detail/types";
 import { OnlineHostProvider as RaceIqOnlineProvider } from "../features/online-host"
-import { createOnlineFixturePort, privateFixture } from "./raceiq-online-fixtures";
+import { createOnlineFixtureHost, privateFixture } from "./raceiq-online-fixtures";
 
 function TrackLapScene() {
   const [selectedCars, setSelectedCars] = useState<Set<number>>(new Set());
@@ -27,9 +27,9 @@ function TrackLapScene() {
 }
 export function TrackCommunityLapsPreview() {
   const [queryClient] = useState(() => new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } }));
-  const [port] = useState(() => createOnlineFixturePort(privateFixture));
+  const [host] = useState(() => createOnlineFixtureHost(privateFixture));
   const [router] = useState(() => createRouter({ routeTree: createRootRoute({ component: TrackLapScene }), history: createMemoryHistory({ initialEntries: ["/"] }) }));
-  return <QueryClientProvider client={queryClient}><RaceIqOnlineProvider port={port}><RouterProvider router={router} /></RaceIqOnlineProvider></QueryClientProvider>;
+  return <QueryClientProvider client={queryClient}><RaceIqOnlineProvider host={host}><RouterProvider router={router} /></RaceIqOnlineProvider></QueryClientProvider>;
 }
 const meta = { title: "Tracks/Community Laps", component: TrackCommunityLapsPreview, parameters: { layout: "fullscreen" } } satisfies Meta<typeof TrackCommunityLapsPreview>;
 export default meta;

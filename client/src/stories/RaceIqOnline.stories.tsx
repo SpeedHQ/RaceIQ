@@ -1,15 +1,16 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { expect, userEvent, waitFor, within } from "storybook/test";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { OnlineErrorCode, OnlineLeaderboard, OnlineState } from "@raceiq/online/contracts";
+import type { CloudLapImportState } from "@raceiq/shared/integrations/cloud-lap-import";
 import { OnlineHostProvider as RaceIqOnlineProvider } from "../features/online-host"
-import { OnlineSection } from "@raceiq/online/ui"
+import { OnlineSection, CloudLapImportActivation } from "@raceiq/online/ui"
 import { Settings } from "../components/settings/Settings";
 import { OnlineCommunityLaps } from "@raceiq/online/ui"
 import { setLocale, locales, type Locale } from "../paraglide/runtime";
 import { m } from "../paraglide/messages";
-import { connectedConsentRequiredUnavailableFixture, connectedServiceUnavailableFixture, consentRequiredFixture, createOnlineFixturePort, fixtureBoard, preferencesFailedFixture, preferencesWithoutProfileFixture, privateFixture, publicFixture, signedOutFixture, unavailableFixture } from "./raceiq-online-fixtures";
+import { connectedConsentRequiredUnavailableFixture, connectedServiceUnavailableFixture, consentRequiredFixture, createOnlineFixtureHost, fixtureBoard, preferencesFailedFixture, preferencesWithoutProfileFixture, privateFixture, publicFixture, signedOutFixture, unavailableFixture } from "./raceiq-online-fixtures";
 
 type PreviewProps = { state: OnlineState; onboarding?: boolean; onboardingStage?: "auth" | "permissions"; settingsShell?: boolean; board?: OnlineLeaderboard; transportFailure?: boolean; pending?: boolean; stateDelayMs?: number; commandError?: OnlineErrorCode; locale?: Locale };
 export function OnlinePreview({ state, onboarding = false, onboardingStage, settingsShell = false, board, transportFailure = false, pending = false, stateDelayMs, commandError, locale = "en" }: PreviewProps) {
@@ -21,9 +22,9 @@ export function OnlinePreview({ state, onboarding = false, onboardingStage, sett
   }, [locale]);
   const [queryClient] = useState(() => new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } }));
   const [calls, setCalls] = useState<{ method: string; input?: unknown }[]>([]);
-  const [port] = useState(() => createOnlineFixturePort(state, { board, transportFailure, pending, stateDelayMs, commandFailure: commandError ? { code: commandError, retryable: true, retryAfter: null } : undefined, onCall: (method, input) => setCalls((previous) => [...previous, { method, input }]) }));
+  const [host] = useState(() => createOnlineFixtureHost(state, { board, transportFailure, pending, stateDelayMs, commandFailure: commandError ? { code: commandError, retryable: true, retryAfter: null } : undefined, onCall: (method, input) => setCalls((previous) => [...previous, { method, input }]) }));
   const [skipped, setSkipped] = useState(false);
-  return <QueryClientProvider client={queryClient}><RaceIqOnlineProvider port={port}>
+  return <QueryClientProvider client={queryClient}><RaceIqOnlineProvider host={host}>
     <main data-online-calls={JSON.stringify(calls)} className="min-h-screen bg-app-bg p-4 text-app-text sm:p-6">
       <h1 className="sr-only">{m.online_onboarding_title()}</h1>
       {skipped ? <p role="status">Offline onboarding continued. No Online command was sent.</p> : settingsShell ? <div className="h-[calc(100vh-3rem)]"><Settings initialSection="general" /></div> : <OnlineSection onboarding={onboarding} stage={onboardingStage ?? (onboarding ? "auth" : undefined)} onSkip={() => setSkipped(true)} />}
@@ -33,8 +34,83 @@ export function OnlinePreview({ state, onboarding = false, onboardingStage, sett
 }
 const meta = { title: "Settings/RaceIQ Online", component: OnlinePreview, parameters: { layout: "fullscreen" }, argTypes: { locale: { control: "select", options: locales } } } satisfies Meta<typeof OnlinePreview>;
 export default meta;
-type Story = StoryObj<typeof meta>;
-export const SignedOut: Story = { args: { state: signedOutFixture } };
+let fixtureFetchCalls = 0;
+let restoreFixtureFetch: (() => void) | undefined;
+export const IsolatedFixtureNoBackendRequests: Story = {
+  args: { state: publicFixture, settingsShell: true },
+  beforeEach: () => {
+    const originalFetch = window.fetch;
+    fixtureFetchCalls = 0;
+    window.fetch = (...args) => { fixtureFetchCalls++; return originalFetch(...args); };
+    restoreFixtureFetch = () => { window.fetch = originalFetch; };
+    return () => restoreFixtureFetch?.();
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByRole("button", { name: m.online_upload_title() }));
+    await expect(await canvas.findByRole("heading", { name: m.online_upload_title() })).toBeVisible();
+    await expect(await canvas.findByText(m.online_profile_sync_counts({ pending: 0, held: 0 }))).toBeVisible();
+    await expect(await canvas.findByRole("button", { name: m.online_upload_history() })).toBeVisible();
+    await waitFor(async () => { await expect(fixtureFetchCalls).toBe(0); });
+    restoreFixtureFetch?.();
+  },
+};
+function CloudImportRacePreview() {
+  const [queryClient] = useState(() => new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } }));
+  const [communityMounted, setCommunityMounted] = useState(true);
+  const [navigations, setNavigations] = useState(0);
+  const [ackIds, setAckIds] = useState<number[]>([]);
+  const [releaseAck, setReleaseAck] = useState<(() => void) | null>(null);
+  const activationIdRef = useRef(71);
+  const [host] = useState(() => {
+    const base = createOnlineFixtureHost(publicFixture);
+    let started = false;
+    return {
+      ...base,
+      cacheOnlineState: false,
+      async getCloudLapImport() {
+        return started
+          ? { status: "complete", lapId: "preview-lap-1", lapGuid: fixtureBoard.rows[0].lapGuid, activationId: activationIdRef.current, access: { accountEpoch: publicFixture.accountEpoch, expectedRevision: publicFixture.revision }, selection: fixtureBoard.key, localLap: { id: 91, gameId: fixtureBoard.key.gameId, sessionId: 92 }, error: null } satisfies CloudLapImportState
+          : { status: "idle", lapId: null, lapGuid: null, activationId: null, access: null, selection: null, localLap: null, error: null } satisfies CloudLapImportState;
+      },
+      async startCloudLapImport() { started = true; return { ok: true, json: async () => ({ activationId: activationIdRef.current }) } as Response; },
+      async acknowledgeCloudLapImport(input) {
+        setAckIds((ids) => [...ids, input.activationId]);
+        await new Promise<void>((resolve) => setReleaseAck(() => resolve));
+        return { ok: true, json: async () => ({}) } as Response;
+      },
+      useNavigateToReplay() { return useCallback(async () => { setNavigations((n) => n + 1); }, []); },
+    };
+  });
+  return <QueryClientProvider client={queryClient}><RaceIqOnlineProvider host={host}>
+    <button onClick={() => setCommunityMounted(false)}>Unmount Community selection</button>
+    <button onClick={() => { activationIdRef.current = 72; queryClient.invalidateQueries({ queryKey: ["cloud-lap-import"] }); }}>Trigger native same-lap activation</button>
+    <button onClick={() => releaseAck?.()}>Release acknowledgement</button>
+    <output data-testid="replay-navigation-count">{navigations}</output>
+    <output data-testid="cloud-import-ack-count">{ackIds.length}</output>
+    <output data-testid="cloud-import-ack-ids">{ackIds.join(",")}</output>
+    {communityMounted && <OnlineCommunityLaps {...fixtureBoard.key} />}
+    <CloudLapImportActivation />
+  </RaceIqOnlineProvider></QueryClientProvider>;
+}
+export const StaleCommunityCompletionDoesNotNavigate: Story = {
+  render: () => <CloudImportRacePreview />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const openLapButtons = await canvas.findAllByRole("button", { name: m.online_community_laps_open_lap() });
+    await userEvent.click(openLapButtons[0]);
+    await userEvent.click(canvas.getByRole("button", { name: "Unmount Community selection" }));
+    await waitFor(async () => { await expect(canvas.getByTestId("cloud-import-ack-count")).toHaveTextContent("1"); });
+    await userEvent.click(canvas.getByRole("button", { name: "Release acknowledgement" }));
+    await waitFor(async () => { await expect(canvas.getByTestId("cloud-import-ack-count")).toHaveTextContent("1"); });
+    await expect(canvas.getByTestId("replay-navigation-count")).toHaveTextContent("0");
+    await userEvent.click(canvas.getByRole("button", { name: "Trigger native same-lap activation" }));
+    await waitFor(async () => { await expect(canvas.getByTestId("cloud-import-ack-count")).toHaveTextContent("2"); });
+    await waitFor(async () => { await expect(canvas.getByTestId("cloud-import-ack-ids")).toHaveTextContent("71,72"); });
+    await userEvent.click(canvas.getByRole("button", { name: "Release acknowledgement" }));
+    await waitFor(async () => { await expect(canvas.getByTestId("replay-navigation-count")).toHaveTextContent("1"); });
+  },
+};
 export const OptionalOnboarding: Story = { args: { state: signedOutFixture, onboarding: true } };
 export const AcceptedOnboardingPermissions: Story = {
   args: { state: publicFixture, onboarding: true, onboardingStage: "permissions" },

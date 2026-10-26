@@ -1,8 +1,7 @@
-import { cpSync, createReadStream, createWriteStream, existsSync, mkdirSync, readdirSync, renameSync, statSync, writeFileSync } from "node:fs";
+import { createWriteStream, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { mkdtemp } from "node:fs/promises";
-import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
-import { dirname, join, relative, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { createServer } from "node:net";
 import { createSocket } from "node:dgram";
@@ -18,12 +17,9 @@ export interface SourceUpgradeHarness {
   readonly previousTag: string;
   readonly previousSha: string;
   readonly mainSha: string;
-  readonly candidateMetadata: { readonly source: "origin/main" | "local-workspace"; readonly ref?: string; readonly snapshotPath?: string };
   checkoutPrevious(): Promise<void>;
   seedPrevious(): Promise<void>;
   validateConvertedCaptures(): Promise<void>;
-  backupPrevious(): Promise<void>;
-  restorePrevious(): Promise<void>;
   checkoutMain(): Promise<void>;
   start(): Promise<void>;
   stop(): Promise<void>;
@@ -48,11 +44,6 @@ export async function createSourceUpgradeHarness(): Promise<SourceUpgradeHarness
   const workspace = tempRoot;
   const checkoutDir = join(tempRoot, "source");
   const dataDir = join(tempRoot, "data");
-  const previousCheckoutDir = join(tempRoot, "released-source");
-  const backupDir = join(tempRoot, "released-data-backup");
-  const upgradedCheckoutDir = join(tempRoot, "upgraded-source");
-  const upgradedDataDir = join(tempRoot, "upgraded-data");
-  let baselineDigests: Array<[string, string]> | undefined;
   mkdirSync(dataDir, { recursive: true });
   const memory: string[] = [];
   let memorySize = 0;
@@ -62,11 +53,6 @@ export async function createSourceUpgradeHarness(): Promise<SourceUpgradeHarness
   let previousTag = "";
   let previousSha = "";
   let mainSha = "";
-  const candidateInput = process.env.RACEIQ_UPGRADE_CANDIDATE_DIR;
-  if (candidateInput && !/^[/\\]/.test(candidateInput)) throw new Error(`RACEIQ_UPGRADE_CANDIDATE_DIR must be absolute: ${candidateInput}`);
-  const candidatePath = candidateInput ? resolve(candidateInput) : undefined;
-  let candidateSha = "";
-  let candidateMetadata: { source: "origin/main" | "local-workspace"; ref?: string; snapshotPath?: string } = { source: "origin/main" };
   const generatedHashes = new Set<string>();
   let childError = "";
   const record = (text: string) => {
@@ -136,11 +122,8 @@ export async function createSourceUpgradeHarness(): Promise<SourceUpgradeHarness
     previousSha = (await git(["rev-parse", "--verify", `${tag}^{commit}`], checkoutDir)).trim();
     mainSha = (await git(["rev-parse", "--verify", "refs/remotes/origin/main^{commit}"], checkoutDir)).trim();
     if (!/^[A-Fa-f0-9]{40}$/.test(previousSha) || !/^[A-Fa-f0-9]{40}$/.test(mainSha)) throw new Error(`Invalid resolved refs: previous=${previousSha}, main=${mainSha}`);
-    candidateMetadata = candidatePath
-      ? { source: "local-workspace", snapshotPath: checkoutDir }
-      : { source: "origin/main", ref: `origin/main@${mainSha}` };
-    writeFileSync(join(artifactsDir, `source-upgrade-${runId}.json`), JSON.stringify({ callerRoot, workspace, checkoutDir, dataDir, previousTag, previousSha, mainSha, candidate: candidateMetadata, logPath }, null, 2));
-    record(`refs previous=${previousTag} ${previousSha} candidate=${candidatePath ? `local-workspace snapshot=${checkoutDir}` : `origin/main ${mainSha}`}`);
+    writeFileSync(join(artifactsDir, `source-upgrade-${runId}.json`), JSON.stringify({ callerRoot, workspace, checkoutDir, dataDir, previousTag, previousSha, mainSha, logPath }, null, 2));
+    record(`refs previous=${previousTag} ${previousSha} main=origin/main ${mainSha}`);
   };
   const terminateChildren = async () => {
     const children = [...processes];
@@ -178,44 +161,24 @@ export async function createSourceUpgradeHarness(): Promise<SourceUpgradeHarness
     if (lingeringGroups.length) throw new Error(`Owned process groups remain after SIGKILL: ${lingeringGroups.join(", ")}. See ${logPath}`);
     processes.clear();
   };
-  const dataDigests = async (directory: string): Promise<Array<[string, string]>> => {
-    const files: Array<[string, string]> = [];
-    const visit = async (current: string): Promise<void> => {
-      for (const entry of readdirSync(current, { withFileTypes: true })) {
-        const path = join(current, entry.name);
-        if (entry.isDirectory()) await visit(path);
-        else if (entry.isFile()) {
-          const hash = createHash("sha256");
-          for await (const chunk of createReadStream(path)) hash.update(chunk);
-          files.push([relative(directory, path), hash.digest("hex")]);
-        }
-      }
-    };
-    await visit(directory);
-    return files.sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0);
-  };
   const apiURL = () => `http://127.0.0.1:${serverPort}`;
   const baseURL = () => `http://127.0.0.1:${uiPort}`;
-  const waitReady = async (url: string, label: string, child: ChildProcess, expectedStatus: number, headers?: Record<string, string>, legacyUrl?: string) => {
+  const waitReady = async (url: string, label: string, child: ChildProcess, expectedStatus: number, headers?: Record<string, string>) => {
     const deadline = Date.now() + START_TIMEOUT;
-    let lastStatus: number | undefined;
     while (Date.now() < deadline) {
       if (childError) throw new Error(`${label} failed to spawn: ${childError}. See ${logPath}`);
       if (child.exitCode !== null || child.signalCode !== null) throw new Error(`${label} exited before readiness. See ${logPath}`);
       try {
-        let response = await fetch(url, { headers, signal: AbortSignal.timeout(2_000) });
-        if (response.status === 404 && legacyUrl) response = await fetch(legacyUrl, { headers, signal: AbortSignal.timeout(2_000) });
-        lastStatus = response.status;
+        const response = await fetch(url, { headers, signal: AbortSignal.timeout(2_000) });
         if (response.status === expectedStatus) return;
       } catch { /* Retry within the bounded startup deadline. */ }
       await delay(250);
     }
-    throw new Error(`${label} did not become ready at ${url} (last HTTP status: ${lastStatus ?? "unavailable"}). See ${logPath}`);
+    throw new Error(`${label} did not become ready at ${url}. See ${logPath}`);
   };
   const harness: SourceUpgradeHarness = {
     workspace, checkoutDir, dataDir, get baseURL() { return baseURL(); }, get apiURL() { return apiURL(); },
     get previousTag() { return previousTag; }, get previousSha() { return previousSha; }, get mainSha() { return mainSha; },
-    get candidateMetadata() { return candidateMetadata; },
     async validateConvertedCaptures() {
       if (phase !== "seeded") throw new Error(`validateConvertedCaptures invalid in phase ${phase}`);
       const script = `
@@ -343,82 +306,21 @@ export async function createSourceUpgradeHarness(): Promise<SourceUpgradeHarness
       record(`seeded all released game fixtures into data=${dataDir}`);
       phase = "seeded";
     },
-    async backupPrevious() {
-      if (phase !== "seeded" || processes.size) throw new Error("Released backup requires stopped application writers");
-      if (baselineDigests || existsSync(backupDir)) throw new Error("Released backup already exists");
-      const digests = await dataDigests(dataDir);
-      cpSync(dataDir, backupDir, { recursive: true, preserveTimestamps: true });
-      baselineDigests = digests;
-      writeFileSync(join(artifactsDir, `source-upgrade-backup-${runId}.json`), JSON.stringify({
-        previousTag, previousSha, dataDir, backupDir, files: digests,
-      }, null, 2));
-      record(`backed up stopped released data: files=${digests.length} backup=${backupDir}`);
-    },
     async checkoutMain() {
       if (phase !== "seeded") throw new Error(`checkoutMain invalid in phase ${phase}`);
       if (processes.size) throw new Error("Cannot switch refs while child processes are running");
-      if (!baselineDigests) throw new Error("Upgrade requires the stopped released backup");
-      renameSync(checkoutDir, previousCheckoutDir);
-      if (!candidatePath) {
-        await git(["worktree", "add", "--detach", checkoutDir, mainSha], previousCheckoutDir);
-        await run(bun, ["install", "--frozen-lockfile"], checkoutDir);
-      } else {
-        mkdirSync(checkoutDir, { recursive: true });
-        const blocked = new Set([".git", "node_modules", ".omp", "dist", "build", "coverage", ".vite", ".turbo", ".cache", ".next", ".parcel-cache", "__pycache__", "target", "out", "playwright-report", "test-results"]);
-        const sensitive = /^(?:\.env(?:\..*)?|.*\.(?:pem|key|p12|pfx))$/i;
-        for (const entry of readdirSync(candidatePath)) {
-          if (blocked.has(entry) || sensitive.test(entry)) continue;
-          cpSync(join(candidatePath, entry), join(checkoutDir, entry), {
-            recursive: true,
-            force: true,
-            filter: (source) => {
-              const relative = source.slice(candidatePath.length).replace(/^[/\\]/, "");
-              return !relative.split(/[/\\]/).some((part) => blocked.has(part) || sensitive.test(part));
-            },
-          });
-        }
-        candidateSha = process.env.RACEIQ_UPGRADE_CANDIDATE_HEAD ?? (await git(["rev-parse", "--verify", "HEAD"], candidatePath)).trim();
-        if (!/^[A-Fa-f0-9]{40}$/.test(candidateSha)) throw new Error(`Invalid candidate HEAD: ${candidateSha}`);
-        candidateMetadata = { source: "local-workspace", ref: candidateSha, snapshotPath: checkoutDir };
-        writeFileSync(join(artifactsDir, `source-upgrade-${runId}.json`), JSON.stringify({ callerRoot, workspace, checkoutDir, dataDir, previousTag, previousSha, mainSha, candidate: candidateMetadata, logPath }, null, 2));
-        record(`candidate snapshot copied source=${candidatePath} head=${candidateSha} (HEAD does not describe dirty changes)`);
-        // Installation hooks need a repository, not the inaccessible host worktree metadata.
-        await git(["init", "--quiet"], checkoutDir);
-        await run(bun, ["install", "--frozen-lockfile"], checkoutDir);
-      }
+      await git(["checkout", "--detach", mainSha], checkoutDir);
+      await run(bun, ["install", "--frozen-lockfile"], checkoutDir);
       phase = "main";
-    },
-    async restorePrevious() {
-      if (phase !== "main" || processes.size) throw new Error("Restore requires stopped upgraded application writers");
-      if (!baselineDigests || !existsSync(backupDir) || !existsSync(previousCheckoutDir)) {
-        throw new Error("Matching released artifact and backup are required");
-      }
-      if (existsSync(upgradedDataDir) || existsSync(upgradedCheckoutDir)) throw new Error("Rollback already attempted");
-      const restoredSha = (await git(["rev-parse", "--verify", "HEAD"], previousCheckoutDir)).trim();
-      if (restoredSha !== previousSha) throw new Error("Rollback artifact does not match the released backup");
-      renameSync(dataDir, upgradedDataDir);
-      cpSync(backupDir, dataDir, { recursive: true, preserveTimestamps: true });
-      if (JSON.stringify(await dataDigests(dataDir)) !== JSON.stringify(baselineDigests)) {
-        throw new Error("Restored data differs from the stopped released backup");
-      }
-      renameSync(checkoutDir, upgradedCheckoutDir);
-      renameSync(previousCheckoutDir, checkoutDir);
-      phase = "seeded";
-      writeFileSync(join(artifactsDir, `source-upgrade-rollback-${runId}.json`), JSON.stringify({
-        previousTag, previousSha, dataDir, backupDir, upgradedDataDir, upgradedCheckoutDir,
-        verifiedFiles: baselineDigests.length,
-      }, null, 2));
-      record(`restored matching release=${previousTag}@${previousSha} files=${baselineDigests.length}; upgraded data preserved=${upgradedDataDir}`);
     },
     async start() {
       if (phase !== "seeded" && phase !== "main") throw new Error(`start invalid in phase ${phase}`);
-      const refSha = phase === "seeded" ? previousSha : candidatePath ? `local-workspace:${candidateSha}` : mainSha;
-      const generationKey = phase === "seeded" ? refSha : candidatePath ? `${candidateSha}:${candidateMetadata.snapshotPath}` : refSha;
-      if (!generatedHashes.has(generationKey)) {
+      const refSha = phase === "seeded" ? previousSha : mainSha;
+      if (!generatedHashes.has(refSha)) {
         const generator = join(checkoutDir, "scripts/dev/paraglide-dev.ts");
         if (!existsSync(generator)) throw new Error(`Source checkout lacks supported Paraglide generator: ${generator}`);
         await run(bun, [generator, "--once"], checkoutDir);
-        generatedHashes.add(generationKey);
+        generatedHashes.add(refSha);
       }
       const runtimeEnv: NodeJS.ProcessEnv = { ...process.env };
       delete runtimeEnv.RACEIQ_E2E;
@@ -428,7 +330,7 @@ export async function createSourceUpgradeHarness(): Promise<SourceUpgradeHarness
       processes.add(backend);
       for (const stream of [backend.stdout, backend.stderr]) stream?.on("data", (chunk: Buffer) => record(`[backend] ${chunk.toString().trimEnd()}`));
       backend.once("error", (error) => { childError = error.message; });
-      if (phase === "seeded") await waitReady(`${apiURL()}/api/auth/status`, "previous backend", backend, 200, { "X-Game-Id": "ac-evo" }, `${apiURL()}/api/cars`);
+      if (phase === "seeded") await waitReady(`${apiURL()}/api/cars`, "previous backend", backend, 200, { "X-Game-Id": "ac-evo" });
       else await waitReady(`${apiURL()}/api/auth/status`, "main backend", backend, 200);
       const client = spawn(bun, ["run", "dev", "--", "--host", "127.0.0.1", "--port", String(uiPort), "--strictPort"], { cwd: join(checkoutDir, "client"), env: { ...commonEnv, SERVER_PORT: String(serverPort), PROXY_TARGET: apiURL(), PORT: String(uiPort) }, stdio: ["ignore", "pipe", "pipe"], windowsHide: true, detached: process.platform !== "win32" });
       processes.add(client);
@@ -437,7 +339,7 @@ export async function createSourceUpgradeHarness(): Promise<SourceUpgradeHarness
       await waitReady(baseURL(), "Vite client", client, 200);
       runningFrom = phase;
       phase = "running";
-      record(`ready api=${apiURL()} ui=${baseURL()} data=${dataDir} candidate=${candidateMetadata.source}`);
+      record(`ready api=${apiURL()} ui=${baseURL()} data=${dataDir}`);
     },
     async stop() {
       await terminateChildren();

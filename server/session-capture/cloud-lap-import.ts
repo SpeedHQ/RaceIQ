@@ -9,7 +9,7 @@ import { api, createRaceIqClient } from "@speedhq/live-client";
 import { unzipBounded, type ZipExtractionLimits } from "../archive/bounded-unzip";
 import { db, readDb } from "../db/index";
 import { withDatabaseWrite } from "../db/write-coordination";
-import { laps, sessions, lapGuidReconciliation, originalActivitySourceLaps } from "../db/schema";
+import { laps, sessions, lapGuidReconciliation, originalActivitySourceLaps, nativeGameIdentities, nativeTrackIdentities, nativeCarIdentities } from "../db/schema";
 import { resolveDataDir } from "../runtime/config/data-dir";
 import { resolveRecordingDirectory, resolveRecordingGameDirectory } from "../runtime/config/recording-directory";
 import { validateCloudImportCapture } from "./cloud-import-admission";
@@ -18,6 +18,8 @@ import type { CloudLapImportSelection, CloudLapImportStatus } from "@raceiq/shar
 import { GameIdSchema, type GameId } from "@raceiq/shared/games/ids";
 
 import { stintSchema } from "./portable-metadata";
+import { beginSessionSourceMutation } from "./source-mutation-activity";
+import { readOnlineRecordingSource, tryBeginOnlineRecordingSourceMutation } from "../db/online-recording-source-queries";
 const MiB = 1024 * 1024;
 const MAX_ZIP_BYTES = 512 * MiB;
 const MAX_CAPTURE_BYTES = 512 * MiB;
@@ -29,7 +31,7 @@ const manifestSchema = z.object({
   lap: z.object({
     id: z.string().min(1), guid: z.string().uuid(), gameId: z.enum(["acc", "ac-evo", "f1-2025", "iracing", "lmu"]), trackId: z.string().min(1), carId: z.string().min(1),
     totalTimeMs: z.number().int().positive().safe(), sectorTimesMs: z.array(z.number().int().positive().safe()).min(1).max(64), complete: z.literal(true), valid: z.literal(true), invalidReason: z.string().nullable(),
-    recordedAt: utcDatetime.nullable(), setAt: utcDatetime, lapIndex: z.number().int().nonnegative().safe(), sessionKey: z.number().int().nonnegative().safe(), sessionUID: z.string().nullable(), sourceLapIndex: z.number().int().nonnegative().safe(), sourceSessionKey: z.number().int().nonnegative().safe(),
+    recordedAt: utcDatetime.nullable(), finishedAt: utcDatetime.nullable().optional(), setAt: utcDatetime, lapIndex: z.number().int().nonnegative().safe(), sessionKey: z.number().int().nonnegative().safe(), sessionUID: z.string().nullable(), sourceLapIndex: z.number().int().nonnegative().safe(), sourceSessionKey: z.number().int().nonnegative().safe(),
   }).strict(),
   recording: z.object({ path: z.literal("recording.bin"), format: z.literal("raceiq-session"), frameVersion: z.literal("1"), compression: z.literal("gzip"), sizeBytes: z.number().int().positive().safe() }).strict(),
   processing: z.object({ lapDetectorVersion: z.string().min(1), sourceFrameFormat: z.string().min(1), sourceFrameVersion: z.string().nullable() }).strict(),
@@ -356,6 +358,23 @@ async function performImport(input: CloudLapImportInput, origin: string, fetcher
 
 
   input.onState("registering");
+  const priorTarget = await readDb.select({ id: sessions.id }).from(sessions)
+    .where(and(eq(sessions.cloudImportOrigin, origin), eq(sessions.cloudImportLapId, manifest.lap.id))).get();
+  const admittedSessionId = priorTarget?.id ?? null;
+  const sourceMutationReleases: Array<() => void> = [];
+  if (admittedSessionId !== null) {
+    try {
+      sourceMutationReleases.push(beginSessionSourceMutation(admittedSessionId));
+      if (!await tryBeginOnlineRecordingSourceMutation(admittedSessionId) &&
+          await readOnlineRecordingSource(admittedSessionId)) {
+        throw new CloudLapImportError("registration_failed", true);
+      }
+    } catch (error) {
+      for (const release of sourceMutationReleases.splice(0).reverse()) release();
+      if (error instanceof CloudLapImportError) throw error;
+      throw new CloudLapImportError("registration_failed", true);
+    }
+  }
   const gameId = manifest.lap.gameId as GameId;
   const directory = resolveRecordingGameDirectory(gameId, "others");
   await mkdir(directory, { recursive: true });
@@ -380,6 +399,7 @@ async function performImport(input: CloudLapImportInput, origin: string, fetcher
           .where(and(eq(sessions.cloudImportOrigin, origin), eq(sessions.cloudImportLapId, manifest.lap.id))).get();
         if (!input.isAuthorized()) throw new CloudLapImportError("auth_required", true);
         let sessionId: number;
+        if (prior && prior.id !== admittedSessionId) throw new CloudLapImportError("registration_failed", true);
         if (prior) {
           sessionId = prior.id;
           if ((prior.ownerUserId !== null && prior.ownerUserId !== manifest.author.userId)
@@ -387,6 +407,7 @@ async function performImport(input: CloudLapImportInput, origin: string, fetcher
           if ((prior.originalActivityId !== null && provenance?.originalActivityId != null && prior.originalActivityId !== provenance.originalActivityId)
             || (prior.originalSourceRevision !== null && provenance?.sourceRevision != null && prior.originalSourceRevision !== provenance.sourceRevision)) throw new CloudLapImportError("lap_identity_conflict", false);
           await tx.update(sessions).set({ rawFile: final, ownerUserId: manifest.author.userId,
+            recordingOrigin: "imported", recordingInstallationId: null,
             originalActivityId: prior.originalActivityId ?? provenance?.originalActivityId ?? null,
             originalSourceRevision: prior.originalSourceRevision ?? provenance?.sourceRevision ?? null,
             cloudImportSetupPath: setupFinal, cloudImportSetupFileName: manifest.setup?.fileName ?? null })
@@ -395,6 +416,7 @@ async function performImport(input: CloudLapImportInput, origin: string, fetcher
           const session = await tx.insert(sessions).values({
             carId: manifest.lap.carId, trackId: manifest.lap.trackId, gameId, sessionType: "cloud-import", rawFile: final,
             lapDetectorVersion: manifest.processing.lapDetectorVersion, source: "cloud-import", ownership: "others",
+            recordingOrigin: "imported", recordingInstallationId: null,
             sourceAuthorUserId: manifest.author.userId, sourceAuthorDisplayName: manifest.author.displayName,
             ownerUserId: manifest.author.userId,
             originalActivityId: provenance?.originalActivityId ?? null,
@@ -406,7 +428,11 @@ async function performImport(input: CloudLapImportInput, origin: string, fetcher
             cloudImportSetupPath: setupFinal, cloudImportSetupFileName: manifest.setup?.fileName ?? null, captureFormatVersion: 1,
           }).returning({ id: sessions.id }).get();
           sessionId = session.id;
+          sourceMutationReleases.push(beginSessionSourceMutation(sessionId));
         }
+        await tx.insert(nativeGameIdentities).values({ gameId }).onConflictDoNothing().run();
+        await tx.insert(nativeTrackIdentities).values({ gameId, trackId: manifest.lap.trackId }).onConflictDoNothing().run();
+        await tx.insert(nativeCarIdentities).values({ gameId, carId: manifest.lap.carId }).onConflictDoNothing().run();
         let lap = await tx.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, sessionId)).get();
         if (!lap) {
           lap = await tx.insert(laps).values({
@@ -414,7 +440,7 @@ async function performImport(input: CloudLapImportInput, origin: string, fetcher
             invalidReason: manifest.lap.invalidReason, sectorTimes: manifest.lap.sectorTimesMs.map((time) => time / 1000),
             totalTimeMs: manifest.lap.totalTimeMs, sectorTimesMs: manifest.lap.sectorTimesMs,
             rawByteOffset: admission.rawByteOffset, rawFrameCount: admission.rawFrameCount,
-            recordedAt: manifest.lap.recordedAt, createdAt: manifest.lap.setAt,
+            recordedAt: manifest.lap.recordedAt, sourceFinishedAt: manifest.lap.finishedAt ?? null, createdAt: manifest.lap.setAt,
             sourceClockDomain: provenance?.sourceClock?.domain ?? null,
             sourceLapStartMs: provenance?.sourceClock?.startMs ?? null,
             sourceLapEndMs: provenance?.sourceClock?.endMs ?? null,
@@ -472,5 +498,7 @@ async function performImport(input: CloudLapImportInput, origin: string, fetcher
     }
     if (error instanceof CloudLapImportError) throw error;
     throw new CloudLapImportError("registration_failed", true);
+  } finally {
+    for (const release of sourceMutationReleases.splice(0).reverse()) release();
   }
 }

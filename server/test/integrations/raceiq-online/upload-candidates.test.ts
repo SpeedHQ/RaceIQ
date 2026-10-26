@@ -1,223 +1,358 @@
 import { expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import type { GameId } from "@raceiq/shared/games/ids";
-import { client, db } from "../../../db";
-import { deleteSession, insertSession, updateSessionRawFile, updateSessionSource } from "../../../db/session-queries";
-import { claimLocalAccountOwner, getLocalAccountOwner,getLocalGameBindingSnapshot,upsertLocalGameBinding } from "../../../db/local-account-queries";
-import { insertLap } from "../../../db/lap-mutation-queries";
-import { laps, sessions } from "../../../db/schema";
-import { replaceLapsForSession } from "../../../db/lap-reprocessing-queries";
-import { bindAuthoritativeLapGuidInTransaction, backfillLapGuids } from "../../../db/lap-guid";
-import { setLapDriverAttribution } from "../../../db/driver-summary-ledger-queries";
-import { eq } from "drizzle-orm";
-import { getOnlineUploadCandidatePage,type OnlineUploadCandidate,type OnlineUploadCandidateCursor } from "../../../db/online-upload-queries";
 import type { DriverAttributionStint } from "@raceiq/shared/driver-attribution";
+import { db, readDb } from "../../../db";
+import { claimLocalAccountOwner, getLocalAccountOwner } from "../../../db/local-account-queries";
+import { deleteSession, insertSession } from "../../../db/session-queries";
+import { insertLap, updateCapturedLap, updateLapValidity } from "../../../db/lap-mutation-queries";
+import { laps, onlineFastestComboLaps, onlineFastestLapInitialization, sessions } from "../../../db/schema";
+import { initializeOnlineFastestLapWinners } from "../../../db/online-fastest-lap-queries";
+import {
+  getOnlineLapUploadStatus, getOnlineUploadWinnerPage, readOnlineLapUpload, retainOnlineLapRequest,
+  setOnlineLapRetryAfter, settleOnlineLapUpload,
+} from "../../../db/online-upload-queries";
+import { getRecordingInstallationId } from "../../../db/recording-origin";
+import { eq, sql } from "drizzle-orm";
 
-async function addLap(input: {
-  gameId?: string;
-  trackId: string;
-  carId: string;
-  lapTime: number;
-  ownership?: "mine" | "others";
-  source?: string;
-  sectors?: number[] | null;
-  valid?: boolean;
-  attribution?:"Self"|"Other"|"Unknown";
-}) {
-  const gameId=(input.gameId??"acc") as GameId;
-  const sessionId = await insertSession(input.carId,input.trackId,gameId,undefined,undefined,input.ownership,input.source?undefined:{kind:"native_capture"});
-  await updateSessionRawFile(sessionId, "/fixture/local-session.bin", "fixture-detector");
-  if (input.source) await updateSessionSource(sessionId, input.source);
-  const sectors = input.sectors === undefined ? [input.lapTime / 3, input.lapTime / 3, input.lapTime / 3] : input.sectors;
-  const lapId = await insertLap(sessionId, 1, input.lapTime, input.valid ?? true, 0, 10, null, null, null, sectors);
-  const existing=(await getLocalGameBindingSnapshot()).bindings.find(binding=>binding.gameId===gameId);
-  const binding=existing??{id:`candidate-fixture-${gameId}`,gameId,sourceKind:`${gameId}-fixture`,nativeIdentity:JSON.stringify({schemaVersion:1,actorId:"fixture-driver",bindingScope:"installation"}),confirmation:"user_confirmed" as const,revision:1};
-  if(!existing)await upsertLocalGameBinding(binding);
-  const descriptor=JSON.parse(binding.nativeIdentity) as {actorId:string};
-  const stint:DriverAttributionStint={gameId,source:binding.sourceKind,sessionId:String(sessionId),clockDomain:"fixture-clock",startMs:0,endMs:10_000,evidenceValidUntilMs:10_000,
-    actor:{gameId,source:binding.sourceKind,actorId:descriptor.actorId,bindingScope:"installation",sessionId:String(sessionId),clockDomain:"fixture-clock",observedAtMs:0},
-    bindingRevision:binding.revision,bindingSnapshot:{...binding,gameId},attribution:input.attribution??"Self"};
-  await setLapDriverAttribution(lapId,[stint],input.attribution??"Self",{domain:"fixture-clock",startMs:0,endMs:10_000});
-  return { sessionId, lapId };
+async function ensureOwner(): Promise<string> {
+  const existing = await getLocalAccountOwner();
+  if (existing) return existing;
+  const id = `online-fixture-${crypto.randomUUID()}`;
+  await claimLocalAccountOwner(id);
+  return id;
 }
 
-test("cancelled first owner claim rolls back actual history writes before commit in an isolated database", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "raceiq-claim-rollback-"));
-  const child = Bun.spawn([process.execPath, fileURLToPath(new URL("./fixtures/claim-owner.ts", import.meta.url))], {
-    cwd: fileURLToPath(new URL("../../../../", import.meta.url)),
-    env: { ...process.env, DATA_DIR: directory, RACEIQ_TEST_MODE: "1", DB_IN_MEMORY: "0" },
-    stdout: "pipe", stderr: "pipe", signal: AbortSignal.timeout(25_000),
-  });
-  try {
-    const [exit, stdout, stderr] = await Promise.all([child.exited, new Response(child.stdout).text(), new Response(child.stderr).text()]);
-    expect(exit, `${stdout}\n${stderr}`).toBe(0);
-  } finally {
-    child.kill();
-    await child.exited;
-    await rm(directory, { recursive: true, force: true });
-  }
-});
+function selfAttribution(sessionId: number, gameId: GameId, value: "Self" | "Other" = "Self") {
+  const source = `${gameId}-fixture`;
+  const clockDomain = `fixture-${sessionId}`;
+  const bindingSnapshot = {
+    id: `fixture-binding-${gameId}`, gameId, sourceKind: source,
+    nativeIdentity: JSON.stringify({ schemaVersion: 1, actorId: "fixture-driver", bindingScope: "installation" }),
+    confirmation: "user_confirmed" as const, revision: 1,
+  };
+  const actor = {
+    gameId, source, actorId: "fixture-driver", bindingScope: "installation" as const,
+    sessionId: String(sessionId), clockDomain, observedAtMs: 0,
+  };
+  const stint: DriverAttributionStint = {
+    gameId, source, sessionId: String(sessionId), clockDomain, startMs: 0, endMs: 10_000,
+    evidenceValidUntilMs: 10_000, actor, attribution: value, bindingRevision: 1, bindingSnapshot,
+  };
+  return { stints: [stint], attribution: value, source: { domain: clockDomain, startMs: 0, endMs: 10_000 } };
+}
 
-test("native capture snapshots installation owner and persists lap identity", async () => {
-  await claimLocalAccountOwner("owner-a");
-  const sessionId = await insertSession("owner-car", "owner-track", "iracing" as GameId, undefined, undefined, undefined, { kind: "native_capture" });
+async function addLap(input: {
+  gameId?: GameId;
+  trackId?: string;
+  carId?: string;
+  time: number;
+  origin?: "native_capture" | "imported" | "unknown";
+  ownership?: "mine" | "others";
+  attribution?: "Self" | "Other";
+  provisional?: boolean;
+}) {
+  const gameId = input.gameId ?? "acc" as GameId;
+  const trackId = input.trackId ?? `track-${crypto.randomUUID()}`;
+  const carId = input.carId ?? `car-${crypto.randomUUID()}`;
+  const sourceOrigin = input.origin === "native_capture" ? { kind: "native_capture" as const }
+    : input.origin === "imported" ? { kind: "portable_import" as const, originalActivityId: crypto.randomUUID() }
+      : { kind: "unknown" as const };
+  const sessionId = await insertSession(carId, trackId, gameId, undefined, undefined, input.ownership, sourceOrigin);
   try {
-    const session = await db.select({
-      ownerUserId: sessions.ownerUserId,
-      originalActivityId: sessions.originalActivityId,
-      nativeCaptureOrigin: sessions.nativeCaptureOrigin,
-    }).from(sessions).where(eq(sessions.id, sessionId)).get();
-    expect(session).toMatchObject({
-      ownerUserId: "owner-a",
-      nativeCaptureOrigin: true,
-    });
-    expect(session?.originalActivityId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
-    await expect(db.update(sessions).set({ originalActivityId: "018f0f8a-7b21-7cc2-9f3a-5c7d09a681ab" })
-      .where(eq(sessions.id, sessionId)).run()).rejects.toThrow();
-    expect((await db.select({ originalActivityId: sessions.originalActivityId }).from(sessions)
-      .where(eq(sessions.id, sessionId)).get())?.originalActivityId).toBe(session?.originalActivityId);
-    const lapId = await insertLap(sessionId, 1, 73.125, false, null, 0);
-    const lap = await db.select({ lapGuid: laps.lapGuid }).from(laps).where(eq(laps.id, lapId)).get();
-    const replacement = {
-      lapId,
-      lapNumber: 1,
-      lapTime: 73.125,
-      isValid: false,
-      classification: null,
-      isFavorite: false,
-      rawByteOffset: null,
-      rawFrameCount: 0,
-      tuneId: null,
-      notes: null,
-      invalidReason: null,
-      sectors: null,
-    };
-    await replaceLapsForSession(sessionId, [replacement]);
-    const stableGuid = await db.select({ lapGuid: laps.lapGuid })
-      .from(laps).where(eq(laps.id, lapId)).get();
-    expect(stableGuid?.lapGuid).toBe(lap?.lapGuid);
-    await replaceLapsForSession(sessionId, [{ ...replacement, lapNumber: 2 }]);
-    const resegmented = await client.execute({
-      sql: "SELECT lap_guid,status FROM lap_guid_reconciliation WHERE lap_id=?",
-      args: [lapId],
-    });
-    expect(resegmented.rows[0]).toMatchObject({ lap_guid: lap?.lapGuid, status: "held_ambiguous" });
-    expect(lap?.lapGuid).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
-    await client.execute({ sql: "DELETE FROM lap_guid_reconciliation WHERE lap_id=?", args: [lapId] });
-    await backfillLapGuids(client);
-    const restored = await client.execute({
-      sql: "SELECT l.lap_guid, r.status FROM laps l JOIN lap_guid_reconciliation r ON r.lap_id=l.id WHERE l.id=?",
-      args: [lapId],
-    });
-    expect(restored.rows[0]).toMatchObject({ lap_guid: lap?.lapGuid, status: "held_ambiguous" });
-    await setLapDriverAttribution(lapId, [], "Unknown", {
-      domain: "fixture", startMs: 12.375, endMs: 24.625,
-    });
-    const fractional = await db.select({ start: laps.sourceLapStartMs, end: laps.sourceLapEndMs })
-      .from(laps).where(eq(laps.id, lapId)).get();
-    expect(fractional).toEqual({ start: 12.375, end: 24.625 });
-    const borrowedId = await insertSession("borrowed-car", "owner-track", "iracing" as GameId, undefined, undefined, "others", {
-      kind: "portable_import",
-      originalActivityId: "source-activity-a",
-    });
-    try {
-      const borrowedSession = await db.select({
-        originalActivityId: sessions.originalActivityId,
-        nativeCaptureOrigin: sessions.nativeCaptureOrigin,
-      }).from(sessions).where(eq(sessions.id, borrowedId)).get();
-      expect(borrowedSession).toEqual({ originalActivityId: "source-activity-a", nativeCaptureOrigin: false });
-      const importedLapId = await insertLap(borrowedId, 1, 71.5, true, null, 0);
-      const importedGuid = "018f0f8a-7b21-7cc2-9f3a-5c7d09a681ab";
-      const tx = await client.transaction("write");
-      try {
-        await bindAuthoritativeLapGuidInTransaction(tx, importedLapId, importedGuid);
-        await tx.commit();
-      } catch (error) {
-        await tx.rollback();
-        throw error;
-      }
-      const bound = await db.select({ lapGuid: laps.lapGuid }).from(laps).where(eq(laps.id, importedLapId)).get();
-      expect(bound?.lapGuid).toBe(importedGuid);
-      const duplicateId = await insertSession("borrowed-car-2", "owner-track", "iracing" as GameId, undefined, undefined, "others");
-      try {
-        const duplicateLapId = await insertLap(duplicateId, 1, 71.75, true, null, 0);
-        const conflict = await client.transaction("write");
-        try {
-          await expect(bindAuthoritativeLapGuidInTransaction(conflict, duplicateLapId, importedGuid))
-            .rejects.toThrow("Lap GUID identity conflicts with another original lap");
-        } finally {
-          await conflict.rollback();
-        }
-      } finally {
-        await deleteSession(duplicateId);
-      }
-    } finally {
-      await deleteSession(borrowedId);
-    }
-    await claimLocalAccountOwner("owner-a");
-    expect(await getLocalAccountOwner()).toBe("owner-a");
-    await expect(claimLocalAccountOwner("owner-b")).rejects.toMatchObject({ code: "account_conflict" });
-  } finally {
+    const attribution = input.attribution ? selfAttribution(sessionId, gameId, input.attribution) : undefined;
+    const lapId = await insertLap(sessionId, 1, input.provisional ? 0 : input.time, !input.provisional,
+      null, 10, null, null, input.provisional ? "incomplete" : null,
+      input.provisional ? null : [input.time / 3, input.time / 3, input.time / 3], undefined, undefined, attribution);
+    return { sessionId, lapId, gameId, trackId, carId, attribution };
+  } catch (error) {
     await deleteSession(sessionId);
+    throw error;
+  }
+}
+
+test("native origin is installation-bound; imported and historical origin claims stay untrusted", async () => {
+  await ensureOwner();
+  const native = await insertSession("origin-car", "origin-track", "iracing" as GameId, undefined, undefined, undefined, { kind: "native_capture" });
+  const imported = await insertSession("import-car", "import-track", "iracing" as GameId, undefined, undefined, "others", {
+    kind: "portable_import", originalActivityId: crypto.randomUUID(),
+  });
+  const unknown = await insertSession("unknown-car", "unknown-track", "iracing" as GameId);
+  try {
+    const nativeRow = await db.select({ origin: sessions.recordingOrigin, installationId: sessions.recordingInstallationId,
+      activityId: sessions.originalActivityId, nativeCapture: sessions.nativeCaptureOrigin }).from(sessions).where(eq(sessions.id, native)).get();
+    expect(nativeRow).toMatchObject({ origin: "native_capture", installationId: getRecordingInstallationId(), nativeCapture: true });
+    expect(nativeRow?.activityId).toMatch(/^[0-9a-f-]{36}$/i);
+    const importedRow = await db.select({ origin: sessions.recordingOrigin, installationId: sessions.recordingInstallationId,
+      nativeCapture: sessions.nativeCaptureOrigin }).from(sessions).where(eq(sessions.id, imported)).get();
+    expect(importedRow).toEqual({ origin: "imported", installationId: null, nativeCapture: false });
+    const unknownRow = await db.select({ origin: sessions.recordingOrigin, installationId: sessions.recordingInstallationId })
+      .from(sessions).where(eq(sessions.id, unknown)).get();
+    expect(unknownRow).toEqual({ origin: "unknown", installationId: null });
+  } finally {
+    await deleteSession(native);
+    await deleteSession(imported);
+    await deleteSession(unknown);
   }
 });
 
-test("online candidate pages retain ordered proven laps for preparation fallback without promoting Other or Unknown",async()=>{
+test("only locally recorded whole-lap Self winners are selected; strict faster updates preserve ties", async () => {
+  const accountId = await ensureOwner();
+  const trackId = `winner-${crypto.randomUUID()}`;
+  const carId = `winner-car-${crypto.randomUUID()}`;
   const created: number[] = [];
   try {
-    await claimLocalAccountOwner(await getLocalAccountOwner()??"owner-a");
-    const slower = await addLap({ trackId: "upload-fixture-track", carId: "car-slower", lapTime: 100 });
+    const fastest = await addLap({ origin: "native_capture", attribution: "Self", trackId, carId, time: 90 });
+    created.push(fastest.sessionId);
+    const tie = await addLap({ origin: "native_capture", attribution: "Self", trackId, carId, time: 90 });
+    created.push(tie.sessionId);
+    const slower = await addLap({ origin: "native_capture", attribution: "Self", trackId, carId, time: 91 });
     created.push(slower.sessionId);
-    const fastestSlowCar = await addLap({ trackId: "upload-fixture-track", carId: "car-slower", lapTime: 95 });
-    created.push(fastestSlowCar.sessionId);
-    const fastestOtherCar = await addLap({ trackId: "upload-fixture-track", carId: "car-fastest", lapTime: 90 });
-    created.push(fastestOtherCar.sessionId);
-    const unknownFaster=await addLap({trackId:"upload-fixture-track",carId:"car-fastest",lapTime:75,attribution:"Unknown"});
-    const otherFaster=await addLap({trackId:"upload-fixture-track",carId:"car-fastest",lapTime:76,attribution:"Other"});
-    created.push(unknownFaster.sessionId,otherFaster.sessionId);
-    const otherGame = await addLap({ gameId: "iracing", trackId: "upload-fixture-track", carId: "car-iracing", lapTime: 80 });
-    created.push(otherGame.sessionId);
-    const thirdParty = await addLap({ trackId: "upload-fixture-third-party", carId: "car-third-party", lapTime: 70, ownership: "others" });
-    created.push(thirdParty.sessionId);
-    const motec = await addLap({ trackId: "upload-fixture-motec", carId: "car-motec", lapTime: 60, source: "motec" });
-    created.push(motec.sessionId);
-    const cloudImport = await addLap({ trackId: "upload-fixture-cloud", carId: "car-cloud", lapTime: 55, source: "cloud-import" });
-    created.push(cloudImport.sessionId);
-    const missingSectors = await addLap({ trackId: "upload-fixture-no-sectors", carId: "car-no-sectors", lapTime: 54, sectors: null });
-    created.push(missingSectors.sessionId);
-    const invalidSector = await addLap({ trackId: "upload-fixture-invalid-sector", carId: "car-invalid-sector", lapTime: 53, sectors: [20, 0, 30] });
-    created.push(invalidSector.sessionId);
-    const invalidLap = await addLap({ trackId: "upload-fixture-invalid-lap", carId: "car-invalid-lap", lapTime: 52, valid: false });
-    created.push(invalidLap.sessionId);
-    const unsupportedGame = await addLap({ gameId: "unsupported-game", trackId: "upload-fixture-unsupported", carId: "car-unsupported", lapTime: 51 });
-    created.push(unsupportedGame.sessionId);
-    const f1World = await addLap({ gameId: "f1-2025", trackId: "upload-fixture-f1", carId: "41", lapTime: 90 });
-    created.push(f1World.sessionId);
-    const f1OtherCar = await addLap({ gameId: "f1-2025", trackId: "upload-fixture-f1-other", carId: "44", lapTime: 70 });
-    created.push(f1OtherCar.sessionId);
+    const other = await addLap({ origin: "native_capture", attribution: "Other", trackId, carId, time: 80 });
+    created.push(other.sessionId);
+    const imported = await addLap({ origin: "imported", attribution: "Self", trackId, carId, time: 70 });
+    created.push(imported.sessionId);
+    const historical = await addLap({ origin: "unknown", attribution: "Self", trackId, carId, time: 60 });
+    created.push(historical.sessionId);
+    const foreign = await addLap({ origin: "native_capture", ownership: "others", attribution: "Self", trackId, carId, time: 50 });
+    created.push(foreign.sessionId);
 
-    const rows: OnlineUploadCandidate[] = [];
-    let cursor:OnlineUploadCandidateCursor|null=null;
-    for(;;){
-      const page=await getOnlineUploadCandidatePage(cursor);
-      rows.push(...page.items);
-      if(!page.nextCursor)break;
-      cursor=page.nextCursor;
+    const selected = await db.select({ lapId: onlineFastestComboLaps.lapId, lapTimeMs: onlineFastestComboLaps.lapTimeMs })
+      .from(onlineFastestComboLaps).where(eq(onlineFastestComboLaps.gameId, "acc")).all();
+    const combo = selected.find((row) => row.lapId === fastest.lapId);
+    expect(combo).toEqual({ lapId: fastest.lapId, lapTimeMs: 90_000 });
+    expect(selected.some((row) => [tie.lapId, slower.lapId, other.lapId, imported.lapId, historical.lapId, foreign.lapId].includes(row.lapId!))).toBe(false);
+
+    const page = await getOnlineUploadWinnerPage(null, 250);
+    expect(page.items).toContainEqual({ lapId: fastest.lapId, gameId: "acc", trackId, carId, lapTimeMs: 90_000 });
+    expect(page.items.some((item) => [tie.lapId, slower.lapId, other.lapId, imported.lapId, historical.lapId, foreign.lapId].includes(item.lapId))).toBe(false);
+    expect((await readOnlineLapUpload(fastest.lapId))?.accountId).toBe(accountId);
+
+    const faster = await addLap({ origin: "native_capture", attribution: "Self", trackId, carId, time: 89 });
+    created.push(faster.sessionId);
+    expect((await readOnlineLapUpload(faster.lapId))?.lapTimeMs).toBe(89_000);
+    expect(await readOnlineLapUpload(fastest.lapId)).toBeNull();
+  } finally {
+    for (const sessionId of created) await deleteSession(sessionId);
+  }
+});
+
+test("provisional completion finalizes attribution and winner atomically; invalidation and deletion clear selection", async () => {
+  await ensureOwner();
+  const created = await addLap({ origin: "native_capture", provisional: true, time: 92, attribution: "Self" });
+  try {
+    const before = await db.select({ evaluatedAt: laps.onlineEvaluatedAt, lapGuid: laps.lapGuid })
+      .from(laps).where(eq(laps.id, created.lapId)).get();
+    expect(before?.evaluatedAt).toBeNull();
+    expect(before?.lapGuid).toMatch(/^[0-9a-f-]{36}$/i);
+    await updateCapturedLap(created.lapId, created.sessionId, 1, 92, true, null, 11, null, null, null,
+      [92 / 3, 92 / 3, 92 / 3], null, undefined, created.attribution);
+    const after = await db.select({ evaluatedAt: laps.onlineEvaluatedAt, attribution: laps.driverAttribution })
+      .from(laps).where(eq(laps.id, created.lapId)).get();
+    expect(after?.evaluatedAt).toBeTruthy();
+    expect(after?.attribution).toBe("Self");
+    expect(await readOnlineLapUpload(created.lapId)).toBeTruthy();
+
+    await updateLapValidity(created.lapId, false, "fixture-invalid");
+    expect(await readOnlineLapUpload(created.lapId)).toBeNull();
+    const winner = await db.select({ lapId: onlineFastestComboLaps.lapId }).from(onlineFastestComboLaps)
+      .where(eq(onlineFastestComboLaps.gameId, created.gameId)).all();
+    expect(winner.some((row) => row.lapId === created.lapId)).toBe(false);
+  } finally {
+    await deleteSession(created.sessionId);
+  }
+});
+
+test("bounded winner initialization resumes from durable cursor and request CAS settles once", async () => {
+  const accountId = await ensureOwner();
+  const created = await addLap({ origin: "native_capture", attribution: "Self", time: 88 });
+  const previous = await readDb.select().from(onlineFastestLapInitialization).where(eq(onlineFastestLapInitialization.id, 1)).get();
+  try {
+    await db.delete(onlineFastestComboLaps).where(eq(onlineFastestComboLaps.lapId, created.lapId)).run();
+    await db.update(laps).set({ onlineEvaluatedAt: null }).where(eq(laps.id, created.lapId)).run();
+    await db.update(onlineFastestLapInitialization).set({ lastCheckedLapId: created.lapId - 1, complete: false })
+      .where(eq(onlineFastestLapInitialization.id, 1)).run();
+    expect(await initializeOnlineFastestLapWinners(1)).toEqual({ processed: 1, complete: false });
+    const cursor = await db.select().from(onlineFastestLapInitialization).where(eq(onlineFastestLapInitialization.id, 1)).get();
+    expect(cursor).toMatchObject({ lastCheckedLapId: created.lapId, complete: false });
+    expect(await initializeOnlineFastestLapWinners(1)).toEqual({ processed: 0, complete: true });
+    expect((await readOnlineLapUpload(created.lapId))?.lapId).toBe(created.lapId);
+
+    const request = {
+      accountId, idempotencyKey: `key-${crypto.randomUUID()}`, identityJson: JSON.stringify({ lapGuid: (await readOnlineLapUpload(created.lapId))?.lapGuid }),
+      payloadFingerprint: `fingerprint-${crypto.randomUUID()}`, reservationToken: "reservation-1",
+    };
+    expect(await retainOnlineLapRequest(created.lapId, request)).toBe(true);
+    expect(await retainOnlineLapRequest(created.lapId, request)).toBe(true);
+    expect(await retainOnlineLapRequest(created.lapId, { ...request, identityJson: "{}" })).toBe(false);
+    expect(await setOnlineLapRetryAfter(created.lapId, request.idempotencyKey, "2026-10-23T00:01:00.000Z")).toBe(true);
+    const uploadedAt = "2026-10-23T00:02:00.000Z";
+    expect(await settleOnlineLapUpload(created.lapId, request.idempotencyKey, "success", "remote-job-1", uploadedAt)).toBe(true);
+    expect(await settleOnlineLapUpload(created.lapId, request.idempotencyKey, "success", "remote-job-1", uploadedAt)).toBe(false);
+    const upload = await readOnlineLapUpload(created.lapId);
+    expect(upload).toMatchObject({ result: "success", remoteJobId: "remote-job-1", uploadedAt });
+    expect((await getOnlineUploadWinnerPage(null, 250)).items).not.toContainEqual(expect.objectContaining({ lapId: created.lapId }));
+    expect((await getOnlineLapUploadStatus(accountId)).lastSyncedAt).toBe(uploadedAt);
+  } finally {
+    await deleteSession(created.sessionId);
+    if (previous) await db.update(onlineFastestLapInitialization).set({
+      lastCheckedLapId: previous.lastCheckedLapId, complete: previous.complete,
+    }).where(eq(onlineFastestLapInitialization.id, 1)).run();
+  }
+});
+
+test("null winner lap reference retains old time until slower eligible capture replaces it", async () => {
+  await ensureOwner();
+  const trackId = `null-winner-${crypto.randomUUID()}`;
+  const carId = `null-winner-car-${crypto.randomUUID()}`;
+  const created: number[] = [];
+  try {
+    const old = await addLap({ origin: "native_capture", attribution: "Self", trackId, carId, time: 80 });
+    created.push(old.sessionId);
+    await db.update(onlineFastestComboLaps).set({ lapId: null }).where(eq(onlineFastestComboLaps.lapId, old.lapId)).run();
+    const slower = await addLap({ origin: "native_capture", attribution: "Self", trackId, carId, time: 90 });
+    created.push(slower.sessionId);
+    expect(await db.select({ lapId: onlineFastestComboLaps.lapId, lapTimeMs: onlineFastestComboLaps.lapTimeMs })
+      .from(onlineFastestComboLaps).where(eq(onlineFastestComboLaps.gameId, slower.gameId)).get())
+      .toEqual({ lapId: slower.lapId, lapTimeMs: 90_000 });
+  } finally {
+    for (const sessionId of created) await deleteSession(sessionId);
+  }
+});
+
+test("finalized completion is idempotent and rejects changed source window", async () => {
+  await ensureOwner();
+  const created = await addLap({ origin: "native_capture", provisional: true, time: 92, attribution: "Self" });
+  const complete = (frames: number, time: number, domain: string) => updateCapturedLap(
+    created.lapId, created.sessionId, 1, time, true, null, frames, null, null, null,
+    [time / 3, time / 3, time / 3], null, undefined,
+    { ...created.attribution!, source: { domain, startMs: 0, endMs: 10_000 } },
+  );
+  try {
+    await complete(11, 92, created.attribution!.source.domain);
+    const before = await db.select({ evaluatedAt: laps.onlineEvaluatedAt }).from(laps).where(eq(laps.id, created.lapId)).get();
+    const winnerBefore = await db.select().from(onlineFastestComboLaps).where(eq(onlineFastestComboLaps.lapId, created.lapId)).get();
+    await complete(11, 92, created.attribution!.source.domain);
+    expect(await db.select({ evaluatedAt: laps.onlineEvaluatedAt }).from(laps).where(eq(laps.id, created.lapId)).get()).toEqual(before);
+    expect(await db.select().from(onlineFastestComboLaps).where(eq(onlineFastestComboLaps.lapId, created.lapId)).get()).toEqual(winnerBefore);
+    await expect(complete(12, 92, created.attribution!.source.domain)).rejects.toThrow("Finalized lap source window changed");
+    expect(await db.select({ evaluatedAt: laps.onlineEvaluatedAt }).from(laps).where(eq(laps.id, created.lapId)).get()).toEqual(before);
+    expect(await db.select().from(onlineFastestComboLaps).where(eq(onlineFastestComboLaps.lapId, created.lapId)).get()).toEqual(winnerBefore);
+  } finally {
+    await deleteSession(created.sessionId);
+  }
+});
+
+test("initialization processes below-cursor provisional rows once and leaves state unchanged on rollback", async () => {
+  await ensureOwner();
+  const created = await addLap({ origin: "native_capture", provisional: true, time: 92, attribution: "Self" });
+  const previous = await readDb.select().from(onlineFastestLapInitialization).where(eq(onlineFastestLapInitialization.id, 1)).get();
+  try {
+    await db.update(onlineFastestLapInitialization).set({ lastCheckedLapId: created.lapId, complete: false })
+      .where(eq(onlineFastestLapInitialization.id, 1)).run();
+    const complete = () => updateCapturedLap(created.lapId, created.sessionId, 1, 92, true, null, 11, null, null, null,
+      [92 / 3, 92 / 3, 92 / 3], null, undefined, created.attribution);
+    await complete();
+    const evaluatedAt = (await db.select({ evaluatedAt: laps.onlineEvaluatedAt }).from(laps).where(eq(laps.id, created.lapId)).get())?.evaluatedAt;
+    await complete();
+    expect((await db.select({ evaluatedAt: laps.onlineEvaluatedAt }).from(laps).where(eq(laps.id, created.lapId)).get())?.evaluatedAt).toBe(evaluatedAt);
+    expect(evaluatedAt).toBeTruthy();
+    expect(await initializeOnlineFastestLapWinners(1)).toEqual({ processed: 0, complete: true });
+    expect((await readOnlineLapUpload(created.lapId))?.lapId).toBe(created.lapId);
+    await db.update(onlineFastestLapInitialization).set({ lastCheckedLapId: 0, complete: false })
+      .where(eq(onlineFastestLapInitialization.id, 1)).run();
+    const stateBefore = await db.select().from(onlineFastestLapInitialization).where(eq(onlineFastestLapInitialization.id, 1)).get();
+    const markerBefore = await db.select({ evaluatedAt: laps.onlineEvaluatedAt }).from(laps).where(eq(laps.id, created.lapId)).get();
+    const winnerBefore = await db.select().from(onlineFastestComboLaps).where(eq(onlineFastestComboLaps.lapId, created.lapId)).get();
+    await expect(db.transaction(async (tx) => {
+      await tx.update(onlineFastestLapInitialization).set({ lastCheckedLapId: created.lapId, complete: true })
+        .where(eq(onlineFastestLapInitialization.id, 1)).run();
+      await tx.update(laps).set({ onlineEvaluatedAt: null }).where(eq(laps.id, created.lapId)).run();
+      await tx.delete(onlineFastestComboLaps).where(eq(onlineFastestComboLaps.lapId, created.lapId)).run();
+      throw new Error("rollback fixture");
+    })).rejects.toThrow("rollback fixture");
+    expect(await db.select().from(onlineFastestLapInitialization).where(eq(onlineFastestLapInitialization.id, 1)).get()).toEqual(stateBefore);
+    expect(await db.select({ evaluatedAt: laps.onlineEvaluatedAt }).from(laps).where(eq(laps.id, created.lapId)).get()).toEqual(markerBefore);
+    expect(await db.select().from(onlineFastestComboLaps).where(eq(onlineFastestComboLaps.lapId, created.lapId)).get()).toEqual(winnerBefore);
+  } finally {
+    await deleteSession(created.sessionId);
+    if (previous) await db.update(onlineFastestLapInitialization).set({
+      lastCheckedLapId: previous.lastCheckedLapId, complete: previous.complete,
+    }).where(eq(onlineFastestLapInitialization.id, 1)).run();
+  }
+});
+
+test("malformed persisted stints are evaluated as Unknown during initialization", async () => {
+  await ensureOwner();
+  const created = await addLap({ origin: "native_capture", attribution: "Self", time: 88 });
+  const previous = await readDb.select().from(onlineFastestLapInitialization).where(eq(onlineFastestLapInitialization.id, 1)).get();
+  try {
+    for (const stints of ["null", "{}", "{"]) {
+      await db.delete(onlineFastestComboLaps).where(eq(onlineFastestComboLaps.lapId, created.lapId)).run();
+      await db.update(laps).set({ onlineEvaluatedAt: null, driverAttributionStints: sql`${stints}` })
+        .where(eq(laps.id, created.lapId)).run();
+      await db.update(onlineFastestLapInitialization).set({ lastCheckedLapId: created.lapId - 1, complete: false })
+        .where(eq(onlineFastestLapInitialization.id, 1)).run();
+      expect(await initializeOnlineFastestLapWinners(1)).toEqual({ processed: 1, complete: false });
+      expect(await readOnlineLapUpload(created.lapId)).toBeNull();
     }
-    expect(rows).toContainEqual(expect.objectContaining({ lapId: fastestOtherCar.lapId, gameId: "acc", trackId: "upload-fixture-track", carId: "car-fastest", valid: true }));
-    expect(rows).toContainEqual(expect.objectContaining({ lapId: fastestSlowCar.lapId, gameId: "acc", trackId: "upload-fixture-track", carId: "car-slower", valid: true }));
-    expect(rows).toContainEqual(expect.objectContaining({ lapId: otherGame.lapId, gameId: "iracing", trackId: "upload-fixture-track" }));
-    expect(rows.some((row) => row.lapId === f1World.lapId)).toBe(true);
-    expect(rows.some((row)=>row.lapId===f1OtherCar.lapId)).toBe(false);
-    expect(rows.findIndex(row=>row.lapId===fastestSlowCar.lapId)).toBeLessThan(rows.findIndex(row=>row.lapId===slower.lapId));
-    expect(rows.some(row=>row.lapId===unknownFaster.lapId||row.lapId===otherFaster.lapId)).toBe(false);
-    expect(rows.some((row) => row.lapId === thirdParty.lapId || row.lapId === motec.lapId)).toBe(false);
-    expect(rows.some((row) => [cloudImport, missingSectors, invalidSector, invalidLap, unsupportedGame].some(({ lapId }) => row.lapId === lapId))).toBe(false);
-    const afterFastest=await getOnlineUploadCandidatePage({gameId:"acc",trackId:"upload-fixture-track",carId:"car-slower",lapTimeMs:95_000,lapId:fastestSlowCar.lapId});
-    expect(afterFastest.items[0]?.lapId).toBe(slower.lapId);
+  } finally {
+    await deleteSession(created.sessionId);
+    if (previous) await db.update(onlineFastestLapInitialization).set({
+      lastCheckedLapId: previous.lastCheckedLapId, complete: previous.complete,
+    }).where(eq(onlineFastestLapInitialization.id, 1)).run();
+  }
+});
+
+test("live winners beyond initialization cursor do not skip older rows; completed initialization stays complete", async () => {
+  await ensureOwner();
+  const trackId = `cursor-live-${crypto.randomUUID()}`;
+  const carId = `cursor-live-car-${crypto.randomUUID()}`;
+  const old = await addLap({ origin: "native_capture", attribution: "Self", trackId, carId, time: 91 });
+  const previous = await readDb.select().from(onlineFastestLapInitialization).where(eq(onlineFastestLapInitialization.id, 1)).get();
+  let laterSessionId: number | undefined;
+  try {
+    await db.delete(onlineFastestComboLaps).where(eq(onlineFastestComboLaps.lapId, old.lapId)).run();
+    await db.update(laps).set({ onlineEvaluatedAt: null }).where(eq(laps.id, old.lapId)).run();
+    await db.update(onlineFastestLapInitialization).set({ lastCheckedLapId: old.lapId - 1, complete: false })
+      .where(eq(onlineFastestLapInitialization.id, 1)).run();
+    const later = await addLap({ origin: "native_capture", attribution: "Self", trackId, carId, time: 90 });
+    laterSessionId = later.sessionId;
+    const liveEvaluatedAt = (await db.select({ evaluatedAt: laps.onlineEvaluatedAt }).from(laps).where(eq(laps.id, later.lapId)).get())?.evaluatedAt;
+    const liveWinner = await db.select().from(onlineFastestComboLaps).where(eq(onlineFastestComboLaps.lapId, later.lapId)).get();
+    expect((await readOnlineLapUpload(later.lapId))?.lapId).toBe(later.lapId);
+    expect(await initializeOnlineFastestLapWinners(1)).toEqual({ processed: 1, complete: false });
+    expect((await readOnlineLapUpload(later.lapId))?.lapId).toBe(later.lapId);
+    expect(await initializeOnlineFastestLapWinners(1)).toEqual({ processed: 1, complete: false });
+    expect((await db.select({ evaluatedAt: laps.onlineEvaluatedAt }).from(laps).where(eq(laps.id, later.lapId)).get())?.evaluatedAt)
+      .toBe(liveEvaluatedAt);
+    expect(await db.select().from(onlineFastestComboLaps).where(eq(onlineFastestComboLaps.lapId, later.lapId)).get()).toEqual(liveWinner);
+    expect(await initializeOnlineFastestLapWinners(1)).toEqual({ processed: 0, complete: true });
+    expect(await initializeOnlineFastestLapWinners(1)).toEqual({ processed: 0, complete: true });
+  } finally {
+    await deleteSession(old.sessionId);
+    if (laterSessionId !== undefined) await deleteSession(laterSessionId);
+    if (previous) await db.update(onlineFastestLapInitialization).set({
+      lastCheckedLapId: previous.lastCheckedLapId, complete: previous.complete,
+    }).where(eq(onlineFastestLapInitialization.id, 1)).run();
+  }
+});
+
+test("deleting winner does not select slower eligible lap as fallback", async () => {
+  await ensureOwner();
+  const trackId = `delete-winner-${crypto.randomUUID()}`;
+  const carId = `delete-winner-car-${crypto.randomUUID()}`;
+  const created: number[] = [];
+  try {
+    const fast = await addLap({ origin: "native_capture", attribution: "Self", trackId, carId, time: 89 });
+    created.push(fast.sessionId);
+    const slow = await addLap({ origin: "native_capture", attribution: "Self", trackId, carId, time: 90 });
+    created.push(slow.sessionId);
+    await deleteSession(fast.sessionId);
+    created.splice(created.indexOf(fast.sessionId), 1);
+    expect(await readOnlineLapUpload(slow.lapId)).toBeNull();
+    const winners = await db.select({ lapId: onlineFastestComboLaps.lapId })
+      .from(onlineFastestComboLaps).where(eq(onlineFastestComboLaps.gameId, slow.gameId)).all();
+    expect(winners.some((row) => row.lapId === slow.lapId)).toBe(false);
   } finally {
     for (const sessionId of created) await deleteSession(sessionId);
   }

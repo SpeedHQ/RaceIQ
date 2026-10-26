@@ -106,5 +106,5 @@ export const lapChatAgent = new Agent({
     get_lap_analysis: getLapAnalysisTool,
     generate_lap_analysis: generateLapAnalysisTool,
   },
-  memory: getChatMemory,
+  memory: getChatMemory(),
 });

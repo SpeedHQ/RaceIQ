@@ -15,7 +15,7 @@ import { parsePacket } from "@raceiq/backend-core/games/packet-dispatch";
 import { isForzaRaceOffPacket } from "@raceiq/game-fm-2023/parser";
 import { wsManager } from "@raceiq/backend-core/runtime/websocket-manager";
 import { processPacket, flushSessionRecorderBuffer, lapDetector } from "@raceiq/backend-core/telemetry/live-pipeline";
-import { getRunningGame } from "@raceiq/backend-core/games/registry";
+import { getGameProcessStatus, getRunningGame } from "@raceiq/backend-core/games/registry";
 import { WorkerSessionRecorder } from "@raceiq/capture-formats/session/worker-recorder";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { timestampForFilename } from "@raceiq/backend-core/session-capture/filename";
@@ -140,20 +140,23 @@ class UdpListener {
 
       // Broadcast full server status to clients (replaces REST polling)
 
-      // Log game detection changes and finalize session if game disconnects
+      // A mapped game's process exit is confirmed by the process monitor; silence
+      // and unknown/unmapped processes never close a recording source.
       if (this._lastDetectedGame?.id !== runningGame?.id) {
-        if (runningGame) {
-          console.log(`[Game] ${runningGame.displayName} detected (state: ${runningGame.id})`);
-        } else {
-          console.log("[Game] state change to null");
+        const prior = this._lastDetectedGame;
+        if (prior && getGameProcessStatus(prior.id) === "absent") {
+          console.log(`[Game] tracked process exited: ${prior.id}`);
           this._forzaRaceActive = false;
-          // Finalize session immediately when game disconnects
-          void lapDetector.finalizeCurrentSession().catch((error) => {
+          void lapDetector.finalizeCurrentSession(true).catch((error) => {
             console.error("[Live Telemetry] Session finalization failed:", error);
           });
+          this._lastDetectedGame = null;
+        }
+        if (runningGame) {
+          console.log(`[Game] ${runningGame.displayName} detected (state: ${runningGame.id})`);
+          this._lastDetectedGame = runningGame;
         }
       }
-      this._lastDetectedGame = runningGame;
 
       // Log race state changes
       if (!this._lastRaceOn && raceOn) {

@@ -14,6 +14,7 @@ export interface CloudLapFixtureOptions {
   lapGuid?:string;
   setup?: Buffer | null;
   recordedAt?: string | null;
+  finishedAt?: string | null;
   frame?: Buffer;
   secondSegment?: boolean;
 }
@@ -58,6 +59,7 @@ export function buildCloudLapImportFixture(options: CloudLapFixtureOptions = {})
       valid: true,
       invalidReason: null,
       recordedAt: options.recordedAt === undefined ? "2026-09-01T12:00:00.000Z" : options.recordedAt,
+      ...(options.finishedAt === undefined ? {} : { finishedAt: options.finishedAt }),
       setAt: "2026-09-01T13:00:00.000Z",
       lapIndex: 2,
       sessionKey: 7,

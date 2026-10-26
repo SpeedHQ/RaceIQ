@@ -14,6 +14,8 @@ import { isSessionActive } from "../telemetry/live-pipeline";
 import { clearSessionCaptureCache, loadCaptureManifest } from "./source-loader";
 import { loadReferencedCapturePaths, withSessionCaptureMaintenanceLock } from "./cleanup";
 import { hasPendingLayoutMigration } from "./layout-migration";
+import { beginSessionSourceMutation, SessionSourceMutationActiveError } from "./source-mutation-activity";
+import { readOnlineRecordingSource, tryBeginOnlineRecordingSourceMutation } from "../db/online-recording-source-queries";
 import { releaseDashboardCaptureCheckpoint, republishPersistedDashboardCaptureFacts } from "./dashboard-processor";
 import { dirname, resolve } from "node:path";
 
@@ -428,6 +430,20 @@ async function deleteUnreferencedBundles(group: CleanupGroup): Promise<{ files: 
 type CleanupGroupResult = { deleted: boolean; files: number; bytes: number; residualError?: string };
 
 async function executeGroup(group: CleanupGroup): Promise<CleanupGroupResult> {
+  const releases: Array<() => void> = [];
+  try {
+    for (const row of group.rows) releases.push(beginSessionSourceMutation(row.id));
+    for (const row of group.rows) {
+      if (await tryBeginOnlineRecordingSourceMutation(row.id)) continue;
+      if (await readOnlineRecordingSource(row.id)) throw new SessionSourceMutationActiveError(row.id);
+    }
+    return await executeGroupAdmitted(group);
+  } finally {
+    for (const release of releases.reverse()) release();
+  }
+}
+
+async function executeGroupAdmitted(group: CleanupGroup): Promise<CleanupGroupResult> {
   if (group.missing) {
     try {
       await setRawFiles(group.rows, true);

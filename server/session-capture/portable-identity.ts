@@ -5,10 +5,9 @@ import { dirname, join } from "node:path";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { client, readClient, readDb } from "../db/index";
-import { laps, sessions, lapGuidReconciliation, liveCaptures, liveCaptureMembers } from "../db/schema";
+import { laps, sessions, lapGuidReconciliation, liveCaptures, liveCaptureMembers, nativeOriginalSourceClosures } from "../db/schema";
 import { bindAuthoritativeLapGuidInTransaction } from "../db/lap-guid";
 import { bindOriginalActivityNativeSourceHash, readOriginalActivitySourceProof, registerVerifiedPortableOriginalInTransaction, retainOriginalLapIdentityInTransaction } from "../db/original-activity-queries";
-import { enqueueSessionCaptureSplit } from "../db/session-queries";
 import { DASHBOARD_PROCESSOR_VERSION } from "../db/dashboard-summary-queries";
 import { dashboardDurationAttribution } from "../driver-summary/dashboard-input";
 import { withDatabaseTransaction } from "../db/write-coordination";
@@ -21,9 +20,10 @@ import { containsSparseCaptureFrames, decompressIfGzipSync, encodeFrameLength, e
   type PortableCaptureIdentity, type PortableLapIdentity, type SessionCaptureRecord } from "@raceiq/capture-formats/session/framing";
 import { iterateOriginalCapturePartRecords, loadCaptureManifest, resolveLiveLapCaptureArtifact, type SessionCapturePart } from "./source-loader";
 import type { ImportedLap } from "./import-pipeline";
-import { notifyOnlineSync } from "@raceiq/online/server/sync-events";
 import { markDashboardCaptureCheckpoint, processDashboardSession } from "./dashboard-processor";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
+import { beginSessionSourceMutation, SessionSourceMutationActiveError } from "./source-mutation-activity";
+import { readOnlineRecordingSource, tryBeginOnlineRecordingSourceMutation } from "../db/online-recording-source-queries";
 import { Schema } from "effect";
 import { LiveArchiveMemberSchema, updateNativeRecordDigest } from "@raceiq/capture-splitting";
 import { detectGameIdFromBuffer } from "./import-capture";
@@ -46,7 +46,7 @@ const durationSchema = z.object({
 const lapSchema = z.object({ lapGuid: z.string().uuid().nullable(), lapNumber: count, lapTime: finite, isValid: z.boolean(), invalidReason: z.string().nullable(),
   lapGuidStatus: z.enum(["resolved", "held_ambiguous"]),
   classification: lapClassificationSchema.default(null),
-  rawByteOffset: count, rawFrameCount: count.positive(), sectorTimes: z.array(finite).nullable(), recordedAt: z.string().nullable(), createdAt: z.string().min(1),
+  rawByteOffset: count, rawFrameCount: count.positive(), sectorTimes: z.array(finite).nullable(), recordedAt: z.string().nullable(), finishedAt: z.string().datetime({ offset: true }).refine((value) => value.endsWith("Z") || value.endsWith("+00:00")).nullable().optional(), createdAt: z.string().min(1),
   trailingContextFrameCount: count.max(1).optional(),
   totalTimeMs: z.number().int().safe().nullable(), sectorTimesMs: z.array(z.number().int().safe()).nullable(),
   driverAttribution: attribution.nullable(), driverAttributionStints: z.array(stintSchema).nullable(), sourceClockDomain: z.string().nullable(), sourceLapStartMs: finite.nullable(), sourceLapEndMs: finite.nullable() }).strict()
@@ -88,14 +88,34 @@ function writeNativeRecord(record: SessionCaptureRecord, output: Buffer, offset:
   return marker.length;
 }
 
-/** Losslessly rebuild all original native records, excluding synthetic per-member replay context. */
-export async function loadFullOriginalPortableCapture(sessionId: number): Promise<{ bytes: Buffer; windows: Map<number, { rawByteOffset: number; rawFrameCount: number; trailingContextFrameCount?: number }> } | null> {
-  const proof = await readOriginalActivitySourceProof(sessionId, { includeBorrowed: true });
-  if (!proof) return null;
+type OriginalCaptureWindow = {
+  rawByteOffset: number; rawFrameCount: number; ownedFrameCount?: number; trailingContextFrameCount?: number;
+  captureChunkId?: string; sourceFrameStart?: number; sourceFrameCount?: number;
+};
+export async function loadFullOriginalPortableCapture(
+  sessionId: number,
+  options: { forReprocess?: boolean } = {},
+): Promise<{ bytes: Buffer; windows: Map<number, OriginalCaptureWindow>; sourceWindows: Map<string, OriginalCaptureWindow> } | null> {
+  const proof = await readOriginalActivitySourceProof(sessionId, {
+    includeBorrowed: true, allowDeletedOriginalLaps: options.forReprocess,
+  });
   const session = await readDb.select().from(sessions).where(eq(sessions.id, sessionId)).get();
   if (!session || session.downsampledFrequencyHz !== null) return null;
+  const nativeClosure = options.forReprocess && session.nativeCaptureOrigin
+    ? await readDb.select().from(nativeOriginalSourceClosures).where(eq(nativeOriginalSourceClosures.sessionId, sessionId)).get()
+    : null;
+  const nativeClosureMatches = nativeClosure != null && nativeClosure.originalActivityId === session.originalActivityId &&
+    nativeClosure.sourceRevision === session.originalSourceRevision && nativeClosure.gapCount === 0;
+  if (options.forReprocess && session.nativeCaptureOrigin && !nativeClosureMatches) return null;
+  const identity = proof ?? (options.forReprocess && session.nativeCaptureOrigin && nativeClosureMatches &&
+      session.originalActivityId && session.originalSourceRevision
+    ? { originalActivityId: session.originalActivityId, sourceRevision: session.originalSourceRevision,
+      originalLapGuids: [], coverage: "complete" as const, origin: "native_capture" as const,
+      ownerUserId: session.ownerUserId }
+    : null);
+  if (!identity) return null;
   const rows = await readDb.select().from(laps).where(eq(laps.sessionId, sessionId)).all();
-  const retained = await readClient.execute({ sql: "SELECT native_source_hash FROM original_activity_sources WHERE original_activity_id=?", args: [proof.originalActivityId] });
+  const retained = await readClient.execute({ sql: "SELECT native_source_hash FROM original_activity_sources WHERE original_activity_id=?", args: [identity.originalActivityId] });
   const retainedHash = retained.rows[0]?.native_source_hash;
   const trailing = (row: typeof rows[number], owned?: number, knownTrailing = 0): number => {
     const value = row.sourceFrameCount === null ? knownTrailing : (row.rawFrameCount ?? 0) - row.sourceFrameCount;
@@ -106,14 +126,17 @@ export async function loadFullOriginalPortableCapture(sessionId: number): Promis
   if (session.captureLayoutVersion !== 1 && session.captureLayoutVersion !== 2 && session.captureLayoutVersion !== 3) {
     if (!session.rawFile || !/\.bin(?:\.gz)?$/.test(session.rawFile)) return null;
     const bytes = decompressIfGzipSync(await readFile(session.rawFile));
-    // An arbitrary raw file cannot establish its own full-original digest.
     if (retainedHash !== nativeSourceSummary(bytes).nativeRecordHash) return null;
-    const windows = new Map<number, { rawByteOffset: number; rawFrameCount: number; trailingContextFrameCount?: number }>();
+    const windows = new Map<number, OriginalCaptureWindow>();
+    const sourceWindows = new Map<string, OriginalCaptureWindow>();
     for (const row of rows) {
       if (row.rawByteOffset === null || row.rawFrameCount === null) return null;
-      windows.set(row.id, { rawByteOffset: row.rawByteOffset, rawFrameCount: row.rawFrameCount, trailingContextFrameCount: trailing(row) });
+      const window = { rawByteOffset: row.rawByteOffset, rawFrameCount: row.rawFrameCount,
+        ownedFrameCount: row.sourceFrameCount ?? row.rawFrameCount, trailingContextFrameCount: trailing(row) };
+      windows.set(row.id, window);
+      if (row.lapGuid) sourceWindows.set(row.lapGuid.toLowerCase(), window);
     }
-    return { bytes, windows };
+    return { bytes, windows, sourceWindows };
   }
   const parts: SessionCapturePart[] = [];
   const base = { source: session.source, gameId: session.gameId as GameId, carId: session.carId, trackId: session.trackId, captureFormatVersion: session.captureFormatVersion };
@@ -123,11 +146,11 @@ export async function loadFullOriginalPortableCapture(sessionId: number): Promis
   let nativeWireCoordinates = false;
   if (session.captureLayoutVersion === 3) {
     const capture = await readDb.select().from(liveCaptures).where(eq(liveCaptures.sessionId, sessionId)).get();
-    if (!capture || capture.status !== "sealed" || capture.captureEpoch !== proof.sourceRevision ||
+    if (!capture || capture.status !== "sealed" || capture.captureEpoch !== identity.sourceRevision ||
         capture.sourceDurableWatermark !== capture.sourceByteLength || capture.metadataDurableWatermark !== capture.sourceByteLength) return null;
     sourceByteLength = capture.sourceByteLength;
     sourceRecordCount = capture.sourceRecordCount;
-    genuineNativeClosure = session.nativeCaptureOrigin && proof.origin === "native_capture";
+    genuineNativeClosure = session.nativeCaptureOrigin && identity.origin === "native_capture";
     const members = await readDb.select({ descriptor: liveCaptureMembers.descriptor }).from(liveCaptureMembers)
       .where(eq(liveCaptureMembers.captureEpoch, capture.captureEpoch)).orderBy(liveCaptureMembers.generation).all();
     for (const value of members) {
@@ -147,9 +170,9 @@ export async function loadFullOriginalPortableCapture(sessionId: number): Promis
         (session.captureLayoutVersion === 2 && manifest.version !== 4) || manifest.gameId !== base.gameId) return null;
     sourceByteLength = manifest.sourceByteLength;
     sourceRecordCount = manifest.sourceRecordCount;
-    genuineNativeClosure = session.nativeCaptureOrigin && proof.origin === "native_capture" && manifest.version === 3 &&
+    genuineNativeClosure = session.nativeCaptureOrigin && identity.origin === "native_capture" && manifest.version === 3 &&
       manifest.sourceCoordinates === "native-wire-v1" && manifest.sourceClosed === true &&
-      manifest.originalActivityId === proof.originalActivityId && manifest.sourceRevision === proof.sourceRevision;
+      manifest.originalActivityId === identity.originalActivityId && manifest.sourceRevision === identity.sourceRevision;
     nativeWireCoordinates = manifest.version === 3 && manifest.sourceCoordinates === "native-wire-v1";
     for (const chunk of manifest.chunks) {
       const capture = manifest.version === 4 && "entryName" in chunk
@@ -160,25 +183,41 @@ export async function loadFullOriginalPortableCapture(sessionId: number): Promis
     }
   }
   if (typeof retainedHash !== "string" && !genuineNativeClosure) return null;
-  const guids = [...new Set(parts.filter((part) => part.chunk.kind === "lap").map((part) => part.chunk.lapGuid))].sort();
-  if (JSON.stringify(guids) !== JSON.stringify(proof.originalLapGuids)) return null;
+  const guids = parts.filter((part) => part.chunk.kind === "lap").map((part) => part.chunk.lapGuid?.toLowerCase()).sort();
+  if (guids.some((guid) => !guid) || new Set(guids).size !== guids.length) return null;
+  const artifactGuids = guids as string[];
+  if (proof && (options.forReprocess
+    ? proof.originalLapGuids.some((guid) => !artifactGuids.includes(guid.toLowerCase()))
+    : JSON.stringify(artifactGuids) !== JSON.stringify(proof.originalLapGuids.map((guid) => guid.toLowerCase()).sort()))) return null;
+  if (options.forReprocess && identity.origin === "native_capture" &&
+      nativeClosure?.lapCount !== artifactGuids.length) return null;
   const header = Buffer.concat([encodeMetaFrame(), encodeSparseCaptureFormatFrame()]);
   let outputLength = header.length;
   let sourceOrdinal = 0;
   let sourceOffset = parts[0]?.chunk.sourceByteStart ?? sourceByteLength;
-  const windows = new Map<number, { rawByteOffset: number; rawFrameCount: number; trailingContextFrameCount?: number }>();
+  const windows = new Map<number, OriginalCaptureWindow>();
+  const sourceWindows = new Map<string, OriginalCaptureWindow>();
   const nativeHash = createHash("sha256");
   // Size/hash pass keeps decompression streaming; allocate the complete result only once.
   for (const part of parts) {
     const chunk = part.chunk;
     if (chunk.sourceStart !== sourceOrdinal || chunk.sourceByteStart !== sourceOffset || chunk.sourceEnd - chunk.sourceStart !== chunk.recordCount) return null;
-    const row = chunk.kind === "lap" ? rows.find((candidate) => String(candidate.id) === chunk.lapId && candidate.lapGuid === chunk.lapGuid) : undefined;
+    const guid = chunk.kind === "lap" ? chunk.lapGuid?.toLowerCase() : undefined;
+    if (chunk.kind === "lap" && (!guid || chunk.ownedFrameByteOffset == null || chunk.ownedFrameCount == null)) return null;
+    const row = chunk.kind === "lap" ? rows.find((candidate) => candidate.lapGuid?.toLowerCase() === guid) : undefined;
     let wireLength = 0;
     for await (const record of iterateOriginalCapturePartRecords(part)) {
-      if (record.kind === "frame" && row && record.offset === chunk.ownedFrameByteOffset) {
-        if (row.rawFrameCount === null) return null;
-        windows.set(row.id, { rawByteOffset: outputLength, rawFrameCount: row.rawFrameCount,
-          trailingContextFrameCount: trailing(row, chunk.ownedFrameCount, chunk.trailingContextFrameCount ?? 0) });
+      if (record.kind === "frame" && guid && record.offset === chunk.ownedFrameByteOffset) {
+        const trailingFrames = chunk.trailingContextFrameCount ?? 0;
+        const chunkWindow = { captureChunkId: chunk.id, sourceFrameStart: chunk.sourceStart, sourceFrameCount: chunk.ownedFrameCount! };
+        sourceWindows.set(guid, { rawByteOffset: outputLength, rawFrameCount: chunk.ownedFrameCount! + trailingFrames,
+          ownedFrameCount: chunk.ownedFrameCount!, trailingContextFrameCount: trailingFrames, ...chunkWindow });
+        if (row) {
+          if (row.rawFrameCount === null) return null;
+          windows.set(row.id, { rawByteOffset: outputLength, rawFrameCount: row.rawFrameCount,
+            ownedFrameCount: row.sourceFrameCount ?? chunk.ownedFrameCount!,
+            trailingContextFrameCount: trailing(row, chunk.ownedFrameCount, trailingFrames), ...chunkWindow });
+        }
       }
       updateNativeRecordDigest(nativeHash, record);
       const length = record.kind === "frame" ? record.frame.length + (record.frameTimeMs === undefined ? 4 : 12)
@@ -191,7 +230,8 @@ export async function loadFullOriginalPortableCapture(sessionId: number): Promis
     sourceOrdinal = chunk.sourceEnd;
     sourceOffset = chunk.sourceByteEnd;
   }
-  if (sourceOrdinal !== sourceRecordCount || sourceOffset !== sourceByteLength || windows.size !== rows.length) return null;
+  if (sourceOrdinal !== sourceRecordCount || sourceOffset !== sourceByteLength ||
+      windows.size !== rows.length || sourceWindows.size !== artifactGuids.length) return null;
   const nativeRecordHash = `sha256:${nativeHash.digest("hex")}`;
   if (typeof retainedHash === "string" && retainedHash !== nativeRecordHash) return null;
   const output = Buffer.allocUnsafe(outputLength);
@@ -205,8 +245,8 @@ export async function loadFullOriginalPortableCapture(sessionId: number): Promis
     }
   }
   if (offset !== output.length || `sha256:${copiedHash.digest("hex")}` !== nativeRecordHash) return null;
-  await bindOriginalActivityNativeSourceHash(sessionId, nativeRecordHash);
-  return { bytes: output, windows };
+  if (!options.forReprocess) await bindOriginalActivityNativeSourceHash(sessionId, nativeRecordHash);
+  return { bytes: output, windows, sourceWindows };
 }
 
 /** Exact saved identity/native attribution; no name/time matching or new IDs on export. */
@@ -228,7 +268,7 @@ export async function buildPortableCaptureIdentity(sessionId: number, bytes: Buf
       && (resolved.sourceGuid === null || resolved.sourceGuid === lap.lapGuid) ? "resolved" : "held_ambiguous";
     return { lapGuid: lap.lapGuid, lapNumber: lap.lapNumber, lapTime: lap.lapTime, isValid: lap.isValid, invalidReason: lap.invalidReason, classification: lap.classification,
       lapGuidStatus,
-      rawByteOffset: window.rawByteOffset, rawFrameCount: window.rawFrameCount, sectorTimes: lap.sectorTimes, recordedAt: lap.recordedAt, createdAt: lap.createdAt,
+      rawByteOffset: window.rawByteOffset, rawFrameCount: window.rawFrameCount, sectorTimes: lap.sectorTimes, recordedAt: lap.recordedAt, finishedAt: lap.sourceFinishedAt, createdAt: lap.createdAt,
       ...(window.trailingContextFrameCount === undefined ? {} : { trailingContextFrameCount: window.trailingContextFrameCount }),
       totalTimeMs: lap.totalTimeMs, sectorTimesMs: lap.sectorTimesMs,
       driverAttribution: lap.driverAttribution, driverAttributionStints: lap.driverAttributionStints,
@@ -344,9 +384,9 @@ export function validatePortableCaptureIdentity(bytes: Buffer, input: unknown): 
 }
 
 async function insertPortableLap(tx: Transaction, sessionId: number, lap: PortableLapIdentity, identity: PortableCaptureIdentity): Promise<number> {
-  const inserted = await tx.execute({ sql: `INSERT INTO laps(session_id,lap_number,lap_time,is_valid,invalid_reason,raw_byte_offset,raw_frame_count,source_frame_count,sector_times,recorded_at,created_at,driver_attribution,driver_attribution_stints,source_clock_domain,source_lap_start_ms,source_lap_end_ms,total_time_ms,sector_times_ms,classification)
-    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id`, args: [sessionId, lap.lapNumber, lap.lapTime, lap.isValid ? 1 : 0, lap.invalidReason, lap.rawByteOffset, lap.rawFrameCount,
-      lap.rawFrameCount - (lap.trailingContextFrameCount ?? 0), lap.sectorTimes === null ? null : JSON.stringify(lap.sectorTimes), lap.recordedAt, lap.createdAt, lap.driverAttribution, lap.driverAttributionStints === null ? null : JSON.stringify(lap.driverAttributionStints), lap.sourceClockDomain, lap.sourceLapStartMs, lap.sourceLapEndMs,
+  const inserted = await tx.execute({ sql: `INSERT INTO laps(session_id,lap_number,lap_time,is_valid,invalid_reason,raw_byte_offset,raw_frame_count,source_frame_count,sector_times,recorded_at,source_finished_at,created_at,driver_attribution,driver_attribution_stints,source_clock_domain,source_lap_start_ms,source_lap_end_ms,total_time_ms,sector_times_ms,classification)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id`, args: [sessionId, lap.lapNumber, lap.lapTime, lap.isValid ? 1 : 0, lap.invalidReason, lap.rawByteOffset, lap.rawFrameCount,
+      lap.rawFrameCount - (lap.trailingContextFrameCount ?? 0), lap.sectorTimes === null ? null : JSON.stringify(lap.sectorTimes), lap.recordedAt, lap.finishedAt ?? null, lap.createdAt, lap.driverAttribution, lap.driverAttributionStints === null ? null : JSON.stringify(lap.driverAttributionStints), lap.sourceClockDomain, lap.sourceLapStartMs, lap.sourceLapEndMs,
       lap.totalTimeMs, lap.sectorTimesMs === null ? null : JSON.stringify(lap.sectorTimesMs), lap.classification ?? null] });
   const lapId = Number(inserted.rows[0]!.id);
   if (lap.lapGuid && lap.lapGuidStatus === "resolved") {
@@ -376,18 +416,23 @@ async function preservePortableSourceFacts(tx: Transaction, sessionId: number, i
       identity.session.clockAnchor == null ? null : JSON.stringify(identity.session.clockAnchor), duration == null ? null : JSON.stringify(duration), sessionId] });
 }
 
-interface RegisteredPortableCapture { packetCount: number; laps: ImportedLap[]; sessionIds: readonly number[] }
+interface PortableCaptureRegistration { packetCount: number; laps: ImportedLap[]; sessionIds: readonly number[] }
+interface RegisteredPortableCapture extends PortableCaptureRegistration { releaseSourceMutations(): void }
 
 /** Register preserved rows directly: no detector or timing recomputation, all identity writes atomic. */
-export async function importPortableCapture(bytesInput: Buffer, input: unknown, context: { gameId: GameId; carId: string; trackId: string; ownership?: "mine" | "others" }): Promise<{ packetCount: number; laps: ImportedLap[] }> {
-  const result = await withSessionCaptureMaintenanceLock(() => registerPortableCapture(bytesInput, input, context));
-  // Splitting acquires the same maintenance lock; publish only after registration releases it.
-  for (const sessionId of result.sessionIds) await enqueueSessionCaptureSplit(sessionId);
-  notifyOnlineSync();
-  return { packetCount: result.packetCount, laps: result.laps };
+export async function importPortableCapture(bytesInput: Buffer, input: unknown, context: { gameId: GameId; carId: string; trackId: string; ownership?: "mine" | "others" }): Promise<RegisteredPortableCapture> {
+  return withSessionCaptureMaintenanceLock(() => registerPortableCapture(bytesInput, input, context));
 }
-
 async function registerPortableCapture(bytesInput: Buffer, input: unknown, context: { gameId: GameId; carId: string; trackId: string; ownership?: "mine" | "others" }): Promise<RegisteredPortableCapture> {
+  const releases = new Map<number, () => void>();
+  let handedOff = false;
+  const markActive = (sessionId: number) => {
+    if (!releases.has(sessionId)) releases.set(sessionId, beginSessionSourceMutation(sessionId));
+  };
+  const releaseAll = () => {
+    for (const release of releases.values()) release();
+    releases.clear();
+  };
   const bytes = decompressIfGzipSync(bytesInput);
   const identity = validatePortableCaptureIdentity(bytes, input);
   const detectedGame = detectGameIdFromBuffer(bytes);
@@ -400,12 +445,45 @@ async function registerPortableCapture(bytesInput: Buffer, input: unknown, conte
     }
   }
   const directory = resolveRecordingGameDirectory(context.gameId);
-  await mkdir(directory, { recursive: true });
   const path = join(directory, `portable-${randomUUID()}.bin`);
-  await writeFile(path, bytes, { flag: "wx", mode: 0o600 });
+  const existingSessionIds = new Set<number>();
+  try {
+    for (const lap of identity.laps) {
+      if (!lap.lapGuid) continue;
+      const matches = await readDb.select({ sessionId: laps.sessionId }).from(laps).where(eq(laps.lapGuid, lap.lapGuid)).all();
+      for (const match of matches) existingSessionIds.add(match.sessionId);
+    }
+    if (identity.laps.length === 0 && identity.originalActivityId !== null && identity.sourceRevision !== null) {
+      const empty = await readClient.execute({
+        sql: `SELECT id FROM sessions WHERE original_activity_id=? AND original_source_revision=? AND owner_user_id IS ?
+          AND cloud_import_origin IS NULL AND cloud_import_lap_id IS NULL ORDER BY id`,
+        args: [identity.originalActivityId, identity.sourceRevision, identity.ownerUserId],
+      });
+      for (const row of empty.rows) existingSessionIds.add(Number(row.id));
+    }
+    if (existingSessionIds.size > 1) throw new Error("Portable import overlaps multiple local originals");
+    for (const sessionId of existingSessionIds) {
+      const release = beginSessionSourceMutation(sessionId);
+      releases.set(sessionId, release);
+      if (await tryBeginOnlineRecordingSourceMutation(sessionId)) continue;
+      if (await readOnlineRecordingSource(sessionId)) throw new SessionSourceMutationActiveError(sessionId);
+      const session = await readDb.select({ id: sessions.id }).from(sessions).where(eq(sessions.id, sessionId)).get();
+      if (!session) {
+        release();
+        releases.delete(sessionId);
+        existingSessionIds.delete(sessionId);
+      }
+    }
+    await mkdir(directory, { recursive: true });
+    await writeFile(path, bytes, { flag: "wx", mode: 0o600 });
+  } catch (error) {
+    releaseAll();
+    throw error;
+  }
+  const admittedExistingSessionIds = new Set(existingSessionIds);
   let used = false;
   let committed = false;
-  const register = async (tx: Transaction): Promise<RegisteredPortableCapture> => {
+  const register = async (tx: Transaction): Promise<PortableCaptureRegistration> => {
     const local = await tx.execute("SELECT online_user_id FROM local_account_owner WHERE id=1");
     const localOwner = local.rows[0]?.online_user_id ?? null;
     const retained = identity.originalActivityId
@@ -426,11 +504,12 @@ async function registerPortableCapture(bytesInput: Buffer, input: unknown, conte
         throw new Error("Portable lap identity conflicts with retained original ownership");
       }
       if (known.rows[0]?.source_revision != null && identity.sourceRevision !== null && known.rows[0].source_revision !== identity.sourceRevision) throw new Error("Portable original revision conflicts with retained lap identity");
-      const matches = await tx.execute({ sql: `SELECT l.id,l.session_id,l.classification,s.owner_user_id,s.original_activity_id,s.original_source_revision,s.game_id,s.car_id,s.track_id,s.raw_file,s.ownership
+      const matches = await tx.execute({ sql: `SELECT l.id,l.session_id,l.classification,l.source_finished_at,s.owner_user_id,s.original_activity_id,s.original_source_revision,s.game_id,s.car_id,s.track_id,s.raw_file,s.ownership
         FROM laps l JOIN sessions s ON s.id=l.session_id WHERE l.lap_guid=?`, args: [lap.lapGuid] });
       for (const row of matches.rows) {
         if (row.owner_user_id !== identity.ownerUserId || row.original_activity_id !== identity.originalActivityId || row.game_id !== context.gameId || row.car_id !== context.carId || row.track_id !== context.trackId) throw new Error("Portable original identity conflicts with local ownership or source");
         if (row.original_source_revision !== null && identity.sourceRevision !== null && row.original_source_revision !== identity.sourceRevision) throw new Error("Portable original revision conflicts with local source");
+        if (row.source_finished_at != null && lap.finishedAt != null && row.source_finished_at !== lap.finishedAt) throw new Error("Portable original finish time conflicts with retained source timing");
         existing.push({ row, lap });
       }
     }
@@ -453,6 +532,8 @@ async function registerPortableCapture(bytesInput: Buffer, input: unknown, conte
     if (existing.length > 0 || emptySessionId !== null) {
       if (existing.length > 0 && new Set(existing.map(({ row }) => Number(row.session_id))).size !== 1) throw new Error("Portable import overlaps multiple local originals");
       const sessionId = emptySessionId ?? Number(existing[0]!.row.session_id);
+      if (!admittedExistingSessionIds.has(sessionId)) throw new SessionSourceMutationActiveError(sessionId);
+      markActive(sessionId);
       const full = identity.representation.kind === "original" && identity.originalSource !== null && identity.originalActivityId !== null;
       if (existing.length !== identity.laps.length && !full) throw new Error("Partial portable import overlaps incomplete local membership");
       const current = await tx.execute({ sql: `SELECT l.id,l.lap_guid,r.status FROM laps l
@@ -479,8 +560,8 @@ async function registerPortableCapture(bytesInput: Buffer, input: unknown, conte
           downsampled_frequency_hz=NULL,capture_format_version=1 WHERE id=?`, args: [path, sessionId] });
         for (const [index, imported] of result.entries()) {
           const metadata = identity.laps[index]!;
-          await tx.execute({ sql: "UPDATE laps SET raw_byte_offset=?,raw_frame_count=?,capture_chunk_id=NULL,source_frame_start=NULL,source_frame_count=? WHERE id=?",
-            args: [metadata.rawByteOffset, metadata.rawFrameCount, metadata.rawFrameCount - (metadata.trailingContextFrameCount ?? 0), imported.lapId] });
+          await tx.execute({ sql: "UPDATE laps SET raw_byte_offset=?,raw_frame_count=?,capture_chunk_id=NULL,source_frame_start=NULL,source_frame_count=?,source_finished_at=COALESCE(?,source_finished_at) WHERE id=?",
+            args: [metadata.rawByteOffset, metadata.rawFrameCount, metadata.rawFrameCount - (metadata.trailingContextFrameCount ?? 0), metadata.finishedAt ?? null, imported.lapId] });
         }
         used = true;
       }
@@ -491,6 +572,7 @@ async function registerPortableCapture(bytesInput: Buffer, input: unknown, conte
       VALUES(?,?,?,?,?,1,?,?,?,0,?,?,?,?,?,?) RETURNING id`, args: [context.carId, context.trackId, context.gameId, identity.session.sessionType, path, ownership, identity.ownerUserId, identity.originalActivityId,
         identity.sourceAuthorUserId, identity.sourceAuthorDisplayName, identity.session.driverAttribution, identity.session.driverAttributionStints === null ? null : JSON.stringify(identity.session.driverAttributionStints), identity.session.createdAt, identity.sourceRevision] });
     const sessionId = Number(inserted.rows[0]!.id);
+    markActive(sessionId);
     for (const lap of identity.laps) {
       const lapId = await insertPortableLap(tx, sessionId, lap, identity);
       result.push({ lapId, sessionId, lapNumber: lap.lapNumber, lapTime: lap.lapTime, isValid: lap.isValid, classification: lap.classification ?? null, carId: context.carId, trackId: context.trackId });
@@ -511,14 +593,15 @@ async function registerPortableCapture(bytesInput: Buffer, input: unknown, conte
         await markDashboardCaptureCheckpoint(sessionId, true);
         await processDashboardSession(sessionId);
       }
-      notifyOnlineSync();
     }
-    return registered;
+    handedOff = true;
+    return { ...registered, releaseSourceMutations: releaseAll };
   } finally {
+    if (!handedOff) releaseAll();
     if (!committed || !used) {
       // Commit may succeed before transaction cleanup reports a failure.
       const retained = await readDb.select({ id: sessions.id }).from(sessions).where(eq(sessions.rawFile, path)).get();
       if (!retained) await rm(path, { force: true });
     }
-  }
+}
 }

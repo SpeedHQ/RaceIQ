@@ -27,12 +27,14 @@ import { enqueueSessionCaptureSplit } from "../db/session-queries";
 import { materializeParserInitializationPlan, subscribeParserSource, subscribeParserDriverEvidenceInvalidation, type ParserSourceInput, type ParserReplayLocator } from "../games/packet-dispatch";
 import { DirectSessionRecorderAdapter, type DirectCaptureRecording } from "../session-capture/direct-recorder";
 
+import { tryBeginOnlineRecordingSourceMutation } from "../db/online-recording-source-queries";
+import { beginSessionSourceMutation, SessionSourceMutationActiveError } from "../session-capture/source-mutation-activity";
 import { DashboardCaptureObservation } from "../session-capture/dashboard-observation";
 import { markDashboardCaptureCheckpoint, publishObservedDashboardCaptureFacts } from "../session-capture/dashboard-processor";
 import { NativeAttributionTracker, NativeBindingCandidateCache, nativeDriverBindings, getNativeSourceClock, nativeDriverEvidenceMaxAgeMs } from "../lap-detection/native-attribution";
 import type { DriverActorBinding, NativeDriverActor } from "@raceiq/shared/driver-attribution";
 type CaptureObservationEntry = { observation: DashboardCaptureObservation; rawFile: string | null };
-type RecordingSession = { sessionId: number; gameId: GameId; directCapture?: DirectCaptureRecording };
+type RecordingSession = { sessionId: number; gameId: GameId; sessionUID?: string; directCapture?: DirectCaptureRecording };
 type CapturedParserSource = {
   parserSequence: number; epoch: number; locator: ParserReplayLocator | null;
   rawOffset?: number; rawEndOffset?: number; rawOrdinal?: number;
@@ -67,8 +69,9 @@ export class LiveTelemetryPipeline {
   private _pendingSessionContextFrames: Buffer[] = [];
   private _expectCompleteLapStart = false;
   private _enqueueSessionCaptureSplits = true;
-  private _onSessionFinalized?: (sessionId: number, gameId: GameId) => Promise<void>;
+
   private _finalizedResultSessions = new Set<number>();
+  private _onSessionFinalized?: (sessionId: number, gameId: GameId) => Promise<void>;
   private _resultFinalizations = new Map<number, Promise<void>>();
   private _calibrationBoundary: TrackBoundary | null = null;
   private _ingressBarrier: Promise<void> | null = null;
@@ -372,47 +375,75 @@ export class LiveTelemetryPipeline {
     return finalization;
   }
 
-  private async _finishRecordedSession(session = this._recordingSession): Promise<void> {
+  private async _finishRecordedSession(session = this._recordingSession, sourceClosed = false): Promise<void> {
     if (!session?.directCapture) {
-      await withSessionCaptureMaintenanceLock(async () => {
-        if (session && this._recordingSession?.sessionId === session.sessionId) this._recordingSession = null;
-        await this.recorder.stop();
-      });
+      try {
+        await withSessionCaptureMaintenanceLock(async () => {
+          if (session && this._recordingSession?.sessionId === session.sessionId) this._recordingSession = null;
+          await this.recorder.stop();
+        });
+      } catch (error) {
+        if (session) this._releaseSourceMutation(session.sessionId);
+        throw error;
+      }
     } else {
       this._flushDirectSourcesThrough();
       this._drainOwnership(session);
-      if (!(this.recorder instanceof DirectSessionRecorderAdapter)) throw new Error("Direct capture lost its recorder");
+      if (!(this.recorder instanceof DirectSessionRecorderAdapter)) {
+        this._releaseSourceMutation(session.sessionId);
+        throw new Error("Direct capture lost its recorder");
+      }
       const source = this.recorder.detachCapture();
       this._recordingSession = null;
       if (source) {
         this._retiringSessions.set(session.sessionId, session);
-        try { await this._finishDirectCapture(session, source); }
-        finally { this._retiringSessions.delete(session.sessionId); }
+        try { await this._finishDirectCapture(session, source, sourceClosed); }
+        catch (error) {
+          this._retiringSessions.delete(session.sessionId);
+          this._releaseSourceMutation(session.sessionId);
+          throw error;
+        }
       }
     }
     if (session) {
-      await this.finalizeDashboardCaptureFacts([session.sessionId]);
-      await this._reconcileRecordedSession(session);
+      try {
+        await this.finalizeDashboardCaptureFacts([session.sessionId]);
+        await this._reconcileRecordedSession(session);
+
+      } finally {
+        this._retiringSessions.delete(session.sessionId);
+        this._releaseSourceMutation(session.sessionId);
+      }
     }
   }
 
   private readonly _retiringSessions = new Map<number, RecordingSession>();
+  private readonly _sourceMutationReleases = new Map<number, () => void>();
 
+  private _beginSourceMutation(sessionId: number): void {
+    if (!this._sourceMutationReleases.has(sessionId)) {
+      this._sourceMutationReleases.set(sessionId, beginSessionSourceMutation(sessionId));
+    }
+  }
+  private _releaseSourceMutation(sessionId: number): void {
+    this._sourceMutationReleases.get(sessionId)?.();
+    this._sourceMutationReleases.delete(sessionId);
+  }
   private _drainOwnership(session = this._recordingSession): void {
     const transitions = this._lapDetector?.drainOwnershipTransitions?.() ?? [];
     const source = this._processingSource;
     session?.directCapture?.processTransitions(transitions, source?.locator ?? null);
   }
 
-  private async _finishDirectCapture(session: RecordingSession, capture: DirectCaptureRecording): Promise<void> {
+  private async _finishDirectCapture(session: RecordingSession, capture: DirectCaptureRecording, sourceClosed = false): Promise<void> {
     try {
       if (this.db instanceof RealDbAdapter) await this.db.drainLapWrites(session.sessionId);
-      await capture.stop();
+      await capture.stop(sourceClosed);
     } catch (error) {
       this._completeNativeSources.delete(session.sessionId);
       if (this.db instanceof RealDbAdapter) this.db.releaseSessionSourceTracking(session.sessionId);
       capture.fail(error);
-      await capture.stop().catch((failure) => console.error("[DirectCapture] Failed to drain capture:", failure));
+      await capture.stop(sourceClosed).catch((failure) => console.error("[DirectCapture] Failed to drain capture:", failure));
       throw error;
     }
   }
@@ -530,6 +561,11 @@ export class LiveTelemetryPipeline {
   private _buildCallbacks(): LapDetectorCallbacks {
     return {
       onSessionStart: async (session) => {
+        this._beginSourceMutation(session.sessionId);
+        try {
+        if (!await tryBeginOnlineRecordingSourceMutation(session.sessionId)) {
+          throw new SessionSourceMutationActiveError(session.sessionId);
+        }
         if (this._attributionSessionId !== null && this._attributionSessionId !== session.sessionId) {
           await this._closeNativeAttribution();
           if (this._processingPacket) this._attributionTracker.observe(this._processingPacket, this._processingDriverBindings, this._processingTimestamp);
@@ -539,6 +575,8 @@ export class LiveTelemetryPipeline {
         const previousCapture = previousSession
           ? this._dashboardCaptureObservations.get(previousSession.sessionId) ?? null
           : null;
+        const confirmedF1SessionRotation = previousSession?.gameId === "f1-2025" && session.gameId === "f1-2025" &&
+          !!previousSession.sessionUID && !!session.sessionUID && previousSession.sessionUID !== session.sessionUID;
         if (previousSession && previousSession.sessionId !== session.sessionId) {
           previousCapture?.observation.finishSegment();
         }
@@ -559,22 +597,23 @@ export class LiveTelemetryPipeline {
               const source = this.recorder.detachCapture();
               if (source) {
                 this._retiringSessions.set(previousSession.sessionId, previousSession);
-                const retirement = this._finishDirectCapture(previousSession, source).then(async () => {
+                const retirement = this._finishDirectCapture(previousSession, source, confirmedF1SessionRotation).then(async () => {
                   await this.finalizeDashboardCaptureFacts([previousSession.sessionId]);
                   await this._reconcileRecordedSession(previousSession);
-                });
+
+                }).finally(() => this._releaseSourceMutation(previousSession.sessionId));
                 this._retiringCaptures.add(retirement);
                 void retirement.catch((error) => console.error("[DirectCapture] Retired capture failed:", error));
                 void retirement.finally(() => {
                   this._retiringCaptures.delete(retirement);
                   this._retiringSessions.delete(previousSession.sessionId);
                 }).catch(() => {});
-              }
+              } else this._releaseSourceMutation(previousSession.sessionId);
             } else await this.recorder.stop();
             this._recordingSession = null;
             this.recorder.start(session.gameId);
             this.recorder.writeMetaFrame();
-            const recording: RecordingSession = { sessionId: session.sessionId, gameId: session.gameId };
+            const recording: RecordingSession = { sessionId: session.sessionId, gameId: session.gameId, sessionUID: session.sessionUID };
             this._recordingSession = recording;
             const rawFile = this.recorder.path;
             this._dashboardCaptureObservations.set(session.sessionId, {
@@ -608,7 +647,7 @@ export class LiveTelemetryPipeline {
             }
             void this._reconcileRecordedSession(previousSession).catch((error) => {
               console.error(`[Race Results] Failed to reconcile session ${previousSession.sessionId}:`, error);
-            });
+            }).finally(() => this._releaseSourceMutation(previousSession.sessionId));
           }
         }
 
@@ -629,6 +668,10 @@ export class LiveTelemetryPipeline {
           this._sessionLaps = [];
         }
         this._broadcastSessionLaps();
+        } catch (error) {
+          this._releaseSourceMutation(session.sessionId);
+          throw error;
+        }
       },
 
       onLapComplete: (event) => {
@@ -712,17 +755,17 @@ export class LiveTelemetryPipeline {
     });
   }
 
-  /** Finalize detector, durable capture, then authoritative session result. */
-  async finalizeCurrentSession(): Promise<void> {
-    await this._withIngressPaused(() => this._finalizeCurrentSession());
+  /** Finalize detector and durable capture; readiness requires confirmed close evidence. */
+  async finalizeCurrentSession(sourceClosed = false): Promise<void> {
+    await this._withIngressPaused(() => this._finalizeCurrentSession(sourceClosed));
   }
 
-  private async _finalizeCurrentSession(): Promise<void> {
+  private async _finalizeCurrentSession(sourceClosed: boolean): Promise<void> {
     const session = this._recordingSession;
     this._observeSourceTail();
     await this._lapDetector?.finalizeCurrentSession?.();
     await this._closeNativeAttribution();
-    await this._finishRecordedSession(session);
+    await this._finishRecordedSession(session, sourceClosed);
     await Promise.all(this._retiringCaptures);
   }
 
@@ -784,7 +827,7 @@ export class LiveTelemetryPipeline {
         this.ws.broadcastNotification({ type: "recording-failed", sessionId: session?.sessionId, error: error.message });
       }
       try {
-        await this._finalizeCurrentSession();
+        await this._finalizeCurrentSession(false);
       } catch (failure) {
         if (failure !== error) console.error("[Live Telemetry] Overloaded capture finalization failed:", failure);
       } finally {
@@ -1078,7 +1121,7 @@ export class LiveTelemetryPipeline {
 
   async flushSessionRecorder(): Promise<void> {
     await this._withIngressPaused(async () => {
-      if (this._recordingSession?.directCapture) await this._finalizeCurrentSession();
+      if (this._recordingSession?.directCapture) await this._finalizeCurrentSession(false);
       else await withSessionCaptureMaintenanceLock(() => this.recorder.stop());
     });
   }
@@ -1245,8 +1288,8 @@ export const lapDetector = {
   async snapshotIncompleteLap() {
     await _default.snapshotIncompleteLap();
   },
-  async finalizeCurrentSession() {
-    await _default.finalizeCurrentSession();
+  async finalizeCurrentSession(sourceClosed = false) {
+    await _default.finalizeCurrentSession(sourceClosed);
   },
 };
 

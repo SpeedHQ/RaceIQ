@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { createRaceIqOnlineService, type OnlineAuthSession } from "@raceiq/online/server/service";
 import { OnlineStateStorage } from "@raceiq/online/server/state-storage";
-import type { OnlineCommandResult, OnlineState, OnlineProfileResponse, UploadPage } from "@raceiq/online/contracts";
-import { enqueueOutboxJob, listDeliverableOutboxJobs, beginOutboxAttempt, recordOutboxAcceptance, settleOutboxDelivery, closeOutboxStorage } from "@raceiq/online/server/outbox-storage";
-import { closeProfileStorage } from "@raceiq/online/server/profile-storage";
+import type { OnlineCommandResult, OnlineState, UploadPage } from "@raceiq/online/contracts";
+import { readLapUploadItems } from "@raceiq/backend-core/db/online-upload-queries";
 import { closeBindingStorage } from "@raceiq/online/server/binding-storage";
 import { initDb, closeDb } from "@raceiq/backend-core/db/index";
+import { getOnlineLapUploadStatus } from "@raceiq/backend-core/db/online-upload-queries";
 import { claimLocalAccountOwner,getLocalAccountOwner,getLocalGameBindingSnapshot,upsertLocalGameBinding } from "@raceiq/backend-core/db/local-account-queries";
-import { buildLocalDriverSummary,getLocalDriverSummaryHolds } from "@raceiq/backend-core/driver-summary/index";
+import { buildLocalDriverSummary } from "@raceiq/backend-core/driver-summary/index";
 import { validateNativeDriverBinding } from "@raceiq/backend-core/lap-detection/native-attribution";
 import { closeDashboardReadDatabase } from "@raceiq/backend-core/db/dashboard-queries";
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline";
@@ -22,10 +22,9 @@ const owner = "journey-owner";
 const versions = { termsVersion: "journey-terms", privacyVersion: "journey-privacy" };
 const session: OnlineAuthSession = { userId: owner, accessToken: "fixture-access", refreshToken: "fixture-refresh", expiresAt: Date.now() / 1000 + 3600, discordAccountName: "Journey Driver" };
 let resolveSignIn: ((value: OnlineAuthSession) => void) | undefined;
-let secret = "", accepted = false, remoteFailure = false;
+let secret = "", accepted = false;
 let preferences = { visibility: "private" as "private" | "public", setupUploads: false };
 let displayName = "Journey Driver";
-const metrics = { laps: 2, positiveLaps: 2, validLaps: 1, drivenSeconds: 190, validSeconds: 90, distanceMeters: 2400, sessionTypeSeconds: { practice: 210, qualifying: 0, race: 0, unknown: 0 }, sessionsWithDuration: 1, sessionsWithoutDuration: 0 };
 const service = createRaceIqOnlineService({
   storage: new OnlineStateStorage(process.env.DATA_DIR),
   keystore: { getSecret: async () => secret, setSecret: async (_key, value) => { secret = value; } },
@@ -34,6 +33,7 @@ const service = createRaceIqOnlineService({
     refreshSession: async () => session,
   },
   onAccountConnected: async (id, isCurrent) => { await claimLocalAccountOwner(id, { isCurrent }); },
+  getUploadStatus:async accountId=>({...await getOnlineLapUploadStatus(accountId),inFlight:0,lastError:null}),
   recordingProducer: async () => { throw new Error("HTTP read fixture must not prepare native recordings"); },
   adapter: {
     getPolicy: async () => ({ available: true, ...versions, termsUrl: "https://example.test/terms", privacyUrl: "https://example.test/privacy" }),
@@ -44,10 +44,6 @@ const service = createRaceIqOnlineService({
     setPreferences: async input => { preferences = { ...input }; return {}; },
     setDisplayName: async name => { displayName = name; return { userId: owner, displayName, avatarUrl: null }; },
     getLeaderboard: async () => ({ status: "ready", rows: [{ rank: 1, lapId: "cloud-lap", lapGuid: "019b0000-0000-7000-8000-000000000001", driver: { userId: "other-driver", displayName: "Other Driver", avatarUrl: null }, lapTimeMs: 90000, importAvailable: true }], fetchedAt: "2026-01-01T00:00:00Z", stale: false }),
-    readOwnerStats: async () => {
-      if (remoteFailure) throw new Error("Remote unavailable");
-      return { schemaVersion: 2, status: "ready", onlineRevision: 7, syncedAt: "2026-01-01T00:00:00Z", summary: { metrics, games: [] }, coverage: { identity: "complete", driverAttribution: "complete", sessionDuration: "complete", distance: "complete" } };
-    },
   },
 });
 let candidateConsumed = false;
@@ -57,12 +53,12 @@ const local = createOnlineLocalPort(service, {
   resolveCandidate: async id => id === proof.candidateId && !candidateConsumed ? proof : null,
   isCurrent: () => !candidateConsumed,
   consumeCandidate: async () => { candidateConsumed = true; },
-}, () => "ready", {
+}, {
+  readLapUploadItems,
   getLocalAccountOwner,
   getLocalGameBindingSnapshot,
   upsertLocalGameBinding,
   validateNativeDriverBinding,
-  getLocalDriverSummaryHolds,
 });
 const unused = async (): Promise<never> => { throw new Error("Unused fixture operation"); };
 const port: OnlineWorkerPort = { ...service, ...local, getLocalSummary: buildLocalDriverSummary, importRequest: unused, dispatchCloudLapImport: unused, wake: unused, stop: unused };
@@ -124,38 +120,14 @@ try {
     assert.equal(response.status, 409);
     assert.equal((await response.json() as { error: { code: string } }).error.code, "driver_identity_required");
   });
-  const current = await state();
-  const identity = { accountId: owner, accountEpoch: current.accountEpoch, identity: { lapGuid: "019b0000-0000-7000-8000-000000000011", originalActivityId: "019b0000-0000-7000-8000-000000000012", sourceRevision: "fixture", sourceKind: "native_capture" as const, ownerUserId: owner, driverBindingId: "fixture-binding", driverBindingRevision: 1 } };
-  await enqueueOutboxJob({ ...identity, gameId: "lmu", trackId: "track", carId: "car", lapId: 1, lapTimeMs: 90000 }, 1000);
   await journey("D06", "happy", async () => {
-    const queued = await (await query("/api/online/uploads", { view: "queue" })).json() as UploadPage;
-    assert.equal(queued.items.length, 1);
-    const row = (await listDeliverableOutboxJobs(owner))[0]; assert.ok(row?.uploadKey);
-    const job = await beginOutboxAttempt({ ...identity, rowId: row.rowId, uploadKey: row.uploadKey, attempts: 1 }); assert.ok(job);
-    await recordOutboxAcceptance(job, "cloud-receipt", 3000);
+    const queue = await (await query("/api/online/uploads", { view: "queue" })).json() as UploadPage;
     const history = await (await query("/api/online/uploads", { view: "history" })).json() as UploadPage;
-    assert.equal(history.items.length, 1); assert.equal((await state()).sync.lastSyncedAt, new Date(3000).toISOString());
-    assert.equal((await (await query("/api/online/uploads", { view: "queue" })).json() as UploadPage).items.length, 0);
+    assert.deepEqual(queue.items, []); assert.deepEqual(history.items, []);
   });
   await journey("D06", "fail", async () => {
-    await enqueueOutboxJob({ ...identity, identity: { ...identity.identity, lapGuid: "019b0000-0000-7000-8000-000000000013" }, gameId: "lmu", trackId: "other-track", carId: "car", lapId: 2, lapTimeMs: 80000 }, 4000);
-    const row = (await listDeliverableOutboxJobs(owner)).find(row => row.lapId === 2); assert.ok(row?.uploadKey);
-    const job = await beginOutboxAttempt({ ...identity, rowId: row.rowId, uploadKey: row.uploadKey, attempts: 1 }); assert.ok(job);
-    await settleOutboxDelivery({ job, status: "rejected", errorCode: "validation_rejected", now: 6000 });
-    assert.equal((await state()).sync.rejected, 1); assert.equal((await state()).sync.lastSyncedAt, new Date(3000).toISOString());
-    const response = await query("/api/online/uploads", { view: "history", accountEpoch: "previous-account" }); assert.equal(response.status, 409);
-  });
-  await journey("D07", "happy", async () => {
-    const response = await query("/api/online/profile"); assert.equal(response.status, 200);
-    const profile = await response.json() as OnlineProfileResponse;
-    assert.equal(profile.status, "ready"); assert.equal(profile.onlineRevision, 7); assert.deepEqual(profile.summary?.metrics, metrics);
-  });
-  await journey("D07", "fail", async () => {
-    remoteFailure = true;
-    const response = await query("/api/online/profile"); assert.equal(response.status, 503);
-    const profile = await response.json() as OnlineProfileResponse;
-    assert.equal(profile.status, "unavailable"); assert.equal(profile.summary, null); assert.equal(profile.error?.code, "service_unavailable");
-    remoteFailure = false;
+    const response = await query("/api/online/uploads", { view: "history", accountEpoch: "previous-account" });
+    assert.equal(response.status, 409);
   });
   const boardUrl = base + "/api/online/leaderboard?trackId=track&carId=car";
   await journey("D08", "happy", async () => {
@@ -172,17 +144,13 @@ try {
   await journey("D09", "happy", async () => {
     assert.equal((await mutate("/api/online/sign-out", {}, "POST")).status, 200);
     assert.equal((await state()).connection.status, "signed_out"); assert.equal(secret, "");
-    const profile = await (await query("/api/online/profile")).json() as OnlineProfileResponse;
-    assert.equal(profile.status, "signed_out"); assert.equal(profile.summary, null);
   });
-  assert.equal(passed, 18);
+  assert.equal(passed, 16);
 } finally {
   service.stopAdmission();
   await server.stop(true);
   stopMaintenanceTasks();
   closeDashboardReadDatabase();
-  await closeOutboxStorage();
-  await closeProfileStorage();
   await closeBindingStorage();
   closeDb();
 }

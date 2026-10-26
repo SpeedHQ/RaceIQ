@@ -3156,5 +3156,6 @@
   "compare_overview_ers_deployed": "ЕРС використано",
   "compare_overview_ers_recovered": "ЕРС рекуперовано",
   "compare_overview_top_speed": "Максимальна швидкість",
-  "compare_overview_unavailable": "Недоступно"
+  "compare_overview_unavailable": "Недоступно",
+  "online_consent_popup_blocked": "Не вдалося відкрити сторінку згоди. Дозвольте спливаючі вікна й повторіть спробу."
 }

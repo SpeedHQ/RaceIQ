@@ -1,5 +1,9 @@
-import { raceIqAuthConfig } from "@speedhq/live-client";
-import type { OnlineState, OnlineLeaderboard, OnlineCommandResult, RaceIqOnlinePort, OnlineError, OnlinePreferences, DisplayNameInput } from "@raceiq/online/contracts";
+import type { DriverBindingInput, DriverBindingsSnapshot, DriverSummaryResponse, OnlineProfileResponse, OnlineState, OnlineLeaderboard, OnlineCommandResult, RaceIqOnlinePort, OnlineError, OnlinePreferences, DisplayNameInput, OnlineMutationContext, UploadPage } from "@raceiq/online/contracts";
+import type { OnlineUiHost } from "@raceiq/online/contracts/ui-host";
+import { OnlineTransportFailure } from "@raceiq/online/ui";
+import { onlineUiHost } from "../features/online-host";
+import { IDLE_CLOUD_LAP_IMPORT } from "@raceiq/shared/integrations/cloud-lap-import";
+
 
 // Presentation fixtures only. Never imported by production components or adapters.
 export const fixturePolicy = { termsVersion: "preview-terms-1", privacyVersion: "preview-privacy-1" };
@@ -56,11 +60,11 @@ export const preferencesWithoutProfileFixture: OnlineState = {
 export const fixtureBoard: OnlineLeaderboard = {
   key: { gameId: "f1-2025", trackId: "preview-track", carId: "preview-car" }, status: "ready", stale: false,
   fetchedAt: "2026-10-12T12:00:00Z", error: null,
-  rows: [{ rank: 1, lapId: "preview-lap-1", driver: { userId: "preview-driver-1", displayName: "Apex Driver", avatarUrl: null }, lapTimeMs: 91234, importAvailable: true },
-    { rank: 2, lapId: "preview-lap-2", driver: { userId: "preview-driver-2", displayName: "Long display name for responsive preview", avatarUrl: null }, lapTimeMs: 92567, importAvailable: true }],
+  rows: [{ rank: 1, lapId: "preview-lap-1", lapGuid: "019b0000-0000-7000-8000-000000000001", driver: { userId: "preview-driver-1", displayName: "Apex Driver", avatarUrl: null }, lapTimeMs: 91234, importAvailable: true },
+    { rank: 2, lapId: "preview-lap-2", lapGuid: "019b0000-0000-7000-8000-000000000002", driver: { userId: "preview-driver-2", displayName: "Long display name for responsive preview", avatarUrl: null }, lapTimeMs: 92567, importAvailable: true }],
 };
-export interface FixtureOnlinePort extends RaceIqOnlinePort { completeSignIn(): OnlineState; }
-export function createOnlineFixturePort(initial: OnlineState, options: { board?: OnlineLeaderboard; transportFailure?: boolean; commandFailure?: OnlineError; pending?: boolean; stateDelayMs?: number; onCall?: (method: keyof RaceIqOnlinePort, input?: unknown) => void } = {}): FixtureOnlinePort {
+interface FixtureOnlinePort extends RaceIqOnlinePort { completeSignIn(): OnlineState; }
+function createOnlineFixturePort(initial: OnlineState, options: { board?: OnlineLeaderboard; transportFailure?: boolean; commandFailure?: OnlineError; pending?: boolean; stateDelayMs?: number; onCall?: (method: keyof RaceIqOnlinePort, input?: unknown) => void } = {}): FixtureOnlinePort {
   let state = structuredClone(initial);
   const wait = () => new Promise<void>((resolve) => setTimeout(resolve, 150));
   function advance(update: Partial<OnlineState>): OnlineState {
@@ -99,7 +103,7 @@ export function createOnlineFixturePort(initial: OnlineState, options: { board?:
       options.onCall?.("connect", input);
       await wait();
       if (options.commandFailure) return { ok: false, error: options.commandFailure, state: structuredClone(state) };
-      const authorizationUrl = new URL("/auth/v1/authorize", raceIqAuthConfig.supabaseUrl);
+      const authorizationUrl = new URL("/auth/v1/authorize", "https://auth.preview.example");
       authorizationUrl.searchParams.set("provider", "discord");
       authorizationUrl.searchParams.set("client_id", "preview");
       return { ok: true, state: advance({ accountEpoch: "preview-flow", connection: { status: "signing_in", flowId: "preview-flow-id" }, uploadAllowed: false, preferences: null, persistedPreferences: null, preferencePersistence: "unconfirmed" }), authorizationUrl: authorizationUrl.href, flowId: "preview-flow-id" };
@@ -116,5 +120,32 @@ export function createOnlineFixturePort(initial: OnlineState, options: { board?:
     },
     async signOut(input) { options.onCall?.("signOut", input); await wait(); return result({ ...signedOutFixture, accountEpoch: "preview-sign-out" }); },
     async getLeaderboard(input) { options.onCall?.("getLeaderboard", input); await wait(); return { ...structuredClone(options.board ?? fixtureBoard), key: input }; },
+  };
+}
+export function createOnlineFixtureHost(initial: OnlineState, options: Parameters<typeof createOnlineFixturePort>[1] = {}): OnlineUiHost {
+  const port = createOnlineFixturePort(initial, options);
+  const summary: DriverSummaryResponse = {
+    schemaVersion: 2, localRevision: 1, generatedAt: "2026-10-12T12:00:00Z",
+    summary: { metrics: { laps: 12, positiveLaps: 12, validLaps: 10, drivenSeconds: 7200, validSeconds: 6800, distanceMeters: 36000, sessionTypeSeconds: { practice: 1200, qualifying: 1800, race: 4200, unknown: 0 }, sessionsWithDuration: 3, sessionsWithoutDuration: 0 }, games: [] },
+    coverage: { identity: "complete", driverAttribution: "complete", sessionDuration: "complete", distance: "complete" },
+    context: { basis: "positive_lap_time", other: { laps: 0, seconds: 0 }, mixed: { laps: 0, seconds: 0 }, unknown: { laps: 0, seconds: 0 } },
+  };
+  const fixtureError = () => { throw new OnlineTransportFailure("backend_unreachable"); };
+  const failureResponse = () => ({ ok: false, json: async () => ({ error: { code: "service_unavailable" } }) });
+  return {
+    ...onlineUiHost,
+    port,
+    cacheOnlineState: false,
+    async getUploads(_view, _cursor, context) { return { schemaVersion: 2, accountEpoch: context.accountEpoch, items: [], nextCursor: null, observedAt: "2026-10-12T12:00:00Z", stale: false } satisfies UploadPage; },
+    async getDriverSummary() { return structuredClone(summary); },
+    async getOnlineProfile(context): Promise<OnlineProfileResponse> {
+      return { accountEpoch: context.accountEpoch, status: initial.connection.status === "connected" ? "ready" : "signed_out", localPending: 0, heldAmbiguous: 0, lastConfirmedAt: "2026-10-12T12:00:00Z", onlineRevision: context.expectedRevision, summary: structuredClone(summary.summary), coverage: structuredClone(summary.coverage), legacyStats: null, error: null };
+    },
+    async getDriverBindings() { return { bindings: [], candidates: [], revision: 0 } satisfies DriverBindingsSnapshot; },
+    async confirmDriverBinding(_input: DriverBindingInput): Promise<OnlineCommandResult> { return { ok: false, error: { code: "service_unavailable", retryable: true, retryAfter: null }, state: structuredClone(initial) }; },
+    async getCloudLapImport() { return structuredClone(IDLE_CLOUD_LAP_IMPORT); },
+    async startCloudLapImport() { return failureResponse(); },
+    async retryCloudLapImport() { return failureResponse(); },
+    async acknowledgeCloudLapImport() { return failureResponse(); },
   };
 }

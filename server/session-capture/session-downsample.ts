@@ -16,6 +16,8 @@ import { cacheDelete } from "../db/telemetry-replay-storage";
 import { isSessionActive } from "../telemetry/live-pipeline";
 import { hasPendingLayoutMigration } from "./layout-migration";
 import { listSessionCaptureFiles, loadReferencedCapturePaths, withSessionCaptureMaintenanceLock } from "./cleanup";
+import { beginSessionSourceMutation, SessionSourceMutationActiveError } from "./source-mutation-activity";
+import { readOnlineRecordingSource, tryBeginOnlineRecordingSourceMutation } from "../db/online-recording-source-queries";
 import { downsampleSourceFiles, prepareDownsampleCaptureBundles, type DownsampleCaptureBundle } from "./downsample-bundles";
 import { loadSettings } from "../runtime/config/settings";
 import { isRecordingRetentionPolicyValid } from "@raceiq/shared/platform/runtime/recording-frequency";
@@ -454,6 +456,13 @@ export async function executeSessionDownsampleGroup(request: SessionDownsampleRe
   return withSessionCaptureMaintenanceLock(async () => {
     await assertDownsampleQuiescent();
     const sessionIds = planned.rows.map((row) => row.id).sort((a, b) => a - b);
+    const releases: Array<() => void> = [];
+    try {
+      for (const sessionId of sessionIds) releases.push(beginSessionSourceMutation(sessionId));
+      for (const sessionId of sessionIds) {
+        if (await tryBeginOnlineRecordingSourceMutation(sessionId)) continue;
+        if (await readOnlineRecordingSource(sessionId)) throw new SessionSourceMutationActiveError(sessionId);
+      }
     const sourceState = await stat(planned.path).catch((error: NodeJS.ErrnoException) => {
       if (error.code === "ENOENT" || error.code === "ENOTDIR") return null;
       throw error;
@@ -591,6 +600,9 @@ export async function executeSessionDownsampleGroup(request: SessionDownsampleRe
         }
       }
       throw error;
+    }
+    } finally {
+      for (const release of releases.reverse()) release();
     }
   });
 }

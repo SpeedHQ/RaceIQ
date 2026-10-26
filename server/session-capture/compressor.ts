@@ -36,6 +36,8 @@ import {
 import { cleanupInterruptedSessionDownsampleFiles, runScheduledSessionDownsampleEffect } from "./session-downsample";
 import { isRecordingRetentionPolicyValid } from "@raceiq/shared/platform/runtime/recording-frequency";
 import { RecordingStorageBusyError, reserveRecordingStorageOperation } from "./storage-activity";
+import { beginSessionSourceMutation, SessionSourceMutationActiveError } from "./source-mutation-activity";
+import { readOnlineRecordingSource, tryBeginOnlineRecordingSourceMutation } from "../db/online-recording-source-queries";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 type MaintenanceError = RecordingMaintenanceBusyError | RecordingMaintenanceIOError | RecordingMaintenanceValidationError;
@@ -76,26 +78,39 @@ async function writeCompressedFile(binPath: string): Promise<CompressedFile> {
   }
 }
 
-async function compressSessionGroup(ids: number[], binPath: string): Promise<void> {
-  const compressedFile = await writeCompressedFile(binPath);
+async function compressSessionGroup(binPath: string): Promise<void> {
+  const references = await readDb.select({ id: sessions.id }).from(sessions).where(eq(sessions.rawFile, binPath)).all();
+  const sessionIds = references.map(({ id }) => id);
+  if (sessionIds.length === 0) return;
+  const releases: Array<() => void> = [];
   try {
-    await withDatabaseWrite(() => db.transaction(async (tx) => {
-      await tx.update(sessions).set({ rawFile: compressedFile.gzPath }).where(eq(sessions.rawFile, binPath)).run();
-      await tx.update(dashboardSummaryState).set({ captureReady: 0 }).where(inArray(dashboardSummaryState.sessionId, ids)).run();
-    }));
-  } catch (error) {
-    await rm(compressedFile.gzPath, { force: true }).catch((cleanupError) => {
-      console.error(`[Compressor] Failed to remove uncommitted target ${compressedFile.gzPath}:`, cleanupError);
-    });
-    throw error;
-  }
-  const preserved = await republishPersistedDashboardCaptureFacts(ids);
-  if (!preserved) {
-    for (const sessionId of ids) await releaseDashboardCaptureCheckpoint(sessionId);
-  }
+    for (const sessionId of sessionIds) releases.push(beginSessionSourceMutation(sessionId));
+    for (const sessionId of sessionIds) {
+      if (await tryBeginOnlineRecordingSourceMutation(sessionId)) continue;
+      if (await readOnlineRecordingSource(sessionId)) throw new SessionSourceMutationActiveError(sessionId);
+    }
+    const compressedFile = await writeCompressedFile(binPath);
+    try {
+      await withDatabaseWrite(() => db.transaction(async (tx) => {
+        await tx.update(sessions).set({ rawFile: compressedFile.gzPath }).where(eq(sessions.rawFile, binPath)).run();
+        await tx.update(dashboardSummaryState).set({ captureReady: 0 }).where(inArray(dashboardSummaryState.sessionId, sessionIds)).run();
+      }));
+    } catch (error) {
+      await rm(compressedFile.gzPath, { force: true }).catch((cleanupError) => {
+        console.error(`[Compressor] Failed to remove uncommitted target ${compressedFile.gzPath}:`, cleanupError);
+      });
+      throw error;
+    }
+    const preserved = await republishPersistedDashboardCaptureFacts(sessionIds);
+    if (!preserved) {
+      for (const sessionId of sessionIds) await releaseDashboardCaptureCheckpoint(sessionId);
+    }
 
-  unlinkSync(binPath);
-  console.log(`[Compressor] ${ids.length} session(s): ${binPath} → ${compressedFile.gzPath} (${compressedFile.sizeSummary})`);
+    unlinkSync(binPath);
+    console.log(`[Compressor] ${sessionIds.length} session(s): ${binPath} → ${compressedFile.gzPath} (${compressedFile.sizeSummary})`);
+  } finally {
+    for (const release of releases.reverse()) release();
+  }
 }
 
 /**
@@ -209,12 +224,12 @@ async function runCompression(userTriggered = false): Promise<void> {
     }
 
     console.log(`[Compressor] Compressing ${candidates.length} session(s) across ${groupedCandidates.size} capture(s), ${orphanPaths.length} orphan file(s)…`);
-    for (const [rawFile, ids] of groupedCandidates) {
+    for (const rawFile of groupedCandidates.keys()) {
       if (isSessionActive()) break;
       try {
         const file = Bun.file(rawFile);
         if (!(await file.exists())) continue;
-        await compressSessionGroup(ids, rawFile);
+        await compressSessionGroup(rawFile);
       } catch (err) {
         console.error(`[Compressor] Failed to compress capture ${rawFile}:`, err);
       }

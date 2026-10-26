@@ -1,0 +1,43 @@
+{
+  "boardURL": "http://127.0.0.1:55250/leaderboards/f1-2025/32",
+  "known": {
+    "finishedAt": "2026-06-01T12:54:26.240Z",
+    "text": "Jun 1, 2026",
+    "viewport": {
+      "width": 1280,
+      "height": 900
+    }
+  },
+  "unknown": {
+    "text": "Unknown",
+    "timeElements": 0,
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "setup": "Controlled nullable finish metadata on genuine lap in isolated actual cloud DB; real API/production UI, not missing-clock decoder proof"
+  },
+  "browserErrors": {
+    "entries": [
+      {
+        "seq": 1,
+        "ts": 1792733732942,
+        "type": "requestfailed",
+        "level": "error",
+        "text": "GET https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap: ",
+        "location": "https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap"
+      },
+      {
+        "seq": 2,
+        "ts": 1792733749549,
+        "type": "requestfailed",
+        "level": "error",
+        "text": "GET https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap: ",
+        "location": "https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap"
+      }
+    ],
+    "nextSeq": 2,
+    "dropped": 0
+  },
+  "visualCapture": "Blocked after custom screenshot30s and one targeted direct retry20s timeouts; no further attempts"
+}

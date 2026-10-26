@@ -7,7 +7,7 @@ Cross-runtime contracts and helpers for external systems.
 - `ai/` — prompt snippets, locale instructions, and model context-window policy.
 - `forza/` — Node-only ZIP/LZX extraction and install discovery. Preserve decoder license notices.
 - `motec.ts` — stable persisted MoTeC session marker and browser-safe support predicate.
-- `raceiq-online.ts` — browser-safe Online DTOs and port, frozen by [the shared contract](../../docs/plans/raceiq-online-contract.md); credentials and transfer enforcement stay backend-only.
+- Online browser-safe DTOs and ports live in [`@raceiq/online/contracts`](../../packages/online/contracts/); credentials and transfer enforcement remain outside the browser. See the [current ownership and implementation plan](../../docs/plans/online-upload-profile-sync.md).
 
 ## Boundary
 

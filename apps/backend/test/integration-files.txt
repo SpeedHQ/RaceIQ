@@ -133,6 +133,8 @@ apps/backend/test/session-capture/kunos-sparse-recorder.test.ts
 apps/backend/test/session-capture/lap-index-import.test.ts
 apps/backend/test/session-capture/lmu-capture-format.test.ts
 apps/backend/test/session-capture/lmu-sparse-recorder.test.ts
+apps/backend/test/session-capture/process-cache.test.ts
+apps/backend/test/session-capture/portable-finish-roundtrip.test.ts
 apps/backend/test/session-capture/parse-bin-vs-gz.test.ts
 apps/backend/test/session-capture/parse-dump.test.ts
 apps/backend/test/session-capture/raw-binary-storage.test.ts

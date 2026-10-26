@@ -45,30 +45,6 @@ export const localGameBindings = sqliteTable("local_game_bindings", {
 	updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
 }, (table) => [check("local_game_bindings_revision_check", sql`${table.revision} > 0`)]);
 
-/** Durable contribution identity and reconciliation receipt ledger. */
-export const driverSummaryActivities = sqliteTable("driver_summary_activities", {
-	activityId: text("activity_id").primaryKey(),
-	ownerUserId: text("owner_user_id"),
-	gameId: text("game_id").notNull(),
-	lapGuidsJson: text("lap_guids_json").notNull(),
-	payloadJson: text("payload_json").notNull(),
-	contentHash: text("content_hash").notNull(),
-	expectedCloudRevision: integer("expected_cloud_revision"),
-	cloudRevision: integer("cloud_revision"),
-	receiptJson: text("receipt_json"),
-	heldCloudRevision: integer("held_cloud_revision"),
-	heldReceiptJson: text("held_receipt_json"),
-	state: text("state", { enum: ["ready", "held_ambiguous", "conflict", "synced"] }).notNull(),
-	heldReason: text("held_reason"),
-	updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
-}, (table) => [index("driver_summary_activities_owner_state_idx").on(table.ownerUserId, table.state, table.updatedAt)]);
-
-/** A GUID belongs to at most one durable activity contribution. */
-export const driverSummaryActivityLaps = sqliteTable("driver_summary_activity_laps", {
-	lapGuid: text("lap_guid").primaryKey(),
-	activityId: text("activity_id").notNull().references(() => driverSummaryActivities.activityId, { onDelete: "cascade" }),
-	ownerUserId: text("owner_user_id"),
-}, (table) => [index("driver_summary_activity_laps_activity_idx").on(table.activityId)]);
 
 /** Original source footprint survives local session and recording deletion. */
 export const originalActivitySources = sqliteTable("original_activity_sources", {
@@ -145,19 +121,6 @@ export const onlineRecordingSources = sqliteTable("online_recording_sources", {
 }, (table) => [
 	check("online_recording_sources_generation_check", sql`${table.generation} > 0`),
 	check("online_recording_sources_reprocess_pending_check", sql`${table.reprocessPending} IN (0,1)`),
-]);
-
-/** Source-bound preparation survives deletion; dirty sources never erase accepted remote history. */
-export const originalActivityPreparations = sqliteTable("original_activity_preparations", {
-	originalActivityId: text("original_activity_id").primaryKey(),
-	generation: integer("generation").notNull().default(1),
-	preparedGeneration: integer("prepared_generation"),
-	snapshotJson: text("snapshot_json"),
-	holdReason: text("hold_reason"),
-	heldLaps: integer("held_laps").notNull().default(0),
-}, (table) => [
-	index("idx_original_activity_preparations_dirty").on(table.originalActivityId)
-		.where(sql`${table.preparedGeneration} IS NULL OR ${table.generation} <> ${table.preparedGeneration}`),
 ]);
 
 
@@ -301,7 +264,7 @@ export const sessions = sqliteTable(
 		index("idx_sessions_game_car_id").on(table.gameId, table.carId),
 		index("idx_sessions_game_track_id").on(table.gameId, table.trackId),
 		index("idx_sessions_original_activity").on(table.originalActivityId),
-		uniqueIndex("idx_sessions_cloud_import").on(table.cloudImportOrigin, table.cloudImportLapId).where(sql`${table.cloudImportOrigin} IS NOT NULL`),
+		index("idx_sessions_online_board_backfill").on(table.ownerUserId, table.ownership, table.gameId, table.trackId, table.carId, table.id).where(sql`${table.ownerUserId} IS NOT NULL`),
 	],
 );
 export const sessionResults = sqliteTable(

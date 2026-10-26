@@ -18,6 +18,8 @@ import { isSessionActive } from "../telemetry/live-pipeline";
 import { reserveRecordingStorageOperation } from "./storage-activity";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { hasPendingLayoutMigration } from "./layout-migration";
+import { beginSessionSourceMutation, SessionSourceMutationActiveError } from "./source-mutation-activity";
+import { readOnlineRecordingSource, tryBeginOnlineRecordingSourceMutation } from "../db/online-recording-source-queries";
 
 export type RecordingDirectoryMoveStatus = { operationId: string | null; state: "idle" | "moving" | "complete" | "error"; phase: "copying" | "committing" | "removing-sources" | null; completedFiles: number; totalFiles: number; directory: string; code: string | null; error: string | null };
 type Entry = { source: string; destination: string; size: number; sha256: string; published: boolean; publication?: { dev: string; ino: string } };
@@ -400,11 +402,24 @@ async function executeMove(directory: string, operationId: string, hooks: Requir
     entries.push({ source, destination: resolve(newDirectory, relative(oldDirectory, source)), ...digest, published: false });
   }
   const journal: Journal = { version: 1, operationId, oldDirectory, newDirectory, oldSetting: setting, entries, references };
-  await persistJournal(journal);
-  status = { ...status, phase: "copying", totalFiles: entries.length, completedFiles: 0 };
+  const releases: Array<() => void> = [];
+  const sessionIds = [...new Set(references.map((reference) => reference.sessionId))].sort((a, b) => a - b);
+  try {
+    for (const sessionId of sessionIds) releases.push(beginSessionSourceMutation(sessionId));
+    for (const sessionId of sessionIds) {
+      if (await tryBeginOnlineRecordingSourceMutation(sessionId)) continue;
+      if (await readOnlineRecordingSource(sessionId)) throw new SessionSourceMutationActiveError(sessionId);
+    }
+  } catch (error) {
+    for (const release of releases.reverse()) release();
+    throw error;
+  }
+  try {
   const temporaryFiles: string[] = [];
   let referencesUpdated = false;
   try {
+    await persistJournal(journal);
+    status = { ...status, phase: "copying", totalFiles: entries.length, completedFiles: 0 };
     for (const entry of entries) {
       if (await hasSymlinkDirectory(newDirectory, entry.destination)) throw Object.assign(new Error(`Destination path contains a symbolic link: ${entry.destination}`), { code: "DESTINATION_CONFLICT" });
       await mkdir(dirname(entry.destination), { recursive: true });
@@ -458,6 +473,9 @@ async function executeMove(directory: string, operationId: string, hooks: Requir
       throw Object.assign(error instanceof Error ? error : new Error(String(error)), { code: "SOURCE_CLEANUP_FAILED" });
     }
     throw error;
+  }
+  } finally {
+    for (const release of releases.reverse()) release();
   }
 }
 

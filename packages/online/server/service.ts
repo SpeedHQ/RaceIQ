@@ -6,16 +6,13 @@ import type {
   LeaderboardInput, OnlineCommandResult, OnlineError, OnlineLeaderboard, OnlineMutationContext, OnlinePolicy, OnlineState,
   OnlineSyncBlock, PolicyVersions, PreferencesInput, RaceIqOnlinePort,GameIdentityBinding,
 } from "../contracts/index";
-import { createRaceIqOnlineAdapter, OnlineAdapterError } from "./adapter";
+import { createRaceIqOnlineAdapter, OnlineAdapterError, type ReserveLapUploadInput, type ReserveLapUploadResult, type SanitizedLapUpload } from "./adapter";
 import { createNativeBoardIdentifierResolver } from "./identifiers";
 import { OnlineStateStorage } from "./state-storage";
-import { getAccountOutboxStatus, withdrawAccountOutboxJobs, type OutboxJob } from "./outbox-storage";
-import { createOnlineUploadDispatcher, type OnlineUploadContext, type OnlineUploadDispatchPort } from "./upload-dispatch";
-import type { DispatchUnderPrivacyBarrier, UploadOutcome } from "./outbox";
 import { notifyOnlineSync } from "./sync-events";
-export type { OnlineUploadContext } from "./upload-dispatch";
+import type { OnlineUploadContext, OnlineUploadDispatchPort } from "./upload-dispatch";
 import type { RegisteredOnlineDriverBinding } from "./payload";
-export interface OnlineProfileSyncContext { accountId:string;accountEpoch:string;revision:number }
+export interface OnlineAccountContext { accountId:string;accountEpoch:string;revision:number }
 export interface OnlineServiceAdapter {
   getPolicy(): Promise<unknown>;
   getConsent(accessToken: string): Promise<api.ConsentState>;
@@ -27,10 +24,8 @@ export interface OnlineServiceAdapter {
   setPreferences(input: PreferencesInput["preferences"], accessToken: string): Promise<unknown>;
   reserveLapUpload: ReturnType<typeof createRaceIqOnlineAdapter>["reserveLapUpload"];
   uploadLap: ReturnType<typeof createRaceIqOnlineAdapter>["uploadLap"];
-  writeActivityContribution(contribution:api.ActivityContribution,isAuthorized:()=>boolean,isSourceCurrent:()=>Promise<boolean>):Promise<api.ActivityReceipt>;
-  readActivityReceipt(activityId:string,isAuthorized:()=>boolean):Promise<api.ActivityContributionView|null>;
+  getLapJob: ReturnType<typeof createRaceIqOnlineAdapter>["getLapJob"];
   readOwnerStats(isAuthorized:()=>boolean):Promise<api.OwnerOnlineStatsView|null>;
-  getLapJob(jobId:string,isAuthorized:()=>boolean):Promise<api.UploadJob>;
   registerGameBinding(binding:GameIdentityBinding,confirmedByUser:true,isAuthorized:()=>boolean):Promise<RegisteredOnlineDriverBinding>;
 }
 type OnlineAttempt = { attempt: DesktopSignInAttempt; epoch: string };
@@ -50,6 +45,7 @@ export type OnlineServiceOptions = {
   adapter?: Partial<OnlineServiceAdapter>;
   keystore: OnlineKeystore;
   recordingProducer: OnlineUploadDispatchPort["prepareRecording"];
+  getUploadStatus?: (accountId: string) => Promise<{ queued: number | null; inFlight: number | null; rejected: number | null; lastSyncedAt: string | null; lastError: OnlineError | null }>;
   onAccountConnected?:(onlineUserId:string,isCurrent:()=>boolean)=>Promise<void>;
   redirectUri?: string;
   baseUrl?: string;
@@ -67,35 +63,19 @@ export type RaceIqOnlineService = RaceIqOnlinePort & {
   isCommunityEntitlementCurrent(entitlement: Extract<CommunityEntitlement, { allowed: true }>): Promise<boolean>;
   getUploadContext(): Promise<OnlineUploadContext | null>;
   isUploadContextCurrent(context: OnlineUploadContext): boolean;
-  uploadOutboxJob(job: OutboxJob, mayStart?: () => boolean): Promise<UploadOutcome>;
-  dispatchUnderPrivacyBarrier: DispatchUnderPrivacyBarrier;
-  getProfileSyncContext():Promise<OnlineProfileSyncContext|null>;
-  isProfileSyncContextCurrent(context:OnlineProfileSyncContext):boolean;
+  reserveLapUpload(input: Omit<ReserveLapUploadInput, "isAuthorized">, context: OnlineUploadContext, mayStart: () => boolean): Promise<ReserveLapUploadResult>;
+  uploadLap(input: Omit<SanitizedLapUpload, "isAuthorized">, context: OnlineUploadContext, mayStart: () => boolean): Promise<{ id: string } | { acceptedJobId: string }>;
+  getUploadStatus(accountId: string): Promise<{ queued: number | null; inFlight: number | null; rejected: number | null; lastSyncedAt: string | null; lastError: OnlineError | null } | null>;
+  isAccountContextCurrent(context:OnlineAccountContext):boolean;
+  getAccountContext():Promise<OnlineAccountContext|null>;
+  stopAdmission():void;
   invalidatePreparation(input:OnlineMutationContext):Promise<OnlineCommandResult>;
   isMutationContextCurrent(input:OnlineMutationContext):boolean;
   invalidateSourceBindings():void;
-  writeActivityContribution(contribution:api.ActivityContribution,context:OnlineProfileSyncContext,isSourceCurrent:()=>Promise<boolean>):Promise<api.ActivityReceipt>;
-  readActivityReceipt(activityId:string,context:OnlineProfileSyncContext):Promise<api.ActivityContributionView|null>;
-  readOwnerStats(context:OnlineProfileSyncContext):Promise<api.OwnerOnlineStatsView|null>;
-  getLapJob(jobId:string,context:OnlineProfileSyncContext):Promise<api.UploadJob>;
-  stopAdmission():void;
-  registerGameBinding(binding:GameIdentityBinding,confirmedByUser:true,context:OnlineProfileSyncContext,mayStart:()=>boolean):Promise<RegisteredOnlineDriverBinding>;
+  readOwnerStats(context:OnlineAccountContext):Promise<api.OwnerOnlineStatsView|null>;
+  getLapJob(jobId: string, context: OnlineAccountContext): ReturnType<OnlineServiceAdapter["getLapJob"]>;
+  registerGameBinding(binding:GameIdentityBinding,confirmedByUser:true,context:OnlineAccountContext,mayStart:()=>boolean):Promise<RegisteredOnlineDriverBinding>;
 };
-const OUTBOX_ERROR_CODES: Readonly<Record<string, OnlineError["code"]>> = {
-  validation_rejected: "validation_rejected", f1_sanitization_failed: "f1_sanitization_failed",
-  unsupported_recording_format:"unsupported_recording_format",recording_too_large:"recording_too_large",recording_not_ready:"recording_not_ready",
-  driver_identity_required:"driver_identity_required",mixed_driver_lap:"mixed_driver_lap",activity_identity_ambiguous:"activity_identity_ambiguous",
-  activity_owner_conflict:"activity_owner_conflict",lap_owner_conflict:"lap_owner_conflict",lap_identity_conflict:"lap_identity_conflict",
-  ineligible_lap: "ineligible_lap", unsupported_game: "unsupported_game", unknown_track: "unknown_track",
-  unknown_car: "unknown_car", rate_limited: "rate_limited", offline: "offline",
-  service_unavailable: "service_unavailable", policy_unavailable: "policy_unavailable",
-  auth_failed: "auth_failed", not_connected: "not_connected", internal_error: "internal_error",
-};
-const OUTBOX_NON_RETRYABLE_ERRORS: ReadonlySet<string> = new Set([
-  "validation_rejected", "f1_sanitization_failed", "ineligible_lap", "unsupported_game", "unknown_track", "unknown_car",
-  "unsupported_recording_format","recording_too_large","driver_identity_required","mixed_driver_lap","activity_identity_ambiguous",
-  "activity_owner_conflict","lap_owner_conflict","lap_identity_conflict",
-]);
 
 export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIqOnlineService {
   const { getSecret, setSecret } = options.keystore;
@@ -202,9 +182,11 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
   };
   const save = () => { persisted.revision++; storage.save(persisted); notifyOnlineSync(); };
   const snapshot = async (): Promise<OnlineState> => {
-    const epoch = persisted.accountEpoch;
+    const accountEpoch = persisted.accountEpoch;
     const revision = persisted.revision;
-    const userId = connectedAccount.status === "connected" ? connectedAccount.account.userId : null;
+    const connectedIdentity = connectedAccount.status === "connected" ? connectedAccount.account.userId : null;
+    const activeIdentity = activeUserId;
+    const accountId = connectedIdentity !== null && activeIdentity === connectedIdentity ? connectedIdentity : null;
     const base = (() => {
       const effectivePreferences = activePreferences
         ? { ...activePreferences, visibility: persisted.privacyBarrier ? "private" as const : activePreferences.visibility,
@@ -222,23 +204,33 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
             : effectivePreferences?.visibility !== "public" ? "private" : null;
       return { effectivePreferences, consent, credentialAligned, blockedBy };
     })();
-    let outbox = { queued: 0, inFlight: 0, rejected: 0, ambiguous: 0, lastSyncedAt: null as string | null, lastErrorCode: null as string | null };
-    if (userId) {
-      outbox = await getAccountOutboxStatus(userId);
-      if (persisted.accountEpoch !== epoch || persisted.revision !== revision || connectedAccount.status !== "connected" || connectedAccount.account.userId !== userId) return await snapshot();
+    let uploadStatus: { queued: number | null; inFlight: number | null; rejected: number | null; lastSyncedAt: string | null; lastError: OnlineError | null } =
+      { queued: 0, inFlight: 0, rejected: 0, lastSyncedAt: null, lastError: null };
+    if (accountId && options.getUploadStatus) {
+      try {
+        const status = await options.getUploadStatus(accountId);
+        if (status === null) uploadStatus = { queued: null, inFlight: null, rejected: null, lastSyncedAt: null, lastError: error("service_unavailable", true) };
+        else uploadStatus = status;
+      } catch {
+        uploadStatus = { queued: null, inFlight: null, rejected: null, lastSyncedAt: null, lastError: error("service_unavailable", true) };
+      }
+    } else if (accountId) {
+      uploadStatus = { queued: null, inFlight: null, rejected: null, lastSyncedAt: null, lastError: error("service_unavailable", true) };
     }
-    if (persisted.accountEpoch !== epoch || persisted.revision !== revision) return await snapshot();
-    const lastError = outbox.lastErrorCode
-      ? error(OUTBOX_ERROR_CODES[outbox.lastErrorCode] ?? "internal_error", !OUTBOX_NON_RETRYABLE_ERRORS.has(outbox.lastErrorCode))
-      : null;
-    const blockedBy = base.blockedBy;
-    const pending = outbox.queued > 0 || outbox.inFlight > 0 || outbox.ambiguous > 0;
+    if (persisted.accountEpoch !== accountEpoch || persisted.revision !== revision ||
+        (connectedAccount.status === "connected" ? connectedAccount.account.userId : null) !== connectedIdentity ||
+        activeUserId !== activeIdentity) return snapshot();
+    const statusUnavailable = uploadStatus.queued === null || uploadStatus.inFlight === null || uploadStatus.rejected === null;
+    const syncBlockedBy = statusUnavailable ? "service_unavailable" : base.blockedBy;
     return structuredClone({
-      contractVersion: 1, revision: persisted.revision, accountEpoch: persisted.accountEpoch, service,
+      contractVersion: 1, revision, accountEpoch, service,
       connection: connectedAccount, policy, consent: base.consent, preferences: base.effectivePreferences, persistedPreferences: activePersistedPreferences,
       preferencePersistence: persisted.preferencePersistence,
       uploadAllowed: acceptingTransport&&service === "available" && policy.status === "available" && base.credentialAligned && base.consent.status === "accepted" && persisted.preferencePersistence === "confirmed" && !persisted.privacyBarrier && base.effectivePreferences?.visibility === "public",
-      sync: { status: blockedBy ? "blocked" : outbox.inFlight ? "running" : pending ? "paused" : "idle", blockedBy, queued: outbox.queued, inFlight: outbox.inFlight, rejected: outbox.rejected, lastSyncedAt: outbox.lastSyncedAt, lastError },
+      sync: {
+        status: syncBlockedBy ? "blocked" : uploadStatus.inFlight && uploadStatus.inFlight > 0 ? "running" : "idle",
+        blockedBy: syncBlockedBy, ...uploadStatus,
+      },
       publicationWithdrawal: { status: "none", error: null },
     });
   };
@@ -341,15 +333,15 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
       save();
     } catch { /* Keep local choices; missing Live confirmation remains fail-closed. */ }
   };
-  const profileSyncContext = (): OnlineProfileSyncContext|null => {
+  const accountContext = (): OnlineAccountContext|null => {
     if (!acceptingTransport || service!=="available" || policy.status!=="available" || persisted.explicitlySignedOut ||
       connectedAccount.status!=="connected" || !activeAccessToken || accessExpiresAt<=Date.now()/1000+60 ||
       activeUserId!==connectedAccount.account.userId || persisted.profile?.userId!==activeUserId ||
       activeConsent.status!=="accepted" || !sameVersions(activeConsent.versions,policy.versions)) return null;
     return {accountId:connectedAccount.account.userId,accountEpoch:persisted.accountEpoch,revision:persisted.revision};
   };
-  const isProfileSyncContextCurrent = (context:OnlineProfileSyncContext):boolean => {
-    const current=profileSyncContext();
+  const isAccountContextCurrent = (context:OnlineAccountContext):boolean => {
+    const current=accountContext();
     return current!==null && current.accountId===context.accountId && current.accountEpoch===context.accountEpoch && current.revision===context.revision;
   };
   const currentUploadContext = (): OnlineUploadContext | null => {
@@ -364,7 +356,7 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
   const isUploadContextCurrent = (context: OnlineUploadContext): boolean => {
     const current = currentUploadContext();
     return !!current && current.accountId === context.accountId && current.accountEpoch === context.accountEpoch &&
-      current.revision === context.revision;
+      current.revision === context.revision && current.setupUploads === context.setupUploads;
   };
   const communityError = (state: OnlineState): OnlineError | null => {
     if (state.connection.status !== "connected") return error("not_connected");
@@ -391,58 +383,51 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
     return current.allowed && current.accountEpoch === entitlement.accountEpoch &&
       current.onlineRevision === entitlement.onlineRevision;
   };
-  const uploadDispatcher = createOnlineUploadDispatcher({
-    getContext: () => port.getUploadContext(),
-    isAuthorized: (context, includesSetup) => isUploadContextCurrent(context) && (!includesSetup || currentUploadContext()?.setupUploads === true),
-    reserveLapUpload: (input) => adapter.reserveLapUpload(input),
-    uploadLap: (input) => adapter.uploadLap(input),
-    prepareRecording: options.recordingProducer,
-  });
   const port: RaceIqOnlineService = {
     stopAdmission() { acceptingTransport=false; },
+    isAccountContextCurrent,
     isMutationContextCurrent(input){return acceptingTransport&&!stale(input);},
     invalidateSourceBindings(){save();},
-    isProfileSyncContextCurrent,
-    async getProfileSyncContext() {
+    async getAccountContext() {
       await refreshPolicy();
       await accessToken();
       if(connectedAccount.status==="signed_out"&&!persisted.explicitlySignedOut)await port.getState();
-      return profileSyncContext();
+      return accountContext();
     },
     async invalidatePreparation(input) {
       if (stale(input)) return failure("stale_state");
       save();
       return {ok:true,state:await snapshot()};
     },
-    async writeActivityContribution(contribution,context,isSourceCurrent){return adapter.writeActivityContribution(contribution,()=>isProfileSyncContextCurrent(context),isSourceCurrent);},
-    async readActivityReceipt(activityId,context) { return adapter.readActivityReceipt(activityId,()=>isProfileSyncContextCurrent(context)); },
-    async readOwnerStats(context) { return adapter.readOwnerStats(()=>isProfileSyncContextCurrent(context)); },
-    async getLapJob(jobId,context) { return adapter.getLapJob(jobId,()=>isProfileSyncContextCurrent(context)); },
-    async registerGameBinding(binding,confirmedByUser,context,mayStart){return adapter.registerGameBinding(binding,confirmedByUser,()=>isProfileSyncContextCurrent(context)&&mayStart());},
+    async reserveLapUpload(input,context,mayStart) {
+      const isAuthorized=()=>mayStart()&&isUploadContextCurrent(context);
+      if(!isAuthorized())throw new OnlineAdapterError("not_connected",true);
+      return adapter.reserveLapUpload({...input,isAuthorized});
+    },
+    async uploadLap(input,context,mayStart) {
+      const isAuthorized=()=>mayStart()&&isUploadContextCurrent(context);
+      if(!isAuthorized())throw new OnlineAdapterError("not_connected",true);
+      return adapter.uploadLap({...input,isAuthorized});
+    },
+    async getUploadStatus(accountId) {
+      const context = await port.getAccountContext();
+      if (!context || context.accountId !== accountId || !options.getUploadStatus || !isAccountContextCurrent(context)) return null;
+      const status = await options.getUploadStatus(accountId);
+      return isAccountContextCurrent(context) ? status : null;
+    },
+    async readOwnerStats(context) { return adapter.readOwnerStats(()=>isAccountContextCurrent(context)); },
+    async getLapJob(jobId, context) {
+      if (!isAccountContextCurrent(context)) throw new OnlineAdapterError("not_connected", true);
+      return adapter.getLapJob(jobId, () => isAccountContextCurrent(context));
+    },
+    async registerGameBinding(binding,confirmedByUser,context,mayStart){return adapter.registerGameBinding(binding,confirmedByUser,()=>isAccountContextCurrent(context)&&mayStart());},
     isUploadContextCurrent,
     getCommunityEntitlement,
     isCommunityEntitlementCurrent,
-    async uploadOutboxJob(job, mayStart) {
-      return uploadDispatcher(job, mayStart);
-    },
     async getUploadContext() {
-      await port.getProfileSyncContext();
-      return currentUploadContext();
-    },
-    async dispatchUnderPrivacyBarrier(job, send) {
-      const context = await port.getUploadContext();
-      if (persisted.explicitlySignedOut || connectedAccount.status !== "connected" ||
-          persisted.profile?.userId !== job.accountId || persisted.accountEpoch !== job.accountEpoch) {
-        return { authorized: false, reason: "withdrawn" };
-      }
-      if (!context || context.accountId !== job.accountId || context.accountEpoch !== job.accountEpoch ||
-          !isUploadContextCurrent(context)) {
-        const unavailable = service !== "available" || policy.status !== "available" ||
-          !activeAccessToken || accessExpiresAt <= Date.now() / 1000 + 60 ||
-          activeUserId !== job.accountId || persisted.preferencePersistence !== "confirmed";
-        return { authorized: false, reason: unavailable ? "temporarily_unavailable" : "withdrawn" };
-      }
-      return { authorized: true, outcome: await send() };
+      const account = await port.getAccountContext();
+      const upload = currentUploadContext();
+      return account&&upload&&account.accountId===upload.accountId&&account.accountEpoch===upload.accountEpoch&&account.revision===upload.revision?upload:null;
     },
     async getState() {
       await refreshPolicy();
@@ -643,7 +628,6 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
       const intentGeneration = preferenceIntentGeneration;
       persisted.preferencePersistence = "pending";
       try { save(); } catch { return failure("preferences_failed"); }
-      if (input.preferences.visibility === "private" && persisted.profile) await withdrawAccountOutboxJobs(persisted.profile.userId);
       if (epoch !== persisted.accountEpoch || intentGeneration !== preferenceIntentGeneration) return failure("stale_state");
       if (connectedAccount.status !== "connected" || activeConsent.status !== "accepted") return failure("not_connected");
       const userId = connectedAccount.account.userId;
@@ -714,7 +698,6 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
     },
     async signOut(input: OnlineMutationContext) {
       if (input.accountEpoch !== persisted.accountEpoch) return failure("stale_state");
-      const withdrawingAccount = persisted.profile?.userId;
       revokeBoards();
       attempts.clear();
       persisted.explicitlySignedOut = true;
@@ -727,9 +710,6 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
       activeAccessToken = null; activeUserId = null; accessExpiresAt = 0;
       let clearFailed = false;
       try { storage.save(persisted); } catch { clearFailed = true; }
-      if (withdrawingAccount) {
-        try { await withdrawAccountOutboxJobs(withdrawingAccount); } catch { clearFailed = true; }
-      }
       try { await clearRefreshToken(); } catch { clearFailed = true; }
       if (clearFailed) {
         connectedAccount = { status: "error", error: error("internal_error", true) };

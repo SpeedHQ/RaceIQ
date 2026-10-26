@@ -43,9 +43,9 @@ export type OnlineSyncBlock =
 export type OnlineSync = {
   status: "idle" | "running" | "paused" | "blocked";
   blockedBy: OnlineSyncBlock | null;
-  queued: number;
-  inFlight: number;
-  rejected: number;
+  queued: number | null;
+  inFlight: number | null;
+  rejected: number | null;
   lastSyncedAt: string | null;
   lastError: OnlineError | null;
 };
@@ -106,13 +106,13 @@ export type GameIdentityBinding = {
   revision: number;
 };
 export type DeliveryStatus =
-  | "queued" | "preparing" | "uploading" | "retry_wait" | "blocked" | "ambiguous"
+  | "awaiting" | "queued" | "preparing" | "uploading" | "retry_wait" | "blocked" | "ambiguous"
   | "accepted" | "rejected" | "withdrawn" | "superseded";
 export type ValidationStatus = "not_requested" | "pending" | "validated" | "rejected" | "unavailable";
 export type PublicationStatus = "not_requested" | "pending" | "public" | "withdrawn" | "failed" | "unavailable";
 export type UploadItem = {
   id: string;
-  kind: "lap" | "profile";
+  kind: "lap";
   gameId: string | null;
   lapId: number | null;
   lapGuid: string | null;
@@ -122,15 +122,13 @@ export type UploadItem = {
   admittedAt: string;
   updatedAt: string;
   settledAt: string | null;
-  attemptCount: number;
+  attemptCount: number | null;
   nextAttemptAt: string | null;
   acceptedAt: string | null;
   remoteJobId: string | null;
   validation: ValidationStatus;
   publication: PublicationStatus;
   error: OnlineError | null;
-  activityId: string | null;
-  activityRevision: number | null;
 };
 export type UploadPage = {
   schemaVersion: 2;
@@ -156,18 +154,6 @@ export type ProfileCoverage = {
   driverAttribution: "complete" | "partial";
   sessionDuration: "complete" | "partial" | "unavailable";
   distance: "complete" | "partial" | "unavailable";
-};
-export type ProfileActivityContribution = {
-  schemaVersion: 2;
-  activityId: string;
-  lapGuids: string[];
-  expectedRevision: number | null;
-  contentHash: string;
-  gameId: string;
-  metrics: MetricTotals;
-  cars: { gameId: string; nativeId: string; seconds: number; laps: number }[];
-  tracks: { gameId: string; nativeId: string; seconds: number; laps: number }[];
-  coverage: ProfileCoverage;
 };
 export type FavoriteEntity = { nativeId: string; name: string; seconds: number; laps: number };
 export type DriverSummary = {
@@ -203,7 +189,7 @@ export type LegacyStatsSnapshot = {
 };
 export type OnlineProfileResponse = {
   accountEpoch: string;
-  status: "signed_out" | "consent_required" | "syncing" | "ready" | "legacy_unverified" | "unavailable";
+  status: "signed_out" | "consent_required" | "ready" | "legacy_unverified" | "unavailable";
   localPending: number;
   heldAmbiguous: number;
   lastConfirmedAt: string | null;

@@ -15,7 +15,7 @@ function stint(attribution: "Self" | "Other" | "Unknown", startMs = 0, endMs: nu
 function lap(overrides: Partial<DriverSummaryLapFact> = {}): DriverSummaryLapFact {
   return {
     sessionId: 1, gameId: "acc", carId: "car-a", trackId: "track-a", sessionType: "race",
-    createdAtMs: 1_000, originalActivityId: "original-a", nativeCaptureOrigin: true, ownerUserId: null, ownership: "mine",
+    createdAtMs: 1_000, originalActivityId: "original-a", ownerUserId: null, ownership: "mine",
     sessionAttribution: "Self", sessionStints: [], elapsedSeconds: null, durationStatus: "unavailable",
     trackLengthMeters: 1_000, lapId: 1, lapGuid: "guid-1", lapTime: 60, valid: true, invalidReason: null,
     lapAttribution: "Self", lapStints: [stint("Self")], clockDomain: "clock", lapStartMs: 10, lapEndMs: 90, stampMs: 1_000,

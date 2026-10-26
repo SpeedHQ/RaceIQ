@@ -1,15 +1,13 @@
 import assert from "node:assert/strict";
 import { eq, inArray } from "drizzle-orm";
-import { hashActivityContribution } from "@speedhq/live-client";
 import { client, db, initDb } from "../../../../db";
 import { claimLocalAccountOwner, getLocalAccountOwner } from "../../../../db/local-account-queries";
 import { deleteSession, insertSession } from "../../../../db/session-queries";
 import { insertLap } from "../../../../db/lap-mutation-queries";
 import { bindAuthoritativeLapGuid } from "../../../../db/lap-guid";
-import { putDriverSummaryActivity, setLapDriverAttribution } from "../../../../db/driver-summary-ledger-queries";
-import { driverSummaryActivities, driverSummaryActivityLaps, laps, sessions } from "../../../../db/schema";
 import type { DriverAttributionStint } from "@raceiq/shared/driver-attribution";
-import type { DriverSummaryActivityContribution } from "../../../../driver-summary";
+import { setLapDriverAttribution } from "../../../../db/driver-summary-ledger-queries";
+import { laps, sessions } from "../../../../db/schema";
 
 await initDb();
 try {
@@ -39,26 +37,6 @@ try {
       sessionId: String(native), clockDomain: "claim-source-clock", observedAtMs: 0 },
   };
   await setLapDriverAttribution(nativeLap, [stint], "Self", { domain: "claim-source-clock", startMs: 0, endMs: 90_000 });
-  const sourceRows = await db.select({ id: sessions.id, originalActivityId: sessions.originalActivityId }).from(sessions)
-    .where(inArray(sessions.id, [native, borrowed])).all();
-  const activityIds: string[] = [];
-  for (const [sessionId, lapId] of [[native, nativeLap], [borrowed, borrowedLap]]) {
-    const activityId = sourceRows.find(row => row.id === sessionId)?.originalActivityId;
-    const lap = await db.select({ guid: laps.lapGuid }).from(laps).where(eq(laps.id, lapId!)).get();
-    assert.ok(activityId && lap?.guid);
-    activityIds.push(activityId);
-    const body = {
-      schemaVersion: 2 as const, activityId, gameId: "iracing", lapGuids: [lap.guid],
-      metrics: { laps: 1, positiveLaps: 1, validLaps: 1, drivenSeconds: 90, validSeconds: 90, distanceMeters: null,
-        sessionsWithDuration: 1, sessionsWithoutDuration: 0, sessionTypeSeconds: { practice: 90, qualifying: 0, race: 0, unknown: 0 } },
-      cars: [], tracks: [], coverage: { identity: "partial" as const, driverAttribution: "complete" as const,
-        sessionDuration: "partial" as const, distance: "unavailable" as const },
-    };
-    const contentHash = await hashActivityContribution(body);
-    const payload: DriverSummaryActivityContribution = { ...body, expectedRevision: null, contentHash };
-    await putDriverSummaryActivity({ activityId, ownerUserId: null, gameId: "iracing", lapGuids: [lap.guid],
-      payload, contentHash, expectedCloudRevision: null, state: "held_ambiguous", heldReason: "Original remains open" });
-  }
   const evidence = () => db.select({ guid: laps.lapGuid, stints: laps.driverAttributionStints,
     attribution: laps.driverAttribution, clock: laps.sourceClockDomain, start: laps.sourceLapStartMs, end: laps.sourceLapEndMs })
     .from(laps).where(eq(laps.id, nativeLap)).get();
@@ -90,10 +68,6 @@ try {
   assert.equal(await getLocalAccountOwner(), null);
   assert.deepEqual((await db.select({ owner: sessions.ownerUserId }).from(sessions)
     .where(inArray(sessions.id, [native, borrowed])).all()).map(row => row.owner), [null, null]);
-  assert.deepEqual((await db.select({ owner: driverSummaryActivities.ownerUserId }).from(driverSummaryActivities)
-    .where(inArray(driverSummaryActivities.activityId, activityIds)).all()).map(row => row.owner), [null, null]);
-  assert.deepEqual((await db.select({ owner: driverSummaryActivityLaps.ownerUserId }).from(driverSummaryActivityLaps)
-    .where(inArray(driverSummaryActivityLaps.activityId, activityIds)).all()).map(row => row.owner), [null, null]);
   assert.deepEqual(await original(), originalBefore);
   assert.deepEqual(await evidence(), evidenceBefore);
 
@@ -101,12 +75,8 @@ try {
   await claimLocalAccountOwner("owner-a", { isCurrent: () => true });
   await assert.rejects(claimLocalAccountOwner("owner-b", { isCurrent: () => true }), { code: "account_conflict" });
   assert.equal(await getLocalAccountOwner(), "owner-a");
-  for (const [sessionId, activityId, expectedOwner] of [[native, activityIds[0]!, "owner-a"], [borrowed, activityIds[1]!, null]] as const) {
+  for (const [sessionId, expectedOwner] of [[native, "owner-a"], [borrowed, null]] as const) {
     assert.equal((await db.select({ owner: sessions.ownerUserId }).from(sessions).where(eq(sessions.id, sessionId)).get())?.owner, expectedOwner);
-    assert.equal((await db.select({ owner: driverSummaryActivities.ownerUserId }).from(driverSummaryActivities)
-      .where(eq(driverSummaryActivities.activityId, activityId)).get())?.owner, expectedOwner);
-    assert.equal((await db.select({ owner: driverSummaryActivityLaps.ownerUserId }).from(driverSummaryActivityLaps)
-      .where(eq(driverSummaryActivityLaps.activityId, activityId)).get())?.owner, expectedOwner);
   }
   assert.deepEqual(await original(), originalBefore);
   assert.deepEqual(await evidence(), evidenceBefore);

@@ -61,17 +61,26 @@ export interface LeaderboardSnapshot {
   fetchedAt: string;
   stale: false;
 }
+export interface ReserveLapUploadInput extends OnlineLapIdentity {
+  gameId: UploadGame;
+  idempotencyKey: string;
+  consentAccepted: boolean;
+  visibility: "private" | "public";
+  isAuthorized: () => boolean;
+  isCurrent?: () => Promise<boolean>;
+}
+export interface ReserveLapUploadResult { reservationToken: string | null; acceptedJobId: string | null }
 export interface SanitizedLapUpload extends OnlineLapIdentity {
   gameId: UploadGame;
-  carId:string;
+  carId: string;
   filename: string;
   recording: Uint8Array;
   setup?: Uint8Array;
   idempotencyKey: string;
   reservationToken: string;
-  payloadFingerprint:string;
+  payloadFingerprint: string;
   consentAccepted: boolean;
-  visibility: "public" | "private";
+  visibility: "private" | "public";
   setupUploads: boolean;
   codec: VerifiedRecordingCodec | null;
   isAuthorized: () => boolean;
@@ -186,25 +195,15 @@ function retryAfterTimestamp(value: string | null): string | null {
       if(registered.gameId!==binding.gameId||registered.sourceKind!==binding.sourceKind||registered.nativeIdentity!==binding.nativeIdentity||registered.confirmation!=="user_confirmed")throw new OnlineAdapterError("invalid_response",false);
       return {id:registered.id,revision:registered.revision};
     },
-    async writeActivityContribution(contribution:api.ActivityContribution,isAuthorized:()=>boolean,isSourceCurrent:()=>Promise<boolean>) {
-      const headers=await writeHeaders();
-      return request(()=>api.upsertMyActivityContribution({client:client.apiClient,headers,fetch:uploadFetch(isAuthorized,REQUEST_TIMEOUT_MS,isSourceCurrent),body:{schemaVersion:2,contribution}}));
-    },
-    async readActivityReceipt(activityId:string,isAuthorized:()=>boolean) {
+    async getLapJob(jobId: string, isAuthorized: () => boolean) {
       const headers = await authHeaders();
-      const result = await api.getMyActivityReceipt({ client:client.apiClient,headers,fetch:uploadFetch(isAuthorized),path:{activity_id:activityId} });
-      if (result.response.status===404) return null;
-      return request(()=>Promise.resolve(result));
+      return request(() => api.getLapJob({ client: client.apiClient, headers, fetch: uploadFetch(isAuthorized), path: { jobId } }));
     },
     async readOwnerStats(isAuthorized:()=>boolean) {
       const headers=await authHeaders();
       const result=await api.getMyStats({client:client.apiClient,headers,fetch:uploadFetch(isAuthorized)});
       if(result.response.status===404) return null;
       return request(()=>Promise.resolve(result));
-    },
-    async getLapJob(jobId:string,isAuthorized:()=>boolean) {
-      const headers=await authHeaders();
-      return request(()=>api.getLapJob({client:client.apiClient,headers,fetch:uploadFetch(isAuthorized),path:{jobId}}));
     },
     async getPolicy() {
       const policy = await request(() => api.getConsentPolicy({ client: client.apiClient }));
@@ -266,7 +265,7 @@ function retryAfterTimestamp(value: string | null): string | null {
       const headers = await writeHeaders();
       await request(() => api.unpublishLap({ client: client.apiClient, headers, path: { lapId } }), true);
     },
-    async reserveLapUpload(input: OnlineLapIdentity & { gameId: UploadGame; idempotencyKey: string; consentAccepted: boolean; visibility: "private" | "public"; isAuthorized: () => boolean }) {
+    async reserveLapUpload(input: ReserveLapUploadInput): Promise<ReserveLapUploadResult> {
       if (!input.consentAccepted || input.visibility !== "public") throw new OnlineAdapterError("not_connected", false);
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(input.idempotencyKey)) {
         throw new OnlineAdapterError("invalid_response", false);
@@ -274,7 +273,7 @@ function retryAfterTimestamp(value: string | null): string | null {
       const headers = await writeHeaders();
       const result = await api.reserveLapUpload({
         client: client.apiClient,
-        fetch: uploadFetch(input.isAuthorized),
+        fetch: uploadFetch(input.isAuthorized, REQUEST_TIMEOUT_MS, input.isCurrent),
         headers: { ...headers, "Idempotency-Key": input.idempotencyKey },
         body: { gameId:input.gameId,lapGuid:input.lapGuid,driverBindingId:input.driverBindingId,driverBindingRevision:input.driverBindingRevision,
           originalActivityId:input.originalActivityId,sourceRevision:input.sourceRevision,sourceKind:input.sourceKind },
@@ -288,7 +287,7 @@ function retryAfterTimestamp(value: string | null): string | null {
       }
       return { reservationToken: reservation.reservationToken, acceptedJobId: null };
     },
-    async uploadLap(input: SanitizedLapUpload) {
+    async uploadLap(input: SanitizedLapUpload): Promise<{ id: string } | { acceptedJobId: string }> {
       if (!input.consentAccepted || input.visibility !== "public") throw new OnlineAdapterError("not_connected", false);
       if(input.gameId==="f1-2025"&&input.carId!=="41")throw new OnlineAdapterError("unsupported_game",false);
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(input.idempotencyKey) ||

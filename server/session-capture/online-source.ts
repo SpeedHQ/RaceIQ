@@ -77,8 +77,13 @@ function sameBinding(a: CapturedDriverBinding, b: CapturedDriverBinding): boolea
   return a.gameId === b.gameId && a.sourceKind === b.sourceKind && a.nativeIdentity === b.nativeIdentity;
 }
 
-/** No current per-game binding lookup: historical identity must come from its captured stints. */
-export async function readOnlineLapSource(lapId: number): Promise<OnlineLapSourceResult> {
+/** Read one current eligible lap source. Missing artifacts remain a per-pass hold. */
+export function readOnlineLapSource(lapId: number): Promise<OnlineLapSourceResult> {
+  return readOnlineLapSourceInternal(lapId);
+}
+
+async function readOnlineLapSourceInternal(lapId: number): Promise<OnlineLapSourceResult> {
+
   const held = (reason: OnlineLapSourceHoldReason): OnlineLapSourceResult => ({ kind: "held", reason });
   const row = await readDb.select({ lap: laps, session: sessions, identity: lapGuidReconciliation }).from(laps)
     .innerJoin(sessions, eq(sessions.id, laps.sessionId))
@@ -164,7 +169,8 @@ export async function readOnlineLapSource(lapId: number): Promise<OnlineLapSourc
         (chunk.sourceLapStartMs !== undefined && chunk.sourceLapStartMs !== startMs) ||
         (chunk.sourceLapEndMs !== undefined && chunk.sourceLapEndMs !== endMs)) return held("source_identity_unavailable");
     return { kind: "ready", source: {
-      lapId: lap.id, sessionId: session.id, gameId, carId: session.carId, trackId: session.trackId,
+      lapId: lap.id, sessionId: session.id,
+      gameId, carId: session.carId, trackId: session.trackId,
       lapGuid: lap.lapGuid.toLowerCase(), originalActivityId: session.originalActivityId,
       sourceRevision: session.originalSourceRevision, ownerUserId: session.ownerUserId, sourceKind,
       frameClock: recordedCaptureFrameClock(session), clockAnchor: recordedCaptureClockAnchor(session.captureClockAnchorJson),
@@ -183,8 +189,6 @@ export async function readOnlineLapSource(lapId: number): Promise<OnlineLapSourc
 
 
 /**
- * Actual context records only. F1 keeps bounded last packets; stateful iRacing
- * context is streamed for hydration, not published as preceding telemetry laps.
  * Public codecs must omit opaque parser-bootstrap payloads and private binding snapshots.
  */
 export async function* iterateOnlineLapSourceRecords(source: OnlineLapSource): AsyncGenerator<OnlineLapSourceRecord> {
@@ -266,7 +270,22 @@ async function* iteratePrimedNativeLapSource(source: OnlineLapSource): AsyncGene
     const last = context.at(-1);
     const native = last ? decodeLMUSourceFrame(last.frame) : null;
     if (last && !native) throw new OnlineLapSourceError("source_context_unavailable");
-    if (native && native.telemetry.readDoubleLE(LMU_TELEMETRY.elapsedTime) * 1000 <= source.sourceClock.startMs) context = context.slice(-1);
+    const firstOwnedNative = decodeLMUSourceFrame(firstOwned.frame);
+    const nativeLapStart = firstOwnedNative?.telemetry.readDoubleLE(LMU_TELEMETRY.lapStartElapsedTime);
+    if (!firstOwnedNative || typeof nativeLapStart !== "number" || !Number.isFinite(nativeLapStart)) {
+      throw new OnlineLapSourceError("source_context_unavailable");
+    }
+    // The source clock starts at the owned sample; native lap start may precede it.
+    // Keep the last real pre-start poll and intervening poll when they straddle boundary.
+    if (native) {
+      const lastElapsed = native.telemetry.readDoubleLE(LMU_TELEMETRY.elapsedTime);
+      if (lastElapsed <= nativeLapStart) context = context.slice(-1);
+      else if (context.length > 1) {
+        const previous = decodeLMUSourceFrame(context[0]!.frame);
+        if (!previous) throw new OnlineLapSourceError("source_context_unavailable");
+        if (previous.telemetry.readDoubleLE(LMU_TELEMETRY.elapsedTime) > nativeLapStart) context = context.slice(-1);
+      }
+    }
     for (const record of context) yield { record, scope: "context" };
   }
   const f1Uid = source.gameId === "f1-2025" && firstOwned.frame.length >= F1_HEADER_SIZE ? parseF1Header(firstOwned.frame).sessionUID : null;

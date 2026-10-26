@@ -5,6 +5,7 @@ import { createServer as createHttpServer, type IncomingMessage, type Server as 
 import { createServer as createHttpsServer, type Server as HttpsServer } from "node:https";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { api } from "@speedhq/live-client";
 
 const account = {
   id: "e2e-online-user",
@@ -16,8 +17,8 @@ const policy = {
   available: true,
   termsVersion: "e2e-terms-1",
   privacyVersion: "e2e-privacy-1",
-  termsUrl: "https://127.0.0.1/terms",
-  privacyUrl: "https://127.0.0.1/privacy",
+  termsUrl: "",
+  privacyUrl: "",
 };
 const preferences = { visibility: "private" as "private" | "public", setupUploads: false };
 let consentAccepted = false;
@@ -73,6 +74,15 @@ export async function startOnlineE2EPlatform(): Promise<{ env: Record<string, st
 
   const authServer = createHttpsServer({ key: readFileSync(keyPath), cert: readFileSync(certPath) }, async (request, response) => {
     const url = new URL(request.url ?? "/", "https://127.0.0.1");
+    if ((url.pathname === "/terms" || url.pathname === "/privacy") && request.method === "GET") {
+      response.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
+      return response.end(`<!doctype html><html><head><title>RaceIQ policy</title></head><body><h1>${url.pathname === "/terms" ? "Terms" : "Privacy"}</h1></body></html>`);
+    }
+    if (url.pathname === "/__test__/consent" && request.method === "POST") {
+      consentAccepted = (await readBody(request)).accepted === true;
+      response.writeHead(204, { "cache-control": "no-store" });
+      return response.end();
+    }
     if (url.pathname === "/auth/v1/authorize" && request.method === "GET") {
       const redirectTo = url.searchParams.get("redirect_to");
       if (!redirectTo) return sendJson(response, 400, { error: "invalid_request" });
@@ -110,6 +120,13 @@ export async function startOnlineE2EPlatform(): Promise<{ env: Record<string, st
     if (method === "GET" && url.pathname === "/api/v1/consent") return sendJson(response, 200, policy);
     if (!bearer(request)) return sendJson(response, 401, { error: { code: "unauthorized" } });
     if (method === "GET" && /(?:\/me|\/profile)$/.test(url.pathname)) return sendJson(response, 200, { userId: account.id, displayName: account.user_metadata.name, avatarUrl: null });
+    if (method === "GET" && url.pathname === "/api/v1/me/stats") return sendJson(response, 200, {
+      schemaVersion: 2, status: "ready", onlineRevision: 1, syncedAt: acceptedAt,
+      coverage: { identity: "complete", driverAttribution: "complete", sessionDuration: "unavailable", distance: "unavailable" },
+      summary: { metrics: { laps: 0, positiveLaps: 0, validLaps: 0, drivenSeconds: 0, validSeconds: 0, distanceMeters: null,
+        sessionTypeSeconds: { practice: 0, qualifying: 0, race: 0, unknown: 0 }, sessionsWithDuration: 0, sessionsWithoutDuration: 0 }, games: [] },
+      legacyStats: null,
+    } satisfies api.OwnerOnlineStatsView);
     if (method === "GET" && /consent$/.test(url.pathname)) return sendJson(response, 200, { accepted: consentAccepted, currentAcceptance: consentAccepted ? { termsVersion: policy.termsVersion, privacyVersion: policy.privacyVersion, acceptedAt } : null, policy });
     if ((method === "POST" || method === "PUT") && /consent$/.test(url.pathname)) {
       const body = await readBody(request);
@@ -138,6 +155,8 @@ export async function startOnlineE2EPlatform(): Promise<{ env: Record<string, st
 
   try {
     const authPort = await listen(authServer);
+    policy.termsUrl = `https://127.0.0.1:${authPort}/terms`;
+    policy.privacyUrl = `https://127.0.0.1:${authPort}/privacy`;
     const apiPort = await listen(apiServer);
     let closed = false;
     return {

@@ -18,7 +18,7 @@ Browser-origin whitelisting is off by default. Enable it in Access & security, o
 
 In a track's **Community Laps** tab, select **Open lap** beside a downloadable result. RaceIQ downloads and registers that exact cloud-processed lap, then opens its replay. Imported laps retain the original driver's name and are kept separate from your own laps and personal-best statistics. An unavailable capture timestamp is shown as **Recording time unavailable**, not the upload time.
 
-The Windows installer registers the `raceiq://` protocol. A website's **Continue in RaceIQ** action can start the app or forward a selected lap to the running instance. The link contains only the selected recording URL; the app uses its own Online sign-in, never website credentials. If sign-in is required, the pending request resumes after you connect.
+The Windows installer registers the `raceiq://` protocol. Cloud consent can return through the exact `raceiq://consent` link after successful acceptance; this only foregrounds RaceIQ, which refreshes consent for its own signed-in account. If no handler is registered, return to RaceIQ manually; desktop refreshes consent when it regains focus. Other operating systems may not have a registered handler.
 
 Downloads show **Downloading**, **Validating**, and **Registering lap**. Transient failures offer retry; an unavailable recording offers a leaderboard refresh. Reopening the same cloud lap reuses its local import. Optional setup attachments are retained as opaque files and are never applied automatically.
 

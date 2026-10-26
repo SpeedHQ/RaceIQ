@@ -3,9 +3,10 @@ import { createCloudLapImporter,CloudLapImportError,validateCloudLapImportUrl } 
 import { initDbWorkerConnection,closeDb } from "@raceiq/backend-core/db/index";
 import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
 import { claimLocalAccountOwner,getLocalAccountOwner,getLocalGameBindingSnapshot,upsertLocalGameBinding } from "@raceiq/backend-core/db/local-account-queries";
-import { getOnlineUploadCandidatePage,type OnlineUploadCandidateCursor } from "@raceiq/backend-core/db/online-upload-queries";
+import { getOnlineUploadWinnerPage,readOnlineLapUpload,readLapUploadItems,retainOnlineLapRequest,settleOnlineLapUpload,setOnlineLapRetryAfter } from "@raceiq/backend-core/db/online-upload-queries";
 import { createOnlineRecordingProducer } from "@raceiq/backend-core/session-capture/online-recording-producer";
-import { buildLocalDriverSummary,getLocalDriverSummaryHolds,prepareDriverSummaryContributions,listReadyDriverSummaryContributionPage,recordDriverSummaryReceipt,recordDriverSummaryHold,hasPendingDriverSummaryPreparations,isDriverSummaryContributionCurrent } from "@raceiq/backend-core/driver-summary/index";
+import { readOnlineTestPlatform,createOnlineTestFetch } from "../integrations/online-test-platform";
+import { buildLocalDriverSummary } from "@raceiq/backend-core/driver-summary/index";
 import { validateNativeDriverBinding } from "@raceiq/backend-core/lap-detection/native-attribution";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { serverReleaseFeatures } from "@raceiq/backend-core/runtime/config/release-features";
@@ -15,22 +16,19 @@ import { injectDiscoveredIRacingIdentity } from "@raceiq/game-iracing-metadata/i
 import { injectDiscoveredLMUIdentity } from "@raceiq/game-lmu-metadata/index";
 import { configureOnlineRuntime } from "@raceiq/online/server/runtime";
 import { createRaceIqOnlineService,type RaceIqOnlineService } from "@raceiq/online/server/service";
+import { ensureBindingStorage,closeBindingStorage,getRegisteredOnlineBinding,hasLocalBindingConfirmation,retainRegisteredOnlineBinding } from "@raceiq/online/server/binding-storage";
+import { getOnlineLapUploadStatus } from "@raceiq/backend-core/db/online-upload-queries";
+import { createOnlineUploadDispatcher } from "@raceiq/online/server/upload-dispatch";
 import { startOnlineUploadCoordinator } from "@raceiq/online/server/coordinator";
-import { startOnlineProfileCoordinator } from "@raceiq/online/server/profile-coordinator";
-import { enqueueOutboxJob,listAcceptedOutboxJobs,recordOutboxRemoteStatus,closeOutboxStorage,ensureOutboxStorage } from "@raceiq/online/server/outbox-storage";
-import { closeProfileStorage,ensureProfileStorage } from "@raceiq/online/server/profile-storage";
-import { getRegisteredOnlineBinding,retainRegisteredOnlineBinding,hasLocalBindingConfirmation,closeBindingStorage,ensureBindingStorage } from "@raceiq/online/server/binding-storage";
+import type { OnlineUploadContext } from "@raceiq/online/server/upload-dispatch";
 import { notifyOnlineSync } from "@raceiq/online/server/sync-events";
 import type { OnlineKeystore,OnlineError } from "@raceiq/online/contracts";
-import { getOnlineRecordingError,type PreparedOnlineLapUpload } from "@raceiq/online/server/payload";
-import type { OnlineUploadContext } from "@raceiq/online/server/upload-dispatch";
+import { convertLegacyOnlineLapRequests } from "@raceiq/backend-core/db/online-upload-legacy-conversion";
 import type { CloudLapImportState } from "@raceiq/shared/integrations/cloud-lap-import";
 import { initServerGameAdapters } from "../games/init";
 import { createOnlineLocalPort } from "@raceiq/online/server/local";
-import { createOnlineProfileSync } from "@raceiq/online/server/profile-sync";
 import { createCloudLapImportController } from "@raceiq/online/server/cloud-lap-import-controller";
 import { createNativeBoardIdentifierResolver } from "@raceiq/online/server/identifiers";
-import { readOnlineTestPlatform,createOnlineTestFetch } from "../integrations/online-test-platform";
 import type { WorkerRequest,WorkerResponse,HostResponse,HostRequest,OnlineHostPort,HostMethod,NativeBindingsChanged } from "@raceiq/online/server/worker-protocol";
 import { configureDatabaseWriteWorkerTransport, type WriteLeaseRequest, type WriteLeaseResponse } from "@raceiq/backend-core/db/write-coordination";
 
@@ -70,7 +68,20 @@ const keystore:OnlineKeystore={
 const testPlatform=readOnlineTestPlatform();
 configureOnlineRuntime({resolveDataDir});
 await initDbWorkerConnection();
-await Promise.all([ensureOutboxStorage(),ensureProfileStorage(),ensureBindingStorage()]);
+try{await convertLegacyOnlineLapRequests();}
+catch(cause){
+  const details:string[]=[];
+  let current:unknown=cause;
+  for(let depth=0;depth<3&&current;depth++){
+    if(typeof current!=="object")break;
+    const value=current as {name?:unknown;code?:unknown;message?:unknown;cause?:unknown};
+    details.push(`${String(value.name??"Error")}${value.code===undefined?"":` code=${String(value.code)}`}: ${String(value.message??current)}`);
+    current=value.cause;
+  }
+  console.error(`[DEBUG-online-startup] converter ${details.join(" | ").slice(0,2000)}`);
+  throw cause;
+}
+await ensureBindingStorage();
 initGameAdapters(serverReleaseFeatures);
 initServerGameAdapters(serverReleaseFeatures);
 async function refreshDiscoveredMetadata(){
@@ -83,22 +94,29 @@ async function refreshDiscoveredMetadata(){
 await refreshDiscoveredMetadata();
 const recordingProducer=createOnlineRecordingProducer({async resolveDriverBinding(captured){
   const uploadContext=await service.getUploadContext();
-  const context=await service.getProfileSyncContext();
+  const context=await service.getAccountContext();
   if(!context||!uploadContext||await getLocalAccountOwner()!==context.accountId||!service.isUploadContextCurrent(uploadContext))throw Object.assign(new Error("not_connected"),{code:"not_connected"});
   if(!validateNativeDriverBinding(captured)||!await hasLocalBindingConfirmation(captured))throw Object.assign(new Error("driver_identity_required"),{code:"driver_identity_required"});
   const existing=await getRegisteredOnlineBinding(context.accountId,captured);
   if(existing)return existing;
-  if(!service.isProfileSyncContextCurrent(context))throw Object.assign(new Error("stale_state"),{code:"stale_state"});
+  if(!service.isAccountContextCurrent(context))throw Object.assign(new Error("stale_state"),{code:"stale_state"});
   const remote=await service.registerGameBinding(captured,true,context,()=>service.isUploadContextCurrent(uploadContext));
   await retainRegisteredOnlineBinding(context.accountId,captured,remote);
   return remote;
 }});
+let activeUploadAccount:string|null=null;
+let activeUploadLapId:number|null=null;
+let lastUploadError:OnlineError|null=null;
+let lastUploadErrorAccount:string|null=null;
 const service:RaceIqOnlineService=createRaceIqOnlineService({keystore,recordingProducer,
+  async getUploadStatus(accountId){
+    return {...await getOnlineLapUploadStatus(accountId),inFlight:activeUploadAccount===accountId&&activeUploadLapId!==null?1:0,
+      lastError:lastUploadErrorAccount===accountId?lastUploadError:null};
+  },
   ...(testPlatform?{...testPlatform,fetch:createOnlineTestFetch(testPlatform)}:{}),
   async onAccountConnected(userId,isCurrent){await claimLocalAccountOwner(userId,{isCurrent});},
 });
 let nativeSourceRevision=Atomics.load(nativeRevisions,0);
-let profilePreparation:"preparing"|"ready"|"unavailable"="preparing";
 function acceptNativeRevision(revision:number){
   if(revision!==nativeSourceRevision&&revision===Atomics.load(nativeRevisions,0)){nativeSourceRevision=revision;service.invalidateSourceBindings();}
 }
@@ -111,12 +129,12 @@ const local=createOnlineLocalPort(service,{
   },
   isCurrent:proof=>proof.sourceRevision===Atomics.load(nativeRevisions,0)&&Number.isFinite(Date.parse(proof.expiresAt))&&Date.parse(proof.expiresAt)>Date.now(),
   consumeCandidate:proof=>hostRequest("consumeDriverBindingCandidate",proof.candidateId,proof.sourceRevision),
-},()=>profilePreparation,{
+},{
+  readLapUploadItems,
   getLocalAccountOwner,
   getLocalGameBindingSnapshot,
   upsertLocalGameBinding,
   validateNativeDriverBinding,
-  getLocalDriverSummaryHolds,
 });
 let importContext:OnlineUploadContext|null=null;
 const importFetch=testPlatform?createOnlineTestFetch(testPlatform):globalThis.fetch;
@@ -146,80 +164,45 @@ const imports=createCloudLapImportController({
   fetch:importFetch,
 });
 let stopping=false;
-let candidatePreparation:{context:OnlineUploadContext;error:OnlineError}|null=null;
+const uploadDispatcher=createOnlineUploadDispatcher({
+  getContext:()=>service.getUploadContext(),
+  isAuthorized:context=>service.isUploadContextCurrent(context),
+  reserveLapUpload:(input,context,mayStart)=>service.reserveLapUpload(input,context,mayStart),
+  uploadLap:(input,context,mayStart)=>service.uploadLap(input,context,mayStart),
+  prepareRecording:(lapId,setupUploads)=>recordingProducer(lapId,setupUploads),
+},{
+  getOnlineUploadWinnerPage,readOnlineLapUpload,retainOnlineLapRequest,settleOnlineLapUpload,setOnlineLapRetryAfter,
+});
 const uploads=startOnlineUploadCoordinator({...service,
   async scan(context){
-    let cursor:OnlineUploadCandidateCursor|null=null,boardKey:string|null=null,selected=false;
-    let boardFailure:OnlineError|null=null,failure:OnlineError|null=null;
-    try{
-      await refreshDiscoveredMetadata();
-      while(!stopping&&service.isUploadContextCurrent(context)){
-        const page=await getOnlineUploadCandidatePage(cursor);
-        for(const row of page.items){
-          await Bun.sleep(0);
-          if(stopping||!service.isUploadContextCurrent(context))return;
-          const key=JSON.stringify([row.gameId,row.trackId,row.carId]);
-          if(key!==boardKey){if(!selected)failure??=boardFailure;boardKey=key;selected=false;boardFailure=null;}
-          if(selected)continue;
-          let prepared:PreparedOnlineLapUpload;
-          try{prepared=await recordingProducer(row.lapId,context.setupUploads);}
-          catch(cause){boardFailure??=getOnlineRecordingError(cause);continue;}
-          if(stopping||!service.isUploadContextCurrent(context))return;
-          if(prepared.ownerUserId!==context.accountId||row.ownerUserId!==context.accountId){boardFailure??={code:"activity_owner_conflict",retryable:false,retryAfter:null};continue;}
-          if(prepared.lapId!==row.lapId||prepared.gameId!==row.gameId||prepared.trackId!==row.trackId||prepared.carId!==row.carId||prepared.lapTimeMs!==row.lapTimeMs||prepared.lapGuid!==row.lapGuid||prepared.originalActivityId!==row.originalActivityId){boardFailure??={code:"lap_identity_conflict",retryable:false,retryAfter:null};continue;}
-          const {lapGuid,originalActivityId,sourceRevision,sourceKind,ownerUserId,driverBindingId,driverBindingRevision}=prepared;
-          const admitted=await enqueueOutboxJob({accountId:context.accountId,accountEpoch:context.accountEpoch,lapId:row.lapId,lapTimeMs:row.lapTimeMs,gameId:row.gameId,trackId:row.trackId,carId:row.carId,
-            identity:{lapGuid,originalActivityId,sourceRevision,sourceKind,ownerUserId,driverBindingId,driverBindingRevision}});
-          if(admitted==="full"){failure??={code:"service_unavailable",retryable:true,retryAfter:null};return;}
-          if(admitted==="rejected"){boardFailure??={code:"validation_rejected",retryable:false,retryAfter:null};continue;}
-          selected=true;
+    let cursor:number|null=null;
+    for(;;){
+      const page=await getOnlineUploadWinnerPage(cursor,100);
+      for(const winner of page.items){
+        if(stopping||!service.isUploadContextCurrent(context))return;
+        activeUploadAccount=context.accountId;
+        activeUploadLapId=winner.lapId;
+        try {
+          const attempt=await uploadDispatcher(winner.lapId,()=>!stopping&&service.isUploadContextCurrent(context));
+          if(attempt.error){lastUploadError=attempt.error;lastUploadErrorAccount=context.accountId;}
+          else if(attempt.status==="success"){lastUploadError=null;lastUploadErrorAccount=context.accountId;}
+        } finally {
+          activeUploadAccount=null;
+          activeUploadLapId=null;
         }
-        if(!page.nextCursor)break;
-        cursor=page.nextCursor;
       }
-      if(!selected)failure??=boardFailure;
-    }catch(cause){failure??=getOnlineRecordingError(cause);throw cause;}
-    finally{if(service.isUploadContextCurrent(context))candidatePreparation=failure?{context,error:failure}:null;}
+      if(page.nextCursor===null)return;
+      cursor=page.nextCursor;
+    }
   },
-  async afterDelivery(){await readbackUploads();},
 });
-const profilePort=createOnlineProfileSync(service,{
-  getLocalAccountOwner,
-  prepareDriverSummaryContributions,
-  listReadyDriverSummaryContributionPage,
-  recordDriverSummaryReceipt,
-  recordDriverSummaryHold,
-  hasPendingDriverSummaryPreparations,
-  isDriverSummaryContributionCurrent,
-});
-const profiles=startOnlineProfileCoordinator({...profilePort,async prepare(context,hash){
-  profilePreparation="preparing";
-  try{await readbackUploads();}catch{console.error("[OnlineUpload] Remote status storage unavailable");}
-  try{const more=await profilePort.prepare(context,hash);profilePreparation=more||!service.isProfileSyncContextCurrent(context)?"preparing":"ready";return more;}
-  catch(cause){profilePreparation="unavailable";throw cause;}
-}});
-async function readbackUploads():Promise<void>{
-  const context=await service.getProfileSyncContext();
-  if(!context||stopping)return;
-  for(const job of await listAcceptedOutboxJobs(context.accountId)){
-    if(!job.remoteJobId||!service.isProfileSyncContextCurrent(context)||stopping)return;
-    try{
-      const remote=await service.getLapJob(job.remoteJobId,context);
-      if(!service.isProfileSyncContextCurrent(context))return;
-      const status=remote.status;
-      await recordOutboxRemoteStatus(job,status==="completed"?"validated":status==="failed"?"rejected":"pending",
-        remote.publicationStatus==="unpublished"?"withdrawn":status==="failed"?"failed":status!=="completed"?"pending":remote.publicationStatus==="public"?"public":"not_requested");
-    }catch{await recordOutboxRemoteStatus(job,"unavailable","unavailable");}
-    await Bun.sleep(0);
-  }
-}
 let stopPromise:Promise<void>|null=null;
 const inFlight = new Set<Promise<void>>();
 function stop():Promise<void>{
   stopPromise??=(async()=>{
     stopping=true;service.stopAdmission();notifyOnlineSync();
-    const coordinators = await Promise.allSettled([uploads.stop(),profiles.stop(),imports.stop(),...inFlight]);
-    const storage = await Promise.allSettled([closeOutboxStorage(),closeProfileStorage(),closeBindingStorage()]);
+    const coordinators = await Promise.allSettled([uploads.stop(),imports.stop(),...inFlight]);
+    const storage = await Promise.allSettled([closeBindingStorage()]);
     try { closeDb(); }
     finally { disconnectLeaseTransport(); }
     const failures = [...coordinators,...storage].filter(result => result.status === "rejected");
@@ -231,11 +214,7 @@ host.on("close", () => { void stop().catch(cause => console.error("[OnlineWorker
 async function dispatch(request:WorkerRequest):Promise<unknown>{
   if(stopping&&request.method!=="stop")throw new Error("service_unavailable");
   switch(request.method){
-    case "getState":{
-      const state=await service.getState(...request.args);
-      if(candidatePreparation&&service.isUploadContextCurrent(candidatePreparation.context))state.sync.lastError??=candidatePreparation.error;
-      return state;
-    }
+    case "getState":return service.getState(...request.args);
     case "connect":return service.connect(...request.args);
     case "cancelSignIn":return service.cancelSignIn(...request.args);
     case "acceptConsent":return service.acceptConsent(...request.args);
@@ -259,7 +238,7 @@ async function dispatch(request:WorkerRequest):Promise<unknown>{
       const response=await imports.routes.request(`http://localhost${input.path}${input.query?`?${input.query}`:""}`,{method:input.method,headers:{"Content-Type":"application/json",...(input.gameId?{"X-Game-Id":input.gameId}:{})},body:input.body});
       return {status:response.status,body:await response.json() as CloudLapImportState};
     }
-    case "wake":profilePreparation="preparing";notifyOnlineSync();return;
+    case "wake":notifyOnlineSync();return;
     case "stop":return stop();
     default:{const exhaustive:never=request;throw new Error(String(exhaustive));}
   }
@@ -291,8 +270,8 @@ host.on("message",(message:WorkerRequest|HostResponse|NativeBindingsChanged)=>{
     console.error("[OnlineWorker] Response channel failed:", cause);
   });
 });
-for(const handle of [uploads,profiles])void handle.completion.catch(()=>{
+for(const handle of [uploads])void handle.completion.catch(()=>{
   if(!stopping){service.stopAdmission();host.postMessage({type:"fatal"});}
 });
-await Promise.all([uploads.ready,profiles.ready]);
+await uploads.ready;
 host.postMessage({type:"ready"});

@@ -248,11 +248,11 @@ export class DirectCaptureRecording {
   getCurrentByteOffset(): number { return this.sourceBytes; }
   flush(): void { this.writer.flush(); }
 
-  stop(): Promise<void> {
-    if (!this.stopTask) this.stopTask = this.stopImpl();
+  stop(sourceClosed = false): Promise<void> {
+    if (!this.stopTask) this.stopTask = this.stopImpl(sourceClosed);
     return this.stopTask;
   }
-  private async stopImpl(): Promise<void> {
+  private async stopImpl(sourceClosed: boolean): Promise<void> {
     this.closing = true;
     try { await this.ready; } catch (error) { this.fail(error); }
     await this.startupTask;
@@ -267,7 +267,7 @@ export class DirectCaptureRecording {
     }
     this.lastFrame = null;
     if (this.failure) throw this.failure;
-    const finalSnapshot = await this.buildManifestSnapshot(true);
+    const finalSnapshot = await this.buildManifestSnapshot(sourceClosed);
     if (finalSnapshot.sourceByteLength !== this.sourceBytes || finalSnapshot.sourceRecordCount !== this.sourceRecordCount) {
       const error = new Error("Closed capture does not cover the complete original source");
       this.fail(error);
@@ -495,5 +495,5 @@ export class DirectSessionRecorderAdapter extends SparseSessionRecorderAdapter {
   override requestFullCheckpoint(): void { this.directCapture?.requestFullCheckpoint(); }
   override getCurrentByteOffset(): number { return this.directCapture?.getCurrentByteOffset() ?? 0; }
   override flush(): void { this.directCapture?.flush(); }
-  override stop(): Promise<void> { const capture = this.directCapture; this.directCapture = null; return capture?.stop() ?? Promise.resolve(); }
+  override stop(sourceClosed = false): Promise<void> { const capture = this.directCapture; this.directCapture = null; return capture?.stop(sourceClosed) ?? Promise.resolve(); }
 }

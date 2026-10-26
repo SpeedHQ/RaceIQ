@@ -1,7 +1,6 @@
 import type { DriverSummary, ProfileCoverage } from "@raceiq/online/contracts";
 import { DriverSummaryBuilding, useLocalDriverSummary, useOnlineProfile } from "../hooks/online-activity";
 import { onlineErrorMessage } from "../messages";
-import { OnlineTimestamp } from "../components/OnlineTimestamp";
 import { useOnlineHost } from "../hooks/raceiq-online";
 
 export function OnlineDriverSummary({ gameId, from, to }: { gameId: string | null; from: string; to: string }) {
@@ -32,11 +31,10 @@ export function OnlineDriverSummary({ gameId, from, to }: { gameId: string | nul
         {remote?.status === "signed_out" && <p role="status">{m.online_block_signed_out()}</p>}
         {remote?.status === "consent_required" && <p role="status">{m.online_error_consent_required()}</p>}
         {remote?.status === "unavailable" && <p role="status">{m.online_queue_unavailable()}</p>}
-        {remote?.status === "syncing" && <p role="status">{m.online_summary_syncing()}</p>}
         {remote?.status === "legacy_unverified" && <div className="mt-3 border-l-2 border-status-warning pl-3"><h3 className="font-medium">{m.online_summary_legacy()}</h3><p className="mt-1 text-app-text-muted">{m.online_summary_legacy_note()}</p>{remote.legacyStats && <dl className="mt-2 grid grid-cols-2 gap-2"><div><dt>{m.recap_laps()}</dt><dd>{remote.legacyStats.totalLaps}</dd></div><div><dt>{m.online_summary_driving_time()}</dt><dd>{m.online_summary_seconds({ seconds: new Intl.NumberFormat(getLocale(), { maximumFractionDigits: 1 }).format(remote.legacyStats.drivingTimeSeconds) })}</dd></div></dl>}</div>}
         {remote?.summary && remote.status !== "legacy_unverified" && <SummaryValues summary={remote.summary} coverage={remote.coverage} />}
         {remote?.status === "ready" && !remote.summary && <p role="status">{m.online_queue_unknown()}</p>}
-        {remote && <><p className="mt-3">{m.online_profile_sync_counts({ pending: remote.localPending, held: remote.heldAmbiguous })}</p><p className="mt-1">{m.online_profile_revision()}: {remote.onlineRevision ?? m.online_queue_unknown()}</p><p>{m.online_profile_confirmed()}: <OnlineTimestamp value={remote.lastConfirmedAt} /></p>{remote.error && <p role="alert" className="mt-2 text-status-danger">{onlineErrorMessage(remote.error.code, m)}</p>}</>}
+        {remote && <>{remote.onlineRevision !== null && <p className="mt-1">{m.online_profile_revision()}: {remote.onlineRevision}</p>}{remote.error && <p role="alert" className="mt-2 text-status-danger">{onlineErrorMessage(remote.error.code, m)}</p>}</>}
       </section>
     </div>
     <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-app-text-muted"><p className="max-w-3xl">{m.online_summary_aggregate_note()}</p><Button variant="outline" size="sm" onClick={() => openSettings("upload")}>{m.online_upload_title()}</Button></div>

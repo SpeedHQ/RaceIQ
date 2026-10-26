@@ -3156,5 +3156,6 @@
   "compare_overview_starting_fuel": "Startkraftstoff",
   "compare_overview_fuel_used": "Kraftstoffverbrauch",
   "compare_overview_top_speed": "Höchstgeschwindigkeit",
-  "compare_overview_unavailable": "Nicht verfügbar"
+  "compare_overview_unavailable": "Nicht verfügbar",
+  "online_consent_popup_blocked": "Die Einwilligungsseite konnte nicht geöffnet werden. Erlaube Pop-ups und versuche es erneut."
 }

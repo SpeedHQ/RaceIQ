@@ -3156,5 +3156,6 @@
   "compare_overview_ers_deployed": "ERS使用量",
   "compare_overview_ers_recovered": "ERS回生量",
   "compare_overview_top_speed": "最高速度",
-  "compare_overview_unavailable": "利用不可"
+  "compare_overview_unavailable": "利用不可",
+  "online_consent_popup_blocked": "同意ページを開けませんでした。ポップアップを許可して、もう一度お試しください。"
 }

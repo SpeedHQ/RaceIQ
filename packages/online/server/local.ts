@@ -1,7 +1,6 @@
 import type { OnlineLocalPort,OnlineCommandResult,OnlineProfileResponse,UploadItem,GameIdentityBinding } from "../contracts/index";
 import type { RaceIqOnlineService } from "./service";
-import { readLapUploadItems } from "./outbox-storage";
-import { readProfileUploadItems,getProfileDeliveryCounts } from "./profile-storage";
+import type { UploadPageBoundary } from "./upload-dispatch";
 import { notifyOnlineSync } from "./sync-events";
 import { recordLocalBindingConfirmation } from "./binding-storage";
 import type { NativeBindingProof,NativeBindingCandidateSnapshot } from "./worker-protocol";
@@ -12,14 +11,14 @@ export interface TrustedNativeBindingsPort {
   consumeCandidate(proof:NativeBindingProof):Promise<void>;
 }
 export interface OnlineLocalPlatform {
+  readLapUploadItems(accountId:string,view:"queue"|"history",boundary:UploadPageBoundary|null,limit:number):Promise<UploadItem[]>;
   getLocalAccountOwner(): Promise<string | null>;
   getLocalGameBindingSnapshot(): Promise<{ revision: number; bindings: GameIdentityBinding[] }>;
   upsertLocalGameBinding(binding: GameIdentityBinding, options: { expectedSnapshotRevision: number; isCurrent(): boolean }): Promise<void>;
   validateNativeDriverBinding(proof: NativeBindingProof): boolean;
-  getLocalDriverSummaryHolds(): Promise<{ heldAmbiguous: number }>;
 }
 
-export function createOnlineLocalPort(service:RaceIqOnlineService,trustedBindings:TrustedNativeBindingsPort,profilePreparation:()=>"preparing"|"ready"|"unavailable",platform:OnlineLocalPlatform):OnlineLocalPort {
+export function createOnlineLocalPort(service:RaceIqOnlineService,trustedBindings:TrustedNativeBindingsPort,platform:OnlineLocalPlatform):OnlineLocalPort {
   return {
     async getDriverBindings(){
       const snapshot=await platform.getLocalGameBindingSnapshot(),native=await trustedBindings.listCandidates();
@@ -63,7 +62,7 @@ export function createOnlineLocalPort(service:RaceIqOnlineService,trustedBinding
           boundary={time:value.time,id:value.id};
         } catch { throw Object.assign(new Error("invalid_request"),{code:"invalid_request",status:400}); }
       }
-      const items:UploadItem[]=owner?(await Promise.all([readLapUploadItems(owner,input.view,boundary,input.limit+1),readProfileUploadItems(owner,input.view,boundary,input.limit+1)])).flat():[];
+      const items:UploadItem[]=owner?await platform.readLapUploadItems(owner,input.view,boundary,input.limit+1):[];
       const time=(item:UploadItem)=>Date.parse(input.view==="history"?item.settledAt??item.updatedAt:item.admittedAt);
       items.sort((a,b)=>(time(a)-time(b)||a.id.localeCompare(b.id))*(input.view==="history"?-1:1));
       const more=items.length>input.limit;
@@ -74,27 +73,23 @@ export function createOnlineLocalPort(service:RaceIqOnlineService,trustedBinding
       return {schemaVersion:2,accountEpoch:state.accountEpoch,items,nextCursor:more&&last?Buffer.from(JSON.stringify({owner,epoch:state.accountEpoch,view:input.view,time:time(last),id:last.id})).toString("base64url"):null,observedAt:new Date().toISOString(),stale:false};
     },
     async getOnlineProfile():Promise<OnlineProfileResponse> {
-      const state=await service.getState(),owner=await platform.getLocalAccountOwner();
-      const counts=owner?await getProfileDeliveryCounts(owner):{pending:0,lastConfirmedAt:null};
-      const holds=await platform.getLocalDriverSummaryHolds();
-      const base:OnlineProfileResponse={accountEpoch:state.accountEpoch,status:"unavailable",localPending:counts.pending,heldAmbiguous:holds.heldAmbiguous,lastConfirmedAt:counts.lastConfirmedAt,onlineRevision:null,summary:null,
+      const state=await service.getState();
+      const base:OnlineProfileResponse={accountEpoch:state.accountEpoch,status:"unavailable",localPending:0,heldAmbiguous:0,lastConfirmedAt:null,onlineRevision:null,summary:null,
         coverage:{identity:"partial",driverAttribution:"partial",sessionDuration:"unavailable",distance:"unavailable"},legacyStats:null,error:null};
       if(state.connection.status!=="connected") return {...base,status:"signed_out"};
       if(state.consent.status!=="accepted") return {...base,status:"consent_required"};
-      if(profilePreparation()==="unavailable")return {...base,error:{code:"service_unavailable",retryable:true,retryAfter:null}};
-      const context=await service.getProfileSyncContext();
+      const context=await service.getAccountContext();
       if(!context) return {...base,error:{code:"service_unavailable",retryable:true,retryAfter:null}};
       try {
         const remote=await service.readOwnerStats(context);
-        if(!service.isProfileSyncContextCurrent(context)) throw Object.assign(new Error("stale_state"),{code:"stale_state",status:409});
-        if(!remote) return {...base,status:"syncing"};
+        if(!service.isAccountContextCurrent(context)) throw Object.assign(new Error("stale_state"),{code:"stale_state",status:409});
+        if(!remote) return {...base,status:"unavailable"};
         const legacyStats=remote.legacyStats?{...remote.legacyStats,favoriteCar:remote.legacyStats.favoriteCar??null,favoriteGame:remote.legacyStats.favoriteGame??null}:null;
-        if(remote.status==="legacy_unverified")return {...base,status:"legacy_unverified",lastConfirmedAt:null,coverage:remote.coverage,legacyStats};
+        if(remote.status==="legacy_unverified")return {...base,status:"legacy_unverified",coverage:remote.coverage,legacyStats};
         const summary=remote.summary?{metrics:{...remote.summary.metrics,distanceMeters:remote.summary.metrics.distanceMeters??null},
           games:remote.summary.games.map(game=>({...game,metrics:{...game.metrics,distanceMeters:game.metrics.distanceMeters??null},
             favoriteCar:game.favoriteCar??null,favoriteTrack:game.favoriteTrack??null}))}:null;
-        return {...base,status:counts.pending||profilePreparation()==="preparing"?"syncing":"ready",onlineRevision:remote.onlineRevision??null,
-          summary,coverage:remote.coverage,legacyStats};
+        return {...base,status:"ready",onlineRevision:remote.onlineRevision??null,summary,coverage:remote.coverage,legacyStats};
       } catch(cause) {
         if(cause instanceof Error&&"code"in cause&&cause.code==="stale_state") throw cause;
         return {...base,error:{code:"service_unavailable",retryable:true,retryAfter:null}};

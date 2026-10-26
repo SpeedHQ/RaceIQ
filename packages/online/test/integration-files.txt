@@ -1,9 +1,5 @@
 packages/online/test/adapter.test.ts
-packages/online/test/outbox.test.ts
-packages/online/test/persisted-queue.test.ts
-packages/online/test/outbox-replacement.test.ts
 packages/online/test/delivery-ledgers.test.ts
-packages/online/test/server/routes.test.ts
 packages/online/test/server/cloud-lap-import-controller.test.ts
 packages/online/test/server/auth.test.ts
-packages/online/test/server/queue-status.test.ts
+packages/online/test/server/routes.test.ts

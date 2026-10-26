@@ -4,9 +4,8 @@ import {
   type OnlineRecordingProducerOptions, type PreparedOnlineLapUpload,
   type UploadGame,
 } from "@raceiq/online/server/payload";
-import type { GameIdentityBinding } from "@raceiq/online/contracts";
+import { isWholeLapSelf, type GameIdentityBinding } from "@raceiq/shared/driver-attribution";
 import { OnlineAdapterError } from "@raceiq/online/server/adapter";
-import { isWholeLapSelf } from "@raceiq/shared/driver-attribution";
 import {
   iterateSessionCaptureRecords, type SessionCaptureRecord,
 } from "@raceiq/capture-formats/session/framing";
@@ -25,6 +24,7 @@ import {
   createNativeOnlineRecordingCodec, encodeNativeOnlineRecording, type OnlineRecordingErrorCode,
 } from "./online-recording-codec";
 
+import { traceOnlineWorkerTestEvent, waitOnlineWorkerTestBarrier } from "../runtime/online-worker-test-hooks";
 const SOURCE_HOLD_CODES: Record<OnlineLapSourceHoldReason, OnlineRecordingErrorCode> = {
   source_unavailable: "recording_not_ready",
   source_context_unavailable: "driver_identity_required",
@@ -187,8 +187,8 @@ async function assertIntendedLap(bytes: Buffer, source: OnlineLapSource, gameId:
 function sameSource(left: OnlineLapSource, right: OnlineLapSource) {
   const a = left.capturedBinding, b = right.capturedBinding;
   return left.lapId === right.lapId && left.lapGuid === right.lapGuid &&
+    left.sessionId === right.sessionId &&
     left.gameId === right.gameId && left.carId === right.carId && left.trackId === right.trackId &&
-    left.originalActivityId === right.originalActivityId && left.sourceRevision === right.sourceRevision &&
     left.sourceKind === right.sourceKind && left.ownerUserId === right.ownerUserId &&
     left.publicationIdentity === right.publicationIdentity && left.lapNumber === right.lapNumber &&
     left.lapTime === right.lapTime && left.totalTimeMs === right.totalTimeMs &&
@@ -269,11 +269,13 @@ export function createOnlineRecordingProducer(options: OnlineRecordingProducerOp
       if (!sameSource(source, current.source)) throw new OnlineRecordingError("lap_identity_conflict");
       return {
         gameId, trackId: source.trackId, carId: source.carId, lapId, lapTimeMs,
+        
         recording, setup: null, filename: `${gameId}.bin.gz`, fingerprint, codec,
         lapGuid: source.lapGuid, originalActivityId: source.originalActivityId,
         sourceRevision: source.sourceRevision, sourceKind: source.sourceKind,
         ownerUserId: source.ownerUserId, driverBindingId: registered.id, driverBindingRevision: registered.revision,
         async isSourceCurrent() {
+          await waitOnlineWorkerTestBarrier("before_upload_transport");
           const latest = await readOnlineLapSource(lapId);
           return latest.kind === "ready" && sameSource(source, latest.source);
         },

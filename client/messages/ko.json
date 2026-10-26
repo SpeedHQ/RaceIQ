@@ -3156,5 +3156,6 @@
   "compare_overview_ers_deployed": "ERS 사용량",
   "compare_overview_ers_recovered": "ERS 회수량",
   "compare_overview_top_speed": "최고 속도",
-  "compare_overview_unavailable": "사용할 수 없음"
+  "compare_overview_unavailable": "사용할 수 없음",
+  "online_consent_popup_blocked": "동의 페이지를 열 수 없습니다. 팝업을 허용한 후 다시 시도하세요."
 }

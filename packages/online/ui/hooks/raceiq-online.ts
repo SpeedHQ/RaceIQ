@@ -10,14 +10,14 @@ import { queryKeys } from "./query-keys";
 interface Snapshot { state?: OnlineState; isCachedState: boolean; generation: number; signOutPending: boolean; accountHidden: boolean; mutations: number; commandError: OnlineError | null; transportError: OnlineTransportFailure | null; leaderboardGeneration: number; leaderboardAccess: boolean; privacyBarrier: boolean; privateAckRevision?: number; }
 interface OnlineSession { snapshot: Snapshot; listeners: Set<() => void>; signInPollingUntil?: number; }
 const sessions = new WeakMap<QueryClient, WeakMap<RaceIqOnlinePort, OnlineSession>>();
-function getSession(qc: QueryClient, port: RaceIqOnlinePort, host: OnlineUiHost): OnlineSession {
+function getSession(qc: QueryClient, host: OnlineUiHost): OnlineSession {
   let byPort = sessions.get(qc);
   if (!byPort) { byPort = new WeakMap(); sessions.set(qc, byPort); }
-  let session = byPort.get(port);
+  let session = byPort.get(host.port);
   if (!session) {
-    const cached = port === host.port ? readOnlineStateCache() : undefined;
+    const cached = host.cacheOnlineState ? readOnlineStateCache() : undefined;
     session = { snapshot: { state: cached, isCachedState: !!cached, generation: 0, signOutPending: false, accountHidden: false, mutations: 0, commandError: null, transportError: null, leaderboardGeneration: 0, leaderboardAccess: false, privacyBarrier: false }, listeners: new Set() };
-    byPort.set(port, session);
+    byPort.set(host.port, session);
   }
   return session;
 }
@@ -29,25 +29,25 @@ function syncLeaderboardAccess(session: OnlineSession, state = session.snapshot.
   update(session, { leaderboardAccess: allowed, leaderboardGeneration: session.snapshot.leaderboardGeneration + 1 });
   return allowed;
 }
-const HostContext = createContext<{ host: OnlineUiHost; port: RaceIqOnlinePort } | null>(null);
-export function RaceIqOnlineProvider({ host, port = host.port, children }: { host: OnlineUiHost; port?: RaceIqOnlinePort; children: ReactNode }) {
-  return createElement(HostContext.Provider, { value: { host, port }, children });
+const HostContext = createContext<OnlineUiHost | null>(null);
+export function RaceIqOnlineProvider({ host, children }: { host: OnlineUiHost; children: ReactNode }) {
+  return createElement(HostContext.Provider, { value: host, children });
 }
 function useOnlineContext() {
-  const context = useContext(HostContext);
-  if (!context) throw new Error("RaceIqOnlineProvider is missing");
-  return context;
+  const host = useContext(HostContext);
+  if (!host) throw new Error("RaceIqOnlineProvider is missing");
+  return host;
 }
 export function useOnlineHost(): OnlineUiHost {
-  return useOnlineContext().host;
+  return useOnlineContext();
 }
 const transport = (error: unknown) => error instanceof OnlineTransportFailure ? error : new OnlineTransportFailure("backend_unreachable");
 
 export function useRaceIqOnline(options: { enabled?: boolean } = {}) {
-  const { host, port } = useOnlineContext();
+  const host = useOnlineContext();
+  const port = host.port;
   const qc = useQueryClient();
-  const session = getSession(qc, port, host);
-  const snapshot = useSyncExternalStore((listener) => { session.listeners.add(listener); return () => session.listeners.delete(listener); }, () => session.snapshot, () => session.snapshot);
+  const session = getSession(qc, host);
   const visibility = useMemo(() => {
     let visible = typeof document === "undefined" || document.visibilityState === "visible";
     const listeners = new Set<() => void>();
@@ -61,6 +61,11 @@ export function useRaceIqOnline(options: { enabled?: boolean } = {}) {
   }, []);
   useEffect(() => { visibility.connect(); return visibility.disconnect; }, [visibility]);
   const isVisible = useSyncExternalStore(visibility.subscribe, visibility.get, () => true);
+  const snapshot = useSyncExternalStore(
+    (listener) => { session.listeners.add(listener); return () => session.listeners.delete(listener); },
+    () => session.snapshot,
+    () => session.snapshot,
+  );
   const applyState = (next: OnlineState): boolean => {
     const current = session.snapshot;
     const prior = current.state;
@@ -68,7 +73,7 @@ export function useRaceIqOnline(options: { enabled?: boolean } = {}) {
     if (!isOnlineStateRevisionCurrent(current.isCachedState && current.generation === 0 ? undefined : prior, next)) return false;
     if (prior && prior.accountEpoch !== next.accountEpoch) {
       session.signInPollingUntil = next.connection.status === "signing_in" ? Date.now() + 120_000 : undefined;
-      if (port === host.port) {
+      if (host.cacheOnlineState) {
         if (prior) clearOnlineStateCache();
         writeOnlineStateCache(next);
       }
@@ -84,14 +89,14 @@ export function useRaceIqOnline(options: { enabled?: boolean } = {}) {
     }
     if (!prior) {
       if (next.connection.status === "signing_in") session.signInPollingUntil = Date.now() + 120_000;
-      if (port === host.port) writeOnlineStateCache(next);
+      if (host.cacheOnlineState) writeOnlineStateCache(next);
       update(session, { generation: current.generation + 1, state: next, isCachedState: false, transportError: null });
       syncLeaderboardAccess(session, next);
       return true;
     }
     if (next.connection.status === "signing_in" && prior.connection.status !== "signing_in") session.signInPollingUntil = Date.now() + 120_000;
     if (next.connection.status !== "signing_in") session.signInPollingUntil = undefined;
-    if (port === host.port) writeOnlineStateCache(next);
+    if (host.cacheOnlineState) writeOnlineStateCache(next);
     update(session, { state: next, generation: current.generation || 1, isCachedState: false, transportError: null });
     syncLeaderboardAccess(session, next);
     return true;
@@ -124,6 +129,11 @@ export function useRaceIqOnline(options: { enabled?: boolean } = {}) {
     retry: (count, error) => count < 1 && error instanceof OnlineTransportFailure && error.retryable,
     refetchOnWindowFocus: true,
   });
+  useEffect(() => {
+    const onFocus = () => { void stateQuery.refetch(); };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [stateQuery.refetch]);
   const refresh = async (): Promise<OnlineState | undefined> => {
     if (session.snapshot.accountHidden || session.snapshot.signOutPending) return undefined;
     const generation = session.snapshot.generation;
@@ -242,7 +252,7 @@ export function useRaceIqOnline(options: { enabled?: boolean } = {}) {
     if (!ctx) return;
     if (session.snapshot.signOutPending) return;
     const generation = session.snapshot.generation + 1;
-    if (port === host.port) clearOnlineStateCache();
+    if (host.cacheOnlineState) clearOnlineStateCache();
     update(session, { generation, signOutPending: true, accountHidden: true, isCachedState: false, commandError: null, transportError: null, leaderboardAccess: false, leaderboardGeneration: session.snapshot.leaderboardGeneration + 1, privacyBarrier: false, privateAckRevision: undefined });
     await qc.cancelQueries({ queryKey: ["raceiq-online"] });
     await qc.removeQueries({ queryKey: ["raceiq-online", "leaderboard"] });
@@ -251,7 +261,7 @@ export function useRaceIqOnline(options: { enabled?: boolean } = {}) {
       const response = await port.signOut(ctx);
       if (!isCurrentOnlineGeneration(generation, session.snapshot.generation)) return;
       if (response.ok && response.state.connection.status === "signed_out") {
-        if (port === host.port) writeOnlineStateCache(response.state);
+        if (host.cacheOnlineState) writeOnlineStateCache(response.state);
         update(session, { state: response.state, isCachedState: false, signOutPending: false, accountHidden: false, commandError: null, transportError: null });
         qc.setQueryData(queryKeys.raceIqOnlineState(response.state.accountEpoch), response.state);
         await qc.removeQueries({ queryKey: ["raceiq-online", "leaderboard"] });
@@ -259,7 +269,7 @@ export function useRaceIqOnline(options: { enabled?: boolean } = {}) {
         const current = session.snapshot.state;
         const acceptResponse = isOnlineStateRevisionCurrent(current, response.state);
         const changedEpoch = acceptResponse && response.state.accountEpoch !== current?.accountEpoch;
-        if (port === host.port && acceptResponse && response.state.connection.status === "signed_out") writeOnlineStateCache(response.state);
+        if (host.cacheOnlineState && acceptResponse && response.state.connection.status === "signed_out") writeOnlineStateCache(response.state);
         update(session, { state: acceptResponse ? response.state : current, isCachedState: false, generation: changedEpoch ? session.snapshot.generation + 1 : session.snapshot.generation, signOutPending: false, accountHidden: true, commandError: response.ok ? { code: "internal_error", retryable: true, retryAfter: null } : response.error });
       }
     } catch (error) { if (isCurrentOnlineGeneration(generation, session.snapshot.generation)) update(session, { signOutPending: false, accountHidden: true, isCachedState: false, transportError: transport(error) }); }
@@ -275,10 +285,11 @@ export function useRaceIqOnline(options: { enabled?: boolean } = {}) {
 }
 
 export function useOnlineLeaderboard(input: LeaderboardInput | null) {
-  const { host, port } = useOnlineContext();
+  const host = useOnlineContext();
+  const port = host.port;
   const online = useRaceIqOnline({ enabled: true });
   const qc = useQueryClient();
-  const session = getSession(qc, port, host);
+  const session = getSession(qc, host);
   const epoch = online.state?.accountEpoch ?? null;
   const generation = session.snapshot.generation;
   const allowed = online.communityAllowed;

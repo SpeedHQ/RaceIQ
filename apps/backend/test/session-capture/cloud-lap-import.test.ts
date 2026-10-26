@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { and, eq } from "drizzle-orm";
 import { db } from "@raceiq/backend-core/db/index";
-import { laps, sessions } from "@raceiq/backend-core/db/schema";
+import { laps, sessions, onlineFastestComboLaps } from "@raceiq/backend-core/db/schema";
 import { loadSettings, saveSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { cleanupOrphanSessionFiles } from "@raceiq/backend-core/session-capture/cleanup";
 import { deleteSession } from "@raceiq/backend-core/db/session-queries";
@@ -39,7 +39,7 @@ describe("cloud lap importer SDK transport", () => {
   test("streams local HTTP SDK archive once for concurrent callers and stores metadata/setup", async () => {
     initGameAdapters(serverReleaseFeatures);
     const setup = Buffer.from([0, 1, 255, 2]);
-    const fixture = buildCloudLapImportFixture({ setup });
+    const fixture = buildCloudLapImportFixture({ setup, finishedAt: "2026-09-01T12:01:31.234Z" });
     const previousDataDir = process.env.DATA_DIR;
     const previousSettings = loadSettings();
     const dataDir = await mkdtemp(join(tmpdir(), "raceiq-cloud-import-"));
@@ -99,9 +99,12 @@ describe("cloud lap importer SDK transport", () => {
         origin: sessions.cloudImportOrigin,
         lapId: sessions.cloudImportLapId,
         ownership:sessions.ownership,
+        recordingOrigin: sessions.recordingOrigin,
+        recordingInstallationId: sessions.recordingInstallationId,
         totalTimeMs: laps.totalTimeMs,
         sectorTimesMs: laps.sectorTimesMs,
         recordedAt: laps.recordedAt,
+        sourceFinishedAt: laps.sourceFinishedAt,
         createdAt: laps.createdAt,
         offset: laps.rawByteOffset,
         frameCount: laps.rawFrameCount,
@@ -114,13 +117,20 @@ describe("cloud lap importer SDK transport", () => {
         lapId,
         lapGuid:fixture.manifest.lap.guid,
         ownership:"others",
+        recordingOrigin: "imported",
+        recordingInstallationId: null,
         totalTimeMs: 91_234,
         sectorTimesMs: [30_000, 30_500, 30_734],
         recordedAt: "2026-09-01T12:00:00.000Z",
+        sourceFinishedAt: "2026-09-01T12:01:31.234Z",
         createdAt: "2026-09-01T13:00:00.000Z",
         frameCount: 1,
         setupName: "fixture.setup",
       });
+      expect(await db.select({ id: onlineFastestComboLaps.lapId }).from(onlineFastestComboLaps)
+        .where(and(eq(onlineFastestComboLaps.gameId, fixture.manifest.lap.gameId),
+          eq(onlineFastestComboLaps.trackId, fixture.manifest.lap.trackId),
+          eq(onlineFastestComboLaps.carId, fixture.manifest.lap.carId))).get()).toBeUndefined();
       expect(await readFile(saved!.rawFile!)).toEqual(fixture.recording);
       expect(await readFile(saved!.setupPath!)).toEqual(setup);
       setupFilePath = saved!.setupPath!;
@@ -136,10 +146,12 @@ describe("cloud lap importer SDK transport", () => {
       const unchanged = await db.select({
         rawFile: sessions.rawFile, setupPath: sessions.cloudImportSetupPath, author: sessions.sourceAuthorDisplayName,
         lapId: sessions.cloudImportLapId, lapIdRow: laps.id,
+        recordingOrigin: sessions.recordingOrigin, recordingInstallationId: sessions.recordingInstallationId,
       }).from(sessions).innerJoin(laps, eq(laps.sessionId, sessions.id))
         .where(eq(sessions.id, first.sessionId)).get();
       expect(unchanged).toMatchObject({
         rawFile: saved!.rawFile, setupPath: saved!.setupPath, author: "Fixture Driver", lapId, lapIdRow: first.id,
+        recordingOrigin: "imported", recordingInstallationId: null,
       });
       expect(await readdir(directory)).toEqual(beforeFailure);
       const reimported = await importer(input);

@@ -43,8 +43,9 @@ export function getAllServerGames(): readonly ServerGameAdapter[] {
  */
 let _processNames: Set<string> = new Set();
 let _refreshing = false;
+let _processObservationFresh = false;
 
-function refreshProcessCache(): void {
+export function refreshProcessCache(): void {
   if (_refreshing) return;
   _refreshing = true;
   exec(
@@ -52,12 +53,16 @@ function refreshProcessCache(): void {
     { encoding: "utf-8", timeout: 3000, windowsHide: true },
     (err, stdout) => {
       _refreshing = false;
-      if (err || !stdout) return; // keep stale cache on error
+      if (err) {
+        _processObservationFresh = false;
+        return;
+      }
       _processNames = new Set(
         stdout.split(/\r?\n/)
           .map((line) => line.match(/^"([^"]+)"/)?.[1]?.replace(/\.exe$/i, "").toLowerCase())
           .filter((n): n is string => !!n)
       );
+      _processObservationFresh = true;
     }
   );
 }
@@ -70,6 +75,13 @@ const _processCacheInterval = setInterval(refreshProcessCache, 1000);
 _processCacheInterval.unref?.();
 
 /** Check if a specific game's process is running. */
+/** Presence/absence is trusted only after a successful process-list refresh. */
+export function getGameProcessStatus(gameId: string): "running" | "absent" | "unknown" {
+  if (!_processObservationFresh) return "unknown";
+  const names = processNameMap.get(gameId);
+  if (!names?.length) return "unknown";
+  return names.some((name) => _processNames.has(name)) ? "running" : "absent";
+}
 export function isGameRunning(gameId: string): boolean {
   return processNameMap.get(gameId)?.some((name) => _processNames.has(name)) ?? false;
 }

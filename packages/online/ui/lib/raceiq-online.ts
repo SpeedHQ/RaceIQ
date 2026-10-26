@@ -53,7 +53,8 @@ function isConsent(v: unknown): v is OnlineConsent {
   return v.status === "required" && hasExactKeys(v, ["status", "previousVersions"]) && (v.previousVersions === null || isVersions(v.previousVersions));
 }
 function isSync(v: unknown): v is OnlineSync {
-  return isRecord(v) && hasExactKeys(v, ["status", "blockedBy", "queued", "inFlight", "rejected", "lastSyncedAt", "lastError"]) && isEnum(v.status, ["idle", "running", "paused", "blocked"] as const) && (v.blockedBy === null || isEnum(v.blockedBy, blocks)) && Number.isSafeInteger(v.queued) && Number(v.queued) >= 0 && Number.isSafeInteger(v.inFlight) && Number(v.inFlight) >= 0 && Number.isSafeInteger(v.rejected) && Number(v.rejected) >= 0 && (v.lastSyncedAt === null || isIso(v.lastSyncedAt)) && (v.lastError === null || isError(v.lastError)) && ((v.status === "idle" || v.status === "running") ? v.blockedBy === null : v.blockedBy !== null);
+  const count = (value: unknown) => value === null || Number.isSafeInteger(value) && Number(value) >= 0;
+  return isRecord(v) && hasExactKeys(v, ["status", "blockedBy", "queued", "inFlight", "rejected", "lastSyncedAt", "lastError"]) && isEnum(v.status, ["idle", "running", "paused", "blocked"] as const) && (v.blockedBy === null || isEnum(v.blockedBy, blocks)) && count(v.queued) && count(v.inFlight) && count(v.rejected) && (v.lastSyncedAt === null || isIso(v.lastSyncedAt)) && (v.lastError === null || isError(v.lastError)) && ((v.status === "idle" || v.status === "running") ? v.blockedBy === null : v.blockedBy !== null);
 }
 function isPublication(v: unknown): v is OnlinePublication { return isRecord(v) && hasExactKeys(v, ["status", "error"]) && isEnum(v.status, ["none", "pending", "complete", "failed", "unavailable"] as const) && (v.error === null || isError(v.error)); }
 export function isOnlineState(v: unknown): v is OnlineState {

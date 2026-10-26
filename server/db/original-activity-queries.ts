@@ -168,7 +168,7 @@ export async function bindOriginalActivityNativeSourceHash(sessionId: number, na
 }
 
 /** Missing/deleted/resegmented or partially restored representations stay held; footprint remains. */
-export async function readOriginalActivitySourceProof(sessionId: number, options: { includeBorrowed?: boolean } = {}): Promise<OriginalActivitySourceProof | null> {
+export async function readOriginalActivitySourceProof(sessionId: number, options: { includeBorrowed?: boolean; allowDeletedOriginalLaps?: boolean } = {}): Promise<OriginalActivitySourceProof | null> {
   const tx = await readClient.transaction("read");
   try {
     const result = await tx.execute({ sql: `SELECT f.*,r.origin AS representation_origin,
@@ -190,8 +190,10 @@ export async function readOriginalActivitySourceProof(sessionId: number, options
         ? row.closed_activity_id === row.original_activity_id && row.closed_revision === row.source_revision
           && Number(row.closed_gap_count) === 0 && row.closed_gap_count !== null && expected?.length === Number(row.closed_lap_count)
         : row.representation_origin === "verified_portable" && typeof row.native_source_hash === "string" && /^sha256:[0-9a-f]{64}$/.test(row.native_source_hash);
-      if (expected && actual && JSON.stringify(expected) === JSON.stringify(actual)
-        && durableCoverage) {
+      const membershipValid = expected && actual && (options.allowDeletedOriginalLaps
+        ? actual.every((guid) => expected!.includes(guid))
+        : JSON.stringify(expected) === JSON.stringify(actual));
+      if (membershipValid && durableCoverage && expected !== null) {
         proof = { schemaVersion: 1, originalActivityId: String(row.original_activity_id), sourceRevision: String(row.source_revision),
           originalLapGuids: expected, coverage: "complete", origin: row.representation_origin === "native_capture" ? "native_capture" : "verified_portable",
           ownerUserId: row.owner_user_id == null ? null : String(row.owner_user_id) };

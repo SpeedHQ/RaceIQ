@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 import { cacheDelete } from "./telemetry-replay-storage";
 import { and, eq, or, sql } from "drizzle-orm";
 import { db } from "./index";
@@ -6,8 +7,12 @@ import { createLapGuid } from "./lap-guid";
 import { withDatabaseWrite } from "./write-coordination";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
 import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
+import type { DriverAttributionStint, LapDriverAttribution } from "@raceiq/shared/driver-attribution";
+import { isWholeLapSelf } from "@raceiq/shared/driver-attribution";
+import { getRecordingInstallationId } from "./recording-origin";
 import { getActiveExperiment } from "../experiments/active";
 import { resolveActiveTestId } from "./experiment-version-queries";
+import { fastestLapUpsert } from "./online-fastest-lap-queries";
 
 export async function updateLapNotes(id: number, notes: string | null): Promise<void> {
   await withDatabaseWrite(() => db.update(laps).set({ notes }).where(eq(laps.id, id)).run());
@@ -46,8 +51,9 @@ export function insertLap(
   sectors: number[] | null = null,
   classification: LapClassification | null = null,
   versionIdentity?: TelemetryVersionIdentity,
+  driverAttribution?: { stints: readonly DriverAttributionStint[]; attribution: LapDriverAttribution; source: { domain: string; startMs: number; endMs: number } },
 ): Promise<number> {
-  return withDatabaseWrite(() => doInsertLap(sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, classification, versionIdentity), undefined, "lap.insert");
+  return withDatabaseWrite(() => doInsertLap(sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, classification, versionIdentity, driverAttribution), undefined, "lap.insert");
 }
 
 async function doInsertLap(
@@ -63,6 +69,7 @@ async function doInsertLap(
   sectors: number[] | null,
   classification: LapClassification | null,
   versionIdentity?: TelemetryVersionIdentity,
+  driverAttribution?: { stints: readonly DriverAttributionStint[]; attribution: LapDriverAttribution; source: { domain: string; startMs: number; endMs: number } },
 ): Promise<number> {
   // Stamp the lap with the active tuning session (if any). This is the single
   // choke point every live lap-detector funnels through (via the DbAdapter), so
@@ -73,9 +80,12 @@ async function doInsertLap(
   const activeExperimentVersionId =
     activeExperimentId != null ? await resolveActiveTestId(activeExperimentId) : null;
   return db.transaction(async (tx) => {
-    const session = await tx.select({ nativeCaptureOrigin: sessions.nativeCaptureOrigin, originalSourceRevision: sessions.originalSourceRevision,
-      originalActivityId: sessions.originalActivityId, ownerUserId: sessions.ownerUserId })
-      .from(sessions).where(eq(sessions.id, sessionId)).get();
+    const session = await tx.select({
+      nativeCaptureOrigin: sessions.nativeCaptureOrigin, originalSourceRevision: sessions.originalSourceRevision,
+      originalActivityId: sessions.originalActivityId, ownerUserId: sessions.ownerUserId,
+      gameId: sessions.gameId, trackId: sessions.trackId, carId: sessions.carId,
+      recordingOrigin: sessions.recordingOrigin, recordingInstallationId: sessions.recordingInstallationId,
+    }).from(sessions).where(eq(sessions.id, sessionId)).get();
     if (!session) throw new Error(`Session ${sessionId} does not exist`);
     const lapGuid = session.nativeCaptureOrigin ? createLapGuid() : null;
     const result = await tx
@@ -95,6 +105,14 @@ async function doInsertLap(
         lapGuid,
         experimentId: activeExperimentId,
         experimentVersionId: activeExperimentVersionId,
+        onlineEvaluatedAt: invalidReason === "incomplete" ? null : new Date().toISOString(),
+        ...(driverAttribution ? {
+          driverAttributionStints: [...driverAttribution.stints],
+          driverAttribution: driverAttribution.attribution,
+          sourceClockDomain: driverAttribution.source.domain,
+          sourceLapStartMs: driverAttribution.source.startMs,
+          sourceLapEndMs: driverAttribution.source.endMs,
+        } : {}),
         ...versionIdentity,
       })
       .returning({ id: laps.id })
@@ -108,6 +126,14 @@ async function doInsertLap(
     if (lapGuid) await tx.insert(originalActivitySourceLaps).values({
       lapGuid, originalActivityId: session.originalActivityId, ownerUserId: session.ownerUserId, sourceRevision: session.originalSourceRevision,
     }).run();
+    const lapTimeMs = Math.round(lapTime * 1000);
+    if (invalidReason !== "incomplete" && isValid && Number.isSafeInteger(lapTimeMs) && lapTimeMs > 0 &&
+        session.recordingOrigin === "native_capture" && session.recordingInstallationId === getRecordingInstallationId() &&
+        session.gameId !== "" && session.trackId !== "" && session.trackId !== "-1" && session.carId !== "" && session.carId !== "-1" &&
+        driverAttribution?.attribution === "Self" &&
+        isWholeLapSelf(driverAttribution.stints, driverAttribution.source.startMs, driverAttribution.source.endMs, driverAttribution.source.domain)) {
+      await tx.run(fastestLapUpsert(session.gameId, session.trackId, session.carId, result.id, lapTimeMs));
+    }
     return result.id;
   });
 }
@@ -119,27 +145,61 @@ export async function updateCapturedLap(
   tuneId: number | null, invalidReason: string | null, sectors: number[] | null,
   classification: LapClassification | null,
   versionIdentity?: TelemetryVersionIdentity,
+  driverAttribution?: { stints: readonly DriverAttributionStint[]; attribution: LapDriverAttribution; source: { domain: string; startMs: number; endMs: number } },
 ): Promise<number> {
+  let updatedLap = false;
   await withDatabaseWrite(() => db.transaction(async (tx) => {
-    const previous = await tx.select({ sessionId: laps.sessionId, lapNumber: laps.lapNumber,
-      rawByteOffset: laps.rawByteOffset, rawFrameCount: laps.rawFrameCount, isValid: laps.isValid })
-      .from(laps).where(eq(laps.id, lapId)).get();
+    const previous = await tx.select({
+      sessionId: laps.sessionId, lapNumber: laps.lapNumber, rawByteOffset: laps.rawByteOffset,
+      rawFrameCount: laps.rawFrameCount, isValid: laps.isValid, onlineEvaluatedAt: laps.onlineEvaluatedAt,
+      lapTime: laps.lapTime, invalidReason: laps.invalidReason, driverAttribution: laps.driverAttribution,
+      driverAttributionStints: laps.driverAttributionStints, sourceClockDomain: laps.sourceClockDomain,
+      sourceLapStartMs: laps.sourceLapStartMs, sourceLapEndMs: laps.sourceLapEndMs,
+    }).from(laps).where(eq(laps.id, lapId)).get();
+    const session = await tx.select({
+      gameId: sessions.gameId, trackId: sessions.trackId, carId: sessions.carId,
+      recordingOrigin: sessions.recordingOrigin, recordingInstallationId: sessions.recordingInstallationId,
+    }).from(sessions).where(eq(sessions.id, sessionId)).get();
+    if (!session) throw new Error(`Session ${sessionId} does not exist`);
     if (!previous || previous.sessionId !== sessionId || previous.lapNumber !== lapNumber ||
-        previous.rawByteOffset !== rawByteOffset || previous.isValid ||
-        rawFrameCount < (previous.rawFrameCount ?? 0)) throw new Error("Provisional lap source window changed");
+        previous.rawByteOffset !== rawByteOffset || rawFrameCount < (previous.rawFrameCount ?? 0)) throw new Error("Provisional lap source window changed");
+    if (previous.onlineEvaluatedAt !== null) {
+      if (previous.rawFrameCount !== rawFrameCount || previous.lapTime !== lapTime ||
+          previous.invalidReason !== invalidReason || previous.isValid !== isValid ||
+          previous.driverAttribution !== (driverAttribution?.attribution ?? "Unknown") ||
+          !isDeepStrictEqual(previous.driverAttributionStints, driverAttribution ? [...driverAttribution.stints] : null) ||
+          previous.sourceClockDomain !== (driverAttribution?.source.domain ?? null) ||
+          previous.sourceLapStartMs !== (driverAttribution?.source.startMs ?? null) ||
+          previous.sourceLapEndMs !== (driverAttribution?.source.endMs ?? null)) throw new Error("Finalized lap source window changed");
+      return;
+    }
+    updatedLap = true;
     const updated = await tx.update(laps).set({
       lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectorTimes: sectors, classification,
       fuelPerLap: null, tyreWear: null, captureChunkId: null, sourceFrameStart: null, sourceFrameCount: null,
-      driverAttribution: "Unknown", driverAttributionStints: null,
-      sourceClockDomain: null, sourceLapStartMs: null, sourceLapEndMs: null, ...versionIdentity,
+      onlineEvaluatedAt: previous.onlineEvaluatedAt ?? new Date().toISOString(),
+      driverAttribution: driverAttribution?.attribution ?? "Unknown",
+      driverAttributionStints: driverAttribution ? [...driverAttribution.stints] : null,
+      sourceClockDomain: driverAttribution?.source.domain ?? null,
+      sourceLapStartMs: driverAttribution?.source.startMs ?? null,
+      sourceLapEndMs: driverAttribution?.source.endMs ?? null,
+      ...versionIdentity,
     }).where(and(eq(laps.id, lapId), eq(laps.sessionId, sessionId), eq(laps.lapNumber, lapNumber),
       sql`${laps.rawByteOffset} IS ${rawByteOffset}`, eq(laps.isValid, false))).returning({ id: laps.id }).get();
     if (!updated) throw new Error("Provisional lap source window changed");
+    const lapTimeMs = Math.round(lapTime * 1000);
+    if (previous.onlineEvaluatedAt === null && isValid && Number.isSafeInteger(lapTimeMs) && lapTimeMs > 0 &&
+        session.recordingOrigin === "native_capture" && session.recordingInstallationId === getRecordingInstallationId() &&
+        session.gameId !== "" && session.trackId !== "" && session.trackId !== "-1" && session.carId !== "" && session.carId !== "-1" &&
+        driverAttribution?.attribution === "Self" &&
+        isWholeLapSelf(driverAttribution.stints, driverAttribution.source.startMs, driverAttribution.source.endMs, driverAttribution.source.domain)) {
+      await tx.run(fastestLapUpsert(session.gameId, session.trackId, session.carId, lapId, lapTimeMs));
+    }
     await tx.delete(lapMetrics).where(eq(lapMetrics.lapId, lapId));
     await tx.delete(lapAnalyses).where(eq(lapAnalyses.lapId, lapId));
     await tx.delete(compareAnalyses).where(or(eq(compareAnalyses.lapAId, lapId), eq(compareAnalyses.lapBId, lapId)));
   }));
-  cacheDelete(lapId);
+  if (updatedLap) cacheDelete(lapId);
   return lapId;
 }
 export async function updateLapCarSetup(lapId: number, carSetup: object | null): Promise<void> {

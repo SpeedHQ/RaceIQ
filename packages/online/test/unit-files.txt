@@ -1,2 +1,4 @@
 packages/online/test/payload-identity.test.ts
+packages/online/test/upload-dispatch.test.ts
 packages/online/test/ui/online.test.ts
+packages/online/test/ui/cloud-lap-import-ui.test.ts
