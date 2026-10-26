@@ -14,13 +14,13 @@ export interface DisplaySettings {
   recordLmuOpponents: boolean;
   unit: "metric" | "imperial";
   temperatureUnit: "C" | "F";
-  aiProvider: "gemini" | "openai" | "openai-compatible";
+  aiProvider: "gemini" | "openai" | "anthropic" | "openai-compatible";
   aiModel: string;
   aiThinkingBudget: number | null;
-  chatProvider: "gemini" | "openai" | "openai-compatible";
+  chatProvider: "gemini" | "openai" | "anthropic" | "openai-compatible";
   chatModel: string;
   chatThinkingBudget: number | null;
-  autoTuneProvider: "gemini" | "openai" | "openai-compatible";
+  autoTuneProvider: "gemini" | "openai" | "anthropic" | "openai-compatible";
   autoTuneModel: string;
   localEndpoint: string;
   wsRefreshRate: string;

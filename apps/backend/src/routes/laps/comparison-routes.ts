@@ -175,7 +175,7 @@ export const comparisonRoutes = new Hono()
           // Prompt injection keeps the answer on the plain-text channel, which
           // those models fill normally. Hosted providers parse native structured
           // output fine, so only the local path opts in.
-          ...(settings.aiProvider === "openai-compatible" ? { jsonPromptInjection: true } : {}),
+          ...(settings.aiProvider === "openai-compatible" || settings.aiProvider === "anthropic" ? { jsonPromptInjection: true } : {}),
         },
         // Every other AI route already caps output and disables reasoning on
         // local models (analyse, lap chat, compare chat). This one did not, so
@@ -336,7 +336,9 @@ export const comparisonRoutes = new Hono()
     const chatModelLabel = settings.chatModel
       || (chatProvider === "openai"
         ? "gpt-4o-mini"
-        : chatProvider === "openai-compatible"
+        : chatProvider === "anthropic"
+          ? "claude-haiku-5-5"
+          : chatProvider === "openai-compatible"
           ? "local-model"
           : "gemini-flash-latest");
     if (chatRequestHasImage(messages) && resolveChatVisionCapability(chatProvider, chatModelLabel) !== "supported") {

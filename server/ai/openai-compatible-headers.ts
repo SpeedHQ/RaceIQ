@@ -8,6 +8,8 @@
  */
 
 export const ANTHROPIC_VERSION = "2023-06-01";
+/** Anthropic's OpenAI-compatible base URL, used by the Claude (Anthropic) provider. */
+export const ANTHROPIC_OPENAI_BASE_URL = "https://api.anthropic.com/v1";
 
 export function isAnthropicEndpoint(endpoint: string | undefined): boolean {
   if (!endpoint) return false;

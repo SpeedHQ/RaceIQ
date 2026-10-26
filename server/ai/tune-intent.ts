@@ -11,7 +11,8 @@
 import type { GameId } from "@raceiq/shared/games/ids";
 import { loadSettings } from "../runtime/config/settings";
 import { getAiProviderApiKey, requireAiProviderApiKey } from "./openai-compatible-provider";
-import { runGemini, runOpenAi } from "./providers";
+import { runGemini, runOpenAi, runOpenAiCompatible } from "./providers";
+import { ANTHROPIC_OPENAI_BASE_URL } from "./openai-compatible-headers";
 import {
   getTuneIntentJsonSchema,
   parseTuneIntents,
@@ -160,6 +161,11 @@ async function runTuneIntentProvider(
     case "openai": {
       const key = await requireAiProviderApiKey("openai");
       const r = await runOpenAi(prompt, key, tuneModel, schema, "tune_intents");
+      return { raw: r.analysis, model: r.usage.model };
+    }
+    case "anthropic": {
+      const key = await requireAiProviderApiKey("anthropic");
+      const r = await runOpenAiCompatible({ prompt, apiKey: key, endpoint: ANTHROPIC_OPENAI_BASE_URL, model: tuneModel, schema, schemaName: "tune_intents" });
       return { raw: r.analysis, model: r.usage.model };
     }
     case "openai-compatible": {
