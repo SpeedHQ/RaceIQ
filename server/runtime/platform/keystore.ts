@@ -52,6 +52,11 @@ const macKeychain = createMacKeychain();
 // never written to disk and compiled builds keep the warn-and-drop behavior.
 const devMemoryStore = IS_COMPILED ? null : new Map<string, string>();
 
+// Reading Windows Credential Manager spawns PowerShell synchronously (hundreds
+// of ms each) and blocks the server. Secrets only change through setSecret, so
+// cache every read, including "not set", for the life of the process.
+const windowsSecretCache = new Map<string, string>();
+
 // ── Public API ───────────────────────────────────────────────
 
 export async function getSecret(key: string): Promise<string> {
@@ -63,12 +68,15 @@ export async function getSecret(key: string): Promise<string> {
     warnUnavailableOnce();
     return "";
   }
+  const cached = windowsSecretCache.get(key);
+  if (cached !== undefined) return cached;
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       const tmpFile = join(tmpdir(), `raceiq-cred-${process.pid}-${key}-${randomUUID()}`);
       ps(["read", `${SERVICE}:${key}`, "", tmpFile]);
       const value = readFileSync(tmpFile, "utf-8");
       try { unlinkSync(tmpFile); } catch { /* ignore */ }
+      windowsSecretCache.set(key, value);
       return value;
     } catch (err) {
       if (attempt === 3) {
@@ -99,9 +107,11 @@ export async function setSecret(key: string, value: string): Promise<void> {
     warnUnavailableOnce();
     return;
   }
+  windowsSecretCache.delete(key);
   if (!value) {
     ps(["delete", `${SERVICE}:${key}`]);
   } else {
     ps(["write", `${SERVICE}:${key}`, value]);
   }
+  windowsSecretCache.set(key, value);
 }

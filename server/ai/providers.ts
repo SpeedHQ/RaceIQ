@@ -363,8 +363,9 @@ export async function runOpenAiCompatible(options: OpenAiRequestOptions): Promis
     const body: Record<string, unknown> = {
       model,
       messages: [{ role: "user", content: options.prompt }],
-      temperature: options.temperature ?? 0.3,
     };
+    // Current Claude models reject `temperature` on the compatibility API.
+    if (!isAnthropicEndpoint(endpoint)) body.temperature = options.temperature ?? 0.3;
     // Anthropic's compatibility layer maps reasoning_effort to extended thinking, so leave it unset there.
     if (endpoint !== "https://api.openai.com/v1" && !isAnthropicEndpoint(endpoint)) body.reasoning_effort = "none";
     if (options.maxOutputTokens != null) body.max_tokens = options.maxOutputTokens;

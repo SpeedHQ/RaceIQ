@@ -34,6 +34,8 @@
 - Include the complete LMU multiplayer recording in demo seeds as sub-100 MB gzip parts, stream native input without buffering the whole capture, and retain separate player and opponent recordings.
 
 ### Fixes
+- Get answers from current Claude models, which rejected every request with "`temperature` is deprecated for this model".
+- Stop AI settings from freezing on Windows while saved API keys are checked, and show Claude models immediately instead of waiting for the model list.
 - Load the model list and run AI features when the OpenAI-compatible base URL is Anthropic's `https://api.anthropic.com/v1`, which previously failed with "x-api-key header is required".
 - Send the saved OpenAI-compatible API key from the setup engineer and driver coach instead of a placeholder key.
 - Keep API keys saved in Settings while a Linux or WSL development server runs instead of silently discarding them; installed builds are unchanged.

@@ -31,3 +31,24 @@ export function openAiCompatibleAuthHeaders(endpoint: string | undefined, apiKey
   if (!apiKey) return {};
   return { Authorization: `Bearer ${apiKey}`, ...openAiCompatibleExtraHeaders(endpoint, apiKey) };
 }
+
+/** Request body keys current Claude models reject on the OpenAI-compatible API. */
+const ANTHROPIC_UNSUPPORTED_BODY_KEYS = ["temperature", "top_p"];
+
+/** Wraps fetch so SDK requests to Anthropic drop body keys Claude rejects. */
+export function anthropicCompatibleFetch(baseFetch: typeof fetch = globalThis.fetch): typeof fetch {
+  return (async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (init && typeof init.body === "string") {
+      try {
+        const body = JSON.parse(init.body) as Record<string, unknown>;
+        if (ANTHROPIC_UNSUPPORTED_BODY_KEYS.some((key) => key in body)) {
+          for (const key of ANTHROPIC_UNSUPPORTED_BODY_KEYS) delete body[key];
+          init = { ...init, body: JSON.stringify(body) };
+        }
+      } catch {
+        // Not JSON; send unchanged.
+      }
+    }
+    return baseFetch(input, init);
+  }) as typeof fetch;
+}

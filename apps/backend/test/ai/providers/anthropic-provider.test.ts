@@ -82,6 +82,7 @@ describe("Claude (Anthropic) provider", () => {
         const body = JSON.parse(String(request.init.body));
         expect(body.model).toBe("claude-haiku-5-5");
         expect(body).not.toHaveProperty("reasoning_effort");
+        expect(body).not.toHaveProperty("temperature");
       }
     } finally {
       restore();
