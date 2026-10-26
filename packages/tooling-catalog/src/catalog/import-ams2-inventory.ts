@@ -56,7 +56,7 @@ if (import.meta.main) {
   const vehicleList=JSON.parse(readFileSync(resolve(sourceDir,"vehicles.json"),"utf8")).response.list;
   const trackList=JSON.parse(readFileSync(resolve(sourceDir,"tracks.json"),"utf8")).response.list;
   const overrides=JSON.parse(readFileSync(resolve(output,"catalog-overrides.json"),"utf8"));
-  const geometry=JSON.parse(readFileSync(resolve(root,"packages/game-ams2/assets/tracks/catalog.json"),"utf8")).layouts;
+  const geometry=JSON.parse(readFileSync(resolve(root,"packages/game-ams2/assets/tracks.json"),"utf8")).tracks.map((entry: {layout: string; lengthM: number}) => ({layout: entry.layout, lengthM: entry.lengthM}));
   const result=convertAMS2Inventory(vehicleList,trackList,overrides,geometry);
   for(const track of result.tracks) if(track.commonTrackName && !existsSync(resolve(root,`shared/data/tracks/meta/${track.commonTrackName}.json`))) throw new Error(`Missing common track facts: ${track.commonTrackName}`);
   for(const [file,data] of [["cars.json",result.cars],["tracks.json",result.tracks],["catalog-source.json",{...source,coverage:{serverVehicles:vehicleList.length,cars:result.cars.length,tracks:result.tracks.length,geometryMatches:result.tracks.filter(t=>t.geometryLayout).length,commonMappings:result.tracks.filter(t=>t.commonTrackName).length}}]] as const) writeFileSync(resolve(output,file),JSON.stringify(data,null,2)+"\n");

@@ -10,6 +10,4 @@ The runtime selects an exact layout and reads the named `left`, `right`, and
 not fit these edges to an observed driving line. These are AIW road-width
 references, not independently verified official track limits.
 
-The original `tracks/*-boundaries.json` files remain preserved as source
-references and regression-test evidence; they are no longer the runtime
-boundary source. Unknown layouts or invalid SVGs remain unavailable.
+Only `tracks/*.track.svg` supplies runtime boundary geometry and regression-test geometry. `tracks.json` identifies layouts and SVG paths; boundary JSON files are not used. Unknown layouts or invalid SVGs remain unavailable.

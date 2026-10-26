@@ -31,18 +31,20 @@ not cached, so lookup can succeed once the identity is discovered. An untested
 game variation whose telemetry name differs from its archive name will need
 an evidence-backed alias later, rather than a guess now.
 
-The bundled `packages/game-ams2/assets/tracks/brandshatch-indy-boundaries.json`
-contains 379 original paired AIW road-edge points and reference-path points.
-Coordinates are native world X/Z in metres, matching normalized AMS2 telemetry.
-They have not been smoothed, translated, mirrored or fitted to a driven lap.
-These road offsets are visual references, not authoritative track limits.
-Pit-lane geometry is unavailable and remains null.
+The package-owned `tracks/*.track.svg` files contain paired AIW road-edge
+polylines and reference-path geometry. Coordinates are native world X/Z in
+metres, matching normalized AMS2 telemetry. They are not smoothed, translated,
+mirrored or fitted to a driven lap. These road offsets are visual references,
+not authoritative track limits. Pit-lane geometry is unavailable and remains
+null.
 
-The bundle was regenerated from the installed physics archives with the private
-extraction tool, retaining native X/Z and original AIW road offsets. Every map
-records the source archive and AIW SHA-256. `tracks/catalog.json` lists layout,
-filename and native length. The pre-existing Indy geometry was checked for
-exact equality before its metadata was updated.
+The bundle was regenerated from installed physics archives with the private
+extraction tool, retaining native X/Z and original AIW road offsets. Every SVG
+records its source archive and AIW SHA-256 in `track-manifest.json`.
+`packages/game-ams2/assets/tracks.json` maps layouts to SVG paths and native
+lengths. SVG files are sole boundary geometry source; catalog metadata only
+identifies layouts, SVGs and lengths. The pre-existing Indy geometry was
+checked for exact equality before its metadata was updated.
 No extraction tool, game archive or experimental cosmetic correction is included.
 The existing production build copies game-owned assets into its data directory.
 

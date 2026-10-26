@@ -322,6 +322,9 @@
         "@raceiq/shared": "workspace:*",
         "@raceiq/telemetry-core": "workspace:*",
       },
+      "devDependencies": {
+        "@raceiq/game-catalogs": "workspace:*",
+      },
     },
     "packages/game-ams2-metadata": {
       "name": "@raceiq/game-ams2-metadata",

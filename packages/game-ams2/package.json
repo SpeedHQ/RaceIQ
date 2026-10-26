@@ -17,6 +17,9 @@
     "@raceiq/capture-formats": "workspace:*",
     "@raceiq/telemetry-core": "workspace:*"
   },
+  "devDependencies": {
+    "@raceiq/game-catalogs": "workspace:*"
+  },
   "scripts": {
     "typecheck": "bunx tsc --project tsconfig.json --noEmit",
     "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/game-ams2",

@@ -51,6 +51,7 @@
 ### Fixes
 - Keep AMS2 racing lines continuous across valid reduced-rate samples in Replay, Spectate and the circuit overview while preserving genuine missing-data gaps.
 - Keep AMS2 Replay and Spectate track boundaries fixed to the circuit when viewing partial or off-center laps.
+- Place inner and outer surface-temperature bands on the correct sides of the 3D wheels in Replay and Compare → Spectate.
 - Include the LMU opponent-index worker in packaged builds so recorded opponents can load for replay and comparison.
 - Restore recorded-opponent driver and lap selections after reloading comparisons while the opponent catalog loads.
 - Keep the car and telemetry visible between valid samples in reduced-rate AMS2 Replay and Spectate recordings, while preserving missing-data gaps.
