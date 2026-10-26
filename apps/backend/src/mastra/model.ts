@@ -26,6 +26,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import type { FetchFunction } from "@ai-sdk/provider-utils";
 import { extractReasoningMiddleware, wrapLanguageModel, type LanguageModel } from "ai";
 import type { MastraModelConfig } from "@mastra/core/llm";
+import { openAiCompatibleExtraHeaders } from "@raceiq/backend-core/ai/openai-compatible-headers";
 import { RESOLVED_AI_MODEL_CONTEXT_KEY } from "../ai/resolved-ai-internals";
 
 export type BoundMastraModel = MastraModelConfig;
@@ -244,9 +245,11 @@ export function getMastraModelId(
       return bindMastraModel(createOpenAI({ apiKey }).chat(id));
     }
     case "openai-compatible": {
+      const baseURL = localEndpoint ?? "http://localhost:1234/v1";
       const openai = createOpenAI({
-        baseURL: localEndpoint ?? "http://localhost:1234/v1",
+        baseURL,
         apiKey: apiKey || "local",
+        headers: openAiCompatibleExtraHeaders(baseURL, apiKey),
         // Ollama thinking models emit; see the file header for the full chain.
         fetch: reasoningContentToThinkFetch(globalThis.fetch as FetchFunction),
       });

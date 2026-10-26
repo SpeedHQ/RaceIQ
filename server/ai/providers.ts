@@ -6,6 +6,7 @@ import { extractJson } from "./extract-json";
 import { logLlmEvent, withLlmDiagnostics } from "./diagnostic-logging";
 import { AiProviderError } from "./provider-error";
 import { buildGoogleThinkingProviderOptions } from "./google-provider-options";
+import { isAnthropicEndpoint, openAiCompatibleAuthHeaders } from "./openai-compatible-headers";
 export interface AiResult {
   analysis: string;
   usage: {
@@ -356,7 +357,7 @@ export async function runOpenAiCompatible(options: OpenAiRequestOptions): Promis
   const diagnostic = { provider: endpoint === "https://api.openai.com/v1" ? "openai" : "openai-compatible", model, operation: "chat.completions", request: { prompt: options.prompt, schema: options.schema, schemaName: options.schemaName, temperature: options.temperature, maxOutputTokens: options.maxOutputTokens } };
   logLlmEvent("llm-request", diagnostic);
   try {
-    if (options.apiKey) headers.Authorization = `Bearer ${options.apiKey}`;
+    Object.assign(headers, openAiCompatibleAuthHeaders(endpoint, options.apiKey));
     const body: Record<string, unknown> = {
       model,
       messages: [{ role: "user", content: options.prompt }],
@@ -506,10 +507,11 @@ async function getLmStudioContextLengths(endpoint: string, apiKey?: string): Pro
 /** Fetch available models from an OpenAI-compatible local endpoint (LM Studio, Ollama, etc.). */
 export async function getOpenAiCompatibleModelsDetailed(endpoint: string, apiKey?: string): Promise<ModelListResult> {
   try {
-    const url = `${endpoint.replace(/\/+$/, "")}/models`;
+    const anthropic = isAnthropicEndpoint(endpoint);
+    // Anthropic paginates /v1/models (default 20); ask for everything in one page.
+    const url = `${endpoint.replace(/\/+$/, "")}/models${anthropic ? "?limit=1000" : ""}`;
     console.info(`[AI] GET ${url}`);
-    const headers: Record<string, string> = {};
-    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+    const headers = openAiCompatibleAuthHeaders(endpoint, apiKey);
     const res = await fetch(url, { headers, signal: AbortSignal.timeout(3000) });
     console.info(`[AI] ${res.status} ${res.statusText} ${url}`);
     if (!res.ok) {
@@ -519,7 +521,7 @@ export async function getOpenAiCompatibleModelsDetailed(endpoint: string, apiKey
       return { models: [], error: message };
     }
     const data = await res.json() as any;
-    const contextByModel = await getLmStudioContextLengths(endpoint, apiKey);
+    const contextByModel = anthropic ? new Map<string, number>() : await getLmStudioContextLengths(endpoint, apiKey);
     return {
       models: (data.data ?? []).map((m: any) => ({
         id: m.id,

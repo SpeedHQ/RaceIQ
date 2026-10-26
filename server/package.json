@@ -25,6 +25,7 @@
     "./ai/inputs-compare-prompt": "./ai/inputs-compare-prompt.ts",
     "./ai/insight-format": "./ai/insight-format.ts",
     "./ai/lap-observations": "./ai/lap-observations.ts",
+    "./ai/openai-compatible-headers": "./ai/openai-compatible-headers.ts",
     "./ai/openai-compatible-provider": "./ai/openai-compatible-provider.ts",
     "./ai/provider-error": "./ai/provider-error.ts",
     "./ai/providers": "./ai/providers.ts",
