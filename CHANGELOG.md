@@ -1,6 +1,7 @@
 ## Unreleased
 
 ### Features
+- Choose Claude (Anthropic) as an AI provider for analysis, chat, auto-tune and driver profiles with its own API key. The model picker lists the Claude models available to that key, tags Claude Haiku 5.5 as Recommended, and preselects it when you switch to Claude.
 - Show clickable circuit-overview sector markers on desktop only while hovering or using keyboard focus; keep them visible on touch screens.
 - Group LMU state of charge, virtual energy and regenerative power in a separate table below the main Replay and Compare → Spectate metrics.
 - Use dashed track edges in Replay and Compare → Spectate to provide fixed-distance speed cues.
@@ -33,6 +34,9 @@
 - Include the complete LMU multiplayer recording in demo seeds as sub-100 MB gzip parts, stream native input without buffering the whole capture, and retain separate player and opponent recordings.
 
 ### Fixes
+- Load the model list and run AI features when the OpenAI-compatible base URL is Anthropic's `https://api.anthropic.com/v1`, which previously failed with "x-api-key header is required".
+- Send the saved OpenAI-compatible API key from the setup engineer and driver coach instead of a placeholder key.
+- Keep API keys saved in Settings while a Linux or WSL development server runs instead of silently discarding them; installed builds are unchanged.
 - Keep selected LMU lap exports within the chosen recording window, preserve opponent frame order, and avoid duplicate samples.
 - Preserve recorded opponent position samples around missing distance observations without interpolating across gaps.
 - Keep completed player laps importable after removing LMU opponent data.
