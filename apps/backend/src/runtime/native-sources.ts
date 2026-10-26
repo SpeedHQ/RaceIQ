@@ -1,3 +1,4 @@
+import { serverReleaseFeatures } from "@raceiq/backend-core/runtime/config/release-features";
 import { AccSharedMemoryReader } from "@raceiq/game-acc/shared-memory";
 import { AcEvoSharedMemoryReader } from "@raceiq/game-ac-evo/shared-memory";
 import { IRacingTelemetrySource } from "@raceiq/game-iracing/source";
@@ -44,7 +45,7 @@ export function startNativeSourceSupervisor(
     );
   };
 
-  console.log("[Supervisor] Watching for native telemetry games (acc, ac-evo, iracing, lmu, ams2) — 2s poll");
+  console.log(`[Supervisor] Watching for native telemetry games (acc, ac-evo, iracing, lmu${serverReleaseFeatures.ams2Adapter ? ", ams2" : ""}) — 2s poll`);
   const pollTimer = setInterval(() => {
     trackStop(superviseSource(
       isGameRunning("acc") || (dumpMode && recordingGameId === "acc"),
@@ -71,7 +72,7 @@ export function startNativeSourceSupervisor(
       setIracingSource,
     ));
     trackStop(superviseSource(
-      isGameRunning("ams2") || recordingGameId === "ams2", "AMS2",
+      serverReleaseFeatures.ams2Adapter && (isGameRunning("ams2") || recordingGameId === "ams2"), "AMS2",
       () => new AMS2TelemetrySource({ recordingEnabled: recordingGameId === "ams2" }),
       getAms2Source, setAms2Source,
     ));

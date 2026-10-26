@@ -1,6 +1,7 @@
 ## Unreleased
 
 ### Features
+- Keep AMS2 adapter availability and native telemetry capture development-only.
 - Show animated suspension springs and chassis movement in Replay and Compare → Spectate; use the lap's observed travel range when no game range is specified, while preserving native normalized readings.
 - Show AMS2 Replay's canonical Balance status and per-wheel Traction, Grip Ask, Slip Angle and Slip Ratio from recorded motion, wheel rotation and disclosed estimates in the existing Data panel.
 - Display locally extracted AMS2 car thumbnails in the car catalogue when available.

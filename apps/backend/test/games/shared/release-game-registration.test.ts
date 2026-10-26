@@ -9,20 +9,22 @@ const ids = (adapters: readonly { id: string }[]) => adapters.map((adapter) => a
 const developmentEnv = {
   RACEIQ_FEATURE_F1_EXPERIMENTS: "true",
   RACEIQ_FEATURE_IRACING_ADAPTER: "true",
+  RACEIQ_FEATURE_AMS2_ADAPTER: "true",
 };
 const productionEnv = {
   RACEIQ_FEATURE_F1_EXPERIMENTS: "false",
   RACEIQ_FEATURE_IRACING_ADAPTER: "false",
+  RACEIQ_FEATURE_AMS2_ADAPTER: "false",
 };
 
 describe("release game registration", () => {
-  test("includes iRacing and LMU in development registries", () => {
+  test("includes iRacing, LMU, and AMS2 in development registries", () => {
     const flags = releaseFeatureFlags(developmentEnv);
     expect(ids(gameAdaptersForFeatures(flags))).toEqual(
-      expect.arrayContaining(["iracing", "lmu"]),
+      expect.arrayContaining(["iracing", "lmu", "ams2"]),
     );
     expect(ids(serverGameAdaptersForFeatures(flags))).toEqual(
-      expect.arrayContaining(["iracing", "lmu"]),
+      expect.arrayContaining(["iracing", "lmu", "ams2"]),
     );
   });
 
@@ -34,11 +36,13 @@ describe("release game registration", () => {
     expect(ids(getAllServerGames())).toEqual(ids(serverGameAdaptersForFeatures(flags)));
   });
 
-  test("ships LMU while keeping iRacing gated in production", () => {
+  test("ships LMU while keeping iRacing and AMS2 gated in production", () => {
     const flags = releaseFeatureFlags(productionEnv);
     expect(ids(gameAdaptersForFeatures(flags))).not.toContain("iracing");
+    expect(ids(gameAdaptersForFeatures(flags))).not.toContain("ams2");
     expect(ids(gameAdaptersForFeatures(flags))).toContain("lmu");
     expect(ids(serverGameAdaptersForFeatures(flags))).not.toContain("iracing");
+    expect(ids(serverGameAdaptersForFeatures(flags))).not.toContain("ams2");
     expect(ids(serverGameAdaptersForFeatures(flags))).toContain("lmu");
     expect(ids(gameAdaptersForFeatures(flags))).toContain("f1-2025");
     expect(ids(serverGameAdaptersForFeatures(flags))).toContain("f1-2025");
@@ -46,6 +50,6 @@ describe("release game registration", () => {
 
   test("lists native telemetry game ids by release environment", () => {
     expect(nativeTelemetryGameIds(releaseFeatureFlags(developmentEnv))).toEqual(["acc", "ac-evo", "iracing", "lmu", "ams2"]);
-    expect(nativeTelemetryGameIds(releaseFeatureFlags(productionEnv))).toEqual(["acc", "ac-evo", "lmu", "ams2"]);
+    expect(nativeTelemetryGameIds(releaseFeatureFlags(productionEnv))).toEqual(["acc", "ac-evo", "lmu"]);
   });
 });

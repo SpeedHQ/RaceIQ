@@ -12,7 +12,7 @@ import type { SpectatePair } from "../../contracts/spectate"
 import type { OpponentSemanticLapTelemetry } from "../../contracts/opponents";
 import { alignLmuOpponentPositionTraces } from "../../server/opponent-routes";
 
-initGameAdapters({ f1Experiments: true, iracingAdapter: true });
+initGameAdapters({ f1Experiments: true, iracingAdapter: true, ams2Adapter: true });
 test("AMS2 dashboard metric descriptors retain canonical balance and traction outputs", () => {
   const balanceMetric = {
     source: "derived" as const,

@@ -6,7 +6,7 @@ import type { SpectatePair } from "../../contracts/spectate"
 import { createRibbonPool, updateRibbonPool, disposeRibbonPool, type RibbonRun } from "@raceiq/scene-3d/wireframe/LineResources";
 import { center, leftEdge, rightEdge, origin, geometry, expectOnPaths, type Point } from "../support/spectate-track-geometry";
 
-initGameAdapters({ f1Experiments: true, iracingAdapter: true });
+initGameAdapters({ f1Experiments: true, iracingAdapter: true, ams2Adapter: true });
 
 
 test("track dashes retain 6/1 metre alpha masking across uneven samples, duplicates and corners", () => {

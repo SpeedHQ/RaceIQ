@@ -13,7 +13,7 @@ import type { SemanticReplayFrame } from "@raceiq/lap-replay/contracts"
 import { fakeAccSemanticFixture, fakeF1SemanticFixture } from "../src/stories/fakeData";
 import { telemetryStore } from "../src/stores/telemetry";
 
-initGameAdapters({ f1Experiments: true, iracingAdapter: true });
+initGameAdapters({ f1Experiments: true, iracingAdapter: true, ams2Adapter: true });
 
 const TUNING_GAMES = ["acc", "ac-evo", "f1-2025"] as const;
 

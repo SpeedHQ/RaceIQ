@@ -3,7 +3,7 @@ import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { buildSpectateFocus, focusRuns, inputFocusColor } from "../../ui/spectate-focus"
 import type { SpectateLap, SpectatePair, SpectateSample } from "../../contracts/spectate"
 
-initGameAdapters({ f1Experiments: true, iracingAdapter: true });
+initGameAdapters({ f1Experiments: true, iracingAdapter: true, ams2Adapter: true });
 
 function sample(time: number, values: Record<string, unknown> = {}, run = 0): SpectateSample {
   return { time, distance: time, run, values };

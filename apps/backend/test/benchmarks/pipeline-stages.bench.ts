@@ -143,7 +143,7 @@ try {
   ]);
 
   catalog.initGameAdapters();
-  games.initServerGameAdapters({ f1Experiments: false, iracingAdapter: true });
+  games.initServerGameAdapters({ f1Experiments: false, iracingAdapter: true, ams2Adapter: true });
   stopMaintenanceTasks = pipelineModule.stopMaintenanceTasks;
   stopMaintenanceTasks();
   console.log = () => {};
