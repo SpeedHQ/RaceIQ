@@ -270,6 +270,8 @@ export function useDeleteLap() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.laps });
       qc.invalidateQueries({ queryKey: queryKeys.sessions });
+      qc.invalidateQueries({ queryKey: ["three-to-improve"] });
+      qc.invalidateQueries({ queryKey: ["three-to-improve-evidence"] });
       qc.invalidateQueries({ queryKey: queryKeys.userTunes });
       invalidateDashboardQueries();
     },
@@ -286,6 +288,8 @@ export function useBulkDeleteLaps() {
       qc.invalidateQueries({ queryKey: queryKeys.laps });
       qc.invalidateQueries({ queryKey: queryKeys.sessions });
       qc.invalidateQueries({ queryKey: queryKeys.tracks });
+      qc.invalidateQueries({ queryKey: ["three-to-improve"] });
+      qc.invalidateQueries({ queryKey: ["three-to-improve-evidence"] });
       qc.invalidateQueries({ queryKey: queryKeys.userTunes });
       invalidateDashboardQueries();
     },
@@ -306,6 +310,8 @@ export function useSetLapExcluded() {
     },
     onSuccess: (_data, { experimentId }) => {
       qc.invalidateQueries({ queryKey: queryKeys.laps });
+      qc.invalidateQueries({ queryKey: ["three-to-improve"] });
+      qc.invalidateQueries({ queryKey: ["three-to-improve-evidence"] });
       qc.invalidateQueries({ queryKey: queryKeys.userTunes });
       if (experimentId != null) {
         qc.invalidateQueries({ queryKey: ["experiment", experimentId] });

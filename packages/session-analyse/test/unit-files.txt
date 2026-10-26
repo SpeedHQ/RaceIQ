@@ -1,1 +1,2 @@
 packages/session-analyse/test/unit/session-analyse-helpers.test.ts
+packages/session-analyse/test/unit/coaching-selection.test.ts
