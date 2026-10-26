@@ -205,8 +205,10 @@ describe("direct capture repair through recording maintenance", () => {
   test("repair preserves committed opponent removal instead of resurrecting retained data", async () => {
     const source = await recording(true);
     expect(source.manifest.opponentRetention).toBe("retained");
+    const maintenance = getRecordingMaintenanceController();
+    const fibersBeforeRemoval = new Set(maintenance.fibers);
     await startSessionOpponentRemoval({ sessionIds: [source.session.id] });
-    await Promise.all([...getRecordingMaintenanceController().fibers].map(fiber => {
+    await Promise.all([...maintenance.fibers].filter(fiber => !fibersBeforeRemoval.has(fiber)).map(fiber => {
       const { promise, resolve } = Promise.withResolvers<void>();
       fiber.addObserver(() => resolve());
       return promise;

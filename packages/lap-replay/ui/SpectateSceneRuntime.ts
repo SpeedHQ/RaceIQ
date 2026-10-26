@@ -20,14 +20,16 @@ import { createAnalysisWheels, updateAnalysisWheels, type AnalysisWheelConfig } 
 import { createDrivetrainResource, type DrivetrainResource } from "@raceiq/scene-3d/wireframe/Drivetrain";
 import { createWheelLabelResource, disposeWheelLabelResource, updateWheelLabelResource, updateWheelLabelScale, type WheelLabelConfig, type WheelLabelResource } from "@raceiq/scene-3d/wireframe/WheelLabels";
 import { createTireTrailResource, updateTireTrailResource, disposeTireTrailResource, type TireTrailResource } from "@raceiq/scene-3d/wireframe/TireTrails";
+import { createSuspensionSpringResource, disposeSuspensionSpringResource, updateSuspensionSpringResource, type SuspensionSpringResource } from "@raceiq/scene-3d/wireframe/SuspensionSpring";
 import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
+import { normalizeSuspensionTravel, sceneSuspensionRange } from "@raceiq/scene-3d/suspension";
 import { inputFocusColor, type SpectateFocus } from "./spectate-focus";
 import { FOCUS_ZOOM_NEAR, FOCUS_ZOOM_SNAP_OUT, focusLaneWidth, focusZoomBlend, offsetFocusLane, projectFocusCenterline, sampleFocusLane, smallestAvailableModelLength, zoomIndicatorPosition, type FocusCenterPoint, type TimedFocusPoint } from "./spectate-focus-lanes";
 import { sampleMotion } from "./spectate-replay";
 const color = (name: string) => resolveCssColor(`var(${name})`);
 import { hasTelemetryGap } from "./telemetry-gap";
 
-export function estimatedRaceLineSegments(samples: readonly SpectateSample[], opponent = false): number[] {
+export function estimatedRaceLineSegments(samples: readonly SpectateSample[], opponent = false, maximumGapSeconds?: number): number[] {
   const positions: number[] = [];
   for (let i = 1; i < samples.length; i++) {
     const previous = samples[i - 1]!, sample = samples[i]!;
@@ -36,7 +38,7 @@ export function estimatedRaceLineSegments(samples: readonly SpectateSample[], op
     const gap = sample.time - previous.time;
     if (!Number.isFinite(previous.time) || !Number.isFinite(sample.time) || sample.time < previous.time
       || (opponent && previous.frame && sample.frame && sample.frame.sequence <= previous.frame.sequence)
-      || (opponent ? gap <= 0.1 || gap > 1 : !hasTelemetryGap(previous.time, sample.time) || gap > 1)
+      || (opponent ? gap <= 0.1 || gap > 1 : !hasTelemetryGap(previous.time, sample.time, maximumGapSeconds) || gap > 1)
       || typeof px !== "number" || !Number.isFinite(px) || typeof pz !== "number" || !Number.isFinite(pz)
       || typeof x !== "number" || !Number.isFinite(x) || typeof z !== "number" || !Number.isFinite(z)) continue;
     positions.push(px, 0, pz, x, 0, z);
@@ -81,7 +83,7 @@ export function wheelHistoryDiscontinuity(previousTime: number | null, nextTime:
 export function wheelLabelsNeedRefresh(playing: boolean, now: number, lastUpdate: number, generation: number, previousGeneration: number): boolean {
   return !playing || now - lastUpdate >= 100 || generation !== previousGeneration;
 }
-type Slot = { body: CarBodyInstance | null; generation: number; wheels: WheelResource[]; drivetrain: DrivetrainResource | null; wheelInfo: WheelInfoState | null; config: AnalysisWheelConfig | null };
+type Slot = { body: CarBodyInstance | null; generation: number; wheels: WheelResource[]; springs: SuspensionSpringResource[]; drivetrain: DrivetrainResource | null; wheelInfo: WheelInfoState | null; config: AnalysisWheelConfig | null };
 type TrailHead = SemanticAnalysisFrame & { values: Record<string, unknown> };
 type FocusRenderPoint = { x: number; y: number; z: number; color: THREE.ColorRepresentation };
 type FocusNativePoint = { x: number; y: number; z: number; distance: number };
@@ -156,9 +158,11 @@ export class SpectateSceneRuntime {
   }
   private modelLengths: [number, number] = [0, 0];
   private modelBoundsScratch = new THREE.Box3();
+  private springBodyScratch = new THREE.Vector3();
+  private springWheelScratch = new THREE.Vector3();
   private slots: [Slot, Slot] = [
-    { body: null, generation: 0, wheels: [], drivetrain: null, wheelInfo: null, config: null },
-    { body: null, generation: 0, wheels: [], drivetrain: null, wheelInfo: null, config: null },
+    { body: null, generation: 0, wheels: [], springs: [], drivetrain: null, wheelInfo: null, config: null },
+    { body: null, generation: 0, wheels: [], springs: [], drivetrain: null, wheelInfo: null, config: null },
   ];
   private track = new THREE.Group();
   private raf = 0;
@@ -327,7 +331,7 @@ export class SpectateSceneRuntime {
     if (displayBoundaries && needsTrackFlip(this.pair.gameId)) displayBoundaries = flipBoundaries(displayBoundaries);
     // These endpoints already return game-world metres. Fitting their centerline
     // to a driven lap moves the track toward the car and changes its scale.
-    const worldBoundaries = displayBoundaries?.coordSystem === "forza" || displayBoundaries?.coordSystem === "f1-2025" || displayBoundaries?.coordSystem === "acc" || displayBoundaries?.coordSystem === "lmu";
+    const worldBoundaries = displayBoundaries?.coordSystem === "forza" || displayBoundaries?.coordSystem === "f1-2025" || displayBoundaries?.coordSystem === "acc" || displayBoundaries?.coordSystem === "lmu" || displayBoundaries?.coordSystem === "ams2-world";
     let boundaryAlignment: TrackAlignment | null = worldBoundaries ? WORLD_ALIGNMENT : null;
     if (!worldBoundaries && displayBoundaries && displayBoundaries.centerLine.length >= 5) boundaryAlignment = computeAlignment(displayBoundaries.centerLine, native);
     const validAlignment = (source: readonly TrackPoint[], alignment: TrackAlignment | null) => {
@@ -435,7 +439,7 @@ export class SpectateSceneRuntime {
       if (center.length > 1) this.centerLineRuns = [center];
       const project = (lap: ReplaySession["a"], side: 0 | 1) => {
         const points = lap.samples.map((sample): FocusNativePoint => {
-          const motion = lap.motionSamples ? sampleMotion(lap.motionSamples, sample.time, true, "opponentLapId" in lap.replay) : null;
+          const motion = lap.motionSamples ? sampleMotion(lap.motionSamples, sample.time, true, "opponentLapId" in lap.replay, lap.maximumGapSeconds) : null;
           const pose = motion?.pose;
           const x = sample.values["motion.position-x"], y = "opponentLapId" in lap.replay ? 0 : sample.values["motion.position-y"], z = sample.values["motion.position-z"];
           return {
@@ -484,7 +488,7 @@ export class SpectateSceneRuntime {
       const opponent = side === "a"
         ? "kind" in this.pair.comparison.lapA && this.pair.comparison.lapA.kind === "opponent"
         : !!this.pair.comparison.lapB && "kind" in this.pair.comparison.lapB && this.pair.comparison.lapB.kind === "opponent";
-      const estimated = estimatedRaceLineSegments(samples, opponent);
+      const estimated = estimatedRaceLineSegments(samples, opponent, (side === "a" ? this.pair.a : this.pair.b)?.maximumGapSeconds);
       this.canvas.dataset[`${side}EstimatedRacingLineSegments`] = String(estimated.length / 6);
       const recorded: RibbonRun[] = [], projected: FocusLaneSource[][] = [];
       let native: FocusRenderPoint[] = [], lane: FocusLaneSource[] = [];
@@ -496,7 +500,7 @@ export class SpectateSceneRuntime {
         const sample = samples[i], center = this.focusCenterPoints[index]?.[i] ?? null;
         const x = sample.values["motion.position-x"], z = sample.values["motion.position-z"];
         const valid = typeof x === "number" && Number.isFinite(x) && typeof z === "number" && Number.isFinite(z);
-        const connected = prior && valid && prior.run === sample.run && sample.time >= prior.time && sample.time - prior.time <= (opponent ? 0.3 : 0.1);
+        const connected = prior && valid && prior.run === sample.run && sample.time >= prior.time && !hasTelemetryGap(prior.time, sample.time, opponent ? 0.3 : (side === "a" ? this.pair.a : this.pair.b)?.maximumGapSeconds);
         if (prior && connected) {
           if (!native.length) native.push(nativePoint(prior, opponent));
           native.push(nativePoint(sample, opponent));
@@ -618,6 +622,8 @@ export class SpectateSceneRuntime {
     slot.wheelInfo = null;
     for (const wheel of slot.wheels) disposeWheelResource(wheel);
     slot.wheels = [];
+    for (const spring of slot.springs) disposeSuspensionSpringResource(spring);
+    slot.springs = [];
     slot.config = null;
     if (this.trails[i]) disposeTireTrailResource(this.trails[i]);
     this.trails[i] = null;
@@ -652,6 +658,8 @@ export class SpectateSceneRuntime {
       temperatureThresholds: adapter.tireTempThresholds,
     };
     slot.wheels = createAnalysisWheels(this.groups[i], selection.model);
+    slot.springs = Array.from({ length: 4 }, () => createSuspensionSpringResource(this.scene));
+    for (const spring of slot.springs) spring.spring.group.visible = spring.rod.group.visible = false;
     slot.drivetrain = createDrivetrainResource();
     slot.drivetrain.update(selection.model);
     this.groups[i].add(slot.drivetrain.root);
@@ -663,6 +671,40 @@ export class SpectateSceneRuntime {
     const slot = this.slots[side];
     if (!reading || !slot.config) return;
     const frame: SemanticAnalysisFrame = { values: reading.values, states: {}, freshness: {} };
+    if (slot.body) {
+      const normalized = reading.values["suspension.norm-suspension-travel"];
+      const native = Array.isArray(normalized) && normalized.length >= 4 && normalized.slice(0, 4).every(value => typeof value === "number" && Number.isFinite(value));
+      const raw = reading.values["suspension.suspension-travel-m"];
+      const lap = side === 0 ? this.pair.a : this.pair.b;
+      const suspension = native ? normalized as number[]
+        : Array.isArray(raw) && raw.length >= 4 && raw.slice(0, 4).every(value => typeof value === "number" && Number.isFinite(value)) && lap
+          ? normalizeSuspensionTravel(raw, sceneSuspensionRange(lap.samples, this.pair.gameId)) : null;
+      const [fl, fr, rl, rr] = suspension ?? [0.5, 0.5, 0.5, 0.5];
+      const stroke = slot.config.carModel.suspStroke ?? 0.08;
+      slot.body.root.position.y = -((fl! + fr! + rl! + rr!) / 4 - 0.5) * stroke;
+      slot.body.root.rotation.x = ((fr! + rr! - fl! - rl!) / 2) * 0.1;
+      slot.body.root.rotation.z = ((fl! + fr! - rl! - rr!) / 2) * 0.06;
+      const model = slot.config.carModel;
+      const thresholds = getGame(this.pair.gameId).suspensionThresholds.values;
+      this.groups[side].updateMatrixWorld(true);
+      for (let index = 0; index < slot.springs.length; index++) {
+        const spring = slot.springs[index]!;
+        spring.spring.group.visible = spring.rod.group.visible = suspension !== null && this.groups[side].visible;
+        if (!suspension) continue;
+        const rear = index >= 2;
+        const x = rear ? -model.halfWheelbase : model.halfWheelbase;
+        const z = (index % 2 === 0 ? -1 : 1) * ((rear ? model.halfRearTrack : model.halfFrontTrack) - 0.35);
+        const travel = suspension[index]!;
+        this.springBodyScratch.set(x, 0.23 - (travel - 0.5) * stroke, z);
+        this.springWheelScratch.set(x, 0, z);
+        this.groups[side].localToWorld(this.springBodyScratch);
+        this.groups[side].localToWorld(this.springWheelScratch);
+        updateSuspensionSpringResource(spring, this.camera,
+          [this.springBodyScratch.x, this.springBodyScratch.y, this.springBodyScratch.z],
+          [this.springWheelScratch.x, this.springWheelScratch.y, this.springWheelScratch.z],
+          travel, thresholds, Math.max(1, this.canvas.clientHeight));
+      }
+    }
     const readings = updateAnalysisWheels(slot.wheels, frame, slot.config, elapsed, speed, playing);
     const options = this.tireInfoOptions;
     if (!this.tireInfo || !options) {
@@ -1049,7 +1091,9 @@ export class SpectateSceneRuntime {
         this.track.visible = nativeViewVisible;
         this.groups[0].visible = !showLabels && !!first;
         this.groups[1].visible = !showLabels && !!second;
-        for (const slot of this.slots) {
+        for (let side = 0; side < this.slots.length; side++) {
+          const slot = this.slots[side];
+          for (const spring of slot.springs) spring.spring.group.visible = spring.rod.group.visible = nativeViewVisible && this.groups[side].visible;
           if (slot.body) slot.body.root.visible = this.carModelMode !== "hidden";
           if (slot.drivetrain) slot.drivetrain.root.visible = this.carModelMode !== "solid";
         }
@@ -1157,6 +1201,13 @@ export class SpectateSceneRuntime {
           }
           this.canvas.dataset[side === 0 ? "aWheelVisibleCount" : "bWheelVisibleCount"] = String(visibleWheels);
           this.canvas.dataset[side === 0 ? "aChassisVisible" : "bChassisVisible"] = String(this.groups[side].visible && !!this.slots[side].drivetrain?.root.visible);
+          let visibleSprings = 0;
+          for (const spring of this.slots[side].springs) if (spring.spring.group.visible && spring.rod.group.visible) visibleSprings++;
+          this.canvas.dataset[side === 0 ? "aSuspensionVisibleCount" : "bSuspensionVisibleCount"] = String(visibleSprings);
+          const body = this.slots[side].body?.root;
+          this.canvas.dataset[side === 0 ? "aBodyHeave" : "bBodyHeave"] = body ? String(body.position.y) : "";
+          this.canvas.dataset[side === 0 ? "aBodyRoll" : "bBodyRoll"] = body ? String(body.rotation.x) : "";
+          this.canvas.dataset[side === 0 ? "aBodyPitch" : "bBodyPitch"] = body ? String(body.rotation.z) : "";
           let visibleLabels = 0;
           const info = this.slots[side].wheelInfo;
           if (this.groups[side].visible && info) for (const label of info.labels) if (label?.sprite.visible) visibleLabels++;
@@ -1269,6 +1320,8 @@ export class SpectateSceneRuntime {
       slot.body = null;
       for (const wheel of slot.wheels) disposeWheelResource(wheel);
       slot.wheels = [];
+      for (const spring of slot.springs) disposeSuspensionSpringResource(spring);
+      slot.springs = [];
       slot.drivetrain?.dispose();
       slot.drivetrain = null;
       if (slot.wheelInfo) for (const label of slot.wheelInfo.labels) if (label) disposeWheelLabelResource(label);

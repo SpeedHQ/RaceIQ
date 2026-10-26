@@ -13,7 +13,7 @@
   },
   "dependencies": { "@raceiq/shared": "workspace:*" },
   "scripts": {
-    "lint": "../../client/node_modules/.bin/oxlint .",
+    "lint": "node ../../client/node_modules/oxlint/bin/oxlint .",
     "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/game-ac-evo-metadata",
     "test:integration": "bun ../../scripts/test/run-suite.ts integration --package @raceiq/game-ac-evo-metadata",
     "typecheck": "bun check --project tsconfig.json",

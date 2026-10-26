@@ -76,7 +76,7 @@ for (const game of SEEDED_GAME_CASES) {
       await page.unroute(ALIGNED_TELEMETRY_ENDPOINT);
       await expect(workspace.locator(".uplot").first()).toBeVisible({ timeout: 30_000 });
 
-      const lapB = page.getByLabel("Lap B");
+      const lapB = page.getByRole("combobox", { name: "Lap B", exact: true });
       await lapB.click();
       await page
         .getByRole("option", {

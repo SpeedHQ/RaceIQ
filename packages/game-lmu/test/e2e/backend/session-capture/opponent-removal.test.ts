@@ -36,13 +36,6 @@ registerDriverProfileLapNotifier(() => {});
 const directories: string[] = [];
 const sessionIds: number[] = [];
 
-async function waitForRemoval(): Promise<void> {
-  await Promise.all([...getRecordingMaintenanceController().fibers].map((fiber) => {
-    const { promise, resolve } = Promise.withResolvers<void>();
-    fiber.addObserver(() => resolve());
-    return promise;
-  }));
-}
 
 afterEach(async () => {
   for (const sessionId of sessionIds.splice(0)) await db.delete(sessions).where(eq(sessions.id, sessionId)).run();
@@ -108,8 +101,14 @@ describe("LMU opponent removal lifecycle", () => {
     const preview = await previewSessionOpponentRemoval({ sessionIds: [session.id] });
     expect(preview.rewriteSessionIds).toEqual([session.id]);
 
+    const maintenance = getRecordingMaintenanceController();
+    const fibersBeforeRemoval = new Set(maintenance.fibers);
     await startSessionOpponentRemoval({ sessionIds: [session.id] });
-    await waitForRemoval();
+    await Promise.all([...maintenance.fibers].filter(fiber => !fibersBeforeRemoval.has(fiber)).map(fiber => {
+      const { promise, resolve } = Promise.withResolvers<void>();
+      fiber.addObserver(() => resolve());
+      return promise;
+    }));
     expect(getSessionOpponentRemovalStatus()).toMatchObject({ status: "success", removedSessionIds: [session.id], cleanupPendingSessionIds: [] });
     expect(existsSync(sourcePath)).toBe(false);
     const updated = await db.select({ rawFile: sessions.rawFile, captureManifestFile: sessions.captureManifestFile, captureLayoutVersion: sessions.captureLayoutVersion }).from(sessions).where(eq(sessions.id, session.id)).get();

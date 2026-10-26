@@ -1,0 +1,1 @@
+packages/game-ams2/test/e2e/recordings.test.ts

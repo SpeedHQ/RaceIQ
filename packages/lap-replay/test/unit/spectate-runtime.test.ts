@@ -1,7 +1,99 @@
 import { expect, test } from "bun:test";
 import { SpectateSceneRuntime, estimatedRaceLineSegments, translateEstimatedRaceLineToScene, wheelHistoryDiscontinuity, wheelLabelsNeedRefresh } from "../../ui/SpectateSceneRuntime";
 import type { SpectateSample, SpectateSnapshot } from "../../contracts/spectate";
+import { Group, PerspectiveCamera, Scene, Vector3 } from "three";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
+import type { SpectateReading } from "../../contracts/spectate";
+import { createSuspensionSpringResource, disposeSuspensionSpringResource } from "@raceiq/scene-3d/wireframe/SuspensionSpring";
 
+test("replay suspension moves each body with its own lap range and keeps native normalization", () => {
+  initGameAdapters();
+  const a = new Group(), b = new Group();
+  const sample = (raw: number[]) => ({ values: { "suspension.suspension-travel-m": raw } });
+  const runtime = Object.assign(Object.create(SpectateSceneRuntime.prototype), {
+    pair: { gameId: "ams2", a: { samples: [sample([.10, .10, .10, .10]), sample([.20, .20, .20, .20])] },
+      b: { samples: [sample([.30, .30, .30, .30]), sample([.50, .50, .50, .50])] } },
+    slots: [a, b].map(root => ({ body: { root }, wheels: [], springs: [], config: { gameId: "ams2", carModel: {} } })),
+    groups: [new Group(), new Group()],
+    tireInfo: false,
+  }) as SpectateSceneRuntime;
+  const internals = runtime as unknown as {
+    updateWheels(side: number, reading: SpectateReading, elapsed: number, speed: number, playing: boolean, now: number, generation: number): void;
+  };
+  const update = (side: number, values: Record<string, unknown>) =>
+    internals.updateWheels(side, { values, time: 0, distance: 0, pose: null }, 0, 1, false, 0, 0);
+  update(0, sample([.10, .10, .10, .10]).values);
+  expect(a.position.y).toBeCloseTo(.04);
+  update(0, sample([.20, .20, .20, .20]).values);
+  expect(a.position.y).toBeCloseTo(-.04);
+  update(1, sample([.40, .40, .40, .40]).values);
+  expect(b.position.y).toBeCloseTo(0);
+  update(0, { ...sample([.20, .20, .20, .20]).values, "suspension.norm-suspension-travel": [.1, .3, .5, .7] });
+  expect(a.position.y).toBeCloseTo(.008);
+  expect(a.rotation.x).toBeCloseTo(.02);
+  expect(a.rotation.z).toBeCloseTo(-.024);
+  update(0, sample([.1, NaN, .1, .1]).values);
+  expect(a.position.y).toBeCloseTo(0);
+  expect(a.rotation.x).toBeCloseTo(0);
+  expect(a.rotation.z).toBeCloseTo(0);
+});
+
+test("replay springs follow world-space wheel anchors and animate with chassis travel", () => {
+  initGameAdapters();
+  const scene = new Scene(), group = new Group(), body = new Group();
+  group.position.set(10, 2, 20);
+  group.rotation.y = Math.PI / 2;
+  scene.add(group);
+  const camera = new PerspectiveCamera(50, 1, .1, 100);
+  camera.position.set(14, 6, 24);
+  camera.lookAt(10, 2, 20);
+  const springs = Array.from({ length: 4 }, () => createSuspensionSpringResource(scene));
+  const raw = (value: number) => ({ "suspension.suspension-travel-m": [value, value, value, value] });
+  const runtime = Object.assign(Object.create(SpectateSceneRuntime.prototype), {
+    pair: { gameId: "ams2", a: { samples: [{ values: raw(.1) }, { values: raw(.2) }] }, b: null },
+    slots: [{ body: { root: body }, wheels: [], springs, config: {
+      gameId: "ams2", carModel: { halfWheelbase: 1, halfFrontTrack: .75, halfRearTrack: .75 },
+    } }],
+    groups: [group], camera, canvas: { clientHeight: 800 },
+    springBodyScratch: new Vector3(), springWheelScratch: new Vector3(), tireInfo: false,
+  }) as SpectateSceneRuntime;
+  const internals = runtime as unknown as {
+    updateWheels(side: number, reading: SpectateReading, elapsed: number, speed: number, playing: boolean, now: number, generation: number): void;
+  };
+  const update = (values: Record<string, unknown>) =>
+    internals.updateWheels(0, { values, time: 0, distance: 0, pose: { x: 10, y: 2, z: 20, yaw: 0 } }, 0, 1, false, 0, 0);
+  try {
+    update(raw(.1));
+    expect(springs.every(spring => spring.spring.group.visible && spring.rod.group.visible)).toBe(true);
+    const rod = springs[0]!.rod.workRuns[0]!;
+    expect(rod[0]!.x).toBeCloseTo(9.6);
+    expect(rod[0]!.z).toBeCloseTo(19);
+    expect(rod[0]!.y).toBeCloseTo(2.32);
+    expect(rod[1]!.y).toBeCloseTo(1.95);
+    expect(body.position.y).toBeCloseTo(.04);
+    update(raw(.2));
+    expect(springs[0]!.rod.workRuns[0]![0]!.y).toBeCloseTo(2.24);
+    expect(body.position.y).toBeCloseTo(-.04);
+    update({});
+    expect(springs.every(spring => !spring.spring.group.visible && !spring.rod.group.visible)).toBe(true);
+    expect(body.position.y).toBeCloseTo(0);
+    group.visible = false;
+    update(raw(.1));
+    expect(springs.every(spring => !spring.spring.group.visible && !spring.rod.group.visible)).toBe(true);
+  } finally {
+    for (const spring of springs) disposeSuspensionSpringResource(spring);
+  }
+});
+
+
+test("estimated race-line connectors respect the recorded AMS2 cadence", () => {
+  const samples = [0, 0.108, 0.216, 0.65].map((time, index) => ({
+    time, run: index < 3 ? 0 : 1, distance: index,
+    values: { "motion.position-x": index, "motion.position-z": 0 },
+  } as SpectateSample));
+  expect(estimatedRaceLineSegments(samples, false, 0.162)).toEqual([2, 0, 0, 3, 0, 0]);
+  expect(estimatedRaceLineSegments(samples)).toHaveLength(18);
+});
 
 test("estimated race-line connectors bridge true gaps up to one second and reject invalid samples", () => {
   const sample = (time: number, x: unknown, z: unknown, run = 0): SpectateSample => ({

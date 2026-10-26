@@ -35,6 +35,9 @@ export interface ServerGameAdapter extends GameAdapter {
   /** Quick check: does this buffer belong to this game? */
   canHandle(buf: Buffer): boolean;
 
+  /** Native menu/end frames can terminate a session without a driving packet. */
+  isSessionEndFrame?(buf: Buffer): boolean;
+
   /**
    * Parse a UDP buffer into a TelemetryPacket.
    * Return null if the packet should be skipped (e.g. paused).

@@ -1,5 +1,5 @@
 import * as THREE from "three/webgpu";
-import { normalizeSuspensionTravel } from "../suspension";
+import { normalizeSuspensionTravel, type SuspensionTravelRangeMm } from "../suspension";
 import { THREE_COLORS } from "../wireframe-utils";
 import { semanticNumber, type SemanticAnalysisFrame } from "../semantic-frame";
 import { buildLoadTrail } from "./CarScene";
@@ -105,7 +105,7 @@ export class SceneOverlays {
     this.previousSample = null;
   }
 
-  update(frame: SemanticAnalysisFrame, frames: SemanticAnalysisFrame[], cursorIdx: number, config: SceneRuntimeConfig, source: SceneSource | null, now: number, elapsed: number, generation: number, viewportHeight: number): void {
+  update(frame: SemanticAnalysisFrame, frames: SemanticAnalysisFrame[], cursorIdx: number, config: SceneRuntimeConfig, source: SceneSource | null, now: number, elapsed: number, generation: number, viewportHeight: number, suspensionRange: SuspensionTravelRangeMm): void {
     if (this.wheelModel !== config.carModel) this.replaceWheels(config);
     this.updateHistory(frames, source?.seekGeneration ?? 0);
     const yaw = semanticNumber(frame, "motion.yaw") ?? 0;
@@ -114,7 +114,6 @@ export class SceneOverlays {
     if (config.toggles.grid) this.grid.updatePose(px, pz, yaw);
     else this.grid.resetPose();
     const wb = config.carModel.halfWheelbase, ft = config.carModel.halfFrontTrack, rt = config.carModel.halfRearTrack;
-    const suspensionRange = config.gameId === "acc" ? { min: 0, max: 50 } : config.gameId === "iracing" ? { min: 0, max: 100 } : undefined;
     const normalized = frame.values["suspension.norm-suspension-travel"];
     const suspension = Array.isArray(normalized) && normalized.length >= 4 &&
       Number.isFinite(normalized[0]) && Number.isFinite(normalized[1]) &&

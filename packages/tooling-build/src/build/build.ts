@@ -86,6 +86,7 @@ async function main() {
   releaseFeatureFlags({
     RACEIQ_FEATURE_F1_EXPERIMENTS: process.env.RACEIQ_FEATURE_F1_EXPERIMENTS,
     RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER,
+    RACEIQ_FEATURE_AMS2_ADAPTER: process.env.RACEIQ_FEATURE_AMS2_ADAPTER,
   });
   rmSync(distDir, { recursive: true, force: true });
   mkdirSync(distDir, { recursive: true });
@@ -108,6 +109,8 @@ async function main() {
     `process.env.RACEIQ_FEATURE_F1_EXPERIMENTS=${JSON.stringify(process.env.RACEIQ_FEATURE_F1_EXPERIMENTS)}`,
     "--define",
     `process.env.RACEIQ_FEATURE_IRACING_ADAPTER=${JSON.stringify(process.env.RACEIQ_FEATURE_IRACING_ADAPTER)}`,
+    "--define",
+    `process.env.RACEIQ_FEATURE_AMS2_ADAPTER=${JSON.stringify(process.env.RACEIQ_FEATURE_AMS2_ADAPTER)}`,
   );
   if (process.env.RACEIQ_DOCKER_BUILD === "1") {
     compileArgs.push("--define", 'process.env.RACEIQ_DISABLE_IN_APP_UPDATE="1"');
@@ -125,7 +128,9 @@ async function main() {
     );
   }
 
-  compileArgs.push("apps/backend/src/bootstrap.ts", "server/experiments/lap-issues-worker.ts", "apps/backend/src/runtime/startup-worker-entry.ts", "packages/capture-splitting/src/worker.ts", "--outfile", join(distDir, "raceiq"));
+  compileArgs.push("apps/backend/src/bootstrap.ts", "server/experiments/lap-issues-worker.ts", "apps/backend/src/runtime/startup-worker-entry.ts",
+    "packages/capture-splitting/src/worker.ts", "packages/capture-formats/src/session/source-writer-worker.ts",
+    "apps/backend/src/session-capture/live-worker-entry.ts", "server/session-capture/lmu-opponent-index-worker.ts", "--outfile", join(distDir, "raceiq"));
 
   await run(compileArgs, { env: { NODE_ENV: "production" } });
   // Bun's compiled Mach-O can retain an invalid linker signature after bundling.

@@ -2,6 +2,9 @@
 
 ### Features
 - Choose Claude (Anthropic) as an AI provider for analysis, chat, auto-tune and driver profiles with its own API key. The model picker lists the Claude models available to that key, tags Claude Haiku 5.5 as Recommended, and preselects it when you switch to Claude.
+- Replace category tabs on the AMS2 and iRacing Cars pages with a searchable dropdown that shows the total as a placeholder, clears the search when opened, and preserves category counts and the All categories reset.
+- Add AMS2 support: native Windows shared-memory telemetry capture, game-specific car and track identity, per-wheel Replay metrics, 235 track maps, car thumbnails, dashboard branding and a separate Driver profile; include Live connection guidance and correct lap capture, export, replay and track-map behavior. Keep adapter availability and native capture development-only.
+- Show animated suspension springs and chassis movement in Replay and Compare → Spectate; use the lap's observed travel range when no game range is specified, while preserving native normalized readings.
 - Show clickable circuit-overview sector markers on desktop only while hovering or using keyboard focus; keep them visible on touch screens.
 - Group LMU state of charge, virtual energy and regenerative power in a separate table below the main Replay and Compare → Spectate metrics.
 - Use dashed track edges in Replay and Compare → Spectate to provide fixed-distance speed cues.
@@ -11,6 +14,7 @@
 - Show separate LMU player energy, engine, electric motor, steering feedback, weather and race-control readings in live telemetry when provided by the game.
 - Show read-only LMU setup, forecast and condition snapshots with source age and availability, without waiting for network requests before displaying live telemetry.
 - Compare laps in Spectate with synchronized 3D replay, configurable cameras and overlays, live A/B instruments, sector deltas, and telemetry, car, AI, Focus View, and lap-statistics panels.
+
 - Inspect recorded telemetry in Compare → Spectate with a Data panel and switch between lap A and B without showing both panels at once.
 - Bring Compare → Spectate's scene, playback, telemetry and Insights to single-lap Replay, with saved 3D settings, grouped wheel graphs, stable ERS bands, chassis/tire-info rendering and independently resizable, horizontally scrollable panels.
 - Show LMU traction-control and ABS settings and activation, traction-control cut level, motor map, battery state of charge, virtual energy and signed regen power in Replay's existing Data panel instead of a separate Player telemetry section; show brake migration beside brake bias in Dynamics.
@@ -39,6 +43,11 @@
 - Load the model list and run AI features when the OpenAI-compatible base URL is Anthropic's `https://api.anthropic.com/v1`, which previously failed with "x-api-key header is required".
 - Send the saved OpenAI-compatible API key from the setup engineer and driver coach instead of a placeholder key.
 - Keep API keys saved in Settings while a Linux or WSL development server runs instead of silently discarding them; installed builds are unchanged.
+- Place inner and outer surface-temperature bands on the correct sides of the 3D wheels in Replay and Compare → Spectate.
+- Include the LMU opponent-index worker in packaged builds so recorded opponents can load for replay and comparison.
+- Restore recorded-opponent driver and lap selections after reloading comparisons while the opponent catalog loads.
+- Preserve Replay and Spectate panel widths when panels are toggled, and keep the mobile circuit overview clear of driver inputs and focus controls.
+- Keep Spectate selected when switching comparison views with the keyboard.
 - Keep selected LMU lap exports within the chosen recording window, preserve opponent frame order, and avoid duplicate samples.
 - Preserve recorded opponent position samples around missing distance observations without interpolating across gaps.
 - Keep completed player laps importable after removing LMU opponent data.
@@ -81,6 +90,11 @@
 - Keep LMU snapshots responsive when the local telemetry service returns oversized, rejected, or malformed condition responses.
 - Open the dashboard in your default browser when launching RaceIQ from the optional desktop shortcut or Start menu, even when the server was stopped.
 - Preserve incomplete-lap eligibility and LMU first-outlap classification across ordinal detector transitions.
+- Keep recording splitting and the dashboard running when another application already uses the live telemetry UDP port.
+- Keep Windows recording publication working when directory metadata flushing is unsupported, while retaining file-content flushing and reporting other I/O failures.
+- Keep session Overview maps complete when an unfinished lap follows completed invalid laps.
+- Keep session Overview maps compact on wide screens and fit the driven lap line without hidden track edges shrinking it.
+- Keep game links visible on Live pages.
 - Keep first-run setup responsive by omitting the optional telemetry demo.
 - Label the community setup copy action “Clone” in the setup browser.
 - Leave MoTeC imports unchanged during historical lap-classification upgrades.
@@ -129,6 +143,8 @@
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
+- Preserve Windows directory-sync path errors when validating recording publication directories.
+- Target comparison lap pickers explicitly in browser checks and wait for rendered frames in the native camera zoom check.
 - Keep diagnostic dump runs in one BIN per selected source, retain raw Forza/F1 datagrams, stream live telemetry over WebSocket for every game, and bypass telemetry-driven session/database processing and background recording maintenance.
 - Extract Sessions and Session Analyse into feature-owned UI, server, contract, and test workspaces while preserving existing navigation and analysis behavior.
 - Move Sessions and Session Review into their own package.

@@ -1,17 +1,43 @@
+import { resolveBalance, resolveWheelStates } from "@raceiq/analysis-core/racing/analysis/metric-values";
 import { describe, expect, test } from "bun:test";
 import type { ComparisonData } from "@raceiq/shared/racing/comparison/types";
 import type { SemanticLapTelemetry } from "@raceiq/lap-replay/contracts"
-import { createSpectateController, prepareSpectateLap } from "@raceiq/lap-replay/ui"
+import { createSpectateController, prepareSpectateLap, vehicleSideslipDegrees } from "@raceiq/lap-replay/ui"
+import { estimateWheelSlipAngles, resolveWheelSlipGeometry, AMS2_POLO_APPROXIMATE_GEOMETRY, AMS2_POLO_GEOMETRY_DISCLOSURE } from "../../ui/spectate-replay";
 import type { SpectateLap, SpectateSample } from "@raceiq/lap-replay/contracts"
-import { channelValue } from "@raceiq/lap-replay/ui"
-import type { SpectateChannel } from "../../ui/spectate-channels"
+import { channelValue } from "../../ui/spectate-channels";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { buildSpectateChannels } from "../../ui/spectate-channels"
 import type { SpectatePair } from "../../contracts/spectate"
 import type { OpponentSemanticLapTelemetry } from "../../contracts/opponents";
 import { alignLmuOpponentPositionTraces } from "../../server/opponent-routes";
 
-initGameAdapters();
+initGameAdapters({ f1Experiments: true, iracingAdapter: true, ams2Adapter: true });
+test("AMS2 dashboard metric descriptors retain canonical balance and traction outputs", () => {
+  const balanceMetric = {
+    source: "derived" as const,
+    confidence: "high" as const,
+    binding: { kind: "derived" as const, derivation: "physical-balance-v1" as const, requires: ["motion.speed", "motion.acceleration-x", "motion.angular-velocity-y"] },
+  };
+  const tractionMetric = {
+    source: "derived" as const,
+    confidence: "exact" as const,
+    display: "per-wheel" as const,
+    binding: { kind: "derived" as const, derivation: "traction-v1" as const, requires: ["motion.speed", "inputs.steer", "tires.wheel-rotation-speed"] },
+  };
+  const reading = { values: {
+    "motion.speed": 20,
+    "motion.acceleration-x": -9.81,
+    "motion.angular-velocity-y": 0,
+    "inputs.steer": 0.2,
+    "tires.wheel-rotation-speed": [60, 60, 60, 60],
+  } };
+  expect(resolveBalance(reading, balanceMetric)?.state).toBe("understeer");
+  expect(resolveBalance({ values: { ...reading.values, "motion.speed": 0 } }, balanceMetric)?.state).toBe("neutral");
+  expect(resolveBalance({ values: { ...reading.values, "motion.angular-velocity-y": null } }, balanceMetric)).toBeNull();
+  expect(resolveWheelStates(reading, tractionMetric).every(state => state !== null)).toBe(true);
+  expect(resolveWheelStates({ values: { ...reading.values, "tires.wheel-rotation-speed": null } }, tractionMetric)).toEqual([null, null, null, null]);
+});
 
 test("opponent distance alignment preserves exact samples around missing distances", () => {
   const rows = [0, 10, null, 30, 40].map((distance, index) => {
@@ -78,6 +104,86 @@ function recordedLap(duration: number, distanceAt: (time: number) => number): Sp
   });
   return result;
 }
+test("AMS2 vehicle sideslip uses ground-plane motion relative to heading and rejects unavailable spans", () => {
+  const source = lap(0.1, time => time);
+  source.samples = [0, 0.05, 0.1].map((time, index) => ({
+    time, distance: time * 10, run: index === 2 ? 1 : 0,
+    values: { "motion.position-x": time * 10, "motion.position-z": 0, "motion.yaw": Math.PI / 2 },
+  }));
+  source.maximumGapSeconds = 0.1;
+  source.replay.envelopes = [{ simulator: "ams2" } as never];
+  expect(vehicleSideslipDegrees(source, 0.025)).toBeCloseTo(0);
+  source.samples[1]!.values = { ...source.samples[1]!.values, "motion.position-z": -0.5 };
+  expect(vehicleSideslipDegrees(source, 0.025)).toBeCloseTo(45);
+  source.samples[1]!.values = { ...source.samples[1]!.values, "motion.position-z": 0, "motion.position-x": -0.5 };
+  expect(Math.abs(vehicleSideslipDegrees(source, 0.025)!)).toBeCloseTo(180);
+  source.samples[1]!.values = { ...source.samples[1]!.values, "motion.position-x": 0.01 };
+  expect(vehicleSideslipDegrees(source, 0.025)).toBeNull();
+  source.samples[1]!.values = { ...source.samples[1]!.values, "motion.position-x": 0.5 };
+  source.samples[1]!.values = { ...source.samples[1]!.values, "motion.yaw": null };
+  expect(vehicleSideslipDegrees(source, 0.025)).toBeNull();
+  expect(vehicleSideslipDegrees(source, 0.075)).toBeNull();
+  expect(vehicleSideslipDegrees(source, 0.2)).toBeNull();
+});
+test("AMS2 Polo geometry approximation is limited to its identity and yields to exact dimensions", () => {
+  expect(resolveWheelSlipGeometry("ams2", "325487790", undefined)).toEqual({ model: AMS2_POLO_APPROXIMATE_GEOMETRY, estimated: true });
+  expect(AMS2_POLO_APPROXIMATE_GEOMETRY).toEqual({ halfWheelbase: 1.276, halfFrontTrack: 0.75, halfRearTrack: 0.7415 });
+  expect(AMS2_POLO_GEOMETRY_DISCLOSURE).toContain("road-going Volkswagen Polo proxy");
+  expect(AMS2_POLO_GEOMETRY_DISCLOSURE).toContain("Not verified for AMS2 TSI Cup or game physics");
+  const exact = { halfWheelbase: 1.2, halfFrontTrack: 0.7, halfRearTrack: 0.69 };
+  expect(resolveWheelSlipGeometry("ams2", "325487790", exact)).toEqual({ model: exact, estimated: false });
+  expect(resolveWheelSlipGeometry("ams2", "other", undefined)).toBeUndefined();
+  expect(resolveWheelSlipGeometry("fm-2023", "325487790", undefined)).toBeUndefined();
+});
+test("AMS2 replay estimates per-wheel slip angle from adjacent native wheel paths", () => {
+  const geometry = { halfWheelbase: 1.3, halfFrontTrack: 0.8, halfRearTrack: 0.75 };
+  const makeLap = (samples: SpectateSample[]) => ({
+    ...lap(0.1, time => time * 10),
+    samples,
+    maximumGapSeconds: 0.1,
+    replay: { lapId: 1, requestedSemanticIds: [], envelopes: [{ simulator: "ams2" } as never] },
+  });
+  const straight = [0, 0.05, 0.1].map((time, index): SpectateSample => ({
+    time, distance: time * 10, run: 0,
+    values: { "motion.position-x": 0, "motion.position-z": time * 10, "motion.yaw": 0, "motion.speed": 10, "inputs.steer": 0 },
+  }));
+  expect(estimateWheelSlipAngles(makeLap(straight), 0.05, geometry)).toEqual([0, 0, 0, 0]);
+  expect(estimateWheelSlipAngles(makeLap(straight), 0.025, geometry)).toEqual([0, 0, 0, 0]);
+
+  const yawRate = 0.2;
+  const turning = [0, 0.05, 0.1].map((time): SpectateSample => ({
+    time, distance: time * 10, run: 0,
+    values: {
+      "motion.position-x": (10 / yawRate) * (1 - Math.cos(yawRate * time)),
+      "motion.position-z": (10 / yawRate) * Math.sin(yawRate * time),
+      "motion.yaw": yawRate * time, "motion.speed": 10, "inputs.steer": 0,
+    },
+  }));
+  const turningAngles = estimateWheelSlipAngles(makeLap(turning), 0.05, geometry);
+  expect(turningAngles[0]).toBeCloseTo(turningAngles[1]!);
+  expect(turningAngles[2]).toBeCloseTo(turningAngles[3]!);
+  expect(turningAngles[0]).not.toBeCloseTo(turningAngles[2]!);
+
+  const steered = straight.map(sample => ({ ...sample, values: { ...sample.values, "inputs.steer": 40 } }));
+  const steeringAdjusted = estimateWheelSlipAngles(makeLap(steered), 0.05, geometry);
+  expect(steeringAdjusted[0]).toBeLessThan(0);
+  expect(steeringAdjusted[1]).toBeLessThan(0);
+  expect(steeringAdjusted[2]).toBeCloseTo(0);
+  expect(steeringAdjusted[3]).toBeCloseTo(0);
+
+  const missing = straight.map(sample => ({ ...sample, values: { ...sample.values, "motion.position-x": null } }));
+  expect(estimateWheelSlipAngles(makeLap(missing), 0.05, geometry)).toEqual([null, null, null, null]);
+  const missingSteering = straight.map(sample => ({ ...sample, values: { ...sample.values, "inputs.steer": null } }));
+  expect(estimateWheelSlipAngles(makeLap(missingSteering), 0.05, geometry)).toEqual([null, null, null, null]);
+  const gap = straight.map((sample, index) => ({ ...sample, time: index === 2 ? 0.5 : sample.time }));
+  expect(estimateWheelSlipAngles(makeLap(gap), 0.5, geometry)).toEqual([null, null, null, null]);
+  const boundary = straight.map((sample, index) => ({ ...sample, run: index === 2 ? 1 : 0 }));
+  expect(estimateWheelSlipAngles(makeLap(boundary), 0.1, geometry)).toEqual([null, null, null, null]);
+  const slow = straight.map(sample => ({ ...sample, values: { ...sample.values, "motion.speed": 0.5 } }));
+  expect(estimateWheelSlipAngles(makeLap(slow), 0.05, geometry)).toEqual([null, null, null, null]);
+  expect(estimateWheelSlipAngles(makeLap(straight), Number.NaN, geometry)).toEqual([null, null, null, null]);
+  expect(estimateWheelSlipAngles(makeLap(straight), 0.05, { ...geometry, halfWheelbase: 0 })).toEqual([null, null, null, null]);
+});
 test("replay holds native aid activation until its next sample and rejects stale activity", () => {
   const replay = recordedLap(0.15, time => time * 20).replay;
   replay.envelopes.forEach((frame, index) => {
@@ -699,4 +805,54 @@ describe("Spectate native sampling", () => {
     expect(controller.sample(0.1).a?.values["fuel.ers-deploy-mode"]).toBe("3");
     controller.dispose();
   });
+});
+
+function reducedRateReplay(simulator: "ams2" | "fm-2023" = "ams2"): SemanticLapTelemetry {
+  const replay = recordedLap(1.2, time => time * 20).replay;
+  let milliseconds = 0;
+  replay.envelopes = replay.envelopes.map((frame, index) => {
+    if (index) milliseconds += [106, 110, 107, 109][index % 4]!;
+    return {
+      ...frame, simulator,
+      observedAt: { domain: "session", milliseconds },
+      values: [...frame.values, { semanticId: "motion.speed", value: 50 + index }, { semanticId: "timing.distance-traveled", value: index * 10 }],
+    };
+  });
+  return replay;
+}
+
+test("reduced-rate AMS2 replays interpolate normal recorded jitter in single and locked comparison playback", () => {
+  const replay = reducedRateReplay();
+  const a = prepareSpectateLap(replay);
+  const controller = createSpectateController(a, prepareSpectateLap(replay));
+  try {
+    expect(controller.getSnapshot().canLock).toBe(true);
+    for (let index = 1; index < a.samples.length; index++) {
+      const time = (a.samples[index - 1]!.time + a.samples[index]!.time) / 2;
+      const reading = controller.sample(time);
+      expect(reading.a?.pose).not.toBeNull();
+      expect(reading.a?.values["motion.speed"]).toBeCloseTo(49.5 + index);
+      expect(reading.b?.pose).not.toBeNull();
+    }
+  } finally { controller.dispose(); }
+});
+
+test("reduced-rate AMS2 replays keep a missing recorded tick blank", () => {
+  const replay = reducedRateReplay();
+  const before = replay.envelopes[9]!.observedAt.milliseconds / 1000;
+  const after = replay.envelopes[11]!.observedAt.milliseconds / 1000;
+  replay.envelopes.splice(10, 1);
+  const controller = createSpectateController(prepareSpectateLap(replay), null);
+  try {
+    expect(controller.sample((before + after) / 2).a).toBeNull();
+    expect(controller.sample(before).a?.pose).not.toBeNull();
+    expect(controller.sample(after).a?.pose).not.toBeNull();
+  } finally { controller.dispose(); }
+});
+
+test("reduced-rate AMS2 cadence does not loosen gap handling for other simulators", () => {
+  const a = prepareSpectateLap(reducedRateReplay("fm-2023"));
+  const controller = createSpectateController(a, null);
+  try { expect(controller.sample((a.samples[0]!.time + a.samples[1]!.time) / 2).a).toBeNull(); }
+  finally { controller.dispose(); }
 });

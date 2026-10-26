@@ -12,6 +12,8 @@ export interface SpectateSample {
   frame?: SemanticReplayFrame;
 }
 export interface SpectateLap {
+  /** Maximum interval interpolated within a continuous recorded run. */
+  maximumGapSeconds?: number;
   samples: readonly SpectateSample[];
   /** Distinct F1 motion updates; telemetry samples retain every native channel update. */
   motionSamples?: readonly SpectateSample[];

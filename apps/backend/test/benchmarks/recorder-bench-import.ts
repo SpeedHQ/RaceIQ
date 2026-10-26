@@ -44,7 +44,7 @@ export type MemoryImportResult = {
 
 /** Production index parser/detector workload with capture and database persistence excluded. */
 export async function runMemoryImport(bytes: Buffer, gameId: GameId): Promise<MemoryImportResult> {
-  initServerGameAdapters({ f1Experiments: false, iracingAdapter: true });
+  initServerGameAdapters({ f1Experiments: false, iracingAdapter: true, ams2Adapter: true });
   const game = getServerGame(gameId);
   const db = new MemoryImportDb();
   const pipeline = new LiveTelemetryPipeline(db, new NullWsAdapter(), {

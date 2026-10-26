@@ -52,7 +52,7 @@ async function playwrightPortEnv(): Promise<Record<string, string>> {
   return env;
 }
 
-const root = new URL("../..", import.meta.url).pathname;
+const root = resolve(import.meta.dir, "../..");
 const seededDataDir = resolve(root, "playwright/test-data-seed-producer");
 const seededDatabase = resolve(seededDataDir, "app.db");
 const suites = [
