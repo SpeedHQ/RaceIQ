@@ -60,6 +60,17 @@ describe("replay scene placement", () => {
     expect(poses[2]).toBeNull();
     expect(poses[3]).toMatchObject({ x: 0, z: expect.closeTo(11.1, 0), y: 4, yaw: 0, source: "measured" });
   });
+
+  test("keeps measured iRacing positions when compass heading is absent", () => {
+    const poses = resolveScenePoses("iracing", [
+      frame({ "motion.latitude": 53, "motion.longitude": -2 }),
+      frame({ "motion.latitude": 53.0001, "motion.longitude": -2 }),
+      frame({ "motion.latitude": 53.0001, "motion.longitude": -1.9999 }),
+    ], projection);
+    expect(poses[0]).toMatchObject({ x: 0, z: 0, yaw: 0, source: "measured" });
+    expect(poses[1]).toMatchObject({ z: expect.closeTo(11.1, 0), yaw: expect.closeTo(Math.PI / 2, 3), source: "measured" });
+    expect(poses[2]).toMatchObject({ x: expect.closeTo(6.7, 0), yaw: expect.closeTo(Math.PI / 2, 3), source: "measured" });
+  });
   test("2D geographic path uses track origin and preserves missing-sample gaps", () => {
     const positions = resolveTrackPositions([
       frame({ "identity.track.latitude": 53, "identity.track.longitude": -2, "motion.latitude": 53, "motion.longitude": -2 }),

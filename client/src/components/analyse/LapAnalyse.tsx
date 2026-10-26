@@ -50,6 +50,7 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
     setSelectedLapId,
     handleLapChange,
     outline,
+    trackProjection,
 
     segments,
     initialCursor,
@@ -269,6 +270,7 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
           lap={selectedLap}
           replay={semanticReplay}
           outline={outline}
+          trackProjection={trackProjection}
           segments={segments ?? []}
           initialFrame={initialCursor}
           onController={handleController}

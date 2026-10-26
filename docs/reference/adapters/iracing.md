@@ -42,6 +42,8 @@ Exports of imported IBT telemetry retain the complete original recording, even w
 
 - The transport is Windows-local.
 - Live SDK telemetry provides lap distance and native sector starts, but no stable world-space racing line. The adapter uses `lap-distance` coordinates rather than fabricating world positions.
+- Single-lap replay resolves scene positions before creating its playback controller: native IBT GPS positions take precedence; live-only lap fractions use the official track projection when available. Missing GPS samples remain gaps. When compass heading is absent, adjacent GPS positions supply visualization-only direction.
+- Player iRacing replay interpolates capture stalls up to 250 ms for continuous playback. Longer outages and missing position channels remain unavailable; interpolation does not modify recorded telemetry or other simulators' gap policies.
 - The live SDK does not provide per-wheel rotation, slip ratio, slip angle, or tyre-force channels suitable for continuous analysis.
 - Tyre temperatures and tyre condition are pit snapshots; cold tyre pressures are static setup values, not live hot pressure.
 - RaceIQ reads telemetry and session identity. It does not write garage setup values back to iRacing.

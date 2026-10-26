@@ -1,3 +1,4 @@
+import type { TrackProjection } from "@raceiq/scene-3d/wireframe/ScenePlacement";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
@@ -12,6 +13,7 @@ export interface SingleReplaySessionProps {
   lap: LapMeta | ReplayOpponentMetadata;
   replay: SemanticLapTelemetry | OpponentSemanticLapTelemetry;
   outline: readonly { x: number; z: number }[] | null;
+  trackProjection?: TrackProjection | null;
   segments: readonly SpectateSegment[];
   trackLengthM?: number;
   initialFrame?: number;
@@ -23,12 +25,12 @@ export interface SingleReplaySessionProps {
 }
 
 /** One native replay clock rendered through the same scene and panels as comparison. */
-export function SingleReplaySession({ gameId, lap, replay, outline, segments, trackLengthM, initialFrame, ai, aiOpen, onAiOpenChange, onController, panelHeaderTarget }: SingleReplaySessionProps) {
+export function SingleReplaySession({ gameId, lap, replay, outline, trackProjection, segments, trackLengthM, initialFrame, ai, aiOpen, onAiOpenChange, onController, panelHeaderTarget }: SingleReplaySessionProps) {
   const a = useMemo(() => {
     const prepared = prepareSpectateLap(replay);
     if (typeof trackLengthM === "number" && Number.isFinite(trackLengthM) && trackLengthM > 0) prepared.trackLengthM = trackLengthM;
-    return prepared;
-  }, [replay, trackLengthM]);
+    return gameId === "iracing" ? placeIRacingSpectateLaps([prepared, prepared], trackProjection ?? null)[0] : prepared;
+  }, [gameId, replay, trackLengthM, trackProjection]);
   const session = useMemo<ReplaySessionData>(() => ({
     gameId,
     a,

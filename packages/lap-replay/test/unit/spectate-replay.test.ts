@@ -6,7 +6,7 @@ import { createSpectateController, placeIRacingSpectateLaps, prepareSpectateLap,
 import type { SpectateLap, SpectateSample } from "@raceiq/lap-replay/contracts";
 import { channelValue } from "@raceiq/lap-replay/ui";
 import type { SpectateChannel } from "../../ui/spectate-channels";
-import { estimateWheelSlipAngles, resolveWheelSlipGeometry, AMS2_POLO_APPROXIMATE_GEOMETRY, AMS2_POLO_GEOMETRY_DISCLOSURE } from "../../ui/spectate-replay";
+import { estimateWheelSlipAngles, resolveWheelSlipGeometry, spectateSamplePosition, AMS2_POLO_APPROXIMATE_GEOMETRY, AMS2_POLO_GEOMETRY_DISCLOSURE } from "../../ui/spectate-replay";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { buildSpectateChannels } from "../../ui/spectate-channels"
 import type { SpectatePair } from "../../contracts/spectate"
@@ -842,6 +842,17 @@ describe("iRacing Spectate scene geometry", () => {
     expect(sampleLap(gapped, 0.05, false)?.pose).toBeNull();
     expect(sampleLap(gapped, 0.1, false)?.pose?.z).toBe(100);
   });
+  test("iRacing measured replay keeps map positions when recorded compass heading is absent", () => {
+    const replay = recording([
+      { "motion.latitude": 53, "motion.longitude": -2 },
+      { "motion.latitude": 53.0001, "motion.longitude": -2 },
+      { "motion.latitude": 53.0001, "motion.longitude": -1.9999 },
+    ]);
+    const native = prepareSpectateLap(replay, comparison, "a");
+    const [placed] = placeIRacingSpectateLaps([native, native], projection);
+    expect(placed.samples.every(sample => spectateSamplePosition(sample) !== null)).toBe(true);
+    expect(sampleLap(placed, 0.05, false)?.pose).toMatchObject({ source: "measured", z: expect.closeTo(11.1, 0) });
+  });
   test("measured laps share one origin and missing GPS never snaps onto the reference", () => {
     const row = (latitude: number) => ({ "motion.latitude": latitude, "motion.longitude": -2, "motion.yaw-north": 0.4, "timing.lap-fraction": 0.5 });
     const a = prepareSpectateLap(recording([row(53), row(53.0001), row(53.0002)]), comparison, "a");
@@ -935,4 +946,27 @@ test("reduced-rate AMS2 cadence does not loosen gap handling for other simulator
   const controller = createSpectateController(a, null);
   try { expect(controller.sample((a.samples[0]!.time + a.samples[1]!.time) / 2).a).toBeNull(); }
   finally { controller.dispose(); }
+});
+
+test("iRacing interpolates short capture stalls but preserves long gaps and other games", () => {
+  const recording = (simulator: "iracing" | "fm-2023", gap: number) => ({
+    lapId: 1, requestedSemanticIds: [],
+    envelopes: [0, gap].map((time, sequence) => ({
+      sequence, simulator,
+      observedAt: { domain: "session" as const, milliseconds: time * 1000 },
+      values: [
+        { semanticId: "motion.position-x", value: time * 20 },
+        { semanticId: "motion.position-z", value: 0 },
+        { semanticId: "motion.yaw", value: 0 },
+        { semanticId: "motion.speed", value: 20 + time * 10 },
+      ],
+    })),
+  });
+  for (const gap of [7 / 60, 0.15, 0.25]) {
+    const lap = prepareSpectateLap(recording("iracing", gap));
+    expect(sampleLap(lap, gap / 2, false)?.pose?.x).toBeCloseTo(gap * 10);
+    expect(sampleLap(lap, gap / 2, false)?.values["motion.speed"]).toBeCloseTo(20 + gap * 5);
+  }
+  expect(sampleLap(prepareSpectateLap(recording("iracing", 0.3)), 0.15, false)).toBeNull();
+  expect(sampleLap(prepareSpectateLap(recording("fm-2023", 0.15)), 0.075, false)).toBeNull();
 });

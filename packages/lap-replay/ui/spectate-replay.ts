@@ -71,9 +71,13 @@ function lowerBound<T>(items: readonly T[], target: number, value: (item: T) => 
 
 /** Register native samples to aligned comparison path when supplied. */
 export function prepareSpectateLap(replay: SemanticLapTelemetry | OpponentSemanticLapTelemetry, comparison?: ComparisonData, side: "a" | "b" = "a", options?: { preserveLapDistance: boolean }): SpectateLap {
-  const maximumGapSeconds = !isOpponentReplay(replay) && replay.envelopes[0]?.simulator === "ams2"
-    ? recordedTelemetryGapSeconds(replay.envelopes.map(frame => frame.observedAt.milliseconds))
-    : undefined;
+  // iRacing live captures can briefly stall between otherwise contiguous SDK samples.
+  // Interpolate bounded stalls for playback; longer outages remain explicit gaps.
+  const maximumGapSeconds = !isOpponentReplay(replay) && replay.envelopes[0]?.simulator === "iracing"
+    ? 0.25
+    : !isOpponentReplay(replay) && replay.envelopes[0]?.simulator === "ams2"
+      ? recordedTelemetryGapSeconds(replay.envelopes.map(frame => frame.observedAt.milliseconds))
+      : undefined;
   const traces = comparison?.traces;
   const elapsed = traces ? (side === "a" ? traces.elapsedTimeA : traces.elapsedTimeB) : [];
   const aligned: Array<{ time: number; distance: number; first: number; last: number }> = [];

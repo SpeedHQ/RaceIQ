@@ -88,15 +88,38 @@ export function resolveScenePoses(gameId: GameId, frames: SemanticAnalysisFrame[
   const altitudeOrigin = altitudeOriginFrame
     ? supportedNumber(altitudeOriginFrame, "identity.track.altitude") ?? supportedNumber(altitudeOriginFrame, "motion.altitude")
     : null;
-  return frames.map((frame) => {
+  const positions = measured
+    ? frames.map((frame) => {
+        const latitude = supportedNumber(frame, "motion.latitude");
+        const longitude = supportedNumber(frame, "motion.longitude");
+        return validGeo(latitude, longitude) && origin
+          ? geographicPosition(latitude!, longitude!, origin.latitude, origin.longitude)
+          : null;
+      })
+    : [];
+  const measuredHeading = (index: number): number => {
+    const recorded = supportedNumber(frames[index]!, "motion.yaw-north");
+    if (recorded !== null) return recorded;
+    const current = positions[index];
+    if (!current) return 0;
+    const next = positions[index + 1];
+    const previous = positions[index - 1];
+    const nextDx = next ? next.x - current.x : 0;
+    const nextDz = next ? next.z - current.z : 0;
+    const dx = next && (nextDx !== 0 || nextDz !== 0)
+      ? nextDx
+      : previous ? current.x - previous.x : 0;
+    const dz = next && (nextDx !== 0 || nextDz !== 0)
+      ? nextDz
+      : previous ? current.z - previous.z : 0;
+    return dx !== 0 || dz !== 0 ? Math.atan2(dx, dz) : 0;
+  };
+  return frames.map((frame, index) => {
     if (measured) {
-      const latitude = supportedNumber(frame, "motion.latitude");
-      const longitude = supportedNumber(frame, "motion.longitude");
-      const heading = supportedNumber(frame, "motion.yaw-north");
-      if (!origin || !validGeo(latitude, longitude) || heading === null) return null;
-      const position = geographicPosition(latitude!, longitude!, origin.latitude, origin.longitude);
+      const position = positions[index];
+      if (!position) return null;
       const altitude = supportedNumber(frame, "motion.altitude");
-      return { ...position, ...(altitude === null || altitudeOrigin === null ? {} : { y: altitude - altitudeOrigin }), yaw: heading, source: "measured" };
+      return { ...position, ...(altitude === null || altitudeOrigin === null ? {} : { y: altitude - altitudeOrigin }), yaw: measuredHeading(index), source: "measured" };
     }
     const x = supportedNumber(frame, "motion.position-x");
     const z = supportedNumber(frame, "motion.position-z");
