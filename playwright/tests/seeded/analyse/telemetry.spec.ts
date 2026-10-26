@@ -75,7 +75,9 @@ for (const game of SEEDED_GAME_CASES) {
     const representativeFrames = [0, Math.floor(lap.telemetry.length / 2), lap.telemetry.length - 1];
     for (const frame of representativeFrames) {
       await setAnalyseFrame(page, frame);
-      await expect(page.getByText(`Packet ${frame + 1}/${lap.telemetry.length}`, { exact: true })).toBeVisible();
+      const data = page.locator("[data-spectate-data-side]");
+      await expect(data).toHaveAttribute("data-packet-number", String(frame + 1));
+      await expect(data).toHaveAttribute("data-packet-count", String(lap.telemetry.length));
     }
 
     for (const field of COMMON_DYNAMIC_FIELDS) {

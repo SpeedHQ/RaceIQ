@@ -20,7 +20,7 @@ function validFmSettings() {
 // so we can't paste arbitrary JSON — create via the structured form instead.
 test.describe("Forza Motorsport tunes", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/fm23/setups");
     await completeOnboarding(page);
     await resetTunes(page);
   });

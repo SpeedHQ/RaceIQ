@@ -519,7 +519,7 @@ function sparseLapRecords(
     const magic = frameSource.length >= 4 ? frameSource.readUInt32LE(0) : 0;
     const isKunos = (gameId === "acc" && magic === ACC_PACKED_MAGIC) ||
       (gameId === "ac-evo" && magic === ACEVO_PACKED_MAGIC);
-    const supportsGeneric = gameId === "fm-2023" || gameId === "f1-2025" || gameId === "iracing";
+    const supportsGeneric = gameId === "fm-2023" || gameId === "f1-2025" || gameId === "iracing" || gameId === "ams2";
     const identity = supportsGeneric ? genericFrameIdentity(frameSource) : null;
     const canDelta = lmuIdentity !== null || isKunos || identity !== null;
     const previousLength = previous?.length;
@@ -717,7 +717,7 @@ export async function buildLapsZip(
         ? sparseLapRecords(buf, ownedEnd, end, first.gameId as GameId, false, partitionCompanions, emittedLmuIdentities)
         : [];
       const sparseRecords = first.gameId === "lmu" || first.gameId === "acc" || first.gameId === "ac-evo" ||
-        first.gameId === "fm-2023" || first.gameId === "f1-2025" || first.gameId === "iracing"
+        first.gameId === "fm-2023" || first.gameId === "f1-2025" || first.gameId === "iracing" || first.gameId === "ams2"
         ? sparseLapRecords(buf, start, ownedEnd, first.gameId as GameId, !sparseFormatMarkerWritten, partitionCompanions, emittedLmuIdentities)
         : [buf.subarray(start, ownedEnd)];
       if (sparseRecords.length > 0) sparseFormatMarkerWritten = true;

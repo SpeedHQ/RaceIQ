@@ -59,7 +59,7 @@ test("Compare complete seeded flow (FM23) preserves identity/order, renders trac
   const lapAOption = lapOptionLabel(pair.lapA);
   const lapBOption = lapOptionLabel(pair.lapB);
 
-  const lapASelect = page.getByLabel("Lap A");
+  const lapASelect = page.getByRole("combobox", { name: "Lap A", exact: true });
   await lapASelect.click();
   const lapAListboxId = await lapASelect.getAttribute("aria-controls");
   expect(lapAListboxId, "Lap A listbox").not.toBeNull();
@@ -69,7 +69,7 @@ test("Compare complete seeded flow (FM23) preserves identity/order, renders trac
   const swapResponse = page.waitForResponse((response) =>
     alignedRequestMatches(response, pair.lapB.id, pair.lapA.id, 1),
   );
-  const lapBSelect = page.getByLabel("Lap B");
+  const lapBSelect = page.getByRole("combobox", { name: "Lap B", exact: true });
   await lapBSelect.click();
   const lapBListboxId = await lapBSelect.getAttribute("aria-controls");
   expect(lapBListboxId, "Lap B listbox").not.toBeNull();

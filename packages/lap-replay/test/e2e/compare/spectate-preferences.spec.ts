@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { compareQuery, getDistinctPair } from "../../../../../playwright/tests/seeded/compare/interaction-helpers"
+import { getSeededLaps } from "../../../../../playwright/tests/seeded/compare/helpers";
 
 test("Spectate panel headers stay aligned and remember opened panels", async ({ page, request }) => {
   test.setTimeout(180_000);
@@ -27,7 +28,7 @@ test("Spectate panel headers stay aligned and remember opened panels", async ({ 
         panels: panelIds.filter((id) => document.getElementById(id)).map((id) => {
           const header = document.querySelector(`[data-panel-header="${id}"]`)!.getBoundingClientRect();
           const panel = document.getElementById(id)!.getBoundingClientRect();
-          return { id, offset: Math.abs(header.left - panel.left), widthDifference: Math.abs(header.width - panel.width), clipped: Math.max(0, header.right - clip.right) };
+          return { id, offset: Math.abs(header.left - panel.left), widthDifference: Math.abs(header.width - panel.width), clipped: Math.abs(Math.max(0, header.right - clip.right) - Math.max(0, panel.right - document.querySelector("[data-panel-rail]")!.getBoundingClientRect().right)) };
         }),
       };
     }, ids);
@@ -39,7 +40,7 @@ test("Spectate panel headers stay aligned and remember opened panels", async ({ 
     for (const panel of layout.panels) {
       expect(panel.offset, `${panel.id} follows panel opening immediately`).toBeLessThanOrEqual(1);
       expect(panel.widthDifference, `${panel.id} header matches panel width`).toBeLessThanOrEqual(1);
-      expect(panel.clipped, `${panel.id} header is not clipped during expansion`).toBeLessThanOrEqual(1);
+      expect(panel.clipped, `${panel.id} header and panel share the same scroll clipping`).toBeLessThanOrEqual(1);
     }
   }
   await toggle("spectate-ai-panel", true);
@@ -57,13 +58,16 @@ test("Spectate panel headers stay aligned and remember opened panels", async ({ 
   expect(await carPanel.evaluate((element) => element.scrollHeight <= element.clientHeight && element.scrollWidth <= element.clientWidth), "both cars fit without adding panel scrolling").toBe(true);
   await expect(carPanel.getByText("Distribution", { exact: true })).toHaveCount(0);
   await carPanel.locator('[data-slot="tooltip-trigger"]').first().hover();
-  await expect(page.getByRole("tooltip")).toContainText(/load\s+distribution/i);
+  await expect(page.getByRole("tooltip")).toContainText("Share of current shock compression; this is not measured tire load.");
   await page.mouse.move(0, 0);
   await page.setViewportSize({ width: 700, height: 950 });
   for (const id of ids) await toggle(id, true);
   await page.reload();
-  for (const id of ids) await expect(page.locator(`[data-panel-toggle="${id}"]`)).toHaveAttribute("aria-expanded", "true");
+  // Narrow workspaces show one panel at a time; the last selection survives reload.
+  for (const id of ids) await expect(page.locator(`[data-panel-toggle="${id}"]`)).toHaveAttribute("aria-expanded", String(id === ids.at(-1)));
   await page.setViewportSize({ width: 900, height: 950 });
+  await expect(page.locator("[data-mobile-panel-tabs]")).toHaveCount(0);
+  for (const id of ids) await toggle(id, true);
   const compactLayout = await page.locator("[data-spectate-view]").evaluate((root) => {
     const rail = root.querySelector<HTMLElement>("aside")!;
     const scene = root.querySelector<HTMLElement>("main")!;
@@ -544,4 +548,46 @@ test("3D toggle preferences recover from invalid stored modes", async ({ page, r
   await page.reload();
   await expect(model).toHaveAttribute("data-car-model-mode", "hidden");
   await expect(scene.locator("canvas").first()).toHaveAttribute("data-car-model-mode", "hidden");
+});
+
+test("AMS2 Spectate renders animated suspension for both cars", async ({ page, request }, testInfo) => {
+  test.setTimeout(120_000);
+  const laps = await getSeededLaps(request, "ams2");
+  const lapA = laps.find(lap => lap.lapNumber === 4 && lap.lapTime > 60);
+  const lapB = laps.find(lap => lap.sessionId === lapA?.sessionId && lap.lapNumber === 2);
+  expect(lapA, "uploaded Polo race fixture needs lap four").toBeDefined();
+  expect(lapB, "uploaded Polo race fixture needs lap two").toBeDefined();
+  const pair = { lapA: lapA!, lapB: lapB! };
+  await page.goto(`/ams2/compare?${compareQuery(pair)}&view=spectate&forceWebGL=true`);
+  const canvas = page.locator("[data-spectate-scene] canvas").first();
+  await expect(canvas).toHaveAttribute("data-scene-rendered", "true", { timeout: 60_000 });
+  const seek = page.getByRole("slider", { name: "Replay position", exact: true });
+  // These recorded laps are alongside one another here, so pair auto-fit allows close 3D inspection.
+  await seek.fill("47.75");
+  for (let step = 0; step < 24 && Math.min(Number(await canvas.getAttribute("data-a-model-pixels")), Number(await canvas.getAttribute("data-b-model-pixels"))) < 350; step++) {
+    const bounds = await canvas.boundingBox();
+    expect(bounds).not.toBeNull();
+    await page.mouse.move(bounds!.x + bounds!.width * .65, bounds!.y + bounds!.height * .5);
+    const before = await canvas.getAttribute("data-render-count");
+    await page.mouse.wheel(0, -500);
+    await expect.poll(() => canvas.getAttribute("data-render-count")).not.toBe(before);
+  }
+  for (const side of ["a", "b"]) await expect(canvas).toHaveAttribute(`data-${side}-suspension-visible-count`, "4");
+  const before = await canvas.evaluate(node => ({ a: (node as HTMLCanvasElement).dataset.aBodyHeave, b: (node as HTMLCanvasElement).dataset.bBodyHeave }));
+  await page.getByRole("button", { name: "Play replay", exact: true }).click();
+  for (const side of ["a", "b"] as const) {
+    await expect.poll(() => canvas.getAttribute(`data-${side}-body-heave`)).not.toBe(before[side]);
+    await expect(canvas).toHaveAttribute(`data-${side}-suspension-visible-count`, "4");
+  }
+  await page.getByRole("button", { name: "Pause replay", exact: true }).click();
+  const bounds = await canvas.boundingBox();
+  expect(bounds).not.toBeNull();
+  const initialPhi = Number(await canvas.getAttribute("data-camera-phi"));
+  await page.mouse.move(bounds!.x + bounds!.width * .65, bounds!.y + bounds!.height * .5);
+  await page.mouse.down();
+  await page.mouse.move(bounds!.x + bounds!.width * .75, bounds!.y + bounds!.height * .32, { steps: 8 });
+  await page.mouse.up();
+  await expect.poll(async () => Number(await canvas.getAttribute("data-camera-phi"))).toBeGreaterThan(initialPhi + .1);
+  for (const side of ["a", "b"]) await expect(canvas).toHaveAttribute(`data-${side}-suspension-visible-count`, "4");
+  await page.screenshot({ path: testInfo.outputPath("ams2-suspension-pair.png"), animations: "disabled" });
 });

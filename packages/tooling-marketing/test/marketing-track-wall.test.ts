@@ -8,7 +8,7 @@ import { getAllIRacingTracks } from "@raceiq/game-iracing-metadata/racing/tracks
 import { buildMarketingTrackWallFixture } from "@raceiq/tooling-marketing/marketing/track-wall-data";
 
 const fixture = buildMarketingTrackWallFixture();
-const expectedCounts = [fmTrackCatalog.size, getF1Tracks().size, getAccTracks().size, getAcEvoTracks().size, getAllIRacingTracks().length, 0];
+const expectedCounts = [fmTrackCatalog.size, getF1Tracks().size, getAccTracks().size, getAcEvoTracks().size, getAllIRacingTracks().length, 0, 0];
 
 
 test("matches authoritative catalog membership and counts", () => {

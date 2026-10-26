@@ -23,7 +23,7 @@
     "./test-support/boot": "./src/runtime/boot.ts"
   },
   "scripts": {
-    "lint": "../../client/node_modules/.bin/oxlint .",
+    "lint": "node ../../client/node_modules/oxlint/bin/oxlint .",
     "typecheck": "bun check --build tsconfig.json",
     "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/backend",
     "test:integration": "bun ../../scripts/test/run-suite.ts integration --package @raceiq/backend",
@@ -83,6 +83,8 @@
     "@raceiq/analysis-core": "workspace:*",
     "@raceiq/telemetry-core": "workspace:*",
     "@raceiq/tracks-catalogue": "workspace:*",
-    "@raceiq/cars-catalogue": "workspace:*"
+    "@raceiq/cars-catalogue": "workspace:*",
+    "@raceiq/game-ams2": "workspace:*",
+    "@raceiq/game-ams2-metadata": "workspace:*"
   }
 }

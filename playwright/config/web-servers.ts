@@ -16,6 +16,7 @@ function serverDefinition(runtime: E2ERuntime, ports: ServerPorts, seeded: boole
   const command = runtime.devServer ? "bun support/server/start-dev-server.ts" : "bun support/server/start-server.ts";
   const env: Record<string, string> = {
     RACEIQ_E2E: "1",
+    RACEIQ_DISABLE_TRAY: "1",
     DATA_DIR: ports.dataDir,
     SERVER_PORT: ports.port,
     UDP_PORT: ports.udpPort,

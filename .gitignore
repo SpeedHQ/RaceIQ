@@ -81,3 +81,13 @@ test/e2e/output/
 
 # Oversized Tourist fixture is committed as ordered gzip parts.
 /test/artifacts/sessions/ac-evo-tourist-2026-10-10.bin.gz
+
+# Local AMS2 thumbnails and extraction work
+/packages/game-ams2/assets/cars/
+/artifacts/ams2-car*
+/artifacts/ams2-image-tools/
+/artifacts/select-ams2-car-images.py
+/artifacts/convert-ams2-car-images.py
+/artifacts/*Pak*.txt
+/artifacts/*HashCode.cs.txt
+/artifacts/ScribeDecrypt.cs.txt

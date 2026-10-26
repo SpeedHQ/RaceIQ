@@ -1,4 +1,7 @@
 *.bin.gz -text
+/packages/game-ams2/assets/tracks.json text eol=lf
+/packages/game-ams2/assets/track-manifest.json text eol=lf
+/packages/game-ams2/assets/tracks/*.track.svg text eol=lf
 shared/telemetry/catalog/generated/* text eol=lf
 test/artifacts/laps/*.bin.gz.part* -text
 test/artifacts/sessions/*.bin.gz.part* -text

@@ -1,3 +1,4 @@
+import { readAMS2DumpFrames } from "@raceiq/capture-formats/ams2/dump";
 /**
  * Generic lap/session ZIP round-trips across all supported games.
  * LMU-only opponent and supplemental-data cases live in packages/game-lmu.
@@ -63,6 +64,7 @@ const GAME_CAPTURES: Record<GameId, { capture: string; label: string }> = {
   acc: { capture: "test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz", label: "Assetto Corsa Competizione" },
   "ac-evo": { capture: "test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz", label: "Assetto Corsa Evo" },
   iracing: { capture: IRACING_CAPTURE, label: "iRacing" },
+  ams2: { capture: "test/artifacts/sessions/ams2-time-trial.bin.gz", label: "Automobilista 2" },
   lmu: { capture: "packages/game-lmu/test/fixtures/sessions/lmu-real-opponents-2026-10-22.bin.gz", label: "Le Mans Ultimate" },
 };
 function captureSource(session: {
@@ -120,17 +122,20 @@ describe("lap export → import round-trip (real capture)", () => {
     minimumLaps?: number;
     frameTimeStartMs?: number;
   } = {}) {
-    const captureBytes = Buffer.from(gunzipSync(await Bun.file(capture).arrayBuffer()));
-    const frames: Buffer[] = gameId === "iracing"
+    const frames = gameId === "ams2"
+      ? readAMS2DumpFrames(capture)
+      : gameId === "iracing"
       ? readIRacingFrames(capture)
       : gameId === "lmu"
-        ? [...iterateSessionCaptureRecords(captureBytes)]
+        ? [...iterateSessionCaptureRecords(Buffer.from(gunzipSync(await Bun.file(capture).arrayBuffer())))]
             .filter((record): record is Extract<typeof record, { kind: "frame" }> => record.kind === "frame")
             .map(({ frame }) => Buffer.from(frame))
-        : [...iterateSessionFrames(captureBytes)];
-    const sourceFrames = frameTimeStartMs === undefined ? frames : (function* () {
+        : iterateSessionFrames(
+            Buffer.from(gunzipSync(await Bun.file(capture).arrayBuffer())),
+          );
+    const sourceFrames = frameTimeStartMs === undefined ? frames : (async function* () {
       let index = 0;
-      for (const frame of frames) {
+      for await (const frame of frames) {
         yield { frame, frameTimeMs: frameTimeStartMs + index * 10 + Math.floor(index / 100) * 5_000 };
         index++;
       }

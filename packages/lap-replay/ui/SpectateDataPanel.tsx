@@ -1,11 +1,21 @@
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { estimateWheelSlipAngles, resolveWheelSlipGeometry, AMS2_POLO_GEOMETRY_DISCLOSURE } from "./spectate-replay";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { semanticValues, type SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
-import { AnalyseDataContent } from "./host"
+import { AnalyseDataContent, useReplayHost } from "./host"
 import { SpectateLapTabs } from "./SpectateLapTabs";
 import { useMessages } from "./host"
 import type { SpectateController, ReplaySession } from "../contracts/spectate";
 
-export function SpectateDataPanel({ pair, controller }: { pair: ReplaySession; controller: SpectateController }) { const m = useMessages(); const [side, setSide] = useState<"a" | "b">("a");
+export function SpectateDataPanel({ pair, controller }: { pair: ReplaySession; controller: SpectateController }) { const m = useMessages(); const { models } = useReplayHost(); const [side, setSide] = useState<"a" | "b">("a");
+const [modelConfigsReady, setModelConfigsReady] = useState(false);
+useEffect(() => {
+  let active = true;
+  setModelConfigsReady(false);
+  void models.loadCarModelConfigs().then(() => {
+    if (active) setModelConfigsReady(true);
+  });
+  return () => { active = false; };
+}, [models]);
 const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
 const lap = side === "b" && pair.b ? pair.b : pair.a;
 const reading = side === "b" && pair.b ? snapshot.b : snapshot.a;
@@ -40,11 +50,19 @@ const wearRate = useMemo(() => {
 }, [lap, lo]);
 const envelopeIndexBySequence = useMemo(() => new Map(lap.replay.envelopes.map((frame, index) => [frame.sequence, index] as const)), [lap.replay.envelopes]);
 const envelopeIndex = envelope ? envelopeIndexBySequence.get(envelope.sequence) ?? -1 : -1;
+const selection = pair.gameId === "ams2" && modelConfigsReady
+  ? models.resolveCarModelSelection(pair.gameId, metadata.carId) : undefined;
+const geometry = resolveWheelSlipGeometry(pair.gameId, metadata.carId,
+  selection?.label === "exact" && selection.model.hasModel ? selection.model : undefined);
+const sampleTime = lap.samples[lo - 1]?.time;
+const estimatedSlipAngles = sampleTime !== undefined && geometry
+  ? estimateWheelSlipAngles(lap, sampleTime, geometry.model) : undefined;
+const angleDisclosure = geometry?.estimated ? AMS2_POLO_GEOMETRY_DISCLOSURE : undefined;
 const content = <>
   {!currentFrame && <p role="status" className="p-3 text-app-detail text-app-text-muted">{m.spectate_replay_unavailable()}</p>}
-  <AnalyseDataContent key={side} currentFrame={currentFrame} packetNumber={pair.b ? envelope?.sequence ?? 0 : envelopeIndex + 1} startFuel={typeof fuel === "number" ? fuel : undefined} gameId={pair.gameId} wearRate={currentFrame ? wearRate : null} />
-</>;
-return <div data-spectate-data-side={pair.b ? side : "a"}>
+  <AnalyseDataContent key={side} currentFrame={currentFrame} packetNumber={pair.b ? envelope?.sequence ?? 0 : envelopeIndex + 1} startFuel={typeof fuel === "number" ? fuel : undefined} gameId={pair.gameId} wearRate={currentFrame ? wearRate : null} estimatedSlipAngles={estimatedSlipAngles} angleDisclosure={angleDisclosure} />
+  </>;
+return <div data-spectate-data-side={pair.b ? side : "a"} data-packet-number={envelopeIndex + 1} data-packet-count={lap.replay.envelopes.length}>
   {pair.b ? <SpectateLapTabs side={side} onSideChange={setSide}>{content}</SpectateLapTabs> : content}
 </div>;
 }

@@ -1,3 +1,4 @@
+import { registerActiveSessionQuery } from "../session-capture/session-activity";
 export type PacketSourceReference = Buffer | { rawOffset: number };
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { GameId } from "@raceiq/shared/games/ids";
@@ -1005,6 +1006,7 @@ const _default = new LiveTelemetryPipeline(new RealDbAdapter(), _defaultWs, {
     }
   },
 });
+registerActiveSessionQuery(() => _default.isSessionActive);
 subscribeParserSource((input) => { if (!dumpOnlyTelemetry) _default.captureParserSource(input); });
 
 // Wire session laps provider so WS manager can send laps on client connect

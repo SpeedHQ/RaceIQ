@@ -72,6 +72,8 @@ runArgs(
     'process.env.RACEIQ_FEATURE_F1_EXPERIMENTS="false"',
     "--define",
     'process.env.RACEIQ_FEATURE_IRACING_ADAPTER="false"',
+    "--define",
+    'process.env.RACEIQ_FEATURE_AMS2_ADAPTER="false"',
     "apps/backend/src/bootstrap.ts",
     "server/experiments/lap-issues-worker.ts",
     "apps/backend/src/runtime/startup-worker-entry.ts",

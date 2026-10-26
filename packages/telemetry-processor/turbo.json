@@ -1,0 +1,22 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": [
+    "//"
+  ],
+  "tasks": {
+    "test": {
+      "inputs": [
+        "$TURBO_EXTENDS$",
+        "$TURBO_ROOT$/test/artifacts/sessions/ams2-time-trial.bin.gz",
+        "$TURBO_ROOT$/test/artifacts/sessions/ams2-race-pit-stop.bin.gz"
+      ]
+    },
+    "test:unit": {
+      "inputs": [
+        "$TURBO_EXTENDS$",
+        "$TURBO_ROOT$/test/artifacts/sessions/ams2-time-trial.bin.gz",
+        "$TURBO_ROOT$/test/artifacts/sessions/ams2-race-pit-stop.bin.gz"
+      ]
+    }
+  }
+}
