@@ -24,7 +24,7 @@ import { and, eq, inArray, like } from "drizzle-orm";
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline";
 import { seedIRacingSession } from "@raceiq/tooling-data/data/seed-db-iracing";
 import { assertSafeTarget, seedRowCount } from "@raceiq/tooling-data/data/seed-db-safety";
-import { insertDemoRows, markOnboardingComplete } from "@raceiq/tooling-data/data/seed-db-demo";
+import { insertDemoRows, markOnboardingComplete, repairDemoDashboardAttribution } from "@raceiq/tooling-data/data/seed-db-demo";
 import { removeSeedData } from "@raceiq/tooling-data/data/seed-db-reset";
 import { FIXTURES, PROFILE_NAME, parseOptions, SEED_MARKER } from "@raceiq/tooling-data/data/seed-db-options";
 import { combineRecordingParts } from "@raceiq/backend-core/session-capture/combine-recording-parts";
@@ -128,6 +128,8 @@ async function main(): Promise<void> {
   await assertSafeTarget(options.force);
   if (options.reset) await removeSeedData();
   if (await seedRowCount()) {
+    const repaired = await repairDemoDashboardAttribution();
+    if (repaired) console.log(`[DB Seed] Restored dashboard attribution for ${repaired} demo laps.`);
     if (options.legacyRecordings) await placeSeedRecordingsInLegacyLayout();
     markOnboardingComplete();
     console.log("[DB Seed] Seed data already exists; nothing to do.");
@@ -194,6 +196,7 @@ async function main(): Promise<void> {
     await insertDemoRows(profile.id, importedLapIds);
     console.log("[DB Seed] Demo rows ready.");
   }
+  await repairDemoDashboardAttribution();
   if (options.legacyRecordings) await placeSeedRecordingsInLegacyLayout();
   markOnboardingComplete();
   console.log(`[DB Seed] Complete: ${importedLapIds.length} valid laps, ${options.games.join(", ")}.`);

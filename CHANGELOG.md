@@ -2,6 +2,7 @@
 
 
 ### Features
+- Choose Discord sign-in or offline password protection on one setup screen; Discord-enabled dashboards use Discord sign-in instead of a separate dashboard password.
 - Automatically upload the fastest eligible personal lap to RaceIQ Online after its recording is finalized.
 - Track personal driving separately from shared-car teammates and borrowed laps, retaining incomplete coverage when driver or duration evidence is unavailable.
 - Show account-wide reported lifetime statistics separately from local dashboard periods.
@@ -28,6 +29,7 @@
 - Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
 
 ### Fixes
+- Stop repeated bottom-right sharing warnings from background lap-import polling when the server has not granted Online access.
 - Keep the app running after live telemetry overload, report the affected recording as incomplete, and allow subsequent recordings.
 - Make Settings a labelled modal with keyboard focus containment and Escape dismissal.
 - Keep recording splitting and background processing available when the UDP telemetry port is already in use.
@@ -97,9 +99,11 @@
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
+- Allow the exact approved development HTTPS API tunnel origin while rejecting production and arbitrary remote API origins.
+- Restore local dashboard statistics for demo databases, including existing seed rows, without attributing real recordings or assigning Online ownership.
 - Colocate Online UI, server routes, contracts and feature tests in the Online workspace, with typed application host bindings and dedicated feature E2E selection.
 - Add a focused Online acceptance command with one happy-path and one failure-path check per desktop workflow, using isolated account, SQLite, profile/history and replay-controller fixtures instead of full release matrices.
-- Run Online delivery and preparation in a dedicated worker, with loopback-only E2E transports, including replay downloads, and an empty test credential store.
+- Run Online delivery and preparation in a dedicated worker, with loopback-only E2E transports, including replay downloads, and an empty test credential store; initialize asynchronously so parent SQL replies remain available during startup.
 - Add isolated real-HTTP recovery coverage for dropped acceptance responses, crashes, second-instance deduplication, wrong-account rejection, reservation Retry-After/503/disconnect faults, and bounded UDP overload followed by healthy capture.
 - Reuse published native lap artifacts, immutable source manifests and exact framing/context encoders for Online upload preparation.
 - Retain native source revisions in per-lap recording manifests before original closure so upload preparation does not lose their established source identity.

@@ -26,7 +26,7 @@ import { clearHttpPort, startHttpServer } from "./http-server";
 import { startNativeSourceSupervisor, type NativeSourceSupervisor } from "./native-sources";
 import { installShutdown } from "./shutdown";
 import { startStartupWorker, type StartupWorkerHandle } from "./startup-worker";
-import { startOnlineWorker,wakeOnlineWorker } from "../integrations/online";
+import { getOnlineService, startOnlineWorker, wakeOnlineWorker } from "../integrations/online";
 import { nativeBindingCandidateHost, startMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline";
 import { OnlineTestPlatformError } from "../integrations/online-test-platform";
 import { startMaintenanceJobs, startSyncAndStaleSessionJobs } from "./startup-jobs";
@@ -88,7 +88,7 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   while (!(await initializeOnlineFastestLapWinners(200)).complete) await Bun.sleep(0);
   await recoverCloudLapImports();
   await recoverRecordingDirectoryMove();
-  const auth = await DashboardAuth.create(client, DB_PATH, process.env, false, readClient);
+  const auth = await DashboardAuth.create(client, DB_PATH, process.env, false, readClient, getOnlineService());
   await auth.initialize(upgradingAccess);
   setDashboardAuth(auth);
   await configureHttpAccess(auth, httpPort);

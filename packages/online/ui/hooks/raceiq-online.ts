@@ -22,7 +22,7 @@ function getSession(qc: QueryClient, host: OnlineUiHost): OnlineSession {
   return session;
 }
 function update(session: OnlineSession, change: Partial<Snapshot>): void { session.snapshot = { ...session.snapshot, ...change }; for (const listener of session.listeners) listener(); }
-const leaderboardAllowed = (state: OnlineState | undefined): boolean => !!state && state.service === "available" && state.connection.status === "connected" && state.policy.status === "available" && state.consent.status === "accepted" && state.consent.versions.termsVersion === state.policy.versions.termsVersion && state.consent.versions.privacyVersion === state.policy.versions.privacyVersion && state.preferences?.visibility === "public" && state.persistedPreferences?.visibility === "public" && state.preferencePersistence === "confirmed";
+const leaderboardAllowed = (state: OnlineState | undefined): boolean => !!state && state.uploadAllowed && state.service === "available" && state.connection.status === "connected" && state.policy.status === "available" && state.consent.status === "accepted" && state.consent.versions.termsVersion === state.policy.versions.termsVersion && state.consent.versions.privacyVersion === state.policy.versions.privacyVersion && state.preferences?.visibility === "public" && state.persistedPreferences?.visibility === "public" && state.preferencePersistence === "confirmed";
 function syncLeaderboardAccess(session: OnlineSession, state = session.snapshot.state): boolean {
   const allowed = leaderboardAllowed(state) && !session.snapshot.signOutPending && !session.snapshot.accountHidden && !session.snapshot.privacyBarrier;
   if (allowed === session.snapshot.leaderboardAccess) return allowed;

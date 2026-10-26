@@ -41,7 +41,7 @@ export function AccessSection() {
   return (
     <div className="flex w-full max-w-xl flex-col gap-6">
       <h2>{m.access_title()}</h2>
-      <p>{status.protected ? m.access_protected() : m.access_unprotected()}</p>
+      <p>{status.method === "discord" ? m.ob_online_choice_online_desc() : status.protected ? m.access_protected() : m.access_unprotected()}</p>
       {status.overrides.length > 0 && (
         <Alert>
           <AlertTitle>{m.access_override_title()}</AlertTitle>
@@ -51,7 +51,9 @@ export function AccessSection() {
           </AlertDescription>
         </Alert>
       )}
-      <AccessSetupForm protectedAccess={status.protected} overridden={status.overrides.includes("SERVER_PASSWORD")} onComplete={refresh} />
+      {status.method === "discord"
+        ? <p className="text-sm text-app-text-secondary">{m.ob_online_choice_online_desc()}</p>
+        : <AccessSetupForm protectedAccess={status.protected} overridden={status.overrides.includes("SERVER_PASSWORD")} onComplete={refresh} />}
       {status.protected && (
         <Button
           variant="outline"

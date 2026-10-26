@@ -3,7 +3,7 @@ import { IS_COMPILED } from "@raceiq/backend-core/runtime/config/paths";
 import { getSecret, setSecret } from "@raceiq/backend-core/runtime/platform/keystore";
 import { subscribeOnlineSync } from "@raceiq/online/server/sync-events";
 import { OnlineWorkerUnavailable,type HostRequest,type WorkerRequest,type WorkerResponse,type OnlineWorkerPort,type WorkerMethod,type NativeBindingHostControl,type OnlineWorkerData } from "@raceiq/online/server/worker-protocol";
-import { readOnlineTestPlatform,createOnlineTestKeystore } from "./online-test-platform";
+import { resolveOnlinePlatform } from "./online-platform";
 import { client } from "@raceiq/backend-core/db/index";
 import { createDatabaseWriteLeaseAuthority, type WriteLeaseRequest } from "@raceiq/backend-core/db/write-coordination";
 import { isSessionSourceMutationActive } from "@raceiq/backend-core/session-capture/source-mutation-activity";
@@ -31,7 +31,8 @@ function request<K extends WorkerMethod>(method: K, ...args: Parameters<OnlineWo
     if(!available&&method!=="stop")throw new OnlineWorkerUnavailable();
     const {promise,resolve,reject}=Promise.withResolvers<unknown>();
     const requestId=crypto.randomUUID();
-    const timer=setTimeout(()=>{pending.delete(requestId);reject(new OnlineWorkerUnavailable());},method==="stop"?5_000:30_000);
+    const timeout=method==="stop"?5_000:method==="completeDashboardSignIn"?45_000:30_000;
+    const timer=setTimeout(()=>{pending.delete(requestId);reject(new OnlineWorkerUnavailable());},timeout);
     pending.set(requestId,{resolve,reject,timer});
     try { active.postMessage({type:"request",requestId,method,args} as WorkerRequest); }
     catch { pending.delete(requestId); clearTimeout(timer); reject(new OnlineWorkerUnavailable()); }
@@ -42,6 +43,10 @@ function request<K extends WorkerMethod>(method: K, ...args: Parameters<OnlineWo
 }
 const port: OnlineWorkerPort = {
   getState: () => request("getState"),
+  beginDashboardSignIn: (input) => request("beginDashboardSignIn", input),
+  completeDashboardSignIn: (input) => request("completeDashboardSignIn", input),
+  consumeDashboardSignIn: (input) => request("consumeDashboardSignIn", input),
+  cancelDashboardSignIn: (input) => request("cancelDashboardSignIn", input),
   connect: (input) => request("connect", input),
   cancelSignIn: (input) => request("cancelSignIn", input),
   acceptConsent: (input) => request("acceptConsent", input),
@@ -68,11 +73,11 @@ export function getOnlineService(): OnlineWorkerPort { return port; }
 
 /** Call only after the main application migration/recovery boundary has completed. */
 export async function startOnlineWorker(nativeBindings:NativeBindingHostControl): Promise<{ stop(): Promise<void> }> {
-  const testPlatform=readOnlineTestPlatform();
+  const platform=resolveOnlinePlatform();
   if (worker) { await ready; if(!available)throw new OnlineWorkerUnavailable(); return { stop: stopOnlineWorker }; }
   stopping = false;
   stopPromise = null;
-  const keystore=testPlatform?createOnlineTestKeystore():{getSecret,setSecret};
+  const keystore=platform.kind==="local"?platform.keystore:platform.kind==="production"?{getSecret,setSecret}:{getSecret:async()=>{throw new Error("online_disabled");},setSecret:async()=>{throw new Error("online_disabled");}};
   const active=new Worker(IS_COMPILED?"./apps/backend/src/runtime/online-worker-entry.ts":new URL("../runtime/online-worker-entry.ts",import.meta.url),
     {workerData:{nativeSourceRevisionBuffer:nativeBindings.sourceRevisionBuffer} satisfies OnlineWorkerData});
   worker = active;

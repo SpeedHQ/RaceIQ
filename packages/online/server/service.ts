@@ -10,6 +10,8 @@ import { createRaceIqOnlineAdapter, OnlineAdapterError, type ReserveLapUploadInp
 import { createNativeBoardIdentifierResolver } from "./identifiers";
 import { OnlineStateStorage } from "./state-storage";
 import { notifyOnlineSync } from "./sync-events";
+import { createDashboardSignIn } from "./dashboard-signin";
+import type { DashboardSignInAttempt, DashboardSignInCompletion } from "./worker-protocol";
 import type { OnlineUploadContext, OnlineUploadDispatchPort } from "./upload-dispatch";
 import type { RegisteredOnlineDriverBinding } from "./payload";
 export interface OnlineAccountContext { accountId:string;accountEpoch:string;revision:number }
@@ -52,11 +54,16 @@ export type OnlineServiceOptions = {
   authConfig?: Required<Pick<DesktopAuthOptions,"supabaseUrl"|"publishableKey">>;
   fetch?: typeof globalThis.fetch;
   auth?: OnlineAuthPort;
+  onlineDisabled?: boolean;
 };
 const error = (code: OnlineError["code"], retryable = false): OnlineError => ({ code, retryable, retryAfter: null });
 const sameVersions = (a: PolicyVersions, b: PolicyVersions) => a.termsVersion === b.termsVersion && a.privacyVersion === b.privacyVersion;
 const isAccountOwnershipRejection=(cause:unknown)=>cause instanceof Error&&"code"in cause&&(cause.code==="account_unavailable"||cause.code==="account_conflict");
 export type RaceIqOnlineService = RaceIqOnlinePort & {
+  beginDashboardSignIn(input: { callbackUrl: string }): Promise<DashboardSignInAttempt>;
+  completeDashboardSignIn(input: { attemptId: string; callbackUrl: string }): Promise<DashboardSignInCompletion>;
+  consumeDashboardSignIn(input: { attemptId: string }): Promise<DashboardSignInCompletion>;
+  cancelDashboardSignIn(input: { attemptId: string }): Promise<void>;
   handleAuthCallback(url: string): Promise<boolean>;
   getImportAccessToken(): Promise<string | null>;
   getCommunityEntitlement(): Promise<CommunityEntitlement>;
@@ -87,13 +94,17 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
   storage.save(persisted);
   const redirectUri = options.redirectUri ?? `http://127.0.0.1:${Number(process.env.SERVER_PORT) || 3117}/api/online/auth/callback`;
   const fetcher=options.fetch??globalThis.fetch;
-  const auth=options.auth??createDesktopAuth({...options.authConfig,redirectUri,fetch:Object.assign(
-    (input:RequestInfo|URL,init?:RequestInit)=>{
-      const signal=init?.signal??(input instanceof Request?input.signal:undefined);
-      const deadline=AbortSignal.timeout(8_000);
-      return fetcher(input,{...init,redirect:"error",signal:signal?AbortSignal.any([signal,deadline]):deadline});
-    },{preconnect:fetcher.preconnect},
-  )});
+  const auth=options.onlineDisabled
+    ? {refreshSession:async()=>{throw new Error("online_disabled");},beginSignIn:async()=>{throw new Error("online_disabled");}}
+    : options.auth??(options.authConfig||process.env.NODE_ENV==="production"
+      ? createDesktopAuth({...options.authConfig,redirectUri,fetch:Object.assign(
+        (input:RequestInfo|URL,init?:RequestInit)=>{
+          const signal=init?.signal??(input instanceof Request?input.signal:undefined);
+          const deadline=AbortSignal.timeout(8_000);
+          return fetcher(input,{...init,redirect:"error",signal:signal?AbortSignal.any([signal,deadline]):deadline});
+        },{preconnect:fetcher.preconnect},
+      )})
+      : {refreshSession:async()=>{throw new Error("online_disabled");},beginSignIn:async()=>{throw new Error("online_disabled");}});
   const attempts = new Map<string, OnlineAttempt>();
   let activeAccessToken: string | null = null;
   let activeUserId: string | null = null;
@@ -163,6 +174,17 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
     fetch:fetcher,
   });
   adapter = options.adapter ? { ...defaultAdapter, ...options.adapter } : defaultAdapter;
+  const dashboardSignIn = !options.onlineDisabled && (options.authConfig || process.env.NODE_ENV === "production")
+    ? createDashboardSignIn({
+      authConfig: options.authConfig,
+      fetch: Object.assign((input: RequestInfo | URL, init?: RequestInit) => {
+        const signal = init?.signal ?? (input instanceof Request ? input.signal : undefined);
+        const deadline = AbortSignal.timeout(8_000);
+        return fetcher(input, { ...init, redirect: "error", signal: signal ? AbortSignal.any([signal, deadline]) : deadline });
+      }, { preconnect: fetcher.preconnect }),
+      verifyProfile: async (token, discordAccountName) => adapter.getMe(token, discordAccountName),
+    })
+    : null;
   let policy: OnlinePolicy = { status: "unavailable", error: error("policy_unavailable", true) };
   let service: OnlineState["service"] = "unavailable";
   let policyAt = 0;
@@ -181,6 +203,7 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
       ? error("sharing_required") : null;
   };
   const save = () => { persisted.revision++; storage.save(persisted); notifyOnlineSync(); };
+  const currentProfile = () => persisted.profile;
   const snapshot = async (): Promise<OnlineState> => {
     const accountEpoch = persisted.accountEpoch;
     const revision = persisted.revision;
@@ -384,6 +407,57 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
       current.onlineRevision === entitlement.onlineRevision;
   };
   const port: RaceIqOnlineService = {
+    async beginDashboardSignIn(input) {
+      if (!acceptingTransport || !dashboardSignIn) throw new Error("service_unavailable");
+      return dashboardSignIn.begin(input.callbackUrl);
+    },
+    async completeDashboardSignIn(input) {
+      if (!acceptingTransport || !dashboardSignIn) throw new Error("service_unavailable");
+      return dashboardSignIn.complete(input.attemptId, input.callbackUrl);
+    },
+    async consumeDashboardSignIn(input) {
+      if (!acceptingTransport || !dashboardSignIn) throw new Error("service_unavailable");
+      const completion = dashboardSignIn.consume(input.attemptId);
+      const userId = completion.session.userId;
+      if (completion.profile.userId !== userId ||
+          (persisted.profile && persisted.profile.userId !== userId) ||
+          (connectedAccount.status === "connected" && connectedAccount.account.userId !== userId)) {
+        throw new Error("account_conflict");
+      }
+      if (connectedAccount.status !== "connected" && !persisted.profile) {
+        const previousRefresh = await getSecret("raceiq-online-refresh") ?? "";
+        const previousProfile = persisted.profile;
+        const previousExplicitlySignedOut = persisted.explicitlySignedOut;
+        const previousRevision = persisted.revision;
+        await setSecret("raceiq-online-refresh", completion.session.refreshToken);
+        const latestProfile = currentProfile();
+        if (!acceptingTransport || (latestProfile && latestProfile.userId !== userId)) {
+          if (await getSecret("raceiq-online-refresh") === completion.session.refreshToken) await setSecret("raceiq-online-refresh", previousRefresh);
+          throw new Error("stale_state");
+        }
+        persisted.explicitlySignedOut = false;
+        persisted.profile = completion.profile;
+        try { save(); }
+        catch (cause) {
+          persisted.profile = previousProfile;
+          persisted.explicitlySignedOut = previousExplicitlySignedOut;
+          persisted.revision = previousRevision;
+          try { await setSecret("raceiq-online-refresh", previousRefresh); } catch { /* Keep the failed adoption unavailable. */ }
+          throw cause;
+        }
+        activePreferences = persisted.preferences;
+        activePersistedPreferences = persisted.persistedPreferences;
+        activeAccessToken = completion.session.accessToken;
+        activeUserId = userId;
+        activeDiscordAccountName = completion.session.discordAccountName;
+        accessExpiresAt = completion.session.expiresAt;
+        connectedAccount = { status: "connected", account: completion.profile };
+      }
+      return { userId };
+    },
+    async cancelDashboardSignIn(input) {
+      dashboardSignIn?.cancel(input.attemptId);
+    },
     stopAdmission() { acceptingTransport=false; },
     isAccountContextCurrent,
     isMutationContextCurrent(input){return acceptingTransport&&!stale(input);},
@@ -464,6 +538,7 @@ export function createRaceIqOnlineService(options: OnlineServiceOptions): RaceIq
       return await snapshot();
     },
     async connect(input: ConnectInput): Promise<ConnectResult> {
+      if (options.onlineDisabled) return { ok: false, error: error("service_unavailable", true), state: await snapshot() };
       if (stale(input)) return { ok: false, error: error("stale_state"), state: await snapshot() };
       try {
         const attempt = await auth.beginSignIn();

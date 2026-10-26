@@ -5,6 +5,12 @@ import { isIP } from "node:net";
 import { z } from "zod";
 import { dashboardAccessWasConfigured, markDashboardAccessConfigured } from "@raceiq/backend-core/runtime/config/dashboard-access-state";
 import { withDatabaseTransaction, withDatabaseWrite } from "@raceiq/backend-core/db/write-coordination";
+import type { OnlineWorkerPort } from "@raceiq/online/server/worker-protocol";
+
+export type DashboardAuthOnlinePort = Pick<OnlineWorkerPort, "beginDashboardSignIn" | "completeDashboardSignIn" | "consumeDashboardSignIn" | "cancelDashboardSignIn">;
+export type DiscordAttempt = { id: string; workerAttemptId?: string; callbackId: string; flow: string; origin: string; revision: number; expiresAt: number; complete?: boolean; userId?: string; language?: string; sessionHash?: string; csrf?: string; finishing?: boolean; abort?: AbortController; expiryTimer?: ReturnType<typeof setTimeout> };
+const FLOW_SECONDS = 10 * 60;
+const MAX_DISCORD_ATTEMPTS = 256;
 
 export const PasswordSchema = z.string().min(8).max(1024);
 export const NetworkSchema = z.object({
@@ -21,6 +27,7 @@ export interface DashboardInterface {
 }
 type AccessRow = { mode: "pending" | "enabled" | "disabled"; password_hash: string | null; revision: number; network_json: string | null; upgrade: number | null };
 type Session = { csrf: string; generation: string; expires_at: number };
+type IssuedSession = { csrf: string; cookie: string };
 const SESSION_SECONDS = 30 * 24 * 60 * 60;
 const digest = (value: string) => createHash("sha256").update(value).digest("hex");
 
@@ -65,6 +72,9 @@ export class DashboardAuth {
   readonly env: NodeJS.ProcessEnv;
   readonly overrides: string[];
   private readonly envPassword: string;
+  private readonly discordAttempts = new Map<string, DiscordAttempt>();
+  private discordMode = false;
+  private ownerId: string | null = null;
   private attempts = 0;
   private attemptWindow = 0;
   private activeHashings = 0;
@@ -72,20 +82,23 @@ export class DashboardAuth {
   private readonly path: string;
   private readonly database: Client;
   private readonly readDatabase: Client;
-  private constructor(database: Client, path: string, env: NodeJS.ProcessEnv, readDatabase: Client) {
+  private readonly online?: DashboardAuthOnlinePort;
+  private constructor(database: Client, path: string, env: NodeJS.ProcessEnv, readDatabase: Client, online?: DashboardAuthOnlinePort) {
     this.path = path;
     this.database = database;
     this.readDatabase = readDatabase;
+    this.online = online;
     this.env = env;
     this.envPassword = env.SERVER_PASSWORD || "";
     if (this.envPassword && !PasswordSchema.safeParse(this.envPassword).success) throw new Error("SERVER_PASSWORD must contain at least 8 characters (maximum 1024)");
     this.overrides = ["SERVER_PASSWORD", "SERVER_HOST", "SERVER_ALLOWED_ORIGINS"].filter((key) => !!env[key]);
   }
-  static async create(database: Client, path: string, env: NodeJS.ProcessEnv = process.env, recovery = false, readDatabase: Client = database): Promise<DashboardAuth> {
-    const auth = new DashboardAuth(database, path, env, readDatabase);
+  static async create(database: Client, path: string, env: NodeJS.ProcessEnv = process.env, recovery = false, readDatabase: Client = database, online?: DashboardAuthOnlinePort): Promise<DashboardAuth> {
+    const auth = new DashboardAuth(database, path, env, readDatabase, online);
     if (!recovery) {
       const row = await auth.read();
-      if (row.mode !== "pending") markDashboardAccessConfigured(path);
+      await auth.refreshDiscordOwner();
+      if (row.mode !== "pending" || auth.discordMode) markDashboardAccessConfigured(path);
     }
     return auth;
   }
@@ -118,6 +131,18 @@ export class DashboardAuth {
     } else if (row.mode !== "pending") throw new Error("Dashboard access configuration is missing");
     return row;
   }
+  private async refreshDiscordOwner(executor: Client | Transaction = this.readDatabase) {
+    const ownerResult = await executor.execute("SELECT online_user_id FROM local_account_owner WHERE id = 1");
+    this.ownerId = (ownerResult.rows[0] as { online_user_id?: string | null } | undefined)?.online_user_id ?? null;
+    try {
+      const result = await executor.execute("SELECT method FROM dashboard_auth_method WHERE id = 1");
+      const method = (result.rows[0] as { method?: string } | undefined)?.method;
+      this.discordMode = method === "discord" || (!method && !!this.ownerId);
+      if (method === "password" || method === "none") this.discordMode = false;
+    } catch {
+      this.discordMode = !!this.ownerId;
+    }
+  }
   async initialize(upgrade: boolean) {
     const row = await this.read();
     if (row.network_json === null) {
@@ -142,13 +167,15 @@ export class DashboardAuth {
     return NetworkSchema.parse(JSON.parse((await this.read()).network_json ?? '{"hosts":["127.0.0.1"],"origins":[]}'));
   }
   async isPending(): Promise<boolean> {
-    return (await this.read()).mode === "pending" && !this.envPassword;
+    await this.refreshDiscordOwner();
+    return (await this.read()).mode === "pending" && !this.envPassword && !this.discordMode;
   }
   async isProtected(): Promise<boolean> {
-    return !!this.envPassword || (await this.read()).mode === "enabled";
+    await this.refreshDiscordOwner();
+    return !!this.envPassword || this.discordMode || (await this.read()).mode === "enabled";
   }
   private generation(row: AccessRow) {
-    return digest(`${row.revision}:${this.envPassword}`);
+    return digest(`${row.revision}:${this.envPassword}:${this.discordMode ? "discord" : ""}`);
   }
   async session(request: Request, executor: Client | Transaction = this.readDatabase, row?: AccessRow): Promise<Session | null> {
     const token = /(?:^|;\s*)raceiq_session=([a-f0-9]{64})(?:;|$)/.exec(request.headers.get("cookie") ?? "")?.[1];
@@ -160,10 +187,160 @@ export class DashboardAuth {
   }
   async status(request: Request) {
     const row = await this.read();
+    await this.refreshDiscordOwner();
     const session = await this.session(request, this.readDatabase, row);
-    const pending = row.mode === "pending" && !this.envPassword;
-    const protectedAccess = !!this.envPassword || row.mode === "enabled";
-    return { pending, protected: protectedAccess, authenticated: !pending && (!protectedAccess || !!session), csrf: session?.csrf ?? null, upgrade: !!row.upgrade, overrides: this.overrides };
+    const method = this.envPassword ? "password" : this.discordMode ? "discord" : row.mode === "enabled" ? "password" : row.mode === "disabled" ? "none" : null;
+    const pending = row.mode === "pending" && !this.envPassword && !this.discordMode;
+    const protectedAccess = !!this.envPassword || this.discordMode || row.mode === "enabled";
+    return { pending, method, protected: protectedAccess, authenticated: !pending && (!protectedAccess || !!session), csrf: session?.csrf ?? null, upgrade: !!row.upgrade, overrides: this.overrides };
+  }
+  async beginDiscordSignIn(input: { callbackUrl: string; flow: string; origin: string; request: Request; language?: string }) {
+    const row = await this.read();
+    await this.refreshDiscordOwner();
+    if (this.envPassword) throw new AccessError("environment_override", 409);
+    let sessionHash: string | undefined;
+    let csrf: string | undefined;
+    if (row.mode === "enabled" && !this.discordMode) {
+      const session = await this.session(input.request);
+      const token = /(?:^|;\s*)raceiq_session=([a-f0-9]{64})(?:;|$)/.exec(input.request.headers.get("cookie") ?? "")?.[1];
+      csrf = input.request.headers.get("x-raceiq-csrf") ?? undefined;
+      if (!session || !token) throw new AccessError("authentication_required", 401);
+      if (!csrf || csrf !== session.csrf) throw new AccessError("csrf_mismatch", 403);
+      sessionHash = digest(token);
+    }
+    if (!this.online) throw new AccessError("provider_unavailable", 503);
+    const now = Date.now();
+    for (const [id, item] of this.discordAttempts) if (item.expiresAt <= now) this.discordAttempts.delete(id);
+    if (this.discordAttempts.size >= MAX_DISCORD_ATTEMPTS) throw new AccessError("try_later", 429);
+    const attemptId = randomBytes(32).toString("hex"), callbackId = randomBytes(32).toString("hex");
+    const attempt: DiscordAttempt = { id: attemptId, callbackId, flow: input.flow, origin: input.origin, revision: row.revision, expiresAt: now + FLOW_SECONDS * 1000, language: input.language, sessionHash, csrf };
+    this.discordAttempts.set(attemptId, attempt);
+    try {
+      const result = await this.online.beginDashboardSignIn({ callbackUrl: `${input.callbackUrl}?flow=${callbackId}` });
+      attempt.workerAttemptId = result.attemptId;
+      return { attemptId, authorizationUrl: result.authorizationUrl, expiresAt: Math.min(result.expiresAt, attempt.expiresAt) };
+    } catch {
+      this.discordAttempts.delete(attemptId);
+      throw new AccessError("provider_unavailable", 503);
+    }
+  }
+  async completeDiscordSignIn(callbackId: string, callbackUrl: string) {
+    const attempt = [...this.discordAttempts.values()].find((entry) => entry.callbackId === callbackId);
+    if (!attempt || !attempt.workerAttemptId || attempt.complete || attempt.expiresAt <= Date.now()) throw new AccessError("invalid_completion");
+    if (!this.online) throw new AccessError("provider_unavailable", 503);
+    try {
+      const callback = new URL(callbackUrl);
+      if (callback.pathname !== "/api/auth/discord/callback" || callback.origin !== attempt.origin) throw new AccessError("invalid_completion");
+      const verifiedCallbackUrl = callback.toString();
+      const result = await this.online.completeDashboardSignIn({ attemptId: attempt.workerAttemptId, callbackUrl: verifiedCallbackUrl });
+      await this.refreshDiscordOwner();
+      if (this.ownerId && this.ownerId !== result.userId) {
+        await this.cancelDiscordSignIn(attempt.flow);
+        throw new AccessError("wrong_account", 403);
+      }
+      attempt.complete = true;
+      attempt.userId = result.userId;
+      return attempt;
+    } catch (error) {
+      if (error instanceof AccessError) throw error;
+      throw new AccessError("invalid_completion");
+    }
+  }
+  async finishDiscordSignIn(flow: string, request: Request) {
+    const attempt = [...this.discordAttempts.values()].find((entry) => entry.flow === flow);
+    if (!attempt || attempt.expiresAt <= Date.now()) throw new AccessError("invalid_flow", 401);
+    if (attempt.finishing) throw new AccessError("flow_in_progress", 409);
+    if (!attempt.complete || !attempt.userId || !attempt.workerAttemptId) return { pending: true as const };
+    const userId = attempt.userId;
+    const workerAttemptId = attempt.workerAttemptId;
+    attempt.finishing = true;
+    attempt.abort = new AbortController();
+    attempt.expiryTimer = setTimeout(() => attempt.abort?.abort(new AccessError("invalid_flow", 401)), Math.max(0, attempt.expiresAt - Date.now()));
+    attempt.expiryTimer.unref?.();
+    const current = () => this.discordAttempts.get(attempt.id) === attempt && attempt.expiresAt > Date.now();
+    let protectedRevision: number;
+    try {
+      protectedRevision = await withDatabaseTransaction(this.database, async (tx) => {
+        if (!current()) throw new AccessError("invalid_flow", 401);
+        const row = await this.read(tx);
+        if (row.revision !== attempt.revision) throw new AccessError("configuration_changed", 409);
+        if (attempt.sessionHash) {
+          const token = /(?:^|;\s*)raceiq_session=([a-f0-9]{64})(?:;|$)/.exec(request.headers.get("cookie") ?? "")?.[1];
+          const session = await this.session(request, tx, row);
+          if (!token || digest(token) !== attempt.sessionHash || !session) throw new AccessError("authentication_required", 401);
+          if (session.csrf !== attempt.csrf || request.headers.get("x-raceiq-csrf") !== attempt.csrf) throw new AccessError("csrf_mismatch", 403);
+        }
+        await tx.execute("INSERT INTO local_account_owner (id, online_user_id) VALUES (1, NULL) ON CONFLICT(id) DO NOTHING");
+        const ownerResult = await tx.execute("SELECT online_user_id FROM local_account_owner WHERE id = 1");
+        const owner = (ownerResult.rows[0] as { online_user_id?: string | null } | undefined)?.online_user_id;
+        if (owner === undefined) throw new AccessError("configuration_changed", 409);
+        if (owner !== null && owner !== userId) throw new AccessError("wrong_account", 403);
+        if (owner === null) {
+          const claim = await tx.execute({ sql: "UPDATE local_account_owner SET online_user_id = ? WHERE id = 1 AND online_user_id IS NULL", args: [userId] });
+          if (Number(claim.rowsAffected) !== 1) throw new AccessError("configuration_changed", 409);
+          await tx.execute({ sql: "UPDATE sessions SET owner_user_id = ? WHERE owner_user_id IS NULL AND ownership = 'mine' AND cloud_import_origin IS NULL AND cloud_import_lap_id IS NULL", args: [userId] });
+        }
+        const transition = row.mode !== "disabled" || !this.discordMode;
+        let revision = row.revision;
+        if (transition) {
+          const updated = await tx.execute({ sql: "UPDATE dashboard_access SET mode = 'disabled', password_hash = NULL, revision = revision + 1 WHERE id = 1 AND revision = ? RETURNING revision", args: [row.revision] });
+          if (updated.rows.length !== 1) throw new AccessError("configuration_changed", 409);
+          revision = Number(updated.rows[0]!.revision);
+        }
+        await tx.execute("INSERT INTO dashboard_auth_method (id,method) VALUES (1,'discord') ON CONFLICT(id) DO UPDATE SET method='discord'");
+        if (!current()) throw new AccessError("invalid_flow", 401);
+        return revision;
+      }, { signal: attempt.abort.signal });
+    } catch (error) {
+      if (error instanceof AccessError) await this.cancelDiscordSignIn(flow);
+      else if (this.discordAttempts.get(attempt.id) === attempt) attempt.finishing = false;
+      throw error;
+    }
+    markDashboardAccessConfigured(this.path);
+    this.discordMode = true;
+    this.ownerId = userId;
+    if (!current()) {
+      await this.cancelDiscordSignIn(flow);
+      throw new AccessError("invalid_flow", 401);
+    }
+    if (!this.online) throw new AccessError("provider_unavailable", 503);
+    let adopted: { userId: string };
+    try { adopted = await this.online.consumeDashboardSignIn({ attemptId: workerAttemptId }); }
+    catch {
+      await this.cancelDiscordSignIn(flow);
+      throw new AccessError("provider_unavailable", 503);
+    }
+    if (adopted.userId !== userId) {
+      await this.cancelDiscordSignIn(flow);
+      throw new AccessError("wrong_account", 403);
+    }
+    if (!current()) {
+      await this.cancelDiscordSignIn(flow);
+      throw new AccessError("invalid_flow", 401);
+    }
+    let session: IssuedSession;
+    try { session = await this.issueSession(request, protectedRevision, current); }
+    catch (error) {
+      await this.cancelDiscordSignIn(flow);
+      throw error;
+    }
+    if (!current()) {
+      await this.logout(new Request(request.url, { headers: { cookie: session.cookie.split(";")[0]! } }));
+      await this.cancelDiscordSignIn(flow);
+      throw new AccessError("invalid_flow", 401);
+    }
+    clearTimeout(attempt.expiryTimer);
+    this.discordAttempts.delete(attempt.id);
+    return { pending: false as const, ...session, language: attempt.language };
+  }
+  async cancelDiscordSignIn(flow: string) {
+    const attempt = [...this.discordAttempts.values()].find((entry) => entry.flow === flow);
+    if (!attempt) return;
+    attempt.abort?.abort(new AccessError("invalid_flow", 401));
+    clearTimeout(attempt.expiryTimer);
+    this.discordAttempts.delete(attempt.id);
+    if (!attempt.workerAttemptId || !this.online) return;
+    try { await this.online.cancelDashboardSignIn({ attemptId: attempt.workerAttemptId }); } catch {}
   }
   private async hashPassword(password: string): Promise<string> {
     if (this.activeHashings >= 2) throw new AccessError("try_later", 429);
@@ -194,12 +371,13 @@ export class DashboardAuth {
       this.activeVerifications--;
     }
   }
-  async issueSession(request: Request, expectedRevision?: number) {
+  async issueSession(request: Request, expectedRevision?: number, isCurrent?: () => boolean): Promise<IssuedSession> {
     const token = randomBytes(32).toString("hex"),
       csrf = randomBytes(32).toString("hex");
     await withDatabaseTransaction(this.database, async (tx) => {
       const row = await this.read(tx);
       if (expectedRevision !== undefined && row.revision !== expectedRevision) throw new AccessError("configuration_changed", 409);
+      if (isCurrent && !isCurrent()) throw new AccessError("invalid_flow", 401);
       await tx.execute({ sql: "DELETE FROM dashboard_sessions WHERE expires_at <= ?", args: [Date.now()] });
       await tx.execute({
         sql: "INSERT INTO dashboard_sessions (token_hash, csrf, generation, expires_at) VALUES (?, ?, ?, ?)",
@@ -211,6 +389,7 @@ export class DashboardAuth {
   }
   async login(password: string, request: Request) {
     if ((await this.isPending()) || !(await this.isProtected())) throw new AccessError("not_available", 409);
+    if (this.discordMode && !this.envPassword) throw new AccessError("discord_login_required", 409);
     return this.issueSession(request, await this.verify(password));
   }
   async logout(request: Request) {
@@ -235,7 +414,8 @@ export class DashboardAuth {
     return revision;
   }
   async changePassword(current: string, password: string | null, exposureConfirmed: boolean): Promise<number> {
-    if (this.envPassword) throw new AccessError("environment_override", 409);
+    await this.refreshDiscordOwner();
+    if (this.envPassword || this.discordMode) throw new AccessError("environment_override", 409);
     const row = await this.read();
     if (row.mode === "pending") throw new AccessError("not_available", 409);
     if (password !== null && !PasswordSchema.safeParse(password).success) throw new AccessError("password_length");
@@ -276,6 +456,7 @@ export class DashboardAuth {
       const result = await tx.execute({ sql: "UPDATE dashboard_access SET mode = ?, password_hash = ?, revision = revision + 1 WHERE id = 1 AND network_json IS NOT NULL", args: [hash === null ? "disabled" : "enabled", hash] });
       if (Number(result.rowsAffected) !== 1) throw new AccessError("restore_configuration", 409);
       await tx.execute("DELETE FROM dashboard_sessions");
+      await tx.execute({ sql: "INSERT INTO dashboard_auth_method(id,method) VALUES (1,?) ON CONFLICT(id) DO UPDATE SET method=excluded.method", args: [hash === null ? "none" : "password"] });
     });
     markDashboardAccessConfigured(this.path);
   }

@@ -9,7 +9,7 @@ import { InputGroup, InputGroupInput, InputGroupAddon, InputGroupButton } from "
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { ToggleGroup03 } from "@/components/shadcn-studio/toggle-group/toggle-group-03";
 
-export function accessErrorMessage(error: unknown) {
+export function accessErrorMessage(error: unknown, fallback: () => string = m.access_request_failed) {
   const code = error instanceof Error ? error.message : "request_failed";
   const messages: Record<string, () => string> = {
     password_length: m.access_password_length,
@@ -19,8 +19,12 @@ export function accessErrorMessage(error: unknown) {
     environment_override: m.access_override,
     confirm_exposure: m.access_confirm_warning,
     invalid_network: m.access_invalid_network,
+    provider_unavailable: m.access_unavailable,
+    service_unavailable: m.access_unavailable,
+    worker_unavailable: m.access_unavailable,
+    development_online_unconfigured: m.access_development_unavailable,
   };
-  return (messages[code] ?? m.access_request_failed)();
+  return (messages[code] ?? fallback)();
 }
 
 export function PasswordField({
@@ -133,7 +137,7 @@ export function AccessSetupForm({
           <AlertDescription>{m.access_override()}</AlertDescription>
         </Alert>
       )}
-      <fieldset disabled={overridden || pending} className="min-w-0 w-fit max-w-full">
+      <fieldset disabled={overridden || pending} className="min-w-0 w-fit max-w-full [&_[data-slot=toggle-group]]:max-w-full [&_[data-slot=toggle-group-item]]:h-auto [&_[data-slot=toggle-group-item]]:min-h-[30px] [&_[data-slot=toggle-group-item]]:shrink [&_[data-slot=toggle-group-item]]:whitespace-normal">
         <ToggleGroup03
           ariaLabel={m.access_protection()}
           value={mode}

@@ -5,7 +5,7 @@ import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
 import { claimLocalAccountOwner,getLocalAccountOwner,getLocalGameBindingSnapshot,upsertLocalGameBinding } from "@raceiq/backend-core/db/local-account-queries";
 import { getOnlineUploadWinnerPage,readOnlineLapUpload,readLapUploadItems,retainOnlineLapRequest,settleOnlineLapUpload,setOnlineLapRetryAfter } from "@raceiq/backend-core/db/online-upload-queries";
 import { createOnlineRecordingProducer } from "@raceiq/backend-core/session-capture/online-recording-producer";
-import { readOnlineTestPlatform,createOnlineTestFetch } from "../integrations/online-test-platform";
+import { resolveOnlinePlatform } from "../integrations/online-platform";
 import { buildLocalDriverSummary } from "@raceiq/backend-core/driver-summary/index";
 import { validateNativeDriverBinding } from "@raceiq/backend-core/lap-detection/native-attribution";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
@@ -65,7 +65,17 @@ const keystore:OnlineKeystore={
   getSecret:key=>hostRequest("getSecret",key),
   setSecret:(key,value)=>hostRequest("setSecret",key,value),
 };
-const testPlatform=readOnlineTestPlatform();
+const start = async (): Promise<void> => {
+const platform=resolveOnlinePlatform();
+const platformConfig=platform.kind==="local"?platform:null;
+const baseUrl=platformConfig?.baseUrl??(platform.kind==="production"?"https://raceiq.snazzie.space":"http://127.0.0.1:1");
+const untaggedFetch:typeof globalThis.fetch=platform.kind==="local"?platform.fetch:platform.kind==="production"?globalThis.fetch:Object.assign(async()=>{throw new Error("online_disabled");},{preconnect(){throw new Error("online_disabled");}});
+const onlineFetch=Object.assign((input:RequestInfo|URL,init?:RequestInit)=>{
+  const headers=new Headers(input instanceof Request?input.headers:undefined);
+  new Headers(init?.headers).forEach((value,key)=>headers.set(key,value));
+  headers.set("X-RaceIQ-Client-Environment",platform.kind==="production"?"production":"development");
+  return untaggedFetch(input,{...init,headers});
+},{preconnect:untaggedFetch.preconnect});
 configureOnlineRuntime({resolveDataDir});
 await initDbWorkerConnection();
 try{await convertLegacyOnlineLapRequests();}
@@ -113,7 +123,8 @@ const service:RaceIqOnlineService=createRaceIqOnlineService({keystore,recordingP
     return {...await getOnlineLapUploadStatus(accountId),inFlight:activeUploadAccount===accountId&&activeUploadLapId!==null?1:0,
       lastError:lastUploadErrorAccount===accountId?lastUploadError:null};
   },
-  ...(testPlatform?{...testPlatform,fetch:createOnlineTestFetch(testPlatform)}:{}),
+  baseUrl,fetch:onlineFetch,
+  ...(platformConfig?{authConfig:platformConfig.authConfig}:{}),
   async onAccountConnected(userId,isCurrent){await claimLocalAccountOwner(userId,{isCurrent});},
 });
 let nativeSourceRevision=Atomics.load(nativeRevisions,0);
@@ -137,7 +148,7 @@ const local=createOnlineLocalPort(service,{
   validateNativeDriverBinding,
 });
 let importContext:OnlineUploadContext|null=null;
-const importFetch=testPlatform?createOnlineTestFetch(testPlatform):globalThis.fetch;
+const importFetch=onlineFetch;
 const imports=createCloudLapImportController({
   getAccessToken:()=>service.getImportAccessToken(),
   async getCommunityEntitlement(){
@@ -159,7 +170,7 @@ const imports=createCloudLapImportController({
   },
   readFailure(cause){return cause instanceof CloudLapImportError?{code:cause.code,retryable:cause.retryable}:null;},
   createImporter(fetch){
-    return createCloudLapImporter({...(testPlatform?{origin:testPlatform.baseUrl}:{}),fetch:Object.assign((input:RequestInfo|URL,init?:RequestInit)=>fetch(input,init),{preconnect:importFetch.preconnect})});
+    return createCloudLapImporter({...(platformConfig?{origin:platformConfig.baseUrl}:{}),fetch:Object.assign((input:RequestInfo|URL,init?:RequestInit)=>fetch(input,init),{preconnect:importFetch.preconnect})});
   },
   fetch:importFetch,
 });
@@ -216,6 +227,10 @@ async function dispatch(request:WorkerRequest):Promise<unknown>{
   switch(request.method){
     case "getState":return service.getState(...request.args);
     case "connect":return service.connect(...request.args);
+    case "beginDashboardSignIn":return service.beginDashboardSignIn(...request.args);
+    case "completeDashboardSignIn":return service.completeDashboardSignIn(...request.args);
+    case "consumeDashboardSignIn":return service.consumeDashboardSignIn(...request.args);
+    case "cancelDashboardSignIn":return service.cancelDashboardSignIn(...request.args);
     case "cancelSignIn":return service.cancelSignIn(...request.args);
     case "acceptConsent":return service.acceptConsent(...request.args);
     case "setPreferences":return service.setPreferences(...request.args);
@@ -275,3 +290,10 @@ for(const handle of [uploads])void handle.completion.catch(()=>{
 });
 await uploads.ready;
 host.postMessage({type:"ready"});
+};
+
+// Finish module evaluation before initialization waits on parent SQL replies.
+void start().catch((cause) => {
+  console.error("[OnlineWorker] Initialization failed:", cause);
+  host.postMessage({ type: "fatal" });
+});

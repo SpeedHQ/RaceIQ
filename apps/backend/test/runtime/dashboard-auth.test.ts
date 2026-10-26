@@ -5,8 +5,8 @@ import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { migrations } from "@raceiq/backend-core/db/migrations";
-import { DashboardAuth, setDashboardAuth, validateNetwork } from "../../src/runtime/dashboard-auth";
-import { createHttpAccess } from "../../src/runtime/http-access";
+import { DashboardAuth, setDashboardAuth, validateNetwork, type DashboardAuthOnlinePort } from "../../src/runtime/dashboard-auth";
+import { configureHttpAccess, createHttpAccess } from "../../src/runtime/http-access";
 import { Hono } from "hono";
 import { authRoutes } from "../../src/routes/auth-routes";
 import { startHttpServer } from "../../src/runtime/http-server";
@@ -14,6 +14,7 @@ import { dashboardAccessMarkerPath } from "@raceiq/backend-core/runtime/config/d
 import { client as applicationDb } from "@raceiq/backend-core/db/index";
 import type { WSData } from "@raceiq/backend-core/runtime/websocket-manager";
 import { loadSettings, saveSettings } from "@raceiq/backend-core/runtime/config/settings";
+import { installDatabaseWriteAuthority, installDatabaseWriteTestHooks, withDatabaseWrite } from "@raceiq/backend-core/db/write-coordination";
 
 // The parent owns fixture files; only child processes open their databases.
 // libSQL close() can leave native handles alive until process exit on Windows.
@@ -92,14 +93,39 @@ async function recoverPassword(path: string, password: string) {
   }
 }
 
-async function fixture(env: NodeJS.ProcessEnv = {}) {
+async function fixture(env: NodeJS.ProcessEnv = {}, online?: DashboardAuthOnlinePort) {
   const directory = mkdtempSync(join(process.env.RACEIQ_AUTH_FIXTURE_DIR!, "fixture-"));
   const path = join(directory, "app.db");
   const db = createClient({ url: `file:${path}` });
   try {
-    await db.execute("CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL)");
-    for (const sql of migrations.find((migration) => migration.name === "persist dashboard access and login sessions")!.sql) await db.execute(sql);
-    const auth = await DashboardAuth.create(db, path, env);
+    await db.execute("CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL DEFAULT (datetime('now')))");
+    for (const migration of migrations) {
+      const applied = await db.execute({ sql: "SELECT name FROM schema_migrations WHERE version = ?", args: [migration.version] });
+      if (applied.rows.length) {
+        if (applied.rows[0]!.name !== migration.name) throw new Error(`Migration history conflict at version ${migration.version}`);
+        continue;
+      }
+      await db.execute("PRAGMA foreign_keys = OFF");
+      const tx = await db.transaction("write");
+      try {
+        for (const sql of migration.sql) {
+          try {
+            await tx.execute(sql);
+          } catch (error) {
+            if (!(error instanceof Error) || !error.message.includes("duplicate column name")) throw error;
+          }
+        }
+        await tx.execute({ sql: "INSERT INTO schema_migrations (version,name) VALUES (?,?)", args: [migration.version, migration.name] });
+        await tx.commit();
+      } catch (error) {
+        await tx.rollback();
+        throw error;
+      } finally {
+        await db.execute("PRAGMA foreign_keys = ON");
+      }
+    }
+    await db.execute("INSERT OR IGNORE INTO local_account_owner (id, online_user_id) VALUES (1, NULL)");
+    const auth = await DashboardAuth.create(db, path, env, false, db, online);
     return { auth, db, path, close: async () => db.close() };
   } catch (error) {
     db.close();
@@ -112,6 +138,231 @@ const cookieRequest = (cookie: string, headers: HeadersInit = {}, method = "GET"
 const BunWebSocket = globalThis.WebSocket as unknown as { new (url: string, options: { headers: HeadersInit }): WebSocket };
 
 describe("persistent dashboard authentication", () => {
+  test("an existing Online owner selects Discord protection without authenticating a browser", async () => {
+    const f = await fixture();
+    try {
+      await f.auth.initialize(false);
+      await f.auth.setup("abcdefgh", true);
+      await f.db.execute("UPDATE local_account_owner SET online_user_id = 'verified-user' WHERE id = 1");
+      const state = await f.auth.status(request());
+      expect(state.method).toBe("discord");
+      expect(state.protected).toBe(true);
+      expect(state.authenticated).toBe(false);
+      expect(state.csrf).toBeNull();
+      await expect(f.auth.login("abcdefgh", request())).rejects.toMatchObject({ code: "discord_login_required" });
+    } finally {
+      await f.close();
+    }
+  });
+  test("development Discord start reports missing local Online configuration before creating flow", async () => {
+    const f = await fixture();
+    const keys = ["NODE_ENV", "RACEIQ_E2E", "RACEIQ_DEV_ONLINE_ORIGIN", "RACEIQ_DEV_AUTH_ORIGIN", "RACEIQ_DEV_AUTH_PUBLISHABLE_KEY"] as const;
+    const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+    try {
+      for (const key of keys) delete process.env[key];
+      process.env.NODE_ENV = "development";
+      await f.auth.initialize(false);
+      setDashboardAuth(f.auth);
+      await configureHttpAccess(f.auth, 3117);
+      const app = new Hono().route("/", authRoutes);
+      const response = await app.fetch(new Request("http://localhost:3117/api/auth/discord/start", {
+        method: "POST",
+        headers: { origin: "http://localhost:3117", "content-type": "application/json" },
+        body: "{}",
+      }));
+      expect(response.status).toBe(503);
+      expect(await response.json()).toEqual({ error: "development_online_unconfigured" });
+      expect(response.headers.get("set-cookie")).toBeNull();
+    } finally {
+      for (const key of keys) {
+        const value = previous[key];
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+      await f.close();
+    }
+  });
+  test("password-protected Discord linking requires same-browser session and CSRF through finish", async () => {
+    let consumed = false, callbackId = "";
+    const online: DashboardAuthOnlinePort = {
+      beginDashboardSignIn: async ({ callbackUrl }) => {
+        callbackId = new URL(callbackUrl).searchParams.get("flow")!;
+        return { attemptId: "worker", authorizationUrl: "https://discord.example/oauth", expiresAt: Date.now() + 60_000 };
+      },
+      completeDashboardSignIn: async () => ({ userId: "verified-user" }),
+      consumeDashboardSignIn: async () => { consumed = true; return { userId: "verified-user" }; },
+      cancelDashboardSignIn: async () => {},
+    };
+    const f = await fixture({}, online);
+    try {
+      await f.auth.initialize(false);
+      await f.auth.setup("abcdefgh", true);
+      await expect(f.auth.beginDiscordSignIn({ callbackUrl: "http://localhost:3117/api/auth/discord/callback", flow: crypto.randomUUID(), origin: "http://localhost:3117", request: request() })).rejects.toMatchObject({ code: "authentication_required" });
+      const session = await f.auth.issueSession(request());
+      const token = session.cookie.split(";")[0]!;
+      const csrfRequest = new Request("http://localhost:3117/api/auth/discord/start", { headers: { cookie: token, "x-raceiq-csrf": session.csrf } });
+      const flow = crypto.randomUUID();
+      await f.auth.beginDiscordSignIn({ callbackUrl: "http://localhost:3117/api/auth/discord/callback", flow, origin: "http://localhost:3117", request: csrfRequest });
+      await f.auth.completeDiscordSignIn(callbackId, "http://localhost:3117/api/auth/discord/callback");
+      await f.auth.logout(new Request("http://localhost:3117/", { headers: { cookie: token } }));
+      await expect(f.auth.finishDiscordSignIn(flow, new Request("http://localhost:3117/api/auth/discord/finish", { headers: { cookie: token, "x-raceiq-csrf": session.csrf } }))).rejects.toMatchObject({ code: "authentication_required" });
+      expect(consumed).toBe(false);
+      const owner = await f.db.execute("SELECT online_user_id FROM local_account_owner WHERE id = 1");
+      expect(owner.rows[0]?.online_user_id).toBeNull();
+    } finally {
+      await f.close();
+    }
+  });
+  test("Discord callback replay, wrong owner, cancellation and restart fail closed", async () => {
+    let userId = "wrong-user", callbackId = "", canceled = 0;
+    const online: DashboardAuthOnlinePort = {
+      beginDashboardSignIn: async ({ callbackUrl }) => {
+        callbackId = new URL(callbackUrl).searchParams.get("flow")!;
+        return { attemptId: crypto.randomUUID(), authorizationUrl: "https://discord.example/oauth", expiresAt: Date.now() + 60_000 };
+      },
+      completeDashboardSignIn: async () => ({ userId }),
+      consumeDashboardSignIn: async () => ({ userId }),
+      cancelDashboardSignIn: async () => { canceled++; },
+    };
+    const f = await fixture({}, online);
+    try {
+      await f.auth.initialize(false);
+      await f.db.execute("UPDATE local_account_owner SET online_user_id = 'verified-user' WHERE id = 1");
+      const flow = crypto.randomUUID();
+      await f.auth.beginDiscordSignIn({ callbackUrl: "http://localhost:3117/api/auth/discord/callback", flow, origin: "http://localhost:3117", request: request() });
+      await expect(f.auth.completeDiscordSignIn(callbackId, "http://localhost:3117/api/auth/discord/callback")).rejects.toMatchObject({ code: "wrong_account" });
+      expect(canceled).toBe(1);
+      userId = "verified-user";
+      const canceledFlow = crypto.randomUUID();
+      await f.auth.beginDiscordSignIn({ callbackUrl: "http://localhost:3117/api/auth/discord/callback", flow: canceledFlow, origin: "http://localhost:3117", request: request() });
+      await f.auth.completeDiscordSignIn(callbackId, "http://localhost:3117/api/auth/discord/callback");
+      await expect(f.auth.completeDiscordSignIn(callbackId, "http://localhost:3117/api/auth/discord/callback")).rejects.toMatchObject({ code: "invalid_completion" });
+      await f.auth.cancelDiscordSignIn(canceledFlow);
+      await expect(f.auth.finishDiscordSignIn(canceledFlow, request())).rejects.toMatchObject({ code: "invalid_flow" });
+      const restarted = await DashboardAuth.create(f.db, f.path, {}, false, f.db, online);
+      await expect(restarted.finishDiscordSignIn(canceledFlow, request())).rejects.toMatchObject({ code: "invalid_flow" });
+    } finally {
+      await f.close();
+    }
+  });
+  test("queued Discord finishes cannot claim ownership after cancellation or expiry", async () => {
+    for (const action of ["cancel", "expire"] as const) {
+      let callbackId = "", consumed = false;
+      const online: DashboardAuthOnlinePort = {
+        beginDashboardSignIn: async ({ callbackUrl }) => {
+          callbackId = new URL(callbackUrl).searchParams.get("flow")!;
+          return { attemptId: crypto.randomUUID(), authorizationUrl: "https://discord.example/oauth", expiresAt: Date.now() + 600_000 };
+        },
+        completeDashboardSignIn: async () => ({ userId: "verified-user" }),
+        consumeDashboardSignIn: async () => { consumed = true; return { userId: "verified-user" }; },
+        cancelDashboardSignIn: async () => {},
+      };
+      const f = await fixture({}, online);
+      const stop = installDatabaseWriteAuthority();
+      const entered = Promise.withResolvers<void>(), release = Promise.withResolvers<void>(), queued = Promise.withResolvers<void>();
+      const restoreHook = installDatabaseWriteTestHooks({ waiting: () => queued.resolve() });
+      const originalNow = Date.now;
+      let lease: Promise<unknown> | undefined;
+      try {
+        await f.auth.initialize(false);
+        const flow = crypto.randomUUID();
+        const started = await f.auth.beginDiscordSignIn({ callbackUrl: "http://localhost:3117/api/auth/discord/callback", flow, origin: "http://localhost:3117", request: request() });
+        await f.auth.completeDiscordSignIn(callbackId, "http://localhost:3117/api/auth/discord/callback");
+        lease = withDatabaseWrite(async () => { entered.resolve(); await release.promise; });
+        await entered.promise;
+        const finished = f.auth.finishDiscordSignIn(flow, request()).then(
+          () => ({ resolved: true }),
+          (error: unknown) => ({ error }),
+        );
+        await queued.promise;
+        await expect(f.auth.finishDiscordSignIn(flow, request())).rejects.toMatchObject({ code: "flow_in_progress" });
+        if (action === "cancel") await f.auth.cancelDiscordSignIn(flow);
+        else Date.now = () => started.expiresAt + 1;
+        release.resolve();
+        await lease;
+        expect(await finished).toMatchObject({ error: { code: "invalid_flow" } });
+        Date.now = originalNow;
+        expect(consumed).toBe(false);
+        expect((await f.db.execute("SELECT online_user_id FROM local_account_owner WHERE id = 1")).rows[0]?.online_user_id).toBeNull();
+        expect((await f.db.execute("SELECT method FROM dashboard_auth_method")).rows).toHaveLength(0);
+        expect((await f.db.execute("SELECT token_hash FROM dashboard_sessions")).rows).toHaveLength(0);
+        expect(await f.auth.status(request())).toMatchObject({ pending: true, authenticated: false, method: null });
+      } finally {
+        Date.now = originalNow;
+        release.resolve();
+        await lease;
+        restoreHook();
+        await stop();
+        await f.close();
+      }
+    }
+  });
+  test("Discord callback binds SDK completion to stored origin and commits protection before worker adoption", async () => {
+    const beginUrls: string[] = [], completionUrls: string[] = [], workerIds: string[] = [];
+    let sequence = 0;
+    let fixturePath = "";
+    let f: Awaited<ReturnType<typeof fixture>>;
+    const online: DashboardAuthOnlinePort = {
+      beginDashboardSignIn: async ({ callbackUrl }) => {
+        beginUrls.push(callbackUrl);
+        const attemptId = `worker-attempt-${++sequence}`;
+        workerIds.push(attemptId);
+        return { attemptId, authorizationUrl: "https://discord.example/oauth", expiresAt: Date.now() + 60_000 };
+      },
+      completeDashboardSignIn: async ({ attemptId, callbackUrl }) => {
+        expect(attemptId).toBe(workerIds[sequence - 1]);
+        completionUrls.push(callbackUrl);
+        return { userId: "verified-user" };
+      },
+      consumeDashboardSignIn: async ({ attemptId }) => {
+        expect(attemptId).toBe(workerIds[sequence - 1]);
+        const probe = createClient({ url: `file:${fixturePath}` });
+        try {
+          const owner = await probe.execute("SELECT online_user_id FROM local_account_owner WHERE id = 1");
+          const method = await probe.execute("SELECT method FROM dashboard_auth_method WHERE id = 1");
+          expect(owner.rows[0]?.online_user_id).toBe("verified-user");
+          expect(method.rows[0]?.method).toBe("discord");
+          await withDatabaseWrite(() => probe.execute("UPDATE dashboard_auth_method SET method = 'discord' WHERE id = 1"));
+        } finally {
+          await probe.close();
+        }
+        return { userId: "verified-user" };
+      },
+      cancelDashboardSignIn: async () => {},
+    };
+    f = await fixture({}, online);
+    fixturePath = f.path;
+    try {
+      await f.auth.initialize(false);
+      setDashboardAuth(f.auth);
+      const app = new Hono().route("/", authRoutes);
+      const origin = "http://raceiq.localhost:1355";
+      for (const proxied of [false, true]) {
+        const flow = crypto.randomUUID();
+        await f.auth.beginDiscordSignIn({ callbackUrl: `${origin}/api/auth/discord/callback`, flow, origin, request: request("/api/auth/discord/start", { origin }, "POST") });
+        const callbackId = new URL(beginUrls.at(-1)!).searchParams.get("flow")!;
+        const callbackPath = `/api/auth/discord/callback?flow=${callbackId}&code=provider-code&state=provider-state`;
+        const callbackUrl = proxied ? `http://localhost:3117${callbackPath}` : `${origin}${callbackPath}`;
+        const callback = await app.fetch(new Request(callbackUrl, {
+          headers: proxied ? { "x-forwarded-host": "raceiq.localhost:1355", "x-forwarded-proto": "http" } : {},
+        }));
+        expect(callback.status).toBe(302);
+        expect(callback.headers.get("location")).toBe(`${origin}/login?discord=complete`);
+        const finish = await app.fetch(new Request("http://localhost:3117/api/auth/discord/finish", {
+          method: "POST",
+          headers: { "content-type": "application/json", cookie: `raceiq_discord_flow=${flow}` },
+          body: "{}",
+        }));
+        expect(finish.status).toBe(200);
+        expect(await finish.json()).toEqual({ status: "complete" });
+        const sessionCookie = finish.headers.get("set-cookie")!.split(";")[0]!;
+        const session = await f.auth.status(new Request("http://localhost:3117/api/auth/status", { headers: { cookie: sessionCookie } }));
+        expect(session.authenticated).toBe(true);
+      }
+    } finally {
+      await f.close();
+    }
+  });
   test("configured state cannot revert to first-run setup; markers contain no credentials", async () => {
     for (const password of ["abcdefgh", null]) {
       const f = await fixture();
@@ -196,7 +447,7 @@ describe("persistent dashboard authentication", () => {
   test("migration preserves the earlier auth draft and does not reopen setup if its configured state was lost", async () => {
     const f = await fixture();
     try {
-      await f.db.execute({ sql: "INSERT INTO schema_migrations (version, name) VALUES (63, ?)", args: ["persist dashboard access and login sessions"] });
+      await f.db.execute({ sql: "INSERT OR REPLACE INTO schema_migrations (version, name) VALUES (63, ?)", args: ["persist dashboard access and login sessions"] });
       await f.auth.initialize(false);
       await f.auth.setup("abcdefgh", false);
       const session = await f.auth.login("abcdefgh", request());
@@ -271,8 +522,9 @@ describe("persistent dashboard authentication", () => {
       expect(setup.status).toBe(200);
       const cookie = setup.headers.get("set-cookie")!.split(";")[0];
       const status = await app.fetch(new Request("http://localhost:3117/api/auth/status", { headers: { cookie } }));
-      const state = (await status.json()) as { csrf: string; language: string; protected: boolean };
+      const state = (await status.json()) as { csrf: string; language: string; method: string | null; protected: boolean };
       expect(state.language).toBe("es");
+      expect(state.method).toBe("password");
       expect(state.protected).toBe(true);
       expect(JSON.stringify(state)).not.toContain("password_hash");
       expect((await post("setup", { password: null, exposureConfirmed: true })).status).toBe(409);

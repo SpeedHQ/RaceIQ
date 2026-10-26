@@ -1,12 +1,48 @@
 import { db } from "@raceiq/backend-core/db/index";
 import { sessions, laps, tunes, tuneAssignments, experiments, experimentVersions, experimentFocusEvents, lapAnalyses, compareAnalyses } from "@raceiq/backend-core/db/schema";
 import { eq, inArray } from "drizzle-orm";
+import type { DriverAttributionStint } from "@raceiq/shared/driver-attribution";
+import { GameIdSchema } from "@raceiq/shared/games/ids";
+import { prepareDashboardPublicationCandidate, publishDashboardSession } from "@raceiq/backend-core/db/dashboard-summary-queries";
+import { setLapDriverAttribution } from "@raceiq/backend-core/db/driver-summary-ledger-queries";
 import { chatThreadId, compareChatThreadId, saveChatMessages } from "@raceiq/backend-core/ai/chat-agent";
 import { loadSettings, saveSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { SEED_MARKER } from "./seed-db-options";
 
 export function markOnboardingComplete(): void {
   saveSettings({ ...loadSettings(), onboardingComplete: true });
+}
+
+/** Demo evidence is local-only: never assign native origin, an account owner, or original activity identity. */
+export async function repairDemoDashboardAttribution(): Promise<number> {
+  const seeded = await db.select().from(sessions).where(eq(sessions.notes, SEED_MARKER)).all();
+  let repaired = 0;
+  for (const session of seeded) {
+    if (session.ownership !== "mine" || session.nativeCaptureOrigin || session.originalActivityId
+      || session.ownerUserId || session.cloudImportOrigin || session.cloudImportLapId != null) continue;
+    const gameId = GameIdSchema.parse(session.gameId);
+    const sessionLaps = await db.select().from(laps).where(eq(laps.sessionId, session.id)).all();
+    for (const lap of sessionLaps) {
+      if (lap.driverAttributionStints?.length || lap.sourceClockDomain
+        || (lap.driverAttribution != null && lap.driverAttribution !== "Unknown")
+        || !Number.isFinite(lap.lapTime) || lap.lapTime <= 0) continue;
+      const source = SEED_MARKER;
+      const sessionId = `demo-session:${session.id}`;
+      const domain = `demo-lap:${lap.id}`;
+      const endMs = lap.lapTime * 1000;
+      const evidence: DriverAttributionStint = {
+        gameId, source, sessionId, clockDomain: domain,
+        startMs: 0, endMs, evidenceValidUntilMs: endMs, attribution: "Self", bindingRevision: 1,
+        actor: { gameId, source, sessionId, clockDomain: domain,
+          actorId: "demo-driver", bindingScope: "session", observedAtMs: 0 },
+      };
+      await setLapDriverAttribution(lap.id, [evidence], "Self", { domain, startMs: 0, endMs });
+      repaired++;
+    }
+    const candidate = await prepareDashboardPublicationCandidate(session.id);
+    if (candidate?.metadataDirty) await publishDashboardSession(candidate, undefined, { metadataOnly: true });
+  }
+  return repaired;
 }
 
 export async function insertDemoRows(profileId: number, importedLapIds: number[]): Promise<void> {

@@ -305,11 +305,12 @@ function RootLayout() {
 export const Route = createRootRoute({
   beforeLoad: async ({ location }) => {
     const auth = await loadDashboardAuth();
-    if (auth.pending && location.pathname !== "/onboarding") {
+    if (auth.pending && location.pathname !== "/onboarding" &&
+      !(location.pathname === "/login" && new URLSearchParams(location.searchStr).get("discord") === "complete")) {
       throw redirect({ to: "/onboarding", search: { redirect: location.href, welcome: undefined, step: undefined } });
     }
     if (!auth.pending && !auth.authenticated && location.pathname !== "/login") {
-      throw redirect({ to: "/login", search: { redirect: location.href } });
+      throw redirect({ to: "/login", search: { redirect: location.href, discord: undefined } });
     }
     if (auth.authenticated && location.pathname !== "/login" && location.pathname !== "/onboarding" &&
       (!auth.onboardingComplete || new URLSearchParams(location.searchStr).has("welcome"))) {

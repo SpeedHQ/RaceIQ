@@ -6,6 +6,7 @@
     "./ui": "./ui/index.ts",
     "./server": "./server/index.ts",
     "./contracts": "./contracts/index.ts",
+    "./server/dashboard-signin": "./server/dashboard-signin.ts",
     "./server/service": "./server/service.ts",
     "./server/adapter": "./server/adapter.ts",
     "./server/coordinator": "./server/coordinator.ts",

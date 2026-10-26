@@ -42,6 +42,24 @@ bun run db:seed --force
 
 Seed is idempotent. Seeded sessions retain live `source` metadata (`NULL`); seed ownership is tracked in notes for `--reset`. Stop the server before running `--clean`: it deletes the database, SQLite sidecars, and dashboard access marker, then recreates the schema and reseeds. This resets dashboard passwords, network settings, and login sessions; configure dashboard access again on startup. Other files in `DATA_DIR` remain intact. Use a disposable `DATA_DIR` because this is destructive. `--reset` replaces seeded rows only. Without `--force`, seed refuses to mix demo data into a database containing captured user data.
 
+Seeded laps include explicit demo-driver attribution so they appear on the personal dashboard. Running `bun run db:seed` again repairs missing attribution on existing seed-owned demo rows without reimporting recordings. This synthetic evidence remains local: seeding does not assign native capture origin, an account owner, or original activity identity, and it does not replace existing driver evidence or attribute real recordings. Session-duration attribution remains unavailable unless the recording provides it.
+
+## Local Online services
+
+Source development disables RaceIQ Online by default. It does not use the hosted production API, hosted authentication defaults, or production credentials from the OS keystore. Offline telemetry, recordings and the local dashboard remain available.
+
+To connect source development to a local Online API or the approved development tunnel, with a local or explicitly selected hosted authentication provider, configure all three values together:
+
+```dotenv
+RACEIQ_DEV_ONLINE_ORIGIN=https://raceiq-dev.snazzie.space
+RACEIQ_DEV_AUTH_ORIGIN=https://<your-supabase-project>.supabase.co
+RACEIQ_DEV_AUTH_PUBLISHABLE_KEY=<development authentication publishable key>
+```
+
+`RACEIQ_DEV_ONLINE_ORIGIN` must be an HTTP(S) literal loopback origin or exactly `https://raceiq-dev.snazzie.space`; production API, arbitrary remote origins, and modified tunnel URLs are rejected. `RACEIQ_DEV_AUTH_ORIGIN` must be an HTTPS origin without credentials, path, query or fragment. It may be a local auth service or explicitly configured hosted provider such as the existing Supabase project. No hosted auth origin or key is supplied by default. Partial configuration and redirects outside the configured API/auth origins are rejected. Development credentials use an ephemeral keystore and never reuse the production OS credential entry.
+
+Desktop API requests declare `X-RaceIQ-Client-Environment: development`. The Cloud API rejects these requests by default with `development_client_forbidden`; enable `ALLOW_DEVELOPMENT_CLIENTS=true` only on the local Cloud service. This is an environment policy, not proof that a client binary is unmodified.
+
 ## Database changes
 
 `server/db/schema.ts` is the typed schema reference. Runtime migrations come from the embedded SQL list in `server/db/migrations.ts`.

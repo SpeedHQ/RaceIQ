@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { SiDiscord } from "react-icons/si";
 import { useIsMutating } from "@tanstack/react-query";
+import { client } from "@/lib/rpc";
 import { queryKeys } from "@/hooks/query-keys";
 import { UnitsStep } from "./steps/UnitsStep";
 import { RecordingLayoutMigration } from "@/components/RecordingLayoutMigration";
@@ -17,25 +18,14 @@ import { StorageStep } from "./steps/StorageStep";
 import { WelcomeStep } from "./steps/WelcomeStep";
 import { OnlineChoiceStep, OnlineStep } from "@raceiq/online/ui";
 import { WheelStep } from "./steps/WheelStep";
-import { AccessSetupForm } from "@/components/security/AccessSetupForm";
+import { AccessSetupForm, accessErrorMessage } from "@/components/security/AccessSetupForm";
 import { useDashboardAuth } from "@/lib/dashboard-auth";
 import { getLocale } from "@/paraglide/runtime";
 
 import { ProfileStep, type ProfileStepHandle } from "./steps/ProfileStep";
-function AccessStep() {
-  return (
-    <div className="flex flex-col gap-4">
-      <h2>{m.access_title()}</h2>
-      <p>{m.access_configured()}</p>
-    </div>
-  );
-}
-
 const MODAL_STEPS = [
   { id: "welcome", label: m.step_welcome },
-  { id: "access", label: m.access_title },
-  { id: "online-choice", label: m.ob_online_choice_title },
-  { id: "online-auth", label: m.online_settings_title },
+  { id: "account", label: m.ob_online_choice_title },
   { id: "online-permissions", label: m.online_onboarding_title },
   { id: "profile", label: m.step_profile },
   { id: "wheel", label: m.label_wheel, Component: WheelStep },
@@ -45,23 +35,14 @@ const MODAL_STEPS = [
   { id: "storage", label: m.label_storage, Component: StorageStep },
   { id: "community", label: m.step_community, Component: CommunityStep },
 ];
-const FLOW_KEY = "raceiq:onboarding-flow";
-
-function restoredStep(): string {
-  try {
-    const saved = JSON.parse(sessionStorage.getItem(FLOW_KEY) ?? "null") as { path?: string; choice?: string; step?: string } | null;
-    if (saved?.path === location.pathname && saved.choice === "discord" && (saved.step === "online-auth" || saved.step === "online-permissions")) return saved.step;
-  } catch { /* ignore invalid or unavailable storage */ }
-  return "welcome";
-}
 
 export const ONBOARDING_STEP_IDS = MODAL_STEPS.map(({ id }) => id);
 
+
 export function OnboardingModal({ onClose, onComplete, initialStep = 0, initialStepId }: { onClose?: () => void; onComplete?: () => Promise<void>; initialStep?: number; initialStepId?: string } = {}) {
   const { status, refresh } = useDashboardAuth();
-  const restored = restoredStep();
-  const [stepId, setActiveStepId] = useState(() => initialStepId && ONBOARDING_STEP_IDS.some((id) => id === initialStepId) ? initialStepId : initialStep === 1 ? "access" : restored);
-  const [choice, setChoice] = useState<"welcome" | "discord" | "offline">(() => restored === "welcome" ? "welcome" : "discord");
+  const [stepId, setActiveStepId] = useState(() => initialStepId && ONBOARDING_STEP_IDS.some((id) => id === initialStepId) ? initialStepId : initialStep === 1 ? "account" : "welcome");
+  const [choice, setChoice] = useState<"welcome" | "discord" | "offline">(() => status.method === "discord" ? "discord" : "welcome");
   const setStepId = (id: string) => {
     setActiveStepId(id);
     const url = new URL(window.location.href);
@@ -70,11 +51,11 @@ export function OnboardingModal({ onClose, onComplete, initialStep = 0, initialS
     url.searchParams.set("step", id);
     window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
   };
-  const [cancelError, setCancelError] = useState(false);
   const [accessFooter, setAccessFooter] = useState<HTMLSpanElement | null>(null);
+  const [cancelError, setCancelError] = useState("");
   const profileHandle = useRef<ProfileStepHandle | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
-  const onlineFlow = stepId === "online-auth" || stepId === "online-permissions" || (stepId === "profile" && choice === "discord");
+  const onlineFlow = stepId === "online-permissions" || (stepId === "profile" && choice === "discord");
   const online = useRaceIqOnline({ enabled: onlineFlow });
   const stepStripRef = useRef<HTMLDivElement>(null);
   const activeStepRef = useRef<HTMLDivElement>(null);
@@ -115,7 +96,7 @@ export function OnboardingModal({ onClose, onComplete, initialStep = 0, initialS
   const step = MODAL_STEPS.findIndex(({ id }) => id === stepId);
   const current = MODAL_STEPS[step]!;
   const StepComponent = "Component" in current ? current.Component : undefined;
-  const progressSteps = MODAL_STEPS.filter(({ id }) => id !== "welcome" && id !== "access" && id !== "online-choice" && (choice === "discord" || (id !== "online-auth" && id !== "online-permissions")));
+  const progressSteps = MODAL_STEPS.filter(({ id }) => id !== "welcome" && id !== "account" && (choice === "discord" || id !== "online-permissions"));
   const activeProgressIndex = progressSteps.findIndex(({ id }) => id === stepId);
   async function navigateTo(id: string) {
     const targetIndex = progressSteps.findIndex((item) => item.id === id);
@@ -124,61 +105,38 @@ export function OnboardingModal({ onClose, onComplete, initialStep = 0, initialS
   }
   function setProfileHandle(handle: ProfileStepHandle | null) { profileHandle.current = handle; }
   useEffect(() => {
-    if (status.pending && stepId !== "welcome" && stepId !== "access") setStepId("access");
-    else if (!status.pending && stepId === "access") setStepId("online-choice");
+    if (status.pending && stepId !== "welcome" && stepId !== "account") setStepId("account");
   }, [status.pending, stepId]);
   useEffect(() => {
-    if (stepId !== "online-auth" || online.state?.connection.status !== "connected") return;
-    setStepId("online-permissions");
-    try { sessionStorage.setItem(FLOW_KEY, JSON.stringify({ path: location.pathname, choice: "discord", step: "online-permissions" })); } catch { /* storage optional */ }
+    if (stepId === "online-permissions" && online.state) setCancelError(online.state.connection.status !== "connected" ? m.online_transport_error() : "");
   }, [online.state?.connection.status, stepId]);
-  useEffect(() => {
-    if (stepId !== "online-permissions" || !online.state || online.state.connection.status === "connected") return;
-    let current = true;
-    void online.refresh().then((state) => {
-      if (current && state && state.connection.status !== "connected") setOnlineStep("online-auth");
-    });
-    return () => { current = false; };
-  }, [online.state?.accountEpoch, online.state?.connection.status, online.state?.revision, stepId]);
-  function setOnlineStep(id: "online-auth" | "online-permissions") {
-    setChoice("discord");
-    setStepId(id);
-    try { sessionStorage.setItem(FLOW_KEY, JSON.stringify({ path: location.pathname, choice: "discord", step: id })); } catch { /* storage optional */ }
-  }
+  const [discordStarting, setDiscordStarting] = useState(false);
   async function chooseDiscord() {
-    setCancelError(false);
-    const state = await online.refresh();
-    if (state?.connection.status === "connected") {
-      setOnlineStep("online-permissions");
-      return;
+    setCancelError("");
+    setDiscordStarting(true);
+    try {
+      const response = await client.api.auth.discord.start.$post({ json: { language: getLocale() } });
+      if (!response.ok) {
+        const body = await response.json();
+        throw new Error("error" in body && typeof body.error === "string" ? body.error : "request_failed");
+      }
+      const { authorizationUrl } = await response.json();
+      window.location.assign(authorizationUrl);
+    } catch (failure) {
+      setCancelError(accessErrorMessage(failure, m.access_unavailable));
+    } finally {
+      setDiscordStarting(false);
     }
-    setOnlineStep("online-auth");
-    if (state?.connection.status !== "signing_in") void online.connect();
   }
-  async function chooseOffline() {
-    if (online.state?.connection.status === "signing_in") {
-      const result = await online.cancelSignIn();
-      if (!result?.ok) { setCancelError(true); return; }
-    }
+  function chooseOffline() {
+    setCancelError("");
     setChoice("offline");
-    try { sessionStorage.removeItem(FLOW_KEY); } catch { /* storage optional */ }
     setStepId("profile");
   }
-  async function leaveOnline() {
-    if (online.state?.connection.status === "signing_in") {
-      const result = await online.cancelSignIn();
-      if (!result?.ok) { setCancelError(true); return; }
-    }
-    try { sessionStorage.removeItem(FLOW_KEY); } catch { /* storage optional */ }
-    setChoice("welcome");
-    setStepId("online-choice");
-  }
   function finishPermissions() {
-    try { sessionStorage.removeItem(FLOW_KEY); } catch { /* storage optional */ }
     setStepId("profile");
   }
   async function handleFinish() {
-    try { sessionStorage.removeItem(FLOW_KEY); } catch { /* storage optional */ }
     if (onClose) onClose();
     else {
       await saveSettings.mutateAsync({ onboardingComplete: true });
@@ -188,7 +146,7 @@ export function OnboardingModal({ onClose, onComplete, initialStep = 0, initialS
   return (
     <div className="@container/onboarding fixed inset-0 z-50 flex items-center justify-center bg-app-bg p-4">
       <div className="flex h-auto max-h-[calc(100vh-2rem)] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-app-border bg-app-surface shadow-2xl">
-        {stepId !== "welcome" && stepId !== "online-choice" && <div className="shrink-0 px-4 pb-4 pt-4 @3xl/onboarding:px-6 @3xl/onboarding:pt-6">
+        {stepId !== "welcome" && stepId !== "account" && <div className="shrink-0 px-4 pb-4 pt-4 @3xl/onboarding:px-6 @3xl/onboarding:pt-6">
           <h1 className="text-app-heading font-semibold text-app-text @3xl/onboarding:text-app-title">{m.ob_configure_title()}</h1>
           <div ref={stepStripRef} className="mt-4 flex items-center gap-2 overflow-x-auto pb-1">
             {progressSteps.map((item, index) => {
@@ -206,41 +164,50 @@ export function OnboardingModal({ onClose, onComplete, initialStep = 0, initialS
         </div>}
         <div className="min-h-[280px] flex-1 overflow-y-auto border-t border-app-border px-4 py-5 @3xl/onboarding:px-6">
           {stepId === "welcome" ? <WelcomeStep setup={status.pending} />
-            : stepId === "access" && status.pending ? <div className="flex flex-col gap-4">
-              <p>{status.upgrade ? m.access_upgrade() : m.access_setup_description()}</p>
-              <AccessSetupForm setup submitContainer={accessFooter} language={getLocale()} onComplete={async () => {
-                await refresh();
-                setStepId("online-choice");
-              }} />
+            : stepId === "account" ? <div className="flex flex-col gap-5">
+              {status.method === "discord"
+                ? <p className="text-sm text-app-text-secondary">{m.ob_online_choice_online_desc()}</p>
+                : <OnlineChoiceStep selected={choice === "welcome" ? null : choice} onSelect={setChoice} />}
+              {choice === "offline" && status.pending && status.method !== "discord" && <div className="flex flex-col gap-4">
+                {status.pending && <p>{status.upgrade ? m.access_upgrade() : m.access_setup_description()}</p>}
+                <AccessSetupForm setup protectedAccess={status.protected} overridden={status.overrides.includes("SERVER_PASSWORD")} language={getLocale()} submitContainer={accessFooter} onComplete={async () => {
+                  await refresh();
+                  setStepId("profile");
+                }} />
+              </div>}
+              {cancelError && <p role="alert" className="text-sm text-status-danger">{cancelError}</p>}
             </div>
-            : stepId === "access" ? <AccessStep />
-            : stepId === "online-choice" ? <OnlineChoiceStep selected={choice === "welcome" ? null : choice} onSelect={setChoice} />
-              : stepId === "online-auth" ? <OnlineStep stage="auth" onSkip={() => void chooseOffline()} />
-                : stepId === "online-permissions" ? <OnlineStep stage="permissions" onComplete={finishPermissions} onSkip={() => void chooseOffline()} />
+              : stepId === "online-permissions" ? online.state?.connection.status === "connected"
+                ? <OnlineStep stage="permissions" onComplete={finishPermissions} onSkip={() => void chooseOffline()} />
+                : <div className="flex flex-col gap-3" role="alert">
+                  <p className="text-sm text-status-danger">{online.state ? m.online_transport_error() : m.online_loading()}</p>
+                  {online.state && <Button variant="outline" onClick={() => void online.refresh()}>{m.online_retry()}</Button>}
+                  <Button variant="outline" onClick={chooseOffline}>{m.ob_continue_offline()}</Button>
+                </div>
                   : stepId === "profile" ? <ProfileStep onlineIntent={choice === "discord"} onlineState={online.state} canMutate={online.canMutate} setDisplayName={online.setDisplayName} handleRef={setProfileHandle} onSavingChange={setProfileSaving} />
                     : StepComponent ? <StepComponent /> : null}
           {layoutBusy && step !== MODAL_STEPS.findIndex((item) => item.id === "storage") && <div className="mt-4"><RecordingLayoutMigration compact /></div>}
         </div>
         {stepId === "welcome" && <footer className="flex shrink-0 justify-end border-t border-app-border bg-app-surface-alt/30 px-4 py-4 @3xl/onboarding:px-6">
-          <Button className="min-h-11 w-full sm:w-auto" variant="app-primary" onClick={() => setStepId(status.pending ? "access" : "online-choice")}>{m.common_get_started()}</Button>
+          <Button className="min-h-11 w-full sm:w-auto" variant="app-primary" onClick={() => setStepId("account")}>{m.common_get_started()}</Button>
         </footer>}
-        {stepId === "online-choice" && <footer className="flex shrink-0 flex-col gap-3 border-t border-app-border bg-app-surface-alt/30 px-4 py-4 sm:flex-row sm:items-center sm:justify-between @3xl/onboarding:px-6">
-          <Button className="min-h-11 self-start" variant="outline" onClick={() => setStepId(status.pending ? "access" : "welcome")}>{m.common_back()}</Button>
-          <Button className="min-h-11" variant="app-primary" disabled={choice === "welcome"} onClick={() => { if (choice === "discord") chooseDiscord(); else if (choice === "offline") void chooseOffline(); }}>
-            {choice === "discord" && <SiDiscord className="h-4 w-4 shrink-0" aria-hidden="true" />}
-            {choice === "discord" ? m.ob_continue_discord() : choice === "offline" ? m.ob_continue_offline() : m.common_next()}
-          </Button>
-        </footer>}
-        {stepId === "access" && status.pending ? <div data-slot="onboarding-footer" className="flex shrink-0 items-center justify-end border-t border-app-border bg-app-surface-alt/30 px-4 py-4 @3xl/onboarding:px-6"><div className="flex items-center gap-2"><Button variant="outline" size="sm" onClick={() => setStepId("welcome")}>{m.common_back()}</Button><span ref={setAccessFooter} /></div></div>
-          : stepId !== "welcome" && stepId !== "online-choice" && stepId !== "online-auth" && stepId !== "online-permissions" && <div className="flex shrink-0 items-center justify-end border-t border-app-border bg-app-surface-alt/30 px-4 py-4 @3xl/onboarding:px-6">
+        {stepId === "account" && <footer className="flex shrink-0 flex-col gap-3 border-t border-app-border bg-app-surface-alt/30 px-4 py-4 sm:flex-row sm:items-center sm:justify-between @3xl/onboarding:px-6">
+          <Button className="min-h-11 self-start" variant="outline" onClick={() => setStepId("welcome")}>{m.common_back()}</Button>
           <div className="flex items-center gap-2">
-            {step > 0 && <Button variant="outline" size="sm" disabled={profileSaving} onClick={() => void navigateTo(progressSteps[activeProgressIndex - 1]?.id ?? "online-choice")}>{m.common_back()}</Button>}
+            {choice === "offline" && status.pending && status.method !== "discord" && <span ref={setAccessFooter} />}
+            {status.method === "discord" && <Button className="min-h-11" variant="app-primary" onClick={() => setStepId("profile")}>{m.common_next()}</Button>}
+            {status.method !== "discord" && choice === "discord" && <Button className="min-h-11" variant="app-primary" disabled={discordStarting} onClick={() => void chooseDiscord()}><SiDiscord aria-hidden="true" />{discordStarting ? m.common_loading() : m.ob_continue_discord()}</Button>}
+            {status.method !== "discord" && choice === "offline" && !status.pending && <Button className="min-h-11" variant="app-primary" onClick={() => setStepId("profile")}>{m.ob_continue_offline()}</Button>}
+          </div>
+        </footer>}
+        {stepId !== "welcome" && stepId !== "account" && stepId !== "online-permissions" && <div className="flex shrink-0 items-center justify-end border-t border-app-border bg-app-surface-alt/30 px-4 py-4 @3xl/onboarding:px-6">
+          <div className="flex items-center gap-2">
+            {step > 0 && <Button variant="outline" size="sm" disabled={profileSaving} onClick={() => void navigateTo(progressSteps[activeProgressIndex - 1]?.id ?? "account")}>{m.common_back()}</Button>}
             {step < MODAL_STEPS.length - 1
               ? <Button variant="app-primary" size="sm" disabled={profileSaving || (stepId === "profile" && choice === "discord" && !online.canMutate)} onClick={() => void navigateTo(progressSteps[activeProgressIndex + 1]!.id)}>{profileSaving ? m.ob_profile_saving() : m.common_next()}</Button>
               : <Button size="sm" variant={receiving ? "default" : "outline"} onClick={handleFinish} disabled={saveSettings.isPending || storageBusy}>{receiving ? m.common_finish() : m.common_next()}</Button>}
           </div>
         </div>}
-        {stepId === "online-auth" && <div className="flex shrink-0 flex-col items-start gap-2 border-t border-app-border bg-app-surface-alt/30 px-4 py-4 @3xl/onboarding:px-6">{cancelError && <p role="alert" className="text-sm text-status-danger">{m.online_transport_error()}</p>}<Button variant="outline" size="sm" disabled={online.isMutating} onClick={() => { setCancelError(false); void leaveOnline(); }}>{m.common_back()}</Button></div>}
       </div>
     </div>
   );

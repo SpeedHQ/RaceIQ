@@ -2604,6 +2604,16 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       END`,
     ],
   },
+  {
+    version: 105,
+    name: "persist Discord dashboard authentication method",
+    sql: [
+      `CREATE TABLE dashboard_auth_method (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        method TEXT NOT NULL CHECK (method IN ('discord','password','none'))
+      )`,
+    ],
+  },
 ];
 const dashboardCanonicalTriggers = (() => {
   const readModel = migrations.find((migration) => migration.version === 68);

@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createServer as createHttpServer, type IncomingMessage, type Server as HttpServer, type ServerResponse } from "node:http";
@@ -25,9 +25,13 @@ let consentAccepted = false;
 const acceptedAt = "2026-01-01T00:00:00.000Z";
 const token = "online-e2e-access-token";
 const refreshToken = "online-e2e-refresh-token";
-const code = "online-e2e-one-time-code";
-const codeChallenges = new Map<string, string>();
-
+function providerAccount(accountId: string) {
+  return accountId === account.id ? account : {
+    ...account,
+    id: accountId,
+    email: "wrong-online-e2e@example.invalid",
+  };
+}
 function sendJson(response: ServerResponse, status: number, value: unknown): void {
   response.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
   response.end(JSON.stringify(value));
@@ -64,6 +68,12 @@ async function readBody(request: IncomingMessage): Promise<Record<string, unknow
 /** External provider fixture only; application handlers, RPC, worker, and storage remain real. */
 export async function startOnlineE2EPlatform(): Promise<{ env: Record<string, string>; close(): Promise<void> }> {
   const dir = mkdtempSync(join(tmpdir(), "raceiq-online-e2e-"));
+  const codeChallenges = new Map<string, string>();
+  let oauthExchanges = 0;
+  let developmentRequests = 0;
+  let tokenFailure = false;
+  let accountId = account.id;
+  let callbackTamper = false;
   const keyPath = join(dir, "auth.key");
   const certPath = join(dir, "auth.crt");
   const certificate = spawnSync("openssl", ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", keyPath, "-out", certPath, "-days", "1", "-subj", "/CN=127.0.0.1", "-addext", "subjectAltName=IP:127.0.0.1,DNS:localhost"], { stdio: "ignore" });
@@ -83,29 +93,49 @@ export async function startOnlineE2EPlatform(): Promise<{ env: Record<string, st
       response.writeHead(204, { "cache-control": "no-store" });
       return response.end();
     }
+    if (url.pathname === "/__test__/control" && request.method === "POST") {
+      const body = await readBody(request);
+      accountId = typeof body.accountId === "string" ? body.accountId : account.id;
+      tokenFailure = body.tokenFailure === true;
+      callbackTamper = body.callbackTamper === true;
+      preferences.visibility = "private";
+      preferences.setupUploads = false;
+      oauthExchanges = 0;
+      developmentRequests = 0;
+      response.writeHead(204, { "cache-control": "no-store" });
+      return response.end();
+    }
+    if (url.pathname === "/__test__/stats" && request.method === "GET") {
+      return sendJson(response, 200, { oauthExchanges, developmentRequests, sharing: preferences.visibility });
+    }
     if (url.pathname === "/auth/v1/authorize" && request.method === "GET") {
       const redirectTo = url.searchParams.get("redirect_to");
       if (!redirectTo) return sendJson(response, 400, { error: "invalid_request" });
       let callback: URL;
       try { callback = new URL(redirectTo); } catch { return sendJson(response, 400, { error: "invalid_request" }); }
-      if (callback.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(callback.hostname) || callback.pathname !== "/api/online/auth/callback") return sendJson(response, 400, { error: "invalid_request" });
+      if (callback.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(callback.hostname) || !["/api/online/auth/callback", "/api/auth/discord/callback"].includes(callback.pathname)) return sendJson(response, 400, { error: "invalid_request" });
       const challenge = url.searchParams.get("code_challenge");
       if (!challenge || url.searchParams.get("code_challenge_method")?.toUpperCase() !== "S256") return sendJson(response, 400, { error: "invalid_request" });
+      const code = randomUUID();
       codeChallenges.set(code, challenge);
       callback.searchParams.set("code", code);
+      if (callbackTamper) callback.searchParams.set("flow", randomUUID());
       response.writeHead(302, { location: callback.href, "cache-control": "no-store" });
       return response.end();
     }
     if (url.pathname === "/auth/v1/token" && request.method === "POST" && url.searchParams.get("grant_type") === "pkce") {
+      oauthExchanges += 1;
       const body = await readBody(request);
       const challenge = codeChallenges.get(String(body.auth_code));
       if (!challenge || typeof body.code_verifier !== "string" || createHash("sha256").update(body.code_verifier).digest("base64url") !== challenge) return sendJson(response, 400, { error: "invalid_grant" });
       codeChallenges.delete(String(body.auth_code));
-      return sendJson(response, 200, { access_token: token, token_type: "bearer", expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: refreshToken, user: account });
+      if (tokenFailure) return sendJson(response, 400, { error: "access_denied" });
+      const user = providerAccount(accountId);
+      return sendJson(response, 200, { access_token: token, token_type: "bearer", expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: refreshToken, user });
     }
     if (url.pathname === "/auth/v1/user" && request.method === "GET") {
       if (!bearer(request)) return sendJson(response, 401, { message: "invalid token", code: "invalid_token" });
-      return sendJson(response, 200, account);
+      return sendJson(response, 200, providerAccount(accountId));
     }
     if (url.pathname === "/auth/v1/logout" && request.method === "POST") {
       response.writeHead(204, { "cache-control": "no-store" });
@@ -117,6 +147,7 @@ export async function startOnlineE2EPlatform(): Promise<{ env: Record<string, st
   const apiServer = createHttpServer(async (request, response) => {
     const url = new URL(request.url ?? "/", "http://127.0.0.1");
     const method = request.method ?? "GET";
+    if (request.headers["x-raceiq-client-environment"] === "development") developmentRequests += 1;
     if (method === "GET" && url.pathname === "/api/v1/consent") return sendJson(response, 200, policy);
     if (!bearer(request)) return sendJson(response, 401, { error: { code: "unauthorized" } });
     if (method === "GET" && /(?:\/me|\/profile)$/.test(url.pathname)) return sendJson(response, 200, { userId: account.id, displayName: account.user_metadata.name, avatarUrl: null });

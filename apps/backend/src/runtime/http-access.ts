@@ -109,13 +109,13 @@ function createHttpAccessPolicy(env: NodeJS.ProcessEnv, auth?: DashboardAuth, ne
     if (host && host.toLowerCase() !== url.host.toLowerCase()) {
       return new Response("Forbidden", { status: 403 });
     }
-    // OAuth redirects use a fixed loopback destination, not the dashboard's
-    // hostname or cookie. The route validates the single-use flow and PKCE;
-    // the listener separately rejects non-loopback peers for Online routes.
-    const onlineAuthCallback = request.method === "GET" && url.protocol === "http:"
+    // OAuth callbacks bypass dashboard authentication only on exact routes.
+    // Online stays loopback-only; Discord validates its flow and SDK state.
+    const discordAuthCallback = request.method === "GET" && url.pathname === "/api/auth/discord/callback";
+    const onlineAuthCallback = discordAuthCallback || (request.method === "GET" && url.protocol === "http:"
       && url.hostname === "127.0.0.1" && url.port === String(port)
       && host === `127.0.0.1:${port}` && !url.username && !url.password
-      && url.pathname === "/api/online/auth/callback";
+      && url.pathname === "/api/online/auth/callback");
     if (!onlineAuthCallback && auth && origins.size > 0 && ![...origins].some((value) => new URL(value).host === url.host) && !(development && localHost(url.hostname))) return new Response("Forbidden", { status: 403 });
     const origin = request.headers.get("origin");
     if (origin !== null && !allowsOrigin(origin, request)) return new Response("Forbidden", { status: 403 });
@@ -141,7 +141,7 @@ function createHttpAccessPolicy(env: NodeJS.ProcessEnv, auth?: DashboardAuth, ne
       });
     }
     if (auth) {
-      const bootstrap = ["/api/auth/status", "/api/auth/setup", "/api/auth/login"].includes(url.pathname);
+      const bootstrap = ["/api/auth/status", "/api/auth/setup", "/api/auth/login", "/api/auth/discord/start", "/api/auth/discord/finish", "/api/auth/discord/cancel"].includes(url.pathname);
       // The public bundle contains only the login/setup shell. All application
       // data, Studio, and telemetry stay behind the gate below.
       const shell = !/^\/(?:api|studio-api|ws)(?:\/|$)/.test(url.pathname) && ["GET", "HEAD"].includes(request.method);

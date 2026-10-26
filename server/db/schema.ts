@@ -142,6 +142,10 @@ export const dashboardSessions = sqliteTable("dashboard_sessions", {
   generation: text("generation").notNull(),
   expiresAt: integer("expires_at").notNull(),
 });
+export const dashboardAuthMethod = sqliteTable("dashboard_auth_method", {
+	id: integer("id").primaryKey(),
+	method: text("method", { enum: ["discord", "password", "none"] }).notNull(),
+}, (table) => [check("dashboard_auth_method_singleton_check", sql`${table.id} = 1`)]);
 
 export const tunes = sqliteTable(
 	"tunes",

@@ -1,5 +1,6 @@
 packages/online/test/adapter.test.ts
 packages/online/test/delivery-ledgers.test.ts
 packages/online/test/server/cloud-lap-import-controller.test.ts
+packages/online/test/server/dashboard-signin.test.ts
 packages/online/test/server/auth.test.ts
 packages/online/test/server/routes.test.ts

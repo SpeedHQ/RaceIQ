@@ -60,24 +60,32 @@ test.describe.serial("fresh install", () => {
     test("user steps through wizard and lands on home page", async ({ page, request }) => {
       await resetFreshInstallState();
       page.setDefaultNavigationTimeout(60_000);
+      await page.setViewportSize({ width: 390, height: 844 });
       const { errors } = collectBrowserErrors(page, [/THREE\.GLTFLoader: Couldn't load texture/]);
       await page.goto("/", { waitUntil: "domcontentloaded" });
 
-      // Step 1: Welcome — navigation must not depend on the optional 3D demo.
+      // Welcome enters combined Discord/offline and protection setup screen.
       await expect(page.getByRole("button", { name: "Get Started" })).toBeVisible({ timeout: 15_000 });
       await page.getByRole("button", { name: "Get Started" }).click();
+      const discordChoice = page.getByRole("radio", { name: /RaceIQ Online/ });
+      const offlineChoice = page.getByRole("radio", { name: "Offline", exact: true });
+      await expect(discordChoice).toBeVisible();
+      await expect(page.getByLabel("Password", { exact: true })).toHaveCount(0);
+      await expect(page.getByLabel("Confirm password", { exact: true })).toHaveCount(0);
+      await discordChoice.focus();
+      await page.keyboard.press("ArrowRight");
+      await expect(offlineChoice).toBeChecked();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
-      // Step 2: Access — require explicit password-protection choice.
+      // Offline exposes protection controls in place and keeps validation.
+      await page.getByLabel("Password", { exact: true }).fill("short");
+      await page.getByLabel("Confirm password", { exact: true }).fill("different");
+      await expect(page.getByText("Passwords do not match.")).toBeVisible();
       await expect(page.getByRole("button", { name: "Next", exact: true })).toBeDisabled();
       await page.getByRole("group", { name: "Password protection", exact: true }).getByRole("button", { name: "Continue without a password" }).click();
       await expect(page.getByRole("alert")).toBeVisible();
       await expect(page.getByRole("button", { name: "Next", exact: true })).toBeEnabled();
-      await page.getByRole("group", { name: "Password protection", exact: true }).getByRole("button", { name: "Enable password protection", exact: true }).click();
-      await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
-      await page.getByRole("group", { name: "Password protection", exact: true }).getByRole("button", { name: "Continue without a password" }).click();
-      await expect(page.getByRole("heading", { name: "Choose how to get started", exact: true })).toBeVisible();
-      await page.getByRole("radio", { name: "Offline", exact: true }).check();
-      await page.getByRole("button", { name: "Continue offline", exact: true }).click();
+      await page.getByRole("button", { name: "Next", exact: true }).click();
 
       // Step 4: Profile
       await expect(page.getByRole("heading", { name: "What's your name?" })).toBeVisible();
@@ -168,15 +176,14 @@ test.describe.serial("fresh install", () => {
       expect(errors, `unexpected browser errors:\n${errors.join("\n")}`).toEqual([]);
     });
 
+
     test("replaying the wizard keeps the default recording folder", async ({ page }) => {
       await resetFreshInstallState();
       await page.goto("/", { waitUntil: "domcontentloaded" });
       await page.getByRole("button", { name: "Get Started" }).click();
+      await page.getByRole("radio", { name: "Offline", exact: true }).check();
       await page.getByRole("group", { name: "Password protection", exact: true }).getByRole("button", { name: "Continue without a password" }).click();
       await page.getByRole("button", { name: "Next", exact: true }).click();
-      await expect(page.getByRole("heading", { name: "Choose how to get started", exact: true })).toBeVisible();
-      await page.getByRole("radio", { name: "Offline", exact: true }).check();
-      await page.getByRole("button", { name: "Continue offline", exact: true }).click();
       for (const heading of ["What's your name?", "Choose the steering wheel displayed during live telemetry.", "Units", "Sound", "Launch on Login"]) {
         await expect(page.getByRole("heading", { name: heading })).toBeVisible();
         await page.getByRole("button", { name: "Next" }).click();

@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { OnlineErrorCode, OnlineLeaderboard, OnlineState } from "@raceiq/online/contracts";
 import type { CloudLapImportState } from "@raceiq/shared/integrations/cloud-lap-import";
 import { OnlineHostProvider as RaceIqOnlineProvider } from "../features/online-host"
-import { OnlineSection, CloudLapImportActivation } from "@raceiq/online/ui"
+import { OnlineSection, CloudLapImportActivation, CloudLapImportRequestFailure, useRaceIqOnline } from "@raceiq/online/ui"
 import { Settings } from "../components/settings/Settings";
 import { OnlineCommunityLaps } from "@raceiq/online/ui"
 import { setLocale, locales, type Locale } from "../paraglide/runtime";
@@ -109,6 +109,62 @@ export const StaleCommunityCompletionDoesNotNavigate: Story = {
     await waitFor(async () => { await expect(canvas.getByTestId("cloud-import-ack-ids")).toHaveTextContent("71,72"); });
     await userEvent.click(canvas.getByRole("button", { name: "Release acknowledgement" }));
     await waitFor(async () => { await expect(canvas.getByTestId("replay-navigation-count")).toHaveTextContent("1"); });
+  },
+};
+function ImportEligibilityProbe({ onRefresh }: { onRefresh: () => Promise<void> }) {
+  const online = useRaceIqOnline();
+  return <>
+    <output data-testid="import-eligibility">{online.state ? online.communityAllowed ? "allowed" : "blocked" : "pending"}</output>
+    <button onClick={() => void onRefresh()}>Refresh eligibility</button>
+  </>;
+}
+function IneligibleImportPreview() {
+  const [queryClient] = useState(() => new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } }));
+  const [reads, setReads] = useState(0);
+  const [controller] = useState(() => {
+    let state: OnlineState = { ...publicFixture, uploadAllowed: false };
+    const base = createOnlineFixtureHost(state);
+    return {
+      host: {
+        ...base,
+        port: { ...base.port, getState: async () => structuredClone(state) },
+        async getCloudLapImport() {
+          setReads((count) => count + 1);
+          if (!state.uploadAllowed) throw new CloudLapImportRequestFailure(base.m, "sharing_required");
+          return { status: "idle", lapId: null, lapGuid: null, activationId: null, access: null, selection: null, localLap: null, error: null } satisfies CloudLapImportState;
+        },
+      },
+      allow() { state = { ...publicFixture, revision: state.revision + 1 }; },
+      makePrivate() { state = { ...privateFixture, revision: state.revision + 1 }; },
+    };
+  });
+  const refresh = async () => { await queryClient.invalidateQueries({ queryKey: ["raceiq-online", "state"] }); };
+  return <QueryClientProvider client={queryClient}><RaceIqOnlineProvider host={controller.host}>
+    <ImportEligibilityProbe onRefresh={refresh} />
+    <button onClick={() => { controller.allow(); void refresh(); }}>Allow imports</button>
+    <button onClick={() => { controller.makePrivate(); void refresh(); }}>Make sharing private</button>
+    <output data-testid="cloud-import-read-count">{reads}</output>
+    <CloudLapImportActivation />
+  </RaceIqOnlineProvider></QueryClientProvider>;
+}
+export const IneligibleImportDoesNotNotify: Story = {
+  render: () => <IneligibleImportPreview />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(async () => { await expect(canvas.getByTestId("import-eligibility")).toHaveTextContent("blocked"); });
+    for (let index = 0; index < 3; index++) await userEvent.click(canvas.getByRole("button", { name: "Refresh eligibility" }));
+    await expect(canvas.getByTestId("cloud-import-read-count")).toHaveTextContent("0");
+    await expect(canvas.queryByRole("alert")).not.toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Allow imports" }));
+    await waitFor(async () => { await expect(canvas.getByTestId("import-eligibility")).toHaveTextContent("allowed"); });
+    await waitFor(async () => { await expect(Number(canvas.getByTestId("cloud-import-read-count").textContent)).toBeGreaterThan(0); });
+    await userEvent.click(canvas.getByRole("button", { name: "Make sharing private" }));
+    await waitFor(async () => { await expect(canvas.getByTestId("import-eligibility")).toHaveTextContent("blocked"); });
+    const priorReads = canvas.getByTestId("cloud-import-read-count").textContent;
+    for (let index = 0; index < 3; index++) await userEvent.click(canvas.getByRole("button", { name: "Refresh eligibility" }));
+    await expect(canvas.getByTestId("cloud-import-read-count")).toHaveTextContent(priorReads!);
+    await expect(canvas.queryByRole("alert")).not.toBeInTheDocument();
+    canvasElement.setAttribute("data-scenario", "passed");
   },
 };
 export const OptionalOnboarding: Story = { args: { state: signedOutFixture, onboarding: true } };
