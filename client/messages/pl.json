@@ -117,6 +117,7 @@
   "ai_refresh": "Odśwież",
   "ai_loading_models": "Ładowanie modeli…",
   "ai_model_default": "Brak",
+  "ai_model_recommended": "Zalecany",
   "ai_thinking_label": "Rozumowanie",
   "ai_thinking_unsupported": "Ten model nie obsługuje rozumowania. Użyto opcji „Brak”.",
   "ai_add_key_hint": "Dodaj i zapisz klucz API, aby załadować dostępne modele.",

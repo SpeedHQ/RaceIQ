@@ -117,6 +117,7 @@
   "ai_refresh": "刷新",
   "ai_loading_models": "正在加载模型…",
   "ai_model_default": "无",
+  "ai_model_recommended": "推荐",
   "ai_thinking_label": "思考",
   "ai_thinking_unsupported": "此模型不支持思考功能。将使用“无”。",
   "ai_add_key_hint": "添加并保存 API 密钥以加载可用模型。",

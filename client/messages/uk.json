@@ -119,6 +119,7 @@
   "ai_refresh": "Оновити",
   "ai_loading_models": "Завантаження моделей…",
   "ai_model_default": "Немає",
+  "ai_model_recommended": "Рекомендовано",
   "ai_thinking_label": "Роздуми",
   "ai_thinking_unsupported": "Ця модель не підтримує режим роздумів. Використовується значення «Немає».",
   "ai_add_key_hint": "Додайте та збережіть ключ API, щоб завантажити доступні моделі.",

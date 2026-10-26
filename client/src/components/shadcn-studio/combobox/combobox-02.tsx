@@ -21,6 +21,8 @@ export interface Combobox02Option {
   label: string;
   group?: string;
   disabled?: boolean;
+  /** Short tag shown after the label in the list, e.g. "Recommended". */
+  badge?: string;
 }
 
 export interface Combobox02Props {
@@ -126,7 +128,14 @@ export function Combobox02({
                     disabled={option.disabled}
                     className="min-h-8 whitespace-normal px-3 py-1.5 leading-snug"
                   >
-                    {option.label}
+                    {option.badge ? (
+                      <span className="flex items-center gap-2">
+                        <span>{option.label}</span>
+                        <span className="shrink-0 rounded border border-status-success/40 px-1.5 py-0.5 text-app-caption uppercase tracking-wider text-status-success">
+                          {option.badge}
+                        </span>
+                      </span>
+                    ) : option.label}
                   </ComboboxItem>
                 )}
               </ComboboxCollection>

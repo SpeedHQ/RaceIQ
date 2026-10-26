@@ -119,6 +119,7 @@
   "ai_refresh": "ताज़ा करना",
   "ai_loading_models": "मॉडल लोड हो रहे हैं…",
   "ai_model_default": "कोई नहीं",
+  "ai_model_recommended": "अनुशंसित",
   "ai_thinking_label": "सोच",
   "ai_thinking_unsupported": "यह मॉडल सोच का समर्थन नहीं करता. कोई नहीं का उपयोग करना.",
   "ai_add_key_hint": "उपलब्ध मॉडलों को लोड करने के लिए एपीआई कुंजी जोड़ें और सहेजें।",
