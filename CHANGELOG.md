@@ -2,10 +2,8 @@
 
 ### Features
 - Replace category tabs on the AMS2 and iRacing Cars pages with a searchable dropdown that shows the total as a placeholder, clears the search when opened, and preserves category counts and the All categories reset.
-- Keep AMS2 adapter availability and native telemetry capture development-only.
+- Add AMS2 support: native Windows shared-memory telemetry capture, game-specific car and track identity, per-wheel Replay metrics, 235 track maps, car thumbnails, dashboard branding and a separate Driver profile; include Live connection guidance and correct lap capture, export, replay and track-map behavior.
 - Show animated suspension springs and chassis movement in Replay and Compare → Spectate; use the lap's observed travel range when no game range is specified, while preserving native normalized readings.
-- Show AMS2 Replay's canonical Balance status and per-wheel Traction, Grip Ask, Slip Angle and Slip Ratio from recorded motion, wheel rotation and disclosed estimates in the existing Data panel.
-- Display locally extracted AMS2 car thumbnails in the car catalogue when available.
 - Show clickable circuit-overview sector markers on desktop only while hovering or using keyboard focus; keep them visible on touch screens.
 - Group LMU state of charge, virtual energy and regenerative power in a separate table below the main Replay and Compare → Spectate metrics.
 - Use dashed track edges in Replay and Compare → Spectate to provide fixed-distance speed cues.
@@ -15,16 +13,6 @@
 - Show separate LMU player energy, engine, electric motor, steering feedback, weather and race-control readings in live telemetry when provided by the game.
 - Show read-only LMU setup, forecast and condition snapshots with source age and availability, without waiting for network requests before displaying live telemetry.
 - Compare laps in Spectate with synchronized 3D replay, configurable cameras and overlays, live A/B instruments, sector deltas, and telemetry, car, AI, Focus View, and lap-statistics panels.
-- Display the Automobilista 2 logo on its home dashboard card.
-- Bundle 235 original AMS2 road-corridor maps, selected by exact layout names or recording-verified aliases with track-length checks when available; Brands Hatch Indy alignment has been manually checked.
-- Add native Windows AMS2 telemetry capture through Project CARS 2 shared memory, with game-specific car and track identity.
-- Add separate Driver profiles for AMS2 and iRacing.
-- Organize AMS2 raw fixtures under shared recording artifacts and add E2E checks for lap numbering, duplicate saves, timestamps and driving-channel variation.
-- Add compact real AMS2 raw-dump fixtures covering session lifecycle, Time Trial crossings, race-start validity, qualifying and pit stops.
-- Report AMS2 dump-mode capture counters for rejected memory reads and busy processing.
-- Add AMS2 development dump recording and replay, preserving raw menu/session transitions and undecoded mapped data for fixture testing.
-- Run AMS2 capture tests through the isolated integration test runner.
-- Complete AMS2 telemetry catalog provenance, native units, extension coverage and supported fuel projections.
 
 - Inspect recorded telemetry in Compare → Spectate with a Data panel and switch between lap A and B without showing both panels at once.
 - Bring Compare → Spectate's scene, playback, telemetry and Insights to single-lap Replay, with saved 3D settings, grouped wheel graphs, stable ERS bands, chassis/tire-info rendering and independently resizable, horizontally scrollable panels.
@@ -49,12 +37,9 @@
 - Include the complete LMU multiplayer recording in demo seeds as sub-100 MB gzip parts, stream native input without buffering the whole capture, and retain separate player and opponent recordings.
 
 ### Fixes
-- Keep AMS2 racing lines continuous across valid reduced-rate samples in Replay, Spectate and the circuit overview while preserving genuine missing-data gaps.
-- Keep AMS2 Replay and Spectate track boundaries fixed to the circuit when viewing partial or off-center laps.
 - Place inner and outer surface-temperature bands on the correct sides of the 3D wheels in Replay and Compare → Spectate.
 - Include the LMU opponent-index worker in packaged builds so recorded opponents can load for replay and comparison.
 - Restore recorded-opponent driver and lap selections after reloading comparisons while the opponent catalog loads.
-- Keep the car and telemetry visible between valid samples in reduced-rate AMS2 Replay and Spectate recordings, while preserving missing-data gaps.
 - Preserve Replay and Spectate panel widths when panels are toggled, and keep the mobile circuit overview clear of driver inputs and focus controls.
 - Keep Spectate selected when switching comparison views with the keyboard.
 - Keep selected LMU lap exports within the chosen recording window, preserve opponent frame order, and avoid duplicate samples.
@@ -101,18 +86,8 @@
 - Preserve incomplete-lap eligibility and LMU first-outlap classification across ordinal detector transitions.
 - Keep recording splitting and the dashboard running when another application already uses the live telemetry UDP port.
 - Keep Windows recording publication working when directory metadata flushing is unsupported, while retaining file-content flushing and reporting other I/O failures.
-- Accept captured AMS2 first race laps from the starting grid when the initial invalid flag clears, while preserving later invalidations, pit exclusions, and recording-quality checks.
-- Avoid false AMS2 restart detection when untimed start-line crossings wrap lap distance without advancing the lap counter.
-- Prevent retained qualifying timing from creating a spurious AMS2 race session during live recording transitions.
-- Keep AMS2 lap exports readable when exporting later laps or multiple laps from a compressed recording.
 - Keep session Overview maps complete when an unfinished lap follows completed invalid laps.
 - Keep session Overview maps compact on wide screens and fit the driven lap line without hidden track edges shrinking it.
-- Correct the reversed AMS2 track direction arrow.
-- Restore the Analyse G-force dot and center the AMS2 suspension indicator, labelled as compression balance rather than measured wheel load.
-- Return AMS2 Live to connection instructions after telemetry stops, and clear live readings when the server disconnects.
-- Show AMS2 connection instructions when waiting for telemetry, including the required shared-memory setting and driving-session steps.
-- Restore Live child-page routing, production Raw Data updates and AMS2 game navigation.
-- Restore AMS2 live sector progression using telemetry track length and lap position; show available live tire pressures, use percentages in replay pedal charts, and exclude invalid laps from recorded PBs.
 - Keep game links visible on Live pages.
 - Keep first-run setup responsive by omitting the optional telemetry demo.
 - Label the community setup copy action “Clone” in the setup browser.
