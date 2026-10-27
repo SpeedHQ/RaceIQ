@@ -1,6 +1,7 @@
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { TelemetryVariableId } from "@raceiq/shared/telemetry/catalog/generated/telemetry-catalog.types";
-import { applyAlignment, computeAlignment } from "@raceiq/shared/racing/tracks/geometry/points";
+import type { IRacingTrackCalibration } from "@raceiq/shared/racing/tracks/geometry/iracing-reference";
+import { applyAlignment } from "@raceiq/shared/racing/tracks/geometry/points";
 import { createLapFractionProjector } from "@raceiq/shared/racing/tracks/path";
 import { semanticNumber, type SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 export interface Point { x: number; z: number }
@@ -12,6 +13,7 @@ export interface SceneTrackBoundaries {
   pitLane: Point[] | null;
   coordSystem: string;
   additionalSections?: { leftEdge: Point[]; rightEdge: Point[] }[];
+  vertexHeightsM?: number[] | null;
 }
 
 export interface ScenePose extends Point {
@@ -26,13 +28,13 @@ export interface TrackProjection {
   start: "start-finish";
   direction: "forward";
   boundaries?: SceneTrackBoundaries | null;
+  calibration?: IRacingTrackCalibration | null;
 }
-export function alignProjectionToMeasured(projection: TrackProjection | null | undefined, poses: readonly (ScenePose | null)[]): TrackProjection | null {
-  if (!projection || projection.points.length < 5) return null;
-  const measured = poses.filter((pose): pose is ScenePose => pose?.source === "measured" && Number.isFinite(pose.x) && Number.isFinite(pose.z));
-  const alignment = measured.length >= 5 ? computeAlignment(projection.points, measured) : null;
-  if (!alignment) return null;
-  const align = (points: Point[]) => points.map((point) => applyAlignment(point, alignment));
+/** Apply persisted reference registration once; scene reflection remains a caller concern. */
+export function calibratedProjection(projection: TrackProjection): TrackProjection | null {
+  const calibration = projection.calibration;
+  if (!calibration) return null;
+  const align = (points: Point[]) => points.map((point) => applyAlignment(point, calibration.alignment));
   const boundaries = projection.boundaries;
   return {
     ...projection,
@@ -46,6 +48,25 @@ export function alignProjectionToMeasured(projection: TrackProjection | null | u
       pitLane: boundaries.pitLane ? align(boundaries.pitLane) : boundaries.pitLane,
       additionalSections: boundaries.additionalSections?.map((section) => ({ leftEdge: align(section.leftEdge), rightEdge: align(section.rightEdge) })),
     } : null,
+  };
+}
+/** Prepare fixed SVG boundaries for the scene; reflect once after registration. */
+export function fixedIRacingBoundaries(projection: TrackProjection | null | undefined, hasMeasuredGPS = false): SceneTrackBoundaries | null {
+  if (!projection?.boundaries || (!projection.calibration && hasMeasuredGPS)) return null;
+  const calibrated = projection.calibration ? calibratedProjection(projection) : null;
+  if (projection.calibration && !calibrated?.boundaries) return null;
+  const bounds = calibrated?.boundaries ?? projection.boundaries;
+  const mirror = (points: Point[]) => points.map(({ x, z }) => ({ x: 0 - x, z }));
+  return {
+    ...bounds,
+    leftEdge: mirror(bounds.leftEdge),
+    rightEdge: mirror(bounds.rightEdge),
+    centerLine: mirror(bounds.centerLine),
+    raceLine: bounds.raceLine ? mirror(bounds.raceLine) : bounds.raceLine,
+    pitLane: bounds.pitLane ? mirror(bounds.pitLane) : bounds.pitLane,
+    additionalSections: bounds.additionalSections?.map(section => ({ leftEdge: mirror(section.leftEdge), rightEdge: mirror(section.rightEdge) })),
+    coordSystem: "iracing-replay",
+    vertexHeightsM: projection.calibration?.elevationsM ?? null,
   };
 }
 
@@ -68,33 +89,29 @@ function supportedNumber(frame: SemanticAnalysisFrame, id: TelemetryVariableId):
 
 /** Visualization only: never publish derived geometry as native position or racing line. */
 export function resolveScenePoses(gameId: GameId, frames: SemanticAnalysisFrame[], projection?: TrackProjection | null): (ScenePose | null)[] {
+  const calibration = projection?.calibration ?? null;
   const project = gameId === "iracing" && projection?.units === "m" && projection.start === "start-finish" && projection.direction === "forward"
     ? createLapFractionProjector(projection.points) : null;
   const measured = gameId === "iracing" && frames.some((frame) => validGeo(supportedNumber(frame, "motion.latitude"), supportedNumber(frame, "motion.longitude")));
-  const originSample = frames.find((frame) => validGeo(
-    supportedNumber(frame, "identity.track.latitude"),
-    supportedNumber(frame, "identity.track.longitude"),
-  ));
-  const origin = measured
-    ? originSample
-      ? { latitude: supportedNumber(originSample, "identity.track.latitude")!, longitude: supportedNumber(originSample, "identity.track.longitude")! }
-      : frames.map((frame) => ({ latitude: supportedNumber(frame, "motion.latitude"), longitude: supportedNumber(frame, "motion.longitude") }))
-        .find((sample) => validGeo(sample.latitude, sample.longitude)) as { latitude: number; longitude: number }
-    : null;
-  const altitudeOriginFrame = originSample ?? frames.find((frame) => validGeo(
-    supportedNumber(frame, "motion.latitude"),
-    supportedNumber(frame, "motion.longitude"),
-  ) && supportedNumber(frame, "motion.altitude") !== null);
-  const altitudeOrigin = altitudeOriginFrame
-    ? supportedNumber(altitudeOriginFrame, "identity.track.altitude") ?? supportedNumber(altitudeOriginFrame, "motion.altitude")
-    : null;
+  const originSample = frames.find((frame) => validGeo(supportedNumber(frame, "identity.track.latitude"), supportedNumber(frame, "identity.track.longitude")));
+  const origin = calibration
+    ? { latitude: calibration.origin.latitude, longitude: calibration.origin.longitude }
+    : measured
+      ? originSample
+        ? { latitude: supportedNumber(originSample, "identity.track.latitude")!, longitude: supportedNumber(originSample, "identity.track.longitude")! }
+        : frames.map((frame) => ({ latitude: supportedNumber(frame, "motion.latitude"), longitude: supportedNumber(frame, "motion.longitude") }))
+          .find((sample) => validGeo(sample.latitude, sample.longitude)) as { latitude: number; longitude: number }
+      : null;
+  const altitudeOriginFrame = originSample ?? frames.find((frame) => validGeo(supportedNumber(frame, "motion.latitude"), supportedNumber(frame, "motion.longitude")) && supportedNumber(frame, "motion.altitude") !== null);
+  const altitudeOrigin = calibration
+    ? calibration.origin.altitude
+    : altitudeOriginFrame
+      ? supportedNumber(altitudeOriginFrame, "identity.track.altitude") ?? supportedNumber(altitudeOriginFrame, "motion.altitude")
+      : null;
   const positions = measured
     ? frames.map((frame) => {
-        const latitude = supportedNumber(frame, "motion.latitude");
-        const longitude = supportedNumber(frame, "motion.longitude");
-        return validGeo(latitude, longitude) && origin
-          ? geographicPosition(latitude!, longitude!, origin.latitude, origin.longitude)
-          : null;
+        const latitude = supportedNumber(frame, "motion.latitude"), longitude = supportedNumber(frame, "motion.longitude");
+        return validGeo(latitude, longitude) && origin ? geographicPosition(latitude!, longitude!, origin.latitude, origin.longitude) : null;
       })
     : [];
   const measuredHeading = (index: number): number => {
@@ -102,16 +119,9 @@ export function resolveScenePoses(gameId: GameId, frames: SemanticAnalysisFrame[
     if (recorded !== null) return recorded;
     const current = positions[index];
     if (!current) return 0;
-    const next = positions[index + 1];
-    const previous = positions[index - 1];
-    const nextDx = next ? next.x - current.x : 0;
-    const nextDz = next ? next.z - current.z : 0;
-    const dx = next && (nextDx !== 0 || nextDz !== 0)
-      ? nextDx
-      : previous ? current.x - previous.x : 0;
-    const dz = next && (nextDx !== 0 || nextDz !== 0)
-      ? nextDz
-      : previous ? current.z - previous.z : 0;
+    const next = positions[index + 1], previous = positions[index - 1];
+    const dx = next && (next.x !== current.x || next.z !== current.z) ? next.x - current.x : previous ? current.x - previous.x : 0;
+    const dz = next && (next.x !== current.x || next.z !== current.z) ? next.z - current.z : previous ? current.z - previous.z : 0;
     return dx !== 0 || dz !== 0 ? Math.atan2(dx, dz) : 0;
   };
   return frames.map((frame, index) => {
@@ -121,9 +131,7 @@ export function resolveScenePoses(gameId: GameId, frames: SemanticAnalysisFrame[
       const altitude = supportedNumber(frame, "motion.altitude");
       return { ...position, ...(altitude === null || altitudeOrigin === null ? {} : { y: altitude - altitudeOrigin }), yaw: measuredHeading(index), source: "measured" };
     }
-    const x = supportedNumber(frame, "motion.position-x");
-    const z = supportedNumber(frame, "motion.position-z");
-    const yaw = supportedNumber(frame, "motion.yaw");
+    const x = supportedNumber(frame, "motion.position-x"), z = supportedNumber(frame, "motion.position-z"), yaw = supportedNumber(frame, "motion.yaw");
     if (x !== null && z !== null && yaw !== null) return { x, z, yaw, source: "native" };
     const fraction = supportedNumber(frame, "timing.lap-fraction");
     const pose = fraction !== null ? project?.(fraction) : null;

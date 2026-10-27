@@ -230,12 +230,14 @@ describe("production database path", () => {
       expect(fresh.prepare("SELECT mode, password_hash FROM dashboard_access WHERE id = 1").get()).toMatchObject({ mode: "pending", password_hash: null });
       expect(fresh.prepare("SELECT name FROM sqlite_master WHERE name = 'obsolete_seed_state'").all()).toEqual([]);
       expect(fresh.prepare("SELECT name FROM schema_migrations WHERE version = 75").get()).toHaveProperty("name", "persist dashboard access and login sessions");
-      const seeded = fresh.prepare("SELECT game_id, raw_file, notes FROM sessions").all() as Array<{ game_id: string; raw_file: string; notes: string }>;
-      expect(seeded.length).toBeGreaterThan(0);
+      const seeded = fresh.prepare("SELECT game_id, raw_file, notes, source FROM sessions").all() as Array<{ game_id: string; raw_file: string; notes: string; source: string | null }>;
+      expect(seeded).toHaveLength(3);
       expect(seeded.every((row) => row.game_id === "iracing" && row.notes?.includes("raceiq-demo-seed-v1"))).toBe(true);
-      expect(seeded.every((row) => row.raw_file.endsWith(".ibt"))).toBe(true);
+      const ibtSessions = seeded.filter((row) => row.source === "ibt");
+      expect(ibtSessions).toHaveLength(1);
+      expect(seeded.filter((row) => row.source !== "ibt").every((row) => row.raw_file.endsWith(".bin"))).toBe(true);
       const originalIbt = readFileSync(join(REPO_ROOT, "test/artifacts/sessions/iracing-navarra-mx5-2026-10-19.ibt"));
-      expect(seeded.every((row) => readFileSync(row.raw_file).equals(originalIbt))).toBe(true);
+      expect(ibtSessions.every((row) => readFileSync(row.raw_file).equals(originalIbt))).toBe(true);
     } finally {
       fresh.close();
     }

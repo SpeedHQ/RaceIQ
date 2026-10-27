@@ -321,18 +321,17 @@ export class SpectateSceneRuntime {
     this.edgeRuns = [];
     this.lineRuns = [[], []];
     const racingLinePositions: number[] = [];
-    const native: TrackPoint[] = [];
+    const native: (TrackPoint & { y: number })[] = [];
     for (const sample of this.pair.a.samples) {
       const pose = spectateSamplePosition(sample);
-      if (pose) native.push({ x: pose.x, z: pose.z });
+      if (pose) native.push({ x: pose.x, y: pose.y ?? 0, z: pose.z });
     }
     let displayBoundaries = boundaries;
     if (displayBoundaries && needsTrackFlip(this.pair.gameId)) displayBoundaries = flipBoundaries(displayBoundaries);
     // These endpoints already return game-world metres. Fitting their centerline
     // to a driven lap moves the track toward the car and changes its scale.
-    const worldBoundaries = displayBoundaries?.coordSystem === "forza" || displayBoundaries?.coordSystem === "f1-2025" || displayBoundaries?.coordSystem === "acc" || displayBoundaries?.coordSystem === "lmu" || displayBoundaries?.coordSystem === "ams2-world";
-    let boundaryAlignment: TrackAlignment | null = worldBoundaries ? WORLD_ALIGNMENT : null;
-    if (!worldBoundaries && displayBoundaries && displayBoundaries.centerLine.length >= 5) boundaryAlignment = computeAlignment(displayBoundaries.centerLine, native);
+    const worldBoundaries = displayBoundaries?.coordSystem === "forza" || displayBoundaries?.coordSystem === "f1-2025" || displayBoundaries?.coordSystem === "acc" || displayBoundaries?.coordSystem === "lmu" || displayBoundaries?.coordSystem === "ams2-world" || displayBoundaries?.coordSystem === "iracing-replay" || displayBoundaries?.coordSystem === "iracing-map";
+    let boundaryAlignment: TrackAlignment | null = worldBoundaries ? WORLD_ALIGNMENT : displayBoundaries && displayBoundaries.centerLine.length >= 5 ? computeAlignment(displayBoundaries.centerLine, native) : null;
     const validAlignment = (source: readonly TrackPoint[], alignment: TrackAlignment | null) => {
       if (!alignment || source.length < 5 || native.length < 5) return false;
       let minX = Infinity,
@@ -358,17 +357,22 @@ export class SpectateSceneRuntime {
     };
     if (!worldBoundaries && !validAlignment(displayBoundaries?.centerLine ?? [], boundaryAlignment)) boundaryAlignment = null;
     // LMU's outline is also native world geometry, including when limits are absent.
-    const outlineAlignment = this.pair.gameId === "lmu" ? WORLD_ALIGNMENT : computeAlignment([...(outline ?? [])], native);
-    const validOutlineAlignment = this.pair.gameId === "lmu" || validAlignment(outline ?? [], outlineAlignment) ? outlineAlignment : null;
-    const transform = (points: readonly Point[], alignment: TrackAlignment) => points.map((point) => applyAlignment(point, alignment));
-    const drawPoints = (points: readonly Point[], alignment: TrackAlignment, tint: string, runs: RibbonRun[], dashed = true) => {
-      const transformed = transform(points, alignment);
+    const outlineAlignment = this.pair.gameId === "lmu" ? WORLD_ALIGNMENT : this.pair.gameId === "iracing" ? null : computeAlignment([...(outline ?? [])], native);
+    const validOutlineAlignment = this.pair.gameId === "lmu" || (this.pair.gameId !== "iracing" && validAlignment(outline ?? [], outlineAlignment)) ? outlineAlignment : null;
+    // Fixed reference elevations only; never drape map geometry from selected-lap GPS.
+    const referenceHeights = this.pair.gameId === "iracing" ? displayBoundaries?.vertexHeightsM : null;
+    const transform = (points: readonly Point[], alignment: TrackAlignment, heights: readonly number[] | null | undefined) => points.map((point, index) => {
+      const p = applyAlignment(point, alignment);
+      return { ...p, y: heights?.[index] ?? 0 };
+    });
+    const drawPoints = (points: readonly Point[], alignment: TrackAlignment, tint: string, runs: RibbonRun[], dashed = true, heights: readonly number[] | null | undefined = null) => {
+      const transformed = transform(points, alignment, heights);
       const tintColor = color(tint);
       let distance = 0, run: RibbonRun[number][] = [], count = 0;
-      const add = (x: number, z: number, alpha: number) => {
+      const add = (x: number, y: number, z: number, alpha: number) => {
         const localX = x - this.origin.x, localZ = z - this.origin.z, previous = run.at(-1);
         if (previous?.x === localX && previous.z === localZ && previous.alpha === alpha) return;
-        run.push({ x: localX, y: -this.origin.y, z: localZ, color: tintColor, alpha });
+        run.push({ x: localX, y: y - this.origin.y, z: localZ, color: tintColor, alpha });
       };
       for (let i = 1; i < transformed.length; i++) {
         const a = transformed[i - 1]!, b = transformed[i]!;
@@ -379,10 +383,10 @@ export class SpectateSceneRuntime {
           const phase = dashed ? distance % 7 : 0;
           const step = dashed ? Math.min(length - offset, (phase < 6 ? 6 : 7) - phase) : length - offset;
           const alpha = !dashed || phase < 6 ? 1 : 0;
-          add(a.x + (b.x - a.x) * offset / length, a.z + (b.z - a.z) * offset / length, alpha);
+          add(a.x + (b.x - a.x) * offset / length, a.y + (b.y - a.y) * offset / length, a.z + (b.z - a.z) * offset / length, alpha);
           offset += step;
           distance += step;
-          add(a.x + (b.x - a.x) * offset / length, a.z + (b.z - a.z) * offset / length, alpha);
+          add(a.x + (b.x - a.x) * offset / length, a.y + (b.y - a.y) * offset / length, a.z + (b.z - a.z) * offset / length, alpha);
           count++;
         }
       }
@@ -392,11 +396,15 @@ export class SpectateSceneRuntime {
     const edgeRuns: RibbonRun[] = [];
     let edgeCount = 0;
     if (displayBoundaries && boundaryAlignment) {
-      for (const edge of [displayBoundaries.leftEdge, displayBoundaries.rightEdge, ...(displayBoundaries.additionalSections ?? []).flatMap((section) => [section.leftEdge, section.rightEdge])])
-        edgeCount += drawPoints(edge, boundaryAlignment, "--app-text", edgeRuns);
+      edgeCount += drawPoints(displayBoundaries.leftEdge, boundaryAlignment, "--app-text", edgeRuns, true, referenceHeights);
+      edgeCount += drawPoints(displayBoundaries.rightEdge, boundaryAlignment, "--app-text", edgeRuns, true, referenceHeights);
+      for (const section of displayBoundaries.additionalSections ?? []) {
+        edgeCount += drawPoints(section.leftEdge, boundaryAlignment, "--app-text", edgeRuns);
+        edgeCount += drawPoints(section.rightEdge, boundaryAlignment, "--app-text", edgeRuns);
+      }
     }
     if (displayBoundaries?.raceLine && boundaryAlignment) {
-      const points = transform(displayBoundaries.raceLine, boundaryAlignment);
+      const points = transform(displayBoundaries.raceLine, boundaryAlignment, null);
       // Uniform metre spacing avoids clustering dots where source points are dense.
       let nextDot = 0;
       for (let i = 1; i < points.length; i++) {
@@ -433,14 +441,13 @@ export class SpectateSceneRuntime {
     this.focusNativePoints = [[], []];
     this.centerLineRuns = [];
     if (displayBoundaries && boundaryAlignment && displayBoundaries.centerLine.length > 1) {
-      const centerLine = transform(displayBoundaries.centerLine, boundaryAlignment);
-      const center = centerLine.map((point) => ({ x: point.x - this.origin.x, y: -this.origin.y, z: point.z - this.origin.z, color: color("--app-border") }));
+      const centerLine = transform(displayBoundaries.centerLine, boundaryAlignment, referenceHeights);
+      const center = centerLine.map((point) => ({ x: point.x - this.origin.x, y: point.y - this.origin.y, z: point.z - this.origin.z, color: color("--app-border") }));
       if (center.length > 1) this.centerLineRuns = [center];
       const project = (lap: ReplaySession["a"], side: 0 | 1) => {
         const points = lap.samples.map((sample): FocusNativePoint => {
           const motion = lap.motionSamples ? sampleMotion(lap.motionSamples, sample.time, true, "opponentLapId" in lap.replay, lap.maximumGapSeconds) : null;
           const pose = motion?.pose ?? spectateSamplePosition(sample);
-          const x = pose?.x, y = "opponentLapId" in lap.replay ? 0 : pose?.y, z = pose?.z;
           return {
             x: pose?.x ?? NaN,
             y: pose?.y ?? this.origin.y,

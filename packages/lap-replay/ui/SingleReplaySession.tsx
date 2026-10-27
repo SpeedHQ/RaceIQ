@@ -1,4 +1,5 @@
 import type { TrackProjection } from "@raceiq/scene-3d/wireframe/ScenePlacement";
+import type { TrackMapBoundaries } from "../contracts/host";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
@@ -14,6 +15,7 @@ export interface SingleReplaySessionProps {
   replay: SemanticLapTelemetry | OpponentSemanticLapTelemetry;
   outline: readonly { x: number; z: number }[] | null;
   trackProjection?: TrackProjection | null;
+  trackBoundaries?: TrackMapBoundaries | null;
   segments: readonly SpectateSegment[];
   trackLengthM?: number;
   initialFrame?: number;
@@ -25,7 +27,7 @@ export interface SingleReplaySessionProps {
 }
 
 /** One native replay clock rendered through the same scene and panels as comparison. */
-export function SingleReplaySession({ gameId, lap, replay, outline, trackProjection, segments, trackLengthM, initialFrame, ai, aiOpen, onAiOpenChange, onController, panelHeaderTarget }: SingleReplaySessionProps) {
+export function SingleReplaySession({ gameId, lap, replay, outline, trackProjection, trackBoundaries, segments, trackLengthM, initialFrame, ai, aiOpen, onAiOpenChange, onController, panelHeaderTarget }: SingleReplaySessionProps) {
   const a = useMemo(() => {
     const prepared = prepareSpectateLap(replay);
     if (typeof trackLengthM === "number" && Number.isFinite(trackLengthM) && trackLengthM > 0) prepared.trackLengthM = trackLengthM;
@@ -99,7 +101,7 @@ export function SingleReplaySession({ gameId, lap, replay, outline, trackProject
     };
   }, [a, controller]);
   if (!controller) return null;
-  return <SpectateView pair={session} controller={controller} outline={outline} segments={segments}
+  return <SpectateView pair={session} controller={controller} outline={outline} trackProjection={trackProjection} trackBoundaries={trackBoundaries} segments={segments}
     ai={ai} aiOpen={aiOpen} onAiOpenChange={onAiOpenChange} telemetryOpen={telemetryOpen}
     onTelemetryOpenChange={setTelemetryOpen} carPanelOpen={carPanelOpen} onCarPanelOpenChange={setCarPanelOpen}
     panelHeaderTarget={panelHeaderTarget} />;

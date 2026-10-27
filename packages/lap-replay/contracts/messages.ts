@@ -76,6 +76,9 @@ export interface ReplayMessages {
   spectate_delta_trend_window: () => string;
   spectate_direction_lock: () => string;
   spectate_g_force: () => string;
+  replay_track_measured: () => string;
+  replay_track_projected: () => string;
+  replay_track_unavailable: () => string;
   spectate_gear: () => string;
   spectate_geometry_unavailable: () => string;
   spectate_grip_demand: () => string;

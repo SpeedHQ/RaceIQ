@@ -1,3 +1,4 @@
+import type { TrackProjection } from "@raceiq/scene-3d/wireframe/ScenePlacement";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { ComparisonData } from "@raceiq/shared/racing/comparison/types";
@@ -27,6 +28,7 @@ export function SpectateSession({
   comparison,
   active,
   outline,
+  trackProjection,
   segments,
   distanceRef,
   onDistanceChange,
@@ -44,6 +46,7 @@ export function SpectateSession({
   comparison: ComparisonData | OpponentReplayComparison;
   active: boolean;
   outline: readonly { x: number; z: number }[] | null;
+  trackProjection?: TrackProjection | null;
   segments: readonly SpectateSegment[];
   distanceRef: { current: number | null };
   onDistanceChange: (distance: number | null) => void;
@@ -78,16 +81,18 @@ const pair = useMemo<ReplayPair | null>(() => {
   if (playerComparison) {
     const other = replayB.data;
     if (!other || other.lapId !== playerComparison.lapB.id) return null;
-    return {
-      gameId, comparison: playerComparison,
-      a: prepareSpectateLap(replayA.data, playerComparison, "a"),
-      b: prepareSpectateLap(other, playerComparison, "b"),
-    };
+    const a = prepareSpectateLap(replayA.data, playerComparison, "a");
+    const b = prepareSpectateLap(other, playerComparison, "b");
+    const placed = gameId === "iracing" ? placeIRacingSpectateLaps([a, b], trackProjection ?? null) : [a, b];
+    return { gameId, comparison: playerComparison, a: placed[0], b: placed[1] };
   }
   const selected = opponentComparison!;
   const other = replayOpponent.data;
   if (!other || other.opponentLapId !== selected.reference.opponentLapId || other.sourceRevision !== selected.reference.sourceRevision) return null;
   const sectors = selected.opponent.sectors;
+  const a = prepareSpectateLap(replayA.data, undefined, "a", { preserveLapDistance: true });
+  const b = prepareSpectateLap(other, undefined, "b", { preserveLapDistance: true });
+  const placed = gameId === "iracing" ? placeIRacingSpectateLaps([a, b], trackProjection ?? null) : [a, b];
   return {
     gameId,
     comparison: { lapA: selected.playerLap, lapB: {
@@ -97,10 +102,9 @@ const pair = useMemo<ReplayPair | null>(() => {
       ...(sectors.length && sectors.every((sector) => sector.duration.state === "ok" && sector.duration.value !== null)
         ? { sectorTimes: sectors.map((sector) => sector.duration.value!) } : {}),
     } },
-    a: prepareSpectateLap(replayA.data, undefined, "a", { preserveLapDistance: true }),
-    b: prepareSpectateLap(other, undefined, "b", { preserveLapDistance: true }),
+    a: placed[0], b: placed[1],
   };
-}, [gameId, playerLap, playerComparison, opponentComparison, replayA.data, replayB.data, replayOpponent.data]);
+}, [gameId, playerLap, playerComparison, opponentComparison, replayA.data, replayB.data, replayOpponent.data, trackProjection]);
 const [controllerEntry, setControllerEntry] = useState<{ pair: ReplayPair; controller: SpectateController } | null>(null);
 const controller = controllerEntry?.pair === pair ? controllerEntry.controller : null;
 const distanceCallback = useRef(onDistanceChange);
@@ -213,4 +217,4 @@ if (pair.a.samples.length < 2 || pair.b.samples.length < 2)
       {m.spectate_replay_unavailable()}
     </div>
   );
-return <SpectateView pair={pair} controller={controller} outline={outline} segments={segments} aiOpen={aiOpen} telemetryOpen={telemetryOpen} carPanelOpen={carPanelOpen} onTelemetryOpenChange={onTelemetryOpenChange} onCarPanelOpenChange={onCarPanelOpenChange} onAiOpenChange={onAiOpenChange} panelHeaderTarget={panelHeaderTarget} />; }
+return <SpectateView pair={pair} controller={controller} outline={outline} trackProjection={trackProjection} segments={segments} aiOpen={aiOpen} telemetryOpen={telemetryOpen} carPanelOpen={carPanelOpen} onTelemetryOpenChange={onTelemetryOpenChange} onCarPanelOpenChange={onCarPanelOpenChange} onAiOpenChange={onAiOpenChange} panelHeaderTarget={panelHeaderTarget} />; }

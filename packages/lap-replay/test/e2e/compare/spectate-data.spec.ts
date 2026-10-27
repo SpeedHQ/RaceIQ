@@ -116,6 +116,9 @@ test("iRacing Spectate projects measured geography without native world position
     await expect.poll(async () => canvas.getAttribute(`data-${side}-x`)).not.toBe("");
     await expect.poll(async () => canvas.getAttribute(`data-${side}-z`)).not.toBe("");
   }
+  const edgeCount = await canvas.getAttribute("data-track-edge-count");
+  const geometrySource = await canvas.getAttribute("data-track-geometry-source");
+  await expect(page.locator("[data-iracing-geometry-provenance]")).toContainText(/approximate reference only|Geographic calibration unavailable/i);
   const map = page.getByRole("group", { name: "Circuit segment map" });
   await expect(map).toBeVisible();
   const segmentButtons = map.getByRole("button");
@@ -173,6 +176,11 @@ test("iRacing Spectate projects measured geography without native world position
     await expect.poll(async () => canvas.getAttribute(`data-${side}-z`)).not.toBe("");
   }
   await expect(map).toBeVisible();
+  await page.goto(`/${game.prefix}/compare?${compareQuery({ lapA: pair.lapB, lapB: pair.lapA })}&view=spectate`, { waitUntil: "domcontentloaded" });
+  await expect.poll(async () => page.locator("[data-spectate-scene]").getAttribute("data-scene-ready")).toBe("true");
+  await expect.poll(async () => page.locator("[data-spectate-scene] canvas").first().getAttribute("data-track-edge-count")).toBe(edgeCount);
+  await expect(page.locator("[data-spectate-scene] canvas").first()).toHaveAttribute("data-track-geometry-source", geometrySource ?? "");
+  await expect(page.locator("[data-iracing-geometry-provenance]")).toContainText(/approximate reference only|Geographic calibration unavailable/i);
 });
 
 test("FM Spectate segment seeking retargets and pauses", async ({ page, request }) => {

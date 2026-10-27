@@ -24,7 +24,7 @@ import { Switch } from "./ui/switch";
 import { DropdownMenu } from "./ui/DropdownMenu";
 import { SceneRuntime, type SceneSource } from "@raceiq/scene-3d/wireframe/SceneRuntime";
 import { ToggleButton } from "./wireframe/ToggleButton";
-import { alignProjectionToMeasured, resolveScenePoses, type TrackProjection } from "@raceiq/scene-3d/wireframe/ScenePlacement";
+import { calibratedProjection, fixedIRacingBoundaries, resolveScenePoses, type TrackProjection } from "@raceiq/scene-3d/wireframe/ScenePlacement";
 import { Alert, AlertDescription } from "./ui/alert";
 
 export const CarWireframe = React.memo(function CarWireframe({
@@ -121,14 +121,18 @@ export const CarWireframe = React.memo(function CarWireframe({
     if (!boundaries) return null;
     return needsTrackFlip(gameId) ? flipBoundaries(boundaries) : boundaries;
   }, [boundaries, gameId]);
-  const poses = useMemo(() => resolveScenePoses(gameId, telemetry, trackProjection), [gameId, telemetry, trackProjection]);
+  const sceneProjection = useMemo(() => trackProjection?.calibration ? calibratedProjection(trackProjection) : trackProjection, [trackProjection]);
+  const poses = useMemo(() => resolveScenePoses(gameId, telemetry, sceneProjection), [gameId, telemetry, sceneProjection]);
   const measuredPath = useMemo(() => poses.some((pose) => pose?.source === "measured")
     ? poses.map((pose) => pose?.source === "measured" ? { x: pose.x, z: pose.z, ...(pose.y === undefined ? {} : { y: pose.y }) } : { x: Number.NaN, z: Number.NaN })
     : null, [poses]);
   const derivedTrack = gameId === "iracing" && poses.some((pose) => pose?.source === "lap-fraction");
-  const measuredProjection = useMemo(() => alignProjectionToMeasured(trackProjection, poses), [trackProjection, poses]);
   const measuredTrack = gameId === "iracing" && poses.some((pose) => pose?.source === "measured");
-  const sceneBoundaries = measuredTrack ? measuredProjection?.boundaries ?? null : derivedTrack ? trackProjection?.boundaries ?? null : flippedBoundaries;
+  const fixedBoundaries = useMemo(() => fixedIRacingBoundaries(trackProjection), [trackProjection]);
+  const iracingBoundaries = useMemo(() => fixedBoundaries && needsTrackFlip(gameId) ? flipBoundaries(fixedBoundaries) : fixedBoundaries, [fixedBoundaries, gameId]);
+  const sceneBoundaries = measuredTrack
+    ? trackProjection?.calibration ? iracingBoundaries : null
+    : derivedTrack ? iracingBoundaries : flippedBoundaries;
   const [placementSource, setPlacementSource] = useState<"native" | "lap-fraction" | "measured" | null>(null);
   useEffect(() => {
     let animationFrame: number;

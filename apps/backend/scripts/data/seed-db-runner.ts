@@ -220,12 +220,6 @@ async function main(): Promise<void> {
           await db.update(sessions).set({ notes: SEED_MARKER }).where(inArray(sessions.id, createdSessionIds)).run();
           importedLapIds.push(...result.laps.filter((lap) => lap.isValid).map((lap) => lap.lapId));
           console.log(`[DB Seed] iracing: ${result.laps.length} laps from ${fixture}`);
-          const importStartedAt = performance.now();
-          try {
-            await seedIRacingSession(fixturePath);
-          } finally {
-            importDurationMs += performance.now() - importStartedAt;
-          }
           continue;
         }
         const existingSessionIds = new Set(

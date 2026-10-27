@@ -12,6 +12,7 @@ import { buildSpectateChannels } from "../../ui/spectate-channels"
 import type { SpectatePair } from "../../contracts/spectate"
 import type { OpponentSemanticLapTelemetry } from "../../contracts/opponents";
 import { alignLmuOpponentPositionTraces } from "../../server/opponent-routes";
+import { fixedIRacingBoundaries, type TrackProjection } from "@raceiq/scene-3d/wireframe/ScenePlacement";
 
 initGameAdapters({ f1Experiments: true, iracingAdapter: true, ams2Adapter: true });
 test("AMS2 dashboard metric descriptors retain canonical balance and traction outputs", () => {
@@ -864,18 +865,17 @@ describe("iRacing Spectate scene geometry", () => {
     expect(sampleLap(placedB, 0.025, false)?.pose).toBeNull();
     expect(sampleLap(placedB, 0.1, false)?.pose?.z).toBeCloseTo(33.396, 2);
   });
-  test("places a live-only comparison lap in the measured lap's reference frame", () => {
-    const radians = Math.PI / 180;
+  test("uncalibrated mixed comparison never overlays projection-only lap on measured GPS", () => {
     const measuredRows = projection.points.map((point) => ({
-      "motion.latitude": 53 + point.z / (radians * 6_378_137),
-      "motion.longitude": -2 + point.x / (radians * 6_378_137 * Math.cos(53 * radians)),
+      "motion.latitude": 53 + point.z / (Math.PI / 180 * 6_378_137),
+      "motion.longitude": -2 + point.x / (Math.PI / 180 * 6_378_137 * Math.cos(53 * Math.PI / 180)),
       "motion.yaw-north": 0,
     }));
     const measured = prepareSpectateLap(recording(measuredRows), comparison, "a");
     const live = prepareSpectateLap(recording([0, 0.125, 0.25].map((fraction) => ({ "timing.lap-fraction": fraction }))), comparison, "b");
     const [a, b] = placeIRacingSpectateLaps([measured, live], projection);
     expect(a.samples[1].scenePose).toMatchObject({ source: "measured", x: 0, z: expect.closeTo(100, 3) });
-    expect(sampleLap(b, 0.05, false)?.pose).toMatchObject({ source: "lap-fraction", x: expect.closeTo(0, 3), z: expect.closeTo(50, 3) });
+    expect(b.samples.every((sample) => sample.scenePose === null)).toBe(true);
     expect(b.samples[1].values["motion.position-x"]).toBeUndefined();
     expect(measured.samples[1].scenePose).toBeUndefined();
   });
@@ -895,6 +895,49 @@ describe("iRacing Spectate scene geometry", () => {
     expect((Math.sin(middle.yaw) * dx + Math.cos(middle.yaw) * dz) / Math.hypot(dx, dz)).toBeCloseTo(1);
     expect(native.samples[1].scenePose).toBeUndefined();
     expect(placed.samples[1].values["motion.position-x"]).toBeUndefined();
+  });
+  test("persisted calibration fixes geometry and GPS origin regardless of lap or pair order", () => {
+    const calibrated: TrackProjection = {
+      ...projection,
+      boundaries: {
+        leftEdge: projection.points.map(({ x, z }) => ({ x: x - 2, z })),
+        rightEdge: projection.points.map(({ x, z }) => ({ x: x + 2, z })),
+        centerLine: projection.points,
+        pitLane: null,
+        coordSystem: "iracing-map",
+      },
+      calibration: {
+        source: "recorded-reference",
+        referenceLapId: 42,
+        geometryHash: "map-hash",
+        origin: { latitude: 52, longitude: -1, altitude: 100 },
+        alignment: { scale: 1, cos: 1, sin: 0, tx: 300, tz: -20, flipX: false, flipZ: false },
+        elevationsM: [0, 4, 8, 4, 0],
+        meanErrorM: 3,
+      },
+    };
+    const first = fixedIRacingBoundaries(calibrated)!;
+    const second = fixedIRacingBoundaries(calibrated)!;
+    expect(first).toEqual(second);
+    expect(first.centerLine[0]).toEqual({ x: -300, z: -20 });
+    expect(first.vertexHeightsM).toEqual([0, 4, 8, 4, 0]);
+    const lap = (lat: number, trackLat: number) => prepareSpectateLap(recording([
+      { "motion.latitude": lat, "motion.longitude": -1, "identity.track.latitude": trackLat, "identity.track.longitude": -1 },
+      { "motion.latitude": lat + 0.0001, "motion.longitude": -1, "identity.track.latitude": trackLat, "identity.track.longitude": -1 },
+    ]), comparison, "a");
+    const a = lap(52.0001, 53), b = lap(52.0002, 54);
+    const [placedA, placedB] = placeIRacingSpectateLaps([a, b], calibrated);
+    const [reversedB, reversedA] = placeIRacingSpectateLaps([b, a], calibrated);
+    expect(placedA.samples[0]!.scenePose).toEqual(reversedA.samples[0]!.scenePose);
+    expect(placedB.samples[0]!.scenePose).toEqual(reversedB.samples[0]!.scenePose);
+    expect(placedA.samples[0]!.scenePose?.z).toBeCloseTo(11.132, 2);
+    expect(placedB.samples[0]!.scenePose?.z).toBeCloseTo(22.264, 2);
+    const live = prepareSpectateLap(recording([0, 0.125, 0.25].map(fraction => ({ "timing.lap-fraction": fraction }))), comparison, "b");
+    const [measuredSide, projectedSide] = placeIRacingSpectateLaps([a, live], calibrated);
+    expect(measuredSide.samples[0]!.scenePose).toEqual(placedA.samples[0]!.scenePose);
+    expect(projectedSide.samples[1]!.scenePose).toMatchObject({ source: "lap-fraction", x: -300, z: 30 });
+    expect(projectedSide.samples[1]!.values["motion.position-x"]).toBeUndefined();
+    expect(fixedIRacingBoundaries(projection, true)).toBeNull();
   });
 });
 

@@ -96,6 +96,7 @@
     "./racing/tracks/storage/meta": "./racing/tracks/storage/meta.ts",
     "./racing/tracks/geometry/acc-svg": "./racing/tracks/geometry/acc-svg.ts",
     "./racing/tracks/geometry/points": "./racing/tracks/geometry/points.ts",
+    "./racing/tracks/geometry/iracing-reference": "./racing/tracks/geometry/iracing-reference.ts",
     "./racing/tracks/geometry/shared": "./racing/tracks/geometry/shared.ts",
     "./racing/tracks/geometry/types": "./racing/tracks/geometry/types.ts",
     "./racing/tracks/catalogs/kunos": "./racing/tracks/catalogs/kunos.ts",

@@ -1,3 +1,4 @@
+import { calibratedProjection, type TrackProjection } from "@raceiq/scene-3d/wireframe/ScenePlacement";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { flipBoundaries, flipPoints, needsTrackFlip } from "@raceiq/shared/racing/tracks/coords"
 import { useIRacingTrackMapTelemetry } from "@/hooks/laps";
@@ -9,8 +10,6 @@ import { getSemanticCanvasContext } from "@raceiq/scene-3d/rendering/css-canvas"
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { CompareSegmentTable } from "./CompareSegmentTable";
-import { alignOfficialReferenceToPositions } from "../analyse/track-map/path";
-import type { TrackMapBoundaries } from "../analyse/track-map/types";
 import { buildIRacingMeasuredMapPaths, projectIRacingDistanceToOutline } from "./iracing-map-path";
 export interface SegmentTiming {
   name: string;
@@ -36,6 +35,7 @@ interface CompareTrackMapProps {
   redrawRef: React.MutableRefObject<(() => void) | null>;
   trackId?: string | null;
   gameId?: GameId | null;
+  trackProjection?: TrackProjection | null;
 }
 
 /** Dual-panel track map: overview (left) + zoomed follow (right) */
@@ -50,6 +50,7 @@ export function CompareTrackMap({
   redrawRef,
   trackId,
   gameId,
+  trackProjection,
 }: CompareTrackMapProps) {
   const overviewCanvasRef = useRef<HTMLCanvasElement>(null);
   const zoomCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -82,41 +83,26 @@ export function CompareTrackMap({
       .catch(() => setBoundaries(null));
   }, [trackId, gameId]);
 
-  // Align outline to telemetry coordinate space.
-  // Extracted outlines (e.g. F1 2025 from AI spline data) may be in a different
-  // coordinate system than telemetry PositionX/Z. Detect misalignment by checking
-  // bounding box overlap, and if needed apply Procrustes (translate + rotate + scale).
-  // Pre-flip outline/boundary X so they render correctly against telemetry.
+  // iRacing geometry stays fixed; measured GPS uses the persisted calibration origin only.
   const flip = needsTrackFlip(gameId);
-  const displayOutline = useMemo(() => (flip ? flipPoints(outline) : outline), [outline, flip]);
-  const sourceBoundaries = boundaries ?? outlineBounds;
+  const fixedProjection = useMemo(() => gameId === "iracing" && trackProjection?.calibration ? calibratedProjection(trackProjection) : null, [gameId, trackProjection]);
+  const measuredMapPaths = useMemo(
+    () => gameId === "iracing"
+      ? buildIRacingMeasuredMapPaths([lapAMapTelemetry, lapBMapTelemetry], traces.distance, trackProjection?.calibration?.origin ?? null)
+      : [],
+    [gameId, lapAMapTelemetry, lapBMapTelemetry, traces.distance, trackProjection],
+  );
+  const hasMeasuredMapPath = measuredMapPaths.some((path) => path !== null);
+  const displayOutline = useMemo(() => gameId === "iracing"
+    ? fixedProjection ? (flip ? flipPoints(fixedProjection.points) : fixedProjection.points) : hasMeasuredMapPath ? [] : (flip ? flipPoints(outline) : outline)
+    : flip ? flipPoints(outline) : outline, [gameId, fixedProjection, flip, hasMeasuredMapPath, outline]);
+  const sourceBoundaries = gameId === "iracing"
+    ? fixedProjection ? fixedProjection.boundaries : hasMeasuredMapPath ? null : outlineBounds
+    : boundaries ?? outlineBounds;
   const displayBoundaries = useMemo(() => {
     if (!flip || !sourceBoundaries) return sourceBoundaries;
     return flipBoundaries(sourceBoundaries);
   }, [sourceBoundaries, flip]);
-  const measuredMapPaths = useMemo(
-    () => gameId === "iracing"
-      ? buildIRacingMeasuredMapPaths(
-          [lapAMapTelemetry, lapBMapTelemetry],
-          traces.distance,
-        )
-      : [],
-    [gameId, lapAMapTelemetry, lapBMapTelemetry, traces.distance],
-  );
-  const iracingReference = useMemo(() => {
-    if (gameId !== "iracing") return null;
-    const target = measuredMapPaths.find((path) => path !== null);
-    if (!target) return null;
-    return alignOfficialReferenceToPositions(
-      {
-        outline: displayOutline,
-        mapLabels: null,
-        pitLines: null,
-        boundaries: displayBoundaries as TrackMapBoundaries | null,
-      },
-      target.filter((point): point is Point => point !== null),
-    );
-  }, [gameId, measuredMapPaths, displayOutline, displayBoundaries]);
 
   const { alignedOutline, alignedBoundaries, telXFn, trackRange } = useMemo(() => {
     const outline = displayOutline;
@@ -136,12 +122,13 @@ export function CompareTrackMap({
       }
       return Math.max(maxX - minX || 1, maxZ - minZ || 1);
     };
-    if (gameId === "iracing" && iracingReference?.outline) {
+    if (gameId === "iracing") {
+      const measuredPoints = measuredMapPaths.flatMap((path) => path?.filter((point): point is Point => point !== null) ?? []);
       return {
-        alignedOutline: iracingReference.outline,
-        alignedBoundaries: iracingReference.boundaries,
+        alignedOutline: outline,
+        alignedBoundaries: boundaries,
         telXFn: identity,
-        trackRange: computeRange(iracingReference.outline),
+        trackRange: computeRange(outline.length ? outline : measuredPoints),
       };
     }
 
@@ -311,13 +298,14 @@ export function CompareTrackMap({
     }
 
     return { alignedOutline: newOutline, alignedBoundaries: newBoundaries, telXFn: identity, trackRange: computeRange(newOutline) };
-  }, [displayOutline, traces, displayBoundaries, gameId, iracingReference]);
+  }, [displayOutline, traces, displayBoundaries, gameId]);
   const mapTraces = useMemo(() => {
     if (gameId !== "iracing") return traces;
-    const measured = iracingReference?.outline ? measuredMapPaths : [];
+    const measuredA = measuredMapPaths[0];
+    const measuredB = measuredMapPaths[1];
     const projected = projectIRacingDistanceToOutline(traces.distance, alignedOutline);
-    const pathA = measured[0] ?? projected;
-    const pathB = measured[1] ?? projected;
+    const pathA = measuredA ? measuredA.map((point) => point && flip ? { ...point, x: -point.x } : point) : projected;
+    const pathB = measuredB ? measuredB.map((point) => point && flip ? { ...point, x: -point.x } : point) : projected;
     const xs = (path: typeof pathA, fallback: number[]) => path ? path.map((point) => point?.x ?? Number.NaN) : fallback;
     const zs = (path: typeof pathA, fallback: number[]) => path ? path.map((point) => point?.z ?? Number.NaN) : fallback;
     return {
@@ -327,7 +315,7 @@ export function CompareTrackMap({
       positionXB: xs(pathB, traces.positionXB),
       positionZB: zs(pathB, traces.positionZB),
     };
-  }, [gameId, iracingReference, measuredMapPaths, traces, alignedOutline]);
+  }, [gameId, measuredMapPaths, traces, alignedOutline, flip]);
 
 
   const drawBoth = useCallback(() => {

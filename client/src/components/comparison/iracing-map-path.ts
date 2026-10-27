@@ -98,8 +98,9 @@ function sampleProgressPath(source: ProgressPoint[], distances: readonly number[
 export function buildIRacingMeasuredMapPaths(
   replays: readonly Replay[],
   distances: readonly number[],
+  originOverride?: GeographicOrigin | null,
 ): ((Point | null)[] | null)[] {
-  const origin = geographicOrigin(replays);
+  const origin = originOverride ?? geographicOrigin(replays);
   if (!origin) return replays.map(() => null);
   return replays.map((replay) => {
     if (!replay) return null;

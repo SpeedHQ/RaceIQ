@@ -6,7 +6,7 @@ import type { SemanticLapTelemetry, SemanticReplayFrame } from "../contracts/rep
 import type { OpponentSemanticLapTelemetry } from "../contracts/opponents";
 import { hasTelemetryGap, recordedTelemetryGapSeconds } from "./telemetry-gap";
 import type { SpectateController, SpectateLap, SpectatePose, SpectateReading, SpectateSample, SpectateSnapshot } from "../contracts/spectate";
-import { alignProjectionToMeasured, resolveScenePoses, type TrackProjection } from "@raceiq/scene-3d/wireframe/ScenePlacement";
+import { calibratedProjection, resolveScenePoses, type TrackProjection } from "@raceiq/scene-3d/wireframe/ScenePlacement";
 const OPPONENT_SAMPLE_GAP_SECONDS = 0.3;
 function isOpponentReplay(replay: SemanticLapTelemetry | OpponentSemanticLapTelemetry): replay is OpponentSemanticLapTelemetry {
   return "opponentLapId" in replay;
@@ -206,25 +206,28 @@ if (hasSourceAwareGap(previousTime, time, isOpponentReplay(replay), maximumGapSe
   return { samples, motionSamples, maximumGapSeconds, duration: samples.at(-1)?.time ?? 0, distance: maxDistance, hasProgress: monotonic && progressCount > 1 && (traces ? aligned.length > 1 : trustworthy), replay };
 }
 
-/** Resolve both iRacing laps together so measured poses share one geographic origin. */
+/** Resolve both iRacing laps in one calibrated geographic frame. */
 export function placeIRacingSpectateLaps(laps: readonly [SpectateLap, SpectateLap], projection: TrackProjection | null): [SpectateLap, SpectateLap] {
+  const fixedProjection = projection?.calibration ? calibratedProjection(projection) : null;
   const frames = laps.flatMap((lap) => lap.samples.map((sample) => ({ values: sample.values, states: {}, freshness: {} })));
-  const poses = resolveScenePoses("iracing", frames, projection);
-  const measured = poses.some((pose) => pose?.source === "measured");
+  const poses = resolveScenePoses("iracing", frames, fixedProjection);
+  const anyMeasured = poses.some((pose) => pose?.source === "measured");
   let offset = 0;
   const place = (lap: SpectateLap): SpectateLap => {
     const start = offset;
     offset += lap.samples.length;
     let lapPoses = poses.slice(start, offset);
-    // A live-only lap may use the aligned reference; gaps within a measured lap may not.
-    if (measured && !lapPoses.some((pose) => pose?.source === "measured")) {
-      lapPoses = resolveScenePoses("iracing", frames.slice(start, offset), alignProjectionToMeasured(projection, poses));
+    if (fixedProjection && anyMeasured && !lapPoses.some(pose => pose?.source === "measured")) {
+      lapPoses = resolveScenePoses("iracing", frames.slice(start, offset), fixedProjection);
+    }
+    if (!fixedProjection && !anyMeasured && projection) {
+      const framesForLap = lap.samples.map((sample) => ({ values: sample.values, states: {}, freshness: {} }));
+      lapPoses = resolveScenePoses("iracing", framesForLap, projection);
     }
     return {
       ...lap,
       samples: lap.samples.map((sample, index) => {
         const pose = lapPoses[index];
-        // Match Analyse's maxX - x map projection. Heading must reflect with position.
         return { ...sample, scenePose: pose ? { ...pose, x: 0 - pose.x, y: pose.y ?? 0, yaw: 0 - pose.yaw } : null };
       }),
     };

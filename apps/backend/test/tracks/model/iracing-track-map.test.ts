@@ -112,27 +112,27 @@ describe("iRacing official SVG track maps", () => {
     const directionOnlySvg = symbolStartFinishSvg.replace(/<symbol id="Start_Finish_Line"[\s\S]*?<\/symbol>\s*/, "").replace(/<use width="10" height="70"[\s\S]*?<\/use>\s*/, "");
     expect(parseIRacingActiveSvg(activeSvg, directionOnlySvg, turnsSvg)?.startFinishAligned).toBe(false);
   });
-  test("resolves exact layout projection in metres without changing source geometry", () => {
+  test("resolves exact layout projection in metres without changing source geometry", async () => {
     const map = parseIRacingActiveSvg(activeSvg, startFinishSvg, turnsSvg)!;
     const sourceStart = { ...map.points[0] };
-    const projection = resolveIRacingProjection("18", map)!;
+    const projection = (await resolveIRacingProjection("18", map))!;
     expect(computeOutlineLength(projection.points)).toBeCloseTo(getIRacingTrack(18)!.lengthKm * 1000, 5);
     expect(projection.points.at(-1)).toEqual(projection.points[0]);
     expect(map.points[0]).toEqual(sourceStart);
     expect(projection.points[0].x).toBeLessThan(0);
-    expect(resolveIRacingProjection("99", map)).toBeNull();
-    expect(resolveIRacingProjection("18", { ...map, startFinishAligned: false })).toBeNull();
-    expect(resolveIRacingProjection("18", { ...map, forwardDirectionKnown: false })).toBeNull();
-    expect(resolveIRacingProjection("18", { ...map, points: [{ x: NaN, z: 0 }, { x: 1, z: 1 }] })).toBeNull();
-    const alternate = resolveIRacingProjection("50", map)!;
+    expect(await resolveIRacingProjection("99", map)).toBeNull();
+    expect(await resolveIRacingProjection("18", { ...map, startFinishAligned: false })).toBeNull();
+    expect(await resolveIRacingProjection("18", { ...map, forwardDirectionKnown: false })).toBeNull();
+    expect(await resolveIRacingProjection("18", { ...map, points: [{ x: NaN, z: 0 }, { x: 1, z: 1 }] })).toBeNull();
+    const alternate = (await resolveIRacingProjection("50", map))!;
     expect(computeOutlineLength(alternate.points)).toBeCloseTo(getIRacingTrack(50)!.lengthKm * 1000, 5);
     const projectedEdges = projection.boundaries!;
     expect(projectedEdges.leftEdge.at(-1)).toEqual(projectedEdges.leftEdge[0]);
     expect(projectedEdges.rightEdge.at(-1)).toEqual(projectedEdges.rightEdge[0]);
     expect((projectedEdges.leftEdge[0].x + projectedEdges.rightEdge[0].x) / 2).toBeCloseTo(projection.points[0].x);
     expect((projectedEdges.leftEdge[0].z + projectedEdges.rightEdge[0].z) / 2).toBeCloseTo(projection.points[0].z);
-    expect(resolveIRacingProjection("181", { ...map, ribbonEdges: null })?.boundaries).toBeNull();
-    expect(resolveIRacingProjection("181", { ...map, ribbonEdges: { ...map.ribbonEdges!, leftEdge: [{ x: NaN, z: 0 }] } })?.boundaries).toBeNull();
+    expect((await resolveIRacingProjection("181", { ...map, ribbonEdges: null }))?.boundaries).toBeNull();
+    expect((await resolveIRacingProjection("181", { ...map, ribbonEdges: { ...map.ribbonEdges!, leftEdge: [{ x: NaN, z: 0 }] } }))?.boundaries).toBeNull();
   });
 
   test("fails closed when SVG lacks start-finish and forward-direction evidence", () => {

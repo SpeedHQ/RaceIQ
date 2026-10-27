@@ -14,6 +14,8 @@ import { tryGetServerGame } from "@raceiq/backend-core/games/registry";
 import { tryGetGame } from "@raceiq/shared/games/registry";
 import type { ProcessingMetadata } from "@raceiq/shared/racing/sessions/types";
 import { GameIdSchema, type GameId } from "@raceiq/shared/games/ids";
+import { getIRacingTrackCalibration } from "./iracing-calibration";
+import type { IRacingTrackCalibration } from "@raceiq/shared/racing/tracks/geometry/iracing-reference";
 import { getIRacingSvgTrackMap } from "@raceiq/game-iracing/track-map";
 import { applyAlignment, computeAlignment } from "@raceiq/shared/racing/tracks/geometry/points";
 import { alignIRacingAutoSegmentsToTurnLabels, type IRacingPitLine, type IRacingMapLabel, type IRacingSvgTrackMap } from "@raceiq/game-iracing/track-map-svg";
@@ -79,6 +81,7 @@ export interface TrackProjectionGeometry {
   units: "m";
   start: "start-finish";
   direction: "forward";
+  calibration: IRacingTrackCalibration | null;
 }
 
 export interface ResolvedTrackOutline {
@@ -91,7 +94,7 @@ export interface ResolvedTrackOutline {
   projection?: TrackProjectionGeometry | null;
 }
 
-export function resolveIRacingProjection(trackId: string, official: IRacingSvgTrackMap | null): TrackProjectionGeometry | null {
+export async function resolveIRacingProjection(trackId: string, official: IRacingSvgTrackMap | null): Promise<TrackProjectionGeometry | null> {
   const track = getIRacingTrack(Number(trackId));
   if (!official || !official.startFinishAligned || !official.forwardDirectionKnown || !track?.lengthKm || track.lengthKm <= 0) return null;
   if (official.points.length < 2 || official.points.some(({ x, z }) => !Number.isFinite(x) || !Number.isFinite(z))) return null;
@@ -109,6 +112,7 @@ export function resolveIRacingProjection(trackId: string, official: IRacingSvgTr
     result.push({ ...result[0] });
     return result;
   };
+  const calibration = await getIRacingTrackCalibration(trackId, official, points);
   return {
     points,
     boundaries: validEdges ? { leftEdge: scaleEdge(edges.leftEdge), rightEdge: scaleEdge(edges.rightEdge), centerLine: points, pitLane: null, coordSystem: "iracing-map" } : null,
@@ -116,6 +120,7 @@ export function resolveIRacingProjection(trackId: string, official: IRacingSvgTr
     units: "m",
     start: "start-finish",
     direction: "forward",
+    calibration,
   };
 }
 
@@ -168,7 +173,7 @@ export async function resolveTrackOutline(
           recorded: false,
           source: "shared",
           closed: true,
-          projection: resolveIRacingProjection(trackId, official),
+          projection: await resolveIRacingProjection(trackId, official),
         };
       }
     }
@@ -178,7 +183,7 @@ export async function resolveTrackOutline(
         recorded: false,
         source: "official-svg",
         closed: true,
-        projection: resolveIRacingProjection(trackId, official),
+        projection: await resolveIRacingProjection(trackId, official),
       };
     }
 

@@ -204,7 +204,8 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
   useEffect(() => {
     if (comparisonRange && !comparisonRangeIsPlaceholder) setOptimisticRange(null);
   }, [comparisonRange, comparisonRangeIsPlaceholder]);
-  const { data: outlineData } = useTrackOutline(selectedTrack ?? undefined);
+  const { data: outlineData } = useTrackOutline(selectedTrack ?? undefined, gameId);
+  const trackProjection = useMemo(() => outlineData && !Array.isArray(outlineData) ? outlineData.projection ?? null : null, [outlineData]);
   const trackOutline = useMemo(() => {
     if (!outlineData) return null;
     const d = outlineData as { points?: Point[] } | Point[];
@@ -670,7 +671,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
               onProcessingRefresh={() => { void opponentCatalogQuery.refetch(); }}
               replay={gameId && opponentReplayComparison ? <div className="mt-4 flex min-h-[38rem] flex-col" data-opponent-replay>
                 <SpectateSession key={`${gameId}:${opponentRevision}:${opponentLapId}`} gameId={gameId} comparison={opponentReplayComparison}
-                  active outline={trackOutline} segments={trackSegments ?? []} distanceRef={spectateDistanceRef} onDistanceChange={receiveSpectateDistance}
+                  active outline={trackOutline} trackProjection={trackProjection} segments={trackSegments ?? []} distanceRef={spectateDistanceRef} onDistanceChange={receiveSpectateDistance}
                   aiOpen={false} telemetryOpen={spectateTelemetryOpen} carPanelOpen={spectateCarPanelOpen} onTelemetryOpenChange={setSpectateTelemetryOpen}
                   onCarPanelOpenChange={setSpectateCarPanelOpen} onAiOpenChange={toggleAiPanel} panelHeaderTarget={null}
                   onOpponentStatusRefresh={() => { void opponentCatalogQuery.refetch(); }} />
@@ -705,7 +706,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
       </div>
       {comparison?.traces.distance.length && gameId && visibleLapAId && visibleLapBId && visibleLapAId !== visibleLapBId ? (
         <div id="compare-body-spectate" role="tabpanel" aria-labelledby="compare-tab-spectate" hidden={!spectateActive} className={spectateActive ? "flex min-h-[32rem] flex-1 flex-col @5xl/workspace:min-h-0" : "hidden"}>
-          <SpectateSession key={`${gameId}:${visibleLapAId}:${visibleLapBId}`} gameId={gameId} comparison={comparison} active={spectateActive} outline={trackOutline} segments={trackSegments ?? []} distanceRef={spectateDistanceRef} onDistanceChange={receiveSpectateDistance} aiOpen={aiPanelOpen} telemetryOpen={spectateTelemetryOpen} carPanelOpen={spectateCarPanelOpen} onTelemetryOpenChange={setSpectateTelemetryOpen} onCarPanelOpenChange={setSpectateCarPanelOpen} onAiOpenChange={toggleAiPanel} panelHeaderTarget={spectatePanelHeader} cursor={search.lapA === visibleLapAId && search.lapB === visibleLapBId ? search.cursor : undefined} />
+          <SpectateSession key={`${gameId}:${visibleLapAId}:${visibleLapBId}`} gameId={gameId} comparison={comparison} active={spectateActive} outline={trackOutline} trackProjection={trackProjection} segments={trackSegments ?? []} distanceRef={spectateDistanceRef} onDistanceChange={receiveSpectateDistance} aiOpen={aiPanelOpen} telemetryOpen={spectateTelemetryOpen} carPanelOpen={spectateCarPanelOpen} onTelemetryOpenChange={setSpectateTelemetryOpen} onCarPanelOpenChange={setSpectateCarPanelOpen} onAiOpenChange={toggleAiPanel} panelHeaderTarget={spectatePanelHeader} cursor={search.lapA === visibleLapAId && search.lapB === visibleLapBId ? search.cursor : undefined} />
         </div>
       ) : null}
 
@@ -744,6 +745,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
               redrawRef={mapRedrawRef}
               trackId={selectedTrack}
               gameId={gameId}
+              trackProjection={trackProjection}
             />
           </div>
 
