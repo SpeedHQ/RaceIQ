@@ -215,3 +215,4 @@ apps/backend/test/session-capture/live-worker-catchup.test.ts
 apps/backend/test/session-capture/preopened-file-writer.test.ts
 apps/backend/test/session-capture/direct-recorder.test.ts
 apps/backend/test/session-capture/direct-recording-ingress.test.ts
+apps/backend/test/session-capture/classification-status.test.ts

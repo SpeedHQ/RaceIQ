@@ -186,7 +186,7 @@ Inspect affected impact and execution tasks without starting servers:
 bunx turbo run e2e:impact test:e2e --affected --filter='@raceiq/*-catalogue' --dry=json
 ```
 
-Turbo uses package defaults and inherited root inputs, not manually maintained feature file lists. A feature-only UI/server/spec edit selects its owner; genuine shared dependencies select their consumers. Invalid explicit SCM references fail; valid shallow history without a merge base falls back conservatively. See the [feature package pattern](../architecture/feature-packages.md) and [catalogue verification](../../advisor-plans/catalogues-contract.md#verification-outcomes).
+Turbo uses package defaults and inherited root inputs, not manually maintained feature file lists. A feature-only UI/server/spec edit selects its owner; genuine shared dependencies select their consumers. Invalid explicit SCM references fail; valid shallow history without a merge base falls back conservatively. See the [feature package pattern](../architecture/feature-packages.md).
 
 These commands do not replace the broad existing CI matrix. Local selection evidence does not establish that GitHub provisioned fewer jobs.
 
