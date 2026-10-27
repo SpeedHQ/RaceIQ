@@ -37,6 +37,7 @@
 - Include the complete LMU multiplayer recording in demo seeds as sub-100 MB gzip parts, stream native input without buffering the whole capture, and retain separate player and opponent recordings.
 
 ### Fixes
+- Keep the historical lap-classification notice limited to its original sessions, allow dismissal while work continues, and distinguish summary updates from pending lap processing.
 - Place inner and outer surface-temperature bands on the correct sides of the 3D wheels in Replay and Compare → Spectate.
 - Include the LMU opponent-index worker in packaged builds so recorded opponents can load for replay and comparison.
 - Restore recorded-opponent driver and lap selections after reloading comparisons while the opponent catalog loads.

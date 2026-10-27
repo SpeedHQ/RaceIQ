@@ -255,7 +255,8 @@ export async function getClassificationMigrationStatus(): Promise<Classification
     });
     const meta = await tx.execute("SELECT revision FROM classification_migration_meta WHERE id=1");
     const dirty = await tx.execute(`SELECT 1 FROM dashboard_summary_state st LEFT JOIN sessions s ON s.id=st.session_id
-      WHERE coalesce(s.source,'')!='motec' AND (st.metadata_dirty=1 OR st.capture_dirty=1) LIMIT 1`);
+      WHERE s.ownership='mine' AND s.id<=(SELECT cutoff_session_id FROM classification_migration_meta WHERE id=1)
+        AND coalesce(s.source,'')!='motec' AND (st.metadata_dirty=1 OR st.capture_dirty=1) LIMIT 1`);
     const result = migrationStatusFrom(
       counts.rows.map((row) => ({ state: row.state, count: row.count })),
       Number(meta.rows[0]?.revision ?? 0),
@@ -282,7 +283,8 @@ export async function listClassificationMigrationRecordings(limit: number, curso
     const meta = await tx.execute("SELECT revision,cutoff_session_id FROM classification_migration_meta WHERE id=1");
     const cutoff = Number(meta.rows[0]?.cutoff_session_id ?? 0);
     const dirty = await tx.execute(`SELECT 1 FROM dashboard_summary_state st LEFT JOIN sessions s ON s.id=st.session_id
-      WHERE coalesce(s.source,'')!='motec' AND (st.metadata_dirty=1 OR st.capture_dirty=1) LIMIT 1`);
+      WHERE s.ownership='mine' AND s.id<=(SELECT cutoff_session_id FROM classification_migration_meta WHERE id=1)
+        AND coalesce(s.source,'')!='motec' AND (st.metadata_dirty=1 OR st.capture_dirty=1) LIMIT 1`);
     const status = migrationStatusFrom(
       counts.rows.map((row) => ({ state: row.state, count: row.count })),
       Number(meta.rows[0]?.revision ?? 0),
