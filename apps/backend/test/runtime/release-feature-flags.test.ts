@@ -6,12 +6,13 @@ function loadReleaseEnvironment(path: string) {
   const env = { ...process.env };
   delete env.RACEIQ_FEATURE_F1_EXPERIMENTS;
   delete env.RACEIQ_FEATURE_IRACING_ADAPTER;
+  delete env.RACEIQ_FEATURE_AMS2_ADAPTER;
   const result = Bun.spawnSync({
     cmd: [
       "bun",
       `--env-file=${path}`,
       "-e",
-      'process.stdout.write(JSON.stringify({ RACEIQ_FEATURE_F1_EXPERIMENTS: process.env.RACEIQ_FEATURE_F1_EXPERIMENTS, RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER }))',
+      'process.stdout.write(JSON.stringify({ RACEIQ_FEATURE_F1_EXPERIMENTS: process.env.RACEIQ_FEATURE_F1_EXPERIMENTS, RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER, RACEIQ_FEATURE_AMS2_ADAPTER: process.env.RACEIQ_FEATURE_AMS2_ADAPTER }))',
     ],
     cwd: ROOT_DIR,
     env,
@@ -24,16 +25,19 @@ describe("release feature flags", () => {
   const developmentEnv = {
     RACEIQ_FEATURE_F1_EXPERIMENTS: "true",
     RACEIQ_FEATURE_IRACING_ADAPTER: "true",
+    RACEIQ_FEATURE_AMS2_ADAPTER: "true",
   };
   const productionEnv = {
     RACEIQ_FEATURE_F1_EXPERIMENTS: "false",
     RACEIQ_FEATURE_IRACING_ADAPTER: "false",
+    RACEIQ_FEATURE_AMS2_ADAPTER: "false",
   };
 
   test("parses enabled development flags", () => {
     expect(releaseFeatureFlags(developmentEnv)).toEqual({
       f1Experiments: true,
       iracingAdapter: true,
+      ams2Adapter: true,
     });
   });
 
@@ -41,6 +45,7 @@ describe("release feature flags", () => {
     expect(releaseFeatureFlags(productionEnv)).toEqual({
       f1Experiments: false,
       iracingAdapter: false,
+      ams2Adapter: false,
     });
   });
 
@@ -48,6 +53,7 @@ describe("release feature flags", () => {
     expect(releaseFeatureFlags(loadReleaseEnvironment(".env.development"))).toEqual({
       f1Experiments: true,
       iracingAdapter: true,
+      ams2Adapter: true,
     });
   });
 
@@ -55,6 +61,7 @@ describe("release feature flags", () => {
     expect(releaseFeatureFlags(loadReleaseEnvironment(".env.production"))).toEqual({
       f1Experiments: false,
       iracingAdapter: false,
+      ams2Adapter: false,
     });
   });
 
@@ -63,6 +70,7 @@ describe("release feature flags", () => {
     expect(developmentReleaseFeatures).toEqual({
       f1Experiments: true,
       iracingAdapter: true,
+      ams2Adapter: true,
     });
   });
 
@@ -70,20 +78,21 @@ describe("release feature flags", () => {
     expect(
       releaseFeatureFlags({
         ...developmentEnv,
-        RACEIQ_FEATURE_F1_EXPERIMENTS: undefined,
+        RACEIQ_FEATURE_AMS2_ADAPTER: undefined,
       }),
     ).toEqual({
-      f1Experiments: false,
+      f1Experiments: true,
       iracingAdapter: true,
+      ams2Adapter: false,
     });
   });
 
-  test("rejects malformed flags with the variable name", () => {
+  test("rejects malformed AMS2 flags with the variable name", () => {
     expect(() =>
       releaseFeatureFlags({
         ...developmentEnv,
-        RACEIQ_FEATURE_IRACING_ADAPTER: "yes",
+        RACEIQ_FEATURE_AMS2_ADAPTER: "yes",
       }),
-    ).toThrow("RACEIQ_FEATURE_IRACING_ADAPTER");
+    ).toThrow("RACEIQ_FEATURE_AMS2_ADAPTER");
   });
 });

@@ -146,3 +146,4 @@ test("storage and cache totals refresh while settings stay open", async ({ page 
   await page.clock.fastForward(30_000);
   await expect(page.getByText("2.0 KB", { exact: true }).first()).toBeVisible();
 });
+

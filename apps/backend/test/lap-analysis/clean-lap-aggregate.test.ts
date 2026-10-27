@@ -21,6 +21,7 @@ function lap(overrides: Partial<LapMeta> & { id: number }): LapMeta {
     experimentId: 1,
     experimentVersionId: 1,
     experimentExcluded: false,
+    processing: { state: "ready", stage: null, error: null },
     ...overrides,
   };
 }

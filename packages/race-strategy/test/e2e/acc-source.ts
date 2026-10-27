@@ -22,6 +22,10 @@ export async function ingestAccLaps(port: number, laps: number): Promise<void> {
         physics.writeFloatLE(180, PHYSICS.speedKmh.offset);
         physics.writeInt32LE(5, PHYSICS.gear.offset);
         physics.writeInt32LE(5_000, PHYSICS.rpms.offset);
+        for (const field of [
+          PHYSICS.tyreCoreFL, PHYSICS.tyreCoreFR, PHYSICS.tyreCoreRL, PHYSICS.tyreCoreRR,
+          PHYSICS.tyreTempFL, PHYSICS.tyreTempFR, PHYSICS.tyreTempRL, PHYSICS.tyreTempRR,
+        ]) physics.writeFloatLE(95, field.offset);
         const graphics = Buffer.alloc(GRAPHICS.SIZE);
         graphics.writeInt32LE(lap * 240 + frame, GRAPHICS.packetId.offset);
         graphics.writeInt32LE(2, GRAPHICS.status.offset);

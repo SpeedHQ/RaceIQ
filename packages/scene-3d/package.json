@@ -17,6 +17,7 @@
     "./wireframe/SceneRuntime": "./src/wireframe/SceneRuntime.ts",
     "./wireframe/SceneOverlays": "./src/wireframe/SceneOverlays.ts",
     "./wireframe/AnalysisWheels": "./src/wireframe/AnalysisWheels.ts",
+    "./wireframe/Drivetrain": "./src/wireframe/Drivetrain.ts",
     "./wireframe/CarBody": "./src/wireframe/CarBody.tsx",
     "./wireframe/CarScene": "./src/wireframe/CarScene.ts",
     "./wireframe/classify-mesh": "./src/wireframe/classify-mesh.ts",
@@ -31,7 +32,7 @@
     "./wireframe/SuspensionSpring": "./src/wireframe/SuspensionSpring.tsx"
   },
   "scripts": {
-    "lint": "../../client/node_modules/.bin/oxlint .",
+    "lint": "node ../../client/node_modules/oxlint/bin/oxlint .",
     "typecheck": "bun check --project tsconfig.json",
     "test": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/scene-3d",
     "test:unit": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/scene-3d"

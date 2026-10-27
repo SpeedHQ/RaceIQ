@@ -21,21 +21,6 @@ export const LapsQuerySchema = z.object({
   message: "gameId required with sessionId",
 });
 
-export const ReviewLapsQuerySchema = z.object({
-  gameId: GameIdSchema,
-  sessionId: z.coerce.number().int().positive().optional(),
-  trackId: z.string().min(1).optional(),
-  carId: z.string().min(1).optional(),
-  limit: z.coerce.number().int().min(1).max(20).default(5),
-}).refine((value) =>
-  value.sessionId != null || (value.trackId != null && value.carId != null), {
-  message: "sessionId or trackId and carId required",
-});
-export const ReviewLineSpreadQuerySchema = z.object({
-  gameId: GameIdSchema,
-  sessionId: z.coerce.number().int().positive(),
-  lapIds: z.string().min(1).transform((value) => value.split(",").map(Number)).refine((ids) => ids.length >= 1 && ids.length <= 5 && ids.every((id) => Number.isInteger(id) && id > 0) && new Set(ids).size === ids.length, "lapIds must contain 1–5 unique positive IDs"),
-});
 export const CompareLineSpreadQuerySchema = z.object({
   gameId: GameIdSchema,
   lapIds: z.string().min(1).transform((value) => value.split(",").map(Number))
@@ -82,20 +67,18 @@ export const IbtImportTokenSchema = z.object({
 export const OwnershipSchema = z.enum(["mine", "others"]);
 export const IbtCommitSchema = IbtImportTokenSchema.extend({ ownership: OwnershipSchema });
 /** Comma-separated id list in a query string → number[] (ignores junk/empties). */
-const IdListSchema = z
-  .string()
-  .optional()
-  .transform((v) =>
-    (v ?? "")
-      .split(",")
-      .map((s) => Number(s.trim()))
-      .filter((n) => Number.isInteger(n) && n > 0)
-  );
+const IdListSchema = z.string().optional().transform((value) => value === undefined ? undefined :
+  value.split(",").map((item) => Number(item.trim())).filter((id) => Number.isInteger(id) && id > 0));
 
 export const ExportZipQuerySchema = z.object({
   ids: IdListSchema,
   sessionIds: IdListSchema,
-});
+  opponentLap: z.string().min(1).max(512).refine((value) => new TextEncoder().encode(value).length <= 512).optional(),
+  opponentRevision: z.string().min(1).max(512).refine((value) => new TextEncoder().encode(value).length <= 512).optional(),
+}).refine((value) =>
+  (value.opponentLap === undefined && value.opponentRevision === undefined) ||
+  (value.opponentLap !== undefined && value.opponentRevision !== undefined && value.ids?.length === 1 && value.sessionIds === undefined),
+{ message: "Opponent export requires both opponent reference fields, one player lap ID, and no sessionIds." });
 
 export const ChatBodySchema = z.object({
   messages: z.array(z.any()),

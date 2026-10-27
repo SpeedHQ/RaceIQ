@@ -1,8 +1,7 @@
 import { expect, test } from "@playwright/test";
-import type { LMUCatalogueCar } from "../../contracts";
-
 import { collectBrowserErrors } from "../../../../playwright/tests/support/browser-errors";
 import { SEEDED_GAME_CASES } from "../../../../playwright/tests/support/seeded/cases";
+
 
 const CAR_CAPABILITY = {
   "fm-2023": { catalog: "forza", search: true, compare: true, classFilter: true, drivetrainFilter: true },

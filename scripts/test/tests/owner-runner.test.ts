@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, 
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 
-test("owner suites load database preload and isolate writable paths from inherited data", () => {
+test.each(["flat", "nested"] as const)("%s owner suites load database preload and isolate writable paths from inherited data", (layout) => {
   const root = mkdtempSync(resolve(tmpdir(), "raceiq-owner-runner-"));
   try {
     const inherited = resolve(root, "inherited");
@@ -14,11 +14,21 @@ test("owner suites load database preload and isolate writable paths from inherit
     for (const file of ["run-suite.ts", "check-shards.ts", "owners.ts"]) {
       writeFileSync(resolve(root, "scripts/test", file), readFileSync(resolve(import.meta.dir, "..", file)));
     }
-    writeFileSync(resolve(root, "package.json"), JSON.stringify({ private: true, workspaces: ["packages/*"] }));
+    writeFileSync(resolve(root, "package.json"), JSON.stringify({
+      private: true,
+      workspaces: layout === "nested" ? ["packages/*", "packages/owner/test"] : ["packages/*"],
+    }));
     mkdirSync(resolve(root, "node_modules"), { recursive: true });
     symlinkSync(resolve(import.meta.dir, "../../../node_modules/libsql"), resolve(root, "node_modules/libsql"), "junction");
     mkdirSync(resolve(root, "packages/owner/test"), { recursive: true });
-    writeFileSync(resolve(root, "packages/owner/package.json"), JSON.stringify({ name: "@fixture/owner" }));
+    writeFileSync(resolve(root, "packages/owner/package.json"), JSON.stringify(layout === "nested"
+      ? { name: "@fixture/sdk", raceiq: { testOwner: false } }
+      : { name: "@fixture/owner" }));
+    if (layout === "nested") {
+      writeFileSync(resolve(root, "packages/owner/test/package.json"), JSON.stringify({
+        name: "@fixture/owner", raceiq: { testRoot: "." },
+      }));
+    }
     mkdirSync(resolve(root, "server/test-support"), { recursive: true });
     writeFileSync(resolve(root, "server/test-support/setup-data-dir.ts"), `
       import Database from "libsql";

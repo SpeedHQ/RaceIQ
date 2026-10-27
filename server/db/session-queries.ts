@@ -2,7 +2,7 @@ import { MOTEC_SESSION_SOURCE } from "@raceiq/shared/integrations/motec";
 import { isPaceLap } from "@raceiq/shared/racing/lap-classification";
 import { paceLapCondition } from "./lap-eligibility";
 import { resolveRecordingDirectory } from "../runtime/config/recording-directory";
-import { getRecordedElapsedSeconds } from "../session-capture/elapsed-duration";
+import { DASHBOARD_PROCESSOR_VERSION } from "./dashboard-summary-queries";
 import { createHash, randomUUID } from "node:crypto";
 import { rm, stat } from "node:fs/promises";
 import type { Stats } from "node:fs";
@@ -13,9 +13,9 @@ import { withDatabaseWrite } from "./write-coordination";
 import { db, readDb } from "./index";
 import type { Transaction } from "@libsql/client";
 import { executeTransactionStatement } from "./transaction-statements";
-import { sessions, laps, sessionResults, pitEvents, sessionCaptureSplitJobs, liveCaptures, strategyStints, strategyHistoryRevisions, pitEstimates, classificationMigrationMeta, classificationMigrationRecordings } from "./schema";
+import { sessions, laps, sessionResults, pitEvents, sessionCaptureSplitJobs, liveCaptures, strategyStints, strategyHistoryRevisions, pitEstimates, classificationMigrationMeta, classificationMigrationRecordings, dashboardSessionSummaries, dashboardSummaryState } from "./schema"
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
-import type { SessionMeta, SessionOwnership, SessionCaptureSplitPhase, SessionCaptureSplitErrorCode } from "@raceiq/shared/racing/sessions/types";
+import type { SessionMeta, SessionOwnership, SessionCaptureSplitPhase, SessionCaptureSplitErrorCode, ProcessingMetadata } from "@raceiq/shared/racing/sessions/types";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
 import { invalidateClassificationMigrationSource } from "../session-capture/classification-migration";
@@ -33,6 +33,8 @@ import { recoverLiveCaptureStorage } from "../session-capture/live-recovery";
 import { GameIdSchema } from "@raceiq/shared/games/ids";
 import type { StrategyHistoryUpdatedMessage } from "@raceiq/shared/racing/live/strategy";
 import { raceStrategyRuntime } from "../telemetry/race-strategy-ports";
+import { mergeLapProcessingMetadata } from "./lap-meta";
+import { canonicalLmuOpponentSourcePath, getLmuOpponentProcessing, revokeLmuOpponentIndex } from "../session-capture/lmu-opponent-index-runtime"
 
 export interface SessionCaptureSplitWork {
   sessionId: number;
@@ -654,15 +656,57 @@ async function unlinkUnsharedCaptureBundle(manifestFile: string | null, archiveF
   }
 }
 
+export async function revokeUnreferencedLmuOpponentIndexes(sourcePaths: readonly (string | null)[]): Promise<void> {
+  const candidates = new Map<string, string>();
+  for (const sourcePath of sourcePaths) {
+    if (sourcePath) {
+      const canonicalPath = await canonicalLmuOpponentSourcePath(sourcePath);
+      candidates.set(canonicalPath, canonicalPath);
+    }
+  }
+  if (candidates.size === 0) return;
+  const [sessionReferences, jobReferences, liveReferences] = await Promise.all([
+    readDb.select({
+      rawFile: sessions.rawFile,
+      captureManifestFile: sessions.captureManifestFile,
+      captureArchiveFile: sessions.captureArchiveFile,
+    }).from(sessions).all(),
+    readDb.select({ sourcePath: sessionCaptureSplitJobs.sourcePath })
+      .from(sessionCaptureSplitJobs).all(),
+    readDb.select({
+      sourcePath: liveCaptures.sourcePath,
+      archivePath: liveCaptures.archivePath,
+      status: liveCaptures.status,
+      committedArchiveLength: liveCaptures.committedArchiveLength,
+    }).from(liveCaptures).all(),
+  ]);
+  const activeLiveReferences = liveReferences
+    .filter((row) => ["recording", "finalizing", "recovering"].includes(row.status) ||
+      (row.status === "failed" && row.committedArchiveLength > 0))
+    .flatMap((row) => [row.sourcePath, row.archivePath]);
+  const referencedPaths = [
+    ...sessionReferences.flatMap((row) => [row.rawFile, row.captureManifestFile, row.captureArchiveFile]),
+    ...jobReferences.map(({ sourcePath }) => sourcePath),
+    ...activeLiveReferences,
+  ].filter((path): path is string => path != null);
+  const canonicalReferences = new Set(await Promise.all(
+    referencedPaths.map((path) => canonicalLmuOpponentSourcePath(path)),
+  ));
+  for (const [key, sourcePath] of candidates) {
+    if (!canonicalReferences.has(key)) await revokeLmuOpponentIndex(sourcePath);
+  }
+}
+
 /**
  * Delete a session and its laps. Refuse deletion while a split attempt owns its source.
  */
-async function deleteSessionUnlocked(sessionId: number): Promise<number> {
+async function deleteSessionUnlocked(sessionId: number): Promise<{ lapCount: number; indexSourcePath: string | null } | null> {
   const deleted = await withDatabaseWrite(() => db.transaction(async (tx) => {
     const session = await tx.select({
       rawFile: sessions.rawFile,
       manifestFile: sessions.captureManifestFile,
       archiveFile: sessions.captureArchiveFile,
+      gameId: sessions.gameId,
     }).from(sessions).where(eq(sessions.id, sessionId)).get();
     if (!session) return null;
     const liveCapture = await tx.select({ status: liveCaptures.status, committedArchiveLength: liveCaptures.committedArchiveLength })
@@ -691,20 +735,32 @@ async function deleteSessionUnlocked(sessionId: number): Promise<number> {
     }
     return { ...session, lapIds: lapRows.map(({ id }) => id), changes };
   }), undefined, "session.delete");
-  if (!deleted) return 0;
+  if (!deleted) return null;
   if (deleted.changes.length) raceStrategyRuntime().publishHistory(deleted.changes);
+  const deletedSourcePath = deleted.manifestFile ?? deleted.rawFile;
+  const indexSourcePath = deleted.gameId === "lmu" && deletedSourcePath
+    ? await canonicalLmuOpponentSourcePath(deletedSourcePath)
+    : null;
   for (const lapId of deleted.lapIds) cacheDelete(lapId);
   await unlinkOwnedSessionRawFile(deleted.rawFile);
   await unlinkUnsharedCaptureBundle(deleted.manifestFile, deleted.archiveFile);
-  return deleted.lapIds.length;
+  return { lapCount: deleted.lapIds.length, indexSourcePath };
+}
+export async function deleteSessionForImportRollback(
+  sessionId: number,
+): Promise<{ lapCount: number; indexSourcePath: string | null }> {
+  const deleted = await withSessionCaptureMaintenanceLock(() => deleteSessionUnlocked(sessionId));
+  return deleted ?? { lapCount: 0, indexSourcePath: null };
 }
 
 export async function deleteSession(sessionId: number): Promise<number> {
-  return withSessionCaptureMaintenanceLock(() => deleteSessionUnlocked(sessionId));
+  const deleted = await deleteSessionForImportRollback(sessionId);
+  if (deleted.indexSourcePath) await revokeUnreferencedLmuOpponentIndexes([deleted.indexSourcePath]);
+  return deleted.lapCount;
 }
 
 export async function deleteEmptySessions(activeSessionId?: number): Promise<number> {
-  return withSessionCaptureMaintenanceLock(async () => {
+  const outcome = await withSessionCaptureMaintenanceLock(async () => {
     const empties = await readDb.select({ id: sessions.id })
       .from(sessions)
       .leftJoin(laps, eq(laps.sessionId, sessions.id))
@@ -715,7 +771,7 @@ export async function deleteEmptySessions(activeSessionId?: number): Promise<num
       .having(sql`count(${laps.id}) = 0`)
       .all();
     const candidateIds = empties.filter(({ id }) => id !== activeSessionId).map(({ id }) => id);
-    if (candidateIds.length === 0) return 0;
+    if (candidateIds.length === 0) return { deleted: 0, indexSourcePaths: [] as string[] };
     const activeJobs = await readDb.select({ sessionId: sessionCaptureSplitJobs.sessionId })
       .from(sessionCaptureSplitJobs)
       .where(and(
@@ -723,22 +779,79 @@ export async function deleteEmptySessions(activeSessionId?: number): Promise<num
         inArray(sessionCaptureSplitJobs.status, ["queued", "splitting", "verifying", "publishing"]),
       )).all();
     const protectedIds = new Set(activeJobs.map(({ sessionId }) => sessionId));
-    let deleted = 0;
+    let deletedCount = 0;
+    const indexSourcePaths: string[] = [];
     for (const id of candidateIds) {
       if (protectedIds.has(id)) continue;
       try {
-        await deleteSessionUnlocked(id);
-        deleted++;
+        const deleted = await deleteSessionUnlocked(id);
+        if (deleted) {
+          deletedCount++;
+          if (deleted.indexSourcePath) indexSourcePaths.push(deleted.indexSourcePath);
+        }
       } catch (error) {
         if (!(error instanceof SessionCaptureActiveError)) throw error;
       }
     }
-    return deleted;
+    return { deleted: deletedCount, indexSourcePaths };
   });
+  await revokeUnreferencedLmuOpponentIndexes(outcome.indexSourcePaths);
+  return outcome.deleted;
 }
+
 
 /** Get all lap metadata needed to preserve rows during reprocessing. */
 
+
+type SessionProcessingSource = {
+  id: number;
+  gameId: string;
+  rawFile: string | null;
+  captureManifestFile: string | null;
+  capturePhase?: SessionCaptureSplitPhase | null;
+};
+
+const READY_PROCESSING: ProcessingMetadata = { state: "ready", stage: null, error: null };
+
+async function projectSessionProcessingMetadata(
+  rows: readonly SessionProcessingSource[],
+  capturePhases?: ReadonlyMap<number, SessionCaptureSplitPhase>,
+): Promise<Map<number, ProcessingMetadata>> {
+  const paths = new Map<string, string>();
+  for (const row of rows) {
+    if (row.gameId !== "lmu") continue;
+    const sourcePath = row.captureManifestFile ?? row.rawFile;
+    if (sourcePath) paths.set(resolve(sourcePath), sourcePath);
+  }
+  const indexProcessing = new Map<string, ProcessingMetadata>();
+  await Promise.all([...paths].map(async ([key, sourcePath]) => {
+    indexProcessing.set(key, await getLmuOpponentProcessing(sourcePath));
+  }));
+  return new Map(rows.map((row) => {
+    const sourcePath = row.gameId === "lmu" ? row.captureManifestFile ?? row.rawFile : null;
+    const indexState = sourcePath ? indexProcessing.get(resolve(sourcePath)) : undefined;
+    return [row.id, mergeLapProcessingMetadata(
+      capturePhases?.get(row.id) ?? row.capturePhase,
+      indexState ?? READY_PROCESSING,
+    )];
+  }));
+}
+
+export async function getSessionProcessingById(id: number, gameId: GameId): Promise<ProcessingMetadata | null> {
+  const row = await readDb.select({
+    id: sessions.id,
+    gameId: sessions.gameId,
+    rawFile: sessions.rawFile,
+    captureManifestFile: sessions.captureManifestFile,
+    capturePhase: sessionCaptureSplitJobs.status,
+  })
+    .from(sessions)
+    .leftJoin(sessionCaptureSplitJobs, eq(sessionCaptureSplitJobs.sessionId, sessions.id))
+    .where(eq(sessions.id, id))
+    .get();
+  if (!row || row.gameId !== gameId) return null;
+  return (await projectSessionProcessingMetadata([row])).get(id) ?? READY_PROCESSING;
+}
 
 /**
  * Get all sessions with lap counts, newest first.
@@ -751,10 +864,11 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
     trackId: sessions.trackId,
     createdAt: sessions.createdAt,
     gameId: sessions.gameId,
+    rawFile: sessions.rawFile,
+    captureManifestFile: sessions.captureManifestFile,
     ownership: sessions.ownership,
     isFavorite: sessions.isFavorite,
     telemetryAvailable: sql<number>`${sessions.rawFile} IS NOT NULL OR ${sessions.captureManifestFile} IS NOT NULL`,
-    capturePath: sessions.rawFile,
     notes: sessions.notes,
     source: sessions.source,
     sessionType: sessions.sessionType,
@@ -786,29 +900,32 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
     }).from(sessionCaptureSplitJobs).where(inArray(sessionCaptureSplitJobs.sessionId, rows.map(({ id }) => id))).all()
     : [];
   const splitJobs = new Map(splitJobRows.map((job) => [job.sessionId, job]));
+  const processingBySession = await projectSessionProcessingMetadata(
+    rows,
+    new Map(splitJobRows.map((job) => [job.sessionId, job.phase])),
+  );
 
-  // Shared paths lack per-session interval metadata; never count one full file twice.
-  const capturePaths = [...new Set(rows.flatMap((session) => session.capturePath ? [session.capturePath] : []))];
-  const sharedCaptureRows = capturePaths.length
-    ? await readDb.select({ rawFile: sessions.rawFile }).from(sessions).where(inArray(sessions.rawFile, capturePaths)).all()
+  const elapsedRows = rows.length
+    ? await readDb.select({
+      sessionId: dashboardSessionSummaries.sessionId,
+      elapsedSeconds: dashboardSessionSummaries.elapsedSeconds,
+    })
+      .from(dashboardSessionSummaries)
+      .innerJoin(dashboardSummaryState, eq(dashboardSummaryState.sessionId, dashboardSessionSummaries.sessionId))
+      .where(and(
+        inArray(dashboardSessionSummaries.sessionId, rows.map(({ id }) => id)),
+        eq(dashboardSummaryState.metadataDirty, 0),
+        eq(dashboardSummaryState.captureDirty, 0),
+        eq(dashboardSummaryState.deleted, 0),
+        eq(dashboardSummaryState.processorVersion, DASHBOARD_PROCESSOR_VERSION),
+        eq(dashboardSessionSummaries.processorVersion, DASHBOARD_PROCESSOR_VERSION),
+        eq(dashboardSummaryState.publishedRevision, dashboardSummaryState.sourceRevision),
+        eq(dashboardSessionSummaries.sourceRevision, dashboardSummaryState.sourceRevision),
+        eq(dashboardSessionSummaries.durationStatus, "available"),
+      ))
+      .all()
     : [];
-  const sessionsByFile = new Map<string, number>();
-  for (const session of sharedCaptureRows) {
-    if (session.rawFile) sessionsByFile.set(session.rawFile, (sessionsByFile.get(session.rawFile) ?? 0) + 1);
-  }
-  const elapsedBySession = new Map<number, number | null>();
-  for (const session of rows) {
-    const elapsedSeconds = session.capturePath && sessionsByFile.get(session.capturePath) === 1
-      ? await getRecordedElapsedSeconds({
-        rawFile: session.capturePath,
-        source: session.source ?? null,
-        gameId: session.gameId as GameId,
-        carId: session.carId,
-        trackId: session.trackId,
-      })
-      : null;
-    elapsedBySession.set(session.id, elapsedSeconds);
-  }
+  const elapsedBySession = new Map(elapsedRows.map(({ sessionId, elapsedSeconds }) => [sessionId, elapsedSeconds]));
   // Get lap counts and best lap per session
   const result: SessionMeta[] = [];
   for (const session of rows) {
@@ -820,9 +937,10 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
     const validLapTimes = lapRows.filter((lap) => Boolean(lap.isValid) && isPaceLap(lap.classification)).map((lap) => lap.lapTime);
     const bestLapTime = validLapTimes.length > 0 ? Math.min(...validLapTimes) : 0;
 
-    const { capturePath: _capturePath, ...sessionMetadata } = session;
+    const { rawFile: _rawFile, captureManifestFile: _captureManifestFile, ...sessionMetadata } = session;
     const splitJob = splitJobs.get(session.id);
     const normalizedSession = {
+      processing: processingBySession.get(session.id) ?? READY_PROCESSING,
       ...sessionMetadata,
       sessionType: session.sessionType ?? undefined,
       telemetryAvailable: Boolean(session.telemetryAvailable),

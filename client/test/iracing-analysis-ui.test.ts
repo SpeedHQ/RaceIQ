@@ -6,13 +6,13 @@ import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { AnalyseDynamicsPanel } from "../src/components/analyse/AnalyseDynamicsPanel";
 import { AnalyseSuspensionPanel } from "../src/components/analyse/AnalyseSuspensionPanel";
 import { AnalyseTireWheelsPanel } from "../src/components/analyse/AnalyseTireWheelsPanel";
-import { buildSegmentData } from "../src/components/analyse/AnalyseSegmentList";
+import { buildSegmentData } from "../../packages/lap-replay/ui/AnalyseSegmentList";
 import { pathForwardOffsets, projectPointOntoPath, resolveFrameDirection } from "../src/components/analyse/track-map/path";
 import { sectorIndexForTelemetryIndex } from "../src/components/tunes/SectorRangeBreakdown";
 import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import type { useUnits } from "../src/hooks/useUnits";
 
-initGameAdapters({ iracingAdapter: true, f1Experiments: true });
+initGameAdapters({ iracingAdapter: true, f1Experiments: true, ams2Adapter: true });
 
 const units = { temp: (value: number) => value, tempLabel: "°C", thresholds: { cold: 75, warm: 115, hot: 150 }, toTempC: (value: number) => value } as ReturnType<typeof useUnits>;
 const frame = (values: Record<string, unknown>): SemanticAnalysisFrame => ({ values, states: {}, freshness: {} });

@@ -5,12 +5,12 @@ import { TelemetryChart } from "@/components/TelemetryChart";
 import { TimeDelta } from "@/components/TimeDelta";
 import { LoadingIndicator } from "@/components/LoadingIndicator";
 import { COLOR_A, COLOR_B } from "@/lib/comparison-utils";
-import { prepareSpectateLap, sampleLap } from "@/lib/spectate-replay";
+import { prepareSpectateLap, sampleLap } from "@raceiq/lap-replay/ui"
 import { useLapSemanticTelemetry } from "@/hooks/laps";
 import type { useUnits } from "@/hooks/useUnits";
 import { useGameId } from "@/stores/game";
-import { buildSpectateChannels, channelValue } from "./spectate/spectate-channels";
-import { CATEGORY_LABELS, classify, type Category } from "./spectate/SpectateTelemetryPanel";
+import { buildSpectateChannels, channelValue } from "@raceiq/lap-replay/ui"
+import { CATEGORY_LABELS, classify, type Category } from "@raceiq/lap-replay/ui"
 import { m } from "@/paraglide/messages";
 
 export function ComparisonCharts({
@@ -98,7 +98,7 @@ export function ComparisonCharts({
               document.getElementById(`compare-category-${categories[next]}`)?.focus();
             }}
             className={`shrink-0 rounded px-2 py-1 text-app-micro focus-visible:outline-2 focus-visible:outline-app-accent ${selectedCategory === item ? "bg-app-accent text-app-on-filled" : "text-app-text-secondary"}`}>
-            {CATEGORY_LABELS[item]()}
+            {m[CATEGORY_LABELS[item]]()}
           </button>)}
         </div>
       <div data-testid="compare-chart-column" aria-busy={refining} className="min-h-0 flex-1 overflow-y-auto">

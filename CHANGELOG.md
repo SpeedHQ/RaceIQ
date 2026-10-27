@@ -21,19 +21,43 @@
 - Compare live fuel and four-wheel tire progression against the selected strategy, with evidence-aware adherence and pit windows recalculated from actual resources after early, late, or fuel-only service without modifying the saved plan.
 - Use tire-only F1 2025 pit forecasts and service advice without fuel limits or refueling projections. Keep measured fuel statistics and validate one initial race fuel budget without inventing fuel stops.
 - Hide RaceIQ race-strategy planning and pit estimates for F1 2025, which has built-in strategy.
+- Replace category tabs on the AMS2 and iRacing Cars pages with a searchable dropdown that shows the total as a placeholder, clears the search when opened, and preserves category counts and the All categories reset.
+- Add AMS2 support: native Windows shared-memory telemetry capture, game-specific car and track identity, per-wheel Replay metrics, 235 track maps, car thumbnails, dashboard branding and a separate Driver profile; include Live connection guidance and correct lap capture, export, replay and track-map behavior. Keep adapter availability and native capture development-only.
+- Show animated suspension springs and chassis movement in Replay and Compare → Spectate; use the lap's observed travel range when no game range is specified, while preserving native normalized readings.
+- Show clickable circuit-overview sector markers on desktop only while hovering or using keyboard focus; keep them visible on touch screens.
+- Group LMU state of charge, virtual energy and regenerative power in a separate table below the main Replay and Compare → Spectate metrics.
+- Use dashed track edges in Replay and Compare → Spectate to provide fixed-distance speed cues.
+- Show plain TC and ABS indicators in the Replay and Compare → Spectate center dashboard only when native activation telemetry was recorded, lighting them green during activation and keeping inactive or temporarily unavailable readings neutral.
+- Show color-coded per-wheel traction status in the center dashboard for single-lap Replay and Compare → Spectate, with separate A/B readings and unavailable telemetry marked clearly.
 - Keep Sessions actions in a bottom-center floating bar with a selection count and Deselect all. Keep Compare visible and enable it only for two compatible laps; filter comparison laps by Mine, Others, or All inside the lap-picker dropdown.
-- Show separate LMU player energy, engine, electric motor, steering feedback, weather and race-control readings in live telemetry and recorded-lap analysis when provided by the game.
+- Show separate LMU player energy, engine, electric motor, steering feedback, weather and race-control readings in live telemetry when provided by the game.
 - Show read-only LMU setup, forecast and condition snapshots with source age and availability, without waiting for network requests before displaying live telemetry.
 - Compare laps in Spectate with synchronized 3D replay, configurable cameras and overlays, live A/B instruments, sector deltas, and telemetry, car, AI, Focus View, and lap-statistics panels.
+
+- Inspect recorded telemetry in Compare → Spectate with a Data panel and switch between lap A and B without showing both panels at once.
+- Bring Compare → Spectate's scene, playback, telemetry and Insights to single-lap Replay, with saved 3D settings, grouped wheel graphs, stable ERS bands, chassis/tire-info rendering and independently resizable, horizontally scrollable panels.
+- Show LMU traction-control and ABS settings and activation, traction-control cut level, motor map, battery state of charge, virtual energy and signed regen power in Replay's existing Data panel instead of a separate Player telemetry section; show brake migration beside brake bias in Dynamics.
+- Restore the single-lap Replay segment-time list in a collapsible Segments panel, with active-segment highlighting and a saved open state.
+- Use Replay on phones with a compact horizontal dashboard, larger touch controls, an opaque circuit overview you can close, and one panel at a time beneath the playback tabs. Read colored sector labels closer to the timeline on phones and desktops, and scroll track and lap pickers out of view while keeping navigation visible.
+- Manage Replay AI analysis from its tab without a duplicate panel header.
+- Open desktop Replay and Spectate panels within half the workspace, then drag them wider—including a single panel—to give charts more room. Resize each panel without shrinking its neighbors.
+- Drag Replay and Spectate tabs to reorder them, or use Alt+Left/Right; keep the saved tab order when reopening the page.
 - Choose a 50–100 Hz recording frequency for ACC, AC Evo, iRacing, or LMU during setup to reduce recording size. Live UDP recording is unchanged.
 - Downsample saved recordings manually or with an opt-in age policy in Storage settings; measure the first 1,000 frame timestamps per stream and skip recordings already at or below the target. Track progress and retry failed files. Favorites and MoTeC imports stay unchanged.
-- Split recordings into individual, lossless per-lap `.bin` files so lap 60 loads as fast as lap 1.
+- Split recordings into individual, lossless per-lap `.bin` files so lap 60 loads as fast as lap 1, and recover interrupted publication when validated recording metadata is available.
+- Load LMU laps faster in Replay and Compare → Spectate while preserving every recorded sample, setup snapshot, and condition observation.
 - Automatically check existing recordings for non-pace laps after upgrades, with progress, source limitations, and retry controls in Settings → Updates.
 - Show lap classifications separately from validity in expanded session lap tables.
 - Simplify session timelines into compact circles with single-word event labels, starting positions, and arrows showing the new position.
 - Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
+- Capture LMU opponents by default in a separate removable companion recording; opt out for the next live session, preview and explicitly compare an exact recorded opponent through session, driver, and lap filters with car details and without coverage or telemetry status labels, switch Driver to Me to browse every player lap in the session, export its full interval, or irreversibly remove session-wide opponent data while preserving player telemetry. Compare partial opponent laps even when scoring updates lag behind the player's lap boundary. Keep stale, removed, missing and unrecorded references distinct.
+- Expand an LMU session on the Sessions page to see recorded opponents immediately, without choosing a player lap, as collapsible driver rows showing their fastest recorded lap and its sector splits. Sort recorded opponents by fastest valid best lap by default. Browse opponents in a scrollable child table that stays within the session table, with lap warnings behind compact info indicators. Expand a driver to replay or compare an exact recorded lap without duplicating recordings, keeping opponent laps together across player recording splits. Opponent Replay fills the available workspace. Keep opponent cars and paths on the flat track plane without changing recorded elevation.
+- Use black backgrounds for recorded opponent tables and expanded opponent lap rows on the Sessions page.
+- Hide Car layout and Data panels, including the tire-panel shortcut, when replaying an LMU opponent lap. Player replay and comparison panels remain unchanged.
+- Include the complete LMU multiplayer recording in demo seeds as sub-100 MB gzip parts, stream native input without buffering the whole capture, and retain separate player and opponent recordings.
 
 ### Fixes
+- Complete failed MoTeC import rollback without waiting on unrelated LMU opponent-index cleanup.
 - Keep navigation from strategy evidence, the pit-estimate dialog, Driver Profile's all-laps action, and in-app chat links within the app without reloading the page.
 - Restore LMU fractional-lap telemetry from validated native scoring distance and track length, using scoring-clock freshness so live adherence and virtual-energy-aware pit windows resolve without inventing missing position.
 - Show compact stint summary cards with scannable hot fuel and tire percentiles, eligible-lap counts, and expandable audit details. Plot only measured rates, and stop labeling unavailable completed-stint measurements as gathering data.
@@ -56,12 +80,41 @@
 - Treat continuous refueling as one stint boundary, including repeated unchanged fuel readings.
 - Recover pit-estimate history selection when another client deletes the selected session.
 - Keep local browsers open when restarting the server.
+- Keep the historical lap-classification notice limited to its original sessions, allow dismissal while work continues, and distinguish summary updates from pending lap processing.
+- Place inner and outer surface-temperature bands on the correct sides of the 3D wheels in Replay and Compare → Spectate.
+- Include the LMU opponent-index worker in packaged builds so recorded opponents can load for replay and comparison.
+- Restore recorded-opponent driver and lap selections after reloading comparisons while the opponent catalog loads.
+- Preserve Replay and Spectate panel widths when panels are toggled, and keep the mobile circuit overview clear of driver inputs and focus controls.
+- Keep Spectate selected when switching comparison views with the keyboard.
+- Keep selected LMU lap exports within the chosen recording window, preserve opponent frame order, and avoid duplicate samples.
+- Preserve recorded opponent position samples around missing distance observations without interpolating across gaps.
+- Keep completed player laps importable after removing LMU opponent data.
+- Show a warning when opponent recording stops while player recording continues.
+- On the Compare page, opening a lap-only link to queued laps now shows their processing status.
+- Add immediate lap selection to opponent replay, with saved LMU sessions listed newest first using readable date, track and car labels. Keep unavailable sessions selectable so another session can be opened.
+- Hide replay telemetry categories without recorded values while retaining valid zero readings.
+- Locate partial LMU opponent segments using authoritative circuit distance, interpolate only covered timing boundaries, and draw available circuit-overview geometry without bridging recording gaps.
+- Reduce LMU opponent comparison loading and memory use by sharing a bounded, short-lived session index, reusing validated source contexts, and avoiding export-only raw frame retention.
+- Reuse published session-duration summaries in Sessions listings instead of rescanning recordings.
+- Publish player lap chunks and replay references when importing LMU recordings with retained opponents.
+- Keep LMU recorder acquisition generations within their actual simulator session instead of creating duplicate practice sessions.
+- Keep car trajectories and fallback circuit outlines solid in Replay and Compare; reserve dashed styling for track edges.
+- Keep LMU diagnostic recording running through temporary disk backpressure instead of silently stopping when its writer queue fills.
+- Finalize diagnostic dumps before exiting on Ctrl+C, and report the absolute saved LMU recording path and frame count.
+- Keep game detection and live connection status updating when another application owns the UDP telemetry port.
+- Restore the global Live link in the main app sidebar, including the home dashboard and game pages.
+- Correct the LMU steering indicator direction in the Replay and Compare → Spectate center dashboard without changing recorded steering values.
+- Show active TC and ABS readings in green in Replay's Data panel, while keeping inactive and unavailable readings neutral.
+- Use reported traction-control activity in Replay and lap insights when the game's telemetry provides it; infer activation only when that channel is unavailable.
+- Hide Y-axis labels on telemetry charts while keeping chart legends and data visible.
 - Keep recording splitting and background processing available when the UDP telemetry port is already in use.
 - Report inconclusive historical lap classification as limited without requesting attention, and correct earlier results.
 - Center Le Mans Ultimate track outlines within catalogue cards.
 - Select and deselect child laps with the Sessions table header checkbox, preserving selections on other pages and ownership tabs.
 - Stop recording curb maps and using detected curbs to recalibrate track boundaries; preserve telemetry-based curb detection.
 - Keep Spectate racing lines visible when zooming out to the full circuit.
+- On Replay and Compare → Spectate, show dashed estimated opponent race lines across short recorded telemetry gaps while keeping longer gaps disconnected. Ignore sparse capture-sequence cadence when determining discontinuities, while keeping genuine scoring-counter gaps and resets disconnected.
+- Classify full LMU opponent laps from native track length and observed distance boundaries despite capture-sequence gaps, while preserving missing source samples and keeping counter-only short transitions partial.
 - Distinguish native fractional LMU brake and clutch inputs from normalized control readings in the telemetry catalog.
 - Keep unchanged LMU supplemental snapshots available while successful polling continues, without resetting their original observation ages.
 - Render LMU developer telemetry snapshots without crashing on precision-preserved observation sequences.
@@ -75,6 +128,11 @@
 - Keep LMU snapshots responsive when the local telemetry service returns oversized, rejected, or malformed condition responses.
 - Open the dashboard in your default browser when launching RaceIQ from the optional desktop shortcut or Start menu, even when the server was stopped.
 - Preserve incomplete-lap eligibility and LMU first-outlap classification across ordinal detector transitions.
+- Keep recording splitting and the dashboard running when another application already uses the live telemetry UDP port.
+- Keep Windows recording publication working when directory metadata flushing is unsupported, while retaining file-content flushing and reporting other I/O failures.
+- Keep session Overview maps complete when an unfinished lap follows completed invalid laps.
+- Keep session Overview maps compact on wide screens and fit the driven lap line without hidden track edges shrinking it.
+- Keep game links visible on Live pages.
 - Keep first-run setup responsive by omitting the optional telemetry demo.
 - Label the community setup copy action “Clone” in the setup browser.
 - Leave MoTeC imports unchanged during historical lap-classification upgrades.
@@ -124,6 +182,13 @@
 
 ### Internal
 - Invalidate cached translation modules before development previews reload so Storybook and the app pick up newly generated messages.
+- Preserve Windows directory-sync path errors when validating recording publication directories.
+- Target comparison lap pickers explicitly in browser checks and wait for rendered frames in the native camera zoom check.
+- Keep diagnostic dump runs in one BIN per selected source, retain raw Forza/F1 datagrams, stream live telemetry over WebSocket for every game, and bypass telemetry-driven session/database processing and background recording maintenance.
+- Extract Sessions and Session Analyse into feature-owned UI, server, contract, and test workspaces while preserving existing navigation and analysis behavior.
+- Move Sessions and Session Review into their own package.
+- Update the dependency lockfile for Bun 1.4.4 so the Bench compare workflow can use frozen installs.
+- Cover Replay extraction invariants with regressions for bounded track ribbons, seek-aware tire labels, cold frame capture, keyboard frame stepping, position-only segment timings and native AC Evo TC evidence.
 - Ignore terminal color codes when waiting for compiler startup in the Paraglide lifecycle CI test.
 - Generate Paraglide declarations with the installed native TypeScript compiler and stop abandoned translation watchers from consuming CPU after development exits.
 - Use Ubuntu instead of macOS for CI runners and cap Mars memory requests at 6 GB.

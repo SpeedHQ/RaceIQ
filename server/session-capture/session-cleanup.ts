@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { unlink, stat, rename } from "node:fs/promises";
+import { unlink, stat, rename, rm } from "node:fs/promises";
 import { eq, inArray, sql } from "drizzle-orm";
 import type { SessionCleanupGameSummary, SessionCleanupPreview, SessionCleanupRequest, SessionCleanupResult } from "@raceiq/shared/racing/sessions/cleanup";
 import { tryGetGame } from "@raceiq/shared/games/registry";
@@ -16,10 +16,13 @@ import { loadReferencedCapturePaths, withSessionCaptureMaintenanceLock } from ".
 import { hasPendingLayoutMigration } from "./layout-migration";
 import { releaseDashboardCaptureCheckpoint, republishPersistedDashboardCaptureFacts } from "./dashboard-processor";
 import { dirname, resolve } from "node:path";
+import { inventoryLmuOpponentIndex } from "../lap-analysis/lmu-opponent-index";
+import { invalidateLmuOpponentIndexUnderFence } from "./lmu-opponent-index-runtime";
+import { RecordingStorageBusyError, reserveRecordingStorageOperation } from "./storage-activity";
 
 export class SessionCleanupBusyError extends Error {
-  constructor() {
-    super("Cannot clean session captures while a session is active");
+  constructor(message = "Cannot clean session captures while a session is active") {
+    super(message);
     this.name = "SessionCleanupBusyError";
   }
 }
@@ -57,6 +60,9 @@ type CleanupGroup = {
   jobRefs: SplitJobRef[];
   bundleFiles: string[];
   bundleBytes: number;
+  opponentIndexRoots: string[];
+  opponentIndexFiles: number;
+  opponentIndexBytes: number;
 };
 
 type CleanupPlan = SessionCleanupPreview & { groups: CleanupGroup[] };
@@ -111,12 +117,28 @@ async function fileState(rawFile: string): Promise<{ path: string; missing: bool
   }
 }
 
-async function unsharedBundleFiles(rows: SessionRow[]): Promise<{ files: string[]; bytes: number }> {
+async function unsharedBundleFiles(rows: SessionRow[]): Promise<{
+  files: string[];
+  bytes: number;
+  opponentIndexRoots: string[];
+  opponentIndexFiles: number;
+  opponentIndexBytes: number;
+}> {
   const ids = new Set(rows.map((row) => row.id));
-  const external = (await readDb.select({ id: sessions.id, manifestFile: sessions.captureManifestFile, archiveFile: sessions.captureArchiveFile }).from(sessions).all())
-    .filter((row) => !ids.has(row.id) && (row.manifestFile != null || row.archiveFile != null));
+  const [externalRows, externalJobs, externalLives] = await Promise.all([
+    readDb.select({ id: sessions.id, rawFile: sessions.rawFile, manifestFile: sessions.captureManifestFile, archiveFile: sessions.captureArchiveFile })
+      .from(sessions).all(),
+    readDb.select({ sessionId: sessionCaptureSplitJobs.sessionId, sourcePath: sessionCaptureSplitJobs.sourcePath })
+      .from(sessionCaptureSplitJobs).all(),
+    readDb.select({ sessionId: liveCaptures.sessionId, sourcePath: liveCaptures.sourcePath, archivePath: liveCaptures.archivePath })
+      .from(liveCaptures).all(),
+  ]);
+  const external = externalRows.filter((row) =>
+    !ids.has(row.id) && (row.rawFile != null || row.manifestFile != null || row.archiveFile != null),
+  );
   const candidates = new Set<string>();
   const externallyReferenced = new Set<string>();
+  const externallyReferencedSources = new Set<string>();
   const collect = async (manifestFile: string | null, archiveFile: string | null, target: Set<string>) => {
     if (manifestFile) {
       const manifestPath = resolve(manifestFile);
@@ -132,7 +154,20 @@ async function unsharedBundleFiles(rows: SessionRow[]): Promise<{ files: string[
     if (archiveFile) target.add(resolve(archiveFile));
   };
   for (const row of rows) await collect(row.captureManifestFile, row.captureArchiveFile, candidates);
-  for (const row of external) await collect(row.manifestFile, row.archiveFile, externallyReferenced);
+  for (const row of external) {
+    await collect(row.manifestFile, row.archiveFile, externallyReferenced);
+    for (const path of [row.rawFile, row.manifestFile, row.archiveFile]) {
+      if (path) externallyReferencedSources.add(resolve(path));
+    }
+  }
+  for (const job of externalJobs) {
+    if (!ids.has(job.sessionId)) externallyReferencedSources.add(resolve(job.sourcePath));
+  }
+  for (const capture of externalLives) {
+    if (ids.has(capture.sessionId)) continue;
+    externallyReferencedSources.add(resolve(capture.sourcePath));
+    externallyReferencedSources.add(resolve(capture.archivePath));
+  }
   const files: string[] = [];
   let bytes = 0;
   for (const path of candidates) {
@@ -146,12 +181,31 @@ async function unsharedBundleFiles(rows: SessionRow[]): Promise<{ files: string[
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     }
   }
-  return { files, bytes };
+  const opponentIndexRoots = new Set<string>();
+  let opponentIndexFiles = 0;
+  let opponentIndexBytes = 0;
+  for (const row of rows) {
+    if (row.gameId !== "lmu") continue;
+    const sourcePaths = new Set([row.rawFile, row.captureManifestFile, row.captureArchiveFile]
+      .filter((path): path is string => path !== null)
+      .map((path) => resolve(path)));
+    for (const sourcePath of sourcePaths) {
+      if (externallyReferencedSources.has(sourcePath) || !isOwnedSessionRawFile(sourcePath)) continue;
+      const root = resolve(`${sourcePath}.opponent-index`);
+      if (opponentIndexRoots.has(root)) continue;
+      const inventory = await inventoryLmuOpponentIndex(root);
+      if (!inventory.artifacts.length) continue;
+      opponentIndexRoots.add(root);
+      opponentIndexFiles += inventory.artifacts.length;
+      opponentIndexBytes += inventory.totalBytes;
+    }
+  }
+  return { files, bytes, opponentIndexRoots: [...opponentIndexRoots], opponentIndexFiles, opponentIndexBytes };
 }
 
 async function buildGameSummaries(groups: CleanupGroup[]): Promise<SessionCleanupGameSummary[]> {
   const candidateSessions = groups.flatMap((group) => group.rows);
-  const availableGroups = groups.filter((group) => !group.missing || group.bundleFiles.length > 0);
+  const availableGroups = groups.filter((group) => !group.missing || group.bundleFiles.length > 0 || group.opponentIndexFiles > 0);
   const candidateIds = candidateSessions.map((session) => session.id);
   const candidateLaps =
     candidateIds.length === 0
@@ -282,10 +336,13 @@ async function buildPlan(request: SessionCleanupRequest): Promise<CleanupPlan> {
         session.captureArchiveFile && resolve(session.captureArchiveFile) === state.path);
       const primaryIsCountedAsBundle = !usedBundleFallback && !state.missing && primaryIsBundleFile && bundle.files.some((path) => resolve(path) === state.path);
       const bundleFiles = primaryIsCountedAsBundle ? bundle.files.filter((path) => resolve(path) !== state.path) : bundle.files;
-      const bundleBytes = primaryIsCountedAsBundle ? Math.max(0, bundle.bytes - state.size) : bundle.bytes;
+      const bundleBytes = (primaryIsCountedAsBundle ? Math.max(0, bundle.bytes - state.size) : bundle.bytes) + bundle.opponentIndexBytes;
       groups.push({
         path: state.path, rows: group.all, missing: state.missing || usedBundleFallback, size: state.size, lapRefs, jobRefs,
         bundleFiles, bundleBytes,
+        opponentIndexRoots: bundle.opponentIndexRoots,
+        opponentIndexFiles: bundle.opponentIndexFiles,
+        opponentIndexBytes: bundle.opponentIndexBytes,
       });
       plannedKeys.add(key);
     }
@@ -316,6 +373,7 @@ async function buildPlan(request: SessionCleanupRequest): Promise<CleanupPlan> {
     }
   }
   const countedBundleFiles = new Set<string>();
+  const countedOpponentIndexRoots = new Set<string>();
   for (const group of groups) {
     const uniqueFiles: string[] = [];
     let uniqueBytes = 0;
@@ -330,15 +388,31 @@ async function buildPlan(request: SessionCleanupRequest): Promise<CleanupPlan> {
         if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
       }
     }
+    const uniqueOpponentIndexRoots: string[] = [];
+    let uniqueOpponentIndexFiles = 0;
+    let uniqueOpponentIndexBytes = 0;
+    for (const root of group.opponentIndexRoots) {
+      const normalized = resolve(root);
+      if (countedOpponentIndexRoots.has(normalized)) continue;
+      countedOpponentIndexRoots.add(normalized);
+      const inventory = await inventoryLmuOpponentIndex(normalized);
+      if (!inventory.artifacts.length) continue;
+      uniqueOpponentIndexRoots.push(normalized);
+      uniqueOpponentIndexFiles += inventory.artifacts.length;
+      uniqueOpponentIndexBytes += inventory.totalBytes;
+    }
     group.bundleFiles = uniqueFiles;
-    group.bundleBytes = uniqueBytes;
+    group.bundleBytes = uniqueBytes + uniqueOpponentIndexBytes;
+    group.opponentIndexRoots = uniqueOpponentIndexRoots;
+    group.opponentIndexFiles = uniqueOpponentIndexFiles;
+    group.opponentIndexBytes = uniqueOpponentIndexBytes;
   }
   const candidateSessionIds = groups.flatMap((group) => group.rows.map((row) => row.id));
   return {
     candidateSessionIds: candidateSessionIds.sort((a, b) => a - b),
     protectedSessionIds: [...protectedIds].sort((a, b) => a - b),
     unavailableSessionIds: [...unavailableIds].sort((a, b) => a - b),
-    fileCount: groups.reduce((sum, group) => sum + (group.missing ? 0 : 1) + group.bundleFiles.length, 0),
+    fileCount: groups.reduce((sum, group) => sum + (group.missing ? 0 : 1) + group.bundleFiles.length + group.opponentIndexFiles, 0),
     reclaimableBytes: groups.reduce((sum, group) => sum + (group.missing ? 0 : group.size) + group.bundleBytes, 0),
     games: await buildGameSummaries(groups),
     groups,
@@ -417,6 +491,20 @@ async function deleteUnreferencedBundles(group: CleanupGroup): Promise<{ files: 
       await unlink(path);
       files++;
       bytes += info.size;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
+      throw new BundleDeletionError(error instanceof Error ? error.message : String(error), files, bytes);
+    }
+  }
+  for (const root of candidates.opponentIndexRoots) {
+    if (referenced.has(resolve(root))) continue;
+    try {
+      const inventory = await inventoryLmuOpponentIndex(root);
+      if (!inventory.artifacts.length) continue;
+      await invalidateLmuOpponentIndexUnderFence(root.slice(0, -".opponent-index".length));
+      await rm(root, { recursive: true, force: true });
+      files += inventory.artifacts.length;
+      bytes += inventory.totalBytes;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
       throw new BundleDeletionError(error instanceof Error ? error.message : String(error), files, bytes);
@@ -504,7 +592,15 @@ async function executeGroup(group: CleanupGroup): Promise<CleanupGroupResult> {
 
 export async function executeSessionCleanup(request: SessionCleanupRequest): Promise<SessionCleanupResult> {
   if (isSessionActive()) throw new SessionCleanupBusyError();
-  return withSessionCaptureMaintenanceLock(async () => {
+  let releaseStorage: () => void;
+  try {
+    releaseStorage = reserveRecordingStorageOperation("opponent-index");
+  } catch (error) {
+    if (error instanceof RecordingStorageBusyError) throw new SessionCleanupBusyError(error.message);
+    throw error;
+  }
+  try {
+    return await withSessionCaptureMaintenanceLock(async () => {
     if (isSessionActive()) throw new SessionCleanupBusyError();
     if (await hasPendingLayoutMigration()) throw new SessionCleanupBusyError();
     const workPlan = await buildPlan(request);
@@ -538,5 +634,8 @@ export async function executeSessionCleanup(request: SessionCleanupRequest): Pro
       freedBytes,
       failed,
     };
-  });
+    });
+  } finally {
+    releaseStorage();
+  }
 }

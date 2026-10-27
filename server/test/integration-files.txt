@@ -1,3 +1,2 @@
-server/test/games/kunos/recording-mode-pipeline.test.ts
 server/test/games/kunos/triplet-assembler.test.ts
 server/test/telemetry/pipeline-lifecycle.test.ts

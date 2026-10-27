@@ -50,6 +50,7 @@ export async function ingestF1Laps(port: number, laps: number, sessionUID = 460n
     telemetry.writeFloatLE(0.7, 2);
     telemetry.writeInt8(4, 15);
     telemetry.writeUInt16LE(10_000, 16);
+    telemetry.fill(90, 30, 38);
     for (let lap = 0; lap <= laps; lap++) {
       for (let frame = 0; frame < (lap < laps ? 120 : 1); frame++) {
         const progress = frame / 119;

@@ -110,6 +110,7 @@ function addSectorDerivedVariables(
         "current lap time - time at native sector boundary",
         "RaceIQ times crossings of iRacing native variable-length sector layout.",
       ),
+      ams2: unavailable("source-not-provided", "AMS2 does not provide this projection."),
       lmu: derivedLink(
         "s",
         ["TelemetryPacket.CurrentLap", "lmu.currentSectorIndex"],
@@ -197,6 +198,7 @@ function addSectorDerivedVariables(
         "accumulate elapsed time between native variable-length sector boundaries",
         "RaceIQ assembles current iRacing sector array.",
       ),
+      ams2: unavailable("source-not-provided", "AMS2 does not provide this projection."),
       lmu: unavailable(
         "source-not-provided",
         "LMU source frames expose current sector index but not completed current-lap sector splits.",
@@ -239,6 +241,7 @@ function addSectorDerivedVariables(
         "time native boundary crossings; final sector = lap time - prior sectors",
         "RaceIQ stores variable-length iRacing sector array.",
       ),
+      ams2: unavailable("source-not-provided", "AMS2 does not provide this projection."),
       lmu: unavailable(
         "source-not-provided",
         "LMU source frames do not expose completed sector split times.",
@@ -453,6 +456,13 @@ function addCrossSourceProjections(
       freshness: "continuous",
       description: "iRacing normalized packet retains SDK fuel litres.",
     },
+    ams2: {
+      kind: "direct",
+      nativeUnit: "L",
+      sources: ["TelemetryPacket.Fuel"],
+      freshness: "continuous",
+      description: "AMS2 normalized packet retains litres computed from native fuel fraction and capacity.",
+    },
     lmu: {
       kind: "direct",
       nativeUnit: "L",
@@ -476,7 +486,7 @@ function addCrossSourceProjections(
       "fraction * 100",
       "RaceIQ converts F1 fuel fraction to percentage.",
     );
-    for (const gameId of ["acc", "ac-evo", "lmu"] as const) {
+    for (const gameId of ["acc", "ac-evo", "lmu", "ams2"] as const) {
       fuelPercent.games[gameId] = derivedLink(
         "L",
         ["TelemetryPacket.Fuel", "TelemetryPacket.FuelCapacity"],

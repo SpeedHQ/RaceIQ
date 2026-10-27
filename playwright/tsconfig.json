@@ -12,5 +12,5 @@
     "forceConsistentCasingInFileNames": true,
     "esModuleInterop": true
   },
-  "include": ["config/**/*.ts", "support/**/*.ts", "tests/**/*.ts", "upgrade-smoke.config.ts", "stint-strategy.config.ts"]
+  "include": ["config/**/*.ts", "support/**/*.ts", "tests/**/*.ts", "../packages/lap-replay/test/e2e/**/*.ts", "../packages/sessions-page/test/e2e/**/*.ts", "../packages/session-analyse/test/e2e/**/*.ts", "../packages/game-lmu/test/e2e/browser/**/*.ts", "upgrade-smoke.config.ts", "stint-strategy.config.ts"]
 }

@@ -787,11 +787,11 @@
     },
     "build": {
       "cache": false,
-      "env": ["RACEIQ_FEATURE_F1_EXPERIMENTS", "RACEIQ_FEATURE_IRACING_ADAPTER"]
+      "env": ["RACEIQ_FEATURE_F1_EXPERIMENTS", "RACEIQ_FEATURE_IRACING_ADAPTER", "RACEIQ_FEATURE_AMS2_ADAPTER"]
     },
     "build:e2e": {
       "cache": false,
-      "env": ["RACEIQ_FEATURE_F1_EXPERIMENTS", "RACEIQ_FEATURE_IRACING_ADAPTER"]
+      "env": ["RACEIQ_FEATURE_F1_EXPERIMENTS", "RACEIQ_FEATURE_IRACING_ADAPTER", "RACEIQ_FEATURE_AMS2_ADAPTER"]
     },
     "test:e2e": {
       "dependsOn": ["e2e:impact", "@raceiq/tooling-build#build:e2e"],
@@ -827,6 +827,7 @@
         "$TURBO_ROOT$/apps/backend/src/**",
         "$TURBO_ROOT$/apps/backend/package.json",
         "$TURBO_ROOT$/scripts/playwright-ci.ts",
+        "$TURBO_ROOT$/scripts/run-browser-verification.ts",
         "$TURBO_ROOT$/scripts/build-browser.ts",
         "$TURBO_ROOT$/tsconfig.base.json"
       ],
@@ -839,7 +840,7 @@
     },
     "client#build": {
       "dependsOn": ["transit", "i18n:compile"],
-      "env": ["RACEIQ_FEATURE_F1_EXPERIMENTS", "RACEIQ_FEATURE_IRACING_ADAPTER"]
+      "env": ["RACEIQ_FEATURE_F1_EXPERIMENTS", "RACEIQ_FEATURE_IRACING_ADAPTER", "RACEIQ_FEATURE_AMS2_ADAPTER"]
     },
     "client#typecheck": {
       "dependsOn": ["transit", "i18n:compile"]

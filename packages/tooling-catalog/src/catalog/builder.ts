@@ -139,7 +139,7 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
     typesSource,
     typesTree,
     "TelemetryPacket",
-  ).filter((field) => !["gameId", "f1", "acc", "iracing", "lmu"].includes(field.name));
+  ).filter((field) => !["gameId", "f1", "acc", "iracing", "lmu", "ams2"].includes(field.name));
   const packetFieldNames = packetFields.map((field) => field.name);
   const packetSets = wheelFieldSets(packetFieldNames);
 
@@ -160,6 +160,7 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
     "ac-evo": [],
     iracing: [],
     lmu: [],
+    ams2: [],
   };
   for (const set of packetSets) {
     const semantic = normalizedSemantic(set);
@@ -318,6 +319,96 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
   }
   for (const field of lmuFields) {
     addExtensionVariable(variables, groups, inventories, "lmu", field);
+  }
+  const lmuOpponentChannels = [
+    ["identity.competitor.driver-name", "text", "driverName", false],
+    ["identity.competitor.car-name", "text", "vehicleName", false],
+    ["identity.competitor.vehicle-class", "text", "vehicleClass", false],
+    ["race.competitor.total-laps", "count", "totalLaps", false],
+    ["race.competitor.current-lap-number", "count", "totalLaps", true],
+    ["race.competitor.scoring-time", "s", "LMU.ScoringInfo.currentElapsedTime", false],
+    ["race.competitor.position", "count", "place", false],
+    ["race.competitor.class-position", "count", "place,vehicleClass", true],
+    ["race.competitor.current-sector", "index", "sector", false],
+    ["race.competitor.count-lap-flag", "index", "countLapFlag", false],
+    ["race.competitor.best-sector-1", "s", "bestSector1", false],
+    ["race.competitor.best-sector-2-cumulative", "s", "bestSector2", false],
+    ["race.competitor.last-sector-1", "s", "lastSector1", false],
+    ["race.competitor.last-sector-2-cumulative", "s", "lastSector2", false],
+    ["race.competitor.current-sector-1", "s", "currentSector1", false],
+    ["race.competitor.current-sector-2-cumulative", "s", "currentSector2", false],
+    ["race.competitor.best-lap-time", "s", "bestLapTime", false],
+    ["race.competitor.last-lap-time", "s", "lastLapTime", false],
+    ["race.competitor.lap-start-time", "s", "lapStartElapsedTime", false],
+    ["race.competitor.lap-distance", "m", "lapDistance", false],
+    ["race.competitor.time-into-lap-estimate", "s", "timeIntoLap", false],
+    ["race.competitor.estimated-lap-time", "s", "estimatedLapTime", false],
+    ["race.competitor.lap-fraction", "fraction", "lapDistance,LMU.ScoringInfo.lapDistance", true],
+    ["fuel.competitor.ambiguous-fuel-fraction", "fraction", "fuelFraction", true],
+    ["motion.competitor.position.x", "m", "position.x", false],
+    ["motion.competitor.position.y", "m", "position.y", false],
+    ["motion.competitor.position.z", "m", "position.z", false],
+    ["motion.competitor.local-velocity.x", "m/s", "localVelocity.x", false],
+    ["motion.competitor.local-velocity.y", "m/s", "localVelocity.y", false],
+    ["motion.competitor.local-velocity.z", "m/s", "localVelocity.z", false],
+    ["motion.competitor.speed", "m/s", "localVelocity", true],
+    ["motion.competitor.orientation", "matrix", "orientation", false],
+    ["race.competitor.pit-stop-count", "count", "pitStopCount", false],
+    ["race.competitor.time-behind-next", "s", "timeBehindNext", false],
+    ["race.competitor.time-behind-leader", "s", "timeBehindLeader", false],
+    ["race.competitor.laps-behind-next", "count", "lapsBehindNext", false],
+    ["race.competitor.laps-behind-leader", "count", "lapsBehindLeader", false],
+    ["race.competitor.in-pits", "boolean", "inPits", false],
+    ["race.competitor.pit-state", "enum", "pitState", false],
+    ["race.competitor.server-scored", "boolean", "serverScored", false],
+  ] as const;
+  for (const [id, unit, nativeFields, derived] of lmuOpponentChannels) {
+    const definition = SEMANTIC_DEFINITIONS[id];
+    if (!definition) throw new Error(`Missing semantic definition ${id}`);
+    const source = `LMU.ScoringSnapshot.${id}`;
+    const variable: CatalogVariable = variables.get(id) ?? {
+      id,
+      ...definition,
+      games: unavailableGames("No equivalent opponent scoring snapshot source is currently identified for this game."),
+    };
+    variable.games.lmu = {
+      kind: derived ? "derived" : "direct",
+      nativeUnit: unit,
+      sources: [source],
+      freshness: "continuous",
+      ...(derived
+        ? {
+            normalization:
+              id === "race.competitor.current-lap-number"
+                ? "completedLapsPlusOne: completed laps + 1"
+                : id === "race.competitor.class-position"
+                  ? "nativeClassPlace: count same-class places below native place + 1"
+                  : id === "race.competitor.lap-fraction"
+                    ? "distanceFraction: valid lap distance / valid track length"
+                    : id === "fuel.competitor.ambiguous-fuel-fraction"
+                      ? "byteFraction: native byte / 255"
+                      : id === "motion.competitor.speed"
+                        ? "localVelocityMagnitude: hypot of finite velocity components"
+                        : undefined,
+          }
+        : {}),
+      description: `${derived ? "Derived from" : "Read from"} native LMU scoring data: ${nativeFields}.`,
+      provenance: { origin: derived ? "derivation" : "parser", artifact: "packages/capture-formats/src/lmu/opponent-snapshot.ts" },
+    };
+    variables.set(id, variable);
+    attachChild(groups, definition.parentId, id);
+    addSource(inventories, "lmu", {
+      path: source,
+      label: definition.label,
+      unit,
+      dataType: unit === "text" ? "string" : unit === "matrix" ? "number[]" : unit === "boolean" ? "boolean" : "number",
+      count: unit === "matrix" ? 9 : 1,
+      description: `${definition.description} Per-competitor scoring snapshot.`,
+      semanticId: id,
+      sourceKind: "extension",
+      recordedByRaceIQ: true,
+      retention: "exact",
+    });
   }
   for (const gameId of ["acc", "ac-evo"] as const) {
     for (const section of getSchemaForGame(gameId)) {
@@ -556,6 +647,22 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
 
   addCrossSourceProjections(variables, groups);
   addSectorDerivedVariables(variables, groups);
+
+  for (const variable of variables.values()) {
+    variable.games.ams2 ??= {kind: "unavailable", reason: "source-not-provided", description: "AMS2 stable shared-memory prefix does not provide this semantic."};
+  }
+  for (const [semantic, path, unit] of [
+    ["timing.track-length", "ams2.trackLengthM", "m"],
+    ["race.on-pit-road", "ams2.inPits", "boolean"],
+    ["session.session-type", "ams2.sessionType", "text"],
+  ] as const) {
+    const variable = variables.get(semantic);
+    if (variable) {
+      variable.games.ams2 = {kind: "direct", nativeUnit: unit, sources: [path], freshness: "continuous", description: "Recorded AMS2 shared-memory value"};
+      // Other game extension paths are read via their own mappings; they are not packet fields.
+      addSource(inventories, "ams2", {path, label: path, semanticId: semantic, unit, dataType: unit === "boolean" ? "boolean" : unit === "text" ? "string" : "number", description: "AMS2 recorded shared-memory extension", sourceKind: "extension", recordedByRaceIQ: true, retention: "exact"});
+    }
+  }
 
   for (const group of groups.values()) {
     if (group.parentId) attachChild(groups, group.parentId, group.id);

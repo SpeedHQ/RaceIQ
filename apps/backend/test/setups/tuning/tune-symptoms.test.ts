@@ -1,9 +1,9 @@
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { describe, expect, test } from "bun:test";
 import type { Corner } from "@raceiq/backend-core/lap-analysis/corners"
 import { formatTireTempSymptoms, tireTempSymptoms } from "@raceiq/backend-core/ai/tune-tire-symptoms";
 import { telemetryToSymptoms } from "@raceiq/backend-core/ai/tune-symptoms";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { formatTireTempGuide } from "@raceiq/backend-core/ai/tire-temp-guide";
 import { getTireTempGuide } from "@raceiq/shared/racing/live/tire-thresholds";
 import { buildKunosAiContext } from "@raceiq/backend-core/games/kunos/ai-context";
@@ -13,6 +13,7 @@ initGameAdapters();
 /** Minimal packet with a distance and optional per-corner slip overrides. */
 function packet(distance: number, o: Partial<TelemetryPacket> = {}): TelemetryPacket {
   return {
+    gameId: "fm-2023",
     DistanceTraveled: distance,
     Speed: 100,
     Brake: 0,
@@ -147,4 +148,17 @@ describe("tire temperature guide facts", () => {
     expect(context).toContain("optimal tire carcass temperature");
     expect(context).toContain("dry_compound: 70-100 °C");
   });
+});
+
+
+test("AMS2 lap symptoms omit uncalibrated suspension bottoming and damper claims", () => {
+  const packets = Array.from({ length: 31 }, (_, i) => packet(i * 10, {
+    gameId: "ams2", NormSuspensionTravelFL: 1, NormSuspensionTravelFR: 1,
+    NormSuspensionTravelRL: 1, NormSuspensionTravelRR: 1,
+  }));
+  const symptoms = telemetryToSymptoms(packets, [{ index: 1, label: "T1", distanceStart: 100, distanceEnd: 200 }]);
+  expect(symptoms.corners).toHaveLength(1);
+  expect(symptoms.corners[0].phases.every(phase => !phase.bottoming)).toBe(true);
+  expect(symptoms.aggregate.bottomingCorners).toEqual([]);
+  expect(symptoms.aggregate.damper).toBeNull();
 });

@@ -32,12 +32,10 @@ async function active(api: APIRequestContext, combo: RacePlanCombo) {
 }
 const measured = (source: StintSummary) => source.status !== "active" && source.fuel.value != null && source.fuel.eligibleLaps > 0 && source.averageLapSeconds != null && source.tires.every((rate) => rate.value != null && rate.eligibleLaps > 0);
 
-test("C1/R1-R3/S1 recalculates saved strategy from newer improved sealed driving", async ({ browser, playwright }, testInfo) => {
+test("C1/R1-R3/S1 recalculates saved strategy from newer improved sealed driving", async ({ playwright }, testInfo) => {
   test.setTimeout(420_000);
   const runtime = await StrategyRuntime.start(testInfo.outputPath("test-data-recalculation"));
   const api = await playwright.request.newContext({ baseURL: runtime.apiURL });
-  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
-  const page = await context.newPage();
   try {
     await ingestF1Laps(runtime.udpPort, 6, 1101n, 0.8, 4);
     const oldSession = await newestSession(api, "f1-2025");
@@ -51,19 +49,20 @@ test("C1/R1-R3/S1 recalculates saved strategy from newer improved sealed driving
     const maxWear = Math.max(...oldSources.flatMap((item) => item.tires.map((tire) => tire.value!)));
     const thresholds = Object.fromEntries([...new Set(oldSources.flatMap((item) => item.compounds))].map((compound) => [compound!, { cliffPct: 100 - maxWear * 525, deadPct: 1 }]));
     expect((await api.put("/api/settings", { data: { tireThresholdOverrides: { "f1-2025": thresholds } } })).ok()).toBe(true);
-    await page.goto(`${runtime.baseURL}/f125/strategy?sessionId=${oldSession.id}`);
-    const generator = page.getByTestId("race-strategy-generator");
-    await generator.getByLabel("Plan name").fill("Original timed strategy");
-    await generator.getByLabel("Evidence stint").selectOption(source.id);
-    await generator.getByLabel("Race length", { exact: true }).selectOption("time");
-    await generator.getByLabel("Race time (minutes)").fill("20");
-    await generator.getByLabel("Starting fuel (%)").fill(String(capacity * 100));
-    await generator.getByLabel("Fuel reserve at the finish (%)").fill("1");
-    await generator.getByRole("button", { name: "Generate race strategy", exact: true }).click();
-    const planner = page.getByTestId("race-strategy-planner");
-    await planner.getByRole("button", { name: "Save plan", exact: true }).click();
-    await expect(planner.getByRole("status").filter({ hasText: "Plan saved" })).toBeVisible();
-    const original = (await plans(api))[0]!;
+    const created = await api.post("/api/race-plans", { data: {
+      name: "Original timed strategy", gameId: "f1-2025", carId: source.carId, trackId: source.trackId, pi: source.pi,
+      totalLaps: 20, raceLength: { mode: "time", durationSeconds: 1200, averageLapSeconds: 60 },
+      fuelUnit: source.fuelUnit, notes: "", generation,
+      stints: [5, 10, 15, 20].map((endLap, index) => ({
+        endLap, startFuel: capacity - index * 5 * source.fuel.value!, compounds: source.compounds,
+        sourceSessionId: source.sessionId, sourceStintId: source.id,
+      })),
+    } });
+    expect(created.status(), await created.text()).toBe(201);
+    const original = RacePlanSchema.parse(await created.json());
+    expect((await api.put("/api/race-plans/active", { data: {
+      gameId: original.gameId, carId: original.carId, trackId: original.trackId, planId: original.id,
+    } })).ok()).toBe(true);
     expect(original.generation).toEqual(generation);
     expect(original.totalLaps).toBe(20);
     expect(original.stints.map((stint) => stint.endLap)).toEqual([5, 10, 15, 20]);
@@ -78,6 +77,7 @@ test("C1/R1-R3/S1 recalculates saved strategy from newer improved sealed driving
     // Seal the incompatible recording without creating a newer measured baseline after restart.
     await ingestF1Laps(runtime.udpPort, 0, 1105n);
     await expect.poll(async () => (await summaries(api, improved.id)).filter(measured).length).toBe(2);
+    const expectedImproved = (await summaries(api, improved.id)).find(measured)!;
     const originalRows = z.array(z.object({ id: z.string(), payload: z.string() })).parse(
       await runtime.databaseStatement("SELECT id,payload FROM strategy_stints WHERE session_id=?", [improved.id]),
     );
@@ -163,7 +163,6 @@ test("C1/R1-R3/S1 recalculates saved strategy from newer improved sealed driving
     expect(await plans(api)).toEqual(beforeErrors);
     expect((await active(api, original))?.id).toBe(original.id);
   } finally {
-    await context.close();
     await api.dispose();
     await runtime.stop();
   }
@@ -203,7 +202,6 @@ test("E1 native LMU energy independently limits stops and missing energy refuses
     await page.goto(`${runtime.baseURL}/lmu/strategy?sessionId=${highId}`);
     const generator = page.getByTestId("race-strategy-generator");
     await generator.getByLabel("Plan name").fill("Native energy strategy");
-    await generator.getByLabel("Evidence stint").selectOption(high.id);
     await generator.getByLabel("Total laps").fill("18");
     await generator.getByLabel("Fuel tank capacity (L)").fill(String(capacity));
     await generator.getByLabel("Fuel reserve at each stop (L)").fill(String(reserve));

@@ -1,15 +1,12 @@
 import { getGame } from "@raceiq/shared/games/registry"
-import type { LapDetectorCoverage, LapInsight } from "@raceiq/analysis-core/racing/analysis/laps/insights/types"
 import type { GameId } from "@raceiq/shared/games/ids";
 import { Check, Copy, Info } from "lucide-react";
 import { useCallback, useState } from "react";
 import type { useUnits } from "../../hooks/useUnits";
 import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import { m } from "../../paraglide/messages";
-import { InsightPanel } from "../InsightPanel";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { AnalyseDynamicsPanel } from "./AnalyseDynamicsPanel";
 import { AnalyseF1ErsPanel } from "./AnalyseF1ErsPanel";
 import { MetricsPanel } from "./AnalyseMetricsPanel";
@@ -25,17 +22,14 @@ interface WearRate {
   RR: number;
 }
 interface Props {
-  sidebarTab: "live" | "insights";
-  onSidebarTabChange: (tab: "live" | "insights") => void;
   currentFrame: SemanticAnalysisFrame | null;
   packetNumber: number;
   startFuel: number | undefined;
   gameId: GameId;
   units: ReturnType<typeof useUnits>;
   wearRate: WearRate | null;
-  lapInsights: LapInsight[];
-  detectorCoverage: LapDetectorCoverage[];
-  onJumpToFrame: (idx: number) => void;
+  estimatedSlipAngles?: readonly [number | null, number | null, number | null, number | null];
+  angleDisclosure?: string;
 }
 function UnavailableFeaturesTooltip({ frame, gameId }: { frame: SemanticAnalysisFrame; gameId: GameId }) {
   const [open, setOpen] = useState(false);
@@ -102,7 +96,7 @@ export function buildAnalyseClipboardJson({ frame, packetNumber }: { frame: Sema
   }, null, 2);
 }
 
-export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentFrame, packetNumber, startFuel, gameId, units, wearRate, lapInsights, detectorCoverage, onJumpToFrame }: Props) {
+export function AnalyseDataContent({ currentFrame, packetNumber, startFuel, gameId, units, wearRate, estimatedSlipAngles, angleDisclosure }: Props) {
   const [copied, setCopied] = useState(false);
   const handleCopyValues = useCallback(() => {
     if (!currentFrame) return;
@@ -111,23 +105,7 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentFrame,
     setTimeout(() => setCopied(false), 1500);
   }, [currentFrame, packetNumber]);
   return (
-    <Tabs
-      value={sidebarTab}
-      onValueChange={(value) => {
-        if (value === "live" || value === "insights") onSidebarTabChange(value);
-      }}
-      className="flex w-full shrink-0 flex-col border-t border-app-border bg-app-bg @5xl/workspace:h-full @5xl/workspace:w-[clamp(18rem,30cqw,22rem)] @5xl/workspace:border-t-0 @5xl/workspace:border-l"
-    >
-      <TabsList variant="underline" className="w-full shrink-0">
-        <TabsTrigger value="live" className="flex-1">
-          {m.analyse_tab_data()}
-        </TabsTrigger>
-        <TabsTrigger value="insights" className="flex-1">
-          {m.analyse_tab_insights()}
-          {lapInsights.length > 0 && <span className="ml-1 rounded-full bg-app-border-input px-1.5 text-app-micro text-app-text">{lapInsights.length}</span>}
-        </TabsTrigger>
-      </TabsList>
-      <TabsContent value="live" className="flex flex-col @5xl/workspace:min-h-0 @5xl/workspace:flex-1 @5xl/workspace:overflow-x-hidden @5xl/workspace:overflow-y-auto">
+    <>
         <div className="flex shrink-0 items-center justify-between px-3 pt-3 pb-1">
           <h3 className="mb-0 flex items-center gap-1 text-app-caption font-semibold text-app-text-muted uppercase tracking-wider">
             {m.analyse_metrics_at_cursor()}
@@ -148,17 +126,13 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentFrame,
               <div className="mt-3 mb-2 border-t border-app-border pt-2">
                 <h3 className="text-app-caption font-semibold text-app-text-muted uppercase tracking-wider">{m.analyse_section_dynamics()}</h3>
               </div>
-              <AnalyseDynamicsPanel frame={currentFrame} gameId={gameId} units={units} />
+              <AnalyseDynamicsPanel frame={currentFrame} gameId={gameId} units={units} estimatedSlipAngles={estimatedSlipAngles} angleDisclosure={angleDisclosure} />
               <AnalyseTireWheelsPanel frame={currentFrame} gameId={gameId} units={units} wearRate={wearRate} />
               <AnalyseSuspensionPanel frame={currentFrame} gameId={gameId} />
               {getGame(gameId).telemetry.ers && <AnalyseF1ErsPanel frame={currentFrame} />}
             </>
           )}
         </div>
-      </TabsContent>
-      <TabsContent value="insights" className="min-h-0 flex-1 overflow-y-auto p-3">
-        <InsightPanel insights={lapInsights} detectorCoverage={detectorCoverage} onJumpToFrame={onJumpToFrame} />
-      </TabsContent>
-    </Tabs>
+    </>
   );
 }

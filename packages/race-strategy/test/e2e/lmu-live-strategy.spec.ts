@@ -127,6 +127,8 @@ test("LMU-L1-L4 native live energy independently limits windows and actual servi
     const transitioned = await readStints(live.id);
     expect(transitioned.map((stint) => stint.compatibility.conditions.weather)).toEqual(expect.arrayContaining(["dry", "wet"]));
     const query = `/api/race-plans/generation-evidence?gameId=lmu&carId=${encodeURIComponent(reference.carId)}&trackId=${encodeURIComponent(reference.trackId)}`;
+    await expect.poll(async () => RacePlanGenerationEvidenceResponseSchema.parse(
+      await (await api.get(`${query}&weather=wet`)).json()).baseline?.sources.some((stint) => stint.sessionId === live.id)).toBe(true);
     const dry = RacePlanGenerationEvidenceResponseSchema.parse(await (await api.get(`${query}&weather=dry`)).json()).baseline;
     const wet = RacePlanGenerationEvidenceResponseSchema.parse(await (await api.get(`${query}&weather=wet`)).json()).baseline;
     expect(dry?.sources.every((stint) => stint.compatibility.conditions.weather === "dry")).toBe(true);

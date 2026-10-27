@@ -2,7 +2,24 @@ import type { GameId } from "@raceiq/shared/games/ids";
 
 export const SEED_MARKER = "raceiq-demo-seed-v1";
 export const PROFILE_NAME = "RaceIQ Demo Driver";
-export const DEFAULT_GAMES: GameId[] = ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing", "lmu"];
+export const DEFAULT_GAMES: GameId[] = ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing", "ams2", "lmu"];
+export const LMU_MULTIPLAYER_FIXTURE_PARTS = [
+  "packages/game-lmu/test/fixtures/laps/lmu-2026-10-22T21-59-41-929Z-f9c5a07c-aa24-42bb-a574-50784313fe93.bin.gz.part01",
+  "packages/game-lmu/test/fixtures/laps/lmu-2026-10-22T21-59-41-929Z-f9c5a07c-aa24-42bb-a574-50784313fe93.bin.gz.part02",
+  "packages/game-lmu/test/fixtures/laps/lmu-2026-10-22T21-59-41-929Z-f9c5a07c-aa24-42bb-a574-50784313fe93.bin.gz.part03",
+  "packages/game-lmu/test/fixtures/laps/lmu-2026-10-22T21-59-41-929Z-f9c5a07c-aa24-42bb-a574-50784313fe93.bin.gz.part04",
+  "packages/game-lmu/test/fixtures/laps/lmu-2026-10-22T21-59-41-929Z-f9c5a07c-aa24-42bb-a574-50784313fe93.bin.gz.part05",
+  "packages/game-lmu/test/fixtures/laps/lmu-2026-10-22T21-59-41-929Z-f9c5a07c-aa24-42bb-a574-50784313fe93.bin.gz.part06",
+  "packages/game-lmu/test/fixtures/laps/lmu-2026-10-22T21-59-41-929Z-f9c5a07c-aa24-42bb-a574-50784313fe93.bin.gz.part07",
+  "packages/game-lmu/test/fixtures/laps/lmu-2026-10-22T21-59-41-929Z-f9c5a07c-aa24-42bb-a574-50784313fe93.bin.gz.part08",
+  "packages/game-lmu/test/fixtures/laps/lmu-2026-10-22T21-59-41-929Z-f9c5a07c-aa24-42bb-a574-50784313fe93.bin.gz.part09",
+  "packages/game-lmu/test/fixtures/laps/lmu-2026-10-22T21-59-41-929Z-f9c5a07c-aa24-42bb-a574-50784313fe93.bin.gz.part10",
+  "packages/game-lmu/test/fixtures/laps/lmu-2026-10-22T21-59-41-929Z-f9c5a07c-aa24-42bb-a574-50784313fe93.bin.gz.part11",
+] as const;
+export const LMU_OPPONENT_COLD_LOAD_FIXTURE_PARTS = [
+  "packages/game-lmu/test/fixtures/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part1",
+  "packages/game-lmu/test/fixtures/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part2",
+] as const;
 export const FIXTURES: Record<GameId, string[]> = {
   "fm-2023": [
     "test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz",
@@ -12,33 +29,102 @@ export const FIXTURES: Record<GameId, string[]> = {
   acc: ["test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz"],
   "ac-evo": ["test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz"],
   iracing: ["test/artifacts/sessions/iracing-road-america-gt3.bin.gz"],
-  lmu: [
-    "test/artifacts/sessions/lmu-spa-iron-lynx-gte.bin.gz",
-    "test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part1",
-    "test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part2",
-  ],
+  ams2: ["test/artifacts/sessions/ams2-race-pit-stop.bin.gz"],
+  lmu: [...LMU_MULTIPLAYER_FIXTURE_PARTS],
 };
 
-export type SeedOptions = { clean: boolean; reset: boolean; force: boolean; legacyRecordings: boolean; games: GameId[]; fixtures?: string[]; excludedFixtures: string[] };
+export type SeedOptions = {
+  clean: boolean;
+  reset: boolean;
+  force: boolean;
+  legacyRecordings: boolean;
+  games: GameId[];
+  fixtures?: string[];
+  excludedFixtures: string[];
+};
 
-export function parseOptions(argv = process.argv): SeedOptions {
-  const clean = argv.includes("--clean");
-  const reset = argv.includes("--reset");
-  const force = argv.includes("--force");
-  const legacyRecordings = argv.includes("--legacy-recordings");
-  const gamesArg = argv.find((arg) => arg.startsWith("--games="))?.slice("--games=".length)
-    ?? (argv.includes("--games") ? argv[argv.indexOf("--games") + 1] : undefined);
-  const games = (gamesArg ? gamesArg.split(",") : DEFAULT_GAMES).filter((game): game is GameId => DEFAULT_GAMES.includes(game as GameId));
-  if (games.length === 0) throw new Error("--games must include at least one of fm-2023,f1-2025,acc,ac-evo,iracing,lmu");
-  const fixturesArg = argv.find((arg) => arg.startsWith("--fixtures="))?.slice("--fixtures=".length);
-  if (fixturesArg !== undefined && (games.length !== 1 || !fixturesArg)) {
+function parseGames(value: string | undefined): GameId[] {
+  let requestedGames: string[] = DEFAULT_GAMES;
+  if (value) requestedGames = value.split(",");
+  const games = requestedGames.filter((game): game is GameId => DEFAULT_GAMES.includes(game as GameId));
+
+  if (games.length === 0) {
+    throw new Error(`--games must include at least one of ${DEFAULT_GAMES.join(",")}`);
+  }
+
+  return games;
+}
+
+function parseFixtures(value: string | undefined, games: GameId[]): string[] | undefined {
+  if (value === undefined) return undefined;
+
+  if (games.length !== 1 || !value) {
     throw new Error("--fixtures requires one --games value and comma-separated recording paths");
   }
-  const excludedFixtures = argv.filter((arg) => arg.startsWith("--exclude-fixture="))
-    .map((arg) => arg.slice("--exclude-fixture=".length));
-  const knownFixtures = new Set(Object.values(FIXTURES).flat());
-  if (excludedFixtures.some((fixture) => !fixture || !knownFixtures.has(fixture))) {
+
+  return value.split(",");
+}
+
+function parseExcludedFixtures(fixtures: string[]): string[] {
+  const knownFixtures = Object.values(FIXTURES).flat();
+
+  if (fixtures.some((fixture) => !fixture || !knownFixtures.includes(fixture))) {
     throw new Error("--exclude-fixture requires a known seed fixture path");
   }
-  return { clean, reset, force, legacyRecordings, games, fixtures: fixturesArg?.split(","), excludedFixtures };
+
+  return fixtures;
+}
+
+export function parseOptions(argv = process.argv): SeedOptions {
+  let clean = false;
+  let reset = false;
+  let force = false;
+  let legacyRecordings = false;
+  let inlineGames: string | undefined;
+  let separateGames: string | undefined;
+  let fixturePaths: string | undefined;
+  const excludedPaths: string[] = [];
+
+  for (const [index, argument] of argv.entries()) {
+    const equalsIndex = argument.indexOf("=");
+    let option = argument;
+    let value = "";
+    if (equalsIndex !== -1) {
+      option = argument.slice(0, equalsIndex + 1);
+      value = argument.slice(equalsIndex + 1);
+    }
+
+    switch (option) {
+      case "--clean":
+        clean = true;
+        break;
+      case "--reset":
+        reset = true;
+        break;
+      case "--force":
+        force = true;
+        break;
+      case "--legacy-recordings":
+        legacyRecordings = true;
+        break;
+      case "--games":
+        separateGames ??= argv[index + 1];
+        break;
+      case "--games=":
+        inlineGames ??= value;
+        break;
+      case "--fixtures=":
+        fixturePaths ??= value;
+        break;
+      case "--exclude-fixture=":
+        excludedPaths.push(value);
+        break;
+    }
+  }
+
+  const games = parseGames(inlineGames ?? separateGames);
+  const fixtures = parseFixtures(fixturePaths, games);
+  const excludedFixtures = parseExcludedFixtures(excludedPaths);
+
+  return { clean, reset, force, legacyRecordings, games, fixtures, excludedFixtures };
 }

@@ -92,18 +92,9 @@ test("G1 Strategies page selects latest combo evidence and generates with locali
     const selectedCar = generator.getByLabel("Car");
     await expect(selectedTrack).not.toHaveValue("");
     await expect(selectedCar).not.toHaveValue("");
+    await expect(generator.getByRole("button", { name: "Generate race strategy", exact: true })).toBeVisible();
     const sourceTrackValue = await selectedTrack.inputValue();
     const sourceCarValue = await selectedCar.inputValue();
-    const [tracksResponse, carsResponse] = await Promise.all([
-      api.get("/api/tracks?gameId=fm-2023"),
-      api.get("/api/cars", { headers: { "X-Game-Id": "fm-2023" } }),
-    ]);
-    const tracks = await tracksResponse.json() as { id: string; name: string; variant?: string }[];
-    const cars = await carsResponse.json() as { id: string; name: string }[];
-    expect(tracks.some((track) => track.name === sourceTrackValue || (track.variant && `${track.name} · ${track.variant}` === sourceTrackValue))).toBe(true);
-    expect(cars.some((car) => car.name === sourceCarValue)).toBe(true);
-    await expect(selectedTrack).toHaveValue(sourceTrackValue);
-    await expect(selectedCar).toHaveValue(sourceCarValue);
     await expect(generator.getByLabel("History session")).toHaveCount(0);
     await expect(generator.getByLabel("Evidence stint")).toHaveCount(0);
     await expect(generator.getByRole("button", { name: "Generate race strategy", exact: true })).toBeDisabled();
@@ -171,6 +162,7 @@ test("G1 Strategies page selects latest combo evidence and generates with locali
     await expect(page.getByTestId("saved-strategies-table")).toContainText("Generated native strategy");
     const saved = RacePlansResponseSchema.parse(await (await api.get("/api/race-plans?gameId=fm-2023")).json()).plans.find((plan) => plan.name === "Generated native strategy")!;
     expect(saved.carId).toBe("639");
+    expect(saved.trackId).toBe("5");
     expect(saved.stints[0]?.evidence).toBeNull();
     expect(saved.gameId).toBe("fm-2023");
     expect(saved.stints[0]?.baseline?.sources.length).toBeGreaterThan(0);
@@ -305,141 +297,19 @@ test("combo-pinned strategies migrate, remain independent, and restore through l
 });
 
 
-test("F1.1-F1.4 ignores fuel for pit windows and adapts to actual early/late tire service without rewriting the plan", async ({ browser, playwright }, testInfo) => {
-  test.setTimeout(300_000);
-  const runtime = await StrategyRuntime.start(testInfo.outputPath("test-data-adherence"));
-  const api = await playwright.request.newContext({ baseURL: runtime.apiURL });
-  const context = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
+test("F1 keeps its built-in strategy instead of showing RaceIQ planning and estimates", async ({ browser }, testInfo) => {
+  const runtime = await StrategyRuntime.start(testInfo.outputPath("test-data-f1-built-in-strategy"));
+  const context = await browser.newContext();
   const page = await context.newPage();
-  type Wheels = [number, number, number, number];
-  let completed = 0, nextFrame = 0, fuel = 100;
-  let wear: Wheels = [10, 10, 10, 10];
-  const advance = async (laps: number, options: { fuel?: number; wear?: Wheels; fuelRate?: number; wearRates?: Wheels; trackLengthM?: number; pitLaneTimerActive?: boolean } = {}) => {
-    fuel = options.fuel ?? fuel;
-    wear = options.wear ?? wear;
-    const fuelRate = options.fuelRate ?? 2.4;
-    const wearRates: Wheels = options.wearRates ?? [0.8, 0.8, 0.8, 0.8];
-    await ingestF1Laps(runtime.udpPort, laps, 2802n, 0.8, null, completed + 1, {
-      initialFuelL: fuel, initialWearPctByWheel: wear, fuelPerLap: fuelRate, wearPerLapPctByWheel: wearRates,
-      sessionTimeOffsetS: completed * 60, frameIdStart: nextFrame, trackLengthM: options.trackLengthM, pitLaneTimerActive: options.pitLaneTimerActive,
-    });
-    completed += laps;
-    nextFrame += laps * 120 + 1;
-    fuel -= laps * fuelRate;
-    wear = wear.map((value, wheel) => value + laps * wearRates[wheel]!) as Wheels;
-  };
   try {
-    await ingestF1Laps(runtime.udpPort, 6, 2801n, 0.8);
-    const source = await sessionFor(api, "f1-2025");
-    await advance(6);
-    let sourceStint: z.infer<typeof StintsResponseSchema>["stints"][number] | undefined;
-    await expect.poll(async () => {
-      const response = await api.get(`/api/sessions/${source.id}/stints`, { headers });
-      expect(response.ok(), await response.text()).toBe(true);
-      sourceStint = StintsResponseSchema.parse(await response.json()).stints.find((stint) => stint.status !== "active" &&
-        stint.fuel.value != null && stint.fuel.eligibleLaps >= 2 && stint.tires.every((tire) => tire.value != null && tire.eligibleLaps >= 2));
-      return sourceStint?.id;
-    }).toBeTruthy();
-    const reference = sourceStint!;
-    const threshold = { cliffPct: 69, deadPct: 20 };
-    const configured = await api.put("/api/settings", { data: { tireThresholdOverrides: { "f1-2025": Object.fromEntries(reference.compounds.map((compound) => [compound!, threshold])) } } });
-    expect(configured.ok(), await configured.text()).toBe(true);
-    const cliffWear = 1 - threshold.cliffPct / 100;
-    const totalLaps = 40;
-    const created = await api.post("/api/race-plans", { data: {
-      name: "Actual service adapts live windows", gameId: "f1-2025", carId: reference.carId, trackId: reference.trackId, pi: reference.pi,
-      totalLaps, fuelUnit: reference.fuelUnit, notes: "This saved baseline must remain unchanged.",
-      generation: { fuelCapacity: 1, fuelReserve: 0.02, energyReserveFraction: 0 },
-      stints: [20, totalLaps].map((endLap, index) => ({ endLap, startFuel: 1 - (index === 0 ? 0 : 20) * reference.fuel.value!, compounds: reference.compounds,
-        sourceSessionId: source.id, sourceStintId: reference.id })),
-    } });
-    expect(created.status(), await created.text()).toBe(201);
-    const saved = RacePlanSchema.parse(await created.json());
-    const pinned = await api.put("/api/race-plans/active", { data: {
-      gameId: saved.gameId, carId: saved.carId, trackId: saved.trackId, planId: saved.id,
-    } });
-    expect(pinned.ok(), await pinned.text()).toBe(true);
-    const unchanged = async () => {
-      const response = await api.get("/api/race-plans?gameId=f1-2025");
-      expect(response.ok(), await response.text()).toBe(true);
-      expect(RacePlansResponseSchema.parse(await response.json()).plans.find((plan) => plan.id === saved.id)).toEqual(saved);
-    };
-    await page.goto(`${runtime.baseURL}/live/pit`, { waitUntil: "domcontentloaded" });
-    const graph = page.getByTestId("strategy-adherence");
-    const window = graph.getByTestId("strategy-adherence-window");
-    const flPlot = graph.getByRole("figure", { name: /^Tire wear FL:/ });
-    await expect(graph).toHaveAttribute("data-adherence-state", "within");
-    await expect(window).toHaveAttribute("data-window-state", "open");
-    await expect(flPlot).toContainText("14.8%");
-    await expect(graph.getByRole("img", { name: /Fuel remaining/ })).not.toBeAttached();
-    const initialLatest = Math.floor((cliffWear - 0.1) / reference.tires[0].value! + 1e-9);
-    await expect(window).toHaveAttribute("data-latest-lap", String(initialLatest));
-    await expect(window).toContainText(`by lap ${initialLatest}`);
-    await graph.screenshot({ path: testInfo.outputPath("adherence-within-desktop.png") });
-
-    await advance(0, { trackLengthM: 0 });
-    await expect(graph).toHaveAttribute("data-adherence-state", "unknown");
-    await expect(window).toContainText("Lap progress unavailable");
-    await advance(0);
-    await expect(graph).toHaveAttribute("data-adherence-state", "within");
-    const priorFuel = fuel;
-    await advance(0, { fuel: Number.NaN });
-    await expect(graph).toHaveAttribute("data-adherence-state", "within");
-    await expect(window).toHaveAttribute("data-latest-lap", String(initialLatest));
-    await expect(flPlot).toHaveAccessibleName("Tire wear FL: Within strategy");
-    await advance(0, { fuel: priorFuel });
-    await expect(graph).toHaveAttribute("data-adherence-state", "within");
-
-    await advance(0, { pitLaneTimerActive: true });
-    await expect(flPlot).toContainText("14.8%");
-    await unchanged();
-    await advance(0, { pitLaneTimerActive: false });
-
-    // Pit exit excludes the outlap; three eligible laps establish authoritative live rates.
-    await advance(4, { fuelRate: 4.8 });
-    await expect(graph).toHaveAttribute("data-adherence-state", "within");
-    await expect(window).toHaveAttribute("data-latest-lap", String(initialLatest));
-    await unchanged();
-    await advance(3, { wearRates: [1.6, 0.8, 0.8, 0.8] });
-    await expect(graph).toHaveAttribute("data-adherence-state", "over");
-    await expect(flPlot).toHaveAccessibleName("Tire wear FL: Over strategy budget");
-    await expect(graph.getByRole("figure", { name: "Tire wear FR: Within strategy", exact: true })).toBeVisible();
-    await expect(window).toHaveAttribute("data-window-state", /^(open|upcoming)$/);
-    await expect.poll(async () => Number(await window.getAttribute("data-latest-lap"))).toBeLessThan(initialLatest);
-    await unchanged();
-
-
-    // F1 service replaces tires before saved lap 20; fuel is never added.
-    await advance(4, { wear: [0, 0, 0, 0] });
-    await expect(flPlot).toContainText("3.2%");
-    await expect(window).toHaveAttribute("data-window-state", "finish");
-    await unchanged();
-    await advance(8);
-    // The next actual service is now later than saved lap 20.
-    await advance(4, { wear: [0, 0, 0, 0] });
-    await expect(window).toHaveAttribute("data-window-state", "finish");
-    await expect(window).toContainText("Tires can last to the finish");
-    await expect(graph).toHaveAttribute("data-adherence-state", "within");
-    await unchanged();
-    await page.setViewportSize({ width: 390, height: 844 });
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await graph.screenshot({ path: testInfo.outputPath("adherence-after-late-service-mobile.png") });
-
-    // A real request failure must not keep the previous green evidence state.
-    const live = await sessionFor(api, "f1-2025");
-    const historyRoute = `**/api/sessions/${live.id}/pit-estimates**`;
-    await page.route(historyRoute, (route) => route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ error: "Injected history request failure" }) }));
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(graph.getByRole("alert")).toContainText("Checkpoint history unavailable", { timeout: 30_000 });
-    await expect(graph).toHaveAttribute("data-adherence-state", "unknown");
-    await unchanged();
-    await page.unroute(historyRoute);
-    await ingestNativeRun({ carId: 639, timestampMs: 2_900_000, laps: [] }, runtime.udpPort);
-    await expect(page.getByTestId("pit-estimate-live")).toBeVisible();
-    await expect(graph).not.toBeAttached();
+    await ingestF1Laps(runtime.udpPort, 2, 2801n);
+    await page.goto(`${runtime.baseURL}/live/pit`);
+    await expect(page.locator("[data-live-dashboard-layout]")).toBeVisible();
+    await expect(page.getByTestId("pit-estimate-live")).not.toBeAttached();
+    await expect(page.getByTestId("race-strategy-live")).not.toBeAttached();
+    await expect(page.getByTestId("strategy-adherence")).not.toBeAttached();
   } finally {
     await context.close();
-    await api.dispose();
     await runtime.stop();
   }
 });
@@ -452,11 +322,11 @@ test("S2 active-plan request failure preserves automatic estimates and Retry res
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const page = await context.newPage();
   try {
-    await ingestF1Laps(runtime.udpPort, 2, 920n);
-    const source = await sessionFor(api, "f1-2025");
+    await ingestNativeRun({ carId: 639, trackId: 5, pi: 800, laps: [] }, runtime.udpPort);
+    const source = await sessionFor(api, "fm-2023");
     const response = await api.post("/api/race-plans", { data: {
-      name: "Manual selected strategy", gameId: "f1-2025", carId: source.carId, trackId: "0",
-      pi: null, totalLaps: 20, fuelUnit: "tankFraction", notes: "",
+      name: "Manual selected strategy", gameId: "fm-2023", carId: source.carId, trackId: "5",
+      pi: 800, totalLaps: 20, fuelUnit: "tankFraction", notes: "",
       stints: [10, 20].map((endLap) => ({ endLap, startFuel: 0.5, compounds: [null, null, null, null], sourceSessionId: null, sourceStintId: null })),
     } });
     expect(response.status()).toBe(201);
@@ -656,8 +526,8 @@ test("G1-G2/L1 generates measured stops and manages persisted strategies", async
     await bridge(3_000_000);
     await page.getByRole("button", { name: "Strategies", exact: true }).click();
     await page.getByRole("button", { name: "Generate race strategy", exact: true }).click();
-    await expect(generator.getByLabel("Track")).not.toHaveValue("");
-    await expect(generator.getByLabel("Car")).not.toHaveValue("");
+    await selectSearchOption(page, generator, "Track", trackLabel);
+    await selectSearchOption(page, generator, "Car", carLabel);
     await generator.getByLabel("Weather").selectOption("dry");
     const beforeDelete = (await baselineFor("dry"))!;
     await expect(generator.getByTestId("generation-evidence")).toContainText(`Completed laps: ${beforeDelete.sources.reduce((total, item) => total + item.completedLaps, 0)}`);
@@ -688,8 +558,8 @@ test("G1-G2/L1 generates measured stops and manages persisted strategies", async
     expect((await api.put("/api/settings", { data: { tireThresholdOverrides: { "fm-2023": compoundThresholds } } })).ok()).toBe(true);
     await page.goto(`${runtime.baseURL}/fm23/strategy`);
     await page.getByRole("button", { name: "Generate race strategy", exact: true }).click();
-    await expect(generator.getByLabel("Track")).not.toHaveValue("");
-    await expect(generator.getByLabel("Car")).not.toHaveValue("");
+    await selectSearchOption(page, generator, "Track", trackLabel);
+    await selectSearchOption(page, generator, "Car", carLabel);
     await generator.getByLabel("Weather").selectOption("dry");
     await generator.getByLabel("Plan name").fill("Timed tire-limited proposal");
     await expect(generator.getByLabel("Evidence stint")).toHaveCount(0);

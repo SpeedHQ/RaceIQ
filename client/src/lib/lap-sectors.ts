@@ -46,3 +46,16 @@ export function storedLapSectorCount(lap: StoredSectorTimes): number {
 export function storedLapsSectorCount(laps: readonly StoredSectorTimes[]): number {
   return laps.reduce((count, lap) => Math.max(count, storedLapSectorCount(lap)), 0);
 }
+
+/** Invalid or incomplete laps must never establish recorded PBs. */
+export function validLapBests(laps: readonly (StoredSectorTimes & { isValid: boolean; lapTime: number })[], sectorCount: number): { lapTime: number; sectors: number[] } {
+  const valid = laps.filter((lap) => lap.isValid && Number.isFinite(lap.lapTime) && lap.lapTime > 0);
+  const times = valid.map((lap) => lap.lapTime);
+  return {
+    lapTime: times.length ? Math.min(...times) : 0,
+    sectors: Array.from({ length: sectorCount }, (_, index) => {
+      const splits = valid.map((lap) => lap.sectorTimes?.[index] ?? 0).filter((time) => Number.isFinite(time) && time > 0);
+      return splits.length ? Math.min(...splits) : 0;
+    }),
+  };
+}

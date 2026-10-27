@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { LineSpreadTrace } from "@/hooks/experiments";
+import type { LineSpreadTrace } from "@raceiq/analysis-core/racing/laps/consistency-types";
 import type { TrackCorner } from "@/hooks/track-queries";
 import { severityColor, severityRangeColor } from "@raceiq/scene-3d/colors";
 import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";

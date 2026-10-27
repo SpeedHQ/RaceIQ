@@ -2,7 +2,7 @@ import type { RaceResult, RaceResultAggregate, RaceResultOutcomeStatus, RaceResu
 import { isPracticeSession } from "@raceiq/shared/racing/sessions/session-type";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { SessionTypeBadge } from "@/components/sessions/SessionTypeBadge";
+import { SessionTypeBadge } from "@/components/SessionTypeBadge";
 import { m } from "@/paraglide/messages";
 import { cn } from "@/lib/utils";
 import type { GameId } from "@raceiq/shared/games/ids";

@@ -50,7 +50,7 @@ Check out the [screenshots](assets/screenshots/) to see it in action.
 - **Tuning experiments** — test setup changes, coaching drills, and driving improvements, then review the results
 - **Vehicle and setup catalogue** — browse cars, tracks, performance data, tunes, setup details, and community setting ranges
 - **Tune analysis** — compare fast tunes and find popular setup ranges across the community
-- **Track mapping and guides** — see your live position, map new tracks automatically, and use turn numbers, sectors, and track guides
+- **Track guides** — See break down of each segment with track guides
 - **Race results** — review qualifying, podiums, fastest laps, pit stops, strategies, and position timelines
 - **Data portability** — import MoTeC logs and saved session captures; export individual laps or complete sessions
 - **Streaming widgets** — transparent OBS and Streamlabs browser-source widgets for driving, inputs, timing, standings, nearby cars, damage, and distance driven

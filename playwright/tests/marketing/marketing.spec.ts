@@ -66,9 +66,9 @@ for (const page of PAGES) {
     }
     // Dynamic route IDs avoid coupling screenshots to fixture database IDs.
     if (comparePair) {
-      await p.getByLabel("Lap A").waitFor({ state: "visible" });
-      await expect(p.getByLabel("Lap A")).toHaveValue(lapOptionLabel(comparePair.lapA));
-      await expect(p.getByLabel("Lap B")).toHaveValue(lapOptionLabel(comparePair.lapB));
+      await p.getByRole("combobox", { name: "Lap A", exact: true }).waitFor({ state: "visible" });
+      await expect(p.getByRole("combobox", { name: "Lap A", exact: true })).toHaveValue(lapOptionLabel(comparePair.lapA));
+      await expect(p.getByRole("combobox", { name: "Lap B", exact: true })).toHaveValue(lapOptionLabel(comparePair.lapB));
       await p.getByTestId("lap-compare-workspace").getByText("Time Delta").waitFor({ state: "visible" });
     }
 

@@ -1,3 +1,7 @@
+import { analyseSemanticIds } from "@raceiq/shared/games/metric-contracts";
+import { getGame } from "@raceiq/shared/games/registry";
+import { GForceCircle } from "../src/components/telemetry/GForceCircle";
+import {suspensionTravelBias} from "@raceiq/scene-3d/suspension";
 import { supportsPositionDependentSceneFeature } from "../src/lib/wireframe-capabilities";
 import { describe, expect, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -12,7 +16,7 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { ComboDash } from "../src/components/dashes/ComboDash";
 import { buildChartData } from "../src/components/analyse/chart-data";
 import { AnalyseF1ErsPanel } from "../src/components/analyse/AnalyseF1ErsPanel";
-import { AnalyseDataPanel, buildAnalyseClipboardJson } from "../src/components/analyse/AnalyseDataPanel";
+import { AnalyseDataContent, buildAnalyseClipboardJson } from "../src/components/analyse/AnalyseDataPanel";
 import { AnalyseDynamicsPanel } from "../src/components/analyse/AnalyseDynamicsPanel";
 import { MetricsPanel } from "../src/components/analyse/AnalyseMetricsPanel";
 import { AnalyseSuspensionPanel } from "../src/components/analyse/AnalyseSuspensionPanel";
@@ -35,10 +39,11 @@ function renderToStaticMarkup(element: ReactNode): string {
   return renderMarkup(createElement(QueryClientProvider, { client: new QueryClient() },
     createElement(RaceStrategyHostProvider, { children: element })));
 }
+import { m } from "../src/paraglide/messages";
 
 const semanticFrame = (values: Record<string, unknown>): SemanticAnalysisFrame => ({ values, states: {}, freshness: {} });
 
-initGameAdapters({ f1Experiments: true, iracingAdapter: true });
+initGameAdapters({ f1Experiments: true, iracingAdapter: true, ams2Adapter: true });
 if (typeof globalThis.localStorage === "undefined") {
   Object.defineProperty(globalThis, "localStorage", {
     value: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
@@ -345,6 +350,16 @@ describe("telemetry capability UI", () => {
     expect(used).toContain("background-color:");
   });
 
+  test("forwards available AMS2 pressures into the live tire grid", () => {
+    const markup = renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() },
+      createElement(LiveTelemetry, { mode: "driver", view: liveView("ams2", {
+        tires: { pressurePsi: { fl: 25.32, fr: 26.04, rl: 25.7, rr: 25.9 } },
+      }) })));
+    expect(markup).toContain("25.3");
+    expect(markup).toContain("26.0");
+    expect(markup).toContain("psi");
+  });
+
   test("scales pit crew semantic pedal inputs from 0–255 to percentages", () => {
     const markup = renderToStaticMarkup(
       createElement(
@@ -590,18 +605,13 @@ describe("telemetry capability UI", () => {
       createElement(
         QueryClientProvider,
         { client: new QueryClient() },
-        createElement(AnalyseDataPanel, {
-          sidebarTab: "live",
-          onSidebarTabChange: () => {},
+        createElement(AnalyseDataContent, {
           packetNumber: 1,
           currentFrame: f1ParityFrame,
           startFuel: 0.8,
           gameId: "f1-2025",
           units: parityUnits,
           wearRate: { FL: 0.1, FR: 0.2, RL: 0.3, RR: 0.4 },
-          lapInsights: [],
-          detectorCoverage: [],
-          onJumpToFrame: () => {},
         }),
       ),
     );
@@ -633,18 +643,13 @@ describe("telemetry capability UI", () => {
         createElement(
           QueryClientProvider,
           { client: new QueryClient() },
-          createElement(AnalyseDataPanel, {
-            sidebarTab: "live",
-            onSidebarTabChange: () => {},
+          createElement(AnalyseDataContent, {
             packetNumber: 1,
             currentFrame: f1ParityFrame,
             startFuel: 0.8,
             gameId,
             units: parityUnits,
             wearRate: { FL: 0.1, FR: 0.2, RL: 0.3, RR: 0.4 },
-            lapInsights: [],
-            detectorCoverage: [],
-            onJumpToFrame: () => {},
           }),
         ),
       );
@@ -764,6 +769,49 @@ describe("telemetry capability UI", () => {
     expect(markup).not.toContain("Grip Ask");
     expect(markup).not.toContain("Suspension");
   });
+  test("shows LMU electronics settings and activation without treating zero or false as missing", () => {
+    const markup = renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() },
+      createElement(MetricsPanel, {
+        gameId: "lmu",
+        frame: semanticFrame({
+          "electronics.traction-control-level": 4,
+          "electronics.abs-level": 3,
+          "electronics.tc-active": true,
+          "electronics.abs-active": false,
+          "electronics.tc-cut-level": 0,
+          "electronics.motor-map": 2,
+        }),
+      })));
+    const text = markup.replace(/<[^>]*>/g, "");
+    expect(text).toContain(`${m.lmu_channel_electronics_traction_control_level()}4`);
+    expect(text).toContain("ABS level3");
+    expect(text).toContain(`${m.lmu_channel_electronics_tc_active()}${m.lmu_state_active()}`);
+    expect(text).toContain(`${m.lmu_channel_electronics_abs_active()}${m.lmu_state_inactive()}`);
+    expect(text).toContain(`${m.lmu_channel_electronics_tc_cut_level()}0`);
+    expect(text).toContain("Motor map2");
+    expect(markup).not.toContain("data-lmu-native-state");
+  });
+  test("does not display missing, invalid or stale LMU electronics as current measurements", () => {
+    const markup = renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() },
+      createElement(MetricsPanel, {
+        gameId: "lmu",
+        frame: {
+          values: {
+            "electronics.traction-control-level": 4,
+            "electronics.abs-level": NaN,
+            "electronics.tc-active": true,
+            "electronics.abs-active": false,
+            "electronics.tc-cut-level": 2,
+          },
+          states: { "electronics.traction-control-level": "missing", "electronics.tc-active": "invalid" },
+          freshness: { "electronics.abs-active": "stale", "electronics.tc-cut-level": "stale" },
+        },
+      })));
+    const text = markup.replace(/<[^>]*>/g, "");
+    for (const label of [m.lmu_channel_electronics_traction_control_level(), m.lmu_channel_electronics_abs_level(), m.lmu_channel_electronics_tc_active(), m.lmu_channel_electronics_abs_active(), m.lmu_channel_electronics_tc_cut_level(), m.lmu_channel_electronics_motor_map()]) {
+      expect(text).toContain(`${label}—`);
+    }
+  });
   test("shows best lap and only same-distance live delta", () => {
     const view = liveView("f1-2025", { timing: { currentLapS: 30.793, lastLapS: 97.729, bestLapS: 94.023 } });
     const unavailable = renderToStaticMarkup(createElement(LapTimes, { view }));
@@ -780,11 +828,81 @@ describe("telemetry capability UI", () => {
     expect(available).toContain("-0.523");
   });
 });
+
+test("AMS2 keeps suspension travel visible without claiming a load distribution",()=>{
+  const view=liveView("ams2",{tires:{suspensionTravelM:{fl:.017,fr:.028,rl:.026,rr:.036}}});
+  const markup=renderToStaticMarkup(createElement(QueryClientProvider,{client:new QueryClient()},createElement(TireDiagram,{view})));
+  expect(markup).toContain("17mm");expect(markup).toContain("36mm");
+  expect(markup).toContain("<canvas");expect(markup).toContain("Compression bias");
+  expect(markup).not.toContain("Load</span>");
+});
+
+
+test("AMS2 suspension display balances both axes without implying wheel load", () => {
+  expect(suspensionTravelBias([.017, .017, .036, .036])?.longitudinal).toBeGreaterThan(0);
+  expect(suspensionTravelBias([.050, .050, .010, .010])?.longitudinal).toBeLessThan(0);
+  expect(suspensionTravelBias([.020, .040, .020, .040])?.lateral).toBeGreaterThan(0);
+  expect(suspensionTravelBias([.040, .020, .040, .020])?.lateral).toBeLessThan(0);
+  expect(suspensionTravelBias([.02, .02, .02, .02])).toEqual({ lateral: 0, longitudinal: 0 });
+  expect(suspensionTravelBias([.01, undefined, .01, .01])).toBeNull();
+});
+
+for (const adapter of [getGame("ams2")]) {
+  test(`${adapter.id} Analyse requests and resolves both G-force axes`, () => {
+    const ids = analyseSemanticIds(adapter);
+    expect(ids).toContain("motion.acceleration-x");
+    expect(ids).toContain("motion.acceleration-z");
+    const values = Object.fromEntries(ids.map(id => [id,
+      id === "motion.acceleration-x" ? 4.905 : id === "motion.acceleration-z" ? -9.81 : null]));
+    const markup = renderToStaticMarkup(createElement(GForceCircle, { frame: semanticFrame(values) }));
+    expect(markup).toContain("-0.5");
+    expect(markup).toContain("1.0");
+    expect(markup).not.toContain("—");
+  });
+}
 describe("position-dependent 3D features", () => {
   test("disables world-position overlays for iRacing without affecting other games", () => {
     for (const feature of ["track", "racingLine", "trails", "inputs"] as const) {
       expect(supportsPositionDependentSceneFeature("iracing", feature)).toBe(false);
       expect(supportsPositionDependentSceneFeature("ac-evo", feature)).toBe(true);
+    }
+  });
+});
+
+describe("LMU replay energy and brake migration", () => {
+  const ids = ["fuel.state-of-charge", "fuel.virtual-energy", "diagnostics.regen-kw", "diagnostics.migration"] as const;
+  const labels = [m.lmu_channel_fuel_state_of_charge, m.lmu_channel_fuel_virtual_energy, m.lmu_channel_diagnostics_regen_kw, m.lmu_channel_diagnostics_migration];
+  const render = (frame: SemanticAnalysisFrame) => renderToStaticMarkup(
+    createElement(QueryClientProvider, { client: new QueryClient() },
+      createElement(AnalyseDataContent, {
+        currentFrame: frame, packetNumber: 1, startFuel: undefined,
+        gameId: "lmu", units: parityUnits, wearRate: null,
+      })),
+  ).replace(/<[^>]*>/g, "");
+
+  test.each([
+    { charge: 72, energy: 0.63, regen: -80, migration: 3, shown: ["72.0%", "63.0%", "-80.0 kW", "3"] },
+    { charge: 0, energy: 0, regen: 0, migration: 0, shown: ["0.0%", "0.0%", "0.0 kW", "0"] },
+    { charge: 100, energy: 1, regen: 45.5, migration: 10, shown: ["100.0%", "100.0%", "45.5 kW", "10"] },
+  ])("keeps charge, virtual energy, signed regen and migration distinct: %j", ({ charge, energy, regen, migration, shown }) => {
+    const text = render(semanticFrame(Object.fromEntries(ids.map((id, i) => [id, [charge, energy, regen, migration][i]]))));
+    for (const [i, label] of labels.entries()) {
+      expect(text).toContain(`${label()}${shown[i]}`);
+    }
+  });
+
+  test.each([
+    { state: "missing" }, { state: "invalid" }, { state: "not-applicable" },
+    { freshness: "stale" }, { value: null }, { value: undefined }, { value: NaN }, { value: Infinity },
+    { value: false }, { value: "72" },
+  ])("does not present unavailable readings as measurements: %j", (availability) => {
+    const text = render({
+      values: Object.fromEntries(ids.map((id) => [id, "value" in availability ? availability.value : 1])),
+      states: Object.fromEntries(ids.map((id) => [id, "state" in availability ? availability.state : undefined])),
+      freshness: Object.fromEntries(ids.map((id) => [id, "freshness" in availability ? availability.freshness : undefined])),
+    });
+    for (const label of labels) {
+      expect(text).toContain(`${label()}—`);
     }
   });
 });

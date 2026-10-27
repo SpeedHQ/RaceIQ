@@ -62,6 +62,7 @@
     "./racing/results/types": "./racing/results/types.ts",
     "./racing/sessions/cleanup": "./racing/sessions/cleanup.ts",
     "./racing/sessions/downsample": "./racing/sessions/downsample.ts",
+    "./racing/sessions/opponent-removal": "./racing/sessions/opponent-removal.ts",
     "./racing/sessions/session-type": "./racing/sessions/session-type.ts",
     "./racing/lap-classification": "./racing/lap-classification.ts",
     "./racing/laps/classification-migration": "./racing/laps/classification-migration.ts",
@@ -111,7 +112,7 @@
     "zod": "^4.6.5"
   },
   "scripts": {
-    "lint": "../client/node_modules/.bin/oxlint .",
+    "lint": "node ../client/node_modules/oxlint/bin/oxlint .",
     "typecheck": "bun check --project tsconfig.json"
   }
 }

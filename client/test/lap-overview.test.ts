@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { SemanticLapTelemetry } from "@/hooks/laps";
+import type { SemanticLapTelemetry } from "@raceiq/lap-replay/contracts"
 import { summarizeLapOverview } from "@/lib/lap-overview";
 
 function replay(values: Array<{ semanticId: string; value: unknown; state?: string; freshness?: string }>): SemanticLapTelemetry {

@@ -57,6 +57,7 @@ const AppSettingsSchema = z.object({
   cacheMaxMB: z.number().int().min(16).max(2048).default(256),
   recordingDirectory: z.string().nullable().default(null),
   recordingFrequencyHz: z.union([z.literal(50), z.literal(60), z.literal(70), z.literal(80), z.literal(90), z.literal(100)]).default(DEFAULT_RECORDING_FREQUENCY_HZ),
+  recordLmuOpponents: z.boolean().default(true),
   sessionCleanupEnabled: z.boolean().default(false),
   sessionCleanupAgeDays: z.union([z.literal(30), z.literal(90), z.literal(180), z.literal(365)]).default(90),
   sessionDownsampleEnabled: z.boolean().default(false),

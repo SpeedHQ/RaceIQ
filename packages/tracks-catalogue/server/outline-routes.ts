@@ -1,7 +1,8 @@
 import { Hono } from "hono";
+import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 import { TrackIdParamSchema, GameIdQuerySchema } from "@raceiq/shared/platform/http/route-schemas";
-import { getLaps, getLapById, getLapSummariesByTrack } from "@raceiq/backend-core/db/lap-read-queries";
+import { getLaps, getLapMetaById, getLapById, getLapSummariesByTrack } from "@raceiq/backend-core/db/lap-read-queries";
 import {
   deleteRecordedOutlineById,
   getStartYaw,
@@ -19,6 +20,7 @@ import { computeLapSectors } from "@raceiq/telemetry-core/processor/sectors";
 import { resolveTrack } from "@raceiq/backend-core/tracks/info";
 import { getLMUTrackOutline } from "@raceiq/game-lmu-metadata/track-boundaries";
 import {
+  recordingProcessingHttpError,
   requireGameId,
   resolveTrackOutline,
 } from "./support";
@@ -37,7 +39,17 @@ export const trackRecomputeOutlineRoutes = new Hono()
       if (lapIdParam) {
         // Single lap mode — use its telemetry directly as the outline
         const lapId = parseInt(lapIdParam, 10);
-        const lapData = await getLapById(lapId);
+        const lapMeta = await getLapMetaById(lapId);
+        if (!lapMeta) {
+          return c.json({ error: `Lap ${lapId} not found` }, 404);
+        }
+        const processingFailure = recordingProcessingHttpError([lapMeta.processing]);
+        if (processingFailure) {
+          requireGameId(c);
+          return c.json(processingFailure.body, processingFailure.status);
+        }
+
+        const lapData = await getLapById(lapId, lapMeta.processing);
         if (!lapData?.telemetry) {
           return c.json({ error: `Lap ${lapId} not found` }, 404);
         }
@@ -53,8 +65,8 @@ export const trackRecomputeOutlineRoutes = new Hono()
 
         // Light smoothing to clean up noise while preserving shape
         const outline = smoothOutline(raw, 5);
-
         const recomputeGameId = requireGameId(c);
+
         recordLapTraceById(trackId, outline, null, null, recomputeGameId);
         return c.json({
           success: true,
@@ -76,12 +88,17 @@ export const trackRecomputeOutlineRoutes = new Hono()
 
       const sortedLaps = [...allLaps].sort((a, b) => a.lapTime - b.lapTime);
       const bestLaps = sortedLaps.slice(0, 10);
+      const processingFailure = recordingProcessingHttpError(bestLaps.map((lap) => lap.processing));
+      if (processingFailure) {
+        requireGameId(c);
+        return c.json(processingFailure.body, processingFailure.status);
+      }
 
       const rawLaps: { x: number; z: number; speed: number }[][] = [];
       const startPositions: { x: number; z: number }[] = [];
 
       for (const lapMeta of bestLaps) {
-        const lapData = await getLapById(lapMeta.id);
+        const lapData = await getLapById(lapMeta.id, lapMeta.processing);
         if (!lapData?.telemetry || lapData.telemetry.length < 50) continue;
 
         let raw: { x: number; z: number; speed: number }[] = [];
@@ -126,8 +143,8 @@ export const trackRecomputeOutlineRoutes = new Hono()
           outline = [...outline.slice(bestIdx), ...outline.slice(0, bestIdx)];
         }
       }
-
       const recomputeGameId = requireGameId(c);
+
       recordLapTraceById(trackId, outline, null, null, recomputeGameId);
       return c.json({
         success: true,
@@ -157,9 +174,11 @@ export const trackLapSectorRoutes = new Hono()
       }
       if (gameId !== "iracing") {
         const trackLaps = (await getLaps(gameId)).filter((l) => l.trackId === trackId && l.lapTime > 0);
+        const processingFailure = recordingProcessingHttpError(trackLaps.map((lap) => lap.processing));
+        if (processingFailure) return c.json(processingFailure.body, processingFailure.status);
         const result: Record<number, number[]> = {};
         for (const lapMeta of trackLaps) {
-          const lapData = await getLapById(lapMeta.id);
+          const lapData = await getLapById(lapMeta.id, lapMeta.processing);
           if (!lapData?.telemetry || lapData.telemetry.length < 50) continue;
           const lapGameId = lapMeta.gameId ?? gameId;
           if (!lapGameId) continue;
@@ -183,13 +202,18 @@ export const trackOutlineRoutes = new Hono()
   // GET /api/track-outline/:trackId — track outline coordinates.
   .get("/api/track-outline/:trackId",
     zValidator("param", TrackIdParamSchema),
-    zValidator("query", GameIdQuerySchema),
+    zValidator("query", GameIdQuerySchema.extend({ optional: z.literal("1").optional() })),
     async (c) => {
       const { trackId } = c.req.valid("param");
       const gameId = c.req.query("gameId");
+      // Dashboard maps are optional data. Preserve 404 for callers requiring
+      // geometry, without inventing a layout for ambiguous legacy identities.
+      const unavailable = () => c.req.valid("query").optional === "1"
+        ? c.json({ points: [], source: "unavailable" })
+        : c.json({ error: "No outline available" }, 404);
       if (gameId === "lmu") {
         const points = getLMUTrackOutline(trackId);
-        if (!points?.length) return c.json({ error: "No outline available" }, 404);
+        if (!points?.length) return unavailable();
         // SVG coordinates already use display-space X; disable the canvas telemetry-space mirror.
         return c.json({ points, flipX: true, source: "extracted" });
       }
@@ -205,7 +229,7 @@ export const trackOutlineRoutes = new Hono()
         });
       }
 
-      return c.json({ error: "No outline available" }, 404);
+      return unavailable();
     }
   )
 

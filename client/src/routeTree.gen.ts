@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as GameidRouteImport } from './routes/$gameid'
 import { Route as AcEvoRouteImport } from './routes/ac-evo'
 import { Route as AccRouteImport } from './routes/acc'
+import { Route as Ams2RouteImport } from './routes/ams2'
 import { Route as DevRouteImport } from './routes/dev'
 import { Route as F125RouteImport } from './routes/f125'
 import { Route as Fm23RouteImport } from './routes/fm23'
@@ -35,6 +36,7 @@ import { Route as AcEvoIndexRouteImport } from './routes/ac-evo/index'
 import { Route as AcEvoSetupsRouteImport } from './routes/ac-evo/setups'
 import { Route as AccIndexRouteImport } from './routes/acc/index'
 import { Route as AccSetupsRouteImport } from './routes/acc/setups'
+import { Route as Ams2IndexRouteImport } from './routes/ams2/index'
 import { Route as F125IndexRouteImport } from './routes/f125/index'
 import { Route as F125SetupsRouteImport } from './routes/f125/setups'
 import { Route as F125TunesRouteImport } from './routes/f125/tunes'
@@ -91,6 +93,11 @@ const AcEvoRoute = AcEvoRouteImport.update({
 const AccRoute = AccRouteImport.update({
   id: '/acc',
   path: '/acc',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Ams2Route = Ams2RouteImport.update({
+  id: '/ams2',
+  path: '/ams2',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DevRoute = DevRouteImport.update({
@@ -202,6 +209,11 @@ const AccSetupsRoute = AccSetupsRouteImport.update({
   id: '/setups',
   path: '/setups',
   getParentRoute: () => AccRoute,
+} as any)
+const Ams2IndexRoute = Ams2IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => Ams2Route,
 } as any)
 const F125IndexRoute = F125IndexRouteImport.update({
   id: '/',
@@ -399,6 +411,7 @@ export interface FileRoutesByFullPath {
   '/$gameid': typeof GameidRouteWithChildren
   '/ac-evo': typeof AcEvoRouteWithChildren
   '/acc': typeof AccRouteWithChildren
+  '/ams2': typeof Ams2RouteWithChildren
   '/dev': typeof DevRoute
   '/f125': typeof F125RouteWithChildren
   '/fm23': typeof Fm23RouteWithChildren
@@ -427,6 +440,7 @@ export interface FileRoutesByFullPath {
   '/portable/combo-2': typeof PortableCombo2Route
   '/ac-evo/': typeof AcEvoIndexRoute
   '/acc/': typeof AccIndexRoute
+  '/ams2/': typeof Ams2IndexRoute
   '/f125/': typeof F125IndexRoute
   '/fm23/': typeof Fm23IndexRoute
   '/iracing/': typeof IracingIndexRoute
@@ -477,6 +491,7 @@ export interface FileRoutesByTo {
   '/portable/combo-2': typeof PortableCombo2Route
   '/ac-evo': typeof AcEvoIndexRoute
   '/acc': typeof AccIndexRoute
+  '/ams2': typeof Ams2IndexRoute
   '/f125': typeof F125IndexRoute
   '/fm23': typeof Fm23IndexRoute
   '/iracing': typeof IracingIndexRoute
@@ -515,6 +530,7 @@ export interface FileRoutesById {
   '/$gameid': typeof GameidRouteWithChildren
   '/ac-evo': typeof AcEvoRouteWithChildren
   '/acc': typeof AccRouteWithChildren
+  '/ams2': typeof Ams2RouteWithChildren
   '/dev': typeof DevRoute
   '/f125': typeof F125RouteWithChildren
   '/fm23': typeof Fm23RouteWithChildren
@@ -543,6 +559,7 @@ export interface FileRoutesById {
   '/portable/combo-2': typeof PortableCombo2Route
   '/ac-evo/': typeof AcEvoIndexRoute
   '/acc/': typeof AccIndexRoute
+  '/ams2/': typeof Ams2IndexRoute
   '/f125/': typeof F125IndexRoute
   '/fm23/': typeof Fm23IndexRoute
   '/iracing/': typeof IracingIndexRoute
@@ -582,6 +599,7 @@ export interface FileRouteTypes {
     | '/$gameid'
     | '/ac-evo'
     | '/acc'
+    | '/ams2'
     | '/dev'
     | '/f125'
     | '/fm23'
@@ -610,6 +628,7 @@ export interface FileRouteTypes {
     | '/portable/combo-2'
     | '/ac-evo/'
     | '/acc/'
+    | '/ams2/'
     | '/f125/'
     | '/fm23/'
     | '/iracing/'
@@ -660,6 +679,7 @@ export interface FileRouteTypes {
     | '/portable/combo-2'
     | '/ac-evo'
     | '/acc'
+    | '/ams2'
     | '/f125'
     | '/fm23'
     | '/iracing'
@@ -697,6 +717,7 @@ export interface FileRouteTypes {
     | '/$gameid'
     | '/ac-evo'
     | '/acc'
+    | '/ams2'
     | '/dev'
     | '/f125'
     | '/fm23'
@@ -725,6 +746,7 @@ export interface FileRouteTypes {
     | '/portable/combo-2'
     | '/ac-evo/'
     | '/acc/'
+    | '/ams2/'
     | '/f125/'
     | '/fm23/'
     | '/iracing/'
@@ -763,6 +785,7 @@ export interface RootRouteChildren {
   GameidRoute: typeof GameidRouteWithChildren
   AcEvoRoute: typeof AcEvoRouteWithChildren
   AccRoute: typeof AccRouteWithChildren
+  Ams2Route: typeof Ams2RouteWithChildren
   DevRoute: typeof DevRoute
   F125Route: typeof F125RouteWithChildren
   Fm23Route: typeof Fm23RouteWithChildren
@@ -805,6 +828,13 @@ declare module '@tanstack/react-router' {
       path: '/acc'
       fullPath: '/acc'
       preLoaderRoute: typeof AccRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ams2': {
+      id: '/ams2'
+      path: '/ams2'
+      fullPath: '/ams2'
+      preLoaderRoute: typeof Ams2RouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dev': {
@@ -960,6 +990,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/acc/setups'
       preLoaderRoute: typeof AccSetupsRouteImport
       parentRoute: typeof AccRoute
+    }
+    '/ams2/': {
+      id: '/ams2/'
+      path: '/'
+      fullPath: '/ams2/'
+      preLoaderRoute: typeof Ams2IndexRouteImport
+      parentRoute: typeof Ams2Route
     }
     '/f125/': {
       id: '/f125/'
@@ -1361,6 +1398,16 @@ const AccRouteChildren: AccRouteChildren = {
 
 const AccRouteWithChildren = AccRoute._addFileChildren(AccRouteChildren)
 
+interface Ams2RouteChildren {
+  Ams2IndexRoute: typeof Ams2IndexRoute
+}
+
+const Ams2RouteChildren: Ams2RouteChildren = {
+  Ams2IndexRoute: Ams2IndexRoute,
+}
+
+const Ams2RouteWithChildren = Ams2Route._addFileChildren(Ams2RouteChildren)
+
 interface F125SetupsRouteChildren {
   F125SetupsIndexRoute: typeof F125SetupsIndexRoute
 }
@@ -1469,6 +1516,7 @@ const rootRouteChildren: RootRouteChildren = {
   GameidRoute: GameidRouteWithChildren,
   AcEvoRoute: AcEvoRouteWithChildren,
   AccRoute: AccRouteWithChildren,
+  Ams2Route: Ams2RouteWithChildren,
   DevRoute: DevRoute,
   F125Route: F125RouteWithChildren,
   Fm23Route: Fm23RouteWithChildren,

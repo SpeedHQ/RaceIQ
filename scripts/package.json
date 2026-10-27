@@ -2,10 +2,12 @@
   "name": "@raceiq/tooling",
   "private": true,
   "type": "module",
-  "exports": {},
+  "exports": {
+    "./test-support/dump": "./dev/dump.ts"
+  },
   "scripts": {
     "typecheck": "bun check --project tsconfig.json",
-    "lint": "../client/node_modules/.bin/oxlint .",
+    "lint": "node ../client/node_modules/oxlint/bin/oxlint .",
     "test": "bun test/run-suite.ts all --package @raceiq/tooling",
     "test:tooling": "bun test/run-suite.ts tooling --package @raceiq/tooling"
   },

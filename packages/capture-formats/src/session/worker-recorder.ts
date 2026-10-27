@@ -1,4 +1,5 @@
 import { Worker } from "node:worker_threads";
+import { IS_COMPILED } from "@raceiq/shared/platform/runtime/data-paths";
 import { encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, META_FRAME_BYTES, encodeSparseCaptureFormatFrame, iterateSessionCaptureRecords } from "./framing";
 import { SparseCaptureEncoder } from "./sparse-recorder";
 
@@ -92,7 +93,7 @@ export class WorkerSessionRecorder {
     if (this.options.maxBatchBytes <= 0 || this.options.maxBatchRecords <= 0 || this.options.maxInFlightBytes < this.options.maxBatchBytes || this.options.maxBatchDelayMs < 0 ||
       (this.options.headerCountOffset !== null && (!Number.isSafeInteger(this.options.headerCountOffset) || this.options.headerCountOffset < 0))) throw new Error("Invalid worker recorder limits");
     this.ownsWorker = !options.worker;
-    this.worker = options.worker ?? new Worker(new URL("./source-writer-worker.ts", import.meta.url), { workerData: { syncIntervalMs: this.options.syncIntervalMs } });
+    this.worker = options.worker ?? new Worker(IS_COMPILED ? "./packages/capture-formats/src/session/source-writer-worker.ts" : new URL("./source-writer-worker.ts", import.meta.url), { workerData: { syncIntervalMs: this.options.syncIntervalMs } });
     this.worker.on("message", (message: { type: string; sequence?: number; bytes?: number; error?: string; fileDev?: string; fileIno?: string }) => this.onMessage(message));
     this.worker.on("error", (error) => this.fail(error instanceof Error ? error : new Error(String(error)), true));
     this.worker.on("exit", (code) => {
@@ -159,6 +160,36 @@ export class WorkerSessionRecorder {
     this.assertAccepting();
     if (!Number.isSafeInteger(countDelta) || countDelta < 0) throw new RangeError("Invalid raw capture record count");
     this.reserve("raw", bytes, undefined, false, false, bytes, bytes.length, countDelta, countDelta);
+  }
+  /** Wait for disk acknowledgements instead of failing transiently full admission. */
+  async writeRawCaptureRecordAsync(bytes: Buffer, countDelta = 1): Promise<void> {
+    if (!Number.isSafeInteger(countDelta) || countDelta < 0) throw new RangeError("Invalid raw capture record count");
+    for (;;) {
+      this.assertAccepting();
+      const prefixBytes = this.metaPending && !this.headerWritten ? META_FRAME_BYTES : 0;
+      const transportBytes = bytes.byteLength * 2 + prefixBytes + RECORD_TRANSPORT_OVERHEAD_BYTES;
+      const chargeBytes = transportBytes + (this.listeners.size ? bytes.byteLength : 0);
+      // Oversized records retain the synchronous API's explicit failure.
+      if (transportBytes > this.options.maxBatchBytes || chargeBytes > this.options.maxInFlightBytes ||
+        this.inFlightBytes + chargeBytes <= this.options.maxInFlightBytes) break;
+      this.flushBatch();
+      await new Promise<void>((resolve, reject) => {
+        const cleanup = () => {
+          this.worker.off("message", onMessage);
+          this.failureListeners.delete(onFailure);
+        };
+        const onFailure = (error: Error) => { cleanup(); reject(error); };
+        const onMessage = (message: { type: string }) => {
+          if (message.type === "ack" || message.type === "sync-ack" || message.type === "capture-control-ack" || message.type === "closed") {
+            cleanup();
+            resolve();
+          }
+        };
+        this.failureListeners.add(onFailure);
+        this.worker.on("message", onMessage);
+      });
+    }
+    this.writeRawCaptureRecord(bytes, countDelta);
   }
   writeSegmentBoundary(): void {
     this.assertAccepting();

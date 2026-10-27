@@ -9,12 +9,13 @@ import { RaceInfo } from "../RaceInfo";
 import { RecordedLaps } from "../RecordedLaps";
 import { TireGrid } from "../telemetry/TireGrid";
 import { PitEstimate } from "@raceiq/race-strategy/ui";
-import { LmuPlayerData } from "./LmuPlayerData";
+import { LmuLiveOpponents, LmuPlayerData } from "./LmuPlayerData";
 
 
 export function LMULiveDashboard() {
   const lmuGame = getGame("lmu");
   const view = useTelemetryStore((state) => state.telemetryView);
+  const lmuLiveContext = useTelemetryStore((state) => state.lmuLiveContext);
   const sessionLaps = useTelemetryStore((state) => state.sessionLaps);
   const sectors = useTelemetryStore((state) => state.sectors);
   const pit = useTelemetryStore((state) => state.pit);
@@ -25,6 +26,7 @@ export function LMULiveDashboard() {
     return (
       <div className="flex-1 flex flex-col">
         <NoDataView />
+        <LmuLiveOpponents context={lmuLiveContext} />
       </div>
     );
   }

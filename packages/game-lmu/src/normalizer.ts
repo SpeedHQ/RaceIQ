@@ -243,7 +243,8 @@ const syntheticExtensionChannels: Partial<Record<keyof LMUExtendedData, string>>
 
 export function normalizeLMUSourceFrame(
   frame: LMUSourceFrame,
-): TelemetryPacket {
+): TelemetryPacket | null {
+  if (!frame.playerScoring || frame.telemetry.length < LMU_TELEMETRY.wheels + 4 * LMU_WHEEL_SIZE) return null;
   const telemetry = frame.telemetry;
   const scoringInfo = frame.scoringInfo;
   const scoring = frame.playerScoring;
@@ -511,13 +512,14 @@ export function normalizeLMUSourceFrame(
     gameId: "lmu",
     lmu,
     ...(frame.lmuContext ? { lmuContext: frame.lmuContext } : {}),
+    // Acquisition generations can rotate without a new simulator session.
     sessionUID: JSON.stringify([
       frame.gameVersion,
       frame.sessionEvent,
       scoringInfo.readInt32LE(LMU_SCORING_INFO.session),
       identity.carId,
       identity.trackId,
-      ...(frame.lmuContext ? [frame.lmuContext.key.sessionKey] : []),
+      frame.telemetry.readInt32LE(LMU_TELEMETRY.id),
     ]),
     IsRaceOn:
       scoring !== null && scoringInfo.readUInt8(LMU_SCORING_INFO.inRealtime) !== 0 ? 1 : 0,

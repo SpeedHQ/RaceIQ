@@ -73,8 +73,8 @@ export const SEEDED_GAME_CASES: readonly SeededGame[] = [
     name: "iRacing",
     trackId: "192",
     trackName: "Daytona International Speedway",
-    supportedFeatures: BASE_FEATURES,
-    unsupportedFeatures: [...DRIVER_FEATURES, ...SETUP_FEATURES, ...EXPERIMENT_FEATURES],
+    supportedFeatures: [...BASE_FEATURES, ...DRIVER_FEATURES],
+    unsupportedFeatures: [...SETUP_FEATURES, ...EXPERIMENT_FEATURES],
   },
 ] as const;
 

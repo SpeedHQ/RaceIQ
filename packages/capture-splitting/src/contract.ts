@@ -4,7 +4,7 @@ export const PositiveInt = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1));
 
 export const ManifestVersion = 3;
 export const MAX_CAPTURE_MANIFEST_BYTES = 16 * 1024 * 1024;
-export const GameId = Schema.Literals(["acc", "ac-evo", "f1-2025", "fm-2023", "iracing", "lmu"]);
+export const GameId = Schema.Literals(["acc", "ac-evo", "f1-2025", "fm-2023", "iracing", "lmu", "ams2"]);
 export type GameId = typeof GameId.Type;
 
 export const LapWindowSchema = Schema.Struct({
@@ -44,6 +44,23 @@ export const ChunkSchema = Schema.Struct({
 });
 export type Chunk = typeof ChunkSchema.Type;
 
+export const LmuFrameKeySchema = Schema.Struct({
+  sessionKey: Schema.String,
+  captureSequence: Schema.String,
+});
+export type LmuFrameKey = typeof LmuFrameKeySchema.Type;
+
+export const OpponentCompanionSchema = Schema.Struct({
+  file: Schema.String,
+  codecVersion: Schema.Literal(1),
+  byteLength: NonNegativeInt,
+  sha256: Schema.String,
+  frameKeyStart: Schema.NullOr(LmuFrameKeySchema),
+  frameKeyEnd: Schema.NullOr(LmuFrameKeySchema),
+  committedPrefix: Schema.Struct({ byteLength: NonNegativeInt, recordCount: NonNegativeInt }),
+});
+export type OpponentCompanion = typeof OpponentCompanionSchema.Type;
+
 export const ManifestSchema = Schema.Struct({
   version: Schema.Literal(ManifestVersion),
   gameId: GameId,
@@ -52,6 +69,9 @@ export const ManifestSchema = Schema.Struct({
   sourceRecordCount: NonNegativeInt,
   /** Direct capture offsets use decoded native frame wire lengths, not sparse file positions. */
   sourceCoordinates: Schema.optional(Schema.Literal("native-wire-v1")),
+  opponentRetention: Schema.optional(Schema.Literals(["retained", "removed", "not-recorded"])),
+  opponentCompanion: Schema.optional(OpponentCompanionSchema),
+  cleanupPending: Schema.optional(Schema.Array(Schema.String)),
   chunks: Schema.Array(ChunkSchema),
 });
 export type Manifest = typeof ManifestSchema.Type;

@@ -6,6 +6,7 @@ import { createWebServers } from "./config/web-servers";
 export default defineConfig({
   testDir: "tests",
   outputDir: "./test-results",
+  globalSetup: "./support/server/prepare-startup-recordings.ts",
   fullyParallel: runtime.parallelScreenshotRun,
   workers: runtime.parallelScreenshotRun ? runtime.screenshotWorkers : runtime.testWorkers,
   retries: process.env.CI ? 1 : 0,

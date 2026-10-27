@@ -16,7 +16,7 @@ const FIXTURES = [
   { gameId: "acc", fixture: "acc-2026-04-23T16-42-16-158Z.bin.gz" },
   { gameId: "ac-evo", fixture: "session-ac-evo-menu-exit-2026-04-23T18-11-48-959Z.bin.gz" },
   { gameId: "iracing", fixture: "iracing-daytona-am-vantage-gt3-pit.bin.gz" },
-  { gameId: "lmu", fixture: "lmu-spa-iron-lynx-gte.bin.gz" },
+  { gameId: "lmu", fixture: "lmu-real-opponents-grid-2026-10-22.bin.gz" },
 ] as const;
 type Kind = "frame" | "context" | "segment";
 type RecordItem = { kind: Kind; frame?: Buffer; timeMs?: number; offset: number };
@@ -131,7 +131,6 @@ try {
     ports,
     pipelineModule,
     iracing,
-    lmu,
   ] = await Promise.all([
     import("@raceiq/game-catalogs/games/init"),
     import("../../src/games/init"),
@@ -141,11 +140,10 @@ try {
     import("@raceiq/backend-core/telemetry/pipeline-ports"),
     import("@raceiq/backend-core/telemetry/live-pipeline"),
     import("@raceiq/capture-formats/iracing/dump-decoder"),
-    import("@raceiq/capture-formats/lmu/dump-decoder"),
   ]);
 
   catalog.initGameAdapters();
-  games.initServerGameAdapters({ f1Experiments: false, iracingAdapter: true });
+  games.initServerGameAdapters({ f1Experiments: false, iracingAdapter: true, ams2Adapter: true });
   stopMaintenanceTasks = pipelineModule.stopMaintenanceTasks;
   stopMaintenanceTasks();
   console.log = () => {};
@@ -212,7 +210,9 @@ try {
 
   for (const fixture of selected) {
     try {
-      const path = join(ROOT, "test/artifacts/sessions", fixture.fixture);
+      const path = fixture.gameId === "lmu"
+        ? join(ROOT, "packages/game-lmu/test/fixtures/sessions", fixture.fixture)
+        : join(ROOT, "test/artifacts/sessions", fixture.fixture);
       if (!existsSync(path)) {
         throw Error(`Missing fixture: ${path}`);
       }
@@ -256,11 +256,11 @@ try {
           offset += frame.length + 5;
         }
       } else if (fixture.gameId === "lmu") {
-        let offset = 16;
-        for (const frame of lmu.readLMUFramesFromBuffer(bytes).slice(0, config.frames)) {
-          records.push({ kind: "frame", frame: Buffer.from(frame), offset: offset + 5 });
+        for (const record of framing.iterateSessionCaptureRecords(bytes)) {
+          if (record.kind !== "frame") continue;
+          records.push({ kind: "frame", frame: Buffer.from(record.frame), offset: record.offset });
           sourceFrames++;
-          offset += frame.length + 5;
+          if (sourceFrames >= config.frames) break;
         }
       } else {
         let offset = 0;

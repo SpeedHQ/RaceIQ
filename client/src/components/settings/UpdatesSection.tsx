@@ -7,7 +7,7 @@ import type { VersionInfo } from "@/stores/telemetry";
 import { telemetryStore, useTelemetryStore } from "@/stores/telemetry";
 import { ProcessingMaintenance } from "../ProcessingMaintenance";
 import { getLocale } from "@/paraglide/runtime";
-import { parseUtcTimestamp } from "@/lib/utc-date";
+import { parseUtcTimestamp } from "@raceiq/frontend-pure/utc-date";
 export function UpdatesSection() {
   const updateAvailable = useTelemetryStore((s) => s.updateAvailable);
   const updateProgress = useTelemetryStore((s) => s.updateProgress);

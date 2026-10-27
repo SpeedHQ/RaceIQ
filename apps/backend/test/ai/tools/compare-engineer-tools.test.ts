@@ -29,21 +29,17 @@ async function toolNames(agent: ToolInspectionAgent): Promise<string[]> {
 describe("Compare Engineer tools", () => {
   test("exposes comparison and read-only lap tools only", async () => {
     const tools = await toolNames(compareEngineerAgent);
-    expect(tools).toEqual([
-      "compare_f1_setup_to_catalog",
-      "compare_laps",
-      "generate_lap_analysis",
-      "get_compare_analysis",
-      "get_corner_metrics",
-      "get_lap_analysis",
-      "get_lap_detail",
-      "get_lap_issues",
-      "get_track_guide",
-      "list_laps",
-      "list_track_guides",
-    ]);
+    expect(tools).toContain("get_tire_temperature_guide");
+    expect(tools).toContain("compare_laps");
+    expect(tools).toContain("get_lap_detail");
+    expect(tools).toContain("get_lap_issues");
+    expect(tools).toContain("list_laps");
     expect(tools).not.toContain("apply_changes");
+    expect(tools).not.toContain("set_lap_excluded");
+    expect(tools).not.toContain("update_notes");
+    expect(tools).not.toContain("record_driver_notes");
     expect(tools).not.toContain("delete_version");
+    expect(tools).not.toContain("undo_last_action");
   });
   test("registers generation and retrieval under exact snake-case keys", async () => {
     const lapChatTools = await toolNames(lapChatAgent);

@@ -1,4 +1,6 @@
 import type { DashboardRecentSession } from "@raceiq/shared/racing/sessions/dashboard";
+import type { ProcessingMetadata } from "@raceiq/shared/racing/sessions/types";
+import { ProcessingStatus } from "@/components/ProcessingStatus";
 import { Card } from "@/components/ui/card";
 import { EmptyStateOverlay } from "@/components/ui/empty-state-overlay";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -7,8 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { m } from "@/paraglide/messages";
 import { getLocale } from "@/paraglide/runtime";
-import { parseUtcTimestamp } from "@/lib/utc-date";
-import { SessionTypeBadge } from "@/components/sessions/SessionTypeBadge";
+import { parseUtcTimestamp } from "@raceiq/frontend-pure/utc-date";
+import { SessionTypeBadge } from "@/components/SessionTypeBadge";
 
 function formatTimeAgo(date: Date): string {
   const sec = Math.floor((Date.now() - date.getTime()) / 1000);
@@ -25,17 +27,23 @@ export function RecentSessionsTable({
   onAnalyseSession,
   loading = false,
   error = false,
+  processingById,
+  processingLoading,
+  onRefreshProcessing,
 }: {
   sessions: DashboardRecentSession[];
   gameId: string | null;
   onAnalyseSession: (session: DashboardRecentSession) => void;
   loading?: boolean;
   error?: boolean;
+  processingById: ReadonlyMap<number, ProcessingMetadata>;
+  processingLoading: boolean;
+  onRefreshProcessing: () => void;
 }) {
   const stateMessage = error ? m.common_error() : loading ? m.common_loading() : sessions.length === 0 ? m.home_no_sessions() : null;
   const placeholderRows = stateMessage ? Array.from({ length: 8 }, (_, index) => index) : [];
   return (
-    <Card className="relative flex h-[440px] min-h-0 flex-col gap-2 overflow-hidden p-3" aria-busy={loading}>
+    <Card className="relative flex h-[440px] min-h-0 flex-col gap-2 overflow-hidden p-3" aria-busy={loading || processingLoading}>
       <h2 className="shrink-0 text-app-heading font-semibold text-app-text/90">{m.home_recent_sessions()}</h2>
       <div className="relative min-h-0 flex-1 overflow-auto">
     <Table containerClassName="rounded-none border-0">
@@ -54,27 +62,36 @@ export function RecentSessionsTable({
         {stateMessage ? placeholderRows.map((row) => <TableRow key={row} aria-hidden="true">{Array.from({ length: gameId ? 6 : 7 }, (_, column) => <TableCell key={column} className="text-app-text-muted">{row === 0 && column === 0 ? <span className="sr-only" role={error ? "alert" : loading ? "status" : undefined}>{stateMessage}</span> : <Skeleton loading={loading}>—</Skeleton>}</TableCell>)}</TableRow>) : sessions.map((session) => {
           const track = session.track.name ?? "—";
           const car = session.car.name ?? "—";
+          const processing = processingById.get(session.id);
+          const processingLoadingForSession = processingLoading || processing == null;
+          const openingReady = !processingLoadingForSession && processing?.state === "ready";
+          const openingPending = processingLoadingForSession || processing?.state === "queued" || processing?.state === "processing";
           return (
-            <TableRow key={session.id} className="cursor-pointer" onClick={() => onAnalyseSession(session)}>
+            <TableRow key={session.id} className={openingReady ? "cursor-pointer" : "cursor-default"} onClick={openingReady ? () => onAnalyseSession(session) : undefined} aria-busy={openingPending} aria-disabled={!openingReady}>
               {!gameId && (
                 <TableCell>
                   <Badge variant="game-brand" size="compact" data-game-brand={session.gameId}>
-                    {session.gameId === "f1-2025" ? "F1" : session.gameId === "acc" ? "ACC" : session.gameId === "ac-evo" ? "ACE" : session.gameId === "iracing" ? "iR" : session.gameId === "lmu" ? "LMU" : "FM"}
+                    {session.gameId === "f1-2025" ? "F1" : session.gameId === "acc" ? "ACC" : session.gameId === "ac-evo" ? "ACE" : session.gameId === "iracing" ? "iR" : session.gameId === "lmu" ? "LMU" : session.gameId === "ams2" ? "AMS2" : "FM"}
                   </Badge>
                 </TableCell>
               )}
               <TableCell className="text-app-text" title={track}>
-                <button
-                  type="button"
-                  className="cursor-pointer text-left focus-visible:outline-2 focus-visible:outline-app-text"
-                  aria-label={`${m.sessions_analyse_session()}: ${track || "—"}, ${parseUtcTimestamp(session.createdAt).toLocaleDateString(getLocale())}`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onAnalyseSession(session);
-                  }}
-                >
-                  {track || "—"}
-                </button>
+                <div className="flex flex-col items-start">
+                  <button
+                    type="button"
+                    disabled={!openingReady}
+                    aria-busy={openingPending}
+                    className="cursor-pointer text-left focus-visible:outline-2 focus-visible:outline-app-text disabled:cursor-default"
+                    aria-label={`${m.sessions_analyse_session()}: ${track || "—"}, ${parseUtcTimestamp(session.createdAt).toLocaleDateString(getLocale())}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      if (openingReady) onAnalyseSession(session);
+                    }}
+                  >
+                    {track || "—"}
+                  </button>
+                  <ProcessingStatus processing={processing} loading={processingLoadingForSession} onRefresh={onRefreshProcessing} className="mt-1" />
+                </div>
               </TableCell>
               <TableCell className="text-app-text" title={car}>{car || "—"}</TableCell>
               <TableCell className="text-app-text"><SessionTypeBadge type={session.sessionType} /></TableCell>

@@ -5,10 +5,25 @@
   "exports": {
     "./driver-profile/fingerprint": "./src/driver-profile/fingerprint.ts",
     "./routes/index": "./src/routes/index.ts",
-    "./routes/tunes/index": "./src/routes/tunes/index.ts"
+    "./routes/tunes/index": "./src/routes/tunes/index.ts",
+    "./test-support/games": "./src/games/init.ts",
+    "./test-support/session-identity": "./src/games/session-identity.ts",
+    "./test-support/settings-routes": "./src/routes/settings-routes.ts",
+    "./test-support/transfer-routes": "./src/routes/laps/transfer-routes.ts",
+    "./test-support/lmu-identity-backfill": "./src/imports/lmu-session-identity-backfill.ts",
+    "./test-support/replay-packets": "./src/session-capture/replay-packets.ts",
+    "./test-support/lap-archive": "./src/laps/archive.ts",
+    "./test-support/fixture-frames": "./test/benchmarks/live-lossless-release.bench.ts",
+    "./test-support/release-database": "./test/e2e/support/release-database.ts",
+    "./test-support/upgrade-server": "./test/e2e/support/upgrade-server.ts",
+    "./test-support/classification-migration": "./test/e2e/support/classification-migration.ts",
+    "./test-support/process": "./test/e2e/support/process.ts",
+    "./test-support/race-results": "./test/race-results/fixtures.ts",
+    "./test-support/live-readers": "./src/runtime/live-readers.ts",
+    "./test-support/boot": "./src/runtime/boot.ts"
   },
   "scripts": {
-    "lint": "../../client/node_modules/.bin/oxlint .",
+    "lint": "node ../../client/node_modules/oxlint/bin/oxlint .",
     "typecheck": "bun check --build tsconfig.json",
     "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/backend",
     "test:integration": "bun ../../scripts/test/run-suite.ts integration --package @raceiq/backend",
@@ -43,6 +58,9 @@
     "@mastra/hono": "^1.7.9",
     "mitata": "^1.0.34",
     "@raceiq/backend-core": "workspace:*",
+    "@raceiq/lap-replay": "workspace:*",
+    "@raceiq/sessions-page": "workspace:*",
+    "@raceiq/session-analyse": "workspace:*",
     "@raceiq/shared": "workspace:*",
     "@raceiq/race-strategy": "workspace:*",
     "@raceiq/capture-formats": "workspace:*",
@@ -66,6 +84,8 @@
     "@raceiq/analysis-core": "workspace:*",
     "@raceiq/telemetry-core": "workspace:*",
     "@raceiq/tracks-catalogue": "workspace:*",
-    "@raceiq/cars-catalogue": "workspace:*"
+    "@raceiq/cars-catalogue": "workspace:*",
+    "@raceiq/game-ams2": "workspace:*",
+    "@raceiq/game-ams2-metadata": "workspace:*"
   }
 }
