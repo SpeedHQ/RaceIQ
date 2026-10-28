@@ -197,24 +197,54 @@ export class LapDetector implements ILapDetector, LapOwnershipSource {
         const lapNum = state.lapNumber;
         const packetCount = state.lapBuffer.length;
         const lapPackets = state.lapBuffer;
-        const classification = classifyLapCategory(lapPackets, this.currentPitCycleReason, undefined, isComplete && state.lapIsValid);
+        const valid = isComplete && state.lapIsValid;
+        const classification = classifyLapCategory(lapPackets, this.currentPitCycleReason, undefined, valid);
+        const sectors = isComplete ? await this.computeLapSectors(lapPackets, lapTime) : null;
+        if (isComplete) {
+          if (valid && isPaceLap(classification) && (session.bestLapTime === 0 || lapTime < session.bestLapTime)) {
+            session.bestLapTime = lapTime;
+          }
+          this.onLapComplete_?.({
+            lapNumber: lapNum,
+            packets: lapPackets,
+            lapDistStart: lapPackets[0]?.DistanceTraveled ?? 0,
+            lapTime,
+            isValid: valid,
+            classification,
+            sectors,
+          });
+        }
+        const savedSessionId = session.sessionId;
+        const savedBestLapTime = session.bestLapTime;
         this.db.insertLap(
-          session.sessionId,
+          savedSessionId,
           lapNum,
           lapTime,
-          isComplete && state.lapIsValid,
+          valid,
           state.lapByteOffset,
           state.lapFrameCount,
           null,
           tuneAssignment?.tuneId ?? null,
           isComplete ? state.invalidReason : "incomplete",
-          null,
+          sectors,
           classification,
         ).then(async (lapId) => {
           await this.persistLapFollowups(lapId, lapPackets);
           console.log(
             `[Lap] Flushed stale lap ${lapNum} | Time: ${formatLapTime(lapTime)} | ${isComplete ? "Complete" : "Incomplete"} | Packets: ${packetCount} | DB ID: ${lapId} (${(silenceMs / 1000).toFixed(0)}s silence)`
           );
+          if (isComplete) {
+            this.onLapSaved?.({
+              sessionId: savedSessionId,
+              lapId,
+              lapNumber: lapNum,
+              lapTime,
+              isValid: valid,
+              classification,
+              sectors,
+              estimatedBestLapTime: savedBestLapTime,
+            });
+          }
         }).catch((err) => {
           console.error("[Lap] Failed to flush stale lap:", err);
         });

@@ -235,7 +235,14 @@ export function RaceStrategyPlanner({ gameId, sessionId, carId, trackId, pi, ini
           {gameId === "fm-2023" && <label className="min-w-0 text-app-detail">{m.cars_pi()}<Input className="mt-1 w-full bg-app-surface-alt text-app-detail" disabled={save.isPending} type="number" value={draft.pi ?? ""} onChange={(event) => update({ pi: event.target.value ? Number(event.target.value) : null })} /></label>}
           <label className="min-w-0 text-app-detail sm:col-span-2">{m.race_plan_notes()}<Textarea className="mt-1 w-full min-w-0 bg-app-surface-alt text-app-detail" disabled={save.isPending} maxLength={4000} rows={2} value={draft.notes} onChange={(event) => update({ notes: event.target.value })} /></label>
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-medium">{m.race_plan_stints()}</h3><Button variant="app-outline" type="button" disabled={save.isPending || draft.stints.length >= 100 || draft.totalLaps < 2} onClick={() => update({ stints: [...draft.stints.slice(0, -1), { ...draft.stints.at(-1)!, endLap: Math.max(1, draft.totalLaps - 1) }, emptyStint(draft.totalLaps)] })}>{m.race_plan_add_stop()}</Button></div>
+        <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-medium">{m.race_plan_stints()}</h3><Button variant="app-outline" type="button" disabled={save.isPending || draft.stints.length >= 100 || !draft.stints.some((stint, index) => stint.endLap - (draft.stints[index - 1]?.endLap ?? 0) >= 2)} onClick={() => {
+          const index = draft.stints.findIndex((stint, stintIndex) => stint.endLap - (draft.stints[stintIndex - 1]?.endLap ?? 0) >= 2);
+          if (index < 0) return;
+          const previousEnd = draft.stints[index - 1]?.endLap ?? 0;
+          const stint = draft.stints[index]!;
+          const splitEnd = previousEnd + Math.floor((stint.endLap - previousEnd) / 2);
+          update({ stints: [...draft.stints.slice(0, index), { ...stint, endLap: splitEnd }, emptyStint(stint.endLap), ...draft.stints.slice(index + 1)] });
+        }}>{m.race_plan_add_stop()}</Button></div>
         {draft.stints.map((stint, index) => {
           const previousEnd = draft.stints[index - 1]?.endLap ?? 0;
           const evidence = sourceFor(stint);
