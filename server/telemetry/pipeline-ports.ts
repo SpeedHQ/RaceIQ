@@ -169,7 +169,7 @@ export class RealDbAdapter implements DbAdapter {
   private readonly lapBindingListeners = new Set<(binding: PersistedLapBinding) => void>();
   private readonly pendingLapWrites = new Map<number, Set<Promise<number>>>();
   private readonly lapWriteFailures = new Map<number, Error>();
-  private readonly lapWriteFailureListeners = new Set<(sessionId: number, error: Error) => void>();
+  private readonly lapWriteFailureListeners = new Set<(sessionId: number, lapNumber: number, error: Error) => void>();
   private readonly lapInvalidationListeners = new Set<(lapId: number) => void>();
 
   async drainLapWrites(sessionId: number): Promise<void> {
@@ -188,7 +188,7 @@ export class RealDbAdapter implements DbAdapter {
     return () => this.lapBindingListeners.delete(listener);
   }
 
-  subscribeLapWriteFailures(listener: (sessionId: number, error: Error) => void): () => void {
+  subscribeLapWriteFailures(listener: (sessionId: number, lapNumber: number, error: Error) => void): () => void {
     this.lapWriteFailureListeners.add(listener);
     return () => this.lapWriteFailureListeners.delete(listener);
   }
@@ -240,7 +240,7 @@ export class RealDbAdapter implements DbAdapter {
     void pending.catch((failure) => {
       const error = failure instanceof Error ? failure : new Error(String(failure));
       this.lapWriteFailures.set(sessionId, error);
-      for (const listener of this.lapWriteFailureListeners) listener(sessionId, error);
+      for (const listener of this.lapWriteFailureListeners) listener(sessionId, lapNumber, error);
     });
     return pending;
   }
@@ -298,6 +298,12 @@ export class CapturingDbAdapter implements DbAdapter {
     const id = ++this._lapId;
     this._lapIds.push(id);
     return Promise.resolve(id);
+  }
+
+  /** Resolve the retained raw window for a saved replay identity, including provisional deletions. */
+  getCapturedLap(lapId: number): CapturedLap | undefined {
+    const index = this._lapIds.indexOf(lapId);
+    return index < 0 ? undefined : this.laps[index];
   }
 
   readonly lapMetrics: { lapId: number; fuelPerLap: number | null; tyreWear: number | null }[] = [];

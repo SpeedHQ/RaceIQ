@@ -3,7 +3,7 @@ import { SessionTypeBadge } from "@/components/SessionTypeBadge";
 import { LiveTrackMap } from "@/components/live-track/LiveTrackMap";
 import { m } from "@/paraglide/messages";
 import type { LiveSectorData } from "@raceiq/shared/racing/live/types";
-import type { LiveTelemetryView } from "../lib/live-telemetry-view";
+import type { LiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
 import { SectorTimes } from "./SectorTimes";
 export function RaceInfo({
   view,

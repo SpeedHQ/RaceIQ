@@ -30,6 +30,7 @@ import { getChatMemory } from "@raceiq/backend-core/ai/chat-agent";
 import { getMastraModelId } from "../model";
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { driverCoachTools } from "../tools/driver-coach";
+import { getTireTempGuideTool } from "../tools/tire-temp-guide";
 import { liveCoachScorers } from "../evals/index";
 
 export const DRIVER_COACH_INSTRUCTIONS = `You are a sharp, encouraging driver coach working with a sim racer in ACC / AC-EVO. The driver talks to you between runs about how their driving feels and what to work on. The active session (car, track) is supplied per request, and this turn's data is gathered for you into a context block at the top of the conversation: CONFIDENCE, LAP BREAKDOWN, CONSISTENCY BY CORNER, SYMPTOMS, TRACK CONDITIONS, CURRENT SETUP, and VERSION HISTORY. Read it — it is fetched deterministically for you each turn. You do NOT call any tool to read it.
@@ -104,6 +105,7 @@ export const driverCoachAgent = new Agent({
     get_lap_detail: driverCoachTools.getLapDetailTool,
     get_lap_issues: driverCoachTools.getLapIssuesTool,
     compare_laps: driverCoachTools.compareLapsTool,
+    get_tire_temperature_guide: getTireTempGuideTool,
   },
   memory: getChatMemory(),
   // Live scoring in Studio. `drill-quality` is the one that matters here:

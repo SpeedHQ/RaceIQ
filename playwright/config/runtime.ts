@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 
 export type E2EServerMode = "dev" | "compiled";
-export type E2EServerSet = "all" | "fresh" | "tunes" | "tunes-unseeded" | "seeded";
+export type E2EServerSet = "all" | "fresh" | "tunes" | "tunes-unseeded" | "seeded" | "isolated";
 
 export interface E2ERuntime {
   serverMode: E2EServerMode;
@@ -40,8 +40,8 @@ function readServerMode(): E2EServerMode {
 
 function readServerSet(): E2EServerSet {
   const value = process.env.PW_SERVER_SET ?? "all";
-  if (value !== "all" && value !== "fresh" && value !== "tunes" && value !== "tunes-unseeded" && value !== "seeded") {
-    throw new Error(`Unsupported PW_SERVER_SET "${value}" (expected all, fresh, tunes, tunes-unseeded, or seeded)`);
+  if (value !== "all" && value !== "fresh" && value !== "tunes" && value !== "tunes-unseeded" && value !== "seeded" && value !== "isolated") {
+    throw new Error(`Unsupported PW_SERVER_SET "${value}" (expected all, fresh, tunes, tunes-unseeded, seeded, or isolated)`);
   }
   return value;
 }

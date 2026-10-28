@@ -5,6 +5,7 @@ import { getF1CarName } from "@raceiq/game-f1-2025-metadata/racing/cars/f1"
 import { getF1TrackName, getF1TrackInfo } from "@raceiq/game-f1-2025-metadata/racing/tracks/catalogs/f1"
 import { LapDetector } from "@raceiq/backend-core/lap-detection/detector";
 import { renderAnalystSchemaForPrompt } from "@raceiq/backend-core/ai/schemas";
+import { formatTireTempGuide } from "@raceiq/backend-core/ai/tire-temp-guide";
 
 import { f1Parser } from "./game-parser";
 import { F1StateAccumulator } from "./f1-state";
@@ -20,9 +21,10 @@ CATEGORY GUIDELINES:
 - "corners": Top 3-5 problem corners where time is being lost. Include speed numbers.
 - "technique": 3-5 actionable driving tips. Consider ERS harvesting vs deployment, lift-and-coast for fuel/tyre saving, and tyre temperature management.
 
-THERMAL REFERENCE (F1 25, slick tyres, dry):
-- Tyre surface temp: optimal 90-110°C, warning 80-89°C or 111-125°C, critical <80°C or >125°C.
-- Tyre inner-carcass temp: optimal 95-115°C, warning 85-94°C or 116-125°C, critical <85°C or >125°C.
+THERMAL REFERENCE (F1 25, inner-carcass/core temps):
+- Dry compounds: optimal 75-115°C depending on compound (soft ~75-95°C, medium ~80-105°C, hard ~85-115°C); warning below the compound minimum or up to 10°C above it.
+- Intermediates: optimal 60-80°C. Wets: optimal 50-70°C.
+- Tyre surface temp runs hotter and flash-heats; grade grip on the inner-carcass figure when present.
 - Brake disc temp: optimal 450-700°C, warning 350-449°C or 701-850°C, critical <350°C or >850°C (carbon brakes cold-crack below 200°C and fade above 900°C).
 - Tyre health / wear remaining: good 100-85%, warning 84-60%, critical <60% (scale grip loss and lap-time cost in your verdict).
 When citing temps in \`pace\`, \`handling\`, or \`corners\`, use these bands to grade \`assessment\`.
@@ -108,6 +110,8 @@ export const f1ServerAdapter: ServerGameAdapter = {
     const compoundNames: Record<number, string> = { 16: "soft", 17: "medium", 18: "hard", 7: "inter", 8: "wet" };
     const compound = compoundNum != null ? (compoundNames[compoundNum] ?? `compound-${compoundNum}`) : (first.f1?.tyreCompound ?? "unknown");
     context += `\nTyre Compound: ${compound}`;
+    const tireGuide = formatTireTempGuide("f1-2025");
+    if (tireGuide) context += `\n${tireGuide}`;
 
     // Weather (top-level WeatherType survives CSV)
     const weatherNames: Record<number, string> = { 0: "clear", 1: "light cloud", 2: "overcast", 3: "light rain", 4: "heavy rain", 5: "storm" };

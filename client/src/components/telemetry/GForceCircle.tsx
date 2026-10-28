@@ -4,7 +4,7 @@ import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@raceiq/scene-3d/rendering/css-canvas";
 import { m } from "@/paraglide/messages";
 import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
-import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
+import type { LiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
 
 /**
  * GForceCircle — Canvas-drawn G-force plot (friction circle).

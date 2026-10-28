@@ -1,0 +1,21 @@
+# Recent-session generation UI plan
+
+Contract: [shared integration boundary](recent-session-generation-contract.md). Owner: UI worker. Backend proceeds independently against this contract; main coordinator owns real integration verification after both slices finish.
+
+## Scope and tasks
+
+1. Replace single-session/stint generator and previous auto-single-source patch with Track, Car, Total laps and Weather inputs. Page game scopes history; latest owned combo is default. Use existing game catalogue queries for named track/car options, union recorded custom identities absent from catalogues, and expose explicit selection placeholders plus catalogue loading/error/retry states even without history. Reuse existing house controls; never present Unknown as the only choice. No session/stint selection anywhere in the automatic generated path, including generated-plan review. Manual editor retains its existing optional history controls for genuinely manual plans only.
+2. Add typed host RPC operation and shared-schema-validated query for selected combo/weather. Render aggregate fuel, wheel wear, compounds, eligible counts and read-only multi-session source provenance. Never select or average evidence client-side differently from backend. Generate unsaved draft with every source reference through shared helper. Preserve required name/capacity/reserve inputs and existing timed mode.
+3. Update all affected planner/projection/live/adherence consumers so aggregate baseline wins over single-source evidence; show actual source links without fabricating an aggregate session/stint identity. Preserve clone/edit/save/reload, snapshot stability and pending-save behavior. Invalid combinations or changed weather cannot keep stale source/capacity state; read failure exposes retry, unknown weather explicitly disclosed, generation disabled while loading/error/unavailable.
+4. Add/update all supported locale keys and feature message contract. Update relevant existing compiled E2Es to remove automatic-path session/stint selection and test multiple distinct measured sources, weighted outputs, combo/weather switches, persistence/restart/deletion, legacy behavior and desktop/mobile captures. No source-text tests or fake production fallback.
+5. UI owns packages/race-strategy/ui, contracts/ui-host.ts and messages.ts, client host/RPC adapter and catalogue-query reuse, locales, and existing feature UI/native E2E specs. Backend owns shared schema/generator/aggregate helper/server files/Bun tests plus separate generation-evidence.spec.ts API matrix. UI may implement from documented interfaces while backend proceeds, but must integrate real endpoints before completion. UI owns one concise CHANGELOG feature-note update after final net behavior is known.
+
+## Acceptance and edge handling
+
+UI acceptance: MS-01–MS-07 in shared contract. Setup/action/result scenarios there define E2E acceptance, not duplicate definitions here. Empty history still permits manual planning. One eligible session works; two must both contribute. Stale responses cannot cross track/car/weather query keys. Unsupported weather never borrows other conditions. Unknown weather uses Any and explicit limitation, never an invented wet-weather multiplier. Generated and saved aggregate drafts do not require session/evidence pickers. Legacy manual/single-source plans stay usable.
+
+## Verification dependency
+
+Extend existing race-plan.spec.ts / StrategyRuntime harness rather than adding another app. Use real compiled API, SQLite, native telemetry and runner-owned metadata where native source lacks compounds/weather; fixtures do not replace production integration. Main coordinator executes MS-01–MS-07 after both slices finish, plus root typecheck, feature lint/boundaries, production build, locale key/changelog checks and focused backend integration tests. Capture desktop/mobile aggregate generator and saved review. Completion requires actual passing E2E evidence or explicit blockers, not isolated mocks, plans or skipped tests.
+
+Worker must not run tests, builds, linters or formatters. No commits, checkpoints, nested workers or external agent sessions. Return concise changed paths, verification gaps and blockers. Request coordinator decision before changing the shared boundary.

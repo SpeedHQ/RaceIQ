@@ -235,6 +235,7 @@ export function TrackFocusViewInner({
   const [hoverPoints, setHoverPoints] = useState<{ brake: number[]; throttle: number[] } | null>(null);
   const [hoverRange, setHoverRange] = useState<{ startFrac: number; endFrac: number } | null>(null);
   const [issueHoverRange, setIssueHoverRange] = useState<{ startFrac: number; endFrac: number } | null>(null);
+  const [hoveredIssue, setHoveredIssue] = useState<TuneIssue | null>(null);
   const [localActiveTab, setLocalActiveTab] = useState<TuneReviewTrackTab>("consistency");
   const [tooltipMode, setTooltipMode] = useState<TooltipDisplayMode>("per-lap");
   const activeTab = controlledActiveTab ?? localActiveTab;
@@ -336,6 +337,7 @@ export function TrackFocusViewInner({
   }, [issues]);
   const handleIssueHover = useCallback(
     (issue: TuneIssue | null) => {
+      setHoveredIssue(issue);
       if (issue?.distanceFrac == null) {
         setIssueHoverRange(null);
         return;
@@ -351,16 +353,17 @@ export function TrackFocusViewInner({
     },
     [corners],
   );
-  const highlightedIssueKey = useMemo(() => {
+  const highlightedIssue = useMemo(() => {
+    if (hoveredIssue != null && issues.includes(hoveredIssue)) return hoveredIssue;
     if (cursorFrac == null) return null;
     for (const issue of issues) {
       if (issue.distanceFrac == null) continue;
       const corner = issue.corner == null ? null : corners.find((candidate) => candidate.label === issue.corner);
       const inArea = corner ? cursorFrac >= corner.distanceStart && cursorFrac <= corner.distanceEnd : Math.abs(cursorFrac - issue.distanceFrac) <= 0.02;
-      if (inArea) return `${issue.kind}-${issue.corner ?? "General"}-${issue.detail}`;
+      if (inArea) return issue;
     }
     return null;
-  }, [corners, cursorFrac, issues]);
+  }, [corners, cursorFrac, hoveredIssue, issues]);
 
   return (
     <div className="flex min-h-full flex-col gap-4 px-4 pb-4" onPointerMove={(event) => {
@@ -442,7 +445,7 @@ export function TrackFocusViewInner({
           <div className="flex min-h-0 flex-col">
             <div className="mb-1 flex-none text-app-compact font-semibold uppercase tracking-wider text-app-text-muted">Issues</div>
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-              <IssuesList issues={issues} onIssueClick={setCursorFrac} onIssueHover={handleIssueHover} highlightedIssueKey={highlightedIssueKey} />
+              <IssuesList issues={issues} onIssueClick={setCursorFrac} onIssueHover={handleIssueHover} highlightedIssue={highlightedIssue} />
               {insights.length > 0 && (
                 <section className="mt-3 space-y-1" aria-label="Detector findings">
                   <h3 className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Detector findings ({insights.length})</h3>

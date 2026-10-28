@@ -7,8 +7,8 @@ import type { LivePitData, LiveSectorData } from "@raceiq/shared/racing/live/typ
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "@raceiq/shared/telemetry/live/contracts";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import { buildLiveTelemetryView } from "../lib/live-telemetry-view";
-import type { LiveTelemetryView } from "../lib/live-telemetry-view";
+import { buildLiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
+import type { LiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
 
 // ── Shared base packet fields ────────────────────────────────────────────────
 

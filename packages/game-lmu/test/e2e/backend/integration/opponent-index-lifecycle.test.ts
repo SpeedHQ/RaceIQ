@@ -16,7 +16,10 @@ try {
   const { initGameAdapters } = await import("@raceiq/game-catalogs/games/init");
   const { registerServerGame } = await import("@raceiq/backend-core/games/registry");
   const { lmuServerAdapter } = await import("@raceiq/game-lmu");
+  // Load the feature after database initialization in this isolated child.
+  const { registerRaceStrategyFeature } = await import("@raceiq/race-strategy/server");
   initGameAdapters();
+  registerRaceStrategyFeature();
   registerServerGame(lmuServerAdapter);
   runtime = await import("@raceiq/backend-core/session-capture/lmu-opponent-index-runtime");
   const instrumentation = await import("@raceiq/backend-core/session-capture/test-instrumentation");

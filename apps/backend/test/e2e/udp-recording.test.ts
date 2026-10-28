@@ -163,8 +163,8 @@ describe("UDP recording integration", () => {
       expect(recordedFrames).toEqual([...source.packets]);
       const database = new Database(join(dataDir, "app.db"), { readonly: true });
       try {
-        expect(database.prepare("SELECT count(*) AS count FROM sessions").get()).toEqual({ count: 0 });
-        expect(database.prepare("SELECT count(*) AS count FROM laps").get()).toEqual({ count: 0 });
+        expect(database.prepare("SELECT count(*) AS count FROM sessions").get()?.count).toBe(0);
+        expect(database.prepare("SELECT count(*) AS count FROM laps").get()?.count).toBe(0);
       } finally { database.close(); }
     }, 60_000);
   }

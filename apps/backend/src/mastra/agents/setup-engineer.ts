@@ -19,6 +19,7 @@ import { getChatTurnContext } from "@raceiq/backend-core/ai/chat-message-context
 import { getMastraModelId } from "../model";
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { setupEngineerTools } from "../tools/setup-engineer";
+import { getTireTempGuideTool } from "../tools/tire-temp-guide";
 import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "@raceiq/shared/racing/experiments/focus";
 
 export interface SetupEngineerSessionContext {
@@ -106,6 +107,7 @@ export const setupEngineerAgent = new Agent({
   tools: {
     get_setup: setupEngineerTools.getSetupTool,
     get_symptoms: setupEngineerTools.getSymptomsTool,
+    get_tire_temperature_guide: getTireTempGuideTool,
     get_track_conditions: setupEngineerTools.getTrackConditionsTool,
     consult_lap_analyst: setupEngineerTools.consultLapAnalystTool,
     get_version_history: setupEngineerTools.getVersionHistoryTool,

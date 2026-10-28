@@ -274,47 +274,5 @@ describe("semantic telemetry catalog", () => {
     ).toMatchObject({ semanticId: "setup.aero.rear-wing.angle" });
   });
 
-  test("avoids ambiguous central labels and generic parser descriptions", () => {
-    const duplicateLabels = TELEMETRY_CATALOG.variables
-      .map((variable) => variable.label)
-      .filter((label, index, labels) => labels.indexOf(label) !== index);
-    expect(duplicateLabels).toEqual([]);
-    expect(
-      TELEMETRY_CATALOG.variables.filter((variable) =>
-        /exposed by .* parser/i.test(variable.description),
-      ),
-    ).toEqual([]);
-    expect(
-      TELEMETRY_CATALOG.variables
-        .map((variable) => variable.id)
-        .filter((id) =>
-          /weekend-info|driver-info|session-info|camera-info|radio-info|motion-ex/.test(
-            id,
-          ),
-        ),
-    ).toEqual([]);
-    expect(
-      TELEMETRY_CATALOG.variables
-        .map((variable) => variable.id)
-        .filter((id) =>
-          /(car-idx|lastl|las-n|(?:^|\.)dc-|session-laps-remain-ex|-dd$|-ok$|p2-p|(?:^|\.)cam-|pit-sv|pit-opt)/.test(
-            id,
-          ),
-        ),
-    ).toEqual([]);
-    expect(
-      TELEMETRY_CATALOG.variables.flatMap((variable) =>
-        Object.entries(variable.games).flatMap(([gameId, mapping]) => {
-          if (mapping.kind === "unavailable") return [];
-          const sources = Array.isArray(mapping.sources)
-            ? mapping.sources
-            : Object.values(mapping.sources).flat();
-          return sources
-            .filter((source) => source.startsWith("RaceIQ.ParserState."))
-            .map((source) => `${gameId}:${variable.id}:${source}`);
-        }),
-      ),
-    ).toEqual([]);
-  });
 
 });

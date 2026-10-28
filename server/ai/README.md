@@ -9,7 +9,7 @@ Collect all AI-facing logic: deterministic telemetry symptom extraction, prompt 
 - AI provider/response path: `providers.ts`, `schemas.ts`, `google-provider-options.ts`.
 - Prompt formatting and coaching entry points: `tune-*` prompt files, `chat-prompt.ts`, `compare-chat-prompt.ts`, `analyst-prompt.ts`, `inputs-compare-prompt.ts`.
 - Chat persistence/state: `chat-agent.ts`.
-- Track knowledge bridge: `track-guides.ts`.
+- Track knowledge bridge: `track-guides.ts`, tire-temperature knowledge bridge: `tire-temp-guide.ts`.
 
 ## Boundaries and invariants
 - Public contracts kept stable unless proven unused across repository.

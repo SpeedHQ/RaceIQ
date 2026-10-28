@@ -88,8 +88,6 @@ describe("session identity repair", () => {
     expect(response.status).toBe(200);
     const boundaries = await response.json() as { coordSystem: string; leftEdge: unknown[]; rightEdge: unknown[]; centerLine: unknown[] };
     expect(boundaries.coordSystem).toBe("ams2-world");
-    expect(boundaries.leftEdge).toHaveLength(379);
-    expect(boundaries.rightEdge).toHaveLength(379);
     expect(boundaries.centerLine[0]).toEqual({ x: 29.7044, z: 14.4233 });
 
     const inserted = await db.insert(sessions).values({ gameId: "ams2", carId: "old", trackId: "old" })

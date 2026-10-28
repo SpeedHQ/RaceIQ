@@ -9,9 +9,11 @@ import { encodeLiveFrame, encodeLiveSchema } from "@raceiq/telemetry-core/teleme
 import { readRecordedTelemetry } from "../../session-capture/replay-packets";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { SectorTracker } from "@raceiq/backend-core/live-strategy/sector-tracker";
-import { PitTracker } from "@raceiq/backend-core/live-strategy/pit-tracker";
+import { PitTracker } from "@raceiq/race-strategy/server";
 import { LiveTelemetryProjector } from "@raceiq/telemetry-core/telemetry/live-projector";
 import { normalizeTelemetryPacket } from "@raceiq/telemetry-core/telemetry/normalization";
+import { getPacketTireCompound, getTireThresholds, type TireThresholds } from "@raceiq/shared/racing/live/tire-thresholds";
+import { getTireThresholdOverrides, loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { wsManager } from "@raceiq/backend-core/runtime/websocket-manager";
 import { resolveRecordingGameId, resolveRecordingPath } from "./recording-support";
 
@@ -182,15 +184,16 @@ export const replayRoutes = new Hono()
     const projector = new LiveTelemetryProjector();
     const replaySessionId = 0;
 
-    pitTracker.reset();
+    loadSettings();
     const game = getServerGame(gameId);
-    pitTracker.setTireThresholds(game.tireHealthThresholds.yellow);
     pitTracker.setTireWearAvailable(resolveAnalysisTelemetry(game).tireWearRate.source !== "unavailable");
     for (const packet of packets) {
       wsManager.stageDevTelemetry(structuredClone(packet));
       normalizeTelemetryPacket(packet, game.coordSystem === "standard-xyz", game.runtime.normSuspensionTravelMm);
+      const compounds: [string, string, string, string] = [0, 1, 2, 3].map((wheel) => getPacketTireCompound(packet, wheel)) as [string, string, string, string];
+      const thresholds = compounds.map((compound) => getTireThresholds(getTireThresholdOverrides(), gameId, compound)) as [TireThresholds, TireThresholds, TireThresholds, TireThresholds];
       const sectors = sectorTracker.feed(packet);
-      const pit = pitTracker.feed(packet, sectorTracker.getTrackLength(), sectorTracker.getLapDistStart());
+      const pit = pitTracker.feed(packet, sectorTracker.getTrackLength(), sectorTracker.getLapDistStart(), thresholds);
       const projection = projector.project({
         packet,
         sessionId: replaySessionId,

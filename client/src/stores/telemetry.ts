@@ -1,11 +1,12 @@
+import type { TireThresholdOverrides } from "@raceiq/shared/racing/live/tire-thresholds";
 import { createStore, useSelector, type StoreActionMap } from "@tanstack/react-store";
 import { advanceReprocess, beginReprocess, completeReprocess, dismissReprocess, failReprocess, initialReprocessState, type ReprocessState } from "@/lib/reprocess-state";
 import type { LivePitData, LiveSectorData } from "@raceiq/shared/racing/live/types";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "@raceiq/shared/telemetry/live/contracts";
-import type { LiveTelemetryView } from "../lib/live-telemetry-view";
-import { buildLiveTelemetryView } from "../lib/live-telemetry-view";
+import type { LiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
+import { buildLiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
 import { DEFAULT_RECORDING_FREQUENCY_HZ, type RecordingFrequencyHz } from "@raceiq/shared/platform/runtime/recording-frequency";
 import type { LmuLiveContextWire } from "@raceiq/shared/telemetry/lmu-context";
 export interface DisplaySettings {
@@ -52,6 +53,8 @@ export interface DisplaySettings {
   onboardingComplete?: boolean;
   /** Game IDs excluded from nav and home page */
   hiddenGames?: string[];
+  /** Per-game, per-compound remaining-health thresholds. */
+  tireThresholdOverrides?: TireThresholdOverrides;
   /** Whether to launch RaceIQ automatically on Windows login */
   launchOnLogin?: boolean;
   /** UI + AI output language (ISO code, e.g. "en", "de"). */

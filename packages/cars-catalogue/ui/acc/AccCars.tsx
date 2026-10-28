@@ -2,6 +2,7 @@ import { useCarsCatalogueHost } from "../host";
 import type { AccCatalogueCar } from "../../contracts/host";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { CarTireDialog, TireCompoundDots } from "../cars/TireCompounds";
 
 function getManufacturer(name: string): string {
   if (name.startsWith("Aston Martin")) return "Aston Martin";
@@ -41,6 +42,7 @@ export function AccCars() {
   });
 
   const [filterClass, setFilterClass] = useState<string | null>(null);
+  const [tireCar, setTireCar] = useState<AccCatalogueCar | null>(null);
   const [sortKey] = useState<SortKey>("name");
   const [sortAsc] = useState(true);
 
@@ -117,10 +119,12 @@ export function AccCars() {
                 const brand = getManufacturer(car.name);
                 const specs = car.specs;
                 return (
-                  <div
+                  <button
                     key={car.id}
+                    type="button"
                     data-car-brand={brand}
-                    className="group relative bg-app-surface-alt/20 rounded-lg border border-app-border/10 overflow-hidden hover:border-app-border-hover/30 transition-all"
+                    onClick={() => setTireCar(car)}
+                    className="group relative w-full overflow-hidden rounded-lg border border-app-border/10 bg-app-surface-alt/20 text-left transition-all hover:border-app-border-hover/30"
                   >
                     <div className="brand-color-strip h-0.5" />
                     {/* Car image */}
@@ -154,8 +158,9 @@ export function AccCars() {
                           <span>{specs.drivetrain}</span>
                         </div>
                       )}
+                      <TireCompoundDots gameId="acc" className="pt-2" />
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -164,6 +169,15 @@ export function AccCars() {
       })}
 
       {filtered.length === 0 && <div className="text-center text-app-text-dim py-8">{m.acccars_no_match()}</div>}
+
+      {tireCar && (
+        <CarTireDialog
+          gameId="acc"
+          carName={tireCar.name}
+          open
+          onOpenChange={(open) => { if (!open) setTireCar(null); }}
+        />
+      )}
     </div>
   );
 }

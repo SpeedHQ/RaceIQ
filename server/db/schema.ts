@@ -937,6 +937,100 @@ export const dashboardLapIndex = sqliteTable("dashboard_lap_index", {
 	index("dashboard_lap_session_created_idx").on(table.sessionId, table.createdAtMs, table.lapId),
 	index("dashboard_lap_created_idx").on(table.createdAtMs, table.sessionId, table.lapId),
 ]);
+export const strategyStints = sqliteTable("strategy_stints", {
+	id: text("id").primaryKey(),
+	sessionId: integer("session_id").notNull().references(() => sessions.id, { onDelete: "cascade" }),
+	driverKey: text("driver_key").notNull(),
+	ordinal: integer("ordinal").notNull(),
+	status: text("status", { enum: ["active", "completed", "interrupted"] }).notNull(),
+	payload: text("payload").notNull(),
+	totals: text("totals").notNull().default("{}"),
+	revision: integer("revision").notNull().default(1),
+}, (table) => [uniqueIndex("strategy_stints_session_driver_ordinal_idx").on(table.sessionId, table.driverKey, table.ordinal)]);
+
+export const strategyLapMetrics = sqliteTable("strategy_lap_metrics", {
+	sessionId: integer("session_id").notNull().references(() => sessions.id, { onDelete: "cascade" }),
+	driverKey: text("driver_key").notNull(),
+	lapId: integer("lap_id").notNull().references(() => laps.id, { onDelete: "cascade" }),
+	algorithmVersion: text("algorithm_version").notNull(),
+	stintId: text("stint_id").notNull().references(() => strategyStints.id, { onDelete: "cascade" }),
+	payload: text("payload").notNull(),
+}, (table) => [primaryKey({ columns: [table.sessionId, table.driverKey, table.lapId, table.algorithmVersion] })]);
+
+export const pitEstimates = sqliteTable("pit_estimates", {
+	id: text("id").primaryKey(),
+	sessionId: integer("session_id").notNull().references(() => sessions.id, { onDelete: "cascade" }),
+	driverKey: text("driver_key").notNull(),
+	stintId: text("stint_id").notNull(),
+	epochOrdinal: integer("epoch_ordinal").notNull(),
+	sequence: integer("sequence").notNull(),
+	payload: text("payload").notNull(),
+}, (table) => [uniqueIndex("pit_estimates_source_idx").on(table.sessionId, table.driverKey, table.epochOrdinal, table.sequence)]);
+
+export const strategyDriverState = sqliteTable("strategy_driver_state", {
+	sessionId: integer("session_id").notNull().references(() => sessions.id, { onDelete: "cascade" }),
+	driverKey: text("driver_key").notNull(),
+	nextEpochOrdinal: integer("next_epoch_ordinal").notNull().default(0),
+	highWaterEpoch: integer("high_water_epoch").notNull().default(0),
+	highWaterSequence: integer("high_water_sequence").notNull().default(0),
+	clearEpoch: integer("clear_epoch").notNull().default(0),
+	clearSequence: integer("clear_sequence").notNull().default(-1),
+	clearGeneration: integer("clear_generation").notNull().default(0),
+}, (table) => [primaryKey({ columns: [table.sessionId, table.driverKey] })]);
+
+export const strategyHistoryRevisions = sqliteTable("strategy_history_revisions", {
+	gameId: text("game_id").notNull(),
+	driverKey: text("driver_key").notNull(),
+	revision: integer("revision").notNull().default(0),
+}, (table) => [primaryKey({ columns: [table.gameId, table.driverKey] })]);
+
+export const strategySourceEpochs = sqliteTable("strategy_source_epochs", {
+	sessionId: integer("session_id").notNull().references(() => sessions.id, { onDelete: "cascade" }),
+	sourceEpoch: text("source_epoch").notNull(),
+	epochOrdinal: integer("epoch_ordinal").notNull(),
+}, (table) => [
+	primaryKey({ columns: [table.sessionId, table.sourceEpoch] }),
+	uniqueIndex("strategy_source_epochs_ordinal_idx").on(table.sessionId, table.epochOrdinal),
+]);
+
+export const strategySessionState = sqliteTable("strategy_session_state", {
+	sessionId: integer("session_id").primaryKey().references(() => sessions.id, { onDelete: "cascade" }),
+	highWaterEpoch: integer("high_water_epoch").notNull().default(0),
+	highWaterSequence: integer("high_water_sequence").notNull().default(-1),
+	rebuildGeneration: text("rebuild_generation"),
+});
+
+export const strategySourceAdmissions = sqliteTable("strategy_source_admissions", {
+	sessionId: integer("session_id").notNull().references(() => sessions.id, { onDelete: "cascade" }),
+	sourceKey: text("source_key").notNull(),
+	epochOrdinal: integer("epoch_ordinal").notNull(),
+	sequence: integer("sequence").notNull(),
+}, (table) => [
+	primaryKey({ columns: [table.sessionId, table.sourceKey] }),
+	uniqueIndex("strategy_source_admissions_order_idx").on(table.sessionId, table.epochOrdinal, table.sequence),
+]);
+
+export const racePlans = sqliteTable("race_plans", {
+	id: text("id").primaryKey(),
+	gameId: text("game_id").notNull(),
+	carId: text("car_id").notNull(),
+	trackId: text("track_id").notNull(),
+	pi: real("pi"),
+	createdAt: text("created_at").notNull(),
+	updatedAt: text("updated_at").notNull(),
+	payload: text("payload").notNull(),
+}, (table) => [
+	index("race_plans_game_updated_idx").on(table.gameId, table.updatedAt, table.id),
+	index("race_plans_identity_idx").on(table.gameId, table.carId, table.trackId, table.pi),
+]);
+
+export const activeRacePlans = sqliteTable("active_race_plans", {
+	gameId: text("game_id").notNull(),
+	carId: text("car_id").notNull(),
+	trackId: text("track_id").notNull(),
+	planId: text("plan_id").notNull().references(() => racePlans.id, { onDelete: "cascade" }),
+}, (table) => [primaryKey({ columns: [table.gameId, table.carId, table.trackId] })]);
+
 export const classificationMigrationRecordings = sqliteTable("classification_migration_recordings", {
 	recordingId: text("recording_id").primaryKey(),
 	sourceKey: text("source_key").notNull(),

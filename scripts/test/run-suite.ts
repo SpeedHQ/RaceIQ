@@ -57,6 +57,8 @@ async function run(owner: (typeof owners)[number], suite: Suite): Promise<number
     const preloads = unit ? [] : [resolve(root, "server/test-support/setup-data-dir.ts")];
     if (!unit && ["@raceiq/backend", "@raceiq/frontend-contract-tests", "@raceiq/game-lmu-tests"].includes(owner.name)) {
       preloads.push(resolve(root, "apps/backend/test/support/setup-app.ts"));
+    } else if (suite === "e2e" || (!unit && owner.name.startsWith("@raceiq/game-") && !owner.name.endsWith("-metadata"))) {
+      preloads.push(resolve(root, "apps/backend/test/support/setup-strategy.ts"));
     }
     const preloadToml = preloads.length
       ? `preload = [${preloads.map((path) => `"${path.replaceAll("\\", "/")}"`).join(", ")}]\n`

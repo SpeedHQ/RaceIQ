@@ -43,7 +43,7 @@ export type TuneSearch = {
   view?: TuneView;
 };
 
-export type TuneReviewView = "overview" | "track" | `s${number}`;
+export type TuneReviewView = "overview" | "issues" | "track" | `s${number}`;
 export type TuneReviewSearch = {
   laps?: string;
   lap?: number;
@@ -53,7 +53,7 @@ export type TuneReviewSearch = {
   versionId?: number;
 };
 
-export type GameRouteFeature = "driver" | "experiments" | "raw" | "setups";
+export type GameRouteFeature = "driver" | "experiments" | "raw" | "setups" | "strategy";
 
 export type LiveDashboard = "forza" | "f1" | "acc" | "lmu";
 const ROUTE_FEATURES: Record<GameRouteFeature, readonly string[]> = {
@@ -61,6 +61,7 @@ const ROUTE_FEATURES: Record<GameRouteFeature, readonly string[]> = {
   experiments: ["f125", "acc", "ac-evo"],
   raw: ["fm23", "f125", "acc", "ac-evo", "iracing", "lmu", "ams2"],
   setups: ["fm23", "f125", "acc", "ac-evo"],
+  strategy: ["fm23", "acc", "ac-evo", "iracing", "lmu"],
 };
 
 export function gameIdForRoutePrefix(prefix: string): GameId | undefined {
@@ -122,7 +123,7 @@ export function validateTuneSearch(search: Record<string, unknown>): TuneSearch 
   };
 }
 export function validateTuneReviewSearch(search: Record<string, unknown>): TuneReviewSearch {
-  const view = search.view === "overview" || search.view === "track" || (typeof search.view === "string" && /^s[1-9]\d*$/.test(search.view)) ? search.view : undefined;
+  const view = search.view === "overview" || search.view === "issues" || search.view === "track" || (typeof search.view === "string" && /^s[1-9]\d*$/.test(search.view)) ? search.view : undefined;
   const requestedTab = search.tab ?? search.trackTab;
   const tab =
     requestedTab === "consistency" ||

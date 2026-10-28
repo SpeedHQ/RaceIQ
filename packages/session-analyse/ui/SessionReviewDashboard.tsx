@@ -14,6 +14,7 @@ import type { LineSpreadTrace } from "@raceiq/analysis-core/racing/laps/consiste
 import { useSessionLineSpread } from "./queries";
 import { SECTOR_COLOR_VARS } from "@raceiq/scene-3d/colors";
 import { ArmHeadline, ReviewOverviewSkeleton, ReviewTrackStats } from "./OverviewSkeleton";
+import { StrategyStints } from "@raceiq/race-strategy/ui";
 import { tireSnapshotFromAlignedTrace } from "./tire-snapshot";
 import { semanticTuneSamplesFromAlignedTrace, wheelValue, type SemanticTuneSample } from "@raceiq/analysis-core/racing/laps/semantic-tune";
 import { buildOpenLapContext } from "./open-lap-context";
@@ -37,7 +38,7 @@ interface TuneReviewDashboardProps {
 }
 
 type SectorView = `s${number}`;
-type ReviewView = "overview" | "track" | "analyse" | SectorView;
+type ReviewView = "overview" | "issues" | "track" | "analyse" | SectorView;
 
 /**
  * TuneReviewDashboard — post-lap analysis for a finished lap, in the "sector
@@ -85,9 +86,10 @@ export function SessionReviewDashboard({
   const [dialogOpen, setDialogOpen] = useState(false);
   const selectedLapId = stayOnSessionReview ? (primaryLap?.id ?? null) : search.lap;
   const focusLap = displayedLaps.find((l) => l.id === selectedLapId) ?? primaryLap;
-  const view = search.view ?? "overview";
+  const view = stayOnSessionReview && search.view?.startsWith("s") ? "overview" : search.view ?? "overview";
   const isTrackView = view === "track" || view === "analyse";
   const tab = search.tab ?? "consistency";
+  const isIssuesView = view === "issues";
   const bestLap = useMemo(() => validLaps.reduce<LapMeta | null>((best, lap) => (best == null || lap.lapTime < best.lapTime ? lap : best), null), [validLaps]);
   const lapOptions = useMemo(() => [...(isTrackView ? [{ value: "all", label: bestLap ? m.review_primary_lap_label({ lap: bestLap.lapNumber }) : m.review_primary_lap_label({ lap: "—" }) }] : []), ...evaluationLaps.map((l) => ({ value: String(l.id), label: m.review_lap_time_label({ lap: l.lapNumber, time: formatLapTime(l.lapTime) }) }))], [bestLap, isTrackView, evaluationLaps]);
   const setFocus = useCallback((id: number) => { void navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, lap: id }) } as never); }, [navigate]);
@@ -224,7 +226,7 @@ export function SessionReviewDashboard({
     return <ReviewOverviewSkeleton trackName={trackName} onBack={onBack} />;
   }
 
-  const isOverview = !isTrackView && sectorIndex == null;
+  const isOverview = view === "overview";
 
   return (
     <div className="flex min-h-full flex-col">
@@ -256,7 +258,7 @@ export function SessionReviewDashboard({
           )}
           {focusLap && <span className={`text-sm ${focusLap.isValid ? "text-status-success" : "text-status-danger"}`} title={focusLap.isValid ? m.review_valid_lap() : m.review_invalid_lap()}>{focusLap.isValid ? "✓" : "!"}</span>}
           <div className="ml-auto flex gap-1">
-            {(["overview", ...Array.from({ length: sectorCount }, (_, index) => `s${index + 1}` as SectorView), stayOnSessionReview ? "analyse" : "track"] as ReviewView[]).map((v) => (
+            {((stayOnSessionReview ? ["overview", "issues", "analyse"] : ["overview", "issues", ...Array.from({ length: sectorCount }, (_, index) => `s${index + 1}` as SectorView), "track"]) as ReviewView[]).map((v) => (
               <Button
                 key={v}
                 variant="app-ghost"
@@ -264,7 +266,7 @@ export function SessionReviewDashboard({
                 onClick={() => setView(v)}
                 className={`!border text-xs ${(view === v || (stayOnSessionReview && v === "analyse" && isTrackView)) ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"}`}
               >
-                {v === "overview" ? m.review_overview() : v === "track" || v === "analyse" ? m.label_analyse() : m.review_sector({ sector: v.slice(1) })}
+                {v === "overview" ? m.review_overview() : v === "issues" ? m.review_issues() : v === "track" || v === "analyse" ? m.label_analyse() : m.review_sector({ sector: v.slice(1) })}
               </Button>
             ))}
           </div>
@@ -409,49 +411,43 @@ export function SessionReviewDashboard({
           />
         ) : sectorIndex != null ? (
           <SectorDetailView gameId={gameId} telemetry={telemetry} sectorTimes={sectorTimes} sectorIndex={sectorIndex} trackId={focusLap.trackId} issues={issueGroups.bySector[sectorIndex]} />
+        ) : isIssuesView ? (
+          <div className="border-b border-app-border">
+            <div className="px-4 pt-3 pb-1 text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">{m.review_detected_from_telemetry()}</div>
+            {!issues ? (
+              <div className="px-4 pb-3 text-xs text-app-text-dim">{m.review_loading_issues()}</div>
+            ) : issues.length === 0 ? (
+              <div className="px-4 pb-3 text-xs text-app-text-dim">{m.review_no_issues_detected()}</div>
+            ) : (
+              <>
+                {issueGroups.wholeLap.length > 0 && (
+                  <div className="px-4 pb-2">
+                    <div className="text-app-caption text-app-text-dim uppercase tracking-wider mb-1">{m.review_whole_lap()}</div>
+                    <div className="flex flex-col gap-1">
+                      {issueGroups.wholeLap.map((it) => <IssuePill key={`${it.kind}-${it.corner ?? ""}-${it.detail}`} issue={it} />)}
+                    </div>
+                  </div>
+                )}
+                <div className="grid grid-cols-1 @3xl/workspace:auto-cols-fr @3xl/workspace:grid-flow-col">
+                  {Array.from({ length: sectorCount }, (_, i) => `S${i + 1}`).map((label, i) => (
+                    <div key={label} className={`border-t border-app-border px-3 py-2 @3xl/workspace:border-t-0 ${i < sectorCount - 1 ? "border-app-border @3xl/workspace:border-r" : ""}`}>
+                      <div className="sticky top-0 z-10 flex items-center gap-1.5 mb-1.5 bg-app-bg">
+                        <span className="w-3 h-1 rounded" style={{ background: SECTOR_COLOR_VARS[i % SECTOR_COLOR_VARS.length] }} />
+                        <span className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.review_sector({ sector: i + 1 })}</span>
+                      </div>
+                      {issueGroups.bySector[i].length === 0 ? <div className="text-app-compact text-app-text-dim">{m.review_no_issues()}</div> : (
+                        <div className="flex flex-col gap-1.5">
+                          {issueGroups.bySector[i].map((it) => <IssuePill key={`${it.kind}-${it.corner ?? ""}-${it.detail}`} issue={it} onHover={(f) => setMarkedIssue(f == null ? null : { sector: i, frac: f })} />)}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         ) : (
           <>
-            {/* Detected issues, laid out per sector */}
-            <div className="border-b border-app-border">
-              <div className="px-4 pt-3 pb-1 text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">{m.review_detected_from_telemetry()}</div>
-              {!issues ? (
-                <div className="px-4 pb-3 text-xs text-app-text-dim">{m.review_loading_issues()}</div>
-              ) : issues.length === 0 ? (
-                <div className="px-4 pb-3 text-xs text-app-text-dim">{m.review_no_issues_detected()}</div>
-              ) : (
-                <>
-                  {issueGroups.wholeLap.length > 0 && (
-                    <div className="px-4 pb-2">
-                      <div className="text-app-caption text-app-text-dim uppercase tracking-wider mb-1">{m.review_whole_lap()}</div>
-                      <div className="flex flex-col gap-1">
-                        {issueGroups.wholeLap.map((it) => (
-                          <IssuePill key={`${it.kind}-${it.corner ?? ""}-${it.detail}`} issue={it} />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <div className="grid grid-cols-1 @3xl/workspace:auto-cols-fr @3xl/workspace:grid-flow-col">
-                    {Array.from({ length: sectorCount }, (_, i) => `S${i + 1}`).map((label, i) => (
-                      <div key={label} className={`border-t border-app-border px-3 py-2 @3xl/workspace:border-t-0 ${i < sectorCount - 1 ? "border-app-border @3xl/workspace:border-r" : ""}`}>
-                        <div className="sticky top-0 z-10 flex items-center gap-1.5 mb-1.5 bg-app-bg">
-                          <span className="w-3 h-1 rounded" style={{ background: SECTOR_COLOR_VARS[i % SECTOR_COLOR_VARS.length] }} />
-                          <span className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.review_sector({ sector: i + 1 })}</span>
-                        </div>
-                        {issueGroups.bySector[i].length === 0 ? (
-                          <div className="text-app-compact text-app-text-dim">{m.review_no_issues()}</div>
-                        ) : (
-                          <div className="flex flex-col gap-1.5">
-                            {issueGroups.bySector[i].map((it) => (
-                              <IssuePill key={`${it.kind}-${it.corner ?? ""}-${it.detail}`} issue={it} onHover={(f) => setMarkedIssue(f == null ? null : { sector: i, frac: f })} />
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
 
             {/* Tyres */}
             <div>
@@ -471,6 +467,9 @@ export function SessionReviewDashboard({
                 )}
               </div>
             </div>
+            {isOverview && stayOnSessionReview && sessionId != null && (
+              <StrategyStints key={`${gameId}:${sessionId}`} gameId={gameId} sessionId={sessionId} />
+            )}
           </>
         )}
       </div>

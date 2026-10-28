@@ -23,7 +23,7 @@ describe(recordingFile, () => {
     generateRecordingVisualizations(recordingFile, laps, rawPackets);
 
     expect(laps.length).toBe(5);
-    expect(laps.filter((l) => l.isValid).length).toBe(3);
+    expect(laps.filter((l) => l.isValid).length).toBe(4);
 
     // All laps belong to the same session
     const sessionIds = new Set(laps.map((l) => l.sessionId));
@@ -32,8 +32,8 @@ describe(recordingFile, () => {
     expect(laps.map((l) => l.lapNumber)).toEqual([1, 2, 3, 4, 5]);
 
     // Lap 1: joining lap (recording started mid-lap, from pit)
-    expect(laps[0].isValid).toBe(false);
-    expect(laps[0].invalidReason).toBe("outlap");
+    expect(laps[0].isValid).toBe(true);
+    expect(laps[0].invalidReason).toBeNull();
     expect(laps[0].packets[0].acc?.pitStatus).not.toBe("out");
 
     // Laps 2-4: valid clean laps
@@ -68,9 +68,9 @@ describe(recordingFile, () => {
     expect(laps[4].isValid).toBe(false);
     expect(laps[4].invalidReason).toBe("incomplete");
 
-    // lap-saved notifications: lap 1 invalid, laps 2-4 valid with best lap tracking
+    // lap-saved notifications match persisted validity and best lap tracking.
     expect(lapSaved[0].lapNumber).toBe(1);
-    expect(lapSaved[0].isValid).toBe(false);
+    expect(lapSaved[0].isValid).toBe(true);
     expect(lapSaved[1].lapNumber).toBe(2);
     expect(lapSaved[1].isValid).toBe(true);
     expect(lapSaved[1].estimatedBestLapTime).toBe(lapSaved[1].lapTime);

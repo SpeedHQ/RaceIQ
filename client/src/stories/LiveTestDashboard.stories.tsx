@@ -5,7 +5,7 @@ import { LiveTestDashboard } from "../components/tunes/LiveTestDashboard";
 import { DEFAULT_DISPLAY_SETTINGS, telemetryStore } from "../stores/telemetry";
 import { fakeAccPacket, fakeSectors, fakeSessionLaps, makeSemanticFixture } from "./fakeData";
 import { fakeSectorTimes, generateFakeLapTelemetry } from "./setupEngineerFakeLap";
-import type { LiveTelemetryView } from "../lib/live-telemetry-view";
+import type { LiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Infinity } },

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { gzipSync, gunzipSync } from "node:zlib";
-import { iterateSessionCaptureRecords } from "@raceiq/capture-formats/session/framing";
+import { iterateSessionCaptureRecords, type SessionCaptureRecord } from "@raceiq/capture-formats/session/framing";
 import { decodeLMUSourceFrame, encodeLMUSourceFrame } from "@raceiq/capture-formats/lmu/source-frame";
 import { LmuOpponentIdentityTracker } from "@raceiq/capture-formats/lmu/opponent-snapshot";
 import { SparseCaptureEncoder } from "@raceiq/capture-formats/session/sparse-recorder";
@@ -19,7 +19,13 @@ export function makeLmuOpponentCapture(options: { identity?: string; frequencyHz
   const identity = options.identity ?? "default";
   const hasOpponents = options.opponents ?? true;
   const fixture = gunzipSync(readFileSync(resolve(__dirname, "../../test/fixtures/sessions/lmu-real-opponents-grid-2026-10-22.bin.gz")));
-  const firstFrame = [...iterateSessionCaptureRecords(fixture, 0, { strict: true })].find((record) => record.kind === "frame");
+  let firstFrame: SessionCaptureRecord | undefined;
+  for (const record of iterateSessionCaptureRecords(fixture, 0, { strict: true })) {
+    if (record.kind === "frame") {
+      firstFrame = record;
+      break;
+    }
+  }
   assert(firstFrame?.kind === "frame");
   const original = decodeLMUSourceFrame(firstFrame.frame)!;
   assert(original.playerScoring);

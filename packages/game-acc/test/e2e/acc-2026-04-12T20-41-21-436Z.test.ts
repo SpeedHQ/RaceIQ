@@ -25,8 +25,8 @@ describe(recordingFile, () => {
     expect(laps[0].sectors).toBeNull();
 
     // Lap 1: outlap with valid sectors
-    expect(laps[1].isValid).toBe(false);
-    expect(laps[1].invalidReason).toBe("outlap");
+    expect(laps[1].isValid).toBe(true);
+    expect(laps[1].invalidReason).toBeNull();
     assertBrandHatchSectorBounds(laps[1]);
 
     // Laps 2-3: clean laps

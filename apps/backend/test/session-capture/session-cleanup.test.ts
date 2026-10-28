@@ -9,6 +9,7 @@ import { db, client } from "@raceiq/backend-core/db/index";
 import { laps, sessions, sessionCaptureSplitJobs, liveCaptures } from "@raceiq/backend-core/db/schema";
 import { SessionCaptureActiveError, deleteEmptySessions, deleteSession, setSessionFavorite, setLapFavorite } from "@raceiq/backend-core/db/session-queries";
 import { runUserCompressionNow } from "@raceiq/backend-core/session-capture/compressor";
+import { RecordingMaintenanceBusyError } from "@raceiq/backend-core/session-capture/maintenance-runtime";
 import { cleanupOrphanSessionFiles, withSessionCaptureMaintenanceLock } from "@raceiq/backend-core/session-capture/cleanup";
 import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
 import { executeSessionCleanup, previewSessionCleanup, SessionCleanupBusyError } from "@raceiq/backend-core/session-capture/session-cleanup";
@@ -361,7 +362,7 @@ describe("session cleanup edge cases", () => {
     expect((await db.select({ rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, sessionId)).get())?.rawFile).toBeNull();
   });
 
-  test("serializes compression behind cleanup so cleaned capture is not restored", async () => {
+  test("rejects compression while cleanup owns recording storage", async () => {
     const path = capturePath("overlap.bin");
     writeFileSync(path, Buffer.from("overlap capture"));
     const sessionId = await createSession({ rawFile: path });
@@ -369,16 +370,17 @@ describe("session cleanup edge cases", () => {
     const gate = Promise.withResolvers<void>();
     const held = withSessionCaptureMaintenanceLock(() => gate.promise);
     const cleanup = executeSessionCleanup({ mode: "selected", sessionIds: [sessionId] });
-    const compression = runUserCompressionNow();
+    const compressionRejected = expect(runUserCompressionNow()).rejects.toBeInstanceOf(RecordingMaintenanceBusyError);
     gate.resolve();
 
     await held;
     await cleanup;
-    await compression;
+    await compressionRejected;
 
     expect(existsSync(path)).toBe(false);
     expect(existsSync(`${path}.gz`)).toBe(false);
-    expect((await db.select({ rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, sessionId)).get())?.rawFile).toBeNull();
+    expect((await db.select({ rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, sessionId)).get())?.rawFile ?? null).toBeNull();
+
   });
   test("removes owned bundle manifest and members with cleaned source", async () => {
     const directory = dirname(capturePath("bundle.bin"));

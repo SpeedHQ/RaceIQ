@@ -102,6 +102,15 @@ export async function reserveRecordingStorageOperationWhenIdle(kind: StorageOper
   }
 }
 
+export async function reserveRecordingStorageOperationAfterOpponentIndex(kind: StorageOperation): Promise<() => void> {
+  while (reservedOperation?.kind === "opponent-index") await waitForStorageActivityChange();
+  return reserveRecordingStorageOperation(kind);
+}
+
+export async function waitForOpponentIndexStorageOperation(): Promise<void> {
+  while (reservedOperation?.kind === "opponent-index") await waitForStorageActivityChange();
+}
+
 export function beginRecordingStorageImport(): () => void {
   if (relocating) throw new RecordingStorageBusyError("MOVE_ACTIVE");
   imports++;

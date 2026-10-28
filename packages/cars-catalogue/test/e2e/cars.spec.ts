@@ -75,3 +75,91 @@ for (const game of SEEDED_GAME_CASES) {
   });
 }
 
+test("Le Mans Ultimate cars preserve search and class filtering through the real API", async ({ page, request }) => {
+  const browserErrors = collectBrowserErrors(page);
+  const response = await request.get("/api/cars", { headers: { "X-Game-Id": "lmu" } });
+  expect(response.status()).toBe(200);
+  const cars: LMUCatalogueCar[] = await response.json();
+  await page.goto("/lmu/cars", { waitUntil: "domcontentloaded" });
+  const cards = page.getByRole("button", { name: /.+/ }).filter({ has: page.locator("h2") });
+  const search = page.getByRole("searchbox");
+  await expect(search).toBeVisible();
+  await expect(cards).toHaveCount(cars.length);
+  await search.fill("definitely-no-catalogue-car");
+  await expect(cards).toHaveCount(0);
+  await search.fill("");
+  await expect(cards).toHaveCount(cars.length);
+  const category = page.locator("button[data-catalog-category]").first();
+  await expect(category).toBeVisible();
+  const carClass = await category.getAttribute("data-catalog-category");
+  await category.click();
+  await expect(category).toHaveAttribute("aria-pressed", "true");
+  await expect(cards).toHaveCount(cars.filter((car) => car.class === carClass).length);
+  await category.click();
+  await expect(category).toHaveAttribute("aria-pressed", "false");
+  await expect(cards).toHaveCount(cars.length);
+  const tireClasses = [
+    { name: "HYPERCAR", compounds: ["soft", "medium", "hard"] },
+    { name: "LMP2", compounds: ["soft", "medium"] },
+    { name: "GT3", compounds: ["medium"] },
+  ];
+  for (const { name, compounds } of tireClasses) {
+    const car = cars.find((candidate) => candidate.class === name);
+    expect(car, `seeded catalog contains ${name}`).toBeDefined();
+    const card = cards.filter({ has: page.locator(`h2:text-is("${car!.name}")`) });
+    await expect(card.locator("[data-tire-compound]")).toHaveCount(compounds.length + 1);
+    for (const compound of compounds) {
+      await expect(card.locator(`[data-tire-compound="${compound}"]`)).toHaveCount(1);
+    }
+    await expect(card.locator('[data-tire-compound="wet"]')).toHaveCount(1);
+    await card.click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toContainText(`Dry compounds for ${name}: ${compounds.join(", ")}. Wet tires available separately. Track availability may vary.`);
+    await expect(dialog.locator("tbody tr")).toHaveCount(compounds.length + 1);
+    await expect(dialog.locator("tbody tr").last().locator("th")).toContainText("wet");
+    await expect(dialog.locator('tbody tr').last().locator('th [data-tire-compound="wet"]')).toHaveCount(1);
+    await expect(dialog.locator("tbody tr").last().locator("td")).toHaveText("-");
+    for (const compound of compounds) {
+      await expect(dialog.locator(`tbody [data-tire-compound="${compound}"]`)).toHaveCount(1);
+    }
+    await expect(dialog).toContainText("Temperature rows below use the LMU tire temperature guide.");
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+  }
+  const unknownCar = cars.find((car) => car.class === "LMP3");
+  expect(unknownCar, "seeded catalog contains an unmapped LMP3 class").toBeDefined();
+  const unknownCard = cards.filter({ has: page.locator(`h2:text-is("${unknownCar!.name}")`) });
+  await expect(unknownCard).toContainText("Class-level dry compounds unknown");
+  await expect(unknownCard.locator("[data-tire-compound]")).toHaveCount(1);
+  await expect(unknownCard.locator('[data-tire-compound="wet"]')).toHaveCount(1);
+  await unknownCard.click();
+  const unknownDialog = page.getByRole("dialog");
+  await expect(unknownDialog).toContainText(`Class-level dry compounds unknown for ${unknownCar!.class}. Wet tires available separately. Track availability may vary.`);
+  await expect(unknownDialog.locator("tbody tr")).toHaveCount(1);
+  await expect(unknownDialog.locator("tbody tr th")).toContainText("wet");
+  await expect(unknownDialog.locator('tbody tr th [data-tire-compound="wet"]')).toHaveCount(1);
+  await expect(unknownDialog.locator("tbody tr td")).toHaveText("-");
+  await page.keyboard.press("Escape");
+  await expect(unknownDialog).toBeHidden();
+
+  const paceCar = cars.find((car) => car.class === "PACECAR");
+  expect(paceCar, "seeded catalog contains a PACECAR class").toBeDefined();
+  const paceCard = cards.filter({ has: page.locator(`h2:text-is("${paceCar!.name}")`) });
+  await expect(paceCard.locator('[data-tire-compound="wet"]')).toHaveCount(0);
+  await expect(paceCard).toContainText("Wet tires unavailable");
+  await paceCard.click();
+  const paceDialog = page.getByRole("dialog");
+  await expect(paceDialog).toContainText("Wet tires unavailable.");
+  await expect(paceDialog).not.toContainText("Wet tires available");
+  await expect(paceDialog.locator("tbody tr")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(paceDialog).toBeHidden();
+  const lmp3Card = cards.filter({ has: page.locator(`h2:text-is("${unknownCar!.name}")`) });
+  await expect(lmp3Card.locator('[data-tire-compound="wet"]')).toHaveCount(1);
+  await lmp3Card.click();
+  const lmp3Dialog = page.getByRole("dialog");
+  await expect(lmp3Dialog).toContainText("Wet tires available separately.");
+  await page.keyboard.press("Escape");
+  await expect(lmp3Dialog).toBeHidden();
+  expect(browserErrors.errors).toEqual([]);
+});

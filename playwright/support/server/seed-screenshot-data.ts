@@ -3,7 +3,7 @@ import Database from "libsql";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { restoreSeededDatabase } from "./seeded-database";
-import { DEFAULT_GAMES, LMU_MULTIPLAYER_FIXTURE_PARTS } from "@raceiq/tooling-data/data/seed-db-options";
+import { DEFAULT_GAMES } from "@raceiq/tooling-data/data/seed-db-options";
 
 export function seedE2ESetupData(repoDir: string, dataDir: string): void {
   const setupHome = resolve(dataDir, "setup-home");
@@ -15,11 +15,6 @@ export function seedE2ESetupData(repoDir: string, dataDir: string): void {
   copyFileSync(resolve(repoDir, "test", "artifacts", "carsetup", "Default-12312.carsetup"), resolve(acEvoDir, "e2e.carsetup"));
 }
 
-// Large native captures stay in normal seeds; bounded fixtures cover multiplayer
-// browser flows without making every screenshot/CI startup import multi-GB dumps.
-const EXCLUDED_SCREENSHOT_SEED_FIXTURES = [
-  ...LMU_MULTIPLAYER_FIXTURE_PARTS,
-] as const;
 export function seedScreenshotData(repoDir: string, dataDir: string): void {
   if (process.env.PW_SEED_SCREENSHOTS !== "1") return;
   if (process.env.PW_SEEDED_DATABASE) {
@@ -29,7 +24,6 @@ export function seedScreenshotData(repoDir: string, dataDir: string): void {
       "run",
       "apps/backend/scripts/data/seed-db.ts",
       `--games=${process.env.PW_SEED_GAMES ?? DEFAULT_GAMES.join(",")}`,
-      ...EXCLUDED_SCREENSHOT_SEED_FIXTURES.map((fixture) => `--exclude-fixture=${fixture}`),
     ];
     const result = spawnSync("bun", seedArgs, {
       cwd: repoDir,

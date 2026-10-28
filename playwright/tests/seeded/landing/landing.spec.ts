@@ -53,6 +53,19 @@ for (const game of SEEDED_GAME_CASES) {
   test(`${game.name} dashboard recap navigates to session laps`, async ({ page, request }) => {
     const browserErrors = collectBrowserErrors(page);
     await page.goto(`/${game.prefix}`, { waitUntil: "domcontentloaded" });
+    const compoundDots = page.locator(".tire-compound-wheel");
+    await page.goto(`/${game.prefix}/cars`, { waitUntil: "domcontentloaded" });
+    if (["acc", "ac-evo", "f1-2025", "lmu"].includes(game.gameId)) {
+      await expect(compoundDots.first()).toBeVisible();
+      await page.locator("button").filter({ has: compoundDots }).first().click();
+      const dialogRows = page.getByRole("dialog").locator("tbody tr");
+      await expect(dialogRows).toHaveCount(game.gameId === "f1-2025" ? 5 : game.gameId === "lmu" ? 3 : 2);
+      await expect(dialogRows.first()).toContainText(/°[CF]/);
+      await page.keyboard.press("Escape");
+    } else {
+      await expect(compoundDots).toHaveCount(0);
+    }
+    await page.goto(`/${game.prefix}`, { waitUntil: "domcontentloaded" });
     const yearResponsePromise = page.waitForResponse((response) => response.url().includes("/api/dashboard?") && response.request().headers()["x-game-id"] === game.gameId);
     await page.getByRole("button", { name: "This Year", exact: true }).click();
     const dashboardResponse = await yearResponsePromise;

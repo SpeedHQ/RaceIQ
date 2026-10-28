@@ -602,7 +602,7 @@ const SEMANTIC_DEFINITIONS_COMPETITOR: Record<string, SemanticDefinition> = {
   "identity.competitor.driver-name": semanticDefinition("Competitor driver name", "Native scoring driver name.", "race.competitor.identity", "text", "scalar"),
   "identity.competitor.car-name": semanticDefinition("Competitor car name", "Native scoring vehicle name.", "race.competitor.identity", "text", "scalar"),
   "identity.competitor.vehicle-class": semanticDefinition("Competitor vehicle class", "Native scoring class label.", "race.competitor.identity", "text", "scalar"),
-  "race.competitor.position": semanticDefinition("Competitor position", "Native overall scoring place.", "race.competitor.results", "count", "scalar"),
+  "race.competitor.position": semanticDefinition("Competitor position", "Native overall scoring place for each competitor.", "race.competitor.results", "count", "structured"),
   "race.competitor.current-sector": semanticDefinition("Competitor current sector", "Native scoring sector index.", "race.competitor.timing", "index", "scalar"),
   "race.competitor.best-sector-1": semanticDefinition("Competitor best sector 1", "Native best sector 1 time.", "race.competitor.timing", "s", "scalar"),
   "race.competitor.best-sector-2-cumulative": semanticDefinition("Competitor best cumulative sector 2", "Native best sector 2 cumulative through sector 1.", "race.competitor.timing", "s", "scalar"),

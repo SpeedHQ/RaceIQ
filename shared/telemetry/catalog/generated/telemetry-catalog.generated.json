@@ -6,7 +6,7 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.20.0",
-      "sourceHash": "fd03c450b03f31505862d865bb4574da2f25c6d704cd387c6cbbbfc1bb5c9472"
+      "sourceHash": "e87ce6a0b5b1324b7d3f67642ad630d241110f87a1ebacb26fe648cd8c60fc26"
     },
     "sourceHashes": {
       "packages/capture-formats/src/lmu/opponent-snapshot.ts": "c18e10f39668501f9c4742bec8999bc7faeeba2c8ea7b42d60accfbbe4e8f0c6",
@@ -17,12 +17,12 @@
       "packages/game-fm-2023/src/parser.ts": "71c348b894f84f6086c9582d0cce473bac75a3c85896010a0e5762854718b835",
       "packages/game-iracing-metadata/src/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "packages/game-iracing/src/normalizer.ts": "bcc73bc4805a310f968b9743e6c9c88a688e3216cd28eecc3ee9f6c3d36b0afc",
-      "packages/game-lmu/src/normalizer.ts": "dbd68de1aad791136103401c6502893502b2f52559fe3f4388892ee5103e4b8e",
+      "packages/game-lmu/src/normalizer.ts": "c6aa5f1777d94dc36dd157b3182c285cad4d5e646eedbfd52e26641fc8abff71",
       "packages/tooling-catalog/src/catalog/derived-projections.ts": "6d878cc39729fcc96ff88b3d06266893bc396584d60a050cd3990d4f50aa9378",
       "server/session-capture/frame-time.ts": "55c44a6cede5e2c5fb1e1c45568fe44b4a9a8b156f260f69bb5d89f9c24935a2",
       "shared/racing/setups/schema.ts": "987941bb8f38520920686ef540e67ce2259fdc962de03ccb959f6b5ef773b28f"
     },
-    "contentHash": "2c115419ceb87a3e3939cadb9a3bc0aa696b13e5fb4dafbcf90924fc258c3d30"
+    "contentHash": "c0d80fb860857ee2182a1f908449eed2c5777bce7f87d2deb1bd262fa3dc86bb"
   },
   "generatedFrom": [
     "packages/tooling-catalog/src/root.ts",
@@ -14933,6 +14933,7 @@
             "LMU.ScoringSnapshot.fuel.competitor.ambiguous-fuel-fraction"
           ],
           "freshness": "continuous",
+          "normalization": "byteFraction: native byte / 255",
           "description": "Derived from native LMU scoring data: fuelFraction.",
           "provenance": {
             "origin": "derivation",
@@ -14948,7 +14949,7 @@
               "LMU.ScoringSnapshot.fuel.competitor.ambiguous-fuel-fraction"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "d3cafeccbc3bd91c44f178f4a6222ba70464ff355a495e43e80b7ba29d9eb0f9"
+            "codeHash": "2b025398cd450533ffb04c59842da876bccf777d7b0c2dec2f355c9aa9c7d0f8"
           }
         },
         "ams2": {
@@ -24848,6 +24849,7 @@
             "LMU.ScoringSnapshot.motion.competitor.speed"
           ],
           "freshness": "continuous",
+          "normalization": "localVelocityMagnitude: hypot of finite velocity components",
           "description": "Derived from native LMU scoring data: localVelocity.",
           "provenance": {
             "origin": "derivation",
@@ -24863,7 +24865,7 @@
               "LMU.ScoringSnapshot.motion.competitor.speed"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "a5d5e3c855c99437287a790380f22b8597e1ac5ba981490b0f2f0a29468c8335"
+            "codeHash": "8b0221fd2e2ae036bbaa8745e4879b72696c1bb9748b784f713fd1d0d9943dba"
           }
         },
         "ams2": {
@@ -29243,6 +29245,7 @@
             "LMU.ScoringSnapshot.race.competitor.class-position"
           ],
           "freshness": "continuous",
+          "normalization": "nativeClassPlace: count same-class places below native place + 1",
           "description": "Derived from native LMU scoring data: place,vehicleClass.",
           "provenance": {
             "origin": "derivation",
@@ -29258,7 +29261,7 @@
               "LMU.ScoringSnapshot.race.competitor.class-position"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "fe76ab52ac3feacc6508b2c9b1e1f5f60cdc3a9670032f09a1e9ba55b643369d"
+            "codeHash": "47c1b809931a10f4527050f3cebbc74d9a9400fba3aeb0f46608644ac83d6faa"
           }
         },
         "ams2": {
@@ -29867,6 +29870,7 @@
             "LMU.ScoringSnapshot.race.competitor.current-lap-number"
           ],
           "freshness": "continuous",
+          "normalization": "completedLapsPlusOne: completed laps + 1",
           "description": "Derived from native LMU scoring data: totalLaps.",
           "provenance": {
             "origin": "derivation",
@@ -29882,7 +29886,7 @@
               "LMU.ScoringSnapshot.race.competitor.current-lap-number"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "4cc852785559ddb200742601814de74b507b82766931c9f70e2697843c4e0423"
+            "codeHash": "070de9050697fe267ee3bc2d72ef366f7c81b30d223e0c1e700a4a489818f28c"
           }
         },
         "ams2": {
@@ -31576,6 +31580,7 @@
             "LMU.ScoringSnapshot.race.competitor.lap-fraction"
           ],
           "freshness": "continuous",
+          "normalization": "distanceFraction: valid lap distance / valid track length",
           "description": "Derived from native LMU scoring data: lapDistance,LMU.ScoringInfo.lapDistance.",
           "provenance": {
             "origin": "derivation",
@@ -31591,7 +31596,7 @@
               "LMU.ScoringSnapshot.race.competitor.lap-fraction"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "61e5b15cee50d8c5deec4035958981b15e0727b1af44b210cab695ccb8eeffdb"
+            "codeHash": "9a1906bc60ee9f7faa51c36ecbdfced87725ebde6eff88463a3a4231af7ebcd3"
           }
         },
         "ams2": {
@@ -33322,10 +33327,10 @@
     {
       "id": "race.competitor.position",
       "label": "Competitor position",
-      "description": "Native overall scoring place.",
+      "description": "Native overall scoring place for each competitor.",
       "parentId": "race.competitor.results",
       "canonicalUnit": "count",
-      "shape": "scalar",
+      "shape": "structured",
       "games": {
         "fm-2023": {
           "kind": "unavailable",
@@ -33392,12 +33397,39 @@
           "description": "This parser does not expose an equivalent source value."
         }
       },
-      "valueType": "number",
+      "valueType": "structured",
       "dimensions": [
         "dimensionless"
       ],
       "cardinality": {
-        "kind": "scalar"
+        "kind": "variable",
+        "min": 0,
+        "max": 64
+      },
+      "ordering": [
+        "competitor-index:numeric-ascending"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "competitor-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0,
+              "max": 64
+            },
+            "ordering": "numeric-ascending"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
       },
       "limitations": []
     },
@@ -54175,12 +54207,13 @@
           "nativeUnit": "m",
           "sources": [
             "LMU.Telemetry.readDoubleLE",
+            "LMU.PlayerScoring.readDoubleLE",
             "LMU.PlayerScoring.readInt16LE",
             "lmu.lapDistanceM"
           ],
           "freshness": "continuous",
           "normalization": "extensionAvailable(\"lapDistanceM\") ? completedLaps * trackLengthM + Math.max(0, lapDistanceM) : NaN",
-          "description": "lmu maps 2 native source channels into this value.",
+          "description": "lmu maps 3 native source channels into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-lmu/src/normalizer.ts"
@@ -54193,11 +54226,12 @@
             "deterministic": true,
             "declaredInputs": [
               "LMU.Telemetry.readDoubleLE",
+              "LMU.PlayerScoring.readDoubleLE",
               "LMU.PlayerScoring.readInt16LE",
               "lmu.lapDistanceM"
             ],
             "missingDataPolicy": "drop-missing",
-            "codeHash": "33636249d0a3d7e958945087da16af50c66887677f886d4ad05ef517cb075ac3"
+            "codeHash": "d678d102bbdea9ed8f46469ea40989ccf1ee8311045650f8356f842a9171da7c"
           }
         },
         "ams2": {
@@ -55773,9 +55807,18 @@
           }
         },
         "lmu": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "direct",
+          "nativeUnit": "fraction",
+          "sources": [
+            "lmu.lapDistancePct"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-lmu/src/normalizer.ts"
+          },
+          "limitations": []
         },
         "ams2": {
           "kind": "unavailable",
@@ -92658,7 +92701,7 @@
         "unit": "count",
         "dataType": "number",
         "count": 1,
-        "description": "Native overall scoring place. Per-competitor scoring snapshot.",
+        "description": "Native overall scoring place for each competitor. Per-competitor scoring snapshot.",
         "semanticId": "race.competitor.position",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
@@ -94657,6 +94700,18 @@
         "retention": "exact"
       },
       {
+        "path": "lmu.lapDistancePct",
+        "label": "Lap Distance Pct",
+        "unit": "fraction",
+        "dataType": "number",
+        "count": 1,
+        "description": "LMU player lap distance normalized to 0-1.",
+        "semanticId": "timing.lap-fraction",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "lmu.lapInvalidated",
         "label": "Lap Invalidated",
         "unit": "boolean",
@@ -96649,13 +96704,13 @@
         "recorded": 702
       },
       "lmu": {
-        "total": 250,
+        "total": 251,
         "packet": 126,
-        "extension": 124,
+        "extension": 125,
         "sdk": 0,
         "yaml": 0,
         "setup": 0,
-        "recorded": 250
+        "recorded": 251
       },
       "ams2": {
         "total": 112,

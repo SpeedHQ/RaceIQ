@@ -2,6 +2,7 @@ import { getAllGames } from "@raceiq/shared/games/registry"
 import { m } from "@/paraglide/messages";
 import { useSaveSettings, useSettings } from "../../hooks/settings";
 import SwitchListGroup from "../shadcn-studio/switch/switch-18";
+import { TireThresholdControls } from "./TireThresholdControls";
 
 export function GamesSection() {
   const { displaySettings } = useSettings();
@@ -28,6 +29,10 @@ export function GamesSection() {
         }))}
         onCheckedChange={setVisible}
       />
+      <div className="mt-6 space-y-3 border-t border-app-border pt-5">
+        <h3 className="text-base font-semibold text-app-text">{m.threshold_games_title()}</h3>
+        <TireThresholdControls />
+      </div>
     </section>
   );
 }

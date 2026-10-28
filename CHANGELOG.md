@@ -1,6 +1,26 @@
 ## Unreleased
 
 ### Features
+- Move telemetry-detected issues from Overview into a dedicated Issues tab in session review.
+- Show stint trends as p50 and p95 fuel and tire-wear percentiles for hot tires, with separate cold-tire figures measured from the core temperature channel.
+- Give ACC, AC Evo, and F1 2025 per-compound optimal core-temperature ranges used for cold-tire stint figures and tire-temperature diagnosis.
+- Show class-specific dry compounds and Wet tire rows with unavailable temperature targets on LMU race cars, excluding the safety car.
+- Override tire cliff and dead-health thresholds per game and tire compound.
+- Open an expanded pit-estimate dialog with a projected lap horizon, four-wheel readings, and evidence; mark missing forecasts as unavailable.
+- Generate race strategies on the Strategies page from weighted evidence across recent sessions, with searchable Track and Car controls, Laps and Weather controls, total recorded lap counts, and read-only source provenance.
+- Remove manual new-plan creation, no-history planning, and saved-plan cloning; keep generated-plan saving and existing-plan editing.
+- Recalculate saved strategies from the latest compatible recorded sessions, updating stops, fuel loads and timed-race lap estimates as driving changes.
+- Limit LMU strategy stints using native virtual energy separately from fuel, with an explicit energy reserve.
+- Plan races by lap count or race duration using your measured lap time, save the chosen basis, and estimate required fuel and refueling at selected pit stops.
+- Replace live pit estimates with the selected matching race strategy, including planned stops, next-stint compounds/fuel, and measured compound-specific tire life with cliff/dead and fuel-shortfall warnings.
+- Keep pit-estimate history across sessions and restarts, with per-driver clearing and evidence from compatible previous stints.
+- Plot individual stint-lap fuel and tire wear with readable scrollable axes, larger selectable points, independently toggled p50/p95 references, hot/cold selection, tire-compound filtering, and linked lap evidence.
+- Keep stint comparison beside its selection controls, show measured stint summaries first, and collapse empty summaries without hiding their evidence or comparison controls.
+- Review average, median, and peak per-lap fuel use and tire wear from all eligible laps in each stint, with metric-specific lap counts.
+- Pin selected race strategies independently to each game, car, and track combination, retaining selections across sessions and restarts.
+- Compare live fuel and four-wheel tire progression against the selected strategy, with evidence-aware adherence and pit windows recalculated from actual resources after early, late, or fuel-only service without modifying the saved plan.
+- Use tire-only F1 2025 pit forecasts and service advice without fuel limits or refueling projections. Keep measured fuel statistics and validate one initial race fuel budget without inventing fuel stops.
+- Hide RaceIQ race-strategy planning and pit estimates for F1 2025, which has built-in strategy.
 - Replace category tabs on the AMS2 and iRacing Cars pages with a searchable dropdown that shows the total as a placeholder, clears the search when opened, and preserves category counts and the All categories reset.
 - Add AMS2 support: native Windows shared-memory telemetry capture, game-specific car and track identity, per-wheel Replay metrics, 235 track maps, car thumbnails, dashboard branding and a separate Driver profile; include Live connection guidance and correct lap capture, export, replay and track-map behavior. Keep adapter availability and native capture development-only.
 - Show animated suspension springs and chassis movement in Replay and Compare → Spectate; use the lap's observed travel range when no game range is specified, while preserving native normalized readings.
@@ -37,6 +57,30 @@
 - Include the complete LMU multiplayer recording in demo seeds as sub-100 MB gzip parts, stream native input without buffering the whole capture, and retain separate player and opponent recordings.
 
 ### Fixes
+- Classify ACC pit-cycle laps as invalid with their pit-cycle reason, cancel rejected LMU REST response bodies, and avoid LMU opponent-index reservation/maintenance-lock deadlocks.
+- Complete failed MoTeC import rollback without waiting on unrelated LMU opponent-index cleanup.
+- Keep navigation from strategy evidence, the pit-estimate dialog, Driver Profile's all-laps action, and in-app chat links within the app without reloading the page.
+- Restore LMU fractional-lap telemetry from validated native scoring distance and track length, using scoring-clock freshness so live adherence and virtual-energy-aware pit windows resolve without inventing missing position.
+- Show compact stint summary cards with scannable hot fuel and tire percentiles, eligible-lap counts, and expandable audit details. Plot only measured rates, and stop labeling unavailable completed-stint measurements as gathering data.
+- Automatically rebuild missing or outdated stint averages from each session's own saved recording at startup without changing lap IDs, lap times, validity, notes, favorites, or session identity. Skip active, unavailable, corrupt, or mismatched sources without blocking valid recordings.
+- Keep the issues list stationary on hover and highlight the exact hovered issue rather than the first issue in the same corner.
+- Manage saved plans and open the race strategy builder on the Strategies page in each game's navigation, separate from session analysis; reach it from Stint averages or the live strategy dialog.
+- Compact live pit estimates into an integrated countdown, fuel-consumption summary with %/lap rates and both liters and tank percentage when capacity is available, and a four-row tire register; keep evidence, estimate history, and loaded race plans in the expanded dialog with a fixed header.
+- Restore compatible previous-session evidence in live pit estimates.
+- Keep strategy-history save failures visible in compact pit estimates and the expanded strategy dialog while live telemetry continues.
+- Apply ACC and AC Evo tire-threshold overrides to native dry and wet compounds.
+- Retry failed race-plan saves with the latest draft edits.
+- Prevent draft edits and plan switching while a race-plan save is pending.
+- Save race plans reliably while live telemetry is writing to the database.
+- Preserve Forza performance index when switching compatible history sessions and derive missing values from matching evidence.
+- Let F1 dashboard pit estimates span the full left telemetry column.
+- Reject unknown car or track identities when reusing historical stint averages.
+- Include invalid completed laps in stint fuel totals while excluding them from eligible rates, and refresh live strategy baselines and generator evidence after history is rebuilt, reprocessed, or deleted.
+- Preserve existing laps and strategy history when session reprocessing fails.
+- Keep valid stint measurements after recording segment breaks.
+- Treat continuous refueling as one stint boundary, including repeated unchanged fuel readings.
+- Recover pit-estimate history selection when another client deletes the selected session.
+- Keep local browsers open when restarting the server.
 - Keep the historical lap-classification notice limited to its original sessions, allow dismissal while work continues, and distinguish summary updates from pending lap processing.
 - Place inner and outer surface-temperature bands on the correct sides of the 3D wheels in Replay and Compare → Spectate.
 - Include the LMU opponent-index worker in packaged builds so recorded opponents can load for replay and comparison.
@@ -138,6 +182,10 @@
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
+- Drain registered native telemetry sources during cross-platform dump shutdown checks.
+- Transform strategy browser fixture dependencies through Playwright instead of external package loading, and stop LMU fixture parsing after its required first sample.
+- Keep the full LMU multiplayer recording as the demo seed default and select the smaller cold-load recording only for browser seed preparation.
+- Invalidate cached translation modules before development previews reload so Storybook and the app pick up newly generated messages.
 - Preserve Windows directory-sync path errors when validating recording publication directories.
 - Target comparison lap pickers explicitly in browser checks and wait for rendered frames in the native camera zoom check.
 - Keep diagnostic dump runs in one BIN per selected source, retain raw Forza/F1 datagrams, stream live telemetry over WebSocket for every game, and bypass telemetry-driven session/database processing and background recording maintenance.

@@ -336,4 +336,21 @@ describe("recording layout migration", () => {
     expect(await readFile(source)).toEqual(bytes);
     expect(await Bun.file(destination).exists()).toBe(false);
   });
+  test("shutdown rejects migration waiting for opponent-index storage and releases its reservation", () => {
+    const script = `
+      import assert from "node:assert/strict";
+      import { startLayoutMigration, stopLayoutMigrationAdmission, drainLayoutMigration } from "@raceiq/backend-core/session-capture/layout-migration";
+      import { reserveRecordingStorageOperation } from "@raceiq/backend-core/session-capture/storage-activity";
+      const releaseIndex = reserveRecordingStorageOperation("opponent-index");
+      const migration = startLayoutMigration();
+      stopLayoutMigrationAdmission();
+      await drainLayoutMigration();
+      releaseIndex();
+      await assert.rejects(migration, { code: "MIGRATION_STOPPING" });
+      const releaseMove = reserveRecordingStorageOperation("directory-move");
+      releaseMove();
+    `;
+    const child = Bun.spawnSync([process.execPath, "--eval", script], { cwd: join(import.meta.dir, "../.."), env: { ...process.env, DATA_DIR: resolveDataDir() }, stdout: "pipe", stderr: "pipe" });
+    expect(child.exitCode, child.stderr.toString()).toBe(0);
+  });
 });

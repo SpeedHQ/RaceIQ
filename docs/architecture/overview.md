@@ -25,11 +25,13 @@ graph LR
 - Six `packages/game-<id>-metadata/` workspaces own browser-safe adapters, static metadata, and separate Node car/track catalog leaves.
 - `packages/game-catalogs/` owns cross-game adapter registration, name/geometry composition, and assembled setup catalogs.
 - `packages/tracks-catalogue/` and `packages/cars-catalogue/` own catalogue UI, server routes, browser-safe contracts and feature E2Es, with explicit public subpaths.
+- `packages/race-strategy/` owns stint analysis/comparison, race planning, pit estimates/history, strategy persistence and recording-backed backfill, plus its unit, integration and browser tests. Backend-core retains source replay and exposes neutral registered strategy ports.
+- `packages/frontend-pure/` owns browser-safe presentation helpers shared across features, including the authoritative live-telemetry view and its focused tests.
 - `apps/backend/` composes adapters, API routes, boot orchestration, imports, MoTeC targets, and AI workflows.
 - `client/` owns navigation, presentation state, live telemetry rendering, and historical-data queries.
 - HTTP and WebSocket traffic uses port `3117` by default. Forza and F1 telemetry use UDP port `5301` by default.
 
-For new or extracted product features, follow the [feature package pattern](feature-packages.md): one workspace owns top-level `ui/`, `server/`, `contracts/` and feature tests. Tracks and cars implement this convention; dashboard and unrelated features have not been automatically migrated. The app supplies typed host bindings to existing shared controls, hooks, routing and authenticated RPC.
+For new or extracted product features, follow the [feature package pattern](feature-packages.md): one workspace owns top-level `ui/`, `server/`, `contracts/` and feature tests. Tracks, cars and race strategy implement this convention; dashboard and unrelated features have not been automatically migrated. The app supplies typed host bindings to existing shared controls, hooks, routing and authenticated RPC.
 
 ## Current game adapters
 

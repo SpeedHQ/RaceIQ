@@ -30,6 +30,7 @@ const SCORING_LMU_FIELDS: Readonly<Record<string, true>> = {
   "lmu.inGarageStall": true,
   "lmu.inPits": true,
   "lmu.lapDistanceM": true,
+  "lmu.lapDistancePct": true,
   "lmu.lastSector1": true,
   "lmu.lastSector2": true,
   "lmu.maximumPathWetness": true,

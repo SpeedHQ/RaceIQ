@@ -7,7 +7,9 @@ import { join, resolve } from "node:path";
 import { z } from "zod";
 import { createRecording, drivenRows } from "@raceiq/game-iracing/test-support/games/iracing-ibt";
 import { createLMUDuckDB } from "@raceiq/game-lmu/test-support/duckdb";
-import { containsSparseCaptureFrames, decompressIfGzipSync } from "@raceiq/capture-formats/session/framing";
+import { convertSeedFramesToSparse } from "@raceiq/tooling-data/data/seed-capture-conversion";
+import { containsSparseCaptureFrames, decompressIfGzipSync, iterateSessionCaptureRecords, SESSION_SEGMENT_BOUNDARY, SESSION_SEGMENT_CONTEXT, SESSION_SEGMENT_CONTEXT_END } from "@raceiq/capture-formats/session/framing";
+import { readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump"
 import { DASHBOARD_PROCESSOR_VERSION } from "@raceiq/backend-core/db/dashboard-summary-queries";
 import { dashboardCarIdentity, dashboardTrackIdentity } from "@raceiq/shared/racing/sessions/dashboard";
 import type { GameId } from "@raceiq/shared/games/ids";
@@ -31,6 +33,12 @@ const ROOT = resolve(import.meta.dir, "../../../..");
 const PublicationSchema = z.object({ type: z.enum(["candidatePrepared", "transactionOpen", "beforeCommit", "afterCommit"]), eventId: z.number(), sessionId: z.number() });
 type Publication = z.infer<typeof PublicationSchema>;
 const ImportedSchema = z.object({ ok: z.boolean().optional(), imported: z.number().optional(), errors: z.array(z.string()).optional(), laps: z.array(z.object({ lapId: z.number(), sessionId: z.number() })).optional() });
+const StrategyHistoryEventSchema = z.object({
+  type: z.literal("strategy-history-updated"),
+  gameId: z.literal("fm-2023"),
+  driverKey: z.string().min(1),
+  historyRevision: z.number().int().nonnegative(),
+});
 let binBytes: Uint8Array<ArrayBuffer>;
 let ibtBytes: Uint8Array<ArrayBuffer>;
 let duckdbBytes: Uint8Array<ArrayBuffer>;
@@ -52,7 +60,9 @@ afterAll(() => { if (fixtureDirectory) rmSync(fixtureDirectory, { recursive: tru
 
 interface Backend {
   api(path: string, init?: RequestInit): Promise<Response>;
-  ready(): Promise<void>;
+  ready(waitForDashboard?: boolean): Promise<void>;
+  stage(): Promise<{ type: "stageEntered"; stage: "dashboard"; eventId: number }>;
+  releaseStage(stage: { eventId: number }): Promise<void>;
   pause(type: Publication["type"], sessionId?: number): Promise<void>;
   next(type: Publication["type"]): Promise<Publication>;
   waiting(operation?: string): Promise<void>;
@@ -69,7 +79,7 @@ interface Backend {
   stop(): Promise<void>;
 }
 
-function startBackend(dataDir: string): Backend {
+function startBackend(dataDir: string, pauseDashboard = false): Backend {
   const child = Bun.spawn([process.execPath, "--eval", `
     import { MessageChannel } from "node:worker_threads";
     import { bootServer } from "./apps/backend/src/runtime/boot";
@@ -79,10 +89,10 @@ function startBackend(dataDir: string): Backend {
     import { prepareDashboardPublicationCandidate, publishDashboardSession } from "./server/db/dashboard-summary-queries";
     const { port1, port2 } = new MessageChannel();
     const events = [], waiters = [];
-    let selected = null, selectedSession = null, permitRelease = null, permitTask = null;
-    const matches = (event, type, operation) => event.type === type && (!operation || event.operation === operation);
+    let selected = null, selectedSession = null, selectedStage = process.env.RACEIQ_E2E_PAUSE_DASHBOARD === "true" ? "dashboard" : null, permitRelease = null, permitTask = null;
+    const matches = (event, type, operation) => event.type === type && (!operation || (type === "stageEntered" ? event.stage === operation : event.operation === operation));
     port2.on("message", (event) => {
-      if (event.eventId && (event.type === "stageEntered" || event.type !== selected || (selectedSession !== null && event.sessionId !== selectedSession))) {
+      if (event.eventId && (event.type === "stageEntered" ? event.stage !== selectedStage : event.type !== selected || (selectedSession !== null && event.sessionId !== selectedSession))) {
         port2.postMessage({ type: "release", eventId: event.eventId }); return;
       }
       const index = waiters.findIndex((waiter) => matches(event, waiter.type, waiter.operation));
@@ -105,8 +115,9 @@ function startBackend(dataDir: string): Backend {
       if (url.pathname === "/pause") {
         selected = body.type ?? null; selectedSession = body.sessionId ?? null;
         for (let index = events.length - 1; index >= 0; index--) if (events[index].type === "writeWaiting") events.splice(index, 1);
-      } else if (url.pathname === "/release") port2.postMessage({ type: "release", eventId: body.eventId });
-      else if (url.pathname === "/resume") { selected = null; selectedSession = null; port2.postMessage({ type: "release-all" }); }
+      } else if (url.pathname === "/release-stage") port2.postMessage({ type: "release", eventId: body.eventId });
+      else if (url.pathname === "/release") port2.postMessage({ type: "release", eventId: body.eventId });
+      else if (url.pathname === "/resume") { selected = null; selectedSession = null; selectedStage = null; port2.postMessage({ type: "release-all" }); }
       else if (url.pathname === "/command") port2.postMessage({ type: body.type });
       else if (url.pathname === "/checkpoint") await markDashboardCaptureCheckpoint(body.sessionId, true);
       else if (url.pathname === "/reject-imports") await withDatabaseWrite(() => client.execute(body.reject
@@ -129,7 +140,7 @@ function startBackend(dataDir: string): Backend {
     } });
     const server = await bootServer({ httpPort:0, udpPort:0, recordingGameId:null, testDependencies:{ workerPort:port1 } });
     console.log("[W-E2E] READY " + server.httpServer.port + " " + control.port);
-  `], { cwd: ROOT, env: { ...process.env, DATA_DIR: dataDir, NODE_ENV: "production", SERVER_HOST: "127.0.0.1", SERVER_PASSWORD: "", SERVER_ALLOWED_ORIGINS: "", RACEIQ_FEATURE_IRACING_ADAPTER: "true", RACEIQ_TEST_MODE: "0", DB_IN_MEMORY: "0" }, stdout: "pipe", stderr: "pipe" });
+  `], { cwd: ROOT, env: { ...process.env, DATA_DIR: dataDir, NODE_ENV: "production", SERVER_HOST: "127.0.0.1", SERVER_PASSWORD: "", SERVER_ALLOWED_ORIGINS: "", RACEIQ_FEATURE_IRACING_ADAPTER: "true", RACEIQ_TEST_MODE: "0", DB_IN_MEMORY: "0", RACEIQ_E2E_PAUSE_DASHBOARD: String(pauseDashboard) }, stdout: "pipe", stderr: "pipe" });
   let output = "";
   let ports: { api: number; control: number } | undefined;
   const ready = Promise.withResolvers<void>();
@@ -178,12 +189,14 @@ function startBackend(dataDir: string): Backend {
   };
   return {
     api,
-    async ready() {
+    async ready(waitForDashboard = true) {
       await ready.promise;
       const setup = await api("/api/auth/setup", { method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({password:null,exposureConfirmed:true}) });
       if (setup.status !== 200 && setup.status !== 409) throw new Error(`Auth setup failed ${setup.status}: ${await setup.text()}\n${output}`);
-      await dashboardStarted.promise;
+      if (waitForDashboard) await dashboardStarted.promise;
     },
+    stage: async () => z.object({ type:z.literal("stageEntered"), stage:z.literal("dashboard"), eventId:z.number() }).parse(await event("stageEntered", "dashboard")),
+    releaseStage: (stage: { eventId: number }) => control("/release-stage", stage),
     pause: (type: Publication["type"], sessionId?: number) => control("/pause", { type, sessionId }),
     next: async (type: Publication["type"]) => PublicationSchema.parse(await event(type)),
     async waiting(operation?: string) { const waiting = z.object({type:z.literal("writeWaiting"),operation:z.string()}).parse(await event("writeWaiting", operation)); if (operation) expect(waiting.operation).toBe(operation); },
@@ -465,3 +478,76 @@ test("W-E7: worker exit rolls back mutated projections before a queued HTTP dele
     expect(restarted.output()).not.toContain("SQLITE_BUSY");
   } finally {await restarted?.stop();await f.close();}
 },180_000);
+test("startup strategy backfill publishes committed history to main WebSocket listeners", async () => {
+  const temporary = mkdtempSync(join(tmpdir(), "raceiq-strategy-backfill-"));
+  const dataDir = join(temporary, "data");
+  mkdirSync(dataDir);
+  const raw = decompressIfGzipSync(readFileSync(join(ROOT, "test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz")));
+  const converted = await convertSeedFramesToSparse("fm-2023", (function* () {
+    for (const record of iterateSessionCaptureRecords(raw)) {
+      if (record.kind === "frame") yield record.frameTimeMs === undefined ? record.frame : { frame:record.frame, frameTimeMs:record.frameTimeMs };
+      else if (record.kind === "segment-boundary") yield SESSION_SEGMENT_BOUNDARY;
+      else if (record.kind === "segment-context") yield SESSION_SEGMENT_CONTEXT;
+      else if (record.kind === "segment-context-end") yield SESSION_SEGMENT_CONTEXT_END;
+    }
+  })());
+  const fixture = Uint8Array.from(readFileSync(converted.path));
+  converted.cleanup();
+  let backend: Backend | undefined;
+  let database: InstanceType<typeof Database> | undefined;
+  let socket: WebSocket | undefined;
+  try {
+    backend = startBackend(dataDir, true);
+    await backend.ready(false);
+    const stageResult = backend.stage().then((stage) => ({ stage }), (error: unknown) => ({ error }));
+    const root = await backend.api("/");
+    socket = new WebSocket(root.url.replace(/^http/, "ws").replace(/\/$/, "") + "/ws");
+    const opened = Promise.withResolvers<void>();
+    socket.addEventListener("open", () => opened.resolve(), { once: true });
+    const failed = Promise.withResolvers<never>();
+    socket.addEventListener("error", () => failed.reject(new Error("Main WebSocket connection failed")), { once: true });
+    await Promise.race([opened.promise, failed.promise]);
+    const imported = await postFile(backend, "/api/laps/import", "fm-backfill.bin", fixture, { ownership: "mine" });
+    const importedText = await imported.text();
+    if (imported.status !== 200) throw new Error(`Native FM import failed (${imported.status}): ${importedText}`);
+    const importedBody = z.object({ laps: z.array(z.object({ sessionId: z.number() })) }).parse(JSON.parse(importedText));
+    const sessionId = importedBody.laps[0]?.sessionId;
+    if (sessionId === undefined) throw new Error("Native FM import returned no lap session");
+    const stageOutcome = await stageResult;
+    if ("error" in stageOutcome) throw stageOutcome.error;
+    const stage = stageOutcome.stage;
+    database = new Database(join(dataDir, "app.db"));
+    database.exec("PRAGMA busy_timeout=5000;");
+    expect(scalar(database, `SELECT COUNT(*) n FROM strategy_stints WHERE session_id=${sessionId}`)).toBe(0);
+    const historyEvent = new Promise<z.infer<typeof StrategyHistoryEventSchema>>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error("Strategy history WebSocket notification did not arrive")), 180_000);
+      const onMessage = (message: MessageEvent) => {
+        let payload: unknown;
+        try { payload = JSON.parse(String(message.data)); } catch { return; }
+        const parsed = StrategyHistoryEventSchema.safeParse(payload);
+        if (!parsed.success) return;
+        clearTimeout(timeout);
+        socket!.removeEventListener("message", onMessage);
+        resolve(parsed.data);
+      };
+      socket!.addEventListener("message", onMessage);
+    });
+    await backend.releaseStage(stage);
+    const event = await historyEvent;
+    const driverKey = z.string().parse(event.driverKey);
+    const persisted = database.prepare(`
+      SELECT COUNT(*) AS stint_count, MAX(json_extract(payload,'$.algorithmVersion')) AS algorithm_version
+      FROM strategy_stints WHERE session_id=?
+    `).get(sessionId) as { stint_count: number; algorithm_version: string };
+    const revision = database.prepare("SELECT revision FROM strategy_history_revisions WHERE game_id=? AND driver_key=?").get("fm-2023", driverKey) as { revision: number } | undefined;
+    expect(persisted.stint_count).toBeGreaterThan(0);
+    expect(persisted.algorithm_version).toBeDefined();
+    expect(revision?.revision).toBe(event.historyRevision);
+    expect(event).toMatchObject({ type:"strategy-history-updated", gameId:"fm-2023", driverKey });
+  } finally {
+    socket?.close();
+    await backend?.stop();
+    database?.close();
+    rmSync(temporary, { recursive:true, force:true });
+  }
+}, 240_000);

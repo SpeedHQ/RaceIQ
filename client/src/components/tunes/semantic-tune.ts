@@ -1,6 +1,6 @@
 import type { GameId } from "@raceiq/shared/games/ids";
 import { getGame } from "@raceiq/shared/games/registry";
-import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
+import type { LiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
 import type { SemanticReplayFrame } from "@raceiq/lap-replay/contracts";
 import type { SemanticTuneSample, TuneWheelValues } from "@raceiq/analysis-core/racing/laps/semantic-tune";
 

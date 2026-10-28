@@ -1,0 +1,3 @@
+packages/race-strategy/test/unit/tire-thresholds.test.ts
+packages/race-strategy/test/unit/strategy-adherence-model.test.ts
+packages/race-strategy/test/unit/race-plan-evidence.test.ts

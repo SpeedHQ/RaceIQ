@@ -15,7 +15,7 @@ export function ownerTestRoot(owner: TestOwner): string {
   return owner.testRoot ?? `${owner.root}/test`;
 }
 
-function workspacePatterns(root: string): string[] {
+export function workspacePatterns(root: string): string[] {
   const manifest = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8")) as {
     workspaces?: string[] | { packages?: string[] };
   };

@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { compileTelemetryResolver } from "./resolver/compile";
-import type { CompiledTelemetryResolver, ResolvedValue, TelemetryFrameView } from "@raceiq/shared/telemetry/resolver/contracts";
+import type { CompiledTelemetryResolver, ResolvedValue, SourceTimestampReader, TelemetryFrameView } from "@raceiq/shared/telemetry/resolver/contracts";
 import { liveSemanticIds } from "./live/semantics";
 import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "@raceiq/shared/telemetry/live/contracts";
 import type { LivePitData, LiveSectorData } from "@raceiq/shared/racing/live/types";
@@ -13,6 +13,14 @@ import { encodeLmuContext } from "@raceiq/shared/telemetry/lmu-context";
 export interface LiveProjectionInput { packet: TelemetryPacket; sessionId?: number | null; sectors?: LiveSectorData | null; pit?: LivePitData | null; liveIssues?: readonly TuneIssue[]; receivedAtMs: number; }
 export interface LiveProjection { schema?: LiveTelemetrySchemaMessageV1; frame?: LiveTelemetryFrameMessageV1; }
 const hash = (parts: readonly string[]) => createHash("sha256").update(parts.join("\0")).digest("hex").slice(0, 32);
+const f1SessionSourceTimestamp: SourceTimestampReader<TelemetryPacket> = (packet, sourceChannel) => {
+  if (sourceChannel !== "f1.trackLength") return undefined;
+  // Both fields originate in the same SESSION packet; this is its native session clock.
+  const seconds = packet.f1?.safetyCarStatusUpdatedAt;
+  return typeof seconds === "number" && Number.isFinite(seconds) && seconds >= 0
+    ? { domain: "session", milliseconds: seconds * 1000 }
+    : null;
+};
 
 export class LiveTelemetryProjector {
   private resolver: CompiledTelemetryResolver<TelemetryPacket> | null = null;
@@ -36,7 +44,7 @@ export class LiveTelemetryProjector {
         : Number.isFinite(input.packet.TimestampMS) ? input.packet.TimestampMS : input.receivedAtMs;
     const timestampDomain = gameId === "acc" || gameId === "ac-evo" ? "wall-clock" as const : "session" as const;
     const observation = { timestamp: { domain: timestampDomain, milliseconds: observedMs }, updateSequence: BigInt(this.sequence + 1) };
-    this.view = resolver.createFrameView(input.packet, observation, this.view, gameId === "lmu" ? lmuSourceTimestamp : undefined);
+    this.view = resolver.createFrameView(input.packet, observation, this.view, gameId === "lmu" ? lmuSourceTimestamp : gameId === "f1-2025" ? f1SessionSourceTimestamp : undefined);
     const resolved = this.view.resolveMany(liveSemanticIds(gameId).map((id) => resolver.slot(id))) as readonly ResolvedValue<unknown>[];
     const states: Record<number, "missing" | "stale" | "invalid" | "not-applicable" | "error"> = {};
     const freshness: Record<number, "stale" | "unknown"> = {};

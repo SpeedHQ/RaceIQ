@@ -4,6 +4,8 @@ import { normalizeHudHostname } from "@raceiq/shared/platform/network/hud-hostna
 import { resolveDataDir } from "./data-dir";
 import { isLaunchOnLoginEnabled } from "../platform/launch-on-login";
 import { LOCALE_CODES } from "@raceiq/shared/platform/i18n/locales";
+import { GameIdSchema } from "@raceiq/shared/games/ids";
+import type { TireThresholdOverrides } from "@raceiq/shared/racing/live/tire-thresholds";
 import { DEFAULT_RECORDING_FREQUENCY_HZ, isRecordingRetentionPolicyValid } from "@raceiq/shared/platform/runtime/recording-frequency";
 const SETTINGS_DIR = resolveDataDir();
 const SETTINGS_PATH = `${SETTINGS_DIR}/settings.json`;
@@ -61,6 +63,15 @@ const AppSettingsSchema = z.object({
   sessionDownsampleEnabled: z.boolean().default(false),
   sessionDownsampleAgeDays: z.union([z.literal(30), z.literal(90), z.literal(180), z.literal(365)]).default(30),
   sessionDownsampleFrequencyHz: z.union([z.literal(50), z.literal(60), z.literal(70), z.literal(80), z.literal(90), z.literal(100)]).default(50),
+  tireThresholdOverrides: z.partialRecord(
+    GameIdSchema,
+    z.record(z.string(), z.object({
+      cliffPct: z.number().finite().min(0).max(100),
+      deadPct: z.number().finite().min(0).max(100),
+    }).refine((thresholds) => thresholds.deadPct < thresholds.cliffPct, {
+      message: "deadPct must be below cliffPct",
+    })),
+  ).default({}),
   hiddenGames: z.array(z.string()).default([]),
   launchOnLogin: z.boolean().default(false),
   // Community-tunes CDN sync bookkeeping. Not user-facing; written by the
@@ -72,6 +83,12 @@ const AppSettingsSchema = z.object({
 export type AppSettings = z.infer<typeof AppSettingsSchema>;
 
 const DEFAULTS: AppSettings = AppSettingsSchema.parse({});
+let cachedSettings = DEFAULTS;
+
+/** In-memory settings view for live consumers; never performs filesystem I/O. */
+export function getTireThresholdOverrides(): TireThresholdOverrides {
+  return cachedSettings.tireThresholdOverrides;
+}
 
 function ensureSettingsDir(): void {
   if (!existsSync(SETTINGS_DIR)) {
@@ -88,6 +105,7 @@ export function loadSettings(options: { syncLaunchOnLogin?: boolean } = {}): App
   ensureSettingsDir();
   if (!existsSync(SETTINGS_PATH)) {
     saveSettings(DEFAULTS);
+    cachedSettings = { ...DEFAULTS };
     return { ...DEFAULTS };
   }
   try {
@@ -145,10 +163,11 @@ export function loadSettings(options: { syncLaunchOnLogin?: boolean } = {}): App
     }
     // Always sync launchOnLogin from the actual registry state
     if (options.syncLaunchOnLogin !== false) result.launchOnLogin = isLaunchOnLoginEnabled();
+    cachedSettings = result;
     return result;
   } catch (err) {
     console.error(`[Settings] Failed to load ${SETTINGS_PATH}:`, err instanceof Error ? err.message : err);
-    console.warn(`[Settings] Falling back to defaults`);
+    cachedSettings = { ...DEFAULTS };
     return { ...DEFAULTS };
   }
 }
@@ -163,6 +182,7 @@ export function saveSettings(settings: AppSettings): void {
   const tmpPath = `${SETTINGS_PATH}.tmp`;
   writeFileSync(tmpPath, `${JSON.stringify(validated, null, 2)}\n`);
   renameSync(tmpPath, SETTINGS_PATH);
+  cachedSettings = validated;
 }
 
 /** Persisted community-tunes sync state (manifest version + last sync time). */

@@ -5,6 +5,8 @@ import { TELEMETRY_CATALOG } from "@raceiq/shared/telemetry/catalog/data";
 import { compileTelemetryResolver } from "@raceiq/telemetry-core/telemetry/resolver/compile";
 import { packet } from "../support-resolver";
 import { liveSemanticIds } from "@raceiq/telemetry-core/telemetry/live/semantics";
+import { LiveTelemetryProjector } from "@raceiq/telemetry-core/telemetry/live-projector";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 describe("live telemetry semantics", () => {
   test("uses canonical per-wheel catalog shapes and direct Kunos mappings", () => {
@@ -38,5 +40,50 @@ describe("live telemetry semantics", () => {
       expect(frame.resolveValue(resolver.slot("tires.tire-camber")).state).not.toBe("error");
       expect(frame.resolveValue(resolver.slot("tires.tire-radius")).state).not.toBe("error");
     }
+  });
+  test("resolves LMU session type for live frames", () => {
+    const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "lmu",
+      requested: [{ semanticId: "session.session-type" }],
+    });
+    const frame = resolver.createFrameView(
+      packet("lmu", { lmu: { sessionType: "race" } as never }),
+      { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1) },
+    );
+    expect(frame.resolveValue(resolver.slot("session.session-type")).value).toBe("race");
+  });
+
+  test("resolves LMU string identity through the live allowlist", () => {
+    const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "lmu",
+      requested: liveSemanticIds("lmu").map((semanticId) => ({ semanticId })),
+    });
+    const frame = resolver.createFrameView(
+      packet("lmu", { carId: "Custom / Car", trackId: "spa_2023/spawec", lmu: { carId: "Custom / Car", trackId: "spa_2023/spawec" } as never }),
+      { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1) },
+    );
+    expect(frame.resolveValue(resolver.slot("identity.car-id")).value).toBe("Custom / Car");
+    expect(frame.resolveValue(resolver.slot("identity.track-id")).value).toBe("spa_2023/spawec");
+  });
+  test("keeps long-race F1 lap position fresh only when native SESSION observations renew track metadata", () => {
+    const projector = new LiveTelemetryProjector();
+    const project = (now: number, sessionUpdatedAt: number, trackLength = 3000) => projector.project({
+      packet: packet("f1-2025", { TimestampMS: now, DistanceTraveled: 1500,
+        f1: { trackLength, safetyCarStatusUpdatedAt: sessionUpdatedAt / 1000 } as TelemetryPacket["f1"] }),
+      sessionId: 8, receivedAtMs: now,
+    });
+    const first = project(0, 0);
+    const slot = first.schema!.definitions.findIndex((entry) => entry.semanticId === "timing.lap-fraction");
+    expect(first.frame!.values[slot]).toBe(0.5);
+    const renewed = project(600_000, 600_000);
+    expect(renewed.frame!.values[slot]).toBe(0.5);
+    expect(renewed.frame!.freshness?.[slot]).toBeUndefined();
+    const expired = project(900_001, 600_000);
+    expect(expired.frame!.values[slot]).toBeNull();
+    expect(expired.frame!.states?.[slot]).toBe("stale");
+    const missing = project(900_002, 900_002, 0);
+    expect(missing.frame!.values[slot]).toBeNull();
+    expect(missing.frame!.states?.[slot]).toBe("missing");
+    expect(project(900_003, 900_003).frame!.values[slot]).toBe(0.5);
   });
 });

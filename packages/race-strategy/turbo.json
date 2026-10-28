@@ -1,0 +1,8 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "transit": { "inputs": ["$TURBO_DEFAULT$", "!test/**"] },
+    "e2e:impact": { "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/client/src/features/race-strategy-host.tsx"] }
+  }
+}

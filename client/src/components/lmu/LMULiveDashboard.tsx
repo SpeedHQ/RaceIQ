@@ -1,15 +1,14 @@
 import { getGame } from "@raceiq/shared/games/registry"
-import { m } from "@/paraglide/messages";
 import { useCarName } from "../../hooks/catalog-queries";
 import { useTrackName } from "../../hooks/track-queries";
-import { primaryTireTemperatureC } from "../../lib/live-telemetry-view";
+import { primaryTireTemperatureC } from "@raceiq/frontend-pure/live-telemetry-view";
 import { useTelemetryStore } from "../../stores/telemetry";
 import { LapTimeChart } from "../LapTimeChart";
 import { NoDataView } from "../NoDataView";
 import { RaceInfo } from "../RaceInfo";
 import { RecordedLaps } from "../RecordedLaps";
 import { TireGrid } from "../telemetry/TireGrid";
-import { PitEstimate } from "../telemetry/PitEstimate";
+import { PitEstimate } from "@raceiq/race-strategy/ui";
 import { LmuLiveOpponents, LmuPlayerData } from "./LmuPlayerData";
 
 
@@ -57,10 +56,7 @@ export function LMULiveDashboard() {
           />
         </div>
         <div className="border-b border-app-border">
-          <div className="p-2 border-b border-app-border">
-            <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.label_pit_window()}</h2>
-          </div>
-          <div className="p-3">
+          <div>
             <PitEstimate view={view} pit={pit} />
           </div>
         </div>

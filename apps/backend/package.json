@@ -62,6 +62,7 @@
     "@raceiq/sessions-page": "workspace:*",
     "@raceiq/session-analyse": "workspace:*",
     "@raceiq/shared": "workspace:*",
+    "@raceiq/race-strategy": "workspace:*",
     "@raceiq/capture-formats": "workspace:*",
     "@raceiq/capture-splitting": "workspace:*",
     "@raceiq/game-ac-evo": "workspace:*",

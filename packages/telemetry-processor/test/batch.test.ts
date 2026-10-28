@@ -158,14 +158,14 @@ describe("processTelemetryBatch", () => {
     const result = await processTelemetryBatch("ac-evo", kunosFixtureFrames(path, true, ACEVO_PACKED_MAGIC));
     expect(result.sessions).toHaveLength(1);
     expect(result.sessions[0]).toMatchObject({ gameId: "ac-evo", carId: "Porsche 992 GT3 R Rennsport" });
-    expect(result.laps.map(({ lapNumber, lapTime, complete, invalidReason, byteOffset, frameCount }) => ({
-      lapNumber, lapTime, complete, invalidReason, byteOffset, frameCount,
+    expect(result.laps.map(({ lapNumber, lapTime, complete, valid, invalidReason, byteOffset, frameCount }) => ({
+      lapNumber, lapTime, complete, valid, invalidReason, byteOffset, frameCount,
     }))).toEqual([
-      { lapNumber: 1, lapTime: 92.421, complete: true, invalidReason: null, byteOffset: 17_100, frameCount: 6_865 },
-      { lapNumber: 2, lapTime: 101.358, complete: true, invalidReason: "track limits", byteOffset: 703_500, frameCount: 6_435 },
-      { lapNumber: 3, lapTime: 109.441, complete: false, invalidReason: "incomplete at end of input", byteOffset: 1_346_900, frameCount: 6_938 },
+      { lapNumber: 1, lapTime: 92.421, complete: true, valid: false, invalidReason: "outlap", byteOffset: 17_100, frameCount: 6_865 },
+      { lapNumber: 2, lapTime: 101.358, complete: true, valid: false, invalidReason: "track limits", byteOffset: 703_500, frameCount: 6_435 },
+      { lapNumber: 3, lapTime: 109.441, complete: false, valid: false, invalidReason: "incomplete at end of input", byteOffset: 1_346_900, frameCount: 6_938 },
     ]);
-    expect(result.laps[0]).toMatchObject({ classification: "out_lap", valid: true, invalidReason: null });
+    expect(result.laps[0]).toMatchObject({ classification: "out_lap", valid: false, invalidReason: "outlap" });
   });
   test("finalizes incomplete ordinal lap at EOF and preserves absent offsets", async () => {
     const withOffsets = await processTelemetryBatch("fm-2023", lapFrames().slice(0, 35));

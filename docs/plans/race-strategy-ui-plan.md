@@ -1,0 +1,37 @@
+# Race strategy builder and live loading
+
+Contract: [shared race strategy boundary](race-strategy-contract.md), paired [backend plan](race-strategy-backend-plan.md).
+
+Owner: UI worker. Own new client/src/hooks/race-plans.ts, new components/telemetry/RaceStrategyPlanner.tsx and LiveRaceStrategy.tsx, session-analysis entry in components/tunes/review/StrategyStints.tsx, race_plan_* localization messages and focused strategy E2E. Coordinator owns final integration into PitEstimate.tsx / PitEstimateDialog.tsx after current dialog worker settles, using your exported component API. Do not concurrently edit dialog files.
+
+Tasks: (1) History/session/stint selector using existing useSessions/useStrategyStints, limit evidence choices to exact owned game/car/track/PI compatible sources. Offline analysis entry always available. (2) Editable named race length, notes, ordered planned stints/pit laps, starting fuel and compounds; history snapshots/counts and numerical fuel/fresh-tire health prediction with unavailable/zero/threshold warnings. (3) Typed real API save/open/edit/delete/load/unload and retained drafts on errors; initial local fixtures allowed only during development, never production fallback. (4) Compact loaded-plan widget with exact live identity applicability and current lap semantics; expose planner button and selected-plan summary. (5) Coordinator integrates same planner within expanded pit dialog without nested modal collisions.
+
+Edge handling from shared contract applies: no history -> explicit manual mode/unavailable projections, source switch updates compound/unit/context not leaked drafts, tank fractions displayed as percent but stored fractions, invalid endLap/fuel disables save with actionable validation, delete loaded clears display, source deleted snapshot still disclosed, mismatch never shown as applicable, rewind recomputes and finish has no next pit. R1–R5.
+
+E2E coordinator owns execution. Reuse StrategyRuntime/native-source and existing strategy suite; build plan from prior real session via analysis entry, save/reopen/restart/load to matching live source, then exercise mismatch/advance/rewind/finish/unload/delete and mobile keyboard/no-overflow. Add focused deterministic cases as needed, do not run tests/build/lint/formatters mid-flight. Component/mocked checks never replace real integration.
+
+## Outcome
+
+Implemented in session analysis and the expanded pit-estimate dialog, with a compact live loaded-plan panel. History-backed planning, failed-save retention, restart/edit/load, mismatch and lap-boundary behavior pass real integration checks; see [contract verification](race-strategy-contract.md#verification).
+
+Review corrections [R6–R8](race-strategy-contract.md#review-corrections) are implemented and verified: current-draft retry, pending-save control locking, and compatible Forza PI preservation/derivation. Real-app failure injection, held requests, matching/conflicting history, and the existing saved-plan lifecycle pass; see the [review-fix verification](race-strategy-contract.md#review-fix-verification-2026-10-21).
+
+## Selected strategy replacement and compound life
+
+Scope: `PitEstimate.tsx`, `LiveRaceStrategy.tsx`, `RaceStrategyPlanner.tsx`, one shared client-side projection helper, locale messages, and the existing native strategy E2E suite. No DTO, persistence, backend route, or telemetry algorithm changes. Existing API/identity rules remain authoritative in the [shared contract](race-strategy-contract.md#selected-strategy-and-compound-life-acceptance).
+
+1. S1/S2: Resolve the active plan against exact live identity; conditionally render a flat Race strategy panel in the existing dashboard slot. Retain the timeline trigger and expanded automatic estimates. Empty/error/mismatched selection falls back to the original panel; unload/delete restores it.
+2. S3: Extract the existing planner projection into one reusable client helper; add per-wheel compound-specific cliff/dead life, explicit zero/missing handling, and preserve fuel/end-health warnings. Use the same helper and configured thresholds in planner and selected display; never borrow a rate from another compound or assume an unknown compound.
+3. S4: Render current/next stint, planned stop countdown, next compound/fuel, final-stint/complete states without rewriting planned stops or telemetry. Keep incumbent typography, surface, inset, and mobile layout.
+4. Coordinator extends `race-plan.spec.ts` for S1/S2/S4 and adds a focused native-runtime compound scenario for S3. Fixtures modify SQLite only with backend stopped; API/UI verification uses the restarted production app. Run these E2Es, inspect desktop/mobile screenshots, then run typecheck, locale validation, and changed-path lint. Record each result here; mocks/static checks alone do not complete S1–S4.
+
+### Verification — 2026-10-21
+
+- `bunx playwright test --config playwright/stint-strategy.config.ts race-plan.spec.ts --output playwright/test-results/selected-strategy-verified`: **4 passed** through the actual app, native UDP adapters, production API, and isolated SQLite. [Runner output](../../playwright/test-results/selected-strategy-verified.log) and [scenario artifacts](../../playwright/test-results/selected-strategy-verified/).
+- S1/S4: loading replaces the automatic panel; unload/delete restores it. Native lap packets exercise the exact stop lap, next/final stint, finish, unavailable lap, and rewind. Next-stint compound and planned fuel are checked; 390px no-overflow and keyboard dialog entry pass.
+- S2: native game/car/track/PI mismatches, including zero/unavailable identities, fall back to automatic estimates; restoring exact identity restores the plan. A deliberately failed selection GET preserves automatic estimates and displays the request error; Retry against the real endpoint restores the SQLite-selected plan.
+- S3: explicit 40%/20% thresholds plus measured soft wear of 2%/lap produce 30/40-lap life; hard wear of 0.5%/lap produces 120/160. Changing soft thresholds through the real settings API to 60%/30% changes life to 20/35 while hard stays unchanged. Measured zero wear, absent rates/semantic versions, unknown/default compound, incompatible compound changes, tire warnings, and fuel-shortfall warnings are covered. No measured rate is borrowed from another compound.
+- Existing saved-plan restart/edit/delete/source-snapshot retention and timed race/fuel edge cases pass in the same final run.
+- Desktop and mobile `compound-strategy-*.png` captures were inspected. The flat dashboard slot, header action, per-wheel compounds/life, warning hierarchy, and next-stint information remain integrated without an extra card.
+- Final `bun run typecheck`: **33/33 packages passed**. Changed-path oxlint passed. [Final gate output](../../playwright/test-results/selected-strategy-final-gates.log). Locale validation passed for all 15 non-English catalogs, **2953/2953 keys**; catalog inputs remained unchanged afterward. [Locale output](../../playwright/test-results/selected-strategy-gates.log).
+- Initial verification failures were not counted as passes: an app started during translation installation loaded stale exports; a fixture assumed a 40% cliff instead of controlling the game's default; implicit compound labels prevented exact control lookup. Verification now starts after translation compilation, persists explicit fixture thresholds, and uses explicit localized per-wheel labels. The final four-scenario run is clean.

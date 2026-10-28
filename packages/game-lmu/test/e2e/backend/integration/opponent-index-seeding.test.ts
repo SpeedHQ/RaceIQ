@@ -56,17 +56,14 @@ function makeLmuSeedDump(dataDir: string): string {
 }
 
 async function runLmuSeed(dataDir: string, fixturePath: string, stage: string): Promise<{ code: number; output: string }> {
-  console.error(`[E8] ${stage}: seed start`);
   const proc = Bun.spawn(["bun", "run", join(REPO_ROOT, "apps/backend/scripts/data/seed-db.ts"), "--games=lmu", `--fixtures=${fixturePath}`], {
     cwd: join(REPO_ROOT, "apps/backend"),
     env: { ...process.env, DATA_DIR: dataDir, RACEIQ_TEST_MODE: "0", DB_IN_MEMORY: "0", SERVER_PASSWORD: "" },
-    stdout: "pipe",
     stderr: "pipe",
   });
   const timeout = setTimeout(() => proc.kill(), 150_000);
   try {
     const [code, stdout, stderr] = await Promise.all([proc.exited, new Response(proc.stdout).text(), new Response(proc.stderr).text()]);
-    console.error(`[E8] ${stage}: seed exit ${code}`);
     return { code, output: `[E8] ${stage}\n${stdout}\n${stderr}` };
   } finally {
     clearTimeout(timeout);
@@ -173,7 +170,6 @@ describe("LMU opponent seed index reconciliation", () => {
     expectSeedProcessClosed(first);
     const initial = readLmuSeedSnapshot(dataDir);
     expect(initial.sessions.length).toBeGreaterThan(0);
-    console.error("[E8] fresh seed status probe");
     const firstStatus = await readLmuSeedIndexStatus(dataDir, initial.sessions[0]!.id);
     expect(firstStatus.indexState).toBe("ready");
     expect(firstStatus.retention.opponentRetention).toBe("retained");
@@ -183,7 +179,6 @@ describe("LMU opponent seed index reconciliation", () => {
     expectSeedProcessClosed(repeated);
     expect(repeated.output).toContain("Seed data already exists; nothing to do.");
     expect(readLmuSeedSnapshot(dataDir)).toEqual(initial);
-    console.error("[E8] repeated seed status probe");
     const reused = await readLmuSeedIndexStatus(dataDir, initial.sessions[0]!.id);
     expect(reused.indexState).toBe("ready");
     expect(reused.publicationPath).toBe(firstStatus.publicationPath);
@@ -202,7 +197,6 @@ describe("LMU opponent seed index reconciliation", () => {
     const afterInterrupted = await runLmuSeed(dataDir, fixturePath, "interrupted-index repair");
     expectSeedProcessClosed(afterInterrupted);
     expect(existsSync(stagingPath)).toBe(false);
-    console.error("[E8] interrupted repair status probe");
     const interruptedRepair = await readLmuSeedIndexStatus(dataDir, initial.sessions[0]!.id);
     expect(interruptedRepair.indexState).toBe("ready");
     expect(typeof interruptedRepair.publicationPath).toBe("string");
@@ -212,7 +206,6 @@ describe("LMU opponent seed index reconciliation", () => {
     rmSync(dirname(interruptedPublicationPath), { recursive: true, force: true });
     const afterMissing = await runLmuSeed(dataDir, fixturePath, "missing-index repair");
     expectSeedProcessClosed(afterMissing);
-    console.error("[E8] missing repair status probe");
     const missingRepair = await readLmuSeedIndexStatus(dataDir, initial.sessions[0]!.id);
     expect(missingRepair.indexState).toBe("ready");
     expect(missingRepair.publicationPath).not.toBe(interruptedPublicationPath);
@@ -225,15 +218,13 @@ describe("LMU opponent seed index reconciliation", () => {
     const afterIncompatible = await runLmuSeed(dataDir, fixturePath, "incompatible-index repair");
     expectSeedProcessClosed(afterIncompatible);
     expect(afterIncompatible.output).toContain("Seed data already exists; nothing to do.");
-    console.error("[E8] incompatible repair status probe");
     const incompatibleRepair = await readLmuSeedIndexStatus(dataDir, initial.sessions[0]!.id);
-    expect(incompatibleRepair.indexState).toBe("ready");
+    expect(incompatibleRepair.indexState, JSON.stringify({ output: afterIncompatible.output, indexState: incompatibleRepair.indexState, publicationPath: incompatibleRepair.publicationPath })).toBe("ready");
     expect(incompatibleRepair.publicationPath).not.toBe(incompatiblePublicationPath);
     expect(readLmuSeedSnapshot(dataDir)).toEqual(initial);
     const missingPublicationDirectory = dirname(incompatibleRepair.publicationPath!);
     assertInsideDataDir(dataDir, missingPublicationDirectory);
     rmSync(missingPublicationDirectory, { recursive: true, force: true });
-    console.error("[E8] starting recording-deferred seed child");
     const deferredSeed = await startOpponentColdLoadSeedProcess({
       dataDir,
       fixturePaths: [fixturePath],
@@ -241,47 +232,34 @@ describe("LMU opponent seed index reconciliation", () => {
     });
     let captureMayBeActive = false;
     try {
-      console.error("[E8] waiting before-publication-fence barrier");
       const buildBarrier = await deferredSeed.waitForBarrier("before-publication-fence");
       if (!buildBarrier.sourcePath) throw new Error("Seed index build barrier omitted source path");
       captureMayBeActive = true;
-      console.error("[E8] starting recording during held publication fence");
       await deferredSeed.startLmuOpponentCapture("seed-index-deferral", { opponents: true });
-      console.error("[E8] recording started; requesting native frame feed");
       const frameFeed = deferredSeed.feedLmuOpponentFrames(12);
-      console.error("[E8] awaiting pending recording intent while publication fence is held");
       let recordingIntentActive = await deferredSeed.isSessionActive();
       while (!recordingIntentActive) {
         await new Promise<void>((resolve) => setImmediate(resolve));
         recordingIntentActive = await deferredSeed.isSessionActive();
       }
       expect(recordingIntentActive).toBe(true);
-      console.error("[E8] recording intent active; releasing publication fence");
       await deferredSeed.releaseBarrier(buildBarrier.id);
-      console.error("[E8] waiting reconciliation-deferred barrier");
       const deferredBarrier = await deferredSeed.waitForBarrier("reconciliation-deferred");
       expect(deferredBarrier.sourcePath).toBe(buildBarrier.sourcePath);
-      console.error("[E8] awaiting frame feed");
       expect(await frameFeed).toBe(12);
-      console.error("[E8] frame feed complete; checking active recorder");
       expect(await deferredSeed.isSessionActive()).toBe(true);
-      console.error("[E8] recorder active; reading capture state");
       expect((await deferredSeed.getLmuOpponentCaptureState()).sessionId).not.toBeNull();
-      console.error("[E8] capture state read");
       const pendingStatus = await deferredSeed.indexStatusForSession(initial.sessions[0]!.id) as {
         indexState: string;
         publicationPath: string | null;
       };
       expect(pendingStatus.indexState).not.toBe("ready");
       expect(await deferredSeed.isSessionActive()).toBe(true);
-      console.error("[E8] waiting for worker-yielded event");
       await deferredSeed.waitForRuntimeEvent("worker-yielded", { sourcePath: buildBarrier.sourcePath });
 
-      console.error("[E8] finalizing recording");
       await deferredSeed.finalizeLmuOpponentCapture();
       captureMayBeActive = false;
       expect(await deferredSeed.isSessionActive()).toBe(false);
-      console.error("[E8] releasing reconciliation-deferred barrier");
       await deferredSeed.releaseBarrier(deferredBarrier.id);
 
       const [exit, stdout, stderr] = await Promise.all([deferredSeed.exit, deferredSeed.stdout, deferredSeed.stderr]);

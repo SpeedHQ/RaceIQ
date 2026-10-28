@@ -14,6 +14,7 @@
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",
+    "@raceiq/capture-formats": "workspace:*",
     "@raceiq/tooling": "workspace:*",
     "@raceiq/backend-core": "workspace:*",
     "@raceiq/game-lmu": "workspace:*",

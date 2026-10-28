@@ -2,7 +2,7 @@ import { m } from "@/paraglide/messages";
 import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import { DEFAULT_TRACK_OVERLAYS, type TrackMapBoundaries } from "../analyse/track-map/types";
 import { useEffect, useMemo, useState } from "react";
-import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
+import type { LiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
 import type { ExperimentGameId } from "../../hooks/experiments";
 import { useTrackBoundaries, useTrackOutline } from "../../hooks/track-queries";
 import { useTelemetryStore } from "../../stores/telemetry";

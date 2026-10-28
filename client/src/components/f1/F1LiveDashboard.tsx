@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { severityColor } from "@raceiq/scene-3d/colors";
 import { CarDamageDiagram, damageColor } from "./CarDamageDiagram";
 import { m } from "@/paraglide/messages";
-import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
+import type { LiveTelemetryView } from "@raceiq/frontend-pure/live-telemetry-view";
 import { useCarName } from "../../hooks/catalog-queries";
 import { useTrackName } from "../../hooks/track-queries";
 import { useTelemetryStore } from "../../stores/telemetry";
@@ -12,7 +12,6 @@ import { LapTimeChart } from "../LapTimeChart";
 import { NoDataView } from "../NoDataView";
 import { RaceInfo } from "../RaceInfo";
 import { RecordedLaps } from "../RecordedLaps";
-import { PitEstimate } from "../telemetry/PitEstimate";
 import { TireGrid } from "../telemetry/TireGrid";
 import { useUnits } from "../../hooks/useUnits";
 import { Button } from "../ui/button";
@@ -47,7 +46,6 @@ function formatGap(gap: number): string {
 export function F1LiveDashboard() {
   const view = useTelemetryStore((s) => s.telemetryView);
   const sectors = useTelemetryStore((s) => s.sectors);
-  const pit = useTelemetryStore((s) => s.pit);
   const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
   const { data: trackName } = useTrackName(view?.identity.trackId);
   const { data: carName } = useCarName(view?.identity.carId);
@@ -100,9 +98,6 @@ export function F1LiveDashboard() {
               temperatureAvailable={view.tires.surfaceTemperatureC !== undefined}
               healthAvailable={view.tires.wear !== undefined}
             />
-          </div>
-          <div className="p-3">
-            <PitEstimate view={view} pit={pit} />
           </div>
         </div>
         <GridSection competitors={view.competitors} playerPosition={view.timing.racePosition} />

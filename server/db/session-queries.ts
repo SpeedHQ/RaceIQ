@@ -11,7 +11,9 @@ import { cacheDelete } from "./telemetry-replay-storage";
 import { eq, desc, and, or, sql, inArray, notInArray, isNull, lt, asc, gt, notExists } from "drizzle-orm";
 import { withDatabaseWrite } from "./write-coordination";
 import { db, readDb } from "./index";
-import { sessions, laps, sessionResults, pitEvents, sessionCaptureSplitJobs, liveCaptures, classificationMigrationMeta, classificationMigrationRecordings, dashboardSessionSummaries, dashboardSummaryState } from "./schema";
+import type { Transaction } from "@libsql/client";
+import { executeTransactionStatement } from "./transaction-statements";
+import { sessions, laps, sessionResults, pitEvents, sessionCaptureSplitJobs, liveCaptures, strategyStints, strategyHistoryRevisions, pitEstimates, classificationMigrationMeta, classificationMigrationRecordings, dashboardSessionSummaries, dashboardSummaryState } from "./schema"
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 import type { SessionMeta, SessionOwnership, SessionCaptureSplitPhase, SessionCaptureSplitErrorCode, ProcessingMetadata } from "@raceiq/shared/racing/sessions/types";
 import type { GameId } from "@raceiq/shared/games/ids";
@@ -28,8 +30,11 @@ import { getLapById } from "./lap-read-queries";
 import type { PublishedManifest } from "@raceiq/capture-splitting";
 import { clearCaptureManifestCache, loadCaptureManifest } from "../session-capture/source-loader";
 import { recoverLiveCaptureStorage } from "../session-capture/live-recovery";
+import { GameIdSchema } from "@raceiq/shared/games/ids";
+import type { StrategyHistoryUpdatedMessage } from "@raceiq/shared/racing/live/strategy";
+import { raceStrategyRuntime } from "../telemetry/race-strategy-ports";
 import { mergeLapProcessingMetadata } from "./lap-meta";
-import { canonicalLmuOpponentSourcePath, getLmuOpponentProcessing, revokeLmuOpponentIndex } from "../session-capture/lmu-opponent-index-runtime";
+import { canonicalLmuOpponentSourcePath, getLmuOpponentProcessing, revokeLmuOpponentIndex } from "../session-capture/lmu-opponent-index-runtime"
 
 export interface SessionCaptureSplitWork {
   sessionId: number;
@@ -397,8 +402,20 @@ export async function updateSessionCarTrack(
   carId: string,
   trackId: string,
 ): Promise<boolean> {
-  const result = await withDatabaseWrite(() => db.update(sessions).set({ carId, trackId }).where(eq(sessions.id, sessionId)).run());
-  return result.rowsAffected > 0;
+  const result = await withDatabaseWrite(() => db.transaction(async (tx) => {
+    const scopes = await tx.select({ gameId: sessions.gameId, driverKey: strategyStints.driverKey })
+      .from(strategyStints).innerJoin(sessions, eq(sessions.id, strategyStints.sessionId)).where(eq(sessions.id, sessionId)).all();
+    const updated = await tx.update(sessions).set({ carId, trackId }).where(eq(sessions.id, sessionId)).run();
+    const changes: StrategyHistoryUpdatedMessage[] = [];
+    for (const scope of scopes) {
+      const revision = await tx.select({ revision: strategyHistoryRevisions.revision }).from(strategyHistoryRevisions)
+        .where(and(eq(strategyHistoryRevisions.gameId, scope.gameId), eq(strategyHistoryRevisions.driverKey, scope.driverKey))).get();
+      changes.push({ type: "strategy-history-updated", gameId: GameIdSchema.parse(scope.gameId), driverKey: scope.driverKey, historyRevision: revision?.revision ?? 0 });
+    }
+    return { changed: updated.rowsAffected > 0, changes };
+  }));
+  if (result.changes.length) raceStrategyRuntime().publishHistory(result.changes);
+  return result.changed;
 }
 
 export async function setSessionFavorite(id: number, favorite: boolean): Promise<boolean> {
@@ -424,11 +441,17 @@ export async function updateSessionRawFile(
   rawFile: string,
   lapDetectorVersion: string,
   versionIdentity?: TelemetryVersionIdentity,
+  transaction?: Transaction,
 ): Promise<void> {
   const previous = await readDb.select({ rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, sessionId)).get();
-  await withDatabaseWrite(() => db.update(sessions)
+  const query = db.update(sessions)
     .set({ rawFile, lapDetectorVersion, ...versionIdentity })
-    .where(eq(sessions.id, sessionId)).run());
+    .where(eq(sessions.id, sessionId));
+  if (transaction) {
+    await executeTransactionStatement(transaction, query);
+    return;
+  }
+  await withDatabaseWrite(() => query.run());
   if (previous?.rawFile && previous.rawFile !== rawFile) {
     await invalidateClassificationMigrationSource(previous.rawFile);
   }
@@ -701,10 +724,19 @@ async function deleteSessionUnlocked(sessionId: number): Promise<{ lapCount: num
       eq(sessionCaptureSplitJobs.status, "queued"),
     )).run();
     const lapRows = await tx.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, sessionId)).all();
+    const scopes = await tx.select({ gameId: sessions.gameId, driverKey: strategyStints.driverKey })
+      .from(strategyStints).innerJoin(sessions, eq(sessions.id, strategyStints.sessionId)).where(eq(sessions.id, sessionId)).all();
     await tx.delete(sessions).where(eq(sessions.id, sessionId)).run();
-    return { ...session, lapIds: lapRows.map(({ id }) => id) };
+    const changes: StrategyHistoryUpdatedMessage[] = [];
+    for (const scope of scopes) {
+      const revision = await tx.select({ revision: strategyHistoryRevisions.revision }).from(strategyHistoryRevisions)
+        .where(and(eq(strategyHistoryRevisions.gameId, scope.gameId), eq(strategyHistoryRevisions.driverKey, scope.driverKey))).get();
+      changes.push({ type: "strategy-history-updated", gameId: GameIdSchema.parse(scope.gameId), driverKey: scope.driverKey, historyRevision: revision?.revision ?? 0 });
+    }
+    return { ...session, lapIds: lapRows.map(({ id }) => id), changes };
   }), undefined, "session.delete");
   if (!deleted) return null;
+  if (deleted.changes.length) raceStrategyRuntime().publishHistory(deleted.changes);
   const deletedSourcePath = deleted.manifestFile ?? deleted.rawFile;
   const indexSourcePath = deleted.gameId === "lmu" && deletedSourcePath
     ? await canonicalLmuOpponentSourcePath(deletedSourcePath)
@@ -732,7 +764,9 @@ export async function deleteEmptySessions(activeSessionId?: number): Promise<num
     const empties = await readDb.select({ id: sessions.id })
       .from(sessions)
       .leftJoin(laps, eq(laps.sessionId, sessions.id))
-      .where(sql`${sessions.lapDetectorVersion} IS NOT NULL`)
+      .where(sql`${sessions.lapDetectorVersion} IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM ${strategyStints} WHERE ${strategyStints.sessionId}=${sessions.id} AND ${strategyStints.status}='active')
+        AND NOT EXISTS (SELECT 1 FROM ${pitEstimates} WHERE ${pitEstimates.sessionId}=${sessions.id})`)
       .groupBy(sessions.id)
       .having(sql`count(${laps.id}) = 0`)
       .all();

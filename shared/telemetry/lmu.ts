@@ -40,6 +40,7 @@ export interface LMUExtendedData {
   trackName: string;
   trackLengthM: number;
   lapDistanceM?: number;
+  lapDistancePct?: number;
   currentSectorIndex?: number;
   bestSector1?: number;
   bestSector2?: number;

@@ -128,6 +128,7 @@ describe("LiveTelemetryPipeline pace reference integration", () => {
     }) as TelemetryPacket);
 
     completeLap({
+      lapNumber: 1,
       packets,
       lapDistStart: 0,
       lapTime: 70,
@@ -143,6 +144,7 @@ describe("LiveTelemetryPipeline pace reference integration", () => {
     expect(wearUpdates).toHaveLength(1);
 
     completeLap({
+      lapNumber: 2,
       packets,
       lapDistStart: 0,
       lapTime: 90,

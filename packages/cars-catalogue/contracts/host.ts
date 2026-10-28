@@ -92,7 +92,13 @@ export type CarsCatalogueMessageKey =
   | "label_speed"
   | "label_table_view"
   | "label_team"
-  | "label_team_principal";
+  | "label_team_principal"
+  | "threshold_default_compound"
+  | "tire_guide_compound"
+  | "tire_guide_description"
+  | "tire_guide_description_surface"
+  | "tire_guide_optimal"
+  | "tire_guide_optimal_surface";
 export type CarsCatalogueMessages = Record<CarsCatalogueMessageKey, () => string>;
 
 export interface AccCatalogueCar {
@@ -113,7 +119,14 @@ export interface CarsCatalogueHost {
   m: CarsCatalogueMessages;
   getLocale: () => string;
   useRequiredGameId: () => GameId;
-  useUnits: () => { unit: "metric" | "imperial"; speedLabel: string; fromMph: (mph: number) => number };
+  useUnits: () => {
+    unit: "metric" | "imperial";
+    speedLabel: string;
+    fromMph: (mph: number) => number;
+    /** Canonical °C → the user's temperature unit. */
+    temp: (celsius: number) => number;
+    tempLabel: string;
+  };
   loadCarModelConfigs: () => Promise<void>;
   getCarModel: (id: string) => { hasModel: boolean };
   loadCars: (gameId: GameId) => Promise<Car[]>;

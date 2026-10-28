@@ -26,8 +26,8 @@
     "@raceiq/shared": "workspace:*",
     "@raceiq/analysis-core": "workspace:*",
     "@raceiq/backend-core": "workspace:*",
-    "@raceiq/frontend-pure": "workspace:*",
-    "@raceiq/scene-3d": "workspace:*"
+    "@raceiq/scene-3d": "workspace:*",
+    "@raceiq/race-strategy": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

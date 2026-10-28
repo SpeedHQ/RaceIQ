@@ -1,0 +1,48 @@
+{
+  "name": "@raceiq/race-strategy",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./ui": "./ui/index.ts",
+    "./server": "./server/index.ts",
+    "./contracts": "./contracts/index.ts"
+  },
+  "scripts": {
+    "lint": "../../client/node_modules/.bin/oxlint .",
+    "typecheck": "bun check --project tsconfig.ui.json && bun check --project tsconfig.server.json",
+    "test:boundaries": "bun ../../scripts/test/check-feature-boundaries.ts race-strategy",
+    "e2e:impact": "bun ../../scripts/test/check-feature-boundaries.ts race-strategy",
+    "test:unit": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/race-strategy",
+    "test:integration": "bun ../../scripts/test/run-suite.ts integration --package @raceiq/race-strategy",
+    "test:e2e": "cd ../../playwright && E2E_SERVER_MODE=compiled PW_SERVER_SET=isolated bun ../scripts/playwright-ci.ts test --config=playwright.config.ts --project=race-strategy --output=test-results/race-strategy"
+  },
+  "dependencies": {
+    "@base-ui/react": "^1.8.0",
+    "@hono/zod-validator": "0.9.1",
+    "@libsql/client": "^0.18.0",
+    "@raceiq/analysis-core": "workspace:*",
+    "@raceiq/backend-core": "workspace:*",
+    "@raceiq/frontend-pure": "workspace:*",
+    "@raceiq/game-catalogs": "workspace:*",
+    "@raceiq/scene-3d": "workspace:*",
+    "@raceiq/shared": "workspace:*",
+    "@raceiq/telemetry-core": "workspace:*",
+    "@tanstack/charts": "1.1.0",
+    "@tanstack/react-query": "^5.103.1",
+    "@tanstack/react-router": "^1.170.38",
+    "drizzle-orm": "^0.45.2",
+    "hono": "4.13.8",
+    "react": "^19.3.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@playwright/test": "1.62.1",
+    "@raceiq/capture-formats": "workspace:*",
+    "@raceiq/tooling-data": "workspace:*",
+    "@raceiq/game-fm-2023": "workspace:*",
+    "@raceiq/game-f1-2025": "workspace:*",
+    "@raceiq/game-acc": "workspace:*",
+    "@raceiq/game-lmu": "workspace:*"
+  }
+}

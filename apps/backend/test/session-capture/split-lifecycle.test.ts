@@ -13,7 +13,7 @@ import {
   updateSessionCaptureSplitProgress,
   validateSessionCaptureSplitRevision,
 } from "@raceiq/backend-core/db/session-queries";
-import { replaceLapsForSession } from "@raceiq/backend-core/db/lap-reprocessing-queries";
+import { commitLapReconciliation } from "../support/reconcile-laps";
 import { initServerGameAdapters } from "../../src/games/init";
 import { consentToStartupSplitMigration, getStartupSplitMigrationStatus, initializeStartupSplitMigration, isStartupSplitMigrationHeld } from "../../src/session-capture/split-migration";
 import { resolveRecordingGameDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
@@ -194,7 +194,7 @@ test("split lifecycle recovers attempts, rejects stale revisions, uses one worke
   expect((await stat(manifestPath)).isFile()).toBe(true);
   expect(await readFile(sourcePath)).toEqual(sourceBytes);
   await db.update(laps).set({ isFavorite: true, notes: "preserve" }).where(eq(laps.id, first.lapId)).run();
-  await replaceLapsForSession(first.id, [{
+  await commitLapReconciliation(first.id, [{
     lapId: first.lapId, lapNumber: 1, lapTime: 61, isValid: true, classification: null, isFavorite: true,
     rawByteOffset: sourceFrameOffset, rawFrameCount: 1,
     tuneId: null, notes: "preserve", invalidReason: null, sectors: null,
@@ -202,7 +202,7 @@ test("split lifecycle recovers attempts, rejects stale revisions, uses one worke
   const unchangedLayout = await db.select().from(sessions).where(eq(sessions.id, first.id)).get();
   expect(unchangedLayout?.captureLayoutVersion).toBe(1);
   expect((await db.select().from(laps).where(eq(laps.id, first.lapId)).get())?.captureChunkId).toBeTruthy();
-  await replaceLapsForSession(first.id, [{
+  await commitLapReconciliation(first.id, [{
     lapId: first.lapId, lapNumber: 1, lapTime: 61, isValid: true, classification: null, isFavorite: true,
     rawByteOffset: sourceFrameOffset, rawFrameCount: 1,
     tuneId: null, notes: "preserve", invalidReason: null, sectors: null,
@@ -220,7 +220,7 @@ test("split lifecycle recovers attempts, rejects stale revisions, uses one worke
   expect(splitNotifications.at(-1)).toMatchObject({ sessionId: first.id, jobId: identityRequeued!.jobId, phase: "queued" });
   expect(await runSessionCaptureSplitQueueOnce()).toBe(true);
   expect((await db.select().from(sessions).where(eq(sessions.id, first.id)).get())?.captureLayoutVersion).toBe(1);
-  await replaceLapsForSession(first.id, [
+  await commitLapReconciliation(first.id, [
     {
       lapId: first.lapId, lapNumber: 1, lapTime: 61, isValid: true, classification: null, isFavorite: true,
       rawByteOffset: sourceFrameOffset, rawFrameCount: 2,

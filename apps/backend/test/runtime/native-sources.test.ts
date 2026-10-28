@@ -81,7 +81,7 @@ describe("native source shutdown", () => {
       setLmuSource(previous[3]);
     }
   });
-  test.skipIf(!IS_WINDOWS)("propagates native finalization failure after draining other attached sources", async () => {
+  test("propagates native finalization failure after draining other attached sources", async () => {
     const previous = [getAccReader(), getAcEvoReader(), getIracingSource(), getLmuSource()] as const;
     const expected = new Error("native writer close failed");
     let drained = false;

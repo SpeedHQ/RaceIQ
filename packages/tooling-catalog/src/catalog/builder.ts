@@ -376,6 +376,22 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
       nativeUnit: unit,
       sources: [source],
       freshness: "continuous",
+      ...(derived
+        ? {
+            normalization:
+              id === "race.competitor.current-lap-number"
+                ? "completedLapsPlusOne: completed laps + 1"
+                : id === "race.competitor.class-position"
+                  ? "nativeClassPlace: count same-class places below native place + 1"
+                  : id === "race.competitor.lap-fraction"
+                    ? "distanceFraction: valid lap distance / valid track length"
+                    : id === "fuel.competitor.ambiguous-fuel-fraction"
+                      ? "byteFraction: native byte / 255"
+                      : id === "motion.competitor.speed"
+                        ? "localVelocityMagnitude: hypot of finite velocity components"
+                        : undefined,
+          }
+        : {}),
       description: `${derived ? "Derived from" : "Read from"} native LMU scoring data: ${nativeFields}.`,
       provenance: { origin: derived ? "derivation" : "parser", artifact: "packages/capture-formats/src/lmu/opponent-snapshot.ts" },
     };

@@ -3,6 +3,6 @@
   "compilerOptions": {
     "types": ["vite/client", "node"]
   },
-  "include": ["src/stories/AnalyseVizPanel.stories.tsx"],
+  "include": ["src/stories/AnalyseVizPanel.stories.tsx", "src/stories/AccLiveDashboard.stories.tsx", "src/stories/F1LiveDashboard.stories.tsx"],
   "exclude": []
 }

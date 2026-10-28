@@ -3,6 +3,6 @@ root = "."
 pathIgnorePatterns = ["client/**", "playwright/**", "packages/game-lmu/test/e2e/browser/**", "test/fixtures/**", "test/artifacts/**", "**/node_modules/**", "**/dist/**", "**/benchmarks/**"]
 # Isolate every `bun test` process in a temporary DATA_DIR, including bare
 # single-file runs; otherwise database wipes could hit user data or other suites.
-preload = ["./server/test-support/setup-data-dir.ts"]
+preload = ["./server/test-support/setup-data-dir.ts", "./apps/backend/test/support/setup-strategy.ts"]
 timeout = 40000
 maxConcurrency = 2
