@@ -8,8 +8,9 @@ import { createSuspensionSpringResource, disposeSuspensionSpringResource } from 
 import { createAnalysisWheels } from "@raceiq/scene-3d/wireframe/AnalysisWheels";
 import { disposeWheelResource } from "@raceiq/scene-3d/wireframe/Wheel";
 
+initGameAdapters({ f1Experiments: true, iracingAdapter: true, ams2Adapter: true });
+
 test("replay suspension moves each body with its own lap range and keeps native normalization", () => {
-  initGameAdapters();
   const a = new Group(), b = new Group();
   const sample = (raw: number[]) => ({ values: { "suspension.suspension-travel-m": raw } });
   const runtime = Object.assign(Object.create(SpectateSceneRuntime.prototype), {
@@ -41,7 +42,6 @@ test("replay suspension moves each body with its own lap range and keeps native 
 });
 
 test("replay springs follow world-space wheel anchors and animate with chassis travel", () => {
-  initGameAdapters();
   const scene = new Scene(), group = new Group(), body = new Group();
   group.position.set(10, 2, 20);
   group.rotation.y = Math.PI / 2;
@@ -175,7 +175,6 @@ test("production wheel wear rate resets on replacement and null gaps", () => {
 
 
 test("production wheel clock integrates capped playback at callback rates and resets discontinuities", () => {
-  initGameAdapters();
   const run = (callbackHz: number) => {
     const groups = [new Group(), new Group()];
     const config = { gameId: "ams2" as const, carModel: { tireRadius: 0.34, halfWheelbase: 1, halfFrontTrack: 0.75, halfRearTrack: 0.75 } as Parameters<typeof createAnalysisWheels>[1], temperatureSemanticId: "", temperatureThresholds: {} };
