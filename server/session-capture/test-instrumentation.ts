@@ -18,9 +18,9 @@ export interface LmuOpponentIndexInstrumentation extends ParserInstrumentation {
   bytesRead: number;
   framesDecoded: number;
   buildDurationMs: number;
-  workerCpuUserMicros: number;
-  workerCpuSystemMicros: number;
-  peakRssBytes: number;
+  processCpuUserMicros: number;
+  processCpuSystemMicros: number;
+  peakProcessRssBytes: number;
 }
 
 const metricsFile = process.env.RACEIQ_LMU_OPPONENT_INDEX_TEST_METRICS_FILE ?? null;
@@ -37,13 +37,13 @@ function empty(): ParserInstrumentation {
 type IndexCounters = Pick<LmuOpponentIndexInstrumentation,
   "sourceFramesScanned" | "blocksWritten" | "bytesWritten" | "framesWritten" |
   "blocksRead" | "bytesRead" | "framesDecoded" | "buildDurationMs" |
-  "workerCpuUserMicros" | "workerCpuSystemMicros" | "peakRssBytes">;
+  "processCpuUserMicros" | "processCpuSystemMicros" | "peakProcessRssBytes">;
 
 function emptyIndexCounters(): IndexCounters {
   return {
     sourceFramesScanned: 0, blocksWritten: 0, bytesWritten: 0, framesWritten: 0,
     blocksRead: 0, bytesRead: 0, framesDecoded: 0, buildDurationMs: 0,
-    workerCpuUserMicros: 0, workerCpuSystemMicros: 0, peakRssBytes: 0,
+    processCpuUserMicros: 0, processCpuSystemMicros: 0, peakProcessRssBytes: 0,
   };
 }
 
@@ -106,9 +106,9 @@ export function recordLmuOpponentIndexMetrics(
   if (metrics.bytesRead !== undefined) indexCounters.bytesRead += metrics.bytesRead;
   if (metrics.framesDecoded !== undefined) indexCounters.framesDecoded += metrics.framesDecoded;
   if (metrics.buildDurationMs !== undefined) indexCounters.buildDurationMs += metrics.buildDurationMs;
-  if (metrics.workerCpuUserMicros !== undefined) indexCounters.workerCpuUserMicros += metrics.workerCpuUserMicros;
-  if (metrics.workerCpuSystemMicros !== undefined) indexCounters.workerCpuSystemMicros += metrics.workerCpuSystemMicros;
-  if (metrics.peakRssBytes !== undefined) indexCounters.peakRssBytes = Math.max(indexCounters.peakRssBytes, metrics.peakRssBytes);
+  if (metrics.processCpuUserMicros !== undefined) indexCounters.processCpuUserMicros += metrics.processCpuUserMicros;
+  if (metrics.processCpuSystemMicros !== undefined) indexCounters.processCpuSystemMicros += metrics.processCpuSystemMicros;
+  if (metrics.peakProcessRssBytes !== undefined) indexCounters.peakProcessRssBytes = Math.max(indexCounters.peakProcessRssBytes, metrics.peakProcessRssBytes);
   persistMetrics();
 }
 export async function flushLmuOpponentIndexInstrumentation(): Promise<void> {

@@ -37,6 +37,7 @@
 - Include the complete LMU multiplayer recording in demo seeds as sub-100 MB gzip parts, stream native input without buffering the whole capture, and retain separate player and opponent recordings.
 
 ### Fixes
+- Finish pending recording finalization with the original error when a writer fails after overload.
 - Keep dismissed historical lap-classification notices hidden after unrelated session updates, reopening them only for new work or changed results.
 - Place inner and outer surface-temperature bands on the correct sides of the 3D wheels in Replay and Compare → Spectate.
 - Keep recording and LMU opponent indexing available in Windows release installations.
@@ -152,7 +153,7 @@
 - Skip full replay interpolation on animation callbacks discarded by the frame-rate cap.
 - Preserve Windows directory-sync path errors when validating recording publication directories.
 - Target comparison lap pickers explicitly in browser checks and wait for rendered frames in the native camera zoom check.
-- Keep diagnostic dump runs in one BIN per selected source, retain raw Forza/F1 datagrams, stream live telemetry over WebSocket for every game, and bypass telemetry-driven session/database processing and background recording maintenance.
+- Keep diagnostic dump runs in one BIN per selected source, retain raw Forza/F1 datagrams, stream live telemetry over WebSocket for every game, and bypass telemetry-driven session/database processing and background recording maintenance. Omit unused native source-event transport from standalone recording writers.
 - Extract Sessions and Session Analyse into feature-owned UI, server, contract, and test workspaces while preserving existing navigation and analysis behavior.
 - Move Sessions and Session Review into their own package.
 - Update the dependency lockfile for Bun 1.4.4 so the Bench compare workflow can use frozen installs.

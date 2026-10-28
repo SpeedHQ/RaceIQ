@@ -347,7 +347,7 @@ test("LMU opponent restart repairs interrupted staging/publication and exposes f
     const recovered = parseLine<{
       firstPublicationPath: string | null; secondPublicationPath: string | null;
       catalog: { status: number; body: { indexState: string; sourceRevision: string; sessions: unknown[]; laps: { opponentLapId: string }[] } };
-      firstMetrics: { sourceFramesScanned: number; parserStatePrimes: number; indexSamplesMaterialized: number; blocksWritten: number };
+      firstMetrics: { sourceFramesScanned: number; parserStatePrimes: number; indexSamplesMaterialized: number; blocksWritten: number; processCpuUserMicros: number; processCpuSystemMicros: number; peakProcessRssBytes: number };
       secondMetrics: { sourceFramesScanned: number; parserStatePrimes: number; indexSamplesMaterialized: number; blocksWritten: number };
       selectedReplay: { status: number; body: { envelopes: { sequence: number; values: { semanticId: string; value: unknown }[] }[] } };
       comparison: { status: number; body: { opponent: { opponentLapId: string }; traces: { semanticId: string; opponent: unknown[] }[] } };
@@ -369,6 +369,10 @@ test("LMU opponent restart repairs interrupted staging/publication and exposes f
     expect(recovered.catalog.body.laps.length).toBeGreaterThan(0);
     expect(recovered.firstMetrics.sourceFramesScanned).toBeGreaterThan(0);
     expect(recovered.firstMetrics.blocksWritten).toBeGreaterThan(0);
+    expect(recovered.firstMetrics.processCpuUserMicros).toBeGreaterThanOrEqual(0);
+    expect(recovered.firstMetrics.processCpuSystemMicros).toBeGreaterThanOrEqual(0);
+    expect(recovered.firstMetrics.processCpuUserMicros + recovered.firstMetrics.processCpuSystemMicros).toBeGreaterThan(0);
+    expect(recovered.firstMetrics.peakProcessRssBytes).toBeGreaterThan(0);
     expect(recovered.secondMetrics.sourceFramesScanned).toBe(recovered.firstMetrics.sourceFramesScanned);
     expect(recovered.secondMetrics.blocksWritten).toBe(recovered.firstMetrics.blocksWritten);
     expect(recovered.selectedReplay.status).toBe(200);

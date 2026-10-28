@@ -65,7 +65,7 @@ export class WorkerSessionRecorder {
   private writtenProgress: WorkerDurabilityAcknowledgement = { sequence: 0, sourceByteLength: 0, frameCount: 0, sourceRecordCount: 0, fileDev: "", fileIno: "" };
   private durableProgress: WorkerDurabilityAcknowledgement = this.writtenProgress;
   private inFlightBytes = 0;
-  private batch: { sequence: number; bytes: Uint8Array; chargeBytes: number; sourceByteLength: number; frameCount: number; sourceRecordCount: number; sourceEvent: EncodedSourceEvent }[] = [];
+  private batch: { sequence: number; bytes: Uint8Array; chargeBytes: number; sourceByteLength: number; frameCount: number; sourceRecordCount: number; sourceEvent?: EncodedSourceEvent }[] = [];
   private batchBytes = 0;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private closePromise: Promise<void> | null = null;
@@ -134,8 +134,9 @@ export class WorkerSessionRecorder {
     this.assertAccepting();
     const worstCaseBytes = frame.length + (frameTimeMs === undefined ? 4 : 12) +
       (this.markerWritten ? 0 : SPARSE_MARKER_FRAME_BYTES) + (this.metaPending && !this.headerWritten ? META_FRAME_BYTES : 0);
-    const chargeBytes = worstCaseBytes + frame.byteLength * (1 + (this.listeners.size ? 1 : 0)) + RECORD_TRANSPORT_OVERHEAD_BYTES;
-    if (worstCaseBytes + frame.byteLength + RECORD_TRANSPORT_OVERHEAD_BYTES > this.options.maxBatchBytes || this.inFlightBytes + chargeBytes > this.options.maxInFlightBytes) {
+    const transportBytes = worstCaseBytes + (this.ownsWorker ? 0 : frame.byteLength) + RECORD_TRANSPORT_OVERHEAD_BYTES;
+    const chargeBytes = transportBytes + (this.listeners.size ? frame.byteLength : 0);
+    if (transportBytes > this.options.maxBatchBytes || this.inFlightBytes + chargeBytes > this.options.maxInFlightBytes) {
       this.flushBatch();
       const error = new Error(`Source recording capacity exhausted at sequence ${this.sequence}`);
       this.fail(error);
@@ -167,7 +168,7 @@ export class WorkerSessionRecorder {
     for (;;) {
       this.assertAccepting();
       const prefixBytes = this.metaPending && !this.headerWritten ? META_FRAME_BYTES : 0;
-      const transportBytes = bytes.byteLength * 2 + prefixBytes + RECORD_TRANSPORT_OVERHEAD_BYTES;
+      const transportBytes = bytes.byteLength * (this.ownsWorker ? 1 : 2) + prefixBytes + RECORD_TRANSPORT_OVERHEAD_BYTES;
       const chargeBytes = transportBytes + (this.listeners.size ? bytes.byteLength : 0);
       // Oversized records retain the synchronous API's explicit failure.
       if (transportBytes > this.options.maxBatchBytes || chargeBytes > this.options.maxInFlightBytes ||
@@ -304,16 +305,16 @@ export class WorkerSessionRecorder {
     const prefix = this.metaPending && !this.headerWritten ? encodeMetaFrame() : null;
     const full = prefix ? Buffer.concat([prefix, bytes]) : bytes;
     const markerLength = marker ? SPARSE_MARKER_FRAME_BYTES : 0;
-    const sourceCopyBytes = source.byteLength * (1 + (this.listeners.size ? 1 : 0));
-    const chargeBytes = full.byteLength + sourceCopyBytes + RECORD_TRANSPORT_OVERHEAD_BYTES;
-    if (full.byteLength + source.byteLength + RECORD_TRANSPORT_OVERHEAD_BYTES > this.options.maxBatchBytes ||
+    const transportBytes = full.byteLength + (this.ownsWorker ? 0 : source.byteLength) + RECORD_TRANSPORT_OVERHEAD_BYTES;
+    const chargeBytes = transportBytes + (this.listeners.size ? source.byteLength : 0);
+    if (transportBytes > this.options.maxBatchBytes ||
       this.inFlightBytes + chargeBytes > this.options.maxInFlightBytes) {
       this.flushBatch();
       const error = new Error(`Source recording capacity exhausted at sequence ${this.sequence}`);
       this.fail(error);
       throw error;
     }
-    if (this.batchBytes + full.byteLength + source.byteLength + RECORD_TRANSPORT_OVERHEAD_BYTES > this.options.maxBatchBytes ||
+    if (this.batchBytes + transportBytes > this.options.maxBatchBytes ||
       this.batch.length >= this.options.maxBatchRecords) this.flushBatch();
     const nextCount = this.count + countDelta;
     const nextSourceRecordCount = this.logicalCount + sourceRecordDelta;
@@ -326,24 +327,25 @@ export class WorkerSessionRecorder {
     if (prefix) this.headerWritten = true;
     const sourceEndOffset = start + encodedRecordLength;
     const sourceByteLength = sourceEndOffset + markerLength;
-    const sourceEvent: EncodedSourceEvent = {
+    const sourceEvent: EncodedSourceEvent | undefined = !this.ownsWorker || this.listeners.size ? {
       sequence: seq, kind, offset: start, endOffset: sourceByteLength, sourceOffset: start,
       sourceEndOffset,
       bytes: new Uint8Array(source), ...(frameTimeMs === undefined ? {} : { frameTimeMs }),
-    };
+    } : undefined;
     const record = {
-      sequence: seq, bytes: new Uint8Array(full), chargeBytes, sourceByteLength, frameCount: nextCount, sourceRecordCount: nextSourceRecordCount, sourceEvent,
+      sequence: seq, bytes: new Uint8Array(full), chargeBytes, sourceByteLength, frameCount: nextCount, sourceRecordCount: nextSourceRecordCount,
+      ...(!this.ownsWorker ? { sourceEvent } : {}),
     };
     this.batch.push(record);
     this.hasSourceRecord = true;
-    this.batchBytes += full.byteLength + source.byteLength + RECORD_TRANSPORT_OVERHEAD_BYTES;
+    this.batchBytes += transportBytes;
     this.inFlightBytes += chargeBytes;
     this.offset = sourceByteLength;
     this.count = nextCount;
     this.logicalCount = nextSourceRecordCount;
     if (marker) this.markerWritten = true;
-    if (this.listeners.size) {
-      const event: EncodedSourceEvent = { ...sourceEvent, bytes: new Uint8Array(sourceEvent.bytes) };
+    if (this.listeners.size && sourceEvent) {
+      const event: EncodedSourceEvent = this.ownsWorker ? sourceEvent : { ...sourceEvent, bytes: new Uint8Array(sourceEvent.bytes) };
       try {
         for (const listener of this.listeners) listener(event);
       } catch (error) {
@@ -362,10 +364,9 @@ export class WorkerSessionRecorder {
     const batch = this.batch;
     this.batch = [];
     this.batchBytes = 0;
-    const transfer = batch.flatMap((record) => [
-      record.bytes.buffer as ArrayBuffer,
-      record.sourceEvent.bytes.buffer as ArrayBuffer,
-    ]);
+    const transfer = batch.flatMap((record) => record.sourceEvent
+      ? [record.bytes.buffer as ArrayBuffer, record.sourceEvent.bytes.buffer as ArrayBuffer]
+      : [record.bytes.buffer as ArrayBuffer]);
     this.worker.postMessage({ type: "batch", records: batch }, transfer);
   }
   private onMessage(message: {
@@ -437,6 +438,10 @@ export class WorkerSessionRecorder {
     if (writerFailed) {
       this.writerFailed = true;
       if (this.ownsWorker) void this.worker.terminate();
+      if (this.syncWaiter) {
+        this.syncWaiter.reject(this.failure ?? error);
+        this.syncWaiter = null;
+      }
     }
     if (this.stateValue === "failed") return;
     this.failure = error;
@@ -444,10 +449,6 @@ export class WorkerSessionRecorder {
     this.active = false;
     clearTimeout(this.timer ?? undefined);
     this.timer = null;
-    if (writerFailed && this.syncWaiter) {
-      this.syncWaiter.reject(error);
-      this.syncWaiter = null;
-    }
     for (const listener of this.failureListeners) {
       try { listener(error); } catch {}
     }
