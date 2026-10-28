@@ -24,6 +24,7 @@ apps/backend/test/ai/providers/lm-studio-context.test.ts
 apps/backend/test/ai/providers/lm-studio-e2e.test.ts
 apps/backend/test/ai/providers/local-provider-auth.test.ts
 apps/backend/test/ai/providers/provider-error.test.ts
+apps/backend/test/ai/providers/tune-intent-provider.test.ts
 apps/backend/test/ai/tools/compare-analysis-tool.test.ts
 apps/backend/test/ai/tools/compare-engineer-tools.test.ts
 apps/backend/test/ai/tools/lap-analysis-generation-tool.test.ts
