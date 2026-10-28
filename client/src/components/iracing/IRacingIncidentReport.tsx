@@ -1,10 +1,11 @@
-import { Link } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { useIRacingIncidentReport } from "@/hooks/session-queries";
 import { m } from "@/paraglide/messages";
 import { Button } from "@/components/ui/button";
 import { formatIncidentTime, incidentEventLabel, incidentEvidenceLabel } from "./incident-format";
 
 export function IRacingIncidentReport({ sessionId }: { sessionId: number }) {
+  const navigate = useNavigate();
   const query = useIRacingIncidentReport(sessionId);
   const report = query.data;
   return (
@@ -41,9 +42,26 @@ export function IRacingIncidentReport({ sessionId }: { sessionId: number }) {
               <p className="font-mono text-xs tabular-nums text-app-text-secondary">{m.iracing_incident_report_lap_time({ lap: event.lapNumber, time: formatIncidentTime(event.sessionTimeSec) })}</p>
               {event.kind === "incident-points" && <p className="text-xs text-app-text-muted">{m.iracing_incident_report_bounds({ previous: formatIncidentTime(event.previousSessionTimeSec), current: formatIncidentTime(event.sessionTimeSec) })}</p>}
             </div>
-            {event.replay !== null ? <Link to="/$gameid/sessions/$sessionId/replay/$lapId" params={{ gameid: "iracing", sessionId: String(sessionId), lapId: String(event.lapId) }} search={{ cursor: event.replay.frameIndex, viz: undefined, ai: undefined, view: undefined }} className="shrink-0 self-start rounded px-2 py-1 text-app-accent hover:underline focus-visible:outline-2 focus-visible:outline-app-accent sm:self-auto">
+            {event.replay !== null ? <Button
+              type="button"
+              variant="ghost"
+              className="shrink-0 self-start rounded px-2 py-1 text-app-accent hover:underline focus-visible:outline-2 focus-visible:outline-app-accent sm:self-auto"
+              onClick={() => void navigate({
+                to: "/$gameid/sessions/$sessionId/replay/$lapId",
+                params: { gameid: "iracing", sessionId: String(sessionId), lapId: String(event.lapId) },
+                search: {
+                  cursor: event.replay!.frameIndex,
+                  viz: undefined,
+                  ai: undefined,
+                  view: undefined,
+                  opponentLap: undefined,
+                  opponentRevision: undefined,
+                  opponentRefInvalid: undefined,
+                },
+              })}
+            >
               {event.replay.lapTimeSec === null ? m.iracing_incident_report_replay_link() : m.iracing_incident_report_replay({ time: formatIncidentTime(event.replay.lapTimeSec) })}
-            </Link> : <span className="text-xs text-app-text-muted">{m.iracing_incident_report_no_replay()}</span>}
+            </Button> : <span className="text-xs text-app-text-muted">{m.iracing_incident_report_no_replay()}</span>}
           </li>)}
         </ol>}
       </> : null}

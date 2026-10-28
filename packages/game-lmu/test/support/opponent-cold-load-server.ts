@@ -18,7 +18,16 @@ import type { GameId } from "@raceiq/shared/games/ids";
 
 
 
-const REPO_ROOT = resolve(process.cwd());
+function findRepoRoot(start = process.cwd()): string {
+  let current = resolve(start);
+  for (;;) {
+    if (existsSync(join(current, "apps/backend/scripts/data/seed-db.ts"))) return current;
+    const parent = dirname(current);
+    if (parent === current) throw new Error(`Could not locate repository root from ${start}`);
+    current = parent;
+  }
+}
+const REPO_ROOT = findRepoRoot();
 const SERVER_MODULE_PATH = resolve(REPO_ROOT, "packages/game-lmu/test/support/opponent-cold-load-server.ts");
 const CHILD_MARKER = "@@LMU_OPPONENT_COLD_LOAD@@";
 const execFileAsync = promisify(execFile);

@@ -127,10 +127,10 @@ for (const game of SEEDED_GAME_CASES) {
 
       expect(browserErrors.errors, `unexpected browser errors before injected Compare failure in ${game.name}`).toEqual([]);
       const errorBody = JSON.stringify({ error: "Seeded compare failure" });
-      await page.route(ALIGNED_TELEMETRY_ENDPOINT, (route) => route.fulfill({ status: 503, contentType: "application/json", body: errorBody }));
+      await page.route(`**${ALIGNED_TELEMETRY_ENDPOINT}`, (route) => route.fulfill({ status: 503, contentType: "application/json", body: errorBody }));
       await page.reload({ waitUntil: "domcontentloaded" });
-      await expect(page.getByText("Seeded compare failure", { exact: true })).toBeVisible();
-      await page.unroute(ALIGNED_TELEMETRY_ENDPOINT);
+      await expect(page.getByRole("alert").getByText("Failed to load comparison data", { exact: true })).toBeVisible();
+      await page.unroute(`**${ALIGNED_TELEMETRY_ENDPOINT}`);
 
       const expectedFailureUrl = new URL(ALIGNED_TELEMETRY_ENDPOINT, page.url()).toString();
       const expectedResourceError = "console.error: Failed to load resource: the server responded with a status of 503 (Service Unavailable)";

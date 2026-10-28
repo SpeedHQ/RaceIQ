@@ -61,10 +61,13 @@ for (const game of SEEDED_GAME_CASES) {
       await search.fill("definitely-no-seeded-car");
       await expect(page.getByText("No cars match filters", { exact: true })).toBeVisible();
       await search.fill("");
-      const category = page.locator("button[data-catalog-category]").first();
-      await expect(category).toBeVisible();
-      await category.click();
-      await expect(category).toHaveAttribute("aria-pressed", "true");
+      const categorySelect = page.getByLabel(/All categories/i);
+      await categorySelect.click();
+      const categoryOption = page.getByRole("option").nth(1);
+      await expect(categoryOption).toBeVisible();
+      const selectedCategory = (await categoryOption.innerText()).trim();
+      await categoryOption.click();
+      await expect(categorySelect).toHaveValue(selectedCategory);
     } else {
       const category = page.locator("button[data-catalog-category]").first();
       await expect(category).toBeVisible({ timeout: 20_000 });

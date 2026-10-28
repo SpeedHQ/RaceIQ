@@ -7,8 +7,8 @@
 - Catalog version: `0.20.0`
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.20.0`
-- Generator source SHA-256: `0c1255d9b3582131fc8e3c85ecd6dac7f9e57761f08fcaacac9761a11dd142d4`
-- Content SHA-256: `c8f2f53160ce9ddb4a5b5033693fc35416b0282f6d7aad004da2ed4b6a6473e5`
+- Generator source SHA-256: `b09b45dab26afc0c4f344d350fe6407151a186aac3d8bc416f86d129cb8fc1dd`
+- Content SHA-256: `3f08c962fe0a907be23e9bd88f7f0760b86d29d4427ba93131e719c13e62975d`
 
 ## Coverage
 
@@ -381,7 +381,7 @@
 | `race.competitor.car-path` | Competitor car path | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
 | `race.competitor.class-dry-tire-set-limit` | Competitor class dry-tire set limit | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.class-max-fuel-percentage` | Competitor class maximum fuel percentage | structured | dimensionless | % | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
-| `race.competitor.class-position` | Competitor class position | number | dimensionless | count | scalar |  |  |  |
+| `race.competitor.class-position` | Competitor class position | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.class-power-adjust` | Competitor class power adjustment | structured | dimensionless | % | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.class-relative-speed` | Competitor class relative speed | structured | dimensionless | ratio | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.class-weight-penalty` | Competitor class weight penalty | structured | mass | kg | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
@@ -431,7 +431,7 @@
 | `race.competitor.pit-status` | Competitor pit status | structured | unit:enum | enum | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:boolean |  |
 | `race.competitor.pit-stop-count` | Competitor pit-stop count | number | dimensionless | count | scalar |  |  |  |
 | `race.competitor.pit-stops` | Competitor pit-stop count | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
-| `race.competitor.position` | Competitor position | number | dimensionless | count | scalar |  |  |  |
+| `race.competitor.position` | Competitor position | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.primary-sponsor` | Competitor primary sponsor | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
 | `race.competitor.push-to-pass-active` | Competitor push-to-pass active | structured | dimensionless | boolean | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:boolean |  |
 | `race.competitor.push-to-pass-count` | Competitor push-to-pass count | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |

@@ -18,6 +18,7 @@ test("Spectate panel headers stay aligned and remember opened panels", async ({ 
   for (const mask of [0, 1, 3, 31, 29, 28, 30, 2]) {
     for (const [index, id] of ids.entries()) await toggle(id, Boolean(mask & (1 << index)));
     const layout = await page.evaluate((panelIds) => {
+      const clip = document.querySelector("[data-spectate-panel-headers]")!.getBoundingClientRect();
       return {
         headers: Array.from(document.querySelectorAll("[data-panel-header]"), (element) => {
           const box = element.getBoundingClientRect();

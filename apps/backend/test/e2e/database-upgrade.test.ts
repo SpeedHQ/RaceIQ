@@ -80,8 +80,11 @@ function startBranch(dataDir: string, pauseStage: "historical" | "lmu-identity" 
     import { getRecordingStorageActivity } from "./server/session-capture/storage-activity";
     let pausedStage = ${JSON.stringify(pauseStage)};
     let testDependencies;
+    let port1;
     if (pausedStage) {
-      const { port1, port2 } = new MessageChannel();
+      const channel = new MessageChannel();
+      port1 = channel.port1;
+      const port2 = channel.port2;
       port1.on("message", async (event) => {
         if (event.type === "stageEntered" && event.stage === pausedStage) {
           const resources = await withSessionCaptureMaintenanceLock(async () => getRecordingStorageActivity());
@@ -93,13 +96,19 @@ function startBranch(dataDir: string, pauseStage: "historical" | "lmu-identity" 
         if (event.eventId) port1.postMessage({ type: "release", eventId: event.eventId });
       });
       testDependencies = { workerPort: port2 };
-      const control = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch() {
-        pausedStage = null;
-        port1.postMessage({ type: "release-all" });
-        return new Response(null, { status: 204 });
-      } });
-      console.log("[E2E] Stage control:", control.port);
     }
+    let control;
+    control = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch(request) {
+      if (new URL(request.url).pathname === "/shutdown") {
+        process.emit("message", { type: "shutdown" });
+        setTimeout(() => control.stop(), 0);
+      } else {
+        pausedStage = null;
+        port1?.postMessage({ type: "release-all" });
+      }
+      return new Response(null, { status: 204 });
+    } });
+    console.log("[E2E] Stage control:", control.port);
     captureConsole();
     const backend = await bootServer({ httpPort: 0, udpPort: ${udpPort}, recordingGameId: null, testDependencies });
     const authSetup = await fetch("http://127.0.0.1:" + backend.httpServer.port + "/api/auth/setup", {
@@ -147,11 +156,26 @@ function startBranch(dataDir: string, pauseStage: "historical" | "lmu-identity" 
       expect(response.status).toBe(204);
     },
     async organize() {
-      const response = await this.request("/api/storage/layout-migration", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: "{}",
-      });
+      const moveDeadline = Date.now() + 180_000;
+      while (Date.now() < moveDeadline) {
+        const moveResponse = await this.request("/api/storage/recording-directory");
+        if (!moveResponse.ok) throw new Error(`Recording-directory status returned ${moveResponse.status}`);
+        const move = await moveResponse.json() as { state: string };
+        if (move.state !== "moving") break;
+        await Bun.sleep(25);
+      }
+      let response: Response;
+      do {
+        response = await this.request("/api/storage/layout-migration", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: "{}",
+        });
+        if (response.status !== 409) break;
+        const body = await response.clone().json() as { code?: string };
+        if (body.code !== "MOVE_ACTIVE") break;
+        await Bun.sleep(25);
+      } while (Date.now() < moveDeadline);
       if (response.status !== 202) throw new Error(`Layout migration returned ${response.status}: ${await response.text()}`);
       const deadline = Date.now() + 180_000;
       while (Date.now() < deadline) {
@@ -169,10 +193,14 @@ function startBranch(dataDir: string, pauseStage: "historical" | "lmu-identity" 
       if (stopPromise) return stopPromise;
       stopPromise = (async () => {
         if (!exited) {
-          proc.kill("SIGTERM");
-          if (pauseStage && output.includes("[E2E] Stage entered:")) {
-            await waitFor("[Server] Received SIGTERM");
-            await this.releaseStage();
+          await waitFor("[E2E] Stage control:");
+          const match = output.match(/\[E2E\] Stage control: (\d+)/);
+          if (!match) throw new Error("Backend control port missing");
+          try {
+            const response = await fetch(`http://127.0.0.1:${match[1]}/shutdown`);
+            expect(response.status).toBe(204);
+          } catch {
+            await proc.exited;
           }
         }
         await proc.exited;

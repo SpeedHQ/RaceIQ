@@ -6,7 +6,7 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.20.0",
-      "sourceHash": "0c1255d9b3582131fc8e3c85ecd6dac7f9e57761f08fcaacac9761a11dd142d4"
+      "sourceHash": "b09b45dab26afc0c4f344d350fe6407151a186aac3d8bc416f86d129cb8fc1dd"
     },
     "sourceHashes": {
       "packages/capture-formats/src/lmu/opponent-snapshot.ts": "c18e10f39668501f9c4742bec8999bc7faeeba2c8ea7b42d60accfbbe4e8f0c6",
@@ -22,7 +22,7 @@
       "server/session-capture/frame-time.ts": "55c44a6cede5e2c5fb1e1c45568fe44b4a9a8b156f260f69bb5d89f9c24935a2",
       "shared/racing/setups/schema.ts": "987941bb8f38520920686ef540e67ce2259fdc962de03ccb959f6b5ef773b28f"
     },
-    "contentHash": "c8f2f53160ce9ddb4a5b5033693fc35416b0282f6d7aad004da2ed4b6a6473e5"
+    "contentHash": "3f08c962fe0a907be23e9bd88f7f0760b86d29d4427ba93131e719c13e62975d"
   },
   "generatedFrom": [
     "packages/tooling-catalog/src/root.ts",
@@ -14950,6 +14950,7 @@
           ],
           "freshness": "continuous",
           "description": "Derived from native LMU scoring data: fuelFraction.",
+          "normalization": "unsigned 8-bit native value / 255",
           "provenance": {
             "origin": "derivation",
             "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
@@ -14964,7 +14965,7 @@
               "LMU.ScoringSnapshot.fuel.competitor.ambiguous-fuel-fraction"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "d3cafeccbc3bd91c44f178f4a6222ba70464ff355a495e43e80b7ba29d9eb0f9"
+            "codeHash": "b84c337c18a974e60670a6825af391ef4525ad46413ef11d19519d0e65be1980"
           }
         },
         "ams2": {
@@ -24927,6 +24928,7 @@
           ],
           "freshness": "continuous",
           "description": "Derived from native LMU scoring data: localVelocity.",
+          "normalization": "magnitude of local velocity vector",
           "provenance": {
             "origin": "derivation",
             "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
@@ -24941,7 +24943,7 @@
               "LMU.ScoringSnapshot.motion.competitor.speed"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "a5d5e3c855c99437287a790380f22b8597e1ac5ba981490b0f2f0a29468c8335"
+            "codeHash": "cf4fe39d8fe1d600c23a0b4ff69901c6adb81cb9e83b20371eb2d8d7bf5a126b"
           }
         },
         "ams2": {
@@ -29397,10 +29399,10 @@
     {
       "id": "race.competitor.class-position",
       "label": "Competitor class position",
-      "description": "Derived position among vehicles sharing native class label.",
+      "description": "Class running or classified position for each competitor.",
       "parentId": "race.competitor.results",
       "canonicalUnit": "count",
-      "shape": "scalar",
+      "shape": "structured",
       "games": {
         "fm-2023": {
           "kind": "unavailable",
@@ -29446,6 +29448,7 @@
           ],
           "freshness": "continuous",
           "description": "Derived from native LMU scoring data: place,vehicleClass.",
+          "normalization": "1 + count of positive same-class positions lower than native position",
           "provenance": {
             "origin": "derivation",
             "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
@@ -29460,7 +29463,7 @@
               "LMU.ScoringSnapshot.race.competitor.class-position"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "fe76ab52ac3feacc6508b2c9b1e1f5f60cdc3a9670032f09a1e9ba55b643369d"
+            "codeHash": "77d3b8609603a08110e88603eb73f01e42970d38183c6103f3e281d816a7e8d5"
           }
         },
         "ams2": {
@@ -29469,12 +29472,39 @@
           "description": "No equivalent opponent scoring snapshot source is currently identified for this game."
         }
       },
-      "valueType": "number",
+      "valueType": "structured",
       "dimensions": [
         "dimensionless"
       ],
       "cardinality": {
-        "kind": "scalar"
+        "kind": "variable",
+        "min": 0,
+        "max": 64
+      },
+      "ordering": [
+        "competitor-index:numeric-ascending"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "competitor-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0,
+              "max": 64
+            },
+            "ordering": "numeric-ascending"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
       },
       "limitations": []
     },
@@ -30070,6 +30100,7 @@
           ],
           "freshness": "continuous",
           "description": "Derived from native LMU scoring data: totalLaps.",
+          "normalization": "completedLaps + 1",
           "provenance": {
             "origin": "derivation",
             "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
@@ -30084,7 +30115,7 @@
               "LMU.ScoringSnapshot.race.competitor.current-lap-number"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "4cc852785559ddb200742601814de74b507b82766931c9f70e2697843c4e0423"
+            "codeHash": "27c242c110ebdb3b289cc414bf5a9bed28035b4e86a01dcabcc5773806728f56"
           }
         },
         "ams2": {
@@ -31779,6 +31810,7 @@
           ],
           "freshness": "continuous",
           "description": "Derived from native LMU scoring data: lapDistance,LMU.ScoringInfo.lapDistance.",
+          "normalization": "lapDistance / trackLength when both are finite and lapDistance is within track length",
           "provenance": {
             "origin": "derivation",
             "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
@@ -31793,7 +31825,7 @@
               "LMU.ScoringSnapshot.race.competitor.lap-fraction"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "61e5b15cee50d8c5deec4035958981b15e0727b1af44b210cab695ccb8eeffdb"
+            "codeHash": "7e62cdbadffd3b402c68ee559ca027604113abd1fd8717aa766c6fb508c57214"
           }
         },
         "ams2": {
@@ -33524,10 +33556,10 @@
     {
       "id": "race.competitor.position",
       "label": "Competitor position",
-      "description": "Native overall scoring place.",
+      "description": "Overall running or classified position for each competitor.",
       "parentId": "race.competitor.results",
       "canonicalUnit": "count",
-      "shape": "scalar",
+      "shape": "structured",
       "games": {
         "fm-2023": {
           "kind": "unavailable",
@@ -33594,12 +33626,39 @@
           "description": "This parser does not expose an equivalent source value."
         }
       },
-      "valueType": "number",
+      "valueType": "structured",
       "dimensions": [
         "dimensionless"
       ],
       "cardinality": {
-        "kind": "scalar"
+        "kind": "variable",
+        "min": 0,
+        "max": 64
+      },
+      "ordering": [
+        "competitor-index:numeric-ascending"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "competitor-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0,
+              "max": 64
+            },
+            "ordering": "numeric-ascending"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
       },
       "limitations": []
     },
@@ -92964,7 +93023,7 @@
         "unit": "count",
         "dataType": "number",
         "count": 1,
-        "description": "Derived position among vehicles sharing native class label. Per-competitor scoring snapshot.",
+        "description": "Class running or classified position for each competitor. Per-competitor scoring snapshot.",
         "semanticId": "race.competitor.class-position",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
@@ -93180,7 +93239,7 @@
         "unit": "count",
         "dataType": "number",
         "count": 1,
-        "description": "Native overall scoring place. Per-competitor scoring snapshot.",
+        "description": "Overall running or classified position for each competitor. Per-competitor scoring snapshot.",
         "semanticId": "race.competitor.position",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,

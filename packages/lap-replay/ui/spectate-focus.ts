@@ -88,7 +88,6 @@ export function focusRuns(samples: readonly SpectateSample[], focus: SpectateFoc
   for (const sample of samples) {
     const pose = spectateSamplePosition(sample);
     if (!pose) { previous = null; run = null; continue; }
-    const x = pose.x, z = pose.z;
     const connected = previous && previous.run === sample.run && sample.time >= previous.time && !hasTelemetryGap(previous.time, sample.time, maximumGapSeconds);
     if (previous && connected) {
       const token = focus.color(sample);

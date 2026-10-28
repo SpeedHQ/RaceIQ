@@ -39,6 +39,10 @@
 - Smooth iRacing lap replay by interpolating the track marker and timeline cursor between recorded telemetry frames.
 
 ### Fixes
+- Keep replay navigation URLs free of false invalid-opponent flags and retain typed routing from iRacing incident events.
+- Preserve outlap invalidity and reason when track-limit checks run on AC Evo recordings.
+- Keep iRacing car category filtering reachable through its searchable category selector; use a wider mobile circuit overview and keyboard-seekable markers.
+- Announce failed comparison loads through an accessible alert.
 - Keep Replay and Compare → Spectate circuit overviews clear of mobile input dashboards and camera/focus controls.
 - Restore resized Replay and Spectate panel widths when reopening the same panels, while preserving compact defaults for different panel combinations.
 - Keep dashboard summaries available when historical recordings cannot be decoded.

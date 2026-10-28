@@ -362,6 +362,13 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
     ["race.competitor.pit-state", "enum", "pitState", false],
     ["race.competitor.server-scored", "boolean", "serverScored", false],
   ] as const;
+  const lmuOpponentNormalizations: Record<string, string> = {
+    "race.competitor.current-lap-number": "completedLaps + 1",
+    "race.competitor.class-position": "1 + count of positive same-class positions lower than native position",
+    "race.competitor.lap-fraction": "lapDistance / trackLength when both are finite and lapDistance is within track length",
+    "fuel.competitor.ambiguous-fuel-fraction": "unsigned 8-bit native value / 255",
+    "motion.competitor.speed": "magnitude of local velocity vector",
+  };
   for (const [id, unit, nativeFields, derived] of lmuOpponentChannels) {
     const definition = SEMANTIC_DEFINITIONS[id];
     if (!definition) throw new Error(`Missing semantic definition ${id}`);
@@ -377,6 +384,7 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
       sources: [source],
       freshness: "continuous",
       description: `${derived ? "Derived from" : "Read from"} native LMU scoring data: ${nativeFields}.`,
+      ...(derived ? { normalization: lmuOpponentNormalizations[id] } : {}),
       provenance: { origin: derived ? "derivation" : "parser", artifact: "packages/capture-formats/src/lmu/opponent-snapshot.ts" },
     };
     variables.set(id, variable);

@@ -1,4 +1,3 @@
-import { fileURLToPath } from "node:url";
 import { Schema } from "effect";
 import { SplitRequestSchema, WorkerMessageSchema, type SplitRequest, type WorkerMessage } from "./protocol";
 import { SplitFailure } from "./index";

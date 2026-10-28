@@ -42,7 +42,7 @@ export function ComparisonLoadStatus({ loading, error, hasComparison }: { loadin
   return (
     <div className="shrink-0">
       {loading && !hasComparison && <LoadingIndicator label={m.compare_loading()} />}
-      {error && <div className="text-status-danger text-sm">{error}</div>}
+      {error && <div role="alert" className="text-status-danger text-sm">{error}</div>}
     </div>
   );
 }
