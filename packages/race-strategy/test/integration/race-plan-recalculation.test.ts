@@ -14,11 +14,11 @@ const plans: string[] = [];
 afterEach(async () => { for (const id of plans.splice(0)) await deleteRacePlan(id); for (const id of sessions.splice(0)) await deleteSession(id); });
 
 function evidence(id: string, sessionId: number, gameId = "fm-2023", startedAt = "2026-01-01T00:00:00.000Z",
-  compound = "medium", pace = 60, completedLaps = 10): StintSummary {
+  compound = "medium", pace = 60, completedLaps = 10, weather: string | null = null): StintSummary {
   return {
     id, sessionId, driverKey: "local-player", ordinal: 1, status: "completed", gameId: gameId as StintSummary["gameId"],
     trackId: "5", carId: "642", pi: gameId === "fm-2023" ? 800 : null, compounds: [compound, compound, compound, compound],
-    compatibility: { fuelSemanticVersion: "fuel-v1", tireSemanticVersions: ["tire-v1", "tire-v1", "tire-v1", "tire-v1"], virtualEnergySemanticVersion: gameId === "lmu" ? "energy-v1" : null, setupKey: "setup", conditions: { weather: null, airTemperatureC: null, trackTemperatureC: null } },
+    compatibility: { fuelSemanticVersion: "fuel-v1", tireSemanticVersions: ["tire-v1", "tire-v1", "tire-v1", "tire-v1"], virtualEnergySemanticVersion: gameId === "lmu" ? "energy-v1" : null, setupKey: "setup", conditions: { weather, airTemperatureC: null, trackTemperatureC: null } },
     startedAt, endedAt: startedAt, firstLapNumber: 1, lastLapNumber: completedLaps, boundary: { reason: "pit", confidence: "observed" }, completedLaps,
     fuel: { value: 0.1, unit: "L/lap", eligibleLaps: 10, source: "history", provisional: false, unavailableReason: null },
     tires: [0, 1, 2, 3].map(() => ({ value: 0.001, unit: "wearFraction/lap" as const, eligibleLaps: 10, source: "history" as const, provisional: false, unavailableReason: null })) as StintSummary["tires"],
@@ -27,10 +27,10 @@ function evidence(id: string, sessionId: number, gameId = "fm-2023", startedAt =
   };
 }
 async function addSource({ newer = false, gameId = "fm-2023", fuel = 0.1, status = "completed", compound = "medium",
-  pace = 60, completedLaps = 10 }: { newer?: boolean; gameId?: string; fuel?: number; status?: string; compound?: string; pace?: number; completedLaps?: number } = {}) {
+  pace = 60, completedLaps = 10, weather = null }: { newer?: boolean; gameId?: string; fuel?: number; status?: string; compound?: string; pace?: number; completedLaps?: number; weather?: string | null } = {}) {
   const sessionId = await insertSession("642", "5", gameId, undefined, undefined, "mine"); sessions.push(sessionId);
   const id = `recalc-${sessionId}`;
-  const source = { ...evidence(id, sessionId, gameId, newer ? "2026-02-01T00:00:00.000Z" : "2026-01-01T00:00:00.000Z", compound, pace, completedLaps),
+  const source = { ...evidence(id, sessionId, gameId, newer ? "2026-02-01T00:00:00.000Z" : "2026-01-01T00:00:00.000Z", compound, pace, completedLaps, weather),
     fuel: { ...evidence(id, sessionId, gameId).fuel, value: fuel }, status: status as StintSummary["status"] };
   await client.execute({ sql: "UPDATE sessions SET created_at=? WHERE id=?", args: [source.startedAt, sessionId] });
   await client.execute({ sql: "INSERT INTO strategy_stints(id,session_id,driver_key,ordinal,status,payload) VALUES(?,?,?,?,?,?)", args: [id, sessionId, "local-player", 1, status, JSON.stringify(source)] });
@@ -88,6 +88,33 @@ describe("race plan recalculation", () => {
     expect(result.sources).toHaveLength(4);
     expect(result.draft.stints[0]?.sourceSessionId).toBeNull();
     expect(result.draft.stints[0]?.sourceStints).toHaveLength(4);
+  });
+  test("filters requested weather before 100-source cap", async () => {
+    const dry = await addSource({ fuel: 0.04, weather: "2" });
+    const saved = await createRacePlan({ name: "Dry aggregate", gameId: dry.gameId, carId: dry.carId, trackId: dry.trackId, pi: dry.pi,
+      totalLaps: 20, raceLength: { mode: "laps" }, fuelUnit: "L", notes: "", weather: "dry",
+      stints: [{ endLap: 20, startFuel: 5, compounds: [...dry.compounds], sourceSessionId: null, sourceStintId: null,
+        sourceStints: [{ sessionId: dry.sessionId, stintId: dry.id }] }] });
+    plans.push(saved.id);
+    const wetSession = await insertSession("642", "5", dry.gameId, undefined, undefined, "mine");
+    sessions.push(wetSession);
+    const wet = evidence("unused", wetSession, dry.gameId, "2026-02-01T00:00:00.000Z", "medium", 60, 10, "5");
+    await client.execute({ sql: "UPDATE sessions SET created_at=? WHERE id=?", args: [wet.startedAt, wetSession] });
+    const drySources = [];
+    for (let index = 0; index < 101; index++) {
+      const wetSource = { ...wet, id: `wet-${wetSession}-${index}`, ordinal: index + 203,
+        fuel: { ...wet.fuel, value: 0.2, eligibleLaps: 10 } };
+      const drySource = { ...wet, id: `dry-${wetSession}-${index}`, ordinal: index + 102,
+        compatibility: { ...wet.compatibility, conditions: { ...wet.compatibility.conditions, weather: "2" } },
+        fuel: { ...wet.fuel, value: index === 0 ? 0.8 : 0.02, eligibleLaps: 10 } };
+      drySources.push(drySource);
+      for (const source of [wetSource, drySource]) await client.execute({ sql: "INSERT INTO strategy_stints(id,session_id,driver_key,ordinal,status,payload) VALUES(?,?,?,?,?,?)",
+        args: [source.id, wetSession, "local-player", source.ordinal, "completed", JSON.stringify(source)] });
+    }
+    const result = await recalculateRacePlan(saved.id, { generation: { fuelCapacity: 10, fuelReserve: 1, energyReserveFraction: 0 } });
+    expect(result.sources.map((item) => item.id)).toEqual(drySources.slice(1).reverse().map((item) => item.id));
+    expect(result.draft.stints[0]?.sourceStints).toEqual(drySources.slice(1).reverse().map((item) => ({ sessionId: wetSession, stintId: item.id })));
+    expect(result.draft.stints[0]?.startFuel).toBeCloseTo(1.4);
   });
 
   test("rejects when no compatible measured source exists", async () => {

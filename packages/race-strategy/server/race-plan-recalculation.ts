@@ -8,7 +8,7 @@ import { RacePlanRecalculationInputSchema, RacePlanInputSchema, RacePlanSchema, 
 import { StintSummarySchema } from "@raceiq/shared/racing/live/strategy-schemas";
 import type { StintSummary } from "@raceiq/shared/racing/live/strategy";
 import type { RacePlanBaseline } from "@raceiq/shared/racing/live/race-plan";
-import { aggregateRacePlanEvidence } from "@raceiq/shared/racing/live/race-plan-evidence";
+import { aggregateRacePlanEvidence, classifyRacePlanWeather } from "@raceiq/shared/racing/live/race-plan-evidence";
 import { InvalidRacePlanError, RacePlanNotFoundError } from "./race-plan-queries";
 import { generateRacePlanStints } from "../contracts/generate-race-plan";
 
@@ -99,7 +99,9 @@ async function recalculateRacePlanUnlocked(id: string, value: unknown) {
       item.summary.compatibility.fuelSemanticVersion === originalPhase.compatibility.fuelSemanticVersion &&
       item.summary.compatibility.tireSemanticVersions.every((version, index) => version !== null && version === originalPhase.compatibility.tireSemanticVersions[index]) &&
       (saved.gameId !== "lmu" || item.summary.compatibility.virtualEnergySemanticVersion !== null &&
-        item.summary.compatibility.virtualEnergySemanticVersion === originalPhase.compatibility.virtualEnergySemanticVersion));
+        item.summary.compatibility.virtualEnergySemanticVersion === originalPhase.compatibility.virtualEnergySemanticVersion) &&
+      ((saved.weather ?? "any") === "any" ||
+        classifyRacePlanWeather(item.summary.compatibility.conditions.weather) === saved.weather));
     const refreshed = old.baseline && knownSemantics
       ? aggregateRacePlanEvidence(matching.slice(0, 100).map((item) => item.summary), saved.weather ?? "any") ?? undefined : undefined;
     const match = old.baseline ? undefined : knownSemantics ? matching[0] : undefined;
