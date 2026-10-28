@@ -226,10 +226,7 @@ part sizes and the 30,957-frame source. Byte-part packaging is independent of
 the recorder's player/opponent separation.
 
 
-Schema and unit references are recorded in the
-[LMU contract](../plans/lmu-competitor-data-contract.md). Controlled native,
-HTTP and capture tests are not a substitute for the required Windows LMU
-player smoke. Runtime game-version/mode coverage is not claimed without it.
+Controlled native, HTTP and capture tests are not a substitute for the required Windows LMU player smoke. Runtime game-version/mode coverage is not claimed without it.
 
 ## Work with published lap archives
 
@@ -239,7 +236,7 @@ Keep physical member offsets and compressed sizes separate from decoded capture 
 
 Legacy manifest v3 directory bundles remain readable without reinterpretation or in-place rewriting. Archive layout 2 uses separate DB manifest and archive paths; null-layout source reads remain unchanged. Cleanup and relocation must account for both paths, protect active staging and shared references, invalidate metadata/telemetry caches, and count shared archive bytes once. Never recompress the indexed archive as a whole-session stream.
 
-Retained monolithic recordings follow existing policy. Measure archive storage against identical plain and already-gzipped member payloads, with logical and allocated bytes distinguished. Report retained-source storage separately; aggregation alone does not prove compression savings. Label synthetic windows, synthetic acquisition timestamps, application-cold reads, OS cache assumptions, and memory high-water scope explicitly. See [recording architecture](../architecture/telemetry-recording.md#indexed-completed-session-lap-archives) and the [archive implementation plan](../plans/indexed-session-lap-archive.md).
+Retained monolithic recordings follow existing policy. Measure archive storage against identical plain and already-gzipped member payloads, with logical and allocated bytes distinguished. Report retained-source storage separately; aggregation alone does not prove compression savings. Label synthetic windows, synthetic acquisition timestamps, application-cold reads, OS cache assumptions, and memory high-water scope explicitly. See [recording architecture](../architecture/telemetry-recording.md#indexed-completed-session-lap-archives).
 
 ## Verify incremental live capture
 

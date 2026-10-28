@@ -26,7 +26,7 @@ UDP adapters preserve original source datagrams. ACC and AC Evo pack three share
 
 ## Incremental live lap capture (release-gated)
 
-The bounded live source recorder owns file creation, writes, header patching, flush, and sync in a worker. Enabling `configureLiveCaptureRuntime()` additionally binds the production per-lap derivation worker and restart replay. That binding is deliberately absent from production boot until the [live release gates](../plans/live-lossless-lap-splitting.md#phase-4--performance-and-end-to-end-release-gates) pass. Existing imports and reprocessing keep the explicit offline recorder; they do not use live admission limits as an unlimited-speed import transport.
+The bounded live source recorder owns file creation, writes, header patching, flush, and sync in a worker. Enabling `configureLiveCaptureRuntime()` additionally binds the production per-lap derivation worker and restart replay. That binding is deliberately absent from production boot; the live recorder remains release-gated under [ADR 0013](../adr/0013-live-lossless-lap-splitting.md). Existing imports and reprocessing keep the explicit offline recorder; they do not use live admission limits as an unlimited-speed import transport.
 
 Detector ownership transitions, not parser checkpoint predictions, define lap windows. Each candidate retains exact pre-frame initialization; a canonical epoch starts with its parser anchor and preceding context, excluding the current gameplay frame. An unpersisted window is explicitly abandoned and conserved as auxiliary data. Reaching another candidate does not authorize discarding an unresolved lap: derivation waits for journaled finalization or abandonment, independently of delayed database identity binding.
 
@@ -182,7 +182,7 @@ The historical v4 `capture.bin.gz` reader still validates selected gzip-member f
 
 The package verifies native bytes, order, timestamp presence/absence, source conservation, parser bootstrap, and owned/context windows through the production reader before publication. Closed and synced data and manifest files move together through the existing atomic directory rename and fenced DB transaction. Cancellation, stale attempts, failed writes, and failed transactions do not publish references. Recovery removes only unreferenced attempts.
 
-Semantic artifact hashes cover selected capture bytes; new physical lap files use `storageEncoding: "identity"`. Retained session-source hashing remains separate. Sources are not retired by split publication. See the [physical-file cutover plan](../plans/sparse-split-migration-backend-plan.md#physical-file-implementation-phase) and [package-owned splitting decision](../adr/0011-package-owned-indexed-capture-splitting.md).
+Semantic artifact hashes cover selected capture bytes; new physical lap files use `storageEncoding: "identity"`. Retained session-source hashing remains separate. Sources are not retired by split publication. See the [package-owned splitting decision](../adr/0011-package-owned-indexed-capture-splitting.md).
 
 
 ## Compression and cleanup

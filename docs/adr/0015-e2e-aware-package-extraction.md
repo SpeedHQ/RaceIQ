@@ -25,13 +25,3 @@ Dashboard extraction must reconcile active read-model work before moving its fil
 
 Reusable guidance: [Feature package pattern](../architecture/feature-packages.md), including top-level layout, public entry points, enforced UI/server boundaries, test ownership and adoption checks.
 
-## Plans
-
-- [Shared boundary, acceptance criteria and E2E scenarios](../../advisor-plans/002-e2e-extraction-contract.md)
-- [CI selection and feature E2E ownership](../../advisor-plans/003-e2e-selection-plan.md)
-- [Backend feature and replay extraction](../../advisor-plans/004-e2e-backend-plan.md)
-- [UI feature extraction](../../advisor-plans/005-e2e-ui-plan.md)
-- [Ordered change list and landing dependencies](../../advisor-plans/006-feature-extraction-change-list.md)
-- [Implemented catalogue extraction contract and verification](../../advisor-plans/catalogues-contract.md)
-- [Catalogue UI implementation plan](../../advisor-plans/catalogues-ui-plan.md)
-- [Catalogue server implementation plan](../../advisor-plans/catalogues-server-plan.md)
