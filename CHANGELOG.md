@@ -37,9 +37,17 @@
 - Include the complete LMU multiplayer recording in demo seeds as sub-100 MB gzip parts, stream native input without buffering the whole capture, and retain separate player and opponent recordings.
 
 ### Fixes
-- Keep the historical lap-classification notice limited to its original sessions, allow dismissal while work continues, and distinguish summary updates from pending lap processing.
+- Keep dismissed historical lap-classification notices hidden after unrelated session updates, reopening them only for new work or changed results.
 - Place inner and outer surface-temperature bands on the correct sides of the 3D wheels in Replay and Compare → Spectate.
-- Include the LMU opponent-index worker in packaged builds so recorded opponents can load for replay and comparison.
+- Keep recording and LMU opponent indexing available in Windows release installations.
+- Reclaim all telemetry chunks when deleting direct recordings, matching the cleanup preview while protecting shared recordings.
+- Enable Replay and Compare in Live Recorded Laps and track lap tables when capture publication completes, without bypassing LMU opponent processing.
+- Keep imported AMS2 session history consistent with live capture across qualifying-to-race transitions and independent recording epochs.
+- Recover Replay and Compare scenes automatically when position telemetry becomes available after loading.
+- Show positive tire-wear rates during degradation and reset them after tire replacement in Replay and Compare.
+- Keep wheel animation speed consistent across display refresh rates and playback frame-rate limits.
+- Restore bookmarked map positions when returning to cached comparisons.
+- Direct Linux installations to release downloads instead of offering the Windows-only installer.
 - Restore recorded-opponent driver and lap selections after reloading comparisons while the opponent catalog loads.
 - Preserve Replay and Spectate panel widths when panels are toggled, and keep the mobile circuit overview clear of driver inputs and focus controls.
 - Keep Spectate selected when switching comparison views with the keyboard.
@@ -138,6 +146,10 @@
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
+- Fail AppImage releases when packaged smoke checks fail, and run full manual CI gates when no meaningful change range exists.
+- Run responsive screenshot comparisons with a baseline-compatible harness and report failed baseline captures as unavailable evidence.
+- Route AMS2 diagnostic dumps through the shared safe launcher and accept native absolute executable paths in the compiled-browser harness.
+- Skip full replay interpolation on animation callbacks discarded by the frame-rate cap.
 - Preserve Windows directory-sync path errors when validating recording publication directories.
 - Target comparison lap pickers explicitly in browser checks and wait for rendered frames in the native camera zoom check.
 - Keep diagnostic dump runs in one BIN per selected source, retain raw Forza/F1 datagrams, stream live telemetry over WebSocket for every game, and bypass telemetry-driven session/database processing and background recording maintenance.

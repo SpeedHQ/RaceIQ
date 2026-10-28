@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, open, readFile, rename, realpath, rm, stat } from "node:fs/promises";
+import { syncDirectory } from "@raceiq/capture-formats/session/durable-directory";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { Worker } from "node:worker_threads";
 import type { MessagePort } from "node:worker_threads";
@@ -240,8 +241,7 @@ async function writeDurableState(indexRoot: string, state: DurableState): Promis
   }
   await file.close();
   await rename(temporary, target);
-  const directory = await open(indexRoot, "r");
-  try { await directory.sync(); } finally { await directory.close(); }
+  await syncDirectory(indexRoot);
 }
 
 function dependenciesEqual(

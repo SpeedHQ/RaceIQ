@@ -421,6 +421,34 @@ describe("session cleanup edge cases", () => {
     expect(await db.select({ captureChunkId: laps.captureChunkId }).from(laps).where(eq(laps.id, lapId)).get()).toEqual({ captureChunkId: null });
     expect(await db.select().from(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId, sessionId)).get()).toBeUndefined();
   });
+  test("cleans direct raw-manifest path and all manifest members exactly once", async () => {
+    const directory = dirname(capturePath("raw-manifest.bin"));
+    const rawFile = join(directory, "raw-manifest.bin");
+    const chunkFile = join(directory, "lap.bin");
+    const chunkBytes = Buffer.from("lap capture");
+    writeFileSync(chunkFile, chunkBytes);
+    const manifest = JSON.stringify({
+      version: 3, gameId: "fm-2023", sourceRevision: "direct", sourceByteLength: 0, sourceRecordCount: 0,
+      chunks: [{
+        id: "lap-1", kind: "lap", path: "lap.bin", byteLength: chunkBytes.length, firstOrdinal: 0, recordCount: 1,
+        sourceStart: 0, sourceEnd: 0, sourceByteStart: 0, sourceByteEnd: 0,
+      }],
+    });
+    writeFileSync(rawFile, manifest);
+    const manifestBytes = Buffer.byteLength(manifest);
+    const sessionId = await createSession({ rawFile });
+    await db.update(sessions).set({ captureLayoutVersion: 3, captureManifestFile: rawFile }).where(eq(sessions.id, sessionId)).run();
+
+    const preview = await previewSessionCleanup({ mode: "selected", sessionIds: [sessionId] });
+    expect(preview.fileCount).toBe(2);
+    expect(preview.reclaimableBytes).toBe(manifestBytes + chunkBytes.length);
+    const result = await executeSessionCleanup({ mode: "selected", sessionIds: [sessionId] });
+
+    expect(result.deletedFiles).toBe(2);
+    expect(result.freedBytes).toBe(manifestBytes + chunkBytes.length);
+    expect(existsSync(rawFile)).toBe(false);
+    expect(existsSync(chunkFile)).toBe(false);
+  });
   test.each([false, true])("clears absent v4 source refs without deleting externally shared files; null source: %s", async (nullSource) => {
     const directory = dirname(capturePath("shared-v4.bin"));
     const rawFile = nullSource ? null : join(directory, "missing-source.bin");

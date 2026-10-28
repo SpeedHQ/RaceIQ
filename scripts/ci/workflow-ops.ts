@@ -69,21 +69,45 @@ switch (operation) {
     if (!existsSync(base)) throw new Error(`Base comparison worktree is missing: ${base}`);
     run(["bun", "install"], base);
     run(["bun", "run", "build"], base, { RACEIQ_FEATURE_F1_EXPERIMENTS: "true", RACEIQ_FEATURE_IRACING_ADAPTER: "true" });
-    // Compare both revisions with the same screenshot cases and selectors.
-    cpSync(join(env.GITHUB_WORKSPACE!, "playwright/tests/responsive/mobile-screenshots.spec.ts"), join(base, "playwright/tests/responsive/mobile-screenshots.spec.ts"));
-    const output = join(env.GITHUB_WORKSPACE!, "playwright/screenshots/mobile");
+    const current = env.GITHUB_WORKSPACE!;
+    const basePlaywright = join(base, "playwright");
+    const output = join(current, "playwright/screenshots/mobile");
+    const config = join(basePlaywright, "responsive-screenshots.config.ts");
+    // Keep baseline-owned cases and helpers compatible with its historical API.
+    writeFileSync(config, `
+      import { devices, defineConfig } from "@playwright/test";
+      import { runtime } from ${JSON.stringify(join(current, "playwright/config/runtime.ts"))};
+      import { createWebServers } from ${JSON.stringify(join(current, "playwright/config/web-servers.ts"))};
+      export default defineConfig({
+        testDir: "tests/responsive",
+        testMatch: "mobile-screenshots.spec.ts",
+        outputDir: "./test-results/mobile-screenshots",
+        fullyParallel: runtime.parallelScreenshotRun,
+        workers: runtime.screenshotWorkers,
+        retries: process.env.CI ? 1 : 0,
+        reporter: process.env.CI ? [["list"], ["github"]] : "list",
+        timeout: 50_000,
+        expect: { timeout: 10_000 },
+        use: { ...devices["Desktop Chrome"], baseURL: \`http://localhost:\${runtime.seeded.port}\`, ignoreHTTPSErrors: true, colorScheme: "dark", actionTimeout: 10_000, navigationTimeout: 30_000, trace: "retain-on-failure" },
+        webServer: createWebServers(runtime),
+      });
+    `);
     rmSync(output, { recursive: true, force: true });
     mkdirSync(output, { recursive: true });
-    const status = Bun.spawnSync(["bun", "run", "../scripts/playwright-ci.ts", "test", "--config=responsive-screenshots.config.ts", `--shard=${env.SHARD}/4`], {
-      cwd: join(base, "playwright"),
-      env: { ...env, RACEIQ_SCREENSHOT_DIR: output, E2E_SERVER_MODE: "compiled", RACEIQ_FEATURE_F1_EXPERIMENTS: "true", RACEIQ_FEATURE_IRACING_ADAPTER: "true", PW_SCREENSHOT_WORKERS: "1", PW_SERVER_SET: "seeded", PW_SCREENSHOT_ONLY: "1", PW_SEED_SCREENSHOTS: "1", PW_SEED_GAMES: RESPONSIVE_SCREENSHOT_GAMES },
+    const status = Bun.spawnSync([
+      "bun", "run", join(current, "scripts/playwright-ci.ts"), "test",
+      `--config=${config}`, `--shard=${env.SHARD}/4`,
+    ], {
+      cwd: basePlaywright,
+      env: { ...env, RACEIQ_APP_ROOT: base, RACEIQ_SCREENSHOT_DIR: output, E2E_SERVER_MODE: "compiled", RACEIQ_FEATURE_F1_EXPERIMENTS: "true", RACEIQ_FEATURE_IRACING_ADAPTER: "true", PW_SCREENSHOT_WORKERS: "1", PW_SERVER_SET: "seeded", PW_SCREENSHOT_ONLY: "1", PW_SEED_SCREENSHOTS: "1", PW_SEED_GAMES: RESPONSIVE_SCREENSHOT_GAMES },
       stdout: "inherit",
       stderr: "inherit",
     }).exitCode;
     const saved = join(env.RUNNER_TEMP!, "base-responsive");
     rmSync(saved, { recursive: true, force: true });
     if (existsSync(output)) cpSync(output, saved, { recursive: true });
-    if (status !== 0) process.exit(status);
+    rmSync(config, { force: true });
+    if (status !== 0) process.exit(status ?? 1);
     break;
   }
   case "save-render": {
@@ -101,7 +125,8 @@ switch (operation) {
   }
   case "fail-render":
     if (env.CURRENT_STATUS !== "success" || env.BASE_STATUS !== "success") {
-      console.warn("Responsive screenshot shard incomplete; continuing with available renders.");
+      console.error("Responsive screenshot comparison unavailable: current or base capture failed; saved shard status is evidence, not a comparison.");
+      process.exitCode = 1;
     }
     break;
   case "collect-screenshots": {

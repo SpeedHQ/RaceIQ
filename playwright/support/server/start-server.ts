@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { isAbsolute, resolve } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { resetTestDatabase } from "./reset-test-database";
 import { seedE2ESetupData, seedScreenshotData } from "./seed-screenshot-data";
@@ -25,7 +25,7 @@ const udpPort = Number(process.env.UDP_PORT ?? 15318);
 const binaryName = process.platform === "win32" ? "raceiq.exe" : "raceiq";
 const distDir = resolve(repoDir, "dist");
 const binary = process.env.PW_COMPILED_BINARY ? resolve(process.env.PW_COMPILED_BINARY) : resolve(distDir, binaryName);
-if (process.env.PW_COMPILED_BINARY && !process.env.PW_COMPILED_BINARY.startsWith("/")) {
+if (process.env.PW_COMPILED_BINARY && !isAbsolute(process.env.PW_COMPILED_BINARY)) {
   throw new Error("PW_COMPILED_BINARY must be an absolute path");
 }
 

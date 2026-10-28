@@ -185,6 +185,7 @@
   "updates_check_button": "업데이트 확인",
   "updates_current_version": "현재 버전:",
   "updates_docker_managed": "업데이트는 Docker에 의해 관리됩니다. 최신 이미지를 가져와서 컨테이너를 다시 만들어 RaceIQ를 업그레이드하세요.",
+  "updates_external_download": "최신 릴리스를 다운로드하고 설치 안내를 따르세요.",
   "updates_last_checked": "마지막 확인:",
   "updates_downloading": "설치 프로그램 다운로드 중...",
   "updates_reconnecting": "RaceIQ가 다시 시작되기를 기다리는 중...",

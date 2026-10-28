@@ -1,10 +1,12 @@
 import { expect, test } from "bun:test";
-import { SpectateSceneRuntime, estimatedRaceLineSegments, translateEstimatedRaceLineToScene, wheelHistoryDiscontinuity, wheelLabelsNeedRefresh } from "../../ui/SpectateSceneRuntime";
+import { SpectateSceneRuntime, consumedWearRate, estimatedRaceLineSegments, translateEstimatedRaceLineToScene, wheelHistoryDiscontinuity, wheelLabelsNeedRefresh } from "../../ui/SpectateSceneRuntime";
 import type { SpectateSample, SpectateSnapshot } from "../../contracts/spectate";
 import { Group, PerspectiveCamera, Scene, Vector3 } from "three";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import type { SpectateReading } from "../../contracts/spectate";
 import { createSuspensionSpringResource, disposeSuspensionSpringResource } from "@raceiq/scene-3d/wireframe/SuspensionSpring";
+import { createAnalysisWheels } from "@raceiq/scene-3d/wireframe/AnalysisWheels";
+import { disposeWheelResource } from "@raceiq/scene-3d/wireframe/Wheel";
 
 test("replay suspension moves each body with its own lap range and keeps native normalization", () => {
   initGameAdapters();
@@ -147,6 +149,159 @@ test("ordinary playback label updates stay capped at 100ms; pause and invalidati
   expect(wheelLabelsNeedRefresh(false, 25, 0, 4, 4)).toBe(true);
 });
 
+test("production wheel wear rate resets on replacement and null gaps", () => {
+  const wheels = Object.assign(Array(4), { map: () => [] });
+  const runtime = Object.assign(Object.create(SpectateSceneRuntime.prototype), {
+    slots: [{ config: { carModel: {}, gameId: "ams2", temperatureSemanticId: "", temperatureThresholds: {} }, wheels,
+      wheelInfo: { labels: [], previousWear: [null, null, null, null], wearRates: [0, 0, 0, 0],
+        timestamp: null, readingTime: null, lastUpdate: Infinity, labelGeneration: 0, playing: true,
+        configurationGeneration: 0, invalidationGeneration: 0, seekGeneration: 0 } }, { wheels: [] }],
+    pair: { gameId: "ams2", a: null, b: null },
+    tireInfo: true, tireInfoOptions: {}, tireInfoGeneration: 0,
+    camera: {}, groups: [new Group(), new Group()],
+  }) as unknown as { updateWheels(side: 0 | 1, reading: SpectateReading | null, elapsed: number, speed: number, playing: boolean, now: number, seekGeneration: number): void; slots: { wheelInfo?: { wearRates: number[]; previousWear: (number | null)[] } }[] };
+  const reading = (time: number, wear: number[] | null) => ({
+    time, values: wear === null ? {} : { "tires.tire-wear": wear },
+  } as SpectateReading);
+  const update = runtime.updateWheels.bind(runtime);
+  update(0, reading(1, [0.1, 0.1, 0.1, 0.1]), 0, 0, true, 1000, 0);
+  update(0, reading(1.1, [0.101, 0.101, 0.101, 0.101]), 0, 0, true, 1100, 0);
+  expect(runtime.slots[0]!.wheelInfo?.wearRates[0]).toBeGreaterThan(0);
+  update(0, reading(1.2, [0, 0, 0, 0]), 0, 0, true, 1200, 0);
+  expect(runtime.slots[0]!.wheelInfo?.wearRates[0]).toBe(0);
+  update(0, reading(1.3, null), 0, 0, true, 1300, 0);
+  expect(runtime.slots[0]!.wheelInfo?.wearRates[0]).toBe(0);
+});
+
+
+test("production wheel clock integrates capped playback at callback rates and resets discontinuities", () => {
+  initGameAdapters();
+  const run = (callbackHz: number) => {
+    const groups = [new Group(), new Group()];
+    const config = { gameId: "ams2" as const, carModel: { tireRadius: 0.34, halfWheelbase: 1, halfFrontTrack: 0.75, halfRearTrack: 0.75 } as Parameters<typeof createAnalysisWheels>[1], temperatureSemanticId: "", temperatureThresholds: {} };
+    const wheels = groups.map(group => createAnalysisWheels(group, config.carModel));
+    const runtime = Object.assign(Object.create(SpectateSceneRuntime.prototype), {
+      slots: wheels.map(wheels => ({ wheels, springs: [], config })),
+      pair: { gameId: "ams2", a: null, b: null },
+      lastWheelUpdate: 0,
+    }) as SpectateSceneRuntime;
+    const internals = runtime as unknown as {
+      updateWheelAnimations(snapshot: SpectateSnapshot, now: number, nativeViewVisible: boolean): void;
+      updateWheels(side: 0 | 1, reading: SpectateReading | null, elapsed: number, speed: number, playing: boolean, now: number, seekGeneration: number): void;
+      lastWheelUpdate: number | null;
+    };
+    const reading: SpectateReading = { time: 0, distance: 0, pose: null, values: { "motion.speed": 10 } };
+    const snapshot = (playing = true, seeking = false): SpectateSnapshot => ({
+      time: 0, duration: 2, playing, speed: 1, positionLock: false, canLock: false,
+      seeking, generation: 0, seekGeneration: 0, a: reading, b: reading,
+    });
+    const updateCalls: number[] = [];
+    const update = internals.updateWheels.bind(runtime);
+    internals.updateWheels = ((side, ...args) => {
+      updateCalls.push(side);
+      update(side, ...args);
+    }) as typeof internals.updateWheels;
+    try {
+      const callbackStep = 1000 / callbackHz, capStep = 1000 / 30;
+      let nextRender = capStep;
+      for (let frame = 1; frame <= callbackHz * 2; frame++) {
+        const callback = frame * callbackStep;
+        while (callback + 1e-7 >= nextRender) {
+          internals.updateWheelAnimations(snapshot(), nextRender, true);
+          nextRender += capStep;
+        }
+      }
+      const angle = wheels[0]![0]!.spin.rotation.z;
+      for (const side of wheels) for (const wheel of side) expect(wheel.spin.rotation.z).toBeCloseTo(angle);
+      expect(angle).toBeCloseTo(-(10 / 0.34) * 2, 4);
+      expect(updateCalls.length).toBeGreaterThan(0);
+      expect(updateCalls.length % 2).toBe(0);
+      for (let index = 0; index < updateCalls.length; index += 2) {
+        expect(updateCalls[index]).toBe(0);
+        expect(updateCalls[index + 1]).toBe(1);
+      }
+
+      const beforeReset = angle;
+      internals.updateWheelAnimations(snapshot(false), 2100, true);
+      expect(internals.lastWheelUpdate).toBeNull();
+      internals.updateWheelAnimations(snapshot(), 2200, true);
+      expect(wheels[0]![0]!.spin.rotation.z).toBeCloseTo(beforeReset);
+      internals.updateWheelAnimations(snapshot(), 2300, true);
+      expect(wheels[0]![0]!.spin.rotation.z).toBeLessThan(beforeReset);
+      internals.updateWheelAnimations(snapshot(true, true), 2400, true);
+      expect(internals.lastWheelUpdate).toBeNull();
+      internals.updateWheelAnimations(snapshot(), 2500, true);
+      expect(internals.lastWheelUpdate).toBe(2500);
+      internals.updateWheelAnimations(snapshot(), 2600, false);
+      expect(internals.lastWheelUpdate).toBeNull();
+      const beforeVisibleResume = wheels[0]![0]!.spin.rotation.z;
+      internals.updateWheelAnimations(snapshot(), 2700, true);
+      expect(wheels[0]![0]!.spin.rotation.z).toBeCloseTo(beforeVisibleResume);
+      expect(internals.lastWheelUpdate).toBe(2700);
+    } finally {
+      for (const side of wheels) for (const wheel of side) disposeWheelResource(wheel);
+    }
+    return wheels[0]![0]!.spin.rotation.z;
+  };
+  expect(run(30)).toBeCloseTo(run(60));
+  expect(run(60)).toBeCloseTo(run(120));
+});
+test("capped runtime frame skips interpolation before render deadline but interaction bypasses cap", () => {
+  const originalDocument = globalThis.document;
+  const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
+  let interpolationCalls = 0, scheduled = 0;
+  Object.defineProperty(globalThis, "document", { configurable: true, value: { hidden: false } });
+  globalThis.requestAnimationFrame = (() => ++scheduled) as typeof requestAnimationFrame;
+  const runtime = Object.assign(Object.create(SpectateSceneRuntime.prototype), {
+    disposed: false, initialized: true, fpsCap: 30, lastRender: 100, interactionPending: false,
+    resizePending: false, pendingFrames: [], dirty: true, settleFrames: 0,
+    controller: {
+      getSnapshot: () => ({ playing: true, seeking: false }),
+      getFrameSnapshot: () => { interpolationCalls++; throw Error("stop after interpolation"); },
+    },
+  }) as SpectateSceneRuntime;
+  const draw = runtime as unknown as { draw(now: number): void; interactionPending: boolean };
+  try {
+    draw.draw(110);
+    expect(interpolationCalls).toBe(0);
+    expect(scheduled).toBe(1);
+    draw.interactionPending = true;
+    expect(() => draw.draw(111)).toThrow("stop after interpolation");
+  } finally {
+    Object.defineProperty(globalThis, "document", { configurable: true, value: originalDocument });
+    globalThis.requestAnimationFrame = originalRequestAnimationFrame;
+  }
+});
+
+test("runtime initializes without pose then applies recovered pose", async () => {
+  const errors: string[] = [];
+  const groups = [new Group(), new Group()];
+  const runtime = Object.assign(Object.create(SpectateSceneRuntime.prototype), {
+    disposed: false, initialized: false, initGeneration: 0, pendingFrames: [],
+    renderer: { init: async () => {}, backend: {} },
+    resources: { loadCarModelConfigs: async () => {} },
+    pair: { b: null },
+    controller: { getSnapshot: () => ({ a: null }) },
+    groups,
+    loadCar: async () => {},
+    error: (message: string) => errors.push(message),
+    fit: () => {}, startNextFrameRequest: () => {}, wake: () => {},
+    canvas: { dataset: {} },
+    origin: new Vector3(),
+  }) as SpectateSceneRuntime;
+  await (runtime as unknown as { initialize(): Promise<void> }).initialize();
+  expect(runtime.initialized).toBe(true);
+  expect(errors).toEqual([]);
+  const internals = runtime as unknown as {
+    pose(group: Group, pose: { x: number; y: number; z: number; yaw: number } | null, side: "a" | "b"): void;
+  };
+  internals.pose(groups[0]!, null, "a");
+  expect(groups[0]!.visible).toBe(false);
+  expect(groups[0]!.position.toArray()).toEqual([0, 0, 0]);
+  internals.pose(groups[0]!, { x: 8, y: 2, z: -4, yaw: 1 }, "a");
+  expect(groups[0]!.position.toArray()).toEqual([8, 2, -4]);
+  expect(groups[0]!.rotation.y).toBeCloseTo(1 - Math.PI / 2);
+});
 test("frame requests queue before initialization and settle only after matching rendered time", async () => {
   const seeks: number[] = [];
   const snapshot = { a: { time: 0 } };

@@ -26,7 +26,7 @@
     "dev:dump:f1": "bun run dev:proxy && bun scripts/dev/dump.ts f1-2025",
     "dev:dump:fm": "bun run dev:proxy && bun scripts/dev/dump.ts fm-2023",
     "dev:client": "bun run dev:proxy && bun --env-file=.env.development scripts/dev/client.ts",
-    "dev:dump:ams2": "bun run dev:proxy && concurrently \"bun --env-file=.env.development --watch run apps/backend/src/index.ts --record=ams2\" \"bun --env-file=.env.development scripts/dev/client.ts\"",
+    "dev:dump:ams2": "bun run dev:proxy && bun scripts/dev/dump.ts ams2",
     "build": "bunx turbo run build",
     "start": "NODE_ENV=production ./dist/raceiq",
     "db:generate": "drizzle-kit generate",

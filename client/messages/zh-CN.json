@@ -185,6 +185,7 @@
   "updates_check_button": "检查更新",
   "updates_current_version": "当前版本：",
   "updates_docker_managed": "更新由 Docker 管理。拉取最新镜像并重新创建容器即可升级 RaceIQ。",
+  "updates_external_download": "下载最新版本并按照安装说明操作。",
   "updates_last_checked": "上次检查：",
   "updates_downloading": "正在下载安装程序...",
   "updates_reconnecting": "正在等待 RaceIQ 重启...",
