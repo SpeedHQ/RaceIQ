@@ -13,7 +13,7 @@ import { resolveRecordingDirectory } from "../runtime/config/recording-directory
 import { getAllGames } from "@raceiq/shared/games/registry";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { getRecordingDirectoryMoveStatus, preflightRecordingDirectoryMove, recoverRecordingDirectoryMove, relocateRecordingDirectoryUnderReservation } from "./relocate-recordings";
-import { reserveRecordingStorageOperation } from "./storage-activity";
+import { reserveRecordingStorageOperationAfterOpponentIndex } from "./storage-activity";
 import { isSessionActive } from "../telemetry/live-pipeline";
 
 import { clearSessionCaptureCache } from "./source-loader";
@@ -289,7 +289,11 @@ async function publish(source: string, target: string, digest: string): Promise<
 export async function startLayoutMigration(directory?: string): Promise<void> {
   if (stopping) throw Object.assign(new Error("Server is stopping"), { code: "MIGRATION_STOPPING" });
   if (active) throw Object.assign(new Error("Layout migration is already running"), { code: "MIGRATION_ACTIVE" });
-  const release = reserveRecordingStorageOperation("layout-migration");
+  const release = await reserveRecordingStorageOperationAfterOpponentIndex("layout-migration");
+  if (stopping) {
+    release();
+    throw Object.assign(new Error("Server is stopping"), { code: "MIGRATION_STOPPING" });
+  }
   migrationGeneration++;
   active = true;
   let admit!: () => void;

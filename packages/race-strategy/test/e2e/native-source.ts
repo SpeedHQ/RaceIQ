@@ -4,7 +4,8 @@ import { resolve } from "node:path";
 import { createSocket } from "node:dgram";
 import { setTimeout as delay } from "node:timers/promises";
 import { z } from "zod";
-import { encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, encodeSparseCaptureFormatFrame } from "@raceiq/capture-formats/session/framing";
+// Keep this TypeScript dependency inside Playwright's source transform instead of external package loading.
+import { encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, encodeSparseCaptureFormatFrame } from "../../../capture-formats/src/session/framing";
 
 /** Native FM Dash packets exercise the real UDP parser and pipeline, not an API mock. */
 export interface NativeLap {

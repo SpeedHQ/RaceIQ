@@ -270,7 +270,7 @@ describe("LMU Phase 1 player pipeline", () => {
     // Bun.serve rewrites streamed Content-Length to chunked; Node preserves the rejected header.
     const server = createServer((req, res) => {
       const label = req.url?.endsWith("RepairAndRefuel") ? "status" : "length";
-      res.on("close", () => {
+      req.socket.once("close", () => {
         closed.add(label);
         if (closed.has("status") && closed.has("length")) allClosed();
       });

@@ -1,3 +1,4 @@
+import { request as httpRequest, type IncomingMessage } from "node:http";
 import { LMU_REST_CHANNELS, LMU_FORECAST_NODES, isLmuRestValue, type LmuRestSemanticId } from "@raceiq/shared/telemetry/lmu-rest-channels";
 import type { LmuSupplementalObservation } from "@raceiq/shared/telemetry/lmu-supplemental";
 import type { ResolutionState } from "@raceiq/shared/telemetry/resolver/contracts";
@@ -169,27 +170,42 @@ export class LmuSupplementalRest {
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
     const ids = (Object.keys(LMU_REST_CHANNELS) as LmuRestSemanticId[]).filter((id) => LMU_REST_CHANNELS[id].endpoint === endpoint);
     try {
-      const response = await fetch(new URL(endpoint, this.baseUrl), { method: "GET", signal: controller.signal, redirect: "error" });
-      if (!response.ok) throw new Error(`LMU REST HTTP ${response.status}`);
-      const declaredLength = Number(response.headers.get("content-length"));
-      if (declaredLength > 1024 * 1024) throw new Error("LMU REST response exceeds limit");
-      if (!response.body) throw new Error("LMU REST response is empty");
-      const reader = response.body.getReader();
-      const chunks: Uint8Array[] = [];
+      const { promise, resolve, reject } = Promise.withResolvers<IncomingMessage>();
+      const request = httpRequest(new URL(endpoint, this.baseUrl), {
+        method: "GET",
+      }, resolve).on("error", reject);
+      controller.signal.addEventListener("abort", () => {
+        request.destroy(controller.signal.reason instanceof Error ? controller.signal.reason : undefined);
+      }, { once: true });
+      request.end();
+      const response = await promise;
+      const declaredLength = Number(response.headers["content-length"]);
+      if ((response.statusCode ?? 0) < 200 || (response.statusCode ?? 0) >= 300 || declaredLength > 1024 * 1024) {
+        const error = new Error((response.statusCode ?? 0) < 200 || (response.statusCode ?? 0) >= 300
+          ? `LMU REST HTTP ${response.statusCode}`
+          : "LMU REST response exceeds limit");
+        response.destroy(error);
+        request.destroy(error);
+        response.socket?.destroy(error);
+        controller.abort(error);
+        throw error;
+      }
+      const chunks: Buffer[] = [];
       let size = 0;
-      try {
-        while (true) {
-          const next = await reader.read();
-          if (next.done) break;
-          size += next.value.length;
-          if (size > 1024 * 1024) { await reader.cancel(); throw new Error("LMU REST response exceeds limit"); }
-          chunks.push(next.value);
+      for await (const chunk of response) {
+        size += chunk.length;
+        if (size > 1024 * 1024) {
+          const error = new Error("LMU REST response exceeds limit");
+          response.destroy(error);
+          throw error;
         }
-      } finally { reader.releaseLock(); }
+        chunks.push(chunk);
+      }
+      const etag = typeof response.headers.etag === "string" ? response.headers.etag : null;
       let payload: unknown;
       try { payload = JSON.parse(Buffer.concat(chunks).toString("utf8")); }
       catch {
-        if (generation === this.generation) for (const id of ids) this.publish(id, identity, this.now(), null, "invalid", response.headers.get("etag"));
+        if (generation === this.generation) for (const id of ids) this.publish(id, identity, this.now(), null, "invalid", etag);
         return;
       }
       if (generation !== this.generation || controller.signal.aborted) return;
@@ -197,7 +213,7 @@ export class LmuSupplementalRest {
         const spec = LMU_REST_CHANNELS[id];
         const value = parseValue(id, payload);
         const state = spec.kind === "unverified" ? "not-applicable" : value === undefined || value === null ? "missing" : isLmuRestValue(id, value) ? "ok" : "invalid";
-        this.publish(id, identity, this.now(), value, state, response.headers.get("etag"));
+        this.publish(id, identity, this.now(), value, state, etag);
       }
     } catch {
       if (generation === this.generation) for (const id of ids) this.publish(id, identity, this.now(), null, "error", null);

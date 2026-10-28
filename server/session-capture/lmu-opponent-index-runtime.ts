@@ -25,6 +25,8 @@ import {
   getActiveLmuOpponentSourcePaths,
   getRecordingStorageActivity,
   isActiveLmuOpponentSource,
+  RecordingStorageBusyError,
+  reserveRecordingStorageOperation,
   reserveRecordingStorageOperationWhenIdle,
 } from "./storage-activity";
 import { isLmuOpponentIndexInstrumentationEnabled, recordLmuOpponentIndexMetrics } from "./test-instrumentation";
@@ -585,7 +587,9 @@ async function deferReconciliation(sourcePath: string): Promise<"pending"> {
 export async function reconcileLmuOpponentIndexes(
   options: { awaitPreparation?: boolean } = {},
 ): Promise<"ready" | "pending"> {
-  if (runtimeStopping) return "pending";
+  if (runtimeStopping) {
+    return "pending";
+  }
   startLmuOpponentIndexRuntime();
   const assessments = await discoverSourceGroups();
   const discoveredPaths = new Set(assessments.map((assessment) => assessment.sourcePath));
@@ -599,18 +603,24 @@ export async function reconcileLmuOpponentIndexes(
   for (const assessment of assessments) {
     if (assessment.indexState === "waiting-finalization") {
       pending = true;
-      if (options.awaitPreparation && recordingOrDraining()) return await deferReconciliation(assessment.sourcePath);
+      if (options.awaitPreparation && recordingOrDraining()) {
+        return await deferReconciliation(assessment.sourcePath);
+      }
       continue;
     }
     if (assessment.indexState === "building") {
-      if (options.awaitPreparation && recordingOrDraining()) return await deferReconciliation(assessment.sourcePath);
+      if (options.awaitPreparation && recordingOrDraining()) {
+        return await deferReconciliation(assessment.sourcePath);
+      }
       if (!options.awaitPreparation) {
         pending = true;
         continue;
       }
       const outcome = await getOrCreateWaiter(indexRootFor(assessment.sourcePath));
       if (outcome === "failed") throw new Error(SAFE_PREPARATION_ERROR);
-      if (outcome === "pending") return await deferReconciliation(assessment.sourcePath);
+      if (outcome === "pending") {
+        return await deferReconciliation(assessment.sourcePath);
+      }
       continue;
     }
     if (!assessment.requiresPreparation || !assessment.candidate) continue;
@@ -624,10 +634,14 @@ export async function reconcileLmuOpponentIndexes(
       continue;
     }
     const waitForJob = queueCandidate(assessment.candidate);
-    if (recordingOrDraining()) return await deferReconciliation(assessment.sourcePath);
+    if (recordingOrDraining()) {
+      return await deferReconciliation(assessment.sourcePath);
+    }
     const outcome = await waitForJob;
     if (outcome === "failed") throw new Error(SAFE_PREPARATION_ERROR);
-    if (outcome === "pending") return await deferReconciliation(assessment.sourcePath);
+    if (outcome === "pending") {
+      return await deferReconciliation(assessment.sourcePath);
+    }
   }
   return pending ? "pending" : "ready";
 }
@@ -844,6 +858,7 @@ function runWorker(candidate: SourceCandidate): Promise<{
       return;
     }
     let response: { result: LmuOpponentIndexBuildResult | null; metrics: WorkerMetrics | null; failed: boolean } | null = null;
+    let terminalResponseReceived = false;
     let injectedPublicationFailure = false;
     const callbacks = new Set<Promise<void>>();
     const peakSampling = isLmuOpponentIndexInstrumentationEnabled()
@@ -852,7 +867,7 @@ function runWorker(candidate: SourceCandidate): Promise<{
     const onExit = (code: number) => {
       clearInterval(peakSampling ?? undefined);
       void Promise.allSettled([...callbacks]).then(() => {
-        if (!response || code !== 0) {
+        if (!response || (code !== 0 && !terminalResponseReceived)) {
           const reason = response ? `failure response missing metrics/result (exit code ${code})` : `no response received (exit code ${code})`;
           logTestDiagnostic("worker exited without success", reason, candidate.sourcePath);
           if (testPort) notifyTestPort({ type: "worker-error", sourcePath: candidate.sourcePath, reason: "exit", error: reason });
@@ -912,6 +927,10 @@ function runWorker(candidate: SourceCandidate): Promise<{
       callbacks.add(callback);
       void callback.then(() => callbacks.delete(callback), () => callbacks.delete(callback));
     };
+    const terminateAfterResponse = () => {
+      terminalResponseReceived = true;
+      void current.terminate();
+    };
     current.on("message", (message: WorkerMessage) => {
       if (message.type === "admission") {
         track((async () => {
@@ -926,23 +945,28 @@ function runWorker(candidate: SourceCandidate): Promise<{
         track(publish(message.requestId, message.staged));
       } else if (message.type === "complete") {
         response = { result: message.result, metrics: message.metrics, failed: false };
+        terminateAfterResponse();
       } else if (message.type === "yielded") {
         response = { result: null, metrics: message.metrics, failed: false };
+        terminateAfterResponse();
       } else if (message.type === "failure") {
         logTestDiagnostic("worker failure message", message.error, candidate.sourcePath);
         if (testPort) notifyTestPort({ type: "worker-error", sourcePath: candidate.sourcePath, reason: "failure", error: message.error });
         response = { result: null, metrics: null, failed: true };
+        terminateAfterResponse();
       } else {
         const type = "unknown";
         logTestDiagnostic(`unexpected worker message type ${String(type)}`, "worker response rejected", candidate.sourcePath);
         if (testPort) notifyTestPort({ type: "worker-error", sourcePath: candidate.sourcePath, reason: "unexpected-message", error: String(type) });
         response = { result: null, metrics: null, failed: true };
+        terminateAfterResponse();
       }
     });
     current.on("error", (error) => {
       logTestDiagnostic("worker error event", error, candidate.sourcePath);
       if (testPort) notifyTestPort({ type: "worker-error", sourcePath: candidate.sourcePath, reason: "error-event", error: error instanceof Error ? error.message : String(error) });
       response = { result: null, metrics: null, failed: true };
+      terminateAfterResponse();
     });
     current.on("exit", onExit);
   });
@@ -981,18 +1005,19 @@ async function runCandidate(candidate: SourceCandidate): Promise<JobOutcome> {
   const runtime = controller ?? getRecordingMaintenanceController();
   controller = runtime;
   if (runtimeStopping || recordingOrDraining()) return "pending";
-  let releaseStorage: (() => void) | null = null;
+  const storageReservation: { release?: () => void } = {};
   try {
-    releaseStorage = await reserveRecordingStorageOperationWhenIdle("opponent-index");
+    storageReservation.release = reserveRecordingStorageOperation("opponent-index");
   } catch (error) {
-    logTestDiagnostic("storage reservation", error, candidate.sourcePath);
-    if (testPort) notifyTestPort({ type: "candidate-error", sourcePath: candidate.sourcePath, phase: "storage-reservation", location: "reserveRecordingStorageOperationWhenIdle", errorName: error instanceof Error ? error.name : typeof error, error: error instanceof Error ? error.message : String(error) });
+    if (!(error instanceof RecordingStorageBusyError)) throw error;
     return "pending";
   }
   let maintenanceAdmitted = false;
   try {
     return await withSessionCaptureMaintenanceLock(async () => {
-      if (runtimeStopping || recordingOrDraining() || isActiveLmuOpponentSource(candidate.sourcePath)) return "pending";
+      if (runtimeStopping || recordingOrDraining() || isActiveLmuOpponentSource(candidate.sourcePath)) {
+        return "pending";
+      }
       maintenanceAdmitted = await runtime.managed.runPromise(admitMaintenance(runtime, "maintenance"));
       if (!maintenanceAdmitted) return "pending";
       try {
@@ -1039,7 +1064,7 @@ async function runCandidate(candidate: SourceCandidate): Promise<JobOutcome> {
     await failCandidate(candidate);
     return "failed";
   } finally {
-    releaseStorage?.();
+    storageReservation.release?.();
   }
 }
 
@@ -1055,7 +1080,9 @@ async function schedulerLoop(): Promise<void> {
         const assessments = await discoverSourceGroups();
         const found = new Set<string>();
         for (const assessment of assessments) {
-          if (assessment.candidate && assessment.indexState !== "failed") queuedCandidates.set(assessment.candidate.indexRoot, assessment.candidate);
+          if (assessment.candidate && assessment.indexState !== "failed" && !runningCandidateRoots.has(assessment.candidate.indexRoot)) {
+            queuedCandidates.set(assessment.candidate.indexRoot, assessment.candidate);
+          }
           if (requested.has(assessment.sourcePath)) {
             found.add(assessment.sourcePath);
             const previousState = reportedRequestedStates.get(assessment.sourcePath);

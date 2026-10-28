@@ -293,7 +293,7 @@ async function importTelemetrySource<T>(
   let releaseImportOpponentSource: (() => void) | null = null;
   let releaseStorageImport: (() => void) | null = null;
   try {
-  releaseStorageImport = beginRecordingStorageImport();
+    releaseStorageImport = beginRecordingStorageImport();
   const db = new ImportCaptureAdapter({
     notifyDriverProfile: options.notifyDriverProfile,
     ownership: options.ownership,
@@ -359,7 +359,13 @@ async function importTelemetrySource<T>(
   for (const sessionId of db.sessionIds) {
     await enqueueSessionCaptureSplit(sessionId);
   }
-  if (finalizedOpponentSourcePath) enqueueLmuOpponentIndex(finalizedOpponentSourcePath);
+  if (finalizedOpponentSourcePath) {
+    releaseImportOpponentSource?.();
+    releaseImportOpponentSource = null;
+    releaseStorageImport?.();
+    releaseStorageImport = null;
+    enqueueLmuOpponentIndex(finalizedOpponentSourcePath);
+  }
 
   return {
     packetCount,

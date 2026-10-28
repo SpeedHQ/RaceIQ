@@ -57,6 +57,7 @@
 - Include the complete LMU multiplayer recording in demo seeds as sub-100 MB gzip parts, stream native input without buffering the whole capture, and retain separate player and opponent recordings.
 
 ### Fixes
+- Classify ACC pit-cycle laps as invalid with their pit-cycle reason, cancel rejected LMU REST response bodies, and avoid LMU opponent-index reservation/maintenance-lock deadlocks.
 - Complete failed MoTeC import rollback without waiting on unrelated LMU opponent-index cleanup.
 - Keep navigation from strategy evidence, the pit-estimate dialog, Driver Profile's all-laps action, and in-app chat links within the app without reloading the page.
 - Restore LMU fractional-lap telemetry from validated native scoring distance and track length, using scoring-clock freshness so live adherence and virtual-energy-aware pit windows resolve without inventing missing position.
@@ -181,6 +182,9 @@
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
+- Drain registered native telemetry sources during cross-platform dump shutdown checks.
+- Transform strategy browser fixture dependencies through Playwright instead of external package loading, and stop LMU fixture parsing after its required first sample.
+- Keep the full LMU multiplayer recording as the demo seed default and select the smaller cold-load recording only for browser seed preparation.
 - Invalidate cached translation modules before development previews reload so Storybook and the app pick up newly generated messages.
 - Preserve Windows directory-sync path errors when validating recording publication directories.
 - Target comparison lap pickers explicitly in browser checks and wait for rendered frames in the native camera zoom check.

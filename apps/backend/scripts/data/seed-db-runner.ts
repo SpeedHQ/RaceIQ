@@ -28,7 +28,7 @@ import { seedIRacingSession } from "@raceiq/tooling-data/data/seed-db-iracing";
 import { assertSafeTarget, seedRowCount } from "@raceiq/tooling-data/data/seed-db-safety";
 import { insertDemoRows, markOnboardingComplete } from "@raceiq/tooling-data/data/seed-db-demo";
 import { removeSeedData } from "@raceiq/tooling-data/data/seed-db-reset";
-import { FIXTURES, PROFILE_NAME, parseOptions, SEED_MARKER } from "@raceiq/tooling-data/data/seed-db-options";
+import { FIXTURES, LMU_OPPONENT_COLD_LOAD_FIXTURE_PARTS, PROFILE_NAME, parseOptions, SEED_MARKER } from "@raceiq/tooling-data/data/seed-db-options";
 import { combineRecordingParts } from "@raceiq/backend-core/session-capture/combine-recording-parts";
 import { registerDriverProfileLapNotifier } from "@raceiq/backend-core/driver-profile/lap-notifier";
 import { notifyDriverProfileLap } from "../../src/driver-profile/runner";
@@ -177,7 +177,9 @@ async function main(): Promise<void> {
   const importedLapIds: number[] = [];
   const excludedFixtures = new Set(options.excludedFixtures);
   for (const game of options.games) {
-    const fixtures = (options.fixtures ?? FIXTURES[game]).filter((fixture) => !excludedFixtures.has(fixture));
+    // Browser preparation uses bounded LMU data without changing normal demo seeds.
+    const defaults = game === "lmu" && process.env.PW_SEED_SCREENSHOTS === "1" ? LMU_OPPONENT_COLD_LOAD_FIXTURE_PARTS : FIXTURES[game];
+    const fixtures = (options.fixtures ?? defaults).filter((fixture) => !excludedFixtures.has(fixture));
     for (const fixture of fixtures) {
       const partMatch = /^(.*)\.part(\d+)$/i.exec(fixture);
       if (partMatch && Number(partMatch[2]) !== 1) continue;

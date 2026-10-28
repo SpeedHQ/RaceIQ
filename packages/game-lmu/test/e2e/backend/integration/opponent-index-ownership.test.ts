@@ -14,7 +14,9 @@ try {
   const { initGameAdapters } = await import("@raceiq/game-catalogs/games/init");
   const { registerServerGame } = await import("@raceiq/backend-core/games/registry");
   const { lmuServerAdapter } = await import("@raceiq/game-lmu");
+  const { registerRaceStrategyFeature } = await import("@raceiq/race-strategy/server");
   initGameAdapters();
+  registerRaceStrategyFeature();
   registerServerGame(lmuServerAdapter);
   const { makeLmuOpponentCapture } = await import("@raceiq/game-lmu/test-support/opponents");
   const { importSessionBin } = await import("@raceiq/backend-core/session-capture/import-capture");
@@ -81,12 +83,14 @@ const script = String.raw`
 const { initDb, closeDb } = await import("@raceiq/backend-core/db/index");
 await initDb();
 const runtime = await import("@raceiq/backend-core/session-capture/lmu-opponent-index-runtime");
+const { initGameAdapters } = await import("@raceiq/game-catalogs/games/init");
+const { registerServerGame } = await import("@raceiq/backend-core/games/registry");
+const { lmuServerAdapter } = await import("@raceiq/game-lmu");
+const { registerRaceStrategyFeature } = await import("@raceiq/race-strategy/server");
+initGameAdapters();
+registerRaceStrategyFeature();
+registerServerGame(lmuServerAdapter);
 try {
-  const { initGameAdapters } = await import("@raceiq/game-catalogs/games/init");
-  const { registerServerGame } = await import("@raceiq/backend-core/games/registry");
-  const { lmuServerAdapter } = await import("@raceiq/game-lmu");
-  initGameAdapters();
-  registerServerGame(lmuServerAdapter);
   const { makeLmuOpponentCapture } = await import("@raceiq/game-lmu/test-support/opponents");
   const { importSessionBin } = await import("@raceiq/backend-core/session-capture/import-capture");
   const { getLapReplaySource } = await import("@raceiq/backend-core/db/telemetry-replay-storage");

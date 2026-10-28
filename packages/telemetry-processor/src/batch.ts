@@ -103,11 +103,13 @@ export async function processTelemetryBatch(gameId: GameId, frames: readonly Tel
       emitLap: async (capture: KunosLapCapture) => {
         const pitReason = classifyPitCycleLap(capture.packets);
         const recordedValidity = gameId === "acc" ? resolveAccRecordedLapValidity(capture.packets, capture.trigger !== undefined) : null;
-        const quality = assessLapRecording(capture.packets, capture.lapTime, { closed: !pitReason });
+        const quality = assessLapRecording(capture.packets, capture.lapTime, { closed: !(pitReason === "pit lap" || gameId === "ac-evo" && pitReason !== null) });
         const classification = classifyLapCategory(capture.packets, pitReason, capture.trigger, quality.valid);
-        const trackLimitReason = gameId === "ac-evo" && quality.valid && !pitReason ? classifyKunosTrackLimits(capture.packets) : null;
-        const valid = !capture.silent && recordedValidity !== false && quality.valid && !trackLimitReason;
-        const reason = capture.silent ? "incomplete at end of input" : recordedValidity === false ? "game reported invalid" : !quality.valid ? quality.reason : trackLimitReason;
+        const acEvoOutlap = gameId === "ac-evo" && (pitReason === "outlap" || classification === "out_lap");
+        const pitCycleInvalid = pitReason === "pit lap" || gameId === "ac-evo" && pitReason !== null;
+        const trackLimitReason = gameId === "ac-evo" && quality.valid && !pitCycleInvalid ? classifyKunosTrackLimits(capture.packets) : null;
+        const valid = !capture.silent && !pitCycleInvalid && !acEvoOutlap && recordedValidity !== false && quality.valid && !trackLimitReason;
+        const reason = capture.silent ? "incomplete at end of input" : acEvoOutlap ? "outlap" : pitCycleInvalid ? pitReason : recordedValidity === false ? "game reported invalid" : !quality.valid ? quality.reason : trackLimitReason;
         push(capture.processorSessionKey || sessionKey, capture.lapNumber, capture.lapTime, capture.packets, valid, reason, capture.byteOffset, capture.byteOffset === null ? 0 : capture.frameCount, !capture.silent, classification);
       },
     });

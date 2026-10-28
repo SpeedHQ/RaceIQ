@@ -114,16 +114,17 @@ export class KunosLapDetector implements ILapDetector {
     let isValid: boolean;
     let invalidReason: string | null = null;
     let classification: LapClassification | null = null;
-    const pitReason = openRoute ? null : classifyPitCycleLap(packets);
+    const pitReason = classifyPitCycleLap(packets);
+    const pitCycleInvalid = pitReason === "pit lap" || session.gameId === "ac-evo" && pitReason !== null;
     classification = classifyLapCategory(packets, pitReason, capture.trigger);
     if (capture.invalidReason) { isValid = false; invalidReason = capture.invalidReason; }
     else if (capture.silent) { isValid = false; invalidReason = "incomplete"; }
     else {
       const recordedValidity = session.gameId === "acc" ? resolveAccRecordedLapValidity(packets, capture.trigger !== undefined) : null;
-      const quality = assessLapRecording(packets, lapTime, { closed: !openRoute && !pitReason });
+      const quality = assessLapRecording(packets, lapTime, { closed: !openRoute && !pitCycleInvalid });
       classification = classifyLapCategory(packets, pitReason, capture.trigger, quality.valid);
-      isValid = recordedValidity !== false && quality.valid;
-      invalidReason = recordedValidity === false ? "game reported invalid" : quality.valid ? null : quality.reason;
+      isValid = !pitCycleInvalid && recordedValidity !== false && quality.valid;
+      invalidReason = pitCycleInvalid ? pitReason : recordedValidity === false ? "game reported invalid" : quality.valid ? null : quality.reason;
       if (isValid) { const cutReason = this.classifyTrackLimits(packets); if (cutReason) { isValid = false; invalidReason = cutReason; } }
     }
     const trackIdentity = session.trackId;
