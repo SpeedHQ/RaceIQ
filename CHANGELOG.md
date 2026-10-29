@@ -7,6 +7,7 @@
 - Review observed personal incident-point increases, sampled off-track spans, and recorded clean-lap streaks in saved iRacing sessions, with event links and replay timeline markers limited to recorded lap evidence.
 - Keep iRacing replay incident markers alongside the shared replay visualization and telemetry panels.
 - Render iRacing comparison laps in Focus View, Spectate and circuit overviews from recorded GPS; project live lap progress onto official track geometry when GPS is unavailable, using replay's map handedness, forward car headings, and official turn labels without treating projected positions as measured racing lines.
+- Choose Claude (Anthropic) as an AI provider for analysis, chat, auto-tune and driver profiles with its own API key. The model picker lists the Claude models available to that key, tags Claude Haiku 5.5 as Recommended, and preselects it when you switch to Claude.
 - Replace category tabs on the AMS2 and iRacing Cars pages with a searchable dropdown that shows the total as a placeholder, clears the search when opened, and preserves category counts and the All categories reset.
 - Add AMS2 support: native Windows shared-memory telemetry capture, game-specific car and track identity, per-wheel Replay metrics, 235 track maps, car thumbnails, dashboard branding and a separate Driver profile; include Live connection guidance and correct lap capture, export, replay and track-map behavior. Keep adapter availability and native capture development-only.
 - Show animated suspension springs and chassis movement in Replay and Compare → Spectate; use the lap's observed travel range when no game range is specified, while preserving native normalized readings.
@@ -68,6 +69,11 @@
 - Include the complete LMU multiplayer recording in demo seeds as sub-100 MB gzip parts, stream native input without buffering the whole capture, and retain separate player and opponent recordings.
 
 ### Fixes
+- Get answers from current Claude models, which rejected every request with "`temperature` is deprecated for this model".
+- Stop AI settings from freezing on Windows while saved API keys and the launch-on-login setting are checked, and show Claude models immediately instead of waiting for the model list.
+- Load the model list and run AI features when the OpenAI-compatible base URL is Anthropic's `https://api.anthropic.com/v1`, which previously failed with "x-api-key header is required".
+- Send the saved OpenAI-compatible API key from the setup engineer and driver coach instead of a placeholder key.
+- Keep API keys saved in Settings while a Linux or WSL development server runs instead of silently discarding them; installed builds are unchanged.
 - Keep the historical lap-classification notice limited to its original sessions, allow dismissal while work continues, and distinguish summary updates from pending lap processing.
 - Place inner and outer surface-temperature bands on the correct sides of the 3D wheels in Replay and Compare → Spectate.
 - Include the LMU opponent-index worker in packaged builds so recorded opponents can load for replay and comparison.

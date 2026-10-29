@@ -119,6 +119,7 @@
   "ai_refresh": "Vernieuwen",
   "ai_loading_models": "Modellen laden…",
   "ai_model_default": "Geen",
+  "ai_model_recommended": "Aanbevolen",
   "ai_thinking_label": "Redeneren",
   "ai_thinking_unsupported": "Dit model ondersteunt redeneren niet. Geen wordt gebruikt.",
   "ai_add_key_hint": "Voeg een API-sleutel toe en sla deze op om beschikbare modellen te laden.",

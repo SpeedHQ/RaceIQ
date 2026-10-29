@@ -61,6 +61,8 @@ export function resolveChatVisionCapability(provider: string | undefined, model:
     if (OPENAI_TEXT_ONLY_MODELS.some((id) => normalized === id || normalized.startsWith(`${id}-`))) return "unsupported";
     return supportsVerifiedModel(normalized, OPENAI_VISION_MODELS) ? "supported" : "unknown";
   }
+  // Every Claude model on the Anthropic API accepts image input.
+  if (provider === "anthropic") return normalized.startsWith("claude-") ? "supported" : "unknown";
   return "unknown";
 }
 

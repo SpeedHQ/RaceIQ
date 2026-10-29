@@ -7,6 +7,7 @@ import { m } from "@/paraglide/messages";
 import { AiProviderPicker } from "./AiPickers";
 import type { AiDriverProfileState } from "./ai-state";
 import { GEMINI_THINKING_BUDGET_OPTIONS } from "./ai-state";
+import { defaultModelForProvider } from "./recommended-model";
 export function AiDriverProfileSection({ state }: { state: AiDriverProfileState }) {
   const {
     driverProfileBackgroundEnabled,
@@ -57,7 +58,7 @@ export function AiDriverProfileSection({ state }: { state: AiDriverProfileState 
             value={driverProfileProvider}
             onChange={(value) => {
               setDriverProfileProvider(value);
-              setDriverProfileModel("");
+              setDriverProfileModel(defaultModelForProvider(value));
               setDriverProfileThinkingBudget(null);
             }}
             providers={aiProviders}

@@ -5,6 +5,7 @@ import {
   AiProviderError,
 } from "@raceiq/backend-core/ai/provider-error";
 import {
+  AnthropicProviderAdapter,
   GeminiProviderAdapter,
   OpenAiCompatibleProviderAdapter,
   OpenAiProviderAdapter,
@@ -41,7 +42,7 @@ export async function resolveAi(feature: AiFeature, settings: AppSettings = load
   }
 
   const provider = selected.provider as AiProvider;
-  if (provider !== "gemini" && provider !== "openai" && provider !== "openai-compatible") {
+  if (provider !== "gemini" && provider !== "openai" && provider !== "anthropic" && provider !== "openai-compatible") {
     throw new AiProviderError(`Unsupported AI provider: ${selected.provider}`, {
       code: "unsupported-provider",
       provider: selected.provider,
@@ -78,6 +79,16 @@ export async function resolveAi(feature: AiFeature, settings: AppSettings = load
         });
       }
       return resolvedAiFromAdapter(new OpenAiProviderAdapter({ ...config, apiKey }));
+    }
+    case "anthropic": {
+      const apiKey = await getAiProviderApiKey("anthropic");
+      if (!apiKey) {
+        throw new AiProviderError(`Anthropic API key not set. Add it in Settings → AI ${section}.`, {
+          code: "missing-api-key",
+          provider,
+        });
+      }
+      return resolvedAiFromAdapter(new AnthropicProviderAdapter({ ...config, apiKey }));
     }
     case "openai-compatible": {
       const apiKey = await getAiProviderApiKey("openai-compatible");
