@@ -9,7 +9,7 @@ import { f1Parser } from "@raceiq/game-f1-2025/game-parser";
 import { forzaParser } from "@raceiq/game-fm-2023/game-parser";
 import { captureIRacingParserCheckpoint, createIRacingParserState, restoreIRacingParserCheckpoint, type IRacingParserState } from "@raceiq/game-iracing/normalizer";
 import { iracingParser } from "@raceiq/game-iracing/game-parser";
-import { ams2Parser } from "@raceiq/game-ams2/game-parser";
+import { ams2Parser, type AMS2ParserState } from "@raceiq/game-ams2/game-parser";
 import { lmuParser } from "@raceiq/game-lmu/game-parser";
 
 import { acEvoParser } from "@raceiq/game-ac-evo/game-parser";
@@ -157,7 +157,22 @@ export function createLiveGameParserCodec(gameId: GameId): LiveGameParserCodec {
     case "fm-2023":
       return frameLocalCodec((frame, timestampMs) => forzaParser.tryParse(frame, null, timestampMs));
     case "ams2":
-      return frameLocalCodec((frame, timestampMs) => ams2Parser.tryParse(frame, null, timestampMs));
+      return {
+        createState: ams2Parser.createParserState,
+        captureState(state) {
+          const checkpoint = ams2Parser.captureParserCheckpoint(state);
+          if (!checkpoint) throw new Error("Unexpected checkpoint");
+          return checkpoint;
+        },
+        restoreState(checkpoint) {
+          const state = ams2Parser.restoreParserCheckpoint(null, checkpoint);
+          if (!state) throw new Error("Unexpected checkpoint");
+          return state;
+        },
+        parseFrame(frame, state, timestampMs) {
+          return ams2Parser.tryParse(frame, state as AMS2ParserState, timestampMs);
+        },
+      };
     case "lmu":
       return frameLocalCodec((frame, timestampMs) => lmuParser.tryParse(frame, null, timestampMs));
   }

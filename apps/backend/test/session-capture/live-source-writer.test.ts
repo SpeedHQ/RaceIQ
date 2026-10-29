@@ -1,5 +1,5 @@
 import { afterAll, expect, test } from "bun:test";
-import { WorkerSessionRecorder } from "@raceiq/capture-formats/session/worker-recorder";
+import { WorkerSessionRecorder, type EncodedSourceEvent } from "@raceiq/capture-formats/session/worker-recorder";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -12,7 +12,7 @@ import { Worker } from "node:worker_threads";
 let syncRaceRoot: string | undefined;
 afterAll(async () => { if (syncRaceRoot) await rm(syncRaceRoot, { recursive: true, force: true }); });
 
-function nativeFrame(value: number): Buffer {
+function nativeFrame(value: number) {
   const frame = Buffer.alloc(331);
   frame.writeUInt32LE(1, 0);
   frame.writeUInt32LE(value, 4);
@@ -65,11 +65,14 @@ test("source overload advances neither gameplay nor logical count and drains the
     recorder.start(path);
     recorder.writeMetaFrame();
     recorder.writeRecord(accepted, 123);
+    const sync = recorder.requestSync();
     expect(() => recorder.writeRecord(Buffer.alloc(2048))).toThrow();
     expect(recorder.state).toBe("failed");
     expect(recorder.recordCount).toBe(1);
     expect(recorder.sourceRecordCount).toBe(1);
-    await expect(recorder.stop()).rejects.toBeInstanceOf(Error);
+    expect((await sync).sourceRecordCount).toBe(1);
+    const closeError = await recorder.stop().then(() => null, (error: unknown) => error);
+    expect(closeError).toBeInstanceOf(Error);
     const bytes = await readFile(path);
     expect(bytes.readUInt32LE(8)).toBe(1);
     const records = [...iterateSessionCaptureRecords(bytes, 0, { strict: true })];
@@ -100,6 +103,115 @@ test("accepted durability request completes when stop immediately closes admissi
   const records = [...iterateSessionCaptureRecords(bytes, 0, { strict: true })];
   expect(records).toHaveLength(1);
   expect(records[0]).toMatchObject({ kind: "frame", frame, frameTimeMs: 0 });
+});
+
+test("accepted durability request rejects with the original overload after the real writer fails", async () => {
+  const root = await mkdtemp(join(tmpdir(), "raceiq-live-source-compound-failure-"));
+  const blocker = join(root, "not-a-directory");
+  await writeFile(blocker, "preserve");
+  const recorder = new WorkerSessionRecorder("fm-2023", { maxBatchBytes: 1024 });
+  try {
+    recorder.start(join(blocker, "source.bin"));
+    recorder.writeRecord(nativeFrame(44));
+    const sync = recorder.requestSync().then(() => null, (error: unknown) => error);
+    expect(() => recorder.writeRecord(Buffer.alloc(2048))).toThrow("Source recording capacity exhausted");
+    const overload = recorder.error;
+    expect(overload).toBeInstanceOf(Error);
+    expect(await sync).toBe(overload);
+    expect(recorder.error).toBe(overload);
+    const closeError = await recorder.stop().then(() => null, (error: unknown) => error);
+    expect(closeError).toBe(overload);
+    expect(await readFile(blocker, "utf8")).toBe("preserve");
+  } finally {
+    await recorder.stop().catch(() => {});
+    await rm(root, { recursive: true, force: true });
+  }
+}, 10_000);
+
+for (const observe of [false, true]) {
+  test(`standalone source admits one-copy transport with observer=${observe}`, async () => {
+    const root = await mkdtemp(join(tmpdir(), "raceiq-source-single-copy-"));
+    const path = join(root, "source.bin");
+    const recorder = new WorkerSessionRecorder("fm-2023", { maxBatchBytes: 512, maxInFlightBytes: 2048, maxBatchDelayMs: 60_000 });
+    const events: EncodedSourceEvent[] = [];
+    if (observe) recorder.onEncodedSourceEvent((event) => events.push(event));
+    const first = nativeFrame(51), second = nativeFrame(52);
+    try {
+      recorder.start(path);
+      recorder.writeMetaFrame();
+      recorder.writeRecord(first, 0);
+      const pending = recorder.pendingBatchByteCount;
+      expect(pending).toBeLessThanOrEqual(512);
+      expect(recorder.inFlightByteCount).toBe(pending + (observe ? first.byteLength : 0));
+      first.fill(0);
+      await recorder.requestSync();
+      const raw = Buffer.concat([encodeFrameLength(second.length, 123), second]);
+      await recorder.writeRawCaptureRecordAsync(raw);
+      raw.fill(0);
+      await recorder.stop();
+      const records = [...iterateSessionCaptureRecords(await readFile(path), 0, { strict: true })];
+      expect(records.filter((record) => record.kind === "frame").map((record) => [record.frame, record.frameTimeMs])).toEqual([
+        [nativeFrame(51), 0], [second, 123],
+      ]);
+      if (observe) {
+        expect(events.map((event) => [event.kind, Buffer.from(event.bytes), event.frameTimeMs])).toEqual([
+          ["frame", nativeFrame(51), 0],
+          ["raw", Buffer.concat([encodeFrameLength(second.length, 123), second]), undefined],
+        ]);
+      }
+    } finally {
+      await recorder.stop().catch(() => {});
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+}
+
+test("supplied source worker consumes ordered native events while observers retain owned copies", async () => {
+  const root = await mkdtemp(join(tmpdir(), "raceiq-source-shared-copy-"));
+  const path = join(root, "source.bin");
+  const worker = new Worker(`
+    const { parentPort } = require("node:worker_threads");
+    import(${JSON.stringify(import.meta.resolve("@raceiq/capture-formats/session/source-writer-worker"))}).then(() => {
+      parentPort.on("message", (message) => {
+        if (message.type === "batch") {
+          parentPort.postMessage({ type: "observed", events: message.records.map((record) => record.sourceEvent) });
+        }
+      });
+      parentPort.postMessage({ type: "ready" });
+    });
+  `, { eval: true, workerData: { syncIntervalMs: 0 } });
+  const ready = Promise.withResolvers<void>();
+  worker.once("message", () => ready.resolve());
+  await ready.promise;
+  const recorder = new WorkerSessionRecorder("fm-2023", { worker, maxBatchBytes: 1024, maxBatchDelayMs: 60_000 });
+  const observed: EncodedSourceEvent[] = [];
+  const delivered: EncodedSourceEvent[] = [];
+  recorder.onEncodedSourceEvent((event) => observed.push(event));
+  worker.on("message", (message) => { if (message.type === "observed") delivered.push(...message.events); });
+  try {
+    recorder.start(path);
+    recorder.writeMetaFrame();
+    recorder.writeRecord(nativeFrame(61), 0);
+    expect(recorder.inFlightByteCount).toBe(recorder.pendingBatchByteCount + 331);
+    await recorder.requestSync();
+    recorder.writeSegmentBoundary();
+    const raw = Buffer.concat([encodeFrameLength(331, 234), nativeFrame(62)]);
+    recorder.writeRawCaptureRecord(raw);
+    await recorder.stop();
+    expect(delivered.map((event) => [event.sequence, event.kind, Buffer.from(event.bytes), event.frameTimeMs])).toEqual([
+      [1, "frame", nativeFrame(61), 0], [2, "segment-boundary", Buffer.alloc(0), undefined], [3, "raw", raw, undefined],
+    ]);
+    expect(observed).toEqual(delivered);
+    const records = [...iterateSessionCaptureRecords(await readFile(path), 0, { strict: true })];
+    expect(records.map((record) => record.kind)).toEqual(["frame", "segment-boundary", "frame"]);
+    expect(records.filter((record) => record.kind === "frame").map((record) => [record.frame, record.frameTimeMs])).toEqual([
+      [nativeFrame(61), 0], [nativeFrame(62), 234],
+    ]);
+  } finally {
+    await recorder.stop().catch(() => {});
+    await worker.terminate();
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test("source writer does not reopen a file after a queued batch fails", async () => {
@@ -172,9 +284,11 @@ test("premature worker exit rejects pending recorder close", async () => {
   const recorder = new WorkerSessionRecorder("fm-2023", { worker });
   try {
     recorder.start(join(root, "source.bin"));
-    const closing = recorder.stop();
+    const closing = recorder.stop().then(() => null, (error: unknown) => error);
     await worker.terminate();
-    await expect(closing).rejects.toThrow(/^Source writer worker exited \(\d+\)$/);
+    const closeError = await closing;
+    expect(closeError).toBeInstanceOf(Error);
+    expect((closeError as Error).message).toMatch(/^Source writer worker exited \(\d+\)$/);
   } finally {
     await worker.terminate();
     await rm(root, { recursive: true, force: true });
@@ -211,7 +325,7 @@ for (const termination of ["io-failure", "close"] as const) {
     const blocker = join(root, "not-a-directory");
     if (termination === "io-failure") await writeFile(blocker, "preserve");
     const path = termination === "io-failure" ? join(blocker, "source.bin") : join(root, "source.bin");
-    const recorder = new WorkerSessionRecorder("fm-2023", { maxBatchBytes: 1024, maxInFlightBytes: 1024, syncIntervalMs: 0 });
+    const recorder = new WorkerSessionRecorder("fm-2023", { maxBatchBytes: 768, maxInFlightBytes: 768, syncIntervalMs: 0 });
     const first = nativeFrame(11), second = nativeFrame(22);
     try {
       recorder.start(path);

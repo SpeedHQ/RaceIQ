@@ -222,9 +222,10 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
   const prevCarBRef = useRef<string | null | undefined>(undefined);
   const routeSelection = JSON.stringify([search.track ?? null, search.carA ?? null, search.carB ?? null, search.lapA ?? null, search.lapB ?? null, search.reference ?? "player", search.opponentLap ?? null, search.opponentRevision ?? null]);
   const writtenSelectionRef = useRef(routeSelection);
+  const writtenLapPairRef = useRef<string | null>(null);
   const seenSelectionRef = useRef(routeSelection);
   const applyingSelectionRef = useRef<string | null>(null);
-  const writtenLapPairRef = useRef(JSON.stringify([lapAId, lapBId, referenceMode, opponentLapId, opponentRevision]));
+  const hasSyncedSelectionRef = useRef(false);
   useEffect(() => {
     if (seenSelectionRef.current === routeSelection) return;
     seenSelectionRef.current = routeSelection;
@@ -291,7 +292,11 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
   }, []);
   const mapWidth = comparisonLayoutWidth > 0 ? clampCompareMapWidth(savedMapWidth, comparisonLayoutWidth, aiPanelOpen) : savedMapWidth;
   const aiPanelWidth = Math.round(Math.min(310, (comparisonLayoutWidth || (typeof window === "undefined" ? 1024 : window.innerWidth)) * 0.88));
+  const hasChartCursorRef = useRef(false);
   const handleCursorMove = useCallback((d: number | null) => {
+    // Chart initialization must not erase a restored URL cursor.
+    if (d === null && !hasChartCursorRef.current) return;
+    hasChartCursorRef.current = d !== null;
     hoveredDistanceRef.current = d;
     // Directly redraw the map canvas without React re-render
     mapRedrawRef.current?.();
@@ -364,6 +369,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     if (search.cursor != null && distances) {
       if (distances.length === 0) return;
       const idx = Math.max(0, Math.min(Math.floor(search.cursor), distances.length - 1));
+      hasChartCursorRef.current = false;
       hoveredDistanceRef.current = distances[idx];
       spectateDistanceRef.current = distances[idx];
       mapRedrawRef.current?.();
@@ -376,11 +382,12 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     const selection = JSON.stringify([selectedTrack, carAId, carBId, lapAId, lapBId, referenceMode, opponentLapId, opponentRevision]);
     if (applyingSelectionRef.current != null && applyingSelectionRef.current !== selection) return;
     const lapPair = JSON.stringify([lapAId, lapBId, referenceMode, opponentLapId, opponentRevision]);
-    const localPairChange = applyingSelectionRef.current == null && writtenLapPairRef.current !== lapPair;
+    const localPairChange = hasSyncedSelectionRef.current && applyingSelectionRef.current == null && writtenLapPairRef.current !== lapPair;
     writtenLapPairRef.current = lapPair;
     if (localPairChange) {
       hoveredDistanceRef.current = null;
       spectateDistanceRef.current = null;
+      hasChartCursorRef.current = false;
     }
     applyingSelectionRef.current = null;
     writtenSelectionRef.current = selection;
@@ -407,6 +414,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
       replace: true,
       resetScroll: false,
     });
+    hasSyncedSelectionRef.current = true;
   }, [selectedTrack, carAId, carBId, lapAId, lapBId, referenceMode, opponentLapId, opponentRevision, navigate, spectateDistanceRef]);
 
   // Build track groups and fetch names when laps data changes
@@ -515,8 +523,6 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     setZoomLevels([null]);
     setDetailRange(null);
     setOptimisticRange(null);
-    hoveredDistanceRef.current = null;
-    spectateDistanceRef.current = null;
   }, [lapAId, lapBId, referenceMode, opponentLapId, opponentRevision, spectateDistanceRef]);
 
   // Laps filtered to selected track

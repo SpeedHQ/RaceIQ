@@ -45,6 +45,7 @@ interface UpdateState {
   latest: string | null;
   updateAvailable: boolean;
   updatesDisabled: boolean;
+  externalUpdateUrl: string | null;
   downloadUrl: string | null;
   /** All releases newer than current version */
   newReleases: ReleaseInfo[];
@@ -56,11 +57,19 @@ interface UpdateState {
   checked: boolean;
 }
 
+const EXTERNAL_UPDATE_URL = "https://github.com/SpeedHQ/RaceIQ/releases/latest";
+const UPDATES_DISABLED = !IS_WINDOWS || IN_APP_UPDATE_DISABLED;
+
+function getExternalUpdateUrl(): string | null {
+  return !IS_WINDOWS && !IN_APP_UPDATE_DISABLED ? EXTERNAL_UPDATE_URL : null;
+}
+
 let state: UpdateState = {
   current: VERSION,
   latest: null,
   updateAvailable: false,
-  updatesDisabled: IN_APP_UPDATE_DISABLED,
+  updatesDisabled: UPDATES_DISABLED,
+  externalUpdateUrl: getExternalUpdateUrl(),
   downloadUrl: null,
   newReleases: [],
   fullReleaseNotes: null,
@@ -69,6 +78,7 @@ let state: UpdateState = {
   lastChecked: null,
   checked: false,
 };
+
 // Tag associated with the release-note data held in `state`.
 let releaseArtifactsTag: string | null = null;
 
@@ -168,7 +178,7 @@ export async function checkForUpdate(): Promise<UpdateState> {
     const fakeVersion = "99.0.0";
     const { newReleases, fullReleaseNotes, currentReleaseNotes, currentReleaseDate } = await fetchReleases(VERSION).catch(() => ({ newReleases: [] as ReleaseInfo[], fullReleaseNotes: null, currentReleaseNotes: null, currentReleaseDate: null }));
     const lastChecked = new Date().toISOString();
-    state = { current: VERSION, latest: fakeVersion, updateAvailable: true, updatesDisabled: IN_APP_UPDATE_DISABLED, downloadUrl: LOCAL_INSTALLER ?? null, newReleases, fullReleaseNotes, currentReleaseNotes, currentReleaseDate, lastChecked, checked: true };
+    state = { ...state, current: VERSION, latest: fakeVersion, updateAvailable: true, updatesDisabled: UPDATES_DISABLED, externalUpdateUrl: getExternalUpdateUrl(), downloadUrl: IS_WINDOWS ? LOCAL_INSTALLER ?? null : null, newReleases, fullReleaseNotes, currentReleaseNotes, currentReleaseDate, lastChecked, checked: true };
     notifyUpdateAvailable(fakeVersion);
     console.log(`[Update] DEV_FORCE_UPDATE: faking update to v${fakeVersion}${LOCAL_INSTALLER ? ` (local: ${LOCAL_INSTALLER})` : ""}`);
     return state;
@@ -185,7 +195,7 @@ export async function checkForUpdate(): Promise<UpdateState> {
     const latest = data.tag_name.replace(/^v/, "");
     const updateAvailable = isNewer(latest, VERSION);
 
-    const installerAsset = data.assets.find((a) => a.name.match(/RaceIQ-Setup-v.*\.exe$/));
+    const installerAsset = IS_WINDOWS ? data.assets.find((a) => a.name.match(/RaceIQ-Setup-v.*\.exe$/)) : undefined;
     const downloadUrl = installerAsset?.browser_download_url ?? null;
 
     let releaseData = {
@@ -202,7 +212,7 @@ export async function checkForUpdate(): Promise<UpdateState> {
     const { newReleases, fullReleaseNotes, currentReleaseNotes, currentReleaseDate } = releaseData;
 
     const lastChecked = new Date().toISOString();
-    state = { current: VERSION, latest, updateAvailable, updatesDisabled: IN_APP_UPDATE_DISABLED, downloadUrl, newReleases, fullReleaseNotes, currentReleaseNotes, currentReleaseDate, lastChecked, checked: true };
+    state = { current: VERSION, latest, updateAvailable, updatesDisabled: UPDATES_DISABLED, externalUpdateUrl: getExternalUpdateUrl(), downloadUrl, newReleases, fullReleaseNotes, currentReleaseNotes, currentReleaseDate, lastChecked, checked: true };
 
     if (updateAvailable) {
       notifyUpdateAvailable(latest);

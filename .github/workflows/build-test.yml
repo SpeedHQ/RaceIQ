@@ -99,10 +99,10 @@ jobs:
         run: bun run i18n:check-keys
 
       - name: Lint server, shared, scripts, tests, and client
-        run: bunx turbo run lint --affected
+        run: bun scripts/test/run-turbo.ts lint --affected
 
       - name: Type-check server, shared, scripts, and tests
-        run: bunx turbo run typecheck --affected --concurrency=1
+        run: bun scripts/test/run-turbo.ts typecheck --affected --concurrency=1
       - name: Verify seeded database upgrade
         if: github.event_name == 'pull_request' && !github.event.pull_request.draft
         env:

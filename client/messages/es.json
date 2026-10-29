@@ -188,6 +188,7 @@
   "updates_check_button": "Buscar actualizaciones",
   "updates_current_version": "Versión actual:",
   "updates_docker_managed": "Las actualizaciones se gestionan mediante Docker. Descarga la imagen más reciente y vuelve a crear el contenedor para actualizar RaceIQ.",
+  "updates_external_download": "Descarga la versión más reciente y sigue las instrucciones de instalación.",
   "updates_last_checked": "Última comprobación:",
   "updates_downloading": "Descargando el instalador...",
   "updates_reconnecting": "Esperando a que RaceIQ se reinicie...",

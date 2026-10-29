@@ -97,6 +97,7 @@ export interface VersionInfo {
   latest: string | null;
   updateAvailable: boolean;
   updatesDisabled: boolean;
+  externalUpdateUrl: string | null;
   newReleases: ReleaseInfo[];
   fullReleaseNotes: string | null;
   currentReleaseNotes: string | null;

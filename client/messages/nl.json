@@ -188,6 +188,7 @@
   "updates_check_button": "Controleren op updates",
   "updates_current_version": "Huidige versie:",
   "updates_docker_managed": "Updates worden beheerd door Docker. Haal de nieuwste image op en maak de container opnieuw aan om RaceIQ bij te werken.",
+  "updates_external_download": "Download de nieuwste versie en volg de installatie-instructies.",
   "updates_last_checked": "Laatst gecontroleerd:",
   "updates_downloading": "Installatieprogramma downloaden...",
   "updates_reconnecting": "Wachten tot RaceIQ opnieuw is gestart...",

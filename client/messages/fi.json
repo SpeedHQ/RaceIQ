@@ -186,6 +186,7 @@
   "updates_check_button": "Tarkista päivitykset",
   "updates_current_version": "Nykyinen versio:",
   "updates_docker_managed": "Päivityksiä hallitaan Dockerilla. Päivitä RaceIQ hakemalla uusin näköistiedosto ja luomalla säilö uudelleen.",
+  "updates_external_download": "Lataa uusin julkaisu ja noudata asennusohjeita.",
   "updates_last_checked": "Tarkistettu viimeksi:",
   "updates_downloading": "Ladataan asennusohjelmaa...",
   "updates_reconnecting": "Odotetaan RaceIQ:n uudelleenkäynnistystä...",

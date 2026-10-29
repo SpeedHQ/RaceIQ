@@ -85,14 +85,15 @@ test("later wrong candidate checkpoint cannot self-validate against independent 
 });
 
 
-test("AMS2 frame-local live codec preserves real driving and menu parser output", async () => {
+test("AMS2 stateful live codec reads legacy checkpoints and preserves real driving and menu parser output", async () => {
   const codec = createLiveGameParserCodec("ams2");
-  const state = codec.restoreState(codec.captureState(codec.createState()));
+  const state = codec.restoreState(new Uint8Array());
+  const parserState = ams2Parser.createParserState();
   let driving = 0;
   let menus = 0;
   for await (const frame of readAMS2DumpFrames(resolve(import.meta.dir, "../../../../test/artifacts/sessions/ams2-time-trial.bin.gz"))) {
     const actual = codec.parseFrame(frame, state);
-    expect(actual).toEqual(ams2Parser.tryParse(frame, null));
+    expect(actual).toEqual(ams2Parser.tryParse(frame, parserState));
     if (actual) driving++;
     else menus++;
   }

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, open, readFile, rename, realpath, rm, stat } from "node:fs/promises";
+import { syncDirectory } from "@raceiq/capture-formats/session/durable-directory";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { Worker } from "node:worker_threads";
 import type { MessagePort } from "node:worker_threads";
@@ -146,9 +147,9 @@ interface WorkerInput {
 
 interface WorkerMetrics {
   buildDurationMs: number;
-  workerCpuUserMicros: number;
-  workerCpuSystemMicros: number;
-  rssBytes: number;
+  processCpuUserMicros: number;
+  processCpuSystemMicros: number;
+  processRssBytes: number;
   sourceFramesScanned: number;
   nativeFramesDecoded: number;
 }
@@ -172,7 +173,7 @@ let runtimeStopping = false;
 let stopPromise: Promise<void> | null = null;
 let testPort: MessagePort | null = null;
 let testPortListener: ((message: { type?: string; id?: string }) => void) | null = null;
-let workerPeakRssBytes = 0;
+let peakProcessRssBytes = 0;
 
 function indexRootFor(sourcePath: string): string {
   return `${sourcePath}.opponent-index`;
@@ -240,8 +241,7 @@ async function writeDurableState(indexRoot: string, state: DurableState): Promis
   }
   await file.close();
   await rename(temporary, target);
-  const directory = await open(indexRoot, "r");
-  try { await directory.sync(); } finally { await directory.close(); }
+  await syncDirectory(indexRoot);
 }
 
 function dependenciesEqual(
@@ -847,7 +847,7 @@ function runWorker(candidate: SourceCandidate): Promise<{
     let injectedPublicationFailure = false;
     const callbacks = new Set<Promise<void>>();
     const peakSampling = isLmuOpponentIndexInstrumentationEnabled()
-      ? setInterval(() => { workerPeakRssBytes = Math.max(workerPeakRssBytes, process.memoryUsage().rss); }, 25)
+      ? setInterval(() => { peakProcessRssBytes = Math.max(peakProcessRssBytes, process.memoryUsage().rss); }, 25)
       : null;
     const onExit = (code: number) => {
       clearInterval(peakSampling ?? undefined);
@@ -959,11 +959,11 @@ function recordBuildMetrics(
     blocksWritten: result?.stats.blocksWritten ?? 0,
     bytesWritten: result?.stats.bytesWritten ?? 0,
     buildDurationMs: metrics.buildDurationMs,
-    workerCpuUserMicros: metrics.workerCpuUserMicros,
-    workerCpuSystemMicros: metrics.workerCpuSystemMicros,
-    peakRssBytes: Math.max(workerPeakRssBytes, metrics.rssBytes),
+    processCpuUserMicros: metrics.processCpuUserMicros,
+    processCpuSystemMicros: metrics.processCpuSystemMicros,
+    peakProcessRssBytes: Math.max(peakProcessRssBytes, metrics.processRssBytes),
   });
-  workerPeakRssBytes = 0;
+  peakProcessRssBytes = 0;
 }
 
 async function failCandidate(candidate: SourceCandidate): Promise<void> {

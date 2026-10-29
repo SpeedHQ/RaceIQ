@@ -158,7 +158,10 @@ jobs:
       - name: Build AppImage
         run: bun packages/tooling-build/src/build/build-appimage.ts "${{ needs.compute-version.outputs.version }}"
       - name: Smoke AppImage runtime
-        run: bun scripts/ci/smoke-appimage.ts "$PWD/RaceIQ-v${{ needs.compute-version.outputs.version }}-linux-x86_64.AppImage" 2>&1 | tee "$RUNNER_TEMP/appimage-smoke.log"
+        shell: bash
+        run: |
+          set -o pipefail
+          bun scripts/ci/smoke-appimage.ts "$PWD/RaceIQ-v${{ needs.compute-version.outputs.version }}-linux-x86_64.AppImage" 2>&1 | tee "$RUNNER_TEMP/appimage-smoke.log"
       - name: Extract AppImage
         run: |
           mkdir -p "$RUNNER_TEMP/appimage"
