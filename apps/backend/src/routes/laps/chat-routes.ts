@@ -166,7 +166,7 @@ export function createChatRoutes(overrides: ChatRouteOverrides = {}) {
       return c.json({ error: "No AI provider selected. Choose one in Settings → AI Chat." }, 400);
     }
     const chatModelLabel = settings.chatModel
-      || (chatProvider === "openai" ? "gpt-4o-mini" : chatProvider === "openai-compatible" ? "local-model" : "gemini-flash-latest");
+      || (chatProvider === "openai" ? "gpt-4o-mini" : chatProvider === "anthropic" ? "claude-haiku-5-5" : chatProvider === "openai-compatible" ? "local-model" : "gemini-flash-latest");
 
     const visionCapability = resolveChatVisionCapability(chatProvider, chatModelLabel);
     if (chatRequestHasImage(messages) && visionCapability !== "supported") {

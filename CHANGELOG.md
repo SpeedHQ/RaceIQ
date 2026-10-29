@@ -1,6 +1,7 @@
 ## Unreleased
 
 ### Features
+- Choose Claude (Anthropic) as an AI provider for analysis, chat, auto-tune and driver profiles with its own API key. The model picker lists the Claude models available to that key, tags Claude Haiku 5.5 as Recommended, and preselects it when you switch to Claude.
 - Replace category tabs on the AMS2 and iRacing Cars pages with a searchable dropdown that shows the total as a placeholder, clears the search when opened, and preserves category counts and the All categories reset.
 - Add AMS2 support: native Windows shared-memory telemetry capture, game-specific car and track identity, per-wheel Replay metrics, 235 track maps, car thumbnails, dashboard branding and a separate Driver profile; include Live connection guidance and correct lap capture, export, replay and track-map behavior. Keep adapter availability and native capture development-only.
 - Show animated suspension springs and chassis movement in Replay and Compare → Spectate; use the lap's observed travel range when no game range is specified, while preserving native normalized readings.
@@ -39,6 +40,12 @@
 ### Fixes
 - Finish pending recording finalization with the original error when a writer fails after overload.
 - Keep dismissed historical lap-classification notices hidden after unrelated session updates, reopening them only for new work or changed results.
+- Get answers from current Claude models, which rejected every request with "`temperature` is deprecated for this model".
+- Stop AI settings from freezing on Windows while saved API keys and the launch-on-login setting are checked, and show Claude models immediately instead of waiting for the model list.
+- Load the model list and run AI features when the OpenAI-compatible base URL is Anthropic's `https://api.anthropic.com/v1`, which previously failed with "x-api-key header is required".
+- Send the saved OpenAI-compatible API key from the setup engineer and driver coach instead of a placeholder key.
+- Keep API keys saved in Settings while a Linux or WSL development server runs instead of silently discarding them; installed builds are unchanged.
+- Keep the historical lap-classification notice limited to its original sessions, allow dismissal while work continues, and distinguish summary updates from pending lap processing.
 - Place inner and outer surface-temperature bands on the correct sides of the 3D wheels in Replay and Compare → Spectate.
 - Keep recording and LMU opponent indexing available in Windows release installations.
 - Reclaim all telemetry chunks when deleting direct recordings, matching the cleanup preview while protecting shared recordings.

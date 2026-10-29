@@ -119,6 +119,7 @@
   "ai_refresh": "更新",
   "ai_loading_models": "モデルを読み込み中…",
   "ai_model_default": "なし",
+  "ai_model_recommended": "推奨",
   "ai_thinking_label": "思考",
   "ai_thinking_unsupported": "このモデルは思考機能に対応していません。「なし」を使用します。",
   "ai_add_key_hint": "APIキーを追加して保存すると、利用可能なモデルを読み込めます。",
