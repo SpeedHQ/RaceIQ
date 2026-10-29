@@ -135,9 +135,10 @@ export const GEMINI_THINKING_BUDGET_OPTIONS = [
   { label: "4,096", value: 4096 },
   { label: "8,192", value: 8192 },
 ] as const;
-export const PROVIDER_KEY_MAP: Record<string, string> = { gemini: "gemini", openai: "openai", "openai-compatible": "openai-compatible" };
+export const PROVIDER_KEY_MAP: Record<string, string> = { gemini: "gemini", openai: "openai", anthropic: "anthropic", "openai-compatible": "openai-compatible" };
 export const PROVIDER_KEY_LABELS: Record<string, KeyInfo> = {
   gemini: { label: "Gemini API Key", placeholder: "AIza...", helpText: "Get a free API key from", helpUrl: "https://aistudio.google.com/apikey" },
   openai: { label: "OpenAI API Key", placeholder: "sk-...", helpText: "Get an API key from", helpUrl: "https://platform.openai.com/api-keys" },
+  anthropic: { label: "Anthropic API Key", placeholder: "sk-ant-...", helpText: "Get an API key from", helpUrl: "https://console.anthropic.com/settings/keys" },
   "openai-compatible": { label: "OpenAI-compatible API Key (optional)", placeholder: "Optional bearer token", helpText: "Sent as a Bearer token to the configured endpoint." },
 };

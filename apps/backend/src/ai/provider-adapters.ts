@@ -12,6 +12,7 @@ import type {
   StructuredRequest,
   TextRequest,
 } from "@raceiq/backend-core/ai/ai-types";
+import { ANTHROPIC_OPENAI_BASE_URL } from "@raceiq/backend-core/ai/openai-compatible-headers";
 import { setResolvedAiInternals } from "./resolved-ai-internals";
 
 export type ProviderAdapterConfig = {
@@ -155,10 +156,54 @@ export class OpenAiCompatibleProviderAdapter {
   }
 }
 
+/** Claude models through Anthropic's OpenAI-compatible API. */
+export class AnthropicProviderAdapter {
+  readonly feature: AiFeature;
+  readonly provider: AiProvider = "anthropic";
+  readonly model: string;
+  readonly mastraModel: BoundMastraModel;
+  readonly #apiKey: string;
+
+  constructor(config: ProviderAdapterConfig & { apiKey: string }) {
+    this.feature = config.feature;
+    this.model = config.model;
+    this.#apiKey = config.apiKey;
+    this.mastraModel = getMastraModelId({
+      provider: this.provider,
+      model: this.model,
+      apiKey: this.#apiKey,
+    });
+  }
+
+  generateText(input: TextRequest): Promise<AiResult> {
+    return runOpenAiCompatible({
+      prompt: promptFor(input),
+      apiKey: this.#apiKey,
+      endpoint: ANTHROPIC_OPENAI_BASE_URL,
+      model: this.model,
+      temperature: input.temperature,
+      maxOutputTokens: input.maxOutputTokens,
+    });
+  }
+
+  generateStructured<T>(input: StructuredRequest<T>): Promise<AiResult> {
+    return runOpenAiCompatible({
+      prompt: promptFor(input),
+      apiKey: this.#apiKey,
+      endpoint: ANTHROPIC_OPENAI_BASE_URL,
+      model: this.model,
+      schema: input.schema as unknown as object,
+      schemaName: input.schemaName,
+      temperature: input.temperature,
+      maxOutputTokens: input.maxOutputTokens,
+    });
+  }
+}
 
 export type AnyProviderAdapter =
   | GeminiProviderAdapter
   | OpenAiProviderAdapter
+  | AnthropicProviderAdapter
   | OpenAiCompatibleProviderAdapter;
 
 export function resolvedAiFromAdapter(adapter: AnyProviderAdapter): ResolvedAi {

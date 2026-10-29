@@ -171,6 +171,7 @@
   "ai_refresh": "Actualiser",
   "ai_loading_models": "Chargement des modèles…",
   "ai_model_default": "Aucun",
+  "ai_model_recommended": "Recommandé",
   "ai_thinking_label": "Raisonnement",
   "ai_thinking_unsupported": "Ce modèle ne prend pas en charge le raisonnement. Aucun ne sera utilisé.",
   "ai_add_key_hint": "Ajoutez et enregistrez une clé API pour charger les modèles disponibles.",

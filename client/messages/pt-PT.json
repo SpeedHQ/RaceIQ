@@ -119,6 +119,7 @@
   "ai_refresh": "Atualizar",
   "ai_loading_models": "Carregando modelos…",
   "ai_model_default": "Nenhum",
+  "ai_model_recommended": "Recomendado",
   "ai_thinking_label": "Raciocínio",
   "ai_thinking_unsupported": "Este modelo não oferece suporte a raciocínio. Usando Nenhum.",
   "ai_add_key_hint": "Adicione e salve uma chave de API para carregar os modelos disponíveis.",

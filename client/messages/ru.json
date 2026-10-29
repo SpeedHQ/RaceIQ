@@ -117,6 +117,7 @@
   "ai_refresh": "Обновить",
   "ai_loading_models": "Загрузка моделей…",
   "ai_model_default": "Нет",
+  "ai_model_recommended": "Рекомендуется",
   "ai_thinking_label": "Рассуждение",
   "ai_thinking_unsupported": "Эта модель не поддерживает рассуждение. Используется вариант «Нет».",
   "ai_add_key_hint": "Добавьте и сохраните API-ключ, чтобы загрузить доступные модели.",

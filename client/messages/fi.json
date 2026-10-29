@@ -117,6 +117,7 @@
   "ai_refresh": "Päivitä",
   "ai_loading_models": "Ladataan malleja…",
   "ai_model_default": "Ei mitään",
+  "ai_model_recommended": "Suositeltu",
   "ai_thinking_label": "Päättely",
   "ai_thinking_unsupported": "Tämä malli ei tue päättelyä. Käytetään vaihtoehtoa Ei mitään.",
   "ai_add_key_hint": "Lisää ja tallenna API-avain, jotta saatavilla olevat mallit voidaan ladata.",

@@ -26,6 +26,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import type { FetchFunction } from "@ai-sdk/provider-utils";
 import { extractReasoningMiddleware, wrapLanguageModel, type LanguageModel } from "ai";
 import type { MastraModelConfig } from "@mastra/core/llm";
+import { ANTHROPIC_OPENAI_BASE_URL, anthropicCompatibleFetch, isAnthropicEndpoint, openAiCompatibleExtraHeaders } from "@raceiq/backend-core/ai/openai-compatible-headers";
 import { RESOLVED_AI_MODEL_CONTEXT_KEY } from "../ai/resolved-ai-internals";
 
 export type BoundMastraModel = MastraModelConfig;
@@ -243,12 +244,28 @@ export function getMastraModelId(
       if (!apiKey) return `openai/${id}`;
       return bindMastraModel(createOpenAI({ apiKey }).chat(id));
     }
+    case "anthropic": {
+      // Claude through Anthropic's OpenAI-compatible chat completions API.
+      // Settings-driven agents pass no key; configureAiProviderEnvironment sets it.
+      const key = apiKey || process.env.ANTHROPIC_API_KEY || "";
+      const anthropic = createOpenAI({
+        baseURL: ANTHROPIC_OPENAI_BASE_URL,
+        apiKey: key,
+        headers: openAiCompatibleExtraHeaders(ANTHROPIC_OPENAI_BASE_URL, key),
+        fetch: anthropicCompatibleFetch() as FetchFunction,
+      });
+      return bindMastraModel(anthropic.chat(model || "claude-haiku-5-5"));
+    }
     case "openai-compatible": {
+      const baseURL = localEndpoint ?? "http://localhost:1234/v1";
+      // Settings-driven agents pass no key; configureAiProviderEnvironment sets it.
+      const key = apiKey || process.env.OPENAI_COMPATIBLE_API_KEY;
       const openai = createOpenAI({
-        baseURL: localEndpoint ?? "http://localhost:1234/v1",
-        apiKey: apiKey || "local",
+        baseURL,
+        apiKey: key || "local",
+        headers: openAiCompatibleExtraHeaders(baseURL, key),
         // Ollama thinking models emit; see the file header for the full chain.
-        fetch: reasoningContentToThinkFetch(globalThis.fetch as FetchFunction),
+        fetch: reasoningContentToThinkFetch((isAnthropicEndpoint(baseURL) ? anthropicCompatibleFetch() : globalThis.fetch) as FetchFunction),
       });
       // `openai(id)` targets `/v1/responses` in @ai-sdk/openai v3+. LM Studio
       // only fully implements `/v1/chat/completions`, so pick that transport
