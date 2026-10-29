@@ -142,18 +142,6 @@ export function SessionAnalysePage({ gameId, trackId, carId, sessionId }: { game
       </div>
     );
   }
-  if (evaluationLaps.length === 0 && search.laps == null) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
-        <p role="status" className="text-sm text-app-text-muted">
-          {m.review_no_valid_laps()}
-        </p>
-        <Button variant="app-outline" size="app-sm" onClick={backToSession}>
-          {m.review_back_to_sessions()}
-        </Button>
-      </div>
-    );
-  }
 
   return (
     <div className="flex min-h-full flex-col">

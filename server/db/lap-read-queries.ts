@@ -1,5 +1,5 @@
 import { cacheGet, cacheSet, LapParseError, parseRawLapFrames, parseSessionLapsBatched } from "./telemetry-replay-storage";
-import { resolveLapCaptureArtifact } from "../session-capture/source-loader";
+import { MissingLapCaptureResourceError, resolveLapCaptureArtifact } from "../session-capture/source-loader";
 import { mergeLapProcessingMetadata, toLapMeta } from "./lap-meta";
 import { eq, desc, and, or, sql, inArray } from "drizzle-orm";
 import { db, readDb } from "./index";
@@ -421,7 +421,7 @@ export async function getLapMetaById(
 export async function getLapById(
   id: number,
   knownProcessing?: ProcessingMetadata,
-): Promise<(LapMeta & { telemetry: TelemetryPacket[]; parseError?: string }) | null> {
+): Promise<(LapMeta & { telemetry: TelemetryPacket[]; parseError?: string; parseErrorKind?: "missing-capture" | "failure" }) | null> {
   const storedRow = await getLapMetadataRow(id);
   if (!storedRow) return null;
   const row = knownProcessing
@@ -433,18 +433,19 @@ export async function getLapById(
     : null;
   const hasPublishedLayout = row.captureLayoutVersion != null;
   if (hasPublishedLayout && row.captureLayoutVersion !== 1 && row.captureLayoutVersion !== 2 && row.captureLayoutVersion !== 3) {
-    return { ...buildLapResult(row, []), parseError: `Unsupported capture layout version: ${row.captureLayoutVersion}` };
+    return { ...buildLapResult(row, []), parseError: `Unsupported capture layout version: ${row.captureLayoutVersion}`, parseErrorKind: "failure" };
   }
   if (hasPublishedLayout && row.captureLayoutVersion !== 3 && (!row.captureManifestFile || !row.captureChunkId || (row.captureLayoutVersion === 2 && !row.captureArchiveFile))) {
-    return { ...buildLapResult(row, []), parseError: "Incomplete capture bundle references" };
+    return { ...buildLapResult(row, []), parseError: "Incomplete capture bundle references", parseErrorKind: "missing-capture" };
   }
   if (row.captureLayoutVersion === 3 && !live) {
-    return { ...buildLapResult(row, []), parseError: "Live lap capture member is not committed" };
+    return { ...buildLapResult(row, []), parseError: "Live lap capture member is not committed", parseErrorKind: "missing-capture" };
   }
   if (cached && !hasPublishedLayout) return buildLapResult(row, cached);
 
   let telemetry: TelemetryPacket[] = [];
   let parseError: string | undefined;
+  let parseErrorKind: "missing-capture" | "failure" | undefined;
   let publicationIdentity: string | undefined;
   if (row.captureLayoutVersion === 3 && live) {
     try {
@@ -453,7 +454,10 @@ export async function getLapById(
       const publishedCached = cacheGet(id, publicationIdentity);
       if (publishedCached) return buildLapResult(row, publishedCached);
       telemetry = await parseRawLapFrames({ rawFile: resolved.path, artifact: resolved.artifact, source: null, gameId: row.gameId as GameId, carId: row.carId, trackId: row.trackId }, resolved.chunk.ownedFrameByteOffset!, resolved.chunk.ownedFrameCount!);
-    } catch (err) { parseError = err instanceof Error ? err.message : String(err); }
+    } catch (err) {
+      parseError = err instanceof Error ? err.message : String(err);
+      parseErrorKind = err instanceof MissingLapCaptureResourceError || (err as NodeJS.ErrnoException)?.code === "ENOENT" ? "missing-capture" : "failure";
+    }
   } else if ((row.captureLayoutVersion === 1 || row.captureLayoutVersion === 2) && row.captureManifestFile && row.captureChunkId) {
     try {
       const resolved = await resolveLapCaptureArtifact(row.captureManifestFile, row.captureChunkId, row.id, row);
@@ -469,9 +473,7 @@ export async function getLapById(
           if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
         }
       }
-      publicationIdentity = companionComplete
-        ? `${resolved.publicationIdentity}\0companion:${companionRevision}`
-        : resolved.publicationIdentity;
+      publicationIdentity = companionComplete ? `${resolved.publicationIdentity}\0companion:${companionRevision}` : resolved.publicationIdentity;
       const publishedCached = cacheGet(id, publicationIdentity);
       if (publishedCached) return buildLapResult(row, publishedCached);
       telemetry = companionComplete
@@ -480,7 +482,10 @@ export async function getLapById(
           row.rawByteOffset!, row.rawFrameCount!,
         )
         : await parseRawLapFrames({ rawFile: path, artifact, source: null, gameId: row.gameId as GameId, carId: row.carId, trackId: row.trackId }, chunk.ownedFrameByteOffset!, chunk.ownedFrameCount!);
-    } catch (err) { parseError = err instanceof Error ? err.message : String(err); }
+    } catch (err) {
+      parseError = err instanceof Error ? err.message : String(err);
+      parseErrorKind = err instanceof MissingLapCaptureResourceError || (err as NodeJS.ErrnoException)?.code === "ENOENT" ? "missing-capture" : "failure";
+    }
   } else if (row.captureLayoutVersion == null && row.rawFile != null && row.rawByteOffset != null && row.rawFrameCount != null) {
     try {
       telemetry = await parseRawLapFrames(
@@ -494,15 +499,17 @@ export async function getLapById(
       } else {
         console.error(`[DB] Failed to parse raw frames for lap ${id}:`, err);
         parseError = err instanceof Error ? err.message : String(err);
+        parseErrorKind = (err as NodeJS.ErrnoException)?.code === "ENOENT" ? "missing-capture" : "failure";
       }
     }
   }
   if (telemetry.length > 0) cacheSet(id, telemetry, publicationIdentity);
   if (row.captureLayoutVersion != null && telemetry.length === 0 && !parseError) {
     parseError = "Unable to resolve published capture bundle";
+    parseErrorKind = "missing-capture";
   }
   const result = buildLapResult(row, telemetry);
-  return parseError ? { ...result, parseError } : result;
+  return parseError ? { ...result, parseError, parseErrorKind: parseErrorKind ?? "failure" } : result;
 }
 
 type LapResultRow = {

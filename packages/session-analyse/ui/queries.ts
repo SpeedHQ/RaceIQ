@@ -2,6 +2,36 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSessionAnalyseHost } from "./host";
 
+export function useThreeToImprove(sessionId: number | null) {
+  const { useGameId, fetchThreeToImprove } = useSessionAnalyseHost();
+  const gameId = useGameId();
+  return useQuery({
+    queryKey: ["three-to-improve", gameId, sessionId],
+    queryFn: async () => {
+      if (!gameId || sessionId == null) throw new Error("Coaching session scope is required");
+      return fetchThreeToImprove(gameId, sessionId);
+    },
+    refetchInterval: ({ state }) => (state.error as { status?: number } | null)?.status === 409 ? 2_000 : false,
+    enabled: !!gameId && sessionId != null,
+    refetchOnMount: "always",
+  });
+}
+
+export function useThreeToImproveEvidence(
+  request: { sessionId: number; lapId: number; sourceFrameIndex: number } | null,
+) {
+  const { useGameId, fetchThreeToImproveEvidence } = useSessionAnalyseHost();
+  const gameId = useGameId();
+  return useQuery({
+    queryKey: ["three-to-improve-evidence", gameId, request?.sessionId, request?.lapId, request?.sourceFrameIndex],
+    queryFn: async () => {
+      if (!gameId || !request) throw new Error("Coaching evidence scope is required");
+      return fetchThreeToImproveEvidence(gameId, request.sessionId, request.lapId, request.sourceFrameIndex);
+    },
+    enabled: !!gameId && request != null,
+  });
+}
+
 export function useReviewLaps(trackId: string | null, carId: string | null, limit = 5) {
   const { useGameId, fetchReviewLaps } = useSessionAnalyseHost();
   const gameId = useGameId();

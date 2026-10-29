@@ -35,7 +35,7 @@
 - Expand an LMU session on the Sessions page to see recorded opponents immediately, without choosing a player lap, as collapsible driver rows showing their fastest recorded lap and its sector splits. Sort recorded opponents by fastest valid best lap by default. Browse opponents in a scrollable child table that stays within the session table, with lap warnings behind compact info indicators. Expand a driver to replay or compare an exact recorded lap without duplicating recordings, keeping opponent laps together across player recording splits. Opponent Replay fills the available workspace. Keep opponent cars and paths on the flat track plane without changing recorded elevation.
 - Use black backgrounds for recorded opponent tables and expanded opponent lap rows on the Sessions page.
 - Hide Car layout and Data panels, including the tire-panel shortcut, when replaying an LMU opponent lap. Player replay and comparison panels remain unchanged.
-- Include the complete LMU multiplayer recording in demo seeds as sub-100 MB gzip parts, stream native input without buffering the whole capture, and retain separate player and opponent recordings.
+- In session Analyse Overview, review up to three driving priorities from recorded evidence, with an evidence view for each.
 
 ### Fixes
 - Get answers from current Claude models, which rejected every request with "`temperature` is deprecated for this model".

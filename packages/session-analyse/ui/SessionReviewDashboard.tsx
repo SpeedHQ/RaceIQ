@@ -14,6 +14,7 @@ import type { LineSpreadTrace } from "@raceiq/analysis-core/racing/laps/consiste
 import { useSessionLineSpread } from "./queries";
 import { SECTOR_COLOR_VARS } from "@raceiq/scene-3d/colors";
 import { ArmHeadline, ReviewOverviewSkeleton, ReviewTrackStats } from "./OverviewSkeleton";
+import { ThreeToImprove } from "./ThreeToImprove";
 import { tireSnapshotFromAlignedTrace } from "./tire-snapshot";
 import { semanticTuneSamplesFromAlignedTrace, wheelValue, type SemanticTuneSample } from "@raceiq/analysis-core/racing/laps/semantic-tune";
 import { buildOpenLapContext } from "./open-lap-context";
@@ -221,6 +222,26 @@ export function SessionReviewDashboard({
   // overview skeleton — same spine layout, placeholder times/maps — so the page
   // reads as the review dashboard rather than a bare "no laps" message.
   if (!focusLap) {
+    if (stayOnSessionReview && sessionId != null) {
+      return (
+        <div className="flex min-h-full flex-col">
+          <ReviewOverviewSkeleton trackName={trackName} onBack={onBack} />
+          {evaluationLaps.length === 0 && (
+            <>
+              <p role="status" className="px-4 py-2 text-sm text-app-text-muted">{m.review_no_valid_laps()}</p>
+              {onBack && (
+                <div className="px-4 pb-2">
+                  <Button variant="app-outline" size="app-sm" onClick={onBack}>
+                    {m.review_back_to_sessions()}
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+          <ThreeToImprove gameId={gameId} sessionId={sessionId} />
+        </div>
+      );
+    }
     return <ReviewOverviewSkeleton trackName={trackName} onBack={onBack} />;
   }
 
@@ -275,6 +296,7 @@ export function SessionReviewDashboard({
 
         {test && <ArmHeadline kind={test.kind} laps={validLaps} />}
         {isOverview && <ReviewTrackStats stats={reviewStats} issueCount={issues?.length ?? 0} />}
+        {isOverview && stayOnSessionReview && sessionId != null && <ThreeToImprove gameId={gameId} sessionId={sessionId} />}
 
         {(test?.driverComment || test?.notes) && (
           <div className="border-b border-app-border px-4 py-2.5 space-y-2">

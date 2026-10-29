@@ -516,7 +516,7 @@
       },
       "devDependencies": {
         "@playwright/test": "1.62.1",
-        "@raceiq/game-catalogs": "workspace:*",
+        "@raceiq/capture-formats": "workspace:*",
         "@raceiq/telemetry-core": "workspace:*",
         "@types/react": "^19.3.0",
         "@types/react-dom": "^19.3.0",

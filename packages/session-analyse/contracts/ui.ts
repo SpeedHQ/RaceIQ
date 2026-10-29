@@ -11,6 +11,8 @@ import type { LineSpreadTrace } from "@raceiq/analysis-core/racing/laps/consiste
 import type { BrakeTempThresholds } from "@raceiq/scene-3d/vehicle-dynamics";
 import type { TuneReviewTrackTab } from "./search";
 import type { SessionAnalyseMessages } from "./messages";
+import type { ThreeToImproveEvidenceResponse, ThreeToImproveResponse } from "./coaching";
+
 
 export type MetricKey = "tireSurfaceTemp" | "tireCoreTemp" | "tireCarcassTemp" | "brakeTemp" | "pressure" | "wear";
 export type CornerKey = "FL" | "FR" | "RL" | "RR";
@@ -54,6 +56,7 @@ export interface SessionAnalyseHost {
     gameId: GameId; alignedSet: AlignedLapSet | undefined; lapIds: readonly number[]; trackId?: string; primaryLapId: number;
     experimentId?: number | null; activeTab?: TuneReviewTrackTab; lineSpreadOverride?: LineSpreadTrace | null; onActiveTabChange?: (tab: TuneReviewTrackTab) => void;
   }>;
+  CoachingEvidenceChart: ComponentType<{ trace: AlignedLapSet["laps"][number]; markerFraction: number }>;
   IssuePill: ComponentType<{ issue: TuneIssue; onHover?: (fraction: number | null) => void }>;
   CornerBars: ComponentType<{ ranges: Record<CornerKey, Range>; domain: [number, number]; metric: MetricDef; cursor?: Partial<Record<CornerKey, number>>; tempLabel?: string; temperatureUnit?: "C" | "F" }>;
   CORNERS: readonly CornerKey[];
@@ -75,6 +78,8 @@ export interface SessionAnalyseHost {
   useTrackName: (trackId: string | undefined) => QueryState<string>;
   useResolveNames: (trackIds: string[], carIds: string[]) => QueryState<{ trackNames: Record<string, string>; carNames: Record<string, string> }>;
   fetchReviewLaps: (gameId: GameId, trackId: string, carId: string, limit: number) => Promise<LapMeta[]>;
+  fetchThreeToImprove: (gameId: GameId, sessionId: number) => Promise<ThreeToImproveResponse>;
+  fetchThreeToImproveEvidence: (gameId: GameId, sessionId: number, lapId: number, sourceFrameIndex: number) => Promise<ThreeToImproveEvidenceResponse>;
   fetchSessionLineSpread: (gameId: GameId, sessionId: number, lapIds: readonly number[]) => Promise<LineSpreadTrace>;
   getGameRoute: (gameId: GameId) => string;
   formatLapTime: (seconds: number) => string;
