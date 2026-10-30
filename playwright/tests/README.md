@@ -9,6 +9,7 @@
 - `responsive/`: screenshot comparison cases run through dedicated config, not E2E projects.
 - `tunes/`: compiled/dev tune workflows that use dedicated tune data.
 - `recording/`: hardware-oriented demo capture.
+- `udp/`: real F1 25 UDP ingestion and browser navigation against an isolated, unseeded server (`udp.config.ts`).
 - `seeded/<domain>/`: functional workflows against committed seeded rows, grouped by product surface (`analyse`, `catalog`, `chats`, `compare`, `dash`, `dev-tools`, `driver`, `experiments`, `landing`, `live`, `raw`, `routes`, `sessions`, `settings`, and `setups`).
 
 Use descriptive `*.spec.ts` names that state domain and behavior. Preserve existing test titles when reorganizing files; titles are CI/debugging interfaces. One cohesive domain may have multiple focused specs rather than one mega-suite.

@@ -144,6 +144,7 @@
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
+- Add an isolated real-UDP F1 25 browser acceptance gate and a staged macOS Bun/Tauri desktop plan.
 - Preserve Windows directory-sync path errors when validating recording publication directories.
 - Target comparison lap pickers explicitly in browser checks and wait for rendered frames in the native camera zoom check.
 - Keep diagnostic dump runs in one BIN per selected source, retain raw Forza/F1 datagrams, stream live telemetry over WebSocket for every game, and bypass telemetry-driven session/database processing and background recording maintenance.

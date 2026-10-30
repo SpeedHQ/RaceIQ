@@ -69,5 +69,6 @@ Documentation is organized by audience. Start with a user guide; use contributor
 Only unresolved work belongs here.
 
 - [Project status index](project-status/README.md)
+- [macOS desktop](project-status/macos-desktop.md) — F1 UDP acceptance gate and staged Bun/Tauri implementation contract.
 - [Setup Engineer](project-status/setup-engineer.md)
 - [Per-car setup ranges](project-status/per-car-setup-ranges.md)

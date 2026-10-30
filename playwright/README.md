@@ -27,6 +27,26 @@ Root `test:e2e` (including `test:e2e:compiled`), its `fresh`/`tunes`/`seeded` va
 
 ## Commands and server modes
 
+### macOS F1 UDP acceptance gate
+
+Use the pinned Bun version from root `package.json`. From `playwright/`, run
+`bunx playwright install chromium webkit`. Build first from root with
+`bun run build:browser`, then run
+`bunx playwright test --config=udp.config.ts --project=udp-chromium` and
+`bunx playwright test --config=udp.config.ts --project=udp-webkit` separately.
+This suite starts an unseeded compiled app, replays committed F1 25
+datagrams over real localhost UDP, and checks live/raw dashboards plus recorded
+session replay. HTTP 3132, Vite 4132 and UDP 15332 must be free. SQLite and captures
+live under ignored `test-results/test-data-udp`; traces/screenshots under
+`test-results/udp`. Do not run translation generation or typecheck concurrently
+with the Vite test server, since these commands replace generated Paraglide output.
+See [macOS desktop plan](../docs/project-status/macos-desktop.md) for native-shell
+acceptance criteria and the distinction between browser and WKWebView coverage.
+Typecheck this gate with `bun check --project tsconfig.udp.json`.
+Use `E2E_SERVER_MODE=dev` for a Bun/Vite diagnostic run.
+
+### General suite
+
 ```sh
 cd playwright
 bun install
