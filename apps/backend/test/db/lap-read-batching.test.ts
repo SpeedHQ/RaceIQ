@@ -47,7 +47,7 @@ mock.module("@raceiq/backend-core/db/telemetry-replay-storage", () => ({
   parseSessionLapsBatched: parseSessionLapsBatchedGate,
 }));
 
-const { getLapById, getLapsByIds, getSessionLaps } = await import("@raceiq/backend-core/db/lap-read-queries");
+const { getLapById, getLapMetaForProfileScope, getLapsByIds, getSessionLaps } = await import("@raceiq/backend-core/db/lap-read-queries");
 
 // Bun module mocks are process-global and cannot be restored. These wrappers
 const sessionIds: number[] = [];
@@ -140,6 +140,8 @@ test("unpublished and empty legacy captures remain unavailable without binary re
   const ids = insertedLaps.map(({ id }) => id);
   const single = await getSessionLaps("ac-evo", inserted[0]!.id);
   expect(single.map(({ telemetryAvailable, standaloneCaptureReady }) => [telemetryAvailable, standaloneCaptureReady])).toEqual([[false, false], [false, false]]);
+  const profile = await getLapMetaForProfileScope("ac-evo", "1", "2");
+  expect(profile.filter(({ id }) => ids.includes(id)).map(({ telemetryAvailable, standaloneCaptureReady }) => [telemetryAvailable, standaloneCaptureReady])).toEqual(ids.map(() => [false, false]));
   for (let attempt = 0; attempt < 2; attempt++) {
     for (const id of ids) {
       const result = await getLapById(id);
@@ -151,6 +153,7 @@ test("unpublished and empty legacy captures remain unavailable without binary re
     for (const parallelSessionDecodes of [false, true]) {
       const result = await getLapsByIds(ids, { parallelSessionDecodes });
       expect(result.map(({ id, telemetry, parseError }) => [id, telemetry.length, parseError])).toEqual(ids.map((id) => [id, 0, undefined]));
+      expect(result.map(({ telemetryAvailable, standaloneCaptureReady }) => [telemetryAvailable, standaloneCaptureReady])).toEqual(ids.map(() => [false, false]));
     }
   }
   expect(parseRawLapFrames).not.toHaveBeenCalled();

@@ -112,7 +112,7 @@ export function toLapMeta(row: StoredLapMetaRow): LapMeta {
   const lapTelemetryAvailable = telemetryAvailable !== undefined
     ? Boolean(telemetryAvailable)
     : _rawFile !== undefined
-      ? _rawFile !== null && rawByteOffset != null && (rawFrameCount ?? 0) > 0
+      ? _rawFile !== null && !_rawFile.endsWith("manifest.json") && rawByteOffset != null && (rawFrameCount ?? 0) > 0
       : undefined;
 
   return {
