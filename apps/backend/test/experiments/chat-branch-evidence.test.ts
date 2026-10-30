@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
 import { createExperiment, setSessionHead } from "@raceiq/backend-core/db/experiment-queries";
 import { createExperimentVersion, getExperimentVersion } from "@raceiq/backend-core/db/experiment-version-queries";
-import { insertSession } from "@raceiq/backend-core/db/session-queries";
+import { insertSession, updateSessionRawFile } from "@raceiq/backend-core/db/session-queries";
 import { db } from "@raceiq/backend-core/db/index";
 import { experimentVersions, experiments, laps, sessions } from "@raceiq/backend-core/db/schema";
 import { cacheDelete, cacheSet } from "@raceiq/backend-core/db/telemetry-replay-storage";
@@ -57,13 +57,15 @@ const telemetry: TelemetryPacket[] = Array.from({ length: 30 }, (_, frame) => ({
 async function addLap(sid: number, versionId: number | null, lapTime: number, opts: { valid?: boolean; excluded?: boolean; packetCount?: number; carSetup?: string | null } = {}): Promise<number> {
   const raceId = await insertSession("1", "2", experimentGames.get(sid) ?? "acc");
   raceSessionIds.push(raceId);
+  const packetCount = opts.packetCount ?? 30;
+  await updateSessionRawFile(raceId, `/virtual/branch-${raceId}.bin`, "test");
   const row = await db.insert(laps).values({
     sessionId: raceId, lapNumber: raceId, lapTime, isValid: opts.valid ?? true,
-    rawByteOffset: null, rawFrameCount: 0, experimentId: sid, experimentVersionId: versionId,
+    rawByteOffset: 12, rawFrameCount: packetCount, experimentId: sid, experimentVersionId: versionId,
     experimentExcluded: opts.excluded ? 1 : 0, carSetup: opts.carSetup ?? null,
   }).returning({ id: laps.id }).get();
   const id = row.id;
-  if ((opts.packetCount ?? 30) > 0) { cacheSet(id, telemetry.slice(0, opts.packetCount ?? 30)); cachedLapIds.push(id); }
+  if (packetCount > 0) { cacheSet(id, telemetry.slice(0, packetCount)); cachedLapIds.push(id); }
   return id;
 }
 

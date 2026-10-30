@@ -1,4 +1,6 @@
 import { expect, test, type Page, type Request } from "@playwright/test";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { collectBrowserErrors } from "../../../../playwright/tests/support/browser-errors";
 import { SEEDED_GAME_CASES } from "../../../../playwright/tests/support/seeded/cases";
@@ -146,6 +148,64 @@ test("Analyse session route rejects mixed session and lap selections", async ({ 
   await expect(page.getByRole("alert")).toHaveText("Session selection must contain only a positive session ID.");
 });
 
+test("imported iRacing overview shows incident report below detected issues instead of end-of-lap tires", async ({ page, request }, testInfo) => {
+  test.setTimeout(180_000);
+  const ibt = readFileSync(fileURLToPath(new URL("../../../../test/artifacts/sessions/iracing-navarra-mx5-2026-10-19.ibt", import.meta.url)));
+  const previewResponse = await request.post("/api/laps/import-ibt/preview", {
+    headers: { "Content-Type": "application/octet-stream", "X-File-Name": "navarra.ibt", "X-File-Size": String(ibt.length) },
+    data: ibt,
+    timeout: 60_000,
+  });
+  expect(previewResponse.ok()).toBe(true);
+  const { token } = await previewResponse.json() as { token: string | null };
+  expect(token).not.toBeNull();
+  const importResponse = await request.post("/api/laps/import-ibt/commit", { data: { token, ownership: "mine" }, timeout: 60_000 });
+  expect(importResponse.ok()).toBe(true);
+  const imported = await importResponse.json() as { laps: { sessionId: number; lapId: number; lapNumber: number }[] };
+  const sessionIds = [...new Set(imported.laps.map((lap) => lap.sessionId))];
+  try {
+    const sessionId = sessionIds[0];
+    if (sessionId == null) throw new Error("Imported IBT has no reviewable session");
+    const incidentResponse = await request.get(`/api/iracing/sessions/${sessionId}/incidents`);
+    expect(incidentResponse.ok()).toBe(true);
+    const incidentReport = await incidentResponse.json() as { observedIncidentPoints: number | null };
+    await page.goto(`/iracing/sessions/${sessionId}/analyse`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("button", { name: "Overview", exact: true })).toBeVisible();
+    const report = page.getByRole("region", { name: "Incident report", exact: true });
+    await expect(report).toHaveCount(1);
+    await expect(report.getByText("Observed incident points", { exact: true })).toBeVisible();
+    await expect(report.locator("dd").first()).toHaveText(incidentReport.observedIncidentPoints === null ? "—" : String(incidentReport.observedIncidentPoints));
+    await expect(page.getByText("Tires at end of lap", { exact: true })).toHaveCount(0);
+    const issues = page.getByText("Detected from telemetry", { exact: true });
+    await expect(issues).toBeVisible();
+    expect(await issues.evaluate((element) => Boolean(element.compareDocumentPosition(document.querySelector('[aria-labelledby="iracing-incident-report-heading"]')!) & Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
+    await report.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath("incident-report-placement.png") });
+    await page.getByRole("button", { name: "Sector 1", exact: true }).click();
+    await expect(report).toHaveCount(0);
+    await page.getByRole("button", { name: "Overview", exact: true }).click();
+    await expect(report).toHaveCount(1);
+
+    const replayLap = imported.laps.find((lap) => lap.lapNumber === 3);
+    if (!replayLap) throw new Error("Imported IBT is missing its complete third lap");
+    await page.goto(`/iracing/sessions/${sessionId}/replay/${replayLap.lapId}`, { waitUntil: "domcontentloaded" });
+    const timeline = page.getByRole("slider", { name: "Replay position", exact: true });
+    await expect(timeline).toBeVisible();
+    await expect.poll(async () => Number(await timeline.getAttribute("max"))).toBeGreaterThan(120);
+    const playback = page.getByRole("region", { name: "Replay playback", exact: true });
+    await expect(playback).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("original-ibt-replay.png") });
+    await playback.getByRole("button", { name: "Play replay", exact: true }).click();
+    await expect.poll(async () => Number(await playback.getAttribute("data-time"))).toBeGreaterThan(2);
+    await playback.getByRole("button", { name: "Pause replay", exact: true }).click();
+    await expect(playback).toHaveAttribute("data-playing", "false");
+  } finally {
+    if (sessionIds.length > 0) {
+      const cleanup = await request.post("/api/sessions/bulk-delete", { data: { ids: sessionIds } });
+      expect(cleanup.ok()).toBe(true);
+    }
+  }
+});
 test("Session Analyse selection cancel, apply and reload preserve primary lap", async ({ page, request }) => {
   const response = await request.get("/api/laps?gameId=acc");
   expect(response.ok()).toBe(true);

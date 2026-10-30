@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
-import { deleteSession, insertSession } from "@raceiq/backend-core/db/session-queries";
+import { deleteSession, insertSession, updateSessionRawFile } from "@raceiq/backend-core/db/session-queries";
 import { insertLap } from "@raceiq/backend-core/db/lap-mutation-queries";
 import { cacheSet } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { db } from "@raceiq/backend-core/db/index";
@@ -21,7 +21,8 @@ test("explicit profile request restores missing and stale detector evidence with
   initServerGameAdapters();
   const sessionId = await insertSession("1", "2", "fm-2023");
   sessions.push(sessionId);
-  const lapId = await insertLap(sessionId, 1, 90, true, null, 0, null, null, null, null, null);
+  await updateSessionRawFile(sessionId, "/virtual/profile-capture.bin", "test");
+  const lapId = await insertLap(sessionId, 1, 90, true, 12, 60, null, null, null, null, null);
   cacheSet(lapId, Array.from({ length: 60 }, (_, i) => ({
     gameId: "fm-2023", TimestampMS: i * 1000 / 30, IsRaceOn: 1,
     Speed: 25, Steer: 0, Accel: 0, Brake: 0, Clutch: 0, HandBrake: 0,
@@ -49,7 +50,8 @@ test("concurrent metric reads and forced insight reruns leave current evidence p
   initServerGameAdapters();
   const sessionId = await insertSession("1", "2", "fm-2023");
   sessions.push(sessionId);
-  const lapId = await insertLap(sessionId, 1, 90, true, null, 0, null, null, null, null, null);
+  await updateSessionRawFile(sessionId, "/virtual/profile-capture.bin", "test");
+  const lapId = await insertLap(sessionId, 1, 90, true, 12, 60, null, null, null, null, null);
   cacheSet(lapId, Array.from({ length: 60 }, (_, i) => ({
     gameId: "fm-2023", TimestampMS: i * 1000 / 30, IsRaceOn: 1,
     Speed: 25, Steer: 0, Accel: 0, Brake: 0, Clutch: 0, HandBrake: 0,

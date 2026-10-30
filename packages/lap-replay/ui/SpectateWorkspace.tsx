@@ -24,6 +24,7 @@ export interface SpectateWorkspacePanel {
 interface PanelLayout {
   widths: Record<string, number>;
   railWidth: number | null;
+  railPanels: readonly string[];
   order?: readonly string[];
 }
 interface ResizeDrag {
@@ -50,7 +51,7 @@ export function SpectateWorkspace({ children, panels, panelHeaderTarget, storage
   const tabDrag = useRef<{ id: string; pointer: number; x: number; y: number; moved: boolean } | null>(null);
   const suppressTabClick = useRef(false);
   const [tabDrop, setTabDrop] = useState<{ source: string; target: string | null } | null>(null);
-  const [layout, setLayout] = useState<PanelLayout>({ widths: {}, railWidth: null });
+  const [layout, setLayout] = useState<PanelLayout>({ widths: {}, railWidth: null, railPanels: [] });
   const [viewport, setViewport] = useState(typeof window === "undefined" ? 1024 : window.innerWidth);
   const [workspaceWidth, setWorkspaceWidth] = useState(0);
   const panelsRef = useRef(panels);
@@ -68,7 +69,8 @@ export function SpectateWorkspace({ children, panels, panelHeaderTarget, storage
   const contentWidth = openTabs.reduce((total, panel) => total + panel.width, 0);
   const railMaximum = Math.max(0, narrow ? available : available - Math.min(MIN_SCENE_WIDTH, available * 0.5));
   const railMinimum = Math.min(MIN_WIDTH, railMaximum);
-  const railWidth = openTabs.length ? narrow ? available : Math.round(Math.min(railMaximum, Math.max(Math.min(railMinimum, available * 0.5), layout.railWidth ?? Math.min(contentWidth, Math.floor(available * 0.5))))) : 0;
+  const savedRailWidth = layout.railPanels.length === openTabs.length && openTabs.every((panel) => layout.railPanels.includes(panel.id)) ? layout.railWidth : null;
+  const railWidth = openTabs.length ? narrow ? available : Math.round(Math.min(railMaximum, Math.max(Math.min(railMinimum, available * 0.5), savedRailWidth ?? Math.min(contentWidth, Math.floor(available * 0.5))))) : 0;
   if (!narrow && openTabs.length === 1) openTabs[0]!.width = railWidth;
   const persistLayout = useCallback((next: PanelLayout) => {
     setLayout(next);
@@ -80,16 +82,17 @@ export function SpectateWorkspace({ children, panels, panelHeaderTarget, storage
       const stored: unknown = JSON.parse(localStorage.getItem(storageKey) ?? "null");
       if (typeof stored === "number" && Number.isFinite(stored) && stored > 0) {
         const telemetry = panelsRef.current.find((panel) => panel.collapseOnNarrow);
-        setLayout({ widths: telemetry ? { [telemetry.id]: stored } : {}, railWidth: null });
+        setLayout({ widths: telemetry ? { [telemetry.id]: stored } : {}, railWidth: null, railPanels: [] });
       } else if (stored && typeof stored === "object") {
         const saved = stored as Partial<PanelLayout>;
         const widths = saved.widths && typeof saved.widths === "object"
           ? Object.fromEntries(Object.entries(saved.widths).filter(([, value]) => typeof value === "number" && Number.isFinite(value) && value > 0))
           : {};
         const order = Array.isArray(saved.order) ? saved.order.filter((id): id is string => typeof id === "string") : undefined;
-        setLayout({ widths, railWidth: typeof saved.railWidth === "number" && Number.isFinite(saved.railWidth) && saved.railWidth > 0 ? saved.railWidth : null, order });
-      } else setLayout({ widths: {}, railWidth: null });
-    } catch { setLayout({ widths: {}, railWidth: null }); }
+        const railPanels = Array.isArray(saved.railPanels) ? saved.railPanels.filter((id): id is string => typeof id === "string") : panelsRef.current.filter((panel) => panel.open).map((panel) => panel.id);
+        setLayout({ widths, railWidth: typeof saved.railWidth === "number" && Number.isFinite(saved.railWidth) && saved.railWidth > 0 ? saved.railWidth : null, railPanels, order });
+      } else setLayout({ widths: {}, railWidth: null, railPanels: [] });
+    } catch { setLayout({ widths: {}, railWidth: null, railPanels: [] }); }
   }, [storageKey]);
   useEffect(() => {
     let previousViewport = window.innerWidth;
@@ -116,7 +119,7 @@ export function SpectateWorkspace({ children, panels, panelHeaderTarget, storage
       for (const panel of open) if (panel !== selected) panel.toggle(false);
     }
     previousOpenPanels.current = new Set((narrow && selected ? [selected] : open).map((panel) => panel.id));
-  }, [narrow, panels, layout, persistLayout]);
+  }, [narrow, panels]);
   useLayoutEffect(() => {
     const id = focusedPanelTab.current;
     if (!id) return;
@@ -131,20 +134,22 @@ export function SpectateWorkspace({ children, panels, panelHeaderTarget, storage
   const applyResize = (current: ResizeDrag, delta: number) => {
     if (current.left) {
       const width = clampWidth(current.widths[current.left]! + delta, available);
-      persistLayout({ ...layout, railWidth: current.railWidth, widths: { ...layout.widths, ...current.widths, [current.left]: width } });
+      persistLayout({ ...layout, railWidth: current.railWidth, railPanels: Object.keys(current.widths), widths: { ...layout.widths, ...current.widths, [current.left]: width } });
     } else {
       const target = Math.max(railMinimum, Math.min(railMaximum, current.railWidth - delta));
       const widths = { ...layout.widths };
       const ids = Object.keys(current.widths);
-      let remaining = target - Object.values(current.widths).reduce((total, width) => total + width, 0);
-      if (ids.length > 1 && remaining > 0) {
-        for (let index = 0; index < ids.length; index++) {
-          const id = ids[index]!, extra = Math.floor(remaining / (ids.length - index));
-          widths[id] = current.widths[id]! + extra;
-          remaining -= extra;
+      if (ids.length > 1) {
+        let remaining = target - Object.values(current.widths).reduce((total, width) => total + width, 0);
+        if (remaining > 0) {
+          for (let index = 0; index < ids.length; index++) {
+            const id = ids[index]!, extra = Math.floor(remaining / (ids.length - index));
+            widths[id] = current.widths[id]! + extra;
+            remaining -= extra;
+          }
         }
       }
-      persistLayout({ ...layout, railWidth: target, widths });
+      persistLayout({ ...layout, railWidth: target, railPanels: ids, widths });
     }
   };
   const beginResize = (event: PointerEvent<HTMLDivElement>, left?: string) => {
@@ -251,7 +256,7 @@ export function SpectateWorkspace({ children, panels, panelHeaderTarget, storage
     data-spectate-workspace="" data-spectate-view="" data-panel-width={railWidth} data-panel-collapsed={!panels.some((panel) => panel.collapseOnNarrow && panel.open)}>
     {!narrow && (panelHeaderTarget ? createPortal(headers, panelHeaderTarget) : <div className="flex shrink-0 flex-wrap items-end justify-end border-b border-app-border">{headers}</div>)}
     <div className={`relative flex min-h-0 flex-1 overflow-hidden ${narrow ? "flex-col" : ""}`}>
-      <main className={`relative isolate flex min-h-0 min-w-0 flex-col overflow-hidden bg-app-bg ${narrow ? "h-[42rem] flex-none" : "flex-1"}`}>{children}</main>
+      <main className={`relative isolate flex min-h-0 min-w-0 flex-col overflow-hidden bg-app-bg ${narrow ? "h-[42rem] flex-none max-sm:h-auto max-sm:min-h-[42rem]" : "flex-1"}`}>{children}</main>
       {narrow && headers}
       <div data-panel-rail="" className={`relative z-30 min-h-0 shrink-0 ${narrow && openTabs.length ? "h-96 border-t border-app-border" : ""}`} style={{ width: railWidth }}>
         {openTabs.length > 0 && !narrow && <div role="separator" tabIndex={0} aria-orientation="vertical" aria-label={m.spectate_resize_panel()}

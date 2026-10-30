@@ -31,15 +31,20 @@ The Analyse page accepts `.ibt` recordings:
 1. Upload streams to a temporary staging file.
 2. Preview scans telemetry rows and reports identity, duration, channel coverage, driving rows, and complete-lap candidates without creating a session.
 3. A recording without a complete lap is rejected.
-4. Confirmation replays the useful driving window through an isolated iRacing parser and the common `Pipeline`.
-5. RaceIQ creates normal session/lap rows plus a canonical `.bin` raw capture. The source `.ibt` is not retained as `sessions.rawFile`.
+4. Confirmation decodes the useful driving window directly into telemetry packets and feeds the common import pipeline at the recording's native cadence.
+5. RaceIQ retains a byte-identical `.ibt` as `sessions.rawFile`, marks the session source as `ibt`, and stores lap windows as packet indices. It does not create a derived `.bin` capture.
 
-Cancel, commit, and preview expiry remove the staged file. Confirmed previews expire after 30 minutes.
+Cancel, commit, and preview expiry remove the staged file. Confirmed previews expire after 30 minutes. A successful import keeps its owned original-format recording; failed imports roll back their sessions and owned recording. Replay and reprocessing decode that retained IBT, including original native channels, rather than converting it into BIN.
+
+Exports of imported IBT telemetry retain the complete original recording, even when initiated from a single lap. ZIP archives contain the original `.ibt` rather than a converted lap capture; re-import uses the same production IBT preview and commit service.
 
 ## Analysis boundaries
 
 - The transport is Windows-local.
 - Live SDK telemetry provides lap distance and native sector starts, but no stable world-space racing line. The adapter uses `lap-distance` coordinates rather than fabricating world positions.
+- Single-lap replay resolves scene positions before creating its playback controller: native IBT GPS positions take precedence; live-only lap fractions use the official track projection when available. Missing GPS samples remain gaps. When compass heading is absent, adjacent GPS positions supply visualization-only direction.
+- Player iRacing replay interpolates capture stalls up to 250 ms for continuous playback. Longer outages and missing position channels remain unavailable; interpolation does not modify recorded telemetry or other simulators' gap policies.
+- Official SVG ribbons are approximate reference bounds, not surveyed track limits. One similarity transform and optional elevation profile are persisted per native layout and geometry hash from the oldest eligible complete GPS reference lap. Selected laps never deform, recenter, or rescale the track. Single replay, comparison, pair swaps, partial laps and restarts reuse that fixed frame; measured GPS and lateral differences remain unchanged. Without geographic calibration, measured replay remains available but unregistered SVG geometry is not overlaid. The visible provenance note identifies measured versus projected placement. Registration residual is a fit diagnostic, not absolute physical edge accuracy.
 - The live SDK does not provide per-wheel rotation, slip ratio, slip angle, or tyre-force channels suitable for continuous analysis.
 - Tyre temperatures and tyre condition are pit snapshots; cold tyre pressures are static setup values, not live hot pressure.
 - RaceIQ reads telemetry and session identity. It does not write garage setup values back to iRacing.
@@ -53,4 +58,5 @@ Cancel, commit, and preview expiry remove the staged file. Confirmed previews ex
 - `packages/game-iracing/src/normalizer.ts` — canonical telemetry mapping
 - `packages/game-iracing/src/index.ts` — server adapter
 - `packages/game-iracing/src/ibt-reader.ts` — streaming IBT decoder
-- `server/games/iracing/import-ibt.ts` — preview, staging, commit, and cleanup
+- `packages/game-iracing/src/ibt-source.ts` — original-format packet and native-channel decoding
+- `apps/backend/src/imports/iracing-ibt.ts` — preview, original-file publication, commit, and cleanup

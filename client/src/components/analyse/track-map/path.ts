@@ -1,43 +1,124 @@
+import { applyAlignment, computeAlignment } from "@raceiq/shared/racing/tracks/geometry/points";
+import { createLapFractionProjector } from "@raceiq/shared/racing/tracks/path";
+import { geographicPosition } from "@raceiq/scene-3d/wireframe/ScenePlacement";
 import { semanticNumber, type SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
-import type { Point } from "./types";
+import type { Point, TrackMapBoundaries, TrackMapProps } from "./types";
 
-const worldPosition = (frame: SemanticAnalysisFrame): Point => ({
-  x: semanticNumber(frame, "motion.position-x") ?? 0,
-  z: semanticNumber(frame, "motion.position-z") ?? 0,
-});
+const fresh = (frame: SemanticAnalysisFrame, id: string) => {
+  const state = frame.states[id];
+  const freshness = frame.freshness[id];
+  return (state === undefined || state === "ok") && (freshness === undefined || freshness === "fresh")
+    ? semanticNumber(frame, id as never)
+    : null;
+};
 
-export function resolveTrackPositions(telemetry: SemanticAnalysisFrame[], outline: Point[] | null): Point[] {
-  const worldPositions = telemetry.map(worldPosition);
+export function resolveTrackPositions(telemetry: SemanticAnalysisFrame[], outline: Point[] | null, gameId?: string): Point[] {
+  if (gameId === "iracing") {
+    const valid = telemetry.map((frame) => {
+      const latitude = fresh(frame, "motion.latitude");
+      const longitude = fresh(frame, "motion.longitude");
+      return latitude !== null && longitude !== null && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180 && !(latitude === 0 && longitude === 0)
+        ? { latitude, longitude }
+        : null;
+    });
+    const originSample = telemetry.find((frame) => {
+      const latitude = fresh(frame, "identity.track.latitude");
+      const longitude = fresh(frame, "identity.track.longitude");
+      return latitude !== null && longitude !== null && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180 && !(latitude === 0 && longitude === 0);
+    });
+    const origin = originSample
+      ? { latitude: fresh(originSample, "identity.track.latitude")!, longitude: fresh(originSample, "identity.track.longitude")! }
+      : valid.find((sample) => sample !== null);
+    if (origin && valid.some((sample) => sample !== null)) return valid.map((sample) => sample ? geographicPosition(sample.latitude, sample.longitude, origin.latitude, origin.longitude) : { x: NaN, z: NaN });
+  }
+  const worldPositions = telemetry.map((frame) => ({
+    x: semanticNumber(frame, "motion.position-x") ?? 0,
+    z: semanticNumber(frame, "motion.position-z") ?? 0,
+  }));
   if (worldPositions.some((point) => point.x !== 0 || point.z !== 0) || !outline || outline.length < 2) return worldPositions;
 
   const fractions = telemetry.map((frame) => semanticNumber(frame, "timing.lap-fraction"));
   if (fractions.some((fraction) => fraction === null)) return worldPositions;
 
-  const cumulative = [0];
-  for (let index = 1; index < outline.length; index++) {
-    cumulative.push(cumulative[index - 1] + Math.hypot(outline[index].x - outline[index - 1].x, outline[index].z - outline[index - 1].z));
-  }
-  const total = cumulative.at(-1) ?? 0;
-  if (total <= 0) return worldPositions;
-
-  return fractions.map((fraction) => {
-    const target = Math.max(0, Math.min(1, fraction!)) * total;
-    let low = 1;
-    let high = cumulative.length - 1;
-    while (low < high) {
-      const middle = (low + high) >> 1;
-      if (cumulative[middle] < target) low = middle + 1;
-      else high = middle;
-    }
-    const start = Math.max(0, low - 1);
-    const segmentLength = cumulative[low] - cumulative[start];
-    const amount = segmentLength > 0 ? (target - cumulative[start]) / segmentLength : 0;
-    return {
-      x: outline[start].x + (outline[low].x - outline[start].x) * amount,
-      z: outline[start].z + (outline[low].z - outline[start].z) * amount,
-    };
+  const project = createLapFractionProjector(outline);
+  if (!project) return worldPositions;
+  return fractions.map((fraction, index) => {
+    const pose = project(fraction!);
+    return pose ? { x: pose.x, z: pose.z } : worldPositions[index];
   });
 }
+
+export function interpolateReplayPosition(
+  positions: readonly Point[],
+  cursorIndex: number,
+): Point | null {
+  if (positions.length === 0 || !Number.isFinite(cursorIndex)) return null;
+  const index = Math.max(0, Math.min(positions.length - 1, cursorIndex));
+  const startIndex = Math.floor(index);
+  const start = positions[startIndex];
+  if (!start || !Number.isFinite(start.x) || !Number.isFinite(start.z)) return null;
+  const end = positions[startIndex + 1];
+  if (!end || !Number.isFinite(end.x) || !Number.isFinite(end.z)) return start;
+  const fraction = index - startIndex;
+  return {
+    x: start.x + (end.x - start.x) * fraction,
+    z: start.z + (end.z - start.z) * fraction,
+  };
+}
+export function alignOfficialReferenceToPositions(
+  reference: Pick<TrackMapProps, "outline" | "mapLabels" | "pitLines" | "boundaries">,
+  positions: Point[],
+): typeof reference {
+  const points = reference.outline ?? reference.boundaries?.centerLine;
+  const target = positions.filter((point) => Number.isFinite(point.x) && Number.isFinite(point.z));
+  const alignment = points && points.length >= 5 && target.length >= 5 ? computeAlignment(points, target) : null;
+  if (!alignment) return { outline: null, mapLabels: null, pitLines: null, boundaries: null };
+  const align = (points: Point[]) => points.map((point) => applyAlignment(point, alignment));
+  const boundaries = reference.boundaries;
+  return {
+    outline: reference.outline ? align(reference.outline) : null,
+    mapLabels: reference.mapLabels?.map((label) => ({ ...label, ...applyAlignment(label, alignment) })),
+    pitLines: reference.pitLines?.map((line) => ({ ...line, points: align(line.points) })),
+    boundaries: boundaries ? {
+      ...boundaries,
+      leftEdge: align(boundaries.leftEdge),
+      rightEdge: align(boundaries.rightEdge),
+      centerLine: align(boundaries.centerLine),
+      raceLine: boundaries.raceLine ? align(boundaries.raceLine) : boundaries.raceLine,
+      pitLane: boundaries.pitLane ? align(boundaries.pitLane) : null,
+      additionalSections: boundaries.additionalSections?.map((section) => ({
+        leftEdge: align(section.leftEdge), rightEdge: align(section.rightEdge),
+      })),
+    } : null,
+  };
+}
+
+export function alignTrackBoundariesToPositions(
+  boundaries: TrackMapBoundaries | null,
+  positions: Point[],
+): TrackMapBoundaries | null {
+  if (!boundaries || boundaries.centerLine.length < 20) return boundaries;
+  const target = positions.filter((point) => Number.isFinite(point.x) && Number.isFinite(point.z));
+  if (
+    target.length < 20
+    || !target.some((point) => point.x !== target[0].x || point.z !== target[0].z)
+  ) {
+    return boundaries;
+  }
+  const alignment = computeAlignment(boundaries.centerLine, target);
+  if (!alignment) return boundaries;
+  const align = (points: Point[]) => points.map((point) => applyAlignment(point, alignment));
+  return {
+    ...boundaries,
+    leftEdge: align(boundaries.leftEdge),
+    rightEdge: align(boundaries.rightEdge),
+    centerLine: align(boundaries.centerLine),
+    raceLine: boundaries.raceLine ? align(boundaries.raceLine) : boundaries.raceLine,
+    pitLane: boundaries.pitLane ? align(boundaries.pitLane) : null,
+  };
+}
+
+
 
 export function projectPointOntoPath(point: Point, path: readonly Point[]): Point | null {
   if (path.length < 2) return null;
@@ -98,9 +179,15 @@ export function pathForwardOffsets(points: readonly Point[]): ([number, number] 
 }
 
 export function resolveFrameDirection(frame: SemanticAnalysisFrame, pathDirection: [number, number] | null): [number, number] | null {
-  const yaw = semanticNumber(frame, "motion.yaw");
-  const state = frame.states["motion.yaw"];
-  const freshness = frame.freshness["motion.yaw"];
+  const nativeNorthYaw = semanticNumber(frame, "motion.yaw-north");
+  // iRacing replay positions are measured or projected onto the track; use that map-space tangent
+  // instead of simulator yaw, whose reference frame does not match projected replay positions.
+  if (nativeNorthYaw !== null && pathDirection) return pathDirection;
+  const hasGeographicPose = fresh(frame, "motion.latitude") !== null && fresh(frame, "motion.longitude") !== null;
+  const yawId = hasGeographicPose ? "motion.yaw-north" : "motion.yaw";
+  const yaw = semanticNumber(frame, yawId as never);
+  const state = frame.states[yawId];
+  const freshness = frame.freshness[yawId];
   if (yaw !== null && (state === undefined || state === "ok") && (freshness === undefined || freshness === "fresh")) {
     return [Math.sin(yaw), Math.cos(yaw)];
   }

@@ -2,15 +2,17 @@ import { useMessages } from "./host"
 import { useMemo, useSyncExternalStore } from "react";
 import type { SpectateController, ReplaySession, SpectateSegment } from "../contracts/spectate";
 import { focusRuns, type SpectateFocus } from "./spectate-focus";
+import { spectateSamplePosition } from "./spectate-replay";
+import { segmentDisplayNames } from "@raceiq/shared/racing/tracks/segment-label";
 
-type TrackPoint = { distance: number; run: number; x: number; z: number };
+type TrackPoint = { distance: number; run: number; x: number; y: number; z: number };
 function trackRuns(pair: ReplaySession): TrackPoint[][] {
   const runs: TrackPoint[][] = [];
   let current: TrackPoint[] = [];
   let prior: TrackPoint | null = null;
   for (const sample of pair.a.samples) {
-    const x = sample.values["motion.position-x"],
-      z = sample.values["motion.position-z"];
+    const position = spectateSamplePosition(sample);
+    const x = position?.x, z = position?.z;
     const distance = pair.a.trackLengthM ? sample.values["timing.distance-traveled"] : sample.distance;
     if (typeof distance !== "number" || !Number.isFinite(distance) || !Number.isFinite(x) || !Number.isFinite(z)) {
       if (current.length) runs.push(current);
@@ -18,7 +20,7 @@ function trackRuns(pair: ReplaySession): TrackPoint[][] {
       prior = null;
       continue;
     }
-    const point = { distance, run: sample.run, x: x as number, z: z as number };
+    const point = { distance, run: sample.run, x: x as number, y: 0, z: z as number };
     if (prior && (prior.run !== point.run || point.distance < prior.distance)) {
       if (current.length) runs.push(current);
       current = [];
@@ -45,7 +47,7 @@ function positionAtDistance(points: readonly TrackPoint[], target: number) {
     span = next.distance - before.distance;
   if (span <= 0) return before;
   const fraction = (target - before.distance) / span;
-  return { x: before.x + (next.x - before.x) * fraction, z: before.z + (next.z - before.z) * fraction };
+  return { x: before.x + (next.x - before.x) * fraction, y: 0, z: before.z + (next.z - before.z) * fraction };
 }
 function positionAcrossRuns(runs: readonly TrackPoint[][], target: number) {
   for (const run of runs) {
@@ -120,14 +122,17 @@ function splitText(delta: number | null, unavailable: string) {
 export function SpectateOverview({ pair, controller, segments, focus }: { pair: ReplaySession; controller: SpectateController; segments: readonly SpectateSegment[]; focus: SpectateFocus }) { const m = useMessages(); const coloredRuns = useMemo(() => [focusRuns(pair.a.samples, focus, "opponentLapId" in pair.a.replay ? 0.3 : pair.a.maximumGapSeconds), ...(pair.b ? [focusRuns(pair.b.samples, focus, "opponentLapId" in pair.b.replay ? 0.3 : pair.b.maximumGapSeconds)] : [])], [pair, focus]);
 const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
 const splitAt = useMemo(() => splitLookup(pair), [pair]);
-  const hasAuthoritativeOpponentLength = !("opponentLapId" in pair.a.replay) || (typeof pair.a.trackLengthM === "number" && Number.isFinite(pair.a.trackLengthM) && pair.a.trackLengthM > 0);
-  const rows = useMemo(
-    () =>
-      hasAuthoritativeOpponentLength ? segments
-        .filter((segment) => Number.isFinite(segment.startFrac) && Number.isFinite(segment.endFrac) && segment.startFrac >= 0 && segment.startFrac <= 1 && segment.endFrac >= 0 && segment.endFrac <= 1)
-        .map((segment, index) => ({ segment, number: index + 1, delta: splitAt(segment) })) : [],
-    [segments, splitAt, hasAuthoritativeOpponentLength],
-  );
+const rows = useMemo(() => {
+  const valid = segments.filter((segment) => Number.isFinite(segment.startFrac) && Number.isFinite(segment.endFrac) && segment.startFrac >= 0 && segment.startFrac <= 1 && segment.endFrac >= 0 && segment.endFrac <= 1);
+  const labels = segmentDisplayNames(valid);
+  let straight = 0, corner = 0;
+  return valid.map((segment, index) => {
+    const ordinal = segment.type === "straight" ? ++straight : ++corner;
+    const label = labels[index]!;
+    const badge = label.match(/^[TS]\d+(?:[-,/]\d+)*/)?.[0] ?? `${segment.type === "straight" ? "S" : "T"}${ordinal}`;
+    return { segment, number: index + 1, label, badge, delta: splitAt(segment) };
+  });
+}, [segments, splitAt]);
 const runs = useMemo(() => trackRuns(pair), [pair]);
 const maximum = pair.a.trackLengthM ?? pair.comparison.traces?.distance.at(-1) ?? pair.a.distance;
 const distanceOrigin = useMemo(() => {
@@ -177,7 +182,7 @@ const geometry = useMemo(() => {
     }
     return true;
   };
-  const markers = rows.map(({ segment, number, delta }) => {
+  const markers = rows.map(({ segment, number, label, badge, delta }) => {
     const endFraction = segment.endFrac < segment.startFrac ? segment.endFrac + 1 : segment.endFrac;
     const fraction = ((segment.startFrac + endFraction) / 2) % 1;
     const seekPosition = positionAcrossRuns(runs, segment.startFrac * maximum);
@@ -208,7 +213,7 @@ const geometry = useMemo(() => {
         }
       }
     }
-    return { number, segment, delta, anchor: projectedAnchor, position: marker, seekable: seekPosition !== null, sectionPaths: segmentPaths(runs, segment.startFrac, segment.endFrac, maximum, projectString) };
+    return { number, segment, label, badge, delta, anchor, position: marker, seekable: seekPosition !== null, sectionPaths: segmentPaths(runs, segment.startFrac, segment.endFrac, maximum, projectString) };
   });
   return { project, paths: runs.filter((run) => run.length > 1).map((run) => run.map(projectString).join(" ")), markers };
 }, [maximum, rows, runs]);
@@ -220,16 +225,17 @@ const poseA = geometry?.project(snapshot.a?.pose ?? { x: Number.NaN, z: Number.N
 const poseB = geometry?.project(snapshot.b?.pose ?? { x: Number.NaN, z: Number.NaN });
 return (
   <section
-    className="group/overview absolute left-3 top-3 z-20 w-[min(360px,calc(100%-1.5rem))] rounded-md border border-app-border bg-app-bg/75 p-2.5 text-app-label text-app-text opacity-50 transition-opacity hover:opacity-100 focus-within:opacity-100 motion-reduce:transition-none [@media(hover:none)]:opacity-100 max-h-[calc(100%-1.5rem)] overflow-y-auto max-sm:z-30 max-sm:w-[calc(100%-5rem)] max-sm:bg-app-bg max-sm:opacity-100"
+    className="group/overview absolute left-3 top-3 z-20 max-h-[calc(100%-1.5rem)] w-[min(360px,calc(100%-1.5rem))] overflow-y-auto rounded-md border border-app-border bg-app-bg/75 p-2.5 text-app-label text-app-text opacity-50 transition-opacity hover:opacity-100 focus-within:opacity-100 motion-reduce:transition-none [@media(hover:none)]:opacity-100 max-sm:relative max-sm:left-auto max-sm:top-auto max-sm:z-30 max-sm:w-full max-sm:bg-app-bg max-sm:opacity-100"
     aria-label={m.spectate_overview()}
     data-focus-mode={focus.mode}
+    data-spectate-overview=""
   >
     <div className="flex items-center justify-between max-sm:min-h-11 max-sm:pr-11">
       <strong>{m.spectate_overview()}</strong>
       <span className="text-app-text-secondary max-[600px]:hidden">{m.spectate_select_segment()}</span>
     </div>
     {geometry ? (
-      <svg viewBox="0 0 200 108" className="mt-2 block h-48 w-full max-sm:aspect-[200/140] max-sm:h-auto" role="group" aria-label={m.spectate_segment_map()}>
+      <svg viewBox="0 0 200 108" className="mt-2 block h-48 w-full max-sm:aspect-[200/108] max-sm:h-auto" role="group" aria-label={m.spectate_segment_map()}>
         {geometry.paths.map((path, index) => (
           <polyline key={index} points={path} fill="none" stroke="var(--app-border)" strokeWidth="9" strokeLinecap="round" strokeLinejoin="round" />
         ))}
@@ -239,7 +245,7 @@ return (
             fill="none" stroke={`var(${run.token})`} strokeWidth={side === 0 ? "4" : "1.8"}
             strokeLinecap="round" strokeLinejoin="round" pointerEvents="none" />
         )))}
-        {geometry.markers.map(({ number, segment, delta, anchor, position, sectionPaths, seekable }) => (
+        {geometry.markers.map(({ number, segment, label, badge, delta, anchor, position, sectionPaths, seekable }) => (
           <g
             key={`${number}-${segment.startFrac}`}
             role={seekable ? "button" : undefined}
@@ -249,7 +255,7 @@ return (
             data-seek-distance={seekable ? segment.startFrac * maximum : undefined}
             data-split-delta={pair.b ? delta ?? "" : undefined}
             tabIndex={seekable ? 0 : undefined}
-            aria-label={seekable ? (pair.b ? `${m.spectate_segment_number({ number })}: ${segment.name}; A − B: ${splitText(delta, m.analyse_unavailable())}` : `${m.spectate_segment_number({ number })}: ${segment.name}`) : undefined}
+            aria-label={seekable ? (pair.b ? `${label}; A − B: ${splitText(delta, m.analyse_unavailable())}` : label) : undefined}
             onClick={seekable ? () => controller.seekDistance(segment.startFrac * maximum - distanceOrigin) : undefined}
             onKeyDown={seekable ? (event) => {
               if (event.key === "Enter" || event.key === " ") {
@@ -259,7 +265,7 @@ return (
             } : undefined}
             className={`${seekable ? "cursor-pointer" : "cursor-not-allowed"} outline-none focus-visible:opacity-70 sm:pointer-events-none sm:opacity-0 sm:group-hover/overview:pointer-events-auto sm:group-hover/overview:opacity-100 sm:group-focus-within/overview:pointer-events-auto sm:group-focus-within/overview:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100`}
           >
-            <title>{pair.b ? `${segment.name || m.spectate_segment_number({ number })} · A − B: ${splitText(delta, m.analyse_unavailable())}` : segment.name || m.spectate_segment_number({ number })}</title>
+            <title>{pair.b ? `${label} · A − B: ${splitText(delta, m.analyse_unavailable())}` : label}</title>
             {sectionPaths.map((path, index) => (
               <polyline key={index} points={path} fill="none" stroke="transparent" strokeWidth="14" strokeLinecap="round" strokeLinejoin="round" />
             ))}
@@ -268,7 +274,7 @@ return (
                 {anchor && <line x1={anchor.x} y1={anchor.y} x2={position.x} y2={position.y} stroke="var(--app-text-secondary)" strokeWidth="0.6" opacity="0.5" pointerEvents="none" />}
                 <circle className="max-sm:[r:7]" cx={position.x} cy={position.y} r="5.5" fill={splitColor(delta)} stroke="var(--app-bg)" strokeWidth="0.8" />
                 <text className="max-sm:text-[8px]" x={position.x} y={position.y} textAnchor="middle" dominantBaseline="central" fill={delta === null ? "var(--app-text)" : delta > 0 ? "var(--app-text)" : "var(--app-bg)"} fontSize="6" fontWeight="var(--font-weight-bold)">
-                  {number}
+                  {badge}
                 </text>
               </>
             )}

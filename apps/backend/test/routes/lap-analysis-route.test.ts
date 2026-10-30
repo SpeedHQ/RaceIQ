@@ -1,5 +1,9 @@
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { describe, expect, test } from "bun:test";
 
+import { analyseSemanticIds } from "@raceiq/shared/games/metric-contracts";
+import { getGame } from "@raceiq/shared/games/registry";
+import { semanticReplayIds } from "@raceiq/lap-replay/server";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { decodeAlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/codec";
 import type { EncodedAlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/types";
@@ -9,8 +13,97 @@ import { cacheDelete, cacheSet } from "@raceiq/backend-core/db/telemetry-replay-
 import { insertLap } from "@raceiq/backend-core/db/lap-mutation-queries";
 import { lapRoutes } from "../../src/routes/laps/index";
 import { packet } from "@raceiq/telemetry-core/test-support/telemetry/resolver";
+
 initGameAdapters();
 
+test("semantic replay requests F1 Analyse dependencies", () => {
+  const ids = semanticReplayIds("f1-2025");
+  expect(ids).toEqual(analyseSemanticIds(getGame("f1-2025")));
+  expect(ids).toContain("timing.current-lap");
+  expect(ids).toContain("timing.lap-fraction");
+  expect(ids).toContain("tire.temperature.surface.representative");
+  expect(ids).toContain("tire.temperature.surface.inner");
+  expect(ids).toContain("tire.temperature.surface.middle");
+  expect(ids).toContain("tire.temperature.surface.outer");
+  expect(ids).toContain("tire.temperature.core");
+  expect(ids).not.toContain("tires.wheel-in-puddle-depth");
+});
+
+describe("GET /api/laps/:id/semantic-telemetry", () => {
+  test("returns full F1 Analyse replay with adapter channels", async () => {
+    const sessionId = await insertSession("0", "0", "f1-2025");
+    await updateSessionRawFile(sessionId, "/virtual/f1-replay.bin", "test");
+    const lapId = await insertLap(sessionId, 1, 80.9, true, 12, 2, null, null, null, null, null);
+    cacheSet(lapId, [
+      packet("f1-2025", { TimestampMS: 1_000, Speed: 10 }),
+      packet("f1-2025", { TimestampMS: 1_017, Speed: 20 }),
+    ]);
+    try {
+      const response = await lapRoutes.request(`/api/laps/${lapId}/semantic-telemetry`, {
+        headers: { "X-Game-Id": "f1-2025" },
+      });
+
+      expect(response.status).toBe(200);
+      const body = await response.json() as {
+        lapId: number;
+        requestedSemanticIds: readonly string[];
+        envelopes: { sequence: number; values: { semanticId: string }[] }[];
+        parseError: string | null;
+      };
+      expect(body.lapId).toBe(lapId);
+      expect(body.parseError).toBeNull();
+      expect(body.requestedSemanticIds).toEqual(analyseSemanticIds(getGame("f1-2025")));
+      expect(body.envelopes).toHaveLength(2);
+      expect(body.envelopes.map((envelope) => envelope.sequence)).toEqual([0, 1]);
+      expect(body.envelopes[0]?.values).toEqual(
+        expect.arrayContaining([expect.objectContaining({ semanticId: "motion.speed", value: 10 })]),
+      );
+      expect(body.envelopes[1]?.values).toEqual(
+        expect.arrayContaining([expect.objectContaining({ semanticId: "motion.speed", value: 20 })]),
+      );
+    } finally {
+      cacheDelete(lapId);
+      await deleteSession(sessionId);
+    }
+  });
+});
+
+describe("GET /api/laps/:id/semantic-telemetry?view=track-map", () => {
+  test("returns compact iRacing GPS and progress samples", async () => {
+    const sessionId = await insertSession("0", "0", "iracing");
+    await updateSessionRawFile(sessionId, "/virtual/iracing-replay.bin", "test");
+    const lapId = await insertLap(sessionId, 1, 80.9, true, 12, 2, null, null, null, null, null);
+    cacheSet(lapId, [0.25, 0.75].map((lapDistancePct, index) => packet("iracing", {
+      iracing: { lapDistancePct, sessionTick: index + 1 } as TelemetryPacket["iracing"],
+      CurrentRaceTime: index,
+      TimestampMS: index * 1_000,
+    })));
+    try {
+      const response = await lapRoutes.request(`/api/laps/${lapId}/semantic-telemetry?view=track-map`, {
+        headers: { "X-Game-Id": "iracing" },
+      });
+      expect(response.status).toBe(200);
+      const text = await response.text();
+      const body = JSON.parse(text) as {
+        lapId: number;
+        trackOrigin: { latitude: number; longitude: number } | null;
+        samples: { latitude: number | null; longitude: number | null; fraction: number | null }[];
+        envelopes?: unknown;
+        requestedSemanticIds?: unknown;
+      };
+      expect(body.lapId).toBe(lapId);
+      expect(body.trackOrigin).toBeNull();
+      expect(body.samples.map((sample) => sample.fraction)).toEqual([0.25, 0.75]);
+      expect(body.samples.every((sample) => sample.latitude === null && sample.longitude === null)).toBe(true);
+      expect(body).not.toHaveProperty("envelopes");
+      expect(body).not.toHaveProperty("requestedSemanticIds");
+      expect(text.length).toBeLessThan(2_000);
+    } finally {
+      cacheDelete(lapId);
+      await deleteSession(sessionId);
+    }
+  });
+});
 
 describe("GET /api/laps/review", () => {
   test("returns only top valid metadata laps for a track/car", async () => {
@@ -82,8 +175,9 @@ describe("GET /api/laps/compare-line-spread", () => {
 describe("POST /api/laps/aligned-telemetry", () => {
   test("preserves requested order, wheel wear, sectors, and base cache identity", async () => {
     const sessionId = await insertSession("10", "20", "acc");
-    const lapA = await insertLap(sessionId, 1, 61, true, null, 0, null, null, null, [20, 21, 20], null);
-    const lapB = await insertLap(sessionId, 2, 60, true, null, 0, null, null, null, [19, 21, 20], null);
+    await updateSessionRawFile(sessionId, "/virtual/alignment-capture.bin", "test");
+    const lapA = await insertLap(sessionId, 1, 61, true, 12, 3, null, null, null, [20, 21, 20], null);
+    const lapB = await insertLap(sessionId, 2, 60, true, 1_012, 3, null, null, null, [19, 21, 20], null);
     const telemetry = (offset: number) => [0, 1, 2].map((distance, index) => packet("acc", {
       DistanceTraveled: distance,
       CurrentLap: index,

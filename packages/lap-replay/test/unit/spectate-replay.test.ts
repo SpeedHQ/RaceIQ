@@ -1,16 +1,18 @@
 import { resolveBalance, resolveWheelStates } from "@raceiq/analysis-core/racing/analysis/metric-values";
 import { describe, expect, test } from "bun:test";
 import type { ComparisonData } from "@raceiq/shared/racing/comparison/types";
-import type { SemanticLapTelemetry } from "@raceiq/lap-replay/contracts"
-import { createSpectateController, prepareSpectateLap, vehicleSideslipDegrees } from "@raceiq/lap-replay/ui"
-import { estimateWheelSlipAngles, resolveWheelSlipGeometry, AMS2_POLO_APPROXIMATE_GEOMETRY, AMS2_POLO_GEOMETRY_DISCLOSURE } from "../../ui/spectate-replay";
-import type { SpectateLap, SpectateSample } from "@raceiq/lap-replay/contracts"
-import { channelValue } from "../../ui/spectate-channels";
+import type { SemanticLapTelemetry } from "@raceiq/lap-replay/contracts";
+import { createSpectateController, placeIRacingSpectateLaps, prepareSpectateLap, sampleLap, vehicleSideslipDegrees } from "@raceiq/lap-replay/ui";
+import type { SpectateLap, SpectateSample } from "@raceiq/lap-replay/contracts";
+import { channelValue } from "@raceiq/lap-replay/ui";
+import type { SpectateChannel } from "../../ui/spectate-channels";
+import { estimateWheelSlipAngles, resolveWheelSlipGeometry, spectateSamplePosition, AMS2_POLO_APPROXIMATE_GEOMETRY, AMS2_POLO_GEOMETRY_DISCLOSURE } from "../../ui/spectate-replay";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { buildSpectateChannels } from "../../ui/spectate-channels"
 import type { SpectatePair } from "../../contracts/spectate"
 import type { OpponentSemanticLapTelemetry } from "../../contracts/opponents";
 import { alignLmuOpponentPositionTraces } from "../../server/opponent-routes";
+import { fixedIRacingBoundaries, type TrackProjection } from "@raceiq/scene-3d/wireframe/ScenePlacement";
 
 initGameAdapters({ f1Experiments: true, iracingAdapter: true, ams2Adapter: true });
 test("AMS2 dashboard metric descriptors retain canonical balance and traction outputs", () => {
@@ -807,6 +809,138 @@ describe("Spectate native sampling", () => {
   });
 });
 
+describe("iRacing Spectate scene geometry", () => {
+  const projection = {
+    points: [{ x: 0, z: 0 }, { x: 0, z: 100 }, { x: 100, z: 100 }, { x: 100, z: 0 }, { x: 0, z: 0 }],
+    source: "official-svg" as const, units: "m" as const, start: "start-finish" as const, direction: "forward" as const,
+  };
+  const comparison = { traces: { distance: [0, 10, 20], elapsedTimeA: [0, 0.05, 0.1], elapsedTimeB: [0, 0.05, 0.1] } } as unknown as ComparisonData;
+  const recording = (rows: Record<string, unknown>[], stale?: string): SemanticLapTelemetry => ({
+    lapId: 1, requestedSemanticIds: [],
+    envelopes: rows.map((row, index) => ({
+      sequence: index, simulator: "iracing",
+      observedAt: { domain: "session", milliseconds: index * 50 },
+      receivedAt: { domain: "session", milliseconds: index * 50 },
+      values: Object.entries({ "timing.current-lap": index * 0.05, ...row }).map(([semanticId, value]) => ({
+        semanticId, value, state: "ok", freshness: index === 1 && semanticId === stale ? "stale" : "fresh",
+      })),
+    })),
+  });
+  test("projects valid progress and interpolates scene pose without creating native positions", () => {
+    const replay = recording([0, 0.125, 0.25].map((fraction) => ({ "timing.lap-fraction": fraction, "motion.yaw": -2 })));
+    const native = prepareSpectateLap(replay, comparison, "a");
+    const [a, b] = placeIRacingSpectateLaps([native, native], projection);
+    expect(sampleLap(a, 0.025, false)?.pose).toEqual({ x: 0, y: 0, z: 25, yaw: 0 });
+    expect(sampleLap(b, 0.05, false)?.pose).toMatchObject({ x: 0, y: 0, z: 50, yaw: 0 });
+    expect(a.samples[1].values["motion.position-x"]).toBeUndefined();
+    expect(a.samples[1].values["motion.yaw"]).toBe(-2);
+    expect(native.samples[1].scenePose).toBeUndefined();
+    const [missing] = placeIRacingSpectateLaps([native, native], null);
+    expect(sampleLap(missing, 0.05, false)?.pose).toBeNull();
+    const stale = prepareSpectateLap(recording([0, 0.125, 0.25].map((fraction) => ({ "timing.lap-fraction": fraction })), "timing.lap-fraction"), comparison, "a");
+    const [gapped] = placeIRacingSpectateLaps([stale, stale], projection);
+    expect(sampleLap(gapped, 0.025, false)?.pose).toBeNull();
+    expect(sampleLap(gapped, 0.05, false)?.pose).toBeNull();
+    expect(sampleLap(gapped, 0.1, false)?.pose?.z).toBe(100);
+  });
+  test("iRacing measured replay keeps map positions when recorded compass heading is absent", () => {
+    const replay = recording([
+      { "motion.latitude": 53, "motion.longitude": -2 },
+      { "motion.latitude": 53.0001, "motion.longitude": -2 },
+      { "motion.latitude": 53.0001, "motion.longitude": -1.9999 },
+    ]);
+    const native = prepareSpectateLap(replay, comparison, "a");
+    const [placed] = placeIRacingSpectateLaps([native, native], projection);
+    expect(placed.samples.every(sample => spectateSamplePosition(sample) !== null)).toBe(true);
+    expect(sampleLap(placed, 0.05, false)?.pose).toMatchObject({ source: "measured", z: expect.closeTo(11.1, 0) });
+  });
+  test("measured laps share one origin and missing GPS never snaps onto the reference", () => {
+    const row = (latitude: number) => ({ "motion.latitude": latitude, "motion.longitude": -2, "motion.yaw-north": 0.4, "timing.lap-fraction": 0.5 });
+    const a = prepareSpectateLap(recording([row(53), row(53.0001), row(53.0002)]), comparison, "a");
+    const b = prepareSpectateLap(recording([row(53.0001), { "timing.lap-fraction": 0.5 }, row(53.0003)]), comparison, "b");
+    const [placedA, placedB] = placeIRacingSpectateLaps([a, b], projection);
+    expect(sampleLap(placedA, 0, false)?.pose).toMatchObject({ x: 0, y: 0, z: 0, yaw: -0.4 });
+    expect(sampleLap(placedB, 0, false)?.pose?.z).toBeCloseTo(11.132, 2);
+    expect(sampleLap(placedB, 0.05, false)?.pose).toBeNull();
+    expect(sampleLap(placedB, 0.025, false)?.pose).toBeNull();
+    expect(sampleLap(placedB, 0.1, false)?.pose?.z).toBeCloseTo(33.396, 2);
+  });
+  test("uncalibrated mixed comparison never overlays projection-only lap on measured GPS", () => {
+    const measuredRows = projection.points.map((point) => ({
+      "motion.latitude": 53 + point.z / (Math.PI / 180 * 6_378_137),
+      "motion.longitude": -2 + point.x / (Math.PI / 180 * 6_378_137 * Math.cos(53 * Math.PI / 180)),
+      "motion.yaw-north": 0,
+    }));
+    const measured = prepareSpectateLap(recording(measuredRows), comparison, "a");
+    const live = prepareSpectateLap(recording([0, 0.125, 0.25].map((fraction) => ({ "timing.lap-fraction": fraction }))), comparison, "b");
+    const [a, b] = placeIRacingSpectateLaps([measured, live], projection);
+    expect(a.samples[1].scenePose).toMatchObject({ source: "measured", x: 0, z: expect.closeTo(100, 3) });
+    expect(b.samples.every((sample) => sample.scenePose === null)).toBe(true);
+    expect(b.samples[1].values["motion.position-x"]).toBeUndefined();
+    expect(measured.samples[1].scenePose).toBeUndefined();
+  });
+  test("matches replay map handedness and keeps projected cars facing forward through a turn", () => {
+    const replay = recording([0.25, 0.375, 0.5].map((fraction) => ({ "timing.lap-fraction": fraction })));
+    const native = prepareSpectateLap(replay, comparison, "a");
+    const [placed] = placeIRacingSpectateLaps([native, native], projection);
+    const start = sampleLap(placed, 0, false)!.pose!;
+    const middle = sampleLap(placed, 0.05, false)!.pose!;
+    const end = sampleLap(placed, 0.1, false)!.pose!;
+    // Replay draws maxX - x: increasing source X must move left on both maps.
+    expect(middle.x).toBe(-50);
+    expect(middle.z).toBe(100);
+    expect(end.x).toBe(-100);
+    expect(Math.sin(middle.yaw)).toBeCloseTo(-1);
+    const dx = end.x - start.x, dz = end.z - start.z;
+    expect((Math.sin(middle.yaw) * dx + Math.cos(middle.yaw) * dz) / Math.hypot(dx, dz)).toBeCloseTo(1);
+    expect(native.samples[1].scenePose).toBeUndefined();
+    expect(placed.samples[1].values["motion.position-x"]).toBeUndefined();
+  });
+  test("persisted calibration fixes geometry and GPS origin regardless of lap or pair order", () => {
+    const calibrated: TrackProjection = {
+      ...projection,
+      boundaries: {
+        leftEdge: projection.points.map(({ x, z }) => ({ x: x - 2, z })),
+        rightEdge: projection.points.map(({ x, z }) => ({ x: x + 2, z })),
+        centerLine: projection.points,
+        pitLane: null,
+        coordSystem: "iracing-map",
+      },
+      calibration: {
+        source: "recorded-reference",
+        referenceLapId: 42,
+        geometryHash: "map-hash",
+        origin: { latitude: 52, longitude: -1, altitude: 100 },
+        alignment: { scale: 1, cos: 1, sin: 0, tx: 300, tz: -20, flipX: false, flipZ: false },
+        elevationsM: [0, 4, 8, 4, 0],
+        meanErrorM: 3,
+      },
+    };
+    const first = fixedIRacingBoundaries(calibrated)!;
+    const second = fixedIRacingBoundaries(calibrated)!;
+    expect(first).toEqual(second);
+    expect(first.centerLine[0]).toEqual({ x: -300, z: -20 });
+    expect(first.vertexHeightsM).toEqual([0, 4, 8, 4, 0]);
+    const lap = (lat: number, trackLat: number) => prepareSpectateLap(recording([
+      { "motion.latitude": lat, "motion.longitude": -1, "identity.track.latitude": trackLat, "identity.track.longitude": -1 },
+      { "motion.latitude": lat + 0.0001, "motion.longitude": -1, "identity.track.latitude": trackLat, "identity.track.longitude": -1 },
+    ]), comparison, "a");
+    const a = lap(52.0001, 53), b = lap(52.0002, 54);
+    const [placedA, placedB] = placeIRacingSpectateLaps([a, b], calibrated);
+    const [reversedB, reversedA] = placeIRacingSpectateLaps([b, a], calibrated);
+    expect(placedA.samples[0]!.scenePose).toEqual(reversedA.samples[0]!.scenePose);
+    expect(placedB.samples[0]!.scenePose).toEqual(reversedB.samples[0]!.scenePose);
+    expect(placedA.samples[0]!.scenePose?.z).toBeCloseTo(11.132, 2);
+    expect(placedB.samples[0]!.scenePose?.z).toBeCloseTo(22.264, 2);
+    const live = prepareSpectateLap(recording([0, 0.125, 0.25].map(fraction => ({ "timing.lap-fraction": fraction }))), comparison, "b");
+    const [measuredSide, projectedSide] = placeIRacingSpectateLaps([a, live], calibrated);
+    expect(measuredSide.samples[0]!.scenePose).toEqual(placedA.samples[0]!.scenePose);
+    expect(projectedSide.samples[1]!.scenePose).toMatchObject({ source: "lap-fraction", x: -300, z: 30 });
+    expect(projectedSide.samples[1]!.values["motion.position-x"]).toBeUndefined();
+    expect(fixedIRacingBoundaries(projection, true)).toBeNull();
+  });
+});
+
 function reducedRateReplay(simulator: "ams2" | "fm-2023" = "ams2"): SemanticLapTelemetry {
   const replay = recordedLap(1.2, time => time * 20).replay;
   let milliseconds = 0;
@@ -855,4 +989,27 @@ test("reduced-rate AMS2 cadence does not loosen gap handling for other simulator
   const controller = createSpectateController(a, null);
   try { expect(controller.sample((a.samples[0]!.time + a.samples[1]!.time) / 2).a).toBeNull(); }
   finally { controller.dispose(); }
+});
+
+test("iRacing interpolates short capture stalls but preserves long gaps and other games", () => {
+  const recording = (simulator: "iracing" | "fm-2023", gap: number) => ({
+    lapId: 1, requestedSemanticIds: [],
+    envelopes: [0, gap].map((time, sequence) => ({
+      sequence, simulator,
+      observedAt: { domain: "session" as const, milliseconds: time * 1000 },
+      values: [
+        { semanticId: "motion.position-x", value: time * 20 },
+        { semanticId: "motion.position-z", value: 0 },
+        { semanticId: "motion.yaw", value: 0 },
+        { semanticId: "motion.speed", value: 20 + time * 10 },
+      ],
+    })),
+  });
+  for (const gap of [7 / 60, 0.15, 0.25]) {
+    const lap = prepareSpectateLap(recording("iracing", gap));
+    expect(sampleLap(lap, gap / 2, false)?.pose?.x).toBeCloseTo(gap * 10);
+    expect(sampleLap(lap, gap / 2, false)?.values["motion.speed"]).toBeCloseTo(20 + gap * 5);
+  }
+  expect(sampleLap(prepareSpectateLap(recording("iracing", 0.3)), 0.15, false)).toBeNull();
+  expect(sampleLap(prepareSpectateLap(recording("fm-2023", 0.15)), 0.075, false)).toBeNull();
 });

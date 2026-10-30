@@ -301,7 +301,7 @@ describe("recording layout migration", () => {
     expect((await migration).status).toBe(202);
     expect(await waitForMigration()).toMatchObject({ status: "success", error: null });
   });
-  test("rejects a symlinked migration journal without reading its external target", async () => {
+  test("rejects a linked migration journal without reading its external target", async () => {
     const root = await mkdtemp(join(tmpdir(), "raceiq-layout-journal-root-"));
     const external = await mkdtemp(join(tmpdir(), "raceiq-layout-journal-external-"));
     temporary.push(root, external);
@@ -310,7 +310,7 @@ describe("recording layout migration", () => {
     const journalPath = join(resolveDataDir(), "recording-layout-migration.json");
     const contents = JSON.stringify({ outside: true });
     await writeFile(target, contents);
-    await symlink(target, journalPath);
+    await symlink(process.platform === "win32" ? external : target, journalPath, process.platform === "win32" ? "junction" : "file");
     const response = await miscRoutes.request("/api/storage/layout-migration");
     expect((await response.json() as { progress: { status: string; error: string | null } }).progress).toMatchObject({ status: "error" });
     expect(await readFile(target, "utf8")).toBe(contents);

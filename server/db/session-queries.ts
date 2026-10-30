@@ -425,9 +425,12 @@ export async function updateSessionRawFile(
   lapDetectorVersion: string,
   versionIdentity?: TelemetryVersionIdentity,
 ): Promise<void> {
+  const captureMetadata = rawFile.endsWith("manifest.json")
+    ? { captureLayoutVersion: 1, captureManifestFile: rawFile, captureArchiveFile: null }
+    : {};
   const previous = await readDb.select({ rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, sessionId)).get();
   await withDatabaseWrite(() => db.update(sessions)
-    .set({ rawFile, lapDetectorVersion, ...versionIdentity })
+    .set({ rawFile, lapDetectorVersion, ...versionIdentity, ...captureMetadata })
     .where(eq(sessions.id, sessionId)).run());
   if (previous?.rawFile && previous.rawFile !== rawFile) {
     await invalidateClassificationMigrationSource(previous.rawFile);

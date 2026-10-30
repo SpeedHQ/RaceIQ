@@ -3,6 +3,7 @@ import { AccSharedMemoryReader } from "@raceiq/game-acc/shared-memory";
 import { AcEvoSharedMemoryReader } from "@raceiq/game-ac-evo/shared-memory";
 import { IRacingTelemetrySource } from "@raceiq/game-iracing/source";
 import { registerLiveIRacingIdentity } from "@raceiq/game-iracing/identity";
+import { iracingCaptureManager } from "./iracing-capture";
 import { AMS2TelemetrySource } from "@raceiq/game-ams2/source";
 import { LMUTelemetrySource } from "@raceiq/game-lmu/source";
 import { isGameRunning } from "@raceiq/backend-core/games/registry";
@@ -31,7 +32,7 @@ export function startNativeSourceSupervisor(
   recordingGameId: string | null,
   dumpMode = false,
 ): NativeSourceSupervisor {
-  if (!IS_WINDOWS) {
+  if (!IS_WINDOWS || process.env.RACEIQ_E2E === "1") {
     return { stop: async () => {} };
   }
 
@@ -101,7 +102,12 @@ export function startNativeSourceSupervisor(
       setAcEvoReader(null);
       setIracingSource(null);
       setLmuSource(null);
+      for (const reader of readers) {
+        if (reader) trackStop(reader.stop());
+      }
+      await iracingCaptureManager.stop();
       setAms2Source(null);
+      await Promise.allSettled(pendingStops);
       const stopped = await Promise.allSettled([
         ...pendingStops,
         ...readers.filter(reader => reader !== null).map(async reader => { await reader.stop(); }),

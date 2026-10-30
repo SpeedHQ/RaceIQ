@@ -41,16 +41,15 @@ export const iracingAdapter: GameAdapter = {
   routePrefix: "iracing",
   telemetry: {
     fuel: { packetUnit: "litre", binding: { kind: "value", semanticId: "fuel.fuel" } },
-    tireTemperature: { packetUnit: "celsius", binding: { kind: "value", semanticId: "tire.temperature.carcass.middle" } },
-    tireCarcassProfile: { source: "direct", freshness: "pit-snapshot", binding: { kind: "group", required: ["tire.temperature.carcass.left", "tire.temperature.carcass.middle", "tire.temperature.carcass.right"] } },
-    tirePressure: { packetUnit: "psi", binding: { kind: "value", semanticId: "tires.tire-pressure" } },
+    // Unit metadata is retained; pit snapshots are not live temperature channels.
+    tireTemperature: { packetUnit: "celsius" },
     clutch: { source: "direct", freshness: "continuous", binding: { kind: "value", semanticId: "inputs.clutch" } },
     pitStatus: { source: "direct", freshness: "continuous", binding: { kind: "value", semanticId: "race.on-pit-road" } },
     analysis: {
       balance: { source: "derived", confidence: "high", binding: { kind: "derived", derivation: "physical-balance-v1", requires: ["motion.speed", "motion.acceleration-x", "motion.angular-velocity-y"] } },
       gForce: { source: "derived", confidence: "exact", binding: { kind: "derived", derivation: "g-force-v1", requires: ["motion.acceleration-x", "motion.acceleration-z"] } },
       gripDemand: { source: "unavailable", reason: "source-limitation" },
-      tireTemperature: { source: "direct", freshness: "pit-snapshot", display: "per-wheel", binding: { kind: "value", semanticId: "tire.temperature.carcass.middle" } },
+      tireTemperature: { source: "unavailable", reason: "source-limitation" },
       surface: { source: "direct", freshness: "continuous", display: "vehicle", binding: { kind: "value", semanticId: "identity.player-track-surface" } },
       slipRatio: { source: "unavailable", reason: "source-limitation" },
       slipAngle: { source: "unavailable", reason: "source-limitation" },
@@ -58,7 +57,7 @@ export const iracingAdapter: GameAdapter = {
       wheelRotation: { source: "unavailable", reason: "source-limitation" },
       tireHealth: { source: "direct", freshness: "pit-snapshot", display: "per-wheel", binding: { kind: "value", semanticId: "tires.tire-wear" } },
       tireWearRate: { source: "unavailable", reason: "source-limitation" },
-      tirePressure: { source: "direct", freshness: "static", display: "cold-pressure", binding: { kind: "value", semanticId: "tires.tire-pressure" } },
+      tirePressure: { source: "unavailable", reason: "source-limitation" },
       suspensionTravel: { source: "direct", freshness: "continuous", display: "millimeters", binding: { kind: "value", semanticId: "suspension.suspension-travel-m" } },
       suspensionCompressionBias: { source: "unavailable", reason: "source-limitation" },
     },

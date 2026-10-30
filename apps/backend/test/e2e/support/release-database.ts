@@ -22,7 +22,7 @@ export async function seedReleaseDatabase(temporary: string, source?: ReleaseFix
   await command(["git", "rev-parse", "--verify", `${CLASSIFICATION_BASELINE}^{commit}`]);
   const archive = join(temporary, "release.tar");
   await command(["git", "archive", "--format=tar", `--output=${archive}`, CLASSIFICATION_BASELINE]);
-  await command(["tar", "-xf", archive, "-C", releaseDir, "--exclude=.claude"]);
+  await command(["tar", "-xf", "release.tar", "-C", "release", "--exclude=.claude"], temporary);
   await command(["git", "init", "--quiet"], releaseDir);
   // Use the historical release's package manager to preserve its frozen lockfile.
   const releasePackage = JSON.parse(readFileSync(join(releaseDir, "package.json"), "utf8")) as { packageManager: string };

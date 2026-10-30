@@ -24,6 +24,7 @@ import { getOnboardingOverride } from "@raceiq/backend-core/runtime/options";
 import { openFirstRunDashboard, preventMacSleep } from "@raceiq/backend-core/runtime/desktop";
 import { clearHttpPort, startHttpServer } from "./http-server";
 import { startNativeSourceSupervisor, type NativeSourceSupervisor } from "./native-sources";
+import { iracingCaptureManager } from "./iracing-capture";
 import { installShutdown } from "./shutdown";
 import { startStartupWorker, type StartupWorkerHandle } from "./startup-worker";
 import { startMaintenanceJobs, startSyncAndStaleSessionJobs } from "./startup-jobs";
@@ -171,6 +172,7 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
 
 
   nativeSources = startNativeSourceSupervisor(recordingGameId, dumpMode);
+  if (!dumpMode && loadSettings().iracingCaptureEnabled) await iracingCaptureManager.connect(true);
   classificationWorker = dumpMode ? null : startClassificationMigrationWorker({ resetInterrupted: true });
   const trayCandidates = httpAccess.hosts
     .map((host) => host === "0.0.0.0" || host === "::" ? "localhost" : host)

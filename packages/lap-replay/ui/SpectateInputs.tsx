@@ -206,6 +206,7 @@ return (
   <section
     className="relative z-20 mx-auto my-3 grid sm:absolute sm:bottom-3 sm:left-1/2 sm:m-0 sm:-translate-x-1/2 w-[calc(100%-1.5rem)] max-w-[calc(100%-1.5rem)] grid-cols-[minmax(0,1fr)_minmax(0,1fr)_max-content_max-content_max-content] items-end gap-1 overflow-x-auto rounded-md border border-app-border bg-app-bg/80 px-2 py-1.5 text-app-caption backdrop-blur-md sm:w-max sm:grid-cols-[minmax(132px,1fr)_minmax(132px,1fr)_max-content_max-content_max-content] sm:gap-3 sm:px-3 sm:py-2 sm:text-app-label"
     aria-label={pair.b ? m.spectate_inputs() : m.overlay_inputs()}
+    data-spectate-inputs=""
   >
     {pair.b && <div className="col-span-5 flex flex-wrap items-baseline justify-center gap-2 border-b border-app-border pb-1">
       <span className="text-app-caption text-app-text-secondary">{m.spectate_time_delta()} · A − B</span>

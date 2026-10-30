@@ -406,6 +406,17 @@ for (const defect of ["ambiguous_match", "corrupt_source"] as const) {
       expect(snapshot.failed).toBe(defect === "corrupt_source" ? 1 : 0);
       expect(snapshot.limited).toBe(defect === "ambiguous_match" ? 1 : 0);
       if (defect === "corrupt_source") expect(snapshot.aggregatesPending).toBe(true);
+      if (defect === "corrupt_source") {
+        // The dashboard worker runs in a separate process; await its real publication rather than mocking its clock.
+        const dashboardDeadline = Date.now() + 30_000;
+        let summary = database.prepare("SELECT duration_status,sector_status FROM dashboard_session_summaries WHERE session_id=(SELECT id FROM sessions LIMIT 1)").get() as { duration_status: string; sector_status: string } | undefined;
+        while (summary?.duration_status !== "unavailable" || summary?.sector_status !== "unavailable") {
+          if (Date.now() >= dashboardDeadline) break;
+          await Bun.sleep(50);
+          summary = database.prepare("SELECT duration_status,sector_status FROM dashboard_session_summaries WHERE session_id=(SELECT id FROM sessions LIMIT 1)").get() as { duration_status: string; sector_status: string } | undefined;
+        }
+        expect(summary).toMatchObject({ duration_status: "unavailable", sector_status: "unavailable" });
+      }
       const response = await fetch(`${running.address}/api/sessions/classification-migration-recordings`);
       expect(response.status).toBe(200);
       const list = await response.json() as { recordings: Array<{ state: string; reason: string }> };
@@ -435,7 +446,14 @@ for (const defect of ["ambiguous_match", "corrupt_source"] as const) {
     } finally {
       await server?.stop();
       database?.close();
-      await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      database = undefined;
+      if (process.platform === "win32") {
+        // libsql's native statement handles can outlive close() until collection on Windows.
+        Bun.gc(true);
+        await command(["node", "--eval", "require('node:fs').rmSync(process.argv[1], { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });", directory]);
+      } else {
+        await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      }
     }
   }, 240_000);
 }

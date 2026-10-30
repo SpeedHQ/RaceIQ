@@ -2,6 +2,7 @@ import type { RaceResult } from "@raceiq/shared/racing/results/types";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useSyncExternalStore } from "react";
 import type { GameId } from "@raceiq/shared/games/ids";
+import type { IRacingIncidentReport } from "@raceiq/shared/racing/sessions/iracing-incidents";
 import type { ProcessingMetadata, SessionMeta, SessionRecap } from "@raceiq/shared/racing/sessions/types";
 import { client } from "../lib/rpc";
 import { rpcJson } from "../lib/rpc-json";
@@ -73,5 +74,16 @@ export function useSessionResult(sessionId: number | null | undefined, gameId: G
       return rpcJson<RaceResult>(response);
     },
     enabled: enabled && sessionId != null && !!gameId,
+  });
+}
+
+export function useIRacingIncidentReport(sessionId: number | null | undefined, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.iracingIncidentReport(sessionId ?? null),
+    queryFn: async () => {
+      if (sessionId == null) throw new Error("useIRacingIncidentReport: sessionId is required");
+      return rpcJson<IRacingIncidentReport>(await client.api.iracing.sessions[":id"].incidents.$get({ param: { id: String(sessionId) } }));
+    },
+    enabled: enabled && sessionId != null,
   });
 }

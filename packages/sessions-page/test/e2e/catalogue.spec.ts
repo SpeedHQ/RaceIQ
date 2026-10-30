@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { collectBrowserErrors } from "../../../../playwright/tests/support/browser-errors"
-import { cleanDisposable, importDisposableLap, sessionsFor, sessionRows, type DisposableImport } from "../../../../playwright/tests/support/session-fixtures";
+import { cleanDisposable, importDisposableLap, lapsFor, sessionsFor, sessionRows, type DisposableImport } from "../../../../playwright/tests/support/session-fixtures";
 
 test("sessions filter, analysis, notes, export, and deletion confirmation preserve seeded data", async ({ page, request }) => {
   const browserErrors = collectBrowserErrors(page);
@@ -86,8 +86,14 @@ test("sessions pagination advances and filtering resets to the first page", asyn
   const browserErrors = collectBrowserErrors(page);
   const label = `pagination-${crypto.randomUUID()}`;
   const disposable: DisposableImport[] = [];
+  const sessionIdsBefore = (await sessionsFor(request, "fm-2023")).map((session) => session.id).sort((a, b) => a - b);
   try {
-    for (let index = 0; index < 26; index++) disposable.push(await importDisposableLap(request, "fm-2023", label));
+    // Reuse one complete captured lap, not newly imported copies or startup fragments.
+    const source = (await lapsFor(request, "fm-2023"))
+      .filter((lap) => lap.isValid && lap.telemetryAvailable && (lap.rawFrameCount ?? 0) > 0)
+      .sort((a, b) => a.rawFrameCount! - b.rawFrameCount! || a.id - b.id)[0];
+    if (!source) throw new Error("Pagination requires a valid seeded capture");
+    for (let index = 0; index < 26; index++) disposable.push(await importDisposableLap(request, "fm-2023", label, source.id));
     await page.goto("/fm23/sessions", { waitUntil: "domcontentloaded" });
     const search = page.getByPlaceholder("Search track, car, notes…");
     await search.fill(label);
@@ -107,5 +113,7 @@ test("sessions pagination advances and filtering resets to the first page", asyn
     expect(browserErrors.errors).toEqual([]);
   } finally {
     for (const imported of disposable) await cleanDisposable(request, imported);
+    const sessionIdsAfter = (await sessionsFor(request, "fm-2023")).map((session) => session.id).sort((a, b) => a - b);
+    expect(sessionIdsAfter, "pagination cleanup must leave no extra empty sessions").toEqual(sessionIdsBefore);
   }
 });

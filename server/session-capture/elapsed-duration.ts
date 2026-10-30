@@ -47,7 +47,17 @@ export async function getRecordedElapsedSeconds(source: SessionCaptureSource): P
       segmentMax = Math.max(segmentMax, value);
     };
     try {
-      if (source.rawFile.endsWith(".motec.zip")) {
+      if (source.rawFile.toLowerCase().endsWith(".ibt")) {
+        const loaded = await loadSessionSource(source);
+        if (loaded.kind !== "packets" || loaded.packets.length === 0) known = false;
+        else {
+          for (const packet of loaded.packets) {
+            if (!Number.isFinite(packet.CurrentRaceTime) || packet.CurrentRaceTime < 0) { known = false; break; }
+            addTime(packet.CurrentRaceTime, "simulator");
+          }
+          finishSegment();
+        }
+      } else if (source.rawFile.endsWith(".motec.zip")) {
         // ACC MoTeC converter derives CurrentRaceTime from sample index × sample interval.
         if (source.gameId !== "acc") known = false;
         else {

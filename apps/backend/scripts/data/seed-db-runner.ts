@@ -1,9 +1,10 @@
 import { ROOT_DIR } from "@raceiq/backend-core/runtime/config/paths";
+import { db, closeDb, initDb } from "@raceiq/backend-core/db/index";
 import { createReadStream, existsSync, readFileSync } from "node:fs";
 import { link, mkdir, unlink } from "node:fs/promises";
 import { basename, join, relative, resolve, sep } from "node:path";
 import { createGunzip } from "node:zlib";
-import { db, closeDb, initDb } from "@raceiq/backend-core/db/index";
+import { commitStagedIbt, stageIbtUpload } from "../../src/imports/iracing-ibt";
 import { importSessionBin } from "@raceiq/backend-core/session-capture/import-capture";
 import { importSessionFrames } from "@raceiq/backend-core/session-capture/import-pipeline";
 import {
@@ -24,8 +25,8 @@ import { developmentReleaseFeatures } from "@raceiq/tooling-release/release/deve
 import { profiles, sessions } from "@raceiq/backend-core/db/schema";
 import { and, eq, inArray, like } from "drizzle-orm";
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline";
-import { seedIRacingSession } from "@raceiq/tooling-data/data/seed-db-iracing";
 import { assertSafeTarget, seedRowCount } from "@raceiq/tooling-data/data/seed-db-safety";
+import { seedIRacingSession } from "@raceiq/tooling-data/data/seed-db-iracing";
 import { insertDemoRows, markOnboardingComplete } from "@raceiq/tooling-data/data/seed-db-demo";
 import { removeSeedData } from "@raceiq/tooling-data/data/seed-db-reset";
 import { FIXTURES, PROFILE_NAME, parseOptions, SEED_MARKER } from "@raceiq/tooling-data/data/seed-db-options";
@@ -178,6 +179,10 @@ async function main(): Promise<void> {
   const excludedFixtures = new Set(options.excludedFixtures);
   for (const game of options.games) {
     const fixtures = (options.fixtures ?? FIXTURES[game]).filter((fixture) => !excludedFixtures.has(fixture));
+    if (fixtures.length === 0) {
+      console.log(`[DB Seed] ${game}: skipped; no recording fixtures are configured.`);
+      continue;
+    }
     for (const fixture of fixtures) {
       const partMatch = /^(.*)\.part(\d+)$/i.exec(fixture);
       if (partMatch && Number(partMatch[2]) !== 1) continue;
@@ -195,12 +200,26 @@ async function main(): Promise<void> {
       const fixturePath = combined?.path ?? partPaths[0]!;
       try {
         if (game === "iracing") {
-          const importStartedAt = performance.now();
-          try {
+          if (!fixturePath.toLowerCase().endsWith(".ibt")) {
             await seedIRacingSession(fixturePath);
-          } finally {
-            importDurationMs += performance.now() - importStartedAt;
+            continue;
           }
+          const existingSessionIds = new Set(
+            (await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.gameId, game)).all()).map((row) => row.id),
+          );
+          const staged = await stageIbtUpload(
+            Bun.file(fixturePath).stream(),
+            basename(fixturePath),
+          );
+          if (!staged.token) throw new Error(`iRacing seed fixture cannot be imported: ${staged.preview.reason ?? fixturePath}`);
+          const result = await commitStagedIbt(staged.token, "mine", { notifyDriverProfile: false });
+          const createdSessionIds = (await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.gameId, game)).all())
+            .map((row) => row.id)
+            .filter((id) => !existingSessionIds.has(id));
+          if (createdSessionIds.length === 0) throw new Error(`No iRacing telemetry imported from ${fixturePath}`);
+          await db.update(sessions).set({ notes: SEED_MARKER }).where(inArray(sessions.id, createdSessionIds)).run();
+          importedLapIds.push(...result.laps.filter((lap) => lap.isValid).map((lap) => lap.lapId));
+          console.log(`[DB Seed] iracing: ${result.laps.length} laps from ${fixture}`);
           continue;
         }
         const existingSessionIds = new Set(

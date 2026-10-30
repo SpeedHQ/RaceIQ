@@ -9,8 +9,9 @@ import { getLapReplaySource, type LapReplaySource } from "../db/telemetry-replay
 import { getServerGame } from "../games/registry";
 import { createIRacingSourceDecoderState, decodeIRacingSourceFrame, type IRacingSourceDecoderState, type IRacingValue } from "@raceiq/capture-formats/iracing/source-frame";
 import { PARSER_BOOTSTRAP_VERSION, iterateSessionCaptureRecords } from "@raceiq/capture-formats/session/framing";
+import { parseIRacingTrackGeography } from "@raceiq/capture-formats/iracing/session-info";
 import { createRawCaptureIdentity, loadRawCaptureIdentity, type RawCaptureIdentity, rawCaptureObjectId } from "../session-capture/identity";
-import { loadSessionCapture, resolveLapCaptureArtifact } from "../session-capture/source-loader";
+import { importedNativeValuesFor, loadSessionCapture, resolveLapCaptureArtifact } from "../session-capture/source-loader";
 import { getLiveLapCaptureSnapshot } from "../db/live-capture-queries";
 import { resolveLiveLapCaptureArtifact } from "../session-capture/source-loader";
 import { encodeLmuContext } from "@raceiq/shared/telemetry/lmu-context";
@@ -29,18 +30,40 @@ interface ReplayNativeFrame {
   nativeValues?: Readonly<Record<string, IRacingValue>>;
 }
 
+interface NativeReplayIdentity {
+  sessionUID: string;
+  sessionTick: number | null;
+  sessionTimeMs: number | null;
+  values: Readonly<Record<string, IRacingValue>>;
+}
+
 type IRacingParserStateWithSource = { source: IRacingSourceDecoderState };
 
 function* iterateIRacingNativeFrames(source: LapReplaySource, capture: Buffer | undefined): Generator<Readonly<Record<string, IRacingValue>>, undefined, void> {
+  for (const native of iterateIRacingNativeIdentities(source, capture, false)) yield native.values;
+}
+
+function* iterateIRacingNativeIdentities(source: LapReplaySource, capture: Buffer | undefined, includeTrailing = true): Generator<NativeReplayIdentity, undefined, void> {
   if (source.gameId !== "iracing" || !capture || source.rawByteOffset == null || source.rawFrameCount == null) return undefined;
   let decoderState = createIRacingSourceDecoderState();
   let replayFrames = 0;
+  let found = false;
+  let inContext = false;
+  let sessionInfo = "";
+  let sessionInfoUpdate = -1;
+  let trackGeography: Readonly<Record<string, number>> = {};
+  const frameLimit = source.rawFrameCount + (includeTrailing ? 1 : 0);
   for (const record of iterateSessionCaptureRecords(capture)) {
     if (record.kind === "segment-boundary") {
       decoderState = createIRacingSourceDecoderState();
-      replayFrames = 0;
+      inContext = false;
+      sessionInfo = "";
+      sessionInfoUpdate = -1;
+      trackGeography = {};
       continue;
     }
+    if (record.kind === "segment-context") { inContext = true; continue; }
+    if (record.kind === "segment-context-end") { inContext = false; continue; }
     if (record.kind === "parser-bootstrap") {
       if (record.gameId !== "iracing" || record.formatVersion !== PARSER_BOOTSTRAP_VERSION) {
         throw new Error("iRacing native replay received an incompatible parser bootstrap");
@@ -61,29 +84,49 @@ function* iterateIRacingNativeFrames(source: LapReplaySource, capture: Buffer | 
       decodeIRacingSourceFrame(record.frame, decoderState);
       continue;
     }
-    if (replayFrames >= source.rawFrameCount) break;
+    if (!found) {
+      if (record.offset !== source.rawByteOffset) return undefined;
+      found = true;
+    }
+    if (replayFrames >= frameLimit) break;
     const decoded = decodeIRacingSourceFrame(record.frame, decoderState);
-    replayFrames += 1;
-    if (decoded) yield decoded.values;
+    replayFrames++;
+    if (!decoded) { decoderState = createIRacingSourceDecoderState(); continue; }
+    if ("sessionInfo" in decoded && (decoded.sessionInfo !== sessionInfo || decoded.sessionInfoUpdate !== sessionInfoUpdate)) {
+      for (const sourcePath of Object.keys(trackGeography)) delete decoded.values[sourcePath];
+      sessionInfo = decoded.sessionInfo;
+      sessionInfoUpdate = decoded.sessionInfoUpdate;
+      trackGeography = parseIRacingTrackGeography(sessionInfo);
+    }
+    for (const [sourcePath, value] of Object.entries(trackGeography)) decoded.values[sourcePath] = value;
+    if (inContext) continue;
+    const { session, values } = decoded;
+    const tick = values.SessionTick, time = values.SessionTime;
+    yield {
+      sessionUID: `${session.subSessionId}:${session.sessionId}:${session.sessionNum}`,
+      sessionTick: typeof tick === "number" && Number.isInteger(tick) && tick >= 0 ? tick : null,
+      sessionTimeMs: typeof time === "number" && Number.isFinite(time) && time >= 0 ? Math.round(time * 1000) : null,
+      values,
+    };
   }
   return undefined;
 }
+
 
 /** Test-only export for exact iRacing replay frame-window assertions. */
 export const iterateIRacingNativeFramesForTest = iterateIRacingNativeFrames;
 
 function resolveRawReference(source: LapReplaySource, capture: RawCaptureIdentity | undefined): TelemetryRawReference | undefined {
-  if (capture && source.rawByteOffset != null && source.rawFrameCount != null) {
-    return {
-      objectId: source.captureChunkId ? `session:${source.sessionId}:lap-capture:${source.captureChunkId}` : rawCaptureObjectId(source.sessionId),
-      contentHash: capture.contentHash,
-      contentEncoding: "identity",
-      storageEncoding: capture.storageEncoding,
-      byteOffset: source.rawByteOffset,
-      frameCount: source.rawFrameCount,
-    };
-  }
-  return undefined;
+  if (!capture) return undefined;
+  const base: TelemetryRawReference = {
+    objectId: source.captureChunkId ? `session:${source.sessionId}:lap-capture:${source.captureChunkId}` : rawCaptureObjectId(source.sessionId),
+    contentHash: capture.contentHash,
+    contentEncoding: "identity",
+    storageEncoding: capture.storageEncoding,
+  };
+  if (source.rawFile?.toLowerCase().endsWith(".ibt")) return base;
+  if (source.rawByteOffset == null || source.rawFrameCount == null) return undefined;
+  return { ...base, byteOffset: source.rawByteOffset, frameCount: source.rawFrameCount };
 }
 
 function receivedTimestamp(createdAt: string): TelemetryTimestamp {
@@ -140,7 +183,6 @@ export function visitTelemetryReplayFrames(
   const nativeFrames = iterateIRacingNativeFrames(source, rawCapture?.bytes);
   const nativeFrame: ReplayNativeFrame = { packet: packets[0] };
   let view: TelemetryFrameView<ReplayNativeFrame> | undefined;
-
   for (let sequence = 0; sequence < packets.length; sequence++) {
     const packet = packets[sequence];
     const observedAt = replayTimestamp(packet, receivedAt);
@@ -149,7 +191,7 @@ export function visitTelemetryReplayFrames(
       updateSequence: BigInt(sequence),
     };
     nativeFrame.packet = packet;
-    nativeFrame.nativeValues = nativeFrames.next().value;
+    nativeFrame.nativeValues = nativeFrames.next().value ?? importedNativeValuesFor(packet) as Readonly<Record<string, IRacingValue>> | undefined;
     view = resolver.createFrameView(nativeFrame, observation, view, source.gameId === "lmu" ? lmuSourceTimestamp : undefined);
     visit({ sequence, observedAt, receivedAt, packet, view }, resolver, slots);
   }
@@ -194,7 +236,6 @@ export function resolveTelemetryReplay(
       ...(source.gameId === "lmu" && frame.packet.lmuContext ? { lmu: encodeLmuContext(frame.packet.lmuContext) } : {}),
     };
   }, rawCapture);
-
   return {
     lapId,
     requestedSemanticIds: semanticIds,

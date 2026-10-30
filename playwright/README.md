@@ -21,7 +21,7 @@ Marketing screenshot captures use `marketing-screenshots.config.ts`; responsive 
 
 The main config uses `tests/` as `testDir`; no E2E specs belong at `tests/` root. Screenshot capture uses dedicated configs. Stateful E2E projects stay ordered on one worker.
 
-The `lap-replay-webgpu` project requires a hardware adapter (`GPUAdapterInfo.isFallbackAdapter === false`) and fails rather than skips if one is unavailable. Zoom-reversal checks synchronize with rendered mid-snap frames so browser-driver latency cannot move the input beyond the transition. CPU-compatible Spectate camera and full-range zoom scenarios remain in the cross-platform `lap-replay` project.
+The `lap-replay-webgpu` project uses full Chromium (`channel: "chromium"`), not the default headless shell, and requires a hardware adapter (`GPUAdapterInfo.isFallbackAdapter === false`). It fails rather than skips if one is unavailable; CI runners must expose a supported GPU to Chromium. Zoom-reversal checks synchronize with rendered mid-snap frames so browser-driver latency cannot move the input beyond the transition. CPU-compatible Spectate camera and full-range zoom scenarios remain in the cross-platform `lap-replay` project.
 
 Root `test:e2e` (including `test:e2e:compiled`), its `fresh`/`tunes`/`seeded` variants, and root `screenshots` use `scripts/run-browser-verification.ts`: this cross-platform runner builds the production app with both F1 experiments and iRacing adapter flags, then starts compiled-server verification. `build:browser` exposes the feature-enabled build alone; ordinary `build` and release builds retain default feature settings. `ui:diff` builds both compared revisions with those flags before compiled responsive captures; `ui:diff:storybook` remains Storybook-only. The general `bun run test` sequence also performs a feature-enabled browser build immediately before Playwright E2E.
 
@@ -48,6 +48,10 @@ Seed scripts decode checked-in source fixtures and store sparse captures before 
 Fresh-install wizard attempts reset both `settings.json` and the isolated database's dashboard access state, including login sessions and the configured-access marker. Resetting settings alone does not restore the pending password choice after a completed attempt. The persisted-settings assertion uses the fixture's explicit IPv4 loopback listener instead of relying on `localhost` address selection.
 
 Specs that validate analyst output import the pure schema from `@raceiq/backend-core/ai/output-schema`. The server's `ai/schemas` module also owns setup-catalog validation and must not be loaded by the Node-based Playwright discovery process.
+
+Seeded Analyse readiness checks use the lap timeline rather than data-panel headings. iRacing renders recorded telemetry as definition lists, input meters, and wheel tables instead of the shared 3D/2D vehicle panel; assertions must read the individual channel value from that layout. Committed iRacing recording replay exercises stream delivery and reconnect, but does not count as fresh live SDK telemetry, so the live dashboard remains in its waiting state.
+
+Comparison routes default to Spectate. Track-catalog navigation checks wait for its named time-delta status; saved Compare chat checks assert the expanded AI Analysis control and visible panel rather than the former AI Compare heading.
 
 
 Recording-location migration coverage lives in `tests/fresh-install/recording-location-migration.spec.ts`. It converts a real capture in an isolated offline database with `bun run apps/backend/scripts/data/seed-db.ts --games=fm-2023 --fixtures=test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz --legacy-recordings`, imports the sparse capture through the running app's API, then prepares the returned sessions in the legacy folder layout. The test verifies initial file/session counts, required consent, byte-preserving organization under `<game>/own` in a selected folder, preservation of unrelated destination files, source removal, and persisted recording-directory settings. It deletes imported sessions, restores settings, and removes disposable files and folders afterward.
@@ -82,6 +86,8 @@ Track catalog checks cover the Debug tab in dev mode and assert its absence in c
 ## Data safety and generated output
 
 Launchers create configured E2E data directories and delete only their SQLite database files at startup. They preserve non-database fixture files and do not perform teardown cleanup. Seeded tests share one isolated server per shard; tests that mutate notes, imports, sessions, or settings must restore their own state. CI containers are disposable.
+
+E2E launchers set `RACEIQ_E2E=1`, which disables automatic native game discovery so a simulator running on the developer's machine cannot alter fixture state. Captured-data imports, application HTTP routes, workers, and explicitly replayed UDP traffic still use their real production paths. Historical upgrade fixtures install and seed with the Bun version declared by the pinned release while retaining frozen-lockfile installation.
 
 Compiled E2E CI prepares seeded data once in a prerequisite job. Before upload, it checks SQLite integrity and foreign keys, replayable lap coverage for all five seeded games, capture availability, and telemetry readability, then checkpoints the WAL. The artifact contains `app.db` and generated `sessions/` captures; database capture references are portable paths rather than producer-specific absolute paths.
 

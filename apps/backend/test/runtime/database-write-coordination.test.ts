@@ -1,8 +1,8 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { rm } from "node:fs/promises";
+import { afterEach, describe, expect } from "bun:test";
 import { createClient, type Client, type Transaction } from "@libsql/client/sqlite3";
 import type { TransactionMode } from "@libsql/client";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdtemp } from "node:fs/promises";
 import { join } from "node:path";
 import {
   configureDatabaseWriteWorkerTransport,
@@ -13,6 +13,9 @@ import {
   type WriteLeaseRequest,
   type WriteLeaseResponse,
 } from "@raceiq/backend-core/db/write-coordination";
+import { nativeDatabaseTest } from "../support/native-database-test";
+
+const test = nativeDatabaseTest(import.meta.path);
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -226,7 +229,7 @@ describe("worker-side admission", () => {
 });
 
 async function databaseFixture() {
-  const directory = await mkdtemp(join(tmpdir(), "raceiq-write-resource-"));
+  const directory = await mkdtemp(join(process.env.RACEIQ_NATIVE_DB_ROOT!, "write-resource-"));
   const client = createClient({ url: `file:${join(directory, "test.db")}` });
   await client.executeMultiple("PRAGMA foreign_keys=ON; CREATE TABLE entries(id INTEGER PRIMARY KEY); CREATE TABLE parents(id INTEGER PRIMARY KEY); CREATE TABLE children(parent_id INTEGER REFERENCES parents(id) DEFERRABLE INITIALLY DEFERRED);");
   return { client, async close() {

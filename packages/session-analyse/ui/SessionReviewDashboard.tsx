@@ -61,7 +61,7 @@ export function SessionReviewDashboard({
   onOpenLapContextChange,
 }: TuneReviewDashboardProps) {
   const {
-    m, Button, SearchSelect, TireGrid, SectorDetailView, SectorMap, TrackFocusView, IssuePill,
+    m, Button, SearchSelect, TireGrid, SectorDetailView, SectorMap, TrackFocusView, IssuePill, IRacingIncidentReport,
     bandColor, buildSectorRanges, CORNERS, CornerBars, sectorIndexForTelemetryIndex, METRICS,
     metricDisplayValue, tuneMetricValue, tuneMetricsFor, useTirePressureOptimal, useUnits,
     useAlignedTelemetry, useLapIssues, formatLapTime,
@@ -453,24 +453,27 @@ export function SessionReviewDashboard({
               )}
             </div>
 
-            {/* Tyres */}
-            <div>
+            {gameId === "iracing" ? (
+              sessionId != null && <IRacingIncidentReport sessionId={sessionId} />
+            ) : (
               <div>
-                {corners ? (
-                  <TireGrid
-                    title={m.analyse_tires_end_of_lap()}
-                    corners={corners}
-                    healthThresholds={game?.tireHealthThresholds ?? { green: 0.85, yellow: 0.7 }}
-                    tempThresholds={{ blue: 70, orange: 100, red: 110 }}
-                    pressureOptimal={pressureOptimal}
-                    brakeTempThresholds={game?.brakeTempThresholds}
-                    healthAvailable={tireHealthAvailable}
-                  />
-                ) : (
-                  <div className="p-3 text-xs text-app-text-dim">{aligned.isLoading ? m.review_loading_tyre_state() : m.review_no_stored_telemetry()}</div>
-                )}
+                <div>
+                  {corners ? (
+                    <TireGrid
+                      title={m.analyse_tires_end_of_lap()}
+                      corners={corners}
+                      healthThresholds={game?.tireHealthThresholds ?? { green: 0.85, yellow: 0.7 }}
+                      tempThresholds={{ blue: 70, orange: 100, red: 110 }}
+                      pressureOptimal={pressureOptimal}
+                      brakeTempThresholds={game?.brakeTempThresholds}
+                      healthAvailable={tireHealthAvailable}
+                    />
+                  ) : (
+                    <div className="p-3 text-xs text-app-text-dim">{aligned.isLoading ? m.review_loading_tyre_state() : m.review_no_stored_telemetry()}</div>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </>
         )}
       </div>

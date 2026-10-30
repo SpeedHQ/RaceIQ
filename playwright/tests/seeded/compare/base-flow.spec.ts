@@ -93,14 +93,12 @@ test("Compare complete seeded flow (FM23) preserves identity/order, renders trac
   const adjustedWidth = Number(await resizeHandle.getAttribute("aria-valuenow"));
   expect(adjustedWidth, "resized map width").toBeGreaterThanOrEqual(savedWidth);
 
-  const persistedParams = new URLSearchParams(swappedParams);
-  const reloadCompare = page.waitForResponse((response) =>
-    alignedRequestMatches(response, Number(persistedParams.get("lapA")), Number(persistedParams.get("lapB")), 1),
-  );
   await page.reload({ waitUntil: "domcontentloaded" });
-  await reloadCompare;
   await expect(page.getByText("Select two different laps to compare")).toHaveCount(0);
   await expect(page.getByTestId("lap-compare-workspace")).toBeVisible();
+  await expect(workspace.getByText("Time Delta")).toBeVisible();
+  await expect(lapASelect).toHaveValue(lapBOption);
+  await expect(lapBSelect).toHaveValue(lapAOption);
   expect(Number(await page.getByRole("separator", { name: "Resize track map" }).getAttribute("aria-valuenow"))).toBe(adjustedWidth);
 
   const sameLapResponse = await request.post(ALIGNED_TELEMETRY_ENDPOINT, { data: { ids: [pair.lapA.id, pair.lapA.id], step: 1 } });

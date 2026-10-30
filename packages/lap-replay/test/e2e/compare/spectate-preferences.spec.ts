@@ -18,8 +18,7 @@ test("Spectate panel headers stay aligned and remember opened panels", async ({ 
   for (const mask of [0, 1, 3, 31, 29, 28, 30, 2]) {
     for (const [index, id] of ids.entries()) await toggle(id, Boolean(mask & (1 << index)));
     const layout = await page.evaluate((panelIds) => {
-      const strip = document.querySelector("[data-spectate-panel-headers]")!;
-      const clip = strip.getBoundingClientRect();
+      const clip = document.querySelector("[data-spectate-panel-headers]")!.getBoundingClientRect();
       return {
         headers: Array.from(document.querySelectorAll("[data-panel-header]"), (element) => {
           const box = element.getBoundingClientRect();
@@ -61,7 +60,12 @@ test("Spectate panel headers stay aligned and remember opened panels", async ({ 
   await expect(page.getByRole("tooltip")).toContainText("Share of current shock compression; this is not measured tire load.");
   await page.mouse.move(0, 0);
   await page.setViewportSize({ width: 700, height: 950 });
-  for (const id of ids) await toggle(id, true);
+  for (const id of ids) {
+    await toggle(id, true);
+    for (const other of ids) {
+      await expect(page.locator(`[data-panel-toggle="${other}"]`)).toHaveAttribute("aria-expanded", String(other === id));
+    }
+  }
   await page.reload();
   // Narrow workspaces show one panel at a time; the last selection survives reload.
   for (const id of ids) await expect(page.locator(`[data-panel-toggle="${id}"]`)).toHaveAttribute("aria-expanded", String(id === ids.at(-1)));

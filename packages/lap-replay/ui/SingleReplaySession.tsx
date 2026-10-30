@@ -1,10 +1,12 @@
+import type { TrackProjection } from "@raceiq/scene-3d/wireframe/ScenePlacement";
+import type { TrackMapBoundaries } from "../contracts/host";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import type { SemanticLapTelemetry } from "../contracts/replay";
 import type { ReplayOpponentMetadata, ReplaySession as ReplaySessionData, SpectateController, SpectateSegment } from "../contracts/spectate";
 import type { OpponentSemanticLapTelemetry } from "../contracts/opponents";
-import { createSpectateController, prepareSpectateLap } from "./spectate-replay";
+import { createSpectateController, placeIRacingSpectateLaps, prepareSpectateLap } from "./spectate-replay";
 import { SpectateView } from "./SpectateView";
 import { useLocalStorage, useSettings } from "./host";
 export interface SingleReplaySessionProps {
@@ -12,6 +14,8 @@ export interface SingleReplaySessionProps {
   lap: LapMeta | ReplayOpponentMetadata;
   replay: SemanticLapTelemetry | OpponentSemanticLapTelemetry;
   outline: readonly { x: number; z: number }[] | null;
+  trackProjection?: TrackProjection | null;
+  trackBoundaries?: TrackMapBoundaries | null;
   segments: readonly SpectateSegment[];
   trackLengthM?: number;
   initialFrame?: number;
@@ -23,12 +27,12 @@ export interface SingleReplaySessionProps {
 }
 
 /** One native replay clock rendered through the same scene and panels as comparison. */
-export function SingleReplaySession({ gameId, lap, replay, outline, segments, trackLengthM, initialFrame, ai, aiOpen, onAiOpenChange, onController, panelHeaderTarget }: SingleReplaySessionProps) {
+export function SingleReplaySession({ gameId, lap, replay, outline, trackProjection, trackBoundaries, segments, trackLengthM, initialFrame, ai, aiOpen, onAiOpenChange, onController, panelHeaderTarget }: SingleReplaySessionProps) {
   const a = useMemo(() => {
     const prepared = prepareSpectateLap(replay);
     if (typeof trackLengthM === "number" && Number.isFinite(trackLengthM) && trackLengthM > 0) prepared.trackLengthM = trackLengthM;
-    return prepared;
-  }, [replay, trackLengthM]);
+    return gameId === "iracing" ? placeIRacingSpectateLaps([prepared, prepared], trackProjection ?? null)[0] : prepared;
+  }, [gameId, replay, trackLengthM, trackProjection]);
   const session = useMemo<ReplaySessionData>(() => ({
     gameId,
     a,
@@ -97,7 +101,7 @@ export function SingleReplaySession({ gameId, lap, replay, outline, segments, tr
     };
   }, [a, controller]);
   if (!controller) return null;
-  return <SpectateView pair={session} controller={controller} outline={outline} segments={segments}
+  return <SpectateView pair={session} controller={controller} outline={outline} trackProjection={trackProjection} trackBoundaries={trackBoundaries} segments={segments}
     ai={ai} aiOpen={aiOpen} onAiOpenChange={onAiOpenChange} telemetryOpen={telemetryOpen}
     onTelemetryOpenChange={setTelemetryOpen} carPanelOpen={carPanelOpen} onCarPanelOpenChange={setCarPanelOpen}
     panelHeaderTarget={panelHeaderTarget} />;

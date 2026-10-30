@@ -25,7 +25,7 @@ import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import { normalizeSuspensionTravel, sceneSuspensionRange } from "@raceiq/scene-3d/suspension";
 import { inputFocusColor, type SpectateFocus } from "./spectate-focus";
 import { FOCUS_ZOOM_NEAR, FOCUS_ZOOM_SNAP_OUT, focusLaneWidth, focusZoomBlend, offsetFocusLane, projectFocusCenterline, sampleFocusLane, smallestAvailableModelLength, zoomIndicatorPosition, type FocusCenterPoint, type TimedFocusPoint } from "./spectate-focus-lanes";
-import { sampleMotion } from "./spectate-replay";
+import { sampleMotion, spectateSamplePosition } from "./spectate-replay"
 const color = (name: string) => resolveCssColor(`var(${name})`);
 import { hasTelemetryGap } from "./telemetry-gap";
 
@@ -56,7 +56,7 @@ export function translateEstimatedRaceLineToScene(positions: number[], origin: T
 type TrackPoint = { x: number; z: number };
 type TrackAlignment = NonNullable<ReturnType<typeof computeAlignment>>;
 const WORLD_ALIGNMENT: TrackAlignment = { scale: 1, cos: 1, sin: 0, tx: 0, tz: 0, flipX: false, flipZ: false };
-type TireInfoOptions = Pick<WheelLabelConfig, "fmtTemp" | "temperatureLabels"> & {
+type TireInfoOptions = Pick<WheelLabelConfig, "fmtTemp" | "temperatureLabels" | "pitTemperatureLabel" | "carcassLabel" | "pitHealthLabel" | "coldPressureLabel" | "pressureLabel" | "brakeLabel" | "wearRateLabel" | "snapshotStaleLabel"> & {
   pressureOptimal: readonly [WheelLabelConfig["pressureOptimal"], WheelLabelConfig["pressureOptimal"]];
 };
 type WheelInfoState = {
@@ -321,19 +321,17 @@ export class SpectateSceneRuntime {
     this.edgeRuns = [];
     this.lineRuns = [[], []];
     const racingLinePositions: number[] = [];
-    const native: TrackPoint[] = [];
+    const native: (TrackPoint & { y: number })[] = [];
     for (const sample of this.pair.a.samples) {
-      const x = sample.values["motion.position-x"],
-        z = sample.values["motion.position-z"];
-      if (typeof x === "number" && Number.isFinite(x) && typeof z === "number" && Number.isFinite(z)) native.push({ x, z });
+      const pose = spectateSamplePosition(sample);
+      if (pose) native.push({ x: pose.x, y: pose.y ?? 0, z: pose.z });
     }
     let displayBoundaries = boundaries;
     if (displayBoundaries && needsTrackFlip(this.pair.gameId)) displayBoundaries = flipBoundaries(displayBoundaries);
     // These endpoints already return game-world metres. Fitting their centerline
     // to a driven lap moves the track toward the car and changes its scale.
-    const worldBoundaries = displayBoundaries?.coordSystem === "forza" || displayBoundaries?.coordSystem === "f1-2025" || displayBoundaries?.coordSystem === "acc" || displayBoundaries?.coordSystem === "lmu" || displayBoundaries?.coordSystem === "ams2-world";
-    let boundaryAlignment: TrackAlignment | null = worldBoundaries ? WORLD_ALIGNMENT : null;
-    if (!worldBoundaries && displayBoundaries && displayBoundaries.centerLine.length >= 5) boundaryAlignment = computeAlignment(displayBoundaries.centerLine, native);
+    const worldBoundaries = displayBoundaries?.coordSystem === "forza" || displayBoundaries?.coordSystem === "f1-2025" || displayBoundaries?.coordSystem === "acc" || displayBoundaries?.coordSystem === "lmu" || displayBoundaries?.coordSystem === "ams2-world" || displayBoundaries?.coordSystem === "iracing-replay" || displayBoundaries?.coordSystem === "iracing-map";
+    let boundaryAlignment: TrackAlignment | null = worldBoundaries ? WORLD_ALIGNMENT : displayBoundaries && displayBoundaries.centerLine.length >= 5 ? computeAlignment(displayBoundaries.centerLine, native) : null;
     const validAlignment = (source: readonly TrackPoint[], alignment: TrackAlignment | null) => {
       if (!alignment || source.length < 5 || native.length < 5) return false;
       let minX = Infinity,
@@ -359,17 +357,22 @@ export class SpectateSceneRuntime {
     };
     if (!worldBoundaries && !validAlignment(displayBoundaries?.centerLine ?? [], boundaryAlignment)) boundaryAlignment = null;
     // LMU's outline is also native world geometry, including when limits are absent.
-    const outlineAlignment = this.pair.gameId === "lmu" ? WORLD_ALIGNMENT : computeAlignment([...(outline ?? [])], native);
-    const validOutlineAlignment = this.pair.gameId === "lmu" || validAlignment(outline ?? [], outlineAlignment) ? outlineAlignment : null;
-    const transform = (points: readonly Point[], alignment: TrackAlignment) => points.map((point) => applyAlignment(point, alignment));
-    const drawPoints = (points: readonly Point[], alignment: TrackAlignment, tint: string, runs: RibbonRun[], dashed = true) => {
-      const transformed = transform(points, alignment);
+    const outlineAlignment = this.pair.gameId === "lmu" ? WORLD_ALIGNMENT : this.pair.gameId === "iracing" ? null : computeAlignment([...(outline ?? [])], native);
+    const validOutlineAlignment = this.pair.gameId === "lmu" || (this.pair.gameId !== "iracing" && validAlignment(outline ?? [], outlineAlignment)) ? outlineAlignment : null;
+    // Fixed reference elevations only; never drape map geometry from selected-lap GPS.
+    const referenceHeights = this.pair.gameId === "iracing" ? displayBoundaries?.vertexHeightsM : null;
+    const transform = (points: readonly Point[], alignment: TrackAlignment, heights: readonly number[] | null | undefined) => points.map((point, index) => {
+      const p = applyAlignment(point, alignment);
+      return { ...p, y: heights?.[index] ?? 0 };
+    });
+    const drawPoints = (points: readonly Point[], alignment: TrackAlignment, tint: string, runs: RibbonRun[], dashed = true, heights: readonly number[] | null | undefined = null) => {
+      const transformed = transform(points, alignment, heights);
       const tintColor = color(tint);
       let distance = 0, run: RibbonRun[number][] = [], count = 0;
-      const add = (x: number, z: number, alpha: number) => {
+      const add = (x: number, y: number, z: number, alpha: number) => {
         const localX = x - this.origin.x, localZ = z - this.origin.z, previous = run.at(-1);
         if (previous?.x === localX && previous.z === localZ && previous.alpha === alpha) return;
-        run.push({ x: localX, y: -this.origin.y, z: localZ, color: tintColor, alpha });
+        run.push({ x: localX, y: y - this.origin.y, z: localZ, color: tintColor, alpha });
       };
       for (let i = 1; i < transformed.length; i++) {
         const a = transformed[i - 1]!, b = transformed[i]!;
@@ -380,10 +383,10 @@ export class SpectateSceneRuntime {
           const phase = dashed ? distance % 7 : 0;
           const step = dashed ? Math.min(length - offset, (phase < 6 ? 6 : 7) - phase) : length - offset;
           const alpha = !dashed || phase < 6 ? 1 : 0;
-          add(a.x + (b.x - a.x) * offset / length, a.z + (b.z - a.z) * offset / length, alpha);
+          add(a.x + (b.x - a.x) * offset / length, a.y + (b.y - a.y) * offset / length, a.z + (b.z - a.z) * offset / length, alpha);
           offset += step;
           distance += step;
-          add(a.x + (b.x - a.x) * offset / length, a.z + (b.z - a.z) * offset / length, alpha);
+          add(a.x + (b.x - a.x) * offset / length, a.y + (b.y - a.y) * offset / length, a.z + (b.z - a.z) * offset / length, alpha);
           count++;
         }
       }
@@ -393,11 +396,15 @@ export class SpectateSceneRuntime {
     const edgeRuns: RibbonRun[] = [];
     let edgeCount = 0;
     if (displayBoundaries && boundaryAlignment) {
-      for (const edge of [displayBoundaries.leftEdge, displayBoundaries.rightEdge, ...(displayBoundaries.additionalSections ?? []).flatMap((section) => [section.leftEdge, section.rightEdge])])
-        edgeCount += drawPoints(edge, boundaryAlignment, "--app-text", edgeRuns);
+      edgeCount += drawPoints(displayBoundaries.leftEdge, boundaryAlignment, "--app-text", edgeRuns, true, referenceHeights);
+      edgeCount += drawPoints(displayBoundaries.rightEdge, boundaryAlignment, "--app-text", edgeRuns, true, referenceHeights);
+      for (const section of displayBoundaries.additionalSections ?? []) {
+        edgeCount += drawPoints(section.leftEdge, boundaryAlignment, "--app-text", edgeRuns);
+        edgeCount += drawPoints(section.rightEdge, boundaryAlignment, "--app-text", edgeRuns);
+      }
     }
     if (displayBoundaries?.raceLine && boundaryAlignment) {
-      const points = transform(displayBoundaries.raceLine, boundaryAlignment);
+      const points = transform(displayBoundaries.raceLine, boundaryAlignment, null);
       // Uniform metre spacing avoids clustering dots where source points are dense.
       let nextDot = 0;
       for (let i = 1; i < points.length; i++) {
@@ -434,19 +441,18 @@ export class SpectateSceneRuntime {
     this.focusNativePoints = [[], []];
     this.centerLineRuns = [];
     if (displayBoundaries && boundaryAlignment && displayBoundaries.centerLine.length > 1) {
-      const centerLine = transform(displayBoundaries.centerLine, boundaryAlignment);
-      const center = centerLine.map((point) => ({ x: point.x - this.origin.x, y: -this.origin.y, z: point.z - this.origin.z, color: color("--app-border") }));
+      const centerLine = transform(displayBoundaries.centerLine, boundaryAlignment, referenceHeights);
+      const center = centerLine.map((point) => ({ x: point.x - this.origin.x, y: point.y - this.origin.y, z: point.z - this.origin.z, color: color("--app-border") }));
       if (center.length > 1) this.centerLineRuns = [center];
       const project = (lap: ReplaySession["a"], side: 0 | 1) => {
         const points = lap.samples.map((sample): FocusNativePoint => {
           const motion = lap.motionSamples ? sampleMotion(lap.motionSamples, sample.time, true, "opponentLapId" in lap.replay, lap.maximumGapSeconds) : null;
-          const pose = motion?.pose;
-          const x = sample.values["motion.position-x"], y = "opponentLapId" in lap.replay ? 0 : sample.values["motion.position-y"], z = sample.values["motion.position-z"];
+          const pose = motion?.pose ?? spectateSamplePosition(sample);
           return {
-            x: lap.motionSamples ? pose?.x ?? NaN : typeof x === "number" ? x : NaN,
-            y: lap.motionSamples ? pose?.y ?? NaN : typeof y === "number" && Number.isFinite(y) ? y : this.origin.y,
-            z: lap.motionSamples ? pose?.z ?? NaN : typeof z === "number" ? z : NaN,
-            distance: motion?.distance ?? sample.distance,
+            x: pose?.x ?? NaN,
+            y: pose?.y ?? this.origin.y,
+            z: pose?.z ?? NaN,
+            distance: sample.distance,
           };
         });
         this.focusNativePoints[side] = points;
@@ -469,12 +475,12 @@ export class SpectateSceneRuntime {
       if (!resolved) { resolved = color(token); palette.set(token, resolved); }
       return resolved;
     };
-    const nativePoint = (sample: SpectateSample, opponent: boolean): FocusRenderPoint => {
-      const y = sample.values["motion.position-y"];
+    const nativePoint = (sample: SpectateSample): FocusRenderPoint => {
+      const pose = spectateSamplePosition(sample);
       return {
-        x: (sample.values["motion.position-x"] as number) - this.origin.x,
-        y: (opponent ? 0 : typeof y === "number" && Number.isFinite(y) ? y : this.origin.y) - this.origin.y,
-        z: (sample.values["motion.position-z"] as number) - this.origin.z,
+        x: (pose?.x ?? NaN) - this.origin.x,
+        y: (pose?.y ?? this.origin.y) - this.origin.y,
+        z: (pose?.z ?? NaN) - this.origin.z,
         color: focusColor(sample),
       };
     };
@@ -498,12 +504,12 @@ export class SpectateSceneRuntime {
       const flushLane = () => { if (lane.length > 1) projected.push(lane); lane = []; };
       for (let i = 0; i < samples.length; i++) {
         const sample = samples[i], center = this.focusCenterPoints[index]?.[i] ?? null;
-        const x = sample.values["motion.position-x"], z = sample.values["motion.position-z"];
-        const valid = typeof x === "number" && Number.isFinite(x) && typeof z === "number" && Number.isFinite(z);
+        const pose = spectateSamplePosition(sample);
+        const valid = pose !== null;
         const connected = prior && valid && prior.run === sample.run && sample.time >= prior.time && !hasTelemetryGap(prior.time, sample.time, opponent ? 0.3 : (side === "a" ? this.pair.a : this.pair.b)?.maximumGapSeconds);
         if (prior && connected) {
-          if (!native.length) native.push(nativePoint(prior, opponent));
-          native.push(nativePoint(sample, opponent));
+          if (!native.length) native.push(nativePoint(prior));
+          native.push(nativePoint(sample));
           nativeCount++;
           const brake = sample.values["inputs.brake"], throttle = sample.values["inputs.accel"];
           if (typeof brake === "number" && Number.isFinite(brake) && controlInputPercent(brake) > 0) brakeCount++;
@@ -754,10 +760,15 @@ export class SpectateSceneRuntime {
             wheelNumber(reading.values, "tire.temperature.carcass.right", index),
           ],
           fmtTemp: options.fmtTemp, temperatureLabels: options.temperatureLabels,
+          pitTemperatureLabel: options.pitTemperatureLabel, carcassLabel: options.carcassLabel,
+          pitHealthLabel: options.pitHealthLabel, coldPressureLabel: options.coldPressureLabel,
+          pressureLabel: options.pressureLabel, brakeLabel: options.brakeLabel,
+          wearRateLabel: options.wearRateLabel, snapshotStaleLabel: options.snapshotStaleLabel,
+          coldPressure: false,
           temperatureThresholds: slot.config.temperatureThresholds,
           displayBrakeTemp: brakeTemp === null ? null : options.fmtTemp(brakeTemp),
           wear: wheelNumber(reading.values, "tires.tire-wear", index), wearRate: info.wearRates[index]!,
-          brakeTemp, pressurePsi: wheelNumber(reading.values, "tires.tire-pressure", index),
+          brakeTemp: brakeTemp ?? 0, pressurePsi: wheelNumber(reading.values, "tires.tire-pressure", index),
           pressureOptimal: options.pressureOptimal[side],
           side: index % 2 === 0 ? "left" : "right", isRear: index >= 2,
         };
@@ -851,9 +862,8 @@ export class SpectateSceneRuntime {
     const point = this.positionScratch;
     for (const samples of [this.pair.a.samples, ...(this.pair.b ? [this.pair.b.samples] : [])])
       for (const sample of samples) {
-        const x = sample.values["motion.position-x"],
-          z = sample.values["motion.position-z"];
-        if (typeof x === "number" && Number.isFinite(x) && typeof z === "number" && Number.isFinite(z)) box.expandByPoint(point.set(x - this.origin.x, -this.origin.y, z - this.origin.z));
+        const pose = spectateSamplePosition(sample);
+        if (pose) box.expandByPoint(point.set(pose.x - this.origin.x, -this.origin.y, pose.z - this.origin.z));
       }
     if (box.isEmpty()) return;
     box.getCenter(this.centerScratch);

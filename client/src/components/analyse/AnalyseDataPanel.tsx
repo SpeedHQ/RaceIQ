@@ -120,9 +120,8 @@ export function AnalyseDataContent({ currentFrame, packetNumber, startFuel, game
           )}
         </div>
         <div className="p-3">
-          {currentFrame && <MetricsPanel frame={currentFrame} startFuel={startFuel} gameId={gameId} />}
-          {currentFrame && (
-            <>
+          {currentFrame && <>
+              <MetricsPanel frame={currentFrame} startFuel={startFuel} gameId={gameId} />
               <div className="mt-3 mb-2 border-t border-app-border pt-2">
                 <h3 className="text-app-caption font-semibold text-app-text-muted uppercase tracking-wider">{m.analyse_section_dynamics()}</h3>
               </div>
@@ -130,8 +129,7 @@ export function AnalyseDataContent({ currentFrame, packetNumber, startFuel, game
               <AnalyseTireWheelsPanel frame={currentFrame} gameId={gameId} units={units} wearRate={wearRate} />
               <AnalyseSuspensionPanel frame={currentFrame} gameId={gameId} />
               {getGame(gameId).telemetry.ers && <AnalyseF1ErsPanel frame={currentFrame} />}
-            </>
-          )}
+          </>}
         </div>
     </>
   );

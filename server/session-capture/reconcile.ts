@@ -50,6 +50,7 @@ export async function reconcileHistoricalSessions(onReprocessed?: (reprocessed: 
         or(
           eq(sessions.captureFormatVersion, 1),
           eq(sessions.source, MOTEC_SESSION_SOURCE),
+          eq(sessions.source, "ibt"),
         ),
         notExists(
           db.select({ value: sql`1` }).from(classificationMigrationRecordings)

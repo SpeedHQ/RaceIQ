@@ -1,5 +1,7 @@
+import { calibratedProjection, type TrackProjection } from "@raceiq/scene-3d/wireframe/ScenePlacement";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { flipBoundaries, flipPoints, needsTrackFlip } from "@raceiq/shared/racing/tracks/coords"
+import { useIRacingTrackMapTelemetry } from "@/hooks/laps";
 import type { AlignedTrace } from "@raceiq/shared/racing/comparison/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Switch } from "@/components/ui/switch";
@@ -8,6 +10,7 @@ import { getSemanticCanvasContext } from "@raceiq/scene-3d/rendering/css-canvas"
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { CompareSegmentTable } from "./CompareSegmentTable";
+import { buildIRacingMeasuredMapPaths, projectIRacingDistanceToOutline } from "./iracing-map-path";
 export interface SegmentTiming {
   name: string;
   type: "corner" | "straight";
@@ -19,7 +22,10 @@ export interface SegmentTiming {
 
 interface CompareTrackMapProps {
   outline: Point[];
+  outlineBounds: BoundaryData | null;
   traces: AlignedTrace;
+  lapAId: number;
+  lapBId: number;
   labelA: string;
   labelB: string;
   lapTimeA: string;
@@ -29,10 +35,23 @@ interface CompareTrackMapProps {
   redrawRef: React.MutableRefObject<(() => void) | null>;
   trackId?: string | null;
   gameId?: GameId | null;
+  trackProjection?: TrackProjection | null;
 }
 
 /** Dual-panel track map: overview (left) + zoomed follow (right) */
-export function CompareTrackMap({ outline, traces, segments, hoveredDistanceRef, redrawRef, trackId, gameId }: CompareTrackMapProps) {
+export function CompareTrackMap({
+  outline,
+  outlineBounds,
+  traces,
+  lapAId,
+  lapBId,
+  segments,
+  hoveredDistanceRef,
+  redrawRef,
+  trackId,
+  gameId,
+  trackProjection,
+}: CompareTrackMapProps) {
   const overviewCanvasRef = useRef<HTMLCanvasElement>(null);
   const zoomCanvasRef = useRef<HTMLCanvasElement>(null);
   const overviewContainerRef = useRef<HTMLDivElement>(null);
@@ -46,6 +65,9 @@ export function CompareTrackMap({ outline, traces, segments, hoveredDistanceRef,
   useEffect(() => {
     followCarRef.current = followCar;
   }, [followCar]);
+  const { data: lapAMapTelemetry } = useIRacingTrackMapTelemetry(gameId === "iracing" ? lapAId : null);
+  const { data: lapBMapTelemetry } = useIRacingTrackMapTelemetry(gameId === "iracing" ? lapBId : null);
+
 
   // Fetch track boundaries
   useEffect(() => {
@@ -61,17 +83,26 @@ export function CompareTrackMap({ outline, traces, segments, hoveredDistanceRef,
       .catch(() => setBoundaries(null));
   }, [trackId, gameId]);
 
-  // Align outline to telemetry coordinate space.
-  // Extracted outlines (e.g. F1 2025 from AI spline data) may be in a different
-  // coordinate system than telemetry PositionX/Z. Detect misalignment by checking
-  // bounding box overlap, and if needed apply Procrustes (translate + rotate + scale).
-  // Pre-flip outline/boundary X so they render correctly against telemetry.
+  // iRacing geometry stays fixed; measured GPS uses the persisted calibration origin only.
   const flip = needsTrackFlip(gameId);
-  const displayOutline = useMemo(() => (flip ? flipPoints(outline) : outline), [outline, flip]);
+  const fixedProjection = useMemo(() => gameId === "iracing" && trackProjection?.calibration ? calibratedProjection(trackProjection) : null, [gameId, trackProjection]);
+  const measuredMapPaths = useMemo(
+    () => gameId === "iracing"
+      ? buildIRacingMeasuredMapPaths([lapAMapTelemetry, lapBMapTelemetry], traces.distance, trackProjection?.calibration?.origin ?? null)
+      : [],
+    [gameId, lapAMapTelemetry, lapBMapTelemetry, traces.distance, trackProjection],
+  );
+  const hasMeasuredMapPath = measuredMapPaths.some((path) => path !== null);
+  const displayOutline = useMemo(() => gameId === "iracing"
+    ? fixedProjection ? (flip ? flipPoints(fixedProjection.points) : fixedProjection.points) : hasMeasuredMapPath ? [] : (flip ? flipPoints(outline) : outline)
+    : flip ? flipPoints(outline) : outline, [gameId, fixedProjection, flip, hasMeasuredMapPath, outline]);
+  const sourceBoundaries = gameId === "iracing"
+    ? fixedProjection ? fixedProjection.boundaries : hasMeasuredMapPath ? null : outlineBounds
+    : boundaries ?? outlineBounds;
   const displayBoundaries = useMemo(() => {
-    if (!flip || !boundaries) return boundaries;
-    return flipBoundaries(boundaries);
-  }, [boundaries, flip]);
+    if (!flip || !sourceBoundaries) return sourceBoundaries;
+    return flipBoundaries(sourceBoundaries);
+  }, [sourceBoundaries, flip]);
 
   const { alignedOutline, alignedBoundaries, telXFn, trackRange } = useMemo(() => {
     const outline = displayOutline;
@@ -91,6 +122,15 @@ export function CompareTrackMap({ outline, traces, segments, hoveredDistanceRef,
       }
       return Math.max(maxX - minX || 1, maxZ - minZ || 1);
     };
+    if (gameId === "iracing") {
+      const measuredPoints = measuredMapPaths.flatMap((path) => path?.filter((point): point is Point => point !== null) ?? []);
+      return {
+        alignedOutline: outline,
+        alignedBoundaries: boundaries,
+        telXFn: identity,
+        trackRange: computeRange(outline.length ? outline : measuredPoints),
+      };
+    }
 
     // Extract telemetry positions from lap A
     const telPts: Point[] = [];
@@ -258,7 +298,25 @@ export function CompareTrackMap({ outline, traces, segments, hoveredDistanceRef,
     }
 
     return { alignedOutline: newOutline, alignedBoundaries: newBoundaries, telXFn: identity, trackRange: computeRange(newOutline) };
-  }, [displayOutline, traces, displayBoundaries]);
+  }, [displayOutline, traces, displayBoundaries, gameId]);
+  const mapTraces = useMemo(() => {
+    if (gameId !== "iracing") return traces;
+    const measuredA = measuredMapPaths[0];
+    const measuredB = measuredMapPaths[1];
+    const projected = projectIRacingDistanceToOutline(traces.distance, alignedOutline);
+    const pathA = measuredA ? measuredA.map((point) => point && flip ? { ...point, x: -point.x } : point) : projected;
+    const pathB = measuredB ? measuredB.map((point) => point && flip ? { ...point, x: -point.x } : point) : projected;
+    const xs = (path: typeof pathA, fallback: number[]) => path ? path.map((point) => point?.x ?? Number.NaN) : fallback;
+    const zs = (path: typeof pathA, fallback: number[]) => path ? path.map((point) => point?.z ?? Number.NaN) : fallback;
+    return {
+      ...traces,
+      positionXA: xs(pathA, traces.positionXA),
+      positionZA: zs(pathA, traces.positionZA),
+      positionXB: xs(pathB, traces.positionXB),
+      positionZB: zs(pathB, traces.positionZB),
+    };
+  }, [gameId, measuredMapPaths, traces, alignedOutline, flip]);
+
 
   const drawBoth = useCallback(() => {
     const hd = hoveredDistanceRef.current;
@@ -277,15 +335,15 @@ export function CompareTrackMap({ outline, traces, segments, hoveredDistanceRef,
       if (ctx) {
         ctx.scale(dpr, dpr);
         const segPts =
-          segments.length > 0 && traces.distance.length >= 2
+          segments.length > 0 && mapTraces.distance.length >= 2
             ? segments
                 .map((s) => {
-                  const idx = Math.round(s.startFrac * (traces.distance.length - 1));
-                  return { x: telXFn(traces.positionXA[idx] ?? 0), z: traces.positionZA[idx] ?? 0, type: s.type, label: s.name };
+                  const idx = Math.round(s.startFrac * (mapTraces.distance.length - 1));
+                  return { x: telXFn(mapTraces.positionXA[idx] ?? 0), z: mapTraces.positionZA[idx] ?? 0, type: s.type, label: s.name };
                 })
-                .filter((sp) => sp.x !== 0 || sp.z !== 0)
+                .filter((sp) => Number.isFinite(sp.x) && Number.isFinite(sp.z) && (sp.x !== 0 || sp.z !== 0))
             : undefined;
-        drawTrackCanvas(ctx, rect.width, rect.height, alignedOutline, traces, hd, null, segPts, false, alignedBoundaries, telXFn, false, false);
+        drawTrackCanvas(ctx, rect.width, rect.height, alignedOutline, mapTraces, hd, null, segPts, false, alignedBoundaries, telXFn, false, false, gameId === "iracing");
       }
     }
 
@@ -302,12 +360,12 @@ export function CompareTrackMap({ outline, traces, segments, hoveredDistanceRef,
       const ctx = getSemanticCanvasContext(zc);
       if (ctx) {
         ctx.scale(dpr, dpr);
-        const zoom = hd != null ? computeZoom(traces, hd, trackRange, telXFn, alignedOutline) : null;
-        drawTrackCanvas(ctx, rect.width, rect.height, alignedOutline, traces, hd, zoom, undefined, followCarRef.current, alignedBoundaries, telXFn, true);
+        const zoom = hd != null ? computeZoom(mapTraces, hd, trackRange, telXFn, alignedOutline) : null;
+        drawTrackCanvas(ctx, rect.width, rect.height, alignedOutline, mapTraces, hd, zoom, undefined, followCarRef.current, alignedBoundaries, telXFn, true, true, gameId === "iracing", gameId === "iracing");
 
         if (hd != null) {
-          const index = findTraceIndexAtDistance(traces.distance, hd);
-          drawInputsHUD(ctx, rect.width, rect.height, traces, index);
+          const index = findTraceIndexAtDistance(mapTraces.distance, hd);
+          drawInputsHUD(ctx, rect.width, rect.height, mapTraces, index);
         }
       }
     }
@@ -333,7 +391,7 @@ export function CompareTrackMap({ outline, traces, segments, hoveredDistanceRef,
         prevActiveSegRef.current = activeIdx;
       }
     }
-  }, [alignedOutline, traces, hoveredDistanceRef, segments, alignedBoundaries, telXFn, trackRange]);
+  }, [alignedOutline, mapTraces, hoveredDistanceRef, segments, alignedBoundaries, telXFn, trackRange, gameId]);
   const redrawFrameRef = useRef<number | null>(null);
   const scheduleDraw = useCallback(() => {
     if (redrawFrameRef.current != null) return;
@@ -365,7 +423,7 @@ export function CompareTrackMap({ outline, traces, segments, hoveredDistanceRef,
     <div className="flex h-full flex-col overflow-y-auto border border-app-border text-app-body text-app-text">
       {/* Overview — full track, static */}
       <div ref={overviewContainerRef} className="relative min-h-32 basis-56 shrink border-b border-app-border">
-        <span className="absolute top-2 left-2 text-app-caption text-app-text-dim uppercase tracking-wider z-10">{m.compare_overview()}</span>
+        <span className="absolute top-2 left-2 z-10 text-app-caption text-app-text-dim uppercase tracking-wider">{m.compare_overview()}</span>
         {alignedOutline.length < 2 ? (
           <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">{m.compare_no_outline()}</div>
         ) : (

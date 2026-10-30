@@ -30,6 +30,7 @@
     "@raceiq/telemetry-processor": "workspace:*",
     "@raceiq/tooling": "workspace:*",
     "@raceiq/tooling-data": "workspace:*",
+    "@raceiq/tooling": "workspace:*",
     "@raceiq/tooling-release": "workspace:*",
     "@raceiq/tracks-catalogue": "workspace:*",
     "@types/react": "^19.3.0",

@@ -202,16 +202,6 @@ describe("semantic telemetry catalog artifacts", () => {
         sources: ["iRacing.IsOnTrack"],
       },
     });
-    expect(getTelemetryVariable("tires.tire-pressure").games.iracing).toMatchObject({
-      kind: "normalized",
-      nativeUnit: "kPa",
-      sources: {
-        FL: ["iRacing.LFcoldPressure"],
-        FR: ["iRacing.RFcoldPressure"],
-        RL: ["iRacing.LRcoldPressure"],
-        RR: ["iRacing.RRcoldPressure"],
-      },
-    });
 
     expect(getTelemetryVariable("session.session-type").games.iracing.kind).toBe(
       "normalized",

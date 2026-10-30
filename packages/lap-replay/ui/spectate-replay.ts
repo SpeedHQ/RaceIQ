@@ -2,10 +2,11 @@ import { getGame } from "@raceiq/shared/games/registry";
 import type { CarModelEnrichment } from "@raceiq/scene-3d/model-types";
 import { steeringAngleRadians } from "@raceiq/scene-3d/wireframe-utils";
 import type { ComparisonData } from "@raceiq/shared/racing/comparison/types";
-import type { SemanticLapTelemetry, SemanticReplayFrame } from "../contracts/replay"
-import { hasTelemetryGap, recordedTelemetryGapSeconds } from "./telemetry-gap"
-import type { OpponentSemanticLapTelemetry } from "../contracts/opponents"
+import type { SemanticLapTelemetry, SemanticReplayFrame } from "../contracts/replay";
+import type { OpponentSemanticLapTelemetry } from "../contracts/opponents";
+import { hasTelemetryGap, recordedTelemetryGapSeconds } from "./telemetry-gap";
 import type { SpectateController, SpectateLap, SpectatePose, SpectateReading, SpectateSample, SpectateSnapshot } from "../contracts/spectate";
+import { calibratedProjection, resolveScenePoses, type TrackProjection } from "@raceiq/scene-3d/wireframe/ScenePlacement";
 const OPPONENT_SAMPLE_GAP_SECONDS = 0.3;
 function isOpponentReplay(replay: SemanticLapTelemetry | OpponentSemanticLapTelemetry): replay is OpponentSemanticLapTelemetry {
   return "opponentLapId" in replay;
@@ -70,9 +71,13 @@ function lowerBound<T>(items: readonly T[], target: number, value: (item: T) => 
 
 /** Register native samples to aligned comparison path when supplied. */
 export function prepareSpectateLap(replay: SemanticLapTelemetry | OpponentSemanticLapTelemetry, comparison?: ComparisonData, side: "a" | "b" = "a", options?: { preserveLapDistance: boolean }): SpectateLap {
-  const maximumGapSeconds = !isOpponentReplay(replay) && replay.envelopes[0]?.simulator === "ams2"
-    ? recordedTelemetryGapSeconds(replay.envelopes.map(frame => frame.observedAt.milliseconds))
-    : undefined;
+  // iRacing live captures can briefly stall between otherwise contiguous SDK samples.
+  // Interpolate bounded stalls for playback; longer outages remain explicit gaps.
+  const maximumGapSeconds = !isOpponentReplay(replay) && replay.envelopes[0]?.simulator === "iracing"
+    ? 0.25
+    : !isOpponentReplay(replay) && replay.envelopes[0]?.simulator === "ams2"
+      ? recordedTelemetryGapSeconds(replay.envelopes.map(frame => frame.observedAt.milliseconds))
+      : undefined;
   const traces = comparison?.traces;
   const elapsed = traces ? (side === "a" ? traces.elapsedTimeA : traces.elapsedTimeB) : [];
   const aligned: Array<{ time: number; distance: number; first: number; last: number }> = [];
@@ -201,6 +206,46 @@ if (hasSourceAwareGap(previousTime, time, isOpponentReplay(replay), maximumGapSe
   return { samples, motionSamples, maximumGapSeconds, duration: samples.at(-1)?.time ?? 0, distance: maxDistance, hasProgress: monotonic && progressCount > 1 && (traces ? aligned.length > 1 : trustworthy), replay };
 }
 
+/** Resolve both iRacing laps in one calibrated geographic frame. */
+export function placeIRacingSpectateLaps(laps: readonly [SpectateLap, SpectateLap], projection: TrackProjection | null): [SpectateLap, SpectateLap] {
+  const fixedProjection = projection?.calibration ? calibratedProjection(projection) : null;
+  const frames = laps.flatMap((lap) => lap.samples.map((sample) => ({ values: sample.values, states: {}, freshness: {} })));
+  const poses = resolveScenePoses("iracing", frames, fixedProjection);
+  const anyMeasured = poses.some((pose) => pose?.source === "measured");
+  let offset = 0;
+  const place = (lap: SpectateLap): SpectateLap => {
+    const start = offset;
+    offset += lap.samples.length;
+    let lapPoses = poses.slice(start, offset);
+    if (fixedProjection && anyMeasured && !lapPoses.some(pose => pose?.source === "measured")) {
+      lapPoses = resolveScenePoses("iracing", frames.slice(start, offset), fixedProjection);
+    }
+    if (!fixedProjection && !anyMeasured && projection) {
+      const framesForLap = lap.samples.map((sample) => ({ values: sample.values, states: {}, freshness: {} }));
+      lapPoses = resolveScenePoses("iracing", framesForLap, projection);
+    }
+    return {
+      ...lap,
+      samples: lap.samples.map((sample, index) => {
+        const pose = lapPoses[index];
+        return { ...sample, scenePose: pose ? { ...pose, x: 0 - pose.x, y: pose.y ?? 0, yaw: 0 - pose.yaw } : null };
+      }),
+    };
+  };
+  return [place(laps[0]), place(laps[1])];
+}
+
+export function spectateSamplePose(sample: SpectateSample, opponent = false): SpectatePose | null {
+  return sample.scenePose === undefined ? poseOf(sample.values, opponent) : sample.scenePose;
+}
+export function spectateSamplePosition(sample: SpectateSample): Pick<SpectatePose, "x" | "y" | "z"> | null {
+  if (sample.scenePose !== undefined) return sample.scenePose;
+  const x = number(sample.values["motion.position-x"]), z = number(sample.values["motion.position-z"]);
+  if (x === null || z === null) return null;
+  const y = number(sample.values["motion.position-y"]);
+  return { x, y: y ?? 0, z };
+}
+
 /** Vehicle sideslip estimate from ground-plane travel direction versus recorded heading. */
 export function vehicleSideslipDegrees(lap: SpectateLap, time: number): number | null {
   if (!Number.isFinite(time) || lap.replay.envelopes[0]?.simulator !== "ams2") return null;
@@ -291,37 +336,41 @@ function poseOf(values: Readonly<Record<string, unknown>>, opponent = false): Sp
   if (x === null || z === null || yaw === null) return null;
   return { x, y: opponent ? 0 : number(values["motion.position-y"]) ?? 0, z, yaw };
 }
+function interpolatePose(left: SpectateSample, right: SpectateSample, fraction: number, opponent = false): SpectatePose | null {
+  const a = spectateSamplePose(left, opponent), b = spectateSamplePose(right, opponent);
+  if (!a || !b) return null;
+  return {
+    x: a.x + (b.x - a.x) * fraction,
+    y: a.y + (b.y - a.y) * fraction,
+    z: a.z + (b.z - a.z) * fraction,
+    yaw: a.yaw + Math.atan2(Math.sin(b.yaw - a.yaw), Math.cos(b.yaw - a.yaw)) * fraction,
+  };
+}
 export function sampleMotion(samples: readonly SpectateSample[], time: number, holdPose: boolean, opponent = false, maximumGapSeconds?: number): Pick<SpectateReading, "pose" | "distance"> {
   const first = samples[0], last = samples.at(-1);
   if (!first || !last || time < first.time) return { pose: null, distance: null };
-  if (time > last.time) return { pose: holdPose ? poseOf(last.values, opponent) : null, distance: holdPose && Number.isFinite(last.distance) ? last.distance : null };
+  if (time > last.time) return { pose: holdPose ? spectateSamplePose(last, opponent) : null, distance: holdPose && Number.isFinite(last.distance) ? last.distance : null };
   const index = lowerBound(samples, time, (sample) => sample.time), right = samples[index]!;
-  if (right.time === time) return { pose: poseOf(right.values, opponent), distance: Number.isFinite(right.distance) ? right.distance : null };
+  if (right.time === time) return { pose: spectateSamplePose(right, opponent), distance: Number.isFinite(right.distance) ? right.distance : null };
   const left = samples[index - 1];
-if (!left || left.run !== right.run || hasSourceAwareGap(left.time, right.time, opponent, maximumGapSeconds)) return { pose: null, distance: null };
-  const a = poseOf(left.values, opponent), b = poseOf(right.values, opponent);
-  if (!a || !b) return { pose: null, distance: null };
+  if (!left || left.run !== right.run || hasSourceAwareGap(left.time, right.time, opponent, maximumGapSeconds)) return { pose: null, distance: null };
   const fraction = (time - left.time) / (right.time - left.time);
+  const pose = interpolatePose(left, right, fraction, opponent);
+  if (!pose) return { pose: null, distance: null };
   return {
-    pose: {
-      x: a.x + (b.x - a.x) * fraction,
-      y: opponent ? 0 : a.y + (b.y - a.y) * fraction,
-      z: a.z + (b.z - a.z) * fraction,
-      yaw: a.yaw + Math.atan2(Math.sin(b.yaw - a.yaw), Math.cos(b.yaw - a.yaw)) * fraction,
-    },
+    pose,
     distance: Number.isFinite(left.distance) && Number.isFinite(right.distance) ? left.distance + (right.distance - left.distance) * fraction : null,
   };
 }
-export function sampleLap(lap: SpectateLap, time: number, holdPose: boolean): SpectateReading | null {
+export function sampleLap(lap: SpectateLap, time: number, holdPose: boolean, opponent = false): SpectateReading | null {
   const samples = lap.samples,
     first = samples[0],
     last = samples.at(-1);
   if (!first || !last || time < first.time) return null;
-  const opponent = isOpponentReplay(lap.replay);
-  if (time > last.time) return holdPose ? { time: last.time, distance: Number.isFinite(last.distance) ? last.distance : null, pose: poseOf(last.values, opponent), values: {} } : null;
+  if (time > last.time) return holdPose ? { time: last.time, distance: Number.isFinite(last.distance) ? last.distance : null, pose: spectateSamplePose(last, opponent), values: {} } : null;
   const index = lowerBound(samples, time, (sample) => sample.time);
   const right = samples[index]!;
-  if (right.time === time) return { time, distance: Number.isFinite(right.distance) ? right.distance : null, pose: poseOf(right.values, opponent), values: right.values };
+  if (right.time === time) return { time, distance: Number.isFinite(right.distance) ? right.distance : null, pose: spectateSamplePose(right, opponent), values: right.values };
   const left = samples[index - 1];
 if (!left || left.run !== right.run || hasSourceAwareGap(left.time, right.time, opponent, lap.maximumGapSeconds)) return null;
   const fraction = (time - left.time) / (right.time - left.time);
@@ -336,7 +385,7 @@ if (!left || left.run !== right.run || hasSourceAwareGap(left.time, right.time, 
     } else values[key] = interpolateShape(a, b, fraction);
   }
   const distance = Number.isFinite(left.distance) && Number.isFinite(right.distance) ? left.distance + (right.distance - left.distance) * fraction : null;
-  return { time, distance, pose: poseOf(values, opponent), values };
+  return { time, distance, pose: interpolatePose(left, right, fraction, opponent), values };
 }
 
 /** Equal-distance samples retain plateau departure; lowerBound still finds earliest arrival. */
@@ -381,17 +430,17 @@ let time = initialDistance == null ? 0 : (arrivalAt(aProgress, initialDistance, 
   let snapshot: SpectateSnapshot;
   const read = (target: number, holdPose = true) => {
     const opponentA = isOpponentReplay(a.replay);
-    const ra = sampleLap(a, target, holdPose);
-if (ra && a.motionSamples) Object.assign(ra, sampleMotion(a.motionSamples, target, holdPose, opponentA, a.maximumGapSeconds));
+    const ra = sampleLap(a, target, holdPose, opponentA);
+    if (ra && a.motionSamples) Object.assign(ra, sampleMotion(a.motionSamples, target, holdPose, opponentA, a.maximumGapSeconds));
     if (!b) return { a: ra, b: null };
     const opponentB = isOpponentReplay(b.replay);
     if (!positionLock) {
-      const rb = sampleLap(b, target, holdPose);
+      const rb = sampleLap(b, target, holdPose, opponentB);
       if (rb && b.motionSamples) Object.assign(rb, sampleMotion(b.motionSamples, target, holdPose, opponentB, b.maximumGapSeconds));
       return { a: ra, b: rb };
     }
     const bTime = ra?.distance == null ? null : arrivalAt(bProgress, ra.distance, opponentB, b.maximumGapSeconds);
-    const rb = bTime === null ? null : sampleLap(b, bTime, holdPose);
+    const rb = bTime === null ? null : sampleLap(b, bTime, holdPose, opponentB);
     if (rb && b.motionSamples && bTime !== null) Object.assign(rb, sampleMotion(b.motionSamples, bTime, holdPose, opponentB, b.maximumGapSeconds));
     return { a: ra, b: rb };
   };
