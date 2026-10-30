@@ -17,6 +17,7 @@ Documentation is organized by audience. Start with a user guide; use contributor
 
 - [Contributing](../CONTRIBUTING.md) — repository entry point and contribution workflow.
 - [Development](contributing/development.md) — install, run, seed data, and manage schema changes.
+- [macOS desktop build](../apps/desktop/README.md) — build the local Tauri app and verify its Bun backend lifecycle.
 - [Frontend development](contributing/frontend.md) — component ownership, live-state boundaries, and routing contracts.
 - [Background operation flow](contributing/background-operation-flow.md) — reuse sparse recording conversion's confirmation dialog, non-modal bottom-right progress, result/retry, and inline maintenance pattern.
 - [Performance benchmarks](contributing/performance-benchmarks.md) — run parser, replay, and process-isolated performance measurements.

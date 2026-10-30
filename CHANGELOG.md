@@ -144,6 +144,7 @@
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
+- Introduce the macOS Tauri host and isolated backend lifecycle checks for allocated loopback ports, readiness, persistence and graceful shutdown; native-app acceptance remains in progress.
 - Add an isolated real-UDP F1 25 browser acceptance gate and a staged macOS Bun/Tauri desktop plan.
 - Preserve Windows directory-sync path errors when validating recording publication directories.
 - Target comparison lap pickers explicitly in browser checks and wait for rendered frames in the native camera zoom check.

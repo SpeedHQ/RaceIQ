@@ -18,7 +18,7 @@ export function endRequestAuthorization(request: Request): void {
 export async function createHttpAccess(env: NodeJS.ProcessEnv = process.env, auth?: DashboardAuth) {
   const network = auth ? await auth.getNetwork() : undefined;
   // Preserve Bun's existing all-interface listener for upgrades, including Docker.
-  const hosts = env.SERVER_HOST ? [env.SERVER_HOST] : (network?.hosts ?? ["0.0.0.0"]);
+  const hosts = env.RACEIQ_DESKTOP === "1" ? ["127.0.0.1"] : env.SERVER_HOST ? [env.SERVER_HOST] : (network?.hosts ?? ["0.0.0.0"]);
   const hostname = hosts[0];
   const password = auth ? "" : env.SERVER_PASSWORD || "";
   // Release builds replace this exact process.env expression. An installed
