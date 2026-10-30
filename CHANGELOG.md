@@ -1,6 +1,7 @@
 ## Unreleased
 
 ### Features
+- Add experimental decoding for F1 25's 2026 Season Pack UDP format while retaining existing 2025 capture compatibility; 2026 dashboard and season-catalog support remain in progress.
 - Choose Claude (Anthropic) as an AI provider for analysis, chat, auto-tune and driver profiles with its own API key. The model picker lists the Claude models available to that key, tags Claude Haiku 5.5 as Recommended, and preselects it when you switch to Claude.
 - Replace category tabs on the AMS2 and iRacing Cars pages with a searchable dropdown that shows the total as a placeholder, clears the search when opened, and preserves category counts and the All categories reset.
 - Add AMS2 support: native Windows shared-memory telemetry capture, game-specific car and track identity, per-wheel Replay metrics, 235 track maps, car thumbnails, dashboard branding and a separate Driver profile; include Live connection guidance and correct lap capture, export, replay and track-map behavior. Keep adapter availability and native capture development-only.

@@ -35,6 +35,8 @@ export function telemetryCatalogSourceHash(source: string): string {
 }
 
 export const ENUM_DOMAINS: Readonly<Record<string, readonly string[]>> = {
+  "identity.telemetry-wire-format": ["2025", "2026"],
+  "aero.active-aero-mode": ["0", "1"],
   "weather.cloud-coverage": Array.from({ length: 11 }, (_, code) => String(code)),
   "hybrid.motor.state": ["0", "1", "2", "3"],
   "engine.ignition-starter": ["0", "1", "2"],

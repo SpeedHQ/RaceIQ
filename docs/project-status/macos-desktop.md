@@ -88,10 +88,11 @@ Both implementation tracks below depend on it.
 
 ## Shared telemetry and AI contract (proposed)
 
-- Preserve existing 2025 captures, routes and persisted identities. Decide
-  adapter/season identity after the wire-format audit; do not rename history or
-  equate protocol version with a car/track identity. Detect supported formats
-  from wire headers and use explicit versioned decoding layouts.
+- Preserve existing 2025 captures, routes and persisted identities. Both DLC
+  output formats use the existing `f1-2025` installed-game adapter; wire format
+  and car regulations remain independent. Do not rename history or infer car/
+  track identities from protocol year. See the [wire audit](f1-2026-wire-audit.md)
+  for pinned source, decoder matrix and backend/UI semantics.
 - Keep telemetry semantics one-to-one with EA output. Audit changed packet
   lengths, grid capacities, events, car/track catalogs and energy/aero channels.
   Never relabel 2026 concepts as legacy DRS/ERS without source evidence.
@@ -231,6 +232,14 @@ Acceptance: a local `.app` launches by double-click, records F1 UDP, opens a
 saved lap, restarts with history intact, and exits cleanly without a terminal.
 
 ## Milestone 4: F1 2026 Season Pack support
+
+Experimental parser foundation implemented 2026-10-30. The
+[wire audit](f1-2026-wire-audit.md) pins the downloaded EA structures attachment
+and documents the still-unverified newer Season 8 PDF. Eight specification-derived
+parser/storage tests cover 24-car layouts, new energy/aero channels, checkpoint
+parity, mixed-format resets and malformed input. No real 2026 raw capture was
+found in the local TrackTitan folders; logs confirm the app received `F12026`.
+UI/catalog updates and 2026 UDP browser/native acceptance remain pending.
 
 Backend plan, against the shared telemetry contract above:
 

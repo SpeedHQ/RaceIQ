@@ -7,15 +7,15 @@
 - Catalog version: `0.20.0`
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.20.0`
-- Generator source SHA-256: `fd03c450b03f31505862d865bb4574da2f25c6d704cd387c6cbbbfc1bb5c9472`
-- Content SHA-256: `2c115419ceb87a3e3939cadb9a3bc0aa696b13e5fb4dafbcf90924fc258c3d30`
+- Generator source SHA-256: `77b923169182e2a2d0cfcc6d89fcc736ed9345befc30196d996b9c3a016b6cff`
+- Content SHA-256: `018fdb55dcdf771a8c410f213300e1c14f391228a46403602b7050632bc63181`
 
 ## Coverage
 
 | Simulator | Sources | Recorded | Packet | Extension | SDK | YAML | Setup |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | fm-2023 | 96 | 96 | 95 | 1 | 0 | 0 | 0 |
-| f1-2025 | 292 | 292 | 119 | 173 | 0 | 0 | 0 |
+| f1-2025 | 302 | 302 | 119 | 183 | 0 | 0 | 0 |
 | acc | 205 | 172 | 124 | 48 | 0 | 0 | 33 |
 | ac-evo | 258 | 226 | 126 | 100 | 0 | 0 | 32 |
 | iracing | 952 | 702 | 115 | 18 | 324 | 495 | 0 |
@@ -26,6 +26,9 @@
 
 | Semantic ID | Label | Value type | Dimensions | Unit | Cardinality | Ordering | Value schema | Limitations |
 |---|---|---|---|---|---|---|---|---|
+| `aero.active-aero-activation-distance` | Active aero activation distance | number | length | m | scalar |  |  |  |
+| `aero.active-aero-available` | Active aero available | boolean | dimensionless | boolean | scalar |  |  |  |
+| `aero.active-aero-mode` | Active aero mode | enum | unit:enum | enum | scalar |  | domain: 0, 1 |  |
 | `aero.drs-active` | DRS active | boolean | dimensionless | boolean | scalar |  |  |  |
 | `aero.drs-available` | DRS available | boolean | dimensionless | boolean | scalar |  |  |  |
 | `aero.drs-zone-approaching` | DRS Zone Approaching | boolean | dimensionless | boolean | scalar |  |  |  |
@@ -161,6 +164,9 @@
 | `electronics.abs-raw` | ABS Raw | number | dimensionless | count | scalar |  |  |  |
 | `electronics.abs-vibrations` | ABS Vibrations | number | dimensionless | ratio | scalar |  |  |  |
 | `electronics.motor-map` | Motor Map | number | dimensionless | count | scalar |  |  |  |
+| `electronics.overtake-activation-distance` | Overtake mode activation distance | number | length | m | scalar |  |  |  |
+| `electronics.overtake-active` | Overtake mode active | boolean | dimensionless | boolean | scalar |  |  |  |
+| `electronics.overtake-available` | Overtake mode available | boolean | dimensionless | boolean | scalar |  |  |  |
 | `electronics.pit-limiter-status` | Pit Limiter Status | number | dimensionless | count | scalar |  |  |  |
 | `electronics.tc-active` | TC Active | boolean | dimensionless | boolean | scalar |  |  |  |
 | `electronics.tc-cut` | TC Cut | number | dimensionless | count | scalar |  |  |  |
@@ -218,6 +224,7 @@
 | `fuel.dp-fuel-fill` | Dp Fuel Fill | number | length^3 | L | scalar |  |  |  |
 | `fuel.ers-deploy-mode` | ERS Deploy Mode | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2, 3, 4 |  |
 | `fuel.ers-deployed` | ERS Deployed | number | mass × length^2 × time^-2 | J | scalar |  |  |  |
+| `fuel.ers-harvest-limit-per-lap` | ERS harvest limit per lap | number | mass × length^2 × time^-2 | J | scalar |  |  |  |
 | `fuel.ers-harvested` | ERS Harvested | number | mass × length^2 × time^-2 | J | scalar |  |  |  |
 | `fuel.ers-store-energy` | ERS Store Energy | number | mass × length^2 × time^-2 | J | scalar |  |  |  |
 | `fuel.fuel` | RaceIQ packet fuel value | number | dimensionless | game-native | scalar |  |  |  |
@@ -254,6 +261,7 @@
 | `identity.competitor.vehicle-class` | Competitor vehicle class | string | dimensionless | text | scalar |  |  |  |
 | `identity.driver-name` | Driver Name | string | dimensionless | text | scalar |  |  |  |
 | `identity.drivetrain-type` | Drivetrain Type | number | dimensionless | id | scalar |  |  |  |
+| `identity.f1-regulations-2026` | 2026 F1 regulations | boolean | dimensionless | boolean | scalar |  |  |  |
 | `identity.game-version` | Game Version | number | dimensionless | count | scalar |  |  |  |
 | `identity.is-in-garage` | Is In Garage | boolean | dimensionless | boolean | scalar |  |  |  |
 | `identity.is-on-track-car` | Is On Track Car | boolean | dimensionless | boolean | scalar |  |  |  |
@@ -267,6 +275,7 @@
 | `identity.player-track-surface-material` | Player Track Surface Material | number | unit:irsdk_trksurf | irsdk_TrkSurf | scalar |  |  |  |
 | `identity.session-name` | Session Name | string | dimensionless | text | scalar |  |  |  |
 | `identity.source-identity` | Source identity | structured | dimensionless | structured | variable:0-* | source-path:source-order | indices: source-path (variable:0-*, source-order); fields: value:string |  |
+| `identity.telemetry-wire-format` | Telemetry wire format | enum | unit:enum | enum | scalar |  | domain: 2025, 2026 |  |
 | `identity.track-id` | Track Id | string | dimensionless | text | scalar |  |  |  |
 | `identity.track-limits-steps` | Track Limits Steps | number | dimensionless | count | scalar |  |  |  |
 | `identity.track-name` | Track name | string | dimensionless | text | scalar |  |  |  |
@@ -455,6 +464,7 @@
 | `race.driver-incident-count` | Current-driver incident count | number | dimensionless | count | scalar |  |  |  |
 | `race.driver-marker` | Driver Marker | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.driver-status` | Driver Status | number | dimensionless | count | scalar |  |  |  |
+| `race.driving-wrong-way` | Driving wrong way | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.extended-race-iq` | Extended Race IQ | number | unit:unitless | unitless | scalar |  |  |  |
 | `race.finish-status` | Finish Status | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2, 3 |  |
 | `race.flag-status` | Flag Status | string | dimensionless | text | scalar |  |  |  |
