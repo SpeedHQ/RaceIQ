@@ -35,7 +35,9 @@ The new track rows have no shared-geometry alias and retain the existing catalog
 convention `lengthKm: 0` for an unknown length. Track cards omit that value and
 the info panel displays an unavailable marker; it is not a measured zero-length
 circuit. No forward-layout geometry or guessed Madrid distance is substituted.
-The native compiled app must be rebuilt before it includes these catalog rows.
+The native app was rebuilt on 2026-10-31; its bundled catalogs match source
+byte-for-byte and strict deep signature verification passes. Native capture
+and replay acceptance remain separate, unfinished gates.
 
 ## Identity and semantics contract
 

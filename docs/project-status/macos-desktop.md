@@ -49,6 +49,12 @@ Fork branch: `codex/macos-tauri-e2e`. Upstream baseline: `SpeedHQ/RaceIQ`
 `e429369be` (v0.20.0), synchronized on 2026-10-29. Keep upstream fetch-only;
 publish this work only to `dedeco-carrera/RaceIQ` after fork access is available.
 
+Fork created 2026-10-31: [dedeco-carrera/RaceIQ](https://github.com/dedeco-carrera/RaceIQ).
+The five implementation checkpoints through `63dc81d20` were pushed to
+`codex/macos-tauri-e2e`; that branch now tracks the fork, while upstream push
+remains disabled. A complete outgoing-object/history audit confirmed no private
+relay capture was tracked or committed before publication.
+
 Use the `packageManager` version in the root manifest (currently Bun 1.4.3).
 The older global Bun 1.3.14 is not the verification baseline.
 
@@ -258,7 +264,10 @@ scenarios pass Chromium and WebKit. Season catalogs now include all 22 new
 2026 F1/F2 team IDs, Madrid and the three reverse circuits, preserving existing
 identities and leaving unverified track lengths/geometry unavailable. Dedicated
 Live/Replay channel presentation, season-aware AI context, real-DLC and native
-acceptance remain pending. Rebuild the native artifact to include the new catalogs.
+acceptance remain pending. The native artifact was rebuilt on 2026-10-31;
+strict deep signature verification passes and its bundled car/track CSVs are
+byte-identical to the new source catalogs. This is build evidence, not native
+capture/Replay acceptance.
 
 Backend plan, against the shared telemetry contract above:
 
