@@ -254,9 +254,11 @@ therefore remains pending. See the wire audit for its hash and limitations.
 Raw now resolves game-specific extensions through the catalog source inventory,
 so new fields carry units/categories/provenance without changing UI components
 or styling. The 2025 and synthetic 2026 UDP-to-Replay/Compare/export/import
-scenarios pass Chromium and WebKit. Season catalogs,
-dedicated Live/Replay channel presentation, real-DLC and native acceptance remain
-pending.
+scenarios pass Chromium and WebKit. Season catalogs now include all 22 new
+2026 F1/F2 team IDs, Madrid and the three reverse circuits, preserving existing
+identities and leaving unverified track lengths/geometry unavailable. Dedicated
+Live/Replay channel presentation, season-aware AI context, real-DLC and native
+acceptance remain pending. Rebuild the native artifact to include the new catalogs.
 
 Backend plan, against the shared telemetry contract above:
 

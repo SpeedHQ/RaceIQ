@@ -25,9 +25,17 @@ remain version 1. Minor source spelling differences (`vehicleFiaFlags` and
 some struct-closing punctuation, so the complete text structures remain useful.
 
 The appendices retain session types 0-18 and introduce distinct 2026 team IDs
-above 255 (including Audi/Cadillac) and Madrid track ID 42. Catalog mapping,
-geometry availability and season-aware AI/UI interpretation still need work;
-confirming the wire layout does not complete those requirements.
+above 255 (including Audi/Cadillac) and Madrid track ID 42. The catalog now maps
+all 22 new F1/F2 team IDs (476–486 and 489–499), Madrid (42), and the reverse
+circuits (39–41), while retaining every existing catalog row. Unlisted car IDs
+remain unknown. Missing geometry and season-aware AI/UI interpretation still
+need work; confirming the wire layout does not complete those requirements.
+
+The new track rows have no shared-geometry alias and retain the existing catalog
+convention `lengthKm: 0` for an unknown length. Track cards omit that value and
+the info panel displays an unavailable marker; it is not a measured zero-length
+circuit. No forward-layout geometry or guessed Madrid distance is substituted.
+The native compiled app must be rebuilt before it includes these catalog rows.
 
 ## Identity and semantics contract
 
@@ -122,8 +130,9 @@ armed before driving is requested for that gate; no missing samples are invented
 
 Before marking the milestone done:
 
-1. Apply the verified Season 8 car/track catalogs and remaining ERS/setup
-   semantics without rewriting historical 2025 identities.
+1. Complete remaining ERS/setup semantics without rewriting historical 2025
+   identities. The verified Season 8 car/track identity additions are covered by
+   `f1-season-catalog.test.ts`; unknown track lengths/geometry stay unavailable.
 2. Complete the UI/AI-context half of the shared contract: correct season labels,
    active aero/overtake, ERS mode names/limits, and unavailable states. Do not
    present the current legacy DRS/ERS UI as complete 2026 support.
