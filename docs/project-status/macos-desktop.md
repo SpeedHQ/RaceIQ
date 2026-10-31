@@ -257,6 +257,8 @@ was saved privately on 2026-10-31: 47,789 datagrams, strict framing validation,
 mismatches. It records a Mercedes 2026 time trial at Mexico and a native 79.588 s
 lap reading, but begins 1.919 s into that lap. Full-lap real-capture acceptance
 therefore remains pending. See the wire audit for its hash and limitations.
+The user chose to continue with this existing capture on 2026-10-31; do not wait
+for another drive before independent implementation and partial-capture checks.
 Raw now resolves game-specific extensions through the catalog source inventory,
 so new fields carry units/categories/provenance without changing UI components
 or styling. The 2025 and synthetic 2026 UDP-to-Replay/Compare/export/import
@@ -377,9 +379,46 @@ new connection for initialize/initialized/account-read, confirmed ChatGPT-manage
 sign-in, and observed owned-child exit 0. No inference or private capture was
 sent in that check. The earlier authenticated generation smoke remains distinct:
 it used the temporary prototype, not this newly committed transport. Existing
-providers/settings remain unchanged. CLI discovery, the fail-closed capability
-profile, generation, role-authorized tools, provider selection and UI wiring are
-still pending; this transport is not an available app provider.
+providers/settings remain unchanged. At that checkpoint, CLI discovery, the
+capability profile, generation, role-authorized tools, provider selection and UI
+wiring were still pending; the transport alone is not an available app provider.
+
+Guarded read-only generation is now implemented behind the backend boundary.
+The initial verified profile requires CLI 0.164.0 and `gpt-6.1-sol`; other
+versions/models fail closed until validated. A metadata-only child inventories
+configured MCP names, then a separate child disables each discovered server.
+Both check ChatGPT-managed sign-in and the excluded feature flags. The final
+thread is ephemeral, read-only, approval-free and tool-free, using an isolated
+temporary directory containing the version-matched patchless public model
+catalog. Its actual MCP inventory must contain no tools or new server names
+before telemetry is submitted. No auth file is read or copied by RaceIQ, global
+configuration is unchanged, and API-key environment fallback is removed.
+
+The runtime distinguishes final answers from partial/commentary output, rejects
+failed/incomplete turns, isolates usage by turn, observes terminal EOF even after
+RPC acknowledgement, and cancels account preflight as well as generation. Owned
+children are closed with bounded termination escalation; generated temporary
+catalogs are removed afterward. Missing token counts and subscription cost stay
+unknown. Requested output budgets are retained in diagnostics with an explicit
+unsupported/effective-null result, never sent as a fake Codex output ceiling.
+Fourteen runtime cases and 24 transport cases pass against external CLI peers
+and byte-stream boundaries. Provider/model settings, the existing Mastra paths,
+streamed chat, role-authorized tools and UI wiring remain unchanged/pending.
+
+A real public-fixture run through this in-repository runtime passed the existing
+production analyst schema: the same 87.316-second Lusail/F1 World lap used above,
+five corner issues and two setup suggestions. Measured from turn submission:
+first content 5.542 seconds, completion 39.685 seconds; CLI-reported usage 12,628
+input, zero cached input, 1,714 output and 97 reasoning-output tokens. Requested
+budget 32,768 is correctly reported unsupported, effective ceiling unknown, cost
+unknown. The private 2026 relay capture was not sent. This verifies authenticated
+read-only generation through the new boundary, not model quality, in-app provider
+availability, comparison/chat/engineer integration or combined native acceptance.
+A repeat after the cancellation/final-answer checks also passed the production
+schema: first content 4.486 seconds, completion 39.426 seconds; reported input
+12,630, cached input zero, output 1,731 and reasoning-output 50 tokens. Both runs
+used `low` effort and the same public lap/prompt. They are authenticated smoke
+evidence, not the response-quality experiment matrix.
 
 Backend plan, against the shared AI contract above:
 

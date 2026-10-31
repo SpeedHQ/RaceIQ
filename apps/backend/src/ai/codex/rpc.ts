@@ -28,6 +28,8 @@ function isRpcId(value: unknown): value is number | string {
 }
 
 export class CodexRpcConnection {
+  readonly closed: Promise<CodexRpcError>;
+  #onClosed!: (error: CodexRpcError) => void;
   readonly #transport: CodexTransport;
   readonly #maxFrameBytes: number;
   readonly #onNotification?: (method: string, params: unknown) => void;
@@ -38,6 +40,9 @@ export class CodexRpcConnection {
   readonly #pending = new Map<number, { resolve(value: unknown): void; reject(error: CodexRpcError): void }>();
 
   constructor(transport: CodexTransport, options: { maxFrameBytes?: number; onNotification?: (method: string, params: unknown) => void } = {}) {
+    this.closed = new Promise((resolve) => {
+      this.#onClosed = resolve;
+    });
     this.#transport = transport;
     this.#maxFrameBytes = options.maxFrameBytes ?? 1024 * 1024;
     this.#onNotification = options.onNotification;
@@ -95,6 +100,7 @@ export class CodexRpcConnection {
   #stop(error: CodexRpcError): void {
     if (this.#terminalError) return;
     this.#terminalError = error;
+    this.#onClosed(error);
     for (const pending of this.#pending.values()) pending.reject(error);
     this.#pending.clear();
     this.#closing = Promise.resolve()

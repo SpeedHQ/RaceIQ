@@ -268,3 +268,17 @@ test("bounds pending requests without dispatching overflow work", async () => {
     expect((await waiting).every((entry) => entry.status === "rejected")).toBe(true);
   }
 });
+
+test("reports terminal EOF even when no RPC acknowledgement is pending", async () => {
+  const connection = new CodexRpcConnection({
+    stdout: new ReadableStream({
+      start(controller) {
+        controller.close();
+      },
+    }),
+    write() {},
+    close() {},
+  });
+  expect(await connection.closed).toMatchObject({ kind: "closed" });
+  await connection.close();
+});
