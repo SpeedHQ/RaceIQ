@@ -1,5 +1,13 @@
 # macOS desktop, F1 2026 telemetry, and Codex AI goal
 
+Local testing build: `0.20.0-private.20261031.1`, tagged
+`private/macos-2026-10-31.1` on the fork only. Build with
+`bun run desktop:build`; install the resulting `RaceIQ.app` in `/Applications`.
+Native data remains in `~/Library/Application Support/RaceIQ`; this test
+installation uses UDP port 20778 for the existing SimHub relay. No public
+GitHub release is created. Codex UI/chat/setup and combined acceptance remain
+in progress; this is a telemetry testing checkpoint, not goal completion.
+
 ## Active goal — 2026-10-30
 
 Deliver an Apple Silicon RaceIQ macOS `.app` using Tauri and a bundled Bun

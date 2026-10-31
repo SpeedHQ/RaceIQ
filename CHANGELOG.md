@@ -153,6 +153,7 @@
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
+- Prepare the private Apple Silicon build `0.20.0-private.20261031.1` for local UDP telemetry testing; no public release is published.
 - Bind isolated, bounded Codex generation to central provider resolution and the lap-analysis endpoint, returning fresh-run diagnostics and preserving Codex settings; model/account UI, chat and engineering integrations remain in progress.
 - Introduce the macOS Tauri host and isolated backend lifecycle checks for allocated loopback ports, readiness, persistence and graceful shutdown; native-app acceptance remains in progress.
 - Add an isolated real-UDP F1 25 browser acceptance gate and a staged macOS Bun/Tauri desktop plan.
