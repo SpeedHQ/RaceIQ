@@ -23,6 +23,7 @@ import type { AiUsage, StructuredRequest, ResolvedAi } from "@raceiq/backend-cor
 import { logLlmEvent } from "@raceiq/backend-core/ai/diagnostic-logging";
 import { getResolvedAiInternals } from "./resolved-ai-internals";
 import { normalizeAiUsage } from "@raceiq/backend-core/ai/usage";
+import type { AiGenerationDiagnostics } from "@raceiq/shared/integrations/ai/usage";
 
 export type AnalysisUsage = AiUsage;
 export interface CornerFraction {
@@ -34,6 +35,7 @@ export interface LapAnalysisResult {
   analysis: string | null;
   cached: boolean;
   usage?: AnalysisUsage;
+  diagnostics?: AiGenerationDiagnostics;
   cornerFracs: CornerFraction[];
   hasTune: boolean;
   error?: string;
@@ -325,7 +327,7 @@ export async function generateLapAnalysis(
     const usage = normalizeAiUsage(result.usage, model, Date.now() - startedAt);
     await writeAnalysis(lapId, text, usage);
     logLlmEvent("llm-response", { ...diagnostic, response: result });
-    return { analysis: text, cached: false, usage, cornerFracs, hasTune };
+    return { analysis: text, cached: false, usage, diagnostics: result.diagnostics, cornerFracs, hasTune };
   } catch (err) {
     logLlmEvent("llm-error", {
       provider: ai.provider,

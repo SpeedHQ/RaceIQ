@@ -1,5 +1,5 @@
 import type { AiFeature, AiProvider } from "./ai-features";
-import type { AiUsage } from "@raceiq/shared/integrations/ai/usage";
+import type { AiUsage, AiGenerationDiagnostics } from "@raceiq/shared/integrations/ai/usage";
 
 export type { AiFeature, AiProvider } from "./ai-features";
 
@@ -9,9 +9,11 @@ export type { AiUsage } from "@raceiq/shared/integrations/ai/usage";
 export type AiResult = {
   analysis: string;
   usage: AiUsage;
+  diagnostics?: AiGenerationDiagnostics;
 };
 
 export type TextRequest = {
+  signal?: AbortSignal;
   prompt: string;
   system?: string;
   temperature?: number;

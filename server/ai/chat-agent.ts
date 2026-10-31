@@ -10,6 +10,7 @@ import { LibSQLStore } from "@mastra/libsql";
 import { resolve } from "node:path";
 import { cancelChatRun } from "./chat-run-registry";
 import type { ChatTurnMessage } from "./chat-message-context";
+import { AiProviderError } from "./provider-error";
 
 /**
  * Resolve the chat memory db path. Uses DATA_DIR env override when set,
@@ -81,6 +82,8 @@ export function getMastraModelId(
   aiModel: string,
 ): string {
   switch (aiProvider) {
+    case "codex":
+      throw new AiProviderError("Codex requires its isolated runtime, not API-key model routing.", { code: "unsupported-operation", provider: "codex", modelId: aiModel });
     case "gemini":
       return `google/${aiModel || "gemini-flash-latest"}`;
     case "openai":

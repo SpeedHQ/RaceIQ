@@ -124,6 +124,7 @@ async function providerConfiguration(): Promise<
   const settings = loadSettings();
   const provider = settings.driverProfileProvider;
   if (!provider) return { ok: false, reason: "No driver-profile AI provider is configured." };
+  if (provider === "codex") return { ok: false, reason: "Codex driver-profile generation is not connected yet." };
   await configureAiProviderEnvironment(provider, settings.localEndpoint || "http://localhost:1234/v1");
 
   return {

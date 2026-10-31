@@ -139,6 +139,54 @@ Both implementation tracks below depend on it.
 
 ## Execution order and prerequisites
 
+### Codex provider binding contract
+
+The provider ID is `codex`. `codexExecutable` is a persisted executable path,
+not a shell command or argv; empty means trusted PATH/Homebrew discovery.
+Browser settings reject executable-path writes; a native user-consented picker
+must use the owned desktop control channel. Only backend-owned code constructs
+CLI arguments. Codex never reads an API
+key or falls back to another provider. The existing isolated runtime remains
+mandatory. Generation returns nullable usage plus runtime/model, completion,
+requested/effective budget, cached/reasoning tokens and latency diagnostics;
+unsupported output caps remain explicitly unsupported.
+
+Backend plan: preserve Codex selections in settings, bind the central resolver
+to isolated text/structured generation, preserve diagnostics through analysis,
+and test via an external CLI peer followed by authenticated app-path analysis.
+UI plan, against this same contract: reuse provider/model pickers, add executable
+selection and Codex-managed account guidance, then enable streaming/tools only
+once their corresponding integration passes. A read-only generation checkpoint
+does not complete chat, setup tools, budget controls or the overall goal.
+
+Binding checkpoint (2026-10-31): a fresh disposable database imported the
+committed `f1-2025-2026-04-09T21-34-10-190Z.bin.gz` recording. The in-process
+Hono `POST /api/laps/3/analyse?regenerate=true` route analyzed its native-valid
+87.316-second Lusail lap using the installed Codex CLI 0.164.0 and ChatGPT
+account. Production output-schema validation passed, the analysis and unknown
+cost round-tripped through SQLite, and run status became `finished`.
+Measurements: 13,218 input, 0 cached input, 1,854 output, 173 reasoning output
+tokens; runtime turn 41.160s, first runtime content 8.882s, provider wall time
+42.610s. Requested output ceiling was the existing 8,192; effective ceiling
+remained unknown/unsupported, not an applied cap. Experimental defaults and
+budget controls are still pending.
+
+Local evidence: `/private/tmp/raceiq-codex-app.8C5GDZ/app-analysis-result.json`
+and its adjacent smoke script/log. Only the committed public fixture was used;
+no private relay recording or credentials were copied. This proves the actual
+analysis service, endpoint stream, central resolver and cache path—not native
+WKWebView or provider-picker UI. Diagnostics currently travel on fresh results;
+persisted diagnostic history and generation-settings cache identity remain
+pending alongside comparison, chat, engineering and compaction integration.
+The separate cache-only endpoint also returned the saved analysis with unknown
+cost preserved, without invoking generation. Native shutdown cancellation of
+in-flight Codex work remains an explicit acceptance task before UI enablement.
+Verification: 144 focused provider, settings, analysis and driver-profile tests
+pass, including rejection of browser executable-path writes and Codex API-key
+storage. Root lint/typecheck, 486-file shard registration and 11 changelog tests
+pass with Bun 1.4.3. Provider-picker UI intentionally stays disabled for Codex
+until account/model discovery and native ownership are wired.
+
 ### Analysis usage contract
 
 Backend and UI share this contract when binding Codex to analysis: input/output

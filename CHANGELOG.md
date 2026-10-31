@@ -153,7 +153,7 @@
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
-- Add guarded read-only Codex generation with bounded stdio transport, verified runtime isolation, honest usage/budget reporting and subprocess regression coverage; provider/UI integration remains in progress.
+- Bind isolated, bounded Codex generation to central provider resolution and the lap-analysis endpoint, returning fresh-run diagnostics and preserving Codex settings; model/account UI, chat and engineering integrations remain in progress.
 - Introduce the macOS Tauri host and isolated backend lifecycle checks for allocated loopback ports, readiness, persistence and graceful shutdown; native-app acceptance remains in progress.
 - Add an isolated real-UDP F1 25 browser acceptance gate and a staged macOS Bun/Tauri desktop plan.
 - Preserve Windows directory-sync path errors when validating recording publication directories.

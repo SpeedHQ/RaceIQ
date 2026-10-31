@@ -22,6 +22,7 @@ describe("E2E settings behavior", () => {
 describe("credential request validation", () => {
   test("rejects unsupported providers and malformed keys before accessing the OS store", async () => {
     for (const body of [
+      { provider: "codex", apiKey: "must-not-store-subscription-credentials" },
       { provider: 'gemini"; printf unexpected', apiKey: "test" },
       { provider: "../other-account", apiKey: "test" },
       { provider: "gemini", apiKey: 123 },
@@ -50,6 +51,27 @@ describe("settings with unit system", () => {
   afterEach(() => {
     if (originalContent) {
       writeFileSync(SETTINGS_PATH, originalContent);
+    }
+  });
+
+  test("browser settings cannot turn executable selection into an arbitrary execution primitive", async () => {
+    const before = loadSettings();
+    saveSettings({ ...before, codexExecutable: process.execPath });
+    const response = await settingsRoutes.request("/api/settings", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ codexExecutable: "/raceiq-fixture-untrusted-program" }),
+    });
+    expect(response.status).toBe(400);
+    expect(loadSettings().codexExecutable).toBe(process.execPath);
+    const previousE2E = process.env.RACEIQ_E2E;
+    process.env.RACEIQ_E2E = "1";
+    try {
+      const read = await settingsRoutes.request("/api/settings");
+      expect(read.status).toBe(200);
+      expect(await read.json()).not.toHaveProperty("codexExecutable");
+    } finally {
+      if (previousE2E === undefined) delete process.env.RACEIQ_E2E;
+      else process.env.RACEIQ_E2E = previousE2E;
     }
   });
 
@@ -92,13 +114,14 @@ describe("settings with unit system", () => {
     expect(loaded.suspensionThresholds).toBeUndefined();
   });
 
-  test("loadSettings migrates removed Codex selections without resetting other settings", () => {
+  test("loadSettings preserves Codex selections without resetting other settings", () => {
     if (!existsSync(SETTINGS_DIR)) mkdirSync(SETTINGS_DIR, { recursive: true });
     writeFileSync(SETTINGS_PATH, JSON.stringify({
       onboardingComplete: true,
       udpPort: 5300,
       aiProvider: "codex",
       aiModel: "codex-analysis",
+      codexExecutable: "/opt/homebrew/bin/codex",
       aiThinkingBudget: 12000,
       chatProvider: "codex",
       chatModel: "codex-chat",
@@ -114,14 +137,15 @@ describe("settings with unit system", () => {
 
     const settings = loadSettings();
 
-    expect(settings.aiProvider).toBe("");
-    expect(settings.aiModel).toBe("");
-    expect(settings.chatProvider).toBe("");
-    expect(settings.chatModel).toBe("");
-    expect(settings.autoTuneProvider).toBe("");
-    expect(settings.autoTuneModel).toBe("");
-    expect(settings.driverProfileProvider).toBe("");
-    expect(settings.driverProfileModel).toBe("");
+    expect(settings.aiProvider).toBe("codex");
+    expect(settings.aiModel).toBe("codex-analysis");
+    expect(settings.codexExecutable).toBe("/opt/homebrew/bin/codex");
+    expect(settings.chatProvider).toBe("codex");
+    expect(settings.chatModel).toBe("codex-chat");
+    expect(settings.autoTuneProvider).toBe("codex");
+    expect(settings.autoTuneModel).toBe("codex-tune");
+    expect(settings.driverProfileProvider).toBe("codex");
+    expect(settings.driverProfileModel).toBe("codex-profile");
     expect(settings.aiThinkingBudget).toBe(12000);
     expect(settings.chatThinkingBudget).toBe(8000);
     expect(settings.driverProfileThinkingBudget).toBe(6000);

@@ -1,4 +1,4 @@
-type AiProvider = "" | "gemini" | "openai" | "anthropic" | "openai-compatible";
+type AiProvider = "" | "gemini" | "openai" | "anthropic" | "openai-compatible" | "codex";
 
 export interface AiConfigSettings {
   aiProvider?: AiProvider;
@@ -15,6 +15,7 @@ function isProviderConfigured(provider: AiProvider, settings: AiConfigSettings):
   if (provider === "openai") return !!settings.openaiApiKeySet;
   if (provider === "anthropic") return !!settings.anthropicApiKeySet;
   if (provider === "gemini") return !!settings.geminiApiKeySet;
+  // Codex UI readiness must come from supervised account/model discovery, not API-key flags.
   return false;
 }
 

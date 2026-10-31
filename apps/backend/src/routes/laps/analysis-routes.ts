@@ -88,6 +88,7 @@ export const analysisRoutes = new Hono()
                 analysis: result.analysis,
                 cached: result.cached,
                 usage: result.usage,
+                diagnostics: result.diagnostics,
                 cornerFracs: result.cornerFracs,
                 hasTune: result.hasTune,
               });

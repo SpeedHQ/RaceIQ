@@ -28,11 +28,13 @@ export type CodexGenerationResult = {
 
 export class CodexRuntimeError extends Error {
   readonly name = "CodexRuntimeError";
+  readonly code: "unsupported-runtime" | "not-signed-in" | "unsafe-runtime" | "generation-failed" | "cancelled" | "cli-unavailable";
   constructor(
-    readonly code: "unsupported-runtime" | "not-signed-in" | "unsafe-runtime" | "generation-failed" | "cancelled" | "cli-unavailable",
+    code: CodexRuntimeError["code"],
     message: string,
   ) {
     super(message);
+    this.code = code;
   }
 }
 

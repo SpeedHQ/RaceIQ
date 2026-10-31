@@ -3,6 +3,12 @@ export type AiProviderErrorCode =
   | "missing-model"
   | "unsupported-provider"
   | "missing-api-key"
+  | "cancelled"
+  | "not-signed-in"
+  | "unsupported-runtime"
+  | "unsafe-runtime"
+  | "generation-failed"
+  | "cli-unavailable"
   | "upstream"
   | "unsupported-operation";
 

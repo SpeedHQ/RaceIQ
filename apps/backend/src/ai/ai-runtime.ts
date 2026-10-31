@@ -6,6 +6,7 @@ import {
 } from "@raceiq/backend-core/ai/provider-error";
 import {
   AnthropicProviderAdapter,
+  CodexProviderAdapter,
   GeminiProviderAdapter,
   OpenAiCompatibleProviderAdapter,
   OpenAiProviderAdapter,
@@ -32,7 +33,7 @@ function selectedSettings(settings: AppSettings, feature: AiFeature): {
   };
 }
 
-export async function resolveAi(feature: AiFeature, settings: AppSettings = loadSettings()): Promise<ResolvedAi> {
+export async function resolveAi(feature: AiFeature, settings: AppSettings = loadSettings(), runtime: { codexCommand?: readonly string[] } = {}): Promise<ResolvedAi> {
   const selected = selectedSettings(settings, feature);
   const section = sectionFor(feature);
   if (!selected.provider) {
@@ -42,7 +43,7 @@ export async function resolveAi(feature: AiFeature, settings: AppSettings = load
   }
 
   const provider = selected.provider as AiProvider;
-  if (provider !== "gemini" && provider !== "openai" && provider !== "anthropic" && provider !== "openai-compatible") {
+  if (provider !== "gemini" && provider !== "openai" && provider !== "anthropic" && provider !== "openai-compatible" && provider !== "codex") {
     throw new AiProviderError(`Unsupported AI provider: ${selected.provider}`, {
       code: "unsupported-provider",
       provider: selected.provider,
@@ -58,6 +59,13 @@ export async function resolveAi(feature: AiFeature, settings: AppSettings = load
   }
   const config = { feature, model, thinkingBudget: selected.thinkingBudget };
   switch (provider) {
+    case "codex": {
+      const candidates = settings.codexExecutable ? [settings.codexExecutable] : ["codex", "/opt/homebrew/bin/codex", "/usr/local/bin/codex"];
+      const executable = candidates.map((candidate) => Bun.which(candidate)).find(Boolean);
+      const command = runtime.codexCommand ?? (executable ? [executable] : undefined);
+      if (!command) throw new AiProviderError("Codex CLI was not found. Install Codex or choose its executable, then sign in with ChatGPT.", { code: "cli-unavailable", provider, modelId: model, statusCode: 503 });
+      return resolvedAiFromAdapter(new CodexProviderAdapter({ feature, model, command }));
+    }
     case "gemini": {
       const apiKey = await getAiProviderApiKey("gemini");
       if (!apiKey) {

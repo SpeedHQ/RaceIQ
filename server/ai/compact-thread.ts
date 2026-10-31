@@ -40,16 +40,18 @@ interface CompactDeps {
 
 async function defaultSummarize(transcript: string): Promise<string> {
   const s = loadSettings();
+  // Resolve before touching API-key state. Codex must never reach this legacy path.
+  const model = getMastraModelId(s.chatProvider, s.chatModel);
   // Bridge provider env the same way the chat routes do — Mastra resolves
   // `openai/...` model ids from process.env, so without this a compact with
   // a local/OpenAI provider fails with "Could not find API key
   // process.env.OPENAI_API_KEY".
-  if (s.chatProvider) await configureAiProviderEnvironment(s.chatProvider, s.localEndpoint || "http://localhost:1234/v1");
+  if (s.chatProvider && s.chatProvider !== "codex") await configureAiProviderEnvironment(s.chatProvider, s.localEndpoint || "http://localhost:1234/v1");
   const compactor = new Agent({
     id: "compactor",
     name: "Compactor",
     instructions: SUMMARY_SYSTEM,
-    model: () => getMastraModelId(s.chatProvider, s.chatModel),
+    model: () => model,
   });
   const result = await compactor.generate(transcript, {
     modelSettings: { maxOutputTokens: 900, temperature: 0 },

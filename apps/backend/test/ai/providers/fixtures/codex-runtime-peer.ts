@@ -82,6 +82,7 @@ for await (const chunk of Bun.stdin.stream()) {
       }
       case "turn/start": {
         if (!threadStarted || "maxOutputTokens" in message.params || "max_output_tokens" in message.params) throw new Error("Unsafe generation input");
+        if (scenario === "provider" && (!message.params.input[0]?.text.includes("SYSTEM_CONTEXT") || !message.params.input[0]?.text.includes("LAP_CONTEXT") || message.params.outputSchema?.properties?.answer?.type !== "string")) throw new Error("Provider lost supplied context or schema");
         result = { turn: { id: "fixture-turn", status: "inProgress" } };
         if (scenario === "exit-after-ack") {
           process.stdout.write(JSON.stringify({ id: message.id, result }) + "\n", () => process.exit(0));

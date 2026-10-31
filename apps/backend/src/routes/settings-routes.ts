@@ -76,6 +76,8 @@ export const settingsRoutes = new Hono()
   // GET /api/settings
   .get("/api/settings", async (c) => {
     const settings = withOnboardingOverride(loadSettings());
+    // Native-owned executable selection is not a browser-editable setting.
+    const { codexExecutable: _codexExecutable, ...browserSettings } = settings;
     let hasGeminiKey = false;
     let hasOpenaiKey = false;
     let hasAnthropicKey = false;
@@ -87,7 +89,7 @@ export const settingsRoutes = new Hono()
       hasOpenAiCompatibleKey = !!(await getLocalApiKey());
     }
     return c.json({
-      ...settings,
+      ...browserSettings,
       resolvedRecordingDirectory: resolveRecordingDirectory(),
       udpPort: udpListener.port,
       openaiCompatibleApiKeySet: hasOpenAiCompatibleKey,

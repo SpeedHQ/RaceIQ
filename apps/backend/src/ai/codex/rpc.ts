@@ -9,13 +9,17 @@ export interface CodexTransport {
 
 export class CodexRpcError extends Error {
   readonly name = "CodexRpcError";
+  readonly kind: "remote" | "closed" | "protocol" | "timeout" | "cancelled" | "overloaded";
+  readonly code?: number;
 
   constructor(
-    readonly kind: "remote" | "closed" | "protocol" | "timeout" | "cancelled" | "overloaded",
+    kind: CodexRpcError["kind"],
     message: string,
-    readonly code?: number,
+    code?: number,
   ) {
     super(message);
+    this.kind = kind;
+    this.code = code;
   }
 }
 
