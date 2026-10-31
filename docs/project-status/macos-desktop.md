@@ -313,8 +313,8 @@ does not authorize extracting its tokens or turning it into a hosted service.
 also warns that `model/list` may be a bundled catalog, not an entitlement check.
 Actual inference must prove access. Before sending lap data, verify that the
 child runtime exposes only allowed RaceIQ tools, without inherited shell,
-filesystem, MCP/app or agent privileges. Generated schema inspection is not an
-authenticated analysis/tool-isolation smoke test; those gates remain pending.
+filesystem, MCP/app or agent privileges. Generated schema inspection alone is
+not authenticated analysis or runtime tool-isolation evidence.
 
 Local mock-provider probe (2026-10-31, CLI 0.164.0): a synthetic dynamic tool
 successfully reaches the client and receives a fixed test result, without an
@@ -335,8 +335,31 @@ With the patchless catalog, the permitted dynamic tool still reaches the client,
 the actual thread's MCP tool inventory is empty, and terminal/image/patch calls
 are unsupported while the code-mode host is disabled. This evidence is scoped
 to the local mock and selected model, not a general compatibility or entitlement
-claim. The next gate is an authenticated structured analysis, followed by the
-production provider boundary and role-scoped tool tests.
+claim.
+
+Authenticated structured-analysis smoke (2026-10-31, CLI 0.164.0): the same
+isolated runtime completed a real `gpt-6.1-sol` request through its built-in
+OpenAI provider, after `account/read` confirmed ChatGPT-managed sign-in. The
+test used only the committed public 2025 wire recording, not the private relay
+capture: Lusail, F1 World, native lap 2 at 87.316 seconds, 31,399 decoded
+samples, native validity flags and 15 committed curated corner regions.
+The existing production prompt and analyst JSON schema were supplied, and the
+result passed `AnalystModelOutputSchema`. The runtime reported completion,
+five corner issues and two setup suggestions; the client observed zero tool
+requests and zero excluded execution items. The thread's MCP tool inventory
+was empty before inference. The managed child exited successfully afterward.
+
+Measured from turn submission: first content 5.675 seconds; completion 47.592
+seconds. Reported last-turn usage: 12,646 input tokens, zero cached input
+tokens, 1,786 output tokens and 64 reasoning-output tokens. These are the
+runtime's reported counters, not an invented output allowance or subscription
+cost. Reasoning effort was `low`; no output cap was supplied because this
+protocol has no supported output-ceiling field. Response and redacted diagnostics
+remain local temporary artifacts; no credentials or private relay data were
+copied. This establishes one authenticated, schema-valid response, not analysis
+quality, chat/comparison/setup integration, cancellation, production provider
+availability or compatibility with other CLI versions/models. The next gates
+are the production provider boundary, role-scoped tool tests and quality checks.
 
 Backend plan, against the shared AI contract above:
 
