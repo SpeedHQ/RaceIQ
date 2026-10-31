@@ -2,6 +2,7 @@ import { RequestContext } from "@mastra/core/request-context";
 import { MessageList } from "@mastra/core/agent";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
+import { normalizeAiUsage } from "@raceiq/backend-core/ai/usage";
 
 import type { GameId } from "@raceiq/shared/games/ids";
 import { chatRequestHasImage, resolveChatVisionCapability } from "@raceiq/shared/integrations/ai/chat-vision";
@@ -214,13 +215,7 @@ export const comparisonRoutes = new Hono()
       }
       const analysisJson = JSON.stringify(object);
       const totalUsage = (result as any).totalUsage ?? (result as any).usage ?? {};
-      const usage = {
-        inputTokens: totalUsage.inputTokens ?? totalUsage.promptTokens ?? 0,
-        outputTokens: totalUsage.outputTokens ?? totalUsage.completionTokens ?? 0,
-        costUsd: 0,
-        durationMs,
-        model: settings.aiModel || settings.aiProvider,
-      };
+      const usage = normalizeAiUsage(totalUsage, settings.aiModel || settings.aiProvider, durationMs);
       await saveCompareAnalysis(id1, id2, analysisJson, usage, "inputs");
       return c.json({ analysis: analysisJson, cached: false, usage });
     } catch (err: any) {

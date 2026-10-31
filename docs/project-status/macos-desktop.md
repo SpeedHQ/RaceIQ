@@ -139,6 +139,42 @@ Both implementation tracks below depend on it.
 
 ## Execution order and prerequisites
 
+### Analysis usage contract
+
+Backend and UI share this contract when binding Codex to analysis: input/output
+token counts, cost in USD and duration in milliseconds are `number | null`.
+Null means unreported; numeric zero remains a real zero. Cache writes and reads
+must preserve that distinction. Existing saved values and analysis identities
+remain unchanged by the appended migration. UI renders unavailable metrics
+without a fabricated zero or dollar amount. High-level callers may supply a
+measured elapsed duration when the provider does not report one.
+
+Backend plan: widen the shared usage contract, append a lossless migration for
+lap/comparison caches and driver-profile caches/history, and preserve nullable
+metrics through provider adapters, analysis normalization and tool output.
+Acceptance: unknown/zero/known usage
+round-trips through cache APIs and an upgraded historical database, including
+saved profile plans, run errors/timestamps and deleted-ID high-water marks.
+
+UI plan: consume the same nullable usage shape in the existing analysis footer;
+retain layout and controls, format unavailable values explicitly, and verify
+known, zero and unknown cases. Both plans depend on this usage contract, not
+separate backend/UI interpretations.
+
+Usage checkpoint (2026-10-31): the shared nullable contract, migration v83,
+provider/analysis normalization, cache APIs, tool output and existing analysis
+footer are implemented. Historical-upgrade tests preserve all four tables,
+saved values, scope uniqueness, run constraints and deleted-ID high-water marks;
+legacy saved zeros are not reinterpreted. Chromium and WebKit rendered the
+unreported-usage Storybook fixture with zero page errors and enabled
+Regenerate/Clear controls. This is formatting coverage, not authenticated
+in-app Codex or native-app acceptance. Codex provider binding remains next.
+Verification: 148 focused usage, driver-profile and Codex transport/runtime
+tests plus 11 changelog tests pass; root lint, typecheck and test-shard
+validation pass with Bun 1.4.3. Older migration sets reject schema v83, so
+downgrading requires a compatible pre-upgrade database rather than opening
+new nullable history with an older build.
+
 Keep the existing F1 2025 gate green. First audit EA's latest DLC specification,
 the removed Codex provider and its settings migrations (upstream `cb617705a`,
 `68794f96a`, `2ce655163`), and current Codex protocol support. Review history for

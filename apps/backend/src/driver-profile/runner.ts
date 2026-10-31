@@ -28,6 +28,7 @@ import {
 } from "@raceiq/backend-core/db/driver-profile-queries";
 import { getLapMetaForProfileScope } from "@raceiq/backend-core/db/lap-read-queries";
 import type { AnalysisUsage } from "@raceiq/backend-core/db/analysis-queries";
+import { normalizeAiUsage } from "@raceiq/backend-core/ai/usage";
 
 export type DriverProfileScope = Pick<DriverProfileScopeKey, "gameId" | "carId" | "trackId">;
 export type DriverProfileState = DriverProfileRunStatus | "disabled" | "not-configured";
@@ -228,14 +229,9 @@ async function runDriverProfileInternal(
     }
 
     const summary = parsed.data;
-    const rawUsage = (result.usage ?? {}) as Record<string, unknown>;
-    const number = (key: string): number => (typeof rawUsage[key] === "number" ? (rawUsage[key] as number) : 0);
-    const usage: AnalysisUsage = {
-      inputTokens: number("inputTokens") || number("promptTokens"),
-      outputTokens: number("outputTokens") || number("completionTokens"),
-      costUsd: 0,
+    const usage = {
+      ...normalizeAiUsage(result.usage, config.model),
       durationMs: Date.now() - startedAt,
-      model: config.model,
     };
 
     // A background generation can finish after more laps arrive. Never let it

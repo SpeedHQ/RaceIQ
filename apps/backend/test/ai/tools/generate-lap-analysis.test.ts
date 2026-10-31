@@ -111,6 +111,22 @@ function makeDeps(
 }
 
 describe("generateLapAnalysis", () => {
+  test("preserves provider unknown usage and real zero output through generation and caching", async () => {
+    const deps = makeDeps();
+    deps.runAiStructured = undefined;
+    deps.resolveAi = async () => ({
+      feature: "analysis", provider: "openai-compatible", model: "test-model",
+      generateText: async () => { throw new Error("unused"); },
+      generateStructured: async () => ({ analysis: validAnalysis, usage: { inputTokens: null, outputTokens: 0, costUsd: null, durationMs: null, model: "test-model" } }),
+    });
+    let persisted: unknown;
+    deps.saveAnalysis = async (_id, _analysis, usage) => { persisted = usage; };
+    const result = await generateLapAnalysis(7, { regenerate: true }, deps);
+    expect(result.usage).toMatchObject({ inputTokens: null, outputTokens: 0, costUsd: null });
+    expect(persisted).toEqual(result.usage);
+    expect(result.usage?.durationMs).toBeGreaterThanOrEqual(0);
+  });
+
   test("reuses valid cache without generation", async () => {
     const deps = makeDeps({ cached: validAnalysis });
     const result = await generateLapAnalysis(7, {}, deps);

@@ -2,27 +2,17 @@ import { eq, and, sql } from "drizzle-orm";
 import { db, readDb } from "./index"
 import { lapAnalyses, compareAnalyses } from "./schema";
 import { withDatabaseWrite } from "./write-coordination";
+import type { AiUsage } from "@raceiq/shared/integrations/ai/usage";
 
-interface AnalysisRow {
+interface AnalysisRow extends AiUsage {
   analysis: string;
-  inputTokens: number;
-  outputTokens: number;
-  costUsd: number;
-  durationMs: number;
-  model: string;
 }
 
 /**
  * Get cached AI analysis for a lap. Returns analysis + usage stats or null.
  */
 
-export interface AnalysisUsage {
-  inputTokens: number;
-  outputTokens: number;
-  costUsd: number;
-  durationMs: number;
-  model: string;
-}
+export type AnalysisUsage = AiUsage;
 
 /**
  * Save or replace AI analysis for a lap.

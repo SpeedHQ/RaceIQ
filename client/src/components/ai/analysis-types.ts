@@ -72,10 +72,4 @@ export interface Segment {
   endFrac: number;
 }
 
-export interface AnalysisUsage {
-  inputTokens: number;
-  outputTokens: number;
-  costUsd: number;
-  durationMs: number;
-  model: string;
-}
+export type { AiUsage as AnalysisUsage } from "@raceiq/shared/integrations/ai/usage";

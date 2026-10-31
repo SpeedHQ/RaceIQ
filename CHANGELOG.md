@@ -1,5 +1,8 @@
 ## Unreleased
 
+### Breaking
+- After upgrading saved AI history, keep this build or newer; older builds cannot open the updated database.
+
 ### Features
 - Add experimental decoding for F1 25's 2026 Season Pack UDP format while retaining existing 2025 capture compatibility; dedicated 2026 dashboard displays and native-app validation remain in progress.
 - Show 2026 F1/F2 car names, Madrid and reverse-circuit names in F1 dashboards and catalogs without replacing existing 2025 identities.
@@ -41,6 +44,7 @@
 - Include the complete LMU multiplayer recording in demo seeds as sub-100 MB gzip parts, stream native input without buffering the whole capture, and retain separate player and opponent recordings.
 
 ### Fixes
+- Show “Unknown” in new AI analysis results when usage metrics are unreported, while preserving reported zero values.
 - Keep F1 ERS readings unavailable in Live until telemetry arrives, while preserving recorded zero energy.
 - On the Raw telemetry page, show units, update timing and source details for game-specific readings, including F1 2026 active aero and overtake.
 - Get answers from current Claude models, which rejected every request with "`temperature` is deprecated for this model".

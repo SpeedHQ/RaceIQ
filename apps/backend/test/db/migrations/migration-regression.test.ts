@@ -1,4 +1,5 @@
 import { describe, test, expect } from "bun:test";
+import { migrations } from "@raceiq/backend-core/db/migrations";
 import {
   bootstrap,
   newClient,
@@ -6,6 +7,60 @@ import {
 } from "@raceiq/backend-core/test-support/db/migrations";
 
 describe("migration regressions", () => {
+  test("nullable analysis usage upgrade preserves history and autoincrement identities", async () => {
+    const client = newClient();
+    try {
+      await bootstrap(client);
+      await runMigrations(client, 82);
+      await client.execute("INSERT INTO sessions (id,game_id,car_id,track_id) VALUES (1001,'f1-2025','476','19')");
+      await client.execute("INSERT INTO laps (id,session_id,lap_number,lap_time,is_valid) VALUES (10,1001,2,79.588,1),(11,1001,3,80,1)");
+      await client.execute("INSERT INTO lap_analyses (id,lap_id,analysis,input_tokens,output_tokens,cost_usd,duration_ms,model,created_at) VALUES (41,10,'preserved lap',123,0,0.01,2,'legacy','2001-01-01'),(99,11,'deleted',0,0,0,0,'legacy','2001-01-01')");
+      await client.execute("DELETE FROM lap_analyses WHERE id=99");
+      await client.execute("INSERT INTO compare_analyses (id,lap_a_id,lap_b_id,kind,analysis,model,created_at) VALUES (33,10,11,'inputs','preserved pair','legacy','2001-01-01'),(88,10,11,'deleted','deleted','legacy','2001-01-01')");
+      await client.execute("DELETE FROM compare_analyses WHERE id=88");
+      await client.execute(`INSERT INTO driver_profiles
+        (id,scope_key,game_id,car_id,track_id,pool_key,fingerprint,plan,input_tokens,output_tokens,cost_usd,duration_ms,model,created_at)
+        VALUES (51,'kept','f1-2025','476','19','kept pool','kept fingerprint','{"goal":"kept"}',123,0,0.01,2,'legacy','2001-01-01'),
+        (121,'deleted','f1-2025',NULL,NULL,'deleted','deleted','{}',0,0,0,0,'legacy','2001-01-01')`);
+      await client.execute("DELETE FROM driver_profiles WHERE id=121");
+      await client.execute(`INSERT INTO driver_profile_runs
+        (id,scope_key,game_id,car_id,track_id,pool_key,status,fingerprint,plan,error,model,created_at,started_at,completed_at)
+        VALUES (31,'kept','f1-2025','476','19','kept pool','failed','kept fingerprint','{}','kept error','legacy','2001-01-01','2001-01-02','2001-01-03'),
+        (122,'deleted','f1-2025',NULL,NULL,'deleted','queued',NULL,NULL,NULL,'legacy','2001-01-01',NULL,NULL)`);
+      await client.execute("DELETE FROM driver_profile_runs WHERE id=122");
+      const profilesBefore = (await client.execute("SELECT * FROM driver_profiles")).rows;
+      const runsBefore = (await client.execute("SELECT * FROM driver_profile_runs")).rows;
+      const comparisonForeignKeysBefore = (await client.execute("PRAGMA foreign_key_list(compare_analyses)")).rows;
+      await runMigrations(client);
+      expect((await client.execute("SELECT * FROM driver_profiles")).rows).toEqual(profilesBefore);
+      expect((await client.execute("SELECT * FROM driver_profile_runs")).rows).toEqual(runsBefore);
+      expect((await client.execute("PRAGMA foreign_key_list(compare_analyses)")).rows).toEqual(comparisonForeignKeysBefore);
+      expect((await client.execute("SELECT * FROM lap_analyses WHERE id=41")).rows[0]).toMatchObject({ lap_id: 10, analysis: "preserved lap", input_tokens: 123, output_tokens: 0, cost_usd: 0.01, duration_ms: 2, model: "legacy", created_at: "2001-01-01" });
+      expect((await client.execute("SELECT * FROM compare_analyses WHERE id=33")).rows[0]).toMatchObject({ lap_a_id: 10, lap_b_id: 11, kind: "inputs", analysis: "preserved pair", input_tokens: 0, output_tokens: 0, cost_usd: 0, duration_ms: 0, model: "legacy", created_at: "2001-01-01" });
+      const lapInsert = await client.execute("INSERT INTO lap_analyses (lap_id,analysis) VALUES (11,'unknown usage')");
+      expect(Number(lapInsert.lastInsertRowid)).toBeGreaterThan(99);
+      const comparisonInsert = await client.execute("INSERT INTO compare_analyses (lap_a_id,lap_b_id,kind,analysis) VALUES (10,11,'secondary','unknown usage')");
+      expect(Number(comparisonInsert.lastInsertRowid)).toBeGreaterThan(88);
+      const profileInsert = await client.execute("INSERT INTO driver_profiles (scope_key,game_id,pool_key,fingerprint,plan) VALUES ('new','f1-2025','pool','fingerprint','{}')");
+      expect(Number(profileInsert.lastInsertRowid)).toBeGreaterThan(121);
+      const runInsert = await client.execute("INSERT INTO driver_profile_runs (scope_key,game_id,pool_key) VALUES ('new','f1-2025','pool')");
+      expect(Number(runInsert.lastInsertRowid)).toBeGreaterThan(122);
+      for (const [table, insert] of [["lap_analyses", lapInsert], ["compare_analyses", comparisonInsert], ["driver_profiles", profileInsert], ["driver_profile_runs", runInsert]] as const) {
+        const result = await client.execute({ sql: `SELECT input_tokens,output_tokens,cost_usd,duration_ms FROM ${table} WHERE id=?`, args: [Number(insert.lastInsertRowid)] });
+        expect(result.rows[0]).toMatchObject({ input_tokens: null, output_tokens: null, cost_usd: null, duration_ms: null });
+      }
+      await expect(client.execute("INSERT INTO driver_profiles (scope_key,game_id,pool_key,fingerprint,plan) VALUES ('kept','f1-2025','pool','fingerprint','{}')")).rejects.toThrow("UNIQUE");
+      await expect(client.execute("INSERT INTO driver_profile_runs (scope_key,game_id,pool_key,status) VALUES ('invalid','f1-2025','pool','finished')")).rejects.toThrow("CHECK");
+      await expect(client.execute("INSERT INTO compare_analyses (lap_a_id,lap_b_id,kind,analysis) VALUES (10,11,'inputs','duplicate')")).rejects.toThrow("UNIQUE");
+      await client.execute("DELETE FROM laps WHERE id=10");
+      expect((await client.execute("SELECT id FROM lap_analyses WHERE id=41")).rows).toHaveLength(0);
+      expect((await client.execute("PRAGMA foreign_key_check")).rows).toHaveLength(0);
+      expect(await runMigrations(client)).toBe(0);
+      await expect(runMigrations(client, Infinity, migrations.filter((migration) => migration.version <= 82)))
+        .rejects.toThrow("Migration history conflict at v83");
+    } finally { client.close(); }
+  });
+
   test("AC Evo layout backfill queues every stored layout once without invalidating other games", async () => {
     const client = newClient();
     try {

@@ -7,16 +7,8 @@ import { logLlmEvent, withLlmDiagnostics } from "./diagnostic-logging";
 import { AiProviderError } from "./provider-error";
 import { buildGoogleThinkingProviderOptions } from "./google-provider-options";
 import { ANTHROPIC_OPENAI_BASE_URL, isAnthropicEndpoint, openAiCompatibleAuthHeaders } from "./openai-compatible-headers";
-export interface AiResult {
-  analysis: string;
-  usage: {
-    inputTokens: number;
-    outputTokens: number;
-    costUsd: number;
-    durationMs: number;
-    model: string;
-  };
-}
+import type { AiResult } from "./ai-types";
+export type { AiResult } from "./ai-types";
 
 export type AiProvider = "gemini" | "openai" | "anthropic" | "openai-compatible";
 
@@ -316,9 +308,9 @@ export async function runGeminiRequest(options: GeminiRequestOptions): Promise<A
     return {
       analysis,
       usage: {
-        inputTokens: usage.promptTokenCount ?? 0,
-        outputTokens: usage.candidatesTokenCount ?? 0,
-        costUsd: 0,
+        inputTokens: usage.promptTokenCount ?? null,
+        outputTokens: usage.candidatesTokenCount ?? null,
+        costUsd: null,
         durationMs,
         model,
       },
@@ -414,9 +406,9 @@ export async function runOpenAiCompatible(options: OpenAiRequestOptions): Promis
     return {
       analysis,
       usage: {
-        inputTokens: usage.prompt_tokens ?? 0,
-        outputTokens: usage.completion_tokens ?? 0,
-        costUsd: 0,
+        inputTokens: usage.prompt_tokens ?? null,
+        outputTokens: usage.completion_tokens ?? null,
+        costUsd: null,
         durationMs,
         model,
       },

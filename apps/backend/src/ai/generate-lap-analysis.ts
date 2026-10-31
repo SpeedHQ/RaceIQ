@@ -19,17 +19,12 @@ import { formatClientAiErrorMessage, toClientAiError } from "@raceiq/backend-cor
 import { resolveAi } from "./ai-runtime";
 import { runAiStructured } from "./model-provider";
 import { getOpenAiCompatibleModelsDetailed } from "@raceiq/backend-core/ai/providers";
-import type { StructuredRequest, ResolvedAi } from "@raceiq/backend-core/ai/ai-types";
+import type { AiUsage, StructuredRequest, ResolvedAi } from "@raceiq/backend-core/ai/ai-types";
 import { logLlmEvent } from "@raceiq/backend-core/ai/diagnostic-logging";
 import { getResolvedAiInternals } from "./resolved-ai-internals";
+import { normalizeAiUsage } from "@raceiq/backend-core/ai/usage";
 
-export interface AnalysisUsage {
-  inputTokens: number;
-  outputTokens: number;
-  costUsd: number;
-  durationMs: number;
-  model: string;
-}
+export type AnalysisUsage = AiUsage;
 export interface CornerFraction {
   label: string;
   startFrac: number;
@@ -327,18 +322,7 @@ export async function generateLapAnalysis(
     }
     const text = JSON.stringify(parsed.data);
 
-    const rawUsage = (result.usage ?? {}) as Record<string, unknown>;
-    const numberFor = (...keys: string[]) =>
-      keys
-        .map((key) => rawUsage[key])
-        .find((value): value is number => typeof value === "number") ?? 0;
-    const usage: AnalysisUsage = {
-      inputTokens: numberFor("inputTokens", "promptTokens"),
-      outputTokens: numberFor("outputTokens", "completionTokens"),
-      costUsd: numberFor("costUsd"),
-      durationMs: numberFor("durationMs") || Date.now() - startedAt,
-      model,
-    };
+    const usage = normalizeAiUsage(result.usage, model, Date.now() - startedAt);
     await writeAnalysis(lapId, text, usage);
     logLlmEvent("llm-response", { ...diagnostic, response: result });
     return { analysis: text, cached: false, usage, cornerFracs, hasTune };

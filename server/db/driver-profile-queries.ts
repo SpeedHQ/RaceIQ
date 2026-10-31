@@ -39,10 +39,10 @@ export interface DriverProfileRunRow {
   fingerprint: string | null;
   plan: string | null;
   error: string | null;
-  inputTokens: number;
-  outputTokens: number;
-  costUsd: number;
-  durationMs: number;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  costUsd: number | null;
+  durationMs: number | null;
   model: string;
   createdAt: string;
   startedAt: string | null;
@@ -56,10 +56,10 @@ interface CreateDriverProfileRunInput {
   fingerprint?: string | null;
   plan?: string | null;
   error?: string | null;
-  inputTokens?: number;
-  outputTokens?: number;
-  costUsd?: number;
-  durationMs?: number;
+  inputTokens?: number | null;
+  outputTokens?: number | null;
+  costUsd?: number | null;
+  durationMs?: number | null;
   model?: string;
   createdAt?: string;
   startedAt?: string | null;
@@ -72,10 +72,10 @@ interface UpdateDriverProfileRunInput {
   fingerprint?: string | null;
   plan?: string | null;
   error?: string | null;
-  inputTokens?: number;
-  outputTokens?: number;
-  costUsd?: number;
-  durationMs?: number;
+  inputTokens?: number | null;
+  outputTokens?: number | null;
+  costUsd?: number | null;
+  durationMs?: number | null;
   model?: string;
   startedAt?: string | null;
   completedAt?: string | null;
@@ -141,10 +141,10 @@ export async function createDriverProfileRun(
       fingerprint: data.fingerprint ?? null,
       plan: data.plan ?? null,
       error: data.error ?? null,
-      inputTokens: data.inputTokens ?? 0,
-      outputTokens: data.outputTokens ?? 0,
-      costUsd: data.costUsd ?? 0,
-      durationMs: data.durationMs ?? 0,
+      inputTokens: data.inputTokens ?? null,
+      outputTokens: data.outputTokens ?? null,
+      costUsd: data.costUsd ?? null,
+      durationMs: data.durationMs ?? null,
       model: data.model ?? "",
       createdAt: data.createdAt ?? sql`(datetime('now'))`,
       startedAt: data.startedAt ?? null,

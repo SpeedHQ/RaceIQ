@@ -82,6 +82,15 @@ const meta: Meta = {
 
 export default meta;
 
+/** Formatting fixture only; no provider inference or monetary-cost estimate. */
+export const UnreportedUsage: StoryObj = {
+  render: () => (
+    <SidebarFrame>
+      <AnalysisDisplay analysis={analysis} segments={segments} usage={{ ...usage, inputTokens: null, outputTokens: 0, costUsd: null, durationMs: null }} onRegenerate={() => {}} onClear={() => {}} />
+    </SidebarFrame>
+  ),
+};
+
 /** Collapsed state: what the analyse and compare panels show by default. */
 export const SummaryRow: StoryObj = {
   render: () => (

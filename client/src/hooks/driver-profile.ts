@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { DriverProfileSummary } from "@raceiq/shared/integrations/ai/driver-profile-summary";
+import type { AiUsage } from "@raceiq/shared/integrations/ai/usage";
 import type { DriverFingerprint } from "@raceiq/backend/driver-profile/fingerprint";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { client } from "../lib/rpc";
@@ -25,10 +26,10 @@ export interface DriverProfileRun {
   fingerprint: string | null;
   plan: string | null;
   error: string | null;
-  inputTokens: number;
-  outputTokens: number;
-  costUsd: number;
-  durationMs: number;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  costUsd: number | null;
+  durationMs: number | null;
   model: string;
   createdAt: string;
   startedAt: string | null;
@@ -53,7 +54,7 @@ export interface DriverProfileRunMutationResponse {
   run: DriverProfileRun | null;
   summary?: DriverProfileSummary;
   fingerprint?: DriverFingerprint;
-  usage?: { inputTokens: number; outputTokens: number; costUsd: number; durationMs: number; model: string };
+  usage?: AiUsage;
   error?: string;
 }
 

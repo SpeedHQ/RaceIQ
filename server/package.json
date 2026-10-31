@@ -6,6 +6,7 @@
     "./ai/agent-stream": "./ai/agent-stream.ts",
     "./ai/ai-features": "./ai/ai-features.ts",
     "./ai/ai-types": "./ai/ai-types.ts",
+    "./ai/usage": "./ai/usage.ts",
     "./ai/analysis-run-registry": "./ai/analysis-run-registry.ts",
     "./ai/analyst-prompt": "./ai/analyst-prompt.ts",
     "./ai/chat-agent": "./ai/chat-agent.ts",
