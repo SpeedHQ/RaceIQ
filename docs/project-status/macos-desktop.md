@@ -361,6 +361,26 @@ quality, chat/comparison/setup integration, cancellation, production provider
 availability or compatibility with other CLI versions/models. The next gates
 are the production provider boundary, role-scoped tool tests and quality checks.
 
+In-repository transport foundation (2026-10-31): a private backend stdio
+connection now handles request correlation, split UTF-8, notifications and
+initialization notifications. It validates incoming envelopes, caps frames at
+1 MiB by default and pending requests at 64, uses RPC deadlines and abort
+signals, rejects every unsolicited server request, and stops dispatching after
+closure. RPC/stream/shutdown failures expose fixed messages and numeric error
+codes, not upstream payloads. No automatic retries are performed. Abort and
+deadline close the transport; higher-level turn interruption and domain-safe
+retry remain separate responsibilities.
+
+Twenty-three focused cases pass against a local subprocess peer and injected
+byte-stream/shutdown-failure boundaries. A separate real CLI metadata-only check used this
+new connection for initialize/initialized/account-read, confirmed ChatGPT-managed
+sign-in, and observed owned-child exit 0. No inference or private capture was
+sent in that check. The earlier authenticated generation smoke remains distinct:
+it used the temporary prototype, not this newly committed transport. Existing
+providers/settings remain unchanged. CLI discovery, the fail-closed capability
+profile, generation, role-authorized tools, provider selection and UI wiring are
+still pending; this transport is not an available app provider.
+
 Backend plan, against the shared AI contract above:
 
 1. Audit prior provider removal and repair the migration that currently clears

@@ -149,6 +149,7 @@
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
+- Add a bounded Codex stdio transport with protocol validation, fail-closed server requests, cancellation and subprocess regression coverage.
 - Introduce the macOS Tauri host and isolated backend lifecycle checks for allocated loopback ports, readiness, persistence and graceful shutdown; native-app acceptance remains in progress.
 - Add an isolated real-UDP F1 25 browser acceptance gate and a staged macOS Bun/Tauri desktop plan.
 - Preserve Windows directory-sync path errors when validating recording publication directories.
