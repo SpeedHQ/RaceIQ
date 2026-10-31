@@ -14,10 +14,20 @@ Original attachment SHA-256 (including CRLF line endings):
 Keep the source external; tests construct synthetic packets, not a copied game
 recording or a redistributed specification.
 
-EA also lists a newer **Season 8 PDF**. Its download link was unavailable through
-the retrieved page, and direct page retrieval returned HTTP 403. That PDF's
-appendices and any revised packet versions remain an explicit cross-check gate;
-the announcement revision is **not** a claim that the text matches that PDF.
+The browser's download control subsequently exposed the current
+[Season 8 PDF, version 1.2](https://forums.ea.com/t5/s/tghpe58374/attachments/tghpe58374/f1-games-game-info-hub-en/61/10/Data%20Output%20from%20F1%2025%202026%20Season%20Pack%20%28Season%208%29.pdf).
+Retrieved 2026-10-30; SHA-256:
+`3f38858c3ca65b2faa55a90a35277dd2767bb9cea2911e741b61b370a39365ae`.
+Its 13 implemented structures match the text's ordered field types and array
+capacities. Packet sizes match the decoder matrix and all documented packets
+remain version 1. Minor source spelling differences (`vehicleFiaFlags` and
+`ersHarvestedLimitPerLap`) do not change the packed layout; the PDF also omits
+some struct-closing punctuation, so the complete text structures remain useful.
+
+The appendices retain session types 0-18 and introduce distinct 2026 team IDs
+above 255 (including Audi/Cadillac) and Madrid track ID 42. Catalog mapping,
+geometry availability and season-aware AI/UI interpretation still need work;
+confirming the wire layout does not complete those requirements.
 
 ## Identity and semantics contract
 
@@ -39,7 +49,7 @@ the announcement revision is **not** a claim that the text matches that PDF.
   the wire format and packet-16 state for indexed replay.
 - 2026 decoder entry requires the exact known packet size, player index 0–23,
   and packet version 1. Unknown versions/layouts fail closed before state changes.
-  Version 1 is the conservative initial supported matrix; later versions need
+  Version 1 matches the Season 8 version 1.2 specification; later versions need
   independent specification/capture evidence, not acceptance by size alone.
 
 ## Decoder matrix
@@ -80,19 +90,52 @@ distinct from DRS. A catalog contract test prevents heuristic unit/name drift.
 
 Read-only local TrackTitan investigation found no raw recording in its app data,
 temporary files or logs. Logs confirm `F12026` telemetry was received. Neither
-account storage nor configuration was changed. A SimHub recording on another PC
-requires an explicit mounted/shared path or connection from the user; local LAN
-addresses in logs are not authority to inspect that computer.
+account storage nor configuration was changed. Subsequent user-authorized SSH
+inspection of the Windows SimHub installation found 35 persisted lap traces,
+20 under 2026-car folders. The inspected Imola trace is explicitly simplified;
+these records are not accepted as original UDP evidence. SimHub's Replays
+directory contained only a Gran Turismo 7 recording. Existing recordings and
+SimHub settings were not changed by the SSH inspection.
+
+### First real relay capture — 2026-10-31
+
+A private, timestamped raw recording was received on the Mac through the user's
+existing SimHub UDP relay on port 20778. It contains 47,789 datagrams and
+48,700,688 bytes; SHA-256:
+`46fdd19219a50349681b109bb358e6adb037d9aee0b7160faca2a025dabd0bd1`.
+The recorder closed cleanly, flushed the file, and its frame count and complete
+stream boundaries pass strict capture-framing validation. The original remains
+under ignored local `data/`; it has not been uploaded or committed.
+
+All received headers report wire format 2026, packet version 1. The production
+parser emitted 45,118 snapshots with no exceptions and no size mismatches among
+the observed supported packets. Session identity is Mexico (track 19), Mercedes
+2026 (team 476), time trial, formula 13. Active aero switches between modes 0 and
+1, the regulations flag is true, and the reported per-lap harvest limit is
+6,600,000 J. That observed limit is not replaced by the synthetic fixture's
+deliberate 8,000,000 J value.
+
+The native completed-lap reading is 79.588 s, but the first received lap-data
+packet is already 1.919 s into lap 2. This proves real wire decoding, not complete
+start-to-finish lap capture or UDP-to-dashboard acceptance. A further capture
+armed before driving is requested for that gate; no missing samples are invented.
 
 Before marking the milestone done:
 
-1. Cross-check the latest Season 8 PDF, including packet versions, catalogs,
-   session types, and changed ERS/setup meanings.
+1. Apply the verified Season 8 car/track catalogs and remaining ERS/setup
+   semantics without rewriting historical 2025 identities.
 2. Complete the UI/AI-context half of the shared contract: correct season labels,
    active aero/overtake, ERS mode names/limits, and unavailable states. Do not
    present the current legacy DRS/ERS UI as complete 2026 support.
-3. Add specification-derived **UDP browser** tests through capture, Replay and
-   Compare. Current new tests are parser/storage tests, not browser acceptance.
-4. Find or record real 2026 UDP, review known lap/sector/channel values, and pass
-   the same live/capture/import/export/Replay/Compare path on both formats.
+3. Finish the two-engine **UDP browser** matrix through capture, Replay,
+   Compare and export/import. The full 2025 trace and synthetic 2026 re-encoding
+   pass Chromium and WebKit with source-time pacing. The combined run's saved
+   result is passed with no failed tests; native WKWebView remains a separate gate.
+   Synthetic aero/energy values and g-force saturation are explicitly labeled,
+   not treated as measurements from a real 2026 car. A high-speed flood exposed
+   the existing detector queue's overload/fatal-error behavior; do not describe
+   the paced acceptance tests as proving arbitrary burst tolerance.
+4. Obtain complete timed laps in real 2026 UDP, review known lap/sector/channel
+   values, and pass the same live/capture/import/export/Replay/Compare path on
+   both formats. The first real recording above starts partway through a lap.
 5. Repeat native WKWebView capture/restart checks with the updated backend.

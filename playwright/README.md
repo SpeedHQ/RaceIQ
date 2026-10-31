@@ -34,9 +34,22 @@ Use the pinned Bun version from root `package.json`. From `playwright/`, run
 `bun run build:browser`, then run
 `bunx playwright test --config=udp.config.ts --project=udp-chromium` and
 `bunx playwright test --config=udp.config.ts --project=udp-webkit` separately.
-This suite starts an unseeded compiled app, replays committed F1 25
-datagrams over real localhost UDP, and checks live/raw dashboards plus recorded
-session replay. HTTP 3132, Vite 4132 and UDP 15332 must be free. SQLite and captures
+Each browser runs two cases against an unseeded compiled app: the committed
+real 2025 recording (197,511 datagrams) and a specification-derived 2026
+re-encoding (218,668 datagrams). The latter is **not** a real DLC capture. Both
+travel over real localhost UDP and check live/raw dashboards, native lap timings,
+captured Replay, Compare, raw export/import and reopening the imported lap.
+The 2026 case also checks changing active-aero readings, catalog units and
+persisted aero/ERS data. A fixture helper constructs the new wire layout
+independently of the production decoder; it preserves the source game year,
+gives the synthetic sessions distinct UIDs and documents its clipped g-force
+spikes and deliberately synthetic aero/energy channels.
+
+Full driving traces run at no more than 4x source time, with bounded startup
+bursts and no catch-up floods; each case has a 240-second timeout. This is not
+an ingress-overload stress test. An earlier unpaced multi-case run exhausted
+the existing detector queue; the queue limit and failure behavior were not
+relaxed to make acceptance pass. HTTP 3132, Vite 4132 and UDP 15332 must be free. SQLite and captures
 live under ignored `test-results/test-data-udp`; traces/screenshots under
 `test-results/udp`. Do not run translation generation or typecheck concurrently
 with the Vite test server, since these commands replace generated Paraglide output.

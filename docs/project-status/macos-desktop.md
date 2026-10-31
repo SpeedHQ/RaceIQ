@@ -157,8 +157,11 @@ bunx playwright test --config=udp.config.ts --project=udp-webkit
 The suite uses a dedicated unseeded server, disposable `test-data-udp`, HTTP
 3132, Vite 4132 and UDP 15332. It replays the committed real F1 25 wire capture
 through a UDP socket; no API/WS telemetry injection or prepopulated laps.
-Assertions cover live timing, pit view navigation, changing raw speed, and
-navigation from captured session laps into Replay. Failure traces/screenshots
+Assertions cover live timing, pit view navigation, changing raw speed,
+navigation from captured session laps into Replay, Compare and raw export/import.
+Both browsers now also run a clearly labeled specification-derived 2026 stream,
+checking changing aero readings and preservation of new channels in saved data.
+Failure traces/screenshots
 stay under ignored `playwright/test-results/udp`.
 Compiled mode is the default; `E2E_SERVER_MODE=dev` selects Bun/Vite diagnostics.
 
@@ -170,7 +173,12 @@ Local baseline checks: the Apple Silicon compiled build, root `bun run typecheck
 repository lint, focused UDP typecheck and changelog tests pass with Bun 1.4.3.
 The real-UDP acceptance scenario passes against the compiled backend in both
 Chromium and WebKit on macOS. Each run sends 197,511 datagrams and captures
-five valid laps; listener diagnostics report zero malformed drops.
+saved laps; listener diagnostics reported zero malformed drops in the baseline.
+The expanded gate pins native lap timings; lap 4 is 86.709 s, while a later
+90.704 s update belongs to the subsequent lap despite its unchanged lap number.
+The full two-format expanded scenarios pass Chromium and WebKit. The combined
+run's saved result reports passed with no failed tests. Internal Live/Raw/Sessions
+navigation uses existing controls; the F1 dashboard shares both Live URL variants.
 The wider `playwright/tsconfig.json` check separately reports 22 existing errors
 in LMU/session E2E files; the focused UDP check excludes those unrelated specs.
 
@@ -235,11 +243,20 @@ saved lap, restarts with history intact, and exits cleanly without a terminal.
 
 Experimental parser foundation implemented 2026-10-30. The
 [wire audit](f1-2026-wire-audit.md) pins the downloaded EA structures attachment
-and documents the still-unverified newer Season 8 PDF. Eight specification-derived
+and the cross-checked Season 8 version 1.2 PDF. Eight specification-derived
 parser/storage tests cover 24-car layouts, new energy/aero channels, checkpoint
-parity, mixed-format resets and malformed input. No real 2026 raw capture was
-found in the local TrackTitan folders; logs confirm the app received `F12026`.
-UI/catalog updates and 2026 UDP browser/native acceptance remain pending.
+parity, mixed-format resets and malformed input. The first real 2026 relay capture
+was saved privately on 2026-10-31: 47,789 datagrams, strict framing validation,
+45,118 decoded snapshots, no parser exceptions or observed supported-size
+mismatches. It records a Mercedes 2026 time trial at Mexico and a native 79.588 s
+lap reading, but begins 1.919 s into that lap. Full-lap real-capture acceptance
+therefore remains pending. See the wire audit for its hash and limitations.
+Raw now resolves game-specific extensions through the catalog source inventory,
+so new fields carry units/categories/provenance without changing UI components
+or styling. The 2025 and synthetic 2026 UDP-to-Replay/Compare/export/import
+scenarios pass Chromium and WebKit. Season catalogs,
+dedicated Live/Replay channel presentation, real-DLC and native acceptance remain
+pending.
 
 Backend plan, against the shared telemetry contract above:
 
@@ -264,6 +281,20 @@ reviewed expected timing/channel values. If no real capture is available,
 synthetic tests may prove implementation progress but not this milestone done.
 
 ## Milestone 5: Codex provider and response-budget controls
+
+Protocol audit (2026-10-30): installed Codex CLI is 0.164.0 and reports ChatGPT
+sign-in. Its locally generated experimental schemas expose `dynamicTools` on
+`thread/start`, and `outputSchema`/reasoning `effort` on `turn/start`; neither
+request has an output-token ceiling field. Do not fabricate a Codex output cap.
+[Official app-server documentation](https://learn.chatgpt.com/docs/app-server)
+supports the managed-login path for local/open-source applications; this goal
+does not authorize extracting its tokens or turning it into a hosted service.
+[The newer sign-in route](https://developers.openai.com/siwc/token-sharing-open-source/codex-app-server)
+also warns that `model/list` may be a bundled catalog, not an entitlement check.
+Actual inference must prove access. Before sending lap data, verify that the
+child runtime exposes only allowed RaceIQ tools, without inherited shell,
+filesystem, MCP/app or agent privileges. Generated schema inspection is not an
+authenticated analysis/tool-isolation smoke test; those gates remain pending.
 
 Backend plan, against the shared AI contract above:
 

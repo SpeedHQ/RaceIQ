@@ -39,6 +39,7 @@
 - Include the complete LMU multiplayer recording in demo seeds as sub-100 MB gzip parts, stream native input without buffering the whole capture, and retain separate player and opponent recordings.
 
 ### Fixes
+- On the Raw telemetry page, show units, update timing and source details for game-specific readings, including F1 2026 active aero and overtake.
 - Get answers from current Claude models, which rejected every request with "`temperature` is deprecated for this model".
 - Stop AI settings from freezing on Windows while saved API keys and the launch-on-login setting are checked, and show Claude models immediately instead of waiting for the model list.
 - Load the model list and run AI features when the OpenAI-compatible base URL is Anthropic's `https://api.anthropic.com/v1`, which previously failed with "x-api-key header is required".
