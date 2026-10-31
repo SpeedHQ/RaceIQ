@@ -3,5 +3,5 @@ import catalog from "./telemetry-catalog.generated.json";
 
 export const TELEMETRY_CATALOG_VERSION = "0.20.0";
 export const TELEMETRY_CATALOG_SCHEMA_VERSION = "v7";
-export const TELEMETRY_CATALOG_HASH = "018fdb55dcdf771a8c410f213300e1c14f391228a46403602b7050632bc63181";
+export const TELEMETRY_CATALOG_HASH = "e21826b60d1889f1c7cef97579187376b83f08103bb52dcf039e833785d9e06b";
 export const TELEMETRY_CATALOG_GENERATED = catalog;

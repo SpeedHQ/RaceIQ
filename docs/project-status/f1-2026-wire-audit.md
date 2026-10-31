@@ -45,8 +45,10 @@ and replay acceptance remain separate, unfinished gates.
   No persisted session/car/track IDs are renamed or bulk migrated.
 - Select decoding from `PacketHeader.packetFormat`, not the game year, buffer
   length alone, or whichever format last arrived.
-- Expose `f1.packetFormat = 2026` on new snapshots. Legacy 2025 snapshot shape
-  remains unchanged. Old v1 parser checkpoints still restore with 2025 defaults.
+- Expose `f1.packetFormat = 2026` on new snapshots; the wire marker stays absent
+  on legacy 2025 snapshots. Old v1 parser checkpoints still restore with 2025
+  defaults. For both formats, ERS status fields remain absent until car status
+  has actually arrived; an observed zero remains zero, not unavailable.
 - Wire format is **not** car regulations. `f1.carTelemetry2.regulations2026`
   independently reports whether the selected car follows 2026 regulations.
 - Packet 16 is `f1.carTelemetry2`: active-aero mode/availability/distance,
@@ -98,6 +100,27 @@ The generated semantic catalog names the new channels explicitly, preserves
 metres/joules/booleans and the two-mode active-aero enum, and keeps overtake
 distinct from DRS. A catalog contract test prevents heuristic unit/name drift.
 
+AI context now includes native session type, explicit 2026 wire format and the
+independent regulations flag, including late-arriving observations. For 2026
+cars it reports active aero and overtake separately as last-observed states,
+not lap-wide opportunity counts; zero activation-distance sentinels remain
+unavailable. Energy stays in joules (rendered as kJ), with native harvest limits
+distinct from battery capacity. Missing endpoints do not produce invented
+energy deltas, observed zeros survive, and non-finite readings are excluded.
+Analyst instructions prohibit fixed-4-MJ reserve grading for 2026 without an
+independently verified capacity and prohibit missed-activation claims from a
+single observation. These are deterministic context/prompt checks, not proof
+of a real model's response quality or authenticated Codex integration.
+
+Both formats now leave ERS fields unavailable before the first car-status
+packet. Existing counters and car-status provenance are retained. The legacy
+combined harvested-energy counter still needs a separate native MGU-K/MGU-H
+audit; a combined total must not be presented as a new one-to-one source channel.
+Deployment mode 3 is Overtake in
+[EA's 2025 structures](https://forums.ea.com/t5/s/tghpe58374/attachments/tghpe58374/f1-games-game-info-hub-en/61/5/F1%2025%20Telemetry%20Output%20Structures.txt)
+and Boost in the pinned 2026 specification, independently of car regulations.
+Only the documented mode codes 0–3 are accepted by the semantic enum contract.
+
 Read-only local TrackTitan investigation found no raw recording in its app data,
 temporary files or logs. Logs confirm `F12026` telemetry was received. Neither
 account storage nor configuration was changed. Subsequent user-authorized SSH
@@ -135,9 +158,11 @@ Before marking the milestone done:
 1. Complete remaining ERS/setup semantics without rewriting historical 2025
    identities. The verified Season 8 car/track identity additions are covered by
    `f1-season-catalog.test.ts`; unknown track lengths/geometry stay unavailable.
-2. Complete the UI/AI-context half of the shared contract: correct season labels,
+2. Complete the UI half of the shared contract: correct season labels,
    active aero/overtake, ERS mode names/limits, and unavailable states. Do not
-   present the current legacy DRS/ERS UI as complete 2026 support.
+   present the current legacy DRS/ERS UI as complete 2026 support. Extend model
+   quality checks to the new context; structural prompt tests do not prove that
+   an analyst follows the constraints.
 3. Finish the two-engine **UDP browser** matrix through capture, Replay,
    Compare and export/import. The full 2025 trace and synthetic 2026 re-encoding
    pass Chromium and WebKit with source-time pacing. The combined run's saved

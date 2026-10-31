@@ -6,14 +6,14 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.20.0",
-      "sourceHash": "77b923169182e2a2d0cfcc6d89fcc736ed9345befc30196d996b9c3a016b6cff"
+      "sourceHash": "95844ef0eb905ea65e51bbaa175e57a3934322ba7b7ff548137be25209b8642f"
     },
     "sourceHashes": {
       "packages/capture-formats/src/lmu/opponent-snapshot.ts": "c18e10f39668501f9c4742bec8999bc7faeeba2c8ea7b42d60accfbbe4e8f0c6",
       "packages/game-ac-evo/src/parser.ts": "29cb3985fe32c797554d98f107a0c4d76ddcc5279d97e75423365e1a0887f5de",
       "packages/game-acc/src/parser.ts": "ebbcaf92f7a7aa4d60eb3d408dfd6278e8ff97530c5d47c93597cffed0f8a47c",
       "packages/game-ams2/src/normalizer.ts": "0b3a2c0b5cad95cf117d7bd9b2b16f4c3bcf57461f206936b3fdf26bc5680dde",
-      "packages/game-f1-2025/src/f1-state.ts": "359a7aad2f2d4c0060c848589c9304078e7ba957fd79077545d657701fd94534",
+      "packages/game-f1-2025/src/f1-state.ts": "ab9ef1bb357e9c19ee2c48df4f6852231c1e260b620a00f89253e011fbcee02e",
       "packages/game-fm-2023/src/parser.ts": "71c348b894f84f6086c9582d0cce473bac75a3c85896010a0e5762854718b835",
       "packages/game-iracing-metadata/src/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "packages/game-iracing/src/normalizer.ts": "bcc73bc4805a310f968b9743e6c9c88a688e3216cd28eecc3ee9f6c3d36b0afc",
@@ -22,7 +22,7 @@
       "server/session-capture/frame-time.ts": "55c44a6cede5e2c5fb1e1c45568fe44b4a9a8b156f260f69bb5d89f9c24935a2",
       "shared/racing/setups/schema.ts": "987941bb8f38520920686ef540e67ce2259fdc962de03ccb959f6b5ef773b28f"
     },
-    "contentHash": "018fdb55dcdf771a8c410f213300e1c14f391228a46403602b7050632bc63181"
+    "contentHash": "e21826b60d1889f1c7cef97579187376b83f08103bb52dcf039e833785d9e06b"
   },
   "generatedFrom": [
     "packages/tooling-catalog/src/root.ts",
@@ -1601,7 +1601,7 @@
             "f1.drsActivated"
           ],
           "freshness": "continuous",
-          "normalization": "(cs?.drsAllowed && f1.drsActivated) ? 1 : 0",
+          "normalization": "cs?.drsAllowed && f1.drsActivated ? 1 : 0",
           "description": "f1-2025 maps 2 native source channels into this value.",
           "provenance": {
             "origin": "parser",
@@ -1619,7 +1619,7 @@
               "f1.drsActivated"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "5a92da080687d86af76d52503b8e3ef29febab5daa176b381907754161a73523"
+            "codeHash": "b5f19ca8646bd0e148245b161f6188c1571915498ec1d6f528cc008f4f338195"
           }
         },
         "acc": {
@@ -15692,7 +15692,7 @@
             "f1.ersDeployMode"
           ],
           "freshness": "continuous",
-          "normalization": "cs?.ersDeployMode ?? 0",
+          "normalization": "cs?.ersDeployMode",
           "description": "f1-2025 maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -15709,7 +15709,7 @@
               "f1.ersDeployMode"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "12f3ad888773311c6d29d08b07b6025986c70aaebf0fe6ae21fd41e82730dd7a"
+            "codeHash": "15b8bc70deb08093c813c9d40d9438fff4d1ac336547a78c56f4d8fefdb623dc"
           }
         },
         "acc": {
@@ -15749,8 +15749,7 @@
         "0",
         "1",
         "2",
-        "3",
-        "4"
+        "3"
       ],
       "limitations": []
     },
@@ -15778,7 +15777,7 @@
             "f1.ersDeployedThisLap"
           ],
           "freshness": "continuous",
-          "normalization": "cs?.ersDeployedThisLap ?? 0",
+          "normalization": "cs?.ersDeployedThisLap",
           "description": "f1-2025 maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -15795,7 +15794,7 @@
               "f1.ersDeployedThisLap"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "eab03bfd8ac62262a897e599462e20a7a5aa5b4d3abb66258a0e99168ef82290"
+            "codeHash": "66e7c80e7b9ff874e8520da689c1cd633fca4a8179fd697f35eec248d5ce2d32"
           }
         },
         "acc": {
@@ -15923,7 +15922,7 @@
             "f1.ersHarvestedThisLap"
           ],
           "freshness": "continuous",
-          "normalization": "cs?.ersHarvestedThisLap ?? 0",
+          "normalization": "cs?.ersHarvestedThisLap",
           "description": "f1-2025 maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -15940,7 +15939,7 @@
               "f1.ersHarvestedThisLap"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "c901fa15128f541cb47581a5a8ed0f11fff7a6bdb78a009591c091f4cd88a233"
+            "codeHash": "2278e5715959ea53a4c21091e15294ae3595d4441e4ce8cd007a0797ceba8643"
           }
         },
         "acc": {
@@ -16004,7 +16003,7 @@
             "f1.ersStoreEnergy"
           ],
           "freshness": "continuous",
-          "normalization": "cs?.ersStore ?? 0",
+          "normalization": "cs?.ersStore",
           "description": "f1-2025 maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -16021,7 +16020,7 @@
               "f1.ersStoreEnergy"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "00bc5aaa8e62da83863a97c8b065ec886bf6d98d0ffff5081cab552d7be6e26d"
+            "codeHash": "86b4f6889b2e5500317e32e1cd514461a33987067f661cfbcbb401af3f147316"
           }
         },
         "acc": {
@@ -68275,7 +68274,7 @@
             ]
           },
           "freshness": "continuous",
-          "normalization": "mx ? mx.wheelSpeedFL / 0.36 : (ct.speed / 3.6) / 0.36 | mx ? mx.wheelSpeedFR / 0.36 : (ct.speed / 3.6) / 0.36 | mx ? mx.wheelSpeedRL / 0.36 : (ct.speed / 3.6) / 0.36 | mx ? mx.wheelSpeedRR / 0.36 : (ct.speed / 3.6) / 0.36",
+          "normalization": "mx ? mx.wheelSpeedFL / 0.36 : ct.speed / 3.6 / 0.36 | mx ? mx.wheelSpeedFR / 0.36 : ct.speed / 3.6 / 0.36 | mx ? mx.wheelSpeedRL / 0.36 : ct.speed / 3.6 / 0.36 | mx ? mx.wheelSpeedRR / 0.36 : ct.speed / 3.6 / 0.36",
           "description": "Estimates wheel angular speed using an assumed 0.36 m radius and falls back to vehicle speed when per-wheel motion is unavailable.",
           "limitations": [
             "Assumed wheel radius and vehicle-speed fallback cannot preserve actual per-wheel rotation."
@@ -68300,7 +68299,7 @@
               "F1.CarTelemetry.speed"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "444f71c47f9aa670c302d09b9a25b1836f9789f3f2c31bb580a9a9c2381c1159"
+            "codeHash": "a8e3aca3eae4150f42fafd1dc701a55304b5522013408d43188dbe7461a07ea4"
           }
         },
         "acc": {

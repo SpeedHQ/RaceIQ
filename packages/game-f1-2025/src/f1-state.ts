@@ -1,14 +1,6 @@
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { F1CarTelemetry2Data, F1ExtendedData, F1GridEntry } from "@raceiq/shared/telemetry/f1-2025";
-import {
-  F1_HEADER_SIZE,
-  F1_PACKET_IDS,
-  F1_SESSION_TYPES,
-  type F1Header,
-  type F1PacketFormat,
-  isF1PacketFormat,
-  F1_2026_PACKET_SIZES,
-} from "@raceiq/capture-formats/f1-2025/f1-wire";
+import { F1_HEADER_SIZE, F1_PACKET_IDS, F1_SESSION_TYPES, type F1Header, type F1PacketFormat, isF1PacketFormat, F1_2026_PACKET_SIZES } from "@raceiq/capture-formats/f1-2025/f1-wire";
 import { decode2026CarStatus, decode2026CarTelemetry, decode2026CarTelemetry2, decode2026Motion, decode2026Participants, decode2026Session } from "./f1-2026-decoders";
 import {
   decodeF1CarDamage,
@@ -39,7 +31,6 @@ import {
   type F1EventData,
 } from "./f1-packet-decoders";
 import { getF1CompoundName } from "@raceiq/game-f1-2025-metadata/racing/compounds";
-
 
 /**
  * Stateful accumulator for F1 25's 2025 and 2026 UDP layouts.
@@ -77,22 +68,218 @@ export interface F1ParserCheckpointV1 {
 function hasFiniteFields(value: unknown, fields: string[], booleanFields: string[] = []): boolean {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
   const record = value as Record<string, unknown>;
-  return fields.every((field) => typeof record[field] === "number" && Number.isFinite(record[field])) &&
-    booleanFields.every((field) => typeof record[field] === "boolean");
+  return fields.every((field) => typeof record[field] === "number" && Number.isFinite(record[field])) && booleanFields.every((field) => typeof record[field] === "boolean");
 }
 
 function validF1StateObject(key: string, value: unknown): boolean {
   if (value === null) return true;
   const fields: Record<string, string[]> = {
     motion: ["posX", "posY", "posZ", "velX", "velY", "velZ", "gForceX", "gForceY", "gForceZ", "yaw", "pitch", "roll"],
-    session: ["trackId", "weather", "trackTemp", "airTemp", "sessionType", "totalLaps", "rainPercentage", "safetyCarStatus", "trackLength", "pitSpeedLimit", "formula", "sector2LapDistanceStart", "sector3LapDistanceStart", "pitStopWindowIdealLap", "pitStopWindowLatestLap"],
-    lapData: ["currentLapTime", "lastLapTime", "bestLapTime", "currentLapNum", "position", "totalDistance", "lapDistance", "sector", "sector1Time", "sector2Time", "currentLapInvalid", "penalties", "totalWarnings", "cornerCuttingWarnings", "driverStatus", "resultStatus", "pitLaneTimerActive", "pitLaneTimeInLaneInMS", "speedTrapFastestSpeed", "gridPosition"],
+    session: [
+      "trackId",
+      "weather",
+      "trackTemp",
+      "airTemp",
+      "sessionType",
+      "totalLaps",
+      "rainPercentage",
+      "safetyCarStatus",
+      "trackLength",
+      "pitSpeedLimit",
+      "formula",
+      "sector2LapDistanceStart",
+      "sector3LapDistanceStart",
+      "pitStopWindowIdealLap",
+      "pitStopWindowLatestLap",
+    ],
+    lapData: [
+      "currentLapTime",
+      "lastLapTime",
+      "bestLapTime",
+      "currentLapNum",
+      "position",
+      "totalDistance",
+      "lapDistance",
+      "sector",
+      "sector1Time",
+      "sector2Time",
+      "currentLapInvalid",
+      "penalties",
+      "totalWarnings",
+      "cornerCuttingWarnings",
+      "driverStatus",
+      "resultStatus",
+      "pitLaneTimerActive",
+      "pitLaneTimeInLaneInMS",
+      "speedTrapFastestSpeed",
+      "gridPosition",
+    ],
     finalClassification: ["position", "gridPosition", "resultStatus", "resultReason", "bestLapTime", "numPitStops"],
-    carTelemetry: ["speed", "throttle", "brake", "steer", "gear", "rpm", "clutch", "tyreTempFL", "tyreTempFR", "tyreTempRL", "tyreTempRR", "tyresInnerTempFL", "tyresInnerTempFR", "tyresInnerTempRL", "tyresInnerTempRR", "brakeTempFL", "brakeTempFR", "brakeTempRL", "brakeTempRR", "tyrePressureFL", "tyrePressureFR", "tyrePressureRL", "tyrePressureRR", "engineTemperature", "surfaceTypeFL", "surfaceTypeFR", "surfaceTypeRL", "surfaceTypeRR", "suggestedGear"],
-    carStatus: ["fuelRemaining", "fuelCapacity", "tyreCompound", "tyreVisualCompound", "tyreAge", "ersStore", "ersDeployMode", "ersDeployedThisLap", "ersHarvestedThisLap", "tractionControl", "antiLockBrakes", "fuelMix", "frontBrakeBias", "pitLimiterStatus", "fuelRemainingLaps", "maxRPM", "idleRPM", "maxGears", "drsActivationDistance", "actualTyreCompound", "vehicleFIAFlags", "enginePowerICE", "enginePowerMGUK"],
-    carDamage: ["tyreWearFL", "tyreWearFR", "tyreWearRL", "tyreWearRR", "tyresDamageFL", "tyresDamageFR", "tyresDamageRL", "tyresDamageRR", "brakesDamageFL", "brakesDamageFR", "brakesDamageRL", "brakesDamageRR", "tyreBlistersFL", "tyreBlistsFR", "tyreBlistersRL", "tyreBlistersRR", "frontLeftWingDamage", "frontRightWingDamage", "rearWingDamage", "floorDamage", "diffuserDamage", "sidepodDamage", "drsFault", "ersFault", "gearBoxDamage", "engineDamage", "engineMGUHWear", "engineESWear", "engineCEWear", "engineICEWear", "engineMGUKWear", "engineTCWear"],
-    carSetup: ["frontWing", "rearWing", "onThrottle", "offThrottle", "frontCamber", "rearCamber", "frontToe", "rearToe", "frontSuspension", "rearSuspension", "frontAntiRollBar", "rearAntiRollBar", "frontRideHeight", "rearRideHeight", "brakePressure", "brakeBias", "engineBraking", "rearLeftTyrePressure", "rearRightTyrePressure", "frontLeftTyrePressure", "frontRightTyrePressure", "fuelLoad"],
-    motionEx: ["suspensionPositionRL", "suspensionPositionRR", "suspensionPositionFL", "suspensionPositionFR", "suspensionVelocityRL", "suspensionVelocityRR", "suspensionVelocityFL", "suspensionVelocityFR", "wheelSpeedRL", "wheelSpeedRR", "wheelSpeedFL", "wheelSpeedFR", "wheelSlipRatioRL", "wheelSlipRatioRR", "wheelSlipRatioFL", "wheelSlipRatioFR", "wheelSlipAngleRL", "wheelSlipAngleRR", "wheelSlipAngleFL", "wheelSlipAngleFR", "wheelLatForceRL", "wheelLatForceRR", "wheelLatForceFL", "wheelLatForceFR", "wheelLongForceRL", "wheelLongForceRR", "wheelLongForceFL", "wheelLongForceFR", "wheelVertForceRL", "wheelVertForceRR", "wheelVertForceFL", "wheelVertForceFR", "heightOfCOGAboveGround", "localVelocityX", "localVelocityY", "localVelocityZ", "angularVelocityX", "angularVelocityY", "angularVelocityZ", "angularAccelerationX", "angularAccelerationY", "angularAccelerationZ", "frontWheelsAngle", "frontAeroHeight", "rearAeroHeight", "frontRollAngle", "rearRollAngle", "chassisYaw", "chassisPitch"],
+    carTelemetry: [
+      "speed",
+      "throttle",
+      "brake",
+      "steer",
+      "gear",
+      "rpm",
+      "clutch",
+      "tyreTempFL",
+      "tyreTempFR",
+      "tyreTempRL",
+      "tyreTempRR",
+      "tyresInnerTempFL",
+      "tyresInnerTempFR",
+      "tyresInnerTempRL",
+      "tyresInnerTempRR",
+      "brakeTempFL",
+      "brakeTempFR",
+      "brakeTempRL",
+      "brakeTempRR",
+      "tyrePressureFL",
+      "tyrePressureFR",
+      "tyrePressureRL",
+      "tyrePressureRR",
+      "engineTemperature",
+      "surfaceTypeFL",
+      "surfaceTypeFR",
+      "surfaceTypeRL",
+      "surfaceTypeRR",
+      "suggestedGear",
+    ],
+    carStatus: [
+      "fuelRemaining",
+      "fuelCapacity",
+      "tyreCompound",
+      "tyreVisualCompound",
+      "tyreAge",
+      "ersStore",
+      "ersDeployMode",
+      "ersDeployedThisLap",
+      "ersHarvestedThisLap",
+      "tractionControl",
+      "antiLockBrakes",
+      "fuelMix",
+      "frontBrakeBias",
+      "pitLimiterStatus",
+      "fuelRemainingLaps",
+      "maxRPM",
+      "idleRPM",
+      "maxGears",
+      "drsActivationDistance",
+      "actualTyreCompound",
+      "vehicleFIAFlags",
+      "enginePowerICE",
+      "enginePowerMGUK",
+    ],
+    carDamage: [
+      "tyreWearFL",
+      "tyreWearFR",
+      "tyreWearRL",
+      "tyreWearRR",
+      "tyresDamageFL",
+      "tyresDamageFR",
+      "tyresDamageRL",
+      "tyresDamageRR",
+      "brakesDamageFL",
+      "brakesDamageFR",
+      "brakesDamageRL",
+      "brakesDamageRR",
+      "tyreBlistersFL",
+      "tyreBlistsFR",
+      "tyreBlistersRL",
+      "tyreBlistersRR",
+      "frontLeftWingDamage",
+      "frontRightWingDamage",
+      "rearWingDamage",
+      "floorDamage",
+      "diffuserDamage",
+      "sidepodDamage",
+      "drsFault",
+      "ersFault",
+      "gearBoxDamage",
+      "engineDamage",
+      "engineMGUHWear",
+      "engineESWear",
+      "engineCEWear",
+      "engineICEWear",
+      "engineMGUKWear",
+      "engineTCWear",
+    ],
+    carSetup: [
+      "frontWing",
+      "rearWing",
+      "onThrottle",
+      "offThrottle",
+      "frontCamber",
+      "rearCamber",
+      "frontToe",
+      "rearToe",
+      "frontSuspension",
+      "rearSuspension",
+      "frontAntiRollBar",
+      "rearAntiRollBar",
+      "frontRideHeight",
+      "rearRideHeight",
+      "brakePressure",
+      "brakeBias",
+      "engineBraking",
+      "rearLeftTyrePressure",
+      "rearRightTyrePressure",
+      "frontLeftTyrePressure",
+      "frontRightTyrePressure",
+      "fuelLoad",
+    ],
+    motionEx: [
+      "suspensionPositionRL",
+      "suspensionPositionRR",
+      "suspensionPositionFL",
+      "suspensionPositionFR",
+      "suspensionVelocityRL",
+      "suspensionVelocityRR",
+      "suspensionVelocityFL",
+      "suspensionVelocityFR",
+      "wheelSpeedRL",
+      "wheelSpeedRR",
+      "wheelSpeedFL",
+      "wheelSpeedFR",
+      "wheelSlipRatioRL",
+      "wheelSlipRatioRR",
+      "wheelSlipRatioFL",
+      "wheelSlipRatioFR",
+      "wheelSlipAngleRL",
+      "wheelSlipAngleRR",
+      "wheelSlipAngleFL",
+      "wheelSlipAngleFR",
+      "wheelLatForceRL",
+      "wheelLatForceRR",
+      "wheelLatForceFL",
+      "wheelLatForceFR",
+      "wheelLongForceRL",
+      "wheelLongForceRR",
+      "wheelLongForceFL",
+      "wheelLongForceFR",
+      "wheelVertForceRL",
+      "wheelVertForceRR",
+      "wheelVertForceFL",
+      "wheelVertForceFR",
+      "heightOfCOGAboveGround",
+      "localVelocityX",
+      "localVelocityY",
+      "localVelocityZ",
+      "angularVelocityX",
+      "angularVelocityY",
+      "angularVelocityZ",
+      "angularAccelerationX",
+      "angularAccelerationY",
+      "angularAccelerationZ",
+      "frontWheelsAngle",
+      "frontAeroHeight",
+      "rearAeroHeight",
+      "frontRollAngle",
+      "rearRollAngle",
+      "chassisYaw",
+      "chassisPitch",
+    ],
   };
   const booleans: Record<string, string[]> = {
     carTelemetry: ["drs"],
@@ -100,10 +287,11 @@ function validF1StateObject(key: string, value: unknown): boolean {
   };
   const record = value as Record<string, unknown>;
   if (!fields[key] || !hasFiniteFields(value, fields[key], booleans[key] ?? [])) return false;
-  if (key === "lapData") return Array.isArray(record.allCars) &&
-    record.allCars.every((car) => hasFiniteFields(car, ["currentLapTime", "lastLapTime", "bestLapTime", "position", "pitStatus", "numPitStops", "totalDistance"]));
-  if (key === "carStatus") return Array.isArray(record.allCars) &&
-    record.allCars.every((car) => hasFiniteFields(car, ["tyreCompound", "tyreVisualCompound", "tyreAge"]));
+  if (key === "lapData")
+    return (
+      Array.isArray(record.allCars) && record.allCars.every((car) => hasFiniteFields(car, ["currentLapTime", "lastLapTime", "bestLapTime", "position", "pitStatus", "numPitStops", "totalDistance"]))
+    );
+  if (key === "carStatus") return Array.isArray(record.allCars) && record.allCars.every((car) => hasFiniteFields(car, ["tyreCompound", "tyreVisualCompound", "tyreAge"]));
   return true;
 }
 
@@ -165,10 +353,16 @@ export class F1StateAccumulator {
       packetFormat: this.packetFormat,
       carTelemetry2: this.carTelemetry2,
       sessionUID: this.sessionUID.toString(10),
-      motion: this.motion, carTelemetry: this.carTelemetry, lapData: this.lapData,
-      finalClassification: this.finalClassification, carStatus: this.carStatus,
-      carDamage: this.carDamage, carSetup: this.carSetup, motionEx: this.motionEx,
-      session: this.session, participants: this.participants.slice(),
+      motion: this.motion,
+      carTelemetry: this.carTelemetry,
+      lapData: this.lapData,
+      finalClassification: this.finalClassification,
+      carStatus: this.carStatus,
+      carDamage: this.carDamage,
+      carSetup: this.carSetup,
+      motionEx: this.motionEx,
+      session: this.session,
+      participants: this.participants.slice(),
       driverHistory: [...this.driverHistory],
       driverLapSectors: [...this.driverLapSectors].map(([driver, sectors]) => [driver, [...sectors]]),
       playerCarIndex: this.playerCarIndex,
@@ -180,8 +374,10 @@ export class F1StateAccumulator {
     };
     // JSON numbers support -0, but stringify normally discards its sign.
     const json = JSON as typeof JSON & { rawJSON(text: string): unknown };
-    return Buffer.from(json.stringify(checkpoint, (_key, value) =>
-      typeof value === "number" && Object.is(value, -0) ? json.rawJSON("-0") : value), "utf8");
+    return Buffer.from(
+      json.stringify(checkpoint, (_key, value) => (typeof value === "number" && Object.is(value, -0) ? json.rawJSON("-0") : value)),
+      "utf8",
+    );
   }
 
   restoreCheckpoint(bytes: Uint8Array): void {
@@ -191,35 +387,45 @@ export class F1StateAccumulator {
     } catch {
       throw new Error("Invalid or unsupported F1-2025 parser checkpoint");
     }
-    if (!checkpoint || checkpoint.format !== "raceiq:f1-2025-parser" || checkpoint.version !== 1 ||
-        (checkpoint.packetFormat !== undefined && !isF1PacketFormat(checkpoint.packetFormat)) ||
-        (checkpoint.carTelemetry2 != null && !hasFiniteFields(checkpoint.carTelemetry2,
+    if (
+      !checkpoint ||
+      checkpoint.format !== "raceiq:f1-2025-parser" ||
+      checkpoint.version !== 1 ||
+      (checkpoint.packetFormat !== undefined && !isF1PacketFormat(checkpoint.packetFormat)) ||
+      (checkpoint.carTelemetry2 != null &&
+        !hasFiniteFields(
+          checkpoint.carTelemetry2,
           ["activeAeroMode", "activeAeroActivationDistance", "overtakeActivationDistance"],
-          ["activeAeroAvailable", "overtakeAvailable", "overtakeActive", "regulations2026", "drivingWrongWay"])) ||
-        !Array.isArray(checkpoint.participants) || !checkpoint.participants.every(
-          (participant) => hasFiniteFields(participant, ["driverId", "teamId"]) &&
-            typeof participant.name === "string") ||
-        !Array.isArray(checkpoint.driverHistory) || !checkpoint.driverHistory.every(
-          (entry) => Array.isArray(entry) && entry.length === 2 && Number.isInteger(entry[0]) &&
-            validDriverHistory(entry[1])) ||
-        !Array.isArray(checkpoint.driverLapSectors) || !checkpoint.driverLapSectors.every(
-          (entry) => Array.isArray(entry) && entry.length === 2 && Number.isInteger(entry[0]) &&
-            Array.isArray(entry[1]) && entry[1].every((sector) => Array.isArray(sector) && sector.length === 2 &&
-              Number.isInteger(sector[0]) && hasFiniteFields(sector[1], ["s1", "s2", "s3", "lapTime"]))) ||
-        !Number.isInteger(checkpoint.playerCarIndex) ||
-        !["carStatusUpdatedAt", "sessionUpdatedAt", "seenStartLightsAt", "raceStartAt", "lastHeaderSessionTime"]
-          .every((key) => checkpoint[key as keyof F1ParserCheckpointV1] === undefined ||
-            (typeof checkpoint[key as keyof F1ParserCheckpointV1] === "number" &&
-              Number.isFinite(checkpoint[key as keyof F1ParserCheckpointV1]))) ||
-        !["motion", "carTelemetry", "lapData", "finalClassification", "carStatus", "carDamage", "carSetup", "motionEx", "session"]
-          .every((key) => validF1StateObject(key, checkpoint[key as keyof F1ParserCheckpointV1]))) {
+          ["activeAeroAvailable", "overtakeAvailable", "overtakeActive", "regulations2026", "drivingWrongWay"],
+        )) ||
+      !Array.isArray(checkpoint.participants) ||
+      !checkpoint.participants.every((participant) => hasFiniteFields(participant, ["driverId", "teamId"]) && typeof participant.name === "string") ||
+      !Array.isArray(checkpoint.driverHistory) ||
+      !checkpoint.driverHistory.every((entry) => Array.isArray(entry) && entry.length === 2 && Number.isInteger(entry[0]) && validDriverHistory(entry[1])) ||
+      !Array.isArray(checkpoint.driverLapSectors) ||
+      !checkpoint.driverLapSectors.every(
+        (entry) =>
+          Array.isArray(entry) &&
+          entry.length === 2 &&
+          Number.isInteger(entry[0]) &&
+          Array.isArray(entry[1]) &&
+          entry[1].every((sector) => Array.isArray(sector) && sector.length === 2 && Number.isInteger(sector[0]) && hasFiniteFields(sector[1], ["s1", "s2", "s3", "lapTime"])),
+      ) ||
+      !Number.isInteger(checkpoint.playerCarIndex) ||
+      !["carStatusUpdatedAt", "sessionUpdatedAt", "seenStartLightsAt", "raceStartAt", "lastHeaderSessionTime"].every(
+        (key) =>
+          checkpoint[key as keyof F1ParserCheckpointV1] === undefined ||
+          (typeof checkpoint[key as keyof F1ParserCheckpointV1] === "number" && Number.isFinite(checkpoint[key as keyof F1ParserCheckpointV1])),
+      ) ||
+      !["motion", "carTelemetry", "lapData", "finalClassification", "carStatus", "carDamage", "carSetup", "motionEx", "session"].every((key) =>
+        validF1StateObject(key, checkpoint[key as keyof F1ParserCheckpointV1]),
+      )
+    ) {
       throw new Error("Invalid or unsupported F1-2025 parser checkpoint");
     }
     let sessionUID: bigint;
     try {
-      if (typeof checkpoint.sessionUID !== "string" ||
-          checkpoint.sessionUID.length > 20 ||
-          !/^\d+$/.test(checkpoint.sessionUID)) throw new Error();
+      if (typeof checkpoint.sessionUID !== "string" || checkpoint.sessionUID.length > 20 || !/^\d+$/.test(checkpoint.sessionUID)) throw new Error();
       sessionUID = BigInt(checkpoint.sessionUID);
       if (sessionUID > 0xffff_ffff_ffff_ffffn) throw new Error();
     } catch {
@@ -228,10 +434,16 @@ export class F1StateAccumulator {
     this.sessionUID = sessionUID;
     this.packetFormat = checkpoint.packetFormat ?? 2025;
     this.carTelemetry2 = checkpoint.carTelemetry2 ?? null;
-    this.motion = checkpoint.motion; this.carTelemetry = checkpoint.carTelemetry; this.lapData = checkpoint.lapData;
-    this.finalClassification = checkpoint.finalClassification; this.carStatus = checkpoint.carStatus;
-    this.carDamage = checkpoint.carDamage; this.carSetup = checkpoint.carSetup; this.motionEx = checkpoint.motionEx;
-    this.session = checkpoint.session; this.participants = checkpoint.participants.slice();
+    this.motion = checkpoint.motion;
+    this.carTelemetry = checkpoint.carTelemetry;
+    this.lapData = checkpoint.lapData;
+    this.finalClassification = checkpoint.finalClassification;
+    this.carStatus = checkpoint.carStatus;
+    this.carDamage = checkpoint.carDamage;
+    this.carSetup = checkpoint.carSetup;
+    this.motionEx = checkpoint.motionEx;
+    this.session = checkpoint.session;
+    this.participants = checkpoint.participants.slice();
     this.driverHistory = new Map(checkpoint.driverHistory);
     this.driverLapSectors = new Map(checkpoint.driverLapSectors.map(([driver, sectors]) => [driver, new Map(sectors)]));
     this.playerCarIndex = checkpoint.playerCarIndex;
@@ -262,10 +474,8 @@ export class F1StateAccumulator {
   private applyState(header: F1Header, buf: Buffer): boolean {
     if (!isF1PacketFormat(header.packetFormat)) return false;
     const format: F1PacketFormat = header.packetFormat;
-    if (format === 2026 && (header.playerCarIndex >= 24 || header.packetVersion !== 1 ||
-        F1_2026_PACKET_SIZES[header.packetId] !== buf.length)) return false;
-    if (header.sessionUID !== this.sessionUID || format !== this.packetFormat ||
-        header.playerCarIndex !== this.playerCarIndex) {
+    if (format === 2026 && (header.playerCarIndex >= 24 || header.packetVersion !== 1 || F1_2026_PACKET_SIZES[header.packetId] !== buf.length)) return false;
+    if (header.sessionUID !== this.sessionUID || format !== this.packetFormat || header.playerCarIndex !== this.playerCarIndex) {
       this.reset();
       this.sessionUID = header.sessionUID;
       this.packetFormat = format;
@@ -280,8 +490,7 @@ export class F1StateAccumulator {
     const data = buf.subarray(F1_HEADER_SIZE);
     switch (header.packetId) {
       case F1_PACKET_IDS.MOTION:
-        this.motion = format === 2026 ? decode2026Motion(data, this.playerCarIndex)
-          : decodeF1Motion(data, this.playerCarIndex) ?? this.motion;
+        this.motion = format === 2026 ? decode2026Motion(data, this.playerCarIndex) : (decodeF1Motion(data, this.playerCarIndex) ?? this.motion);
         break;
       case F1_PACKET_IDS.SESSION: {
         const session = format === 2026 ? decode2026Session(data) : decodeF1Session(data);
@@ -301,12 +510,10 @@ export class F1StateAccumulator {
         this.carSetup = decodeF1CarSetup(data, this.playerCarIndex) ?? this.carSetup;
         break;
       case F1_PACKET_IDS.CAR_TELEMETRY:
-        this.carTelemetry = format === 2026 ? decode2026CarTelemetry(data, this.playerCarIndex)
-          : decodeF1CarTelemetry(data, this.playerCarIndex) ?? this.carTelemetry;
+        this.carTelemetry = format === 2026 ? decode2026CarTelemetry(data, this.playerCarIndex) : (decodeF1CarTelemetry(data, this.playerCarIndex) ?? this.carTelemetry);
         break;
       case F1_PACKET_IDS.CAR_STATUS: {
-        const carStatus = format === 2026 ? decode2026CarStatus(data, this.playerCarIndex)
-          : decodeF1CarStatus(data, this.playerCarIndex);
+        const carStatus = format === 2026 ? decode2026CarStatus(data, this.playerCarIndex) : decodeF1CarStatus(data, this.playerCarIndex);
         if (carStatus) {
           this.carStatus = carStatus;
           this.carStatusUpdatedAt = header.sessionTime;
@@ -323,8 +530,7 @@ export class F1StateAccumulator {
         break;
       }
       case F1_PACKET_IDS.FINAL_CLASSIFICATION:
-        this.finalClassification =
-          decodeF1FinalClassification(data, this.playerCarIndex) ?? this.finalClassification;
+        this.finalClassification = decodeF1FinalClassification(data, this.playerCarIndex) ?? this.finalClassification;
         break;
       case F1_PACKET_IDS.CAR_DAMAGE:
         this.carDamage = decodeF1CarDamage(data, this.playerCarIndex) ?? this.carDamage;
@@ -364,17 +570,8 @@ export class F1StateAccumulator {
 
     for (const { lapNumber, sectors } of decoded.lapSectors) {
       const existing = lapSectorMap.get(lapNumber);
-      const completeness =
-        (sectors.s1 > 0 ? 1 : 0) +
-        (sectors.s2 > 0 ? 1 : 0) +
-        (sectors.s3 > 0 ? 1 : 0) +
-        (sectors.lapTime > 0 ? 1 : 0);
-      const existingCompleteness = existing
-        ? (existing.s1 > 0 ? 1 : 0) +
-          (existing.s2 > 0 ? 1 : 0) +
-          (existing.s3 > 0 ? 1 : 0) +
-          (existing.lapTime > 0 ? 1 : 0)
-        : -1;
+      const completeness = (sectors.s1 > 0 ? 1 : 0) + (sectors.s2 > 0 ? 1 : 0) + (sectors.s3 > 0 ? 1 : 0) + (sectors.lapTime > 0 ? 1 : 0);
+      const existingCompleteness = existing ? (existing.s1 > 0 ? 1 : 0) + (existing.s2 > 0 ? 1 : 0) + (existing.s3 > 0 ? 1 : 0) + (existing.lapTime > 0 ? 1 : 0) : -1;
       if (completeness > existingCompleteness) {
         lapSectorMap.set(lapNumber, sectors);
       }
@@ -444,10 +641,14 @@ export class F1StateAccumulator {
       drsAllowed: cs?.drsAllowed ?? false,
       drsActivated: ct.drs,
       drsZoneApproaching: false, // TODO: from motion extra data
-      ersStoreEnergy: cs?.ersStore ?? 0,
-      ersDeployMode: cs?.ersDeployMode ?? 0,
-      ersDeployedThisLap: cs?.ersDeployedThisLap ?? 0,
-      ersHarvestedThisLap: cs?.ersHarvestedThisLap ?? 0,
+      ...(cs
+        ? {
+            ersStoreEnergy: cs.ersStore,
+            ersDeployMode: cs.ersDeployMode,
+            ersDeployedThisLap: cs.ersDeployedThisLap,
+            ersHarvestedThisLap: cs.ersHarvestedThisLap,
+          }
+        : {}),
       ...(cs?.ersHarvestLimitPerLap === undefined ? {} : { ersHarvestLimitPerLap: cs.ersHarvestLimitPerLap }),
       tyreCompound: cs ? getF1CompoundName(cs.tyreVisualCompound) : "unknown",
       tyreVisualCompound: cs?.tyreVisualCompound ?? 0,
@@ -555,21 +756,34 @@ export class F1StateAccumulator {
       pitStopWindowLatestLap: sess?.pitStopWindowLatestLap,
       grid,
       setup: this.carSetup ?? undefined,
-      motionEx: mx ? {
-        wheelSlipAngleFL: mx.wheelSlipAngleFL, wheelSlipAngleFR: mx.wheelSlipAngleFR,
-        wheelSlipAngleRL: mx.wheelSlipAngleRL, wheelSlipAngleRR: mx.wheelSlipAngleRR,
-        wheelLatForceFL: mx.wheelLatForceFL, wheelLatForceFR: mx.wheelLatForceFR,
-        wheelLatForceRL: mx.wheelLatForceRL, wheelLatForceRR: mx.wheelLatForceRR,
-        wheelLongForceFL: mx.wheelLongForceFL, wheelLongForceFR: mx.wheelLongForceFR,
-        wheelLongForceRL: mx.wheelLongForceRL, wheelLongForceRR: mx.wheelLongForceRR,
-        wheelVertForceFL: mx.wheelVertForceFL, wheelVertForceFR: mx.wheelVertForceFR,
-        wheelVertForceRL: mx.wheelVertForceRL, wheelVertForceRR: mx.wheelVertForceRR,
-        frontWheelsAngle: mx.frontWheelsAngle,
-        frontAeroHeight: mx.frontAeroHeight, rearAeroHeight: mx.rearAeroHeight,
-        frontRollAngle: mx.frontRollAngle, rearRollAngle: mx.rearRollAngle,
-        chassisYaw: mx.chassisYaw, chassisPitch: mx.chassisPitch,
-        heightOfCOGAboveGround: mx.heightOfCOGAboveGround,
-      } : undefined,
+      motionEx: mx
+        ? {
+            wheelSlipAngleFL: mx.wheelSlipAngleFL,
+            wheelSlipAngleFR: mx.wheelSlipAngleFR,
+            wheelSlipAngleRL: mx.wheelSlipAngleRL,
+            wheelSlipAngleRR: mx.wheelSlipAngleRR,
+            wheelLatForceFL: mx.wheelLatForceFL,
+            wheelLatForceFR: mx.wheelLatForceFR,
+            wheelLatForceRL: mx.wheelLatForceRL,
+            wheelLatForceRR: mx.wheelLatForceRR,
+            wheelLongForceFL: mx.wheelLongForceFL,
+            wheelLongForceFR: mx.wheelLongForceFR,
+            wheelLongForceRL: mx.wheelLongForceRL,
+            wheelLongForceRR: mx.wheelLongForceRR,
+            wheelVertForceFL: mx.wheelVertForceFL,
+            wheelVertForceFR: mx.wheelVertForceFR,
+            wheelVertForceRL: mx.wheelVertForceRL,
+            wheelVertForceRR: mx.wheelVertForceRR,
+            frontWheelsAngle: mx.frontWheelsAngle,
+            frontAeroHeight: mx.frontAeroHeight,
+            rearAeroHeight: mx.rearAeroHeight,
+            frontRollAngle: mx.frontRollAngle,
+            rearRollAngle: mx.rearRollAngle,
+            chassisYaw: mx.chassisYaw,
+            chassisPitch: mx.chassisPitch,
+            heightOfCOGAboveGround: mx.heightOfCOGAboveGround,
+          }
+        : undefined,
     };
 
     const packet: TelemetryPacket = {
@@ -611,10 +825,10 @@ export class F1StateAccumulator {
       TireSlipRatioRR: mx?.wheelSlipRatioRR ?? 0,
 
       // MotionEx provides per-wheel speed (km/h); fall back to estimate from car speed
-      WheelRotationSpeedFL: mx ? mx.wheelSpeedFL / 0.36 : (ct.speed / 3.6) / 0.36,
-      WheelRotationSpeedFR: mx ? mx.wheelSpeedFR / 0.36 : (ct.speed / 3.6) / 0.36,
-      WheelRotationSpeedRL: mx ? mx.wheelSpeedRL / 0.36 : (ct.speed / 3.6) / 0.36,
-      WheelRotationSpeedRR: mx ? mx.wheelSpeedRR / 0.36 : (ct.speed / 3.6) / 0.36,
+      WheelRotationSpeedFL: mx ? mx.wheelSpeedFL / 0.36 : ct.speed / 3.6 / 0.36,
+      WheelRotationSpeedFR: mx ? mx.wheelSpeedFR / 0.36 : ct.speed / 3.6 / 0.36,
+      WheelRotationSpeedRL: mx ? mx.wheelSpeedRL / 0.36 : ct.speed / 3.6 / 0.36,
+      WheelRotationSpeedRR: mx ? mx.wheelSpeedRR / 0.36 : ct.speed / 3.6 / 0.36,
 
       WheelOnRumbleStripFL: 0,
       WheelOnRumbleStripFR: 0,
@@ -690,10 +904,7 @@ export class F1StateAccumulator {
 
       Boost: 0,
       Fuel: cs && cs.fuelCapacity > 0 ? cs.fuelRemaining / cs.fuelCapacity : 0,
-      FuelCapacity:
-        cs && Number.isFinite(cs.fuelCapacity) && cs.fuelCapacity > 0
-          ? cs.fuelCapacity
-          : undefined,
+      FuelCapacity: cs && Number.isFinite(cs.fuelCapacity) && cs.fuelCapacity > 0 ? cs.fuelCapacity : undefined,
 
       DistanceTraveled: ld.lapDistance,
       BestLap: this.finalClassification?.bestLapTime ?? ld.bestLapTime,
@@ -718,11 +929,11 @@ export class F1StateAccumulator {
       trackId,
 
       // DRS/ERS per-packet tracking
-      DrsActive: (cs?.drsAllowed && f1.drsActivated) ? 1 : 0,
-      ErsStoreEnergy: cs?.ersStore ?? 0,
-      ErsDeployMode: cs?.ersDeployMode ?? 0,
-      ErsDeployed: cs?.ersDeployedThisLap ?? 0,
-      ErsHarvested: cs?.ersHarvestedThisLap ?? 0,
+      DrsActive: cs?.drsAllowed && f1.drsActivated ? 1 : 0,
+      ErsStoreEnergy: cs?.ersStore,
+      ErsDeployMode: cs?.ersDeployMode,
+      ErsDeployed: cs?.ersDeployedThisLap,
+      ErsHarvested: cs?.ersHarvestedThisLap,
 
       // Weather/track conditions
       WeatherType: sess?.weather ?? 0,

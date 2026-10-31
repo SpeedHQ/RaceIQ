@@ -7,8 +7,8 @@
 - Catalog version: `0.20.0`
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.20.0`
-- Generator source SHA-256: `77b923169182e2a2d0cfcc6d89fcc736ed9345befc30196d996b9c3a016b6cff`
-- Content SHA-256: `018fdb55dcdf771a8c410f213300e1c14f391228a46403602b7050632bc63181`
+- Generator source SHA-256: `95844ef0eb905ea65e51bbaa175e57a3934322ba7b7ff548137be25209b8642f`
+- Content SHA-256: `e21826b60d1889f1c7cef97579187376b83f08103bb52dcf039e833785d9e06b`
 
 ## Coverage
 
@@ -222,7 +222,7 @@
 | `fuel.dp-fuel-auto-fill-active` | Dp Fuel Auto Fill Active | number | length^3 | L | scalar |  |  |  |
 | `fuel.dp-fuel-auto-fill-enabled` | Dp Fuel Auto Fill Enabled | number | length^3 | L | scalar |  |  |  |
 | `fuel.dp-fuel-fill` | Dp Fuel Fill | number | length^3 | L | scalar |  |  |  |
-| `fuel.ers-deploy-mode` | ERS Deploy Mode | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2, 3, 4 |  |
+| `fuel.ers-deploy-mode` | ERS Deploy Mode | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2, 3 |  |
 | `fuel.ers-deployed` | ERS Deployed | number | mass × length^2 × time^-2 | J | scalar |  |  |  |
 | `fuel.ers-harvest-limit-per-lap` | ERS harvest limit per lap | number | mass × length^2 × time^-2 | J | scalar |  |  |  |
 | `fuel.ers-harvested` | ERS Harvested | number | mass × length^2 × time^-2 | J | scalar |  |  |  |

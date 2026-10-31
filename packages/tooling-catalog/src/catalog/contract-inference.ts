@@ -47,7 +47,7 @@ export const ENUM_DOMAINS: Readonly<Record<string, readonly string[]>> = {
   "race.control": ["-1", "0", "1", "2", "3"],
   "race.yellow-flag-state": ["-1", "0", "1", "2", "3", "4", "5", "6", "7"],
   "session.game-phase": Array.from({ length: 10 }, (_, code) => String(code)),
-  "fuel.ers-deploy-mode": ["0", "1", "2", "3", "4"],
+  "fuel.ers-deploy-mode": ["0", "1", "2", "3"],
   "race.driver-change-lap-status": ["0", "1", "2", "3"],
   "session.session-type-ordinal": [
     "0",

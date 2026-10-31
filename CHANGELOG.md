@@ -3,6 +3,7 @@
 ### Features
 - Add experimental decoding for F1 25's 2026 Season Pack UDP format while retaining existing 2025 capture compatibility; dedicated 2026 dashboard displays and native-app validation remain in progress.
 - Show 2026 F1/F2 car names, Madrid and reverse-circuit names in F1 dashboards and catalogs without replacing existing 2025 identities.
+- Use 2026 active-aero, overtake and harvest-limit readings in F1 AI lap analysis and chat.
 - Choose Claude (Anthropic) as an AI provider for analysis, chat, auto-tune and driver profiles with its own API key. The model picker lists the Claude models available to that key, tags Claude Haiku 5.5 as Recommended, and preselects it when you switch to Claude.
 - Replace category tabs on the AMS2 and iRacing Cars pages with a searchable dropdown that shows the total as a placeholder, clears the search when opened, and preserves category counts and the All categories reset.
 - Add AMS2 support: native Windows shared-memory telemetry capture, game-specific car and track identity, per-wheel Replay metrics, 235 track maps, car thumbnails, dashboard branding and a separate Driver profile; include Live connection guidance and correct lap capture, export, replay and track-map behavior. Keep adapter availability and native capture development-only.
@@ -40,6 +41,7 @@
 - Include the complete LMU multiplayer recording in demo seeds as sub-100 MB gzip parts, stream native input without buffering the whole capture, and retain separate player and opponent recordings.
 
 ### Fixes
+- Keep F1 ERS readings unavailable in Live until telemetry arrives, while preserving recorded zero energy.
 - On the Raw telemetry page, show units, update timing and source details for game-specific readings, including F1 2026 active aero and overtake.
 - Get answers from current Claude models, which rejected every request with "`temperature` is deprecated for this model".
 - Stop AI settings from freezing on Windows while saved API keys and the launch-on-login setting are checked, and show Claude models immediately instead of waiting for the model list.

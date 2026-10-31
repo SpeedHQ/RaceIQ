@@ -263,11 +263,20 @@ or styling. The 2025 and synthetic 2026 UDP-to-Replay/Compare/export/import
 scenarios pass Chromium and WebKit. Season catalogs now include all 22 new
 2026 F1/F2 team IDs, Madrid and the three reverse circuits, preserving existing
 identities and leaving unverified track lengths/geometry unavailable. Dedicated
-Live/Replay channel presentation, season-aware AI context, real-DLC and native
-acceptance remain pending. The native artifact was rebuilt on 2026-10-31;
+Live/Replay channel presentation, real-DLC and native acceptance remain pending.
+AI context now distinguishes format from regulations and supplies native 2026
+aero/overtake, ERS limits and session type with explicit missing-data boundaries;
+real model quality and authenticated Codex acceptance remain unverified.
+The native artifact was rebuilt on 2026-10-31;
 strict deep signature verification passes and its bundled car/track CSVs are
 byte-identical to the new source catalogs. This is build evidence, not native
 capture/Replay acceptance.
+
+The ERS/context checkpoint passes 42 F1 integration tests, including indexed
+parity for both committed real 2025 recordings, and root typecheck. The rebuilt
+compiled backend passes all four UDP browser scenarios (2025 real and 2026
+synthetic, Chromium and WebKit) in 12.4 minutes. The compiled and packaged backend
+SHA-256 matches: `e92e8da153a798d1d0380b921b994841804d40d9041a1c4b70c2a287b2eceb7d`.
 
 Backend plan, against the shared telemetry contract above:
 
@@ -306,6 +315,28 @@ Actual inference must prove access. Before sending lap data, verify that the
 child runtime exposes only allowed RaceIQ tools, without inherited shell,
 filesystem, MCP/app or agent privileges. Generated schema inspection is not an
 authenticated analysis/tool-isolation smoke test; those gates remain pending.
+
+Local mock-provider probe (2026-10-31, CLI 0.164.0): a synthetic dynamic tool
+successfully reaches the client and receives a fixed test result, without an
+Authorization header to the mock. Process-only switches disable shell, image,
+browser, apps, plugins, hooks and agent capabilities; configured MCP servers can
+still appear in inventory with zero tools, so inventory names alone do not prove
+exposure. Negative calls reject terminal/image tools and disable the code-mode
+host, but an empty `apply_patch` initially still reached its built-in handler.
+A temporary catalog exported from that exact CLI's bundled metadata, changing
+only `apply_patch_tool_type` to `null`, makes the same patch call unsupported.
+The account metadata cache was not reused because its client version is newer;
+no auth file was read by the probe and no global configuration was changed. No files were changed
+by the negative tool tests and no real inference or private telemetry was sent.
+The process-only prototype is not a production provider or authenticated lap
+analysis. An empty API `tools` array alone is insufficient: explicit positive
+dynamic-tool routing and negative built-in dispatch tests are required.
+With the patchless catalog, the permitted dynamic tool still reaches the client,
+the actual thread's MCP tool inventory is empty, and terminal/image/patch calls
+are unsupported while the code-mode host is disabled. This evidence is scoped
+to the local mock and selected model, not a general compatibility or entitlement
+claim. The next gate is an authenticated structured analysis, followed by the
+production provider boundary and role-scoped tool tests.
 
 Backend plan, against the shared AI contract above:
 
