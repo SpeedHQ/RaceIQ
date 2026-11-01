@@ -1,5 +1,6 @@
 apps/backend/test/ai/diagnostic-logging.test.ts
 apps/backend/test/ai/providers/codex-rpc.test.ts
+apps/backend/test/ai/providers/codex-tool-dispatch.test.ts
 apps/backend/test/ai/providers/codex-runtime.test.ts
 apps/backend/test/ai/providers/codex-provider.test.ts
 apps/backend/test/ai/providers/codex-supervisor.test.ts

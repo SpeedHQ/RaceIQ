@@ -37,19 +37,24 @@ export class CodexRpcConnection {
   readonly #transport: CodexTransport;
   readonly #maxFrameBytes: number;
   readonly #onNotification?: (method: string, params: unknown) => void;
+  readonly #onToolCall?: (params: unknown, signal: AbortSignal) => Promise<unknown>;
+  readonly #toolAbort = new AbortController();
+  readonly #serverRequestIds = new Set<string>();
+  #activeToolCalls = 0;
   #nextId = 0;
   #terminalError?: CodexRpcError;
   #shutdownError?: CodexRpcError;
   #closing?: Promise<void>;
   readonly #pending = new Map<number, { resolve(value: unknown): void; reject(error: CodexRpcError): void }>();
 
-  constructor(transport: CodexTransport, options: { maxFrameBytes?: number; onNotification?: (method: string, params: unknown) => void } = {}) {
+  constructor(transport: CodexTransport, options: { maxFrameBytes?: number; onNotification?: (method: string, params: unknown) => void; onToolCall?: (params: unknown, signal: AbortSignal) => Promise<unknown> } = {}) {
     this.closed = new Promise((resolve) => {
       this.#onClosed = resolve;
     });
     this.#transport = transport;
     this.#maxFrameBytes = options.maxFrameBytes ?? 1024 * 1024;
     this.#onNotification = options.onNotification;
+    this.#onToolCall = options.onToolCall;
     void this.#read();
   }
 
@@ -104,6 +109,7 @@ export class CodexRpcConnection {
   #stop(error: CodexRpcError): void {
     if (this.#terminalError) return;
     this.#terminalError = error;
+    this.#toolAbort.abort();
     this.#onClosed(error);
     for (const pending of this.#pending.values()) pending.reject(error);
     this.#pending.clear();
@@ -112,6 +118,43 @@ export class CodexRpcConnection {
       .catch(() => {
         this.#shutdownError = new CodexRpcError("closed", "Codex transport shutdown failed");
       });
+  }
+
+  async #serverRequest(id: number | string, method: string, params: unknown): Promise<void> {
+    const key = `${typeof id}:${id}`;
+    let response: unknown;
+    if (this.#serverRequestIds.has(key)) {
+      this.#stop(new CodexRpcError("protocol", "Duplicate Codex server request"));
+      return;
+    } else if (this.#serverRequestIds.size >= 1024) {
+      this.#stop(new CodexRpcError("overloaded", "Codex server request limit exceeded"));
+      return;
+    } else {
+      this.#serverRequestIds.add(key);
+      if (method !== "item/tool/call" || !this.#onToolCall) {
+        response = { id, error: { code: -32601, message: "No server requests are authorized on this connection" } };
+      } else if (this.#activeToolCalls >= 64) {
+        response = { id, error: { code: -32000, message: "Tool request limit exceeded" } };
+      } else {
+        this.#activeToolCalls++;
+        try {
+          const result = await this.#onToolCall(params, this.#toolAbort.signal);
+          const encoded = JSON.stringify({ id, result });
+          if (result === undefined || Buffer.byteLength(encoded) > this.#maxFrameBytes) throw new Error("Invalid tool response");
+          response = { id, result };
+        } catch {
+          response = { id, error: { code: -32603, message: "Tool request failed" } };
+        } finally {
+          this.#activeToolCalls--;
+        }
+      }
+    }
+    if (this.#terminalError) return;
+    try {
+      await this.#transport.write(JSON.stringify(response) + "\n");
+    } catch {
+      this.#stop(new CodexRpcError("closed", "Codex connection write failed"));
+    }
   }
 
   async #read(): Promise<void> {
@@ -133,15 +176,7 @@ export class CodexRpcConnection {
             if (!Object.hasOwn(message, "id")) this.#onNotification?.(message.method, message.params);
             else {
               if (!isRpcId(message.id)) throw new Error("Invalid request id");
-              await this.#transport.write(
-                JSON.stringify({
-                  id: message.id,
-                  error: {
-                    code: -32601,
-                    message: "No server requests are authorized on this connection",
-                  },
-                }) + "\n",
-              );
+              void this.#serverRequest(message.id, message.method, message.params);
             }
             continue;
           }

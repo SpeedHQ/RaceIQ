@@ -92,6 +92,75 @@ test("denies unsolicited execution approval requests rather than granting capabi
   }
 });
 
+test("dispatches only explicit tool calls without blocking replies or authorizing approvals", async () => {
+  let peer!: ReadableStreamDefaultController<Uint8Array>;
+  let finish!: (value: unknown) => void;
+  const result = new Promise<unknown>((resolve) => { finish = resolve; });
+  const outgoing: unknown[] = [];
+  let delivered!: () => void;
+  const delivery = new Promise<void>((resolve) => { delivered = resolve; });
+  let called = 0;
+  const send = (message: unknown) => peer.enqueue(new TextEncoder().encode(JSON.stringify(message) + "\n"));
+  const connection = new CodexRpcConnection({
+    stdout: new ReadableStream({ start(controller) { peer = controller; } }),
+    write(line) { const value = JSON.parse(line); outgoing.push(value); if (value.id === "tool-1") delivered(); },
+    close() { peer.close(); },
+  }, { onToolCall: async () => { called++; return result; } });
+  try {
+    const request = connection.request("probe", {});
+    await Promise.resolve();
+    send({ id: "tool-1", method: "item/tool/call", params: { tool: "read_lap" } });
+    send({ id: "approval-1", method: "item/commandExecution/requestApproval", params: {} });
+    send({ id: 1, result: { ok: true } });
+    expect(await within(request)).toEqual({ ok: true });
+    expect(called).toBe(1);
+    expect(outgoing).toContainEqual({ id: "approval-1", error: { code: -32601, message: "No server requests are authorized on this connection" } });
+    finish({ success: true, contentItems: [{ type: "inputText", text: "lap" }] });
+    await within(delivery);
+    expect(outgoing).toContainEqual({ id: "tool-1", result: { success: true, contentItems: [{ type: "inputText", text: "lap" }] } });
+  } finally { await connection.close(); }
+});
+
+test("duplicate tool request closes connection, aborts work and never invokes tool twice", async () => {
+  let peer!: ReadableStreamDefaultController<Uint8Array>;
+  let signal: AbortSignal | undefined;
+  let calls = 0;
+  let finish!: (value: unknown) => void;
+  const result = new Promise<unknown>((resolve) => { finish = resolve; });
+  const outgoing: unknown[] = [];
+  const connection = new CodexRpcConnection({
+    stdout: new ReadableStream({ start(controller) { peer = controller; } }),
+    write(line) { outgoing.push(JSON.parse(line)); },
+    close() { peer.close(); },
+  }, { onToolCall: async (_params, abortSignal) => { calls++; signal = abortSignal; return result; } });
+  const frame = new TextEncoder().encode(JSON.stringify({ id: "same", method: "item/tool/call", params: {} }) + "\n");
+  try {
+    peer.enqueue(frame);
+    peer.enqueue(frame);
+    expect(await within(connection.closed)).toMatchObject({ kind: "protocol" });
+    expect(calls).toBe(1);
+    expect(signal?.aborted).toBe(true);
+    finish({ success: true });
+    await Promise.resolve();
+    expect(outgoing).toEqual([]);
+  } finally { await connection.close(); }
+});
+
+test("tool failures return a generic error without leaking private details", async () => {
+  let peer!: ReadableStreamDefaultController<Uint8Array>;
+  let delivered!: (value: unknown) => void;
+  const response = new Promise<unknown>((resolve) => { delivered = resolve; });
+  const connection = new CodexRpcConnection({
+    stdout: new ReadableStream({ start(controller) { peer = controller; } }),
+    write(line) { delivered(JSON.parse(line)); },
+    close() { peer.close(); },
+  }, { onToolCall: async () => { throw new Error("PRIVATE_TOOL_DATA"); } });
+  try {
+    peer.enqueue(new TextEncoder().encode(JSON.stringify({ id: 4, method: "item/tool/call", params: {} }) + "\n"));
+    expect(await within(response)).toEqual({ id: 4, error: { code: -32603, message: "Tool request failed" } });
+  } finally { await connection.close(); }
+});
+
 test("reports RPC failures without retaining upstream messages or credential-shaped payloads", async () => {
   const connection = connectPeer("error");
   try {

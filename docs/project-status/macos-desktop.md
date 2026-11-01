@@ -461,6 +461,15 @@ synthetic tests may prove implementation progress but not this milestone done.
 
 ## Milestone 5: Codex provider and response-budget controls
 
+Local transport preparation: the stdio connection can dispatch explicitly
+registered dynamic tool requests without blocking other RPC replies. It still
+rejects all server requests unless a tool handler is supplied, denies non-tool
+requests, bounds and cancels in-flight work, and closes on duplicate RPC IDs.
+The turn-scoped dispatcher validates the thread, turn, tool, role and arguments,
+and deduplicates repeated tool call IDs for its lifetime. It is not yet wired
+to chat or experiment agents. Reconnect-safe write idempotency and user-action
+validation must be enforced by the experiment domain before enabling writes.
+
 Protocol audit (2026-10-30): installed Codex CLI is 0.164.0 and reports ChatGPT
 sign-in. Its locally generated experimental schemas expose `dynamicTools` on
 `thread/start`, and `outputSchema`/reasoning `effort` on `turn/start`; neither
