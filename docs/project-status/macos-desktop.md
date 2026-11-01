@@ -28,6 +28,25 @@ Codex model selection and existing API-provider controls (four scenarios).
 These are local source changes, not yet installed into the running native app.
 Native verification and the full response-quality matrix remain separate gates.
 
+The `.2` artifact has now been built and its ad-hoc signature verified. Its
+bundled backend passed two launches with `/usr/bin:/bin` as PATH, using disposable
+data: saved prompt/provider/model preferences survived restart, managed Codex
+discovery returned the verified model, and each backend exited cleanly. npm's
+Node launcher initially failed this check; executable discovery now reads its
+public package metadata and launches the installed native Codex binary directly.
+No dependency source, credentials, global configuration or shell startup files
+are read or changed. The standalone install location `~/.local/bin/codex` is
+also discovered. Installed user app remains `.1` pending a safe garage point.
+
+WebKit also passed prompt save/reopen/reset/failed-save retention, Codex model
+selection and provider selection. The fourth, existing API-error recovery test
+still fails its console-error gate on a startup WebSocket "closed before the
+connection is established" message. This is recorded separately, not filtered
+out or claimed green. Its ambiguous multi-section text locator was corrected.
+Desktop lifecycle source tests passed allocated-port/persistence/clean-exit and
+busy-port ownership checks with loopback socket access; the restricted run could
+not bind an ephemeral socket. Full native window/capture acceptance remains open.
+
 The real Codex comparison endpoint also passed on two valid laps from the
 committed public 2025 Lusail fixture (86.709s versus 90.704s). It returned
 schema-valid output correctly identifying A as approximately four seconds

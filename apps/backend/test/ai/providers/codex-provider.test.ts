@@ -8,6 +8,34 @@ import { getMastraModelId } from "@raceiq/backend-core/ai/chat-agent";
 import { generateInputsComparison } from "../../../src/ai/generate-inputs-comparison";
 import { withAnalysisInstructions } from "@raceiq/shared/integrations/ai/analysis-instructions";
 import type { InputsCompareResult } from "@raceiq/backend-core/ai/inputs-compare-prompt";
+import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { findCodexExecutable } from "../../../src/ai/codex/executable";
+
+test.skipIf(process.platform !== "darwin")("npm Codex discovery uses its native binary without Node or a shell PATH", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "raceiq-codex-install-"));
+  const packageRoot = join(directory, "codex");
+  const launcher = join(packageRoot, "bin", "codex.js");
+  const platformPackage = `@openai/codex-darwin-${process.arch}`;
+  const platformRoot = join(packageRoot, "node_modules", platformPackage);
+  const triple = process.arch === "arm64" ? "aarch64-apple-darwin" : "x86_64-apple-darwin";
+  const native = join(platformRoot, "vendor", triple, "bin", "codex");
+  try {
+    mkdirSync(join(packageRoot, "bin"), { recursive: true });
+    mkdirSync(join(platformRoot, "vendor", triple, "bin"), { recursive: true });
+    writeFileSync(launcher, "#!/usr/bin/env node\nthrow new Error('Wrapper must not run');\n");
+    writeFileSync(join(packageRoot, "package.json"), JSON.stringify({ name: "@openai/codex", version: "0.164.0", bin: { codex: "bin/codex.js" }, optionalDependencies: { [platformPackage]: `npm:@openai/codex@0.164.0-darwin-${process.arch}` } }));
+    writeFileSync(join(platformRoot, "package.json"), JSON.stringify({ name: "@openai/codex", version: `0.164.0-darwin-${process.arch}` }));
+    writeFileSync(native, "#!/bin/sh\nprintf 'codex-cli 0.164.0\\n'\n");
+    chmodSync(launcher, 0o755);
+    chmodSync(native, 0o755);
+    expect(findCodexExecutable(launcher)).toBe(realpathSync(native));
+    const child = Bun.spawn([findCodexExecutable(launcher)!, "--version"], { env: { PATH: "/usr/bin:/bin" }, stdout: "pipe", stderr: "pipe" });
+    expect(await new Response(child.stdout).text()).toBe("codex-cli 0.164.0\n");
+    expect(await child.exited).toBe(0);
+  } finally { rmSync(directory, { recursive: true, force: true }); }
+});
 
 test("Codex comparison carries persona, saved instructions and schema through the real provider boundary", async () => {
   const adapter = new CodexProviderAdapter({ feature: "analysis", model: "gpt-6.1-sol", command: [process.execPath, fileURLToPath(new URL("./fixtures/codex-runtime-peer.ts", import.meta.url)), "comparison"] });
