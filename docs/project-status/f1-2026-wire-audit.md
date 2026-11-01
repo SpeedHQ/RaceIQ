@@ -150,8 +150,21 @@ deliberate 8,000,000 J value.
 
 The native completed-lap reading is 79.588 s, but the first received lap-data
 packet is already 1.919 s into lap 2. This proves real wire decoding, not complete
-start-to-finish lap capture or UDP-to-dashboard acceptance. A further capture
+start-to-finish lap capture or the full UDP-to-dashboard acceptance. A further capture
 armed before driving is requested for that gate; no missing samples are invented.
+
+An opt-in Playwright check now replays this private capture over UDP to an
+isolated server and verifies the live car identity, changing speed, wire format,
+and observed harvest limit. The file remains local and is identified by hash;
+the test is skipped unless explicitly configured. Run from `playwright/`:
+
+```sh
+RACEIQ_F1_2026_CAPTURE=/absolute/path/to/udp-20778.bin E2E_SERVER_MODE=dev bunx playwright test --config=udp.config.ts f1-2026-real.spec.ts
+```
+
+This partial-capture check does not validate a complete lap, Compare, export,
+import, or the native app lifecycle. Chromium and WebKit passed against the
+development server on macOS on 2026-10-31; this is not compiled-backend evidence.
 
 Before marking the milestone done:
 

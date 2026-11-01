@@ -1,8 +1,7 @@
 # macOS desktop, F1 2026 telemetry, and Codex AI goal
 
-Installed telemetry testing build: `0.20.0-private.20261031.1`, with local tag
-`private/macos-2026-10-31.1` not published. The next local build is
-`0.20.0-private.20261031.2`, adding AI settings. Build with
+Installed telemetry testing build: `0.20.0-private.20261031.2`, with local tag
+`private/macos-2026-10-31.2` not published. This checkpoint adds AI settings. Build with
 `bun run desktop:build`; install the resulting `RaceIQ.app` in `/Applications`.
 Native data remains in `~/Library/Application Support/RaceIQ`; this test
 installation uses UDP port 20778 for the existing SimHub relay. No public
@@ -36,7 +35,10 @@ Node launcher initially failed this check; executable discovery now reads its
 public package metadata and launches the installed native Codex binary directly.
 No dependency source, credentials, global configuration or shell startup files
 are read or changed. The standalone install location `~/.local/bin/codex` is
-also discovered. Installed user app remains `.1` pending a safe garage point.
+also discovered. After the driver confirmed the garage, `.2` was installed in
+`/Applications/RaceIQ.app` and reopened with UDP 20778 listening; `.1` remains
+as a rollback copy. Later source commits, including response-budget controls,
+are not part of this installed build.
 
 WebKit also passed prompt save/reopen/reset/failed-save retention, Codex model
 selection and provider selection. The fourth, existing API-error recovery test
