@@ -24,6 +24,7 @@ export interface SpectateWorkspacePanel {
 interface PanelLayout {
   widths: Record<string, number>;
   railWidth: number | null;
+  railPanels?: readonly string[];
   order?: readonly string[];
 }
 interface ResizeDrag {
@@ -87,7 +88,10 @@ export function SpectateWorkspace({ children, panels, panelHeaderTarget, storage
           ? Object.fromEntries(Object.entries(saved.widths).filter(([, value]) => typeof value === "number" && Number.isFinite(value) && value > 0))
           : {};
         const order = Array.isArray(saved.order) ? saved.order.filter((id): id is string => typeof id === "string") : undefined;
-        setLayout({ widths, railWidth: typeof saved.railWidth === "number" && Number.isFinite(saved.railWidth) && saved.railWidth > 0 ? saved.railWidth : null, order });
+        const railPanels = Array.isArray(saved.railPanels)
+          ? saved.railPanels.filter((id): id is string => typeof id === "string")
+          : panelsRef.current.filter((panel) => panel.open).map((panel) => panel.id);
+        setLayout({ widths, railWidth: typeof saved.railWidth === "number" && Number.isFinite(saved.railWidth) && saved.railWidth > 0 ? saved.railWidth : null, railPanels, order });
       } else setLayout({ widths: {}, railWidth: null });
     } catch { setLayout({ widths: {}, railWidth: null }); }
   }, [storageKey]);
@@ -112,6 +116,10 @@ export function SpectateWorkspace({ children, panels, panelHeaderTarget, storage
     const open = panels.filter((panel) => panel.open);
     const previous = previousOpenPanels.current;
     const selected = open.find((panel) => !previous?.has(panel.id)) ?? open[0];
+    const restoresResizedPanels = layout.railPanels?.length === open.length && open.every((panel) => layout.railPanels!.includes(panel.id));
+    if (!narrow && previous && open.length > 1 && !restoresResizedPanels && open.some((panel) => !previous.has(panel.id))) {
+      persistLayout({ ...layout, railWidth: null });
+    }
     if (narrow && open.length > 1) {
       for (const panel of open) if (panel !== selected) panel.toggle(false);
     }
@@ -131,7 +139,7 @@ export function SpectateWorkspace({ children, panels, panelHeaderTarget, storage
   const applyResize = (current: ResizeDrag, delta: number) => {
     if (current.left) {
       const width = clampWidth(current.widths[current.left]! + delta, available);
-      persistLayout({ ...layout, railWidth: current.railWidth, widths: { ...layout.widths, ...current.widths, [current.left]: width } });
+      persistLayout({ ...layout, railWidth: current.railWidth, railPanels: Object.keys(current.widths), widths: { ...layout.widths, ...current.widths, [current.left]: width } });
     } else {
       const target = Math.max(railMinimum, Math.min(railMaximum, current.railWidth - delta));
       const widths = { ...layout.widths };
@@ -144,7 +152,7 @@ export function SpectateWorkspace({ children, panels, panelHeaderTarget, storage
           remaining -= extra;
         }
       }
-      persistLayout({ ...layout, railWidth: target, widths });
+      persistLayout({ ...layout, railWidth: target, railPanels: ids, widths });
     }
   };
   const beginResize = (event: PointerEvent<HTMLDivElement>, left?: string) => {

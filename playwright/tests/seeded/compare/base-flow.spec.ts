@@ -63,7 +63,10 @@ test("Compare complete seeded flow (FM23) preserves identity/order, renders trac
   await lapASelect.click();
   const lapAListboxId = await lapASelect.getAttribute("aria-controls");
   expect(lapAListboxId, "Lap A listbox").not.toBeNull();
-  await page.locator(`[id="${lapAListboxId}"]`).getByRole("option", { name: lapBOption, exact: true }).click();
+  const lapBTarget = page.locator(`[id="${lapAListboxId}"]`).getByRole("option", { name: lapBOption, exact: true });
+  await expect(lapBTarget, "Lap B identity is unique across sessions").toHaveCount(1);
+  await lapBTarget.click();
+  await expect(lapASelect).toHaveValue(lapBOption);
   await expect(page.getByText("Select two different laps to compare")).toBeVisible();
 
   const swapResponse = page.waitForResponse((response) =>
@@ -73,7 +76,10 @@ test("Compare complete seeded flow (FM23) preserves identity/order, renders trac
   await lapBSelect.click();
   const lapBListboxId = await lapBSelect.getAttribute("aria-controls");
   expect(lapBListboxId, "Lap B listbox").not.toBeNull();
-  await page.locator(`[id="${lapBListboxId}"]`).getByRole("option", { name: lapAOption, exact: true }).click();
+  const lapATarget = page.locator(`[id="${lapBListboxId}"]`).getByRole("option", { name: lapAOption, exact: true });
+  await expect(lapATarget, "Lap A identity is unique across sessions").toHaveCount(1);
+  await lapATarget.click();
+  await expect(lapBSelect).toHaveValue(lapAOption);
   await swapResponse;
 
   const swappedParams = new URL(page.url()).searchParams;

@@ -2536,6 +2536,7 @@
   "recording_layout_migration_action": "Упорядочить файлы",
   "recording_layout_migration_later": "Позже",
   "recording_layout_migration_running": "Упорядочивание записей…",
+  "recording_layout_migration_waiting_for_session": "Ожидание завершения активной сессии…",
   "recording_layout_migration_retry": "Повторить",
   "recording_layout_migration_refresh": "Обновить",
   "recording_layout_migration_checking": "Проверка папки записей…",

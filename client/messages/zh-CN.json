@@ -2509,6 +2509,7 @@
   "recording_layout_migration_action": "整理录制文件",
   "recording_layout_migration_later": "稍后",
   "recording_layout_migration_running": "正在整理录制文件…",
+  "recording_layout_migration_waiting_for_session": "正在等待当前会话结束…",
   "recording_layout_migration_retry": "重试整理",
   "recording_layout_migration_refresh": "刷新",
   "recording_layout_migration_checking": "正在检查录制文件夹…",

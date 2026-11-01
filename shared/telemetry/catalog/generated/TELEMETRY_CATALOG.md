@@ -7,8 +7,8 @@
 - Catalog version: `0.20.0`
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.20.0`
-- Generator source SHA-256: `fd03c450b03f31505862d865bb4574da2f25c6d704cd387c6cbbbfc1bb5c9472`
-- Content SHA-256: `2c115419ceb87a3e3939cadb9a3bc0aa696b13e5fb4dafbcf90924fc258c3d30`
+- Generator source SHA-256: `fb161bc93098a00a0b16460a4b7abccb9e301c085d3644c76a0c01636ee6965e`
+- Content SHA-256: `b570e48b808a097729f8e2ef875a1d350fddaedc4aa717e6f1950d4fc666c838`
 
 ## Coverage
 
@@ -428,7 +428,7 @@
 | `race.competitor.pit-status` | Competitor pit status | structured | unit:enum | enum | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:boolean |  |
 | `race.competitor.pit-stop-count` | Competitor pit-stop count | number | dimensionless | count | scalar |  |  |  |
 | `race.competitor.pit-stops` | Competitor pit-stop count | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
-| `race.competitor.position` | Competitor position | number | dimensionless | count | scalar |  |  |  |
+| `race.competitor.position` | Competitor position | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.primary-sponsor` | Competitor primary sponsor | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
 | `race.competitor.push-to-pass-active` | Competitor push-to-pass active | structured | dimensionless | boolean | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:boolean |  |
 | `race.competitor.push-to-pass-count` | Competitor push-to-pass count | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |

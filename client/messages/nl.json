@@ -2536,6 +2536,7 @@
   "recording_layout_migration_action": "Bestanden ordenen",
   "recording_layout_migration_later": "Later",
   "recording_layout_migration_running": "Opnamen ordenen…",
+  "recording_layout_migration_waiting_for_session": "Wachten tot de actieve sessie stopt…",
   "recording_layout_migration_retry": "Opnieuw proberen",
   "recording_layout_migration_refresh": "Vernieuwen",
   "recording_layout_migration_checking": "Opnamemap controleren…",

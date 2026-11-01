@@ -6,7 +6,7 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.20.0",
-      "sourceHash": "fd03c450b03f31505862d865bb4574da2f25c6d704cd387c6cbbbfc1bb5c9472"
+      "sourceHash": "fb161bc93098a00a0b16460a4b7abccb9e301c085d3644c76a0c01636ee6965e"
     },
     "sourceHashes": {
       "packages/capture-formats/src/lmu/opponent-snapshot.ts": "c18e10f39668501f9c4742bec8999bc7faeeba2c8ea7b42d60accfbbe4e8f0c6",
@@ -22,7 +22,7 @@
       "server/session-capture/frame-time.ts": "55c44a6cede5e2c5fb1e1c45568fe44b4a9a8b156f260f69bb5d89f9c24935a2",
       "shared/racing/setups/schema.ts": "987941bb8f38520920686ef540e67ce2259fdc962de03ccb959f6b5ef773b28f"
     },
-    "contentHash": "2c115419ceb87a3e3939cadb9a3bc0aa696b13e5fb4dafbcf90924fc258c3d30"
+    "contentHash": "b570e48b808a097729f8e2ef875a1d350fddaedc4aa717e6f1950d4fc666c838"
   },
   "generatedFrom": [
     "packages/tooling-catalog/src/root.ts",
@@ -33322,10 +33322,10 @@
     {
       "id": "race.competitor.position",
       "label": "Competitor position",
-      "description": "Native overall scoring place.",
+      "description": "Overall running or classified position for each competitor.",
       "parentId": "race.competitor.results",
       "canonicalUnit": "count",
-      "shape": "scalar",
+      "shape": "structured",
       "games": {
         "fm-2023": {
           "kind": "unavailable",
@@ -33392,12 +33392,39 @@
           "description": "This parser does not expose an equivalent source value."
         }
       },
-      "valueType": "number",
+      "valueType": "structured",
       "dimensions": [
         "dimensionless"
       ],
       "cardinality": {
-        "kind": "scalar"
+        "kind": "variable",
+        "min": 0,
+        "max": 64
+      },
+      "ordering": [
+        "competitor-index:numeric-ascending"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "competitor-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0,
+              "max": 64
+            },
+            "ordering": "numeric-ascending"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
       },
       "limitations": []
     },
@@ -92658,7 +92685,7 @@
         "unit": "count",
         "dataType": "number",
         "count": 1,
-        "description": "Native overall scoring place. Per-competitor scoring snapshot.",
+        "description": "Overall running or classified position for each competitor. Per-competitor scoring snapshot.",
         "semanticId": "race.competitor.position",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,

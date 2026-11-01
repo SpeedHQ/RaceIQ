@@ -2511,6 +2511,7 @@
   "recording_layout_migration_action": "Organizar gravações",
   "recording_layout_migration_later": "Mais tarde",
   "recording_layout_migration_running": "Organizando gravações…",
+  "recording_layout_migration_waiting_for_session": "A aguardar o fim da sessão ativa…",
   "recording_layout_migration_retry": "Tentar organizar novamente",
   "recording_layout_migration_refresh": "Atualizar",
   "recording_layout_migration_checking": "Verificando pasta…",

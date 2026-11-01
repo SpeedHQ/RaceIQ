@@ -2553,6 +2553,7 @@
   "recording_layout_migration_action": "Organize files",
   "recording_layout_migration_later": "Later",
   "recording_layout_migration_running": "Organizing recordings…",
+  "recording_layout_migration_waiting_for_session": "Waiting for active session to stop…",
   "recording_layout_migration_retry": "Retry organization",
   "recording_layout_migration_refresh": "Refresh",
   "recording_layout_migration_checking": "Checking recording folder…",

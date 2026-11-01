@@ -38,6 +38,22 @@
 - Include the complete LMU multiplayer recording in demo seeds as sub-100 MB gzip parts, stream native input without buffering the whole capture, and retain separate player and opponent recordings.
 
 ### Fixes
+- Model competitor positions as indexed structured values so live resolver returns and validates all competitors in source order.
+- Restore complete seeded capture bundles and private capture references for Playwright, skip unsupported Windows directory fsync, and validate portable opponent-index block paths on Windows.
+- Keep Kunos pit-cycle classification independent of recording validity while preserving native track-limit and telemetry-quality failures in live capture and replay.
+- Cancel queued recording layout migration during shutdown and recheck recording activity under the maintenance lock.
+- Restore the LMU opponent-recording preference in Settings → Storage → Opponent data.
+- Let failed MoTeC imports roll back without waiting for an unrelated LMU opponent-index storage reservation.
+- Report LMU opponent-index publication errors as failed preparation instead of silently yielding.
+- Distinguish comparison lap choices with their stable lap IDs when recorded lap numbers and times match across sessions.
+- Preserve the exact recorded packet when seeking Replay through frames with identical timestamps.
+- Release comparison position lock when seeking an exact coalesced frame without a registered distance, rather than borrowing another frame's distance.
+- Keep the mobile circuit overview within its available width. Open new desktop panel combinations within half the workspace while preserving saved widths when reopening the same panels.
+- Restore the source session, expanded opponent, and table scroll position when returning from opponent Replay to Sessions.
+- Keep recorded sessions selectable when all opponent laps lack comparable data, and show pending recording processing instead of an empty comparison selection.
+- Restore Spa track edges for AC Evo recordings that identify the circuit as “Circuit de Spa Francorchamps”, while preserving recorded track IDs and layout matching.
+- Open Session Analyse even when every recorded lap is invalid or non-pace, while preserving validity flags, keeping default review limited to pace-eligible laps, and allowing explicit inspection of other laps.
+- Split converted recordings that contain only full checkpoints instead of repeatedly rejecting them as unsupported legacy captures.
 - Get answers from current Claude models, which rejected every request with "`temperature` is deprecated for this model".
 - Stop AI settings from freezing on Windows while saved API keys and the launch-on-login setting are checked, and show Claude models immediately instead of waiting for the model list.
 - Load the model list and run AI features when the OpenAI-compatible base URL is Anthropic's `https://api.anthropic.com/v1`, which previously failed with "x-api-key header is required".

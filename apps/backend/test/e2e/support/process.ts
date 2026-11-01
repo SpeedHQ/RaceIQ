@@ -24,6 +24,11 @@ export async function killAndWait(
 export async function removeProcessDirectory(dataDir: string): Promise<void> {
   // Windows sometimes holds file handles briefly after spawned server exits.
   for (let attempt = 0; attempt < 10; attempt++) {
+    // The parent also opened libsql statements; closed handles finalize outside fake clocks.
+    if (process.platform === "win32") {
+      Bun.gc(true);
+      await new Promise<void>((resolveTurn) => setImmediate(resolveTurn));
+    }
     try {
       rmSync(dataDir, { recursive: true, force: true });
       break;

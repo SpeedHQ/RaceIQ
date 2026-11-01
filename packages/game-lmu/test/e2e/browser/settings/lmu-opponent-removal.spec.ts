@@ -35,6 +35,7 @@ async function openStorage(page: Page, request: APIRequestContext) {
   if (await settingsMenu.isVisible()) await settingsMenu.click();
   await page.getByRole("button", { name: "Storage", exact: true }).click();
   await page.getByRole("tab", { name: "Storage", exact: true }).click();
+  await page.getByRole("tab", { name: "Opponent data", exact: true }).click();
 }
 
 test("LMU opponent removal previews without mutation, confirms whole-session removal, preserves player laps", async ({ page, request }) => {

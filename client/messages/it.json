@@ -2536,6 +2536,7 @@
   "recording_layout_migration_action": "Organizza file",
   "recording_layout_migration_later": "Più tardi",
   "recording_layout_migration_running": "Organizzazione registrazioni…",
+  "recording_layout_migration_waiting_for_session": "In attesa che termini la sessione attiva…",
   "recording_layout_migration_retry": "Riprova organizzazione",
   "recording_layout_migration_refresh": "Aggiorna",
   "recording_layout_migration_checking": "Controllo cartella…",

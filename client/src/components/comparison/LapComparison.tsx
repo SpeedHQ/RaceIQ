@@ -651,7 +651,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
               selectionValid={opponentSelectionValid}
               hasSelection={opponentLapId != null || opponentReferenceInvalidated}
               onRefreshStatus={() => { void opponentCatalogQuery.refetch(); }}
-              onProcessingRefresh={() => { void opponentCatalogQuery.refetch(); }}
+              onProcessingRefresh={() => { void lapsQuery.refetch(); }}
               replay={gameId && opponentReplayComparison ? <div className="mt-4 flex min-h-[38rem] flex-col" data-opponent-replay>
                 <SpectateSession key={`${gameId}:${opponentRevision}:${opponentLapId}`} gameId={gameId} comparison={opponentReplayComparison}
                   active outline={trackOutline} segments={trackSegments ?? []} distanceRef={spectateDistanceRef} onDistanceChange={receiveSpectateDistance}
@@ -851,7 +851,9 @@ function OpponentComparisonPanel({
   </div>;
   if (error instanceof OpponentQueryError && error.code === "OPPONENT_INDEX_NOT_READY") return <div role="status" data-opponent-state="not-ready" className="p-4 text-app-text-secondary">{m.compare_loading()}</div>;
   if (error) return <div role="alert" className="flex min-h-48 items-center justify-center text-status-danger">{m.compare_load_failed()}</div>;
-  if (!catalog) return <div role="status" className="p-4 text-app-text-secondary">{m.compare_select_two_laps()}</div>;
+  if (!catalog) return processingLap
+    ? <LapProcessingNotice lap={processingLap} onRefresh={onProcessingRefresh} />
+    : <div role="status" className="p-4 text-app-text-secondary">{m.compare_select_two_laps()}</div>;
   if (catalog.indexState === "waiting-finalization") return <div role="status" data-opponent-state="waiting-finalization" className="p-4 text-app-text-secondary">{m.compare_opponent_index_waiting()}</div>;
   if (catalog.indexState === "queued") return <div role="status" data-opponent-state="queued" className="p-4 text-app-text-secondary">{m.compare_opponent_index_queued()}</div>;
   if (catalog.indexState === "building") return <div role="status" data-opponent-state="building" className="p-4 text-app-text-secondary">{m.compare_opponent_index_building()}</div>;

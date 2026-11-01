@@ -415,10 +415,6 @@ async function exerciseRealOpponentSessions(page: Page, request: APIRequestConte
       const duration = fastest?.sectors.find((item) => item.semanticId === `timing.sector.last-lap.s${sector}`)?.duration;
       await expect(cells.nth(sector + 1)).toHaveText(duration?.state === "ok" && duration.value !== null && duration.value > 0 ? formatTime(duration.value) : "—");
     }
-    const opponentTable = page.locator('[data-testid="opponent-sessions"]:visible').locator(":scope > [data-slot=table-container]");
-    await opponentTable.evaluate((element) => { element.scrollTop = element.scrollHeight; });
-    await expect.poll(() => opponentTable.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
-    const restoredScrollTop = await opponentTable.evaluate((element) => element.scrollTop);
     await expandOpponent.click();
     await expect(expandOpponent).toHaveAttribute("aria-expanded", "true");
     await expect(opponent.getByTestId("opponent-lap")).toHaveCount(session!.lapIds.length);
@@ -548,6 +544,7 @@ async function exerciseRealOpponentSessions(page: Page, request: APIRequestConte
     await page.goBack({ waitUntil: "domcontentloaded" });
     const opponentSessions = page.locator('[data-testid="opponent-sessions"]:visible');
     if (!(await opponentSessions.isVisible())) await sessionRow.click();
+    await expect(expandOpponent).toHaveAttribute("aria-expanded", "true");
     await expect(opponentSessions).toBeVisible();
     if (await expandOpponent.getAttribute("aria-expanded") === "false") await expandOpponent.click();
     await expect(opponentLap).toBeVisible();
@@ -630,7 +627,9 @@ test("OS-E4 renders native 200 ms opponent cadence and preserves real source gap
       ? page.getByRole("button").filter({ hasText: track }).first()
       : page.getByRole("row").filter({ hasText: track }).first();
     await expect(sessionRow).toBeVisible();
+    const automaticCatalog = page.waitForResponse((response) => /\/api\/laps\/\d+\/opponent-laps$/.test(new URL(response.url()).pathname) && response.ok());
     await sessionRow.click();
+    const referenceLapId = ((await (await automaticCatalog).json()) as OpponentLapCatalog).playerLapId;
     await expect(page.getByTestId("opponent-player-lap")).toHaveCount(0);
     const opponent = page.locator('[data-testid="opponent-session"]:visible').filter({ hasText: "Controlled opponent" });
     await opponent.getByRole("button", { name: "Controlled opponent", exact: true }).click();
@@ -680,8 +679,8 @@ test("OS-E4 renders native 200 ms opponent cadence and preserves real source gap
     }, gapTime);
     await expect.poll(async () => Number(await replay.getAttribute("data-time"))).toBeCloseTo(gapTime, 3);
     await expect.poll(async () => canvas.getAttribute("data-a-x")).toBe("");
-    expect(replayRequests.some((url) => url.includes(`/api/laps/${fixture!.lap.id}/opponent-laps/${candidate!.opponentLapId}/semantic-telemetry`))).toBe(true);
-    expect(replayRequests.some((url) => url.includes(`/api/laps/${fixture!.lap.id}/semantic-telemetry`))).toBe(false);
+    expect(replayRequests.some((url) => url.includes(`/api/laps/${referenceLapId}/opponent-laps/${candidate!.opponentLapId}/semantic-telemetry`))).toBe(true);
+    expect(replayRequests.some((url) => url.includes(`/api/laps/${referenceLapId}/semantic-telemetry`))).toBe(false);
     expect(replayRequests.some((url) => url.includes("/opponent-comparison"))).toBe(false);
   } finally {
     if (fixture) await removeFixture(request, fixture.sessionId);
@@ -695,8 +694,8 @@ test("E10 renders only bounded estimated connectors in imported controlled repla
   try {
     fixture = await importFixture(request, identity, makeLmuOpponentCapture({ identity, raceLineBoundaryFixture: true }));
     const catalog = await waitForReadyCatalog(request, fixture.lap.id);
-    const candidate = catalog.laps.find((entry) => entry.mode === "telemetry" && entry.coverage === "partial");
-    expect(candidate, "controlled sparse opponent remains partial").toBeDefined();
+    const candidate = catalog.laps.find((entry) => entry.mode === "telemetry" && entry.coverage === "complete");
+    expect(candidate, "completed controlled opponent interval spans the recorded boundary gaps").toBeDefined();
     await page.goto(`/lmu/compare?${new URLSearchParams({ track: fixture.lap.trackId!, carA: fixture.lap.carId!, lapA: String(fixture.lap.id) })}`, { waitUntil: "domcontentloaded" });
     await expect(page.getByTestId("lap-compare-workspace")).toBeVisible();
     await page.getByRole("button", { name: "Opponents", exact: true }).click();
@@ -817,9 +816,9 @@ test("[E7] U4 drives real opponent index states, visible polling, readiness, and
     expect(baselineOnboarding.ok(), `trigger onboarding_complete WebSocket baseline: ${await baselineOnboarding.text()}`).toBe(true);
     await page.waitForTimeout(1_000);
 
-    await cold.holdAt("source-discovery-complete");
-    await cold.holdAt("admission-granted");
-    await cold.holdAt("before-publication-fence");
+    await cold.holdAt("source-discovery-complete", { sourcePath: populated.sourcePath });
+    await cold.holdAt("admission-granted", { sourcePath: populated.sourcePath });
+    await cold.holdAt("before-publication-fence", { sourcePath: populated.sourcePath });
     await finalizeLiveOpponentCapture(cold);
     const discovery = await waitBarrier("source-discovery-complete", populated.sourcePath);
     expect(discovery.sourcePath).toBe(populated.sourcePath);
@@ -842,8 +841,10 @@ test("[E7] U4 drives real opponent index states, visible polling, readiness, and
     await disableOpponentActions(page);
 
     await releaseBarrier(discovery.id);
+    await cold.releaseHold("source-discovery-complete");
     const admission = await waitBarrier("admission-granted", populated.sourcePath);
     expect(admission.sourcePath).toBe(populated.sourcePath);
+    await releaseBarrier(admission.id);
     const publicationFence = await Promise.race([
       waitBarrier("before-publication-fence", populated.sourcePath).then((barrier) => ({ barrier })),
       Promise.any([
@@ -887,8 +888,10 @@ test("[E7] U4 drives real opponent index states, visible polling, readiness, and
     await page.waitForTimeout(2_300);
     expect(readCount(populated.lap.id), "unmounted comparison must stop polling").toBe(beforeNavigation);
     await page.goto(populatedUrl, { waitUntil: "domcontentloaded" });
-    await expect(page.locator('[data-opponent-state="building"]')).toBeVisible({ timeout: 30_000 });
-    await releaseBarrier(publicationFence.id);
+    await expect(page.locator('[data-processing-state="processing"]')).toContainText("Processing…", { timeout: 30_000 });
+    await expect(page.getByText("Select two laps above to compare", { exact: true })).toHaveCount(0);
+    await disableOpponentActions(page);
+    await releaseBarrier(publicationFence.barrier.id);
     const readyCatalog = await waitForCatalogState(request, populated.lap.id, "ready", cold.baseURL);
     expect(readyCatalog.laps.length).toBeGreaterThan(0);
     const comparable = readyCatalog.laps.find((lap) => lap.mode === "telemetry" && lap.comparableSemanticIds.length > 0);
@@ -906,19 +909,13 @@ test("[E7] U4 drives real opponent index states, visible polling, readiness, and
     expect(readCount(populated.lap.id), "ready catalog must stop polling").toBe(terminalReads);
 
     const empty = await startLiveOpponentCapture(cold, request, `u4-empty-${crypto.randomUUID()}`, false);
-    await cold.holdAt("source-discovery-complete");
-    await cold.holdAt("admission-granted");
-    await cold.holdAt("before-publication-fence");
+    // Empty retained companions become ready without an opponent-index worker.
+    await cold.holdAt("source-discovery-complete", { sourcePath: empty.sourcePath });
     await finalizeLiveOpponentCapture(cold);
     const emptyDiscovery = await waitBarrier("source-discovery-complete", empty.sourcePath);
     expect(emptyDiscovery.sourcePath).toBe(empty.sourcePath);
     await releaseBarrier(emptyDiscovery.id);
-    const emptyAdmission = await waitBarrier("admission-granted", empty.sourcePath);
-    expect(emptyAdmission.sourcePath).toBe(empty.sourcePath);
-    await releaseBarrier(emptyAdmission.id);
-    const emptyFence = await waitBarrier("before-publication-fence", empty.sourcePath);
-    expect(emptyFence.sourcePath).toBe(empty.sourcePath);
-    await releaseBarrier(emptyFence.id);
+    await cold.releaseHold("source-discovery-complete");
     const emptyCatalog = await waitForCatalogState(request, empty.lap.id, "ready", cold.baseURL);
     expect(emptyCatalog.laps).toEqual([]);
     await page.goto(compareUrlForLap(cold.baseURL, empty.lap), { waitUntil: "domcontentloaded" });
@@ -929,19 +926,21 @@ test("[E7] U4 drives real opponent index states, visible polling, readiness, and
     expect(readCount(empty.lap.id), "ready-empty catalog must stop polling").toBe(emptyReads);
 
     const failed = await startLiveOpponentCapture(cold, request, `u4-failed-${crypto.randomUUID()}`);
-    await cold.holdAt("source-discovery-complete");
-    await cold.holdAt("admission-granted");
-    await cold.holdAt("before-publication-fence");
+    await page.goto(compareUrlForLap(cold.baseURL, failed.lap), { waitUntil: "domcontentloaded" });
+    await expect(page.locator('[data-opponent-state="waiting-finalization"]')).toBeVisible({ timeout: 30_000 });
+    await cold.holdAt("source-discovery-complete", { sourcePath: failed.sourcePath });
+    await cold.holdAt("admission-granted", { sourcePath: failed.sourcePath });
+    await cold.holdAt("before-publication-fence", { sourcePath: failed.sourcePath });
     await finalizeLiveOpponentCapture(cold);
     const failedDiscovery = await waitBarrier("source-discovery-complete", failed.sourcePath);
     expect(failedDiscovery.sourcePath).toBe(failed.sourcePath);
     await releaseBarrier(failedDiscovery.id);
+    await cold.releaseHold("source-discovery-complete");
     const failedAdmission = await waitBarrier("admission-granted", failed.sourcePath);
     expect(failedAdmission.sourcePath).toBe(failed.sourcePath);
     await releaseBarrier(failedAdmission.id);
     const failedFence = await waitBarrier("before-publication-fence", failed.sourcePath);
     expect(failedFence.sourcePath).toBe(failed.sourcePath);
-    await page.goto(compareUrlForLap(cold.baseURL, failed.lap), { waitUntil: "domcontentloaded" });
     await expect(page.locator('[data-opponent-state="building"]')).toBeVisible({ timeout: 30_000 });
     await failBarrier(failedFence.id);
     await waitForCatalogState(request, failed.lap.id, "failed", cold.baseURL);
@@ -964,18 +963,23 @@ test("[E7] U4 drives real opponent index states, visible polling, readiness, and
       }
     }
     await context.close();
+    await cold?.stop();
     await rm(dataDir, { recursive: true, force: true });
   }
 });
 
 test("OS-E4 lists only comparable opponent laps and retains timing-only drivers", async ({ page, request }) => {
   test.setTimeout(120_000);
-  const fixture = await importFixture(request, `pw-filter-${crypto.randomUUID()}`);
+  const identity = `pw-filter-${crypto.randomUUID()}`;
+  const fixture = await importFixture(request, identity, makeLmuOpponentCapture({ identity, timingOnlyOpponent: true }));
   try {
     const catalog = await waitForReadyCatalog(request, fixture.lap.id);
-    const available = catalog.laps.filter((lap) => lap.mode !== "unavailable");
+    const controlled = catalog.sessions.find((session) => session.driverName === "Controlled opponent");
+    const available = catalog.laps.filter((lap) => controlled!.lapIds.includes(lap.opponentLapId) && lap.mode !== "unavailable");
+    expect(catalog.laps.some((lap) => lap.mode === "timing-only" && lap.lapTime.value === 18)).toBe(true);
     expect(catalog.laps.some((lap) => lap.mode === "unavailable")).toBe(true);
-    expect(available.some((lap) => lap.coverage === "partial")).toBe(true);
+    const partial = available.find((lap) => lap.mode === "telemetry" && lap.coverage === "partial");
+    expect(partial, "partial source-backed geometry remains selectable").toBeDefined();
     expect(available.some((lap) => lap.lapTime.value === 18)).toBe(true);
     const params = new URLSearchParams({ track: fixture.lap.trackId!, carA: fixture.lap.carId!, lapA: String(fixture.lap.id) });
     await page.goto(`/lmu/compare?${params}`, { waitUntil: "domcontentloaded" });
@@ -983,18 +987,20 @@ test("OS-E4 lists only comparable opponent laps and retains timing-only drivers"
     const driverSelect = page.locator("#compare-opponent-driver");
     await expect(driverSelect).toBeEnabled();
     await driverSelect.click();
-    await expect(page.getByRole("option")).toHaveCount(1);
-    await expect(page.getByRole("option")).toContainText("Controlled opponent");
-    await page.getByRole("option").click();
+    await expect(page.getByRole("option")).toHaveCount(2);
+    await expect(page.getByRole("option").filter({ hasText: "Timing-only opponent" })).toBeVisible();
+    await page.getByRole("option", { name: /Controlled opponent/ }).click();
     const lapSelect = page.locator("#compare-opponent-lap");
     await lapSelect.click();
     await expect(page.getByRole("option")).toHaveCount(available.length);
     await expect(page.getByRole("option", { disabled: true })).toHaveCount(0);
-    await expect(page.getByRole("option").filter({ hasText: "Partial" })).toBeVisible();
-    await page.getByRole("option").first().click();
+    const partialOption = page.getByRole("option", { name: new RegExp(`· Lap ${partial!.lapNumber} ·`) });
+    await expect(partialOption).toBeVisible();
+    await partialOption.click();
     await page.getByRole("button", { name: "Lap compare", exact: true }).click();
     await expect(page.getByTestId("opponent-comparison")).toContainText("Controlled opponent");
-    expect(available.map((lap) => lap.opponentLapId)).toContain(new URL(page.url()).searchParams.get("opponentLap"));
+    await expect.poll(() => new URL(page.url()).searchParams.get("opponentLap")).toBe(partial!.opponentLapId);
+    await expect(page.getByTestId("opponent-comparison")).toContainText("Partial");
     await page.screenshot({ path: test.info().outputPath("comparable-opponent-laps.png"), fullPage: true });
   } finally {
     await removeFixture(request, fixture.sessionId);
@@ -1055,7 +1061,7 @@ test("Opponent replay picker applies alternate lap and Sessions restores session
   const identity = `pw-picker-back-${crypto.randomUUID()}`;
   let fixture: ImportedFixture | null = null;
   try {
-    fixture = await importFixture(request, identity);
+    fixture = await importFixture(request, identity, makeLmuOpponentCapture({ identity, opponentCount: 15 }));
     const catalog = await waitForReadyCatalog(request, fixture.lap.id);
     const playerLapsResponse = await request.get(`/api/laps?gameId=lmu&sessionId=${fixture.sessionId}`);
     expect(playerLapsResponse.ok()).toBe(true);
@@ -1063,15 +1069,16 @@ test("Opponent replay picker applies alternate lap and Sessions restores session
     const alternatePlayerLap = playerLaps.find((lap) =>
       lap.id !== fixture!.lap.id && lap.processing.state === "ready" && lap.telemetryAvailable !== false);
     expect(alternatePlayerLap, "controlled fixture provides another replayable player lap").toBeDefined();
-    const opponentSession = catalog.sessions.find((session) => session.driverName === "Controlled opponent");
+    const opponentSession = catalog.sessions.find((session) => session.driverName === "Controlled opponent 15");
     expect(opponentSession).toBeDefined();
     const sessionLaps = catalog.laps.filter((lap) => opponentSession!.lapIds.includes(lap.opponentLapId));
     const selectedLap = sessionLaps.find((lap) => lap.mode === "telemetry");
     const alternateLap = sessionLaps.find((lap) =>
       lap.opponentLapId !== selectedLap?.opponentLapId &&
-      lap.mode === "telemetry" && lap.coverage === "complete" && lap.validity === "valid");
+      lap.mode === "telemetry" && lap.coverage === "complete" && lap.validity === "unknown");
     expect(selectedLap, "controlled fixture provides replayable opponent lap").toBeDefined();
-    expect(alternateLap, "controlled fixture provides alternate valid opponent lap").toBeDefined();
+    expect(alternateLap, "controlled fixture provides another complete opponent lap with unknown native validity").toBeDefined();
+    expect(alternateLap!.lapTime).toMatchObject({ state: "ok", value: 18 });
     await page.goto("/lmu/sessions", { waitUntil: "domcontentloaded" });
     await page.getByRole("searchbox", { name: "Search track, car, notes…" }).fill(identity.slice(0, 20));
     const sessionRow = page.viewportSize()!.width < 600
@@ -1079,25 +1086,31 @@ test("Opponent replay picker applies alternate lap and Sessions restores session
       : page.getByRole("row").filter({ hasText: "RaceIQ Opponent Fixture" }).first();
     await sessionRow.click();
     const section = page.locator('[data-testid="opponent-sessions"]:visible');
-    const opponent = section.getByTestId("opponent-session").filter({ hasText: "Controlled opponent" }).first();
+    const opponent = section.getByTestId("opponent-session").filter({ hasText: opponentSession!.driverName! });
+    await expect(section.getByTestId("opponent-session")).toHaveCount(15);
     const scroller = section.locator(":scope > [data-slot=table-container]");
     await scroller.evaluate((element) => { element.scrollTop = element.scrollHeight; });
     await expect.poll(() => scroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
-    const scrollTop = await scroller.evaluate((element) => element.scrollTop);
-    const expand = opponent.getByRole("button", { name: "Controlled opponent", exact: true });
+    const expand = opponent.getByRole("button", { name: opponentSession!.driverName!, exact: true });
     await expand.click();
     const opponentLap = opponent.locator(`[data-testid="opponent-lap"][data-opponent-lap-id="${selectedLap!.opponentLapId}"]`);
     await expect(opponentLap).toBeVisible();
+    await opponentLap.getByRole("button", { name: /Replay/i }).scrollIntoViewIfNeeded();
+    const scrollTop = await scroller.evaluate((element) => element.scrollTop);
+    expect(scrollTop).toBeGreaterThan(0);
     await opponentLap.getByRole("button", { name: /Replay/i }).click();
     await expect(page.getByTestId("opponent-lap-replay")).toHaveAttribute("data-opponent-state", "ready", { timeout: 60_000 });
     const replay = page.getByTestId("opponent-lap-replay");
-    await expect(replay.locator("header")).toContainText(`Lap ${selectedLap!.lapNumber}`);
+    await expect(replay).toHaveAttribute("data-opponent-lap-id", selectedLap!.opponentLapId);
     const picker = replay.locator("header").getByRole("combobox", { name: "Recorded opponent lap" });
+    await expect(picker).toHaveValue(new RegExp(`· Lap ${selectedLap!.lapNumber} ·`));
     await picker.fill(`Lap ${alternateLap!.lapNumber} ·`);
     await picker.press("ArrowDown");
     await picker.press("Enter");
     await expect.poll(() => new URL(page.url()).searchParams.get("opponentLap")).toBe(alternateLap!.opponentLapId);
-    await expect(replay.locator("header")).toContainText(`Lap ${alternateLap!.lapNumber}`);
+    await expect(replay).toHaveAttribute("data-opponent-lap-id", alternateLap!.opponentLapId);
+    await expect(replay).toHaveAttribute("data-opponent-state", "ready");
+    await expect(picker).toHaveValue(new RegExp(`· Lap ${alternateLap!.lapNumber} ·`));
     await expect(replay.getByRole("button", { name: "Lap compare", exact: true })).toHaveCount(0);
     await expect(replay.getByRole("button", { name: "Cancel", exact: true })).toHaveCount(0);
     const driverPicker = replay.locator("header").getByRole("combobox", { name: "Driver" });
@@ -1116,8 +1129,8 @@ test("Opponent replay picker applies alternate lap and Sessions restores session
     await replay.locator("header").getByRole("button", { name: "Sessions", exact: true }).click();
     await expect.poll(() => new URL(page.url()).pathname).toBe("/lmu/sessions");
     const restoredSection = page.locator('[data-testid="opponent-sessions"]:visible');
-    await expect(restoredSection.getByTestId("opponent-session").filter({ hasText: "Controlled opponent" })
-      .getByRole("button", { name: "Controlled opponent", exact: true })).toHaveAttribute("aria-expanded", "true");
+    await expect(restoredSection.getByTestId("opponent-session").filter({ hasText: opponentSession!.driverName! })
+      .getByRole("button", { name: opponentSession!.driverName!, exact: true })).toHaveAttribute("aria-expanded", "true");
     await expect.poll(() => restoredSection.locator(":scope > [data-slot=table-container]").evaluate((element) => element.scrollTop)).toBe(scrollTop);
   } finally {
     if (fixture) await removeFixture(request, fixture.sessionId);
@@ -1148,16 +1161,52 @@ test("OS-E2 preserves all 15 recorded opponents as individual session records", 
     for (const column of [1, 2, 3, 4]) await expect(gridCells.nth(column)).toHaveText("—");
     await expect(gridOpponent.getByRole("button", { name: "cleverson santos", exact: true })).toHaveAttribute("aria-expanded", "false");
     await page.screenshot({ path: test.info().outputPath("recorded-opponent-grid.png"), fullPage: true });
-    expect(catalog.laps.every((entry) => entry.mode === "unavailable"), "grid snapshot has no comparable laps").toBe(true);
+    const comparable = catalog.laps.filter((entry) => entry.mode === "telemetry");
+    expect(comparable.length, "native grid retains comparable scoring geometry despite missing completed-lap timing").toBeGreaterThan(0);
+    expect(comparable.every((entry) => entry.validity === "unknown" && entry.coverage === "partial")).toBe(true);
+    const params = new URLSearchParams({ track: fixture.lap.trackId!, carA: fixture.lap.carId!, lapA: String(fixture.lap.id) });
+    await page.goto(`/lmu/compare?${params}`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "Opponents", exact: true }).click();
+    await expect(page.locator("#compare-opponent-driver")).toBeEnabled();
+    await page.locator("#compare-opponent-driver").click();
+    const comparableDrivers = catalog.sessions.filter((session) =>
+      session.lapIds.some((id) => comparable.some((lap) => lap.opponentLapId === id)));
+    await expect(page.getByRole("option")).toHaveCount(comparableDrivers.length);
+    await page.getByRole("option").first().click();
+    await page.locator("#compare-opponent-lap").click();
+    await page.getByRole("option").first().click();
+    await expect(page.getByRole("button", { name: "Lap compare", exact: true })).toBeEnabled();
+    await page.screenshot({ path: test.info().outputPath("native-grid-comparable-opponents.png"), fullPage: true });
+  } finally {
+    await removeFixture(request, fixture.sessionId);
+  }
+});
+
+test("OS-E4 disables comparison when native opponent channels have no comparable data", async ({ page, request }) => {
+  test.setTimeout(120_000);
+  const identity = `pw-unavailable-${crypto.randomUUID()}`;
+  const fixture = await importFixture(request, identity, makeLmuOpponentCapture({ identity, opponentMode: "unavailable" }));
+  try {
+    const catalog = await waitForReadyCatalog(request, fixture.lap.id);
+    expect(catalog.sessions).toHaveLength(1);
+    expect(catalog.laps.length).toBeGreaterThan(0);
+    expect(catalog.laps.every((lap) => lap.mode === "unavailable" &&
+      lap.lapTime.state !== "ok" && lap.reasons.includes("no-comparable-data"))).toBe(true);
     const params = new URLSearchParams({ track: fixture.lap.trackId!, carA: fixture.lap.carId!, lapA: String(fixture.lap.id) });
     await page.goto(`/lmu/compare?${params}`, { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "Opponents", exact: true }).click();
     await expect(page.locator("#compare-opponent-driver")).toBeDisabled();
     await expect(page.locator("#compare-opponent-lap")).toBeDisabled();
     await expect(page.getByRole("button", { name: "Lap compare", exact: true })).toBeDisabled();
-    await page.locator("#compare-opponent-class").click();
-    await expect(page.getByRole("option")).toHaveCount(1);
-    await page.locator("#compare-opponent-class").press("Escape");
+    const sessionSelect = page.getByRole("combobox", { name: "Sessions", exact: true });
+    await sessionSelect.click();
+    await sessionSelect.fill("");
+    await expect(page.getByRole("option")).toHaveCount(catalog.sessions.length + 1);
+    await page.getByRole("option", { name: "Session 1", exact: true }).click();
+    await expect(page.locator("#compare-opponent-driver")).toBeDisabled();
+    await expect(page.locator("#compare-opponent-lap")).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Lap compare", exact: true })).toBeDisabled();
+    await expect(page.getByTestId("opponent-comparison")).toHaveCount(0);
     await page.screenshot({ path: test.info().outputPath("no-comparable-opponents.png"), fullPage: true });
   } finally {
     await removeFixture(request, fixture.sessionId);

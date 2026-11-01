@@ -2,6 +2,7 @@ import { accRecordingSupport } from "@raceiq/game-acc/test-support/recordings";
 import { describe, test, expect, afterAll } from "bun:test";
 import { parseDump } from "@raceiq/backend-core/test-support/recordings/parse-dump";
 import { LapDetectorAcc } from "@raceiq/game-acc/lap-detector"
+import { LapDetectorAcEvo } from "@raceiq/game-ac-evo/lap-detector";
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"
 import { accParser } from "@raceiq/game-acc/game-parser";
 import { PHYSICS, GRAPHICS, STATIC } from "@raceiq/capture-formats/acc/structs";
@@ -581,11 +582,17 @@ describe("ACC recorded validity precedence", () => {
   test("native validity retains pit classification without overriding recording-quality failures", async () => {
     expect(await completeLap(true, { pit: true })).toMatchObject({ valid: true, invalidReason: null, classification: "out_lap" });
     expect(await completeLap(true, { short: true })).toMatchObject({ valid: false, invalidReason: "telemetry distance too short" });
+    expect(await completeLap(true, { pit: true, short: true })).toMatchObject({
+      valid: false, invalidReason: "telemetry distance too short", classification: "out_lap",
+    });
   });
 
   test("false invalidates a clean lap even when reset signal turns true", async () => {
     expect(await completeLap(false, { resetValidity: true })).toMatchObject({
       valid: false, invalidReason: "game reported invalid",
+    });
+    expect(await completeLap(false, { pit: true, resetValidity: true })).toMatchObject({
+      valid: false, invalidReason: "game reported invalid", classification: "out_lap",
     });
   });
 
@@ -627,6 +634,48 @@ describe("ACC recorded validity precedence", () => {
       { valid: true, invalidReason: null },
     ]);
     expect(detector.session?.bestLapTime).toBeCloseTo(90, 0);
+  });
+});
+
+describe("AC Evo pit classification preserves native track-limit evidence", () => {
+  test.each([
+    [true, "clean", true],
+    [true, "cut", false],
+    [true, "flicker", true],
+    [false, "clean", true],
+    [false, "cut", false],
+    [false, "flicker", true],
+    [false, "inherited", true],
+  ] as const)("pitAtStart=%s validity=%s remains valid=%s", async (pitAtStart, validity, valid) => {
+    const db = makeFakeDb();
+    const detector = new LapDetectorAcEvo({ db });
+    for (let second = 0; second <= 91; second++) {
+      const boundary = second === 91;
+      const inPit = pitAtStart ? second < 20 : second >= 70;
+      const nativeInvalid = !boundary && (
+        validity === "inherited" ||
+        validity === "cut" && second >= 45 ||
+        validity === "flicker" && second === 45
+      );
+      await detector.feed(packet({
+        gameId: "ac-evo",
+        LapNumber: boundary ? 1 : 0,
+        CurrentLap: boundary ? 0 : second,
+        LastLap: boundary ? 90 : 0,
+        DistanceTraveled: second * 50,
+        TimestampMS: second * 1000,
+        acc: {
+          pitStatus: inPit ? "pit_lane" : "out",
+          isValidLap: nativeInvalid ? inPit ? null : false : true,
+        } as TelemetryPacket["acc"],
+      }));
+    }
+    expect(db.inserted).toHaveLength(1);
+    expect(db.inserted[0]).toMatchObject({
+      valid,
+      invalidReason: valid ? null : "track limits",
+      classification: pitAtStart ? "out_lap" : "in_lap",
+    });
   });
 });
 
