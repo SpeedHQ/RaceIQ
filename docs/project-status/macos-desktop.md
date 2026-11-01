@@ -481,6 +481,18 @@ connecting chat. Experiment writes additionally need durable idempotency and
 the existing confirmation/domain checks. Do not enable a general code host
 merely to make the positive call pass.
 
+Follow-up local mock: bundled `gpt-5.5` advertised the RaceIQ dynamic function
+without the code host, alongside built-in goal and user-input tools. In an
+ephemeral thread, injected goal and user-input calls were rejected, as were
+synthetic shell, patch and image calls. However, two authenticated synthetic
+turns failed with `model_not_found`: Codex's ChatGPT account does not support
+`gpt-5.5`. This profile is therefore not a usable fallback. Enabling the code
+host for `gpt-6.1-sol` in the local mock did not produce an outbound tool list;
+an injected code call ran in its JavaScript host and could not find the
+disabled shell function. That narrow negative result does not establish that
+the general code host is safe. No account settings or global configuration
+were changed, and no production capability was enabled by these probes.
+
 Local transport preparation: the stdio connection can dispatch explicitly
 registered dynamic tool requests without blocking other RPC replies. It still
 rejects all server requests unless a tool handler is supplied, denies non-tool
