@@ -6,6 +6,16 @@ function command(scenario: string): string[] {
   return [process.execPath, fileURLToPath(new URL("./fixtures/codex-runtime-peer.ts", import.meta.url)), scenario];
 }
 
+test("ignores another turn's notifications received before turn acknowledgement", async () => {
+  const result = await runCodexGeneration({ command: command("foreign-before-ack"), model: "gpt-6.1-sol", prompt: "fixture" });
+  expect(result.text).toBe('{"answer":"fixture analysis"}');
+  expect(result.usage).toMatchObject({ inputTokens: 123, outputTokens: 42 });
+});
+
+test("rejects an excessive pre-acknowledgement notification stream", async () => {
+  await expect(runCodexGeneration({ command: command("early-overflow"), model: "gpt-6.1-sol", prompt: "fixture" })).rejects.toMatchObject({ code: "generation-failed" });
+});
+
 test("metadata discovery exposes only a verified model without starting a thread or inference", async () => {
   expect(await discoverCodex(command("success"))).toEqual({ state: "ready", models: [{ id: "gpt-6.1-sol", name: "GPT-6.1 Sol" }] });
   expect(await discoverCodex(command("api-key"))).toEqual({ state: "not-signed-in", models: [] });

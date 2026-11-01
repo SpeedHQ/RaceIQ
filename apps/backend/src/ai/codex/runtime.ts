@@ -292,16 +292,16 @@ export async function runCodexGeneration(input: CodexGenerationInput): Promise<C
     let text = "";
     let nativeUsage: Record<string, unknown> = {};
     let turnId: string | undefined;
+    const earlyEvents: { method: string; params: Record<string, unknown> }[] = [];
+    let earlyBytes = 0;
     let completed!: (status: string) => void;
     const completion = new Promise<string>((resolve) => {
       completed = resolve;
     });
-    onNotification = (method, params) => {
+    const handleNotification = (method: string, params: unknown) => {
       if (!isRecord(params) || params.threadId !== threadId) return;
-      if (typeof params.turnId === "string") {
-        if (turnId && params.turnId !== turnId) return;
-        turnId = params.turnId;
-      }
+      const eventTurn = method === "turn/completed" && isRecord(params.turn) ? params.turn.id : params.turnId;
+      if (typeof eventTurn !== "string" || eventTurn !== turnId) return;
       if (method === "thread/tokenUsage/updated" && isRecord(params.tokenUsage) && isRecord(params.tokenUsage.last)) nativeUsage = params.tokenUsage.last;
       if (method === "item/agentMessage/delta" && typeof params.delta === "string" && firstContentMs === null) firstContentMs = Math.round(performance.now() - start);
       if (
@@ -312,10 +312,16 @@ export async function runCodexGeneration(input: CodexGenerationInput): Promise<C
         typeof params.item.text === "string"
       )
         text = params.item.text;
-      if (method === "turn/completed" && isRecord(params.turn) && typeof params.turn.id === "string" && typeof params.turn.status === "string" && (!turnId || turnId === params.turn.id)) {
-        turnId = params.turn.id;
+      if (method === "turn/completed" && isRecord(params.turn) && typeof params.turn.status === "string") {
         completed(params.turn.status);
       }
+    };
+    onNotification = (method, params) => {
+      if (!isRecord(params) || params.threadId !== threadId || !["item/completed", "item/agentMessage/delta", "thread/tokenUsage/updated", "turn/completed"].includes(method)) return;
+      if (turnId) return handleNotification(method, params);
+      earlyBytes += Buffer.byteLength(JSON.stringify(params));
+      if (earlyEvents.length >= 1024 || earlyBytes > 1024 * 1024) throw new Error("Early Codex notifications exceeded limits");
+      earlyEvents.push({ method, params });
     };
     let timeout: ReturnType<typeof setTimeout> | undefined;
     let abort!: () => void;
@@ -332,9 +338,11 @@ export async function runCodexGeneration(input: CodexGenerationInput): Promise<C
           { threadId, ...(input.schema ? { outputSchema: input.schema } : {}), ...(input.effort ? { effort: input.effort } : {}), input: [{ type: "text", text: input.prompt, text_elements: [] }] },
           { signal: input.signal },
         );
-        if (!isRecord(response) || !isRecord(response.turn) || typeof response.turn.id !== "string" || (turnId && response.turn.id !== turnId))
+        if (!isRecord(response) || !isRecord(response.turn) || typeof response.turn.id !== "string")
           throw new CodexRuntimeError("generation-failed", "Codex turn acknowledgement is invalid.");
         turnId = response.turn.id;
+        for (const event of earlyEvents) handleNotification(event.method, event.params);
+        earlyEvents.length = 0;
         return completion;
       })();
       const status = await Promise.race([

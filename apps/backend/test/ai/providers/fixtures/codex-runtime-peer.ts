@@ -121,6 +121,13 @@ for await (const chunk of Bun.stdin.stream()) {
           },
           { method: "turn/completed", params: { threadId: "fixture-thread", turn: { id: "fixture-turn", status: scenario === "failed" ? "failed" : "completed", error: null } } },
         ];
+        if (scenario === "foreign-before-ack") {
+          process.stdout.write(JSON.stringify({ method: "item/completed", params: { threadId: "fixture-thread", turnId: "foreign-turn", item: { type: "agentMessage", phase: "final_answer", text: '{"answer":"wrong turn"}' } } }) + "\n");
+          process.stdout.write(JSON.stringify({ method: "turn/completed", params: { threadId: "fixture-thread", turn: { id: "foreign-turn", status: "completed" } } }) + "\n");
+        }
+        if (scenario === "early-overflow") {
+          for (let i = 0; i < 1025; i++) process.stdout.write(JSON.stringify({ method: "item/agentMessage/delta", params: { threadId: "fixture-thread", turnId: "fixture-turn", itemId: "final", delta: "x" } }) + "\n");
+        }
         for (const event of events) {
           if (scenario === "missing-usage" && event.method === "thread/tokenUsage/updated") continue;
           process.stdout.write(JSON.stringify(event) + "\n");
