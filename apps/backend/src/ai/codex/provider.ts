@@ -1,6 +1,7 @@
 import type { AiFeature, AiResult, ResolvedAi, StructuredRequest, TextRequest } from "@raceiq/backend-core/ai/ai-types";
 import { AiProviderError } from "@raceiq/backend-core/ai/provider-error";
-import { CodexRuntimeError, runCodexGeneration } from "./runtime";
+import { CodexRuntimeError } from "./runtime";
+import { codexSupervisor } from "./supervisor";
 
 /** Only the isolated Codex runtime can execute this trusted, backend-owned prefix. */
 export class CodexProviderAdapter implements ResolvedAi {
@@ -29,7 +30,7 @@ export class CodexProviderAdapter implements ResolvedAi {
   async #generate(input: TextRequest, schema?: object): Promise<AiResult> {
     const startedAt = performance.now();
     try {
-      const { text, ...diagnostics } = await runCodexGeneration({
+      const { text, ...diagnostics } = await codexSupervisor.run({
         command: this.#command,
         model: this.model,
         prompt: input.system ? `${input.system}\n\n${input.prompt}` : input.prompt,

@@ -7,6 +7,7 @@ import {
   type GenerateLapAnalysisDeps,
 } from "../../../src/ai/generate-lap-analysis";
 import { diagnosticsRoutes } from "../../../src/routes/system/diagnostics-routes";
+import { analysisGenerationKey } from "../../../src/ai/analysis-generation-key";
 
 const validAnalysis = JSON.stringify({
   verdict: "Clean lap",
@@ -38,6 +39,7 @@ function makeDeps(
   let cached = options.cached
     ? {
         analysis: options.cached,
+        generationKey: "",
         inputTokens: 1,
         outputTokens: 2,
         costUsd: 0,
@@ -55,11 +57,12 @@ function makeDeps(
     resolveLapCorners: async () => [],
     getOrComputeLapInsights: async () => [],
     getAnalysis: async () => cached,
-    saveAnalysis: async (_lapId, analysis) => {
+    saveAnalysis: async (_lapId, analysis, _usage, generationKey) => {
       saves.push(analysis);
       options.onSave?.(analysis);
       cached = {
         analysis,
+        generationKey: generationKey ?? "",
         inputTokens: 1,
         outputTokens: 2,
         costUsd: 0,
@@ -106,11 +109,44 @@ function makeDeps(
       };
     },
   };
+  if (cached) cached.generationKey = analysisGenerationKey("lap", deps.loadSettings!());
   Object.defineProperty(deps, "generateCalls", { get: () => generateCalls });
   return deps;
 }
 
 describe("generateLapAnalysis", () => {
+  test("saved instructions reach the provider and changing them misses the cache", async () => {
+    const deps = makeDeps({ cached: validAnalysis });
+    const defaults = deps.loadSettings!();
+    let instructions: string | null = "Focus on trail braking at T1.";
+    deps.loadSettings = () => ({ ...defaults, lapAnalysisInstructions: instructions });
+    let submitted = "";
+    const generate = deps.runAiStructured!;
+    deps.runAiStructured = async (ai, input, callback) => {
+      submitted = input.prompt;
+      return generate(ai, input, callback);
+    };
+    const first = await generateLapAnalysis(7, {}, deps);
+    expect(first.cached).toBe(false);
+    expect(submitted).toContain(instructions);
+    expect(submitted).toContain("Preserve the required output schema");
+    expect((await generateLapAnalysis(7, {}, deps)).cached).toBe(true);
+    instructions = "Focus on throttle exits.";
+    expect((await generateLapAnalysis(7, { cacheOnly: true }, deps)).analysis).toBeNull();
+    await generateLapAnalysis(7, {}, deps);
+    expect(submitted).toContain(instructions);
+    instructions = null;
+    expect((await generateLapAnalysis(7, { cacheOnly: true }, deps)).analysis).toBeNull();
+    expect(deps.generateCalls).toBe(2);
+  });
+
+  test("old unversioned cache remains stored and is not reused", async () => {
+    const deps = makeDeps({ cached: validAnalysis });
+    const read = deps.getAnalysis!;
+    deps.getAnalysis = async (id) => ({ ...(await read(id))!, generationKey: null });
+    expect((await generateLapAnalysis(7, { cacheOnly: true }, deps)).analysis).toBeNull();
+    expect(deps.saves).toEqual([]);
+  });
   test("preserves provider unknown usage and real zero output through generation and caching", async () => {
     const deps = makeDeps();
     deps.runAiStructured = undefined;

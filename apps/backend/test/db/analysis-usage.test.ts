@@ -45,12 +45,12 @@ test("cached lap analysis preserves unreported usage instead of inventing zeros"
     if (!lap) throw new Error("Fixture lap missing");
     const usage = { inputTokens: null, outputTokens: null, costUsd: null, durationMs: null, model: "usage-fixture" };
     await saveAnalysis(lap.id, "fixture analysis", usage);
-    expect(await getAnalysis(lap.id)).toEqual({ analysis: "fixture analysis", ...usage });
+    expect(await getAnalysis(lap.id)).toEqual({ analysis: "fixture analysis", generationKey: null, ...usage });
     const reported = { inputTokens: 123, outputTokens: 0, costUsd: 0, durationMs: 2, model: "reported-fixture" };
-    await saveAnalysis(lap.id, "reported analysis", reported);
-    expect(await getAnalysis(lap.id)).toEqual({ analysis: "reported analysis", ...reported });
+    await saveAnalysis(lap.id, "reported analysis", reported, "prompt-version-one");
+    expect(await getAnalysis(lap.id)).toEqual({ analysis: "reported analysis", generationKey: "prompt-version-one", ...reported });
     await saveAnalysis(lap.id, "unknown again", usage);
-    expect(await getAnalysis(lap.id)).toEqual({ analysis: "unknown again", ...usage });
+    expect(await getAnalysis(lap.id)).toEqual({ analysis: "unknown again", generationKey: null, ...usage });
   } finally {
     await db.delete(sessions).where(eq(sessions.id, session.id)).run();
   }
@@ -76,10 +76,10 @@ test("comparison cache preserves unknown usage with canonical lap ordering", asy
       .all();
     const usage = { inputTokens: null, outputTokens: null, costUsd: null, durationMs: null, model: "usage-fixture" };
     await saveCompareAnalysis(rows[1].id, rows[0].id, "comparison fixture", usage);
-    expect(await getCompareAnalysis(rows[0].id, rows[1].id)).toEqual({ analysis: "comparison fixture", ...usage });
+    expect(await getCompareAnalysis(rows[0].id, rows[1].id)).toEqual({ analysis: "comparison fixture", generationKey: null, ...usage });
     const reported = { inputTokens: 0, outputTokens: 42, costUsd: 0, durationMs: 5, model: "reported-fixture" };
-    await saveCompareAnalysis(rows[0].id, rows[1].id, "reported pair", reported);
-    expect(await getCompareAnalysis(rows[1].id, rows[0].id)).toEqual({ analysis: "reported pair", ...reported });
+    await saveCompareAnalysis(rows[0].id, rows[1].id, "reported pair", reported, "inputs", "compare-prompt-one");
+    expect(await getCompareAnalysis(rows[1].id, rows[0].id)).toEqual({ analysis: "reported pair", generationKey: "compare-prompt-one", ...reported });
   } finally {
     await db.delete(sessions).where(eq(sessions.id, session.id)).run();
   }

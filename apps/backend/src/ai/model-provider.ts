@@ -67,6 +67,7 @@ type MastraResult = {
   text?: unknown;
   object?: unknown;
   usage?: unknown;
+  totalUsage?: unknown;
 };
 
 function usageFor(result: MastraResult["usage"], model: string): AiResult["usage"] {
@@ -112,7 +113,7 @@ function normalizeMastraResult(result: MastraResult, model: string): AiResult {
   }
   return {
     analysis: textFor(result),
-    usage: usageFor(result.usage, model),
+    usage: usageFor(result.totalUsage ?? result.usage, model),
   };
 }
 

@@ -24,6 +24,8 @@ import { logLlmEvent } from "@raceiq/backend-core/ai/diagnostic-logging";
 import { getResolvedAiInternals } from "./resolved-ai-internals";
 import { normalizeAiUsage } from "@raceiq/backend-core/ai/usage";
 import type { AiGenerationDiagnostics } from "@raceiq/shared/integrations/ai/usage";
+import { withAnalysisInstructions } from "@raceiq/shared/integrations/ai/analysis-instructions";
+import { analysisGenerationKey } from "./analysis-generation-key";
 
 export type AnalysisUsage = AiUsage;
 export interface CornerFraction {
@@ -141,11 +143,13 @@ export async function generateLapAnalysis(
     endFrac: Math.min(1, corner.distanceEnd / totalDist),
   }));
   const hasTune = !!lap.tuneId || (lap.gameId === "f1-2025" && !!lap.carSetup);
+  const settings = (deps.loadSettings ?? loadSettings)();
+  const generationKey = analysisGenerationKey("lap", settings);
 
   if (!options.regenerate) {
     const cached = await readAnalysis(lapId);
     const cachedAnalysis = sanitizeAnalystOutput(cached?.analysis, setupContext, { requireMatchingProvenance: true });
-    if (cached && cachedAnalysis.success) {
+    if (cached && cached.generationKey === generationKey && cachedAnalysis.success) {
       return {
         analysis: JSON.stringify(cachedAnalysis.data),
         cached: true,
@@ -164,7 +168,6 @@ export async function generateLapAnalysis(
       return { analysis: null, cached: false, cornerFracs, hasTune };
   }
 
-  const settings = (deps.loadSettings ?? loadSettings)();
   let sectors: PromptSectors | undefined;
   const track = (deps.resolveTrack ?? resolveTrack)(
     lap.gameId,
@@ -208,7 +211,7 @@ export async function generateLapAnalysis(
 
   const insights = await (deps.getOrComputeLapInsights ?? getOrComputeLapInsights)(lapId) ?? [];
 
-  const prompt = (deps.buildAnalystPrompt ?? buildAnalystPrompt)(
+  const prompt = withAnalysisInstructions((deps.buildAnalystPrompt ?? buildAnalystPrompt)(
     lap,
     lap.telemetry,
     corners,
@@ -220,7 +223,7 @@ export async function generateLapAnalysis(
     settings.language,
     sectors,
     insights,
-  );
+  ), "lap", settings.lapAnalysisInstructions);
 
   let ai: ResolvedAi;
   try {
@@ -325,7 +328,7 @@ export async function generateLapAnalysis(
     const text = JSON.stringify(parsed.data);
 
     const usage = normalizeAiUsage(result.usage, model, Date.now() - startedAt);
-    await writeAnalysis(lapId, text, usage);
+    await writeAnalysis(lapId, text, usage, generationKey);
     logLlmEvent("llm-response", { ...diagnostic, response: result });
     return { analysis: text, cached: false, usage, diagnostics: result.diagnostics, cornerFracs, hasTune };
   } catch (err) {

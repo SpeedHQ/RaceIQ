@@ -8,6 +8,7 @@ import type { NativeSourceSupervisor } from "./native-sources";
 import type { StartupWorkerHandle } from "./startup-worker";
 import { stopSessionCaptureSplitManager } from "../session-capture/split-manager";
 import { drainLayoutMigration, stopLayoutMigrationAdmission } from "@raceiq/backend-core/session-capture/layout-migration";
+import { codexSupervisor } from "../ai/codex/supervisor";
 
 export interface ShutdownOptions {
   getNativeSources(): NativeSourceSupervisor | null;
@@ -27,6 +28,9 @@ export function installShutdown({
     if (shutdownPromise) return shutdownPromise;
     console.log(`[Server] Received ${signal} — flushing session recorder...`);
     stopLayoutMigrationAdmission();
+    // Close AI admission immediately, including requests still in preflight.
+    // Observe cleanup rejection while recording/worker owners drain in parallel.
+    const codexSettled = codexSupervisor.stop().then(() => ({ ok: true as const }), (error: unknown) => ({ ok: false as const, error }));
     const classificationStop = stopClassificationMigrationWorker?.();
     const startupStop = getStartupWorker()?.stop();
     // Observe rejection immediately while the other ingress owners are draining.
@@ -51,6 +55,7 @@ export function installShutdown({
       if (!startup.ok) { failed = true; console.error("[Server] Startup worker shutdown failed:", startup.error); }
       const classification = await classificationSettled;
       if (!classification.ok) { failed = true; console.error("[Server] Classification migration shutdown failed:", classification.error); }
+      await settle("Codex", async () => { const codex = await codexSettled; if (!codex.ok) throw codex.error; });
       await stopDatabaseWriteAuthority();
       await settle("Dashboard read connection", async () => { closeDashboardReadDatabase(); });
       await settle("Database connections", async () => { closeDb(); });

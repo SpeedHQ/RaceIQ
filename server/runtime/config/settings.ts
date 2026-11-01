@@ -5,6 +5,7 @@ import { resolveDataDir } from "./data-dir";
 import { isLaunchOnLoginEnabled } from "../platform/launch-on-login";
 import { LOCALE_CODES } from "@raceiq/shared/platform/i18n/locales";
 import { DEFAULT_RECORDING_FREQUENCY_HZ, isRecordingRetentionPolicyValid } from "@raceiq/shared/platform/runtime/recording-frequency";
+import { MAX_ANALYSIS_INSTRUCTIONS_LENGTH } from "@raceiq/shared/integrations/ai/analysis-instructions";
 const SETTINGS_DIR = resolveDataDir();
 const SETTINGS_PATH = `${SETTINGS_DIR}/settings.json`;
 
@@ -28,6 +29,8 @@ const AppSettingsSchema = z.object({
   aiProvider: AiProviderSchema.default(""),
   aiModel: z.string().default(""),
   aiThinkingBudget: z.number().int().min(0).nullable().default(null),
+  lapAnalysisInstructions: z.string().max(MAX_ANALYSIS_INSTRUCTIONS_LENGTH).nullable().default(null),
+  compareAnalysisInstructions: z.string().max(MAX_ANALYSIS_INSTRUCTIONS_LENGTH).nullable().default(null),
   chatProvider: AiProviderSchema.default(""),
   chatModel: z.string().default(""),
   chatThinkingBudget: z.number().int().min(0).nullable().default(null),

@@ -15,9 +15,9 @@ import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { resolveLapCorners, resolveLapSegments } from "../../tracks/corner-resolution";
 import { buildCompareInsightsBlock } from "@raceiq/backend-core/ai/insight-format";
 import { buildCompareChatSystemPrompt } from "@raceiq/backend-core/ai/compare-chat-prompt";
-import { buildInputsComparePrompt, InputsCompareSchema, type PromptSegment } from "@raceiq/backend-core/ai/inputs-compare-prompt";
+import { buildInputsComparePrompt, type PromptSegment } from "@raceiq/backend-core/ai/inputs-compare-prompt";
 import { compareChatAgent, compareEngineerAgent } from "../../ai/agents";
-import { buildGoogleReasoningProviderOptions, buildGoogleThinkingProviderOptions } from "@raceiq/backend-core/ai/google-provider-options";
+import { buildGoogleReasoningProviderOptions } from "@raceiq/backend-core/ai/google-provider-options";
 import { beginAnalysisRun, finishAnalysisRun, getAnalysisRun } from "@raceiq/backend-core/ai/analysis-run-registry";
 import { streamAgentTurnResponse } from "@raceiq/backend-core/ai/agent-stream";
 import {
@@ -34,6 +34,10 @@ import { CHAT_TURN_CONTEXT_KEY } from "@raceiq/backend-core/ai/chat-message-cont
 import { AnalyseQuerySchema, ChatBodySchema, CompareParamsSchema } from "./support";
 import { linkedTuneSetupForLap, setupContextForLap } from "../../ai/lap-setup-context";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { withAnalysisInstructions } from "@raceiq/shared/integrations/ai/analysis-instructions";
+import { analysisGenerationKey } from "../../ai/analysis-generation-key";
+import { resolveAi } from "../../ai/ai-runtime";
+import { generateInputsComparison } from "../../ai/generate-inputs-comparison";
 const inputsAnalysisRunKey = (idA: number, idB: number) =>
   `inputs:${Math.min(idA, idB)}:${Math.max(idA, idB)}`;
 
@@ -77,11 +81,13 @@ export const comparisonRoutes = new Hono()
     const { id1, id2 } = c.req.valid("param");
     const { regenerate, cacheOnly } = c.req.valid("query");
     if (id1 === id2) return c.json({ error: "Cannot compare a lap with itself" }, 400);
+    const settings = loadSettings();
+    const generationKey = analysisGenerationKey("compare", settings);
 
     // Cache lookup first
     if (!regenerate) {
       const cached = await getCompareAnalysis(id1, id2, "inputs");
-      if (cached) {
+      if (cached?.generationKey === generationKey) {
         return c.json({
           analysis: cached.analysis,
           cached: true,
@@ -110,7 +116,6 @@ export const comparisonRoutes = new Hono()
 
     const comparison = compareLaps(lapA.telemetry, lapB.telemetry, corners);
 
-    const settings = loadSettings();
 
     // Named track segments (corners + straights) for the per-segment breakdown.
     // Game-specific, and carrying the official turn numbers so the breakdown
@@ -129,7 +134,7 @@ export const comparisonRoutes = new Hono()
 
     const insights = await getOrComputeLapInsightsBatch([id1, id2]);
 
-    const prompt = buildInputsComparePrompt(
+    const prompt = withAnalysisInstructions(buildInputsComparePrompt(
       {
         lapNumber: lapA.lapNumber,
         lapTime: lapA.lapTime,
@@ -151,14 +156,11 @@ export const comparisonRoutes = new Hono()
       undefined,
       buildCompareInsightsBlock("Lap A", lapA.telemetry, insights.get(id1) ?? []) +
         buildCompareInsightsBlock("Lap B", lapB.telemetry, insights.get(id2) ?? []),
-    );
+    ), "compare", settings.compareAnalysisInstructions);
 
-    // Set provider env vars before calling Mastra (the dynamic model resolver
-    // reads settings at request time but env-based API keys must be in scope).
     if (!settings.aiProvider) {
       return c.json({ error: "No AI provider selected. Choose one in Settings → AI Analysis." }, 400);
     }
-    await configureAiProviderEnvironment(settings.aiProvider, settings.localEndpoint || "http://localhost:1234/v1");
     const inputsRunKey = inputsAnalysisRunKey(id1, id2);
     if (!beginAnalysisRun(inputsRunKey)) {
       return c.json({ error: "Inputs comparison already in progress" }, 409);
@@ -166,42 +168,11 @@ export const comparisonRoutes = new Hono()
 
     try {
       const start = performance.now();
-      const result = await compareEngineerAgent.generate(prompt, {
-        structuredOutput: {
-          schema: InputsCompareSchema,
-          // LM Studio only accepts `response_format: json_schema` (it rejects
-          // json_object), and for reasoning models such as qwen3.5 it emits the
-          // schema-constrained JSON into `reasoning_content` while leaving
-          // `content` empty — so no object is ever parsed and this route throws.
-          // Prompt injection keeps the answer on the plain-text channel, which
-          // those models fill normally. Hosted providers parse native structured
-          // output fine, so only the local path opts in.
-          ...(settings.aiProvider === "openai-compatible" || settings.aiProvider === "anthropic" ? { jsonPromptInjection: true } : {}),
-        },
-        // Every other AI route already caps output and disables reasoning on
-        // local models (analyse, lap chat, compare chat). This one did not, so
-        // a thinking model such as qwen3.5 could reason unboundedly and push the
-        // request past Bun.serve's 255s idleTimeout — surfacing to the client as
-        // a bare "socket hang up" from the Vite proxy.
-        modelSettings: { maxOutputTokens: 8192, temperature: 0 },
-        providerOptions: {
-          openai: { reasoningEffort: "medium" },
-          google: buildGoogleThinkingProviderOptions(
-            settings.aiModel || "gemini-flash-latest",
-            settings.aiThinkingBudget,
-          ) as never,
-        },
-      });
+      const ai = await resolveAi("analysis", settings);
+      const result = await generateInputsComparison(ai, prompt, settings, (requestPrompt, options) => compareEngineerAgent.generate(requestPrompt, options as never));
       const durationMs = Math.round(performance.now() - start);
 
-      const object = (result as any).object;
-      if (!object) {
-        throw new Error(
-          settings.aiProvider === "openai-compatible"
-            ? `Model "${settings.aiModel}" returned no output matching the expected structure. Some local models do not reliably emit structured JSON — try another model in Settings → AI Analysis.`
-            : "Compare engineer returned no structured object",
-        );
-      }
+      const object = result.object;
 
       // Merge server-authoritative segment types into the model response so
       // named corners never appear as "straight". Match by name first; fall
@@ -214,10 +185,9 @@ export const comparisonRoutes = new Hono()
         }));
       }
       const analysisJson = JSON.stringify(object);
-      const totalUsage = (result as any).totalUsage ?? (result as any).usage ?? {};
-      const usage = normalizeAiUsage(totalUsage, settings.aiModel || settings.aiProvider, durationMs);
-      await saveCompareAnalysis(id1, id2, analysisJson, usage, "inputs");
-      return c.json({ analysis: analysisJson, cached: false, usage });
+      const usage = normalizeAiUsage(result.usage, settings.aiModel || settings.aiProvider, durationMs);
+      await saveCompareAnalysis(id1, id2, analysisJson, usage, "inputs", generationKey);
+      return c.json({ analysis: analysisJson, cached: false, usage, diagnostics: result.diagnostics });
     } catch (err: any) {
       console.error("[InputsCompare] Failed:", err.message);
       return c.json({ error: err.message }, err.message.includes("timed out") ? 504 : 500);

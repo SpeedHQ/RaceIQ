@@ -4,6 +4,8 @@
 - After upgrading saved AI history, keep this build or newer; older builds cannot open the updated database.
 
 ### Features
+- Edit lap and comparison analysis instructions in Settings → AI Analysis, save preferences, or restore defaults. Prompt changes apply to new analyses without reusing outdated results.
+- Select Codex with a signed-in ChatGPT account for lap and comparison analysis without an API key. Settings shows installation and sign-in status; chat and Setup Engineer support remain in development.
 - Add experimental decoding for F1 25's 2026 Season Pack UDP format while retaining existing 2025 capture compatibility; dedicated 2026 dashboard displays and native-app validation remain in progress.
 - Show 2026 F1/F2 car names, Madrid and reverse-circuit names in F1 dashboards and catalogs without replacing existing 2025 identities.
 - Use 2026 active-aero, overtake and harvest-limit readings in F1 AI lap analysis and chat.
@@ -154,7 +156,7 @@
 
 ### Internal
 - Prepare the private Apple Silicon build `0.20.0-private.20261031.1` for local UDP telemetry testing; no public release is published.
-- Bind isolated, bounded Codex generation to central provider resolution and the lap-analysis endpoint, returning fresh-run diagnostics and preserving Codex settings; model/account UI, chat and engineering integrations remain in progress.
+- Bind isolated, bounded Codex generation to central provider resolution and analysis endpoints, returning fresh-run diagnostics, preserving Codex settings and draining owned CLI operations before storage closes; chat and engineering integrations remain in progress.
 - Introduce the macOS Tauri host and isolated backend lifecycle checks for allocated loopback ports, readiness, persistence and graceful shutdown; native-app acceptance remains in progress.
 - Add an isolated real-UDP F1 25 browser acceptance gate and a staged macOS Bun/Tauri desktop plan.
 - Preserve Windows directory-sync path errors when validating recording publication directories.

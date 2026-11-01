@@ -15,7 +15,7 @@ export function ProviderSetupSection({ state }: { state: ProviderSetupState }) {
     <section className="space-y-4">
       <div>
         <h2 className="text-sm font-semibold text-app-text">{m.ai_settings_title()}</h2>
-        <p className="mt-1 max-w-xl text-xs text-app-text-muted">{m.ai_analysis_provider_desc()}</p>
+        <p className="mt-1 max-w-xl text-xs text-app-text-muted">{m.ai_provider_access_help()}</p>
       </div>
       <div className="max-w-xl divide-y divide-app-border-input rounded border border-app-border-input bg-app-surface">
         {Object.entries(PROVIDER_KEY_LABELS).map(([provider, info]) => {

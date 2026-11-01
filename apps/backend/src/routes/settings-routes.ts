@@ -24,6 +24,9 @@ import { withOnboardingOverride } from "@raceiq/backend-core/runtime/options";
 
 import { getAnthropicModelsDetailed, getGeminiModelsDetailed, getOpenAiCompatibleModelsDetailed, getOpenAiModelsDetailed, getProviders } from "@raceiq/backend-core/ai/providers";
 import { getAiProviderApiKey, getLocalApiKey } from "@raceiq/backend-core/ai/openai-compatible-provider";
+import { codexSupervisor } from "../ai/codex/supervisor";
+import { findCodexExecutable } from "../ai/codex/executable";
+import { CodexRuntimeError } from "../ai/codex/runtime";
 const MODELS_CACHE_TTL_MS = 5 * 60 * 1000;
 const MODELS_EMPTY_RETRY_MS = 10 * 1000;
 let cachedGeminiModels: { key: string; models: { id: string; name: string }[]; at: number } | null = null;
@@ -40,7 +43,7 @@ export type AiProviderDiscovery = {
 
 
 export async function getAiProviderDiscovery(): Promise<AiProviderDiscovery[]> {
-  return getProviders();
+  return [...getProviders(), { id: "codex", name: "Codex (ChatGPT)" }];
 }
 
 export function shouldCheckCredentialStatus(env: NodeJS.ProcessEnv = process.env): boolean {
@@ -102,6 +105,17 @@ export const settingsRoutes = new Hono()
 
   // GET /api/ai-providers — available providers
   .get("/api/ai-providers", async (c) => c.json(await getAiProviderDiscovery()))
+
+  .get("/api/codex/status", async (c) => {
+    const executable = findCodexExecutable(loadSettings().codexExecutable);
+    if (!executable) return c.json({ state: "cli-unavailable" as const, models: [] });
+    try {
+      return c.json(await codexSupervisor.discover([executable], c.req.raw.signal));
+    } catch (error) {
+      if (error instanceof CodexRuntimeError && error.code === "cancelled") return c.json({ state: "unavailable" as const, models: [] }, 503);
+      throw error;
+    }
+  })
 
   // GET /api/ai-models — available models per provider
   .get("/api/ai-models", async (c) => {

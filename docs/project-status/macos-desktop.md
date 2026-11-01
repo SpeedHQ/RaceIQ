@@ -1,12 +1,46 @@
 # macOS desktop, F1 2026 telemetry, and Codex AI goal
 
-Local testing build: `0.20.0-private.20261031.1`, tagged
-`private/macos-2026-10-31.1` on the fork only. Build with
+Installed telemetry testing build: `0.20.0-private.20261031.1`, with local tag
+`private/macos-2026-10-31.1` not published. The next local build is
+`0.20.0-private.20261031.2`, adding AI settings. Build with
 `bun run desktop:build`; install the resulting `RaceIQ.app` in `/Applications`.
 Native data remains in `~/Library/Application Support/RaceIQ`; this test
 installation uses UDP port 20778 for the existing SimHub relay. No public
 GitHub release is created. Codex UI/chat/setup and combined acceptance remain
 in progress; this is a telemetry testing checkpoint, not goal completion.
+
+## AI settings checkpoint — 2026-10-31
+
+The [AI settings contract](../architecture/ai-settings-contract.md) defines the
+separate backend and UI plans for editable lap/comparison guidance and Codex
+discovery. Both prompt editors save through the authenticated settings API,
+support reset to shipped defaults and retain drafts after failed saves. Effective
+instructions participate in the stored analysis generation identity with model,
+provider, reasoning, budget, units and language. Migration 84 preserves old
+analyses; unversioned results need regeneration rather than deletion.
+
+Codex account/model discovery passed against the installed CLI without inference.
+Settings can select its verified model for lap/comparison analysis without an API
+key; every generation still revalidates managed authentication and isolation.
+Chat/setup selection remains unavailable until their bridges are implemented.
+Chromium settings coverage passed edit/save/reopen/reset, failed-save retention,
+Codex model selection and existing API-provider controls (four scenarios).
+These are local source changes, not yet installed into the running native app.
+Native verification and the full response-quality matrix remain separate gates.
+
+The real Codex comparison endpoint also passed on two valid laps from the
+committed public 2025 Lusail fixture (86.709s versus 90.704s). It returned
+schema-valid output correctly identifying A as approximately four seconds
+faster: 20,056 input / 3,465 output / 219 reasoning tokens, 58.5s provider wall
+time, 10.9s first content. Cost remains unknown; requested 8,192 output tokens
+is unsupported, with no fabricated effective cap. Same-settings cache reuse
+and changed-instructions cache miss passed against the actual route. This is
+one authenticated smoke run, not the response-quality matrix or native proof.
+Local private artifact: `/private/tmp/raceiq-codex-app.8C5GDZ/app-comparison-result.json`.
+
+Repository privacy remains unresolved: GitHub rejected changing a public fork
+to private. No further public pushes or tag publication are authorized while the
+standalone-private-repository versus support-assisted-detachment choice is pending.
 
 ## Active goal — 2026-10-30
 
@@ -184,11 +218,23 @@ and its adjacent smoke script/log. Only the committed public fixture was used;
 no private relay recording or credentials were copied. This proves the actual
 analysis service, endpoint stream, central resolver and cache path—not native
 WKWebView or provider-picker UI. Diagnostics currently travel on fresh results;
-persisted diagnostic history and generation-settings cache identity remain
-pending alongside comparison, chat, engineering and compaction integration.
+persisted diagnostic history remains pending. The newer AI settings checkpoint
+above adds generation-settings cache identity and comparison routing; chat,
+engineering and compaction integration remain pending.
 The separate cache-only endpoint also returned the saved analysis with unknown
-cost preserved, without invoking generation. Native shutdown cancellation of
-in-flight Codex work remains an explicit acceptance task before UI enablement.
+cost preserved, without invoking generation.
+
+Shutdown ownership checkpoint: the application-owned Codex supervisor closes
+admission synchronously, relays caller cancellation, aborts outstanding CLI
+operations (including version/account preflight), and waits for their finalizers
+before database write authority closes. Late completions racing shutdown are
+cancelled instead of published. Repeated stop calls share the same drain.
+A real backend subprocess using the production shutdown handler and provider
+was tested with a disposable app-server peer that resists stdin EOF: before
+the fix the backend exited with that peer still alive; after the fix shutdown
+waits for termination/reaping. This is backend lifecycle evidence, not the full
+native WKWebView quit/capture acceptance. The installed live-testing app was
+not stopped or replaced.
 Verification: 144 focused provider, settings, analysis and driver-profile tests
 pass, including rejection of browser executable-path writes and Codex API-key
 storage. Root lint/typecheck, 486-file shard registration and 11 changelog tests

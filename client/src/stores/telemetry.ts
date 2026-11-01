@@ -14,8 +14,10 @@ export interface DisplaySettings {
   recordLmuOpponents: boolean;
   unit: "metric" | "imperial";
   temperatureUnit: "C" | "F";
-  aiProvider: "gemini" | "openai" | "anthropic" | "openai-compatible";
+  aiProvider: "" | "gemini" | "openai" | "anthropic" | "openai-compatible" | "codex";
   aiModel: string;
+  lapAnalysisInstructions?: string | null;
+  compareAnalysisInstructions?: string | null;
   aiThinkingBudget: number | null;
   chatProvider: "gemini" | "openai" | "anthropic" | "openai-compatible";
   chatModel: string;

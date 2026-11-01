@@ -1,10 +1,17 @@
 import { expect, test } from "bun:test";
 import { fileURLToPath } from "node:url";
-import { runCodexGeneration } from "../../../src/ai/codex/runtime";
+import { discoverCodex, runCodexGeneration } from "../../../src/ai/codex/runtime";
 
 function command(scenario: string): string[] {
   return [process.execPath, fileURLToPath(new URL("./fixtures/codex-runtime-peer.ts", import.meta.url)), scenario];
 }
+
+test("metadata discovery exposes only a verified model without starting a thread or inference", async () => {
+  expect(await discoverCodex(command("success"))).toEqual({ state: "ready", models: [{ id: "gpt-6.1-sol", name: "GPT-6.1 Sol" }] });
+  expect(await discoverCodex(command("api-key"))).toEqual({ state: "not-signed-in", models: [] });
+  expect(await discoverCodex(command("unsupported"))).toEqual({ state: "unsupported-runtime", models: [] });
+  expect(await discoverCodex(command("unverified-model"))).toEqual({ state: "unsupported-runtime", models: [] });
+});
 
 test("rejects an unverified CLI version before supplying telemetry", async () => {
   await expect(runCodexGeneration({ command: command("unsupported"), model: "gpt-6.1-sol", prompt: "PRIVATE_TELEMETRY" })).rejects.toMatchObject({ code: "unsupported-runtime" });

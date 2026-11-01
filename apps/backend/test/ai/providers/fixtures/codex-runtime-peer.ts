@@ -1,8 +1,13 @@
 // Trusted external CLI peer for integration tests. No authentication or inference.
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 const scenario = process.argv[2];
 const args = process.argv.slice(3);
 if (args.includes("--version")) {
+  if (scenario === "stall-version") {
+    writeFileSync(args[0], String(process.pid));
+    setInterval(() => {}, 1000);
+    await new Promise(() => {});
+  }
   console.log(scenario === "unsupported" ? "codex-cli 0.999.0" : "codex-cli 0.164.0");
   process.exit(0);
 }
@@ -49,6 +54,9 @@ for await (const chunk of Bun.stdin.stream()) {
         if (scenario === "stall-account") continue;
         result = { account: { type: scenario === "api-key" ? "apiKey" : "chatgpt" } };
         break;
+      case "model/list":
+        result = { data: [{ id: scenario === "unverified-model" ? "unverified" : "gpt-6.1-sol", displayName: "GPT-6.1 Sol" }], nextCursor: null };
+        break;
       case "experimentalFeature/list":
         result = {
           data: scenario === "missing-features" ? [] : excluded.filter((name) => name !== "shell_snapshot").map((name) => ({ name, enabled: scenario === "unsafe-feature" && name === "shell_tool" })),
@@ -83,7 +91,16 @@ for await (const chunk of Bun.stdin.stream()) {
       case "turn/start": {
         if (!threadStarted || "maxOutputTokens" in message.params || "max_output_tokens" in message.params) throw new Error("Unsafe generation input");
         if (scenario === "provider" && (!message.params.input[0]?.text.includes("SYSTEM_CONTEXT") || !message.params.input[0]?.text.includes("LAP_CONTEXT") || message.params.outputSchema?.properties?.answer?.type !== "string")) throw new Error("Provider lost supplied context or schema");
+        if (scenario === "comparison" && (!message.params.input[0]?.text.includes("COMPARATIVE lap analysis") || !message.params.input[0]?.text.includes("Focus on throttle pickup.") || !message.params.outputSchema?.properties?.segments)) throw new Error("Comparison lost persona, preferences or schema");
         result = { turn: { id: "fixture-turn", status: "inProgress" } };
+        if (scenario === "stubborn-turn") {
+          writeFileSync(args[0], String(process.pid));
+          // Resist stdin EOF like an in-flight external runtime; the owner must
+          // terminate and reap us. The test-only stop file prevents leaked peers on RED.
+          setInterval(() => { if (existsSync(`${args[0]}.stop`)) process.exit(0); }, 10);
+          process.stdout.write(JSON.stringify({ id: message.id, result }) + "\n");
+          continue;
+        }
         if (scenario === "exit-after-ack") {
           process.stdout.write(JSON.stringify({ id: message.id, result }) + "\n", () => process.exit(0));
           continue;
@@ -95,7 +112,7 @@ for await (const chunk of Bun.stdin.stream()) {
             params: {
               threadId: "fixture-thread",
               turnId: "fixture-turn",
-              item: { type: "agentMessage", id: "final", phase: scenario === "partial-only" ? "partial_answer" : "final_answer", text: '{"answer":"fixture analysis"}' },
+              item: { type: "agentMessage", id: "final", phase: scenario === "partial-only" ? "partial_answer" : "final_answer", text: scenario === "comparison" ? JSON.stringify({ verdict: "Lap A is faster", segments: [{ name: "T1", deltaSeconds: -0.2, throttle: "A reaches full throttle 10m earlier", brake: "Similar", steering: "Similar", action: "Reach 100% throttle 10m earlier", severity: "moderate" }], coaching: [{ tip: "Earlier throttle", detail: "At T1", targetLap: "B" }] }) : '{"answer":"fixture analysis"}' },
             },
           },
           {
@@ -120,4 +137,9 @@ for await (const chunk of Bun.stdin.stream()) {
     }
     process.stdout.write(JSON.stringify({ id: message.id, result }) + "\n");
   }
+}
+if (scenario === "completed-awaiting-close" && threadStarted) {
+  writeFileSync(args[0], String(process.pid));
+  setInterval(() => { if (existsSync(`${args[0]}.stop`)) process.exit(0); }, 10);
+  await new Promise(() => {});
 }

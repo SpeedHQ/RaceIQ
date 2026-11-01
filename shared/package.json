@@ -14,6 +14,7 @@
     "./games/types": "./games/types.ts",
     "./integrations/ai/context-window": "./integrations/ai/context-window.ts",
     "./integrations/ai/usage": "./integrations/ai/usage.ts",
+    "./integrations/ai/analysis-instructions": "./integrations/ai/analysis-instructions.ts",
     "./integrations/ai/driver-profile-summary": "./integrations/ai/driver-profile-summary.ts",
     "./integrations/ai/language": "./integrations/ai/language.ts",
     "./integrations/ai/prompt-snippets": "./integrations/ai/prompt-snippets.ts",

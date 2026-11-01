@@ -7,6 +7,7 @@ import type { AiAnalysisState, AiAutoTuneState, AiChatState, AiDriverProfileStat
 import { PROVIDER_KEY_LABELS, PROVIDER_KEY_MAP } from "./ai-state";
 import { isAiProvider, useAiModelData } from "./useAiModelData";
 import { modelsOrFallback } from "./recommended-model";
+import { useCodexStatus } from "./CodexStatus";
 
 type SavedAnalysisBaseline = { provider: string; model: string; thinkingBudget: number | null; localEndpoint: string };
 type SavedChatBaseline = { provider: string; model: string; thinkingBudget: number | null };
@@ -34,6 +35,7 @@ function supportsGeminiThinkingBudget(modelId: string): boolean {
 }
 
 export function useAiSettings(): AiSettingsState {
+  const codexStatus = useCodexStatus();
   const { displaySettings, settingsLoaded } = useSettings();
   const saveSettings = useSaveSettings();
   const qc = useQueryClient();
@@ -178,6 +180,7 @@ export function useAiSettings(): AiSettingsState {
     openai: !!displaySettings.openaiApiKeySet,
     anthropic: !!displaySettings.anthropicApiKeySet,
     "openai-compatible": !!displaySettings.openaiCompatibleApiKeySet,
+    codex: codexStatus.data?.state === "ready",
   };
   const updateKeyStatusInSettingsCache = (providerKeyId: string, isSet: boolean) => {
     qc.setQueryData(["settings"], (prev: unknown) => {
@@ -196,7 +199,7 @@ export function useAiSettings(): AiSettingsState {
     });
   };
   const { aiProviders, aiModels, aiModelsFetching, aiModelsError, modelsRefreshing, refreshModels: refreshModelsAction } = useAiModelData(selectedProviders, keyStatus);
-  const models = modelsOrFallback(provider, isAiProvider(provider) ? (aiModels?.[provider] ?? []) : []);
+  const models = provider === "codex" ? (codexStatus.data?.models ?? []) : modelsOrFallback(provider, isAiProvider(provider) ? (aiModels?.[provider] ?? []) : []);
   const hasProviderKey = provider === "openai-compatible" || (keyStatus[provider] ?? false);
   const canShowModelPicker = provider !== "" && hasProviderKey && models.length > 0;
   const modelSupportsThinking = provider === "gemini" && supportsGeminiThinkingBudget(model || "gemini-flash-latest");
@@ -449,9 +452,9 @@ export function useAiSettings(): AiSettingsState {
       effectiveThinkingBudget,
       canSaveAnalysis,
       aiProviders,
-      aiModelsFetching,
-      modelsRefreshing,
-      refreshModels: refreshModelsAction,
+      aiModelsFetching: provider === "codex" ? codexStatus.isFetching : aiModelsFetching,
+      modelsRefreshing: provider === "codex" ? codexStatus.isFetching : modelsRefreshing,
+      refreshModels: provider === "codex" ? { mutate: () => { void codexStatus.refetch(); }, isPending: codexStatus.isFetching, isError: codexStatus.isError } : refreshModelsAction,
       isSaving,
       providerModelError,
       aiModelsError,
@@ -475,7 +478,7 @@ export function useAiSettings(): AiSettingsState {
       chatModelSupportsThinking,
       effectiveChatThinkingBudget,
       canSaveChat,
-      aiProviders,
+      aiProviders: aiProviders?.filter((item) => item.id !== "codex"),
       aiModelsFetching,
       modelsRefreshing,
       refreshModels: refreshModelsAction,
@@ -497,7 +500,7 @@ export function useAiSettings(): AiSettingsState {
       hasAutoTuneProviderKey,
       autoTuneModels,
       canShowAutoTuneModelPicker,
-      aiProviders,
+      aiProviders: aiProviders?.filter((item) => item.id !== "codex"),
       aiModelsFetching,
       modelsRefreshing,
       refreshModels: refreshModelsAction,
@@ -529,7 +532,7 @@ export function useAiSettings(): AiSettingsState {
       canShowDriverProfileModelPicker,
       driverProfileModelSupportsThinking,
       effectiveDriverProfileThinkingBudget,
-      aiProviders,
+      aiProviders: aiProviders?.filter((item) => item.id !== "codex"),
       aiModelsFetching,
       modelsRefreshing,
       refreshModels: refreshModelsAction,

@@ -54,6 +54,17 @@ describe("settings with unit system", () => {
     }
   });
 
+  test("analysis instructions save, retain empty overrides, reset and reject oversized drafts", async () => {
+    const initial = loadSettings();
+    const update = (body: object) => settingsRoutes.request("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    expect((await update({ lapAnalysisInstructions: "Focus on braking", compareAnalysisInstructions: "" })).status).toBe(200);
+    expect(loadSettings()).toMatchObject({ lapAnalysisInstructions: "Focus on braking", compareAnalysisInstructions: "", udpPort: initial.udpPort });
+    expect((await update({ lapAnalysisInstructions: "x".repeat(12001) })).status).toBe(400);
+    expect(loadSettings().lapAnalysisInstructions).toBe("Focus on braking");
+    expect((await update({ lapAnalysisInstructions: null, compareAnalysisInstructions: null })).status).toBe(200);
+    expect(loadSettings()).toMatchObject({ lapAnalysisInstructions: null, compareAnalysisInstructions: null });
+  });
+
   test("browser settings cannot turn executable selection into an arbitrary execution primitive", async () => {
     const before = loadSettings();
     saveSettings({ ...before, codexExecutable: process.execPath });

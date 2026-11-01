@@ -379,6 +379,7 @@ export const lapAnalyses = sqliteTable(
 			.notNull()
 			.references(() => laps.id, { onDelete: "cascade" }),
 		analysis: text("analysis").notNull(),
+		generationKey: text("generation_key"),
 		inputTokens: integer("input_tokens"),
 		outputTokens: integer("output_tokens"),
 		costUsd: real("cost_usd"),
@@ -621,6 +622,7 @@ export const compareAnalyses = sqliteTable(
 		lapBId: integer("lap_b_id").notNull(),
 		kind: text("kind").notNull().default("inputs"),
 		analysis: text("analysis").notNull(),
+		generationKey: text("generation_key"),
 		inputTokens: integer("input_tokens"),
 		outputTokens: integer("output_tokens"),
 		costUsd: real("cost_usd"),

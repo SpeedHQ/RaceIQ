@@ -98,6 +98,41 @@ function connect(command: readonly string[], cwd: string, overrides = BASE_OVERR
   );
 }
 
+export type CodexDiscovery = {
+  state: "ready" | "cli-unavailable" | "unsupported-runtime" | "not-signed-in" | "unavailable";
+  models: { id: string; name: string }[];
+};
+
+/** Metadata only: no thread, inference, credentials or configuration writes. */
+export async function discoverCodex(command: readonly string[], signal?: AbortSignal): Promise<CodexDiscovery> {
+  let directory: string | undefined;
+  let connection: CodexRpcConnection | undefined;
+  const abort = () => { void connection?.close().catch(() => {}); };
+  signal?.addEventListener("abort", abort, { once: true });
+  try {
+    const version = await runCommand(command, ["--version"], signal);
+    if (version.trim() !== "codex-cli 0.164.0") return { state: "unsupported-runtime", models: [] };
+    directory = mkdtempSync(join(tmpdir(), "raceiq-codex-discovery-"));
+    if (signal?.aborted) throw new CodexRuntimeError("cancelled", "Codex discovery was cancelled.");
+    connection = connect(command, directory);
+    await initialize(connection);
+    await requireChatGptAccount(connection);
+    const response = await connection.request("model/list", { limit: 100, includeHidden: false });
+    if (!isRecord(response) || !Array.isArray(response.data)) return { state: "unavailable", models: [] };
+    // Catalog entries do not prove entitlement. Restrict to verified isolation profiles.
+    const model = response.data.find((entry) => isRecord(entry) && entry.id === "gpt-6.1-sol");
+    return model ? { state: "ready", models: [{ id: "gpt-6.1-sol", name: "GPT-6.1 Sol" }] } : { state: "unsupported-runtime", models: [] };
+  } catch (error) {
+    if (error instanceof CodexRuntimeError && error.code === "cancelled") throw error;
+    const state = error instanceof CodexRuntimeError && (error.code === "cli-unavailable" || error.code === "not-signed-in") ? error.code : "unavailable";
+    return { state, models: [] };
+  } finally {
+    signal?.removeEventListener("abort", abort);
+    await connection?.close();
+    if (directory) rmSync(directory, { recursive: true, force: true });
+  }
+}
+
 async function initialize(connection: CodexRpcConnection): Promise<void> {
   await connection.request("initialize", { clientInfo: { name: "raceiq", version: "0.0.1" }, capabilities: { experimentalApi: true, explicitGatewayOauth: true } });
   await connection.notify("initialized");

@@ -15,11 +15,12 @@ function isProviderConfigured(provider: AiProvider, settings: AiConfigSettings):
   if (provider === "openai") return !!settings.openaiApiKeySet;
   if (provider === "anthropic") return !!settings.anthropicApiKeySet;
   if (provider === "gemini") return !!settings.geminiApiKeySet;
-  // Codex UI readiness must come from supervised account/model discovery, not API-key flags.
   return false;
 }
 
 export function isAiConfigured(settings: AiConfigSettings): boolean {
+  // Selection requires discovery in Settings; generation revalidates managed auth.
+  if (settings.aiProvider === "codex") return Boolean(settings.aiModel?.trim());
   return isProviderConfigured(settings.aiProvider ?? "", settings);
 }
 

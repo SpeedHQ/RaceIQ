@@ -2290,6 +2290,14 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `CREATE INDEX driver_profile_runs_scope_created_idx ON driver_profile_runs(scope_key,created_at DESC,id DESC)`,
     ],
   },
+  {
+    version: 84,
+    name: "analysis_generation_identity",
+    sql: [
+      `ALTER TABLE lap_analyses ADD COLUMN generation_key TEXT`,
+      `ALTER TABLE compare_analyses ADD COLUMN generation_key TEXT`,
+    ],
+  },
 ];
 const dashboardCanonicalTriggers = (() => {
   const readModel = migrations.find((migration) => migration.version === 68);

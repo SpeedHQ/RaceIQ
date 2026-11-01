@@ -14,6 +14,7 @@ import {
 } from "./provider-adapters";
 
 import type { ResolvedAi } from "@raceiq/backend-core/ai/ai-types";
+import { findCodexExecutable } from "./codex/executable";
 
 function sectionFor(feature: AiFeature): "Chat" | "Analysis" {
   return feature === "chat" || feature === "compaction" ? "Chat" : "Analysis";
@@ -60,8 +61,7 @@ export async function resolveAi(feature: AiFeature, settings: AppSettings = load
   const config = { feature, model, thinkingBudget: selected.thinkingBudget };
   switch (provider) {
     case "codex": {
-      const candidates = settings.codexExecutable ? [settings.codexExecutable] : ["codex", "/opt/homebrew/bin/codex", "/usr/local/bin/codex"];
-      const executable = candidates.map((candidate) => Bun.which(candidate)).find(Boolean);
+      const executable = findCodexExecutable(settings.codexExecutable);
       const command = runtime.codexCommand ?? (executable ? [executable] : undefined);
       if (!command) throw new AiProviderError("Codex CLI was not found. Install Codex or choose its executable, then sign in with ChatGPT.", { code: "cli-unavailable", provider, modelId: model, statusCode: 503 });
       return resolvedAiFromAdapter(new CodexProviderAdapter({ feature, model, command }));

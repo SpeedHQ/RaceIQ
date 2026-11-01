@@ -1,10 +1,39 @@
 import { expect, test } from "bun:test";
 import { fileURLToPath } from "node:url";
-import { CodexProviderAdapter } from "../../../src/ai/provider-adapters";
+import { CodexProviderAdapter, OpenAiCompatibleProviderAdapter, resolvedAiFromAdapter } from "../../../src/ai/provider-adapters";
 import { resolveAi } from "../../../src/ai/ai-runtime";
 import { runAiStructured } from "../../../src/ai/model-provider";
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { getMastraModelId } from "@raceiq/backend-core/ai/chat-agent";
+import { generateInputsComparison } from "../../../src/ai/generate-inputs-comparison";
+import { withAnalysisInstructions } from "@raceiq/shared/integrations/ai/analysis-instructions";
+import type { InputsCompareResult } from "@raceiq/backend-core/ai/inputs-compare-prompt";
+
+test("Codex comparison carries persona, saved instructions and schema through the real provider boundary", async () => {
+  const adapter = new CodexProviderAdapter({ feature: "analysis", model: "gpt-6.1-sol", command: [process.execPath, fileURLToPath(new URL("./fixtures/codex-runtime-peer.ts", import.meta.url)), "comparison"] });
+  const result = await generateInputsComparison(adapter, withAnalysisInstructions("Aligned inputs", "compare", "Focus on throttle pickup."), loadSettings(), async () => { throw new Error("Must not fall back to Mastra"); });
+  expect(result.object).toMatchObject({ verdict: "Lap A is faster", coaching: [{ targetLap: "B" }] });
+  expect(result.usage).toMatchObject({ outputTokens: 42, costUsd: null });
+  expect(result.diagnostics?.budget).toMatchObject({ effectiveOutputTokens: null, supported: false });
+});
+
+test("comparison keeps the bound API model and total multi-step usage for existing providers", async () => {
+  const ai = resolvedAiFromAdapter(new OpenAiCompatibleProviderAdapter({ feature: "analysis", model: "fixture-model", thinkingBudget: null, endpoint: "http://127.0.0.1:1/v1", apiKey: "" }));
+  const object: InputsCompareResult = { verdict: "Similar laps", segments: [{ name: "T1", deltaSeconds: 0, throttle: "Similar", brake: "Similar", steering: "Similar", action: "Keep 100% throttle", severity: "minor" }], coaching: [] };
+  const result = await generateInputsComparison(ai, "Comparison context", loadSettings(), async (prompt, options) => {
+    expect(prompt).toBe("Comparison context");
+    expect(options.requestContext).toBeDefined();
+    expect(options.structuredOutput).toMatchObject({ jsonPromptInjection: true });
+    return { object, usage: { inputTokens: 1, outputTokens: 2 }, totalUsage: { inputTokens: 100, outputTokens: 20 } };
+  });
+  expect(result.object).toEqual(object);
+  expect(result.usage).toMatchObject({ inputTokens: 100, outputTokens: 20 });
+});
+
+test("comparison rejects an invalid provider response before persistence", async () => {
+  const adapter = new CodexProviderAdapter({ feature: "analysis", model: "gpt-6.1-sol", command: [process.execPath, fileURLToPath(new URL("./fixtures/codex-runtime-peer.ts", import.meta.url)), "success"] });
+  await expect(generateInputsComparison(adapter, "Comparison context", loadSettings(), async () => { throw new Error("Must not fall back"); })).rejects.toThrow("invalid comparison structure");
+});
 
 test("Codex provider generates structured analysis through the isolated CLI without inventing cost or an output cap", async () => {
   const adapter = new CodexProviderAdapter({
