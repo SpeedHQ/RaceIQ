@@ -461,6 +461,26 @@ synthetic tests may prove implementation progress but not this milestone done.
 
 ## Milestone 5: Codex provider and response-budget controls
 
+Authenticated dynamic-tool audit (2026-10-31): the verified CLI 0.164.0
+catalog reports `tool_mode: code_mode_only` for `gpt-6.1-sol`. With the existing
+isolation profile's `features.code_mode_host=false`, a local mock captured an
+empty outbound `tools` list even when a RaceIQ dynamic tool was registered.
+Two real ChatGPT-authenticated turns using only synthetic speed data both
+completed without a tool call and stated that the tool host was disabled.
+They consumed 8,867/15 and 8,864/21 input/output tokens respectively; no
+credentials, private telemetry, or invented cost were recorded. The previous
+mock-generated call proved only that the client can receive a forged call, not
+that the model can invoke a registered tool. Temporary implementation was
+removed; production remains tool-free and Codex chat and setup stay disabled.
+
+Next: investigate a supported model/runtime profile that actually advertises
+the registered RaceIQ tools while preventing shell, filesystem, network,
+patch, MCP and other unapproved capabilities. Verify the outbound manifest,
+negative execution attempts, a real model-invoked read tool and cleanup before
+connecting chat. Experiment writes additionally need durable idempotency and
+the existing confirmation/domain checks. Do not enable a general code host
+merely to make the positive call pass.
+
 Local transport preparation: the stdio connection can dispatch explicitly
 registered dynamic tool requests without blocking other RPC replies. It still
 rejects all server requests unless a tool handler is supplied, denies non-tool
