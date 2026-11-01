@@ -1,0 +1,14 @@
+name: Mars runner test
+on:
+  pull_request:
+    paths:
+      - .github/workflows/mars-test-5f4221158c9693fc9d70a24587eba783.yml
+permissions:
+  contents: read
+jobs:
+  test-mars:
+    runs-on: mars-macos-arm64-4vcpu-6g
+    timeout-minutes: 5
+    steps:
+      - name: Verify Mars runner
+        run: echo "Mars runner connected"
