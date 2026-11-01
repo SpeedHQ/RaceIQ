@@ -82,7 +82,7 @@ export const comparisonRoutes = new Hono()
     const { regenerate, cacheOnly } = c.req.valid("query");
     if (id1 === id2) return c.json({ error: "Cannot compare a lap with itself" }, 400);
     const settings = loadSettings();
-    const generationKey = analysisGenerationKey("compare", settings);
+    const generationKey = analysisGenerationKey("compare", settings, [id1, id2]);
 
     // Cache lookup first
     if (!regenerate) {

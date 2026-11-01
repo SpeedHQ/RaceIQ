@@ -46,6 +46,7 @@
 - Include the complete LMU multiplayer recording in demo seeds as sub-100 MB gzip parts, stream native input without buffering the whole capture, and retain separate player and opponent recordings.
 
 ### Fixes
+- On Compare, changing lap order no longer reuses AI advice with the A and B labels reversed.
 - Show “Unknown” in new AI analysis results when usage metrics are unreported, while preserving reported zero values.
 - Keep F1 ERS readings unavailable in Live until telemetry arrives, while preserving recorded zero energy.
 - On the Raw telemetry page, show units, update timing and source details for game-specific readings, including F1 2026 active aero and overtake.

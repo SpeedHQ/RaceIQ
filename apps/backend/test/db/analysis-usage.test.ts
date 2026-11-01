@@ -4,6 +4,31 @@ import { db } from "@raceiq/backend-core/db/index";
 import { sessions, laps, driverProfiles, driverProfileRuns } from "@raceiq/backend-core/db/schema";
 import { getAnalysis, saveAnalysis, getCompareAnalysis, saveCompareAnalysis } from "@raceiq/backend-core/db/analysis-queries";
 import { createDriverProfileRun, getDriverProfileRun, saveDriverProfile, driverProfileScopeKey } from "@raceiq/backend-core/db/driver-profile-queries";
+import { comparisonRoutes } from "../../src/routes/laps/comparison-routes";
+import { analysisGenerationKey } from "../../src/ai/analysis-generation-key";
+import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
+import { getCompareAnalysisTool } from "../../src/mastra/tools/compare-analysis";
+
+test("comparison cache respects displayed lap order", async () => {
+  const session = await db.insert(sessions).values({ gameId: "f1-2025", carId: "476", trackId: "19" }).returning({ id: sessions.id }).get();
+  try {
+    const pair = await db.insert(laps).values([1, 2].map(lapNumber => ({ sessionId: session.id, lapNumber, lapTime: 90, isValid: true }))).returning({ id: laps.id }).all();
+    const [a, b] = pair.map(row => row.id);
+    const key = analysisGenerationKey("compare", loadSettings(), [a, b]);
+    const analysis = JSON.stringify({ verdict: "A is faster", segments: [{ name: "T1", deltaSeconds: -0.2, throttle: "A earlier", brake: "Similar", steering: "Similar", action: "Apply throttle 10m earlier", severity: "moderate" }], coaching: [] });
+    await saveCompareAnalysis(a, b, analysis, { inputTokens: null, outputTokens: null, costUsd: null, durationMs: null, model: "fixture" }, "inputs", key);
+    const forward = await comparisonRoutes.request(`/api/laps/${a}/compare/${b}/inputs-analyse?cacheOnly=true`, { method: "POST" });
+    expect(await forward.json()).toMatchObject({ analysis, cached: true });
+    const reversed = await comparisonRoutes.request(`/api/laps/${b}/compare/${a}/inputs-analyse?cacheOnly=true`, { method: "POST" });
+    expect(await reversed.json()).toMatchObject({ analysis: null, cached: false });
+    expect((await getCompareAnalysis(a, b))?.analysis).toBe(analysis);
+    const execute = getCompareAnalysisTool.execute!;
+    expect(await execute({ lapAId: a, lapBId: b }, {} as never)).toMatchObject({ available: true });
+    expect(await execute({ lapAId: b, lapBId: a }, {} as never)).toMatchObject({ available: false });
+  } finally {
+    await db.delete(sessions).where(eq(sessions.id, session.id)).run();
+  }
+});
 
 test("driver profile cache preserves unknown and zero usage when replacing a snapshot", async () => {
   const scope = { gameId: "f1-2025" as const, carId: "usage-contract-fixture", trackId: null };

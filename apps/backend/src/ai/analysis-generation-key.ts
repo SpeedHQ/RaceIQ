@@ -3,12 +3,13 @@ import { effectiveAnalysisInstructions } from "@raceiq/shared/integrations/ai/an
 import type { AppSettings } from "@raceiq/backend-core/runtime/config/settings";
 
 /** Version whenever backend-owned prompt behavior changes. Never stores raw prompt text. */
-export function analysisGenerationKey(kind: "lap" | "compare", settings: AppSettings): string {
+export function analysisGenerationKey(kind: "lap" | "compare", settings: AppSettings, lapOrder?: readonly [number, number]): string {
   return createHash("sha256")
     .update(
       JSON.stringify({
         revision: 1,
         kind,
+        ...(kind === "compare" ? { lapOrder } : {}),
         provider: settings.aiProvider,
         model: settings.aiModel,
         thinkingBudget: settings.aiThinkingBudget,

@@ -16,6 +16,8 @@ This extends the shared AI contract in [the desktop goal](../project-status/maco
 - Persist with the existing authenticated settings API. Never log editor drafts.
 - Analysis cache identity includes effective instructions, provider, model,
   reasoning setting, response budget, units, language and prompt revision.
+  Comparison identity also includes displayed lap order; reversing A and B
+  requires new analysis, including when fetched by the comparison chat tool.
   A changed identity misses the cache without deleting previous results.
   Existing rows without identity remain stored but require regeneration.
 
