@@ -7,6 +7,7 @@ import { ProviderSetupSection } from "./ProviderSetupSection";
 import { useAiSettings } from "./useAiSettings";
 import { AiPromptSettings } from "./AiPromptSettings";
 import { CodexStatus } from "./CodexStatus";
+import { AiAnalysisBudgets } from "./AiAnalysisBudgets";
 
 export function AiSection() {
   const { settingsLoaded, providerSetup, analysis, chat, autoTune, driverProfile } = useAiSettings();
@@ -25,6 +26,7 @@ export function AiSection() {
       <CodexStatus />
       <div className="mt-8 border-t border-app-border-input pt-8">
         <AiAnalysisSection state={analysis} />
+        <AiAnalysisBudgets />
         <AiPromptSettings />
         <AiChatSection state={chat} />
         <AiAutoTuneSection state={autoTune} />

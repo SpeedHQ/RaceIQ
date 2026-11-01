@@ -115,6 +115,22 @@ function makeDeps(
 }
 
 describe("generateLapAnalysis", () => {
+  test("requested lap budget reaches generation and changes cache identity", async () => {
+    const deps = makeDeps();
+    const defaults = deps.loadSettings!();
+    let budget = 16_384;
+    deps.loadSettings = () => ({ ...defaults, analysisMaxOutputTokens: budget });
+    let requested = 0;
+    const generate = deps.runAiStructured!;
+    deps.runAiStructured = async (ai, input, callback) => { requested = input.maxOutputTokens ?? 0; return generate(ai, input, callback); };
+    await generateLapAnalysis(7, {}, deps);
+    expect(requested).toBe(16_384);
+    expect((await generateLapAnalysis(7, {}, deps)).cached).toBe(true);
+    budget = 65_536;
+    expect((await generateLapAnalysis(7, { cacheOnly: true }, deps)).analysis).toBeNull();
+    await generateLapAnalysis(7, {}, deps);
+    expect(requested).toBe(65_536);
+  });
   test("saved instructions reach the provider and changing them misses the cache", async () => {
     const deps = makeDeps({ cached: validAnalysis });
     const defaults = deps.loadSettings!();

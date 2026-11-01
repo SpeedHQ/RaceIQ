@@ -54,6 +54,14 @@ describe("settings with unit system", () => {
     }
   });
 
+  test("stores independent analysis budgets and rejects out-of-range or fractional values", async () => {
+    const update = (body: object) => settingsRoutes.request("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    expect((await update({ analysisMaxOutputTokens: 16_384, comparisonMaxOutputTokens: 65_536 })).status).toBe(200);
+    expect(loadSettings()).toMatchObject({ analysisMaxOutputTokens: 16_384, comparisonMaxOutputTokens: 65_536 });
+    for (const value of [0, 511, 65_537, 8192.5]) expect((await update({ analysisMaxOutputTokens: value })).status).toBe(400);
+    expect(loadSettings()).toMatchObject({ analysisMaxOutputTokens: 16_384, comparisonMaxOutputTokens: 65_536 });
+  });
+
   test("analysis instructions save, retain empty overrides, reset and reject oversized drafts", async () => {
     const initial = loadSettings();
     const update = (body: object) => settingsRoutes.request("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });

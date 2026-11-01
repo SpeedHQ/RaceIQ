@@ -39,19 +39,20 @@ test.skipIf(process.platform !== "darwin")("npm Codex discovery uses its native 
 
 test("Codex comparison carries persona, saved instructions and schema through the real provider boundary", async () => {
   const adapter = new CodexProviderAdapter({ feature: "analysis", model: "gpt-6.1-sol", command: [process.execPath, fileURLToPath(new URL("./fixtures/codex-runtime-peer.ts", import.meta.url)), "comparison"] });
-  const result = await generateInputsComparison(adapter, withAnalysisInstructions("Aligned inputs", "compare", "Focus on throttle pickup."), loadSettings(), async () => { throw new Error("Must not fall back to Mastra"); });
+  const result = await generateInputsComparison(adapter, withAnalysisInstructions("Aligned inputs", "compare", "Focus on throttle pickup."), { ...loadSettings(), comparisonMaxOutputTokens: 65_536 }, async () => { throw new Error("Must not fall back to Mastra"); });
   expect(result.object).toMatchObject({ verdict: "Lap A is faster", coaching: [{ targetLap: "B" }] });
   expect(result.usage).toMatchObject({ outputTokens: 42, costUsd: null });
-  expect(result.diagnostics?.budget).toMatchObject({ effectiveOutputTokens: null, supported: false });
+  expect(result.diagnostics?.budget).toMatchObject({ requestedOutputTokens: 65_536, effectiveOutputTokens: null, supported: false });
 });
 
 test("comparison keeps the bound API model and total multi-step usage for existing providers", async () => {
   const ai = resolvedAiFromAdapter(new OpenAiCompatibleProviderAdapter({ feature: "analysis", model: "fixture-model", thinkingBudget: null, endpoint: "http://127.0.0.1:1/v1", apiKey: "" }));
   const object: InputsCompareResult = { verdict: "Similar laps", segments: [{ name: "T1", deltaSeconds: 0, throttle: "Similar", brake: "Similar", steering: "Similar", action: "Keep 100% throttle", severity: "minor" }], coaching: [] };
-  const result = await generateInputsComparison(ai, "Comparison context", loadSettings(), async (prompt, options) => {
+  const result = await generateInputsComparison(ai, "Comparison context", { ...loadSettings(), comparisonMaxOutputTokens: 16_384 }, async (prompt, options) => {
     expect(prompt).toBe("Comparison context");
     expect(options.requestContext).toBeDefined();
     expect(options.structuredOutput).toMatchObject({ jsonPromptInjection: true });
+    expect(options.modelSettings).toMatchObject({ maxOutputTokens: 16_384 });
     return { object, usage: { inputTokens: 1, outputTokens: 2 }, totalUsage: { inputTokens: 100, outputTokens: 20 } };
   });
   expect(result.object).toEqual(object);

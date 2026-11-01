@@ -1,4 +1,8 @@
 {
+  "ai_budget_lap": "单圈分析",
+  "ai_budget_compare": "单圈比较",
+  "ai_analysis_budget_help": "请求上限：512–65,536 个 token。模型上限各不相同，提供商可能拒绝较高的值。",
+  "ai_codex_budget_unsupported": "Codex 不提供输出上限设置。这些请求上限不会应用于 Codex。",
   "ai_prompt_lap": "单圈分析指令",
   "ai_prompt_compare": "对比分析指令",
   "ai_prompt_help": "自定义建议的重点和风格。遥测、输出格式、单位和工具权限仍由 RaceIQ 管理。保存后应用于新分析。",

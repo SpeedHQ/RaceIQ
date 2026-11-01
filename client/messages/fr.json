@@ -1,4 +1,8 @@
 {
+  "ai_budget_lap": "Analyse de tour",
+  "ai_budget_compare": "Comparaison de tours",
+  "ai_analysis_budget_help": "Limite demandée : 512 à 65 536 jetons. Les limites varient selon le modèle ; le fournisseur peut refuser une valeur élevée.",
+  "ai_codex_budget_unsupported": "Codex ne permet pas de définir une limite de sortie. Ces limites demandées ne s’appliquent pas à Codex.",
   "ai_prompt_lap": "Consignes d’analyse de tour",
   "ai_prompt_compare": "Consignes d’analyse comparative",
   "ai_prompt_help": "Personnalisez les priorités et le style des conseils. RaceIQ contrôle la télémétrie, le format, les unités et les autorisations. Enregistrez pour les nouvelles analyses.",

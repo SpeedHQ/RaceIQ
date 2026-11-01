@@ -1,4 +1,8 @@
 {
+  "ai_budget_lap": "Lap analysis",
+  "ai_budget_compare": "Lap comparison",
+  "ai_analysis_budget_help": "Requested limit: 512–65,536 tokens. Model limits vary; a provider may reject a higher value.",
+  "ai_codex_budget_unsupported": "Codex does not expose an output limit. These requested limits are not applied to Codex.",
   "ai_prompt_lap": "Lap analysis instructions",
   "ai_prompt_compare": "Comparison analysis instructions",
   "ai_prompt_help": "Customize coaching focus and style. Telemetry, output format, units and tool permissions remain controlled by RaceIQ. Save to apply to new analyses.",

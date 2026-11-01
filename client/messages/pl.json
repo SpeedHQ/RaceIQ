@@ -1,4 +1,8 @@
 {
+  "ai_budget_lap": "Analiza okrążenia",
+  "ai_budget_compare": "Porównanie okrążeń",
+  "ai_analysis_budget_help": "Żądany limit: 512–65 536 tokenów. Limity zależą od modelu; dostawca może odrzucić wysoką wartość.",
+  "ai_codex_budget_unsupported": "Codex nie udostępnia ustawienia limitu wyjścia. Te żądane limity nie są stosowane do Codex.",
   "ai_prompt_lap": "Instrukcje analizy okrążenia",
   "ai_prompt_compare": "Instrukcje analizy porównawczej",
   "ai_prompt_help": "Dostosuj priorytety i styl porad. RaceIQ kontroluje telemetrię, format, jednostki i uprawnienia. Zapisz, aby zastosować do nowych analiz.",

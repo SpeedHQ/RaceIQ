@@ -34,6 +34,25 @@ This extends the shared AI contract in [the desktop goal](../project-status/maco
 - Capability-specific selection must reflect implemented flows. Chat and setup
   remain unavailable until their history/tool bridges are implemented.
 
+## Response budgets
+
+Lap and comparison each persist an independent requested output ceiling,
+between 512 and 65,536 tokens, defaulting to 32,768 for experiments. This is
+a request, not a model capability guarantee: hosted providers may reject values
+above their limits. Codex 0.164.0 exposes no supported output-cap control;
+its requested setting is recorded for comparison but effective cap stays unknown.
+Changing either ceiling invalidates only the corresponding analysis cache.
+
+Backend plan, depending on this contract: validate and persist both settings;
+pass each value to the direct and Mastra generation paths and cache identity;
+preserve unsupported Codex diagnostics. Acceptance: settings validation,
+provider requests and cache invalidation tests cover both features.
+
+UI plan, depending on this contract: expose independent validated controls in
+AI Analysis settings, preserve drafts on save failure, and explain that model
+limits vary and Codex cannot apply this setting. Acceptance: saved values persist
+through reload and the Codex limitation is visible without an API key.
+
 ## Backend plan
 
 Depends on this contract. Add validated settings and shared defaults, inject the

@@ -1,4 +1,8 @@
 {
+  "ai_budget_lap": "Análisis de vuelta",
+  "ai_budget_compare": "Comparación de vueltas",
+  "ai_analysis_budget_help": "Límite solicitado: 512–65.536 tokens. Los límites dependen del modelo; el proveedor puede rechazar valores altos.",
+  "ai_codex_budget_unsupported": "Codex no ofrece control del límite de salida. Estos límites solicitados no se aplican a Codex.",
   "ai_prompt_lap": "Instrucciones del análisis de vuelta",
   "ai_prompt_compare": "Instrucciones del análisis comparativo",
   "ai_prompt_help": "Personaliza el enfoque y estilo de los consejos. RaceIQ controla la telemetría, el formato, las unidades y los permisos. Guarda para aplicarlo a nuevos análisis.",

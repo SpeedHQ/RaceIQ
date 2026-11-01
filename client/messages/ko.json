@@ -1,4 +1,8 @@
 {
+  "ai_budget_lap": "랩 분석",
+  "ai_budget_compare": "랩 비교",
+  "ai_analysis_budget_help": "요청 한도: 512–65,536 토큰. 모델마다 한도가 다르며 제공업체가 높은 값을 거부할 수 있습니다.",
+  "ai_codex_budget_unsupported": "Codex는 출력 한도 설정을 제공하지 않습니다. 이 요청 한도는 Codex에 적용되지 않습니다.",
   "ai_prompt_lap": "랩 분석 지침",
   "ai_prompt_compare": "비교 분석 지침",
   "ai_prompt_help": "조언의 초점과 스타일을 편집하세요. 텔레메트리, 출력 형식, 단위 및 도구 권한은 RaceIQ가 관리합니다. 저장하면 새 분석에 적용됩니다.",

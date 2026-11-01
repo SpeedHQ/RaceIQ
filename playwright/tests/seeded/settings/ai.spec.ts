@@ -2,6 +2,33 @@ import { expect, test } from "@playwright/test";
 
 import { collectBrowserErrors } from "../../support/browser-errors";
 
+test("analysis budgets save separately and Codex displays its unsupported cap", async ({ page, request }) => {
+  const original = await (await request.get("/api/settings")).json();
+  await page.route("**/api/codex/status", (route) => route.fulfill({ json: { state: "ready", models: [{ id: "gpt-6.1-sol", name: "GPT-6.1 Sol" }] } }));
+  try {
+    await request.put("/api/settings", { data: { aiProvider: "codex", aiModel: "gpt-6.1-sol", analysisMaxOutputTokens: 32_768, comparisonMaxOutputTokens: 32_768 } });
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("button", { name: "AI Analysis", exact: true }).click();
+    await expect(page.getByText("Codex does not expose an output limit. These requested limits are not applied to Codex.")).toBeVisible();
+    const lap = page.locator("#ai-lap-output-budget");
+    const compare = page.locator("#ai-compare-output-budget");
+    await lap.fill("16384");
+    await compare.fill("65536");
+    await page.getByRole("button", { name: "Save", exact: true }).filter({ visible: true }).first().click();
+    await expect.poll(async () => (await (await request.get("/api/settings")).json()).comparisonMaxOutputTokens).toBe(65_536);
+    expect(await (await request.get("/api/settings")).json()).toMatchObject({ analysisMaxOutputTokens: 16_384, comparisonMaxOutputTokens: 65_536 });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("button", { name: "AI Analysis", exact: true }).click();
+    await expect(lap).toHaveValue("16384");
+    await expect(compare).toHaveValue("65536");
+  } finally {
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+    await request.put("/api/settings", { data: { aiProvider: original.aiProvider, aiModel: original.aiModel, analysisMaxOutputTokens: original.analysisMaxOutputTokens, comparisonMaxOutputTokens: original.comparisonMaxOutputTokens } });
+  }
+});
+
 test("analysis prompts save, survive reload, retain failed drafts and reset", async ({ page, request }) => {
   const original = await (await request.get("/api/settings")).json();
   await page.route("**/api/codex/status", (route) => route.fulfill({ json: { state: "not-signed-in", models: [] } }));

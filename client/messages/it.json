@@ -1,4 +1,8 @@
 {
+  "ai_budget_lap": "Analisi giro",
+  "ai_budget_compare": "Confronto giri",
+  "ai_analysis_budget_help": "Limite richiesto: 512–65.536 token. I limiti variano per modello; il fornitore può rifiutare valori elevati.",
+  "ai_codex_budget_unsupported": "Codex non permette di impostare il limite di output. Questi limiti richiesti non vengono applicati a Codex.",
   "ai_prompt_lap": "Istruzioni per l’analisi del giro",
   "ai_prompt_compare": "Istruzioni per l’analisi comparativa",
   "ai_prompt_help": "Personalizza priorità e stile dei consigli. RaceIQ controlla telemetria, formato, unità e permessi. Salva per le nuove analisi.",

@@ -4,6 +4,7 @@
 - After upgrading saved AI history, keep this build or newer; older builds cannot open the updated database.
 
 ### Features
+- Set separate requested output limits for lap and comparison analysis in Settings → AI Analysis; Codex shows when limits cannot be applied.
 - Show F1 2026 ERS energy in kJ on Live and Replay, with Boost mode and DRS shown only when applicable.
 - Edit lap and comparison analysis instructions in Settings → AI Analysis, save preferences, or restore defaults. Prompt changes apply to new analyses without reusing outdated results.
 - Select Codex with a signed-in ChatGPT account for lap and comparison analysis without an API key. Settings shows installation and sign-in status; chat and Setup Engineer support remain in development.

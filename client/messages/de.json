@@ -1,4 +1,8 @@
 {
+  "ai_budget_lap": "Rundenanalyse",
+  "ai_budget_compare": "Rundenvergleich",
+  "ai_analysis_budget_help": "Angefordertes Limit: 512–65.536 Token. Modellgrenzen variieren; Anbieter können hohe Werte ablehnen.",
+  "ai_codex_budget_unsupported": "Codex bietet keine Ausgabelimit-Einstellung. Diese angeforderten Limits werden für Codex nicht angewendet.",
   "ai_prompt_lap": "Anweisungen zur Rundenanalyse",
   "ai_prompt_compare": "Anweisungen zur Vergleichsanalyse",
   "ai_prompt_help": "Schwerpunkt und Stil der Hinweise anpassen. RaceIQ steuert Telemetrie, Ausgabeformat, Einheiten und Berechtigungen. Für neue Analysen speichern.",

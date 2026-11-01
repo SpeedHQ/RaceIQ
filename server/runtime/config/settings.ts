@@ -6,6 +6,7 @@ import { isLaunchOnLoginEnabled } from "../platform/launch-on-login";
 import { LOCALE_CODES } from "@raceiq/shared/platform/i18n/locales";
 import { DEFAULT_RECORDING_FREQUENCY_HZ, isRecordingRetentionPolicyValid } from "@raceiq/shared/platform/runtime/recording-frequency";
 import { MAX_ANALYSIS_INSTRUCTIONS_LENGTH } from "@raceiq/shared/integrations/ai/analysis-instructions";
+import { DEFAULT_ANALYSIS_OUTPUT_TOKENS, MIN_ANALYSIS_OUTPUT_TOKENS, MAX_ANALYSIS_OUTPUT_TOKENS } from "@raceiq/shared/integrations/ai/analysis-budget";
 const SETTINGS_DIR = resolveDataDir();
 const SETTINGS_PATH = `${SETTINGS_DIR}/settings.json`;
 
@@ -29,6 +30,8 @@ const AppSettingsSchema = z.object({
   aiProvider: AiProviderSchema.default(""),
   aiModel: z.string().default(""),
   aiThinkingBudget: z.number().int().min(0).nullable().default(null),
+  analysisMaxOutputTokens: z.number().int().min(MIN_ANALYSIS_OUTPUT_TOKENS).max(MAX_ANALYSIS_OUTPUT_TOKENS).default(DEFAULT_ANALYSIS_OUTPUT_TOKENS),
+  comparisonMaxOutputTokens: z.number().int().min(MIN_ANALYSIS_OUTPUT_TOKENS).max(MAX_ANALYSIS_OUTPUT_TOKENS).default(DEFAULT_ANALYSIS_OUTPUT_TOKENS),
   lapAnalysisInstructions: z.string().max(MAX_ANALYSIS_INSTRUCTIONS_LENGTH).nullable().default(null),
   compareAnalysisInstructions: z.string().max(MAX_ANALYSIS_INSTRUCTIONS_LENGTH).nullable().default(null),
   chatProvider: AiProviderSchema.default(""),

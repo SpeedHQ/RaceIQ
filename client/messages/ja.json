@@ -1,4 +1,8 @@
 {
+  "ai_budget_lap": "ラップ分析",
+  "ai_budget_compare": "ラップ比較",
+  "ai_analysis_budget_help": "要求上限：512〜65,536トークン。モデルごとに上限が異なり、高い値はプロバイダーに拒否される場合があります。",
+  "ai_codex_budget_unsupported": "Codexでは出力上限を設定できません。これらの要求上限はCodexに適用されません。",
   "ai_prompt_lap": "ラップ分析の指示",
   "ai_prompt_compare": "比較分析の指示",
   "ai_prompt_help": "助言の重点とスタイルを編集できます。テレメトリー、出力形式、単位、ツール権限はRaceIQが管理します。保存すると新しい分析に適用されます。",

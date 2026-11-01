@@ -26,6 +26,7 @@ import { normalizeAiUsage } from "@raceiq/backend-core/ai/usage";
 import type { AiGenerationDiagnostics } from "@raceiq/shared/integrations/ai/usage";
 import { withAnalysisInstructions } from "@raceiq/shared/integrations/ai/analysis-instructions";
 import { analysisGenerationKey } from "./analysis-generation-key";
+import { DEFAULT_ANALYSIS_OUTPUT_TOKENS } from "@raceiq/shared/integrations/ai/analysis-budget";
 
 export type AnalysisUsage = AiUsage;
 export interface CornerFraction {
@@ -250,6 +251,7 @@ export async function generateLapAnalysis(
     return { analysis: null, cached: false, cornerFracs, hasTune };
   }
   const model = ai.model;
+  const maxOutputTokens = settings.analysisMaxOutputTokens ?? DEFAULT_ANALYSIS_OUTPUT_TOKENS;
   const startedAt = Date.now();
   try {
     const schema = getAnalystJsonSchema();
@@ -257,7 +259,7 @@ export async function generateLapAnalysis(
       prompt,
       schema,
       schemaName: "analyst_output",
-      maxOutputTokens: 8192,
+      maxOutputTokens,
       temperature: 0,
     };
     const diagnostic = {
@@ -269,7 +271,7 @@ export async function generateLapAnalysis(
     logLlmEvent("llm-request", diagnostic);
     const generationOptions: Record<string, unknown> = {
       maxSteps: 5,
-      modelSettings: { maxOutputTokens: 8192, temperature: 0 },
+      modelSettings: { maxOutputTokens, temperature: 0 },
       structuredOutput: {
         schema: AnalystModelOutputSchema,
         // LM Studio cannot combine tool and output grammars. Preserve tool

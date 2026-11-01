@@ -1,4 +1,8 @@
 {
+  "ai_budget_lap": "Kierrosanalyysi",
+  "ai_budget_compare": "Kierrosten vertailu",
+  "ai_analysis_budget_help": "Pyydetty raja: 512–65 536 tokenia. Mallien rajat vaihtelevat; palveluntarjoaja voi hylätä korkean arvon.",
+  "ai_codex_budget_unsupported": "Codex ei tarjoa tulostusrajan asetusta. Näitä pyydettyjä rajoja ei sovelleta Codexiin.",
   "ai_prompt_lap": "Kierrosanalyysin ohjeet",
   "ai_prompt_compare": "Vertailuanalyysin ohjeet",
   "ai_prompt_help": "Muokkaa neuvojen painotusta ja tyyliä. RaceIQ hallitsee telemetriaa, tulostusmuotoa, yksiköitä ja oikeuksia. Tallenna uusia analyysejä varten.",

@@ -1,4 +1,8 @@
 {
+  "ai_budget_lap": "Rondeanalyse",
+  "ai_budget_compare": "Rondevergelijking",
+  "ai_analysis_budget_help": "Aangevraagde limiet: 512–65.536 tokens. Modellimieten verschillen; een aanbieder kan hoge waarden weigeren.",
+  "ai_codex_budget_unsupported": "Codex biedt geen instelling voor de uitvoerlimiet. Deze aangevraagde limieten gelden niet voor Codex.",
   "ai_prompt_lap": "Instructies voor rondeanalyse",
   "ai_prompt_compare": "Instructies voor vergelijkende analyse",
   "ai_prompt_help": "Pas de nadruk en stijl van advies aan. RaceIQ beheert telemetrie, uitvoerformaat, eenheden en rechten. Sla op voor nieuwe analyses.",

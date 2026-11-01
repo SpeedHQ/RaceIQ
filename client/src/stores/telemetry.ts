@@ -16,6 +16,8 @@ export interface DisplaySettings {
   temperatureUnit: "C" | "F";
   aiProvider: "" | "gemini" | "openai" | "anthropic" | "openai-compatible" | "codex";
   aiModel: string;
+  analysisMaxOutputTokens?: number;
+  comparisonMaxOutputTokens?: number;
   lapAnalysisInstructions?: string | null;
   compareAnalysisInstructions?: string | null;
   aiThinkingBudget: number | null;

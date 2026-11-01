@@ -5,9 +5,11 @@ import { compareEngineerPersona } from "@raceiq/backend-core/ai/compare-engineer
 import { InputsCompareSchema } from "@raceiq/backend-core/ai/inputs-compare-prompt";
 import { buildGoogleThinkingProviderOptions } from "@raceiq/backend-core/ai/google-provider-options";
 import { runAiStructured } from "./model-provider";
+import { DEFAULT_ANALYSIS_OUTPUT_TOKENS } from "@raceiq/shared/integrations/ai/analysis-budget";
 
 /** One provider boundary for direct Codex and existing tool-capable Mastra models. */
 export async function generateInputsComparison(ai: ResolvedAi, prompt: string, settings: AppSettings, generateMastra: (prompt: string, options: Record<string, unknown>) => Promise<unknown>) {
+  const maxOutputTokens = settings.comparisonMaxOutputTokens ?? DEFAULT_ANALYSIS_OUTPUT_TOKENS;
   const result = await runAiStructured(
     ai,
     {
@@ -15,7 +17,7 @@ export async function generateInputsComparison(ai: ResolvedAi, prompt: string, s
       prompt,
       schema: z.toJSONSchema(InputsCompareSchema),
       schemaName: "inputs_comparison",
-      maxOutputTokens: 8192,
+      maxOutputTokens,
       temperature: 0,
     },
     (requestContext) =>
@@ -25,7 +27,7 @@ export async function generateInputsComparison(ai: ResolvedAi, prompt: string, s
           schema: InputsCompareSchema,
           ...(ai.provider === "openai-compatible" || ai.provider === "anthropic" ? { jsonPromptInjection: true } : {}),
         },
-        modelSettings: { maxOutputTokens: 8192, temperature: 0 },
+        modelSettings: { maxOutputTokens, temperature: 0 },
         providerOptions: {
           openai: { reasoningEffort: "medium" },
           google: buildGoogleThinkingProviderOptions(ai.model, settings.aiThinkingBudget),
