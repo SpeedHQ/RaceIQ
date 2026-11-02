@@ -56,6 +56,9 @@ test("LMU opponent removal previews without mutation, confirms whole-session rem
       .filter((lap) => ids.includes(lap.sessionId)).map(({ id }) => id);
     expect(playerLapIdsBefore.length).toBeGreaterThan(0);
     playerExportIds = [...playerLapIdsBefore];
+    await expect.poll(async () => (await request.post("/api/storage/session-opponents/preview", {
+      data: { sessionIds: [ids[0]!] },
+    })).status(), { timeout: 60_000 }).toBe(200);
     const initialStatus = await (await request.get("/api/storage/session-opponents")).json();
     for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
       await page.setViewportSize(viewport);

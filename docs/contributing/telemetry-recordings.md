@@ -30,6 +30,7 @@ LMU prints its final frame count and absolute saved BIN path only after header p
 All `dev:dump:*` commands enable the same global `--dump-only` mode. The game argument selects the native source and BIN format, not whether telemetry is persisted. The selected recorder keeps one BIN for the dump run; lap boundaries, session changes, and source-context resets do not create per-lap/session files. Native-source reconnects reuse the selected reader until shutdown.
 
 Dump launchers deliberately run without `--watch`: automatic restarts or process-tree termination can interrupt recorder finalization. The launcher requests cooperative backend shutdown and awaits completion before exiting. Restart the dump command manually after changing backend code.
+Shutdown drains attached native sources on every platform; automatic native-game discovery runs only on Windows.
 
 Dump frames are parsed only to publish the existing live WebSocket schema/frame and developer telemetry display. They bypass session/lap detection, telemetry-driven database access, calibration, and normal per-lap capture. Historical startup and scheduled maintenance do not run in dump mode. Application startup, dashboard authentication, and initial identity-catalog loading still use the database; this is not a database-free server process.
 
