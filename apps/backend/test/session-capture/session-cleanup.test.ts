@@ -361,7 +361,7 @@ describe("session cleanup edge cases", () => {
     expect((await db.select({ rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, sessionId)).get())?.rawFile).toBeNull();
   });
 
-  test("serializes compression behind cleanup so cleaned capture is not restored", async () => {
+  test("rejects compression during cleanup without restoring cleaned capture", async () => {
     const path = capturePath("overlap.bin");
     writeFileSync(path, Buffer.from("overlap capture"));
     const sessionId = await createSession({ rawFile: path });
@@ -369,12 +369,14 @@ describe("session cleanup edge cases", () => {
     const gate = Promise.withResolvers<void>();
     const held = withSessionCaptureMaintenanceLock(() => gate.promise);
     const cleanup = executeSessionCleanup({ mode: "selected", sessionIds: [sessionId] });
-    const compression = runUserCompressionNow();
+    const settledCleanup = Promise.allSettled([held, cleanup]);
+    const compressionError = await runUserCompressionNow().then(() => null, (error: unknown) => error);
     gate.resolve();
 
-    await held;
-    await cleanup;
-    await compression;
+    const [heldResult, cleanupResult] = await settledCleanup;
+    expect(heldResult.status).toBe("fulfilled");
+    expect(cleanupResult).toMatchObject({ status: "fulfilled", value: { cleanedSessionIds: [sessionId] } });
+    expect(compressionError).toMatchObject({ _tag: "RecordingMaintenanceBusyError", code: "MOVE_ACTIVE" });
 
     expect(existsSync(path)).toBe(false);
     expect(existsSync(`${path}.gz`)).toBe(false);
