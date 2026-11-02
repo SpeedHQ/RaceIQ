@@ -50,6 +50,7 @@
 - Include the complete LMU multiplayer recording in demo seeds as sub-100 MB gzip parts, stream native input without buffering the whole capture, and retain separate player and opponent recordings.
 
 ### Fixes
+- On Replay, show the correct F1 brake-bias percentage in the Data panel.
 - On Compare, changing lap order no longer reuses AI advice with the A and B labels reversed.
 - Show “Unknown” in new AI analysis results when usage metrics are unreported, while preserving reported zero values.
 - Keep F1 ERS readings unavailable in Live until telemetry arrives, while preserving recorded zero energy.

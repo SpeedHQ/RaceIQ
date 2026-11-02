@@ -478,6 +478,17 @@ analyst schema in 14.717 seconds, reporting 12,623 input and 1,538 output
 tokens. Catalog listing alone still does not establish account entitlement.
 Codex does not provide a supported output-token cap in this runtime.
 
+Luna tool-transport experiment (2026-11-02): a local synthetic provider mock
+was used with a temporary copy of the bundled catalog. Removing `tool_mode`
+alone did not expose dynamic functions. Removing it and setting
+`use_responses_lite` to false advertised the test RaceIQ function, but also
+advertised goal, collaboration, clock and user-input tools. The injected shell,
+patch, image and code-host calls were rejected, and no MCP tools were exposed;
+that narrow negative test does not establish isolation for the additional
+built-ins. No real inference or private telemetry was sent in this experiment.
+This modified profile is not enabled in RaceIQ. A usable chat/engineer bridge
+still requires a verified way to prevent all unapproved capabilities.
+
 Authenticated dynamic-tool audit (2026-10-31): the verified CLI 0.164.0
 catalog reports `tool_mode: code_mode_only` for `gpt-6.1-sol`. With the existing
 isolation profile's `features.code_mode_host=false`, a local mock captured an
