@@ -150,8 +150,9 @@ deliberate 8,000,000 J value.
 
 The native completed-lap reading is 79.588 s, but the first received lap-data
 packet is already 1.919 s into lap 2. This proves real wire decoding, not complete
-start-to-finish lap capture or the full UDP-to-dashboard acceptance. A further capture
-armed before driving is requested for that gate; no missing samples are invented.
+start-to-finish lap capture or the full UDP-to-dashboard acceptance. The later
+complete-session check below uses separate recorded laps; no missing samples are
+invented for this partial capture.
 
 An opt-in Playwright check now replays this private capture over UDP to an
 isolated server and verifies the live car identity, changing speed, wire format,
@@ -165,6 +166,30 @@ RACEIQ_F1_2026_CAPTURE=/absolute/path/to/udp-20778.bin E2E_SERVER_MODE=dev bunx 
 This partial-capture check does not validate a complete lap, Compare, export,
 import, or the native app lifecycle. Chromium and WebKit passed against the
 development server on macOS on 2026-10-31; this is not compiled-backend evidence.
+
+### Complete local session
+
+A later read-only inspection found three consecutive complete 2026 laps in an
+existing closed native capture. The opt-in `f1-2026-laps.spec.ts` reconstructs
+their native datagrams from private manifest chunks, preserving bootstrap data
+and excluding duplicate context between chunks. It replays UDP to a disposable
+server, checks saved times against native LapData, opens Replay and Compare,
+and round-trips a captured lap through export/import. No user recordings are
+modified or included in the repository. From `playwright/`, run:
+
+```sh
+RACEIQ_F1_2026_MANIFEST=/absolute/path/to/capture-manifest.json RACEIQ_F1_2026_LAP_START=5 E2E_SERVER_MODE=dev bunx playwright test --config=udp.config.ts f1-2026-laps.spec.ts
+```
+
+Chromium and WebKit passed against both development and compiled backends on
+2026-10-31. Native lifecycle, independent review of timing values, and the
+other acceptance requirements remain separate gates.
+
+When both compiled browser runs shared the test server, requesting the largest
+captured lap produced a response too large for Playwright's JSON string limit.
+The check selects the two shortest complete laps to keep this gate runnable;
+large-lap response size and browser memory behavior still require separate
+investigation and are not validated by this selection.
 
 Before marking the milestone done:
 
@@ -184,7 +209,8 @@ Before marking the milestone done:
    not treated as measurements from a real 2026 car. A high-speed flood exposed
    the existing detector queue's overload/fatal-error behavior; do not describe
    the paced acceptance tests as proving arbitrary burst tolerance.
-4. Obtain complete timed laps in real 2026 UDP, review known lap/sector/channel
-   values, and pass the same live/capture/import/export/Replay/Compare path on
-   both formats. The first real recording above starts partway through a lap.
+4. Review known real 2026 lap/sector/channel values independently and pass the
+   full live/capture/import/export/Replay/Compare path on both formats and
+   browser engines against the compiled backend. The first recording starts
+   partway through a lap; the later session provides separate complete laps.
 5. Repeat native WKWebView capture/restart checks with the updated backend.
