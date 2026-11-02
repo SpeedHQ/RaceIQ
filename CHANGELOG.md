@@ -37,6 +37,7 @@
 - Include the complete LMU multiplayer recording in demo seeds as sub-100 MB gzip parts, stream native input without buffering the whole capture, and retain separate player and opponent recordings.
 
 ### Fixes
+- Keep AMS2 laps available in Replay after an untimed opening lap crosses the start line.
 - Place inner and outer surface-temperature bands on the correct sides of the 3D wheels in Replay and Compare → Spectate.
 - Include the LMU opponent-index worker in packaged builds so recorded opponents can load for replay and comparison.
 - Restore recorded-opponent driver and lap selections after reloading comparisons while the opponent catalog loads.
