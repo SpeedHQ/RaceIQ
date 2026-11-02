@@ -86,6 +86,14 @@ through reload and the Codex limitation is visible without an API key.
   Luna model selection and existing chat, retry and confirmation controls.
   Acceptance requires translated settings, streamed chat and history after
   restart, cancellation and both experiment roles in browser and native app.
+- Driver Profile uses its own Codex provider/model selection and the existing
+  opt-in for background runs. The backend sends only its computed fingerprint
+  through isolated structured generation, validates the existing summary
+  schema, preserves stale-pool protection and records reported usage; Codex's
+  requested output ceiling is disclosed as unsupported. The UI uses discovered
+  Codex models without an API key, preserves all other providers, and reflects
+  the same generation and budget contract. Both plans require focused success,
+  failure and persistence tests before the selector is enabled.
 
 ## Backend plan
 

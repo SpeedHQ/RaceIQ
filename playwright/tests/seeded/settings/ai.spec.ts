@@ -95,6 +95,24 @@ test("Codex analysis selection uses discovered models without an API key", async
   }
 });
 
+test("Codex driver profile selects Luna and explains its output limit", async ({ page, request }) => {
+  const original = await (await request.get("/api/settings")).json();
+  await page.route("**/api/codex/status", (route) => route.fulfill({ json: { state: "ready", models: [{ id: "gpt-6-luna", name: "GPT-6 Luna" }] } }));
+  try {
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("button", { name: "AI Analysis", exact: true }).click();
+    await page.locator("#ai-driver-profile-provider").click();
+    await page.getByRole("option", { name: "Codex (ChatGPT)", exact: true }).click();
+    await expect(page.locator("#ai-driver-profile-model")).toHaveValue("GPT-6 Luna");
+    await expect.poll(async () => (await (await request.get("/api/settings")).json()).driverProfileModel).toBe("gpt-6-luna");
+    await expect(page.getByText("Codex does not expose an output limit. These requested limits are not applied to Codex.").last()).toBeVisible();
+  } finally {
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+    await request.put("/api/settings", { data: { driverProfileProvider: original.driverProfileProvider, driverProfileModel: original.driverProfileModel, driverProfileThinkingBudget: original.driverProfileThinkingBudget } });
+  }
+});
+
 test("OpenAI-compatible can be selected for every AI feature without a stored key", async ({ page }) => {
   await page.route("**/api/settings", async (route) => {
     if (route.request().method() !== "GET") {

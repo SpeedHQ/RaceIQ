@@ -501,6 +501,15 @@ and 17 output tokens. No private telemetry was used. This is evidence for that
 exact CLI/model/profile, not a production integration or proof of durable
 history, streaming, tool-write idempotency or the other Codex models.
 
+The read-only runtime bridge now applies this profile and routes validated,
+turn-bound dynamic calls. One authenticated synthetic `get_speed` call returned
+the expected 240 km/h. Driver Profile also completed an authenticated Luna
+summary against a disposable database copy, preserving its existing summary
+validation and recording 9,233 input and 108 output tokens. The fingerprint
+computation and generation together took 148 seconds. These checks do not
+establish that chat, experiment writes, restart recovery, or installed-app
+Driver Profile work; those gates remain open.
+
 Authenticated dynamic-tool audit (2026-10-31): the verified CLI 0.164.0
 catalog reports `tool_mode: code_mode_only` for `gpt-6.1-sol`. With the existing
 isolation profile's `features.code_mode_host=false`, a local mock captured an

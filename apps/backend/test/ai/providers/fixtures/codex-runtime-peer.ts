@@ -12,7 +12,7 @@ if (args.includes("--version")) {
   process.exit(0);
 }
 if (args.includes("--bundled")) {
-  console.log(JSON.stringify({ models: ["gpt-6.1-sol", "gpt-6-luna"].map((slug) => ({ slug, apply_patch_tool_type: "freeform", supported_reasoning_levels: [{ effort: "low" }, { effort: "medium" }] })) }));
+  console.log(JSON.stringify({ models: ["gpt-6.1-sol", "gpt-6-luna"].map((slug) => ({ slug, tool_mode: "code_mode_only", use_responses_lite: true, multi_agent_version: "v2", experimental_supported_tools: ["send_user_message_async", "clock"], apply_patch_tool_type: "freeform", supported_reasoning_levels: [{ effort: "low" }, { effort: "medium" }] })) }));
   process.exit(0);
 }
 if (!args.includes("app-server")) throw new Error("Unexpected test CLI command");
@@ -45,6 +45,12 @@ for await (const chunk of Bun.stdin.stream()) {
     buffer = buffer.slice(boundary + 1);
     const message = JSON.parse(line);
     if (message.id === undefined) continue;
+    if (scenario.startsWith("read-tool") && message.id === "tool-request" && !message.method) {
+      if (!message.result?.success || message.result.contentItems?.[0]?.text !== "240 km/h") throw new Error("Tool response was not delivered");
+      process.stdout.write(JSON.stringify({ method: "item/completed", params: { threadId: "fixture-thread", turnId: "fixture-turn", item: { type: "agentMessage", phase: "final_answer", text: "240 km/h" } } }) + "\n");
+      process.stdout.write(JSON.stringify({ method: "turn/completed", params: { threadId: "fixture-thread", turn: { id: "fixture-turn", status: "completed" } } }) + "\n");
+      continue;
+    }
     let result: unknown;
     switch (message.method) {
       case "initialize":
@@ -59,7 +65,7 @@ for await (const chunk of Bun.stdin.stream()) {
         break;
       case "experimentalFeature/list":
         result = {
-          data: scenario === "missing-features" ? [] : excluded.filter((name) => name !== "shell_snapshot").map((name) => ({ name, enabled: scenario === "unsafe-feature" && name === "shell_tool" })),
+          data: scenario === "missing-features" ? [] : [...excluded.filter((name) => name !== "shell_snapshot"), ...(args.includes("features.goals=false") ? ["goals"] : [])].map((name) => ({ name, enabled: scenario === "unsafe-feature" && name === "shell_tool" })),
           nextCursor: null,
         };
         break;
@@ -81,7 +87,8 @@ for await (const chunk of Bun.stdin.stream()) {
           message.params.sandbox !== "read-only" ||
           message.params.approvalPolicy !== "never" ||
           message.params.ephemeral !== true ||
-          message.params.dynamicTools.length !== 0
+          message.params.dynamicTools.length !== (scenario.startsWith("read-tool") ? 1 : 0) ||
+          (scenario.startsWith("read-tool") && (catalog.models[0]?.use_responses_lite !== false || catalog.models[0]?.tool_mode !== undefined || catalog.models[0]?.experimental_supported_tools?.length !== 0 || !args.includes("agents.enabled=false") || !args.includes("features.goals=false") || !args.includes("tools.experimental_request_user_input.enabled=false")))
         )
           throw new Error("Unsafe thread profile");
         threadStarted = true;
@@ -94,6 +101,13 @@ for await (const chunk of Bun.stdin.stream()) {
         if (scenario === "provider" && (!message.params.input[0]?.text.includes("SYSTEM_CONTEXT") || !message.params.input[0]?.text.includes("LAP_CONTEXT") || message.params.outputSchema?.properties?.answer?.type !== "string")) throw new Error("Provider lost supplied context or schema");
         if (scenario === "comparison" && (!message.params.input[0]?.text.includes("COMPARATIVE lap analysis") || !message.params.input[0]?.text.includes("Focus on throttle pickup.") || !message.params.outputSchema?.properties?.segments)) throw new Error("Comparison lost persona, preferences or schema");
         result = { turn: { id: "fixture-turn", status: "inProgress" } };
+        if (scenario.startsWith("read-tool")) {
+          const request = JSON.stringify({ id: "tool-request", method: "item/tool/call", params: { threadId: "fixture-thread", turnId: "fixture-turn", callId: "c1", tool: "get_speed", arguments: { lap: 1 } } }) + "\n";
+          const ack = JSON.stringify({ id: message.id, result }) + "\n";
+          if (scenario === "read-tool-early") { process.stdout.write(request); setTimeout(() => process.stdout.write(ack), 10); }
+          else { process.stdout.write(ack); setTimeout(() => process.stdout.write(request), 10); }
+          continue;
+        }
         if (scenario === "stubborn-turn") {
           writeFileSync(args[0], String(process.pid));
           // Resist stdin EOF like an in-flight external runtime; the owner must

@@ -4,6 +4,7 @@
 - After upgrading saved AI history, keep this build or newer; older builds cannot open the updated database.
 
 ### Features
+- Choose Codex with ChatGPT sign-in for Driver Profile summaries without an API key.
 - In Settings → AI Analysis, choose Codex Luna or Sol for lap analysis; Luna is preselected when choosing Codex.
 - On Replay and Compare, show when Codex usage or rate limits prevent analysis and explain how to retry.
 - Set separate requested output limits for lap and comparison analysis in Settings → AI Analysis; Codex shows when limits cannot be applied.

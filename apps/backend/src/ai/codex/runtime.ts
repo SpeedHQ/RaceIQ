@@ -2,6 +2,16 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { CodexRpcConnection } from "./rpc";
+import { CODEX_TOOL_PROFILE_OVERRIDES, prepareCodexToolModel } from "./tool-profile";
+import { createCodexToolDispatcher } from "./tool-dispatch";
+import type { z } from "zod";
+
+export type CodexReadTool = {
+  description: string;
+  inputSchema: object;
+  input: z.ZodType;
+  execute(input: unknown, signal: AbortSignal): Promise<string>;
+};
 
 export type CodexGenerationInput = {
   /** Trusted backend-owned executable prefix; never accept argv from a model. */
@@ -13,6 +23,10 @@ export type CodexGenerationInput = {
   requestedOutputTokens?: number;
   timeoutMs?: number;
   signal?: AbortSignal;
+  /** Trusted backend-owned, read-only tools; never populated from an HTTP request. */
+  readTools?: Readonly<Record<string, CodexReadTool>>;
+  /** Emits only acknowledged, turn-scoped assistant text. */
+  onTextDelta?: (delta: string) => void;
 };
 
 export type CodexGenerationResult = {
@@ -67,7 +81,7 @@ const BASE_OVERRIDES = [
   ...DISABLED_FEATURES.map((name) => `features.${name}=false`),
 ];
 
-function connect(command: readonly string[], cwd: string, overrides = BASE_OVERRIDES, onNotification?: (method: string, params: unknown) => void): CodexRpcConnection {
+function connect(command: readonly string[], cwd: string, overrides = BASE_OVERRIDES, onNotification?: (method: string, params: unknown) => void, onToolCall?: (params: unknown, signal: AbortSignal) => Promise<unknown>): CodexRpcConnection {
   const child = Bun.spawn([...command, ...overrides.flatMap((value) => ["-c", value]), "app-server"], {
     cwd,
     stdin: "pipe",
@@ -94,7 +108,7 @@ function connect(command: readonly string[], cwd: string, overrides = BASE_OVERR
         }
       },
     },
-    { onNotification },
+    { onNotification, onToolCall },
   );
 }
 
@@ -151,19 +165,20 @@ async function requireChatGptAccount(connection: CodexRpcConnection): Promise<vo
   }
 }
 
-async function requireSafeFeatures(connection: CodexRpcConnection): Promise<void> {
+async function requireSafeFeatures(connection: CodexRpcConnection, extraDisabled: readonly string[] = []): Promise<void> {
   const response = await connection.request("experimentalFeature/list", { limit: 250 });
   if (!isRecord(response) || !Array.isArray(response.data) || response.nextCursor) {
     throw new CodexRuntimeError("unsafe-runtime", "Codex capability inventory is incomplete.");
   }
   const reported = new Set<string>();
+  const disabled = [...DISABLED_FEATURES, ...extraDisabled];
   for (const feature of response.data) {
-    if (!isRecord(feature) || typeof feature.name !== "string" || typeof feature.enabled !== "boolean" || (DISABLED_FEATURES.includes(feature.name) && feature.enabled)) {
+    if (!isRecord(feature) || typeof feature.name !== "string" || typeof feature.enabled !== "boolean" || (disabled.includes(feature.name) && feature.enabled)) {
       throw new CodexRuntimeError("unsafe-runtime", "Codex reports an excluded capability enabled.");
     }
     reported.add(feature.name);
   }
-  if (DISABLED_FEATURES.some((name) => name !== "shell_snapshot" && !reported.has(name))) throw new CodexRuntimeError("unsafe-runtime", "Codex capability metadata is incomplete.");
+  if (disabled.some((name) => name !== "shell_snapshot" && !reported.has(name))) throw new CodexRuntimeError("unsafe-runtime", "Codex capability metadata is incomplete.");
 }
 
 async function inventory(connection: CodexRpcConnection, threadId?: string): Promise<string[]> {
@@ -195,7 +210,10 @@ async function writeModelCatalog(input: CodexGenerationInput, directory: string)
   const path = join(directory, "model-catalog.json");
   // Public metadata exported by this exact CLI, never its auth or account cache.
   // CLI 0.164.0 otherwise registers apply_patch even with the shell tool disabled.
-  writeFileSync(path, JSON.stringify({ models: [{ ...model, apply_patch_tool_type: null }] }), { mode: 0o600, flag: "wx" });
+  let isolated: Record<string, unknown>;
+  try { isolated = input.readTools ? prepareCodexToolModel(model, "codex-cli 0.164.0") : { ...model, apply_patch_tool_type: null }; }
+  catch { throw new CodexRuntimeError("unsupported-runtime", "The selected model has no verified Codex tool isolation profile."); }
+  writeFileSync(path, JSON.stringify({ models: [isolated] }), { mode: 0o600, flag: "wx" });
   return path;
 }
 
@@ -244,6 +262,8 @@ async function runCommand(command: readonly string[], args: string[], signal?: A
 
 export async function runCodexGeneration(input: CodexGenerationInput): Promise<CodexGenerationResult> {
   if (input.signal?.aborted) throw new CodexRuntimeError("cancelled", "Codex analysis was cancelled.");
+  if (input.readTools && (Object.keys(input.readTools).length === 0 || Object.keys(input.readTools).length > 32 || Object.keys(input.readTools).some((name) => !/^[a-z][a-z0-9_]{0,63}$/.test(name) || name === "apply_changes" || name === "record_drill")))
+    throw new CodexRuntimeError("unsafe-runtime", "Codex tool registration is invalid.");
   const version = await runCommand(input.command, ["--version"], input.signal);
   if (version.trim() !== "codex-cli 0.164.0") {
     throw new CodexRuntimeError("unsupported-runtime", "Codex CLI 0.164.0 is required for the verified isolation profile.");
@@ -264,15 +284,17 @@ export async function runCodexGeneration(input: CodexGenerationInput): Promise<C
     await connection.close();
     const catalog = await writeModelCatalog(input, directory);
     let onNotification: (method: string, params: unknown) => void = () => {};
+    let onToolCall: ((params: unknown, signal: AbortSignal) => Promise<unknown>) | undefined;
     connection = connect(
       input.command,
       directory,
-      [...BASE_OVERRIDES, `model_catalog_json=${JSON.stringify(catalog)}`, ...servers.map((name) => `mcp_servers.${name}.enabled=false`)],
+      [...BASE_OVERRIDES, ...(input.readTools ? CODEX_TOOL_PROFILE_OVERRIDES : []), `model_catalog_json=${JSON.stringify(catalog)}`, ...servers.map((name) => `mcp_servers.${name}.enabled=false`)],
       (method, params) => onNotification(method, params),
+      input.readTools ? (params, signal) => onToolCall ? onToolCall(params, signal) : Promise.resolve({ success: false, contentItems: [{ type: "inputText", text: "Tool request rejected or failed." }] }) : undefined,
     );
     await initialize(connection);
     await requireChatGptAccount(connection);
-    await requireSafeFeatures(connection);
+    await requireSafeFeatures(connection, input.readTools ? ["goals"] : []);
     const started = await connection.request("thread/start", {
       model: input.model,
       modelProvider: "openai",
@@ -280,9 +302,9 @@ export async function runCodexGeneration(input: CodexGenerationInput): Promise<C
       approvalPolicy: "never",
       sandbox: "read-only",
       ephemeral: true,
-      baseInstructions: "You are RaceIQ's read-only racing telemetry analyst, not a coding assistant. Analyze only supplied telemetry. No tools or external actions are authorized.",
+      baseInstructions: input.readTools ? "You are RaceIQ's read-only racing telemetry analyst. Use only the supplied RaceIQ tools and telemetry." : "You are RaceIQ's read-only racing telemetry analyst, not a coding assistant. Analyze only supplied telemetry. No tools or external actions are authorized.",
       developerInstructions: "Return the requested analysis using supplied evidence only. Do not inspect files, execute commands, or use network, browser, computer, patch, MCP, app or agent tools.",
-      dynamicTools: [],
+      dynamicTools: Object.entries(input.readTools ?? {}).map(([name, tool]) => ({ type: "function", name, description: tool.description, inputSchema: tool.inputSchema })),
     });
     if (!isRecord(started) || !isRecord(started.thread) || typeof started.thread.id !== "string" || started.model !== input.model || started.modelProvider !== "openai")
       throw new CodexRuntimeError("unsafe-runtime", "Codex did not create the requested isolated thread.");
@@ -294,6 +316,27 @@ export async function runCodexGeneration(input: CodexGenerationInput): Promise<C
     let text = "";
     let nativeUsage: Record<string, unknown> = {};
     let turnId: string | undefined;
+    let acknowledgeTurn!: () => void;
+    const turnAcknowledged = new Promise<void>((resolve) => { acknowledgeTurn = resolve; });
+    if (input.readTools) {
+      const tools = Object.fromEntries(Object.entries(input.readTools).map(([name, tool]) => [name, { access: "read" as const, input: tool.input, execute: tool.execute }]));
+      const dispatch = createCodexToolDispatcher({ threadId, turnId: () => turnId, role: "chat", tools });
+      onToolCall = async (params, signal) => {
+        if (!turnId && !signal.aborted) {
+          let timer: ReturnType<typeof setTimeout> | undefined;
+          let abort!: () => void;
+          const stopped = new Promise<void>((resolve) => {
+            abort = resolve;
+            signal.addEventListener("abort", abort, { once: true });
+            if (signal.aborted) resolve();
+            timer = setTimeout(resolve, 10_000);
+          });
+          try { await Promise.race([turnAcknowledged, stopped]); }
+          finally { clearTimeout(timer); signal.removeEventListener("abort", abort); }
+        }
+        return dispatch(params, signal);
+      };
+    }
     const earlyEvents: { method: string; params: Record<string, unknown> }[] = [];
     let earlyBytes = 0;
     let completed!: (turn: { status: string; errorInfo: unknown }) => void;
@@ -305,7 +348,10 @@ export async function runCodexGeneration(input: CodexGenerationInput): Promise<C
       const eventTurn = method === "turn/completed" && isRecord(params.turn) ? params.turn.id : params.turnId;
       if (typeof eventTurn !== "string" || eventTurn !== turnId) return;
       if (method === "thread/tokenUsage/updated" && isRecord(params.tokenUsage) && isRecord(params.tokenUsage.last)) nativeUsage = params.tokenUsage.last;
-      if (method === "item/agentMessage/delta" && typeof params.delta === "string" && firstContentMs === null) firstContentMs = Math.round(performance.now() - start);
+      if (method === "item/agentMessage/delta" && typeof params.delta === "string") {
+        if (firstContentMs === null) firstContentMs = Math.round(performance.now() - start);
+        input.onTextDelta?.(params.delta);
+      }
       if (
         method === "item/completed" &&
         isRecord(params.item) &&
@@ -343,6 +389,7 @@ export async function runCodexGeneration(input: CodexGenerationInput): Promise<C
         if (!isRecord(response) || !isRecord(response.turn) || typeof response.turn.id !== "string")
           throw new CodexRuntimeError("generation-failed", "Codex turn acknowledgement is invalid.");
         turnId = response.turn.id;
+        acknowledgeTurn();
         for (const event of earlyEvents) handleNotification(event.method, event.params);
         earlyEvents.length = 0;
         return completion;

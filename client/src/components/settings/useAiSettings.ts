@@ -216,12 +216,12 @@ export function useAiSettings(): AiSettingsState {
   const hasAutoTuneProviderKey = autoTuneProvider === "openai-compatible" || (keyStatus[autoTuneProvider] ?? false);
   const canShowAutoTuneModelPicker = autoTuneProvider !== "" && hasAutoTuneProviderKey && autoTuneModels.length > 0;
   const autoTuneProviderModelError = isAiProvider(autoTuneProvider) ? (modelErrors[autoTuneProvider] ?? null) : null;
-  const driverProfileModels = modelsOrFallback(driverProfileProvider, isAiProvider(driverProfileProvider) ? (aiModels?.[driverProfileProvider] ?? []) : []);
+  const driverProfileModels = driverProfileProvider === "codex" ? (codexStatus.data?.models ?? []) : modelsOrFallback(driverProfileProvider, isAiProvider(driverProfileProvider) ? (aiModels?.[driverProfileProvider] ?? []) : []);
   const hasDriverProfileProviderKey = driverProfileProvider === "openai-compatible" || (keyStatus[driverProfileProvider] ?? false);
   const canShowDriverProfileModelPicker = driverProfileProvider !== "" && hasDriverProfileProviderKey && driverProfileModels.length > 0;
   const driverProfileModelSupportsThinking = driverProfileProvider === "gemini" && supportsGeminiThinkingBudget(driverProfileModel || "gemini-flash-latest");
   const selectedDriverProfileModel = driverProfileModels.find((mm) => mm.id === driverProfileModel);
-  const driverProfileModelContextLength = selectedDriverProfileModel?.contextLength;
+  const driverProfileModelContextLength = selectedDriverProfileModel && "contextLength" in selectedDriverProfileModel && typeof selectedDriverProfileModel.contextLength === "number" ? selectedDriverProfileModel.contextLength : undefined;
   const effectiveDriverProfileThinkingBudget = driverProfileModelSupportsThinking ? driverProfileThinkingBudget : null;
   const driverProfileProviderModelError = isAiProvider(driverProfileProvider) ? (modelErrors[driverProfileProvider] ?? null) : null;
 
@@ -532,10 +532,10 @@ export function useAiSettings(): AiSettingsState {
       canShowDriverProfileModelPicker,
       driverProfileModelSupportsThinking,
       effectiveDriverProfileThinkingBudget,
-      aiProviders: aiProviders?.filter((item) => item.id !== "codex"),
-      aiModelsFetching,
-      modelsRefreshing,
-      refreshModels: refreshModelsAction,
+      aiProviders,
+      aiModelsFetching: driverProfileProvider === "codex" ? codexStatus.isFetching : aiModelsFetching,
+      modelsRefreshing: driverProfileProvider === "codex" ? codexStatus.isFetching : modelsRefreshing,
+      refreshModels: driverProfileProvider === "codex" ? { mutate: () => { void codexStatus.refetch(); }, isPending: codexStatus.isFetching, isError: codexStatus.isError } : refreshModelsAction,
       isSaving,
       driverProfileProviderModelError,
       aiModelsError,
