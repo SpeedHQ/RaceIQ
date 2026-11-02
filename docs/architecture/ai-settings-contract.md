@@ -65,6 +65,28 @@ AI Analysis settings, preserve drafts on save failure, and explain that model
 limits vary and Codex cannot apply this setting. Acceptance: saved values persist
 through reload and the Codex limitation is visible without an API key.
 
+## Codex chat and engineer bridge
+
+- The isolated tool-capable profile is limited to the tested CLI 0.164.0 and
+  `gpt-6-luna`; unknown metadata fails closed before telemetry is sent. It must
+  expose only explicitly registered RaceIQ tools and reject built-in execution,
+  collaboration, goal, user-input, clock, patch, image, network and MCP tools.
+- Lap and comparison chat retain the existing client stream and canonical
+  conversation history. Tool requests are turn-scoped, argument-validated,
+  bounded and read-only. Failure, cancellation and reconnect preserve history.
+- Experiment roles use the same profile only after durable idempotency and the
+  existing authorization and confirmation rules protect all writes. Engineer
+  and coach tools remain mutually exclusive. A mock call is not proof that a real
+  model can invoke the same tool or that an experiment mutation is safe.
+- Backend plan: implement and test the version-pinned profile and tool bridge;
+  connect read-only chat, persistence and streaming; then implement domain-safe
+  experiment writes. Acceptance requires mock negative and duplicate-call tests,
+  authenticated tool calls, resumed history and one authorized setup change.
+- UI plan: enable Codex only for operations supported by the backend, with
+  Luna model selection and existing chat, retry and confirmation controls.
+  Acceptance requires translated settings, streamed chat and history after
+  restart, cancellation and both experiment roles in browser and native app.
+
 ## Backend plan
 
 Depends on this contract. Add validated settings and shared defaults, inject the
