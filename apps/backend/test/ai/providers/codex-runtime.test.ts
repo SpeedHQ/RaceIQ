@@ -6,6 +6,16 @@ function command(scenario: string): string[] {
   return [process.execPath, fileURLToPath(new URL("./fixtures/codex-runtime-peer.ts", import.meta.url)), scenario];
 }
 
+test.each([
+  ["usage-limit", "usage-limit", "Codex usage limit reached. Check your ChatGPT usage and try again when usage is available."],
+  ["rate-limit", "rate-limit", "Codex is temporarily rate limited. Wait before trying again."],
+  ["other-error", "generation-failed", "Codex did not return a completed analysis."],
+] as const)("classifies %s without exposing upstream error text", async (scenario, code, message) => {
+  const error = await runCodexGeneration({ command: command(scenario), model: "gpt-6.1-sol", prompt: "fixture" }).catch((failure: unknown) => failure);
+  expect(error).toMatchObject({ code, message });
+  expect(JSON.stringify(error)).not.toContain("PRIVATE_ERROR_DETAIL");
+});
+
 test("ignores another turn's notifications received before turn acknowledgement", async () => {
   const result = await runCodexGeneration({ command: command("foreign-before-ack"), model: "gpt-6.1-sol", prompt: "fixture" });
   expect(result.text).toBe('{"answer":"fixture analysis"}');
@@ -17,7 +27,7 @@ test("rejects an excessive pre-acknowledgement notification stream", async () =>
 });
 
 test("metadata discovery exposes only a verified model without starting a thread or inference", async () => {
-  expect(await discoverCodex(command("success"))).toEqual({ state: "ready", models: [{ id: "gpt-6.1-sol", name: "GPT-6.1 Sol" }] });
+  expect(await discoverCodex(command("success"))).toEqual({ state: "ready", models: [{ id: "gpt-6-luna", name: "GPT-6 Luna" }, { id: "gpt-6.1-sol", name: "GPT-6.1 Sol" }] });
   expect(await discoverCodex(command("api-key"))).toEqual({ state: "not-signed-in", models: [] });
   expect(await discoverCodex(command("unsupported"))).toEqual({ state: "unsupported-runtime", models: [] });
   expect(await discoverCodex(command("unverified-model"))).toEqual({ state: "unsupported-runtime", models: [] });

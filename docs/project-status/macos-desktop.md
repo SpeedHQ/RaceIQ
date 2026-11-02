@@ -1,5 +1,12 @@
 # macOS desktop, F1 2026 telemetry, and Codex AI goal
 
+Local checkpoint `0.20.0-private.20261102.1` was built and installed on
+2026-11-02. The previous `.2` app is retained as a rollback copy. The native
+app reopened existing history, saved Codex Luna as the analysis model and
+bound UDP port 20778. A focused Chromium settings test verified Luna's default
+and switching to Sol; authenticated Luna analysis and local negative-tool
+probes are recorded below. This checkpoint is not full goal completion.
+
 Installed telemetry testing build: `0.20.0-private.20261031.2`, with local tag
 `private/macos-2026-10-31.2` not published. This checkpoint adds AI settings. Build with
 `bun run desktop:build`; install the resulting `RaceIQ.app` in `/Applications`.
@@ -462,6 +469,14 @@ reviewed expected timing/channel values. If no real capture is available,
 synthetic tests may prove implementation progress but not this milestone done.
 
 ## Milestone 5: Codex provider and response-budget controls
+
+Luna profile verification (2026-11-02): CLI 0.164.0 with the patchless
+`gpt-6-luna` catalog and disabled code host exposed no tools to a local mock;
+injected shell, patch, image and code-host calls were rejected. An authenticated
+medium-effort analysis of the public 2025 sample completed and passed the
+analyst schema in 14.717 seconds, reporting 12,623 input and 1,538 output
+tokens. Catalog listing alone still does not establish account entitlement.
+Codex does not provide a supported output-token cap in this runtime.
 
 Authenticated dynamic-tool audit (2026-10-31): the verified CLI 0.164.0
 catalog reports `tool_mode: code_mode_only` for `gpt-6.1-sol`. With the existing

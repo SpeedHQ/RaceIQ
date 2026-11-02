@@ -38,6 +38,7 @@ import { withAnalysisInstructions } from "@raceiq/shared/integrations/ai/analysi
 import { analysisGenerationKey } from "../../ai/analysis-generation-key";
 import { resolveAi } from "../../ai/ai-runtime";
 import { generateInputsComparison } from "../../ai/generate-inputs-comparison";
+import { AiProviderError } from "@raceiq/backend-core/ai/provider-error";
 const inputsAnalysisRunKey = (idA: number, idB: number) =>
   `inputs:${Math.min(idA, idB)}:${Math.max(idA, idB)}`;
 
@@ -166,6 +167,7 @@ export const comparisonRoutes = new Hono()
       return c.json({ error: "Inputs comparison already in progress" }, 409);
     }
 
+    let runError: string | undefined;
     try {
       const start = performance.now();
       const ai = await resolveAi("analysis", settings);
@@ -189,10 +191,12 @@ export const comparisonRoutes = new Hono()
       await saveCompareAnalysis(id1, id2, analysisJson, usage, "inputs", generationKey);
       return c.json({ analysis: analysisJson, cached: false, usage, diagnostics: result.diagnostics });
     } catch (err: any) {
+      runError = typeof err?.message === "string" ? err.message : "Inputs comparison failed";
       console.error("[InputsCompare] Failed:", err.message);
+      if (err instanceof AiProviderError && (err.code === "usage-limit" || err.code === "rate-limit")) return c.json({ error: err.message, code: err.code }, 429);
       return c.json({ error: err.message }, err.message.includes("timed out") ? 504 : 500);
     } finally {
-      finishAnalysisRun(inputsRunKey);
+      finishAnalysisRun(inputsRunKey, runError);
     }
   })
 

@@ -1,6 +1,6 @@
 [package]
 name = "raceiq-desktop"
-version = "0.20.0-private.20261031.2"
+version = "0.20.0-private.20261102.1"
 edition = "2021"
 
 [build-dependencies]

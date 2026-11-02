@@ -33,6 +33,18 @@ This extends the shared AI contract in [the desktop goal](../project-status/maco
   authoritative. Only models with a verified isolation profile are selectable.
 - Capability-specific selection must reflect implemented flows. Chat and setup
   remain unavailable until their history/tool bridges are implemented.
+- Codex lap analysis defaults to `gpt-6-luna` with `medium` reasoning when
+  selecting Codex. Previously saved model choices remain unchanged; the model
+  picker lists only discovered models with a verified isolation profile.
+- Backend plan: verify Luna's isolated runtime and account access, expose Luna
+  alongside other verified models, and send explicit medium reasoning for Luna. UI plan:
+  preselect Luna when switching to Codex while retaining the existing model
+  picker. Both plans depend on these discovery and isolation guarantees.
+- A failed Codex turn classified by app-server as `usageLimitExceeded` or
+  `rateLimitExceeded` reaches lap and comparison analysis with distinct,
+  actionable messages. Never infer a reset time, expose raw provider errors,
+  retry automatically, or fall back to a billable provider. Other failures
+  remain distinct from usage limits; failed analyses are not cached as results.
 
 ## Response budgets
 

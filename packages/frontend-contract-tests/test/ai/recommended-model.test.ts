@@ -23,6 +23,7 @@ describe("recommended Claude model", () => {
 
   test("preselects Haiku 5.5 only when switching to Claude", () => {
     expect(defaultModelForProvider("anthropic")).toBe("claude-haiku-5-5");
+    expect(defaultModelForProvider("codex")).toBe("gpt-6-luna");
     expect(defaultModelForProvider("openai")).toBe("");
     expect(defaultModelForProvider("openai-compatible")).toBe("");
     expect(defaultModelForProvider("")).toBe("");

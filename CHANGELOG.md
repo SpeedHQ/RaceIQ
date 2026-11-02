@@ -4,6 +4,8 @@
 - After upgrading saved AI history, keep this build or newer; older builds cannot open the updated database.
 
 ### Features
+- In Settings → AI Analysis, choose Codex Luna or Sol for lap analysis; Luna is preselected when choosing Codex.
+- On Replay and Compare, show when Codex usage or rate limits prevent analysis and explain how to retry.
 - Set separate requested output limits for lap and comparison analysis in Settings → AI Analysis; Codex shows when limits cannot be applied.
 - Show F1 2026 ERS energy in kJ on Live and Replay, with Boost mode and DRS shown only when applicable.
 - Edit lap and comparison analysis instructions in Settings → AI Analysis, save preferences, or restore defaults. Prompt changes apply to new analyses without reusing outdated results.

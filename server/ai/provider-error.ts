@@ -8,6 +8,8 @@ export type AiProviderErrorCode =
   | "unsupported-runtime"
   | "unsafe-runtime"
   | "generation-failed"
+  | "usage-limit"
+  | "rate-limit"
   | "cli-unavailable"
   | "upstream"
   | "unsupported-operation";

@@ -28,7 +28,7 @@ export type CodexGenerationResult = {
 
 export class CodexRuntimeError extends Error {
   readonly name = "CodexRuntimeError";
-  readonly code: "unsupported-runtime" | "not-signed-in" | "unsafe-runtime" | "generation-failed" | "cancelled" | "cli-unavailable";
+  readonly code: "unsupported-runtime" | "not-signed-in" | "unsafe-runtime" | "generation-failed" | "cancelled" | "cli-unavailable" | "usage-limit" | "rate-limit";
   constructor(
     code: CodexRuntimeError["code"],
     message: string,
@@ -120,8 +120,10 @@ export async function discoverCodex(command: readonly string[], signal?: AbortSi
     const response = await connection.request("model/list", { limit: 100, includeHidden: false });
     if (!isRecord(response) || !Array.isArray(response.data)) return { state: "unavailable", models: [] };
     // Catalog entries do not prove entitlement. Restrict to verified isolation profiles.
-    const model = response.data.find((entry) => isRecord(entry) && entry.id === "gpt-6.1-sol");
-    return model ? { state: "ready", models: [{ id: "gpt-6.1-sol", name: "GPT-6.1 Sol" }] } : { state: "unsupported-runtime", models: [] };
+    const availableModels = response.data;
+    const verified = [{ id: "gpt-6-luna", name: "GPT-6 Luna" }, { id: "gpt-6.1-sol", name: "GPT-6.1 Sol" }];
+    const models = verified.filter((model) => availableModels.some((entry) => isRecord(entry) && entry.id === model.id));
+    return models.length ? { state: "ready", models } : { state: "unsupported-runtime", models: [] };
   } catch (error) {
     if (error instanceof CodexRuntimeError && error.code === "cancelled") throw error;
     const state = error instanceof CodexRuntimeError && (error.code === "cli-unavailable" || error.code === "not-signed-in") ? error.code : "unavailable";
@@ -184,7 +186,7 @@ async function inventory(connection: CodexRpcConnection, threadId?: string): Pro
 
 async function writeModelCatalog(input: CodexGenerationInput, directory: string): Promise<string> {
   const catalog: unknown = JSON.parse(await runCommand(input.command, ["debug", "models", "--bundled"], input.signal));
-  if (!isRecord(catalog) || !Array.isArray(catalog.models) || input.model !== "gpt-6.1-sol")
+  if (!isRecord(catalog) || !Array.isArray(catalog.models) || !["gpt-6-luna", "gpt-6.1-sol"].includes(input.model))
     throw new CodexRuntimeError("unsupported-runtime", "The selected model has no verified Codex isolation profile.");
   const model = catalog.models.find((entry): entry is Record<string, unknown> => isRecord(entry) && entry.slug === input.model);
   if (!model) throw new CodexRuntimeError("unsupported-runtime", "The selected model is absent from this CLI catalog.");
@@ -294,8 +296,8 @@ export async function runCodexGeneration(input: CodexGenerationInput): Promise<C
     let turnId: string | undefined;
     const earlyEvents: { method: string; params: Record<string, unknown> }[] = [];
     let earlyBytes = 0;
-    let completed!: (status: string) => void;
-    const completion = new Promise<string>((resolve) => {
+    let completed!: (turn: { status: string; errorInfo: unknown }) => void;
+    const completion = new Promise<{ status: string; errorInfo: unknown }>((resolve) => {
       completed = resolve;
     });
     const handleNotification = (method: string, params: unknown) => {
@@ -313,7 +315,7 @@ export async function runCodexGeneration(input: CodexGenerationInput): Promise<C
       )
         text = params.item.text;
       if (method === "turn/completed" && isRecord(params.turn) && typeof params.turn.status === "string") {
-        completed(params.turn.status);
+        completed({ status: params.turn.status, errorInfo: isRecord(params.turn.error) ? params.turn.error.codexErrorInfo : undefined });
       }
     };
     onNotification = (method, params) => {
@@ -345,14 +347,16 @@ export async function runCodexGeneration(input: CodexGenerationInput): Promise<C
         earlyEvents.length = 0;
         return completion;
       })();
-      const status = await Promise.race([
+      const turn = await Promise.race([
         generation,
         stopped,
         connection.closed.then((error) => {
           throw error;
         }),
       ]);
-      if (status !== "completed" || !text.trim()) throw new CodexRuntimeError("generation-failed", "Codex did not return a completed analysis.");
+      if (turn.status === "failed" && turn.errorInfo === "usageLimitExceeded") throw new CodexRuntimeError("usage-limit", "Codex usage limit reached. Check your ChatGPT usage and try again when usage is available.");
+      if (turn.status === "failed" && turn.errorInfo === "rateLimitExceeded") throw new CodexRuntimeError("rate-limit", "Codex is temporarily rate limited. Wait before trying again.");
+      if (turn.status !== "completed" || !text.trim()) throw new CodexRuntimeError("generation-failed", "Codex did not return a completed analysis.");
       if (input.schema) JSON.parse(text);
       return {
         text,

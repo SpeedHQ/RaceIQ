@@ -33,6 +33,7 @@ export class CodexProviderAdapter implements ResolvedAi {
       const { text, ...diagnostics } = await codexSupervisor.run({
         command: this.#command,
         model: this.model,
+        ...(this.model === "gpt-6-luna" ? { effort: "medium" as const } : {}),
         prompt: input.system ? `${input.system}\n\n${input.prompt}` : input.prompt,
         schema,
         signal: input.signal,
@@ -45,13 +46,13 @@ export class CodexProviderAdapter implements ResolvedAi {
       };
     } catch (error) {
       const code = error instanceof CodexRuntimeError ? error.code : "upstream";
-      const statusCode = code === "cancelled" ? 499 : code === "not-signed-in" ? 401 : code === "upstream" || code === "generation-failed" ? 502 : 503;
+      const statusCode = code === "cancelled" ? 499 : code === "not-signed-in" ? 401 : code === "usage-limit" || code === "rate-limit" ? 429 : code === "upstream" || code === "generation-failed" ? 502 : 503;
       throw new AiProviderError(error instanceof CodexRuntimeError ? error.message : "Codex generation failed. Check the configured CLI installation.", {
         code,
         statusCode,
         provider: this.provider,
         modelId: this.model,
-        isRetryable: false,
+        isRetryable: code === "usage-limit" || code === "rate-limit",
       });
     }
   }

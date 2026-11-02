@@ -12,7 +12,7 @@ if (args.includes("--version")) {
   process.exit(0);
 }
 if (args.includes("--bundled")) {
-  console.log(JSON.stringify({ models: [{ slug: "gpt-6.1-sol", apply_patch_tool_type: "freeform", supported_reasoning_levels: [{ effort: "low" }] }] }));
+  console.log(JSON.stringify({ models: ["gpt-6.1-sol", "gpt-6-luna"].map((slug) => ({ slug, apply_patch_tool_type: "freeform", supported_reasoning_levels: [{ effort: "low" }, { effort: "medium" }] })) }));
   process.exit(0);
 }
 if (!args.includes("app-server")) throw new Error("Unexpected test CLI command");
@@ -55,7 +55,7 @@ for await (const chunk of Bun.stdin.stream()) {
         result = { account: { type: scenario === "api-key" ? "apiKey" : "chatgpt" } };
         break;
       case "model/list":
-        result = { data: [{ id: scenario === "unverified-model" ? "unverified" : "gpt-6.1-sol", displayName: "GPT-6.1 Sol" }], nextCursor: null };
+        result = { data: scenario === "unverified-model" ? [{ id: "unverified" }] : [{ id: "gpt-6-luna" }, { id: "gpt-6.1-sol" }], nextCursor: null };
         break;
       case "experimentalFeature/list":
         result = {
@@ -85,11 +85,12 @@ for await (const chunk of Bun.stdin.stream()) {
         )
           throw new Error("Unsafe thread profile");
         threadStarted = true;
-        result = { thread: { id: "fixture-thread" }, model: "gpt-6.1-sol", modelProvider: "openai" };
+        result = { thread: { id: "fixture-thread" }, model: message.params.model, modelProvider: "openai" };
         break;
       }
       case "turn/start": {
         if (!threadStarted || "maxOutputTokens" in message.params || "max_output_tokens" in message.params) throw new Error("Unsafe generation input");
+        if (scenario === "luna-medium" && message.params.effort !== "medium") throw new Error("Luna reasoning effort was not medium");
         if (scenario === "provider" && (!message.params.input[0]?.text.includes("SYSTEM_CONTEXT") || !message.params.input[0]?.text.includes("LAP_CONTEXT") || message.params.outputSchema?.properties?.answer?.type !== "string")) throw new Error("Provider lost supplied context or schema");
         if (scenario === "comparison" && (!message.params.input[0]?.text.includes("COMPARATIVE lap analysis") || !message.params.input[0]?.text.includes("Focus on throttle pickup.") || !message.params.outputSchema?.properties?.segments)) throw new Error("Comparison lost persona, preferences or schema");
         result = { turn: { id: "fixture-turn", status: "inProgress" } };
@@ -119,7 +120,7 @@ for await (const chunk of Bun.stdin.stream()) {
             method: "thread/tokenUsage/updated",
             params: { threadId: "fixture-thread", turnId: "fixture-turn", tokenUsage: { last: { inputTokens: 123, cachedInputTokens: 0, outputTokens: 42, reasoningOutputTokens: 2 } } },
           },
-          { method: "turn/completed", params: { threadId: "fixture-thread", turn: { id: "fixture-turn", status: scenario === "failed" ? "failed" : "completed", error: null } } },
+          { method: "turn/completed", params: { threadId: "fixture-thread", turn: { id: "fixture-turn", status: ["failed", "usage-limit", "rate-limit", "other-error"].includes(scenario) ? "failed" : "completed", error: scenario === "usage-limit" ? { codexErrorInfo: "usageLimitExceeded", message: "PRIVATE_ERROR_DETAIL" } : scenario === "rate-limit" ? { codexErrorInfo: "rateLimitExceeded", message: "PRIVATE_ERROR_DETAIL" } : scenario === "other-error" ? { codexErrorInfo: "other", message: "usage limit PRIVATE_ERROR_DETAIL" } : null } } },
         ];
         if (scenario === "foreign-before-ack") {
           process.stdout.write(JSON.stringify({ method: "item/completed", params: { threadId: "fixture-thread", turnId: "foreign-turn", item: { type: "agentMessage", phase: "final_answer", text: '{"answer":"wrong turn"}' } } }) + "\n");

@@ -8,6 +8,7 @@ import {
 } from "../../../src/ai/generate-lap-analysis";
 import { diagnosticsRoutes } from "../../../src/routes/system/diagnostics-routes";
 import { analysisGenerationKey } from "../../../src/ai/analysis-generation-key";
+import { AiProviderError } from "@raceiq/backend-core/ai/provider-error";
 
 const validAnalysis = JSON.stringify({
   verdict: "Clean lap",
@@ -115,6 +116,14 @@ function makeDeps(
 }
 
 describe("generateLapAnalysis", () => {
+  test("returns Codex usage-limit guidance without caching a failed analysis", async () => {
+    const message = "Codex usage limit reached. Check your ChatGPT usage and try again when usage is available.";
+    const deps = makeDeps({ generateError: new AiProviderError(message, { code: "usage-limit", statusCode: 429, provider: "codex", isRetryable: true }) });
+    const result = await generateLapAnalysis(7, {}, deps);
+    expect(result.error).toBe(message);
+    expect(result.analysis).toBeNull();
+    expect(deps.saves).toHaveLength(0);
+  });
   test("requested lap budget reaches generation and changes cache identity", async () => {
     const deps = makeDeps();
     const defaults = deps.loadSettings!();

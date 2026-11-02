@@ -13,6 +13,17 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { findCodexExecutable } from "../../../src/ai/codex/executable";
 
+test("Codex Luna uses medium reasoning through the isolated provider", async () => {
+  const adapter = new CodexProviderAdapter({ feature: "analysis", model: "gpt-6-luna", command: [process.execPath, fileURLToPath(new URL("./fixtures/codex-runtime-peer.ts", import.meta.url)), "luna-medium"] });
+  const result = await adapter.generateText({ prompt: "fixture" });
+  expect(result.usage.model).toBe("gpt-6-luna");
+});
+
+test.each(["usage-limit", "rate-limit"])("Codex %s reaches callers as a retryable 429 without provider fallback", async (scenario) => {
+  const adapter = new CodexProviderAdapter({ feature: "analysis", model: "gpt-6.1-sol", command: [process.execPath, fileURLToPath(new URL("./fixtures/codex-runtime-peer.ts", import.meta.url)), scenario] });
+  await expect(adapter.generateText({ prompt: "fixture" })).rejects.toMatchObject({ code: scenario, statusCode: 429, provider: "codex", isRetryable: true });
+});
+
 test.skipIf(process.platform !== "darwin")("npm Codex discovery uses its native binary without Node or a shell PATH", async () => {
   const directory = mkdtempSync(join(tmpdir(), "raceiq-codex-install-"));
   const packageRoot = join(directory, "codex");

@@ -73,7 +73,7 @@ test("analysis prompts save, survive reload, retain failed drafts and reset", as
 
 test("Codex analysis selection uses discovered models without an API key", async ({ page, request }) => {
   const original = await (await request.get("/api/settings")).json();
-  await page.route("**/api/codex/status", (route) => route.fulfill({ json: { state: "ready", models: [{ id: "gpt-6.1-sol", name: "GPT-6.1 Sol" }] } }));
+  await page.route("**/api/codex/status", (route) => route.fulfill({ json: { state: "ready", models: [{ id: "gpt-6-luna", name: "GPT-6 Luna" }, { id: "gpt-6.1-sol", name: "GPT-6.1 Sol" }] } }));
   try {
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "Settings", exact: true }).click();
@@ -81,6 +81,8 @@ test("Codex analysis selection uses discovered models without an API key", async
     await expect(page.getByText("ChatGPT connected. Select a model for lap analysis.")).toBeVisible();
     await page.locator("#ai-analysis-provider").click();
     await page.getByRole("option", { name: "Codex (ChatGPT)", exact: true }).click();
+    await expect(page.locator("#ai-analysis-model")).toHaveValue("GPT-6 Luna");
+    await expect.poll(async () => (await (await request.get("/api/settings")).json()).aiModel).toBe("gpt-6-luna");
     await page.locator("#ai-analysis-model").click();
     await page.getByRole("option", { name: "GPT-6.1 Sol", exact: true }).click();
     await expect.poll(async () => (await (await request.get("/api/settings")).json()).aiModel).toBe("gpt-6.1-sol");
