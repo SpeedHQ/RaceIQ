@@ -489,6 +489,18 @@ built-ins. No real inference or private telemetry was sent in this experiment.
 This modified profile is not enabled in RaceIQ. A usable chat/engineer bridge
 still requires a verified way to prevent all unapproved capabilities.
 
+Follow-up synthetic probe: disabling `agents.enabled`, `features.goals`, and
+the synchronous user-input tool, while removing experimental supported tools
+from that temporary catalog, left only the explicitly supplied RaceIQ function
+in the local mock's outbound manifest. Injected collaboration, async input,
+clock, goal, synchronous input, shell, patch, image and code-host calls were
+rejected; the synthetic permitted function reached its client. With the same
+profile, a real ChatGPT-authenticated `gpt-6-luna` medium turn invoked a
+synthetic speed tool once and correctly returned 240 km/h, using 4,216 input
+and 17 output tokens. No private telemetry was used. This is evidence for that
+exact CLI/model/profile, not a production integration or proof of durable
+history, streaming, tool-write idempotency or the other Codex models.
+
 Authenticated dynamic-tool audit (2026-10-31): the verified CLI 0.164.0
 catalog reports `tool_mode: code_mode_only` for `gpt-6.1-sol`. With the existing
 isolation profile's `features.code_mode_host=false`, a local mock captured an
