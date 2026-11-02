@@ -8,7 +8,9 @@ export function analysisGenerationKey(kind: "lap" | "compare", settings: AppSett
   return createHash("sha256")
     .update(
       JSON.stringify({
-        revision: 1,
+        // Bump lap analyses when backend-derived evidence semantics change.
+        // Comparison prompt behavior remains on its existing revision.
+        revision: kind === "lap" ? 2 : 1,
         kind,
         ...(kind === "compare" ? { lapOrder } : {}),
         provider: settings.aiProvider,

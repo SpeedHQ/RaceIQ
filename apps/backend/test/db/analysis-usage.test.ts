@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { createHash } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { db } from "@raceiq/backend-core/db/index";
 import { sessions, laps, driverProfiles, driverProfileRuns } from "@raceiq/backend-core/db/schema";
@@ -6,8 +7,30 @@ import { getAnalysis, saveAnalysis, getCompareAnalysis, saveCompareAnalysis } fr
 import { createDriverProfileRun, getDriverProfileRun, saveDriverProfile, driverProfileScopeKey } from "@raceiq/backend-core/db/driver-profile-queries";
 import { comparisonRoutes } from "../../src/routes/laps/comparison-routes";
 import { analysisGenerationKey } from "../../src/ai/analysis-generation-key";
+import { effectiveAnalysisInstructions } from "@raceiq/shared/integrations/ai/analysis-instructions";
+import { DEFAULT_ANALYSIS_OUTPUT_TOKENS } from "@raceiq/shared/integrations/ai/analysis-budget";
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { getCompareAnalysisTool } from "../../src/mastra/tools/compare-analysis";
+
+test("lap brake-onset metric revision invalidates old cached analysis", () => {
+  const settings = loadSettings();
+  const oldKey = createHash("sha256")
+    .update(JSON.stringify({
+      revision: 1,
+      kind: "lap",
+      provider: settings.aiProvider,
+      model: settings.aiModel,
+      thinkingBudget: settings.aiThinkingBudget,
+      endpoint: settings.aiProvider === "openai-compatible" ? settings.localEndpoint : null,
+      maxOutputTokens: settings.analysisMaxOutputTokens ?? DEFAULT_ANALYSIS_OUTPUT_TOKENS,
+      unit: settings.unit,
+      temperatureUnit: settings.temperatureUnit,
+      language: settings.language,
+      instructions: effectiveAnalysisInstructions("lap", settings.lapAnalysisInstructions),
+    }))
+    .digest("hex");
+  expect(analysisGenerationKey("lap", settings)).not.toBe(oldKey);
+});
 
 test("comparison cache respects displayed lap order", async () => {
   const session = await db.insert(sessions).values({ gameId: "f1-2025", carId: "476", trackId: "19" }).returning({ id: sessions.id }).get();
