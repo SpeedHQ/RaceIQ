@@ -6,7 +6,12 @@ import { CODEX_TOOL_PROFILE_OVERRIDES, prepareCodexToolModel } from "./tool-prof
 import { createCodexToolDispatcher } from "./tool-dispatch";
 import type { z } from "zod";
 
-export type CodexReadTool = {
+export type CodexToolAccess = "read" | "experiment" | "engineer" | "coach";
+export type CodexToolRole = "chat" | "engineer" | "coach";
+
+export type CodexTool = {
+  /** Backend-owned authority label checked again by the dispatcher. */
+  access: CodexToolAccess;
   description: string;
   inputSchema: object;
   input: z.ZodType;
@@ -23,8 +28,10 @@ export type CodexGenerationInput = {
   requestedOutputTokens?: number;
   timeoutMs?: number;
   signal?: AbortSignal;
-  /** Trusted backend-owned, read-only tools; never populated from an HTTP request. */
-  readTools?: Readonly<Record<string, CodexReadTool>>;
+  /** Trusted backend-owned tools; never populated from an HTTP request. */
+  tools?: Readonly<Record<string, CodexTool>>;
+  /** Agent role constrains dynamic tool authority; defaults to read-only chat. */
+  toolRole?: CodexToolRole;
   /** Emits only acknowledged, turn-scoped assistant text. */
   onTextDelta?: (delta: string) => void;
 };
@@ -211,7 +218,7 @@ async function writeModelCatalog(input: CodexGenerationInput, directory: string)
   // Public metadata exported by this exact CLI, never its auth or account cache.
   // CLI 0.164.0 otherwise registers apply_patch even with the shell tool disabled.
   let isolated: Record<string, unknown>;
-  try { isolated = input.readTools ? prepareCodexToolModel(model, "codex-cli 0.164.0") : { ...model, apply_patch_tool_type: null }; }
+  try { isolated = input.tools ? prepareCodexToolModel(model, "codex-cli 0.164.0") : { ...model, apply_patch_tool_type: null }; }
   catch { throw new CodexRuntimeError("unsupported-runtime", "The selected model has no verified Codex tool isolation profile."); }
   writeFileSync(path, JSON.stringify({ models: [isolated] }), { mode: 0o600, flag: "wx" });
   return path;
@@ -262,7 +269,17 @@ async function runCommand(command: readonly string[], args: string[], signal?: A
 
 export async function runCodexGeneration(input: CodexGenerationInput): Promise<CodexGenerationResult> {
   if (input.signal?.aborted) throw new CodexRuntimeError("cancelled", "Codex analysis was cancelled.");
-  if (input.readTools && (Object.keys(input.readTools).length === 0 || Object.keys(input.readTools).length > 32 || Object.keys(input.readTools).some((name) => !/^[a-z][a-z0-9_]{0,63}$/.test(name) || name === "apply_changes" || name === "record_drill")))
+  const toolRole = input.toolRole ?? "chat";
+  const toolEntries = Object.entries(input.tools ?? {});
+  if (input.tools && (toolEntries.length === 0 || toolEntries.length > 32 || toolEntries.some(([name, tool]) => {
+    if (!/^[a-z][a-z0-9_]{0,63}$/.test(name)) return true;
+    if (!(tool.access === "read" || tool.access === "experiment" || tool.access === "engineer" || tool.access === "coach")) return true;
+    if (name === "apply_changes") return toolRole !== "engineer" || tool.access !== "engineer";
+    if (name === "record_drill") return toolRole !== "coach" || tool.access !== "coach";
+    if (tool.access === "read") return false;
+    if (toolRole === "chat") return true;
+    return tool.access === "engineer" ? toolRole !== "engineer" : tool.access === "coach" ? toolRole !== "coach" : false;
+  })))
     throw new CodexRuntimeError("unsafe-runtime", "Codex tool registration is invalid.");
   const version = await runCommand(input.command, ["--version"], input.signal);
   if (version.trim() !== "codex-cli 0.164.0") {
@@ -288,13 +305,13 @@ export async function runCodexGeneration(input: CodexGenerationInput): Promise<C
     connection = connect(
       input.command,
       directory,
-      [...BASE_OVERRIDES, ...(input.readTools ? CODEX_TOOL_PROFILE_OVERRIDES : []), `model_catalog_json=${JSON.stringify(catalog)}`, ...servers.map((name) => `mcp_servers.${name}.enabled=false`)],
+      [...BASE_OVERRIDES, ...(input.tools ? CODEX_TOOL_PROFILE_OVERRIDES : []), `model_catalog_json=${JSON.stringify(catalog)}`, ...servers.map((name) => `mcp_servers.${name}.enabled=false`)],
       (method, params) => onNotification(method, params),
-      input.readTools ? (params, signal) => onToolCall ? onToolCall(params, signal) : Promise.resolve({ success: false, contentItems: [{ type: "inputText", text: "Tool request rejected or failed." }] }) : undefined,
+      input.tools ? (params, signal) => onToolCall ? onToolCall(params, signal) : Promise.resolve({ success: false, contentItems: [{ type: "inputText", text: "Tool request rejected or failed." }] }) : undefined,
     );
     await initialize(connection);
     await requireChatGptAccount(connection);
-    await requireSafeFeatures(connection, input.readTools ? ["goals"] : []);
+    await requireSafeFeatures(connection, input.tools ? ["goals"] : []);
     const started = await connection.request("thread/start", {
       model: input.model,
       modelProvider: "openai",
@@ -302,9 +319,11 @@ export async function runCodexGeneration(input: CodexGenerationInput): Promise<C
       approvalPolicy: "never",
       sandbox: "read-only",
       ephemeral: true,
-      baseInstructions: input.readTools ? "You are RaceIQ's read-only racing telemetry analyst. Use only the supplied RaceIQ tools and telemetry." : "You are RaceIQ's read-only racing telemetry analyst, not a coding assistant. Analyze only supplied telemetry. No tools or external actions are authorized.",
+      baseInstructions: input.tools
+        ? `You are RaceIQ's ${toolRole === "engineer" ? "setup engineer" : toolRole === "coach" ? "driver coach" : "read-only racing telemetry assistant"}. Use only the supplied RaceIQ tools and evidence. Never exceed the authority of the registered tools.`
+        : "You are RaceIQ's read-only racing telemetry analyst, not a coding assistant. Analyze only supplied telemetry. No tools or external actions are authorized.",
       developerInstructions: "Return the requested analysis using supplied evidence only. Do not inspect files, execute commands, or use network, browser, computer, patch, MCP, app or agent tools.",
-      dynamicTools: Object.entries(input.readTools ?? {}).map(([name, tool]) => ({ type: "function", name, description: tool.description, inputSchema: tool.inputSchema })),
+      dynamicTools: Object.entries(input.tools ?? {}).map(([name, tool]) => ({ type: "function", name, description: tool.description, inputSchema: tool.inputSchema })),
     });
     if (!isRecord(started) || !isRecord(started.thread) || typeof started.thread.id !== "string" || started.model !== input.model || started.modelProvider !== "openai")
       throw new CodexRuntimeError("unsafe-runtime", "Codex did not create the requested isolated thread.");
@@ -318,9 +337,9 @@ export async function runCodexGeneration(input: CodexGenerationInput): Promise<C
     let turnId: string | undefined;
     let acknowledgeTurn!: () => void;
     const turnAcknowledged = new Promise<void>((resolve) => { acknowledgeTurn = resolve; });
-    if (input.readTools) {
-      const tools = Object.fromEntries(Object.entries(input.readTools).map(([name, tool]) => [name, { access: "read" as const, input: tool.input, execute: tool.execute }]));
-      const dispatch = createCodexToolDispatcher({ threadId, turnId: () => turnId, role: "chat", tools });
+    if (input.tools) {
+      const tools = Object.fromEntries(Object.entries(input.tools).map(([name, tool]) => [name, { access: tool.access, input: tool.input, execute: tool.execute }]));
+      const dispatch = createCodexToolDispatcher({ threadId, turnId: () => turnId, role: toolRole, tools });
       onToolCall = async (params, signal) => {
         if (!turnId && !signal.aborted) {
           let timer: ReturnType<typeof setTimeout> | undefined;

@@ -34,6 +34,12 @@ Codex model selection and existing API-provider controls (four scenarios).
 These are local source changes, not yet installed into the running native app.
 Native verification and the full response-quality matrix remain separate gates.
 
+The Codex runtime now accepts backend-owned per-tool access labels and explicit
+`chat` / `engineer` / `coach` roles. Chat remains read-only by default; the
+runtime and dispatcher both reject `apply_changes` outside engineer role and
+`record_drill` outside coach role. Runtime and dispatcher tests pass. This is a
+security foundation only: chat/setup routes and settings are not enabled yet.
+
 The `.2` artifact has now been built and its ad-hoc signature verified. Its
 bundled backend passed two launches with `/usr/bin:/bin` as PATH, using disposable
 data: saved prompt/provider/model preferences survived restart, managed Codex

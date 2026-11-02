@@ -9,17 +9,34 @@ function command(scenario: string): string[] {
 
 test.each(["read-tool", "read-tool-early"])("isolated Luna runtime routes a validated read-only dynamic tool (%s)", async (scenario) => {
   let calls = 0;
-  const result = await runCodexGeneration({ command: command(scenario), model: "gpt-6-luna", effort: "medium", prompt: "synthetic", readTools: { get_speed: { description: "Read test speed", inputSchema: { type: "object" }, input: z.object({ lap: z.literal(1) }).strict(), execute: async () => { calls++; return "240 km/h"; } } } });
+  const result = await runCodexGeneration({ command: command(scenario), model: "gpt-6-luna", effort: "medium", prompt: "synthetic", tools: { get_speed: { access: "read", description: "Read test speed", inputSchema: { type: "object" }, input: z.object({ lap: z.literal(1) }).strict(), execute: async () => { calls++; return "240 km/h"; } } } });
+  expect(result.text).toBe("240 km/h");
+  expect(calls).toBe(1);
+});
+
+test("runtime passes matching engineer authority to dynamic tool dispatch", async () => {
+  let calls = 0;
+  const result = await runCodexGeneration({
+    command: command("read-tool"), model: "gpt-6-luna", toolRole: "engineer", prompt: "synthetic",
+    tools: { get_speed: { access: "engineer", description: "Engineer tool fixture", inputSchema: { type: "object" }, input: z.object({ lap: z.literal(1) }).strict(), execute: async () => { calls++; return "240 km/h"; } } },
+  });
   expect(result.text).toBe("240 km/h");
   expect(calls).toBe(1);
 });
 
 test("unverified models cannot use the dynamic tool profile", async () => {
-  await expect(runCodexGeneration({ command: command("read-tool"), model: "gpt-6.1-sol", prompt: "private", readTools: { get_speed: { description: "test", inputSchema: {}, input: z.object({}), execute: async () => "value" } } })).rejects.toMatchObject({ code: "unsupported-runtime" });
+  await expect(runCodexGeneration({ command: command("read-tool"), model: "gpt-6.1-sol", prompt: "private", tools: { get_speed: { access: "read", description: "test", inputSchema: {}, input: z.object({}), execute: async () => "value" } } })).rejects.toMatchObject({ code: "unsupported-runtime" });
 });
 
 test("read-only runtime refuses experiment write tool registration", async () => {
-  await expect(runCodexGeneration({ command: command("read-tool"), model: "gpt-6-luna", prompt: "private", readTools: { apply_changes: { description: "test", inputSchema: {}, input: z.object({}), execute: async () => "value" } } })).rejects.toMatchObject({ code: "unsafe-runtime" });
+  await expect(runCodexGeneration({ command: command("read-tool"), model: "gpt-6-luna", prompt: "private", tools: { apply_changes: { access: "engineer", description: "test", inputSchema: {}, input: z.object({}), execute: async () => "value" } } })).rejects.toMatchObject({ code: "unsafe-runtime" });
+});
+
+test("dynamic mutation tools require matching role and authority labels", async () => {
+  const applyChanges = { access: "engineer" as const, description: "apply", inputSchema: {}, input: z.object({}), execute: async () => "applied" };
+  const recordDrill = { access: "coach" as const, description: "drill", inputSchema: {}, input: z.object({}), execute: async () => "recorded" };
+  await expect(runCodexGeneration({ command: command("read-tool"), model: "gpt-6-luna", prompt: "test", tools: { apply_changes: applyChanges }, toolRole: "coach" })).rejects.toMatchObject({ code: "unsafe-runtime" });
+  await expect(runCodexGeneration({ command: command("read-tool"), model: "gpt-6-luna", prompt: "test", tools: { record_drill: recordDrill }, toolRole: "engineer" })).rejects.toMatchObject({ code: "unsafe-runtime" });
 });
 
 test.each([
