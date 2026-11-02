@@ -51,6 +51,7 @@
 - Include the complete LMU multiplayer recording in demo seeds as sub-100 MB gzip parts, stream native input without buffering the whole capture, and retain separate player and opponent recordings.
 
 ### Fixes
+- In AI lap analysis, report measured brake onset after corner entry and mark unobserved brake onset as unknown instead of zero.
 - On Replay, show the correct F1 brake-bias percentage in the Data panel.
 - On Compare, changing lap order no longer reuses AI advice with the A and B labels reversed.
 - Show “Unknown” in new AI analysis results when usage metrics are unreported, while preserving reported zero values.

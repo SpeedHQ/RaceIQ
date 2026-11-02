@@ -13,7 +13,8 @@ export interface CornerMetrics {
   minSpeed: number;
   exitSpeed: number;
   gear: number;
-  brakingDistance: number;
+  /** Signed metres from corner entry to nearest observed brake onset: positive before, negative after. */
+  brakeOnsetDistanceM: number | null;
   timeInCorner: number;
   avgThrottle: number;
   avgBrake: number;
@@ -66,29 +67,27 @@ export function computeCornerMetrics(
       if (g > 0 && c > maxCount) { gear = g; maxCount = c; }
     }
 
-    // Find the packet index nearest to corner start, then scan backwards for braking
+    // Brake onset can fall after a detected corner boundary. Scan the approach
+    // and corner for an actual pedal transition; zero is a valid measured value,
+    // so keep missing observations null instead of presenting them as zero.
     const cornerStartDist = corner.distanceStart;
-    let nearestIdx = 0;
-    let nearestDelta = Infinity;
-    for (let i = 0; i < packets.length; i++) {
-      const delta = Math.abs((packets[i].DistanceTraveled - distanceOrigin) - cornerStartDist);
-      if (delta < nearestDelta) { nearestDelta = delta; nearestIdx = i; }
-      if (packets[i].DistanceTraveled - distanceOrigin > cornerStartDist) break;
-    }
-    let brakingDistance = 0;
-    for (let i = nearestIdx; i >= 0; i--) {
-      const packetDistance = packets[i].DistanceTraveled - distanceOrigin;
-      if (packets[i].Brake > 50) {
-        brakingDistance = cornerStartDist - packetDistance;
-        while (i > 0 && packets[i - 1].Brake > 50) {
-          i--;
-          brakingDistance = cornerStartDist - (packets[i].DistanceTraveled - distanceOrigin);
+    const brakeThreshold = 13; // ~5% of the normalized 0..255 pedal channel
+    let nearestBrakeOnsetDistanceM: number | null = null;
+    let nearestBrakeOnsetOffset = Infinity;
+    for (let i = 1; i < packets.length; i++) {
+      const packet = packets[i];
+      const packetDistance = packet.DistanceTraveled - distanceOrigin;
+      if (packetDistance < cornerStartDist - 300) continue;
+      if (packetDistance > corner.distanceEnd) break;
+      if (packet.Brake > brakeThreshold && packets[i - 1].Brake <= brakeThreshold) {
+        const offset = cornerStartDist - packetDistance;
+        if (Math.abs(offset) < nearestBrakeOnsetOffset) {
+          nearestBrakeOnsetDistanceM = offset;
+          nearestBrakeOnsetOffset = Math.abs(offset);
         }
-        break;
       }
-      // Stop scanning if we're too far back (more than 300m before corner)
-      if (cornerStartDist - packetDistance > 300) break;
     }
+    const brakeOnsetDistanceM = nearestBrakeOnsetDistanceM;
 
     const timeInCorner = cornerPackets.length / 60;
     const avgThrottle = cornerPackets.reduce((s, p) => s + p.Accel / 255, 0) / cornerPackets.length * 100;
@@ -111,7 +110,7 @@ export function computeCornerMetrics(
 
     metrics.push({
       label: corner.label, entrySpeed, minSpeed, exitSpeed, gear,
-      brakingDistance, timeInCorner, avgThrottle, avgBrake, throttleOnDist, balance,
+      brakeOnsetDistanceM, timeInCorner, avgThrottle, avgBrake, throttleOnDist, balance,
     });
   }
 
@@ -129,11 +128,13 @@ export function buildCornerData(
   if (metrics.length === 0) return "";
 
   let out = "\n--- Corner-by-Corner Data ---\n";
-  out += `Corner | Entry ${speedLabel} | Min ${speedLabel} | Exit ${speedLabel} | Gear | Brake dist m | Time s | Throttle% | Brake% | Throttle-on m | Balance\n`;
-  out += "-------|-----------|---------|----------|------|-------------|--------|-----------|--------|--------------|--------\n";
+  out += `Corner | Entry ${speedLabel} | Min ${speedLabel} | Exit ${speedLabel} | Gear | Brake onset Δm* | Time s | Throttle% | Brake% | Throttle-on m | Balance\n`;
+  out += "-------|-----------|---------|----------|------|---------------|--------|-----------|--------|--------------|--------\n";
   for (const m of metrics) {
-    out += `${m.label.padEnd(6)} | ${m.entrySpeed.toFixed(0).padStart(9)} | ${m.minSpeed.toFixed(0).padStart(7)} | ${m.exitSpeed.toFixed(0).padStart(8)} | ${m.gear.toString().padStart(4)} | ${m.brakingDistance.toFixed(0).padStart(11)} | ${m.timeInCorner.toFixed(1).padStart(6)} | ${m.avgThrottle.toFixed(0).padStart(9)} | ${m.avgBrake.toFixed(0).padStart(5)} | ${m.throttleOnDist.toFixed(0).padStart(12)} | ${m.balance}\n`;
+    const brakeOnset = m.brakeOnsetDistanceM == null ? "unknown" : `${m.brakeOnsetDistanceM >= 0 ? "+" : ""}${m.brakeOnsetDistanceM.toFixed(0)}`;
+    out += `${m.label.padEnd(6)} | ${m.entrySpeed.toFixed(0).padStart(9)} | ${m.minSpeed.toFixed(0).padStart(7)} | ${m.exitSpeed.toFixed(0).padStart(8)} | ${m.gear.toString().padStart(4)} | ${brakeOnset.padStart(13)} | ${m.timeInCorner.toFixed(1).padStart(6)} | ${m.avgThrottle.toFixed(0).padStart(9)} | ${m.avgBrake.toFixed(0).padStart(5)} | ${m.throttleOnDist.toFixed(0).padStart(12)} | ${m.balance}\n`;
   }
+  out += "* Brake onset offset from corner entry; positive = before entry, negative = after entry. Unknown = no pedal onset observed in the 300 m approach or corner.\n";
 
   const sorted = [...metrics].sort((a, b) => {
     const ratioA = a.exitSpeed / (a.entrySpeed || 1);
