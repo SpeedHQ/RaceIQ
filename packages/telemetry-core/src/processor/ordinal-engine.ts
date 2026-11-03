@@ -310,7 +310,7 @@ export class OrdinalDetectorEngine {
         await this.complete(packet);
       } else if (reset.action === "reset-untimed-lap") {
         this.effects.log?.("[Lap] Untimed start-line crossing — starting lap buffer");
-        this.reset(packet);
+        this.reset(packet, true);
       } else if (reset.action === "reset-restart") {
         this.reset(packet, true);
       }

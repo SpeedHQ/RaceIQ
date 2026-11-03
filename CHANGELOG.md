@@ -38,6 +38,7 @@
 - Include the complete LMU multiplayer recording in demo seeds as sub-100 MB gzip parts, stream native input without buffering the whole capture, and retain separate player and opponent recordings.
 
 ### Fixes
+- Keep AMS2 laps available in Replay after an untimed opening lap crosses the start line.
 - Finish pending recording finalization with the original error when a writer fails after overload.
 - Keep dismissed historical lap-classification notices hidden after unrelated session updates, reopening them only for new work or changed results.
 - Model competitor positions as indexed structured values so live resolver returns and validates all competitors in source order.

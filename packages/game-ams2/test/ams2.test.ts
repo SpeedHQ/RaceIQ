@@ -72,14 +72,19 @@ describe("AMS2 native capture",()=>{
         b.writeFloatLE(-1, L.mCurrentTime);
         b.writeFloatLE(-1, L.mLastLapTime);
         b.writeFloatLE(2980 + i / 2, P + 80);
+        detector.observeSourceRecord!(12 + i * 100, 112 + i * 100, i);
         await detector.feed(packet(b, 1800000000000 + i * 10));
+        detector.drainOwnershipTransitions!();
       }
       const b = fixture();
       b.writeUInt32LE(1, L.mSessionState);
       b.writeFloatLE(nextTime, L.mCurrentTime);
       b.writeFloatLE(-1, L.mLastLapTime);
       b.writeFloatLE(0, P + 80);
+      detector.observeSourceRecord!(4012, 4112, 40);
       await detector.feed(packet(b, 1800000000400));
+      const transitions = detector.drainOwnershipTransitions!();
+      expect(transitions.some(t => t.kind === "window-abandoned" && t.window?.startOffset === 12)).toBe(true);
       expect(detector.getDebugState!().lapBufferLength).toBe(1);
       expect(db.sessions).toHaveLength(1);
       expect(db.laps).toHaveLength(0);
