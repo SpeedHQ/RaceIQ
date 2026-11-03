@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { getAllAccCars, getAccCarClass } from "@raceiq/game-acc-metadata/racing/cars/acc";
+import { getAllAccCars, getAccCarById } from "@raceiq/game-acc-metadata/racing/cars/acc";
 import { getAccCarSpecs } from "@raceiq/game-acc-metadata/racing/cars/acc-specs";
 
 export const accCarRoutes = new Hono()
@@ -12,8 +12,6 @@ export const accCarRoutes = new Hono()
     return c.json(cars);
   })
   .get("/api/acc/cars/:carId/class", (c) => {
-    const carId = c.req.param("carId").trim();
-    const ordinal = Number(carId);
-    if (!carId || !Number.isFinite(ordinal)) return c.json({ class: null });
-    return c.json({ class: getAccCarClass(Number(carId)) ?? null });
+    const carId = c.req.param("carId");
+    return c.json({ class: getAccCarById(carId)?.class ?? null });
   });

@@ -10,7 +10,7 @@ import { replayRecording } from "@raceiq/game-acc/replay";
 import { getAccReader } from "../../runtime/live-readers";
 import { PHYSICS, GRAPHICS, STATIC } from "@raceiq/capture-formats/acc/structs";
 import { readWString } from "@raceiq/game-acc/utils";
-import { getAccSharedTrackName, getAccTracks } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc"
+import { getAccTrackById, getAccTracks } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc"
 
 let accReplayHandle: { stop: () => void; frameCount: number } | null = null;
 
@@ -221,7 +221,7 @@ export const accRoutes = new Hono()
     zValidator("query", z.object({ trackId: z.string().min(1) })),
     (c) => {
       const trackId = c.req.valid("query").trackId;
-      const slug = getAccSharedTrackName(Number(trackId));
+      const slug = getAccTrackById(trackId)?.commonTrackName;
       if (!slug) return c.json([]);
       return c.json(loadAccSetupsByTrack(slug));
     }

@@ -4,8 +4,6 @@ import { parseAccBuffers } from "../../src/parser";
 import { readWString } from "../../src/utils";
 import { readKunosFrames } from "@raceiq/capture-formats/kunos/dump";
 import { STATIC } from "@raceiq/capture-formats/acc/structs";
-import { getAccCarByModel } from "@raceiq/game-acc-metadata/racing/cars/acc";
-import { getAccTrackByName } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { META_FRAME_MAGIC } from "@raceiq/capture-formats/session/framing";
 import { readFileSync } from "node:fs";
@@ -29,10 +27,10 @@ export function readAccPackets(dumpPath: string): ParsedFrames {
     if (!carId || !trackId) {
       const cm = readWString(frame.staticData, STATIC.carModel.offset, STATIC.carModel.size);
       const tn = readWString(frame.staticData, STATIC.track.offset, STATIC.track.size);
-      if (cm) { carModel = cm; carId = String(getAccCarByModel(cm)?.id ?? cm); }
-      if (tn) { trackName = tn; trackId = String(getAccTrackByName(tn)?.id ?? tn); }
+      if (cm) { carModel = cm; carId = cm; }
+      if (tn) { trackName = tn; trackId = tn; }
     }
-    const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, { carId, trackId });
+    const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, { fallbackCarId: carId, fallbackTrackId: trackId });
     if (packet) packets.push(packet);
   }
   return { packets, carModel, trackName };
@@ -65,14 +63,14 @@ export const accRecordingSupport: RecordingGameSupport = {
           const tn = readWString(frame.staticData, STATIC.track.offset, STATIC.track.size);
           if (cm) {
             carModel = cm;
-            carId = String(getAccCarByModel(cm)?.id ?? cm);
+            carId = cm;
           }
           if (tn) {
             trackName = tn;
-            trackId = String(getAccTrackByName(tn)?.id ?? tn);
+            trackId = tn;
           }
         }
-        const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, { carId, trackId });
+        const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, { fallbackCarId: carId, fallbackTrackId: trackId });
         if (packet) yield { packet, carModel, trackName };
         // Capture adapter writes resolve synchronously. Yield
         // periodically so long recordings do not defer GC until suite timeout.

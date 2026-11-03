@@ -308,6 +308,25 @@ describe("alignPathToTrack", () => {
 });
 
 describe("resolveMotecCarTrack", () => {
+  test("ACC preserves header identity and explicit selections", () => {
+    const log = parseLd(buildLd({
+      vehicleId: "unknown_native_car",
+      venue: "unknown_native_track",
+      channels: [{ name: "SPEED", freq: 10, samples: [50, 50] }],
+    }));
+    const target = resolveMotecTarget("acc");
+    expect(target.resolveCarTrack(log)).toMatchObject({
+      carId: "unknown_native_car", trackId: "unknown_native_track",
+    });
+    expect(target.resolveCarTrack(log, {
+      carId: "selected_car", trackId: "selected_track",
+      carName: "Selected Car", trackName: "Selected Track",
+    })).toMatchObject({
+      carId: "selected_car", trackId: "selected_track",
+      carModel: "Selected Car", trackName: "Selected Track",
+    });
+  });
+
   test("preserves a venue with an empty layout instead of guessing a catalog layout", () => {
     const bytes = buildLd({
       vehicleId: "mercedes_amg_gt3_evo",
@@ -657,6 +676,23 @@ describe("importMotec end to end", () => {
     expect(await response.json()).toMatchObject({ ok: true, gameId: "acc", imported: 1, packetCount: 6164 });
     const replay = await transferRoutes.request("/api/laps/import-motec", { method: "POST", body: form });
     expect(replay.status).toBe(410);
+  });
+
+  test("imports selected native ACC identities through the transfer route", async () => {
+    const stageForm = new FormData();
+    stageForm.append("file", new File([readFileSync(MOTEC_ARCHIVE)], "native-acc.zip"));
+    const stagedResponse = await transferRoutes.request("/api/laps/stage-motec", { method: "POST", body: stageForm });
+    expect(stagedResponse.status).toBe(200);
+    const { token } = await stagedResponse.json() as { token: string };
+    const form = new FormData();
+    form.append("motecToken", token);
+    form.append("gameId", "acc");
+    form.append("carId", "porsche_992_gt3_r");
+    form.append("trackId", "barcelona");
+    form.append("ownership", "mine");
+    const response = await transferRoutes.request("/api/laps/import-motec", { method: "POST", body: form });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ ok: true, gameId: "acc", imported: 1 });
   });
 
   test("live-recorded sessions keep a null source", async () => {

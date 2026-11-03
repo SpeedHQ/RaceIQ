@@ -184,6 +184,7 @@ apps/backend/test/telemetry/pipeline-live-issues.test.ts
 apps/backend/test/telemetry/telemetry-model.test.ts
 apps/backend/test/telemetry/telemetry-storage.test.ts
 apps/backend/test/tracks/acc-boundaries.test.ts
+apps/backend/test/tracks/acc-legacy-geometry.test.ts
 apps/backend/test/tracks/calibration.test.ts
 apps/backend/test/tracks/compact-route.test.ts
 apps/backend/test/tracks/discovered-cars.test.ts
@@ -197,6 +198,7 @@ apps/backend/test/tracks/guides/track-guides-coverage.test.ts
 apps/backend/test/tracks/iracing-sector-layout.test.ts
 apps/backend/test/tracks/lap-route-game-id.test.ts
 apps/backend/test/tracks/model/ac-evo-native-geometry.test.ts
+apps/backend/test/tracks/model/acc-native-consumers.test.ts
 apps/backend/test/tracks/model/iracing-track-catalog.test.ts
 apps/backend/test/tracks/model/iracing-track-map.test.ts
 apps/backend/test/tracks/model/track-model-join.test.ts

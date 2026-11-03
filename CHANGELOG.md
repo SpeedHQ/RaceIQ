@@ -3,6 +3,7 @@
 ### Features
 
 ### Fixes
+- Preserve ACC car and track names from recordings and MoTeC imports, including names not yet in the catalog.
 
 ### Internal
 

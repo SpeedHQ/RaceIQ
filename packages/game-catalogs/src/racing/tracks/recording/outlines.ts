@@ -1,5 +1,6 @@
 
 import { getAcEvoSharedTrackName } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
+import { getAccTrackById } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc";
 import { getAMS2TrackBoundaries } from "@raceiq/game-ams2-metadata/track-boundaries";
 import { copyFileSync, existsSync, unlinkSync, writeFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
@@ -22,6 +23,11 @@ export function getTrackOutlineById(trackId: string, gameId: string, sharedName?
     const ordinal=Number(trackId);
     return loadRecordedOutline(trackId,gameId)
       ?? (Number.isInteger(ordinal) ? getAMS2TrackBoundaries(ordinal)?.centerLine ?? null : null);
+  }
+  if (gameId === "acc" && !/^\d+$/.test(trackId)) {
+    const track = getAccTrackById(trackId);
+    if (track) return loadRecordedOutline(trackId, gameId)
+      ?? getTrackOutlineById(String(track.id), gameId, sharedName);
   }
   if (gameId !== "ac-evo") {
     const ordinal = Number(trackId);
@@ -51,6 +57,10 @@ export function getTrackRacelineById(trackId: string, gameId: string): Point[] |
   if (gameId === "ac-evo") {
     const name = getAcEvoSharedTrackName(trackId);
     return name ? loadBundledPointCsvByName(name, gameId, "raceline") : null;
+  }
+  if (gameId === "acc" && !/^\d+$/.test(trackId)) {
+    const track = getAccTrackById(trackId);
+    return track ? loadBundledPointCsv(track.id, gameId, "raceline") : null;
   }
   const ordinal = Number(trackId);
   return Number.isInteger(ordinal) ? loadBundledPointCsv(ordinal, gameId, "raceline") : null;

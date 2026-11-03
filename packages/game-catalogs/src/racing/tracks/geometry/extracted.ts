@@ -9,6 +9,7 @@ import { getAMS2TrackBoundaries } from "@raceiq/game-ams2-metadata/track-boundar
 import { getRecordedOutlineById } from "../recording/outlines";
 import { getAcEvoSharedTrackName } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
 import { isAcEvoTouristLayout, parseAcEvoTrackId } from "@raceiq/game-ac-evo-metadata/identity";
+import { getAccTrackById } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc";
 
 /** Tourist shares Nordschleife world coordinates, but not its lap origin or closing section. */
 function trimTouristBoundary(boundary: TrackBoundary, route: Point[]): TrackBoundary | null {
@@ -103,6 +104,10 @@ function trimTouristBoundary(boundary: TrackBoundary, route: Point[]): TrackBoun
 /** Resolve curated boundaries by native AC Evo identity without ordinal translation. */
 export function getTrackBoundariesById(trackId: string, gameId: string): TrackBoundary | null {
   if (!trackId) return null;
+  if (gameId === "acc") {
+    const track = getAccTrackById(trackId);
+    return track ? getTrackBoundariesByOrdinal(track.id, gameId) : null;
+  }
   if (gameId !== "ac-evo") {
     const ordinal = Number(trackId);
     return Number.isInteger(ordinal) ? getTrackBoundariesByOrdinal(ordinal, gameId) : null;

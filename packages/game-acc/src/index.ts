@@ -2,8 +2,8 @@ import { resolve } from "node:path";
 import type { ServerGameAdapter } from "@raceiq/backend-core/games/types";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { accAdapter } from "@raceiq/game-acc-metadata/index";
-import { getAccCarName } from "@raceiq/game-acc-metadata/racing/cars/acc"
-import { getAccTrackName, getAccSharedTrackName, getAccTrackByName, getAccTrackBySetupFolder } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc"
+import { getAccCarByModel, getAccCarName } from "@raceiq/game-acc-metadata/racing/cars/acc"
+import { getAccTrackName, getAccSharedTrackName, getAccTrackByName, getAccTrackBySetupFolder, getAccTrackById } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc"
 import { LapDetectorAcc } from "./lap-detector"
 import { renderAnalystSchemaForPrompt } from "@raceiq/backend-core/ai/schemas";
 import { buildKunosAiContext } from "@raceiq/backend-core/games/kunos/ai-context";
@@ -66,15 +66,19 @@ export const accServerAdapter: ServerGameAdapter = {
   },
 
   getCarName(carId: string): string {
-    return getAccCarName(Number(carId));
+    return /^\d+$/.test(carId) ? getAccCarName(Number(carId)) : getAccCarByModel(carId)?.name ?? carId;
   },
 
   getTrackName(trackId: string): string {
-    return getAccTrackName(Number(trackId));
+    if (/^\d+$/.test(trackId)) return getAccTrackName(Number(trackId));
+    const track = getAccTrackById(trackId);
+    return track ? getAccTrackName(track.id) : trackId;
   },
 
   getSharedTrackName(trackId: string): string | undefined {
-    return getAccSharedTrackName(Number(trackId));
+    if (/^\d+$/.test(trackId)) return getAccSharedTrackName(Number(trackId));
+    const track = getAccTrackById(trackId);
+    return track ? getAccSharedTrackName(track.id) : undefined;
   },
 
   getTrackIdByName(name: string): string | undefined {

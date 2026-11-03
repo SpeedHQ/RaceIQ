@@ -1,8 +1,21 @@
 import { paceLapCondition } from "./lap-eligibility";
-import { eq, and, desc, sql, asc } from "drizzle-orm";
+import { eq, and, or, inArray, desc, sql, asc, type SQL } from "drizzle-orm";
+import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { db, readDb } from "./index"
 import { tunes, tuneAssignments, laps, sessions } from "./schema";
 import { withDatabaseWrite } from "./write-coordination";
+import { accLegacyAlternatives, accLegacyPairs } from "./acc-legacy-identity";
+
+function carFilter(game: AnySQLiteColumn, car: AnySQLiteColumn, value: string) {
+  const alternatives = accLegacyAlternatives("car", value);
+  return or(eq(car, value), and(eq(game, "acc"), inArray(car, alternatives)));
+}
+
+function accIdentityMatch(left: SQL, right: SQL, kind: "car" | "track") {
+  return or(sql`${left} = ${right}`, ...accLegacyPairs(kind).map(([ordinal, native]) =>
+    or(and(sql`${left} = ${ordinal}`, sql`${right} = ${native}`),
+      and(sql`${left} = ${native}`, sql`${right} = ${ordinal}`))));
+}
 
 
 interface InsertTuneData {
@@ -49,7 +62,7 @@ export async function insertTune(data: InsertTuneData): Promise<number> {
 export async function getTunes(filters: { gameId?: string; carId?: string } = {}) {
   const conds = [];
   if (filters.gameId != null) conds.push(eq(tunes.gameId, filters.gameId));
-  if (filters.carId != null) conds.push(eq(tunes.carId, filters.carId));
+  if (filters.carId != null) conds.push(carFilter(tunes.gameId, tunes.carId, filters.carId));
   const query = readDb.select().from(tunes).orderBy(desc(tunes.id));
   const rows = conds.length > 0 ? await query.where(and(...conds)).all() : await query.all();
   if (rows.length === 0) return [];
@@ -66,9 +79,9 @@ export async function getTunes(filters: { gameId?: string; carId?: string } = {}
       paceLapCondition(),
       sql`${laps.lapTime} > 0`,
       eq(sessions.gameId, tunes.gameId),
-      eq(sessions.carId, tunes.carId),
-      sql`(${tunes.trackId} IS NULL OR ${sessions.trackId} = ${tunes.trackId})`,
-      ...(filters.carId != null ? [eq(tunes.carId, filters.carId)] : []),
+      or(eq(sessions.carId, tunes.carId), and(eq(tunes.gameId, "acc"), accIdentityMatch(sql`${sessions.carId}`, sql`${tunes.carId}`, "car"))),
+      or(sql`${tunes.trackId} IS NULL`, eq(sessions.trackId, tunes.trackId), and(eq(tunes.gameId, "acc"), accIdentityMatch(sql`${sessions.trackId}`, sql`${tunes.trackId}`, "track"))),
+      ...(filters.carId != null ? [carFilter(tunes.gameId, tunes.carId, filters.carId)] : []),
     ))
     .groupBy(laps.tuneId).all();
   const bestLapByTuneId = new Map(bestLaps.map((row) => [row.tuneId, row.bestLapTime]));
@@ -143,17 +156,20 @@ export async function setTuneAssignment(gameId: string, carId: string, trackId: 
 }
 
 export async function getTuneAssignment(gameId: string, carId: string, trackId: string) {
-  const row = await readDb.select({
+  const cars = gameId === "acc" ? accLegacyAlternatives("car", carId) : [carId];
+  const tracks = gameId === "acc" ? accLegacyAlternatives("track", trackId) : [trackId];
+  const rows = await readDb.select({
     carId: tuneAssignments.carId, trackId: tuneAssignments.trackId, tuneId: tuneAssignments.tuneId, tuneName: tunes.name,
   }).from(tuneAssignments).innerJoin(tunes, eq(tuneAssignments.tuneId, tunes.id))
-    .where(and(eq(tuneAssignments.gameId, gameId), eq(tuneAssignments.carId, carId), eq(tuneAssignments.trackId, trackId))).get();
-  return row ?? null;
+    .where(and(eq(tuneAssignments.gameId, gameId), inArray(tuneAssignments.carId, cars), inArray(tuneAssignments.trackId, tracks))).all();
+  const exact = rows.find((row) => row.carId === carId && row.trackId === trackId);
+  return exact ?? (rows.length === 1 ? rows[0] : null);
 }
 
 export async function getTuneAssignments(filters: { gameId?: string; carId?: string } = {}) {
   const conds = [];
   if (filters.gameId != null) conds.push(eq(tuneAssignments.gameId, filters.gameId));
-  if (filters.carId != null) conds.push(eq(tuneAssignments.carId, filters.carId));
+  if (filters.carId != null) conds.push(carFilter(tuneAssignments.gameId, tuneAssignments.carId, filters.carId));
   const query = readDb.select({
     carId: tuneAssignments.carId, trackId: tuneAssignments.trackId, tuneId: tuneAssignments.tuneId, tuneName: tunes.name,
   }).from(tuneAssignments).innerJoin(tunes, eq(tuneAssignments.tuneId, tunes.id));
@@ -162,8 +178,15 @@ export async function getTuneAssignments(filters: { gameId?: string; carId?: str
 
 export async function deleteTuneAssignment(gameId: string, carId: string, trackId: string): Promise<boolean> {
   return await withDatabaseWrite(async () => {
+    const cars = gameId === "acc" ? accLegacyAlternatives("car", carId) : [carId];
+    const tracks = gameId === "acc" ? accLegacyAlternatives("track", trackId) : [trackId];
+    const rows = await db.select({ carId: tuneAssignments.carId, trackId: tuneAssignments.trackId })
+      .from(tuneAssignments)
+      .where(and(eq(tuneAssignments.gameId, gameId), inArray(tuneAssignments.carId, cars), inArray(tuneAssignments.trackId, tracks))).all();
+    const selected = rows.find((row) => row.carId === carId && row.trackId === trackId) ?? (rows.length === 1 ? rows[0] : undefined);
+    if (!selected) return false;
     const result = await db.delete(tuneAssignments)
-      .where(and(eq(tuneAssignments.gameId, gameId), eq(tuneAssignments.carId, carId), eq(tuneAssignments.trackId, trackId)))
+      .where(and(eq(tuneAssignments.gameId, gameId), eq(tuneAssignments.carId, selected.carId), eq(tuneAssignments.trackId, selected.trackId)))
       .returning().all();
     return result.length > 0;
   });
