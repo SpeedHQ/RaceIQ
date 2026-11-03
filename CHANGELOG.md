@@ -1,8 +1,10 @@
 ## Unreleased
 
 ### Features
+- Change the recording frequency in Settings → Recording after setup.
 
 ### Fixes
+- Restore iRacing and Automobilista 2 in the Windows app sidebar.
 
 ### Internal
 
