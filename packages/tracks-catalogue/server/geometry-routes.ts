@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { TrackIdParamSchema, GameIdQuerySchema } from "@raceiq/shared/platform/http/route-schemas";
-import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
+import { getLapMetaById, getLapById } from "@raceiq/backend-core/db/lap-read-queries";
 import { getTrackOutline as getDbTrackOutline } from "@raceiq/backend-core/db/track-queries";
 import { getBundledOutlineByOrdinal } from "@raceiq/game-catalogs/racing/tracks/geometry/outlines";
 import { getTrackBoundariesById } from "@raceiq/game-catalogs/racing/tracks/geometry/extracted";
@@ -19,7 +19,7 @@ import {
   getCalibrationStatus,
   transformToSourceSpace,
 } from "@raceiq/backend-core/tracks/calibration";
-import { getSharedTrackName, requireGameId, resolveTrackOutline } from "./support";
+import { getSharedTrackName, recordingProcessingHttpError, requireGameId, resolveTrackOutline } from "./support";
 
 export const trackCalibrationRoutes = new Hono()
 
@@ -45,15 +45,24 @@ export const trackCalibrationRoutes = new Hono()
       const body = await c.req.json<{ lapId: number }>();
       if (!body?.lapId) return c.json({ error: "lapId required" }, 400);
 
-      const lapData = await getLapById(body.lapId);
+      const lapMeta = await getLapMetaById(body.lapId);
+      if (!lapMeta) return c.json({ error: "Lap not found" }, 404);
+      if (lapMeta.trackId !== trackId) return c.json({ error: "Lap is not from this track" }, 400);
+      const processingFailure = recordingProcessingHttpError([lapMeta.processing]);
+      if (processingFailure) {
+        requireGameId(c);
+        return c.json(processingFailure.body, processingFailure.status);
+      }
+
+      const lapData = await getLapById(body.lapId, lapMeta.processing);
       if (!lapData) return c.json({ error: "Lap not found" }, 404);
       if (lapData.trackId !== trackId) return c.json({ error: "Lap is not from this track" }, 400);
       if (!lapData.telemetry || lapData.telemetry.length < 50) {
         return c.json({ error: "Lap has insufficient telemetry data" }, 400);
       }
+      const gameId = requireGameId(c);
 
       // Get the track geometry
-      const gameId = requireGameId(c);
       const outline = (await resolveTrackOutline(trackId, gameId))?.points;
       if (!outline || outline.length === 0) return c.json({ error: "No outline available for this track" }, 400);
 
@@ -114,7 +123,7 @@ export const trackGeometryRoutes = new Hono()
           raceLine: getTrackRacelineById(trackId, validGameId),
           pitLane,
           ...(extractedBoundaries.additionalSections ? { additionalSections: extractedBoundaries.additionalSections } : {}),
-          coordSystem: validGameId === "f1-2025" ? "f1-2025" : (validGameId === "acc" || validGameId === "ac-evo") ? "acc" : "forza",
+          coordSystem: validGameId === "ams2" ? "ams2-world" : validGameId === "f1-2025" ? "f1-2025" : (validGameId === "acc" || validGameId === "ac-evo") ? "acc" : "forza",
         });
       }
 

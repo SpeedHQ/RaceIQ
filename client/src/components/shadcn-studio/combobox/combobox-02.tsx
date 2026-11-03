@@ -21,6 +21,8 @@ export interface Combobox02Option {
   label: string;
   group?: string;
   disabled?: boolean;
+  /** Short tag shown after the label in the list, e.g. "Recommended". */
+  badge?: string;
 }
 
 export interface Combobox02Props {
@@ -34,6 +36,7 @@ export interface Combobox02Props {
   className?: string;
   fallbackLabel?: string;
   popupHeader?: ReactNode;
+  clearOnOpen?: boolean;
 }
 
 interface OptionGroup {
@@ -66,8 +69,14 @@ export function Combobox02({
   className = "w-full max-w-xs",
   fallbackLabel,
   popupHeader,
+  clearOnOpen = false,
 }: Combobox02Props) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen && clearOnOpen) setSearch("");
+    setOpen(nextOpen);
+  }
   const optionsWithFallback = useMemo(() => {
     if (!value || options.some((option) => option.value === value) || !fallbackLabel) return options;
     return [...options, { value, label: fallbackLabel }];
@@ -79,10 +88,12 @@ export function Combobox02({
   return (
     <Combobox
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={handleOpenChange}
       openOnInputClick
       items={groups}
       value={selectedOption}
+      inputValue={clearOnOpen ? (open ? search : selectedOption?.label ?? "") : undefined}
+      onInputValueChange={clearOnOpen ? setSearch : undefined}
       disabled={disabled}
       onValueChange={(option) => {
         if (option && "value" in option && !("items" in option)) {
@@ -94,10 +105,10 @@ export function Combobox02({
       <ComboboxInput
         id={id}
         aria-label={ariaLabel ?? placeholder}
-        placeholder={placeholder}
+        placeholder={clearOnOpen && open ? "" : placeholder}
         disabled={disabled}
         showTrigger={false}
-        onClick={() => setOpen(true)}
+        onClick={() => handleOpenChange(true)}
         className={cn("w-full border-app-border-input bg-transparent dark:bg-transparent [&_[data-slot=input-group-control]]:pr-8", focusClass, className)}
       >
         <button
@@ -105,7 +116,7 @@ export function Combobox02({
           aria-label={open ? "Hide options" : "Show options"}
           aria-expanded={open}
           disabled={disabled}
-          onClick={() => setOpen((current) => !current)}
+          onClick={() => handleOpenChange(!open)}
           className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-1 text-app-text-muted hover:text-app-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
         >
           <ChevronDownIcon aria-hidden="true" className="size-4" />
@@ -126,7 +137,14 @@ export function Combobox02({
                     disabled={option.disabled}
                     className="min-h-8 whitespace-normal px-3 py-1.5 leading-snug"
                   >
-                    {option.label}
+                    {option.badge ? (
+                      <span className="flex items-center gap-2">
+                        <span>{option.label}</span>
+                        <span className="shrink-0 rounded border border-status-success/40 px-1.5 py-0.5 text-app-caption uppercase tracking-wider text-status-success">
+                          {option.badge}
+                        </span>
+                      </span>
+                    ) : option.label}
                   </ComboboxItem>
                 )}
               </ComboboxCollection>

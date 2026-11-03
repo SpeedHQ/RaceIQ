@@ -9,4 +9,3 @@ This keeps complete-payload cloud processing independent of server boot while pr
 
 Relocation must preserve rejection assertions and caller-controlled test environments. Portable constructors use erasable TypeScript syntax; obsolete host-detector declarations are removed rather than suppressing compiler checks.
 
-Plan: [Approved implementation scope and acceptance](../plans/reusable-lap-processor.md)

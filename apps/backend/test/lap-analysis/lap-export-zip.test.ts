@@ -31,6 +31,8 @@ import {
 } from "@raceiq/capture-formats/iracing/source-frame";
 import { F1_PACKET_IDS } from "@raceiq/capture-formats/f1-2025/f1-wire";
 import type { GameId } from "@raceiq/shared/games/ids";
+import { encodeAMS2Frame } from "@raceiq/game-ams2/frame";
+import { SparseSessionRecorder } from "@raceiq/capture-formats/session/sparse-recorder";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -354,6 +356,56 @@ describe("buildLapsZip", () => {
           decodeIRacingSourceFrame(frame, decoder)?.values.SessionTick,
       ),
     ).toEqual([1, 2, 3]);
+  });
+
+  test("AMS2 sparse lap exports preserve every frame and timestamp across independent segments", async () => {
+    const path = `${process.env.DATA_DIR ?? "."}/zip-test-ams2-${Date.now()}.bin`;
+    tmpFiles.push(path);
+    const recorder = new SparseSessionRecorder("ams2");
+    recorder.start(path);
+    recorder.writeMetaFrame();
+    const offsets: number[] = [];
+    const frames: Buffer[] = [];
+    const times: number[] = [];
+    try {
+      for (let i = 0; i < 270; i++) {
+        // Preserve the full native mapping, including undecoded extension bytes.
+        const memory = Buffer.alloc(24576);
+        memory.writeUInt32LE(14, 0);
+        memory.writeUInt32LE(i * 2, 7320);
+        memory.writeUInt32LE(i, 20000);
+        const time = 1700000000000 + i * 10;
+        const frame = encodeAMS2Frame(memory, time, 7);
+        offsets.push(recorder.getCurrentByteOffset());
+        frames.push(frame);
+        times.push(time);
+        recorder.writeRecord(frame, time);
+      }
+    } finally {
+      await recorder.stop();
+    }
+    const sid = await insertSession(path, "ams2");
+    // Each selected window starts inside a checkpoint group, not on a full frame.
+    const windows = [{start: 5, count: 10}, {start: 135, count: 20}, {start: 255, count: 10}];
+    const ids: number[] = [];
+    for (const [index, window] of windows.entries()) {
+      ids.push(await insertLap(sid, index + 1, offsets[window.start]!, window.count));
+    }
+    for (const selection of [[1], [0, 1, 2], [0, 2]]) {
+      const {bytes, manifest} = await buildLapsZip(selection.map(index => ids[index]!));
+      const records = [...iterateSessionCaptureRecords(readEntry(bytes, manifest.entries[0]!.file))];
+      const exported = records.filter(record => record.kind === "frame");
+      const indices = selection.flatMap(index => {
+        const window = windows[index]!;
+        return Array.from({length: window.count + 1}, (_, frame) => window.start + frame);
+      });
+      expect(records.filter(record => record.kind === "segment-boundary")).toHaveLength(selection.length);
+      expect(exported).toHaveLength(indices.length);
+      for (const [index, record] of exported.entries()) {
+        expect(record.frame.equals(frames[indices[index]!]!)).toBe(true);
+        expect(record.frameTimeMs).toBe(times[indices[index]!]!);
+      }
+    }
   });
 
   test("unknown lap ids are rejected", async () => {

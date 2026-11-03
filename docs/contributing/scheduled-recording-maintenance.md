@@ -12,6 +12,8 @@ Recording maintenance combines compression, optional historical downsampling, op
 - `GET /api/storage/session-downsample` calls `getSessionDownsampleStatus()`. Status includes progress, converted file count, actual freed bytes, skipped groups, and per-group failures. `runSessionDownsampleNow()` is the Promise facade for callers that need to await a manual run.
 - `stopSessionCompressor()` awaits `disposeRecordingMaintenanceRuntime()`. [`apps/backend/src/runtime/shutdown.ts`](../../apps/backend/src/runtime/shutdown.ts) first blocks new layout/startup admission, drains admitted organization and recording maintenance, then stops ingress and flushes the recorder. Startup/dashboard workers and split publication drain before database write admission stops and both database connections close.
 
+Layout migration tracks admission before waiting for storage ownership or an active session to finish. Shutdown cancels those waits before draining migration, so recording shutdown does not depend on a migration waiting for that same recording. Migration rechecks recording activity while holding the maintenance lock before inspecting or moving capture files; it releases the lock before waiting again.
+
 Routes remain Promise boundaries; Effect programs do not call `Effect.run*`. Work is a managed-runtime fiber, not a detached request task. Effect fibers coordinate lifecycle; they do not move CPU-bound work onto another CPU worker.
 
 ## Schedule and pass ordering
@@ -20,11 +22,12 @@ Routes remain Promise boundaries; Effect programs do not call `Effect.run*`. Wor
 
 `maintenancePassEffect()` in [`server/session-capture/compressor.ts`](../../server/session-capture/compressor.ts) runs stages in order:
 
-1. Compress eligible recordings.
-2. Load fresh settings and validate the complete retention policy.
-3. If enabled and no capture is active, automatically downsample recordings strictly older than the configured age.
-4. If enabled and no capture is active, delete recordings strictly older than the configured deletion age.
-5. Clean orphan recordings, expired staged MoTeC imports, and only this operation's interrupted downsample temporary files.
+1. While idle, reconcile database-referenced direct-capture manifests and publication fields. A missing or malformed manifest can be restored from its validated `.recovery` snapshot; an unsuccessful repair blocks the remaining maintenance stages and preserves evidence.
+2. Compress eligible recordings and recover pending opponent-removal cleanup.
+3. Load fresh settings and validate the complete retention policy.
+4. If enabled and no capture is active, automatically downsample recordings strictly older than the configured age.
+5. If enabled and no capture is active, delete recordings strictly older than the configured deletion age.
+6. Clean orphan recordings and expired staged MoTeC imports. Defer interrupted downsample temporary-file cleanup while capture is active or draining; retry on a later idle pass.
 
 Ordinary downsample skips (for example favorites or unsupported timebases) do not fail the stage. A failed/partial automatic downsample skips deletion for that pass. Disabled downsampling leaves existing deletion behavior intact. Cleanup uses the shared session-capture maintenance lock; each downsample group is re-planned and rechecked while holding it.
 

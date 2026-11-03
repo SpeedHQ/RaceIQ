@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useQuery, type UseQueryResult } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import type { AlignedLapSet, EncodedAlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/types";
 import { decodeAlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/codec";
 import { client } from "../lib/rpc";
@@ -10,9 +10,9 @@ type DetailRequest = { step: 0.1; start: number; end: number };
 export type AlignedTelemetryRequest = BaseRequest | DetailRequest;
 type AlignedTelemetryData = AlignedLapSet & { lapIds: number[] };
 
-export function useAlignedTelemetry(lapIds: readonly number[], request: AlignedTelemetryRequest | null): UseQueryResult<AlignedTelemetryData> {
+export function useAlignedTelemetry(lapIds: readonly number[], request: AlignedTelemetryRequest | null) {
   const ids = useMemo(() => [...lapIds], [lapIds]);
-  return useQuery<AlignedTelemetryData>({
+  const query = useQuery<AlignedTelemetryData>({
     queryKey: ["aligned-telemetry", ids, request],
     enabled: ids.length > 0 && request != null,
     staleTime: Number.POSITIVE_INFINITY,
@@ -34,4 +34,11 @@ export function useAlignedTelemetry(lapIds: readonly number[], request: AlignedT
       return { ...data, lapIds: ids };
     },
   });
+  const error = query.error as (Error & { status?: number; code?: string }) | null;
+  const blocked = (error?.status === 409 && error.code === "RECORDING_PROCESSING") ||
+    (error?.status === 422 && error.code === "RECORDING_PROCESSING_FAILED");
+  return {
+    ...query,
+    data: blocked && query.isError ? undefined : query.data,
+  };
 }

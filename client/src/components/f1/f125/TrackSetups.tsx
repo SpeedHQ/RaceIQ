@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { SessionTypeBadge } from "@/components/sessions/SessionTypeBadge";
+import { SessionTypeBadge } from "@/components/SessionTypeBadge";
 import { ProviderBadge } from "@/components/f1/f125/ProviderBadge";
 import { F125SetupRanges } from "@/components/f1/f125/SetupRanges";
 import { setupId } from "@/components/f1/f125/setup-utils";

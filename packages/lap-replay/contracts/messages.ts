@@ -28,6 +28,9 @@ export interface ReplayMessages {
   label_surface: () => string;
   chart_suspension: () => string;
   compare_lap_label: () => string;
+  compare_opponent_index_building: () => string;
+  compare_opponent_index_failed: () => string;
+  recording_processing_refresh: () => string;
   compare_loading: () => string;
   compare_telemetry_unavailable: () => string;
   f1live_ers_label: () => string;
@@ -57,6 +60,8 @@ export interface ReplayMessages {
   spectate_b_unavailable: () => string;
   spectate_balance: () => string;
   spectate_brake: () => string;
+  spectate_vehicle_sideslip_description: () => string;
+  spectate_vehicle_sideslip_side: (input: { side: string }) => string;
   spectate_delta_trend_gaining: (input: { seconds: string }) => string;
   spectate_delta_trend_label: () => string;
   spectate_delta_trend_losing: (input: { seconds: string }) => string;
@@ -69,6 +74,7 @@ export interface ReplayMessages {
   spectate_geometry_unavailable: () => string;
   spectate_grip_demand: () => string;
   spectate_inputs: () => string;
+  spectate_vehicle_sideslip: () => string;
   spectate_line_similarity: () => string;
   spectate_mean_spread: (input: { spread: string }) => string;
   spectate_model_unavailable: () => string;
@@ -102,4 +108,7 @@ export interface ReplayMessages {
   spectate_time_delta: () => string;
   spectate_tire_trails: () => string;
   spectate_window_current: () => string;
+  recording_processing_queued: () => string;
+  recording_processing_running: () => string;
+  recording_processing_failed: (input: { error: string }) => string;
 }

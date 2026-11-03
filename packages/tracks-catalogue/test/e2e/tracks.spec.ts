@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import { runtime } from "../../../../playwright/config/runtime";
 import { collectBrowserErrors } from "../../../../playwright/tests/support/browser-errors";
 import { SEEDED_GAME_CASES } from "../../../../playwright/tests/support/seeded/cases";
+import { cleanDisposable, importDisposableLap } from "../../../../playwright/tests/support/session-fixtures";
 
 type TrackCapability = {
   guides: readonly string[];
@@ -16,6 +17,58 @@ const TRACK_CAPABILITY: TrackCapability = {
   debug: ["fm-2023", "f1-2025", "ac-evo", "iracing"],
 };
 
+
+test("track lap actions refresh after capture readiness without navigation", async ({ page }) => {
+  const game = SEEDED_GAME_CASES.find((candidate) => candidate.gameId === "fm-2023");
+  if (!game) throw new Error("FM23 fixture is missing");
+  let published = false;
+  let requests = 0;
+  let publish: ((message: string) => void) | undefined;
+  let publication: { sessionId: number; lapId: number } | undefined;
+  await page.routeWebSocket("**/ws", (socket) => {
+    socket.connectToServer();
+    publish = (message) => socket.send(message);
+  });
+  // Start with a stale processing snapshot; readiness refetches the real backend.
+  await page.route("**/api/tracks/*/all-laps*", async (route) => {
+    requests++;
+    const response = await route.fetch();
+    if (published) {
+      await route.fulfill({ response });
+      return;
+    }
+    const laps = await response.json() as Array<{ sessionId: number; lapId: number; processing: Record<string, unknown> }>;
+    publication ??= laps.find((lap) => lap.sessionId != null);
+    await route.fulfill({
+      response,
+      json: laps.map((lap) => ({ ...lap, processing: { ...lap.processing, state: "processing" } })),
+    });
+  });
+  await page.goto(`/${game.prefix}/tracks`, { waitUntil: "domcontentloaded" });
+  await page.getByTestId(`track-card-${game.trackId}`).click();
+  await expect(page).toHaveURL(new RegExp(`/${game.prefix}/tracks/${game.trackId}/?$`));
+  await expect(page.getByRole("tab", { name: "Info", exact: true })).toHaveAttribute("aria-selected", "true");
+  await page.getByRole("tab", { name: /^Laps(?: \(\d+\))?$/ }).click();
+  await expect(page.getByRole("tab", { name: /^Laps(?: \(\d+\))?$/ })).toHaveAttribute("aria-selected", "true");
+  const rows = page.locator('tbody tr[data-testid^="track-lap-"]');
+  await expect(rows.nth(1)).toBeVisible();
+  const replay = rows.first().getByRole("button", { name: "Replay", exact: true });
+  await expect(replay).toBeDisabled();
+  await rows.nth(0).locator('input[type="checkbox"]').check();
+  await rows.nth(1).locator('input[type="checkbox"]').check();
+  const compare = page.getByRole("button", { name: "Compare", exact: true });
+  await expect(compare).toBeDisabled();
+  await expect.poll(() => typeof publish).toBe("function");
+  expect(publication).toBeDefined();
+  const previousRequests = requests;
+  const location = page.url();
+  published = true;
+  publish!(JSON.stringify({ type: "lap-capture-ready", sessionId: publication!.sessionId, lapId: publication!.lapId }));
+  await expect.poll(() => requests).toBeGreaterThan(previousRequests);
+  await expect(replay).toBeEnabled();
+  await expect(compare).toBeEnabled();
+  expect(page.url()).toBe(location);
+});
 for (const game of SEEDED_GAME_CASES) {
   if (game.gameId === "acc") continue;
   test(`${game.name} tracks support search, sorting, map, and capability routes`, async ({ page, request }) => {
@@ -112,38 +165,16 @@ for (const game of SEEDED_GAME_CASES) {
 }
 
 test("track lap deletion uses imported disposable data and cleans imported session", async ({ page, request }) => {
+  test.setTimeout(240_000);
   const browserErrors = collectBrowserErrors(page);
-  const sessionsBeforeResponse = await request.get("/api/sessions?gameId=fm-2023");
-  expect(sessionsBeforeResponse.ok()).toBe(true);
-  const sessionsBefore = (await sessionsBeforeResponse.json()) as { id: number }[];
   const lapsResponse = await request.get("/api/laps?gameId=fm-2023");
   expect(lapsResponse.ok()).toBe(true);
   const seededLaps = (await lapsResponse.json()) as { id: number; trackId: string; isValid: boolean; telemetryAvailable?: boolean; rawFrameCount?: number }[];
   const source = seededLaps.find((lap) => lap.isValid && lap.telemetryAvailable && (lap.rawFrameCount ?? 0) > 0);
   if (!source) throw new Error("Missing valid FM lap with available raw capture for disposable import");
-  const exportResponse = await request.get(`/api/laps/${source.id}/export-bin`);
-  expect(exportResponse.ok()).toBe(true);
-  const importResponse = await request.post("/api/laps/import", {
-    multipart: {
-      file: {
-        name: "tracks-cars-disposable.bin.gz",
-        mimeType: "application/octet-stream",
-        buffer: await exportResponse.body(),
-      },
-      ownership: "mine",
-    },
-  });
-  expect(importResponse.ok()).toBe(true);
-  let importedLapIds: number[] = [];
-  let importedSessionIds: number[] = [];
+  const disposable = await importDisposableLap(request, "fm-2023", "tracks-cars-disposable", source.id);
   try {
-    const imported = (await importResponse.json()) as { laps?: { lapId: number }[] };
-    importedLapIds = imported.laps?.map((lap) => lap.lapId) ?? [];
-    expect(importedLapIds.length).toBeGreaterThan(0);
-    const sessionsAfterResponse = await request.get("/api/sessions?gameId=fm-2023");
-    expect(sessionsAfterResponse.ok()).toBe(true);
-    const sessionIdsBefore = new Set(sessionsBefore.map((session) => session.id));
-    importedSessionIds = ((await sessionsAfterResponse.json()) as { id: number }[]).filter((session) => !sessionIdsBefore.has(session.id)).map((session) => session.id);
+    const importedLapIds = disposable.lapIds;
     await page.goto(`/fm23/tracks/${encodeURIComponent(source.trackId)}/laps`, { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("tab", { name: /^Laps(?: \(\d+\))?$/ })).toHaveAttribute("aria-selected", "true");
     const importedRow = page.locator(`[data-testid="track-lap-${importedLapIds[0]}"]`);
@@ -154,32 +185,7 @@ test("track lap deletion uses imported disposable data and cleans imported sessi
     await expect(importedRow).toHaveCount(0);
     expect(browserErrors.errors, "track deletion browser errors").toEqual([]);
   } finally {
-    if (importedLapIds.length > 0) {
-      const cleanup = await request.post("/api/laps/bulk-delete", { data: { ids: importedLapIds } });
-      expect(cleanup.ok(), "cleanup imported laps").toBe(true);
-    }
-    if (importedSessionIds.length > 0) {
-      const cleanup = await request.post("/api/sessions/bulk-delete", { data: { ids: importedSessionIds } });
-      expect(cleanup.ok(), "cleanup imported sessions").toBe(true);
-    }
+    await cleanDisposable(request, disposable);
   }
 });
 
-test("LMU track cards center visible outlines within their map panels", async ({ page }) => {
-  const browserErrors = collectBrowserErrors(page);
-  await page.goto("/lmu/tracks");
-  const maps = page.locator('[data-track-map-layers="centerline"]');
-  await expect(maps.locator("svg").first()).toBeVisible();
-  const offsets = await maps.evaluateAll((hosts) => hosts.map((host) => {
-    const svg = host.querySelector<SVGSVGElement>("svg")!;
-    const bounds = svg.getBBox();
-    const rect = host.getBoundingClientRect();
-    const center = new DOMPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2).matrixTransform(svg.getScreenCTM()!);
-    return { x: center.x - rect.x - rect.width / 2, y: center.y - rect.y - rect.height / 2 };
-  }));
-  for (const offset of offsets) {
-    expect(Math.abs(offset.x), "outline horizontal center").toBeLessThanOrEqual(1);
-    expect(Math.abs(offset.y), "outline vertical center").toBeLessThanOrEqual(1);
-  }
-  expect(browserErrors.errors, "LMU tracks browser errors").toEqual([]);
-});

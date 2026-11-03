@@ -3,4 +3,5 @@ import { releaseFeatureFlags } from "@raceiq/shared/platform/runtime/release-fea
 export const serverReleaseFeatures = releaseFeatureFlags({
   RACEIQ_FEATURE_F1_EXPERIMENTS: process.env.RACEIQ_FEATURE_F1_EXPERIMENTS,
   RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER,
+  RACEIQ_FEATURE_AMS2_ADAPTER: process.env.RACEIQ_FEATURE_AMS2_ADAPTER,
 });

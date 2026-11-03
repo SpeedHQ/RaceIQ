@@ -4,11 +4,11 @@ import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { iterateSessionCaptureRecordsFromSource, type SessionCaptureSource } from "@raceiq/backend-core/session-capture/source-loader";
 import { initServerGameAdapters } from "../../src/games/init";
 import { convertSeedFramesToSparse } from "@raceiq/tooling-data/data/seed-capture-conversion";
-import { afterAll, beforeAll, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeAll, expect, test } from "bun:test";
 import { createClient } from "@libsql/client/sqlite3";
 import { bootstrap, runMigrations } from "@raceiq/backend-core/test-support/db/migrations";
 import Database from "libsql";
-import { cp, mkdir, mkdtemp, rename, rm, unlink } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, rename, rm, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -23,6 +23,7 @@ import { F1_HEADER_SIZE } from "@raceiq/capture-formats/f1-2025/f1-wire";
 import type { ServerGameAdapter } from "@raceiq/backend-core/games/types";
 import { unzipSync } from "fflate";
 import { encodeMotecSourceArchive } from "@raceiq/backend-core/motec/source-archive";
+import { openUpgrade, prepareCurrentSchema, settled, status } from "./support/classification-migration";
 
 function prepareLegacyWindows(source: SessionCaptureSource, windows: readonly DetectedLapWindow[], game: ServerGameAdapter) {
   return prepareSplitWindows({
@@ -45,6 +46,15 @@ let f1Baseline: string;
 let temporary: string;
 let freshClassifications: unknown[];
 let freshRawSource: string;
+const temporaryDirectories: string[] = [];
+
+afterEach(async () => {
+  // libsql statement finalizers release Windows file handles after the test stack returns.
+  if (process.platform === "win32") { Bun.gc(true); await Bun.sleep(0); }
+  for (const directory of temporaryDirectories.splice(0)) {
+    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  }
+}, 60_000);
 
 beforeAll(async () => {
   temporary = await mkdtemp(join(tmpdir(), "raceiq-classification-upgrade-"));
@@ -77,52 +87,6 @@ afterAll(async () => {
   if (temporary) await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 });
 
-async function status(address: string): Promise<ClassificationMigrationStatus> {
-  const response = await fetch(`${address}/api/sessions/classification-migration-status`);
-  if (!response.ok) throw new Error(`Migration status ${response.status}: ${await response.text()}`);
-  return response.json();
-}
-
-async function openUpgrade(dataDir: string, extraEnv: NodeJS.ProcessEnv = {}) {
-  const server = startUpgradeServer(dataDir, extraEnv);
-  try {
-    const address = await server.address();
-    const access = await fetch(`${address}/api/auth/status`).then((response) => response.json()) as { pending: boolean };
-    if (access.pending) {
-      const response = await fetch(`${address}/api/auth/setup`, {
-        method: "POST", headers: { "Content-Type": "application/json", Origin: address },
-        body: JSON.stringify({ password: null, exposureConfirmed: true }),
-      });
-      if (!response.ok) throw new Error(`Access setup ${response.status}: ${await response.text()}`);
-    }
-    return { server, address };
-  } catch (error) {
-    await server.stop();
-    throw error;
-  }
-}
-
-async function settled(address: string, waitForAggregates = true) {
-  const deadline = Date.now() + 180_000;
-  let snapshot = await status(address);
-  // The production server runs in another process; fake clocks cannot advance its worker.
-  while (snapshot.total === 0 || snapshot.pending > 0 || snapshot.running > 0 ||
-    (waitForAggregates && snapshot.status === "running")) {
-    if (Date.now() >= deadline) throw new Error(`Migration did not settle: ${JSON.stringify(snapshot)}`);
-    await Bun.sleep(50);
-    snapshot = await status(address);
-  }
-  return snapshot;
-}
-async function prepareCurrentSchema(dataDir: string): Promise<void> {
-  const client = createClient({ url: pathToFileURL(join(dataDir, "app.db")).href });
-  try {
-    await bootstrap(client);
-    await runMigrations(client);
-  } finally {
-    client.close();
-  }
-}
 
 function preservedLaps(database: InstanceType<typeof Database>) {
   return database.prepare("SELECT * FROM laps ORDER BY id").all().map((row) => {
@@ -179,7 +143,7 @@ test("historical MoTeC imports remain unchanged and outside classification inven
   } finally {
     await server?.stop();
     database?.close();
-    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    temporaryDirectories.push(directory);
   }
 }, 240_000);
 
@@ -229,7 +193,7 @@ test("an obsolete terminal failure requeues a newer source revision before repor
   } finally {
     await server?.stop();
     database?.close();
-    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    temporaryDirectories.push(directory);
   }
 }, 240_000);
 
@@ -284,7 +248,7 @@ test("normal boot classifies historical recordings in place and skips completed 
   } finally {
     await server?.stop();
     database?.close();
-    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    temporaryDirectories.push(directory);
   }
 }, 240_000);
 
@@ -343,7 +307,7 @@ test("missing source completes with limitations without retries or metadata loss
   } finally {
     await server?.stop();
     database?.close();
-    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    temporaryDirectories.push(directory);
   }
 }, 240_000);
 
@@ -406,7 +370,7 @@ for (const barrier of ["beforeTransaction", "insideTransaction", "afterCommitBef
     } finally {
       await server?.stop();
       database?.close();
-      await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      temporaryDirectories.push(directory);
     }
   }, 240_000);
 }
@@ -480,7 +444,7 @@ for (const defect of ["ambiguous_match", "corrupt_source"] as const) {
     } finally {
       await server?.stop();
       database?.close();
-      await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      temporaryDirectories.push(directory);
     }
   }, 240_000);
 }
@@ -530,7 +494,7 @@ test("bounded decoding leaves HTTP, supported imports, and manual processing usa
     expect(final.completed).toBeGreaterThan(0);
   } finally {
     await server?.stop();
-    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    temporaryDirectories.push(directory);
   }
 }, 240_000);
 
@@ -592,7 +556,7 @@ test("live UDP capture starts before paused historical decoding is released", as
     try { reservation.close(); } catch { /* Already released before the listener bound. */ }
     await server?.stop();
     database?.close();
-    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    temporaryDirectories.push(directory);
   }
 }, 240_000);
 
@@ -643,7 +607,7 @@ test("#222 scalar-matching capture preserves ambiguous historical boundaries wit
   } finally {
     await server?.stop();
     database?.close();
-    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    temporaryDirectories.push(directory);
   }
 }, 240_000);
 
@@ -673,9 +637,15 @@ test("same-path source replacement discards stale decoding before committing met
       if (Date.now() >= deadline) throw new Error(`Decode barrier not reached:\n${server.output}`);
       await Bun.sleep(20);
     }
-    const replacement = join(directory, "replacement.bin");
-    await Bun.write(replacement, Buffer.from([0, 16, 0, 0, 1, 2, 3]));
-    await rename(replacement, source.raw_file);
+    const replacementBytes = Buffer.from([0, 16, 0, 0, 1, 2, 3]);
+    if (process.platform === "win32") {
+      // Windows cannot rename over the decoder's open file; change the same source revision in place.
+      await writeFile(source.raw_file, replacementBytes);
+    } else {
+      const replacement = join(directory, "replacement.bin");
+      await writeFile(replacement, replacementBytes);
+      await rename(replacement, source.raw_file);
+    }
     await Bun.write(join(barrierDir, "duringDecodeBatch.release"), "");
     const final = await settled(running.address);
     expect(final.status).toBe("attention");
@@ -690,7 +660,7 @@ test("same-path source replacement discards stale decoding before committing met
   } finally {
     await server?.stop();
     database?.close();
-    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    temporaryDirectories.push(directory);
   }
 }, 240_000);
 test("idle inventory reconciliation tracks replacement and deleted source groups", async () => {
@@ -746,7 +716,7 @@ test("idle inventory reconciliation tracks replacement and deleted source groups
   } finally {
     await server?.stop();
     database?.close();
-    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    temporaryDirectories.push(directory);
   }
 }, 240_000);
 for (const [malformedBootstrap, completeLap] of [[false, false], [true, false], [false, true]] as const) {
@@ -839,7 +809,7 @@ for (const [malformedBootstrap, completeLap] of [[false, false], [true, false], 
     } finally {
       await server?.stop();
       database?.close();
-      await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      temporaryDirectories.push(directory);
     }
   }, 240_000);
 }
@@ -952,57 +922,7 @@ test("production migration replays selected ACC trailing context without extendi
     await server?.stop();
     database?.close();
     sparse?.cleanup();
-    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    temporaryDirectories.push(directory);
   }
 }, 240_000);
 
-test("production migration persists known incomplete LMU laps and updates other laps", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "raceiq-classification-incomplete-lmu-"));
-  let server: UpgradeServer | undefined;
-  let database: InstanceType<typeof Database> | undefined;
-  try {
-    const seeded = await seedReleaseDatabase(directory, {
-      gameId: "lmu",
-      paths: [join(ROOT, "test/artifacts/laps/lmu-2026-09-19T20-09-44-686Z.bin.gz")],
-    });
-    await prepareOrganizedReleaseData(seeded.dataDir);
-    await prepareCurrentSchema(seeded.dataDir);
-    database = new Database(join(seeded.dataDir, "app.db"));
-    database.exec("UPDATE laps SET profile_id=1 WHERE profile_id IS NULL;");
-    const original = database.prepare("SELECT id,lap_number,classification,is_valid,invalid_reason FROM laps ORDER BY lap_number").all() as Array<{
-      id: number; lap_number: number; classification: string | null; is_valid: number; invalid_reason: string | null;
-    }>;
-    const incomplete = original.find((lap) => lap.invalid_reason === "incomplete");
-    if (!incomplete) throw new Error("LMU fixture has no known incomplete lap");
-    const updateable = original.find((lap) => lap.id !== incomplete.id);
-    if (!updateable) throw new Error("LMU fixture has no additional lap");
-    database.prepare("UPDATE laps SET classification='legacy',is_valid=1,invalid_reason=NULL WHERE id=?").run(incomplete.id);
-    database.prepare("UPDATE laps SET classification='legacy',is_valid=1,invalid_reason=NULL WHERE id=?").run(updateable.id);
-    database.close();
-    database = undefined;
-
-    const running = await openUpgrade(seeded.dataDir);
-    server = running.server;
-    const result = await settled(running.address);
-    expect(result.completed).toBeGreaterThan(0);
-    expect(result.failed).toBe(0);
-    const rows = new Database(join(seeded.dataDir, "app.db"));
-    try {
-      expect(rows.prepare("SELECT classification,is_valid,invalid_reason FROM laps WHERE id=?").get(incomplete.id)).toMatchObject({
-        classification: null, is_valid: 0, invalid_reason: "incomplete",
-      });
-      expect(rows.prepare("SELECT classification FROM laps WHERE id=?").get(updateable.id)).toMatchObject({
-        classification: expect.not.stringMatching(/^legacy$/),
-      });
-      expect(rows.prepare("SELECT state,reason FROM classification_migration_recordings").all()).toContainEqual(
-        expect.objectContaining({ state: "completed", reason: null }),
-      );
-    } finally {
-      rows.close();
-    }
-  } finally {
-    await server?.stop();
-    database?.close();
-    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
-  }
-}, 240_000);

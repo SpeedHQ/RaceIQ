@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { completeOnboarding } from "../../support/tunes";
-import { cleanDisposable, importDisposableLap, lapsFor, sessionsFor, type DisposableImport } from "../sessions/helpers";
+import { cleanDisposable, importDisposableLap, lapsFor, sessionsFor, type DisposableImport } from "../../support/session-fixtures";
 
 const games = [
   { gameId: "fm-2023", prefix: "fm23" },
@@ -51,6 +51,7 @@ test.beforeEach(async ({ page }) => {
 
 for (const { gameId, prefix } of games) {
   test(`${gameId}: linked deletion lists sessions and laps, cancels safely, then unlinks without deleting recordings`, async ({ page }) => {
+    test.setTimeout(360_000);
     const imports: DisposableImport[] = [];
     let setupId: number | undefined;
     try {

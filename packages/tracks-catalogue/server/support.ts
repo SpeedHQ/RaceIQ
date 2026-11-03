@@ -12,6 +12,7 @@ import { loadLabelledSegments } from "@raceiq/shared/racing/tracks/storage/meta"
 import { loadSharedOutline } from "@raceiq/shared/racing/tracks/geometry/shared";
 import { tryGetServerGame } from "@raceiq/backend-core/games/registry";
 import { tryGetGame } from "@raceiq/shared/games/registry";
+import type { ProcessingMetadata } from "@raceiq/shared/racing/sessions/types";
 import { GameIdSchema, type GameId } from "@raceiq/shared/games/ids";
 import { getIRacingSvgTrackMap } from "@raceiq/game-iracing/track-map";
 import { applyAlignment, computeAlignment } from "@raceiq/shared/racing/tracks/geometry/points";
@@ -23,6 +24,19 @@ import { getLMUTrackOutline } from "@raceiq/game-lmu-metadata/track-boundaries";
 import { isAcEvoTouristLayout, parseAcEvoTrackId } from "@raceiq/game-ac-evo-metadata/identity";
 
 export const TrackIdParamSchema = z.object({ trackId: z.string().min(1) });
+type RecordingProcessingFailure =
+  | { status: 409; body: { code: "RECORDING_PROCESSING"; error: string } }
+  | { status: 422; body: { code: "RECORDING_PROCESSING_FAILED"; error: string } };
+
+export function recordingProcessingHttpError(processing: readonly ProcessingMetadata[]): RecordingProcessingFailure | undefined {
+  const failed = processing.find((item) => item.state === "failed");
+  if (failed) {
+    return { status: 422, body: { code: "RECORDING_PROCESSING_FAILED", error: failed.error?.trim() || "Recording processing failed" } };
+  }
+  if (processing.some((item) => item.state === "queued" || item.state === "processing")) {
+    return { status: 409, body: { code: "RECORDING_PROCESSING", error: "Recording is queued or processing" } };
+  }
+}
 
 /** Extract gameId, throwing if missing. Use for endpoints that require game context. */
 export function requireGameId(c: { req: { query: (key: string) => string | undefined } }): GameId {

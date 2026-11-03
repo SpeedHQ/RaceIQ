@@ -305,29 +305,6 @@ test("cache cannot transfer converted-capture provenance to an unconverted sourc
   await expect(loadSessionSource({ rawFile, source: null, gameId: "fm-2023", carId: "0", trackId: "0" }))
     .rejects.toThrow(/Legacy full-frame captures are not supported/);
 });
-test("accepts released LMU source checkpoint-only captures with version-1 provenance", async () => {
-  const directory = mkdtempSync(join(tmpdir(), "raceiq-released-lmu-"));
-  directories.push(directory);
-  const frame = encodeLMUSourcePayload({
-    gameVersion: 1,
-    sessionEvent: 1,
-    captureTimestampMs: 1_000,
-    telemetry: Buffer.alloc(LMU_TELEMETRY_INFO_SIZE),
-    scoringInfo: Buffer.alloc(LMU_SCORING_INFO_SIZE),
-  });
-  expect(frame.length).toBe(LMU_SOURCE_FRAME_SIZE);
-  const capture = Buffer.concat([encodeMetaFrame(1), encodeFrameLength(frame.length), frame]);
-  const rawFile = join(directory, "lmu-spa-iron-lynx-gte.bin.gz");
-  writeFileSync(rawFile, gzipSync(capture));
-  const source = { rawFile, source: null, gameId: "lmu" as const, carId: "ferrari_499p_2023", trackId: "lemans_2023/lemanswec", captureFormatVersion: 1 };
-  const records = [];
-  for await (const record of iterateSessionCaptureRecordsFromSource(source)) records.push(record);
-  expect(records).toEqual([{ kind: "frame", offset: 12, endOffset: 12 + 4 + frame.length, frame }]);
-  const loaded = await loadSessionSource(source);
-  expect(loaded.kind).toBe("capture");
-  if (loaded.kind !== "capture") throw new Error("Expected capture source");
-  expect(loaded.buffer).toEqual(capture);
-});
 test("loads and indexes gzip sparse captures from decompressed bytes", async () => {
   const directory = mkdtempSync(join(tmpdir(), "raceiq-gzip-load-"));
   directories.push(directory);

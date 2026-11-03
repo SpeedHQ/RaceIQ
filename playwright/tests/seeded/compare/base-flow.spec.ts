@@ -8,6 +8,61 @@ import { alignedRequestMatches, ALIGNED_TELEMETRY_ENDPOINT, findTrackCarPairWith
 const fm23 = SEEDED_GAME_CASES.find((game) => game.gameId === "fm-2023");
 if (!fm23) throw new Error("fm-2023 seeded case missing");
 
+
+test("Compare restores bookmarked cursor on cached SPA navigation and resets it on lap selection", async ({ page, request }) => {
+  const laps = await getSeededLaps(request, fm23.gameId);
+  const pair = findTrackCarPairWithTwoLaps(laps);
+  if (!pair) throw new Error(`No valid seeded lap pair for ${fm23.name}`);
+
+  const query = new URLSearchParams({
+    track: pair.trackId,
+    carA: pair.carId,
+    carB: pair.carId,
+    lapA: String(pair.lapA.id),
+    lapB: String(pair.lapB.id),
+    cursor: "10",
+    view: "compare",
+  });
+  await page.addInitScript(() => {
+    const arc = CanvasRenderingContext2D.prototype.arc;
+    CanvasRenderingContext2D.prototype.arc = function (...args) {
+      const radii = (window as typeof window & { __compareMarkerRadii?: number[] }).__compareMarkerRadii ??= [];
+      radii.push(args[2]!);
+      return arc.apply(this, args);
+    };
+  });
+
+  await page.goto(`/${fm23.prefix}/compare?${query}`, { waitUntil: "domcontentloaded" });
+  await expect(page.getByTestId("lap-compare-workspace")).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("#compare-tab-compare")).toBeVisible();
+  const map = page.locator("#compare-body-compare > div").first().locator("canvas");
+  await expect(map).toHaveCount(2);
+  await expect.poll(() => page.evaluate(() => {
+    const radii = (window as typeof window & { __compareMarkerRadii?: number[] }).__compareMarkerRadii ?? [];
+    return radii.includes(5) && radii.includes(7);
+  })).toBe(true);
+
+  await page.evaluate(() => {
+    (window as typeof window & { __compareMarkerRadii?: number[] }).__compareMarkerRadii = [];
+  });
+  // Leave and return through the router; React Query cache survives component remount.
+  await page.getByRole("link", { name: "Home", exact: true }).first().click();
+  await expect.poll(() => new URL(page.url()).pathname).toBe("/");
+  await page.goBack({ waitUntil: "domcontentloaded" });
+  await expect(page.getByTestId("lap-compare-workspace")).toBeVisible({ timeout: 30_000 });
+  await expect.poll(() => page.evaluate(() => {
+    const radii = (window as typeof window & { __compareMarkerRadii?: number[] }).__compareMarkerRadii ?? [];
+    return radii.includes(5) && radii.includes(7);
+  })).toBe(true);
+  await expect.poll(() => new URL(page.url()).searchParams.get("cursor")).toBe("10");
+
+  const lapA = page.getByRole("combobox", { name: "Lap A", exact: true });
+  await lapA.click();
+  const listboxId = await lapA.getAttribute("aria-controls");
+  expect(listboxId).not.toBeNull();
+  await page.locator(`[id="${listboxId}"]`).getByRole("option", { name: lapOptionLabel(pair.lapB), exact: true }).click();
+  await expect.poll(() => new URL(page.url()).searchParams.get("cursor")).toBeNull();
+});
 test("Compare complete seeded flow (FM23) preserves identity/order, renders traces/deltas, and persists layout state", async ({ page, request }) => {
   const browserErrors = collectBrowserErrors(page, [/Failed to load resource: the server responded with a status of 400 \(Bad Request\)/, new RegExp(`/api/laps/(\\d+)/compare/\\1$`)]);
   const laps = await getSeededLaps(request, fm23.gameId);
@@ -59,21 +114,27 @@ test("Compare complete seeded flow (FM23) preserves identity/order, renders trac
   const lapAOption = lapOptionLabel(pair.lapA);
   const lapBOption = lapOptionLabel(pair.lapB);
 
-  const lapASelect = page.getByLabel("Lap A");
+  const lapASelect = page.getByRole("combobox", { name: "Lap A", exact: true });
   await lapASelect.click();
   const lapAListboxId = await lapASelect.getAttribute("aria-controls");
   expect(lapAListboxId, "Lap A listbox").not.toBeNull();
-  await page.locator(`[id="${lapAListboxId}"]`).getByRole("option", { name: lapBOption, exact: true }).click();
+  const lapBTarget = page.locator(`[id="${lapAListboxId}"]`).getByRole("option", { name: lapBOption, exact: true });
+  await expect(lapBTarget, "Lap B identity is unique across sessions").toHaveCount(1);
+  await lapBTarget.click();
+  await expect(lapASelect).toHaveValue(lapBOption);
   await expect(page.getByText("Select two different laps to compare")).toBeVisible();
 
   const swapResponse = page.waitForResponse((response) =>
     alignedRequestMatches(response, pair.lapB.id, pair.lapA.id, 1),
   );
-  const lapBSelect = page.getByLabel("Lap B");
+  const lapBSelect = page.getByRole("combobox", { name: "Lap B", exact: true });
   await lapBSelect.click();
   const lapBListboxId = await lapBSelect.getAttribute("aria-controls");
   expect(lapBListboxId, "Lap B listbox").not.toBeNull();
-  await page.locator(`[id="${lapBListboxId}"]`).getByRole("option", { name: lapAOption, exact: true }).click();
+  const lapATarget = page.locator(`[id="${lapBListboxId}"]`).getByRole("option", { name: lapAOption, exact: true });
+  await expect(lapATarget, "Lap A identity is unique across sessions").toHaveCount(1);
+  await lapATarget.click();
+  await expect(lapBSelect).toHaveValue(lapAOption);
   await swapResponse;
 
   const swappedParams = new URL(page.url()).searchParams;

@@ -10,8 +10,7 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
   const sequentialImportSpecs = [
     "seeded/analyse/core-flow.spec.ts",
     "seeded/dev-tools/server-import.spec.ts",
-    "seeded/sessions/import.spec.ts",
-    "seeded/sessions/lifecycle.spec.ts",
+    "seeded/settings/storage.spec.ts",
   ];
   const nativeGpuSpecs = [
     "compare/spectate-native-camera.spec.ts",
@@ -54,14 +53,14 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
       workers: 1,
       use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
     },
-    ...(["tracks-catalogue", "cars-catalogue", "lap-replay"] as const).map((name) => ({
+    ...(["tracks-catalogue", "cars-catalogue", "lap-replay", "sessions-page", "session-analyse"] as const).map((name) => ({
       name,
       testDir: resolve(__dirname, "../../packages", name, "test/e2e"),
       testIgnore: name === "lap-replay" ? nativeGpuSpecs : [],
       dependencies: ["seeded-setup"],
       fullyParallel: true,
-      workers: name === "tracks-catalogue" ? 1 : undefined,
-      timeout: 140_000,
+      workers: name === "tracks-catalogue" || name === "sessions-page" || name === "session-analyse" ? 1 : undefined,
+      timeout: name === "sessions-page" ? 720_000 : name === "session-analyse" ? 200_000 : 140_000,
       use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
     })),
     {
@@ -90,19 +89,24 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
       use: {
         baseURL: seededBaseURL,
         viewport: { width: 1440, height: 900 },
-        launchOptions: { args: ["--enable-unsafe-webgpu", ...(process.platform === "darwin" ? ["--use-angle=metal"] : [])] },
+        channel: process.platform === "win32" ? "chromium" : undefined,
+        launchOptions: { args: ["--enable-unsafe-webgpu", ...(process.platform === "darwin" ? ["--use-angle=metal"] : process.platform === "win32" ? ["--use-angle=d3d11"] : [])] },
       },
     },
     {
       name: "seeded-imports",
+      testDir: resolve(__dirname, "../.."),
       dependencies: ["seeded-setup"],
-      testMatch: sequentialImportSpecs,
+      testMatch: [
+        ...sequentialImportSpecs.map((spec) => `**/playwright/tests/${spec}`),
+        "**/packages/game-lmu/test/e2e/browser/**/*.spec.ts",
+      ],
       fullyParallel: true,
       workers: 1,
       use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
     },
     {
-      dependencies: ["seeded-routes", "seeded-e2e", "seeded-imports", "lap-replay-webgpu", "tracks-catalogue", "cars-catalogue", "lap-replay"],
+      dependencies: ["seeded-routes", "seeded-e2e", "seeded-imports", "lap-replay-webgpu", "tracks-catalogue", "cars-catalogue", "lap-replay", "sessions-page", "session-analyse"],
       fullyParallel: true,
       name: "record-demo",
       testMatch: "recording/demo.spec.ts",

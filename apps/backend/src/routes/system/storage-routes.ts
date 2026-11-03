@@ -15,6 +15,8 @@ import { getSessionDownsampleStatus, previewSessionDownsample, startSessionDowns
 import { RecordingMaintenanceBusyError, RecordingMaintenanceValidationError } from "@raceiq/backend-core/session-capture/maintenance-runtime";
 import type { SessionDownsampleRequest } from "@raceiq/shared/racing/sessions/downsample";
 import type { SessionCleanupRequest } from "@raceiq/shared/racing/sessions/cleanup";
+import type { OpponentRemovalRequest } from "@raceiq/shared/racing/sessions/opponent-removal";
+import { getSessionOpponentRemovalStatus, previewSessionOpponentRemoval, startSessionOpponentRemoval } from "@raceiq/backend-core/session-capture/opponent-removal";
 
 import { getAllGames } from "@raceiq/shared/games/registry";
 import { consentToStartupSplitMigration, getStartupSplitMigrationStatus } from "../../session-capture/split-migration";
@@ -35,6 +37,9 @@ const sessionDownsampleRequestSchema: z.ZodType<SessionDownsampleRequest> = z.un
   z.object({ mode: z.literal("all"), targetHz: z.union([z.literal(50), z.literal(60), z.literal(70), z.literal(80), z.literal(90), z.literal(100)]) }).strict(),
   z.object({ mode: z.literal("older-than"), olderThanDays: z.union([z.literal(30), z.literal(90), z.literal(180), z.literal(365)]), targetHz: z.union([z.literal(50), z.literal(60), z.literal(70), z.literal(80), z.literal(90), z.literal(100)]) }).strict(),
 ]);
+const opponentRemovalRequestSchema: z.ZodType<OpponentRemovalRequest> = z.object({
+  sessionIds: z.array(z.number().int().safe().positive()).min(1).max(1_000),
+}).strict().refine(({ sessionIds }) => new Set(sessionIds).size === sessionIds.length);
 
 
 export const storageRoutes = new Hono()
@@ -244,6 +249,31 @@ export const storageRoutes = new Hono()
     }
   })
   .get("/api/storage/session-downsample", (c) => c.json(getSessionDownsampleStatus()))
+  .post("/api/storage/session-opponents/preview", async (c) => {
+    let body: unknown;
+    try { body = await c.req.json(); } catch { body = null; }
+    const parsed = opponentRemovalRequestSchema.safeParse(body);
+    if (!parsed.success) return c.json({ code: "INVALID_OPPONENT_REMOVAL_REQUEST", error: "Expected distinct positive session IDs" }, 400);
+    try { return c.json(await previewSessionOpponentRemoval(parsed.data)); }
+    catch (error) {
+      if (error instanceof RecordingMaintenanceBusyError) return c.json({ code: "STORAGE_BUSY", error: error.message }, 409);
+      return c.json({ code: "STORAGE_IO_ERROR", error: error instanceof Error ? error.message : "Opponent removal preview failed" }, 500);
+    }
+  })
+  .post("/api/storage/session-opponents", async (c) => {
+    let body: unknown;
+    try { body = await c.req.json(); } catch { body = null; }
+    const parsed = opponentRemovalRequestSchema.safeParse(body);
+    if (!parsed.success) return c.json({ code: "INVALID_OPPONENT_REMOVAL_REQUEST", error: "Expected distinct positive session IDs" }, 400);
+    try {
+      await startSessionOpponentRemoval(parsed.data);
+      return c.json({ accepted: true }, 202);
+    } catch (error) {
+      if (error instanceof RecordingMaintenanceBusyError) return c.json({ code: "STORAGE_BUSY", error: error.message }, 409);
+      return c.json({ code: "STORAGE_IO_ERROR", error: error instanceof Error ? error.message : "Opponent removal admission failed" }, 500);
+    }
+  })
+  .get("/api/storage/session-opponents", (c) => c.json(getSessionOpponentRemovalStatus()))
   .post("/api/storage/session-cleanup/preview", async (c) => {
     const parsed = sessionCleanupRequestSchema.safeParse(await c.req.json());
     if (!parsed.success) return c.json({ error: "Invalid cleanup request" }, 400);

@@ -15,7 +15,7 @@ import { fakeAccSemanticFixture } from "../src/stories/fakeData";
 import { GameRouteProvider } from "../src/stores/game";
 import { telemetryStore } from "../src/stores/telemetry";
 
-initGameAdapters({ f1Experiments: false, iracingAdapter: false });
+initGameAdapters({ f1Experiments: false, iracingAdapter: false, ams2Adapter: false });
 
 async function withIdentityRoutes(
   trackId: number | string,

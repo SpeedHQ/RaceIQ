@@ -8,7 +8,9 @@ import { prepareDashboardPublicationCandidate, publishDashboardSession } from "@
 import { getDashboardSessionRecap } from "@raceiq/backend-core/db/dashboard-recap-queries";
 
 import { dashboardRoutes } from "../../../src/routes/dashboard-routes";
-import { sessionRoutes } from "../../../src/routes/session-routes";
+import { createSessionRoutes } from "@raceiq/sessions-page/server";
+import { isSessionIdentityInCatalog } from "../../../src/games/session-identity";
+const sessionRoutes = createSessionRoutes(isSessionIdentityInCatalog);
 const ids: number[] = [];
 const gameId = "fm-2023" as GameId;
 afterEach(async () => {

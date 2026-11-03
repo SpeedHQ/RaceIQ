@@ -3,6 +3,7 @@ import { createReadStream } from "node:fs";
 import { constants } from "node:fs";
 import { chmod, copyFile, link, lstat, mkdir, open, readFile, readdir, realpath, rename, rmdir, stat, unlink, utimes } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import { eq } from "drizzle-orm";
 import { db, readDb } from "../db/index";
 import { withDatabaseWrite } from "../db/write-coordination";
@@ -12,13 +13,13 @@ import { resolveRecordingDirectory } from "../runtime/config/recording-directory
 import { getAllGames } from "@raceiq/shared/games/registry";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { getRecordingDirectoryMoveStatus, preflightRecordingDirectoryMove, recoverRecordingDirectoryMove, relocateRecordingDirectoryUnderReservation } from "./relocate-recordings";
-import { reserveRecordingStorageOperation } from "./storage-activity";
-import { isSessionActive } from "../telemetry/live-pipeline";
+import { reserveRecordingStorageOperationWhenIdle } from "./storage-activity";
+import { isSessionActive } from "./session-activity";
 
 import { clearSessionCaptureCache } from "./source-loader";
 import { cacheDelete } from "../db/telemetry-replay-storage";
 import { invalidateClassificationMigrationSource } from "./classification-migration";
-export type LayoutMigrationProgress = { status: "idle" | "running" | "success" | "partial" | "error"; done: number; total: number; migrated: number; failed: number; error: string | null; phase?: "organizing" | "relocating" | null };
+export type LayoutMigrationProgress = { status: "idle" | "running" | "success" | "partial" | "error"; done: number; total: number; migrated: number; failed: number; error: string | null; phase?: "waiting-for-session" | "organizing" | "relocating" | null };
 type SessionReference = { sessionId: number; oldPath: string; newPath: string };
 type JournalEntry = { source: string; digest: string; destinations: string[]; published: string[]; references: SessionReference[]; cutover: boolean };
 type Journal = { version: 1; root: string; destination: string; phase: "organizing" | "relocating"; entries: JournalEntry[]; progress: LayoutMigrationProgress };
@@ -28,10 +29,12 @@ let progress: LayoutMigrationProgress = { status: "idle", done: 0, total: 0, mig
 let migrationGeneration = 0;
 let stopping = false;
 let migrationSettlement: Promise<void> | null = null;
+let migrationAbort: AbortController | null = null;
 const completionListeners = new Set<() => void>();
 export function stopLayoutMigrationAdmission(): void {
   stopping = true;
   migrationGeneration++;
+  migrationAbort?.abort(Object.assign(new Error("Server is stopping"), { code: "MIGRATION_STOPPING" }));
 }
 export async function drainLayoutMigration(): Promise<void> {
   await migrationSettlement;
@@ -143,7 +146,16 @@ async function saveJournal(journal: Journal): Promise<void> {
   const temp = `${journalFile}.${process.pid}.${randomUUID()}.tmp`;
   const handle = await open(temp, "wx", 0o600);
   try { await handle.writeFile(JSON.stringify(journal)); await handle.sync(); } finally { await handle.close(); }
-  await rename(temp, journalFile);
+  // Windows readers can briefly deny replacement of the journal. Keep the old
+  // journal intact and retry the atomic rename; never unlink it to force a write.
+  for (let attempt = 0; ; attempt++) {
+    try { await rename(temp, journalFile); break; }
+    catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (process.platform !== "win32" || !["EPERM", "EACCES", "EBUSY"].includes(code ?? "") || attempt >= 5) throw error;
+      await delay(10 * 2 ** attempt);
+    }
+  }
   try { const directory = await open(dirname(journalFile), "r"); try { await directory.sync(); } finally { await directory.close(); } } catch { /* Directory sync unavailable on some platforms. */ }
 }
 async function findLegacyFiles(root: string): Promise<string[]> {
@@ -202,7 +214,7 @@ async function buildEntries(): Promise<JournalEntry[]> {
   return entries;
 }
 
-export async function getLayoutMigrationStatus(): Promise<{ directory: string; fileCount: number; sessionCount: number; destinationDirectory: string | null; progress: LayoutMigrationProgress & { phase: "organizing" | "relocating" | null } }> {
+export async function getLayoutMigrationStatus(): Promise<{ directory: string; fileCount: number; sessionCount: number; destinationDirectory: string | null; progress: LayoutMigrationProgress & { phase: "waiting-for-session" | "organizing" | "relocating" | null } }> {
   const startedActive = active;
   let journal: Journal | null = null;
   let readError: string | null = null;
@@ -217,7 +229,7 @@ export async function getLayoutMigrationStatus(): Promise<{ directory: string; f
     const path = resolve(row.rawFile);
     if (paths.has(path) || physicalPaths.has(await canonicalFilesystemPath(path).catch(() => path))) sessionCount++;
   }
-  let reportedProgress: LayoutMigrationProgress & { phase: "organizing" | "relocating" | null } = { ...progress, phase: active ? progress.phase ?? "organizing" : null };
+  let reportedProgress: LayoutMigrationProgress & { phase: "waiting-for-session" | "organizing" | "relocating" | null } = { ...progress, phase: active ? progress.phase ?? "organizing" : null };
   if (journal && !startedActive && !active) reportedProgress = journal.progress.status === "running"
     ? { ...journal.progress, phase: journal.phase, status: "error", error: "Migration interrupted; retry explicitly to resume" }
     : { ...journal.progress, phase: journal.phase };
@@ -279,18 +291,31 @@ async function publish(source: string, target: string, digest: string): Promise<
 export async function startLayoutMigration(directory?: string): Promise<void> {
   if (stopping) throw Object.assign(new Error("Server is stopping"), { code: "MIGRATION_STOPPING" });
   if (active) throw Object.assign(new Error("Layout migration is already running"), { code: "MIGRATION_ACTIVE" });
-  const release = reserveRecordingStorageOperation("layout-migration");
   migrationGeneration++;
   active = true;
-  let admit!: () => void;
-  let rejectAdmission!: (error: unknown) => void;
+  const controller = new AbortController();
+  migrationAbort = controller;
+  const { signal } = controller;
+  let release: (() => void) | undefined;
   let admitted = false;
   let admissionError: unknown;
   let admissionFailed = false;
-  const admission = new Promise<void>((resolveAdmission, reject) => { admit = resolveAdmission; rejectAdmission = reject; });
-  progress = { status: "running", phase: "organizing", done: 0, total: progress.total, migrated: 0, failed: 0, error: null };
-migrationSettlement = withSessionCaptureMaintenanceLock(async () => {
-    if (isSessionActive()) throw Object.assign(new Error("Recording is active"), { code: "RECORDING_ACTIVE" });
+  const { promise: admission, resolve: admit, reject: rejectAdmission } = Promise.withResolvers<void>();
+  progress = { status: "running", phase: isSessionActive() ? "waiting-for-session" : "organizing", done: 0, total: 0, migrated: 0, failed: 0, error: null };
+  // Register settlement before reservation or session waits can yield to shutdown.
+  migrationSettlement = Promise.resolve().then(async () => {
+    release = await reserveRecordingStorageOperationWhenIdle("layout-migration", signal);
+    while (true) {
+      signal.throwIfAborted();
+      if (isSessionActive()) {
+        progress.phase = "waiting-for-session";
+        await delay(250, undefined, { signal });
+        continue;
+      }
+      const completed = await withSessionCaptureMaintenanceLock(async () => {
+        signal.throwIfAborted();
+        if (isSessionActive()) return false;
+        progress.phase = "organizing";
     const existing = await readJournal();
     if (existing && directory !== undefined && await canonicalFilesystemPath(directory) !== await canonicalFilesystemPath(existing.destination)) {
       throw Object.assign(new Error("Finish the previously selected destination first"), { code: "LAYOUT_MIGRATION_PENDING" });
@@ -354,7 +379,7 @@ migrationSettlement = withSessionCaptureMaintenanceLock(async () => {
       journal.progress = { ...progress };
       await saveJournal(journal);
     }
-    if (progress.failed) { progress.status = "partial"; journal.progress = { ...progress }; await saveJournal(journal); return; }
+    if (progress.failed) { progress.status = "partial"; journal.progress = { ...progress }; await saveJournal(journal); return true; }
     journal.phase = "relocating";
     progress.phase = "relocating";
     journal.progress = { ...progress };
@@ -364,13 +389,20 @@ migrationSettlement = withSessionCaptureMaintenanceLock(async () => {
     progress.phase = null;
     journal.progress = { ...progress };
     await unlink(journalFile);
-  }).catch(async (error) => {
+        return true;
+      });
+      if (completed) return;
+    }
+  }).catch(async (caught) => {
+    const error = signal.aborted ? signal.reason : caught;
     progress.status = "error";
     progress.error = error instanceof Error ? error.message : "Layout migration failed";
+    progress.phase = null;
     if (!admitted) {
       admissionError = error;
       admissionFailed = true;
     }
+    if (!release) return;
     try {
       const journal = await readJournal();
       if (journal) {
@@ -381,7 +413,8 @@ migrationSettlement = withSessionCaptureMaintenanceLock(async () => {
       // Admission rejection must not depend on failure-state persistence.
     }
   }).finally(() => {
-    release();
+    release?.();
+    migrationAbort = null;
     active = false;
     if (progress.status === "success" && !admissionFailed) notifyLayoutMigrationComplete();
     if (admissionFailed) rejectAdmission(admissionError);

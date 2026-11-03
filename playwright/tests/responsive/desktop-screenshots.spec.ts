@@ -35,6 +35,7 @@ for (const viewport of RESPONSIVE_VIEWPORTS) {
       if (page.viewports && !page.viewports.includes(viewport.name)) continue;
 
       test(page.name, async ({ page: p, request }) => {
+        test.skip((page.path === "/lmu/setups" && process.env.PW_BASE_MISSING_LMU_SETUPS === "1") || (page.path === "/lmu/experiments" && process.env.PW_BASE_MISSING_LMU_EXPERIMENTS === "1"), "Route is absent from baseline");
         if (page.liveGameId) await mockLiveScreenshotTelemetry(p, request, page.liveGameId);
         await p.goto(page.path, { waitUntil: "networkidle" });
         await startSparseSplitMigration(p);

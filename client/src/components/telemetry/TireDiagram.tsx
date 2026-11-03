@@ -100,7 +100,7 @@ function SemanticTireDiagram({ frame, gameId, readable = false }: { frame: Seman
         </div>
       </div>
       {!readable && <div className="pointer-events-none flex justify-center">
-        <WeightShiftRadar frame={frame} />
+        <WeightShiftRadar frame={frame} gameId={gameId} />
       </div>}
       <div className={`flex w-full items-start justify-between ${readable ? "" : "gap-4"}`}>
         <div className="flex shrink-0 items-start gap-1">
@@ -114,7 +114,7 @@ function SemanticTireDiagram({ frame, gameId, readable = false }: { frame: Seman
       </div>
       {/* Wheel centers sit at SVG y=55; exclude the readouts below each axle. */}
       {readable && <div className="absolute top-[calc(25%+55px)] left-1/2 flex -translate-x-1/2 -translate-y-1/2 justify-center">
-        <WeightShiftRadar frame={frame} compact />
+        <WeightShiftRadar frame={frame} gameId={gameId} compact />
       </div>}
     </div>
   );

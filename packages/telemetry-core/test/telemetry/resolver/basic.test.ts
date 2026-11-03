@@ -33,6 +33,36 @@ describe("compiled telemetry resolver", () => {
     }
   });
 
+  test("replay samples preserve freshness boundaries and invalid values across reused frames", () => {
+    const resolver = compileTelemetryResolver({ simulator: "lmu", requested: [{ semanticId: "motion.speed" }] });
+    const slot = resolver.slot("motion.speed");
+    let view = resolver.createFrameView(
+      packet("lmu", { Speed: 42 }),
+      { timestamp: { domain: "session", milliseconds: 2_000 }, updateSequence: 1n },
+      undefined,
+      () => ({ domain: "session", milliseconds: 1_000 }),
+    );
+    expect(view.resolveSample(slot)).toEqual({
+      semanticId: "motion.speed", value: 42, unit: "m/s", state: "ok", freshness: "fresh",
+    });
+    view = resolver.createFrameView(
+      packet("lmu", { Speed: 42 }),
+      { timestamp: { domain: "session", milliseconds: 2_001 }, updateSequence: 2n },
+      view,
+      () => ({ domain: "session", milliseconds: 1_000 }),
+    );
+    expect(view.resolveSample(slot)).toEqual({
+      semanticId: "motion.speed", value: 42, unit: "m/s", state: "stale", freshness: "stale",
+    });
+    view = resolver.createFrameView(
+      packet("lmu", { Speed: NaN }),
+      { timestamp: { domain: "session", milliseconds: 2_002 }, updateSequence: 3n },
+      view,
+    );
+    expect(view.resolveSample(slot)).toMatchObject({ value: null, state: "invalid" });
+    expect(view.readNumber(slot)).toBeUndefined();
+  });
+
   test("uses normalized packet values without running a derivation DAG", () => {
     let evaluations = 0;
     const derivation = {

@@ -10,7 +10,7 @@ import { useExperiment, useExperimentVersions } from "@/hooks/experiments";
 import { useLaps } from "@/hooks/laps";
 import { mergeExperimentLaps } from "@/lib/experiment-laps";
 import { useTelemetryStore } from "@/stores/telemetry";
-import { SessionReviewDashboard } from "./SessionReviewDashboard";
+import { SessionReviewDashboard } from "@raceiq/session-analyse/ui";
 
 /**
  * TestReviewPage — the post-test review dashboard as its own route

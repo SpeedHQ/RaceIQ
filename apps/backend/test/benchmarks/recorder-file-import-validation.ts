@@ -167,7 +167,7 @@ export async function validateFileImport(dataDir: string, gameId: string, respon
     }
   }
 
-  initServerGameAdapters({ ...releaseFeatureFlags({ RACEIQ_FEATURE_F1_EXPERIMENTS: undefined, RACEIQ_FEATURE_IRACING_ADAPTER: undefined }), iracingAdapter: true });
+  initServerGameAdapters({ ...releaseFeatureFlags({ RACEIQ_FEATURE_F1_EXPERIMENTS: undefined, RACEIQ_FEATURE_IRACING_ADAPTER: undefined, RACEIQ_FEATURE_AMS2_ADAPTER: undefined }), iracingAdapter: true, ams2Adapter: true });
   let captureBytes = 0, captureRecords = 0, metricLapCount = 0, derivedMetricValueCount = 0, analysisMetricCount = 0;
   const captureStats = new Map<string, { frames: number; starts: Map<number, number> }>();
   const sessionOutcomes: FileImportValidation["sessionOutcomes"] = [];

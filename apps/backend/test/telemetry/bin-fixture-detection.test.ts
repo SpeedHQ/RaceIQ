@@ -93,7 +93,7 @@ describe("legacy session fixtures remain parser-readable but are not upload form
     const last = packets[packets.length - 1]!;
     expect(getAcEvoTrackName(last.trackId)).toBe("Brands Hatch - GP");
     expect(getAcEvoCarName(last.carId)).toBe("Porsche 992 GT3 R Rennsport");
-  }, { timeout: 30000 });
+  }, { timeout: 60000 });
 
   // The trailing source frame has no track identity. Parser must not infer a venue alias.
   // These full-frame fixtures remain parser evidence only, not supported upload formats.

@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { afterEach, expect, test } from "bun:test";
 import Database from "libsql";
 import { createHash } from "node:crypto";
 import dgram from "node:dgram";
@@ -16,6 +16,18 @@ const ROOT = resolve(import.meta.dir, "../../../..");
 import { migrations } from "@raceiq/backend-core/db/migrations";
 const COMPLETE = "[SessionRepair] Historical session reconciliation complete:";
 const DEFERRED = "[StartupWorker] Deferred until recording layout migration completes";
+const temporaryDirectories: string[] = [];
+afterEach(async () => {
+  // Wait until the test's stack has returned before collecting libsql's native
+  // statement handles. Windows cannot unlink a database while those remain open.
+  if (process.platform === "win32") { Bun.gc(true); await Bun.sleep(0); }
+  for (const directory of temporaryDirectories.splice(0)) {
+    const started = performance.now();
+    console.log(`[Upgrade] Removing temporary data: ${directory}`);
+    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    console.log(`[Upgrade] Temporary data removed in ${Math.round(performance.now() - started)}ms`);
+  }
+}, 60_000);
 type Session = { id: number; track_id: string; lap_detector_version: string | null; raw_file?: string; ownership?: string };
 
 
@@ -30,7 +42,15 @@ interface StartupBackend {
 }
 
 function environment(dataDir: string): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = { ...process.env, DATA_DIR: dataDir, NODE_ENV: "production", SERVER_HOST: "127.0.0.1", SERVER_PASSWORD: "", SERVER_ALLOWED_ORIGINS: "" };
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    DATA_DIR: dataDir,
+    NODE_ENV: "production",
+    SERVER_HOST: "127.0.0.1",
+    SERVER_PASSWORD: "",
+    SERVER_ALLOWED_ORIGINS: "",
+    RACEIQ_DISABLE_TRAY: "1",
+  };
   delete env.RACEIQ_TEST_MODE;
   delete env.DB_IN_MEMORY;
   delete env.RACEIQ_TEST_DATA_DIR;
@@ -39,6 +59,8 @@ function environment(dataDir: string): NodeJS.ProcessEnv {
   delete env.RACEIQ_CLASSIFICATION_TEST_BARRIER_DIR;
   return env;
 }
+
+
 
 async function command(args: string[], cwd = ROOT, env = process.env) {
   const proc = Bun.spawn(args, { cwd, env, stdout: "pipe", stderr: "pipe" });
@@ -85,7 +107,7 @@ function startBranch(dataDir: string, pauseStage: "historical" | "lmu-identity" 
     });
     if (authSetup.status !== 200 && authSetup.status !== 409) throw new Error("Fixture auth setup failed: " + authSetup.status);
     console.log("[E2E] Backend HTTP:", backend.httpServer.port);
-  `], { cwd: ROOT, env: environment(dataDir), stdout: "pipe", stderr: "pipe" });
+  `], { cwd: ROOT, env: environment(dataDir), stdout: "pipe", stderr: "pipe", ipc() {} });
   let output = "";
   const consume = async (stream: ReadableStream<Uint8Array>) => {
     const decoder = new TextDecoder();
@@ -147,9 +169,12 @@ function startBranch(dataDir: string, pauseStage: "historical" | "lmu-identity" 
       if (stopPromise) return stopPromise;
       stopPromise = (async () => {
         if (!exited) {
-          proc.kill("SIGTERM");
+          // Windows process signals terminate the child without running its shutdown handler.
+          const signal = process.platform === "win32" ? "SIGINT" : "SIGTERM";
+          if (process.platform === "win32") proc.send({ type: "shutdown" });
+          else proc.kill(signal);
           if (pauseStage && output.includes("[E2E] Stage entered:")) {
-            await waitFor("[Server] Received SIGTERM");
+            await waitFor(`[Server] Received ${signal}`);
             await this.releaseStage();
           }
         }
@@ -317,7 +342,8 @@ test("startup preserves ambiguous historical Tourist classification without chan
   } finally {
     await backend?.stop();
     database?.close();
-    await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    database = undefined;
+    temporaryDirectories.push(temporary);
   }
 }, 600_000);
 
@@ -340,9 +366,9 @@ test("startup discovers Tourist in already-processed AC Evo recordings and does 
     // Simulate an installation that completed reconciliation before the Tourist-layout migration.
     database.exec(`
       DELETE FROM schema_migrations WHERE version=78;
-      UPDATE sessions SET track_id='obsolete layout', lap_detector_version='ac_evo_lapdetector_v5';
       UPDATE laps SET lap_time=999;
     `);
+    database.prepare("UPDATE sessions SET track_id='obsolete layout', lap_detector_version=?").run(LAP_DETECTOR_AC_EVO_ID);
     const before = database.prepare("SELECT id FROM sessions ORDER BY id").all() as Array<{ id: number }>;
     expect(before.length).toBeGreaterThan(0);
 
@@ -371,7 +397,8 @@ test("startup discovers Tourist in already-processed AC Evo recordings and does 
   } finally {
     await backend?.stop();
     database?.close();
-    await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    database = undefined;
+    temporaryDirectories.push(temporary);
   }
 }, 240_000);
 test("stop drains a paused startup stage and suppresses every successor", async () => {
@@ -391,7 +418,7 @@ test("stop drains a paused startup stage and suppresses every successor", async 
     expect(backend.output()).not.toContain("Shutdown grace expired");
   } finally {
     await backend?.stop();
-    await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    temporaryDirectories.push(temporary);
   }
 }, 60_000);
 
@@ -435,7 +462,8 @@ test("current ambiguous and nonrace results remain terminal across real backend 
   } finally {
     await backend?.stop();
     database?.close();
-    await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    database = undefined;
+    temporaryDirectories.push(temporary);
   }
 }, 120_000);
 
@@ -486,7 +514,7 @@ for (const journalState of ["unfinished", "malformed", "unreadable"] as const) {
       }
     } finally {
       await backend?.stop();
-      await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      temporaryDirectories.push(temporary);
     }
   }, 60_000);
 }
@@ -530,7 +558,7 @@ test.each([true, false])("recording splitting completes with UDP conflict %s", a
   } finally {
     await backend?.stop();
     occupied.close();
-    await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    temporaryDirectories.push(temporary);
   }
 }, 60_000);
 
@@ -580,7 +608,8 @@ test(`${captureFailure} historical capture preserves pending repairs while HTTP 
   } finally {
     await backend?.stop();
     database?.close();
-    await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    database = undefined;
+    temporaryDirectories.push(temporary);
   }
 }, 240_000);
 }
@@ -636,7 +665,8 @@ for (const failure of ["lmu", "lmu-numeric", "race"] as const) {
     } finally {
       await backend?.stop();
       database?.close();
-      await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      database = undefined;
+      temporaryDirectories.push(temporary);
     }
   }, 60_000);
 }
@@ -722,7 +752,8 @@ for (const history of ["v75", "upstream-v76", "frequency-v76", "frequency-v77", 
       }
     } finally {
       database?.close();
-      await rm(dataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      database = undefined;
+      temporaryDirectories.push(dataDir);
     }
   }, 60_000);
 }

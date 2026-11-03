@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { m } from "@/paraglide/messages";
 
-type ProviderId = "gemini" | "openai" | "openai-compatible";
+type ProviderId = "gemini" | "openai" | "anthropic" | "openai-compatible";
 export type ModelInfo = { id: string; name: string; contextLength?: number };
 export type ModelsResponse = {
   gemini: ModelInfo[];
   openai: ModelInfo[];
+  anthropic?: ModelInfo[];
   "openai-compatible": ModelInfo[];
   _errors?: Partial<Record<ProviderId, string | null>>;
 };
@@ -20,7 +21,7 @@ export type AiModelData = {
 };
 
 export function isAiProvider(value: string): value is ProviderId {
-  return value === "gemini" || value === "openai" || value === "openai-compatible";
+  return value === "gemini" || value === "openai" || value === "anthropic" || value === "openai-compatible";
 }
 
 export function useAiModelData(selectedProviders: ProviderId[], keyStatus: Record<string, boolean>): AiModelData {
@@ -52,7 +53,7 @@ export function useAiModelData(selectedProviders: ProviderId[], keyStatus: Recor
   });
   const refreshModelsMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedProvidersCsv) return { gemini: [], openai: [], "openai-compatible": [], _errors: { gemini: null, openai: null, "openai-compatible": null } } as ModelsResponse;
+      if (!selectedProvidersCsv) return { gemini: [], openai: [], anthropic: [], "openai-compatible": [], _errors: { gemini: null, openai: null, anthropic: null, "openai-compatible": null } } as ModelsResponse;
       const base = `/api/ai-models?providers=${encodeURIComponent(selectedProvidersCsv)}&refresh=1`;
       const response = await fetch(base);
       console.info(`[AI] GET ${base} -> ${response.status} ${response.statusText}`);

@@ -1,18 +1,19 @@
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Cloud, CloudLightning, CloudOff, CloudRain, CloudSun, Flag, Gauge, Sun, Timer } from "lucide-react";
-import { m } from "@/paraglide/messages";
 import type { GameId } from "@raceiq/shared/games/ids";
-import type { SessionRecap as SessionRecapDto } from "@raceiq/shared/racing/sessions/types";
-import { useSessionRecap } from "../hooks/session-queries";
+import type { ProcessingMetadata, SessionRecap as SessionRecapDto } from "@raceiq/shared/racing/sessions/types";
+import { indexProcessingById, useSessionRecap, useSessions } from "../hooks/session-queries";
+import { ProcessingStatus } from "./ProcessingStatus";
+import { m } from "@/paraglide/messages";
 import { useTrackOutline, useTrackSectorBoundaries } from "../hooks/track-queries";
 import { drawTrack, type PitLine } from "../lib/canvas/draw-track";
 import { formatLapTime } from "../lib/format";
 import { getGameRoute, useGameId } from "../stores/game";
 import { Button } from "./ui/button";
 import { getLocale } from "@/paraglide/runtime";
-import { parseUtcTimestamp } from "../lib/utc-date";
-import { buildRecapText } from "./sessions/helpers";
+import { parseUtcTimestamp } from "@raceiq/frontend-pure/utc-date";
+import { buildRecapText } from "../lib/session-recap-text";
 
 export type TrackOutlineData =
   | {
@@ -198,9 +199,13 @@ export interface SessionRecapViewProps {
   outlineData?: TrackOutlineData;
   bounds?: TrackSectorBounds;
   carImageUrl?: string;
+  processing?: ProcessingMetadata;
+  processingLoading?: boolean;
+  onRefreshProcessing?: () => void;
 }
-export function SessionRecapView({ recap, gameId, linkToAnalyse = false, finishPosition, showTrackMap = true, compact = false, sessionType, resultClassification, copied = false, onCopy, onAnalyse, outlineData, bounds, carImageUrl }: SessionRecapViewProps) {
-  const canAnalyse = linkToAnalyse && gameId === recap.gameId && recap.bestLapId != null && onAnalyse != null;
+export function SessionRecapView({ recap, gameId, linkToAnalyse = false, finishPosition, showTrackMap = true, compact = false, sessionType, resultClassification, copied = false, onCopy, onAnalyse, outlineData, bounds, carImageUrl, processing, processingLoading = false, onRefreshProcessing }: SessionRecapViewProps) {
+  const canRequestAnalyse = linkToAnalyse && gameId === recap.gameId && recap.bestLapId != null && onAnalyse != null;
+  const canAnalyse = canRequestAnalyse && !processingLoading && processing?.state === "ready";
   const track = compactTrackPoints(outlineData);
   const flipX = !Array.isArray(outlineData) && outlineData?.flipX;
   const typeLabel = sessionType?.trim() && sessionType.trim().toLowerCase() !== "unknown" ? sessionType.trim().replace(/[-_]/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()) : "—";
@@ -217,7 +222,8 @@ export function SessionRecapView({ recap, gameId, linkToAnalyse = false, finishP
     : m.f1live_weather_unknown();
   const WeatherIcon = wetWithoutKind ? CloudRain : weatherKind === 0 ? Sun : weatherKind === 1 ? CloudSun : weatherKind === 2 ? Cloud : weatherKind === 3 || weatherKind === 4 ? CloudRain : weatherKind === 5 ? CloudLightning : CloudOff;
   return (
-    <div data-compact={compact} className={`group/recap @container flex min-w-0 flex-col ${compact ? "recap-cinematic relative isolate gap-3 overflow-hidden" : "gap-4"}`}>
+    <div data-compact={compact} aria-busy={processingLoading || processing == null || processing.state === "queued" || processing.state === "processing"} className={`group/recap @container flex min-w-0 flex-col ${compact ? "recap-cinematic relative isolate gap-3 overflow-hidden" : "gap-4"}`}>
+      <ProcessingStatus processing={processing} loading={processingLoading} onRefresh={onRefreshProcessing} className="relative z-10" />
       {compact && carImageUrl && <img aria-hidden="true" src={carImageUrl} alt="" onError={(event) => { event.currentTarget.style.display = "none"; }} className="pointer-events-none absolute -right-4 top-0 h-32 w-2/3 object-contain object-right [mask-image:linear-gradient(to_right,transparent,black_35%)] @max-sm:opacity-35" />}
       <div className={`relative flex flex-col gap-3 @sm:flex-row @sm:items-start @sm:justify-between ${compact ? "min-h-20 min-w-0 justify-center @sm:items-center" : ""}`}>
         <div className={`min-w-0 ${compact ? "relative max-w-[65%] @max-sm:max-w-full" : ""}`}>
@@ -237,8 +243,8 @@ export function SessionRecapView({ recap, gameId, linkToAnalyse = false, finishP
           </>}
         </div>
         {!compact && <div className="flex shrink-0 flex-wrap items-center gap-2">
-          {canAnalyse && (
-            <Button variant="app-outline" size="app-sm" onClick={onAnalyse}>
+          {canRequestAnalyse && (
+            <Button variant="app-outline" size="app-sm" disabled={!canAnalyse} onClick={onAnalyse}>
               {m.recap_analyse_best_lap()}
             </Button>
           )}
@@ -329,20 +335,28 @@ export function SessionRecap({ sessionId, gameId: gameIdProp, linkToAnalyse = fa
   const navigate = useNavigate();
   const storeGameId = useGameId();
   const gameId = gameIdProp ?? storeGameId;
-  const { data: recap, isLoading, isError } = useSessionRecap(sessionId, gameId);
-  const { data: outlineData } = useTrackOutline(recap?.trackId, recap?.gameId ?? gameId);
-  const { data: bounds } = useTrackSectorBoundaries(recap?.trackId, recap?.gameId ?? gameId);
+  const sessionMetadataQuery = useSessions({ allGames: true });
+  const sessionProcessingStatus = indexProcessingById(sessionMetadataQuery.data, [sessionId]);
+  const processing = sessionProcessingStatus.byId.get(sessionId);
+  const processingLoading = sessionProcessingStatus.isLoading || processing == null;
+  const processingReady = !processingLoading && processing?.state === "ready";
+  const { data: recap, isLoading, isError } = useSessionRecap(processingReady ? sessionId : null, gameId);
+  const refreshProcessing = useCallback(() => { void sessionMetadataQuery.refetch(); }, [sessionMetadataQuery.refetch]);
+  const { data: outlineData } = useTrackOutline(processingReady ? recap?.trackId : undefined, recap?.gameId ?? gameId);
+  const { data: bounds } = useTrackSectorBoundaries(processingReady ? recap?.trackId : undefined, recap?.gameId ?? gameId);
   const [copied, setCopied] = useState(false);
   if (isLoading)
     return (
-      <div role="status" className="p-6 text-center text-app-text-dim">
-        {m.common_loading()}
+      <div className="p-6 text-center text-app-text-dim" aria-busy={processingLoading || processing?.state === "queued" || processing?.state === "processing"}>
+        <ProcessingStatus processing={processing} loading={processingLoading} onRefresh={refreshProcessing} />
+        {!processingLoading && processing?.state === "ready" && m.common_loading()}
       </div>
     );
   if (isError || !recap)
     return (
-      <div role="alert" className="p-6 text-center text-status-danger">
-        {m.common_error()}
+      <div className="p-6 text-center text-status-danger">
+        <ProcessingStatus processing={processing} loading={processingLoading} onRefresh={refreshProcessing} />
+        {!processingLoading && processing?.state === "ready" && <span role="alert">{m.common_error()}</span>}
       </div>
     );
   const copy = () => {
@@ -352,10 +366,10 @@ export function SessionRecap({ sessionId, gameId: gameIdProp, linkToAnalyse = fa
     });
   };
   const analyse = () => {
-    if (recap.bestLapId == null) return;
+    if (recap.bestLapId == null || processingLoading || processing?.state !== "ready") return;
     void navigate({
       to: `${getGameRoute(recap.gameId)}/sessions/${recap.sessionId}/replay/${recap.bestLapId}` as never,
     });
   };
-  return <SessionRecapView recap={recap} gameId={recap.gameId} linkToAnalyse={linkToAnalyse} copied={copied} onCopy={copy} onAnalyse={analyse} outlineData={outlineData} bounds={bounds} />;
+  return <SessionRecapView recap={recap} gameId={recap.gameId} linkToAnalyse={linkToAnalyse} copied={copied} onCopy={copy} onAnalyse={analyse} outlineData={outlineData} bounds={bounds} processing={processing} processingLoading={processingLoading} onRefreshProcessing={refreshProcessing} />;
 }

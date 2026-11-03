@@ -14,22 +14,28 @@ interface Segment {
   endFrac: number;
 }
 
+type SegmentFrame = SemanticAnalysisFrame & { run?: number };
+
 interface SegmentListProps {
-  telemetry: SemanticAnalysisFrame[];
+  telemetry: SegmentFrame[];
   segments: Segment[] | null;
   cursorIdx: number;
+  trackLengthM?: number;
 }
 
-export function buildSegmentData(telemetry: SemanticAnalysisFrame[], segments: Segment[]) {
+export function buildSegmentData(telemetry: SegmentFrame[], segments: Segment[], trackLengthM?: number) {
   if (segments.length === 0 || telemetry.length < 10) return null;
   const n = telemetry.length;
   const cumDist = new Array<number>(n);
-  cumDist[0] = 0;
+  const nativeDistance = typeof trackLengthM === "number" && Number.isFinite(trackLengthM) && trackLengthM > 0;
+  cumDist[0] = nativeDistance ? semanticNumber(telemetry[0], "timing.distance-traveled") ?? NaN : 0;
 
   const firstDistance = semanticNumber(telemetry[0], "timing.distance-traveled");
   const lastDistance = semanticNumber(telemetry[n - 1], "timing.distance-traveled");
   const lapDistance = firstDistance != null && lastDistance != null ? lastDistance - firstDistance : null;
-  if (lapDistance != null && lapDistance > 0) {
+  if (nativeDistance) {
+    for (let i = 1; i < n; i++) cumDist[i] = semanticNumber(telemetry[i], "timing.distance-traveled") ?? NaN;
+  } else if (lapDistance != null && lapDistance > 0) {
     for (let i = 1; i < n; i++) {
       const distance = semanticNumber(telemetry[i], "timing.distance-traveled");
       const relative = distance != null && firstDistance != null ? distance - firstDistance : null;
@@ -45,7 +51,7 @@ export function buildSegmentData(telemetry: SemanticAnalysisFrame[], segments: S
     }
   }
 
-  const totalDist = cumDist[n - 1];
+  const totalDist = nativeDistance ? trackLengthM : cumDist[n - 1];
   if (!(totalDist > 0)) return null;
 
   function fracToIdx(frac: number): number {
@@ -60,6 +66,26 @@ export function buildSegmentData(telemetry: SemanticAnalysisFrame[], segments: S
     return lo;
   }
 
+  function timeAt(distance: number): { time: number; run: number | undefined } | null {
+    for (let i = 0; i < n; i++) {
+      const currentTime = semanticNumber(telemetry[i], "timing.current-lap");
+      if (cumDist[i] === distance && currentTime !== null) return { time: currentTime, run: telemetry[i].run };
+      if (i === 0 || !(cumDist[i - 1] < distance && distance < cumDist[i]) || currentTime === null) continue;
+      const previousTime = semanticNumber(telemetry[i - 1], "timing.current-lap");
+      if (previousTime === null || currentTime < previousTime || telemetry[i - 1].run !== telemetry[i].run) return null;
+      return { time: previousTime + (currentTime - previousTime) * (distance - cumDist[i - 1]) / (cumDist[i] - cumDist[i - 1]), run: telemetry[i].run };
+    }
+    return null;
+  }
+  function rangeTime(start: number, end: number): number | null {
+    if (!nativeDistance) {
+      return (semanticNumber(telemetry[fracToIdx(end)], "timing.current-lap") ?? 0)
+        - (semanticNumber(telemetry[fracToIdx(start)], "timing.current-lap") ?? 0);
+    }
+    const from = timeAt(start * totalDist), to = timeAt(end * totalDist);
+    return from && to && from.run === to.run && to.time >= from.time ? to.time - from.time : null;
+  }
+
   const displayNames = segmentDisplayNames(segments);
   const lapWrap = lapWrappedSegmentGroup(segments);
   const staticSegments = segments.flatMap((segment, index) => {
@@ -67,36 +93,32 @@ export function buildSegmentData(telemetry: SemanticAnalysisFrame[], segments: S
       if (index === lapWrap.lastIndex) return [];
       const first = segments[lapWrap.firstIndex];
       const last = segments[lapWrap.lastIndex];
-      const firstStart = fracToIdx(first.startFrac);
-      const firstEnd = Math.min(fracToIdx(first.endFrac), n - 1);
-      const lastStart = fracToIdx(last.startFrac);
-      const lastEnd = Math.min(fracToIdx(last.endFrac), n - 1);
+      const firstTime = rangeTime(first.startFrac, first.endFrac);
+      const lastTime = rangeTime(last.startFrac, last.endFrac);
       return [{
         name: lapWrap.group,
         type: segment.type,
         ranges: [{ startFrac: last.startFrac, endFrac: last.endFrac }, { startFrac: first.startFrac, endFrac: first.endFrac }],
-        time: (semanticNumber(telemetry[firstEnd], "timing.current-lap") ?? 0) - (semanticNumber(telemetry[firstStart], "timing.current-lap") ?? 0)
-          + (semanticNumber(telemetry[lastEnd], "timing.current-lap") ?? 0) - (semanticNumber(telemetry[lastStart], "timing.current-lap") ?? 0),
+        time: firstTime !== null && lastTime !== null ? firstTime + lastTime : null,
       }];
     }
-    const startIdx = fracToIdx(segment.startFrac);
-    const endIdx = Math.min(fracToIdx(segment.endFrac), n - 1);
+    const time = rangeTime(segment.startFrac, segment.endFrac);
     return [{
       name: displayNames[index],
       type: segment.type,
-      time: (semanticNumber(telemetry[endIdx], "timing.current-lap") ?? 0) - (semanticNumber(telemetry[startIdx], "timing.current-lap") ?? 0),
+      time,
       ranges: [{ startFrac: segment.startFrac, endFrac: segment.endFrac }],
     }];
   });
   return { cumDist, totalDist, staticSegments };
 }
-function segmentStateSignature({ telemetry, segments, cursorIdx }: SegmentListProps): string | null {
+function segmentStateSignature({ telemetry, segments, cursorIdx, trackLengthM }: SegmentListProps): string | null {
   if (!segments || telemetry.length < 2) return null;
   const firstDistance = semanticNumber(telemetry[0], "timing.distance-traveled");
   const currentDistance = semanticNumber(telemetry[cursorIdx], "timing.distance-traveled");
   const lastDistance = semanticNumber(telemetry[telemetry.length - 1], "timing.distance-traveled");
   if (firstDistance == null || currentDistance == null || lastDistance == null || lastDistance <= firstDistance) return null;
-  const cursorFraction = (currentDistance - firstDistance) / (lastDistance - firstDistance);
+  const cursorFraction = trackLengthM ? currentDistance / trackLengthM : (currentDistance - firstDistance) / (lastDistance - firstDistance);
   let active = -1;
   let completed = 0;
   for (let index = 0; index < segments.length; index++) {
@@ -108,15 +130,15 @@ function segmentStateSignature({ telemetry, segments, cursorIdx }: SegmentListPr
 }
 
 function areSegmentListPropsEqual(previous: SegmentListProps, next: SegmentListProps): boolean {
-  if (previous.telemetry !== next.telemetry || previous.segments !== next.segments) return false;
+  if (previous.telemetry !== next.telemetry || previous.segments !== next.segments || previous.trackLengthM !== next.trackLengthM) return false;
   if (previous.cursorIdx === next.cursorIdx) return true;
   const previousState = segmentStateSignature(previous);
   return previousState != null && previousState === segmentStateSignature(next);
 }
 
-export const AnalyseSegmentList = memo(function AnalyseSegmentList({ telemetry, segments, cursorIdx }: SegmentListProps) {
+export const AnalyseSegmentList = memo(function AnalyseSegmentList({ telemetry, segments, cursorIdx, trackLengthM }: SegmentListProps) {
   const m = useMessages();
-  const segmentData = useMemo(() => (segments ? buildSegmentData(telemetry, segments) : null), [segments, telemetry]);
+  const segmentData = useMemo(() => (segments ? buildSegmentData(telemetry, segments, trackLengthM) : null), [segments, telemetry, trackLengthM]);
 
   // Derive cursor-dependent active/completed state cheaply
   const segmentTimes = useMemo(() => {
@@ -144,7 +166,7 @@ export const AnalyseSegmentList = memo(function AnalyseSegmentList({ telemetry, 
             <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: seg.type === "corner" ? "var(--track-corner-marker)" : "var(--track-straight-marker)" }} />
             <span className={seg.active ? "text-app-text" : "text-app-text-secondary"}>{seg.name}</span>
           </div>
-          <span className={seg.active ? "text-app-text" : "text-app-text-muted"}>{seg.time > 0 ? `${seg.time.toFixed(3)}s` : "-"}</span>
+          <span className={seg.active ? "text-app-text" : "text-app-text-muted"}>{seg.time !== null && seg.time > 0 ? `${seg.time.toFixed(3)}s` : "-"}</span>
         </div>
       ))}
     </div>

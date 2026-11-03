@@ -8,7 +8,7 @@
  *
  * Pipeline processors:
  *   - DumpToBinProcessor (recording mode): writes raw buffers only
- *   - ParsingProcessor (normal mode): parses and feeds to pipeline
+ *   - ParsingProcessor: normal processing, or live-only display in dump mode
  *
  * Uses kernel32.dll via Bun FFI to open and map shared memory.
  */
@@ -159,7 +159,7 @@ export class AccSharedMemoryReader {
     });
     console.log(
       this._recordingEnabled
-        ? "[ACC] Triplet pipeline: StatusCheckProcessor → DumpToBinProcessor"
+        ? "[ACC] Triplet pipeline: StatusCheckProcessor → DumpToBinProcessor → ParsingProcessor"
         : "[ACC] Triplet pipeline: StatusCheckProcessor → ParsingProcessor",
     );
 

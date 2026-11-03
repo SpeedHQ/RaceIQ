@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { GameIdSchema } from "@raceiq/shared/games/ids";
 import { z } from "zod";
-import { getLapMetaById } from "@raceiq/backend-core/db/lap-read-queries";
+import { getLapMetaById, getLapProcessingByIds } from "@raceiq/backend-core/db/lap-read-queries";
 import { getExperiment } from "@raceiq/backend-core/db/experiment-queries";
 import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
 import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
@@ -15,6 +15,7 @@ import {
   deleteChatLineage,
 } from "@raceiq/backend-core/ai/chat-agent";
 import { forkThreadWithSummary, NothingToCompactError } from "@raceiq/backend-core/ai/compact-thread";
+import type { ProcessingMetadata } from "@raceiq/shared/racing/sessions/types";
 
 const ChatsQuerySchema = z.object({
   gameId: GameIdSchema,
@@ -31,6 +32,7 @@ interface LapSummary {
   carId: string;
   trackId: string;
   gameId: string;
+  processing: ProcessingMetadata;
 }
 
 /** Setup-engineer (experiment) chat, keyed by session rather than laps. */
@@ -53,8 +55,13 @@ interface ChatRow {
   updatedAt: string;
 }
 
-async function loadLapSummary(id: number): Promise<LapSummary | null> {
-  const lap = await getLapMetaById(id);
+async function loadLapSummary(
+  id: number,
+  processingByLapId: ReadonlyMap<number, ProcessingMetadata>,
+): Promise<LapSummary | null> {
+  const processing = processingByLapId.get(id);
+  if (!processing) return null;
+  const lap = await getLapMetaById(id, processing);
   if (!lap) return null;
   return {
     id,
@@ -67,6 +74,7 @@ async function loadLapSummary(id: number): Promise<LapSummary | null> {
     carId: lap.carId,
     trackId: lap.trackId,
     gameId: lap.gameId ?? "",
+    processing: lap.processing,
   };
 }
 
@@ -86,13 +94,33 @@ export function createChatsRoutes(
           filter: { resourceId: CHAT_RESOURCE_ID },
           perPage: false,
         });
+        const linkedLapIds = new Set<number>();
+        for (const thread of result.threads) {
+          const id = parseThreadGeneration(thread.id).base;
+          if (id.startsWith("lap-")) {
+            const lapId = Number(id.slice(4));
+            if (Number.isFinite(lapId)) linkedLapIds.add(lapId);
+          } else if (id.startsWith("compare-")) {
+            const parts = id.slice(8).split("-");
+            if (parts.length !== 2) continue;
+            const a = Number(parts[0]);
+            const b = Number(parts[1]);
+            if (Number.isFinite(a) && Number.isFinite(b)) {
+              linkedLapIds.add(a);
+              linkedLapIds.add(b);
+            }
+          }
+        }
+        const processingByLapId = new Map<number, ProcessingMetadata>(
+          (await getLapProcessingByIds([...linkedLapIds])).map(({ id, processing }) => [id, processing] as const),
+        );
         const rows: ChatRow[] = [];
         for (const t of result.threads) {
           const id = parseThreadGeneration(t.id).base;
           if (id.startsWith("lap-")) {
             const lapId = Number(id.slice(4));
             if (!Number.isFinite(lapId)) continue;
-            const lap = await loadLapSummary(lapId);
+            const lap = await loadLapSummary(lapId, processingByLapId);
             if (!lap || lap.gameId !== gameId) continue;
             rows.push({
               threadId: id,
@@ -108,7 +136,10 @@ export function createChatsRoutes(
             const a = Number(parts[0]);
             const b = Number(parts[1]);
             if (!Number.isFinite(a) || !Number.isFinite(b)) continue;
-            const [lapA, lapB] = await Promise.all([loadLapSummary(a), loadLapSummary(b)]);
+            const [lapA, lapB] = await Promise.all([
+              loadLapSummary(a, processingByLapId),
+              loadLapSummary(b, processingByLapId),
+            ]);
             if (!lapA || !lapB) continue;
             if (lapA.gameId !== gameId || lapB.gameId !== gameId) continue;
             rows.push({

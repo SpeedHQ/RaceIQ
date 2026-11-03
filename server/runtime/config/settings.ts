@@ -12,7 +12,7 @@ const SETTINGS_PATH = `${SETTINGS_DIR}/settings.json`;
 // stored settings files where the user hadn't picked a provider yet. Fresh
 // installs and defaults resolve to "" (no provider selected) — the user must
 // explicitly pick a provider in Settings before any AI feature runs.
-const AiProviderSchema = z.enum(["", "gemini", "openai", "openai-compatible"]).default("");
+const AiProviderSchema = z.enum(["", "gemini", "openai", "anthropic", "openai-compatible"]).default("");
 
 const AppSettingsSchema = z.object({
   onboardingComplete: z.boolean().default(false),
@@ -55,6 +55,7 @@ const AppSettingsSchema = z.object({
   cacheMaxMB: z.number().int().min(16).max(2048).default(256),
   recordingDirectory: z.string().nullable().default(null),
   recordingFrequencyHz: z.union([z.literal(50), z.literal(60), z.literal(70), z.literal(80), z.literal(90), z.literal(100)]).default(DEFAULT_RECORDING_FREQUENCY_HZ),
+  recordLmuOpponents: z.boolean().default(true),
   sessionCleanupEnabled: z.boolean().default(false),
   sessionCleanupAgeDays: z.union([z.literal(30), z.literal(90), z.literal(180), z.literal(365)]).default(90),
   sessionDownsampleEnabled: z.boolean().default(false),

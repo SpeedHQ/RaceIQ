@@ -25,6 +25,15 @@ const schema = {
 } as const;
 const packet = { gameId: "acc", TimestampMS: 1 } as unknown as TelemetryPacket;
 describe("websocket message router", () => {
+  it("surfaces opponent recording failures without failing player recording", () => {
+    telemetryStore.actions.setOpponentRecordingError(null);
+    telemetryStore.actions.setLiveCaptureLifecycle({ sessionId: 42, gameId: "lmu", captureEpoch: "epoch", phase: "recording" });
+    handleWebSocketMessage({ type: "opponent-recording-failed", error: "Disk unavailable" });
+    expect(telemetryStore.get().opponentRecordingError).toBe("Disk unavailable");
+    expect(telemetryStore.get().liveCaptureError).toBeNull();
+    expect(telemetryStore.get().liveCaptureLifecycles[42]?.phase).toBe("recording");
+    telemetryStore.actions.setOpponentRecordingError(null);
+  });
   it("routes canonical schema/frame to production store", () => {
     telemetryStore.actions.clearTelemetry();
     handleWebSocketMessage(schema);
@@ -36,6 +45,20 @@ describe("websocket message router", () => {
     expect(handleWebSocketMessage({ type: "telemetry-frame", protocolVersion: 1, schemaId: "s", streamId: "x", sessionId: null, sequence: 2, observedAt: { domain: "session", milliseconds: 2 }, receivedAtMs: 2, values: [], context: {} })).toBe(true);
     expect(telemetryStore.get().sectors).toBeNull();
     expect(telemetryStore.get().telemetryFrame?.sequence).toBe(2);
+  });
+  it("routes scoring-only LMU context without synthesizing a telemetry frame", () => {
+    telemetryStore.actions.clearTelemetry();
+    const context = {
+      schemaVersion: 1,
+      key: { sessionKey: "scoring-only", captureSequence: "2", frameTime: { domain: "session", milliseconds: 2000 } },
+      playerVehicleId: null,
+      status: "active",
+      supplemental: [],
+      competitors: [{ vehicleId: 42, incarnation: 0, isPlayer: false, channels: {} }],
+    } as const;
+    expect(handleWebSocketMessage({ type: "lmu-context", lmu: context })).toBe(false);
+    expect(telemetryStore.get().lmuLiveContext?.competitors?.[0]?.vehicleId).toBe(42);
+    expect(telemetryStore.get().telemetryFrame).toBeNull();
   });
   it("keeps current live view when server repeats its schema", () => {
     telemetryStore.actions.clearTelemetry();

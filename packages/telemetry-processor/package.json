@@ -9,7 +9,7 @@
     "./batch": "./src/batch.ts"
   },
   "scripts": {
-    "lint": "../../client/node_modules/.bin/oxlint .",
+    "lint": "node ../../client/node_modules/oxlint/bin/oxlint .",
     "typecheck": "bun check --project tsconfig.json",
     "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/telemetry-processor",
     "test:unit": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/telemetry-processor"
@@ -23,7 +23,8 @@
     "@raceiq/game-f1-2025": "workspace:*",
     "@raceiq/game-iracing": "workspace:*",
     "@raceiq/game-lmu": "workspace:*",
-    "@raceiq/telemetry-core": "workspace:*"
+    "@raceiq/telemetry-core": "workspace:*",
+    "@raceiq/game-ams2": "workspace:*"
   },
   "devDependencies": {
     "@raceiq/capture-formats": "workspace:*"

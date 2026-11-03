@@ -10,6 +10,7 @@ import { hasF1CarOrdinal } from "@raceiq/game-f1-2025-metadata/racing/cars/f1";
 import { getAllAccCars } from "@raceiq/game-acc-metadata/racing/cars/acc";
 import { getAllAcEvoCars } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo";
 import { fmTrackCatalog } from "@raceiq/game-fm-2023-metadata/racing/tracks/catalogs/fm";
+import { hasAMS2CarIdentity, hasAMS2TrackIdentity } from "@raceiq/game-ams2-metadata/index";
 
 export function isCatalogCarId(gameId: GameId, carId: string): boolean {
   switch (gameId) {
@@ -19,6 +20,7 @@ export function isCatalogCarId(gameId: GameId, carId: string): boolean {
     case "f1-2025": return /^\d+$/.test(carId) && hasF1CarOrdinal(Number(carId));
     case "ac-evo": return getAllAcEvoCars().some((car) => car.id === carId);
     case "lmu": return lmuCarCatalog.some((car) => car.id === carId);
+    case "ams2": return hasAMS2CarIdentity(carId);
     default: return false;
   }
 }
@@ -31,6 +33,7 @@ export function isCatalogTrackId(gameId: GameId, trackId: string): boolean {
     case "f1-2025": return /^\d+$/.test(trackId) && getF1Tracks().has(Number(trackId));
     case "ac-evo": return getAcEvoTracks().has(trackId);
     case "lmu": return lmuTrackCatalog.some((track) => track.id === trackId);
+    case "ams2": return hasAMS2TrackIdentity(trackId);
     default: return false;
   }
 }

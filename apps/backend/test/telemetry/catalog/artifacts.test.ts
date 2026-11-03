@@ -57,6 +57,20 @@ describe("semantic telemetry catalog artifacts", () => {
       enumVariable.enumDomain = enumDomain;
     }
   });
+  test("describes each LMU scoring snapshot derivation", () => {
+    for (const [id, normalization] of [
+      ["race.competitor.current-lap-number", "completed laps + 1"],
+      ["race.competitor.class-position", "rank positive overall places among vehicles with the same class"],
+      ["race.competitor.lap-fraction", "lap distance / track length when distance is within track bounds"],
+      ["fuel.competitor.ambiguous-fuel-fraction", "native byte / 255"],
+      ["motion.competitor.speed", "magnitude of finite local velocity components"],
+    ] as const) {
+      expect(getTelemetryVariable(id).games.lmu).toMatchObject({
+        kind: "derived",
+        normalization,
+      });
+    }
+  });
   test("emits deterministic versioned artifacts from one catalog build", async () => {
     expect(TELEMETRY_CATALOG.metadata).toMatchObject({
       catalogVersion: TELEMETRY_CATALOG_VERSION,
@@ -242,4 +256,18 @@ describe("semantic telemetry catalog artifacts", () => {
       );
     }
   });
+});
+
+
+test("AMS2 catalog preserves native units, explicit identity sources and extension inventory", () => {
+  expect(getTelemetryVariable("tires.tire-pressure").games.ams2).toMatchObject({ kind: "normalized", nativeUnit: "kPa", normalization: "kilopascals / 6.894757" });
+  expect(getTelemetryVariable("inputs.accel").games.ams2).toMatchObject({ kind: "normalized", nativeUnit: "ratio" });
+  expect(getTelemetryVariable("fuel.fuel").games.ams2).toMatchObject({ kind: "normalized", nativeUnit: "fraction and L", sources: ["AMS2.mFuelLevel", "AMS2.mFuelCapacity"] });
+  expect(getTelemetryVariable("fuel.fuel-percent").games.ams2).toMatchObject({ kind: "derived", sources: ["TelemetryPacket.Fuel", "TelemetryPacket.FuelCapacity"] });
+  expect(getTelemetryVariable("session.session-uid").games.ams2).toMatchObject({ sources: ["AMS2.SharedMemory.connectionEpoch", "AMS2.mSessionState", "AMS2.mCarName", "AMS2.mTrackLocation", "AMS2.mTrackVariation"] });
+  const sources = getTelemetrySources("ams2");
+  expect(TELEMETRY_CATALOG.coverage.sourceCounts.ams2.total).toBe(sources.length);
+  for (const path of ["ams2.trackLengthM", "ams2.inPits", "ams2.sessionType"]) {
+    expect(sources.find((source) => source.path === path)?.dataType).toBeTruthy();
+  }
 });

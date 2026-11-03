@@ -8,7 +8,8 @@ import { useLmuSetupFiles, useSaveLmuSetup, fetchLmuSetupContent } from "@/hooks
 import type { LmuSetupContent } from "@/hooks/lmu-setup-queries";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { SessionImportModal } from "@/components/sessions/SessionImportModal";
+import { SessionImportModal } from "@raceiq/sessions-page/ui";
+import { SessionsPageHostProvider } from "@/features/sessions-page-host";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SearchSelect } from "@/components/ui/SearchSelect";
 import { AppInput } from "@/components/ui/AppInput";
@@ -352,7 +353,7 @@ export function LmuSetupWorkspace() {
           {error && <p role="alert">{m.lmu_setup_ws_error({ message: error })}</p>}
         </DialogContent>
       </Dialog>
-      {importOpen && <SessionImportModal gameId="lmu" onClose={() => setImportOpen(false)} setupImport={{
+      {importOpen && <SessionsPageHostProvider><SessionImportModal gameId="lmu" onClose={() => setImportOpen(false)} setupImport={{
         accept: ".svm",
         hint: m.lmu_setup_ws_upload_hint(),
         onInspect: async (file) => {
@@ -377,7 +378,7 @@ export function LmuSetupWorkspace() {
           </div>
           {!rootExists && <p role="alert">{m.lmu_setup_ws_missing_root()}</p>}
         </>,
-      }} />}
+      }} /></SessionsPageHostProvider>}
       <Dialog open={candidate !== null} onOpenChange={(open) => { if (!open) setCandidate(null); }}>
         <DialogContent><DialogHeader><DialogTitle>{m.lmu_setup_ws_discard_title()}</DialogTitle><DialogDescription>{m.lmu_setup_ws_discard_description()}</DialogDescription></DialogHeader>
           <DialogFooter><Button variant="app-outline" onClick={() => setCandidate(null)}>{m.lmu_setup_ws_keep_edits()}</Button><Button variant="app-primary" onClick={() => { if (candidate) activate(candidate); setCandidate(null); }}>{m.lmu_setup_ws_discard_switch()}</Button></DialogFooter>

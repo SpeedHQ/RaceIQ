@@ -18,7 +18,7 @@ function defaultRecordingDir(): string {
 export interface LMURecorderContract {
   readonly recording: boolean;
   start(directory?: string): string;
-  writeFrame(frame: Buffer): void;
+  writeFrame(frame: Buffer): void | Promise<void>;
   stop(): Promise<void>;
 }
 
@@ -63,8 +63,9 @@ export class LMURecorder implements LMURecorderContract {
     return this.recordingPath;
   }
 
-  writeFrame(frame: Buffer): void {
-    if (!this.writer?.recording) return;
+  async writeFrame(frame: Buffer): Promise<void> {
+    if (!this.writer) return;
+    if (this.writer.error) throw this.writer.error;
     if (frame.length === 0 || frame.length > LMU_MAX_SOURCE_FRAME_SIZE) {
       throw new Error(`LMU dump frame is invalid (${frame.length} bytes)`);
     }
@@ -72,7 +73,7 @@ export class LMURecorder implements LMURecorderContract {
     record.writeUInt8(SOURCE_FRAME_TYPE, 0);
     record.writeUInt32LE(frame.length, 1);
     frame.copy(record, FRAME_HEADER_SIZE);
-    this.writer.writeRawCaptureRecord(record);
+    await this.writer.writeRawCaptureRecordAsync(record);
     this.writtenFrameCount++;
   }
 
@@ -84,6 +85,7 @@ export class LMURecorder implements LMURecorderContract {
     this.writer = null;
     this.stopPromise = (async () => {
       await writer.stop();
+      console.log(`[LMU Recorder] Saved ${this.writtenFrameCount} frames to ${this.recordingPath}`);
     })();
     try {
       await this.stopPromise;

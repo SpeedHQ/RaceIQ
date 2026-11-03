@@ -6,7 +6,6 @@ import type { Worker } from "node:worker_threads";
 import { createLiveCaptureWorker } from "../../src/session-capture/live-worker-factory";
 import { IRACING_DUMP_MAGIC, readIRacingFramesFromBuffer } from "@raceiq/capture-formats/iracing/dump-decoder";
 import { decompressIfGzipSync, iterateSessionCaptureRecords } from "@raceiq/capture-formats/session/framing";
-import { hasLMUDumpMagic, readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump-decoder";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { LatencyHistogram, NativeRecordDigest, observeEventLoop, processDiskBytes } from "./live-lossless-metrics";
 import { Schema } from "effect";
@@ -17,13 +16,16 @@ const ReplayVerificationSchema = Schema.Struct({ parserReplayVerified: Schema.op
 
 const ROOT = resolve(import.meta.dir, "../../../../");
 const FIXTURE_ROOT = join(ROOT, "test/artifacts/sessions");
+const fixturePath = (fixture: string) => fixture.startsWith("lmu-")
+  ? join(ROOT, "packages/game-lmu/test/fixtures/sessions", fixture)
+  : join(FIXTURE_ROOT, fixture);
 const FIXTURES = [
   { gameId: "fm-2023", fixture: "fm-2023-with-pitting.bin.gz" },
   { gameId: "f1-2025", fixture: "f1-2025-2026-04-09T21-34-10-190Z.bin.gz" },
   { gameId: "acc", fixture: "acc-2026-04-23T16-42-16-158Z.bin.gz" },
   { gameId: "ac-evo", fixture: "session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz" },
   { gameId: "iracing", fixture: "iracing-daytona-am-vantage-gt3-pit.bin.gz" },
-  { gameId: "lmu", fixture: "lmu-spa-iron-lynx-gte.bin.gz" },
+  { gameId: "lmu", fixture: "lmu-real-opponents-grid-2026-10-22.bin.gz" },
 ] as const;
 type Frame = { bytes: Buffer; timestampMs?: number };
 type Args = { game?: string; trials: number; output: string; rateScale: number };
@@ -50,7 +52,6 @@ function fixtureFrames(bytes: Buffer, gameId: GameId): Frame[] {
   if (gameId === "iracing" && capture.subarray(0, IRACING_DUMP_MAGIC.length).equals(IRACING_DUMP_MAGIC)) {
     return readIRacingFramesFromBuffer(capture).map((frame) => ({ bytes: frame }));
   }
-  if (gameId === "lmu" && hasLMUDumpMagic(capture)) return readLMUFramesFromBuffer(capture).map((frame) => ({ bytes: frame }));
   const frames: Frame[] = [];
   for (const record of iterateSessionCaptureRecords(capture)) {
     if (record.kind === "frame") frames.push({ bytes: record.frame, ...(record.frameTimeMs === undefined ? {} : { timestampMs: record.frameTimeMs }) });
@@ -357,9 +358,9 @@ async function main() {
   const root = await mkdtemp(join(tmpdir(), "raceiq-live-release-"));
   try {
     for (const item of selected) {
-      const fixturePath = join(FIXTURE_ROOT, item.fixture);
+      const fixtureFile = fixturePath(item.fixture);
       let source: Buffer;
-      try { source = await readFile(fixturePath); }
+      try { source = await readFile(fixtureFile); }
       catch { missing.push(item.fixture); continue; }
       const frames = fixtureFrames(source, item.gameId);
       const runs: LiveTrial[] = [];

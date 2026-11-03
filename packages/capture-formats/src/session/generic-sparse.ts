@@ -13,6 +13,7 @@ export function isGenericSparseFrame(payload: Buffer): boolean {
 
 /** Stable packet identity; dynamic timestamps, counters and values are not identity. */
 export function genericFrameIdentity(frame: Buffer): string | null {
+  if (frame.length >= 7412 && frame.length <= 1024 * 1024 + 24 && frame.subarray(0, 8).toString("ascii") === "RQAMS201" && frame.readUInt32LE(20) === frame.length - 24) return `ams2:v1:${frame.readUInt32LE(24)}:${frame.length}`;
   if (frame.length >= SOURCE_FRAME_HEADER_SIZE && frame.readUInt32LE(0) === SOURCE_FRAME_MAGIC) {
     const header = readSourceFrameHeader(frame);
     return header && header.payloadLength + SOURCE_FRAME_HEADER_SIZE === frame.length

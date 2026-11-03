@@ -40,6 +40,7 @@ function makeLap(id: number, day: number, lapNumber: number, lapTime: number, is
     gameId: GAME_ID,
     ownership: "mine",
     trackId: TRACK_ID,
+    processing: { state: "ready", stage: null, error: null },
   };
 }
 
@@ -69,6 +70,7 @@ const sessions: SessionMeta[] = [
     bestLapTime: 95.844,
     ownership: "mine",
     gameId: GAME_ID,
+    processing: { state: "ready", stage: null, error: null },
   },
   {
     id: 9000,
@@ -80,8 +82,9 @@ const sessions: SessionMeta[] = [
     sessionType: "Practice",
     gameId: GAME_ID,
     ownership: "mine",
+    processing: { state: "ready", stage: null, error: null },
   },
-  { id: 9100, carId: "201", trackId: TRACK_ID, createdAt: "2026-07-27T18:45:00.000Z", sessionType: "Race", resultClassification: "finished", resultOutcomeStatus: "confirmed", finishingPosition: 1, gameId: GAME_ID, ownership: "mine" },
+  { id: 9100, carId: "201", trackId: TRACK_ID, createdAt: "2026-07-27T18:45:00.000Z", sessionType: "Race", resultClassification: "finished", resultOutcomeStatus: "confirmed", finishingPosition: 1, gameId: GAME_ID, ownership: "mine", processing: { state: "ready", stage: null, error: null } },
 ];
 
 const recap: SessionRecap = {

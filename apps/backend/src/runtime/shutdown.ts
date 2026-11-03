@@ -62,4 +62,8 @@ export function installShutdown({
   const onSignal = (signal: NodeJS.Signals) => { void gracefulShutdown(signal).catch((error) => console.error("[Server] Shutdown could not safely finish:", error)); };
   process.on("SIGINT", () => onSignal("SIGINT"));
   process.on("SIGTERM", () => onSignal("SIGTERM"));
+  // The dump launcher uses IPC so console/process-tree termination cannot cut off file close.
+  process.on("message", (message: unknown) => {
+    if (message && typeof message === "object" && "type" in message && message.type === "shutdown") onSignal("SIGINT");
+  });
 }

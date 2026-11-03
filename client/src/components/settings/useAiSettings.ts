@@ -6,6 +6,7 @@ import { authenticatedFetch } from "@/lib/rpc";
 import type { AiAnalysisState, AiAutoTuneState, AiChatState, AiDriverProfileState, ProviderSetupState } from "./ai-state";
 import { PROVIDER_KEY_LABELS, PROVIDER_KEY_MAP } from "./ai-state";
 import { isAiProvider, useAiModelData } from "./useAiModelData";
+import { modelsOrFallback } from "./recommended-model";
 
 type SavedAnalysisBaseline = { provider: string; model: string; thinkingBudget: number | null; localEndpoint: string };
 type SavedChatBaseline = { provider: string; model: string; thinkingBudget: number | null };
@@ -175,6 +176,7 @@ export function useAiSettings(): AiSettingsState {
   const keyStatus: Record<string, boolean> = {
     gemini: !!displaySettings.geminiApiKeySet,
     openai: !!displaySettings.openaiApiKeySet,
+    anthropic: !!displaySettings.anthropicApiKeySet,
     "openai-compatible": !!displaySettings.openaiCompatibleApiKeySet,
   };
   const updateKeyStatusInSettingsCache = (providerKeyId: string, isSet: boolean) => {
@@ -182,6 +184,7 @@ export function useAiSettings(): AiSettingsState {
       if (!prev || typeof prev !== "object") return prev;
       if (providerKeyId === "gemini") return { ...(prev as Record<string, unknown>), geminiApiKeySet: isSet };
       if (providerKeyId === "openai") return { ...(prev as Record<string, unknown>), openaiApiKeySet: isSet };
+      if (providerKeyId === "anthropic") return { ...(prev as Record<string, unknown>), anthropicApiKeySet: isSet };
       if (providerKeyId === "openai-compatible") return { ...(prev as Record<string, unknown>), openaiCompatibleApiKeySet: isSet };
       return prev;
     });
@@ -193,12 +196,12 @@ export function useAiSettings(): AiSettingsState {
     });
   };
   const { aiProviders, aiModels, aiModelsFetching, aiModelsError, modelsRefreshing, refreshModels: refreshModelsAction } = useAiModelData(selectedProviders, keyStatus);
-  const models = isAiProvider(provider) ? (aiModels?.[provider] ?? []) : [];
+  const models = modelsOrFallback(provider, isAiProvider(provider) ? (aiModels?.[provider] ?? []) : []);
   const hasProviderKey = provider === "openai-compatible" || (keyStatus[provider] ?? false);
   const canShowModelPicker = provider !== "" && hasProviderKey && models.length > 0;
   const modelSupportsThinking = provider === "gemini" && supportsGeminiThinkingBudget(model || "gemini-flash-latest");
   const effectiveThinkingBudget = modelSupportsThinking ? thinkingBudget : null;
-  const chatModels = isAiProvider(chatProvider) ? (aiModels?.[chatProvider] ?? []) : [];
+  const chatModels = modelsOrFallback(chatProvider, isAiProvider(chatProvider) ? (aiModels?.[chatProvider] ?? []) : []);
   const hasChatProviderKey = chatProvider === "openai-compatible" || (keyStatus[chatProvider] ?? false);
   const canShowChatModelPicker = chatProvider !== "" && hasChatProviderKey && chatModels.length > 0;
   const chatModelSupportsThinking = chatProvider === "gemini" && supportsGeminiThinkingBudget(chatModel || "gemini-flash-latest");
@@ -206,11 +209,11 @@ export function useAiSettings(): AiSettingsState {
   const modelErrors = aiModels?._errors ?? {};
   const providerModelError = isAiProvider(provider) ? (modelErrors[provider] ?? null) : null;
   const chatProviderModelError = isAiProvider(chatProvider) ? (modelErrors[chatProvider] ?? null) : null;
-  const autoTuneModels = isAiProvider(autoTuneProvider) ? (aiModels?.[autoTuneProvider] ?? []) : [];
+  const autoTuneModels = modelsOrFallback(autoTuneProvider, isAiProvider(autoTuneProvider) ? (aiModels?.[autoTuneProvider] ?? []) : []);
   const hasAutoTuneProviderKey = autoTuneProvider === "openai-compatible" || (keyStatus[autoTuneProvider] ?? false);
   const canShowAutoTuneModelPicker = autoTuneProvider !== "" && hasAutoTuneProviderKey && autoTuneModels.length > 0;
   const autoTuneProviderModelError = isAiProvider(autoTuneProvider) ? (modelErrors[autoTuneProvider] ?? null) : null;
-  const driverProfileModels = isAiProvider(driverProfileProvider) ? (aiModels?.[driverProfileProvider] ?? []) : [];
+  const driverProfileModels = modelsOrFallback(driverProfileProvider, isAiProvider(driverProfileProvider) ? (aiModels?.[driverProfileProvider] ?? []) : []);
   const hasDriverProfileProviderKey = driverProfileProvider === "openai-compatible" || (keyStatus[driverProfileProvider] ?? false);
   const canShowDriverProfileModelPicker = driverProfileProvider !== "" && hasDriverProfileProviderKey && driverProfileModels.length > 0;
   const driverProfileModelSupportsThinking = driverProfileProvider === "gemini" && supportsGeminiThinkingBudget(driverProfileModel || "gemini-flash-latest");

@@ -1,0 +1,951 @@
+{
+  "schemaVersion": 1,
+  "game": "ams2",
+  "artifactKind": "raceiq-ams2-assets",
+  "counts": {
+    "tracks": 235,
+    "trackAssets": 235
+  },
+  "files": {
+    "tracks/adelaide-historic.track.svg": {
+      "bytes": 58511,
+      "sha256": "bb67ebd64c92a1d7308ea51e75518d98307b02e9c4232fd2da3adbeba17fbf58"
+    },
+    "tracks/adelaide-modern.track.svg": {
+      "bytes": 49710,
+      "sha256": "0aa473725086dcf85bc8a3d498f226995c02f5d216bb29bd448e318c78a1b5d7"
+    },
+    "tracks/adelaide-modern-stt.track.svg": {
+      "bytes": 50007,
+      "sha256": "885735bc36735efa7b8c5d4b6e1b5fcf47c83a6a4587989569e0fb3ebb042b79"
+    },
+    "tracks/ascurra-dirt.track.svg": {
+      "bytes": 34289,
+      "sha256": "96f8dcf35484a330fe8cb76c943658b53c7c082938da756d4c05f4edce824d5b"
+    },
+    "tracks/ascurra-rx.track.svg": {
+      "bytes": 34289,
+      "sha256": "96f8dcf35484a330fe8cb76c943658b53c7c082938da756d4c05f4edce824d5b"
+    },
+    "tracks/azure-circuit-2021.track.svg": {
+      "bytes": 50045,
+      "sha256": "644876cab4939dc3ae77653837316ba0c0efadec07b3de20527294c728021319"
+    },
+    "tracks/barcelona-1991.track.svg": {
+      "bytes": 74493,
+      "sha256": "93649905be94b781f402d8007f1c16ee4f25e5044c2a2833f4fc6c951f4fea2e"
+    },
+    "tracks/barcelona-gp.track.svg": {
+      "bytes": 61739,
+      "sha256": "53636de5287101ab758975d1d8dfe0aab11669e301242707243e5efb7fe727c5"
+    },
+    "tracks/barcelona-gp-1999.track.svg": {
+      "bytes": 76503,
+      "sha256": "141ece463f2aab45ef60a9cc94e9c00c30741b258a3f7e6c1ab575dae5ebfd97"
+    },
+    "tracks/barcelona-gp-2001.track.svg": {
+      "bytes": 76503,
+      "sha256": "141ece463f2aab45ef60a9cc94e9c00c30741b258a3f7e6c1ab575dae5ebfd97"
+    },
+    "tracks/barcelona-gp-nc.track.svg": {
+      "bytes": 61887,
+      "sha256": "cfca1e0d9facf295efec9b17972c1efac9c656cdf26f6120aa35b0a3e8ce1ba2"
+    },
+    "tracks/barcelona-natl-nc.track.svg": {
+      "bytes": 39437,
+      "sha256": "f4278a803f7ec97cb5389be7034447ec2b43a35cfe8a827c542f91c8b4bd737a"
+    },
+    "tracks/barcelona-rx.track.svg": {
+      "bytes": 17625,
+      "sha256": "5557eef9948d600101bbe4d637be1ce19def80abfed8740bcb3415dc65afda50"
+    },
+    "tracks/bathurst-1983.track.svg": {
+      "bytes": 95073,
+      "sha256": "4d19f117e5acca881223f99d87d3f772deb2bc5846a36d76ff5145893bdfe584"
+    },
+    "tracks/bathurst-2020.track.svg": {
+      "bytes": 96541,
+      "sha256": "2b2a5bbcef91d2f11870630a5f7a7ef910b5cab647ae46ed0c169d8beb3bc8fc"
+    },
+    "tracks/brandshatch-gp.track.svg": {
+      "bytes": 61134,
+      "sha256": "6069e34cfa14fef57a06e28593be32e873e1b7bb30e0491265e2aa7063bcba66"
+    },
+    "tracks/brandshatch-indy.track.svg": {
+      "bytes": 30889,
+      "sha256": "c1d5ee15d008af12272eec831fb3897e8ebf27cde4156c35f917989fa3f25160"
+    },
+    "tracks/brasilia.track.svg": {
+      "bytes": 86947,
+      "sha256": "039f39716e66dec40f0c8b9abf99397b6c55861f883e479d7f54de051838ffbf"
+    },
+    "tracks/brasilia-outer.track.svg": {
+      "bytes": 45446,
+      "sha256": "2b0a87777e50f7eef25424edf8936461a6fe8ea29fdc0ed116760b7b74a6ac62"
+    },
+    "tracks/buenos-aires-12.track.svg": {
+      "bytes": 77351,
+      "sha256": "69b5263971e5d6738d4bd8a09793b16b71809078033d33e3def49b7c39405834"
+    },
+    "tracks/buenos-aires-15.track.svg": {
+      "bytes": 90336,
+      "sha256": "c72657ffc5daecbdf2354ada4b9b168528f7cf548d76b0ecc23052f199eaf482"
+    },
+    "tracks/buenos-aires-6.track.svg": {
+      "bytes": 64846,
+      "sha256": "6c80fec6cc4850fdf1145e6afa3b8ca458f2c4dd21b66641a7ef2c1b7aec92d7"
+    },
+    "tracks/buenos-aires-6t.track.svg": {
+      "bytes": 63645,
+      "sha256": "90450a15f7faa1273398943b17bdd6683b2738445be2eb48cee02d0a1d295dd2"
+    },
+    "tracks/buenos-aires-7.track.svg": {
+      "bytes": 41209,
+      "sha256": "e77b8990f395188e590ba2ef86364787d572fd9b40678b70c1ab7ef7d8b0a06f"
+    },
+    "tracks/buenos-aires-8.track.svg": {
+      "bytes": 52198,
+      "sha256": "fa7fffd672e8cb1c8f4b49a8c2c0ca133ff7e1d2f8e82841c49f7bcae691dc30"
+    },
+    "tracks/buenos-aires-9.track.svg": {
+      "bytes": 52826,
+      "sha256": "f19dba64729628a033f7b7440374b7197a496e075de1e093a2277f451c108fbe"
+    },
+    "tracks/buskerud-long.track.svg": {
+      "bytes": 45683,
+      "sha256": "91ef796af00e8ced23f602a69794db9b509ec51a35f849bb8f4796e7c0bdb39b"
+    },
+    "tracks/buskerud-short.track.svg": {
+      "bytes": 28836,
+      "sha256": "57aaf9f93763548b5ad28b4f9cbf3ec08043ce6a14d9fefb83492f1d62ddfb76"
+    },
+    "tracks/cadwellpark.track.svg": {
+      "bytes": 55855,
+      "sha256": "47328a4d07a0c20dd91083ed934b700e785a64dd860418aacbcabc8b42f002a6"
+    },
+    "tracks/campogrande.track.svg": {
+      "bytes": 53575,
+      "sha256": "d3148fa8d4bedc859dcc73b1f1ad033760d1f282dac37e478f5328e9ac1c020f"
+    },
+    "tracks/cascavel.track.svg": {
+      "bytes": 46208,
+      "sha256": "aa8b8af0fa91c8134d06aa117c1623260a6b3da7114b4d27491f3d1977eade41"
+    },
+    "tracks/cleveland-gp.track.svg": {
+      "bytes": 53101,
+      "sha256": "ce8baca0e7256730d80ad16d14e2ff7ebe72bc9f9d7d75624cf455241c75dd62"
+    },
+    "tracks/cleveland-stt.track.svg": {
+      "bytes": 52774,
+      "sha256": "e3b2ffdd944f807714682270f73594e2685de9abcfce22a3963ec2befb2f66d6"
+    },
+    "tracks/cordoba.track.svg": {
+      "bytes": 55369,
+      "sha256": "d57563811ddeb8c41975d903cd60459c84822d849eb71a0ca6dbd985ef6f96d7"
+    },
+    "tracks/cordoba-gp.track.svg": {
+      "bytes": 62096,
+      "sha256": "ba0beaac4d6e6c1909cecd0fc42072888d625d71a116b4488ba1e0cd03d58899"
+    },
+    "tracks/cordoba-natl.track.svg": {
+      "bytes": 35584,
+      "sha256": "b09a606931e116bae9883acf6fc503ebb5ce187852222f795e7ad528f3e9f085"
+    },
+    "tracks/curitiba.track.svg": {
+      "bytes": 55831,
+      "sha256": "4a5b5b655a6546f7cf63347df50f8183a73bded6ddc61ceda3b7252329e14dc1"
+    },
+    "tracks/curitiba-outer.track.svg": {
+      "bytes": 38310,
+      "sha256": "de715e1e99167184adc413f5c74f3578c93352557f948f01639511c35b0cfee9"
+    },
+    "tracks/curvelo.track.svg": {
+      "bytes": 67837,
+      "sha256": "19861167d7fde77663b33648b2b7b0f5f90336729038772a0a86fe6d7d318a55"
+    },
+    "tracks/curvelob.track.svg": {
+      "bytes": 51795,
+      "sha256": "6216d2614100e3703673975c52129d47a52f058e4abee9da45e9a9b5b635f35d"
+    },
+    "tracks/daytona.track.svg": {
+      "bytes": 59337,
+      "sha256": "9b635fbe3df0de854e5c666d1d0d238b34bba0739be300ab276bc010edc20d06"
+    },
+    "tracks/daytona-circuit.track.svg": {
+      "bytes": 88717,
+      "sha256": "546ab4c91d3da3573ac285d1d9f4c5dd52c772a032fa0effd69eee5de57f8616"
+    },
+    "tracks/daytona-nascar-road.track.svg": {
+      "bytes": 87985,
+      "sha256": "df89923e30f8caf19fc63009ed5114d69203515de59d33e377caa8ec9ea673bd"
+    },
+    "tracks/donington-gp.track.svg": {
+      "bytes": 60411,
+      "sha256": "a9ee20250fad2d8e9ef19c0e5c8de7381f49a6a618d857bb5e257588afa3f685"
+    },
+    "tracks/donington-nat.track.svg": {
+      "bytes": 47826,
+      "sha256": "aebd36e76854706d06a02e500d2d520bfad2766e2dba76da334f4c40ef53ecbf"
+    },
+    "tracks/enna-pergusa.track.svg": {
+      "bytes": 74220,
+      "sha256": "7f287791f42af7d44096bb4ba7f0f0736efd2250955df0cc26cf2b059a4f717b"
+    },
+    "tracks/estoril-1988.track.svg": {
+      "bytes": 65088,
+      "sha256": "15b1f429f001d26e516d3f3ee69d2cfb3c2c4c987c57c09f9c4f2e3a8165d953"
+    },
+    "tracks/estoril-2019.track.svg": {
+      "bytes": 65674,
+      "sha256": "586224c73f94e8f090baae131f3ad80cb3b3ff2b59b6de10a949fb3aa7e45435"
+    },
+    "tracks/estoril-2019-t.track.svg": {
+      "bytes": 65349,
+      "sha256": "f4e236bd67beb199503861bd5b6ed8c74a4223e5059a7cba0697161a49d209b4"
+    },
+    "tracks/fontana-oval.track.svg": {
+      "bytes": 48007,
+      "sha256": "e57128bc95bcdb7ca365aed3920fc659f92d5539eef982f19d51940811b3078b"
+    },
+    "tracks/fontana-oval-historic.track.svg": {
+      "bytes": 48007,
+      "sha256": "e57128bc95bcdb7ca365aed3920fc659f92d5539eef982f19d51940811b3078b"
+    },
+    "tracks/fontana-scc.track.svg": {
+      "bytes": 67532,
+      "sha256": "b1a53fd1871f868f3273f24fac1e6942250e9163b4327200a33a78373c623600"
+    },
+    "tracks/foz-rx.track.svg": {
+      "bytes": 15250,
+      "sha256": "397e27709776b13832b9b06972ad487c3c484d6f326bae1ba5818f4c70c4c507"
+    },
+    "tracks/fuji.track.svg": {
+      "bytes": 64296,
+      "sha256": "5155cfdda21ac657b8d381b1177644fc2436277b0d58318d7b189cd3a98d589a"
+    },
+    "tracks/galeao-airport.track.svg": {
+      "bytes": 49325,
+      "sha256": "56ed29839de862e36b4be8bd393959bb162e11f56cbe73b7894c4bd35bb66126"
+    },
+    "tracks/gateway-oval.track.svg": {
+      "bytes": 31743,
+      "sha256": "7dac5b4a43b02ee3554d37606a128f5a240f3013fb9a712e46fad8ed4e3dee9a"
+    },
+    "tracks/gateway-rc1.track.svg": {
+      "bytes": 40032,
+      "sha256": "0a1c95c6e77be5b1ad7f83f0fec72238a38a3893e4f590d83584aa627baaebfb"
+    },
+    "tracks/gateway-rc2.track.svg": {
+      "bytes": 47438,
+      "sha256": "65c5ac74eb348cd05a91d32d484d58c507de672e534a92b55d8162ab471e3aba"
+    },
+    "tracks/goiania.track.svg": {
+      "bytes": 57447,
+      "sha256": "c8eace4184188a0b694d1bd29fa32ee1ff6ff83818ac2365cdba2726434f3d52"
+    },
+    "tracks/goianiaouter.track.svg": {
+      "bytes": 41382,
+      "sha256": "d477f3911fb98269af7c40ac2844029ddf76c7b1dd24f33649229d6841ef4057"
+    },
+    "tracks/goianiashort.track.svg": {
+      "bytes": 29274,
+      "sha256": "23f23ea5fbad58f48e54375e7454b914ffa61ebfd089d87c75ce047ee82b0fed"
+    },
+    "tracks/granja-viana-csp2.track.svg": {
+      "bytes": 14977,
+      "sha256": "3b59582556007ece29481e69db138bfc031098f13a086410780a89a4d35fc9e3"
+    },
+    "tracks/granja-viana-kgv101.track.svg": {
+      "bytes": 15310,
+      "sha256": "9e1bea7dfab149df49698948cd5be84e36ac39fa24e11a64980806d2464bb559"
+    },
+    "tracks/granja-viana-kgv102.track.svg": {
+      "bytes": 14878,
+      "sha256": "601109177a68cc4e32449551ed999d4e645edbd187af5c8949e1e659b05fdb2b"
+    },
+    "tracks/granja-viana-kgv121.track.svg": {
+      "bytes": 12187,
+      "sha256": "fc6b6e9e45dfbf4013fdde8a76d407aeb28f4fba9c486c2c9e25ce30e94bd933"
+    },
+    "tracks/guapore.track.svg": {
+      "bytes": 48376,
+      "sha256": "8201dec1f1e7463cde92ba2d0b4dfc79caa292f99ab1e7f749b01fbf260b4a1a"
+    },
+    "tracks/guapore-stt.track.svg": {
+      "bytes": 48463,
+      "sha256": "ef0bc9132852cefb111bda77e7d24e57430b2195782e967e4fada5b61a702a42"
+    },
+    "tracks/heusden.track.svg": {
+      "bytes": 58984,
+      "sha256": "de4232ec65f28cadf247d8d6d1cb1334b667843079bb048ce1082420ae7e5fe1"
+    },
+    "tracks/hockenheim-1977.track.svg": {
+      "bytes": 101639,
+      "sha256": "c05d3e5921c7097edb16095056713ed3f3eff75b33f8c70a1ddc7bd2557f37fa"
+    },
+    "tracks/hockenheim-1988.track.svg": {
+      "bytes": 100831,
+      "sha256": "f068f312663f8f7658ff31e931e3a25ce040dd3011e08f72e061191370edc0f7"
+    },
+    "tracks/hockenheim-1988-short.track.svg": {
+      "bytes": 39441,
+      "sha256": "1a51b05b3a2a5205d9d1cb8f98d097b8244c2fba9606ecfeca9082ec48b56e4b"
+    },
+    "tracks/hockenheim-2001.track.svg": {
+      "bytes": 101360,
+      "sha256": "29cd5d26f132633d53e624675b26024b8e71390daba6a717d3214dc34d9a9c2a"
+    },
+    "tracks/hockenheim-gp.track.svg": {
+      "bytes": 69207,
+      "sha256": "7a3d9098a94715f5c16944edd30313e867875c4ff7a26e02ba60bae017025338"
+    },
+    "tracks/hockenheim-national.track.svg": {
+      "bytes": 56005,
+      "sha256": "dd07cca590cee9ed7d3883a01ddc55edec2aba2aa91228f2abb16ebde390fff2"
+    },
+    "tracks/hockenheim-rx.track.svg": {
+      "bytes": 20075,
+      "sha256": "9c5434e8a35270f3c06ce2ae6dd719d01ff3411f176a8dfe8d5a5bdb295176b6"
+    },
+    "tracks/hockenheim-stt.track.svg": {
+      "bytes": 40043,
+      "sha256": "3467594ab6f74d11fe2d5f18fc7ae43e4c0f96262edc38f35ac8be2503835771"
+    },
+    "tracks/hockenheim-shorta.track.svg": {
+      "bytes": 38855,
+      "sha256": "74312b8802c86670fec28b7e277d26dba24e3191de5eba3e566ffa6839eb6757"
+    },
+    "tracks/hockenheim-shortb.track.svg": {
+      "bytes": 38940,
+      "sha256": "0efa32ba51f3c0ae32e56912fbaee75badc7b1fcfa84b6825aee43eb94b59715"
+    },
+    "tracks/hungaroring-gp-2025.track.svg": {
+      "bytes": 57586,
+      "sha256": "e523ed3ffcbb1c85f3a6a47b1571e5c64054d8020ec1110715be1f661e6fafb9"
+    },
+    "tracks/ibarra.track.svg": {
+      "bytes": 54973,
+      "sha256": "4351f2c0cfe986d6bfbf15efa30b1fd349b7cfb115330764d4469082de926ce6"
+    },
+    "tracks/ibarra-r.track.svg": {
+      "bytes": 53252,
+      "sha256": "f3458e23c31ab44327d4f342a9d3295136659974ad21d85389e4db09225c23fc"
+    },
+    "tracks/ibarra-stt.track.svg": {
+      "bytes": 55032,
+      "sha256": "ebe9d4d6ac40f2c9fa2e235931ed0e6b9398af72eab4001ea0f1fc9f57f1490d"
+    },
+    "tracks/imola.track.svg": {
+      "bytes": 79942,
+      "sha256": "b7f96241970ae4f9545070a7e47b0efdf75dc9e817fb3c2e33ada9712bba0dc2"
+    },
+    "tracks/imola-01.track.svg": {
+      "bytes": 78044,
+      "sha256": "e7e01a7a45f21c471e1a3822f04b786052b493ffd2f47ecadf71dfbafeb75ecd"
+    },
+    "tracks/imola-05.track.svg": {
+      "bytes": 78044,
+      "sha256": "e7e01a7a45f21c471e1a3822f04b786052b493ffd2f47ecadf71dfbafeb75ecd"
+    },
+    "tracks/imola-72.track.svg": {
+      "bytes": 77800,
+      "sha256": "91b54ccdb7fd0f6b76a9ccd12986d98f80fcbdf804d10936f18b15209d7e0ed4"
+    },
+    "tracks/imola-88.track.svg": {
+      "bytes": 77715,
+      "sha256": "0bc7b876e7169bb27559a606ef6527121211c7c2408042b199e2e7f4e0575105"
+    },
+    "tracks/indianapolis-2001-oval.track.svg": {
+      "bytes": 61428,
+      "sha256": "c9cffd462dccb6d86f5e407eeb90d63d830007cb5c83bfc8b217934a8ce913e4"
+    },
+    "tracks/indianapolis-2001-rc.track.svg": {
+      "bytes": 64461,
+      "sha256": "2faac0b944fb4ace22af39247e2c0fd61b4384824ea9f2414b6f41078d7b7f12"
+    },
+    "tracks/indianapolis-2022-oval.track.svg": {
+      "bytes": 61428,
+      "sha256": "c9cffd462dccb6d86f5e407eeb90d63d830007cb5c83bfc8b217934a8ce913e4"
+    },
+    "tracks/indianapolis-2022-rc.track.svg": {
+      "bytes": 56216,
+      "sha256": "908c9d4c2ed0e53fbb9293fca2d7c52798dc6c68af918be401c76f7962a89014"
+    },
+    "tracks/interlagos.track.svg": {
+      "bytes": 66397,
+      "sha256": "943af09245fef8fd3e12d6b1ae100c42eaaa4816a3b549b36d696a73f088a8ff"
+    },
+    "tracks/interlagoskart1.track.svg": {
+      "bytes": 35007,
+      "sha256": "41f4838043ab36aee629cbd1a9af36afabbd238ea108ebacd63aa7aa3e31e22e"
+    },
+    "tracks/interlagoskart2.track.svg": {
+      "bytes": 34989,
+      "sha256": "ebc3c82a1137244fbdfde88a71a4d004dafb3bced6e613b3f2d8301b6342a918"
+    },
+    "tracks/interlagoskart3.track.svg": {
+      "bytes": 22125,
+      "sha256": "3f602e9a38be357d8a5ad89271090db8b6850725a224db02f831341ae79befbb"
+    },
+    "tracks/interlagos-1991.track.svg": {
+      "bytes": 68006,
+      "sha256": "db1aa5a1253fedbc95a5e0992f80ce353cf4471a472a5e3f7de80a291c8f69df"
+    },
+    "tracks/interlagos-1993.track.svg": {
+      "bytes": 68006,
+      "sha256": "db1aa5a1253fedbc95a5e0992f80ce353cf4471a472a5e3f7de80a291c8f69df"
+    },
+    "tracks/interlagos-historic.track.svg": {
+      "bytes": 111465,
+      "sha256": "f18b0db97fb6753708f5780925b91a01c90dc0012b1a36d68b5e696c705c5931"
+    },
+    "tracks/interlagos-historic-outer.track.svg": {
+      "bytes": 48924,
+      "sha256": "8cbba623f356a882977a19fbada1fb4298753627ce72374ec2218b401e6664f7"
+    },
+    "tracks/interlagos-scb.track.svg": {
+      "bytes": 66397,
+      "sha256": "943af09245fef8fd3e12d6b1ae100c42eaaa4816a3b549b36d696a73f088a8ff"
+    },
+    "tracks/jacarepagua2005.track.svg": {
+      "bytes": 71056,
+      "sha256": "1fdcc361ec101596c86ae9e4e2daaef48594e116e56401fdac7906c0c3ca8d5b"
+    },
+    "tracks/jacarepaguaoval.track.svg": {
+      "bytes": 44538,
+      "sha256": "00253c2fad37cf70be1451f8c23fdfb370405a74cd43022c7d7fbe8fc6fea3e8"
+    },
+    "tracks/jacarepaguascb.track.svg": {
+      "bytes": 50354,
+      "sha256": "788f091e5898f4d09684de6a3cc5e89481441e65e12bdc7b21bf006af8c86c3a"
+    },
+    "tracks/jacarepaguashort.track.svg": {
+      "bytes": 47930,
+      "sha256": "87006e0ac43d631261ba18e8f8cc4f2490e44d7cbd20d280b6b0d772327bcc14"
+    },
+    "tracks/jacarepagua-historic.track.svg": {
+      "bytes": 75134,
+      "sha256": "e544b78c789693aa3b15907963e402d34c10538ae12cecb57c70969b8d37dea9"
+    },
+    "tracks/jerez-1988.track.svg": {
+      "bytes": 66354,
+      "sha256": "4a1fdc35009c252599349f047197154f94bdfc9048b120f323daa4fe555974c1"
+    },
+    "tracks/jerez-2019.track.svg": {
+      "bytes": 68978,
+      "sha256": "7e6f34bad40609f21917ad6514cb02fb500f27584f5c3ca16da289fcc5a31311"
+    },
+    "tracks/jerez-standard.track.svg": {
+      "bytes": 69040,
+      "sha256": "1299255f7d83445e1b70b1f25b63bef60acfcc5cb95e6184e34e49fe4f679bc8"
+    },
+    "tracks/kansai-classic.track.svg": {
+      "bytes": 86394,
+      "sha256": "8fa88eb4b1a7b4a3ec6e63d83c375fe1752d45879fbe5ac2467425bdc311c750"
+    },
+    "tracks/kansai-east.track.svg": {
+      "bytes": 33808,
+      "sha256": "067e88147b0beeaebb73b6841b7e5da48f1d1a9ae8313b3d9cc2d33d1ffbd53c"
+    },
+    "tracks/kansai-gp.track.svg": {
+      "bytes": 86231,
+      "sha256": "2fa8f8208bb64d7d230081c532bed0246bfe7230561176c67a4a3b953b734485"
+    },
+    "tracks/kansai-west.track.svg": {
+      "bytes": 52412,
+      "sha256": "e449bfac33feac01401eaa025d4ecd748a5e998b02992c23426f55294f387823"
+    },
+    "tracks/kyalami-2019.track.svg": {
+      "bytes": 69461,
+      "sha256": "a47a7ba0906cf3b9c2d0fbb8e61b8d866a35d0040775dbea87b0a02234ab23f3"
+    },
+    "tracks/kyalami-historic.track.svg": {
+      "bytes": 64610,
+      "sha256": "ab819b9c0e10ed69ba2050a9d4c2d68af6995d1ab723e27bd5f0fa5b027a57b7"
+    },
+    "tracks/laguna-seca-2020.track.svg": {
+      "bytes": 55896,
+      "sha256": "d9534530baf72b7071d39a844ebab99ff2529307013793df9606bc4c51e959ab"
+    },
+    "tracks/le-mans-24h.track.svg": {
+      "bytes": 179705,
+      "sha256": "6abfea521bf0e066448ac7d24a73206575e076ebd2f4b1d7f3b38a1ff74a9260"
+    },
+    "tracks/le-mans-24h-2005.track.svg": {
+      "bytes": 220831,
+      "sha256": "790f6e1ce5d5bf67a5dc69c57a89fd425e0230ef412701c6f6c7621d4c603cc9"
+    },
+    "tracks/le-mans-bugatti.track.svg": {
+      "bytes": 48948,
+      "sha256": "8ffaf987e43b2efd7579ce2e15b4aa14fa60e60a162383058c4449a899f44c41"
+    },
+    "tracks/londrina.track.svg": {
+      "bytes": 46874,
+      "sha256": "878c8cd92ec97de568b5d464ea6d5daa948c94d1e6ee6eb157d5ce8642270dea"
+    },
+    "tracks/londrina-long.track.svg": {
+      "bytes": 48943,
+      "sha256": "c9f9e11fdf9b14c5c2a553f6dc3e160d6b65da5ca2cb9205317fb0b7fe85e599"
+    },
+    "tracks/londrinakart1.track.svg": {
+      "bytes": 30115,
+      "sha256": "8c4ba42cdc44b3dbf0c16f7c7e341b14246d09d0b681a5a0f70b22427d573dfe"
+    },
+    "tracks/londrinakart2.track.svg": {
+      "bytes": 26444,
+      "sha256": "c01a5e0be697916a42040864533d7301415044298e437095843ba212b59372e5"
+    },
+    "tracks/long-beach.track.svg": {
+      "bytes": 49307,
+      "sha256": "93221978b89f54e488bd4dfcb8e5e41fab480d043c6179b2d463e57ff42fb99c"
+    },
+    "tracks/long-beach-stt.track.svg": {
+      "bytes": 49363,
+      "sha256": "2874ab6026d1183cb8ef20c44f94ab1989b3ee73583f4278ee469b25a9551371"
+    },
+    "tracks/montrealhistoric.track.svg": {
+      "bytes": 65078,
+      "sha256": "4230826cf9e54b1fdee1a5b97d22f1b32c931b49b5f317bd2cc11c3093f1e41d"
+    },
+    "tracks/montrealhistoric-1991.track.svg": {
+      "bytes": 69737,
+      "sha256": "769d877962a0d48946407a529470495c86f37cb661a2add5dc29440b47968e0c"
+    },
+    "tracks/montrealmodern.track.svg": {
+      "bytes": 67365,
+      "sha256": "a69031b513c13a0771e9060219b350765bb5936529f15c4e0b025fd0a1534dac"
+    },
+    "tracks/monza-1971.track.svg": {
+      "bytes": 84516,
+      "sha256": "96477890479240c6e65e2daef9dde6bd79bbb8f8092123f9d0251c5ca75f7102"
+    },
+    "tracks/monza-1971-10k.track.svg": {
+      "bytes": 155717,
+      "sha256": "fb594bbc7896394770268217a31d8a02e06f9056ddce7766f5cca67a73918a6d"
+    },
+    "tracks/monza-1971-10knc.track.svg": {
+      "bytes": 154382,
+      "sha256": "277259330fb4ae0da8905b700bb7d94f25d6164df329b0ad912704be035c5f1b"
+    },
+    "tracks/monza-1971-junior.track.svg": {
+      "bytes": 37663,
+      "sha256": "28f27f33ab056b27eac21614b582c339b11ac8b339ece75a8e47b536b85d5265"
+    },
+    "tracks/monza-1991.track.svg": {
+      "bytes": 90521,
+      "sha256": "467dd191c0a37a89f394d91f3926a25fd9609637b76527ad0f2a06abbbacf245"
+    },
+    "tracks/monza-2005.track.svg": {
+      "bytes": 73689,
+      "sha256": "b0ce70ee6332c3f6207eee5db1b46af5a5b1e20bad87b9fc539e99f4ac52d23b"
+    },
+    "tracks/monza-2020.track.svg": {
+      "bytes": 73689,
+      "sha256": "b0ce70ee6332c3f6207eee5db1b46af5a5b1e20bad87b9fc539e99f4ac52d23b"
+    },
+    "tracks/monza-2020-junior.track.svg": {
+      "bytes": 37907,
+      "sha256": "5f5a715cda5e873b5eb037762d4ee49f6d8f5b8acc5f4d853359fbea213b5573"
+    },
+    "tracks/monza-2020-stt.track.svg": {
+      "bytes": 38032,
+      "sha256": "be7f574dcd0441959ba28e20e90cd584acb51a86f81044cece6fd9e0e040e254"
+    },
+    "tracks/moravia.track.svg": {
+      "bytes": 79818,
+      "sha256": "881866f83b953e5a61b0b744681e51c6bbae2e27280f3f348ee63db5648ac346"
+    },
+    "tracks/mosport.track.svg": {
+      "bytes": 51591,
+      "sha256": "e5c1a16bcf78d2039dc4b310c0902e5665e71842bd09d416f12c7eb85fa41a71"
+    },
+    "tracks/nordschleife-2020.track.svg": {
+      "bytes": 331124,
+      "sha256": "11a54baadfa541aabfbb415b65531ad797b6274d617fa2bb89a1ac3d3fac10b7"
+    },
+    "tracks/nordschleife-2020-24hr.track.svg": {
+      "bytes": 389668,
+      "sha256": "421e96bc4de34cc1594f1d7daa9b2bf0fe97567047e82f5bd996ede9c6dab6c6"
+    },
+    "tracks/nordschleife-2025.track.svg": {
+      "bytes": 331124,
+      "sha256": "11a54baadfa541aabfbb415b65531ad797b6274d617fa2bb89a1ac3d3fac10b7"
+    },
+    "tracks/nordschleife-2025-24hr.track.svg": {
+      "bytes": 389651,
+      "sha256": "2b7e0eead08764d7fc353fa0da48844f54d6ac36f6b5f61057460af0c28e8eac"
+    },
+    "tracks/nordschleife-2025-tourist.track.svg": {
+      "bytes": 331095,
+      "sha256": "51fcece18d965714303f1ff8c84031f5d322501c82e5b305967413469b1217f1"
+    },
+    "tracks/nurb-1971-beton.track.svg": {
+      "bytes": 37437,
+      "sha256": "c8f2b18c4ae4f384ed71ce480e1faf309b0a36549aaca082ebfc4177a905ed3f"
+    },
+    "tracks/nurb-1971-gesamt.track.svg": {
+      "bytes": 453840,
+      "sha256": "b6c33047870eed6a2feaf13e41b74c84b74c78659096801d7e28f83f189764e8"
+    },
+    "tracks/nurb-1971-nords.track.svg": {
+      "bytes": 364578,
+      "sha256": "96975a73d2c9d3823def7efeffa91b96093d2c52d616225110e0c36f905912a8"
+    },
+    "tracks/nurb-1971-suds.track.svg": {
+      "bytes": 126323,
+      "sha256": "8cc3c905f4a4040171754db88323837a3b21ea9f4c61bd76259831112a75e024"
+    },
+    "tracks/nurb-2020-rx.track.svg": {
+      "bytes": 17226,
+      "sha256": "274cff84b9bfba0d9f0903253ada44eb5388730ed09b561c38ad48784307d920"
+    },
+    "tracks/nurb-gp-2020.track.svg": {
+      "bytes": 79699,
+      "sha256": "c84bfc89d30d8b654749fe80bffb3c3ef83878cafd2048bd826d7d5269da28c4"
+    },
+    "tracks/nurb-gp-2020-sprint.track.svg": {
+      "bytes": 55554,
+      "sha256": "fce9d7f43dbe0998020f6d9bf41067b39ac28330192947ece31558f7d1d08aa6"
+    },
+    "tracks/nurb-gp-2020-sprint-s.track.svg": {
+      "bytes": 44816,
+      "sha256": "e73d7927487da4bd70ddf232145633063d02ad540dea93996be6bef2e86337ba"
+    },
+    "tracks/nurb-gp-2020-veedol.track.svg": {
+      "bytes": 79459,
+      "sha256": "5fec8bf277cbe015e73b50fd3923833428842ab316de0b3209821dbf9242d7a1"
+    },
+    "tracks/nurb-gp-2025.track.svg": {
+      "bytes": 79699,
+      "sha256": "c84bfc89d30d8b654749fe80bffb3c3ef83878cafd2048bd826d7d5269da28c4"
+    },
+    "tracks/ortona.track.svg": {
+      "bytes": 45068,
+      "sha256": "a741a0d62d8535e0fa8fac74c3c26d7bf65aa45e1794f283be47ad877dd1b0bb"
+    },
+    "tracks/ortona2.track.svg": {
+      "bytes": 33052,
+      "sha256": "62f48d10ae028da95d00da7b763eaabf20d1a46e9cd0cba8afec6096fc8c5ff0"
+    },
+    "tracks/ortona3.track.svg": {
+      "bytes": 33992,
+      "sha256": "52f24f827daecc7d1000a7ac5cf901847a38e2c0dc84cdef77238d55b754402f"
+    },
+    "tracks/ortona4.track.svg": {
+      "bytes": 22577,
+      "sha256": "fbe7f229a6f52938a1f84f2c81092b6847b7fd06c3136efe945491b138c88d1f"
+    },
+    "tracks/oultonpark.track.svg": {
+      "bytes": 67179,
+      "sha256": "12f5e3300c6944f0aef83b74b57d6d722a45def6b61a8762dc6ed6b07123009e"
+    },
+    "tracks/oultonparkclassic.track.svg": {
+      "bytes": 66834,
+      "sha256": "a8922d777d2839c391445ed76292c37de8c97f260f8ddca5d1c1c05b5bc73a88"
+    },
+    "tracks/oultonparkfosters.track.svg": {
+      "bytes": 41492,
+      "sha256": "18da27b12797a2b1ff584dd8502207e2d03d110ef17eb2f17472c14a020d6508"
+    },
+    "tracks/oultonparkisland.track.svg": {
+      "bytes": 55765,
+      "sha256": "21b923dc31bcd8eb7ad62785bb0ddc94a0c8f179973a4a8a0c64bc74968b2717"
+    },
+    "tracks/pocono-oval.track.svg": {
+      "bytes": 61959,
+      "sha256": "777d79e5aa729675e2d2857eae5236b3ae19604129b9a1838a8dccc39f137247"
+    },
+    "tracks/pocono-rc1.track.svg": {
+      "bytes": 64234,
+      "sha256": "1a655e01421e00df2a509984f1ad502c7603ff910f4722019a4af49606834a9f"
+    },
+    "tracks/pocono-rc2.track.svg": {
+      "bytes": 56943,
+      "sha256": "57274c2bf5f5a045b13ce6836232f844ae5e5e56b2e65614a82a5331e431c193"
+    },
+    "tracks/pocono-rc3.track.svg": {
+      "bytes": 63605,
+      "sha256": "2a3bd20b8256007849c8257448d58538710cc4d575914500909824e2acc245ed"
+    },
+    "tracks/pocono-rc4.track.svg": {
+      "bytes": 34258,
+      "sha256": "0d1e3a878f15ac49d69ca4b27ea823153510eb7a188be1068e014cbaa2b30bd5"
+    },
+    "tracks/pocono-rc5.track.svg": {
+      "bytes": 33813,
+      "sha256": "ee4c9c563324f715c6062325d61b940a1f52211850d0ee458e04e187e5d963a8"
+    },
+    "tracks/pocono-rc6.track.svg": {
+      "bytes": 46494,
+      "sha256": "18a0bd15be5751947ceeb58747f872ae2467092308ee679e6a5f8c0c1cfba89c"
+    },
+    "tracks/red-bull-ring-club.track.svg": {
+      "bytes": 26352,
+      "sha256": "4befe7f8fa8093ba3875ec0487a998877a9716ca277cce5f6995f647cbbfcc21"
+    },
+    "tracks/road-america.track.svg": {
+      "bytes": 96704,
+      "sha256": "235bbefdaa040ca2675f0766be4a5bb9b4f8052240dd9bba97523b2c87774b42"
+    },
+    "tracks/road-america-rcb.track.svg": {
+      "bytes": 97886,
+      "sha256": "7a7a6fc32f1614f8f9b456678fd7c9169eb2d104e02b7c6232818d9eb7942467"
+    },
+    "tracks/road-america-stt.track.svg": {
+      "bytes": 52259,
+      "sha256": "59c9e975da182768c76604d237f27027608bd2045926df75308f66384c9ff53e"
+    },
+    "tracks/road-atlanta.track.svg": {
+      "bytes": 65651,
+      "sha256": "90a4f24dd536dd8957f7365e3c3b0c78d8d0bc8a219a3cdb249e720a9cc6d202"
+    },
+    "tracks/road-atlanta-2005.track.svg": {
+      "bytes": 65651,
+      "sha256": "90a4f24dd536dd8957f7365e3c3b0c78d8d0bc8a219a3cdb249e720a9cc6d202"
+    },
+    "tracks/road-atlanta-2005-short.track.svg": {
+      "bytes": 45018,
+      "sha256": "b1b99081ed2ef2ac6446a299c8cfcd7514cc7ef20928c13141aab70bde4b959a"
+    },
+    "tracks/road-atlanta-moto.track.svg": {
+      "bytes": 65353,
+      "sha256": "e218b013b05ae282de776a92e5be96b73f7fc59242c3d37e6afea04bc71d7bd0"
+    },
+    "tracks/salvador.track.svg": {
+      "bytes": 41840,
+      "sha256": "d7e73be0ef4406bbe12399ec475c6e9667defdfc465412403cd9e516019c6751"
+    },
+    "tracks/santacruz.track.svg": {
+      "bytes": 52428,
+      "sha256": "0ec3190af0b20a8666f5d4100274767def1757b1b2e4f1fe2421110995fed56c"
+    },
+    "tracks/sebring.track.svg": {
+      "bytes": 90083,
+      "sha256": "c8947a8b9a4681d21bfa9169de9e6a4bde80c99df3cc80c4f1c406612597748e"
+    },
+    "tracks/sebring-club.track.svg": {
+      "bytes": 41481,
+      "sha256": "21de10bdec4157d780ce12457fbad9ab90b75c6ceeae9d83b34a3e57a7103ff4"
+    },
+    "tracks/sebring-stt.track.svg": {
+      "bytes": 48526,
+      "sha256": "79abce1e35f985d877a4c9742a2e335473a255753749e29c7340d0ffa1f59e42"
+    },
+    "tracks/sebring-school.track.svg": {
+      "bytes": 48576,
+      "sha256": "902e6324b8e38acd79d2c5b6ffed8eed7f1b457f4198f1b5c2fca131830a7352"
+    },
+    "tracks/silverstone-1975.track.svg": {
+      "bytes": 71247,
+      "sha256": "2a1a0bda5829eec4cec9b7ce4504a2bf641d2c26a9659a5f2cc0eb8b31bd8791"
+    },
+    "tracks/silverstone-1975nc.track.svg": {
+      "bytes": 71248,
+      "sha256": "6d30079f1c21f1dd0a9163c9e24f7f01ab06297cf1313dd164b3b6b44ecac261"
+    },
+    "tracks/silverstone-1991.track.svg": {
+      "bytes": 79070,
+      "sha256": "3071fb07a15737702321121e7089cc06730f42d950df573869b558383c361038"
+    },
+    "tracks/silverstone-2001.track.svg": {
+      "bytes": 78076,
+      "sha256": "fd666b1084371a759a465a22e0974aa095f5005466d090060737b60229b29ff3"
+    },
+    "tracks/silverstone-2001-intl.track.svg": {
+      "bytes": 53710,
+      "sha256": "e1eb79c357ce591eb66757a0c098f9de4852397bde3d9985579dbb3b83dc9cc6"
+    },
+    "tracks/silverstone-2001-nat.track.svg": {
+      "bytes": 39388,
+      "sha256": "cc36730313b6145be26ba91f747d358caa12b47df2f2e02931073a883453923c"
+    },
+    "tracks/silverstone-2019.track.svg": {
+      "bytes": 89043,
+      "sha256": "2500118e87b420eafa73c06f2dbf9e1bf0d29703a510ab87b7be325f6fa30610"
+    },
+    "tracks/silverstone-intl-2019.track.svg": {
+      "bytes": 45545,
+      "sha256": "ab0686c636f5e6895588839df1b93afb396690b9987a008b8a3b6f82a9e95c4b"
+    },
+    "tracks/silverstone-natl-2019.track.svg": {
+      "bytes": 38866,
+      "sha256": "e219cd07861a067659612c6c7447cb9156418b960e0db7cc33c305163b941a00"
+    },
+    "tracks/snetterton2019-100.track.svg": {
+      "bytes": 25081,
+      "sha256": "8453d9978b0ec917144f25da2e5ad8b7c5bdf81f590e46d1be19b2b907a639fc"
+    },
+    "tracks/snetterton2019-200.track.svg": {
+      "bytes": 49293,
+      "sha256": "a5c5904904741caaa4669f4f1342258a20bf30a915fcef8ff53c287081446f10"
+    },
+    "tracks/snetterton2019-300.track.svg": {
+      "bytes": 73248,
+      "sha256": "45238e07437b3317d649cf626995595e1e0ce885a32bd6edb9fc14c6502eef28"
+    },
+    "tracks/spa-francorchamps-1970.track.svg": {
+      "bytes": 218253,
+      "sha256": "e2e09e5ee96fe095deb47d5c49c80be39e474c357d2ac0999e54154a4385dbe7"
+    },
+    "tracks/spa-francorchamps-1970-nc.track.svg": {
+      "bytes": 218305,
+      "sha256": "3ff478f89795a733ec1323824c73470e6815b61fbb0929c72dbec762eba0d239"
+    },
+    "tracks/spa-francorchamps-1993.track.svg": {
+      "bytes": 106336,
+      "sha256": "753e7e2cab5645504c6283e6665b68918b7d8a5cfa1b58cdf397306213fbf381"
+    },
+    "tracks/spa-francorchamps-2005.track.svg": {
+      "bytes": 108997,
+      "sha256": "41a20ad57666ad4cd439fdfb29f8a10061a209aea371bc97cbffecf7b93b2ebe"
+    },
+    "tracks/spa-francorchamps-2005-ec.track.svg": {
+      "bytes": 109007,
+      "sha256": "efdd6c407222d75544113dee32f45c06520e7533c96c05a232eb7d74b91e6628"
+    },
+    "tracks/spa-francorchamps-2020.track.svg": {
+      "bytes": 107188,
+      "sha256": "b0d013ad60faf022bf64bd7cb3184c293089f24a613b07a21d732665c9f93926"
+    },
+    "tracks/spa-francorchamps-2022.track.svg": {
+      "bytes": 110322,
+      "sha256": "9529b20dc452974d6e9b5790dcf3646154fd09c1c16b2bafe56c8da92d300e88"
+    },
+    "tracks/spa-francorchamps-2022-rx.track.svg": {
+      "bytes": 16936,
+      "sha256": "869f9573006858c127b5e47f6291d128328fde9b9636ddf3a093c7e6d322aade"
+    },
+    "tracks/speedland1.track.svg": {
+      "bytes": 23278,
+      "sha256": "0dbbd02674ee3f484349a059719b4e4dc2c3d584548dedb1f76bca5c0101c8f4"
+    },
+    "tracks/speedland2.track.svg": {
+      "bytes": 24085,
+      "sha256": "78c3f762293c8455520f44797362cd99e0a79af1cb129a74ec35481165077512"
+    },
+    "tracks/speedland3.track.svg": {
+      "bytes": 11258,
+      "sha256": "725e1c941fc2fb640e57bfb3ba1cf78f282e562f8f35548d0df7397943b35126"
+    },
+    "tracks/speedland4.track.svg": {
+      "bytes": 14312,
+      "sha256": "3e8b96c0de1cca346cb2b3c9128661cb237bcd4fa26e9dbee5ad5e2d57412983"
+    },
+    "tracks/spielberg-2001.track.svg": {
+      "bytes": 62875,
+      "sha256": "bf793439a3969477e3d9f07855af24e5e80686af986ef04fd64d83835ba78006"
+    },
+    "tracks/spielberg-gp.track.svg": {
+      "bytes": 62875,
+      "sha256": "bf793439a3969477e3d9f07855af24e5e80686af986ef04fd64d83835ba78006"
+    },
+    "tracks/spielberg-historic.track.svg": {
+      "bytes": 85499,
+      "sha256": "6fb5f051cfd6cb9ba1ddc00f4d093405ffa4a8981fb3f6cfbf4da89a7a3a0ec9"
+    },
+    "tracks/spielberg-stt.track.svg": {
+      "bytes": 34567,
+      "sha256": "c8392a0b5fe72c1029d98b99013817075022f6ee981d22077bdb69036c3b22c7"
+    },
+    "tracks/spielberg-short.track.svg": {
+      "bytes": 34729,
+      "sha256": "38d5e3e5748f25176c06eaba086811c88286b7b6068fe8d4580734a10d0b4fd6"
+    },
+    "tracks/spielberg-vintage.track.svg": {
+      "bytes": 84390,
+      "sha256": "9321ae7463c762805e62fd1d9c410625f368dce5ee2eef133237b443fa4b1233"
+    },
+    "tracks/taruma.track.svg": {
+      "bytes": 48250,
+      "sha256": "644408605d78ddb961aa0ba15e0f9091eb8bcbb3f592706a0cbc7f4700dad8d9"
+    },
+    "tracks/tarumac.track.svg": {
+      "bytes": 48757,
+      "sha256": "4040a1473026a044c9a0976ba41b174da009323eb49f14d4bf638e118772f80b"
+    },
+    "tracks/termas-rio-hondo.track.svg": {
+      "bytes": 59964,
+      "sha256": "2e0214cc742da3c3e5ffdb679df078bb189e33dfb9f6d8dc22613bb0b0de2d88"
+    },
+    "tracks/tykki-dirt1.track.svg": {
+      "bytes": 14619,
+      "sha256": "8a7f38587972af35ce8d0ea7f08683469ab93867613266a248da2c97dcdb8bc4"
+    },
+    "tracks/tykki-dirt2.track.svg": {
+      "bytes": 26045,
+      "sha256": "bb0da788c41245c574106651132ee974f24609eee893e023e164cb6d8a8333d9"
+    },
+    "tracks/tykki-rx.track.svg": {
+      "bytes": 15715,
+      "sha256": "1228d62db219c43ab530265c7b9deb989b963fe0a06dbd2d34f1bbf403aee651"
+    },
+    "tracks/tykki-tarmac.track.svg": {
+      "bytes": 11866,
+      "sha256": "35a0501eee8f5edf9d07b212b83a9ed2f3c802862a2287c41af29e3f2ccf41f0"
+    },
+    "tracks/velocitta.track.svg": {
+      "bytes": 51354,
+      "sha256": "337e6899fd6a590b40e9af5b187e0f850d5a2b12bdd238622ed0e44c695036ab"
+    },
+    "tracks/velocittacd.track.svg": {
+      "bytes": 27102,
+      "sha256": "9158bdc558ba57f99ba8aa3a46373bc93a532dc62f75590e0242a34b649bef53"
+    },
+    "tracks/velocittatd.track.svg": {
+      "bytes": 52741,
+      "sha256": "a02b9991851f6d4f63d11b0ea57befa9bb54d3072feed1f44a6738d8e0d93dea"
+    },
+    "tracks/velopark.track.svg": {
+      "bytes": 30691,
+      "sha256": "8776aab94c6e1b72e6a79542a92d70666e8814a215fcb3af3adf6127711cc681"
+    },
+    "tracks/velopark2.track.svg": {
+      "bytes": 32397,
+      "sha256": "4e004740eecdf08f619d42f20f67d2d6dd5e7480272d8056d9bd9929ad9318c8"
+    },
+    "tracks/velopark2-stt.track.svg": {
+      "bytes": 33280,
+      "sha256": "7fc6cf3cfbedc3592af51a2f872fa4fd75610cf21e96876771edb3b6928d38d3"
+    },
+    "tracks/virginiafull.track.svg": {
+      "bytes": 86619,
+      "sha256": "0d04a1cb0334e09c9827a60842e09a252b5a7062e546b7f7503c2da5d6bc745c"
+    },
+    "tracks/virginiagrand.track.svg": {
+      "bytes": 106086,
+      "sha256": "760f9104050e21ad70822d356664013d517d1700c4bd01f15a3912842a00742c"
+    },
+    "tracks/virginianorth.track.svg": {
+      "bytes": 58429,
+      "sha256": "d9a41efa578c442ec53ce707d61e08828192a1fb03c3f0ef01f79f77c0ddacd3"
+    },
+    "tracks/virginiapatriot.track.svg": {
+      "bytes": 24765,
+      "sha256": "09d7797f7e8e986cf900466e60fa0816f922b49b2caae3011c2dc17367740185"
+    },
+    "tracks/virginiasouth.track.svg": {
+      "bytes": 41018,
+      "sha256": "c4d5552ba5a1ba825532386cd54726f779d504aec0f1599638f5508b6ca1f9f8"
+    },
+    "tracks/watkins-glen.track.svg": {
+      "bytes": 83574,
+      "sha256": "2a4b756ed26351cceab6cd9b218098d543bbbf7f9e8cdaa9586df5ba09d5033b"
+    },
+    "tracks/watkins-glen-gpil.track.svg": {
+      "bytes": 83826,
+      "sha256": "111683f1a13e40c13e892de2bf21bb9aec1d4c6e3770e02bafdb2d67ed52a5cb"
+    },
+    "tracks/watkins-glen-s.track.svg": {
+      "bytes": 59385,
+      "sha256": "bd492a7b3cb7a7384795d6cd989c5aa85b8c5f784b2591ed943dd90939fa1c1b"
+    },
+    "tracks/watkins-glen-sil.track.svg": {
+      "bytes": 59954,
+      "sha256": "328696d9e3acff10ad8377f9f8c3751c638dca97a055e3ae1c0bc8643247a93c"
+    },
+    "tracks/watkins-glen-stt.track.svg": {
+      "bytes": 60135,
+      "sha256": "bbdfdb6bb42b62d3055c077cba1f229aef58b1ae8948664957e72b393ffb9706"
+    }
+  }
+}

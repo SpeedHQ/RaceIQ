@@ -11,7 +11,8 @@ import { lapRoutes } from "./laps/index";
 import { driverRoutes } from "./driver-routes";
 import { chatsRoutes } from "./chats-routes";
 import { chatRunRoutes } from "./chat-run-routes";
-import { sessionRoutes } from "./session-routes";
+import { createSessionRoutes } from "@raceiq/sessions-page/server";
+import { isSessionIdentityInCatalog } from "../games/session-identity";
 import { trackRoutes } from "@raceiq/tracks-catalogue/server";
 import { carRoutes, accCarRoutes, acEvoCarRoutes } from "@raceiq/cars-catalogue/server";
 import { tuneRoutes } from "./tune-routes";
@@ -23,6 +24,8 @@ import { miscRoutes } from "./system/index";
 import { cacheRoutes } from "./cache-routes";
 import { devRoutes } from "./dev/index";
 import { dashboardRoutes } from "./dashboard-routes";
+
+const sessionRoutes = createSessionRoutes(isSessionIdentityInCatalog);
 
 // Name each already-checked schema so declaration generation does not expand
 // the entire nested route chain. Keep every mounted production route here.

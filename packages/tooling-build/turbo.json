@@ -7,7 +7,7 @@
     },
     "build:e2e": {
       "cache": false,
-      "env": ["RACEIQ_FEATURE_F1_EXPERIMENTS", "RACEIQ_FEATURE_IRACING_ADAPTER"]
+      "env": ["RACEIQ_FEATURE_F1_EXPERIMENTS", "RACEIQ_FEATURE_IRACING_ADAPTER", "RACEIQ_FEATURE_AMS2_ADAPTER"]
     }
   }
 }

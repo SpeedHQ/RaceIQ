@@ -11,13 +11,14 @@ export function ReplaySegmentsPanel({ lap, controller, segments }: {
   const telemetry = useMemo(() => lap.samples.map((sample) => ({
     values: {
       ...sample.values,
-      "timing.distance-traveled": Number.isFinite(sample.distance) ? sample.distance : null,
+      "timing.distance-traveled": lap.trackLengthM ? sample.values["timing.distance-traveled"] : Number.isFinite(sample.distance) ? sample.distance : null,
       "timing.current-lap": sample.time,
     },
     states: {},
+    run: sample.run,
     freshness: {},
   })), [lap]);
-  const segmentList = useMemo(() => Array.from(segments), [segments]);
+  const segmentList = useMemo(() => "opponentLapId" in lap.replay && !(typeof lap.trackLengthM === "number" && Number.isFinite(lap.trackLengthM) && lap.trackLengthM > 0) ? null : Array.from(segments), [lap, segments]);
   let low = 0, high = lap.samples.length;
   while (low < high) {
     const middle = (low + high) >>> 1;
@@ -25,6 +26,6 @@ export function ReplaySegmentsPanel({ lap, controller, segments }: {
     else high = middle;
   }
   return <div className="h-full overflow-y-auto p-3">
-    <AnalyseSegmentList telemetry={telemetry} segments={segmentList} cursorIdx={Math.max(0, low - 1)} />
+    <AnalyseSegmentList telemetry={telemetry} segments={segmentList} trackLengthM={lap.trackLengthM} cursorIdx={Math.max(0, low - 1)} />
   </div>;
 }

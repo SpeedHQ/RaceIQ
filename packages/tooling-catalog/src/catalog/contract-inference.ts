@@ -40,6 +40,7 @@ export const ENUM_DOMAINS: Readonly<Record<string, readonly string[]>> = {
   "engine.ignition-starter": ["0", "1", "2"],
   "race.primary-flag": ["0", "6"],
   "race.count-lap-flag": ["0", "1", "2"],
+  "race.competitor.pit-state": ["0", "1", "2", "3", "4"],
   "race.finish-status": ["0", "1", "2", "3"],
   "race.control": ["-1", "0", "1", "2", "3"],
   "race.yellow-flag-state": ["-1", "0", "1", "2", "3", "4", "5", "6", "7"],

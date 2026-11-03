@@ -3,6 +3,8 @@ import { eq } from "drizzle-orm";
 import { db } from "./index";
 import { laps, sessions } from "./schema";
 import { withDatabaseWrite } from "./write-coordination";
+import { revokeUnreferencedLmuOpponentIndexes } from "./session-queries";
+import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
 import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
 import { getActiveExperiment } from "../experiments/active";
@@ -121,15 +123,30 @@ export async function deleteLapOnly(id: number): Promise<void> {
 }
 
 export async function deleteLap(id: number): Promise<boolean> {
-  const deleted = await withDatabaseWrite(() => db.transaction(async (tx) => {
-    const lap = await tx.select({ sessionId: laps.sessionId }).from(laps).where(eq(laps.id, id)).get();
-    if (!lap) return false;
-    const result = await tx.delete(laps).where(eq(laps.id, id)).returning().all();
-    if (!result.length) return false;
-    const remaining = await tx.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, lap.sessionId)).limit(1).all();
-    if (!remaining.length) await tx.delete(sessions).where(eq(sessions.id, lap.sessionId)).run();
-    return true;
-  }));
-  if (deleted) cacheDelete(id);
-  return deleted;
+  const deletion = await withSessionCaptureMaintenanceLock(() => withDatabaseWrite(() =>
+    db.transaction(async (tx) => {
+      const lap = await tx.select({ sessionId: laps.sessionId }).from(laps).where(eq(laps.id, id)).get();
+      if (!lap) return null;
+      const session = await tx.select({
+        gameId: sessions.gameId,
+        rawFile: sessions.rawFile,
+        captureManifestFile: sessions.captureManifestFile,
+      }).from(sessions).where(eq(sessions.id, lap.sessionId)).get();
+      const result = await tx.delete(laps).where(eq(laps.id, id)).returning().all();
+      if (!result.length) return null;
+      const remaining = await tx.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, lap.sessionId)).limit(1).all();
+      let indexSourcePath: string | null = null;
+      if (!remaining.length) {
+        const deletedSession = await tx.delete(sessions).where(eq(sessions.id, lap.sessionId)).run();
+        if (deletedSession.rowsAffected === 1 && session?.gameId === "lmu") {
+          indexSourcePath = session.captureManifestFile ?? session.rawFile;
+        }
+      }
+      return { indexSourcePath };
+    }),
+  ));
+  if (!deletion) return false;
+  cacheDelete(id);
+  if (deletion.indexSourcePath) await revokeUnreferencedLmuOpponentIndexes([deletion.indexSourcePath]);
+  return true;
 }

@@ -11,7 +11,10 @@ import { reconcileSessionResult } from "@raceiq/backend-core/race-results/reconc
 import { encodeFrameLength, encodeMetaFrame, encodeSparseCaptureFormatFrame } from "@raceiq/capture-formats/session/framing";
 import { F1_HEADER_SIZE, F1_PACKET_IDS } from "@raceiq/capture-formats/f1-2025/f1-wire";
 import { initServerGameAdapters } from "../../src/games/init";
-import { sessionRoutes } from "../../src/routes/session-routes";
+import { createSessionRoutes } from "@raceiq/sessions-page/server";
+import { isSessionIdentityInCatalog } from "../../src/games/session-identity";
+
+const sessionRoutes = createSessionRoutes(isSessionIdentityInCatalog);
 
 initServerGameAdapters();
 

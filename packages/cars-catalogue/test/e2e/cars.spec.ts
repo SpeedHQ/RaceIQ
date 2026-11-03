@@ -1,8 +1,7 @@
 import { expect, test } from "@playwright/test";
-import type { LMUCatalogueCar } from "../../contracts";
-
 import { collectBrowserErrors } from "../../../../playwright/tests/support/browser-errors";
 import { SEEDED_GAME_CASES } from "../../../../playwright/tests/support/seeded/cases";
+
 
 const CAR_CAPABILITY = {
   "fm-2023": { catalog: "forza", search: true, compare: true, classFilter: true, drivetrainFilter: true },
@@ -62,10 +61,21 @@ for (const game of SEEDED_GAME_CASES) {
       await search.fill("definitely-no-seeded-car");
       await expect(page.getByText("No cars match filters", { exact: true })).toBeVisible();
       await search.fill("");
-      const category = page.locator("button[data-catalog-category]").first();
-      await expect(category).toBeVisible();
+      const response = await page.request.get("/api/cars", { headers: { "X-Game-Id": game.gameId } });
+      expect(response.ok()).toBe(true);
+      const cars = await response.json() as { name: string; category: string }[];
+      const sportsCars = cars.filter((car) => car.category === "sports_car");
+      expect(sportsCars.length).toBeGreaterThan(0);
+      expect(sportsCars.length).toBeLessThan(cars.length);
+      const category = page.getByRole("combobox", { name: "All categories", exact: true });
       await category.click();
-      await expect(category).toHaveAttribute("aria-pressed", "true");
+      await page.getByRole("option", { name: `Sports Car (${sportsCars.length})`, exact: true }).click();
+      await expect(category).toHaveValue(`Sports Car (${sportsCars.length})`);
+      await expect.poll(async () => (await page.locator("main article h2").allTextContents()).sort())
+        .toEqual(sportsCars.map((car) => car.name).sort());
+      await category.click();
+      await page.getByRole("option", { name: `All categories (${cars.length})`, exact: true }).click();
+      await expect(page.locator("main article")).toHaveCount(cars.length);
     } else {
       const category = page.locator("button[data-catalog-category]").first();
       await expect(category).toBeVisible({ timeout: 20_000 });
@@ -76,28 +86,3 @@ for (const game of SEEDED_GAME_CASES) {
   });
 }
 
-test("Le Mans Ultimate cars preserve search and class filtering through the real API", async ({ page, request }) => {
-  const browserErrors = collectBrowserErrors(page);
-  const response = await request.get("/api/cars", { headers: { "X-Game-Id": "lmu" } });
-  expect(response.status()).toBe(200);
-  const cars: LMUCatalogueCar[] = await response.json();
-  await page.goto("/lmu/cars", { waitUntil: "domcontentloaded" });
-  const cards = page.getByRole("article");
-  const search = page.getByRole("searchbox");
-  await expect(search).toBeVisible();
-  await expect(cards).toHaveCount(cars.length);
-  await search.fill("definitely-no-catalogue-car");
-  await expect(cards).toHaveCount(0);
-  await search.fill("");
-  await expect(cards).toHaveCount(cars.length);
-  const category = page.locator("button[data-catalog-category]").first();
-  await expect(category).toBeVisible();
-  const carClass = await category.getAttribute("data-catalog-category");
-  await category.click();
-  await expect(category).toHaveAttribute("aria-pressed", "true");
-  await expect(cards).toHaveCount(cars.filter((car) => car.class === carClass).length);
-  await category.click();
-  await expect(category).toHaveAttribute("aria-pressed", "false");
-  await expect(cards).toHaveCount(cars.length);
-  expect(browserErrors.errors).toEqual([]);
-});

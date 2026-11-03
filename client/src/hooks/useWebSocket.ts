@@ -58,6 +58,8 @@ function acceptLiveCaptureLifecycle(data: Record<string, unknown>) {
 function invalidateCaptureReadiness() {
   queryClient.invalidateQueries({ queryKey: queryKeys.sessions });
   queryClient.invalidateQueries({ queryKey: queryKeys.laps });
+  queryClient.invalidateQueries({ queryKey: ["track-laps"] });
+  queryClient.invalidateQueries({ queryKey: ["opponent-lap-catalog"] });
 }
 
 function acceptCaptureSnapshot(data: Record<string, unknown>) {
@@ -181,6 +183,9 @@ export function useWebSocket() {
           if (data.type === "status") {
             const { type: __ignored, ...status } = data; // eslint-disable-line @typescript-eslint/no-unused-vars
             telemetryStore.actions.setServerStatus(status);
+          } else if (data.type === "telemetry-idle") {
+            telemetryStore.actions.clearTelemetry(true);
+            devTelemetryStore.actions.setPacket(null);
           } else if (data.type === "update-available") {
             telemetryStore.actions.setUpdateAvailable(data.version as string);
             startVersionRequest();
@@ -190,6 +195,8 @@ export function useWebSocket() {
             queryClient.invalidateQueries({ queryKey: ["settings"] });
           } else if (data.type === "dashboard_updated") {
             invalidateDashboard();
+          } else if (data.type === "lmu-opponent-catalog-updated") {
+            queryClient.invalidateQueries({ queryKey: ["opponent-lap-catalog"] });
           } else if (data.type === "session-laps") {
             telemetryStore.actions.setSessionLaps(data.laps);
           } else if (data.type === "classification-migration-status") {
@@ -207,14 +214,16 @@ export function useWebSocket() {
               refreshCaptureReadiness(status.phase === "ready" || status.phase === "failed");
             }
           } else if (data.type === "lap-capture-ready") {
-            queryClient.invalidateQueries({ queryKey: queryKeys.sessions });
-            queryClient.invalidateQueries({ queryKey: queryKeys.laps });
+            invalidateCaptureReadiness();
             invalidateDashboard();
           } else if (["recording-started", "recording-finalizing", "recording-sealed", "recording-failed"].includes(data.type)) {
             if (data.type === "recording-failed" && (typeof data.sessionId !== "number" || typeof data.captureEpoch !== "string")) {
               telemetryStore.actions.setLiveCaptureError(typeof data.error === "string" ? data.error : "Recording failed.");
-            } else if (acceptLiveCaptureLifecycle(data)) {
-              if (data.type === "recording-sealed" || data.type === "recording-failed") invalidateCaptureReadiness();
+            } else {
+              const accepted = acceptLiveCaptureLifecycle(data);
+              const lifecycle = typeof data.sessionId === "number" ? telemetryStore.get().liveCaptureLifecycles[data.sessionId] : null;
+              if ((accepted || (data.type === "recording-sealed" && lifecycle?.captureEpoch === data.captureEpoch && lifecycle?.phase === "sealed"))
+                && (data.type === "recording-sealed" || data.type === "recording-failed")) invalidateCaptureReadiness();
             }
           } else if (data.type === "stale-lap-detection") {
             telemetryStore.actions.setStaleLapDetection({ sessionCount: data.sessionCount as number, currentVersion: data.currentVersion as string });
@@ -263,6 +272,7 @@ export function useWebSocket() {
         abortVersionRequest();
         const s = telemetryStore.get();
         telemetryStore.actions.setConnected(false);
+        telemetryStore.actions.clearTelemetry();
         telemetryStore.actions.setServerStatus(null);
         devTelemetryStore.actions.clear();
         // If update was in progress, transition to reconnecting stage

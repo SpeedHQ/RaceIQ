@@ -218,6 +218,47 @@ describe("recording frequency settings", () => {
     setRecordingFrequencyHz(originalFrequency);
   });
 
+  test("opponent recording defaults on and explicit opt-out persists through unrelated updates", async () => {
+    writeFileSync(SETTINGS_PATH, JSON.stringify({ driverName: "Legacy driver", udpPort: 5301 }));
+    const defaults = await settingsRoutes.request("/api/settings");
+    expect((await defaults.json()).recordLmuOpponents).toBe(true);
+    for (const enabled of [false, true]) {
+      const saved = await settingsRoutes.request("/api/settings", {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recordLmuOpponents: enabled }),
+      });
+      expect(saved.status).toBe(200);
+      expect(loadSettings().recordLmuOpponents).toBe(enabled);
+      const unrelated = await settingsRoutes.request("/api/settings", {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ driverName: "Updated driver" }),
+      });
+      expect(unrelated.status).toBe(200);
+      expect(loadSettings().recordLmuOpponents).toBe(enabled);
+    }
+  });
+
+  test("invalid and failed opponent preference saves preserve confirmed policy", async () => {
+    saveSettings({ ...loadSettings(), recordLmuOpponents: false });
+    const before = readFileSync(SETTINGS_PATH, "utf-8");
+    for (const value of [null, "true", 1]) {
+      const response = await settingsRoutes.request("/api/settings", {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recordLmuOpponents: value }),
+      });
+      expect(response.status).toBe(400);
+      expect(readFileSync(SETTINGS_PATH, "utf-8")).toBe(before);
+    }
+    mkdirSync(`${SETTINGS_PATH}.tmp`);
+    const response = await settingsRoutes.request("/api/settings", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recordLmuOpponents: true }),
+    });
+    expect(response.status).toBe(500);
+    expect(loadSettings().recordLmuOpponents).toBe(false);
+    expect(readFileSync(SETTINGS_PATH, "utf-8")).toBe(before);
+  });
+
   test("defaults old settings to 100 without losing unrelated values", () => {
     writeFileSync(SETTINGS_PATH, JSON.stringify({ driverName: "Old install", udpPort: 5301 }));
     expect(loadSettings().recordingFrequencyHz).toBe(100);

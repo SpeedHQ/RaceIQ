@@ -58,6 +58,9 @@ export interface ResolvedValue<T> {
   limitations: readonly string[];
 }
 
+/** Replay/display fields without per-sample provenance and confidence allocations. */
+export type ResolvedTelemetrySample = Pick<ResolvedValue<unknown>, "semanticId" | "value" | "unit" | "state" | "freshness">;
+
 export interface RequestedSemantic {
   semanticId: string;
   required?: boolean;
@@ -83,6 +86,7 @@ export interface TelemetryFrameView<NativeFrame = TelemetryPacket> {
   resolveValue<T>(slot: SemanticSlot): ResolvedValue<T>;
   resolveNumber(slot: SemanticSlot): ResolvedValue<number>;
   resolveBoolean(slot: SemanticSlot): ResolvedValue<boolean>;
+  resolveSample(slot: SemanticSlot): ResolvedTelemetrySample;
   resolveMany(slots: readonly SemanticSlot[], target?: ResolvedValue<unknown>[]): readonly ResolvedValue<unknown>[];
 }
 

@@ -85,6 +85,7 @@ export const trackLeaderboardRoutes = new Hono()
       const entries = trackLaps.map((lap) => {
         const pi = lap.pi ?? 0;
         return {
+          processing: lap.processing,
           lapId: lap.lapId,
           lapNumber: lap.lapNumber,
           lapTime: lap.lapTime,

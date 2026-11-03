@@ -1,5 +1,5 @@
 import { LapTimes } from "@/components/telemetry/LapTimes";
-import { SessionTypeBadge } from "@/components/sessions/SessionTypeBadge";
+import { SessionTypeBadge } from "@/components/SessionTypeBadge";
 import { LiveTrackMap } from "@/components/live-track/LiveTrackMap";
 import { m } from "@/paraglide/messages";
 import type { LiveSectorData } from "@raceiq/shared/racing/live/types";

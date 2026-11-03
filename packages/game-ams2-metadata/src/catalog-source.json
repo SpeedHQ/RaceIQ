@@ -1,0 +1,31 @@
+{
+  "revision": "486d83d0bb5c4183d18000d619f25952063006cb",
+  "downloadedUtc": "2026-10-20T03:07:43.8549075Z",
+  "sources": [
+    {
+      "file": "vehicles.json",
+      "url": "https://raw.githubusercontent.com/enum-gg/ams2-server-docs/486d83d0bb5c4183d18000d619f25952063006cb/docs/dumps/vehicles.json",
+      "sha256": "05ba53a0512916a5d6dac7bc008186a43f42d321bcfe920672edbdf47b6dbdc0",
+      "entries": 262
+    },
+    {
+      "file": "tracks.json",
+      "url": "https://raw.githubusercontent.com/enum-gg/ams2-server-docs/486d83d0bb5c4183d18000d619f25952063006cb/docs/dumps/tracks.json",
+      "sha256": "e3bcea71db40bda896aa92086b952291190551512b074ef3f3cd4de24eae5108",
+      "entries": 222
+    },
+    {
+      "file": "vehicle_classes.json",
+      "url": "https://raw.githubusercontent.com/enum-gg/ams2-server-docs/486d83d0bb5c4183d18000d619f25952063006cb/docs/dumps/vehicle_classes.json",
+      "sha256": "551aca339cb0fba06941e1239195261b5b54909a0e3216e37cbca20b72342442",
+      "entries": 105
+    }
+  ],
+  "coverage": {
+    "serverVehicles": 262,
+    "cars": 260,
+    "tracks": 222,
+    "geometryMatches": 139,
+    "commonMappings": 36
+  }
+}

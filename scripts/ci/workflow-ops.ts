@@ -1,6 +1,8 @@
 import { tmpdir } from "node:os";
-import { appendFileSync, cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { parseEnv } from "node:util";
+import { releaseFeatureFlags } from "@raceiq/shared/platform/runtime/release-feature-flags";
 
 const [operation, ...args] = Bun.argv.slice(2);
 const env = process.env;
@@ -15,6 +17,17 @@ function run(command: string[], cwd = process.cwd(), extraEnv: Record<string, st
     stderr: "inherit",
   });
   if (result.exitCode !== 0) process.exit(result.exitCode);
+}
+
+function baseScreenshotFlags() {
+  const base = join(env.RUNNER_TEMP!, "raceiq-base");
+  if (!existsSync(base)) throw new Error(`Base comparison worktree is missing: ${base}`);
+  return {
+    PW_BASE_MISSING_LMU_SETUPS: existsSync(join(base, "client/src/routes/lmu/setups/index.tsx")) ? "0" : "1",
+    PW_BASE_MISSING_LMU_GUIDES: existsSync(join(base, "client/src/routes/lmu/setups/guides/index.tsx")) ? "0" : "1",
+    PW_BASE_MISSING_LMU_EXPERIMENTS: existsSync(join(base, "client/src/routes/lmu/experiments/index.tsx")) ||
+      existsSync(join(base, "client/src/routes/$gameid/experiments.index.tsx")) ? "0" : "1",
+  };
 }
 
 function summary(text: string) {
@@ -50,7 +63,7 @@ switch (operation) {
     run(["bun", "run", "build"], process.cwd(), { RACEIQ_FEATURE_F1_EXPERIMENTS: "true", RACEIQ_FEATURE_IRACING_ADAPTER: "true" });
     const status = Bun.spawnSync(["bun", "run", "../scripts/playwright-ci.ts", "test", "--config=responsive-screenshots.config.ts", `--shard=${env.SHARD}/4`], {
       cwd: "playwright",
-      env: { ...env, E2E_SERVER_MODE: "compiled", RACEIQ_FEATURE_F1_EXPERIMENTS: "true", RACEIQ_FEATURE_IRACING_ADAPTER: "true", PW_SCREENSHOT_WORKERS: "1", PW_SERVER_SET: "seeded", PW_SCREENSHOT_ONLY: "1", PW_SEED_SCREENSHOTS: "1", PW_SEED_GAMES: RESPONSIVE_SCREENSHOT_GAMES },
+      env: { ...env, ...baseScreenshotFlags(), E2E_SERVER_MODE: "compiled", RACEIQ_FEATURE_F1_EXPERIMENTS: "true", RACEIQ_FEATURE_IRACING_ADAPTER: "true", PW_SCREENSHOT_WORKERS: "1", PW_SERVER_SET: "seeded", PW_SCREENSHOT_ONLY: "1", PW_SEED_SCREENSHOTS: "1", PW_SEED_GAMES: RESPONSIVE_SCREENSHOT_GAMES },
       stdout: "inherit",
       stderr: "inherit",
     }).exitCode;
@@ -69,30 +82,51 @@ switch (operation) {
     if (!existsSync(base)) throw new Error(`Base comparison worktree is missing: ${base}`);
     run(["bun", "install"], base);
     run(["bun", "run", "build"], base, { RACEIQ_FEATURE_F1_EXPERIMENTS: "true", RACEIQ_FEATURE_IRACING_ADAPTER: "true" });
+    const current = env.GITHUB_WORKSPACE!;
+    const basePlaywright = join(base, "playwright");
+    const output = join(env.RUNNER_TEMP!, "base-responsive");
+    const configDir = mkdtempSync(join(basePlaywright, ".responsive-config-"));
+    const config = join(configDir, "responsive-screenshots.config.ts");
+    let status: number | null;
+    try {
     // Compare both revisions with the same screenshot cases and selectors.
     for (const file of ["desktop-screenshots.spec.ts", "lmu-screenshots.spec.ts", "mobile-dashboard-screenshots.spec.ts"]) {
-      cpSync(join(env.GITHUB_WORKSPACE!, "playwright/tests/responsive", file), join(base, "playwright/tests/responsive", file));
+      cpSync(join(current, "playwright/tests/responsive", file), join(basePlaywright, "tests/responsive", file));
     }
-    cpSync(join(env.GITHUB_WORKSPACE!, "playwright/tests/support/responsive/cases.ts"), join(base, "playwright/tests/support/responsive/cases.ts"));
-    cpSync(join(env.GITHUB_WORKSPACE!, "playwright/config/projects.ts"), join(base, "playwright/config/projects.ts"));
-    cpSync(join(env.GITHUB_WORKSPACE!, "playwright/support/server/seed-screenshot-data.ts"), join(base, "playwright/support/server/seed-screenshot-data.ts"));
-    cpSync(join(env.GITHUB_WORKSPACE!, "playwright/config/web-servers.ts"), join(base, "playwright/config/web-servers.ts"));
-    cpSync(join(env.GITHUB_WORKSPACE!, "playwright/support/server/start-dev-server.ts"), join(base, "playwright/support/server/start-dev-server.ts"));
-    cpSync(join(env.GITHUB_WORKSPACE!, "playwright/package.json"), join(base, "playwright/package.json"));
-    run(["bun", "install"], base);
-    const output = join(env.GITHUB_WORKSPACE!, "playwright/screenshots/app");
+    cpSync(join(current, "playwright/tests/support/responsive/cases.ts"), join(basePlaywright, "tests/support/responsive/cases.ts"));
+    writeFileSync(config, `
+      import { devices, defineConfig } from "@playwright/test";
+      import { runtime } from ${JSON.stringify(join(current, "playwright/config/runtime.ts"))};
+      import { createWebServers } from ${JSON.stringify(join(current, "playwright/config/web-servers.ts"))};
+      export default defineConfig({
+        testDir: ${JSON.stringify(join(basePlaywright, "tests/responsive"))},
+        testMatch: ${JSON.stringify(["desktop-screenshots.spec.ts", "lmu-screenshots.spec.ts", "mobile-dashboard-screenshots.spec.ts"])},
+        outputDir: ${JSON.stringify(join(basePlaywright, "test-results/responsive-screenshots"))},
+        fullyParallel: runtime.parallelScreenshotRun,
+        workers: runtime.screenshotWorkers,
+        retries: process.env.CI ? 1 : 0,
+        reporter: process.env.CI ? [["list"], ["github"]] : "list",
+        timeout: 50_000,
+        expect: { timeout: 10_000 },
+        use: { ...devices["Desktop Chrome"], baseURL: \`http://localhost:\${runtime.seeded.port}\`, ignoreHTTPSErrors: true, colorScheme: "dark", actionTimeout: 10_000, navigationTimeout: 30_000, trace: "retain-on-failure" },
+        webServer: createWebServers(runtime),
+      });
+    `);
     rmSync(output, { recursive: true, force: true });
     mkdirSync(output, { recursive: true });
-    const status = Bun.spawnSync(["bun", "run", "../scripts/playwright-ci.ts", "test", "--config=responsive-screenshots.config.ts", `--shard=${env.SHARD}/4`], {
-      cwd: join(base, "playwright"),
-      env: { ...env, RACEIQ_SCREENSHOT_DIR: output, E2E_SERVER_MODE: "compiled", RACEIQ_FEATURE_F1_EXPERIMENTS: "true", RACEIQ_FEATURE_IRACING_ADAPTER: "true", PW_SCREENSHOT_WORKERS: "1", PW_SERVER_SET: "seeded", PW_SCREENSHOT_ONLY: "1", PW_SEED_SCREENSHOTS: "1", PW_SEED_GAMES: RESPONSIVE_SCREENSHOT_GAMES },
+    status = Bun.spawnSync([
+      "bun", "run", join(current, "scripts/playwright-ci.ts"), "test",
+      `--config=${config}`, `--shard=${env.SHARD}/4`,
+    ], {
+      cwd: basePlaywright,
+      env: { ...env, ...baseScreenshotFlags(), RACEIQ_APP_ROOT: base, RACEIQ_SCREENSHOT_DIR: output, E2E_SERVER_MODE: "compiled", RACEIQ_FEATURE_F1_EXPERIMENTS: "true", RACEIQ_FEATURE_IRACING_ADAPTER: "true", PW_SCREENSHOT_WORKERS: "1", PW_SERVER_SET: "seeded", PW_SCREENSHOT_ONLY: "1", PW_SEED_SCREENSHOTS: "1", PW_SEED_GAMES: RESPONSIVE_SCREENSHOT_GAMES },
       stdout: "inherit",
       stderr: "inherit",
     }).exitCode;
-    const saved = join(env.RUNNER_TEMP!, "base-responsive");
-    rmSync(saved, { recursive: true, force: true });
-    if (existsSync(output)) cpSync(output, saved, { recursive: true });
-    if (status !== 0) process.exit(status);
+    } finally {
+      rmSync(configDir, { recursive: true, force: true });
+    }
+    if (status !== 0) process.exit(status ?? 1);
     break;
   }
   case "save-render": {
@@ -110,7 +144,8 @@ switch (operation) {
   }
   case "fail-render":
     if (env.CURRENT_STATUS !== "success" || env.BASE_STATUS !== "success") {
-      console.warn("Responsive screenshot shard incomplete; continuing with available renders.");
+      console.error("Responsive screenshot comparison unavailable: current or base capture failed; saved shard status is evidence, not a comparison.");
+      process.exitCode = 1;
     }
     break;
   case "collect-screenshots": {
@@ -161,6 +196,22 @@ switch (operation) {
         await Bun.sleep(1000);
       }
       if (!ready) throw new Error("RaceIQ did not listen on port 3117 within 30 seconds");
+      const status = await fetch("http://127.0.0.1:3117/api/auth/status");
+      if (!status.ok) throw new Error(`RaceIQ auth status failed: ${status.status}`);
+      const body: unknown = await status.json();
+      const productionEnv = parseEnv(readFileSync(".env.production", "utf8"));
+      const expected = releaseFeatureFlags({
+        RACEIQ_FEATURE_F1_EXPERIMENTS: productionEnv.RACEIQ_FEATURE_F1_EXPERIMENTS,
+        RACEIQ_FEATURE_IRACING_ADAPTER: productionEnv.RACEIQ_FEATURE_IRACING_ADAPTER,
+        RACEIQ_FEATURE_AMS2_ADAPTER: productionEnv.RACEIQ_FEATURE_AMS2_ADAPTER,
+      });
+      if (!body || typeof body !== "object" || !("features" in body) ||
+          !body.features || typeof body.features !== "object" ||
+          !("f1Experiments" in body.features) || body.features.f1Experiments !== expected.f1Experiments ||
+          !("iracingAdapter" in body.features) || body.features.iracingAdapter !== expected.iracingAdapter ||
+          !("ams2Adapter" in body.features) || body.features.ams2Adapter !== expected.ams2Adapter) {
+        throw new Error("Packaged RaceIQ feature flags do not match .env.production");
+      }
     } finally {
       server.kill();
     }

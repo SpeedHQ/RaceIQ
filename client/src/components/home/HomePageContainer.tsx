@@ -3,6 +3,7 @@ import type { DashboardRecentSession } from "@raceiq/shared/racing/sessions/dash
 import { useQueries } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { indexProcessingById, useSessions } from "@/hooks/session-queries";
 import { useDashboard, useDashboardRecap } from "@/hooks/dashboard";
 import { useSettings } from "@/hooks/settings";
 import { useTrackOutline, useTrackSectorBoundaries } from "@/hooks/track-queries";
@@ -16,7 +17,7 @@ import { useDashboardCars } from "@/hooks/dashboard-cars";
 function cardStats(cards: Record<string, { laps: number; drivenSeconds: number }>): GameStats {
   const display = (seconds: number) => seconds <= 0 ? "—" : seconds >= 86400 ? `${Math.floor(seconds / 86400)}d` : seconds >= 3600 ? `${Math.floor(seconds / 3600)}h` : `${Math.floor(seconds / 60)}m`;
   const get = (id: string) => ({ laps: cards[id]?.laps ?? 0, time: display(cards[id]?.drivenSeconds ?? 0) });
-  return { fm: get("fm-2023"), f1: get("f1-2025"), acc: get("acc"), acEvo: get("ac-evo"), iracing: get("iracing"), lmu: get("lmu") };
+  return { fm: get("fm-2023"), f1: get("f1-2025"), acc: get("acc"), acEvo: get("ac-evo"), iracing: get("iracing"), lmu: get("lmu"), ams2: get("ams2") };
 }
 
 export function HomePageContainer() {
@@ -28,10 +29,19 @@ export function HomePageContainer() {
   const response = dashboard.data;
   const { displaySettings } = useSettings();
   const hiddenGames: string[] = displaySettings.hiddenGames ?? [];
+  const sessionMetadataQuery = useSessions({ allGames: gameId == null });
   const recentSessions = response?.recentSessions ?? [];
+  const sessionIds = useMemo(() => recentSessions.map((session) => session.id), [recentSessions]);
+  const sessionProcessing = useMemo(
+    () => indexProcessingById(sessionMetadataQuery.data, sessionIds),
+    [sessionMetadataQuery.data, sessionIds],
+  );
   const latestSession = response?.latestRecapSessionId == null ? null : recentSessions.find((session) => session.id === response.latestRecapSessionId) ?? null;
+  const latestProcessing = latestSession ? sessionProcessing.byId.get(latestSession.id) : undefined;
+  const latestProcessingLoading = latestSession != null && (sessionProcessing.isLoading || latestProcessing == null);
+  const latestProcessingReady = !latestProcessingLoading && latestProcessing?.state === "ready";
   const recapGameId = latestSession?.gameId ?? null;
-  const { data: latestRecap, isLoading: latestRecapLoading, isError: latestRecapError } = useDashboardRecap(response?.latestRecapSessionId, recapGameId);
+  const { data: latestRecap, isLoading: latestRecapLoading, isError: latestRecapError } = useDashboardRecap(latestProcessingReady ? latestSession?.id ?? null : null, recapGameId);
   const { data: recapCars } = useDashboardCars(recapGameId, latestRecap?.carId != null);
   const matchedRecapCar = recapCars?.find((car) => car.id === latestRecap?.carId);
   const latestRecapCarImageUrl = matchedRecapCar?.imageUrl || matchedRecapCar?.specs?.imageUrl || undefined;
@@ -91,6 +101,7 @@ export function HomePageContainer() {
   }, [response, totals]);
   const selectedFrom = Date.parse(dashboard.from);
   const sessionForNavigation = (session: DashboardRecentSession) => {
+    if (sessionProcessing.isLoading || sessionProcessing.byId.get(session.id)?.state !== "ready") return;
     void navigate({ to: `${getGameRoute(session.gameId)}/sessions/${session.id}/analyse` as never });
   };
 

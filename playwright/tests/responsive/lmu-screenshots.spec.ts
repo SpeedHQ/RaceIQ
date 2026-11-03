@@ -14,6 +14,7 @@ async function openSetup(page: Page) {
 }
 
 test("LMU setup pages, pending edits, save and switch dialogs", async ({ page }) => {
+  test.skip(process.env.PW_BASE_MISSING_LMU_SETUPS === "1", "Route is absent from baseline");
   await openSetup(page);
   const tabs = page.getByRole("tab");
   const names = await tabs.allTextContents();
@@ -36,6 +37,7 @@ test("LMU setup pages, pending edits, save and switch dialogs", async ({ page })
 });
 
 test("LMU setup comparison and import dialog", async ({ page }) => {
+  test.skip(process.env.PW_BASE_MISSING_LMU_SETUPS === "1", "Route is absent from baseline");
   await page.goto("/lmu/setups", { waitUntil: "networkidle" });
   await page.getByRole("checkbox", { name: "baseline.svm", exact: true }).check();
   await page.getByRole("checkbox", { name: "comparison.svm", exact: true }).check();
@@ -50,6 +52,7 @@ test("LMU setup comparison and import dialog", async ({ page }) => {
 
 for (const view of ["Parameters", "Symptoms"] as const) {
   test(`LMU ${view.toLowerCase()} guides reduced motion`, async ({ page }) => {
+    test.skip(process.env.PW_BASE_MISSING_LMU_GUIDES === "1", "Route is absent from baseline");
     test.setTimeout(180_000);
     await page.goto("/lmu/setups/guides", { waitUntil: "networkidle" });
     await page.getByRole("button", { name: view, exact: true }).click();
@@ -68,6 +71,7 @@ for (const view of ["Parameters", "Symptoms"] as const) {
 }
 
 test("LMU guide explicitly paused", async ({ page }) => {
+  test.skip(process.env.PW_BASE_MISSING_LMU_GUIDES === "1", "Route is absent from baseline");
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.goto("/lmu/setups/guides?parameter=rideHeight", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Pause", exact: true }).click();
@@ -75,12 +79,19 @@ test("LMU guide explicitly paused", async ({ page }) => {
   await capture(page, "guide-ride-height-paused");
 });
 
-test("LMU experiment creation and saved setup detail", async ({ page, request }) => {
+test("LMU experiment creation", async ({ page }) => {
+  test.skip(process.env.PW_BASE_MISSING_LMU_EXPERIMENTS === "1", "Route is absent from baseline");
   await page.goto("/lmu/experiments", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "+ New experiment", exact: true }).click();
   await expect(page.getByRole("dialog").getByRole("heading", { name: "New experiment" })).toBeVisible();
   await capture(page, "experiment-create");
-  await page.keyboard.press("Escape");
+});
+
+test("LMU experiment saved setup detail", async ({ page, request }) => {
+  test.skip(
+    process.env.PW_BASE_MISSING_LMU_EXPERIMENTS === "1" || process.env.PW_BASE_MISSING_LMU_SETUPS === "1",
+    "Experiment or setup route is absent from baseline",
+  );
   const listing = await request.get("/api/lmu/setups");
   expect(listing.ok()).toBe(true);
   const { files } = await listing.json();

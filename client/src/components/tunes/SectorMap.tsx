@@ -3,7 +3,7 @@ import { useMemo, useRef, useState } from "react";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { flipPoints, needsTrackFlip } from "@raceiq/shared/racing/tracks/coords"
 import { SECTOR_COLOR_VARS } from "@raceiq/scene-3d/colors";
-import type { SemanticTuneSample } from "./semantic-tune";
+import type { SemanticTuneSample } from "@raceiq/analysis-core/racing/laps/semantic-tune";
 import { useTrackBoundaries } from "../../hooks/track-queries";
 import { buildGeometry, extractEdges, type ProjPt, VIEW } from "./track-map-geometry";
 
@@ -56,7 +56,7 @@ export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true,
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<ProjPt | null>(null);
 
-  const geom = useMemo(() => buildGeometry(telemetry, sectorTimes, edges), [telemetry, sectorTimes, edges]);
+  const geom = useMemo(() => buildGeometry(telemetry, sectorTimes, edges, "line"), [telemetry, sectorTimes, edges]);
 
   if (!geom) {
     return <div className="p-4 text-xs text-app-text-dim">{m.tunes_no_position_data()}</div>;
@@ -121,7 +121,7 @@ export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true,
   }
 
   return (
-    <div className="p-3">
+    <div className="mx-auto w-full max-w-[28rem] p-3">
       <div className="relative">
         <svg
           ref={svgRef}

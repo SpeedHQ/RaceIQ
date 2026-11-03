@@ -1,3 +1,4 @@
+import { hasAMS2DumpMagic, readAMS2DumpFramesFromBuffer } from "@raceiq/capture-formats/ams2/dump";
 import { KNOWN_GAME_IDS, type GameId } from "@raceiq/shared/games/ids";
 import { getAllServerGames } from "../games/registry";
 import {
@@ -9,6 +10,7 @@ import {
   SESSION_SEGMENT_CONTEXT,
   SESSION_SEGMENT_CONTEXT_END,
 } from "@raceiq/capture-formats/session/framing";
+import { canHandleLMUSourceFrame } from "@raceiq/capture-formats/lmu/source-frame";
 import { hasKunosDumpMagic } from "@raceiq/capture-formats/kunos/dump";
 import { importSessionFrames, type ImportedLap, type ImportSessionOptions } from "./import-pipeline";
 
@@ -27,6 +29,7 @@ export function detectGameIdFromFilename(name: string): GameId | null {
 /** Detect a gameId from actual capture frame content. */
 export function detectGameIdFromBuffer(bytes: Buffer): GameId | null {
   const buf = decompressIfGzipSync(bytes);
+  if (hasAMS2DumpMagic(buf)) return "ams2";
   if (!containsSparseCaptureFrames(buf) || hasKunosDumpMagic(buf)) return null;
   const games = getAllServerGames();
   let checked = 0;
@@ -51,6 +54,24 @@ function* canonicalImportFrames(bytes: Buffer) {
   }
 }
 
+function* ams2ImportFrames(bytes: Buffer) {
+  for (const frame of readAMS2DumpFramesFromBuffer(bytes)) {
+    yield {frame, frameTimeMs: frame.readDoubleLE(8)};
+  }
+}
+
+function inferLMUOpponentRetention(bytes: Buffer): ImportSessionOptions["opponentRetention"] {
+  let sawLMUFrame = false;
+  let sawNativeOpponentSource = false;
+  for (const record of iterateSessionCaptureRecords(bytes, undefined, { strict: true })) {
+    if (record.kind !== "frame" || !canHandleLMUSourceFrame(record.frame)) continue;
+    sawLMUFrame = true;
+    const version = record.frame.readUInt16LE(8);
+    if (version === 2 || version === 3) sawNativeOpponentSource = true;
+  }
+  if (sawNativeOpponentSource) return "retained";
+  return sawLMUFrame ? "not-recorded" : undefined;
+}
 
 /** Replay a canonical session capture through parser, detector, and persistence pipeline. */
 export async function importSessionBin(
@@ -59,14 +80,20 @@ export async function importSessionBin(
   options: ImportSessionOptions = {},
 ): Promise<{ packetCount: number; laps: ImportedLap[] }> {
   const buf = decompressIfGzipSync(bytes);
-  if (!containsSparseCaptureFrames(buf)) {
+  if (!hasAMS2DumpMagic(buf) && !containsSparseCaptureFrames(buf)) {
     throw new Error("Legacy recording imports are no longer supported; provide a sparse RaceIQ capture.");
   }
-  const frames = canonicalImportFrames(buf);
+  const inferredRetention = gameId === "lmu" && options.opponentRetention === undefined
+    ? inferLMUOpponentRetention(buf)
+    : undefined;
+  const importOptions = inferredRetention
+    ? { ...options, opponentRetention: inferredRetention }
+    : options;
+  const frames = gameId === "ams2" && hasAMS2DumpMagic(buf) ? ams2ImportFrames(buf) : canonicalImportFrames(buf);
   const { packetCount, laps } = await importSessionFrames(
     frames,
     gameId,
-    options,
+    importOptions,
   );
   return { packetCount, laps };
 }

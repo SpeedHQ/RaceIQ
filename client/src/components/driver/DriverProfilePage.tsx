@@ -1,3 +1,4 @@
+import { getGame } from "@raceiq/shared/games/registry";
 import * as m from "@/paraglide/messages";
 import { parseDriverProfileSummary, type DriverProfileSummary } from "@raceiq/shared/integrations/ai/driver-profile-summary";
 import { useDriverProfile, useDriverProfileRuns, useRunDriverProfile } from "../../hooks/driver-profile";
@@ -49,7 +50,7 @@ export function DriverProfilePage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" onClick={() => window.location.assign(`${gameRoute}/sessions`)}>
-            {m.driver_all_game_laps({ gameName: profileQuery.data?.gameName ?? "Forza Motorsport" })}
+            {m.driver_all_game_laps({ gameName: profileQuery.data?.gameName ?? getGame(gameId).displayName })}
           </Button>
           <Button
             type="button"

@@ -1,7 +1,9 @@
 import { AiProviderError } from "./provider-error";
 import { getSecret } from "../runtime/platform/keystore";
 
-export type ConfiguredAiProvider = "gemini" | "openai" | "openai-compatible";
+export type ConfiguredAiProvider = "gemini" | "openai" | "anthropic" | "openai-compatible";
+
+const PROVIDER_LABELS = { gemini: "Gemini", openai: "OpenAI", anthropic: "Anthropic" } as const;
 
 export async function getAiProviderApiKey(provider: ConfiguredAiProvider): Promise<string | undefined> {
   const key = await getSecret(`${provider}-api-key`);
@@ -10,7 +12,7 @@ export async function getAiProviderApiKey(provider: ConfiguredAiProvider): Promi
 export async function requireAiProviderApiKey(provider: Exclude<ConfiguredAiProvider, "openai-compatible">): Promise<string> {
   const key = await getAiProviderApiKey(provider);
   if (!key) {
-    throw new AiProviderError(`${provider === "gemini" ? "Gemini" : "OpenAI"} API key not set. Configure it in Settings.`, {
+    throw new AiProviderError(`${PROVIDER_LABELS[provider]} API key not set. Configure it in Settings.`, {
       code: "missing-api-key",
       provider,
     });
@@ -24,20 +26,27 @@ export async function configureAiProviderEnvironment(
 ): Promise<string | undefined> {
   const apiKey = await getAiProviderApiKey(provider);
   if (provider !== "openai-compatible" && !apiKey) {
-    throw new AiProviderError(`${provider === "gemini" ? "Gemini" : "OpenAI"} API key not set. Configure it in Settings.`, {
+    throw new AiProviderError(`${PROVIDER_LABELS[provider]} API key not set. Configure it in Settings.`, {
       code: "missing-api-key",
       provider,
     });
   }
+  // Agents that build their model from settings (setup engineer, driver coach)
+  // read the OpenAI-compatible key from here; clear it for other providers.
+  delete process.env.OPENAI_COMPATIBLE_API_KEY;
   if (provider === "gemini") {
     process.env.GOOGLE_GENERATIVE_AI_API_KEY = apiKey;
     delete process.env.OPENAI_BASE_URL;
   } else if (provider === "openai") {
     process.env.OPENAI_API_KEY = apiKey;
     delete process.env.OPENAI_BASE_URL;
+  } else if (provider === "anthropic") {
+    process.env.ANTHROPIC_API_KEY = apiKey;
+    delete process.env.OPENAI_BASE_URL;
   } else {
     process.env.OPENAI_API_KEY = apiKey || "local";
     process.env.OPENAI_BASE_URL = localEndpoint;
+    if (apiKey) process.env.OPENAI_COMPATIBLE_API_KEY = apiKey;
   }
   return apiKey;
 }

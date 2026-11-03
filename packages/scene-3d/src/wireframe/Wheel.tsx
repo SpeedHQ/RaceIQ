@@ -71,29 +71,27 @@ export function updateWheelResource(resource: WheelResource, config: WheelResour
   resource.puddle.visible = config.puddleDepth > 0;
   resource.puddle.scale.setScalar(config.puddleDepth > 0 ? (radius + 0.04 + config.puddleDepth * 0.15) / (radius + 0.04) : 1);
   (resource.puddle.material as THREE.MeshBasicMaterial).opacity = 0.3 + config.puddleDepth * 0.4;
-  let surface: number | null = null, carcass: number | null = null, core: number | null = null, profileCount = 0, profileMask = 0;
+  let surface: number | null = null, carcass: number | null = null, core: number | null = null, profileCount = 0;
   for (const reading of config.temperatureReadings) {
     if (reading.kind === "surface") surface = reading.value;
     else if (reading.kind === "carcass") carcass = reading.value;
     else if (reading.kind === "core") core = reading.value;
-    else if (reading.kind === "inner") { profileCount++; profileMask |= 1; }
-    else if (reading.kind === "middle") { profileCount++; profileMask |= 2; }
-    else if (reading.kind === "outer") { profileCount++; profileMask |= 4; }
+    else if (reading.kind === "inner" || reading.kind === "middle" || reading.kind === "outer") profileCount++;
   }
   const fallback = surface == null ? threeColor("var(--status-unavailable)") : threeColor(tireTempColor(surface, config.temperatureThresholds));
   resource.meshes[0].visible = profileCount === 0;
   (resource.meshes[0].material as THREE.MeshBasicMaterial).color.copy(fallback);
+  for (let i = 0; i < resource.geometries.surfaceBands.length; i++) resource.meshes[2 + i].visible = false;
   for (const reading of config.temperatureReadings) {
     let bandIndex = -1;
-    if (reading.kind === "inner") bandIndex = 0;
+    if (reading.kind === "inner") bandIndex = config.side === "left" ? 2 : 0;
     else if (reading.kind === "middle") bandIndex = 1;
-    else if (reading.kind === "outer") bandIndex = 2;
+    else if (reading.kind === "outer") bandIndex = config.side === "left" ? 0 : 2;
     if (bandIndex < 0) continue;
     const band = resource.meshes[2 + bandIndex];
     band.visible = true;
     (band.material as THREE.MeshBasicMaterial).color.copy(reading.value == null ? THREE_COLORS.appTextDim : threeColor(tireTempColor(reading.value, config.temperatureThresholds)));
   }
-  for (let i = 0; i < resource.geometries.surfaceBands.length; i++) resource.meshes[2 + i].visible = (profileMask & (1 << i)) !== 0;
   const carcassMesh = resource.meshes[2 + resource.geometries.surfaceBands.length];
   const coreMesh = resource.meshes[3 + resource.geometries.surfaceBands.length];
   carcassMesh.visible = carcass != null; coreMesh.visible = core != null;

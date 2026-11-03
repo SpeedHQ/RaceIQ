@@ -3,7 +3,7 @@ import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { buildSpectateFocus, focusRuns, inputFocusColor } from "../../ui/spectate-focus"
 import type { SpectateLap, SpectatePair, SpectateSample } from "../../contracts/spectate"
 
-initGameAdapters({ f1Experiments: true, iracingAdapter: true });
+initGameAdapters({ f1Experiments: true, iracingAdapter: true, ams2Adapter: true });
 
 function sample(time: number, values: Record<string, unknown> = {}, run = 0): SpectateSample {
   return { time, distance: time, run, values };
@@ -77,4 +77,14 @@ describe("spectate focus classification", () => {
     ], focus);
     expect(runs.map((run) => run.points.map((point) => point.x))).toEqual([[0, 1, 2, 3], [5, 6], [8, 9]]);
   });
+});
+
+test("reduced-rate racing lines join valid intervals but keep missing positions and run boundaries", () => {
+  const points = [0, 0.108, 0.217, 0.326, 0.65, 0.758, 0.866, 0.974].map((time, index) =>
+    sample(time, { "motion.position-x": index, "motion.position-z": 0, "inputs.accel": 255, "inputs.brake": 0 }, index >= 6 ? 1 : 0));
+  const focus = buildSpectateFocus(pair(points), "inputs");
+  expect(focusRuns(points, focus, 0.162).map(run => run.points.map(point => point.x))).toEqual([[0, 1, 2, 3], [4, 5], [6, 7]]);
+  points[1]!.values = { ...points[1]!.values, "motion.position-x": null };
+  expect(focusRuns(points, focus, 0.162).map(run => run.points.map(point => point.x))).toEqual([[2, 3], [4, 5], [6, 7]]);
+  expect(focusRuns(points, focus)).toHaveLength(0);
 });

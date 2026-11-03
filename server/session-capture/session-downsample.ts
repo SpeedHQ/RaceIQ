@@ -31,6 +31,8 @@ import {
   type RecordingMaintenanceController,
 } from "./maintenance-runtime";
 import { reserveRecordingStorageOperation } from "./storage-activity";
+import { inventoryLmuOpponentIndex } from "../lap-analysis/lmu-opponent-index";
+import { enqueueLmuOpponentIndex, invalidateLmuOpponentIndexUnderFence } from "./lmu-opponent-index-runtime";
 
 let downsampleStatus = emptySessionDownsampleStatus();
 function snapshotDownsampleStatus(status: SessionDownsampleStatus): SessionDownsampleStatus {
@@ -248,6 +250,7 @@ export type SessionDownsampleRow = {
   gameId: GameId;
   source: string | null;
   rawFile: string | null;
+  captureManifestFile: string | null;
   createdAt: string;
   isFavorite: boolean;
   downsampledFrequencyHz: number | null;
@@ -288,6 +291,7 @@ export async function buildSessionDownsamplePlan(request: SessionDownsampleReque
     gameId: sessions.gameId,
     source: sessions.source,
     rawFile: sessions.rawFile,
+    captureManifestFile: sessions.captureManifestFile,
     createdAt: sessions.createdAt,
     isFavorite: sessions.isFavorite,
     downsampledFrequencyHz: sessions.downsampledFrequencyHz,
@@ -312,7 +316,7 @@ export async function buildSessionDownsamplePlan(request: SessionDownsampleReque
   const skipped: SessionDownsampleSkip[] = [];
   const candidates: SessionDownsampleGroup[] = [];
 
-  const eligibleForAge = (row: SessionDownsampleRow) => cutoff === null || Date.parse(row.createdAt) < cutoff;
+  const eligibleForAge = (row: (typeof rows)[number]) => cutoff === null || Date.parse(row.createdAt) < cutoff;
   for (const row of rows) {
     if (row.rawFile === null && eligibleForAge(row)) skipped.push(skip([row], "missing"));
     if (!row.rawFile) continue;
@@ -345,6 +349,11 @@ export async function buildSessionDownsamplePlan(request: SessionDownsampleReque
     // Manifest-backed captures are published as JSON, but stream as canonical
     // records through the source loader just like their legacy raw-file source.
     if (!(path.endsWith(".bin") || path.endsWith(".bin.gz") || path.endsWith("capture-manifest.json"))) {
+      skipped.push(skip(refs, "unsupported-format"));
+      continue;
+    }
+    if (refs[0]!.gameId === "lmu" &&
+        (refs.some((row) => row.captureManifestFile !== null) || path.endsWith("capture-manifest.json"))) {
       skipped.push(skip(refs, "unsupported-format"));
       continue;
     }
@@ -487,6 +496,7 @@ export async function executeSessionDownsampleGroup(request: SessionDownsampleRe
     const newPath = join(dirname(group.path), `${group.source.gameId}.downsample-${randomUUID()}.bin${gzip ? ".gz" : ""}`);
     let outputCreated = false;
     let committed = false;
+    let derivedFreedBytes = 0;
     let captureBundles: DownsampleCaptureBundle[] = [];
     const sourceFiles = await downsampleSourceFiles(group.path, sessionIds);
     try {
@@ -550,6 +560,15 @@ export async function executeSessionDownsampleGroup(request: SessionDownsampleRe
         lapIndexes: result.lapIndexes,
       });
       committed = true;
+      const indexInventory = await inventoryLmuOpponentIndex(resolve(`${group.path}.opponent-index`));
+      await invalidateLmuOpponentIndexUnderFence(group.path);
+      await rm(resolve(`${group.path}.opponent-index`), { recursive: true, force: true });
+      derivedFreedBytes = indexInventory.totalBytes;
+      const updatedSources = await readDb.select({ gameId: sessions.gameId, rawFile: sessions.rawFile })
+        .from(sessions).where(inArray(sessions.id, sessionIds)).all();
+      for (const sourcePath of new Set(updatedSources.flatMap((row) =>
+        row.gameId === "lmu" && row.rawFile ? [resolve(row.rawFile)] : [],
+      ))) enqueueLmuOpponentIndex(sourcePath);
       const affectedLaps = await readDb.select({ id: laps.id }).from(laps).where(inArray(laps.sessionId, sessionIds)).all();
       for (const lap of affectedLaps) cacheDelete(lap.id);
       for (const path of new Set([group.path, newPath, ...group.rows.flatMap((row) => (row.rawFile ? [row.rawFile] : []))])) {
@@ -568,12 +587,12 @@ export async function executeSessionDownsampleGroup(request: SessionDownsampleRe
         }
       }
       return {
-        kind: "converted", sessionIds, freedBytes: Math.max(0, freedBytes - outputBytes),
+        kind: "converted", sessionIds, freedBytes: Math.max(0, freedBytes - outputBytes) + derivedFreedBytes,
         warning: warnings.length ? `Replacement committed; original files could not be removed: ${warnings.join("; ")}` : null,
       };
     } catch (error) {
       if (committed) {
-        return { kind: "converted", sessionIds, freedBytes: 0, warning: `Replacement committed; finalization failed: ${error instanceof Error ? error.message : String(error)}` };
+        return { kind: "converted", sessionIds, freedBytes: derivedFreedBytes, warning: `Replacement committed; finalization failed: ${error instanceof Error ? error.message : String(error)}` };
       }
       if (outputCreated) {
         // A transport error can be ambiguous after commit. Never delete a referenced replacement.

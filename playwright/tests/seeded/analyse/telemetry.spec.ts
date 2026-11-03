@@ -71,11 +71,18 @@ for (const game of SEEDED_GAME_CASES) {
     await page.goto(`/${game.prefix}/sessions/${lap.sessionId}/replay/${lap.id}`, { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: "Metrics at Cursor" })).toBeVisible({ timeout: 30_000 });
     await expect.poll(() => page.evaluate(() => Number((window as unknown as Record<string, unknown>).__totalFrames ?? 0)), { timeout: 30_000 }).toBe(lap.telemetry.length);
+    if (game.gameId === "iracing") {
+      // iRacing SDK records lap progress, not world coordinates. Metrics must remain seekable without a car pose.
+      await expect(page.getByRole("alert")).toContainText("Recorded car position unavailable");
+      await expect(page.getByRole("alert").getByRole("button", { name: "Retry", exact: true })).toBeVisible();
+    }
 
     const representativeFrames = [0, Math.floor(lap.telemetry.length / 2), lap.telemetry.length - 1];
     for (const frame of representativeFrames) {
       await setAnalyseFrame(page, frame);
-      await expect(page.getByText(`Packet ${frame + 1}/${lap.telemetry.length}`, { exact: true })).toBeVisible();
+      const data = page.locator("[data-spectate-data-side]");
+      await expect(data).toHaveAttribute("data-packet-number", String(frame + 1));
+      await expect(data).toHaveAttribute("data-packet-count", String(lap.telemetry.length));
     }
 
     for (const field of COMMON_DYNAMIC_FIELDS) {

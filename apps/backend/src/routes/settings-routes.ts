@@ -22,12 +22,13 @@ import { getTrackLengthMeters } from "@raceiq/game-catalogs/racing/tracks/record
 import { getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import { withOnboardingOverride } from "@raceiq/backend-core/runtime/options";
 
-import { getGeminiModelsDetailed, getOpenAiCompatibleModelsDetailed, getOpenAiModelsDetailed, getProviders } from "@raceiq/backend-core/ai/providers";
+import { getAnthropicModelsDetailed, getGeminiModelsDetailed, getOpenAiCompatibleModelsDetailed, getOpenAiModelsDetailed, getProviders } from "@raceiq/backend-core/ai/providers";
 import { getAiProviderApiKey, getLocalApiKey } from "@raceiq/backend-core/ai/openai-compatible-provider";
 const MODELS_CACHE_TTL_MS = 5 * 60 * 1000;
 const MODELS_EMPTY_RETRY_MS = 10 * 1000;
 let cachedGeminiModels: { key: string; models: { id: string; name: string }[]; at: number } | null = null;
 let cachedOpenAiModels: { key: string; models: { id: string; name: string }[]; at: number } | null = null;
+let cachedAnthropicModels: { key: string; models: { id: string; name: string }[]; at: number } | null = null;
 let cachedLocalModels: { endpoint: string; key: string; models: { id: string; name: string; contextLength?: number }[]; at: number } | null = null;
 let cachedLocalEmpty: { endpoint: string; key: string; at: number } | null = null;
 export type AiProviderDiscovery = {
@@ -110,7 +111,7 @@ export const settingsRoutes = new Hono()
       (c.req.query("providers") ?? "")
         .split(",")
         .map((p) => p.trim())
-        .filter((p) => p === "gemini" || p === "openai" || p === "openai-compatible"),
+        .filter((p) => p === "gemini" || p === "openai" || p === "anthropic" || p === "openai-compatible"),
     );
     const useRequestedProviders = requestedProviders.size > 0;
     const shouldFetchGemini = useRequestedProviders
@@ -177,6 +178,31 @@ export const settingsRoutes = new Hono()
       }
     }
 
+    const shouldFetchAnthropic = useRequestedProviders
+      ? requestedProviders.has("anthropic")
+      : settings.aiProvider === "anthropic" || settings.chatProvider === "anthropic";
+    let anthropicModels: { id: string; name: string }[] = [];
+    let anthropicError: string | null = null;
+    if (shouldFetchAnthropic) {
+      const anthropicKey = await getAiProviderApiKey("anthropic");
+      if (!anthropicKey) {
+        anthropicError = "Anthropic API key not set.";
+        cachedAnthropicModels = null;
+      } else if (!forceRefresh && cachedAnthropicModels?.key === anthropicKey
+        && Date.now() - cachedAnthropicModels.at < MODELS_CACHE_TTL_MS) {
+        anthropicModels = cachedAnthropicModels.models;
+      } else {
+        const fetchedAnthropic = await getAnthropicModelsDetailed(anthropicKey);
+        anthropicError = fetchedAnthropic.error;
+        anthropicModels = fetchedAnthropic.models.length > 0
+          ? fetchedAnthropic.models
+          : cachedAnthropicModels?.key === anthropicKey ? cachedAnthropicModels.models : [];
+        if (fetchedAnthropic.models.length > 0) {
+          cachedAnthropicModels = { key: anthropicKey, models: anthropicModels, at: Date.now() };
+        }
+      }
+    }
+
 
 
     const shouldFetchLocal = useRequestedProviders
@@ -227,8 +253,9 @@ export const settingsRoutes = new Hono()
     return c.json({
       "gemini": geminiModels,
       "openai": openAiModels,
+      "anthropic": anthropicModels,
       "openai-compatible": localModels,
-      "_errors": { gemini: geminiError, openai: openAiError, "openai-compatible": localError },
+      "_errors": { gemini: geminiError, openai: openAiError, anthropic: anthropicError, "openai-compatible": localError },
     });
   })
 
