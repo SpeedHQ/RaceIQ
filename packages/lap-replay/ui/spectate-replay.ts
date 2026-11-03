@@ -240,7 +240,7 @@ export function placeIRacingSpectateLaps(laps: readonly [SpectateLap, SpectateLa
 }
 
 export function spectateSamplePose(sample: SpectateSample, opponent = false): SpectatePose | null {
-  return sample.scenePose === undefined ? poseOf(sample.values, opponent) : sample.scenePose;
+  return sample.scenePose === undefined ? poseOf(sample.values, opponent && sample.frame?.simulator === "lmu") : sample.scenePose;
 }
 export function spectateSamplePosition(sample: SpectateSample): Pick<SpectatePose, "x" | "y" | "z"> | null {
   if (sample.scenePose !== undefined) return sample.scenePose;
@@ -366,7 +366,7 @@ export function sampleMotion(samples: readonly SpectateSample[], time: number, h
     distance: Number.isFinite(left.distance) && Number.isFinite(right.distance) ? left.distance + (right.distance - left.distance) * fraction : null,
   };
 }
-export function sampleLap(lap: SpectateLap, time: number, holdPose: boolean, opponent = false): SpectateReading | null {
+export function sampleLap(lap: SpectateLap, time: number, holdPose: boolean, opponent = isOpponentReplay(lap.replay)): SpectateReading | null {
   const samples = lap.samples,
     first = samples[0],
     last = samples.at(-1);
@@ -440,7 +440,7 @@ let time = initialDistance == null ? 0 : (arrivalAt(aProgress, initialDistance, 
       if (reading.frame !== selectedFrame.frame) reading.distance = null;
       reading.frame = selectedFrame.frame;
       reading.values = selectedFrame.values;
-      reading.pose = poseOf(selectedFrame.values, isOpponentReplay(lap.replay));
+      reading.pose = poseOf(selectedFrame.values, isOpponentReplay(lap.replay) && selectedFrame.frame.simulator === "lmu");
     }
     return reading;
   };

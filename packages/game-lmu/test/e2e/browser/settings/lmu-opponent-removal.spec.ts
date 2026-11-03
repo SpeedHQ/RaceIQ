@@ -30,10 +30,10 @@ async function openStorage(page: Page, request: APIRequestContext) {
   const navigation = page.getByRole("button", { name: "Open navigation", exact: true });
   if (await navigation.isVisible()) await navigation.click();
   await page.locator('button[data-slot="button"][aria-label="Settings"]').filter({ visible: true }).click();
-  await expect(page.getByRole("button", { name: /^(Open settings menu|Storage)$/ }).filter({ visible: true }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: /^(Open settings menu|Recording)$/ }).filter({ visible: true }).first()).toBeVisible();
   const settingsMenu = page.getByRole("button", { name: "Open settings menu", exact: true });
   if (await settingsMenu.isVisible()) await settingsMenu.click();
-  await page.getByRole("button", { name: "Storage", exact: true }).click();
+  await page.getByRole("button", { name: "Recording", exact: true }).click();
   await page.getByRole("tab", { name: "Storage", exact: true }).click();
   await page.getByRole("tab", { name: "Opponent data", exact: true }).click();
 }

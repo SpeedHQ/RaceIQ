@@ -313,6 +313,8 @@ describe("seeded database capture paths", () => {
     "sessions/lmu/../../app.db.bin.gz", "/sessions/lmu/spa.bin.gz", "sessions/lmu/spa.bin.gz.part1",
     "sessions/lmu/own/../../app.db.bin.gz", "sessions/lmu/unknown/spa.bin", "sessions/lmu/own/nested/spa.bin",
     "sessions/lmu/unknown/capture-manifest.json", "sessions/lmu/own/../capture-manifest.json", "sessions/lmu/own/C:/capture-manifest.json",
+    "sessions/lmu/own/session/../manifest.json", "sessions/lmu/own/session/./capture.bin.gz",
+    "sessions/lmu/own/session/secret.json", "sessions/acc/own/session/manifest.json",
   ])("rejects invalid portable capture %s", (path) => {
     expect(() => portableCapturePath(path)).toThrow("Invalid seeded capture path");
   });

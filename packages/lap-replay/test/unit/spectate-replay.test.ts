@@ -294,6 +294,7 @@ test("opponent render pose omits native height while source values remain intact
   });
   const player = prepareSpectateLap(playerReplay);
   const preparedOpponent = prepareSpectateLap(opponent);
+  expect(sampleLap(preparedOpponent, 0.025, false)?.pose?.y).toBe(0);
   const controller = createSpectateController(player, preparedOpponent);
   try {
     expect(controller.sample(0).b?.pose?.y).toBe(0);
@@ -303,6 +304,27 @@ test("opponent render pose omits native height while source values remain intact
     expect(opponent.envelopes.map((frame) => frame.values.find((value) => value.semanticId === "motion.position-y")?.value))
       .toEqual([2, 5, 8]);
     expect(controller.sample(0).a?.pose?.y).toBe(2);
+    expect(controller.sample(0.025).a?.pose?.y).toBeCloseTo(3.5);
+  } finally { controller.dispose(); }
+});
+test("non-LMU opponent replay retains native elevation", () => {
+  const replay = recordedLap(0.1, (time) => time * 20).replay;
+  replay.envelopes.forEach((frame, index) => {
+    frame.values = [
+      { semanticId: "motion.position-x", value: index },
+      { semanticId: "motion.position-y", value: 2 + index * 3 },
+      { semanticId: "motion.position-z", value: index * 2 },
+      { semanticId: "motion.yaw", value: 0.5 },
+    ];
+  });
+  const opponent: OpponentSemanticLapTelemetry = {
+    opponentLapId: "other-game",
+    sourceRevision: "source-revision",
+    requestedSemanticIds: [],
+    envelopes: replay.envelopes,
+  };
+  const controller = createSpectateController(prepareSpectateLap(opponent), null);
+  try {
     expect(controller.sample(0.025).a?.pose?.y).toBeCloseTo(3.5);
   } finally { controller.dispose(); }
 });

@@ -1,4 +1,4 @@
-import { expect, type APIRequestContext, type Page } from "@playwright/test";
+import { expect, type APIRequestContext, type APIResponse, type Page } from "@playwright/test";
 
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { LapMeta, SessionMeta } from "@raceiq/shared/racing/sessions/types";
@@ -46,17 +46,37 @@ export async function importDisposableLap(request: APIRequestContext, gameId: Ga
 
   const exportResponse = await request.get(`/api/laps/${source!.id}/export-bin`);
   expect(exportResponse.ok(), "seeded lap export for disposable import").toBe(true);
-  const importResponse = await request.post("/api/laps/import", {
-    multipart: {
-      file: {
-        name: `${label}.bin.gz`,
-        mimeType: "application/octet-stream",
-        buffer: await exportResponse.body(),
+  const buffer = await exportResponse.body();
+  const result: { response?: APIResponse } = {};
+  await expect.poll(async () => {
+    const importResponse = await request.post("/api/laps/import", {
+      multipart: {
+        file: {
+          name: `${label}.bin.gz`,
+          mimeType: "application/octet-stream",
+          buffer,
+        },
+        ownership: "mine",
       },
-      ownership: "mine",
-    },
-  });
-  expect(importResponse.ok(), "disposable lap import").toBe(true);
+    });
+    if (importResponse.ok()) {
+      result.response = importResponse;
+      return true;
+    }
+    const body = await importResponse.text();
+    if (importResponse.status() === 500) {
+      try {
+        const error = JSON.parse(body) as { error?: string; details?: string };
+        if (error.error === "Failed to import file" && error.details === "Recording storage operation is active") return false;
+      } catch {
+        // Non-JSON failures are not storage admission conflicts.
+      }
+    }
+    throw new Error(`disposable lap import failed: status ${importResponse.status()}, body: ${body}`);
+  }, { message: "wait for recording storage admission before disposable import", timeout: 120_000, intervals: [250, 500, 1_000] }).toBe(true);
+  const importResponse = result.response;
+  expect(importResponse?.ok(), "disposable lap import").toBe(true);
+  if (!importResponse) throw new Error("Disposable lap import did not return a response");
   const imported = (await importResponse.json()) as { laps?: { lapId: number; sessionId: number }[] };
   const lapIds = imported.laps?.map((lap) => lap.lapId) ?? [];
   expect(lapIds.length, "disposable import lap ids").toBeGreaterThan(0);
