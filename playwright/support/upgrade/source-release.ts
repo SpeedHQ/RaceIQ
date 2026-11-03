@@ -185,9 +185,11 @@ export async function createSourceUpgradeHarness(): Promise<SourceUpgradeHarness
       if (phase !== "seeded") throw new Error(`validateConvertedCaptures invalid in phase ${phase}`);
       const script = `
         import Database from "libsql";
-        import { iterateSessionCaptureRecordsFromSource } from "./server/session-capture/source-loader.ts";
+        import * as sourceLoader from "./server/session-capture/source-loader.ts";
+        const { iterateSessionCaptureRecordsFromSource } = sourceLoader;
         import { existsSync } from "node:fs";
-        import { resolve } from "node:path";
+        import { resolve, dirname, relative, isAbsolute, sep } from "node:path";
+        import { realpath, stat } from "node:fs/promises";
         import { DecompressionStream } from "node:stream/web";
         // Resolve capture modules from the checked-out release's pre/post-package layout.
         const captureModules = existsSync("./server/session-capture/framing.ts") ? "./server/session-capture/" : "./packages/capture-formats/src/session/";
@@ -206,6 +208,40 @@ export async function createSourceUpgradeHarness(): Promise<SourceUpgradeHarness
             try {
               if (!file || Number(row.capture_format_version) !== 1) throw new Error(\`missing converted provenance (captureFormatVersion=\${row.capture_format_version ?? "null"})\`);
               if (!existsSync(file)) throw new Error("recording file missing");
+              const source = { rawFile: file, source: row.source == null ? null : String(row.source), gameId: String(row.game_id), captureFormatVersion: Number(row.capture_format_version), carOrdinal: Number(row.car_ordinal ?? -1), trackOrdinal: Number(row.track_ordinal ?? -1), carId: String(row.car_id ?? ""), trackId: String(row.track_id ?? "") };
+              if (file.endsWith("manifest.json")) {
+                const manifest = await sourceLoader.loadCaptureManifest(file);
+                if (manifest.gameId !== source.gameId) throw new Error("Session source manifest game does not match replay game");
+                const directory = await realpath(dirname(file));
+                const ownedPath = async (name) => {
+                  const path = await realpath(resolve(directory, name));
+                  const rel = relative(directory, path);
+                  if (isAbsolute(name) || rel === ".." || rel.startsWith(\`..\${sep}\`) || isAbsolute(rel)) throw new Error("Capture artifact path escapes manifest directory");
+                  return path;
+                };
+                let frames = 0;
+                if (manifest.version === 3 && manifest.sourceCoordinates === "native-wire-v1") {
+                  for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: true })) if (record.kind === "frame") frames++;
+                }
+                for (const chunk of manifest.chunks) {
+                  const path = await ownedPath(manifest.version === 4 ? manifest.archiveFile : chunk.path);
+                  if (manifest.version === 3 && (await stat(path)).size !== chunk.byteLength) throw new Error(\`Capture chunk \${chunk.id} byte length mismatch\`);
+                  const chunkSource = manifest.version === 4
+                    ? { ...source, rawFile: path, artifact: { archivePath: path, entryName: chunk.entryName, manifest } }
+                    : { ...source, rawFile: path };
+                  for await (const record of iterateSessionCaptureRecordsFromSource(chunkSource, { strict: true })) {
+                    if (record.kind === "frame" && !(manifest.version === 3 && manifest.sourceCoordinates === "native-wire-v1")) frames++;
+                  }
+                }
+                if (!frames) throw new Error("capture contains no decodable frames");
+                if (manifest.version === 3 && manifest.opponentRetention === "retained" && manifest.opponentCompanion) {
+                  const path = await ownedPath(manifest.opponentCompanion.file);
+                  if ((await stat(path)).size !== manifest.opponentCompanion.byteLength) throw new Error("Opponent companion byte length mismatch");
+                  for await (const _record of iterateSessionCaptureRecordsFromSource({ ...source, rawFile: path }, { strict: true, allowLegacyFullFrames: true })) {}
+                }
+                console.log(\`[upgrade-boundary] \${label} captureFormatVersion=1 manifest-v\${manifest.version} frames=\${frames}\`);
+                continue;
+              }
               const blob = Bun.file(file);
               const zipPrefix = Buffer.from(await blob.slice(0, 2).arrayBuffer());
               let stream = blob.stream();
@@ -258,7 +294,6 @@ export async function createSourceUpgradeHarness(): Promise<SourceUpgradeHarness
                 reader.releaseLock();
               }
               let frames = 0;
-              const source = { rawFile: file, source: row.source == null ? null : String(row.source), gameId: String(row.game_id), captureFormatVersion: Number(row.capture_format_version), carOrdinal: Number(row.car_ordinal ?? -1), trackOrdinal: Number(row.track_ordinal ?? -1), carId: String(row.car_id ?? ""), trackId: String(row.track_id ?? "") };
               for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: true })) if (record.kind === "frame") frames++;
               if (!frames) throw new Error("capture contains no decodable frames");
               const classification = marker ? (delta ? "marker+delta" : "marker+checkpoint-only") : (delta ? "delta-without-marker" : checkpoints ? "checkpoint-only" : "no-frame-data");
@@ -296,7 +331,7 @@ export async function createSourceUpgradeHarness(): Promise<SourceUpgradeHarness
         await git(["fetch", "--no-tags", "origin", `refs/tags/${previousTag}:refs/tags/${previousTag}`, "+refs/heads/main:refs/remotes/origin/main"], checkoutDir);
       }
       await readRefs(previousTag || tag!);
-      await git(["checkout", "--detach", previousSha], checkoutDir);
+      await run("git", ["checkout", "--detach", previousSha], checkoutDir, process.env, 5 * 60_000);
       phase = "previous";
     },
     async seedPrevious() {
@@ -319,7 +354,7 @@ export async function createSourceUpgradeHarness(): Promise<SourceUpgradeHarness
     async checkoutMain() {
       if (phase !== "seeded") throw new Error(`checkoutMain invalid in phase ${phase}`);
       if (processes.size) throw new Error("Cannot switch refs while child processes are running");
-      await git(["checkout", "--detach", mainSha], checkoutDir);
+      await run("git", ["checkout", "--detach", mainSha], checkoutDir, process.env, 5 * 60_000);
       await run(bun, ["install", "--frozen-lockfile"], checkoutDir);
       phase = "main";
     },

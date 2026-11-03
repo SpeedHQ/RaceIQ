@@ -46,7 +46,10 @@ test("track lap actions refresh after capture readiness without navigation", asy
   });
   await page.goto(`/${game.prefix}/tracks`, { waitUntil: "domcontentloaded" });
   await page.getByTestId(`track-card-${game.trackId}`).click();
+  await expect(page).toHaveURL(new RegExp(`/${game.prefix}/tracks/${game.trackId}/?$`));
+  await expect(page.getByRole("tab", { name: "Info", exact: true })).toHaveAttribute("aria-selected", "true");
   await page.getByRole("tab", { name: /^Laps(?: \(\d+\))?$/ }).click();
+  await expect(page.getByRole("tab", { name: /^Laps(?: \(\d+\))?$/ })).toHaveAttribute("aria-selected", "true");
   const rows = page.locator('tbody tr[data-testid^="track-lap-"]');
   await expect(rows.nth(1)).toBeVisible();
   const replay = rows.first().getByRole("button", { name: "Replay", exact: true });
