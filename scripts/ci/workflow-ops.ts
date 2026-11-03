@@ -1,6 +1,8 @@
 import { tmpdir } from "node:os";
-import { appendFileSync, cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { parseEnv } from "node:util";
+import { releaseFeatureFlags } from "@raceiq/shared/platform/runtime/release-feature-flags";
 
 const [operation, ...args] = Bun.argv.slice(2);
 const env = process.env;
@@ -177,6 +179,22 @@ switch (operation) {
         await Bun.sleep(1000);
       }
       if (!ready) throw new Error("RaceIQ did not listen on port 3117 within 30 seconds");
+      const status = await fetch("http://127.0.0.1:3117/api/auth/status");
+      if (!status.ok) throw new Error(`RaceIQ auth status failed: ${status.status}`);
+      const body: unknown = await status.json();
+      const productionEnv = parseEnv(readFileSync(".env.production", "utf8"));
+      const expected = releaseFeatureFlags({
+        RACEIQ_FEATURE_F1_EXPERIMENTS: productionEnv.RACEIQ_FEATURE_F1_EXPERIMENTS,
+        RACEIQ_FEATURE_IRACING_ADAPTER: productionEnv.RACEIQ_FEATURE_IRACING_ADAPTER,
+        RACEIQ_FEATURE_AMS2_ADAPTER: productionEnv.RACEIQ_FEATURE_AMS2_ADAPTER,
+      });
+      if (!body || typeof body !== "object" || !("features" in body) ||
+          !body.features || typeof body.features !== "object" ||
+          !("f1Experiments" in body.features) || body.features.f1Experiments !== expected.f1Experiments ||
+          !("iracingAdapter" in body.features) || body.features.iracingAdapter !== expected.iracingAdapter ||
+          !("ams2Adapter" in body.features) || body.features.ams2Adapter !== expected.ams2Adapter) {
+        throw new Error("Packaged RaceIQ feature flags do not match .env.production");
+      }
     } finally {
       server.kill();
     }

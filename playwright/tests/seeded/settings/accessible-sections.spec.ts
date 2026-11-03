@@ -95,7 +95,7 @@ test("settings sections expose accessible controls and state changes", async ({ 
     await page.getByLabel("Volume").fill("25");
     await expect.poll(() => page.evaluate(() => localStorage.getItem("forza-sound-volume"))).toBe("0.25");
 
-    await page.getByRole("button", { name: "Storage" }).click();
+    await page.getByRole("button", { name: "Recording" }).click();
     await expect(page.getByText("Telemetry Cache")).toBeVisible();
     await expect(page.getByLabel("Cache size limit")).toBeVisible();
     await page.getByLabel("Cache size limit").fill("8");
