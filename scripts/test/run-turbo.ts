@@ -16,16 +16,21 @@ const env: Record<string, string | undefined> = {
 };
 if (args.includes("--affected")) {
   const refs = [env.TURBO_SCM_BASE, env.TURBO_SCM_HEAD];
-  const commits = refs.map((ref) => ref === undefined
-    ? undefined
-    : Bun.spawnSync(
-      ["git", "rev-parse", "--verify", `${ref}^{commit}`],
+  const explicit = refs.some((ref) => ref !== undefined);
+  const resolved = [refs[0] ?? "main", refs[1] ?? "HEAD"].map((ref) => {
+    if (ref === "") return undefined;
+    const result = Bun.spawnSync(
+      ["git", "rev-parse", "--verify", "--end-of-options", `${ref}^{commit}`],
       { cwd: root, stdout: "pipe", stderr: "ignore" },
-    ));
-  const meaningful = commits[0] !== undefined && commits[1] !== undefined &&
-    commits[0].exitCode === 0 && commits[1].exitCode === 0 &&
-    commits[0].stdout.toString().trim() !== commits[1].stdout.toString().trim();
-  if (!meaningful) {
+    );
+    return result.exitCode === 0 ? result.stdout.toString().trim() : undefined;
+  });
+  const [base, head] = resolved;
+  const commonHistory = base && head && Bun.spawnSync(
+    ["git", "merge-base", base, head],
+    { cwd: root, stdout: "ignore", stderr: "ignore" },
+  ).exitCode === 0;
+  if (!commonHistory || (explicit && base === head)) {
     console.error("Affected SCM range unavailable or empty; running full task selection.");
     args = args.filter((arg) => arg !== "--affected");
     delete env.TURBO_SCM_BASE;
