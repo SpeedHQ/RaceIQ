@@ -180,6 +180,7 @@ class UdpListener {
     sock.on("message", (sourceFrame: Buffer) => this.handlePacket(sourceFrame));
     await new Promise<void>((resolve, reject) => {
       sock.bind(port, hostname, () => {
+        this._port = sock.address().port;
         try {
           // F1 sends ~10 packet types per frame in bursts. The default 8KB OS buffer
           // overflows during bursts causing consistent packet loss (~20% drops).

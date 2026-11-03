@@ -1,7 +1,7 @@
 import { expect, test, type APIRequestContext, type Browser, type Page } from "@playwright/test";
 import { makeLmuOpponentCapture } from "@raceiq/game-lmu/test-support/opponents";
 import { readFileSync } from "node:fs";
-import { realpath, mkdtemp, rm } from "node:fs/promises";
+import { realpath, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fixturePath } from "../../../support/fixtures";
@@ -9,6 +9,7 @@ import deMessages from "client/test-support/messages/de";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import type { OpponentLapCatalog, OpponentSemanticLapTelemetry } from "@raceiq/lap-replay/contracts";
 import { startOpponentColdLoadServer, type OpponentColdLoadServer } from "../../../support/opponent-cold-load-server";
+import { removeProcessDirectory } from "@raceiq/backend/test-support/process";
 import { collectBrowserErrors } from "raceiq-e2e/test-support/browser-errors";
 
 interface ImportedLap { lapId: number; sessionId: number }
@@ -787,8 +788,15 @@ test("[E7] U4 drives real opponent index states, visible polling, readiness, and
   const readCount = (lapId: number) => catalogReads.get(lapId)?.length ?? 0;
   try {
     cold = await startOpponentColdLoadServer({ dataDir });
+    const isolatedSettings = await request.get(new URL("/api/settings", cold.baseURL).toString());
+    expect(isolatedSettings.ok()).toBe(true);
+    const isolatedUdpPort = (await isolatedSettings.json() as { udpPort: number }).udpPort;
+    expect(isolatedUdpPort).toBeGreaterThanOrEqual(1024);
     const onboarding = await request.put(new URL("/api/settings", cold.baseURL).toString(), { data: { onboardingComplete: true } });
     expect(onboarding.ok(), `complete isolated server onboarding: ${await onboarding.text()}`).toBe(true);
+    const updatedSettings = await request.get(new URL("/api/settings", cold.baseURL).toString());
+    expect(updatedSettings.ok()).toBe(true);
+    expect((await updatedSettings.json() as { udpPort: number }).udpPort).toBe(isolatedUdpPort);
     const waitBarrier = async (name: string, sourcePath?: string) => {
       const barrier = await cold!.waitForBarrier(name, sourcePath ? { sourcePath } : undefined);
       heldBarriers.add(barrier.id);
@@ -964,7 +972,7 @@ test("[E7] U4 drives real opponent index states, visible polling, readiness, and
     }
     await context.close();
     await cold?.stop();
-    await rm(dataDir, { recursive: true, force: true });
+    await removeProcessDirectory(dataDir);
   }
 });
 

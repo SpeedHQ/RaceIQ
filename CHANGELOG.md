@@ -160,6 +160,8 @@
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
+- Upgrade Bun and its type definitions to 1.4.4 across local tooling, containers, and CI; run full Turbo test suites outside pull requests.
+- Keep isolated opponent browser tests on their assigned UDP port and wait for Windows database handles to close during cleanup.
 - Preserve Windows directory-sync path errors when validating recording publication directories.
 - Target comparison lap pickers explicitly in browser checks and wait for rendered frames in the native camera zoom check.
 - Keep diagnostic dump runs in one BIN per selected source, retain raw Forza/F1 datagrams, stream live telemetry over WebSocket for every game, and bypass telemetry-driven session/database processing and background recording maintenance.

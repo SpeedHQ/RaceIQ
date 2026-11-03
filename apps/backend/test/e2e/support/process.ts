@@ -26,7 +26,8 @@ export async function removeProcessDirectory(dataDir: string): Promise<void> {
   for (let attempt = 0; attempt < 10; attempt++) {
     // The parent also opened libsql statements; closed handles finalize outside fake clocks.
     if (process.platform === "win32") {
-      Bun.gc(true);
+      if (typeof Bun !== "undefined") Bun.gc(true);
+      else globalThis.gc?.();
       await new Promise<void>((resolveTurn) => setImmediate(resolveTurn));
     }
     try {

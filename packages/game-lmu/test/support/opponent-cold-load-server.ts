@@ -545,7 +545,7 @@ export async function startOpponentColdLoadServer(
   try {
     ready = await withTimeout(readyResult.promise, 60_000, "backend/static adapter did not become ready");
   } catch (error) {
-    if (proc.exitCode === null && proc.signalCode === null) proc.kill("SIGTERM");
+    await killAndWait(proc, "SIGTERM", 120_000);
     throw error;
   }
 
@@ -715,7 +715,7 @@ export async function startOpponentColdLoadSeedProcess(
   try {
     await withTimeout(readyResult.promise, 60_000, "seed child did not install controls");
   } catch (error) {
-    if (proc.exitCode === null && proc.signalCode === null) proc.kill("SIGTERM");
+    await killAndWait(proc, "SIGTERM", 120_000);
     throw error;
   }
 
@@ -910,6 +910,11 @@ async function runColdLoadChild(): Promise<void> {
   try {
     const { bootServer } = await import("../../../../apps/backend/src/runtime/boot");
     apiServer = await bootServer({ httpPort: 0, udpPort: 0, recordingGameId: null });
+    // Load these only in the isolated child, after its DATA_DIR is configured.
+    const { udpListener } = await import("../../../../apps/backend/src/runtime/udp-listener");
+    const { loadSettings, saveSettings } = await import("@raceiq/backend-core/runtime/config/settings");
+    if (udpListener.port < 1024) throw new Error("cold-load UDP listener did not bind an ephemeral port");
+    saveSettings({ ...loadSettings(), udpPort: udpListener.port });
     apiURL = `http://${host}:${apiServer.httpPort}`;
     const usage = process.resourceUsage();
     const rss = process.memoryUsage().rss;
