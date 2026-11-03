@@ -2537,6 +2537,7 @@
   "recording_layout_migration_action": "Porządkuj pliki",
   "recording_layout_migration_later": "Później",
   "recording_layout_migration_running": "Porządkowanie nagrań…",
+  "recording_layout_migration_waiting_for_session": "Oczekiwanie na zakończenie aktywnej sesji…",
   "recording_layout_migration_retry": "Ponów porządkowanie",
   "recording_layout_migration_refresh": "Odśwież",
   "recording_layout_migration_checking": "Sprawdzanie folderu nagrań…",

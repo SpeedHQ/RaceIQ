@@ -10,7 +10,7 @@ function lapLabel(lap: LapMeta) {
     : lap.processing.state === "processing" ? m.recording_processing_running()
       : lap.processing.state === "failed" ? m.recording_processing_failed({ error: lap.processing.error })
         : null;
-  return `${m.compare_lap_label()} ${lap.lapNumber} — ${formatLapTime(lap.lapTime)} — ${lap.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}${!lap.isValid ? " (inv)" : ""}${processing ? ` · ${processing}` : ""}`;
+  return `${m.compare_lap_label()} ${lap.lapNumber} — ${formatLapTime(lap.lapTime)} — ${lap.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}${!lap.isValid ? " (inv)" : ""} · #${lap.id}${processing ? ` · ${processing}` : ""}`;
 }
 
 export function ComparisonLapSelect({ id, label, lapId, laps, onChange, disabled, className }: {

@@ -2537,6 +2537,7 @@
   "recording_layout_migration_action": "ファイルを整理",
   "recording_layout_migration_later": "後で",
   "recording_layout_migration_running": "録画を整理中…",
+  "recording_layout_migration_waiting_for_session": "アクティブなセッションの終了を待機中…",
   "recording_layout_migration_retry": "整理を再試行",
   "recording_layout_migration_refresh": "更新",
   "recording_layout_migration_checking": "録画フォルダーを確認中…",

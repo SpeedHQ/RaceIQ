@@ -2510,6 +2510,7 @@
   "recording_layout_migration_action": "녹음 정리",
   "recording_layout_migration_later": "나중에",
   "recording_layout_migration_running": "녹음 정리 중…",
+  "recording_layout_migration_waiting_for_session": "진행 중인 세션이 끝나기를 기다리는 중…",
   "recording_layout_migration_retry": "조직 재시도",
   "recording_layout_migration_refresh": "새로 고치다",
   "recording_layout_migration_checking": "녹화 폴더 확인 중…",

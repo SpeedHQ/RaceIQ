@@ -22,6 +22,7 @@ import { splitCapturePromise } from "@raceiq/capture-splitting";
 import { loadSessionCapture, resolveLapCaptureArtifact } from "@raceiq/backend-core/session-capture/source-loader";
 
 import { runSessionCaptureSplitQueueOnce } from "../../src/session-capture/split-manager";
+import { beginRecordingStorageImport } from "@raceiq/backend-core/session-capture/storage-activity";
 initServerGameAdapters();
 const sourceFrameOffset = encodeMetaFrame(1).length + encodeSparseCaptureFormatFrame().length;
 const splitNotifications: Array<{ sessionId: number; jobId: string; attemptId: number; sequence: number; phase: string }> = [];
@@ -271,6 +272,36 @@ test("split lifecycle recovers attempts, rejects stale revisions, uses one worke
   expect(stillExhausted?.status).toBe("failed");
   expect(stillExhausted?.jobId).toBe(exhaustedJobId);
 });
+test("splits marked checkpoint-only captures into independently readable lap files", async () => {
+  const sourcePath = join(root, "checkpoint-only.bin");
+  const frames = [Buffer.from([1, 2, 3, 4]), Buffer.from([5, 6, 7, 8])];
+  await writeFile(sourcePath, Buffer.concat(frames.flatMap((frame) => [encodeFrameLength(frame.length), frame])));
+  const session = await makeSession(sourcePath);
+  await db.update(sessions).set({ captureFormatVersion: 1 }).where(eq(sessions.id, session.id)).run();
+  await db.update(laps).set({ rawByteOffset: 0 }).where(eq(laps.id, session.lapId)).run();
+  const second = await db.insert(laps).values({
+    sessionId: session.id, lapNumber: 2, lapTime: 61, rawByteOffset: encodeFrameLength(frames[0]!.length).length + frames[0]!.length, rawFrameCount: 1,
+  }).returning({ id: laps.id }).get();
+  expect(await enqueueSessionCaptureSplit(session.id)).toBe(true);
+  await drainQueueUntilTerminal(session.id);
+  expect((await db.select().from(sessionCaptureSplitJobs)
+    .where(eq(sessionCaptureSplitJobs.sessionId, session.id)).get())?.status).toBe("ready");
+  const published = await db.select().from(sessions).where(eq(sessions.id, session.id)).get();
+  const manifestPath = published!.captureManifestFile!;
+  bundleDirs.add(dirname(manifestPath));
+  for (const [index, lapId] of [session.lapId, second.id].entries()) {
+    const lap = await db.select().from(laps).where(eq(laps.id, lapId)).get();
+    const artifact = await resolveLapCaptureArtifact(manifestPath, lap!.captureChunkId!, lapId);
+    const restored = await loadSessionCapture({
+      rawFile: artifact.path, artifact: artifact.artifact, source: null, gameId: "fm-2023", carId: "test-car", trackId: "test-track",
+    });
+    expect([...iterateSessionCaptureRecords(restored)]
+      .filter((record) => record.kind === "frame")
+      .filter((record) => record.offset >= artifact.chunk.ownedFrameByteOffset!)
+      .slice(0, artifact.chunk.ownedFrameCount).map((record) => record.frame)).toEqual([frames[index]]);
+  }
+});
+
 test("startup split jobs wait for consent while newly queued imports split immediately", async () => {
   const sourceBytes = Buffer.concat([encodeMetaFrame(1), encodeSparseCaptureFormatFrame(), encodeFrameLength(4), Buffer.from([1, 2, 3, 4])]);
   const startupPath = join(root, "startup-consent.bin");
@@ -299,7 +330,12 @@ test("startup split jobs wait for consent while newly queued imports split immed
   await db.update(sessionCaptureSplitJobs).set({ status: "failed", errorCode: "worker-failed", errorMessage: "retry fixture" })
     .where(eq(sessionCaptureSplitJobs.sessionId, startup.id)).run();
   expect((await getStartupSplitMigrationStatus()).progress.failed).toBeGreaterThan(0);
-  expect((await consentToStartupSplitMigration()).progress.status).toBe("running");
+  const releaseImport = beginRecordingStorageImport();
+  try {
+    expect((await consentToStartupSplitMigration()).progress.status).toBe("running");
+  } finally {
+    releaseImport();
+  }
   expect((await db.select({ attemptId: sessionCaptureSplitJobs.attemptId }).from(sessionCaptureSplitJobs)
     .where(eq(sessionCaptureSplitJobs.sessionId, startup.id)).get())?.attemptId).toBe(2);
   await drainQueueUntilTerminal(startup.id);

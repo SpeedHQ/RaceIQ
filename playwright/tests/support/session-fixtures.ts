@@ -22,6 +22,19 @@ export async function lapsFor(request: APIRequestContext, gameId: GameId): Promi
   expect(response.ok(), `${gameId} lap list`).toBe(true);
   return (await response.json()) as LapMeta[];
 }
+async function waitForDisposableSplits(request: APIRequestContext, sessionIds: number[], gameId: GameId, requireReady: boolean): Promise<void> {
+  await expect.poll(async () => {
+    const sessions = await sessionsFor(request, gameId);
+    return sessionIds.map((id) => {
+      const session = sessions.find((candidate) => candidate.id === id);
+      if (!session) return requireReady ? "missing" : "settled";
+      const phase = session.captureSplit?.phase;
+      if (phase === "ready" || (!requireReady && (phase === "failed" || phase === undefined))) return "settled";
+      return phase ?? "not-queued";
+    });
+  }, { message: "disposable capture split publication settles before use or deletion", timeout: 60_000, intervals: [100, 250, 500] })
+    .toEqual(sessionIds.map(() => "settled"));
+}
 
 export async function importDisposableLap(request: APIRequestContext, gameId: GameId, label: string, sourceLapId?: number): Promise<DisposableImport> {
   const sessionsBefore = await sessionsFor(request, gameId);
@@ -68,6 +81,7 @@ export async function importDisposableLap(request: APIRequestContext, gameId: Ga
     for (const sessionId of sessionIds) {
       expect(sessionsAfter.find((session) => session.id === sessionId)?.notes, `persisted note for disposable session ${sessionId}`).toBe(note);
     }
+    await waitForDisposableSplits(request, sessionIds, gameId, true);
     return disposable;
   } catch (error) {
     // The caller cannot clean up until this helper returns its owned IDs.
@@ -78,6 +92,7 @@ export async function importDisposableLap(request: APIRequestContext, gameId: Ga
 
 export async function cleanDisposable(request: APIRequestContext, disposable: DisposableImport | undefined, gameId: GameId = "fm-2023"): Promise<void> {
   if (!disposable) return;
+  await waitForDisposableSplits(request, disposable.sessionIds, gameId, false);
   const sessionsCleanup = await request.post("/api/sessions/bulk-delete", { data: { ids: disposable.sessionIds } });
   if (!sessionsCleanup.ok()) {
     const body = await sessionsCleanup.text();

@@ -2553,6 +2553,7 @@
   "recording_layout_migration_action": "Dateien ordnen",
   "recording_layout_migration_later": "Später",
   "recording_layout_migration_running": "Aufnahmen werden geordnet…",
+  "recording_layout_migration_waiting_for_session": "Warten, bis die aktive Sitzung beendet ist…",
   "recording_layout_migration_retry": "Ordnen wiederholen",
   "recording_layout_migration_refresh": "Aktualisieren",
   "recording_layout_migration_checking": "Aufnahmeordner wird geprüft…",

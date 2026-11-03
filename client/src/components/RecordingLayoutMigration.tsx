@@ -108,7 +108,7 @@ export function RecordingLayoutMigration({ compact = false, onSuccessDismissed, 
         <p className="flex items-start gap-2 text-app-compact leading-relaxed text-app-text-secondary"><ShieldCheck aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-app-text-muted" />{m.recording_layout_migration_organization()}</p>
       </>}
         {pickerError && <p role="alert" className="text-sm text-status-danger">{m.storage_directory_browse_error()}</p>}
-      {running && <><p className="text-xs text-app-text-muted">{progress?.phase === "relocating" ? m.storage_directory_phase_copying() : m.recording_layout_migration_running()}</p><Progress done={progress?.done ?? 0} total={progress?.total ?? 0} percent={percent} /></>}
+      {running && <>{progress?.phase === "waiting-for-session" ? <p role="status" className="text-xs text-app-text-muted">{m.recording_layout_migration_waiting_for_session()}</p> : <><p className="text-xs text-app-text-muted">{progress?.phase === "relocating" ? m.storage_directory_phase_copying() : m.recording_layout_migration_running()}</p>{(progress?.total ?? 0) > 0 && <Progress done={progress?.done ?? 0} total={progress!.total} percent={percent} />}</>}</>}
       {errors}
       {completed && <p role="status" className="text-sm text-status-success">{m.recording_layout_migration_success({ migrated: progress.migrated })}</p>}
       {!running && <DialogFooter className={docked ? "gap-2" : "sticky bottom-0 z-10 -mx-5 -mb-5 gap-2 border-app-border bg-app-surface-alt px-5 py-4 sm:-mx-6 sm:-mb-6 sm:px-6"}>
@@ -127,7 +127,7 @@ export function RecordingLayoutMigration({ compact = false, onSuccessDismissed, 
     {pendingTarget && <p className="break-all font-mono text-xs text-app-text-muted">{pendingTarget}</p>}
     {status.data && status.data.fileCount > 0 && !running && !completed && <p className="text-sm text-app-text-secondary">{m.recording_layout_migration_count({ files: status.data.fileCount, sessions: status.data.sessionCount })}</p>}
     {errors}
-    {running && <Progress done={progress?.done ?? 0} total={progress?.total ?? 0} percent={percent} />}
+    {running && (progress?.phase === "waiting-for-session" ? <p role="status" className="text-xs text-app-text-muted">{m.recording_layout_migration_waiting_for_session()}</p> : (progress?.total ?? 0) > 0 && <Progress done={progress?.done ?? 0} total={progress!.total} percent={percent} />)}
     {completed && <p role="status" className="text-xs text-status-success">{m.recording_layout_migration_success({ migrated: progress.migrated })}</p>}
     {!running && hasWork && !completed && <Button type="button" variant="app-primary" onClick={() => setChoiceOpen(true)}>{retryable ? m.recording_layout_migration_retry() : m.recording_layout_migration_action()}</Button>}
     {dialog}

@@ -864,7 +864,7 @@ function runWorker(candidate: SourceCandidate): Promise<{
     const publish = async (requestId: number, staged: LmuOpponentIndexStagedPublication): Promise<void> => {
       let published = false;
       try {
-        await waitAtTestBarrier("before-publication-fence", candidate.sourcePath);
+        await waitAtTestBarrier("before-publication-fence", candidate.sourcePath, undefined, true);
         const allowed = !runtimeStopping && !recordingOrDraining() &&
           !invalidatedRoots.has(candidate.indexRoot) && !isActiveLmuOpponentSource(candidate.sourcePath);
         if (!allowed || resolve(candidate.indexRoot) !== resolve(staged.publicationDirectory, "..") ||
@@ -903,6 +903,7 @@ function runWorker(candidate: SourceCandidate): Promise<{
         memoryFailures.delete(candidate.indexRoot);
         published = true;
       } catch (error) {
+        injectedPublicationFailure = true;
         logTestDiagnostic("worker publication", error, candidate.sourcePath);
         if (testPort) notifyTestPort({ type: "worker-error", sourcePath: candidate.sourcePath, reason: "publication", error: error instanceof Error ? error.message : String(error) });
       }

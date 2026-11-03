@@ -33,7 +33,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.3
+          bun-version: 1.4.4
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -75,7 +75,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.3
+          bun-version: 1.4.4
 
       - uses: actions/setup-node@v7
         with:
@@ -88,9 +88,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .turbo/cache
-          key: turbo-${{ runner.os }}-${{ runner.arch }}-bun-1.4.3-turbo-2.11.7-${{ github.sha }}-${{ github.run_attempt }}
+          key: turbo-${{ runner.os }}-${{ runner.arch }}-bun-1.4.4-turbo-2.11.7-${{ github.sha }}-${{ github.run_attempt }}
           restore-keys: |
-            turbo-${{ runner.os }}-${{ runner.arch }}-bun-1.4.3-turbo-2.11.7-
+            turbo-${{ runner.os }}-${{ runner.arch }}-bun-1.4.4-turbo-2.11.7-
 
       - name: Check test shard coverage
         run: bun run test:shards
@@ -131,13 +131,13 @@ jobs:
         run: bun scripts/test/run-turbo.ts test:integration --affected --log-order=stream --concurrency=2
         if: github.event_name == 'pull_request'
       - name: Run full test suites
-        run: bun scripts/test/run-turbo.ts test:unit test:tooling test:integration --affected --concurrency=2
+        run: bun scripts/test/run-turbo.ts test:unit test:tooling test:integration --concurrency=2
         if: github.event_name != 'pull_request'
       - name: Save Turbo task cache
         uses: actions/cache/save@v4
         with:
           path: .turbo/cache
-          key: turbo-${{ runner.os }}-${{ runner.arch }}-bun-1.4.3-turbo-2.11.7-${{ github.sha }}-${{ github.run_attempt }}
+          key: turbo-${{ runner.os }}-${{ runner.arch }}-bun-1.4.4-turbo-2.11.7-${{ github.sha }}-${{ github.run_attempt }}
         if: always()
 
 
@@ -152,7 +152,7 @@ jobs:
           fetch-depth: 1
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4
+          bun-version: 1.4.4
       - name: Install workspace dependencies
         run: bun install --frozen-lockfile --ignore-scripts
       - name: Check changelog
