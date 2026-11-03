@@ -64,7 +64,7 @@
   "ob_community_body": "RaceIQ ist ein Open-Source-Projekt, das von seiner Community lebt. Ob du es weiterempfiehlst, Funktionswünsche oder Fehlerberichte einreichst oder zum Quellcode beiträgst — jeder Beitrag macht die App für alle besser.",
   "settings_general_desc": "App-weite Einstellungen.",
   "settings_language_desc": "Sprache für die App-Oberfläche und die KI-Analyse.",
-  "settings_nav_storage": "Speicher",
+  "settings_nav_storage": "Aufzeichnung",
   "settings_nav_developer": "Entwickler",
   "settings_port_range_error": "Port muss zwischen 1024 und 65535 liegen",
   "settings_setup_wizard": "Einrichtungsassistent",

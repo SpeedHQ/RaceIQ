@@ -62,7 +62,7 @@
   "ob_community_body": "RaceIQ 是一个开源项目，离不开社区的支持。无论是宣传项目、提交功能请求或错误报告，还是为源代码做出贡献，每一份力量都能让应用变得更好。",
   "settings_general_desc": "应用级设置。",
   "settings_language_desc": "应用界面和 AI 分析所用的语言。",
-  "settings_nav_storage": "存储",
+  "settings_nav_storage": "记录",
   "settings_nav_developer": "开发者",
   "settings_port_range_error": "端口必须在 1024-65535 之间",
   "settings_setup_wizard": "设置向导",
