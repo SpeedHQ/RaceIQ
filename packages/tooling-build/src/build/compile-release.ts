@@ -1,4 +1,18 @@
-export {};
+import { readFileSync } from "node:fs";
+import { parseEnv } from "node:util";
+import { releaseFeatureFlags } from "@raceiq/shared/platform/runtime/release-feature-flags";
+
+const productionEnv = parseEnv(readFileSync(".env.production", "utf8"));
+releaseFeatureFlags({
+  RACEIQ_FEATURE_F1_EXPERIMENTS: productionEnv.RACEIQ_FEATURE_F1_EXPERIMENTS,
+  RACEIQ_FEATURE_IRACING_ADAPTER: productionEnv.RACEIQ_FEATURE_IRACING_ADAPTER,
+  RACEIQ_FEATURE_AMS2_ADAPTER: productionEnv.RACEIQ_FEATURE_AMS2_ADAPTER,
+});
+const featureDefines = Object.entries({
+  RACEIQ_FEATURE_F1_EXPERIMENTS: productionEnv.RACEIQ_FEATURE_F1_EXPERIMENTS ?? "false",
+  RACEIQ_FEATURE_IRACING_ADAPTER: productionEnv.RACEIQ_FEATURE_IRACING_ADAPTER ?? "false",
+  RACEIQ_FEATURE_AMS2_ADAPTER: productionEnv.RACEIQ_FEATURE_AMS2_ADAPTER ?? "false",
+}).flatMap(([name, value]) => ["--define", `process.env.${name}=${JSON.stringify(value)}`]);
 
 const version = process.argv[2] ?? "";
 if (!/^\d+\.\d+\.\d+$/.test(version)) {
@@ -21,12 +35,7 @@ const child = Bun.spawn([
   "@duckdb/node-bindings-*",
   "--define",
   'process.env.NODE_ENV="production"',
-  "--define",
-  'process.env.RACEIQ_FEATURE_F1_EXPERIMENTS="false"',
-  "--define",
-  'process.env.RACEIQ_FEATURE_IRACING_ADAPTER="false"',
-  "--define",
-  'process.env.RACEIQ_FEATURE_AMS2_ADAPTER="false"',
+  ...featureDefines,
   "apps/backend/src/bootstrap.ts",
   "server/experiments/lap-issues-worker.ts",
   "apps/backend/src/runtime/startup-worker-entry.ts",
