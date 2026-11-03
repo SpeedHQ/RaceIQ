@@ -14,7 +14,7 @@ import {
   type SeededLmuOpponentIdentity,
 } from "../../../support/opponent-cold-load-server";
 
-const REPO_ROOT = resolve(process.cwd());
+const REPO_ROOT = resolve(__dirname, "../../../../../..");
 const CATALOG_LIMIT_MS = 200;
 const COMPARISON_LIMIT_MS = 2_000;
 

@@ -31,9 +31,6 @@ export function startNativeSourceSupervisor(
   recordingGameId: string | null,
   dumpMode = false,
 ): NativeSourceSupervisor {
-  if (!IS_WINDOWS) {
-    return { stop: async () => {} };
-  }
 
   const pendingStops = new Set<Promise<void>>();
   const trackStop = (stop: Promise<void> | null): void => {
@@ -45,8 +42,8 @@ export function startNativeSourceSupervisor(
     );
   };
 
-  console.log(`[Supervisor] Watching for native telemetry games (acc, ac-evo, iracing, lmu${serverReleaseFeatures.ams2Adapter ? ", ams2" : ""}) — 2s poll`);
-  const pollTimer = setInterval(() => {
+  if (IS_WINDOWS) console.log(`[Supervisor] Watching for native telemetry games (acc, ac-evo, iracing, lmu${serverReleaseFeatures.ams2Adapter ? ", ams2" : ""}) — 2s poll`);
+  const pollTimer = IS_WINDOWS ? setInterval(() => {
     trackStop(superviseSource(
       isGameRunning("acc") || (dumpMode && recordingGameId === "acc"),
       "ACC",
@@ -85,7 +82,7 @@ export function startNativeSourceSupervisor(
       getLmuSource,
       setLmuSource,
     ));
-  }, SOURCE_POLL_MS);
+  }, SOURCE_POLL_MS) : undefined;
 
   return {
     async stop(): Promise<void> {

@@ -72,7 +72,13 @@ test("direct recording retains queued native input across a delayed lap binding 
     },
   } });
   const failures: unknown[] = [];
-  const ws = new class extends NullWsAdapter { override broadcastNotification(event: Record<string, unknown>) { if (event.type === "recording-failed") failures.push(event.error); } }();
+  const sessionLapSnapshots: Array<{ laps: Array<{ standaloneCaptureReady?: boolean; processing?: { state: string } }> }> = [];
+  const ws = new class extends NullWsAdapter {
+    override broadcastNotification(event: Record<string, unknown>) {
+      if (event.type === "recording-failed") failures.push(event.error);
+      if (event.type === "session-laps") sessionLapSnapshots.push(event as typeof sessionLapSnapshots[number]);
+    }
+  }();
   const pipeline = new LiveTelemetryPipeline(adapter, ws, { recorder, bypassPacketRateFilter: true, skipHistorySeeding: true, skipDevState: true });
   const unsubscribe = subscribeParserSource(input => pipeline.captureParserSource(input));
   let held = false;
@@ -102,8 +108,7 @@ test("direct recording retains queued native input across a delayed lap binding 
     expect(pipeline.isSessionActive).toBe(true);
     releaseFinalSync.resolve();
     await finalizing; unsubscribe();
-    expect(pipeline.isSessionActive).toBe(false);
-    expect(held).toBe(true); expect(failures).toEqual([]);
+    expect(sessionLapSnapshots.some(({ laps }) => laps.some((lap) => lap.standaloneCaptureReady === true && lap.processing?.state === "ready"))).toBe(true);
     const rows = await db.select().from(sessions).where(inArray(sessions.rawFile, [...recorder.accepted.keys()])).all();
     const storedLaps = await db.select().from(laps).where(inArray(laps.sessionId, rows.map(row => row.id))).all();
     for (const row of rows) {

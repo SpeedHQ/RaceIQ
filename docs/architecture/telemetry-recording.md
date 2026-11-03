@@ -32,11 +32,15 @@ Detector ownership transitions, not parser checkpoint predictions, define lap wi
 
 Ingress reserves bounded transport/control capacity without awaiting source filesystem operations, worker completion, durability, verification, or publication. The live adapter allows 16 MiB in flight and batches at most 4 MiB. Derivation caches at most 8 MiB or 1,024 source records and journals ordered work on disk; a cache miss catches up from the pinned canonical source during recording. Control admission is distinct from control execution. Exhaustion and worker/I/O failures are explicit recording failures, never permission to silently drop accepted records.
 
+Standalone source recorders transfer only persisted bytes. A supplied worker also receives native source events for live derivation; observer callbacks receive owned bytes that remain valid after worker transfers. Admission charges include only the payloads used by that path and any observer copy. An accepted sync fence can still drain after admission overload, but terminal writer failure rejects it with the original recording error.
+
 The derivation worker may combine up to 64 additional adjacent, monotonic watermark controls already written to the work journal. It never crosses candidate, ownership, binding, or close controls. Every combined sequence is acknowledged only after the latest watermark executes; the first nonmatching control remains available to ordered replay and late-ownership lookahead. This amortizes canonical seek/read work without changing authoritative windows or retaining a growing control history.
 
 The source worker uses bounded vectored writes without copying native payloads. Each durability fence syncs source data; the parent directory tree is synced once after source creation, because later appends and the final header patch do not create directory entries.
 
 Capture, restart recovery, and release benchmarks share the same Bun worker constructor and small-heap GC policy. This changes heap-growth behavior, not the explicit transport, control, source-cache, or checkpoint ceilings. Release measurements still enforce CPU, readiness, and additional RSS budgets.
+
+LMU opponent-index instrumentation reports `processCpuUserMicros`, `processCpuSystemMicros`, and `peakProcessRssBytes`. CPU deltas cover the entire process during each build, including concurrent work; RSS is the sampled process-wide peak, not worker-thread memory. These fields do not measure isolated index-worker resource consumption.
 
 Publication order is canonical durability, authoritative journal/binding durability, native conservation and independent semantic replay verification, archive durability, then an atomic fenced database member commit. Only that commit authorizes `lap-capture-ready`. Source native/header counts, all logical source records, and transport sequences are separate counters.
 

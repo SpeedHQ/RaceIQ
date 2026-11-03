@@ -77,6 +77,10 @@ function wheelNumber(values: Readonly<Record<string, unknown>>, id: string, inde
   const value = Array.isArray(entries) ? entries[index] : undefined;
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
+export function consumedWearRate(previous: number | null, current: number | null, elapsed: number, priorRate: number): number {
+  return elapsed > 0 && elapsed < 1 && current !== null && previous !== null && current >= previous
+    ? priorRate * 0.9 + (current - previous) / elapsed * 0.1 : 0;
+}
 export function wheelHistoryDiscontinuity(previousTime: number | null, nextTime: number, previousSeekGeneration: number, nextSeekGeneration: number): boolean {
   return previousSeekGeneration !== nextSeekGeneration || (previousTime !== null && (nextTime < previousTime || nextTime - previousTime > 1));
 }
@@ -172,8 +176,9 @@ export class SpectateSceneRuntime {
   private captureTarget: THREE.RenderTarget | null = null;
   private captureCanvas: OffscreenCanvas | null = null;
   private captureImageData: ImageData | null = null;
-  private lastWheelUpdate = 0;
+  private lastWheelUpdate: number | null = null;
   private dirty = true;
+  private interactionPending = false;
   private disposed = false;
   private initialized = false;
   private lastRender = 0;
@@ -181,6 +186,10 @@ export class SpectateSceneRuntime {
   private pendingHeight = 0;
   private resizePending = false;
   private unsubscribe: () => void;
+  private controllerChanged = () => {
+    this.dirty = true;
+    if (!this.raf && !this.disposed) this.raf = requestAnimationFrame(this.drawFrame);
+  };
   private error: (message: string) => void;
   private ready: (ready: boolean) => void;
   private pair: ReplaySession;
@@ -250,7 +259,8 @@ export class SpectateSceneRuntime {
   private readonly resources: ReplayModelResources;
   private drawing = false;
   private visibilityChanged = () => {
-    if (!document.hidden) this.wake();
+    if (document.hidden) this.lastWheelUpdate = null;
+    else this.wake();
   };
   constructor(container: HTMLElement, pair: ReplaySession, controller: SpectateController, onReady: (ready: boolean) => void, onError: (message: string) => void, zoomIndicator: (position: number, available: boolean) => void, forceWebGL = false, fpsCap = 30, resources: ReplayModelResources) {
     this.resources = resources;
@@ -302,7 +312,7 @@ export class SpectateSceneRuntime {
     });
     this.observer.observe(container);
     document.addEventListener("visibilitychange", this.visibilityChanged);
-    this.unsubscribe = controller.subscribe(this.wake);
+    this.unsubscribe = controller.subscribe(this.controllerChanged);
     this.setOutline(null);
     void this.initialize();
   }
@@ -586,13 +596,15 @@ export class SpectateSceneRuntime {
         return result.status === "rejected";
       });
       const initial = this.controller.getSnapshot();
+      this.groups[0].visible = !failures[0] && !!initial.a?.pose;
+      this.groups[1].visible = !failures[1] && !!initial.b?.pose;
       this.canvas.dataset.sideAState = initial.a?.pose ? "ready" : "pose-unavailable";
       if (this.pair.b) this.canvas.dataset.sideBState = initial.b?.pose ? "ready" : "pose-unavailable";
       if (failures[0]) this.canvas.dataset.sideAState = "model-unavailable";
       if (failures[1]) this.canvas.dataset.sideBState = "model-unavailable";
-      if (failures.every(Boolean) || (!initial.a?.pose && (!this.pair.b || !initial.b?.pose))) {
+      if (failures.every(Boolean)) {
         this.rejectPendingFrames(new Error("Scene initialization failed"));
-        this.error(!initial.a?.pose && (!this.pair.b || !initial.b?.pose) ? "scene.pose-unavailable" : "scene.model-unavailable");
+        this.error("scene.model-unavailable");
         return;
       }
       this.initialized = true;
@@ -667,6 +679,16 @@ export class SpectateSceneRuntime {
     this.canvas.dataset[i === 0 ? "aModelPath" : "bModelPath"] = selection.model.modelPath;
     this.groups[i].add(body.root);
   }
+  private updateWheelAnimations(snapshot: SpectateSnapshot, now: number, nativeViewVisible: boolean) {
+    const playing = snapshot.playing && !snapshot.seeking;
+    const elapsed = playing && this.lastWheelUpdate !== null ? (now - this.lastWheelUpdate) / 1000 : 0;
+    if (!playing || !nativeViewVisible) this.lastWheelUpdate = null;
+    if (nativeViewVisible) {
+      this.updateWheels(0, snapshot.a, elapsed, snapshot.speed, playing, now, snapshot.seekGeneration);
+      this.updateWheels(1, snapshot.b, elapsed, snapshot.speed, playing, now, snapshot.seekGeneration);
+      this.lastWheelUpdate = playing ? now : null;
+    }
+  }
   private updateWheels(side: 0 | 1, reading: SpectateReading | null, elapsed: number, speed: number, playing: boolean, now: number, seekGeneration: number) {
     const slot = this.slots[side];
     if (!reading || !slot.config) return;
@@ -734,8 +756,7 @@ export class SpectateSceneRuntime {
       const dt = info.timestamp === null ? 0 : (timestamp - info.timestamp) / 1000;
       for (let index = 0; index < slot.wheels.length; index++) {
         const wear = wheelNumber(reading.values, "tires.tire-wear", index), previous = info.previousWear[index];
-        info.wearRates[index] = dt > 0 && dt < 1 && wear !== null && previous != null
-          ? info.wearRates[index]! * 0.9 + (previous - wear) / dt * 0.1 : 0;
+        info.wearRates[index] = consumedWearRate(previous, wear, dt, info.wearRates[index]!);
         info.previousWear[index] = wear;
       }
       info.timestamp = timestamp;
@@ -959,8 +980,9 @@ export class SpectateSceneRuntime {
   }
   private wake = () => {
     this.dirty = true;
+    this.interactionPending = true;
     this.settleFrames = 12;
-    if (!this.raf && !this.disposed) this.raf = requestAnimationFrame(this.draw);
+    if (!this.raf && !this.disposed) this.raf = requestAnimationFrame(this.drawFrame);
   };
   private controlsChanged = () => {
     const radius = this.camera.position.distanceTo(this.controls.target);
@@ -971,17 +993,23 @@ export class SpectateSceneRuntime {
     }
     this.lastControlRadius = radius;
     this.dirty = true;
-    if (!this.drawing && this.initialized && !this.raf && !this.disposed) this.raf = requestAnimationFrame(this.draw);
+    this.interactionPending = true;
+    if (!this.drawing && this.initialized && !this.raf && !this.disposed) this.raf = requestAnimationFrame(this.drawFrame);
   };
-  private draw = (now: number) => {
+  private drawFrame = (now: number) => this.draw(now);
+  private draw(now: number) {
     this.raf = 0;
     if (this.disposed || document.hidden || !this.initialized) return;
+    const interval = 1000 / this.fpsCap;
+    const current = this.controller.getSnapshot();
+    if (!current.seeking && !this.interactionPending && !this.resizePending && !this.pendingFrames.length && now - this.lastRender < interval) {
+      if (current.playing || this.settleFrames > 0 || this.dirty) this.raf = requestAnimationFrame(this.drawFrame);
+      return;
+    }
     this.drawing = true;
     const snapshot = this.controller.getFrameSnapshot(now);
     this.pose(this.groups[0], snapshot.a?.pose ?? null, "a");
     this.pose(this.groups[1], snapshot.b?.pose ?? null, "b");
-    const wheelElapsed = this.lastWheelUpdate ? (now - this.lastWheelUpdate) / 1000 : 0;
-    this.lastWheelUpdate = now;
     const first = snapshot.a?.pose ?? null,
       second = snapshot.b?.pose ?? null;
     let radius = Math.max(0.1, this.camera.position.distanceTo(this.controls.target));
@@ -1060,8 +1088,7 @@ export class SpectateSceneRuntime {
     this.camera.position.setFromSpherical(this.sphericalScratch).add(this.controls.target);
     this.camera.lookAt(this.controls.target);
     this.camera.updateMatrixWorld();
-    const interval = 1000 / this.fpsCap;
-    if (this.dirty && now - this.lastRender >= interval) {
+    if (this.dirty) {
       try {
         // Resizing clears the drawing buffer. Keep the last frame until this
         // FPS-capped render can replace it, including during panel transitions.
@@ -1097,10 +1124,7 @@ export class SpectateSceneRuntime {
           if (slot.body) slot.body.root.visible = this.carModelMode !== "hidden";
           if (slot.drivetrain) slot.drivetrain.root.visible = this.carModelMode !== "solid";
         }
-        if (nativeViewVisible) {
-          this.updateWheels(0, snapshot.a, wheelElapsed, snapshot.speed, snapshot.playing && !snapshot.seeking, now, snapshot.seekGeneration);
-          this.updateWheels(1, snapshot.b, wheelElapsed, snapshot.speed, snapshot.playing && !snapshot.seeking, now, snapshot.seekGeneration);
-        }
+        this.updateWheelAnimations(snapshot, now, nativeViewVisible);
         this.edgePool.group.visible = blend < 1;
         this.edgePool.material.opacity = SCENE_PRESENTATION.trackOpacity * (1 - blend);
         this.centerLinePool.group.visible = blend > 0;
@@ -1239,6 +1263,7 @@ export class SpectateSceneRuntime {
         if (stateChanged && this.canvas.dataset.sceneRendered === "true") this.ready(true);
         this.settleRenderedFrame(snapshot);
         this.lastRender = now;
+        this.interactionPending = false;
         this.dirty = this.pendingFrames.length > 0;
         if (this.canvas.dataset.sceneRendered !== "true") {
           this.canvas.dataset.sceneRendered = "true";
@@ -1256,9 +1281,9 @@ export class SpectateSceneRuntime {
     this.drawing = false;
     if (snapshot.playing || this.pendingFrames.length > 0 || this.settleFrames > 0 || this.dirty || this.zoomIdleUntil > 0 || this.zoomSnap) {
       if (this.settleFrames > 0) this.settleFrames--;
-      this.raf = requestAnimationFrame(this.draw);
+      this.raf = requestAnimationFrame(this.drawFrame);
     }
-  };
+  }
   private projectPose(side: "a" | "b", pose: SpectatePose | null) {
     if (pose) this.positionScratch.set(pose.x - this.origin.x, pose.y - this.origin.y, pose.z - this.origin.z).project(this.camera);
     this.canvas.dataset[side === "a" ? "aScreenX" : "bScreenX"] = pose ? String(this.positionScratch.x) : "";

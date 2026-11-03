@@ -38,6 +38,24 @@
 - Include the complete LMU multiplayer recording in demo seeds as sub-100 MB gzip parts, stream native input without buffering the whole capture, and retain separate player and opponent recordings.
 
 ### Fixes
+- Finish pending recording finalization with the original error when a writer fails after overload.
+- Keep dismissed historical lap-classification notices hidden after unrelated session updates, reopening them only for new work or changed results.
+- Model competitor positions as indexed structured values so live resolver returns and validates all competitors in source order.
+- Restore complete seeded capture bundles and private capture references for Playwright, skip unsupported Windows directory fsync, and validate portable opponent-index block paths on Windows.
+- Keep Kunos pit-cycle classification independent of recording validity while preserving native track-limit and telemetry-quality failures in live capture and replay.
+- Cancel queued recording layout migration during shutdown and recheck recording activity under the maintenance lock.
+- Restore the LMU opponent-recording preference in Settings → Storage → Opponent data.
+- Let failed MoTeC imports roll back without waiting for an unrelated LMU opponent-index storage reservation.
+- Report LMU opponent-index publication errors as failed preparation instead of silently yielding.
+- Distinguish comparison lap choices with their stable lap IDs when recorded lap numbers and times match across sessions.
+- Preserve the exact recorded packet when seeking Replay through frames with identical timestamps.
+- Release comparison position lock when seeking an exact coalesced frame without a registered distance, rather than borrowing another frame's distance.
+- Keep the mobile circuit overview within its available width. Open new desktop panel combinations within half the workspace while preserving saved widths when reopening the same panels.
+- Restore the source session, expanded opponent, and table scroll position when returning from opponent Replay to Sessions.
+- Keep recorded sessions selectable when all opponent laps lack comparable data, and show pending recording processing instead of an empty comparison selection.
+- Restore Spa track edges for AC Evo recordings that identify the circuit as “Circuit de Spa Francorchamps”, while preserving recorded track IDs and layout matching.
+- Open Session Analyse even when every recorded lap is invalid or non-pace, while preserving validity flags, keeping default review limited to pace-eligible laps, and allowing explicit inspection of other laps.
+- Split converted recordings that contain only full checkpoints instead of repeatedly rejecting them as unsupported legacy captures.
 - Get answers from current Claude models, which rejected every request with "`temperature` is deprecated for this model".
 - Stop AI settings from freezing on Windows while saved API keys and the launch-on-login setting are checked, and show Claude models immediately instead of waiting for the model list.
 - Load the model list and run AI features when the OpenAI-compatible base URL is Anthropic's `https://api.anthropic.com/v1`, which previously failed with "x-api-key header is required".
@@ -45,7 +63,15 @@
 - Keep API keys saved in Settings while a Linux or WSL development server runs instead of silently discarding them; installed builds are unchanged.
 - Keep the historical lap-classification notice limited to its original sessions, allow dismissal while work continues, and distinguish summary updates from pending lap processing.
 - Place inner and outer surface-temperature bands on the correct sides of the 3D wheels in Replay and Compare → Spectate.
-- Include the LMU opponent-index worker in packaged builds so recorded opponents can load for replay and comparison.
+- Keep recording and LMU opponent indexing available in Windows release installations.
+- Reclaim all telemetry chunks when deleting direct recordings, matching the cleanup preview while protecting shared recordings.
+- Enable Replay and Compare in Live Recorded Laps and track lap tables when capture publication completes, without bypassing LMU opponent processing.
+- Keep imported AMS2 session history consistent with live capture across qualifying-to-race transitions and independent recording epochs.
+- Recover Replay and Compare scenes automatically when position telemetry becomes available after loading.
+- Show positive tire-wear rates during degradation and reset them after tire replacement in Replay and Compare.
+- Keep wheel animation speed consistent across display refresh rates and playback frame-rate limits.
+- Restore bookmarked map positions when returning to cached comparisons.
+- Direct Linux installations to release downloads instead of offering the Windows-only installer.
 - Restore recorded-opponent driver and lap selections after reloading comparisons while the opponent catalog loads.
 - Preserve Replay and Spectate panel widths when panels are toggled, and keep the mobile circuit overview clear of driver inputs and focus controls.
 - Keep Spectate selected when switching comparison views with the keyboard.
@@ -144,9 +170,15 @@
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
+- Fail AppImage releases when packaged smoke checks fail, and run full manual CI gates when no meaningful change range exists.
+- Run responsive screenshot comparisons with a baseline-compatible harness and report failed baseline captures as unavailable evidence.
+- Route AMS2 diagnostic dumps through the shared safe launcher and accept native absolute executable paths in the compiled-browser harness.
+- Skip full replay interpolation on animation callbacks discarded by the frame-rate cap.
+- Upgrade Bun and its type definitions to 1.4.4 across local tooling, containers, and CI; run full Turbo test suites outside pull requests.
+- Keep isolated opponent browser tests on their assigned UDP port and wait for Windows database handles to close during cleanup.
 - Preserve Windows directory-sync path errors when validating recording publication directories.
 - Target comparison lap pickers explicitly in browser checks and wait for rendered frames in the native camera zoom check.
-- Keep diagnostic dump runs in one BIN per selected source, retain raw Forza/F1 datagrams, stream live telemetry over WebSocket for every game, and bypass telemetry-driven session/database processing and background recording maintenance.
+- Keep diagnostic dump runs in one BIN per selected source, retain raw Forza/F1 datagrams, stream live telemetry over WebSocket for every game, and bypass telemetry-driven session/database processing and background recording maintenance. Omit unused native source-event transport from standalone recording writers.
 - Extract Sessions and Session Analyse into feature-owned UI, server, contract, and test workspaces while preserving existing navigation and analysis behavior.
 - Move Sessions and Session Review into their own package.
 - Update the dependency lockfile for Bun 1.4.4 so the Bench compare workflow can use frozen installs.

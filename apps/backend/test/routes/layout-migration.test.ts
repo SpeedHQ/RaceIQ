@@ -279,8 +279,12 @@ describe("recording layout migration", () => {
 
     const releaseImport = beginRecordingStorageImport();
     try {
-      const busy = await startMigration();
-      expect(busy.status).toBe(409);
+      const waiting = startMigration();
+      expect((await startMigration()).status).toBe(409);
+      releaseImport();
+      expect((await waiting).status).toBe(202);
+      expect(await waitForMigration()).toMatchObject({ status: "success", error: null });
+      expect(await readFile(join(root, "fm-2023", "own", "reserved.bin"), "utf8")).toBe("legacy");
     } finally { releaseImport(); }
 
     let unlock!: () => void;
@@ -293,6 +297,7 @@ describe("recording layout migration", () => {
       if (state.progress.status === "running") break;
     }
     try {
+      expect(() => beginRecordingStorageImport()).toThrow("Recording storage operation is active");
       await expect(startRecordingDirectoryMove(movedRoot)).rejects.toMatchObject({ code: "MOVE_ACTIVE" });
     } finally {
       unlock();
@@ -310,9 +315,10 @@ describe("recording layout migration", () => {
     const journalPath = join(resolveDataDir(), "recording-layout-migration.json");
     const contents = JSON.stringify({ outside: true });
     await writeFile(target, contents);
-    await symlink(target, journalPath);
+    // Windows junctions exercise the same reparse-point rejection without symlink privileges.
+    await symlink(process.platform === "win32" ? external : target, journalPath, process.platform === "win32" ? "junction" : "file");
     const response = await miscRoutes.request("/api/storage/layout-migration");
-    expect((await response.json() as { progress: { status: string; error: string | null } }).progress).toMatchObject({ status: "error" });
+    expect((await response.json() as { progress: { status: string; error: string | null } }).progress).toMatchObject({ status: "error", error: "Unsafe recording migration journal" });
     expect(await readFile(target, "utf8")).toBe(contents);
   });
   test.each(["missing-destination", "unrelated-file"] as const)("rejects unsafe %s journal without removing the source", async (scenario) => {

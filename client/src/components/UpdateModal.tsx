@@ -37,7 +37,7 @@ function StepIndicator({ step, current }: { step: (typeof STEPS)[number]; curren
   );
 }
 
-export function UpdateModal({ version, currentVersion, newReleases, fullReleaseNotes, currentReleaseNotes, currentReleaseDate, updatesDisabled, onClose }: { version: string; currentVersion: string; newReleases: { version: string; notes: string; date: string }[]; fullReleaseNotes: string | null; currentReleaseNotes: string | null; currentReleaseDate: string | null; updatesDisabled?: boolean; onClose: () => void }) {
+export function UpdateModal({ version, currentVersion, newReleases, fullReleaseNotes, currentReleaseNotes, currentReleaseDate, updatesDisabled, externalUpdateUrl, onClose }: { version: string; currentVersion: string; newReleases: { version: string; notes: string; date: string }[]; fullReleaseNotes: string | null; currentReleaseNotes: string | null; currentReleaseDate: string | null; updatesDisabled?: boolean; externalUpdateUrl?: string | null; onClose: () => void }) {
   const updateProgress = useTelemetryStore((s) => s.updateProgress);
   const [error, setError] = useState<string | null>(null);
   const [showAllReleases, setShowAllReleases] = useState(false);
@@ -47,6 +47,7 @@ export function UpdateModal({ version, currentVersion, newReleases, fullReleaseN
   const percent = updateProgress?.percent ?? 0;
 
   const handleInstall = async () => {
+    if (updatesDisabled) return;
     setError(null);
     telemetryStore.actions.setUpdateProgress({ stage: "downloading", percent: 0 });
     try {
@@ -150,7 +151,13 @@ export function UpdateModal({ version, currentVersion, newReleases, fullReleaseN
               )}
               <div className="flex justify-end gap-3">
                 {updatesDisabled ? (
-                  <p className="mr-auto self-center text-sm text-app-text-muted">{m.updates_docker_managed()}</p>
+                  externalUpdateUrl ? (
+                    <a className="mr-auto self-center text-sm text-status-warning underline underline-offset-2" href={externalUpdateUrl} target="_blank" rel="noreferrer">
+                      {m.updates_external_download()}
+                    </a>
+                  ) : (
+                    <p className="mr-auto self-center text-sm text-app-text-muted">{m.updates_docker_managed()}</p>
+                  )
                 ) : (
                   <Button variant="app-primary" size="app-md" onClick={handleInstall}>
                     {m.label_install_update()}
@@ -168,9 +175,11 @@ export function UpdateModal({ version, currentVersion, newReleases, fullReleaseN
             <>
               <p className="text-sm text-status-danger">{error}</p>
               <div className="flex justify-end gap-3">
-                <Button variant="app-primary" size="app-md" onClick={handleInstall}>
-                  {m.label_retry()}
-                </Button>
+                {!updatesDisabled && (
+                  <Button variant="app-primary" size="app-md" onClick={handleInstall}>
+                    {m.label_retry()}
+                  </Button>
+                )}
                 <Button variant="app-outline" size="app-md" onClick={onClose}>
                   {m.common_close()}
                 </Button>

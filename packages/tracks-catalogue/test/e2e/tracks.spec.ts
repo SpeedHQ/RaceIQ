@@ -16,6 +16,55 @@ const TRACK_CAPABILITY: TrackCapability = {
   debug: ["fm-2023", "f1-2025", "ac-evo", "iracing"],
 };
 
+
+test("track lap actions refresh after capture readiness without navigation", async ({ page }) => {
+  const game = SEEDED_GAME_CASES.find((candidate) => candidate.gameId === "fm-2023");
+  if (!game) throw new Error("FM23 fixture is missing");
+  let published = false;
+  let requests = 0;
+  let publish: ((message: string) => void) | undefined;
+  let publication: { sessionId: number; lapId: number } | undefined;
+  await page.routeWebSocket("**/ws", (socket) => {
+    socket.connectToServer();
+    publish = (message) => socket.send(message);
+  });
+  // Start with a stale processing snapshot; readiness refetches the real backend.
+  await page.route("**/api/tracks/*/all-laps*", async (route) => {
+    requests++;
+    const response = await route.fetch();
+    if (published) {
+      await route.fulfill({ response });
+      return;
+    }
+    const laps = await response.json() as Array<{ sessionId: number; lapId: number; processing: Record<string, unknown> }>;
+    publication ??= laps.find((lap) => lap.sessionId != null);
+    await route.fulfill({
+      response,
+      json: laps.map((lap) => ({ ...lap, processing: { ...lap.processing, state: "processing" } })),
+    });
+  });
+  await page.goto(`/${game.prefix}/tracks`, { waitUntil: "domcontentloaded" });
+  await page.getByTestId(`track-card-${game.trackId}`).click();
+  await page.getByRole("tab", { name: /^Laps(?: \(\d+\))?$/ }).click();
+  const rows = page.locator('tbody tr[data-testid^="track-lap-"]');
+  await expect(rows.nth(1)).toBeVisible();
+  const replay = rows.first().getByRole("button", { name: "Replay", exact: true });
+  await expect(replay).toBeDisabled();
+  await rows.nth(0).locator('input[type="checkbox"]').check();
+  await rows.nth(1).locator('input[type="checkbox"]').check();
+  const compare = page.getByRole("button", { name: "Compare", exact: true });
+  await expect(compare).toBeDisabled();
+  await expect.poll(() => typeof publish).toBe("function");
+  expect(publication).toBeDefined();
+  const previousRequests = requests;
+  const location = page.url();
+  published = true;
+  publish!(JSON.stringify({ type: "lap-capture-ready", sessionId: publication!.sessionId, lapId: publication!.lapId }));
+  await expect.poll(() => requests).toBeGreaterThan(previousRequests);
+  await expect(replay).toBeEnabled();
+  await expect(compare).toBeEnabled();
+  expect(page.url()).toBe(location);
+});
 for (const game of SEEDED_GAME_CASES) {
   if (game.gameId === "acc") continue;
   test(`${game.name} tracks support search, sorting, map, and capability routes`, async ({ page, request }) => {
