@@ -1,4 +1,5 @@
 packages/frontend-contract-tests/test/ai/ai-configured.test.ts
+packages/frontend-contract-tests/test/ai/recommended-model.test.ts
 packages/frontend-contract-tests/test/client/car-wireframe.test.ts
 packages/frontend-contract-tests/test/client/chat-footer.test.tsx
 packages/frontend-contract-tests/test/client/client-game-routes.test.ts

@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate, useSearch } from "@tanstack/react-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SessionCleanupRequest, SessionCleanupResult } from "@raceiq/shared/racing/sessions/cleanup"
 import { useSessionsPageHost } from "./host";
 import { filterSessions, groupLapsBySession, PAGE_SIZE, paginateSessions, selectionIncludesMotec, sortSessions } from "./helpers";
@@ -15,6 +15,9 @@ export function SessionsPage() {
   const { SessionCleanupDialog, Button, useDeleteLap, useLaps, queryKeys, useSessions, invalidateDashboardQueries, useResolveNames, deleteSessions, deleteLaps, patchSessionNotes, exportLapsZip, storedLapsSectorCount, routePrefixForGameId, m, useGameId } = useSessionsPageHost();
   const gameId = useGameId();
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnSessionId = "opponentReplayReturnSessionId" in location.state ? location.state.opponentReplayReturnSessionId : undefined;
+  const restoredReturnSessionRef = useRef<number | null>(null);
   const { data: sessions = [], isLoading, isError: sessionsError } = useSessions();
   const { data: allLaps = [] } = useLaps();
   const queryClient = useQueryClient();
@@ -122,6 +125,24 @@ export function SessionsPage() {
   useEffect(() => {
     setPage(0);
   }, [sessions.length, search, favoriteOnly]);
+  useEffect(() => {
+    if (typeof returnSessionId !== "number" || !Number.isSafeInteger(returnSessionId) || returnSessionId <= 0) {
+      restoredReturnSessionRef.current = null;
+      return;
+    }
+    if (restoredReturnSessionRef.current === returnSessionId) return;
+    const session = sessions.find((item) => item.id === returnSessionId);
+    if (!session || session.processing.state !== "ready") return;
+    restoredReturnSessionRef.current = returnSessionId;
+    setExpandedSessions((previous) => new Set([...previous, returnSessionId]));
+    const returnTab = session.ownership ?? "mine";
+    if (tab !== returnTab) {
+      void navigate({ to: ".", search: { tab: returnTab } as never, replace: true, resetScroll: false });
+    }
+    const returnItems = filterSessions(sorted, search, returnTab, { trackNames, carNames }, favoriteOnly);
+    const index = returnItems.findIndex((item) => item.id === returnSessionId);
+    if (index >= 0) setPage(Math.floor(index / PAGE_SIZE));
+  }, [returnSessionId, sessions, sorted, search, tab, trackNames, carNames, favoriteOnly, navigate]);
 
   const toggleSessionSelection = useCallback(
     (sessionId: number, event: SessionSelectionEvent) => {

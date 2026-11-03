@@ -255,7 +255,9 @@ export const tuneChatRoutes = new Hono()
       const chatModelLabel = settings.chatModel
         || (chatProvider === "openai"
           ? "gpt-4o-mini"
-          : chatProvider === "openai-compatible"
+          : chatProvider === "anthropic"
+            ? "claude-haiku-5-5"
+            : chatProvider === "openai-compatible"
             ? "local-model"
             : "gemini-flash-latest");
 

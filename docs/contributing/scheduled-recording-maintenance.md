@@ -12,6 +12,8 @@ Recording maintenance combines compression, optional historical downsampling, op
 - `GET /api/storage/session-downsample` calls `getSessionDownsampleStatus()`. Status includes progress, converted file count, actual freed bytes, skipped groups, and per-group failures. `runSessionDownsampleNow()` is the Promise facade for callers that need to await a manual run.
 - `stopSessionCompressor()` awaits `disposeRecordingMaintenanceRuntime()`. [`apps/backend/src/runtime/shutdown.ts`](../../apps/backend/src/runtime/shutdown.ts) first blocks new layout/startup admission, drains admitted organization and recording maintenance, then stops ingress and flushes the recorder. Startup/dashboard workers and split publication drain before database write admission stops and both database connections close.
 
+Layout migration tracks admission before waiting for storage ownership or an active session to finish. Shutdown cancels those waits before draining migration, so recording shutdown does not depend on a migration waiting for that same recording. Migration rechecks recording activity while holding the maintenance lock before inspecting or moving capture files; it releases the lock before waiting again.
+
 Routes remain Promise boundaries; Effect programs do not call `Effect.run*`. Work is a managed-runtime fiber, not a detached request task. Effect fibers coordinate lifecycle; they do not move CPU-bound work onto another CPU worker.
 
 ## Schedule and pass ordering

@@ -3,7 +3,6 @@ status: proposed
 ---
 # LMU competitor data and independent enrichment
 
-Plan: [LMU competitor and supplementary telemetry contract](../plans/lmu-competitor-data-contract.md)
 
 ## Context
 
@@ -19,7 +18,7 @@ Phase 2 makes opponent retention optional: manual whole-session removal deletes 
 
 Reuse the existing comparison selection UI and shared `@raceiq/lap-replay` workspace from `Snazzie/replay` baseline `7faddf9c4`; no parallel picker/replay redesign. Let users retain player lap A and choose a recorded opponent identity/incarnation/lap as reference B. Extend typed source/host contracts instead of impersonating numeric player laps. The native contract makes timing comparison feasible and includes scoring position/velocity/orientation for potentially coarse paired replay; full remote throttle/brake/steering is not established by ABI field presence. Enable each channel only after version/mode verification. Preserve coverage/validity/capabilities, explicit stale/removed/not-recorded states and full selected-interval export; removal drops opponent indexes/caches. Shared contract and separate plans own API details, source evidence and joint E2E gates; no AI or cross-session opponent browsing.
 
-Baseline ownership and preserved runtime behavior follow the implemented [replay contract](../../advisor-plans/lap-replay-contract.md). The linked LMU plan includes the native-field feasibility matrix and explicitly distinguishes schema feasibility from unrun Windows multiplayer acceptance.
+Baseline ownership and preserved runtime behavior follow the implemented [replay contract](../../packages/lap-replay/contracts/README.md). Native-field feasibility and Windows multiplayer acceptance remain separate from this proposed decision.
 
 ## Rationale and consequences
 

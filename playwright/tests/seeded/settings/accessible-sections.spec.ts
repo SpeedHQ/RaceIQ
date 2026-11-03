@@ -15,7 +15,7 @@ test("settings sections expose accessible controls and state changes", async ({ 
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ current: "seeded", latest: null, updateAvailable: false, checked: true, lastChecked: "2026-01-01T00:00:00.000Z" }),
+      body: JSON.stringify({ current: "seeded", latest: null, updateAvailable: false, updatesDisabled: true, externalUpdateUrl: null, downloadUrl: null, newReleases: [], fullReleaseNotes: null, currentReleaseNotes: null, currentReleaseDate: null, checked: true, lastChecked: "2026-01-01T00:00:00.000Z" }),
     });
   });
 

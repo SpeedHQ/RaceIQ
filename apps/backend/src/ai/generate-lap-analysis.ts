@@ -276,10 +276,11 @@ export async function generateLapAnalysis(
         // analysis, then constrain a separate, tool-free structuring pass.
         ...(ai.provider === "openai-compatible"
           ? { model: getResolvedAiInternals(ai)?.model, jsonPromptInjection: false }
-          : { jsonPromptInjection: "auto" }),
+          // Anthropic's OpenAI-compatible API ignores response_format, so ask for JSON in the prompt.
+          : { jsonPromptInjection: ai.provider === "anthropic" ? true : "auto" }),
       },
       providerOptions: {
-        openai: {
+        openai: ai.provider === "anthropic" ? {} : {
           reasoningEffort: ai.provider === "openai-compatible" ? "none" : "medium",
         },
         google: buildGoogleThinkingProviderOptions(

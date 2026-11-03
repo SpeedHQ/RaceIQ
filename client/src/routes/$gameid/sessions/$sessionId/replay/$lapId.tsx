@@ -51,8 +51,9 @@ export const Route = createFileRoute("/$gameid/sessions/$sessionId/replay/$lapId
       cursor, viz, ai, view,
       opponentLap: typeof search.opponentLap === "string" ? search.opponentLap : undefined,
       opponentRevision: typeof search.opponentRevision === "string" ? search.opponentRevision : undefined,
-      opponentRefInvalid: (search.opponentLap != null && typeof search.opponentLap !== "string") ||
-        (search.opponentRevision != null && typeof search.opponentRevision !== "string"),
+      opponentRefInvalid: (search.opponentRefInvalid === true ||
+        (search.opponentLap != null && typeof search.opponentLap !== "string") ||
+        (search.opponentRevision != null && typeof search.opponentRevision !== "string")) || undefined,
     };
   },
 });

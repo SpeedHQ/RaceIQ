@@ -6,6 +6,7 @@ import { extractJson } from "./extract-json";
 import { logLlmEvent, withLlmDiagnostics } from "./diagnostic-logging";
 import { AiProviderError } from "./provider-error";
 import { buildGoogleThinkingProviderOptions } from "./google-provider-options";
+import { ANTHROPIC_OPENAI_BASE_URL, isAnthropicEndpoint, openAiCompatibleAuthHeaders } from "./openai-compatible-headers";
 export interface AiResult {
   analysis: string;
   usage: {
@@ -17,11 +18,12 @@ export interface AiResult {
   };
 }
 
-export type AiProvider = "gemini" | "openai" | "openai-compatible";
+export type AiProvider = "gemini" | "openai" | "anthropic" | "openai-compatible";
 
 const AI_PROVIDERS = [
   { id: "gemini", name: "Google Gemini" },
   { id: "openai", name: "OpenAI" },
+  { id: "anthropic", name: "Claude (Anthropic)" },
   { id: "openai-compatible", name: "OpenAI-compatible" },
 ];
 
@@ -353,16 +355,19 @@ export async function runOpenAiCompatible(options: OpenAiRequestOptions): Promis
   const model = options.model || "gpt-4o-mini";
   const endpoint = (options.endpoint || "https://api.openai.com/v1").replace(/\/+$/, "");
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  const diagnostic = { provider: endpoint === "https://api.openai.com/v1" ? "openai" : "openai-compatible", model, operation: "chat.completions", request: { prompt: options.prompt, schema: options.schema, schemaName: options.schemaName, temperature: options.temperature, maxOutputTokens: options.maxOutputTokens } };
+  const providerLabel = endpoint === "https://api.openai.com/v1" ? "openai" : isAnthropicEndpoint(endpoint) ? "anthropic" : "openai-compatible";
+  const diagnostic = { provider: providerLabel, model, operation: "chat.completions", request: { prompt: options.prompt, schema: options.schema, schemaName: options.schemaName, temperature: options.temperature, maxOutputTokens: options.maxOutputTokens } };
   logLlmEvent("llm-request", diagnostic);
   try {
-    if (options.apiKey) headers.Authorization = `Bearer ${options.apiKey}`;
+    Object.assign(headers, openAiCompatibleAuthHeaders(endpoint, options.apiKey));
     const body: Record<string, unknown> = {
       model,
       messages: [{ role: "user", content: options.prompt }],
-      temperature: options.temperature ?? 0.3,
     };
-    if (endpoint !== "https://api.openai.com/v1") body.reasoning_effort = "none";
+    // Current Claude models reject `temperature` on the compatibility API.
+    if (!isAnthropicEndpoint(endpoint)) body.temperature = options.temperature ?? 0.3;
+    // Anthropic's compatibility layer maps reasoning_effort to extended thinking, so leave it unset there.
+    if (endpoint !== "https://api.openai.com/v1" && !isAnthropicEndpoint(endpoint)) body.reasoning_effort = "none";
     if (options.maxOutputTokens != null) body.max_tokens = options.maxOutputTokens;
     if (options.schema) {
       body.response_format = {
@@ -388,7 +393,7 @@ export async function runOpenAiCompatible(options: OpenAiRequestOptions): Promis
           : `OpenAI API error: ${res.status}`,
         {
           code: "upstream",
-          provider: endpoint === "https://api.openai.com/v1" ? "openai" : "openai-compatible",
+          provider: providerLabel,
           modelId: model,
           statusCode: res.status,
           isRetryable: res.status >= 500,
@@ -463,6 +468,35 @@ export async function getOpenAiModelsDetailed(apiKey: string): Promise<ModelList
   }
 }
 
+/** Fetch Claude models available to an Anthropic API key. */
+export async function getAnthropicModelsDetailed(apiKey: string): Promise<ModelListResult> {
+  try {
+    const url = `${ANTHROPIC_OPENAI_BASE_URL}/models?limit=1000`;
+    console.info(`[AI] GET ${url}`);
+    const res = await fetch(url, {
+      headers: openAiCompatibleAuthHeaders(ANTHROPIC_OPENAI_BASE_URL, apiKey),
+      signal: AbortSignal.timeout(5000),
+    });
+    console.info(`[AI] ${res.status} ${res.statusText} ${url}`);
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      const message = `Anthropic models request failed (${res.status} ${res.statusText})${body ? `: ${body.slice(0, 240)}` : ""}`;
+      console.warn(`[AI] ${message}`);
+      return { models: [], error: message };
+    }
+    const data = await res.json() as { data?: Array<{ id?: unknown; display_name?: unknown }> };
+    // Anthropic lists newest first; keep that order so current models sit at the top.
+    const models = (data.data ?? [])
+      .filter((model): model is { id: string; display_name?: unknown } => typeof model.id === "string" && model.id.length > 0)
+      .map(({ id, display_name }) => ({ id, name: typeof display_name === "string" && display_name ? display_name : id }));
+    return { models, error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn("[AI] Anthropic models list request errored:", message);
+    return { models: [], error: message };
+  }
+}
+
 /** Extract configured runtime context lengths from LM Studio model metadata. */
 export function extractLmStudioContextLengths(data: unknown): Map<string, number> {
   const map = new Map<string, number>();
@@ -506,10 +540,11 @@ async function getLmStudioContextLengths(endpoint: string, apiKey?: string): Pro
 /** Fetch available models from an OpenAI-compatible local endpoint (LM Studio, Ollama, etc.). */
 export async function getOpenAiCompatibleModelsDetailed(endpoint: string, apiKey?: string): Promise<ModelListResult> {
   try {
-    const url = `${endpoint.replace(/\/+$/, "")}/models`;
+    const anthropic = isAnthropicEndpoint(endpoint);
+    // Anthropic paginates /v1/models (default 20); ask for everything in one page.
+    const url = `${endpoint.replace(/\/+$/, "")}/models${anthropic ? "?limit=1000" : ""}`;
     console.info(`[AI] GET ${url}`);
-    const headers: Record<string, string> = {};
-    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+    const headers = openAiCompatibleAuthHeaders(endpoint, apiKey);
     const res = await fetch(url, { headers, signal: AbortSignal.timeout(3000) });
     console.info(`[AI] ${res.status} ${res.statusText} ${url}`);
     if (!res.ok) {
@@ -519,7 +554,7 @@ export async function getOpenAiCompatibleModelsDetailed(endpoint: string, apiKey
       return { models: [], error: message };
     }
     const data = await res.json() as any;
-    const contextByModel = await getLmStudioContextLengths(endpoint, apiKey);
+    const contextByModel = anthropic ? new Map<string, number>() : await getLmStudioContextLengths(endpoint, apiKey);
     return {
       models: (data.data ?? []).map((m: any) => ({
         id: m.id,

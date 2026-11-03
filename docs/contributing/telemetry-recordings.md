@@ -30,6 +30,7 @@ LMU prints its final frame count and absolute saved BIN path only after header p
 All `dev:dump:*` commands enable the same global `--dump-only` mode. The game argument selects the native source and BIN format, not whether telemetry is persisted. The selected recorder keeps one BIN for the dump run; lap boundaries, session changes, and source-context resets do not create per-lap/session files. Native-source reconnects reuse the selected reader until shutdown.
 
 Dump launchers deliberately run without `--watch`: automatic restarts or process-tree termination can interrupt recorder finalization. The launcher requests cooperative backend shutdown and awaits completion before exiting. Restart the dump command manually after changing backend code.
+Shutdown drains attached native sources on every platform; automatic native-game discovery runs only on Windows.
 
 Dump frames are parsed only to publish the existing live WebSocket schema/frame and developer telemetry display. They bypass session/lap detection, telemetry-driven database access, calibration, and normal per-lap capture. Historical startup and scheduled maintenance do not run in dump mode. Application startup, dashboard authentication, and initial identity-catalog loading still use the database; this is not a database-free server process.
 
@@ -226,10 +227,7 @@ part sizes and the 30,957-frame source. Byte-part packaging is independent of
 the recorder's player/opponent separation.
 
 
-Schema and unit references are recorded in the
-[LMU contract](../plans/lmu-competitor-data-contract.md). Controlled native,
-HTTP and capture tests are not a substitute for the required Windows LMU
-player smoke. Runtime game-version/mode coverage is not claimed without it.
+Controlled native, HTTP and capture tests are not a substitute for the required Windows LMU player smoke. Runtime game-version/mode coverage is not claimed without it.
 
 ## Work with published lap archives
 
@@ -239,7 +237,7 @@ Keep physical member offsets and compressed sizes separate from decoded capture 
 
 Legacy manifest v3 directory bundles remain readable without reinterpretation or in-place rewriting. Archive layout 2 uses separate DB manifest and archive paths; null-layout source reads remain unchanged. Cleanup and relocation must account for both paths, protect active staging and shared references, invalidate metadata/telemetry caches, and count shared archive bytes once. Never recompress the indexed archive as a whole-session stream.
 
-Retained monolithic recordings follow existing policy. Measure archive storage against identical plain and already-gzipped member payloads, with logical and allocated bytes distinguished. Report retained-source storage separately; aggregation alone does not prove compression savings. Label synthetic windows, synthetic acquisition timestamps, application-cold reads, OS cache assumptions, and memory high-water scope explicitly. See [recording architecture](../architecture/telemetry-recording.md#indexed-completed-session-lap-archives) and the [archive implementation plan](../plans/indexed-session-lap-archive.md).
+Retained monolithic recordings follow existing policy. Measure archive storage against identical plain and already-gzipped member payloads, with logical and allocated bytes distinguished. Report retained-source storage separately; aggregation alone does not prove compression savings. Label synthetic windows, synthetic acquisition timestamps, application-cold reads, OS cache assumptions, and memory high-water scope explicitly. See [recording architecture](../architecture/telemetry-recording.md#indexed-completed-session-lap-archives).
 
 ## Verify incremental live capture
 

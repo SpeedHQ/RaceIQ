@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { m } from "@/paraglide/messages";
 import type { AiAnalysisState } from "./ai-state";
 import { GEMINI_THINKING_BUDGET_OPTIONS } from "./ai-state";
+import { defaultModelForProvider } from "./recommended-model";
 
 export function AiAnalysisSection({ state }: { state: AiAnalysisState }) {
   const {
@@ -41,7 +42,7 @@ export function AiAnalysisSection({ state }: { state: AiAnalysisState }) {
             value={provider}
             onChange={(value) => {
               setProvider(value);
-              setModel("");
+              setModel(defaultModelForProvider(value));
               setThinkingBudget(null);
             }}
             providers={aiProviders}

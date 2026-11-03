@@ -73,7 +73,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4
+          bun-version: 1.4.4
       - name: Prepare base comparison worktree
         env:
           BASE_REF: ${{ steps.pull-request.outputs.base-ref }}

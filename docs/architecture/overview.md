@@ -85,7 +85,6 @@ Phase 5 benchmark entrypoints use isolated fixtures and never target the applica
 - `bun apps/backend/test/benchmarks/dashboard-read-model-smoke.ts` retains the original archive and adversarial-boundary correctness shapes.
 - `bun apps/backend/test/benchmarks/dashboard-contention.bench.ts --output=.omp/evidence/sqlite-dashboard/<unique-run>.json` measures actual recording/backfill; output is required. Default history is the active-user baseline, with a 120-lap/12-session small comparison. For archive stress, specify `--profile=archive-stress --laps=1000000 --sessions=100000`. The committed real recording fixture is `test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz`. Cadence or isolated finalization proof alone does not establish full recording/backfill acceptance.
 
-These are engineering tools, not production recovery commands. Results and outstanding acceptance gates are tracked in [the dashboard read-model execution index](../../advisor-plans/README.md).
 
 ## Boundaries
 

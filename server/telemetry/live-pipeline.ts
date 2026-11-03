@@ -1,3 +1,4 @@
+import { getLapProcessingByIds } from "../db/lap-read-queries";
 import { registerActiveSessionQuery } from "../session-capture/session-activity";
 export type PacketSourceReference = Buffer | { rawOffset: number };
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
@@ -490,7 +491,15 @@ export class LiveTelemetryPipeline {
                     this.ws.broadcastNotification(event);
                     if (event.type === "lap-capture-ready") {
                       const lap = this._sessionLaps.find((entry) => entry.id === event.lapId && entry.sessionId === event.sessionId);
-                      if (lap) { lap.standaloneCaptureReady = true; this._broadcastSessionLaps(); }
+                      if (lap) {
+                        void getLapProcessingByIds([lap.id]).then(([projected]) => {
+                          const current = this._sessionLaps.find((entry) => entry.id === event.lapId && entry.sessionId === event.sessionId);
+                          if (!current || !projected) return;
+                          current.standaloneCaptureReady = true;
+                          current.processing = projected.processing;
+                          this._broadcastSessionLaps();
+                        }).catch((error) => console.error("[LivePipeline] Failed to refresh lap processing metadata:", error));
+                      }
                     }
                   });
               }

@@ -7,8 +7,8 @@
 - Catalog version: `0.20.0`
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.20.0`
-- Generator source SHA-256: `fd03c450b03f31505862d865bb4574da2f25c6d704cd387c6cbbbfc1bb5c9472`
-- Content SHA-256: `2c115419ceb87a3e3939cadb9a3bc0aa696b13e5fb4dafbcf90924fc258c3d30`
+- Generator source SHA-256: `a1c55ed39fd6cb5c8dff2f5b00cf9e7daf2b38662ae4b236f33be3b2fd9cf6f1`
+- Content SHA-256: `ac52e755cea22fec5ab485eaacc871ba716a4f311d7cf1ef237b8d0f81f31a6c`
 
 ## Coverage
 
@@ -249,8 +249,8 @@
 | `identity.car-model-name` | Car Model Name | string | dimensionless | text | scalar |  |  |  |
 | `identity.car-name` | Car Name | string | dimensionless | text | scalar |  |  |  |
 | `identity.car-performance-index` | Car Performance Index | number | dimensionless | count | scalar |  |  |  |
-| `identity.competitor.car-name` | Competitor car name | string | dimensionless | text | scalar |  |  |  |
-| `identity.competitor.driver-name` | Competitor driver name | string | dimensionless | text | scalar |  |  |  |
+| `identity.competitor.car-name` | Scoring snapshot competitor car name | string | dimensionless | text | scalar |  |  |  |
+| `identity.competitor.driver-name` | Scoring snapshot competitor driver name | string | dimensionless | text | scalar |  |  |  |
 | `identity.competitor.vehicle-class` | Competitor vehicle class | string | dimensionless | text | scalar |  |  |  |
 | `identity.driver-name` | Driver Name | string | dimensionless | text | scalar |  |  |  |
 | `identity.drivetrain-type` | Drivetrain Type | number | dimensionless | id | scalar |  |  |  |
@@ -360,7 +360,7 @@
 | `motion.yaw` | Yaw | number | angle | rad | scalar |  |  |  |
 | `motion.yaw-north` | Yaw North | number | angle | rad | scalar |  |  |  |
 | `motion.yaw-rate-st` | Yaw Rate ST | number | angle × time^-1 | rad/s | variable:0-* | source-order |  |  |
-| `race.competitor.best-lap-time` | Competitor best lap time | number | time | s | scalar |  |  |  |
+| `race.competitor.best-lap-time` | Scoring snapshot competitor best lap time | number | time | s | scalar |  |  |  |
 | `race.competitor.best-sector-1` | Competitor best sector 1 | number | time | s | scalar |  |  |  |
 | `race.competitor.best-sector-2-cumulative` | Competitor best cumulative sector 2 | number | time | s | scalar |  |  |  |
 | `race.competitor.car-class-color` | Competitor car-class color | structured | unit:color | color | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
@@ -385,7 +385,7 @@
 | `race.competitor.club-id` | Club ID | structured | dimensionless | id | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.club-name` | Competitor club name | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
 | `race.competitor.count-lap-flag` | Competitor count-lap flag | number | dimensionless | index | scalar |  |  |  |
-| `race.competitor.current-lap-number` | Competitor current lap number | number | dimensionless | count | scalar |  |  |  |
+| `race.competitor.current-lap-number` | Scoring snapshot competitor current lap number | number | dimensionless | count | scalar |  |  |  |
 | `race.competitor.current-sector` | Competitor current sector | number | dimensionless | index | scalar |  |  |  |
 | `race.competitor.current-sector-1` | Competitor current sector 1 | number | time | s | scalar |  |  |  |
 | `race.competitor.current-sector-2-cumulative` | Competitor current cumulative sector 2 | number | time | s | scalar |  |  |  |
@@ -406,14 +406,14 @@
 | `race.competitor.is-spectator` | Competitor spectator status | structured | dimensionless | boolean | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:boolean |  |
 | `race.competitor.joker-laps-complete` | Joker Laps Complete | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.lap-distance` | Competitor lap distance | number | length | m | scalar |  |  |  |
-| `race.competitor.lap-fraction` | Competitor lap fraction | number | dimensionless | fraction | scalar |  |  |  |
+| `race.competitor.lap-fraction` | Scoring snapshot competitor lap fraction | number | dimensionless | fraction | scalar |  |  |  |
 | `race.competitor.lap-start-time` | Competitor lap start time | number | time | s | scalar |  |  |  |
 | `race.competitor.laps-behind-leader` | Competitor laps behind leader | number | dimensionless | count | scalar |  |  |  |
 | `race.competitor.laps-behind-next` | Competitor laps behind next place | number | dimensionless | count | scalar |  |  |  |
 | `race.competitor.laps-complete` | Competitor laps complete | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.laps-driven` | Laps Driven | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.laps-led` | Competitor laps led | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
-| `race.competitor.last-lap-time` | Competitor last lap time | number | time | s | scalar |  |  |  |
+| `race.competitor.last-lap-time` | Scoring snapshot competitor last lap time | number | time | s | scalar |  |  |  |
 | `race.competitor.last-sector-1` | Competitor last sector 1 | number | time | s | scalar |  |  |  |
 | `race.competitor.last-sector-2-cumulative` | Competitor last cumulative sector 2 | number | time | s | scalar |  |  |  |
 | `race.competitor.license-color` | Competitor license color | structured | unit:color | color | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
@@ -426,9 +426,9 @@
 | `race.competitor.penalties` | Competitor penalties | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.pit-state` | Competitor pit state | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2, 3, 4 |  |
 | `race.competitor.pit-status` | Competitor pit status | structured | unit:enum | enum | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:boolean |  |
-| `race.competitor.pit-stop-count` | Competitor pit-stop count | number | dimensionless | count | scalar |  |  |  |
+| `race.competitor.pit-stop-count` | Scoring snapshot competitor pit-stop count | number | dimensionless | count | scalar |  |  |  |
 | `race.competitor.pit-stops` | Competitor pit-stop count | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
-| `race.competitor.position` | Competitor position | number | dimensionless | count | scalar |  |  |  |
+| `race.competitor.position` | Competitor position | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.primary-sponsor` | Competitor primary sponsor | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
 | `race.competitor.push-to-pass-active` | Competitor push-to-pass active | structured | dimensionless | boolean | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:boolean |  |
 | `race.competitor.push-to-pass-count` | Competitor push-to-pass count | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |

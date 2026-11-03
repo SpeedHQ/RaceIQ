@@ -35,6 +35,21 @@ async function openStorage(page: Page, request: APIRequestContext) {
   if (await settingsMenu.isVisible()) await settingsMenu.click();
   await page.getByRole("button", { name: "Storage", exact: true }).click();
   await page.getByRole("tab", { name: "Storage", exact: true }).click();
+  await page.getByRole("tab", { name: "Opponent data", exact: true }).click();
+}
+
+async function openRemovalPreview(page: Page, request: APIRequestContext, sessionIds: number[]) {
+  await expect.poll(async () => {
+    const response = await request.post("/api/storage/session-opponents/preview", { data: { sessionIds } });
+    if (response.status() === 409) {
+      expect(await response.json()).toMatchObject({ code: "STORAGE_BUSY" });
+      return false;
+    }
+    expect(response.status(), "opponent removal preview").toBe(200);
+    return true;
+  }, { timeout: 60_000, intervals: [250, 500, 1_000] }).toBe(true);
+  await page.getByRole("region", { name: "Remove saved opponent data" })
+    .getByRole("button", { name: "Preview removal" }).click();
 }
 
 test("LMU opponent removal previews without mutation, confirms whole-session removal, preserves player laps", async ({ page, request }) => {
@@ -55,6 +70,9 @@ test("LMU opponent removal previews without mutation, confirms whole-session rem
       .filter((lap) => ids.includes(lap.sessionId)).map(({ id }) => id);
     expect(playerLapIdsBefore.length).toBeGreaterThan(0);
     playerExportIds = [...playerLapIdsBefore];
+    await expect.poll(async () => (await request.post("/api/storage/session-opponents/preview", {
+      data: { sessionIds: [ids[0]!] },
+    })).status(), { timeout: 60_000 }).toBe(200);
     const initialStatus = await (await request.get("/api/storage/session-opponents")).json();
     for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
       await page.setViewportSize(viewport);
@@ -63,7 +81,7 @@ test("LMU opponent removal previews without mutation, confirms whole-session rem
       await expect(section).toBeVisible();
       const checkboxes = ids.map((id) => section.getByLabel(new RegExp(`#${id}\\b`)));
       await checkboxes[0]!.check();
-      await section.getByRole("button", { name: "Preview removal" }).click();
+      await openRemovalPreview(page, request, [ids[0]!]);
       const dialog = page.getByRole("dialog", { name: "Remove saved opponent data" });
       await expect(dialog).toContainText(`#${ids[0]}`);
       await expect(dialog).toContainText("Removable companion data:");
@@ -79,7 +97,7 @@ test("LMU opponent removal previews without mutation, confirms whole-session rem
     await page.getByRole("region", { name: "Remove saved opponent data" }).getByLabel(new RegExp(`#${ids[0]}\\b`)).check();
     const section = page.getByRole("region", { name: "Remove saved opponent data" });
     await section.getByLabel(new RegExp(`#${ids[1]}\\b`)).check();
-    await section.getByRole("button", { name: "Preview removal" }).click();
+    await openRemovalPreview(page, request, ids);
     const confirmDialog = page.getByRole("dialog", { name: "Remove saved opponent data" });
     await expect(confirmDialog).toContainText(`#${ids[0]}`);
     await expect(confirmDialog).toContainText(`#${ids[1]}`);
@@ -119,7 +137,7 @@ test("LMU opponent removal previews without mutation, confirms whole-session rem
     await expect(page.getByRole("region", { name: "Remove saved opponent data" }).getByText(/Removed from 2 sessions/)).toBeVisible();
     const removedSection = page.getByRole("region", { name: "Remove saved opponent data" });
     await removedSection.getByLabel(new RegExp(`#${ids[0]}\\b`)).check();
-    await removedSection.getByRole("button", { name: "Preview removal" }).click();
+    await openRemovalPreview(page, request, [ids[0]!]);
     const removedPreview = page.getByRole("dialog", { name: "Remove saved opponent data" });
     await expect(removedPreview).toContainText("Opponent data already removed");
     await page.keyboard.press("Escape");

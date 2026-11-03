@@ -30,6 +30,16 @@ import { resolveTrack } from "@raceiq/backend-core/tracks/info";
 
 type CapturedLapWithPackets = CapturedLap & { packets: TelemetryPacket[] };
 
+function longestNativeInvalidRun(packets: readonly TelemetryPacket[]): number {
+	let run = 0;
+	let longest = 0;
+	for (const packet of packets) {
+		run = packet.acc?.isValidLap === false ? run + 1 : 0;
+		longest = Math.max(longest, run);
+	}
+	return longest;
+}
+
 const AC_EVO_RECORDING =
 	"test/artifacts/sessions/ac-evo-2026-04-15T17-12-25-825Z.bin.gz";
 const recording = existsSync(AC_EVO_RECORDING) ? AC_EVO_RECORDING : null;
@@ -152,18 +162,18 @@ describe("AC Evo v0.6 recording", () => {
 		}
 		await detector.flushIncompleteLap();
 		expect(db.laps.map(({ isValid, invalidReason }) => ({ isValid, invalidReason }))).toEqual([
-			{ isValid: false, invalidReason: "outlap" },
+			{ isValid: false, invalidReason: "track limits" },
 			{ isValid: false, invalidReason: "track limits" },
 			{ isValid: false, invalidReason: "incomplete" },
 		]);
+		expect(db.laps[0].classification).toBe("out_lap");
 	}, 120_000);
 
-	// This recording holds three laps and no clean one: a garage-start outlap, a
-	// flying lap the driver threw away (speed collapses 46 → 8 km/h at 25.6s and
-	// AC Evo clears `is_valid_lap` for the remaining 4825 frames), then a lap cut
-	// short when the recorder stopped. So the assertion is the full classification
-	// of those three, including the provenance of the track-limits cut — an
-	// `is_valid_lap` flag misread would flunk the "clean at the line" half.
+	// This recording holds three laps and no clean one: a garage-start outlap
+	// with a native track-limits cut, a flying lap the driver threw away (speed
+	// collapses 46 → 8 km/h at 25.6s and AC Evo clears `is_valid_lap` for
+	// 4825 consecutive frames), then a lap cut short when the recorder stopped.
+	// The assertions retain each category and the native invalidity separately.
 	test("lap detection: outlap, a thrown-away flying lap, incomplete final lap", () => {
 		if (!recording) return;
 		// Log what we got for debugging
@@ -179,21 +189,27 @@ describe("AC Evo v0.6 recording", () => {
 
 		expect(laps.length).toBe(3);
 
-		// Lap 1: outlap — driver exits pit, not a valid timed lap
-		expect(laps[0].invalidReason).toBe("outlap");
+		// Lap 1: pit classification does not hide a sustained native validity drop.
+		expect(laps[0].classification).toBe("out_lap");
+		expect(laps[0].invalidReason).toBe("track limits");
 		expect(laps[0].isValid).toBe(false);
+		const outlapPackets = laps[0].packets;
+		expect(outlapPackets[0].acc?.pitStatus).not.toBe("out");
+		expect(outlapPackets[0].acc?.isValidLap).toBe(true);
+		const outlapCut = outlapPackets.findIndex((packet) => packet.acc?.isValidLap === false);
+		expect(outlapCut).toBe(1311);
+		expect(longestNativeInvalidRun(outlapPackets)).toBe(5553);
 
 		// Lap 2: a real flying lap, invalidated on track rather than by pit contact.
 		const flying = laps[1];
 		expect(flying.invalidReason).toBe("track limits");
 		expect(flying.isValid).toBe(false);
-		// Provenance of the cut: the lap started clean, went invalid mid-lap, and
-		// stayed invalid — not a flag inherited across the start/finish line.
+		// Native validity drops during the lap, rather than arriving invalid.
 		const flyingPackets = flying.packets ?? [];
 		expect(flyingPackets[0].acc?.isValidLap).toBe(true);
 		const cutIdx = flyingPackets.findIndex((p) => p.acc?.isValidLap === false);
-		expect(cutIdx).toBeGreaterThan(0);
-		expect(flyingPackets.slice(cutIdx).every((p) => p.acc?.isValidLap === false)).toBe(true);
+		expect(cutIdx).toBe(1609);
+		expect(longestNativeInvalidRun(flyingPackets)).toBe(4825);
 		// The car really did leave the track: speed collapses across the cut.
 		expect(flyingPackets[cutIdx].Speed).toBeLessThan(flyingPackets[cutIdx - 600].Speed / 2);
 

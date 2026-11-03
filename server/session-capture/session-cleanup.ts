@@ -481,7 +481,10 @@ class BundleDeletionError extends Error {
 
 async function deleteUnreferencedBundles(group: CleanupGroup): Promise<{ files: number; bytes: number }> {
   const referenced = await loadReferencedCapturePaths();
-  const candidates = await unsharedBundleFiles(group.rows);
+  const candidates = {
+    files: group.bundleFiles,
+    opponentIndexRoots: group.opponentIndexRoots,
+  };
   let files = 0;
   let bytes = 0;
   for (const path of candidates.files) {
