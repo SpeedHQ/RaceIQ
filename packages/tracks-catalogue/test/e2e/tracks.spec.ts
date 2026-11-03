@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import { runtime } from "../../../../playwright/config/runtime";
 import { collectBrowserErrors } from "../../../../playwright/tests/support/browser-errors";
 import { SEEDED_GAME_CASES } from "../../../../playwright/tests/support/seeded/cases";
+import { cleanDisposable, importDisposableLap } from "../../../../playwright/tests/support/session-fixtures";
 
 type TrackCapability = {
   guides: readonly string[];
@@ -161,38 +162,16 @@ for (const game of SEEDED_GAME_CASES) {
 }
 
 test("track lap deletion uses imported disposable data and cleans imported session", async ({ page, request }) => {
+  test.setTimeout(240_000);
   const browserErrors = collectBrowserErrors(page);
-  const sessionsBeforeResponse = await request.get("/api/sessions?gameId=fm-2023");
-  expect(sessionsBeforeResponse.ok()).toBe(true);
-  const sessionsBefore = (await sessionsBeforeResponse.json()) as { id: number }[];
   const lapsResponse = await request.get("/api/laps?gameId=fm-2023");
   expect(lapsResponse.ok()).toBe(true);
   const seededLaps = (await lapsResponse.json()) as { id: number; trackId: string; isValid: boolean; telemetryAvailable?: boolean; rawFrameCount?: number }[];
   const source = seededLaps.find((lap) => lap.isValid && lap.telemetryAvailable && (lap.rawFrameCount ?? 0) > 0);
   if (!source) throw new Error("Missing valid FM lap with available raw capture for disposable import");
-  const exportResponse = await request.get(`/api/laps/${source.id}/export-bin`);
-  expect(exportResponse.ok()).toBe(true);
-  const importResponse = await request.post("/api/laps/import", {
-    multipart: {
-      file: {
-        name: "tracks-cars-disposable.bin.gz",
-        mimeType: "application/octet-stream",
-        buffer: await exportResponse.body(),
-      },
-      ownership: "mine",
-    },
-  });
-  expect(importResponse.ok()).toBe(true);
-  let importedLapIds: number[] = [];
-  let importedSessionIds: number[] = [];
+  const disposable = await importDisposableLap(request, "fm-2023", "tracks-cars-disposable", source.id);
   try {
-    const imported = (await importResponse.json()) as { laps?: { lapId: number }[] };
-    importedLapIds = imported.laps?.map((lap) => lap.lapId) ?? [];
-    expect(importedLapIds.length).toBeGreaterThan(0);
-    const sessionsAfterResponse = await request.get("/api/sessions?gameId=fm-2023");
-    expect(sessionsAfterResponse.ok()).toBe(true);
-    const sessionIdsBefore = new Set(sessionsBefore.map((session) => session.id));
-    importedSessionIds = ((await sessionsAfterResponse.json()) as { id: number }[]).filter((session) => !sessionIdsBefore.has(session.id)).map((session) => session.id);
+    const importedLapIds = disposable.lapIds;
     await page.goto(`/fm23/tracks/${encodeURIComponent(source.trackId)}/laps`, { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("tab", { name: /^Laps(?: \(\d+\))?$/ })).toHaveAttribute("aria-selected", "true");
     const importedRow = page.locator(`[data-testid="track-lap-${importedLapIds[0]}"]`);
@@ -203,14 +182,7 @@ test("track lap deletion uses imported disposable data and cleans imported sessi
     await expect(importedRow).toHaveCount(0);
     expect(browserErrors.errors, "track deletion browser errors").toEqual([]);
   } finally {
-    if (importedLapIds.length > 0) {
-      const cleanup = await request.post("/api/laps/bulk-delete", { data: { ids: importedLapIds } });
-      expect(cleanup.ok(), "cleanup imported laps").toBe(true);
-    }
-    if (importedSessionIds.length > 0) {
-      const cleanup = await request.post("/api/sessions/bulk-delete", { data: { ids: importedSessionIds } });
-      expect(cleanup.ok(), "cleanup imported sessions").toBe(true);
-    }
+    await cleanDisposable(request, disposable);
   }
 });
 
