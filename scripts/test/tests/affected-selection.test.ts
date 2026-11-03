@@ -54,13 +54,15 @@ function fixture() {
   };
   git("init", "-b", "main");
   put(".gitignore", "node_modules\n.turbo\n");
-  put("package.json", JSON.stringify({ name: "fixture", private: true, packageManager: "npm@10.0.0", workspaces: ["packages/*"] }));
-  put("package-lock.json", JSON.stringify({ name: "fixture", lockfileVersion: 3, packages: { "": { name: "fixture", workspaces: ["packages/*"] } } }));
+  put("package.json", JSON.stringify({ name: "fixture", private: true, packageManager: "npm@10.0.0", workspaces: ["client", "packages/*"] }));
+  put("package-lock.json", JSON.stringify({ name: "fixture", lockfileVersion: 3, packages: { "": { name: "fixture", workspaces: ["client", "packages/*"] } } }));
   put("turbo.json", JSON.stringify({ futureFlags: { affectedUsingTaskInputs: true }, tasks: {
     transit: { dependsOn: ["^transit"], inputs: ["src/**"] },
     "test:unit": { dependsOn: ["transit"], inputs: ["test/**"], env: ["FIXTURE_VALUE"] },
     "test:integration": { dependsOn: ["transit"], inputs: ["test/**"] },
   } }));
+  put("client/package.json", JSON.stringify({ name: "client", version: "1.0.0", scripts: { test: "bun test ./test" } }));
+  put("client/test/example.test.ts", "// client test\n");
   for (const name of ["leaf", "consumer", "downstream", "unrelated"]) {
     const dependency = name === "consumer" ? "leaf" : name === "downstream" ? "consumer" : undefined;
     put(`packages/${name}/package.json`, JSON.stringify({ name, version: "1.0.0", scripts: { "test:unit": "node -e \"console.log('suite executed')\"", "test:integration": "node -e \"console.log('integration executed')\"" }, ...(dependency ? { dependencies: { [dependency]: "*" } } : {}) }));
@@ -174,7 +176,7 @@ test("native defaults select untracked working-tree leaf tests", () => {
 test("unassigned tests fail closed before Turbo selection", () => {
   const f = fixture();
   try {
-    for (const path of ["packages/leaf/test/unknown.test.ts", "packages/leaf/test/nested/unknown.test.tsx", "packages/leaf/src/new.test.ts", "packages/leaf/src/nested/new.test.tsx", "test/unowned.test.ts"]) {
+    for (const path of ["packages/leaf/test/unknown.test.ts", "packages/leaf/test/nested/unknown.test.tsx", "packages/leaf/src/new.test.ts", "packages/leaf/src/nested/new.test.tsx", "test/unowned.test.ts", "client/src/unowned.test.ts", "client/src/unowned.test.tsx", "client/test/.hidden.test.ts", "packages/leaf/test/.hidden.test.ts", "packages/leaf/src/.hidden/unowned.test.tsx", "test/.hidden/unowned.test.ts"]) {
       f.put(path, "// unassigned\n");
       const result = f.run(["--affected", "--dry=json"]);
       expect(result.exitCode, path).not.toBe(0);
@@ -187,9 +189,14 @@ test("unassigned tests fail closed before Turbo selection", () => {
 test("workspace test discovery preserves browser specs and excluded fixture conventions", () => {
   const f = fixture();
   try {
+    f.put("client/package.json", JSON.stringify({ name: "client", scripts: { test: "bun test ./test" } }));
+    f.put("client/test/example.test.ts", "// client test\n");
+    f.put("client/src/example.spec.tsx", "// browser spec\n");
+    f.put("client/src/fixtures/.hidden.test.ts", "// fixture\n");
     f.put("packages/leaf/src/example.spec.ts", "// browser spec\n");
     f.put("packages/disabled/package.json", JSON.stringify({ name: "disabled", raceiq: { testOwner: false } }));
     f.put("packages/disabled/src/example.test.ts", "// disabled owner\n");
+    f.put("packages/disabled/.hidden/example.test.ts", "// disabled owner\n");
     f.put("packages/leaf/src/fixtures/example.test.ts", "// fixture\n");
     f.put("packages/leaf/src/artifacts/example.test.tsx", "// artifact\n");
     expect(() => generateTurboInputs(f.root)).not.toThrow();
@@ -231,7 +238,7 @@ test("invalid and equal ranges select full", () => {
       { TURBO_SCM_BASE: f.head, TURBO_SCM_HEAD: f.head },
     ]) {
       const selection = f.selected(range);
-      expect(selection.packages).toEqual(["consumer", "downstream", "leaf", "unrelated"]);
+      expect(selection.packages).toEqual(["client", "consumer", "downstream", "leaf", "unrelated"]);
       expect(selection.result.stderr.toString()).toContain("running full task selection");
     }
   } finally { f.cleanup(); }
@@ -244,7 +251,7 @@ test("shallow history selects affected when range is available and full when mis
     expect(f.selected({ TURBO_SCM_BASE: f.base, TURBO_SCM_HEAD: f.head }).packages).toEqual(["leaf"]);
     f.put(".git/shallow", `${f.head}\n`);
     const shallow = f.selected({ TURBO_SCM_BASE: f.base, TURBO_SCM_HEAD: f.head });
-    expect(shallow.packages).toEqual(["consumer", "downstream", "leaf", "unrelated"]);
+    expect(shallow.packages).toEqual(["client", "consumer", "downstream", "leaf", "unrelated"]);
     expect(shallow.result.stderr.toString()).toContain("running full task selection");
   } finally { f.cleanup(); }
 });
@@ -254,9 +261,9 @@ test("non-affected invocation selects the full graph", () => {
   try {
     const full = f.run(["--dry=json"]);
     expect(full.exitCode, full.stderr.toString()).toBe(0);
-    const output = JSON.parse(full.stdout.toString()) as { tasks: Array<{ task: string }> };
-    const tasks = output.tasks;
-    expect(tasks.filter((task) => task.task === "test:unit")).toHaveLength(4);
+    const output = JSON.parse(full.stdout.toString()) as { tasks: Array<{ task: string; package: string }> };
+    expect(output.tasks.filter((task) => task.task === "test:unit").map((task) => task.package).sort())
+      .toEqual(["client", "consumer", "downstream", "leaf", "unrelated"]);
   } finally { f.cleanup(); }
 });
 

@@ -19,6 +19,25 @@ export function generateTurboInputs(root: string): string {
   if (!config.tasks || typeof config.tasks !== "object") throw new Error("turbo.json: missing tasks");
   const owners = discoverTestOwners(root);
   const allOwners = discoverTestOwners(root, { includeDisabled: true });
+  const clientRoot = "client";
+  const scanRoots = [...owners.map((owner) => owner.root), clientRoot, "test"];
+  for (const directory of new Set(scanRoots)) {
+    if (!existsSync(resolve(root, directory))) continue;
+    for (const pattern of ["**/*.test.ts", "**/*.test.tsx"]) {
+      for (const file of new Bun.Glob(pattern).scanSync({ cwd: resolve(root, directory), onlyFiles: true, dot: true })) {
+        const path = `${directory}/${file.replaceAll("\\", "/")}`;
+        const parts = path.split("/");
+        if (parts.some((part) => part === "fixtures" || part === "artifacts" || part === "node_modules")) continue;
+        if (allOwners.some((owner) => owner.disabled && (path === owner.root || path.startsWith(`${owner.root}/`)))) continue;
+        if (parts.some((part) => part.startsWith("."))) {
+          throw new Error(`${path}: hidden ordinary test is not covered by test discovery`);
+        }
+        if (directory === clientRoot && !path.startsWith(`${clientRoot}/test/`)) {
+          throw new Error(`${path}: ordinary test is outside an owner test root`);
+        }
+      }
+    }
+  }
   for (const owner of owners) {
     for (const pattern of ["**/*.test.ts", "**/*.test.tsx"]) {
       for (const file of new Bun.Glob(pattern).scanSync({ cwd: resolve(root, owner.root), onlyFiles: true })) {

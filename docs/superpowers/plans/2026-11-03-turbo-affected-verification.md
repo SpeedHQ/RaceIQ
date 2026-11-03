@@ -200,8 +200,9 @@ Completion requires passing evidence for every AC and E01–E15, plus independen
 
 ## Execution status
 
-- Range handling, generated suite inputs, browser selection, workflow gating, documentation, and the authorized replay fixes are implemented. Independent review identified additional ordinary-suite selection coverage to address.
-- `bun run test:shards` passed. Targeted selection and selector tests passed; `bun run test:tooling` passed before the latest selector changes. Real-owner execution demonstrated a cache hit.
+- Range handling, generated suite inputs, browser selection, workflow gating, documentation, and the authorized replay fixes are implemented. Independent checks verified fail-closed ownership for client and hidden ordinary tests.
+- `bun run test:shards` passed. `bun run test:tooling` passed after the final fixture correction: eight tasks successful, including 86 tooling tests. Independent affected-selection checks passed 17 tests and 148 assertions. A real-owner task execution demonstrated a cache hit.
+- `bun scripts/test/run-turbo.ts typecheck lint --affected --concurrency=2` passed 82 tasks. Playwright discovery listed 306 tests; selector inventory checks passed.
 - Compiled tracks and cars catalogue journeys passed. The replay suite passed after the fixes: 45 passed, with one cold-frame assertion passing on retry. Independent replay checks passed three targeted browser scenarios; the resize-before-effect race remains without direct proof.
 - A tracks change selects additional browser projects through genuine package dependencies. Fresh and tunes consume tracks; conservative package-level fanout is authorized.
 - Hosted CI provisioning, manual dispatch, branch protection, and native-hardware WebGPU remain unverified. `actionlint` is unavailable. No completion claim is made.
