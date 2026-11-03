@@ -54,7 +54,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4
+          bun-version: 1.4.4
       - name: Download comparison previews
         uses: actions/download-artifact@v7
         with:

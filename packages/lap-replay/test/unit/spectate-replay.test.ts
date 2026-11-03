@@ -461,6 +461,32 @@ test("B insight events on a plateau or outside A coverage fall back to native ti
   }
 });
 
+test.each(["a", "b"] as const)("coalesced %s frame seeks release position lock without borrowing another frame's distance", (side) => {
+  const a = recordedLap(1, (time) => time * 100);
+  const b = recordedLap(1, (time) => time * 50);
+  const selected = side === "a" ? a : b;
+  const frame = selected.replay.envelopes[4]!;
+  selected.samples[5]!.time = selected.samples[4]!.time;
+  selected.samples = selected.samples.filter((_, index) => index !== 4);
+  const controller = createSpectateController(a, b);
+  try {
+    controller.seekFrame(side, 4);
+    const snapshot = controller.getSnapshot();
+    expect(snapshot.positionLock).toBe(false);
+    expect(snapshot.time).toBeCloseTo(0.2);
+    expect(snapshot[side]?.frame).toBe(frame);
+    expect(snapshot[side]?.pose?.x).toBe(side === "a" ? 20 : 10);
+    expect(snapshot[side]?.distance).toBeNull();
+    expect(snapshot[side === "a" ? "b" : "a"]?.time).toBeCloseTo(0.2);
+    controller.scrub(0.2);
+    expect(controller.getSnapshot()[side]?.distance).toBe(side === "a" ? 25 : 12.5);
+    controller.setPositionLock(true);
+    controller.seekFrame(side, 6);
+    expect(controller.getSnapshot().positionLock).toBe(true);
+    expect(controller.getSnapshot().a?.distance).toBeCloseTo(controller.getSnapshot().b!.distance!);
+  } finally { controller.dispose(); }
+});
+
 test("insight seek handles coalesced ticks, excluded tails, and invalid indices", () => {
   const a = recordedLap(1, (time) => time * 100);
   a.samples[5]!.time = a.samples[4]!.time;
@@ -469,6 +495,12 @@ test("insight seek handles coalesced ticks, excluded tails, and invalid indices"
   try {
     controller.seekFrame("a", 4);
     expect(controller.getSnapshot().time).toBeCloseTo(0.2);
+    expect(controller.getSnapshot().a?.frame).toBe(a.replay.envelopes[4]);
+    expect(controller.getSnapshot().a?.values["motion.position-x"]).toBe(20);
+    expect(controller.getSnapshot().a?.pose?.x).toBe(20);
+    controller.scrub(0.2);
+    expect(controller.getSnapshot().a?.frame).toBe(a.replay.envelopes[5]);
+    expect(controller.getSnapshot().a?.values["motion.position-x"]).toBe(25);
     controller.seekFrame("a", 20);
     expect(controller.getSnapshot().time).toBeCloseTo(0.95);
     controller.seekFrame("a", -1);

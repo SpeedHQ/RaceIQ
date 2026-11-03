@@ -45,6 +45,7 @@ export type SeedOptions = {
   games: GameId[];
   fixtures?: string[];
   excludedFixtures: string[];
+  playwright: boolean;
 };
 
 function parseGames(value: string | undefined): GameId[] {
@@ -84,6 +85,7 @@ export function parseOptions(argv = process.argv): SeedOptions {
   let reset = false;
   let force = false;
   let legacyRecordings = false;
+  let playwright = false;
   let inlineGames: string | undefined;
   let separateGames: string | undefined;
   let fixturePaths: string | undefined;
@@ -99,6 +101,9 @@ export function parseOptions(argv = process.argv): SeedOptions {
     }
 
     switch (option) {
+      case "--playwright":
+        playwright = true;
+        break;
       case "--clean":
         clean = true;
         break;
@@ -130,5 +135,5 @@ export function parseOptions(argv = process.argv): SeedOptions {
   const fixtures = parseFixtures(fixturePaths, games);
   const excludedFixtures = parseExcludedFixtures(excludedPaths);
 
-  return { clean, reset, force, legacyRecordings, games, fixtures, excludedFixtures };
+  return { clean, reset, force, legacyRecordings, games, fixtures, excludedFixtures, playwright };
 }

@@ -935,7 +935,8 @@ async function readSelectedBlock(
   }
   const blockPath = resolve(root, descriptor.file);
   const relativePath = relative(root, blockPath);
-  if (relativePath !== descriptor.file || relativePath.startsWith(`..${sep}`) || isAbsolute(relativePath)) {
+  const portableRelativePath = relativePath.replaceAll("\\", "/");
+  if (portableRelativePath !== descriptor.file || portableRelativePath === ".." || portableRelativePath.startsWith("../") || isAbsolute(relativePath)) {
     throw new LmuOpponentIndexError("BLOCK_CORRUPT", "Opponent block path escapes publication directory");
   }
   const link = await lstat(blockPath).catch(() => null);

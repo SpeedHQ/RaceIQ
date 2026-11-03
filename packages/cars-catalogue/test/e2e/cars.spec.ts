@@ -68,6 +68,21 @@ for (const game of SEEDED_GAME_CASES) {
       const selectedCategory = (await categoryOption.innerText()).trim();
       await categoryOption.click();
       await expect(categorySelect).toHaveValue(selectedCategory);
+      const response = await page.request.get("/api/cars", { headers: { "X-Game-Id": game.gameId } });
+      expect(response.ok()).toBe(true);
+      const cars = await response.json() as { name: string; category: string }[];
+      const sportsCars = cars.filter((car) => car.category === "sports_car");
+      expect(sportsCars.length).toBeGreaterThan(0);
+      expect(sportsCars.length).toBeLessThan(cars.length);
+      const category = page.getByRole("combobox", { name: "All categories", exact: true });
+      await category.click();
+      await page.getByRole("option", { name: `Sports Car (${sportsCars.length})`, exact: true }).click();
+      await expect(category).toHaveValue(`Sports Car (${sportsCars.length})`);
+      await expect.poll(async () => (await page.locator("main article h2").allTextContents()).sort())
+        .toEqual(sportsCars.map((car) => car.name).sort());
+      await category.click();
+      await page.getByRole("option", { name: `All categories (${cars.length})`, exact: true }).click();
+      await expect(page.locator("main article")).toHaveCount(cars.length);
     } else {
       const category = page.locator("button[data-catalog-category]").first();
       await expect(category).toBeVisible({ timeout: 20_000 });

@@ -187,6 +187,7 @@ function expectImportedRecording(databasePath: string, existingIds: number[] = [
 afterEach(async () => {
   for (const dataDir of tempDirs.splice(0)) {
     for (let attempt = 0; attempt < 10; attempt++) {
+      if (process.platform === "win32") Bun.gc(true);
       try {
         rmSync(dataDir, { recursive: true, force: true });
         break;

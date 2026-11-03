@@ -79,7 +79,8 @@ type RuntimeEventWaiter = {
 
 
 export interface OpponentColdLoadControls {
-  holdAt(name: string): Promise<void>;
+  holdAt(name: string, options?: { sourcePath?: string }): Promise<void>;
+  releaseHold(name: string): Promise<void>;
   waitForBarrier(name: string, options?: { sourcePath?: string; timeoutMs?: number }): Promise<OpponentColdLoadBarrier>;
   releaseBarrier(idOrName: string): Promise<void>;
   failBarrier(idOrName: string): Promise<void>;
@@ -270,7 +271,7 @@ export async function seedLmuOpponentColdLoadData(
   };
 }
 
-export async function readLmuOpponentColdLoadIdentity(dataDir: string): Promise<LmuOpponentColdLoadIdentity> {
+function readSeededLmuPlayerIdentities(dataDir: string): SeededLmuOpponentIdentity[] {
   const database = new Database(join(dataDir, "app.db"), { readonly: true });
   try {
     const rows = database.prepare(`
@@ -294,64 +295,56 @@ export async function readLmuOpponentColdLoadIdentity(dataDir: string): Promise<
         AND s.track_id != ''
         AND s.car_id != ''
       ORDER BY s.id, l.lap_number, l.id
-    `).all() as {
-      sessionId: number;
-      lapId: number;
-      sourcePath: string | null;
-      trackId: string;
-      carId: string;
-      lapNumber: number;
-    }[];
+    `).all() as Omit<SeededLmuOpponentIdentity, "gameId">[];
     if (!rows.length) throw new Error("Real LMU seed did not produce a valid source-backed player lap");
-
-    const indexes = new Map<string, LmuOpponentIndexManifest>();
-    for (const row of rows) {
-      if (!row.sourcePath) continue;
-      const sourcePath = resolve(row.sourcePath);
-      let index = indexes.get(sourcePath);
-      if (!index) {
-        const state = JSON.parse(await readFile(join(`${sourcePath}.opponent-index`, "state.json"), "utf8")) as {
-          indexState?: unknown;
-          publicationPath?: unknown;
-          sourceRevision?: unknown;
-          sourceDependencies?: unknown;
-        };
-        if (state.indexState !== "ready" || typeof state.publicationPath !== "string" ||
-            typeof state.sourceRevision !== "string" || !Array.isArray(state.sourceDependencies)) {
-          throw new Error(`LMU opponent index is not ready for source ${sourcePath}`);
-        }
-        const manifest = parseLmuOpponentIndexManifest(JSON.parse(await readFile(state.publicationPath, "utf8")));
-        if (manifest.sourceRevision !== state.sourceRevision ||
-            JSON.stringify(manifest.sourceDependencies) !== JSON.stringify(state.sourceDependencies)) {
-          throw new Error(`LMU opponent index source identity does not match ready state for ${sourcePath}`);
-        }
-        index = manifest;
-        indexes.set(sourcePath, index);
-      }
-      const playerFacts = index.playerLapFacts.find((facts) => facts.playerLapId === row.lapId);
-      if (!playerFacts) continue;
-      const candidate = index.summaries.map((facts) =>
-        summarizeLmuOpponentSummaryFacts(facts, playerFacts.comparableChannelIds),
-      ).find((lap) => lap.mode === "telemetry" && lap.coverage === "complete");
-      if (!candidate) continue;
-      return {
-        target: {
-          gameId: "lmu",
-          sessionId: row.sessionId,
-          lapId: row.lapId,
-          sourcePath: row.sourcePath,
-          trackId: row.trackId,
-          carId: row.carId,
-          lapNumber: row.lapNumber,
-        },
-        ready: { sessionId: row.sessionId, lapId: row.lapId },
-        opponentLapId: candidate.opponentLapId,
-      };
-    }
-    throw new Error("Real LMU seed has no valid player lap with a complete telemetry opponent interval");
+    return rows.map((row) => ({ gameId: "lmu", ...row }));
   } finally {
     database.close();
   }
+}
+
+export function readSeededLmuPlayerIdentity(dataDir: string): SeededLmuOpponentIdentity {
+  return readSeededLmuPlayerIdentities(dataDir)[0]!;
+}
+
+export async function readLmuOpponentColdLoadIdentity(dataDir: string): Promise<LmuOpponentColdLoadIdentity> {
+  const rows = readSeededLmuPlayerIdentities(dataDir);
+  const indexes = new Map<string, LmuOpponentIndexManifest>();
+  for (const row of rows) {
+    const sourcePath = resolve(row.sourcePath);
+    let index = indexes.get(sourcePath);
+    if (!index) {
+      const state = JSON.parse(await readFile(join(`${sourcePath}.opponent-index`, "state.json"), "utf8")) as {
+        indexState?: unknown;
+        publicationPath?: unknown;
+        sourceRevision?: unknown;
+        sourceDependencies?: unknown;
+      };
+      if (state.indexState !== "ready" || typeof state.publicationPath !== "string" ||
+          typeof state.sourceRevision !== "string" || !Array.isArray(state.sourceDependencies)) {
+        throw new Error(`LMU opponent index is not ready for source ${sourcePath}`);
+      }
+      const manifest = parseLmuOpponentIndexManifest(JSON.parse(await readFile(state.publicationPath, "utf8")));
+      if (manifest.sourceRevision !== state.sourceRevision ||
+          JSON.stringify(manifest.sourceDependencies) !== JSON.stringify(state.sourceDependencies)) {
+        throw new Error(`LMU opponent index source identity does not match ready state for ${sourcePath}`);
+      }
+      index = manifest;
+      indexes.set(sourcePath, index);
+    }
+    const playerFacts = index.playerLapFacts.find((facts) => facts.playerLapId === row.lapId);
+    if (!playerFacts) continue;
+    const candidate = index.summaries.map((facts) =>
+      summarizeLmuOpponentSummaryFacts(facts, playerFacts.comparableChannelIds),
+    ).find((lap) => lap.mode === "telemetry" && lap.coverage === "complete");
+    if (!candidate) continue;
+    return {
+      target: row,
+      ready: { sessionId: row.sessionId, lapId: row.lapId },
+      opponentLapId: candidate.opponentLapId,
+    };
+  }
+  throw new Error("Real LMU seed has no valid player lap with a complete telemetry opponent interval");
 }
 
 function readLmuOpponentSessionSource(dataDir: string, sessionId: number): SessionCaptureSource | null {
@@ -561,7 +554,7 @@ export async function startOpponentColdLoadServer(
   try {
     ready = await withTimeout(readyResult.promise, 60_000, "backend/static adapter did not become ready");
   } catch (error) {
-    if (proc.exitCode === null && proc.signalCode === null) proc.kill("SIGTERM");
+    await killAndWait(proc, "SIGTERM", 120_000);
     throw error;
   }
 
@@ -569,7 +562,8 @@ export async function startOpponentColdLoadServer(
     baseURL: ready.baseURL,
     apiURL: ready.apiURL,
     executionMode: "source-runtime+dist-public-static-proxy",
-    holdAt: async (name) => { await command("hold", { name }); },
+    holdAt: async (name, options = {}) => { await command("hold", { name, sourcePath: options.sourcePath }); },
+    releaseHold: async (name) => { await command("releaseHold", { name }); },
     waitForBarrier: (name, options = {}) => barrierWaiter(name, barrierQueues, barrierWaiters, options),
     waitForRuntimeEvent: (type, eventOptions = {}) => runtimeEventWaiter(type, runtimeEventQueues, runtimeEventWaiters, eventOptions),
     releaseBarrier: async (idOrName) => { await command("release", { idOrName }); },
@@ -730,7 +724,7 @@ export async function startOpponentColdLoadSeedProcess(
   try {
     await withTimeout(readyResult.promise, 60_000, "seed child did not install controls");
   } catch (error) {
-    if (proc.exitCode === null && proc.signalCode === null) proc.kill("SIGTERM");
+    await killAndWait(proc, "SIGTERM", 120_000);
     throw error;
   }
 
@@ -738,7 +732,8 @@ export async function startOpponentColdLoadSeedProcess(
     stdout: stdoutResult.promise,
     stderr: stderrResult.promise,
     exit: exitResult.promise,
-    holdAt: async (name) => { await command("hold", { name }); },
+    holdAt: async (name, options = {}) => { await command("hold", { name, sourcePath: options.sourcePath }); },
+    releaseHold: async (name) => { await command("releaseHold", { name }); },
     waitForBarrier: (name, barrierOptions = {}) => barrierWaiter(name, barrierQueues, barrierWaiters, barrierOptions),
     waitForRuntimeEvent: (type, eventOptions = {}) => runtimeEventWaiter(type, runtimeEventQueues, runtimeEventWaiters, eventOptions),
     releaseBarrier: async (idOrName) => { await command("release", { idOrName }); },
@@ -812,16 +807,16 @@ function emitChild(message: Record<string, unknown>): void {
 async function runColdLoadChild(): Promise<void> {
   const dataDir = resolve(process.env.DATA_DIR!);
   const publicDir = resolve(process.env.RACEIQ_COLD_LOAD_PUBLIC_DIR!);
-  const heldNames = new Set<string>(JSON.parse(process.env.RACEIQ_COLD_LOAD_INITIAL_HOLDS ?? "[]") as string[]);
-  const heldBarriers = new Map<string, { name: string; release(fail: boolean): void }>();
+  const heldNames = new Map<string, string | undefined>((JSON.parse(process.env.RACEIQ_COLD_LOAD_INITIAL_HOLDS ?? "[]") as string[]).map((name) => [name, undefined]));
+  const heldBarriers = new Map<string, { name: string; sourcePath?: string; release(fail: boolean): void }>();
   let currentMetrics: ChildMetricsState | null = null;
   let ingress: OpponentIngressDriver | null = null;
   let apiURL: string | null = null;
   let apiServer: { httpServer: { port?: number; stop(closeActiveConnections?: boolean): void }; httpPort: number } | null = null;
   let adapter: Bun.Server<WSData> | null = null;
   const emitHeldBarrier = (barrier: OpponentColdLoadBarrier, release: (fail: boolean) => void) => {
-    if (!heldNames.has(barrier.name)) { release(false); return; }
-    heldBarriers.set(barrier.id, { name: barrier.name, release });
+    if (!heldNames.has(barrier.name) || (heldNames.get(barrier.name) !== undefined && heldNames.get(barrier.name) !== barrier.sourcePath)) { release(false); return; }
+    heldBarriers.set(barrier.id, { name: barrier.name, sourcePath: barrier.sourcePath, release });
     emitChild({ event: "barrier", barrier });
   };
   const { MessageChannel } = await import("node:worker_threads");
@@ -924,6 +919,11 @@ async function runColdLoadChild(): Promise<void> {
   try {
     const { bootServer } = await import("../../../../apps/backend/src/runtime/boot");
     apiServer = await bootServer({ httpPort: 0, udpPort: 0, recordingGameId: null });
+    // Load these only in the isolated child, after its DATA_DIR is configured.
+    const { udpListener } = await import("../../../../apps/backend/src/runtime/udp-listener");
+    const { loadSettings, saveSettings } = await import("@raceiq/backend-core/runtime/config/settings");
+    if (udpListener.port < 1024) throw new Error("cold-load UDP listener did not bind an ephemeral port");
+    saveSettings({ ...loadSettings(), udpPort: udpListener.port });
     apiURL = `http://${host}:${apiServer.httpPort}`;
     const usage = process.resourceUsage();
     const rss = process.memoryUsage().rss;
@@ -952,7 +952,24 @@ async function runColdLoadChild(): Promise<void> {
         switch (message.op) {
           case "hold": {
             if (!message.name) throw new Error("hold requires name");
-            heldNames.add(message.name);
+            heldNames.set(message.name, message.sourcePath);
+            for (const [barrierId, barrier] of heldBarriers) {
+              if (barrier.name === message.name && message.sourcePath !== undefined && barrier.sourcePath !== message.sourcePath) {
+                heldBarriers.delete(barrierId);
+                barrier.release(false);
+              }
+            }
+            return true;
+          }
+          case "releaseHold": {
+            if (!message.name) throw new Error("releaseHold requires name");
+            heldNames.delete(message.name);
+            for (const [barrierId, barrier] of heldBarriers) {
+              if (barrier.name === message.name) {
+                heldBarriers.delete(barrierId);
+                barrier.release(false);
+              }
+            }
             return true;
           }
           case "releaseAllBarriers": {
@@ -1049,8 +1066,8 @@ async function runColdLoadChild(): Promise<void> {
 }
 
 async function runColdLoadSeedChild(): Promise<void> {
-  const heldNames = new Set<string>(JSON.parse(process.env.RACEIQ_COLD_LOAD_INITIAL_HOLDS ?? "[]") as string[]);
-  const heldBarriers = new Map<string, { name: string; release(fail: boolean): void }>();
+  const heldNames = new Map<string, string | undefined>((JSON.parse(process.env.RACEIQ_COLD_LOAD_INITIAL_HOLDS ?? "[]") as string[]).map((name) => [name, undefined]));
+  const heldBarriers = new Map<string, { name: string; sourcePath?: string; release(fail: boolean): void }>();
   const metrics = await import("@raceiq/backend-core/session-capture/test-instrumentation");
   metrics.enableParserInstrumentation();
   metrics.enableLmuOpponentIndexInstrumentation();
@@ -1062,8 +1079,8 @@ async function runColdLoadSeedChild(): Promise<void> {
   const restoreRuntimeTestPort = runtime.setLmuOpponentIndexTestPortForTest(port1);
   let restoreDirectCaptureBarrier: (() => void) | undefined;
   const emitHeldBarrier = (barrier: OpponentColdLoadBarrier, release: (fail: boolean) => void) => {
-    if (!heldNames.has(barrier.name)) { release(false); return; }
-    heldBarriers.set(barrier.id, { name: barrier.name, release });
+    if (!heldNames.has(barrier.name) || (heldNames.get(barrier.name) !== undefined && heldNames.get(barrier.name) !== barrier.sourcePath)) { release(false); return; }
+    heldBarriers.set(barrier.id, { name: barrier.name, sourcePath: barrier.sourcePath, release });
     emitChild({ event: "barrier", barrier });
   };
   restoreDirectCaptureBarrier = directCapture.setDirectCaptureStopTestBarrierForTest(async (point) => {
@@ -1099,7 +1116,24 @@ async function runColdLoadSeedChild(): Promise<void> {
       switch (message.op) {
         case "hold": {
           if (!message.name) throw new Error("hold requires name");
-          heldNames.add(message.name);
+          heldNames.set(message.name, message.sourcePath);
+          for (const [barrierId, barrier] of heldBarriers) {
+            if (barrier.name === message.name && message.sourcePath !== undefined && barrier.sourcePath !== message.sourcePath) {
+              heldBarriers.delete(barrierId);
+              barrier.release(false);
+            }
+          }
+          return true;
+        }
+        case "releaseHold": {
+          if (!message.name) throw new Error("releaseHold requires name");
+          heldNames.delete(message.name);
+          for (const [barrierId, barrier] of heldBarriers) {
+            if (barrier.name === message.name) {
+              heldBarriers.delete(barrierId);
+              barrier.release(false);
+            }
+          }
           return true;
         }
         case "release":

@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { compareQuery, getDistinctPair } from "../../../../../playwright/tests/seeded/compare/interaction-helpers"
 import { getSeededLaps } from "../../../../../playwright/tests/seeded/compare/helpers";
+import { cleanDisposable, importDisposableLap } from "../../../../../playwright/tests/support/session-fixtures";
 
 test("Spectate panel headers stay aligned and remember opened panels", async ({ page, request }) => {
   test.setTimeout(180_000);
@@ -256,7 +257,13 @@ test("Spectate remembers vertical toolbar toggles across view changes and reload
 });
 
 test("Compare toolbar controls telemetry and AI across both views", async ({ page, request }, testInfo) => {
-  const pair = await getDistinctPair(request, "fm-2023");
+  const sourcePair = await getDistinctPair(request, "fm-2023");
+  const disposable = await importDisposableLap(request, "fm-2023", "compare-toolbar", sourcePair.lapA.id);
+  try {
+  const lapA = (await getSeededLaps(request, "fm-2023")).find((lap) => disposable.lapIds.includes(lap.id));
+  expect(lapA, "isolated comparison toolbar lap").toBeDefined();
+  if (!lapA) throw new Error("Disposable comparison lap is missing");
+  const pair = { lapA, lapB: sourcePair.lapB };
   await page.goto(`/fm23/compare?${compareQuery(pair)}&view=spectate`);
   const view = page.locator("[data-spectate-view]");
   const telemetry = page.getByRole("button", { name: "Telemetry", exact: true });
@@ -341,6 +348,9 @@ test("Compare toolbar controls telemetry and AI across both views", async ({ pag
   await telemetry.scrollIntoViewIfNeeded();
   await page.screenshot({ path: testInfo.outputPath("compare-toolbar-narrow.png"), fullPage: true, animations: "disabled" });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  } finally {
+    await cleanDisposable(request, disposable);
+  }
 });
 
 

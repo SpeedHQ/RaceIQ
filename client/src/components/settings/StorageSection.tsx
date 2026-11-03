@@ -308,9 +308,8 @@ function StorageFilesSection() {
           <Button variant="app-outline" size="app-sm" disabled={operationBlocked || movingDirectory || isLoading} onClick={() => { setRetryRequest(null); setDownsampleOpen(true); }}>{m.storage_downsample_action()}</Button>
           <Button variant="app-outline" size="app-sm" disabled={operationBlocked || movingDirectory} onClick={() => setCleanupRequest({ mode: "older-than", olderThanDays: 30 })}>{m.sessions_cleanup_free_space()}</Button>
         </div>
-        <RecordingRetentionControls disabled={operationBlocked} />
-        <OpponentRemovalControls disabled={operationBlocked || movingDirectory} />
-        
+
+
       </div>
     </section>
   );
@@ -326,12 +325,21 @@ export function StorageSection() {
         <TabsTrigger value="storage" variant="underline">
           {m.storage_category_storage()}
         </TabsTrigger>
+        <TabsTrigger value="opponents" variant="underline">
+          Opponent data
+        </TabsTrigger>
       </TabsList>
       <TabsContent value="cache">
         <CacheSection />
       </TabsContent>
       <TabsContent value="storage">
         <StorageFilesSection />
+      </TabsContent>
+      <TabsContent value="opponents">
+        <section className="space-y-6">
+          <RecordingRetentionControls />
+          <OpponentRemovalControls />
+        </section>
       </TabsContent>
     </Tabs>
   );

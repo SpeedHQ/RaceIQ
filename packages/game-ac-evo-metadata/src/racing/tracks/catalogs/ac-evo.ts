@@ -18,6 +18,11 @@ function getTracks(): Map<number, KunosTrack> {
   return tracks;
 }
 
+function curatedTrackName(name: string): string {
+  const trimmed = name.trim();
+  return trimmed === "Circuit de Spa Francorchamps" ? "Spa-Francorchamps" : trimmed;
+}
+
 export function injectDiscoveredAcEvoTracks(rows: {
   id: string;
   name: string;
@@ -35,7 +40,7 @@ export function injectDiscoveredAcEvoTracks(rows: {
       setupFolder: "",
     };
     for (const curated of getTracks().values()) {
-      if (curated.name.trim() !== sourceName.trim() || curated.variant.trim() !== configuration.trim()) continue;
+      if (curated.name.trim() !== curatedTrackName(sourceName) || curated.variant.trim() !== configuration.trim()) continue;
       track.commonTrackName = curated.commonTrackName;
       track.setupFolder = curated.setupFolder;
       break;
@@ -105,8 +110,8 @@ export function getAcEvoTrackByName(trackName: string, config = ""): AcEvoTrack 
   const discovered = discoveredTracksBySource.get(key);
   if (discovered) return discovered;
   const exact = [...getTracks().values()].filter((track) =>
-    track.name.trim() === trackName.trim() && track.variant.trim() === config.trim());
-  return exact.length === 1 ? asNativeTrack(exact[0]!) : undefined;
+    track.name.trim() === curatedTrackName(trackName) && track.variant.trim() === config.trim());
+  return exact.length === 1 ? asNativeTrack({ ...exact[0]!, name: trackName }) : undefined;
 }
 
 export function getAcEvoTrackBySetupFolder(key: string): AcEvoTrack | undefined {

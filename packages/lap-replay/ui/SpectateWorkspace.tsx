@@ -115,6 +115,10 @@ export function SpectateWorkspace({ children, panels, panelHeaderTarget, storage
     const open = panels.filter((panel) => panel.open);
     const previous = previousOpenPanels.current;
     const selected = open.find((panel) => !previous?.has(panel.id)) ?? open[0];
+    const restoresResizedPanels = layout.railPanels?.length === open.length && open.every((panel) => layout.railPanels!.includes(panel.id));
+    if (!narrow && previous && open.length > 1 && !restoresResizedPanels && open.some((panel) => !previous.has(panel.id))) {
+      persistLayout({ ...layout, railWidth: null });
+    }
     if (narrow && open.length > 1) {
       for (const panel of open) if (panel !== selected) panel.toggle(false);
     }

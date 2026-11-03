@@ -65,6 +65,20 @@ export function SingleReplaySession({ gameId, lap, replay, outline, trackProject
   }, [a, gameId]);
 
   useEffect(() => {
+    const target = window as Window & {
+      __recording?: boolean;
+      __seekReplayFrame?: (index: number) => void;
+    };
+    if (!target.__recording || !controller) return;
+    target.__seekReplayFrame = (index) => {
+      if (!Number.isInteger(index) || index < 0 || !a.replay.envelopes[index]) throw new Error("Replay frame unavailable");
+      controller.pause();
+      controller.seekFrame("a", index);
+    };
+    return () => { delete target.__seekReplayFrame; };
+  }, [a, controller]);
+
+  useEffect(() => {
     if (!controller) return;
     const handleKey = (event: KeyboardEvent) => {
       const arrow = event.key === "ArrowLeft" || event.key === "ArrowRight";

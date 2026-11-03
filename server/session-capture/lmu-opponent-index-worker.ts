@@ -23,9 +23,9 @@ export type WorkerMessage =
 
 interface WorkerMetrics {
   buildDurationMs: number;
-  workerCpuUserMicros: number;
-  workerCpuSystemMicros: number;
-  rssBytes: number;
+  processCpuUserMicros: number;
+  processCpuSystemMicros: number;
+  processRssBytes: number;
   sourceFramesScanned: number;
   nativeFramesDecoded: number;
 }
@@ -170,9 +170,9 @@ async function run(): Promise<void> {
     const cpu = process.cpuUsage(cpuStart);
     return {
       buildDurationMs: performance.now() - startedAt,
-      workerCpuUserMicros: cpu.user,
-      workerCpuSystemMicros: cpu.system,
-      rssBytes: process.memoryUsage().rss,
+      processCpuUserMicros: cpu.user,
+      processCpuSystemMicros: cpu.system,
+      processRssBytes: process.memoryUsage().rss,
       sourceFramesScanned,
       nativeFramesDecoded,
     };

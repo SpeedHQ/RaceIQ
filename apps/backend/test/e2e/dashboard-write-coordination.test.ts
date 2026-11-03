@@ -172,13 +172,17 @@ function startBackend(dataDir: string): Backend {
   };
   const event = async (type: string, operation?: string) => {
     await ready.promise;
-    const response = await fetch(`http://127.0.0.1:${ports!.control}/event?type=${type}${operation ? `&operation=${operation}` : ""}`, { signal: AbortSignal.timeout(180_000) });
+    const response = await fetch(`http://127.0.0.1:${ports!.control}/event?type=${type}${operation ? `&operation=${operation}` : ""}`, { signal: AbortSignal.timeout(180_000) }).catch((cause) => {
+      throw new Error(`Worker event ${type}${operation ? ` (${operation})` : ""} did not arrive:\n${output}`, { cause });
+    });
     if (!response.ok) throw new Error(`Worker event ${type} failed: ${output}`);
     return response.json();
   };
   const api = async (path: string, init?: RequestInit) => {
     await ready.promise;
-    return fetch(`http://127.0.0.1:${ports!.api}${path}`, { signal: AbortSignal.timeout(180_000), ...init });
+    return fetch(`http://127.0.0.1:${ports!.api}${path}`, { signal: AbortSignal.timeout(180_000), ...init }).catch((cause) => {
+      throw new Error(`Backend request ${path} did not settle:\n${output}`, { cause });
+    });
   };
   return {
     api,
