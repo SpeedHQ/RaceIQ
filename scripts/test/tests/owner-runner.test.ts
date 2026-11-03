@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
+import { generateTurboInputs } from "../turbo-inputs";
 
 test.each(["flat", "nested"] as const)("%s owner suites load database preload and isolate writable paths from inherited data", (layout) => {
   const root = mkdtempSync(resolve(tmpdir(), "raceiq-owner-runner-"));
@@ -72,4 +73,25 @@ test.each(["flat", "nested"] as const)("%s owner suites load database preload an
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("application preload is an explicit input of its consuming suites", () => {
+  const root = resolve(import.meta.dir, "../../..");
+  const config = JSON.parse(generateTurboInputs(root)) as { tasks: Record<string, { inputs?: string[] }> };
+  const preload = "$TURBO_ROOT$/apps/backend/test/support/setup-app.ts";
+  for (const owner of ["@raceiq/frontend-contract-tests", "@raceiq/game-lmu-tests"]) {
+    for (const suite of ["test:integration", "test:e2e:recordings"]) {
+      expect(config.tasks[`${owner}#${suite}`]?.inputs).toContain(preload);
+    }
+    expect(config.tasks[`${owner}#test:unit`]?.inputs).not.toContain(preload);
+  }
+  expect(config.tasks["@raceiq/frontend-contract-tests#test:tooling"]?.inputs).toContain(preload);
+
+  const lmu = JSON.parse(readFileSync(resolve(root, "packages/game-lmu/turbo.json"), "utf8")) as {
+    tasks: Record<string, { inputs?: string[] }>;
+  };
+  for (const suite of ["test", "test:integration", "test:e2e:recordings"]) {
+    expect(lmu.tasks[suite]?.inputs).toContain(preload);
+  }
+  expect(lmu.tasks["test:unit"]?.inputs).not.toContain(preload);
 });

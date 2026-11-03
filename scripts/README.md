@@ -106,10 +106,16 @@ bun run test:integration -- --filter=@raceiq/game-acc --summarize
 bun scripts/test/run-turbo.ts test:unit test:tooling test:integration --affected
 ```
 
-Affected runs require resolvable `TURBO_SCM_BASE` and `TURBO_SCM_HEAD`; otherwise
-the wrapper runs full selection. CI cache partitions include host and toolchain.
-Application, tooling, and frontend contract tasks compile client translations
-explicitly; game/core tasks do not depend on client compilation.
+Without explicit SCM variables, local `--affected` uses Turbo's default
+`main`/`HEAD` comparison, including supported working-tree changes. Either
+`TURBO_SCM_BASE` or `TURBO_SCM_HEAD` can override its endpoint. An empty or
+unresolvable ref, missing common history, or equal explicitly supplied range
+prints a reason and runs full selection. Commands without `--affected` remain
+full. The wrapper generates suite inputs from the ownership manifests before
+running Turbo; invalid ownership fails rather than silently omitting tests.
+CI cache partitions include host and toolchain. Application, tooling, and
+frontend contract tasks compile client translations explicitly; game/core tasks
+do not depend on client compilation.
 
 The Build & Test CI job limits Turbo to two concurrent test tasks and sets
 `BUN_TEST_WORKERS=1` for both affected and full runs to avoid nested test

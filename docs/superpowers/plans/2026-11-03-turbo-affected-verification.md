@@ -1,6 +1,6 @@
 # Precise Turbo affected verification
 
-Status: proposed; planning only. No implementation or behavioral verification has been performed for this plan.
+Status: implementation in progress; hosted CI and hardware verification remain blocked.
 
 Planned against commit `900faf29b`, 2026-11-03. Installed toolchain: Bun 1.4.4, Turbo 2.11.7.
 
@@ -10,7 +10,7 @@ ADR: [Use task-level impact selection before verification provisioning](../../ad
 
 Run only verification tasks affected by a trustworthy change range, plus their required execution prerequisites. Skip unnecessary browser and visual job provisioning. Preserve conservative full coverage when impact cannot be established.
 
-This is one tooling/CI implementation plan, not application UI or backend work. It introduces no product API, UI, schema, or telemetry changes. It does not delete low-value tests from the preceding audit.
+This is a tooling/CI implementation plan. The user additionally authorized the replay fixes covered by AC12 and AC13. It does not delete low-value tests from the preceding audit.
 
 ### Authoritative existing contracts
 
@@ -45,10 +45,12 @@ Verified during planning: `bunx --no-install turbo query affected --help` suppor
 | AC05 | Impact selection uses real package/task dependencies and scoped external inputs. No dependency, fixture, schema, setup input, or environment sensitivity is removed merely to reduce selected task count. |
 | AC06 | Browser selection distinguishes existing feature projects, residual legacy groups, fresh/tunes states, native WebGPU, responsive captures, and Storybook captures. Every existing spec retains one execution owner. Full mode preserves the complete current discovery inventory. |
 | AC07 | A docs-only PR with no verification-input changes provisions no browser server, seeded DB producer, Chromium installation, responsive capture, or Storybook capture job. A selected browser group provisions only its required server/seed states. |
-| AC08 | Feature-only input edits select the corresponding feature browser project and actual cross-feature consumers, not unrelated projects solely because all use the compiled-app build. Shared auth, boot, migrations, root composition, harness, or globally consumed style changes select all actual browser consumers. |
+| AC08 | Feature-only input edits select the corresponding feature browser project and all actual cross-feature consumers. Conservative package-level fanout is accepted where Turbo cannot distinguish genuine consumers safely. Shared auth, boot, migrations, root composition, harness, or globally consumed style changes select all actual browser consumers. |
 | AC09 | Selector command failure, malformed query output, unknown task/project, and inconsistent coverage cannot masquerade as no work. The selector falls back to a complete known execution inventory with a diagnostic when safe; invalid configuration or incomplete inventory fails the job. |
 | AC10 | Ordinary deterministic task cache behavior remains correct: identical inputs can hit cache; relevant source, dependency, fixture, manifest, environment, or runner changes miss cache. E2E, capture, and build cache policies are not loosened. |
 | AC11 | Actual selected ordinary suites and compiled application browser journeys pass after implementation. Independent verification covers positive selection, negative selection, fallback, caching, inventory parity, and real CI provisioning. Unavailable hosted/hardware evidence remains explicitly blocked. |
+| AC12 | The two observed replay WebGPU zoom-transition cases reach their expected stable endpoint without weakening assertions; the affected compiled replay journeys pass. |
+| AC13 | Resizing the replay view to mobile updates the telemetry control and panel state as asserted by the existing compiled replay journey. |
 
 ## Decisions and implementation interfaces
 
@@ -113,7 +115,7 @@ Allowed implementation paths:
 - Root `package.json` only for a documented full verification entry point if existing commands cannot express full mode; preserve existing full `test`/`test:all` behavior.
 - `scripts/README.md`, `test/README.md`, `docs/contributing/e2e-testing.md`, and one `CHANGELOG.md` entry for the coherent change.
 
-Out of scope: deleting or rewriting product tests from the audit; feature/package extraction; application behavior or public contracts; replacing Bun/Playwright; enabling remote caching or E2E result caching; caching currently uncached builds; changing runners, permissions, release topology, or hardware requirements; making every feature perfectly isolated by hiding real dependencies.
+Out of scope: deleting or rewriting product tests from the audit; feature/package extraction; unrelated application behavior or public contracts; replacing Bun/Playwright; enabling remote caching or E2E result caching; caching currently uncached builds; changing runners, permissions, release topology, or hardware requirements; making every feature perfectly isolated by hiding real dependencies. Product changes necessary to fix the observed replay WebGPU zoom-transition and mobile telemetry state failures are authorized.
 
 ## Implementation order
 
@@ -125,15 +127,19 @@ Separate default-local assertions from retained manual/full assertions. Remove o
 
 ### 2. Scope ordinary suite inputs without losing transitive coverage
 
-For each inherited domain-file list, identify actual consumers and move the input to their owning configuration or express its real workspace dependency. Retain shared runner/SCM/config inputs globally where genuinely consumed. Split suite-specific tests, manifests, helpers, and fixtures from production transit. Keep `$TURBO_DEFAULT$` unless a demonstrated need justifies an explicit complete input set. New tests must be included automatically by suitable scoped globs, not a second hand-maintained list duplicating manifests.
+For each inherited domain-file list, identify actual consumers and move the input to their owning configuration or express its real workspace dependency. Retain shared runner/SCM/config inputs globally where genuinely consumed. Split suite-specific tests, manifests, helpers, and fixtures from production transit. Keep `$TURBO_DEFAULT$` unless a demonstrated need justifies an explicit complete input set. New tests must be included automatically through scoped globs or generated inputs derived from authoritative manifests, not a second hand-maintained list.
+
+Approved scope change: derive suite-specific Turbo inputs from the authoritative ownership manifests using generated configuration. The generated configuration must stay synchronized automatically, include newly owned tests, preserve shared inputs and cache sensitivity, and fail closed when ownership or generation is invalid. E04–E07 must exercise the generated configuration through the real wrapper and Turbo. The implementation may add the minimal generator and its tests under `scripts/test/`, and update callers and documentation required to use it.
 
 Do not exclude a test helper/fixture from transit until owning suite inputs explicitly retain it. Keep theme/design-source consumption in the tooling owner. Include lockfile/external dependency and existing environment sensitivity. Gate: E04–E07 selection and execution evidence passes before removing old broad inputs.
 
 ### 3. Implement browser/visual impact selection
 
-Reuse feature impact tasks; add remaining groups and visual impact tasks without duplicating spec ownership. Derive actual shared input closures from existing projects/server/seed/build helpers and architecture contract. Implement the CLI contract above. A shared seed helper change selects its consumers even though seed execution occurs later. Catalogue-only source must not select unrelated features merely through the shared build task.
+Reuse feature impact tasks; add remaining groups and visual impact tasks without duplicating spec ownership. Derive actual shared input closures from existing projects/server/seed/build helpers and architecture contract. Implement the CLI contract above. A shared seed helper change selects its consumers even though seed execution occurs later.
 
-Keep broad residual legacy selection where the actual graph requires it; record the limitation instead of deleting real edges. Gate: E08–E10 passes, including full discovery parity. There must be a real leaf-only case showing unrelated feature exclusion; if current architecture prevents that without application extraction, report the blocker and seek scope confirmation rather than claiming precision.
+User-approved precision change: retain conservative package-level fanout when the package graph cannot safely distinguish transitive consumers. Fresh and tunes have genuine tracks consumers. Do not remove those edges or introduce a hand-maintained file-to-test map. E08 must still demonstrate a real feature change that excludes at least one unrelated feature.
+
+Gate: E08–E10 passes, including full discovery parity. Diagnose and fix the observed replay WebGPU and mobile telemetry failures without weakening their assertions; product changes necessary for those fixes are authorized. Verify AC12 and AC13 using E14 and E15 before completion.
 
 ### 4. Gate workflows before heavy provisioning
 
@@ -160,12 +166,14 @@ Selection is a system entry point: tests must invoke the real wrapper/selector a
 | E05 | Edit a shared test helper, an owned fixture, and production leaf code with a transitive consumer and unrelated owner. Include fixture addition/deletion/rename. | All actual direct/transitive consumers selected; non-consumer absent; selected real behavior assertions pass. Fixture matching does not depend on old filename only. | AC03, AC04, AC05 |
 | E06 | Edit common runner, root test config, dependency manifest/lockfile, and a relevant task environment variable in isolated state. Add a new test under existing ownership. | Correct consumers selected/cache-invalidated; new test discovered by manifest guard and owning task input; unknown ownership fails validation or selects full coverage, never silent omission. | AC04, AC05, AC09, AC10 |
 | E07 | Execute deterministic affected tasks twice with temporary local cache; change relevant input/env, then unrelated non-input. | Second identical run reports cache hit; relevant change misses and actually executes; unrelated change does not invalidate unrelated tasks. No E2E result-cache enablement. | AC05, AC10, AC11 |
-| E08 | Controlled tracks-only, cars-only, and another existing feature input change; invoke selector, then list and execute returned projects against real compiled app. | Owner and actual cross-feature consumers selected; unrelated projects absent where no genuine shared edge exists. Real API/data-backed feature journey passes. Shared compiled build alone does not select all features. | AC06, AC08, AC11 |
+| E08 | Controlled tracks-only, cars-only, and another existing feature input change; invoke selector, then list and execute returned projects against real compiled app. | Owner and actual cross-feature consumers selected; at least one unrelated feature excluded in a real leaf case. Conservative package-level fanout is allowed. Real API/data-backed feature journeys pass. | AC06, AC08, AC11 |
 | E09 | Edit auth/startup/schema/migrations, shared seed/harness, root routing/composition, or global style inputs. | All actual consuming groups/visuals selected. Backend-only non-rendering input may conservatively select residual legacy coverage; no unsafe empty result. | AC04, AC05, AC08 |
 | E10 | Full selector output plus real `playwright test --list`; compare union of selected project/spec ownership with pre-change full inventory, including setup and native groups. Inject query process failure, malformed JSON, unknown task/project and incomplete inventory into isolated test process. | Every prior spec remains discoverable once per intended project; no accidental `record-demo`. Safe query uncertainty selects full with reason; invalid inventory fails clearly. | AC06, AC09 |
 | E11 | Hosted PR with docs-only non-input change; inspect planning outputs and workflow jobs. | Selection succeeds empty; no browser/seed/Chromium/responsive/Storybook jobs provisioned. Stable required aggregate succeeds because no relevant work exists, not because failure was ignored. | AC07, AC09, AC11 |
 | E12 | Hosted controlled feature PR and fresh/tunes-only harness scenario, then shared-runtime PR. Inspect actual jobs/artifacts and execute real selected browser journeys. | Only selected matrix/server states provisioned; no seeded producer for fresh/tunes-only; selected seeded/native groups receive seed. Shared-runtime change runs all consumers. Selected failure makes aggregate fail. | AC06, AC07, AC08, AC11 |
 | E13 | Hosted manual full dispatch and reusable workflow invocation without new inputs; separately force selector/seed/browser/capture failure in controlled branch. | Default full inventory retained. Failed prerequisite is not successful no-work; no skipped producer artifact is requested; affected checks accurately fail. | AC02, AC09, AC11 |
+| E14 | Run the compiled replay WebGPU zoom-transition cases for FM 2023 and F1 2025 after the fix, then rerun the affected replay journey. | Both cases reach the asserted stable zoom endpoint and the affected journey passes without weakening assertions. | AC11, AC12 |
+| E15 | Execute the compiled replay telemetry/preferences journey, including desktop-to-mobile resize, after the fix. | The telemetry button and panel report the expected collapsed state on mobile; the complete affected replay journey passes. | AC11, AC13 |
 
 Timing waits must observe deterministic task/job state, not arbitrary sleeps. Use existing committed recordings and isolated DATA_DIR/ports for real application runs. Browser tests must use real compiled UI/backend integration; mocks may control unrelated external services but cannot replace application paths under validation.
 
@@ -188,17 +196,18 @@ bunx --no-install turbo run test:e2e --filter=@raceiq/cars-catalogue
 
 Run the real new selector for full, known-empty, feature, shared, and fallback cases; validate its output against actual discovery. Use explicit known refs in CI-style scenarios and clear inherited SCM variables in native-local scenarios. All commands must exit successfully except intentional failure cases, whose exact nonzero outcome must be asserted.
 
-Completion requires passing evidence for every AC and E01–E13, plus independent checker evidence. Record concise results in this plan's execution status when implementation is authorized; do not create routine log/evidence files. Hosted CI, manual dispatch, and native WebGPU require authorized runners/environment. If unavailable, finish reachable work but leave the affected scenarios blocked and do not mark implementation complete.
+Completion requires passing evidence for every AC and E01–E15, plus independent checker evidence. Record concise results in this plan's execution status; do not create routine log/evidence files. Hosted CI, manual dispatch, and native WebGPU require authorized runners/environment. If unavailable, finish reachable work but leave the affected scenarios blocked and do not mark implementation complete.
 
 ## Execution status
 
-- Implementation: not started; not authorized by this planning request.
-- New acceptance/E2E scenarios: not run.
-- Planning compatibility check: pinned Turbo exposes affected query flags listed above.
-- Hosted CI, browser, cache-invalidation and independent implementation verification: not run.
+- Range handling, generated suite inputs, browser selection, workflow gating, documentation, and the authorized replay fixes are implemented. Independent review identified additional ordinary-suite selection coverage to address.
+- `bun run test:shards` passed. Targeted selection and selector tests passed; `bun run test:tooling` passed before the latest selector changes. Real-owner execution demonstrated a cache hit.
+- Compiled tracks and cars catalogue journeys passed. The replay suite passed after the fixes: 45 passed, with one cold-frame assertion passing on retry. Independent replay checks passed three targeted browser scenarios; the resize-before-effect race remains without direct proof.
+- A tracks change selects additional browser projects through genuine package dependencies. Fresh and tunes consume tracks; conservative package-level fanout is authorized.
+- Hosted CI provisioning, manual dispatch, branch protection, and native-hardware WebGPU remain unverified. `actionlint` is unavailable. No completion claim is made.
 
 ## Stop conditions and maintenance
 
-Stop for approval if correctness requires application/package extraction, deletion of tests, changed product behavior, different runner permissions, or toolchain upgrades. A false-negative selector is a release-risk defect: restore conservative coverage before narrowing further. Do not chase lower task counts by removing genuine dependencies. Unknown file ownership must fail closed to full verification or a visible configuration failure.
+Stop for approval if correctness requires application/package extraction, deletion of tests, product behavior changes beyond the authorized replay fixes, different runner permissions, or toolchain upgrades. A false-negative selector is a release-risk defect: restore conservative coverage before narrowing further. Do not chase lower task counts by removing genuine dependencies. Unknown file ownership must fail closed to full verification or a visible configuration failure.
 
 Keep project identifiers and server-state mapping synchronized with Playwright discovery. New suite helpers/fixtures must update the owning task inputs and positive/negative selection scenarios. Changes to selection semantics require the same updates to acceptance criteria, implementation steps, and E2E cases. No remote-cache provisioning, new dependency, or skill installation is needed.

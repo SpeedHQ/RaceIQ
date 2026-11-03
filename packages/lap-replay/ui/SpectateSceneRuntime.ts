@@ -1003,7 +1003,7 @@ export class SpectateSceneRuntime {
     const interval = 1000 / this.fpsCap;
     const current = this.controller.getSnapshot();
     if (!current.seeking && !this.interactionPending && !this.resizePending && !this.pendingFrames.length && now - this.lastRender < interval) {
-      if (current.playing || this.settleFrames > 0 || this.dirty) this.raf = requestAnimationFrame(this.drawFrame);
+      if (current.playing || this.settleFrames > 0 || this.dirty || this.zoomIdleUntil > 0 || this.zoomSnap) this.raf = requestAnimationFrame(this.drawFrame);
       return;
     }
     this.drawing = true;

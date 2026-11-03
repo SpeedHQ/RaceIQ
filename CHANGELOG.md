@@ -3,8 +3,11 @@
 ### Features
 
 ### Fixes
+- Keep Replay and Compare → Spectate zoom transitions moving to their intended endpoint when playback is paused.
+- Keep Replay and Compare → Spectate panels in the correct mobile state when the viewport changes during loading.
 
 ### Internal
+- Select affected test suites, browser projects, and visual checks from Turbo task inputs, with full verification fallback for uncertain ranges or coverage.
 
 ## v0.21.1 - 2026-11-03
 

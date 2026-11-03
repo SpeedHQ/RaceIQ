@@ -81,6 +81,12 @@
     }
   },
   "tasks": {
+    "browser:fresh:impact": {},
+    "browser:tunes:impact": {},
+    "browser:tunes-unseeded:impact": {},
+    "browser:seeded:impact": {},
+    "visual:responsive:impact": {},
+    "visual:storybook:impact": {},
     "transit": {
       "dependsOn": [
         "^transit"
@@ -799,6 +805,9 @@
         "$TURBO_ROOT$/playwright/config/**",
         "$TURBO_ROOT$/playwright/support/**",
         "$TURBO_ROOT$/playwright/tests/support/**",
+        "$TURBO_ROOT$/playwright/tests/setup/**",
+        "$TURBO_ROOT$/packages/tooling-data/src/data/**",
+        "$TURBO_ROOT$/apps/backend/scripts/data/**",
         "$TURBO_ROOT$/playwright/playwright.config.ts",
         "$TURBO_ROOT$/packages/tooling-build/**",
         "$TURBO_ROOT$/test/artifacts/**",

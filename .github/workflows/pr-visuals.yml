@@ -12,6 +12,18 @@ on:
         required: false
         type: string
         default: ""
+      verification-mode:
+        required: false
+        type: string
+        default: full
+      base-ref:
+        required: false
+        type: string
+        default: ""
+      head-ref:
+        required: false
+        type: string
+        default: ""
   workflow_dispatch:
     inputs:
       pr:
@@ -23,29 +35,84 @@ on:
         required: false
         type: string
         default: ""
+      verification-mode:
+        description: "Verification selection mode"
+        type: choice
+        options: [full, affected]
+        default: full
+      base-ref:
+        description: "Base ref for affected mode"
+        type: string
+      head-ref:
+        description: "Head ref for affected mode"
+        type: string
 
 permissions:
   contents: read
   pull-requests: read
 
 jobs:
+  selection:
+    name: Select visual gates
+    runs-on:
+      - mars-ubuntu-2vcpu-6g
+      - mars-retry-3
+    outputs:
+      responsive: ${{ steps.select.outputs.responsive }}
+      storybook: ${{ steps.select.outputs.storybook }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.head-ref || format('refs/pull/{0}/head', inputs.pr) }}
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - name: Install workspace dependencies
+        run: bun install --frozen-lockfile --ignore-scripts
+      - name: Select visual gates
+        id: select
+        env:
+          MODE: ${{ inputs.verification-mode || 'full' }}
+          BASE: ${{ inputs.base-ref }}
+          HEAD: ${{ inputs.head-ref }}
+        run: |
+          bun -e '
+            const args = ["bun", "scripts/ci/affected-verification.ts", "--mode", process.env.MODE];
+            if (process.env.BASE) args.push("--base", process.env.BASE);
+            if (process.env.HEAD) args.push("--head", process.env.HEAD);
+            const child = Bun.spawnSync(args, { stdout: "pipe", stderr: "inherit" });
+            if (child.exitCode !== 0) process.exit(child.exitCode || 1);
+            const result = JSON.parse(child.stdout.toString());
+            console.log(`Selection: ${result.mode}: ${result.reason}`);
+            await Bun.write(process.env.GITHUB_OUTPUT, `responsive=${result.responsive}\nstorybook=${result.storybook}\n`);
+          '
+
   responsive:
     name: Responsive
+    needs: selection
+    if: needs.selection.outputs.responsive == 'true'
     uses: ./.github/workflows/pr-screenshots.yml
     with:
       pr: ${{ inputs.pr }}
+      head-ref: ${{ inputs.head-ref }}
 
   storybook:
     name: Storybook
     uses: ./.github/workflows/pr-snapshots.yml
+    needs: selection
+    if: needs.selection.outputs.storybook == 'true'
     with:
       pr: ${{ inputs.pr }}
+      head-ref: ${{ inputs.head-ref }}
       paraglide-artifact: ${{ inputs.paraglide-artifact }}
 
   combine-previews:
     name: Combine previews
+    if: always() && needs.selection.result == 'success' && (needs.selection.outputs.responsive == 'true' || needs.selection.outputs.storybook == 'true') && ((needs.selection.outputs.responsive == 'true' && needs.responsive.result == 'success') || (needs.selection.outputs.responsive == 'false' && needs.responsive.result == 'skipped')) && ((needs.selection.outputs.storybook == 'true' && needs.storybook.result == 'success') || (needs.selection.outputs.storybook == 'false' && needs.storybook.result == 'skipped'))
     needs:
       - responsive
+      - selection
       - storybook
     runs-on:
       - mars-ubuntu-2vcpu-6g
@@ -64,10 +131,41 @@ jobs:
       - name: Combine comparison previews
         env:
           PREVIEW_ROOT: ${{ runner.temp }}/pr-visual-previews
-        run: bun scripts/ci/combine-pr-visual-previews.ts
+          RESPONSIVE: ${{ needs.selection.outputs.responsive }}
+          STORYBOOK: ${{ needs.selection.outputs.storybook }}
+        run: |
+          if [ "$RESPONSIVE" = true ] && [ "$STORYBOOK" = true ]; then
+            bun scripts/ci/combine-pr-visual-previews.ts
+          elif [ "$RESPONSIVE" = true ]; then
+            cp -R "$PREVIEW_ROOT/pr-visual-responsive-preview" pr-preview
+          else
+            cp -R "$PREVIEW_ROOT/pr-visual-storybook-preview" pr-preview
+          fi
       - name: Upload combined comparison preview
         uses: actions/upload-artifact@v7
         with:
           name: pr-screenshot-preview
           path: pr-preview/
           retention-days: 14
+
+  verification:
+    name: Visual verification
+    if: always()
+    needs: [selection, responsive, storybook, combine-previews]
+    runs-on:
+      - mars-ubuntu-2vcpu-6g
+      - mars-retry-3
+    steps:
+      - name: Check required gates
+        env:
+          SELECTION: ${{ needs.selection.result }}
+          RESPONSIVE_REQUIRED: ${{ needs.selection.outputs.responsive }}
+          RESPONSIVE: ${{ needs.responsive.result }}
+          STORYBOOK_REQUIRED: ${{ needs.selection.outputs.storybook }}
+          STORYBOOK: ${{ needs.storybook.result }}
+          COMBINE: ${{ needs.combine-previews.result }}
+        run: |
+          test "$SELECTION" = success
+          if [ "$RESPONSIVE_REQUIRED" = true ]; then test "$RESPONSIVE" = success; else test "$RESPONSIVE" = skipped; fi
+          if [ "$STORYBOOK_REQUIRED" = true ]; then test "$STORYBOOK" = success; else test "$STORYBOOK" = skipped; fi
+          if [ "$RESPONSIVE_REQUIRED" = true ] || [ "$STORYBOOK_REQUIRED" = true ]; then test "$COMBINE" = success; else test "$COMBINE" = skipped; fi

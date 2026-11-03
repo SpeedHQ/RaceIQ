@@ -13,6 +13,17 @@ on:
         description: "Branch or ref to build and test"
         required: false
         type: string
+      verification_mode:
+        description: "Verification selection mode"
+        type: choice
+        options: [full, affected]
+        default: full
+      base_ref:
+        description: "Base ref for affected mode"
+        type: string
+      head_ref:
+        description: "Head ref for affected mode"
+        type: string
 concurrency:
   group: build-test-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
@@ -28,7 +39,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.target_ref || github.ref }}
+          ref: ${{ inputs.target_ref || inputs.head_ref || github.ref }}
           fetch-depth: 0
 
       - uses: oven-sh/setup-bun@v2
@@ -65,13 +76,24 @@ jobs:
       - mars-retry-3
     env:
       BUN_TEST_WORKERS: "1"
-      TURBO_SCM_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || (github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000' && github.event.before || 'origin/main') }}
-      TURBO_SCM_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || (github.event_name == 'workflow_dispatch' && inputs.target_ref || github.sha) }}
+      TURBO_SCM_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || (github.event_name == 'push' && (github.event.before != '0000000000000000000000000000000000000000' && github.event.before || 'origin/main')) || inputs.base_ref }}
+      TURBO_SCM_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || (github.event_name == 'push' && github.sha) || inputs.head_ref }}
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.target_ref || github.ref }}
+          ref: ${{ inputs.target_ref || inputs.head_ref || github.ref }}
           fetch-depth: 0
+      - name: Validate manual affected checkout
+        if: github.event_name == 'workflow_dispatch' && inputs.verification_mode == 'affected'
+        env:
+          REQUESTED_HEAD: ${{ inputs.head_ref }}
+        run: |
+          resolved=$(git rev-parse --verify --end-of-options "${REQUESTED_HEAD}^{commit}" 2>/dev/null) || resolved=
+          current=$(git rev-parse HEAD)
+          if [ -z "$resolved" ] || [ "$resolved" != "$current" ]; then
+            echo "Manual head is missing, invalid, or differs from checkout; selecting full tasks."
+            echo "TURBO_SCM_HEAD=" >> "$GITHUB_ENV"
+          fi
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -99,10 +121,24 @@ jobs:
         run: bun run i18n:check-keys
 
       - name: Lint server, shared, scripts, tests, and client
-        run: bun scripts/test/run-turbo.ts lint --affected
+        run: |
+          if [ "$FULL" = true ]; then
+            bun scripts/test/run-turbo.ts lint
+          else
+            bun scripts/test/run-turbo.ts lint --affected
+          fi
+        env:
+          FULL: ${{ github.event_name == 'workflow_dispatch' && inputs.verification_mode != 'affected' }}
 
       - name: Type-check server, shared, scripts, and tests
-        run: bun scripts/test/run-turbo.ts typecheck --affected --concurrency=1
+        run: |
+          if [ "$FULL" = true ]; then
+            bun scripts/test/run-turbo.ts typecheck --concurrency=1
+          else
+            bun scripts/test/run-turbo.ts typecheck --affected --concurrency=1
+          fi
+        env:
+          FULL: ${{ github.event_name == 'workflow_dispatch' && inputs.verification_mode != 'affected' }}
       - name: Verify seeded database upgrade
         if: github.event_name == 'pull_request' && !github.event.pull_request.draft
         env:
@@ -132,7 +168,10 @@ jobs:
         if: github.event_name == 'pull_request'
       - name: Run full test suites
         run: bun scripts/test/run-turbo.ts test:unit test:tooling test:integration --concurrency=2
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.verification_mode != 'affected')
+      - name: Run manually selected affected test suites
+        if: github.event_name == 'workflow_dispatch' && inputs.verification_mode == 'affected'
+        run: bun scripts/test/run-turbo.ts test:unit test:tooling test:integration --affected --concurrency=2
       - name: Save Turbo task cache
         uses: actions/cache/save@v4
         with:
@@ -156,20 +195,25 @@ jobs:
       - name: Install workspace dependencies
         run: bun install --frozen-lockfile --ignore-scripts
       - name: Check changelog
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          git fetch --no-tags --depth=1 origin "$BASE_REF"
           bun packages/tooling-release/src/release/check-changelog.ts
   # Playwright runners span architectures; build the compiled server on each runner
   # instead of sharing a dist artifact built for an arbitrary build-runner architecture.
   playwright-e2e:
-    if: github.event_name == 'pull_request' && !github.event.pull_request.draft && !startsWith(github.head_ref, 'release/v')
+    if: (github.event_name == 'pull_request' && !github.event.pull_request.draft && !startsWith(github.head_ref, 'release/v')) || github.event_name == 'workflow_dispatch'
     needs:
       - build
       - test
     uses: ./.github/workflows/playwright-e2e.yml
     with:
-      target-ref: ${{ inputs.target_ref || github.ref }}
-      paraglide-artifact: raceiq-paraglide
+      target-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || (inputs.target_ref || inputs.head_ref || github.ref) }}
+      paraglide-artifact: ${{ github.event_name == 'pull_request' && 'raceiq-paraglide' || '' }}
+      verification-mode: ${{ github.event_name == 'pull_request' && 'affected' || (inputs.verification_mode || 'full') }}
+      base-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || inputs.base_ref }}
+      head-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || inputs.head_ref }}
 
   visual-regression:
     name: visual-regression/compare
@@ -184,3 +228,6 @@ jobs:
     with:
       pr: ${{ github.event.pull_request.number }}
       paraglide-artifact: raceiq-paraglide
+      verification-mode: affected
+      base-ref: ${{ github.event.pull_request.base.sha }}
+      head-ref: ${{ github.event.pull_request.head.sha }}

@@ -1,5 +1,8 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { discoverTestOwners } from "./owners";
+import { generateTurboInputs } from "./turbo-inputs";
 
 const root = resolve(import.meta.dir, "../..");
 let args = process.argv.slice(2).filter((arg) => arg !== "--");
@@ -47,8 +50,22 @@ if (tasks.length > 0 && tasks.every((task) => task === "test" || task.startsWith
   }
 }
 
-const proc = Bun.spawn(
-  [process.execPath, resolve(root, "node_modules/turbo/bin/turbo"), "run", ...args],
-  { cwd: root, env, stdout: "inherit", stderr: "inherit" },
-);
-process.exit(await proc.exited);
+const needsSuiteInputs = tasks.some((task) =>
+  ["test:unit", "test:tooling", "test:integration", "test:e2e:recordings"].includes(task));
+let generatedDir: string | undefined;
+try {
+  if (needsSuiteInputs) {
+    const config = generateTurboInputs(root);
+    generatedDir = mkdtempSync(resolve(tmpdir(), "raceiq-turbo-inputs-"));
+    const path = resolve(generatedDir, "turbo.json");
+    writeFileSync(path, config);
+    args.push(`--root-turbo-json=${path}`);
+  }
+  const proc = Bun.spawn(
+    [process.execPath, resolve(root, "node_modules/turbo/bin/turbo"), "run", ...args],
+    { cwd: root, env, stdout: "inherit", stderr: "inherit" },
+  );
+  process.exitCode = await proc.exited;
+} finally {
+  if (generatedDir) rmSync(generatedDir, { recursive: true, force: true });
+}

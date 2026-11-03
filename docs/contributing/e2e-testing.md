@@ -130,21 +130,43 @@ PowerShell:
 $env:E2E_SERVER_MODE='dev'; bun run test:e2e
 ```
 
-Playwright projects are CI boundaries, not individual test files:
+The compiled E2E workflow selects existing Playwright projects by impact.
+Full mode includes fresh install, tunes, unseeded tunes, all seeded legacy and
+feature projects, and the separate native WebGPU gate. `record-demo` remains
+outside the default gate. Seeded projects run in up to seven shards; fresh and
+tunes states run separately. A seed database is prepared only for selected
+seeded projects or native WebGPU.
 
-| CI invocation | `PW_SERVER_SET` | Playwright project(s) | Test boundary |
-| --- | --- | --- | --- |
-| Compiled E2E | `all` | All configured projects, including `tracks-catalogue` and `cars-catalogue` | All functional, responsive, and Chromium device projects |
+PR workflows use affected selection with the PR base and head. Manual
+dispatch and reusable workflow calls default to full mode; manual affected
+mode requires resolvable, distinct base and head refs with common history and
+a head matching the checkout. Invalid ranges or uncertain impact selection
+fall back to full inventory with a diagnostic. Invalid selector configuration
+or an incomplete project inventory fails instead of reporting no work.
+Main-branch ordinary test suites remain full; Build & Test lint and typecheck
+use the push range when available. Local ordinary suite range behavior is
+documented in [`scripts/README.md`](../../scripts/README.md).
 
-`.github/workflows/playwright-dev.yml` and the release workflow each invoke
-the reusable workflow once. The invocation starts the `all` server set and
-runs every configured E2E project in one `bunx playwright test` process.
+Inspect browser and visual selection without building or seeding:
+
+```sh
+bun scripts/ci/affected-verification.ts --mode full
+bun scripts/ci/affected-verification.ts --mode affected --base <base-ref> --head <head-ref>
+```
+
+The selector writes one JSON object to stdout and diagnostics to stderr. It
+reports the mode and reason, browser matrix, seed requirement, native WebGPU,
+responsive capture, and Storybook capture flags. It queries Turbo impact tasks,
+not a file-to-test map. Shared dependencies can select additional projects.
+Docs-only changes under `docs/` can produce an empty selection; deleted,
+renamed, uncovered, or otherwise uncertain inputs conservatively select full
+verification. Full browser selection does not prove hosted jobs ran.
 
 New `.spec.ts` files matching an existing `testMatch` pattern are included
-automatically; no workflow edit is needed. Adding a new Playwright project or
-changing a `testMatch` boundary requires updating the reusable workflow inputs
-and this table. The reusable job runs `bunx playwright test --list` first and
-fails if its project selection discovers zero tests.
+automatically. Adding a Playwright project or changing its boundary also requires
+updating the selector inventory and its impact mapping. The reusable job runs
+`bunx playwright test --list` first and fails if its project selection discovers
+zero tests.
 
 The reusable `.github/workflows/playwright.yml` accepts project flags, server
 mode, server set, runner, optional `dist` artifact, and result artifact name.
