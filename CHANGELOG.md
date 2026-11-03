@@ -1,6 +1,14 @@
 ## Unreleased
 
 ### Features
+
+### Fixes
+
+### Internal
+
+## v0.21.0 - 2026-11-03
+
+### Features
 - Choose Claude (Anthropic) as an AI provider for analysis, chat, auto-tune and driver profiles with its own API key. The model picker lists the Claude models available to that key, tags Claude Haiku 5.5 as Recommended, and preselects it when you switch to Claude.
 - Add iRacing support.
 - Add AMS2 support.
