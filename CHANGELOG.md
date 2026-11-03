@@ -3,6 +3,14 @@
 ### Features
 
 ### Fixes
+
+### Internal
+
+## v0.21.1 - 2026-11-03
+
+### Features
+
+### Fixes
 - Restore the recording-frequency control in Settings → Recording.
 - Restore iRacing and Automobilista 2 in the Windows app sidebar.
 
