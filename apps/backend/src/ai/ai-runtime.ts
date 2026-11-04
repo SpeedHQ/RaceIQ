@@ -1,4 +1,5 @@
 import { getAiProviderApiKey } from "@raceiq/backend-core/ai/openai-compatible-provider";
+import { baseUrlFor } from "@raceiq/backend-core/ai/provider-endpoints";
 import { loadSettings, type AppSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { AI_FEATURES, type AiFeature, type AiProvider } from "@raceiq/backend-core/ai/ai-features";
 import {
@@ -42,7 +43,7 @@ export async function resolveAi(feature: AiFeature, settings: AppSettings = load
   }
 
   const provider = selected.provider as AiProvider;
-  if (provider !== "gemini" && provider !== "openai" && provider !== "anthropic" && provider !== "openai-compatible") {
+  if (provider !== "gemini" && provider !== "openai" && provider !== "anthropic" && provider !== "deepseek" && provider !== "openai-compatible") {
     throw new AiProviderError(`Unsupported AI provider: ${selected.provider}`, {
       code: "unsupported-provider",
       provider: selected.provider,
@@ -89,6 +90,22 @@ export async function resolveAi(feature: AiFeature, settings: AppSettings = load
         });
       }
       return resolvedAiFromAdapter(new AnthropicProviderAdapter({ ...config, apiKey }));
+    }
+    case "deepseek": {
+      const apiKey = await getAiProviderApiKey("deepseek");
+      if (!apiKey) {
+        throw new AiProviderError(`DeepSeek API key not set. Add it in Settings → AI ${section}.`, {
+          code: "missing-api-key",
+          provider,
+        });
+      }
+      // DeepSeek 官方端点兼容 OpenAI 协议，复用兼容适配器；
+      // 与 openai-compatible 的差别是「端点固定 + key 必填」。
+      return resolvedAiFromAdapter(new OpenAiCompatibleProviderAdapter({
+        ...config,
+        endpoint: baseUrlFor("deepseek") ?? "https://api.deepseek.com",
+        apiKey,
+      }));
     }
     case "openai-compatible": {
       const apiKey = await getAiProviderApiKey("openai-compatible");

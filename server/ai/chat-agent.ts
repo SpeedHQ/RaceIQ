@@ -87,6 +87,11 @@ export function getMastraModelId(
       return `openai/${aiModel || "gpt-4o-mini"}`;
     case "anthropic":
       return `anthropic/${aiModel || "claude-haiku-5-5"}`;
+    case "deepseek": {
+      // DeepSeek 走 OpenAI chat-completions 协议；base URL 由
+      // configureAiProviderEnvironment 写入 OPENAI_BASE_URL。
+      return `openai/${aiModel || "deepseek-flash"}`;
+    }
     case "openai-compatible": {
       // Local models use OpenAI-compatible API; model ID passed through
       return `openai/${aiModel || "local-model"}`;

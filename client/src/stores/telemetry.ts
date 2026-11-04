@@ -40,6 +40,8 @@ export interface DisplaySettings {
   hudHostname?: string;
   /** Server-injected: whether a Gemini API key is stored */
   geminiApiKeySet?: boolean;
+  /** Server-injected: whether a DeepSeek API key is stored */
+  deepseekApiKeySet?: boolean;
   /** Server-injected: whether an OpenAI API key is stored */
   openaiApiKeySet?: boolean;
   /** Server-injected: whether an OpenAI-compatible API key is stored */

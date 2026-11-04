@@ -27,6 +27,7 @@ import type { FetchFunction } from "@ai-sdk/provider-utils";
 import { extractReasoningMiddleware, wrapLanguageModel, type LanguageModel } from "ai";
 import type { MastraModelConfig } from "@mastra/core/llm";
 import { ANTHROPIC_OPENAI_BASE_URL, anthropicCompatibleFetch, isAnthropicEndpoint, openAiCompatibleExtraHeaders } from "@raceiq/backend-core/ai/openai-compatible-headers";
+import { baseUrlFor } from "@raceiq/backend-core/ai/provider-endpoints";
 import { RESOLVED_AI_MODEL_CONTEXT_KEY } from "../ai/resolved-ai-internals";
 
 export type BoundMastraModel = MastraModelConfig;
@@ -255,6 +256,22 @@ export function getMastraModelId(
         fetch: anthropicCompatibleFetch() as FetchFunction,
       });
       return bindMastraModel(anthropic.chat(model || "claude-haiku-5-5"));
+    }
+    case "deepseek": {
+      // DeepSeek: 官方 OpenAI 兼容端点 + 必填 key（由 configureAiProviderEnvironment 注入）。
+      const baseURL = baseUrlFor("deepseek") ?? "https://api.deepseek.com";
+      const key = apiKey || process.env.OPENAI_API_KEY || "";
+      const deepseek = createOpenAI({
+        baseURL,
+        apiKey: key,
+        headers: openAiCompatibleExtraHeaders(baseURL, key),
+        fetch: reasoningContentToThinkFetch(globalThis.fetch as FetchFunction),
+      });
+      const base = deepseek.chat(model || "deepseek-flash");
+      return bindMastraModel(wrapLanguageModel({
+        model: base,
+        middleware: extractReasoningMiddleware({ tagName: "think" }),
+      }));
     }
     case "openai-compatible": {
       const baseURL = localEndpoint ?? "http://localhost:1234/v1";

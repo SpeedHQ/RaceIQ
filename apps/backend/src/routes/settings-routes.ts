@@ -80,17 +80,20 @@ export const settingsRoutes = new Hono()
     let hasOpenaiKey = false;
     let hasAnthropicKey = false;
     let hasOpenAiCompatibleKey = false;
+    let hasDeepseekKey = false;
     if (shouldCheckCredentialStatus()) {
       hasGeminiKey = !!(await getSecret("gemini-api-key"));
       hasOpenaiKey = !!(await getSecret("openai-api-key"));
       hasAnthropicKey = !!(await getSecret("anthropic-api-key"));
       hasOpenAiCompatibleKey = !!(await getLocalApiKey());
+      hasDeepseekKey = !!(await getSecret("deepseek-api-key"));
     }
     return c.json({
       ...settings,
       resolvedRecordingDirectory: resolveRecordingDirectory(),
       udpPort: udpListener.port,
       openaiCompatibleApiKeySet: hasOpenAiCompatibleKey,
+      deepseekApiKeySet: hasDeepseekKey,
       geminiApiKeySet: hasGeminiKey,
       openaiApiKeySet: hasOpenaiKey,
       anthropicApiKeySet: hasAnthropicKey,
@@ -111,7 +114,7 @@ export const settingsRoutes = new Hono()
       (c.req.query("providers") ?? "")
         .split(",")
         .map((p) => p.trim())
-        .filter((p) => p === "gemini" || p === "openai" || p === "anthropic" || p === "openai-compatible"),
+        .filter((p) => p === "gemini" || p === "openai" || p === "anthropic" || p === "deepseek" || p === "openai-compatible"),
     );
     const useRequestedProviders = requestedProviders.size > 0;
     const shouldFetchGemini = useRequestedProviders
@@ -254,6 +257,11 @@ export const settingsRoutes = new Hono()
       "gemini": geminiModels,
       "openai": openAiModels,
       "anthropic": anthropicModels,
+      // DeepSeek 没有 /models 拉取路径，直接给官方模型清单（2026-11 文档）。
+      "deepseek": [
+        { id: "deepseek-flash", name: "DeepSeek Flash" },
+        { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro" },
+      ],
       "openai-compatible": localModels,
       "_errors": { gemini: geminiError, openai: openAiError, anthropic: anthropicError, "openai-compatible": localError },
     });
@@ -261,7 +269,7 @@ export const settingsRoutes = new Hono()
 
   // PUT /api/ai-key — store or clear an AI provider API key
   .put("/api/ai-key", zValidator("json", z.object({
-    provider: z.enum(["gemini", "openai", "openai-compatible", "anthropic", "local"]),
+    provider: z.enum(["gemini", "openai", "deepseek", "openai-compatible", "anthropic", "local"]),
     apiKey: z.string().max(8192).refine((value) => !value.includes("\0")),
   }).strict()), async (c) => {
     const body = c.req.valid("json");

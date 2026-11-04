@@ -338,7 +338,7 @@ export const comparisonRoutes = new Hono()
         ? "gpt-4o-mini"
         : chatProvider === "anthropic"
           ? "claude-haiku-5-5"
-          : chatProvider === "openai-compatible"
+          : chatProvider === "deepseek" ? "deepseek-flash" : chatProvider === "openai-compatible"
           ? "local-model"
           : "gemini-flash-latest");
     if (chatRequestHasImage(messages) && resolveChatVisionCapability(chatProvider, chatModelLabel) !== "supported") {

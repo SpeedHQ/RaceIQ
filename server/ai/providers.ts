@@ -18,12 +18,13 @@ export interface AiResult {
   };
 }
 
-export type AiProvider = "gemini" | "openai" | "anthropic" | "openai-compatible";
+export type AiProvider = "gemini" | "openai" | "anthropic" | "deepseek" | "openai-compatible";
 
 const AI_PROVIDERS = [
   { id: "gemini", name: "Google Gemini" },
   { id: "openai", name: "OpenAI" },
   { id: "anthropic", name: "Claude (Anthropic)" },
+  { id: "deepseek", name: "DeepSeek" },
   { id: "openai-compatible", name: "OpenAI-compatible" },
 ];
 

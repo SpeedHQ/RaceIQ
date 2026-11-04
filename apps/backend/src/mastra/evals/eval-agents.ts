@@ -20,6 +20,7 @@ export function resolveEvalModelId(): string {
   const model = process.env.EVALS_MODEL ?? "gemini-flash-latest";
   if (provider === "gemini") return `google/${model}`;
   if (provider === "openai") return `openai/${model}`;
+    if (provider === "deepseek") return `openai/${model}`;
   return DEFAULT_EVAL_MODEL;
 }
 

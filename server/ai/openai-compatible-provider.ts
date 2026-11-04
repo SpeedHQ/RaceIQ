@@ -1,9 +1,15 @@
 import { AiProviderError } from "./provider-error";
+import { baseUrlFor } from "./provider-endpoints";
 import { getSecret } from "../runtime/platform/keystore";
 
-export type ConfiguredAiProvider = "gemini" | "openai" | "anthropic" | "openai-compatible";
+export type ConfiguredAiProvider = "gemini" | "openai" | "anthropic" | "deepseek" | "openai-compatible";
 
-const PROVIDER_LABELS = { gemini: "Gemini", openai: "OpenAI", anthropic: "Anthropic" } as const;
+const PROVIDER_LABELS = {
+  gemini: "Gemini",
+  openai: "OpenAI",
+  anthropic: "Anthropic",
+  deepseek: "DeepSeek",
+} as const;
 
 export async function getAiProviderApiKey(provider: ConfiguredAiProvider): Promise<string | undefined> {
   const key = await getSecret(`${provider}-api-key`);
@@ -43,6 +49,10 @@ export async function configureAiProviderEnvironment(
   } else if (provider === "anthropic") {
     process.env.ANTHROPIC_API_KEY = apiKey;
     delete process.env.OPENAI_BASE_URL;
+  } else if (provider === "deepseek") {
+    // DeepSeek 是一等公民：固定官方端点，key 必填（上面的守卫已保证存在）。
+    process.env.OPENAI_API_KEY = apiKey;
+    process.env.OPENAI_BASE_URL = baseUrlFor("deepseek");
   } else {
     process.env.OPENAI_API_KEY = apiKey || "local";
     process.env.OPENAI_BASE_URL = localEndpoint;

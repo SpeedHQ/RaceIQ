@@ -177,6 +177,7 @@ export function useAiSettings(): AiSettingsState {
     gemini: !!displaySettings.geminiApiKeySet,
     openai: !!displaySettings.openaiApiKeySet,
     anthropic: !!displaySettings.anthropicApiKeySet,
+    deepseek: !!displaySettings.deepseekApiKeySet,
     "openai-compatible": !!displaySettings.openaiCompatibleApiKeySet,
   };
   const updateKeyStatusInSettingsCache = (providerKeyId: string, isSet: boolean) => {
@@ -185,6 +186,7 @@ export function useAiSettings(): AiSettingsState {
       if (providerKeyId === "gemini") return { ...(prev as Record<string, unknown>), geminiApiKeySet: isSet };
       if (providerKeyId === "openai") return { ...(prev as Record<string, unknown>), openaiApiKeySet: isSet };
       if (providerKeyId === "anthropic") return { ...(prev as Record<string, unknown>), anthropicApiKeySet: isSet };
+      if (providerKeyId === "deepseek") return { ...(prev as Record<string, unknown>), deepseekApiKeySet: isSet };
       if (providerKeyId === "openai-compatible") return { ...(prev as Record<string, unknown>), openaiCompatibleApiKeySet: isSet };
       return prev;
     });
