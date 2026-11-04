@@ -12,7 +12,7 @@
   "ai_codex_missing": "Codex CLI not found. Install Codex, then refresh.",
   "ai_codex_unsupported": "This integration requires Codex CLI 0.164.0 and a supported model.",
   "ai_codex_unavailable": "Could not check Codex. Refresh to retry.",
-  "ai_codex_help": "Codex uses your ChatGPT account without an API key. Chat and Setup Engineer support are still being developed.",
+  "ai_codex_help": "Codex uses your ChatGPT account. No API key required.",
   "ai_provider_access_help": "Choose a provider. Codex uses ChatGPT sign-in; other hosted providers require an API key.",
   "spectate_direction_lock": "Follow car A direction",
   "spectate_tire_trails": "Tire trails",

@@ -9,6 +9,11 @@ import type { SceneRuntimeConfig } from "./SceneRuntime";
 import { createWheelResource, setWheelSpin, updateWheelResource, type WheelResource } from "./Wheel";
 export type AnalysisWheelConfig = Pick<SceneRuntimeConfig, "carModel" | "gameId" | "temperatureSemanticId" | "temperatureThresholds">;
 
+/** Map physical wheel positions back to telemetry order after reflecting scene X. */
+export function analysisWheelTelemetryIndex(index: number, reflectX: boolean): number {
+  return reflectX ? (index ^ 1) : index;
+}
+
 export function createAnalysisWheels(parent: THREE.Object3D, model: AnalysisWheelConfig["carModel"]): WheelResource[] {
   return Array.from({ length: 4 }, (_, index) => {
     const radius = index < 2 ? model.frontTireRadius ?? model.tireRadius : model.rearTireRadius ?? model.tireRadius;
@@ -22,7 +27,7 @@ export function createAnalysisWheels(parent: THREE.Object3D, model: AnalysisWhee
 /** The Analyse wheel pipeline, shared by single-lap analysis and paired replay. */
 export function updateAnalysisWheels(
   wheels: readonly WheelResource[], frame: SemanticAnalysisFrame, config: AnalysisWheelConfig,
-  elapsed: number, playbackSpeed: number, playing: boolean, rimColor = "var(--app-accent)",
+  elapsed: number, playbackSpeed: number, playing: boolean, rimColor = "var(--app-accent)", reflectX = false,
 ) {
   const model = config.carModel;
   const adapter = getGame(config.gameId);
@@ -37,15 +42,16 @@ export function updateAnalysisWheels(
   };
   return wheels.map((wheel, index) => {
     const isRear = index >= 2, side = index % 2 === 0 ? "left" : "right";
+    const telemetryIndex = analysisWheelTelemetryIndex(index, reflectX);
     const radius = (isRear ? model.rearTireRadius : model.frontTireRadius) ?? model.tireRadius;
     const width = (isRear ? model.rearTireWidth : model.frontTireWidth) ?? 0.3;
     const x = isRear ? -model.halfWheelbase : model.halfWheelbase;
     const z = (side === "left" ? -1 : 1) * (isRear ? model.halfRearTrack : model.halfFrontTrack);
-    const readings = tireTemperatureReadings(frame, index, side, config.temperatureSemanticId, config.temperatureSemanticId === "tire.temperature.core" ? "core" : config.temperatureSemanticId.includes("carcass") ? "carcass" : "surface");
-    updateWheelResource(wheel, { position: [x, 0, z], steerAngle: isRear ? 0 : steering, rimColor, temperatureReadings: readings, temperatureThresholds: config.temperatureThresholds, brakeTemp: wheelValue("brakes.brake-temp", index), side, isRear, onCurb: false, puddleDepth: wheelValue("tires.wheel-in-puddle-depth", index), tireRadius: radius, tireWidth: width });
-    const lockup = states[index]?.state === "lockup";
-    const rotationSpeed = lockup ? 0 : visualWheelRotationSpeed(Array.isArray(measured) ? measured[index] : undefined, speed, radius, analysis.wheelRotation.source !== "unavailable");
-    setWheelSpin(wheel, rotationSpeed, elapsed, playbackSpeed, playing);
+    const readings = tireTemperatureReadings(frame, telemetryIndex, side, config.temperatureSemanticId, config.temperatureSemanticId === "tire.temperature.core" ? "core" : config.temperatureSemanticId.includes("carcass") ? "carcass" : "surface");
+    updateWheelResource(wheel, { position: [x, 0, z], steerAngle: isRear ? 0 : steering, rimColor, temperatureReadings: readings, temperatureThresholds: config.temperatureThresholds, brakeTemp: wheelValue("brakes.brake-temp", telemetryIndex), side, isRear, onCurb: false, puddleDepth: wheelValue("tires.wheel-in-puddle-depth", telemetryIndex), tireRadius: radius, tireWidth: width });
+    const lockup = states[telemetryIndex]?.state === "lockup";
+    const rotationSpeed = lockup ? 0 : visualWheelRotationSpeed(Array.isArray(measured) ? measured[telemetryIndex] : undefined, speed, radius, analysis.wheelRotation.source !== "unavailable");
+    setWheelSpin(wheel, reflectX ? -rotationSpeed : rotationSpeed, elapsed, playbackSpeed, playing);
     return readings;
   });
 }

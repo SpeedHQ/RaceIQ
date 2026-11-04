@@ -12,7 +12,7 @@
   "ai_codex_missing": "Codex CLI नहीं मिला। Codex इंस्टॉल करें, फिर रीफ़्रेश करें।",
   "ai_codex_unsupported": "इस एकीकरण के लिए Codex CLI 0.164.0 और समर्थित मॉडल चाहिए।",
   "ai_codex_unavailable": "Codex की जाँच नहीं हो सकी। फिर कोशिश करने के लिए रीफ़्रेश करें।",
-  "ai_codex_help": "Codex बिना API कुंजी के आपका ChatGPT खाता उपयोग करता है। चैट और सेटअप इंजीनियर अभी विकसित किए जा रहे हैं।",
+  "ai_codex_help": "Codex आपके ChatGPT खाते का उपयोग करता है। API कुंजी की आवश्यकता नहीं है।",
   "ai_provider_access_help": "प्रदाता चुनें। Codex ChatGPT साइन-इन उपयोग करता है; अन्य क्लाउड प्रदाताओं को API कुंजी चाहिए।",
   "spectate_direction_lock": "कार A की दिशा का अनुसरण करें",
   "$schema": "https://inlang.com/schema/inlang-message-format",

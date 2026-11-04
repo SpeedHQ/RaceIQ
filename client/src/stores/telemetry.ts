@@ -18,13 +18,15 @@ export interface DisplaySettings {
   aiModel: string;
   analysisMaxOutputTokens?: number;
   comparisonMaxOutputTokens?: number;
+  chatMaxOutputTokens?: number;
+  autoTuneMaxOutputTokens?: number;
   lapAnalysisInstructions?: string | null;
   compareAnalysisInstructions?: string | null;
   aiThinkingBudget: number | null;
-  chatProvider: "gemini" | "openai" | "anthropic" | "openai-compatible";
+  chatProvider: "gemini" | "openai" | "anthropic" | "openai-compatible" | "codex";
   chatModel: string;
   chatThinkingBudget: number | null;
-  autoTuneProvider: "gemini" | "openai" | "anthropic" | "openai-compatible";
+  autoTuneProvider: "gemini" | "openai" | "anthropic" | "openai-compatible" | "codex";
   autoTuneModel: string;
   localEndpoint: string;
   wsRefreshRate: string;

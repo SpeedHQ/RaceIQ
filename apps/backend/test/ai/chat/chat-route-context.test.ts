@@ -13,6 +13,7 @@ import { createChatRoutes } from "../../../src/routes/laps/chat-routes";
 import { buildLapChatInstructions, lapChatGroundingProcessor, lapChatPrepareStep, requiresCornerMetricsLookup, requiresLapInsightsLookup } from "../../../src/mastra/agents/lap-chat";
 import { getLapInsightsToolFor } from "../../../src/mastra/tools/lap-insights";
 import { setupContextForLap } from "../../../src/ai/lap-setup-context";
+import type { CodexGenerationInput } from "../../../src/ai/codex/runtime";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -201,6 +202,57 @@ function lap(fixture: { id: number; lapNumber: number; tuneId: number }) {
 }
 
 describe("lap chat route context and targeted removal", () => {
+
+  test("Codex lap chat streams, persists history, and receives only selected-lap read tools", async () => {
+    const generationInputs: CodexGenerationInput[] = [];
+    const persisted: unknown[][] = [];
+    const memory = { saveMessages: async ({ messages }: { messages: unknown[] }) => { persisted.push(messages); } };
+    const app = createChatRoutes({
+      getLapById: async () => ({
+        id: 812, lapNumber: 3, lapTime: 91.2, isValid: true, telemetry: [telemetry],
+        gameId: "f1-2025", trackId: "11", carId: "1", tuneId: null,
+      }) as never,
+      getAnalysis: (async () => null) as never,
+      loadSettings: (() => ({
+        chatProvider: "codex", chatModel: "gpt-6-luna", codexExecutable: "/usr/bin/codex",
+        chatMaxOutputTokens: 32_768, unit: "metric", temperatureUnit: "C", language: "en",
+      })) as never,
+      resolveLapCorners: (async () => []) as never,
+      buildChatSystemPrompt: (() => "Ground answers in selected lap 812.") as never,
+      resolveActiveThread: (async (base: string) => base) as never,
+      ensureSystemPrompt: (async () => {}) as never,
+      getChatMemory: (() => memory) as never,
+      findCodexExecutable: (() => "/usr/bin/codex") as never,
+      runCodex: (async (input: CodexGenerationInput) => {
+        generationInputs.push(input);
+        input.onTextDelta?.("Grounded reply");
+        return {
+          text: "Grounded reply", status: "completed", model: input.model, runtimeVersion: "0.164.0",
+          latencyMs: 20, firstContentMs: 5,
+          budget: { requestedOutputTokens: input.requestedOutputTokens ?? null, effectiveOutputTokens: null, supported: false },
+          usage: { inputTokens: 20, cachedInputTokens: null, outputTokens: 4, reasoningOutputTokens: null, costUsd: null },
+        };
+      }) as never,
+    });
+    const response = await app.request("/api/laps/812/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: [{ id: "codex-user", role: "user", parts: [{ type: "text", text: "Analyse this lap" }] }] }),
+    });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-resumable-stream-id")).toBeTruthy();
+    const body = await response.text();
+    expect(body).toContain("Grounded reply");
+    expect(generationInputs).toHaveLength(1);
+    expect(generationInputs[0]).toMatchObject({
+      model: "gpt-6-luna", effort: "medium", requestedOutputTokens: 32_768, toolRole: "chat",
+      command: ["/usr/bin/codex"],
+    });
+    expect(generationInputs[0]!.prompt).toContain("Ground answers in selected lap 812.");
+    expect(Object.keys(generationInputs[0]!.tools ?? {})).toContain("get_corner_metrics");
+    expect(Object.keys(generationInputs[0]!.tools ?? {})).not.toContain("apply_changes");
+    expect(persisted.flat().map((message) => (message as { role: string }).role)).toEqual(["user", "assistant"]);
+  });
 
   test("passes current lap, analysis and setup into real lap-chat instructions on each turn", async () => {
     const firstLap = await makeLapFixture(51, "SETUP-41");

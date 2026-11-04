@@ -12,7 +12,7 @@
   "ai_codex_missing": "Codex CLIが見つかりません。Codexをインストールして更新してください。",
   "ai_codex_unsupported": "この連携にはCodex CLI 0.164.0と対応モデルが必要です。",
   "ai_codex_unavailable": "Codexを確認できませんでした。更新して再試行してください。",
-  "ai_codex_help": "CodexはAPIキーなしでChatGPTアカウントを使用します。チャットとセットアップエンジニアは開発中です。",
+  "ai_codex_help": "CodexはChatGPTアカウントを使用します。APIキーは不要です。",
   "ai_provider_access_help": "プロバイダーを選択してください。CodexはChatGPTログイン、他のクラウドプロバイダーはAPIキーを使用します。",
   "spectate_direction_lock": "車両Aの向きに追従",
   "$schema": "https://inlang.com/schema/inlang-message-format",

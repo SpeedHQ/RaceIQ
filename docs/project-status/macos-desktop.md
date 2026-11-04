@@ -78,6 +78,17 @@ standalone-private-repository versus support-assisted-detachment choice is pendi
 
 ## Active goal — 2026-10-30
 
+Scope decision (2026-11-02): finish the trustworthy local-app gates first:
+native telemetry/restart, 2026 capture validation, and authenticated Codex
+chat/setup. These core flows now have native and authenticated route evidence.
+An initial response/usage matrix is recorded; the repeated quality study remains
+open. Codex output-token caps remain unsupported and must not be simulated;
+retain actual usage and latency evidence from core-flow runs.
+Execution order: (1) authenticated Codex chat and authorized setup tools,
+(2) native telemetry/restart acceptance, (3) independent review of 2026 capture
+timing and channels. Preserve any missing-auth or capture gate as unverified
+until it can be run; do not substitute mocks for authenticated evidence.
+
 Deliver an Apple Silicon RaceIQ macOS `.app` using Tauri and a bundled Bun
 backend, supporting F1 25's 2026 Season Pack UDP format alongside existing
 2025 telemetry, with Codex available for lap/comparison analysis, AI chat,
@@ -427,8 +438,13 @@ parity, mixed-format resets and malformed input. The first real 2026 relay captu
 was saved privately on 2026-10-31: 47,789 datagrams, strict framing validation,
 45,118 decoded snapshots, no parser exceptions or observed supported-size
 mismatches. It records a Mercedes 2026 time trial at Mexico and a native 79.588 s
-lap reading, but begins 1.919 s into that lap. Full-lap real-capture acceptance
-therefore remains pending. See the wire audit for its hash and limitations.
+lap reading, but begins 1.919 s into that lap. A separate archived capture in
+the backed-up user data contains complete 2026-format laps 5–7. Replaying those
+packets through the installed app saved valid laps 6 and 7 at 81.864 s and
+81.805 s; native Replay and Compare opened them, and history survived restart.
+This verifies full-lap archived-capture playback through the native pipeline;
+the console was not connected during this check. See the wire audit for the
+first capture's hash and limitations.
 The user chose to continue with this existing capture on 2026-10-31; do not wait
 for another drive before independent implementation and partial-capture checks.
 Raw now resolves game-specific extensions through the catalog source inventory,
@@ -436,11 +452,14 @@ so new fields carry units/categories/provenance without changing UI components
 or styling. The 2025 and synthetic 2026 UDP-to-Replay/Compare/export/import
 scenarios pass Chromium and WebKit. Season catalogs now include all 22 new
 2026 F1/F2 team IDs, Madrid and the three reverse circuits, preserving existing
-identities and leaving unverified track lengths/geometry unavailable. Dedicated
-Live/Replay channel presentation, real-DLC and native acceptance remain pending.
+identities and leaving unverified track lengths/geometry unavailable. Native
+Raw showed 2026 regulations and ERS-limit values; native Compare showed distinct
+ERS modes. A full surface-by-surface channel audit and 2026 import/export
+round-trip remain pending.
 AI context now distinguishes format from regulations and supplies native 2026
 aero/overtake, ERS limits and session type with explicit missing-data boundaries;
-real model quality and authenticated Codex acceptance remain unverified.
+the repeated real-response quality study remains open. Authenticated Codex route
+coverage is recorded in Milestone 5.
 The native artifact was rebuilt on 2026-10-31;
 strict deep signature verification passes and its bundled car/track CSVs are
 byte-identical to the new source catalogs. This is build evidence, not native
@@ -475,6 +494,94 @@ reviewed expected timing/channel values. If no real capture is available,
 synthetic tests may prove implementation progress but not this milestone done.
 
 ## Milestone 5: Codex provider and response-budget controls
+
+Chat/setup implementation checkpoint (2026-11-02): Codex routing is now wired
+for lap and comparison chat plus the focus-selected experiment engineer/coach.
+Chats use resumable detached streams and existing conversation memory; models
+receive backend-bound read tools, while engineer `apply_changes` and coach
+`record_drill` are separated by role. Chat and setup budgets are stored per
+feature and passed to API-key providers; Codex records requested limits as
+unsupported and retains measured usage. Settings now expose Codex across those
+features without API-key prompts. Focused route/tool tests and typecheck pass.
+
+Authenticated Luna route smokes (2026-11-02): lap chat ran through the actual
+Hono route with a synthetic lap and synthetic `get_speed` tool, invoked once,
+streamed a grounded 240 km/h reply, and persisted user/assistant messages. It
+reported 4,315 input / 14 output tokens, 2.162 s completion, 2.037 s first
+content. The actual Setup Engineer route ran in a disposable database against a
+synthetic F1 setup snapshot with a recorded assistant proposal and explicit
+driver confirmation. Codex called `apply_changes` once; version 2 advanced the
+head and changed Front Wing 20 → 21. The route returned a resumable stream and
+persisted chat history. It reported 9,743 input / 63 output tokens, 5.162 s
+completion, 4.607 s first content. Both requested 8,192 output tokens, which
+Codex does not support; effective cap and cost remain unknown. These smokes used
+synthetic data and a temporary database, not private telemetry or installed-app
+state.
+
+Reconnect returned byte-identical stream content while preserving one setup
+version. Cancellation of an authenticated turn retained the submitted user
+message and produced neither assistant completion nor setup mutation. A
+confirmed message replay after completion returned through the route without
+creating a second version; the domain regression test invokes the write tool
+twice with one stable message ID and confirms the committed result/action row is
+reused. The idempotency result is stored atomically with the existing experiment
+undo action, requiring no schema migration.
+
+`record_drill` now also requires the latest user message to approve a matching
+assistant proposal; a false model attestation cannot create a drill arm. Focused
+domain tests cover this guard and one-time replay. Authenticated route checks
+passed on 2026-11-02: Driver Coach proposed one T4 drill from a synthetic driver
+report, waited for approval, then wrote one `drill` arm with no setup file.
+Replaying the same confirmed message returned the prior result; version count
+and head did not change. Comparison chat ran against two committed public F1 25
+Lusail laps (86.709 s and 90.704 s), streamed a grounded answer, and persisted
+user/assistant history. Its reply reported 13,194 input / 145 output tokens,
+12,928 cached input, 5.637 s to first content and 6.875 s runtime completion.
+The answer called out a possible 0 km/h telemetry anomaly before advising a
+change. No private relay capture was sent.
+
+Authenticated response/usage samples across analysis, comparison chat, lap
+chat, Setup Engineer and Driver Coach are summarized in
+[Codex response matrix](codex-response-matrix-2026-11-02.md), including short
+answer examples. Two analyst laps and comparison chat now have three repeated
+runs each. One initial comparison reply misstated a displayed lap delta by
+0.004 s; all three repeats gave correct 3.995 s. Codex output ceilings remain
+unsupported; requested 8,192 or 32,768 values do not control generation. Setup,
+multi-turn and 2026 quality repetitions remain open.
+
+Native install follow-up (2026-11-02): the prior app eventually rendered its
+existing Mexico replay, but its logs showed repeated capture-manifest ownership
+mismatches and a migration-history conflict at v84. The closed app and all 105
+files in its 1.7 GB data directory were copied to
+`~/Library/Application Support/RaceIQ.backup-2026-11-02-preinstall`; file-level
+checksum comparison matched, and `app.db` plus `chat-memory.db` pass SQLite
+integrity checks. The old install remains at `RaceIQ-previous-20261102.app` and
+the original data folder is preserved at `RaceIQ.preinstall-2026-11-02`.
+Current build was rebuilt with the pinned toolchain, its signature verifies,
+and its bundled backend hash matches `dist/raceiq`. It is installed at
+`/Applications/RaceIQ.app`; previous app and original data remain preserved.
+The fresh database was initialized after backup. User chose to continue without
+dashboard password; settings confirm protection disabled and the HTTP server
+bound only to loopback. This accepts the app's warning that anyone able to reach
+the unprotected dashboard can access data, settings and configured AI chat.
+
+Native acceptance follow-up (2026-11-02): installed app launched without a
+terminal, received native UDP playback on 5301, rendered live 2026-format F1
+channels (including 6.6 MJ ERS harvest limit and 2026 regulations flag), then
+saved session history. The first partial relay capture correctly produced no
+valid replayable lap because it began mid-lap. For full-lap verification, three
+2026-format laps were reconstructed read-only from the archived capture
+manifest and replayed through UDP. Current app saved laps 5–7, with laps 6–7
+valid (81.864 s and 81.805 s); Replay opened lap 6 with telemetry chart, track,
+sectors and 1:21.864 timing. `PRAGMA integrity_check` remained `ok`. After
+quitting and relaunching the app, saved sessions remained available. This proves
+native launch, telemetry, capture, restart persistence and Replay for the
+installed local build. Selecting valid laps 6 and 7 from the expanded session
+row opened native Compare: the page rendered circuit segments, telemetry,
+ERS modes and sector deltas, and identified lap 7 as 0.059 s faster overall.
+Clean quit left no RaceIQ process. The archived database remains preserved;
+old-data migration/repair was intentionally not attempted. The broad
+quality/usage matrix stays deferred by the scope decision above.
 
 Luna profile verification (2026-11-02): CLI 0.164.0 with the patchless
 `gpt-6-luna` catalog and disabled code host exposed no tools to a local mock;
@@ -706,6 +813,13 @@ complete one authorized setup change without an OpenAI API key. Changes persist
 once; cancellation and reconnect preserve history and domain state.
 
 ## Milestone 6: response-quality experiments and combined acceptance
+
+Initial route/sample matrix (2026-11-02) covers authenticated Lap Analyst,
+inputs comparison, lap chat, comparison chat, Setup Engineer and Driver Coach.
+It includes output examples, three repetitions for two analyst laps and
+comparison chat, and honest requested/effective budgets; all Codex effective
+output caps remain unknown/unsupported. See [Codex response matrix](codex-response-matrix-2026-11-02.md).
+Setup, multi-turn and 2026 quality repetitions remain open.
 
 Use representative known laps for both years, a comparison with known faster
 lap, a multi-turn chat and a setup-engineer scenario with expected tool behavior.

@@ -46,7 +46,7 @@ Cars and fully opaque A/B badges swap at the transition midpoint without overlap
 
 The scene opens overhead. Scroll or pinch to zoom without changing the camera angle; drag to orbit. Zooming in or out preserves your chosen orientation.
 
-Enable **Follow car A direction** in the left-side vertical toolbar to keep the view aligned behind car A as it turns. If A has no recorded position, the camera follows B's direction instead; if neither car has a position, it keeps its last orientation. Zoom and vertical orbit remain available. Disable the toggle to keep the current world-facing orientation and orbit freely.
+Enable **Follow car A direction** in the left-side vertical toolbar to keep the view aligned behind car A as it turns. Enabling Follow from overhead also tilts the camera into a chase angle. If A has no recorded position, the camera follows B's direction instead; if neither car has a position, it keeps its last orientation. Zoom and vertical orbit remain available. Disable the toggle to keep the current world-facing orientation and orbit freely.
 
 Enable **Tire trails** in the same toolbar to show short, traction-colored trails behind all four wheels of both cars. Trails start hidden, follow each car's own replay time, and disappear when recorded positions are unavailable. Toggle them off to clear the view without changing playback or racing lines.
 

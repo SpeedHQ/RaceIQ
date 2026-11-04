@@ -1,4 +1,5 @@
 export type ChatTurnMessage = {
+  id?: string;
   role?: string;
   parts?: unknown[];
   content?: unknown;
@@ -7,6 +8,16 @@ export type ChatTurnMessage = {
 
 export const CHAT_TURN_CONTEXT_KEY = "raceiq.chatTurnContext";
 export const CHAT_TURN_MESSAGES_KEY = "raceiq.chatTurnMessages";
+
+/** Stable client message ID used to deduplicate a confirmed chat mutation. */
+export function latestChatTurnUserMessageId(messages: readonly ChatTurnMessage[]): string | null {
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const message = messages[index];
+    if (message?.role !== "user") continue;
+    return typeof message.id === "string" && message.id.trim() ? message.id : null;
+  }
+  return null;
+}
 
 export function getChatTurnContext(requestContext?: { get: (key: string) => unknown }): string {
   if (!requestContext) return "";
@@ -51,6 +62,19 @@ export function hasExplicitChangeConfirmation(messages: readonly ChatTurnMessage
   if (!proposal) return false;
   const proposalText = messageText(proposal).toLowerCase();
   return proposalText.includes(change.component.toLowerCase()) && proposalText.includes(`${change.direction.slice(0, -1)}`);
+}
+
+/** Require a later user approval of the assistant's matching drill proposal. */
+export function hasExplicitDrillConfirmation(messages: readonly ChatTurnMessage[], title: string): boolean {
+  const current = [...messages].reverse().find((message) => message.role === "user");
+  if (!current) return false;
+  const currentText = messageText(current).trim().toLowerCase();
+  if (!/^(?:yes|yeah|yep|ok(?:ay)?|go ahead|do it|let['’]?s try|confirm(?:ed)?)\b/.test(currentText)) return false;
+
+  const currentIndex = messages.lastIndexOf(current);
+  const proposal = [...messages.slice(0, currentIndex)].reverse().find((message) => message.role === "assistant");
+  if (!proposal) return false;
+  return messageText(proposal).toLowerCase().includes(title.trim().toLowerCase());
 }
 
 

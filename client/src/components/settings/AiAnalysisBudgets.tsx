@@ -10,21 +10,26 @@ export function AiAnalysisBudgets() {
   const { displaySettings } = useSettings();
   const initialLap = displaySettings.analysisMaxOutputTokens ?? DEFAULT_ANALYSIS_OUTPUT_TOKENS;
   const initialCompare = displaySettings.comparisonMaxOutputTokens ?? DEFAULT_ANALYSIS_OUTPUT_TOKENS;
+  const initialChat = displaySettings.chatMaxOutputTokens ?? DEFAULT_ANALYSIS_OUTPUT_TOKENS;
+  const initialSetup = displaySettings.autoTuneMaxOutputTokens ?? DEFAULT_ANALYSIS_OUTPUT_TOKENS;
   const [lap, setLap] = useState(String(initialLap));
   const [compare, setCompare] = useState(String(initialCompare));
-  const [baseline, setBaseline] = useState([initialLap, initialCompare]);
+  const [chat, setChat] = useState(String(initialChat));
+  const [setup, setSetup] = useState(String(initialSetup));
+  const [baseline, setBaseline] = useState([initialLap, initialCompare, initialChat, initialSetup]);
   const [error, setError] = useState(false);
   const [saved, setSaved] = useState(false);
   const saveSettings = useSaveSettings();
   const parse = (value: string) => /^\d+$/.test(value) ? Number(value) : NaN;
   const lapValue = parse(lap), compareValue = parse(compare);
+  const chatValue = parse(chat), setupValue = parse(setup);
   const valid = (value: number) => Number.isSafeInteger(value) && value >= MIN_ANALYSIS_OUTPUT_TOKENS && value <= MAX_ANALYSIS_OUTPUT_TOKENS;
   const save = async () => {
     setError(false);
     setSaved(false);
     try {
-      await saveSettings.mutateAsync({ analysisMaxOutputTokens: lapValue, comparisonMaxOutputTokens: compareValue });
-      setBaseline([lapValue, compareValue]);
+      await saveSettings.mutateAsync({ analysisMaxOutputTokens: lapValue, comparisonMaxOutputTokens: compareValue, chatMaxOutputTokens: chatValue, autoTuneMaxOutputTokens: setupValue });
+      setBaseline([lapValue, compareValue, chatValue, setupValue]);
       setSaved(true);
     } catch { setError(true); }
   };
@@ -38,10 +43,18 @@ export function AiAnalysisBudgets() {
         <FieldLabel htmlFor="ai-compare-output-budget">{m.ai_budget_compare()} — {m.ai_max_output_tokens_label()}</FieldLabel>
         <Input id="ai-compare-output-budget" type="number" min={MIN_ANALYSIS_OUTPUT_TOKENS} max={MAX_ANALYSIS_OUTPUT_TOKENS} step={1} value={compare} onChange={(event) => { setCompare(event.target.value); setSaved(false); }} disabled={saveSettings.isPending} aria-invalid={!valid(compareValue)} />
       </Field>
+      <Field data-invalid={!valid(chatValue) || undefined}>
+        <FieldLabel htmlFor="ai-chat-output-budget">{m.ai_chat_provider_title()} — {m.ai_max_output_tokens_label()}</FieldLabel>
+        <Input id="ai-chat-output-budget" type="number" min={MIN_ANALYSIS_OUTPUT_TOKENS} max={MAX_ANALYSIS_OUTPUT_TOKENS} step={1} value={chat} onChange={(event) => { setChat(event.target.value); setSaved(false); }} disabled={saveSettings.isPending} aria-invalid={!valid(chatValue)} />
+      </Field>
+      <Field data-invalid={!valid(setupValue) || undefined}>
+        <FieldLabel htmlFor="ai-setup-output-budget">{m.ai_auto_tune_provider_title()} — {m.ai_max_output_tokens_label()}</FieldLabel>
+        <Input id="ai-setup-output-budget" type="number" min={MIN_ANALYSIS_OUTPUT_TOKENS} max={MAX_ANALYSIS_OUTPUT_TOKENS} step={1} value={setup} onChange={(event) => { setSetup(event.target.value); setSaved(false); }} disabled={saveSettings.isPending} aria-invalid={!valid(setupValue)} />
+      </Field>
       <FieldDescription>{m.ai_analysis_budget_help()}</FieldDescription>
-      {displaySettings.aiProvider === "codex" && <FieldDescription>{m.ai_codex_budget_unsupported()}</FieldDescription>}
+      {[displaySettings.aiProvider, displaySettings.chatProvider, displaySettings.autoTuneProvider].includes("codex") && <FieldDescription>{m.ai_codex_budget_unsupported()}</FieldDescription>}
       <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm" onClick={() => void save()} disabled={saveSettings.isPending || !valid(lapValue) || !valid(compareValue) || (lapValue === baseline[0] && compareValue === baseline[1])}>{saveSettings.isPending ? m.common_saving() : m.common_save()}</Button>
+        <Button variant="outline" size="sm" onClick={() => void save()} disabled={saveSettings.isPending || !valid(lapValue) || !valid(compareValue) || !valid(chatValue) || !valid(setupValue) || (lapValue === baseline[0] && compareValue === baseline[1] && chatValue === baseline[2] && setupValue === baseline[3])}>{saveSettings.isPending ? m.common_saving() : m.common_save()}</Button>
         {saved && <span role="status">{m.common_saved()}</span>}
       </div>
       {error && <FieldDescription role="alert">{m.ai_save_settings_failed()}</FieldDescription>}

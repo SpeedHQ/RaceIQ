@@ -113,6 +113,43 @@ test("Codex driver profile selects Luna and explains its output limit", async ({
   }
 });
 
+test("Codex chat and experiment settings select Luna and save their independent budgets", async ({ page, request }) => {
+  const original = await (await request.get("/api/settings")).json();
+  await page.route("**/api/codex/status", (route) => route.fulfill({ json: { state: "ready", models: [{ id: "gpt-6-luna", name: "GPT-6 Luna" }, { id: "gpt-6.1-sol", name: "GPT-6.1 Sol" }] } }));
+  try {
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("button", { name: "AI Analysis", exact: true }).click();
+
+    for (const id of ["ai-chat-provider", "ai-auto-tune-provider"]) {
+      await page.locator(`#${id}`).click();
+      await page.getByRole("option", { name: "Codex (ChatGPT)", exact: true }).click();
+    }
+    await expect(page.locator("#ai-chat-model")).toHaveValue("GPT-6 Luna");
+    await expect(page.locator("#ai-auto-tune-model")).toHaveValue("GPT-6 Luna");
+    await expect.poll(async () => (await (await request.get("/api/settings")).json())).toMatchObject({
+      chatProvider: "codex", chatModel: "gpt-6-luna",
+      autoTuneProvider: "codex", autoTuneModel: "gpt-6-luna",
+    });
+
+    await page.locator("#ai-chat-output-budget").fill("16384");
+    await page.locator("#ai-setup-output-budget").fill("65536");
+    await page.getByRole("button", { name: "Save", exact: true }).filter({ visible: true }).first().click();
+    await expect.poll(async () => (await (await request.get("/api/settings")).json())).toMatchObject({
+      chatMaxOutputTokens: 16_384, autoTuneMaxOutputTokens: 65_536,
+    });
+    await expect(page.getByText("Codex does not expose an output limit. These requested limits are not applied to Codex.").last()).toBeVisible();
+    await expect(page.getByText("Add this provider's API key above to load models.")).toHaveCount(0);
+  } finally {
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+    await request.put("/api/settings", { data: {
+      chatProvider: original.chatProvider, chatModel: original.chatModel,
+      autoTuneProvider: original.autoTuneProvider, autoTuneModel: original.autoTuneModel,
+      chatMaxOutputTokens: original.chatMaxOutputTokens, autoTuneMaxOutputTokens: original.autoTuneMaxOutputTokens,
+    } });
+  }
+});
+
 test("OpenAI-compatible can be selected for every AI feature without a stored key", async ({ page }) => {
   await page.route("**/api/settings", async (route) => {
     if (route.request().method() !== "GET") {

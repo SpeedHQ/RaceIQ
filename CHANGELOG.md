@@ -7,10 +7,11 @@
 - Choose Codex with ChatGPT sign-in for Driver Profile summaries without an API key.
 - In Settings → AI Analysis, choose Codex Luna or Sol for lap analysis; Luna is preselected when choosing Codex.
 - On Replay and Compare, show when Codex usage or rate limits prevent analysis and explain how to retry.
-- Set separate requested output limits for lap and comparison analysis in Settings → AI Analysis; Codex shows when limits cannot be applied.
+- Set separate requested output limits for lap analysis, comparison, AI chat and Setup Engineer in Settings → AI Analysis; Codex shows when limits cannot be applied.
 - Show F1 2026 ERS energy in kJ on Live and Replay, with Boost mode and DRS shown only when applicable.
 - Edit lap and comparison analysis instructions in Settings → AI Analysis, save preferences, or restore defaults. Prompt changes apply to new analyses without reusing outdated results.
-- Select Codex with a signed-in ChatGPT account for lap and comparison analysis without an API key. Settings shows installation and sign-in status; chat and Setup Engineer support remain in development.
+- Select Codex with ChatGPT sign-in for lap and comparison analysis, AI chat, Setup Engineer and Driver Coach without an API key. Settings shows installation and sign-in status, and experiment roles receive separate tools.
+- Require Driver Coach drills to match a proposed drill and a later driver approval before recording a version.
 - Add experimental decoding for F1 25's 2026 Season Pack UDP format while retaining existing 2025 capture compatibility; dedicated 2026 dashboard displays and native-app validation remain in progress.
 - Show 2026 F1/F2 car names, Madrid and reverse-circuit names in F1 dashboards and catalogs without replacing existing 2025 identities.
 - Use 2026 active-aero, overtake and harvest-limit readings in F1 AI lap analysis and chat.
@@ -51,7 +52,10 @@
 - Include the complete LMU multiplayer recording in demo seeds as sub-100 MB gzip parts, stream native input without buffering the whole capture, and retain separate player and opponent recordings.
 
 ### Fixes
+- On Replay, show F1 circuit overviews and the large track view in the correct orientation.
+- On Replay, align F1 car wheels, suspension and brake details with the corrected track orientation.
 - In AI lap analysis, report measured brake onset after corner entry and mark unobserved brake onset as unknown instead of zero.
+- On Setup Engineer, retrying a confirmed change returns its existing version instead of applying it twice.
 - On Replay, show the correct F1 brake-bias percentage in the Data panel.
 - On Compare, changing lap order no longer reuses AI advice with the A and B labels reversed.
 - Show “Unknown” in new AI analysis results when usage metrics are unreported, while preserving reported zero values.

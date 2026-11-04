@@ -31,6 +31,18 @@ import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "@raceiq/shared/r
 import { buildSetupEngineerSystemPrompt } from "../mastra/agents/setup-engineer";
 import { RequestContext } from "@mastra/core/request-context";
 import { configureAiProviderEnvironment } from "@raceiq/backend-core/ai/openai-compatible-provider";
+import { chatRequestHasImage } from "@raceiq/shared/integrations/ai/chat-vision";
+import { getMastraModelId } from "../mastra/model";
+import { SETUP_ENGINEER_INSTRUCTIONS } from "../mastra/agents/setup-engineer";
+import { DRIVER_COACH_INSTRUCTIONS } from "../mastra/agents/driver-coach";
+import { TRACK_GUIDE_PROMPT, ADJUSTMENT_FORMAT_PROMPT } from "@raceiq/shared/integrations/ai/prompt-snippets";
+import { aiLanguageInstruction } from "@raceiq/shared/integrations/ai/language";
+import { findCodexExecutable } from "../ai/codex/executable";
+import { codexSupervisor } from "../ai/codex/supervisor";
+import { buildExperimentCodexTools } from "../ai/codex/experiment-tools";
+import { startDetachedCodexTurn } from "../ai/codex/chat-stream";
+import { formatCodexChatPrompt } from "../ai/codex/chat-prompt";
+import { DEFAULT_ANALYSIS_OUTPUT_TOKENS } from "@raceiq/shared/integrations/ai/analysis-budget";
 import { setupEngineerTurnWorkflow } from "../mastra/workflows/setup-engineer-turn";
 import { resolveExperimentChatBranch } from "../experiments/chat-branch-context";
 import { Hono } from "hono";
@@ -243,23 +255,30 @@ export const tuneChatRoutes = new Hono()
       // protocol instead). Keep this block in sync with chat-stream.ts if
       // the provider matrix changes.
       const settings = loadSettings();
-      const chatProvider = settings.chatProvider;
-      if (!chatProvider) {
+      const selectedProvider = focus === "car"
+        ? settings.autoTuneProvider || settings.chatProvider
+        : settings.chatProvider;
+      if (!selectedProvider) {
         finishRun(run);
-        return c.json({ error: "No AI provider selected. Choose one in Settings → AI Chat." }, 400);
+        return c.json({ error: `No AI provider selected. Choose one in Settings → ${focus === "car" ? "Setup Engineer" : "AI Chat"}.` }, 400);
       }
-      await configureAiProviderEnvironment(chatProvider, settings.localEndpoint || "http://localhost:1234/v1");
+      const selectedModel = focus === "car"
+        ? settings.autoTuneModel || settings.chatModel
+        : settings.chatModel;
 
-      // Same model-label fallback chain chat-stream.ts uses, so thinking support
-      // is detected off the model that will actually run.
-      const chatModelLabel = settings.chatModel
-        || (chatProvider === "openai"
+      const modelLabel = selectedModel
+        || (selectedProvider === "codex"
+          ? "gpt-6-luna"
+          : selectedProvider === "openai"
           ? "gpt-4o-mini"
-          : chatProvider === "anthropic"
+          : selectedProvider === "anthropic"
             ? "claude-haiku-5-5"
-            : chatProvider === "openai-compatible"
+            : selectedProvider === "openai-compatible"
             ? "local-model"
             : "gemini-flash-latest");
+      const outputBudget = focus === "car"
+        ? settings.autoTuneMaxOutputTokens ?? DEFAULT_ANALYSIS_OUTPUT_TOKENS
+        : settings.chatMaxOutputTokens ?? DEFAULT_ANALYSIS_OUTPUT_TOKENS;
 
       // Captured before the turn runs so the onFinish reasoning-patch below can
       // tell *this* turn's freshly-saved assistant row apart from any earlier
@@ -284,13 +303,64 @@ Only these IDs are current evidence. Empty/undriven branches have no attached ev
         .join("\n\n");
       reqCtx.set(CHAT_TURN_CONTEXT_KEY, turnContext);
       reqCtx.set(CHAT_TURN_MESSAGES_KEY, messages);
+      if (selectedProvider === "codex") {
+        if (chatRequestHasImage(messages)) {
+          finishRun(run);
+          return c.json({ error: "Codex chat currently supports text messages only. Remove the image and retry." }, 400);
+        }
+        const executable = findCodexExecutable(settings.codexExecutable);
+        if (!executable) {
+          finishRun(run);
+          return c.json({ error: "Codex CLI was not found. Select a Codex executable in desktop settings and sign in with ChatGPT." }, 503);
+        }
+        const role = focus === "car" ? "engineer" : "coach";
+        const toolset = buildExperimentCodexTools(role, reqCtx);
+        const roleInstructions = focus === "car"
+          ? `${SETUP_ENGINEER_INSTRUCTIONS}${TRACK_GUIDE_PROMPT}${ADJUSTMENT_FORMAT_PROMPT}`
+          : `${DRIVER_COACH_INSTRUCTIONS}${TRACK_GUIDE_PROMPT}`;
+        const prompt = formatCodexChatPrompt(
+          `${roleInstructions}${aiLanguageInstruction(settings.language)}\n\n${turnContext}`,
+          messages,
+        );
+        try {
+          await startDetachedCodexTurn({
+            run,
+            originalMessages: messages,
+            memory: getChatMemory(),
+            threadId,
+            operation: focus === "car" ? "setup-engineer.stream" : "driver-coach.stream",
+            generate: (onTextDelta, signal) => codexSupervisor.run({
+              command: [executable],
+              model: modelLabel,
+              prompt,
+              effort: "medium",
+              requestedOutputTokens: outputBudget,
+              tools: toolset,
+              toolRole: role,
+              signal,
+              onTextDelta,
+            }),
+          });
+        } catch (error) {
+          finishRun(run);
+          console.error("[ExperimentChat] Could not start Codex stream:", error instanceof Error ? error.message : String(error));
+          return c.json({ error: "Could not start Codex chat. Check Codex sign-in and retry." }, 503);
+        }
+        const response = createUIMessageStreamResponse({ stream: buildReplayStream(run) });
+        response.headers.set("x-resumable-stream-id", run.runId);
+        return response;
+      }
+
+      await configureAiProviderEnvironment(selectedProvider, settings.localEndpoint || "http://localhost:1234/v1");
       const stream = await agent.stream(messages, {
         ...chatMemoryOptions(threadId),
+        model: getMastraModelId(selectedProvider, modelLabel, settings.localEndpoint || "http://localhost:1234/v1"),
         requestContext: reqCtx,
         abortSignal: run.abortController.signal,
+        modelSettings: { maxOutputTokens: outputBudget },
         providerOptions: {
           openai: { reasoningEffort: "medium" },
-          google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
+          google: buildGoogleReasoningProviderOptions(modelLabel, settings.chatThinkingBudget) as never,
         },
       });
 

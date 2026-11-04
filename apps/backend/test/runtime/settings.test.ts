@@ -62,6 +62,20 @@ describe("settings with unit system", () => {
     expect(loadSettings()).toMatchObject({ analysisMaxOutputTokens: 16_384, comparisonMaxOutputTokens: 65_536 });
   });
 
+  test("defaults chat and setup budgets to 32k and validates feature-specific updates", async () => {
+    const initial = loadSettings();
+    expect(initial.chatMaxOutputTokens).toBe(32_768);
+    expect(initial.autoTuneMaxOutputTokens).toBe(32_768);
+    const update = (body: object) => settingsRoutes.request("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    expect((await update({ chatMaxOutputTokens: 16_384, autoTuneMaxOutputTokens: 65_536 })).status).toBe(200);
+    expect(loadSettings()).toMatchObject({ chatMaxOutputTokens: 16_384, autoTuneMaxOutputTokens: 65_536 });
+    for (const [key, value] of [["chatMaxOutputTokens", 511], ["autoTuneMaxOutputTokens", 65_537], ["chatMaxOutputTokens", 1024.5]]) {
+      expect((await update({ [key!]: value })).status).toBe(400);
+    }
+    expect(loadSettings()).toMatchObject({ chatMaxOutputTokens: 16_384, autoTuneMaxOutputTokens: 65_536 });
+    saveSettings({ ...loadSettings(), chatMaxOutputTokens: initial.chatMaxOutputTokens, autoTuneMaxOutputTokens: initial.autoTuneMaxOutputTokens });
+  });
+
   test("analysis instructions save, retain empty overrides, reset and reject oversized drafts", async () => {
     const initial = loadSettings();
     const update = (body: object) => settingsRoutes.request("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });

@@ -12,7 +12,7 @@
   "ai_codex_missing": "未找到 Codex CLI。请安装 Codex 后刷新。",
   "ai_codex_unsupported": "此集成需要 Codex CLI 0.164.0 和受支持的模型。",
   "ai_codex_unavailable": "无法检查 Codex。请刷新重试。",
-  "ai_codex_help": "Codex 使用你的 ChatGPT 账户，无需 API 密钥。聊天和调校工程师支持仍在开发中。",
+  "ai_codex_help": "Codex 使用你的 ChatGPT 账户。无需 API 密钥。",
   "ai_provider_access_help": "选择提供商。Codex 使用 ChatGPT 登录；其他云提供商需要 API 密钥。",
   "spectate_direction_lock": "跟随赛车 A 的方向",
   "$schema": "https://inlang.com/schema/inlang-message-format",

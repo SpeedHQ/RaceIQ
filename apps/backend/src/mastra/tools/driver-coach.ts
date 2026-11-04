@@ -4,6 +4,8 @@ import { z } from "zod";
 import { computeChildLabel, nextFreeLabel } from "@raceiq/backend-core/ai/version-label";
 import { getExperiment } from "@raceiq/backend-core/db/experiment-queries";
 import { createExperimentVersionAndSetHead, nextVersion } from "@raceiq/backend-core/db/experiment-version-queries";
+import { findChatMutationReplay, withChatMutationReplay } from "@raceiq/backend-core/db/experiment-action-queries";
+import { CHAT_TURN_MESSAGES_KEY, hasExplicitDrillConfirmation, latestChatTurnUserMessageId } from "@raceiq/backend-core/ai/chat-message-context";
 import { wsManager } from "@raceiq/backend-core/runtime/websocket-manager";
 import type { DrillChange } from "@raceiq/shared/racing/experiments/types";
 import { readSetupEngineerContext } from "./setup-engineer-request-context";
@@ -64,6 +66,19 @@ const recordDrillTool = createTool({
   outputSchema: recordDrillOutputSchema,
   execute: async (inputData, execCtx) => {
     const { sessionId, branch, mutations } = readSetupEngineerContext(execCtx?.requestContext);
+    const rawTurnMessages = execCtx?.requestContext?.get(CHAT_TURN_MESSAGES_KEY);
+    const userMessageId = Array.isArray(rawTurnMessages)
+      ? latestChatTurnUserMessageId(rawTurnMessages as { id?: string; role?: string; parts?: unknown[]; content?: unknown }[])
+      : null;
+    if (userMessageId) {
+      const replay = await findChatMutationReplay(sessionId, userMessageId, "record_drill");
+      if (replay.found) {
+        const priorResult = recordDrillOutputSchema.safeParse(replay.result);
+        return priorResult.success
+          ? priorResult.data
+          : { ok: false, error: "This confirmed drill was already recorded. Refresh the experiment history." };
+      }
+    }
     // Same hard gate as apply-changes: the model must attest the driver
     // approved. Weak models skip propose→confirm and jump to recording.
     if (!inputData.driverConfirmed) {
@@ -71,6 +86,10 @@ const recordDrillTool = createTool({
         ok: false,
         error: "Not recorded — the driver has not confirmed. Propose the drill, ask them, and only call " + "record_drill (driverConfirmed: true) after they explicitly agree.",
       };
+    }
+    const turnMessages = execCtx?.requestContext?.get(CHAT_TURN_MESSAGES_KEY);
+    if (Array.isArray(turnMessages) && !hasExplicitDrillConfirmation(turnMessages as { role?: string; parts?: unknown[]; content?: unknown }[], inputData.title)) {
+      return { ok: false, error: "Not recorded — explicit confirmation must follow a matching drill proposal in a later driver message." };
     }
 
     const versions = branch.versions;
@@ -109,6 +128,7 @@ const recordDrillTool = createTool({
     };
 
     const prevHeadTestId = mutations.expectedHeadVersionId;
+    const result = { ok: true, version: nextVer, label };
     const versionId = await createExperimentVersionAndSetHead({
       experimentId: sessionId,
       version: nextVer,
@@ -121,7 +141,8 @@ const recordDrillTool = createTool({
       notes: change.title,
       engine: "llm",
     }, mutations.expectedHeadVersionId, {
-      kind: "apply-changes", inversePayload: { versionId: "INSERTED_ID", prevHeadTestId },
+      kind: "apply-changes",
+      inversePayload: withChatMutationReplay({ versionId: "INSERTED_ID", prevHeadTestId }, userMessageId, "record_drill", result),
     });
     if (versionId == null) {
       return { ok: false, error: "Experiment version changed during this drill update. Refresh before recording a drill." };
@@ -129,7 +150,7 @@ const recordDrillTool = createTool({
     wsManager.broadcastNotification({ type: "experiment-updated", sessionId });
     mutations.expectedHeadVersionId = versionId;
     mutations.createdLabels.add(label);
-    return { ok: true, version: nextVer, label };
+    return result;
   },
 });
 

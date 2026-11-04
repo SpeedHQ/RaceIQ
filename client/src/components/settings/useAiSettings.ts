@@ -204,18 +204,18 @@ export function useAiSettings(): AiSettingsState {
   const canShowModelPicker = provider !== "" && hasProviderKey && models.length > 0;
   const modelSupportsThinking = provider === "gemini" && supportsGeminiThinkingBudget(model || "gemini-flash-latest");
   const effectiveThinkingBudget = modelSupportsThinking ? thinkingBudget : null;
-  const chatModels = modelsOrFallback(chatProvider, isAiProvider(chatProvider) ? (aiModels?.[chatProvider] ?? []) : []);
-  const hasChatProviderKey = chatProvider === "openai-compatible" || (keyStatus[chatProvider] ?? false);
+  const chatModels = chatProvider === "codex" ? (codexStatus.data?.models ?? []) : modelsOrFallback(chatProvider, isAiProvider(chatProvider) ? (aiModels?.[chatProvider] ?? []) : []);
+  const hasChatProviderKey = chatProvider === "codex" ? codexStatus.data?.state === "ready" : chatProvider === "openai-compatible" || (keyStatus[chatProvider] ?? false);
   const canShowChatModelPicker = chatProvider !== "" && hasChatProviderKey && chatModels.length > 0;
   const chatModelSupportsThinking = chatProvider === "gemini" && supportsGeminiThinkingBudget(chatModel || "gemini-flash-latest");
   const effectiveChatThinkingBudget = chatModelSupportsThinking ? chatThinkingBudget : null;
   const modelErrors = aiModels?._errors ?? {};
   const providerModelError = isAiProvider(provider) ? (modelErrors[provider] ?? null) : null;
-  const chatProviderModelError = isAiProvider(chatProvider) ? (modelErrors[chatProvider] ?? null) : null;
-  const autoTuneModels = modelsOrFallback(autoTuneProvider, isAiProvider(autoTuneProvider) ? (aiModels?.[autoTuneProvider] ?? []) : []);
-  const hasAutoTuneProviderKey = autoTuneProvider === "openai-compatible" || (keyStatus[autoTuneProvider] ?? false);
+  const chatProviderModelError = chatProvider === "codex" && codexStatus.isError ? m.ai_codex_unavailable() : isAiProvider(chatProvider) ? (modelErrors[chatProvider] ?? null) : null;
+  const autoTuneModels = autoTuneProvider === "codex" ? (codexStatus.data?.models ?? []) : modelsOrFallback(autoTuneProvider, isAiProvider(autoTuneProvider) ? (aiModels?.[autoTuneProvider] ?? []) : []);
+  const hasAutoTuneProviderKey = autoTuneProvider === "codex" ? codexStatus.data?.state === "ready" : autoTuneProvider === "openai-compatible" || (keyStatus[autoTuneProvider] ?? false);
   const canShowAutoTuneModelPicker = autoTuneProvider !== "" && hasAutoTuneProviderKey && autoTuneModels.length > 0;
-  const autoTuneProviderModelError = isAiProvider(autoTuneProvider) ? (modelErrors[autoTuneProvider] ?? null) : null;
+  const autoTuneProviderModelError = autoTuneProvider === "codex" && codexStatus.isError ? m.ai_codex_unavailable() : isAiProvider(autoTuneProvider) ? (modelErrors[autoTuneProvider] ?? null) : null;
   const driverProfileModels = driverProfileProvider === "codex" ? (codexStatus.data?.models ?? []) : modelsOrFallback(driverProfileProvider, isAiProvider(driverProfileProvider) ? (aiModels?.[driverProfileProvider] ?? []) : []);
   const hasDriverProfileProviderKey = driverProfileProvider === "openai-compatible" || (keyStatus[driverProfileProvider] ?? false);
   const canShowDriverProfileModelPicker = driverProfileProvider !== "" && hasDriverProfileProviderKey && driverProfileModels.length > 0;
@@ -478,10 +478,10 @@ export function useAiSettings(): AiSettingsState {
       chatModelSupportsThinking,
       effectiveChatThinkingBudget,
       canSaveChat,
-      aiProviders: aiProviders?.filter((item) => item.id !== "codex"),
-      aiModelsFetching,
-      modelsRefreshing,
-      refreshModels: refreshModelsAction,
+      aiProviders,
+      aiModelsFetching: chatProvider === "codex" ? codexStatus.isFetching : aiModelsFetching,
+      modelsRefreshing: chatProvider === "codex" ? codexStatus.isFetching : modelsRefreshing,
+      refreshModels: chatProvider === "codex" ? { mutate: () => { void codexStatus.refetch(); }, isPending: codexStatus.isFetching, isError: codexStatus.isError } : refreshModelsAction,
       isSaving,
       chatProviderModelError,
       aiModelsError,
@@ -500,10 +500,10 @@ export function useAiSettings(): AiSettingsState {
       hasAutoTuneProviderKey,
       autoTuneModels,
       canShowAutoTuneModelPicker,
-      aiProviders: aiProviders?.filter((item) => item.id !== "codex"),
-      aiModelsFetching,
-      modelsRefreshing,
-      refreshModels: refreshModelsAction,
+      aiProviders,
+      aiModelsFetching: autoTuneProvider === "codex" ? codexStatus.isFetching : aiModelsFetching,
+      modelsRefreshing: autoTuneProvider === "codex" ? codexStatus.isFetching : modelsRefreshing,
+      refreshModels: autoTuneProvider === "codex" ? { mutate: () => { void codexStatus.refetch(); }, isPending: codexStatus.isFetching, isError: codexStatus.isError } : refreshModelsAction,
       isSaving,
       autoTuneProviderModelError,
       aiModelsError,

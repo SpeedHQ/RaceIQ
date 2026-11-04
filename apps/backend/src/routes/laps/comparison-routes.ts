@@ -2,6 +2,7 @@ import { RequestContext } from "@mastra/core/request-context";
 import { MessageList } from "@mastra/core/agent";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
+import { createUIMessageStreamResponse } from "ai";
 import { normalizeAiUsage } from "@raceiq/backend-core/ai/usage";
 
 import type { GameId } from "@raceiq/shared/games/ids";
@@ -20,6 +21,7 @@ import { compareChatAgent, compareEngineerAgent } from "../../ai/agents";
 import { buildGoogleReasoningProviderOptions } from "@raceiq/backend-core/ai/google-provider-options";
 import { beginAnalysisRun, finishAnalysisRun, getAnalysisRun } from "@raceiq/backend-core/ai/analysis-run-registry";
 import { streamAgentTurnResponse } from "@raceiq/backend-core/ai/agent-stream";
+import { buildReplayStream, finishRun, reserveChatRun } from "@raceiq/backend-core/ai/chat-run-registry";
 import {
   CHAT_RESOURCE_ID,
   compareChatThreadId,
@@ -39,6 +41,12 @@ import { analysisGenerationKey } from "../../ai/analysis-generation-key";
 import { resolveAi } from "../../ai/ai-runtime";
 import { generateInputsComparison } from "../../ai/generate-inputs-comparison";
 import { AiProviderError } from "@raceiq/backend-core/ai/provider-error";
+import { DEFAULT_ANALYSIS_OUTPUT_TOKENS } from "@raceiq/shared/integrations/ai/analysis-budget";
+import { findCodexExecutable } from "../../ai/codex/executable";
+import { codexSupervisor } from "../../ai/codex/supervisor";
+import { buildComparisonChatCodexTools } from "../../ai/codex/chat-tools";
+import { startDetachedCodexTurn } from "../../ai/codex/chat-stream";
+import { formatCodexChatPrompt } from "../../ai/codex/chat-prompt";
 const inputsAnalysisRunKey = (idA: number, idB: number) =>
   `inputs:${Math.min(idA, idB)}:${Math.max(idA, idB)}`;
 
@@ -303,15 +311,68 @@ export const comparisonRoutes = new Hono()
     }
 
     const chatModelLabel = settings.chatModel
-      || (chatProvider === "openai"
+      || (chatProvider === "codex"
+        ? "gpt-6-luna"
+        : chatProvider === "openai"
         ? "gpt-4o-mini"
         : chatProvider === "anthropic"
           ? "claude-haiku-5-5"
           : chatProvider === "openai-compatible"
           ? "local-model"
           : "gemini-flash-latest");
-    if (chatRequestHasImage(messages) && resolveChatVisionCapability(chatProvider, chatModelLabel) !== "supported") {
+    if (chatProvider !== "codex" && chatRequestHasImage(messages) && resolveChatVisionCapability(chatProvider, chatModelLabel) !== "supported") {
       return c.json({ error: "This chat model has no verified image support. Remove the image or choose an image-capable chat model." }, 400);
+    }
+    if (chatProvider === "codex") {
+      if (chatRequestHasImage(messages)) {
+        return c.json({ error: "Codex chat currently supports text messages only. Remove the image and retry." }, 400);
+      }
+      const executable = findCodexExecutable(settings.codexExecutable);
+      if (!executable) return c.json({ error: "Codex CLI was not found. Select a Codex executable in desktop settings and sign in with ChatGPT." }, 503);
+      const threadId = await resolveActiveThread(compareChatThreadId(id1, id2));
+      await ensureSystemPrompt(threadId, systemPrompt);
+      const requestContext = new RequestContext();
+      requestContext.set(CHAT_TURN_CONTEXT_KEY, systemPrompt);
+      const tools = buildComparisonChatCodexTools({
+        lapAId: id1,
+        lapBId: id2,
+        trackName: lapA.trackId ?? "",
+        requestContext,
+        includeF1Setup: lapA.gameId === "f1-2025",
+      });
+      const { run, isNew } = reserveChatRun(threadId);
+      if (!isNew) {
+        const response = createUIMessageStreamResponse({ stream: buildReplayStream(run) });
+        response.headers.set("x-resumable-stream-id", run.runId);
+        return response;
+      }
+      try {
+        await startDetachedCodexTurn({
+          run,
+          originalMessages: messages,
+          memory: getChatMemory(),
+          threadId,
+          operation: "compare-chat.stream",
+          generate: (onTextDelta, signal) => codexSupervisor.run({
+            command: [executable],
+            model: chatModelLabel,
+            prompt: formatCodexChatPrompt(systemPrompt, messages),
+            effort: "medium",
+            requestedOutputTokens: settings.chatMaxOutputTokens ?? DEFAULT_ANALYSIS_OUTPUT_TOKENS,
+            tools,
+            toolRole: "chat",
+            signal,
+            onTextDelta,
+          }),
+        });
+      } catch (error) {
+        finishRun(run);
+        console.error("[CompareChat] Could not start Codex stream:", error instanceof Error ? error.message : String(error));
+        return c.json({ error: "Could not start Codex chat. Check Codex sign-in and retry." }, 503);
+      }
+      const response = createUIMessageStreamResponse({ stream: buildReplayStream(run) });
+      response.headers.set("x-resumable-stream-id", run.runId);
+      return response;
     }
     await configureAiProviderEnvironment(chatProvider, settings.localEndpoint || "http://localhost:1234/v1");
 
@@ -326,6 +387,7 @@ export const comparisonRoutes = new Hono()
         {
           requestContext,
           memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
+          modelSettings: { maxOutputTokens: settings.chatMaxOutputTokens },
           providerOptions: {
             openai: { reasoningEffort: "medium" },
             google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,

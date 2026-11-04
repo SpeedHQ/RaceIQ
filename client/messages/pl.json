@@ -12,7 +12,7 @@
   "ai_codex_missing": "Nie znaleziono Codex CLI. Zainstaluj Codex i odśwież.",
   "ai_codex_unsupported": "Ta integracja wymaga Codex CLI 0.164.0 i obsługiwanego modelu.",
   "ai_codex_unavailable": "Nie można sprawdzić Codex. Odśwież, aby spróbować ponownie.",
-  "ai_codex_help": "Codex używa konta ChatGPT bez klucza API. Czat i inżynier ustawień są nadal rozwijane.",
+  "ai_codex_help": "Codex korzysta z Twojego konta ChatGPT. Klucz API nie jest wymagany.",
   "ai_provider_access_help": "Wybierz dostawcę. Codex używa logowania ChatGPT; inni dostawcy chmurowi wymagają klucza API.",
   "spectate_direction_lock": "Śledź kierunek samochodu A",
   "$schema": "https://inlang.com/schema/inlang-message-format",

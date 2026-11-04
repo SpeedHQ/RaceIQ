@@ -37,11 +37,13 @@ const AppSettingsSchema = z.object({
   chatProvider: AiProviderSchema.default(""),
   chatModel: z.string().default(""),
   chatThinkingBudget: z.number().int().min(0).nullable().default(null),
+  chatMaxOutputTokens: z.number().int().min(MIN_ANALYSIS_OUTPUT_TOKENS).max(MAX_ANALYSIS_OUTPUT_TOKENS).default(DEFAULT_ANALYSIS_OUTPUT_TOKENS),
   // Auto-tune analyst provider/model. Independent of the lap-analysis
   // provider (aiProvider) so the user can point auto-tune at a different
   // model. Reuses the same stored API keys as the analysis section.
   autoTuneProvider: AiProviderSchema.default(""),
   autoTuneModel: z.string().default(""),
+  autoTuneMaxOutputTokens: z.number().int().min(MIN_ANALYSIS_OUTPUT_TOKENS).max(MAX_ANALYSIS_OUTPUT_TOKENS).default(DEFAULT_ANALYSIS_OUTPUT_TOKENS),
   // Driver profiling keeps its provider/model independent from other AI
   // features. Background coaching is opt-in and disabled on fresh installs.
   driverProfileBackgroundEnabled: z.boolean().default(false),

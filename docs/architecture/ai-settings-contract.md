@@ -31,8 +31,11 @@ This extends the shared AI contract in [the desktop goal](../project-status/maco
 - Report missing CLI, unsupported runtime, sign-in required and ready distinctly.
   Model catalog membership is not proof of entitlement; generation errors remain
   authoritative. Only models with a verified isolation profile are selectable.
-- Capability-specific selection must reflect implemented flows. Chat and setup
-  remain unavailable until their history/tool bridges are implemented.
+- Codex is selectable for lap/comparison analysis, lap/comparison chat and the
+  experiment engineer/coach only through their dedicated supervised runtime
+  paths. Text-only chat is explicit; provider status and missing CLI/login remain
+  visible. Authenticated integration and installed-app acceptance remain
+  separate verification gates.
 - Codex lap analysis defaults to `gpt-6-luna` with `medium` reasoning when
   selecting Codex. Previously saved model choices remain unchanged; the model
   picker lists only discovered models with a verified isolation profile.

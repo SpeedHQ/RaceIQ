@@ -31,7 +31,7 @@ export function AiChatSection({ state }: { state: AiChatState }) {
     <div className="space-y-4">
       {/* Chat provider */}
       <h2 className="text-sm font-semibold text-app-text mb-4 mt-8">{m.ai_chat_provider_title()}</h2>
-      <p className="text-xs text-app-text-muted mb-4">{m.ai_chat_provider_desc()}</p>
+      <p className="text-xs text-app-text-muted mb-4">{chatProvider === "codex" ? m.ai_codex_help() : m.ai_chat_provider_desc()}</p>
       <div className="space-y-4">
         <div>
           <Label htmlFor="ai-chat-provider" className="block text-xs text-app-text-muted mb-1">
@@ -104,7 +104,7 @@ export function AiChatSection({ state }: { state: AiChatState }) {
             )}
           </div>
         )}
-        {chatProvider !== "" && !hasChatProviderKey && <p className="text-xs text-app-text-muted">{m.ai_add_key_hint()}</p>}
+        {chatProvider !== "" && chatProvider !== "codex" && !hasChatProviderKey && <p className="text-xs text-app-text-muted">{m.ai_add_key_hint()}</p>}
         {chatProvider !== "" && hasChatProviderKey && !aiModelsFetching && chatModels.length === 0 && (
           <div className="flex items-center gap-2 text-xs text-app-text-muted">
             <span>{m.ai_no_models()}</span>

@@ -80,6 +80,45 @@ export async function listActions(
   }));
 }
 
+/**
+ * Return the result already committed for this chat message/tool pair. The
+ * confirmed user message ID is stable across stream reconnects and POST retry;
+ * storing the result beside the existing inverse makes the action and replay
+ * record atomic without another migration or table.
+ */
+export async function findChatMutationReplay(
+  experimentId: number,
+  userMessageId: string,
+  toolName: string,
+): Promise<{ found: boolean; result?: unknown }> {
+  const actions = await listActions(experimentId);
+  for (const action of actions) {
+    if (action.kind !== "apply-changes" || !action.inversePayload || typeof action.inversePayload !== "object") continue;
+    const payload = action.inversePayload as Record<string, unknown>;
+    const replay = payload.chatMutationReplay;
+    if (!replay || typeof replay !== "object") continue;
+    const value = replay as Record<string, unknown>;
+    if (value.userMessageId === userMessageId && value.toolName === toolName) {
+      return { found: true, result: value.result };
+    }
+  }
+  return { found: false };
+}
+
+/** Attach atomic replay metadata while preserving the action's undo payload. */
+export function withChatMutationReplay(
+  inversePayload: Record<string, unknown>,
+  userMessageId: string | null,
+  toolName: string,
+  result: unknown,
+): Record<string, unknown> {
+  if (!userMessageId) return inversePayload;
+  return {
+    ...inversePayload,
+    chatMutationReplay: { userMessageId, toolName, result },
+  };
+}
+
 /** Flip an action's `undone` flag (idempotent — undo marks after reversing). */
 export async function markUndone(actionId: number): Promise<void> {
   await withDatabaseWrite(() => db.update(experimentActions).set({ undone: true }).where(eq(experimentActions.id, actionId)).run());
