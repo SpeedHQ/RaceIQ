@@ -221,7 +221,12 @@ export function SessionReviewDashboard({
   // overview skeleton — same spine layout, placeholder times/maps — so the page
   // reads as the review dashboard rather than a bare "no laps" message.
   if (!focusLap) {
-    return <ReviewOverviewSkeleton trackName={trackName} onBack={onBack} />;
+    return (
+      <>
+        <ReviewOverviewSkeleton trackName={trackName} onBack={onBack} />
+        {gameId === "iracing" && sessionId != null && <IRacingIncidentReport sessionId={sessionId} />}
+      </>
+    );
   }
 
   const isOverview = !isTrackView && sectorIndex == null;

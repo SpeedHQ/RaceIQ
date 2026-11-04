@@ -10,6 +10,9 @@
 - Smooth iRacing lap replay by interpolating the track marker and timeline cursor between recorded telemetry frames.
 
 ### Fixes
+- Preserve iRacing automatic capture and import original IBT recordings from exported or mixed-format ZIP archives.
+- On iRacing replay and Compare, preserve exact sought car positions and show measured GPS paths without track calibration.
+- On iRacing session review, show incident reports even when no valid laps are available.
 - Keep replay navigation URLs free of false invalid-opponent flags and retain typed routing from iRacing incident events.
 - Preserve outlap invalidity and reason when track-limit checks run on AC Evo recordings.
 - Keep iRacing car category filtering reachable through its searchable category selector; use a wider mobile circuit overview and keyboard-seekable markers.

@@ -897,6 +897,36 @@ describe("iRacing Spectate scene geometry", () => {
     expect(sampleLap(gapped, 0.05, false)?.pose).toBeNull();
     expect(sampleLap(gapped, 0.1, false)?.pose?.z).toBe(100);
   });
+  test("exact frame seeks retain measured, projected, and missing placements across coalesced ticks", () => {
+    const replay = recording([
+      { "motion.latitude": 53, "motion.longitude": -2 },
+      { "motion.latitude": 53.0001, "motion.longitude": -2 },
+      { "motion.latitude": 53.0002, "motion.longitude": -2 },
+      {},
+    ]);
+    replay.envelopes[2]!.values.find(value => value.semanticId === "timing.current-lap")!.value = 0.05;
+    const native = prepareSpectateLap(replay);
+    const [placed] = placeIRacingSpectateLaps([native, native], projection);
+    const controller = createSpectateController(placed, null);
+    try {
+      controller.seekFrame("a", 1);
+      expect(controller.getSnapshot().a?.frame).toBe(replay.envelopes[1]);
+      expect(controller.getSnapshot().a?.pose?.z).toBeCloseTo(11.132, 2);
+      controller.seekFrame("a", 2);
+      expect(controller.getSnapshot().a?.pose?.z).toBeCloseTo(22.264, 2);
+      controller.seekFrame("a", 3);
+      expect(controller.getSnapshot().a?.pose).toBeNull();
+    } finally { controller.dispose(); }
+
+    const projected = prepareSpectateLap(recording([0, 0.125, 0.25].map(fraction => ({ "timing.lap-fraction": fraction }))));
+    const [placedProjected] = placeIRacingSpectateLaps([projected, projected], projection);
+    const projectedController = createSpectateController(placedProjected, null);
+    try {
+      projectedController.seekFrame("a", 1);
+      expect(projectedController.getSnapshot().a?.pose).toEqual(placedProjected.samples[1]!.scenePose);
+      expect(projectedController.getSnapshot().a?.pose?.z).toBe(50);
+    } finally { projectedController.dispose(); }
+  });
   test("iRacing measured replay keeps map positions when recorded compass heading is absent", () => {
     const replay = recording([
       { "motion.latitude": 53, "motion.longitude": -2 },

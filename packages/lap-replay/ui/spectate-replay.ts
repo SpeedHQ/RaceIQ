@@ -213,27 +213,31 @@ if (hasSourceAwareGap(previousTime, time, isOpponentReplay(replay), maximumGapSe
 /** Resolve both iRacing laps in one calibrated geographic frame. */
 export function placeIRacingSpectateLaps(laps: readonly [SpectateLap, SpectateLap], projection: TrackProjection | null): [SpectateLap, SpectateLap] {
   const fixedProjection = projection?.calibration ? calibratedProjection(projection) : null;
-  const frames = laps.flatMap((lap) => lap.samples.map((sample) => ({ values: sample.values, states: {}, freshness: {} })));
+  const frames = laps.flatMap((lap) => lap.replay.envelopes.map((frame) => ({ values: frameValues(frame), states: {}, freshness: {} })));
   const poses = resolveScenePoses("iracing", frames, fixedProjection);
   const anyMeasured = poses.some((pose) => pose?.source === "measured");
   let offset = 0;
   const place = (lap: SpectateLap): SpectateLap => {
     const start = offset;
-    offset += lap.samples.length;
+    offset += lap.replay.envelopes.length;
     let lapPoses = poses.slice(start, offset);
     if (fixedProjection && anyMeasured && !lapPoses.some(pose => pose?.source === "measured")) {
       lapPoses = resolveScenePoses("iracing", frames.slice(start, offset), fixedProjection);
     }
     if (!fixedProjection && !anyMeasured && projection) {
-      const framesForLap = lap.samples.map((sample) => ({ values: sample.values, states: {}, freshness: {} }));
+      const framesForLap = frames.slice(start, offset);
       lapPoses = resolveScenePoses("iracing", framesForLap, projection);
     }
+    const frameScenePoses = new Map(lap.replay.envelopes.map((frame, index) => {
+      const pose = lapPoses[index];
+      return [frame, pose ? { ...pose, x: 0 - pose.x, y: pose.y ?? 0, yaw: 0 - pose.yaw } : null] as const;
+    }));
     return {
       ...lap,
-      samples: lap.samples.map((sample, index) => {
-        const pose = lapPoses[index];
-        return { ...sample, scenePose: pose ? { ...pose, x: 0 - pose.x, y: pose.y ?? 0, yaw: 0 - pose.yaw } : null };
-      }),
+      frameScenePoses,
+      samples: lap.samples.map((sample) => ({
+        ...sample, scenePose: sample.frame ? frameScenePoses.get(sample.frame) ?? null : null,
+      })),
     };
   };
   return [place(laps[0]), place(laps[1])];
@@ -440,7 +444,9 @@ let time = initialDistance == null ? 0 : (arrivalAt(aProgress, initialDistance, 
       if (reading.frame !== selectedFrame.frame) reading.distance = null;
       reading.frame = selectedFrame.frame;
       reading.values = selectedFrame.values;
-      reading.pose = poseOf(selectedFrame.values, isOpponentReplay(lap.replay) && selectedFrame.frame.simulator === "lmu");
+      reading.pose = lap.frameScenePoses?.has(selectedFrame.frame)
+        ? lap.frameScenePoses.get(selectedFrame.frame) ?? null
+        : poseOf(selectedFrame.values, isOpponentReplay(lap.replay) && selectedFrame.frame.simulator === "lmu");
     }
     return reading;
   };

@@ -42,19 +42,19 @@ export function findTraceIndexAtDistance(distances: readonly number[], distance:
   return distance - distances[left] <= distances[right] - distance ? left : right;
 }
 
-function mapPosition(traces: AlignedTrace, index: number, outline: Point[], telX: (x: number) => number): Point | null {
+function mapPosition(traces: AlignedTrace, index: number, outline: Point[], telX: (x: number) => number, allowOrigin = false): Point | null {
   if (index < 0 || index >= traces.distance.length) return null;
   const x = traces.positionXA[index];
   const z = traces.positionZA[index];
-  if (Number.isFinite(x) && Number.isFinite(z) && (x !== 0 || z !== 0)) return { x: telX(x), z };
-  if (outline.length < 2) return null;
+  if (Number.isFinite(x) && Number.isFinite(z) && (allowOrigin || x !== 0 || z !== 0)) return { x: telX(x), z };
+  if (allowOrigin || outline.length < 2) return null;
   const fraction = traces.distance.length > 1 ? index / (traces.distance.length - 1) : 0;
   return outline[Math.round(fraction * (outline.length - 1))] ?? null;
 }
 
 /** Screen-space travel direction; never infer a heading across missing positions. */
 function pathDirection(xs: number[], zs: number[], index: number, telX: (x: number) => number): number | null {
-  const valid = (i: number) => Number.isFinite(xs[i]) && Number.isFinite(zs[i]) && (xs[i] !== 0 || zs[i] !== 0);
+  const valid = (i: number) => Number.isFinite(xs[i]) && Number.isFinite(zs[i]);
   if (!valid(index)) return null;
   let before = index;
   let after = index;
@@ -92,6 +92,14 @@ export function drawTrackCanvas(
 ) {
   ctx.clearRect(0, 0, w, h);
   const bounds = [...outline, ...(boundaries ? [boundaries.leftEdge, boundaries.rightEdge].flat() : [])];
+  if (bounds.length === 0) {
+    for (const [xs, zs] of [[traces.positionXA, traces.positionZA], [traces.positionXB, traces.positionZB]]) {
+      for (let i = 0; i < xs.length; i++) {
+        if (Number.isFinite(xs[i]) && Number.isFinite(zs[i])) bounds.push({ x: telX(xs[i]), z: zs[i] });
+      }
+    }
+  }
+  if (bounds.length === 0) return;
   let minX = Infinity,
     maxX = -Infinity,
     minZ = Infinity,
@@ -117,7 +125,7 @@ export function drawTrackCanvas(
     const direction = usePathDirection
       ? pathDirection(traces.positionXA, traces.positionZA, index, telX)
       : Number.isFinite(traces.yawA[index]) ? Math.PI / 2 - traces.yawA[index] : null;
-    if (Number.isFinite(x) && Number.isFinite(z) && direction != null && (x !== 0 || z !== 0)) {
+    if (Number.isFinite(x) && Number.isFinite(z) && direction != null && (breakAtInvalidPositions || x !== 0 || z !== 0)) {
       const [cx, cy] = toCanvas(telX(x), z);
       ctx.save();
       ctx.translate(w / 2, h / 2);
@@ -167,11 +175,11 @@ export function drawTrackCanvas(
     }
   }
   const drawLine = (xs: number[], zs: number[], color: string) => {
-    if (xs.length < 2 || !xs.some((x, i) => x !== 0 || zs[i] !== 0)) return;
+    if (xs.length < 2 || (!breakAtInvalidPositions && !xs.some((x, i) => x !== 0 || zs[i] !== 0))) return;
     ctx.beginPath();
     let moved = false;
     for (let i = 0; i < xs.length; i++) {
-      if (!Number.isFinite(xs[i]) || !Number.isFinite(zs[i]) || (xs[i] === 0 && zs[i] === 0)) {
+      if (!Number.isFinite(xs[i]) || !Number.isFinite(zs[i]) || (!breakAtInvalidPositions && xs[i] === 0 && zs[i] === 0)) {
         if (breakAtInvalidPositions) moved = false;
         continue;
       }
@@ -191,8 +199,8 @@ export function drawTrackCanvas(
   drawLine(traces.positionXB, traces.positionZB, COLOR_B);
   if (hoveredDistance != null) {
     const index = findTraceIndexAtDistance(traces.distance, hoveredDistance);
-    const a = mapPosition(traces, index, outline, telX);
-    const b = mapPosition({ ...traces, positionXA: traces.positionXB, positionZA: traces.positionZB }, index, outline, telX);
+    const a = mapPosition(traces, index, outline, telX, breakAtInvalidPositions);
+    const b = mapPosition({ ...traces, positionXA: traces.positionXB, positionZA: traces.positionZB }, index, outline, telX, breakAtInvalidPositions);
     const dot = (p: Point | null, color: string, yaw?: number, direction: number | null = null) => {
       if (!p) return;
       const [x, y] = toCanvas(p.x, p.z);
@@ -289,10 +297,10 @@ export function drawInputsHUD(ctx: CanvasRenderingContext2D, w: number, h: numbe
   bar(traces.throttleB[index] ?? 0, "var(--ch-throttle)", COLOR_B);
 }
 
-export function computeZoom(traces: AlignedTrace, hoveredDistance: number, trackRange: number, telX: (x: number) => number = (x) => x, outline: Point[] = []) {
+export function computeZoom(traces: AlignedTrace, hoveredDistance: number, trackRange: number, telX: (x: number) => number = (x) => x, outline: Point[] = [], allowOrigin = false) {
   const index = findTraceIndexAtDistance(traces.distance, hoveredDistance);
-  const a = mapPosition(traces, index, outline, telX);
-  const b = mapPosition({ ...traces, positionXA: traces.positionXB, positionZA: traces.positionZB }, index, outline, telX);
+  const a = mapPosition(traces, index, outline, telX, allowOrigin);
+  const b = mapPosition({ ...traces, positionXA: traces.positionXB, positionZA: traces.positionZB }, index, outline, telX, allowOrigin);
   if (!a && !b) return null;
   const centerX = a && b ? (a.x + b.x) / 2 : (a ?? b)!.x;
   const centerZ = a && b ? (a.z + b.z) / 2 : (a ?? b)!.z;

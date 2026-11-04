@@ -28,7 +28,7 @@ import { isIRacingSessionFrame } from "@raceiq/capture-formats/iracing/source-fr
 import { readIRacingFrames } from "@raceiq/capture-formats/iracing/dump";
 import { importSessionFrames } from "@raceiq/backend-core/session-capture/import-pipeline";
 import { getSessionResult } from "@raceiq/backend-core/db/session-result-queries";
-import { buildLapsZip, importLapsZip, type LapsZipManifest } from "../../src/laps/archive";
+import { buildLapsZip, detectLapsZip, importLapsZip, type LapsZipManifest } from "../../src/laps/archive";
 import { importMotec } from "@raceiq/backend-core/motec/import";
 import { parseRawLapFrames, parseSessionLapsBatched } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { readRecordedTelemetry } from "../../src/session-capture/replay-packets";
@@ -203,6 +203,8 @@ describe("lap export → import round-trip (real capture)", () => {
       const ibtName = Object.keys(members).find((name) => name.toLowerCase().endsWith(".ibt"));
       expect(ibtName).toBeDefined();
       expect(Buffer.from(members[ibtName!]!)).toEqual(sourceBytes);
+      expect(detectLapsZip(exported.bytes)).toMatchObject({ captureCount: 1, gameIds: ["iracing"] });
+
 
       const roundTrip = await importLapsZip(exported.bytes);
       expect(roundTrip.errors).toEqual([]);
@@ -213,6 +215,26 @@ describe("lap export → import round-trip (real capture)", () => {
           .where(eq(sessions.id, sessionId)).get();
         if (row?.rawFile) tmpFiles.push(row.rawFile);
       }
+      const { rows: binRows } = await seedSession({ minimumLaps: 1 });
+      const mixed = await buildLapsZip([imported.laps[0]!.lapId, binRows[0]!.id]);
+      const mixedMembers = unzipSync(mixed.bytes);
+      mixedMembers["notes.txt"] = new TextEncoder().encode("not telemetry");
+      const mixedBytes = zipSync(mixedMembers);
+      expect(detectLapsZip(mixedBytes).captureCount).toBe(2);
+      const mixedImport = await importLapsZip(mixedBytes);
+      createdSessions.push(...new Set(mixedImport.laps.map((lap) => lap.sessionId)));
+      for (const sessionId of new Set(mixedImport.laps.map((lap) => lap.sessionId))) {
+        const row = await db.select({ rawFile: sessions.rawFile }).from(sessions)
+          .where(eq(sessions.id, sessionId)).get();
+        if (row?.rawFile) tmpFiles.push(row.rawFile);
+      }
+      expect(mixedImport.errors).toEqual([]);
+      const restoredSessions = await db.select({ gameId: sessions.gameId }).from(sessions)
+        .where(inArray(sessions.id, mixedImport.laps.map((lap) => lap.sessionId))).all();
+      expect(restoredSessions.map((session) => session.gameId)).toEqual(expect.arrayContaining(["iracing", "fm-2023"]));
+      await expect(importLapsZip(zipSync({
+        ...mixedMembers, "orphan.opponents.bin.gz": new Uint8Array([1]),
+      }))).rejects.toThrow("Archive contains an unassociated opponent companion");
     } finally {
       recording.cleanup();
     }

@@ -88,6 +88,24 @@ test("iRacing map starts a new path across missing GPS samples", () => {
 test("other game maps keep existing path behavior", () => {
   expect(drawLapAMoveCount(false)).toBe(1);
 });
+test("measured paths without an outline use finite bounds for overview and follow drawing", () => {
+  const traces = makeTraces();
+  traces.positionXA = [0, 20];
+  traces.positionZA = [0, 40];
+  traces.positionXB = [11, 21];
+  traces.positionZB = [31, 41];
+  const overview = makeContext();
+  drawTrackCanvas(overview.ctx, 400, 300, [], traces, 10, null, undefined, false, null, undefined, false, false, true);
+  const paths = overview.strokes.filter(({ color }) => color === "var(--comparison-lap-a)" || color === "var(--comparison-lap-b)");
+  expect(paths).toHaveLength(2);
+  expect(paths.find(({ color }) => color === "var(--comparison-lap-a)")?.points).toHaveLength(2);
+  expect(paths.flatMap(({ points }) => points.flat()).every(Number.isFinite)).toBe(true);
+  const follow = makeContext();
+  drawTrackCanvas(follow.ctx, 400, 300, [], traces, 10, { centerX: 20.5, centerZ: 40.5, range: 10 }, undefined, true, null, undefined, true, true, true, true);
+  expect(follow.rotations).toHaveLength(1);
+  expect(follow.strokes.flatMap(({ points }) => points.flat()).every(Number.isFinite)).toBe(true);
+});
+
 test("overview can suppress static segment markers while keeping start marker", () => {
   const { ctx, fills } = makeContext();
 

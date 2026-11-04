@@ -68,6 +68,7 @@ export function startNativeSourceSupervisor(
       () => new IRacingTelemetrySource({
         recordingEnabled: recordingGameId === "iracing",
         registerIdentity: dumpMode ? undefined : registerLiveIRacingIdentity,
+        onSnapshot: dumpMode ? undefined : (snapshot, frameTimeMs) => iracingCaptureManager.observe(snapshot, frameTimeMs),
       }),
       getIracingSource,
       setIracingSource,

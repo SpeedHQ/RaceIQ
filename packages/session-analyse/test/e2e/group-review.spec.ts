@@ -233,6 +233,23 @@ test("imported iRacing overview shows incident report below detected issues inst
     await page.getByRole("button", { name: "Overview", exact: true }).click();
     await expect(report).toHaveCount(1);
 
+    await page.route("**/api/laps?**", async (route) => {
+      const url = new URL(route.request().url());
+      if (url.searchParams.get("sessionId") !== String(sessionId)) return route.continue();
+      const response = await route.fetch();
+      const laps = await response.json() as LapMeta[];
+      await route.fulfill({ response, json: laps.map((lap) => ({ ...lap, isValid: false })) });
+    });
+    await page.goto(`/iracing/sessions/${sessionId}/analyse`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("status").filter({ hasText: /no valid laps/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /back to sessions/i })).toBeVisible();
+    await expect(report).toHaveCount(1);
+    await expect(report.locator("dd").first()).toHaveText(incidentReport.observedIncidentPoints === null ? "—" : String(incidentReport.observedIncidentPoints));
+    await page.goto(`/iracing/sessions/${sessionId}/analyse?laps=99999999`, { waitUntil: "domcontentloaded" });
+    await expect(report).toHaveCount(1);
+    await expect(report.locator("dd").first()).toHaveText(incidentReport.observedIncidentPoints === null ? "—" : String(incidentReport.observedIncidentPoints));
+    await page.unroute("**/api/laps?**");
+
     const replayLap = imported.laps.find((lap) => lap.lapNumber === 3);
     if (!replayLap) throw new Error("Imported IBT is missing its complete third lap");
     await page.goto(`/iracing/sessions/${sessionId}/replay/${replayLap.lapId}`, { waitUntil: "domcontentloaded" });
