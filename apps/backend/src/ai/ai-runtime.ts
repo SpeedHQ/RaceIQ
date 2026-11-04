@@ -1,5 +1,6 @@
 import { getAiProviderApiKey } from "@raceiq/backend-core/ai/openai-compatible-provider";
 import { baseUrlFor } from "@raceiq/backend-core/ai/provider-endpoints";
+import { isSupportedAiProvider } from "@raceiq/backend-core/ai/provider-capabilities";
 import { loadSettings, type AppSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { AI_FEATURES, type AiFeature, type AiProvider } from "@raceiq/backend-core/ai/ai-features";
 import {
@@ -43,7 +44,7 @@ export async function resolveAi(feature: AiFeature, settings: AppSettings = load
   }
 
   const provider = selected.provider as AiProvider;
-  if (provider !== "gemini" && provider !== "openai" && provider !== "anthropic" && provider !== "deepseek" && provider !== "openai-compatible") {
+  if (!isSupportedAiProvider(provider)) {
     throw new AiProviderError(`Unsupported AI provider: ${selected.provider}`, {
       code: "unsupported-provider",
       provider: selected.provider,

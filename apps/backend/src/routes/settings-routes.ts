@@ -22,7 +22,7 @@ import { getTrackLengthMeters } from "@raceiq/game-catalogs/racing/tracks/record
 import { getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import { withOnboardingOverride } from "@raceiq/backend-core/runtime/options";
 
-import { getAnthropicModelsDetailed, getGeminiModelsDetailed, getOpenAiCompatibleModelsDetailed, getOpenAiModelsDetailed, getProviders } from "@raceiq/backend-core/ai/providers";
+import { getAnthropicModelsDetailed, getDeepSeekModelsDetailed, getGeminiModelsDetailed, getOpenAiCompatibleModelsDetailed, getOpenAiModelsDetailed, getProviders } from "@raceiq/backend-core/ai/providers";
 import { getAiProviderApiKey, getLocalApiKey } from "@raceiq/backend-core/ai/openai-compatible-provider";
 const MODELS_CACHE_TTL_MS = 5 * 60 * 1000;
 const MODELS_EMPTY_RETRY_MS = 10 * 1000;
@@ -156,6 +156,29 @@ export const settingsRoutes = new Hono()
       console.info("[AI] ai-models gemini fetch skipped (provider not gemini)");
     }
 
+    const shouldFetchDeepSeek = useRequestedProviders
+      ? requestedProviders.has("deepseek")
+      : settings.aiProvider === "deepseek" || settings.chatProvider === "deepseek"
+        || settings.autoTuneProvider === "deepseek" || settings.driverProfileProvider === "deepseek";
+    // Static fallback keeps the picker usable before a successful fetch.
+    let deepseekModels: { id: string; name: string }[] = [
+      { id: "deepseek-flash", name: "DeepSeek Flash" },
+      { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro" },
+    ];
+    let deepseekError: string | null = null;
+    if (shouldFetchDeepSeek) {
+      const deepseekKey = await getSecret("deepseek-api-key");
+      if (!deepseekKey) {
+        deepseekError = "DeepSeek API key not set.";
+      } else {
+        const fetchedDeepSeek = await getDeepSeekModelsDetailed(deepseekKey);
+        if (fetchedDeepSeek.models.length > 0) {
+          deepseekModels = fetchedDeepSeek.models.map((m) => ({ id: m.id, name: m.name }));
+        }
+        deepseekError = fetchedDeepSeek.error;
+      }
+    }
+
     const shouldFetchOpenAi = useRequestedProviders
       ? requestedProviders.has("openai")
       : settings.aiProvider === "openai" || settings.chatProvider === "openai";
@@ -258,12 +281,9 @@ export const settingsRoutes = new Hono()
       "openai": openAiModels,
       "anthropic": anthropicModels,
       // DeepSeek 没有 /models 拉取路径，直接给官方模型清单（2026-11 文档）。
-      "deepseek": [
-        { id: "deepseek-flash", name: "DeepSeek Flash" },
-        { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro" },
-      ],
+      "deepseek": deepseekModels,
       "openai-compatible": localModels,
-      "_errors": { gemini: geminiError, openai: openAiError, anthropic: anthropicError, "openai-compatible": localError },
+      "_errors": { gemini: geminiError, openai: openAiError, anthropic: anthropicError, "openai-compatible": localError, deepseek: deepseekError },
     });
   })
 

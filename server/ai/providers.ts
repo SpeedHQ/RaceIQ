@@ -7,6 +7,8 @@ import { logLlmEvent, withLlmDiagnostics } from "./diagnostic-logging";
 import { AiProviderError } from "./provider-error";
 import { buildGoogleThinkingProviderOptions } from "./google-provider-options";
 import { ANTHROPIC_OPENAI_BASE_URL, isAnthropicEndpoint, openAiCompatibleAuthHeaders } from "./openai-compatible-headers";
+import { defaultReasoningEffortFor, mapDeepSeekModels } from "./provider-capabilities";
+import { baseUrlFor } from "./provider-endpoints";
 export interface AiResult {
   analysis: string;
   usage: {
@@ -368,7 +370,9 @@ export async function runOpenAiCompatible(options: OpenAiRequestOptions): Promis
     // Current Claude models reject `temperature` on the compatibility API.
     if (!isAnthropicEndpoint(endpoint)) body.temperature = options.temperature ?? 0.3;
     // Anthropic's compatibility layer maps reasoning_effort to extended thinking, so leave it unset there.
-    if (endpoint !== "https://api.openai.com/v1" && !isAnthropicEndpoint(endpoint)) body.reasoning_effort = "none";
+    // DeepSeek officially supports low/medium/high; unknown local servers may reject the field.
+    const reasoningEffort = defaultReasoningEffortFor(endpoint);
+    if (reasoningEffort) body.reasoning_effort = reasoningEffort;
     if (options.maxOutputTokens != null) body.max_tokens = options.maxOutputTokens;
     if (options.schema) {
       body.response_format = {
@@ -574,4 +578,33 @@ export async function getOpenAiCompatibleModelsDetailed(endpoint: string, apiKey
 export async function getOpenAiCompatibleModels(endpoint: string, apiKey?: string): Promise<{ id: string; name: string }[]> {
   const result = await getOpenAiCompatibleModelsDetailed(endpoint, apiKey);
   return result.models;
+}
+
+/**
+ * Fetch DeepSeek's model catalogue.
+ *
+ * DeepSeek exposes the standard `GET /models` list, so the picker does not have
+ * to hardcode ids that drift as the platform rotates versions.
+ */
+export async function getDeepSeekModelsDetailed(apiKey: string): Promise<ModelListResult> {
+  const base = baseUrlFor("deepseek") ?? "https://api.deepseek.com";
+  const url = `${base.replace(/\/+$/, "")}/models`;
+  try {
+    console.info(`[AI] GET ${url}`);
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: AbortSignal.timeout(5000),
+    });
+    console.info(`[AI] ${res.status} ${res.statusText} ${url}`);
+    if (!res.ok) {
+      return { models: [], error: `DeepSeek models request failed (${res.status} ${res.statusText})` };
+    }
+    // DeepSeek documents a 1M context window for both current models.
+    const models = mapDeepSeekModels(await res.json()).map((m) => ({ ...m, contextLength: 1_000_000 }));
+    return { models, error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[AI] DeepSeek models request errored:", message);
+    return { models: [], error: message };
+  }
 }

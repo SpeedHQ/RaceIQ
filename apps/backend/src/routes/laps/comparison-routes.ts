@@ -1,3 +1,4 @@
+import { defaultModelFor } from "@raceiq/backend-core/ai/provider-capabilities";
 import { RequestContext } from "@mastra/core/request-context";
 import { MessageList } from "@mastra/core/agent";
 import { zValidator } from "@hono/zod-validator";
@@ -334,13 +335,7 @@ export const comparisonRoutes = new Hono()
     }
 
     const chatModelLabel = settings.chatModel
-      || (chatProvider === "openai"
-        ? "gpt-4o-mini"
-        : chatProvider === "anthropic"
-          ? "claude-haiku-5-5"
-          : chatProvider === "deepseek" ? "deepseek-flash" : chatProvider === "openai-compatible"
-          ? "local-model"
-          : "gemini-flash-latest");
+      || (defaultModelFor(chatProvider));
     if (chatRequestHasImage(messages) && resolveChatVisionCapability(chatProvider, chatModelLabel) !== "supported") {
       return c.json({ error: "This chat model has no verified image support. Remove the image or choose an image-capable chat model." }, 400);
     }

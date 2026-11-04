@@ -1,3 +1,4 @@
+import { defaultModelFor } from "@raceiq/backend-core/ai/provider-capabilities";
 import { getActiveRun, reserveChatRun, buildReplayStream, finishRun } from "@raceiq/backend-core/ai/chat-run-registry";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
@@ -253,13 +254,7 @@ export const tuneChatRoutes = new Hono()
       // Same model-label fallback chain chat-stream.ts uses, so thinking support
       // is detected off the model that will actually run.
       const chatModelLabel = settings.chatModel
-        || (chatProvider === "openai"
-          ? "gpt-4o-mini"
-          : chatProvider === "anthropic"
-            ? "claude-haiku-5-5"
-            : chatProvider === "deepseek" ? "deepseek-flash" : chatProvider === "openai-compatible"
-            ? "local-model"
-            : "gemini-flash-latest");
+        || (defaultModelFor(chatProvider));
 
       // Captured before the turn runs so the onFinish reasoning-patch below can
       // tell *this* turn's freshly-saved assistant row apart from any earlier

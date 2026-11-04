@@ -1,3 +1,4 @@
+import { defaultModelFor } from "@raceiq/backend-core/ai/provider-capabilities";
 import { RequestContext } from "@mastra/core/request-context";
 import { MessageList } from "@mastra/core/agent";
 import { zValidator } from "@hono/zod-validator";
@@ -166,7 +167,7 @@ export function createChatRoutes(overrides: ChatRouteOverrides = {}) {
       return c.json({ error: "No AI provider selected. Choose one in Settings → AI Chat." }, 400);
     }
     const chatModelLabel = settings.chatModel
-      || (chatProvider === "openai" ? "gpt-4o-mini" : chatProvider === "anthropic" ? "claude-haiku-5-5" : chatProvider === "deepseek" ? "deepseek-flash" : chatProvider === "openai-compatible" ? "local-model" : "gemini-flash-latest");
+      || (defaultModelFor(chatProvider));
 
     const visionCapability = resolveChatVisionCapability(chatProvider, chatModelLabel);
     if (chatRequestHasImage(messages) && visionCapability !== "supported") {
