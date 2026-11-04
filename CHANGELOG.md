@@ -3,6 +3,7 @@
 ### Features
 
 ### Fixes
+- Restore Replay links for older recordings whose saved lap frames and parser setup can be verified.
 
 ### Internal
 
