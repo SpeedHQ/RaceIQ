@@ -6,7 +6,7 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.20.0-private.20261031.2",
-      "sourceHash": "95844ef0eb905ea65e51bbaa175e57a3934322ba7b7ff548137be25209b8642f"
+      "sourceHash": "470a86c7a7ba60465607c297f7099b1624df3ebfcd60d75154485d0afc3a6a67"
     },
     "sourceHashes": {
       "packages/capture-formats/src/lmu/opponent-snapshot.ts": "c18e10f39668501f9c4742bec8999bc7faeeba2c8ea7b42d60accfbbe4e8f0c6",
@@ -22,7 +22,7 @@
       "server/session-capture/frame-time.ts": "55c44a6cede5e2c5fb1e1c45568fe44b4a9a8b156f260f69bb5d89f9c24935a2",
       "shared/racing/setups/schema.ts": "987941bb8f38520920686ef540e67ce2259fdc962de03ccb959f6b5ef773b28f"
     },
-    "contentHash": "cd064e32a6540e0fc657b5bcc5f77db53b6bdae20c6be27af814106be4311dda"
+    "contentHash": "12c2e4b4c96d20d7197164081588d43c20a4bfaa6d26221b0bcc57139b657bfa"
   },
   "generatedFrom": [
     "packages/tooling-catalog/src/root.ts",
@@ -15322,6 +15322,7 @@
           ],
           "freshness": "continuous",
           "description": "Derived from native LMU scoring data: fuelFraction.",
+          "normalization": "native byte / 255",
           "provenance": {
             "origin": "derivation",
             "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
@@ -15336,7 +15337,7 @@
               "LMU.ScoringSnapshot.fuel.competitor.ambiguous-fuel-fraction"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "5595ccff7a6f2698d7944e7dbdcc440389598cf1468222cdec213ed127c96eef"
+            "codeHash": "b66162d21a9e414213f633d7d13182747f60f56bca70e53199b88544389f137c"
           }
         },
         "ams2": {
@@ -18534,7 +18535,7 @@
     },
     {
       "id": "identity.competitor.car-name",
-      "label": "Competitor car name",
+      "label": "Scoring snapshot competitor car name",
       "description": "Native scoring vehicle name.",
       "parentId": "race.competitor.identity",
       "canonicalUnit": "text",
@@ -18596,7 +18597,7 @@
     },
     {
       "id": "identity.competitor.driver-name",
-      "label": "Competitor driver name",
+      "label": "Scoring snapshot competitor driver name",
       "description": "Native scoring driver name.",
       "parentId": "race.competitor.identity",
       "canonicalUnit": "text",
@@ -25432,6 +25433,7 @@
           ],
           "freshness": "continuous",
           "description": "Derived from native LMU scoring data: localVelocity.",
+          "normalization": "magnitude of finite local velocity components",
           "provenance": {
             "origin": "derivation",
             "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
@@ -25446,7 +25448,7 @@
               "LMU.ScoringSnapshot.motion.competitor.speed"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "a5bec19c274a8885e5a663fa25aa8c162424688a02c7ea87bf5a68783585da0b"
+            "codeHash": "ad6be48df04bfd86cb0a7ec5ca5577dacfedb7e73280e087c22d079ae7b77980"
           }
         },
         "ams2": {
@@ -28208,7 +28210,7 @@
     },
     {
       "id": "race.competitor.best-lap-time",
-      "label": "Competitor best lap time",
+      "label": "Scoring snapshot competitor best lap time",
       "description": "Native best lap time.",
       "parentId": "race.competitor.timing",
       "canonicalUnit": "s",
@@ -29827,6 +29829,7 @@
           ],
           "freshness": "continuous",
           "description": "Derived from native LMU scoring data: place,vehicleClass.",
+          "normalization": "rank positive overall places among vehicles with the same class",
           "provenance": {
             "origin": "derivation",
             "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
@@ -29841,7 +29844,7 @@
               "LMU.ScoringSnapshot.race.competitor.class-position"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "78259a2b78c4e8e71fa64b77ddc45fd3a40018d1437fc72a2948f63a6ac9a535"
+            "codeHash": "843965fc1ae7c87dfce23ee1a27beb4dc2a41dc82a7a73356a632c8ce31bf9ad"
           }
         },
         "ams2": {
@@ -30412,7 +30415,7 @@
     },
     {
       "id": "race.competitor.current-lap-number",
-      "label": "Competitor current lap number",
+      "label": "Scoring snapshot competitor current lap number",
       "description": "Completed lap count plus one; lap identity remains partial until a confirmed transition.",
       "parentId": "race.competitor.timing",
       "canonicalUnit": "count",
@@ -30451,6 +30454,7 @@
           ],
           "freshness": "continuous",
           "description": "Derived from native LMU scoring data: totalLaps.",
+          "normalization": "completed laps + 1",
           "provenance": {
             "origin": "derivation",
             "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
@@ -30465,7 +30469,7 @@
               "LMU.ScoringSnapshot.race.competitor.current-lap-number"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "49fc14b694607cd7b4c16518386ed80ae04a8f1720aa7c32cdc404303404ecba"
+            "codeHash": "b5741024f6f86661140b149520edd1c1d07ace508aff77ee39fcd96f26556238"
           }
         },
         "ams2": {
@@ -32121,7 +32125,7 @@
     },
     {
       "id": "race.competitor.lap-fraction",
-      "label": "Competitor lap fraction",
+      "label": "Scoring snapshot competitor lap fraction",
       "description": "Distance divided by native track length.",
       "parentId": "race.competitor.timing",
       "canonicalUnit": "fraction",
@@ -32160,6 +32164,7 @@
           ],
           "freshness": "continuous",
           "description": "Derived from native LMU scoring data: lapDistance,LMU.ScoringInfo.lapDistance.",
+          "normalization": "lap distance / track length when distance is within track bounds",
           "provenance": {
             "origin": "derivation",
             "artifact": "packages/capture-formats/src/lmu/opponent-snapshot.ts"
@@ -32174,7 +32179,7 @@
               "LMU.ScoringSnapshot.race.competitor.lap-fraction"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "298adb95ebeeb82a87bfb38dd4ac1fe84029708f9615e0d7ab2d35d366df7d73"
+            "codeHash": "18f654a022a5da29cadb1cd738250c0985c3e175f83701f7893a87fcb4b67b7a"
           }
         },
         "ams2": {
@@ -32652,7 +32657,7 @@
     },
     {
       "id": "race.competitor.last-lap-time",
-      "label": "Competitor last lap time",
+      "label": "Scoring snapshot competitor last lap time",
       "description": "Native last lap time.",
       "parentId": "race.competitor.timing",
       "canonicalUnit": "s",
@@ -33753,7 +33758,7 @@
     },
     {
       "id": "race.competitor.pit-stop-count",
-      "label": "Competitor pit-stop count",
+      "label": "Scoring snapshot competitor pit-stop count",
       "description": "Native completed pit-stop count.",
       "parentId": "race.competitor.results",
       "canonicalUnit": "count",
@@ -33905,10 +33910,10 @@
     {
       "id": "race.competitor.position",
       "label": "Competitor position",
-      "description": "Native overall scoring place.",
+      "description": "Overall running or classified position for each competitor.",
       "parentId": "race.competitor.results",
       "canonicalUnit": "count",
-      "shape": "scalar",
+      "shape": "structured",
       "games": {
         "fm-2023": {
           "kind": "unavailable",
@@ -33975,12 +33980,39 @@
           "description": "This parser does not expose an equivalent source value."
         }
       },
-      "valueType": "number",
+      "valueType": "structured",
       "dimensions": [
         "dimensionless"
       ],
       "cardinality": {
-        "kind": "scalar"
+        "kind": "variable",
+        "min": 0,
+        "max": 64
+      },
+      "ordering": [
+        "competitor-index:numeric-ascending"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "competitor-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0,
+              "max": 64
+            },
+            "ordering": "numeric-ascending"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
       },
       "limitations": []
     },
@@ -93035,7 +93067,7 @@
       },
       {
         "path": "LMU.ScoringSnapshot.identity.competitor.car-name",
-        "label": "Competitor car name",
+        "label": "Scoring snapshot competitor car name",
         "unit": "text",
         "dataType": "string",
         "count": 1,
@@ -93047,7 +93079,7 @@
       },
       {
         "path": "LMU.ScoringSnapshot.identity.competitor.driver-name",
-        "label": "Competitor driver name",
+        "label": "Scoring snapshot competitor driver name",
         "unit": "text",
         "dataType": "string",
         "count": 1,
@@ -93167,7 +93199,7 @@
       },
       {
         "path": "LMU.ScoringSnapshot.race.competitor.best-lap-time",
-        "label": "Competitor best lap time",
+        "label": "Scoring snapshot competitor best lap time",
         "unit": "s",
         "dataType": "number",
         "count": 1,
@@ -93227,7 +93259,7 @@
       },
       {
         "path": "LMU.ScoringSnapshot.race.competitor.current-lap-number",
-        "label": "Competitor current lap number",
+        "label": "Scoring snapshot competitor current lap number",
         "unit": "count",
         "dataType": "number",
         "count": 1,
@@ -93311,7 +93343,7 @@
       },
       {
         "path": "LMU.ScoringSnapshot.race.competitor.lap-fraction",
-        "label": "Competitor lap fraction",
+        "label": "Scoring snapshot competitor lap fraction",
         "unit": "fraction",
         "dataType": "number",
         "count": 1,
@@ -93359,7 +93391,7 @@
       },
       {
         "path": "LMU.ScoringSnapshot.race.competitor.last-lap-time",
-        "label": "Competitor last lap time",
+        "label": "Scoring snapshot competitor last lap time",
         "unit": "s",
         "dataType": "number",
         "count": 1,
@@ -93407,7 +93439,7 @@
       },
       {
         "path": "LMU.ScoringSnapshot.race.competitor.pit-stop-count",
-        "label": "Competitor pit-stop count",
+        "label": "Scoring snapshot competitor pit-stop count",
         "unit": "count",
         "dataType": "number",
         "count": 1,
@@ -93423,7 +93455,7 @@
         "unit": "count",
         "dataType": "number",
         "count": 1,
-        "description": "Native overall scoring place. Per-competitor scoring snapshot.",
+        "description": "Overall running or classified position for each competitor. Per-competitor scoring snapshot.",
         "semanticId": "race.competitor.position",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,

@@ -369,7 +369,7 @@ async function importTelemetrySource<T>(
   } finally {
     releaseImportOpponentSource?.();
     releaseStorageImport?.();
-    if (deferredOpponentIndexRevocations.size > 0) {
+    if (gameId === "lmu" && deferredOpponentIndexRevocations.size > 0) {
       try {
         await revokeUnreferencedLmuOpponentIndexes([...deferredOpponentIndexRevocations]);
       } catch (error) {

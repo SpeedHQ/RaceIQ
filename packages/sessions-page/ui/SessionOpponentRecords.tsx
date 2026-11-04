@@ -47,7 +47,7 @@ export function SessionOpponentRecords({ session, laps, enabled }: { session: Se
     catalog.opponentAvailability !== "missing" && catalog.opponentAvailability !== "corrupt";
   const errorCode = query.error && "code" in query.error ? query.error.code : null;
   useEffect(() => {
-    if (!selectedReady || !catalog || restoredScrollRef.current) return;
+    if (!surfaceVisible || !selectedReady || catalog?.indexState !== "ready" || restoredScrollRef.current) return;
     try {
       const stored = sessionStorage.getItem(returnStateKey);
       if (!stored) return;
@@ -58,7 +58,7 @@ export function SessionOpponentRecords({ session, laps, enabled }: { session: Se
       restoredScrollRef.current = true;
       sessionStorage.removeItem(returnStateKey);
     } catch {}
-  }, [catalog, returnStateKey, selectedReady]);
+  }, [catalog, returnStateKey, selectedReady, surfaceVisible]);
   return <section ref={sectionRef} data-testid="opponent-sessions" aria-label={m.sessions_opponents()} className="min-w-0 border-t border-app-border bg-black [&>[data-slot=table-container]]:max-h-96 [&>[data-slot=table-container]]:max-w-full [&>[data-slot=table-container]]:overflow-auto [&>[data-slot=table-container]]:rounded-none [&>[data-slot=table-container]]:border-0 [&_[data-slot=table-row]]:bg-black [&_[data-slot=table-head]]:bg-transparent">
     <h3 className="px-3 py-2 text-sm font-semibold text-app-text">{m.sessions_opponents()}</h3>
     {!selected && !processingMessage && <p>{m.sessions_opponents_none()}</p>}

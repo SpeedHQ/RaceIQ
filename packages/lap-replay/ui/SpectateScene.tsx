@@ -318,7 +318,7 @@ return (
       </div>
     )}
     {!error && ready && [sideAState, ...(pair.b ? [sideBState] : [])].some((state) => state.endsWith("unavailable")) && (
-      <div role="status" className="absolute right-3 top-3 z-10 max-w-[16rem] rounded-sm border border-app-border bg-app-surface/90 p-2 text-app-label text-status-unavailable">
+      <div role={pair.b ? "status" : "alert"} className="absolute right-3 top-3 z-10 max-w-[16rem] rounded-sm border border-app-border bg-app-surface/90 p-2 text-app-label text-status-unavailable">
         {[sideAState, ...(pair.b ? [sideBState] : [])].map((state, index) =>
           state.endsWith("unavailable") ? (
             <p key={index}>

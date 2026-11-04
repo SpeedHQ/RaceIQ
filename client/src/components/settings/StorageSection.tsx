@@ -13,6 +13,7 @@ import { useRecordingDirectoryStatus } from "@/hooks/recording-storage";
 import { useSessionDownsampleStatus } from "@/hooks/session-downsample";
 import { queryKeys } from "@/hooks/query-keys";
 import { RecordingDirectoryControl } from "./RecordingDirectoryControl";
+import { RecordingFrequencyControl } from "./RecordingFrequencyControl";
 import { RecordingLayoutMigration } from "@/components/RecordingLayoutMigration";
 import { SessionDownsampleSkipSummary } from "@/components/SessionDownsampleSkipSummary";
 import { RecordingRetentionControls } from "./RecordingRetentionControls";
@@ -243,7 +244,7 @@ function StorageFilesSection() {
         </div>
         {data && !isLoading && <p className="mb-4 text-sm font-medium text-app-text">{m.storage_recording_summary({ files: data.total, size: formatBytes(data.totalBytes) })}</p>}
         <RecordingDirectoryControl disabled={isLoading || isError || operationBlocked || movingDirectory} />
-        
+
         <p className="my-3 text-sm text-app-text-secondary">{m.storage_recording_files_desc_suffix()}</p>
         <fieldset disabled={operationBlocked} className="min-w-0">
           <RecordingLayoutMigration compact />
@@ -308,9 +309,8 @@ function StorageFilesSection() {
           <Button variant="app-outline" size="app-sm" disabled={operationBlocked || movingDirectory || isLoading} onClick={() => { setRetryRequest(null); setDownsampleOpen(true); }}>{m.storage_downsample_action()}</Button>
           <Button variant="app-outline" size="app-sm" disabled={operationBlocked || movingDirectory} onClick={() => setCleanupRequest({ mode: "older-than", olderThanDays: 30 })}>{m.sessions_cleanup_free_space()}</Button>
         </div>
-        <RecordingRetentionControls disabled={operationBlocked} />
-        <OpponentRemovalControls disabled={operationBlocked || movingDirectory} />
-        
+
+
       </div>
     </section>
   );
@@ -318,21 +318,33 @@ function StorageFilesSection() {
 
 export function StorageSection() {
   return (
-    <Tabs defaultValue="cache" className="flex flex-col gap-5">
-      <TabsList variant="underline" aria-label={m.storage_category_tabs_label()}>
-        <TabsTrigger value="cache" variant="underline">
-          {m.storage_category_cache()}
-        </TabsTrigger>
-        <TabsTrigger value="storage" variant="underline">
-          {m.storage_category_storage()}
-        </TabsTrigger>
-      </TabsList>
-      <TabsContent value="cache">
-        <CacheSection />
-      </TabsContent>
-      <TabsContent value="storage">
-        <StorageFilesSection />
-      </TabsContent>
-    </Tabs>
+    <div className="flex flex-col gap-5">
+      <RecordingFrequencyControl />
+      <Tabs defaultValue="cache" className="flex flex-col gap-5">
+        <TabsList variant="underline" aria-label={m.storage_category_tabs_label()}>
+          <TabsTrigger value="cache" variant="underline">
+            {m.storage_category_cache()}
+          </TabsTrigger>
+          <TabsTrigger value="storage" variant="underline">
+            {m.storage_category_storage()}
+          </TabsTrigger>
+          <TabsTrigger value="opponents" variant="underline">
+            Opponent data
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="cache">
+          <CacheSection />
+        </TabsContent>
+        <TabsContent value="storage">
+          <StorageFilesSection />
+        </TabsContent>
+        <TabsContent value="opponents">
+          <section className="space-y-6">
+            <RecordingRetentionControls />
+            <OpponentRemovalControls />
+          </section>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }

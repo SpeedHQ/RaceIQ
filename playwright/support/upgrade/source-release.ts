@@ -1,4 +1,4 @@
-import { createWriteStream, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -64,6 +64,8 @@ export async function createSourceUpgradeHarness(): Promise<SourceUpgradeHarness
     while (memorySize > MAX_MEMORY_LOG && memory.length > 1) memorySize -= memory.shift()!.length;
   };
   const bun = process.env.BUN_EXECUTABLE ?? "bun";
+  let previousBun = bun;
+  let previousEnv: NodeJS.ProcessEnv = process.env;
   const git = async (args: string[], cwd = callerRoot) => run("git", args, cwd);
   const run = (command: string, args: string[], cwd: string, env: NodeJS.ProcessEnv = process.env, timeout = COMMAND_TIMEOUT) => new Promise<string>((resolvePromise, reject) => {
     record(`$ ${command} ${args.map((arg) => JSON.stringify(arg)).join(" ")} (cwd=${cwd})`);
@@ -163,14 +165,14 @@ export async function createSourceUpgradeHarness(): Promise<SourceUpgradeHarness
   };
   const apiURL = () => `http://127.0.0.1:${serverPort}`;
   const baseURL = () => `http://127.0.0.1:${uiPort}`;
-  const waitReady = async (url: string, label: string, child: ChildProcess, expectedStatus: number, headers?: Record<string, string>) => {
+  const waitReady = async (url: string, label: string, child: ChildProcess, expectedStatus: number | number[]) => {
     const deadline = Date.now() + START_TIMEOUT;
     while (Date.now() < deadline) {
       if (childError) throw new Error(`${label} failed to spawn: ${childError}. See ${logPath}`);
       if (child.exitCode !== null || child.signalCode !== null) throw new Error(`${label} exited before readiness. See ${logPath}`);
       try {
-        const response = await fetch(url, { headers, signal: AbortSignal.timeout(2_000) });
-        if (response.status === expectedStatus) return;
+        const response = await fetch(url, { signal: AbortSignal.timeout(2_000) });
+        if ((Array.isArray(expectedStatus) ? expectedStatus : [expectedStatus]).includes(response.status)) return;
       } catch { /* Retry within the bounded startup deadline. */ }
       await delay(250);
     }
@@ -183,9 +185,11 @@ export async function createSourceUpgradeHarness(): Promise<SourceUpgradeHarness
       if (phase !== "seeded") throw new Error(`validateConvertedCaptures invalid in phase ${phase}`);
       const script = `
         import Database from "libsql";
-        import { iterateSessionCaptureRecordsFromSource } from "./server/session-capture/source-loader.ts";
+        import * as sourceLoader from "./server/session-capture/source-loader.ts";
+        const { iterateSessionCaptureRecordsFromSource } = sourceLoader;
         import { existsSync } from "node:fs";
-        import { resolve } from "node:path";
+        import { resolve, dirname, relative, isAbsolute, sep } from "node:path";
+        import { realpath, stat } from "node:fs/promises";
         import { DecompressionStream } from "node:stream/web";
         // Resolve capture modules from the checked-out release's pre/post-package layout.
         const captureModules = existsSync("./server/session-capture/framing.ts") ? "./server/session-capture/" : "./packages/capture-formats/src/session/";
@@ -204,6 +208,40 @@ export async function createSourceUpgradeHarness(): Promise<SourceUpgradeHarness
             try {
               if (!file || Number(row.capture_format_version) !== 1) throw new Error(\`missing converted provenance (captureFormatVersion=\${row.capture_format_version ?? "null"})\`);
               if (!existsSync(file)) throw new Error("recording file missing");
+              const source = { rawFile: file, source: row.source == null ? null : String(row.source), gameId: String(row.game_id), captureFormatVersion: Number(row.capture_format_version), carOrdinal: Number(row.car_ordinal ?? -1), trackOrdinal: Number(row.track_ordinal ?? -1), carId: String(row.car_id ?? ""), trackId: String(row.track_id ?? "") };
+              if (file.endsWith("manifest.json")) {
+                const manifest = await sourceLoader.loadCaptureManifest(file);
+                if (manifest.gameId !== source.gameId) throw new Error("Session source manifest game does not match replay game");
+                const directory = await realpath(dirname(file));
+                const ownedPath = async (name) => {
+                  const path = await realpath(resolve(directory, name));
+                  const rel = relative(directory, path);
+                  if (isAbsolute(name) || rel === ".." || rel.startsWith(\`..\${sep}\`) || isAbsolute(rel)) throw new Error("Capture artifact path escapes manifest directory");
+                  return path;
+                };
+                let frames = 0;
+                if (manifest.version === 3 && manifest.sourceCoordinates === "native-wire-v1") {
+                  for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: true })) if (record.kind === "frame") frames++;
+                }
+                for (const chunk of manifest.chunks) {
+                  const path = await ownedPath(manifest.version === 4 ? manifest.archiveFile : chunk.path);
+                  if (manifest.version === 3 && (await stat(path)).size !== chunk.byteLength) throw new Error(\`Capture chunk \${chunk.id} byte length mismatch\`);
+                  const chunkSource = manifest.version === 4
+                    ? { ...source, rawFile: path, artifact: { archivePath: path, entryName: chunk.entryName, manifest } }
+                    : { ...source, rawFile: path };
+                  for await (const record of iterateSessionCaptureRecordsFromSource(chunkSource, { strict: true })) {
+                    if (record.kind === "frame" && !(manifest.version === 3 && manifest.sourceCoordinates === "native-wire-v1")) frames++;
+                  }
+                }
+                if (!frames) throw new Error("capture contains no decodable frames");
+                if (manifest.version === 3 && manifest.opponentRetention === "retained" && manifest.opponentCompanion) {
+                  const path = await ownedPath(manifest.opponentCompanion.file);
+                  if ((await stat(path)).size !== manifest.opponentCompanion.byteLength) throw new Error("Opponent companion byte length mismatch");
+                  for await (const _record of iterateSessionCaptureRecordsFromSource({ ...source, rawFile: path }, { strict: true, allowLegacyFullFrames: true })) {}
+                }
+                console.log(\`[upgrade-boundary] \${label} captureFormatVersion=1 manifest-v\${manifest.version} frames=\${frames}\`);
+                continue;
+              }
               const blob = Bun.file(file);
               const zipPrefix = Buffer.from(await blob.slice(0, 2).arrayBuffer());
               let stream = blob.stream();
@@ -256,7 +294,6 @@ export async function createSourceUpgradeHarness(): Promise<SourceUpgradeHarness
                 reader.releaseLock();
               }
               let frames = 0;
-              const source = { rawFile: file, source: row.source == null ? null : String(row.source), gameId: String(row.game_id), captureFormatVersion: Number(row.capture_format_version), carOrdinal: Number(row.car_ordinal ?? -1), trackOrdinal: Number(row.track_ordinal ?? -1), carId: String(row.car_id ?? ""), trackId: String(row.track_id ?? "") };
               for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: true })) if (record.kind === "frame") frames++;
               if (!frames) throw new Error("capture contains no decodable frames");
               const classification = marker ? (delta ? "marker+delta" : "marker+checkpoint-only") : (delta ? "delta-without-marker" : checkpoints ? "checkpoint-only" : "no-frame-data");
@@ -268,7 +305,7 @@ export async function createSourceUpgradeHarness(): Promise<SourceUpgradeHarness
           database.close();
         }
       `;
-      await run(bun, ["-e", script], checkoutDir, { ...process.env, DATA_DIR: dataDir, APPDATA: dataDir, RACEIQ_APP_ROOT: checkoutDir });
+      await run(previousBun, ["-e", script], checkoutDir, { ...previousEnv, DATA_DIR: dataDir, APPDATA: dataDir, RACEIQ_APP_ROOT: checkoutDir });
     },
     async checkoutPrevious() {
       if (phase !== "created") throw new Error(`checkoutPrevious invalid in phase ${phase}`);
@@ -294,22 +331,30 @@ export async function createSourceUpgradeHarness(): Promise<SourceUpgradeHarness
         await git(["fetch", "--no-tags", "origin", `refs/tags/${previousTag}:refs/tags/${previousTag}`, "+refs/heads/main:refs/remotes/origin/main"], checkoutDir);
       }
       await readRefs(previousTag || tag!);
-      await git(["checkout", "--detach", previousSha], checkoutDir);
+      await run("git", ["checkout", "--detach", previousSha], checkoutDir, process.env, 5 * 60_000);
       phase = "previous";
     },
     async seedPrevious() {
       if (phase !== "previous") throw new Error(`seedPrevious invalid in phase ${phase}`);
-      await run(bun, ["install", "--frozen-lockfile"], checkoutDir);
-      const seedEnv: NodeJS.ProcessEnv = { ...process.env, DATA_DIR: dataDir, APPDATA: dataDir, RACEIQ_APP_ROOT: checkoutDir };
+      const manifest: unknown = JSON.parse(readFileSync(join(checkoutDir, "package.json"), "utf8"));
+      const packageManager = manifest && typeof manifest === "object" && "packageManager" in manifest ? manifest.packageManager : undefined;
+      if (typeof packageManager !== "string" || !/^bun@\d+\.\d+\.\d+$/.test(packageManager)) throw new Error(`Released checkout requires an exact Bun version: ${String(packageManager)}`);
+      const bunDir = join(tempRoot, "release-bun");
+      await run("npm", ["install", "--prefix", bunDir, "--no-save", "--no-package-lock", packageManager], checkoutDir);
+      const binDir = join(bunDir, "node_modules", ".bin");
+      previousBun = join(binDir, process.platform === "win32" ? "bun.cmd" : "bun");
+      previousEnv = { ...process.env, PATH: `${binDir}${process.platform === "win32" ? ";" : ":"}${process.env.PATH ?? ""}` };
+      await run(previousBun, ["install", "--frozen-lockfile"], checkoutDir, previousEnv);
+      const seedEnv: NodeJS.ProcessEnv = { ...previousEnv, DATA_DIR: dataDir, APPDATA: dataDir, RACEIQ_APP_ROOT: checkoutDir };
       delete seedEnv.RACEIQ_E2E;
-      await run(bun, ["run", "db:seed"], checkoutDir, seedEnv, 10 * 60_000);
+      await run(previousBun, ["run", "db:seed"], checkoutDir, seedEnv, 10 * 60_000);
       record(`seeded all released game fixtures into data=${dataDir}`);
       phase = "seeded";
     },
     async checkoutMain() {
       if (phase !== "seeded") throw new Error(`checkoutMain invalid in phase ${phase}`);
       if (processes.size) throw new Error("Cannot switch refs while child processes are running");
-      await git(["checkout", "--detach", mainSha], checkoutDir);
+      await run("git", ["checkout", "--detach", mainSha], checkoutDir, process.env, 5 * 60_000);
       await run(bun, ["install", "--frozen-lockfile"], checkoutDir);
       phase = "main";
     },
@@ -319,20 +364,20 @@ export async function createSourceUpgradeHarness(): Promise<SourceUpgradeHarness
       if (!generatedHashes.has(refSha)) {
         const generator = join(checkoutDir, "scripts/dev/paraglide-dev.ts");
         if (!existsSync(generator)) throw new Error(`Source checkout lacks supported Paraglide generator: ${generator}`);
-        await run(bun, [generator, "--once"], checkoutDir);
+        await run(phase === "seeded" ? previousBun : bun, [generator, "--once"], checkoutDir, phase === "seeded" ? previousEnv : process.env);
         generatedHashes.add(refSha);
       }
-      const runtimeEnv: NodeJS.ProcessEnv = { ...process.env };
+      const runtimeEnv: NodeJS.ProcessEnv = { ...(phase === "seeded" ? previousEnv : process.env) };
       delete runtimeEnv.RACEIQ_E2E;
       runtimeEnv.RACEIQ_APP_ROOT = checkoutDir;
       const commonEnv = { ...runtimeEnv, DATA_DIR: dataDir, APPDATA: dataDir, SERVER_PORT: String(serverPort), UDP_PORT: String(udpPort) };
-      const backend = spawn(bun, ["run", "apps/backend/src/index.ts"], { cwd: checkoutDir, env: commonEnv, stdio: ["ignore", "pipe", "pipe"], windowsHide: true, detached: process.platform !== "win32" });
+      const backend = spawn(phase === "seeded" ? previousBun : bun, ["run", "apps/backend/src/index.ts"], { cwd: checkoutDir, env: commonEnv, stdio: ["ignore", "pipe", "pipe"], windowsHide: true, detached: process.platform !== "win32" });
       processes.add(backend);
       for (const stream of [backend.stdout, backend.stderr]) stream?.on("data", (chunk: Buffer) => record(`[backend] ${chunk.toString().trimEnd()}`));
       backend.once("error", (error) => { childError = error.message; });
-      if (phase === "seeded") await waitReady(`${apiURL()}/api/cars`, "previous backend", backend, 200, { "X-Game-Id": "ac-evo" });
+      if (phase === "seeded") await waitReady(`${apiURL()}/api/auth/status`, "previous backend", backend, [200, 404]);
       else await waitReady(`${apiURL()}/api/auth/status`, "main backend", backend, 200);
-      const client = spawn(bun, ["run", "dev", "--", "--host", "127.0.0.1", "--port", String(uiPort), "--strictPort"], { cwd: join(checkoutDir, "client"), env: { ...commonEnv, SERVER_PORT: String(serverPort), PROXY_TARGET: apiURL(), PORT: String(uiPort) }, stdio: ["ignore", "pipe", "pipe"], windowsHide: true, detached: process.platform !== "win32" });
+      const client = spawn(phase === "seeded" ? previousBun : bun, ["run", "dev", "--", "--host", "127.0.0.1", "--port", String(uiPort), "--strictPort"], { cwd: join(checkoutDir, "client"), env: { ...commonEnv, SERVER_PORT: String(serverPort), PROXY_TARGET: apiURL(), PORT: String(uiPort) }, stdio: ["ignore", "pipe", "pipe"], windowsHide: true, detached: process.platform !== "win32" });
       processes.add(client);
       for (const stream of [client.stdout, client.stderr]) stream?.on("data", (chunk: Buffer) => record(`[client] ${chunk.toString().trimEnd()}`));
       client.once("error", (error) => { childError = error.message; });

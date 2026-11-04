@@ -8,7 +8,7 @@ import { makeLmuOpponentCapture } from "../../../game-lmu/src/test-support/oppon
 import { collectBrowserErrors } from "../../../../playwright/tests/support/browser-errors"
 import { lapsFor, sessionRows, sessionsFor } from "../../../../playwright/tests/support/session-fixtures";
 import {
-  readLmuOpponentColdLoadIdentity,
+  readSeededLmuPlayerIdentity,
   seedLmuOpponentColdLoadData,
   startOpponentColdLoadServer,
 } from "../../../game-lmu/test/support/opponent-cold-load-server";
@@ -121,13 +121,11 @@ test("[E9] session and lap opening stays blocked through queued, processing, fai
   try {
     dataDir = await mkdtemp(join(tmpdir(), "raceiq-test-data-e9-opponent-"));
     await seedLmuOpponentColdLoadData(dataDir);
-    const seededIdentity = readLmuOpponentColdLoadIdentity(dataDir);
+    const seededIdentity = await readSeededLmuPlayerIdentity(dataDir);
     const trackFixture = seedAccTrackLapReadiness(dataDir);
-    const server = await startOpponentColdLoadServer({
-      dataDir,
-      holdAt: ["source-discovery-complete", "admission-granted", "before-publication-fence"],
-    });
+    const server = await startOpponentColdLoadServer({ dataDir });
     stopServer = server.stop;
+    await server.reconcile();
     const baseURL = server.baseURL;
     const appOrigin = new URL(baseURL).origin;
     const routeListRequests: string[] = [];
@@ -180,6 +178,7 @@ test("[E9] session and lap opening stays blocked through queued, processing, fai
     await expect(page.getByRole("button", { name: /^Compare$/i }).last()).toBeDisabled();
 
     const captureIdentity = `opening-gates-${crypto.randomUUID()}`;
+    await server.holdAt("source-discovery-complete");
     const importResponse = await request.post(`${baseURL}/api/laps/import`, {
       timeout: 120_000,
       multipart: {
@@ -200,6 +199,12 @@ test("[E9] session and lap opening stays blocked through queued, processing, fai
     const sessionId = sessionIds[0]!;
     const lapId = importedLaps[0]!.lapId;
     const comparisonLapId = importedLaps[1]!.lapId;
+    const sourcePath = await server.getLmuOpponentSessionSourcePath(sessionId);
+    expect(sourcePath, "controlled import retains its capture source").not.toBeNull();
+    if (!sourcePath) throw new Error("Controlled LMU import has no capture source");
+    await server.holdAt("admission-granted", { sourcePath });
+    await server.holdAt("before-publication-fence", { sourcePath });
+    await server.holdAt("source-discovery-complete", { sourcePath });
     const analysisPath = `/lmu/sessions/${sessionId}/analyse`;
     const replayPath = `/lmu/sessions/${sessionId}/replay/${lapId}`;
     const comparisonPath = `/lmu/compare?lapA=${lapId}&lapB=${comparisonLapId}`;
@@ -214,7 +219,8 @@ test("[E9] session and lap opening stays blocked through queued, processing, fai
       expect(response.ok(), "LMU lap metadata").toBe(true);
       return await response.json() as LapMeta[];
     };
-    await server.waitForBarrier("source-discovery-complete");
+    const queuedDiscovery = await server.waitForBarrier("source-discovery-complete", { sourcePath });
+    expect(queuedDiscovery.sourcePath).toBe(sourcePath);
     await expect.poll(async () => (await getSessions()).find((session) => session.id === sessionId)?.processing.state, {
       timeout: 30_000,
       interval: 250,
@@ -223,7 +229,7 @@ test("[E9] session and lap opening stays blocked through queued, processing, fai
       timeout: 30_000,
       interval: 250,
     }).toBe("queued");
-    expect((await getSessions()).find((session) => session.id === seededIdentity.ready.sessionId)?.processing.state)
+    expect((await getSessions()).find((session) => session.id === seededIdentity.sessionId)?.processing.state)
       .toBe("ready");
 
     listPage = await page.context().newPage();
@@ -255,6 +261,7 @@ test("[E9] session and lap opening stays blocked through queued, processing, fai
     await expect(page.getByText("Queued for processing…", { exact: true })).toBeVisible();
     await page.goto(`${baseURL}${comparisonPath}`, { waitUntil: "domcontentloaded" });
     await expect(page.getByText("Queued for processing…", { exact: true })).toBeVisible();
+    await expect(page.getByText("Select two laps above to compare", { exact: true })).toHaveCount(0);
     expect(heavyReads.slice(heavyReadsBefore), "blocked routes do not start heavy lap reads").toEqual([]);
     await page.goto(`${baseURL}${analysisPath}`, { waitUntil: "domcontentloaded" });
     await expect(page.getByText("Queued for processing…", { exact: true })).toBeVisible();
@@ -264,11 +271,19 @@ test("[E9] session and lap opening stays blocked through queued, processing, fai
     await expect.poll(() => listPageRequests.length, { timeout: 4_000, interval: 100 })
       .toBeGreaterThan(visibleListRequestCount);
     await page.bringToFront();
+    await listPage.evaluate(() => {
+      Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
     await expect.poll(() => listPage.evaluate(() => document.visibilityState)).toBe("hidden");
     const hiddenListRequestCount = listPageRequests.length;
     await listPage.waitForTimeout(2_300);
     expect(listPageRequests).toHaveLength(hiddenListRequestCount);
     await listPage.bringToFront();
+    await listPage.evaluate(() => {
+      Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "visible" });
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
     await expect.poll(() => listPageRequests.length, { timeout: 4_000, interval: 100 })
       .toBeGreaterThan(hiddenListRequestCount);
     await page.bringToFront();
@@ -284,17 +299,19 @@ test("[E9] session and lap opening stays blocked through queued, processing, fai
     await expect(page.getByText("Queued for processing…", { exact: true })).toBeVisible();
     const transitionNavigationCount = mainFrameNavigations;
 
-    await server.releaseBarrier("source-discovery-complete");
-    await server.waitForBarrier("admission-granted");
+    await server.releaseHold("source-discovery-complete");
+    const processingAdmission = await server.waitForBarrier("admission-granted", { sourcePath });
+    expect(processingAdmission.sourcePath).toBe(sourcePath);
     await expect.poll(async () => (await getSessions()).find((session) => session.id === sessionId)?.processing.state, {
       timeout: 30_000,
       interval: 250,
     }).toBe("processing");
     await expect(page.getByText("Processing…", { exact: true })).toBeVisible();
     expect(mainFrameNavigations).toBe(transitionNavigationCount);
-    await server.releaseBarrier("admission-granted");
-    await server.waitForBarrier("before-publication-fence");
-    await server.failBarrier("before-publication-fence");
+    await server.releaseBarrier(processingAdmission.id);
+    const failedPublication = await server.waitForBarrier("before-publication-fence", { sourcePath });
+    expect(failedPublication.sourcePath).toBe(sourcePath);
+    await server.failBarrier(failedPublication.id);
     await expect.poll(async () => (await getSessions()).find((session) => session.id === sessionId)?.processing.state, {
       timeout: 30_000,
       interval: 250,
@@ -302,12 +319,12 @@ test("[E9] session and lap opening stays blocked through queued, processing, fai
     const failedMetadata = (await getSessions()).find((session) => session.id === sessionId);
     expect(failedMetadata?.processing.state).toBe("failed");
     const failedError = failedMetadata?.processing.state === "failed" ? failedMetadata.processing.error : "Failed processing error unavailable";
-    await expect(page.getByText(failedError, { exact: true })).toBeVisible();
+    await expect(page.getByRole("alert")).toContainText(`Processing failed: ${failedError}`);
     await expect(page.getByText("Processing…", { exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Refresh/ })).toBeVisible();
 
     await listPage.bringToFront();
-    const failedRows = sessionRows(listPage).filter({ has: listPage.getByText(failedError, { exact: true }) });
+    const failedRows = sessionRows(listPage).filter({ has: listPage.getByText(`Processing failed: ${failedError}`, { exact: true }) });
     await expect(failedRows).toHaveCount(1);
     const terminalListRequestCount = listPageRequests.length;
     await listPage.waitForTimeout(2_300);
@@ -315,15 +332,18 @@ test("[E9] session and lap opening stays blocked through queued, processing, fai
     await page.bringToFront();
 
     const recovery = server.reconcile();
-    const discoveryBarrier = await server.waitForBarrier("source-discovery-complete");
-    await server.releaseBarrier(discoveryBarrier.id);
-    const admissionBarrier = await server.waitForBarrier("admission-granted");
+    const admissionBarrier = await server.waitForBarrier("admission-granted", { sourcePath });
     await server.releaseBarrier(admissionBarrier.id);
-    const publicationBarrier = await server.waitForBarrier("before-publication-fence");
+    const publicationBarrier = await server.waitForBarrier("before-publication-fence", { sourcePath });
     await expect.poll(async () => (await getSessions()).find((session) => session.id === sessionId)?.processing.state, {
       timeout: 30_000,
       interval: 250,
     }).toBe("processing");
+    // Failed states remain terminal until the user explicitly refreshes status.
+    if (await classificationNotice.isVisible()) {
+      await classificationNotice.getByRole("button", { name: "Close", exact: true }).click();
+    }
+    await page.getByRole("button", { name: "Refresh status", exact: true }).click();
     await expect(page.getByText("Processing…", { exact: true })).toBeVisible();
     await server.releaseBarrier(publicationBarrier.id);
     await recovery;
@@ -332,13 +352,40 @@ test("[E9] session and lap opening stays blocked through queued, processing, fai
       interval: 500,
     }).toBe("ready");
     await expect(page.getByText("Processing…", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("No valid laps are available for review.", { exact: true })).toBeVisible();
+    expect(mainFrameNavigations).toBe(transitionNavigationCount);
+    // Explicit comparison may inspect these invalid fixture laps; default review must not select them.
+    await page.goto(`${baseURL}${comparisonPath}`, { waitUntil: "domcontentloaded" });
     await expect.poll(() => heavyReads.filter((path) => path === "/api/laps/aligned-telemetry").length, {
       timeout: 30_000,
       interval: 250,
     }).toBeGreaterThan(0);
-    expect(mainFrameNavigations).toBe(transitionNavigationCount);
 
     await page.goto(`${baseURL}${replayPath}`, { waitUntil: "domcontentloaded" });
+    const assignment = page.getByRole("dialog", { name: "Assign session car and track", exact: true });
+    await expect(assignment).toBeVisible();
+    const [carsResponse, tracksResponse] = await Promise.all([
+      request.get(`${baseURL}/api/cars`, { headers: { "X-Game-Id": "lmu" } }),
+      request.get(`${baseURL}/api/tracks?gameId=lmu`),
+    ]);
+    expect(carsResponse.ok()).toBe(true);
+    expect(tracksResponse.ok()).toBe(true);
+    const cars = await carsResponse.json() as { id: string; name: string }[];
+    const tracks = await tracksResponse.json() as { id: string; name: string; variant?: string }[];
+    const assignedCar = cars.find((car) => String(car.id) === seededIdentity.carId);
+    const assignedTrack = tracks.find((track) => String(track.id) === seededIdentity.trackId);
+    expect(assignedCar).toBeDefined();
+    expect(assignedTrack).toBeDefined();
+    await assignment.getByPlaceholder("Search cars", { exact: true }).fill(assignedCar!.name);
+    await page.getByRole("option", { name: assignedCar!.name, exact: true }).click();
+    await assignment.getByPlaceholder("Search tracks", { exact: true }).fill(assignedTrack!.name);
+    const trackLabel = assignedTrack!.variant ? `${assignedTrack!.name} — ${assignedTrack!.variant}` : assignedTrack!.name;
+    await page.getByRole("option", { name: trackLabel, exact: true }).click();
+    await assignment.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(assignment).toBeHidden();
+    const dataToggle = page.locator('[data-panel-toggle="replay-data-panel"]');
+    await expect(dataToggle).toBeVisible();
+    if (await dataToggle.getAttribute("aria-expanded") !== "true") await dataToggle.click();
     await expect(page.getByRole("heading", { name: "Metrics at Cursor" })).toBeVisible({ timeout: 60_000 });
     await expect.poll(() => heavyReads.some((path) => path.endsWith("/semantic-telemetry")), {
       timeout: 30_000,

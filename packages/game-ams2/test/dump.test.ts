@@ -43,6 +43,7 @@ describe("AMS2 dump-mode capture", () => {
     const dumped: Buffer[] = [];
     const db = new CapturingDbAdapter();
     const detector = ams2ServerAdapter.createLapDetector({ db });
+    const parserState = ams2ServerAdapter.createParserState();
     const source = new AMS2TelemetrySource({
       recordingEnabled: true,
       recorder: {
@@ -51,7 +52,7 @@ describe("AMS2 dump-mode capture", () => {
       },
       reader: { start() {}, async stop() {}, readLatest: () => memory },
       registerIdentity: async () => {},
-      dispatchRawFrame: async raw => { await detector.feed(ams2ServerAdapter.tryParse(raw, null)!); },
+      dispatchRawFrame: async raw => { await detector.feed(ams2ServerAdapter.tryParse(raw, parserState)!); },
     });
     try {
       memory.writeUInt32LE(3, L.mSessionState);
@@ -125,6 +126,7 @@ describe("AMS2 dump-mode capture", () => {
     const db = new CapturingDbAdapter();
     const pipeline = new LiveTelemetryPipeline(db, new CapturingWsAdapter(), { bypassPacketRateFilter: true, recorder: new NullSessionRecorderAdapter() });
     let ended = 0;
+    const parserState = ams2ServerAdapter.createParserState();
     const source = new AMS2TelemetrySource({
       recordingEnabled: true,
       recordingDir: directory,
@@ -133,7 +135,7 @@ describe("AMS2 dump-mode capture", () => {
       reader: { start() {}, async stop() {}, readLatest: () => memory },
       registerIdentity: async () => {},
       dispatchRawFrame: async (frame, time) => {
-        const packet = ams2ServerAdapter.tryParse(frame, null);
+        const packet = ams2ServerAdapter.tryParse(frame, parserState);
         if (packet) await pipeline.processPacket(packet, frame, time);
       },
       onSessionEnd: async () => {
@@ -193,7 +195,7 @@ describe("AMS2 dump-mode capture", () => {
       const bytes = readFileSync(path);
       const frames = [...readAMS2DumpFramesFromBuffer(bytes)];
       expect(frames).toHaveLength(665);
-      expect(ams2ServerAdapter.tryParse(frames[0], null)).toBeNull();
+      expect(ams2ServerAdapter.tryParse(frames[0], ams2ServerAdapter.createParserState())).toBeNull();
       expect(ams2ServerAdapter.isSessionEndFrame!(frames.at(-1)!)).toBe(true);
       const result = await importSessionBin(gzipSync(bytes), "ams2", { notifyDriverProfile: false });
       expect(result.packetCount).toBe(660);

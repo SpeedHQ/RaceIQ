@@ -182,6 +182,7 @@
     "./session-capture/opponent-removal": "./session-capture/opponent-removal.ts",
     "./session-capture/recorder": "./session-capture/recorder.ts",
     "./session-capture/reprocess": "./session-capture/reprocess.ts",
+    "./session-capture/session-activity": "./session-capture/session-activity.ts",
     "./session-capture/reconcile": "./session-capture/reconcile.ts",
     "./session-capture/session-cleanup": "./session-capture/session-cleanup.ts",
     "./session-capture/session-downsample": "./session-capture/session-downsample.ts",

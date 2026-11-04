@@ -38,21 +38,12 @@ const GAME_ROUTE_PREFIXES = ["fm23", "f125", "acc", "ac-evo"] as const;
 // Three.js creates detached image loaders for model textures; those are not
 // page-facing images and must not block this browser smoke assertion.
 async function assertImagesLoaded(page: Page) {
-  await page.waitForFunction(
-    () =>
-      Array.from(document.querySelectorAll("img"))
-        .filter((img) => img.getClientRects().length > 0 && img.currentSrc)
-        .every((img) => img.complete && img.naturalWidth > 0),
-    undefined,
-    { timeout: 15_000 },
-  );
-  const broken = await page.evaluate(() =>
+  await expect.poll(() => page.evaluate(() =>
     Array.from(document.querySelectorAll("img"))
       .filter((img) => img.getClientRects().length > 0 && img.currentSrc)
       .filter((img) => !img.complete || img.naturalWidth === 0)
       .map((img) => img.currentSrc),
-  );
-  expect(broken, `broken images:\n${broken.join("\n")}`).toEqual([]);
+  ), { timeout: 15_000, message: "Visible images must load" }).toEqual([]);
 }
 
 // Serial: wizard runs first and flips server-side onboardingComplete=true,
