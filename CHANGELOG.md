@@ -4,6 +4,8 @@
 
 ### Fixes
 
+- Save AMS2 inlaps when the game clears the lap timer at pit entry, and keep complete timed laps from being mislabeled as outlaps.
+
 ### Internal
 
 ## v0.21.1 - 2026-11-03

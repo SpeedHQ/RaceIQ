@@ -108,12 +108,12 @@ const completed = (db: CapturingDbAdapter, sessionId = 1) =>
   db.laps.filter(lap => lap.sessionId === sessionId && lap.invalidReason !== "incomplete");
 
 describe("AMS2 real raw-dump fixtures", () => {
-  test("Time Trial preserves timed laps and classifies both untimed crossings", async () => {
+  test("Time Trial keeps the first full timed lap eligible for pace", async () => {
     const { db, messages } = await replay("time-trial");
     expect(db.sessions.map(s => s.sessionType)).toEqual(["practice"]);
     const laps = completed(db);
     expect(laps.map(lap => lap.lapNumber)).toEqual([1, 2, 3]);
-    expect(laps.map(l => l.classification)).toEqual(["out_lap", "pace", "pace"]);
+    expect(laps.map(l => l.classification)).toEqual(["pace", "pace", "pace"]);
     expect(laps.map(l => l.lapTime.toFixed(3))).toEqual(["50.460", "52.080", "51.300"]);
     expect(messages.filter(m => m.includes("Untimed start-line crossing"))).toHaveLength(2);
     expect(messages.filter(m => m.includes("Race restart detected"))).toHaveLength(0);
@@ -144,11 +144,11 @@ describe("AMS2 real raw-dump fixtures", () => {
     expect(db.laps.at(-1)?.invalidReason).toBe("incomplete");
   });
 
-  test("healthy qualifying retains three valid timed laps", async () => {
+  test("healthy qualifying retains four valid timed laps", async () => {
     const { db, diagnostics } = await replay("qualifying");
     expect(db.sessions.map(s => s.sessionType)).toEqual(["qualifying", "race"]);
     expect(completed(db).map(lap => lap.lapNumber)).toEqual([1, 2, 3, 4]);
-    expect(completed(db).map(l => l.classification)).toEqual(["out_lap", "pace", "pace", "pace"]);
+    expect(completed(db).map(l => l.classification)).toEqual(["pace", "pace", "pace", "pace"]);
     expect(completed(db).map(l => l.lapTime.toFixed(3))).toEqual(["65.396", "65.371", "65.738", "65.478"]);
     expect(diagnostics.staleTransition).toBe(1);
     expect(db.laps.at(-1)?.invalidReason).toBe("incomplete");
