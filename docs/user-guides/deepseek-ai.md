@@ -26,15 +26,16 @@ fill in, unlike the OpenAI-compatible provider.
 | --- | --- |
 | Chat completions | OpenAI-compatible `/chat/completions` |
 | Tool calls | Supported, so the driver coach keeps every tool (`record_drill`, `compare_laps`, …) |
-| Reasoning effort | Sent as `reasoning_effort` (default `medium`) |
+| Reasoning | Switched off for analysis requests, so the answer keeps the whole output budget |
 | Context window | 1,000,000 tokens (shown in the context meter) |
 | Image input | `deepseek-flash` only; `deepseek-v4-pro` is text-only |
 | JSON output | Used for structured analysis requests |
 
 ## Notes
 
-- DeepSeek is **not** handled by the OpenAI-compatible provider. That path is tuned for local
-  servers and deliberately turns reasoning off; DeepSeek keeps it on.
+- DeepSeek is **not** handled by the OpenAI-compatible provider. It has its own endpoint and its
+  own request rules: thinking is switched off, and structured requests ask for `json_object` with
+  the schema in the prompt, because DeepSeek rejects `json_schema`.
 - If **Load models** fails, the picker falls back to the built-in list so you can still pick a
   model and save. The failure reason is logged under `[AI]` in the app log.
 - Key storage uses the OS credential store, same as the other providers.

@@ -29,6 +29,7 @@ const MODELS_EMPTY_RETRY_MS = 10 * 1000;
 let cachedGeminiModels: { key: string; models: { id: string; name: string }[]; at: number } | null = null;
 let cachedOpenAiModels: { key: string; models: { id: string; name: string }[]; at: number } | null = null;
 let cachedAnthropicModels: { key: string; models: { id: string; name: string }[]; at: number } | null = null;
+let cachedDeepseekModels: { key: string; models: { id: string; name: string }[]; at: number } | null = null;
 let cachedLocalModels: { endpoint: string; key: string; models: { id: string; name: string; contextLength?: number }[]; at: number } | null = null;
 let cachedLocalEmpty: { endpoint: string; key: string; at: number } | null = null;
 export type AiProviderDiscovery = {
@@ -170,12 +171,19 @@ export const settingsRoutes = new Hono()
       const deepseekKey = await getSecret("deepseek-api-key");
       if (!deepseekKey) {
         deepseekError = "DeepSeek API key not set.";
+        cachedDeepseekModels = null;
+      } else if (!forceRefresh && cachedDeepseekModels?.key === deepseekKey
+        && Date.now() - cachedDeepseekModels.at < MODELS_CACHE_TTL_MS) {
+        deepseekModels = cachedDeepseekModels.models;
       } else {
         const fetchedDeepSeek = await getDeepSeekModelsDetailed(deepseekKey);
+        deepseekError = fetchedDeepSeek.error;
         if (fetchedDeepSeek.models.length > 0) {
           deepseekModels = fetchedDeepSeek.models.map((m) => ({ id: m.id, name: m.name }));
+          cachedDeepseekModels = { key: deepseekKey, models: deepseekModels, at: Date.now() };
+        } else if (cachedDeepseekModels?.key === deepseekKey) {
+          deepseekModels = cachedDeepseekModels.models;
         }
-        deepseekError = fetchedDeepSeek.error;
       }
     }
 
