@@ -51,6 +51,9 @@ export async function configureAiProviderEnvironment(
     delete process.env.OPENAI_BASE_URL;
   } else if (provider === "deepseek") {
     // DeepSeek 是一等公民：固定官方端点，key 必填（上面的守卫已保证存在）。
+    // The native Mastra provider reads DEEPSEEK_API_KEY; the direct adapter path
+    // takes the key from the caller, so the OpenAI pair is only a fallback.
+    process.env.DEEPSEEK_API_KEY = apiKey;
     process.env.OPENAI_API_KEY = apiKey;
     process.env.OPENAI_BASE_URL = baseUrlFor("deepseek");
   } else {

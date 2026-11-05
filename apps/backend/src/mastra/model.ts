@@ -26,11 +26,19 @@ import { createOpenAI } from "@ai-sdk/openai";
 import type { FetchFunction } from "@ai-sdk/provider-utils";
 import { extractReasoningMiddleware, wrapLanguageModel, type LanguageModel } from "ai";
 import type { MastraModelConfig } from "@mastra/core/llm";
-import { ANTHROPIC_OPENAI_BASE_URL, anthropicCompatibleFetch, deepseekCompatibleFetch, isAnthropicEndpoint, openAiCompatibleExtraHeaders } from "@raceiq/backend-core/ai/openai-compatible-headers";
-import { baseUrlFor } from "@raceiq/backend-core/ai/provider-endpoints";
+import { ANTHROPIC_OPENAI_BASE_URL, anthropicCompatibleFetch, isAnthropicEndpoint, openAiCompatibleExtraHeaders } from "@raceiq/backend-core/ai/openai-compatible-headers";
 import { RESOLVED_AI_MODEL_CONTEXT_KEY } from "../ai/resolved-ai-internals";
 
 export type BoundMastraModel = MastraModelConfig;
+
+/**
+ * DeepSeek defaults for every Mastra agent. DeepSeek reasons by default, which
+ * spends the output budget and slows long prompts; RaceIQ never needs the visible
+ * reasoning, so every agent switches it off unless a call overrides the option.
+ */
+export const DEEPSEEK_AGENT_DEFAULTS = {
+  providerOptions: { deepseek: { thinking: { type: "disabled" } } },
+} as const;
 
 function bindMastraModel(model: LanguageModel): BoundMastraModel {
   return model as unknown as BoundMastraModel;
@@ -258,22 +266,10 @@ export function getMastraModelId(
       return bindMastraModel(anthropic.chat(model || "claude-haiku-5-5"));
     }
     case "deepseek": {
-      // DeepSeek: 官方 OpenAI 兼容端点 + 必填 key（由 configureAiProviderEnvironment 注入）。
-      //
-      // 刻意不走 openai-compatible 那套 reasoningContentToThinkFetch +
-      // extractReasoningMiddleware：DeepSeek 的答案在 content 通道，
-      // reasoning_content 是额外字段；AI SDK 会忽略它。套上那层包装后
-      // Mastra 拿到的 text 为空（结构化输出直接从内容里消失）。
-      const baseURL = baseUrlFor("deepseek") ?? "https://api.deepseek.com";
-      const key = apiKey || process.env.OPENAI_API_KEY || "";
-      const deepseek = createOpenAI({
-        baseURL,
-        apiKey: key,
-        headers: openAiCompatibleExtraHeaders(baseURL, key),
-        // Thinking off + json_schema downgraded; see deepseekCompatibleBody.
-        fetch: deepseekCompatibleFetch() as FetchFunction,
-      });
-      return bindMastraModel(deepseek.chat(model || "deepseek-flash"));
+      // Mastra ships a native DeepSeek provider (deepseek/<model>, DEEPSEEK_API_KEY).
+      // Its structured output already asks for json_object — the only shape DeepSeek
+      // accepts — and providerOptions.deepseek.thinking switches reasoning off.
+      return `deepseek/${model || "deepseek-flash"}`;
     }
     case "openai-compatible": {
       const baseURL = localEndpoint ?? "http://localhost:1234/v1";

@@ -13,14 +13,20 @@
 import { Agent } from "@mastra/core/agent";
 import { compareEngineerPersona } from "@raceiq/backend-core/ai/compare-engineer";
 import type { MastraModelConfig } from "@mastra/core/llm";
-import { getMastraModelId } from "../model";
 
 const DEFAULT_EVAL_MODEL = "google/gemini-flash-latest";
+
+/** Provider-appropriate model name; the default must match the provider. */
+function evalModelName(): string {
+  const provider = process.env.EVALS_PROVIDER ?? "gemini";
+  const fallback = provider === "deepseek" ? "deepseek-flash" : "gemini-flash-latest";
+  return process.env.EVALS_MODEL ?? fallback;
+}
 
 /** Label used in baseline filenames and eval output. */
 export function resolveEvalModelId(): string {
   const provider = process.env.EVALS_PROVIDER ?? "gemini";
-  const model = process.env.EVALS_MODEL ?? "gemini-flash-latest";
+  const model = evalModelName();
   if (provider === "gemini") return `google/${model}`;
   if (provider === "openai") return `openai/${model}`;
   if (provider === "deepseek") return `deepseek/${model}`;
@@ -28,17 +34,11 @@ export function resolveEvalModelId(): string {
 }
 
 /**
- * Model bound to the eval agents. DeepSeek has no Mastra registry entry: it needs
- * its own base URL and key, so it goes through the same factory the production
- * agents use. A plain "openai/<model>" id would send a DeepSeek model to
- * api.openai.com.
+ * Model bound to the eval agents. Mastra resolves every supported provider id
+ * natively (google/…, openai/…, deepseek/…) and reads that provider's own key
+ * from the environment, so the id is all the agent needs.
  */
 export function resolveEvalModel(): MastraModelConfig {
-  const provider = process.env.EVALS_PROVIDER ?? "gemini";
-  const model = process.env.EVALS_MODEL ?? "gemini-flash-latest";
-  if (provider === "deepseek") {
-    return getMastraModelId({ provider: "deepseek", model, apiKey: process.env.DEEPSEEK_API_KEY });
-  }
   return resolveEvalModelId();
 }
 

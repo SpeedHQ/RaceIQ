@@ -71,21 +71,6 @@ export function deepseekCompatibleBody(body: Record<string, unknown>): Record<st
   return body;
 }
 
-/** Wraps fetch so SDK requests to DeepSeek carry `deepseekCompatibleBody` rules. */
-export function deepseekCompatibleFetch(baseFetch: typeof fetch = globalThis.fetch): typeof fetch {
-  return (async (input: RequestInfo | URL, init?: RequestInit) => {
-    if (init && typeof init.body === "string") {
-      try {
-        const body = JSON.parse(init.body) as Record<string, unknown>;
-        init = { ...init, body: JSON.stringify(deepseekCompatibleBody(body)) };
-      } catch {
-        // Not JSON; send unchanged.
-      }
-    }
-    return baseFetch(input, init);
-  }) as typeof fetch;
-}
-
 /** Wraps fetch so SDK requests to Anthropic drop body keys Claude rejects. */
 export function anthropicCompatibleFetch(baseFetch: typeof fetch = globalThis.fetch): typeof fetch {
   return (async (input: RequestInfo | URL, init?: RequestInit) => {
