@@ -2,18 +2,18 @@ import { describe, expect, test } from "bun:test";
 
 import { getProviders } from "./providers";
 
-describe("provider 注册表 — DeepSeek 是一等公民", () => {
-  test("列表里包含 deepseek", () => {
+describe("provider registry — DeepSeek", () => {
+  test("includes DeepSeek", () => {
     const ids = getProviders().map((p) => p.id);
     expect(ids).toContain("deepseek");
   });
 
-  test("显示名是 DeepSeek", () => {
+  test("uses DeepSeek as the display name", () => {
     const deepseek = getProviders().find((p) => p.id === "deepseek");
     expect(deepseek?.name).toBe("DeepSeek");
   });
 
-  test("原有 provider 未被移除", () => {
+  test("preserves existing providers", () => {
     const ids = getProviders().map((p) => p.id);
     expect(ids).toEqual(
       expect.arrayContaining(["gemini", "openai", "anthropic", "openai-compatible"]),

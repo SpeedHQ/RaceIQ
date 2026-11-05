@@ -185,7 +185,7 @@ export const comparisonRoutes = new Hono()
         // request past Bun.serve's 255s idleTimeout — surfacing to the client as
         // a bare "socket hang up" from the Vite proxy.
         modelSettings: {
-          // DeepSeek 便宜且默认思考，给足输出预算，避免推理把正文挤空。
+          // Leave enough output budget for the full structured comparison.
           maxOutputTokens: settings.aiProvider === "deepseek" ? 16384 : 8192,
           temperature: 0,
         },

@@ -1,5 +1,4 @@
 import { AiProviderError } from "./provider-error";
-import { baseUrlFor } from "./provider-endpoints";
 import { getSecret } from "../runtime/platform/keystore";
 
 export type ConfiguredAiProvider = "gemini" | "openai" | "anthropic" | "deepseek" | "openai-compatible";
@@ -50,12 +49,8 @@ export async function configureAiProviderEnvironment(
     process.env.ANTHROPIC_API_KEY = apiKey;
     delete process.env.OPENAI_BASE_URL;
   } else if (provider === "deepseek") {
-    // DeepSeek 是一等公民：固定官方端点，key 必填（上面的守卫已保证存在）。
-    // The native Mastra provider reads DEEPSEEK_API_KEY; the direct adapter path
-    // takes the key from the caller, so the OpenAI pair is only a fallback.
+    // Settings-driven agents use the native DeepSeek provider's environment key.
     process.env.DEEPSEEK_API_KEY = apiKey;
-    process.env.OPENAI_API_KEY = apiKey;
-    process.env.OPENAI_BASE_URL = baseUrlFor("deepseek");
   } else {
     process.env.OPENAI_API_KEY = apiKey || "local";
     process.env.OPENAI_BASE_URL = localEndpoint;

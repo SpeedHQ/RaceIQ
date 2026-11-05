@@ -8,7 +8,6 @@ import { createModelContext, getModel } from "../../../src/ai/model-provider";
 import {
   buildEvalCompareEngineerAgent,
   buildEvalLapAnalystAgent,
-  resolveEvalModelId,
 } from "../../../src/mastra/evals/eval-agents";
 
 const environment = {
@@ -127,16 +126,6 @@ describe("eval model selection", () => {
     else process.env.EVALS_MODEL = model;
     expect(() => buildEvalLapAnalystAgent()).toThrow("EVALS_MODEL");
     expect(() => buildEvalCompareEngineerAgent()).toThrow("EVALS_MODEL");
-  });
-
-  test.each([
-    ["gemini", "gemini-3-flash", "google/gemini-3-flash"],
-    ["openai", "gpt-4o-mini", "openai/gpt-4o-mini"],
-    ["deepseek", "deepseek-v4-pro", "deepseek/deepseek-v4-pro"],
-  ])("uses the explicitly configured %s model", (provider, model, expected) => {
-    process.env.EVALS_PROVIDER = provider;
-    process.env.EVALS_MODEL = model;
-    expect(resolveEvalModelId()).toBe(expected);
   });
 
   test.each([

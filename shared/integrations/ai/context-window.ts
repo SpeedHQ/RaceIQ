@@ -25,7 +25,7 @@ export function contextWindowFor(provider: string, model: string, localContext?:
     case "anthropic":
       return 200_000;
     case "deepseek":
-      // DeepSeek 官方文档（2026-11）：deepseek-flash 与 deepseek-v4-pro 均为 1M。
+      // Both current DeepSeek models have a 1M-token context window.
       return 1_000_000;
     case "openai-compatible":
       return localContext && localContext > 0 ? localContext : undefined;

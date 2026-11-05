@@ -8,6 +8,7 @@
 - Open lap analysis and lap comparisons faster after a long session: a player lap now loads from its own published capture chunk instead of streaming the whole session capture from the first byte, which cost about 30 seconds per lap on a 5 GB stint.
 
 ### Internal
+- Require an explicitly configured model for AI evaluation runs.
 
 ## v0.21.1 - 2026-11-03
 

@@ -3,16 +3,16 @@ import { describe, expect, test } from "bun:test";
 import { contextWindowFor } from "./context-window";
 
 describe("contextWindowFor — DeepSeek", () => {
-  test("deepseek-flash 报告 1M 上下文", () => {
+  test("deepseek-flash reports a 1M context window", () => {
     expect(contextWindowFor("deepseek", "deepseek-flash")).toBe(1_000_000);
   });
 
-  test("deepseek-v4-pro 同样 1M", () => {
+  test("deepseek-v4-pro also reports a 1M context window", () => {
     expect(contextWindowFor("deepseek", "deepseek-v4-pro")).toBe(1_000_000);
   });
 
-  test("深求不与本地兼容端点的“未知”分支混淆", () => {
-    // openai-compatible 没有真实上下文长度时必须返回 undefined，而不是 1M
+  test("does not infer hosted context limits for local compatible endpoints", () => {
+    // Local servers must report their actual context length.
     expect(contextWindowFor("openai-compatible", "deepseek-flash")).toBeUndefined();
   });
 });

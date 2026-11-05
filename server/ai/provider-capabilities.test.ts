@@ -10,12 +10,12 @@ import {
 } from "./provider-capabilities";
 
 describe("isDeepSeekEndpoint", () => {
-  test("识别官方端点，忽略结尾斜杠", () => {
+  test("recognizes the official endpoint with or without trailing slashes", () => {
     expect(isDeepSeekEndpoint("https://api.deepseek.com")).toBe(true);
     expect(isDeepSeekEndpoint("https://api.deepseek.com/")).toBe(true);
   });
 
-  test("其他端点不算", () => {
+  test("rejects other endpoints", () => {
     expect(isDeepSeekEndpoint("https://api.openai.com/v1")).toBe(false);
     expect(isDeepSeekEndpoint("http://localhost:1234/v1")).toBe(false);
     expect(isDeepSeekEndpoint(undefined)).toBe(false);
@@ -23,22 +23,22 @@ describe("isDeepSeekEndpoint", () => {
 });
 
 describe("defaultReasoningEffortFor", () => {
-  test("DeepSeek 不设置 reasoning_effort（思考由传输层关闭）", () => {
+  test("omits reasoning_effort for DeepSeek because the transport disables thinking", () => {
     expect(defaultReasoningEffortFor("https://api.deepseek.com")).toBeUndefined();
   });
 
-  test("本地兼容端点保持关闭推理", () => {
+  test("keeps reasoning disabled for local compatible endpoints", () => {
     expect(defaultReasoningEffortFor("http://localhost:1234/v1")).toBe("none");
   });
 
-  test("OpenAI 与 Anthropic 官方端点不设置该字段", () => {
+  test("omits reasoning_effort for official OpenAI and Anthropic endpoints", () => {
     expect(defaultReasoningEffortFor("https://api.openai.com/v1")).toBeUndefined();
     expect(defaultReasoningEffortFor("https://api.anthropic.com/v1")).toBeUndefined();
   });
 });
 
 describe("defaultModelFor", () => {
-  test("每个 provider 都有确定的默认模型", () => {
+  test("provides a deterministic default model for each provider", () => {
     expect(defaultModelFor("gemini")).toBe("gemini-flash-latest");
     expect(defaultModelFor("openai")).toBe("gpt-4o-mini");
     expect(defaultModelFor("anthropic")).toBe("claude-haiku-5-5");
@@ -46,23 +46,23 @@ describe("defaultModelFor", () => {
     expect(defaultModelFor("openai-compatible")).toBe("local-model");
   });
 
-  test("未知 provider 回落到兼容端点默认值", () => {
+  test("uses the compatible-endpoint default for unknown providers", () => {
     expect(defaultModelFor("something-else")).toBe("local-model");
   });
 });
 
 describe("isSupportedAiProvider", () => {
-  test("DeepSeek 被运行时接受", () => {
+  test("accepts DeepSeek at runtime", () => {
     expect(isSupportedAiProvider("deepseek")).toBe(true);
   });
 
-  test("既有 provider 一个不少", () => {
+  test("preserves existing providers", () => {
     for (const id of ["gemini", "openai", "anthropic", "openai-compatible"]) {
       expect(isSupportedAiProvider(id)).toBe(true);
     }
   });
 
-  test("未知 provider 被拒绝（不再静默走错分支）", () => {
+  test("rejects unknown providers instead of silently selecting another branch", () => {
     expect(isSupportedAiProvider("local")).toBe(false);
     expect(isSupportedAiProvider("")).toBe(false);
     expect(isSupportedAiProvider("deepseek ")).toBe(false);
@@ -70,7 +70,7 @@ describe("isSupportedAiProvider", () => {
 });
 
 describe("mapDeepSeekModels", () => {
-  test("把 /models 响应映射成可展示的模型列表", () => {
+  test("maps a models response to displayable entries", () => {
     const mapped = mapDeepSeekModels({
       object: "list",
       data: [{ id: "deepseek-flash" }, { id: "deepseek-v4-pro" }],
@@ -82,12 +82,12 @@ describe("mapDeepSeekModels", () => {
     ]);
   });
 
-  test("忽略形状不合法的条目", () => {
+  test("ignores malformed entries", () => {
     const mapped = mapDeepSeekModels({ data: [{ id: "ok" }, { id: 42 }, null, {}] });
     expect(mapped).toEqual([{ id: "ok", name: "ok" }]);
   });
 
-  test("响应不是对象时返回空数组", () => {
+  test("returns an empty list for invalid responses", () => {
     expect(mapDeepSeekModels(null)).toEqual([]);
     expect(mapDeepSeekModels("nope")).toEqual([]);
     expect(mapDeepSeekModels({})).toEqual([]);
@@ -95,11 +95,11 @@ describe("mapDeepSeekModels", () => {
 });
 
 describe("responseFormatFor", () => {
-  test("DeepSeek 只接受 json_object", () => {
+  test("uses json_object for DeepSeek", () => {
     expect(responseFormatFor("https://api.deepseek.com")).toBe("json_object");
   });
 
-  test("其他端点保持原生 json_schema", () => {
+  test("preserves native json_schema for other endpoints", () => {
     expect(responseFormatFor("https://api.openai.com/v1")).toBe("json_schema");
     expect(responseFormatFor("http://localhost:1234/v1")).toBe("json_schema");
     expect(responseFormatFor(undefined)).toBe("json_schema");
