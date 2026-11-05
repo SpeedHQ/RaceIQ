@@ -1,14 +1,14 @@
 /**
- * 固定 base URL 表。
+ * Fixed base URL table.
  *
- * 只有"厂商自带端点"的 provider 才在这里；`openai-compatible` 由用户填写，
- * `gemini` 走 Google 自己的 SDK，不经过 OpenAI 兼容层。
+ * Only providers that ship their own endpoint live here; `openai-compatible` is user-supplied
+ * and `gemini` goes through Google's own SDK instead of the OpenAI-compatible layer.
  */
 import type { AiProvider } from "./providers";
 
 const FIXED_BASE_URLS: Partial<Record<AiProvider, string>> = {
   openai: "https://api.openai.com/v1",
-  // DeepSeek 官方文档（2026-11）：OpenAI 格式端点，无 /v1 后缀。
+  // DeepSeek docs (2026-11): OpenAI-format endpoint, no /v1 suffix.
   deepseek: "https://api.deepseek.com",
 };
 
