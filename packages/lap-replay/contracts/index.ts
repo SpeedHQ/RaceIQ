@@ -4,4 +4,16 @@ export type { CompactSemanticLapTelemetry } from "./replay-wire";
 export type { SpectateController, SpectateLap, ReplayOpponentMetadata, ReplaySession, SpectatePair, SpectatePose, SpectateReading, SpectateSample, SpectateSegment, SpectateSnapshot } from "./spectate";
 export type { ReplayHost, ReplayModelResources, ReplayDataProps, ReplayComparisonAiProps, ReplayUnits, ReplayLineSpread, TrackMapBoundaries } from "./host";
 export type { ReplayMessages } from "./messages";
+export {
+  CORNER_ACTION_TARGETS,
+  CornerActionSchema,
+  CornerActionsSchema,
+  MAX_CORNER_ACTIONS,
+  normalizeTurnToken,
+  parseCornerActions,
+  resolveCornerKey,
+  resolveTurnReference,
+  splitCornerActionSpans,
+} from "./corner-action";
+export type { CornerAction, CornerActionSpanPart, CornerActionTarget, TurnIdentity } from "./corner-action";
 export type { OpponentLapReference, OpponentLapReason, OpponentLapSummary, OpponentSessionSummary, OpponentLapCatalog, OpponentLapComparison, OpponentComparisonRequest, OpponentDataErrorCode, OpponentDataError, OpponentSemanticLapTelemetry } from "./opponents";
