@@ -19,17 +19,16 @@ import { formatClientAiErrorMessage, toClientAiError } from "@raceiq/backend-cor
 import { resolveAi } from "./ai-runtime";
 import { runAiStructured } from "./model-provider";
 import { getOpenAiCompatibleModelsDetailed } from "@raceiq/backend-core/ai/providers";
-import type { StructuredRequest, ResolvedAi } from "@raceiq/backend-core/ai/ai-types";
+import type { AiUsage, StructuredRequest, ResolvedAi } from "@raceiq/backend-core/ai/ai-types";
 import { logLlmEvent } from "@raceiq/backend-core/ai/diagnostic-logging";
 import { getResolvedAiInternals } from "./resolved-ai-internals";
+import { normalizeAiUsage } from "@raceiq/backend-core/ai/usage";
+import type { AiGenerationDiagnostics } from "@raceiq/shared/integrations/ai/usage";
+import { withAnalysisInstructions } from "@raceiq/shared/integrations/ai/analysis-instructions";
+import { analysisGenerationKey } from "./analysis-generation-key";
+import { DEFAULT_ANALYSIS_OUTPUT_TOKENS } from "@raceiq/shared/integrations/ai/analysis-budget";
 
-export interface AnalysisUsage {
-  inputTokens: number;
-  outputTokens: number;
-  costUsd: number;
-  durationMs: number;
-  model: string;
-}
+export type AnalysisUsage = AiUsage;
 export interface CornerFraction {
   label: string;
   startFrac: number;
@@ -39,6 +38,7 @@ export interface LapAnalysisResult {
   analysis: string | null;
   cached: boolean;
   usage?: AnalysisUsage;
+  diagnostics?: AiGenerationDiagnostics;
   cornerFracs: CornerFraction[];
   hasTune: boolean;
   error?: string;
@@ -144,11 +144,13 @@ export async function generateLapAnalysis(
     endFrac: Math.min(1, corner.distanceEnd / totalDist),
   }));
   const hasTune = !!lap.tuneId || (lap.gameId === "f1-2025" && !!lap.carSetup);
+  const settings = (deps.loadSettings ?? loadSettings)();
+  const generationKey = analysisGenerationKey("lap", settings);
 
   if (!options.regenerate) {
     const cached = await readAnalysis(lapId);
     const cachedAnalysis = sanitizeAnalystOutput(cached?.analysis, setupContext, { requireMatchingProvenance: true });
-    if (cached && cachedAnalysis.success) {
+    if (cached && cached.generationKey === generationKey && cachedAnalysis.success) {
       return {
         analysis: JSON.stringify(cachedAnalysis.data),
         cached: true,
@@ -167,7 +169,6 @@ export async function generateLapAnalysis(
       return { analysis: null, cached: false, cornerFracs, hasTune };
   }
 
-  const settings = (deps.loadSettings ?? loadSettings)();
   let sectors: PromptSectors | undefined;
   const track = (deps.resolveTrack ?? resolveTrack)(
     lap.gameId,
@@ -211,7 +212,7 @@ export async function generateLapAnalysis(
 
   const insights = await (deps.getOrComputeLapInsights ?? getOrComputeLapInsights)(lapId) ?? [];
 
-  const prompt = (deps.buildAnalystPrompt ?? buildAnalystPrompt)(
+  const prompt = withAnalysisInstructions((deps.buildAnalystPrompt ?? buildAnalystPrompt)(
     lap,
     lap.telemetry,
     corners,
@@ -223,7 +224,7 @@ export async function generateLapAnalysis(
     settings.language,
     sectors,
     insights,
-  );
+  ), "lap", settings.lapAnalysisInstructions);
 
   let ai: ResolvedAi;
   try {
@@ -250,6 +251,7 @@ export async function generateLapAnalysis(
     return { analysis: null, cached: false, cornerFracs, hasTune };
   }
   const model = ai.model;
+  const maxOutputTokens = settings.analysisMaxOutputTokens ?? DEFAULT_ANALYSIS_OUTPUT_TOKENS;
   const startedAt = Date.now();
   try {
     const schema = getAnalystJsonSchema();
@@ -257,7 +259,7 @@ export async function generateLapAnalysis(
       prompt,
       schema,
       schemaName: "analyst_output",
-      maxOutputTokens: 8192,
+      maxOutputTokens,
       temperature: 0,
     };
     const diagnostic = {
@@ -269,7 +271,7 @@ export async function generateLapAnalysis(
     logLlmEvent("llm-request", diagnostic);
     const generationOptions: Record<string, unknown> = {
       maxSteps: 5,
-      modelSettings: { maxOutputTokens: 8192, temperature: 0 },
+      modelSettings: { maxOutputTokens, temperature: 0 },
       structuredOutput: {
         schema: AnalystModelOutputSchema,
         // LM Studio cannot combine tool and output grammars. Preserve tool
@@ -327,21 +329,10 @@ export async function generateLapAnalysis(
     }
     const text = JSON.stringify(parsed.data);
 
-    const rawUsage = (result.usage ?? {}) as Record<string, unknown>;
-    const numberFor = (...keys: string[]) =>
-      keys
-        .map((key) => rawUsage[key])
-        .find((value): value is number => typeof value === "number") ?? 0;
-    const usage: AnalysisUsage = {
-      inputTokens: numberFor("inputTokens", "promptTokens"),
-      outputTokens: numberFor("outputTokens", "completionTokens"),
-      costUsd: numberFor("costUsd"),
-      durationMs: numberFor("durationMs") || Date.now() - startedAt,
-      model,
-    };
-    await writeAnalysis(lapId, text, usage);
+    const usage = normalizeAiUsage(result.usage, model, Date.now() - startedAt);
+    await writeAnalysis(lapId, text, usage, generationKey);
     logLlmEvent("llm-response", { ...diagnostic, response: result });
-    return { analysis: text, cached: false, usage, cornerFracs, hasTune };
+    return { analysis: text, cached: false, usage, diagnostics: result.diagnostics, cornerFracs, hasTune };
   } catch (err) {
     logLlmEvent("llm-error", {
       provider: ai.provider,

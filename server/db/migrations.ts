@@ -2205,6 +2205,99 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
        WHERE session_id IN (SELECT id FROM sessions WHERE ownership='mine')`,
     ],
   },
+  {
+    version: 83,
+    name: "preserve unreported analysis usage",
+    sql: [
+      `CREATE TABLE lap_analyses_v83 (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        lap_id INTEGER NOT NULL UNIQUE REFERENCES laps(id) ON DELETE CASCADE,
+        analysis TEXT NOT NULL,
+        input_tokens INTEGER,
+        output_tokens INTEGER,
+        cost_usd REAL,
+        duration_ms INTEGER,
+        model TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `INSERT INTO lap_analyses_v83 SELECT * FROM lap_analyses`,
+      `INSERT INTO sqlite_sequence (name,seq)
+       SELECT 'lap_analyses_v83',seq FROM sqlite_sequence WHERE name='lap_analyses'
+         AND NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name='lap_analyses_v83')`,
+      `UPDATE sqlite_sequence SET seq=MAX(seq,COALESCE((SELECT seq FROM sqlite_sequence WHERE name='lap_analyses'),0))
+       WHERE name='lap_analyses_v83'`,
+      `DROP TABLE lap_analyses`,
+      `ALTER TABLE lap_analyses_v83 RENAME TO lap_analyses`,
+      `CREATE TABLE compare_analyses_v83 (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        lap_a_id INTEGER NOT NULL,
+        lap_b_id INTEGER NOT NULL,
+        kind TEXT NOT NULL DEFAULT 'inputs',
+        analysis TEXT NOT NULL,
+        input_tokens INTEGER,
+        output_tokens INTEGER,
+        cost_usd REAL,
+        duration_ms INTEGER,
+        model TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE (lap_a_id, lap_b_id, kind)
+      )`,
+      `INSERT INTO compare_analyses_v83 SELECT * FROM compare_analyses`,
+      `INSERT INTO sqlite_sequence (name,seq)
+       SELECT 'compare_analyses_v83',seq FROM sqlite_sequence WHERE name='compare_analyses'
+         AND NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name='compare_analyses_v83')`,
+      `UPDATE sqlite_sequence SET seq=MAX(seq,COALESCE((SELECT seq FROM sqlite_sequence WHERE name='compare_analyses'),0))
+       WHERE name='compare_analyses_v83'`,
+      `DROP TABLE compare_analyses`,
+      `ALTER TABLE compare_analyses_v83 RENAME TO compare_analyses`,
+      `CREATE TABLE driver_profiles_v83 (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, scope_key TEXT NOT NULL,
+        game_id TEXT NOT NULL, car_id TEXT, track_id TEXT, pool_key TEXT NOT NULL,
+        fingerprint TEXT NOT NULL, plan TEXT NOT NULL,
+        input_tokens INTEGER, output_tokens INTEGER, cost_usd REAL, duration_ms INTEGER,
+        model TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `INSERT INTO driver_profiles_v83
+       SELECT id,scope_key,game_id,car_id,track_id,pool_key,fingerprint,plan,input_tokens,output_tokens,cost_usd,duration_ms,model,created_at FROM driver_profiles`,
+      `INSERT INTO sqlite_sequence (name,seq)
+       SELECT 'driver_profiles_v83',seq FROM sqlite_sequence WHERE name='driver_profiles'
+         AND NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name='driver_profiles_v83')`,
+      `UPDATE sqlite_sequence SET seq=MAX(seq,COALESCE((SELECT seq FROM sqlite_sequence WHERE name='driver_profiles'),0))
+       WHERE name='driver_profiles_v83'`,
+      `DROP TABLE driver_profiles`,
+      `ALTER TABLE driver_profiles_v83 RENAME TO driver_profiles`,
+      `CREATE UNIQUE INDEX driver_profiles_scope_key_idx ON driver_profiles(scope_key)`,
+      `CREATE INDEX driver_profiles_game_idx ON driver_profiles(game_id)`,
+      `CREATE TABLE driver_profile_runs_v83 (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, scope_key TEXT NOT NULL,
+        game_id TEXT NOT NULL, car_id TEXT, track_id TEXT, pool_key TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','running','succeeded','failed')),
+        fingerprint TEXT, plan TEXT, error TEXT,
+        input_tokens INTEGER, output_tokens INTEGER, cost_usd REAL, duration_ms INTEGER,
+        model TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        started_at TEXT, completed_at TEXT
+      )`,
+      `INSERT INTO driver_profile_runs_v83
+       SELECT id,scope_key,game_id,car_id,track_id,pool_key,status,fingerprint,plan,error,input_tokens,output_tokens,cost_usd,duration_ms,model,created_at,started_at,completed_at FROM driver_profile_runs`,
+      `INSERT INTO sqlite_sequence (name,seq)
+       SELECT 'driver_profile_runs_v83',seq FROM sqlite_sequence WHERE name='driver_profile_runs'
+         AND NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name='driver_profile_runs_v83')`,
+      `UPDATE sqlite_sequence SET seq=MAX(seq,COALESCE((SELECT seq FROM sqlite_sequence WHERE name='driver_profile_runs'),0))
+       WHERE name='driver_profile_runs_v83'`,
+      `DROP TABLE driver_profile_runs`,
+      `ALTER TABLE driver_profile_runs_v83 RENAME TO driver_profile_runs`,
+      `CREATE INDEX driver_profile_runs_scope_status_idx ON driver_profile_runs(scope_key,status)`,
+      `CREATE INDEX driver_profile_runs_scope_created_idx ON driver_profile_runs(scope_key,created_at DESC,id DESC)`,
+    ],
+  },
+  {
+    version: 84,
+    name: "analysis_generation_identity",
+    sql: [
+      `ALTER TABLE lap_analyses ADD COLUMN generation_key TEXT`,
+      `ALTER TABLE compare_analyses ADD COLUMN generation_key TEXT`,
+    ],
+  },
 ];
 const dashboardCanonicalTriggers = (() => {
   const readModel = migrations.find((migration) => migration.version === 68);

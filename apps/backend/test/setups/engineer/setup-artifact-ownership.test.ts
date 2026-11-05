@@ -7,8 +7,9 @@ import { RequestContext } from "@mastra/core/request-context";
 import type { ToolExecutionContext } from "@mastra/core/tools";
 import { db } from "@raceiq/backend-core/db/index";
 import { experimentActions, experiments, experimentVersions } from "@raceiq/backend-core/db/schema";
-import { createExperiment, getExperiment } from "@raceiq/backend-core/db/experiment-queries";
+import { createExperiment, getExperiment, setSessionHead } from "@raceiq/backend-core/db/experiment-queries";
 import { createExperimentVersion, listExperimentVersions } from "@raceiq/backend-core/db/experiment-version-queries";
+import { CHAT_TURN_MESSAGES_KEY } from "@raceiq/backend-core/ai/chat-message-context";
 import { writeSetupFile } from "@raceiq/backend-core/ai/tune-writer";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { ROOT_DIR } from "@raceiq/backend-core/runtime/config/paths";
@@ -191,5 +192,62 @@ test("same-turn confirmed applies fork from captured evidence while CAS follows 
     await db.delete(experimentVersions).where(eq(experimentVersions.experimentId, sid)).run();
     await db.delete(experiments).where(eq(experiments.id, sid)).run();
     fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("replayed confirmed chat message returns committed setup result without creating a second version", async () => {
+  initGameAdapters();
+  const sid = await createExperiment({ gameId: "f1-2025", name: "chat-action-idempotency" });
+  const snapshot = { frontWing: 20, rearWing: 20 };
+  const root = await createExperimentVersion({ experimentId: sid, version: 1, label: "v1", kind: "setup", setupSnapshot: JSON.stringify(snapshot) });
+  await setSessionHead(sid, root);
+  const messages = [
+    { role: "assistant", parts: [{ type: "text", text: "I recommend a small increase to Front Wing for more front grip. Should I apply it?" }] },
+    { id: "confirmation-message-1", role: "user", parts: [{ type: "text", text: "Yes, apply that." }] },
+  ];
+  const contextAtHead = async () => {
+    const session = (await getExperiment(sid))!;
+    const versions = await listExperimentVersions(sid);
+    const activeVersion = versions.find((version) => version.id === session.headVersionId)!;
+    const branch: ExperimentChatBranchContext = {
+      sessionId: sid, headVersionId: session.headVersionId, session, versions, activeVersion,
+      laps: [], lapIds: [],
+      setupContext: {
+        ok: true, gameId: "f1-2025", session, tests: versions, activeTest: activeVersion,
+        baseDir: null, realPath: null,
+        setup: JSON.parse(activeVersion.setupSnapshot!) as typeof snapshot,
+      },
+    };
+    const requestContext = new RequestContext();
+    requestContext.set("gameId", "f1-2025");
+    requestContext.set("sessionId", sid);
+    requestContext.set(EXPERIMENT_CHAT_BRANCH_CONTEXT_KEY, branch);
+    requestContext.set(CHAT_TURN_MESSAGES_KEY, messages);
+    return { requestContext };
+  };
+  const input = {
+    driverConfirmed: true,
+    goal: "more front grip",
+    changes: [{ component: "Front Wing", direction: "increase" as const, magnitude: "small" as const, reason: "confirmed front grip change" }],
+  };
+  try {
+    const first = await setupEngineerTools.applyChangesTool.execute!(input, await contextAtHead() as ToolExecutionContext);
+    const replay = await setupEngineerTools.applyChangesTool.execute!(input, await contextAtHead() as ToolExecutionContext);
+    expect(replay).toEqual(first);
+    expect(await listExperimentVersions(sid)).toHaveLength(2);
+    expect((await getExperiment(sid))?.headVersionId).not.toBe(root);
+    const actions = await db.select().from(experimentActions).where(eq(experimentActions.experimentId, sid)).all();
+    expect(actions).toHaveLength(1);
+    expect(JSON.parse(actions[0]!.inversePayload!)).toMatchObject({
+      chatMutationReplay: {
+        userMessageId: "confirmation-message-1",
+        toolName: "apply_changes",
+        result: { ok: true, version: 2, applied: [{ component: "Front Wing", from: 20, to: 21 }] },
+      },
+    });
+  } finally {
+    await db.delete(experimentActions).where(eq(experimentActions.experimentId, sid)).run();
+    await db.delete(experimentVersions).where(eq(experimentVersions.experimentId, sid)).run();
+    await db.delete(experiments).where(eq(experiments.id, sid)).run();
   }
 });

@@ -31,6 +31,19 @@ describe("driver profile runner", () => {
     }
   });
 
+  test("Codex driver profile needs a model and executable without requiring an API key", async () => {
+    const settingsPath = `${process.env.DATA_DIR ?? "./data"}/settings.json`;
+    const original = existsSync(settingsPath) ? readFileSync(settingsPath, "utf8") : null;
+    writeFileSync(settingsPath, JSON.stringify({ driverProfileProvider: "codex", driverProfileModel: "gpt-6-luna", codexExecutable: process.execPath, driverProfileBackgroundEnabled: false }));
+    try {
+      const response = await driverRoutes.request("/api/drivers/profile/runs", { headers: { "X-Game-Id": "fm-2023" } });
+      expect(await response.json()).toMatchObject({ state: "disabled", enabled: false, configured: true });
+    } finally {
+      if (original === null) writeFileSync(settingsPath, "{}\n");
+      else writeFileSync(settingsPath, original);
+    }
+  });
+
   test("run history requires an explicit game header", async () => {
     const response = await driverRoutes.request("/api/drivers/profile/runs");
     expect(response.status).toBe(400);

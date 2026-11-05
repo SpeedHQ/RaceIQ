@@ -1,0 +1,22 @@
+[package]
+name = "raceiq-desktop"
+version = "0.20.0-private.20261102.2"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-single-instance = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+libc = "0.2"
+
+[profile.release]
+# This macOS toolchain rejected stripped proc-macro dylibs' LINKEDIT string pools.
+# Keep build artifacts intact; optimize the app with LTO instead.
+strip = false
+lto = true
+codegen-units = 1

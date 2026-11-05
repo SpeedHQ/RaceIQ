@@ -2,7 +2,7 @@
  * Mastra tool: getCornerMetrics
  *
  * Lets the Lap Analyst agent pull structured, per-corner telemetry metrics for
- * a lap — entry/min/exit speed, gear, braking distance, time in corner, throttle
+ * a lap — entry/min/exit speed, gear, brake-onset offset from corner entry, time in corner, throttle
  * and brake averages, throttle-on distance, and a rough balance verdict
  * (oversteer / understeer / neutral). Backed by the same pure
  * `computeCornerMetrics` used by the prompt-string `buildCornerData`, so the
@@ -53,10 +53,10 @@ export const getCornerMetricsTool = createTool({
   id: "get-corner-metrics",
   description:
     "Fetch structured, per-corner telemetry metrics for a lap: entry/min/exit speed, " +
-    "gear, braking distance, time in corner, average throttle and brake, throttle-on " +
+    "gear, nearest brake onset offset from corner entry (positive before, negative after), time in corner, average throttle and brake, throttle-on " +
     "distance, and a balance verdict (oversteer/understeer/neutral). Pass a `cornerId` " +
     "(1-based, matching the T1/T2/... labels) to narrow to a single corner. Use this to " +
-    "ground tuning suggestions in what the car actually did through each corner. If " +
+    "ground tuning suggestions in what the car actually did through each corner. Brake onset is the nearest observed pedal transition in the approach or corner, signed from corner entry (positive before, negative after); null means no onset was observed. If " +
     "`available` is false, report the returned reason. Do not invent corner metrics " +
     "or replace the requested measurements with other corners, lap-wide values, or heuristic tuning advice.",
   inputSchema: z.object({
@@ -86,7 +86,7 @@ export const getCornerMetricsTool = createTool({
         minSpeed: z.number(),
         exitSpeed: z.number(),
         gear: z.number(),
-        brakingDistance: z.number(),
+        brakeOnsetDistanceM: z.number().nullable(),
         timeInCorner: z.number(),
         avgThrottle: z.number(),
         avgBrake: z.number(),

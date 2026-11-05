@@ -26,6 +26,11 @@ describe("isAiConfigured", () => {
 });
 
 describe("isAiAnalysisConfigured", () => {
+  test("Codex analysis needs a selected model but no API key; chat stays unavailable until its bridge ships", () => {
+    expect(isAiAnalysisConfigured({ aiProvider: "codex", aiModel: "gpt-6.1-sol" })).toBe(true);
+    expect(isAiAnalysisConfigured({ aiProvider: "codex", aiModel: "" })).toBe(false);
+    expect(isAiChatConfigured({ aiProvider: "codex", aiModel: "gpt-6.1-sol", chatProvider: "codex", chatModel: "gpt-6.1-sol" })).toBe(false);
+  });
   test("requires a selected analysis model after provider credentials are configured", () => {
     expect(isAiAnalysisConfigured({ aiProvider: "gemini", geminiApiKeySet: true, aiModel: "" })).toBe(false);
     expect(isAiAnalysisConfigured({ aiProvider: "openai", openaiApiKeySet: true, aiModel: "   " })).toBe(false);

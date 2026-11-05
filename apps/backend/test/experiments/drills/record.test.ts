@@ -38,7 +38,10 @@ async function runDrill(
 
 /** The route sets these per turn; tools read them instead of taking a sessionId
  *  argument (weak models kept dropping the arg). */
-async function ctx(sessionId: number) {
+async function ctx(sessionId: number, messages = [
+  { role: "assistant", parts: [{ type: "text", text: `Try this drill: ${drill.title}.` }] },
+  { role: "user", parts: [{ type: "text", text: "Yes, let's try it." }] },
+]) {
   const requestContext = new RequestContext();
   const session = await getExperiment(sessionId);
   const versions = await listExperimentVersions(sessionId);
@@ -47,6 +50,7 @@ async function ctx(sessionId: number) {
   const laps = activeVersion ? await getLapMetaForExperimentVersion(activeVersion.id) : [];
   requestContext.set("gameId", "acc");
   requestContext.set("sessionId", sessionId);
+  requestContext.set("raceiq.chatTurnMessages", messages);
   requestContext.set("raceiq.experimentChatBranch", {
     sessionId, headVersionId, session: session!, versions, activeVersion, laps, lapIds: laps.map((lap) => lap.id),
     setupContext: { ok: false, status: 400, error: "No setup context in drill fixture" },
@@ -94,6 +98,19 @@ describe("record_drill", () => {
     // The guard must not create a phantom arm — the failure mode that made
     // apply_changes grow the same gate.
     expect((await listExperimentVersions(id)).length).toBe(before);
+  });
+
+  test("rejects model-claimed confirmation without matching proposal and later driver approval", async () => {
+    const id = await createExperiment({ gameId: "acc", name: "drill-no-proof", focus: "driver" });
+    const requestContext = await ctx(id, [
+      { role: "assistant", parts: [{ type: "text", text: "I can suggest a different braking drill." }] },
+      { role: "user", parts: [{ type: "text", text: "Yes, let's try it." }] },
+    ]);
+
+    const res = recordDrillOutputSchema.parse(await executeDrill(drill, requestContext));
+    expect(res.ok).toBe(false);
+    expect(res.error).toContain("matching drill proposal");
+    expect(await listExperimentVersions(id)).toHaveLength(0);
   });
 
   test("advances the head to the new drill", async () => {

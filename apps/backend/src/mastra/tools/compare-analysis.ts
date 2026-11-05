@@ -3,6 +3,8 @@ import { z } from "zod";
 
 import { InputsCompareSchema } from "@raceiq/backend-core/ai/inputs-compare-prompt";
 import { getCompareAnalysis } from "@raceiq/backend-core/db/analysis-queries";
+import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
+import { analysisGenerationKey } from "../../ai/analysis-generation-key";
 
 const CompareAnalysisInput = z.object({
   lapAId: z.number().int().positive(),
@@ -18,8 +20,13 @@ const CompareAnalysisOutput = z.object({
   error: z.string().optional(),
 });
 
+async function readCurrentComparison(idA: number, idB: number, kind = "inputs") {
+  const row = await getCompareAnalysis(idA, idB, kind);
+  return row?.generationKey === analysisGenerationKey("compare", loadSettings(), [idA, idB]) ? row : null;
+}
+
 export function getCompareAnalysisToolFor(
-  readAnalysis: typeof getCompareAnalysis = getCompareAnalysis,
+  readAnalysis: typeof getCompareAnalysis = readCurrentComparison,
 ) {
   return createTool({
     id: "get_compare_analysis",

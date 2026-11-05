@@ -18,6 +18,8 @@ apps/backend/test/ai/prompts/tune-chat-intent-prompt.test.ts
 apps/backend/test/ai/prompts/tune-chat-prompt.test.ts
 apps/backend/test/ai/providers/analysis-provider-binding.test.ts
 apps/backend/test/ai/providers/anthropic-provider.test.ts
+apps/backend/test/ai/providers/codex-chat-stream.test.ts
+apps/backend/test/ai/providers/codex-experiment-tools.test.ts
 apps/backend/test/ai/providers/google-provider-options.test.ts
 apps/backend/test/ai/chat/chat-route-context.test.ts
 apps/backend/test/ai/providers/lm-studio-context.test.ts
@@ -40,6 +42,7 @@ apps/backend/test/db/lap-read-batching.test.ts
 apps/backend/test/db/migrations/dashboard-migration.test.ts
 apps/backend/test/db/migrations/migration-regression.test.ts
 apps/backend/test/db/migrations/migrations.test.ts
+apps/backend/test/db/analysis-usage.test.ts
 apps/backend/test/db/migrations/runner-idempotence.test.ts
 apps/backend/test/db/telemetry-version-identity.test.ts
 apps/backend/test/driver-profile/fingerprint.test.ts
@@ -217,3 +220,4 @@ apps/backend/test/session-capture/preopened-file-writer.test.ts
 apps/backend/test/session-capture/direct-recorder.test.ts
 apps/backend/test/session-capture/direct-recording-ingress.test.ts
 apps/backend/test/session-capture/classification-status.test.ts
+apps/backend/test/runtime/desktop-lifecycle.test.ts

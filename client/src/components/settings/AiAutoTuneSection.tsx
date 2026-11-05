@@ -28,7 +28,7 @@ export function AiAutoTuneSection({ state }: { state: AiAutoTuneState }) {
     <div className="space-y-4">
       {/* Auto-tune provider */}
       <h2 className="text-sm font-semibold text-app-text mb-4 mt-8">{m.ai_auto_tune_provider_title()}</h2>
-      <p className="text-xs text-app-text-muted mb-4">{m.ai_auto_tune_provider_desc()}</p>
+      <p className="text-xs text-app-text-muted mb-4">{autoTuneProvider === "codex" ? m.ai_codex_help() : m.ai_auto_tune_provider_desc()}</p>
       <div className="space-y-4">
         <div>
           <Label htmlFor="ai-auto-tune-provider" className="block text-xs text-app-text-muted mb-1">
@@ -73,7 +73,7 @@ export function AiAutoTuneSection({ state }: { state: AiAutoTuneState }) {
             />
           </div>
         )}
-        {autoTuneProvider !== "" && !hasAutoTuneProviderKey && <p className="text-xs text-app-text-muted">{m.ai_add_key_hint()}</p>}
+        {autoTuneProvider !== "" && autoTuneProvider !== "codex" && !hasAutoTuneProviderKey && <p className="text-xs text-app-text-muted">{m.ai_add_key_hint()}</p>}
         {autoTuneProvider !== "" && hasAutoTuneProviderKey && !aiModelsFetching && autoTuneModels.length === 0 && (
           <div className="flex items-center gap-2 text-xs text-app-text-muted">
             <span>{m.ai_no_models()}</span>

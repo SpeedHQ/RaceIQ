@@ -14,6 +14,8 @@ import type {
 } from "@raceiq/backend-core/ai/ai-types";
 import { ANTHROPIC_OPENAI_BASE_URL } from "@raceiq/backend-core/ai/openai-compatible-headers";
 import { setResolvedAiInternals } from "./resolved-ai-internals";
+import { CodexProviderAdapter } from "./codex/provider";
+export { CodexProviderAdapter } from "./codex/provider";
 
 export type ProviderAdapterConfig = {
   feature: AiFeature;
@@ -201,6 +203,7 @@ export class AnthropicProviderAdapter {
 }
 
 export type AnyProviderAdapter =
+  | CodexProviderAdapter
   | GeminiProviderAdapter
   | OpenAiProviderAdapter
   | AnthropicProviderAdapter

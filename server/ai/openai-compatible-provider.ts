@@ -21,9 +21,12 @@ export async function requireAiProviderApiKey(provider: Exclude<ConfiguredAiProv
 }
 
 export async function configureAiProviderEnvironment(
-  provider: ConfiguredAiProvider,
+  provider: ConfiguredAiProvider | "codex",
   localEndpoint = "http://localhost:1234/v1",
 ): Promise<string | undefined> {
+  if (provider === "codex") {
+    throw new AiProviderError("Codex requires its isolated runtime, not API-key environment configuration.", { code: "unsupported-operation", provider });
+  }
   const apiKey = await getAiProviderApiKey(provider);
   if (provider !== "openai-compatible" && !apiKey) {
     throw new AiProviderError(`${PROVIDER_LABELS[provider]} API key not set. Configure it in Settings.`, {

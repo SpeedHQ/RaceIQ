@@ -5,6 +5,8 @@ import { resolveDataDir } from "./data-dir";
 import { isLaunchOnLoginEnabled } from "../platform/launch-on-login";
 import { LOCALE_CODES } from "@raceiq/shared/platform/i18n/locales";
 import { DEFAULT_RECORDING_FREQUENCY_HZ, isRecordingRetentionPolicyValid } from "@raceiq/shared/platform/runtime/recording-frequency";
+import { MAX_ANALYSIS_INSTRUCTIONS_LENGTH } from "@raceiq/shared/integrations/ai/analysis-instructions";
+import { DEFAULT_ANALYSIS_OUTPUT_TOKENS, MIN_ANALYSIS_OUTPUT_TOKENS, MAX_ANALYSIS_OUTPUT_TOKENS } from "@raceiq/shared/integrations/ai/analysis-budget";
 const SETTINGS_DIR = resolveDataDir();
 const SETTINGS_PATH = `${SETTINGS_DIR}/settings.json`;
 
@@ -12,7 +14,7 @@ const SETTINGS_PATH = `${SETTINGS_DIR}/settings.json`;
 // stored settings files where the user hadn't picked a provider yet. Fresh
 // installs and defaults resolve to "" (no provider selected) — the user must
 // explicitly pick a provider in Settings before any AI feature runs.
-const AiProviderSchema = z.enum(["", "gemini", "openai", "anthropic", "openai-compatible"]).default("");
+const AiProviderSchema = z.enum(["", "gemini", "openai", "anthropic", "openai-compatible", "codex"]).default("");
 
 const AppSettingsSchema = z.object({
   onboardingComplete: z.boolean().default(false),
@@ -28,14 +30,20 @@ const AppSettingsSchema = z.object({
   aiProvider: AiProviderSchema.default(""),
   aiModel: z.string().default(""),
   aiThinkingBudget: z.number().int().min(0).nullable().default(null),
+  analysisMaxOutputTokens: z.number().int().min(MIN_ANALYSIS_OUTPUT_TOKENS).max(MAX_ANALYSIS_OUTPUT_TOKENS).default(DEFAULT_ANALYSIS_OUTPUT_TOKENS),
+  comparisonMaxOutputTokens: z.number().int().min(MIN_ANALYSIS_OUTPUT_TOKENS).max(MAX_ANALYSIS_OUTPUT_TOKENS).default(DEFAULT_ANALYSIS_OUTPUT_TOKENS),
+  lapAnalysisInstructions: z.string().max(MAX_ANALYSIS_INSTRUCTIONS_LENGTH).nullable().default(null),
+  compareAnalysisInstructions: z.string().max(MAX_ANALYSIS_INSTRUCTIONS_LENGTH).nullable().default(null),
   chatProvider: AiProviderSchema.default(""),
   chatModel: z.string().default(""),
   chatThinkingBudget: z.number().int().min(0).nullable().default(null),
+  chatMaxOutputTokens: z.number().int().min(MIN_ANALYSIS_OUTPUT_TOKENS).max(MAX_ANALYSIS_OUTPUT_TOKENS).default(DEFAULT_ANALYSIS_OUTPUT_TOKENS),
   // Auto-tune analyst provider/model. Independent of the lap-analysis
   // provider (aiProvider) so the user can point auto-tune at a different
   // model. Reuses the same stored API keys as the analysis section.
   autoTuneProvider: AiProviderSchema.default(""),
   autoTuneModel: z.string().default(""),
+  autoTuneMaxOutputTokens: z.number().int().min(MIN_ANALYSIS_OUTPUT_TOKENS).max(MAX_ANALYSIS_OUTPUT_TOKENS).default(DEFAULT_ANALYSIS_OUTPUT_TOKENS),
   // Driver profiling keeps its provider/model independent from other AI
   // features. Background coaching is opt-in and disabled on fresh installs.
   driverProfileBackgroundEnabled: z.boolean().default(false),
@@ -44,6 +52,8 @@ const AppSettingsSchema = z.object({
   driverProfileThinkingBudget: z.number().int().min(0).nullable().default(null),
   driverProfileMaxOutputTokens: z.number().int().min(512).max(32768).default(5000),
   localEndpoint: z.string().default("http://localhost:1234/v1"),
+  // Executable only, never a shell command or model-supplied argv.
+  codexExecutable: z.string().trim().max(4096).refine(value => !/[\0\r\n]/.test(value)).default(""),
   wsRefreshRate: z.enum(["60", "50", "40", "30"]).default("60"),
   // Max render rate for the 3D wireframe Canvas. Throttles gl.render
   // calls to cap GPU/CPU work when the scene is idle or when the user
@@ -125,18 +135,6 @@ export function loadSettings(options: { syncLaunchOnLogin?: boolean } = {}): App
     delete parsed.tireTemperatureThresholds;
     delete parsed.tireHealthThresholds;
     delete parsed.suspensionThresholds;
-    // Migrate removed Codex provider selections to an unconfigured state.
-    for (const [providerKey, modelKey] of [
-      ["aiProvider", "aiModel"],
-      ["chatProvider", "chatModel"],
-      ["autoTuneProvider", "autoTuneModel"],
-      ["driverProfileProvider", "driverProfileModel"],
-    ] as const) {
-      if (parsed[providerKey] === "codex") {
-        parsed[providerKey] = "";
-        parsed[modelKey] = "";
-      }
-    }
 
     const result = AppSettingsSchema.parse(parsed);
     if (!isRecordingRetentionPolicyValid(result)) {
@@ -186,5 +184,7 @@ export function setCommunityTunesSyncState(version: string): void {
 }
 
 /** Schema for partial updates from the API */
-export const PartialSettingsSchema = AppSettingsSchema.partial();
+// Browser callers may select a provider, never an executable to launch. Native
+// user-consented selection must use the owned desktop control channel instead.
+export const PartialSettingsSchema = AppSettingsSchema.partial().extend({ codexExecutable: z.never().optional() });
 export type PartialSettings = z.infer<typeof PartialSettingsSchema>;

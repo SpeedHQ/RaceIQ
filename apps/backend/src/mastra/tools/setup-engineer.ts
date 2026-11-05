@@ -16,7 +16,8 @@ import { unlinkSync } from "node:fs";
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
-import { CHAT_TURN_MESSAGES_KEY, hasExplicitChangeConfirmation } from "@raceiq/backend-core/ai/chat-message-context";
+import { CHAT_TURN_MESSAGES_KEY, hasExplicitChangeConfirmation, latestChatTurnUserMessageId } from "@raceiq/backend-core/ai/chat-message-context";
+import { findChatMutationReplay, withChatMutationReplay } from "@raceiq/backend-core/db/experiment-action-queries";
 
 import type { TuneDirection, TuneMagnitude } from "@raceiq/backend-core/ai/schemas";
 import { applyIntents, describeKnobs } from "@raceiq/backend-core/setups/rules/engine";
@@ -74,6 +75,15 @@ const AppliedChangeShape = z.object({
   from: z.number(),
   to: z.number(),
   direction: DirectionEnum,
+});
+
+const ApplyChangesOutputSchema = z.object({
+  ok: z.boolean(),
+  error: z.string().optional(),
+  version: z.number().optional(),
+  fileName: z.string().optional(),
+  applied: z.array(AppliedChangeShape).default([]),
+  skipped: z.array(z.object({ component: z.string(), reason: z.string() })).default([]),
 });
 
 const IssueShape = z.object({
@@ -341,16 +351,22 @@ export function buildSetupEngineerTools() {
       driverConfirmed: z.boolean().describe("true ONLY if the driver explicitly approved this exact set of changes in a message AFTER you proposed it (e.g. \"yes\", \"apply that\"). false if you have not yet proposed the changes and been told to go ahead."),
       target: z.string().optional().describe("Label or version number to apply the changes on top of (becomes the new version's parent). Omit to apply on the current head."),
     }),
-    outputSchema: z.object({
-      ok: z.boolean(),
-      error: z.string().optional(),
-      version: z.number().optional(),
-      fileName: z.string().optional(),
-      applied: z.array(AppliedChangeShape).default([]),
-      skipped: z.array(z.object({ component: z.string(), reason: z.string() })).default([]),
-    }),
+    outputSchema: ApplyChangesOutputSchema,
     execute: async (inputData, execCtx) => {
       const { sessionId, branch } = readSetupEngineerContext(execCtx?.requestContext);
+      const rawTurnMessages = execCtx?.requestContext?.get(CHAT_TURN_MESSAGES_KEY);
+      const userMessageId = Array.isArray(rawTurnMessages)
+        ? latestChatTurnUserMessageId(rawTurnMessages as { id?: string; role?: string; parts?: unknown[]; content?: unknown }[])
+        : null;
+      if (userMessageId) {
+        const replay = await findChatMutationReplay(sessionId, userMessageId, "apply_changes");
+        if (replay.found) {
+          const priorResult = ApplyChangesOutputSchema.safeParse(replay.result);
+          return priorResult.success
+            ? priorResult.data
+            : { ok: false, error: "This confirmed setup change was already recorded. Refresh the experiment history.", applied: [], skipped: [] };
+        }
+      }
       // Hard gate: the model must attest the driver approved the proposal.
       // Weak local models skip the propose→confirm step and jump straight to
       // apply (observed: 6 unconfirmed suspension changes); refusing here
@@ -456,6 +472,13 @@ export function buildSetupEngineerTools() {
         return { ok: false, error: `Write failed: ${err.message}`, applied: [], skipped: [] };
       }
 
+      const result = ApplyChangesOutputSchema.parse({
+        ok: true,
+        version: nextVer,
+        fileName: written.fileName,
+        applied: applied.map((a) => ({ component: a.component, from: a.from, to: a.to, direction: a.direction })),
+        skipped,
+      });
       const prevHeadTestId = mutations.expectedHeadVersionId;
       let newTestId: number | null;
       try {
@@ -466,7 +489,8 @@ export function buildSetupEngineerTools() {
           appliedChanges: applied.length ? JSON.stringify(applied) : null,
           driverComment: null, notes: inputData.goal?.trim() || null, engine: "llm",
         }, mutations.expectedHeadVersionId, {
-          kind: "apply-changes", inversePayload: { versionId: "INSERTED_ID", prevHeadTestId },
+          kind: "apply-changes",
+          inversePayload: withChatMutationReplay({ versionId: "INSERTED_ID", prevHeadTestId }, userMessageId, "apply_changes", result),
         });
       } catch (error) {
         if (written.setupPath) {
@@ -495,13 +519,7 @@ export function buildSetupEngineerTools() {
         console.error("[SetupEngineer] Failed to post applied-tweaks message:", err?.message);
       }
 
-      return {
-        ok: true,
-        version: nextVer,
-        fileName: written.fileName,
-        applied: applied.map((a) => ({ component: a.component, from: a.from, to: a.to, direction: a.direction })),
-        skipped,
-      };
+      return result;
     },
   });
 

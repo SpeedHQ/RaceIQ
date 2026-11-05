@@ -1,0 +1,456 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { CodexRpcConnection } from "./rpc";
+import { CODEX_TOOL_PROFILE_OVERRIDES, prepareCodexToolModel } from "./tool-profile";
+import { createCodexToolDispatcher } from "./tool-dispatch";
+import type { z } from "zod";
+
+export type CodexToolAccess = "read" | "experiment" | "engineer" | "coach";
+export type CodexToolRole = "chat" | "engineer" | "coach";
+
+export type CodexTool = {
+  /** Backend-owned authority label checked again by the dispatcher. */
+  access: CodexToolAccess;
+  description: string;
+  inputSchema: object;
+  input: z.ZodType;
+  execute(input: unknown, signal: AbortSignal): Promise<string>;
+};
+
+export type CodexGenerationInput = {
+  /** Trusted backend-owned executable prefix; never accept argv from a model. */
+  command: readonly string[];
+  model: string;
+  prompt: string;
+  schema?: object;
+  effort?: string;
+  requestedOutputTokens?: number;
+  timeoutMs?: number;
+  signal?: AbortSignal;
+  /** Trusted backend-owned tools; never populated from an HTTP request. */
+  tools?: Readonly<Record<string, CodexTool>>;
+  /** Agent role constrains dynamic tool authority; defaults to read-only chat. */
+  toolRole?: CodexToolRole;
+  /** Emits only acknowledged, turn-scoped assistant text. */
+  onTextDelta?: (delta: string) => void;
+};
+
+export type CodexGenerationResult = {
+  text: string;
+  status: "completed";
+  runtimeVersion: "0.164.0";
+  model: string;
+  latencyMs: number;
+  firstContentMs: number | null;
+  budget: { requestedOutputTokens: number | null; effectiveOutputTokens: null; supported: false };
+  usage: { inputTokens: number | null; cachedInputTokens: number | null; outputTokens: number | null; reasoningOutputTokens: number | null; costUsd: null };
+};
+
+export class CodexRuntimeError extends Error {
+  readonly name = "CodexRuntimeError";
+  readonly code: "unsupported-runtime" | "not-signed-in" | "unsafe-runtime" | "generation-failed" | "cancelled" | "cli-unavailable" | "usage-limit" | "rate-limit";
+  constructor(
+    code: CodexRuntimeError["code"],
+    message: string,
+  ) {
+    super(message);
+    this.code = code;
+  }
+}
+
+const DISABLED_FEATURES = [
+  "shell_tool",
+  "shell_snapshot",
+  "apps",
+  "plugins",
+  "hooks",
+  "multi_agent",
+  "js_repl",
+  "browser_use",
+  "computer_use",
+  "image_generation",
+  "view_image",
+  "sleep_tool",
+  "skill_search",
+  "tool_suggest",
+  "code_mode_host",
+  "incremental_tools",
+];
+const BASE_OVERRIDES = [
+  'model_provider="openai"',
+  "mcp_servers={}",
+  'sandbox_mode="read-only"',
+  'approval_policy="never"',
+  'web_search="disabled"',
+  "project_doc_max_bytes=0",
+  'history.persistence="none"',
+  ...DISABLED_FEATURES.map((name) => `features.${name}=false`),
+];
+
+function connect(command: readonly string[], cwd: string, overrides = BASE_OVERRIDES, onNotification?: (method: string, params: unknown) => void, onToolCall?: (params: unknown, signal: AbortSignal) => Promise<unknown>): CodexRpcConnection {
+  const child = Bun.spawn([...command, ...overrides.flatMap((value) => ["-c", value]), "app-server"], {
+    cwd,
+    stdin: "pipe",
+    stdout: "pipe",
+    stderr: "ignore",
+    env: { ...process.env, OPENAI_API_KEY: undefined, CODEX_API_KEY: undefined },
+  });
+  return new CodexRpcConnection(
+    {
+      stdout: child.stdout,
+      async write(line) {
+        child.stdin.write(line);
+        await child.stdin.flush();
+      },
+      async close() {
+        child.stdin.end();
+        const terminate = setTimeout(() => child.kill("SIGTERM"), 1000);
+        const kill = setTimeout(() => child.kill("SIGKILL"), 3000);
+        try {
+          await child.exited;
+        } finally {
+          clearTimeout(terminate);
+          clearTimeout(kill);
+        }
+      },
+    },
+    { onNotification, onToolCall },
+  );
+}
+
+export type CodexDiscovery = {
+  state: "ready" | "cli-unavailable" | "unsupported-runtime" | "not-signed-in" | "unavailable";
+  models: { id: string; name: string }[];
+};
+
+/** Metadata only: no thread, inference, credentials or configuration writes. */
+export async function discoverCodex(command: readonly string[], signal?: AbortSignal): Promise<CodexDiscovery> {
+  let directory: string | undefined;
+  let connection: CodexRpcConnection | undefined;
+  const abort = () => { void connection?.close().catch(() => {}); };
+  signal?.addEventListener("abort", abort, { once: true });
+  try {
+    const version = await runCommand(command, ["--version"], signal);
+    if (version.trim() !== "codex-cli 0.164.0") return { state: "unsupported-runtime", models: [] };
+    directory = mkdtempSync(join(tmpdir(), "raceiq-codex-discovery-"));
+    if (signal?.aborted) throw new CodexRuntimeError("cancelled", "Codex discovery was cancelled.");
+    connection = connect(command, directory);
+    await initialize(connection);
+    await requireChatGptAccount(connection);
+    const response = await connection.request("model/list", { limit: 100, includeHidden: false });
+    if (!isRecord(response) || !Array.isArray(response.data)) return { state: "unavailable", models: [] };
+    // Catalog entries do not prove entitlement. Restrict to verified isolation profiles.
+    const availableModels = response.data;
+    const verified = [{ id: "gpt-6-luna", name: "GPT-6 Luna" }, { id: "gpt-6.1-sol", name: "GPT-6.1 Sol" }];
+    const models = verified.filter((model) => availableModels.some((entry) => isRecord(entry) && entry.id === model.id));
+    return models.length ? { state: "ready", models } : { state: "unsupported-runtime", models: [] };
+  } catch (error) {
+    if (error instanceof CodexRuntimeError && error.code === "cancelled") throw error;
+    const state = error instanceof CodexRuntimeError && (error.code === "cli-unavailable" || error.code === "not-signed-in") ? error.code : "unavailable";
+    return { state, models: [] };
+  } finally {
+    signal?.removeEventListener("abort", abort);
+    await connection?.close();
+    if (directory) rmSync(directory, { recursive: true, force: true });
+  }
+}
+
+async function initialize(connection: CodexRpcConnection): Promise<void> {
+  await connection.request("initialize", { clientInfo: { name: "raceiq", version: "0.0.1" }, capabilities: { experimentalApi: true, explicitGatewayOauth: true } });
+  await connection.notify("initialized");
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+async function requireChatGptAccount(connection: CodexRpcConnection): Promise<void> {
+  const response = await connection.request("account/read", { refreshToken: false });
+  if (!isRecord(response) || !isRecord(response.account) || response.account.type !== "chatgpt") {
+    throw new CodexRuntimeError("not-signed-in", "Sign in to Codex with ChatGPT before using this provider.");
+  }
+}
+
+async function requireSafeFeatures(connection: CodexRpcConnection, extraDisabled: readonly string[] = []): Promise<void> {
+  const response = await connection.request("experimentalFeature/list", { limit: 250 });
+  if (!isRecord(response) || !Array.isArray(response.data) || response.nextCursor) {
+    throw new CodexRuntimeError("unsafe-runtime", "Codex capability inventory is incomplete.");
+  }
+  const reported = new Set<string>();
+  const disabled = [...DISABLED_FEATURES, ...extraDisabled];
+  for (const feature of response.data) {
+    if (!isRecord(feature) || typeof feature.name !== "string" || typeof feature.enabled !== "boolean" || (disabled.includes(feature.name) && feature.enabled)) {
+      throw new CodexRuntimeError("unsafe-runtime", "Codex reports an excluded capability enabled.");
+    }
+    reported.add(feature.name);
+  }
+  if (disabled.some((name) => name !== "shell_snapshot" && !reported.has(name))) throw new CodexRuntimeError("unsafe-runtime", "Codex capability metadata is incomplete.");
+}
+
+async function inventory(connection: CodexRpcConnection, threadId?: string): Promise<string[]> {
+  const names = new Set<string>();
+  let cursor: string | undefined;
+  for (let page = 0; page < 10; page++) {
+    const response = await connection.request("mcpServerStatus/list", { limit: 100, detail: "toolsAndAuthOnly", ...(threadId ? { threadId } : {}), ...(cursor ? { cursor } : {}) });
+    if (!isRecord(response) || !Array.isArray(response.data)) throw new CodexRuntimeError("unsafe-runtime", "Codex MCP inventory is unavailable.");
+    for (const server of response.data) {
+      if (!isRecord(server) || typeof server.name !== "string" || !/^[a-zA-Z0-9_-]+$/.test(server.name) || !isRecord(server.tools) || (threadId && Object.keys(server.tools).length))
+        throw new CodexRuntimeError("unsafe-runtime", "Codex MCP configuration cannot be isolated.");
+      names.add(server.name);
+    }
+    if (response.nextCursor == null) return [...names];
+    if (typeof response.nextCursor !== "string" || !response.nextCursor) break;
+    cursor = response.nextCursor;
+  }
+  throw new CodexRuntimeError("unsafe-runtime", "Codex MCP inventory is incomplete.");
+}
+
+async function writeModelCatalog(input: CodexGenerationInput, directory: string): Promise<string> {
+  const catalog: unknown = JSON.parse(await runCommand(input.command, ["debug", "models", "--bundled"], input.signal));
+  if (!isRecord(catalog) || !Array.isArray(catalog.models) || !["gpt-6-luna", "gpt-6.1-sol"].includes(input.model))
+    throw new CodexRuntimeError("unsupported-runtime", "The selected model has no verified Codex isolation profile.");
+  const model = catalog.models.find((entry): entry is Record<string, unknown> => isRecord(entry) && entry.slug === input.model);
+  if (!model) throw new CodexRuntimeError("unsupported-runtime", "The selected model is absent from this CLI catalog.");
+  if (input.effort && (!Array.isArray(model.supported_reasoning_levels) || !model.supported_reasoning_levels.some((level) => isRecord(level) && level.effort === input.effort)))
+    throw new CodexRuntimeError("unsupported-runtime", "The selected reasoning effort is unsupported.");
+  const path = join(directory, "model-catalog.json");
+  // Public metadata exported by this exact CLI, never its auth or account cache.
+  // CLI 0.164.0 otherwise registers apply_patch even with the shell tool disabled.
+  let isolated: Record<string, unknown>;
+  try { isolated = input.tools ? prepareCodexToolModel(model, "codex-cli 0.164.0") : { ...model, apply_patch_tool_type: null }; }
+  catch { throw new CodexRuntimeError("unsupported-runtime", "The selected model has no verified Codex tool isolation profile."); }
+  writeFileSync(path, JSON.stringify({ models: [isolated] }), { mode: 0o600, flag: "wx" });
+  return path;
+}
+
+function counter(value: unknown): number | null {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null;
+}
+
+async function runCommand(command: readonly string[], args: string[], signal?: AbortSignal): Promise<string> {
+  if (signal?.aborted) throw new CodexRuntimeError("cancelled", "Codex analysis was cancelled.");
+  let child;
+  try {
+    child = Bun.spawn([...command, ...args], {
+      stdin: "ignore",
+      stdout: "pipe",
+      stderr: "ignore",
+      env: { ...process.env, OPENAI_API_KEY: undefined, CODEX_API_KEY: undefined },
+    });
+  } catch {
+    throw new CodexRuntimeError("cli-unavailable", "Codex CLI could not be started. Check its installation and selected executable.");
+  }
+  const abort = () => child.kill("SIGKILL");
+  signal?.addEventListener("abort", abort, { once: true });
+  if (signal?.aborted) abort();
+  const timer = setTimeout(() => child.kill("SIGKILL"), 10_000);
+  try {
+    const chunks: Uint8Array[] = [];
+    let bytes = 0;
+    for await (const chunk of child.stdout) {
+      bytes += chunk.byteLength;
+      if (bytes > 16 * 1024 * 1024) throw new Error("CLI output limit");
+      chunks.push(chunk);
+    }
+    if ((await child.exited) !== 0) throw new Error("CLI command failed");
+    if (signal?.aborted) throw new CodexRuntimeError("cancelled", "Codex analysis was cancelled.");
+    return Buffer.concat(chunks).toString("utf8");
+  } catch {
+    if (signal?.aborted) throw new CodexRuntimeError("cancelled", "Codex analysis was cancelled.");
+    throw new CodexRuntimeError("cli-unavailable", "Codex CLI command failed or exceeded its limits.");
+  } finally {
+    signal?.removeEventListener("abort", abort);
+    clearTimeout(timer);
+    child.kill("SIGKILL");
+    await child.exited;
+  }
+}
+
+export async function runCodexGeneration(input: CodexGenerationInput): Promise<CodexGenerationResult> {
+  if (input.signal?.aborted) throw new CodexRuntimeError("cancelled", "Codex analysis was cancelled.");
+  const toolRole = input.toolRole ?? "chat";
+  const toolEntries = Object.entries(input.tools ?? {});
+  if (input.tools && (toolEntries.length === 0 || toolEntries.length > 32 || toolEntries.some(([name, tool]) => {
+    if (!/^[a-z][a-z0-9_]{0,63}$/.test(name)) return true;
+    if (!(tool.access === "read" || tool.access === "experiment" || tool.access === "engineer" || tool.access === "coach")) return true;
+    if (name === "apply_changes") return toolRole !== "engineer" || tool.access !== "engineer";
+    if (name === "record_drill") return toolRole !== "coach" || tool.access !== "coach";
+    if (tool.access === "read") return false;
+    if (toolRole === "chat") return true;
+    return tool.access === "engineer" ? toolRole !== "engineer" : tool.access === "coach" ? toolRole !== "coach" : false;
+  })))
+    throw new CodexRuntimeError("unsafe-runtime", "Codex tool registration is invalid.");
+  const version = await runCommand(input.command, ["--version"], input.signal);
+  if (version.trim() !== "codex-cli 0.164.0") {
+    throw new CodexRuntimeError("unsupported-runtime", "Codex CLI 0.164.0 is required for the verified isolation profile.");
+  }
+  const directory = mkdtempSync(join(tmpdir(), "raceiq-codex-"));
+  let connection: CodexRpcConnection | undefined;
+  const abortConnection = () => {
+    void connection?.close().catch(() => {});
+  };
+  input.signal?.addEventListener("abort", abortConnection, { once: true });
+  try {
+    if (input.signal?.aborted) throw new CodexRuntimeError("cancelled", "Codex analysis was cancelled.");
+    connection = connect(input.command, directory);
+    await initialize(connection);
+    await requireChatGptAccount(connection);
+    await requireSafeFeatures(connection);
+    const servers = await inventory(connection);
+    await connection.close();
+    const catalog = await writeModelCatalog(input, directory);
+    let onNotification: (method: string, params: unknown) => void = () => {};
+    let onToolCall: ((params: unknown, signal: AbortSignal) => Promise<unknown>) | undefined;
+    connection = connect(
+      input.command,
+      directory,
+      [...BASE_OVERRIDES, ...(input.tools ? CODEX_TOOL_PROFILE_OVERRIDES : []), `model_catalog_json=${JSON.stringify(catalog)}`, ...servers.map((name) => `mcp_servers.${name}.enabled=false`)],
+      (method, params) => onNotification(method, params),
+      input.tools ? (params, signal) => onToolCall ? onToolCall(params, signal) : Promise.resolve({ success: false, contentItems: [{ type: "inputText", text: "Tool request rejected or failed." }] }) : undefined,
+    );
+    await initialize(connection);
+    await requireChatGptAccount(connection);
+    await requireSafeFeatures(connection, input.tools ? ["goals"] : []);
+    const started = await connection.request("thread/start", {
+      model: input.model,
+      modelProvider: "openai",
+      cwd: directory,
+      approvalPolicy: "never",
+      sandbox: "read-only",
+      ephemeral: true,
+      baseInstructions: input.tools
+        ? `You are RaceIQ's ${toolRole === "engineer" ? "setup engineer" : toolRole === "coach" ? "driver coach" : "read-only racing telemetry assistant"}. Use only the supplied RaceIQ tools and evidence. Never exceed the authority of the registered tools.`
+        : "You are RaceIQ's read-only racing telemetry analyst, not a coding assistant. Analyze only supplied telemetry. No tools or external actions are authorized.",
+      developerInstructions: "Return the requested analysis using supplied evidence only. Do not inspect files, execute commands, or use network, browser, computer, patch, MCP, app or agent tools.",
+      dynamicTools: Object.entries(input.tools ?? {}).map(([name, tool]) => ({ type: "function", name, description: tool.description, inputSchema: tool.inputSchema })),
+    });
+    if (!isRecord(started) || !isRecord(started.thread) || typeof started.thread.id !== "string" || started.model !== input.model || started.modelProvider !== "openai")
+      throw new CodexRuntimeError("unsafe-runtime", "Codex did not create the requested isolated thread.");
+    const threadId = started.thread.id;
+    const scopedServers = await inventory(connection, threadId);
+    if (scopedServers.some((name) => !servers.includes(name))) throw new CodexRuntimeError("unsafe-runtime", "Codex MCP configuration changed during isolation.");
+    const start = performance.now();
+    let firstContentMs: number | null = null;
+    let text = "";
+    let nativeUsage: Record<string, unknown> = {};
+    let turnId: string | undefined;
+    let acknowledgeTurn!: () => void;
+    const turnAcknowledged = new Promise<void>((resolve) => { acknowledgeTurn = resolve; });
+    if (input.tools) {
+      const tools = Object.fromEntries(Object.entries(input.tools).map(([name, tool]) => [name, { access: tool.access, input: tool.input, execute: tool.execute }]));
+      const dispatch = createCodexToolDispatcher({ threadId, turnId: () => turnId, role: toolRole, tools });
+      onToolCall = async (params, signal) => {
+        if (!turnId && !signal.aborted) {
+          let timer: ReturnType<typeof setTimeout> | undefined;
+          let abort!: () => void;
+          const stopped = new Promise<void>((resolve) => {
+            abort = resolve;
+            signal.addEventListener("abort", abort, { once: true });
+            if (signal.aborted) resolve();
+            timer = setTimeout(resolve, 10_000);
+          });
+          try { await Promise.race([turnAcknowledged, stopped]); }
+          finally { clearTimeout(timer); signal.removeEventListener("abort", abort); }
+        }
+        return dispatch(params, signal);
+      };
+    }
+    const earlyEvents: { method: string; params: Record<string, unknown> }[] = [];
+    let earlyBytes = 0;
+    let completed!: (turn: { status: string; errorInfo: unknown }) => void;
+    const completion = new Promise<{ status: string; errorInfo: unknown }>((resolve) => {
+      completed = resolve;
+    });
+    const handleNotification = (method: string, params: unknown) => {
+      if (!isRecord(params) || params.threadId !== threadId) return;
+      const eventTurn = method === "turn/completed" && isRecord(params.turn) ? params.turn.id : params.turnId;
+      if (typeof eventTurn !== "string" || eventTurn !== turnId) return;
+      if (method === "thread/tokenUsage/updated" && isRecord(params.tokenUsage) && isRecord(params.tokenUsage.last)) nativeUsage = params.tokenUsage.last;
+      if (method === "item/agentMessage/delta" && typeof params.delta === "string") {
+        if (firstContentMs === null) firstContentMs = Math.round(performance.now() - start);
+        input.onTextDelta?.(params.delta);
+      }
+      if (
+        method === "item/completed" &&
+        isRecord(params.item) &&
+        params.item.type === "agentMessage" &&
+        (params.item.phase == null || params.item.phase === "final_answer") &&
+        typeof params.item.text === "string"
+      )
+        text = params.item.text;
+      if (method === "turn/completed" && isRecord(params.turn) && typeof params.turn.status === "string") {
+        completed({ status: params.turn.status, errorInfo: isRecord(params.turn.error) ? params.turn.error.codexErrorInfo : undefined });
+      }
+    };
+    onNotification = (method, params) => {
+      if (!isRecord(params) || params.threadId !== threadId || !["item/completed", "item/agentMessage/delta", "thread/tokenUsage/updated", "turn/completed"].includes(method)) return;
+      if (turnId) return handleNotification(method, params);
+      earlyBytes += Buffer.byteLength(JSON.stringify(params));
+      if (earlyEvents.length >= 1024 || earlyBytes > 1024 * 1024) throw new Error("Early Codex notifications exceeded limits");
+      earlyEvents.push({ method, params });
+    };
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    let abort!: () => void;
+    const stopped = new Promise<never>((_, reject) => {
+      abort = () => reject(new CodexRuntimeError("cancelled", "Codex analysis was cancelled."));
+      input.signal?.addEventListener("abort", abort, { once: true });
+      if (input.signal?.aborted) abort();
+      timeout = setTimeout(() => reject(new CodexRuntimeError("generation-failed", "Codex analysis exceeded its time limit.")), input.timeoutMs ?? 300_000);
+    });
+    try {
+      const generation = (async () => {
+        const response = await connection.request(
+          "turn/start",
+          { threadId, ...(input.schema ? { outputSchema: input.schema } : {}), ...(input.effort ? { effort: input.effort } : {}), input: [{ type: "text", text: input.prompt, text_elements: [] }] },
+          { signal: input.signal },
+        );
+        if (!isRecord(response) || !isRecord(response.turn) || typeof response.turn.id !== "string")
+          throw new CodexRuntimeError("generation-failed", "Codex turn acknowledgement is invalid.");
+        turnId = response.turn.id;
+        acknowledgeTurn();
+        for (const event of earlyEvents) handleNotification(event.method, event.params);
+        earlyEvents.length = 0;
+        return completion;
+      })();
+      const turn = await Promise.race([
+        generation,
+        stopped,
+        connection.closed.then((error) => {
+          throw error;
+        }),
+      ]);
+      if (turn.status === "failed" && turn.errorInfo === "usageLimitExceeded") throw new CodexRuntimeError("usage-limit", "Codex usage limit reached. Check your ChatGPT usage and try again when usage is available.");
+      if (turn.status === "failed" && turn.errorInfo === "rateLimitExceeded") throw new CodexRuntimeError("rate-limit", "Codex is temporarily rate limited. Wait before trying again.");
+      if (turn.status !== "completed" || !text.trim()) throw new CodexRuntimeError("generation-failed", "Codex did not return a completed analysis.");
+      if (input.schema) JSON.parse(text);
+      return {
+        text,
+        status: "completed",
+        runtimeVersion: "0.164.0",
+        model: input.model,
+        latencyMs: Math.round(performance.now() - start),
+        firstContentMs,
+        budget: { requestedOutputTokens: input.requestedOutputTokens ?? null, effectiveOutputTokens: null, supported: false },
+        usage: {
+          inputTokens: counter(nativeUsage.inputTokens),
+          cachedInputTokens: counter(nativeUsage.cachedInputTokens),
+          outputTokens: counter(nativeUsage.outputTokens),
+          reasoningOutputTokens: counter(nativeUsage.reasoningOutputTokens),
+          costUsd: null,
+        },
+      };
+    } finally {
+      clearTimeout(timeout);
+      input.signal?.removeEventListener("abort", abort);
+    }
+  } catch (error) {
+    if (input.signal?.aborted) throw new CodexRuntimeError("cancelled", "Codex analysis was cancelled.");
+    if (error instanceof CodexRuntimeError) throw error;
+    throw new CodexRuntimeError("generation-failed", "Codex analysis failed. Check the CLI connection and sign-in status.");
+  } finally {
+    input.signal?.removeEventListener("abort", abortConnection);
+    await connection?.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+}

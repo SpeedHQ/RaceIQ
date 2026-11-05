@@ -5,5 +5,6 @@ This directory contains active, unresolved engineering work. Completed checklist
 - [Setup Engineer](setup-engineer.md): remaining end-to-end and real-lap validation
 - [Per-car setup ranges](per-car-setup-ranges.md): remaining ACC range data and client mapping work
 - [Test coverage gaps](test-gaps.md): confirmed behavioral coverage gaps, blockers, and closure criteria
+- [macOS desktop](macos-desktop.md): Bun/Tauri app, F1 2026 DLC telemetry, Codex AI and response-budget experiments
 
 Durable system contracts live under [architecture](../architecture/), [integrations](../integrations/), and [reference](../reference/).

@@ -8,7 +8,7 @@ import { Agent } from "@mastra/core/agent";
 import { getModel } from "../../ai/model-provider";
 import { renderDriverProfileSummarySchemaForPrompt } from "@raceiq/shared/integrations/ai/driver-profile-summary";
 
-const DRIVER_PROFILER_INSTRUCTIONS = `You are a concise driver trend analyst. The prompt contains a deterministic global trend for the selected game, including window counts, normalized relative pace, consistency, spread, clean rate, directions, and deterministic advice.
+export const DRIVER_PROFILER_INSTRUCTIONS = `You are a concise driver trend analyst. The prompt contains a deterministic global trend for the selected game, including window counts, normalized relative pace, consistency, spread, clean rate, directions, and deterministic advice.
 
 Your only job is to explain why this trend is credible. Do not re-analyse telemetry or add facts. Do not make recommendations or prescribe actions. Do not mention specific laps, corners, cars, tracks, reference points, drills, examples, detectors, style gauges, raw lap times, or a next-session plan.
 

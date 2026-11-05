@@ -6,6 +6,8 @@ import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { toClientAiError, type ClientAiError } from "@raceiq/backend-core/ai/provider-error";
 import { configureAiProviderEnvironment } from "@raceiq/backend-core/ai/openai-compatible-provider";
 import { driverProfilerAgent } from "../ai/agents";
+import { resolveAi } from "../ai/ai-runtime";
+import { DRIVER_PROFILER_INSTRUCTIONS } from "../mastra/agents/driver-profiler";
 import { buildDriverProfilerPrompt } from "./prompt";
 import {
   getDriverProfileSummaryJsonSchema,
@@ -28,6 +30,7 @@ import {
 } from "@raceiq/backend-core/db/driver-profile-queries";
 import { getLapMetaForProfileScope } from "@raceiq/backend-core/db/lap-read-queries";
 import type { AnalysisUsage } from "@raceiq/backend-core/db/analysis-queries";
+import { normalizeAiUsage } from "@raceiq/backend-core/ai/usage";
 
 export type DriverProfileScope = Pick<DriverProfileScopeKey, "gameId" | "carId" | "trackId">;
 export type DriverProfileState = DriverProfileRunStatus | "disabled" | "not-configured";
@@ -117,20 +120,25 @@ async function failDriverProfileRun(
 }
 
 async function providerConfiguration(): Promise<
-  | { ok: true; provider: "gemini" | "openai" | "anthropic" | "openai-compatible"; model: string; thinkingBudget: number | null }
+  | { ok: true; provider: "gemini" | "openai" | "anthropic" | "openai-compatible" | "codex"; model: string; thinkingBudget: number | null }
   | { ok: false; reason: string }
 > {
   const settings = loadSettings();
   const provider = settings.driverProfileProvider;
   if (!provider) return { ok: false, reason: "No driver-profile AI provider is configured." };
-  await configureAiProviderEnvironment(provider, settings.localEndpoint || "http://localhost:1234/v1");
+  if (provider === "codex") {
+    try { await resolveAi("driverProfile", settings); }
+    catch (error) { return { ok: false, reason: normalizedError(error).message }; }
+  } else {
+    await configureAiProviderEnvironment(provider, settings.localEndpoint || "http://localhost:1234/v1");
+  }
 
   return {
     ok: true,
     provider,
     model:
       settings.driverProfileModel ||
-      (provider === "openai" ? "gpt-4o-mini" : provider === "anthropic" ? "claude-haiku-5-5" : provider === "openai-compatible" ? "local-model" : "gemini-flash-latest"),
+      (provider === "codex" ? "gpt-6-luna" : provider === "openai" ? "gpt-4o-mini" : provider === "anthropic" ? "claude-haiku-5-5" : provider === "openai-compatible" ? "local-model" : "gemini-flash-latest"),
     thinkingBudget: settings.driverProfileThinkingBudget,
   };
 }
@@ -189,8 +197,21 @@ async function runDriverProfileInternal(
       fingerprint,
       language: loadSettings().language,
     });
-    const result = await driverProfilerAgent.generate(prompt, {
-      modelSettings: { maxOutputTokens: loadSettings().driverProfileMaxOutputTokens, temperature: 0 },
+    const settings = loadSettings();
+    const result = config.provider === "codex"
+      ? await (async () => {
+          const ai = await resolveAi("driverProfile", { ...settings, driverProfileProvider: config.provider, driverProfileModel: config.model });
+          const generated = await ai.generateStructured({
+            system: DRIVER_PROFILER_INSTRUCTIONS,
+            prompt,
+            schema: getDriverProfileSummaryJsonSchema(),
+            schemaName: "driver_profile_summary",
+            maxOutputTokens: settings.driverProfileMaxOutputTokens,
+          });
+          return { text: generated.analysis, usage: generated.usage };
+        })()
+      : await driverProfilerAgent.generate(prompt, {
+      modelSettings: { maxOutputTokens: settings.driverProfileMaxOutputTokens, temperature: 0 },
       providerOptions: {
         openai: {
           responseFormat: {
@@ -208,11 +229,11 @@ async function runDriverProfileInternal(
           config.thinkingBudget,
         ) as never,
       },
-    });
+        });
 
     const parsed = parseDriverProfileSummary(typeof result.text === "string" ? result.text : "");
     if (!parsed.success) {
-      logDriverProfileOutput(runId, config.model, result);
+      if (config.provider !== "codex") logDriverProfileOutput(runId, config.model, result);
       logDriverProfileFailure(
         runId,
         config.model,
@@ -228,14 +249,9 @@ async function runDriverProfileInternal(
     }
 
     const summary = parsed.data;
-    const rawUsage = (result.usage ?? {}) as Record<string, unknown>;
-    const number = (key: string): number => (typeof rawUsage[key] === "number" ? (rawUsage[key] as number) : 0);
-    const usage: AnalysisUsage = {
-      inputTokens: number("inputTokens") || number("promptTokens"),
-      outputTokens: number("outputTokens") || number("completionTokens"),
-      costUsd: 0,
+    const usage = {
+      ...normalizeAiUsage(result.usage, config.model),
       durationMs: Date.now() - startedAt,
-      model: config.model,
     };
 
     // A background generation can finish after more laps arrive. Never let it

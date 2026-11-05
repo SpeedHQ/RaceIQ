@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import { computeCornerMetrics, type CornerDef } from "@raceiq/backend-core/ai/corner-data";
+import { buildCornerData, computeCornerMetrics, type CornerDef } from "@raceiq/backend-core/ai/corner-data";
 
 /**
  * `computeCornerMetrics` is the single source of truth for per-corner telemetry
@@ -84,10 +84,47 @@ describe("computeCornerMetrics", () => {
     expect(m.gear).toBe(4);
   });
 
-  test("measures contiguous braking distance before the apex", () => {
-    // Braking at 60 and 80, apex at 100 -> 40m of braking
+  test("measures brake onset before corner entry", () => {
+    // Brake onset at 60, corner entry at 100 -> 40m before entry.
     const [m] = computeCornerMetrics(speedPackets(), [corner]);
-    expect(m.brakingDistance).toBeCloseTo(40, 5);
+    expect(m.brakeOnsetDistanceM).toBeCloseTo(40, 5);
+  });
+
+  test("captures brake onset inside corner instead of reporting zero", () => {
+    const packets = speedPackets().map((packet) => ({
+      ...packet,
+      Brake: packet.DistanceTraveled >= 120 && packet.DistanceTraveled <= 140 ? 100 : 0,
+    }));
+    const [m] = computeCornerMetrics(packets, [corner]);
+    expect(m.avgBrake).toBeGreaterThan(0);
+    expect(m.brakeOnsetDistanceM).toBe(-20);
+  });
+
+  test("uses nearest braking onset when approach contains multiple brake zones", () => {
+    const packets = [
+      ...speedPackets().filter((packet) => packet.DistanceTraveled <= 80),
+      pkt({ DistanceTraveled: 90, VelocityX: 50, Brake: 0 }),
+      pkt({ DistanceTraveled: 95, VelocityX: 48, Brake: 100 }),
+      ...speedPackets().filter((packet) => packet.DistanceTraveled >= 100),
+    ];
+    const [m] = computeCornerMetrics(packets, [corner]);
+    expect(m.brakeOnsetDistanceM).toBe(5);
+  });
+
+  test("reports missing brake onset as null, not a measured zero", () => {
+    const packets = speedPackets().map((packet) => ({ ...packet, Brake: 0 }));
+    const [m] = computeCornerMetrics(packets, [corner]);
+    expect(m.brakeOnsetDistanceM).toBeNull();
+    expect(buildCornerData(packets, [corner])).toContain("unknown");
+  });
+
+  test("reports a measured zero when braking begins at corner entry", () => {
+    const packets = speedPackets().map((packet) => ({
+      ...packet,
+      Brake: packet.DistanceTraveled >= 100 && packet.DistanceTraveled <= 120 ? 100 : 0,
+    }));
+    const [m] = computeCornerMetrics(packets, [corner]);
+    expect(m.brakeOnsetDistanceM).toBe(0);
   });
 
   test("reports throttle-on distance from the first hard-throttle packet", () => {
@@ -110,7 +147,7 @@ describe("computeCornerMetrics", () => {
     expect(shifted.entrySpeed).toBeCloseTo(50 * 2.237, 3);
     expect(shifted.minSpeed).toBeCloseTo(20 * 2.237, 3);
     expect(shifted.exitSpeed).toBeCloseTo(45 * 2.237, 3);
-    expect(shifted.brakingDistance).toBeCloseTo(40, 5);
+    expect(shifted.brakeOnsetDistanceM).toBeCloseTo(40, 5);
     expect(shifted.throttleOnDist).toBeCloseTo(60, 5);
   });
 

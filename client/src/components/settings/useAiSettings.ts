@@ -7,6 +7,7 @@ import type { AiAnalysisState, AiAutoTuneState, AiChatState, AiDriverProfileStat
 import { PROVIDER_KEY_LABELS, PROVIDER_KEY_MAP } from "./ai-state";
 import { isAiProvider, useAiModelData } from "./useAiModelData";
 import { modelsOrFallback } from "./recommended-model";
+import { useCodexStatus } from "./CodexStatus";
 
 type SavedAnalysisBaseline = { provider: string; model: string; thinkingBudget: number | null; localEndpoint: string };
 type SavedChatBaseline = { provider: string; model: string; thinkingBudget: number | null };
@@ -34,6 +35,7 @@ function supportsGeminiThinkingBudget(modelId: string): boolean {
 }
 
 export function useAiSettings(): AiSettingsState {
+  const codexStatus = useCodexStatus();
   const { displaySettings, settingsLoaded } = useSettings();
   const saveSettings = useSaveSettings();
   const qc = useQueryClient();
@@ -178,6 +180,7 @@ export function useAiSettings(): AiSettingsState {
     openai: !!displaySettings.openaiApiKeySet,
     anthropic: !!displaySettings.anthropicApiKeySet,
     "openai-compatible": !!displaySettings.openaiCompatibleApiKeySet,
+    codex: codexStatus.data?.state === "ready",
   };
   const updateKeyStatusInSettingsCache = (providerKeyId: string, isSet: boolean) => {
     qc.setQueryData(["settings"], (prev: unknown) => {
@@ -196,29 +199,29 @@ export function useAiSettings(): AiSettingsState {
     });
   };
   const { aiProviders, aiModels, aiModelsFetching, aiModelsError, modelsRefreshing, refreshModels: refreshModelsAction } = useAiModelData(selectedProviders, keyStatus);
-  const models = modelsOrFallback(provider, isAiProvider(provider) ? (aiModels?.[provider] ?? []) : []);
+  const models = provider === "codex" ? (codexStatus.data?.models ?? []) : modelsOrFallback(provider, isAiProvider(provider) ? (aiModels?.[provider] ?? []) : []);
   const hasProviderKey = provider === "openai-compatible" || (keyStatus[provider] ?? false);
   const canShowModelPicker = provider !== "" && hasProviderKey && models.length > 0;
   const modelSupportsThinking = provider === "gemini" && supportsGeminiThinkingBudget(model || "gemini-flash-latest");
   const effectiveThinkingBudget = modelSupportsThinking ? thinkingBudget : null;
-  const chatModels = modelsOrFallback(chatProvider, isAiProvider(chatProvider) ? (aiModels?.[chatProvider] ?? []) : []);
-  const hasChatProviderKey = chatProvider === "openai-compatible" || (keyStatus[chatProvider] ?? false);
+  const chatModels = chatProvider === "codex" ? (codexStatus.data?.models ?? []) : modelsOrFallback(chatProvider, isAiProvider(chatProvider) ? (aiModels?.[chatProvider] ?? []) : []);
+  const hasChatProviderKey = chatProvider === "codex" ? codexStatus.data?.state === "ready" : chatProvider === "openai-compatible" || (keyStatus[chatProvider] ?? false);
   const canShowChatModelPicker = chatProvider !== "" && hasChatProviderKey && chatModels.length > 0;
   const chatModelSupportsThinking = chatProvider === "gemini" && supportsGeminiThinkingBudget(chatModel || "gemini-flash-latest");
   const effectiveChatThinkingBudget = chatModelSupportsThinking ? chatThinkingBudget : null;
   const modelErrors = aiModels?._errors ?? {};
   const providerModelError = isAiProvider(provider) ? (modelErrors[provider] ?? null) : null;
-  const chatProviderModelError = isAiProvider(chatProvider) ? (modelErrors[chatProvider] ?? null) : null;
-  const autoTuneModels = modelsOrFallback(autoTuneProvider, isAiProvider(autoTuneProvider) ? (aiModels?.[autoTuneProvider] ?? []) : []);
-  const hasAutoTuneProviderKey = autoTuneProvider === "openai-compatible" || (keyStatus[autoTuneProvider] ?? false);
+  const chatProviderModelError = chatProvider === "codex" && codexStatus.isError ? m.ai_codex_unavailable() : isAiProvider(chatProvider) ? (modelErrors[chatProvider] ?? null) : null;
+  const autoTuneModels = autoTuneProvider === "codex" ? (codexStatus.data?.models ?? []) : modelsOrFallback(autoTuneProvider, isAiProvider(autoTuneProvider) ? (aiModels?.[autoTuneProvider] ?? []) : []);
+  const hasAutoTuneProviderKey = autoTuneProvider === "codex" ? codexStatus.data?.state === "ready" : autoTuneProvider === "openai-compatible" || (keyStatus[autoTuneProvider] ?? false);
   const canShowAutoTuneModelPicker = autoTuneProvider !== "" && hasAutoTuneProviderKey && autoTuneModels.length > 0;
-  const autoTuneProviderModelError = isAiProvider(autoTuneProvider) ? (modelErrors[autoTuneProvider] ?? null) : null;
-  const driverProfileModels = modelsOrFallback(driverProfileProvider, isAiProvider(driverProfileProvider) ? (aiModels?.[driverProfileProvider] ?? []) : []);
+  const autoTuneProviderModelError = autoTuneProvider === "codex" && codexStatus.isError ? m.ai_codex_unavailable() : isAiProvider(autoTuneProvider) ? (modelErrors[autoTuneProvider] ?? null) : null;
+  const driverProfileModels = driverProfileProvider === "codex" ? (codexStatus.data?.models ?? []) : modelsOrFallback(driverProfileProvider, isAiProvider(driverProfileProvider) ? (aiModels?.[driverProfileProvider] ?? []) : []);
   const hasDriverProfileProviderKey = driverProfileProvider === "openai-compatible" || (keyStatus[driverProfileProvider] ?? false);
   const canShowDriverProfileModelPicker = driverProfileProvider !== "" && hasDriverProfileProviderKey && driverProfileModels.length > 0;
   const driverProfileModelSupportsThinking = driverProfileProvider === "gemini" && supportsGeminiThinkingBudget(driverProfileModel || "gemini-flash-latest");
   const selectedDriverProfileModel = driverProfileModels.find((mm) => mm.id === driverProfileModel);
-  const driverProfileModelContextLength = selectedDriverProfileModel?.contextLength;
+  const driverProfileModelContextLength = selectedDriverProfileModel && "contextLength" in selectedDriverProfileModel && typeof selectedDriverProfileModel.contextLength === "number" ? selectedDriverProfileModel.contextLength : undefined;
   const effectiveDriverProfileThinkingBudget = driverProfileModelSupportsThinking ? driverProfileThinkingBudget : null;
   const driverProfileProviderModelError = isAiProvider(driverProfileProvider) ? (modelErrors[driverProfileProvider] ?? null) : null;
 
@@ -449,9 +452,9 @@ export function useAiSettings(): AiSettingsState {
       effectiveThinkingBudget,
       canSaveAnalysis,
       aiProviders,
-      aiModelsFetching,
-      modelsRefreshing,
-      refreshModels: refreshModelsAction,
+      aiModelsFetching: provider === "codex" ? codexStatus.isFetching : aiModelsFetching,
+      modelsRefreshing: provider === "codex" ? codexStatus.isFetching : modelsRefreshing,
+      refreshModels: provider === "codex" ? { mutate: () => { void codexStatus.refetch(); }, isPending: codexStatus.isFetching, isError: codexStatus.isError } : refreshModelsAction,
       isSaving,
       providerModelError,
       aiModelsError,
@@ -476,9 +479,9 @@ export function useAiSettings(): AiSettingsState {
       effectiveChatThinkingBudget,
       canSaveChat,
       aiProviders,
-      aiModelsFetching,
-      modelsRefreshing,
-      refreshModels: refreshModelsAction,
+      aiModelsFetching: chatProvider === "codex" ? codexStatus.isFetching : aiModelsFetching,
+      modelsRefreshing: chatProvider === "codex" ? codexStatus.isFetching : modelsRefreshing,
+      refreshModels: chatProvider === "codex" ? { mutate: () => { void codexStatus.refetch(); }, isPending: codexStatus.isFetching, isError: codexStatus.isError } : refreshModelsAction,
       isSaving,
       chatProviderModelError,
       aiModelsError,
@@ -498,9 +501,9 @@ export function useAiSettings(): AiSettingsState {
       autoTuneModels,
       canShowAutoTuneModelPicker,
       aiProviders,
-      aiModelsFetching,
-      modelsRefreshing,
-      refreshModels: refreshModelsAction,
+      aiModelsFetching: autoTuneProvider === "codex" ? codexStatus.isFetching : aiModelsFetching,
+      modelsRefreshing: autoTuneProvider === "codex" ? codexStatus.isFetching : modelsRefreshing,
+      refreshModels: autoTuneProvider === "codex" ? { mutate: () => { void codexStatus.refetch(); }, isPending: codexStatus.isFetching, isError: codexStatus.isError } : refreshModelsAction,
       isSaving,
       autoTuneProviderModelError,
       aiModelsError,
@@ -530,9 +533,9 @@ export function useAiSettings(): AiSettingsState {
       driverProfileModelSupportsThinking,
       effectiveDriverProfileThinkingBudget,
       aiProviders,
-      aiModelsFetching,
-      modelsRefreshing,
-      refreshModels: refreshModelsAction,
+      aiModelsFetching: driverProfileProvider === "codex" ? codexStatus.isFetching : aiModelsFetching,
+      modelsRefreshing: driverProfileProvider === "codex" ? codexStatus.isFetching : modelsRefreshing,
+      refreshModels: driverProfileProvider === "codex" ? { mutate: () => { void codexStatus.refetch(); }, isPending: codexStatus.isFetching, isError: codexStatus.isError } : refreshModelsAction,
       isSaving,
       driverProfileProviderModelError,
       aiModelsError,

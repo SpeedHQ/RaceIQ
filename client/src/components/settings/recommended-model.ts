@@ -13,7 +13,7 @@ export function recommendedFirst<T extends { id: string }>(models: T[]): T[] {
 
 /** Model to preselect after switching provider: the recommended Claude model, otherwise none. */
 export function defaultModelForProvider(provider: string): string {
-  return provider === "anthropic" ? RECOMMENDED_CLAUDE_MODEL : "";
+  return provider === "anthropic" ? RECOMMENDED_CLAUDE_MODEL : provider === "codex" ? "gpt-6-luna" : "";
 }
 
 /** Shown for Claude until (or if) the live model list loads, so selection never waits on the fetch. */

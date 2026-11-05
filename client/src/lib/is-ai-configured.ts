@@ -1,4 +1,4 @@
-type AiProvider = "" | "gemini" | "openai" | "anthropic" | "openai-compatible";
+type AiProvider = "" | "gemini" | "openai" | "anthropic" | "openai-compatible" | "codex";
 
 export interface AiConfigSettings {
   aiProvider?: AiProvider;
@@ -19,6 +19,8 @@ function isProviderConfigured(provider: AiProvider, settings: AiConfigSettings):
 }
 
 export function isAiConfigured(settings: AiConfigSettings): boolean {
+  // Selection requires discovery in Settings; generation revalidates managed auth.
+  if (settings.aiProvider === "codex") return Boolean(settings.aiModel?.trim());
   return isProviderConfigured(settings.aiProvider ?? "", settings);
 }
 

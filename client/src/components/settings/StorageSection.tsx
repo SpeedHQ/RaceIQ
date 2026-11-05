@@ -244,7 +244,7 @@ function StorageFilesSection() {
         </div>
         {data && !isLoading && <p className="mb-4 text-sm font-medium text-app-text">{m.storage_recording_summary({ files: data.total, size: formatBytes(data.totalBytes) })}</p>}
         <RecordingDirectoryControl disabled={isLoading || isError || operationBlocked || movingDirectory} />
-        
+
         <p className="my-3 text-sm text-app-text-secondary">{m.storage_recording_files_desc_suffix()}</p>
         <fieldset disabled={operationBlocked} className="min-w-0">
           <RecordingLayoutMigration compact />
@@ -309,8 +309,8 @@ function StorageFilesSection() {
           <Button variant="app-outline" size="app-sm" disabled={operationBlocked || movingDirectory || isLoading} onClick={() => { setRetryRequest(null); setDownsampleOpen(true); }}>{m.storage_downsample_action()}</Button>
           <Button variant="app-outline" size="app-sm" disabled={operationBlocked || movingDirectory} onClick={() => setCleanupRequest({ mode: "older-than", olderThanDays: 30 })}>{m.sessions_cleanup_free_space()}</Button>
         </div>
-        
-        
+
+
       </div>
     </section>
   );

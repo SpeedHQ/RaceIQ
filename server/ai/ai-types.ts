@@ -1,22 +1,19 @@
 import type { AiFeature, AiProvider } from "./ai-features";
+import type { AiUsage, AiGenerationDiagnostics } from "@raceiq/shared/integrations/ai/usage";
 
 export type { AiFeature, AiProvider } from "./ai-features";
 
-export type AiUsage = {
-  inputTokens: number;
-  outputTokens: number;
-  costUsd: number;
-  durationMs: number;
-  model: string;
-};
+export type { AiUsage } from "@raceiq/shared/integrations/ai/usage";
 
 /** Provider-neutral result retained by existing analysis consumers. */
 export type AiResult = {
   analysis: string;
   usage: AiUsage;
+  diagnostics?: AiGenerationDiagnostics;
 };
 
 export type TextRequest = {
+  signal?: AbortSignal;
   prompt: string;
   system?: string;
   temperature?: number;

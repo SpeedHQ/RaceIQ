@@ -1,0 +1,21 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "RaceIQ",
+  "version": "0.20.0-private.20261102.2",
+  "identifier": "com.dedeco-carrera.raceiq",
+  "build": { "frontendDist": "../shell" },
+  "app": {
+    "windows": [{ "label": "main", "title": "RaceIQ", "width": 1440, "height": 960, "minWidth": 440, "minHeight": 400 }],
+    "security": {
+      "capabilities": [],
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app"],
+    "icon": ["../../../assets/raceiq.icns", "../../../assets/raceiq-icon.png"],
+    "resources": { "../../../dist/": "backend/" },
+    "macOS": { "minimumSystemVersion": "12.0", "signingIdentity": "-" }
+  }
+}

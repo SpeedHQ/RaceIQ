@@ -2,27 +2,18 @@ import { eq, and, sql } from "drizzle-orm";
 import { db, readDb } from "./index"
 import { lapAnalyses, compareAnalyses } from "./schema";
 import { withDatabaseWrite } from "./write-coordination";
+import type { AiUsage } from "@raceiq/shared/integrations/ai/usage";
 
-interface AnalysisRow {
+interface AnalysisRow extends AiUsage {
   analysis: string;
-  inputTokens: number;
-  outputTokens: number;
-  costUsd: number;
-  durationMs: number;
-  model: string;
+  generationKey?: string | null;
 }
 
 /**
  * Get cached AI analysis for a lap. Returns analysis + usage stats or null.
  */
 
-export interface AnalysisUsage {
-  inputTokens: number;
-  outputTokens: number;
-  costUsd: number;
-  durationMs: number;
-  model: string;
-}
+export type AnalysisUsage = AiUsage;
 
 /**
  * Save or replace AI analysis for a lap.
@@ -31,6 +22,7 @@ export interface AnalysisUsage {
 export async function getAnalysis(lapId: number): Promise<AnalysisRow | null> {
   const row = await readDb.select({
     analysis: lapAnalyses.analysis,
+    generationKey: lapAnalyses.generationKey,
     inputTokens: lapAnalyses.inputTokens,
     outputTokens: lapAnalyses.outputTokens,
     costUsd: lapAnalyses.costUsd,
@@ -44,7 +36,7 @@ export async function getAnalysis(lapId: number): Promise<AnalysisRow | null> {
 }
 
 
-export async function saveAnalysis(lapId: number, analysis: string, usage: AnalysisUsage): Promise<void> {
+export async function saveAnalysis(lapId: number, analysis: string, usage: AnalysisUsage, generationKey: string | null = null): Promise<void> {
   const existing = await readDb.select({ id: lapAnalyses.id })
     .from(lapAnalyses)
     .where(eq(lapAnalyses.lapId, lapId))
@@ -52,6 +44,7 @@ export async function saveAnalysis(lapId: number, analysis: string, usage: Analy
 
   const values = {
     analysis,
+    generationKey,
     inputTokens: usage.inputTokens,
     outputTokens: usage.outputTokens,
     costUsd: usage.costUsd,
@@ -94,6 +87,7 @@ export async function getCompareAnalysis(
   const hi = Math.max(idA, idB);
   const row = await readDb.select({
     analysis: compareAnalyses.analysis,
+    generationKey: compareAnalyses.generationKey,
     inputTokens: compareAnalyses.inputTokens,
     outputTokens: compareAnalyses.outputTokens,
     costUsd: compareAnalyses.costUsd,
@@ -119,6 +113,7 @@ export async function saveCompareAnalysis(
   analysis: string,
   usage: AnalysisUsage,
   kind: string = "inputs",
+  generationKey: string | null = null,
 ): Promise<void> {
   const lo = Math.min(idA, idB);
   const hi = Math.max(idA, idB);
@@ -135,6 +130,7 @@ export async function saveCompareAnalysis(
 
   const values = {
     analysis,
+    generationKey,
     inputTokens: usage.inputTokens,
     outputTokens: usage.outputTokens,
     costUsd: usage.costUsd,

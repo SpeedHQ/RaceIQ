@@ -7,6 +7,8 @@ import {
   type GenerateLapAnalysisDeps,
 } from "../../../src/ai/generate-lap-analysis";
 import { diagnosticsRoutes } from "../../../src/routes/system/diagnostics-routes";
+import { analysisGenerationKey } from "../../../src/ai/analysis-generation-key";
+import { AiProviderError } from "@raceiq/backend-core/ai/provider-error";
 
 const validAnalysis = JSON.stringify({
   verdict: "Clean lap",
@@ -38,6 +40,7 @@ function makeDeps(
   let cached = options.cached
     ? {
         analysis: options.cached,
+        generationKey: "",
         inputTokens: 1,
         outputTokens: 2,
         costUsd: 0,
@@ -55,11 +58,12 @@ function makeDeps(
     resolveLapCorners: async () => [],
     getOrComputeLapInsights: async () => [],
     getAnalysis: async () => cached,
-    saveAnalysis: async (_lapId, analysis) => {
+    saveAnalysis: async (_lapId, analysis, _usage, generationKey) => {
       saves.push(analysis);
       options.onSave?.(analysis);
       cached = {
         analysis,
+        generationKey: generationKey ?? "",
         inputTokens: 1,
         outputTokens: 2,
         costUsd: 0,
@@ -106,11 +110,84 @@ function makeDeps(
       };
     },
   };
+  if (cached) cached.generationKey = analysisGenerationKey("lap", deps.loadSettings!());
   Object.defineProperty(deps, "generateCalls", { get: () => generateCalls });
   return deps;
 }
 
 describe("generateLapAnalysis", () => {
+  test("returns Codex usage-limit guidance without caching a failed analysis", async () => {
+    const message = "Codex usage limit reached. Check your ChatGPT usage and try again when usage is available.";
+    const deps = makeDeps({ generateError: new AiProviderError(message, { code: "usage-limit", statusCode: 429, provider: "codex", isRetryable: true }) });
+    const result = await generateLapAnalysis(7, {}, deps);
+    expect(result.error).toBe(message);
+    expect(result.analysis).toBeNull();
+    expect(deps.saves).toHaveLength(0);
+  });
+  test("requested lap budget reaches generation and changes cache identity", async () => {
+    const deps = makeDeps();
+    const defaults = deps.loadSettings!();
+    let budget = 16_384;
+    deps.loadSettings = () => ({ ...defaults, analysisMaxOutputTokens: budget });
+    let requested = 0;
+    const generate = deps.runAiStructured!;
+    deps.runAiStructured = async (ai, input, callback) => { requested = input.maxOutputTokens ?? 0; return generate(ai, input, callback); };
+    await generateLapAnalysis(7, {}, deps);
+    expect(requested).toBe(16_384);
+    expect((await generateLapAnalysis(7, {}, deps)).cached).toBe(true);
+    budget = 65_536;
+    expect((await generateLapAnalysis(7, { cacheOnly: true }, deps)).analysis).toBeNull();
+    await generateLapAnalysis(7, {}, deps);
+    expect(requested).toBe(65_536);
+  });
+  test("saved instructions reach the provider and changing them misses the cache", async () => {
+    const deps = makeDeps({ cached: validAnalysis });
+    const defaults = deps.loadSettings!();
+    let instructions: string | null = "Focus on trail braking at T1.";
+    deps.loadSettings = () => ({ ...defaults, lapAnalysisInstructions: instructions });
+    let submitted = "";
+    const generate = deps.runAiStructured!;
+    deps.runAiStructured = async (ai, input, callback) => {
+      submitted = input.prompt;
+      return generate(ai, input, callback);
+    };
+    const first = await generateLapAnalysis(7, {}, deps);
+    expect(first.cached).toBe(false);
+    expect(submitted).toContain(instructions);
+    expect(submitted).toContain("Preserve the required output schema");
+    expect((await generateLapAnalysis(7, {}, deps)).cached).toBe(true);
+    instructions = "Focus on throttle exits.";
+    expect((await generateLapAnalysis(7, { cacheOnly: true }, deps)).analysis).toBeNull();
+    await generateLapAnalysis(7, {}, deps);
+    expect(submitted).toContain(instructions);
+    instructions = null;
+    expect((await generateLapAnalysis(7, { cacheOnly: true }, deps)).analysis).toBeNull();
+    expect(deps.generateCalls).toBe(2);
+  });
+
+  test("old unversioned cache remains stored and is not reused", async () => {
+    const deps = makeDeps({ cached: validAnalysis });
+    const read = deps.getAnalysis!;
+    deps.getAnalysis = async (id) => ({ ...(await read(id))!, generationKey: null });
+    expect((await generateLapAnalysis(7, { cacheOnly: true }, deps)).analysis).toBeNull();
+    expect(deps.saves).toEqual([]);
+  });
+  test("preserves provider unknown usage and real zero output through generation and caching", async () => {
+    const deps = makeDeps();
+    deps.runAiStructured = undefined;
+    deps.resolveAi = async () => ({
+      feature: "analysis", provider: "openai-compatible", model: "test-model",
+      generateText: async () => { throw new Error("unused"); },
+      generateStructured: async () => ({ analysis: validAnalysis, usage: { inputTokens: null, outputTokens: 0, costUsd: null, durationMs: null, model: "test-model" } }),
+    });
+    let persisted: unknown;
+    deps.saveAnalysis = async (_id, _analysis, usage) => { persisted = usage; };
+    const result = await generateLapAnalysis(7, { regenerate: true }, deps);
+    expect(result.usage).toMatchObject({ inputTokens: null, outputTokens: 0, costUsd: null });
+    expect(persisted).toEqual(result.usage);
+    expect(result.usage?.durationMs).toBeGreaterThanOrEqual(0);
+  });
+
   test("reuses valid cache without generation", async () => {
     const deps = makeDeps({ cached: validAnalysis });
     const result = await generateLapAnalysis(7, {}, deps);

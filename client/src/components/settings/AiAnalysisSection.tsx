@@ -31,7 +31,7 @@ export function AiAnalysisSection({ state }: { state: AiAnalysisState }) {
   return (
     <div className="mt-8 space-y-4">
       <h2 className="text-sm font-semibold text-app-text">{m.ai_analysis_provider_title()}</h2>
-      <p className="text-xs text-app-text-muted">{m.ai_analysis_provider_desc()}</p>
+      <p className="text-xs text-app-text-muted">{m.ai_provider_access_help()}</p>
       <div className="space-y-4">
         <div>
           <Label htmlFor="ai-analysis-provider" className="mb-1 block text-xs text-app-text-muted">
@@ -91,7 +91,7 @@ export function AiAnalysisSection({ state }: { state: AiAnalysisState }) {
             </select>
           </div>
         )}
-        {provider !== "" && !hasProviderKey && <p className="text-xs text-app-text-muted">{m.ai_add_key_hint()}</p>}
+        {provider !== "" && provider !== "codex" && !hasProviderKey && <p className="text-xs text-app-text-muted">{m.ai_add_key_hint()}</p>}
         {provider !== "" && hasProviderKey && !aiModelsFetching && models.length === 0 && (
           <div className="flex items-center gap-2 text-xs text-app-text-muted">
             <span>{m.ai_no_models()}</span>

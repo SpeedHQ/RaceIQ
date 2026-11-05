@@ -139,10 +139,10 @@ const GenerateLapAnalysisInput = z.object({
 });
 
 const AnalysisUsageOutput = z.object({
-  inputTokens: z.number(),
-  outputTokens: z.number(),
-  costUsd: z.number(),
-  durationMs: z.number(),
+  inputTokens: z.number().nullable(),
+  outputTokens: z.number().nullable(),
+  costUsd: z.number().nullable(),
+  durationMs: z.number().nullable(),
   model: z.string(),
 });
 

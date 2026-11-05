@@ -10,6 +10,7 @@ import type {
 } from "@raceiq/backend-core/ai/ai-types";
 import { resolveAi } from "./ai-runtime";
 import { AiProviderError } from "@raceiq/backend-core/ai/provider-error";
+import { normalizeAiUsage } from "@raceiq/backend-core/ai/usage";
 import {
   getResolvedAiInternals,
   RESOLVED_AI_MODEL_CONTEXT_KEY,
@@ -66,23 +67,11 @@ type MastraResult = {
   text?: unknown;
   object?: unknown;
   usage?: unknown;
+  totalUsage?: unknown;
 };
 
 function usageFor(result: MastraResult["usage"], model: string): AiResult["usage"] {
-  const usage = result && typeof result === "object" ? result as Record<string, unknown> : {};
-  const numberFor = (...keys: string[]) => {
-    for (const key of keys) {
-      if (typeof usage[key] === "number") return usage[key] as number;
-    }
-    return 0;
-  };
-  return {
-    inputTokens: numberFor("inputTokens", "promptTokens"),
-    outputTokens: numberFor("outputTokens", "completionTokens"),
-    costUsd: numberFor("costUsd"),
-    durationMs: numberFor("durationMs"),
-    model,
-  };
+  return normalizeAiUsage(result, model);
 }
 
 function textFor(result: MastraResult): string {
@@ -124,7 +113,7 @@ function normalizeMastraResult(result: MastraResult, model: string): AiResult {
   }
   return {
     analysis: textFor(result),
-    usage: usageFor(result.usage, model),
+    usage: usageFor(result.totalUsage ?? result.usage, model),
   };
 }
 
