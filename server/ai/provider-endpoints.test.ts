@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test";
 
 import { baseUrlFor } from "./provider-endpoints";
 
-describe("baseUrlFor — 每个 provider 的固定端点", () => {
-  test("deepseek 用官方 OpenAI 兼容端点", () => {
+describe("baseUrlFor — fixed endpoint per provider", () => {
+  test("deepseek uses its official OpenAI-compatible endpoint", () => {
     expect(baseUrlFor("deepseek")).toBe("https://api.deepseek.com");
   });
 
