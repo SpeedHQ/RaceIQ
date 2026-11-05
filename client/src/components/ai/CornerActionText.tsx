@@ -37,10 +37,12 @@ export function CornerActionText({
               onFocus(part.action, { loop: event.shiftKey });
             }}
             onKeyDown={(event) => {
-              if (event.key !== "Enter" && event.key !== " ") return;
+              // Space activates through the native Button click; handling it here
+              // would preventDefault the click and swallow the activation.
+              if (event.key !== "Enter") return;
               event.preventDefault();
               event.stopPropagation();
-              if (event.key === "Enter") onFocus(part.action, { loop: event.shiftKey });
+              onFocus(part.action, { loop: event.shiftKey });
             }}
           >
             {text.slice(part.action.span.start, part.action.span.end)}
