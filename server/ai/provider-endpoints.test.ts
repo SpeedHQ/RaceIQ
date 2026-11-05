@@ -7,15 +7,15 @@ describe("baseUrlFor — fixed endpoint per provider", () => {
     expect(baseUrlFor("deepseek")).toBe("https://api.deepseek.com");
   });
 
-  test("openai 用官方端点", () => {
+  test("openai uses its official endpoint", () => {
     expect(baseUrlFor("openai")).toBe("https://api.openai.com/v1");
   });
 
-  test("openai-compatible 没有固定端点（由用户填写）", () => {
+  test("openai-compatible has no fixed endpoint (the user provides one)", () => {
     expect(baseUrlFor("openai-compatible")).toBeUndefined();
   });
 
-  test("gemini 不走 OpenAI 兼容层", () => {
+  test("gemini does not go through the OpenAI-compatible layer", () => {
     expect(baseUrlFor("gemini")).toBeUndefined();
   });
 });
