@@ -12,16 +12,32 @@
  */
 import { Agent } from "@mastra/core/agent";
 import { compareEngineerPersona } from "@raceiq/backend-core/ai/compare-engineer";
+import type { MastraModelConfig } from "@mastra/core/llm";
+import { getMastraModelId } from "../model";
 
 const DEFAULT_EVAL_MODEL = "google/gemini-flash-latest";
 
+/** Label used in baseline filenames and eval output. */
 export function resolveEvalModelId(): string {
   const provider = process.env.EVALS_PROVIDER ?? "gemini";
   const model = process.env.EVALS_MODEL ?? "gemini-flash-latest";
   if (provider === "gemini") return `google/${model}`;
   if (provider === "openai") return `openai/${model}`;
-    if (provider === "deepseek") return `openai/${model}`;
+  if (provider === "deepseek") return `deepseek/${model}`;
   return DEFAULT_EVAL_MODEL;
+}
+
+/**
+ * Model bound to the eval agents. DeepSeek has no Mastra registry entry: it needs
+ * its own base URL and key, so it goes through the same factory the production
+ * agents use. A plain "openai/<model>" id would send a DeepSeek model to
+ * api.openai.com.
+ */
+export function resolveEvalModel(): MastraModelConfig {
+  const provider = process.env.EVALS_PROVIDER ?? "gemini";
+  const model = process.env.EVALS_MODEL ?? "gemini-flash-latest";
+  if (provider === "deepseek") return getMastraModelId({ provider: "deepseek", model });
+  return resolveEvalModelId();
 }
 
 const EVAL_LAP_ANALYST_INSTRUCTIONS = `You are a senior race engineer reviewing a single driver's lap from telemetry data. Your job is to issue a structured verdict on the lap covering pace, handling, problem corners, braking, throttle application, and coaching.
@@ -29,7 +45,7 @@ const EVAL_LAP_ANALYST_INSTRUCTIONS = `You are a senior race engineer reviewing 
 Be specific and concrete. Cite numbers where helpful. Refer to the driver as "you". Use the units provided in the prompt.`;
 
 export function buildEvalLapAnalystAgent(): Agent {
-  const modelId = resolveEvalModelId();
+  const modelId = resolveEvalModel();
   return new Agent({
     id: "eval-lap-analyst",
     name: "Eval Lap Analyst",
@@ -39,7 +55,7 @@ export function buildEvalLapAnalystAgent(): Agent {
 }
 
 export function buildEvalCompareEngineerAgent(unit: "metric" | "imperial" = "metric"): Agent {
-  const modelId = resolveEvalModelId();
+  const modelId = resolveEvalModel();
   return new Agent({
     id: "eval-compare-engineer",
     name: "Eval Compare Engineer",
