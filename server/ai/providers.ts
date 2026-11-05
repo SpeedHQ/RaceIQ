@@ -358,7 +358,10 @@ export async function runOpenAiCompatible(options: OpenAiRequestOptions): Promis
   const model = options.model || "gpt-4o-mini";
   const endpoint = (options.endpoint || "https://api.openai.com/v1").replace(/\/+$/, "");
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  const providerLabel = endpoint === "https://api.openai.com/v1" ? "openai" : isAnthropicEndpoint(endpoint) ? "anthropic" : "openai-compatible";
+  const providerLabel = endpoint === "https://api.openai.com/v1" ? "openai"
+    : isAnthropicEndpoint(endpoint) ? "anthropic"
+      : isDeepSeekEndpoint(endpoint) ? "deepseek"
+        : "openai-compatible";
   const diagnostic = { provider: providerLabel, model, operation: "chat.completions", request: { prompt: options.prompt, schema: options.schema, schemaName: options.schemaName, temperature: options.temperature, maxOutputTokens: options.maxOutputTokens } };
   logLlmEvent("llm-request", diagnostic);
   try {

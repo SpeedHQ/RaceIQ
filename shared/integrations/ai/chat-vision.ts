@@ -62,11 +62,11 @@ export function resolveChatVisionCapability(provider: string | undefined, model:
     return supportsVerifiedModel(normalized, OPENAI_VISION_MODELS) ? "supported" : "unknown";
   }
   // Every Claude model on the Anthropic API accepts image input.
+  if (provider === "anthropic") return normalized.startsWith("claude-") ? "supported" : "unknown";
+  // DeepSeek docs (2026-11): deepseek-flash accepts image input, v4-pro does not.
   if (provider === "deepseek") {
-      // DeepSeek 文档（2026-11）：deepseek-flash 支持图片输入，v4-pro 不支持。
-      return normalized.startsWith("deepseek-flash") ? "supported" : "unsupported";
-    }
-    if (provider === "anthropic") return normalized.startsWith("claude-") ? "supported" : "unknown";
+    return normalized.startsWith("deepseek-flash") ? "supported" : "unsupported";
+  }
   return "unknown";
 }
 

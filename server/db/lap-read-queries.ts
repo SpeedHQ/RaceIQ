@@ -486,7 +486,13 @@ export async function getLapById(
         ? await parseRawLapFrames(
           { rawFile: path, artifact, source: null, gameId: row.gameId as GameId, carId: row.carId, trackId: row.trackId },
           chunk.ownedFrameByteOffset!, chunk.ownedFrameCount!,
-        ).catch(() => [] as TelemetryPacket[])
+        ).catch((error) => {
+          console.warn(
+            `[DB] Lap ${id} chunk decode failed, falling back to the raw capture:`,
+            error instanceof Error ? error.message : String(error),
+          );
+          return [] as TelemetryPacket[];
+        })
         : [];
       if (telemetry.length === 0) {
         telemetry = companionComplete
