@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { segmentToDistanceRange, startCornerFocus } from "../../ui/corner-focus";
+import { dispatchCornerAction, resolveCornerActionRanges, segmentToDistanceRange, startCornerFocus } from "../../ui/corner-focus";
+import type { SpectateSegment, TurnIdentity } from "../../contracts";
 import type { SpectateController, SpectateSnapshot } from "../../contracts/spectate";
 
 function fakeController() {
@@ -76,3 +77,39 @@ describe("corner focus", () => {
     expect(startCornerFocus(fake.controller, { ranges: [{ start: 5, end: 5 }], loop: false })).toBeNull();
   });
 });
+
+describe("corner action ranges", () => {
+  const turns: TurnIdentity[] = [
+    { key: "turn:1", number: 1, name: "TGR Corner", aliases: ["turn one"] },
+    { key: "turn:10", number: 10, name: "Hairpin" },
+  ];
+  const segments: SpectateSegment[] = [
+    { name: "TGR Corner", type: "corner", startFrac: 0.1, endFrac: 0.2 },
+    { name: "Hairpin", type: "corner", startFrac: 0.6, endFrac: 0.7 },
+  ];
+  const scale = { maximum: 1000, distanceOrigin: 0 };
+
+  test("matches roster names and aliases, not substrings", () => {
+    const ranges = resolveCornerActionRanges({ action: { cornerKey: "turn:10" }, turns, segments, scale, loop: false });
+    expect(ranges).toEqual([{ start: 600, end: 700 }]);
+  });
+
+  test("matches segment.number when present", () => {
+    const numbered: SpectateSegment[] = [{ number: 1, name: "Anything", type: "corner", startFrac: 0.1, endFrac: 0.2 }];
+    expect(resolveCornerActionRanges({ action: { cornerKey: "turn:1" }, turns, segments: numbered, scale, loop: false })).toEqual([{ start: 100, end: 200 }]);
+  });
+
+  test("unknown corner or missing geometry refuses instead of seeking", () => {
+    expect(resolveCornerActionRanges({ action: { cornerKey: "turn:99" }, turns, segments, scale, loop: false })).toBeNull();
+    expect(resolveCornerActionRanges({ action: { cornerKey: "turn:1" }, turns, segments: [{ name: "Other", type: "corner", startFrac: 0, endFrac: 0.1 }], scale, loop: false })).toBeNull();
+  });
+
+  test("dispatch drives the controller only when geometry resolves", () => {
+    const fake = fakeController();
+    expect(dispatchCornerAction(fake.controller, { action: { cornerKey: "turn:99" }, turns, segments, scale, loop: false })).toBeNull();
+    const handle = dispatchCornerAction(fake.controller, { action: { cornerKey: "turn:1" }, turns, segments, scale, loop: false });
+    expect(handle?.entry).toBe(100);
+    expect(fake.calls).toEqual(["seek:100", "play"]);
+  });
+});
+
