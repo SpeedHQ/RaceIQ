@@ -13,7 +13,9 @@ import {
   generationThreadId,
 } from "./chat-agent";
 import { loadSettings } from "../runtime/config/settings";
-import { configureAiProviderEnvironment } from "./openai-compatible-provider";
+import { configureAiProviderEnvironment, requireAiProviderApiKey } from "./openai-compatible-provider";
+import { baseUrlFor } from "./provider-endpoints";
+import { runOpenAiCompatible } from "./providers";
 export const MIN_COMPACT_MESSAGES = 6;
 const COMPACT_SUMMARY_PREFIX = "🗜️ **Conversation compacted.**\n\n";
 
@@ -45,6 +47,22 @@ async function defaultSummarize(transcript: string): Promise<string> {
   // a local/OpenAI provider fails with "Could not find API key
   // process.env.OPENAI_API_KEY".
   if (s.chatProvider) await configureAiProviderEnvironment(s.chatProvider, s.localEndpoint || "http://localhost:1234/v1");
+  if (s.chatProvider === "deepseek") {
+    // The "openai/<model>" id resolves through the stock OpenAI provider, which
+    // cannot express DeepSeek's thinking/json_object rules — the summary would
+    // run with thinking on and a 900-token budget. Use the adapter path that
+    // applies those rules.
+    const apiKey = await requireAiProviderApiKey("deepseek");
+    const result = await runOpenAiCompatible({
+      prompt: `${SUMMARY_SYSTEM}\n\n${transcript}`,
+      apiKey,
+      endpoint: baseUrlFor("deepseek") ?? "https://api.deepseek.com",
+      model: s.chatModel || "deepseek-flash",
+      temperature: 0,
+      maxOutputTokens: 900,
+    });
+    return result.analysis;
+  }
   const compactor = new Agent({
     id: "compactor",
     name: "Compactor",

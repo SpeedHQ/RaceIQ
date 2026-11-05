@@ -85,6 +85,10 @@ describe("DeepSeek provider", () => {
       expect(seen[0].response_format).toEqual({ type: "json_object" });
       expect(seen[0].thinking).toEqual({ type: "disabled" });
       expect(seen[0]).not.toHaveProperty("reasoning_effort");
+      // The schema must not be dropped when the strict format is downgraded.
+      const messages = seen[0].messages as Array<{ role: string; content: string }>;
+      expect(messages[0].role).toBe("system");
+      expect(messages[0].content).toContain('"type":"object"');
     } finally {
       globalThis.fetch = originalFetch;
     }

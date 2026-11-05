@@ -51,8 +51,23 @@ const ANTHROPIC_UNSUPPORTED_BODY_KEYS = ["temperature", "top_p"];
 export function deepseekCompatibleBody(body: Record<string, unknown>): Record<string, unknown> {
   body.thinking = { type: "disabled" };
   delete body.reasoning_effort;
-  const responseFormat = body.response_format as { type?: unknown } | undefined;
-  if (responseFormat?.type === "json_schema") body.response_format = { type: "json_object" };
+  const responseFormat = body.response_format as
+    | { type?: unknown; json_schema?: { schema?: unknown } }
+    | undefined;
+  if (responseFormat?.type === "json_schema") {
+    const schema = responseFormat.json_schema?.schema;
+    body.response_format = { type: "json_object" };
+    // Downgrading alone would leave the request unconstrained, so move the
+    // schema into the prompt for callers that relied on the native field.
+    if (schema) {
+      const instruction = `Respond with a single JSON object that matches this JSON schema:\n${JSON.stringify(schema)}`;
+      const messages = Array.isArray(body.messages) ? (body.messages as Array<Record<string, unknown>>) : [];
+      const system = messages.find((message) => message.role === "system");
+      if (system && typeof system.content === "string") system.content = `${system.content}\n\n${instruction}`;
+      else messages.unshift({ role: "system", content: instruction });
+      body.messages = messages;
+    }
+  }
   return body;
 }
 
