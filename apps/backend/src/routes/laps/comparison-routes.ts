@@ -177,7 +177,7 @@ export const comparisonRoutes = new Hono()
           // Prompt injection keeps the answer on the plain-text channel, which
           // those models fill normally. Hosted providers parse native structured
           // output fine, so only the local path opts in.
-          ...(settings.aiProvider === "openai-compatible" || settings.aiProvider === "anthropic" || settings.aiProvider === "deepseek" ? { jsonPromptInjection: true } : {}),
+          ...(settings.aiProvider === "openai-compatible" || settings.aiProvider === "anthropic" ? { jsonPromptInjection: true } : {}),
         },
         // Every other AI route already caps output and disables reasoning on
         // local models (analyse, lap chat, compare chat). This one did not, so
