@@ -288,7 +288,7 @@ export const settingsRoutes = new Hono()
       "gemini": geminiModels,
       "openai": openAiModels,
       "anthropic": anthropicModels,
-      // DeepSeek 没有 /models 拉取路径，直接给官方模型清单（2026-11 文档）。
+      // DeepSeek has no /models fetch path here; use the documented model list (2026-11).
       "deepseek": deepseekModels,
       "openai-compatible": localModels,
       "_errors": { gemini: geminiError, openai: openAiError, anthropic: anthropicError, "openai-compatible": localError, deepseek: deepseekError },
