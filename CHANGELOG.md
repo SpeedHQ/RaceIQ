@@ -5,6 +5,7 @@
 
 ### Fixes
 - Complete DeepSeek lap analysis and comparisons without a rejected request: DeepSeek does not accept the strict JSON response format, so RaceIQ asks for plain JSON output and keeps the schema in the prompt.
+- Open lap analysis and lap comparisons faster after a long session: a player lap now loads from its own published capture chunk instead of streaming the whole session capture from the first byte, which cost about 30 seconds per lap on a 5 GB stint.
 
 ### Internal
 

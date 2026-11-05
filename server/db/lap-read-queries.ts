@@ -474,12 +474,28 @@ export async function getLapById(
         : resolved.publicationIdentity;
       const publishedCached = cacheGet(id, publicationIdentity);
       if (publishedCached) return buildLapResult(row, publishedCached);
-      telemetry = companionComplete
+      // Prefer the published chunk: it carries its own frame index, so a lap is
+      // read directly instead of streaming the whole raw capture from byte 0 to
+      // the lap offset (a 5 GB stint paid ~30 s per lap that way). Only switch
+      // sources when the chunk covers exactly the same frame window; otherwise
+      // keep the raw-capture path that this row was published from.
+      const chunkMatchesLap = companionComplete
+        && row.rawFrameCount != null
+        && chunk.ownedFrameCount === row.rawFrameCount;
+      telemetry = chunkMatchesLap
         ? await parseRawLapFrames(
-          { rawFile: row.rawFile!, source: row.source ?? null, gameId: "lmu", carId: row.carId, trackId: row.trackId, captureFormatVersion: row.captureFormatVersion },
-          row.rawByteOffset!, row.rawFrameCount!,
-        )
-        : await parseRawLapFrames({ rawFile: path, artifact, source: null, gameId: row.gameId as GameId, carId: row.carId, trackId: row.trackId }, chunk.ownedFrameByteOffset!, chunk.ownedFrameCount!);
+          { rawFile: path, artifact, source: null, gameId: row.gameId as GameId, carId: row.carId, trackId: row.trackId },
+          chunk.ownedFrameByteOffset!, chunk.ownedFrameCount!,
+        ).catch(() => [] as TelemetryPacket[])
+        : [];
+      if (telemetry.length === 0) {
+        telemetry = companionComplete
+          ? await parseRawLapFrames(
+            { rawFile: row.rawFile!, source: row.source ?? null, gameId: "lmu", carId: row.carId, trackId: row.trackId, captureFormatVersion: row.captureFormatVersion },
+            row.rawByteOffset!, row.rawFrameCount!,
+          )
+          : await parseRawLapFrames({ rawFile: path, artifact, source: null, gameId: row.gameId as GameId, carId: row.carId, trackId: row.trackId }, chunk.ownedFrameByteOffset!, chunk.ownedFrameCount!);
+      }
     } catch (err) { parseError = err instanceof Error ? err.message : String(err); }
   } else if (row.captureLayoutVersion == null && row.rawFile != null && row.rawByteOffset != null && row.rawFrameCount != null) {
     try {
