@@ -24,6 +24,14 @@ export function getAccTracks(): Map<number, KunosTrack> {
   return getTracks();
 }
 
+export function getAccTrackById(id: string): KunosTrack | undefined {
+  if (/^\d+$/.test(id)) return getTracks().get(Number(id));
+  for (const track of getTracks().values()) {
+    if (track.setupFolder === id || track.name === id || track.commonTrackName === id) return track;
+  }
+  return undefined;
+}
+
 export function getAccSetupFolderKeys(): string[] {
   const keys = new Set<string>();
   for (const track of getTracks().values()) {

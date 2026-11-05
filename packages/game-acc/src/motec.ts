@@ -1,5 +1,5 @@
 import { getAccCarByModel, getAccCarName } from "@raceiq/game-acc-metadata/racing/cars/acc";
-import { getAccTrackByName, getAccTrackBySetupFolder } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc";
+import { getAccTrackByName, getAccTrackBySetupFolder, getAccTracks } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc";
 import {
   convertPreparedKunosMotecPackets,
   type KunosMotecPacketProfile,
@@ -10,14 +10,16 @@ import type { MotecCarTrack, MotecCarTrackOverride, MotecConversionResult } from
 
 export function resolveAccMotecCarTrack(log: LdLog, override?: MotecCarTrackOverride): MotecCarTrack {
   const car = getAccCarByModel(log.vehicleId);
-  const track = getAccTrackBySetupFolder(log.venue) ?? getAccTrackByName(log.venue);
-  const carId = override?.carId ?? String(car?.id ?? "");
-  const trackId = override?.trackId ?? String(track?.id ?? "");
+  const track = log.venue ? getAccTrackBySetupFolder(log.venue) ?? getAccTrackByName(log.venue) : undefined;
+  const carId = override?.carId ?? log.vehicleId;
+  const trackId = override?.trackId ?? log.venue;
   return {
     carId,
     trackId,
-    carModel: override?.carName ?? (carId ? getAccCarName(Number(carId)) : log.vehicleId),
-    trackName: override?.trackName ?? track?.name ?? log.venue,
+    carModel: override?.carName ?? (override?.carId && /^\d+$/.test(override.carId) ? getAccCarName(Number(override.carId)) : override?.carId ?? car?.name ?? log.vehicleId),
+    trackName: override?.trackName ?? (override?.trackId
+      ? (/^\d+$/.test(override.trackId) ? getAccTracks().get(Number(override.trackId))?.name ?? override.trackId : override.trackId)
+      : track?.name ?? log.venue),
   };
 }
 export { MOTEC_IMPORT_LIMITATIONS };
@@ -33,9 +35,12 @@ const ACC_MOTEC_PACKET_PROFILE = {
   includeUnknownCarModel: false,
 } satisfies KunosMotecPacketProfile;
 export function convertAccMotecToPackets(log: LdLog, beacons: number[], carTrack: MotecCarTrack): MotecConversionResult {
+  const track = carTrack.trackId && !/^\d+$/.test(carTrack.trackId)
+    ? getAccTrackBySetupFolder(carTrack.trackId) ?? getAccTrackByName(carTrack.trackId)
+    : undefined;
   const prepared = prepareKunosMotecCapture(log, beacons, {
     gameId: "acc",
-    trackId: carTrack.trackId,
+    trackId: track ? String(track.id) : carTrack.trackId,
   });
   const packets = convertPreparedKunosMotecPackets(
     prepared,

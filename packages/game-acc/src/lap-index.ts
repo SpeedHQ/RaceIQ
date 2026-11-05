@@ -1,7 +1,6 @@
 import type { LapIndexPacket } from "@raceiq/shared/telemetry/lap-index";
 import { PHYSICS as ACC_PHYSICS, GRAPHICS as ACC_GRAPHICS, STATIC as ACC_STATIC, FLAG_STATUS } from "@raceiq/capture-formats/acc/structs";
 import { readWString } from "./utils";
-import { getAccParserCarByModel, getAccParserTrackByName } from "@raceiq/game-acc-metadata/parser-data-resolver";
 import { SESSION_TYPE_NAMES } from "./parser";
 
 /** Direct detector projection for packed ACC frames. No TelemetryPacket allocation. */
@@ -9,8 +8,8 @@ export function parseAccLapIndex(physics: Buffer, graphics: Buffer, stat: Buffer
   if (physics.length < ACC_PHYSICS.SIZE || graphics.length < ACC_GRAPHICS.MIN_SIZE || stat.length < ACC_STATIC.SIZE) return null;
   const cm = readWString(stat, ACC_STATIC.carModel.offset, ACC_STATIC.carModel.size);
   const tn = readWString(stat, ACC_STATIC.track.offset, ACC_STATIC.track.size);
-  carId = String(getAccParserCarByModel(cm)?.id ?? carId);
-  trackId = String(getAccParserTrackByName(tn)?.id ?? trackId);
+  carId = cm || carId;
+  trackId = tn || trackId;
   const i = (o: number) => graphics.readInt32LE(o);
   const f = (o: number) => physics.readFloatLE(o);
   const playerCarId = i(ACC_GRAPHICS.playerCarID.offset);

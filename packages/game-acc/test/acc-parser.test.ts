@@ -10,8 +10,6 @@ import { PHYSICS, GRAPHICS, STATIC } from "@raceiq/capture-formats/acc/structs";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { parseRawLapFramesFromBuffer } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"
-import { getAccTrackName } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc"
-import { getAccCarName } from "@raceiq/game-acc-metadata/racing/cars/acc"
 import { ACC_PACKED_MAGIC, packTriplet, unpackTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
 
 registerGame(accServerAdapter);
@@ -157,6 +155,30 @@ describe("ACC parser", () => {
     expect(packet!.LapNumber).toBe(4);
     expect(packet!.RacePosition).toBe(1);
     expect(packet!.Yaw).toBeCloseTo(1.5);
+  });
+
+  test("full and compact packets preserve source identities over stale numeric headers", () => {
+    const physics = makePhysicsBuf();
+    const graphics = makeGraphicsBuf();
+    for (const [car, track] of [["bmw_m4_gt3", "monza"], ["Unknown_Car", "unknown_track"]]) {
+      const stat = makeStaticBuf({ carModel: car, track });
+      const full = parseAccBuffers(physics, graphics, stat, { fallbackCarId: "0", fallbackTrackId: "0" })!;
+      const compact = parseAccLapIndex(physics, graphics, stat, "0", "0")!;
+      expect([full.carId, full.trackId]).toEqual([car, track]);
+      expect([compact.carId, compact.trackId]).toEqual([car, track]);
+    }
+    const empty = makeStaticBuf({ carModel: "", track: "" });
+    expect(parseAccBuffers(physics, graphics, empty, { fallbackCarId: "4", fallbackTrackId: "5" })).toMatchObject({ carId: "4", trackId: "5" });
+  });
+
+  test("explicit identity overrides win over source and fallback identities", () => {
+    const stat = makeStaticBuf({ carModel: "bmw_m4_gt3", track: "monza" });
+    const packet = parseAccBuffers(makePhysicsBuf(), makeGraphicsBuf(), stat, {
+      carId: "selected-car", trackId: "selected-track", fallbackCarId: "0", fallbackTrackId: "0",
+    });
+    expect(packet).toMatchObject({ carId: "selected-car", trackId: "selected-track" });
+    expect(parseAccBuffers(makePhysicsBuf(), makeGraphicsBuf(), stat, { carId: "", trackId: "" }))
+      .toMatchObject({ carId: "", trackId: "" });
   });
 
   test("full and compact parsers agree on known, unknown, and legacy validity", () => {
@@ -317,8 +339,8 @@ describe("parseRawLapFrames — coordinate normalization (standard-xyz)", () => 
     // "brands_hatch"/"mclaren_720s_gt3_evo" though, so tryParse must
     // re-derive from the static struct rather than trust the header,
     // otherwise every re-import of an old recording mislabels the session.
-    expect(getAccTrackName(Number(packet!.trackId))).toBe("Brands Hatch - GP");
-    expect(getAccCarName(Number(packet!.carId))).toBe("McLaren 720S GT3 Evo 2023");
+    expect(packet!.trackId).toBe("brands_hatch");
+    expect(packet!.carId).toBe("mclaren_720s_gt3_evo");
 
     const rawHeader = unpackTriplet(frame);
     expect(rawHeader?.trackOrdinal).toBe(0);

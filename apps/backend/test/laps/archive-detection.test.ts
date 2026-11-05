@@ -40,6 +40,23 @@ describe("detectLapsZip", () => {
     expect(result.gameIds).toEqual(["acc"]);
   });
 
+  test("accepts native and legacy ACC identities without accepting fuzzy matches", () => {
+    const file = "acc-session.motec.zip";
+    for (const [carId, trackId, valid] of [
+      ["porsche_992_gt3_r", "barcelona", true],
+      ["33", "8", true],
+      ["porsche_992_gt3", "barcelon", false],
+    ] as const) {
+      const archive = zipSync({
+        [file]: zipSync({ "source.ld": new Uint8Array([1]) }),
+        "manifest.json": new TextEncoder().encode(JSON.stringify({
+          version: 4, entries: [{ file, gameId: "acc", carId, trackId }],
+        })),
+      });
+      expect(detectLapsZip(archive).missingMotecIdentities.length).toBe(valid ? 0 : 1);
+    }
+  });
+
   test.each([
     ["valid", false, false],
     ["missing", true, false],

@@ -1,9 +1,14 @@
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { db, readDb } from "./index"
 import { withDatabaseWrite } from "./write-coordination";
 import { trackCorners, trackOutlines } from "./schema";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { Corner } from "../lap-analysis/corners"
+import { accLegacyAlternatives } from "./acc-legacy-identity";
+
+function trackKeys(trackId: string, gameId: GameId): string[] {
+  return gameId === "acc" ? accLegacyAlternatives("track", trackId) : [trackId];
+}
 
 export async function getCorners(
   trackId: string,
@@ -11,6 +16,8 @@ export async function getCorners(
   options?: { manualOnly?: boolean },
 ): Promise<Corner[]> {
   const rows = await readDb.select({
+    trackId: trackCorners.trackId,
+    isAuto: trackCorners.isAuto,
     cornerIndex: trackCorners.cornerIndex,
     label: trackCorners.label,
     distanceStart: trackCorners.distanceStart,
@@ -18,14 +25,15 @@ export async function getCorners(
   })
     .from(trackCorners)
     .where(and(
-      eq(trackCorners.trackId, trackId),
+      inArray(trackCorners.trackId, trackKeys(trackId, gameId)),
       eq(trackCorners.gameId, gameId),
-      options?.manualOnly ? eq(trackCorners.isAuto, false) : undefined,
     ))
     .orderBy(trackCorners.cornerIndex)
     .all();
 
-  return rows.map((r) => ({
+  const identity = rows.some((row) => row.trackId === trackId) ? trackId :
+    new Set(rows.map((row) => row.trackId)).size === 1 ? rows[0]?.trackId : undefined;
+  return rows.filter((row) => row.trackId === identity && (!options?.manualOnly || !row.isAuto)).map((r) => ({
     index: r.cornerIndex,
     label: r.label,
     distanceStart: r.distanceStart,
@@ -75,11 +83,11 @@ export async function getTrackOutline(
   trackId: string,
   gameId: GameId
 ): Promise<{ x: number; z: number; speed: number }[] | null> {
-  const row = await readDb.select({ outline: trackOutlines.outline })
+  const rows = await readDb.select({ trackId: trackOutlines.trackId, outline: trackOutlines.outline })
     .from(trackOutlines)
-    .where(and(eq(trackOutlines.trackId, trackId), eq(trackOutlines.gameId, gameId)))
-    .get();
-
+    .where(and(inArray(trackOutlines.trackId, trackKeys(trackId, gameId)), eq(trackOutlines.gameId, gameId)))
+    .all();
+  const row = rows.find((item) => item.trackId === trackId) ?? (rows.length === 1 ? rows[0] : undefined);
   if (!row) return null;
   const outlineBuf = row.outline as Buffer;
   const decompressed = Bun.gunzipSync(outlineBuf.buffer.slice(outlineBuf.byteOffset, outlineBuf.byteOffset + outlineBuf.byteLength) as ArrayBuffer);

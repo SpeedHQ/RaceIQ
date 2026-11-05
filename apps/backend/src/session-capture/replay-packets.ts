@@ -1,8 +1,8 @@
 import { hasAMS2DumpMagic, readAMS2DumpFramesFromBuffer } from "@raceiq/capture-formats/ams2/dump";
 import { readFileSync } from "node:fs";
 import type { GameId } from "@raceiq/shared/games/ids";
-import { getAccCarByModel, getAccCarName } from "@raceiq/game-acc-metadata/racing/cars/acc";
-import { getAccTrackByName, getAccTrackName } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc";
+import { getAccCarById, getAccCarByModel } from "@raceiq/game-acc-metadata/racing/cars/acc";
+import { getAccTrackById, getAccTrackByName } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc";
 import { parseAccBuffers } from "@raceiq/game-acc/parser";
 import { STATIC } from "@raceiq/capture-formats/acc/structs";
 import { readWString } from "@raceiq/game-acc/utils";
@@ -82,7 +82,7 @@ function readAccRawPackets(recordingPath: string): RecordedTelemetry {
       if (nextTrack) { trackName = nextTrack; trackOrdinal = getAccTrackByName(nextTrack)?.id ?? 0; }
     }
     const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, {
-      carId: carOrdinal ? String(carOrdinal) : "", trackId: trackOrdinal ? String(trackOrdinal) : "",
+      fallbackCarId: carOrdinal ? String(carOrdinal) : "", fallbackTrackId: trackOrdinal ? String(trackOrdinal) : "",
     });
     if (packet) packets.push(packet);
   }
@@ -162,8 +162,8 @@ export function readRecordedTelemetry(
     let carModel: string | null = null;
     let trackName: string | null = null;
     if (gameId === "acc" && first) {
-      carModel = first.carId ? getAccCarName(Number(first.carId)) ?? null : null;
-      trackName = first.trackId ? getAccTrackName(Number(first.trackId)) ?? null : null;
+      carModel = first.carId ? getAccCarById(first.carId)?.name ?? first.carId : null;
+      trackName = first.trackId ? getAccTrackById(first.trackId)?.name ?? first.trackId : null;
     } else if (gameId === "ac-evo") {
       const identity = packets.find((packet) => packet.acEvoIdentity)?.acEvoIdentity;
       carModel = identity?.carName ?? null;
@@ -185,8 +185,8 @@ export function readRecordedTelemetry(
     const first = packets[0];
     return {
       packets,
-      carModel: first?.iracing?.carName ?? first?.lmu?.carModel ?? first?.lmu?.carName ?? null,
-      trackName: first?.iracing?.trackName ?? first?.lmu?.trackName ?? null,
+      carModel: gameId === "acc" && first?.carId ? getAccCarById(first.carId)?.name ?? first.carId : first?.iracing?.carName ?? first?.lmu?.carModel ?? first?.lmu?.carName ?? null,
+      trackName: gameId === "acc" && first?.trackId ? getAccTrackById(first.trackId)?.name ?? first.trackId : first?.iracing?.trackName ?? first?.lmu?.trackName ?? null,
     };
   }
   if (gameId === "acc") return readAccRawPackets(recordingPath);

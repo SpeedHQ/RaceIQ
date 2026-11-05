@@ -59,7 +59,7 @@ export function parseAccBuffers(
   physicsBuf: Buffer,
   graphicsBuf: Buffer,
   staticBuf: Buffer,
-  overrides?: { carId?: string; trackId?: string; gameId?: GameId; playerSlot?: number; timestampMs?: number }
+  overrides?: { carId?: string; trackId?: string; fallbackCarId?: string; fallbackTrackId?: string; gameId?: GameId; playerSlot?: number; timestampMs?: number }
 ): TelemetryPacket | null {
   if (
     physicsBuf.length < PHYSICS.SIZE ||
@@ -517,7 +517,7 @@ export function parseAccBuffers(
     BrakeTempRearLeft: brTempRL,
     BrakeTempRearRight: brTempRR,
 
-    carId: overrides?.carId ?? "",
+    carId: overrides?.carId ?? (readWString(staticBuf, STATIC.carModel.offset, STATIC.carModel.size) || overrides?.fallbackCarId || ""),
     CarClass: 0,
     CarPerformanceIndex: 0,
     DrivetrainType: 1,  // most GT3 are RWD
@@ -529,7 +529,7 @@ export function parseAccBuffers(
     Speed: speed,
     Power: 0,
     Torque: 0,
-    trackId: overrides?.trackId ?? "",
+    trackId: overrides?.trackId ?? (readWString(staticBuf, STATIC.track.offset, STATIC.track.size) || overrides?.fallbackTrackId || ""),
 
     // Weather/track conditions
     WeatherType: rainTyres ? 3 : 0, // rough: wet tyres = rain

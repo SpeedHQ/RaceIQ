@@ -6,9 +6,35 @@ import { ACC_PACKED_MAGIC, ACEVO_PACKED_MAGIC, packTriplet, unpackTriplet } from
 import { iterateSessionFrames, sessionFrameAt } from "@raceiq/capture-formats/session/framing";
 import { SparseSessionRecorder } from "@raceiq/capture-formats/session/sparse-recorder";
 import { iterateSessionCaptureFrames } from "@raceiq/backend-core/session-capture/source-loader";
+import { readRecordedTelemetry } from "../../src/session-capture/replay-packets";
+import { registerServerGame } from "@raceiq/backend-core/games/registry";
+import { accServerAdapter } from "@raceiq/game-acc";
+import { PHYSICS, GRAPHICS, STATIC } from "@raceiq/capture-formats/acc/structs";
 
 const directories: string[] = [];
 afterEach(() => { for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true }); });
+
+test("sparse ACC replay resolves native identities without discarding source IDs", async () => {
+  registerServerGame(accServerAdapter);
+  const dir = mkdtempSync(join(tmpdir(), "raceiq-acc-native-replay-"));
+  directories.push(dir);
+  const path = join(dir, "capture.bin");
+  const recorder = new SparseSessionRecorder("acc");
+  recorder.start(path);
+  recorder.writeMetaFrame();
+  const physics = Buffer.alloc(PHYSICS.SIZE);
+  const graphics = Buffer.alloc(GRAPHICS.SIZE);
+  graphics.writeInt32LE(2, GRAPHICS.status.offset);
+  const staticData = Buffer.alloc(STATIC.SIZE);
+  staticData.write("porsche_992_gt3_r", STATIC.carModel.offset, "utf16le");
+  staticData.write("barcelona", STATIC.track.offset, "utf16le");
+  recorder.writeRecord(packTriplet(ACC_PACKED_MAGIC, 0, 0, physics, graphics, staticData));
+  await recorder.stop();
+  const replay = readRecordedTelemetry("acc", path);
+  expect(replay.packets[0]).toMatchObject({ carId: "porsche_992_gt3_r", trackId: "barcelona" });
+  expect(replay.carModel).toBe("Porsche 992 GT3 R 2023");
+  expect(replay.trackName).toBe("Barcelona");
+});
 
 for (const [gameId, magic] of [["acc", ACC_PACKED_MAGIC], ["ac-evo", ACEVO_PACKED_MAGIC]] as const) {
   describe(`${gameId} sparse session`, () => {

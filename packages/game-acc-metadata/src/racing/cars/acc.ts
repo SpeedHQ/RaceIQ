@@ -15,6 +15,10 @@ export function getAccCarByModel(model: string): KunosCar | undefined {
   return getCatalog().byModel.get(model);
 }
 
+export function getAccCarById(id: string): KunosCar | undefined {
+  return /^\d+$/.test(id) ? getCatalog().byId.get(Number(id)) : getAccCarByModel(id);
+}
+
 export function getAccCarClass(ordinal: number): string | undefined {
   return getCatalog().byId.get(ordinal)?.class;
 }

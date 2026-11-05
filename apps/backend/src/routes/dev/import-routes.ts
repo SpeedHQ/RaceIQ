@@ -105,8 +105,8 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
           }
         }
         const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, {
-          carId: carOrdinal ? String(carOrdinal) : "",
-          trackId: trackOrdinal ? String(trackOrdinal) : "",
+          fallbackCarId: carOrdinal ? String(carOrdinal) : "",
+          fallbackTrackId: trackOrdinal ? String(trackOrdinal) : "",
         });
         if (!packet) continue;
         const sourceFrame = packTriplet(

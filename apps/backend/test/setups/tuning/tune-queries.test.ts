@@ -70,6 +70,26 @@ describe("tune CRUD", () => {
     expect(filtered[0].name).toBe("A");
   });
 
+  test("ACC car filters include legacy IDs without changing stored identities or other games", async () => {
+    const data = { name: "Legacy", author: "t", carId: "33", category: "race", description: "", settings: "{}" };
+    const accId = await insertTune({ ...data, gameId: "acc" });
+    await insertTune({ ...data, gameId: "ac-evo" });
+    expect((await getTunes({ carId: "porsche_992_gt3_r" })).map((row) => row.id)).toEqual([accId]);
+    expect((await getTuneById(accId))?.carId).toBe("33");
+    expect(await getTunes({ gameId: "ac-evo", carId: "porsche_992_gt3_r" })).toEqual([]);
+  });
+
+  test("ACC best lap uses uniquely mapped legacy car and track identities", async () => {
+    const tuneId = await insertTune({ gameId: "acc", name: "Legacy", author: "t", carId: "33", trackId: "22", category: "race", description: "", settings: "{}" });
+    const [session] = await db.insert(sessions).values([{ gameId: "acc", carId: "porsche_992_gt3_r", trackId: "kyalami" }]).returning({ id: sessions.id }).all();
+    try {
+      await db.insert(laps).values({ sessionId: session.id, tuneId, lapNumber: 1, lapTime: 100, isValid: true }).run();
+      expect((await getTunes({ gameId: "acc", carId: "porsche_992_gt3_r" }))[0].bestLapTime).toBe(100);
+    } finally {
+      await db.delete(sessions).where(eq(sessions.id, session.id)).run();
+    }
+  });
+
   test("getTunes reports fastest valid lap for exact setup and matching session identity", async () => {
     const data = { gameId: "ac-evo", name: "Recorded setup", author: "t", carId: "100", category: "race", description: "", settings: "{}" };
     const tuneId = await insertTune(data);
@@ -163,6 +183,31 @@ describe("tune CRUD", () => {
 });
 
 describe("tune assignments", () => {
+  test("ACC assignments resolve only unambiguous legacy identities and preserve exact rows", async () => {
+    const tuneId = await insertTune({ gameId: "acc", name: "Legacy", author: "t", carId: "33", category: "race", description: "", settings: "{}" });
+    await setTuneAssignment("acc", "33", "22", tuneId);
+    await setTuneAssignment("acc", "33", "8", tuneId);
+    expect((await getTuneAssignment("acc", "porsche_992_gt3_r", "kyalami"))?.tuneId).toBe(tuneId);
+    expect((await getTuneAssignment("acc", "porsche_992_gt3_r", "8"))?.trackId).toBe("8");
+    expect(await getTuneAssignment("acc", "porsche_992_gt3_r", "barcelona")).toBeNull();
+    expect((await getTuneAssignments({ gameId: "acc", carId: "porsche_992_gt3_r" })).map((row) => row.trackId).sort()).toEqual(["22", "8"]);
+    expect(await getTuneAssignment("ac-evo", "porsche_992_gt3_r", "kyalami")).toBeNull();
+    expect(await deleteTuneAssignment("acc", "porsche_992_gt3_r", "kyalami")).toBe(true);
+    expect((await getTuneAssignments({ gameId: "acc" })).map((row) => row.trackId)).toEqual(["8"]);
+  });
+  test("ACC conflicting aliases are not merged or selected arbitrarily", async () => {
+    const data = { gameId: "acc", name: "Tune", author: "t", carId: "33", category: "race", description: "", settings: "{}" };
+    const first = await insertTune(data);
+    const second = await insertTune({ ...data, name: "Other" });
+    await setTuneAssignment("acc", "33", "kyalami", first);
+    await setTuneAssignment("acc", "porsche_992_gt3_r", "22", second);
+    expect(await getTuneAssignment("acc", "porsche_992_gt3_r", "kyalami")).toBeNull();
+    expect(await deleteTuneAssignment("acc", "porsche_992_gt3_r", "kyalami")).toBe(false);
+    expect(await getTuneAssignments({ gameId: "acc" })).toHaveLength(2);
+    await setTuneAssignment("acc", "porsche_992_gt3_r", "kyalami", first);
+    expect((await getTuneAssignment("acc", "porsche_992_gt3_r", "kyalami"))?.tuneId).toBe(first);
+  });
+
   test("setTuneAssignment creates assignment", async () => {
     const tuneId = await insertTune({ gameId: "fm-2023", name: "T", author: "t", carId: "100", category: "circuit", description: "", settings: TEST_SETTINGS });
     await setTuneAssignment("fm-2023", "100", "500", tuneId);
