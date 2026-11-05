@@ -7,6 +7,7 @@ export type { ReplayMessages } from "./messages";
 export {
   CORNER_ACTION_TARGETS,
   CornerActionSchema,
+  CornerActionsInputSchema,
   CornerActionsSchema,
   MAX_CORNER_ACTIONS,
   normalizeTurnToken,

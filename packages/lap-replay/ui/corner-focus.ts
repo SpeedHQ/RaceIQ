@@ -1,5 +1,6 @@
 import type { CornerAction, SpectateController, SpectateLap, SpectateSegment, TurnIdentity } from "../contracts";
-import { normalizeTurnToken, resolveCornerKey } from "../contracts";
+import { normalizeTurnToken, resolveCornerKey, resolveTurnReference } from "../contracts";
+import { cornerPromptLabel } from "@raceiq/shared/racing/tracks/segment-label";
 
 /**
  * Distance-based corner focus for the replay controller (SpeedHQ/RaceIQ#515).
@@ -104,17 +105,19 @@ export function cornerTurnsFromSegments(segments: readonly SpectateSegment[]): T
     if (numbers.length === 0) continue;
     const display = segment.name?.trim();
     const name = display && !isPlaceholderTurnName(display) ? display : undefined;
+    const promptLabel = cornerPromptLabel(name ?? "", numbers);
     const aliases = [display, ...numbers.map((number) => `turn ${number}`)]
       .filter((value): value is string => typeof value === "string" && value.length > 0);
-    const add = (key: string, number: number) => {
+    const add = (key: string, number: number, extraAliases: readonly string[] = []) => {
+      const allAliases = [...new Set([...aliases, ...extraAliases].filter((value) => value.length > 0))];
       turns.push({
         key,
         number,
         ...(name ? { name } : {}),
-        ...(aliases.length > 0 ? { aliases } : {}),
+        ...(allAliases.length > 0 ? { aliases: allAliases } : {}),
       });
     };
-    add(`t${numbers.join("-")}`, numbers[0]!);
+    add(`t${numbers.join("-")}`, numbers[0]!, [promptLabel]);
     if (numbers.length > 1) for (const number of numbers) add(`t${number}`, number);
   }
   return turns;
@@ -278,7 +281,8 @@ function segmentMatchesTurn(segment: SpectateSegment, turn: TurnIdentity): boole
 }
 
 export function resolveCornerActionRanges(request: CornerActionFocusRequest): DistanceRange[] | null {
-  const turn = resolveCornerKey(request.action.cornerKey, request.turns);
+  const turn = resolveCornerKey(request.action.cornerKey, request.turns)
+    ?? resolveTurnReference(request.action.cornerKey, request.turns);
   if (!turn) return null;
   const ranges: DistanceRange[] = [];
   for (const segment of request.segments) {

@@ -13,7 +13,7 @@ import { buildCornerData } from "./corner-data";
 import { formatTuneForPrompt } from "./format-tune";
 import { tryGetServerGame } from "../games/registry";
 import { aiLanguageInstruction } from "@raceiq/shared/integrations/ai/language";
-import { ADJUSTMENT_FORMAT_PROMPT } from "@raceiq/shared/integrations/ai/prompt-snippets";
+import { ADJUSTMENT_FORMAT_PROMPT, CHAT_CORNER_ACTIONS_PROMPT } from "@raceiq/shared/integrations/ai/prompt-snippets";
 interface CornerDef {
   index: number;
   label: string;
@@ -26,7 +26,7 @@ function chatSystemPrompt(unit: UnitSystem, temperatureUnit: TemperatureUnit, la
   const units = `${baseUnits}, °${temperatureUnit}`;
   return `You are a racing engineer. Answer the driver's questions about their lap using the telemetry data below.
 
-Be brief. Use bullet points. Cite specific numbers in ${units}. Address them as "you". Temperature unit for this session is °${temperatureUnit}. No JSON output.${ADJUSTMENT_FORMAT_PROMPT}${aiLanguageInstruction(language)}`;
+Be brief. Use bullet points. Cite specific numbers in ${units}. Address them as "you". Temperature unit for this session is °${temperatureUnit}. No JSON output.${ADJUSTMENT_FORMAT_PROMPT}${CHAT_CORNER_ACTIONS_PROMPT}${aiLanguageInstruction(language)}`;
 }
 
 export function formatLapChatIdentity(lap: { id?: number; lapNumber: number; lapTime: number }): string {

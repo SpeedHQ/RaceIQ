@@ -227,7 +227,7 @@ const cornerFocusPaths = useMemo(() => {
     cornerFocus.active!.rangesBySide[side].flatMap((range) => {
       const start = (range.start + distanceOrigin) / maximum;
       const end = (range.end + distanceOrigin) / maximum;
-      return segmentPaths(runs, start, end, maximum, projectString).map((path) => ({ side, path }));
+      return segmentPaths(runs, start, end, maximum, projectString).map((path) => ({ side, path, start, end }));
     }),
   );
 }, [cornerFocus.active, cornerFocus.running, distanceOrigin, geometry, maximum, runs]);
@@ -239,6 +239,9 @@ return (
     aria-label={m.spectate_overview()}
     data-focus-mode={focus.mode}
     data-corner-focus-active={cornerFocus.running && cornerFocus.active ? "true" : undefined}
+    data-corner-focus-label={cornerFocus.active?.action.label}
+    data-corner-focus-distance-start={cornerFocus.active?.rangesBySide.a[0]?.start ?? cornerFocus.active?.rangesBySide.b[0]?.start}
+    data-corner-focus-distance-end={cornerFocus.active?.rangesBySide.a[0]?.end ?? cornerFocus.active?.rangesBySide.b[0]?.end}
   >
     <div className="flex items-center justify-between max-sm:min-h-11 max-sm:pr-11">
       <strong>{m.spectate_overview()}</strong>
@@ -249,8 +252,8 @@ return (
         {geometry.paths.map((path, index) => (
           <polyline key={index} points={path} fill="none" stroke="var(--app-border)" strokeWidth="9" strokeLinecap="round" strokeLinejoin="round" />
         ))}
-        {cornerFocusPaths.map(({ side, path }, index) => (
-          <polyline key={"corner-" + side + "-" + index} data-corner-focus-side={side} points={path} fill="none"
+        {cornerFocusPaths.map(({ side, path, start, end }, index) => (
+          <polyline key={"corner-" + side + "-" + index} data-corner-focus-side={side} data-corner-focus-start={start} data-corner-focus-end={end} points={path} fill="none"
             stroke={side === "b" ? "var(--comparison-lap-b)" : "var(--comparison-lap-a)"}
             strokeWidth={side === "b" ? "3" : "5"} strokeLinecap="round" strokeLinejoin="round" opacity="0.75" pointerEvents="none" />
         ))}

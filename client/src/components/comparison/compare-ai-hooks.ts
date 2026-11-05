@@ -4,6 +4,7 @@ import { type ChatStreamError, readChatStream } from "@/lib/chat-stream";
 import { isAiAnalysisConfigured, launchAiFeature } from "@/lib/is-ai-configured";
 import { authenticatedFetch, client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
+import { parseLapAnalysisForDisplay } from "@/components/ai/analysis-display-data";
 import { type AnalysisSummary, type InputsAnalysis, summarize } from "./compare-ai-types";
 
 function formatAnalysisStreamError(event: ChatStreamError): string {
@@ -13,6 +14,12 @@ function formatAnalysisStreamError(event: ChatStreamError): string {
 }
 
 type AnalysisStatus = { status?: "none" | "active" | "finished" | "failed"; error?: string };
+
+function displayAnalysis(raw: unknown): unknown {
+  if (typeof raw === "string") return parseLapAnalysisForDisplay(raw) ?? JSON.parse(raw);
+  if (raw && typeof raw === "object") return parseLapAnalysisForDisplay(JSON.stringify(raw)) ?? raw;
+  return raw;
+}
 
 export function useLapAnalysis(lapId: number, panelOpen: boolean) {
   const [summary, setSummary] = useState<AnalysisSummary | null>(null);
@@ -26,8 +33,7 @@ export function useLapAnalysis(lapId: number, panelOpen: boolean) {
       if (!res.ok) return;
       const data = (await res.json()) as { analysis: string | object | null; cached: boolean };
       if (!data.cached || !data.analysis) return;
-      const parsed = typeof data.analysis === "string" ? JSON.parse(data.analysis) : data.analysis;
-      setSummary(summarize(parsed));
+      setSummary(summarize(displayAnalysis(data.analysis) as Parameters<typeof summarize>[0]));
     } catch {
       /* cache probing is best-effort */
     }
@@ -52,16 +58,14 @@ export function useLapAnalysis(lapId: number, panelOpen: boolean) {
             if (event.type !== "result") return;
             const result = event as { analysis?: string | object | null };
             if (!result.analysis) throw new Error(m.compare_analyse_failed());
-            const parsed = typeof result.analysis === "string" ? JSON.parse(result.analysis) : result.analysis;
-            setSummary(summarize(parsed));
+            setSummary(summarize(displayAnalysis(result.analysis) as Parameters<typeof summarize>[0]));
             resolved = true;
           });
           if (!resolved) throw new Error(m.compare_analyse_failed());
         } else {
           const data = (await res.json()) as { analysis: string | object | null; error?: string };
           if (data.error || !data.analysis) throw new Error(data.error || m.compare_analyse_failed());
-          const parsed = typeof data.analysis === "string" ? JSON.parse(data.analysis) : data.analysis;
-          setSummary(summarize(parsed));
+          setSummary(summarize(displayAnalysis(data.analysis) as Parameters<typeof summarize>[0]));
         }
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : m.compare_analyse_failed());

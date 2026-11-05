@@ -86,6 +86,10 @@ describe("analyst prompt carries the curated track data", () => {
     expect(prompt).toContain("--- Track Segments");
     expect(prompt).toContain("Eau Rouge/Raidillon (2-4)");
   });
+  test("carries inline corner action instructions and schema", () => {
+    expect(prompt).toContain("INLINE CORNER ACTIONS");
+    expect(prompt).toContain('"actions"');
+  });
   test("omits the Forza export for F1 prompts", () => {
     expect(prompt).not.toContain("=== Forza Motorsport Lap Export ===");
   });

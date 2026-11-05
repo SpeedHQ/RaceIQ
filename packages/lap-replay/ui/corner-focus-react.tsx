@@ -28,12 +28,14 @@ export type CornerFocusController = {
   active: CornerFocusActive | null;
   /** True only while the focused range is being followed. */
   running: boolean;
+  /** False for the inert controller used outside a replay surface. */
+  enabled: boolean;
 };
 
 const CornerFocusContext = createContext<CornerFocusController | null>(null);
 const noopFocus = () => false;
 const noopClear = () => undefined;
-const NOOP_CONTROLLER: CornerFocusController = { focus: noopFocus, clear: noopClear, active: null, running: false };
+const NOOP_CONTROLLER: CornerFocusController = { focus: noopFocus, clear: noopClear, active: null, running: false, enabled: false };
 
 /** Safe outside a replay surface: inline references stay inert, never throw. */
 export function useCornerFocusController(): CornerFocusController {
@@ -120,5 +122,5 @@ export function useCornerFocus(
     setRunning(false);
   }, [stop]);
 
-  return { focus, clear, active, running };
+  return { focus, clear, active, running, enabled: true };
 }

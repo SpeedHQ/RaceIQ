@@ -1,3 +1,5 @@
+import type { CornerAction } from "@raceiq/lap-replay/contracts";
+
 export interface AnalysisHighlight {
   startFrac: number;
   endFrac: number;
@@ -63,6 +65,10 @@ export interface AnalysisData {
   throttle: CornerThrottleItem[];
   coaching: CoachingItem[];
   setup: SetupItem[];
+  /** Runtime-validated inline corner references; invalid entries are absent. */
+  actions?: CornerAction[];
+  /** Server-attached provenance; used to refuse stale analysis focus. */
+  lapId?: number | null;
 }
 
 export interface Segment {
@@ -70,6 +76,8 @@ export interface Segment {
   name: string;
   startFrac: number;
   endFrac: number;
+  number?: number;
+  covers?: number[];
 }
 
 export interface AnalysisUsage {

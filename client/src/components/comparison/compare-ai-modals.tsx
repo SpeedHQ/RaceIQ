@@ -1,5 +1,8 @@
 import { Sparkles, X } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { parseCornerActions } from "@raceiq/lap-replay/contracts";
+import { useCornerFocusController } from "@raceiq/lap-replay/ui";
+import { CornerActionText } from "@/components/ai/CornerActionText";
 import { AnalysisDisplay } from "@/components/ai/analysis-display";
 import { SetupList } from "@/components/ai/analysis-primitives";
 import { AnalysisModalShell } from "@/components/ai/analysis-summary";
@@ -25,6 +28,12 @@ export function InputsModal({
   trackSegments?: { name: string; startFrac: number; endFrac: number }[];
   onJumpToFrac?: (frac: number) => void;
 }) {
+  const actions = useMemo(() => parseCornerActions(analysis.actions), [analysis.actions]);
+  const cornerFocus = useCornerFocusController();
+  const inline = (text: string, path: string) => {
+    const matching = actions.filter((action) => action.path === path);
+    return matching.length > 0 ? <CornerActionText text={text} actions={matching} /> : text;
+  };
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent size="wide" showCloseButton={false} overlayClassName="bg-app-bg/60" layout="scrollable" className="flex flex-col overflow-hidden">
@@ -38,11 +47,11 @@ export function InputsModal({
           </Button>
         </DialogHeader>
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-          {analysis.verdict && <p className="text-app-label text-app-text leading-relaxed">{analysis.verdict}</p>}
+          {analysis.verdict && <p className="text-app-label text-app-text leading-relaxed">{inline(analysis.verdict, "verdict")}</p>}
 
           {analysis.segments?.length > 0 && (
             <div className="space-y-2">
-              {analysis.segments.map((seg) => {
+              {analysis.segments.map((seg, index) => {
                 // Resolve the AI-named segment to a track position so clicking
                 // the card moves the chart/track cursor to that segment.
                 const match = trackSegments?.find((s) => {
@@ -50,12 +59,33 @@ export function InputsModal({
                   const gn = seg.name.toLowerCase();
                   return sn === gn || sn.includes(gn) || gn.includes(sn);
                 });
-                const clickable = !!(match && onJumpToFrac);
+                const clickable = !!(match && (cornerFocus.enabled || onJumpToFrac));
+                const activate = () => {
+                  if (!match) return;
+                  if (cornerFocus.enabled) {
+                    cornerFocus.focus({
+                      id: `inputs:${match.name}`,
+                      cornerKey: match.name,
+                      label: match.name,
+                      target: "linked",
+                      span: { start: 0, end: 1 },
+                    }, { loop: false });
+                    return;
+                  }
+                  onJumpToFrac?.((match.startFrac + match.endFrac) / 2);
+                };
                 return (
-                  // oxlint-disable-next-line a11y/noStaticElementInteractions: optional jump-to-segment affordance, non-essential
                   <div
                     key={`${seg.name}-${seg.type ?? ""}-${seg.deltaSeconds ?? ""}`}
-                    onClick={() => match && onJumpToFrac?.((match.startFrac + match.endFrac) / 2)}
+                    role={clickable ? "button" : undefined}
+                    tabIndex={clickable ? 0 : undefined}
+                    data-corner-card={clickable ? match?.name : undefined}
+                    onClick={clickable ? activate : undefined}
+                    onKeyDown={clickable ? (event) => {
+                      if (event.key !== "Enter" && event.key !== " ") return;
+                      event.preventDefault();
+                      activate();
+                    } : undefined}
                     className={`rounded-lg border border-app-border-input/40 px-2.5 py-2 ${clickable ? "cursor-pointer hover:border-app-accent/40 hover:bg-app-surface-hover/60 transition-colors" : ""}`}
                   >
                     <div className="flex items-center gap-2 mb-1.5">
@@ -73,19 +103,19 @@ export function InputsModal({
                     </div>
                     <div className="grid grid-cols-1 gap-1 text-app-compact text-app-text-secondary">
                       <div>
-                        <span className="text-(--ch-throttle)/70 font-medium">{m.compare_throttle()}</span> {seg.throttle}
+                        <span className="text-(--ch-throttle)/70 font-medium">{m.compare_throttle()}</span> {inline(seg.throttle, `segments[${index}].throttle`)}
                       </div>
                       <div>
-                        <span className="text-(--ch-brake)/70 font-medium">{m.compare_brake()}</span> {seg.brake}
+                        <span className="text-(--ch-brake)/70 font-medium">{m.compare_brake()}</span> {inline(seg.brake, `segments[${index}].brake`)}
                       </div>
                       <div>
-                        <span className="text-(--ch-steer)/70 font-medium">{m.compare_steering()}</span> {seg.steering}
+                        <span className="text-(--ch-steer)/70 font-medium">{m.compare_steering()}</span> {inline(seg.steering, `segments[${index}].steering`)}
                       </div>
                     </div>
                     {seg.action && (
                       <div className="mt-1.5 flex items-start gap-1.5 rounded bg-ai-accent/10 border border-ai-accent/30 px-2 py-1.5">
                         <Sparkles className="size-3 text-ai-accent shrink-0 mt-0.5" />
-                        <span className="text-app-compact text-ai-accent leading-snug">{seg.action}</span>
+                        <span className="text-app-compact text-ai-accent leading-snug">{inline(seg.action, `segments[${index}].action`)}</span>
                       </div>
                     )}
                   </div>
@@ -98,7 +128,7 @@ export function InputsModal({
             <div>
               <div className="text-app-caption font-semibold text-app-text uppercase tracking-wider mb-1">{m.label_coaching()}</div>
               <div className="space-y-1.5">
-                {analysis.coaching.map((c) => (
+                {analysis.coaching.map((c, index) => (
                   <div key={`${c.targetLap}-${c.tip}`} className="rounded border border-app-border-input/40 px-2 py-1.5">
                     <div className="flex items-baseline gap-2">
                       <span
@@ -112,7 +142,7 @@ export function InputsModal({
                       </span>
                       <span className="text-app-compact font-medium text-app-text">{c.tip}</span>
                     </div>
-                    {c.detail && <p className="text-app-caption text-app-text-muted mt-0.5 ml-1">{c.detail}</p>}
+                    {c.detail && <p className="text-app-caption text-app-text-muted mt-0.5 ml-1">{inline(c.detail, `coaching[${index}].detail`)}</p>}
                   </div>
                 ))}
               </div>
@@ -123,7 +153,7 @@ export function InputsModal({
     </Dialog>
   );
 }
-export function AnalysisModal({ label, summary, onClose }: { label: string; summary: AnalysisSummary; onClose: () => void }) {
+export function AnalysisModal({ label, summary, trackSegments, focusTarget, lapId, onClose }: { label: string; summary: AnalysisSummary; trackSegments?: { name: string; startFrac: number; endFrac: number }[]; focusTarget?: "A" | "B"; lapId?: number | null; onClose: () => void }) {
   const a = (summary.raw ?? {}) as AnalysisData;
   const [tab, setTab] = useState("analysis");
   const setup = a.setup ?? [];
@@ -135,7 +165,7 @@ export function AnalysisModal({ label, summary, onClose }: { label: string; summ
       activeTab={tab}
       onTabChange={setTab}
     >
-      {tab === "setup" ? <SetupList setup={setup} lookupSegs={null} /> : <AnalysisDisplay analysis={a} />}
+      {tab === "setup" ? <SetupList setup={setup} lookupSegs={null} /> : <AnalysisDisplay analysis={a} segments={trackSegments?.map((segment) => ({ ...segment, type: "corner" }))} focusTarget={focusTarget} lapId={lapId} />}
     </AnalysisModalShell>
   );
 }

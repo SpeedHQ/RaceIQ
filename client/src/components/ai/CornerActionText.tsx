@@ -31,6 +31,8 @@ export function CornerActionText({
             type="button"
             variant="link"
             disabled={disabled}
+            data-corner-action={part.action.id}
+            data-corner-path={part.action.path}
             className="inline h-auto min-h-0 p-0 align-baseline text-app-accent underline underline-offset-2 focus-visible:ring-2 focus-visible:ring-app-accent"
             aria-label={part.action.label}
             title={part.action.label}
@@ -48,7 +50,7 @@ export function CornerActionText({
               focus(part.action, { loop: event.shiftKey });
             }}
           >
-            {text.slice(part.action.span.start, part.action.span.end)}
+            {part.action.label}
           </Button>
         ),
       )}

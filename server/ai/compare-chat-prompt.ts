@@ -8,7 +8,7 @@ import type { ComparisonResult } from "../lap-analysis/comparison";
 import type { UnitSystem, TemperatureUnit } from "../lap-analysis/report";
 import { getPromptCarName, getPromptTrackName, compareEngineerPersona, compareLapHeader } from "./compare-engineer";
 import { buildSegmentTimingTable, type PromptSegment } from "./inputs-compare-prompt";
-import { TRACK_GUIDE_PROMPT } from "@raceiq/shared/integrations/ai/prompt-snippets";
+import { CHAT_CORNER_ACTIONS_PROMPT, TRACK_GUIDE_PROMPT } from "@raceiq/shared/integrations/ai/prompt-snippets";
 
 interface LapInfo {
   id: number;
@@ -147,7 +147,7 @@ For the first assistant turn in this comparison thread:
 
 The required call order is: get_lap_analysis(${lapA.id}), get_lap_analysis(${lapB.id}), get_compare_analysis(${lapA.id}, ${lapB.id}). Do not substitute the comparison summary below for get_compare_analysis. Never claim a tool was called unless its tool result exists. If the first user message is only a greeting, still run this protocol.
 
-This task: free-form chat. The driver will ask you questions about how the two laps compare. Be brief and use bullet points where helpful. NO JSON output — write conversational answers.
+This task: free-form chat. The driver will ask you questions about how the two laps compare. Be brief and use bullet points where helpful. NO JSON output — write conversational answers.${CHAT_CORNER_ACTIONS_PROMPT}
 
 ${compareLapHeader(trackName, carA, carB, lapA, lapB, finalDelta)}
 

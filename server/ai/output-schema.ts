@@ -1,4 +1,5 @@
 import type { GameId } from "@raceiq/shared/games/ids";
+import { CornerActionsInputSchema } from "@raceiq/shared/integrations/ai/corner-action";
 import { z } from "zod";
 
 export interface AnalystSetupProvenance {
@@ -55,6 +56,8 @@ export const AnalystOutputSchema = z.object({
   corners: z.array(CornerIssue),
   technique: z.array(TechniqueTip),
   setup: z.array(AnalystSetupItemSchema),
+  /** Validated inline corner references; malformed entries are dropped. */
+  actions: CornerActionsInputSchema,
   setupProvenance: AnalystSetupProvenanceSchema.optional(),
 });
 

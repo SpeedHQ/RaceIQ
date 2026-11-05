@@ -1,6 +1,6 @@
 import { useCompareLineSpread } from "./host"
 import { SpectateLineScore } from "./SpectateLineScore";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useMessages } from "./host"
 import { CompareAiPanel } from "./host"
 import { useReplayHost } from "./host"
@@ -63,6 +63,17 @@ const [aiHeaderControls, setAiHeaderControls] = useState<HTMLDivElement | null>(
 const [dataOpen, setDataOpen] = useLocalStorage(single ? "replay-data-open" : "spectate-data-open", single);
 const [insightsOpen, setInsightsOpen] = useLocalStorage(single ? "replay-insights-open" : "spectate-insights-open", false);
 const [segmentsOpen, setSegmentsOpen] = useLocalStorage("replay-segments-open", false);
+useEffect(() => {
+  if (!cornerFocus.active) return;
+  const handleEscape = (event: KeyboardEvent) => {
+    if (event.key !== "Escape" || event.defaultPrevented) return;
+    const target = event.target;
+    if (target instanceof Element && target.closest('[role="dialog"], [role="alertdialog"]')) return;
+    cornerFocus.clear();
+  };
+  window.addEventListener("keydown", handleEscape, true);
+  return () => window.removeEventListener("keydown", handleEscape, true);
+}, [cornerFocus.active, cornerFocus.clear]);
 return (
   <CornerFocusProvider value={cornerFocus}>
   <SpectateWorkspace storageKey={single ? "replay-panel-width" : "spectate-panel-width"} panelHeaderTarget={panelHeaderTarget} panels={[

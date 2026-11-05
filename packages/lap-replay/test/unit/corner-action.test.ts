@@ -44,6 +44,18 @@ describe("corner actions", () => {
     expect(parseCornerActions({})).toHaveLength(0);
   });
 
+  test("accepts an optional text path and keeps it through validation", () => {
+    const parsed = parseCornerActions([action({ path: "verdict" })]);
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0]?.path).toBe("verdict");
+  });
+
+  test("drops malformed actions without rejecting the whole response", () => {
+    const parsed = parseCornerActions([action({ path: "verdict" }), action({ path: 42 }), action({ span: { start: -1, end: 2 } })]);
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0]?.path).toBe("verdict");
+  });
+
   test("caps the number of actions", () => {
     const many = Array.from({ length: MAX_CORNER_ACTIONS + 5 }, (_, index) =>
       action({ id: `a${index}`, span: { start: 0, end: 2 } }),

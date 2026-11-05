@@ -15,6 +15,7 @@
     "client": "workspace:*",
     "@raceiq/shared": "workspace:*",
     "@raceiq/sessions-page": "workspace:*",
+    "@raceiq/lap-replay": "workspace:*",
     "@raceiq/session-analyse": "workspace:*",
     "@raceiq/frontend-pure": "workspace:*",
     "@raceiq/capture-formats": "workspace:*",

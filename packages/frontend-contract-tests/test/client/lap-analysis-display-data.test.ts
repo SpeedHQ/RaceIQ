@@ -8,6 +8,10 @@ const analystJson = JSON.stringify({
   corners: [{ name: "Turn 5", issue: "Late rotation", fix: "Release brake earlier.", severity: "moderate" }],
   technique: [{ tip: "Earlier rotation", detail: "Carry more speed to apex." }],
   setup: [],
+  actions: [
+    { id: "a1", cornerKey: "Turn 5", label: "Turn 5", target: "solo", path: "corners[0].issue", span: { start: 0, end: 6 } },
+    { id: "bad", cornerKey: "Turn 5", label: "Turn 5", target: "solo", path: 7, span: { start: 0, end: 6 } },
+  ],
 });
 
 describe("lap analysis display parser", () => {
@@ -20,6 +24,12 @@ describe("lap analysis display parser", () => {
       braking: [],
       throttle: [],
     });
+  });
+
+  test("keeps validated actions and drops malformed entries", () => {
+    const result = parseLapAnalysisForDisplay(analystJson);
+    expect(result?.actions).toHaveLength(1);
+    expect(result?.actions?.[0]?.path).toBe("corners[0].issue");
   });
 
   test("rejects invalid JSON", () => {

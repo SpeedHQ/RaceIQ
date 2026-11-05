@@ -1,4 +1,5 @@
 import type { UIMessage } from "ai";
+import type { CornerAction } from "@raceiq/lap-replay/contracts";
 import type { AnalysisData } from "@/components/ai/analysis-types";
 
 export type ParsedAnalysis = Partial<AnalysisData>;
@@ -33,6 +34,7 @@ export interface InputsAnalysis {
   verdict: string;
   segments: InputsSegment[];
   coaching: { tip: string; detail: string; targetLap: "A" | "B" }[];
+  actions?: CornerAction[];
 }
 
 export interface CompareAiPanelHandle {

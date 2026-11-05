@@ -150,6 +150,9 @@ export function renderAnalystSchemaForPrompt(): string {
   ],
   "setup": [
     { "component": "setup component", "symptom": "measured symptom", "fix": "specific actionable fix", "current": "current value", "target": "target value", "direction": "increase|decrease|adjust" }
+  ],
+  "actions": [
+    { "id": "a1", "cornerKey": "T1", "label": "T1", "target": "solo", "path": "verdict", "span": { "start": 24, "end": 26 } }
   ]
 }`;
 }

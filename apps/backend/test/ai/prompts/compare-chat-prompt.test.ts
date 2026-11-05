@@ -34,6 +34,7 @@ describe("compare chat initialization prompt", () => {
       ),
     );
     expect(prompt).toContain("Never claim a tool was called unless its tool result exists");
+    expect(prompt).toContain("corner_actions");
   });
 
   test("includes database lap IDs in dynamic context", () => {

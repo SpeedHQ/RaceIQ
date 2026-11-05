@@ -42,6 +42,8 @@ describe("inputs compare prompt", () => {
 
     expect(prompt).toContain("Brake before Turn 1.");
     expect(prompt).toContain("[Turn 1]");
+    expect(prompt).toContain('"actions"');
+    expect(prompt).toContain("INLINE CORNER ACTIONS");
   });
 
   test("marks ACC tire health unavailable for legacy zero-filled laps", () => {

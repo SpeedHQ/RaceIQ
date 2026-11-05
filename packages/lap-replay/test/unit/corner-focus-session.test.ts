@@ -91,6 +91,13 @@ describe("session corner focus resolution", () => {
     });
   });
 
+  test("resolves the prompt label used in prose", () => {
+    const turns = cornerTurnsFromSegments(segments);
+    expect(resolveSessionCornerFocus({ cornerKey: "Hairpin (10)", target: "solo" }, turns, segments, scales())).toEqual({
+      ranges: [{ start: 600, end: 700 }], rangesBySide: { a: [{ start: 600, end: 700 }], b: [] }, primary: "a", primaryExit: 700,
+    });
+  });
+
   test("B resolves against the B lap and pauses on B", () => {
     const turns = cornerTurnsFromSegments(segments);
     expect(resolveSessionCornerFocus({ cornerKey: "t10", target: "B" }, turns, segments, scales())).toEqual({
