@@ -6,7 +6,7 @@
 
 - `fresh-install/`: onboarding and first-run behavior.
 - `marketing/`: public marketing routes and visual checks.
-- `responsive/`: screenshot comparison cases run through dedicated config, not E2E projects.
+- `responsive/`: responsive functional workspaces and screenshot captures (including LMU setup/guide states and mobile live dashboard); screenshot comparisons run through dedicated config. Removed obsolete device-emulation test.
 - `tunes/`: compiled/dev tune workflows that use dedicated tune data.
 - `recording/`: hardware-oriented demo capture.
 - `seeded/<domain>/`: functional workflows against committed seeded rows, grouped by product surface (`analyse`, `catalog`, `chats`, `compare`, `dash`, `dev-tools`, `driver`, `experiments`, `landing`, `live`, `raw`, `routes`, `sessions`, `settings`, and `setups`).

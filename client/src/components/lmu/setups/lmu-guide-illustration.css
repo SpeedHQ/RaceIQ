@@ -1,0 +1,222 @@
+/* Illustrated mechanisms, not calibrated physics or setup values. */
+.lmu-guide-illustration {
+  --guide-cycle: 5.6s;
+  --guide-load: 0.9;
+  overflow: hidden;
+  isolation: isolate;
+}
+.guide-comparison-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.guide-comparison-panel { min-width: 0; }
+.guide-comparison-panel[data-setting="high"] { --guide-load: 0.98; }
+.guide-setting-title { margin: 0; padding-bottom: 8px; border-bottom: 1px solid var(--color-app-border); color: var(--color-app-accent); font-size: var(--text-app-heading); font-weight: var(--font-weight-semibold); }
+.guide-stage {
+  padding: 12px 12px 4px;
+  background: transparent;
+}
+.guide-svg { display: block; width: 100%; max-width: 820px; margin: auto; overflow: visible; }
+.guide-background { fill: var(--color-app-surface-alt); }
+.guide-accent, .guide-energy-cell, .guide-caliper { fill: var(--guide-accent-paint); }
+.guide-warm, .guide-fuel { fill: var(--guide-warm-paint); }
+.guide-muted { fill: var(--color-app-text-muted); }
+.guide-metal, .guide-piston { fill: var(--guide-metal-paint); }
+.guide-housing, .guide-spring-seat, .guide-damper-shell { fill: var(--guide-housing-paint); }
+.guide-housing-side, .guide-caliper-side { fill: var(--guide-illustration-housing-side); }
+.guide-object-shadow { fill: var(--guide-illustration-shadow); opacity: 0.18; }
+.guide-floor-shadow { fill: var(--color-app-accent); opacity: 0.05; }
+.guide-rubber { fill: var(--guide-rubber-paint); }
+.guide-rubber-side { fill: var(--guide-illustration-rubber-side); }
+.guide-tyre-edge { fill: none; stroke: var(--guide-illustration-tyre-edge); stroke-width: 2; opacity: 0.6; stroke-linecap: round; }
+.guide-tread { fill: none; stroke: var(--guide-illustration-tread); stroke-width: 3; stroke-linecap: round; }
+.guide-tyre-band { fill: var(--color-app-accent); opacity: 0.55; }
+.guide-contact { fill: var(--color-app-accent); }
+.guide-contact-glow { fill: var(--color-app-accent); opacity: 0.18; }
+.guide-ground-face { fill: color-mix(in srgb, var(--color-app-text-muted) 12%, var(--color-app-surface-alt)); }
+.guide-ground, .guide-track { fill: var(--color-app-text-muted); opacity: 0.3; }
+.guide-label { fill: var(--color-app-text-muted); font-size: var(--text-app-body); font-weight: var(--font-weight-semibold); }
+.guide-force-tail { fill: var(--guide-accent-paint); }
+.guide-force-echo { fill: none; stroke: var(--color-app-accent); stroke-width: 3; stroke-linecap: round; opacity: 0.25; }
+.guide-coil, .guide-coil-back, .guide-coil-light { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.guide-coil { stroke: var(--guide-accent-paint); stroke-width: 10; }
+.guide-coil-back { stroke: var(--guide-illustration-coil-back); stroke-width: 10; }
+.guide-coil-light { stroke: var(--guide-illustration-coil-light); stroke-width: 2; opacity: 0.6; }
+.guide-disc-edge { fill: var(--guide-illustration-disc-edge); }
+.guide-disc-face { fill: var(--guide-disc-paint); }
+.guide-disc-heat { fill: var(--guide-illustration-disc-heat); }
+.guide-disc-track { fill: none; stroke: var(--guide-illustration-disc-track); stroke-width: 1; opacity: 0.28; }
+.guide-disc-slot { fill: var(--guide-illustration-disc-slot); }
+.guide-hub { fill: var(--guide-housing-paint); }
+.guide-caliper-detail { fill: none; stroke: var(--guide-illustration-caliper-detail); stroke-width: 2; opacity: 0.45; stroke-linecap: round; }
+.guide-gauge-shell { fill: var(--guide-metal-paint); }
+.guide-gauge-well, .guide-battery-well { fill: var(--guide-illustration-gauge-well); }
+.guide-gauge-arc { fill: none; stroke: var(--color-app-accent); stroke-width: 4; opacity: 0.7; stroke-linecap: round; }
+.guide-gauge-needle { fill: var(--guide-illustration-gauge-needle); }
+.guide-gauge-text { fill: var(--guide-illustration-gauge-text); font-size: var(--text-xl); font-weight: var(--font-weight-bold); letter-spacing: 2px; }
+.guide-gradient-rubber stop:nth-child(1) { stop-color: var(--guide-illustration-rubber-1); }
+.guide-gradient-rubber stop:nth-child(2) { stop-color: var(--guide-illustration-rubber-2); }
+.guide-gradient-rubber stop:nth-child(3) { stop-color: var(--guide-illustration-rubber-3); }
+.guide-gradient-rubber stop:nth-child(4) { stop-color: var(--guide-illustration-rubber-4); }
+.guide-gradient-metal stop:nth-child(1) { stop-color: var(--guide-illustration-metal-1); }
+.guide-gradient-metal stop:nth-child(2) { stop-color: var(--guide-illustration-metal-2); }
+.guide-gradient-metal stop:nth-child(3) { stop-color: var(--guide-illustration-metal-3); }
+.guide-gradient-metal stop:nth-child(4) { stop-color: var(--guide-illustration-metal-4); }
+.guide-gradient-metal stop:nth-child(5) { stop-color: var(--guide-illustration-metal-5); }
+.guide-gradient-housing stop:nth-child(1) { stop-color: var(--guide-illustration-housing-1); }
+.guide-gradient-housing stop:nth-child(2) { stop-color: var(--guide-illustration-housing-2); }
+.guide-gradient-housing stop:nth-child(3) { stop-color: var(--guide-illustration-housing-3); }
+.guide-gradient-accent-start { stop-color: var(--color-app-accent); }
+.guide-gradient-accent-end { stop-color: var(--guide-illustration-accent-end); }
+.guide-gradient-warm stop:nth-child(1) { stop-color: var(--guide-illustration-warm-1); }
+.guide-gradient-warm stop:nth-child(2) { stop-color: var(--guide-illustration-warm-2); }
+.guide-gradient-warm stop:nth-child(3) { stop-color: var(--guide-illustration-warm-3); }
+.guide-gradient-disc stop:nth-child(1) { stop-color: var(--guide-illustration-disc-1); }
+.guide-gradient-disc stop:nth-child(2) { stop-color: var(--guide-illustration-disc-2); }
+.guide-gradient-disc stop:nth-child(3) { stop-color: var(--guide-illustration-disc-3); }
+.guide-gradient-disc stop:nth-child(4) { stop-color: var(--guide-illustration-disc-4); }
+.guide-gradient-carbon stop:nth-child(1) { stop-color: var(--guide-illustration-carbon-1); }
+.guide-gradient-carbon stop:nth-child(2) { stop-color: var(--guide-illustration-carbon-2); }
+.guide-gradient-carbon stop:nth-child(3) { stop-color: var(--guide-illustration-carbon-3); }
+.guide-gradient-carbon stop:nth-child(4) { stop-color: var(--guide-illustration-carbon-4); }
+.guide-energy-arc { fill: none; stroke: var(--guide-accent-paint); stroke-width: 8; stroke-linecap: round; stroke-dasharray: 230; }
+.guide-battery-symbol { fill: var(--guide-illustration-battery-symbol); opacity: 0.9; }
+.guide-fuel-symbol { fill: var(--guide-illustration-fuel-symbol); opacity: 0.7; }
+.guide-aero-mount { fill: var(--guide-metal-paint); }
+.guide-aero-surface-highlight { fill: none; stroke: var(--guide-illustration-aero-highlight); stroke-width: 2; opacity: 0.35; }
+.guide-aero-pressure { fill: var(--color-app-accent); }
+.guide-aero-streamline { fill: none; stroke: var(--color-app-accent); stroke-width: 1; opacity: 0.15; }
+.guide-aero-carbon, .guide-aero-blade { fill: var(--guide-carbon-paint); }
+.guide-aero-blade { stroke: var(--guide-illustration-aero-blade); stroke-width: 0.7; }
+.guide-aero-blade-edge { fill: none; stroke: var(--color-app-accent); stroke-width: 2; }
+.guide-aero-splitter-stay { fill: none; stroke: var(--guide-illustration-aero-stay); stroke-width: 1.5; }
+.guide-steering-axis { fill: none; stroke: var(--guide-metal-paint); stroke-width: 8; stroke-linecap: round; }
+.guide-measurement { fill: none; stroke: var(--color-app-accent); stroke-width: 2; }
+.guide-airflow, .guide-thermal-transfer { fill: none; stroke: var(--color-app-accent); stroke-width: 3; stroke-linecap: round; stroke-dasharray: 16 32; opacity: 0.65; }
+.guide-thermal-transfer { stroke: var(--guide-illustration-thermal-transfer); }
+.guide-duct { fill: var(--guide-housing-paint); }
+.guide-damper-window { fill: var(--guide-illustration-damper-window); }
+.guide-fluid { fill: var(--color-app-accent); opacity: 0.35; }
+.guide-fluid-flow { fill: none; stroke: var(--guide-illustration-fluid-flow); stroke-width: 2; stroke-linecap: round; opacity: 0.6; }
+.guide-alignment { fill: none; stroke: var(--color-app-text-muted); stroke-width: 1.5; stroke-dasharray: 4 6; opacity: 0.4; }
+.guide-snow { fill: none; stroke: var(--guide-illustration-snow); stroke-width: 4; stroke-linecap: round; }
+.guide-controller-signal { fill: none; stroke: var(--color-app-accent); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.guide-skid { fill: none; stroke: var(--guide-illustration-skid); stroke-width: 6; stroke-dasharray: 5 8; opacity: 0.6; stroke-linecap: round; }
+.guide-road-edge { fill: none; stroke: color-mix(in srgb, var(--color-app-text-muted) 20%, var(--color-app-surface-alt)); stroke-width: 64; stroke-linecap: round; }
+.guide-road { fill: none; stroke: color-mix(in srgb, var(--color-app-text-muted) 9%, var(--color-app-surface-alt)); stroke-width: 58; stroke-linecap: round; }
+.guide-ideal { fill: none; stroke: var(--color-app-text-muted); stroke-width: 2.5; stroke-dasharray: 5 8; opacity: 0.6; }
+.guide-route-shadow { fill: none; stroke: var(--color-app-accent); stroke-width: 16; opacity: 0.08; stroke-linecap: round; }
+.guide-actual { fill: none; stroke: var(--color-app-accent); stroke-width: 4; stroke-linecap: round; }
+.guide-marker-halo { fill: var(--color-app-accent); opacity: 0.14; }
+.guide-marker { fill: var(--guide-accent-paint); stroke: var(--guide-illustration-marker); stroke-width: 1; stroke-linejoin: round; }
+.guide-front-axle { fill: none; stroke: var(--guide-metal-paint); stroke-width: 4; stroke-linecap: round; }
+.guide-steering-tyre { fill: var(--guide-rubber-paint); stroke: var(--guide-illustration-steering-tyre); stroke-width: 1; }
+.guide-steering-tread { fill: none; stroke: var(--guide-illustration-steering-tread); stroke-width: 1; }
+.guide-steering-edge { fill: none; stroke: var(--color-app-accent); stroke-width: 2; stroke-linecap: round; }
+.guide-road-edge { fill: none; stroke: color-mix(in srgb, var(--color-app-text-muted) 20%, var(--color-app-surface-alt)); stroke-width: 64; stroke-linecap: round; }
+.guide-road { fill: none; stroke: color-mix(in srgb, var(--color-app-text-muted) 9%, var(--color-app-surface-alt)); stroke-width: 58; stroke-linecap: round; }
+.guide-ideal { fill: none; stroke: var(--color-app-text-muted); stroke-width: 2.5; stroke-dasharray: 5 8; opacity: 0.6; }
+.guide-route-shadow { fill: none; stroke: var(--color-app-accent); stroke-width: 16; opacity: 0.08; stroke-linecap: round; }
+.guide-actual { fill: none; stroke: var(--color-app-accent); stroke-width: 4; stroke-linecap: round; }
+.guide-marker-halo { fill: var(--color-app-accent); opacity: 0.14; }
+.guide-marker { fill: var(--guide-accent-paint); stroke: var(--guide-illustration-marker); stroke-width: 1; stroke-linejoin: round; }
+.guide-front-axle { fill: none; stroke: var(--guide-metal-paint); stroke-width: 4; stroke-linecap: round; }
+.guide-steering-tyre { fill: var(--guide-rubber-paint); stroke: var(--guide-illustration-steering-tyre); stroke-width: 1; }
+.guide-steering-tread { fill: none; stroke: var(--guide-illustration-steering-tread); stroke-width: 1; }
+.guide-steering-edge { fill: none; stroke: var(--color-app-accent); stroke-width: 2; stroke-linecap: round; }
+.guide-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 20px; padding: 0 12px 16px; font-size: var(--text-app-subtext); color: var(--color-app-text-muted); }
+.guide-legend span { display: inline-flex; align-items: center; gap: 7px; }
+.guide-legend i { display: inline-block; width: 20px; }
+.guide-legend-ideal { border-top: 2px dashed var(--color-app-text-muted); }
+.guide-legend-actual { border-top: 3px solid var(--color-app-accent); }
+.guide-caption { padding: 0 18px 8px; }
+.guide-takeaway { display: flex; align-items: flex-start; gap: 12px; padding: 16px 0; border-top: 1px solid var(--color-app-border); }
+.guide-takeaway-mark { flex-shrink: 0; width: 4px; height: 34px; margin-top: 3px; border-radius: 4px; background: var(--color-app-accent); }
+.guide-explanation { margin: 0; color: var(--color-app-text); font-size: var(--text-app-body); line-height: 1.6; text-wrap: pretty; }
+.guide-caption-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; }
+.lmu-guide-motion-toggle { flex-shrink: 0; gap: 6px; }
+.lmu-guide-illustration [class*="guide-motion-"] { transform-box: fill-box; transform-origin: center; }
+.guide-motion-force { animation: guide-force var(--guide-cycle) ease-in-out infinite; }
+.guide-motion-squash { transform-origin: center bottom !important; animation: guide-squash var(--guide-cycle) ease-in-out infinite; }
+.guide-motion-contact { animation: guide-contact var(--guide-cycle) ease-in-out infinite; }
+.guide-motion-spin { animation: guide-spin 8s linear infinite; }
+.guide-motion-lift { animation: guide-lift var(--guide-cycle) ease-in-out infinite; }
+.guide-motion-drop { animation: guide-drop var(--guide-cycle) ease-in-out infinite; }
+.guide-motion-roll { animation: guide-roll var(--guide-cycle) ease-in-out infinite; }
+.guide-motion-spring, .guide-motion-stiff { transform-origin: center top !important; animation: guide-spring var(--guide-cycle) ease-in-out infinite; }
+.guide-motion-stiff { animation-name: guide-stiff; }
+.guide-motion-piston, .guide-motion-piston-stiff { animation: guide-piston var(--guide-cycle) ease-in-out infinite; }
+.guide-motion-piston-stiff { animation-name: guide-piston-stiff; }
+.guide-motion-stop { animation: guide-stop var(--guide-cycle) ease-in-out infinite; }
+.guide-motion-bumpstop { transform-origin: center top !important; animation: guide-bumpstop var(--guide-cycle) ease-in-out infinite; }
+.guide-motion-balance { animation: guide-balance var(--guide-cycle) ease-in-out infinite; }
+.guide-motion-pedal { animation: guide-pedal var(--guide-cycle) ease-in-out infinite; }
+.guide-motion-heat { animation: guide-heat var(--guide-cycle) ease-in-out infinite; }
+.guide-motion-slip { animation: guide-slip 1.4s ease-in-out infinite; }
+.guide-motion-signal { animation: guide-signal var(--guide-cycle) ease-in-out infinite; }
+.guide-motion-charge, .guide-motion-drain, .guide-motion-temperature { transform-origin: center bottom !important; animation: guide-charge 8s ease-in-out infinite; }
+.guide-motion-drain { animation-name: guide-drain; }
+.guide-motion-budget { animation: guide-budget 8s ease-in-out infinite; }
+.guide-motion-route { stroke-dasharray: 1; animation: guide-route 8s ease-in-out infinite; }
+.guide-motion-corner { offset-distance: 0%; animation: guide-corner 8s ease-in-out infinite; }
+.guide-motion-steer { transform: rotate(var(--guide-steer-angle)); animation: guide-steer 8s ease-in-out infinite; }
+.guide-motion-air { animation: guide-air 2.4s linear infinite; }
+.guide-motion-bounce { animation: guide-bounce var(--guide-cycle) ease-in-out infinite; }
+.guide-motion-diff-wheel { transform: rotate(var(--guide-wheel-turn)); animation: guide-diff-wheel var(--guide-cycle) linear infinite; }
+/* Pausing shows a complete mechanism, including when clicked during a hidden frame. */
+.lmu-guide-illustration[data-paused="true"] [class*="guide-motion-"] { animation: none; }
+.lmu-guide-illustration[data-paused="true"] .guide-motion-route { stroke-dasharray: none; }
+.lmu-guide-illustration[data-paused="true"] .guide-motion-corner { offset-distance: 65%; opacity: 1; }
+.lmu-guide-illustration[data-paused="true"] .guide-motion-spring { transform: scaleY(0.72); }
+.lmu-guide-illustration[data-paused="true"] .guide-motion-stiff { transform: scaleY(0.9); }
+.lmu-guide-illustration[data-paused="true"] .guide-motion-piston { transform: translateY(20px); }
+.lmu-guide-illustration[data-paused="true"] .guide-motion-piston-stiff { transform: translateY(6px); }
+.lmu-guide-illustration[data-paused="true"] .guide-motion-stop { transform: translateY(-61px); }
+.lmu-guide-illustration[data-paused="true"] .guide-motion-bumpstop { transform: scaleY(0.6); }
+
+@keyframes guide-force { 0%, 12%, 100% { transform: translateY(-5px); opacity: 0.5; } 35%, 60% { transform: translateY(5px); opacity: 1; } }
+@keyframes guide-squash { 0%, 12%, 100% { transform: scale(1); } 35%, 60% { transform: scale(1.06, var(--guide-load)); } }
+@keyframes guide-contact { 0%, 12%, 100% { transform: scaleX(0.9); opacity: 0.45; } 35%, 60% { transform: scaleX(1); opacity: 1; } }
+@keyframes guide-spin { to { transform: rotate(360deg); } }
+@keyframes guide-lift { 0%, 12%, 100% { transform: translateY(0); } 35%, 60% { transform: translateY(-12px); } }
+@keyframes guide-drop { 0%, 12%, 100% { transform: translateY(0); } 35%, 60% { transform: translateY(12px); } }
+@keyframes guide-roll { 0%, 12%, 100% { transform: rotate(0); } 35%, 60% { transform: rotate(4deg); } }
+@keyframes guide-spring { 0%, 12%, 100% { transform: scaleY(1); } 35%, 60% { transform: scaleY(0.72); } }
+@keyframes guide-stiff { 0%, 12%, 100% { transform: scaleY(1); } 35%, 60% { transform: scaleY(0.9); } }
+@keyframes guide-piston { 0%, 12%, 100% { transform: translateY(-14px); } 35%, 60% { transform: translateY(20px); } }
+@keyframes guide-piston-stiff { 0%, 12%, 100% { transform: translateY(-4px); } 35%, 60% { transform: translateY(6px); } }
+@keyframes guide-stop { 0%, 12%, 100% { transform: translateY(0); } 25% { transform: translateY(-43px); } 35%, 60% { transform: translateY(-61px); } }
+@keyframes guide-bumpstop { 0%, 12%, 25%, 100% { transform: scaleY(1); } 35%, 60% { transform: scaleY(0.6); } }
+@keyframes guide-balance { 0%, 12%, 100% { transform: translateX(-22px); } 35%, 60% { transform: translateX(20px); } }
+@keyframes guide-pedal { 0%, 12%, 100% { transform: translateY(0); } 35%, 60% { transform: translateY(12px); } }
+@keyframes guide-heat { 0%, 12%, 100% { opacity: 0.1; } 35%, 60% { opacity: 0.7; } }
+@keyframes guide-slip { 0%, 100% { transform: translateX(-3px); } 50% { transform: translateX(3px); } }
+@keyframes guide-signal { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+@keyframes guide-charge { 0%, 10%, 100% { transform: scaleY(0.25); opacity: 0.5; } 65%, 85% { transform: scaleY(1); opacity: 1; } }
+@keyframes guide-drain { 0%, 10%, 100% { transform: scaleY(1); opacity: 1; } 65%, 85% { transform: scaleY(0.25); opacity: 0.5; } }
+@keyframes guide-budget { 0%, 10%, 100% { stroke-dashoffset: 0; } 65%, 85% { stroke-dashoffset: 170; } }
+@keyframes guide-route { 0%, 10% { stroke-dashoffset: 1; } 80%, 100% { stroke-dashoffset: 0; } }
+@keyframes guide-corner { 0%, 10% { offset-distance: 0%; opacity: 0; } 15% { opacity: 1; } 80% { offset-distance: 100%; opacity: 1; } 90%, 100% { offset-distance: 100%; opacity: 0; } }
+@keyframes guide-steer { 0%, 10%, 100% { transform: rotate(0deg); } 25% { transform: rotate(var(--guide-steer-entry)); } 45%, 65% { transform: rotate(var(--guide-steer-angle)); } 80%, 90% { transform: rotate(var(--guide-steer-exit)); } }
+@keyframes guide-air { to { stroke-dashoffset: -96; } }
+@keyframes guide-bounce { 0%, 15%, 90%, 100% { transform: translateY(0); } 40% { transform: translateY(-48px); } 60% { transform: translateY(2px); } 75% { transform: translateY(-7px); } }
+@keyframes guide-diff-wheel { 0%, 10% { transform: rotate(0deg); } 60%, 100% { transform: rotate(var(--guide-wheel-turn)); } }
+
+@media (max-width: 640px) {
+  .guide-stage { padding: 10px 0 0; }
+  .guide-caption { padding: 0 0 6px; }
+  .guide-takeaway { padding: 12px 0; gap: 9px; }
+  .guide-comparison-grid { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .guide-label { font-size: var(--text-2xl); }
+  .guide-caption-footer { gap: 6px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lmu-guide-illustration [class*="guide-motion-"] { animation: none; }
+  .guide-motion-route { stroke-dasharray: none; }
+  .guide-motion-corner { offset-distance: 65%; opacity: 1; }
+  .guide-motion-spring { transform: scaleY(0.72); }
+  .guide-motion-stiff { transform: scaleY(0.9); }
+  .guide-motion-piston { transform: translateY(20px); }
+  .guide-motion-piston-stiff { transform: translateY(6px); }
+  .guide-motion-stop { transform: translateY(-61px); }
+  .guide-motion-bumpstop { transform: scaleY(0.6); }
+  .guide-motion-air { stroke-dasharray: none; }
+  .lmu-guide-motion-toggle { display: none; }
+}

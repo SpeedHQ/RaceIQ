@@ -114,8 +114,11 @@ describe("patchCarSetup — every tunable knob at min and max", () => {
     for (const [component, knob] of Object.entries(componentToKnob)) {
       expect(WRITABLE_CARSETUP_KNOBS).toContain(knob);
       const state = byComponent.get(component);
-      expect(state).toBeDefined();
-      for (const edgeValue of [state!.min, state!.max]) {
+      if (!state) throw new Error(`Expected knob state for writable component "${component}"`);
+      if (state.min == null || state.max == null) {
+        throw new Error(`Expected range metadata for writable component "${component}"`);
+      }
+      for (const edgeValue of [state.min, state.max]) {
         // ARB clicks only have a known reverse mapping for 1/2/3 (audi table)
         // — clamp the probe to that table's domain for this knob/fixture.
         const probe = knob === "frontARB" || knob === "rearARB" ? Math.min(3, Math.max(1, Math.round(edgeValue))) : edgeValue;

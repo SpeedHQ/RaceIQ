@@ -4,8 +4,8 @@ import { createWebServers } from "./config/web-servers";
 
 export default defineConfig({
   testDir: "tests/responsive",
-  testMatch: "mobile-screenshots.spec.ts",
-  outputDir: "./test-results/mobile-screenshots",
+  testMatch: ["desktop-screenshots.spec.ts", "lmu-screenshots.spec.ts", "mobile-dashboard-screenshots.spec.ts"],
+  outputDir: "./test-results/responsive-screenshots",
   fullyParallel: runtime.parallelScreenshotRun,
   workers: runtime.screenshotWorkers,
   retries: process.env.CI ? 1 : 0,

@@ -15,6 +15,7 @@ import { getCornerMetricsTool } from "../tools/corner-metrics";
 import { getLapInsightsTool } from "../tools/lap-insights";
 import { getLapAnalysisTool, generateLapAnalysisTool } from "../tools/lap-analysis";
 import { TRACK_GUIDE_PROMPT } from "@raceiq/shared/integrations/ai/prompt-snippets";
+import { getLmuSetupKnowledgeTool, LMU_SETUP_KNOWLEDGE_PROMPT } from "../tools/lmu-setup-knowledge";
 const LAP_CHAT_INSTRUCTIONS = `You are a senior race engineer answering a driver's questions about a single lap of theirs. Lap context, telemetry summary, and (if available) the previous structured analysis are supplied per request via the system prompt. Be brief, use bullet points where helpful, cite specific numbers with units, and refer to the driver as "you". Do NOT output JSON.
 
 Current request context is authoritative over all earlier chat history, assistant claims, tool results, or cached analysis. When current context includes revised data, use it even if history contains older data; never repeat obsolete values as current.
@@ -23,7 +24,7 @@ For requests about diagnosis, where time is lost, improvement, driving technique
 
 Lap numbers are for conversation. The internal lap reference is only for RaceIQ tools; never ask the driver to find or provide an internal ID. When lap context changes, use only the current request's lap and setup context.
 
-For F1 2025 setup questions: when the driver asks about their car setup or how to tune it, call the \`compare-f1-setup-to-catalog\` tool with the internal lap reference supplied in the system prompt. It returns their current setup alongside the top-5 community setups for the same track with per-field deltas. Ground your answer in those comparisons — cite the reference team/driver and the delta — rather than offering generic advice.${TRACK_GUIDE_PROMPT}`;
+For F1 2025 setup questions: when the driver asks about their car setup or how to tune it, call the \`compare-f1-setup-to-catalog\` tool with the internal lap reference supplied in the system prompt. It returns their current setup alongside the top-5 community setups for the same track with per-field deltas. Ground your answer in those comparisons — cite the reference team/driver and the delta — rather than offering generic advice.${TRACK_GUIDE_PROMPT}${LMU_SETUP_KNOWLEDGE_PROMPT}`;
 
 export function buildLapChatInstructions(requestContext?: { get: (key: string) => unknown }): string {
   const context = getChatTurnContext(requestContext);
@@ -105,6 +106,7 @@ export const lapChatAgent = new Agent({
     get_lap_insights: getLapInsightsTool,
     get_lap_analysis: getLapAnalysisTool,
     generate_lap_analysis: generateLapAnalysisTool,
+    get_lmu_setup_knowledge: getLmuSetupKnowledgeTool,
   },
   memory: getChatMemory(),
 });

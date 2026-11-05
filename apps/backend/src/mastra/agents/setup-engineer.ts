@@ -20,6 +20,7 @@ import { getMastraModelId } from "../model";
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { setupEngineerTools } from "../tools/setup-engineer";
 import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "@raceiq/shared/racing/experiments/focus";
+import { getLmuSetupKnowledgeTool, LMU_SETUP_KNOWLEDGE_PROMPT } from "../tools/lmu-setup-knowledge";
 
 export interface SetupEngineerSessionContext {
   sessionId: number;
@@ -54,10 +55,10 @@ export function buildSetupEngineerSystemPrompt(ctx: SetupEngineerSessionContext)
 The active session is bound automatically — tools need NO session id and take no such argument. Call each tool with only its real arguments (a change's component/direction/magnitude; consult_lap_analyst takes none).`;
 }
 
-export const SETUP_ENGINEER_INSTRUCTIONS = `You are a sharp, decisive GT3 / endurance race engineer working a car setup in ACC / AC-EVO. The driver talks to you between runs about how the car feels and what to change. The active session (car, track) is supplied per request, and this turn's data is gathered for you into a context block at the top of the conversation: CONFIDENCE, LAP BREAKDOWN, CONSISTENCY BY CORNER, SYMPTOMS, TRACK CONDITIONS, CURRENT SETUP, and VERSION HISTORY. Read it — it is fetched deterministically for you each turn. You do NOT call any tool to read it.
+export const SETUP_ENGINEER_INSTRUCTIONS = `You are a sharp, decisive GT3 / endurance race engineer working car setups in ACC / AC-EVO / LMU. The driver talks to you between runs about how the car feels and what to change. The active session (car, track) is supplied per request, and this turn's data is gathered for you into a context block at the top of the conversation: CONFIDENCE, LAP BREAKDOWN, CONSISTENCY BY CORNER, SYMPTOMS, TRACK CONDITIONS, CURRENT SETUP, and VERSION HISTORY. Read it — it is fetched deterministically for you each turn. You do NOT call any tool to read it.
 
 GROUNDING — this is the hard rule
-- The ONLY knobs that exist are the ones listed under CURRENT SETUP. Never name, suggest, or discuss a component not in that list. If the driver asks about something not tunable (e.g. a setting this game doesn't expose), say so plainly instead of inventing a number for it.
+ - For LMU, setup values are click indices. Use only editable fields listed with click-index metadata; ranges are not supplied, so never infer bounds or claim a clamp.
 - Never invent lap ids or fabricate numbers you weren't given — every lap id and figure you cite must come from the context block or a tool result.
 - Knobs listed under NOT TUNABLE ON THIS CAR (value None) don't exist on this car — never recommend or apply changes to them, and keep tuning every other knob normally. Only if ALL current setup values are unknown should you state the setup is unreadable and stop.
 
@@ -95,7 +96,7 @@ LAP DATA — a focused lap review may already be provided inline in this turn's 
 export const setupEngineerAgent = new Agent({
   id: "setup-engineer",
   name: "Setup Engineer",
-  instructions: ({ requestContext }) => `${SETUP_ENGINEER_INSTRUCTIONS}${TRACK_GUIDE_PROMPT}${ADJUSTMENT_FORMAT_PROMPT}${aiLanguageInstruction(loadSettings().language)}\n\n${getChatTurnContext(requestContext)}`,
+  instructions: ({ requestContext }) => `${SETUP_ENGINEER_INSTRUCTIONS}${TRACK_GUIDE_PROMPT}${ADJUSTMENT_FORMAT_PROMPT}${LMU_SETUP_KNOWLEDGE_PROMPT}${aiLanguageInstruction(loadSettings().language)}\n\n${getChatTurnContext(requestContext)}`,
   model: () => {
     const s = loadSettings();
     return getMastraModelId(s.chatProvider, s.chatModel, s.localEndpoint);
@@ -121,6 +122,7 @@ export const setupEngineerAgent = new Agent({
     get_lap_detail: setupEngineerTools.getLapDetailTool,
     get_lap_issues: setupEngineerTools.getLapIssuesTool,
     compare_laps: setupEngineerTools.compareLapsTool,
+    get_lmu_setup_knowledge: getLmuSetupKnowledgeTool,
   },
   memory: getChatMemory(),
 });

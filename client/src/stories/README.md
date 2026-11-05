@@ -10,6 +10,8 @@
 
 Snapshot specs use `client/playwright.config.ts`: test files end in `.snapshot.ts`, run with one worker, and write ignored render output under `src/stories/__snapshots__/`. CI renders the base and PR revisions on the same runner and compares those outputs directly.
 
+LMU-specific screenshot cases cover the analysis data panel's tire temperatures and 2D/3D surface-plus-carcass visualizations. Route-level LMU setup, guide, and experiment captures live in `playwright/tests/responsive/lmu-screenshots.spec.ts`. App captures are desktop-only except for the mobile live dashboard.
+
 ## Commands
 
 From `client/`:

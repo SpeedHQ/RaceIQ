@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import type { BlankEnv, ExtractSchema } from "hono/types";
 import { cors } from "hono/cors";
 import { errorLogger } from "@raceiq/backend-core/runtime/logger";
 import { IS_DEV, IS_E2E } from "@raceiq/backend-core/runtime/config/env";
@@ -17,13 +18,36 @@ import { carRoutes, accCarRoutes, acEvoCarRoutes } from "@raceiq/cars-catalogue/
 import { tuneRoutes } from "./tune-routes";
 import { accRoutes } from "./games/acc";
 import { acEvoRoutes } from "./games/ac-evo";
+import { lmuSetupRoutes } from "./games/lmu-setups";
 import { f125Routes } from "./games/f1-2025";
 import { miscRoutes } from "./system/index";
 import { cacheRoutes } from "./cache-routes";
 import { devRoutes } from "./dev/index";
 import { dashboardRoutes } from "./dashboard-routes";
 
-const app = new Hono()
+const sessionRoutes = createSessionRoutes(isSessionIdentityInCatalog);
+
+// Name each already-checked schema so declaration generation does not expand
+// the entire nested route chain. Keep every mounted production route here.
+type AppSchema =
+  & ExtractSchema<typeof lmuSetupRoutes>
+  & ExtractSchema<typeof settingsRoutes>
+  & ExtractSchema<typeof lapRoutes>
+  & ExtractSchema<typeof driverRoutes>
+  & ExtractSchema<typeof chatsRoutes>
+  & ExtractSchema<typeof chatRunRoutes>
+  & ExtractSchema<typeof dashboardRoutes>
+  & ExtractSchema<typeof sessionRoutes>
+  & ExtractSchema<typeof trackRoutes>
+  & ExtractSchema<typeof carRoutes>
+  & ExtractSchema<typeof tuneRoutes>
+  & ExtractSchema<typeof accRoutes>
+  & ExtractSchema<typeof acEvoRoutes>
+  & ExtractSchema<typeof f125Routes>
+  & ExtractSchema<typeof miscRoutes>
+  & ExtractSchema<typeof cacheRoutes>;
+
+const app = new Hono<BlankEnv, AppSchema>()
   .use("/*", async (c, next) => {
     const denied = await httpAccess.authorize(c.req.raw);
     if (denied) return denied;
@@ -42,13 +66,14 @@ const app = new Hono()
   )
   .use("/*", errorLogger())
   .route("/", authRoutes)
+  .route("/", lmuSetupRoutes)
   .route("/", settingsRoutes)
   .route("/", lapRoutes)
   .route("/", driverRoutes)
   .route("/", chatsRoutes)
   .route("/", chatRunRoutes)
   .route("/", dashboardRoutes)
-  .route("/", createSessionRoutes(isSessionIdentityInCatalog))
+  .route("/", sessionRoutes)
   .route("/", trackRoutes)
   .route("/", carRoutes)
   .route("/", tuneRoutes)
