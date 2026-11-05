@@ -1,4 +1,5 @@
-import type { SpectateController, SpectateSegment } from "../contracts";
+import type { CornerAction, SpectateController, SpectateSegment, TurnIdentity } from "../contracts";
+import { resolveCornerKey } from "../contracts";
 
 /**
  * Distance-based corner focus for the replay controller (SpeedHQ/RaceIQ#515).
@@ -90,3 +91,38 @@ export function startCornerFocus(
 
   return { stop, entry, exit };
 }
+
+export type CornerActionFocusRequest = {
+  action: { cornerKey: string };
+  turns: readonly TurnIdentity[];
+  segments: readonly SpectateSegment[];
+  scale: DistanceScale;
+  loop: boolean;
+};
+
+/**
+ * Resolve a validated corner action into distance ranges through the shared
+ * turn identity. Unknown corners or missing geometry yield null; nothing seeks.
+ */
+export function resolveCornerActionRanges(request: CornerActionFocusRequest): DistanceRange[] | null {
+  const turn = resolveCornerKey(request.action.cornerKey, request.turns);
+  if (!turn) return null;
+  const ranges: DistanceRange[] = [];
+  for (const segment of request.segments) {
+    if (segment.number !== turn.number) continue;
+    const range = segmentToDistanceRange(segment, request.scale);
+    if (range) ranges.push(range);
+  }
+  return ranges.length > 0 ? ranges : null;
+}
+
+/** Resolve, then drive the controller. Returns null when nothing can be focused. */
+export function dispatchCornerAction(
+  controller: SpectateController,
+  request: CornerActionFocusRequest,
+): CornerFocusHandle | null {
+  const ranges = resolveCornerActionRanges(request);
+  if (!ranges) return null;
+  return startCornerFocus(controller, { ranges, loop: request.loop });
+}
+
