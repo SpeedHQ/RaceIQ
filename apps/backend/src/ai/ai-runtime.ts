@@ -100,10 +100,6 @@ export async function resolveAi(feature: AiFeature, settings: AppSettings = load
           provider,
         });
       }
-      // Mastra's native DeepSeek provider reads the key from the environment, and
-      // the Mastra model id carries no key of its own.
-      process.env.DEEPSEEK_API_KEY = apiKey;
-      // 端点固定、key 必填、自带 body 兼容规则——与 Anthropic 同一种适配形状。
       return resolvedAiFromAdapter(new DeepSeekProviderAdapter({ ...config, apiKey }));
     }
     case "openai-compatible": {

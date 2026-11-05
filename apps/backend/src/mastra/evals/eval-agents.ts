@@ -7,61 +7,46 @@
  * factories build one-off agents with a pinned model so fixture runs stay
  * deterministic-ish across CI and local runs.
  *
- * Reference provider: Gemini 3 Flash (`google/gemini-3-flash`). Override
- * via `EVALS_PROVIDER` + `EVALS_MODEL` if needed.
+ * Set EVALS_MODEL explicitly; EVALS_PROVIDER defaults to Gemini.
  */
 import { Agent } from "@mastra/core/agent";
 import { compareEngineerPersona } from "@raceiq/backend-core/ai/compare-engineer";
-import type { MastraModelConfig } from "@mastra/core/llm";
-
-const DEFAULT_EVAL_MODEL = "google/gemini-flash-latest";
-
-/** Provider-appropriate model name; the default must match the provider. */
-function evalModelName(): string {
-  const provider = process.env.EVALS_PROVIDER ?? "gemini";
-  const fallback = provider === "deepseek" ? "deepseek-flash" : "gemini-flash-latest";
-  return process.env.EVALS_MODEL ?? fallback;
-}
+import { DEEPSEEK_AGENT_DEFAULTS } from "../model";
 
 /** Label used in baseline filenames and eval output. */
 export function resolveEvalModelId(): string {
   const provider = process.env.EVALS_PROVIDER ?? "gemini";
-  const model = evalModelName();
+  const model = process.env.EVALS_MODEL?.trim();
+  if (!model) throw new Error("EVALS_MODEL must be set to run AI evaluations.");
   if (provider === "gemini") return `google/${model}`;
   if (provider === "openai") return `openai/${model}`;
   if (provider === "deepseek") return `deepseek/${model}`;
-  return DEFAULT_EVAL_MODEL;
+  throw new Error(`Unsupported EVALS_PROVIDER: ${provider}`);
 }
 
-/**
- * Model bound to the eval agents. Mastra resolves every supported provider id
- * natively (google/…, openai/…, deepseek/…) and reads that provider's own key
- * from the environment, so the id is all the agent needs.
- */
-export function resolveEvalModel(): MastraModelConfig {
-  return resolveEvalModelId();
-}
 
 const EVAL_LAP_ANALYST_INSTRUCTIONS = `You are a senior race engineer reviewing a single driver's lap from telemetry data. Your job is to issue a structured verdict on the lap covering pace, handling, problem corners, braking, throttle application, and coaching.
 
 Be specific and concrete. Cite numbers where helpful. Refer to the driver as "you". Use the units provided in the prompt.`;
 
 export function buildEvalLapAnalystAgent(): Agent {
-  const modelId = resolveEvalModel();
+  const modelId = resolveEvalModelId();
   return new Agent({
     id: "eval-lap-analyst",
     name: "Eval Lap Analyst",
     instructions: EVAL_LAP_ANALYST_INSTRUCTIONS,
     model: () => modelId,
+    defaultOptions: DEEPSEEK_AGENT_DEFAULTS,
   });
 }
 
 export function buildEvalCompareEngineerAgent(unit: "metric" | "imperial" = "metric"): Agent {
-  const modelId = resolveEvalModel();
+  const modelId = resolveEvalModelId();
   return new Agent({
     id: "eval-compare-engineer",
     name: "Eval Compare Engineer",
     instructions: compareEngineerPersona(unit),
     model: () => modelId,
+    defaultOptions: DEEPSEEK_AGENT_DEFAULTS,
   });
 }

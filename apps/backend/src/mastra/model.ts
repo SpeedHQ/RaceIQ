@@ -28,6 +28,7 @@ import { extractReasoningMiddleware, wrapLanguageModel, type LanguageModel } fro
 import type { MastraModelConfig } from "@mastra/core/llm";
 import { ANTHROPIC_OPENAI_BASE_URL, anthropicCompatibleFetch, isAnthropicEndpoint, openAiCompatibleExtraHeaders } from "@raceiq/backend-core/ai/openai-compatible-headers";
 import { RESOLVED_AI_MODEL_CONTEXT_KEY } from "../ai/resolved-ai-internals";
+import { AiProviderError } from "@raceiq/backend-core/ai/provider-error";
 
 export type BoundMastraModel = MastraModelConfig;
 
@@ -215,10 +216,10 @@ export function modelFromRequestContext(
 ): BoundMastraModel | undefined {
   const model = requestContext?.get(RESOLVED_AI_MODEL_CONTEXT_KEY);
   if (typeof model === "string") return model;
-  if (model && typeof model === "object" && "doGenerate" in model
-      && typeof model.doGenerate === "function") {
-    const boundModel = model as BoundMastraModel;
-    return boundModel;
+  if (model && typeof model === "object"
+      && (("doGenerate" in model && typeof model.doGenerate === "function")
+        || ("id" in model && typeof model.id === "string"))) {
+    return model as BoundMastraModel;
   }
   return undefined;
 }
@@ -266,10 +267,14 @@ export function getMastraModelId(
       return bindMastraModel(anthropic.chat(model || "claude-haiku-5-5"));
     }
     case "deepseek": {
-      // Mastra ships a native DeepSeek provider (deepseek/<model>, DEEPSEEK_API_KEY).
-      // Its structured output already asks for json_object — the only shape DeepSeek
-      // accepts — and providerOptions.deepseek.thinking switches reasoning off.
-      return `deepseek/${model || "deepseek-flash"}`;
+      if (!model.trim()) {
+        throw new AiProviderError("No DeepSeek model selected. Choose one in Settings.", {
+          code: "missing-model",
+          provider: "deepseek",
+        });
+      }
+      const id = `deepseek/${model}` as const;
+      return apiKey ? { id, apiKey } : id;
     }
     case "openai-compatible": {
       const baseURL = localEndpoint ?? "http://localhost:1234/v1";
