@@ -5,6 +5,7 @@ import type { SemanticLapTelemetry } from "../contracts/replay";
 import type { ReplayOpponentMetadata, ReplaySession as ReplaySessionData, SpectateController, SpectateSegment } from "../contracts/spectate";
 import type { OpponentSemanticLapTelemetry } from "../contracts/opponents";
 import { createSpectateController, prepareSpectateLap } from "./spectate-replay";
+import { useCornerFocus } from "./corner-focus-react";
 import { SpectateView } from "./SpectateView";
 import { useLocalStorage, useSettings } from "./host";
 export interface SingleReplaySessionProps {
@@ -46,6 +47,7 @@ export function SingleReplaySession({ gameId, lap, replay, outline, segments, tr
   const [carPanelOpen, setCarPanelOpen] = useLocalStorage("replay-car-open", false);
   const [active, setActive] = useState<{ a: ReplaySessionData["a"]; gameId: GameId; controller: SpectateController } | null>(null);
   const controller = active?.a === a && active.gameId === gameId ? active.controller : null;
+  const cornerFocus = useCornerFocus(session, segments, controller);
   useEffect(() => {
     const next = createSpectateController(a, null, undefined, () => fpsCapRef.current);
     next.setActive(true);
@@ -111,7 +113,7 @@ export function SingleReplaySession({ gameId, lap, replay, outline, segments, tr
     };
   }, [a, controller]);
   if (!controller) return null;
-  return <SpectateView pair={session} controller={controller} outline={outline} segments={segments}
+  return <SpectateView pair={session} controller={controller} outline={outline} segments={segments} cornerFocus={cornerFocus}
     ai={ai} aiOpen={aiOpen} onAiOpenChange={onAiOpenChange} telemetryOpen={telemetryOpen}
     onTelemetryOpenChange={setTelemetryOpen} carPanelOpen={carPanelOpen} onCarPanelOpenChange={setCarPanelOpen}
     panelHeaderTarget={panelHeaderTarget} />;

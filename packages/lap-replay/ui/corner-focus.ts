@@ -1,4 +1,4 @@
-import type { CornerAction, SpectateController, SpectateSegment, TurnIdentity } from "../contracts";
+import type { CornerAction, SpectateController, SpectateLap, SpectateSegment, TurnIdentity } from "../contracts";
 import { normalizeTurnToken, resolveCornerKey } from "../contracts";
 
 /**
@@ -31,6 +31,95 @@ export function segmentToDistanceRange(
   return { start, end };
 }
 
+export type CornerFocusCoverage = {
+  a: { distance: number; hasProgress: boolean };
+  b: { distance: number; hasProgress: boolean } | null;
+};
+
+export type CornerFocusScaleSet = {
+  a: DistanceScale;
+  b: DistanceScale | null;
+  /** Loaded progress; when supplied, ranges beyond it are refused. */
+  coverage?: CornerFocusCoverage;
+};
+
+function rangeReachable(
+  range: DistanceRange,
+  coverage: { distance: number; hasProgress: boolean } | null | undefined,
+): boolean {
+  if (coverage === undefined) return true;
+  if (coverage === null) return false;
+  return coverage.hasProgress && Number.isFinite(coverage.distance) && range.end <= coverage.distance + 1e-6;
+}
+
+/**
+ * Authoritative length and recording origin for one loaded lap. Mirrors the
+ * track overview conversion so AI focus and the overview markers agree.
+ */
+export function distanceScaleForLap(
+  lap: Pick<SpectateLap, "trackLengthM" | "samples" | "distance">,
+  fallbackMaximum?: number,
+): DistanceScale {
+  const maximum = lap.trackLengthM ?? fallbackMaximum ?? lap.distance;
+  let distanceOrigin = 0;
+  if (lap.trackLengthM) {
+    const sample = lap.samples.find((item) => {
+      const traveled = item.values["timing.distance-traveled"];
+      return Number.isFinite(item.distance) && typeof traveled === "number" && Number.isFinite(traveled);
+    });
+    const traveled = sample?.values["timing.distance-traveled"];
+    if (sample && typeof traveled === "number") distanceOrigin = traveled - sample.distance;
+  }
+  return { maximum, distanceOrigin };
+}
+
+function segmentTurnNumbers(segment: SpectateSegment): number[] {
+  const explicit = [segment.number, ...(segment.covers ?? [])].filter(
+    (value): value is number => typeof value === "number" && Number.isInteger(value) && value > 0,
+  );
+  if (explicit.length > 0) return [...new Set(explicit)].sort((a, b) => a - b);
+  const match = /^T(\d+)(?:\s*[-–/]\s*(\d+))?/i.exec(segment.name?.trim() ?? "");
+  if (!match) return [];
+  const first = Number(match[1]);
+  const second = match[2] ? Number(match[2]) : first;
+  if (!Number.isInteger(first) || !Number.isInteger(second)) return [];
+  return [Math.min(first, second), Math.max(first, second)];
+}
+
+function isPlaceholderTurnName(name: string | undefined): boolean {
+  const value = name?.trim() ?? "";
+  return value.length === 0 || /^T\d+(?:\s*[-–/]\s*\d+)*$/i.test(value);
+}
+
+/**
+ * Turn identities derived from the loaded segment roster. Keys follow the
+ * canonical `t<n>` / `t<n-m>` shape; covered numbers get their own identity so
+ * a model naming `T13` inside a 12-13 corner still resolves exactly.
+ */
+export function cornerTurnsFromSegments(segments: readonly SpectateSegment[]): TurnIdentity[] {
+  const turns: TurnIdentity[] = [];
+  for (const segment of segments) {
+    if (segment.type !== "corner") continue;
+    const numbers = segmentTurnNumbers(segment);
+    if (numbers.length === 0) continue;
+    const display = segment.name?.trim();
+    const name = display && !isPlaceholderTurnName(display) ? display : undefined;
+    const aliases = [display, ...numbers.map((number) => `turn ${number}`)]
+      .filter((value): value is string => typeof value === "string" && value.length > 0);
+    const add = (key: string, number: number) => {
+      turns.push({
+        key,
+        number,
+        ...(name ? { name } : {}),
+        ...(aliases.length > 0 ? { aliases } : {}),
+      });
+    };
+    add(`t${numbers.join("-")}`, numbers[0]!);
+    if (numbers.length > 1) for (const number of numbers) add(`t${number}`, number);
+  }
+  return turns;
+}
+
 export type CornerFocusHandle = {
   stop: () => void;
   /** Entry distance actually used. */
@@ -39,16 +128,76 @@ export type CornerFocusHandle = {
   exit: number;
 };
 
+export type CornerFocusExit = { side: "a" | "b"; distance: number };
+
 export type CornerFocusOptions = {
   ranges: readonly DistanceRange[];
   loop: boolean;
   /** Called once when playback paused at the exit (not called for loops). */
   onExit?: () => void;
+  /** Side whose distance controls the primary exit. Defaults to A. */
+  primary?: "a" | "b";
+  /** Primary exit distance. Defaults to the latest range exit. */
+  primaryExit?: number;
+  /** Additional sides that must each pass their own exit first (linked A/B). */
+  exits?: readonly CornerFocusExit[];
+};
+
+export type CornerFocusResolution = {
+  ranges: DistanceRange[];
+  primary: "a" | "b";
+  primaryExit: number;
+  exits?: readonly CornerFocusExit[];
 };
 
 /**
- * Play from the entry of the earliest range until the exit of the latest one.
- * Loops back to the entry when `loop` is set; otherwise pauses at the exit.
+ * Resolve one validated action against the loaded session. Solo/A use the A
+ * lap, B uses the B lap, and linked requires both laps' corresponding ranges.
+ * P4 decision (Issue #515): linked playback pauses only after A and B each
+ * pass their own exit, so a slower lap is never truncated.
+ */
+export function resolveSessionCornerFocus(
+  action: Pick<CornerAction, "cornerKey" | "target">,
+  turns: readonly TurnIdentity[],
+  segments: readonly SpectateSegment[],
+  scale: CornerFocusScaleSet,
+): CornerFocusResolution | null {
+  const resolve = (distanceScale: DistanceScale, coverage: { distance: number; hasProgress: boolean } | null | undefined) => {
+    const ranges = resolveCornerActionRanges({ action, turns, segments, scale: distanceScale, loop: false });
+    if (!ranges) return null;
+    const usable = ranges.filter((range) => rangeReachable(range, coverage));
+    return usable.length > 0 ? usable : null;
+  };
+  const aCoverage = scale.coverage?.a;
+  const bCoverage = scale.coverage ? scale.coverage.b : undefined;
+  if (action.target === "solo" || action.target === "A") {
+    const ranges = resolve(scale.a, aCoverage);
+    return ranges ? { ranges, primary: "a", primaryExit: Math.max(...ranges.map((range) => range.end)) } : null;
+  }
+  if (action.target === "B") {
+    if (!scale.b) return null;
+    const ranges = resolve(scale.b, bCoverage);
+    return ranges ? { ranges, primary: "b", primaryExit: Math.max(...ranges.map((range) => range.end)) } : null;
+  }
+  if (action.target === "linked") {
+    if (!scale.b) return null;
+    const aRanges = resolve(scale.a, aCoverage);
+    const bRanges = resolve(scale.b, bCoverage);
+    if (!aRanges || !bRanges) return null;
+    return {
+      ranges: [...aRanges, ...bRanges],
+      primary: "a",
+      primaryExit: Math.max(...aRanges.map((range) => range.end)),
+      exits: [{ side: "b", distance: Math.max(...bRanges.map((range) => range.end)) }],
+    };
+  }
+  return null;
+}
+
+/**
+ * Play from the entry of the earliest range until the primary exit and every
+ * additional exit gate (linked A/B waits for both sides). Loops back to the
+ * entry when `loop` is set; otherwise pauses once all gates are passed.
  */
 export function startCornerFocus(
   controller: SpectateController,
@@ -73,9 +222,15 @@ export function startCornerFocus(
   const tick = () => {
     if (stopped) return;
     const snapshot = controller.getSnapshot();
-    const distance = snapshot.a?.distance;
-    if (distance == null || snapshot.seeking) return;
-    if (distance < exit) return;
+    if (snapshot.seeking) return;
+    const primary = options.primary ?? "a";
+    const primaryExit = options.primaryExit ?? exit;
+    const primaryDistance = snapshot[primary]?.distance;
+    if (primaryDistance == null || primaryDistance < primaryExit) return;
+    for (const gate of options.exits ?? []) {
+      const gateDistance = snapshot[gate.side]?.distance;
+      if (gateDistance == null || gateDistance < gate.distance) return;
+    }
     if (options.loop) {
       controller.seekDistance(entry, true);
       return;
@@ -106,6 +261,7 @@ export type CornerActionFocusRequest = {
  */
 function segmentMatchesTurn(segment: SpectateSegment, turn: TurnIdentity): boolean {
   if (typeof segment.number === "number" && segment.number === turn.number) return true;
+  if (segment.covers?.includes(turn.number)) return true;
   const name = normalizeTurnToken(segment.name ?? "");
   if (!name) return false;
   const candidates = [turn.key, `t${turn.number}`, `turn ${turn.number}`, turn.name, ...(turn.aliases ?? [])]

@@ -19,6 +19,7 @@ import { SpectateInsightsPanel } from "./SpectateInsightsPanel";
 import { useLocalStorage } from "./host"
 import { SpectateWorkspace } from "./SpectateWorkspace"
 import { useSceneMode } from "./useSceneMode";
+import { CornerFocusProvider, type CornerFocusController } from "./corner-focus-react";
 
 const FOCUS_MODES: readonly SpectateFocusMode[] = ["inputs", "speed", "balance", "ers"];
 export function SpectateView({
@@ -34,11 +35,13 @@ export function SpectateView({
   panelHeaderTarget,
   onAiOpenChange,
   ai,
+  cornerFocus,
 }: {
   pair: ReplaySession;
   controller: SpectateController;
   outline: readonly { x: number; z: number }[] | null;
   segments: readonly SpectateSegment[];
+  cornerFocus: CornerFocusController;
   aiOpen: boolean;
   telemetryOpen: boolean;
   carPanelOpen: boolean;
@@ -61,6 +64,7 @@ const [dataOpen, setDataOpen] = useLocalStorage(single ? "replay-data-open" : "s
 const [insightsOpen, setInsightsOpen] = useLocalStorage(single ? "replay-insights-open" : "spectate-insights-open", false);
 const [segmentsOpen, setSegmentsOpen] = useLocalStorage("replay-segments-open", false);
 return (
+  <CornerFocusProvider value={cornerFocus}>
   <SpectateWorkspace storageKey={single ? "replay-panel-width" : "spectate-panel-width"} panelHeaderTarget={panelHeaderTarget} panels={[
     { id: single ? "replay-telemetry-panel" : "spectate-telemetry-panel", label: m.spectate_telemetry(), open: telemetryOpen, closedWidth: 100, toggle: onTelemetryOpenChange, collapseOnNarrow: true,
       headerControls: <div ref={setTelemetryHeaderControls} className="shrink-0 pr-3" />,
@@ -91,6 +95,7 @@ return (
     </div>
     <SpectatePlayback controller={controller} pair={pair} />
   </SpectateWorkspace>
+  </CornerFocusProvider>
 ); }
 function ComparisonLineScore({ pair, controller, lapAId, lapBId }: { pair: ReplaySession; controller: SpectateController; lapAId: number; lapBId: number }) {
   const { data } = useCompareLineSpread(pair.gameId, [lapAId, lapBId]);

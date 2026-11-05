@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { splitCornerActionSpans, type CornerAction } from "@raceiq/lap-replay/contracts";
+import { useCornerFocusController } from "@raceiq/lap-replay/ui";
 
 /**
  * Renders AI analysis text with schema-validated corner references inline
@@ -13,9 +14,11 @@ export function CornerActionText({
 }: {
   text: string;
   actions?: readonly CornerAction[];
-  onFocus: (action: CornerAction, options: { loop: boolean }) => void;
+  onFocus?: (action: CornerAction, options: { loop: boolean }) => void;
   disabled?: boolean;
 }) {
+  const cornerFocus = useCornerFocusController();
+  const focus = onFocus ?? cornerFocus.focus;
   if (!actions || actions.length === 0) return <>{text}</>;
   return (
     <>
@@ -34,7 +37,7 @@ export function CornerActionText({
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
-              onFocus(part.action, { loop: event.shiftKey });
+              focus(part.action, { loop: event.shiftKey });
             }}
             onKeyDown={(event) => {
               // Space activates through the native Button click; handling it here
@@ -42,7 +45,7 @@ export function CornerActionText({
               if (event.key !== "Enter") return;
               event.preventDefault();
               event.stopPropagation();
-              onFocus(part.action, { loop: event.shiftKey });
+              focus(part.action, { loop: event.shiftKey });
             }}
           >
             {text.slice(part.action.span.start, part.action.span.end)}

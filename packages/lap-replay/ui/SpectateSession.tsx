@@ -11,6 +11,7 @@ import { useMessages } from "./host"
 import { Button } from "./host"
 import { LoadingIndicator } from "./host"
 import { SpectateView } from "./SpectateView";
+import { useCornerFocus } from "./corner-focus-react";
 import type { SpectateController, ReplaySession, SpectateLap, SpectateSegment } from "../contracts/spectate";
 
 type OpponentReplayComparison = {
@@ -103,6 +104,7 @@ const pair = useMemo<ReplayPair | null>(() => {
 }, [gameId, playerLap, playerComparison, opponentComparison, replayA.data, replayB.data, replayOpponent.data]);
 const [controllerEntry, setControllerEntry] = useState<{ pair: ReplayPair; controller: SpectateController } | null>(null);
 const controller = controllerEntry?.pair === pair ? controllerEntry.controller : null;
+const cornerFocus = useCornerFocus(pair, segments, controller);
 const distanceCallback = useRef(onDistanceChange);
 distanceCallback.current = onDistanceChange;
 useEffect(() => {
@@ -213,4 +215,4 @@ if (pair.a.samples.length < 2 || pair.b.samples.length < 2)
       {m.spectate_replay_unavailable()}
     </div>
   );
-return <SpectateView pair={pair} controller={controller} outline={outline} segments={segments} aiOpen={aiOpen} telemetryOpen={telemetryOpen} carPanelOpen={carPanelOpen} onTelemetryOpenChange={onTelemetryOpenChange} onCarPanelOpenChange={onCarPanelOpenChange} onAiOpenChange={onAiOpenChange} panelHeaderTarget={panelHeaderTarget} />; }
+return <SpectateView pair={pair} controller={controller} outline={outline} segments={segments} cornerFocus={cornerFocus} aiOpen={aiOpen} telemetryOpen={telemetryOpen} carPanelOpen={carPanelOpen} onTelemetryOpenChange={onTelemetryOpenChange} onCarPanelOpenChange={onCarPanelOpenChange} onAiOpenChange={onAiOpenChange} panelHeaderTarget={panelHeaderTarget} />; }
