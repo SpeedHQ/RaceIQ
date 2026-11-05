@@ -74,27 +74,27 @@ describe("session corner focus resolution", () => {
   test("solo and A resolve against the A lap and pause on A", () => {
     const turns = cornerTurnsFromSegments(segments);
     expect(resolveSessionCornerFocus({ cornerKey: "t1", target: "solo" }, turns, segments, scales())).toEqual({
-      ranges: [{ start: 100, end: 200 }], primary: "a", primaryExit: 200,
+      ranges: [{ start: 100, end: 200 }], rangesBySide: { a: [{ start: 100, end: 200 }], b: [] }, primary: "a", primaryExit: 200,
     });
     expect(resolveSessionCornerFocus({ cornerKey: "t10", target: "A" }, turns, segments, scales())).toEqual({
-      ranges: [{ start: 600, end: 700 }], primary: "a", primaryExit: 700,
+      ranges: [{ start: 600, end: 700 }], rangesBySide: { a: [{ start: 600, end: 700 }], b: [] }, primary: "a", primaryExit: 700,
     });
   });
 
   test("a covered turn number or its canonical multi-turn key resolves to the containing corner", () => {
     const turns = cornerTurnsFromSegments(segments);
     expect(resolveSessionCornerFocus({ cornerKey: "t13", target: "solo" }, turns, segments, scales())).toEqual({
-      ranges: [{ start: 800, end: 900 }], primary: "a", primaryExit: 900,
+      ranges: [{ start: 800, end: 900 }], rangesBySide: { a: [{ start: 800, end: 900 }], b: [] }, primary: "a", primaryExit: 900,
     });
     expect(resolveSessionCornerFocus({ cornerKey: "t12-13", target: "solo" }, turns, segments, scales())).toEqual({
-      ranges: [{ start: 800, end: 900 }], primary: "a", primaryExit: 900,
+      ranges: [{ start: 800, end: 900 }], rangesBySide: { a: [{ start: 800, end: 900 }], b: [] }, primary: "a", primaryExit: 900,
     });
   });
 
   test("B resolves against the B lap and pauses on B", () => {
     const turns = cornerTurnsFromSegments(segments);
     expect(resolveSessionCornerFocus({ cornerKey: "t10", target: "B" }, turns, segments, scales())).toEqual({
-      ranges: [{ start: 600, end: 700 }], primary: "b", primaryExit: 700,
+      ranges: [{ start: 600, end: 700 }], rangesBySide: { a: [], b: [{ start: 600, end: 700 }] }, primary: "b", primaryExit: 700,
     });
   });
 
@@ -105,6 +105,7 @@ describe("session corner focus resolution", () => {
         { start: 600, end: 700 },
         { start: 600, end: 700 },
       ],
+      rangesBySide: { a: [{ start: 600, end: 700 }], b: [{ start: 600, end: 700 }] },
       primary: "a",
       primaryExit: 700,
       exits: [{ side: "b", distance: 700 }],

@@ -145,6 +145,8 @@ export type CornerFocusOptions = {
 
 export type CornerFocusResolution = {
   ranges: DistanceRange[];
+  /** Ranges grouped by the lap they were resolved against. */
+  rangesBySide: { a: DistanceRange[]; b: DistanceRange[] };
   primary: "a" | "b";
   primaryExit: number;
   exits?: readonly CornerFocusExit[];
@@ -172,12 +174,16 @@ export function resolveSessionCornerFocus(
   const bCoverage = scale.coverage ? scale.coverage.b : undefined;
   if (action.target === "solo" || action.target === "A") {
     const ranges = resolve(scale.a, aCoverage);
-    return ranges ? { ranges, primary: "a", primaryExit: Math.max(...ranges.map((range) => range.end)) } : null;
+    return ranges
+      ? { ranges, rangesBySide: { a: ranges, b: [] }, primary: "a", primaryExit: Math.max(...ranges.map((range) => range.end)) }
+      : null;
   }
   if (action.target === "B") {
     if (!scale.b) return null;
     const ranges = resolve(scale.b, bCoverage);
-    return ranges ? { ranges, primary: "b", primaryExit: Math.max(...ranges.map((range) => range.end)) } : null;
+    return ranges
+      ? { ranges, rangesBySide: { a: [], b: ranges }, primary: "b", primaryExit: Math.max(...ranges.map((range) => range.end)) }
+      : null;
   }
   if (action.target === "linked") {
     if (!scale.b) return null;
@@ -186,6 +192,7 @@ export function resolveSessionCornerFocus(
     if (!aRanges || !bRanges) return null;
     return {
       ranges: [...aRanges, ...bRanges],
+      rangesBySide: { a: aRanges, b: bRanges },
       primary: "a",
       primaryExit: Math.max(...aRanges.map((range) => range.end)),
       exits: [{ side: "b", distance: Math.max(...bRanges.map((range) => range.end)) }],

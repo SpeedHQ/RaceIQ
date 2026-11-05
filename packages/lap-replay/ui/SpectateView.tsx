@@ -68,7 +68,7 @@ return (
   <SpectateWorkspace storageKey={single ? "replay-panel-width" : "spectate-panel-width"} panelHeaderTarget={panelHeaderTarget} panels={[
     { id: single ? "replay-telemetry-panel" : "spectate-telemetry-panel", label: m.spectate_telemetry(), open: telemetryOpen, closedWidth: 100, toggle: onTelemetryOpenChange, collapseOnNarrow: true,
       headerControls: <div ref={setTelemetryHeaderControls} className="shrink-0 pr-3" />,
-      content: <SpectateTelemetryPanel pair={pair} controller={controller} headerTarget={telemetryHeaderControls} /> },
+      content: <SpectateTelemetryPanel pair={pair} controller={controller} headerTarget={telemetryHeaderControls} cornerFocus={cornerFocus} /> },
     ...(!opponentReplay ? [{ id: single ? "replay-car-panel" : "spectate-2d-panel", label: "Car layout", open: carPanelOpen, width: 384, closedWidth: 88, toggle: onCarPanelOpenChange,
       content: <SpectateCarPanel pair={pair} controller={controller} /> },
     { id: single ? "replay-data-panel" : "spectate-data-panel", label: m.analyse_tab_data(), open: dataOpen, width: 384, closedWidth: 72, toggle: setDataOpen,
@@ -87,7 +87,7 @@ return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="relative min-h-0 flex-1 overflow-hidden">
       <SpectateScene pair={pair} controller={controller} outline={outline} focus={focus}
-        overview={<SpectateOverview pair={pair} controller={controller} segments={segments} focus={focus} />} />
+        overview={<SpectateOverview pair={pair} controller={controller} segments={segments} focus={focus} cornerFocus={cornerFocus} />} />
       <SpectateFocusToolbar focus={focus} onChange={setFocusMode} single={single} tirePanelOpen={!opponentReplay && carPanelOpen} onTirePanelOpenChange={opponentReplay ? undefined : onCarPanelOpenChange} />
       {pair.b && playerLapA && playerLapB && <ComparisonLineScore pair={pair} controller={controller} lapAId={playerLapA.id} lapBId={playerLapB.id} />}
       </div>

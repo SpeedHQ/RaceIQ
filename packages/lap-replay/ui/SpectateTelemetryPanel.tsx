@@ -9,6 +9,8 @@ import { DELTA_COLOR_VARS, deltaColor, WHEEL_COLOR_VARS } from "@raceiq/scene-3d
 
 import type { SpectateController, ReplaySession, SpectateReading, SpectateSnapshot } from "../contracts/spectate";
 import { ERS_DEPLOY_MODES, readERSDeployMode, buildERSModeRuns } from "./spectate-ers-mode";
+import type { CornerFocusController } from "./corner-focus-react";
+import { distanceRangeToTimeRange, type CornerTimeBand } from "./corner-focus-band";
 import { buildSpectateChannels, channelValue, type SpectateChannel } from "./spectate-channels";
 const A_COLOR = "var(--comparison-lap-a)";
 const B_COLOR = "var(--comparison-lap-b)";
@@ -62,6 +64,7 @@ function sampleWindow(controller: SpectateController, snapshot: SpectateSnapshot
   return points;
 }
 
+type ChartBand = CornerTimeBand & { side: "a" | "b" };
 function ChartRow({
   channel,
   windowSeconds,
@@ -70,6 +73,7 @@ function ChartRow({
   convert,
   single = false,
   groupComponents = false,
+  bands,
 }: {
   channel: SpectateChannel;
   windowSeconds: 5 | 10;
@@ -78,6 +82,7 @@ function ChartRow({
   convert: (id: string, value: number) => number;
   single?: boolean;
   groupComponents?: boolean;
+  bands?: readonly ChartBand[];
 }) { const { syncCanvasSize } = useReplayHost(); const m = useMessages(); const root = useRef<HTMLDivElement>(null);
 const canvas = useRef<HTMLCanvasElement>(null);
 const [visible, setVisible] = useState(false);
@@ -125,6 +130,18 @@ useEffect(() => {
     top = 5,
     bottom = height - 5;
   const y = (v: number) => bottom - ((v - min) / span) * (bottom - top);
+  for (const band of bands ?? []) {
+    const from = Math.max(-windowSeconds, band.start - snapshot.time);
+    const to = Math.min(windowSeconds, band.end - snapshot.time);
+    if (to <= from) continue;
+    const x1 = left + ((from + windowSeconds) / (windowSeconds * 2)) * (right - left);
+    const x2 = left + ((to + windowSeconds) / (windowSeconds * 2)) * (right - left);
+    ctx.save();
+    ctx.globalAlpha = 0.16;
+    ctx.fillStyle = band.side === "b" ? B_COLOR : !single ? A_COLOR : "var(--app-accent)";
+    ctx.fillRect(x1, top, Math.max(1, x2 - x1), bottom - top);
+    ctx.restore();
+  }
   ctx.strokeStyle = "var(--app-border)";
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -193,7 +210,7 @@ useEffect(() => {
     } else ctx.stroke();
   }
   ctx.restore();
-}, [visible, points, channel, convert, width, windowSeconds, snapshot.time, groupComponents, single, primaryColor]);
+}, [visible, points, channel, convert, width, windowSeconds, snapshot.time, groupComponents, single, primaryColor, bands]);
 const nowA = value(snapshot.a, channel, "a");
 const nowB = channel.derived === "delta" ? null : value(snapshot.b, channel, "b");
 const label = channel.label + (!groupComponents && channel.components[0]?.label ? ` ${channel.components[0].label}` : "");
@@ -242,7 +259,7 @@ function value(reading: SpectateReading | null, source: SpectateChannel, side: "
 function format(value: number | null): string {
   return value === null || !Number.isFinite(value) ? "—" : value.toFixed(channel.id === "inputs.gear" ? 0 : 2);
 } }
-function ERSModeChartRow({ windowSeconds, controller, snapshot, single }: { windowSeconds: 5 | 10; controller: SpectateController; snapshot: SpectateSnapshot; single?: boolean }) { const m = useMessages(); const root = useRef<HTMLDivElement>(null);
+function ERSModeChartRow({ windowSeconds, controller, snapshot, single, bands }: { windowSeconds: 5 | 10; controller: SpectateController; snapshot: SpectateSnapshot; single?: boolean; bands?: readonly ChartBand[] }) { const m = useMessages(); const root = useRef<HTMLDivElement>(null);
 const [visible, setVisible] = useState(false);
 const [width, setWidth] = useState(0);
 const points = useMemo(() => (visible ? sampleWindow(controller, snapshot, windowSeconds) : []), [visible, controller, windowSeconds, snapshot.time, snapshot.generation, snapshot.positionLock]);
@@ -282,6 +299,13 @@ return (
       </>}
       <svg x="16" width={plotWidth} height="72" overflow="hidden" aria-hidden="true">
         <g transform={`translate(${-(snapshot.time - windowSeconds) * scale}, 0)`}>
+          {bands?.map((band, index) => {
+            const start = Math.max(snapshot.time - windowSeconds, band.start);
+            const end = Math.min(snapshot.time + windowSeconds, band.end);
+            if (end <= start) return null;
+            return <rect key={"band-" + index} x={start * scale} y={single ? 8 : band.side === "a" ? 8 : 36} width={(end - start) * scale} height={single ? 54 : 24}
+              fill={band.side === "b" ? B_COLOR : A_COLOR} opacity="0.16" />;
+          })}
           {[runsA, runsB].map((runs, side) => runs.map((run, index) => (
             <rect key={`${side}:${run.mode}:${index}`} data-ers-side={side === 0 ? "a" : "b"} data-ers-mode={run.mode}
               x={run.start * scale} y={side === 0 ? 15 : 43} width={(run.end - run.start) * scale} height="12"
@@ -303,8 +327,21 @@ return (
 ); }
 
 
-export function SpectateTelemetryPanel({ pair, controller, headerTarget }: { pair: ReplaySession; controller: SpectateController; headerTarget: HTMLDivElement | null }) { const { getLocale } = useReplayHost(); const m = useMessages(); const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
+export function SpectateTelemetryPanel({ pair, controller, headerTarget, cornerFocus }: { pair: ReplaySession; controller: SpectateController; headerTarget: HTMLDivElement | null; cornerFocus: CornerFocusController }) { const { getLocale } = useReplayHost(); const m = useMessages(); const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
 const units = useUnits(pair.gameId);
+const cornerBands = useMemo((): ChartBand[] => {
+  if (!cornerFocus.running || !cornerFocus.active) return [];
+  const bands: ChartBand[] = [];
+  for (const range of cornerFocus.active.rangesBySide.a) {
+    const time = distanceRangeToTimeRange(pair.a, range);
+    if (time) bands.push({ side: "a", ...time });
+  }
+  if (pair.b) for (const range of cornerFocus.active.rangesBySide.b) {
+    const time = distanceRangeToTimeRange(pair.b, range);
+    if (time) bands.push({ side: "b", ...time });
+  }
+  return bands;
+}, [cornerFocus.active, cornerFocus.running, pair.a, pair.b]);
 const channels = useMemo(
   () =>
     buildSpectateChannels(pair)
@@ -377,7 +414,10 @@ const convert = (id: string, value: number) => {
   return value;
 };
 return (
-  <div className="h-full w-full min-h-0 min-w-0 flex-1 flex flex-col bg-app-bg">
+  <div className="h-full w-full min-h-0 min-w-0 flex-1 flex flex-col bg-app-bg"
+    data-corner-focusing={cornerBands.length > 0 ? "true" : undefined}
+    data-corner-bands-a={cornerBands.filter((band) => band.side === "a").map((band) => band.start.toFixed(3) + "-" + band.end.toFixed(3)).join(";") || undefined}
+    data-corner-bands-b={cornerBands.filter((band) => band.side === "b").map((band) => band.start.toFixed(3) + "-" + band.end.toFixed(3)).join(";") || undefined}>
     {headerTarget && createPortal(
       <select
         aria-label={m.review_range()}
@@ -409,13 +449,13 @@ return (
     <div ref={scroll} id="spectate-telemetry-channels" role="tabpanel" aria-labelledby={activeCategory ? `spectate-category-${activeCategory}` : undefined} aria-label={activeCategory ? undefined : m.spectate_telemetry()} data-spectate-scroll className="min-h-0 flex-1 overflow-y-auto px-4">
       <div className="sticky top-0 z-10 bg-app-bg">
         {channels.filter((channel) => channel.derived === "delta").map((channel) => (
-          <ChartRow key={channel.id} channel={channel} windowSeconds={windowSeconds} controller={controller} snapshot={snapshot} convert={convert} single={!pair.b} />
+          <ChartRow key={channel.id} channel={channel} windowSeconds={windowSeconds} controller={controller} snapshot={snapshot} convert={convert} single={!pair.b} bands={cornerBands} />
         ))}
       </div>
-      {activeCategory === "fuel" && hasERSModeData && <ERSModeChartRow windowSeconds={windowSeconds} controller={controller} snapshot={snapshot} single={!pair.b} />}
+      {activeCategory === "fuel" && hasERSModeData && <ERSModeChartRow windowSeconds={windowSeconds} controller={controller} snapshot={snapshot} single={!pair.b} bands={cornerBands} />}
       {categorized.filter(({ category: item }) => item === activeCategory).map(({ channel }) => (
         <ChartRow key={`${channel.id}:${channel.components[0]?.key}`} channel={channel} windowSeconds={windowSeconds} controller={controller} snapshot={snapshot} convert={convert}
-          single={!pair.b} groupComponents={!pair.b && isFourWheelChannel(channel)} />
+          single={!pair.b} groupComponents={!pair.b && isFourWheelChannel(channel)} bands={cornerBands} />
       ))}
     </div>
   </div>

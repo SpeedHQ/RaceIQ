@@ -12,6 +12,7 @@ import {
 export type CornerFocusActive = {
   action: CornerAction;
   ranges: readonly DistanceRange[];
+  rangesBySide: { a: readonly DistanceRange[]; b: readonly DistanceRange[] };
   primary: "a" | "b";
 };
 
@@ -23,16 +24,20 @@ export type CornerFocusActive = {
 export type CornerFocusController = {
   focus: (action: CornerAction, options: { loop: boolean }) => boolean;
   clear: () => void;
+  /** Last requested focus; retained after the exit (P3). */
   active: CornerFocusActive | null;
+  /** True only while the focused range is being followed. */
+  running: boolean;
 };
 
 const CornerFocusContext = createContext<CornerFocusController | null>(null);
 const noopFocus = () => false;
 const noopClear = () => undefined;
+const NOOP_CONTROLLER: CornerFocusController = { focus: noopFocus, clear: noopClear, active: null, running: false };
 
 /** Safe outside a replay surface: inline references stay inert, never throw. */
 export function useCornerFocusController(): CornerFocusController {
-  return useContext(CornerFocusContext) ?? { focus: noopFocus, clear: noopClear, active: null };
+  return useContext(CornerFocusContext) ?? NOOP_CONTROLLER;
 }
 
 export function CornerFocusProvider({ value, children }: { value: CornerFocusController; children: ReactNode }) {
@@ -66,6 +71,7 @@ export function useCornerFocus(
   }, [pair, segments]);
   const handleRef = useRef<CornerFocusHandle | null>(null);
   const [active, setActive] = useState<CornerFocusActive | null>(null);
+  const [running, setRunning] = useState(false);
 
   const stop = useCallback(() => {
     handleRef.current?.stop();
@@ -76,6 +82,7 @@ export function useCornerFocus(
   useEffect(() => {
     stop();
     setActive(null);
+    setRunning(false);
   }, [context, controller, stop]);
 
   const focus = useCallback(
@@ -90,10 +97,17 @@ export function useCornerFocus(
         primary: resolution.primary,
         primaryExit: resolution.primaryExit,
         exits: resolution.exits,
+        onExit: () => setRunning(false),
       });
       if (!handle) return false;
       handleRef.current = handle;
-      setActive({ action, ranges: resolution.ranges, primary: resolution.primary });
+      setActive({
+        action,
+        ranges: resolution.ranges,
+        rangesBySide: resolution.rangesBySide,
+        primary: resolution.primary,
+      });
+      setRunning(true);
       return true;
     },
     [context, controller, stop],
@@ -103,7 +117,8 @@ export function useCornerFocus(
   const clear = useCallback(() => {
     stop();
     setActive(null);
+    setRunning(false);
   }, [stop]);
 
-  return { focus, clear, active };
+  return { focus, clear, active, running };
 }
