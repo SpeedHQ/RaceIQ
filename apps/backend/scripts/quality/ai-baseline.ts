@@ -34,8 +34,14 @@ import {
 } from "../../src/mastra/evals/fixtures";
 import { analystScorers, compareScorers, scoreOutput } from "../../src/mastra/evals/index";
 
-if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-  console.error("Missing GEMINI_API_KEY / GOOGLE_GENERATIVE_AI_API_KEY");
+const evalsProvider = process.env.EVALS_PROVIDER ?? "gemini";
+const hasEvalKey = evalsProvider === "deepseek"
+  ? Boolean(process.env.DEEPSEEK_API_KEY)
+  : Boolean(process.env.GEMINI_API_KEY) || Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
+if (!hasEvalKey) {
+  console.error(evalsProvider === "deepseek"
+    ? "Missing DEEPSEEK_API_KEY (EVALS_PROVIDER=deepseek)"
+    : "Missing GEMINI_API_KEY / GOOGLE_GENERATIVE_AI_API_KEY");
   process.exit(1);
 }
 

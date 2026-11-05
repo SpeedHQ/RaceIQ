@@ -23,8 +23,8 @@ describe("isDeepSeekEndpoint", () => {
 });
 
 describe("defaultReasoningEffortFor", () => {
-  test("DeepSeek 默认为 medium（官方支持 low/medium/high）", () => {
-    expect(defaultReasoningEffortFor("https://api.deepseek.com")).toBe("medium");
+  test("DeepSeek 不设置 reasoning_effort（思考由传输层关闭）", () => {
+    expect(defaultReasoningEffortFor("https://api.deepseek.com")).toBeUndefined();
   });
 
   test("本地兼容端点保持关闭推理", () => {

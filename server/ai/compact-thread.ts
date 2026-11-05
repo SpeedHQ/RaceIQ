@@ -40,6 +40,25 @@ interface CompactDeps {
   summarize?: (transcript: string) => Promise<string>;
 }
 
+/**
+ * Summarise through the DeepSeek adapter path. Exported so the request shape can
+ * be asserted without the OS credential store.
+ */
+export async function summarizeWithDeepSeek(
+  transcript: string,
+  options: { model: string; apiKey: string },
+): Promise<string> {
+  const result = await runOpenAiCompatible({
+    prompt: `${SUMMARY_SYSTEM}\n\n${transcript}`,
+    apiKey: options.apiKey,
+    endpoint: baseUrlFor("deepseek") ?? "https://api.deepseek.com",
+    model: options.model,
+    temperature: 0,
+    maxOutputTokens: 900,
+  });
+  return result.analysis;
+}
+
 async function defaultSummarize(transcript: string): Promise<string> {
   const s = loadSettings();
   // Bridge provider env the same way the chat routes do — Mastra resolves
@@ -53,15 +72,7 @@ async function defaultSummarize(transcript: string): Promise<string> {
     // run with thinking on and a 900-token budget. Use the adapter path that
     // applies those rules.
     const apiKey = await requireAiProviderApiKey("deepseek");
-    const result = await runOpenAiCompatible({
-      prompt: `${SUMMARY_SYSTEM}\n\n${transcript}`,
-      apiKey,
-      endpoint: baseUrlFor("deepseek") ?? "https://api.deepseek.com",
-      model: s.chatModel || "deepseek-flash",
-      temperature: 0,
-      maxOutputTokens: 900,
-    });
-    return result.analysis;
+    return summarizeWithDeepSeek(transcript, { model: s.chatModel || "deepseek-flash", apiKey });
   }
   const compactor = new Agent({
     id: "compactor",

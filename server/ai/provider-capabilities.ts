@@ -34,7 +34,7 @@ function isAnthropicEndpoint(endpoint: string): boolean {
  *
  * - OpenAI / Anthropic: leave unset (OpenAI uses `reasoning.effort` for o-series,
  *   Anthropic's compatibility layer maps the field to extended thinking).
- * - DeepSeek: officially supports low/medium/high, so medium by default.
+ * - DeepSeek: RaceIQ disables thinking in the transport, so nothing is sent.
  * - Anything else: assume a local server that may reject the field.
  */
 export function defaultReasoningEffortFor(endpoint?: string | null): ReasoningEffort | undefined {
@@ -42,7 +42,7 @@ export function defaultReasoningEffortFor(endpoint?: string | null): ReasoningEf
   if (!value) return "none";
   if (isOpenAiEndpoint(value)) return undefined;
   if (isAnthropicEndpoint(value)) return undefined;
-  if (isDeepSeekEndpoint(value)) return "medium";
+  if (isDeepSeekEndpoint(value)) return undefined;
   return "none";
 }
 

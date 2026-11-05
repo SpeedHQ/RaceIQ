@@ -36,7 +36,9 @@ export function resolveEvalModelId(): string {
 export function resolveEvalModel(): MastraModelConfig {
   const provider = process.env.EVALS_PROVIDER ?? "gemini";
   const model = process.env.EVALS_MODEL ?? "gemini-flash-latest";
-  if (provider === "deepseek") return getMastraModelId({ provider: "deepseek", model });
+  if (provider === "deepseek") {
+    return getMastraModelId({ provider: "deepseek", model, apiKey: process.env.DEEPSEEK_API_KEY });
+  }
   return resolveEvalModelId();
 }
 
