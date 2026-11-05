@@ -137,3 +137,20 @@ describe("computeLapSectors — sector source priority", () => {
   });
 
 });
+
+test("AMS2 prefers native sectors and falls back from the grid distance reset", () => {
+  const packets = makeLapPackets(1933, 66, "ams2");
+  const ams2 = {
+    carName: "Ginetta G40 Cup", trackName: "Brands Hatch Indy",
+    trackLengthM: 1933, lapDistanceM: 0, sessionType: "race",
+    lapInvalidated: false, inPits: false,
+  };
+  packets.unshift({ ...packets[0], ams2, CurrentLap: -1, DistanceTraveled: 1764 });
+  packets.at(-1)!.ams2 = { ...ams2, currentSectorTimes: [28, 16, 22] };
+  expect(computeLapSectors("test", "ams2", packets, 66)).toEqual([28, 16, 22]);
+
+  packets.at(-1)!.ams2!.currentSectorTimes = [28, 16, -1];
+  const fallback = computeLapSectors("test", "ams2", packets, 66);
+  expect(fallback).toHaveLength(3);
+  for (const sector of fallback ?? []) expect(Math.abs(sector - 22)).toBeLessThan(0.5);
+});
