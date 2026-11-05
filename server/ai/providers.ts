@@ -6,8 +6,8 @@ import { extractJson } from "./extract-json";
 import { logLlmEvent, withLlmDiagnostics } from "./diagnostic-logging";
 import { AiProviderError } from "./provider-error";
 import { buildGoogleThinkingProviderOptions } from "./google-provider-options";
-import { ANTHROPIC_OPENAI_BASE_URL, isAnthropicEndpoint, openAiCompatibleAuthHeaders } from "./openai-compatible-headers";
-import { defaultReasoningEffortFor, mapDeepSeekModels } from "./provider-capabilities";
+import { ANTHROPIC_OPENAI_BASE_URL, deepseekCompatibleBody, isAnthropicEndpoint, openAiCompatibleAuthHeaders } from "./openai-compatible-headers";
+import { defaultReasoningEffortFor, isDeepSeekEndpoint, mapDeepSeekModels, responseFormatFor } from "./provider-capabilities";
 import { baseUrlFor } from "./provider-endpoints";
 export interface AiResult {
   analysis: string;
@@ -370,15 +370,30 @@ export async function runOpenAiCompatible(options: OpenAiRequestOptions): Promis
     // Current Claude models reject `temperature` on the compatibility API.
     if (!isAnthropicEndpoint(endpoint)) body.temperature = options.temperature ?? 0.3;
     // Anthropic's compatibility layer maps reasoning_effort to extended thinking, so leave it unset there.
-    // DeepSeek officially supports low/medium/high; unknown local servers may reject the field.
-    const reasoningEffort = defaultReasoningEffortFor(endpoint);
-    if (reasoningEffort) body.reasoning_effort = reasoningEffort;
+    // DeepSeek's own body rules (thinking off, no reasoning_effort) live in one
+    // place and are shared with the SDK transport; see deepseekCompatibleBody.
+    if (isDeepSeekEndpoint(endpoint)) {
+      deepseekCompatibleBody(body);
+    } else {
+      const reasoningEffort = defaultReasoningEffortFor(endpoint);
+      if (reasoningEffort) body.reasoning_effort = reasoningEffort;
+    }
     if (options.maxOutputTokens != null) body.max_tokens = options.maxOutputTokens;
     if (options.schema) {
-      body.response_format = {
-        type: "json_schema",
-        json_schema: { name: options.schemaName || "lap_analysis", strict: true, schema: options.schema },
-      };
+      if (responseFormatFor(endpoint) === "json_object") {
+        // DeepSeek rejects json_schema; it only offers json_object, so the schema
+        // has to travel in the prompt.
+        body.response_format = { type: "json_object" };
+        body.messages = [{
+          role: "user",
+          content: `${options.prompt}\n\nRespond with a single JSON object that matches this JSON schema:\n${JSON.stringify(options.schema)}`,
+        }];
+      } else {
+        body.response_format = {
+          type: "json_schema",
+          json_schema: { name: options.schemaName || "lap_analysis", strict: true, schema: options.schema },
+        };
+      }
     }
 
     const start = performance.now();

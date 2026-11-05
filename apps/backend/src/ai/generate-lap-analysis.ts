@@ -277,7 +277,7 @@ export async function generateLapAnalysis(
         ...(ai.provider === "openai-compatible"
           ? { model: getResolvedAiInternals(ai)?.model, jsonPromptInjection: false }
           // Anthropic's OpenAI-compatible API ignores response_format, so ask for JSON in the prompt.
-          : { jsonPromptInjection: ai.provider === "anthropic" ? true : "auto" }),
+          : { jsonPromptInjection: ai.provider === "anthropic" || ai.provider === "deepseek" ? true : "auto" }),
       },
       providerOptions: {
         openai: ai.provider === "anthropic" ? {} : {

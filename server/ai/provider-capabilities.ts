@@ -84,3 +84,16 @@ const SUPPORTED_AI_PROVIDERS = new Set(["gemini", "openai", "anthropic", "deepse
 export function isSupportedAiProvider(provider: string): boolean {
   return SUPPORTED_AI_PROVIDERS.has(provider);
 }
+
+export type StructuredResponseFormat = "json_schema" | "json_object";
+
+/**
+ * Which `response_format` an endpoint accepts for schema-constrained output.
+ *
+ * DeepSeek rejects `json_schema` ("This response_format type is unavailable
+ * now") and only offers `json_object`, so callers must also describe the schema
+ * in the prompt. Everyone else keeps the native schema path.
+ */
+export function responseFormatFor(endpoint?: string | null): StructuredResponseFormat {
+  return isDeepSeekEndpoint(endpoint) ? "json_object" : "json_schema";
+}

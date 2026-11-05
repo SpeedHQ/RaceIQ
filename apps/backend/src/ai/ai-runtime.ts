@@ -1,5 +1,4 @@
 import { getAiProviderApiKey } from "@raceiq/backend-core/ai/openai-compatible-provider";
-import { baseUrlFor } from "@raceiq/backend-core/ai/provider-endpoints";
 import { isSupportedAiProvider } from "@raceiq/backend-core/ai/provider-capabilities";
 import { loadSettings, type AppSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { AI_FEATURES, type AiFeature, type AiProvider } from "@raceiq/backend-core/ai/ai-features";
@@ -8,6 +7,7 @@ import {
 } from "@raceiq/backend-core/ai/provider-error";
 import {
   AnthropicProviderAdapter,
+  DeepSeekProviderAdapter,
   GeminiProviderAdapter,
   OpenAiCompatibleProviderAdapter,
   OpenAiProviderAdapter,
@@ -100,13 +100,8 @@ export async function resolveAi(feature: AiFeature, settings: AppSettings = load
           provider,
         });
       }
-      // DeepSeek 官方端点兼容 OpenAI 协议，复用兼容适配器；
-      // 与 openai-compatible 的差别是「端点固定 + key 必填」。
-      return resolvedAiFromAdapter(new OpenAiCompatibleProviderAdapter({
-        ...config,
-        endpoint: baseUrlFor("deepseek") ?? "https://api.deepseek.com",
-        apiKey,
-      }));
+      // 端点固定、key 必填、自带 body 兼容规则——与 Anthropic 同一种适配形状。
+      return resolvedAiFromAdapter(new DeepSeekProviderAdapter({ ...config, apiKey }));
     }
     case "openai-compatible": {
       const apiKey = await getAiProviderApiKey("openai-compatible");

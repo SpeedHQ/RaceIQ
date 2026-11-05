@@ -9,6 +9,7 @@ import { chatRequestHasImage, resolveChatVisionCapability } from "@raceiq/shared
 import { getLapsByIds } from "@raceiq/backend-core/db/lap-read-queries";
 import { deleteCompareAnalysis, getAnalysis, getCompareAnalysis, saveCompareAnalysis } from "@raceiq/backend-core/db/analysis-queries";
 import { sanitizeAnalystOutput } from "@raceiq/backend-core/ai/schemas";
+import { extractJson } from "@raceiq/backend-core/ai/extract-json";
 import { compareLaps } from "@raceiq/backend-core/lap-analysis/comparison";
 import { getOrComputeLapInsightsBatch } from "@raceiq/backend-core/lap-analysis/metrics-store";
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
@@ -176,14 +177,18 @@ export const comparisonRoutes = new Hono()
           // Prompt injection keeps the answer on the plain-text channel, which
           // those models fill normally. Hosted providers parse native structured
           // output fine, so only the local path opts in.
-          ...(settings.aiProvider === "openai-compatible" || settings.aiProvider === "anthropic" ? { jsonPromptInjection: true } : {}),
+          ...(settings.aiProvider === "openai-compatible" || settings.aiProvider === "anthropic" || settings.aiProvider === "deepseek" ? { jsonPromptInjection: true } : {}),
         },
         // Every other AI route already caps output and disables reasoning on
         // local models (analyse, lap chat, compare chat). This one did not, so
         // a thinking model such as qwen3.5 could reason unboundedly and push the
         // request past Bun.serve's 255s idleTimeout — surfacing to the client as
         // a bare "socket hang up" from the Vite proxy.
-        modelSettings: { maxOutputTokens: 8192, temperature: 0 },
+        modelSettings: {
+          // DeepSeek 便宜且默认思考，给足输出预算，避免推理把正文挤空。
+          maxOutputTokens: settings.aiProvider === "deepseek" ? 16384 : 8192,
+          temperature: 0,
+        },
         providerOptions: {
           openai: { reasoningEffort: "medium" },
           google: buildGoogleThinkingProviderOptions(
@@ -194,7 +199,28 @@ export const comparisonRoutes = new Hono()
       });
       const durationMs = Math.round(performance.now() - start);
 
-      const object = (result as any).object;
+      let object = (result as any).object;
+      if (!object) {
+        // Providers that receive the schema as prompt text (DeepSeek, Anthropic,
+        // local servers) may answer with valid JSON wrapped in prose or fences.
+        // Parse that instead of failing the whole comparison.
+        const raw = typeof (result as any).text === "string" ? (result as any).text : "";
+        if (raw.trim()) {
+          try {
+            object = InputsCompareSchema.parse(JSON.parse(extractJson(raw)));
+          } catch (parseError) {
+            console.warn(
+              "[InputsCompare] structured output fallback failed:",
+              parseError instanceof Error ? parseError.message.slice(0, 200) : String(parseError).slice(0, 200),
+              "| raw:",
+              raw.slice(0, 400),
+            );
+            object = undefined;
+          }
+        } else {
+          console.warn("[InputsCompare] structured output missing and text channel was empty");
+        }
+      }
       if (!object) {
         throw new Error(
           settings.aiProvider === "openai-compatible"

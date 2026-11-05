@@ -13,6 +13,7 @@ import type {
   TextRequest,
 } from "@raceiq/backend-core/ai/ai-types";
 import { ANTHROPIC_OPENAI_BASE_URL } from "@raceiq/backend-core/ai/openai-compatible-headers";
+import { baseUrlFor } from "@raceiq/backend-core/ai/provider-endpoints";
 import { setResolvedAiInternals } from "./resolved-ai-internals";
 
 export type ProviderAdapterConfig = {
@@ -200,10 +201,56 @@ export class AnthropicProviderAdapter {
   }
 }
 
+/** DeepSeek through its OpenAI-compatible API at a fixed endpoint. */
+export class DeepSeekProviderAdapter {
+  readonly feature: AiFeature;
+  readonly provider: AiProvider = "deepseek";
+  readonly model: string;
+  readonly mastraModel: BoundMastraModel;
+  readonly #apiKey: string;
+  readonly #endpoint = baseUrlFor("deepseek") ?? "https://api.deepseek.com";
+
+  constructor(config: ProviderAdapterConfig & { apiKey: string }) {
+    this.feature = config.feature;
+    this.model = config.model;
+    this.#apiKey = config.apiKey;
+    this.mastraModel = getMastraModelId({
+      provider: this.provider,
+      model: this.model,
+      apiKey: this.#apiKey,
+    });
+  }
+
+  generateText(input: TextRequest): Promise<AiResult> {
+    return runOpenAiCompatible({
+      prompt: promptFor(input),
+      apiKey: this.#apiKey,
+      endpoint: this.#endpoint,
+      model: this.model,
+      temperature: input.temperature,
+      maxOutputTokens: input.maxOutputTokens,
+    });
+  }
+
+  generateStructured<T>(input: StructuredRequest<T>): Promise<AiResult> {
+    return runOpenAiCompatible({
+      prompt: promptFor(input),
+      apiKey: this.#apiKey,
+      endpoint: this.#endpoint,
+      model: this.model,
+      schema: input.schema as unknown as object,
+      schemaName: input.schemaName,
+      temperature: input.temperature,
+      maxOutputTokens: input.maxOutputTokens,
+    });
+  }
+}
+
 export type AnyProviderAdapter =
   | GeminiProviderAdapter
   | OpenAiProviderAdapter
   | AnthropicProviderAdapter
+  | DeepSeekProviderAdapter
   | OpenAiCompatibleProviderAdapter;
 
 export function resolvedAiFromAdapter(adapter: AnyProviderAdapter): ResolvedAi {

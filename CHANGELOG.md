@@ -1,9 +1,10 @@
 ## Unreleased
 
 ### Features
-- Choose DeepSeek for analysis, chat, auto-tune and driver profiles with its own API key. The model picker reads the models available to that key instead of using a fixed list, preselects `deepseek-flash`, keeps tool calls and reasoning effort intact, and only offers image attachments on models that accept them.
+- Choose DeepSeek for analysis, chat, auto-tune and driver profiles with its own API key. The model picker reads the models available to that key instead of using a fixed list, preselects `deepseek-flash`, keeps tool calls working, and only offers image attachments on models that accept them.
 
 ### Fixes
+- Complete DeepSeek lap analysis and comparisons without a rejected request: DeepSeek does not accept the strict JSON response format, so RaceIQ asks for plain JSON output and keeps the schema in the prompt.
 
 ### Internal
 

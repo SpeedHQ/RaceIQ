@@ -6,6 +6,7 @@ import {
   isDeepSeekEndpoint,
   isSupportedAiProvider,
   mapDeepSeekModels,
+  responseFormatFor,
 } from "./provider-capabilities";
 
 describe("isDeepSeekEndpoint", () => {
@@ -90,5 +91,17 @@ describe("mapDeepSeekModels", () => {
     expect(mapDeepSeekModels(null)).toEqual([]);
     expect(mapDeepSeekModels("nope")).toEqual([]);
     expect(mapDeepSeekModels({})).toEqual([]);
+  });
+});
+
+describe("responseFormatFor", () => {
+  test("DeepSeek 只接受 json_object", () => {
+    expect(responseFormatFor("https://api.deepseek.com")).toBe("json_object");
+  });
+
+  test("其他端点保持原生 json_schema", () => {
+    expect(responseFormatFor("https://api.openai.com/v1")).toBe("json_schema");
+    expect(responseFormatFor("http://localhost:1234/v1")).toBe("json_schema");
+    expect(responseFormatFor(undefined)).toBe("json_schema");
   });
 });
