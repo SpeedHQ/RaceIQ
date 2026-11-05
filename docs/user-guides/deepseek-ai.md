@@ -40,6 +40,18 @@ fill in, unlike the OpenAI-compatible provider.
   model and save. The failure reason is logged under `[AI]` in the app log.
 - Key storage uses the OS credential store, same as the other providers.
 
+## AI quality evaluations
+
+Set `DEEPSEEK_API_KEY` in your environment, then select the evaluation model explicitly:
+
+```sh
+EVALS_PROVIDER=deepseek EVALS_MODEL=deepseek-flash bun run test:ai
+EVALS_PROVIDER=deepseek EVALS_MODEL=deepseek-flash bun run ai:baseline
+```
+
+`EVALS_MODEL` is required; evaluation runs do not select a fallback model. DeepSeek evaluation
+requests disable thinking, matching production analysis requests.
+
 ## Troubleshooting
 
 | Symptom | Check |

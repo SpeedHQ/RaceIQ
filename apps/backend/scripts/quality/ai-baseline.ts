@@ -9,7 +9,7 @@ import { ROOT_DIR } from "@raceiq/backend-core/runtime/config/paths";
  * the new normal — the regression test then measures relative drift against
  * the most recent committed baseline.
  *
- *   bun run ai:baseline
+ *   EVALS_MODEL=gemini-3-flash bun run ai:baseline
  */
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
