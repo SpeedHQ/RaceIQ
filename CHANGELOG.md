@@ -35,6 +35,16 @@
 - Introduce the macOS Tauri host and isolated backend lifecycle checks for allocated loopback ports, readiness, persistence and graceful shutdown; native-app acceptance remains in progress.
 - Add an isolated real-UDP F1 25 browser acceptance gate and a staged macOS Bun/Tauri desktop plan.
 
+## v0.21.1 - 2026-11-03
+
+### Features
+
+### Fixes
+- Restore the recording-frequency control in Settings → Recording.
+- Restore iRacing and Automobilista 2 in the Windows app sidebar.
+
+### Internal
+
 ## v0.21.0 - 2026-11-03
 
 ### Features
@@ -251,7 +261,6 @@
 ## v0.20.0 - 2026-10-15
 
 ### Breaking
-- After upgrading saved AI history, keep this build or newer; older builds cannot open the updated database.
 - Legacy full-frame RaceIQ captures are no longer supported for import and replay. Ensure any remaining legacy recordings are migrated when prompted before updating.
 
 ### Feature
