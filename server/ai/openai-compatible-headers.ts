@@ -45,8 +45,10 @@ const ANTHROPIC_UNSUPPORTED_BODY_KEYS = ["temperature", "top_p"];
  *   visible reasoning, so switch it off and leave the budget to the answer.
  * - DeepSeek rejects `response_format: json_schema` ("This response_format type
  *   is unavailable now") and only offers `json_object`; the schema has to travel
- *   in the prompt. Callers that already put it there keep working, and SDK-side
- *   passes (Mastra's structuring step) no longer 400.
+ *   in the prompt. Only the raw-fetch transport (`runOpenAiCompatible`) runs this
+ *   rewrite. Mastra's SDK transport resolves DeepSeek to the native
+ *   `deepseek/<model>` provider without wrapping fetch, so SDK requests never
+ *   reach here; callers that already put the schema in the prompt keep working.
  */
 export function deepseekCompatibleBody(body: Record<string, unknown>): Record<string, unknown> {
   body.thinking = { type: "disabled" };
