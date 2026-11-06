@@ -137,6 +137,57 @@ describe("DirectCaptureRecording", () => {
     expect(publishedLaps.every((lap) => lap.captureChunkId !== null && lap.sourceFrameCount === 1)).toBe(true);
     expect(publishedLaps.map((lap) => lap.sourceFrameStart)).toEqual([0, 1]);
   });
+  it("publishes a fresh lap after abandoning the only opening window", async () => {
+    initServerGameAdapters();
+    const directory = await mkdtemp(join(tmpdir(), "raceiq-direct-abandoned-opening-"));
+    directories.push(directory);
+    const frames = fixtureFrames();
+    let locator: ParserReplayLocator | null = null;
+    const unsubscribe = subscribeParserSource(input => { if (input.frame === frames[2]) locator = input.locator; });
+    for (const [index, frame] of frames.entries()) parsePacket(frame, 100 + index);
+    unsubscribe();
+    expect(locator).not.toBeNull();
+    const manifestPath = join(directory, "capture-manifest.json");
+    const session = await db.insert(sessions).values({ gameId: "fm-2023", carId: "test-car", trackId: "test-track", rawFile: null }).returning({ id: sessions.id }).get();
+    if (!session) throw new Error("Failed creating abandoned-opening session fixture");
+    sessionIds.push(session.id);
+    const boundaryOffset = META_FRAME_BYTES + frames.slice(0, 2).reduce((bytes, frame, index) => bytes + encodeFrameLength(frame.length, 100 + index).length + frame.length, 0);
+    const lap = await db.insert(laps).values({ sessionId: session.id, lapNumber: 1, lapTime: 60, isValid: true, rawByteOffset: boundaryOffset, rawFrameCount: 2 }).returning({ id: laps.id }).get();
+    if (!lap) throw new Error("Failed creating abandoned-opening lap fixture");
+    const capture = new DirectCaptureRecording("fm-2023", directory, manifestPath);
+    captures.push(capture);
+    await capture.ready;
+    capture.attachSession(session.id, Promise.resolve(), () => {});
+    capture.writeRecord(frames[0]!, 100);
+    const opening: DetectorOwnershipWindow = { revision: 1, lapNumber: 1, startOffset: META_FRAME_BYTES, startOrdinal: 0, frameCount: 1, status: "provisional", trailingContextFrameCount: 0, bounded: true };
+    capture.processTransitions([ownershipTransition("window-start", opening)], null);
+    expect(capture.rotationCount).toBe(0);
+    capture.writeRecord(frames[1]!, 101);
+    capture.writeRecord(frames[2]!, 102);
+    const timed: DetectorOwnershipWindow = { ...opening, revision: 3, startOffset: boundaryOffset, startOrdinal: 2 };
+    capture.processTransitions([
+      ownershipTransition("window-abandoned", { ...opening, revision: 2, frameCount: 2 }),
+      ownershipTransition("window-start", timed),
+    ], locator);
+    capture.writeRecord(frames[3]!, 103);
+    capture.processTransitions([ownershipTransition("window-finalized", { ...timed, revision: 4, frameCount: 2, status: "final" })], null);
+    capture.bindLap({ sessionId: session.id, lapId: lap.id, lapNumber: 1, startByteOffset: boundaryOffset, frameCount: 2 });
+    await capture.stop();
+    expect(capture.rotationCount).toBe(1);
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    expect(manifest.chunks).toHaveLength(2);
+    expect(manifest.chunks[0]).toMatchObject({ kind: "auxiliary", recordCount: 2, sourceByteStart: META_FRAME_BYTES, sourceByteEnd: boundaryOffset });
+    const chunk = manifest.chunks[1];
+    expect(chunk).toMatchObject({ kind: "lap", lapId: String(lap.id), recordCount: 2, ownedFrameCount: 2, sourceByteStart: boundaryOffset, firstOrdinal: 2 });
+    const records = [...iterateSessionCaptureRecords(await readFile(join(directory, chunk.path)), chunk.sourceRecordByteOffset, { strict: true })].filter(record => record.kind === "frame");
+    expect(records.map(record => record.frame)).toEqual(frames.slice(2));
+    expect(records.map(record => record.frameTimeMs)).toEqual([102, 103]);
+    await writeFile(manifestPath, "{interrupted publication");
+    await runSessionCaptureMaintenanceNow();
+    expect(JSON.parse(await readFile(manifestPath, "utf8"))).toEqual(manifest);
+    const published = await db.select().from(laps).where(eq(laps.id, lap.id)).get();
+    expect(published).toMatchObject({ captureChunkId: chunk.id, sourceFrameStart: 2, sourceFrameCount: 2, rawByteOffset: boundaryOffset });
+  });
   it("promotes a previously announced boundary without rotating or losing later native frames", async () => {
     const directory = await mkdtemp(join(tmpdir(), "raceiq-direct-promotion-"));
     directories.push(directory);

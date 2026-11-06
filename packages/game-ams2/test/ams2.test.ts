@@ -35,7 +35,7 @@ describe("AMS2 native capture",()=>{
     expect(classifyAMS2PitCycle([start, later], 0)).toBeNull();
     expect(classifyAMS2PitCycle([{ ...start, CurrentLap: 10 }, later], 0)).toBe("outlap");
     expect(classifyAMS2PitCycle([{ ...start, LapNumber: 2 }, later], 0)).toBe("outlap");
-    expect(classifyAMS2PitCycle([{ ...start, ams2: { ...start.ams2!, sessionType: "practice" } }, later], 0)).toBe("outlap");
+    expect(classifyAMS2PitCycle([{ ...start, ams2: { ...start.ams2!, sessionType: "practice" } }, later], 0)).toBeNull();
     const pit = { ...start, ams2: { ...start.ams2!, inPits: true } };
     expect(classifyAMS2PitCycle([pit, later], 0)).toBe("outlap");
     expect(classifyAMS2PitCycle([start, pit], 0)).toBe("inlap");
@@ -180,6 +180,26 @@ describe("AMS2 native capture",()=>{
       for(let i=0;i<260;i++){const b=fixture();b.writeUInt32LE(i*2,L.mSequenceNumber);b.writeFloatLE(i/10,L.mCurrentTime);const f=encodeAMS2Frame(b,1800000000000+i*10,1);frames.push(f);recorder.writeRecord(f);}
       await recorder.stop();expect([...iterateSessionFrames(readFileSync(path))]).toEqual(frames);
     } finally {await recorder.stop();rmSync(dir,{recursive:true,force:true});}
+  });
+  test("keeps an inlap when AMS2 clears the timer at pit entry", async () => {
+    const db = new CapturingDbAdapter();
+    const detector = ams2ServerAdapter.createLapDetector({ db });
+    const memory = fixture();
+    memory.writeUInt32LE(4, P + 92);
+    memory.writeFloatLE(62.9, L.mLastLapTime);
+    for (let index = 0; index < 1400; index++) {
+      const elapsed = index < 100 ? index * 0.6 : -1;
+      memory.writeFloatLE(elapsed, L.mCurrentTime);
+      memory.writeFloatLE(Math.min(index * 16, 1680), P + 80);
+      memory.writeUInt32LE(index >= 102 ? 1 : 0, L.mPitMode);
+      detector.observeSourceRecord!(12 + index * 100, 112 + index * 100, index);
+      await detector.feed(packet(memory, 1800000000000 + index * 10));
+      expect(detector.drainOwnershipTransitions!().some(event => event.kind === "candidate-start")).toBe(false);
+    }
+    await detector.finalizeCurrentSession?.();
+    expect(db.laps).toHaveLength(1);
+    expect(db.laps[0]).toMatchObject({ lapNumber: 4, isValid: false, classification: "in_lap", rawFrameCount: 1400 });
+    expect(db.laps[0]?.lapTime).toBeCloseTo(59.4);
   });
   test("records two completed laps with native lap times",async()=>{
     const db=new CapturingDbAdapter();const detector=ams2ServerAdapter.createLapDetector({db});

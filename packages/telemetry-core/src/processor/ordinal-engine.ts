@@ -236,7 +236,7 @@ export class OrdinalDetectorEngine {
   }
   private observeRunningStartCandidate(packet: TelemetryPacket): void {
     const previous = this.lastInputTelemetry;
-    if (previous && this.state.session?.gameId === packet.gameId && this.state.lapNumber >= 0 && previous.CurrentLap > 5 && packet.CurrentLap < 1) {
+    if (previous && this.state.session?.gameId === packet.gameId && this.state.lapNumber >= 0 && isRunningStart(previous, packet)) {
       // Candidate is preparation-only; trimRunningStartPackets remains ownership authority.
       this.publishOwnership("candidate-start", {
         revision: this.ownershipRevision + 1,
@@ -355,7 +355,7 @@ export class OrdinalDetectorEngine {
     this.trimRunningStartPackets(true);
     const window = this.activeWindow("incomplete");
     if (window) s.lapFrameCount = window.frameCount;
-    if (s.lapBuffer.length && s.lapBuffer[s.lapBuffer.length - 1].CurrentLap >= 10) {
+    if (incompleteLapElapsed(s.lapBuffer) >= 10) {
       await this.effects.finalizeIncompleteLap(s);
       this.publishOwnership("final-incomplete", window);
     } else {
@@ -383,7 +383,7 @@ export class OrdinalDetectorEngine {
     if (s.lapBuffer.length < 30) return;
     const last = s.lapBuffer[s.lapBuffer.length - 1];
     const isComplete = last.LastLap > 0 && last.LastLap !== s.lastLastLap;
-    const lapTime = isComplete ? last.LastLap : last.CurrentLap;
+    const lapTime = isComplete ? last.LastLap : incompleteLapElapsed(s.lapBuffer);
     if (lapTime < 10) return;
     await this.effects.finalizeStaleLap(lapTime, isComplete, silenceMs, s);
     this.publishOwnership(isComplete ? "window-finalized" : "final-incomplete", this.activeWindow(isComplete ? "final" : "incomplete"));
@@ -447,10 +447,26 @@ export class OrdinalDetectorEngine {
   }
 }
 
+function isRunningStart(previous: TelemetryPacket, packet: TelemetryPacket): boolean {
+  return previous.CurrentLap > 5 && packet.CurrentLap < 1 &&
+    (packet.gameId !== "ams2" || packet.CurrentLap >= 0);
+}
+
+export function incompleteLapElapsed(packets: readonly TelemetryPacket[]): number {
+  const last = packets.at(-1);
+  if (!last) return 0;
+  // AMS2 clears the timer when entering the pits, before the session ends.
+  if (last.gameId === "ams2" && last.ams2?.inPits && last.CurrentLap < 0) {
+    return packets.findLast(packet => packet.LapNumber === last.LapNumber &&
+      packet.sessionUID === last.sessionUID && Number.isFinite(packet.CurrentLap) && packet.CurrentLap >= 0)?.CurrentLap ?? 0;
+  }
+  return last.CurrentLap;
+}
+
 export function runningStartPacketIndex(packets: readonly TelemetryPacket[]): number {
   let start = 0;
   for (let index = 1; index < packets.length; index++) {
-    if (packets[index - 1]!.CurrentLap > 5 && packets[index]!.CurrentLap < 1) {
+    if (isRunningStart(packets[index - 1]!, packets[index]!)) {
       start = index;
     }
   }

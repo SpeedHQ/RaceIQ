@@ -21,12 +21,13 @@ import { DEFAULT_LAP_DETECTOR_POLICY, assessLapRecording, mergePitCycleReason, t
 import { recordLapTrace } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import { getIRacingSharedTrackName } from "@raceiq/game-iracing-metadata/racing/tracks/catalogs/iracing"
 import { lapPath } from "@raceiq/shared/racing/tracks/path";
-import { forzaPitTransitionEvidence, type PitCycleReason } from "@raceiq/analysis-core/racing/laps/pit-cycle";
+import { classifyPitCycleLap, forzaPitTransitionEvidence, type PitCycleReason } from "@raceiq/analysis-core/racing/laps/pit-cycle";
 import { persistLapMetrics } from "../lap-analysis/metrics-store";
 import { reconcileAutoExclusionsForLap } from "../experiments/auto-exclude";
 import { computeLapSectors as computeLapSectorsHelper } from "@raceiq/telemetry-core/processor/sectors";
 import { resolveTrack } from "../tracks/info";
 import {
+  incompleteLapElapsed,
   OrdinalDetectorEngine,
   type OrdinalEngineState,
 } from "@raceiq/telemetry-core/processor/ordinal-engine";
@@ -195,8 +196,8 @@ export class LapDetector implements ILapDetector, LapOwnershipSource {
         const lapNum = state.lapNumber;
         const packetCount = state.lapBuffer.length;
         const lapPackets = state.lapBuffer;
-        const classification = classifyLapCategory(lapPackets, this.currentPitCycleReason, undefined, isComplete && state.lapIsValid);
-        this.db.insertLap(
+        const classification = classifyLapCategory(lapPackets, this.pitReasonForIncompleteLap(lapPackets), undefined, isComplete && state.lapIsValid);
+        const pendingLap = this.db.insertLap(
           session.sessionId,
           lapNum,
           lapTime,
@@ -216,6 +217,7 @@ export class LapDetector implements ILapDetector, LapOwnershipSource {
         }).catch((err) => {
           console.error("[Lap] Failed to flush stale lap:", err);
         });
+        if (session.gameId === "ams2") await pendingLap;
       },
       finalizeSession: async () => { this.currentSession = null; },
     }, { bypassPacketRateFilter: this.bypassPacketRateFilter });
@@ -237,11 +239,11 @@ export class LapDetector implements ILapDetector, LapOwnershipSource {
     if (this.pendingIncompleteLapWrite) return this.pendingIncompleteLapWrite;
     if (!this.currentSession || this.currentLapNumber < 0 || !this.lapBuffer.length) return;
     const session = this.currentSession, lapNumber = this.currentLapNumber;
-    const lapTime = this.lapBuffer.at(-1)!.CurrentLap;
+    const lapTime = incompleteLapElapsed(this.lapBuffer);
     if (lapTime < 10) return;
     this.pendingIncompleteLapWrite = (async () => {
       const tune = await this.db.getTuneAssignment(session.gameId, session.carId, session.trackId);
-      const classification = classifyLapCategory(this.lapBuffer, this.currentPitCycleReason, undefined, false);
+      const classification = classifyLapCategory(this.lapBuffer, this.pitReasonForIncompleteLap(this.lapBuffer), undefined, false);
       this.pendingIncompleteLapId = await this.db.insertLap(session.sessionId, lapNumber, lapTime, false, this._lapByteOffset, this._lapFrameCount, null, tune?.tuneId ?? null, this.currentPitCycleReason ?? "incomplete", null, classification);
       console.log(`[Lap] Saved provisional incomplete lap ${lapNumber}`);
     })();
@@ -494,6 +496,12 @@ export class LapDetector implements ILapDetector, LapOwnershipSource {
     return true;
   }
 
+  private pitReasonForIncompleteLap(packets: readonly TelemetryPacket[]): PitCycleReason | null {
+    return this.currentSession?.gameId === "ams2"
+      ? mergePitCycleReason(this.currentPitCycleReason, classifyPitCycleLap(packets))
+      : this.currentPitCycleReason;
+  }
+
   /** Persist an incomplete lap selected by the ordinal engine's finalization policy. */
   private async finalizeLapIfNeeded(): Promise<void> {
     if (!this.currentSession || !this.lapBuffer.length || this.currentLapNumber < 0) return;
@@ -503,11 +511,11 @@ export class LapDetector implements ILapDetector, LapOwnershipSource {
       this.currentSession.trackId
     );
     const lapPackets = this.lapBuffer;
-    const classification = classifyLapCategory(lapPackets, this.currentPitCycleReason, undefined, false);
-    this.db.insertLap(
+    const classification = classifyLapCategory(lapPackets, this.pitReasonForIncompleteLap(lapPackets), undefined, false);
+    await this.db.insertLap(
       this.currentSession.sessionId,
       this.currentLapNumber,
-      lapPackets[lapPackets.length - 1].CurrentLap,
+      incompleteLapElapsed(lapPackets),
       false,
       this._lapByteOffset,
       this._lapFrameCount,

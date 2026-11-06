@@ -31,7 +31,7 @@ export interface DirectCaptureRecordingOptions {
   deferOpponentIndexEnqueue?: boolean;
 }
 type Owner = { binding?: PersistedLapBinding; startOrdinal: number; count: number; trailing: number; finalized: boolean; abandoned: boolean; ownedByteOffset: number };
-type Part = { info: PreopenedFileInfo; encoder: SparseCaptureEncoder | null; localOffset: number; prefixBytes: number; records: number; firstOrdinal: number; sourceStart: number; sourceEnd: number; kind: "lap" | "auxiliary"; owner?: Owner; bootstrapHash?: string; firstTimestamp?: number; lastTimestamp?: number; closed?: boolean; chunkId?: string };
+type Part = { info: PreopenedFileInfo; encoder: SparseCaptureEncoder | null; localOffset: number; prefixBytes: number; records: number; firstOrdinal: number; sourceStart: number; sourceEnd: number; kind: "lap" | "auxiliary"; owner?: Owner; bootstrapHash?: string; firstTimestamp?: number; lastTimestamp?: number; trailingContextFrameCount?: number; closed?: boolean; chunkId?: string };
 type FrameRef = { frame: Buffer; timestamp?: number; start: number; end: number; ordinal: number; localOffset: number };
 const MAX_CANDIDATE_SUFFIX_RECORDS = 1_200;
 type DirectCaptureStopTestBarrier = (point: "before-writer-close" | "before-final-seal" | "index-enqueued" | "index-skipped-non-lmu" | "index-skipped-retention" | "index-skipped-companion-failure" | "index-skipped-deferred", detail?: string) => Promise<void> | void;
@@ -244,6 +244,7 @@ export class DirectCaptureRecording {
           if (candidate) {
             const suffix = candidate.suffix;
             this.current.records -= suffix.length;
+            this.current.trailingContextFrameCount = suffix.length;
             if (this.current.owner) {
               this.current.owner.trailing = Math.max(this.current.owner.trailing, 1);
               if (!this.current.owner.finalized) this.current.owner.count = Math.max(0, this.current.owner.count - suffix.length);
@@ -253,7 +254,8 @@ export class DirectCaptureRecording {
             this.rotate(window, candidate.locator, ordinal);
             for (let index = 1; index < suffix.length; index++) this.appendStoredFrame(suffix[index]!);
             this.pendingCandidate = null;
-          } else if (this.windows.size > 0 && this.current.records > 0) {
+          } else if (this.current.sourceStart < window.startOffset && this.current.records > 0) {
+            this.current.trailingContextFrameCount = 1;
             if (this.current.owner && !this.current.owner.abandoned) this.current.owner.trailing = 1;
             this.current.records--;
             this.current.sourceEnd = window.startOffset;
@@ -283,6 +285,7 @@ export class DirectCaptureRecording {
           const abandoned = this.windows.get(window.startOffset);
           for (const part of this.parts.values()) {
             if (!part.owner || part.owner.startOrdinal !== abandoned?.ordinal) continue;
+            part.trailingContextFrameCount = Math.max(part.trailingContextFrameCount ?? 0, part.owner.trailing);
             part.owner.abandoned = true; part.owner = undefined; part.kind = "auxiliary";
             publishClosedPrefix ||= !!part.closed;
           }
@@ -551,7 +554,8 @@ export class DirectCaptureRecording {
         sourceByteStart: part.sourceStart, sourceByteEnd: part.sourceEnd, sourceRecordByteOffset: part.prefixBytes,
         ...(part.firstTimestamp === undefined ? {} : { firstTimestamp: part.firstTimestamp }),
         ...(part.lastTimestamp === undefined ? {} : { lastTimestamp: part.lastTimestamp }),
-        ...(binding && owner ? { ownedFrameByteOffset: owner.ownedByteOffset, ownedFrameCount: owner.count, trailingContextFrameCount: owner.trailing } : {}),
+        ...(binding && owner ? { ownedFrameByteOffset: owner.ownedByteOffset, ownedFrameCount: owner.count } : {}),
+        trailingContextFrameCount: Math.max(part.trailingContextFrameCount ?? 0, owner?.trailing ?? 0),
         ...(part.bootstrapHash ? { parserBootstrapHash: part.bootstrapHash } : {}),
       });
       chunks.push(chunk);

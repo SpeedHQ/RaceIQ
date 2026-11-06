@@ -14,6 +14,14 @@ export interface NativeSectorTimeline {
 type IRacingSectorTimeline = NativeSectorTimeline;
 
 function computeDistanceSectorTimes(packets: TelemetryPacket[], lapTime: number, s1End: number, s2End: number): number[] | null {
+  const first = packets[0];
+  if (first.ams2?.sessionType === "race" && first.LapNumber === 1 && first.CurrentLap < 0) {
+    // The grid can report a position from before the start resets lap distance.
+    const startIndex = packets.findIndex((packet, index) => index > 0 &&
+      packet.CurrentLap >= 0 && packet.CurrentLap < 1 &&
+      packet.DistanceTraveled >= 0 && packet.DistanceTraveled <= 30);
+    if (startIndex > 0) packets = packets.slice(startIndex);
+  }
   const startDist = packets[0].DistanceTraveled;
   const lapDist = packets[packets.length - 1].DistanceTraveled - startDist;
   if (lapDist < 100) return null;
@@ -87,6 +95,19 @@ export function computeLapSectors(trackId: string, gameId: GameId, packets: Tele
   }
   const packagedSectors = /^\d+$/.test(trackId) ? getPackagedTrackSectorsByOrdinal(Number(trackId)) : DEFAULT_SECTORS;
   const { s1End, s2End } = options.sectors ?? packagedSectors;
+  if (gameId === "ams2") {
+    const first = packets[0];
+    // Sector 3 is still counting in the last samples before the finish line.
+    const native = packets.findLast((packet) => {
+      const times = packet.ams2?.currentSectorTimes;
+      return packet.LapNumber === first.LapNumber && packet.sessionUID === first.sessionUID &&
+        times?.every(time => Number.isFinite(time) && time > 0) &&
+        Math.abs(packet.CurrentLap - lapTime) <= 0.25 &&
+        Math.abs(times[0] + times[1] + times[2] - packet.CurrentLap) <= 0.01 &&
+        times[0] + times[1] < lapTime;
+    })?.ams2?.currentSectorTimes;
+    if (native) return [native[0], native[1], lapTime - native[0] - native[1]];
+  }
   if (gameId === "lmu") {
     const native = packets.findLast((packet) => (packet.lmu?.lastSector1 ?? 0) > 0 && (packet.lmu?.lastSector2 ?? 0) > 0);
     if (native?.lmu?.lastSector1 !== undefined && native.lmu.lastSector2 !== undefined) {
