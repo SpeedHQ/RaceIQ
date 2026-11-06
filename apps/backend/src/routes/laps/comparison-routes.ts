@@ -5,7 +5,7 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 
 import type { GameId } from "@raceiq/shared/games/ids";
-import { chatRequestHasImage, resolveChatVisionCapability } from "@raceiq/shared/integrations/ai/chat-vision";
+import { gateChatImages } from "@raceiq/shared/integrations/ai/chat-vision";
 import { getLapsByIds } from "@raceiq/backend-core/db/lap-read-queries";
 import { deleteCompareAnalysis, getAnalysis, getCompareAnalysis, saveCompareAnalysis } from "@raceiq/backend-core/db/analysis-queries";
 import { sanitizeAnalystOutput } from "@raceiq/backend-core/ai/schemas";
@@ -362,7 +362,10 @@ export const comparisonRoutes = new Hono()
 
     const chatModelLabel = settings.chatModel
       || (defaultModelFor(chatProvider));
-    if (chatRequestHasImage(messages) && resolveChatVisionCapability(chatProvider, chatModelLabel) !== "supported") {
+    // Gate on the stored model, never on the defaulted label: an empty
+    // chatModel must not resolve to an image-capable model implicitly.
+    const imageGate = gateChatImages(chatProvider, settings.chatModel, messages);
+    if (!imageGate.allowed) {
       return c.json({ error: "This chat model has no verified image support. Remove the image or choose an image-capable chat model." }, 400);
     }
     await configureAiProviderEnvironment(chatProvider, settings.localEndpoint || "http://localhost:1234/v1");
