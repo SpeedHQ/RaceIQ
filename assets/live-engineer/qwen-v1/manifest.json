@@ -1,0 +1,698 @@
+{
+  "catalogVersion": "live-engineer-qwen-v1",
+  "model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+  "sampleRate": 24000,
+  "channels": 1,
+  "referenceText": "G'day mate, Tom here.",
+  "fullLines": [
+    {
+      "lineId": "fastest-class",
+      "spokenText": "Fastest in class.",
+      "path": "full__fastest-class.wav",
+      "sha256": "1003b12ee26f5d9cd531ff1aa249b45f3d3252f7df3bd97bf35d11c78ab9fce4",
+      "durationMs": 1440
+    },
+    {
+      "lineId": "fastest-overall",
+      "spokenText": "Fastest overall.",
+      "path": "full__fastest-overall.wav",
+      "sha256": "0288a17d19b5cf3209b8cfcf02cee49980c5575a15241e4045f2b20439a278d8",
+      "durationMs": 1040
+    },
+    {
+      "lineId": "setting-race-pace",
+      "spokenText": "You are setting the current race pace.",
+      "path": "full__setting-race-pace.wav",
+      "sha256": "d834df42a99ed54047f7770ca64e4de8880aa6e062e8890e55e2c7fafbf26f1a",
+      "durationMs": 1600
+    },
+    {
+      "lineId": "within-class-pace",
+      "spokenText": "You are point three seconds from class pace.",
+      "path": "full__within-class-pace.wav",
+      "sha256": "ba0b2c3a04cc4c6232967ff68b8a094d82d58ab46013252acab8e6d116809133",
+      "durationMs": 2480
+    },
+    {
+      "lineId": "within-overall-pace",
+      "spokenText": "You are point three seconds from overall pace.",
+      "path": "full__within-overall-pace.wav",
+      "sha256": "b60a04c564566170322ab0858eff8e85dd486a93ba1bf5fc0b01d547279c44aa",
+      "durationMs": 2560
+    },
+    {
+      "lineId": "off-class-pace",
+      "spokenText": "You are point three seconds off class pace.",
+      "path": "full__off-class-pace.wav",
+      "sha256": "3d594ca983b87ba743a99d11eef5ef08629baa2f1c802a9e6ab3ff5343b4c1d8",
+      "durationMs": 2160
+    },
+    {
+      "lineId": "off-overall-pace",
+      "spokenText": "You are point three seconds off overall pace.",
+      "path": "full__off-overall-pace.wav",
+      "sha256": "df4b3a3160f9cc5650109a9a49595b1925c7805ef0da70106d0f367a0dced343",
+      "durationMs": 2720
+    },
+    {
+      "lineId": "outlier-class",
+      "spokenText": "That lap is point three seconds off class pace.",
+      "path": "full__outlier-class.wav",
+      "sha256": "86ae26ad3ce8874d78a09cb4210758b38732197969382fb62c243182c5da7ebd",
+      "durationMs": 2560
+    },
+    {
+      "lineId": "outlier-overall",
+      "spokenText": "That lap is point three seconds off overall pace.",
+      "path": "full__outlier-overall.wav",
+      "sha256": "a4cbc2bb8a409b172ed1f78d495534bc1ce552fa03177d6a807498db7ed01c2c",
+      "durationMs": 2560
+    },
+    {
+      "lineId": "lap-time",
+      "spokenText": "Your lap was one minute thirty two point four one seven.",
+      "path": "full__lap-time.wav",
+      "sha256": "5b58d96ede61cd06db80001730e3dca6d74827b2ec047e1cd6e36dba1d0f57b3",
+      "durationMs": 2720
+    },
+    {
+      "lineId": "opponent-faster-last-lap",
+      "spokenText": "Opponent was point three seconds faster last lap.",
+      "path": "full__opponent-faster-last-lap.wav",
+      "sha256": "ea64c8b865420c057561068c301c141d0b5feab94c3570c7bef60da0d7f4cdfa",
+      "durationMs": 2960
+    },
+    {
+      "lineId": "driver-faster-last-lap",
+      "spokenText": "You were point three seconds faster last lap.",
+      "path": "full__driver-faster-last-lap.wav",
+      "sha256": "ff4dc0f0f5566889df207b297b758ec68424d1161e543db8b44b1fafb5fc6323",
+      "durationMs": 2240
+    },
+    {
+      "lineId": "tires-cold",
+      "spokenText": "Tires are cold. Be careful.",
+      "path": "full__tires-cold.wav",
+      "sha256": "48d6449d097086718f214c897242794376a40a9f3db4d203d9c3743dc93c3324",
+      "durationMs": 1680
+    },
+    {
+      "lineId": "tires-optimal",
+      "spokenText": "Tires are optimal.",
+      "path": "full__tires-optimal.wav",
+      "sha256": "aa479d5836e8cc9ff90409aab85fd01ae36150e9cbfd6e4bfd739e97437ca379",
+      "durationMs": 1120
+    },
+    {
+      "lineId": "pit-this-lap",
+      "spokenText": "Pit this lap.",
+      "path": "full__pit-this-lap.wav",
+      "sha256": "a11d1bb976c677959b10c67e0986d0aec9627d4da4bac4afc1927843710ecd1c",
+      "durationMs": 720
+    },
+    {
+      "lineId": "pit-pit-pit",
+      "spokenText": "Pit pit pit.",
+      "path": "full__pit-pit-pit.wav",
+      "sha256": "817b1e85848aaeb0c7425d8db903adcaa7e1926da5bbaa040bbe4340ad2b7d25",
+      "durationMs": 1440
+    },
+    {
+      "lineId": "car-left",
+      "spokenText": "Car left.",
+      "path": "full__car-left.wav",
+      "sha256": "c4e22a49ac6b80f387f011861f7be35000b9620c3da507289db954229be0838f",
+      "durationMs": 560
+    },
+    {
+      "lineId": "car-right",
+      "spokenText": "Car right.",
+      "path": "full__car-right.wav",
+      "sha256": "c1c524f9f5d633035ba7819f9d817582b2cbd150812b52bf2710a458e83898b8",
+      "durationMs": 560
+    },
+    {
+      "lineId": "still-there",
+      "spokenText": "Still there.",
+      "path": "full__still-there.wav",
+      "sha256": "c1e42e8d3602a7d15484198575a4ce2ea3ad4d9a91bd39bbcc772a8774df4911",
+      "durationMs": 1440
+    },
+    {
+      "lineId": "clear-left",
+      "spokenText": "Clear left.",
+      "path": "full__clear-left.wav",
+      "sha256": "fde648b6cd5e0bfc127f94ddf522b35088f25d9ce7e48102b57afef8bf20117f",
+      "durationMs": 480
+    },
+    {
+      "lineId": "clear-right",
+      "spokenText": "Clear right.",
+      "path": "full__clear-right.wav",
+      "sha256": "3b0ca91dd7f1dda1c0783e04497becef9eba5f1d2b043663e4e5e59818d1927d",
+      "durationMs": 640
+    }
+  ],
+  "clips": [
+    {
+      "segmentId": "phrase.fastest.class",
+      "spokenText": "Fastest in class.",
+      "path": "clip__phrase__fastest__class.wav",
+      "sha256": "54e13c0d12e88878ec06d6cb3583ada0e7aa3c2c15c4dda4755596433d59ec95",
+      "durationMs": 1200
+    },
+    {
+      "segmentId": "phrase.fastest.overall",
+      "spokenText": "Fastest overall.",
+      "path": "clip__phrase__fastest__overall.wav",
+      "sha256": "c5db65a19c069978796578fe83c00e7ddd5cdb67c4ba1568f330aecfe1161a58",
+      "durationMs": 1920
+    },
+    {
+      "segmentId": "phrase.setting-race-pace",
+      "spokenText": "You are setting the current race pace.",
+      "path": "clip__phrase__setting-race-pace.wav",
+      "sha256": "381fe0d47c33c5ff3689726e84e4513055bec1e599b190f9b6e74e633056e077",
+      "durationMs": 1840
+    },
+    {
+      "segmentId": "phrase.within-class-pace",
+      "spokenText": "You are",
+      "path": "clip__phrase__within-class-pace.wav",
+      "sha256": "374f51ccc6888540f0c5e203c4cf33d9a5a18229e679c4bf736f3006053e9101",
+      "durationMs": 480
+    },
+    {
+      "segmentId": "phrase.off-class-pace",
+      "spokenText": "You are",
+      "path": "clip__phrase__off-class-pace.wav",
+      "sha256": "4e5aa0529ec52a08e9a3054e152b9e368d12916ac9becb4366e58763bc0f1d73",
+      "durationMs": 560
+    },
+    {
+      "segmentId": "phrase.outlier-lap",
+      "spokenText": "That lap is",
+      "path": "clip__phrase__outlier-lap.wav",
+      "sha256": "8327e9a0fcdc30af6893971de0af40c1326a22d0a87d40ebf2d78d14720c0ab6",
+      "durationMs": 880
+    },
+    {
+      "segmentId": "phrase.scope.class",
+      "spokenText": "class pace.",
+      "path": "clip__phrase__scope__class.wav",
+      "sha256": "00817a4d125d1acf09555c97cce7c6f960fc1eb7e7216fe45c2186f583a1cfad",
+      "durationMs": 880
+    },
+    {
+      "segmentId": "phrase.scope.overall",
+      "spokenText": "overall pace.",
+      "path": "clip__phrase__scope__overall.wav",
+      "sha256": "c6a0914cfde71e3c492565f1d5c1e5de9e0de185ce50cd796615cfe3c43d6948",
+      "durationMs": 960
+    },
+    {
+      "segmentId": "phrase.from",
+      "spokenText": "from",
+      "path": "clip__phrase__from.wav",
+      "sha256": "15c7ca2958859adbebd6a7acb794f9f421d7f1f178b4915326e88cbdcea8f867",
+      "durationMs": 400
+    },
+    {
+      "segmentId": "phrase.off",
+      "spokenText": "off",
+      "path": "clip__phrase__off.wav",
+      "sha256": "2b140fb40613fbb95b8f57005df6cc3086164e0c9f3a5dd9eff3ba8771405cd6",
+      "durationMs": 400
+    },
+    {
+      "segmentId": "phrase.exact.intro",
+      "spokenText": "The pace is",
+      "path": "clip__phrase__exact__intro.wav",
+      "sha256": "fa8f96da59bead7f11dcb757e7501b28edd7cd0d20c8acfd5281fc1ae592554e",
+      "durationMs": 960
+    },
+    {
+      "segmentId": "phrase.exact.your-lap",
+      "spokenText": "Your lap was",
+      "path": "clip__phrase__exact__your-lap.wav",
+      "sha256": "04e1d4bc8c43b3187ae7b7b89630286504159329e31e6edb7999258d86ba164d",
+      "durationMs": 1040
+    },
+    {
+      "segmentId": "spotter.car-left",
+      "spokenText": "Car left.",
+      "path": "clip__spotter__car-left.wav",
+      "sha256": "fcf82f46932b449470c0286a929d60d23b12934105ff170e660894d2f00ecbcc",
+      "durationMs": 640
+    },
+    {
+      "segmentId": "spotter.car-right",
+      "spokenText": "Car right.",
+      "path": "clip__spotter__car-right.wav",
+      "sha256": "8c0af4a050c7bee27fb2a2398141f6ba6c3b317362a6a66b01e18a21100c5935",
+      "durationMs": 800
+    },
+    {
+      "segmentId": "spotter.still-there",
+      "spokenText": "Still there.",
+      "path": "clip__spotter__still-there.wav",
+      "sha256": "c2743237e4bdf63e53ff14e7a05c9a1c69b3fa6ea90a45533724209ed0defdf3",
+      "durationMs": 720
+    },
+    {
+      "segmentId": "spotter.three-wide-left",
+      "spokenText": "Three wide, left.",
+      "path": "clip__spotter__three-wide-left.wav",
+      "sha256": "b4b164b68393df8d9b2f21ae183b6141a0d1611ac4580f3861b39f480f7cbd8c",
+      "durationMs": 1440
+    },
+    {
+      "segmentId": "spotter.three-wide-right",
+      "spokenText": "Three wide, right.",
+      "path": "clip__spotter__three-wide-right.wav",
+      "sha256": "4418515b1b2edcf867766b62c09551fd3cba960d0aaf36a3b11636c164a7eef7",
+      "durationMs": 1040
+    },
+    {
+      "segmentId": "spotter.clear-left",
+      "spokenText": "Clear left.",
+      "path": "clip__spotter__clear-left.wav",
+      "sha256": "b08ce1535aae300f00b289410f8dc582aee95b96ded99092bd22928ac6d4c349",
+      "durationMs": 720
+    },
+    {
+      "segmentId": "spotter.clear-right",
+      "spokenText": "Clear right.",
+      "path": "clip__spotter__clear-right.wav",
+      "sha256": "c61f08029ec1e6aefb102da27550b8bf5a5beaf7af502a4521b5d86346856f3f",
+      "durationMs": 640
+    },
+    {
+      "segmentId": "unit.second",
+      "spokenText": "second",
+      "path": "clip__unit__second.wav",
+      "sha256": "11ee62c964e0866dee3ee424bff363dec0833f4d20ac61439f1307663d84e14c",
+      "durationMs": 560
+    },
+    {
+      "segmentId": "unit.seconds",
+      "spokenText": "seconds",
+      "path": "clip__unit__seconds.wav",
+      "sha256": "4433f180e7db31a0ce538e526a05b7b1a934b30beda4ac3a648a2a0dc052b921",
+      "durationMs": 800
+    },
+    {
+      "segmentId": "unit.minute",
+      "spokenText": "minute",
+      "path": "clip__unit__minute.wav",
+      "sha256": "71b04aaaf5683ba3cb109b0b7c45bae7f24f1c4ec69ed894639ae699f7339ed3",
+      "durationMs": 320
+    },
+    {
+      "segmentId": "unit.minutes",
+      "spokenText": "minutes",
+      "path": "clip__unit__minutes.wav",
+      "sha256": "d37f285426aad270c97b56880905586617ffb7b522ce20aaf869c3f1026e2033",
+      "durationMs": 480
+    },
+    {
+      "segmentId": "unit.point",
+      "spokenText": "point",
+      "path": "clip__unit__point.wav",
+      "sha256": "4e3485316a2604c1c45c9586dc29a04b5d06992e9e3b1d6bcbce2231a1442375",
+      "durationMs": 480
+    },
+    {
+      "segmentId": "number.zero",
+      "spokenText": "zero",
+      "path": "clip__number__zero.wav",
+      "sha256": "8337a437fd5653aeb2c93e04fdb8bdbc7ddd55bd6a6ecc00be64436b1d0fe328",
+      "durationMs": 960
+    },
+    {
+      "segmentId": "number.one",
+      "spokenText": "one",
+      "path": "clip__number__one.wav",
+      "sha256": "52dfb30aaba46e2fcbb28c96c782dca2ee8691168e1e9a9d30e8c10c070e32c9",
+      "durationMs": 400
+    },
+    {
+      "segmentId": "number.two",
+      "spokenText": "two",
+      "path": "clip__number__two.wav",
+      "sha256": "3fbdb009c89d89499daab296e6b8088a88650f2b596bbce88c2a39a3a0c40729",
+      "durationMs": 400
+    },
+    {
+      "segmentId": "number.three",
+      "spokenText": "three",
+      "path": "clip__number__three.wav",
+      "sha256": "5c531354c5aadbd0c236da8f72ed503df72f93b5c28e35d8f940d7eceea6c6a6",
+      "durationMs": 400
+    },
+    {
+      "segmentId": "number.four",
+      "spokenText": "four",
+      "path": "clip__number__four.wav",
+      "sha256": "8c8603024ed95717fa758fdb200172d0e005d18349c146f6b37cf2150766b747",
+      "durationMs": 640
+    },
+    {
+      "segmentId": "number.five",
+      "spokenText": "five",
+      "path": "clip__number__five.wav",
+      "sha256": "d6d7d57a1ad8bb3c3aac1b47f1612ad813d9a723b9fb5c812fc9b8e5bc17c398",
+      "durationMs": 560
+    },
+    {
+      "segmentId": "number.six",
+      "spokenText": "six",
+      "path": "clip__number__six.wav",
+      "sha256": "650333af9b1a31fdfa973be9d16807b61bcadb697d6cba2ad775ecf0eaf7505f",
+      "durationMs": 1040
+    },
+    {
+      "segmentId": "number.seven",
+      "spokenText": "seven",
+      "path": "clip__number__seven.wav",
+      "sha256": "58582d78609917401cd54a902c663687a5dc06892f7d7d8b2a2ce2eb18685704",
+      "durationMs": 480
+    },
+    {
+      "segmentId": "number.eight",
+      "spokenText": "eight",
+      "path": "clip__number__eight.wav",
+      "sha256": "796ec77618f1a5d24c762be768eb1e637b334152dd2c323b82603ae492eed9b5",
+      "durationMs": 400
+    },
+    {
+      "segmentId": "number.nine",
+      "spokenText": "nine",
+      "path": "clip__number__nine.wav",
+      "sha256": "cc3e78b150f18eba59f47260d5c4260f814ced548a40ce0838cd7f62ea11e330",
+      "durationMs": 560
+    },
+    {
+      "segmentId": "number.ten",
+      "spokenText": "ten",
+      "path": "clip__number__ten.wav",
+      "sha256": "e913c6bc2cafbdc930951a3ce78b5c4aba36c1e2b0cc7a55e2f169d29f6b19e1",
+      "durationMs": 400
+    },
+    {
+      "segmentId": "number.eleven",
+      "spokenText": "eleven",
+      "path": "clip__number__eleven.wav",
+      "sha256": "8510942e6bc21dc6e73b2f80caa10d46721fefa21b682cd4e5cea2faedbfb913",
+      "durationMs": 480
+    },
+    {
+      "segmentId": "number.twelve",
+      "spokenText": "twelve",
+      "path": "clip__number__twelve.wav",
+      "sha256": "763b89939d8d1ce8c065435d0e35c1f8758c7fd687713f992df1a26a0df26f90",
+      "durationMs": 880
+    },
+    {
+      "segmentId": "number.thirteen",
+      "spokenText": "thirteen",
+      "path": "clip__number__thirteen.wav",
+      "sha256": "13363a8e1250da6b5cf302fece90e50a0749c8ca5270edf67197b41f0722dd19",
+      "durationMs": 800
+    },
+    {
+      "segmentId": "number.fourteen",
+      "spokenText": "fourteen",
+      "path": "clip__number__fourteen.wav",
+      "sha256": "afaae492809c5b3deccc13c06e2489756421e29da7f8341a0de63efa66159e42",
+      "durationMs": 720
+    },
+    {
+      "segmentId": "number.fifteen",
+      "spokenText": "fifteen",
+      "path": "clip__number__fifteen.wav",
+      "sha256": "65f018b0ce623a77a749a132b8c5bc4051755e771485246ed8f15d74e55fe5ac",
+      "durationMs": 800
+    },
+    {
+      "segmentId": "number.sixteen",
+      "spokenText": "sixteen",
+      "path": "clip__number__sixteen.wav",
+      "sha256": "167454a9cfa08db2d4f12cb8fe389549a42d86ae5e61c74f3d0eb1f90b5192d7",
+      "durationMs": 640
+    },
+    {
+      "segmentId": "number.seventeen",
+      "spokenText": "seventeen",
+      "path": "clip__number__seventeen.wav",
+      "sha256": "82ce194ab89cebb567e5e7e9fd9a3a19577b28979cad6201c4337cf09d411f2a",
+      "durationMs": 640
+    },
+    {
+      "segmentId": "number.eighteen",
+      "spokenText": "eighteen",
+      "path": "clip__number__eighteen.wav",
+      "sha256": "c26fdba14a32adf65a83713a7aa263644d0231b68b0921825394b093b7500d36",
+      "durationMs": 720
+    },
+    {
+      "segmentId": "number.nineteen",
+      "spokenText": "nineteen",
+      "path": "clip__number__nineteen.wav",
+      "sha256": "4c2022fc48cb5eed5b7b87d965941ab2d0f22c42d31cebf90ef7079b5752a96c",
+      "durationMs": 720
+    },
+    {
+      "segmentId": "number.twenty",
+      "spokenText": "twenty",
+      "path": "clip__number__twenty.wav",
+      "sha256": "251d12dd67a7fb54fba2f9ea22aea7ce0b7c75f0dfa3df1351cf195ea369523c",
+      "durationMs": 560
+    },
+    {
+      "segmentId": "number.thirty",
+      "spokenText": "thirty",
+      "path": "clip__number__thirty.wav",
+      "sha256": "43cc982671c863083333a3ac2439b54ecbeb203553630a0f8420e1948efbf8bd",
+      "durationMs": 720
+    },
+    {
+      "segmentId": "number.forty",
+      "spokenText": "forty",
+      "path": "clip__number__forty.wav",
+      "sha256": "50c6c122860696e42473ed3346a6634a9abddb473797cac080df681fa6f6a1ec",
+      "durationMs": 560
+    },
+    {
+      "segmentId": "number.fifty",
+      "spokenText": "fifty",
+      "path": "clip__number__fifty.wav",
+      "sha256": "ee0785c09d2500da12a196ee70a7f282c6c7d25664acbbddedd73e10a32a0341",
+      "durationMs": 560
+    },
+    {
+      "segmentId": "number.sixty",
+      "spokenText": "sixty",
+      "path": "clip__number__sixty.wav",
+      "sha256": "fef821f29dc2e0738cadc0e7fc8376849319c6539ff22c296d852fe1d3263fa4",
+      "durationMs": 640
+    },
+    {
+      "segmentId": "number.seventy",
+      "spokenText": "seventy",
+      "path": "clip__number__seventy.wav",
+      "sha256": "e009b0e5e7b05b0ce6a47fbe8a480e8ddb3174852c02936d8dfc68b83d2ab182",
+      "durationMs": 560
+    },
+    {
+      "segmentId": "number.eighty",
+      "spokenText": "eighty",
+      "path": "clip__number__eighty.wav",
+      "sha256": "66d66cb8200723e2a4c374dbd0b87c579274ef260a035a8046eaccaf868f0be2",
+      "durationMs": 560
+    },
+    {
+      "segmentId": "number.ninety",
+      "spokenText": "ninety",
+      "path": "clip__number__ninety.wav",
+      "sha256": "4d2e4f589b58db46dfbd6367d008418b1b6c1580f627357bd390008e25c2a279",
+      "durationMs": 560
+    },
+    {
+      "segmentId": "number.hundred",
+      "spokenText": "hundred",
+      "path": "clip__number__hundred.wav",
+      "sha256": "40c03d29780352bbc5e622e1ad9a3fdbf820080ef534890fb24313901cfd6de9",
+      "durationMs": 1120
+    },
+    {
+      "segmentId": "number.point",
+      "spokenText": "point",
+      "path": "clip__number__point.wav",
+      "sha256": "9d4a05042197cdc39cbaa8f1237000f70ae13c0a5c5c2064aac06bc8e956ed27",
+      "durationMs": 400
+    },
+    {
+      "segmentId": "phrase.opponent-was",
+      "spokenText": "Opponent was",
+      "path": "clip__phrase__opponent-was.wav",
+      "sha256": "86d2fc2385b5734787f0a46f565cee5dbee40b888f470876c02f5a722a46da24",
+      "durationMs": 1040
+    },
+    {
+      "segmentId": "phrase.you-were",
+      "spokenText": "You were",
+      "path": "clip__phrase__you-were.wav",
+      "sha256": "b038c3c20d3f7452328941a61090209da7006be216a6eae729f8c435b28eb3e6",
+      "durationMs": 560
+    },
+    {
+      "segmentId": "phrase.faster-last-lap",
+      "spokenText": "faster last lap.",
+      "path": "clip__phrase__faster-last-lap.wav",
+      "sha256": "10bcfaf10397eeef7408754b70d8d222844fca178c92107b4f9bcb66e7fc238c",
+      "durationMs": 1440
+    },
+    {
+      "segmentId": "phrase.same-pace-last-lap",
+      "spokenText": "Same pace as opponent last lap.",
+      "path": "clip__phrase__same-pace-last-lap.wav",
+      "sha256": "1d190920365630de3bab778ef7a5fe464dba09b9110a905194f6643f3a014fa2",
+      "durationMs": 2000
+    },
+    {
+      "segmentId": "race-engineer.position-changed",
+      "spokenText": "Position changed.",
+      "path": "clip__race-engineer__position-changed.wav",
+      "sha256": "3fb4c14cf5ac97167913381e9dc9c573a2a9b70848d82ca0e2ee96d27449bd2d",
+      "durationMs": 880
+    },
+    {
+      "segmentId": "race-engineer.pre-lights",
+      "spokenText": "Get ready for the start.",
+      "path": "clip__race-engineer__pre-lights.wav",
+      "sha256": "8bd19160017f071d1415c991ea20ae8c9e1a0f072260620f40640ce49c4863a3",
+      "durationMs": 880
+    },
+    {
+      "segmentId": "race-engineer.green-flag",
+      "spokenText": "Green flag.",
+      "path": "clip__race-engineer__green-flag.wav",
+      "sha256": "7e02db65e6acbfea37076a672942ccf7500510c88aa25d258a2459a92552d66d",
+      "durationMs": 800
+    },
+    {
+      "segmentId": "race-engineer.lap-completed",
+      "spokenText": "Lap completed.",
+      "path": "clip__race-engineer__lap-completed.wav",
+      "sha256": "61c45513e4a32e7464a64fd337af7439c9b0ccf03823b9b36939296ca195bb83",
+      "durationMs": 1200
+    },
+    {
+      "segmentId": "race-engineer.opponent-lap-completed",
+      "spokenText": "Opponent lap completed.",
+      "path": "clip__race-engineer__opponent-lap-completed.wav",
+      "sha256": "c4861d14c9fcc7f341df6f6ffd3b96a838d334bfd6553007ba80b5cbd6209787",
+      "durationMs": 1600
+    },
+    {
+      "segmentId": "race-engineer.multiclass-traffic",
+      "spokenText": "Multiclass traffic ahead.",
+      "path": "clip__race-engineer__multiclass-traffic.wav",
+      "sha256": "cf6e36497c4ba17c1a2df0251af527217a667c56cd0af85995d03c698fb68cbc",
+      "durationMs": 1520
+    },
+    {
+      "segmentId": "race-engineer.penalty-issued",
+      "spokenText": "Penalty issued.",
+      "path": "clip__race-engineer__penalty-issued.wav",
+      "sha256": "6ae11bb848ee0f0b0d76fb6af68d759b7b2aeb803f1734e7fb362e7408edbef9",
+      "durationMs": 1600
+    },
+    {
+      "segmentId": "race-engineer.pit-entry",
+      "spokenText": "Pit entry.",
+      "path": "clip__race-engineer__pit-entry.wav",
+      "sha256": "30c8917c5527613be5349b423f3048a153a5018cd3d5048521bf3f836ab77772",
+      "durationMs": 800
+    },
+    {
+      "segmentId": "race-engineer.pit-exit",
+      "spokenText": "Pit exit.",
+      "path": "clip__race-engineer__pit-exit.wav",
+      "sha256": "000587ac181d38630f3ecf2f990b9bda5855412a2df2c45558a142a00d693859",
+      "durationMs": 640
+    },
+    {
+      "segmentId": "race-engineer.fuel-low",
+      "spokenText": "Fuel is low.",
+      "path": "clip__race-engineer__fuel-low.wav",
+      "sha256": "320669164784780cde84ff178b7d87468e341a69477632decb8c764b43e95417",
+      "durationMs": 800
+    },
+    {
+      "segmentId": "race-engineer.fuel-critical",
+      "spokenText": "Fuel is critical.",
+      "path": "clip__race-engineer__fuel-critical.wav",
+      "sha256": "e0c0c42078ce6dce29796645825ad463e3c5f34a4f998701a304e2de2a3b7dc8",
+      "durationMs": 1040
+    },
+    {
+      "segmentId": "race-engineer.flag-change",
+      "spokenText": "Flag changed.",
+      "path": "clip__race-engineer__flag-change.wav",
+      "sha256": "a015d7a1f3c3bce5cc57dc779a5fd4730d7d414e7fa9133a0c3de79d73c62084",
+      "durationMs": 720
+    },
+    {
+      "segmentId": "race-engineer.tyres-cold",
+      "spokenText": "Tires are cold.",
+      "path": "clip__race-engineer__tyres-cold.wav",
+      "sha256": "b202a84af3657bb224a75be5789f5bc4130c28217079a9d8e81cc3120614f950",
+      "durationMs": 960
+    },
+    {
+      "segmentId": "race-engineer.tyres-hot",
+      "spokenText": "Tires are hot.",
+      "path": "clip__race-engineer__tyres-hot.wav",
+      "sha256": "a588c0f589d07559e97b0b4833864e21b0d7abc42cd6279da1045f649bababce",
+      "durationMs": 1120
+    },
+    {
+      "segmentId": "race-engineer.tyres-cooking",
+      "spokenText": "Tires are overheating.",
+      "path": "clip__race-engineer__tyres-cooking.wav",
+      "sha256": "6299bf5f1804ac1cc41f96d5a4c9f750d16397284c17c5fa729ab4fa91dded83",
+      "durationMs": 1280
+    },
+    {
+      "segmentId": "race-engineer.water-temperature-hot",
+      "spokenText": "Water temperature is high.",
+      "path": "clip__race-engineer__water-temperature-hot.wav",
+      "sha256": "eb5cfa50e9f1b90d00fdef9611a29c609b563949e667f3b2cca5da636a56fe49",
+      "durationMs": 1280
+    },
+    {
+      "segmentId": "race-engineer.water-temperature-clear",
+      "spokenText": "Water temperature is clear.",
+      "path": "clip__race-engineer__water-temperature-clear.wav",
+      "sha256": "39c013d079d30a5528647688f9e8ebd8f31dd0432ff2562f66ece574e141c1f1",
+      "durationMs": 1280
+    },
+    {
+      "segmentId": "race-engineer.damage-reported",
+      "spokenText": "Damage reported.",
+      "path": "clip__race-engineer__damage-reported.wav",
+      "sha256": "77f3dc3513592cdd5f4614c73177c6106420e02b037f6621b7078a4b849aeb83",
+      "durationMs": 1360
+    },
+    {
+      "segmentId": "race-engineer.rain-changed",
+      "spokenText": "Rain conditions changed.",
+      "path": "clip__race-engineer__rain-changed.wav",
+      "sha256": "702f41ce13fe9468bc25a7d3423899d6f4f6828499fbb4874d4006c95af770bf",
+      "durationMs": 1520
+    }
+  ],
+  "referenceAudio": "scripts/live-engineer/voices/Aussie-short.flac"
+}

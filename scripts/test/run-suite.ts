@@ -64,7 +64,7 @@ async function run(owner: (typeof owners)[number], suite: Suite): Promise<number
     writeFileSync(configPath, `[test]\nroot = "${tomlPath}"\n${preloadToml}timeout = 40000\n${unit ? "" : "maxConcurrency = 1\n"}`);
     const workers = process.env.BUN_TEST_WORKERS ?? "4";
     if (unit && (!/^\d+$/.test(workers) || Number(workers) < 1)) throw new Error("BUN_TEST_WORKERS must be a positive integer");
-    const paths = files.map((file) => resolve(root, file));
+    const paths = files.map((file) => `./${file}`);
     const bunArgs = unit
       ? ["test", `--config=${configPath}`, "--timeout=20000", `--parallel=${workers}`, ...paths]
       : ["test", `--config=${configPath}`, "--timeout=20000", "--max-concurrency=1", ...paths];

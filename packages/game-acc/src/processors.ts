@@ -5,9 +5,10 @@ import { processPacket } from "@raceiq/backend-core/telemetry/live-pipeline";
 import { ACC_PACKED_MAGIC, packTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
 import type { TripletProcessor } from "@raceiq/backend-core/games/kunos/triplet-pipeline";
 import { parseAccBuffers } from "./parser";
+import { accBroadcastState, attachAccBroadcastSnapshot } from "@raceiq/capture-formats/acc/broadcast-state";
+import { accBroadcastCapture } from "./broadcast-capture";
 import { AC_STATUS, GRAPHICS, STATIC } from "@raceiq/capture-formats/acc/structs";
 import { readWString } from "./utils";
-
 /** Gates triplet processing while ACC is outside a live or paused session. */
 export class StatusCheckProcessor implements TripletProcessor {
   private loggedInvalidStatus = false;
@@ -63,14 +64,29 @@ export class ParsingProcessor implements TripletProcessor {
         triplet.physics, triplet.graphics, triplet.staticData,
       );
       const timestampMs = triplet.frameTimeMs ?? Date.now();
-      trackFrameLocalParserInput("acc", sourceFrame, timestampMs);
+      trackFrameLocalParserInput("acc", sourceFrame, timestampMs, true);
       const packet = parseAccBuffers(triplet.physics, triplet.graphics, triplet.staticData, {
         carId: this.carId,
         trackId: this.trackId,
         gameId: "acc",
         timestampMs,
       });
-      if (packet) await processPacket(packet, sourceFrame, triplet.frameTimeMs);
+      if (packet) {
+        const frameReceivedAtMs = Date.now();
+        packet.TimestampMS = frameReceivedAtMs;
+        const playerCarIndex = triplet.graphics.length >= GRAPHICS.playerCarID.offset + 4
+          ? triplet.graphics.readInt32LE(GRAPHICS.playerCarID.offset)
+          : -1;
+        accBroadcastState.setPlayerCarIndex(playerCarIndex);
+        attachAccBroadcastSnapshot(packet, playerCarIndex, accBroadcastState.snapshot());
+        const cursor = accBroadcastCapture.prepare(frameReceivedAtMs);
+        await processPacket(packet, {
+          frame: sourceFrame,
+          capturePrefixRecords: () => [accBroadcastCapture.encode(cursor)],
+          captureSessionContextRecords: () => accBroadcastCapture.encodeSessionContext(cursor),
+          acknowledgeRecorded: () => accBroadcastCapture.acknowledge(cursor, playerCarIndex),
+        }, triplet.frameTimeMs);
+      }
     } catch (err) {
       console.error("[ACC ParsingProcessor] Error:", err instanceof Error ? err.message : err);
       throw err;

@@ -95,6 +95,7 @@
         "@raceiq/game-lmu": "workspace:*",
         "@raceiq/game-lmu-metadata": "workspace:*",
         "@raceiq/lap-replay": "workspace:*",
+        "@raceiq/live-engineer": "workspace:*",
         "@raceiq/session-analyse": "workspace:*",
         "@raceiq/sessions-page": "workspace:*",
         "@raceiq/shared": "workspace:*",
@@ -133,6 +134,7 @@
         "@raceiq/game-catalogs": "workspace:*",
         "@raceiq/game-lmu-metadata": "workspace:*",
         "@raceiq/lap-replay": "workspace:*",
+        "@raceiq/live-engineer": "workspace:*",
         "@raceiq/scene-3d": "workspace:*",
         "@raceiq/session-analyse": "workspace:*",
         "@raceiq/sessions-page": "workspace:*",
@@ -305,6 +307,11 @@
         "@raceiq/game-acc-metadata": "workspace:*",
         "@raceiq/shared": "workspace:*",
       },
+      "devDependencies": {
+        "@raceiq/game-fm-2023": "workspace:*",
+        "@raceiq/live-engineer": "workspace:*",
+        "@raceiq/telemetry-core": "workspace:*",
+      },
     },
     "packages/game-acc-metadata": {
       "name": "@raceiq/game-acc-metadata",
@@ -356,6 +363,9 @@
         "@raceiq/shared": "workspace:*",
         "@raceiq/telemetry-core": "workspace:*",
       },
+      "devDependencies": {
+        "@raceiq/live-engineer": "workspace:*",
+      },
     },
     "packages/game-f1-2025-metadata": {
       "name": "@raceiq/game-f1-2025-metadata",
@@ -389,6 +399,9 @@
         "@raceiq/telemetry-core": "workspace:*",
         "drizzle-orm": "^0.45.2",
       },
+      "devDependencies": {
+        "@raceiq/live-engineer": "workspace:*",
+      },
     },
     "packages/game-iracing-metadata": {
       "name": "@raceiq/game-iracing-metadata",
@@ -406,6 +419,9 @@
         "@raceiq/game-lmu-metadata": "workspace:*",
         "@raceiq/shared": "workspace:*",
         "@raceiq/telemetry-core": "workspace:*",
+      },
+      "devDependencies": {
+        "@raceiq/live-engineer": "workspace:*",
       },
     },
     "packages/game-lmu-metadata": {
@@ -473,6 +489,17 @@
         "@types/react": "^19.3.0",
         "@types/react-dom": "^19.3.0",
         "@types/three": "^0.185.4",
+      },
+    },
+    "packages/live-engineer": {
+      "name": "@raceiq/live-engineer",
+      "dependencies": {
+        "@raceiq/shared": "workspace:*",
+        "@raceiq/telemetry-core": "workspace:*",
+        "fflate": "^0.8.3",
+      },
+      "devDependencies": {
+        "@raceiq/capture-formats": "workspace:*",
       },
     },
     "packages/scene-3d": {
@@ -587,7 +614,9 @@
         "@gltf-transform/core": "4.5.0",
         "@gltf-transform/extensions": "4.5.0",
         "@gltf-transform/functions": "4.5.0",
+        "@raceiq/live-engineer": "workspace:*",
         "@raceiq/shared": "workspace:*",
+        "fflate": "^0.8.3",
         "meshoptimizer": "1.2.0",
         "sharp": "^0.35.4",
       },
@@ -727,6 +756,7 @@
         "@raceiq/game-fm-2023-metadata": "workspace:*",
         "@raceiq/game-iracing-metadata": "workspace:*",
         "@raceiq/game-lmu-metadata": "workspace:*",
+        "@raceiq/live-engineer": "workspace:*",
         "@raceiq/shared": "workspace:*",
         "@raceiq/telemetry-core": "workspace:*",
         "ai": "7.0.105",
@@ -1459,6 +1489,8 @@
     "@raceiq/game-lmu-tests": ["@raceiq/game-lmu-tests@workspace:packages/game-lmu/test"],
 
     "@raceiq/lap-replay": ["@raceiq/lap-replay@workspace:packages/lap-replay"],
+
+    "@raceiq/live-engineer": ["@raceiq/live-engineer@workspace:packages/live-engineer"],
 
     "@raceiq/scene-3d": ["@raceiq/scene-3d@workspace:packages/scene-3d"],
 

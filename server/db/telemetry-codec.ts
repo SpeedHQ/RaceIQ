@@ -3,6 +3,7 @@ import type { GameId } from "@raceiq/shared/games/ids";
 import { tryGetGame } from "@raceiq/shared/games/registry";
 import type { ServerGameAdapter } from "../games/types";
 import { fillNormSuspension } from "@raceiq/telemetry-core/telemetry/normalization";
+import { loadSettings } from "../runtime/config/settings";
 
 // Fixed column order for CSV telemetry storage
 const TELEMETRY_FIELDS: (keyof TelemetryPacket)[] = [
@@ -57,7 +58,7 @@ const F1_LIVE_ONLY_KEYS = new Set([
   "engineICEWear", "engineMGUKWear", "engineTCWear",
 ]);
 
-function buildMeta(packets: TelemetryPacket[]): Record<string, unknown> | null {
+function buildMeta(packets: TelemetryPacket[], storeOpponentGrid: boolean): Record<string, unknown> | null {
   if (packets.length === 0) return null;
   const first = packets[0];
   const meta: Record<string, unknown> = {};
@@ -68,16 +69,25 @@ function buildMeta(packets: TelemetryPacket[]): Record<string, unknown> | null {
   if (first.f1) {
     const stripped: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(first.f1)) {
-      if (!F1_LIVE_ONLY_KEYS.has(k)) stripped[k] = v;
+      if (k === "grid" && storeOpponentGrid) {
+        stripped[k] = v;
+      } else if (!F1_LIVE_ONLY_KEYS.has(k)) {
+        stripped[k] = v;
+      }
     }
     meta.f1 = stripped;
   }
   return Object.keys(meta).length > 0 ? meta : null;
 }
 
+export interface TelemetryCompressionOptions {
+  /** Preserve opponent grid snapshots in compressed telemetry metadata. */
+  storeOpponentGrid?: boolean;
+}
 
-export function compressTelemetry(packets: TelemetryPacket[]): Buffer {
-  const meta = buildMeta(packets);
+export function compressTelemetry(packets: TelemetryPacket[], options: TelemetryCompressionOptions = {}): Buffer {
+  const storeOpponentGrid = options.storeOpponentGrid ?? (loadSettings().storeOpponentGrid || process.env.RACEIQ_RECORD_OPPONENT_GRID === "true");
+  const meta = buildMeta(packets, storeOpponentGrid);
   const csvHeader = TELEMETRY_FIELDS.join(",");
   const parts: string[] = [];
   if (meta) parts.push(JSON.stringify(meta));
@@ -88,6 +98,8 @@ export function compressTelemetry(packets: TelemetryPacket[]): Buffer {
   }
   return Buffer.from(Bun.gzipSync(Buffer.from(parts.join("\n"))));
 }
+
+
 
 /**
  * Decompress a stored telemetry blob back to packet array.

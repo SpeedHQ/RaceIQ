@@ -7,6 +7,9 @@
     "@raceiq/shared": "workspace:*"
   },
   "exports": {
+    "./acc/broadcast-capture": "./src/acc/broadcast-capture.ts",
+    "./acc/broadcast-protocol": "./src/acc/broadcast-protocol.ts",
+    "./acc/broadcast-state": "./src/acc/broadcast-state.ts",
     "./ac-evo/structs": "./src/ac-evo/structs.ts",
     "./acc/structs": "./src/acc/structs.ts",
     "./f1-2025/f1-wire": "./src/f1-2025/f1-wire.ts",

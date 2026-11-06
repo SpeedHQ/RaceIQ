@@ -4,6 +4,7 @@ import { decodeGenericSparseFrame, genericFrameIdentity, isGenericSparseFrame } 
 import { gzip, gzipSync, gunzip, gunzipSync } from "node:zlib";
 import { promisify } from "node:util";
 import { MAX_DECOMPRESSED_CAPTURE_BYTES } from "./limits";
+import { ACC_BROADCAST_CAPTURE_MAGIC, decodeAccBroadcastCaptureRecord, type AccBroadcastCaptureBatch } from "../acc/broadcast-capture";
 
 function isLmuSourceFrame(frame: Buffer): boolean {
   return isLmuSparseSourceFrame(frame);
@@ -34,10 +35,13 @@ export type ParserBootstrapRecord = {
 };
 export type ParserBootstrapPayload = Omit<ParserBootstrapRecord, "offset" | "endOffset">;
 export type SessionCaptureRecord =
-  | { kind: "frame"; offset: number; endOffset: number; frame: Buffer; frameTimeMs?: number }
+  | { kind: "frame"; offset: number; endOffset: number; prefixOffset?: number; frame: Buffer; frameTimeMs?: number }
   | { kind: "segment-boundary"; offset: number; endOffset: number }
   | { kind: "segment-context"; offset: number; endOffset: number }
   | { kind: "segment-context-end"; offset: number; endOffset: number }
+  | { kind: "acc-broadcast"; offset: number; endOffset: number; bytes: Buffer; batch: AccBroadcastCaptureBatch }
+  | { kind: "acc-broadcast-malformed"; offset: number; endOffset: number; bytes: Buffer; reason: string }
+  | { kind: "metadata"; offset: number; endOffset: number; bytes: Buffer }
   | (ParserBootstrapRecord & { endOffset: number });
 
 const gunzipAsync = promisify(gunzip);
@@ -208,6 +212,7 @@ export function* iterateSessionCaptureRecords(
   let checkpointOffset = -1;
   let previous: Buffer | null = null;
   let checkpointIdentity: string | null = null;
+  let pendingPrefixOffset: number | undefined;
   while (offset + 4 <= bytes.length) {
     const recordOffset = offset;
     const isMeta = bytes.readUInt32LE(offset) === META_FRAME_MAGIC;
@@ -227,20 +232,32 @@ export function* iterateSessionCaptureRecords(
         if (options.strict) throw new Error(`Truncated session capture record at ${offset}`);
         return;
       }
-      if (payloadBytes === 8) {
+      const metaPayload = bytes.subarray(offset + 8, offset + 8 + payloadBytes);
+      if (payloadBytes >= 4 && metaPayload.readUInt32LE(0) === ACC_BROADCAST_CAPTURE_MAGIC) {
+        pendingPrefixOffset ??= recordOffset;
+        try {
+          const batch = decodeAccBroadcastCaptureRecord(metaPayload);
+          if (recordOffset >= requestedOffset) yield { kind: "acc-broadcast", offset: recordOffset, endOffset: offset + 8 + payloadBytes, bytes: bytes.subarray(offset, offset + 8 + payloadBytes), batch };
+        } catch (error) {
+          if (recordOffset >= requestedOffset) yield { kind: "acc-broadcast-malformed", offset: recordOffset, endOffset: offset + 8 + payloadBytes, bytes: bytes.subarray(offset, offset + 8 + payloadBytes), reason: error instanceof Error ? error.message : "invalid ACCB record" };
+        }
+      } else if (payloadBytes === 8) {
         const magic = bytes.readUInt32LE(offset + 8);
         const version = bytes.readUInt32LE(offset + 12);
         if (magic === SEGMENT_BOUNDARY_MAGIC && version === SEGMENT_BOUNDARY_VERSION) {
           previous = null;
           checkpointOffset = -1;
           checkpointIdentity = null;
+          pendingPrefixOffset = undefined;
           if (recordOffset >= requestedOffset) yield { kind: "segment-boundary", offset: recordOffset, endOffset: offset + 8 + payloadBytes };
         } else if (magic === SEGMENT_CONTEXT_MAGIC && version === SEGMENT_CONTEXT_VERSION) {
+          pendingPrefixOffset = undefined;
           if (recordOffset >= requestedOffset) yield { kind: "segment-context", offset: recordOffset, endOffset: offset + 8 + payloadBytes };
         } else if (magic === SEGMENT_CONTEXT_END_MAGIC && version === SEGMENT_CONTEXT_VERSION) {
           previous = null;
           checkpointIdentity = null;
           checkpointOffset = -1;
+          pendingPrefixOffset = undefined;
           if (recordOffset >= requestedOffset) yield { kind: "segment-context-end", offset: recordOffset, endOffset: offset + 8 + payloadBytes };
         }
       } else {
@@ -250,6 +267,9 @@ export function* iterateSessionCaptureRecords(
           checkpointOffset = -1;
           checkpointIdentity = null;
           if (recordOffset >= requestedOffset) yield { ...bootstrap, offset: recordOffset, endOffset: offset + 8 + payloadBytes };
+        } else if (payloadBytes !== META_FRAME_PAYLOAD_BYTES) {
+          pendingPrefixOffset ??= recordOffset;
+          if (recordOffset >= requestedOffset) yield { kind: "metadata", offset: recordOffset, endOffset: offset + 8 + payloadBytes, bytes: bytes.subarray(offset, offset + 8 + payloadBytes) };
         }
       }
       offset += 8 + payloadBytes;
@@ -292,9 +312,12 @@ export function* iterateSessionCaptureRecords(
     }
     previous = frame;
     if (recordOffset >= requestedOffset) {
-      if (frameTimeMs === undefined) yield { kind: "frame", offset: recordOffset, endOffset: payloadOffset + length, frame };
-      else yield { kind: "frame", offset: recordOffset, endOffset: payloadOffset + length, frame, frameTimeMs };
+      const record: Extract<SessionCaptureRecord, { kind: "frame" }> = { kind: "frame", offset: recordOffset, endOffset: payloadOffset + length, frame };
+      if (pendingPrefixOffset !== undefined) record.prefixOffset = pendingPrefixOffset;
+      if (frameTimeMs !== undefined) record.frameTimeMs = frameTimeMs;
+      yield record;
     }
+    pendingPrefixOffset = undefined;
     offset = payloadOffset + length;
   }
   if (offset < bytes.length && options.strict) throw new Error(`Truncated session capture record at ${offset}`);
@@ -358,6 +381,7 @@ export async function* iterateSessionCaptureRecordsAsync(
     let previous: Buffer | null = null;
     let checkpointOffset = -1;
     let checkpointIdentity: string | null = null;
+    let pendingPrefixOffset: number | undefined;
     for (;;) {
       const initialMetadata = initialMetadataSize !== undefined;
       const availablePrefix = initialMetadata ? first : await take(4);
@@ -378,17 +402,31 @@ export async function* iterateSessionCaptureRecordsAsync(
         const payload = await take(size);
         if (!payload) throw new Error("Truncated session capture record");
         const endOffset = offset;
-        if (size === 8) {
+        if (size >= 4 && payload.readUInt32LE(0) === ACC_BROADCAST_CAPTURE_MAGIC) {
+          pendingPrefixOffset ??= recordOffset;
+          const header = Buffer.allocUnsafe(8);
+          header.writeUInt32LE(META_FRAME_MAGIC, 0);
+          header.writeUInt32LE(size, 4);
+          const bytes = Buffer.concat([header, payload]);
+          try {
+            yield { kind: "acc-broadcast", offset: recordOffset, endOffset, bytes, batch: decodeAccBroadcastCaptureRecord(payload) };
+          } catch (error) {
+            yield { kind: "acc-broadcast-malformed", offset: recordOffset, endOffset, bytes, reason: error instanceof Error ? error.message : "invalid ACCB record" };
+          }
+        } else if (size === 8) {
           const magic = payload.readUInt32LE(0), version = payload.readUInt32LE(4);
           if (magic === SPARSE_CAPTURE_FORMAT_MAGIC && version === SPARSE_CAPTURE_FORMAT_VERSION) {
             // Format marker does not change checkpoint state.
           } else if (magic === SEGMENT_BOUNDARY_MAGIC && version === SEGMENT_BOUNDARY_VERSION) {
             previous = null; checkpointOffset = -1; checkpointIdentity = null;
+            pendingPrefixOffset = undefined;
             yield { kind: "segment-boundary", offset: recordOffset, endOffset };
           } else if (magic === SEGMENT_CONTEXT_MAGIC && version === SEGMENT_CONTEXT_VERSION) {
+            pendingPrefixOffset = undefined;
             yield { kind: "segment-context", offset: recordOffset, endOffset };
           } else if (magic === SEGMENT_CONTEXT_END_MAGIC && version === SEGMENT_CONTEXT_VERSION) {
             previous = null; checkpointOffset = -1; checkpointIdentity = null;
+            pendingPrefixOffset = undefined;
             yield { kind: "segment-context-end", offset: recordOffset, endOffset };
           } else if (strict) throw new Error(`Unknown capture segment marker at ${recordOffset}`);
         } else {
@@ -397,6 +435,13 @@ export async function* iterateSessionCaptureRecordsAsync(
             previous = null; checkpointOffset = -1; checkpointIdentity = null;
             yield { ...bootstrap, offset: recordOffset, endOffset };
           } else if (strict) throw new Error(`Unknown capture metadata at ${recordOffset}`);
+          else {
+            pendingPrefixOffset ??= recordOffset;
+            const header = Buffer.allocUnsafe(8);
+            header.writeUInt32LE(META_FRAME_MAGIC, 0);
+            header.writeUInt32LE(size, 4);
+            yield { kind: "metadata", offset: recordOffset, endOffset, bytes: Buffer.concat([header, payload]) };
+          }
         }
         continue;
       }
@@ -432,7 +477,11 @@ export async function* iterateSessionCaptureRecordsAsync(
       }
       previous = frame;
       const endOffset = offset;
-      yield frameTimeMs === undefined ? { kind: "frame", offset: recordOffset, endOffset, frame } : { kind: "frame", offset: recordOffset, endOffset, frame, frameTimeMs };
+      const record: Extract<SessionCaptureRecord, { kind: "frame" }> = { kind: "frame", offset: recordOffset, endOffset, frame };
+      if (pendingPrefixOffset !== undefined) record.prefixOffset = pendingPrefixOffset;
+      if (frameTimeMs !== undefined) record.frameTimeMs = frameTimeMs;
+      yield record;
+      pendingPrefixOffset = undefined;
     }
   } finally {
     await iterator.return?.();
@@ -443,14 +492,16 @@ export type SessionImportFrame =
   | typeof SESSION_SEGMENT_BOUNDARY
   | typeof SESSION_SEGMENT_CONTEXT
   | typeof SESSION_SEGMENT_CONTEXT_END
-  | ParserBootstrapPayload;
+  | ParserBootstrapPayload
+  | { kind: "metadata"; bytes: Buffer };
 export function* iterateSessionImportFrames(bytes: Buffer): Generator<SessionImportFrame> {
   for (const record of iterateSessionCaptureRecords(bytes)) {
     if (record.kind === "segment-boundary") yield SESSION_SEGMENT_BOUNDARY;
     else if (record.kind === "segment-context") yield SESSION_SEGMENT_CONTEXT;
     else if (record.kind === "segment-context-end") yield SESSION_SEGMENT_CONTEXT_END;
     else if (record.kind === "parser-bootstrap") yield { kind: record.kind, gameId: record.gameId, formatVersion: record.formatVersion, payload: record.payload };
-    else yield record.frame;
+    else if (record.kind === "frame") yield record.frame;
+    else yield { kind: "metadata", bytes: record.kind === "metadata" ? record.bytes : bytes.subarray(record.offset, record.endOffset) };
   }
 }
 export function* iterateSessionFrameRecords(

@@ -73,6 +73,7 @@ export async function verifyLiveCaptureAgainstOffline({ sessionId, outputDirecto
       else if (record.kind === "segment-boundary") yield SESSION_SEGMENT_BOUNDARY;
       else if (record.kind === "segment-context") yield SESSION_SEGMENT_CONTEXT;
       else if (record.kind === "segment-context-end") yield SESSION_SEGMENT_CONTEXT_END;
+      else if ("bytes" in record) yield { kind: "metadata" as const, bytes: record.bytes };
       else yield record;
     }
   }

@@ -69,6 +69,7 @@ export interface ParserSourceInput {
   frame: Buffer;
   timestampMs?: number;
   locator: ParserReplayLocator | null;
+  deferCapture?: boolean;
 }
 type ParserSourceListener = (input: ParserSourceInput) => void;
 const parserSourceListeners = new Set<ParserSourceListener>();
@@ -116,7 +117,7 @@ function historyFor(gameId: string): ParserHistory {
   return history;
 }
 
-function trackParserInput(adapter: ServerGameAdapter, frame: Buffer, timestampMs?: number): number {
+function trackParserInput(adapter: ServerGameAdapter, frame: Buffer, timestampMs?: number, deferCapture = false): number {
   const history = historyFor(adapter.id);
   const sequence = history.nextSequence++;
   if (sequence % PARSER_ANCHOR_INTERVAL === 0) {
@@ -156,7 +157,7 @@ function trackParserInput(adapter: ServerGameAdapter, frame: Buffer, timestampMs
       : null;
     if (locator && anchor) parserReplayLocatorData.set(locator, { anchor, precedingTail });
     const input: ParserSourceInput = {
-      gameId: adapter.id as GameId, sequence, frame, timestampMs, locator,
+      gameId: adapter.id as GameId, sequence, frame, timestampMs, locator, deferCapture,
     };
     let remaining = parserSourceListeners.size;
     for (const listener of parserSourceListeners) {
@@ -185,11 +186,12 @@ export function trackFrameLocalParserInput(
   gameId: string,
   frame: Buffer,
   timestampMs?: number,
+  deferCapture = false,
 ): number | null {
   ensureStates();
   const adapter = getAllServerGames().find((candidate) => candidate.id === gameId);
   if (!adapter?.parserStateIsFrameLocal || !adapter.canHandle(frame)) return null;
-  return trackParserInput(adapter, frame, timestampMs);
+  return trackParserInput(adapter, frame, timestampMs, deferCapture);
 }
 
 /** Latest recognized input frame; caller may bind sequence to source coordinates. */

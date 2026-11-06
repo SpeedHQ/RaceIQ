@@ -42,6 +42,15 @@ ACC, Assetto Corsa Evo, and iRacing use native Windows shared-memory telemetry. 
 
 RaceIQ checks for releases automatically. Force check from **Settings → About → Check for updates**. When update is available, install it from RaceIQ update prompt.
 
+## Optional live-engineer voice pack
+
+Live Engineer voice audio downloads separately from RaceIQ and remains optional. When enabled for the release, setup offers installation after Sound setup; choose **Skip for now** to finish without downloading or changing Radio preferences. Use **Settings → Live Engineer** to install or manage the package later.
+
+Live Engineer settings show installed, minimum supported, and latest compatible package revisions, plus installed/required engine, catalog, and locale. Use **Check for updates** for a manual check even when Radio audio is off. Automatic checks run 10 seconds after startup, every four hours, and when audio changes from both-off to enabled. Automatic checks and the bottom-right update prompt require both the release feature and at least one enabled Radio audio switch. Installation never enables those switches. Failed downloads, integrity checks, or publication leave the existing package intact and allow retry.
+
+Voice-pack manifests declare `catalogVersion` (segment/recipe compatibility), `engineVersion` (runtime compatibility), `packageVersion` (recording revision), and `language` (locale). Catalog and engine requirements must match; package revision may be newer than the minimum when otherwise compatible. Voice assets live in `%APPDATA%\\RaceIQ\\userdata\\voice-packs`, outside the application install directory.
+
+
 ## Data storage
 
 Application data is stored at `%APPDATA%/raceiq`, including database, settings, recordings, and imported state.
