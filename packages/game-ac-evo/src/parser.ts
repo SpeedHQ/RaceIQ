@@ -25,10 +25,9 @@ import {
   ACEVO_STATUS,
   ACEVO_FLAG_NAMES,
   ACEVO_CAR_LOCATION,
-  ACEVO_SESSION_TYPE_NAMES,
   ACEVO_STARTING_GRIP_NAMES,
 } from "@raceiq/capture-formats/ac-evo/structs";
-import { readCString } from "./utils";
+import { readCString, resolveAcEvoSessionType } from "./utils";
 import { acEvoCarId, acEvoTrackId } from "@raceiq/game-ac-evo-metadata/identity";
 
 
@@ -355,6 +354,7 @@ export function parseAcEvoBuffers(
 
   // --- AC Evo extended telemetry (previously-ignored shm fields) ---
   const sessionRaw = staticBuf.readInt32LE(STATIC_EVO.session.offset);
+  const sessionName = readCString(staticBuf, STATIC_EVO.session_name.offset, STATIC_EVO.session_name.size);
   const startingGripRaw = staticBuf.readInt32LE(STATIC_EVO.starting_grip.offset);
   const sessBase = GRAPHICS_EVO.session_state_base.offset;
   const timBase = GRAPHICS_EVO.timing_state_base.offset;
@@ -364,8 +364,8 @@ export function parseAcEvoBuffers(
     graphicsPacketId: graphicsBuf.readInt32LE(GRAPHICS_EVO.packetId.offset),
     acEvoVersion: readCString(staticBuf, STATIC_EVO.ac_evo_version.offset, STATIC_EVO.ac_evo_version.size),
 
-    sessionType: ACEVO_SESSION_TYPE_NAMES[sessionRaw] ?? "unknown",
-    sessionName: readCString(staticBuf, STATIC_EVO.session_name.offset, STATIC_EVO.session_name.size),
+    sessionType: resolveAcEvoSessionType(sessionRaw, sessionName),
+    sessionName,
     startingGrip: ACEVO_STARTING_GRIP_NAMES[startingGripRaw] ?? "unknown",
     isStaticWeather: staticBuf.readUInt8(STATIC_EVO.is_static_weather.offset) !== 0,
     isTimedRace: staticBuf.readUInt8(STATIC_EVO.is_timed_race.offset) !== 0,

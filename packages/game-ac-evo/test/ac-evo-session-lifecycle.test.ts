@@ -154,12 +154,34 @@ describe("AC Evo lap detector — session lifecycle", () => {
     ] as const) {
       const t = readFirstTriplet();
       t.staticData.writeInt32LE(ordinal, STATIC_EVO.session.offset);
+      t.staticData.fill(0, STATIC_EVO.session_name.offset, STATIC_EVO.session_name.offset + STATIC_EVO.session_name.size);
       const graphics = setStatus(t.graphics, ACEVO_STATUS.AC_LIVE);
       const packet = parseAcEvoBuffers(t.physics, graphics, t.staticData, createAcEvoParserCache());
       const db = new CapturingDbAdapter();
       await new LapDetectorAcEvo({ db }).feed(packet!);
       expect(db.sessions[0].sessionType).toBe(expected);
     }
+  });
+
+  test("fills an unknown session from the native phase name after startup", async () => {
+    const { physics, graphics, staticData } = readFirstTriplet();
+    const live = setStatus(graphics, ACEVO_STATUS.AC_LIVE);
+    const cache = createAcEvoParserCache();
+    const db = new CapturingDbAdapter();
+    const detector = new LapDetectorAcEvo({ db });
+    const nameOffset = STATIC_EVO.session_name.offset;
+    staticData.fill(0, nameOffset, nameOffset + STATIC_EVO.session_name.size);
+    staticData.writeInt32LE(-1, STATIC_EVO.session.offset);
+    await detector.feed(parseAcEvoBuffers(physics, live, staticData, cache)!);
+    expect(db.sessions[0]?.sessionType).toBe("unknown");
+
+    staticData.writeInt32LE(0, STATIC_EVO.session.offset);
+    await detector.feed(parseAcEvoBuffers(physics, live, staticData, cache)!);
+    expect(db.sessions[0]?.sessionType).toBe("unknown");
+
+    staticData.write("Practice", nameOffset);
+    await detector.feed(parseAcEvoBuffers(physics, live, staticData, cache)!);
+    expect(db.sessions.map(session => session.sessionType)).toEqual(["practice"]);
   });
 
   test("flushStaleLap finalises session after 10s silence", async () => {
