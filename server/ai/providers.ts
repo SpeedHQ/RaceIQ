@@ -7,7 +7,7 @@ import { logLlmEvent, withLlmDiagnostics } from "./diagnostic-logging";
 import { AiProviderError } from "./provider-error";
 import { buildGoogleThinkingProviderOptions } from "./google-provider-options";
 import { ANTHROPIC_OPENAI_BASE_URL, deepseekCompatibleBody, isAnthropicEndpoint, openAiCompatibleAuthHeaders } from "./openai-compatible-headers";
-import { defaultReasoningEffortFor, isDeepSeekEndpoint, mapDeepSeekModels, responseFormatFor } from "./provider-capabilities";
+import { defaultReasoningEffortFor, describeCompatibleApiFailure, isDeepSeekEndpoint, mapDeepSeekModels, responseFormatFor } from "./provider-capabilities";
 import { baseUrlFor } from "./provider-endpoints";
 export interface AiResult {
   analysis: string;
@@ -411,15 +411,14 @@ export async function runOpenAiCompatible(options: OpenAiRequestOptions): Promis
       const errBody = await res.text();
       console.error("[AI] OpenAI-compatible API error:", res.status, errBody);
       throw new AiProviderError(
-        res.status === 401
-          ? "Invalid API key. Check your key in Settings."
-          : `OpenAI API error: ${res.status}`,
+        describeCompatibleApiFailure(providerLabel, res.status),
         {
           code: "upstream",
           provider: providerLabel,
           modelId: model,
           statusCode: res.status,
-          isRetryable: res.status >= 500,
+          // 429 means "slow down", not "give up": the caller may retry the same request.
+          isRetryable: res.status >= 500 || res.status === 429,
           responseBody: errBody,
         },
       );
