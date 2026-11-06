@@ -37,15 +37,9 @@ export function CornerActionMarkdown({ text, actions }: { text: string; actions:
             cornerFocus.focus(action, { loop: event.shiftKey });
           }}
           onKeyDown={(event) => {
-            const space = event.code === "Space" || event.key === " " || event.key === "Space" || event.key === "Spacebar";
-            if (event.key !== "Enter" && !space) return;
-            event.preventDefault();
-            event.stopPropagation();
-            cornerFocus.focus(action, { loop: event.shiftKey });
-          }}
-          onKeyUp={(event) => {
-            const space = event.code === "Space" || event.key === " " || event.key === "Space" || event.key === "Spacebar";
-            if (event.key !== "Enter" && !space) return;
+            // Activate on keydown and cancel the native click so one press
+            // focuses exactly once instead of running keydown + keyup + click.
+            if (event.key !== "Enter" && event.key !== " " && event.code !== "Space") return;
             event.preventDefault();
             event.stopPropagation();
             cornerFocus.focus(action, { loop: event.shiftKey });

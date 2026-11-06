@@ -42,19 +42,9 @@ export function CornerActionText({
               focus(part.action, { loop: event.shiftKey });
             }}
             onKeyDown={(event) => {
-              // Handle both keys explicitly so Shift+Space does not depend on the
-              // browser's synthetic click, which Playwright and some ATs omit.
-              const space = event.code === "Space" || event.key === " " || event.key === "Space" || event.key === "Spacebar";
-              if (event.key !== "Enter" && !space) return;
-              event.preventDefault();
-              event.stopPropagation();
-              focus(part.action, { loop: event.shiftKey });
-            }}
-            onKeyUp={(event) => {
-              const space = event.code === "Space" || event.key === " " || event.key === "Space" || event.key === "Spacebar";
-              if (event.key !== "Enter" && !space) return;
-              // Base UI can consume the Space keydown before the activation
-              // reaches the button in some browsers; keyup is the fallback.
+              // Activate on keydown and cancel the native click so one press
+              // focuses exactly once instead of running keydown + keyup + click.
+              if (event.key !== "Enter" && event.key !== " " && event.code !== "Space") return;
               event.preventDefault();
               event.stopPropagation();
               focus(part.action, { loop: event.shiftKey });

@@ -8,6 +8,9 @@ import { createSpectateController, prepareSpectateLap } from "./spectate-replay"
 import { useCornerFocus } from "./corner-focus-react";
 import { SpectateView } from "./SpectateView";
 import { useLocalStorage, useSettings } from "./host";
+/** Focused controls own Space; the replay shortcut only drives empty surfaces. */
+const INTERACTIVE_SPACE_TARGETS = 'button, a[href], [role="button"], [role="link"], [role="menuitem"], [role="tab"], [role="switch"], [role="checkbox"], [role="radio"]';
+
 export interface SingleReplaySessionProps {
   gameId: GameId;
   lap: LapMeta | ReplayOpponentMetadata;
@@ -85,6 +88,9 @@ export function SingleReplaySession({ gameId, lap, replay, outline, segments, tr
       if (target instanceof HTMLElement && (target.isContentEditable || target.closest('textarea, select, [role="textbox"], [role="dialog"], [role="alertdialog"]'))) return;
       if (target instanceof HTMLInputElement && !["range", "checkbox", "radio", "button", "submit", "reset"].includes(target.type)) return;
       if (arrow && target instanceof Element && target.closest('input, [role="separator"], [role="slider"], [role="combobox"], [role="listbox"], [role="tablist"], [role="menu"], [role="tree"], [role="grid"], [role="spinbutton"], [role="radiogroup"], [role="toolbar"]')) return;
+      // Space belongs to the focused control (native activation); arrows keep
+      // their existing scrub behaviour on interactive targets.
+      if (!arrow && target instanceof Element && target.closest(INTERACTIVE_SPACE_TARGETS)) return;
       event.preventDefault();
       event.stopPropagation();
       if (arrow) {

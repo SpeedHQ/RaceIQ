@@ -14,6 +14,9 @@ import { SpectateView } from "./SpectateView";
 import { useCornerFocus } from "./corner-focus-react";
 import type { SpectateController, ReplaySession, SpectateLap, SpectateSegment } from "../contracts/spectate";
 
+/** Focused controls own Space; the replay shortcut only drives empty surfaces. */
+const INTERACTIVE_SPACE_TARGETS = 'button, a[href], [role="button"], [role="link"], [role="menuitem"], [role="tab"], [role="switch"], [role="checkbox"], [role="radio"]';
+
 type OpponentReplayComparison = {
   kind: "opponent";
   playerLap: LapMeta;
@@ -134,6 +137,7 @@ useEffect(() => {
     if (target instanceof HTMLElement) {
       if (target.isContentEditable || target.closest('textarea, select, [role="textbox"], [role="dialog"], [role="alertdialog"]')) return;
       if (target instanceof HTMLInputElement && !["range", "checkbox", "radio", "button", "submit", "reset"].includes(target.type)) return;
+      if (target.closest(INTERACTIVE_SPACE_TARGETS)) return;
     }
     // Capture both phases of native Space activation before focused controls
     // can click, seek, or scroll instead of controlling replay.
