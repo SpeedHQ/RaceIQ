@@ -245,8 +245,10 @@ export function startCornerFocus(
       controller.seekDistance(entry, true);
       return;
     }
-    controller.pause();
+    // Unsubscribe before pausing: the real controller publishes synchronously,
+    // and a still-subscribed tick would re-enter pause until the stack overflows.
     stop();
+    controller.pause();
     options.onExit?.();
   };
 

@@ -47,6 +47,7 @@ export function AnalysisDisplay({
   const actions = useMemo(() => (staleAnalysis ? [] : parseCornerActions(analysis.actions)), [analysis.actions, staleAnalysis]);
   const cornerFocus = useCornerFocusController();
   const focusEnabled = cornerFocus.enabled && !staleAnalysis;
+  const jumpToFrac = staleAnalysis ? undefined : onJumpToFrac;
   const inline = (text: string, path: string) => {
     const matching = actions.filter((action) => action.path === path);
     return matching.length > 0 ? <CornerActionText text={text} actions={matching} /> : text;
@@ -96,7 +97,7 @@ export function AnalysisDisplay({
                 key={corner.name}
                 seg={findSegment(lookupSegs, corner.name)}
                 color={corner.severity === "major" ? "critical" : corner.severity === "moderate" ? "warning" : "good"}
-                onJumpToFrac={onJumpToFrac}
+                onJumpToFrac={jumpToFrac}
                 onFocusCorner={focusEnabled ? () => focusSegment(findSegment(lookupSegs, corner.name)) : undefined}
                 onHighlightsChange={onHighlightsChange}
                 className="bg-app-surface-alt/40 border border-app-border-input/40 rounded-lg px-2.5 py-2"
@@ -121,7 +122,7 @@ export function AnalysisDisplay({
                 key={item.corner}
                 seg={findSegment(lookupSegs, item.corner)}
                 color={item.assessment}
-                onJumpToFrac={onJumpToFrac}
+                onJumpToFrac={jumpToFrac}
                 onFocusCorner={focusEnabled ? () => focusSegment(findSegment(lookupSegs, item.corner)) : undefined}
                 onHighlightsChange={onHighlightsChange}
                 className={`rounded-lg border px-2.5 py-1.5 ${ASSESSMENT_BG[item.assessment]}`}
@@ -145,7 +146,7 @@ export function AnalysisDisplay({
                 key={item.corner}
                 seg={findSegment(lookupSegs, item.corner)}
                 color={item.assessment}
-                onJumpToFrac={onJumpToFrac}
+                onJumpToFrac={jumpToFrac}
                 onFocusCorner={focusEnabled ? () => focusSegment(findSegment(lookupSegs, item.corner)) : undefined}
                 onHighlightsChange={onHighlightsChange}
                 className={`rounded-lg border px-2.5 py-1.5 ${ASSESSMENT_BG[item.assessment]}`}
@@ -165,7 +166,7 @@ export function AnalysisDisplay({
           <SectionHeader icon={<Lightbulb className="size-3" />} title={m.label_coaching()} />
           <div className="flex flex-col gap-1.5">
             {analysis.coaching.map((item, i) => (
-              <TrackCard key={item.tip} seg={findSegment(lookupSegs, item.tip, item.detail)} color="warning" onJumpToFrac={onJumpToFrac} onFocusCorner={focusEnabled ? () => focusSegment(findSegment(lookupSegs, item.tip, item.detail)) : undefined} onHighlightsChange={onHighlightsChange} className="flex gap-2">
+              <TrackCard key={item.tip} seg={findSegment(lookupSegs, item.tip, item.detail)} color="warning" onJumpToFrac={jumpToFrac} onFocusCorner={focusEnabled ? () => focusSegment(findSegment(lookupSegs, item.tip, item.detail)) : undefined} onHighlightsChange={onHighlightsChange} className="flex gap-2">
                 <span className="text-ai-accent/60 text-app-caption font-mono mt-0.5">{i + 1}.</span>
                 <div>
                   <span className="text-app-compact font-medium text-app-text">{inline(item.tip, `technique[${i}].tip`)}</span>

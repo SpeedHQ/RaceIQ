@@ -15,7 +15,7 @@ function fakeController() {
     getFrameSnapshot: snapshot,
     subscribe: (listener) => { listeners.add(listener); return () => listeners.delete(listener); },
     play: () => calls.push("play"),
-    pause: () => calls.push("pause"),
+    pause: () => { calls.push("pause"); listeners.forEach((listener) => listener()); },
     scrub: () => {},
     seekDistance: (value) => { calls.push(`seek:${value}`); distance = value; seeking = true; setTimeout(() => { seeking = false; listeners.forEach((l) => l()); }, 0); },
     seekFrame: () => {},

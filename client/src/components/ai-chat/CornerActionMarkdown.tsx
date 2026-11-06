@@ -37,7 +37,15 @@ export function CornerActionMarkdown({ text, actions }: { text: string; actions:
             cornerFocus.focus(action, { loop: event.shiftKey });
           }}
           onKeyDown={(event) => {
-            if (event.key !== "Enter") return;
+            const space = event.code === "Space" || event.key === " " || event.key === "Space" || event.key === "Spacebar";
+            if (event.key !== "Enter" && !space) return;
+            event.preventDefault();
+            event.stopPropagation();
+            cornerFocus.focus(action, { loop: event.shiftKey });
+          }}
+          onKeyUp={(event) => {
+            const space = event.code === "Space" || event.key === " " || event.key === "Space" || event.key === "Spacebar";
+            if (event.key !== "Enter" && !space) return;
             event.preventDefault();
             event.stopPropagation();
             cornerFocus.focus(action, { loop: event.shiftKey });
