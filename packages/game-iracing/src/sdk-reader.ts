@@ -91,6 +91,8 @@ export const IRACING_TELEMETRY_VARIABLES = [
   "RFcoldPressure",
   "LRcoldPressure",
   "RRcoldPressure",
+  "IsDiskLoggingEnabled",
+  "IsDiskLoggingActive",
 ] as const;
 
 interface IRacingDataBufferHeader {

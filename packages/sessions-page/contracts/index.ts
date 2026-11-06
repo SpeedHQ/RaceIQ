@@ -14,7 +14,54 @@ export type { SessionsTab, SessionsSearch } from "./search";
 export type SessionExportSelection = { lapIds?: number[]; sessionIds?: number[] };
 export type SessionNames = { trackNames: Record<string, string>; carNames: Record<string, string> };
 export type LiveCaptureLifecycle = { phase: "recording" | "finalizing" | "sealed" | "failed"; error?: string };
-export interface SessionsPageHost {
+export interface IbtImportPreview {
+  gameId: "iracing";
+  fileName: string;
+  fileSize: number;
+  tickRate: number;
+  recordCount: number;
+  durationSeconds: number;
+  sessionStartDate: string;
+  trackId: string;
+  trackName: string;
+  carId: string;
+  carName: string;
+  carClassName: string;
+  missingRaceIQVariables: string[];
+  missingRequiredVariables: string[];
+  drivingFrames: number;
+  pitRoadFrames: number;
+  lapTransitions: number;
+  candidateLapCount: number;
+  maxSpeedMph: number;
+  firstDrivingRecord: number | null;
+  lastDrivingRecord: number | null;
+  canImport: boolean;
+  reason: string | null;
+}
+export interface IbtImportPreviewModalProps {
+  token: string | null;
+  preview: IbtImportPreview;
+  importing: boolean;
+  ownership: SessionOwnership;
+  onOwnershipChange: (value: SessionOwnership) => void;
+  onImport: () => void;
+  onClose: () => void;
+}
+export interface IbtImportActions {
+  importingBin: boolean;
+  ownership: SessionOwnership;
+  setOwnership: (value: SessionOwnership) => void;
+  ibtPreview: { token: string | null; preview: IbtImportPreview } | null;
+  handleImportBin: (file: File) => Promise<void>;
+  handleCancelIbt: () => void;
+  handleCommitIbt: () => Promise<{ laps: { lapId: number }[]; packetCount: number; gameId: string } | undefined>;
+}
+export interface IbtImportHost {
+  IbtImportPreviewModal: ComponentType<IbtImportPreviewModalProps>;
+  useIbtImport: () => IbtImportActions;
+}
+export interface SessionsPageHost extends IbtImportHost {
   m: SessionsMessages;
   Button: ComponentType<BaseButton.Props & { variant?: "app-outline" | "app-primary" | "app-ghost" | "app-danger"; size?: "app-sm" | "app-md" | "icon-xs" }>;
   Badge: ComponentType<ComponentProps<"span"> & { variant?: "neutral" | "info"; size?: "compact" }>;

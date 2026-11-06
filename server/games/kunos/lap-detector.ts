@@ -124,7 +124,8 @@ export class KunosLapDetector implements ILapDetector {
       classification = classifyLapCategory(packets, pitReason, capture.trigger, quality.valid);
       isValid = recordedValidity !== false && quality.valid;
       invalidReason = recordedValidity === false ? "game reported invalid" : quality.valid ? null : quality.reason;
-      if (isValid) { const cutReason = this.classifyTrackLimits(packets); if (cutReason) { isValid = false; invalidReason = cutReason; } }
+      if (classification === "out_lap") { isValid = false; invalidReason = "outlap"; }
+      else if (isValid) { const cutReason = this.classifyTrackLimits(packets); if (cutReason) { isValid = false; invalidReason = cutReason; } }
     }
     const trackIdentity = session.trackId;
     if (isValid && openRoute) {

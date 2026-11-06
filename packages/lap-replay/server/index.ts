@@ -21,6 +21,13 @@ import { canonicalizeTelemetryScalar } from "@raceiq/telemetry-core/telemetry/re
 import { createLmuContextEncoder } from "@raceiq/shared/telemetry/lmu-context";
 import { createSemanticReplayEncoder, SEMANTIC_REPLAY_MEDIA_TYPE } from "../contracts/replay-wire";
 import type { SemanticLapTelemetry } from "../contracts/replay";
+const IRACING_TRACK_MAP_SEMANTIC_IDS: Record<string, true> = {
+  "identity.track.latitude": true,
+  "identity.track.longitude": true,
+  "motion.latitude": true,
+  "motion.longitude": true,
+  "timing.lap-fraction": true,
+};
 import type { ProcessingMetadata } from "@raceiq/shared/racing/sessions/types";
 
 export function semanticReplayIds(gameId: GameId): readonly string[] {
@@ -57,7 +64,10 @@ export const replayRoutes = new Hono()
       }
       const lap = await getLapById(id, meta.processing);
       if (!lap) return c.json({ error: "Lap not found" }, 404);
+      const trackMapView = c.req.query("view") === "track-map";
+      if (trackMapView && gameIdResult.data !== "iracing") return c.json({ error: "Track map replay is only available for iRacing" }, 400);
       if (lap.parseError) {
+        if (trackMapView) return c.json({ lapId: id, trackOrigin: null, samples: [], parseError: lap.parseError });
         return c.json({
           lapId: id, requestedSemanticIds: [], sectorTimes: meta.sectorTimes ?? null,
           sectorStarts: null, insights: [], detectorCoverage: INSIGHT_DETECTORS.map((detector) => ({ ...detector, status: "unavailable" as const, reason: "Lap telemetry could not be parsed" })), parseError: lap.parseError, envelopes: [],
@@ -80,6 +90,38 @@ export const replayRoutes = new Hono()
             )
           : source.rawFile ? await loadRawCaptureIdentity(source.rawFile) : undefined
         : undefined;
+      if (trackMapView) {
+        const trackMapSemanticIds = semanticReplayIds("iracing").filter((semanticId) => IRACING_TRACK_MAP_SEMANTIC_IDS[semanticId] === true);
+        const trackMapReplay = resolveTelemetryReplay(id, replaySource, lap.telemetry, trackMapSemanticIds, rawCapture);
+        const readNumber = (values: typeof trackMapReplay.envelopes[number]["values"], semanticId: string) => {
+          const value = values.find((entry) => entry.semanticId === semanticId);
+          return value
+            && (value.state === undefined || value.state === "ok")
+            && (value.freshness === undefined || value.freshness === "fresh")
+            && typeof value.value === "number"
+            && Number.isFinite(value.value)
+            ? value.value
+            : null;
+        };
+        const firstNumber = (semanticId: string) => {
+          for (const envelope of trackMapReplay.envelopes) {
+            const value = readNumber(envelope.values, semanticId);
+            if (value !== null) return value;
+          }
+          return null;
+        };
+        const latitude = firstNumber("identity.track.latitude");
+        const longitude = firstNumber("identity.track.longitude");
+        return c.json({
+          lapId: trackMapReplay.lapId,
+          trackOrigin: latitude !== null && longitude !== null ? { latitude, longitude } : null,
+          samples: trackMapReplay.envelopes.map(({ values }) => ({
+            latitude: readNumber(values, "motion.latitude"),
+            longitude: readNumber(values, "motion.longitude"),
+            fraction: readNumber(values, "timing.lap-fraction"),
+          })),
+        });
+      }
       const semanticIds = meta.gameId === "lmu" ? [...new Set([...semanticReplayIds(meta.gameId), ...liveSemanticIds("lmu")])] : semanticReplayIds(meta.gameId);
       const compact = c.req.header("Accept")?.split(",").some((value) => value.trim() === SEMANTIC_REPLAY_MEDIA_TYPE) ?? false;
       const encoder = compact ? createSemanticReplayEncoder() : undefined;

@@ -434,6 +434,7 @@
         "@raceiq/telemetry-core": "workspace:*",
         "@raceiq/telemetry-processor": "workspace:*",
         "@raceiq/tooling": "workspace:*",
+        "@raceiq/tooling": "workspace:*",
         "@raceiq/tooling-data": "workspace:*",
         "@raceiq/tooling-release": "workspace:*",
         "@raceiq/tracks-catalogue": "workspace:*",
@@ -691,6 +692,7 @@
       "devDependencies": {
         "@playwright/test": "1.62.1",
         "@raceiq/backend-core": "workspace:*",
+        "@raceiq/game-catalogs": "workspace:*",
         "@raceiq/game-lmu": "workspace:*",
         "@raceiq/lap-replay": "workspace:*",
         "@raceiq/shared": "workspace:*",

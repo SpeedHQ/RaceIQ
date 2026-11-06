@@ -4,9 +4,11 @@ import { resolve } from "node:path";
 import { resetTestDatabase } from "./reset-test-database";
 import { seedScreenshotData } from "./seed-screenshot-data";
 import { normalizeSeededCapturePaths } from "./seeded-database";
-import { iterateSessionCaptureRecordsFromSource } from "@raceiq/backend-core/session-capture/source-loader";
+import { iterateSessionCaptureRecordsFromSource, loadSessionSource } from "@raceiq/backend-core/session-capture/source-loader";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { DEFAULT_GAMES } from "@raceiq/tooling-data/data/seed-db-options";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
+import { initServerGameAdapters } from "../../../apps/backend/src/games/init";
 
 const repoDir = resolve(import.meta.dir, "../../..");
 if (!process.env.DATA_DIR) throw new Error("DATA_DIR is required for seed artifact preparation");
@@ -47,14 +49,22 @@ try {
     chatDatabase.close();
   }
   // Verify generated captures before replacing producer-specific absolute paths.
+  initGameAdapters({ iracingAdapter: true, f1Experiments: true });
+  initServerGameAdapters({ iracingAdapter: true, f1Experiments: true });
   const captures = database.prepare("SELECT raw_file, game_id, car_id, track_id, source FROM sessions")
     .all() as { raw_file: string; game_id: string; car_id: string; track_id: string; source: string | null }[];
   for (const capture of captures) {
-    let hasFrame = false;
-    for await (const record of iterateSessionCaptureRecordsFromSource({
+    const source = {
       rawFile: capture.raw_file, gameId: capture.game_id as GameId,
       carId: capture.car_id, trackId: capture.track_id, source: capture.source,
-    }, { strict: true })) {
+    };
+    if (capture.raw_file.endsWith(".ibt")) {
+      const loaded = await loadSessionSource(source);
+      if (loaded.kind !== "packets" || loaded.packets.length === 0) throw new Error(`Seeded IBT has no telemetry: ${capture.raw_file}`);
+      continue;
+    }
+    let hasFrame = false;
+    for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: true })) {
       if (record.kind === "frame") { hasFrame = true; break; }
     }
     if (!hasFrame) throw new Error(`Seeded capture has no telemetry: ${capture.raw_file}`);

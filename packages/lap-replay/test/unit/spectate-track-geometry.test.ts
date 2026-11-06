@@ -8,6 +8,38 @@ import { center, leftEdge, rightEdge, origin, geometry, expectOnPaths, type Poin
 
 initGameAdapters({ f1Experiments: true, iracingAdapter: true, ams2Adapter: true });
 
+test("iRacing map elevations come only from fixed reference vertices", () => {
+  const runtime = geometry("iracing", center);
+  const probe = runtime as unknown as { pair: { a: { samples: { scenePose?: unknown }[] } } };
+  for (let i = 0; i < center.length; i++) {
+    const point = center[i]!;
+    probe.pair.a.samples[i]!.scenePose = { ...point, y: 500 + i * 100, yaw: 0, source: "measured" };
+  }
+  runtime.setOutline(null, {
+    leftEdge: center, rightEdge: center, centerLine: center, pitLane: null, coordSystem: "iracing-replay",
+    vertexHeightsM: center.map((_, index) => index + 2),
+  });
+  expect(runtime.edgeRuns.length).toBe(2);
+  const worldHeights = runtime.edgeRuns.flatMap((run) => run.map((point) => Number((point.y + origin.y).toFixed(5))));
+  expect(new Set(worldHeights).size).toBeGreaterThan(1);
+  expect(worldHeights.every((height) => height >= 2 && height <= center.length + 1)).toBe(true);
+});
+
+test("iRacing retains approximate map bounds without replacing the recorded route", () => {
+  const runtime = geometry("iracing", center);
+  const schematic = center.map((p, i) => ({ x: p.x, z: p.z + (i === 4 ? 18 : 0) }));
+  runtime.setOutline(schematic, {
+    leftEdge: schematic.map(p => ({ x: p.x - 2, z: p.z })),
+    rightEdge: schematic.map(p => ({ x: p.x + 2, z: p.z })),
+    centerLine: schematic, pitLane: null, coordSystem: "iracing-map",
+  });
+  expect(runtime.edgeRuns).toHaveLength(2);
+  // The fixture exposes the same canvas diagnostics as the live renderer.
+  const probe = runtime as unknown as { canvas: { dataset: Record<string, string> } };
+  expect(probe.canvas.dataset.trackGeometrySource).toBe("calibrated-boundaries");
+  expect(runtime.lineRuns[0][0]![0]!.x + origin.x).toBeCloseTo(center[0]!.x);
+});
+
 
 test("track dashes retain 6/1 metre alpha masking across uneven samples, duplicates and corners", () => {
   const runtime = geometry("lmu", center);

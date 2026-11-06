@@ -1,27 +1,18 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect } from "bun:test";
 import { createClient, type Client } from "@libsql/client/sqlite3";
 import { createWorkerSqlClient, createWorkerSqlHost, type WorkerSqlOperation, type WorkerSqlRequest, type WorkerSqlResponse, type WorkerSqlSender } from "@raceiq/backend-core/db/worker-sql";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp } from "node:fs/promises";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { MessageChannel } from "node:worker_threads";
-async function removeDatabaseDirectory(directory: string) {
-  for (let attempt = 0; ; attempt++) {
-    try {
-      await rm(directory, { recursive: true, force: true });
-      return;
-    } catch (error) {
-      const isBusyOnWindows = process.platform === "win32" && error instanceof Error && "code" in error && error.code === "EBUSY";
-      if (!isBusyOnWindows || attempt === 9) throw error;
-      await new Promise<void>((resolve) => setTimeout(resolve, 200));
-    }
-  }
-}
+import { nativeDatabaseTest } from "../support/native-database-test";
+
+const test = nativeDatabaseTest(import.meta.path);
 
 async function withDatabase(run: (path: string) => Promise<void>) {
-  const directory = await mkdtemp(join(tmpdir(), "raceiq-worker-sql-"));
-  try { await run(join(directory, "database.sqlite")); }
-  finally { await removeDatabaseDirectory(directory); }
+  const directory = await mkdtemp(join(process.env.RACEIQ_NATIVE_DB_ROOT!, "worker-sql-"));
+  // nativeDatabaseTest removes this directory after the child process exits,
+  // when libSQL's native handles are guaranteed to be released.
+  await run(join(directory, "database.sqlite"));
 }
 
 function channelFor(client: Client, leaseId: string) {

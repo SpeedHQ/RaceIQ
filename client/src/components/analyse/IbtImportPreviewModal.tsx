@@ -1,46 +1,10 @@
-import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import { OwnershipChoice } from "../import/OwnershipChoice";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 import { IbtTelemetryWarning } from "./IbtTelemetryWarning";
 import { getLocale } from "@/paraglide/runtime";
-
 import { m } from "../../paraglide/messages";
-export interface IbtImportPreview {
-  gameId: "iracing";
-  fileName: string;
-  fileSize: number;
-  tickRate: number;
-  recordCount: number;
-  durationSeconds: number;
-  sessionStartDate: string;
-  trackId: string;
-  trackName: string;
-  carId: string;
-  carName: string;
-  carClassName: string;
-  missingRaceIQVariables: string[];
-  missingRequiredVariables: string[];
-  drivingFrames: number;
-  pitRoadFrames: number;
-  lapTransitions: number;
-  candidateLapCount: number;
-  maxSpeedMph: number;
-  firstDrivingRecord: number | null;
-  lastDrivingRecord: number | null;
-  canImport: boolean;
-  reason: string | null;
-}
-
-interface Props {
-  token: string | null;
-  preview: IbtImportPreview;
-  importing: boolean;
-  ownership: SessionOwnership;
-  onOwnershipChange: (value: SessionOwnership) => void;
-  onImport: () => void;
-  onClose: () => void;
-}
+import type { IbtImportPreviewModalProps } from "@raceiq/sessions-page/contracts";
 
 function formatDuration(totalSeconds: number): string {
   const seconds = Math.max(0, Math.round(totalSeconds));
@@ -56,9 +20,9 @@ function formatSize(bytes: number): string {
   return `${(bytes / 1024).toFixed(1)} KiB`;
 }
 
-export function IbtImportPreviewModal({ token, preview, importing, ownership, onOwnershipChange, onImport, onClose }: Props) {
+export function IbtImportPreviewModal({ token, preview, importing, ownership, onOwnershipChange, onImport, onClose }: IbtImportPreviewModalProps) {
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
+    <Dialog open onOpenChange={(open) => !open && !importing && onClose()}>
       <DialogContent size="md" showCloseButton={false} overlayClassName="bg-app-bg/60">
         <DialogHeader>
           <DialogTitle className="text-xs font-medium text-app-text/90 uppercase tracking-wider">{m.analyse_import_preview_title()}</DialogTitle>

@@ -36,7 +36,10 @@ function readCompleteCache(path: string, track: IRacingCatalogTrack): CachedMapF
       Array.isArray(parsed.points) &&
       parsed.points.length >= 20 &&
       Array.isArray(parsed.labels) &&
-      Array.isArray(parsed.pitLines)
+      Array.isArray(parsed.pitLines) &&
+      typeof parsed.startFinishAligned === "boolean" &&
+      typeof parsed.forwardDirectionKnown === "boolean" &&
+      parsed.ribbonEdges !== undefined
       ? parsed
       : null;
   } catch {
@@ -82,6 +85,9 @@ async function downloadMap(track: IRacingCatalogTrack): Promise<CachedMapFile> {
     points: map.points,
     labels: map.labels,
     pitLines: map.pitLines,
+    startFinishAligned: map.startFinishAligned,
+    forwardDirectionKnown: map.forwardDirectionKnown,
+    ribbonEdges: map.ribbonEdges,
   };
 }
 

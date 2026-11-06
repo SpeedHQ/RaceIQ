@@ -101,4 +101,3 @@ export const ams2Parser: TelemetryParser<AMS2ParserState> & {
   captureParserCheckpoint,
   restoreParserCheckpoint,
 };
-

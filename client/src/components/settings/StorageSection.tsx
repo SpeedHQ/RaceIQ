@@ -309,8 +309,8 @@ function StorageFilesSection() {
           <Button variant="app-outline" size="app-sm" disabled={operationBlocked || movingDirectory || isLoading} onClick={() => { setRetryRequest(null); setDownsampleOpen(true); }}>{m.storage_downsample_action()}</Button>
           <Button variant="app-outline" size="app-sm" disabled={operationBlocked || movingDirectory} onClick={() => setCleanupRequest({ mode: "older-than", olderThanDays: 30 })}>{m.sessions_cleanup_free_space()}</Button>
         </div>
-        
-        
+
+
       </div>
     </section>
   );

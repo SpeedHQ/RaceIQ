@@ -20,7 +20,8 @@ for (const [gameId, prefix] of [["fm-2023", "fm23"], ["f1-2025", "f125"]] as con
     expect((await overview.boundingBox())!.width).toBeGreaterThan(280);
     const marker = overview.locator('[data-seek-distance]').nth(1);
     const distance = Number(await marker.getAttribute("data-seek-distance"));
-    await marker.click();
+    await marker.focus();
+    await page.keyboard.press("Enter");
     await expect.poll(async () => Math.abs(Number(await clock.getAttribute("data-a-distance")) - distance)).toBeLessThan(5);
     await scene.getByRole("button", { name: "Close Circuit overview", exact: true }).click();
     await expect(overview).toHaveCount(0);

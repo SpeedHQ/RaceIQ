@@ -2,6 +2,7 @@ import type { GameId } from "@raceiq/shared/games/ids";
 
 export const queryKeys = {
   laps: ["laps"] as const,
+  iracingIncidentReport: (sessionId: number | null) => ["laps", "iracing-incidents", sessionId] as const,
   settings: ["settings"] as const,
   storageSessions: ["storage", "sessions"] as const,
   recordingDirectoryStatus: ["storage", "recording-directory", "status"] as const,

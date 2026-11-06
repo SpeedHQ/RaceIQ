@@ -129,6 +129,13 @@ deterministic. `test/fixtures/` and `test/ai-fixtures/` hold those inputs;
 recordings. Do not move, rewrite, or describe artifacts as fixtures. Do not
 commit a generated artifact when a small deterministic fixture is sufficient.
 
+Filesystem recovery fixtures must capture device/inode identity with
+`stat`/`lstat(path, { bigint: true })`, matching production journals. Number-valued
+inode fields can lose precision on Windows and incorrectly simulate a replaced file.
+
+Workspace lint scripts invoke `bun ../../client/node_modules/oxlint/bin/oxlint .`
+directly, matching existing packages and avoiding Bun's Windows `.bin` remapping.
+
 ## Placement checklist
 
 1. Pick owning domain from map; use `*.test.ts` or `*.test.tsx` for discovered tests.

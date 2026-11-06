@@ -11,7 +11,7 @@ import type { SemanticLapTelemetry } from "./replay";
 import type { ReplayMessages } from "./messages";
 type OpponentReference = Extract<OpponentLapReference, { kind: "opponent" }>;
 
-export type TrackMapBoundaries = TrackBoundaries & { centerLine: Point[]; raceLine?: Point[] | null; additionalSections?: { leftEdge: Point[]; rightEdge: Point[] }[] };
+export type TrackMapBoundaries = TrackBoundaries & { centerLine: Point[]; raceLine?: Point[] | null; additionalSections?: { leftEdge: Point[]; rightEdge: Point[] }[]; vertexHeightsM?: number[] | null };
 export type { Point } from "@raceiq/tracks-catalogue/contracts";
 export interface ReplayLineSpread { fracs: number[]; spreadM: number[]; consistencyScore: number; overallSpreadM: number; lapCount: number }
 export interface ReplayUnits { speed: (value: number) => number; speedLabel: string; temp: (value: number) => number; tempLabel: string }
