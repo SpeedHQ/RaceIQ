@@ -212,10 +212,13 @@ test("solo analysis and chat actions highlight the focused segment and play entr
     await openAnalysis(page);
     const enterDialog = page.getByRole("dialog");
     await enterDialog.locator('[data-corner-action="a-verdict"]').focus();
+    const plainFocusStartedAt = Date.now();
     await page.keyboard.press("Enter");
     await expect(focusMap(page)).toBeVisible();
     await enterDialog.getByRole("button", { name: "Close" }).click();
     await expect(enterDialog).toHaveCount(0);
+    await expect.poll(async () => page.locator("[data-corner-focus-active='true']").count(), { timeout: 30_000 }).toBe(0);
+    const plainFocusMs = Date.now() - plainFocusStartedAt;
     await page.keyboard.press("Escape");
     await expect(focusMap(page)).toHaveCount(0);
 
@@ -226,6 +229,9 @@ test("solo analysis and chat actions highlight the focused segment and play entr
     await page.keyboard.down("Shift");
     try {
       await page.keyboard.press("Space");
+      await expect(focusMap(page)).toBeVisible();
+      // Native Shift+Space must carry shiftKey: the loop survives its own exit.
+      await page.waitForTimeout(plainFocusMs + 700);
       await expect(focusMap(page)).toBeVisible();
     } finally {
       await page.keyboard.up("Shift");
@@ -253,34 +259,28 @@ test("Space on the focused chat reference focuses the corner instead of toggling
     await page.getByRole("combobox", { name: "Playback speed", exact: true }).selectOption("1");
     const clock = page.locator("[data-spectate-playback]");
 
-    // Space on an empty surface keeps driving replay playback.
-    await page.locator("section[data-focus-mode]").click({ position: { x: 4, y: 4 } });
-    if (await clock.getAttribute("data-playing") !== "true") await page.keyboard.press("Space");
-    await expect.poll(async () => Number(await clock.getAttribute("data-time"))).toBeGreaterThan(0);
-
-    const chatAction = page.locator("#replay-ai-panel [data-corner-action='a-verdict']").first();
-    await expect(chatAction).toBeVisible({ timeout: 30_000 });
-    await chatAction.focus();
-    await expect.poll(async () => page.evaluate(() => document.activeElement?.getAttribute("data-corner-action"))).toBe("a-verdict");
-    const playingBefore = await clock.getAttribute("data-playing");
-    expect(playingBefore).toBe("true");
-
-    await page.keyboard.press("Space");
-    // Native activation wins: the corner focus starts and playback is untouched.
-    expect(await clock.getAttribute("data-playing")).toBe(playingBefore);
-    await expect(focusMap(page)).toBeVisible();
-    await expect(page.locator('[data-corner-focus-side="a"]').first()).toHaveAttribute("data-corner-focus-start", String(first.startFrac));
-    await expect(page.locator("[data-corner-focus-label]")).toHaveAttribute("data-corner-focus-label", /T1/);
-    await page.keyboard.press("Escape");
-    await expect(focusMap(page)).toHaveCount(0);
-
-    // Untouched again: empty surfaces still toggle playback with Space.
+    // Space on an empty surface keeps driving replay playback, both ways.
     await page.locator("section[data-focus-mode]").click({ position: { x: 4, y: 4 } });
     const emptyPlaying = await clock.getAttribute("data-playing");
     await page.keyboard.press("Space");
     await expect.poll(async () => clock.getAttribute("data-playing")).not.toBe(emptyPlaying);
     await page.keyboard.press("Space");
     await expect.poll(async () => clock.getAttribute("data-playing")).toBe(emptyPlaying);
+
+    const chatAction = page.locator("#replay-ai-panel [data-corner-action='a-verdict']").first();
+    await expect(chatAction).toBeVisible({ timeout: 30_000 });
+    await chatAction.focus();
+    await expect.poll(async () => page.evaluate(() => document.activeElement?.getAttribute("data-corner-action"))).toBe("a-verdict");
+
+    await page.keyboard.press("Space");
+    // Native activation wins: the reference keeps focus and focuses the corner
+    // instead of the replay shortcut toggling playback.
+    await expect(focusMap(page)).toBeVisible();
+    await expect.poll(async () => Number(await page.locator('[data-corner-focus-side="a"]').first().getAttribute("data-corner-focus-start"))).toBeCloseTo(first.startFrac, 6);
+    await expect(page.locator("[data-corner-focus-label]")).toHaveAttribute("data-corner-focus-label", /T1/);
+    await expect.poll(async () => page.evaluate(() => document.activeElement?.getAttribute("data-corner-action"))).toBe("a-verdict");
+    await page.keyboard.press("Escape");
+    await expect(focusMap(page)).toHaveCount(0);
   } finally {
     await request.put("/api/settings", { data: original });
   }

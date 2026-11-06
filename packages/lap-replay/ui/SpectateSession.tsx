@@ -137,8 +137,10 @@ useEffect(() => {
     if (target instanceof HTMLElement) {
       if (target.isContentEditable || target.closest('textarea, select, [role="textbox"], [role="dialog"], [role="alertdialog"]')) return;
       if (target instanceof HTMLInputElement && !["range", "checkbox", "radio", "button", "submit", "reset"].includes(target.type)) return;
-      if (target.closest(INTERACTIVE_SPACE_TARGETS)) return;
     }
+    // Map markers are SVG elements, not HTMLElements: check every Element so a
+    // focused role=button marker keeps its own Space activation.
+    if (target instanceof Element && target.closest(INTERACTIVE_SPACE_TARGETS)) return;
     // Capture both phases of native Space activation before focused controls
     // can click, seek, or scroll instead of controlling replay.
     event.preventDefault();
